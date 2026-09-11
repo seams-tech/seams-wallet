@@ -8,7 +8,6 @@ packages:
   - packages/shared-ts
   - packages/wallet-server
   - packages/wallet
-  - voiceId
 nodeLinker: hoisted
 verifyDepsBeforeRun: false
 allowBuilds:
