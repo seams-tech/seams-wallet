@@ -27,6 +27,7 @@ jobs:
           node-version: '24'
           cache: pnpm
           registry-url: https://registry.npmjs.org
+      - uses: oven-sh/setup-bun@v2
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown

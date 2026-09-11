@@ -25,6 +25,7 @@ jobs:
         with:
           node-version: '24'
           cache: pnpm
+      - uses: oven-sh/setup-bun@v2
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
