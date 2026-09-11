@@ -10,6 +10,7 @@
     "build:signing-worker": "bash ./scripts/build-strict-worker.sh signing-worker",
     "build:tenant-root-control-plane": "bash ./scripts/build-strict-worker.sh tenant-root-control-plane",
     "dev:local-roles": "node ./scripts/start-local-role-workers.mjs",
+    "dev:local-wallet-system": "node ./scripts/start-local-wallet-system.mjs",
     "bootstrap:local-tenant-root": "node ./scripts/bootstrap-local-tenant-root.mjs",
     "dry-run:router": "wrangler deploy --dry-run --config wrangler.router.toml --outdir bundled/router --metafile bundled/router/metafile.json",
     "dry-run:deriver-a": "wrangler deploy --dry-run --config wrangler.deriver-a.toml --outdir bundled/deriver-a --metafile bundled/deriver-a/metafile.json",

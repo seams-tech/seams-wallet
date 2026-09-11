@@ -39,6 +39,250 @@ const X25519_PKCS8_PREFIX = Buffer.from('302e020100300506032b656e04220420', 'hex
 const X25519_SPKI_PREFIX = Buffer.from('302a300506032b656e032100', 'hex');
 const ED25519_PKCS8_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
 const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
+const LOCAL_CEREMONY_JWT_AUDIENCE = 'router-ab';
+const LOCAL_CEREMONY_JWT_KEY_ID = 'local-router-ab-r1';
+const LOCAL_KEY_EPOCH = 'epoch-1';
+
+export function prepareLocalHostedWalletGatewayConfig(input) {
+  const repoRoot = path.resolve(input.repoRoot);
+  const localEnvRoot = path.resolve(input.localEnvRoot ?? repoRoot);
+  const outputRoot = path.resolve(
+    input.outputRoot ?? path.join(localEnvRoot, '.runtime', 'wallet-gateway'),
+  );
+  const outputConfigPath = path.join(outputRoot, 'wrangler.local-hosted-wallet-gateway.toml');
+  const secretPath = path.join(outputRoot, '.dev.vars.wallet-gateway');
+  const routerEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.router.local'));
+  const deriverAEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-a.local'));
+  const deriverBEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-b.local'));
+  const signingWorkerEnv = readEnvMap(
+    path.join(localEnvRoot, '.env.router-ab.signing-worker.local'),
+  );
+  const gatewayUrl = requiredHttpUrl(input.gatewayUrl, 'gatewayUrl');
+  const ceremonyPrivateJwkJson = readCeremonyPrivateJwkJson(input.ceremonyPrivateJwkPath);
+  const deployment = requireLocalDeployment(input.deployment);
+  const appOrigins = requireHttpOrigins(input.appOrigins);
+
+  mkdirSync(outputRoot, { recursive: true });
+  const sourceConfigPath = path.join(
+    repoRoot,
+    'packages',
+    'wallet-server',
+    'wrangler.local-hosted-wallet-gateway.toml',
+  );
+  let config = readFileSync(sourceConfigPath, 'utf8');
+  config = replaceTomlAssignment(
+    config,
+    'main',
+    relativePosixPath(
+      outputRoot,
+      path.join(
+        repoRoot,
+        'packages',
+        'wallet-server',
+        'src',
+        'local-hosted-wallet-gateway-worker.ts',
+      ),
+    ),
+  );
+  config = replaceTomlAssignment(
+    config,
+    'migrations_dir',
+    relativePosixPath(
+      outputRoot,
+      path.join(repoRoot, 'packages', 'wallet-server', 'migrations', 'd1-signer'),
+    ),
+  );
+  writeFileSync(outputConfigPath, config);
+
+  const internalAuthSecret = requiredEnv(routerEnv, 'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET');
+  const secretValues = {
+    ACCOUNT_ID_DERIVATION_SECRET: localSecret(internalAuthSecret, 'account-id-derivation'),
+    GOOGLE_OIDC_CLIENT_ID: optionalText(input.googleOidcClientId),
+    HOSTED_WALLET_ORIGINS: appOrigins.join(','),
+    LINKED_DEVICE_TARGET_DESCRIPTOR_HMAC_SECRET: localSecret(
+      internalAuthSecret,
+      'linked-device-target',
+    ),
+    RELAY_CORS_ORIGINS: appOrigins.join(','),
+    RELAY_SESSION_HMAC_SECRET: localSecret(internalAuthSecret, 'relay-session'),
+    ROUTER_AB_CEREMONY_JWT_AUDIENCE: LOCAL_CEREMONY_JWT_AUDIENCE,
+    ROUTER_AB_CEREMONY_JWT_ISSUER: gatewayUrl,
+    ROUTER_AB_CEREMONY_JWT_KEY_ID: LOCAL_CEREMONY_JWT_KEY_ID,
+    ROUTER_AB_CEREMONY_JWT_PRIVATE_JWK: ceremonyPrivateJwkJson,
+    ROUTER_AB_ECDSA_REGISTRATION_TOPOLOGY_JSON: localRegistrationTopologyJson({
+      routerEnv,
+      signingWorkerEnv,
+    }),
+    ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET: internalAuthSecret,
+    ROUTER_AB_NORMAL_SIGNING_WORKER_ID: requiredEnv(routerEnv, 'SIGNING_WORKER_ID'),
+    ROUTER_AB_PUBLIC_KEYSET_JSON: localPublicKeysetJson({
+      routerEnv,
+      deriverAEnv,
+      deriverBEnv,
+      signingWorkerEnv,
+    }),
+    SEAMS_STAGING_ENV_ID: deployment.deployment.environmentId,
+    SEAMS_STAGING_ORG_ID: deployment.deployment.orgId,
+    SEAMS_STAGING_PROJECT_ID: deployment.deployment.projectId,
+    SIGNING_SESSION_SEAL_ACCEPTED_WARM_KEY_VERSIONS: 'signing-session-seal-local-r2',
+    SIGNING_SESSION_SEAL_CURRENT_KEY_VERSION: 'signing-session-seal-local-r2',
+    SIGNING_SESSION_SEAL_ROOT_SECRET_B64U: localSecret(internalAuthSecret, 'signing-session-seal'),
+    SIGNING_WORKER_ID: requiredEnv(routerEnv, 'SIGNING_WORKER_ID'),
+    WALLET_LOCAL_DEPLOYMENT_JSON: JSON.stringify(deployment),
+  };
+  writeFileSync(secretPath, renderDevVars(secretValues), { mode: 0o600 });
+  chmodSync(secretPath, 0o600);
+
+  return Object.freeze({
+    configPath: outputConfigPath,
+    secretPath,
+    gatewayUrl,
+    signerDatabaseName: 'seams-wallet-signer-local',
+  });
+}
+
+function requireLocalDeployment(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('deployment must be a local Wallet deployment object');
+  }
+  return value;
+}
+
+function requireHttpOrigins(values) {
+  if (!Array.isArray(values) || values.length === 0) {
+    throw new Error('appOrigins must contain at least one origin');
+  }
+  return Object.freeze(values.map((value) => requiredHttpUrl(value, 'appOrigins')));
+}
+
+function requiredHttpUrl(value, label) {
+  const url = new URL(requireNonEmptyInput(value, label));
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error(`${label} must use HTTP or HTTPS`);
+  }
+  return url.origin;
+}
+
+function readCeremonyPrivateJwkJson(filePath) {
+  const resolvedPath = path.resolve(requireNonEmptyInput(filePath, 'ceremonyPrivateJwkPath'));
+  const value = JSON.parse(readFileSync(resolvedPath, 'utf8'));
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    value.kty !== 'OKP' ||
+    value.crv !== 'Ed25519' ||
+    typeof value.x !== 'string' ||
+    !value.x ||
+    typeof value.d !== 'string' ||
+    !value.d
+  ) {
+    throw new Error(`Invalid ceremony private JWK at ${resolvedPath}`);
+  }
+  return JSON.stringify(value);
+}
+
+function localPublicKeysetJson(input) {
+  return JSON.stringify({
+    keyset_version: 'router_ab_keyset_v2',
+    signer_envelope_hpke: {
+      current: {
+        deriver_a: {
+          role: 'signer_a',
+          key_epoch: LOCAL_KEY_EPOCH,
+          public_key: requiredEnv(input.routerEnv, 'DERIVER_A_ED25519_YAO_INPUT_PUBLIC_KEY'),
+        },
+        deriver_b: {
+          role: 'signer_b',
+          key_epoch: LOCAL_KEY_EPOCH,
+          public_key: requiredEnv(input.routerEnv, 'DERIVER_B_ED25519_YAO_INPUT_PUBLIC_KEY'),
+        },
+      },
+    },
+    signer_peer_verifying_keys: {
+      deriver_a: {
+        role: 'signer_a',
+        verifying_key_hex: localPeerVerifyingKeyHex(
+          requiredEnv(input.deriverAEnv, 'DERIVER_A_PEER_SIGNING_KEY'),
+        ),
+      },
+      deriver_b: {
+        role: 'signer_b',
+        verifying_key_hex: localPeerVerifyingKeyHex(
+          requiredEnv(input.deriverBEnv, 'DERIVER_B_PEER_SIGNING_KEY'),
+        ),
+      },
+    },
+    signing_worker_server_output_hpke: {
+      key_epoch: requiredEnv(input.signingWorkerEnv, 'SIGNING_WORKER_KEY_EPOCH'),
+      public_key: requiredEnv(
+        input.signingWorkerEnv,
+        'SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY',
+      ),
+    },
+  });
+}
+
+function localRegistrationTopologyJson(input) {
+  return JSON.stringify({
+    routerId: 'router-ab-mpc-router',
+    signerSet: {
+      signer_set_id: 'local-signer-set-v1',
+      policy: 'all_2',
+      signer_a: { role: 'signer_a', signer_id: 'signer-a', key_epoch: LOCAL_KEY_EPOCH },
+      signer_b: { role: 'signer_b', signer_id: 'signer-b', key_epoch: LOCAL_KEY_EPOCH },
+      selected_server: {
+        server_id: requiredEnv(input.signingWorkerEnv, 'SIGNING_WORKER_ID'),
+        key_epoch: requiredEnv(input.signingWorkerEnv, 'SIGNING_WORKER_KEY_EPOCH'),
+        recipient_encryption_key: requiredEnv(
+          input.signingWorkerEnv,
+          'SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY',
+        ),
+      },
+    },
+    deriverRecipientKeys: {
+      deriver_a: {
+        role: 'signer_a',
+        key_epoch: LOCAL_KEY_EPOCH,
+        public_key: requiredEnv(input.routerEnv, 'DERIVER_A_ED25519_YAO_INPUT_PUBLIC_KEY'),
+      },
+      deriver_b: {
+        role: 'signer_b',
+        key_epoch: LOCAL_KEY_EPOCH,
+        public_key: requiredEnv(input.routerEnv, 'DERIVER_B_ED25519_YAO_INPUT_PUBLIC_KEY'),
+      },
+    },
+  });
+}
+
+function localSecret(seed, purpose) {
+  return createHash('sha256')
+    .update(`seams/wallet/local-gateway/v1/${purpose}\0`, 'utf8')
+    .update(seed, 'utf8')
+    .digest('base64url');
+}
+
+function renderDevVars(values) {
+  return `${Object.entries(values)
+    .filter(([, value]) => value)
+    .map(([key, value]) => `${key}=${singleQuotedDevVar(value, key)}`)
+    .join('\n')}\n`;
+}
+
+function singleQuotedDevVar(value, key) {
+  if (value.includes("'") || value.includes('\n') || value.includes('\r')) {
+    throw new Error(`${key} cannot be represented in the local Wrangler env file`);
+  }
+  return `'${value}'`;
+}
+
+function optionalText(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function relativePosixPath(fromDirectory, targetPath) {
+  return path.relative(fromDirectory, targetPath).split(path.sep).join('/');
+}
 
 export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
   const repoRoot = path.resolve(input.repoRoot);

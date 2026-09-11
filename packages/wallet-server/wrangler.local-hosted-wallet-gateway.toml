@@ -1,0 +1,37 @@
+name = "seams-wallet-local-gateway"
+main = "src/local-hosted-wallet-gateway-worker.ts"
+compatibility_date = "2026-04-17"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["* * * * *"]
+
+[[d1_databases]]
+binding = "SIGNER_DB"
+database_name = "seams-wallet-signer-local"
+database_id = "00000000-0000-0000-0000-000000000201"
+preview_database_id = "00000000-0000-0000-0000-000000000202"
+migrations_dir = "migrations/d1-signer"
+
+[[services]]
+binding = "MPC_ROUTER"
+service = "router-ab-mpc-router"
+
+[[services]]
+binding = "SIGNING_WORKER"
+service = "router-ab-signing-worker"
+
+[vars]
+ROUTER_AB_PREWARM_ENABLED = "true"
+SEAMS_TENANT_STORAGE_NAMESPACE = "seams-local"
+RELAYER_ACCOUNT_ID = "w3a-relayer.testnet"
+RELAYER_PUBLIC_KEY = "ed25519:local-relay-public-key"
+NEAR_RPC_URL = "https://test.rpc.fastnear.com"
+ACCOUNT_INITIAL_BALANCE = "30000000000000000000000"
+ENABLE_IMPLICIT_NEAR_ACCOUNT_TEST_FUNDING = "true"
+SESSION_COOKIE_NAME = "seams-jwt"
+RELAY_SESSION_ISSUER = "seams-wallet-local"
+RELAY_SESSION_AUDIENCE = "seams-wallet-local"
+LINKED_DEVICE_WEBAUTHN_RP_ID = "localhost"
+EMAIL_OTP_DELIVERY_MODE = "dev_d1_outbox"
+EMAIL_OTP_DEV_OUTBOX_ENABLED = "true"
