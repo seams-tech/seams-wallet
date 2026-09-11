@@ -1,4 +1,4 @@
-import { decodeTenantRootIdentityWireV1 } from '@seams-internal/shared-ts/tenant-root';
+import { decodeTenantRootIdentityWireV1 } from '@shared/tenant-root';
 import { resolveRuntimeTenantRootLineage } from './cloud-host';
 import {
   parseD1JsonColumn,
