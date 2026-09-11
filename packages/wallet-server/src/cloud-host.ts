@@ -67,6 +67,7 @@ export * from './router/cloudflare/runtime/walletConsoleTenantRootLineage';
 export * from './router/cloudflare/runtime/routerAbPrewarm';
 export * from './router/cloudflare/runtime/tenantRootCreationGrant';
 export * from './router/cloudflare/runtime/environment';
+export * from './router/cloudflare/runtime/staticWalletConsoleBinding';
 export * from './router/framework/http';
 export * from './router/framework/enforceRoutePolicy';
 export * from './router/framework/logger';

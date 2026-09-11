@@ -56,6 +56,11 @@
       "import": "./dist/esm/hosted-wallet-gateway-worker.js",
       "default": "./dist/esm/hosted-wallet-gateway-worker.js"
     },
+    "./local-hosted-wallet-gateway-worker": {
+      "types": "./dist/types/wallet-server/src/local-hosted-wallet-gateway-worker.d.ts",
+      "import": "./dist/esm/local-hosted-wallet-gateway-worker.js",
+      "default": "./dist/esm/local-hosted-wallet-gateway-worker.js"
+    },
     "./artifact-manifest.json": "./artifact-manifest.json",
     "./migrations/d1-signer/*": "./migrations/d1-signer/*"
   },
