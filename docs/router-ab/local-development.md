@@ -122,14 +122,21 @@ flowchart LR
 
 ## Architecture
 
-Gateway owns the browser-facing Router A/B routes. The local launcher runs the
-four strict Worker artifacts built from `router-ab-cloudflare`:
+Gateway owns the browser-facing Router A/B routes. The Wallet-only role launcher
+runs the five strict Worker artifacts built from `router-ab-cloudflare`:
 
 ```text
 crates/router-ab-cloudflare/build/router/worker/shim.mjs
 crates/router-ab-cloudflare/build/deriver-a/worker/shim.mjs
 crates/router-ab-cloudflare/build/deriver-b/worker/shim.mjs
 crates/router-ab-cloudflare/build/signing-worker/worker/shim.mjs
+crates/router-ab-cloudflare/build/tenant-root-control-plane/worker/shim.mjs
+```
+
+Start those Workers without Console or Console D1:
+
+```sh
+pnpm -C crates/router-ab-cloudflare run dev:local-roles -- --root /tmp/seams-wallet-router
 ```
 
 `crates/router-ab-cloudflare/scripts/prepare-local-runtime-config.mjs` renders local
