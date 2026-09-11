@@ -71,6 +71,11 @@ function inspectPackage(packageDirectory, packageName) {
   );
   assert.equal(packageJson.name, packageName);
   assert.equal(packageJson.version, '0.5.0');
+  assert.equal(packageJson.license, 'MIT');
+  assert.match(
+    fs.readFileSync(path.join(packageDirectory, 'LICENSE'), 'utf8'),
+    /^MIT License$/mu,
+  );
 
   for (const file of listFiles(packageDirectory)) {
     const relativePath = path.relative(packageDirectory, file);
