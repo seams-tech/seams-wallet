@@ -78,6 +78,40 @@ valid signed trust snapshot can report `valid_at_trust_snapshot`; a current
 online revocation check can report `current_trust_confirmed`. Signature,
 certificate, role-authorization, and `invalidBefore` failures have no override.
 
+## Enroll recovery keys
+
+Use the role-specific setup command shown by the dashboard. It creates or
+reuses a local encrypted key file, opens browser approval for that exact public
+key, and proves local key control without uploading the private key:
+
+```bash
+seams-wallet derivation-root recovery-key setup \
+  --console-url https://wallet.seams.sh/console \
+  --dashboard-url https://wallet.seams.sh/dashboard \
+  --environment YOUR_ENVIRONMENT \
+  --role deriver-a
+```
+
+The other holder runs the command with `--role deriver-b`. Confirm the scope
+and comparison code in the browser before approving it. Both enrollments must
+finish before the public key pair can be committed and used for a backup.
+
+Use the CLI download path when the service must record that a backup reached
+disk and verified successfully:
+
+```bash
+seams-wallet derivation-root backup download \
+  --console-url https://wallet.seams.sh/console \
+  --environment YOUR_ENVIRONMENT \
+  --role deriver-a \
+  --output ./deriver-a.backup \
+  --manifest ./manifest.json
+```
+
+The command writes a new file, syncs it, reopens it, verifies it, and then
+records durable receipt. It removes a failed output and never overwrites an
+existing file.
+
 ## Restore into an empty destination
 
 Restoration requires both role packages, both holder keys, the manifest, an
