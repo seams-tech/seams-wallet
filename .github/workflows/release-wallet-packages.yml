@@ -38,6 +38,10 @@ jobs:
           set -euo pipefail
           test "$(node -p "require('./packages/wallet/package.json').version")" = "$RELEASE_VERSION"
           test "$(node -p "require('./packages/wallet-server/package.json').version")" = "$RELEASE_VERSION"
+      - name: Require first-publication npm token
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.SEAMS_NPM_BOOTSTRAP_TOKEN }}
+        run: test -n "$NODE_AUTH_TOKEN"
       - name: Install build tools
         run: |
           cargo install wasm-pack --locked
@@ -58,6 +62,10 @@ jobs:
       - name: Publish @seams/wallet-server
         working-directory: packages/wallet-server
         run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.SEAMS_NPM_BOOTSTRAP_TOKEN }}
       - name: Publish @seams/wallet
         working-directory: packages/wallet
         run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.SEAMS_NPM_BOOTSTRAP_TOKEN }}
