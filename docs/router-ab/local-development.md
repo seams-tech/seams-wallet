@@ -132,7 +132,7 @@ crates/router-ab-cloudflare/build/deriver-b/worker/shim.mjs
 crates/router-ab-cloudflare/build/signing-worker/worker/shim.mjs
 ```
 
-`crates/router-ab-dev/scripts/strict-local-runtime-config.mjs` renders local
+`crates/router-ab-cloudflare/scripts/prepare-local-runtime-config.mjs` renders local
 Wrangler configs and role-specific secret files under:
 
 ```text
