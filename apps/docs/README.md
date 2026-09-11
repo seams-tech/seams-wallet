@@ -1,7 +1,8 @@
 # Seams documentation app
 
-The docs are a VitePress application served at `docs.seams.sh`. The root route
-is the Start here guide; product marketing remains on the main Seams site.
+The docs are a VitePress application published under
+`wallet.seams.sh/docs/`. The root route is the Start here guide; Wallet
+marketing and the dashboard share the parent site.
 
 ## Local checks
 
@@ -24,5 +25,5 @@ update a compiled example for runnable TypeScript and TSX. Label partial,
 protocol, and application-specific examples so readers do not mistake them for
 copyable SDK code.
 
-Use `apps/seams-site` as the source for product language, typography, brand
-assets, semantic color roles, and interaction treatment.
+Keep product language and the checked-in VitePress theme aligned with the
+Wallet site when either surface changes.

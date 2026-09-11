@@ -49,3 +49,29 @@ jobs:
           path: dist/seams-wallet-${{ matrix.target }}
           if-no-files-found: error
           retention-days: 30
+
+  release_tools:
+    name: Build release metadata tools
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build manifest signer and SBOM
+        run: |
+          mkdir -p dist
+          cargo tree --locked --manifest-path crates/seams-cli/Cargo.toml \
+            --edges normal --prefix depth > dist/seams-sbom.txt
+          cargo build --locked --release \
+            --manifest-path crates/seams-cli/Cargo.toml \
+            --bin seams-release-manifest
+          cp crates/seams-cli/target/release/seams-release-manifest \
+            dist/seams-release-manifest
+      - uses: actions/upload-artifact@v7
+        with:
+          name: seams-wallet-release-tools-${{ github.sha }}
+          path: |
+            dist/seams-release-manifest
+            dist/seams-sbom.txt
+          if-no-files-found: error
+          retention-days: 30

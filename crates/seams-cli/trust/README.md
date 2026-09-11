@@ -2,7 +2,7 @@
 
 The two JSON files are compiled into `seams`. They contain public keys only;
 verification works offline. The private signing keys are held in distinct GitHub
-environments in `seams-tech/seams-wallet`.
+environments in `seams-tech/seams-monorepo`.
 
 | Public pin | Private-key environment | Signing secret |
 | --- | --- | --- |
