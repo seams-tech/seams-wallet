@@ -46,6 +46,11 @@
       "import": "./dist/esm/cloud-host.js",
       "default": "./dist/esm/cloud-host.js"
     },
+    "./hosted-wallet-gateway": {
+      "types": "./dist/types/wallet-server/src/hosted-wallet-gateway.d.ts",
+      "import": "./dist/esm/hosted-wallet-gateway.js",
+      "default": "./dist/esm/hosted-wallet-gateway.js"
+    },
     "./artifact-manifest.json": "./artifact-manifest.json",
     "./migrations/d1-signer/*": "./migrations/d1-signer/*"
   },
