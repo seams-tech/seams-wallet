@@ -60,6 +60,9 @@ export { coerceRouterLogger } from './framework/logger';
 export * from './cloudflare/runtime/walletConsoleOps';
 export * from './cloudflare/runtime/walletConsoleOpsClient';
 export * from './cloudflare/runtime/walletGateway';
+export * from './cloudflare/runtime/walletRuntimeOps';
+export * from './cloudflare/runtime/walletRuntimeOpsHandler';
+export * from './cloudflare/runtime/walletControlOps';
 export type {
   RouterApiModule,
   RouterApiModuleKind,
