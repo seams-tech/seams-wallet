@@ -24,6 +24,10 @@ See [tenant-root backups](/deploy-and-operate/tenant-root-backups) for the
 separate A/B recovery copies in R2, Google KMS key ownership, restore behavior,
 and operating costs.
 
+Use the [recovery CLI](/deploy-and-operate/recovery-cli) to verify downloaded
+backup kits, retain an offline-verifiable native binary, and restore both
+holder shares into an approved empty destination.
+
 Read [recovery and portability](/deploy-and-operate/recovery-and-portability)
 before choosing a backup strategy. It separates managed root recovery from
 tenant-controlled recovery and planned wallet/deployment migration, with
