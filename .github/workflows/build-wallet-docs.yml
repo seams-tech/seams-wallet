@@ -32,8 +32,6 @@ jobs:
           node-version: '24'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Build Wallet declarations
-        run: pnpm -C packages/wallet build:types
       - name: Build VitePress for wallet.seams.sh/docs
         run: pnpm build:docs
       - uses: actions/upload-artifact@v7
