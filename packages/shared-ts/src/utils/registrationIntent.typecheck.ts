@@ -1,0 +1,596 @@
+import { allocateWalletAuthMethodId } from './domainIds';
+import {
+  implicitNearAccountProvisioning,
+  sponsoredNamedNearAccountProvisioning,
+  walletIdFromString,
+  type AddAuthMethodIntentV1,
+  type AddSignerIntentV1,
+  type AddSignerSelection,
+  type RegistrationAuthMethodInput,
+  type RegistrationAuthority,
+  type RegistrationIntentV1,
+  type RegistrationSignerPlan,
+  type RegistrationSignerSetSelection,
+  type WalletAuthMethodRecord,
+  type WalletAuthMethodRecordV2,
+  type WalletAuthMethodRevocationProof,
+} from './registrationIntent';
+import {
+  parseChallengeSubjectId,
+  parseEmailOtpChallengeId,
+  parseOrgId,
+  parseProviderSubject,
+  parseWalletAuthMethodId,
+  parseWalletAuthorityId,
+  parseWebAuthnCredentialIdB64u,
+  parseWebAuthnRpId,
+} from './domainIds';
+import { parseNamedNearAccountId } from './near';
+
+function unwrapDomainId<T>(result: { ok: true; value: T } | { ok: false }): T {
+  if (!result.ok) throw new Error('invalid type fixture domain id');
+  return result.value;
+}
+
+const providerSubject = unwrapDomainId(parseProviderSubject('google:alice'));
+const challengeSubjectId = unwrapDomainId(parseChallengeSubjectId('google:alice'));
+const emailOtpChallengeId = unwrapDomainId(parseEmailOtpChallengeId('challenge'));
+const orgId = unwrapDomainId(parseOrgId('org_test'));
+const namedNearAccountId = unwrapDomainId(parseNamedNearAccountId('alice.testnet'));
+const webAuthnRpId = unwrapDomainId(parseWebAuthnRpId('wallet.example.test'));
+const webAuthnCredentialIdB64u = unwrapDomainId(parseWebAuthnCredentialIdB64u('credential'));
+const walletAuthMethodId = unwrapDomainId(parseWalletAuthMethodId('wallet-auth-method:opaque'));
+const walletAuthorityId = unwrapDomainId(parseWalletAuthorityId('wallet-authority:opaque'));
+
+const passkeyAuthMethod = {
+  kind: 'passkey',
+  rpId: webAuthnRpId,
+} satisfies RegistrationAuthMethodInput;
+
+// @ts-expect-error passkey registration auth carries its RP scope in the passkey branch.
+const passkeyAuthMethodMissingRpId: RegistrationAuthMethodInput = {
+  kind: 'passkey',
+};
+void passkeyAuthMethodMissingRpId;
+
+const emailOtpAuthMethod = {
+  kind: 'email_otp',
+  proofKind: 'otp_challenge',
+  email: 'alice@example.test',
+  providerSubject: 'google:alice',
+  otpCode: '123456',
+  challengeId: 'challenge',
+} satisfies RegistrationAuthMethodInput;
+
+const googleSsoRegistrationAuthMethod = {
+  kind: 'email_otp',
+  proofKind: 'google_sso_registration',
+  email: 'alice@example.test',
+  providerSubject: 'google:alice',
+  googleEmailOtpRegistrationAttemptId: 'registration-attempt-1',
+  googleEmailOtpRegistrationOfferId: 'registration-offer-1',
+  googleEmailOtpRegistrationCandidateId: 'registration-candidate-1',
+} satisfies RegistrationAuthMethodInput;
+
+const ecdsaSignerSetSelection = {
+  kind: 'signer_set',
+  signers: [
+    {
+      kind: 'evm_family_ecdsa',
+      chainTargets: [{ kind: 'evm', namespace: 'eip155', chainId: 1 }],
+      participantIds: [1, 2],
+    },
+  ],
+} satisfies RegistrationSignerSetSelection;
+
+const ed25519SignerSetSelection = {
+  kind: 'signer_set',
+  signers: [
+    {
+      kind: 'near_ed25519',
+      accountProvisioning: implicitNearAccountProvisioning(),
+      signerSlot: 1,
+      participantIds: [1, 2],
+      derivationVersion: 1,
+    },
+  ],
+} satisfies RegistrationSignerSetSelection;
+
+const sponsoredNamedEd25519SignerSetSelection = {
+  kind: 'signer_set',
+  signers: [
+    {
+      kind: 'near_ed25519',
+      accountProvisioning: sponsoredNamedNearAccountProvisioning(namedNearAccountId),
+      signerSlot: 1,
+      participantIds: [1, 2],
+      derivationVersion: 1,
+    },
+  ],
+} satisfies RegistrationSignerSetSelection;
+
+void ({
+  kind: 'signer_set',
+  signers: [
+    {
+      kind: 'near_ed25519',
+      accountProvisioning: implicitNearAccountProvisioning(),
+      signerSlot: 1,
+      participantIds: [1, 2],
+      derivationVersion: 1,
+    },
+    {
+      kind: 'evm_family_ecdsa',
+      participantIds: [1, 2],
+      chainTargets: [{ kind: 'evm', namespace: 'eip155', chainId: 1 }],
+    },
+  ],
+} satisfies RegistrationSignerSetSelection);
+
+void ({
+  kind: 'signer_set',
+  signers: [
+    {
+      kind: 'near_ed25519',
+      accountProvisioning: implicitNearAccountProvisioning(),
+      signerSlot: 1,
+      participantIds: [1, 2],
+      // @ts-expect-error signer-set NEAR Ed25519 requests do not carry protocol key fields.
+      keyPurpose: 'near_tx',
+      derivationVersion: 1,
+    },
+  ],
+} satisfies RegistrationSignerSetSelection);
+
+void ({
+  kind: 'signer_set',
+  signers: [
+    // @ts-expect-error EVM-family ECDSA signer requests cannot carry NEAR account provisioning.
+    {
+      kind: 'evm_family_ecdsa',
+      participantIds: [1, 2],
+      chainTargets: [{ kind: 'evm', namespace: 'eip155', chainId: 1 }],
+      accountProvisioning: implicitNearAccountProvisioning(),
+    },
+  ],
+} satisfies RegistrationSignerSetSelection);
+
+void ({
+  kind: 'signer_set',
+  signers: [
+    // @ts-expect-error NEAR Ed25519 signer requests require account provisioning identity.
+    {
+      kind: 'near_ed25519',
+      signerSlot: 1,
+      participantIds: [1, 2],
+      derivationVersion: 1,
+    },
+  ],
+} satisfies RegistrationSignerSetSelection);
+
+void ({
+  kind: 'signer_set',
+  signers: [
+    // @ts-expect-error EVM-family ECDSA signer requests require chain target identity.
+    {
+      kind: 'evm_family_ecdsa',
+      participantIds: [1, 2],
+    },
+  ],
+} satisfies RegistrationSignerSetSelection);
+
+void ({
+  kind: 'signer_set',
+  signers: [
+    {
+      kind: 'near_ed25519',
+      accountProvisioning: implicitNearAccountProvisioning(),
+      signerSlot: 1,
+      participantIds: [1, 2],
+      derivationVersion: 1,
+    },
+  ],
+  // @ts-expect-error signer-set selections do not carry legacy registration mode.
+  mode: 'legacy_mode',
+} satisfies RegistrationSignerSetSelection);
+
+void ({
+  kind: 'signer_set',
+  branches: [
+    // @ts-expect-error parsed signer plan branches require a stable branchKey.
+    {
+      kind: 'near_ed25519',
+      accountProvisioning: implicitNearAccountProvisioning(),
+      signerSlot: 1,
+      participantIds: [1, 2],
+      keyPurpose: 'near_tx',
+      keyVersion: 'router-ab-ed25519-yao-v1',
+      derivationVersion: 1,
+    },
+  ],
+} satisfies RegistrationSignerPlan);
+
+const ed25519WithLegacyNearAccountId = {
+  kind: 'signer_set',
+  signers: [
+    {
+      kind: 'near_ed25519',
+      accountProvisioning: implicitNearAccountProvisioning(),
+      signerSlot: 1,
+      participantIds: [1, 2],
+      derivationVersion: 1,
+      // @ts-expect-error signer-set NEAR Ed25519 requests use accountProvisioning, not nearAccountId.
+      nearAccountId: 'alice.testnet',
+    },
+  ],
+} satisfies RegistrationSignerSetSelection;
+void ed25519WithLegacyNearAccountId;
+
+const ed25519WithLegacyCreateBoolean = {
+  kind: 'signer_set',
+  signers: [
+    {
+      kind: 'near_ed25519',
+      accountProvisioning: implicitNearAccountProvisioning(),
+      signerSlot: 1,
+      participantIds: [1, 2],
+      derivationVersion: 1,
+      // @ts-expect-error signer-set NEAR Ed25519 requests cannot carry legacy createNearAccount.
+      createNearAccount: true,
+    },
+  ],
+} satisfies RegistrationSignerSetSelection;
+void ed25519WithLegacyCreateBoolean;
+
+/* Registration allocates the wallet's first auth method with the intent, so a
+   fixture that omits it is describing an intent the custody seal cannot use. */
+const foundingAuthMethodIdFixture = allocateWalletAuthMethodId('founding-fixture');
+
+void ({
+  version: 'registration_intent_v1',
+  foundingWalletAuthMethodId: foundingAuthMethodIdFixture,
+  walletId: walletIdFromString('wallet_alice'),
+  authMethod: emailOtpAuthMethod,
+  signerSelection: ecdsaSignerSetSelection,
+  nonceB64u: 'nonce',
+} satisfies RegistrationIntentV1);
+
+void ({
+  version: 'registration_intent_v1',
+  foundingWalletAuthMethodId: foundingAuthMethodIdFixture,
+  walletId: walletIdFromString('wallet_alice'),
+  authMethod: googleSsoRegistrationAuthMethod,
+  signerSelection: ed25519SignerSetSelection,
+  nonceB64u: 'nonce',
+} satisfies RegistrationIntentV1);
+
+void ({
+  version: 'registration_intent_v1',
+  foundingWalletAuthMethodId: foundingAuthMethodIdFixture,
+  walletId: walletIdFromString('wallet_alice'),
+  authMethod: passkeyAuthMethod,
+  signerSelection: ed25519SignerSetSelection,
+  nonceB64u: 'nonce',
+} satisfies RegistrationIntentV1);
+
+void ({
+  version: 'registration_intent_v1',
+  foundingWalletAuthMethodId: foundingAuthMethodIdFixture,
+  walletId: walletIdFromString('wallet_alice'),
+  authMethod: passkeyAuthMethod,
+  signerSelection: {
+    kind: 'signer_set',
+    signers: [
+      {
+        kind: 'near_ed25519',
+        accountProvisioning: implicitNearAccountProvisioning(),
+        signerSlot: 1,
+        participantIds: [1, 2],
+        derivationVersion: 1,
+      },
+      {
+        kind: 'evm_family_ecdsa',
+        participantIds: [1, 2],
+        chainTargets: [{ kind: 'evm', namespace: 'eip155', chainId: 1 }],
+      },
+    ],
+  },
+  nonceB64u: 'nonce',
+} satisfies RegistrationIntentV1);
+
+void ({
+  version: 'registration_intent_v1',
+  foundingWalletAuthMethodId: foundingAuthMethodIdFixture,
+  walletId: walletIdFromString('alice.testnet'),
+  authMethod: passkeyAuthMethod,
+  signerSelection: sponsoredNamedEd25519SignerSetSelection,
+  nonceB64u: 'nonce',
+} satisfies RegistrationIntentV1);
+
+void ({
+  version: 'registration_intent_v1',
+  foundingWalletAuthMethodId: foundingAuthMethodIdFixture,
+  walletId: walletIdFromString('wallet_alice'),
+  authMethod: passkeyAuthMethod,
+  signerSelection: ed25519SignerSetSelection,
+  nonceB64u: 'nonce',
+  // @ts-expect-error registration intents do not carry root passkey RP scope.
+  rpId: 'wallet.example.test',
+} satisfies RegistrationIntentV1);
+
+void ({
+  version: 'add_signer_intent_v1',
+  walletId: walletIdFromString('wallet_alice'),
+  signerSelection: {
+    mode: 'ecdsa',
+    ecdsa: {
+      chainTargets: [{ kind: 'evm', namespace: 'eip155', chainId: 1 }],
+      participantIds: [1, 2],
+    },
+  },
+  nonceB64u: 'nonce',
+  // @ts-expect-error add-signer intents do not carry root passkey RP scope.
+  rpId: 'wallet.example.test',
+} satisfies AddSignerIntentV1);
+
+const sharedEd25519AddSignerSelection = {
+  mode: 'ed25519',
+  ed25519: {
+    mode: 'create_implicit_near_account',
+    signerSlot: 2,
+    participantIds: [1, 2],
+    keyPurpose: 'near_tx',
+    keyVersion: 'router-ab-ed25519-yao-v1',
+    derivationVersion: 1,
+  },
+} satisfies AddSignerSelection;
+void sharedEd25519AddSignerSelection;
+
+// @ts-expect-error Ed25519 add-signer selections require their Ed25519 branch.
+const missingEd25519AddSignerBranch: AddSignerSelection = {
+  mode: 'ed25519',
+};
+void missingEd25519AddSignerBranch;
+
+// @ts-expect-error Ed25519 add-signer selections cannot carry an ECDSA branch.
+const mixedEd25519AddSignerSelection: AddSignerSelection = {
+  ...sharedEd25519AddSignerSelection,
+  ecdsa: {
+    chainTargets: [{ kind: 'evm', namespace: 'eip155', chainId: 1 }],
+    participantIds: [1, 2],
+  },
+};
+void mixedEd25519AddSignerSelection;
+
+void ({
+  version: 'add_auth_method_intent_v1',
+  walletId: walletIdFromString('wallet_alice'),
+  authMethod: { kind: 'passkey', rpId: webAuthnRpId },
+  nonceB64u: 'nonce',
+  // @ts-expect-error add-auth-method intents keep RP scope inside the passkey branch.
+  rpId: 'wallet.example.test',
+} satisfies AddAuthMethodIntentV1);
+
+// @ts-expect-error registration intents require explicit authMethod.
+const missingAuthMethod: RegistrationIntentV1 = {
+  version: 'registration_intent_v1',
+  foundingWalletAuthMethodId: foundingAuthMethodIdFixture,
+  walletId: walletIdFromString('wallet_alice'),
+  signerSelection: ed25519SignerSetSelection,
+  nonceB64u: 'nonce',
+};
+void missingAuthMethod;
+
+// @ts-expect-error passkey registration auth cannot carry Email OTP fields.
+const passkeyWithEmail: RegistrationAuthMethodInput = {
+  kind: 'passkey',
+  email: 'alice@example.test',
+};
+void passkeyWithEmail;
+
+// @ts-expect-error Email OTP registration auth cannot carry passkey options.
+const emailOtpWithAuthenticatorOptions: RegistrationAuthMethodInput = {
+  kind: 'email_otp',
+  proofKind: 'otp_challenge',
+  email: 'alice@example.test',
+  providerSubject: 'google:alice',
+  otpCode: '123456',
+  authenticatorOptions: {},
+};
+void emailOtpWithAuthenticatorOptions;
+
+// @ts-expect-error Email OTP registration auth requires an OTP code.
+const emailOtpMissingOtpCode: RegistrationAuthMethodInput = {
+  kind: 'email_otp',
+  proofKind: 'otp_challenge',
+  email: 'alice@example.test',
+  providerSubject: 'google:alice',
+};
+void emailOtpMissingOtpCode;
+
+// @ts-expect-error Google SSO registration auth requires an offer id.
+const googleSsoMissingOffer: RegistrationAuthMethodInput = {
+  kind: 'email_otp',
+  proofKind: 'google_sso_registration',
+  email: 'alice@example.test',
+  providerSubject: 'google:alice',
+  googleEmailOtpRegistrationAttemptId: 'registration-attempt-1',
+  googleEmailOtpRegistrationCandidateId: 'registration-candidate-1',
+};
+void googleSsoMissingOffer;
+
+// @ts-expect-error Google SSO registration auth requires a selected candidate id.
+const googleSsoMissingCandidate: RegistrationAuthMethodInput = {
+  kind: 'email_otp',
+  proofKind: 'google_sso_registration',
+  email: 'alice@example.test',
+  providerSubject: 'google:alice',
+  googleEmailOtpRegistrationAttemptId: 'registration-attempt-1',
+  googleEmailOtpRegistrationOfferId: 'registration-offer-1',
+};
+void googleSsoMissingCandidate;
+
+void ({
+  version: 'wallet_auth_method_v1',
+  kind: 'passkey',
+  status: 'active',
+  walletId: walletIdFromString('wallet_alice'),
+  rpId: webAuthnRpId,
+  credentialIdB64u: 'credential',
+  credentialPublicKeyB64u: 'public-key',
+  counter: 0,
+  createdAtMs: 1,
+  updatedAtMs: 1,
+} satisfies WalletAuthMethodRecord);
+
+void ({
+  kind: 'email_otp',
+  proofKind: 'otp_challenge',
+  walletId: walletIdFromString('wallet_alice'),
+  providerSubject,
+  challengeSubjectId,
+  email: 'alice@example.test',
+  emailHashHex: '00',
+  challengeId: emailOtpChallengeId,
+  registrationAuthorityId: emailOtpChallengeId,
+  originalWalletId: walletIdFromString('wallet_alice_original'),
+  finalWalletId: walletIdFromString('wallet_alice'),
+  orgId,
+  ownerProofBindingDigest: 'owner-proof-digest',
+  challengePurpose: 'registration_reroll',
+  registrationIntentDigestB64u: 'digest',
+} satisfies RegistrationAuthority);
+
+// @ts-expect-error Email OTP authority requires the normalized challenge owner.
+const emailOtpAuthorityMissingChallengeSubject: RegistrationAuthority = {
+  kind: 'email_otp',
+  proofKind: 'otp_challenge',
+  walletId: walletIdFromString('wallet_alice'),
+  providerSubject,
+  email: 'alice@example.test',
+  emailHashHex: '00',
+  challengeId: emailOtpChallengeId,
+  registrationAuthorityId: emailOtpChallengeId,
+  originalWalletId: walletIdFromString('wallet_alice_original'),
+  finalWalletId: walletIdFromString('wallet_alice'),
+  orgId,
+  ownerProofBindingDigest: 'owner-proof-digest',
+  challengePurpose: 'registration_reroll',
+  registrationIntentDigestB64u: 'digest',
+};
+void emailOtpAuthorityMissingChallengeSubject;
+
+void ({
+  version: 'wallet_auth_method_v1',
+  kind: 'email_otp',
+  status: 'active',
+  walletId: walletIdFromString('wallet_alice'),
+  emailHashHex: '00',
+  registrationAuthorityId: 'challenge',
+  createdAtMs: 1,
+  updatedAtMs: 1,
+} satisfies WalletAuthMethodRecord);
+
+const emailOtpAuthMethodWithRpId = {
+  version: 'wallet_auth_method_v1',
+  kind: 'email_otp',
+  status: 'active',
+  walletId: walletIdFromString('wallet_alice'),
+  emailHashHex: '00',
+  registrationAuthorityId: 'challenge',
+  createdAtMs: 1,
+  updatedAtMs: 1,
+  // @ts-expect-error Email OTP auth-method records do not carry passkey RP scope.
+  rpId: 'wallet.example.test',
+} satisfies WalletAuthMethodRecord;
+void emailOtpAuthMethodWithRpId;
+
+void ({
+  kind: 'webauthn_assertion',
+  rpId: webAuthnRpId,
+  credential: { id: 'credential' },
+  expectedChallengeDigestB64u: 'challenge-digest',
+} satisfies WalletAuthMethodRevocationProof);
+
+void ({
+  kind: 'email_otp',
+  challengeId: 'challenge-id',
+  otpCode: '123456',
+  ownerProofBindingDigest: 'owner-proof-digest',
+} satisfies WalletAuthMethodRevocationProof);
+
+const pendingPasskeyMethodV2 = {
+  version: 'wallet_auth_method_v2',
+  walletAuthMethodId,
+  walletId: walletIdFromString('wallet_alice'),
+  walletAuthorityId,
+  kind: 'passkey',
+  status: 'pending_local_install',
+  rpId: webAuthnRpId,
+  credentialIdB64u: webAuthnCredentialIdB64u,
+  credentialPublicKeyB64u: 'public-key',
+  counter: 0,
+  createdAtMs: 1,
+  updatedAtMs: 1,
+} satisfies WalletAuthMethodRecordV2;
+void pendingPasskeyMethodV2;
+
+const activeEmailOtpMethodV2 = {
+  version: 'wallet_auth_method_v2',
+  walletAuthMethodId,
+  walletId: walletIdFromString('wallet_alice'),
+  walletAuthorityId,
+  kind: 'email_otp',
+  status: 'active',
+  emailHashHex: '00',
+  registrationAuthorityId: 'registration-authority',
+  createdAtMs: 1,
+  updatedAtMs: 2,
+  activatedAtMs: 2,
+} satisfies WalletAuthMethodRecordV2;
+void activeEmailOtpMethodV2;
+
+const methodWithAuthorityId: WalletAuthMethodRecordV2 = {
+  ...pendingPasskeyMethodV2,
+  // @ts-expect-error The opaque method id cannot be replaced with an authority id.
+  walletAuthMethodId: walletAuthorityId,
+};
+void methodWithAuthorityId;
+
+// @ts-expect-error Pending methods cannot carry activation timestamps.
+const pendingMethodWithActivation: WalletAuthMethodRecordV2 = {
+  ...pendingPasskeyMethodV2,
+  activatedAtMs: 2,
+};
+void pendingMethodWithActivation;
+
+// @ts-expect-error Active methods require an activation timestamp.
+const activeMethodWithoutActivation: WalletAuthMethodRecordV2 = {
+  ...pendingPasskeyMethodV2,
+  status: 'active',
+};
+void activeMethodWithoutActivation;
+
+// @ts-expect-error Revoked methods require both lifecycle timestamps.
+const revokedMethodWithoutRevocation: WalletAuthMethodRecordV2 = {
+  ...pendingPasskeyMethodV2,
+  status: 'revoked',
+  activatedAtMs: 2,
+};
+void revokedMethodWithoutRevocation;
+
+// @ts-expect-error Passkey methods cannot carry Email OTP identity fields.
+const passkeyWithEmailFields: WalletAuthMethodRecordV2 = {
+  ...pendingPasskeyMethodV2,
+  emailHashHex: '00',
+};
+void passkeyWithEmailFields;
+
+// @ts-expect-error Email OTP methods cannot carry Passkey identity fields.
+const emailOtpWithPasskeyFields: WalletAuthMethodRecordV2 = {
+  ...activeEmailOtpMethodV2,
+  rpId: webAuthnRpId,
+};
+void emailOtpWithPasskeyFields;
+
+export {};

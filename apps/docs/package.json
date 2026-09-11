@@ -1,0 +1,21 @@
+{
+  "name": "seams-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "VITE_SITE_ORIGIN=${VITE_SITE_ORIGIN:-https://localhost} VITE_DOCS_ORIGIN=${VITE_DOCS_ORIGIN:-https://docs.localhost} vitepress dev src --port 4006",
+    "build": "vitepress build src --outDir dist",
+    "preview": "vite preview --outDir dist --port 4006",
+    "type-check": "pnpm -C ../../packages/wallet build:types && tsc --noEmit"
+  },
+  "devDependencies": {
+    "@seams/wallet": "workspace:*",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "mermaid": "^11.12.1",
+    "react": "^19.1.1",
+    "typescript": "~5.8.3",
+    "vitepress": "^1.5.0",
+    "vue": "^3.5.22"
+  }
+}

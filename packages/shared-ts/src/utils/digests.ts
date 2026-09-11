@@ -1,0 +1,48 @@
+// Shared digest primitives used across browser + server code.
+//
+// These helpers deliberately stay small and dependency-free so they can be used from:
+// - UI intent binding (WebAuthnManager)
+// - Relayer/server-side verification (threshold validation)
+
+function normalizeAlphabetizedValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normalizeAlphabetizedValue);
+  }
+  if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const sortedKeys = Object.keys(record).sort();
+    const result: Record<string, unknown> = {};
+    for (const key of sortedKeys) {
+      result[key] = normalizeAlphabetizedValue(record[key]);
+    }
+    return result;
+  }
+  return value;
+}
+
+// Deterministic stringify by alphabetizing object keys recursively.
+// Arrays preserve order; only keys within objects are sorted.
+export function alphabetizeStringify(input: unknown): string {
+  return JSON.stringify(normalizeAlphabetizedValue(input));
+}
+
+export async function sha256BytesUtf8(input: string): Promise<Uint8Array> {
+  const data = new TextEncoder().encode(input);
+  return await sha256Bytes(data);
+}
+
+export async function sha256Bytes(input: Uint8Array): Promise<Uint8Array> {
+  const data = input.slice();
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return new Uint8Array(digest);
+}
+
+export function bytesToUnprefixedHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+export async function sha256HexUtf8(input: string): Promise<string> {
+  return bytesToUnprefixedHex(await sha256BytesUtf8(input));
+}

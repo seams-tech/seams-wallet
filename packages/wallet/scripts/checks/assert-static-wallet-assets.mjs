@@ -1,0 +1,512 @@
+#!/usr/bin/env node
+
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const SDK_ROOT = path.resolve(SCRIPT_DIR, '../..');
+const PUBLIC_ROOT = path.join(SDK_ROOT, 'dist/public');
+const PUBLIC_SDK = path.join(PUBLIC_ROOT, 'sdk');
+const ASSETS_MANIFEST_PATH = path.join(PUBLIC_ROOT, 'wallet-assets.manifest.json');
+const HEADERS_MANIFEST_PATH = path.join(PUBLIC_ROOT, 'headers.manifest.json');
+const WALLET_STATIC_ASSETS_ROOT = path.join(SDK_ROOT, 'src/static/wallet-assets');
+
+const REQUIRED_BASE_ROUTES = [
+  '/wallet-service',
+  '/headers.manifest.json',
+  '/wallet-assets.manifest.json',
+  '/sdk/wallet-shims.js',
+  '/sdk/wallet-service.css',
+  '/sdk/wallet-iframe-host-runtime.js',
+  '/sdk/wallet-iframe-host-near.js',
+  '/sdk/wallet-iframe-host-ecdsa.js',
+  '/sdk/wallet-iframe-host-full.js',
+  '/sdk/export-private-key-viewer.js',
+];
+
+const EXPECTED_CONTENT_TYPES = [
+  { suffix: '.wasm', contentType: 'application/wasm' },
+  { suffix: '.js', contentType: 'text/javascript; charset=utf-8' },
+  { suffix: '.css', contentType: 'text/css; charset=utf-8' },
+  { suffix: '.html', contentType: 'text/html; charset=utf-8' },
+  { suffix: '.json', contentType: 'application/json; charset=utf-8' },
+  { suffix: '.map', contentType: 'application/json; charset=utf-8' },
+];
+
+const REQUIRED_HEADER_ROUTE_CLASSES = [
+  '/sdk/*.js',
+  '/sdk/*.css',
+  '/sdk/workers/*.js',
+  '/sdk/workers/*.wasm',
+  '/wallet-service',
+  '/*.manifest.json',
+];
+
+const WALLET_HOST_ENTRY_ROUTES = [
+  '/sdk/wallet-iframe-host-runtime.js',
+  '/sdk/wallet-iframe-host-near.js',
+  '/sdk/wallet-iframe-host-ecdsa.js',
+  '/sdk/wallet-iframe-host-full.js',
+];
+
+const FORBIDDEN_STATIC_ASSET_DEFAULT_HEADERS = [
+  'Content-Security-Policy',
+  'Cross-Origin-Embedder-Policy',
+  'Cross-Origin-Opener-Policy',
+  'Cross-Origin-Resource-Policy',
+  'Permissions-Policy',
+];
+
+const FORBIDDEN_DOCUMENT_DEFAULT_HEADERS = [
+  'Cross-Origin-Embedder-Policy',
+  'Cross-Origin-Opener-Policy',
+  'Cross-Origin-Resource-Policy',
+  'Permissions-Policy',
+];
+
+const CANONICAL_WALLET_STATIC_ASSETS = ['wallet-shims.js', 'wallet-service.css'];
+
+const REFERENCED_ROUTE_CLASSES = new Set(['javascript', 'css', 'htmlDocument']);
+const WASM_FREE_WORKER_ROUTES = new Set([
+  '/sdk/workers/ecdsa-online-client.worker.js',
+  '/sdk/workers/ecdsa-presign-client.worker.js',
+  '/sdk/workers/passkey-confirm.worker.js',
+]);
+const JS_REFERENCE_PATTERNS = [
+  /\bimport\s+(?:[^'"]+\s+from\s+)?["']([^"']+)["']/g,
+  /\bexport\s+[^'"]+\s+from\s+["']([^"']+)["']/g,
+  /\bimport\(\s*["']([^"']+)["']\s*\)/g,
+  /\bnew URL\(\s*["']([^"']+)["']\s*,\s*import\.meta\.url\s*\)/g,
+  /\bresolveWasmUrl\(\s*["']([^"']+)["']/g,
+  /\b[A-Za-z_$][\w$]*\(\s*["']([^"']+\.(?:worker\.js|wasm))["']/g,
+];
+const HTML_REFERENCE_PATTERN = /\b(?:href|src)="([^"]+)"/g;
+const CSS_URL_PATTERN = /\burl\(\s*(['"]?)([^'")]+)\1\s*\)/g;
+const SOURCE_MAPPING_URL_PATTERN = /(?:\/\/|\/\*)# sourceMappingURL=([^\s*]+)/g;
+
+function sourceFileToFilePath(sourceFile) {
+  return path.join(PUBLIC_ROOT, sourceFile);
+}
+
+function expectedContentTypeForSourceFile(sourceFile) {
+  const match = EXPECTED_CONTENT_TYPES.find((entry) => sourceFile.endsWith(entry.suffix));
+  return match?.contentType || 'application/octet-stream';
+}
+
+function assetByRoute(assets) {
+  return new Map(assets.map((asset) => [asset.route, asset]));
+}
+
+function isReferencedRouteAsset(asset) {
+  return REFERENCED_ROUTE_CLASSES.has(asset.routeClass);
+}
+
+function isJavaScriptAsset(asset) {
+  return asset.routeClass === 'javascript';
+}
+
+function isWalletWorkerRoute(route) {
+  return route.startsWith('/sdk/workers/');
+}
+
+function isCorsReadableWalletAsset(asset) {
+  return (
+    asset.route.startsWith('/sdk/') &&
+    (asset.routeClass === 'javascript' || asset.routeClass === 'css' || asset.routeClass === 'wasm')
+  );
+}
+
+function isWalletWorkerEntryRoute(route) {
+  return route.startsWith('/sdk/workers/') && route.endsWith('.worker.js');
+}
+
+function isWalletWorkerWasmRoute(route) {
+  return route.startsWith('/sdk/workers/') && route.endsWith('.wasm');
+}
+
+function isIgnoredReference(specifier) {
+  const trimmed = String(specifier || '').trim();
+  if (!trimmed) return true;
+  if (trimmed.startsWith('#')) return true;
+  if (trimmed.startsWith('data:')) return true;
+  if (trimmed.startsWith('blob:')) return true;
+  if (trimmed.startsWith('http:')) return true;
+  if (trimmed.startsWith('https:')) return true;
+  if (trimmed.startsWith('mailto:')) return true;
+  return false;
+}
+
+function referencedRouteForSpecifier(sourceRoute, specifier) {
+  const cleanSpecifier = specifier.split('#')[0].split('?')[0];
+  if (isIgnoredReference(cleanSpecifier)) return undefined;
+  const sourceUrl = new URL(sourceRoute, 'https://wallet.static.local');
+  const referencedRoute = new URL(cleanSpecifier, sourceUrl).pathname;
+  if (referencedRoute.endsWith('/')) return undefined;
+  return referencedRoute;
+}
+
+function addPatternReferences(references, content, pattern) {
+  pattern.lastIndex = 0;
+  let match = pattern.exec(content);
+  while (match) {
+    references.add(match[1]);
+    match = pattern.exec(content);
+  }
+}
+
+function addCssUrlReferences(references, content) {
+  CSS_URL_PATTERN.lastIndex = 0;
+  let match = CSS_URL_PATTERN.exec(content);
+  while (match) {
+    references.add(match[2]);
+    match = CSS_URL_PATTERN.exec(content);
+  }
+}
+
+function referencesForAsset(asset, content) {
+  const references = new Set();
+  if (asset.routeClass === 'htmlDocument') {
+    addPatternReferences(references, content, HTML_REFERENCE_PATTERN);
+  }
+  if (asset.routeClass === 'javascript') {
+    for (const pattern of JS_REFERENCE_PATTERNS) {
+      addPatternReferences(references, content, pattern);
+    }
+    addPatternReferences(references, content, SOURCE_MAPPING_URL_PATTERN);
+  }
+  if (asset.routeClass === 'css') {
+    addCssUrlReferences(references, content);
+    addPatternReferences(references, content, SOURCE_MAPPING_URL_PATTERN);
+  }
+  return references;
+}
+
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
+async function readJson(filePath) {
+  return JSON.parse(await fs.readFile(filePath, 'utf-8'));
+}
+
+async function assertFileExists(filePath, label) {
+  try {
+    const stat = await fs.stat(filePath);
+    assert(stat.isFile(), `${label} is not a file: ${filePath}`);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') throw new Error(`${label} is missing: ${filePath}`);
+    throw error;
+  }
+}
+
+function assertUniqueAssets(assets) {
+  const routes = new Set();
+  const sourceFiles = new Set();
+  for (const asset of assets) {
+    assert(!routes.has(asset.route), `Duplicate wallet asset route: ${asset.route}`);
+    assert(
+      !sourceFiles.has(asset.sourceFile),
+      `Duplicate wallet asset source: ${asset.sourceFile}`,
+    );
+    routes.add(asset.route);
+    sourceFiles.add(asset.sourceFile);
+  }
+}
+
+async function assertManifestFilesExist(assets) {
+  for (const asset of assets) {
+    await assertFileExists(sourceFileToFilePath(asset.sourceFile), `Asset ${asset.route}`);
+  }
+}
+
+function assertRequiredRoutes(routes) {
+  for (const route of REQUIRED_BASE_ROUTES) {
+    assert(routes.has(route), `Missing required wallet static route: ${route}`);
+  }
+}
+
+function assertNoHostedExportViewerRoute(assetsManifest, headersManifest, routes) {
+  assert(!routes.has('/export-viewer'), 'Hosted /export-viewer route must not be emitted');
+  assert(
+    !Object.prototype.hasOwnProperty.call(assetsManifest, 'exportViewerPath'),
+    'wallet-assets.manifest.json must not expose exportViewerPath',
+  );
+  const routeClasses = new Set(
+    headersManifest.routeClasses?.map((entry) => entry.routePattern) || [],
+  );
+  assert(
+    !routeClasses.has('/export-viewer'),
+    'headers.manifest.json must not expose /export-viewer',
+  );
+}
+
+async function assertCanonicalWalletStaticAssets() {
+  for (const fileName of CANONICAL_WALLET_STATIC_ASSETS) {
+    const sourcePath = path.join(WALLET_STATIC_ASSETS_ROOT, fileName);
+    const publicPath = path.join(PUBLIC_SDK, fileName);
+    const source = await fs.readFile(sourcePath, 'utf-8');
+    const published = await fs.readFile(publicPath, 'utf-8');
+    assert(published === source, `${publicPath} must match ${sourcePath}`);
+  }
+}
+
+function assertContentTypes(assets) {
+  for (const asset of assets) {
+    const expected = expectedContentTypeForSourceFile(asset.sourceFile);
+    assert(
+      asset.contentType === expected,
+      `Unexpected content type for ${asset.sourceFile}: ${asset.contentType} !== ${expected}`,
+    );
+  }
+}
+
+function assertRequiredHeaders(assets) {
+  for (const asset of assets) {
+    const contentTypeHeader = asset.requiredHeaders?.find((header) => {
+      return header.name === 'Content-Type';
+    });
+    assert(contentTypeHeader, `Missing Content-Type header metadata for ${asset.route}`);
+    assert(
+      contentTypeHeader.value === asset.contentType,
+      `Content-Type header does not match contentType for ${asset.route}`,
+    );
+    if (isCorsReadableWalletAsset(asset)) {
+      const corsHeader = asset.requiredHeaders?.find((header) => {
+        return header.name === 'Access-Control-Allow-Origin';
+      });
+      assert(corsHeader, `Missing Access-Control-Allow-Origin header metadata for ${asset.route}`);
+      assert(
+        corsHeader.value === '*',
+        `Access-Control-Allow-Origin header for ${asset.route} must be *`,
+      );
+    }
+  }
+}
+
+function assertWorkerWasmCompressionEligibility(assets) {
+  const workerWasmAssets = assets.filter((asset) => isWalletWorkerWasmRoute(asset.route));
+  for (const asset of workerWasmAssets) {
+    assert(
+      asset.contentType === 'application/wasm',
+      `${asset.route} must use application/wasm for edge compression`,
+    );
+    assert(
+      !String(asset.cachePolicy || '')
+        .toLowerCase()
+        .includes('no-transform'),
+      `${asset.route} must remain eligible for Cloudflare Brotli/Gzip transformation`,
+    );
+  }
+}
+
+async function assertAssetReferencesResolve(assets, routes) {
+  for (const asset of assets.filter(isReferencedRouteAsset)) {
+    const content = await fs.readFile(sourceFileToFilePath(asset.sourceFile), 'utf-8');
+    const references = referencesForAsset(asset, content);
+    for (const reference of references) {
+      const referencedRoute = referencedRouteForSpecifier(asset.route, reference);
+      if (!referencedRoute) continue;
+      assert(
+        routes.has(referencedRoute),
+        `${asset.route} references missing static asset ${referencedRoute}`,
+      );
+    }
+  }
+}
+
+async function buildAssetReferenceGraph(assets, routes) {
+  const graph = new Map();
+  for (const asset of assets.filter(isReferencedRouteAsset)) {
+    const content = await fs.readFile(sourceFileToFilePath(asset.sourceFile), 'utf-8');
+    const references = referencesForAsset(asset, content);
+    const edges = [];
+    for (const reference of references) {
+      const referencedRoute = referencedRouteForSpecifier(asset.route, reference);
+      if (referencedRoute && routes.has(referencedRoute)) edges.push(referencedRoute);
+    }
+    graph.set(asset.route, edges);
+  }
+  return graph;
+}
+
+function reachableRoutesFromEntries(graph, entryRoutes) {
+  const reachable = new Set();
+  const pending = [...entryRoutes];
+  while (pending.length > 0) {
+    const route = pending.pop();
+    if (!route || reachable.has(route)) continue;
+    reachable.add(route);
+    for (const child of graph.get(route) || []) {
+      if (!reachable.has(child)) pending.push(child);
+    }
+  }
+  return reachable;
+}
+
+async function assertWorkerAuthorityReferencesScoped(assets, routes) {
+  const graph = await buildAssetReferenceGraph(assets, routes);
+  const reachableFromWalletHost = reachableRoutesFromEntries(graph, WALLET_HOST_ENTRY_ROUTES);
+  const offenders = [];
+
+  for (const entryRoute of WALLET_HOST_ENTRY_ROUTES) {
+    assert(routes.has(entryRoute), `Missing wallet host entry route: ${entryRoute}`);
+  }
+
+  for (const asset of assets.filter(isJavaScriptAsset)) {
+    const content = await fs.readFile(sourceFileToFilePath(asset.sourceFile), 'utf-8');
+    if (!content.includes('/sdk/workers/')) continue;
+    if (isWalletWorkerRoute(asset.route)) continue;
+    if (reachableFromWalletHost.has(asset.route)) continue;
+    offenders.push(asset.route);
+  }
+
+  assert(
+    offenders.length === 0,
+    `Generated JS contains /sdk/workers/ authority assumptions outside wallet-hosted runtime: ${offenders.join(', ')}`,
+  );
+}
+
+async function assertWorkerWasmReachability(assets, routes) {
+  const graph = await buildAssetReferenceGraph(assets, routes);
+  const workerRoutes = assets
+    .map((asset) => asset.route)
+    .filter((route) => isWalletWorkerEntryRoute(route) && !WASM_FREE_WORKER_ROUTES.has(route))
+    .sort();
+  const wasmRoutes = new Set(assets.map((asset) => asset.route).filter(isWalletWorkerWasmRoute));
+  const wasmFreeWorkers = [];
+
+  assert(workerRoutes.length > 0, 'wallet-assets.manifest.json must include wallet worker routes');
+  assert(wasmRoutes.size > 0, 'wallet-assets.manifest.json must include worker WASM routes');
+
+  for (const workerRoute of workerRoutes) {
+    const reachable = reachableRoutesFromEntries(graph, [workerRoute]);
+    const reachableWasm = [...reachable].filter((route) => wasmRoutes.has(route));
+    if (reachableWasm.length === 0) wasmFreeWorkers.push(workerRoute);
+  }
+
+  assert(
+    wasmFreeWorkers.length === 0,
+    `Worker routes do not reach WASM companions from generated references: ${wasmFreeWorkers.join(', ')}`,
+  );
+}
+
+function assertHeaderManifest(headersManifest) {
+  assert(headersManifest.schemaVersion === 1, 'headers.manifest.json schemaVersion must be 1');
+  const classes = new Set(headersManifest.routeClasses?.map((entry) => entry.routePattern) || []);
+  for (const routeClass of REQUIRED_HEADER_ROUTE_CLASSES) {
+    assert(classes.has(routeClass), `headers.manifest.json missing route class ${routeClass}`);
+  }
+}
+
+function assertForbiddenDefaultHeaders(headersManifest) {
+  for (const routeClass of headersManifest.routeClasses || []) {
+    const forbidden = new Set(
+      (routeClass.forbiddenDefaultHeaders || []).map((header) => header.toLowerCase()),
+    );
+    const required = routeClass.requiredHeaders || [];
+    for (const header of required) {
+      const name = String(header.name || '').toLowerCase();
+      assert(
+        !forbidden.has(name),
+        `${routeClass.routePattern} requires forbidden default header ${header.name}`,
+      );
+    }
+  }
+}
+
+function assertForbiddenDefaultHeaderCoverage(headersManifest) {
+  const classes = new Map(
+    (headersManifest.routeClasses || []).map((entry) => [entry.routePattern, entry]),
+  );
+  for (const routePattern of [
+    '/sdk/*.js',
+    '/sdk/*.css',
+    '/sdk/workers/*.js',
+    '/sdk/workers/*.wasm',
+  ]) {
+    const routeClass = classes.get(routePattern);
+    const forbidden = new Set(routeClass?.forbiddenDefaultHeaders || []);
+    for (const header of FORBIDDEN_STATIC_ASSET_DEFAULT_HEADERS) {
+      assert(forbidden.has(header), `${routePattern} must forbid default ${header}`);
+    }
+  }
+  for (const routePattern of ['/wallet-service']) {
+    const routeClass = classes.get(routePattern);
+    const forbidden = new Set(routeClass?.forbiddenDefaultHeaders || []);
+    for (const header of FORBIDDEN_DOCUMENT_DEFAULT_HEADERS) {
+      assert(forbidden.has(header), `${routePattern} must forbid default ${header}`);
+    }
+    const csp = (routeClass?.requiredHeaders || []).find((header) => {
+      return header.name === 'Content-Security-Policy';
+    });
+    assert(csp, `${routePattern} must declare embedding-control CSP`);
+    assert(
+      String(csp.value || '').startsWith('frame-ancestors '),
+      `${routePattern} CSP must stay limited to frame-ancestors embedding control`,
+    );
+  }
+}
+
+function assertVersionSkewContract(versionSkewContract) {
+  assert(versionSkewContract, 'wallet-assets.manifest.json missing versionSkewContract');
+  assert(
+    versionSkewContract.kind === 'wallet_iframe_protocol_handshake',
+    'versionSkewContract.kind must be wallet_iframe_protocol_handshake',
+  );
+  assert(
+    typeof versionSkewContract.protocolVersion === 'string' &&
+      versionSkewContract.protocolVersion.length > 0,
+    'versionSkewContract.protocolVersion must be a non-empty string',
+  );
+  assert(
+    versionSkewContract.readyPayloadField === 'protocolVersion',
+    'versionSkewContract.readyPayloadField must be protocolVersion',
+  );
+  assert(
+    versionSkewContract.failureMode === 'typed_error',
+    'versionSkewContract.failureMode must be typed_error',
+  );
+  assert(
+    versionSkewContract.errorCode === 'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH',
+    'versionSkewContract.errorCode must be WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH',
+  );
+}
+
+function assertManifestShape(assetsManifest, headersManifest) {
+  assert(assetsManifest.schemaVersion === 1, 'wallet-assets.manifest.json schemaVersion must be 1');
+  assert(headersManifest.schemaVersion === 1, 'headers.manifest.json schemaVersion must be 1');
+  assert(Array.isArray(assetsManifest.assets), 'wallet-assets.manifest.json must contain assets[]');
+  assert(
+    assetsManifest.headersManifest === 'headers.manifest.json',
+    'assets manifest must point at headers.manifest.json',
+  );
+  assertVersionSkewContract(assetsManifest.versionSkewContract);
+}
+
+async function assertStaticWalletAssets() {
+  await assertFileExists(ASSETS_MANIFEST_PATH, 'wallet-assets.manifest.json');
+  await assertFileExists(HEADERS_MANIFEST_PATH, 'headers.manifest.json');
+  const assetsManifest = await readJson(ASSETS_MANIFEST_PATH);
+  const headersManifest = await readJson(HEADERS_MANIFEST_PATH);
+  assertManifestShape(assetsManifest, headersManifest);
+  assertHeaderManifest(headersManifest);
+  assertForbiddenDefaultHeaders(headersManifest);
+  assertForbiddenDefaultHeaderCoverage(headersManifest);
+  const assets = assetsManifest.assets;
+  assertUniqueAssets(assets);
+  await assertManifestFilesExist(assets);
+  assertContentTypes(assets);
+  assertRequiredHeaders(assets);
+  assertWorkerWasmCompressionEligibility(assets);
+  const routes = assetByRoute(assets);
+  assertRequiredRoutes(routes);
+  assertNoHostedExportViewerRoute(assetsManifest, headersManifest, routes);
+  await assertCanonicalWalletStaticAssets();
+  await assertAssetReferencesResolve(assets, routes);
+  await assertWorkerAuthorityReferencesScoped(assets, routes);
+  await assertWorkerWasmReachability(assets, routes);
+  console.log(`Static wallet asset manifest OK (${assets.length} assets)`);
+}
+
+await assertStaticWalletAssets();

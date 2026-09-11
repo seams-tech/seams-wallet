@@ -1,0 +1,32 @@
+[package]
+name = "seams-recovery-core"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Native secret core for the seams derivation-root recovery CLI"
+license = "Apache-2.0"
+
+[lib]
+name = "seams_recovery_core"
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[dependencies]
+base64ct = { version = "1.6", features = ["alloc"] }
+ed25519-dalek = { version = "2.1", default-features = false }
+rand_core_09 = { package = "rand_core", version = "0.9.5" }
+router-ab-core = { path = "../router-ab-core" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+zeroize = { version = "1.8", features = ["zeroize_derive"] }
+
+[dev-dependencies]
+base64ct = { version = "1.6", features = ["alloc"] }
+ed25519-dalek = { version = "2.1", default-features = false }
+hex = "0.4"
+sha2 = "0.10"
+rand_chacha_09 = { package = "rand_chacha", version = "0.9", default-features = false }
+
+[profile.test]
+opt-level = 2

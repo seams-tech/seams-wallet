@@ -1,0 +1,32 @@
+import {
+  EvmAdapter,
+  type EvmSignedResult,
+} from '@/core/signingEngine/chains/evm/evmAdapter';
+import type { EvmSigningRequest } from '@/core/signingEngine/chains/evm/evmSigning.types';
+import { buildEvmDisplayModel } from '@/core/signingEngine/chains/evm/display/evmTx';
+import {
+  signEvmFamilyWithUiConfirm,
+  type SignEvmFamilyWithUiConfirmArgs,
+} from './signingFlow';
+import { requiredEvmFamilyRequestSignatureUses } from './signatureUses';
+
+export async function signEvmWithUiConfirm(
+  args: SignEvmFamilyWithUiConfirmArgs<EvmSigningRequest>,
+): Promise<EvmSignedResult> {
+  return await signEvmFamilyWithUiConfirm({
+    config: {
+      targetKind: 'evm',
+      flowName: 'evm',
+      explicitAuthErrorLabel: 'EVM',
+      nonceErrorLabel: 'EVM',
+      title: 'Sign EVM Transaction',
+      body: '',
+      buildIntent: async ({ workerCtx, request }) =>
+        await new EvmAdapter(workerCtx).buildIntent(request),
+      buildDisplayModel: buildEvmDisplayModel,
+      requiredSignatureUsesForRequest: requiredEvmFamilyRequestSignatureUses,
+      webauthn: { kind: 'not_supported' },
+    },
+    input: args,
+  });
+}

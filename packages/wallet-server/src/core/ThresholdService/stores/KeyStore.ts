@@ -1,0 +1,239 @@
+import type { NormalizedLogger } from '../../logger';
+import type {
+  ThresholdEd25519AuthorityScope,
+  ThresholdStoreConfigInput,
+} from '../../types';
+import {
+  RedisTcpClient,
+  UpstashRedisRestClient,
+  redisDel,
+  redisGetJson,
+  redisSetJson,
+} from '../kv';
+import { toOptionalTrimmedString } from '@shared/utils/validation';
+import {
+  isObject,
+  canonicalThresholdEd25519RelayerKeyId,
+  toThresholdEd25519KeyPrefix,
+  toThresholdEd25519PrefixFromBase,
+  parseThresholdEd25519KeyRecord,
+} from '../validation';
+import { createCloudflareDurableObjectThresholdEd25519Stores } from './CloudflareDurableObjectStore';
+import { readNonDurableObjectThresholdStoreKind } from './StoreConfig';
+
+type ThresholdKeyStoreConfigRecord = Record<string, unknown>;
+
+export type ThresholdEd25519ProvisioningKeyRecord = {
+  kind: 'provisioning';
+  walletId: string;
+  nearAccountId: string;
+  nearEd25519SigningKeyId: string;
+  authorityScope: ThresholdEd25519AuthorityScope;
+  publicKey: string;
+  keyVersion: string;
+  routerMaterial?: never;
+  recoveryExportCapable?: never;
+};
+
+export type ThresholdEd25519ReadyKeyRecord = {
+  kind: 'ready';
+  walletId: string;
+  nearAccountId: string;
+  nearEd25519SigningKeyId: string;
+  authorityScope: ThresholdEd25519AuthorityScope;
+  publicKey: string;
+  routerMaterial: {
+    signingShareB64u: string;
+    verifyingShareB64u: string;
+  };
+  keyVersion: string;
+  recoveryExportCapable: true;
+};
+
+export type ThresholdEd25519KeyRecord =
+  | ThresholdEd25519ProvisioningKeyRecord
+  | ThresholdEd25519ReadyKeyRecord;
+
+export interface ThresholdEd25519KeyStore {
+  get(relayerKeyId: string): Promise<ThresholdEd25519ReadyKeyRecord | null>;
+  put(relayerKeyId: string, record: ThresholdEd25519ReadyKeyRecord): Promise<void>;
+  del(relayerKeyId: string): Promise<void>;
+}
+
+class InMemoryThresholdEd25519KeyStore implements ThresholdEd25519KeyStore {
+  private readonly map = new Map<string, ThresholdEd25519ReadyKeyRecord>();
+
+  async get(relayerKeyId: string): Promise<ThresholdEd25519ReadyKeyRecord | null> {
+    const id = canonicalThresholdEd25519RelayerKeyId(relayerKeyId);
+    if (!id) return null;
+    return this.map.get(id) || null;
+  }
+
+  async put(relayerKeyId: string, record: ThresholdEd25519ReadyKeyRecord): Promise<void> {
+    const id = canonicalThresholdEd25519RelayerKeyId(relayerKeyId);
+    if (!id) throw new Error('Missing relayerKeyId');
+    this.map.set(id, record);
+  }
+
+  async del(relayerKeyId: string): Promise<void> {
+    const id = canonicalThresholdEd25519RelayerKeyId(relayerKeyId);
+    if (!id) return;
+    this.map.delete(id);
+  }
+}
+
+class UpstashRedisRestThresholdEd25519KeyStore implements ThresholdEd25519KeyStore {
+  private readonly client: UpstashRedisRestClient;
+  private readonly keyPrefix: string;
+
+  constructor(input: { url: string; token: string; keyPrefix?: string }) {
+    const url = toOptionalTrimmedString(input.url);
+    const token = toOptionalTrimmedString(input.token);
+    if (!url) throw new Error('Upstash key store missing url');
+    if (!token) throw new Error('Upstash key store missing token');
+    this.client = new UpstashRedisRestClient({ url, token });
+    this.keyPrefix = toThresholdEd25519KeyPrefix(input.keyPrefix);
+  }
+
+  private key(relayerKeyId: string): string {
+    return `${this.keyPrefix}${relayerKeyId}`;
+  }
+
+  async get(relayerKeyId: string): Promise<ThresholdEd25519ReadyKeyRecord | null> {
+    const id = canonicalThresholdEd25519RelayerKeyId(relayerKeyId);
+    if (!id) return null;
+    const raw = await this.client.getJson(this.key(id));
+    return parseThresholdEd25519KeyRecord(raw);
+  }
+
+  async put(relayerKeyId: string, record: ThresholdEd25519ReadyKeyRecord): Promise<void> {
+    const id = canonicalThresholdEd25519RelayerKeyId(relayerKeyId);
+    if (!id) throw new Error('Missing relayerKeyId');
+    await this.client.setJson(this.key(id), record);
+  }
+
+  async del(relayerKeyId: string): Promise<void> {
+    const id = canonicalThresholdEd25519RelayerKeyId(relayerKeyId);
+    if (!id) return;
+    await this.client.del(this.key(id));
+  }
+}
+
+class RedisTcpThresholdEd25519KeyStore implements ThresholdEd25519KeyStore {
+  private readonly keyPrefix: string;
+  private readonly client: RedisTcpClient;
+
+  constructor(input: { redisUrl: string; keyPrefix?: string }) {
+    const url = toOptionalTrimmedString(input.redisUrl);
+    if (!url) throw new Error('redis-tcp key store missing redisUrl');
+    this.client = new RedisTcpClient(url);
+    this.keyPrefix = toThresholdEd25519KeyPrefix(input.keyPrefix);
+  }
+
+  private key(relayerKeyId: string): string {
+    return `${this.keyPrefix}${relayerKeyId}`;
+  }
+
+  async get(relayerKeyId: string): Promise<ThresholdEd25519ReadyKeyRecord | null> {
+    const id = canonicalThresholdEd25519RelayerKeyId(relayerKeyId);
+    if (!id) return null;
+    const raw = await redisGetJson(this.client, this.key(id));
+    return parseThresholdEd25519KeyRecord(raw);
+  }
+
+  async put(relayerKeyId: string, record: ThresholdEd25519ReadyKeyRecord): Promise<void> {
+    const id = canonicalThresholdEd25519RelayerKeyId(relayerKeyId);
+    if (!id) throw new Error('Missing relayerKeyId');
+    await redisSetJson(this.client, this.key(id), record);
+  }
+
+  async del(relayerKeyId: string): Promise<void> {
+    const id = canonicalThresholdEd25519RelayerKeyId(relayerKeyId);
+    if (!id) return;
+    await redisDel(this.client, this.key(id));
+  }
+}
+
+export function createThresholdEd25519KeyStore(input: {
+  config?: ThresholdStoreConfigInput | null;
+  logger: NormalizedLogger;
+  isNode: boolean;
+}): ThresholdEd25519KeyStore {
+  const doStores = createCloudflareDurableObjectThresholdEd25519Stores({
+    config: input.config,
+    logger: input.logger,
+  });
+  if (doStores) return doStores.keyStore;
+
+  const config = (isObject(input.config) ? input.config : {}) as ThresholdKeyStoreConfigRecord;
+  const basePrefix = toOptionalTrimmedString(config.THRESHOLD_PREFIX);
+  const envPrefix =
+    toOptionalTrimmedString(config.THRESHOLD_ED25519_KEYSTORE_PREFIX) ||
+    toThresholdEd25519PrefixFromBase(basePrefix, 'key') ||
+    '';
+
+  // Explicit config object
+  const kind = readNonDurableObjectThresholdStoreKind(config, 'threshold-ed25519');
+  if (kind === 'in-memory') return new InMemoryThresholdEd25519KeyStore();
+  if (kind === 'upstash-redis-rest') {
+    return new UpstashRedisRestThresholdEd25519KeyStore({
+      url:
+        toOptionalTrimmedString(config.url) ||
+        toOptionalTrimmedString(config.UPSTASH_REDIS_REST_URL),
+      token:
+        toOptionalTrimmedString(config.token) ||
+        toOptionalTrimmedString(config.UPSTASH_REDIS_REST_TOKEN),
+      keyPrefix: toOptionalTrimmedString(config.keyPrefix) || envPrefix,
+    });
+  }
+  if (kind === 'redis-tcp') {
+    if (!input.isNode) {
+      input.logger.warn(
+        '[threshold-ed25519] redis-tcp key store is not supported in this runtime; falling back to in-memory',
+      );
+      return new InMemoryThresholdEd25519KeyStore();
+    }
+    return new RedisTcpThresholdEd25519KeyStore({
+      redisUrl:
+        toOptionalTrimmedString(config.redisUrl) || toOptionalTrimmedString(config.REDIS_URL),
+      keyPrefix: toOptionalTrimmedString(config.keyPrefix) || envPrefix,
+    });
+  }
+
+  const upstashUrl = toOptionalTrimmedString(config.UPSTASH_REDIS_REST_URL);
+  const upstashToken = toOptionalTrimmedString(config.UPSTASH_REDIS_REST_TOKEN);
+  if (upstashUrl || upstashToken) {
+    if (!upstashUrl || !upstashToken) {
+      throw new Error(
+        'Upstash key store enabled but UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are not both set',
+      );
+    }
+    input.logger.info(
+      '[threshold-ed25519] Using Upstash REST key store for relayer signing share persistence',
+    );
+    return new UpstashRedisRestThresholdEd25519KeyStore({
+      url: upstashUrl,
+      token: upstashToken,
+      keyPrefix: envPrefix || undefined,
+    });
+  }
+
+  const redisUrl = toOptionalTrimmedString(config.REDIS_URL);
+  if (redisUrl) {
+    if (!input.isNode) {
+      input.logger.warn(
+        '[threshold-ed25519] REDIS_URL is set but TCP Redis is not supported in this runtime; falling back to in-memory',
+      );
+      return new InMemoryThresholdEd25519KeyStore();
+    }
+    input.logger.info(
+      '[threshold-ed25519] Using redis-tcp key store for relayer signing share persistence',
+    );
+    return new RedisTcpThresholdEd25519KeyStore({ redisUrl, keyPrefix: envPrefix || undefined });
+  }
+
+  input.logger.info(
+    '[threshold-ed25519] Using in-memory key store for relayer signing share (non-persistent)',
+  );
+  return new InMemoryThresholdEd25519KeyStore();
+}

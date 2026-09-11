@@ -1,0 +1,305 @@
+use router_ab_core::{
+    CanonicalWireBytesV1, LocalHttpPathV1, LocalServiceRoleV1, RouterAbProtocolError,
+    RouterAbProtocolErrorCode, RouterAbProtocolResult,
+};
+use serde::{de::DeserializeOwned, Serialize};
+use std::{
+    io::{Read, Write},
+    net::{Shutdown, TcpStream},
+    time::Duration,
+};
+
+/// Parsed local HTTP service-binding endpoint.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LocalHttpServiceBindingEndpointV1 {
+    /// Role that owns the target path.
+    pub owner: LocalServiceRoleV1,
+    /// Full URL requested by the local transport.
+    pub url: String,
+    /// Host header value.
+    pub host_header: String,
+    /// Host:port address used by `TcpStream`.
+    pub bind_addr: String,
+    /// Production-style request path.
+    pub path: String,
+}
+
+/// Blocking local HTTP client for service-binding parity tests.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LocalHttpServiceBindingClientV1 {
+    timeout: Duration,
+}
+
+impl LocalHttpServiceBindingClientV1 {
+    /// Creates a local HTTP service-binding client with a non-zero timeout.
+    pub fn new(timeout: Duration) -> RouterAbProtocolResult<Self> {
+        if timeout.is_zero() {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "local HTTP service-binding timeout must be non-zero",
+            ));
+        }
+        Ok(Self { timeout })
+    }
+
+    /// Posts canonical wire bytes to one checked local service-binding path.
+    pub fn post_canonical_wire_bytes_v1(
+        &self,
+        base_url: &str,
+        path: LocalHttpPathV1,
+        body: &CanonicalWireBytesV1,
+    ) -> RouterAbProtocolResult<CanonicalWireBytesV1> {
+        let endpoint = local_http_service_binding_endpoint_v1(base_url, path)?;
+        let response_body = self.post_bytes_to_endpoint_v1(
+            &endpoint,
+            super::LOCAL_HTTP_CANONICAL_WIRE_CONTENT_TYPE_V1,
+            body.as_bytes(),
+            None,
+        )?;
+        CanonicalWireBytesV1::new(response_body)
+    }
+
+    /// Posts JSON to one checked local service-binding path and parses JSON response.
+    pub fn post_json_v1<Request, Response>(
+        &self,
+        base_url: &str,
+        path: LocalHttpPathV1,
+        body: &Request,
+    ) -> RouterAbProtocolResult<Response>
+    where
+        Request: Serialize,
+        Response: DeserializeOwned,
+    {
+        let endpoint = local_http_service_binding_endpoint_v1(base_url, path)?;
+        let request_body = serde_json::to_vec(body).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("local HTTP service-binding JSON request serialization failed: {error}"),
+            )
+        })?;
+        let response_body = self.post_bytes_to_endpoint_v1(
+            &endpoint,
+            super::LOCAL_HTTP_JSON_CONTENT_TYPE_V1,
+            &request_body,
+            None,
+        )?;
+        serde_json::from_slice(&response_body).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("local HTTP service-binding JSON response parse failed: {error}"),
+            )
+        })
+    }
+
+    /// Posts JSON to a checked private role route with service authentication.
+    pub fn post_json_authenticated_v1<Request, Response>(
+        &self,
+        base_url: &str,
+        owner: LocalServiceRoleV1,
+        path: &str,
+        internal_service_auth: &str,
+        body: &Request,
+    ) -> RouterAbProtocolResult<Response>
+    where
+        Request: Serialize,
+        Response: DeserializeOwned,
+    {
+        let endpoint = local_http_service_binding_endpoint_for_route_v1(base_url, owner, path)?;
+        let request_body = serde_json::to_vec(body).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("local HTTP service-binding JSON request serialization failed: {error}"),
+            )
+        })?;
+        let response_body = self.post_bytes_to_endpoint_v1(
+            &endpoint,
+            super::LOCAL_HTTP_JSON_CONTENT_TYPE_V1,
+            &request_body,
+            Some(internal_service_auth),
+        )?;
+        serde_json::from_slice(&response_body).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("local HTTP service-binding JSON response parse failed: {error}"),
+            )
+        })
+    }
+
+    fn post_bytes_to_endpoint_v1(
+        &self,
+        endpoint: &LocalHttpServiceBindingEndpointV1,
+        content_type: &str,
+        body: &[u8],
+        internal_service_auth: Option<&str>,
+    ) -> RouterAbProtocolResult<Vec<u8>> {
+        let mut stream = TcpStream::connect(&endpoint.bind_addr).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+                format!(
+                    "local HTTP service-binding connect to {} failed: {error}",
+                    endpoint.bind_addr
+                ),
+            )
+        })?;
+        stream
+            .set_read_timeout(Some(self.timeout))
+            .map_err(super::map_local_http_io_error_v1)?;
+        stream
+            .set_write_timeout(Some(self.timeout))
+            .map_err(super::map_local_http_io_error_v1)?;
+
+        let auth_header = internal_service_auth
+            .map(internal_service_auth_header_v1)
+            .transpose()?;
+        write!(
+            stream,
+            "POST {} HTTP/1.1\r\nhost: {}\r\ncontent-type: {}\r\n{}content-length: {}\r\nconnection: close\r\n\r\n",
+            endpoint.path,
+            endpoint.host_header,
+            content_type,
+            auth_header.unwrap_or_default(),
+            body.len()
+        )
+        .map_err(super::map_local_http_io_error_v1)?;
+        stream
+            .write_all(body)
+            .map_err(super::map_local_http_io_error_v1)?;
+        stream.flush().map_err(super::map_local_http_io_error_v1)?;
+        stream
+            .shutdown(Shutdown::Write)
+            .map_err(super::map_local_http_io_error_v1)?;
+
+        let mut response = Vec::new();
+        stream
+            .read_to_end(&mut response)
+            .map_err(super::map_local_http_io_error_v1)?;
+        let (status, response_body) = super::split_local_http_response_v1(&response)?;
+        if !(200..=299).contains(&status) {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+                format!("local HTTP service-binding request failed with status {status}"),
+            ));
+        }
+        Ok(response_body)
+    }
+}
+
+impl Default for LocalHttpServiceBindingClientV1 {
+    fn default() -> Self {
+        Self {
+            timeout: Duration::from_millis(super::LOCAL_HTTP_SERVICE_BINDING_TIMEOUT_MS_V1),
+        }
+    }
+}
+
+/// Returns the production-style path for a checked local transport path.
+pub fn local_http_service_binding_path_v1(path: LocalHttpPathV1) -> &'static str {
+    match path {
+        LocalHttpPathV1::RouterToSignerA => super::LOCAL_DERIVER_A_PRIVATE_PATH,
+        LocalHttpPathV1::RouterToSignerB => super::LOCAL_DERIVER_B_PRIVATE_PATH,
+        LocalHttpPathV1::SignerAToSignerB => super::LOCAL_DERIVER_B_PEER_PATH,
+        LocalHttpPathV1::SignerBToSignerA => super::LOCAL_DERIVER_A_PEER_PATH,
+    }
+}
+
+/// Returns the destination role that owns a checked local transport path.
+pub fn local_http_service_binding_owner_v1(path: LocalHttpPathV1) -> LocalServiceRoleV1 {
+    match path {
+        LocalHttpPathV1::RouterToSignerA | LocalHttpPathV1::SignerBToSignerA => {
+            LocalServiceRoleV1::DeriverA
+        }
+        LocalHttpPathV1::RouterToSignerB | LocalHttpPathV1::SignerAToSignerB => {
+            LocalServiceRoleV1::DeriverB
+        }
+    }
+}
+
+/// Builds the full production-style local service-binding URL for a base URL.
+pub fn local_http_service_binding_url_v1(
+    base_url: &str,
+    path: LocalHttpPathV1,
+) -> RouterAbProtocolResult<String> {
+    super::require_non_empty("local HTTP service-binding base URL", base_url)?;
+    let route_path = local_http_service_binding_path_v1(path);
+    let base = base_url.trim_end_matches('/');
+    Ok(format!("{base}{route_path}"))
+}
+
+/// Builds the parsed endpoint used by the blocking local HTTP transport.
+pub fn local_http_service_binding_endpoint_v1(
+    base_url: &str,
+    path: LocalHttpPathV1,
+) -> RouterAbProtocolResult<LocalHttpServiceBindingEndpointV1> {
+    let url = local_http_service_binding_url_v1(base_url, path)?;
+    let parts = super::parse_http_url_parts_v1(&url)?;
+    let owner = local_http_service_binding_owner_v1(path);
+    if !super::local_worker_owns_path_v1(owner, &parts.path) {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+            format!(
+                "local HTTP service-binding path {} is not owned by {}",
+                parts.path,
+                owner.as_str()
+            ),
+        ));
+    }
+    Ok(LocalHttpServiceBindingEndpointV1 {
+        owner,
+        url,
+        host_header: parts.authority.clone(),
+        bind_addr: parts.authority,
+        path: parts.path,
+    })
+}
+
+fn local_http_service_binding_endpoint_for_route_v1(
+    base_url: &str,
+    owner: LocalServiceRoleV1,
+    path: &str,
+) -> RouterAbProtocolResult<LocalHttpServiceBindingEndpointV1> {
+    super::require_non_empty("local HTTP service-binding base URL", base_url)?;
+    super::require_non_empty("local HTTP service-binding route", path)?;
+    if !path.starts_with('/') || path.bytes().any(|byte| byte.is_ascii_whitespace()) {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+            "local HTTP service-binding route must be an absolute path without whitespace",
+        ));
+    }
+    let url = format!("{}{path}", base_url.trim_end_matches('/'));
+    let parts = super::parse_http_url_parts_v1(&url)?;
+    if !super::local_worker_owns_path_v1(owner, &parts.path) {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+            format!(
+                "local HTTP service-binding path {} is not owned by {}",
+                parts.path,
+                owner.as_str()
+            ),
+        ));
+    }
+    Ok(LocalHttpServiceBindingEndpointV1 {
+        owner,
+        url,
+        host_header: parts.authority.clone(),
+        bind_addr: parts.authority,
+        path: parts.path,
+    })
+}
+
+fn internal_service_auth_header_v1(auth: &str) -> RouterAbProtocolResult<String> {
+    super::require_non_empty("local HTTP service authentication", auth)?;
+    if auth
+        .bytes()
+        .any(|byte| byte == b'\r' || byte == b'\n' || byte.is_ascii_whitespace())
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+            "local HTTP service authentication contains invalid whitespace",
+        ));
+    }
+    Ok(format!(
+        "{}: {}\r\n",
+        super::LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+        auth
+    ))
+}

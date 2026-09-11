@@ -1,0 +1,98 @@
+import { SeamsWeb } from '@/SeamsWeb';
+import { buildConfigsFromEnv } from '@/core/config/defaultConfigs';
+import type { NearClient } from '@/core/rpcClients/near/NearClient';
+import type { SeamsConfigsReadonly, SeamsConfigsInput } from '@/core/types/seams';
+
+// Keep one live manager per window and replace it when the runtime configuration changes.
+//
+// IMPORTANT: Only persist on `window` (not Node/SSR globalThis) to avoid leaking
+// state across server requests/tests.
+type SingletonState = {
+  manager: SeamsWeb | null;
+  configKey: string | null;
+};
+
+const WINDOW_SINGLETON_KEY = '__w3a_seams_passkey_singleton__';
+
+const moduleSingletonState: SingletonState = {
+  manager: null,
+  configKey: null,
+};
+
+function getSingletonState(): SingletonState {
+  if (typeof window === 'undefined') return moduleSingletonState;
+  const g = globalThis as any;
+  if (!g[WINDOW_SINGLETON_KEY]) {
+    g[WINDOW_SINGLETON_KEY] = { manager: null, configKey: null } satisfies SingletonState;
+  }
+  return g[WINDOW_SINGLETON_KEY] as SingletonState;
+}
+
+function stableStringify(value: unknown): string {
+  const seen = new WeakSet<object>();
+
+  const normalize = (input: unknown): unknown => {
+    if (input === null) return null;
+    if (input === undefined) return undefined;
+
+    if (typeof input === 'string' || typeof input === 'number' || typeof input === 'boolean')
+      return input;
+    if (typeof input === 'bigint') return input.toString();
+
+    if (Array.isArray(input)) {
+      return input.map((item) => {
+        const normalized = normalize(item);
+        return normalized === undefined ? null : normalized;
+      });
+    }
+
+    if (typeof input === 'object') {
+      const obj = input as Record<string, unknown>;
+      if (seen.has(obj)) return '[Circular]';
+      seen.add(obj);
+
+      const out: Record<string, unknown> = {};
+      for (const key of Object.keys(obj).sort()) {
+        const normalized = normalize(obj[key]);
+        if (normalized !== undefined) out[key] = normalized;
+      }
+      seen.delete(obj);
+      return out;
+    }
+
+    // Shouldn't happen for configs; fall back to a string for determinism.
+    return String(input);
+  };
+
+  return JSON.stringify(normalize(value));
+}
+
+function computeConfigKey(config: SeamsConfigsReadonly): string {
+  // Appearance is dynamic and controlled via seams.setAppearance.
+  const { ui, ...configWithoutUi } = config;
+  const { appearance: _appearance, ...uiWithoutAppearance } = ui;
+  return stableStringify({ ...configWithoutUi, ui: uiWithoutAppearance });
+}
+
+export function getOrCreateSeamsManager(
+  config: SeamsConfigsInput,
+  nearClient: NearClient,
+): SeamsWeb {
+  const finalConfig: SeamsConfigsReadonly = buildConfigsFromEnv(config);
+  const nextKey = computeConfigKey(finalConfig);
+  const state = getSingletonState();
+
+  if (!state.manager) {
+    state.manager = new SeamsWeb(config, nearClient);
+    state.configKey = nextKey;
+    return state.manager;
+  }
+
+  if (state.configKey !== nextKey) {
+    state.manager.dispose();
+    state.manager = new SeamsWeb(config, nearClient);
+    state.configKey = nextKey;
+  }
+
+  return state.manager;
+}

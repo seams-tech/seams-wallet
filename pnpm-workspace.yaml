@@ -1,0 +1,19 @@
+packages:
+  - apps/docs
+  - crates/ed25519-yao-cloudflare-bench
+  - crates/router-ab-cloudflare
+  - examples/seams-auth-menu
+  - examples/self-host-cloudflare-worker
+  - packages/seams-cli
+  - packages/shared-ts
+  - packages/wallet-server
+  - packages/wallet
+  - voiceId
+nodeLinker: hoisted
+verifyDepsBeforeRun: false
+allowBuilds:
+  bufferutil: true
+  esbuild: true
+  sharp: true
+  utf-8-validate: true
+  workerd: true

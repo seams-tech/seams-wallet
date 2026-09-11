@@ -1,0 +1,587 @@
+import { base64UrlDecode } from '@shared/utils/base64';
+import { parseRouterAbEcdsaDerivationPublicCapabilityV1 } from '@shared/utils/routerAbEcdsaDerivation';
+import {
+  thresholdEcdsaChainTargetKey,
+  thresholdEcdsaChainTargetsEqual,
+  thresholdEcdsaChainTargetFromRequest,
+  type ThresholdEcdsaChainTarget,
+  toWalletId,
+} from '../../interfaces/ecdsaChainTarget';
+import { toRpId } from '../identity/evmFamilyEcdsaIdentity';
+import {
+  toEcdsaDerivationSigningRootId,
+  toEcdsaDerivationSigningRootVersion,
+  toEcdsaDerivationThresholdKeyId,
+  toEmailOtpAuthSubjectId,
+} from '../identity/emailOtpEcdsaDerivationIdentity';
+import type {
+  CleanupMalformedEcdsaRoleLocalRecordInput,
+  CredentialIdB64u,
+  EcdsaGroupPublicKey33B64u,
+  EcdsaRoleLocalAuthMethod,
+  EcdsaRoleLocalPublicFacts,
+  EcdsaRoleLocalRecordParseResult,
+  EcdsaRoleLocalReadyRecord,
+  EcdsaRoleLocalReadyStateBlob,
+  LoadEcdsaRoleLocalReadyRecordInput,
+} from '@/core/platform/types';
+import type {
+  DerivationClientSharePublicKey33B64u,
+  EcdsaDerivationRelayerPublicKey33B64u,
+} from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
+
+function assertNever(value: never): never {
+  throw new Error(`Unhandled ECDSA role-local branch: ${String(value)}`);
+}
+
+function requiredString(value: unknown, field: string): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error(`[platform][ecdsa-role-local] ${field} is required`);
+  }
+  return value.trim();
+}
+
+function parseBase64UrlBytes(value: unknown, field: string, byteLength: number): string {
+  const normalized = requiredString(value, field);
+  const decoded = base64UrlDecode(normalized);
+  if (decoded.length !== byteLength) {
+    throw new Error(`[platform][ecdsa-role-local] ${field} must decode to ${byteLength} bytes`);
+  }
+  return normalized;
+}
+
+function parseCompressedSecp256k1PublicKey(value: unknown, field: string): string {
+  const normalized = requiredString(value, field);
+  const decoded = base64UrlDecode(normalized);
+  if (decoded.length !== 33) {
+    throw new Error(`[platform][ecdsa-role-local] ${field} must decode to 33 bytes`);
+  }
+  if (decoded[0] !== 2 && decoded[0] !== 3) {
+    throw new Error(`[platform][ecdsa-role-local] ${field} must be a compressed SEC1 key`);
+  }
+  return normalized;
+}
+
+function parseEcdsaDerivationClientSharePublicKey(
+  value: unknown,
+): DerivationClientSharePublicKey33B64u {
+  return parseCompressedSecp256k1PublicKey(
+    value,
+    'derivationClientSharePublicKey33B64u',
+  ) as DerivationClientSharePublicKey33B64u;
+}
+
+function parseRelayerEcdsaDerivationPublicKey(
+  value: unknown,
+): EcdsaDerivationRelayerPublicKey33B64u {
+  return parseCompressedSecp256k1PublicKey(
+    value,
+    'relayerPublicKey33B64u',
+  ) as EcdsaDerivationRelayerPublicKey33B64u;
+}
+
+function parseGroupPublicKey(value: unknown): EcdsaGroupPublicKey33B64u {
+  return parseCompressedSecp256k1PublicKey(
+    value,
+    'groupPublicKey33B64u',
+  ) as EcdsaGroupPublicKey33B64u;
+}
+
+function parseEthereumAddress(value: unknown): `0x${string}` {
+  const normalized = requiredString(value, 'ethereumAddress').toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(normalized)) {
+    throw new Error('[platform][ecdsa-role-local] ethereumAddress must be an EVM address');
+  }
+  return normalized as `0x${string}`;
+}
+
+function parseParticipantIds(value: unknown): readonly [1, 2] {
+  if (!Array.isArray(value) || value.length !== 2 || value[0] !== 1 || value[1] !== 2) {
+    throw new Error('[platform][ecdsa-role-local] participantIds must be [1, 2]');
+  }
+  return [1, 2] as const;
+}
+
+function parseReadyStateBlob(input: unknown): EcdsaRoleLocalReadyStateBlob {
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    throw new Error('[platform][ecdsa-role-local] stateBlob must be an object');
+  }
+  const fields = Object.keys(input).sort();
+  if (fields.join(',') !== 'curve,encoding,kind,producer,stateBlobB64u') {
+    throw new Error('[platform][ecdsa-role-local] stateBlob envelope is invalid');
+  }
+  const kind = requiredString(Reflect.get(input, 'kind'), 'stateBlob.kind');
+  const curve = requiredString(Reflect.get(input, 'curve'), 'stateBlob.curve');
+  const encoding = requiredString(Reflect.get(input, 'encoding'), 'stateBlob.encoding');
+  const producer = requiredString(Reflect.get(input, 'producer'), 'stateBlob.producer');
+  const stateBlobB64u = requiredString(
+    Reflect.get(input, 'stateBlobB64u'),
+    'stateBlob.stateBlobB64u',
+  );
+  if (
+    kind !== 'ecdsa_role_local_state_blob_v1' ||
+    curve !== 'secp256k1' ||
+    encoding !== 'base64url' ||
+    producer !== 'signer_core'
+  ) {
+    throw new Error('[platform][ecdsa-role-local] stateBlob envelope is invalid');
+  }
+  try {
+    base64UrlDecode(stateBlobB64u);
+  } catch (error) {
+    throw new Error('[platform][ecdsa-role-local] stateBlob payload is not base64url', {
+      cause: error,
+    });
+  }
+  return {
+    kind: 'ecdsa_role_local_state_blob_v1',
+    curve: 'secp256k1',
+    encoding: 'base64url',
+    producer: 'signer_core',
+    stateBlobB64u,
+  };
+}
+
+function parseCredentialIdB64u(value: unknown, field = 'credentialIdB64u'): CredentialIdB64u {
+  return requiredString(value, field) as CredentialIdB64u;
+}
+
+export function parseEcdsaRoleLocalAuthMethod(input: unknown): EcdsaRoleLocalAuthMethod {
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    throw new Error('[platform][ecdsa-role-local] authMethod must be an object');
+  }
+  const kind = requiredString(Reflect.get(input, 'kind'), 'authMethod.kind');
+  switch (kind) {
+    case 'passkey': {
+      const fields = Object.keys(input).sort();
+      if (fields.join(',') !== 'credentialIdB64u,kind,rpId') {
+        throw new Error('[platform][ecdsa-role-local] passkey authMethod fields are invalid');
+      }
+      return {
+        kind: 'passkey',
+        credentialIdB64u: parseCredentialIdB64u(Reflect.get(input, 'credentialIdB64u')),
+        rpId: toRpId(Reflect.get(input, 'rpId')),
+      };
+    }
+    case 'email_otp': {
+      const fields = Object.keys(input).sort();
+      if (fields.join(',') !== 'authSubjectId,kind') {
+        throw new Error('[platform][ecdsa-role-local] email OTP authMethod fields are invalid');
+      }
+      return {
+        kind: 'email_otp',
+        authSubjectId: toEmailOtpAuthSubjectId(Reflect.get(input, 'authSubjectId')),
+      };
+    }
+    default:
+      throw new Error('[platform][ecdsa-role-local] authMethod kind is invalid');
+  }
+}
+
+export function buildEcdsaRoleLocalPasskeyAuthMethod(input: {
+  credentialIdB64u: unknown;
+  rpId: unknown;
+}): Extract<EcdsaRoleLocalAuthMethod, { kind: 'passkey' }> {
+  return {
+    kind: 'passkey',
+    credentialIdB64u: parseCredentialIdB64u(input.credentialIdB64u),
+    rpId: toRpId(input.rpId),
+  };
+}
+
+export function buildEcdsaRoleLocalEmailOtpAuthMethod(input: {
+  authSubjectId: unknown;
+}): Extract<EcdsaRoleLocalAuthMethod, { kind: 'email_otp' }> {
+  return {
+    kind: 'email_otp',
+    authSubjectId: toEmailOtpAuthSubjectId(input.authSubjectId),
+  };
+}
+
+function authMethodsEqual(
+  left: EcdsaRoleLocalAuthMethod,
+  right: EcdsaRoleLocalAuthMethod,
+): boolean {
+  if (left.kind !== right.kind) return false;
+  switch (left.kind) {
+    case 'passkey':
+      if (right.kind !== 'passkey') return false;
+      return (
+        String(left.rpId) === String(right.rpId) &&
+        String(left.credentialIdB64u) === String(right.credentialIdB64u)
+      );
+    case 'email_otp':
+      if (right.kind !== 'email_otp') return false;
+      return String(left.authSubjectId) === String(right.authSubjectId);
+    default:
+      return assertNever(left);
+  }
+}
+
+function readyRecordFromParts(args: {
+  stateBlob: EcdsaRoleLocalReadyStateBlob;
+  publicFacts: EcdsaRoleLocalPublicFacts;
+  authMethod: EcdsaRoleLocalAuthMethod;
+}): EcdsaRoleLocalReadyRecord {
+  switch (args.authMethod.kind) {
+    case 'passkey':
+      return {
+        kind: 'ecdsa_role_local_ready_passkey_v1',
+        stateBlob: args.stateBlob,
+        publicFacts: args.publicFacts,
+        authMethod: args.authMethod,
+      };
+    case 'email_otp':
+      return {
+        kind: 'ecdsa_role_local_ready_email_otp_v1',
+        stateBlob: args.stateBlob,
+        publicFacts: args.publicFacts,
+        authMethod: args.authMethod,
+      };
+    default:
+      return assertNever(args.authMethod);
+  }
+}
+
+function parseChainTarget(input: unknown): ThresholdEcdsaChainTarget {
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    throw new Error('[platform][ecdsa-role-local] chainTarget must be an object');
+  }
+  const kind = requiredString(Reflect.get(input, 'kind'), 'chainTarget.kind').toLowerCase();
+  switch (kind) {
+    case 'evm': {
+      const fields = Object.keys(input).sort();
+      if (fields.join(',') !== 'chainId,kind,namespace,networkSlug') {
+        throw new Error('[platform][ecdsa-role-local] EVM chainTarget fields are invalid');
+      }
+      return thresholdEcdsaChainTargetFromRequest({
+        kind: Reflect.get(input, 'kind'),
+        namespace: Reflect.get(input, 'namespace'),
+        chainId: Reflect.get(input, 'chainId'),
+        networkSlug: Reflect.get(input, 'networkSlug'),
+      });
+    }
+    case 'tempo': {
+      const fields = Object.keys(input).sort();
+      if (fields.join(',') !== 'chainId,kind,networkSlug') {
+        throw new Error('[platform][ecdsa-role-local] Tempo chainTarget fields are invalid');
+      }
+      return thresholdEcdsaChainTargetFromRequest({
+        kind: Reflect.get(input, 'kind'),
+        chainId: Reflect.get(input, 'chainId'),
+        networkSlug: Reflect.get(input, 'networkSlug'),
+      });
+    }
+    default:
+      throw new Error('[platform][ecdsa-role-local] chainTarget kind is invalid');
+  }
+}
+
+function parsePublicFacts(input: unknown): EcdsaRoleLocalPublicFacts {
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    throw new Error('[platform][ecdsa-role-local] publicFacts must be an object');
+  }
+  const fields = Object.keys(input).sort();
+  if (
+    fields.join(',') !==
+    'applicationBindingDigestB64u,chainTarget,clientParticipantId,contextBinding32B64u,derivationClientSharePublicKey33B64u,ecdsaThresholdKeyId,ethereumAddress,groupPublicKey33B64u,keyHandle,participantIds,publicCapability,relayerParticipantId,relayerPublicKey33B64u,signingRootId,signingRootVersion,walletId'
+  ) {
+    throw new Error('[platform][ecdsa-role-local] publicFacts fields are invalid');
+  }
+  if (Reflect.get(input, 'clientParticipantId') !== 1) {
+    throw new Error('[platform][ecdsa-role-local] clientParticipantId must be 1');
+  }
+  if (Reflect.get(input, 'relayerParticipantId') !== 2) {
+    throw new Error('[platform][ecdsa-role-local] relayerParticipantId must be 2');
+  }
+  const derivationClientSharePublicKey33B64u = parseEcdsaDerivationClientSharePublicKey(
+    Reflect.get(input, 'derivationClientSharePublicKey33B64u'),
+  );
+  const relayerPublicKey33B64u = parseRelayerEcdsaDerivationPublicKey(
+    Reflect.get(input, 'relayerPublicKey33B64u'),
+  );
+  if (String(derivationClientSharePublicKey33B64u) === String(relayerPublicKey33B64u)) {
+    throw new Error(
+      '[platform][ecdsa-role-local] relayerPublicKey33B64u must differ from derivationClientSharePublicKey33B64u',
+    );
+  }
+  return {
+    walletId: toWalletId(Reflect.get(input, 'walletId')),
+    chainTarget: parseChainTarget(Reflect.get(input, 'chainTarget')),
+    keyHandle: requiredString(Reflect.get(input, 'keyHandle'), 'keyHandle'),
+    ecdsaThresholdKeyId: toEcdsaDerivationThresholdKeyId(Reflect.get(input, 'ecdsaThresholdKeyId')),
+    signingRootId: toEcdsaDerivationSigningRootId(Reflect.get(input, 'signingRootId')),
+    signingRootVersion: toEcdsaDerivationSigningRootVersion(
+      Reflect.get(input, 'signingRootVersion'),
+    ),
+    applicationBindingDigestB64u: parseBase64UrlBytes(
+      Reflect.get(input, 'applicationBindingDigestB64u'),
+      'applicationBindingDigestB64u',
+      32,
+    ),
+    clientParticipantId: 1,
+    relayerParticipantId: 2,
+    participantIds: parseParticipantIds(Reflect.get(input, 'participantIds')),
+    contextBinding32B64u: parseBase64UrlBytes(
+      Reflect.get(input, 'contextBinding32B64u'),
+      'contextBinding32B64u',
+      32,
+    ),
+    derivationClientSharePublicKey33B64u,
+    relayerPublicKey33B64u,
+    groupPublicKey33B64u: parseGroupPublicKey(Reflect.get(input, 'groupPublicKey33B64u')),
+    ethereumAddress: parseEthereumAddress(Reflect.get(input, 'ethereumAddress')),
+    publicCapability: parseRouterAbEcdsaDerivationPublicCapabilityV1(
+      Reflect.get(input, 'publicCapability'),
+    ),
+  };
+}
+
+export function buildEcdsaRoleLocalPublicFacts(input: unknown): EcdsaRoleLocalPublicFacts {
+  return parsePublicFacts(input);
+}
+
+/** Rebind the public role-local facts to a published EVM-family target while
+ * preserving every cryptographic and protocol fact from the canonical source. */
+export function projectEcdsaRoleLocalPublicFactsToChainTarget(args: {
+  publicFacts: EcdsaRoleLocalPublicFacts;
+  chainTarget: ThresholdEcdsaChainTarget;
+}): EcdsaRoleLocalPublicFacts {
+  const source = args.publicFacts;
+  return buildEcdsaRoleLocalPublicFacts({
+    walletId: source.walletId,
+    chainTarget: args.chainTarget,
+    keyHandle: source.keyHandle,
+    ecdsaThresholdKeyId: source.ecdsaThresholdKeyId,
+    signingRootId: source.signingRootId,
+    signingRootVersion: source.signingRootVersion,
+    applicationBindingDigestB64u: source.applicationBindingDigestB64u,
+    clientParticipantId: source.clientParticipantId,
+    relayerParticipantId: source.relayerParticipantId,
+    participantIds: source.participantIds,
+    contextBinding32B64u: source.contextBinding32B64u,
+    derivationClientSharePublicKey33B64u: source.derivationClientSharePublicKey33B64u,
+    relayerPublicKey33B64u: source.relayerPublicKey33B64u,
+    groupPublicKey33B64u: source.groupPublicKey33B64u,
+    ethereumAddress: source.ethereumAddress,
+    publicCapability: source.publicCapability,
+  });
+}
+
+export function parseEcdsaRoleLocalReadyRecord(input: unknown): EcdsaRoleLocalReadyRecord {
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) {
+    throw new Error('[platform][ecdsa-role-local] ready record must be an object');
+  }
+  const fields = Object.keys(input).sort();
+  if (fields.join(',') !== 'authMethod,kind,publicFacts,stateBlob') {
+    throw new Error('[platform][ecdsa-role-local] ready record fields are invalid');
+  }
+  const kind = requiredString(Reflect.get(input, 'kind'), 'readyRecord.kind');
+  if (
+    kind !== 'ecdsa_role_local_ready_passkey_v1' &&
+    kind !== 'ecdsa_role_local_ready_email_otp_v1'
+  ) {
+    throw new Error('[platform][ecdsa-role-local] ready record kind is invalid');
+  }
+  const publicFacts = parsePublicFacts(Reflect.get(input, 'publicFacts'));
+  const stateBlob = parseReadyStateBlob(Reflect.get(input, 'stateBlob'));
+  const authMethod = parseEcdsaRoleLocalAuthMethod(Reflect.get(input, 'authMethod'));
+  const parsed = readyRecordFromParts({
+    stateBlob,
+    publicFacts,
+    authMethod,
+  });
+  if (
+    (kind === 'ecdsa_role_local_ready_passkey_v1' && parsed.kind !== kind) ||
+    (kind === 'ecdsa_role_local_ready_email_otp_v1' && parsed.kind !== kind)
+  ) {
+    throw new Error('[platform][ecdsa-role-local] ready record authMethod branch mismatch');
+  }
+  return parsed;
+}
+
+function serializeAuthMethod(authMethod: EcdsaRoleLocalAuthMethod): Record<string, unknown> {
+  switch (authMethod.kind) {
+    case 'passkey':
+      return {
+        kind: 'passkey',
+        credentialIdB64u: authMethod.credentialIdB64u,
+        rpId: authMethod.rpId,
+      };
+    case 'email_otp':
+      return {
+        kind: 'email_otp',
+        authSubjectId: authMethod.authSubjectId,
+      };
+    default:
+      return assertNever(authMethod);
+  }
+}
+
+export function buildEcdsaRoleLocalReadyRecord(input: {
+  stateBlob: EcdsaRoleLocalReadyStateBlob;
+  publicFacts: EcdsaRoleLocalPublicFacts;
+  authMethod: EcdsaRoleLocalAuthMethod;
+}): EcdsaRoleLocalReadyRecord {
+  return readyRecordFromParts({
+    stateBlob: parseReadyStateBlob(input.stateBlob),
+    publicFacts: parsePublicFacts(input.publicFacts),
+    authMethod: input.authMethod,
+  });
+}
+
+function cleanupInputFromLookup(args: {
+  lookup: LoadEcdsaRoleLocalReadyRecordInput;
+  reason: string;
+}): CleanupMalformedEcdsaRoleLocalRecordInput {
+  return {
+    ...args.lookup,
+    reason: args.reason,
+  };
+}
+
+export function parseRawEcdsaRoleLocalRecord(input: {
+  raw: unknown;
+  lookup: LoadEcdsaRoleLocalReadyRecordInput;
+}): EcdsaRoleLocalRecordParseResult {
+  try {
+    const record = parseEcdsaRoleLocalReadyRecord(input.raw);
+    if (!ecdsaRoleLocalReadyRecordMatchesInput({ record, input: input.lookup })) {
+      const message =
+        '[platform][ecdsa-role-local] ready record identity does not match lookup input';
+      return {
+        ok: false,
+        code: 'malformed_record',
+        message,
+        cleanup: cleanupInputFromLookup({ lookup: input.lookup, reason: message }),
+      };
+    }
+    return {
+      ok: true,
+      source: 'ready_record',
+      state: {
+        kind: 'ready',
+        record,
+      },
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : '[platform][ecdsa-role-local] malformed role-local record';
+    return {
+      ok: false,
+      code: 'malformed_record',
+      message,
+      cleanup: cleanupInputFromLookup({ lookup: input.lookup, reason: message }),
+    };
+  }
+}
+
+function serializeEcdsaRoleLocalPublicFacts(
+  facts: EcdsaRoleLocalPublicFacts,
+): Record<string, unknown> {
+  return {
+    walletId: facts.walletId,
+    chainTarget: facts.chainTarget,
+    keyHandle: facts.keyHandle,
+    ecdsaThresholdKeyId: facts.ecdsaThresholdKeyId,
+    signingRootId: facts.signingRootId,
+    signingRootVersion: facts.signingRootVersion,
+    applicationBindingDigestB64u: facts.applicationBindingDigestB64u,
+    clientParticipantId: 1,
+    relayerParticipantId: 2,
+    participantIds: [1, 2],
+    contextBinding32B64u: facts.contextBinding32B64u,
+    derivationClientSharePublicKey33B64u: facts.derivationClientSharePublicKey33B64u,
+    relayerPublicKey33B64u: facts.relayerPublicKey33B64u,
+    groupPublicKey33B64u: facts.groupPublicKey33B64u,
+    ethereumAddress: facts.ethereumAddress,
+    publicCapability: facts.publicCapability,
+  };
+}
+
+export function serializeEcdsaRoleLocalReadyRecord(
+  record: EcdsaRoleLocalReadyRecord,
+): Record<string, unknown> {
+  const parsed = parseEcdsaRoleLocalReadyRecord(record);
+  return {
+    kind: parsed.kind,
+    stateBlob: {
+      kind: parsed.stateBlob.kind,
+      curve: parsed.stateBlob.curve,
+      encoding: parsed.stateBlob.encoding,
+      producer: parsed.stateBlob.producer,
+      stateBlobB64u: parsed.stateBlob.stateBlobB64u,
+    },
+    publicFacts: serializeEcdsaRoleLocalPublicFacts(parsed.publicFacts),
+    authMethod: serializeAuthMethod(parsed.authMethod),
+  };
+}
+
+function keyPart(value: unknown): string {
+  return encodeURIComponent(requiredString(value, 'storage key part'));
+}
+
+export function ecdsaRoleLocalReadyRecordStorageKey(
+  input: LoadEcdsaRoleLocalReadyRecordInput,
+): string {
+  return [
+    'ecdsa_role_local_ready_v1',
+    keyPart(input.walletId),
+    keyPart(thresholdEcdsaChainTargetKey(input.chainTarget)),
+    keyPart(input.keyHandle),
+    keyPart(input.ecdsaThresholdKeyId),
+    keyPart(input.signingRootId),
+    keyPart(input.signingRootVersion),
+    keyPart(input.participantIds.join(',')),
+    keyPart(ecdsaRoleLocalAuthMethodStorageKeyPart(input.authMethod)),
+  ].join(':');
+}
+
+export function ecdsaRoleLocalReadyRecordStorageKeyFacts(
+  record: EcdsaRoleLocalReadyRecord,
+): LoadEcdsaRoleLocalReadyRecordInput {
+  const parsed = parseEcdsaRoleLocalReadyRecord(record);
+  const facts = parsed.publicFacts;
+  return {
+    walletId: facts.walletId,
+    chainTarget: facts.chainTarget,
+    keyHandle: facts.keyHandle,
+    ecdsaThresholdKeyId: facts.ecdsaThresholdKeyId,
+    signingRootId: facts.signingRootId,
+    signingRootVersion: facts.signingRootVersion,
+    participantIds: facts.participantIds,
+    authMethod: parsed.authMethod,
+  };
+}
+
+function ecdsaRoleLocalAuthMethodStorageKeyPart(authMethod: EcdsaRoleLocalAuthMethod): string {
+  switch (authMethod.kind) {
+    case 'passkey':
+      return ['passkey', authMethod.rpId, authMethod.credentialIdB64u].join(':');
+    case 'email_otp':
+      return ['email_otp', authMethod.authSubjectId].join(':');
+    default:
+      return assertNever(authMethod);
+  }
+}
+
+export function ecdsaRoleLocalReadyRecordMatchesInput(args: {
+  record: EcdsaRoleLocalReadyRecord;
+  input: LoadEcdsaRoleLocalReadyRecordInput;
+}): boolean {
+  const facts = args.record.publicFacts;
+  const input = args.input;
+  return (
+    String(facts.walletId) === String(input.walletId) &&
+    thresholdEcdsaChainTargetsEqual(facts.chainTarget, input.chainTarget) &&
+    String(facts.keyHandle) === String(input.keyHandle) &&
+    String(facts.ecdsaThresholdKeyId) === String(input.ecdsaThresholdKeyId) &&
+    String(facts.signingRootId) === String(input.signingRootId) &&
+    String(facts.signingRootVersion) === String(input.signingRootVersion) &&
+    facts.participantIds[0] === input.participantIds[0] &&
+    facts.participantIds[1] === input.participantIds[1] &&
+    authMethodsEqual(args.record.authMethod, input.authMethod)
+  );
+}

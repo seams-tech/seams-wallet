@@ -1,0 +1,33 @@
+{
+  "name": "@seams-internal/shared-ts",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./authorization": "./src/authorization/index.ts",
+    "./authorization/*": "./src/authorization/*.ts",
+    "./near": "./src/near/index.ts",
+    "./near/*": "./src/near/*.ts",
+    "./passkey-custody": "./src/passkey-custody/index.ts",
+    "./passkey-custody/*": "./src/passkey-custody/*.ts",
+    "./signing-lanes": "./src/signing-lanes/index.ts",
+    "./signing-lanes/*": "./src/signing-lanes/*.ts",
+    "./threshold": "./src/threshold/index.ts",
+    "./threshold/*": "./src/threshold/*.ts",
+    "./utils": "./src/utils/index.ts",
+    "./utils/*": "./src/utils/*.ts",
+    "./wallet-recovery": "./src/wallet-recovery/index.ts",
+    "./wallet-recovery/*": "./src/wallet-recovery/*.ts",
+    "./tenant-root": "./src/tenant-root/index.ts",
+    "./tenant-root/*": "./src/tenant-root/*.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@near-js/types": "^2.4.0",
+    "bs58": "^6.0.0"
+  }
+}

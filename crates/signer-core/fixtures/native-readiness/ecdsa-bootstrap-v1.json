@@ -1,0 +1,77 @@
+{
+  "fixtureVersion": "native_readiness_ecdsa_bootstrap_v1",
+  "warning": "Deterministic test-only secret material. Do not use outside tests.",
+  "prepareCommand": {
+    "kind": "prepare_ecdsa_client_bootstrap_v1",
+    "algorithm": "router_ab_ecdsa_derivation_secp256k1_role_local_v1",
+    "context": {
+      "applicationBindingDigestB64u": "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU"
+    },
+    "participants": {
+      "clientParticipantId": 1,
+      "relayerParticipantId": 2,
+      "participantIds": [
+        1,
+        2
+      ]
+    },
+    "secretSource": {
+      "kind": "threshold_prf_x_client_base",
+      "xClientBaseB64u": "MzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM"
+    }
+  },
+  "relayerRootShare32B64u": "REREREREREREREREREREREREREREREREREREREREREQ",
+  "expectedPrepareOutput": {
+    "pendingStateBlob": {
+      "kind": "ecdsa_role_local_pending_state_blob_v1",
+      "curve": "secp256k1",
+      "encoding": "base64url",
+      "producer": "signer_core",
+      "stateBlobB64u": "UkFFRFAyAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVYGtvbqG1th75M_BZw596y4cRPwCBbmQw3bSA53pbIm3AAAAAP1Q-4UJ3OuxMtXl3nrR93IoRL3quTE-SzgoCL7lDq0xAio1Giifu-vPbRiqOSjKenme1ZbXPNhj8IDEzGpWZcnq"
+    },
+    "clientBootstrap": {
+      "contextBinding32B64u": "ga29uobW2Hvkz8FnDn3rLhxE_AIFuZDDdtIDnelsibc",
+      "derivationClientSharePublicKey33B64u": "Aio1Giifu-vPbRiqOSjKenme1ZbXPNhj8IDEzGpWZcnq",
+      "clientShareRetryCounter": 0,
+      "participantId": 1
+    },
+    "publicFacts": {
+      "derivationClientSharePublicKey33B64u": "Aio1Giifu-vPbRiqOSjKenme1ZbXPNhj8IDEzGpWZcnq",
+      "clientVerifyingShareB64u": "Aio1Giifu-vPbRiqOSjKenme1ZbXPNhj8IDEzGpWZcnq"
+    }
+  },
+  "finalizeCommand": {
+    "kind": "finalize_ecdsa_client_bootstrap_v1",
+    "pendingStateBlob": {
+      "kind": "ecdsa_role_local_pending_state_blob_v1",
+      "curve": "secp256k1",
+      "encoding": "base64url",
+      "producer": "signer_core",
+      "stateBlobB64u": "UkFFRFAyAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVYGtvbqG1th75M_BZw596y4cRPwCBbmQw3bSA53pbIm3AAAAAP1Q-4UJ3OuxMtXl3nrR93IoRL3quTE-SzgoCL7lDq0xAio1Giifu-vPbRiqOSjKenme1ZbXPNhj8IDEzGpWZcnq"
+    },
+    "relayerPublicIdentity": {
+      "relayerKeyId": "relayer-key",
+      "relayerPublicKey33B64u": "A6tbOC71wOA6nkWqZtdKpJ-LGiCSJANkUOpy2v8eYxYO",
+      "groupPublicKey33B64u": "AsJG7NB4H444LdTWA0Bjw0JGgKBPupAeyuTZBLfwIlwX",
+      "ethereumAddress": "0x36987ddfcb4dbdbb54ba8de7f0a63259d074c26c",
+      "relayerShareRetryCounter": 0
+    }
+  },
+  "expectedFinalizeOutput": {
+    "stateBlob": {
+      "kind": "ecdsa_role_local_state_blob_v1",
+      "curve": "secp256k1",
+      "encoding": "base64url",
+      "producer": "signer_core",
+      "stateBlobB64u": "UkFFRFIyAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQALcmVsYXllci1rZXmBrb26htbYe-TPwWcOfesuHET8AgW5kMN20gOd6WyJtwAAAAD9UPuFCdzrsTLV5d560fdyKES96rkxPks4KAi-5Q6tMQIqNRoon7vrz20Yqjkoynp5ntWW1zzYY_CAxMxqVmXJ6gAAAAADq1s4LvXA4DqeRapm10qkn4saIJIkA2RQ6nLa_x5jFg4Cwkbs0Hgfjjgt1NYDQGPDQkaAoE-6kB7K5NkEt_AiXBc2mH3fy029u1S6jefwpjJZ0HTCbA"
+    },
+    "publicFacts": {
+      "contextBinding32B64u": "ga29uobW2Hvkz8FnDn3rLhxE_AIFuZDDdtIDnelsibc",
+      "derivationClientSharePublicKey33B64u": "Aio1Giifu-vPbRiqOSjKenme1ZbXPNhj8IDEzGpWZcnq",
+      "clientVerifyingShareB64u": "Aio1Giifu-vPbRiqOSjKenme1ZbXPNhj8IDEzGpWZcnq",
+      "relayerPublicKey33B64u": "A6tbOC71wOA6nkWqZtdKpJ-LGiCSJANkUOpy2v8eYxYO",
+      "groupPublicKey33B64u": "AsJG7NB4H444LdTWA0Bjw0JGgKBPupAeyuTZBLfwIlwX",
+      "ethereumAddress": "0x36987ddfcb4dbdbb54ba8de7f0a63259d074c26c"
+    }
+  }
+}

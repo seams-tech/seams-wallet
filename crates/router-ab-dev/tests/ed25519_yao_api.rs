@@ -1,0 +1,163 @@
+use router_ab_core::{
+    Ed25519YaoCeremonyBindingV1, Ed25519YaoOperationV1, Ed25519YaoSessionIdV1,
+    Ed25519YaoStableKeyContextBindingV1, ExpensiveWorkKindV1, LifecycleScopeV1,
+    MpcMaterialActivationRefV1, RootShareEpoch,
+};
+use router_ab_dev::{
+    build_local_activation_deriver_a_with_server_v1,
+    build_local_activation_deriver_b_with_server_v1, LocalEd25519YaoActivationDeriverARequestV1,
+    LocalEd25519YaoActivationDeriverBRequestV1, LocalEd25519YaoActivationRecipientsV1,
+    LocalEd25519YaoClientContributionV1, RouterAbEd25519YaoApplicationBindingFactsV1,
+};
+use signer_core::ed25519_yao_derivation::{
+    derive_ed25519_yao_client_contributions_v1,
+    derive_ed25519_yao_deriver_a_server_contribution_v1,
+    derive_ed25519_yao_deriver_b_server_contribution_v1, Ed25519YaoApplicationBindingFactsV1,
+    Ed25519YaoApplicationBindingKeyCreationSignerSlotV1,
+    Ed25519YaoApplicationBindingSigningKeyIdV1, Ed25519YaoApplicationBindingSigningRootIdV1,
+    Ed25519YaoApplicationBindingWalletIdV1, Ed25519YaoClientRootV1,
+    Ed25519YaoDeriverADerivationRootV1, Ed25519YaoDeriverAServerContributionV1,
+    Ed25519YaoDeriverBDerivationRootV1, Ed25519YaoDeriverBServerContributionV1,
+    Ed25519YaoStableKeyDerivationContextV1,
+};
+
+fn application_request() -> RouterAbEd25519YaoApplicationBindingFactsV1 {
+    RouterAbEd25519YaoApplicationBindingFactsV1::new(
+        "wallet-fixture",
+        "ed25519ks_fixture",
+        "project-fixture:env-fixture",
+        1,
+    )
+    .expect("application binding")
+}
+
+fn context() -> Ed25519YaoStableKeyDerivationContextV1 {
+    let facts = Ed25519YaoApplicationBindingFactsV1::new(
+        Ed25519YaoApplicationBindingWalletIdV1::parse("wallet-fixture").expect("wallet"),
+        Ed25519YaoApplicationBindingSigningKeyIdV1::parse("ed25519ks_fixture")
+            .expect("signing key"),
+        Ed25519YaoApplicationBindingSigningRootIdV1::parse("project-fixture:env-fixture")
+            .expect("root"),
+        Ed25519YaoApplicationBindingKeyCreationSignerSlotV1::new(1).expect("slot"),
+    );
+    Ed25519YaoStableKeyDerivationContextV1::new(facts.digest(), 1, 2).expect("context")
+}
+
+fn binding(context_binding: [u8; 32]) -> Ed25519YaoCeremonyBindingV1 {
+    let lifecycle = LifecycleScopeV1::new(
+        "lifecycle-1",
+        ExpensiveWorkKindV1::RegistrationPrepare,
+        RootShareEpoch::new("epoch-1").expect("epoch"),
+        "account-1",
+        "wallet-session-1",
+        "signer-set-1",
+        "signing-worker-1",
+    )
+    .expect("lifecycle");
+    Ed25519YaoCeremonyBindingV1::new(
+        lifecycle,
+        Ed25519YaoOperationV1::Registration,
+        Ed25519YaoSessionIdV1::new([0x51; 32]).expect("session"),
+        Ed25519YaoStableKeyContextBindingV1::new(context_binding),
+        MpcMaterialActivationRefV1::new(
+            "api-activation",
+            "api-capability",
+            "account-1",
+            "api-key",
+            "local-lifecycle-1",
+            "signing-worker-1",
+        )
+        .expect("material activation"),
+    )
+    .expect("binding")
+}
+
+fn server_contributions(
+    context: &Ed25519YaoStableKeyDerivationContextV1,
+) -> (
+    Ed25519YaoDeriverAServerContributionV1,
+    Ed25519YaoDeriverBServerContributionV1,
+) {
+    let server_a = derive_ed25519_yao_deriver_a_server_contribution_v1(
+        &Ed25519YaoDeriverADerivationRootV1::from_secret_bytes([0x22; 32]),
+        context,
+    )
+    .expect("Deriver A server contribution");
+    let server_b = derive_ed25519_yao_deriver_b_server_contribution_v1(
+        &Ed25519YaoDeriverBDerivationRootV1::from_secret_bytes([0x33; 32]),
+        context,
+    )
+    .expect("Deriver B server contribution");
+    (server_a, server_b)
+}
+
+fn transport_contribution(
+    contribution: (
+        signer_core::ed25519_yao_derivation::Ed25519YaoYContributionV1,
+        signer_core::ed25519_yao_derivation::Ed25519YaoTauContributionV1,
+    ),
+) -> LocalEd25519YaoClientContributionV1 {
+    LocalEd25519YaoClientContributionV1 {
+        y: contribution.0.into_bytes(),
+        tau: contribution.1.into_bytes(),
+    }
+}
+
+#[test]
+fn role_request_builders_keep_server_roots_separate_and_bind_the_canonical_context() {
+    let context = context();
+    let client_root = Ed25519YaoClientRootV1::from_secret_bytes([0x11; 32]);
+    let (client_a, client_b) = derive_ed25519_yao_client_contributions_v1(&client_root, &context)
+        .expect("client KDF")
+        .into_parts();
+    let admitted_binding = binding(context.binding_digest());
+    let (server_a, server_b) = server_contributions(&context);
+
+    let a = build_local_activation_deriver_a_with_server_v1(
+        LocalEd25519YaoActivationDeriverARequestV1 {
+            binding: admitted_binding.clone(),
+            application_binding: application_request(),
+            participant_ids: [1, 2],
+            client_contribution: transport_contribution(client_a.into_parts()),
+            recipients: LocalEd25519YaoActivationRecipientsV1 {
+                client_public_key: [4; 32],
+                signing_worker_public_key: [5; 32],
+            },
+        },
+        server_a,
+    );
+    let b = build_local_activation_deriver_b_with_server_v1(
+        LocalEd25519YaoActivationDeriverBRequestV1 {
+            binding: admitted_binding,
+            application_binding: application_request(),
+            participant_ids: [2, 1],
+            client_contribution: transport_contribution(client_b.into_parts()),
+            recipients: LocalEd25519YaoActivationRecipientsV1 {
+                client_public_key: [4; 32],
+                signing_worker_public_key: [5; 32],
+            },
+        },
+        server_b,
+    );
+    assert!(a.is_ok());
+    assert!(b.is_ok());
+
+    let (client_a, _) = derive_ed25519_yao_client_contributions_v1(&client_root, &context)
+        .expect("second client KDF")
+        .into_parts();
+    let (server_a, _) = server_contributions(&context);
+    let mismatched = build_local_activation_deriver_a_with_server_v1(
+        LocalEd25519YaoActivationDeriverARequestV1 {
+            binding: binding([0x99; 32]),
+            application_binding: application_request(),
+            participant_ids: [1, 2],
+            client_contribution: transport_contribution(client_a.into_parts()),
+            recipients: LocalEd25519YaoActivationRecipientsV1 {
+                client_public_key: [4; 32],
+                signing_worker_public_key: [5; 32],
+            },
+        },
+        server_a,
+    );
+    assert!(mismatched.is_err());
+}

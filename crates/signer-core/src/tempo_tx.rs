@@ -1,0 +1,419 @@
+use serde::Deserialize;
+use sha3::{Digest, Keccak256};
+
+use crate::codec::{
+    hex_to_bytes, rlp_encode_bytes, rlp_encode_list, strip_leading_zeros_slice,
+    u256_bytes_be_from_dec,
+};
+use crate::error::{CoreResult, SignerCoreError};
+
+pub const TYPE_TEMPO_TX: u8 = 0x76;
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TempoAccessListItem {
+    pub address: String,
+    pub storage_keys: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TempoCall {
+    pub to: String,
+    pub value: String,
+    pub input: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "kind")]
+pub enum FeePayerSignature {
+    #[serde(rename = "none")]
+    None,
+    #[serde(rename = "placeholder")]
+    Placeholder,
+    #[serde(rename = "signed")]
+    Signed { v: u8, r: String, s: String },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum TempoRlpValue {
+    Bytes(Vec<u8>),
+    List(Vec<TempoRlpValue>),
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TempoTx {
+    pub chain_id: u64,
+    pub max_priority_fee_per_gas: String,
+    pub max_fee_per_gas: String,
+    pub gas_limit: String,
+    pub calls: Vec<TempoCall>,
+    pub access_list: Option<Vec<TempoAccessListItem>>,
+    pub nonce_key: String,
+    pub nonce: String,
+    pub valid_before: Option<String>,
+    pub valid_after: Option<String>,
+    pub fee_token: Option<String>,
+    pub fee_payer_signature: Option<FeePayerSignature>,
+    pub aa_authorization_list: Option<TempoRlpValue>,
+    pub key_authorization: Option<TempoRlpValue>,
+}
+
+fn encode_access_list(access: &[TempoAccessListItem]) -> CoreResult<Vec<u8>> {
+    let mut items_enc: Vec<Vec<u8>> = Vec::with_capacity(access.len());
+    for item in access {
+        let addr = hex_to_bytes(&item.address)?;
+        if addr.len() != 20 {
+            return Err(SignerCoreError::invalid_length(
+                "accessList.address must be 20 bytes",
+            ));
+        }
+        let mut storage_enc: Vec<Vec<u8>> = Vec::with_capacity(item.storage_keys.len());
+        for k in &item.storage_keys {
+            let b = hex_to_bytes(k)?;
+            if b.len() != 32 {
+                return Err(SignerCoreError::invalid_length(
+                    "accessList.storageKeys must be 32 bytes",
+                ));
+            }
+            storage_enc.push(rlp_encode_bytes(&b));
+        }
+        let list_storage = rlp_encode_list(&storage_enc);
+        let item_list = rlp_encode_list(&[rlp_encode_bytes(&addr), list_storage]);
+        items_enc.push(item_list);
+    }
+    Ok(rlp_encode_list(&items_enc))
+}
+
+fn encode_calls(calls: &[TempoCall]) -> CoreResult<Vec<u8>> {
+    if calls.is_empty() {
+        return Err(SignerCoreError::invalid_input("calls must be non-empty"));
+    }
+    let mut out: Vec<Vec<u8>> = Vec::with_capacity(calls.len());
+    for c in calls {
+        let to = hex_to_bytes(&c.to)?;
+        if to.len() != 20 {
+            return Err(SignerCoreError::invalid_length("call.to must be 20 bytes"));
+        }
+        let value = u256_bytes_be_from_dec(&c.value)?;
+        let input = hex_to_bytes(c.input.as_deref().unwrap_or("0x"))?;
+        let call_list = rlp_encode_list(&[
+            rlp_encode_bytes(&to),
+            rlp_encode_bytes(&value),
+            rlp_encode_bytes(&input),
+        ]);
+        out.push(call_list);
+    }
+    Ok(rlp_encode_list(&out))
+}
+
+fn encode_opt_u64_bytes(v: &Option<String>) -> CoreResult<Vec<u8>> {
+    match v {
+        None => Ok(vec![]),
+        Some(s) => u256_bytes_be_from_dec(s),
+    }
+}
+
+fn encode_fee_token(addr: &Option<String>) -> CoreResult<Vec<u8>> {
+    match addr {
+        None => Ok(vec![]),
+        Some(s) => {
+            let b = hex_to_bytes(s)?;
+            if b.len() != 20 {
+                return Err(SignerCoreError::invalid_length("feeToken must be 20 bytes"));
+            }
+            Ok(b)
+        }
+    }
+}
+
+fn encode_fee_payer_sig_field(sig: &Option<FeePayerSignature>) -> CoreResult<Vec<u8>> {
+    match sig.as_ref().unwrap_or(&FeePayerSignature::None) {
+        FeePayerSignature::None => Ok(rlp_encode_bytes(&[])),
+        FeePayerSignature::Placeholder => Ok(rlp_encode_bytes(&[0x00])),
+        FeePayerSignature::Signed { v, r, s } => {
+            if *v > 1 {
+                return Err(SignerCoreError::invalid_input(
+                    "feePayerSignature.v must be 0 or 1",
+                ));
+            }
+            let r = hex_to_bytes(r)?;
+            let s = hex_to_bytes(s)?;
+            if r.len() != 32 || s.len() != 32 {
+                return Err(SignerCoreError::invalid_length(
+                    "feePayerSignature.r/s must be 32 bytes",
+                ));
+            }
+            let list = rlp_encode_list(&[
+                rlp_encode_bytes(&u256_bytes_be_from_dec(&format!("{v}"))?),
+                rlp_encode_bytes(strip_leading_zeros_slice(&r)),
+                rlp_encode_bytes(strip_leading_zeros_slice(&s)),
+            ]);
+            Ok(list)
+        }
+    }
+}
+
+fn tempo_rlp_value_len(value: &TempoRlpValue) -> usize {
+    match value {
+        TempoRlpValue::Bytes(bytes) => bytes.len(),
+        TempoRlpValue::List(items) => items.len(),
+    }
+}
+
+fn validate_tempo_mvp_unsupported_fields(tx: &TempoTx) -> CoreResult<()> {
+    if let Some(aa_authorization_list) = tx.aa_authorization_list.as_ref() {
+        if tempo_rlp_value_len(aa_authorization_list) > 0 {
+            return Err(SignerCoreError::invalid_input(
+                "aaAuthorizationList not supported in MVP (must be empty)",
+            ));
+        }
+    }
+    if tx.key_authorization.is_some() {
+        return Err(SignerCoreError::invalid_input(
+            "keyAuthorization not supported in MVP",
+        ));
+    }
+    Ok(())
+}
+
+fn tempo_unsigned_envelope_fields(tx: &TempoTx) -> CoreResult<Vec<Vec<u8>>> {
+    let access_list = tx.access_list.as_deref().unwrap_or(&[]);
+    let access_list_enc = encode_access_list(access_list)?;
+    let calls_enc = encode_calls(&tx.calls)?;
+    let fee_token = encode_fee_token(&tx.fee_token)?;
+    let fee_payer_sig_field = encode_fee_payer_sig_field(&tx.fee_payer_signature)?;
+    let aa_list_enc = rlp_encode_list(&[]);
+
+    let chain_id = tx.chain_id.to_string();
+    Ok(vec![
+        rlp_encode_bytes(&u256_bytes_be_from_dec(&chain_id)?),
+        rlp_encode_bytes(&u256_bytes_be_from_dec(&tx.max_priority_fee_per_gas)?),
+        rlp_encode_bytes(&u256_bytes_be_from_dec(&tx.max_fee_per_gas)?),
+        rlp_encode_bytes(&u256_bytes_be_from_dec(&tx.gas_limit)?),
+        calls_enc,
+        access_list_enc,
+        rlp_encode_bytes(&u256_bytes_be_from_dec(&tx.nonce_key)?),
+        rlp_encode_bytes(&u256_bytes_be_from_dec(&tx.nonce)?),
+        rlp_encode_bytes(&encode_opt_u64_bytes(&tx.valid_before)?),
+        rlp_encode_bytes(&encode_opt_u64_bytes(&tx.valid_after)?),
+        rlp_encode_bytes(&fee_token),
+        fee_payer_sig_field,
+        aa_list_enc,
+    ])
+}
+
+fn encode_tempo_signature_envelope_from_signer_output(signature: &[u8]) -> CoreResult<Vec<u8>> {
+    if signature.len() == 65 {
+        let y_parity = signature[64];
+        if y_parity > 1 {
+            return Err(SignerCoreError::invalid_input(
+                "Tempo secp256k1 sender signature yParity must be 0 or 1",
+            ));
+        }
+        let mut out = Vec::with_capacity(65);
+        out.extend_from_slice(&signature[0..64]);
+        out.push(27 + y_parity);
+        return Ok(out);
+    }
+
+    match signature.first().copied() {
+        Some(0x01) if signature.len() == 130 => Ok(signature.to_vec()),
+        Some(0x02) if signature.len() >= 129 => Ok(signature.to_vec()),
+        Some(0x03) if signature.len() > 21 => Ok(signature.to_vec()),
+        Some(0x01) => Err(SignerCoreError::invalid_length(
+            "Tempo P-256 signature envelope must be 130 bytes",
+        )),
+        Some(0x02) => Err(SignerCoreError::invalid_length(
+            "Tempo WebAuthn signature envelope must be at least 129 bytes",
+        )),
+        Some(0x03) => Err(SignerCoreError::invalid_length(
+            "Tempo keychain signature envelope must include user address and inner signature",
+        )),
+        Some(_) => Err(SignerCoreError::invalid_input(
+            "Tempo sender signature must be secp256k1 signature65 or a Tempo signature envelope",
+        )),
+        None => Err(SignerCoreError::invalid_length(
+            "Tempo sender signature must not be empty",
+        )),
+    }
+}
+
+pub fn compute_tempo_sender_hash(tx: &TempoTx) -> CoreResult<Vec<u8>> {
+    validate_tempo_mvp_unsupported_fields(tx)?;
+
+    let fields = tempo_unsigned_envelope_fields(tx)?;
+    let rlp = rlp_encode_list(&fields);
+    let mut preimage = Vec::with_capacity(1 + rlp.len());
+    preimage.push(TYPE_TEMPO_TX);
+    preimage.extend_from_slice(&rlp);
+    let hash = Keccak256::digest(&preimage);
+    Ok(hash.to_vec())
+}
+
+pub fn encode_tempo_signed_tx(tx: &TempoTx, sender_signature: &[u8]) -> CoreResult<Vec<u8>> {
+    validate_tempo_mvp_unsupported_fields(tx)?;
+
+    let mut fields = tempo_unsigned_envelope_fields(tx)?;
+    let sender_signature_envelope =
+        encode_tempo_signature_envelope_from_signer_output(sender_signature)?;
+    fields.push(rlp_encode_bytes(&sender_signature_envelope));
+
+    let rlp = rlp_encode_list(&fields);
+    let mut out = Vec::with_capacity(1 + rlp.len());
+    out.push(TYPE_TEMPO_TX);
+    out.extend_from_slice(&rlp);
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn to_hex(bytes: &[u8]) -> String {
+        let mut out = String::with_capacity(bytes.len() * 2);
+        for b in bytes {
+            use core::fmt::Write;
+            let _ = write!(&mut out, "{:02x}", b);
+        }
+        out
+    }
+
+    fn test_tx(fee_token: &str, fee_payer_signature: Option<FeePayerSignature>) -> TempoTx {
+        TempoTx {
+            chain_id: 42431,
+            max_priority_fee_per_gas: "1".to_string(),
+            max_fee_per_gas: "2".to_string(),
+            gas_limit: "21000".to_string(),
+            calls: vec![TempoCall {
+                to: format!("0x{}", "11".repeat(20)),
+                value: "0".to_string(),
+                input: Some("0x".to_string()),
+            }],
+            access_list: Some(vec![]),
+            nonce_key: "0".to_string(),
+            nonce: "1".to_string(),
+            valid_before: None,
+            valid_after: None,
+            fee_token: Some(fee_token.to_string()),
+            fee_payer_signature,
+            aa_authorization_list: None,
+            key_authorization: None,
+        }
+    }
+
+    #[test]
+    fn tempo_vectors_are_stable() {
+        let tx_placeholder_a = test_tx(
+            &format!("0x{}", "aa".repeat(20)),
+            Some(FeePayerSignature::Placeholder),
+        );
+        let tx_placeholder_b = test_tx(
+            &format!("0x{}", "bb".repeat(20)),
+            Some(FeePayerSignature::Placeholder),
+        );
+        let hash_placeholder_a =
+            compute_tempo_sender_hash(&tx_placeholder_a).expect("hash placeholder a");
+        let hash_placeholder_b =
+            compute_tempo_sender_hash(&tx_placeholder_b).expect("hash placeholder b");
+        let mut sender_signature = vec![0x99; 65];
+        sender_signature[64] = 1;
+        let raw_placeholder =
+            encode_tempo_signed_tx(&tx_placeholder_a, sender_signature.as_slice())
+                .expect("raw placeholder");
+
+        let tx_none_a = test_tx(
+            &format!("0x{}", "aa".repeat(20)),
+            Some(FeePayerSignature::None),
+        );
+        let tx_none_b = test_tx(
+            &format!("0x{}", "bb".repeat(20)),
+            Some(FeePayerSignature::None),
+        );
+        let hash_none_a = compute_tempo_sender_hash(&tx_none_a).expect("hash none a");
+        let hash_none_b = compute_tempo_sender_hash(&tx_none_b).expect("hash none b");
+
+        assert_eq!(
+            to_hex(hash_placeholder_a.as_slice()),
+            "84d4731901604de2e1e4d7c9b6919f29f8f8bb7c3975d3495461b7f32768f870"
+        );
+        assert_eq!(
+            to_hex(hash_placeholder_b.as_slice()),
+            "722dbe0fd1d92aaeb2ee5663636c62db40a40797816980430ef7ef1771c616c3"
+        );
+        assert_eq!(
+            to_hex(raw_placeholder.as_slice()),
+            "76f88082a5bf0102825208d8d79411111111111111111111111111111111111111118080c08001808094aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa00c0b841999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999991c"
+        );
+        assert_eq!(
+            to_hex(hash_none_a.as_slice()),
+            "289bce540c254c2c032eae4b68cc9b1822da4c3e69d9fc046206a681a57007ba"
+        );
+        assert_eq!(
+            to_hex(hash_none_b.as_slice()),
+            "9e253ecf15d4f6d99566427cd9ed32cf7cd859c213a61547206d849d7cad7708"
+        );
+    }
+
+    #[test]
+    fn accepts_packed_tempo_webauthn_signature_envelope() {
+        let tx = test_tx(
+            &format!("0x{}", "aa".repeat(20)),
+            Some(FeePayerSignature::None),
+        );
+        let mut signature_envelope = vec![0x02; 129];
+        signature_envelope[1..].fill(0xaa);
+        let raw = encode_tempo_signed_tx(&tx, signature_envelope.as_slice()).expect("raw webauthn");
+        let mut expected_tail = vec![0xb8, 0x81];
+        expected_tail.extend_from_slice(&signature_envelope);
+
+        assert!(raw.ends_with(&expected_tail));
+    }
+
+    #[test]
+    fn rejects_short_tempo_signature_envelope() {
+        let tx = test_tx(
+            &format!("0x{}", "aa".repeat(20)),
+            Some(FeePayerSignature::None),
+        );
+        let signature_envelope = vec![0x02; 66];
+        let err = encode_tempo_signed_tx(&tx, signature_envelope.as_slice())
+            .expect_err("short WebAuthn envelope must be rejected");
+
+        assert!(err
+            .to_string()
+            .contains("Tempo WebAuthn signature envelope must be at least 129 bytes"));
+    }
+
+    #[test]
+    fn rejects_non_empty_aa_authorization_list_in_mvp() {
+        let mut tx = test_tx(
+            &format!("0x{}", "aa".repeat(20)),
+            Some(FeePayerSignature::Placeholder),
+        );
+        tx.aa_authorization_list = Some(TempoRlpValue::Bytes(vec![0x01]));
+
+        let err = encode_tempo_signed_tx(&tx, vec![0x99; 65].as_slice())
+            .expect_err("aaAuthorizationList must be rejected");
+        assert!(err
+            .to_string()
+            .contains("aaAuthorizationList not supported in MVP (must be empty)"));
+    }
+
+    #[test]
+    fn rejects_key_authorization_in_mvp() {
+        let mut tx = test_tx(
+            &format!("0x{}", "aa".repeat(20)),
+            Some(FeePayerSignature::Placeholder),
+        );
+        tx.key_authorization = Some(TempoRlpValue::List(vec![]));
+
+        let err = encode_tempo_signed_tx(&tx, vec![0x99; 65].as_slice())
+            .expect_err("keyAuthorization must be rejected");
+        assert!(err
+            .to_string()
+            .contains("keyAuthorization not supported in MVP"));
+    }
+}

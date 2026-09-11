@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist/types",
+    "emitDeclarationOnly": true,
+    "noEmit": false,
+    "rootDir": ".."
+  },
+  "include": ["src/**/*", "../shared-ts/src/**/*", "build-paths.ts"],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "../../examples/",
+    "../../apps/",
+    "../../docs/",
+    "../../tests/"
+  ]
+}

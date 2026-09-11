@@ -1,0 +1,18 @@
+{
+  "name": "@seams/wallet-cli",
+  "version": "0.4.0",
+  "description": "Seams native recovery CLI launcher",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=22" },
+  "bin": { "seams-wallet": "bin/seams-wallet.mjs" },
+  "files": ["bin", "release-root.json", "README.md"],
+  "scripts": { "prepack": "node prepare.mjs" },
+  "publishConfig": { "access": "public" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seams-tech/seams-wallet.git"
+  },
+  "bugs": { "url": "https://github.com/seams-tech/seams-wallet/issues" },
+  "homepage": "https://github.com/seams-tech/seams-wallet#readme"
+}

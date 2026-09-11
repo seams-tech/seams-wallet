@@ -1,0 +1,19 @@
+mod derivation;
+mod errors;
+mod lane_resharing;
+mod linked_device_source_contribution;
+mod presign;
+
+use wasm_bindgen::prelude::*;
+
+pub use lane_resharing::EcdsaLaneSigningWorkerSessionV1;
+pub use linked_device_source_contribution::LinkedDeviceEcdsaSourceContributionWorkerSessionV1;
+pub use presign::SigningWorkerPresignSession;
+
+#[wasm_bindgen]
+pub fn init_router_ab_ecdsa_signing_worker() {}
+
+#[wasm_bindgen]
+pub fn router_ab_ecdsa_derivation_relayer_bootstrap(payload: JsValue) -> Result<JsValue, JsValue> {
+    derivation::relayer_bootstrap(payload)
+}

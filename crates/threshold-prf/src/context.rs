@@ -1,0 +1,76 @@
+use crate::suite::SuiteId;
+
+/// Domain-separated purpose for a threshold PRF output.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PrfPurpose {
+    /// Server input for `router-ab-ecdsa-derivation`.
+    RouterAbEcdsaDerivationYServer,
+    /// Router/A/B client-base output.
+    RouterAbXClientBaseV1,
+    /// Router/A/B server-base output.
+    RouterAbXServerBaseV1,
+    /// Deriver A's Ed25519 Yao server-contribution root.
+    Ed25519DeriverAContributionRoot,
+    /// Deriver B's Ed25519 Yao server-contribution root.
+    Ed25519DeriverBContributionRoot,
+}
+
+/// Purpose-specific threshold PRF output encoding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrfOutputEncoding {
+    /// Return the first 32 output-hash bytes directly.
+    Raw32,
+    /// Reduce the first 32 output-hash bytes to canonical Ed25519 scalar bytes.
+    CanonicalEd25519Scalar32,
+}
+
+impl PrfPurpose {
+    /// Returns the canonical purpose bytes.
+    pub fn as_bytes(&self) -> &[u8] {
+        match self {
+            Self::RouterAbEcdsaDerivationYServer => b"router-ab-ecdsa-derivation/y-server/v1",
+            Self::RouterAbXClientBaseV1 => b"router-ab/x_client_base/v1",
+            Self::RouterAbXServerBaseV1 => b"router-ab/x_server_base/v1",
+            Self::Ed25519DeriverAContributionRoot => {
+                b"router-ab-ed25519-yao/deriver-a-contribution-root/v1"
+            }
+            Self::Ed25519DeriverBContributionRoot => {
+                b"router-ab-ed25519-yao/deriver-b-contribution-root/v1"
+            }
+        }
+    }
+
+    /// Returns the output encoding for this purpose.
+    pub fn output_encoding(&self) -> PrfOutputEncoding {
+        match self {
+            Self::RouterAbEcdsaDerivationYServer => PrfOutputEncoding::Raw32,
+            Self::Ed25519DeriverAContributionRoot | Self::Ed25519DeriverBContributionRoot => {
+                PrfOutputEncoding::Raw32
+            }
+            Self::RouterAbXClientBaseV1 | Self::RouterAbXServerBaseV1 => {
+                PrfOutputEncoding::CanonicalEd25519Scalar32
+            }
+        }
+    }
+}
+/// Canonical threshold PRF context.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrfContext {
+    /// PRF suite identifier.
+    pub suite_id: SuiteId,
+    /// Domain-separated output purpose.
+    pub purpose: PrfPurpose,
+    /// Canonically encoded wallet/project context bytes.
+    pub context_bytes: Vec<u8>,
+}
+
+impl PrfContext {
+    /// Creates a new PRF context.
+    pub fn new(suite_id: SuiteId, purpose: PrfPurpose, context_bytes: impl Into<Vec<u8>>) -> Self {
+        Self {
+            suite_id,
+            purpose,
+            context_bytes: context_bytes.into(),
+        }
+    }
+}

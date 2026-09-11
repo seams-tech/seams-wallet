@@ -1,0 +1,45 @@
+[package]
+name = "seams-cli"
+version = "0.4.0"
+edition = "2021"
+publish = false
+description = "The seams-wallet derivation-root recovery command line"
+license = "Apache-2.0"
+
+[lib]
+name = "seams_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "seams-wallet"
+path = "src/main.rs"
+
+# A separate program from `seams-wallet`: the recovery tool never links code that
+# can sign a release.
+[[bin]]
+name = "seams-release-manifest"
+path = "src/bin/seams-release-manifest.rs"
+
+[dependencies]
+base64ct = { version = "1.6", features = ["alloc"] }
+rand_core_09 = { package = "rand_core", version = "0.9.5", features = ["os_rng"] }
+router-ab-core = { path = "../router-ab-core" }
+seams-recovery-core = { path = "../seams-recovery-core" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+ureq = { version = "3.4.0", default-features = false, features = ["rustls", "platform-verifier"] }
+zeroize = { version = "1.8" }
+
+[target.'cfg(any(target_os = "linux", target_os = "macos"))'.dependencies]
+nix = { version = "0.31.3", default-features = false, features = ["mman", "resource", "process"] }
+
+zip = { version = "2.4.2", default-features = false, features = ["aes-crypto"] }
+
+[dev-dependencies]
+base64ct = { version = "1.6", features = ["alloc"] }
+ed25519-dalek = { version = "2.1", default-features = false }
+serde_json = "1.0"
+
+[profile.test]
+opt-level = 2

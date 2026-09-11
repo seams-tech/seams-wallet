@@ -1,0 +1,252 @@
+use router_ab_core::LocalServiceRoleV1;
+use router_ab_dev::{
+    dispatch_local_ed25519_yao_connection_with_persistence_v1,
+    local_dev_http_handle_request_with_dispatcher_v1, local_worker_bind_addr_v1,
+    parse_local_env_file_contents_v1, parse_local_service_role_label_v1,
+    parse_local_worker_role_config_for_role_v1, read_local_dev_http_request_v1,
+    write_local_dev_http_response_v1, LocalDevHttpTopologyV1, LocalEd25519YaoConnectionDispatchV1,
+    LocalEd25519YaoWorkerStateV1, LocalRolePrivateSqliteStorageV1,
+    LocalRouterEd25519YaoCoordinatorV1, LocalRouterRequestDispatcherV1, LocalWorkerRoleConfigV1,
+};
+use rusqlite::Connection;
+use serde::Serialize;
+use std::{
+    env, fs,
+    net::{TcpListener, TcpStream},
+    path::PathBuf,
+    sync::Arc,
+};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct WorkerOptions {
+    role: LocalServiceRoleV1,
+    env_path: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct WorkerStartupSummary {
+    role: LocalServiceRoleV1,
+    role_label: String,
+    bind_addr: String,
+    env_path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct WorkerRequestErrorSummary {
+    role: LocalServiceRoleV1,
+    role_label: String,
+    event: &'static str,
+    error: String,
+}
+
+const LOCAL_ED25519_YAO_ROLE_PRIVATE_STATE_KEY_V1: &str = "ed25519-yao/worker-state-v1";
+
+struct LocalEd25519YaoStateStoreV1 {
+    connection: Connection,
+}
+
+impl LocalEd25519YaoStateStoreV1 {
+    fn open(config: &LocalWorkerRoleConfigV1) -> Result<Self, Box<dyn std::error::Error>> {
+        let path = match config {
+            LocalWorkerRoleConfigV1::DeriverA(config) => config.role_private_storage_path.as_str(),
+            LocalWorkerRoleConfigV1::DeriverB(config) => config.role_private_storage_path.as_str(),
+            LocalWorkerRoleConfigV1::SigningWorker(config) => {
+                config.role_private_storage_path.as_str()
+            }
+            LocalWorkerRoleConfigV1::Router(_) => {
+                return Err("Router does not own local Ed25519 Yao secret state".into());
+            }
+        };
+        let path = PathBuf::from(path);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let connection = Connection::open(path)?;
+        LocalRolePrivateSqliteStorageV1::new(&connection)?;
+        Ok(Self { connection })
+    }
+
+    fn load(
+        &self,
+        role: LocalServiceRoleV1,
+    ) -> Result<LocalEd25519YaoWorkerStateV1, Box<dyn std::error::Error>> {
+        let storage = LocalRolePrivateSqliteStorageV1::new(&self.connection)?;
+        let Some(bytes) = storage.get_bytes(LOCAL_ED25519_YAO_ROLE_PRIVATE_STATE_KEY_V1)? else {
+            return Ok(LocalEd25519YaoWorkerStateV1::default());
+        };
+        Ok(LocalEd25519YaoWorkerStateV1::decode_durable_state_for_role_v1(role, &bytes)?)
+    }
+
+    fn persist(
+        &self,
+        role: LocalServiceRoleV1,
+        state: &LocalEd25519YaoWorkerStateV1,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let bytes = state.encode_durable_state_for_role_v1(role)?;
+        let storage = LocalRolePrivateSqliteStorageV1::new(&self.connection)?;
+        storage.put_bytes(LOCAL_ED25519_YAO_ROLE_PRIVATE_STATE_KEY_V1, &bytes)?;
+        Ok(())
+    }
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let options = parse_args(env::args().skip(1))?;
+    let env_contents = fs::read_to_string(&options.env_path)?;
+    let config = Arc::new(parse_local_worker_role_config_for_role_v1(
+        options.role,
+        parse_local_env_file_contents_v1(&env_contents)?,
+    )?);
+    let bind_addr = local_worker_bind_addr_v1(&config)?;
+    let listener = TcpListener::bind(&bind_addr)?;
+    let state_store = if config.role() == LocalServiceRoleV1::Router {
+        None
+    } else {
+        Some(LocalEd25519YaoStateStoreV1::open(&config)?)
+    };
+    let router_dispatcher = if config.role() == LocalServiceRoleV1::Router {
+        Some(LocalRouterEd25519YaoCoordinatorV1::default())
+    } else {
+        None
+    };
+
+    let summary = WorkerStartupSummary {
+        role: config.role(),
+        role_label: config.role().as_str().to_owned(),
+        bind_addr: bind_addr.clone(),
+        env_path: options.env_path.display().to_string(),
+    };
+    eprintln!("{}", serde_json::to_string(&summary)?);
+
+    let mut yao_state = state_store
+        .as_ref()
+        .map(|store| store.load(config.role()))
+        .transpose()?;
+    for stream in listener.incoming() {
+        match stream {
+            Ok(stream) => {
+                match handle_connection(
+                    stream,
+                    &config,
+                    yao_state.as_mut(),
+                    state_store.as_ref(),
+                    router_dispatcher
+                        .as_ref()
+                        .map(|dispatcher| dispatcher as &dyn LocalRouterRequestDispatcherV1),
+                ) {
+                    Ok(LocalWorkerConnectionResultV1::YaoHandled) => {
+                        if let (Some(store), Some(state)) =
+                            (state_store.as_ref(), yao_state.as_ref())
+                        {
+                            store.persist(config.role(), state)?;
+                        }
+                    }
+                    Ok(LocalWorkerConnectionResultV1::OtherHandled) => {}
+                    Err(error) => log_worker_request_error(&config, error.as_ref()),
+                }
+            }
+            Err(error) => log_worker_request_error(&config, &error),
+        }
+    }
+    Ok(())
+}
+
+enum LocalWorkerConnectionResultV1 {
+    YaoHandled,
+    OtherHandled,
+}
+
+fn handle_connection(
+    stream: TcpStream,
+    config: &LocalWorkerRoleConfigV1,
+    yao_state: Option<&mut LocalEd25519YaoWorkerStateV1>,
+    state_store: Option<&LocalEd25519YaoStateStoreV1>,
+    router_dispatcher: Option<&dyn LocalRouterRequestDispatcherV1>,
+) -> Result<LocalWorkerConnectionResultV1, Box<dyn std::error::Error>> {
+    let mut stream = if let Some(yao_state) = yao_state {
+        let mut persist_before_network = |state: &LocalEd25519YaoWorkerStateV1| {
+            let Some(store) = state_store else {
+                return Ok(());
+            };
+            store.persist(config.role(), state)
+        };
+        match dispatch_local_ed25519_yao_connection_with_persistence_v1(
+            stream,
+            config,
+            yao_state,
+            &mut persist_before_network,
+        )? {
+            LocalEd25519YaoConnectionDispatchV1::Handled => {
+                return Ok(LocalWorkerConnectionResultV1::YaoHandled);
+            }
+            LocalEd25519YaoConnectionDispatchV1::Unhandled(stream) => stream,
+        }
+    } else {
+        stream
+    };
+    let request = read_local_dev_http_request_v1(&mut stream)?;
+    let (status, body) = local_dev_http_handle_request_with_dispatcher_v1(
+        if config.role() == LocalServiceRoleV1::Router {
+            let LocalWorkerRoleConfigV1::Router(router_config) = config else {
+                unreachable!("Router role config must use Router branch")
+            };
+            LocalDevHttpTopologyV1::Router(router_config)
+        } else {
+            LocalDevHttpTopologyV1::FourWorker(config)
+        },
+        &request,
+        router_dispatcher,
+    )?;
+    write_local_dev_http_response_v1(&mut stream, status, &body)?;
+    Ok(LocalWorkerConnectionResultV1::OtherHandled)
+}
+
+fn log_worker_request_error(config: &LocalWorkerRoleConfigV1, error: &dyn std::error::Error) {
+    let summary = WorkerRequestErrorSummary {
+        role: config.role(),
+        role_label: config.role().as_str().to_owned(),
+        event: "request_error",
+        error: error.to_string(),
+    };
+    match serde_json::to_string(&summary) {
+        Ok(json) => eprintln!("{json}"),
+        Err(_) => eprintln!("local worker request error: {}", error),
+    }
+}
+
+fn parse_args(args: impl IntoIterator<Item = String>) -> Result<WorkerOptions, String> {
+    let mut role = None;
+    let mut env_path = None;
+    let mut iter = args.into_iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--role" => {
+                let Some(value) = iter.next() else {
+                    return Err("--role requires a value".to_owned());
+                };
+                let parsed =
+                    parse_local_service_role_label_v1(&value).map_err(|e| e.to_string())?;
+                role = Some(parsed);
+            }
+            "--env" => {
+                let Some(value) = iter.next() else {
+                    return Err("--env requires a path".to_owned());
+                };
+                env_path = Some(PathBuf::from(value));
+            }
+            "--help" | "-h" => return Err(usage()),
+            _ => return Err(format!("unknown argument {arg}\n{}", usage())),
+        }
+    }
+    let Some(role) = role else {
+        return Err(format!("missing --role\n{}", usage()));
+    };
+    let Some(env_path) = env_path else {
+        return Err(format!("missing --env\n{}", usage()));
+    };
+    Ok(WorkerOptions { role, env_path })
+}
+
+fn usage() -> String {
+    "usage: router_ab_local_worker --role <router|deriver-a|deriver-b|signing-worker> --env <path>"
+        .to_owned()
+}

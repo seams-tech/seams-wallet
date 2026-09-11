@@ -1,0 +1,54 @@
+name: Release wallet packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact @seams/wallet and @seams/wallet-server version
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    name: Publish npm packages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: npm-release
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Validate package versions
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          test "$(node -p "require('./packages/wallet/package.json').version")" = "$RELEASE_VERSION"
+          test "$(node -p "require('./packages/wallet-server/package.json').version")" = "$RELEASE_VERSION"
+      - name: Install build tools
+        run: |
+          cargo install wasm-pack --locked
+          cargo install worker-build --version 0.8.4 --locked
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm check:packed-wallet
+      - name: Use npm trusted publishing
+        run: npm install --global npm@latest
+      - name: Publish @seams/wallet-server
+        working-directory: packages/wallet-server
+        run: npm publish --access public --provenance
+      - name: Publish @seams/wallet
+        working-directory: packages/wallet
+        run: npm publish --access public --provenance

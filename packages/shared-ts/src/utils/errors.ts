@@ -1,0 +1,259 @@
+/**
+ * Centralized error handling utilities for the Passkey SDK
+ */
+
+export { formatNearRpcError, getNearShortErrorMessage } from './near';
+
+/**
+ * Best-effort error message extractor without relying on `any`.
+ * Always returns a string (may be empty when nothing usable can be derived).
+ */
+export function errorMessage(err: unknown): string {
+  try {
+    if (typeof err === 'string') return err;
+    if (err && typeof (err as { message?: unknown }).message === 'string') {
+      return (err as { message: string }).message;
+    }
+    return String(err ?? '');
+  } catch {
+    return '';
+  }
+}
+
+function b64uField(prefix: string): string {
+  return `${prefix}B64u`;
+}
+
+const SENSITIVE_ERROR_FIELD_NAMES = [
+  'nearPrivateKey',
+  'near_private_key',
+  'privateKey',
+  'private_key',
+  b64uField('seed'),
+  'seed_b64u',
+  b64uField('canonicalSeed'),
+  'canonical_seed_b64u',
+  b64uField('xClientBase'),
+  'x_client_base_b64u',
+  b64uField('clientOutputMask'),
+  'client_output_mask_b64u',
+  b64uField('clientRecoverableSecret'),
+  'client_recoverable_secret_b64u',
+  'prfOutput',
+  'prf_output',
+  'prfFirst',
+  'prf_first',
+  b64uField('prfFirst'),
+  'prf_first_b64u',
+  'prfSecond',
+  'prf_second',
+  b64uField('prfSecond'),
+  'prf_second_b64u',
+  b64uField('signingShare32'),
+  'signing_share32_b64u',
+  b64uField('clientNonceHandle'),
+  'client_nonce_handle_b64u',
+] as const;
+
+function redactJsonStringField(input: string, fieldName: string): string {
+  const escapedFieldName = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return input.replace(
+    new RegExp(`("${escapedFieldName}"\\s*:\\s*")([^"]*)(")`, 'g'),
+    `$1[REDACTED]$3`,
+  );
+}
+
+function redactAssignmentField(input: string, fieldName: string): string {
+  const escapedFieldName = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return input.replace(
+    new RegExp(`\\b(${escapedFieldName}\\s*[=:]\\s*)([^\\s,}\\]]+)`, 'g'),
+    '$1[REDACTED]',
+  );
+}
+
+export function redactSensitiveErrorText(input: string): string {
+  let redacted = String(input || '');
+  for (const fieldName of SENSITIVE_ERROR_FIELD_NAMES) {
+    redacted = redactJsonStringField(redacted, fieldName);
+    redacted = redactAssignmentField(redacted, fieldName);
+  }
+  return redacted;
+}
+
+export function safeErrorMessage(err: unknown): string {
+  return redactSensitiveErrorText(errorMessage(err));
+}
+
+export function errorLogSummary(err: unknown): { name: string; message: string } {
+  if (err instanceof Error) {
+    return {
+      name: String(err.name || 'Error'),
+      message: safeErrorMessage(err),
+    };
+  }
+  return {
+    name: typeof err,
+    message: safeErrorMessage(err),
+  };
+}
+
+/**
+ * Normalize any thrown value into an Error instance.
+ * - preserves message/name/stack when available
+ * - best-effort copies optional code/details properties if present
+ */
+export function toError(e: unknown): Error {
+  if (e instanceof Error) return e;
+  const err = new Error(errorMessage(e));
+  try {
+    const src = e as { name?: unknown; stack?: unknown; code?: unknown; details?: unknown };
+    if (typeof src?.name === 'string') err.name = src.name;
+    if (typeof src?.stack === 'string') (err as { stack?: string }).stack = src.stack;
+    if (src && typeof src.code !== 'undefined') (err as { code?: unknown }).code = src.code;
+    if (src && typeof src.details !== 'undefined')
+      (err as { details?: unknown }).details = src.details;
+  } catch {}
+  return err;
+}
+
+/**
+ * Check if an error is related to user cancellation of TouchID/FaceID prompt
+ * @param error - The error object or error message string
+ * @returns true if the error indicates user cancellation
+ */
+export function isTouchIdCancellationError(error: unknown): boolean {
+  const msg = errorMessage(error);
+  if (isWebAuthnRpIdOriginConfigurationError(error)) return false;
+  if (isUserCancellationError(error)) return true;
+
+  // Normalize for case-insensitive substring checks on user-facing phrases
+  const lower = msg.toLowerCase();
+
+  return (
+    msg.includes('The operation either timed out or was not allowed') ||
+    msg.includes('NotAllowedError') ||
+    msg.includes('AbortError') ||
+    lower.includes('user cancelled') ||
+    lower.includes('user canceled') ||
+    lower.includes('user aborted') ||
+    // Recognize the friendly text this module itself produces via
+    // getTouchIdCancellationMessage. Flows stringify a cancellation into a
+    // result.error and rethrow it as a plain Error, which drops the DOMException
+    // name, so the message is the only surviving signal.
+    lower.includes('was cancelled') ||
+    lower.includes('was canceled')
+  );
+}
+
+export function isWebAuthnRpIdOriginConfigurationError(error: unknown): boolean {
+  const lower = errorMessage(error).toLowerCase();
+  return (
+    lower.includes('relying party id') ||
+    lower.includes('registrable domain suffix') ||
+    lower.includes('claimed rp id') ||
+    lower.includes('/.well-known/webauthn') ||
+    lower.includes('.well-known/webauthn')
+  );
+}
+
+export function isUserCancellationError(error: unknown): boolean {
+  if (isWebAuthnRpIdOriginConfigurationError(error)) return false;
+  const msg = errorMessage(error);
+  const lower = msg.toLowerCase();
+  const maybe = error as { name?: unknown; code?: unknown };
+  const name = String(maybe?.name || '').trim();
+  const codeRaw = maybe?.code;
+  const code = String(codeRaw || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+
+  return (
+    codeRaw === 4001 ||
+    code === '4001' ||
+    code === 'cancelled' ||
+    code === 'canceled' ||
+    code === 'abort_error' ||
+    code === 'user_cancelled' ||
+    code === 'user_canceled' ||
+    code === 'user_rejected' ||
+    code === 'action_rejected' ||
+    code === 'request_rejected' ||
+    name === 'NotAllowedError' ||
+    name === 'AbortError' ||
+    lower.includes('user cancelled') ||
+    lower.includes('user canceled') ||
+    lower.includes('user rejected') ||
+    lower.includes('request cancelled') ||
+    lower.includes('request canceled') ||
+    lower.includes('operation cancelled') ||
+    lower.includes('operation canceled')
+  );
+}
+
+/**
+ * Get a user-friendly error message for TouchID/FaceID cancellation
+ * @param context - The context where the cancellation occurred (e.g., 'registration', 'login')
+ * @returns A user-friendly error message
+ */
+export function getTouchIdCancellationMessage(context: 'registration' | 'login'): string {
+  switch (context) {
+    case 'registration':
+      return `Registration was cancelled. Please try again when you're ready to set up your passkey.`;
+    case 'login':
+      return `Login was cancelled. Please try again when you're ready to authenticate.`;
+    default:
+      return `Operation was cancelled. Please try again when you're ready.`;
+  }
+}
+
+/**
+ * Transform an error message to be more user-friendly
+ * @param error - The original error object or message
+ * @param context - The context where the error occurred
+ * @param accountId - Optional account ID for context-specific messages
+ * @returns A user-friendly error message
+ */
+export function getUserFriendlyErrorMessage(
+  error: unknown,
+  context: 'registration' | 'login' = 'registration',
+  accountId?: string,
+): string {
+  const msg = errorMessage(error);
+
+  if (isWebAuthnRpIdOriginConfigurationError(error)) {
+    const op = context === 'registration' ? 'Registration' : 'Login';
+    return `${op} failed because the configured WebAuthn RP ID is not valid for this app origin. Check VITE_RP_ID_BASE and the /.well-known/webauthn related-origin configuration for this environment.`;
+  }
+
+  // Handle TouchID/FaceID cancellation
+  if (isTouchIdCancellationError(error)) {
+    return getTouchIdCancellationMessage(context);
+  }
+
+  // Missing PRF outputs
+  if (msg.includes('PRF outputs missing')) {
+    const op = context === 'registration' ? 'Registration' : 'Login';
+    return `${op} failed because your browser did not return the required passkey PRF results. On some mobile browsers this is not available for create(); try updating your browser or use a desktop browser. We’re working on an alternate path for broader device support.`;
+  }
+
+  // Handle other common errors
+  if (msg.includes('one of the credentials already registered')) {
+    return `A passkey for '${accountId || 'this account'}' already exists. Please try logging in instead.`;
+  }
+
+  if (msg.includes('Cannot deserialize the contract state')) {
+    return `Contract state deserialization failed. This may be due to a contract upgrade. Please try again or contact support.`;
+  }
+
+  if (msg.includes('Web3Authn contract registration check failed')) {
+    return `Contract registration check failed: ${msg.replace('Web3Authn contract registration check failed: ', '')}`;
+  }
+
+  if (msg.includes('Unknown error occurred')) {
+    return `${context === 'registration' ? 'Registration' : 'Login'} failed due to an unknown error. Please check your connection and try again.`;
+  }
+
+  // Return the original error message if no specific handling is needed
+  return msg;
+}

@@ -1,0 +1,23 @@
+name = "seams-self-host-signing-worker"
+main = "src/worker.ts"
+compatibility_date = "2026-04-17"
+compatibility_flags = ["nodejs_compat"]
+
+[[durable_objects.bindings]]
+name = "THRESHOLD_STORE"
+class_name = "ThresholdStoreDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ThresholdStoreDurableObject"]
+
+[vars]
+NETWORK_ID = "testnet"
+NEAR_RPC_URL = "https://rpc.testnet.near.org"
+EXPECTED_ORIGIN = "https://wallet.example.com"
+EXPECTED_WALLET_ORIGIN = "https://wallet.example.com"
+THRESHOLD_PREFIX = "self-host:"
+
+# Set these as Wrangler secrets, not checked-in vars:
+# - RELAYER_ACCOUNT_ID
+# - RELAYER_PRIVATE_KEY

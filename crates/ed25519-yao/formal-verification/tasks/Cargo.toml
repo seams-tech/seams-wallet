@@ -1,0 +1,22 @@
+[package]
+name = "ed25519-yao-formal-verification-tasks"
+version = "0.1.0"
+edition = "2021"
+description = "Host-only task runner for the isolated Ed25519 Yao verification tracks"
+license = "Apache-2.0"
+publish = false
+
+[[bin]]
+name = "ed25519-yao-formal-verification-tasks"
+path = "src/main.rs"
+
+[dependencies]
+ed25519-dalek = "2.1"
+ed25519-yao = { path = "../../../../crates/ed25519-yao", features = ["local-protocol"] }
+ed25519-yao-generator = { path = "../../../../tools/ed25519-yao-generator" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+toml = "0.8"
+
+[workspace]

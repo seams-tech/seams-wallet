@@ -1,0 +1,31 @@
+{
+  "format_version": "signer-core-secp256k1-v1",
+  "public_key_vectors": [
+    {
+      "name": "public-key-5353",
+      "private_key32_hex": "5353db1df0fddf43ad7049ebe1014bbcf3119b0d99659a3be8eefcfa2324e922",
+      "public_key33_hex": "03e0f44416fd0449942b4b46c348a119a78a2ffed34e347da88e322eb742567f20",
+      "ethereum_address20_hex": "d1751da544e6242e3ad4d59102f4e945736a2f5f"
+    },
+    {
+      "name": "public-key-fa85",
+      "private_key32_hex": "fa8517b4e59fc3255f4d70099e3b0d9f76d4bee8ec689a8190f71471ed25ef57",
+      "public_key33_hex": "02aa9805ea704b3690a06ecd2858d8a0423553b4092133237e203ed71f0f752bc2",
+      "ethereum_address20_hex": "2e6c3b50666a7d4b181e75791d5940524981d961"
+    }
+  ],
+  "rejected_scalar_vectors": [
+    {
+      "name": "zero",
+      "scalar32_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "name": "order",
+      "scalar32_hex": "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"
+    },
+    {
+      "name": "all-ff",
+      "scalar32_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    }
+  ]
+}

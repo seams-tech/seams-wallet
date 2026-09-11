@@ -1,0 +1,102 @@
+import { toAccountId, type AccountId } from '@/core/types/accountIds';
+import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
+import {
+  withThresholdCommitQueue,
+  type ThresholdCommitQueueByKey,
+  type ThresholdCommitQueueCancelledReason,
+  type ThresholdCommitQueueError,
+} from '../commitQueueShared';
+
+export type ThresholdEd25519CommitQueueError = ThresholdCommitQueueError;
+
+export type ThresholdEd25519CommitQueueKeyInput = {
+  materialActivation: MpcMaterialActivationRef;
+};
+
+export type ThresholdEd25519CommitQueueByKey = ThresholdCommitQueueByKey;
+
+export function createThresholdEd25519CommitQueueOverflowError(
+  nearAccountId: AccountId,
+  queueKey: string,
+  maxQueueLength: number,
+): ThresholdEd25519CommitQueueError {
+  const accountId = String(nearAccountId);
+  const err = new Error(
+    `[SigningEngine] threshold Ed25519 commit queue overflow for ${accountId} (queueKey=${queueKey}, max=${maxQueueLength})`,
+  ) as ThresholdEd25519CommitQueueError;
+  err.code = 'commit_queue_overflow';
+  return err;
+}
+
+export function createThresholdEd25519CommitQueueTimeoutError(
+  nearAccountId: AccountId,
+  queueKey: string,
+  timeoutMs: number,
+): ThresholdEd25519CommitQueueError {
+  const accountId = String(nearAccountId);
+  const err = new Error(
+    `[SigningEngine] threshold Ed25519 commit queue timeout for ${accountId} (queueKey=${queueKey}, waited>${timeoutMs}ms before start)`,
+  ) as ThresholdEd25519CommitQueueError;
+  err.code = 'commit_queue_timeout';
+  return err;
+}
+
+export function createThresholdEd25519CommitQueueCancelledError(
+  nearAccountId: AccountId,
+  queueKey: string,
+  reason: ThresholdCommitQueueCancelledReason = 'cancelled',
+): ThresholdEd25519CommitQueueError {
+  const accountId = String(nearAccountId);
+  const message =
+    reason === 'queue_cleared'
+      ? `[SigningEngine] threshold Ed25519 queued commit cancelled for ${accountId} (queueKey=${queueKey}, queue_cleared)`
+      : `[SigningEngine] threshold Ed25519 queued commit cancelled for ${accountId} (queueKey=${queueKey})`;
+  const err = new Error(message) as ThresholdEd25519CommitQueueError;
+  err.code = 'cancelled';
+  return err;
+}
+
+export function resolveThresholdEd25519CommitQueueKey(
+  args: ThresholdEd25519CommitQueueKeyInput,
+): string {
+  return [
+    'material',
+    encodeURIComponent(String(args.materialActivation.materialOwner)),
+    encodeURIComponent(String(args.materialActivation.capability)),
+    encodeURIComponent(String(args.materialActivation.activationId)),
+  ].join(':');
+}
+
+export async function withThresholdEd25519CommitQueue<T>(args: {
+  queueByKey: ThresholdEd25519CommitQueueByKey;
+  queueKey: string;
+  nearAccountId: AccountId;
+  enabled: boolean;
+  shouldAbort?: () => boolean;
+  maxQueueLength?: number;
+  queueTimeoutMs?: number;
+  task: () => Promise<T>;
+}): Promise<T> {
+  const queueKey = String(args.queueKey || '').trim();
+  if (!queueKey) {
+    throw new Error('[SigningEngine] threshold Ed25519 commit queue requires non-empty queueKey');
+  }
+  const accountKey = String(args.nearAccountId);
+  return await withThresholdCommitQueue({
+    queueByKey: args.queueByKey,
+    queueKey,
+    enabled: args.enabled,
+    shouldAbort: args.shouldAbort,
+    maxQueueLength: args.maxQueueLength,
+    queueTimeoutMs: args.queueTimeoutMs,
+    task: args.task,
+    errors: {
+      makeOverflowError: (queueKey, maxQueueLength) =>
+        createThresholdEd25519CommitQueueOverflowError(accountKey, queueKey, maxQueueLength),
+      makeTimeoutError: (queueKey, timeoutMs) =>
+        createThresholdEd25519CommitQueueTimeoutError(accountKey, queueKey, timeoutMs),
+      makeCancelledError: (queueKey, reason) =>
+        createThresholdEd25519CommitQueueCancelledError(accountKey, queueKey, reason),
+    },
+  });
+}

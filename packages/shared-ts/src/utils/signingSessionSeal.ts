@@ -1,0 +1,244 @@
+import type {
+  RouterAbEcdsaDerivationNormalSigningStateV1,
+  RouterAbEcdsaDerivationPublicCapabilityV1,
+} from './routerAbEcdsaDerivation';
+import type {
+  EmailOtpProvider,
+  EmailOtpWalletAuthAuthority,
+  WalletAuthAuthorityRef,
+} from './walletAuthAuthority';
+import type { MpcMaterialActivationRef } from './domainIds';
+import { SIGNER_AUTH_METHODS, type SignerAuthMethod } from './signerDomain';
+
+export const SIGNING_SESSION_SEALED_RECORD_VERSION = 2 as const;
+export const SIGNING_SESSION_SEAL_ALG = 'shamir3pass-v2' as const;
+export const SIGNING_SESSION_SEAL_GROUP_ID = 'rfc2409-group2' as const;
+export const SIGNING_SESSION_SEAL_STORAGE_SCOPE = 'iframe_origin_indexeddb' as const;
+export const SIGNING_SESSION_SECRET_KIND = 'signing_session_secret32' as const;
+export const ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND =
+  'router_ab_ed25519_normal_signing_v1' as const;
+export const ROUTER_AB_ED25519_HEALTH_PATH = '/router-ab/ed25519/healthz' as const;
+export const ROUTER_AB_ED25519_WALLET_SESSION_PATH = '/router-ab/wallet-session/ed25519' as const;
+export const ROUTER_AB_ED25519_NORMAL_SIGNING_PREPARE_PATH =
+  '/router-ab/ed25519/sign/prepare' as const;
+export const ROUTER_AB_ED25519_NORMAL_SIGNING_PATH = '/router-ab/ed25519/sign' as const;
+export const WALLET_SESSION_SEAL_BASE_PATH = '/wallet-session/seal' as const;
+
+export const PASSKEY_PRF_FIRST_SALT_V1 = new Uint8Array([
+  0x40, 0x0c, 0x31, 0x8b, 0x66, 0x95, 0x97, 0x36, 0x59, 0xa1, 0x69, 0x8a, 0xe5, 0x80, 0xdf, 0xd8,
+  0x00, 0x1d, 0x99, 0x51, 0xba, 0x32, 0xc6, 0x95, 0xe6, 0x34, 0x99, 0x47, 0x50, 0x4f, 0x3f, 0x84,
+]);
+
+export const PASSKEY_PRF_SECOND_SALT_V1 = new Uint8Array([
+  0x26, 0xda, 0x50, 0xe5, 0xac, 0x96, 0x4a, 0x7e, 0xa0, 0x84, 0x52, 0x7f, 0xb6, 0x47, 0xf6, 0x33,
+  0x0b, 0x32, 0xde, 0x51, 0xa9, 0xaf, 0x46, 0x52, 0x4b, 0x00, 0x6d, 0x8f, 0x7f, 0xe7, 0xf4, 0xd1,
+]);
+
+export const EMAIL_OTP_HKDF_SALTS = {
+  signingSessionSecret: 'seams/email-otp/signing-session-secret/v1',
+  signingSessionRestoreRoot: 'seams/signing-session/restore-root/v1',
+  thresholdEcdsaClientRoot: 'seams/signing-session/threshold-ecdsa-client-root/v1',
+  thresholdEd25519RestoreSeed: 'seams/signing-session/threshold-ed25519-restore-seed/v1',
+} as const;
+
+export type SigningSessionSealAuthMethod = Extract<
+  SignerAuthMethod,
+  typeof SIGNER_AUTH_METHODS.passkey | typeof SIGNER_AUTH_METHODS.emailOtp
+>;
+export type SigningSessionSealCurve = 'ed25519' | 'ecdsa';
+export type SigningSessionSealGroupId = typeof SIGNING_SESSION_SEAL_GROUP_ID;
+export type SigningSessionSealProtocol = {
+  algorithm: typeof SIGNING_SESSION_SEAL_ALG;
+  groupId: SigningSessionSealGroupId;
+};
+export type SealedSigningSessionEcdsaRestoreSource =
+  | 'login'
+  | 'registration'
+  | 'manual-bootstrap'
+  | 'email_otp';
+
+export type RouterAbEd25519NormalSigningState = {
+  kind: typeof ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND;
+  signingWorkerId: string;
+};
+
+function normalizeRouterAbNonEmptyString(value: unknown): string | null {
+  const parsed = String(value || '').trim();
+  return parsed || null;
+}
+
+export function parseRouterAbEd25519NormalSigningState(
+  value: unknown,
+): RouterAbEd25519NormalSigningState | null {
+  const record = value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+  if (!record) return null;
+  if (record.kind !== ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND) return null;
+  const signingWorkerId = normalizeRouterAbNonEmptyString(record.signingWorkerId);
+  if (!signingWorkerId) {
+    throw new Error('Invalid Router A/B Ed25519 normal-signing state: missing signingWorkerId');
+  }
+  return {
+    kind: ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND,
+    signingWorkerId,
+  };
+}
+
+export function requireRouterAbEd25519NormalSigningState(
+  value: unknown,
+): RouterAbEd25519NormalSigningState {
+  const parsed = parseRouterAbEd25519NormalSigningState(value);
+  if (!parsed) {
+    throw new Error('Router A/B Ed25519 normal-signing state is required');
+  }
+  return parsed;
+}
+
+export type SealedSigningSessionEcdsaChainTarget =
+  | {
+      kind: 'tempo';
+      chainId: number;
+      networkSlug: string;
+    }
+  | {
+      kind: 'evm';
+      namespace: 'eip155';
+      chainId: number;
+      networkSlug: string;
+    };
+
+type SealedSigningSessionEcdsaRestoreMetadataBase = {
+  chainTarget: SealedSigningSessionEcdsaChainTarget;
+  signingRootId: string;
+  signingRootVersion: string;
+  keyHandle: string;
+  ecdsaThresholdKeyId?: string;
+  ethereumAddress: string;
+  relayerKeyId: string;
+  clientVerifyingShareB64u?: string;
+  thresholdEcdsaPublicKeyB64u?: string;
+  participantIds: number[];
+  runtimePolicyScope?: unknown;
+  routerAbEcdsaDerivationNormalSigning: RouterAbEcdsaDerivationNormalSigningStateV1;
+  publicCapability: RouterAbEcdsaDerivationPublicCapabilityV1;
+};
+
+export type SealedSigningSessionEcdsaRoleLocalMaterialRef = {
+  kind: 'ecdsa_role_local_persisted_material_ref_v1';
+  durableMaterialRef: string;
+  bindingDigest: string;
+  materialActivation: MpcMaterialActivationRef;
+};
+
+export type SealedSigningSessionEcdsaRestoreMetadata =
+  | (SealedSigningSessionEcdsaRestoreMetadataBase & {
+      source: Exclude<SealedSigningSessionEcdsaRestoreSource, 'email_otp'>;
+      authority: WalletAuthAuthorityRef;
+      roleLocalMaterialRef: SealedSigningSessionEcdsaRoleLocalMaterialRef;
+      rpId: string;
+      credentialIdB64u: string;
+      providerSubjectId?: never;
+      authSubjectId?: never;
+    })
+  | (SealedSigningSessionEcdsaRestoreMetadataBase & {
+      source: 'email_otp';
+      provider: EmailOtpProvider;
+      providerSubjectId: string;
+      emailHashHex: string;
+      authority: WalletAuthAuthorityRef;
+      emailOtpAuthority: EmailOtpWalletAuthAuthority;
+      authSubjectId?: never;
+      roleLocalMaterialRef: SealedSigningSessionEcdsaRoleLocalMaterialRef;
+      rpId?: never;
+      credentialIdB64u?: never;
+    });
+
+type SealedSigningSessionEd25519RestoreMetadataBase = {
+  nearAccountId: string;
+  nearEd25519SigningKeyId: string;
+  rpId: string;
+  relayerKeyId: string;
+  participantIds: number[];
+  runtimePolicyScope?: unknown;
+  clientVerifyingShareB64u?: string;
+  signerSlot: number;
+  keyVersion?: string;
+  routerAbNormalSigning?: RouterAbEd25519NormalSigningState;
+};
+
+export type SealedSigningSessionEd25519RestoreMetadata =
+  | (SealedSigningSessionEd25519RestoreMetadataBase & {
+      credentialIdB64u: string;
+      materialActivation: MpcMaterialActivationRef;
+      providerSubjectId?: never;
+      authSubjectId?: never;
+    })
+  | (SealedSigningSessionEd25519RestoreMetadataBase & {
+      providerSubjectId: string;
+      emailHashHex: string;
+      materialActivation: MpcMaterialActivationRef;
+      credentialIdB64u?: never;
+      authSubjectId?: never;
+    });
+
+type SealedSigningSessionRecordBase = {
+  v: typeof SIGNING_SESSION_SEALED_RECORD_VERSION;
+  alg: typeof SIGNING_SESSION_SEAL_ALG;
+  storageScope: typeof SIGNING_SESSION_SEAL_STORAGE_SCOPE;
+  authMethod: SigningSessionSealAuthMethod;
+  secretKind: typeof SIGNING_SESSION_SECRET_KIND;
+  storeKey: string;
+  sealedSecretB64u: string;
+  walletId: string;
+  relayerUrl: string;
+  groupId: SigningSessionSealGroupId;
+  keyVersion: string;
+  issuedAtMs: number;
+  expiresAtMs: number;
+  remainingUses: number;
+  updatedAtMs: number;
+};
+
+export type SealedSigningSessionRecord =
+  | (SealedSigningSessionRecordBase & {
+      curve: 'ed25519';
+      thresholdSessionIds: {
+        ed25519: string;
+        ecdsa?: string;
+      };
+      signingRootId?: string;
+      signingRootVersion?: string;
+      ed25519Restore: SealedSigningSessionEd25519RestoreMetadata;
+      ecdsaRestore?: SealedSigningSessionEcdsaRestoreMetadata;
+    })
+  | (SealedSigningSessionRecordBase & {
+      curve: 'ecdsa';
+      thresholdSessionIds: {
+        ed25519?: string;
+        ecdsa: string;
+      };
+      signingRootId?: never;
+      signingRootVersion?: never;
+      ecdsaRestore: SealedSigningSessionEcdsaRestoreMetadata;
+      ed25519Restore?: SealedSigningSessionEd25519RestoreMetadata;
+    });
+
+export function encodeSigningSessionHkdfTuple(fields: readonly string[]): Uint8Array {
+  const encoder = new TextEncoder();
+  const chunks = fields.map((field) => {
+    const bytes = encoder.encode(String(field || ''));
+    const len = new Uint8Array(4);
+    new DataView(len.buffer).setUint32(0, bytes.length, false);
+    return { len, bytes };
+  });
+  let total = 0;
+  for (const chunk of chunks) total += chunk.len.length + chunk.bytes.length;
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk.len, offset);
+    offset += chunk.len.length;
+    out.set(chunk.bytes, offset);
+    offset += chunk.bytes.length;
+  }
+  return out;
+}

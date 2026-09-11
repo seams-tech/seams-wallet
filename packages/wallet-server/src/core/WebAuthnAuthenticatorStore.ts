@@ -1,0 +1,721 @@
+import type { NormalizedLogger } from './logger';
+import type {
+  CloudflareDurableObjectNamespaceLike,
+  ThresholdStoreConfigInput,
+} from './types';
+import {
+  THRESHOLD_PREFIX_DEFAULT,
+  THRESHOLD_DO_OBJECT_NAME_DEFAULT,
+} from './defaultConfigsServer';
+import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { isObject as isObjectLoose } from '@shared/utils/validation';
+import {
+  parseWebAuthnAuthenticatorDeviceInfo,
+  parseWebAuthnAuthenticatorDeviceInfoJson,
+  unknownWebAuthnAuthenticatorDeviceInfo,
+  type WebAuthnAuthenticatorDeviceInfo,
+} from '@shared/utils/webauthnDeviceInfo';
+import {
+  RedisTcpClient,
+  UpstashRedisRestClient,
+  redisDel,
+  redisGetJson,
+  redisSetJson,
+} from './ThresholdService/kv';
+import { formatD1ExecStatement, resolveD1DatabaseFromConfig } from '../storage/d1Sql';
+import type { D1DatabaseLike } from '../storage/tenantRoute';
+
+export type WebAuthnAuthenticatorRecord = {
+  version: 'webauthn_authenticator_v1';
+  credentialIdB64u: string;
+  credentialPublicKeyB64u: string;
+  counter: number;
+  createdAtMs: number;
+  updatedAtMs: number;
+  /**
+   * Server-derived device metadata captured at registration verification.
+   * Required so the authenticator listing can promise it; rows written before
+   * device capture parse back as `Unknown device` at the store boundary.
+   */
+  deviceInfo: WebAuthnAuthenticatorDeviceInfo;
+};
+
+export interface WebAuthnAuthenticatorStore {
+  get(userId: string, credentialIdB64u: string): Promise<WebAuthnAuthenticatorRecord | null>;
+  put(userId: string, record: WebAuthnAuthenticatorRecord): Promise<void>;
+  del(userId: string, credentialIdB64u: string): Promise<void>;
+  /**
+   * List all authenticators for a user.
+   *
+   * Optional because not all backing stores can efficiently enumerate keys.
+   */
+  list?(userId: string): Promise<WebAuthnAuthenticatorRecord[]>;
+}
+
+export interface D1WebAuthnAuthenticatorStoreSchemaOptions {
+  readonly database: D1DatabaseLike;
+}
+
+export interface D1WebAuthnAuthenticatorStoreOptions {
+  readonly database: D1DatabaseLike;
+  readonly namespace: string;
+  readonly orgId: string;
+  readonly projectId: string;
+  readonly envId: string;
+  readonly ensureSchema?: boolean;
+}
+
+type NormalizedD1WebAuthnAuthenticatorStoreOptions = {
+  readonly database: D1DatabaseLike;
+  readonly namespace: string;
+  readonly orgId: string;
+  readonly projectId: string;
+  readonly envId: string;
+  readonly ensureSchema: boolean;
+};
+
+type D1WebAuthnAuthenticatorScope = {
+  readonly namespace: string;
+  readonly orgId: string;
+  readonly projectId: string;
+  readonly envId: string;
+};
+
+type D1WebAuthnAuthenticatorRow = {
+  readonly credential_id_b64u?: unknown;
+  readonly credential_public_key_b64u?: unknown;
+  readonly counter?: unknown;
+  readonly created_at_ms?: unknown;
+  readonly updated_at_ms?: unknown;
+  readonly device_info_json?: unknown;
+};
+
+export const WEBAUTHN_AUTHENTICATOR_STORE_D1_SCHEMA_SQL = Object.freeze([
+  `
+    CREATE TABLE IF NOT EXISTS webauthn_authenticators (
+      namespace TEXT NOT NULL,
+      org_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      env_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      credential_id_b64u TEXT NOT NULL,
+      credential_public_key_b64u TEXT NOT NULL,
+      counter INTEGER NOT NULL,
+      created_at_ms INTEGER NOT NULL,
+      updated_at_ms INTEGER NOT NULL,
+      device_info_json TEXT NOT NULL DEFAULT '{}',
+      PRIMARY KEY (namespace, org_id, project_id, env_id, user_id, credential_id_b64u),
+      CHECK (length(user_id) > 0),
+      CHECK (length(credential_id_b64u) > 0),
+      CHECK (length(credential_public_key_b64u) > 0),
+      CHECK (counter >= 0),
+      CHECK (created_at_ms > 0),
+      CHECK (updated_at_ms > 0)
+    )
+  `,
+  `
+    CREATE INDEX IF NOT EXISTS webauthn_authenticators_user_idx
+      ON webauthn_authenticators (
+        namespace,
+        org_id,
+        project_id,
+        env_id,
+        user_id,
+        created_at_ms
+      )
+  `,
+] as const);
+
+export async function ensureWebAuthnAuthenticatorStoreD1Schema(
+  options: D1WebAuthnAuthenticatorStoreSchemaOptions,
+): Promise<void> {
+  for (const statement of WEBAUTHN_AUTHENTICATOR_STORE_D1_SCHEMA_SQL) {
+    await options.database.exec(formatD1ExecStatement(statement));
+  }
+}
+
+function isObject(v: unknown): v is Record<string, unknown> {
+  return isObjectLoose(v);
+}
+
+function toPrefixWithColon(prefix: unknown, defaultPrefix: string): string {
+  const p = toOptionalTrimmedString(prefix);
+  if (!p) return defaultPrefix;
+  return p.endsWith(':') ? p : `${p}:`;
+}
+
+export function resolveWebAuthnAuthenticatorStoreNamespace(
+  config: Record<string, unknown>,
+): string {
+  const explicit = toOptionalTrimmedString(config.WEBAUTHN_AUTHENTICATOR_PREFIX);
+  if (explicit) return toPrefixWithColon(explicit, '');
+
+  const base = toOptionalTrimmedString(config.THRESHOLD_PREFIX) || THRESHOLD_PREFIX_DEFAULT;
+  const baseWithColon = toPrefixWithColon(base, `${THRESHOLD_PREFIX_DEFAULT}:`);
+  return `${baseWithColon}webauthn:authenticator:`;
+}
+
+function parseWebAuthnAuthenticatorRecord(raw: unknown): WebAuthnAuthenticatorRecord | null {
+  if (!isObject(raw)) return null;
+  const version = toOptionalTrimmedString(raw.version);
+  const credentialIdB64u = toOptionalTrimmedString(raw.credentialIdB64u);
+  const credentialPublicKeyB64u = toOptionalTrimmedString(raw.credentialPublicKeyB64u);
+  const counter = typeof raw.counter === 'number' ? raw.counter : Number(raw.counter);
+  const createdAtMs =
+    typeof raw.createdAtMs === 'number' ? raw.createdAtMs : Number(raw.createdAtMs);
+  const updatedAtMs =
+    typeof raw.updatedAtMs === 'number' ? raw.updatedAtMs : Number(raw.updatedAtMs);
+  if (version !== 'webauthn_authenticator_v1') return null;
+  if (!credentialIdB64u || !credentialPublicKeyB64u) return null;
+  if (!Number.isFinite(counter) || counter < 0) return null;
+  if (!Number.isFinite(createdAtMs) || createdAtMs <= 0) return null;
+  if (!Number.isFinite(updatedAtMs) || updatedAtMs <= 0) return null;
+  return {
+    version: 'webauthn_authenticator_v1',
+    credentialIdB64u,
+    credentialPublicKeyB64u,
+    counter: Math.floor(counter),
+    createdAtMs: Math.floor(createdAtMs),
+    updatedAtMs: Math.floor(updatedAtMs),
+    deviceInfo:
+      parseWebAuthnAuthenticatorDeviceInfo(raw.deviceInfo) ??
+      unknownWebAuthnAuthenticatorDeviceInfo(),
+  };
+}
+
+function requireD1ScopeString(input: unknown, field: string): string {
+  const normalized = toOptionalTrimmedString(input);
+  if (!normalized) throw new Error(`${field} is required for D1 WebAuthn authenticator store`);
+  return normalized;
+}
+
+function normalizeD1WebAuthnAuthenticatorStoreOptions(
+  input: D1WebAuthnAuthenticatorStoreOptions,
+): NormalizedD1WebAuthnAuthenticatorStoreOptions {
+  return {
+    database: input.database,
+    namespace: requireD1ScopeString(input.namespace, 'namespace'),
+    orgId: requireD1ScopeString(input.orgId, 'orgId'),
+    projectId: requireD1ScopeString(input.projectId, 'projectId'),
+    envId: requireD1ScopeString(input.envId, 'envId'),
+    ensureSchema: input.ensureSchema !== false,
+  };
+}
+
+function d1ScopeFromConfig(input: {
+  readonly config: Record<string, unknown>;
+  readonly namespace: string;
+}): Omit<D1WebAuthnAuthenticatorStoreOptions, 'database'> {
+  return {
+    namespace: requireD1ScopeString(input.namespace, 'namespace'),
+    orgId: requireD1ScopeString(input.config.orgId || input.config.ORG_ID, 'orgId'),
+    projectId: requireD1ScopeString(input.config.projectId || input.config.PROJECT_ID, 'projectId'),
+    envId: requireD1ScopeString(input.config.envId || input.config.ENV_ID, 'envId'),
+  };
+}
+
+function parseD1WebAuthnAuthenticatorRow(
+  row: D1WebAuthnAuthenticatorRow | null,
+): WebAuthnAuthenticatorRecord | null {
+  if (!row) return null;
+  return parseWebAuthnAuthenticatorRecord({
+    version: 'webauthn_authenticator_v1',
+    credentialIdB64u: row.credential_id_b64u,
+    credentialPublicKeyB64u: row.credential_public_key_b64u,
+    counter: row.counter,
+    createdAtMs: row.created_at_ms,
+    updatedAtMs: row.updated_at_ms,
+    deviceInfo: parseWebAuthnAuthenticatorDeviceInfoJson(row.device_info_json),
+  });
+}
+
+class InMemoryWebAuthnAuthenticatorStore implements WebAuthnAuthenticatorStore {
+  private readonly map = new Map<string, WebAuthnAuthenticatorRecord>();
+  private readonly prefix: string;
+
+  constructor(prefix: string) {
+    this.prefix = prefix;
+  }
+
+  private key(userId: string, credentialIdB64u: string): string {
+    return `${this.prefix}${userId}:${credentialIdB64u}`;
+  }
+
+  async get(userId: string, credentialIdB64u: string): Promise<WebAuthnAuthenticatorRecord | null> {
+    const uid = toOptionalTrimmedString(userId);
+    const cid = toOptionalTrimmedString(credentialIdB64u);
+    if (!uid || !cid) return null;
+    return this.map.get(this.key(uid, cid)) || null;
+  }
+
+  async put(userId: string, record: WebAuthnAuthenticatorRecord): Promise<void> {
+    const uid = toOptionalTrimmedString(userId);
+    if (!uid) throw new Error('Missing userId');
+    const parsed = parseWebAuthnAuthenticatorRecord(record);
+    if (!parsed) throw new Error('Invalid authenticator record');
+    this.map.set(this.key(uid, parsed.credentialIdB64u), parsed);
+  }
+
+  async del(userId: string, credentialIdB64u: string): Promise<void> {
+    const uid = toOptionalTrimmedString(userId);
+    const cid = toOptionalTrimmedString(credentialIdB64u);
+    if (!uid || !cid) return;
+    this.map.delete(this.key(uid, cid));
+  }
+
+  async list(userId: string): Promise<WebAuthnAuthenticatorRecord[]> {
+    const uid = toOptionalTrimmedString(userId);
+    if (!uid) return [];
+    const keyPrefix = `${this.prefix}${uid}:`;
+    const out: WebAuthnAuthenticatorRecord[] = [];
+    for (const [k, v] of this.map.entries()) {
+      if (!k.startsWith(keyPrefix)) continue;
+      const parsed = parseWebAuthnAuthenticatorRecord(v);
+      if (parsed) out.push(parsed);
+    }
+    out.sort((a, b) => a.createdAtMs - b.createdAtMs);
+    return out;
+  }
+}
+
+export class D1WebAuthnAuthenticatorStore implements WebAuthnAuthenticatorStore {
+  readonly adapterKind = 'd1';
+  private readonly database: D1DatabaseLike;
+  private readonly scope: D1WebAuthnAuthenticatorScope;
+  private readonly ensureSchemaOnUse: boolean;
+  private schemaReady = false;
+
+  constructor(input: D1WebAuthnAuthenticatorStoreOptions) {
+    const normalized = normalizeD1WebAuthnAuthenticatorStoreOptions(input);
+    this.database = normalized.database;
+    this.scope = {
+      namespace: normalized.namespace,
+      orgId: normalized.orgId,
+      projectId: normalized.projectId,
+      envId: normalized.envId,
+    };
+    this.ensureSchemaOnUse = normalized.ensureSchema;
+  }
+
+  private async ensureSchema(): Promise<void> {
+    if (!this.ensureSchemaOnUse || this.schemaReady) return;
+    await ensureWebAuthnAuthenticatorStoreD1Schema({ database: this.database });
+    this.schemaReady = true;
+  }
+
+  async get(userId: string, credentialIdB64u: string): Promise<WebAuthnAuthenticatorRecord | null> {
+    await this.ensureSchema();
+    const uid = toOptionalTrimmedString(userId);
+    const cid = toOptionalTrimmedString(credentialIdB64u);
+    if (!uid || !cid) return null;
+    const row = await this.database
+      .prepare(
+        `SELECT credential_id_b64u, credential_public_key_b64u, counter, created_at_ms, updated_at_ms, device_info_json
+           FROM webauthn_authenticators
+          WHERE namespace = ?
+            AND org_id = ?
+            AND project_id = ?
+            AND env_id = ?
+            AND user_id = ?
+            AND credential_id_b64u = ?
+          LIMIT 1`,
+      )
+      .bind(this.scope.namespace, this.scope.orgId, this.scope.projectId, this.scope.envId, uid, cid)
+      .first<D1WebAuthnAuthenticatorRow>();
+    return parseD1WebAuthnAuthenticatorRow(row);
+  }
+
+  async put(userId: string, record: WebAuthnAuthenticatorRecord): Promise<void> {
+    await this.ensureSchema();
+    const uid = toOptionalTrimmedString(userId);
+    if (!uid) throw new Error('Missing userId');
+    const parsed = parseWebAuthnAuthenticatorRecord(record);
+    if (!parsed) throw new Error('Invalid authenticator record');
+    await this.database
+      .prepare(
+        `INSERT INTO webauthn_authenticators (
+          namespace,
+          org_id,
+          project_id,
+          env_id,
+          user_id,
+          credential_id_b64u,
+          credential_public_key_b64u,
+          counter,
+          created_at_ms,
+          updated_at_ms,
+          device_info_json
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (namespace, org_id, project_id, env_id, user_id, credential_id_b64u)
+        DO UPDATE SET
+          credential_public_key_b64u = EXCLUDED.credential_public_key_b64u,
+          counter = MAX(webauthn_authenticators.counter, EXCLUDED.counter),
+          created_at_ms = MIN(
+            webauthn_authenticators.created_at_ms,
+            EXCLUDED.created_at_ms
+          ),
+          updated_at_ms = MAX(
+            webauthn_authenticators.updated_at_ms,
+            EXCLUDED.updated_at_ms
+          ),
+          device_info_json = EXCLUDED.device_info_json`,
+      )
+      .bind(
+        this.scope.namespace,
+        this.scope.orgId,
+        this.scope.projectId,
+        this.scope.envId,
+        uid,
+        parsed.credentialIdB64u,
+        parsed.credentialPublicKeyB64u,
+        parsed.counter,
+        parsed.createdAtMs,
+        parsed.updatedAtMs,
+        JSON.stringify(parsed.deviceInfo),
+      )
+      .run();
+  }
+
+  async del(userId: string, credentialIdB64u: string): Promise<void> {
+    await this.ensureSchema();
+    const uid = toOptionalTrimmedString(userId);
+    const cid = toOptionalTrimmedString(credentialIdB64u);
+    if (!uid || !cid) return;
+    await this.database
+      .prepare(
+        `DELETE FROM webauthn_authenticators
+          WHERE namespace = ?
+            AND org_id = ?
+            AND project_id = ?
+            AND env_id = ?
+            AND user_id = ?
+            AND credential_id_b64u = ?`,
+      )
+      .bind(this.scope.namespace, this.scope.orgId, this.scope.projectId, this.scope.envId, uid, cid)
+      .run();
+  }
+
+  async list(userId: string): Promise<WebAuthnAuthenticatorRecord[]> {
+    await this.ensureSchema();
+    const uid = toOptionalTrimmedString(userId);
+    if (!uid) return [];
+    const result = await this.database
+      .prepare(
+        `SELECT credential_id_b64u, credential_public_key_b64u, counter, created_at_ms, updated_at_ms, device_info_json
+           FROM webauthn_authenticators
+          WHERE namespace = ?
+            AND org_id = ?
+            AND project_id = ?
+            AND env_id = ?
+            AND user_id = ?
+          ORDER BY created_at_ms ASC`,
+      )
+      .bind(this.scope.namespace, this.scope.orgId, this.scope.projectId, this.scope.envId, uid)
+      .all<D1WebAuthnAuthenticatorRow>();
+    const records: WebAuthnAuthenticatorRecord[] = [];
+    for (const row of result.results || []) {
+      const parsed = parseD1WebAuthnAuthenticatorRow(row);
+      if (parsed) records.push(parsed);
+    }
+    return records;
+  }
+}
+
+class UpstashRedisRestWebAuthnAuthenticatorStore implements WebAuthnAuthenticatorStore {
+  private readonly client: UpstashRedisRestClient;
+  private readonly prefix: string;
+
+  constructor(input: { url: string; token: string; prefix: string }) {
+    this.client = new UpstashRedisRestClient({ url: input.url, token: input.token });
+    this.prefix = input.prefix;
+  }
+
+  private key(userId: string, credentialIdB64u: string): string {
+    return `${this.prefix}${userId}:${credentialIdB64u}`;
+  }
+
+  async get(userId: string, credentialIdB64u: string): Promise<WebAuthnAuthenticatorRecord | null> {
+    const uid = toOptionalTrimmedString(userId);
+    const cid = toOptionalTrimmedString(credentialIdB64u);
+    if (!uid || !cid) return null;
+    const raw = await this.client.getJson(this.key(uid, cid));
+    return parseWebAuthnAuthenticatorRecord(raw);
+  }
+
+  async put(userId: string, record: WebAuthnAuthenticatorRecord): Promise<void> {
+    const uid = toOptionalTrimmedString(userId);
+    if (!uid) throw new Error('Missing userId');
+    const parsed = parseWebAuthnAuthenticatorRecord(record);
+    if (!parsed) throw new Error('Invalid authenticator record');
+    await this.client.setJson(this.key(uid, parsed.credentialIdB64u), parsed);
+  }
+
+  async del(userId: string, credentialIdB64u: string): Promise<void> {
+    const uid = toOptionalTrimmedString(userId);
+    const cid = toOptionalTrimmedString(credentialIdB64u);
+    if (!uid || !cid) return;
+    await this.client.del(this.key(uid, cid));
+  }
+}
+
+class RedisTcpWebAuthnAuthenticatorStore implements WebAuthnAuthenticatorStore {
+  private readonly client: RedisTcpClient;
+  private readonly prefix: string;
+
+  constructor(input: { redisUrl: string; prefix: string }) {
+    this.client = new RedisTcpClient(input.redisUrl);
+    this.prefix = input.prefix;
+  }
+
+  private key(userId: string, credentialIdB64u: string): string {
+    return `${this.prefix}${userId}:${credentialIdB64u}`;
+  }
+
+  async get(userId: string, credentialIdB64u: string): Promise<WebAuthnAuthenticatorRecord | null> {
+    const uid = toOptionalTrimmedString(userId);
+    const cid = toOptionalTrimmedString(credentialIdB64u);
+    if (!uid || !cid) return null;
+    const raw = await redisGetJson(this.client, this.key(uid, cid));
+    return parseWebAuthnAuthenticatorRecord(raw);
+  }
+
+  async put(userId: string, record: WebAuthnAuthenticatorRecord): Promise<void> {
+    const uid = toOptionalTrimmedString(userId);
+    if (!uid) throw new Error('Missing userId');
+    const parsed = parseWebAuthnAuthenticatorRecord(record);
+    if (!parsed) throw new Error('Invalid authenticator record');
+    await redisSetJson(this.client, this.key(uid, parsed.credentialIdB64u), parsed);
+  }
+
+  async del(userId: string, credentialIdB64u: string): Promise<void> {
+    const uid = toOptionalTrimmedString(userId);
+    const cid = toOptionalTrimmedString(credentialIdB64u);
+    if (!uid || !cid) return;
+    await redisDel(this.client, this.key(uid, cid));
+  }
+}
+
+type DurableObjectStubLike = { fetch(input: RequestInfo, init?: RequestInit): Promise<Response> };
+
+type DoOk<T> = { ok: true; value: T };
+type DoErr = { ok: false; code: string; message: string };
+type DoResp<T> = DoOk<T> | DoErr;
+
+type DoGetRequest = { op: 'get'; key: string };
+type DoSetRequest = { op: 'set'; key: string; value: unknown; ttlMs?: number };
+type DoDelRequest = { op: 'del'; key: string };
+type DoRequest = DoGetRequest | DoSetRequest | DoDelRequest;
+
+function isDurableObjectNamespaceLike(v: unknown): v is CloudflareDurableObjectNamespaceLike {
+  return (
+    Boolean(v) &&
+    typeof v === 'object' &&
+    !Array.isArray(v) &&
+    typeof (v as CloudflareDurableObjectNamespaceLike).idFromName === 'function' &&
+    typeof (v as CloudflareDurableObjectNamespaceLike).get === 'function'
+  );
+}
+
+function resolveDoNamespaceFromConfig(
+  config: Record<string, unknown>,
+): CloudflareDurableObjectNamespaceLike | null {
+  const direct = (config as { namespace?: unknown }).namespace;
+  if (isDurableObjectNamespaceLike(direct)) return direct;
+
+  const alt = (config as { durableObjectNamespace?: unknown }).durableObjectNamespace;
+  if (isDurableObjectNamespaceLike(alt)) return alt;
+
+  const envStyle = (config as { THRESHOLD_DO_NAMESPACE?: unknown })
+    .THRESHOLD_DO_NAMESPACE;
+  if (isDurableObjectNamespaceLike(envStyle)) return envStyle;
+
+  return null;
+}
+
+function resolveDoStub(input: {
+  namespace: CloudflareDurableObjectNamespaceLike;
+  objectName: string;
+}): DurableObjectStubLike {
+  const id = input.namespace.idFromName(input.objectName);
+  return input.namespace.get(id) as unknown as DurableObjectStubLike;
+}
+
+async function callDo<T>(stub: DurableObjectStubLike, req: DoRequest): Promise<DoResp<T>> {
+  const resp = await stub.fetch('https://threshold-store.invalid/', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  const text = await resp.text();
+  if (!resp.ok) {
+    throw new Error(`WebAuthn DO store HTTP ${resp.status}: ${text}`);
+  }
+  let json: unknown;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error(`WebAuthn DO store returned non-JSON response: ${text.slice(0, 200)}`);
+  }
+  if (!isObject(json)) {
+    throw new Error('WebAuthn DO store returned invalid JSON shape');
+  }
+  const ok = (json as { ok?: unknown }).ok;
+  if (ok === true) return json as DoOk<T>;
+  const code = toOptionalTrimmedString((json as { code?: unknown }).code);
+  const message = toOptionalTrimmedString((json as { message?: unknown }).message);
+  return { ok: false, code: code || 'internal', message: message || 'WebAuthn DO store error' };
+}
+
+class CloudflareDurableObjectWebAuthnAuthenticatorStore implements WebAuthnAuthenticatorStore {
+  private readonly stub: DurableObjectStubLike;
+  private readonly prefix: string;
+
+  constructor(input: {
+    namespace: CloudflareDurableObjectNamespaceLike;
+    objectName: string;
+    prefix: string;
+  }) {
+    this.stub = resolveDoStub({ namespace: input.namespace, objectName: input.objectName });
+    this.prefix = input.prefix;
+  }
+
+  private key(userId: string, credentialIdB64u: string): string {
+    return `${this.prefix}${userId}:${credentialIdB64u}`;
+  }
+
+  async get(userId: string, credentialIdB64u: string): Promise<WebAuthnAuthenticatorRecord | null> {
+    const uid = toOptionalTrimmedString(userId);
+    const cid = toOptionalTrimmedString(credentialIdB64u);
+    if (!uid || !cid) return null;
+    const resp = await callDo<unknown | null>(this.stub, { op: 'get', key: this.key(uid, cid) });
+    if (!resp.ok) return null;
+    return parseWebAuthnAuthenticatorRecord(resp.value);
+  }
+
+  async put(userId: string, record: WebAuthnAuthenticatorRecord): Promise<void> {
+    const uid = toOptionalTrimmedString(userId);
+    if (!uid) throw new Error('Missing userId');
+    const parsed = parseWebAuthnAuthenticatorRecord(record);
+    if (!parsed) throw new Error('Invalid authenticator record');
+    const resp = await callDo<void>(this.stub, {
+      op: 'set',
+      key: this.key(uid, parsed.credentialIdB64u),
+      value: parsed,
+    });
+    if (!resp.ok) throw new Error(resp.message);
+  }
+
+  async del(userId: string, credentialIdB64u: string): Promise<void> {
+    const uid = toOptionalTrimmedString(userId);
+    const cid = toOptionalTrimmedString(credentialIdB64u);
+    if (!uid || !cid) return;
+    const resp = await callDo<void>(this.stub, { op: 'del', key: this.key(uid, cid) });
+    if (!resp.ok) throw new Error(resp.message);
+  }
+}
+
+export function createWebAuthnAuthenticatorStore(input: {
+  config?: ThresholdStoreConfigInput | null;
+  logger: NormalizedLogger;
+  isNode: boolean;
+}): WebAuthnAuthenticatorStore {
+  const config = (isObject(input.config) ? input.config : {}) as Record<string, unknown>;
+  const prefix = resolveWebAuthnAuthenticatorStoreNamespace(config);
+
+  const kind = toOptionalTrimmedString(config.kind);
+  if (kind === 'd1') {
+    const database = resolveD1DatabaseFromConfig(config);
+    if (!database) {
+      throw new Error('[webauthn] D1 authenticator store selected but no D1 database was provided');
+    }
+    input.logger.info('[webauthn] Using D1 authenticator store');
+    return new D1WebAuthnAuthenticatorStore({
+      database,
+      ...d1ScopeFromConfig({ config, namespace: prefix }),
+    });
+  }
+  if (kind === 'cloudflare-do') {
+    const namespace = resolveDoNamespaceFromConfig(config);
+    if (!namespace) {
+      throw new Error(
+        'cloudflare-do webauthn store selected but no Durable Object namespace was provided (expected config.namespace)',
+      );
+    }
+    const objectName =
+      toOptionalTrimmedString((config as { objectName?: unknown }).objectName) ||
+      toOptionalTrimmedString((config as { name?: unknown }).name) ||
+      THRESHOLD_DO_OBJECT_NAME_DEFAULT;
+    input.logger.info(
+      '[webauthn] Using Cloudflare Durable Object store for authenticator persistence',
+    );
+    return new CloudflareDurableObjectWebAuthnAuthenticatorStore({ namespace, objectName, prefix });
+  }
+
+  if (kind === 'in-memory') {
+    input.logger.info('[webauthn] Using in-memory authenticator store (non-persistent)');
+    return new InMemoryWebAuthnAuthenticatorStore(prefix);
+  }
+
+  if (kind === 'upstash-redis-rest') {
+    const url =
+      toOptionalTrimmedString(config.url) || toOptionalTrimmedString(config.UPSTASH_REDIS_REST_URL);
+    const token =
+      toOptionalTrimmedString(config.token) ||
+      toOptionalTrimmedString(config.UPSTASH_REDIS_REST_TOKEN);
+    if (!url || !token) {
+      throw new Error('Upstash webauthn store enabled but url/token are not both set');
+    }
+    input.logger.info('[webauthn] Using Upstash REST authenticator store');
+    return new UpstashRedisRestWebAuthnAuthenticatorStore({ url, token, prefix });
+  }
+
+  if (kind === 'redis-tcp') {
+    if (!input.isNode) {
+      input.logger.warn(
+        '[webauthn] redis-tcp authenticator store is not supported in this runtime; falling back to in-memory',
+      );
+      return new InMemoryWebAuthnAuthenticatorStore(prefix);
+    }
+    const redisUrl =
+      toOptionalTrimmedString(config.redisUrl) || toOptionalTrimmedString(config.REDIS_URL);
+    if (!redisUrl) {
+      throw new Error('redis-tcp webauthn store enabled but redisUrl is not set');
+    }
+    input.logger.info('[webauthn] Using redis-tcp authenticator store');
+    return new RedisTcpWebAuthnAuthenticatorStore({ redisUrl, prefix });
+  }
+
+  if (kind) throw new Error(`[webauthn] Unknown authenticator store kind: ${kind}`);
+
+  const upstashUrl = toOptionalTrimmedString(config.UPSTASH_REDIS_REST_URL);
+  const upstashToken = toOptionalTrimmedString(config.UPSTASH_REDIS_REST_TOKEN);
+  if (upstashUrl || upstashToken) {
+    if (!upstashUrl || !upstashToken) {
+      throw new Error(
+        'Upstash webauthn store enabled but UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are not both set',
+      );
+    }
+    input.logger.info('[webauthn] Using Upstash REST authenticator store');
+    return new UpstashRedisRestWebAuthnAuthenticatorStore({
+      url: upstashUrl,
+      token: upstashToken,
+      prefix,
+    });
+  }
+
+  const redisUrl = toOptionalTrimmedString(config.REDIS_URL);
+  if (redisUrl) {
+    if (!input.isNode) {
+      input.logger.warn(
+        '[webauthn] REDIS_URL is set but TCP Redis is not supported in this runtime; falling back to in-memory',
+      );
+      return new InMemoryWebAuthnAuthenticatorStore(prefix);
+    }
+    input.logger.info('[webauthn] Using redis-tcp authenticator store');
+    return new RedisTcpWebAuthnAuthenticatorStore({ redisUrl, prefix });
+  }
+
+  input.logger.info('[webauthn] Using in-memory authenticator store (non-persistent)');
+  return new InMemoryWebAuthnAuthenticatorStore(prefix);
+}

@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["vite/client", "react", "react-dom"],
+    "baseUrl": ".",
+    "paths": {
+      "@seams/wallet": ["../../packages/wallet/dist/types/wallet/src/index.d.ts"],
+      "@seams/wallet/*": ["../../packages/wallet/dist/types/wallet/src/*"]
+    }
+  },
+  "include": [
+    "src/.vitepress/**/*.ts",
+    "src/examples/**/*.ts",
+    "src/examples/**/*.tsx",
+    "vite-env.d.ts"
+  ]
+}

@@ -1,0 +1,112 @@
+---
+title: Wallet infrastructure comparison
+description: Compare wallet infrastructure by control, custody, cost, deployment, recovery, and operational responsibility.
+---
+
+# Wallet infrastructure comparison
+
+Wallet infrastructure choices differ on control, cost shape, deployment
+burden, and security boundary. Seams provides self-hostable threshold embedded
+wallets that deploy to Cloudflare. This comparison focuses on infrastructure
+ownership and operational model. Seams targets a hosted-grade wallet SDK and
+user experience while keeping the wallet infrastructure self-hostable.
+
+## Comparison
+
+| Model                        | Best fit                                                                                                 | Main tradeoff                                                                                       |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Hosted wallet SaaS           | Teams that want provider-operated wallet infrastructure and accept provider dependency.                  | The wallet stack, pricing model, and roadmap stay tied to the vendor.                               |
+| Self-hosted TEE wallet stack | Teams that can operate confidential-compute infrastructure correctly.                                    | Security depends on enclave image, attestation, KMS, rollout, and regional availability operations. |
+| Seams SDK                    | Platforms that provision persistent user or agent wallets and want a self-hostable Cloudflare deployment path. | Normal signing uses MPC/threshold flows, so latency is higher than single-runtime signing.          |
+
+## Hosted wallet clouds
+
+Hosted wallet providers such as
+[Privy](https://www.privy.io/pricing) and
+[Dynamic](https://www.dynamic.xyz/pricing) are strong when a team wants the
+wallet infrastructure operated by a vendor.
+
+That is a real product advantage. It also means:
+
+- production wallet infrastructure stays inside the provider boundary;
+- pricing can become a fixed operating cost before the business is profitable;
+- migration depends on the provider's export, policy, and account model;
+- deep operational customization is limited by the hosted service surface.
+
+Choose this model when vendor operation matters more than infrastructure
+control.
+
+## Self-hosted TEE stacks
+
+TEE-based wallets can provide a strong server-side isolation story. The cost is
+operational complexity.
+
+Teams must manage:
+
+- enclave images and reproducible builds;
+- attestation policy;
+- KMS binding;
+- region placement;
+- rollout and rollback procedures;
+- uptime across the confidential-compute provider and every regional instance.
+
+That can be appropriate for teams with mature infrastructure and security
+operations. It is easy to underestimate the work required to keep the security
+claim true after deployment.
+
+## Seams model
+
+Seams uses threshold signing and hidden-share derivation. Normal signing
+produces signature shares; no single runtime needs to assemble the canonical
+private key.
+
+Strong fits include marketplaces, trading platforms, games, payout and
+remittance products, stablecoin accounts, rewards networks, shopping wallet
+apps, and agentic-commerce platforms. A one-time merchant checkout generally
+uses the shopper's existing wallet and does not require a newly provisioned
+wallet.
+
+Seams is self-hostable and serverless-friendly:
+
+- provide hosted-grade wallet UX while retaining infrastructure control;
+- deploy Router, Deriver A, Deriver B, and SigningWorker on Cloudflare Workers;
+- store state in Durable Objects and role-specific storage;
+- start with near-zero initial hosting cost;
+- scale by sharding wallets, sessions, signing roots, and worker roles;
+- preserve the same wallet architecture as deployments harden.
+
+## Hardening path
+
+Existing runtime artifacts and development examples let teams evaluate the
+deployment model. R122's production self-host deployment compiler and managed
+wallet migration workflow are planned. Deploying the runtime does not import
+existing wallets or establish a verified cutover.
+
+Where strict A/B isolation is claimed, establish the required administration
+boundary before production use:
+
+- place Deriver A and Deriver B under independently administered Cloudflare
+  accounts; separate projects under common administration are insufficient;
+- use scoped deploy credentials per role;
+- protect GitHub and Cloudflare admins with hardware-backed MFA;
+- isolate Durable Object namespaces and role secrets;
+- add approval gates and audit logging to deploy workflows;
+- place sensitive roles in TEEs where required.
+
+## Positioning
+
+Seams starts serverless and hardens by separation. Teams can begin on
+Cloudflare Workers and Durable Objects for development. Production claims
+depend on the deployed isolation profile, backup custody, and release evidence.
+Tenant-root recovery and wallet portability are distinct capabilities with
+their own delivery status.
+
+The tradeoff is straightforward: Seams spends some latency on threshold signing
+to avoid a single signing runtime and to preserve deployment flexibility.
+
+Read next:
+
+- [Serverless Threshold Signing](/concepts/threshold-signing/serverless-threshold-signing)
+- [Router A/B](/concepts/threshold-signing/router-ab)
+- [Route Auth And Deployment](/concepts/advanced/route-auth-and-deployment)
+- [Recovery and portability](/deploy-and-operate/recovery-and-portability)

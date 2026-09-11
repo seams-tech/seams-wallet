@@ -1,0 +1,243 @@
+{
+  "schemaVersion": 1,
+  "oracle": {
+    "repository": "https://github.com/near/threshold-signatures",
+    "commit": "db609be5021eb9d794f577601f422818fbdfe246",
+    "gitTree": "05f60d54971e2f1e417dab7191f0f5d02f82468c",
+    "entryPoint": "src/ecdsa/ot_based_ecdsa/presign.rs",
+    "sourceFiles": [
+      {
+        "path": "src/crypto/commitment.rs",
+        "sha256": "60b6708c0439a609dde71ba54ea8a5cd5af3d89cb7e25fb7752f081bfdaad2fe"
+      },
+      {
+        "path": "src/crypto/constants.rs",
+        "sha256": "24b62a3ba98703aba58c0c0a2de84a3bebbc32858d7b6204c90967d9e657a9fb"
+      },
+      {
+        "path": "src/crypto/hash.rs",
+        "sha256": "dca47345ec6068fd709b59748f17251e2d45e1c1ab1bd7cfbd8f0e639eef112d"
+      },
+      {
+        "path": "src/crypto/polynomials.rs",
+        "sha256": "730b5fe32ffe1f37840d77336007090b23a99e64206b72ff713af0de12381e77"
+      },
+      {
+        "path": "src/crypto/proofs/dlog.rs",
+        "sha256": "dcb1930812b5b8843b88818ae225b41557b80e2f4c6b29600c38c47bd4608780"
+      },
+      {
+        "path": "src/crypto/proofs/dlogeq.rs",
+        "sha256": "14b85d5a053ef802adbb411125f2e03295c681b788e495938b3af824c9dbec4b"
+      },
+      {
+        "path": "src/ecdsa/mod.rs",
+        "sha256": "a4927b4d622283bb45df766407a6697b5c055fa5a61838f54c981ad7e46ce958"
+      },
+      {
+        "path": "src/ecdsa/ot_based_ecdsa/mod.rs",
+        "sha256": "cbce575265c5e020631074951b4f59a23a228989a5ecbb3ec0920df12da56975"
+      },
+      {
+        "path": "src/ecdsa/ot_based_ecdsa/presign.rs",
+        "sha256": "f1031e585e651c590fa71b959e9148d27472836a9f6058aee11b2bbc6542e46c"
+      },
+      {
+        "path": "src/ecdsa/ot_based_ecdsa/sign.rs",
+        "sha256": "c34db5ab08bde00b90925208d47bf82e64d9323a98f826f551a9de022585f15d"
+      },
+      {
+        "path": "src/ecdsa/ot_based_ecdsa/triples/bits.rs",
+        "sha256": "2799f17abe37fbf4e64f2023f1f252e491745166778fba58248cbe520c695ac9"
+      },
+      {
+        "path": "src/ecdsa/ot_based_ecdsa/triples/batch_random_ot.rs",
+        "sha256": "66ba0c52fa31192154948b3c16025d6ee02011a18bb8a7755a2be21fcbfd11b6"
+      },
+      {
+        "path": "src/ecdsa/ot_based_ecdsa/triples/correlated_ot_extension.rs",
+        "sha256": "01ed35242cb42b496b81cb0b9f67e80447dc4f9239fddacc0e048deeb7725d9f"
+      },
+      {
+        "path": "src/ecdsa/ot_based_ecdsa/triples/random_ot_extension.rs",
+        "sha256": "c610ee90ac1028e0443dfa8ab9113c6c50dd4230c8a2d3f387655f15533a630a"
+      },
+      {
+        "path": "src/ecdsa/ot_based_ecdsa/triples/mta.rs",
+        "sha256": "2e341c727c8f6340d3547747f11e728efb3f5183941ecf275ae54eff85db5e40"
+      },
+      {
+        "path": "src/ecdsa/ot_based_ecdsa/triples/multiplication.rs",
+        "sha256": "7613bb73ab48039cc104012b25fad328fcac3c86d29faa2c61ace3f86d47aeed"
+      },
+      {
+        "path": "src/ecdsa/ot_based_ecdsa/triples/generation.rs",
+        "sha256": "648aa2d442ce9485690cb531fcef3ae53a8efbf7deab88b84dc6c16e77936682"
+      },
+      {
+        "path": "src/errors.rs",
+        "sha256": "cce1a400cd42c04ece87684e2b41b7a2050a3d6671d670d66627e685d6b42862"
+      },
+      {
+        "path": "src/participants.rs",
+        "sha256": "ac7479b10eb40dbeddfa4fcc9ef02145bdb6b398b31aef084d8f04c56c9b11fe"
+      },
+      {
+        "path": "src/protocol/helpers.rs",
+        "sha256": "371e9618e3c6af1aa7697ded6798864d27bd940a6006356c14552f03c3c6a0d5"
+      },
+      {
+        "path": "src/protocol/internal.rs",
+        "sha256": "8d3418895fcab05494e30a335453383ecdf5d2eae6e90c9a689304d6385b4ca1"
+      },
+      {
+        "path": "docs/ecdsa/ot_based_ecdsa/triples.md",
+        "sha256": "351cdc7102967ae19ba536be3d6ef7c6bb352abcd952bb52b457082b40ebacc0"
+      },
+      {
+        "path": "docs/ecdsa/ot_based_ecdsa/signing.md",
+        "sha256": "7d471f96bda32a1dfc8c74342bfb5ef37e3bfab6ad88d03e8d461e3563952ba2"
+      }
+    ]
+  },
+  "vectors": [
+    {
+      "id": "fixed-2p-presign-happy-001",
+      "participantIds": [1, 2],
+      "participantCoordinates": [2, 3],
+      "lagrangeCoefficients": ["3", "-2"],
+      "signingScopeDigestHex": "2424242424242424242424242424242424242424242424242424242424242424",
+      "pairContextDigestHex": "4242424242424242424242424242424242424242424242424242424242424242",
+      "bigRCompressedHex": "03611a3775ff4f3e5acf0c371b5abe17d8d57b398710bd8b102597f5732b69d485",
+      "client": {
+        "kHex": "0000000000000000000000000000000000000000000000000000000000000011",
+        "sigmaHex": "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0363b4c"
+      },
+      "signingWorker": {
+        "kHex": "0000000000000000000000000000000000000000000000000000000000000016",
+        "sigmaHex": "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd036380f"
+      }
+    },
+    {
+      "id": "fixed-proof-kernels-001",
+      "signingScopeDigestHex": "2424242424242424242424242424242424242424242424242424242424242424",
+      "pairContextDigestHex": "4242424242424242424242424242424242424242424242424242424242424242",
+      "dlog": {
+        "role": "client",
+        "tripleIndex": 0,
+        "kind": "triple-a",
+        "witnessHex": "0000000000000000000000000000000000000000000000000000000000000007",
+        "nonceHex": "000000000000000000000000000000000000000000000000000000000000000b",
+        "commitmentHex": "03774ae7f858a9411e5ef4246b70c65aac5649980be5c17891bbec17895da008cb",
+        "responseHex": "7e2e0e02d1aedaed81eb3e7f90b46b641e0526a187ae1c4a5693d151f79331f2"
+      },
+      "dlogEq": {
+        "role": "signing-worker",
+        "tripleIndex": 1,
+        "witnessHex": "000000000000000000000000000000000000000000000000000000000000000d",
+        "nonceHex": "0000000000000000000000000000000000000000000000000000000000000011",
+        "alternateGeneratorScalarHex": "0000000000000000000000000000000000000000000000000000000000000013",
+        "commitment0Hex": "03defdea4cdb677750a420fee807eacf21eb9898ae79b9768766e4faa04a2d4a34",
+        "commitment1Hex": "026c709880b959eb7c5179b29cc5578fdc6cb2ae13ddcede29d5f81d95de0ab4aa",
+        "responseHex": "58aef25832db83d03de47d2c4eb25e11480cc09e8035c671df2512c8c412f36f"
+      }
+    },
+    {
+      "id": "fixed-polynomial-opening-001",
+      "role": "client",
+      "tripleIndex": 0,
+      "recipientCoordinate": 3,
+      "rngSeedHex": "3131313131313131313131313131313131313131313131313131313131313131",
+      "signingScopeDigestHex": "2424242424242424242424242424242424242424242424242424242424242424",
+      "pairContextDigestHex": "4242424242424242424242424242424242424242424242424242424242424242",
+      "commitmentDigestHex": "1df6c8a25ed6fe95410f6a048331abdfc3b5cf1566019dc42a432e48bc75d9a9",
+      "bigEConstantHex": "033720e3e731b97ae4e13e140440e4e9a41f17f5165e3cf133fb80b38ff52332c2",
+      "bigESlopeHex": "02c038f5b19c6db2ab31ca06c886ff25c94c293d73421fc0aa419dfd640981d73e",
+      "bigFConstantHex": "028e7a34b3bc38f091673df2f6a6dd01a7dea30405c1d72320d8961eea2fa82ce6",
+      "bigFSlopeHex": "03e51431be807213e0f29c434b38a2997e801a6b057d80091c65c208ef66ae365b",
+      "bigLConstantHex": "02b64db7a26fb86cf8045c087d9ba7a2b44d4e063e573cd7227fb4cbe2b3dc5512",
+      "openingRandomizerHex": "4bd7a20c846153459c2eb5b35bf52d259f8eb107fe35ea9084e2157585ce60fe",
+      "privateEShareHex": "2e622d1420863f2b079583b5d4c8cd485395bb579c6661ee92ff3a853f1015ec",
+      "privateFShareHex": "4c8922f01daf14d234606cb536777feda80c76f3966dcb299714a1fe2153094e"
+    },
+    {
+      "id": "fixed-base-rot-001",
+      "senderRole": "client",
+      "tripleIndex": 0,
+      "baseOtCount": 128,
+      "senderRngSeedHex": "5151515151515151515151515151515151515151515151515151515151515151",
+      "receiverRngSeedHex": "5252525252525252525252525252525252525252525252525252525252525252",
+      "signingScopeDigestHex": "2424242424242424242424242424242424242424242424242424242424242424",
+      "pairContextDigestHex": "4242424242424242424242424242424242424242424242424242424242424242",
+      "receiverChoicesHex": "477078fa3f4cdc359d609930e477a458",
+      "senderKey0Branch0Hex": "b22b05c99f27c44b9027d5d4daad7b40",
+      "senderKey0Branch1Hex": "e1427d957dd2cd95f962a39d426c93e6",
+      "receiverKey0Hex": "e1427d957dd2cd95f962a39d426c93e6",
+      "senderKey127Branch0Hex": "9d381be046218fb3621ec33b5a21caea",
+      "senderKey127Branch1Hex": "ea0670e766144da36b45cba6f3d6500a",
+      "receiverKey127Hex": "9d381be046218fb3621ec33b5a21caea"
+    },
+    {
+      "id": "fixed-corrected-random-ot-extension-001",
+      "sourceDisposition": "purpose-built-corrected-construction-vector; exact NEAR expansion parity forbidden",
+      "senderRole": "client",
+      "tripleIndex": 0,
+      "baseOtCount": 128,
+      "releasedOtCount": 768,
+      "paddedOtCount": 1024,
+      "baseSenderRngSeedHex": "6161616161616161616161616161616161616161616161616161616161616161",
+      "baseReceiverRngSeedHex": "6262626262626262626262626262626262626262626262626262626262626262",
+      "extensionReceiverRngSeedHex": "6363636363636363636363636363636363636363636363636363636363636363",
+      "extensionSenderRngSeedHex": "6464646464646464646464646464646464646464646464646464646464646464",
+      "signingScopeDigestHex": "2424242424242424242424242424242424242424242424242424242424242424",
+      "pairContextDigestHex": "4242424242424242424242424242424242424242424242424242424242424242",
+      "receiverChoicesHex": "a39e3fdc48488539f80d2109aad8ede399a262fe0b8a669ad20a042c4c449d696ae4c8def0248ea6e6cbe1982114e82c5d201ebee502a0aca7e995a482d308d36533c684945ab4c145c6f49d9e5142b73b02a82bcc84ca6be589069deac70b84",
+      "challengeSeedHex": "0864b3c4fa82ea4d8195e0896d74056587662768cef7d16e191334c7980c68fa",
+      "acceptanceDigestHex": "126cfc3fc300eaca1aa1cbfeef367cd57b4a498a3f1f8cb9f0c2abe41ced8358",
+      "senderValue0Branch0Hex": "318f882c0cf76678484b025ef7345b629d986721f8c5506450aec61352f22769",
+      "senderValue0Branch1Hex": "82d907cfaaea66dc63f9f963edd75a1f871f8178ed7e78828d1c08299082e05d",
+      "receiverValue0Hex": "82d907cfaaea66dc63f9f963edd75a1f871f8178ed7e78828d1c08299082e05d",
+      "senderValue767Branch0Hex": "cd43523b37995047eeb922444776ace98fa404aaec5c73225b7930600e3e14b4",
+      "senderValue767Branch1Hex": "199e1aeecb36e76e46f10326de06476cb9a0c7649f51ab9f2b13f40170b3c0de",
+      "receiverValue767Hex": "199e1aeecb36e76e46f10326de06476cb9a0c7649f51ab9f2b13f40170b3c0de"
+    },
+    {
+      "id": "fixed-corrected-mta-001",
+      "sourceDisposition": "purpose-built fixed-role vector over corrected random OT",
+      "senderRole": "client",
+      "tripleIndex": 0,
+      "randomOtVectorId": "fixed-corrected-random-ot-extension-001",
+      "mtaInstanceCount": 2,
+      "otCountPerInstance": 384,
+      "clientA": "7",
+      "clientB": "11",
+      "signingWorkerA": "13",
+      "signingWorkerB": "17",
+      "mtaSenderRngSeedHex": "6565656565656565656565656565656565656565656565656565656565656565",
+      "mtaReceiverRngSeedHex": "6666666666666666666666666666666666666666666666666666666666666666",
+      "ciphertext0Branch0Hex": "b64257459c450edcfbc93eca3071422658e0c38ec60aea07b46da43c12c0242a",
+      "ciphertext0Branch1Hex": "078bd6e93a380f41177835cf271440e487b900ff0b7b71ea310887c5801a9bcf",
+      "ciphertext767Branch0Hex": "ef1e019ee1d2a6c6997e031bada9e62964794e6e1edc7b3a7c042082c30c18eb",
+      "ciphertext767Branch1Hex": "3b78ca5275703decf1b5e3fe443980ac8e761127d1d1b3b74b9ee4242581c4ff",
+      "chiFirst0Hex": "04791bc6dc9b14b17d31d3c4ff1cd96329e05bf592bafc9b8518484e412b24cd",
+      "chiFirst1Hex": "5cc2b0cb876998d8c7ac3a154fbb4882070ddc1f5af1daa398699f3ce07a8329",
+      "receiverSeed0Hex": "c0579fdc21c3e1338c85757fa1e91ddf2d9f0ecaf52950f069bd3d94853bd2e8",
+      "receiverSeed1Hex": "58672b87593a8f4ecc40287ffc3b422514d0f66c537dfd554e8bab517cf5b48a",
+      "clientMultiplicationShareHex": "1d5114b125691dfe981ff4f35d91ce9fce5eaca11aa5454cf6c231f3271d77bb",
+      "signingWorkerMultiplicationShareHex": "e2aeeb4eda96e20167e00b0ca26e315eec50304594a35aeec9102c99a918cbb6",
+      "reconstructedProduct": "560"
+    },
+    {
+      "id": "fixed-presign-semantic-replay-001",
+      "sourceDisposition": "normalized semantic replay across distinct NEAR and production transcript profiles",
+      "cases": [
+        "near-client/near-signing-worker",
+        "purpose-built-client/near-signing-worker-trace",
+        "near-client-trace/purpose-built-signing-worker",
+        "purpose-built-client/purpose-built-signing-worker"
+      ],
+      "traceEncoding": "client-role-byte || client-e || client-alpha || client-beta || signing-worker-role-byte || signing-worker-e || signing-worker-alpha || signing-worker-beta",
+      "traceDigestSha256": "2d6d2691b277b65ebd66fe81d66d0c875412747265d18c7131963f1b8ab72d06"
+    }
+  ]
+}

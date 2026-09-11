@@ -1,0 +1,464 @@
+{
+  "schemaVersion": "seams_wallet_server_artifact_manifest_v1",
+  "package": {
+    "name": "@seams/wallet-server",
+    "version": "0.5.0"
+  },
+  "workers": {
+    "router": {
+      "entry": "cloudflare-router-ab/build/router/worker/shim.mjs",
+      "fingerprint": "0fac87f1f629280260676e5408727474ff6eac18a0403c2cf7dc5b2e2d92c180",
+      "files": [
+        {
+          "path": "cloudflare-router-ab/build/router/index.js",
+          "bytes": 30469,
+          "sha256": "c437ec7b6897bfc238929a26134656061780c5ed5af25211036c458bcf1bf2bc"
+        },
+        {
+          "path": "cloudflare-router-ab/build/router/index_bg.wasm",
+          "bytes": 6675935,
+          "sha256": "8fda50fd3d6d3df03e5d06446f11d024fac13e11702bf28d3b0b7a7ef93c3085"
+        },
+        {
+          "path": "cloudflare-router-ab/build/router/package.json",
+          "bytes": 317,
+          "sha256": "b56654b7de9c02929cb9275608ad1d94e693b7b8c590fe00cda3df541ed08ca5"
+        },
+        {
+          "path": "cloudflare-router-ab/build/router/worker/shim.mjs",
+          "bytes": 164,
+          "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+        }
+      ]
+    },
+    "deriver-a": {
+      "entry": "cloudflare-router-ab/build/deriver-a/worker/shim.mjs",
+      "fingerprint": "bc28860f8bc89c548586c32955aedb8f77358bb35913384d66ac44f40ec958c7",
+      "files": [
+        {
+          "path": "cloudflare-router-ab/build/deriver-a/index.js",
+          "bytes": 36395,
+          "sha256": "52417fcde0d437533187347ccbb888575474e0d25cfbfa862a43e89a68ca318e"
+        },
+        {
+          "path": "cloudflare-router-ab/build/deriver-a/index_bg.wasm",
+          "bytes": 13237276,
+          "sha256": "da6ccbca62ce4df3b8e537c4cc871bf5224aef0705583c3caf07e976bf534bf7"
+        },
+        {
+          "path": "cloudflare-router-ab/build/deriver-a/package.json",
+          "bytes": 317,
+          "sha256": "b56654b7de9c02929cb9275608ad1d94e693b7b8c590fe00cda3df541ed08ca5"
+        },
+        {
+          "path": "cloudflare-router-ab/build/deriver-a/worker/shim.mjs",
+          "bytes": 164,
+          "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+        }
+      ]
+    },
+    "deriver-b": {
+      "entry": "cloudflare-router-ab/build/deriver-b/worker/shim.mjs",
+      "fingerprint": "5b2eb3f46b925d7fd957212ef5ffaee99694fa579fb684b8be6ba057ddbd1b53",
+      "files": [
+        {
+          "path": "cloudflare-router-ab/build/deriver-b/index.js",
+          "bytes": 36688,
+          "sha256": "4eb8dd8e7d36e2979607097d5e8ca1fda5cb65e6d159f8dc6e56a07be2762237"
+        },
+        {
+          "path": "cloudflare-router-ab/build/deriver-b/index_bg.wasm",
+          "bytes": 13059865,
+          "sha256": "a0c5f819782b419d6fe8e544ef87c90becb86f124ef7d5ad89d42dfd1bb3b038"
+        },
+        {
+          "path": "cloudflare-router-ab/build/deriver-b/package.json",
+          "bytes": 317,
+          "sha256": "b56654b7de9c02929cb9275608ad1d94e693b7b8c590fe00cda3df541ed08ca5"
+        },
+        {
+          "path": "cloudflare-router-ab/build/deriver-b/worker/shim.mjs",
+          "bytes": 164,
+          "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+        }
+      ]
+    },
+    "signing-worker": {
+      "entry": "cloudflare-router-ab/build/signing-worker/worker/shim.mjs",
+      "fingerprint": "d994d0d770ea24b8ab918aba618a5b84bbebfda817be49dbfdc88e478d8d7bca",
+      "files": [
+        {
+          "path": "cloudflare-router-ab/build/signing-worker/index.js",
+          "bytes": 30571,
+          "sha256": "b42c3412e3a75c7a100b8b9897e823a4b4e7470dd4931bf39b6d8f66e78623e0"
+        },
+        {
+          "path": "cloudflare-router-ab/build/signing-worker/index_bg.wasm",
+          "bytes": 6645971,
+          "sha256": "c607ccb93854ed2f6db74ed10cdcff8963d56c95d9b7b605671f1f53753e43a1"
+        },
+        {
+          "path": "cloudflare-router-ab/build/signing-worker/package.json",
+          "bytes": 317,
+          "sha256": "b56654b7de9c02929cb9275608ad1d94e693b7b8c590fe00cda3df541ed08ca5"
+        },
+        {
+          "path": "cloudflare-router-ab/build/signing-worker/worker/shim.mjs",
+          "bytes": 164,
+          "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+        }
+      ]
+    },
+    "tenant-root-control-plane": {
+      "entry": "cloudflare-router-ab/build/tenant-root-control-plane/worker/shim.mjs",
+      "fingerprint": "a7cef6397f0d39a59a3efd94d192aefec53e19268ac3ec8149132b1f875bd526",
+      "files": [
+        {
+          "path": "cloudflare-router-ab/build/tenant-root-control-plane/index.js",
+          "bytes": 29897,
+          "sha256": "3e3ef2038a59a421bfa40a8accacfb3da70893bc45fb3ad1dcd6462ef857c5fb"
+        },
+        {
+          "path": "cloudflare-router-ab/build/tenant-root-control-plane/index_bg.wasm",
+          "bytes": 4474096,
+          "sha256": "577e178a1945c00f2a0a41b0fee43ba30a9b0bbc8ccdd8384bea06d55eb21dea"
+        },
+        {
+          "path": "cloudflare-router-ab/build/tenant-root-control-plane/package.json",
+          "bytes": 317,
+          "sha256": "b56654b7de9c02929cb9275608ad1d94e693b7b8c590fe00cda3df541ed08ca5"
+        },
+        {
+          "path": "cloudflare-router-ab/build/tenant-root-control-plane/worker/shim.mjs",
+          "bytes": 164,
+          "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+        }
+      ]
+    }
+  },
+  "migrations": {
+    "signer": {
+      "directory": "migrations/d1-signer",
+      "head": "0035_r103f_linked_delivery_acknowledgement_cleanup_window.sql",
+      "fingerprint": "eff54622b56a6160051b483aac755b757cc9d5a0be9e293001051171464bd97f",
+      "files": [
+        {
+          "path": "migrations/d1-signer/0001_signer_d1_initial.sql",
+          "bytes": 91802,
+          "sha256": "7b079aad750c370bb5d15bac31cfceb3379abcff1863fa4b60f62a01100547ba"
+        },
+        {
+          "path": "migrations/d1-signer/0002_signer_post_103_canonical_upgrade.sql",
+          "bytes": 64428,
+          "sha256": "b5f519f8514dc095140ae2f80875752b6e7517f259220d0816cb854e3f4aefa0"
+        },
+        {
+          "path": "migrations/d1-signer/0003_r107_wallet_authorization.sql",
+          "bytes": 11320,
+          "sha256": "7653244b8ff44ba1cd0d8bdc70ce7df0253628d72243cf5c0104c316a456c343"
+        },
+        {
+          "path": "migrations/d1-signer/0004_remove_legacy_email_recovery.sql",
+          "bytes": 677,
+          "sha256": "da68964b3c644b235073e7a0264c0b42f6ce86b5f9f906c1050a78f57e1431f5"
+        },
+        {
+          "path": "migrations/d1-signer/0005_r103p8_linked_owner_auth_bindings.sql",
+          "bytes": 4112,
+          "sha256": "2bd7d6ecb8ea656dffef086a7ed513ec12de1882ad2368e111ce128deb4cf40a"
+        },
+        {
+          "path": "migrations/d1-signer/0006_r103p8_linked_device_custody_transfers.sql",
+          "bytes": 3327,
+          "sha256": "157e0f31834529c98eec42bc5a1cc9c33c9215e84541cde7f40943e59e76226a"
+        },
+        {
+          "path": "migrations/d1-signer/0007_r103p8_wallet_session_auth_method_provenance.sql",
+          "bytes": 1046,
+          "sha256": "99809305373b2f5a241b016d325f9462ee0848f38db611e244dbac0ddf319034"
+        },
+        {
+          "path": "migrations/d1-signer/0008_r103p8_linked_device_session_cas_guard.sql",
+          "bytes": 1865,
+          "sha256": "b5bc52deb8b743f0e07d5c936f5a7db928c4992358a6dd4314883508cc57cf11"
+        },
+        {
+          "path": "migrations/d1-signer/0009_linked_device_email_otp.sql",
+          "bytes": 18231,
+          "sha256": "78c87c5ce78928aa3a0d4d1f075dee4d2da153c471f8287ded5f24cf502c6b05"
+        },
+        {
+          "path": "migrations/d1-signer/0010_linked_device_session_target_factor.sql",
+          "bytes": 2803,
+          "sha256": "d1a2635b3ad824cde0cbca0079e6c12e85ae782f29785387b3838b52f352e3ef"
+        },
+        {
+          "path": "migrations/d1-signer/0011_linked_device_ed25519_export_root.sql",
+          "bytes": 376,
+          "sha256": "003b92930beb53ec27eb96cafc9c070e3ced922d070230b5bc9f306298aaed25"
+        },
+        {
+          "path": "migrations/d1-signer/0012_versioned_json_cas_guard.sql",
+          "bytes": 218,
+          "sha256": "7853846fbdde4a21e4561fe34265cf3ba231f9b658dbb42553c3f26dc82da0e1"
+        },
+        {
+          "path": "migrations/d1-signer/0013_linked_device_export_authorization.sql",
+          "bytes": 7305,
+          "sha256": "479e0ccf18e64a61326698c87246add9588d3785b17931e730a2d0ed3e36825c"
+        },
+        {
+          "path": "migrations/d1-signer/0014_wallet_recovery_code_locators.sql",
+          "bytes": 645,
+          "sha256": "3a3cd736b46b1d371fbd856a4ae5daad260c1a43e3247b038daee63b60c55231"
+        },
+        {
+          "path": "migrations/d1-signer/0015_r103e_authority_baseline.sql",
+          "bytes": 10072,
+          "sha256": "da22688df65beee6f5232e9fdf729d2be7b7f64ae92604cdd3562eec023ce857"
+        },
+        {
+          "path": "migrations/d1-signer/0016_r103e_wallet_session_authorizations_v2.sql",
+          "bytes": 5579,
+          "sha256": "3a4c96fa3ba0c641f0636190685d9c53e63cddbd47982d5a5341874833be152a"
+        },
+        {
+          "path": "migrations/d1-signer/0017_r103e_link_session_state.sql",
+          "bytes": 2857,
+          "sha256": "e7956f2b264e179188b1210821a85ce56dbbbfa6fbdf1236b8a2dde8940b3829"
+        },
+        {
+          "path": "migrations/d1-signer/0018_r103e_linked_device_authority_installations.sql",
+          "bytes": 1301,
+          "sha256": "493729710aa62c184f7b1c6d5d24f70775c8341cb20f733918c4f69c3d747d83"
+        },
+        {
+          "path": "migrations/d1-signer/0019_r103e_email_otp_device_methods.sql",
+          "bytes": 192,
+          "sha256": "964cea1668b7f32b34375b4a73c014b9727df87415f445638d3272137dfb0a75"
+        },
+        {
+          "path": "migrations/d1-signer/0020_r103e_wallet_session_operation_credentials.sql",
+          "bytes": 581,
+          "sha256": "9226b279207402434027735bd47410841df456a2ed185af5485b578fe1eaf783"
+        },
+        {
+          "path": "migrations/d1-signer/0021_linked_device_source_contribution_transcripts.sql",
+          "bytes": 1540,
+          "sha256": "91b72245bd8de431922483b0e27af40ad6f48abc0f5c2a2bd57d33a5d8c9ea99"
+        },
+        {
+          "path": "migrations/d1-signer/0022_r109c_multi_auth_email_cardinality.sql",
+          "bytes": 5534,
+          "sha256": "0b2d2f24d182fe4b0c0f131d8ac8049c8b9a31eb0d3ed948929dc4ebe6b51cd2"
+        },
+        {
+          "path": "migrations/d1-signer/0023_r109d_first_email_linked_device.sql",
+          "bytes": 5653,
+          "sha256": "68f6ea6fefdf4d18270caef02e7ecda776e060bc4242b91c368fc5531ebeee94"
+        },
+        {
+          "path": "migrations/d1-signer/0024_r103f_v2_authorized_operation_claim.sql",
+          "bytes": 4804,
+          "sha256": "627e3eb655c40f5e9c38fa73b62852e177d206087744bbb11f00d1761920179b"
+        },
+        {
+          "path": "migrations/d1-signer/0025_r109d_email_enrollment_wallet_cardinality.sql",
+          "bytes": 2341,
+          "sha256": "4752a9876308b17ad7604466a0e48adc1f434e3bfd6d3a851431f39872640401"
+        },
+        {
+          "path": "migrations/d1-signer/0026_r115_wallet_recovery_authority_provenance.sql",
+          "bytes": 10593,
+          "sha256": "89055ea57df0a10f6ca14adf330587c340d7aeea1a5575b7aa676d332e4d78bf"
+        },
+        {
+          "path": "migrations/d1-signer/0027_r115_email_otp_recovery_bootstrap.sql",
+          "bytes": 3691,
+          "sha256": "045cad670744c31b1bb9ea7698a79d9ef80a92e6a339dfe6442c634a6fbb23d6"
+        },
+        {
+          "path": "migrations/d1-signer/0028_r103f_phase1_additive_schema_bridge.sql",
+          "bytes": 45498,
+          "sha256": "30e86559905aa5aa3b46f7adc9d4bd8a3d9defb609a5c2f0d024a8d2267437d6"
+        },
+        {
+          "path": "migrations/d1-signer/0029_r103f_phase0_registration_replay_tokens.sql",
+          "bytes": 5104,
+          "sha256": "397704bf368397adfe4e6285a09878bc28a8f9eb930636c674a414aa37f11695"
+        },
+        {
+          "path": "migrations/d1-signer/0030_r103f_wallet_session_client_capability.sql",
+          "bytes": 637,
+          "sha256": "c2da4a740e18c66abfdad6f6a3d513b78fc8ff5596a40e0481b9ccbe87e84465"
+        },
+        {
+          "path": "migrations/d1-signer/0031_r103f_delete_registration_replay_tokens.sql",
+          "bytes": 201,
+          "sha256": "e6aa0569581b2a7a70f0fdf2a1a5d3393196c57c89d40d82d811237e73e528bc"
+        },
+        {
+          "path": "migrations/d1-signer/0032_r103f_exact_authorized_operation_enforcement.sql",
+          "bytes": 6751,
+          "sha256": "8656b93aabd30322651a5fa2fd9a6f5f75ebacc6e2716ad96d745f28277dcba4"
+        },
+        {
+          "path": "migrations/d1-signer/0033_r103f_linked_delivery_recipient.sql",
+          "bytes": 219,
+          "sha256": "26e94533dd33f7bd29cc40fa548b2da4218b602c5c645a9d177c304d09b014f5"
+        },
+        {
+          "path": "migrations/d1-signer/0034_r103f_exact_wallet_session_cutover.sql",
+          "bytes": 33926,
+          "sha256": "ba26ac8501ecedde686bf32df5d2c9f3f426be7a40be5161699b8b4bde57b90e"
+        },
+        {
+          "path": "migrations/d1-signer/0035_r103f_linked_delivery_acknowledgement_cleanup_window.sql",
+          "bytes": 17935,
+          "sha256": "0a7aa8c499b38d314d38029d564b85541a0958bc14a682ff10a0cfe4d517e272"
+        }
+      ]
+    },
+    "deriver_a": {
+      "directory": "cloudflare-router-ab/migrations/deriver-a",
+      "head": "0011_tenant_root_source_retirement.sql",
+      "fingerprint": "5ffac3a379c8d4452961a8eb4c7d73273357b189da84b5ab9478a1dab91ab3cf",
+      "files": [
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-a/0001_role_private_storage.sql",
+          "bytes": 477,
+          "sha256": "e3059255eaa4f0370c6dc8e26e3c9a2d9b4a44d322fb2fe3187bbd2fd758894b"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-a/0002_tenant_root_role_shares.sql",
+          "bytes": 1245,
+          "sha256": "af3b40283a389175174566a167e2d50779ba7de2cb2035f89b1a1776d9f519cb"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-a/0003_tenant_root_command_replays.sql",
+          "bytes": 2889,
+          "sha256": "1478515c3d0ca77c9053b67355f32596cff9ca1fbc46ebc446eb13406dd4a26c"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-a/0004_tenant_root_creation_admission.sql",
+          "bytes": 254,
+          "sha256": "507731f983893440b2c5daca3383886b09dfbe437a4a0a6c659bc516c09f476b"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-a/0005_tenant_root_refresh_state.sql",
+          "bytes": 573,
+          "sha256": "633c569283cc7786eefbf8adac293c75606d8bc77e23b14f3ce14e9d1c895cfd"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-a/0006_tenant_root_restore_import_keys.sql",
+          "bytes": 4687,
+          "sha256": "8688df573ac5662d5a35fed9f63f4d922830f6628a336199f3ec7eb54824657f"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-a/0007_tenant_root_restore_refresh_attempts.sql",
+          "bytes": 4726,
+          "sha256": "35b35959045810fdd6fde8c6f0d742ebce35d8cf897f0111399405fdb04f8f79"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-a/0008_tenant_root_restore_promotion.sql",
+          "bytes": 2162,
+          "sha256": "0ec3baab2e3200d75c1b27935a1bca4f12599f883ff29521569dcd2ec95c2a95"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-a/0009_tenant_root_restore_preactivation_cleanup.sql",
+          "bytes": 326,
+          "sha256": "fe3b72fd7ffecd84d8fd851a9aa42956105532fe3cd17e1b1502228c8f2021aa"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-a/0010_tenant_root_recovery_attempts.sql",
+          "bytes": 2059,
+          "sha256": "8ecada075618a2aa6222b2065b91c3b3a22d290b2cc381771532125700b4cb74"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-a/0011_tenant_root_source_retirement.sql",
+          "bytes": 4516,
+          "sha256": "3e664c3ac316cb9392d3c4335109c8d14c45f1fc871acc2238997e7b9942cf44"
+        }
+      ]
+    },
+    "deriver_b": {
+      "directory": "cloudflare-router-ab/migrations/deriver-b",
+      "head": "0011_tenant_root_source_retirement.sql",
+      "fingerprint": "7d58734ad39cff2ffdcd6573879a0c187886a509a31dc172082de0ef49dd03c6",
+      "files": [
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-b/0001_role_private_storage.sql",
+          "bytes": 477,
+          "sha256": "e3059255eaa4f0370c6dc8e26e3c9a2d9b4a44d322fb2fe3187bbd2fd758894b"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-b/0002_tenant_root_role_shares.sql",
+          "bytes": 1245,
+          "sha256": "e61417ef007c176e3e7b630473aea927cdf2603b58e8ed5d8b7c52936528666e"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-b/0003_tenant_root_command_replays.sql",
+          "bytes": 2889,
+          "sha256": "0f765bba431a9b037871a201c2b404767c06c1412447621122f955a179171007"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-b/0004_tenant_root_creation_admission.sql",
+          "bytes": 254,
+          "sha256": "507731f983893440b2c5daca3383886b09dfbe437a4a0a6c659bc516c09f476b"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-b/0005_tenant_root_refresh_state.sql",
+          "bytes": 573,
+          "sha256": "633c569283cc7786eefbf8adac293c75606d8bc77e23b14f3ce14e9d1c895cfd"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-b/0006_tenant_root_restore_import_keys.sql",
+          "bytes": 4687,
+          "sha256": "7fb30a1bd4b398f49c1d5840654353481baa9e8809fd394c6f27349d896feb95"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-b/0007_tenant_root_restore_refresh_attempts.sql",
+          "bytes": 4726,
+          "sha256": "75c8da445c01845998f101e861a127887c9a4d5cd8ff56089bac37699b6e4c02"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-b/0008_tenant_root_restore_promotion.sql",
+          "bytes": 2162,
+          "sha256": "7628617d9b0565fd7ca3d61c2f2bc377fa9d0a407c5abe1ccddf1b8e16e97b0c"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-b/0009_tenant_root_restore_preactivation_cleanup.sql",
+          "bytes": 326,
+          "sha256": "fe3b72fd7ffecd84d8fd851a9aa42956105532fe3cd17e1b1502228c8f2021aa"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-b/0010_tenant_root_recovery_attempts.sql",
+          "bytes": 2059,
+          "sha256": "9419ba4e53d109250e78407faafc954f32c57b25d46585d499f48330413c4630"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-b/0011_tenant_root_source_retirement.sql",
+          "bytes": 4516,
+          "sha256": "6229926eb3c0084de81f06d0e72cfe69685ac972cf24c426ab3b693ecdc05d74"
+        }
+      ]
+    },
+    "signing_worker": {
+      "directory": "cloudflare-router-ab/migrations/signing-worker",
+      "head": "0002_activation_revocation_fences.sql",
+      "fingerprint": "56b17315149c5db3785b334e8cae42a8b0b303982da8b817c77e2402b16053d7",
+      "files": [
+        {
+          "path": "cloudflare-router-ab/migrations/signing-worker/0001_private_storage.sql",
+          "bytes": 1937,
+          "sha256": "b0aa25ddcc57dad931a17e6b2bd5d8c9323f092e389a6a5a15f0e9041959e24c"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/signing-worker/0002_activation_revocation_fences.sql",
+          "bytes": 108,
+          "sha256": "980292e50c0d5e911cb2275a6c19ba146d37901c2b342948ded883b145669fe3"
+        }
+      ]
+    }
+  }
+}

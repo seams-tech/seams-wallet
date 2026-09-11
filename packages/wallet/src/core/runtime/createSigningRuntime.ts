@@ -1,0 +1,154 @@
+import type {
+  SigningRuntime,
+  SigningRuntimeDeps,
+  SigningRuntimeServices,
+  SigningRuntimeStatePorts,
+} from './runtime.types';
+
+type AsyncServiceFactory<TService> = () => Promise<TService>;
+
+function memoizeService<TService>(
+  factory: AsyncServiceFactory<TService>,
+): AsyncServiceFactory<TService> {
+  let servicePromise: Promise<TService> | undefined;
+  return () => {
+    servicePromise ??= factory().catch((error) => {
+      servicePromise = undefined;
+      throw error;
+    });
+    return servicePromise;
+  };
+}
+
+export function createSigningRuntimeStatePorts(): SigningRuntimeStatePorts {
+  return {
+    ecdsaSessions: {
+      exportArtifactsByLane: new Map(),
+    },
+  };
+}
+
+export function createSigningRuntime(deps: SigningRuntimeDeps): SigningRuntime {
+  const getWarmSessions = memoizeService(async () => {
+    const { createWarmSessionHydrationService } =
+      await import('@/core/signingEngine/session/passkey/warmSessionHydration');
+    return createWarmSessionHydrationService({
+      getWarmSessionMaterialWriter: deps.ui.warmSessions.getWarmSessionMaterialWriter,
+    });
+  });
+  const warmSessions: SigningRuntimeServices['warmSessions'] = {
+    hydrateSigningSession: async (input) => (await getWarmSessions()).hydrateSigningSession(input),
+  };
+
+  const getRegistrationAccounts = memoizeService(async () => {
+    const { createRegistrationAccountsService } =
+      await import('@/core/signingEngine/flows/registration/services/registrationAccounts');
+    return createRegistrationAccountsService(deps.registration.accountLifecycle);
+  });
+  const registrationAccounts: SigningRuntimeServices['registrationAccounts'] = {
+    storeUserData: async (userData) => (await getRegistrationAccounts()).storeUserData(userData),
+    getAllUsers: async () => (await getRegistrationAccounts()).getAllUsers(),
+    getUserBySignerSlot: async (nearAccountId, signerSlot) =>
+      (await getRegistrationAccounts()).getUserBySignerSlot(nearAccountId, signerSlot),
+    getLastUser: async () => (await getRegistrationAccounts()).getLastUser(),
+    nearAuthenticatorsByAccount: async (nearAccountId) =>
+      (await getRegistrationAccounts()).nearAuthenticatorsByAccount(nearAccountId),
+    setLastUser: async (walletId, signerSlot) =>
+      (await getRegistrationAccounts()).setLastUser(walletId, signerSlot),
+    activateAuthenticatedWalletState: async (input) =>
+      (await getRegistrationAccounts()).activateAuthenticatedWalletState(input),
+    setWalletNearProvisioningState: async (write) =>
+      (await getRegistrationAccounts()).setWalletNearProvisioningState(write),
+    getWalletNearProvisioningState: async (walletId) =>
+      (await getRegistrationAccounts()).getWalletNearProvisioningState(walletId),
+    storeAuthenticator: async (authenticatorData) =>
+      (await getRegistrationAccounts()).storeAuthenticator(authenticatorData),
+    rollbackUserRegistration: async (nearAccountId) =>
+      (await getRegistrationAccounts()).rollbackUserRegistration(nearAccountId),
+    hasPasskeyCredential: async (nearAccountId) =>
+      (await getRegistrationAccounts()).hasPasskeyCredential(nearAccountId),
+    storeWalletEd25519RegistrationData: async (input) =>
+      (await getRegistrationAccounts()).storeWalletEd25519RegistrationData(input),
+    storeWalletEd25519RecoveryRegistrationData: async (input) =>
+      (await getRegistrationAccounts()).storeWalletEd25519RecoveryRegistrationData(input),
+    storeWalletEmailOtpEd25519RegistrationData: async (input) =>
+      (await getRegistrationAccounts()).storeWalletEmailOtpEd25519RegistrationData(input),
+    storeWalletEmailOtpMixedRegistrationData: async (input) =>
+      (await getRegistrationAccounts()).storeWalletEmailOtpMixedRegistrationData(input),
+    finalizeWalletEd25519SignerRegistration: async (input) =>
+      (await getRegistrationAccounts()).finalizeWalletEd25519SignerRegistration(input),
+    rollbackWalletEd25519SignerRegistration: async (receipt) =>
+      (await getRegistrationAccounts()).rollbackWalletEd25519SignerRegistration(receipt),
+  };
+
+  const getEcdsaWalletRecords = memoizeService(async () => {
+    const { createEcdsaWalletRecordsService } =
+      await import('@/core/signingEngine/flows/registration/services/ecdsaWalletRecords');
+    return createEcdsaWalletRecordsService({
+      accountLifecycle: deps.registration.accountLifecycle,
+    });
+  });
+  const ecdsaWalletRecords: SigningRuntimeServices['ecdsaWalletRecords'] = {
+    storeWalletEcdsaSignerRecords: async (input) =>
+      (await getEcdsaWalletRecords()).storeWalletEcdsaSignerRecords(input),
+    storeWalletEmailOtpEcdsaSignerRecords: async (input) =>
+      (await getEcdsaWalletRecords()).storeWalletEmailOtpEcdsaSignerRecords(input),
+    storeWalletEcdsaRecoverySignerRecords: async (input) =>
+      (await getEcdsaWalletRecords()).storeWalletEcdsaRecoverySignerRecords(input),
+    finalizeWalletEcdsaRegistration: async (input) =>
+      (await getEcdsaWalletRecords()).finalizeWalletEcdsaRegistration(input),
+    storeWalletEmailOtpEcdsaRegistrationData: async (input) =>
+      (await getEcdsaWalletRecords()).storeWalletEmailOtpEcdsaRegistrationData(input),
+  };
+
+  const nearSigning: SigningRuntimeServices['nearSigning'] = {
+    signNear: async (request) => {
+      const { signNear } = await import('@/core/signingEngine/flows/signNear/signNear');
+      return signNear(deps.signing.near.getDeps(), request);
+    },
+  };
+
+  const evmFamilySigning: SigningRuntimeServices['evmFamilySigning'] = {
+    signEvmFamily: async (args) => {
+      const { signEvmFamily } =
+        await import('@/core/signingEngine/flows/signEvmFamily/signEvmFamily');
+      return signEvmFamily(deps.signing.evmFamily.getDeps(), args);
+    },
+    reportTempoBroadcastAccepted: async (args) => {
+      const { reportTempoBroadcastAccepted } =
+        await import('@/core/signingEngine/flows/signEvmFamily/signEvmFamily');
+      return reportTempoBroadcastAccepted(deps.signing.evmFamily.getDeps(), args);
+    },
+    reportTempoBroadcastRejected: async (args) => {
+      const { reportTempoBroadcastRejected } =
+        await import('@/core/signingEngine/flows/signEvmFamily/signEvmFamily');
+      return reportTempoBroadcastRejected(deps.signing.evmFamily.getDeps(), args);
+    },
+    reportTempoFinalized: async (args) => {
+      const { reportTempoFinalized } =
+        await import('@/core/signingEngine/flows/signEvmFamily/signEvmFamily');
+      return reportTempoFinalized(deps.signing.evmFamily.getDeps(), args);
+    },
+    reportTempoDroppedOrReplaced: async (args) => {
+      const { reportTempoDroppedOrReplaced } =
+        await import('@/core/signingEngine/flows/signEvmFamily/signEvmFamily');
+      return reportTempoDroppedOrReplaced(deps.signing.evmFamily.getDeps(), args);
+    },
+    reconcileTempoNonceLane: async (args) => {
+      const { reconcileTempoNonceLane } =
+        await import('@/core/signingEngine/flows/signEvmFamily/signEvmFamily');
+      return reconcileTempoNonceLane(deps.signing.evmFamily.getDeps(), args);
+    },
+  };
+
+  return {
+    ...deps,
+    services: {
+      warmSessions,
+      registrationAccounts,
+      nearSigning,
+      evmFamilySigning,
+      ecdsaWalletRecords,
+    },
+  };
+}

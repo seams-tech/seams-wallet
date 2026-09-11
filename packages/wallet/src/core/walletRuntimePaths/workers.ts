@@ -1,0 +1,154 @@
+/**
+ * Resolve the base origin for worker scripts.
+ * Priority:
+ * 1) window.__W3A_WALLET_SDK_BASE__ (absolute `${walletOrigin}${sdkBasePath}/`) → take its origin (only if same-origin)
+ * 2) window.location.origin (host/app origin)
+ *
+ * @returns The origin (protocol + host [+ port]) used to resolve worker script URLs.
+ *          Prefers the wallet SDK base origin; falls back to the current window origin.
+ */
+export function resolveWorkerBaseOrigin(): string {
+  const currentOrigin =
+    typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
+
+  // Only allow worker scripts to resolve from the embedded base when it matches
+  // the current origin. Cross-origin worker scripts are not reliably loadable
+  // across browsers (even for module workers) and will fail with CORS errors.
+  try {
+    const embeddedBase = (window as any)?.__W3A_WALLET_SDK_BASE__ as string | undefined;
+    if (embeddedBase) {
+      const embeddedOrigin = new URL(embeddedBase, currentOrigin || 'https://invalid.local').origin;
+      if (embeddedOrigin === currentOrigin) {
+        return embeddedOrigin;
+      }
+    }
+  } catch {}
+
+  return currentOrigin;
+}
+
+/**
+ * Build an absolute worker script URL from a path or absolute URL.
+ * If `input` is a path (e.g., `/sdk/workers/foo.js`), it will be resolved
+ * against the wallet origin (from `__W3A_WALLET_SDK_BASE__`) when available,
+ * otherwise against the host origin.
+ *
+ * @param input - Absolute URL or path (e.g., `/sdk/workers/near-signer.worker.js`).
+ * @returns Absolute URL to the worker script, resolved against the wallet origin when available,
+ *          otherwise against the current window origin.
+ */
+export function resolveWorkerScriptUrl(input: string): string {
+  return resolveWorkerUrl(input, { worker: detectWorkerFromPath(input) });
+}
+
+export function resolveWorkerUrl(
+  input: string | undefined,
+  opts: {
+    worker:
+      | 'signer'
+      | 'ecdsaDerivationClient'
+      | 'ecdsaPresignClient'
+      | 'ecdsaOnlineClient'
+      | 'passkeyMpcSession'
+      | 'passkeyMpcExport'
+      | 'touchConfirm'
+      | 'deviceLinking';
+    baseOrigin?: string;
+  },
+): string {
+  const worker = opts.worker;
+  const baseOrigin =
+    opts.baseOrigin ||
+    resolveWorkerBaseOrigin() ||
+    (typeof window !== 'undefined' ? window.location.origin : '') ||
+    'https://invalid.local';
+  try {
+    // Prefer explicit per-worker URL override
+    const ovAny = (typeof window !== 'undefined' ? (window as any) : {}) as any;
+    let override: unknown;
+    switch (worker) {
+      case 'signer':
+        override = ovAny.__W3A_SIGNER_WORKER_URL__;
+        break;
+      case 'ecdsaDerivationClient':
+        override = ovAny.__W3A_ECDSA_DERIVATION_CLIENT_WORKER_URL__;
+        break;
+      case 'ecdsaPresignClient':
+        override = ovAny.__W3A_ECDSA_PRESIGN_CLIENT_WORKER_URL__;
+        break;
+      case 'ecdsaOnlineClient':
+        override = ovAny.__W3A_ECDSA_ONLINE_CLIENT_WORKER_URL__;
+        break;
+      case 'touchConfirm':
+        override = ovAny.__W3A_TOUCH_CONFIRM_WORKER_URL__;
+        break;
+      case 'passkeyMpcExport':
+        override = ovAny.__W3A_PASSKEY_MPC_EXPORT_WORKER_URL__;
+        break;
+      case 'passkeyMpcSession':
+        override = ovAny.__W3A_PASSKEY_MPC_SESSION_WORKER_URL__;
+        break;
+      case 'deviceLinking':
+        override = ovAny.__W3A_DEVICE_LINKING_WORKER_URL__;
+        break;
+      default:
+        worker satisfies never;
+    }
+    const candidate =
+      typeof override === 'string' && override ? override : input || defaultWorkerPath(worker);
+    if (/^https?:\/\//i.test(candidate)) {
+      return new URL(candidate).toString();
+    }
+    return new URL(candidate, baseOrigin).toString();
+  } catch {
+    try {
+      return new URL(input || defaultWorkerPath(worker), baseOrigin).toString();
+    } catch {}
+    return input || defaultWorkerPath(worker);
+  }
+}
+
+type DedicatedWorkerKind =
+  | 'signer'
+  | 'ecdsaDerivationClient'
+  | 'ecdsaPresignClient'
+  | 'ecdsaOnlineClient'
+  | 'passkeyMpcSession'
+  | 'passkeyMpcExport'
+  | 'touchConfirm'
+  | 'deviceLinking';
+
+function detectWorkerFromPath(p: string): DedicatedWorkerKind {
+  if (/near-signer\.worker\.js(?:$|\?)/.test(p)) return 'signer';
+  if (/ecdsa-derivation-client\.worker\.js(?:$|\?)/.test(p)) return 'ecdsaDerivationClient';
+  if (/ecdsa-presign-client\.worker\.js(?:$|\?)/.test(p)) return 'ecdsaPresignClient';
+  if (/ecdsa-online-client\.worker\.js(?:$|\?)/.test(p)) return 'ecdsaOnlineClient';
+  if (/passkey-mpc-export\.worker\.js(?:$|\?)/.test(p)) return 'passkeyMpcExport';
+  if (/passkey-mpc-session\.worker\.js(?:$|\?)/.test(p)) return 'passkeyMpcSession';
+  if (/device-linking-key\.worker\.js(?:$|\?)/.test(p)) return 'deviceLinking';
+  return 'touchConfirm';
+}
+
+function defaultWorkerPath(worker: DedicatedWorkerKind): string {
+  switch (worker) {
+    case 'signer':
+      return '/sdk/workers/near-signer.worker.js';
+    case 'ecdsaDerivationClient':
+      return '/sdk/workers/ecdsa-derivation-client.worker.js';
+    case 'ecdsaPresignClient':
+      return '/sdk/workers/ecdsa-presign-client.worker.js';
+    case 'ecdsaOnlineClient':
+      return '/sdk/workers/ecdsa-online-client.worker.js';
+    case 'touchConfirm':
+      return '/sdk/workers/passkey-confirm.worker.js';
+    case 'passkeyMpcExport':
+      return '/sdk/workers/passkey-mpc-export.worker.js';
+    case 'passkeyMpcSession':
+      return '/sdk/workers/passkey-mpc-session.worker.js';
+    case 'deviceLinking':
+      return '/sdk/workers/device-linking-key.worker.js';
+    default:
+      worker satisfies never;
+      throw new Error('Unsupported dedicated worker kind');
+  }
+}

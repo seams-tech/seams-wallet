@@ -1,0 +1,24 @@
+[package]
+name = "shamir3pass_runtime"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "Apache-2.0"
+description = "WASM runtime wrapper for shamir-3-pass lock operations"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = true
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+shamir-3-pass = "0.6.0"
+wasm-bindgen = "0.2"

@@ -1,0 +1,138 @@
+import { type NearClient } from '@/core/rpcClients/near/NearClient';
+import type { TouchIdPrompt } from '../stepUpConfirmation/passkeyPrompt/touchIdPrompt';
+import type { NearSigningKeyMaterialStorePort, NearSigningRuntimeDeps } from '../interfaces/runtime';
+import type {
+  SignerWorkerKind,
+  SignerWorkerOperationRequest,
+  SignerWorkerOperationResult,
+  SignerWorkerOperationType,
+  EmailOtpYaoPrewarmRequest,
+  EmailOtpYaoPrewarmOutcome,
+} from './workerTypes';
+import type { UserPreferencesManager } from '../session/userPreferences';
+import type { NonceCoordinator } from '../nonce/NonceCoordinator';
+import type { ThemeMode, SeamsChainConfig } from '@/core/types/seams';
+import type { NearSigningKeyOps } from '../interfaces/nearKeyOps';
+import type { WorkerTransport } from './workerTransport';
+import { createNearKeyOps } from './nearKeyOps/createNearKeyOps';
+
+export interface SignerWorkerManagerContext extends NearSigningRuntimeDeps {
+  userPreferencesManager: UserPreferencesManager;
+  getTheme?: () => ThemeMode;
+  rpIdOverride?: string;
+  nearExplorerUrl?: string;
+  tempoExplorerUrl?: string;
+  evmExplorerUrl?: string;
+}
+
+export type SignerWorkerManagerDeps = {
+  resolveOperationStepUpCredential: NearSigningRuntimeDeps['resolveOperationStepUpCredential'];
+  nearKeyMaterialStore: NearSigningKeyMaterialStorePort;
+  touchIdPrompt: TouchIdPrompt;
+  touchConfirm: NonNullable<NearSigningRuntimeDeps['touchConfirm']>;
+  passkeyMpcSession: NearSigningRuntimeDeps['passkeyMpcSession'];
+  nearClient: NearClient;
+  userPreferencesManager: UserPreferencesManager;
+  nonceCoordinator: NonceCoordinator;
+  relayerUrl: string;
+  workerTransport: WorkerTransport;
+  chains?: readonly SeamsChainConfig[];
+  nearExplorerUrl?: string;
+  tempoExplorerUrl?: string;
+  evmExplorerUrl?: string;
+  getTheme?: () => ThemeMode;
+};
+
+/**
+ * WebAuthnWorkers handles PRF, workers, and COSE operations
+ *
+ * Note: This stack is WebAuthn-only; challenges are either server-minted
+ * (e.g. login) or derived from intent/session digests (e.g. threshold sessions).
+ */
+export class SignerWorkerManager {
+  private resolveOperationStepUpCredential: NearSigningRuntimeDeps['resolveOperationStepUpCredential'];
+  private nearKeyMaterialStore: NearSigningKeyMaterialStorePort;
+  private touchIdPrompt: TouchIdPrompt;
+  private touchConfirm: NonNullable<NearSigningRuntimeDeps['touchConfirm']>;
+  private passkeyMpcSession: NearSigningRuntimeDeps['passkeyMpcSession'];
+  private nearClient: NearClient;
+  private userPreferencesManager: UserPreferencesManager;
+  private nonceCoordinator: NonceCoordinator;
+  private relayerUrl: string;
+  private chains?: readonly SeamsChainConfig[];
+  private nearExplorerUrl?: string;
+  private tempoExplorerUrl?: string;
+  private evmExplorerUrl?: string;
+  private getTheme?: () => ThemeMode;
+  private workerTransport: WorkerTransport;
+  readonly nearKeyOps: NearSigningKeyOps;
+
+  constructor(deps: SignerWorkerManagerDeps) {
+    this.resolveOperationStepUpCredential = deps.resolveOperationStepUpCredential;
+    this.nearKeyMaterialStore = deps.nearKeyMaterialStore;
+    this.touchIdPrompt = deps.touchIdPrompt;
+    this.touchConfirm = deps.touchConfirm;
+    this.passkeyMpcSession = deps.passkeyMpcSession;
+    this.nearClient = deps.nearClient;
+    this.userPreferencesManager = deps.userPreferencesManager;
+    this.nonceCoordinator = deps.nonceCoordinator;
+    this.relayerUrl = deps.relayerUrl;
+    this.chains = deps.chains;
+    this.nearExplorerUrl = deps.nearExplorerUrl;
+    this.tempoExplorerUrl = deps.tempoExplorerUrl;
+    this.evmExplorerUrl = deps.evmExplorerUrl;
+    this.getTheme = deps.getTheme;
+    this.workerTransport = deps.workerTransport;
+    this.nearKeyOps = createNearKeyOps(() => this.getContext());
+  }
+
+  setWorkerBaseOrigin(origin: string | undefined): void {
+    this.workerTransport.setWorkerBaseOrigin(origin);
+  }
+
+  getContext(): SignerWorkerManagerContext {
+    return {
+      resolveOperationStepUpCredential: this.resolveOperationStepUpCredential,
+      requestWorkerOperation: this.requestWorkerOperation.bind(this),
+      nearKeyMaterialStore: this.nearKeyMaterialStore,
+      touchIdPrompt: this.touchIdPrompt,
+      touchConfirm: this.touchConfirm,
+      passkeyMpcSession: this.passkeyMpcSession,
+      nearClient: this.nearClient,
+      userPreferencesManager: this.userPreferencesManager,
+      nonceCoordinator: this.nonceCoordinator,
+      chains: this.chains,
+      getTheme: this.getTheme,
+      rpIdOverride: this.touchIdPrompt.getRpId(),
+      nearExplorerUrl: this.nearExplorerUrl,
+      tempoExplorerUrl: this.tempoExplorerUrl,
+      evmExplorerUrl: this.evmExplorerUrl,
+      relayerUrl: this.relayerUrl,
+    };
+  }
+
+  async prewarmWorkers(): Promise<void> {
+    await this.workerTransport.prewarmWorkers();
+  }
+
+  async prewarmEcdsaRegistrationCrypto(): Promise<{
+    kind: 'succeeded' | 'failed';
+    wasmInitMs: number;
+  }> {
+    return await this.workerTransport.prewarmEcdsaRegistrationCrypto();
+  }
+
+  async prewarmEmailOtpYao(
+    request?: EmailOtpYaoPrewarmRequest,
+  ): Promise<EmailOtpYaoPrewarmOutcome> {
+    return await this.workerTransport.prewarmEmailOtpYao(request);
+  }
+
+  requestWorkerOperation<K extends SignerWorkerKind, T extends SignerWorkerOperationType<K>>(args: {
+    kind: K;
+    request: SignerWorkerOperationRequest<K, T>;
+  }): Promise<SignerWorkerOperationResult<K, T>> {
+    return this.workerTransport.requestOperation(args);
+  }
+
+}

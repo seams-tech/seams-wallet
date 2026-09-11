@@ -1,0 +1,30 @@
+{
+  "formatVersion": "tenant_root_operation_record_v1",
+  "records": [
+    {
+      "operationKind": "tenant_root_operational_share_rotation_v1",
+      "canonicalJson": "{\"custodyLineageId\":\"MTExMTExMTExMTExMTExMQ\",\"envId\":\"production\",\"expectedLifecycleRevision\":7,\"expectedRootCommitment\":\"6IKxMQFrUsHTM3CAGHz3aEI-_Mu1F7tJWrgSxBYP9E4\",\"expiresAt\":\"2026-09-05T12:05:00.000Z\",\"formatVersion\":\"tenant_root_operation_record_v1\",\"idempotencyKey\":\"idempotency-1\",\"issuedAt\":\"2026-09-05T11:58:00.000Z\",\"operationKind\":\"tenant_root_operational_share_rotation_v1\",\"orgId\":\"org-1\",\"projectId\":\"project-2\",\"recoveryGovernanceDigest\":\"hUXBekkP6CYYQtt4VJAzSMt0jTshXPte-Te5Q0uBKpc\",\"requesterActorId\":\"owner-1\",\"subject\":{\"kind\":\"tenant_root\"},\"tenantRootIdentityDigest\":\"nF1YOuRpN5POO1FZDHiGUboN9MIzmyW4RnZmX85Eqos\"}",
+      "digestB64u": "rHTBFBUkNdB0VJryi1aOSNs3ozWbBJBNc2filenwJbg"
+    },
+    {
+      "operationKind": "tenant_root_recovery_recipient_pair_enroll_v1",
+      "canonicalJson": "{\"custodyLineageId\":\"MTExMTExMTExMTExMTExMQ\",\"envId\":\"production\",\"expectedLifecycleRevision\":7,\"expectedRootCommitment\":\"6IKxMQFrUsHTM3CAGHz3aEI-_Mu1F7tJWrgSxBYP9E4\",\"expiresAt\":\"2026-09-05T12:05:00.000Z\",\"formatVersion\":\"tenant_root_operation_record_v1\",\"idempotencyKey\":\"idempotency-1\",\"issuedAt\":\"2026-09-05T11:58:00.000Z\",\"operationKind\":\"tenant_root_recovery_recipient_pair_enroll_v1\",\"orgId\":\"org-1\",\"projectId\":\"project-2\",\"recoveryGovernanceDigest\":\"hUXBekkP6CYYQtt4VJAzSMt0jTshXPte-Te5Q0uBKpc\",\"requesterActorId\":\"owner-1\",\"subject\":{\"kind\":\"recipient_pair\",\"recipientPairDigest\":\"mpqampqampqampqampqampqampqampqampqampqampo\"},\"tenantRootIdentityDigest\":\"nF1YOuRpN5POO1FZDHiGUboN9MIzmyW4RnZmX85Eqos\"}",
+      "digestB64u": "aRl1UfJLfVzJ02-XKY_IBHJbkXFH8Vxqliqh9vwaG2U"
+    },
+    {
+      "operationKind": "tenant_root_recovery_role_package_download_v1",
+      "canonicalJson": "{\"custodyLineageId\":\"MTExMTExMTExMTExMTExMQ\",\"envId\":\"production\",\"expectedLifecycleRevision\":7,\"expectedRootCommitment\":\"6IKxMQFrUsHTM3CAGHz3aEI-_Mu1F7tJWrgSxBYP9E4\",\"expiresAt\":\"2026-09-05T12:02:00.000Z\",\"formatVersion\":\"tenant_root_operation_record_v1\",\"idempotencyKey\":\"idempotency-1\",\"issuedAt\":\"2026-09-05T11:58:00.000Z\",\"operationKind\":\"tenant_root_recovery_role_package_download_v1\",\"orgId\":\"org-1\",\"projectId\":\"project-2\",\"recoveryGovernanceDigest\":\"hUXBekkP6CYYQtt4VJAzSMt0jTshXPte-Te5Q0uBKpc\",\"requesterActorId\":\"owner-1\",\"role\":\"deriver_b\",\"subject\":{\"kind\":\"recovery_set\",\"recoverySetId\":\"QUFBQUFBQUFBQUFBQUFBQQ\"},\"tenantRootIdentityDigest\":\"nF1YOuRpN5POO1FZDHiGUboN9MIzmyW4RnZmX85Eqos\"}",
+      "digestB64u": "yttn6sCIRgbfiYt8aj7eSPavaZgsGNbZk8c5mpz0kIM"
+    },
+    {
+      "operationKind": "tenant_root_source_lineage_retire_v1",
+      "canonicalJson": "{\"custodyLineageId\":\"MTExMTExMTExMTExMTExMQ\",\"envId\":\"production\",\"expectedLifecycleRevision\":7,\"expectedRootCommitment\":\"6IKxMQFrUsHTM3CAGHz3aEI-_Mu1F7tJWrgSxBYP9E4\",\"expiresAt\":\"2026-09-05T12:05:00.000Z\",\"formatVersion\":\"tenant_root_operation_record_v1\",\"idempotencyKey\":\"idempotency-1\",\"issuedAt\":\"2026-09-05T11:58:00.000Z\",\"operationKind\":\"tenant_root_source_lineage_retire_v1\",\"orgId\":\"org-1\",\"projectId\":\"project-2\",\"recoveryGovernanceDigest\":\"hUXBekkP6CYYQtt4VJAzSMt0jTshXPte-Te5Q0uBKpc\",\"requesterActorId\":\"owner-1\",\"subject\":{\"kind\":\"tenant_root\"},\"tenantRootIdentityDigest\":\"nF1YOuRpN5POO1FZDHiGUboN9MIzmyW4RnZmX85Eqos\"}",
+      "digestB64u": "idB0J0__fII4pPWmgcARzamZVSit7KmUcDcCSxuo9PI"
+    },
+    {
+      "operationKind": "tenant_root_restore_role_import_key_issue_v1",
+      "canonicalJson": "{\"custodyLineageId\":\"MTExMTExMTExMTExMTExMQ\",\"destinationFingerprintB64u\":\"cXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXFxcXE\",\"envId\":\"production\",\"expiresAt\":\"2026-09-05T12:03:00.000Z\",\"formatVersion\":\"tenant_root_operation_record_v1\",\"generation\":1,\"idempotencyKey\":\"restore-operation-1\",\"importKeyId\":\"restore-import-key-1\",\"issuedAt\":\"2026-09-05T11:58:00.000Z\",\"manifestDigestB64u\":\"YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE\",\"nonceB64u\":\"UVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVFRUVE\",\"operationKind\":\"tenant_root_restore_role_import_key_issue_v1\",\"orgId\":\"org-1\",\"projectId\":\"project-2\",\"requesterActorId\":\"owner-1\",\"restoreSessionIdB64u\":\"gYGBgYGBgYGBgYGBgYGBgQ\",\"role\":\"deriver_a\",\"subject\":{\"kind\":\"recovery_set\",\"recoverySetId\":\"QUFBQUFBQUFBQUFBQUFBQQ\"},\"tenantRootIdentityDigest\":\"nF1YOuRpN5POO1FZDHiGUboN9MIzmyW4RnZmX85Eqos\"}",
+      "digestB64u": "qrxiy74cXYOR_l0GpLJ3zNS8cVtLJpUrv-Nf0LPLYtk"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+/node_modules
+/dist
+
+# Generated TypeScript declaration files
+build-paths.d.ts
+build-paths.d.ts.map
