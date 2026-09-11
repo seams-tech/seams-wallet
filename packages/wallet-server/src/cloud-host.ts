@@ -64,6 +64,7 @@ export * from './router/cloudflare/runtime/walletRuntimeOps';
 export * from './router/cloudflare/runtime/walletRuntimeOpsHandler';
 export * from './router/cloudflare/runtime/walletControlOps';
 export * from './router/cloudflare/runtime/walletConsoleTenantRootLineage';
+export * from './router/cloudflare/runtime/routerAbPrewarm';
 export * from './router/framework/http';
 export * from './router/framework/enforceRoutePolicy';
 export * from './router/framework/logger';
