@@ -18,7 +18,8 @@ const forbidden = [
   'packages/console',
   'packages/wallet-console',
   'apps/seams-console',
-  'deployment/targets.json',
+  'deployment/console/targets.json',
+  'deployment/wallet-system/targets.json',
   'CONSOLE_SESSION_HMAC_SECRET',
   'STRIPE_API_SK',
 ];

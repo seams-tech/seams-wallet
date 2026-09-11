@@ -37,6 +37,7 @@ crates/router-ab-cloudflare/.wrangler/
 # Playwright artifacts
 playwright-report
 test-results
+.artifacts/
 .playwright-cli/
 .playwright-mcp/
 
