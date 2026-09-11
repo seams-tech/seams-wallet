@@ -23,7 +23,7 @@ jobs:
   build:
     name: Build /docs artifact
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v5
@@ -31,14 +31,7 @@ jobs:
         with:
           node-version: '24'
           cache: pnpm
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
       - run: pnpm install --frozen-lockfile
-      - name: Build Wallet Wasm
-        run: |
-          cargo install wasm-pack --locked
-          pnpm build:wasm
       - name: Build Wallet declarations
         run: pnpm -C packages/wallet build:types
       - name: Build VitePress for wallet.seams.sh/docs
