@@ -40,3 +40,29 @@ jobs:
       - run: pnpm build:docs
       - run: pnpm build:example
       - run: pnpm build:self-host
+      - name: Start and smoke the self-host runtime
+        run: |
+          set -euo pipefail
+          runtime_log="$RUNNER_TEMP/seams-self-host-runtime.log"
+          pnpm -C examples/self-host-cloudflare-worker exec wrangler dev \
+            --local \
+            --ip 127.0.0.1 \
+            --port 18799 \
+            --var RELAYER_ACCOUNT_ID:self-host-smoke.testnet \
+            --var RELAYER_PRIVATE_KEY:ed25519:local \
+            --log-level error >"$runtime_log" 2>&1 &
+          runtime_pid=$!
+          trap 'kill "$runtime_pid" 2>/dev/null || true; wait "$runtime_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..60}; do
+            if curl -fsS http://127.0.0.1:18799/healthz >/dev/null && \
+              curl -fsS http://127.0.0.1:18799/readyz >/dev/null; then
+              exit 0
+            fi
+            if ! kill -0 "$runtime_pid" 2>/dev/null; then
+              cat "$runtime_log"
+              exit 1
+            fi
+            sleep 1
+          done
+          cat "$runtime_log"
+          exit 1
