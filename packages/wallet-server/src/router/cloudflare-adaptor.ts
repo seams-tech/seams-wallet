@@ -63,6 +63,7 @@ export * from './cloudflare/runtime/walletGateway';
 export * from './cloudflare/runtime/walletRuntimeOps';
 export * from './cloudflare/runtime/walletRuntimeOpsHandler';
 export * from './cloudflare/runtime/walletControlOps';
+export * from './cloudflare/runtime/walletConsoleTenantRootLineage';
 export type {
   RouterApiModule,
   RouterApiModuleKind,
