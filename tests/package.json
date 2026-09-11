@@ -1,0 +1,17 @@
+{
+  "name": "@seams-wallet/tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "type-check:intended": "tsc -p tsconfig.wallet-intended.json",
+    "test:intended": "pnpm run type-check:intended && node scripts/run-wallet-intended-isolated.mjs",
+    "test:intended:list": "node scripts/run-wallet-intended-isolated.mjs --list-cases"
+  },
+  "devDependencies": {
+    "@noble/ed25519": "^2.1.0",
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^24.1.0",
+    "typescript": "^5.8.3",
+    "viem": "^2.38.6"
+  }
+}

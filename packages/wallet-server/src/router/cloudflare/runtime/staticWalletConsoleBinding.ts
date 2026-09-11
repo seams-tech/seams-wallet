@@ -268,7 +268,7 @@ function principal(config: StaticWalletConsoleBindingConfigV1): WalletConsolePri
     apiKeyId: config.credential.apiKeyId,
     orgId: config.deployment.orgId,
     projectId: config.deployment.projectId,
-    envId: config.deployment.environmentId,
+    envId: config.deployment.environmentKey,
     environmentId: config.deployment.environmentId,
     scopes: config.credential.scopes,
   };

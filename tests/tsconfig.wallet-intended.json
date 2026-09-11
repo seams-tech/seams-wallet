@@ -1,0 +1,59 @@
+{
+  "extends": "../packages/wallet/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "types": ["@playwright/test", "node", "react", "react-dom", "vite/client"],
+    "typeRoots": [
+      "./node_modules/@types",
+      "../packages/wallet/node_modules/@types",
+      "../packages/node_modules/@types",
+      "../node_modules/@types",
+      "./node_modules",
+      "../packages/wallet/node_modules",
+      "../packages/node_modules",
+      "../node_modules"
+    ],
+    "paths": {
+      "@seams/wallet": ["../packages/wallet/src/index.ts"],
+      "@seams/wallet/react": ["../packages/wallet/src/react/index.ts"],
+      "@seams/wallet/advanced": ["../packages/wallet/src/advanced.ts"],
+      "@/core/runtime": ["../packages/wallet/src/core/runtime/index.ts"],
+      "@/core/runtime/*": ["../packages/wallet/src/core/runtime/*"],
+      "@/*": ["../packages/wallet/src/*"],
+      "@/plugins/*": ["../packages/wallet/src/plugins/*"],
+      "@shared/utils": ["../packages/shared-ts/src/utils/index.ts"],
+      "@shared/*": ["../packages/shared-ts/src/*"],
+      "@shared/threshold": ["../packages/shared-ts/src/threshold/index.ts"],
+      "@seams-internal/shared-ts/*": ["../packages/shared-ts/src/*"],
+      "@server": ["../packages/wallet-server/src/index.ts"],
+      "@server/*": ["../packages/wallet-server/src/*"],
+      "@build-paths": ["../packages/wallet/build-paths.ts"],
+      "@seams/wallet-server": ["../packages/wallet-server/src/index.ts"],
+      "@seams/wallet-server/cloud-host": ["../packages/wallet-server/src/cloud-host.ts"],
+      "@seams/wallet-server/hosted-wallet-gateway": [
+        "../packages/wallet-server/src/hosted-wallet-gateway.ts"
+      ],
+      "@seams/wallet-server/router/cloudflare": [
+        "../packages/wallet-server/src/router/cloudflare-adaptor.ts"
+      ],
+      "@seams/wallet-server/router/express": [
+        "../packages/wallet-server/src/router/express-adaptor.ts"
+      ],
+      "@seams/wallet-server/router/ror": ["../packages/wallet-server/src/router/ror-adaptor.ts"],
+      "@seams/wallet-server/wasm/signer": ["../packages/wallet-server/src/wasm/signer.ts"]
+    }
+  },
+  "include": [
+    "e2e/intended-behaviours/**/*.ts",
+    "intended-app/src/**/*.ts",
+    "intended-app/src/**/*.tsx"
+  ],
+  "exclude": [
+    "e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts",
+    "e2e/intended-behaviours/tenant-root.rotation.contract.test.ts",
+    "e2e/intended-behaviours/refactor93-staging-cohort.staging.test.ts",
+    "node_modules",
+    "playwright-report",
+    "test-results"
+  ]
+}

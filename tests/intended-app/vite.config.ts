@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
   const workspaceNodeModules = fileURLToPath(new URL('../../node_modules', import.meta.url));
   const environment = loadEnv(mode, workspaceRoot, '');
   const walletDistRoot = String(environment.VITE_SEAMS_WALLET_DIST_ROOT || '').trim();
+  const walletAssetHost = environment.VITE_SEAMS_WALLET_ASSET_HOST === '1';
   const walletAliases = walletDistRoot
     ? [
         {
@@ -31,7 +32,8 @@ export default defineConfig(({ mode }) => {
     envDir: workspaceRoot,
     cacheDir: environment.VITE_CACHE_DIR || undefined,
     clearScreen: false,
-    plugins: [react()],
+    publicDir: walletAssetHost && walletDistRoot ? `${walletDistRoot}/public` : false,
+    plugins: [intendedWalletOriginPlugin(walletAssetHost), react()],
     server: {
       host: '127.0.0.1',
       port: 4004,
@@ -61,3 +63,42 @@ export default defineConfig(({ mode }) => {
     },
   };
 });
+
+function intendedWalletOriginPlugin(walletAssetHost: boolean) {
+  return {
+    name: 'seams-intended-wallet-origin',
+    configureServer(server: { middlewares: { use: (handler: WalletOriginMiddleware) => void } }) {
+      server.middlewares.use(createWalletOriginMiddleware(walletAssetHost));
+    },
+  };
+}
+
+type WalletOriginMiddleware = (
+  request: { url?: string },
+  response: { statusCode: number; end: () => void },
+  next: () => void,
+) => void;
+
+function createWalletOriginMiddleware(walletAssetHost: boolean): WalletOriginMiddleware {
+  return function walletOriginMiddleware(request, response, next) {
+    const pathname = new URL(request.url || '/', 'http://localhost').pathname;
+    if (walletAssetHost) {
+      if (pathname === '/wallet-service' || pathname === '/wallet-service/') {
+        request.url = '/wallet-service/index.html';
+      }
+      next();
+      return;
+    }
+    if (pathname === '/wallet-service' || pathname.startsWith('/wallet-service/')) {
+      response.statusCode = 404;
+      response.end();
+      return;
+    }
+    if (pathname.startsWith('/sdk/')) {
+      response.statusCode = 404;
+      response.end();
+      return;
+    }
+    next();
+  };
+}
