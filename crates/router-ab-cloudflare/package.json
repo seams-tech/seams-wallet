@@ -10,6 +10,7 @@
     "build:signing-worker": "bash ./scripts/build-strict-worker.sh signing-worker",
     "build:tenant-root-control-plane": "bash ./scripts/build-strict-worker.sh tenant-root-control-plane",
     "dev:local-roles": "node ./scripts/start-local-role-workers.mjs",
+    "bootstrap:local-tenant-root": "node ./scripts/bootstrap-local-tenant-root.mjs",
     "dry-run:router": "wrangler deploy --dry-run --config wrangler.router.toml --outdir bundled/router --metafile bundled/router/metafile.json",
     "dry-run:deriver-a": "wrangler deploy --dry-run --config wrangler.deriver-a.toml --outdir bundled/deriver-a --metafile bundled/deriver-a/metafile.json",
     "dry-run:deriver-b": "wrangler deploy --dry-run --config wrangler.deriver-b.toml --outdir bundled/deriver-b --metafile bundled/deriver-b/metafile.json",
@@ -18,6 +19,9 @@
     "measure:startup-latencies": "node ./scripts/measure-startup-latencies.mjs",
     "test:private-d1": "ROUTER_AB_WORKER_BUILD_PROFILE=dev pnpm run build:router && ROUTER_AB_WORKER_BUILD_PROFILE=dev pnpm run build:deriver-a && ROUTER_AB_WORKER_BUILD_PROFILE=dev pnpm run build:deriver-b && ROUTER_AB_WORKER_BUILD_PROFILE=dev pnpm run build:signing-worker && ROUTER_AB_WORKER_BUILD_PROFILE=dev pnpm run build:tenant-root-control-plane && node ./scripts/test-private-d1.mjs",
     "test:wasm-vectors": "bash -lc 'if [ -z \"${CC_wasm32_unknown_unknown:-}\" ] && [ -x /opt/homebrew/opt/llvm/bin/clang ]; then export CC_wasm32_unknown_unknown=/opt/homebrew/opt/llvm/bin/clang; fi; wasm-pack test --node . --features strict-worker-router-entrypoint --test wasm_vector_adapters'"
+  },
+  "dependencies": {
+    "@seams/wallet-server": "workspace:*"
   },
   "devDependencies": {
     "wrangler": "4.111.0"
