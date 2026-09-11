@@ -65,6 +65,7 @@ export * from './cloudflare/runtime/walletRuntimeOpsHandler';
 export * from './cloudflare/runtime/walletControlOps';
 export * from './cloudflare/runtime/walletConsoleTenantRootLineage';
 export * from './cloudflare/runtime/routerAbPrewarm';
+export * from './cloudflare/runtime/tenantRootCreationGrant';
 export type {
   RouterApiModule,
   RouterApiModuleKind,
