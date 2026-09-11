@@ -11,7 +11,7 @@
     "test:wallet-browser": "playwright test -c playwright.wallet-browser.config.ts",
     "test:wallet-browser:representative": "playwright test -c playwright.wallet-browser.config.ts wallet-iframe/router.connectionClosed.test.ts lit-components/export-iframe-host.surface.test.ts",
     "test:wallet-unit": "playwright test -c playwright.wallet-browser.config.ts unit",
-    "test:wallet-unit:representative": "playwright test -c playwright.wallet-browser.config.ts unit/configs.appearance.test.ts unit/domainIds.boundary.unit.test.ts unit/committedSignerPackages.unit.test.ts"
+    "test:wallet-unit:representative": "playwright test -c playwright.wallet-browser.config.ts unit/configs.appearance.test.ts unit/domainIds.boundary.unit.test.ts unit/committedSignerPackages.unit.test.ts unit/authorizationOperationFingerprint.unit.test.ts"
   },
   "devDependencies": {
     "@noble/ed25519": "^2.1.0",
