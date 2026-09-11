@@ -1,0 +1,21 @@
+{
+  "extends": "../packages/wallet/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noEmit": true,
+    "types": ["@playwright/test", "node", "qrcode", "vite/client"],
+    "paths": {
+      "@build-paths": ["../packages/wallet/build-paths.ts"],
+      "@/*": ["../packages/wallet/src/*"],
+      "@shared/*": ["../packages/shared-ts/src/*"]
+    }
+  },
+  "include": [
+    "setup/**/*.ts",
+    "wallet-iframe/**/*.ts",
+    "lit-components/**/*.ts",
+    "unit/helpers/ecdsaMaterialRef.fixtures.ts",
+    "types/sdk-paths.d.ts"
+  ],
+  "exclude": ["node_modules"]
+}

@@ -221,6 +221,9 @@ importers:
       viem:
         specifier: ^2.38.6
         version: 2.46.0(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@3.22.3)
+      vite:
+        specifier: ^8.0.0
+        version: 8.0.0(@types/node@24.2.0)(jiti@2.6.1)(tsx@4.20.5)(yaml@2.8.1)
 
   tests/intended-app:
     dependencies:
