@@ -53,7 +53,9 @@ export * from './router/cloudflare/signingLanes/cloudflareOrdinaryInactiveSigner
 export * from './router/cloudflare/d1/webauthn/d1WebAuthnAuthService';
 export * from './router/cloudflare/d1/webauthn/d1WebAuthnStore';
 export * from './router/cloudflare/durableObjects/thresholdStore';
+export * from './router/cloudflare/runtime/ed25519SessionAdapter';
 export * from './router/cloudflare/runtime/routerAbServiceBindings';
+export * from './router/cloudflare/runtime/sessionAdapterRuntime';
 export * from './router/framework/http';
 export * from './router/framework/enforceRoutePolicy';
 export * from './router/framework/logger';
