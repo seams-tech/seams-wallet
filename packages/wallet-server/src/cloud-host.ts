@@ -57,6 +57,8 @@ export * from './router/cloudflare/runtime/cloudflareSignerWasm';
 export * from './router/cloudflare/runtime/ed25519SessionAdapter';
 export * from './router/cloudflare/runtime/routerAbServiceBindings';
 export * from './router/cloudflare/runtime/sessionAdapterRuntime';
+export * from './router/cloudflare/runtime/walletConsoleOps';
+export * from './router/cloudflare/runtime/walletConsoleOpsClient';
 export * from './router/framework/http';
 export * from './router/framework/enforceRoutePolicy';
 export * from './router/framework/logger';

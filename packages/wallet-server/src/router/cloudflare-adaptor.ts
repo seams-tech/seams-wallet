@@ -57,6 +57,8 @@ export type {
 export { getRouterApiRouteExtensionRoutes } from './framework/routeExtensions';
 export { matchesRouteDefinitionRequest } from './framework/routeDefinitions';
 export { coerceRouterLogger } from './framework/logger';
+export * from './cloudflare/runtime/walletConsoleOps';
+export * from './cloudflare/runtime/walletConsoleOpsClient';
 export type {
   RouterApiModule,
   RouterApiModuleKind,
