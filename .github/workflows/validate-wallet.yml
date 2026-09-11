@@ -38,6 +38,7 @@ jobs:
       - run: pnpm type-check
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm -C tests test:wallet-browser:representative
+      - run: pnpm -C tests test:wallet-unit:representative
       - run: pnpm -C tests test:intended:representative
         env:
           SEAMS_INTENDED_SKIP_BUILD: '1'

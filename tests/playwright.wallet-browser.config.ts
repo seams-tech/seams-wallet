@@ -8,7 +8,11 @@ process.env.W3A_TEST_FRONTEND_URL = browserTestOrigin;
 export default defineConfig({
   tsconfig: './tsconfig.wallet-browser.json',
   testDir: '.',
-  testMatch: ['**/wallet-iframe/**/*.test.ts', '**/lit-components/**/*.test.ts'],
+  testMatch: [
+    '**/wallet-iframe/**/*.test.ts',
+    '**/lit-components/**/*.test.ts',
+    '**/unit/**/*.test.ts',
+  ],
   fullyParallel: false,
   workers: 1,
   retries: 0,
