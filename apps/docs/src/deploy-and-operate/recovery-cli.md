@@ -86,7 +86,7 @@ key, and proves local key control without uploading the private key:
 
 ```bash
 seams-wallet derivation-root recovery-key setup \
-  --console-url https://wallet.seams.sh/console \
+  --console-url https://wallet.seams.sh \
   --dashboard-url https://wallet.seams.sh/dashboard \
   --environment YOUR_ENVIRONMENT \
   --role deriver-a
@@ -101,7 +101,7 @@ disk and verified successfully:
 
 ```bash
 seams-wallet derivation-root backup download \
-  --console-url https://wallet.seams.sh/console \
+  --console-url https://wallet.seams.sh \
   --environment YOUR_ENVIRONMENT \
   --role deriver-a \
   --output ./deriver-a.backup \
@@ -125,7 +125,7 @@ seams-wallet derivation-root restore \
   --destination https://destination.example \
   --role deriver-a \
   --key-file ./deriver-a.key \
-  --console-url https://wallet.seams.sh/console \
+  --console-url https://wallet.seams.sh \
   --dashboard-url https://wallet.seams.sh/dashboard \
   --environment YOUR_ENVIRONMENT
 ```
