@@ -50,6 +50,7 @@
     "./migrations/d1-signer/*": "./migrations/d1-signer/*"
   },
   "files": [
+    "THIRD_PARTY_NOTICES.md",
     "artifact-manifest.json",
     "cloudflare-router-ab/",
     "dist/",

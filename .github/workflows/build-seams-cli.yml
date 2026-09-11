@@ -71,11 +71,13 @@ jobs:
             --bin seams-release-manifest
           cp crates/seams-cli/target/release/seams-release-manifest \
             dist/seams-release-manifest
+          cp THIRD_PARTY_NOTICES.md dist/THIRD_PARTY_NOTICES.md
       - uses: actions/upload-artifact@v7
         with:
           name: seams-wallet-release-tools-${{ github.sha }}
           path: |
             dist/seams-release-manifest
             dist/seams-sbom.txt
+            dist/THIRD_PARTY_NOTICES.md
           if-no-files-found: error
           retention-days: 30

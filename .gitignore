@@ -40,6 +40,8 @@ test-results
 .artifacts/
 .playwright-cli/
 .playwright-mcp/
+packages/wallet/THIRD_PARTY_NOTICES.md
+packages/wallet-server/THIRD_PARTY_NOTICES.md
 
 # Benchmark artifacts
 benchmarks/router-ab-ecdsa-derivation-wasm/out/

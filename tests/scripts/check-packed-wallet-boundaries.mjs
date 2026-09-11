@@ -76,6 +76,10 @@ function inspectPackage(packageDirectory, packageName) {
     fs.readFileSync(path.join(packageDirectory, 'LICENSE'), 'utf8'),
     /^MIT License$/mu,
   );
+  assert.match(
+    fs.readFileSync(path.join(packageDirectory, 'THIRD_PARTY_NOTICES.md'), 'utf8'),
+    /^# Third-Party Notices$/mu,
+  );
 
   for (const file of listFiles(packageDirectory)) {
     const relativePath = path.relative(packageDirectory, file);
