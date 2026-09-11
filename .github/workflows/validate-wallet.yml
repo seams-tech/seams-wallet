@@ -39,6 +39,14 @@ jobs:
       - run: pnpm check:packed-wallet
       - run: pnpm build:docs
       - run: pnpm build:example
+      - name: Build Wallet intended test app
+        env:
+          VITE_WALLET_ORIGIN: https://localhost:4002
+          VITE_RELAYER_URL: https://localhost:4101
+          VITE_SEAMS_PROJECT_ENVIRONMENT_ID: local-wallet-test:dev
+          VITE_SEAMS_PUBLISHABLE_KEY: pk_local_wallet_test
+          VITE_ROUTER_AB_NORMAL_SIGNING_WORKER_ID: local-signing-worker
+        run: pnpm build:test-app
       - run: pnpm build:self-host
       - name: Start and smoke the self-host runtime
         run: |

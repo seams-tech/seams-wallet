@@ -8,6 +8,7 @@ packages:
   - packages/shared-ts
   - packages/wallet-server
   - packages/wallet
+  - tests/intended-app
 nodeLinker: hoisted
 verifyDepsBeforeRun: false
 allowBuilds:
