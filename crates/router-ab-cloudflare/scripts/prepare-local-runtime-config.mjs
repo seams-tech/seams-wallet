@@ -1,6 +1,13 @@
 import { createHash, createPrivateKey, createPublicKey, sign } from 'node:crypto';
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+
+const require = createRequire(import.meta.url);
+const runtimeRoot = fileURLToPath(new URL('../', import.meta.url));
+const walletServerRoot = path.dirname(require.resolve('@seams/wallet-server/package.json'));
+export { localPeerVerifyingKeyHex } from './local-key-material.mjs';
 
 import { localPeerSigningKeyBase64Url, localPeerVerifyingKeyHex } from './local-key-material.mjs';
 
@@ -64,9 +71,7 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
 
   mkdirSync(outputRoot, { recursive: true });
   const sourceConfigPath = path.join(
-    repoRoot,
-    'packages',
-    'wallet-server',
+    walletServerRoot,
     'wrangler.local-hosted-wallet-gateway.toml',
   );
   let config = readFileSync(sourceConfigPath, 'utf8');
@@ -75,13 +80,7 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
     'main',
     relativePosixPath(
       outputRoot,
-      path.join(
-        repoRoot,
-        'packages',
-        'wallet-server',
-        'src',
-        'local-hosted-wallet-gateway-worker.ts',
-      ),
+      require.resolve('@seams/wallet-server/local-hosted-wallet-gateway-worker'),
     ),
   );
   config = replaceTomlAssignment(
@@ -89,7 +88,7 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
     'migrations_dir',
     relativePosixPath(
       outputRoot,
-      path.join(repoRoot, 'packages', 'wallet-server', 'migrations', 'd1-signer'),
+      path.join(walletServerRoot, 'migrations', 'd1-signer'),
     ),
   );
   writeFileSync(outputConfigPath, config);
@@ -323,16 +322,14 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
   const configs = [];
   for (const { role, port, privateD1 = null } of STRICT_WORKER_ROLES) {
     const sourcePath = path.join(
-      repoRoot,
-      'crates',
-      'router-ab-cloudflare',
+      runtimeRoot,
       `wrangler.${role}.toml`,
     );
     const outputPath = path.join(outputRoot, `wrangler.${role}.toml`);
     const mainPath = path
       .relative(
         outputRoot,
-        path.join(repoRoot, 'crates', 'router-ab-cloudflare', 'build', role, 'worker', 'shim.mjs'),
+        path.join(runtimeRoot, 'build', role, 'worker', 'shim.mjs'),
       )
       .split(path.sep)
       .join('/');
@@ -349,7 +346,7 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
       tenantRootKeys,
     });
     if (privateD1) {
-      config = setPrivateD1MigrationsDirectory(config, repoRoot, privateD1.migrationsDirectory);
+      config = setPrivateD1MigrationsDirectory(config, privateD1.migrationsDirectory);
       config = setPrivateD1LocalDatabaseId(config, privateD1.localDatabaseId);
     }
     writeFileSync(outputPath, config);
@@ -392,16 +389,14 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
   });
 }
 
-function setPrivateD1MigrationsDirectory(source, repoRoot, migrationsDirectory) {
+function setPrivateD1MigrationsDirectory(source, migrationsDirectory) {
   const expected = `migrations_dir = "migrations/${migrationsDirectory}"`;
   const matches = source.split(/\r?\n/).filter((line) => line === expected).length;
   if (matches === 0) {
     throw new Error(`strict local Wrangler config must define ${expected}`);
   }
   const absoluteDirectory = path.join(
-    repoRoot,
-    'crates',
-    'router-ab-cloudflare',
+    runtimeRoot,
     'migrations',
     migrationsDirectory,
   );
@@ -848,9 +843,7 @@ export function resolveLocalTenantRootKeyMaterial(input) {
   const localEnvRoot = path.resolve(input.localEnvRoot ?? repoRoot);
   const controlPlaneEnv = readEnvMap(
     path.join(
-      repoRoot,
-      'crates',
-      'router-ab-dev',
+      runtimeRoot,
       'env',
       'tenant-root-control-plane.local.example',
     ),

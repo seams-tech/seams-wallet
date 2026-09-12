@@ -185,3 +185,8 @@ export {
   ROUTER_AB_ED25519_YAO_WARM_RECOVERY_BOOTSTRAP_PATH_V1,
 } from '@shared/utils/routerAbEd25519Yao';
 export { ROUTER_AB_TRACE_ID_HEADER_V1 } from '@shared/utils/routerAbTraceContext';
+
+export type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
+export type { WalletEmailOtpOperation } from '@shared/utils/emailOtpDomain';
+export { decodeJsonRpcEnvelope } from '@shared/utils/jsonRpc';
+export * from '@shared/utils/evmRpcResults';

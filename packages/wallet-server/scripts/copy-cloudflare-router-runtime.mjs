@@ -32,6 +32,21 @@ fs.cpSync(path.join(sourceRoot, 'migrations'), path.join(outputRoot, 'migrations
   recursive: true,
 });
 
+for (const script of [
+  'initialize-local-wallet.mjs',
+  'start-local-role-workers.mjs',
+  'start-local-wallet-system.mjs',
+  'bootstrap-local-tenant-root.mjs',
+  'prepare-local-runtime-config.mjs',
+  'local-key-material.mjs',
+]) {
+  fs.mkdirSync(path.join(outputRoot, 'scripts'), { recursive: true });
+  fs.copyFileSync(path.join(sourceRoot, 'scripts', script), path.join(outputRoot, 'scripts', script));
+  fs.chmodSync(path.join(outputRoot, 'scripts', script), 0o755);
+}
+fs.cpSync(path.join(sourceRoot, 'env'), path.join(outputRoot, 'env'), { recursive: true });
+fs.cpSync(path.join(sourceRoot, 'build/local-tools'), path.join(outputRoot, 'build/local-tools'), { recursive: true });
+
 function removeSourceBuildCommand(config) {
   return config.replace(/\n\[build\]\ncommand = "[^"]+"\n/u, '\n');
 }

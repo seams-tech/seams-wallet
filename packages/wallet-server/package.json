@@ -7,7 +7,10 @@
   "module": "./dist/esm/index.js",
   "types": "./dist/types/wallet-server/src/index.d.ts",
   "bin": {
-    "seams-wallet-server-d1-migrate": "./scripts/d1-local-migrate-signer.mjs"
+    "seams-wallet-server-d1-migrate": "./scripts/d1-local-migrate-signer.mjs",
+    "seams-wallet-server-local-init": "./cloudflare-router-ab/scripts/initialize-local-wallet.mjs",
+    "seams-wallet-server-local-roles": "./cloudflare-router-ab/scripts/start-local-role-workers.mjs",
+    "seams-wallet-server-local": "./cloudflare-router-ab/scripts/start-local-wallet-system.mjs"
   },
   "exports": {
     "./package.json": "./package.json",
@@ -62,7 +65,14 @@
       "default": "./dist/esm/local-hosted-wallet-gateway-worker.js"
     },
     "./artifact-manifest.json": "./artifact-manifest.json",
-    "./migrations/d1-signer/*": "./migrations/d1-signer/*"
+    "./migrations/d1-signer/*": "./migrations/d1-signer/*",
+    "./tenant-root": {
+      "types": "./dist/types/wallet-server/src/tenant-root.d.ts",
+      "import": "./dist/esm/tenant-root.js",
+      "default": "./dist/esm/tenant-root.js"
+    },
+    "./local-runtime": "./cloudflare-router-ab/scripts/prepare-local-runtime-config.mjs",
+    "./local-runtime/*": "./cloudflare-router-ab/scripts/*"
   },
   "files": [
     "THIRD_PARTY_NOTICES.md",
@@ -72,7 +82,8 @@
     "!dist/**/*.map",
     "migrations/d1-signer/",
     "scripts/d1-local-migrate-signer.mjs",
-    "src/README.md"
+    "src/README.md",
+    "wrangler.local-hosted-wallet-gateway.toml"
   ],
   "publishConfig": {
     "access": "public"

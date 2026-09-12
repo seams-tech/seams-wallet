@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import { prepareLocalHostedWalletGatewayConfig } from './prepare-local-runtime-config.mjs';
 
-const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
+const repoRoot = process.cwd();
 const gatewayUrl = 'http://127.0.0.1:4100';
 const options = parseArguments(process.argv.slice(2));
 const localRoot = path.resolve(
@@ -130,7 +130,7 @@ function startRoleWorkers() {
   const child = spawn(
     process.execPath,
     [
-      path.join(repoRoot, 'crates/router-ab-cloudflare/scripts/start-local-role-workers.mjs'),
+      fileURLToPath(new URL('./start-local-role-workers.mjs', import.meta.url)),
       '--root',
       localRoot,
     ],
@@ -141,7 +141,7 @@ function startRoleWorkers() {
 
 function bootstrapTenantRoot() {
   const output = runRequiredCapture('local tenant-root bootstrap', process.execPath, [
-    path.join(repoRoot, 'crates/router-ab-cloudflare/scripts/bootstrap-local-tenant-root.mjs'),
+    fileURLToPath(new URL('./bootstrap-local-tenant-root.mjs', import.meta.url)),
     '--root',
     localRoot,
     '--org-id',

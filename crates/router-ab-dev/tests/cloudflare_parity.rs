@@ -342,7 +342,7 @@ fn local_env_templates_match_wrangler_startup_manifests() {
     // signing key; reads authoritative lifecycle state through an external
     // binding to the Router-owned creation Durable Object.
     let control_plane = ManifestPair {
-        local: include_str!("../env/tenant-root-control-plane.local.example"),
+        local: include_str!("../../router-ab-cloudflare/env/tenant-root-control-plane.local.example"),
         wrangler: include_str!("../../router-ab-cloudflare/wrangler.tenant-root-control-plane.toml"),
     };
     control_plane.assert_local("ROUTER_AB_LOCAL_WORKER_ROLE=tenant-root-control-plane");

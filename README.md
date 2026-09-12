@@ -19,3 +19,17 @@ After building the Worker artifacts, run the Console-free local Wallet backend w
 `pnpm wallet-system:local`. It starts the five isolated Router roles, bootstraps a
 local tenant root, migrates signer D1, and serves the Wallet Gateway at
 `http://127.0.0.1:4100`.
+
+### Packaged local runtime
+
+`@seams/wallet-server` includes prebuilt Worker roles, signer/private-role
+migrations, and the native local identity initializer. Consumers can run
+`seams-wallet-server-local` (complete local Wallet system),
+`seams-wallet-server-local-roles`, or `seams-wallet-server-local-init --root <directory>`.
+Supported initializer targets match the CLI release: macOS arm64/x64 and Linux
+x64. `pnpm build:local-tools` builds the host initializer in this source repo;
+the npm release pipeline assembles all supported targets.
+
+Private Console adapters use `@seams/wallet-server/local-runtime` for local
+configuration and `@seams/wallet-server/tenant-root` for portable protocol
+contracts. Console governance/security-state models stay in the private repo.

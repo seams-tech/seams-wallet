@@ -9,7 +9,8 @@ import { fileURLToPath } from 'node:url';
 
 import { prepareRouterAbStrictLocalRuntimeConfigs } from './prepare-local-runtime-config.mjs';
 
-const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
+const repoRoot = process.cwd();
+const runtimeRoot = fileURLToPath(new URL('../', import.meta.url));
 const options = parseArguments(process.argv.slice(2));
 const localRoot = path.resolve(
   options.root || path.join(tmpdir(), `${path.basename(repoRoot)}-wallet-router-ab`),
@@ -77,15 +78,9 @@ function initializeLocalIdentity() {
   mkdirSync(localRoot, { recursive: true });
   runRequired(
     'Router A/B local identity initialization',
-    'cargo',
+    process.execPath,
     [
-      'run',
-      '--quiet',
-      '--manifest-path',
-      'crates/router-ab-dev/Cargo.toml',
-      '--bin',
-      'router_ab_local_init',
-      '--',
+      fileURLToPath(new URL('./initialize-local-wallet.mjs', import.meta.url)),
       '--root',
       localRoot,
     ],
@@ -105,12 +100,12 @@ function assertWorkerArtifacts() {
     .filter(isMissingPath);
   if (missing.length === 0) return;
   throw new Error(
-    `Wallet role Worker artifacts are missing: ${missing.map(repoRelativePath).join(', ')}. Run pnpm build:workers first.`,
+    `Wallet role Worker artifacts are missing: ${missing.map(repoRelativePath).join(', ')}. Install a complete @seams/wallet-server release.`,
   );
 }
 
 function workerArtifactPath(role) {
-  return path.join(repoRoot, 'crates', 'router-ab-cloudflare', 'build', role, 'worker', 'shim.mjs');
+  return path.join(runtimeRoot, 'build', role, 'worker', 'shim.mjs');
 }
 
 function isMissingPath(filePath) {

@@ -2,7 +2,6 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import {
   buildTenantRootIdentityFromAuthenticatedDeploymentV1,
@@ -67,7 +66,7 @@ function parseArguments(args) {
     if (!name?.startsWith('--') || !value) throw new Error(usage());
     values.set(name, value);
   }
-  const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
+  const repoRoot = process.cwd();
   return {
     repoRoot,
     localRoot: path.resolve(requiredOption(values, '--root')),

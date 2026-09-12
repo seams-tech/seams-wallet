@@ -7,7 +7,7 @@
     "build:wasm": "pnpm -C packages/wallet build:wasm",
     "build:workers": "pnpm -C crates/router-ab-cloudflare build:signing-worker && pnpm -C crates/router-ab-cloudflare build:deriver-a && pnpm -C crates/router-ab-cloudflare build:deriver-b && pnpm -C crates/router-ab-cloudflare build:router && pnpm -C crates/router-ab-cloudflare build:tenant-root-control-plane",
     "build:packages": "pnpm -C packages/wallet-server build && pnpm -C packages/wallet-server package:cloudflare-runtime && pnpm -C packages/wallet build:sdk",
-    "build": "pnpm run build:wasm && pnpm run build:workers && pnpm run build:packages",
+    "build": "pnpm run build:wasm && pnpm run build:workers && pnpm run build:local-tools && pnpm run build:packages",
     "build:docs": "VITE_DOCS_BASE_PATH=/docs/ pnpm -C apps/docs build",
     "build:example": "pnpm -C examples/seams-auth-menu build",
     "build:test-app": "pnpm -C tests/intended-app build",
@@ -18,6 +18,7 @@
     "wallet-system:local": "pnpm -C crates/router-ab-cloudflare dev:local-wallet-system",
     "test:intended": "pnpm -C tests test:intended",
     "test:wallet-browser": "pnpm -C tests test:wallet-browser",
-    "type-check": "pnpm -C packages/wallet-server type-check && pnpm -C packages/wallet type-check && pnpm -C apps/docs type-check && pnpm -C tests/intended-app type-check && pnpm -C tests type-check:intended && pnpm -C tests type-check:wallet-state"
+    "type-check": "pnpm -C packages/wallet-server type-check && pnpm -C packages/wallet type-check && pnpm -C apps/docs type-check && pnpm -C tests/intended-app type-check && pnpm -C tests type-check:intended && pnpm -C tests type-check:wallet-state",
+    "build:local-tools": "node ./scripts/build-local-tools.mjs"
   }
 }

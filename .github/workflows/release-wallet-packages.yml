@@ -13,7 +13,35 @@ permissions:
   id-token: write
 
 jobs:
+  local_tools:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runner: macos-14
+          - target: x86_64-apple-darwin
+            runner: macos-14
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - run: node scripts/build-local-tools.mjs ${{ matrix.target }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: local-tools-${{ matrix.target }}
+          path: crates/router-ab-cloudflare/build/local-tools
+          if-no-files-found: error
+
   publish:
+    needs: local_tools
     if: github.ref == 'refs/heads/main'
     name: Publish npm packages
     runs-on: ubuntu-24.04
@@ -47,6 +75,12 @@ jobs:
           cargo install wasm-pack --locked
           cargo install worker-build --version 0.8.4 --locked
       - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: local-tools-*
+          merge-multiple: true
+          path: crates/router-ab-cloudflare/build/local-tools
+      - run: chmod +x crates/router-ab-cloudflare/build/local-tools/*/router_ab_local_init
       - run: pnpm build
       - run: pnpm check:packed-wallet
       - name: Build versioned Wallet documentation
