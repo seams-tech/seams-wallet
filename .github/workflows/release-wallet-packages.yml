@@ -17,7 +17,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     name: Publish npm packages
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     environment: npm-release
     steps:
       - uses: actions/checkout@v6
