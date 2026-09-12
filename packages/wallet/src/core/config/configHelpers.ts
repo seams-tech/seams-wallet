@@ -95,7 +95,9 @@ export function resolveThemeMode(args: { value: unknown; fallback: ThemeMode }):
   if (args.value == null) return args.fallback;
   const parsed = coerceThemeMode(args.value);
   if (!parsed) {
-    throw new Error("[configPresets] Invalid config: appearance.theme.mode must be 'light' or 'dark'");
+    throw new Error(
+      "[configPresets] Invalid config: appearance.theme.mode must be 'light' or 'dark'",
+    );
   }
   return parsed;
 }
@@ -156,7 +158,9 @@ export function resolveAppearanceTheme(args: {
   const rawMode = record.mode;
   const mode = rawMode == null ? fallbackMode : coerceThemeMode(rawMode);
   if (!mode) {
-    throw new Error("[configPresets] Invalid config: appearance.theme.mode must be 'light' or 'dark'");
+    throw new Error(
+      "[configPresets] Invalid config: appearance.theme.mode must be 'light' or 'dark'",
+    );
   }
 
   /* A different theme id is a theme switch: replace colors/shape wholesale.

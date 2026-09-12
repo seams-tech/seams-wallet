@@ -20,9 +20,11 @@ function rewriteCallingLabel(label: string, functionLabel: string): string {
 }
 
 function isDataField(field: TxDisplayField): boolean {
-  return String(field.label || '')
-    .trim()
-    .toLowerCase() === 'data';
+  return (
+    String(field.label || '')
+      .trim()
+      .toLowerCase() === 'data'
+  );
 }
 
 function rewriteDataFieldWithDecodedArgs(args: {

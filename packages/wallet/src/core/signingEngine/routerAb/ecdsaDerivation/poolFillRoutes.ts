@@ -55,7 +55,8 @@ function resolvePresignAuthHeaders(args: RouterAbEcdsaDerivationPoolFillAuth):
         return {
           ok: false,
           code: 'invalid_args',
-          message: 'Missing opaque Wallet Session token for Router A/B ECDSA derivation presign pool fill',
+          message:
+            'Missing opaque Wallet Session token for Router A/B ECDSA derivation presign pool fill',
         };
       }
       headers.Authorization = `Bearer ${walletSessionToken}`;
@@ -131,9 +132,10 @@ export type RouterAbEcdsaDerivationPoolFillInitBaseArgs = {
 } & RouterAbEcdsaDerivationPoolFillInitKeySelector &
   RouterAbEcdsaDerivationPoolFillAuthorization;
 
-export type RouterAbEcdsaDerivationPresignaturePoolFillInitArgs = RouterAbEcdsaDerivationPoolFillInitBaseArgs & {
-  poolFill: RouterAbEcdsaDerivationPresignaturePoolFill;
-};
+export type RouterAbEcdsaDerivationPresignaturePoolFillInitArgs =
+  RouterAbEcdsaDerivationPoolFillInitBaseArgs & {
+    poolFill: RouterAbEcdsaDerivationPresignaturePoolFill;
+  };
 
 async function postEcdsaPresignInit(
   args: RouterAbEcdsaDerivationPresignaturePoolFillInitArgs & { path: string },

@@ -78,7 +78,8 @@ export async function collectEmailOtpRegistrationAuthority(args: {
         walletId,
         fetchImpl: args.fetchImpl,
       });
-  const challengeId = inputChallengeId || requireTrimmedField(challenge?.challengeId, 'challengeId');
+  const challengeId =
+    inputChallengeId || requireTrimmedField(challenge?.challengeId, 'challengeId');
   return {
     kind: 'email_otp',
     proof: {

@@ -1,8 +1,5 @@
 import type { AccountSignerRecord } from '@/core/indexedDB/passkeyClientDB.types';
-import {
-  SIGNER_AUTH_METHODS,
-  type SignerAuthMethod,
-} from '@shared/utils/signerDomain';
+import { SIGNER_AUTH_METHODS, type SignerAuthMethod } from '@shared/utils/signerDomain';
 import {
   resolveAccountAuthMetadataForSignerAuthMethod,
   type AccountAuthMetadata,

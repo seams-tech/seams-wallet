@@ -2,7 +2,6 @@ import type { WalletId } from '../utils/domainIds';
 import type { DerivedWalletRecoveryKeyId } from './recoveryCodes';
 import type {
   WalletRecoveryEnvelopeEntry,
-  WalletRecoveryManifestKekWrap,
 } from './walletRecoveryEnvelopeSet';
 
 /**

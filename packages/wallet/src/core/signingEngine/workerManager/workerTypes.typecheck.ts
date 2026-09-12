@@ -5,7 +5,6 @@ import type {
   EmailOtpEcdsaSessionBootstrapHandlePayload,
   EmailOtpWalletRegistrationEcdsaPrepareHandlePayload,
   EmailOtpWorkerIssuedSessionHandlePayload,
-  EmailOtpWorkerOperationRequestEnvelope,
   EmailOtpWorkerOperationMap,
   SignerWorkerOperationRequest,
   SignerWorkerOperationResult,
@@ -13,7 +12,6 @@ import type {
   EvmCryptoTransactionOperationRequest,
   EcdsaDerivationRoleLocalMaterialOperationRequest,
   EcdsaPresignClientSessionInitRequest,
-  NearWorkerOperationRequest,
   EcdsaPresignClientSessionStepRequest,
 } from './workerTypes';
 import type {

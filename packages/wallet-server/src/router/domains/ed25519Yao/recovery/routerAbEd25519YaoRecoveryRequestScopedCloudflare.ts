@@ -41,12 +41,9 @@ import {
   type RouterAbEd25519YaoRecoveryFailure,
   type RouterAbEd25519YaoRecoveryServiceResult,
   type RouterAbEd25519YaoActiveCapabilityResolverV1,
-  type RouterAbEd25519YaoWarmRecoveryBootstrapV1,
   type WarmBootstrapLinkedEd25519AuthorityReaderV1,
 } from './routerAbEd25519YaoRecovery';
-import { warmBootstrapCapabilityMatchesStableIdentity } from './routerAbEd25519YaoRecovery';
 export type { WarmBootstrapLinkedEd25519AuthorityReaderV1 } from './routerAbEd25519YaoRecovery';
-import { walletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 import {
   parseThresholdEd25519SessionId,
   type ThresholdEd25519SessionId,

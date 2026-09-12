@@ -19,7 +19,6 @@ import {
   type RuntimePolicyScope,
 } from '@shared/threshold/signingRootScope';
 import type { RouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
-import type { SigningOperationId } from '../session/operationState/types';
 
 export type ThresholdRuntimePolicyScope = RuntimePolicyScope;
 

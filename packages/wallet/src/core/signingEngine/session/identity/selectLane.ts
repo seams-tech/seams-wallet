@@ -1,4 +1,3 @@
-import type { AccountId } from '@/core/types/accountIds';
 import type {
   ConcreteAvailableSigningLane,
   AvailableSigningLanes,

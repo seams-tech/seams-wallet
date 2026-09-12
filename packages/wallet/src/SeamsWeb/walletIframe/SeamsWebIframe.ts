@@ -56,7 +56,6 @@ import type {
   ActionHooksOptions,
   DelegateActionHooksOptions,
   DelegateRelayHooksOptions,
-  KeyExportHooksOptions,
   LoginHooksOptions,
   SendTransactionHooksOptions,
   SignAndSendDelegateActionHooksOptions,
@@ -68,7 +67,7 @@ import type {
   SdkLifecycleEvent,
 } from '@/core/types/sdkSentEvents';
 
-import type { ActionArgs, TransactionInput, TxExecutionStatus } from '@/core/types';
+import type { ActionArgs, TransactionInput } from '@/core/types';
 import {
   type ConfirmationConfig,
   type WasmSignedDelegate,

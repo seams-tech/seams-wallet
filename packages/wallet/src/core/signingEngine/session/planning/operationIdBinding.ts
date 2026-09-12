@@ -1,7 +1,4 @@
-import type {
-  SigningOperationFingerprint,
-  SigningOperationId,
-} from '../operationState/types';
+import type { SigningOperationFingerprint, SigningOperationId } from '../operationState/types';
 
 const MAX_BOUND_CALLER_OPERATION_IDS = 1024;
 
@@ -38,9 +35,7 @@ function bindCallerProvidedSigningOperationIdToFingerprint(args: {
   trimOldestBoundCallerOperationIds(bindings);
 }
 
-export class SigningOperationIdBindingRegistry
-  implements SigningOperationIdFingerprintBinder
-{
+export class SigningOperationIdBindingRegistry implements SigningOperationIdFingerprintBinder {
   private readonly state: SigningOperationIdBindingRegistryState = {
     callerProvidedOperationFingerprintsById: new Map(),
   };

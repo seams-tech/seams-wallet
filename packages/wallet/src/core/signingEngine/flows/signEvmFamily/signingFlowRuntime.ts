@@ -34,13 +34,6 @@ import type { EvmSigningRequest } from '../../chains/evm/evmSigning.types';
 import type { TempoSigningRequest } from '../../chains/tempo/tempoSigning.types';
 import { requireEvmFamilyEcdsaSigner } from '../../session/identity/exactSigningLaneIdentity';
 import type { ExactEcdsaSigningLaneIdentity } from '../../session/identity/exactSigningLaneIdentity';
-
-/** The exact material activation the signer binding names. Signing serializes
- * per activation, so this is the only identity the runtime needs — no selected
- * lane, and therefore no authorization. */
-type EvmFamilyEcdsaMaterialActivation = ReturnType<
-  typeof requireEvmFamilyEcdsaSigner
->['materialActivation'];
 import {
   authorizeEvmFamilyEcdsaOperationStepUp,
   prepareEvmFamilyEcdsaOperationStepUp,
@@ -65,6 +58,13 @@ import type {
   ActiveWalletSessionV1,
   WalletSessionOperationCredentialV1,
 } from '@shared/device-linking/contracts';
+
+/** The exact material activation the signer binding names. Signing serializes
+ * per activation, so this is the only identity the runtime needs — no selected
+ * lane, and therefore no authorization. */
+type EvmFamilyEcdsaMaterialActivation = ReturnType<
+  typeof requireEvmFamilyEcdsaSigner
+>['materialActivation'];
 
 export type ActiveWalletAuthorityEvmFamilyFlowRuntime = {
   readonly runtime: ActiveWalletAuthorityEcdsaRuntimeV1;

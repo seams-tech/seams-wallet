@@ -230,9 +230,8 @@ export function parseAndValidateRegistrationCredentialConfirmationPayload(
 
   const normalizedTransactionContext =
     transactionContext != null ? validateTransactionContextMaybe(transactionContext) : undefined;
-  const normalizedRegistrationDiagnostics = sanitizeRegistrationConfirmationDiagnosticsMaybe(
-    registrationDiagnostics,
-  );
+  const normalizedRegistrationDiagnostics =
+    sanitizeRegistrationConfirmationDiagnosticsMaybe(registrationDiagnostics);
 
   const normalizedError = error == null ? undefined : assertString(error, 'error');
 

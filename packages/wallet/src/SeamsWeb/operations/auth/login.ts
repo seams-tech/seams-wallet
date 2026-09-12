@@ -22,7 +22,6 @@ import type {
   WalletAuthenticationState,
 } from '@/core/types/seams';
 import type {
-  EcdsaLoginSessionSurface,
   LoginUnlockSigningSurface,
   LoginWebContext,
   LoginWarmSigningSurface,
@@ -87,7 +86,6 @@ import {
 } from '@shared/utils/signingSessionSeal';
 import {
   buildPasskeyWalletAuthAuthority,
-  isEmailOtpWalletAuthAuthority,
   parseEmailOtpWalletAuthAuthority,
   parseWalletAuthAuthorityRef,
   walletAuthAuthorityRef,
@@ -99,19 +97,13 @@ import {
 } from '@shared/utils/walletAuthAuthority';
 import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 import { IndexedDBManager } from '@/core/indexedDB';
-import {
-  resolveExactWalletAuthAuthority,
-  type OwnerLaneScopeStores,
-} from '@/core/signingEngine/session/identity/ownerLaneScope';
+import { type OwnerLaneScopeStores } from '@/core/signingEngine/session/identity/ownerLaneScope';
 import {
   walletSessionAuthorizations,
   WalletSessionAuthorizationUpgradeRequiredError,
 } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import { resolveBrowserActiveEcdsaCapabilityRuntime } from '@/SeamsWeb/assembly/browserSigningSurfaceAssembly';
-import {
-  getNearAccountProjection,
-  resolveNearAccountProfileContinuity,
-} from '@/core/accountData/near/accountProjection';
+import { getNearAccountProjection } from '@/core/accountData/near/accountProjection';
 import { getNearThresholdKeyMaterial } from '@/core/accountData/near/keyMaterial';
 import type {
   ClientUserData,
@@ -177,15 +169,9 @@ import {
   type EcdsaPreauthorizedSessionActivation,
 } from '@/core/signingEngine/threshold/ecdsa/postRegistrationSessionActivation';
 import { parseSignerSlot } from '@/core/signingEngine/webauthnAuth/device/signerSlot';
-import {
-  nearEd25519SigningKeyIdFromString,
-  parseNearEd25519SigningKeyId,
-} from '@shared/utils/registrationIntent';
+import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIntent';
 import type { ThresholdEcdsaEmailOtpAuthContext } from '@/core/signingEngine/session/identity/laneIdentity';
-import {
-  STALE_ECDSA_KEY_IDENTITY_ERROR_CODE,
-  type ThresholdEcdsaSessionBootstrapResult,
-} from '@/core/signingEngine/threshold/ecdsa/activation';
+import { type ThresholdEcdsaSessionBootstrapResult } from '@/core/signingEngine/threshold/ecdsa/activation';
 import {
   sameRouterAbEcdsaDerivationPublicCapabilityV1,
   sameRouterAbEcdsaDerivationPublicIdentityV1,
@@ -197,11 +183,9 @@ import {
 import { sameRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
 import {
   type EmailOtpEd25519SessionPolicyAuthority,
-  type Ed25519SessionPolicyAuthority,
   type PasskeyEd25519SessionPolicyAuthority,
   type ThresholdRuntimePolicyScope,
 } from '@/core/signingEngine/threshold/sessionPolicy';
-import { shouldRequireThresholdWarmSession } from '@/SeamsWeb/operations/session/thresholdWarmSessionDefaults';
 import { createRouterAbNormalSigningPolicy } from '@/SeamsWeb/operations/session/thresholdWarmSessionBootstrap';
 import { listConfiguredThresholdEcdsaPublicationTargets } from '@/SeamsWeb/operations/session/thresholdEcdsaProvisioning';
 import type {
@@ -279,7 +263,7 @@ import {
   DEFAULT_UNLOCK_REMAINING_USES,
   resolveWalletUnlockSessionUsesFromRequestedUses,
 } from '@/core/signingEngine/threshold/sessionPolicy';
-import { SIGNER_AUTH_METHODS, SIGNER_KINDS, SIGNER_SOURCES } from '@shared/utils/signerDomain';
+import { SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';
 import { computeWalletEcdsaKeyFactsInventoryChallengeDigestB64u } from '@shared/utils/ecdsaKeyFactsInventory';
 import {
   buildEmailOtpWalletAuthMethodBinding,
@@ -287,7 +271,6 @@ import {
   buildPasskeyWalletAuthMethodBinding,
   buildWalletIdentity,
   parseRpId,
-  walletAuthMethodBindingId,
   type WalletAuthMethodBinding,
 } from '@shared/utils/walletCapabilityBindings';
 import { collectPasskeyLoginAssertion } from '@/SeamsWeb/operations/authMethods/passkey/loginAssertion';

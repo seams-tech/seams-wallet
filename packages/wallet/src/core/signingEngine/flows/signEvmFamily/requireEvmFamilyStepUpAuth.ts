@@ -126,9 +126,7 @@ export async function requireEvmFamilyStepUpAuth(args: {
 }): Promise<EvmFamilyPreparedStepUpAuth> {
   const signingAuthPlan = signingAuthPlanFromThresholdEcdsaStepUp(args.thresholdEcdsaStepUp);
   const runtime =
-    args.thresholdEcdsaStepUp.kind === 'required'
-      ? args.thresholdEcdsaStepUp.runtime
-      : undefined;
+    args.thresholdEcdsaStepUp.kind === 'required' ? args.thresholdEcdsaStepUp.runtime : undefined;
   const reusableAuthorization: EvmFamilyReusableAuthorizationState =
     runtime?.reusableAuthorization ?? { kind: 'active' };
   const selectedLane = resolveEvmFamilyStepUpLane({
@@ -139,9 +137,7 @@ export async function requireEvmFamilyStepUpAuth(args: {
     reusableAuthorization,
   });
   if (!selectedLane) {
-    throw new Error(
-      `[chains] ${args.explicitAuthErrorLabel} signing requires explicit auth input`,
-    );
+    throw new Error(`[chains] ${args.explicitAuthErrorLabel} signing requires explicit auth input`);
   }
   const prepared = await prepareStepUpAuth({
     operation: {

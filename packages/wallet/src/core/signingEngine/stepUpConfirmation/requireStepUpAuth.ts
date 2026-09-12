@@ -25,16 +25,15 @@ export type RequireStepUpAuthRequest<
   selectedLane: TLane;
   policy: StepUpPolicy;
   confirmation: {
-    confirmPasskey(input: { prompt: { title?: string; body?: string } }): Promise<PasskeyStepUpConfirmation>;
+    confirmPasskey(input: {
+      prompt: { title?: string; body?: string };
+    }): Promise<PasskeyStepUpConfirmation>;
     confirmEmailOtp(input: { prompt: EmailOtpConfirmPrompt }): Promise<EmailOtpStepUpConfirmation>;
   };
   methods: StepUpMethodRunners<TLane, TOperation, TPasskeyAuthorization, TEmailOtpAuthorization>;
 };
 
-export type PreparedStepUpAuth<
-  TPasskeyAuthorization,
-  TEmailOtpAuthorization,
-> =
+export type PreparedStepUpAuth<TPasskeyAuthorization, TEmailOtpAuthorization> =
   | {
       method: 'warm_session';
       authorization: StepUpWarmSessionAuthorization;
@@ -133,12 +132,7 @@ export async function requireStepUpAuth<
   TPasskeyAuthorization,
   TEmailOtpAuthorization,
 >(
-  args: RequireStepUpAuthRequest<
-    TLane,
-    TOperation,
-    TPasskeyAuthorization,
-    TEmailOtpAuthorization
-  >,
+  args: RequireStepUpAuthRequest<TLane, TOperation, TPasskeyAuthorization, TEmailOtpAuthorization>,
 ): Promise<StepUpAuthorizationResult<TPasskeyAuthorization, TEmailOtpAuthorization>> {
   const prepared = await prepareStepUpAuth({
     operation: args.operation,

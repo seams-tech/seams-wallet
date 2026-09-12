@@ -6,7 +6,6 @@ import {
   type OwnerLaneScopeStores,
 } from '@/core/signingEngine/session/identity/ownerLaneScope';
 import { IndexedDbEcdsaCapabilityManifestStore } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
-import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import {
   createRelayerExactWalletSessionStatusPort,
@@ -80,11 +79,7 @@ import type {
   ThresholdEcdsaChainTarget,
   WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import {
-  SIGNER_AUTH_METHODS,
-  WALLET_AUTH_METHODS,
-  type SignerAuthMethod,
-} from '@shared/utils/signerDomain';
+import { WALLET_AUTH_METHODS, type SignerAuthMethod } from '@shared/utils/signerDomain';
 import {
   walletAuthAuthorityRef,
   type WalletAuthAuthority,
@@ -97,7 +92,6 @@ import {
 } from '@shared/utils/domainIds';
 import type { EmailOtpTransactionSigningChallenge } from '@/core/signingEngine/session/emailOtp/publicTypes';
 import type { RestorePersistedSessionForSigningInput } from '@/core/signingEngine/session/sealedRecovery/sealedRecovery.types';
-import { __isWalletIframeHostMode } from '@/core/browser/walletIframe/host-mode';
 import { readOwnerWalletExecutionLaneProjectionV1 } from '@/core/rpcClients/relayer/ownerWalletExecutionLanePreflight';
 import { hydrateWalletExecutionLane } from '@/core/signingEngine/session/lanes/walletExecutionLaneHydration';
 import type { EcdsaCapabilityManifestLookup } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
@@ -141,7 +135,7 @@ type BrowserSelectedWalletAuthorityResolution = Awaited<
 type BrowserEcdsaWalletSessionAuthorizationInput = Pick<
   Parameters<
     Parameters<typeof createSigningEnginePorts>[0]['resolveAuthorizedEcdsaSigningCapability']
->[0],
+  >[0],
   'walletId' | 'chainTarget' | 'materialActivation'
 >;
 
@@ -345,10 +339,9 @@ async function resolveBrowserSelectedPasskeyFactorAuthorityForSealedRuntime(args
   return factorAuthorityRef;
 }
 
-type BrowserNearEd25519PasskeyMaterialAuthorizationRead = Extract<
-  NearEd25519WalletSessionAuthorizationReadResult,
-  { readonly kind: 'found' }
-> | { readonly kind: 'exhausted'; readonly authorization?: never };
+type BrowserNearEd25519PasskeyMaterialAuthorizationRead =
+  | Extract<NearEd25519WalletSessionAuthorizationReadResult, { readonly kind: 'found' }>
+  | { readonly kind: 'exhausted'; readonly authorization?: never };
 
 export async function resolveBrowserNearEd25519PasskeyAuthorityForMaterial(args: {
   readonly walletId: ReturnType<typeof toWalletId>;
@@ -364,8 +357,7 @@ export async function resolveBrowserNearEd25519PasskeyAuthorityForMaterial(args:
         authorization.selectedAuthMethod.kind !== WALLET_AUTH_METHODS.passkey ||
         args.runtime.factor.kind !== WALLET_AUTH_METHODS.passkey ||
         String(args.runtime.factor.rpId) !== String(authorization.selectedAuthMethod.rpId) ||
-        args.runtime.factor.credentialIdB64u !==
-          authorization.selectedAuthMethod.credentialIdB64u
+        args.runtime.factor.credentialIdB64u !== authorization.selectedAuthMethod.credentialIdB64u
       ) {
         throw new Error('[SigningEngine][near] exact Passkey authority changed');
       }
@@ -1089,8 +1081,7 @@ export async function listBrowserActiveEcdsaCapabilityManifestsForWallet(
 }
 
 export const browserActiveEcdsaCapabilityRuntimeReadPorts: ActiveEcdsaCapabilityRuntimeReadPorts = {
-  listActiveEcdsaCapabilityManifestsForWallet:
-    listBrowserActiveEcdsaCapabilityManifestsForWallet,
+  listActiveEcdsaCapabilityManifestsForWallet: listBrowserActiveEcdsaCapabilityManifestsForWallet,
   listExactSealedSessionsForWallet,
   resolveSelectedWalletAuthority:
     IndexedDBManager.resolveSelectedWalletAuthority.bind(IndexedDBManager),
@@ -1100,9 +1091,7 @@ export const resolveBrowserActiveEcdsaCapabilityRuntime =
   createActiveEcdsaCapabilityRuntimeResolver(browserActiveEcdsaCapabilityRuntimeReadPorts);
 
 export const resolveBrowserActiveEcdsaCapabilityRuntimeForChain =
-  createActiveEcdsaCapabilityRuntimeForChainResolver(
-    browserActiveEcdsaCapabilityRuntimeReadPorts,
-  );
+  createActiveEcdsaCapabilityRuntimeForChainResolver(browserActiveEcdsaCapabilityRuntimeReadPorts);
 
 async function requestEmailOtpEcdsaStepUpChallenge(args: {
   coordinator: EmailOtpWalletSessionCoordinator;

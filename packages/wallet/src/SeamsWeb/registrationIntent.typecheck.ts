@@ -15,16 +15,6 @@ import {
   parseWebAuthnRpId,
 } from '@shared/utils/domainIds';
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
-
-const materialActivation = {
-  kind: 'mpc_material_activation_ref' as const,
-  activation_id: 'registration-activation-1',
-  capability: 'registration-capability-1',
-  material_owner: 'wallet_alice',
-  key_binding: 'near-key-1',
-  lifecycle_binding: 'registration-lifecycle',
-  signing_worker: 'signing-worker-1',
-};
 import type {
   FinalizeWalletAddSignerArgs,
   WalletAddSignerFinalizeResponse,
@@ -36,6 +26,16 @@ import type {
   RegistrationSignerRequest as PublicRegistrationSignerRequest,
   RegistrationSignerSetSelection as PublicRegistrationSignerSetSelection,
 } from '../index';
+
+const materialActivation = {
+  kind: 'mpc_material_activation_ref' as const,
+  activation_id: 'registration-activation-1',
+  capability: 'registration-capability-1',
+  material_owner: 'wallet_alice',
+  key_binding: 'near-key-1',
+  lifecycle_binding: 'registration-lifecycle',
+  signing_worker: 'signing-worker-1',
+};
 
 function unwrapDomainId<T>(result: { ok: true; value: T } | { ok: false }): T {
   if (!result.ok) throw new Error('invalid type fixture domain id');

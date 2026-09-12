@@ -113,12 +113,7 @@ export type CurrentEd25519RestoreMetadata =
 
 export type CurrentEd25519SealedSessionRecord = Omit<
   Extract<SigningSessionSealedStoreRecord, { curve: 'ed25519' }>,
-  | 'curve'
-  | 'thresholdSessionIds'
-  | 'walletId'
-  | 'relayerUrl'
-  | 'ed25519Restore'
-  | 'ecdsaRestore'
+  'curve' | 'thresholdSessionIds' | 'walletId' | 'relayerUrl' | 'ed25519Restore' | 'ecdsaRestore'
 > & {
   curve: 'ed25519';
   thresholdSessionIds: Ed25519SealedRecordThresholdSessionIds;
@@ -1184,10 +1179,7 @@ async function classifyPersistedSealedRecord(
   }
   const raw = asRawSealedSessionRecord(payload);
   const rawRow = asRawSealedSessionRecord(entry.value);
-  if (
-    hasRetiredAuthorizationIdentityField(rawRow) ||
-    hasRetiredAuthorizationIdentityField(raw)
-  ) {
+  if (hasRetiredAuthorizationIdentityField(rawRow) || hasRetiredAuthorizationIdentityField(raw)) {
     return classifyNonCurrentRecord('delete_required', raw, 'invalid_identity');
   }
   const persistedStoreKey = normalizeOptionalNonEmptyString(raw?.storeKey);
@@ -1202,9 +1194,7 @@ function normalizeEcdsaInactiveMaterialPublicRestore(
 ): EcdsaInactiveMaterialPublicRestore | null {
   const obj = asRawSealedSessionRecord(value);
   if (!obj) return null;
-  if (
-    obj.clientVerifyingShareB64u != null
-  ) {
+  if (obj.clientVerifyingShareB64u != null) {
     return null;
   }
   let chainTarget: ThresholdEcdsaChainTarget;
@@ -2216,8 +2206,10 @@ export async function deleteDurableSealedSessionRecord(
     return;
   }
   const filter = exactSealedSessionFilterForIdentity(command.durableRecord);
-  const existingRecord =
-    await readExactSealedSessionOrNull(command.durableRecord.thresholdSessionId, filter);
+  const existingRecord = await readExactSealedSessionOrNull(
+    command.durableRecord.thresholdSessionId,
+    filter,
+  );
   if (
     command.preserveResolvedIdentity &&
     command.durableRecord.curve === 'ecdsa' &&

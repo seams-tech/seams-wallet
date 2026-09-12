@@ -10,10 +10,7 @@ import {
   type WalletId,
 } from '@shared/utils/domainIds';
 import { base64UrlDecode } from '@shared/utils/base64';
-import {
-  routerAbMpcMaterialActivationRefFromWire,
-  sameRouterAbMpcMaterialActivationRef,
-} from '@shared/utils/routerAbNormalSigningIdentity';
+import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import {
   sameRouterAbEcdsaDerivationNormalSigningScopeV1,
   type RouterAbEcdsaDerivationNormalSigningStateV1,
@@ -33,7 +30,6 @@ import {
   type ActiveEcdsaWalletAuthorityV1,
   type WalletEcdsaSignerActivationV1,
 } from '@shared/authorization/walletAuthority';
-import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 import type {
   WalletAuthorityLinkedSignerMaterialRecordV1,
   WalletAuthoritySignerMaterialRecordV1,

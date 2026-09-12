@@ -16,10 +16,7 @@ import {
   buildFreshStepUpRequired,
   type FreshStepUpRequired,
 } from '../operationState/stepUpFreshness';
-import {
-  SigningOperationIntent,
-  SigningSessionIds,
-} from '../operationState/types';
+import { SigningSessionIds } from '../operationState/types';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 
 const walletId = toWalletId('wallet.testnet');

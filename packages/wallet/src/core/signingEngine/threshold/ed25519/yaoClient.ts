@@ -32,10 +32,7 @@ import {
   type RouterAbEd25519YaoExportExecuteRequestV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
-import {
-  parseMpcMaterialActivationRef,
-  type MpcMaterialActivationRef,
-} from '@shared/utils/domainIds';
+import { type MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import { sameRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
 import { redactCredentialExtensionOutputs } from '@/core/signingEngine/webauthnAuth/credentials/credentialExtensions';
 import {

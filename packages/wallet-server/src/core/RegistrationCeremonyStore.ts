@@ -58,24 +58,15 @@ import {
   type WalletAuthorityId,
 } from '@shared/utils/domainIds';
 import { parseDeviceId, type DeviceId } from '@shared/authorization/capabilityKinds';
-import {
-  parseWebAuthnAuthenticatorDeviceInfo,
-} from '@shared/utils/webauthnDeviceInfo';
+import { parseWebAuthnAuthenticatorDeviceInfo } from '@shared/utils/webauthnDeviceInfo';
 import type { NormalizedLogger } from './logger';
 import { THRESHOLD_DO_OBJECT_NAME_DEFAULT } from './defaultConfigsServer';
-import { base64UrlDecode } from '@shared/utils/encoders';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   derivationClientSharePublicKey33B64uFromString,
   ecdsaClientRootPublicKey33B64uFromString,
 } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
-import {
-  parseEcdsaDerivationPublicIdentity,
-  parseThresholdEd25519AuthorityScope,
-  thresholdEd25519AuthorityScopeFromWalletAuthAuthority,
-  thresholdEd25519AuthorityScopesMatch,
-} from './ThresholdService/validation';
-import { parseWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
+import { parseEcdsaDerivationPublicIdentity } from './ThresholdService/validation';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import {
   thresholdEcdsaChainTargetFromValue,
@@ -618,9 +609,7 @@ export function parseTerminalRegistrationCeremonyCancellationResult(
   } = parsed;
   switch (record.kind) {
     case 'cancelled':
-      return record.ceremonyDeleted === true
-        ? { kind: 'cancelled', ceremonyDeleted: true }
-        : null;
+      return record.ceremonyDeleted === true ? { kind: 'cancelled', ceremonyDeleted: true } : null;
     case 'not_found':
       return record.ceremonyDeleted === false
         ? { kind: 'not_found', ceremonyDeleted: false }
@@ -1404,10 +1393,7 @@ function parseStoredWalletAddSignerFinalizeSuccess(
   const walletId = parseWalletId(record.walletId);
   if (!walletId.ok) return null;
   if (record.kind === 'near_ed25519') {
-    if (
-      !trimString(record.rpId) ||
-      !trimString(record.credentialIdB64u)
-    ) {
+    if (!trimString(record.rpId) || !trimString(record.credentialIdB64u)) {
       return null;
     }
     const ed25519 = parseStoredWalletAddSignerFinalizeEd25519Result(record.ed25519);
@@ -1531,8 +1517,7 @@ function parseStoredWalletAddSignerFinalizeRequest(
   ) {
     return null;
   }
-  const custodyKeySet: StoredWalletAddSignerFinalizeEcdsaCustodyKeySetRecord =
-    record.custodyKeySet;
+  const custodyKeySet: StoredWalletAddSignerFinalizeEcdsaCustodyKeySetRecord = record.custodyKeySet;
   if (!expectedKeyHandle || custodyKeySet.kind !== 'evm_family_ecdsa_v1') return null;
   let keyManifestDigestB64u: string;
   let clientRootPublicKey33B64u: ReturnType<typeof ecdsaClientRootPublicKey33B64uFromString>;
@@ -1712,11 +1697,7 @@ export function parseStoredWalletRegistrationPreparedContext(
   value: unknown,
 ): StoredWalletRegistrationPreparedContext | null {
   const decoded = parseJsonValue(value);
-  if (
-    decoded === null ||
-    typeof decoded !== 'object' ||
-    Array.isArray(decoded)
-  ) {
+  if (decoded === null || typeof decoded !== 'object' || Array.isArray(decoded)) {
     return null;
   }
   const record: StoredWalletRegistrationPreparedContextRecord = decoded;
@@ -1791,9 +1772,7 @@ function parseStoredWalletRegistrationEcdsaPreparedContext(
       return { kind: 'evm_family_ecdsa_requested', chainTargets };
     }
     case 'evm_family_ecdsa_absent':
-      return record.chainTargets !== undefined
-        ? null
-        : { kind: 'evm_family_ecdsa_absent' };
+      return record.chainTargets !== undefined ? null : { kind: 'evm_family_ecdsa_absent' };
     default:
       return null;
   }
@@ -2234,9 +2213,7 @@ function parseStoredRegistrationAuthority(value: unknown): StoredRegistrationAut
       if (proofKind === 'google_sso_registration') {
         const registrationAttemptId = trimString(record.googleEmailOtpRegistrationAttemptId);
         const registrationOfferId = trimString(record.googleEmailOtpRegistrationOfferId);
-        const registrationCandidateId = trimString(
-          record.googleEmailOtpRegistrationCandidateId,
-        );
+        const registrationCandidateId = trimString(record.googleEmailOtpRegistrationCandidateId);
         const registrationAuthorityId = trimString(record.registrationAuthorityId);
         if (
           !registrationAttemptId ||
@@ -2484,9 +2461,7 @@ function parseStoredRegistrationIntent(value: unknown): RegistrationIntentV1 | n
   const walletId = parseWalletId(record.walletId);
   const authMethod = normalizeRegistrationAuthMethodInput(record.authMethod);
   const signerPlan = parseStoredRegistrationSignerPlan(record.signerSelection);
-  const foundingWalletAuthMethodId = parseWalletAuthMethodId(
-    record.foundingWalletAuthMethodId,
-  );
+  const foundingWalletAuthMethodId = parseWalletAuthMethodId(record.foundingWalletAuthMethodId);
   const nonceB64u = trimString(record.nonceB64u);
   if (!walletId.ok || !authMethod || !signerPlan || !foundingWalletAuthMethodId.ok || !nonceB64u) {
     return null;
@@ -2551,9 +2526,7 @@ function parseStoredRegistrationEcdsaChainTargets(
   return first ? [first, ...chainTargets.slice(1)] : null;
 }
 
-function parseStoredRegistrationEcdsaParticipantPair(
-  value: unknown,
-): readonly [1, 2] | null {
+function parseStoredRegistrationEcdsaParticipantPair(value: unknown): readonly [1, 2] | null {
   if (!Array.isArray(value) || value.length !== 2 || value[0] !== 1 || value[1] !== 2) {
     return null;
   }
@@ -2770,9 +2743,7 @@ function parseStoredWalletRegistrationEcdsaBranchBase(
   }
   let strictRegistration: WalletRegistrationEcdsaStartPayload['strictRegistration'];
   try {
-    strictRegistration = parseRouterAbEcdsaRegistrationRequestFactsV1(
-      record.strictRegistration,
-    );
+    strictRegistration = parseRouterAbEcdsaRegistrationRequestFactsV1(record.strictRegistration);
   } catch {
     return null;
   }
@@ -2799,10 +2770,9 @@ function parseStoredWalletRegistrationSignerBranch(
       const admissionRequest = parseRouterAbEd25519YaoRegistrationAdmissionRequestV1(
         record.admissionRequest,
       );
-      const admissionReceipt =
-        parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1(
-          record.admissionReceipt,
-        );
+      const admissionReceipt = parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1(
+        record.admissionReceipt,
+      );
       return branchKey && admissionRequest.ok && admissionReceipt.ok
         ? {
             kind: 'near_ed25519_yao_authorized',
@@ -3044,7 +3014,9 @@ function parseStoredWalletRegistrationCeremony(
   const expiresAtMs = Number(record.expiresAtMs);
   const authorityState = parseStoredWalletRegistrationCeremonyAuthorityState(record.authorityState);
   const signerState = parseStoredWalletRegistrationSignerState(record.signerState);
-  const intentSignerPlan = intent ? parseStoredRegistrationSignerPlan(intent.signerSelection) : null;
+  const intentSignerPlan = intent
+    ? parseStoredRegistrationSignerPlan(intent.signerSelection)
+    : null;
   if (
     !registrationCeremonyId ||
     !authorityState ||
@@ -3139,9 +3111,7 @@ function parseStoredWalletAddSignerEcdsaStateBase(
   }
   let strictRegistration: StoredEcdsaAddSignerPrepared['strictRegistration'];
   try {
-    strictRegistration = parseRouterAbEcdsaRegistrationRequestFactsV1(
-      record.strictRegistration,
-    );
+    strictRegistration = parseRouterAbEcdsaRegistrationRequestFactsV1(record.strictRegistration);
   } catch {
     return null;
   }
@@ -3212,7 +3182,10 @@ function parseStoredWalletAddSignerSignerState(
         record.admissionRequest,
       );
       return admissionRequest.ok
-        ? { kind: 'near_ed25519_yao_add_signer_authorized', admissionRequest: admissionRequest.value }
+        ? {
+            kind: 'near_ed25519_yao_add_signer_authorized',
+            admissionRequest: admissionRequest.value,
+          }
         : null;
     }
     case 'near_ed25519_yao_add_signer_activated': {
@@ -3598,9 +3571,7 @@ function parseStoredWalletAddAuthMethodCeremony(
     record.passkeyRegistration;
   const rpId = parseWebAuthnRpId(passkeyRegistration.rpId);
   const challengeB64u = trimString(passkeyRegistration.challengeB64u);
-  const options = parseStoredWalletAddAuthMethodRegistrationOptions(
-    passkeyRegistration.options,
-  );
+  const options = parseStoredWalletAddAuthMethodRegistrationOptions(passkeyRegistration.options);
   if (
     !rpId.ok ||
     !challengeB64u ||
@@ -3627,7 +3598,7 @@ function parseStoredWalletAddAuthMethodCeremony(
     auth,
     passkeyRegistration: { rpId: rpId.value, challengeB64u, options },
     custodyEnvelope,
-      ...(trimString(record.expectedOrigin)
+    ...(trimString(record.expectedOrigin)
       ? { expectedOrigin: trimString(record.expectedOrigin) }
       : {}),
   };

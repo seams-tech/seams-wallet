@@ -7,11 +7,7 @@ import type {
   WalletId,
 } from '../signingEngine/interfaces/ecdsaChainTarget';
 import type { RpId } from '../signingEngine/session/identity/evmFamilyEcdsaIdentity';
-import type {
-  EcdsaThresholdKeyId,
-  SigningRootId,
-  SigningRootVersion,
-} from '../signingEngine/session/identity/emailOtpEcdsaDerivationIdentity';
+import type { EcdsaThresholdKeyId } from '../signingEngine/session/identity/emailOtpEcdsaDerivationIdentity';
 import type {
   DerivationClientSharePublicKey33B64u,
   EcdsaDerivationRelayerPublicKey33B64u,
@@ -44,7 +40,6 @@ import type {
   EcdsaGroupPublicKey33B64u,
   EcdsaRoleLocalAuthMethod,
   EcdsaRoleLocalPendingStateBlob,
-  EcdsaRoleLocalPublicFacts,
   EcdsaRoleLocalReadyRecord,
   EcdsaRoleLocalReadyStateBlob,
   LoadEcdsaRoleLocalReadyRecordInput,
@@ -53,11 +48,11 @@ import type {
   PersistEcdsaRoleLocalReadyRecordResult,
   RelayerKeyId,
 } from './ecdsaRoleLocalRecords';
-
-export type { CredentialIdB64u } from './ecdsaRoleLocalRecords';
 import type { EcdsaRoleLocalWorkerHandle } from '../signingEngine/session/keyMaterialBrands';
 import type { EcdsaBootstrapSecretSource } from './secretSources';
 import type { WalletAddAuthMethodRegistrationOptions } from '@shared/utils/addAuthMethodRegistration';
+
+export type { CredentialIdB64u } from './ecdsaRoleLocalRecords';
 
 export type SignerCryptoInvocationErrorCode =
   | 'unavailable'

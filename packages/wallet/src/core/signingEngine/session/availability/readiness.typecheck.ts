@@ -1,5 +1,4 @@
 import { toWalletId, type WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type { WalletSessionStatusOwner } from '../lifecycle/walletSessionStatus';
 import { SigningSessionIds } from '../operationState/types';
 import {
   clearWalletSession,

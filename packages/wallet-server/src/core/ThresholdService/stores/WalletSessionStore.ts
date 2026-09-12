@@ -24,7 +24,6 @@ import {
   createCloudflareDurableObjectThresholdEd25519Stores,
 } from './CloudflareDurableObjectStore';
 import { readNonDurableObjectThresholdStoreKind } from './StoreConfig';
-import { secureRandomIdFragment } from '../secureRandomId';
 import type { EcdsaKeyHandle } from '../../keyMaterialBrands';
 
 export type Ed25519WalletSessionRecord = {

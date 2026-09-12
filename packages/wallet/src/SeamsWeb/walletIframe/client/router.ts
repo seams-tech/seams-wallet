@@ -212,7 +212,7 @@ import type {
   HostedAuthMenuExternalAuthResolutionInput,
   HostedAuthMenuDemoEmailOtpDelivery,
 } from '../shared/messages';
-import { ActionArgs, TransactionInput, TxExecutionStatus } from '@/core/types';
+import { ActionArgs, TransactionInput } from '@/core/types';
 import type { DelegateActionInput } from '@/core/types/delegate';
 import { IframeTransport } from './transport/IframeTransport';
 import OverlayController, { type OverlayControllerState } from './overlay/overlay-controller';
@@ -2374,10 +2374,7 @@ export class WalletIframeRouter {
   }
 
   private async connectAndConfigure(): Promise<void> {
-    if (
-      this.opts.testOptions.autoMount !== false &&
-      (!this.state.ready || !this.state.port)
-    ) {
+    if (this.opts.testOptions.autoMount !== false && (!this.state.ready || !this.state.port)) {
       this.overlayState.controller.prepare();
       this.state.port = await this.transport.connect();
       const connectionId = walletIframeConnectionIdFromBoundary(
@@ -2398,8 +2395,7 @@ export class WalletIframeRouter {
         signingSessionDefaults: this.opts.signingSessionDefaults,
         signingSessionPersistenceMode: this.opts.signingSessionPersistenceMode,
         routerAb: this.opts.routerAb,
-        routerAbEcdsaDerivationPresignaturePool:
-          this.opts.routerAbEcdsaDerivationPresignaturePool,
+        routerAbEcdsaDerivationPresignaturePool: this.opts.routerAbEcdsaDerivationPresignaturePool,
         provisioningDefaults: this.opts.provisioningDefaults,
         iframeWallet: this.opts.rpIdOverride ? { rpIdOverride: this.opts.rpIdOverride } : undefined,
         authenticatorOptions: this.opts.authenticatorOptions,
@@ -2467,9 +2463,7 @@ export class WalletIframeRouter {
     source: HostedWalletSeamsSessionSource,
   ): Promise<void> {
     const relayUrl = canonicalHostedWalletRelayUrl(source.relayUrl);
-    const operationCredential = parseWalletSessionOperationCredentialV1(
-      source.operationCredential,
-    );
+    const operationCredential = parseWalletSessionOperationCredentialV1(source.operationCredential);
     const appOrigin = window.location.origin;
     const walletOrigin = this.walletOriginOrigin;
     const response = await fetch(joinNormalizedUrl(relayUrl, '/wallet/session/exchange/issue'), {

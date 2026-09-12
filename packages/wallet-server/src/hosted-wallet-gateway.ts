@@ -37,9 +37,7 @@ import { RouterAbEcdsaPresignRuntime } from './cloud-host';
 import type { SigningSessionSealRoutesOptions } from './cloud-host';
 import type {
   CfExecutionContext,
-  CfScheduledEvent,
   FetchHandler,
-  ScheduledHandler,
 } from './cloud-host';
 import {
   createRouterAbEd25519YaoHttpRegistrationBackendFromEnv,
@@ -65,7 +63,6 @@ import {
   requireEnvironmentString as requireEnvString,
 } from './cloud-host';
 import { createEd25519SessionAdapter } from './cloud-host';
-import { runRouterAbPrewarmScheduledV1 } from './cloud-host';
 import {
   parseRouterAbPublicKeysetV2,
   type RouterAbPublicKeysetV2,

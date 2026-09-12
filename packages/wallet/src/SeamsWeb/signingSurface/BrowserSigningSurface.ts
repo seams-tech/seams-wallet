@@ -20,7 +20,6 @@ import type {
   WalletAuthenticationState,
 } from '@/core/types/seams';
 import { WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
-import { joinNormalizedUrl } from '@shared/utils/normalize';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
 import { type WalletEmailOtpChannel } from '@shared/utils/emailOtpDomain';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
@@ -42,7 +41,6 @@ import type {
   NearPasskeyEd25519OperationStepUpCapabilityPreparation,
 } from '@/core/signingEngine/interfaces/near';
 import type {
-  NearEd25519MaterialBoundaryInput,
   NearEd25519MaterialIdentity,
   NearSigningApiDeps,
 } from '@/core/signingEngine/interfaces/operationDeps';
@@ -58,7 +56,6 @@ import type { ThresholdEcdsaSessionBootstrapResult } from '@/core/signingEngine/
 import type {
   RouterAbEcdsaCredentialFreeSessionActivationResponseV1,
   RouterAbEcdsaPostRegistrationSessionActivationPolicyV1,
-  RouterAbEcdsaPostRegistrationSessionActivationResponseV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { SignerWorkerManager } from '@/core/signingEngine/workerManager/SignerWorkerManager';
 import {
@@ -86,7 +83,6 @@ import {
   deleteWalletCustodyEd25519MaterialV1,
   loadWalletCustodyEd25519MaterialV1,
   persistWalletCustodyEd25519MaterialV1,
-  WALLET_CUSTODY_ED25519_MATERIAL_KEY_KIND,
   type LoadedWalletCustodyEd25519MaterialV1,
   type WalletCustodyEd25519MaterialBindingV1,
   type WalletCustodySealedEd25519MaterialV1,
@@ -100,7 +96,6 @@ import type {
 } from './ports';
 import { RouterAbEd25519YaoHttpActivationTransportV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import {
-  deriveRouterAbEd25519YaoApplicationBindingDigestV1,
   ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1,
   ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,
@@ -166,17 +161,14 @@ import {
 } from '@/core/signingEngine/flows/signNear/signNear';
 import {
   isConcreteAvailableSigningLane,
-  type AvailableEcdsaSigningLane,
   type AvailableEd25519SigningLane,
   type ConcreteAvailableEd25519SigningLane,
-  type ConcreteAvailableEcdsaSigningLane,
 } from '@/core/signingEngine/session/availability/availableSigningLanes';
 import { resolvePasskeyEd25519YaoExportContextV1 } from '@/core/signingEngine/session/passkey/ed25519YaoWarmRecovery';
 import type {
   PasskeyEd25519RecordRuntimePorts,
   PasskeyEd25519YaoExportContextResolutionV1,
   PasskeyEd25519YaoExportMaterialV1,
-  PasskeyEd25519WarmRecoverySubject,
 } from '@/core/signingEngine/session/passkey/ed25519YaoWarmRecovery';
 import {
   nearEd25519YaoOperationMaterialFacts,
@@ -199,7 +191,6 @@ import {
 } from '@/core/signingEngine/session/passkey/ed25519YaoSealedSession';
 import { readEmailOtpProviderSubjectForWalletV1 } from '@/core/signingEngine/threshold/ed25519/yaoPublicCapabilityReferences';
 import {
-  buildActiveNearEd25519WalletSessionAuthorization,
   buildAuthorizationRequiredNearEd25519YaoSigningPreparation,
   buildAuthorizedNearEd25519YaoSigningPreparation,
   nearEd25519SessionMatchesMaterialActivation,
@@ -230,24 +221,16 @@ import {
   type ActiveWalletExecutionLaneHydration,
 } from '@/core/signingEngine/session/lanes/walletExecutionLaneHydration';
 import { IndexedDBManager, walletSessionAuthorizations } from '@/core/indexedDB';
-import type {
-  LocalWalletAuthMethodRecord,
-  WalletAuthoritySignerMaterialRecordV1,
-} from '@/core/indexedDB/passkeyClientDB.types';
+import type { WalletAuthoritySignerMaterialRecordV1 } from '@/core/indexedDB/passkeyClientDB.types';
 import type { ResolveSelectedWalletAuthorityResultV1 } from '@/core/indexedDB/seamsWalletDB/repositories';
-import type {
-  ClientUserData,
-  ThresholdEd25519KeyMaterial,
-} from '@/core/accountData/near/nearAccountData.types';
+import type { ThresholdEd25519KeyMaterial } from '@/core/accountData/near/nearAccountData.types';
 import {
   storeNearThresholdKeyMaterial,
   type StoreNearThresholdKeyMaterialInput,
 } from '@/core/accountData/near/keyMaterial';
-import { parseWebAuthnRpId } from '@shared/utils/domainIds';
-import type { WalletAuthMethodId, WalletAuthorityId } from '@shared/utils/domainIds';
+import type { WalletAuthMethodId } from '@shared/utils/domainIds';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
-  buildEmailOtpWalletAuthAuthority,
   isEmailOtpWalletAuthAuthority,
   parseWalletAuthAuthorityRef,
   walletAuthAuthorityRef,
@@ -263,28 +246,21 @@ import {
   persistVerifiedEmailOtpAuthorityAfterUnlock,
   walletAuthAuthorityRefForVerifiedEmailOtpUnlock,
 } from '@/SeamsWeb/operations/authMethods/emailOtp/walletActivation';
-import { resolveManagedRuntimeScopeBootstrap } from '@/core/config/managedRuntimeScope';
 import {
   parseWalletSessionAuthorizationId,
   parseWalletSessionMintId,
 } from '@shared/authorization/capabilityKinds';
-import {
-  NEAR_ED25519_YAO_KEY_VERSION_V1,
-  walletAuthMethodRecordId,
-} from '@shared/utils/registrationIntent';
+import { NEAR_ED25519_YAO_KEY_VERSION_V1 } from '@shared/utils/registrationIntent';
 import {
   mpcMaterialActivationRefsEqual,
-  parseProviderSubject,
   parseThresholdEd25519SessionId,
   parseWalletId,
   type MpcMaterialActivationRef,
-  type ProviderSubject,
   type ThresholdEd25519SessionId,
 } from '@shared/utils/domainIds';
 import { sha256HexUtf8 } from '@shared/utils/digests';
 import { signingRootScopeFromRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import { materialActivationKey } from '@/core/signingEngine/session/sealedRecovery/materialActivationKey';
-import { isPlainObject } from '@shared/utils/validation';
 import { WalletSessionAuthorizationUpgradeRequiredError } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import { createRelayerExactWalletSessionStatusPort } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import {
@@ -389,12 +365,10 @@ import type { RouterAbOwnerNormalSigningCredential } from '@/core/rpcClients/rel
 import {
   listExactSealedSessionsForWallet,
   readExactEd25519SealedSession,
-  readExactSealedSession,
   type CurrentSealedSessionRecord,
 } from '@/core/signingEngine/session/persistence/sealedSessionStore';
 import { ed25519DurableMaterialLocator } from '@/core/signingEngine/session/sealedRecovery/materialActivationKey';
 import { parseSigningSessionSealKeyVersion } from '@/core/signingEngine/session/keyMaterialBrands';
-import { normalizeThresholdRuntimePolicyScope } from '@/core/signingEngine/threshold/sessionPolicy';
 import {
   DEFAULT_THRESHOLD_SESSION_POLICY,
   DEFAULT_UNLOCK_REMAINING_USES,
@@ -437,41 +411,17 @@ import type {
 import { createBrowserRecoveryPublicDeps } from '../assembly/createBrowserRecoveryPublicDeps';
 import { createBrowserStepUpRuntime } from '../assembly/createBrowserStepUpRuntime';
 import { createBrowserWarmSessionPublicDeps } from '../assembly/createBrowserWarmSessionPublicDeps';
-import type { LaneSealedHolderMaterialRepositoryV1 } from '@/core/indexedDB/seamsWalletDB/laneHolderMaterialStore';
-import type {
-  EcdsaLaneProtocolWasmV1,
-  Ed25519YaoLaneJobV1,
-  WasmEd25519YaoLaneClientV1,
-} from '@shared/signing-lanes/rotation';
-import {
-  assertEd25519YaoLaneCeremonyBindingParityV1,
-  createEd25519YaoLaneDerivationWorkerWasmV1,
-  openEd25519YaoLaneWorkerSourceV1,
-  openEd25519YaoLaneWorkerSourceFromUnlockedCapabilityV1,
-  type Ed25519YaoLaneWorkerSourceV1,
-} from '@/core/signingEngine/threshold/crypto/ed25519YaoLaneWasm';
-import { createEcdsaLaneDerivationWorkerWasmV1 } from '@/core/signingEngine/threshold/crypto/ecdsaLaneWasm';
+import type { WasmEd25519YaoLaneClientV1 } from '@shared/signing-lanes/rotation';
 import { reconcileCanonicalEcdsaActivationWasm } from '@/core/signingEngine/threshold/crypto/ecdsaDerivationClientWasm';
-import type {
-  RouterAbEd25519YaoApplicationBindingFactsV1,
-  RouterAbEd25519YaoCeremonyBindingV1,
-  RouterAbEd25519YaoActivationKeysetV1,
-} from '@shared/utils/routerAbEd25519Yao';
 import {
   configurePasskeyCustodySessionCachePersistence,
   readPasskeyCustodySessionEnvelope,
   type PasskeyCustodySessionCachePersistencePort,
 } from '@/core/signingEngine/session/passkey/passkeyCustodySessionCache';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
-import { joinCustodyWireFromEnvelopeRecord } from '@/core/signingEngine/walletCustody/joinCustodyWire';
-import {
-  deriveEvmFamilySigningKeySlotId,
-  toRpId,
-} from '@/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
 import {
   isWalletCustodySeedBinding,
   type PasskeyCustodyEnvelopeRecord,
-  type WalletCustodyEvmFamilyPublicFacts,
 } from '@shared/passkey-custody';
 import {
   requestWalletCustodyCeremonyOperation,
@@ -481,7 +431,6 @@ import type { UnlockedWalletEd25519ExportRootCapabilityDestroyScopeV1 } from '@/
 import {
   destroyUnlockedWalletEd25519ExportRootCapabilitiesV1 as destroyUnlockedExportRootCapabilitiesWithWorkerV1,
   establishUnlockedWalletEd25519ExportRootCapabilityV1 as establishUnlockedExportRootCapabilityWithWorkerV1,
-  readUnlockedWalletEd25519ExportRootCapabilityV1,
   setUnlockedCustodyEnvelopeUpgradeSinkV1,
 } from '@/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability';
 import { upgradeWalletCustodyEnvelopeOwnership } from '@/core/rpcClients/relayer/passkeyCustodyEnvelope';

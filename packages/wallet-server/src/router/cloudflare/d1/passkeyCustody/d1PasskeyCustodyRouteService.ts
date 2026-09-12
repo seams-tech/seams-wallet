@@ -28,7 +28,6 @@ import {
   parseWalletAuthorityId,
   parseWalletAuthorityBindingDigest,
   parseWalletId,
-  parseWebAuthnCredentialIdB64u,
   parseWebAuthnRpId,
   parseWalletRecoveryOperationId,
   parseEmailOtpProviderUserId,
@@ -60,7 +59,6 @@ import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
 import {
   buildWebAuthnRecoveryContinuityAnchorRecord,
   type WebAuthnRecoveryRegistrationChallengeRecord,
-  type WebAuthnRecoveryContinuityAnchorRecord,
 } from '../webauthn/d1WebAuthnRecords';
 import type {
   CloudflareD1WalletRecoveryGoogleEmailOtpService,
@@ -106,7 +104,6 @@ import {
   projectWalletUnlockKeyManifestV1,
   projectWalletRecoveryPreparationKeyManifestV1,
   resolveWalletRecoveryKeyManifestV1,
-  verifyWalletRecoveryKeyActivationsV1,
   buildWalletRecoveryEcdsaPossessionChallengesV1,
   type PreparedEd25519RecoveryAdmissionV1,
   type WalletUnlockKeyManifestV1,

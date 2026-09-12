@@ -1,19 +1,11 @@
 import type { StepUpMethodRunners } from './methodRunners';
-import type {
-  StepUpMethod,
-  StepUpPolicy,
-  StepUpWarmSessionAuthorization,
-} from './types';
+import type { StepUpMethod, StepUpPolicy, StepUpWarmSessionAuthorization } from './types';
 
 export class StepUpMethodSelectionError extends Error {
   readonly code: 'missing_step_up_runner' | 'unsupported_step_up_method';
   readonly method: StepUpMethod;
 
-  constructor(
-    code: StepUpMethodSelectionError['code'],
-    method: StepUpMethod,
-    message: string,
-  ) {
+  constructor(code: StepUpMethodSelectionError['code'], method: StepUpMethod, message: string) {
     super(message);
     this.name = 'StepUpMethodSelectionError';
     this.code = code;
@@ -50,7 +42,12 @@ export type EmailOtpStepUpRoute<
 > = {
   method: 'email_otp';
   runner: NonNullable<
-    StepUpMethodRunners<TLane, TOperation, TPasskeyAuthorization, TEmailOtpAuthorization>['emailOtp']
+    StepUpMethodRunners<
+      TLane,
+      TOperation,
+      TPasskeyAuthorization,
+      TEmailOtpAuthorization
+    >['emailOtp']
   >;
 };
 

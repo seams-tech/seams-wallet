@@ -8,7 +8,6 @@ import {
   type AuthorizeKeyExportPayload,
   type LocalOnlyExportSubject,
   type ShowSecurePrivateKeyUiPayload,
-  type ExportPrivateKeyDisplayEntry,
   type SerializableCredential,
 } from '@/core/signingEngine/stepUpConfirmation/channel/confirmTypes';
 import type { UserConfirmSecurityContext } from '@/core/types';

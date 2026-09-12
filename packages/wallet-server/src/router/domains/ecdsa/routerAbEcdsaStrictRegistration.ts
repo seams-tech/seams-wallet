@@ -1,6 +1,4 @@
 import {
-  parseRouterAbEcdsaDerivationActivationCommitQueryResultV1,
-  parseRouterAbEcdsaDerivationActivationPrepareResultV1,
   parseRouterAbEcdsaDerivationExplicitExportRequestV1,
   projectRouterAbEcdsaDerivationExplicitExportRequestToProtocolV1,
   parseRouterAbEcdsaExplicitExportProtocolForwardedResponseV1,

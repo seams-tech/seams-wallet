@@ -1,7 +1,6 @@
 import type {
   RouterAbEd25519YaoAdmittedLifecycleV1,
   RouterAbEd25519YaoCeremonyBindingV1 as GeneratedRouterAbEd25519YaoCeremonyBindingV1,
-  RouterAbEd25519YaoCeremonyIdentityV1,
   RouterAbEd25519YaoInputPairBindingV1,
   RouterAbEd25519YaoOperationV1,
   RouterAbEd25519YaoPrimitiveRequestKindV1,

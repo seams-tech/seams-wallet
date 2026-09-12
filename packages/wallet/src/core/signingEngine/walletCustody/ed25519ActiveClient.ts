@@ -52,10 +52,7 @@ function activeHandle(lifecycle: ActiveClientLifecycle): string {
   throw new Error('Wallet custody Ed25519 active client is disposed');
 }
 
-function scheduleDisposal(args: {
-  workerContext: WorkerOperationContext;
-  handle: string;
-}): void {
+function scheduleDisposal(args: { workerContext: WorkerOperationContext; handle: string }): void {
   void args.workerContext
     .requestWorkerOperation({
       kind: 'emailOtp',

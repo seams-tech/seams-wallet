@@ -12,7 +12,6 @@ import type { WasmSignedDelegate } from './signer-worker';
 import type { EcdsaSignerProvisioningDefaults } from './ecdsaSignerProvisioningDefaults';
 import type { SigningSessionSealProtocol } from '@shared/utils/signingSessionSeal';
 import type {
-  SensitiveOperationPolicy,
   SignerAuthMethod,
   SigningSessionPolicy,
   SigningSessionRetention,

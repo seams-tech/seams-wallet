@@ -1,35 +1,18 @@
-import {
-  parseAuthorizedOperationId,
-  type AuthorizedOperationId,
-} from '../authorization/capabilityKinds';
+import { parseAuthorizedOperationId } from '../authorization/capabilityKinds';
 import {
   parseEcdsaCapabilityManifestId,
   parseEcdsaCapabilityManifestRevision,
   parseEcdsaLifecycleId,
   parseEcdsaServerGeneration,
-  type EcdsaCapabilityManifestId,
-  type EcdsaCapabilityManifestRevision,
-  type EcdsaServerGeneration,
 } from '../utils/ecdsaCapabilityActivation';
 import {
   hasWhitespaceOrControlCharacters,
-  parseCapabilityInstanceRef,
-  parseLaneShareEpoch,
-  parseLinkedDeviceId,
-  parseMpcKeyBindingRef,
-  parseMpcLifecycleBindingRef,
   parseMpcMaterialActivationId,
   parseMpcMaterialActivationRef,
-  parseMpcMaterialOwnerRef,
-  parseMpcSigningWorkerRef,
-  parseSigningLaneId,
   parseThresholdEcdsaSessionId,
   parseWalletId,
-  parseWalletKeyId,
   type DomainIdParseResult,
   type MpcMaterialActivationRef,
-  type MpcMaterialActivationId,
-  type WalletId,
   type WalletKeyId,
 } from '../utils/domainIds';
 import {
@@ -47,10 +30,7 @@ import {
 } from '../passkey-custody/primitives';
 import { parseNearEd25519SigningKeyId } from '../utils/registrationIntent';
 import { parseSdkEcdsaDerivationThresholdKeyId } from '../threshold/ecdsaDerivationRoleLocalBootstrap';
-import {
-  parseEvmFamilySigningKeySlotId,
-  type EvmFamilySigningKeySlotId,
-} from './evmFamilySigningKeySlotId';
+import { parseEvmFamilySigningKeySlotId } from './evmFamilySigningKeySlotId';
 import {
   parseHpkePublicKeyB64u,
   parseLaneCustodyBindingDigestB64u,
@@ -62,12 +42,6 @@ import {
   parseSigningWorkerParticipantId,
   parseSigningWorkerRecipientKeyDigestB64u,
   parseSigningWorkerRecipientKeyId,
-  type HpkePublicKeyB64u,
-  type LaneHolderCustodyBindingId,
-  type LaneHolderParticipantId,
-  type LaneParticipantBindingDigestB64u,
-  type SigningWorkerParticipantId,
-  type SigningWorkerRecipientKeyId,
 } from './participants';
 import {
   parseLaneShareEpoch as parseLaneShareEpochFromIds,
@@ -79,7 +53,6 @@ import {
   parseEcdsaRelayerKeyId,
   parseSigningLaneId as parseSigningLaneIdFromIds,
   parseWalletKeyId as parseWalletKeyIdFromIds,
-  type EcdsaRelayerKeyId,
   type Ed25519YaoSuiteId,
   type LaneEnrollmentId,
   type LaneOperationId,

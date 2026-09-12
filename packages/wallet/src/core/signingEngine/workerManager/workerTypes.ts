@@ -23,7 +23,6 @@ import {
   type WasmFinalizeThresholdEcdsaDerivationRoleLocalClientBootstrapResult,
 } from '@/core/types/signer-worker';
 import type { MultichainWorkerKind } from '@/core/walletRuntimePaths/multichainWorkers';
-import type { ThresholdEcdsaSessionBootstrapResult } from '../threshold/ecdsa/activation';
 import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type {
   MpcMaterialActivationRef,
@@ -36,7 +35,6 @@ import type {
   WalletCustodyCeremonyCommitPayload,
   WalletCustodyEvmFamilyActivationCompletion,
   WalletCustodyEvmFamilyPublicFacts,
-  WalletCustodyKeySetKind,
 } from '@shared/passkey-custody';
 import type {
   EcdsaRoleLocalPersistedMaterialRef,
@@ -53,7 +51,6 @@ import type {
 import type { EmailOtpRoutePlan } from '../stepUpConfirmation/otpPrompt/authLane';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { EcdsaRoleLocalReadyStateBlob } from '@/core/platform';
-import type { EcdsaRoleLocalReadyRecord } from '@/core/platform/types';
 import type {
   CloseRouterAbEcdsaPostRegistrationCeremonyRequestV1,
   CloseRouterAbEcdsaPostRegistrationCeremonyResultV1,
@@ -99,13 +96,6 @@ import type {
   RouterAbEd25519YaoClientSigningInputV1,
   RouterAbEd25519YaoClientSigningShareV1,
 } from '../threshold/ed25519/yaoClient';
-
-export type EmailOtpAuthoritySelector =
-  | { readonly kind: 'wallet' }
-  | {
-      readonly kind: 'wallet_auth_method';
-      readonly walletAuthMethodId: string;
-    };
 import {
   ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1,
   type RouterAbEd25519YaoApplicationBindingFactsV1,
@@ -118,7 +108,6 @@ import type {
   Ed25519YaoLaneClientCompletionV1,
   Ed25519YaoLaneJobV1,
 } from '@shared/signing-lanes/rotation';
-import type { NearResolvedEd25519SigningSessionState } from '../interfaces/near';
 import type { ExactWalletSessionAuthorization } from '../session/persistence/walletSessionAuthorizationProjection';
 import type { WalletRegistrationEd25519YaoSignerRuntimeBootstrap } from '@/core/rpcClients/relayer/walletRegistration';
 import type { WebAuthnRegistrationCredential } from '@/core/types/webauthn';
@@ -126,7 +115,6 @@ import type { WalletRecoverySetRotationWorkerResultV1 } from '@shared/wallet-rec
 import type {
   RouterAbEcdsaCredentialFreeSessionActivationResponseV1,
   RouterAbEcdsaPostRegistrationSessionActivationPolicyV1,
-  RouterAbEcdsaPostRegistrationSessionActivationRequestV1,
   RouterAbEcdsaPostRegistrationSessionActivationResponseV1,
   RouterAbEcdsaDerivationPublicCapabilityV1,
   RouterAbEcdsaRegistrationActivationReceiptV1,
@@ -138,6 +126,13 @@ import type {
   ActiveWalletSessionV1,
   WalletSessionOperationCredentialV1,
 } from '@shared/device-linking';
+
+export type EmailOtpAuthoritySelector =
+  | { readonly kind: 'wallet' }
+  | {
+      readonly kind: 'wallet_auth_method';
+      readonly walletAuthMethodId: string;
+    };
 
 export type EmailOtpEd25519YaoRecoveryAugmentationV1 = {
   readonly kind: typeof ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1;

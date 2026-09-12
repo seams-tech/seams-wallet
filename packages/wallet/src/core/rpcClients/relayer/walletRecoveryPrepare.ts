@@ -136,9 +136,7 @@ function decodeExactJsonObject(raw: unknown, fields: readonly string[], label: s
 }
 
 function readJsonField(value: object, field: string): unknown {
-  return Object.prototype.hasOwnProperty.call(value, field)
-    ? Reflect.get(value, field)
-    : undefined;
+  return Object.prototype.hasOwnProperty.call(value, field) ? Reflect.get(value, field) : undefined;
 }
 
 function decodeJsonObjectOrNull(raw: unknown): object | null {

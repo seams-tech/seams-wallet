@@ -170,7 +170,9 @@ export class UnifiedIndexedDBManager {
     return this.seamsWalletRepositories.getAppState<T>(key);
   }
 
-  async listAppStateEntriesByPrefix(prefix: string): Promise<ReadonlyArray<{ key: string; value: unknown }>> {
+  async listAppStateEntriesByPrefix(
+    prefix: string,
+  ): Promise<ReadonlyArray<{ key: string; value: unknown }>> {
     return this.seamsWalletRepositories.listAppStateEntriesByPrefix(prefix);
   }
 

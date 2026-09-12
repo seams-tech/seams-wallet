@@ -49,7 +49,6 @@ import {
 } from '@shared/utils/routerAbEcdsaDerivation';
 import { THRESHOLD_DO_OBJECT_NAME_DEFAULT, THRESHOLD_PREFIX_DEFAULT } from './defaultConfigsServer';
 import { resolveD1DatabaseFromConfig } from '../storage/d1Sql';
-import type { D1DatabaseLike } from '../storage/tenantRoute';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { parseWalletId } from '@shared/utils/domainIds';
 import {

@@ -38,12 +38,6 @@ import type {
 } from '@/SeamsWeb/signingSurface/types';
 import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
 import {
-  CAPABILITY_KINDS,
-  EVM_ECDSA_MPC_OPERATION_KINDS,
-  NEAR_ED25519_MPC_OPERATION_KINDS,
-} from '@shared/authorization/capabilityKinds';
-import { requireBrowserCapabilityOperation } from '@/SeamsWeb/publicApi/capabilitySelection';
-import {
   createCurrentWalletResolver,
   type CurrentWalletResolver,
 } from '@/SeamsWeb/publicApi/currentWallet';

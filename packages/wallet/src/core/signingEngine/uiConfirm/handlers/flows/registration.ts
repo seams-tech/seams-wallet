@@ -11,11 +11,7 @@ import {
   isUserCancelledUserConfirm,
   ERROR_MESSAGES,
 } from '@/core/signingEngine/stepUpConfirmation/channel/confirmCommon';
-import {
-  getNearAccountId,
-  getWalletId,
-  getIntentDigest,
-} from './adapters/request';
+import { getNearAccountId, getWalletId, getIntentDigest } from './adapters/request';
 import {
   isSerializedRegistrationCredential,
   serializeRegistrationCredentialWithPRF,
@@ -171,14 +167,13 @@ export async function handleRegistrationFlow(
     const recoveryRegistration = request.payload.walletRecoveryRegistration;
     const addAuthMethodRegistration = request.payload.walletAddAuthMethodRegistration;
     const requestedChallenge = request.payload.webauthnChallenge;
-    const explicitChallengeB64u =
-      recoveryRegistration
-        ? recoveryRegistration.challengeB64u
-        : addAuthMethodRegistration
+    const explicitChallengeB64u = recoveryRegistration
+      ? recoveryRegistration.challengeB64u
+      : addAuthMethodRegistration
         ? addAuthMethodRegistration.challengeB64u
         : requestedChallenge?.kind === 'intent_digest'
-        ? String(requestedChallenge.challengeB64u || '').trim()
-        : '';
+          ? String(requestedChallenge.challengeB64u || '').trim()
+          : '';
 
     const computeBoundIntentDigestB64u = async (): Promise<string> => {
       if (explicitChallengeB64u) return explicitChallengeB64u;
@@ -263,17 +258,17 @@ export async function handleRegistrationFlow(
                 prompt,
               })
             : addAuthMethodRegistration
-            ? buildPasskeyRegistrationCredentialArgs({
-                walletId,
-                addAuthMethodRegistration,
-                prompt,
-              })
-            : buildPasskeyRegistrationCredentialArgs({
-                walletId,
-                challengeB64u,
-                signerSlot,
-                prompt,
-              }),
+              ? buildPasskeyRegistrationCredentialArgs({
+                  walletId,
+                  addAuthMethodRegistration,
+                  prompt,
+                })
+              : buildPasskeyRegistrationCredentialArgs({
+                  walletId,
+                  challengeB64u,
+                  signerSlot,
+                  prompt,
+                }),
         );
       } catch (e: unknown) {
         const err = toError(e);

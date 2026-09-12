@@ -1,9 +1,5 @@
 import type { WalletSessionRef } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
-import type {
-  ActiveWalletSessionV1,
-  WalletSessionOperationCredentialV1,
-} from '@shared/device-linking';
 import type { ExactWalletSessionAuthorization } from '../persistence/walletSessionAuthorizationProjection';
 import type {
   EmailOtpEd25519YaoRecoveryBootstrapV1,

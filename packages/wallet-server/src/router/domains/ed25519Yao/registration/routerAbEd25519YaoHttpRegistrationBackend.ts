@@ -5,7 +5,6 @@ import {
   parseRouterAbEd25519YaoExportResultV1,
   type RouterAbEd25519YaoActivationExecuteRequestV1,
   type RouterAbEd25519YaoActivationKeysetV1,
-  type RouterAbEd25519YaoExportBindingV1,
   type RouterAbEd25519YaoRecoveryActivationRequestV1,
   type RouterAbEd25519YaoRecoveryAdmissionRequestV1,
   type RouterAbEd25519YaoRegistrationAdmissionRequestV1,

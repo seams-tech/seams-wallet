@@ -4,7 +4,7 @@ import type {
   ThresholdEcdsaSigningRootMetadata,
   ThresholdStoreConfigInput,
 } from '../../types';
-import { RedisTcpClient, UpstashRedisRestClient, redisSetJson } from '../kv';
+import { RedisTcpClient, UpstashRedisRestClient } from '../kv';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import {
   isObject,

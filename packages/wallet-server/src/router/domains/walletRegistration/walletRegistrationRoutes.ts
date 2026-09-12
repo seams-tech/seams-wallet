@@ -18,7 +18,6 @@ import type {
   WebAuthnAuthenticationCredential,
   FundImplicitNearAccountRequest,
   FundImplicitNearAccountResult,
-  ThresholdEd25519AuthorityScope,
   WalletKeyFactsInventoryAuth,
 } from '../../../core/types';
 import type {
@@ -41,25 +40,20 @@ import type {
   WalletRevokeAuthMethodResponse,
   WalletAddAuthMethodStartRequest,
   WalletAddAuthMethodStartResponse,
-  WalletRegistrationEcdsaActivationRequest,
-  WalletRegistrationEcdsaActivationResponse,
   WalletRegistrationEcdsaFinalize,
   WalletRegistrationEd25519YaoActivationReference,
   WalletRegistrationFinalizeSignerWork,
-  WalletRegistrationFinalizeRouteResponse,
   WalletRegistrationFinalizeRouteSuccess,
   WalletRegistrationFinalizeSuccess,
   PasskeyWalletRegistrationFinalizeAuthMethod,
   EmailOtpWalletRegistrationFinalizeAuthMethod,
   WalletRegistrationEcdsaDerivationRespondRequest,
-  WalletRegistrationEcdsaDerivationRespondResponse,
 } from '../../../core/registrationContracts';
 import type { ThresholdEcdsaChainTarget } from '../../../core/thresholdEcdsaChainTarget';
 import {
   thresholdEcdsaChainTargetFromValue,
   thresholdEcdsaChainTargetKey,
 } from '../../../core/thresholdEcdsaChainTarget';
-import { findUnexpectedRouteKey } from '../../framework/routeRequestValidation';
 import {
   resolveActiveRuntimePolicyScopeForEnvironment,
   resolveWalletSessionAdministrationAdmission,
@@ -97,7 +91,6 @@ import { parsePasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
 import {
   parseRouterAbEcdsaRegistrationActivationRequestV1,
   parseRouterAbEcdsaRegistrationRequestV1,
-  parseRouterAbEcdsaVerifiedClientActivationFactsV1,
   type RouterAbPublicDigest32V1Wire,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { RouterAbPublicKeysetV2 } from '@shared/utils/routerAbPublicKeyset';
@@ -121,8 +114,6 @@ import {
   normalizeAddAuthMethodIntentCaller,
   addSignerIntentGrantFromString,
   computeAddSignerIntentDigestB64u,
-  findRegistrationSignerPlanEvmFamilyEcdsaBranch,
-  findRegistrationSignerPlanNearEd25519Branch,
   normalizeEmailOtpRegistrationProof,
   normalizeRegistrationAuthMethodInput,
   normalizeRegistrationSignerPlan,
@@ -145,7 +136,6 @@ import {
   normalizeRuntimePolicyScope,
   type RuntimePolicyScope,
 } from '@shared/threshold/signingRootScope';
-import { isEmailOtpWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import {
   parseRouterAbTraceContextV1,
   ROUTER_AB_TRACE_ID_HEADER_V1,

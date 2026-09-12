@@ -18,11 +18,8 @@ import type { EvmFamilyEcdsaKeyIdentity } from '../identity/evmFamilyEcdsaIdenti
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type { ExactEvmFamilyWalletSessionAuthorization } from '../material/ecdsaSigningCapability';
 import type {
-  SelectedEcdsaSigningSessionPlanningLane,
   SelectedSigningSessionPlanningLane,
   SigningSessionOrigin,
-  SigningSessionStorageSource,
-  ThresholdEcdsaSessionId,
   ThresholdEd25519SessionId,
 } from './types';
 import type {

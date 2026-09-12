@@ -15,11 +15,7 @@ import {
   type NonceLane,
   type NonceLease,
 } from './nonceTypes';
-import {
-  nonceLaneKey,
-  nonceLaneNetworkKey,
-  nonceLaneSubjectId,
-} from './nonceLaneKeys';
+import { nonceLaneKey, nonceLaneNetworkKey, nonceLaneSubjectId } from './nonceLaneKeys';
 import { isInFlightNonceLeaseState } from './nonceLeaseState';
 import { normalizeMetricReason } from './nonceUtils';
 import {
@@ -308,8 +304,7 @@ export function createNonceCoordinatorDiagnostics(input: {
     laneCount: lanes.size,
     metrics,
     coordinationWarnings: Array.from(input.observedCoordinationDegradations).filter(
-      (degradation) =>
-        !accountId || !degradation.accountId || degradation.accountId === accountId,
+      (degradation) => !accountId || !degradation.accountId || degradation.accountId === accountId,
     ),
     lanes: Array.from(lanes.values()).map((entry) => ({
       family: entry.lane.family,

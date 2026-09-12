@@ -41,7 +41,7 @@ export function bootstrapTransparentHost(): void {
       '*',
     );
     // Keep a console trace locally too
-    // eslint-disable-next-line no-console
+
     console.warn(
       '[WalletHost] iframe is running with opaque (null) origin. Check COEP/CORP headers and ensure navigation succeeded.',
     );
@@ -108,7 +108,6 @@ function setupDevUnupgradedObserver(): void {
       pending.delete(el);
       if (customElements.get(tag)) return; // defined in the meantime
       if (!customElements.get(tag)) {
-        // eslint-disable-next-line no-console
         console.warn(
           `[W3A][Dev] <${tag}> not upgraded after 250ms. Ensure a dynamic import runs before createElement. See LitComponents/README-lit-elements.md (Never Break Again).`,
         );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, isValidElement, cloneElement } from 'react';
+import React from 'react';
 import { createComponent } from '@lit/react';
 import PasskeyHaloLoadingElement from '../../core/signingEngine/uiConfirm/ui/lit-components/PasskeyHaloLoading';
 

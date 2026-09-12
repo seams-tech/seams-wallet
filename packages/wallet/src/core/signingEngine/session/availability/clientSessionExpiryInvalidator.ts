@@ -1,6 +1,4 @@
-import type {
-  ClearVolatileWarmSessionMaterialCommand,
-} from '../../uiConfirm/uiConfirm.types';
+import type { ClearVolatileWarmSessionMaterialCommand } from '../../uiConfirm/uiConfirm.types';
 import type { ExpiredWalletSessionAuthorizationState } from '../identity/clientSessionPersistenceState';
 import type { WalletSessionId } from '@shared/authorization/capabilityKinds';
 import { createClearVolatileWarmSessionMaterialCommand } from '../warmCapabilities/volatileWarmMaterialCommands';
@@ -48,9 +46,7 @@ export type ClientWalletSessionExpiryInvalidationResult =
       readonly event: null;
     };
 
-function walletSessionInvalidationKey(
-  state: ExpiredWalletSessionAuthorizationState,
-): string {
+function walletSessionInvalidationKey(state: ExpiredWalletSessionAuthorizationState): string {
   return `${String(state.walletId)}:wallet-session:${String(state.walletSessionId)}`;
 }
 

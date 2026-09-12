@@ -1,4 +1,7 @@
-import { parseLaneParticipantBindingDigestB64u, type SigningLaneReference } from '@shared/signing-lanes';
+import {
+  parseLaneParticipantBindingDigestB64u,
+  type SigningLaneReference,
+} from '@shared/signing-lanes';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { LaneShareEpoch, SigningLaneId, WalletKeyId } from '@shared/signing-lanes';
 

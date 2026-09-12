@@ -101,9 +101,7 @@ class LazyHostedRecoveryPort implements HostedRecoveryPort {
     return await (await this.port()).verifyEmailOtp(operation, input);
   }
 
-  async finalize(
-    operation: HostedRecoveryFinalizationOperation,
-  ): Promise<
+  async finalize(operation: HostedRecoveryFinalizationOperation): Promise<
     | {
         readonly kind: 'ready_for_sign_in';
         readonly walletId: HostedRecoveryCredentialCreated['walletId'];

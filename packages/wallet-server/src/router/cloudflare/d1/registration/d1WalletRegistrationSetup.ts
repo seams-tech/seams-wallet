@@ -56,13 +56,7 @@ import {
   mintSignedWalletRegistrationSetup,
   type WalletRegistrationSetupMinter,
 } from '../../../domains/walletRegistration/walletRegistrationSetupPayload';
-import type {
-  WalletRegistrationSetupRequest,
-  WalletRegistrationSetupInput,
-  WalletRegistrationRespondInput,
-  WalletRegistrationActivateInput,
-  WalletRegistrationNearProvisioningInput,
-} from '../../../domains/walletRegistration/walletRegistrationInputs';
+import type { WalletRegistrationSetupRequest } from '../../../domains/walletRegistration/walletRegistrationInputs';
 
 /** Setup's ceremony lives only as long as an authenticator prompt plausibly takes. */
 const WALLET_REGISTRATION_SETUP_TTL_MS = 10 * 60_000;

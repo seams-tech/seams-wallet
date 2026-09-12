@@ -1,4 +1,7 @@
-import type { EvmAbiParameter, EvmContractAbi } from '@/core/signingEngine/chains/evm/evmSigning.types';
+import type {
+  EvmAbiParameter,
+  EvmContractAbi,
+} from '@/core/signingEngine/chains/evm/evmSigning.types';
 import { bytesToHex, hexToBytes } from '@/core/signingEngine/chains/evm/bytes';
 import { keccak256Bytes } from '@shared/utils/keccak';
 import {
@@ -7,11 +10,7 @@ import {
   normalizeHexSelector,
 } from '@/core/signingEngine/chains/evm/display/normalization';
 
-type AbiDecodedValue =
-  | string
-  | boolean
-  | AbiDecodedValue[]
-  | { [key: string]: AbiDecodedValue };
+type AbiDecodedValue = string | boolean | AbiDecodedValue[] | { [key: string]: AbiDecodedValue };
 
 type AbiTypeNode =
   | {
@@ -239,14 +238,19 @@ function staticWordLength(typeNode: AbiTypeNode): number {
   if (typeNode.dynamic) return 1;
   if (typeNode.kind === 'scalar') return 1;
   if (typeNode.kind === 'tuple') {
-    return typeNode.components.reduce((sum, component) => sum + staticWordLength(component.typeNode), 0);
+    return typeNode.components.reduce(
+      (sum, component) => sum + staticWordLength(component.typeNode),
+      0,
+    );
   }
   if (typeNode.length == null) return 1;
   return typeNode.length * staticWordLength(typeNode.item);
 }
 
 function decodeScalar(typeName: string, bytes: Uint8Array, offset: number): AbiDecodedValue | null {
-  const normalizedType = String(typeName || '').trim().toLowerCase();
+  const normalizedType = String(typeName || '')
+    .trim()
+    .toLowerCase();
   if (!normalizedType) return null;
 
   if (normalizedType === 'bytes') {

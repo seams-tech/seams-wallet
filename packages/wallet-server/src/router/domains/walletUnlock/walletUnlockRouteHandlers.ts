@@ -46,7 +46,6 @@ import type {
   RouterApiWalletUnlockService,
   RouterApiPasskeyCustodyService,
   RouterApiAuthorizedOperationService,
-  WalletUnlockIssuanceRejectionCode,
 } from '../../framework/authServicePort';
 import { parseWalletUnlockBackend } from '../emailOtp/emailOtpRequestValidation';
 import {

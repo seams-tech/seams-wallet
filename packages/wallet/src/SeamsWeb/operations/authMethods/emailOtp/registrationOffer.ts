@@ -66,7 +66,10 @@ function parseOfferId(value: unknown): GoogleEmailOtpRegistrationOfferId {
   return requireString(value, 'offerId') as GoogleEmailOtpRegistrationOfferId;
 }
 
-function parseCandidateId(value: unknown, label = 'candidateId'): GoogleEmailOtpRegistrationCandidateId {
+function parseCandidateId(
+  value: unknown,
+  label = 'candidateId',
+): GoogleEmailOtpRegistrationCandidateId {
   return requireString(value, label) as GoogleEmailOtpRegistrationCandidateId;
 }
 
@@ -151,7 +154,11 @@ export function parseGoogleEmailOtpRegistrationFinalizeInput(
 ): GoogleEmailOtpRegistrationFinalizeInput {
   const record = requireRecord(value, 'Google Email OTP registration finalize input');
   rejectFields(record, OTP_ONLY_FORBIDDEN_FIELDS, 'Google Email OTP registration finalize input');
-  rejectFields(record, ['walletId', ...SECRET_MATERIAL_FIELDS], 'Google Email OTP registration finalize input');
+  rejectFields(
+    record,
+    ['walletId', ...SECRET_MATERIAL_FIELDS],
+    'Google Email OTP registration finalize input',
+  );
   if (record.kind !== 'google_email_otp_registration_finalize_v1') {
     throw new Error('registration finalize kind must be google_email_otp_registration_finalize_v1');
   }

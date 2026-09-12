@@ -12,7 +12,6 @@ import {
 import { D1IdentityStore } from './d1IdentityStore';
 import type { D1IdentityStoreOptions } from './d1IdentityStore';
 import { resolveD1DatabaseFromConfig } from '../storage/d1Sql';
-import type { D1DatabaseLike } from '../storage/tenantRoute';
 
 export {
   D1IdentityStore,

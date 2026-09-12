@@ -29,9 +29,7 @@ export type Ed25519YaoActiveClientLookupScopeV1 = {
 export type Ed25519YaoActiveClientRegistryPort = {
   activate(material: NearEd25519YaoOperationMaterial): Promise<Ed25519YaoActiveClientIdentityV1>;
   resolve(identity: Ed25519YaoActiveClientIdentityV1): NearEd25519YaoOperationMaterial | null;
-  resolveExact(
-    identity: Ed25519YaoActiveClientIdentityV1,
-  ): NearEd25519YaoOperationMaterial | null;
+  resolveExact(identity: Ed25519YaoActiveClientIdentityV1): NearEd25519YaoOperationMaterial | null;
   resolveForWalletAccount(
     scope: Ed25519YaoActiveClientLookupScopeV1,
   ): NearEd25519YaoOperationMaterial | null;
@@ -204,9 +202,7 @@ export class Ed25519YaoActiveClientRegistry implements Ed25519YaoActiveClientReg
     return entry.material;
   }
 
-  resolveExact(
-    identity: Ed25519YaoActiveClientIdentityV1,
-  ): NearEd25519YaoOperationMaterial | null {
+  resolveExact(identity: Ed25519YaoActiveClientIdentityV1): NearEd25519YaoOperationMaterial | null {
     return this.resolve(identity);
   }
 

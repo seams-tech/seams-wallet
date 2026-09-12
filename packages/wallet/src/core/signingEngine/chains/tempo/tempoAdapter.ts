@@ -3,10 +3,7 @@ import { bytesToHex } from '../evm/bytes';
 import type { WorkerOperationContext } from '../../workerManager/executeWorkerOperation';
 import type { ManagedNonceReservationSnapshot } from '@/core/rpcClients/evm/nonceBackend';
 import type { TempoSigningRequest, TempoUnsignedTx } from './tempoSigning.types';
-import {
-  computeTempoSenderHashWasm,
-  encodeTempoSignedTxWasm,
-} from './tempoSignerWasm';
+import { computeTempoSenderHashWasm, encodeTempoSignedTxWasm } from './tempoSignerWasm';
 
 export type TempoSignedResult = {
   chain: 'tempo';

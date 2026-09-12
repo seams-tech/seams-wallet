@@ -1,6 +1,5 @@
 import type { WarmSessionStatusResult } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { SignerWorkerManager } from '@/core/signingEngine/workerManager/SignerWorkerManager';
-import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import {
   requestClearEmailOtpWarmSessionMaterial,
   requestConsumeEmailOtpWarmSessionUses,
@@ -64,7 +63,9 @@ export class EmailOtpWarmSessionRuntime {
     },
   ) {}
 
-  async readWarmSessionStatusOnly(target: EmailOtpWarmMaterialTarget): Promise<WarmSessionStatusResult> {
+  async readWarmSessionStatusOnly(
+    target: EmailOtpWarmMaterialTarget,
+  ): Promise<WarmSessionStatusResult> {
     return await readEmailOtpWarmSessionStatusOnly({
       target,
       readWarmSessionStatusFromWorker: (workerTarget) =>
@@ -72,9 +73,11 @@ export class EmailOtpWarmSessionRuntime {
     });
   }
 
-  async consumeWarmSessionUses(args: WarmSessionMaterialOperationTarget & {
-    uses?: number;
-  }): Promise<WarmSessionStatusResult> {
+  async consumeWarmSessionUses(
+    args: WarmSessionMaterialOperationTarget & {
+      uses?: number;
+    },
+  ): Promise<WarmSessionStatusResult> {
     return await consumeEmailOtpWarmSessionUses({
       target: warmSessionMaterialTarget(args),
       ...(typeof args.uses === 'number' ? { uses: args.uses } : {}),

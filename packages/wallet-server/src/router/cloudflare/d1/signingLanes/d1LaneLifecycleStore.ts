@@ -36,7 +36,6 @@ import { sha256Bytes } from '@shared/utils/digests';
 import { base64UrlEncode } from '@shared/utils/base64';
 import type {
   AggregateLaneActivationReceiptV1,
-  AggregateLaneRevocationReceiptV1,
   CommitLaneEnrollmentActivationV1,
   LaneEnrollmentManifestV1,
   LaneEnrollmentLifecycleV1,
@@ -58,7 +57,6 @@ import type {
   SigningLaneId,
   WalletKeyId,
 } from '@shared/signing-lanes';
-import type { MpcMaterialActivationRef, WalletId } from '@shared/utils/domainIds';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import type {
@@ -1058,13 +1056,7 @@ export class CloudflareD1LaneLifecycleStore implements LaneLifecycleStore {
           .prepare(
             `UPDATE ${PRODUCT_TABLE} SET state = 'active', product_json = ?5, version = version + 1, command_digest_b64u = ?6, updated_at_ms = ?7 WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND operation_id = ?8 AND state = 'pending_visibility'`,
           )
-          .bind(
-            ...values,
-            JSON.stringify(active),
-            aggregateDigest,
-            now,
-            String(child.operationId),
-          ),
+          .bind(...values, JSON.stringify(active), aggregateDigest, now, String(child.operationId)),
       );
       statements.push(this.database.prepare(LANE_CAS_GUARD_SQL));
     }

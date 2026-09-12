@@ -24,9 +24,7 @@ export type HostedAuthMenuReq<T extends HostedAuthMenuRequestType> = Omit<Req<T>
  * session lifecycle in Phase 2.
  */
 export type HostedAuthMenuHandlerMap = {
-  [K in HostedAuthMenuRequestType]?: (
-    req: HostedAuthMenuReq<K>,
-  ) => Promise<void>;
+  [K in HostedAuthMenuRequestType]?: (req: HostedAuthMenuReq<K>) => Promise<void>;
 };
 
 export type HandlerMap = Partial<{

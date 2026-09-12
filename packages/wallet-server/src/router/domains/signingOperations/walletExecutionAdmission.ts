@@ -4,18 +4,15 @@ import {
   NEAR_ED25519_MPC_OPERATION_KINDS,
 } from '@shared/authorization/capabilityKinds';
 import {
-  computeLaneParticipantSetBindingDigestV1,
   buildPreparedOwnerWalletExecution,
   computeOwnerLaneParticipantBindingDigestV1,
   type ClaimedWalletExecutionAuthorization,
-  type Ed25519WalletKeyRecord,
-  type EvmFamilyWalletKeyRecord,
   type LaneParticipantBindingDigestB64u,
   type PreparedOwnerWalletExecution,
   type SigningLaneRecord,
   type WalletKeyRecord,
 } from '@shared/signing-lanes';
-import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import { type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   mpcMaterialActivationRefsEqual,
   type MpcMaterialActivationRef,
@@ -25,7 +22,6 @@ import {
 } from '@shared/utils/domainIds';
 import type {
   ActiveWalletAuthorityV1,
-  WalletSignerActivationSetV1,
 } from '@shared/authorization/walletAuthority';
 import type {
   ExactAdministeredEcdsaSignerV1,

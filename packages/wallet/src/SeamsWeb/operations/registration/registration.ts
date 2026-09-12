@@ -10,7 +10,6 @@ import {
   parseThresholdEd25519SessionId,
   mpcMaterialActivationRefsEqual,
   type WebAuthnRpId,
-  type MpcMaterialActivationRef,
 } from '@shared/utils/domainIds';
 import type {
   CreateRegistrationFlowEventInput,
@@ -38,10 +37,7 @@ import {
 } from '@/core/types/authenticatorOptions';
 import { createRegistrationFlowEvent, RegistrationEventPhase } from '@/core/types/sdkSentEvents';
 import type { RegistrationWebContext } from '@/SeamsWeb/signingSurface/types';
-import type {
-  EstablishedWalletCustodyNearEd25519KeySetV1,
-  JoinedWalletCustodyNearEd25519KeySetV1,
-} from '@/SeamsWeb/signingSurface/ports';
+import type { JoinedWalletCustodyNearEd25519KeySetV1 } from '@/SeamsWeb/signingSurface/ports';
 import type { WorkerResourceWarmupDiagnostics } from '@/core/signingEngine/assembly/warmup';
 import type {
   EmailOtpEd25519YaoRecoveryBootstrapV1,
@@ -148,7 +144,6 @@ import {
   type WalletRegistrationRespondEd25519DeferredWork,
   type WalletRegistrationEmailOtpEnrollmentMaterial,
   type WalletRegistrationEcdsaPreparePayload,
-  type WalletRegistrationEcdsaClientBootstrap,
   type WalletRegistrationStartResponse,
   type WalletAddSignerFinalizeResponse,
   type WalletAddSignerStartResponse,
@@ -164,7 +159,6 @@ import { registrationFinalizeIdempotencyKeyFromString } from '@/SeamsWeb/publicA
 import { collectEmailOtpRegistrationAuthority } from '@/SeamsWeb/operations/authMethods/emailOtp/registrationAuthority';
 import type { PrepareEmailOtpRegistrationEnrollmentMaterialInternalResult as EmailOtpRegistrationEnrollmentMaterial } from '@/core/signingEngine/flows/signEvmFamily/emailOtpPublic';
 import { requirePasskeyPrfFirstB64u } from '@/SeamsWeb/operations/authMethods/passkey/ecdsaBootstrap';
-import { EMAIL_OTP_CHANNEL } from '@shared/utils/emailOtpDomain';
 import {
   emailOtpAuthContextEmailHashHex,
   emailOtpAuthContextProvider,
@@ -213,7 +207,6 @@ import {
   sameRouterAbEcdsaDerivationNormalSigningStateV1,
   type RouterAbEcdsaVerifiedClientActivationFactsV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
-import { ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND } from '@shared/utils/signingSessionSeal';
 import {
   RegistrationTimingRecorder,
   RegistrationWarmupDiagnostics,
@@ -260,7 +253,6 @@ import {
   finalizeResponseViewFromActivatedEcdsa,
   requireFinalizedPasskeyCredentialPublicKeyB64u,
   requireWebAuthnRpId,
-  registrationPersistenceAuthMethod,
   type RegistrationPersistenceAuth,
   type RegistrationPersistencePlan,
 } from './registrationTerminalCommit';

@@ -96,7 +96,13 @@ function passkeyAllowCredentials(
   const credentials = records.flatMap((record) => {
     const id = String(record.credentialId || '').trim();
     return id
-      ? [{ id, type: 'public-key' as const, transports: authenticatorTransports(record.transports) }]
+      ? [
+          {
+            id,
+            type: 'public-key' as const,
+            transports: authenticatorTransports(record.transports),
+          },
+        ]
       : [];
   });
   if (credentials.length === 0) {
@@ -116,11 +122,14 @@ async function requestPasskeyEnvelopeChallenge(args: {
     body: JSON.stringify({ unlockBackend: 'passkey', userId: args.walletId, rpId: args.rpId }),
   });
   const value: unknown = await response.json().catch(() => ({}));
-  const body = value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+  const body =
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
   if (!response.ok || body.ok !== true) {
-    throw new Error(typeof body.message === 'string' ? body.message : 'passkey envelope challenge failed');
+    throw new Error(
+      typeof body.message === 'string' ? body.message : 'passkey envelope challenge failed',
+    );
   }
   const challengeId = typeof body.challengeId === 'string' ? body.challengeId.trim() : '';
   const challengeB64u = typeof body.challengeB64u === 'string' ? body.challengeB64u.trim() : '';
@@ -144,14 +153,16 @@ async function rotateWithPasskey(args: {
     walletId: args.walletId,
     rpId,
   });
-  const envelopeCredential = await args.context.signingEngine.getAuthenticationCredentialsSerialized({
-    subjectId: args.walletId,
-    challengeB64u: envelopeChallenge.challengeB64u,
-    allowCredentials,
-    includeSecondPrfOutput: true,
-  });
+  const envelopeCredential =
+    await args.context.signingEngine.getAuthenticationCredentialsSerialized({
+      subjectId: args.walletId,
+      challengeB64u: envelopeChallenge.challengeB64u,
+      allowCredentials,
+      includeSecondPrfOutput: true,
+    });
   const envelopeCredentialId = passkeyCredentialIdB64uFromAuthentication(envelopeCredential);
-  if (!envelopeCredentialId) throw new Error('Wallet recovery-code rotation did not receive a passkey credential');
+  if (!envelopeCredentialId)
+    throw new Error('Wallet recovery-code rotation did not receive a passkey credential');
   const fetchedEnvelope = await fetchPasskeyCustodyEnvelope({
     relayUrl: args.relayUrl,
     locator: {
@@ -176,12 +187,13 @@ async function rotateWithPasskey(args: {
         payload,
         requestOrigin,
       });
-      const adminCredential = await args.context.signingEngine.getAuthenticationCredentialsSerialized({
-        subjectId: args.walletId,
-        challengeB64u: challengeDigest,
-        allowCredentials,
-        includeSecondPrfOutput: false,
-      });
+      const adminCredential =
+        await args.context.signingEngine.getAuthenticationCredentialsSerialized({
+          subjectId: args.walletId,
+          challengeB64u: challengeDigest,
+          allowCredentials,
+          includeSecondPrfOutput: false,
+        });
       const adminCredentialId = passkeyCredentialIdB64uFromAuthentication(adminCredential);
       if (!adminCredentialId || adminCredentialId !== envelopeCredentialId) {
         throw new Error('Wallet recovery-code rotation selected an unrelated passkey');
@@ -279,7 +291,11 @@ async function rotateWithEmailOtp(args: {
               userId: args.walletId,
               groupId: SIGNING_SESSION_SEAL_GROUP_ID,
               routePlan,
-              verification: { kind: 'otp', challengeId: args.authorization.challengeId, otpCode: args.authorization.otpCode },
+              verification: {
+                kind: 'otp',
+                challengeId: args.authorization.challengeId,
+                otpCode: args.authorization.otpCode,
+              },
               recoveryCodesJson,
             },
           },

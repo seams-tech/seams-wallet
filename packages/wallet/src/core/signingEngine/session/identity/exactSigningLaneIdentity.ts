@@ -37,7 +37,6 @@ import type { SigningLaneAuthBinding } from './signingLaneAuthBinding';
 import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
 import {
   SigningSessionIds,
-  type ThresholdEcdsaSessionId,
   type ThresholdEd25519SessionId,
   type ThresholdSessionId,
 } from '../operationState/types';
@@ -345,38 +344,40 @@ type CanonicalEd25519SigningLaneIdentity = {
 type CanonicalEcdsaSigningLaneIdentity = {
   kind: 'exact_signing_lane';
   signer: {
-        kind: 'evm_family_ecdsa_signer';
-        walletId: string;
-        keyHandle: string;
-        chainTarget: {
-          key: string;
-          kind: ThresholdEcdsaChainTarget['kind'];
-          namespace?: 'eip155';
-          chainId: number;
-        };
-        key: {
-          walletId: string;
-          keyScope: EvmFamilyEcdsaKeyIdentity['keyScope'];
-          ecdsaThresholdKeyId: string;
-          signingRootId: string;
-          signingRootVersion: string;
-          participantIds: readonly number[];
-          thresholdOwnerAddress: string;
-        };
-        materialActivation: {
-          kind: 'mpc_material_activation_ref';
-          activationId: string;
-          capability: string;
-          materialOwner: string;
-          keyBinding: string;
-          lifecycleBinding: string;
-          signingWorker: string;
-        };
-      };
+    kind: 'evm_family_ecdsa_signer';
+    walletId: string;
+    keyHandle: string;
+    chainTarget: {
+      key: string;
+      kind: ThresholdEcdsaChainTarget['kind'];
+      namespace?: 'eip155';
+      chainId: number;
+    };
+    key: {
+      walletId: string;
+      keyScope: EvmFamilyEcdsaKeyIdentity['keyScope'];
+      ecdsaThresholdKeyId: string;
+      signingRootId: string;
+      signingRootVersion: string;
+      participantIds: readonly number[];
+      thresholdOwnerAddress: string;
+    };
+    materialActivation: {
+      kind: 'mpc_material_activation_ref';
+      activationId: string;
+      capability: string;
+      materialOwner: string;
+      keyBinding: string;
+      lifecycleBinding: string;
+      signingWorker: string;
+    };
+  };
   auth: CanonicalSigningLaneAuthBinding;
 };
 
-function canonicalChainTarget(target: ThresholdEcdsaChainTarget): Extract<
+function canonicalChainTarget(
+  target: ThresholdEcdsaChainTarget,
+): Extract<
   CanonicalEcdsaSigningLaneIdentity['signer'],
   { kind: 'evm_family_ecdsa_signer' }
 >['chainTarget'] {
@@ -395,7 +396,9 @@ function canonicalChainTarget(target: ThresholdEcdsaChainTarget): Extract<
   };
 }
 
-function canonicalKeyIdentity(key: EvmFamilyEcdsaKeyIdentity): Extract<
+function canonicalKeyIdentity(
+  key: EvmFamilyEcdsaKeyIdentity,
+): Extract<
   CanonicalEcdsaSigningLaneIdentity['signer'],
   { kind: 'evm_family_ecdsa_signer' }
 >['key'] {
@@ -428,28 +431,30 @@ function canonicalAuthBinding(auth: SigningLaneAuthBinding): CanonicalSigningLan
   }
 }
 
-function canonicalSigner(signer: EvmFamilyEcdsaSignerBinding): CanonicalEcdsaSigningLaneIdentity['signer'] {
+function canonicalSigner(
+  signer: EvmFamilyEcdsaSignerBinding,
+): CanonicalEcdsaSigningLaneIdentity['signer'] {
   return {
-        kind: 'evm_family_ecdsa_signer',
-        walletId: String(signer.walletId),
-        keyHandle: String(signer.keyHandle),
-        chainTarget: canonicalChainTarget(signer.chainTarget),
-        key: canonicalKeyIdentity(signer.key),
-        materialActivation: {
-          kind: signer.materialActivation.kind,
-          activationId: String(signer.materialActivation.activationId),
-          capability: String(signer.materialActivation.capability),
-          materialOwner: String(signer.materialActivation.materialOwner),
-          keyBinding: String(signer.materialActivation.keyBinding),
-          lifecycleBinding: String(signer.materialActivation.lifecycleBinding),
-          signingWorker: String(signer.materialActivation.signingWorker),
-        },
-      };
+    kind: 'evm_family_ecdsa_signer',
+    walletId: String(signer.walletId),
+    keyHandle: String(signer.keyHandle),
+    chainTarget: canonicalChainTarget(signer.chainTarget),
+    key: canonicalKeyIdentity(signer.key),
+    materialActivation: {
+      kind: signer.materialActivation.kind,
+      activationId: String(signer.materialActivation.activationId),
+      capability: String(signer.materialActivation.capability),
+      materialOwner: String(signer.materialActivation.materialOwner),
+      keyBinding: String(signer.materialActivation.keyBinding),
+      lifecycleBinding: String(signer.materialActivation.lifecycleBinding),
+      signingWorker: String(signer.materialActivation.signingWorker),
+    },
+  };
 }
 
-function canonicalExactSigningLaneIdentity(identity: ExactSigningLaneIdentity):
-  | CanonicalEd25519SigningLaneIdentity
-  | CanonicalEcdsaSigningLaneIdentity {
+function canonicalExactSigningLaneIdentity(
+  identity: ExactSigningLaneIdentity,
+): CanonicalEd25519SigningLaneIdentity | CanonicalEcdsaSigningLaneIdentity {
   if (isExactEcdsaSigningLaneIdentity(identity)) {
     return {
       kind: 'exact_signing_lane',
@@ -540,11 +545,7 @@ export function exactSigningLaneIdentity(
   const signer = lane.signer;
   switch (signer.kind) {
     case 'near_ed25519_signer':
-      if (
-        !('walletSessionId' in lane) ||
-        !('quotaId' in lane) ||
-        !('thresholdSessionId' in lane)
-      ) {
+      if (!('walletSessionId' in lane) || !('quotaId' in lane) || !('thresholdSessionId' in lane)) {
         throw new Error('[SigningSession] Ed25519 exact lane requires session identity');
       }
       return exactEd25519SigningLaneIdentity({

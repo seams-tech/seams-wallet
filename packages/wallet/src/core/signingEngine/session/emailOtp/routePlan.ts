@@ -1,4 +1,3 @@
-import type { ThresholdEcdsaSessionBootstrapResult } from '@/core/signingEngine/threshold/ecdsa/activation';
 import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type {
@@ -23,15 +22,11 @@ export type EmailOtpSigningSessionChallengeOperation =
 
 export type EmailOtpSigningSessionExpectedCurve = 'ed25519' | 'ecdsa' | 'unknown';
 
-export type EmailOtpSigningSessionAuthStateFailure =
-  | {
-      kind: 'auth_lane_missing';
-      source:
-        | 'route_plan'
-        | 'provided_route_auth'
-        | 'evm_signing_refresh';
-      expectedCurve: EmailOtpSigningSessionExpectedCurve;
-    };
+export type EmailOtpSigningSessionAuthStateFailure = {
+  kind: 'auth_lane_missing';
+  source: 'route_plan' | 'provided_route_auth' | 'evm_signing_refresh';
+  expectedCurve: EmailOtpSigningSessionExpectedCurve;
+};
 
 export class EmailOtpSigningSessionAuthStateError extends Error {
   readonly kind = 'email_otp_signing_session_auth_state_error';
@@ -73,8 +68,7 @@ export type EmailOtpThresholdEcdsaRouteAuth = {
   chainTarget: ThresholdEcdsaChainTarget;
 };
 
-export type EmailOtpEcdsaBootstrapRouteAuth =
-  | EmailOtpThresholdEcdsaRouteAuth;
+export type EmailOtpEcdsaBootstrapRouteAuth = EmailOtpThresholdEcdsaRouteAuth;
 
 export type EmailOtpEcdsaBootstrapAuthorization =
   | {

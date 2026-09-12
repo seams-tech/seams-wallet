@@ -4,9 +4,7 @@ import type {
   RouterAbEd25519SigningWalletSession,
   RouterAbSigningWalletSessionAuth,
 } from './routerAbSigningWalletSession';
-import type {
-  ThresholdEd25519SessionId,
-} from '@shared/utils/domainIds';
+import type { ThresholdEd25519SessionId } from '@shared/utils/domainIds';
 import type {
   MpcWalletSigningQuotaId,
   WalletSessionAuthorizationId,

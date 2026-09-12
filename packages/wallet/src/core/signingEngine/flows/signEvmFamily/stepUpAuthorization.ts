@@ -42,10 +42,7 @@ export function buildEvmFamilyWarmSessionStepUpAuthorization(args: {
 export function buildEvmFamilyEmailOtpStepUpAuthorization(args: {
   signingAuthPlan: Extract<SigningAuthPlan, { kind: 'emailOtpReauth' }>;
   prompt: EmailOtpConfirmPrompt;
-  confirmation: Pick<
-    ConfirmIntentDigestSigningOperationResult,
-    'otpCode' | 'emailOtpChallengeId'
-  >;
+  confirmation: Pick<ConfirmIntentDigestSigningOperationResult, 'otpCode' | 'emailOtpChallengeId'>;
 }): EvmFamilyEcdsaEmailOtpStepUpAuthorization {
   return {
     kind: 'email_otp',
@@ -65,9 +62,7 @@ export function buildEvmFamilyPasskeyStepUpAuthorization(args: {
   confirmation: Pick<ConfirmIntentDigestSigningOperationResult, 'credential'>;
 }): EvmFamilyEcdsaPasskeyStepUpAuthorization {
   if (!args.confirmation.credential) {
-    throw new Error(
-      '[chains] missing WebAuthn credential for EVM-family step-up authorization',
-    );
+    throw new Error('[chains] missing WebAuthn credential for EVM-family step-up authorization');
   }
   return {
     kind: 'passkey',

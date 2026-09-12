@@ -4,7 +4,6 @@ import type { EvmFamilyPasskeyAuthenticatorStorePort } from './passkeyAuthentica
 import type { RegistrationAccountStorePort } from '../flows/registration/registrationStorePorts';
 import type { AccountId } from '@/core/types/accountIds';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
-import type { EmailOtpSigningSessionAuthLane } from '../stepUpConfirmation/otpPrompt/authLane';
 import type { EmailOtpTransactionSigningChallenge } from '../session/emailOtp/publicTypes';
 import type { TouchIdPrompt } from '../stepUpConfirmation/passkeyPrompt/touchIdPrompt';
 import type { NonceCoordinator } from '../nonce/NonceCoordinator';
@@ -28,7 +27,6 @@ import type {
   UiConfirmRegistrationPort,
   UiConfirmRequestConfirmationPort,
   UiConfirmSigningPort,
-  VolatileWarmMaterialPort,
   WarmSessionStatusResult,
 } from '../uiConfirm/uiConfirm.types';
 import type { SignerWorkerManagerContext } from '../workerManager/SignerWorkerManager';
@@ -44,7 +42,6 @@ import type {
   CanonicalEvmFamilyEcdsaSigningCapability,
   ExactEvmFamilyWalletSessionAuthorization,
 } from '../session/material/ecdsaSigningCapability';
-import type { SignerAuthMethod } from '@shared/utils/signerDomain';
 import type { OwnerLaneScope } from '../session/identity/signingLaneAuthBinding';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { ExactWalletSessionReadPorts } from '../session/identity/exactWalletSessionCredential';

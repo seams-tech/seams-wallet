@@ -1,24 +1,20 @@
 import {
   WorkerRequestType,
   WorkerResponseType,
-  type ConfirmationConfig,
   type WorkerSuccessResponse,
 } from '@/core/types/signer-worker';
 import { PASSKEY_MANAGER_DEFAULT_CONFIGS } from '@/core/config/defaultConfigs';
 import { resolveNearNetwork } from '@/core/config/chains';
 import type { ThresholdEd25519KeyMaterial } from '@/core/accountData/near/nearAccountData.types';
 import { normalizeThresholdEd25519ParticipantIds } from '@shared/threshold/participants';
-import type { NearSigningRuntimeDeps } from '../../interfaces/runtime';
 import { computeThresholdEd25519Nep413SigningDigestWasm } from '../../chains/near/nearSignerWasm';
 import { resolveNearSigningMaterials } from './shared/signingMaterials';
 import type { AuthorizedRouterAbEd25519WalletSessionState } from '../../session/warmCapabilities/routerAbEd25519WalletSessionState';
 import {
   buildNearSigningSessionAuthPlan,
   resolveNearSigningSessionAuthContext,
-  SIGNING_SESSION_AUTH_UNAVAILABLE_ERROR,
 } from './shared/signingSessionAuthMode';
 import { planSigningSession } from '../../session/planning/planner';
-import type { SigningSessionCoordinator } from '../../session/SigningSessionCoordinator';
 import {
   SigningOperationIntent,
   SigningSessionPlanKind,
@@ -43,10 +39,7 @@ import {
   requireNearStepUpAuth,
   signingAuthPlanForNearMaterialRequirement,
 } from './requireNearStepUpAuth';
-import type {
-  NearEd25519StepUpAuthorization,
-  NearNep413Payload,
-} from '../../interfaces/near';
+import type { NearEd25519StepUpAuthorization, NearNep413Payload } from '../../interfaces/near';
 import {
   buildNearEd25519OperationStepUpProof,
   prepareRouterAbEd25519SignatureOnlyOperationStepUp,
@@ -144,15 +137,13 @@ async function resolveNearNep413OperationStepUpCapability(args: {
   prepared: Extract<PreparedNearOperationStepUp, { kind: 'near_signature_only' }>;
   displayDigest: string;
   authorization: Exclude<NearEd25519StepUpAuthorization, { kind: 'warm_session' }>;
-  emailOtpProof:
-    | Extract<ReturnType<typeof buildNearEd25519OperationStepUpProof>, { kind: 'email_otp' }>
-    | null;
+  emailOtpProof: Extract<
+    ReturnType<typeof buildNearEd25519OperationStepUpProof>,
+    { kind: 'email_otp' }
+  > | null;
 }) {
   if (args.authorization.kind === 'passkey') {
-    if (
-      args.material.kind !== 'passkey_live' &&
-      args.material.kind !== 'passkey_sealed'
-    ) {
+    if (args.material.kind !== 'passkey_live' && args.material.kind !== 'passkey_sealed') {
       throw new Error('[SigningEngine][near] passkey NEP-413 material changed factor');
     }
     return await resolveNearOperationStepUpMaterial({
@@ -162,10 +153,7 @@ async function resolveNearNep413OperationStepUpCapability(args: {
       credential: args.authorization.credential,
     });
   }
-  if (
-    args.material.kind !== 'email_otp_live' &&
-    args.material.kind !== 'email_otp_sealed'
-  ) {
+  if (args.material.kind !== 'email_otp_live' && args.material.kind !== 'email_otp_sealed') {
     throw new Error('[SigningEngine][near] Email OTP NEP-413 material changed factor');
   }
   if (!args.emailOtpProof) {
@@ -253,9 +241,7 @@ export async function signNep413Message({
         signerSlot: candidate.signerSlot,
       }),
       materialActivation: candidate.materialActivation,
-      thresholdSessionId: SigningSessionIds.thresholdEd25519Session(
-        candidate.thresholdSessionId,
-      ),
+      thresholdSessionId: SigningSessionIds.thresholdEd25519Session(candidate.thresholdSessionId),
     };
     signingSessionPlan = {
       kind: SigningSessionPlanKind.OperationStepUp,
@@ -451,9 +437,7 @@ export async function signNep413Message({
               displayDigest: confirmation.intentDigest,
               authorization: stepUpAuthorization,
               emailOtpProof:
-                operationStepUpProof?.kind === 'email_otp'
-                  ? operationStepUpProof
-                  : null,
+                operationStepUpProof?.kind === 'email_otp' ? operationStepUpProof : null,
             }),
           };
     },

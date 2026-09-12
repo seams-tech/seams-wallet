@@ -54,9 +54,7 @@ export function chainFamilyFromNetwork(network: SeamsChainNetwork): SeamsChainFa
   return 'evm';
 }
 
-export function nearNetworkFromChainNetwork(
-  network: SeamsNearChainNetwork,
-): 'testnet' | 'mainnet' {
+export function nearNetworkFromChainNetwork(network: SeamsNearChainNetwork): 'testnet' | 'mainnet' {
   return network === 'near-mainnet' ? 'mainnet' : 'testnet';
 }
 

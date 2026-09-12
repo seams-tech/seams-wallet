@@ -1,13 +1,9 @@
-import type { AccountId } from '@/core/types/accountIds';
 import { toAccountId } from '@/core/types/accountIds';
 import { IndexedDBManager } from '@/core/indexedDB';
 import type { AccountSignerRecord, LastProfileState } from '@/core/indexedDB/passkeyClientDB.types';
 import { toWalletId, type WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import {
-  parseNearEd25519SigningKeyId,
-  type NearEd25519SigningKeyId,
-} from '@shared/utils/registrationIntent';
-import { parseSignerSlot, type SignerSlot } from '@shared/utils/signerSlot';
+import { parseNearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
+import { parseSignerSlot } from '@shared/utils/signerSlot';
 import {
   resolveEvmFamilyEcdsaWalletUnlockSubjects,
   type WalletUnlockCapabilitySubjectResolutionFailure,

@@ -54,9 +54,7 @@ async function collectWarmSigningSessionIdsForWallet(
     }),
   ]);
   for (const record of records.flat()) {
-    const thresholdSessionId = parseThresholdEd25519SessionId(
-      record.thresholdSessionIds.ed25519,
-    );
+    const thresholdSessionId = parseThresholdEd25519SessionId(record.thresholdSessionIds.ed25519);
     if (thresholdSessionId.ok) thresholdSessionIds.add(thresholdSessionId.value);
   }
   return [...thresholdSessionIds];

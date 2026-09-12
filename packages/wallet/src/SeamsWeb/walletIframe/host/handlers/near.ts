@@ -12,7 +12,6 @@ import type { AddEmailOtpHooksOptions } from '@/SeamsWeb/operations/authMethods/
 import {
   type PMExecuteActionPayload,
   type PMFundImplicitNearAccountForTestingPayload,
-  type PMRegisterWalletPayload,
   type PMRegistrationAuthMethodInput,
   type PMSendTxPayload,
 } from '../../shared/messages';
@@ -24,7 +23,6 @@ import { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import type { NonceLeaseRef } from '@/core/signingEngine/nonce/NonceCoordinator';
 import {
   extractBorshBytesFromPlainSignedTx,
-  isPlainObject,
   isPlainSignedTransactionLike,
   type PlainSignedTransactionLike,
 } from '@shared/utils/validation';

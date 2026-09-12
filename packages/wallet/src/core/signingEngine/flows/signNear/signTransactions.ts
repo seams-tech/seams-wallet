@@ -1,5 +1,4 @@
 import { SignedTransaction } from '@/core/rpcClients/near/NearClient';
-import type { TransactionInputWasm } from '@/core/types/actions';
 import {
   createSigningFlowEvent,
   SigningEventPhase,
@@ -8,7 +7,6 @@ import {
 } from '@/core/types/sdkSentEvents';
 import {
   WorkerRequestType,
-  type ConfirmationConfig,
   type RpcCallPayload,
   type WorkerSuccessResponse,
 } from '@/core/types/signer-worker';
@@ -16,15 +14,10 @@ import { AccountId, toAccountId } from '@/core/types/accountIds';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import type { NearSigningRuntimeDeps } from '../../interfaces/runtime';
 import type {
-  NearEd25519YaoMaterialExecutor,
   NearEd25519YaoOperationMaterial,
-  NearEmailOtpEd25519StepUpHook,
   NearEd25519StepUpAuthorization,
-  NearEd25519TransactionSigningBoundary,
-  NearPasskeyEd25519OperationStepUpHook,
   NearTransactionWithActionsPayload,
 } from '../../interfaces/near';
-import type { NearEd25519YaoSigningPreparation } from '../../session/material/nearEd25519YaoSigningPreparation';
 import {
   isWarmSessionSigningAuthPlan,
   type SigningAuthPlan,
@@ -40,9 +33,6 @@ import {
   type ResolvedRouterAbEd25519WalletSessionState,
 } from '../../session/warmCapabilities/routerAbEd25519WalletSessionState';
 import { buildNearTransactionSigningPayload } from '../../chains/near/payloads';
-import { SIGNING_SESSION_AUTH_UNAVAILABLE_ERROR } from './shared/signingSessionAuthMode';
-import type { SelectedEd25519Lane } from '../../session/identity/laneIdentity';
-import { signingLaneAuthMethod } from '../../session/identity/signingLaneAuthBinding';
 import {
   SigningOperationIntent,
   SigningSessionIds,
@@ -52,8 +42,6 @@ import {
   type SigningOperationId,
 } from '../../session/operationState/types';
 import { nearEd25519SignerBindingFromBoundaryFields } from '../../session/identity/exactSigningLaneIdentity';
-import type { NearTransactionSigningLane } from '../../session/operationState/lanes';
-import { type PreparedTransactionOperation } from '../../session/operationState/transactionState';
 import type { NonceLeaseRef } from '../../interfaces/nonceLease';
 import {
   createSigningBoundaryTraceEvent,
@@ -82,7 +70,6 @@ import {
   type ConfirmTransactionSigningOperationResult,
 } from '../shared/signingConfirmation';
 import { buildNearEd25519StepUpAuthorization } from './stepUpAuthorization';
-import type { NearAccountRef, NearCommandSubject } from '../../interfaces/ecdsaChainTarget';
 import { requiredNearTransactionSignatureUses } from './signatureUses';
 import {
   buildNearEd25519OperationStepUpProof,
@@ -112,12 +99,9 @@ import {
   clearNearOperationStepUpBuilder,
   consumePreparedNearOperationStepUp,
   registerNearOperationStepUpBuilder,
-  requireNearOperationStepUpMaterialActivation,
   type PreparedNearOperationStepUp,
 } from './shared/operationStepUpPreparation';
 import type { NearOperationStepUpPreparationRef } from '../../interfaces/operationStepUpPreparation';
-import { nearEd25519YaoMaterialActivationFromMetadata } from '../../session/material/nearEd25519YaoMaterialActivation';
-import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import { parseSigningOperationFingerprintDigest } from '../../session/planning/operationFingerprint';
 
 function requireNearOperationStepUpPreparation(

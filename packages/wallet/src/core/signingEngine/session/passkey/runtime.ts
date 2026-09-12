@@ -1,13 +1,9 @@
 import type { EcdsaSealTransportAuthMaterial } from '../persistence/sealedSessionTransportAuth';
-import {
-  thresholdEcdsaChainTargetKey,
-} from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+import { thresholdEcdsaChainTargetKey } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { ExactEcdsaSigningLaneIdentity } from '../identity/exactSigningLaneIdentity';
 import type { ExactEvmFamilyWalletSessionAuthorization } from '../material/ecdsaSigningCapability';
 import type { SealedSigningSessionEcdsaRestoreMetadata } from '@shared/utils/signingSessionSeal';
-import type {
-  WarmSessionSealPersister,
-} from '../../uiConfirm/uiConfirm.types';
+import type { WarmSessionSealPersister } from '../../uiConfirm/uiConfirm.types';
 
 export type WarmSessionSealPersistPorts = Pick<
   WarmSessionSealPersister,
@@ -17,10 +13,7 @@ export type WarmSessionSealPersistPorts = Pick<
 function walletIdForEcdsaSealTransport(args: {
   transport: EcdsaSealTransportAuthMaterial;
   lane: ExactEcdsaSigningLaneIdentity;
-  restoreMetadata: Exclude<
-    SealedSigningSessionEcdsaRestoreMetadata,
-    { source: 'email_otp' }
-  >;
+  restoreMetadata: Exclude<SealedSigningSessionEcdsaRestoreMetadata, { source: 'email_otp' }>;
 }): string {
   const restoreWalletId = String(args.restoreMetadata.authority.walletId).trim();
   const laneWalletId = String(args.lane.signer.walletId).trim();
@@ -44,10 +37,7 @@ export async function ensureEcdsaPrfSealPersisted(args: {
   lane: ExactEcdsaSigningLaneIdentity;
   authorization: ExactEvmFamilyWalletSessionAuthorization;
   thresholdSessionId: string;
-  restoreMetadata: Exclude<
-    SealedSigningSessionEcdsaRestoreMetadata,
-    { source: 'email_otp' }
-  >;
+  restoreMetadata: Exclude<SealedSigningSessionEcdsaRestoreMetadata, { source: 'email_otp' }>;
   required?: boolean;
   errorContext?: string;
   sealPersistInFlightByMaterialActivation: Map<string, Promise<void>>;
@@ -56,9 +46,7 @@ export async function ensureEcdsaPrfSealPersisted(args: {
     authorization: ExactEvmFamilyWalletSessionAuthorization;
   }) => Promise<EcdsaSealTransportAuthMaterial | null>;
 }): Promise<void> {
-  const materialActivationId = String(
-    args.lane.signer.materialActivation.activationId,
-  ).trim();
+  const materialActivationId = String(args.lane.signer.materialActivation.activationId).trim();
   if (!materialActivationId) return;
   const persistKey = `${materialActivationId}:${thresholdEcdsaChainTargetKey(args.lane.signer.chainTarget)}`;
   let persistPromise = args.sealPersistInFlightByMaterialActivation.get(persistKey);
@@ -75,8 +63,7 @@ export async function ensureEcdsaPrfSealPersisted(args: {
           lane: args.lane,
           restoreMetadata: args.restoreMetadata,
         });
-        const persisted =
-          await args.sealPersistence.persistSigningSessionSealForThresholdSession({
+        const persisted = await args.sealPersistence.persistSigningSessionSealForThresholdSession({
           thresholdSessionId: args.thresholdSessionId,
           transport: {
             curve: sealTransport.curve,
@@ -90,9 +77,7 @@ export async function ensureEcdsaPrfSealPersisted(args: {
             ...(sealTransport.signingSessionSealKeyVersion
               ? { signingSessionSealKeyVersion: sealTransport.signingSessionSealKeyVersion }
               : {}),
-            ...(sealTransport.groupId
-              ? { groupId: sealTransport.groupId }
-              : {}),
+            ...(sealTransport.groupId ? { groupId: sealTransport.groupId } : {}),
             ecdsaRestore: args.restoreMetadata,
           },
         });

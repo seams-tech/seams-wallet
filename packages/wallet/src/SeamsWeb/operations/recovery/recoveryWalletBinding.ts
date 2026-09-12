@@ -21,7 +21,11 @@ export type RecoveryResolvedWalletBinding = {
   signerSlot: number;
 };
 
-function requireBindingString(raw: Record<string, unknown>, field: string, context: string): string {
+function requireBindingString(
+  raw: Record<string, unknown>,
+  field: string,
+  context: string,
+): string {
   const value = String(raw[field] || '').trim();
   if (!value) throw new Error(`${context} returned missing ${field}`);
   return value;

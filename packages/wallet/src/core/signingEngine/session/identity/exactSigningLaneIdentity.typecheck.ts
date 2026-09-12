@@ -22,7 +22,6 @@ import {
   exactEcdsaSigningLaneIdentity,
   exactEd25519SigningLaneIdentity,
   exactSigningLaneIdentityKey,
-  isExactEcdsaSigningLaneIdentity,
   isExactEd25519SigningLaneIdentity,
   thresholdSessionIdsFromExactSigningLaneIdentity,
   type ExactEcdsaSigningLaneIdentity,

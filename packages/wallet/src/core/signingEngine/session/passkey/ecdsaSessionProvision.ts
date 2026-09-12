@@ -25,25 +25,18 @@ import type {
   ThresholdEcdsaEmailOtpSessionAuthContext,
   ThresholdEcdsaSessionStoreSource,
 } from '../identity/laneIdentity';
-import {
-  emailOtpAuthContextRetention,
-} from '../identity/laneIdentity';
+import { emailOtpAuthContextRetention } from '../identity/laneIdentity';
 import type {
   EvmFamilyEcdsaWalletKey,
   EvmFamilyEcdsaActivationLanePolicy,
 } from '../identity/evmFamilyEcdsaIdentity';
-import {
-  evmFamilyEcdsaWalletKeyToIdentity,
-  toEvmFamilyEcdsaKeyHandle,
-} from '../identity/evmFamilyEcdsaIdentity';
+import { evmFamilyEcdsaWalletKeyToIdentity } from '../identity/evmFamilyEcdsaIdentity';
 import { ecdsaRoleLocalReadyRecordStorageKeyFacts } from '../persistence/ecdsaRoleLocalRecords';
 import type { SigningOperationIntent } from '../operationState/types';
 import type { EcdsaSessionIdentity } from '../warmCapabilities/ecdsaProvisionPlan';
 import type { ThresholdRuntimePolicyScope } from '../../threshold/sessionPolicy';
 import type { ThresholdEcdsaBackendBinding } from '../../interfaces/signing';
-import type {
-  RouterAbEcdsaDerivationPublicCapabilityV1,
-} from '@shared/utils/routerAbEcdsaDerivation';
+import type { RouterAbEcdsaDerivationPublicCapabilityV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type { EcdsaPreauthorizedSessionActivation } from '../../threshold/ecdsa/postRegistrationSessionActivation';
 
@@ -177,7 +170,7 @@ type BuildPasskeyEcdsaExportActivationArgs = Omit<
 type BuildEmailOtpSessionBootstrapEcdsaActivationArgs =
   BuildThresholdEcdsaActivationRequestCommon & {
     sessionIdentity: EcdsaSessionIdentity;
-  sessionKind: 'opaque';
+    sessionKind: 'opaque';
     emailOtpWorkerSessionHandle: EmailOtpEcdsaBootstrapWorkerHandle;
     emailOtpAuthContext: ThresholdEcdsaEmailOtpSessionAuthContext;
     walletSessionRouteAuth: WalletSessionOperationCredentialV1;
@@ -207,10 +200,10 @@ type BuildEmailOtpPreauthorizedSessionBootstrapEcdsaActivationArgs = Omit<
 type BuildEmailOtpPerOperationReauthEcdsaActivationArgs =
   BuildThresholdEcdsaActivationRequestCommon & {
     sessionIdentity: EcdsaSessionIdentity;
-  sessionKind: 'opaque';
+    sessionKind: 'opaque';
     emailOtpWorkerSessionHandle: EmailOtpEcdsaBootstrapWorkerHandle;
     emailOtpAuthContext: ThresholdEcdsaEmailOtpPendingSingleUseAuthContext;
-  walletSessionRouteAuth: WalletSessionOperationCredentialV1;
+    walletSessionRouteAuth: WalletSessionOperationCredentialV1;
     passkeyPrfFirstB64u?: never;
     webauthnAuthentication?: never;
   };

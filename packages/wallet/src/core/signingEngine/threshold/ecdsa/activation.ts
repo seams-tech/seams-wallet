@@ -3,7 +3,6 @@ import {
   buildEcdsaRoleLocalPasskeyAuthMethod,
   buildEcdsaRoleLocalPublicFacts,
   type EcdsaRoleLocalAuthMethod,
-  type EcdsaRoleLocalPublicFacts,
 } from '@/core/platform';
 import type { EmailOtpWorkerIssuedSessionHandle } from '@/core/platform';
 import type { ThresholdEcdsaSecp256k1KeyRef } from '@/core/signingEngine/interfaces/signing';
@@ -20,28 +19,21 @@ import {
   type EvmEip155ChainTarget,
   type TempoChainTarget,
   type ThresholdEcdsaChainTarget,
-  type WalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type {
   EvmFamilyEcdsaKeyHandle,
   EvmFamilyEcdsaKeyIdentity,
   EvmFamilyEcdsaActivationLanePolicy,
 } from '../../session/identity/evmFamilyEcdsaIdentity';
-import {
-  deriveEvmFamilyKeyFingerprint,
-  toEvmFamilyEcdsaKeyHandle,
-} from '../../session/identity/evmFamilyEcdsaIdentity';
+import { deriveEvmFamilyKeyFingerprint } from '../../session/identity/evmFamilyEcdsaIdentity';
 import {
   parseEcdsaClientVerifyingShareB64u,
   parseEcdsaKeyHandle,
   parseEcdsaRelayerKeyId,
   parseEcdsaThresholdKeyId,
 } from '../../session/keyMaterialBrands';
-import { buildEcdsaRoleLocalSigningMaterialHandle } from '../../session/identity/ecdsaDerivationSigningMaterialHandle';
-import { storeEcdsaRoleLocalSigningMaterialWasm } from '../crypto/ecdsaDerivationClientWasm';
 import {
   type RouterAbEcdsaDerivationPublicCapabilityV1,
-  type RouterAbEcdsaDerivationNormalSigningStateV1,
   type RouterAbEcdsaOperationStepUpPreparationV1Wire,
   type RouterAbEcdsaOperationStepUpUnsealV1Wire,
   parseRouterAbEcdsaOperationStepUpPreparationV1,

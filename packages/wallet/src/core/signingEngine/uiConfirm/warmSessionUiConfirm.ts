@@ -35,7 +35,9 @@ export function createWarmSessionAwarePasskeyMpcSession(args: {
   const getWarmSessionStatus = async (statusArgs: {
     thresholdSessionId: string;
   }): Promise<WarmSessionStatusResult> => {
-    const secondaryStatus = await secondary.readWarmSessionStatusOnly(statusArgs.thresholdSessionId);
+    const secondaryStatus = await secondary.readWarmSessionStatusOnly(
+      statusArgs.thresholdSessionId,
+    );
     if (!shouldReadPrimaryWarmSessionStatus(secondaryStatus)) return secondaryStatus;
     return await base.getWarmSessionStatus(statusArgs);
   };
@@ -105,7 +107,9 @@ export function createWarmSessionStatusOnlyUiConfirm(args: {
   const readCombinedWarmSessionStatusOnly = async (statusArgs: {
     thresholdSessionId: string;
   }): Promise<WarmSessionStatusResult> => {
-    const secondaryStatus = await secondary.readWarmSessionStatusOnly(statusArgs.thresholdSessionId);
+    const secondaryStatus = await secondary.readWarmSessionStatusOnly(
+      statusArgs.thresholdSessionId,
+    );
     if (!shouldReadPrimaryWarmSessionStatus(secondaryStatus)) return secondaryStatus;
     return await base.getWarmSessionStatus(statusArgs);
   };

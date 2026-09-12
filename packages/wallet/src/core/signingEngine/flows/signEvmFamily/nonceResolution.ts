@@ -1,7 +1,5 @@
 import { chainFamilyFromNetwork } from '@/core/config/chains';
-import {
-  toIndexedDbChainTargetKey,
-} from '@/core/indexedDB/normalization';
+import { toIndexedDbChainTargetKey } from '@/core/indexedDB/normalization';
 import type { SeamsChainConfig, SeamsConfigsReadonly } from '@/core/types/seams';
 import type { EvmSigningRequest } from '../../chains/evm/evmSigning.types';
 import type { TempoSigningRequest } from '../../chains/tempo/tempoSigning.types';

@@ -10,13 +10,11 @@ import {
   type WalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { EcdsaExplicitExportOperationAuthorization } from '../../threshold/ecdsa/activation';
-import type { EmailOtpWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import type { WorkerOperationContext } from '../../workerManager/executeWorkerOperation';
 import type { UiConfirmRuntimeBridgePort } from '../../uiConfirm/uiConfirm.types';
 import {
   ecdsaExportBoundaryChain,
   type EcdsaExportSessionStoreDeps,
-  type EmailOtpEcdsaExportAuthLane,
   type ExactEcdsaExportLane,
   type FreshEmailOtpEcdsaExportMaterial,
   type FreshPasskeyEcdsaExportMaterial,
@@ -34,7 +32,6 @@ import {
   type ThresholdEcdsaPasskeyExportActivationRequest,
   type ThresholdEcdsaExplicitKeyExportBootstrapResult,
 } from '../../session/passkey/ecdsaSessionProvision';
-import { deriveEvmFamilySigningKeySlotId } from '../../session/identity/evmFamilyEcdsaIdentity';
 import {
   type EmailOtpExportAuthorizationDeps,
   requestEmailOtpKeyExportAuthorization,
@@ -66,7 +63,7 @@ import {
 import { sameWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
 import { base64UrlEncode } from '@shared/utils/base64';
-import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { PersistedEcdsaRoleLocalMaterial } from '../../session/material/ecdsaRoleLocalMaterialResolver';
 import type {
   RouterAbEcdsaDerivationNormalSigningStateV1,

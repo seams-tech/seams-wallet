@@ -4,10 +4,7 @@ import type {
   ClearVolatileWarmSessionMaterialCommand,
   VolatileWarmSessionScope,
 } from '../../uiConfirm/uiConfirm.types';
-import {
-  parseThresholdSessionId,
-  type ThresholdSessionId,
-} from '@shared/utils/domainIds';
+import { parseThresholdSessionId, type ThresholdSessionId } from '@shared/utils/domainIds';
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;

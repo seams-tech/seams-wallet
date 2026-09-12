@@ -313,29 +313,28 @@ export type StepUpAuthorizationResult<TPasskeyAuthorization, TEmailOtpAuthorizat
       authorization: TEmailOtpAuthorization;
     };
 
-export type WarmSessionStepUpAuthorization<
-  TSigningAuthPlan extends WarmSessionSigningAuthPlan,
-> = TSigningAuthPlan extends Ed25519WarmSessionSigningAuthPlan
-  ? {
-      kind: 'warm_session';
-      signingAuthPlan: TSigningAuthPlan;
-      thresholdSessionId: string;
-      expiresAtMs: number;
-      remainingUses: number;
-      materialActivation?: never;
-      authorization?: never;
-    }
-  : TSigningAuthPlan extends EcdsaWarmSessionSigningAuthPlan
+export type WarmSessionStepUpAuthorization<TSigningAuthPlan extends WarmSessionSigningAuthPlan> =
+  TSigningAuthPlan extends Ed25519WarmSessionSigningAuthPlan
     ? {
         kind: 'warm_session';
         signingAuthPlan: TSigningAuthPlan;
-        materialActivation: MpcMaterialActivationRef;
-        authorization: ExactEvmFamilyWalletSessionAuthorization;
-        thresholdSessionId?: never;
+        thresholdSessionId: string;
         expiresAtMs: number;
         remainingUses: number;
+        materialActivation?: never;
+        authorization?: never;
       }
-    : never;
+    : TSigningAuthPlan extends EcdsaWarmSessionSigningAuthPlan
+      ? {
+          kind: 'warm_session';
+          signingAuthPlan: TSigningAuthPlan;
+          materialActivation: MpcMaterialActivationRef;
+          authorization: ExactEvmFamilyWalletSessionAuthorization;
+          thresholdSessionId?: never;
+          expiresAtMs: number;
+          remainingUses: number;
+        }
+      : never;
 
 export type PasskeyStepUpAuthorization<
   TSigningAuthPlan extends Extract<

@@ -90,7 +90,10 @@ function resolveWalletStaticAsset(fileName: WalletStaticAssetName): string {
   throw new Error(`Missing wallet static asset source: ${fileName}`);
 }
 
-function copyWalletStaticAssetIfMissing(fileName: WalletStaticAssetName, destination: string): void {
+function copyWalletStaticAssetIfMissing(
+  fileName: WalletStaticAssetName,
+  destination: string,
+): void {
   if (fs.existsSync(destination)) return;
   fs.copyFileSync(resolveWalletStaticAsset(fileName), destination);
 }
@@ -409,7 +412,6 @@ export function seamsBuildHeaders(
             `[seams] emitted ${path.posix.join('/', walletRel, 'index.html')} (minimal wallet service)`,
           );
         }
-
       } catch (e) {
         console.warn('[seams] failed to emit _headers:', e);
       }

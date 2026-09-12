@@ -548,7 +548,7 @@ export function createDeviceLinkingKeyMaterialPortV1(
           linkSessionId: linkSessionId.value,
           enrollmentId: enrollmentId.value,
           deviceId: deviceId.value,
-            walletAuthMethodId: walletAuthMethodId.value,
+          walletAuthMethodId: walletAuthMethodId.value,
           baseWalletAuthMethodId: baseWalletAuthMethodId.value,
           targetPreparationDigestB64u,
           expectedChallengeId,
@@ -579,7 +579,7 @@ export function createDeviceLinkingKeyMaterialPortV1(
             linkSessionId: linkSessionId.value,
             walletId: walletId.value,
             authorityId: authorityId.value,
-          walletAuthMethodId: walletAuthMethodId.value,
+            walletAuthMethodId: walletAuthMethodId.value,
             deliveryBinding: parseLinkedDeviceWalletSessionCredentialDeliveryBindingV1(
               expected.deliveryBinding,
             ),

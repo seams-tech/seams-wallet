@@ -1,13 +1,7 @@
-import type { LaneShareEpoch, SigningLaneId, WalletKeyId } from '../signing-lanes/ids';
-import { parseLaneShareEpoch, parseSigningLaneId, parseWalletKeyId } from '../signing-lanes/ids';
 import type { WalletId } from '../utils/domainIds';
 import { parseWalletId } from '../utils/domainIds';
 import type { DigestB64u } from '../utils/canonicalPrimitives';
-import type {
-  EnvelopeCiphertextB64u,
-  EnvelopeNonceB64u,
-  PasskeyCustodySecretKind,
-} from '../passkey-custody';
+import type { EnvelopeCiphertextB64u, EnvelopeNonceB64u } from '../passkey-custody';
 import {
   parseDigestField,
   parseEnvelopeCiphertextB64u,
@@ -16,10 +10,7 @@ import {
   rejectUnknownFields,
   requireRecord,
 } from '../passkey-custody';
-import {
-  parseRecoveryCodeReservationId,
-  type RecoveryCodeReservationId,
-} from './recoveryCodeReservation';
+import { parseRecoveryCodeReservationId } from './recoveryCodeReservation';
 import type { DerivedWalletRecoveryKeyId } from './recoveryCodes';
 import { parseDerivedWalletRecoveryKeyId, WALLET_RECOVERY_CODE_COUNT } from './recoveryCodes';
 import type { RecoveryCodeLifecycleState } from './recoveryEnvelopes';
@@ -274,7 +265,12 @@ const RECOVERY_ENTRY_FIELDS = [
   'aadHashB64u',
 ] as const;
 
-const ROTATION_WRAP_FIELDS = ['recoveryKeyId', 'nonceB64u', 'ciphertextB64u', 'aadHashB64u'] as const;
+const ROTATION_WRAP_FIELDS = [
+  'recoveryKeyId',
+  'nonceB64u',
+  'ciphertextB64u',
+  'aadHashB64u',
+] as const;
 const ROTATION_SET_FIELDS = ['walletId', 'manifestKekWraps', 'entries'] as const;
 
 const MANIFEST_KEK_WRAP_FIELDS = [

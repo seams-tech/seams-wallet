@@ -24,7 +24,7 @@ export type SignerActivationPolicy =
     };
 
 export type PlanAccountSignerActivationInput = {
-  activeSigners: readonly (Pick<
+  activeSigners: readonly Pick<
     AccountSignerRecord,
     | 'signerId'
     | 'signerSlot'
@@ -33,7 +33,7 @@ export type PlanAccountSignerActivationInput = {
     | 'signerAuthMethod'
     | 'signerSource'
     | 'metadata'
-  >)[];
+  >[];
   signer: {
     signerId: string;
     signerKind: SignerKind;
@@ -256,7 +256,10 @@ export function planAccountSignerActivation(
         expectedFingerprint: input.activationPolicy.materialFingerprint,
       });
     }
-    const signerSlot = normalizeSessionStatusRequiredPositiveInteger(existingSigner.signerSlot, 'signerSlot');
+    const signerSlot = normalizeSessionStatusRequiredPositiveInteger(
+      existingSigner.signerSlot,
+      'signerSlot',
+    );
     return {
       signerSlot,
     };

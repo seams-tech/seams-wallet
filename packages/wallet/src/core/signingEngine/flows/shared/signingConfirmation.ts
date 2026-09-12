@@ -8,7 +8,6 @@ import {
   confirmSigningOperation,
   type ConfirmIntentDigestSigningOperationRequest,
   type ConfirmIntentDigestSigningOperationResult,
-  type ConfirmNearStepUpSigningOperationResult,
   type ConfirmSigningOperationParams,
   type ConfirmSigningOperationResult,
   type ConfirmSigningOperationRuntime,

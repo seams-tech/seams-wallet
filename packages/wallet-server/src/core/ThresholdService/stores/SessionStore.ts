@@ -8,7 +8,6 @@ import {
   RedisTcpClient,
   UpstashRedisRestClient,
   redisEval,
-  redisGetJson,
   redisGetRaw,
   redisGetdelJson,
   redisSetJson,

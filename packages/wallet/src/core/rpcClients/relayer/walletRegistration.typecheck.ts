@@ -1,7 +1,4 @@
-import {
-  activateWalletRegistration,
-  respondWalletRegistration,
-} from './walletRegistration';
+import { activateWalletRegistration, respondWalletRegistration } from './walletRegistration';
 
 type RespondArgs = Parameters<typeof respondWalletRegistration>[0];
 type ActivateArgs = Parameters<typeof activateWalletRegistration>[0];

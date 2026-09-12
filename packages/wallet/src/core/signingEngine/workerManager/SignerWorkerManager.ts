@@ -1,6 +1,9 @@
 import { type NearClient } from '@/core/rpcClients/near/NearClient';
 import type { TouchIdPrompt } from '../stepUpConfirmation/passkeyPrompt/touchIdPrompt';
-import type { NearSigningKeyMaterialStorePort, NearSigningRuntimeDeps } from '../interfaces/runtime';
+import type {
+  NearSigningKeyMaterialStorePort,
+  NearSigningRuntimeDeps,
+} from '../interfaces/runtime';
 import type {
   SignerWorkerKind,
   SignerWorkerOperationRequest,
@@ -134,5 +137,4 @@ export class SignerWorkerManager {
   }): Promise<SignerWorkerOperationResult<K, T>> {
     return this.workerTransport.requestOperation(args);
   }
-
 }

@@ -217,9 +217,7 @@ type FailureResponseDto = {
   readonly message: string | null;
 };
 
-function decodePasskeyCustodyEnvelopeResponse(
-  value: unknown,
-): PasskeyCustodyEnvelopeResponseDto {
+function decodePasskeyCustodyEnvelopeResponse(value: unknown): PasskeyCustodyEnvelopeResponseDto {
   const response = requireExactResponseObject(
     value,
     ['ok', 'envelope', 'storeVersion'],
@@ -257,11 +255,7 @@ function decodeOwnershipUpgradeResponse(value: unknown): OwnershipUpgradeRespons
     };
   }
   if (upgraded === false) {
-    requireExactResponseObject(
-      response,
-      ['ok', 'upgraded'],
-      'custody envelope upgrade response',
-    );
+    requireExactResponseObject(response, ['ok', 'upgraded'], 'custody envelope upgrade response');
     if (readResponseField(response, 'ok') !== true) {
       throw new Error('custody envelope upgrade response did not succeed');
     }

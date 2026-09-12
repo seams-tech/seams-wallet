@@ -24,9 +24,9 @@ export type EmailOtpUnlockEd25519Identity = {
 };
 
 export type EmailOtpUnlockEd25519Selection =
-  | {
+  | ({
       readonly kind: 'present';
-    } & EmailOtpUnlockEd25519Identity
+    } & EmailOtpUnlockEd25519Identity)
   | {
       readonly kind: 'absent';
     };
@@ -62,9 +62,9 @@ export type EmailOtpUnlockSignerSelection =
       readonly runtimePolicyScope: ThresholdRuntimePolicyScope;
       readonly ed25519: EmailOtpUnlockEd25519Selection;
     }
-  | {
+  | ({
       readonly kind: 'ed25519_only';
-    } & EmailOtpUnlockEd25519Identity;
+    } & EmailOtpUnlockEd25519Identity);
 
 export function parseEmailOtpUnlockEd25519Identity(
   record: Record<string, unknown>,
@@ -97,9 +97,7 @@ export function parseEmailOtpUnlockEd25519Identity(
   };
 }
 
-export function parseEmailOtpUnlockEd25519Selection(
-  raw: unknown,
-): EmailOtpUnlockEd25519Selection {
+export function parseEmailOtpUnlockEd25519Selection(raw: unknown): EmailOtpUnlockEd25519Selection {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error('Email OTP Ed25519 signer selection must be an object');
   }

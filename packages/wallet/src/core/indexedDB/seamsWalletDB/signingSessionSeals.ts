@@ -1,13 +1,9 @@
 import { unwrap } from 'idb';
 import { seamsWalletDB } from '../singletons';
-import {
-  SEAMS_WALLET_INDEXES,
-  SEAMS_WALLET_STORES,
-} from '../schemaNames';
+import { SEAMS_WALLET_INDEXES, SEAMS_WALLET_STORES } from '../schemaNames';
 
 const SIGNING_SESSION_SEALS_STORE_NAME = SEAMS_WALLET_STORES.signingSessionSeals;
-const SIGNING_SESSION_RESTORE_LEASES_STORE_NAME =
-  SEAMS_WALLET_STORES.signingSessionRestoreLeases;
+const SIGNING_SESSION_RESTORE_LEASES_STORE_NAME = SEAMS_WALLET_STORES.signingSessionRestoreLeases;
 
 export type StoredRawSealedRecordEntry = {
   primaryKey: unknown;

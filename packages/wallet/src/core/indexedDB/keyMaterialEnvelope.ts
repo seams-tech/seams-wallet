@@ -58,9 +58,7 @@ function normalizeEnvelopeAAD(
       : expected.schemaVersion;
   const signerSlotRaw = Number(record?.signerSlot ?? expected.signerSlot);
   const signerSlot =
-    Number.isSafeInteger(signerSlotRaw) && signerSlotRaw >= 1
-      ? signerSlotRaw
-      : expected.signerSlot;
+    Number.isSafeInteger(signerSlotRaw) && signerSlotRaw >= 1 ? signerSlotRaw : expected.signerSlot;
   const signerId = String(record?.signerId ?? expected.signerId).trim();
   const accountAddress = toTrimmedString(
     record?.accountAddress ?? expected.accountAddress,
@@ -128,9 +126,7 @@ export function normalizePayloadEnvelope(
   return envelope;
 }
 
-export function normalizeStoredPayloadRecord(
-  rec: KeyMaterialRecord,
-): KeyMaterialRecord | null {
+export function normalizeStoredPayloadRecord(rec: KeyMaterialRecord): KeyMaterialRecord | null {
   const profileId = toTrimmedString(rec.profileId || '');
   const chainIdKey = toTrimmedString(rec.chainIdKey || '').toLowerCase();
   const accountAddress = toTrimmedString(rec.accountAddress || '').toLowerCase();
@@ -139,7 +135,8 @@ export function normalizeStoredPayloadRecord(
   const publicKey = toTrimmedString(rec.publicKey || '');
   const signerId = toTrimmedString(rec.signerId || '');
   const wrapKeySalt = toTrimmedString(rec.wrapKeySalt || '');
-  if (!profileId || !chainIdKey || !accountAddress || !keyKind || !algorithm || !publicKey) return null;
+  if (!profileId || !chainIdKey || !accountAddress || !keyKind || !algorithm || !publicKey)
+    return null;
   if (!signerId) return null;
   if (!Number.isSafeInteger(rec.signerSlot) || rec.signerSlot < 1) return null;
   if (typeof rec.timestamp !== 'number') return null;

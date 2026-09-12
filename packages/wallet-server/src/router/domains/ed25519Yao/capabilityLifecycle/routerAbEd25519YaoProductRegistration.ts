@@ -1,10 +1,8 @@
 import {
   computeAddSignerNearEd25519SigningKeyId,
   computeRegistrationNearEd25519SigningKeyId,
-  registrationEd25519AuthorityScopeFromAuthority,
   registrationNearEd25519BranchKey,
   type AddSignerIntentV1,
-  type RegistrationAuthority,
   type RegistrationNearEd25519SignerPlan,
   type WalletId,
   type RegistrationEd25519AuthorityScope,
@@ -28,7 +26,6 @@ import type {
 import {
   createRouterAbEd25519YaoRegistrationModule,
   InMemoryRouterAbEd25519YaoRegistrationStateV1,
-  type RouterAbEd25519YaoRegistrationBackend,
   type RouterAbEd25519YaoRegistrationAuthorizationAdapter,
   type RouterAbEd25519YaoRegistrationService,
 } from '../registration/routerAbEd25519YaoRegistration';
@@ -58,7 +55,6 @@ import {
   type RouterAbEd25519YaoActiveCapabilityLookupV1,
   type RouterAbEd25519YaoActiveCapabilityResolverV1,
   type RouterAbEd25519YaoPersistedActiveCapabilityInstallerV1,
-  type RouterAbEd25519YaoRecoveryBackend,
   type RouterAbEd25519YaoRecoveryAuthorizationAdapter,
   type RouterAbEd25519YaoRecoveryService,
   type RouterAbEd25519YaoRegistrationFinalizeCapabilityInstallationV1,
@@ -70,14 +66,12 @@ import type { WalletEd25519YaoActiveCapabilityRecord } from '../../../../core/Wa
 import {
   createRouterAbEd25519YaoExportModule,
   InMemoryRouterAbEd25519YaoExportStateV1,
-  type RouterAbEd25519YaoExportBackend,
   type RouterAbEd25519YaoExportAuthorizationAdapter,
   type RouterAbEd25519YaoExportService,
 } from '../export/routerAbEd25519YaoExport';
 import { isPlainObject } from '@shared/utils/validation';
 import {
   DEFAULT_WALLET_SESSION_REMAINING_USES,
-  DEFAULT_WALLET_SESSION_TTL_MS,
 } from '@shared/threshold/sessionPolicy';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 

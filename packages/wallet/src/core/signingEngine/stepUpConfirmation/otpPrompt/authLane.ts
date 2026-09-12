@@ -8,7 +8,6 @@ import {
   WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
   WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
   type WalletEmailOtpLoginOperation,
-  type WalletEmailOtpOperation,
 } from '@shared/utils/emailOtpDomain';
 import {
   parseWalletSessionOperationCredentialV1,
@@ -109,21 +108,26 @@ function buildEmailOtpSigningSessionAuthLane(args: {
   return undefined;
 }
 
-export function buildEmailOtpRoutePlan(args: {
-  routeFamily: 'login';
-  authLane?: never;
-  operation: WalletEmailOtpLoginOperation;
-} | {
-  routeFamily: 'registration';
-  authLane?: never;
-  operation: typeof WALLET_EMAIL_OTP_REGISTRATION_OPERATION;
-} | {
-  routeFamily: 'signing_session';
-  authLane: EmailOtpSigningSessionAuthLane;
-  operation:
-    | typeof WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION
-    | typeof WALLET_EMAIL_OTP_EXPORT_OPERATION;
-}): EmailOtpRoutePlan {
+export function buildEmailOtpRoutePlan(
+  args:
+    | {
+        routeFamily: 'login';
+        authLane?: never;
+        operation: WalletEmailOtpLoginOperation;
+      }
+    | {
+        routeFamily: 'registration';
+        authLane?: never;
+        operation: typeof WALLET_EMAIL_OTP_REGISTRATION_OPERATION;
+      }
+    | {
+        routeFamily: 'signing_session';
+        authLane: EmailOtpSigningSessionAuthLane;
+        operation:
+          | typeof WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION
+          | typeof WALLET_EMAIL_OTP_EXPORT_OPERATION;
+      },
+): EmailOtpRoutePlan {
   switch (args.routeFamily) {
     case 'registration':
       if (args.operation !== WALLET_EMAIL_OTP_REGISTRATION_OPERATION) {

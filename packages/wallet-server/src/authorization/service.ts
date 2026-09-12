@@ -43,7 +43,6 @@ import {
 import {
   parseHostedWalletSessionExchangeCodeId,
   parseWalletSessionAuthorizationId,
-  type MpcWalletSigningQuotaId,
   type AuthorizedOperationId,
   type PrincipalId,
   type WalletSessionMintId,
@@ -70,7 +69,6 @@ import type { AuthorizationEvidenceRequirement } from '@shared/authorization/cap
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
-import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
 import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/parsers';
 import type { CapabilityOperationFingerprintDigest } from '@shared/authorization/operationFingerprint';
 

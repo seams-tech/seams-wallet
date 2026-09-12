@@ -192,10 +192,7 @@ export type PendingWalletRecoveryPromotionAdvanceInputV1 = {
     PendingWalletRecoveryCommitV1,
     { readonly stage: 'awaiting_server_promotion' }
   >;
-  readonly promoted: Extract<
-    PendingWalletRecoveryCommitV1,
-    { readonly stage: 'server_promoted' }
-  >;
+  readonly promoted: Extract<PendingWalletRecoveryCommitV1, { readonly stage: 'server_promoted' }>;
 };
 
 export function pendingWalletRecoveryCommitIdentityMatches(
@@ -264,9 +261,7 @@ function positiveSafeInteger(value: unknown): number | null {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : null;
 }
 
-function parseRecoveryCodeReservationIdSafely(
-  value: unknown,
-): RecoveryCodeReservationId | null {
+function parseRecoveryCodeReservationIdSafely(value: unknown): RecoveryCodeReservationId | null {
   try {
     return parseRecoveryCodeReservationId(value);
   } catch {
@@ -428,9 +423,7 @@ export async function parsePendingWalletRecoveryCommitV1(
   const reservationId = parseRecoveryCodeReservationIdSafely(fields.get('reservationId'));
   const targetDeviceId = parseDeviceId(fields.get('targetDeviceId'));
   const targetAuthorityId = parseWalletAuthorityId(fields.get('targetAuthorityId'));
-  const targetWalletAuthMethodId = parseWalletAuthMethodId(
-    fields.get('targetWalletAuthMethodId'),
-  );
+  const targetWalletAuthMethodId = parseWalletAuthMethodId(fields.get('targetWalletAuthMethodId'));
   const target = parseTarget(fields.get('target'));
   const localMaterial = parseEncryptedMaterial(fields.get('localMaterial'));
   const createdAtMs = positiveSafeInteger(fields.get('createdAtMs'));
@@ -989,7 +982,10 @@ export function pendingWalletRecoveryCommitAppStateRowsMatch(
     valueFields.get('record'),
     recordKeys,
   );
-  return actualRecordFields !== null && samePendingRecoveryCommitRecordV1(actualRecordFields, expectedRecord);
+  return (
+    actualRecordFields !== null &&
+    samePendingRecoveryCommitRecordV1(actualRecordFields, expectedRecord)
+  );
 }
 
 export function pendingWalletRecoveryProjectionExpectation(

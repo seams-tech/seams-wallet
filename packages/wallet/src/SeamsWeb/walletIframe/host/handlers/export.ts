@@ -20,7 +20,9 @@ function keyExportInputFromPayload(
         throw new Error('[WalletIframe] key export lane wallet does not match wallet session');
       }
       if (!thresholdEcdsaChainTargetsEqual(laneIdentity.signer.chainTarget, payload.chainTarget)) {
-        throw new Error('[WalletIframe] key export lane chain target does not match request target');
+        throw new Error(
+          '[WalletIframe] key export lane chain target does not match request target',
+        );
       }
       return {
         kind: 'ecdsa',

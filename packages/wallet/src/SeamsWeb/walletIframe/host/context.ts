@@ -265,8 +265,10 @@ export function createHostContext(): HostContext {
   };
 }
 
-export function resolveWalletHostInternalOptionsV1(
-): Extract<SeamsWebInternalOptions, { readonly kind: 'wallet_host' }> {
+export function resolveWalletHostInternalOptionsV1(): Extract<
+  SeamsWebInternalOptions,
+  { readonly kind: 'wallet_host' }
+> {
   return { kind: 'wallet_host' };
 }
 

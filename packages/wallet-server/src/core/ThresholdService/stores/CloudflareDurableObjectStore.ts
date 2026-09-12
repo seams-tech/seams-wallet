@@ -2,7 +2,6 @@ import type { NormalizedLogger } from '../../logger';
 import type { CloudflareDurableObjectNamespaceLike, ThresholdStoreConfigInput } from '../../types';
 import { THRESHOLD_DO_OBJECT_NAME_DEFAULT } from '../../defaultConfigsServer';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
-import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
 import {
   isObject,
   parseRouterAbEcdsaDerivationPoolFillSessionRecord,

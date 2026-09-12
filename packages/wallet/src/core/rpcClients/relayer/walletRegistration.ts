@@ -27,7 +27,6 @@ import {
   parseAddSignerIntentV1,
   normalizeRegistrationAuthMethodInput,
   normalizeRegistrationSignerPlan,
-  parseNearEd25519SigningKeyId,
   registrationSignerSetSelectionFromPlan,
   sameAddAuthMethodIntentV1,
   sameAddSignerIntentV1,
@@ -47,12 +46,6 @@ import { parseDigestB64u, type CorrelationId } from '@shared/utils/canonicalPrim
 import type { RegistrationEstablishedSessionResultV2 } from '@shared/utils/registrationEstablishedSession';
 import { parseRegistrationEstablishedSessionResultV2 } from '@shared/utils/registrationEstablishedSession';
 import {
-  parseCanonicalEcdsaServerActivationRequest,
-  type CanonicalEcdsaServerActivationRequest,
-} from '@shared/utils/ecdsaCapabilityActivation';
-import {
-  parseThresholdEcdsaSessionId,
-  parseThresholdEd25519SessionId,
   parseWebAuthnCredentialIdB64u,
   parseWebAuthnRpId,
   parseWalletAuthMethodId,
@@ -73,11 +66,6 @@ import type {
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
 import {
-  parseMpcWalletSigningQuotaId,
-  parseWalletSessionAuthorizationId,
-  parseWalletSessionId,
-} from '@shared/authorization/capabilityKinds';
-import {
   type RouterAbEd25519YaoActivationAdmissionReceiptV1,
   parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
   parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1,
@@ -88,13 +76,8 @@ import {
   parseWalletAuthAuthority,
   type WalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
+import { type RouterAbEd25519NormalSigningState } from '@shared/utils/signingSessionSeal';
 import {
-  requireRouterAbEd25519NormalSigningState,
-  type RouterAbEd25519NormalSigningState,
-} from '@shared/utils/signingSessionSeal';
-import {
-  parseRouterAbEcdsaDerivationActivationCommitQueryResultV1,
-  parseRouterAbEcdsaDerivationActivationPrepareResultV1,
   parseRouterAbEcdsaRegistrationPublicActivationReceiptV1,
   parseRouterAbEcdsaRegistrationRequestFactsV1,
   parseRouterAbEcdsaStrictForwardedRegistrationResponseV1,
@@ -106,22 +89,17 @@ import {
   type RouterAbEcdsaStrictForwardedRegistrationResponseV1,
   type RouterAbEcdsaDerivationPublicCapabilityV1,
   type RouterAbEcdsaDerivationNormalSigningStateV1,
-  type RouterAbEcdsaDerivationActivationCommitQueryResultV1,
-  type RouterAbEcdsaDerivationActivationPrepareResultV1,
   type RouterAbPublicDigest32V1Wire,
 } from '@shared/utils/routerAbEcdsaDerivation';
-import type { AccountId } from '@/core/types/accountIds';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
 import {
   parseThresholdEcdsaKeyIdentityTargets,
   type ThresholdEcdsaKeyIdentityInventoryEntry,
 } from '@/core/signingEngine/session/passkey/ecdsaKeyFactsInventory';
 import {
-  toWalletId,
   thresholdEcdsaChainTargetsEqual,
   type ThresholdEcdsaChainTarget,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { parseEcdsaThresholdKeyId } from '@/core/signingEngine/session/keyMaterialBrands';
 import {
   normalizeThresholdRuntimePolicyScope,
   type Ed25519AuthorityScope,
@@ -137,11 +115,7 @@ import {
   buildRelayerJsonPostRequestInit,
   normalizeRelayerBaseUrl,
 } from './relayerHttp';
-import { parseThresholdEcdsaKeyHandle } from '@shared/utils/thresholdEcdsaKeyHandle';
-import {
-  registrationSignerSetRequestSelection,
-  type RegistrationSignerSetRequest,
-} from './registrationSignerSetRequest';
+import { type RegistrationSignerSetRequest } from './registrationSignerSetRequest';
 import {
   parseWalletAddSignerChainTarget,
   parseWalletAddSignerEcdsaWalletKey,

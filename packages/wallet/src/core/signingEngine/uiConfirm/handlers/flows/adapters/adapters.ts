@@ -23,7 +23,6 @@ import {
 import {
   getDisplayModel,
   getEmailOtpPrompt,
-  getNearAccountId,
   getSignTransactionPayload,
   getSigningAuthMode,
   getSubjectLabel,

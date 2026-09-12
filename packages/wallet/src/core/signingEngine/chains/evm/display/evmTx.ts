@@ -1,9 +1,5 @@
 import type { EvmSigningRequest } from '@/core/signingEngine/chains/evm/evmSigning.types';
-import {
-  resolveFunctionDisplayName,
-  resolveFunctionSignature,
-  selectorFromHexData,
-} from './functionSelectors';
+import { resolveFunctionDisplayName, selectorFromHexData } from './functionSelectors';
 import { normalizeHexData } from './normalization';
 import { formatCalldataForDisplay } from './calldata';
 import { formatCompactGas } from './gas';

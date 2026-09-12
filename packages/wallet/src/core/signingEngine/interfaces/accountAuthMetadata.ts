@@ -1,7 +1,4 @@
-import {
-  type SignerAuthMethod,
-  SIGNER_AUTH_METHODS,
-} from '@shared/utils/signerDomain';
+import { type SignerAuthMethod, SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';
 
 export type AccountAuthMetadata = {
   primaryAuthMethod: SignerAuthMethod;

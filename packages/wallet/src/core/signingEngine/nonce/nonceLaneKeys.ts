@@ -3,9 +3,7 @@ import type {
   ManagedNonceReservation,
   ReserveNonceInput,
 } from '@/core/rpcClients/evm/nonceBackend';
-import {
-  thresholdEcdsaChainTargetKey,
-} from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+import { thresholdEcdsaChainTargetKey } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import type {
   SigningOperationFingerprint,
@@ -90,12 +88,16 @@ export function nonceLaneKey(lane: NonceLane): string {
 }
 
 export function nearNonceLaneKey(lane: NearNonceLane): string {
-  return encodeNonceKeyParts(['near', lane.networkKey, lane.walletId, lane.nearAccountId, lane.publicKey]);
+  return encodeNonceKeyParts([
+    'near',
+    lane.networkKey,
+    lane.walletId,
+    lane.nearAccountId,
+    lane.publicKey,
+  ]);
 }
 
-export function assertEvmLease(
-  lease: NonceLease,
-): asserts lease is EvmNonceLease {
+export function assertEvmLease(lease: NonceLease): asserts lease is EvmNonceLease {
   if (lease.lane.family !== 'evm') {
     throw new Error('[NonceCoordinator] expected an EVM-family nonce lease');
   }

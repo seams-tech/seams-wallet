@@ -12,7 +12,6 @@ import type {
   WalletRegistrationStartResponse,
   WalletRegistrationFinalizeRequest,
   WalletRegistrationFinalizeResponse,
-  WalletRegistrationFinalizeRouteSuccess,
   WalletRegistrationEcdsaActivationResponse,
   WalletRegistrationEcdsaWalletKey,
   WalletRegistrationEd25519YaoPublicResult,

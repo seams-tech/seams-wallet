@@ -2,10 +2,7 @@ import type { AccountId } from '@/core/types/accountIds';
 import type { SignerSlot } from '@shared/utils/signerSlot';
 import type { SensitiveOperationPolicy, SignerAuthMethod } from '@shared/utils/signerDomain';
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type {
-  LaneCandidate,
-  SelectedLane,
-} from '../identity/laneIdentity';
+import type { LaneCandidate, SelectedLane } from '../identity/laneIdentity';
 import type {
   TransactionConcreteAvailableLane,
   TransactionIntentReceivedState,

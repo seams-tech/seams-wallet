@@ -59,10 +59,7 @@ function exportSubject(value: unknown): LocalOnlyExportSubject {
 function exportSummary(value: unknown): ExportSummary {
   const summary = object(value, 'summary');
   const operation = summary.operation;
-  if (
-    operation !== 'Export Private Key' &&
-    operation !== 'Export Recovery Key'
-  ) {
+  if (operation !== 'Export Private Key' && operation !== 'Export Recovery Key') {
     throw new Error('Invalid export confirmation: unsupported operation');
   }
   return {

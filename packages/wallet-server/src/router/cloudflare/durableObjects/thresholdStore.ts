@@ -5,7 +5,6 @@
 
 import { isPlainObject } from '@shared/utils/validation';
 import {
-  parseEcdsaWalletSessionRecord,
   parseRouterAbEcdsaDerivationPoolFillSessionRecord as parseFullRouterAbEcdsaDerivationPoolFillSessionRecord,
 } from '../../../core/ThresholdService/validation';
 import type { RouterAbEcdsaDerivationPoolFillSessionRecord } from '../../../core/ThresholdService/stores/EcdsaSigningStore';

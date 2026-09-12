@@ -224,12 +224,11 @@ function classifyWalletSessionAuthorizationRow(
   const topLevelVersion = parseWalletSessionAuthorizationRecordVersion(
     readWalletSessionField(value, 'record_version'),
   );
-  const nestedVersion =
-    !hasTopLevelVersion
-      ? parseWalletSessionAuthorizationRecordVersion(
-          readWalletSessionField(readWalletSessionField(value, 'record'), 'recordVersion'),
-        )
-      : null;
+  const nestedVersion = !hasTopLevelVersion
+    ? parseWalletSessionAuthorizationRecordVersion(
+        readWalletSessionField(readWalletSessionField(value, 'record'), 'recordVersion'),
+      )
+    : null;
   const version = topLevelVersion ?? nestedVersion;
   if (version === null) return { kind: 'unknown' };
   if (
@@ -260,16 +259,10 @@ function futureWalletSessionAuthorizationRowMatchesExactScope(
   if (readWalletSessionField(value, 'wallet_id') !== scope.walletId) return false;
   const authorityId = readWalletSessionField(value, 'wallet_authority_id');
   const authMethodId = readWalletSessionField(value, 'wallet_auth_method_id');
-  if (
-    typeof authorityId !== 'string' ||
-    typeof authMethodId !== 'string'
-  ) {
+  if (typeof authorityId !== 'string' || typeof authMethodId !== 'string') {
     return true;
   }
-  return (
-    authorityId === scope.authorityId &&
-    authMethodId === scope.authMethodId
-  );
+  return authorityId === scope.authorityId && authMethodId === scope.authMethodId;
 }
 
 function isNonNegativeSafeInteger(value: unknown): value is number {
@@ -584,15 +577,17 @@ export function parseStoredExactWalletSessionAuthorizationRowV6(value: unknown):
   if (!walletSessionId.ok || !authorizationId.ok) return null;
   let operationCredential: WalletSessionOperationCredentialV1;
   try {
-    operationCredential = parseWalletSessionOperationCredentialV1(fields.get('operation_credential'));
+    operationCredential = parseWalletSessionOperationCredentialV1(
+      fields.get('operation_credential'),
+    );
   } catch {
     return null;
   }
   if (walletSessionId.value !== operationCredential.walletSessionId) return null;
-  const recordFields = decodeExactWalletSessionFields(
-    fields.get('record'),
-    [...EXACT_ACTIVE_FIELDS, 'walletSessionId'],
-  );
+  const recordFields = decodeExactWalletSessionFields(fields.get('record'), [
+    ...EXACT_ACTIVE_FIELDS,
+    'walletSessionId',
+  ]);
   if (!recordFields) return null;
   const recordWalletSessionId = parseWalletSessionId(recordFields.get('walletSessionId'));
   if (!recordWalletSessionId.ok || recordWalletSessionId.value !== walletSessionId.value) {

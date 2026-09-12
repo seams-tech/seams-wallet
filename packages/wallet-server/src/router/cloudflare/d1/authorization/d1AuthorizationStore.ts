@@ -44,7 +44,6 @@ import type {
   ResolvedHostedWalletSessionOperationCredentialV2,
   VerifiedAuthorizationEvidenceSet,
   VerifiedOwnerProof,
-  WalletSessionId,
 } from '../../../../authorization/domain';
 import type { WalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import {
@@ -83,7 +82,6 @@ import type {
   D1PreparedStatementLike,
   D1ResultLike,
 } from '../../../../storage/tenantRoute';
-import { parseWalletId } from '@shared/utils/domainIds';
 import {
   routerAbMpcMaterialActivationRefToWire,
   sameRouterAbMpcMaterialActivationRef,

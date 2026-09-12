@@ -29,7 +29,6 @@ import { useSeamsAuthMenuForceInitialRegister } from '../hydrationContext';
 import { NO_LAST_USED_LOGIN_METHOD, type LastUsedLoginMethod } from './lastUsedLoginMethod';
 import { useAuthMenuMode } from './mode';
 import { getProceedEligibility } from './proceedEligibility';
-import { extractUsernameFromAccountId } from '@/react/hooks/useAccountInput';
 import { isUserCancellationError } from '@shared/utils/errors';
 import { WALLET_AUTH_METHODS, type WalletAuthMethod } from '@shared/utils/signerDomain';
 import {

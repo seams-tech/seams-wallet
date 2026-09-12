@@ -20,25 +20,16 @@ import { revokeWalletAuthMethodOperation } from '@/SeamsWeb/operations/authMetho
 import { addEmailOtpWalletAuthMethod } from '@/SeamsWeb/operations/authMethods/emailOtp/addEmailOtp';
 import { MinimalNearClient, type NearClient } from '@/core/rpcClients/near/NearClient';
 import type {
-  ActionResult,
-  GetRecentUnlocksResult,
-  LoginAndCreateSessionResult,
-  WalletSession,
   RegistrationResult,
   ThemeMode,
   AppearanceConfig,
   AppearanceConfigInput,
-  EmailOtpAuthPolicy,
   SeamsConfigsReadonly,
   SeamsConfigsInput,
 } from '@/core/types/seams';
 import type {
-  ActionHooksOptions,
   CreateRegistrationFlowEventInput,
   CreateUnlockFlowEventInput,
-  KeyExportHooksOptions,
-  LoginHooksOptions,
-  RegistrationHooksOptions,
   RegistrationFlowEvent,
   NearProvisioningStateChangedEvent,
   SdkLifecycleEvent,
@@ -54,7 +45,6 @@ import {
 } from '@/core/types/sdkSentEvents';
 import { readNearProvisioningState } from '@/core/signingEngine/flows/registration/nearProvisioningRegistry';
 import { cloneAuthenticatorOptions } from '@/core/types/authenticatorOptions';
-import { toAccountId } from '@/core/types/accountIds';
 import { IndexedDBManager } from '@/core/indexedDB';
 import type {
   HostedAuthMenuExternalAuthRequest,
@@ -75,10 +65,8 @@ import {
 import { sha256HexUtf8 } from '@shared/utils/digests';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { WalletEmailOtpLoginOperation } from '@shared/utils/emailOtpDomain';
-import type { EmailOtpVerifiedAuthorityProjection } from '@/core/signingEngine/session/emailOtp/publicTypes';
 import {
   isEmailOtpWalletAuthAuthority,
-  walletAuthAuthoritiesMatch,
   parseWalletAuthAuthorityRef,
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
@@ -109,7 +97,6 @@ import {
   createPublicApi,
   createWalletIframeLinkedDeviceManagementPortV1,
   type DevicesCapabilityDomainMethods,
-  type LinkedDeviceManagementPortV1,
   type WalletIframeControlCapability,
 } from './publicApi';
 import { createWalletHostCompositionV1 } from './operations/devices/walletHostComposition';
@@ -155,7 +142,6 @@ import type {
   RecoveryCapability,
   TempoSignerCapability,
 } from '@/SeamsWeb/signingSurface/types';
-import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type {
   EnrollEmailOtpInternalResult,
@@ -168,9 +154,7 @@ import {
   toWalletId,
   thresholdEcdsaChainTargetFromRequest,
   walletSessionRefFromSession,
-  type NearAccountRef,
   type ThresholdEcdsaChainTarget,
-  type WalletId,
   type WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import {
@@ -212,10 +196,7 @@ import {
   unlockLinkedDeviceEmailOtpWallet,
 } from '@/SeamsWeb/operations/auth/login';
 import { rotateWalletRecoveryCodes } from '@/SeamsWeb/operations/recovery/walletRecoveryRotation';
-import {
-  showWalletRecoveryCodeBackupUi,
-  showWalletRecoveryCodesUi,
-} from '@/SeamsWeb/operations/recovery/walletRecoveryCodeBackup';
+import { showWalletRecoveryCodesUi } from '@/SeamsWeb/operations/recovery/walletRecoveryCodeBackup';
 import { pendingWalletRecoveryCodeBackupRepository } from '@/core/indexedDB/seamsWalletDB/pendingWalletRecoveryCodeBackup';
 import {
   acknowledgeWalletRecoveryBackup,
@@ -228,10 +209,7 @@ import {
   walletAuthAuthorityRefForVerifiedEmailOtpUnlock,
   type EmailOtpWalletPostUnlockActivation,
 } from '@/SeamsWeb/operations/authMethods/emailOtp/walletActivation';
-import type {
-  RegistrationSignerSetSelection,
-  WalletAuthMethodRecordV2,
-} from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 import {
   nearAccountBindingFromRaw,
   type NearAccountBinding,

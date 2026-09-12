@@ -1,17 +1,8 @@
 import type { EvmFamilyChain } from '../../interfaces/operationDeps';
-import {
-  selectedEcdsaLane,
-  emailOtpAuthContextReason,
-  emailOtpAuthContextRetention,
-  type SelectedEcdsaLane,
-  type ThresholdEcdsaSessionStoreSource,
-} from '../../session/identity/laneIdentity';
+import { selectedEcdsaLane, type SelectedEcdsaLane } from '../../session/identity/laneIdentity';
 import { signingLaneAuthMethod } from '../../session/identity/signingLaneAuthBinding';
 import { type EcdsaTransactionSigningLane } from '../../session/operationState/lanes';
-import {
-  thresholdEcdsaChainTargetsEqual,
-  type ThresholdEcdsaChainTarget,
-} from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+import { type ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { type EvmFamilyEcdsaKeyIdentity } from '../../session/identity/evmFamilyEcdsaIdentity';
 import { requireEvmFamilyEcdsaSigner } from '../../session/identity/exactSigningLaneIdentity';
 

@@ -6,10 +6,7 @@ import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/
 import type { ThresholdEcdsaEmailOtpAuthContext } from '../identity/laneIdentity';
 import type { EvmFamilyEcdsaKeyIdentity } from '../identity/evmFamilyEcdsaIdentity';
 import type { ThresholdRuntimePolicyScope } from '../../threshold/sessionPolicy';
-import {
-  SigningSessionIds,
-  type ThresholdEcdsaSessionId,
-} from '../operationState/types';
+import { SigningSessionIds, type ThresholdEcdsaSessionId } from '../operationState/types';
 
 export type EcdsaSessionIdentity = {
   thresholdSessionId: ThresholdEcdsaSessionId;

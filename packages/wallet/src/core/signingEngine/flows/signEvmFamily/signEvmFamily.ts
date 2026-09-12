@@ -1,8 +1,7 @@
 import { SigningEventPhase } from '@/core/types/sdkSentEvents';
 import type { ConfirmationConfig } from '@/core/types/signer-worker';
-import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import type { AccountAuthMetadata } from '@/core/signingEngine/interfaces/accountAuthMetadata';
-import type { NonceCoordinator, PreparedNonceOperationContext } from '../../nonce/NonceCoordinator';
+import type { PreparedNonceOperationContext } from '../../nonce/NonceCoordinator';
 import type { EvmSigningRequest } from '../../chains/evm/evmSigning.types';
 import type { EvmSignedResult } from '../../chains/evm/evmAdapter';
 import { buildEvmDisplayModel } from '../../chains/evm/display/evmTx';
@@ -10,36 +9,18 @@ import type { TempoSigningRequest } from '../../chains/tempo/tempoSigning.types'
 import type { TempoSignedResult } from '../../chains/tempo/tempoAdapter';
 import { buildTempoDisplayModel } from '../../chains/tempo/display';
 import type { TxDisplayModel } from '../../interfaces/display';
-import type {
-  ReadAvailableSigningLanesForSigningInput,
-  AvailableSigningLanes,
-} from '../../session/availability/availableSigningLanes';
-import type { RestorePersistedSessionForSigningInput } from '../../session/sealedRecovery/sealedRecovery.types';
-import { type ThresholdEcdsaSessionStoreSource } from '../../session/identity/laneIdentity';
 import {
   exactEcdsaSigningLaneIdentityFromSelectedLane,
   requireEvmFamilyEcdsaSigner,
   type ExactEcdsaSigningLaneIdentity,
 } from '../../session/identity/exactSigningLaneIdentity';
 import { isEvmFamilyEcdsaMaterialSupersededError } from './signingFlow';
-import type {
-  UiConfirmContextPort,
-  UiConfirmSigningPort,
-  UiConfirmRequestConfirmationPort,
-  WarmSessionStatusResult,
-  WarmSessionStatusReader,
-} from '../../uiConfirm/uiConfirm.types';
-import type { SignerWorkerManagerContext } from '../../workerManager/SignerWorkerManager';
 import {
-  assertSameSigningLaneIdentity,
   SigningOperationIntent,
   type SigningOperationFingerprint,
   type SigningOperationId,
 } from '../../session/operationState/types';
-import {
-  emitSigningSessionFlowFailure,
-  emitSigningSessionFlowTrace,
-} from '../../session/operationState/trace';
+import { emitSigningSessionFlowTrace } from '../../session/operationState/trace';
 import {
   computeSigningOperationFingerprint,
   parseSigningOperationFingerprintDigest,
@@ -50,10 +31,8 @@ import {
 } from '../../session/operationState/authorizationAdmission';
 import { signingLaneAuthBindingKey } from '../../session/identity/signingLaneAuthBinding';
 import type { SigningSessionCoordinator } from '../../session/SigningSessionCoordinator';
-import type { ThresholdEcdsaSessionBootstrapResult } from '../../threshold/ecdsa/activation';
 import { ensureSealedRefreshStartupParityForTransactionSigning } from '../../session/warmCapabilities/sealedRefreshParity';
-import { SIGNER_AUTH_METHODS, type SignerAuthMethod } from '@shared/utils/signerDomain';
-import type { EmailOtpSigningSessionAuthLane } from '../../stepUpConfirmation/otpPrompt/authLane';
+import { SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';
 import {
   evmFamilySigningTargetFromExplicitTarget,
   type EvmFamilyBroadcastAcceptedArgs,
@@ -65,12 +44,7 @@ import {
   type EvmFamilyNonceLaneStatus,
   type EvmFamilyReconcileLaneArgs,
 } from './types';
-import type {
-  EcdsaSigningListLookupArgs,
-  EcdsaSigningLookupArgs,
-  EvmFamilySigningDeps,
-  PasskeyEcdsaSigningLookupArgs,
-} from '../../interfaces/operationDeps';
+import type { EvmFamilySigningDeps } from '../../interfaces/operationDeps';
 import {
   toWalletId,
   thresholdEcdsaChainTargetKey,
@@ -78,11 +52,7 @@ import {
   type WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { throwIfEvmFamilySigningCancelled } from './errors';
-import {
-  requireResolvedEvmFamilyEcdsaSigningLane,
-  summarizeEvmFamilyEcdsaLane,
-  type ResolvedEvmFamilyEcdsaSigningLane,
-} from './ecdsaLanes';
+import { summarizeEvmFamilyEcdsaLane, type ResolvedEvmFamilyEcdsaSigningLane } from './ecdsaLanes';
 import type { WalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
 import { resolveEvmFamilyTransactionWalletAuth } from './accountAuth';
 import {
@@ -103,12 +73,6 @@ import {
   executeEvmFamilyTransactionSigning,
   type EvmFamilyExecutorThresholdEcdsaState,
 } from './transactionExecutor';
-
-type EvmFamilyTransactionSigningOperationContext = {
-  operationId: SigningOperationId;
-  operationFingerprint: SigningOperationFingerprint;
-  intent: typeof SigningOperationIntent.TransactionSign;
-};
 import {
   buildActiveWalletAuthorityConfirmationAuthPlan,
   createEvmFamilySigningFlowRuntime,
@@ -151,6 +115,12 @@ import {
   reportEvmFamilyDroppedOrReplaced,
   reportEvmFamilyFinalized,
 } from './nonceLifecycleAdapter';
+
+type EvmFamilyTransactionSigningOperationContext = {
+  operationId: SigningOperationId;
+  operationFingerprint: SigningOperationFingerprint;
+  intent: typeof SigningOperationIntent.TransactionSign;
+};
 
 // Wallet Session expiry is the authorization's own fact. It used to be read
 // off the composite record, which is a different clock from the one that

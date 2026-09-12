@@ -42,8 +42,6 @@ import {
   parseMpcWalletSigningQuotaId,
   parseWalletSessionAuthorizationId,
   parseWalletSessionId,
-  type MpcWalletSigningQuotaId,
-  type WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
 import {
   parseActiveWalletSessionV1,
@@ -97,25 +95,24 @@ function requireThresholdEd25519SessionId(
   return parsed.value;
 }
 
-export type ParsedPasskeyEd25519YaoSyncResponseV1 = ParsedPasskeyEd25519YaoRecoveryDescriptorV1<
-  ParsedExactYaoRecoverySessionV1
-> & {
-  readonly walletAuthMethodId: WalletAuthMethodId;
-  readonly walletAuthorityId: WalletAuthorityId;
-  readonly foundingAuthority: ActiveWalletAuthorityV1;
-  readonly foundingAuthMethod: Extract<
-    WalletAuthMethodRecordV2,
-    { readonly kind: 'passkey'; readonly status: 'active' }
-  >;
-  readonly keyVersion: string;
-  readonly credentialPublicKeyB64u: string;
-  readonly walletSession: ActiveWalletSessionV1;
-  readonly operationCredential: WalletSessionOperationCredentialV1;
-  readonly walletCustody: {
-    readonly envelope: PasskeyCustodyEnvelopeRecord;
-    readonly storeVersion: string;
+export type ParsedPasskeyEd25519YaoSyncResponseV1 =
+  ParsedPasskeyEd25519YaoRecoveryDescriptorV1<ParsedExactYaoRecoverySessionV1> & {
+    readonly walletAuthMethodId: WalletAuthMethodId;
+    readonly walletAuthorityId: WalletAuthorityId;
+    readonly foundingAuthority: ActiveWalletAuthorityV1;
+    readonly foundingAuthMethod: Extract<
+      WalletAuthMethodRecordV2,
+      { readonly kind: 'passkey'; readonly status: 'active' }
+    >;
+    readonly keyVersion: string;
+    readonly credentialPublicKeyB64u: string;
+    readonly walletSession: ActiveWalletSessionV1;
+    readonly operationCredential: WalletSessionOperationCredentialV1;
+    readonly walletCustody: {
+      readonly envelope: PasskeyCustodyEnvelopeRecord;
+      readonly storeVersion: string;
+    };
   };
-};
 
 export type PasskeyEd25519YaoRecoveryResultV1<
   TParsed extends ParsedPasskeyEd25519YaoRecoveryDescriptorV1<ParsedYaoRecoverySessionBaseV1> =
@@ -434,9 +431,7 @@ export function parsePasskeyEd25519YaoSyncResponseV1(
   }
   const capability = parseEd25519YaoRecoveryCapabilityV1(recovery.capability);
   const walletSession = parseActiveWalletSessionV1(response.walletSession);
-  const operationCredential = parseWalletSessionOperationCredentialV1(
-    response.operationCredential,
-  );
+  const operationCredential = parseWalletSessionOperationCredentialV1(response.operationCredential);
   const parsed: ParsedPasskeyEd25519YaoSyncResponseV1 = {
     authority,
     walletAuthMethodId: walletAuthMethodId.value,

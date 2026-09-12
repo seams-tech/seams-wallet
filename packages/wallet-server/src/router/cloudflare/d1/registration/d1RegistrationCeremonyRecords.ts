@@ -18,9 +18,6 @@ import {
   normalizeRegistrationAuthMethodInput,
   normalizeRegistrationSignerPlan,
   nearEd25519SigningKeyIdFromString,
-  requireServerAllocatedWalletId,
-  registrationEvmFamilyEcdsaBranchKey,
-  registrationNearEd25519BranchKey,
   registrationSignerBranchKeyFromString,
   registrationSignerSetSelectionFromPlan,
   parseWalletAuthMethodRecordV2,
@@ -78,7 +75,6 @@ import {
 import {
   parseRouterAbEcdsaDerivationPublicCapabilityV1,
   parseRouterAbEcdsaDerivationNormalSigningStateV1,
-  parseRouterAbEcdsaDerivationActivationPrepareResultV1,
   parseRouterAbEcdsaRegistrationActivationReceiptV1,
   parseRouterAbEcdsaRegistrationRequestV1,
   parseRouterAbEcdsaRegistrationRequestFactsV1,

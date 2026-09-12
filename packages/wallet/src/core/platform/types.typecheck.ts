@@ -21,7 +21,6 @@ import {
   buildFido2HmacSecretSource,
   buildSecureEnclaveWrappedSecretSource,
   buildThresholdPrfXClientBaseSecretSource,
-  buildWebAuthnPrfFirstSecretSource,
   parseEmailOtpEcdsaExportWorkerIssuedSessionHandle,
 } from './types';
 import type {
@@ -43,8 +42,6 @@ import type {
   RequiredPrfAuthenticatorSuccess,
   SignerCryptoResult,
 } from './types';
-
-declare const materialActivation: MpcMaterialActivationRef;
 import type {
   DerivationClientSharePublicKey33B64u,
   EcdsaDerivationRelayerPublicKey33B64u,
@@ -54,6 +51,8 @@ import type {
   WebAuthnRegistrationCredential,
 } from '../types/webauthn';
 import type { ThresholdRuntimePolicyScope } from '../signingEngine/threshold/sessionPolicy';
+
+declare const materialActivation: MpcMaterialActivationRef;
 
 declare const runtime: RuntimePorts;
 declare const platformResult: PlatformResult<{ value: string }, 'failed'>;

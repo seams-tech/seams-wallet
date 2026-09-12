@@ -20,10 +20,7 @@ export type WebAuthnAuthenticatorRecord = Pick<
 export type WebAuthnCredentialStorePort<
   TAuth extends WebAuthnAuthenticatorRecord = ProfileAuthenticatorRecord,
 > = {
-  resolveProfileAccountContext: (args: {
-    chainIdKey: string;
-    accountAddress: string;
-  }) => Promise<{
+  resolveProfileAccountContext: (args: { chainIdKey: string; accountAddress: string }) => Promise<{
     profileId: string;
     accountRef: { chainIdKey: string; accountAddress: string };
   } | null>;

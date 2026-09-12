@@ -1,7 +1,6 @@
 import type {
   EmailOtpWalletAuthAuthority,
   PasskeyWalletAuthAuthority,
-  WalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
 import {
   isEmailOtpWalletAuthAuthority,
@@ -9,9 +8,7 @@ import {
 } from '@shared/utils/walletAuthAuthority';
 import {
   assertMatchingVerifiedEcdsaPublicFacts,
-  deriveEvmFamilyKeyFingerprintFromPublicFacts,
   type EvmFamilyEcdsaKeyIdentity,
-  type ThresholdEcdsaSessionId,
   type VerifiedEcdsaPublicFacts,
 } from '../../session/identity/evmFamilyEcdsaIdentity';
 import type {
@@ -44,6 +41,7 @@ import type {
   ActiveEcdsaCapabilityRuntimeResolver,
 } from '../../session/material/activeEcdsaCapabilityRuntime';
 import type { ActiveWalletAuthorityEcdsaRuntimeV1 } from '../../session/material/activeWalletAuthorityEcdsaRuntime';
+import type { ThresholdEcdsaCanonicalExportArtifact } from '../../interfaces/signing';
 
 export type EcdsaExportMaterialAvailability =
   | { kind: 'loaded_worker_material' }
@@ -379,10 +377,7 @@ export function resolveCanonicalPasskeyEcdsaExportMaterialForLane(args: {
 function sealedEmailOtpExportMaterial(args: {
   deps: EcdsaExportSessionStoreDeps;
   exportLane: ExactEcdsaExportLane;
-  resolution: Extract<
-    ActiveEcdsaCapabilityRuntimeResolution,
-    { kind: 'resolved' }
-  >;
+  resolution: Extract<ActiveEcdsaCapabilityRuntimeResolution, { kind: 'resolved' }>;
 }): FreshEmailOtpEcdsaExportMaterial {
   const { exportLane, resolution } = args;
   if (exportLane.laneIdentity.auth.kind !== 'email_otp') {
@@ -621,4 +616,3 @@ export async function resolveEcdsaExportMaterialForLane(
     relayerUrl: resolution.runtime.relayerUrl,
   };
 }
-import type { ThresholdEcdsaCanonicalExportArtifact } from '../../interfaces/signing';

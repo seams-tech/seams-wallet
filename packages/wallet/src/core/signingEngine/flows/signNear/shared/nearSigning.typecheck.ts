@@ -16,9 +16,7 @@ import type {
   MpcWalletSigningQuotaId,
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
-import type {
-  ThresholdEd25519SessionId,
-} from '@/core/signingEngine/session/operationState/types';
+import type { ThresholdEd25519SessionId } from '@/core/signingEngine/session/operationState/types';
 
 declare const walletId: WalletId;
 declare const nearAccountId: NamedNearAccountId;
@@ -67,7 +65,8 @@ const ed25519LaneWithLegacyAccountId: ExactEd25519SigningLaneIdentity = {
 void ed25519LaneWithLegacyAccountId;
 
 declare const operationStepUpPlan: NearPasskeyOperationStepUpPlan;
-const exactOperationThresholdSession: ThresholdEd25519SessionId = operationStepUpPlan.thresholdSessionId;
+const exactOperationThresholdSession: ThresholdEd25519SessionId =
+  operationStepUpPlan.thresholdSessionId;
 void exactOperationThresholdSession;
 
 const operationStepUpWithReusableGrant: NearPasskeyOperationStepUpPlan = {

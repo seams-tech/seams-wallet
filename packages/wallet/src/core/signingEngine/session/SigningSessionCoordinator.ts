@@ -22,7 +22,6 @@ import {
 import {
   buildWalletSessionStatusCheck,
   walletSessionStatusOwnerForLane,
-  normalizeSessionStatusRequired,
   type SigningSessionStatusCheck,
   type SigningSessionStatusReader,
   type WalletSessionStatusIdentity,
@@ -30,11 +29,7 @@ import {
 import type { SigningAdmissionQueueKey } from './operationState/authorizationAdmission';
 import { signingLaneAuthMethod } from './identity/signingLaneAuthBinding';
 import { unknownSigningSessionStatus } from './lifecycle/walletSessionStatus';
-import {
-  SigningOperationIdBindingRegistry,
-} from './planning/operationIdBinding';
-
-export type { WalletSessionStatusIdentity } from './lifecycle/walletSessionStatus';
+import { SigningOperationIdBindingRegistry } from './planning/operationIdBinding';
 import {
   applyWalletSessionStatusToSigningSessionReadiness,
   clearWalletSession,
@@ -74,6 +69,8 @@ import {
   type AuthorizedRouterAbEd25519WalletSessionState,
   type ResolvedRouterAbEd25519WalletSessionState,
 } from './warmCapabilities/routerAbEd25519WalletSessionState';
+
+export type { WalletSessionStatusIdentity } from './lifecycle/walletSessionStatus';
 
 export type { SigningSessionReadiness };
 
@@ -177,9 +174,7 @@ export type SigningSessionExpiryInvalidationResult =
       { readonly kind: 'already_invalidated' | 'unavailable' }
     >;
 
-class SigningSessionLifecycleSubscriptionHandle
-  implements SigningSessionLifecycleSubscription
-{
+class SigningSessionLifecycleSubscriptionHandle implements SigningSessionLifecycleSubscription {
   readonly #listeners: Set<SdkLifecycleEventListener>;
   readonly #listener: SdkLifecycleEventListener;
   #active = true;
@@ -394,9 +389,7 @@ export class SigningSessionCoordinator implements SigningSessionStatusPort {
     );
     if (!lanes.length) return await readDirectTargetStatus();
     const statusLanes = hasExplicitTarget
-      ? lanes.filter(
-          (lane) => targetThreshold.has(lane.thresholdSessionId),
-        )
+      ? lanes.filter((lane) => targetThreshold.has(lane.thresholdSessionId))
       : lanes;
     if (hasExplicitTarget && !statusLanes.length) {
       return (
@@ -449,9 +442,7 @@ export class SigningSessionCoordinator implements SigningSessionStatusPort {
     });
   }
 
-  async getAvailableStatus(
-    input: SigningSessionStatusCheck,
-  ): Promise<SigningSessionStatus | null> {
+  async getAvailableStatus(input: SigningSessionStatusCheck): Promise<SigningSessionStatus | null> {
     if (!this.walletSessionStatusReader) return null;
     return await this.walletSessionStatusReader(input);
   }
@@ -577,24 +568,30 @@ export class SigningSessionCoordinator implements SigningSessionStatusPort {
       };
     }
     if (emailOtpEd25519PreflightUnavailable) {
-      console.warn('[SigningSessionCoordinator][email-otp-ed25519] session-status preflight unavailable', {
-        walletSessionId,
-        thresholdSessionId: input.lane.thresholdSessionId,
-        sessionStatus: walletSessionStatus.status,
-        readiness: input.readiness.status,
-        remainingUses: input.remainingUses,
-        usesNeeded: input.usesNeeded,
-      });
+      console.warn(
+        '[SigningSessionCoordinator][email-otp-ed25519] session-status preflight unavailable',
+        {
+          walletSessionId,
+          thresholdSessionId: input.lane.thresholdSessionId,
+          sessionStatus: walletSessionStatus.status,
+          readiness: input.readiness.status,
+          remainingUses: input.remainingUses,
+          usesNeeded: input.usesNeeded,
+        },
+      );
     }
     if (passkeyEd25519PreflightUnavailable) {
-      console.debug('[SigningSessionCoordinator][passkey-ed25519] session-status preflight deferred', {
-        walletSessionId,
-        thresholdSessionId: input.lane.thresholdSessionId,
-        sessionStatus: walletSessionStatus.status,
-        readiness: input.readiness.status,
-        remainingUses: input.remainingUses,
-        usesNeeded: input.usesNeeded,
-      });
+      console.debug(
+        '[SigningSessionCoordinator][passkey-ed25519] session-status preflight deferred',
+        {
+          walletSessionId,
+          thresholdSessionId: input.lane.thresholdSessionId,
+          sessionStatus: walletSessionStatus.status,
+          readiness: input.readiness.status,
+          remainingUses: input.remainingUses,
+          usesNeeded: input.usesNeeded,
+        },
+      );
     }
     return applyWalletSessionStatusToSigningSessionReadiness({
       status: input.readiness.status,

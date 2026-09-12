@@ -290,9 +290,7 @@ export function parseEmailOtpWorkerIssuedSessionHandle(
       throw new Error('[platform] email OTP ECDSA worker-issued handles cannot include rpId');
     }
     if (normalizedOperation === 'registration') {
-      throw new Error(
-        '[platform] registration Email OTP ECDSA worker-issued handles are retired',
-      );
+      throw new Error('[platform] registration Email OTP ECDSA worker-issued handles are retired');
     }
     const chainTarget = thresholdEcdsaChainTargetFromRequest(
       requirePlatformObject(payload.chainTarget, 'email OTP worker-issued handle chainTarget'),

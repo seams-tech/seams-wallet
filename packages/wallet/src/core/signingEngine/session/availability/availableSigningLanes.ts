@@ -62,7 +62,6 @@ import {
   type ExactNearEd25519WalletSessionAuthorization,
   type NearEd25519WalletSessionAuthorizationReadResult,
 } from '../material/nearEd25519YaoSigningPreparation';
-import { SigningSessionIds } from '../operationState/types';
 import type { Ed25519YaoPublicCapabilityLaneReferenceV1 } from '../../threshold/ed25519/yaoPublicCapabilityReferences';
 import type { DelegatedWalletAuthorityV1 } from '@shared/authorization/delegatedAuthority';
 import type {

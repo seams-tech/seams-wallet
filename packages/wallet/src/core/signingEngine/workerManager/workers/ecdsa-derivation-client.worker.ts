@@ -116,7 +116,6 @@ import {
   type RouterAbEcdsaStableClientProofFinalizationV2,
   type RouterAbEcdsaRegistrationActivationReceiptV1,
   type RouterAbEcdsaDerivationPublicCapabilityV1,
-  type RouterAbEcdsaVerifiedClientActivationFactsV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import type {
   WasmFinalizeThresholdEcdsaDerivationRoleLocalClientBootstrapRequest,

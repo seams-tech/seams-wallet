@@ -11,9 +11,7 @@ export type WalletRecoveryReplacementCredential = {
   readonly factorSecret: ArrayBuffer;
 };
 
-function recoveryFactorSecret(
-  registration: WebAuthnRegistrationCredential,
-): ArrayBuffer {
+function recoveryFactorSecret(registration: WebAuthnRegistrationCredential): ArrayBuffer {
   const first = registration.clientExtensionResults.prf?.results?.first;
   if (typeof first !== 'string' || !first) {
     throw new Error('the replacement passkey returned no wallet-custody PRF output');

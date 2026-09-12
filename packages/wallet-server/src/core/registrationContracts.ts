@@ -9,10 +9,8 @@ import type {
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import type { DerivationClientSharePublicKey33B64u } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import type { WalletAuthMethodId, WebAuthnRpId } from '@shared/utils/domainIds';
-import type { TenantId } from '@shared/authorization/capabilityKinds';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
-import type { LinkedDeviceEnrollmentId, LinkedDeviceId } from '@shared/signing-lanes/ids';
 import type {
   WalletAuthAuthority,
   WalletAuthAuthorityRef,
@@ -32,8 +30,6 @@ import type {
 } from '@shared/authorization/capabilityKinds';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type {
-  RouterAbEcdsaDerivationActivationCommitQueryResultV1,
-  RouterAbEcdsaDerivationActivationPrepareResultV1,
   RouterAbEcdsaDerivationPublicCapabilityV1,
   RouterAbEcdsaRegistrationActivationRequestV1,
   RouterAbEcdsaRegistrationActivationReceiptV1,

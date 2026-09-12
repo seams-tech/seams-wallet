@@ -14,7 +14,6 @@ import type {
   NearPasskeyEd25519OperationStepUpHook,
   NearPasskeyOperationStepUpPlan,
 } from '@/core/signingEngine/interfaces/near';
-import type { NearTransactionSigningLane } from '@/core/signingEngine/session/operationState/lanes';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   signingLaneAuthMethod,

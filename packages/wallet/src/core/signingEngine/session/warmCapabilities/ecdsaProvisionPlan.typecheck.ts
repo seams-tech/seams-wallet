@@ -1,8 +1,6 @@
 import type { EmailOtpWorkerIssuedSessionHandle } from '@/core/platform';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
-import type {
-  EvmFamilyEcdsaKeyIdentity,
-} from '../identity/evmFamilyEcdsaIdentity';
+import type { EvmFamilyEcdsaKeyIdentity } from '../identity/evmFamilyEcdsaIdentity';
 import type { ThresholdEcdsaChainTarget } from '../../interfaces/ecdsaChainTarget';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type { ThresholdEcdsaEmailOtpAuthContext } from '../identity/laneIdentity';

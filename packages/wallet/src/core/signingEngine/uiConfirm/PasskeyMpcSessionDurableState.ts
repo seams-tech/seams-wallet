@@ -110,9 +110,7 @@ function buildPasskeySealedRecordAccountMetadata(args: {
     const walletId = String(args.transport.walletId).trim();
     const restoreWalletId = String(args.transport.ecdsaRestore.authority.walletId).trim();
     if (!walletId || !restoreWalletId || walletId !== restoreWalletId) {
-      throw new Error(
-        'Passkey ECDSA seal transport wallet does not match restore metadata',
-      );
+      throw new Error('Passkey ECDSA seal transport wallet does not match restore metadata');
     }
     return {
       walletId,

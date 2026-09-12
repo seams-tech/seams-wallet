@@ -441,9 +441,7 @@ type WalletRecoverySetRotateResponseDto =
   | { readonly kind: 'failure'; readonly message: string | null }
   | { readonly kind: 'invalid' };
 
-function decodeWalletRecoverySetRotateResponse(
-  value: unknown,
-): WalletRecoverySetRotateResponseDto {
+function decodeWalletRecoverySetRotateResponse(value: unknown): WalletRecoverySetRotateResponseDto {
   if (
     value === null ||
     typeof value !== 'object' ||

@@ -2,10 +2,7 @@ import type {
   TempoCall,
   TempoSigningRequest,
 } from '@/core/signingEngine/chains/tempo/tempoSigning.types';
-import {
-  resolveFunctionDisplayName,
-  selectorFromHexData,
-} from '../evm/display/functionSelectors';
+import { resolveFunctionDisplayName, selectorFromHexData } from '../evm/display/functionSelectors';
 import { normalizeHexData } from '../evm/display/normalization';
 import { formatCalldataForDisplay } from '../evm/display/calldata';
 import { formatCompactGas } from '../evm/display/gas';

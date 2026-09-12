@@ -18,7 +18,6 @@ import type {
   RouterAbEcdsaDerivationNormalSigningStateV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { WalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
-import type { WalletId } from '@shared/utils/registrationIntent';
 import type { RootShareEpoch, WebAuthnRpId } from '@shared/utils/domainIds';
 import type { EvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking';

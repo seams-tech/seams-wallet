@@ -3,9 +3,7 @@ import type {
   ThresholdEcdsaDerivationRoleLocalClientRootProof,
   ThresholdEcdsaDerivationRoleLocalPasskeyBootstrapAuthorization,
 } from './thresholdEcdsa';
-import {
-  toEcdsaDerivationThresholdKeyId,
-} from '../../signingEngine/session/identity/emailOtpEcdsaDerivationIdentity';
+import { toEcdsaDerivationThresholdKeyId } from '../../signingEngine/session/identity/emailOtpEcdsaDerivationIdentity';
 import { toWalletId } from '../../signingEngine/interfaces/ecdsaChainTarget';
 import type {
   EcdsaClientRootPublicKey33B64u,
@@ -20,8 +18,7 @@ const bootstrapBase = {
   signingRootVersion: 'default',
   keyScope: 'evm-family',
   relayerKeyId: 'relayer-key',
-  derivationClientSharePublicKey33B64u:
-    'client-public-key' as DerivationClientSharePublicKey33B64u,
+  derivationClientSharePublicKey33B64u: 'client-public-key' as DerivationClientSharePublicKey33B64u,
   clientShareRetryCounter: 0,
   contextBinding32B64u: 'context-binding',
   requestId: 'request-id',

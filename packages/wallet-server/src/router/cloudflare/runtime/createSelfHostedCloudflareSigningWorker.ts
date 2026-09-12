@@ -11,10 +11,6 @@ import { handleThresholdEcdsa } from '../../transport/fetch/routes/thresholdEcds
 import type { FetchRouterRuntime } from '../../transport/fetch/fetchRouter.types';
 import { isPlainObject } from '@shared/utils/validation';
 import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
-import {
-  thresholdEcdsaChainTargetFromValue,
-} from '../../../core/thresholdEcdsaChainTarget';
-import { parseEvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 
 type SelfHostedCloudflareRouterApiContext = Parameters<typeof handleThresholdEd25519>[0];
 

@@ -9,10 +9,7 @@ import type {
   EmailOtpEd25519ReadyPersistInput,
   PasskeyEcdsaReadyPersistInput,
 } from './persistencePorts';
-import type {
-  ThresholdEd25519SessionId,
-  ThresholdEcdsaSessionId,
-} from '../operationState/types';
+import type { ThresholdEd25519SessionId, ThresholdEcdsaSessionId } from '../operationState/types';
 import type {
   MpcWalletSigningQuotaId,
   WalletSessionId,

@@ -1,4 +1,7 @@
-import { createCspStylesheetManager, getDefaultCspNonce } from '@/core/browser/walletIframe/csp-stylesheet';
+import {
+  createCspStylesheetManager,
+  getDefaultCspNonce,
+} from '@/core/browser/walletIframe/csp-stylesheet';
 
 /**
  * mounter-styles - CSP-safe stylesheet manager for wallet iframe host UI containers.

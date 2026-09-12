@@ -738,8 +738,7 @@ function assertPasskeyEd25519SessionMatchesAuthorization(input: {
     record.authorizationId !== input.ed25519Session.authorizationId ||
     record.quotaId !== input.ed25519Session.quotaId ||
     record.expiresAtMs !== input.ed25519Session.expiresAtMs ||
-    input.authorization.operationCredential.walletSessionId !==
-      input.ed25519Session.walletSessionId
+    input.authorization.operationCredential.walletSessionId !== input.ed25519Session.walletSessionId
   ) {
     throw new Error('Passkey Ed25519 Wallet Session authorization is inconsistent');
   }

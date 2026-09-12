@@ -24,11 +24,6 @@ import { W3A_DRAWER_ID, W3A_EXPORT_KEY_VIEWER_ID } from '../../registry';
 import ExportPrivateKeyViewer from './viewer';
 import DrawerElement from '../Drawer';
 import { ensureExternalStyles } from '../css/css-loader';
-
-if (!customElements.get(W3A_EXPORT_KEY_VIEWER_ID)) {
-  customElements.define(W3A_EXPORT_KEY_VIEWER_ID, ExportPrivateKeyViewer);
-}
-void DrawerElement; // Drawer/index self-defines on import; the binding keeps the import.
 import type {
   ExportGuidance,
   ExportPrivateKeyDisplayEntry,
@@ -39,6 +34,11 @@ import {
   createCspStylesheetManager,
   getDefaultCspNonce,
 } from '@/core/browser/walletIframe/csp-stylesheet';
+
+if (!customElements.get(W3A_EXPORT_KEY_VIEWER_ID)) {
+  customElements.define(W3A_EXPORT_KEY_VIEWER_ID, ExportPrivateKeyViewer);
+}
+void DrawerElement; // Drawer/index self-defines on import; the binding keeps the import.
 
 type ExportDrawerElement = HTMLElement & {
   theme?: string;

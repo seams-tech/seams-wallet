@@ -1,7 +1,4 @@
-import type {
-  WarmSessionLanePurpose,
-  WarmSessionMaterialOperationTarget,
-} from '../session/emailOtp/sealedRuntimePurpose';
+import type { WarmSessionMaterialOperationTarget } from '../session/emailOtp/sealedRuntimePurpose';
 /**
  * UiConfirm specs (types + interfaces).
  */
@@ -49,7 +46,6 @@ import type {
   WarmSessionMaterialWriter,
   WarmSessionMaterialWriteDiagnostics,
 } from '../session/passkey/warmSessionMaterialWriter';
-import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { ThresholdSessionId } from '@shared/utils/domainIds';
 import type { DurableRecordStore } from '@/core/platform';
 import type { NearOperationStepUpPreparationPort } from '../interfaces/operationStepUpPreparation';
@@ -149,16 +145,20 @@ export interface WarmSessionStatusBatchReader {
 }
 
 export interface WarmSessionMaterialClaimer {
-  claimWarmSessionMaterial(args: WarmSessionMaterialOperationTarget & {
-    uses?: number;
-    consume?: boolean;
-  }): Promise<WarmSessionClaimResult>;
+  claimWarmSessionMaterial(
+    args: WarmSessionMaterialOperationTarget & {
+      uses?: number;
+      consume?: boolean;
+    },
+  ): Promise<WarmSessionClaimResult>;
 }
 
 export interface WarmSessionMaterialConsumer {
-  consumeWarmSessionUses(args: WarmSessionMaterialOperationTarget & {
-    uses?: number;
-  }): Promise<WarmSessionStatusResult>;
+  consumeWarmSessionUses(
+    args: WarmSessionMaterialOperationTarget & {
+      uses?: number;
+    },
+  ): Promise<WarmSessionStatusResult>;
 }
 
 export type VolatileWarmSessionScope =
@@ -252,8 +252,7 @@ export type PromptCapableBootstrapPort = UiConfirmContextPort &
   UiConfirmRegistrationPort &
   UiConfirmRequestConfirmationPort;
 
-export type UiConfirmRuntimeBridgePort = PromptCapableBootstrapPort &
-  UiConfirmWorkerLifecyclePort;
+export type UiConfirmRuntimeBridgePort = PromptCapableBootstrapPort & UiConfirmWorkerLifecyclePort;
 
 export interface PasskeyMpcSessionWorkerLifecyclePort {
   setWorkerBaseOrigin(origin: string | undefined): void;

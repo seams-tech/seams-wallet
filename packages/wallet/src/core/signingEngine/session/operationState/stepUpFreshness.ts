@@ -13,11 +13,7 @@ import {
   type NonEmptyThresholdSessionIds,
 } from '../identity/exactSigningLaneIdentity';
 import { signingLaneAuthMethod } from '../identity/signingLaneAuthBinding';
-import type {
-  SigningCurve,
-  SigningOperationFingerprint,
-  SigningOperationId,
-} from './types';
+import type { SigningCurve, SigningOperationFingerprint, SigningOperationId } from './types';
 import type {
   MpcWalletSigningQuotaId,
   WalletSessionId,
@@ -200,9 +196,7 @@ function validateBase(input: StepUpFreshnessBaseInput): {
           kind: 'ed25519_threshold_session',
           walletSessionId: input.laneIdentity.walletSessionId,
           quotaId: input.laneIdentity.quotaId,
-          thresholdSessionIds: thresholdSessionIdsFromExactSigningLaneIdentity(
-            input.laneIdentity,
-          ),
+          thresholdSessionIds: thresholdSessionIdsFromExactSigningLaneIdentity(input.laneIdentity),
         },
   };
 }
@@ -314,7 +308,9 @@ export function buildStepUpFreshnessFromTrustedSessionStatus(
   const provenance: SigningStatusProvenance = {
     kind: 'trusted_server_budget_status',
     projectionVersion:
-      projection.kind === 'known' ? projection.version : String(input.status.projectionVersion || ''),
+      projection.kind === 'known'
+        ? projection.version
+        : String(input.status.projectionVersion || ''),
     observedAtMs: input.observedAtMs,
   };
   const remainingUses = Math.floor(Number(input.status.remainingUses) || 0);

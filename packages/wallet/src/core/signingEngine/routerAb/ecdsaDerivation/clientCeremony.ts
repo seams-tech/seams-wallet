@@ -1,7 +1,4 @@
-import type {
-  WasmFinalizeThresholdEcdsaDerivationRoleLocalClientBootstrapResult,
-  WasmPrepareThresholdEcdsaDerivationRoleLocalClientBootstrapResult,
-} from '@/core/types/signer-worker';
+import type { WasmFinalizeThresholdEcdsaDerivationRoleLocalClientBootstrapResult } from '@/core/types/signer-worker';
 import type {
   RouterAbEcdsaDerivationNormalSigningStateV1,
   RouterAbEcdsaDerivationPublicCapabilityV1,
@@ -33,13 +30,12 @@ export type CreateRouterAbEcdsaRegistrationCeremonyResultV1 = {
   readonly registrationRequestDigestB64u: string;
 };
 
-export type VerifyRouterAbEcdsaRegistrationClientProofsRequestV1 =
-  {
-    readonly kind: 'verify_router_ab_ecdsa_registration_client_proofs_v1';
-    readonly bootstrapOwner: 'wallet_custody';
-    readonly ceremonyId: string;
-    readonly clientProofFinalization: RouterAbEcdsaStableClientProofFinalizationV2;
-  };
+export type VerifyRouterAbEcdsaRegistrationClientProofsRequestV1 = {
+  readonly kind: 'verify_router_ab_ecdsa_registration_client_proofs_v1';
+  readonly bootstrapOwner: 'wallet_custody';
+  readonly ceremonyId: string;
+  readonly clientProofFinalization: RouterAbEcdsaStableClientProofFinalizationV2;
+};
 
 export type VerifyRouterAbEcdsaRegistrationClientProofsResultV1 = {
   readonly kind: 'router_ab_ecdsa_registration_wallet_custody_proofs_verified_v1';

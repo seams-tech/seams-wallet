@@ -9,7 +9,6 @@ import {
   type SigningFlowEvent,
 } from '@/core/types/sdkSentEvents';
 import {
-  ConfirmationConfig,
   RpcCallPayload,
   WorkerRequestType,
   WorkerResponseType,
@@ -18,7 +17,6 @@ import {
 } from '@/core/types/signer-worker';
 import type { ThresholdEd25519KeyMaterial } from '@/core/accountData/near/nearAccountData.types';
 import { normalizeThresholdEd25519ParticipantIds } from '@shared/threshold/participants';
-import type { NearSigningRuntimeDeps } from '../../interfaces/runtime';
 import {
   ensureEd25519Prefix,
   toPublicKeyString,
@@ -31,14 +29,12 @@ import { buildNearDelegateSigningPayloads } from '../../chains/near/payloads';
 import {
   buildNearSigningSessionAuthPlan,
   resolveNearSigningSessionAuthContext,
-  SIGNING_SESSION_AUTH_UNAVAILABLE_ERROR,
 } from './shared/signingSessionAuthMode';
 import {
   isWarmSessionSigningAuthPlan,
   type SigningAuthPlan,
 } from '@/core/signingEngine/stepUpConfirmation/types';
 import { planSigningSession } from '../../session/planning/planner';
-import type { SigningSessionCoordinator } from '../../session/SigningSessionCoordinator';
 import {
   SigningOperationIntent,
   SigningSessionPlanKind,
@@ -179,15 +175,13 @@ async function resolveNearDelegateOperationStepUpCapability(args: {
   prepared: Extract<PreparedNearOperationStepUp, { kind: 'near_signature_only' }>;
   displayDigest: string;
   authorization: Exclude<NearEd25519StepUpAuthorization, { kind: 'warm_session' }>;
-  emailOtpProof:
-    | Extract<ReturnType<typeof buildNearEd25519OperationStepUpProof>, { kind: 'email_otp' }>
-    | null;
+  emailOtpProof: Extract<
+    ReturnType<typeof buildNearEd25519OperationStepUpProof>,
+    { kind: 'email_otp' }
+  > | null;
 }) {
   if (args.authorization.kind === 'passkey') {
-    if (
-      args.material.kind !== 'passkey_live' &&
-      args.material.kind !== 'passkey_sealed'
-    ) {
+    if (args.material.kind !== 'passkey_live' && args.material.kind !== 'passkey_sealed') {
       throw new Error('[SigningEngine][near] passkey delegate material changed factor');
     }
     return await resolveNearOperationStepUpMaterial({
@@ -197,10 +191,7 @@ async function resolveNearDelegateOperationStepUpCapability(args: {
       credential: args.authorization.credential,
     });
   }
-  if (
-    args.material.kind !== 'email_otp_live' &&
-    args.material.kind !== 'email_otp_sealed'
-  ) {
+  if (args.material.kind !== 'email_otp_live' && args.material.kind !== 'email_otp_sealed') {
     throw new Error('[SigningEngine][near] Email OTP delegate material changed factor');
   }
   if (!args.emailOtpProof) {
@@ -309,9 +300,7 @@ export async function runNearDelegateActionSigning({
         signerSlot: candidate.signerSlot,
       }),
       materialActivation: candidate.materialActivation,
-      thresholdSessionId: SigningSessionIds.thresholdEd25519Session(
-        candidate.thresholdSessionId,
-      ),
+      thresholdSessionId: SigningSessionIds.thresholdEd25519Session(candidate.thresholdSessionId),
     };
     signingSessionPlan = {
       kind: SigningSessionPlanKind.OperationStepUp,
@@ -551,9 +540,7 @@ export async function runNearDelegateActionSigning({
                 displayDigest: confirmation.intentDigest,
                 authorization: stepUpAuthorization,
                 emailOtpProof:
-                  operationStepUpProof?.kind === 'email_otp'
-                    ? operationStepUpProof
-                    : null,
+                  operationStepUpProof?.kind === 'email_otp' ? operationStepUpProof : null,
               }),
             };
       emitNearSigningEvent(onEvent, nearAccountId, {

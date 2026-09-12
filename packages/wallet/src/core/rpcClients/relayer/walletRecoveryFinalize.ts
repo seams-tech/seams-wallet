@@ -257,9 +257,7 @@ type WalletRecoveryFinalizeResponseDto =
   | { readonly kind: 'failure'; readonly code: string; readonly message: string }
   | { readonly kind: 'invalid' };
 
-function decodeWalletRecoveryFinalizeResponse(
-  value: unknown,
-): WalletRecoveryFinalizeResponseDto {
+function decodeWalletRecoveryFinalizeResponse(value: unknown): WalletRecoveryFinalizeResponseDto {
   if (
     value === null ||
     typeof value !== 'object' ||

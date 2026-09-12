@@ -6,7 +6,6 @@ import {
 import type { AuthServiceConfigSource } from './configValues';
 import { readAuthServiceConfigValue } from './configValues';
 import type {
-  AuthRateLimitPolicy,
   EmailOtpRateLimitPolicies,
   EmailOtpRateLimitScope,
 } from './emailOtpConfig';

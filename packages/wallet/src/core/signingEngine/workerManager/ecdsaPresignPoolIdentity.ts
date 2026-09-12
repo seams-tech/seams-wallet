@@ -41,10 +41,7 @@ export function parseEcdsaClientPresignPoolIdentity(
     capability: requireIdentityString(raw.capability, 'poolIdentity.capability'),
     keyBinding: requireIdentityString(raw.keyBinding, 'poolIdentity.keyBinding'),
     walletId: requireIdentityString(raw.walletId, 'poolIdentity.walletId'),
-    signingScopeB64u: requireIdentityString(
-      raw.signingScopeB64u,
-      'poolIdentity.signingScopeB64u',
-    ),
+    signingScopeB64u: requireIdentityString(raw.signingScopeB64u, 'poolIdentity.signingScopeB64u'),
     pairRole: 'client',
     keyEpoch: requireIdentityString(raw.keyEpoch, 'poolIdentity.keyEpoch'),
     activationEpoch: requirePoolRootShareEpoch(raw.activationEpoch),

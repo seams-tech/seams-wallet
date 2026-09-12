@@ -33,9 +33,8 @@ const validEmailOtpExport = {
   request: exportRequest,
   transport: exportTransport,
   authorization: emailOtpAuthorization,
-  resolveCustodyEnvelope: async (
-    _release: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1,
-  ) => custodyEnvelope,
+  resolveCustodyEnvelope: async (_release: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1) =>
+    custodyEnvelope,
 } satisfies RouterAbEd25519YaoExportSeedInputV1;
 
 void validPasskeyExport;

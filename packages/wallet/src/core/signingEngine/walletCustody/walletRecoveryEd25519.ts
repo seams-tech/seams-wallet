@@ -78,9 +78,7 @@ async function buildEd25519RecoveryAdmissionRequestV1(input: {
       'wallet recovery Ed25519 activation identities',
     ),
   );
-  const lifecycleBinding = parseMpcLifecycleBindingRef(
-    `${input.lifecycleId}:material-activation`,
-  );
+  const lifecycleBinding = parseMpcLifecycleBindingRef(`${input.lifecycleId}:material-activation`);
   if (!activationId.ok || !lifecycleBinding.ok) {
     throw new Error('wallet recovery Ed25519 material activation identity is invalid');
   }
@@ -135,7 +133,9 @@ function equalBytes(left: readonly number[], right: readonly number[]): boolean 
 }
 
 function requireParsed<T>(
-  parsed: { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string },
+  parsed:
+    | { readonly ok: true; readonly value: T }
+    | { readonly ok: false; readonly message: string },
   label: string,
 ): T {
   if (!parsed.ok) throw new Error(`${label}: ${parsed.message}`);
@@ -221,9 +221,7 @@ export async function executeWalletRecoveryEd25519RoundV1(input: {
   readonly transport: RouterAbEd25519YaoRecoveryTransportV1;
 }): Promise<string> {
   const executeRequest: RouterAbEd25519YaoActivationExecuteRequestV1<'recovery'> = requireParsed(
-    parseRouterAbEd25519YaoRecoveryActivationExecuteRequestV1(
-      JSON.parse(input.executeRequestJson),
-    ),
+    parseRouterAbEd25519YaoRecoveryActivationExecuteRequestV1(JSON.parse(input.executeRequestJson)),
     'wallet recovery Ed25519 execute request is invalid',
   );
   const response = await input.transport.send({

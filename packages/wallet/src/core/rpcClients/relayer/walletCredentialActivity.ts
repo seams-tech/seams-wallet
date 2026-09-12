@@ -7,10 +7,7 @@ import {
   parseWalletCredentialActivityRecordV1,
   type WalletCredentialActivityRecordV1,
 } from '@shared/passkey-custody/credentialActivity';
-import {
-  parsePasskeyEnvelopeId,
-  parseWalletId,
-} from '@shared/utils/domainIds';
+import { parsePasskeyEnvelopeId, parseWalletId } from '@shared/utils/domainIds';
 import { parseUnixMs } from '@shared/passkey-custody/primitives';
 import { normalizeRelayerBaseUrl } from './relayerHttp';
 import type { WalletCustodyFactorProof } from './walletRecoveryRotate';
@@ -204,7 +201,10 @@ export async function listWalletCredentialActivity(args: {
     ':walletId',
     encodeURIComponent(args.walletId),
   )}`;
-  const headers: Record<string, string> = { Accept: 'application/json', 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
   const doFetch = args.fetchImpl || fetch;
   let response: Response;
   try {

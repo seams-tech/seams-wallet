@@ -2,11 +2,8 @@ import { normalizeAuthenticationCredential } from '@/core/signingEngine/webauthn
 import type { ConfirmNearStepUpSigningOperationResult } from '../shared/signingConfirmation';
 import type { NearPreparedStepUpAuth } from './requireNearStepUpAuth';
 import type {
-  NearEd25519EmailOtpStepUpAuthorization,
-  NearEd25519PasskeyStepUpAuthorization,
   NearEd25519StepUpAuthorization,
   NearEd25519WarmSessionStepUpAuthorization,
-  NearPasskeyOperationStepUpPlan,
 } from '@/core/signingEngine/interfaces/near';
 import type { SigningAuthPlan } from '@/core/signingEngine/stepUpConfirmation/types';
 

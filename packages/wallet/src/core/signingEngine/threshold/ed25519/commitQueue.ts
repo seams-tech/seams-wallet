@@ -1,4 +1,4 @@
-import { toAccountId, type AccountId } from '@/core/types/accountIds';
+import { type AccountId } from '@/core/types/accountIds';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import {
   withThresholdCommitQueue,

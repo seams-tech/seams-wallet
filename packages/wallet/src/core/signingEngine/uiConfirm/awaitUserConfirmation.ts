@@ -345,7 +345,10 @@ function resolveEnvelopeRequestId(env: ConfirmResponseEnvelope): string {
   return String(env.data.requestId || '').trim();
 }
 
-function isMatchingChannelToken(env: ConfirmResponseEnvelope, expectedChannelToken: string): boolean {
+function isMatchingChannelToken(
+  env: ConfirmResponseEnvelope,
+  expectedChannelToken: string,
+): boolean {
   return (normalizeOptionalNonEmptyString(env.channelToken) || '') === expectedChannelToken;
 }
 

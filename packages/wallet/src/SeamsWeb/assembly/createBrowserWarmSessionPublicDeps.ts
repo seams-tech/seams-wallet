@@ -12,9 +12,7 @@ import {
   type WarmSigningPorts,
 } from '@/core/signingEngine/assembly/ports/warmSigning';
 import type { PasskeyPublicDeps } from '@/core/signingEngine/session/passkey/public';
-import type {
-  WarmCapabilitiesPublicDeps,
-} from '@/core/signingEngine/session/warmCapabilities/public';
+import type { WarmCapabilitiesPublicDeps } from '@/core/signingEngine/session/warmCapabilities/public';
 import type { createSigningEnginePorts } from '@/core/signingEngine/assembly/createPorts';
 
 type SigningEnginePorts = ReturnType<typeof createSigningEnginePorts>;
@@ -31,8 +29,7 @@ export function createBrowserWarmSessionPublicDeps(args: {
   ensureSealedRefreshStartupParity: () => Promise<void>;
   enginePorts: Pick<
     SigningEnginePorts,
-    | 'walletSessionActivationDeps'
-    | 'signingSessionCoordinator'
+    'walletSessionActivationDeps' | 'signingSessionCoordinator'
   >;
 }): {
   passkeyPublicDeps: PasskeyPublicDeps;
@@ -49,8 +46,7 @@ export function createBrowserWarmSessionPublicDeps(args: {
       thresholdEcdsaBootstrapQueueByWallet: args.thresholdEcdsaBootstrapQueueByWallet,
       ensureSealedRefreshStartupParity: args.ensureSealedRefreshStartupParity,
       walletSessionActivationDeps: args.enginePorts.walletSessionActivationDeps,
-      persistEcdsaRoleLocalReadyRecord:
-        args.runtimePorts.storage.persistEcdsaRoleLocalReadyRecord,
+      persistEcdsaRoleLocalReadyRecord: args.runtimePorts.storage.persistEcdsaRoleLocalReadyRecord,
     }),
     warmCapabilitiesPublicDeps: createWarmCapabilitiesPublicDeps({
       seamsWebConfigs: args.seamsWebConfigs,

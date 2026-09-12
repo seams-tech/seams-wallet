@@ -17,7 +17,6 @@ import {
   type EmailOtpUnlockSignerSelection,
   type GoogleEmailOtpProviderResolution,
 } from '@/core/signingEngine/session/emailOtp/publicTypes';
-import { parseMpcMaterialActivationRef } from '@shared/utils/domainIds';
 import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import { parseEmailOtpChallengeDelivery } from '@/core/signingEngine/session/emailOtp/challengeDelivery';
 import {
@@ -238,9 +237,7 @@ export async function resolveGoogleEmailOtpProvider(args: {
       id_token: readString(args.idToken, 'idToken'),
       account_mode: args.accountMode,
       project_environment_id: readString(args.projectEnvironmentId, 'projectEnvironmentId'),
-      ...(args.loginWalletId
-        ? { wallet_id: readString(args.loginWalletId, 'loginWalletId') }
-        : {}),
+      ...(args.loginWalletId ? { wallet_id: readString(args.loginWalletId, 'loginWalletId') } : {}),
       ...(args.restartRegistrationOffer === true ? { restart_registration_offer: true } : {}),
     },
   });

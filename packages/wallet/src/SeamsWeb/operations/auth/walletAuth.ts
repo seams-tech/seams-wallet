@@ -9,10 +9,7 @@ import type {
   WalletSession,
 } from '@/core/types/seams';
 import type { WalletSessionRef } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import {
-  thresholdEcdsaChainTargetKey,
-  toWalletId,
-} from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import {
   getWalletSession as getWalletSessionCore,
   getRecentUnlocks as getRecentUnlocksCore,

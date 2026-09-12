@@ -64,6 +64,7 @@ import type {
   PasskeyCustodyEnvelopeRecord,
   WalletCustodyEnvelopeFactor,
 } from '@shared/passkey-custody';
+import type { DeviceLinkingAuthorityInstallationPortV1 } from './deviceLinkingAuthorityInstallation';
 export type {
   DeviceLinkingAuthorityActivationFlowInputV1,
   DeviceLinkingAuthorityInstallationAssemblyOptionsV1,
@@ -71,7 +72,6 @@ export type {
   DeviceLinkingCommittedPackageSealingPortV1,
   DeviceLinkingSealedAuthorityRecordsV1,
 } from './deviceLinkingAuthorityInstallation';
-import type { DeviceLinkingAuthorityInstallationPortV1 } from './deviceLinkingAuthorityInstallation';
 
 /** Authenticated owner request proof produced by the one owner auth source. */
 export type LinkSessionAuthenticationV1 = {
@@ -115,75 +115,75 @@ export type DeviceLinkingWalletSessionAcknowledgementReplayPortV1 = {
  */
 export type DeviceLinkingAuthenticatedTransportPortV1 =
   DeviceLinkingWalletSessionAcknowledgementReplayPortV1 & {
-  createUnclaimedSessionV1(input: {
-    readonly payload: QrLinkedDeviceSessionPayloadV5;
-    readonly state: Extract<LinkSessionStateV1, { readonly state: 'displaying_qr' }>;
-  }): Promise<void>;
-  getSessionV1(input: {
-    readonly linkSessionId: LinkDeviceSessionId;
-  }): Promise<LinkSessionSnapshotV1>;
-  getApprovalV1(input: {
-    readonly linkSessionId: LinkDeviceSessionId;
-  }): Promise<LinkedDeviceApprovalV1>;
-  getTargetPreparationV1(input: {
-    readonly linkSessionId: LinkDeviceSessionId;
-    readonly deliveryRecipientPublicKey65B64u: LinkedDeviceTargetPreparationRequestV1['deliveryRecipientPublicKey65B64u'];
-  }): Promise<LinkedDeviceTargetPreparationV1>;
-  startTargetEmailOtpChallengeV1(input: {
-    readonly request: LinkedDeviceEmailOtpChallengeStartRequestV1;
-  }): Promise<LinkedDeviceEmailOtpChallengeResultV1>;
-  resendTargetEmailOtpChallengeV1(input: {
-    readonly request: LinkedDeviceEmailOtpChallengeResendRequestV1;
-  }): Promise<LinkedDeviceEmailOtpChallengeResultV1>;
-  verifyTargetEmailOtpChallengeV1(input: {
-    readonly request: LinkedDeviceEmailOtpChallengeVerifyRequestV1;
-  }): Promise<LinkedDeviceEmailOtpVerificationResultV1>;
-  registerTargetCredentialV1(input: {
-    readonly registration: LinkedDeviceTargetCredentialRegistrationV1;
-  }): Promise<LinkedDeviceTargetCredentialRegistrationResultV1>;
-  /**
-   * Device 2 publishes where the Ed25519 Yao Client export root
-   * should be sealed, then collects the sealed package once Device 1 has
-   * produced it. `null` means Device 1 has not sealed yet — normal while the
-   * owner is still approving, not an error.
-   */
-  registerEd25519ExportRootRecipientV1(input: {
-    readonly recipient: LinkedDeviceEd25519ExportRootRecipientV1;
-  }): Promise<void>;
-  getEd25519ExportRootPackageV1(input: {
-    readonly linkSessionId: LinkDeviceSessionId;
-  }): Promise<LinkedDeviceEd25519ExportRootPackageV1 | null>;
-  receiveCommittedAuthorityPackagesV1(input: {
-    readonly linkSessionId: LinkDeviceSessionId;
-  }): Promise<CommittedAuthorityPackagesV1>;
-  activateInstalledAuthorityV1(input: {
-    readonly linkSessionId: LinkDeviceSessionId;
-    readonly receipt: LocalAuthorityInstallationReceiptV1;
-  }): Promise<ActivateInstalledAuthorityResultV1>;
-  acknowledgeLocalAuthorityActivationV1(input: {
-    readonly acknowledgement: LocalAuthorityActivationFinalAckV1;
-  }): Promise<void>;
-  retryCommittedDeliveryV1(input: {
-    readonly request: Extract<
-      LinkedDeviceSessionTransportRequestV1,
-      { readonly kind: 'linked_device_session_retry_committed_delivery_request_v1' }
-    >;
-  }): Promise<void>;
-  cancelSessionV1(input: {
-    readonly request:
-      | Extract<
-          LinkedDeviceSessionTransportRequestV1,
-          { readonly kind: 'linked_device_session_cancel_unclaimed_request_v1' }
-        >
-      | Extract<
-          LinkedDeviceSessionTransportRequestV1,
-          { readonly kind: 'linked_device_session_cancel_claimed_request_v1' }
-        >;
-  }): Promise<void>;
-  subscribeSessionV1(input: {
-    readonly linkSessionId: LinkDeviceSessionId;
-    readonly onEvent: (event: LinkSessionTransportEventV1) => void;
-  }): Promise<LinkSessionSubscriptionV1>;
+    createUnclaimedSessionV1(input: {
+      readonly payload: QrLinkedDeviceSessionPayloadV5;
+      readonly state: Extract<LinkSessionStateV1, { readonly state: 'displaying_qr' }>;
+    }): Promise<void>;
+    getSessionV1(input: {
+      readonly linkSessionId: LinkDeviceSessionId;
+    }): Promise<LinkSessionSnapshotV1>;
+    getApprovalV1(input: {
+      readonly linkSessionId: LinkDeviceSessionId;
+    }): Promise<LinkedDeviceApprovalV1>;
+    getTargetPreparationV1(input: {
+      readonly linkSessionId: LinkDeviceSessionId;
+      readonly deliveryRecipientPublicKey65B64u: LinkedDeviceTargetPreparationRequestV1['deliveryRecipientPublicKey65B64u'];
+    }): Promise<LinkedDeviceTargetPreparationV1>;
+    startTargetEmailOtpChallengeV1(input: {
+      readonly request: LinkedDeviceEmailOtpChallengeStartRequestV1;
+    }): Promise<LinkedDeviceEmailOtpChallengeResultV1>;
+    resendTargetEmailOtpChallengeV1(input: {
+      readonly request: LinkedDeviceEmailOtpChallengeResendRequestV1;
+    }): Promise<LinkedDeviceEmailOtpChallengeResultV1>;
+    verifyTargetEmailOtpChallengeV1(input: {
+      readonly request: LinkedDeviceEmailOtpChallengeVerifyRequestV1;
+    }): Promise<LinkedDeviceEmailOtpVerificationResultV1>;
+    registerTargetCredentialV1(input: {
+      readonly registration: LinkedDeviceTargetCredentialRegistrationV1;
+    }): Promise<LinkedDeviceTargetCredentialRegistrationResultV1>;
+    /**
+     * Device 2 publishes where the Ed25519 Yao Client export root
+     * should be sealed, then collects the sealed package once Device 1 has
+     * produced it. `null` means Device 1 has not sealed yet — normal while the
+     * owner is still approving, not an error.
+     */
+    registerEd25519ExportRootRecipientV1(input: {
+      readonly recipient: LinkedDeviceEd25519ExportRootRecipientV1;
+    }): Promise<void>;
+    getEd25519ExportRootPackageV1(input: {
+      readonly linkSessionId: LinkDeviceSessionId;
+    }): Promise<LinkedDeviceEd25519ExportRootPackageV1 | null>;
+    receiveCommittedAuthorityPackagesV1(input: {
+      readonly linkSessionId: LinkDeviceSessionId;
+    }): Promise<CommittedAuthorityPackagesV1>;
+    activateInstalledAuthorityV1(input: {
+      readonly linkSessionId: LinkDeviceSessionId;
+      readonly receipt: LocalAuthorityInstallationReceiptV1;
+    }): Promise<ActivateInstalledAuthorityResultV1>;
+    acknowledgeLocalAuthorityActivationV1(input: {
+      readonly acknowledgement: LocalAuthorityActivationFinalAckV1;
+    }): Promise<void>;
+    retryCommittedDeliveryV1(input: {
+      readonly request: Extract<
+        LinkedDeviceSessionTransportRequestV1,
+        { readonly kind: 'linked_device_session_retry_committed_delivery_request_v1' }
+      >;
+    }): Promise<void>;
+    cancelSessionV1(input: {
+      readonly request:
+        | Extract<
+            LinkedDeviceSessionTransportRequestV1,
+            { readonly kind: 'linked_device_session_cancel_unclaimed_request_v1' }
+          >
+        | Extract<
+            LinkedDeviceSessionTransportRequestV1,
+            { readonly kind: 'linked_device_session_cancel_claimed_request_v1' }
+          >;
+    }): Promise<void>;
+    subscribeSessionV1(input: {
+      readonly linkSessionId: LinkDeviceSessionId;
+      readonly onEvent: (event: LinkSessionTransportEventV1) => void;
+    }): Promise<LinkSessionSubscriptionV1>;
   };
 
 export type LinkSessionOwnerTransportPortV1 = {

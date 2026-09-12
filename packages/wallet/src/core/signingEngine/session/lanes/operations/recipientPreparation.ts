@@ -210,17 +210,16 @@ export async function prepareLaneHolderRecipientV1(args: {
   try {
     const hpkePublicKeyB64u = parseHpkePublicKey(descriptor.hpkePublicKeyB64u);
     const hpkePublicKeyDigestB64u = parseRecipientKeyDigest(descriptor.hpkePublicKeyDigestB64u);
-    const holderParticipantBindingDigestB64u =
-      await computeLaneHolderParticipantBindingDigestV1({
-        participantId: args.input.targetHolderParticipantId,
-        custody: {
-          kind: 'lane_holder_custody_identity_v1',
-          custodyBindingId: args.input.custodyBindingId,
-          custodyBindingDigestB64u: args.input.custodyBindingDigestB64u,
-        },
-        hpkePublicKeyB64u,
-        hpkePublicKeyDigestB64u,
-      });
+    const holderParticipantBindingDigestB64u = await computeLaneHolderParticipantBindingDigestV1({
+      participantId: args.input.targetHolderParticipantId,
+      custody: {
+        kind: 'lane_holder_custody_identity_v1',
+        custodyBindingId: args.input.custodyBindingId,
+        custodyBindingDigestB64u: args.input.custodyBindingDigestB64u,
+      },
+      hpkePublicKeyB64u,
+      hpkePublicKeyDigestB64u,
+    });
     return {
       state: 'open',
       operationId: args.input.operationId,

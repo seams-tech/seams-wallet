@@ -4,10 +4,7 @@ import {
   walletSessionRefFromSession,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { SignAndSendTransactionHooksOptions } from '@/core/types/sdkSentEvents';
-import {
-  type ActionResult,
-  type ActionArgs,
-} from '@/core/types';
+import { type ActionResult, type ActionArgs } from '@/core/types';
 import { toTrimmedString } from '@shared/utils/validation';
 import type { PmActionName } from './iframe-lit-element-registry';
 

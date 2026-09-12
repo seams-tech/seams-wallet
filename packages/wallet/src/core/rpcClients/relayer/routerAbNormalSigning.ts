@@ -67,11 +67,14 @@ export function routerAbNormalSigningAdmissionErrorFromPayload(args: {
   }
   switch (code) {
     case 'wallet_budget_exhausted':
-      return new WalletSessionQuotaAdmissionError({
-        kind: 'exhausted',
-        source: 'server_prepare',
-        detail,
-      }, args.authorizationDecision);
+      return new WalletSessionQuotaAdmissionError(
+        {
+          kind: 'exhausted',
+          source: 'server_prepare',
+          detail,
+        },
+        args.authorizationDecision,
+      );
     case 'wallet_budget_in_flight':
     case 'wallet_budget_reserved':
       return new WalletSessionQuotaAdmissionError({
@@ -90,8 +93,7 @@ export type RouterAbOpaqueWalletSessionCredential = {
   walletSessionToken: string;
 };
 
-export type RouterAbWalletSessionCredential =
-  RouterAbOpaqueWalletSessionCredential;
+export type RouterAbWalletSessionCredential = RouterAbOpaqueWalletSessionCredential;
 
 export type RouterAbEd25519NormalSigningCredential =
   | RouterAbWalletSessionCredential
@@ -818,10 +820,7 @@ function parseReusableWalletSessionAuthorizedOperation(
   if (kind !== 'reusable_wallet_session_authorized_operation_v1') {
     throw new Error(`${label}.kind is invalid`);
   }
-  const capabilityKind = requireNonEmptyString(
-    record.capability_kind,
-    `${label}.capability_kind`,
-  );
+  const capabilityKind = requireNonEmptyString(record.capability_kind, `${label}.capability_kind`);
   if (capabilityKind !== 'near_ed25519_mpc_signing') {
     throw new Error(`${label}.capability_kind is invalid`);
   }
@@ -842,14 +841,8 @@ function parseReusableWalletSessionAuthorizedOperation(
     operation_id: requireNonEmptyString(record.operation_id, `${label}.operation_id`),
     capability_kind: capabilityKind,
     operation_kind: operationKind,
-    lane_digest_b64u: requireDigestB64u(
-      record.lane_digest_b64u,
-      `${label}.lane_digest_b64u`,
-    ),
-    intent_digest_b64u: requireDigestB64u(
-      record.intent_digest_b64u,
-      `${label}.intent_digest_b64u`,
-    ),
+    lane_digest_b64u: requireDigestB64u(record.lane_digest_b64u, `${label}.lane_digest_b64u`),
+    intent_digest_b64u: requireDigestB64u(record.intent_digest_b64u, `${label}.intent_digest_b64u`),
     display_digest_b64u: requireDigestB64u(
       record.display_digest_b64u,
       `${label}.display_digest_b64u`,
@@ -888,10 +881,7 @@ function parseVerifiedStepUpAuthorizedOperation(
   if (kind !== 'verified_step_up_authorized_operation_v1') {
     throw new Error(`${label}.kind is invalid`);
   }
-  const capabilityKind = requireNonEmptyString(
-    record.capability_kind,
-    `${label}.capability_kind`,
-  );
+  const capabilityKind = requireNonEmptyString(record.capability_kind, `${label}.capability_kind`);
   if (capabilityKind !== 'near_ed25519_mpc_signing') {
     throw new Error(`${label}.capability_kind is invalid`);
   }
@@ -920,14 +910,8 @@ function parseVerifiedStepUpAuthorizedOperation(
     operation_id: requireNonEmptyString(record.operation_id, `${label}.operation_id`),
     capability_kind: 'near_ed25519_mpc_signing',
     operation_kind: operationKind,
-    lane_digest_b64u: requireDigestB64u(
-      record.lane_digest_b64u,
-      `${label}.lane_digest_b64u`,
-    ),
-    intent_digest_b64u: requireDigestB64u(
-      record.intent_digest_b64u,
-      `${label}.intent_digest_b64u`,
-    ),
+    lane_digest_b64u: requireDigestB64u(record.lane_digest_b64u, `${label}.lane_digest_b64u`),
+    intent_digest_b64u: requireDigestB64u(record.intent_digest_b64u, `${label}.intent_digest_b64u`),
     display_digest_b64u: requireDigestB64u(
       record.display_digest_b64u,
       `${label}.display_digest_b64u`,
@@ -1056,11 +1040,11 @@ function buildRouterAbRequestInit(args: {
 }): RequestInit {
   const bearer =
     args.credential.kind === 'wallet_session_opaque'
-        ? {
-            token: args.credential.walletSessionToken,
-            missingMessage: 'walletSessionToken is required',
-          }
-        : null;
+      ? {
+          token: args.credential.walletSessionToken,
+          missingMessage: 'walletSessionToken is required',
+        }
+      : null;
   const init = buildRelayerJsonPostRequestInit({
     ...(bearer ? { headers: buildBearerAuthorizationHeader(bearer) } : {}),
     body: args.body,
@@ -1150,7 +1134,11 @@ function parseRouterAbOwnerOperationAuthorizationDecision(
   }
   if (kind === 'authorized') {
     requireExactRecordFields(record, ['kind', 'operation', 'source'], 'owner-operation decision');
-    if (!record.operation || typeof record.operation !== 'object' || Array.isArray(record.operation)) {
+    if (
+      !record.operation ||
+      typeof record.operation !== 'object' ||
+      Array.isArray(record.operation)
+    ) {
       throw new Error('owner-operation authorized operation is invalid');
     }
     const operation = record.operation as Record<string, unknown>;

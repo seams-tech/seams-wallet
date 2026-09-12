@@ -117,7 +117,6 @@ import {
   type WalletCapabilitySubjectV1,
 } from './contracts';
 import {
-  parseLinkedDeviceOrdinaryMaterialSourceContributionPreparationV1,
   parseLinkedDeviceOrdinaryMaterialSourceContributionPreparationTupleV1,
   parseLinkedDeviceOrdinaryMaterialSourceContributionTupleV1,
 } from './sourceContribution';

@@ -102,9 +102,7 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function parsePendingPromptEnvelope(
-  value: unknown,
-): PendingPromptEnvelope | null {
+function parsePendingPromptEnvelope(value: unknown): PendingPromptEnvelope | null {
   if (!isObjectRecord(value)) return null;
   if (value.type !== UserConfirmMessageType.PROMPT_USER_CONFIRM_IN_JS_MAIN_THREAD) return null;
   const requestId = typeof value.requestId === 'string' ? value.requestId.trim() : '';
@@ -175,10 +173,7 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
     kind: 'closed',
     generation: 0,
   };
-  constructor(
-    config: UiConfirmManagerConfig,
-    context: UiConfirmContext,
-  ) {
+  constructor(config: UiConfirmManagerConfig, context: UiConfirmContext) {
     this.config = {
       // Default to client-hosted worker file using centralized config
       workerUrl: BUILD_PATHS.RUNTIME.TOUCH_CONFIRM_WORKER,
@@ -680,24 +675,21 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
       void handlePromptFromWorker(ctx, promptEnv, sourceWorker, {
         signingSurface,
         onDecision: this.capturePendingConfirmationDecision.bind(this, pending),
-      }).catch(
-        (error) => {
-          console.error('[UserConfirmWorker] failed to handle confirmation prompt:', error);
-          this.postPromptEnvelopeError(
-            sourceWorker,
-            promptEnv.requestId,
-            promptEnv.channelToken,
-            'Secure confirmation failed',
-          );
-        },
-      );
+      }).catch((error) => {
+        console.error('[UserConfirmWorker] failed to handle confirmation prompt:', error);
+        this.postPromptEnvelopeError(
+          sourceWorker,
+          promptEnv.requestId,
+          promptEnv.channelToken,
+          'Secure confirmation failed',
+        );
+      });
       return;
     }
 
     if (
       isObjectRecord(payload) &&
-      payload.type ===
-      UserConfirmMessageType.PROMPT_USER_CONFIRM_IN_JS_MAIN_THREAD
+      payload.type === UserConfirmMessageType.PROMPT_USER_CONFIRM_IN_JS_MAIN_THREAD
     ) {
       console.error('[UserConfirmWorker] rejected malformed prompt envelope');
       return;

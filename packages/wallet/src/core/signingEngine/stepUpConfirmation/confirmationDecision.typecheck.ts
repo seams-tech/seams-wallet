@@ -1,9 +1,6 @@
 import type { TransactionContext } from '@/core/types/rpc';
 import type { NonceLeaseRef } from '../interfaces/nonceLease';
-import type {
-  SerializableCredential,
-  UserConfirmDecision,
-} from './types';
+import type { SerializableCredential, UserConfirmDecision } from './types';
 import type { WorkerConfirmationResponse } from './channel/confirmTypes';
 import type { NearTransactionReadiness } from '../nonce/nearTransactionReadiness';
 

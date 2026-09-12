@@ -22,8 +22,7 @@ type Ed25519YaoClientRootEnvelopeKey = string;
 
 const PASSKEY_CUSTODY_ENVELOPE_CACHE_KEY = 'passkeyCustodyEnvelopeCacheV1';
 const PASSKEY_CUSTODY_ENVELOPE_CACHE_KIND = 'passkey_custody_envelope_cache_v1' as const;
-const ED25519_YAO_CLIENT_ROOT_ENVELOPE_CACHE_KEY =
-  'ed25519YaoClientRootEnvelopeCacheV1';
+const ED25519_YAO_CLIENT_ROOT_ENVELOPE_CACHE_KEY = 'ed25519YaoClientRootEnvelopeCacheV1';
 const ED25519_YAO_CLIENT_ROOT_ENVELOPE_CACHE_KIND =
   'ed25519_yao_client_root_envelope_cache_v1' as const;
 const MAX_CACHED_PASSKEY_CUSTODY_ENVELOPES = 32;
@@ -39,9 +38,12 @@ type PasskeyCustodyEnvelopeCacheV1 = {
 };
 
 export type Ed25519YaoClientRootEnvelopeRecordV1 = PasskeyCustodyEnvelopeRecord & {
-  readonly binding: Extract<PasskeyCustodySecretBinding, {
-    readonly kind: 'ed25519_yao_client_root_v1';
-  }>;
+  readonly binding: Extract<
+    PasskeyCustodySecretBinding,
+    {
+      readonly kind: 'ed25519_yao_client_root_v1';
+    }
+  >;
 };
 
 type Ed25519YaoClientRootEnvelopeCacheV1 = {
@@ -77,8 +79,8 @@ export type Ed25519YaoClientRootEnvelopeIdentityV1 =
 
 export type Ed25519YaoClientRootEnvelopeEmailScopeV1 =
   Ed25519YaoClientRootEnvelopeIdentityBaseV1 & {
-  readonly targetFactor: { readonly kind: 'email_otp' };
-};
+    readonly targetFactor: { readonly kind: 'email_otp' };
+  };
 
 const activePasskeyCustodyEnvelopes = new Map<
   PasskeyCustodySessionKey,
@@ -252,8 +254,7 @@ function rootEnvelopeMatchesIdentity(
     return (
       envelope.factor.kind === 'passkey' &&
       String(envelope.factor.rpId) === String(identity.targetFactor.rpId) &&
-      String(envelope.factor.credentialIdB64u) ===
-        String(identity.targetFactor.credentialIdB64u)
+      String(envelope.factor.credentialIdB64u) === String(identity.targetFactor.credentialIdB64u)
     );
   }
   return (
@@ -311,10 +312,7 @@ export async function rememberEd25519YaoClientRootEnvelopeV1(args: {
 }): Promise<void> {
   const identity = args.identity;
   const envelope = args.envelope;
-  if (
-    envelope.lifecycle.state !== 'active' ||
-    !isEd25519YaoClientRootEnvelopeRecordV1(envelope)
-  ) {
+  if (envelope.lifecycle.state !== 'active' || !isEd25519YaoClientRootEnvelopeRecordV1(envelope)) {
     throw new Error('Ed25519 Yao client-root envelope is not active or has the wrong secret kind');
   }
   if (!rootEnvelopeMatchesIdentity(envelope, identity)) {
@@ -383,9 +381,8 @@ export async function readEd25519YaoClientRootEnvelopeForEmailScopeV1(
       ...scope,
       targetFactor: {
         kind: 'email_otp',
-        enrollmentSealKeyVersion: envelope.factor.kind === 'email_otp'
-          ? envelope.factor.enrollmentSealKeyVersion
-          : '',
+        enrollmentSealKeyVersion:
+          envelope.factor.kind === 'email_otp' ? envelope.factor.enrollmentSealKeyVersion : '',
       },
     });
     activeEd25519YaoClientRootEnvelopes.set(key, envelope);

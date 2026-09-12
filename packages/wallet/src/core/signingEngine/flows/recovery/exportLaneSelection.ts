@@ -13,7 +13,6 @@ import {
 } from '../../session/operationState/trace';
 import {
   toWalletId,
-  thresholdEcdsaChainTargetKey,
   type ThresholdEcdsaChainTarget,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { deriveEvmFamilyKeyFingerprintFromPublicFacts } from '../../session/identity/evmFamilyEcdsaIdentity';

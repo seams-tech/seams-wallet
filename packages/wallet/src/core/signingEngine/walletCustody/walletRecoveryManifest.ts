@@ -32,10 +32,7 @@ import type {
   WalletCustodyEvmFamilyPublicFacts,
 } from '@shared/passkey-custody';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
-import type {
-  WalletAuthMethodId,
-  WalletId,
-} from '@shared/utils/domainIds';
+import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 
 type NearRecoveryEntry = Extract<
   WalletRecoveryPreparationKeyManifestEntry,

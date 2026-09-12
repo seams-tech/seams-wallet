@@ -229,7 +229,10 @@ export function parsePendingWalletRegistrationCommitAppStateRow(
   const fields = decodeJournalObject(raw, ['key', 'value']);
   if (!fields) return null;
   const key = fields.get('key');
-  if (typeof key !== 'string' || !key.startsWith(PENDING_WALLET_REGISTRATION_COMMIT_APP_STATE_PREFIX)) {
+  if (
+    typeof key !== 'string' ||
+    !key.startsWith(PENDING_WALLET_REGISTRATION_COMMIT_APP_STATE_PREFIX)
+  ) {
     return null;
   }
   const parsed = parsePendingWalletRegistrationCommitStorageRow(fields.get('value'));
@@ -587,10 +590,7 @@ function parsePendingLocalMaterial(raw: unknown): PendingWalletRegistrationLocal
       ? { keyFamilies: ['ecdsa_secp256k1'], custodyCommit, ecdsa }
       : null;
   }
-  if (
-    keyFamilies.length === 1 &&
-    keyFamilies[0] === 'ed25519'
-  ) {
+  if (keyFamilies.length === 1 && keyFamilies[0] === 'ed25519') {
     const fields = decodeJournalObject(raw, ['keyFamilies', 'custodyCommit', 'ed25519']);
     if (!fields) return null;
     const custodyCommit = parseCustodyCommit(fields.get('custodyCommit'));
@@ -807,9 +807,7 @@ function parseEcdsaPublicFacts(raw: unknown): WalletCustodyEvmFamilyPublicFacts 
   const derivationClientSharePublicKey33B64u = parseCanonicalString(
     fields.get('derivationClientSharePublicKey33B64u'),
   );
-  const clientVerifyingShare33B64u = parseCanonicalString(
-    fields.get('clientVerifyingShare33B64u'),
-  );
+  const clientVerifyingShare33B64u = parseCanonicalString(fields.get('clientVerifyingShare33B64u'));
   const relayerPublicKey33B64u = parseCanonicalString(fields.get('relayerPublicKey33B64u'));
   const groupPublicKey33B64u = parseCanonicalString(fields.get('groupPublicKey33B64u'));
   const ethereumAddress = parseCanonicalString(fields.get('ethereumAddress'));
@@ -934,9 +932,7 @@ function parseCustodyCommit(raw: unknown): WalletCustodyCeremonyCommitPayload | 
     keySet,
     keyManifestDigestB64u,
     ...(establishedCustody ? { establishedCustody } : {}),
-    ...(recoveryBackupAcknowledged === true
-      ? { recoveryBackupAcknowledged: true as const }
-      : {}),
+    ...(recoveryBackupAcknowledged === true ? { recoveryBackupAcknowledged: true as const } : {}),
     ...(recoveryReplacementEnvelope ? { recoveryReplacementEnvelope } : {}),
     ...(registeredPublicKeyB64u ? { registeredPublicKeyB64u } : {}),
     ...(clientRootPublicKey33B64u ? { clientRootPublicKey33B64u } : {}),
@@ -966,7 +962,8 @@ function parseEstablishedCustody(raw: unknown): EstablishedCustodyRecordsPayload
     'recoveryEntryAadHashB64u',
   ] as const;
   const fields = decodeJournalObjectWithAllowedKeys(raw, keys);
-  if (!fields || keys.some((key) => key !== 'recoveryCodeLocators' && !fields.has(key))) return null;
+  if (!fields || keys.some((key) => key !== 'recoveryCodeLocators' && !fields.has(key)))
+    return null;
   const strings = [
     parseCanonicalString(fields.get('envelopeId')),
     parseCanonicalString(fields.get('envelopeBindingJson')),

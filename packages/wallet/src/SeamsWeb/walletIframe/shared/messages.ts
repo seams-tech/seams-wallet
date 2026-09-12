@@ -26,7 +26,6 @@ import type {
   WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { EmailOtpAuthPolicy, SeamsConfigsInput } from '@/core/types/seams';
-import type { ThresholdRuntimePolicyScope } from '@/core/signingEngine/threshold/sessionPolicy';
 import type { WalletEmailOtpLoginOperation } from '@shared/utils/emailOtpDomain';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { WalletCustodyAdminOperation } from '@shared/authorization/walletCustodyOperation';
@@ -45,7 +44,6 @@ import type {
   GoogleEmailOtpWalletAuthResolvedMode,
   GoogleEmailOtpWalletAuthRequestedMode,
   GoogleEmailOtpWalletAuthSubmitSuccess,
-  AddPasskeyAuthorization,
   EmailOtpEcdsaCapabilityArgs,
   PendingEcdsaRegistrationResumeRequest,
   ResolveExactKeyExportLaneInput,
@@ -1020,10 +1018,7 @@ const HOSTED_WALLET_REDEMPTION_PAYLOAD_FIELDS = [
   'relayUrl',
 ] as const;
 
-function compactHostedWalletExchangeValue<T extends string>(
-  value: unknown,
-  label: string,
-): T {
+function compactHostedWalletExchangeValue<T extends string>(value: unknown, label: string): T {
   if (
     typeof value !== 'string' ||
     value.length === 0 ||
@@ -1173,15 +1168,14 @@ type PMGoogleEmailOtpWalletAuthStartBasePayload = {
   };
 };
 
-export type PMGoogleEmailOtpWalletAuthStartPayload =
-  PMGoogleEmailOtpWalletAuthStartBasePayload &
-    (
-      | {
-          mode: 'login';
-          loginTarget: import('@/SeamsWeb/publicApi/types').GoogleEmailOtpWalletAuthLoginTarget;
-        }
-      | { mode: 'register'; loginTarget?: never }
-    );
+export type PMGoogleEmailOtpWalletAuthStartPayload = PMGoogleEmailOtpWalletAuthStartBasePayload &
+  (
+    | {
+        mode: 'login';
+        loginTarget: import('@/SeamsWeb/publicApi/types').GoogleEmailOtpWalletAuthLoginTarget;
+      }
+    | { mode: 'register'; loginTarget?: never }
+  );
 
 export type PMGoogleEmailOtpWalletAuthHandlePayload = {
   flowHandleId: string;

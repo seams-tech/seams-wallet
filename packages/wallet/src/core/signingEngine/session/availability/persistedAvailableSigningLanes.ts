@@ -15,13 +15,11 @@ import {
   type SigningSessionSealedStoreRecord,
 } from '../persistence/sealedSessionStore';
 import {
-  ed25519AvailableLaneIdentityKey,
   ecdsaAvailableLaneIdentityKey,
   readAvailableSigningLanes,
   activeWalletAuthorityAvailableLaneFromProjection,
   type ReadAvailableSigningLanesForSigningInput,
   type ReadAvailableSigningLanesInput,
-  type ReadAvailableSigningLanesPorts,
   type AvailableSigningLanes,
   type ConcreteAvailableEcdsaSigningLane,
 } from './availableSigningLanes';

@@ -11,10 +11,7 @@ import {
   redactCredentialExtensionOutputs,
 } from '../../webauthnAuth/credentials/credentialExtensions';
 
-export {
-  getPrfFirstB64uFromCredential,
-  redactCredentialExtensionOutputs,
-};
+export { getPrfFirstB64uFromCredential, redactCredentialExtensionOutputs };
 
 export type ThresholdAuthenticatorRecord = ProfileAuthenticatorRecord & WebAuthnAuthenticatorRecord;
 export type ThresholdCredentialStorePort =
@@ -29,9 +26,11 @@ export type ThresholdWarmSessionMaterialPort = {
     remainingUses: number;
     transport?: WarmSessionSealTransportInput;
   }) => Promise<void>;
-  claimWarmSessionMaterial?: (args: WarmSessionMaterialOperationTarget & {
-    uses?: number;
-  }) => Promise<{
+  claimWarmSessionMaterial?: (
+    args: WarmSessionMaterialOperationTarget & {
+      uses?: number;
+    },
+  ) => Promise<{
     ok: boolean;
     code?: string;
     message?: string;

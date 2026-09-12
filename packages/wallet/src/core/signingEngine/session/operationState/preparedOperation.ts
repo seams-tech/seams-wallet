@@ -7,7 +7,6 @@ import type {
 import type {
   SigningChainFamily,
   SigningCurve,
-  SelectedEd25519SigningSessionPlanningLane,
   SelectedSigningSessionPlanningLane,
   SigningOperationContext,
   SigningSessionPlan,
@@ -140,7 +139,10 @@ export async function prepareThresholdSigningOperation<
     ...(lifecycle.readiness.trustedStatusAuth
       ? { trustedStatusAuth: lifecycle.readiness.trustedStatusAuth }
       : {}),
-    availableLanesGeneration: Math.max(0, Math.floor(Number(lifecycle.availableLanesGeneration) || 0)),
+    availableLanesGeneration: Math.max(
+      0,
+      Math.floor(Number(lifecycle.availableLanesGeneration) || 0),
+    ),
     metadata: (lifecycle.metadata || {}) as TMetadata,
   };
 }

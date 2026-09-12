@@ -1,7 +1,6 @@
 import { base64UrlEncode } from './encoders';
 import { alphabetizeStringify, sha256BytesUtf8 } from './digests';
 import {
-  parseEmailOtpChallengeId,
   parseEmailOtpProviderUserId,
   parseVerifiedEmailAddress,
   parseWalletAuthorityBindingDigest,

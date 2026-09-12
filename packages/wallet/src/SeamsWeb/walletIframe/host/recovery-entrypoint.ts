@@ -1,8 +1,6 @@
 import {
   WalletRecoveryCoordinator,
-  type WalletRecoveryEmailOtpVerifiedHandle,
   type WalletRecoveryCredentialCreatedHandle,
-  type WalletRecoveryGoogleVerifiedHandle,
   type WalletRecoveryPreparedHandle,
 } from '@/SeamsWeb/operations/recovery/walletRecovery';
 import type { WalletRecoveryWebContext } from '@/SeamsWeb/signingSurface/ports';

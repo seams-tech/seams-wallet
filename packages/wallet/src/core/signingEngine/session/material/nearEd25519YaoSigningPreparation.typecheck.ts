@@ -1,7 +1,4 @@
-import type {
-  ActiveNearEd25519WalletSessionStatus,
-  ExactNearEd25519WalletSessionAuthorization,
-} from './nearEd25519YaoSigningPreparation';
+import type { ActiveNearEd25519WalletSessionStatus } from './nearEd25519YaoSigningPreparation';
 import type {
   ActiveWalletSessionV1,
   WalletSessionOperationCredentialV1,

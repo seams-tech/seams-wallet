@@ -88,9 +88,7 @@ export async function provisionWarmEd25519Capability(
     return provisioned;
   }
 
-  const expectedThresholdSessionId = toOptionalNonEmptyString(
-    provisioned.thresholdSessionId,
-  );
+  const expectedThresholdSessionId = toOptionalNonEmptyString(provisioned.thresholdSessionId);
   if (!expectedThresholdSessionId) {
     throw new Error(
       `[WarmSessionStore] provisioned Ed25519 capability is missing thresholdSessionId for ${nearAccountId}`,
@@ -101,8 +99,7 @@ export async function provisionWarmEd25519Capability(
   assertPersistedEd25519WarmSessionRecord({
     walletId,
     expectedThresholdSessionId,
-    persistedSessionIdRaw:
-      afterWarmSession.capabilities.ed25519.runtime?.thresholdSessionId,
+    persistedSessionIdRaw: afterWarmSession.capabilities.ed25519.runtime?.thresholdSessionId,
   });
   emitWarmSessionTransition({
     onTransition: deps.onTransition,

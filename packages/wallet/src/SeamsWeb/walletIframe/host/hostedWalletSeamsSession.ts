@@ -1,8 +1,5 @@
 import { joinNormalizedUrl, stripTrailingSlashes } from '@shared/utils/normalize';
-import {
-  parseWalletSessionId,
-  type WalletSessionId,
-} from '@shared/authorization/capabilityKinds';
+import { parseWalletSessionId, type WalletSessionId } from '@shared/authorization/capabilityKinds';
 import {
   parsePMRedeemHostedWalletSeamsSessionPayload,
   type PMRedeemHostedWalletSeamsSessionPayload,
@@ -123,9 +120,7 @@ function requireWalletSessionId(value: unknown): WalletSessionId {
   return parsed.value;
 }
 
-function parseHostedOperationCredential(
-  value: unknown,
-): HostedWalletSessionOperationCredentialV1 {
+function parseHostedOperationCredential(value: unknown): HostedWalletSessionOperationCredentialV1 {
   const record = recordFromBoundary(value);
   assertExactFields(
     record,
@@ -157,7 +152,9 @@ function parseRedeemedWalletSession(value: unknown): {
   const walletSessionId = requireWalletSessionId(response.walletSessionId);
   const operationCredential = parseHostedOperationCredential(response.operationCredential);
   if (operationCredential.walletSessionId !== walletSessionId) {
-    throw new Error('hosted-wallet operationCredential does not identify its parent Wallet Session');
+    throw new Error(
+      'hosted-wallet operationCredential does not identify its parent Wallet Session',
+    );
   }
   return {
     walletSessionId,

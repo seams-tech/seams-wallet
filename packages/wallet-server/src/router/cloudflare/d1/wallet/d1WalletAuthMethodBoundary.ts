@@ -1,5 +1,4 @@
 import {
-  parseEmailOtpProviderUserId,
   parseWebAuthnCredentialIdB64u,
   type WalletAuthMethodId,
   type WalletAuthorityId,

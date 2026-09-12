@@ -24,7 +24,6 @@ import {
 } from '@shared/utils/registrationIntent';
 import {
   consumeReservedRecoveryCode,
-  type RecoveryCodeReservationId,
 } from '@shared/wallet-recovery/recoveryCodeReservation';
 import type { WalletRecoveryEnvelopeSetRecord } from '@shared/wallet-recovery';
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';

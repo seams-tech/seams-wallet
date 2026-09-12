@@ -65,11 +65,8 @@ import type {
   PrepareEcdsaClientBootstrapCommand as GeneratedPrepareEcdsaClientBootstrapCommand,
   PrepareEcdsaClientBootstrapOutput as GeneratedPrepareEcdsaClientBootstrapOutput,
 } from '@/core/platform/generated/signerCoreCommands';
-import { toWalletId, type WalletId } from '../../interfaces/ecdsaChainTarget';
+import { type WalletId } from '../../interfaces/ecdsaChainTarget';
 import {
-  toEcdsaDerivationSigningRootId,
-  toEcdsaDerivationSigningRootVersion,
-  toEcdsaDerivationThresholdKeyId,
   type EcdsaThresholdKeyId,
   type SigningRootId,
   type SigningRootVersion,

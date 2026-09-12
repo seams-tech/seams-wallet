@@ -11,7 +11,6 @@ import {
 } from '@/core/signingEngine/session/identity/laneIdentity';
 import type {
   ThresholdEcdsaChainTarget,
-  WalletId,
   WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import {
@@ -113,7 +112,6 @@ import {
 import {
   sameRouterAbEcdsaDerivationPublicCapabilityV1,
   sameRouterAbEcdsaRegistrationActivationReceiptV1,
-  type RouterAbEcdsaPostRegistrationSessionActivationResponseV1,
   type RouterAbEcdsaPostRegistrationSessionActivationRequestV1,
   type RouterAbEcdsaPostRegistrationSessionActivationPolicyV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
@@ -129,7 +127,6 @@ import type { RouterAbEd25519YaoActiveClientMetadataV1 } from '../../threshold/e
 import { parseWalletSessionMintId } from '@shared/authorization/capabilityKinds';
 import {
   mpcMaterialActivationRefsEqual,
-  parseProviderSubject,
   parseThresholdEcdsaSessionId,
   parseWalletAuthMethodId,
 } from '@shared/utils/domainIds';

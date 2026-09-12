@@ -23,7 +23,6 @@ import {
   type HostedAuthMenuExternalAuthRequest,
   type HostedAuthMenuExternalAuthResolution,
   type HostedAuthMenuDemoEmailOtpDelivery,
-  type HostedAuthMenuExternalProvider,
   type HostedAuthMenuMode,
   type HostedAuthMenuOpenRequest,
   type HostedAuthMenuOutcome,
@@ -60,11 +59,7 @@ import {
 } from './passkey';
 import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
 import { createReadableWalletId } from '@shared/utils/registrationIntent';
-import {
-  classifyLinkDeviceFlowEvent,
-  type LinkDeviceFlowEvent,
-  type LinkDeviceFlowOutcome,
-} from '@/core/types/sdkSentEvents';
+import { classifyLinkDeviceFlowEvent, type LinkDeviceFlowEvent } from '@/core/types/sdkSentEvents';
 import type {
   LinkedDeviceTargetEmailOtpActivationV1,
   LinkedDeviceTargetFactorActivationV1,
@@ -75,8 +70,6 @@ import type {
 import { DeviceLinkingErrorCode } from '@/core/types/linkDevice';
 import type { LinkedDeviceTargetFactorV1 } from '@shared/device-linking';
 import type {
-  HostedRecoveryEmailOtpVerified,
-  HostedRecoveryCredentialCreated,
   HostedRecoveryFailure,
   HostedRecoveryFinalizationOperation,
   HostedRecoveryGoogleVerified,

@@ -6,7 +6,7 @@ import type {
   SignTransactionHooksOptions,
 } from '@/core/types/sdkSentEvents';
 import type { ActionResult, SignTransactionResult } from '@/core/types/seams';
-import type { FinalExecutionOutcome, TxExecutionStatus } from '@near-js/types';
+import type { FinalExecutionOutcome } from '@near-js/types';
 import type { ActionArgs, TransactionInput, TransactionInputWasm } from '@/core/types/actions';
 import { type ConfirmationConfig } from '@/core/types/signer-worker';
 import type { NearSigningWebContext } from '@/SeamsWeb/signingSurface/types';

@@ -186,9 +186,7 @@ function scheduleRouterAbEcdsaDerivationSigningRefill(args: {
     thresholdEcdsaPublicKeyB64u: publicFacts.publicKeyB64u,
     relayerVerifyingShareB64u: signerSession.transport.relayerVerifyingShareB64u,
     credential: args.credential,
-    materialActivation: routerAbMpcMaterialActivationRefToWire(
-      signerSession.materialActivation,
-    ),
+    materialActivation: routerAbMpcMaterialActivationRefToWire(signerSession.materialActivation),
     routerAbEcdsaDerivationPoolFill: {
       kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
       scope: signerSession.routerAbEcdsaDerivationNormalSigning.state.scope,
@@ -282,7 +280,9 @@ export class Secp256k1Engine {
       }
       if (!signed.ok) {
         throw new Error(
-          signed.message || signed.code || '[multichain] Router A/B ECDSA derivation signing failed',
+          signed.message ||
+            signed.code ||
+            '[multichain] Router A/B ECDSA derivation signing failed',
         );
       }
 

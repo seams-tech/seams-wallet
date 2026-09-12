@@ -9,7 +9,6 @@ import type {
 import type {
   WalletRegistrationEcdsaClientBootstrap,
   WalletRegistrationEcdsaPrepareContext,
-  WalletRegistrationEcdsaPreparePayload,
   WalletRegistrationEcdsaWalletKey,
 } from '../registrationContracts';
 import type { WebAuthnCredentialBindingStore } from '../WebAuthnCredentialBindingStore';

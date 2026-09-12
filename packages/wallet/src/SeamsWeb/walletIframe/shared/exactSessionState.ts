@@ -358,18 +358,17 @@ function parseWalletAuthenticationState(value: unknown): WalletAuthenticationSta
   switch (Reflect.get(value, 'kind')) {
     case 'signed_out':
       return { kind: 'signed_out' };
-    case 'authenticated':
-      {
-        const authMethod = Reflect.get(value, 'authMethod');
-        if (!isWalletAuthMethod(authMethod)) {
+    case 'authenticated': {
+      const authMethod = Reflect.get(value, 'authMethod');
+      if (!isWalletAuthMethod(authMethod)) {
         throw new Error('Wallet Session authentication method is invalid');
-        }
-        return {
-          kind: 'authenticated',
-          walletId: requireWalletId(Reflect.get(value, 'walletId')),
-          authMethod,
-        };
       }
+      return {
+        kind: 'authenticated',
+        walletId: requireWalletId(Reflect.get(value, 'walletId')),
+        authMethod,
+      };
+    }
     default:
       throw new Error('Wallet Session authentication kind is invalid');
   }
@@ -1380,8 +1379,7 @@ function parseIdentity(value: object): WalletIframeExactSessionIdentity {
   const walletSessionId = parseWalletSessionId(Reflect.get(value, 'walletSessionId'));
   if (!walletSessionId.ok) throw new Error('Wallet iframe walletSessionId is invalid');
   const expiresAtMs = Reflect.get(value, 'expiresAtMs');
-  if (!isPositiveSafeInteger(expiresAtMs))
-    throw new Error('Wallet iframe expiresAtMs is invalid');
+  if (!isPositiveSafeInteger(expiresAtMs)) throw new Error('Wallet iframe expiresAtMs is invalid');
   const walletId = requireWalletId(Reflect.get(value, 'walletId'));
   const authorizationId = parseWalletSessionAuthorizationId(Reflect.get(value, 'authorizationId'));
   if (!authorizationId.ok) throw new Error('Wallet iframe authorizationId is invalid');

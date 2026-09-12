@@ -4,10 +4,7 @@ import type {
   WalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { ThresholdEcdsaEmailOtpAuthContext } from '../identity/laneIdentity';
-import type {
-  ThresholdEcdsaSessionId,
-  ThresholdEd25519SessionId,
-} from '../operationState/types';
+import type { ThresholdEcdsaSessionId, ThresholdEd25519SessionId } from '../operationState/types';
 import type {
   MpcWalletSigningQuotaId,
   WalletSessionId,
@@ -112,9 +109,7 @@ export type PasskeyEd25519ReadyPersistInput = BasePasskeyReadyPersistInput & {
 };
 
 export interface EmailOtpWarmSessionPersistencePort {
-  persistEcdsaReady(
-    input: EmailOtpEcdsaReadyPersistInput,
-  ): Promise<WarmSessionPersistenceResult>;
+  persistEcdsaReady(input: EmailOtpEcdsaReadyPersistInput): Promise<WarmSessionPersistenceResult>;
   persistEd25519Ready(
     input: EmailOtpEd25519ReadyPersistInput,
   ): Promise<WarmSessionPersistenceResult>;
@@ -122,5 +117,7 @@ export interface EmailOtpWarmSessionPersistencePort {
 
 export interface PasskeyWarmSessionPersistencePort {
   persistEcdsaReady(input: PasskeyEcdsaReadyPersistInput): Promise<WarmSessionPersistenceResult>;
-  persistEd25519Ready(input: PasskeyEd25519ReadyPersistInput): Promise<WarmSessionPersistenceResult>;
+  persistEd25519Ready(
+    input: PasskeyEd25519ReadyPersistInput,
+  ): Promise<WarmSessionPersistenceResult>;
 }

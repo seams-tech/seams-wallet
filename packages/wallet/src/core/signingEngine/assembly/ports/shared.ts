@@ -2,7 +2,6 @@ import type { WarmSessionMaterialOperationTarget } from '../../session/emailOtp/
 import type { EmailOtpWarmMaterialTarget } from '../../workerManager/workerTypes';
 import type { RuntimePorts } from '@/core/platform';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
-import type { WebAuthnAuthenticationCredential } from '@/core/types';
 import type { LocalWalletAuthMethodRecord } from '@/core/indexedDB';
 import type { AccountId } from '@/core/types/accountIds';
 import type { Ed25519YaoPublicCapabilityReferenceStorePort } from '../../threshold/ed25519/yaoPublicCapabilityReferences';
@@ -24,9 +23,7 @@ import type {
   ReadAvailableSigningLanesForSigningInput,
   AvailableSigningLanes,
 } from '../../session/availability/availableSigningLanes';
-import type { ThresholdEcdsaSessionStoreSource } from '../../session/identity/laneIdentity';
 import type { RestorePersistedSessionForSigningInput } from '../../session/sealedRecovery/sealedRecovery.types';
-import type { PersistedAvailableSigningLanesDeps } from '../../session/availability/persistedAvailableSigningLanes';
 import type { EmailOtpTransactionSigningChallenge } from '../../session/emailOtp/publicTypes';
 import { SigningSessionCoordinator } from '../../session/SigningSessionCoordinator';
 import type { SigningSessionStatusCheck } from '../../session/lifecycle/walletSessionStatus';
@@ -40,7 +37,6 @@ import type {
   ProvisionWarmEd25519CapabilityArgs,
   ProvisionWarmEd25519CapabilityResult,
 } from '../../session/warmCapabilities/types';
-import type { EmailOtpAuthLane } from '../../stepUpConfirmation/otpPrompt/authLane';
 import type { TouchIdPrompt } from '../../stepUpConfirmation/passkeyPrompt/touchIdPrompt';
 import type { ThresholdEcdsaSessionBootstrapResult } from '../../threshold/ecdsa/activation';
 import type { OwnerLaneScope } from '../../session/identity/signingLaneAuthBinding';
@@ -60,15 +56,6 @@ import {
   loadSignEvmWithUiConfirm,
   loadWebAuthnP256EngineCtor,
 } from '../../flows/signEvmFamily/signerLoader';
-
-type RequestEmailOtpTransactionSigningChallengeArgs = Parameters<
-  NonNullable<EvmFamilySigningDeps['requestEmailOtpTransactionSigningChallenge']>
->[0];
-type RequestEmailOtpEd25519SigningChallengeArgs = Parameters<
-  NonNullable<NearSigningApiDeps['requestEmailOtpEd25519SigningChallenge']>
->[0];
-type PrepareNearEd25519YaoMaterialBoundary =
-  NearSigningApiDeps['prepareNearEd25519YaoMaterialBoundary'];
 import type { SignerWorkerManager } from '../../workerManager/SignerWorkerManager';
 import {
   prewarmSignerWorkers as prewarmSignerWorkersValue,
@@ -78,6 +65,15 @@ import {
   type WorkerResourceWarmupDeps,
   type WorkerResourceWarmupStorePort,
 } from '../warmup';
+
+type RequestEmailOtpTransactionSigningChallengeArgs = Parameters<
+  NonNullable<EvmFamilySigningDeps['requestEmailOtpTransactionSigningChallenge']>
+>[0];
+type RequestEmailOtpEd25519SigningChallengeArgs = Parameters<
+  NonNullable<NearSigningApiDeps['requestEmailOtpEd25519SigningChallenge']>
+>[0];
+type PrepareNearEd25519YaoMaterialBoundary =
+  NearSigningApiDeps['prepareNearEd25519YaoMaterialBoundary'];
 
 export type SignTempoPortInput = {
   walletSession: WalletSessionRef;

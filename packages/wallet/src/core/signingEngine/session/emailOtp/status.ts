@@ -1,12 +1,12 @@
 import type { EmailOtpEcdsaSealedRuntimePurpose } from './sealedRuntimePurpose';
 import type { EmailOtpWarmMaterialTarget } from '@/core/signingEngine/workerManager/workerTypes';
-import type {
-  WarmSessionStatusResult,
-} from '@/core/signingEngine/uiConfirm/uiConfirm.types';
+import type { WarmSessionStatusResult } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 
 export async function readEmailOtpWarmSessionStatusOnly(args: {
   target: EmailOtpWarmMaterialTarget;
-  readWarmSessionStatusFromWorker: (target: EmailOtpWarmMaterialTarget) => Promise<WarmSessionStatusResult>;
+  readWarmSessionStatusFromWorker: (
+    target: EmailOtpWarmMaterialTarget,
+  ) => Promise<WarmSessionStatusResult>;
 }): Promise<WarmSessionStatusResult> {
   const target = normalizedWarmMaterialTarget(args.target);
   if (!target) {
@@ -48,11 +48,7 @@ export async function consumeEmailOtpWarmSessionUses(args: {
       target,
       ...(typeof args.uses === 'number' ? { uses: args.uses } : {}),
     });
-    if (
-      !result.ok &&
-      result.code === 'not_found' &&
-      args.ecdsaPurpose
-    ) {
+    if (!result.ok && result.code === 'not_found' && args.ecdsaPurpose) {
       const restored = await args.tryRestoreEcdsaWarmSessionStatusFromSealedRecord(
         args.ecdsaPurpose,
       );
@@ -65,7 +61,8 @@ export async function consumeEmailOtpWarmSessionUses(args: {
         return retry;
       }
       if (restored) {
-        if (args.ecdsaPurpose) await args.recordSessionMaterialRestored(args.ecdsaPurpose, restored);
+        if (args.ecdsaPurpose)
+          await args.recordSessionMaterialRestored(args.ecdsaPurpose, restored);
       }
       return result;
     }

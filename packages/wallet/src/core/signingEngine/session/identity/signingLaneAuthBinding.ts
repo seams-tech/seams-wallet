@@ -2,10 +2,7 @@ import type { RpId } from './evmFamilyEcdsaIdentity';
 import { SIGNER_AUTH_METHODS, type SignerAuthMethod } from '@shared/utils/signerDomain';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { LinkedDeviceEnrollmentId, LinkedDeviceId } from '@shared/signing-lanes/ids';
-import type {
-  WalletAuthMethodId,
-  WalletAuthorityBindingDigest,
-} from '@shared/utils/domainIds';
+import type { WalletAuthMethodId, WalletAuthorityBindingDigest } from '@shared/utils/domainIds';
 
 export type SigningLaneAuthBinding =
   | {
@@ -19,7 +16,7 @@ export type SigningLaneAuthBinding =
       providerSubjectId: string;
       rpId?: never;
       credentialIdB64u?: never;
-  };
+    };
 
 /**
  * Identity that distinguishes one linked Email OTP owner from the wallet-wide

@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import type {
   LoginHooksOptions,
-  RegistrationHooksOptions,
   ActionHooksOptions,
   SignNEP413HooksOptions,
   SeamsWeb,
@@ -9,7 +8,6 @@ import type {
   SignNEP413MessageParams,
   SignNEP413MessageResult,
   RegistrationCapability,
-  DevicesCapability,
   PasskeyRegistrationOptions,
 } from '../SeamsWeb';
 import type { AppearanceConfigInput, ThemeMode, WalletAuthMethod } from '../core/types/seams';
@@ -17,26 +15,18 @@ import type {
   CurrentWalletAuthMethod,
   WalletAuthMethodBinding,
 } from '@shared/utils/walletCapabilityBindings';
-import { TransactionInput } from '../core/types/actions';
 import type { ConfirmationConfig, ConfirmationBehavior } from '../core/types/signer-worker';
-import type { ClientUserData } from '../core/accountData/near/nearAccountData.types';
 import type { ActionArgs } from '../core/types/actions';
-import type {
-  DelegateActionHooksOptions,
-  EventCallback,
-  SignAndSendTransactionHooksOptions,
-} from '../core/types/sdkSentEvents';
+import type { DelegateActionHooksOptions } from '../core/types/sdkSentEvents';
 import type { DelegateActionInput } from '../core/types/delegate';
 import type { WasmSignedDelegate } from '../core/types/signer-worker';
-import type {
-  ActionResult,
-  WalletSession,
-  LoginAndCreateSessionResult,
-  LoginResult,
-  RegistrationResult,
-  SigningSessionStatus,
-} from '../core/types/seams';
+import type { ActionResult, WalletSession, LoginAndCreateSessionResult } from '../core/types/seams';
 import type { StartDevice2LinkingFlowArgs } from '../core/types/linkDevice';
+import type { QrLinkedDeviceSessionPayloadV5 } from '@shared/device-linking';
+import type {
+  NearAccountRef,
+  WalletSessionRef,
+} from '../core/signingEngine/interfaces/ecdsaChainTarget';
 export type {
   LinkedDeviceEmailOtpActivationStateV1,
   LinkedDeviceTargetEmailOtpActivationV1,
@@ -45,11 +35,6 @@ export type {
   LinkedDeviceTargetPasskeyActivationV1,
   StartDeviceLinkingOptionsDevice2,
 } from '../core/types/linkDevice';
-import type { QrLinkedDeviceSessionPayloadV5 } from '@shared/device-linking';
-import type {
-  NearAccountRef,
-  WalletSessionRef,
-} from '../core/signingEngine/interfaces/ecdsaChainTarget';
 
 export type { PasskeyRegistrationOptions };
 
@@ -177,9 +162,7 @@ export type SDKFlowRuntime = SDKFlowState & {
   ) => Promise<void>;
 };
 
-export type WalletLockState =
-  | { readonly kind: 'idle' }
-  | { readonly kind: 'cleaning_up' };
+export type WalletLockState = { readonly kind: 'idle' } | { readonly kind: 'cleaning_up' };
 
 export interface SeamsContextType {
   // Core SeamsWeb instance - provides all user-facing functionality

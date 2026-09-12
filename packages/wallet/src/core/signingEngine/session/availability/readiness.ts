@@ -44,9 +44,7 @@ import type {
   MpcWalletSigningQuotaId,
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
-import type {
-  Ed25519SigningSessionReadiness,
-} from '../planning/planner';
+import type { Ed25519SigningSessionReadiness } from '../planning/planner';
 import type { ThresholdEd25519SessionId } from '../operationState/types';
 import {
   mpcMaterialActivationRefsEqual,
@@ -84,9 +82,7 @@ export type WalletSessionReadinessDeps = {
   touchConfirm?: Partial<
     Pick<
       VolatileWarmMaterialPort,
-      | 'getWarmSessionStatus'
-      | 'getWarmSessionStatuses'
-      | 'clearVolatileWarmSessionMaterial'
+      'getWarmSessionStatus' | 'getWarmSessionStatuses' | 'clearVolatileWarmSessionMaterial'
     >
   >;
   getEmailOtpWarmSessionStatus?: (thresholdSessionId: string) => Promise<WarmSessionStatusResult>;
@@ -526,10 +522,7 @@ export function walletScopedClaimsForLanes(args: {
           scoped.set(
             entry.lane.thresholdSessionId,
             overrideClaim
-              ? attachWarmClaimToThresholdSession(
-                  overrideClaim,
-                  entry.lane.thresholdSessionId,
-                )
+              ? attachWarmClaimToThresholdSession(overrideClaim, entry.lane.thresholdSessionId)
               : null,
           );
         }
@@ -686,10 +679,7 @@ function claimFromWalletSessionStatusOverride(
 ): WarmSessionPrfClaimWithoutThresholdSessionId | null {
   const status = override.status;
   if (status.status === 'active') {
-    if (
-      typeof status.remainingUses !== 'number' ||
-      typeof status.expiresAtMs !== 'number'
-    ) {
+    if (typeof status.remainingUses !== 'number' || typeof status.expiresAtMs !== 'number') {
       return { state: 'unavailable', code: 'invalid_wallet_budget_status' };
     }
     const remainingUses = Math.max(0, Math.floor(Number(status.remainingUses) || 0));
@@ -796,11 +786,7 @@ export async function readDirectSigningSessionStatusForTargets(args: {
 }): Promise<SigningSessionStatus | null> {
   const walletSessionId = args.walletSessionId;
   const targetThresholdSessionIds = Array.from(
-    new Set(
-      [...(args.targetThresholdSessionIds || [])]
-        .map(normalizeNonEmpty)
-        .filter(Boolean),
-    ),
+    new Set([...(args.targetThresholdSessionIds || [])].map(normalizeNonEmpty).filter(Boolean)),
   );
   if (!targetThresholdSessionIds.length) return null;
 
@@ -828,9 +814,7 @@ export function statusFromClaim(args: {
   lanes: DiscoveredSigningSessionLane[];
   claim: WarmSessionPrfClaim | null;
 }): SigningSessionStatus {
-  const hasEmailOtpLane = args.lanes.some(
-    (lane) => lane.source === SIGNER_AUTH_METHODS.emailOtp,
-  );
+  const hasEmailOtpLane = args.lanes.some((lane) => lane.source === SIGNER_AUTH_METHODS.emailOtp);
   return toSigningSessionStatus({
     sessionId: args.walletSessionId,
     claim: args.claim,
@@ -947,9 +931,7 @@ export async function syncSealedRefreshPolicyForLanes(args: {
   const expiresAtMs = Math.floor(Number(args.status.expiresAtMs) || 0);
   const nowMs = Date.now();
   const laneExpiresAtMs = Math.min(
-    ...sealedLanes
-      .map((lane) => lane.runtime.expiresAtMs)
-      .filter((value) => value > 0),
+    ...sealedLanes.map((lane) => lane.runtime.expiresAtMs).filter((value) => value > 0),
   );
   const policyExpiresAtMs =
     expiresAtMs > 0

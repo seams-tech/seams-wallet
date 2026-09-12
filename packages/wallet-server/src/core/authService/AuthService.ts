@@ -2,23 +2,13 @@ import { MinimalNearClient, type AccessKeyList } from '../rpcClients/near/NearCl
 import type { FinalExecutionOutcome } from '@near-js/types';
 import { createAuthServiceConfig } from '../config';
 import { formatGasToTGas, formatYoctoToNear } from '../utils';
-import { toOptionalTrimmedString } from '@shared/utils/validation';
 import {
-  parseRouterAbEd25519NormalSigningState,
-  type RouterAbEd25519NormalSigningState,
-} from '@shared/utils/signingSessionSeal';
-import {
-  EMAIL_OTP_CHANNEL,
   WALLET_EMAIL_OTP_ACTIONS,
-  WALLET_EMAIL_OTP_EXPORT_OPERATION,
   WALLET_EMAIL_OTP_REGISTRATION_OPERATION,
-  WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
-  WALLET_EMAIL_OTP_UNLOCK_OPERATION,
 } from '@shared/utils/emailOtpDomain';
 import { createRouterAbSigningRuntimes } from '../routerAbSigning/createRouterAbSigningRuntimes';
 import type { RouterAbNormalSigningRuntime } from '../routerAbSigning/RouterAbNormalSigningRuntime';
 import type { RouterAbEcdsaPresignRuntime } from '../routerAbSigning/RouterAbEcdsaPresignRuntime';
-import { sha256BytesUtf8 } from '@shared/utils/digests';
 
 import type {
   AuthServiceConfig,
@@ -30,7 +20,6 @@ import type {
   ThresholdRuntimePolicyScope,
   WebAuthnAuthenticationCredential,
 } from '../types';
-import type { WalletRegistrationFinalizeRequest } from '../registrationContracts';
 import type { GoogleEmailOtpResolutionResult } from './googleEmailOtpRegistration';
 export type {
   GoogleEmailOtpRegistrationOffer,
@@ -40,12 +29,10 @@ export type {
 } from './googleEmailOtpRegistration';
 
 import {
-  parseWebAuthnRpId,
   type GoogleProviderSubject,
   type VerifiedGoogleEmail,
   type WebAuthnRpId,
 } from '@shared/utils/domainIds';
-import type { RegistrationSignerPlan } from '@shared/utils/registrationIntent';
 import {
   type DelegateActionPolicy,
   type ExecuteSignedDelegateResult,
@@ -66,7 +53,6 @@ import {
   type WebAuthnSyncAccountOptionsResult,
   type WebAuthnLoginVerificationResult,
 } from './webauthn';
-import { randomBase64Url, randomOpaqueId } from './bytes';
 import {
   isAuthServiceProductionEnvironment,
   readAuthServiceConfigValue,
@@ -101,19 +87,8 @@ import {
   verifyEmailOtpUnlockProof as verifyEmailOtpUnlockProofWithStores,
 } from './emailOtpUnlock';
 import {
-  buildVerifiedEmailOtpRegistrationChallengeProof,
-  emailOtpChallengeVerificationIntentFromRequest,
-  emailOtpStoredChallengePurposeMatches,
-  expectedEmailOtpStoredChallengePurpose,
-  parseRawEmailOtpRegistrationChallengeProofInput,
-  readEmailOtpStoredChallengePurpose,
-  type EmailOtpChallengeBindingMismatchCode,
   type EmailOtpRegistrationChallengeProof,
-  type EmailOtpRegistrationChallengeProofInput,
-  type EmailOtpRegistrationChallengeProofResult,
-  type EmailOtpRegistrationEnrollmentPersistence,
   type VerifiedEmailOtpChallengeCodeResult,
-  type VerifiedEmailOtpChallengeCodeSuccessBase,
 } from './emailOtpChallengeProof';
 import {
   createEmailOtpShamirCipherFromConfig,
@@ -152,13 +127,7 @@ import {
   type GoogleEmailOtpOperationsInput,
 } from './googleEmailOtpOperations';
 import { consumeEmailOtpRateLimit as consumeEmailOtpRateLimitWithDeps } from './rateLimits';
-import { isObject } from './record';
 import { summarizeThresholdStoreConfig } from './thresholdStoreSummary';
-import { normalizeThresholdRuntimePolicyScope } from './thresholdRuntimePolicy';
-import {
-  buildEcdsaWalletKeysFromBootstrap,
-  toEcdsaDerivationClientBootstrapRequest,
-} from './registrationThresholdHelpers';
 import {
   createGoogleJwksState,
   verifyGoogleLoginWithIdentityStore,
@@ -191,10 +160,6 @@ import {
   type EmailOtpChallengeStore,
   type EmailOtpLoginChallengeOperation,
 } from '../EmailOtpStores';
-import {
-  validateSecp256k1PublicKey33,
-  verifySecp256k1RecoverableSignatureAgainstPublicKey33,
-} from '../ThresholdService/evmCryptoWasm';
 import { type NearPublicKeyKind } from '../NearPublicKeyStore';
 import {
   listNearPublicKeysForUserWithStore,
@@ -203,7 +168,6 @@ import {
   type RecordNearPublicKeyMetadataResult,
 } from './nearPublicKeyMetadata';
 import { type LinkIdentityResult, type UnlinkIdentityResult } from '../IdentityStore';
-import type { ThresholdEcdsaChainTarget } from '../thresholdEcdsaChainTarget';
 
 const REGISTRATION_WALLET_SIGNING_SESSION_REMAINING_USES = 3;
 

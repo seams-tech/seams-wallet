@@ -5,7 +5,6 @@ import { ensureExternalStyles } from '@/core/signingEngine/uiConfirm/ui/lit-comp
 import {
   dispatchAuthMenuIntent,
   isAuthMenuActionReady,
-  isAuthMenuActionable,
   isAuthMenuGoogleActionReady,
   isAuthMenuLoadingStatus,
   isAuthMenuReady,

@@ -1,6 +1,6 @@
 import type { AccessKeyList, FinalExecutionOutcome } from '@near-js/types';
 import { base64UrlDecode } from '@shared/utils/encoders';
-import { errorMessage, toError } from '@shared/utils/errors';
+import { toError } from '@shared/utils/errors';
 import { ensureEd25519Prefix } from '@shared/utils/validation';
 import type { NearTransactionActionArgsWasm } from '@shared/near/actions';
 import { MinimalNearClient, SignedTransaction } from '../rpcClients/near/NearClient';

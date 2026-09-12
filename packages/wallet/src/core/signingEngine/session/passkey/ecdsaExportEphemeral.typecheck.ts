@@ -13,9 +13,7 @@ import type {
   EmailOtpEcdsaExplicitExportBootstrapRequest,
   EmailOtpEcdsaExplicitExportBootstrapResult,
 } from './ecdsaBootstrap';
-import type {
-  ActivateEcdsaExistingSessionRequest,
-} from '../../threshold/ecdsa/activation';
+import type { ActivateEcdsaExistingSessionRequest } from '../../threshold/ecdsa/activation';
 
 type ThresholdEcdsaTransactionActivationRequest = Exclude<
   ThresholdEcdsaActivationRequest,

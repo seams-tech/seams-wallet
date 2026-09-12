@@ -194,7 +194,6 @@ export function parseEcdsaClientAdditiveShareHandle(
   );
 }
 
-
 export function formatEd25519KeyVersionForWire(value: Ed25519KeyVersion): string {
   return value;
 }

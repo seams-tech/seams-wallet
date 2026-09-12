@@ -72,9 +72,7 @@ export function resolveThresholdEcdsaSigningQueueKey(
   ].join(':');
 }
 
-export function clearThresholdEcdsaSigningQueue(
-  queueByKey: ThresholdEcdsaSigningQueueByKey,
-): void {
+export function clearThresholdEcdsaSigningQueue(queueByKey: ThresholdEcdsaSigningQueueByKey): void {
   clearThresholdCommitQueue(queueByKey);
 }
 

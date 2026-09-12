@@ -61,19 +61,10 @@ import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   EMAIL_OTP_CHANNEL,
   WALLET_EMAIL_OTP_ACTIONS,
-  WALLET_EMAIL_OTP_EXPORT_OPERATION,
-  WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
   WALLET_EMAIL_OTP_UNLOCK_OPERATION,
   type WalletEmailOtpChannel,
   type WalletEmailOtpOperation,
 } from '@shared/utils/emailOtpDomain';
-import {
-  computeSdkEcdsaDerivationApplicationBindingDigestB64u,
-  parseSdkEcdsaDerivationSigningRootId,
-  parseSdkEcdsaDerivationSigningRootVersion,
-  type DerivationClientSharePublicKey33B64u,
-  type EcdsaDerivationRelayerPublicKey33B64u,
-} from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import {
   normalizeRuntimePolicyScope,
   signingRootScopeFromRuntimePolicyScope,
@@ -105,7 +96,6 @@ import {
   decodeEmailOtpEscrowSecret32,
   type EmailOtpEscrowSecret32DecodeResult,
 } from '@/core/signingEngine/session/emailOtp/secretEscrow';
-import { buildEmailOtpWorkerIssuedSessionHandle } from '@/core/platform/secretSources';
 import {
   parseWalletCustodyUnlockKeyManifest,
   type WalletCustodyUnlockKeyManifest,
@@ -113,24 +103,12 @@ import {
 } from '@/core/rpcClients/relayer/walletRecoveryPrepare';
 import { joinCustodyWireFromEnvelopeRecord } from '@/core/signingEngine/walletCustody/joinCustodyWire';
 import {
-  walletCustodyEd25519ActiveClientMetadataV1,
-  walletRecoveryEd25519ActiveClientMetadataV1,
-} from '@/core/signingEngine/walletCustody/ceremonyActiveClientMetadata';
-import {
-  activateWalletRecoveryEd25519V1,
-  admitWalletRecoveryEd25519V1,
-  buildWalletSessionEd25519RecoveryAdmissionRequestV1,
-  executeWalletRecoveryEd25519RoundV1,
-} from '@/core/signingEngine/walletCustody/walletRecoveryEd25519';
-import {
   openWalletCustodyEd25519ActiveClientV1,
-  walletCustodyActivationFactsFromActiveClientMetadataV1,
   walletCustodyCacheEnvelopeFromRecordV1,
   type WalletCustodyActivationFactsV1,
   type WalletCustodyCacheEnvelopeV1,
 } from '@/core/signingEngine/walletCustody/openCustodyCache';
 import {
-  WALLET_CUSTODY_ED25519_MATERIAL_KEY_KIND,
   type LoadedWalletCustodyEd25519MaterialV1,
   type WalletCustodyEd25519MaterialBindingV1,
   type WalletCustodySealedEd25519MaterialV1,
@@ -140,11 +118,9 @@ import type {
   EmailOtpEcdsaSessionBootstrapHandlePayload,
   EmailOtpEcdsaSessionHandleBinding,
   EmailOtpWalletRegistrationEcdsaPrepareHandleBinding,
-  EmailOtpWalletRegistrationEcdsaPrepareHandlePayloads,
   EmailOtpWalletRegistrationEcdsaPrepareHandleRequest,
   EmailOtpWalletRegistrationEcdsaPrepareHandleResult,
   EmailOtpWalletRegistrationEcdsaPrepareHandlePayload,
-  EmailOtpWorkerIssuedSessionHandlePayload,
   EmailOtpWorkerSessionHandleOperation,
   EmailOtpWorkerOperationRequestEnvelope,
   EmailOtpEd25519YaoActiveCapabilityDescriptorV1,
@@ -168,7 +144,6 @@ import {
 import {
   RouterAbEd25519YaoClientV1,
   RouterAbEd25519YaoHttpActivationTransportV1,
-  WasmRouterAbEd25519YaoActiveClientV1,
   type RouterAbEd25519YaoExportArtifactV1,
   type RouterAbEd25519YaoExportEmailOtpFactorReleaseV1,
   RouterAbEd25519YaoActiveClientMetadataV1,
@@ -204,7 +179,6 @@ import {
   issueEd25519OperationStepUpAuthorization,
   type Ed25519OperationStepUpCredential,
   type Ed25519OperationStepUpProof,
-  type IssuedEd25519OperationStepUpAuthorization,
 } from '../../threshold/ed25519/walletSession';
 import type {
   RouterAbEd25519NormalSigningIntentV2Wire,
@@ -217,7 +191,6 @@ import type {
 } from '@/core/rpcClients/relayer/routerAbNormalSigning';
 import {
   thresholdEcdsaChainTargetFromRequest,
-  thresholdEcdsaChainTargetsEqual,
   toWalletId,
   type ThresholdEcdsaChainTarget,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
@@ -225,8 +198,6 @@ import {
   normalizeThresholdRuntimePolicyScope,
   type ThresholdRuntimePolicyScope,
 } from '@/core/signingEngine/threshold/sessionPolicy';
-import { toEmailOtpAuthSubjectId } from '@/core/signingEngine/session/identity/emailOtpEcdsaDerivationIdentity';
-import { toRpId } from '@/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
 import initEvmCrypto, {
   init_evm_crypto,
   secp256k1_private_key_32_to_public_key_33,
@@ -239,8 +210,6 @@ import initEmailOtpRuntime, {
 import initWalletCustodyCeremony, {
   wallet_custody_ceremony_join_v1,
   type WasmCeremonyEvmActivationPendingV1,
-  type WasmCeremonyManifestEstablishedV1,
-  type WasmCeremonyProtocolCompletedV1,
   type WasmCeremonyProtocolPreparedV1,
   type WasmCeremonySeedHeldV1,
 } from '../../../../../../../wasm/wallet_custody_ceremony/pkg/wallet_custody_ceremony.js';
@@ -257,7 +226,6 @@ import { parseWalletRecoverySetRotationWorkerResultV1 } from '@shared/wallet-rec
 import { postEmailOtpJson } from './email-otp/fetch';
 import { getShamir3PassRuntime } from './shamir3pass/runtime';
 import {
-  buildEmailOtpRoutePlan,
   emailOtpRoutePath,
   normalizeEmailOtpRoutePlan,
   type EmailOtpRoutePlan,

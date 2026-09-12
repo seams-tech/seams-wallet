@@ -27,10 +27,6 @@ import type {
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import {
-  buildEcdsaSessionIdentity,
-  type EcdsaSessionIdentity,
-} from '../warmCapabilities/ecdsaProvisionPlan';
-import {
   toEvmFamilyEcdsaKeyHandle,
   type EvmFamilyEcdsaKeyHandle,
   type EvmFamilyEcdsaKeyIdentity,

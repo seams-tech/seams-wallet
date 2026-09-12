@@ -234,16 +234,12 @@ export async function replayWalletRecoveryGoogleEmailOtp(args: {
   } catch {
     return { kind: 'refused' };
   }
-  const response = await postRecoveryJson(
-    args,
-    GOOGLE_EMAIL_OTP_FINALIZE_PATH,
-    {
-      kind: 'replay',
-      recoveryOperationId: args.recoveryOperationId,
-      reservationId: args.reservationId,
-      replacementEnvelope,
-    },
-  );
+  const response = await postRecoveryJson(args, GOOGLE_EMAIL_OTP_FINALIZE_PATH, {
+    kind: 'replay',
+    recoveryOperationId: args.recoveryOperationId,
+    reservationId: args.reservationId,
+    replacementEnvelope,
+  });
   if (!response.ok) return response.failure;
   try {
     const body = decodeWalletRecoveryProjectionResponse(

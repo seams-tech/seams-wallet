@@ -3,7 +3,6 @@ import type { ThresholdEcdsaCanonicalExportArtifact } from '../../interfaces/sig
 import { createWarmSessionCapabilityReader } from '../../session/warmCapabilities/capabilityReader';
 import {
   createWarmSessionStatusReader,
-  type WarmSessionStatusReaderDeps,
   type WarmSigningStatusReader,
 } from '../../session/warmCapabilities/statusReader';
 import type { WarmSessionCapabilityReader } from '../../session/warmCapabilities/types';
@@ -155,8 +154,7 @@ export function createWarmSigningPorts(args: WarmSigningPortsArgs): WarmSigningP
   });
   const capabilityReader = createWarmSessionCapabilityReader({
     resolveActiveEcdsaCapabilityRuntime: args.resolveActiveEcdsaCapabilityRuntime,
-    resolveActiveEcdsaCapabilityRuntimeForChain:
-      args.resolveActiveEcdsaCapabilityRuntimeForChain,
+    resolveActiveEcdsaCapabilityRuntimeForChain: args.resolveActiveEcdsaCapabilityRuntimeForChain,
     touchConfirm: args.passkeyMpcSession,
     signingSessionSeal:
       args.signingSessionSeal.mode === 'sealed_refresh_v1'

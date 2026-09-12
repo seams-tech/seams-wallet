@@ -12,7 +12,6 @@ import {
   type EvmNonceLane,
   type NonceLaneCoordinationReadResult,
   type NonceLaneCoordinationRecord,
-  type ParsedNonceLaneCoordinationRecord,
 } from './nonceTypes';
 import { nonceLaneKey } from './nonceLaneKeys';
 

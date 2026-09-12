@@ -48,8 +48,6 @@ import { signNearWithUiConfirm } from './nearSigningFlow';
 import { resolveThresholdEd25519CommitQueueKey } from '../../threshold/ed25519/commitQueue';
 import type { MpcMaterialActivationRef, ThresholdEd25519SessionId } from '@shared/utils/domainIds';
 import {
-  emailOtpAuthContextReason,
-  emailOtpAuthContextRetention,
   type Ed25519LaneCandidate,
   type SelectedEd25519Lane,
 } from '../../session/identity/laneIdentity';
@@ -82,10 +80,7 @@ import {
   type ResolvedEd25519SigningSessionIdentity,
   type SigningOperationId,
 } from '../../session/operationState/types';
-import {
-  buildNearTransactionSigningLane,
-  type NearTransactionSigningLane,
-} from '../../session/operationState/lanes';
+import { type NearTransactionSigningLane } from '../../session/operationState/lanes';
 import {
   toWalletId,
   type NearCommandSubject,
@@ -100,6 +95,43 @@ import {
   waitForWalletSessionQuotaAdmissionRetry,
 } from '../../session/operationState/authorizationAdmission';
 import type { RouterAbEd25519OwnerOperationAuthorizationDecisionV1Wire } from '@shared/utils/routerAbNormalSigningIdentity';
+import type { WalletSessionStatusIdentity } from '../../session/lifecycle/walletSessionStatus';
+import {} from '../../threshold/sessionPolicy';
+import { signingAuthPlanFromSigningSessionPlan } from '../shared/signingConfirmation';
+import { resolveNearSigningSessionAuthContext } from './shared/signingSessionAuthMode';
+import {
+  createSigningBoundaryTraceEvent,
+  emitSigningBoundaryTrace,
+  emitSigningLaneResolutionTrace,
+  emitSigningPlannerDecisionTrace,
+} from '../../session/operationState/trace';
+import {
+  type PreparedThresholdSigningOperation,
+  type ThresholdSigningReadinessInput,
+} from '../../session/operationState/preparedOperation';
+import {
+  receiveTransactionIntent,
+  recordAvailableSigningLanesRead,
+  selectNearEd25519MaterialCandidate,
+  selectTransactionLaneFromAvailableLanes,
+  type AuthorizationRequiredEd25519LaneCandidate,
+  type NearEd25519TransactionSelectableAvailableLane,
+  type NearEd25519TransactionSelectableLane,
+  type TransactionLaneSelectedState,
+} from '../../session/identity/selectLane';
+import {
+  classifyTransactionReadiness,
+  prepareTransactionOperationFromReadiness,
+  prepareTransactionSigningOperation,
+  type NearEd25519TransactionSigningIntent,
+  type NearEd25519TransactionSignerSelection,
+  type PreparedTransactionOperation,
+  type TransactionAuthSelectionPolicy,
+  type TransactionSigningIntent,
+  type TransactionReadiness,
+  type TransactionReadinessClassifiedState,
+} from '../../session/operationState/transactionState';
+import { requiredNearTransactionSignatureUses } from './signatureUses';
 
 function nearOwnerOperationAuthorizationDecisionFromError(
   error: unknown,
@@ -130,44 +162,6 @@ function nearWalletSessionQuotaAdmissionDecisionFromError(error: unknown) {
   }
   return failure?.kind === 'in_flight' ? decideWalletSessionQuotaAdmissionFailure(failure) : null;
 }
-import type { WalletSessionStatusIdentity } from '../../session/lifecycle/walletSessionStatus';
-import {} from '../../threshold/sessionPolicy';
-import { signingAuthPlanFromSigningSessionPlan } from '../shared/signingConfirmation';
-import { resolveNearSigningSessionAuthContext } from './shared/signingSessionAuthMode';
-import {
-  createSigningBoundaryTraceEvent,
-  emitSigningBoundaryTrace,
-  emitSigningLaneResolutionTrace,
-  emitSigningPlannerDecisionTrace,
-} from '../../session/operationState/trace';
-import {
-  type PreparedThresholdSigningOperation,
-  type ThresholdSigningReadinessInput,
-} from '../../session/operationState/preparedOperation';
-import type { ResolvedRouterAbEd25519WalletSessionState } from '../../session/warmCapabilities/routerAbEd25519WalletSessionState';
-import {
-  receiveTransactionIntent,
-  recordAvailableSigningLanesRead,
-  selectNearEd25519MaterialCandidate,
-  selectTransactionLaneFromAvailableLanes,
-  type AuthorizationRequiredEd25519LaneCandidate,
-  type NearEd25519TransactionSelectableAvailableLane,
-  type NearEd25519TransactionSelectableLane,
-  type TransactionLaneSelectedState,
-} from '../../session/identity/selectLane';
-import {
-  classifyTransactionReadiness,
-  prepareTransactionOperationFromReadiness,
-  prepareTransactionSigningOperation,
-  type NearEd25519TransactionSigningIntent,
-  type NearEd25519TransactionSignerSelection,
-  type PreparedTransactionOperation,
-  type TransactionAuthSelectionPolicy,
-  type TransactionSigningIntent,
-  type TransactionReadiness,
-  type TransactionReadinessClassifiedState,
-} from '../../session/operationState/transactionState';
-import { requiredNearTransactionSignatureUses } from './signatureUses';
 
 async function invalidateAuthoritativeNearWalletSessionExpiry(args: {
   readonly failure: WalletSessionFailure | null;

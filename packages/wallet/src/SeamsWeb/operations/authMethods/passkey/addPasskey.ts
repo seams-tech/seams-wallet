@@ -3,7 +3,6 @@ import type { RegistrationWebContext } from '@/SeamsWeb/signingSurface/types';
 import {
   createWalletAddAuthMethodIntent,
   finalizeWalletAddAuthMethod,
-  startWalletAddAuthMethod,
 } from '@/core/rpcClients/relayer/walletRegistration';
 import {
   computeAddAuthMethodIntentDigestB64u,
@@ -11,7 +10,6 @@ import {
   type WalletId,
 } from '@shared/utils/registrationIntent';
 import {
-  parseWebAuthnCredentialIdB64u,
   parseWebAuthnRpId,
   type WalletAuthMethodId,
   type WalletAuthorityId,
@@ -173,9 +171,7 @@ async function addPasskeyWalletAuthMethodInternal(args: {
       ...(args.options ? { options: args.options } : {}),
     });
   }
-  const allowCredentials = addAuthMethodSourcePasskeyAllowCredentials(
-    sourceClaim.sourceAuthMethod,
-  );
+  const allowCredentials = addAuthMethodSourcePasskeyAllowCredentials(sourceClaim.sourceAuthMethod);
   const credential = await args.context.signingEngine.getAuthenticationCredentialsSerialized({
     subjectId: String(args.walletId),
     challengeB64u: intentResponse.addAuthMethodIntentDigestB64u,

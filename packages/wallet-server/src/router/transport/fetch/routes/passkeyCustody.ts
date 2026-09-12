@@ -62,12 +62,10 @@ import {
   parseWebAuthnRpId,
   parseWalletId,
   parseWalletRecoveryOperationId,
-  type WalletAuthMethodId,
-  type WalletAuthorityId,
   type WalletRecoveryOperationId,
   type WalletId,
 } from '@shared/utils/domainIds';
-import { parseDeviceId, type DeviceId } from '@shared/authorization/capabilityKinds';
+import { parseDeviceId } from '@shared/authorization/capabilityKinds';
 import {
   parseWalletRecoveryTargetV1,
   type WalletRecoveryTargetV1,

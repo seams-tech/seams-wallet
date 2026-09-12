@@ -164,9 +164,7 @@ async function addEmailOtpWalletAuthMethodInternal(args: {
   /* The source proof. Taken over the intent digest, so it authorizes exactly
      this addition and exactly this target method id — and it carries PRF.first,
      which is the only thing that opens the wallet's existing envelope. */
-  const allowCredentials = addAuthMethodSourcePasskeyAllowCredentials(
-    sourceClaim.sourceAuthMethod,
-  );
+  const allowCredentials = addAuthMethodSourcePasskeyAllowCredentials(sourceClaim.sourceAuthMethod);
   const credential = await args.context.signingEngine.getAuthenticationCredentialsSerialized({
     subjectId: String(args.walletId),
     challengeB64u: intentResponse.addAuthMethodIntentDigestB64u,

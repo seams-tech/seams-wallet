@@ -67,7 +67,6 @@ import {
   signingAuthPlanFromThresholdEcdsaStepUp,
   type EvmFamilyPreparedStepUpAuth,
   type EvmFamilyThresholdEcdsaStepUp,
-  type EvmFamilyThresholdEcdsaStepUpRuntime,
 } from './requireEvmFamilyStepUpAuth';
 import { buildEvmFamilyEcdsaStepUpAuthorization } from './stepUpAuthorization';
 import type { PreparedEcdsaOperationStepUp } from '../../threshold/ecdsa/operationStepUp';

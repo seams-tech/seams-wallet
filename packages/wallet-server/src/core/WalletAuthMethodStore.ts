@@ -8,7 +8,6 @@ import {
 } from './defaultConfigsServer';
 import type { NormalizedLogger } from './logger';
 import { resolveD1DatabaseFromConfig } from '../storage/d1Sql';
-import type { D1DatabaseLike } from '../storage/tenantRoute';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import {
   D1WalletAuthMethodStore,

@@ -4,7 +4,6 @@ import type {
   WalletSessionAuthorizationId,
   WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
-import type { ThresholdEcdsaDerivationRouteAuth } from '@/core/rpcClients/relayer/thresholdEcdsa';
 import type { SigningSessionStatus } from '@/core/types/seams';
 import { SIGNER_AUTH_METHODS, type SignerAuthMethod } from '@shared/utils/signerDomain';
 import type { EcdsaSessionProvisionPlan } from './ecdsaProvisionPlan';
@@ -20,16 +19,13 @@ import type {
 } from '../identity/laneIdentity';
 import { laneCandidateStateFromRuntimePolicy } from '../identity/laneIdentity';
 import { signingLaneAuthMethod } from '../identity/signingLaneAuthBinding';
-import type { ThresholdEcdsaSessionBootstrapResult } from '../../threshold/ecdsa/activation';
 import type {
   EmailOtpEd25519SessionPolicyAuthority,
-  Ed25519SessionPolicyAuthority,
   PasskeyEd25519SessionPolicyAuthority,
   ThresholdRuntimePolicyScope,
 } from '../../threshold/sessionPolicy';
 import type { Ed25519WalletSessionMintAuthorization } from '../../threshold/ed25519/walletSession';
 import type { RouterAbEd25519NormalSigningState } from '../../threshold/ed25519/routerAbNormalSigningState';
-import type { WarmSessionStatusResult } from '../../uiConfirm/uiConfirm.types';
 import type { SigningOperationIntent } from '../operationState/types';
 import {
   thresholdEcdsaChainTargetsEqual,

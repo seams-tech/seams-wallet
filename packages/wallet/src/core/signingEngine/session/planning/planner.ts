@@ -1,6 +1,5 @@
 import type { SensitiveOperationPolicy } from '@/core/types/seams';
 import type {
-  SelectedSigningSessionPlanningLane,
   SelectedEcdsaSigningSessionPlanningLane,
   SelectedEd25519SigningSessionPlanningLane,
   SigningLaneSummary,

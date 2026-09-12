@@ -130,7 +130,6 @@ import type {
   RecoveredWalletCustodyManifestV1,
   WalletRecoveryReplacementFactorInput,
 } from '@/core/signingEngine/walletCustody/walletRecoveryManifest';
-import type { WebAuthnCredentialIdB64u } from '@shared/utils/domainIds';
 import type {
   LoadedWalletCustodyEd25519MaterialV1,
   LoadWalletCustodyEd25519MaterialResultV1,

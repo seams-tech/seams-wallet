@@ -1,8 +1,5 @@
 import type { AccountAuthMetadata } from '@/core/signingEngine/interfaces/accountAuthMetadata';
-import {
-  SIGNER_AUTH_METHODS,
-  type SignerAuthMethod,
-} from '@shared/utils/signerDomain';
+import { SIGNER_AUTH_METHODS, type SignerAuthMethod } from '@shared/utils/signerDomain';
 import {
   WalletSessionQuotaAdmissionError,
   classifyWalletSessionQuotaAdmissionFailure,
@@ -181,9 +178,7 @@ export function nextEvmFamilyFreshAuthRetrySideEffectState(args: {
     case 'auth_prompt_shown':
     case 'email_otp_challenge':
     case 'passkey_reauth':
-      return args.current === 'no_auth_side_effect_started'
-        ? 'auth_prompt_shown'
-        : args.current;
+      return args.current === 'no_auth_side_effect_started' ? 'auth_prompt_shown' : args.current;
     case 'auth_confirmed':
       return 'auth_confirmed';
     case 'threshold_reconnect':
@@ -219,10 +214,7 @@ export function classifyEvmFamilyFreshAuthRetry(
   const admissionCanRetryAfterSideEffect =
     admissionDecision?.kind === 'request_fresh_step_up' ||
     admissionDecision?.kind === 'wait_and_retry_admission';
-  if (
-    args.sideEffectState !== 'no_auth_side_effect_started' &&
-    !admissionCanRetryAfterSideEffect
-  ) {
+  if (args.sideEffectState !== 'no_auth_side_effect_started' && !admissionCanRetryAfterSideEffect) {
     return blockEvmFamilyFreshAuthRetry(args, 'auth_side_effect_started');
   }
 
@@ -252,10 +244,7 @@ export function classifyEvmFamilyFreshAuthRetry(
     }
     if (admissionDecision.kind === 'wait_and_retry_admission') {
       if (args.admissionRetryState.kind === 'authoritative_readiness_reread') {
-        return blockEvmFamilyFreshAuthRetry(
-          args,
-          'authoritative_readiness_still_in_flight',
-        );
+        return blockEvmFamilyFreshAuthRetry(args, 'authoritative_readiness_still_in_flight');
       }
       return {
         kind: 'retry',

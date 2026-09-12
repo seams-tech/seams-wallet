@@ -10,7 +10,6 @@ import type {
   PrepareEcdsaClientBootstrapOutput as RawPrepareEcdsaClientBootstrapOutput,
 } from './generated/signerCoreCommands';
 import type {
-  EcdsaRoleLocalPublicFacts,
   EcdsaRoleLocalPendingStateBlob,
   EcdsaRoleLocalReadyStateBlob,
   FinalizeEcdsaClientBootstrapInput,

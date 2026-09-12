@@ -21,7 +21,7 @@ import {
 import { sameRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
 import { json, readJson } from '../../../framework/http';
 import { createRouterApiModule, type RouterApiModule } from '../../../framework/modules';
-import { defineRoute, type RouteDefinition } from '../../../framework/routeDefinitions';
+import { defineRoute } from '../../../framework/routeDefinitions';
 import type {
   RouterApiFetchRouteExtensionInput,
   RouterApiRouteExtension,

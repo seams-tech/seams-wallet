@@ -8,7 +8,6 @@ import {
   ROUTER_AB_ED25519_WALLET_SESSION_PATH,
 } from '@shared/utils/signingSessionSeal';
 import {
-  resolveWalletSessionOperationCredentialAdmission,
   resolveThresholdRuntimePolicyScope,
 } from '../../../auth/commonRouterUtils';
 import { normalizeCorsOrigin } from '../../../../core/SessionService';
@@ -36,7 +35,6 @@ import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
 import { base64UrlEncode } from '@shared/utils/encoders';
 import { isPlainObject } from '@shared/utils/validation';
 import {
-  routerAbMpcMaterialActivationRefToWire,
   sameRouterAbMpcMaterialActivationRef,
 } from '@shared/utils/routerAbNormalSigningIdentity';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';

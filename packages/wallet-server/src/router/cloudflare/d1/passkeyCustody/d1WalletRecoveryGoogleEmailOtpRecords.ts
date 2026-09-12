@@ -9,7 +9,6 @@ import {
   parseWalletRecoveryOperationId,
   parseWebAuthnCredentialIdB64u,
   parseWebAuthnRpId,
-  type PasskeyEnvelopeId,
   type WalletAuthMethodId,
   type WalletAuthorityBindingDigest,
   type WalletAuthorityId,
@@ -22,7 +21,6 @@ import { parseEnvelopeRevision, type EnvelopeRevision } from '@shared/passkey-cu
 import { parseWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import {
   parseWalletAuthMethodRecordV2,
-  type WalletAuthMethodRecordV2,
 } from '@shared/utils/registrationIntent';
 import {
   parseRecoveryCodeReservationId,

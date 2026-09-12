@@ -1,6 +1,4 @@
-import type { AccountId } from '@/core/types/accountIds';
 import {
-  thresholdEcdsaChainTargetKey,
   toWalletId,
   type ThresholdEcdsaChainTarget,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';

@@ -1187,14 +1187,19 @@ function prepareWalletEd25519RegistrationBatchFromFacts(
   };
   const preparedEcdsa =
     composition.kind === 'near_ed25519_and_evm_family_ecdsa'
-      ? prepareWalletEcdsaSignerActivations({
-          walletId: args.walletId,
-          walletKeys: composition.walletKeys,
-        }, undefined, {
-          kind: mode.kind === 'wallet_recovery_replacement'
-            ? 'wallet_recovery_replacement'
-            : 'fresh_registration',
-        })
+      ? prepareWalletEcdsaSignerActivations(
+          {
+            walletId: args.walletId,
+            walletKeys: composition.walletKeys,
+          },
+          undefined,
+          {
+            kind:
+              mode.kind === 'wallet_recovery_replacement'
+                ? 'wallet_recovery_replacement'
+                : 'fresh_registration',
+          },
+        )
       : null;
   const signerActivations: ActivateAccountSignerInput[] = [walletActivation, nearActivation];
   if (preparedEcdsa) {
@@ -1426,10 +1431,7 @@ type WalletRecoveryCustodyMaterialInput = {
   readonly sealed: WalletCustodySealedEd25519MaterialV1;
 };
 
-type NonEmptyWalletEcdsaKeys = readonly [
-  StoreWalletEcdsaWalletKey,
-  ...StoreWalletEcdsaWalletKey[],
-];
+type NonEmptyWalletEcdsaKeys = readonly [StoreWalletEcdsaWalletKey, ...StoreWalletEcdsaWalletKey[]];
 
 type WalletEcdsaRegistrationPublicationInput = {
   readonly walletId: WalletId;
@@ -1494,9 +1496,7 @@ async function prepareWalletEcdsaRegistrationPublicationWithMode(
     walletEcdsaRegistrationSignerSource(args.kind),
     mode,
   );
-  const signerActivations = preparedEcdsa.signerActivations.map(
-    (activation) => activation.input,
-  );
+  const signerActivations = preparedEcdsa.signerActivations.map((activation) => activation.input);
   const keyMaterialTimestamp = Date.now();
   const keyMaterials = preparedEcdsa.signerActivations.map((activation) =>
     keyMaterialForSignerActivation({
@@ -1590,11 +1590,9 @@ export async function prepareWalletMixedRegistrationPublication(
   const prepared =
     args.kind === 'passkey'
       ? prepareWalletEd25519RegistrationBatch(args, { kind: 'fresh_registration' }, composition)
-      : await prepareWalletEmailOtpEd25519RegistrationBatch(
-          args,
-          composition,
-          { kind: 'fresh_registration' },
-        );
+      : await prepareWalletEmailOtpEd25519RegistrationBatch(args, composition, {
+          kind: 'fresh_registration',
+        });
   return buildWalletEd25519RegistrationPublication({
     prepared,
     walletId: args.walletId,
@@ -1905,9 +1903,10 @@ async function prepareWalletEmailOtpEd25519RegistrationBatch(
             signerSource: SIGNER_SOURCES.emailOtpRegistration,
           },
           {
-            kind: mode.kind === 'wallet_recovery_replacement'
-              ? 'wallet_recovery_replacement'
-              : 'fresh_registration',
+            kind:
+              mode.kind === 'wallet_recovery_replacement'
+                ? 'wallet_recovery_replacement'
+                : 'fresh_registration',
           },
         )
       : null;

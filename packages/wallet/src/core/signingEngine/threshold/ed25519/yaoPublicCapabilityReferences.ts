@@ -20,8 +20,7 @@ export const ED25519_YAO_PUBLIC_CAPABILITY_LANES_KIND_V1 =
 
 export const ED25519_YAO_PUBLIC_CAPABILITY_REFERENCES_APP_STATE_KEY =
   'ed25519YaoPublicCapabilityReferencesV1';
-const ED25519_YAO_PUBLIC_CAPABILITY_LANES_APP_STATE_KEY =
-  'ed25519YaoPublicCapabilityLanesV1';
+const ED25519_YAO_PUBLIC_CAPABILITY_LANES_APP_STATE_KEY = 'ed25519YaoPublicCapabilityLanesV1';
 const MAX_PUBLIC_CAPABILITY_REFERENCES = 64;
 const MAX_PUBLIC_CAPABILITY_LANES = 64;
 
@@ -417,9 +416,7 @@ export class IndexedDbEd25519YaoPublicCapabilityReferenceStore implements Ed2551
     return parseEd25519YaoPublicCapabilityLanesV1(raw);
   }
 
-  private async writeLaneProjection(
-    projection: Ed25519YaoPublicCapabilityLanesV1,
-  ): Promise<void> {
+  private async writeLaneProjection(projection: Ed25519YaoPublicCapabilityLanesV1): Promise<void> {
     if (this.appState.isDisabled()) return;
     await this.appState.setAppState(
       ED25519_YAO_PUBLIC_CAPABILITY_LANES_APP_STATE_KEY,
@@ -482,9 +479,7 @@ export class IndexedDbEd25519YaoPublicCapabilityReferenceStore implements Ed2551
     const current = await this.readLaneProjection();
     await this.writeLaneProjection({
       kind: ED25519_YAO_PUBLIC_CAPABILITY_LANES_KIND_V1,
-      lanes: current.lanes.filter(
-        (candidate) => publicCapabilityIdentityKey(candidate) !== key,
-      ),
+      lanes: current.lanes.filter((candidate) => publicCapabilityIdentityKey(candidate) !== key),
     });
   }
 
