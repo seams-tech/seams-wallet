@@ -92,6 +92,34 @@ importers:
         specifier: 4.111.0
         version: 4.111.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
 
+  examples/wallet-console-lite:
+    dependencies:
+      '@seams/wallet':
+        specifier: workspace:*
+        version: link:../../packages/wallet
+      react:
+        specifier: ^19.1.1
+        version: 19.1.1
+      react-dom:
+        specifier: ^19.1.1
+        version: 19.1.1(react@19.1.1)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.1.12
+        version: 19.1.12
+      '@types/react-dom':
+        specifier: ^19.1.9
+        version: 19.1.9(@types/react@19.1.12)
+      '@vitejs/plugin-react':
+        specifier: ^6.0.1
+        version: 6.0.1(vite@8.0.0(@types/node@24.2.0)(jiti@2.6.1)(tsx@4.20.5)(yaml@2.8.1))
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: ^8.0.0
+        version: 8.0.0(@types/node@24.2.0)(jiti@2.6.1)(tsx@4.20.5)(yaml@2.8.1)
+
   packages/seams-cli: {}
 
   packages/shared-ts:

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn, spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync } from 'node:fs';
 import http from 'node:http';
 import { tmpdir } from 'node:os';
@@ -23,11 +24,11 @@ const ceremonyPrivateJwkPath = path.join(
   'ceremony-private.jwk.json',
 );
 const identity = Object.freeze({
-  orgId: 'org_local_wallet',
-  projectId: 'local-smoke-project',
-  environmentId: 'local-smoke-project:dev',
+  orgId: options.orgId,
+  projectId: options.projectId,
+  environmentId: options.environmentId,
   environmentKey: 'dev',
-  signingRootId: 'local-smoke-project:dev',
+  signingRootId: options.signingRootId,
   signingRootVersion: 'default',
 });
 const children = [];
@@ -80,6 +81,11 @@ function parseArguments(args) {
     root: '',
     appOrigin: 'http://localhost:4001',
     walletOrigin: 'http://localhost:4002',
+    orgId: 'org_local_wallet',
+    projectId: 'local-smoke-project',
+    environmentId: 'local-smoke-project:dev',
+    signingRootId: 'local-smoke-project:dev',
+    publishableKey: 'pk_local',
   };
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
@@ -100,9 +106,37 @@ function parseArguments(args) {
       parsed.walletOrigin = requiredOrigin(args, ++index, '--wallet-origin');
       continue;
     }
+    if (argument === '--org-id') {
+      parsed.orgId = requiredIdentifier(args, ++index, '--org-id');
+      continue;
+    }
+    if (argument === '--project-id') {
+      parsed.projectId = requiredIdentifier(args, ++index, '--project-id');
+      continue;
+    }
+    if (argument === '--environment-id') {
+      parsed.environmentId = requiredIdentifier(args, ++index, '--environment-id');
+      continue;
+    }
+    if (argument === '--signing-root-id') {
+      parsed.signingRootId = requiredIdentifier(args, ++index, '--signing-root-id');
+      continue;
+    }
+    if (argument === '--publishable-key') {
+      parsed.publishableKey = requiredIdentifier(args, ++index, '--publishable-key');
+      continue;
+    }
     throw new Error(`Unknown argument: ${argument}`);
   }
   return parsed;
+}
+
+function requiredIdentifier(args, index, name) {
+  const value = requiredArgumentValue(args, index, name).trim();
+  if (!/^[A-Za-z0-9:_-]{1,160}$/.test(value)) {
+    throw new Error(`${name} must contain only letters, numbers, colon, underscore, or hyphen`);
+  }
+  return value;
 }
 
 function requiredArgumentValue(args, index, name) {
@@ -122,7 +156,7 @@ function requiredOrigin(args, index, name) {
 
 function printUsage() {
   console.log(
-    'Usage: start-local-wallet-system.mjs [--root <runtime-directory>] [--app-origin <origin>] [--wallet-origin <origin>]',
+    'Usage: start-local-wallet-system.mjs [--root <runtime-directory>] [--app-origin <origin>] [--wallet-origin <origin>] [--org-id <id>] [--project-id <id>] [--environment-id <id>] [--signing-root-id <id>] [--publishable-key <key>]',
   );
 }
 
@@ -168,8 +202,8 @@ function localDeployment(tenantRoot) {
   return Object.freeze({
     credential: {
       apiKeyId: 'local-wallet-publishable-key',
-      publishableKey: 'pk_local',
-      secretKey: 'sk_local',
+      publishableKey: options.publishableKey,
+      secretKey: `sk_local_${randomBytes(24).toString('base64url')}`,
       allowedOrigins: [options.appOrigin, options.walletOrigin],
       scopes: [
         'accounts.create',

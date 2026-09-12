@@ -3,6 +3,7 @@ packages:
   - crates/ed25519-yao-cloudflare-bench
   - crates/router-ab-cloudflare
   - examples/seams-auth-menu
+  - examples/wallet-console-lite
   - examples/self-host-cloudflare-worker
   - packages/seams-cli
   - packages/shared-ts

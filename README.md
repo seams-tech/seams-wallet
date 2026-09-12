@@ -20,6 +20,12 @@ After building the Worker artifacts, run the Console-free local Wallet backend w
 local tenant root, migrates signer D1, and serves the Wallet Gateway at
 `http://127.0.0.1:4100`.
 
+For a complete browser example, run `pnpm wallet-console-lite`. It creates one local
+organisation/project/dev context, hosts the Wallet iframe, supports registration,
+unlock, session inspection, and safe message signing, and includes the public CLI
+workflow for server-share export, rotation, and deployment restore. See
+[`examples/wallet-console-lite`](./examples/wallet-console-lite/README.md).
+
 ### Packaged local runtime
 
 `@seams/wallet-server` includes prebuilt Worker roles, signer/private-role
