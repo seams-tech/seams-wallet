@@ -201,7 +201,7 @@ function startWorker(config) {
       '--port',
       String(config.port),
       '--inspector-port',
-      String(config.port + 100),
+      String(config.port + 1000),
       '--persist-to',
       path.join(stateRoot, config.role),
       '--env-file',
