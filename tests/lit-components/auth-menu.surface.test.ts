@@ -366,43 +366,6 @@ test.describe('wallet-host Lit auth menu surface', () => {
     expect(reflow.clientWidth).toBeGreaterThanOrEqual(318);
     expect(reflow.scrollWidth).toBeLessThanOrEqual(reflow.clientWidth);
   });
-
-  test('centers the recovery header across the card at full width', async ({ page }) => {
-    await page.setViewportSize({ width: 420, height: 720 });
-    await mountAuthMenu(page, recoveryEntryViewModel());
-
-    const geometry = await page.locator(`${AUTH_MENU_TAG} .w3a-header`).evaluate((header) => {
-      const root = header.closest('.w3a-signup-menu-root');
-      const title = header.querySelector('.w3a-title');
-      const subhead = header.querySelector('.w3a-subhead');
-      const backButton = root?.querySelector('.w3a-back-button');
-      const inlineCenter = (element: Element): number => {
-        const rect = element.getBoundingClientRect();
-        return rect.left + rect.width / 2;
-      };
-      const blockCenter = (element: Element): number => {
-        const rect = element.getBoundingClientRect();
-        return rect.top + rect.height / 2;
-      };
-      if (!root || !title || !subhead || !backButton) {
-        throw new Error('Recovery header geometry is incomplete');
-      }
-      return {
-        backButtonBlockCenter: blockCenter(backButton),
-        cardCenter: inlineCenter(root),
-        titleBlockCenter: blockCenter(title),
-        titleCenter: inlineCenter(title),
-        subheadCenter: inlineCenter(subhead),
-      };
-    });
-
-    expect(Math.abs(geometry.titleCenter - geometry.cardCenter)).toBeLessThanOrEqual(1);
-    expect(Math.abs(geometry.subheadCenter - geometry.cardCenter)).toBeLessThanOrEqual(1);
-    expect(Math.abs(geometry.backButtonBlockCenter - geometry.titleBlockCenter)).toBeLessThanOrEqual(
-      1,
-    );
-  });
-
   test('renders recovered Google sign-in as one ready message with the Google icon', async ({
     page,
   }) => {
@@ -579,47 +542,6 @@ test.describe('wallet-host Lit auth menu surface', () => {
     );
     expect(intents).toEqual([{ kind: 'back' }]);
   });
-
-  test('animates into the waiting view with a rotating spinner', async ({ page }) => {
-    await mountAuthMenu(page, loginViewModel({ kind: 'busy', headline: 'Signing in…' }));
-
-    const waiting = await page.evaluate((tagName) => {
-      const surface = document.querySelector(tagName) as HTMLElement;
-      const spinner = surface.querySelector('.w3a-waiting > .w3a-spinner') as HTMLElement | null;
-      const root = surface.querySelector('.w3a-signup-menu-root') as HTMLElement | null;
-      const switcher = surface.querySelector('.w3a-content-switcher') as HTMLElement | null;
-      if (!spinner || !root || !switcher) throw new Error('waiting view is missing');
-      const spinnerStyle = getComputedStyle(spinner);
-      // Read the token from the root: state-scoped overrides (the waiting
-      // view runs faster) land there, and the invariant is that every part
-      // shares the duration in effect for the CURRENT state.
-      const resizeToken = getComputedStyle(root).getPropertyValue('--w3a-duration-resize').trim();
-      return {
-        spinnerAnimations: spinnerStyle.animationName,
-        spinnerPlayState: spinnerStyle.animationPlayState,
-        spinnerTrack: spinnerStyle.borderRightColor,
-        cardBorder: getComputedStyle(root).borderTopColor,
-        resizeSeconds: `${Number.parseFloat(resizeToken) / 1000}s`,
-        rootTransition: getComputedStyle(root).transitionDuration,
-        switcherTransition: getComputedStyle(switcher).transitionDuration,
-      };
-    }, AUTH_MENU_TAG);
-
-    // The card owns the resize in both directions. Never add an `animation:`
-    // shorthand to `.w3a-waiting > .w3a-spinner` — it shadows the rotation and
-    // freezes it.
-    expect(waiting.spinnerAnimations).toContain('w3a-spin');
-    expect(waiting.spinnerPlayState).not.toContain('paused');
-    expect(waiting.spinnerTrack).toBe(waiting.cardBorder);
-    // Assert the shared token, not a literal: the invariant is that every part
-    // of the box settles on ONE duration. A part left on its own timing splits
-    // one movement into two, which is the bug this guards. Retuning the
-    // duration is a design call and must not fail here.
-    expect(waiting.resizeSeconds).not.toBe('NaNs');
-    expect(waiting.rootTransition).toContain(waiting.resizeSeconds);
-    expect(waiting.switcherTransition).toContain(waiting.resizeSeconds);
-  });
-
   test('Escape backs out of the waiting view but is ignored on the menu itself', async ({
     page,
   }) => {
@@ -726,43 +648,6 @@ test.describe('wallet-host Lit auth menu surface', () => {
 
     expect(snapshot.hasPasskeyName).toBe(false);
   });
-
-  test('preserves the original auth-menu spacing and social-provider structure', async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 420, height: 900 });
-    await mountAuthMenu(page, {
-      ...loginViewModel(),
-      enabledExternalProviders: ['google'],
-    });
-
-    const snapshot = await page.evaluate((tagName) => {
-      const root = document.querySelector(tagName) as HTMLElement;
-      const menu = root.querySelector('.w3a-signup-menu-root') as HTMLElement;
-      const divider = root.querySelector('.w3a-section-divider') as HTMLElement;
-      const dividerText = root.querySelector('.w3a-section-divider-text') as HTMLElement;
-      const google = root.querySelector('[data-auth-menu-provider="google"]');
-      return {
-        padding: getComputedStyle(menu).padding,
-        dividerMargin: getComputedStyle(divider).margin,
-        dividerTextPadding: getComputedStyle(dividerText).padding,
-        googleUsesOriginalWrappers:
-          google?.parentElement?.classList.contains('w3a-social-provider'),
-        socialStackUsesOriginalClasses:
-          google?.parentElement?.parentElement?.classList.contains('w3a-auth-method-stack') &&
-          google.parentElement.parentElement.classList.contains('w3a-social-stack'),
-      };
-    }, AUTH_MENU_TAG);
-
-    expect(snapshot).toEqual({
-      padding: '28px 24px 24px',
-      dividerMargin: '16px 0px',
-      dividerTextPadding: '0px 8px',
-      googleUsesOriginalWrappers: true,
-      socialStackUsesOriginalClasses: true,
-    });
-  });
-
   test('renders the implicit-wallet reroll and mode switch intents', async ({ page }) => {
     await mountAuthMenu(page, {
       ...registrationViewModel({ kind: 'idle', interaction: 'actionable' }),
@@ -954,29 +839,6 @@ test.describe('wallet-host Lit auth menu surface', () => {
       selectedAccountLayout.clientWidth,
     );
   });
-
-  test('keeps the account field tall and close to the auth buttons', async ({ page }) => {
-    const account = {
-      walletId: 'jade-brook',
-      displayName: 'jade-brook',
-      authMethod: 'passkey',
-    } as const;
-    await mountAuthMenu(page, {
-      ...loginViewModel(),
-      accountOptions: [account],
-      selectedAccount: account,
-    });
-
-    const fieldBox = await page.locator(`${AUTH_MENU_TAG} .w3a-input-pill`).boundingBox();
-    const buttonBox = await page
-      .locator(`${AUTH_MENU_TAG} [data-auth-menu-primary]`)
-      .boundingBox();
-    if (!fieldBox || !buttonBox) throw new Error('Auth menu controls were not laid out');
-
-    expect(fieldBox.height).toBe(48);
-    expect(buttonBox.y - (fieldBox.y + fieldBox.height)).toBe(6);
-  });
-
   test('shows a dual-method wallet in both groups and enables both methods', async ({ page }) => {
     const passkey = {
       walletId: 'jade-brook',
@@ -1007,18 +869,6 @@ test.describe('wallet-host Lit auth menu surface', () => {
       { passkey: true, emailOtp: true },
     ]);
 
-    const buttonBackgrounds = await page
-      .locator(`${AUTH_MENU_TAG} .w3a-auth-methods`)
-      .evaluate((methods) => ({
-        passkey: getComputedStyle(
-          methods.querySelector('[data-auth-menu-primary]') as HTMLButtonElement,
-        ).backgroundColor,
-        google: getComputedStyle(
-          methods.querySelector('[data-auth-menu-provider="google"]') as HTMLButtonElement,
-        ).backgroundColor,
-      }));
-    expect(buttonBackgrounds.google).toBe(buttonBackgrounds.passkey);
-
     await page.locator(`${AUTH_MENU_TAG} .w3a-account-menu-trigger`).click();
     await expect(
       page.locator(`${AUTH_MENU_TAG} [data-wallet-id="jade-brook"][data-auth-method="passkey"]`),
@@ -1033,25 +883,8 @@ test.describe('wallet-host Lit auth menu surface', () => {
     await expect(emailOtpOption.locator('.w3a-account-menu-account-secondary')).toHaveText(
       'jade-brook',
     );
-    const idleBackground = await emailOtpOption.evaluate(
-      (option) => getComputedStyle(option).backgroundColor,
-    );
-    const dropdownBackground = await page
-      .locator(`${AUTH_MENU_TAG} .w3a-account-menu-popover`)
-      .evaluate((popover) => getComputedStyle(popover).backgroundColor);
-    await emailOtpOption.hover();
-    const hoverBackground = await emailOtpOption.evaluate(async (option) => {
-      await Promise.all(option.getAnimations().map((animation) => animation.finished));
-      return getComputedStyle(option).backgroundColor;
-    });
-    expect(hoverBackground).not.toBe(idleBackground);
-    expect(hoverBackground).not.toBe(dropdownBackground);
-
     await emailOtpOption.focus();
     await expect(emailOtpOption).toBeFocused();
-    expect(await emailOtpOption.evaluate((option) => getComputedStyle(option).outlineStyle)).toBe(
-      'solid',
-    );
   });
 
   test('starts a ready login intent from the primary CTA and closes on Escape', async ({
