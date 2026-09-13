@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 
 import { spawn, spawnSync } from 'node:child_process';
-import { createHash, randomBytes } from 'node:crypto';
 import http from 'node:http';
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const exampleRoot = fileURLToPath(new URL('..', import.meta.url));
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
-const appOrigin = 'http://localhost:4201';
-const walletOrigin = 'http://localhost:4202';
+const appOrigin = 'http://localhost:4001';
+const walletOrigin = 'http://localhost:4002';
+const gatewayUrl = 'http://localhost:4101';
+const rawGatewayUrl = 'http://127.0.0.1:4100';
 const controllerOrigin = 'http://127.0.0.1:4203';
 const options = parseArguments(process.argv.slice(2));
 const children = [];
@@ -26,31 +26,34 @@ async function main() {
     return;
   }
   installSignalHandlers();
-  if (!options.skipBuild) runRequired('public Wallet build', 'pnpm', ['build']);
+  if (!options.skipBuild) {
+    runRequired('public Wallet SDK build', 'pnpm', ['-C', 'packages/wallet', 'build:sdk']);
+  }
   controllerServer = startController();
   startVite('Wallet Console Lite', 4201, false);
   startVite('Wallet asset host', 4202, true);
+  startDocs();
+  startCaddy();
   await Promise.all([
     waitForHttp(`${controllerOrigin}/healthz`, 60_000),
-    waitForHttp(appOrigin, 60_000),
-    waitForHttp(`${walletOrigin}/wallet-service`, 60_000),
+    waitForHttp('http://localhost:4201', 60_000),
+    waitForHttp('http://localhost:4202/wallet-service', 60_000),
+    waitForHttp('http://localhost:4006/docs/', 60_000),
   ]);
-  console.log(`Wallet Console Lite: ${appOrigin}`);
+  console.log(`Wallet site and Console Lite: ${appOrigin}`);
+  console.log('Wallet docs: http://docs.localhost:4003/docs/');
   console.log(`Hosted Wallet origin: ${walletOrigin}`);
+  console.log(`Wallet Gateway proxy: ${gatewayUrl}`);
   await waitUntilStopped();
 }
 
 function parseArguments(args) {
-  const parsed = { help: false, root: '', skipBuild: false };
+  const parsed = { help: false, skipBuild: false };
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === '--') continue;
     if (argument === '--help' || argument === '-h') {
       parsed.help = true;
-      continue;
-    }
-    if (argument === '--root') {
-      parsed.root = requiredArgumentValue(args, ++index, '--root');
       continue;
     }
     if (argument === '--skip-build') {
@@ -62,14 +65,8 @@ function parseArguments(args) {
   return parsed;
 }
 
-function requiredArgumentValue(args, index, name) {
-  const value = args[index];
-  if (!value) throw new Error(`${name} requires a value`);
-  return value;
-}
-
 function printUsage() {
-  console.log('Usage: pnpm wallet-console-lite [--root <runtime-directory>] [--skip-build]');
+  console.log('Usage: pnpm site [--skip-build]');
 }
 
 function startController() {
@@ -109,18 +106,13 @@ function parseWorkspaceInput(value) {
   if (!isRecord(value)) throw new Error('Setup request must be an object');
   const organizationName = normalizeDisplayName(value.organizationName, 'Organisation name');
   const projectName = normalizeDisplayName(value.projectName, 'Project name');
-  const organizationSlug = slugify(organizationName, 'Organisation name');
-  const projectSlug = slugify(projectName, 'Project name');
-  const organizationId = `org_${organizationSlug.replaceAll('-', '_')}`;
-  const projectId = `${organizationSlug}-${projectSlug}`;
-  const environmentId = `${projectId}:dev`;
   return {
     organizationName,
-    organizationId,
+    organizationId: 'org_local_wallet',
     projectName,
-    projectId,
+    projectId: 'local-smoke-project',
     environmentName: 'dev',
-    environmentId,
+    environmentId: 'local-smoke-project:dev',
   };
 }
 
@@ -132,19 +124,6 @@ function normalizeDisplayName(value, label) {
   return normalized;
 }
 
-function slugify(value, label) {
-  const slug = value
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 48)
-    .replace(/-$/g, '');
-  if (!slug) throw new Error(`${label} must contain at least one letter or number`);
-  return slug;
-}
-
 async function provisionWorkspace(identity) {
   if (workspaceState.kind === 'ready') {
     requireSameWorkspace(workspaceState.identity, identity);
@@ -154,7 +133,7 @@ async function provisionWorkspace(identity) {
     return await provisioningPromise;
   }
   workspaceState = { kind: 'provisioning' };
-  provisioningPromise = startWalletSystem(identity);
+  provisioningPromise = connectToWalletSystem(identity);
   try {
     workspaceState = await provisioningPromise;
     return workspaceState;
@@ -172,108 +151,21 @@ function requireSameWorkspace(existing, requested) {
   }
 }
 
-function startWalletSystem(identity) {
-  const publishableKey = localPublishableKey(identity.environmentId);
-  const args = [
-    fileURLToPath(
-      new URL('../../../crates/router-ab-cloudflare/scripts/start-local-wallet-system.mjs', import.meta.url),
-    ),
-    '--app-origin',
-    appOrigin,
-    '--wallet-origin',
-    walletOrigin,
-    '--org-id',
-    identity.organizationId,
-    '--project-id',
-    identity.projectId,
-    '--environment-id',
-    identity.environmentId,
-    '--signing-root-id',
-    identity.environmentId,
-    '--publishable-key',
-    publishableKey,
-  ];
-  if (options.root) args.push('--root', path.resolve(options.root));
-  const child = spawn(process.execPath, args, {
-    cwd: repoRoot,
-    env: process.env,
-    stdio: ['ignore', 'pipe', 'inherit'],
-    detached: process.platform !== 'win32',
-  });
-  trackChild('Local Wallet system', child);
-  return waitForWalletSystemReady(child, identity);
-}
-
-function localPublishableKey(environmentId) {
-  const digest = createHash('sha256')
-    .update(environmentId)
-    .update(randomBytes(16))
-    .digest('base64url')
-    .slice(0, 24);
-  return `pk_local_${digest}`;
-}
-
-function waitForWalletSystemReady(child, identity) {
-  return new Promise(waitForWalletSystemReadyExecutor.bind(undefined, child, identity));
-}
-
-function waitForWalletSystemReadyExecutor(child, identity, resolve, reject) {
-  const state = { buffered: '', settled: false, identity, resolve, reject };
-  child.stdout.on('data', handleWalletSystemOutput.bind(undefined, state));
-  child.once('error', reject);
-  child.once('exit', rejectEarlyWalletExit.bind(undefined, state));
-}
-
-function handleWalletSystemOutput(state, chunk) {
-  const lines = `${state.buffered}${String(chunk)}`.split('\n');
-  state.buffered = lines.pop() || '';
-  for (const line of lines) {
-    const ready = parseWalletSystemReady(line);
-    if (!ready) {
-      console.log(line);
-      continue;
-    }
-    if (state.settled) continue;
-    try {
-      state.settled = true;
-      state.resolve({
-        kind: 'ready',
-        identity: state.identity,
-        walletConfig: {
-          projectEnvironmentId: requiredReadyString(ready.projectEnvironmentId),
-          publishableKey: requiredReadyString(ready.publishableKey),
-          gatewayUrl: requiredReadyOrigin(ready.gatewayUrl),
-          walletOrigin: requiredReadyOrigin(ready.walletOrigin),
-          signingWorkerId: requiredReadyString(ready.signingWorkerId),
-        },
-      });
-    } catch (error) {
-      state.reject(error);
-    }
+async function connectToWalletSystem(identity) {
+  if (!(await requestIsReady(`${rawGatewayUrl}/readyz`))) {
+    throw new Error('Local Wallet backend is unavailable. Run pnpm router in another terminal.');
   }
-}
-
-function parseWalletSystemReady(line) {
-  try {
-    const value = JSON.parse(line);
-    return isRecord(value) && value.kind === 'wallet_local_system_ready_v1' ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-function requiredReadyString(value) {
-  if (typeof value !== 'string' || !value) throw new Error('Local Wallet system returned invalid configuration');
-  return value;
-}
-
-function requiredReadyOrigin(value) {
-  return new URL(requiredReadyString(value)).origin;
-}
-
-function rejectEarlyWalletExit(state, code, signal) {
-  if (state.settled) return;
-  state.reject(new Error(`Local Wallet system stopped (${signal || String(code ?? 'unknown')})`));
+  return {
+    kind: 'ready',
+    identity,
+    walletConfig: {
+      projectEnvironmentId: identity.environmentId,
+      publishableKey: 'pk_local',
+      gatewayUrl,
+      walletOrigin,
+      signingWorkerId: 'local-signing-worker',
+    },
+  };
 }
 
 function startVite(label, port, walletAssetHost) {
@@ -291,6 +183,40 @@ function startVite(label, port, walletAssetHost) {
     },
   );
   trackChild(label, child);
+}
+
+function startDocs() {
+  const child = spawn('pnpm', ['-C', 'apps/docs', 'dev'], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      VITE_SITE_ORIGIN: appOrigin,
+      VITE_DOCS_ORIGIN: 'http://docs.localhost:4003/docs',
+      VITE_DOCS_BASE_PATH: '/docs/',
+      VITE_WALLET_SITE_ORIGIN: appOrigin,
+    },
+    stdio: 'inherit',
+    detached: process.platform !== 'win32',
+  });
+  trackChild('Wallet docs', child);
+}
+
+function startCaddy() {
+  const result = spawnSync('caddy', ['version'], { cwd: exampleRoot, encoding: 'utf8' });
+  if (result.error || result.status !== 0) {
+    throw new Error('Caddy is required for pnpm site. Install it with: brew install caddy');
+  }
+  const child = spawn(
+    'caddy',
+    ['run', '--config', fileURLToPath(new URL('../Caddyfile', import.meta.url)), '--adapter', 'caddyfile'],
+    {
+      cwd: exampleRoot,
+      env: process.env,
+      stdio: 'inherit',
+      detached: process.platform !== 'win32',
+    },
+  );
+  trackChild('Caddy', child);
 }
 
 function runRequired(label, command, args) {

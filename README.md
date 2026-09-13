@@ -15,15 +15,21 @@ are Apache-2.0 licensed. See `LICENSE-MIT` and `LICENSE-APACHE`.
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
 
-After building the Worker artifacts, run the Console-free local Wallet backend with
-`pnpm wallet-system:local`. It starts the five isolated Router roles, bootstraps a
-local tenant root, migrates signer D1, and serves the Wallet Gateway at
-`http://127.0.0.1:4100`.
+Local development uses two terminals:
 
-For a complete browser example, run `pnpm wallet-console-lite`. It creates one local
-organisation/project/dev context, hosts the Wallet iframe, supports registration,
-unlock, session inspection, and safe message signing, and includes the public CLI
-workflow for server-share export, rotation, and deployment restore. See
+```sh
+pnpm router
+pnpm site
+```
+
+`pnpm router` starts the five isolated MPC Router roles, bootstraps the local tenant
+root, migrates signer D1, and serves the Wallet Gateway. `pnpm site` starts Caddy,
+Wallet Console Lite, the hosted Wallet iframe/assets, and the Wallet documentation.
+Together they provide a complete local Wallet stack without `seams-monorepo`.
+
+Wallet Console Lite supports local organisation/project setup, registration, unlock,
+session inspection, safe message signing, and the public CLI workflows for server-share
+export, rotation, and deployment restore. See
 [`examples/wallet-console-lite`](./examples/wallet-console-lite/README.md).
 
 ### Packaged local runtime

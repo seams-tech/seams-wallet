@@ -1,0 +1,54 @@
+{
+	admin off
+	auto_https disable_redirects
+	default_bind 127.0.0.1
+	log {
+		level ERROR
+	}
+}
+
+http://localhost:4001 {
+	encode gzip
+
+	handle /__local-workspace {
+		reverse_proxy 127.0.0.1:4203
+	}
+
+	handle {
+		reverse_proxy localhost:4201
+	}
+}
+
+http://docs.localhost:4003 {
+	encode gzip
+	reverse_proxy localhost:4006
+}
+
+http://localhost:4002 {
+	encode gzip
+	reverse_proxy localhost:4202
+}
+
+http://localhost:4101 {
+	encode gzip
+
+	@router_allowed_origin header_regexp router_origin Origin ^(http://localhost:4001|http://localhost:4002)$
+	@router_preflight {
+		method OPTIONS
+		header_regexp Origin ^(http://localhost:4001|http://localhost:4002)$
+	}
+	header @router_allowed_origin Access-Control-Allow-Origin {http.request.header.Origin}
+	header @router_allowed_origin Access-Control-Allow-Credentials true
+	header @router_allowed_origin Access-Control-Allow-Methods "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+	header @router_allowed_origin Access-Control-Allow-Headers "Content-Type,Authorization,X-Seams-Linked-Device-Proof-V1,X-Seams-Trace-Id,X-Seams-Wallet-Recovery-Challenge-Id,X-Seams-Environment-Id,X-Environment-Id"
+	header @router_allowed_origin Vary Origin
+	respond @router_preflight 204
+
+	reverse_proxy 127.0.0.1:4100 {
+		header_down -Access-Control-Allow-Origin
+		header_down -Access-Control-Allow-Credentials
+		header_down -Access-Control-Allow-Methods
+		header_down -Access-Control-Allow-Headers
+		header_down -Vary
+	}
+}
