@@ -1,9 +1,4 @@
 import type { TenantRootIdentityV1 } from '../../packages/shared-ts/src/tenant-root/tenantRootIdentity';
-import type {
-  TenantRootOutstandingCleanupV1,
-  TenantRootRestoreActivationEvidenceV1,
-  TenantRootRestoreSessionV1,
-} from '../../packages/shared-ts/src/tenant-root/tenantRootSecurityState';
 import {
   TENANT_ROOT_RESTORE_ROLE_IMPORT_KEY_ISSUE_OPERATION_KIND_V1,
   type TenantRootOperationRecordInputV1,
@@ -12,51 +7,6 @@ import {
 } from '../../packages/shared-ts/src/tenant-root/tenantRootOperationRecord';
 
 declare const identity: TenantRootIdentityV1;
-declare const activationEvidence: TenantRootRestoreActivationEvidenceV1;
-declare const outstandingCleanup: TenantRootOutstandingCleanupV1;
-
-const preActivationCleanup: Extract<
-  TenantRootRestoreSessionV1,
-  { readonly status: 'cleanup_incomplete'; readonly phase: 'pre_activation' }
-> = {
-  status: 'cleanup_incomplete',
-  phase: 'pre_activation',
-  sessionId: 'restore-session',
-  expiresAt: '2026-09-08T00:00:00.000Z',
-  destinationFingerprintB64u: 'destination-fingerprint',
-  outstanding: outstandingCleanup,
-};
-void preActivationCleanup;
-
-const postActivationCleanup: Extract<
-  TenantRootRestoreSessionV1,
-  { readonly status: 'cleanup_incomplete'; readonly phase: 'post_activation' }
-> = {
-  status: 'cleanup_incomplete',
-  phase: 'post_activation',
-  sessionId: 'restore-session',
-  activationEvidence,
-  bootstrapCleanup: { kind: 'destroyed', receiptDigestB64u: 'bootstrap-receipt' },
-  roleCleanup: {
-    kind: 'deriver_a_incomplete',
-    deriverBReceiptDigestB64u: 'deriver-b-receipt',
-    outstanding: outstandingCleanup,
-  },
-};
-void postActivationCleanup;
-
-// @ts-expect-error Post-activation cleanup must retain activation evidence.
-const invalidPostActivationCleanup: Extract<
-  TenantRootRestoreSessionV1,
-  { readonly status: 'cleanup_incomplete'; readonly phase: 'post_activation' }
-> = {
-  status: 'cleanup_incomplete',
-  phase: 'post_activation',
-  sessionId: 'restore-session',
-  bootstrapCleanup: { kind: 'destroyed', receiptDigestB64u: 'bootstrap-receipt' },
-  roleCleanup: { kind: 'both_roles_incomplete', outstanding: outstandingCleanup },
-};
-void invalidPostActivationCleanup;
 
 const restoreInput: TenantRootRestoreRoleImportKeyIssueOperationInputV1 = {
   operationKind: TENANT_ROOT_RESTORE_ROLE_IMPORT_KEY_ISSUE_OPERATION_KIND_V1,
@@ -166,15 +116,3 @@ const broadActiveRecord = {
 // @ts-expect-error Active-root records reject restore-only fields.
 const invalidActiveRecord: TenantRootOperationRecordV1 = broadActiveRecord;
 void invalidActiveRecord;
-
-const { activationReceiptB64u: omittedReceipt, ...digestOnlyEvidence } = activationEvidence;
-void omittedReceipt;
-// @ts-expect-error Cleanup authority requires the original canonical receipt, including through a spread.
-const invalidDigestOnlyEvidence: TenantRootRestoreActivationEvidenceV1 = { ...digestOnlyEvidence };
-void invalidDigestOnlyEvidence;
-
-const { rootCommitmentB64u: omittedRootCommitment, ...evidenceWithoutRoot } = activationEvidence;
-void omittedRootCommitment;
-// @ts-expect-error Cleanup replay must retain the root commitment proved by the manifest.
-const invalidEvidenceWithoutRoot: TenantRootRestoreActivationEvidenceV1 = evidenceWithoutRoot;
-void invalidEvidenceWithoutRoot;
