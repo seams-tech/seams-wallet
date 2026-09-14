@@ -76,6 +76,7 @@
     }
   },
   "files": [
+    "LICENSE.md",
     "THIRD_PARTY_NOTICES.md",
     "dist/",
     "!dist/**/*.map",
@@ -107,6 +108,8 @@
     "**/*.css"
   ],
   "scripts": {
+    "prepack": "node ../../scripts/package-license.mjs stage",
+    "postpack": "node ../../scripts/package-license.mjs clean",
     "build:sdk": "./scripts/build/build-sdk.sh",
     "build:types": "tsc -p tsconfig.build.json && node ./scripts/build/rewrite-declaration-aliases.mjs",
     "build:wasm": "./scripts/build/build-wasm.sh",
@@ -157,7 +160,7 @@
     "sdk"
   ],
   "author": "web3authn.org",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/seams-tech/seams-wallet.git"

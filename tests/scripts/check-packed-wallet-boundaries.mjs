@@ -71,10 +71,10 @@ function inspectPackage(packageDirectory, packageName) {
   );
   assert.equal(packageJson.name, packageName);
   assert.equal(packageJson.version, '0.5.0');
-  assert.equal(packageJson.license, 'MIT');
+  assert.equal(packageJson.license, 'Apache-2.0');
   assert.match(
-    fs.readFileSync(path.join(packageDirectory, 'LICENSE'), 'utf8'),
-    /^MIT License$/mu,
+    fs.readFileSync(path.join(packageDirectory, 'LICENSE.md'), 'utf8'),
+    /^\s*Apache License$/mu,
   );
   assert.match(
     fs.readFileSync(path.join(packageDirectory, 'THIRD_PARTY_NOTICES.md'), 'utf8'),
