@@ -49,8 +49,18 @@ export interface ConfirmUIHandle {
   onCancel?(listener: (detail: { error?: string }) => void): () => void;
 }
 
+export type ConfirmUISurfaceDecision =
+  | {
+      kind: 'confirmed';
+      emailOtp:
+        | { kind: 'absent' }
+        | { kind: 'provided'; code: string; challengeId: string };
+    }
+  | { kind: 'cancelled'; error: string | null };
+
 export interface MountedConfirmUIHandle extends ConfirmUIHandle {
   readonly element: HTMLElement;
+  takeDecision(): Promise<ConfirmUISurfaceDecision>;
 }
 
 export type ConfirmUISurfaceSource =

@@ -301,7 +301,7 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
       summary: { title: 'Confirm transaction' },
       model: params.model,
       securityContext: rpId ? { rpId } : undefined,
-      loading: true,
+      loading: false,
       theme: this.context.getTheme?.() ?? 'dark',
       uiMode: confirmationConfig.uiMode,
       nearAccountIdOverride: walletLabel,

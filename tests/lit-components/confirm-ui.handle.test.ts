@@ -3,6 +3,7 @@ import { setupBasicPasskeyTest, SDK_ESM_PATHS, sdkEsmPath } from '../setup';
 
 const IMPORT_PATHS = {
   confirmUi: SDK_ESM_PATHS.confirmUi,
+  walletEvents: SDK_ESM_PATHS.walletEvents,
   evmBuilder: sdkEsmPath('core/signingEngine/chains/evm/display/evmTx.js'),
 } as const;
 
@@ -182,6 +183,141 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
     expect(result.modalBackground).toBe('rgba(0, 0, 0, 0)');
     expect(result.wrapperOutline).toBe('none');
     expect(result.modalOutline).toBe('none');
+  });
+
+  test('replays a decision made while a transaction surface is preparing', async ({ page }) => {
+    const result = await page.evaluate(
+      async ({ paths }) => {
+        const confirmUiModule = await import(paths.confirmUi);
+        const eventsModule = await import(paths.walletEvents);
+        const { awaitConfirmUIDecision, mountConfirmUI } =
+          confirmUiModule as typeof import('@/core/signingEngine/uiConfirm/ui/confirm-ui');
+        const { WalletIframeDomEvents } =
+          eventsModule as typeof import('@/core/browser/walletIframe/events');
+        const ctx: any = {
+          userPreferencesManager: {
+            getCurrentWalletId: () => 'alice.testnet',
+          },
+          surfaceMeasurementBinding: { kind: 'disabled' },
+        };
+        const model = {
+          chain: 'tempo',
+          title: 'Review transaction',
+          operations: [],
+        } as any;
+        const handle = await mountConfirmUI({
+          ctx,
+          summary: { title: 'Review transaction' } as any,
+          model,
+          loading: false,
+          theme: 'light',
+          uiMode: 'modal',
+          nearAccountIdOverride: 'alice.testnet',
+        });
+
+        handle.element.dispatchEvent(
+          new CustomEvent(WalletIframeDomEvents.TX_CONFIRMER_CONFIRM, {
+            detail: { confirmed: true },
+          }),
+        );
+
+        const decision = await awaitConfirmUIDecision({
+          ctx,
+          summary: { title: 'Review transaction' } as any,
+          txSigningRequests: [],
+          model,
+          loading: false,
+          theme: 'light',
+          uiMode: 'modal',
+          nearAccountIdOverride: 'alice.testnet',
+          surface: { kind: 'reuse_mounted', handle },
+        });
+        decision.handle.close(decision.confirmed);
+        return decision.confirmed;
+      },
+      { paths: IMPORT_PATHS },
+    );
+
+    expect(result).toBe(true);
+  });
+
+  test('requires the Email OTP decision after an early preparation confirmation', async ({
+    page,
+  }) => {
+    const result = await page.evaluate(
+      async ({ paths }) => {
+        const confirmUiModule = await import(paths.confirmUi);
+        const eventsModule = await import(paths.walletEvents);
+        const { awaitConfirmUIDecision, mountConfirmUI } =
+          confirmUiModule as typeof import('@/core/signingEngine/uiConfirm/ui/confirm-ui');
+        const { WalletIframeDomEvents } =
+          eventsModule as typeof import('@/core/browser/walletIframe/events');
+        const ctx: any = {
+          userPreferencesManager: {
+            getCurrentWalletId: () => 'alice.testnet',
+          },
+          surfaceMeasurementBinding: { kind: 'disabled' },
+        };
+        const model = {
+          chain: 'tempo',
+          title: 'Review transaction',
+          operations: [],
+        } as any;
+        const handle = await mountConfirmUI({
+          ctx,
+          summary: { title: 'Review transaction' } as any,
+          model,
+          loading: false,
+          theme: 'light',
+          uiMode: 'modal',
+          nearAccountIdOverride: 'alice.testnet',
+        });
+
+        handle.element.dispatchEvent(
+          new CustomEvent(WalletIframeDomEvents.TX_CONFIRMER_CONFIRM, {
+            detail: { confirmed: true },
+          }),
+        );
+        const decisionPromise = awaitConfirmUIDecision({
+          ctx,
+          summary: { title: 'Review transaction' } as any,
+          txSigningRequests: [],
+          model,
+          loading: false,
+          theme: 'light',
+          uiMode: 'modal',
+          nearAccountIdOverride: 'alice.testnet',
+          signingAuthMode: 'emailOtp',
+          emailOtpPrompt: { challengeId: 'challenge-1' },
+          surface: { kind: 'reuse_mounted', handle },
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        handle.element.dispatchEvent(
+          new CustomEvent(WalletIframeDomEvents.TX_CONFIRMER_CONFIRM, {
+            detail: {
+              confirmed: true,
+              otpCode: '123456',
+              emailOtpChallengeId: 'challenge-1',
+            },
+          }),
+        );
+
+        const decision = await decisionPromise;
+        decision.handle.close(decision.confirmed);
+        return {
+          confirmed: decision.confirmed,
+          otpCode: decision.otpCode,
+          emailOtpChallengeId: decision.emailOtpChallengeId,
+        };
+      },
+      { paths: IMPORT_PATHS },
+    );
+
+    expect(result).toEqual({
+      confirmed: true,
+      otpCode: '123456',
+      emailOtpChallengeId: 'challenge-1',
+    });
   });
 
   test('lazily enriches ABI hints in tx-tree rendering', async ({ page }) => {

@@ -43,6 +43,8 @@ import type {
   NearEd25519MaterialIdentity,
   NearSigningApiDeps,
 } from '../../interfaces/operationDeps';
+import type { TxDisplayModel } from '../../interfaces/display';
+import { buildNearDisplayModel } from '../../chains/near/display';
 import { signNearWithUiConfirm } from './nearSigningFlow';
 import { resolveThresholdEd25519CommitQueueKey } from '../../threshold/ed25519/commitQueue';
 import type { MpcMaterialActivationRef, ThresholdEd25519SessionId } from '@shared/utils/domainIds';
@@ -1405,15 +1407,55 @@ async function prepareNearEd25519TransactionSigningSession(args: {
   };
 }
 
+type NearTransactionSigningAttempt = {
+  forceFreshAuth?: boolean;
+  operationId?: SigningOperationId;
+  retryingFreshAuth?: boolean;
+  signingSessionCoordinator?: SigningSessionCoordinator;
+};
+
+function buildNearTransactionPreparationDisplayModel(
+  args: SignTransactionWithActionsInput,
+): TxDisplayModel {
+  const signerAccount = String(args.commandSubject.nearAccount.accountId);
+  try {
+    return buildNearDisplayModel({
+      txSigningRequests: [args.transaction],
+      signerAccount,
+      title: args.title,
+      subtitle: args.body,
+    });
+  } catch {
+    return {
+      chain: 'near',
+      signerAccount,
+      ...(args.title ? { title: args.title } : {}),
+      ...(args.body ? { subtitle: args.body } : {}),
+      operations: [],
+    };
+  }
+}
+
 export async function signTransactionWithActions(
   deps: NearSigningApiDeps,
   args: SignTransactionWithActionsInput,
-  attempt: {
-    forceFreshAuth?: boolean;
-    operationId?: SigningOperationId;
-    retryingFreshAuth?: boolean;
-    signingSessionCoordinator?: SigningSessionCoordinator;
-  } = {},
+): Promise<SignTransactionResult> {
+  await deps.touchConfirm.openTransactionPreparationModal({
+    walletLabel: String(args.commandSubject.nearAccount.accountId),
+    model: buildNearTransactionPreparationDisplayModel(args),
+    confirmationConfigOverride: args.confirmationConfigOverride,
+  });
+  try {
+    return await signTransactionWithActionsAttempt(deps, args, {});
+  } finally {
+    deps.touchConfirm.closeTransactionPreparationModal();
+  }
+}
+
+async function signTransactionWithActionsAttempt(
+  deps: NearSigningApiDeps,
+  args: SignTransactionWithActionsInput,
+  attempt: NearTransactionSigningAttempt,
 ): Promise<SignTransactionResult> {
   const nearAccount = args.commandSubject.nearAccount;
   const nearAccountId = toAccountId(nearAccount.accountId);
@@ -1589,7 +1631,7 @@ export async function signTransactionWithActions(
       const nextOperationId = operationId || createNearTransactionSigningOperationId();
       if (admissionDecision?.kind === 'wait_and_retry_admission') {
         await waitForWalletSessionQuotaAdmissionRetry(admissionDecision.retryAfterMs);
-        return await signTransactionWithActions(deps, args, {
+        return await signTransactionWithActionsAttempt(deps, args, {
           forceFreshAuth: false,
           operationId: nextOperationId,
           retryingFreshAuth: attempt.retryingFreshAuth,
@@ -1635,14 +1677,14 @@ export async function signTransactionWithActions(
         return await signingSessionCoordinator.runWalletSessionQuotaAdmissionRetry({
           queueKey,
           refresh: async () =>
-            await signTransactionWithActions(deps, args, {
+            await signTransactionWithActionsAttempt(deps, args, {
               forceFreshAuth: true,
               operationId: nextOperationId,
               retryingFreshAuth: true,
               signingSessionCoordinator,
             }),
           retryAfterRefresh: async () =>
-            await signTransactionWithActions(deps, args, {
+            await signTransactionWithActionsAttempt(deps, args, {
               forceFreshAuth: false,
               operationId: nextOperationId,
               retryingFreshAuth: attempt.retryingFreshAuth,
@@ -1650,7 +1692,7 @@ export async function signTransactionWithActions(
             }),
         });
       }
-      return await signTransactionWithActions(deps, args, {
+      return await signTransactionWithActionsAttempt(deps, args, {
         forceFreshAuth: true,
         operationId: nextOperationId,
         retryingFreshAuth: true,

@@ -11,6 +11,7 @@ export function createNearSigningDeps(args: {
   const { createArgs, nearRpcUrl, signingSessionCoordinator } = args;
   return {
     nearRpcUrl,
+    touchConfirm: createArgs.touchConfirm,
     resolveOwnerLaneScope: createArgs.resolveOwnerLaneScope,
     prepareNearEd25519YaoMaterialBoundary: createArgs.prepareNearEd25519YaoMaterialBoundary,
     createSigningSessionId: (prefix: string): string => generateSessionIdValue(prefix),
