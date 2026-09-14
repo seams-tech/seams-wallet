@@ -1,206 +1,71 @@
 # Spec 3: Wallet sessions and execution lanes
 
-Status: normative lifecycle and authorization specification.
+Unlocking a wallet gives you a **Wallet Session**. It lets you sign with selected
+keys for a limited time and number of uses, without approving every transaction
+again.
 
-Read [Spec 2](spec-2-auth-custody-and-credentials.md) first. Continue with
-[Spec 4](spec-4-persistence-and-durable-authority.md) for durable operation ownership
-and [Spec 5](spec-5-router-ab-threshold-protocol.md) for protocol dispatch.
+A session belongs to the wallet authority and sign-in method that opened it.
+The server checks its permission and limits on every request.
 
-Exact user-visible flows are owned by
-[Intended Behaviours](intended-behaviours.md).
+## Unlock and sign
 
-## Core model
+Unlocking prepares the selected keys for use. Signing requires both an active
+server session and usable material in the client cryptographic runtime.
 
-A **Wallet key** is one chain-family signing identity owned by a Wallet.
+For each signing request:
 
-An **execution lane** is one admissible way to use that key. The same public key can
-have owner, linked-device, delegated, or service-assisted lanes with different
-authority and material.
+1. The client chooses the wallet key and how it will be used.
+2. The server checks the session, requested operation, and remaining allowance.
+3. The server records the accepted request and claims the required allowance.
+4. The client and server run the signing protocol and record the outcome.
 
-A **Wallet Session** is a reusable, server-authorized capability for one exact Wallet
-authority, authentication method, and activation set. An application login session
-authenticates an application user and grants no Wallet signing authority.
+A request that fails these checks never starts signing or consumes allowance.
+Repeating an accepted request uses the same operation identity and returns its
+existing result or pending status. The
+[persistence chapter](spec-4-persistence-and-durable-authority.md) explains why.
 
-```mermaid
-flowchart TD
-  W[Wallet] --> K[Wallet key]
-  W --> A[Wallet authority]
-  A --> M[Authentication method]
-  A --> S[Wallet Session]
-  K --> L[Execution lane]
-  A --> L
-  S --> X[Exact activated lane set]
-  X --> L
-  L --> P[Signing protocol]
-```
+## Signing lanes
 
-## Lane kinds
+A **signing lane** is one permitted way to use a wallet key. For example, an owner
+and a linked device can use the same public key through different permissions
+and separately prepared signing material.
 
-| Lane kind | Intended authority | Additional required state |
-| --- | --- | --- |
-| Owner | Normal owner signing through passkey, Email OTP, recovery, or break-glass policy | Claimed owner authorization and ready lane material |
-| Linked device | Signing through a separately installed device authority | Exact linked-device enrollment and activation |
-| Delegated execution | Narrow operation scope granted by an owner | Delegated authorization and atomically reserved budget |
-| Service-assisted | A specifically defined service-owned execution path | Its branch-specific policy and protocol state |
+The session identifies the lanes it allows. A lane must be active and its
+material ready before it can sign. Knowing a public key or finding an old local
+record is insufficient.
 
-Each lane is a discriminated domain branch. Core execution never receives a broad
-record with optional owner, linked-device, and delegated fields.
+A delegated lane can grant a narrower set of operations with spending limits.
+It grants no permission to recover the wallet, manage sign-in methods, or export
+owner keys. Permissions and readiness also apply to the selected chain target,
+even when multiple chains share the same public key.
 
-A committed lane requires its Wallet key, authority digest, activation reference,
-policy, lifecycle, revocation epoch, and material-readiness state.
+## Refresh, lock, and expiry
 
-## Lane lifecycle
+A page refresh can restore a valid session from encrypted local data. It must
+match the same server session and signing access. Refresh grants no new time,
+uses, or permissions.
 
-```text
-provisioning -> pending_receipt -> active -> revoked
-```
+The server determines expiry and revocation. The client can lock earlier and
+must lock when the server reports expiry. On expiry, it clears its active secrets and
+disables the saved session material. The wallet's durable sign-in methods remain
+available for another unlock.
 
-- `provisioning` reserves the exact lane and its protocol inputs.
-- `pending_receipt` means delivery or installation still needs durable confirmation.
-- `active` requires a verified activation receipt and current revocation epoch.
-- `revoked` rejects new use while preserving the audit trail.
+If the session has expired, its allowance is exhausted, or local signing
+material cannot be restored, the next operation needs the appropriate
+authentication before proceeding.
 
-Only an active lane with ready local or role-local material can enter signing.
+## Fresh approval for sensitive actions
 
-## Wallet Session lifecycle
+Exporting keys and revealing recovery codes require fresh approval for that
+specific action. A signing session alone cannot authorize them.
 
-```text
-active -> expired
-       -> revoked
-       -> consumed   (single-use session kinds only)
-```
+This additional check is called **step-up**. It approves one operation without
+renewing the session or adding to its allowance. Changing the operation
+invalidates that approval.
 
-An active Wallet Session binds:
+Owner key export returns only the supported owner key material. Per-lane and
+server shares stay with their holders.
 
-- tenant, environment, Wallet, and authority;
-- exact authentication method and evidence;
-- activated lane set;
-- operation credential and quota;
-- server expiry and revocation state.
-
-The server clock owns expiry. A client may lock early and must lock when the Gateway
-reports expiry.
-
-Expiry invalidation clears in-memory secrets, marks persisted local session material
-unusable, and emits one structured session event. Wallet credentials and custody
-envelopes remain durable.
-
-## Local material readiness
-
-Server authorization and client material readiness are separate conditions.
-
-```text
-absent -> sealed -> opening -> ready
-                    |          |
-                    +------> invalidated
-```
-
-Only `ready` material can sign. Reload may restore a still-active Wallet Session when
-the sealed material authenticates to the same Wallet, manifest, authority, method,
-activation set, curve, and chain target. A browser record cannot revive an expired or
-revoked server session.
-
-## Authorization invariants
-
-Every operation resolves the exact:
-
-- tenant and environment;
-- Wallet and Wallet key;
-- authority, method, and principal;
-- Wallet Session and operation credential;
-- execution lane and activation;
-- operation kind and canonical input digest.
-
-Caller-supplied identifiers are lookup inputs. Server-owned relationships establish
-authority. Selection is deterministic and rejects missing or ambiguous candidates.
-
-The admitted operation is bound to its canonical digest before quota, delegated
-budget, or protocol work is claimed. Browser hydration can narrow the server projection
-through unavailable local material. It cannot widen authority.
-
-A delegated lane grants only its declared operations and limits. It grants no Wallet
-ownership, factor management, recovery, export, or policy authority.
-
-## Signing flow
-
-```mermaid
-sequenceDiagram
-  participant C as Client SDK
-  participant G as Gateway
-  participant R as Router
-  participant S as Signing role
-
-  C->>G: operation credential, lane, canonical request, idempotency key
-  G->>G: resolve session, scope, expiry, digest, quota
-  G->>G: atomically claim replay identity and budget
-  G->>R: admitted protocol request
-  R->>S: role-specific signing request
-  S-->>R: signature or unresolved result
-  R-->>G: protocol result
-  G->>G: record terminal or pending state
-  G-->>C: canonical Wallet result
-```
-
-Admission follows this order:
-
-1. Authenticate the caller and parse the request.
-2. Resolve the exact Wallet Session and lane.
-3. Validate lifecycle, scope, digest, expiry, and required step-up.
-4. Atomically claim replay identity and applicable quota or budget.
-5. Execute through the selected lane.
-6. Record a terminal or explicitly unresolved result.
-
-No network call occurs inside an atomic quota or budget transaction. Competing requests
-cannot both consume the same remaining authority.
-
-## Idempotency
-
-A retry with the same authenticated scope, idempotency key, and canonical input returns
-the recorded result or current pending state. Reusing the key with different input is
-an idempotency conflict.
-
-After protocol dispatch, an ambiguous response keeps the original claim. The client
-cannot choose another lane or retry identity to evade that claim.
-
-## Step-up and sensitive operations
-
-Signing, export, recovery-code reveal, credential changes, and policy changes each
-declare their own authorization requirement.
-
-Step-up evidence binds the Wallet, principal, method, operation kind, canonical digest,
-and short expiry. It authorizes one exact operation and leaves the existing Wallet
-Session quota unchanged.
-
-Key export requires owner-capable authority plus fresh export-scoped authorization.
-Normal transaction authority is insufficient. Owner export never returns lane holder
-shares or server role shares.
-
-## Failure behaviour
-
-- Structured expiry triggers canonical session invalidation.
-- An admission race that observes expiry consumes no quota or budget.
-- Missing or invalidated material returns a readiness failure before signing.
-- An unresolved protocol result remains pending until reconciliation.
-- Revocation invalidates only the exact affected method, session, lane, or delegated
-  authority according to its domain transition.
-
-## Code landmarks
-
-| Responsibility | Location |
-| --- | --- |
-| Signing-lane types and parsers | `packages/shared-ts/src/signing-lanes` |
-| Execution branch selection | `packages/shared-ts/src/signing-lanes/execution.ts` |
-| Wallet authority types | `packages/shared-ts/src/authorization/walletAuthority.ts` |
-| Session validation | `packages/wallet-server/src/core/sessionValidation.ts` |
-| Browser session runtime | `packages/wallet/src/core/signingEngine/session` |
-| Lane inventory and readiness | `packages/wallet/src/core/signingEngine/session/availability` |
-| Sealed session restore | `packages/wallet/src/core/signingEngine/session/sealedRecovery` |
-
-## Non-goals
-
-This specification does not define application login sessions, payment-provider state,
-or a generic policy language.
-
-## Source lineage
-
-Consolidates R90, R92, R100, R101, R103F, and R104.
+See [Intended Behaviours](intended-behaviours.md) for the exact flows and
+[the session runtime](../packages/wallet/src/core/signingEngine/session) for
+implementation details.

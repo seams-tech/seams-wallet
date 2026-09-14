@@ -10,8 +10,8 @@ Source baseline: archived `seams-sdk` commit
 Durable Wallet architecture from the historical `refactor-*.md` plans is now
 consolidated into nine normative specifications directly under `docs/`:
 
-The teaching-first [Wallet architecture guide](../README.md) introduces the system,
-then routes readers through these stable authorities by role and task.
+[How the wallet works](../README.md) introduces the app, client, and server,
+then links to these chapters by topic.
 
 | Authority | Historical sources |
 | --- | --- |
@@ -25,11 +25,10 @@ then routes readers through these stable authorities by role and task.
 | [`spec-8-agent-authority-spending-and-payment-rails.md`](../spec-8-agent-authority-spending-and-payment-rails.md) | R104, R130A-D, reusable safety rules from the historical card-on-file design |
 | [`spec-9-behaviour-and-test-authority.md`](../spec-9-behaviour-and-test-authority.md) | R88, R88B, R98, final R105 test ownership |
 
-The specifications contain stable terminology, invariants, domain states,
-ownership, persistence and request boundaries, security properties, retry
-semantics, worked system flows, code landmarks, and non-goals. Implementation
-sequencing, branch status, deployment receipts, old file inventories, and
-compatibility designs were intentionally not carried forward.
+The specifications explain the main flows, responsibilities, and security rules.
+Detailed protocol requirements, behaviour contracts, and source definitions are
+linked where needed. This document retains historical source lineage so readers
+can learn the current system without following the refactor history.
 
 ## Authority order
 

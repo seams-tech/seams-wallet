@@ -1,208 +1,72 @@
 # Spec 9: Behaviour and test authority
 
-Status: normative contributor and verification-policy specification.
+When changing Wallet, start with the behaviour the user should see and the
+architecture rule that supports it. Choose tests that demonstrate those
+properties.
 
-Read the numbered specification that owns the code you are changing before using this
-policy. [The architecture guide](README.md) provides domain-specific reading paths.
+## Finding the expected behaviour
 
-## Evidence hierarchy
+[Intended Behaviours](intended-behaviours.md) defines supported user journeys.
+The [numbered specs](README.md#choose-a-topic) define architecture requirements,
+and the [Router protocol](router-ab/protocol.md) defines the detailed
+cryptographic protocol.
 
-Interpret evidence in this order:
+Tests provide evidence for these contracts. A failing test can expose a
+regression or an outdated expectation, so identify what it is checking before
+changing code. Resolve contradictions in the affected documents and tests.
 
-1. [Intended Behaviours](intended-behaviours.md) owns supported user-visible
-   registration, unlock, recovery, signing, step-up, export, method-addition, and
-   linked-device behaviour.
-2. [Specs 1–8](README.md#document-authority) own internal architecture, domain,
-   security, persistence, protocol-summary, and integration contracts.
-3. The [Router protocol](router-ab/protocol.md) and its sibling documents own detailed
-   Router A/B protocol and deployment separation.
-4. Rust vectors, cross-language fixtures, and type fixtures own exact encoding,
-   cryptographic, wire, and compile-time invariants.
-5. Focused unit and integration tests own component behaviour outside the higher-level
-   contracts.
-6. Source guards prevent narrow architectural regressions and carry no independent
-   product semantics.
+Historical refactor plans explain how a design arose. Current specs and
+behaviour contracts determine the intended result.
 
-Public explanatory documentation describes supported use. Refactor documents become
-historical or proposed design inputs after their durable rules enter a numbered spec.
+## Choosing a test
 
-A genuine contradiction is fixed in every affected authority. Passing lower-level
-evidence never silently overrides a higher-level behaviour or security contract.
+Use a behaviour contract to check a complete journey, such as unlocking and
+signing. Use a focused unit or integration test for a specific boundary or
+failure that the journey does not exercise.
 
-## What each evidence type can prove
+Cryptographic vectors check exact encodings and results. Type fixtures check
+that invalid domain states are rejected at compile time. Formal proofs cover
+the properties in their stated models. Each kind of evidence answers a
+different question; a passing signing journey cannot establish all of them.
 
-| Evidence | Strong evidence for | Insufficient by itself for |
-| --- | --- | --- |
-| Intended-behaviour contract | Supported user journey and externally meaningful security effects | Every internal type or encoding invariant |
-| Numbered spec | Architecture ownership, lifecycle, security, and persistence rules | Executable proof that implementation matches the rule |
-| Protocol vector | Exact encoding, cryptographic result, acceptance, and rejection | Application authorization or durable persistence |
-| Formal verification | Properties inside the stated mathematical model | Host integration, authentication, or deployment correctness |
-| Type fixture | Compile-time rejection of invalid domain construction | Runtime parsing of untrusted data |
-| Unit test | Focused component behaviour and edge cases | An unrelated end-to-end journey |
-| Integration test | Composition across a defined boundary | Production provider or infrastructure behaviour outside that boundary |
-| Source guard | Absence of one precise dependency or symbol | Product semantics |
+TypeScript tests live in the top-level `tests` workspace. Build complex
+session, authentication, and signing records through shared factories.
+Raw objects belong in boundary-parser tests.
 
-## Intended-behaviour contracts
+## Understanding a failure
 
-Each supported user journey has a contract test that exercises real domain components
-at the highest practical boundary. A behaviour change updates the corresponding
-Intended Behaviours section and contract in the same change.
+Classify the failure before repairing it:
 
-Contracts assert observable transitions and security effects:
+- **Production regression:** current behaviour or an architecture requirement is
+  broken. Fix the implementation.
+- **Valid test needing an update:** the rule still holds, but the test uses an old
+  representation. Update its fixture or assertion.
+- **Obsolete test:** its only purpose was retired behaviour. Remove it and any
+  unused supporting code.
+- **Environment failure:** a required browser, provider, credential, or service
+  is unavailable. Report the missing dependency.
 
-- exact authority used;
-- durable creation, consumption, or revocation;
-- local secret handling;
-- retry and uncertainty outcome;
-- user-visible success or typed failure.
+A stale fixture is no reason to widen a production type. If one fixture repair
+fails, reassess the expectation before continuing.
 
-Contracts avoid implementation snapshots, arbitrary call counts, and duplicated
-assertions about internal helpers.
+Source-text guards cover only precise boundaries that other tests cannot
+express well. Remove them when the boundary they protect is retired.
 
-Passing a neighboring scenario does not establish an invariant that scenario never
-exercises. For example, a successful passkey unlock says nothing about Email OTP
-challenge separation.
+## Checking a change
 
-## Protocol and cryptographic evidence
+A user-visible behaviour change updates Intended Behaviours and its contract
+test together. Run the nearest relevant test first. Broaden verification when
+the change affects shared APIs, state, persistence, authorization, or cryptography.
 
-Rust vector tests use production encoders and cover both accepted and rejected values.
-Cross-language fixtures prove that Rust and TypeScript agree on canonical wire bytes.
+The main starting commands are `pnpm test:intended`,
+`pnpm test:wallet-browser`, and `pnpm type-check`.
+Package changes also use `pnpm check:packed-wallet`.
 
-Formal-verification commands own the mathematical properties stated by their models.
-Their success does not establish request authorization, database atomicity, browser
-secret handling, or deployment isolation.
+Regenerate cryptographic vectors and wire fixtures with their owning tools;
+never edit generated output by hand. Asynchronous tests should observe actual
+readiness and completion, and failures should report useful state without
+logging secrets.
 
-Generated fixtures and artifacts are regenerated by their owning commands:
-
-- Router A/B normal-signing vectors:
-  `UPDATE_ROUTER_AB_NORMAL_SIGNING_VECTORS=1 cargo test -p router-ab-core --test normal_signing_vectors`
-- Ed25519 Yao vectors and goldens: `cargo yao-fv all`
-- Rust-to-TypeScript signer bindings: `pnpm generate:signer-core-types`
-- Wallet-custody wire fixtures: run
-  `UPDATE_WALLET_CUSTODY_WIRE_FIXTURES=1 cargo test --test wire_fixtures` from
-  `wasm/wallet_custody_ceremony`
-
-Generated files are never edited by hand.
-
-## Type fixtures
-
-Type fixtures prove that invalid domain states cannot be constructed. They cover
-escape hatches that ordinary behaviour tests rarely see:
-
-- missing identity or authorization fields;
-- invalid lifecycle branch combinations;
-- owner records carrying delegated fields;
-- broad object spreads into domain state;
-- direct object-literal construction where a builder is required;
-- unsafe casts around boundary parsers.
-
-Use `@ts-expect-error` only when compile-time rejection is the intended assertion. A
-fixture must fail if the invalid construction unexpectedly becomes legal.
-
-## Unit and integration tests
-
-All TypeScript tests live in the top-level `tests` workspace. Complex session, auth,
-signing, recovery, persistence, and protocol records come from shared branch-specific
-factories. Inline raw objects belong in parser tests and other small boundary cases.
-
-Tests stay in the repository that owns the behaviour:
-
-- Wallet SDK, server, Router, crypto, hosted Wallet, public example, and protocol tests
-  live in `seams-wallet`;
-- private Console composition, Seams deployment, and product-operations tests live in
-  `seams-monorepo`.
-
-A domain type is never widened solely to make stale fixture data compile.
-
-## Classifying a failure
-
-Before changing code for a failing test, identify the invariant and classify the
-failure:
-
-| Classification | Meaning | Response |
-| --- | --- | --- |
-| `production_regression` | Current supported behaviour or an owning spec is violated | Fix production code and preserve the valid test |
-| `valid_test_needs_update` | The invariant remains valid and its fixture or assertion uses the old representation | Update the shared factory or assertion |
-| `obsolete_test_or_fixture` | The test, mock, snapshot, helper, or guard exists only for retired behaviour | Delete or replace the obsolete test support |
-| `environment_or_infrastructure_failure` | The failure depends on unavailable credentials, provider accounts, browsers, RPCs, or services | Report the environment requirement; leave domain behaviour unchanged |
-
-Compare the failing assertion with Intended Behaviours, the owning numbered spec,
-current domain types, and higher-authority protocol evidence.
-
-After one unsuccessful repair attempt on a lower-authority fixture, reassess its
-invariant before making another production change. Avoid fixture-repair loops.
-
-## Source guards
-
-A source guard is justified when the forbidden dependency or symbol is precise, cheap
-to check, and difficult to cover behaviorally. It names the current architecture rule
-instead of the refactor that introduced the rule.
-
-Consolidate overlapping guards. Delete a guard when its protected boundary retires.
-Prefer type fixtures, lint rules, and behaviour tests when they express the invariant
-directly.
-
-## Choosing verification scope
-
-Run the narrowest command that validates a localized change. A single test file gives
-clearer evidence than an unrelated suite.
-
-Use broader gates for changes to:
-
-- shared public APIs;
-- canonical schemas or generated bindings;
-- persistence and migrations;
-- authentication or authorization;
-- cryptographic protocol behaviour;
-- shared lifecycle types.
-
-Useful repository-level entry points include:
-
-- `pnpm test:intended` for public lifecycle contracts;
-- `pnpm test:wallet-browser` for browser composition;
-- `pnpm type-check` for TypeScript boundaries;
-- `pnpm check:packed-wallet` for published-package boundaries.
-
-Operational and provider-backed tests are opt-in when they require real credentials,
-accounts, networks, or destructive environment setup.
-
-## Failure diagnostics
-
-Test failures should identify the owning invariant, lifecycle phase, stable operation
-identity, and relevant sanitized state. Secret material and credentials never enter
-diagnostics.
-
-Asynchronous tests observe explicit readiness, durable phase, and terminal-result
-contracts. They avoid unbounded waits and timing-only completion assertions.
-
-## Contributor workflow
-
-1. Find the owning behaviour or numbered specification.
-2. Locate the production domain type and boundary parser.
-3. State the invariant the change preserves or intentionally revises.
-4. Update behaviour documentation and its contract when the public journey changes.
-5. Add or update the narrowest authoritative test.
-6. Regenerate owned fixtures through their command.
-7. Run focused verification, followed by broader gates required by the changed
-   boundary.
-
-## Code landmarks
-
-| Responsibility | Location |
-| --- | --- |
-| Intended-behaviour contracts | `tests/e2e/intended-behaviours` |
-| Type fixtures | `tests/typecheck`, `packages/*/src/**/*.typecheck.ts` |
-| Unit tests and shared factories | `tests/unit`, `tests/unit/helpers` |
-| Router vectors and formal verification | `crates/router-ab-core/tests`, `crates/router-ab-core/formal-verification` |
-| Signer vectors and formal verification | `crates/signer-core/tests`, `crates/signer-core/formal-verification` |
-| Source guards | `tests/scripts`, package-specific `scripts/checks` directories |
-
-## Non-goals
-
-Line-count targets, blanket coverage percentages, duplicate policy tests, and
-refactor-completion ledgers are not evidence of correctness.
-
-## Source lineage
-
-Consolidates R88, R88B, R98, and the repository testing authority established during
-the R105 split.
+Start with the [behaviour contracts](../tests/e2e/intended-behaviours),
+[unit tests](../tests/unit), or [type fixtures](../tests/typecheck), according
+to the change.

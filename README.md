@@ -48,20 +48,7 @@ contracts. Console governance/security-state models stay in the private repo.
 
 ## Architecture specifications
 
-Start with the [`docs` architecture guide](./docs/README.md) for the system map,
-core vocabulary, user journeys, repository landmarks, and role-specific reading
-paths. The numbered `spec-{x}-{title}.md` documents define the current Wallet
-architecture. [`docs/intended-behaviours.md`](./docs/intended-behaviours.md)
-owns supported user-visible lifecycle behaviour, while
-[`docs/spec-9-behaviour-and-test-authority.md`](./docs/spec-9-behaviour-and-test-authority.md)
-defines the complete documentation and test authority order.
-
-1. [Runtime and platform boundaries](./docs/spec-1-runtime-and-platform-boundaries.md)
-2. [Authentication, custody, and credentials](./docs/spec-2-auth-custody-and-credentials.md)
-3. [Wallet sessions and execution lanes](./docs/spec-3-wallet-sessions-and-execution-lanes.md)
-4. [Persistence and durable authority](./docs/spec-4-persistence-and-durable-authority.md)
-5. [Router A/B threshold protocol](./docs/spec-5-router-ab-threshold-protocol.md)
-6. [Tenant roots, recovery, and portability](./docs/spec-6-tenant-roots-recovery-and-portability.md)
-7. [Hosted surfaces and provider boundaries](./docs/spec-7-hosted-surfaces-and-provider-boundaries.md)
-8. [Agent authority, spending, and payment rails](./docs/spec-8-agent-authority-spending-and-payment-rails.md)
-9. [Behaviour and test authority](./docs/spec-9-behaviour-and-test-authority.md)
+Start with [How the wallet works](./docs/README.md), then choose a topic from the
+numbered `spec-{x}-{title}.md` chapters. Each explains the main flow and links to
+further detail. [Intended Behaviours](./docs/intended-behaviours.md) defines the
+supported user journeys.
