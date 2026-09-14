@@ -16,6 +16,21 @@ the sign-in method. Those associations are authenticated: an envelope cannot be
 substituted for another wallet, method, or key set. The seed is opened only
 inside the cryptographic operation that needs it.
 
+Here is the sealed value from the
+[Rust custody code](../crates/signer-core/src/passkey_custody.rs):
+
+```rust
+pub struct SealedPasskeyCustodyEnvelopeV1 {
+    pub ciphertext: Vec<u8>,
+    pub aad_hash: [u8; 32],
+    pub ciphertext_digest: [u8; 32],
+}
+```
+
+`ciphertext` holds the encrypted secret. `aad_hash` identifies the authenticated
+context, and `ciphertext_digest` identifies the encrypted bytes. The surrounding
+binding records which wallet, method, and key set this envelope belongs to.
+
 The server saves the wallet, its sign-in method, and the access created by
 registration. It issues a Wallet Session for signing as the configured keys
 become ready. [Spec 3](spec-3-wallet-sessions-and-execution-lanes.md) explains
@@ -35,6 +50,19 @@ recovering access creates a separate authority for the same wallet.
 To add a method, the user proves an existing method and verifies the new one.
 Wallet opens the existing authenticated envelope and protects the same seed
 under the new method. Keys and signing access stay unchanged.
+
+For a passkey wallet using both signing protocols, adding Email OTP gives:
+
+```mermaid
+flowchart TD
+    Seed["One wallet custody seed"] -->|"Derive"| Ed["Ed25519 Yao Client root"]
+    Seed -->|"Derive independently"| Ec["ECDSA client root share"]
+    Seed -->|"Seal with passkey"| Passkey["Passkey envelope"]
+    Seed -->|"Seal with Email OTP"| Email["Email OTP envelope"]
+```
+
+The two envelopes protect the same seed. Adding the method leaves the signing
+roots unchanged.
 
 Here, the proof comes from opening an authenticated envelope. Registration and
 recovery check the seed against the wallet's keys directly. The code keeps these

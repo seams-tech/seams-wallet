@@ -40,6 +40,28 @@ After setup, normal signing uses the client and SigningWorker through the
 Router. The Derivers stay out of this path. This lets ordinary signing continue
 without repeating key derivation.
 
+Compare the two paths below. Gateway authorization applies to both; the diagram
+shows the cryptographic traffic after admission.
+
+```mermaid
+flowchart TB
+    subgraph Setup["Key setup and activation"]
+        C1["Client"] <--> R1["Router"]
+        R1 <--> A["Deriver A"]
+        R1 <--> B["Deriver B"]
+        A <--> B
+        R1 <-->|"Install and acknowledge"| SW1["SigningWorker"]
+    end
+    subgraph Signing["Normal signing"]
+        C2["Client"] <-->|"Protocol messages"| R2["Router"]
+        R2 <-->|"Admitted messages"| SW2["SigningWorker"]
+    end
+```
+
+Each Deriver's output stays encrypted for its intended recipient as it passes
+through the Router. The client and SigningWorker keep their own material for
+later signing.
+
 A signature still needs the session and permission checks described in
 [Spec 3](spec-3-wallet-sessions-and-execution-lanes.md). Having prepared material
 does not grant permission to use it.

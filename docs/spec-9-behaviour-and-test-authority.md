@@ -33,6 +33,33 @@ TypeScript tests live in the top-level `tests` workspace. Build complex
 session, authentication, and signing records through shared factories.
 Raw objects belong in boundary-parser tests.
 
+For example, this [passkey contract](../tests/e2e/intended-behaviours/passkey.unlock.contract.test.ts)
+checks that a user can restore signing after local browser storage is cleared:
+
+```ts
+import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
+
+async function verifyPasskeyColdSyncFromEmptyStorage({
+  harness,
+}: {
+  harness: IntendedBehaviourHarness;
+}): Promise<void> {
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  await harness.syncPasskeyWalletFromEmptyStorage();
+  await harness.signNearTransaction('post_unlock');
+  await harness.signTempoAndArcEvmConcurrently('post_unlock');
+}
+
+test(
+  'synced passkey cold unlock restores mixed-wallet signing from empty browser storage',
+  verifyPasskeyColdSyncFromEmptyStorage,
+);
+```
+
+The harness handles setup and checks the outcomes. The test reads as a user
+journey, so you can see which behaviour it protects without reading those details.
+
 ## Understanding a failure
 
 Classify the failure before repairing it:

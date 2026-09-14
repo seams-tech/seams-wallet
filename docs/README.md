@@ -10,6 +10,14 @@ and separate server roles.
 
 ## The three parts
 
+```mermaid
+flowchart LR
+    App["Your application"] <-->|"SDK calls and results"| Client["Wallet client"]
+    Client <-->|"Authentication and signing"| Server["Wallet server"]
+    Client --> Local[("Encrypted local storage")]
+    Server --> Durable[("Server-owned state")]
+```
+
 - **Your application** decides what the user wants to do, such as send a
   transaction. It opens the Wallet UI through the SDK.
 - **The wallet client** handles authentication screens, prepares signing requests,
@@ -57,3 +65,6 @@ Read Specs 1–3 for the core system. Continue with the topics relevant to your 
 The specs state architecture requirements. Exact user journeys live in
 [Intended Behaviours](intended-behaviours.md), and each chapter links to further
 detail where needed.
+
+Code excerpts link to their source. Diagrams show the main relationships and
+steps; the linked references cover the full protocols and record formats.

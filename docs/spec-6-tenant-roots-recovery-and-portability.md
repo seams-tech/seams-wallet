@@ -38,10 +38,18 @@ existing encryption.
 
 A valid recovery package works without contacting the source deployment.
 
-1. Check the package and the destination's compatibility.
-2. Install each role's material through its private channel.
-3. Verify that the roles reproduce the expected public commitment.
-4. Keep the restored root dormant until the operator authorizes activation.
+The destination installs the roles separately, then verifies them together:
+
+```mermaid
+flowchart TD
+    Package["Recovery package"] --> Check["Check package and destination compatibility"]
+    Check --> A["Install Deriver A material privately"]
+    Check --> B["Install Deriver B material privately"]
+    A --> Verify["Verify expected public commitment"]
+    B --> Verify
+    Verify --> Dormant["Verified, dormant root"]
+    Dormant -->|"Operator authorizes activation"| Active["Active destination"]
+```
 
 A dormant root is installed and verified, but unavailable for new signing or
 derivation work. This gives the operator a clear checkpoint before enabling the

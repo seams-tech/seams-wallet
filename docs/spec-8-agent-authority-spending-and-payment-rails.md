@@ -33,6 +33,24 @@ expand the grant's limits.
 
 Amounts use integer units so funding and budget calculations remain exact.
 
+Here is an illustrative ledger view, using USD cents. These names show the
+calculation without specifying a storage format:
+
+```json
+{
+  "currency": "USD",
+  "availableFundingMinor": 10000,
+  "grant": {
+    "budgetMinor": 3000,
+    "spentMinor": 800,
+    "reservedMinor": 1200
+  }
+}
+```
+
+The grant has $10 left: $30 budget minus $8 spent and $12 reserved. Another $12
+purchase exceeds that grant, even though the funding account has $100 available.
+
 ## Executing a purchase
 
 Before contacting the provider, the server checks the grant and approval and
@@ -45,6 +63,22 @@ even when the caller changes its retry key.
 The initial agent API supports checking spending authority, proposing a
 purchase, executing it, and reading its status. Owners manage grants and approve
 purchases through a separate authenticated surface.
+
+For an approved purchase, the main flow is:
+
+```mermaid
+sequenceDiagram
+    participant A as Agent backend
+    participant S as Seams
+    participant P as Payment provider
+    A->>S: Execute the approved purchase
+    S->>S: Check limits and reserve funding plus budget
+    S->>P: Execute the same payment operation
+    P-->>S: Result or later verified event
+    S->>S: Commit, release, or keep the reservation
+    Note over S,P: An unknown outcome keeps the reservation
+    S-->>A: Current purchase status
+```
 
 ## Following the payment result
 

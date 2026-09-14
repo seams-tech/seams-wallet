@@ -34,6 +34,22 @@ Network work happens after that transaction. Its result is saved separately.
 Operations that involve several services keep enough progress in each service
 to resume after a restart.
 
+The [execution admission types](../packages/wallet-server/src/router/domains/signingOperations/walletExecutionAdmission.ts)
+make the stage before completion explicit:
+
+```ts
+export type ClaimedAuthorizedOperation = AuthorizedOperation & {
+  readonly lifecycle: 'claimed';
+  readonly result?: never;
+  readonly response?: never;
+  readonly resultDigest?: never;
+  readonly completedAtMs?: never;
+};
+```
+
+A claimed operation has permission to proceed. The `never` fields prevent code
+from attaching a completed result to it before that transition has happened.
+
 ## When a response is lost
 
 Suppose a signing request times out. The server may already have performed its
@@ -42,6 +58,21 @@ part, so starting again could repeat the effect.
 Each accepted request has a stable operation identity tied to its caller and
 contents. A retry uses that identity to find the result or continue the existing
 work. Reusing the identity with different contents is rejected.
+
+After authorization, the request follows this path:
+
+```mermaid
+flowchart TD
+    Request["Request with stable identity"] --> Existing{"Already recorded?"}
+    Existing -->|"Same request"| Read["Read its result or pending state"]
+    Existing -->|"Different contents"| Reject["Reject identity conflict"]
+    Existing -->|"New request"| Claim["Atomically claim operation and allowance"]
+    Claim --> Work["Run protocol or provider work"]
+    Work --> Known{"Outcome known?"}
+    Known -->|"Yes"| Save["Save the result"]
+    Known -->|"No"| Pending["Keep claim and reconcile"]
+    Pending --> Known
+```
 
 While the result is unknown, the operation keeps its claim and any reserved
 capacity. The system checks the external result before releasing the reservation

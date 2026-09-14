@@ -12,12 +12,21 @@ The server checks its permission and limits on every request.
 Unlocking prepares the selected keys for use. Signing requires both an active
 server session and usable material in the client cryptographic runtime.
 
-For each signing request:
+The main steps are:
 
-1. The client chooses the wallet key and how it will be used.
-2. The server checks the session, requested operation, and remaining allowance.
-3. The server records the accepted request and claims the required allowance.
-4. The client and server run the signing protocol and record the outcome.
+```mermaid
+sequenceDiagram
+    participant C as Wallet client
+    participant S as Wallet server
+    C->>S: Selected key, session, and signing request
+    S->>S: Check permission and remaining allowance
+    S->>S: Record the operation and claim allowance
+    C->>S: Client protocol messages
+    S-->>C: Server protocol messages
+    Note over C,S: Joint signing may take several rounds
+    S->>S: Save the operation outcome
+    S-->>C: Result or pending status
+```
 
 A request that fails these checks never starts signing or consumes allowance.
 Repeating an accepted request uses the same operation identity and returns its
@@ -45,10 +54,31 @@ A page refresh can restore a valid session from encrypted local data. It must
 match the same server session and signing access. Refresh grants no new time,
 uses, or permissions.
 
+The client keeps the session and its allowance tied together. This excerpt from
+the [session status types](../packages/wallet/src/core/rpcClients/relayer/walletSessionAuthorizationStatus.ts)
+shows the quota snapshot:
+
+```ts
+type ExactWalletSessionStatusIdentity = {
+  readonly walletSessionId: WalletSessionId;
+  readonly quotaId: MpcWalletSigningQuotaId;
+};
+
+export type ActiveWalletSessionQuotaStatusV1 = ExactWalletSessionStatusIdentity & {
+  readonly status: 'active';
+  readonly remainingUses: number;
+  readonly expiresAtMs: number;
+};
+```
+
+For example, refreshing a session with four uses left keeps those same four
+uses and the same expiry. This snapshot describes allowance; the server still
+checks the full authorization and its current state before signing.
+
 The server determines expiry and revocation. The client can lock earlier and
-must lock when the server reports expiry. On expiry, it clears its active secrets and
-disables the saved session material. The wallet's durable sign-in methods remain
-available for another unlock.
+must lock when the server reports expiry. On expiry, it clears its active
+secrets and disables the saved session material. The wallet's durable sign-in
+methods remain available for another unlock.
 
 If the session has expired, its allowance is exhausted, or local signing
 material cannot be restored, the next operation needs the appropriate

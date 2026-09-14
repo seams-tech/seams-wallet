@@ -20,11 +20,41 @@ server roles.
 Wallet authentication screens run in Wallet-owned documents. The application
 controls when to open them and receives their results through the SDK.
 
+With a configured `SeamsWeb` client and NEAR enabled, registration looks like
+this:
+
+```ts
+import type { SeamsWeb } from '@seams/wallet';
+
+async function createNearWallet(wallet: SeamsWeb) {
+  const registration = await wallet.registration.registerPasskey();
+  if (!registration.success) {
+    return { kind: 'registration_failed' as const, reason: registration.error };
+  }
+
+  return wallet.registration.awaitNearReady({
+    walletId: registration.walletId,
+  });
+}
+```
+
+The SDK handles the prompts, server calls, and cryptography. The
+[registration API](../packages/wallet/src/SeamsWeb/publicApi/types.ts) separates
+creating the wallet from waiting for its NEAR account to become usable.
+
 ## TypeScript and Rust
 
 TypeScript coordinates user flows, permissions, storage, and network requests.
 Rust implements cryptography and operates on secret material. In the browser,
 Rust runs through WebAssembly.
+
+```mermaid
+flowchart TD
+    App["Application and SDK"] <-->|"Messages"| UI["Wallet-owned UI"]
+    UI <--> TS["TypeScript flow coordination"]
+    TS <-->|"Typed commands and results"| Rust["Rust / WebAssembly cryptography"]
+    TS <-->|"Requests"| Server["Wallet server"]
+```
 
 The boundary between them carries public information, typed commands, and
 encrypted material. JavaScript does not inspect Rust's internal secrets. Rust
@@ -34,6 +64,20 @@ TypeScript.
 Domain types describe valid states explicitly. Input from a request, database,
 provider, or worker is checked when it enters the system. The rest of the code
 uses that checked representation.
+
+For example, the
+[NEAR readiness result](../packages/wallet/src/SeamsWeb/publicApi/awaitNearReady.ts)
+states exactly what the caller can use in each case:
+
+```ts
+export type AwaitNearReadyResult =
+  | { kind: 'near_ready'; nearAccountId: string }
+  | { kind: 'near_failed_retryable'; reason: string }
+  | { kind: 'timed_out' };
+```
+
+Only `near_ready` carries an account id. A timeout leaves the outcome uncertain;
+it does not undo registration.
 
 ## Connecting to the environment
 

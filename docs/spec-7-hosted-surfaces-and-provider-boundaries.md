@@ -18,6 +18,21 @@ progress. It reports its size so the container can fit the content.
 The SDK returns a clear outcome: completed, cancelled, expired, or failed.
 Closing a window or navigating away does not prove that an operation succeeded.
 
+An authentication request crosses the boundary like this:
+
+```mermaid
+sequenceDiagram
+    participant A as Application
+    participant W as Wallet iframe
+    participant G as Gateway
+    A->>W: Open an SDK request
+    Note over W: User interacts with Wallet-owned inputs
+    W->>G: Submit authentication evidence
+    G-->>W: Checked Wallet outcome
+    W-->>A: SDK result for the same request
+    A->>A: Continue workflow and restore focus
+```
+
 ## Keeping the documents separate
 
 Wallet UI runs on its configured origin. This keeps authentication inputs and
@@ -31,6 +46,22 @@ request. Production configuration uses specific allowed origins.
 Provider secrets and private service credentials stay on the server. Public
 browser configuration contains only the values needed to reach and display
 Wallet. The public Wallet site remains usable without signing in.
+
+For example, [Console Lite's setup response](../examples/wallet-console-lite/src/localWorkspace.ts)
+gives the browser this configuration:
+
+```ts
+export type LocalWalletConfig = {
+  projectEnvironmentId: string;
+  publishableKey: string;
+  gatewayUrl: string;
+  walletOrigin: string;
+  signingWorkerId: string;
+};
+```
+
+These values identify the project and services. The publishable key is designed
+for the browser; private service credentials never enter this response.
 
 ## Email and identity providers
 
