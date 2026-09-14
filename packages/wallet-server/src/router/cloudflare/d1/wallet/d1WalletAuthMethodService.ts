@@ -101,6 +101,10 @@ import {
 import type { CloudflareD1WebAuthnStore } from '../webauthn/d1WebAuthnStore';
 import type { WebAuthnCredentialBindingRecord } from '../../../../core/WebAuthnCredentialBindingStore';
 import type { WalletEd25519SignerRecord } from '../../../../core/WalletStore';
+import {
+  parseSessionOrigin,
+  type SessionOrigin,
+} from '../../../../authorization/domain';
 
 /** The wallet's Ed25519 signers, the only server record of its NEAR identity. */
 type ListWalletEd25519SignersV1 = (
@@ -151,6 +155,7 @@ type EmailOtpSourceChallengeIssuerV1 = (input: {
   readonly ownerProofBindingDigest: string;
   readonly operation: string;
   readonly reuseActiveChallenge: boolean;
+  readonly requestOrigin: SessionOrigin;
 }) => Promise<
   | {
       readonly ok: true;
@@ -168,6 +173,7 @@ type EmailOtpEnrollmentChallengeIssuerV1 = (input: {
   readonly email: string;
   readonly otpChannel: typeof EMAIL_OTP_CHANNEL;
   readonly ownerProofBindingDigest: string;
+  readonly requestOrigin: SessionOrigin;
 }) => Promise<
   | {
       readonly ok: true;
@@ -237,6 +243,17 @@ function requireStoredCredentialId(raw: string): WebAuthnCredentialIdB64u {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error || '');
+}
+
+function storedIntentOriginMatchesRequest(
+  storedOrigin: unknown,
+  requestOrigin: SessionOrigin,
+): boolean {
+  try {
+    return parseSessionOrigin(storedOrigin) === requestOrigin;
+  } catch {
+    return false;
+  }
 }
 
 function allocateWalletAuthMethodId(): WalletAuthMethodId {
@@ -610,6 +627,7 @@ export class CloudflareD1WalletAuthMethodService {
     readonly walletId: WalletId;
     readonly addAuthMethodIntentGrant: AddAuthMethodIntentGrant;
     readonly addAuthMethodIntentDigestB64u: string;
+    readonly requestOrigin: SessionOrigin;
   }): Promise<
     | {
         readonly ok: true;
@@ -641,6 +659,13 @@ export class CloudflareD1WalletAuthMethodService {
           message: 'add-auth-method intent does not match this request',
         };
       }
+      if (!storedIntentOriginMatchesRequest(stored.expectedOrigin, input.requestOrigin)) {
+        return {
+          ok: false,
+          code: 'unauthorized',
+          message: 'add-auth-method intent does not match this origin',
+        };
+      }
       /* Two codes with one binding. Adding an Email method sends a code to the
          address being verified; adding a Passkey sends one to the address the
          wallet already trusts, because there the Email method is the source
@@ -665,6 +690,7 @@ export class CloudflareD1WalletAuthMethodService {
           walletId: input.walletId,
           orgId: stored.orgId || this.orgId,
           ownerProofBindingDigest: stored.digestB64u,
+          requestOrigin: input.requestOrigin,
         });
       }
       /* R109C admission, here rather than only at start: this is the last hop
@@ -696,6 +722,7 @@ export class CloudflareD1WalletAuthMethodService {
         email,
         otpChannel: EMAIL_OTP_CHANNEL,
         ownerProofBindingDigest: stored.digestB64u,
+        requestOrigin: input.requestOrigin,
       });
       if (!challenge.ok) return challenge;
       return {
@@ -725,6 +752,7 @@ export class CloudflareD1WalletAuthMethodService {
     readonly walletId: WalletId;
     readonly orgId: string;
     readonly ownerProofBindingDigest: string;
+    readonly requestOrigin: SessionOrigin;
   }): Promise<
     | {
         readonly ok: true;
@@ -752,6 +780,7 @@ export class CloudflareD1WalletAuthMethodService {
       ownerProofBindingDigest: input.ownerProofBindingDigest,
       operation: WALLET_EMAIL_OTP_UNLOCK_OPERATION,
       reuseActiveChallenge: true,
+      requestOrigin: input.requestOrigin,
     });
     if (!challenge.ok) return challenge;
     return {

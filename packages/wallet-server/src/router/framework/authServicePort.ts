@@ -1346,6 +1346,7 @@ export interface RouterApiWalletAuthMethodService {
     readonly walletId: WalletId;
     readonly addAuthMethodIntentGrant: AddAuthMethodIntentGrant;
     readonly addAuthMethodIntentDigestB64u: string;
+    readonly requestOrigin: SessionOrigin;
   }): Promise<
     | {
         readonly ok: true;

@@ -2869,10 +2869,19 @@ export async function handleRouterApiWalletAddAuthMethodEmailOtpChallenge(
       'addAuthMethodIntentGrant and addAuthMethodIntentDigestB64u are required',
     );
   }
+  const origin = normalizeCorsOrigin(input.origin);
+  if (!origin) {
+    return routeError(
+      403,
+      'forbidden',
+      'Origin header is required and must be a valid exact origin',
+    );
+  }
   const result = await input.services.walletRegistration.createAddAuthMethodEmailOtpChallenge({
     walletId: walletId.value,
     addAuthMethodIntentGrant: grant,
     addAuthMethodIntentDigestB64u: digestB64u,
+    requestOrigin: parseSessionOrigin(origin),
   });
   /* Only the grant and the intent identity are gates here, so everything the
      issuer refuses for — an expired grant, a rate limit — is a bad request
