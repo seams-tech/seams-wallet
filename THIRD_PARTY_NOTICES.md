@@ -5,7 +5,7 @@ distributed Seams Wallet SDK, server runtime, Wasm, strict Workers, and CLI.
 Dependency license expressions come from their package metadata. Packaged
 license and notice wording is reproduced below with normalized whitespace.
 
-Inventory: 514 dependency records (102 npm, 412 Cargo).
+Inventory: 515 dependency records (103 npm, 412 Cargo).
 
 ## Dependency inventory
 
@@ -428,6 +428,7 @@ Inventory: 514 dependency records (102 npm, 412 Cargo).
 | npm | @lit-labs/ssr-dom-shim | 1.4.0 | BSD-3-Clause | Google LLC |
 | npm | @lit/react | 1.0.8 | BSD-3-Clause | Google LLC |
 | npm | @lit/reactive-element | 2.1.1 | BSD-3-Clause | Google LLC |
+| npm | @near-js/types | 2.4.0 | ISC |  |
 | npm | @noble/hashes | 2.0.1 | MIT | Paul Miller (https://paulmillr.com) |
 | npm | @peculiar/asn1-android | 2.6.0 | MIT | PeculiarVentures, LLC |
 | npm | @peculiar/asn1-cms | 2.6.0 | MIT | PeculiarVentures, LLC |
@@ -2839,7 +2840,7 @@ Applies to:
 
 ### 23f18e03dc49df91
 
-Packaged as: LICENSE-MIT
+Packaged as: LICENSE, LICENSE-MIT
 
 Applies to:
 
@@ -2907,6 +2908,7 @@ Applies to:
 - cargo:wit-bindgen@0.57.1
 - cargo:zmij@1.0.21
 - cargo:zmij@1.0.23
+- npm:@near-js/types@2.4.0
 
     Permission is hereby granted, free of charge, to any
     person obtaining a copy of this software and associated
