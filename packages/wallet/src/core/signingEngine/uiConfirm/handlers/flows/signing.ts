@@ -813,7 +813,7 @@ export async function handleIntentDigestSigningFlow(
       // request already present in the display model. Non-semantic preparation
       // such as managed nonce reservation may finish after the click; signing
       // still waits for and authorizes the exact prepared digest below.
-      loading: !!intentPreparation && signingAuthMode !== 'warmSession',
+      loading: false,
       onMounted: () => {
         markPromptReady();
       },
