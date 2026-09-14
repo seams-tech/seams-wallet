@@ -8,10 +8,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const packages = [
-  { directory: 'packages/wallet', name: '@seams/wallet' },
-  { directory: 'packages/wallet-server', name: '@seams/wallet-server' },
-];
+const walletPackage = packageDefinition('packages/wallet', '@seams/wallet');
+const walletServerPackage = packageDefinition(
+  'packages/wallet-server',
+  '@seams/wallet-server',
+);
+const packages = [walletPackage, walletServerPackage];
 const forbidden = [
   '@seams-internal/console',
   '@seams-internal/wallet-console',
@@ -34,7 +36,7 @@ try {
   for (const packageDefinition of packages) {
     const tarball = pack(packageDefinition.directory);
     const unpacked = unpack(tarball, packageDefinition.name);
-    inspectPackage(unpacked, packageDefinition.name);
+    inspectPackage(unpacked, packageDefinition);
     copyPackage(unpacked, packageDefinition.name);
   }
   linkRuntimeDependencies();
@@ -65,12 +67,13 @@ function unpack(tarball, packageName) {
   return path.join(destination, 'package');
 }
 
-function inspectPackage(packageDirectory, packageName) {
+function inspectPackage(packageDirectory, packageDefinition) {
+  const packageName = packageDefinition.name;
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(packageDirectory, 'package.json'), 'utf8'),
   );
   assert.equal(packageJson.name, packageName);
-  assert.equal(packageJson.version, '0.5.0');
+  assert.equal(packageJson.version, packageDefinition.version);
   assert.equal(packageJson.license, 'Apache-2.0');
   assert.match(
     fs.readFileSync(path.join(packageDirectory, 'LICENSE.md'), 'utf8'),
@@ -153,5 +156,12 @@ async function smokePackedEntries() {
     ),
   );
   assert.equal(artifactManifest.schemaVersion, 'seams_wallet_server_artifact_manifest_v1');
-  assert.equal(artifactManifest.package.version, '0.5.0');
+  assert.equal(artifactManifest.package.version, walletServerPackage.version);
+}
+
+function packageDefinition(directory, name) {
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, directory, 'package.json'), 'utf8'),
+  );
+  return { directory, name, version: packageJson.version };
 }
