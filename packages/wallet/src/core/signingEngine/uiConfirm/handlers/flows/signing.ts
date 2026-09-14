@@ -352,16 +352,11 @@ export async function handleTransactionSigningFlow(
       resolvePromptReady = resolve;
     });
     let decisionResolved = false;
-    let nearContextReady = readinessMode.kind === 'signature_only';
     let nearContextFailed = false;
-    let intentPreparationPending = !!intentPreparation;
     const confirmationReadiness = consumeConfirmationReadiness(request.requestId);
     let confirmationReadinessPending = !!confirmationReadiness;
     const originalBody = String(transactionSummary.body || '').trim();
     const confirmationReadinessBody = String(confirmationReadiness?.body || '').trim();
-    const isConfirmationLoading = () =>
-      !nearContextFailed &&
-      (!nearContextReady || intentPreparationPending || confirmationReadinessPending);
     const restoreOriginalBody = () => ({ body: originalBody });
     const confirmationReadinessPromise = confirmationReadiness
       ? Promise.resolve(confirmationReadiness.promise)
@@ -375,12 +370,15 @@ export async function handleTransactionSigningFlow(
     };
     const promptDecisionPromise = session.promptUser({
       securityContext: baseSecurityContext,
-      loading: isConfirmationLoading(),
+      // The transaction summary already contains every fact the user reviews.
+      // Exact nonce, session, and challenge preparation continues concurrently
+      // and is awaited below before authentication or signing can proceed.
+      loading: false,
       onMounted: () => {
         markPromptReady();
         if (confirmationReadinessPending && confirmationReadinessBody) {
           session.updateUI({
-            loading: true,
+            loading: false,
             body: confirmationReadinessBody,
           });
         }
@@ -407,7 +405,7 @@ export async function handleTransactionSigningFlow(
         ...(prepared.title ? { title: prepared.title } : {}),
         ...(prepared.body ? { body: prepared.body } : {}),
         ...(resolvedIntentDigest ? { intentDigest: resolvedIntentDigest } : {}),
-        loading: isConfirmationLoading(),
+        loading: false,
       });
     };
 
@@ -420,15 +418,13 @@ export async function handleTransactionSigningFlow(
     if (preparedIntentPromise) {
       void preparedIntentPromise
         .then((prepared) => {
-          intentPreparationPending = false;
           if (decisionResolved) return;
           applyPreparedIntentToUi(prepared);
         })
         .catch((error: unknown) => {
-          intentPreparationPending = false;
           if (decisionResolved) return;
           session.updateUI({
-            loading: isConfirmationLoading(),
+            loading: false,
             errorMessage: String(toError(error)?.message || error || 'Failed to prepare intent'),
           });
         });
@@ -441,7 +437,7 @@ export async function handleTransactionSigningFlow(
           if (decisionResolved || nearContextFailed) return;
           session.updateUI({
             ...restoreOriginalBody(),
-            loading: isConfirmationLoading(),
+            loading: false,
             errorMessage: '',
           });
         })
@@ -472,7 +468,6 @@ export async function handleTransactionSigningFlow(
           });
           return;
         }
-        nearContextReady = true;
         nearContextFailed = false;
         if (nearRpc.readiness.kind === 'funding_required') {
           if (decisionResolved) return;
@@ -496,10 +491,9 @@ export async function handleTransactionSigningFlow(
             }
           : undefined;
         if (decisionResolved) return;
-        // Keep confirm disabled until intent preparation also completes.
         session.updateUI({
           securityContext,
-          loading: isConfirmationLoading(),
+          loading: false,
         });
       });
     }
