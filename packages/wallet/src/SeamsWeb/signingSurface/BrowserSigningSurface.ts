@@ -309,10 +309,7 @@ import {
   type PrepareEmailOtpRegistrationEnrollmentMaterialInternalResult,
 } from '@/core/signingEngine/flows/signEvmFamily/emailOtpPublic';
 import type { ExactWalletSessionAuthorization } from '@/core/signingEngine/session/persistence/walletSessionAuthorizationProjection';
-import {
-  exactWalletSessionWithOperationCredentialOrThrow,
-  readExactOwnerLaneWalletSession,
-} from '@/core/signingEngine/session/identity/exactWalletSessionReader';
+import { exactWalletSessionWithOperationCredentialOrThrow } from '@/core/signingEngine/session/identity/exactWalletSessionReader';
 import * as emailOtpPublic from '@/core/signingEngine/flows/signEvmFamily/emailOtpPublic';
 import { createManagerAssembly } from '@/core/signingEngine/assembly/createManagers';
 import { verifySealedRefreshStartupParity } from '@/core/rpcClients/relayer/sealedRefreshCapabilities';
@@ -2654,7 +2651,7 @@ export class BrowserSigningSurface {
           },
           input,
         ),
-      resolveOwnerLaneScope: (walletId) => this.resolveActiveOwnerLaneScope(walletId),
+      resolveOwnerLaneScope: (walletId) => this.resolveSelectedOwnerLaneScope(walletId),
     });
 
     this.enginePorts = createBrowserSigningSurfaceEnginePorts({
@@ -2681,7 +2678,7 @@ export class BrowserSigningSurface {
       workerWarmupPolicy: deps.workerWarmupPolicy,
       getTheme: () => this.appearance.theme.mode,
       ensureSealedRefreshStartupParity: () => this.ensureSealedRefreshStartupParity(),
-      resolveOwnerLaneScope: (walletId) => this.resolveActiveOwnerLaneScope(walletId),
+      resolveOwnerLaneScope: (walletId) => this.resolveSelectedOwnerLaneScope(walletId),
       getEnginePorts: () => this.enginePorts,
       getRegistrationPublicDeps: () => this.registrationPublicDeps,
       prepareNearEd25519YaoMaterialBoundary:
@@ -3172,11 +3169,11 @@ export class BrowserSigningSurface {
   }
 
   /**
-   * R103C derivation chain for post-login operations: the unique active Wallet
-   * Session authority resolves through the active wallet auth method to one
-   * exact owner scope. Callers never supply credential or slot hints.
+   * Resolves the selected active Wallet Authority and auth method to one exact
+   * owner scope. Session availability is resolved by the lane inventory so an
+   * expired session can enter operation step-up.
    */
-  async resolveActiveOwnerLaneScope(walletId: WalletId | string): Promise<OwnerLaneScope> {
+  async resolveSelectedOwnerLaneScope(walletId: WalletId | string): Promise<OwnerLaneScope> {
     const parsedWalletId = parseWalletId(walletId);
     if (!parsedWalletId.ok) throw new Error(parsedWalletId.error.message);
     const stores = {
@@ -3211,13 +3208,6 @@ export class BrowserSigningSurface {
       ) {
         throw new Error('[SigningEngine] selected Wallet Authority is inactive or locked');
       }
-      await readExactOwnerLaneWalletSession({
-        walletId: parsedWalletId.value,
-        authorityId: authority.authorityId,
-        authMethodId: authMethod.walletAuthMethodId,
-        authorityDigestB64u: authority.authorityDigestB64u,
-        authorityRevocationEpoch: authority.revocationEpoch,
-      });
       if (
         authority.provenance.kind === 'device_link' &&
         authMethod.kind === 'passkey' &&

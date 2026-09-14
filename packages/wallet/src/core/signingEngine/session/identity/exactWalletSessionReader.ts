@@ -1,6 +1,5 @@
 import type { WalletAuthenticationState } from '@/core/types/seams';
 import {
-  walletSessionAuthorizations,
   WalletSessionAuthorizationUpgradeRequiredError,
   type ActiveWalletSessionV1,
   type WalletSessionAuthorizationExactOperationCredentialReadResult,
@@ -127,54 +126,4 @@ export function exactWalletSessionWithOperationCredentialOrThrow(
     case 'upgrade_required':
       throw new WalletSessionAuthorizationUpgradeRequiredError(message);
   }
-}
-
-export async function readExactOwnerLaneWalletSession(args: {
-  readonly walletId: WalletId;
-  readonly authorityId: WalletAuthorityId;
-  readonly authMethodId: WalletAuthMethodId;
-  readonly authorityDigestB64u: DigestB64u;
-  readonly authorityRevocationEpoch: number;
-}): Promise<void> {
-  const read = await walletSessionAuthorizations.readExactActiveForWallet({
-    walletId: args.walletId,
-    authorityId: args.authorityId,
-    authMethodId: args.authMethodId,
-  });
-  switch (read.kind) {
-    case 'found':
-      if (
-        !exactWalletSessionMatchesAuthorityScope({
-          record: read.record,
-          operationCredential: read.operationCredential,
-          scope: args,
-        })
-      ) {
-        throw new Error('[SigningEngine] selected Wallet Authority session identity mismatch');
-      }
-      if (read.record.expiresAtMs <= Date.now()) {
-        throw new Error(
-          '[SigningEngine] selected Wallet Authority session is unavailable: expired',
-        );
-      }
-      return;
-    case 'missing':
-      throw new Error('[SigningEngine] selected Wallet Authority session is unavailable: missing');
-    case 'upgrade_required':
-      throw new WalletSessionAuthorizationUpgradeRequiredError(
-        '[SigningEngine] selected Wallet Authority Wallet Session requires a newer client',
-      );
-    case 'corrupt':
-      throw new Error('[SigningEngine] selected Wallet Authority session is unavailable: corrupt');
-    case 'persistence_unavailable':
-      throw new Error(
-        '[SigningEngine] selected Wallet Authority session is unavailable: persistence_unavailable',
-      );
-    default:
-      return assertNeverWalletSessionAuthorizationRead(read);
-  }
-}
-
-function assertNeverWalletSessionAuthorizationRead(value: never): never {
-  throw new Error(`Unknown exact Wallet Session authorization read: ${String(value)}`);
 }
