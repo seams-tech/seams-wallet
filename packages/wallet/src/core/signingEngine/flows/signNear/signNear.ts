@@ -22,7 +22,6 @@ import type {
 } from '@/core/types/signer-worker';
 import type {
   NearEd25519YaoMaterialExecutor,
-  NearEd25519YaoOperationMaterialFacts,
   NearEmailOtpEd25519StepUpHook,
   NearPasskeyEd25519OperationStepUpHook,
   NearTransactionWithActionsPayload,
@@ -728,19 +727,14 @@ function nearAdHocEd25519WalletSessionQuotaAdmissionQueueKey(args: {
 function buildNearPasskeyEd25519OperationStepUp(args: {
   auth: Ed25519LaneCandidate['auth'];
   signer: NearEd25519SignerBinding;
+  thresholdSessionId: ThresholdEd25519SessionId;
   preparation: NearEd25519YaoSigningPreparation;
-  materialExecutor: NearEd25519YaoMaterialExecutor;
 }): NearPasskeyEd25519OperationStepUpHook | undefined {
   if (args.auth.kind !== 'passkey') return undefined;
   const auth = args.auth;
   return {
     prepare: async () => {
-      const materialFacts = await resolveNearPasskeyStepUpMaterialFacts({
-        preparation: args.preparation,
-        executor: args.materialExecutor,
-      });
       const signer = args.signer;
-      const thresholdSessionId = materialFacts.thresholdSessionId;
       const authority = await exactPasskeyStepUpAuthority({
         authorityRef: nearPasskeyPreparationAuthority(args.preparation),
         walletId: signer.account.wallet.walletId,
@@ -748,7 +742,7 @@ function buildNearPasskeyEd25519OperationStepUp(args: {
         credentialIdB64u: auth.credentialIdB64u,
       });
       return {
-        thresholdSessionId,
+        thresholdSessionId: args.thresholdSessionId,
         authority,
       };
     },
@@ -801,31 +795,6 @@ async function exactPasskeyStepUpAuthority(args: {
     throw new Error('[SigningEngine][near] exact Passkey step-up authority changed');
   }
   return authority;
-}
-
-async function resolveNearPasskeyStepUpMaterialFacts(args: {
-  preparation: NearEd25519YaoSigningPreparation;
-  executor: NearEd25519YaoMaterialExecutor;
-}): Promise<NearEd25519YaoOperationMaterialFacts> {
-  switch (args.preparation.hydration.kind) {
-    case 'use_live_runtime': {
-      const material = await args.executor.resolve(args.preparation);
-      return material.facts;
-    }
-    case 'rehydrate_material_activation': {
-      const prepared = await args.executor.preparePasskeyOperationStepUp(args.preparation);
-      return prepared.facts;
-    }
-    case 'reauthorize_public_anchor':
-      throw new Error('[SigningEngine][near] retired material cannot prepare Passkey step-up');
-    case 'blocked':
-      throw new Error(
-        `[SigningEngine][near] Passkey step-up material is blocked: ${args.preparation.hydration.reason}`,
-      );
-    default:
-      args.preparation.hydration satisfies never;
-      throw new Error('[SigningEngine][near] unsupported Passkey step-up material source');
-  }
 }
 
 function buildNearEmailOtpEd25519StepUp(args: {
@@ -925,8 +894,8 @@ async function prepareNearAdHocSigningSession(args: {
       buildNearPasskeyEd25519OperationStepUp({
         auth: candidate.auth,
         signer,
+        thresholdSessionId: materialIdentity.thresholdSessionId,
         preparation: materialBoundary.preparation,
-        materialExecutor: materialBoundary.executor,
       }) || null;
     const emailOtpEd25519StepUp =
       buildNearEmailOtpEd25519StepUp({
@@ -961,8 +930,8 @@ async function prepareNearAdHocSigningSession(args: {
     buildNearPasskeyEd25519OperationStepUp({
       auth: selectedLane.auth,
       signer: selectedLane.identity.signer,
+      thresholdSessionId: selectedLane.identity.thresholdSessionId,
       preparation: materialBoundary.preparation,
-      materialExecutor: materialBoundary.executor,
     }) || null;
   const emailOtpEd25519StepUp =
     buildNearEmailOtpEd25519StepUp({
@@ -1056,8 +1025,8 @@ async function prepareNearAuthorizationRequiredTransaction(args: {
       buildNearPasskeyEd25519OperationStepUp({
         auth: candidate.auth,
         signer,
+        thresholdSessionId: materialIdentity.thresholdSessionId,
         preparation: materialBoundary.preparation,
-        materialExecutor: materialBoundary.executor,
       }) || null,
     emailOtpEd25519StepUp:
       buildNearEmailOtpEd25519StepUp({
@@ -1542,8 +1511,8 @@ export async function signTransactionWithActions(
         const passkeyEd25519OperationStepUp = buildNearPasskeyEd25519OperationStepUp({
           auth: transactionLane.auth,
           signer: transactionLane.identity.signer,
+          thresholdSessionId,
           preparation: materialBoundary.preparation,
-          materialExecutor: materialBoundary.executor,
         });
         const emailOtpEd25519StepUp = buildNearEmailOtpEd25519StepUp({
           deps,

@@ -809,7 +809,11 @@ export async function handleIntentDigestSigningFlow(
     };
     const promptDecisionPromise = session.promptUser({
       securityContext,
-      loading: !!intentPreparation,
+      // Active Wallet Authority confirmation reviews the complete semantic
+      // request already present in the display model. Non-semantic preparation
+      // such as managed nonce reservation may finish after the click; signing
+      // still waits for and authorizes the exact prepared digest below.
+      loading: !!intentPreparation && signingAuthMode !== 'warmSession',
       onMounted: () => {
         markPromptReady();
       },

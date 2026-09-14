@@ -463,6 +463,11 @@ export async function signEvmFamilyWithUiConfirm<TRequest, TResult extends objec
   const thresholdEcdsaStepUpRuntime =
     thresholdEcdsaStepUp.kind === 'not_required' ? undefined : thresholdEcdsaStepUp.runtime;
   const signingAuthPlan = signingAuthPlanFromThresholdEcdsaStepUp(thresholdEcdsaStepUp);
+  const requiresThresholdEcdsaOperationStepUp =
+    input.authorization.kind === 'owner' &&
+    thresholdEcdsaStepUp.kind === 'required' &&
+    (thresholdEcdsaStepUp.runtime.reusableAuthorization.kind === 'absent' ||
+      !isWarmSessionSigningAuthPlan(thresholdEcdsaStepUp.authPlan.signingAuthPlan));
   if (hasThresholdEcdsaRequest && !signingAuthPlan) {
     switch (input.authorization.kind) {
       case 'owner':
@@ -621,6 +626,7 @@ export async function signEvmFamilyWithUiConfirm<TRequest, TResult extends objec
     // its OTP challenge stays factor-specific.
     let challengeB64u = base64UrlEncode(firstDigest);
     if (
+      requiresThresholdEcdsaOperationStepUp &&
       firstSignRequest.algorithm === 'secp256k1' &&
       thresholdEcdsaStepUpRuntime &&
       activeThresholdEcdsaOperation &&
