@@ -18,6 +18,7 @@ import type { EmailOtpConfirmPrompt, SigningAuthMode } from '../../stepUpConfirm
 import type {
   ConfirmUIHandle,
   ConfirmUIPromptDiagnostics,
+  ConfirmUISurfaceDecision,
   ConfirmUISurfaceSource,
   ConfirmUIUpdate,
   ConfirmationUIMode,
@@ -43,6 +44,7 @@ import {
 export type {
   ConfirmUIHandle,
   ConfirmUIPromptDiagnostics,
+  ConfirmUISurfaceDecision,
   ConfirmUISurfaceSource,
   ConfirmUIUpdate,
   ConfirmationUIMode,
@@ -517,15 +519,72 @@ function createHostConfirmHandle(
   onClose: () => void,
 ): MountedConfirmUIHandle {
   let closed = false;
+  const queuedDecisions: ConfirmUISurfaceDecision[] = [];
+  const decisionWaiters: Array<(decision: ConfirmUISurfaceDecision) => void> = [];
+  const publishDecision = (decision: ConfirmUISurfaceDecision): void => {
+    const waiter = decisionWaiters.shift();
+    if (waiter) {
+      waiter(decision);
+      return;
+    }
+    queuedDecisions.push(decision);
+  };
+  const onConfirm = (event: Event): void => {
+    const detail = (event as CustomEvent<ConfirmEventDetail> | undefined)?.detail;
+    if (detail?.confirmed === false) {
+      publishDecision({
+        kind: 'cancelled',
+        error: typeof detail.error === 'string' ? detail.error : null,
+      });
+      return;
+    }
+    const otpCode = typeof detail?.otpCode === 'string' ? detail.otpCode.trim() : '';
+    const emailOtpChallengeId =
+      typeof detail?.emailOtpChallengeId === 'string' ? detail.emailOtpChallengeId.trim() : '';
+    publishDecision({
+      kind: 'confirmed',
+      emailOtp:
+        otpCode && emailOtpChallengeId
+          ? { kind: 'provided', code: otpCode, challengeId: emailOtpChallengeId }
+          : { kind: 'absent' },
+    });
+  };
+  const onCancel = (event: Event): void => {
+    const detail = (event as CustomEvent<ConfirmEventDetail> | undefined)?.detail;
+    publishDecision({
+      kind: 'cancelled',
+      error: typeof detail?.error === 'string' ? detail.error : null,
+    });
+  };
+  const removeDecisionListeners = (): void => {
+    element.removeEventListener(
+      WalletIframeDomEvents.TX_CONFIRMER_CONFIRM,
+      onConfirm as EventListener,
+    );
+    element.removeEventListener(WalletIframeDomEvents.TX_CONFIRMER_CANCEL, onCancel as EventListener);
+  };
+  element.addEventListener(WalletIframeDomEvents.TX_CONFIRMER_CONFIRM, onConfirm as EventListener);
+  element.addEventListener(WalletIframeDomEvents.TX_CONFIRMER_CANCEL, onCancel as EventListener);
   return {
     element,
     close: (confirmed: boolean) => {
       if (closed) return;
       closed = true;
+      removeDecisionListeners();
+      if (queuedDecisions.length === 0) {
+        publishDecision({ kind: 'cancelled', error: null });
+      }
       disconnectConfirmSurfaceMeasurementReporter(element);
       closeHostConfirmerElement(element, confirmed, onClose);
     },
     update: (props: ConfirmUIUpdate) => applyHostElementProps(ctx, element, props),
+    takeDecision: async () => {
+      const queued = queuedDecisions.shift();
+      if (queued) return queued;
+      return await new Promise<ConfirmUISurfaceDecision>((resolve) => {
+        decisionWaiters.push(resolve);
+      });
+    },
   };
 }
 
@@ -795,26 +854,31 @@ export async function awaitConfirmUIDecision({
       resolve({ ...result, handle, diagnostics });
     };
 
-    const onConfirm = async (event: Event) => {
+    const onDecision = async (decision: ConfirmUISurfaceDecision) => {
       confirmEventMs = markDecisionWaitOffset(confirmEventMs);
-      const detail = (event as CustomEvent<ConfirmEventDetail> | undefined)?.detail;
-      let confirmed = detail?.confirmed !== false;
-      let error = typeof detail?.error === 'string' ? detail.error : undefined;
-
-      if (confirmed) {
-        const expectedIntentDigest = String(
-          (el as HostTxConfirmerElement).intentDigest || summary?.intentDigest || '',
-        ).trim();
-        const guardError = await checkIntentDigestGuard(expectedIntentDigest, txSigningRequests);
-        if (guardError) {
-          confirmed = false;
-          if (!error) error = guardError;
-        }
+      if (decision.kind === 'cancelled') {
+        const error = decision.error || undefined;
+        handle.update({
+          ...(error ? { errorMessage: error } : {}),
+          loading: false,
+        });
+        finalize({ confirmed: false, error });
+        return;
       }
 
-      if (!confirmed) {
+      let error: string | undefined;
+
+      const expectedIntentDigest = String(
+        (el as HostTxConfirmerElement).intentDigest || summary?.intentDigest || '',
+      ).trim();
+      const guardError = await checkIntentDigestGuard(expectedIntentDigest, txSigningRequests);
+      if (guardError) {
+        error = guardError;
+      }
+
+      if (error) {
         handle.update({
-          errorMessage: error || '',
+          errorMessage: error,
           loading: false,
         });
         finalize({ confirmed: false, error });
@@ -823,24 +887,13 @@ export async function awaitConfirmUIDecision({
 
       finalize({
         confirmed: true,
-        ...(typeof detail?.otpCode === 'string' ? { otpCode: detail.otpCode } : {}),
-        ...(typeof detail?.emailOtpChallengeId === 'string'
-          ? { emailOtpChallengeId: detail.emailOtpChallengeId }
+        ...(decision.emailOtp.kind === 'provided'
+          ? {
+              otpCode: decision.emailOtp.code,
+              emailOtpChallengeId: decision.emailOtp.challengeId,
+            }
           : {}),
       });
-    };
-
-    const onCancel = (event?: Event) => {
-      const detail = (event as CustomEvent<ConfirmEventDetail> | undefined)?.detail;
-      const error = typeof detail?.error === 'string' ? detail.error : undefined;
-
-      if (error) {
-        handle.update({ errorMessage: error, loading: false });
-      } else {
-        handle.update({ loading: false });
-      }
-
-      finalize({ confirmed: false, error });
     };
 
     const onInteractive = () => {
@@ -849,22 +902,27 @@ export async function awaitConfirmUIDecision({
 
     const cleanup = () => {
       el.removeEventListener(
-        WalletIframeDomEvents.TX_CONFIRMER_CONFIRM,
-        onConfirm as EventListener,
-      );
-      el.removeEventListener(WalletIframeDomEvents.TX_CONFIRMER_CANCEL, onCancel as EventListener);
-      el.removeEventListener(
         WalletIframeDomEvents.TX_CONFIRMER_INTERACTIVE,
         onInteractive as EventListener,
       );
     };
 
-    el.addEventListener(WalletIframeDomEvents.TX_CONFIRMER_CONFIRM, onConfirm as EventListener);
-    el.addEventListener(WalletIframeDomEvents.TX_CONFIRMER_CANCEL, onCancel as EventListener);
     el.addEventListener(
       WalletIframeDomEvents.TX_CONFIRMER_INTERACTIVE,
       onInteractive as EventListener,
     );
+    void (async () => {
+      let decision = await handle.takeDecision();
+      if (
+        signingAuthMode === 'emailOtp' &&
+        decision.kind === 'confirmed' &&
+        decision.emailOtp.kind === 'absent'
+      ) {
+        handle.update({ loading: false });
+        decision = await handle.takeDecision();
+      }
+      await onDecision(decision);
+    })();
   });
 }
 

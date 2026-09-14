@@ -84,6 +84,7 @@ export type NearEd25519MaterialBoundaryInput = {
 
 export type NearSigningApiDeps = {
   nearRpcUrl: string;
+  touchConfirm: UiConfirmSigningPort;
   resolveOwnerLaneScope: (walletId: WalletId) => Promise<OwnerLaneScope>;
   prepareNearEd25519YaoMaterialBoundary: (
     args: NearEd25519MaterialBoundaryInput,
