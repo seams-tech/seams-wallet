@@ -2883,10 +2883,10 @@ export async function handleRouterApiWalletAddAuthMethodEmailOtpChallenge(
     addAuthMethodIntentDigestB64u: digestB64u,
     requestOrigin: parseSessionOrigin(origin),
   });
-  /* Only the grant and the intent identity are gates here, so everything the
-     issuer refuses for — an expired grant, a rate limit — is a bad request
-     rather than a refusal to authorize. The issuer's own code is kept in the
-     body so a caller can still tell a lockout from a typo. */
+  /* Intent identity and exact-origin mismatches are authorization failures.
+     Other issuer refusals — an expired grant, a rate limit — are bad requests.
+     The issuer's own code stays in the body so callers can tell a lockout from
+     a typo. */
   if (!result.ok) {
     if (result.code === 'unauthorized') {
       return routeError(401, 'unauthorized', result.message);
