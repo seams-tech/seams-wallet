@@ -46,6 +46,7 @@ install_wasm_pack() {
     return
   fi
   curl --fail --location --silent --show-error \
+    --retry 5 --retry-all-errors --retry-delay 2 \
     "https://github.com/rustwasm/wasm-pack/releases/download/v${wasm_pack_version}/wasm-pack-v${wasm_pack_version}-x86_64-unknown-linux-musl.tar.gz" \
     --output "$archive"
   verify_sha256 "$wasm_pack_sha256" "$archive"
@@ -68,6 +69,7 @@ install_wasm_bindgen() {
   fi
 
   curl --fail --location --silent --show-error \
+    --retry 5 --retry-all-errors --retry-delay 2 \
     "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/${version}/${archive_name}.tar.gz" \
     --output "$archive"
   verify_sha256 "$expected_sha256" "$archive"
