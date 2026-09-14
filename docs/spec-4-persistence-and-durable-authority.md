@@ -6,11 +6,6 @@ Read [Spec 3](spec-3-wallet-sessions-and-execution-lanes.md) first. Continue wit
 [Spec 5](spec-5-router-ab-threshold-protocol.md) for private protocol roles and
 [Spec 6](spec-6-tenant-roots-recovery-and-portability.md) for tenant-root journals.
 
-## What this specification owns
-
-This specification defines where Wallet state lives, which record is authoritative,
-how mutations become durable, and how retries recover from ambiguous outcomes.
-
 In this specification, D1 means the Cloudflare SQL database bound to a Worker or
 Gateway service. Separate D1 bindings represent separate stores and authorities.
 

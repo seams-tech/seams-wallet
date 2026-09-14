@@ -6,11 +6,6 @@ Read [Spec 2](spec-2-auth-custody-and-credentials.md) first. Continue with
 [Spec 4](spec-4-persistence-and-durable-authority.md) for durable operation ownership
 and [Spec 5](spec-5-router-ab-threshold-protocol.md) for protocol dispatch.
 
-## What this specification owns
-
-This specification defines Wallet Sessions, execution lanes, signing authority,
-operation admission, step-up authorization, and client material readiness.
-
 Exact user-visible flows are owned by
 [Intended Behaviours](intended-behaviours.md).
 

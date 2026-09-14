@@ -10,12 +10,6 @@ Read [Spec 3](spec-3-wallet-sessions-and-execution-lanes.md) and
 [Spec 4](spec-4-persistence-and-durable-authority.md) first. Continue with
 [Spec 6](spec-6-tenant-roots-recovery-and-portability.md) for tenant-root operations.
 
-## What this specification owns
-
-This specification explains the stable Router A/B topology, the role of each
-participant, the difference between derivation-time and normal-signing flows, and the
-security boundaries shared by the supported protocols.
-
 When a summary here conflicts with the detailed protocol, resolve the conflict in both
 documents. The detailed protocol remains the authority for the final rule.
 

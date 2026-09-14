@@ -5,12 +5,6 @@ Status: normative operational-custody specification.
 Read [Spec 4](spec-4-persistence-and-durable-authority.md) and
 [Spec 5](spec-5-router-ab-threshold-protocol.md) first.
 
-## What this specification owns
-
-This specification defines the tenant derivation-root lifecycle, proactive share
-refresh, backup separation, browser-approved CLI access, source-independent restore,
-and direct deployment migration.
-
 ## Tenant roots and Wallet custody are separate
 
 A **tenant derivation root** is tenant-scoped cryptographic authority used to derive

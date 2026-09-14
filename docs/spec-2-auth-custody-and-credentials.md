@@ -7,12 +7,6 @@ Read [the architecture guide](README.md) and
 [Spec 3](spec-3-wallet-sessions-and-execution-lanes.md) for session and signing
 authority.
 
-## What this specification owns
-
-This specification defines Wallet authentication methods, custody envelopes,
-credential lifecycle, linked devices, recovery admission, and the proof boundaries
-used by custody operations.
-
 Exact user journeys are owned by [Intended Behaviours](intended-behaviours.md).
 
 ## Authentication and custody answer different questions

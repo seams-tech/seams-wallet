@@ -9,11 +9,6 @@ Read [the architecture guide](README.md),
 [Spec 4](spec-4-persistence-and-durable-authority.md) first. This specification is an
 optional extension to the core Wallet path.
 
-## What this specification owns
-
-This specification defines the proposed authority, funding, purchase-admission,
-payment-rail, and accounting model for agent-initiated spending.
-
 ## Initial proposed journey
 
 ```mermaid

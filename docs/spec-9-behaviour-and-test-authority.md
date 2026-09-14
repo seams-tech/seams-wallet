@@ -5,12 +5,6 @@ Status: normative contributor and verification-policy specification.
 Read the numbered specification that owns the code you are changing before using this
 policy. [The architecture guide](README.md) provides domain-specific reading paths.
 
-## What this specification owns
-
-This specification defines how documentation, behavioral contracts, protocol evidence,
-type fixtures, tests, and source guards establish correctness. It also defines how to
-classify a failing test before changing production code.
-
 ## Evidence hierarchy
 
 Interpret evidence in this order:

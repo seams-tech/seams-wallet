@@ -8,12 +8,6 @@ New integrators can read this specification immediately after
 [Spec 2](spec-2-auth-custody-and-credentials.md) for the authentication transitions
 performed inside Wallet-owned surfaces.
 
-## What this specification owns
-
-This specification defines the applications and documents visible to an integrator,
-the SDK contract used to open them, cross-origin messaging, provider adapters,
-self-hosting responsibilities, and deployment boundaries.
-
 ## Surface map
 
 Wallet exposes four independently owned surfaces.

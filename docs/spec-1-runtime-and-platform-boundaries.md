@@ -6,12 +6,6 @@ Read [the architecture guide](README.md) first. Continue with
 [Spec 2](spec-2-auth-custody-and-credentials.md) for custody and authentication or
 [Spec 7](spec-7-hosted-surfaces-and-provider-boundaries.md) for public integration.
 
-## What this specification owns
-
-This specification defines how Wallet code is divided among cryptographic cores,
-domain services, platform adapters, and applications. It also defines the boundary
-between the public `seams-wallet` repository and private Seams product composition.
-
 User-visible lifecycle behaviour is owned by
 [Intended Behaviours](intended-behaviours.md).
 
