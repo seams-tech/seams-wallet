@@ -287,9 +287,7 @@ export function ensureSeamsWeb(ctx: HostContext): SeamsWeb {
     assertWalletHostConfigsNoNestedIframeWallet(cfg);
     __setWalletIframeHostMode(true);
     ctx.seamsWeb = new SeamsWeb(cfg, ctx.nearClient, internalOptions);
-    try {
-      void ctx.seamsWeb.initWalletIframe().catch(() => {});
-    } catch {}
+    void ctx.seamsWeb.prewarm({ workers: true }).catch(() => {});
     updateThemeBridge(ctx);
   }
   return ctx.seamsWeb!;

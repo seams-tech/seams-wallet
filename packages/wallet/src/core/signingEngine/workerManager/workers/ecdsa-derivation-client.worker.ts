@@ -2556,9 +2556,16 @@ async function handleEcdsaDerivationClientMessage(
   };
 }
 
-setTimeout(() => {
+async function prewarmWasmAndSignalWorkerReady(): Promise<void> {
+  try {
+    await initializeEcdsaDerivationClientWasm();
+  } catch {
+    // The operation path reports initialization failures with request context.
+  }
   self.postMessage({ type: WorkerControlMessage.WORKER_READY, ready: true });
-}, 0);
+}
+
+void prewarmWasmAndSignalWorkerReady();
 
 function parseEcdsaDerivationClientWorkerRequest(
   value: unknown,

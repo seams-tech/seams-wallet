@@ -1,4 +1,8 @@
-import { getEmbeddedBase, setEmbeddedBase } from '@/core/walletRuntimePaths';
+import {
+  getEmbeddedBase,
+  setEmbeddedAssetVersion,
+  setEmbeddedBase,
+} from '@/core/walletRuntimePaths';
 import { isDevHost } from '../shared/is-dev-host';
 
 interface GlobalThis {
@@ -62,7 +66,10 @@ export function bootstrapTransparentHost(): void {
 
   // Establish a default embedded assets base as soon as this module loads.
   // This points to the directory containing the compiled SDK files (e.g., '/sdk/').
-  const here = new URL('.', import.meta.url).toString();
+  const moduleUrl = new URL(import.meta.url);
+  const assetVersion = moduleUrl.searchParams.get('v');
+  if (assetVersion) setEmbeddedAssetVersion(assetVersion);
+  const here = new URL('.', moduleUrl).toString();
   const norm = here.endsWith('/') ? here : here + '/';
   if (!getEmbeddedBase()) setEmbeddedBase(norm);
 

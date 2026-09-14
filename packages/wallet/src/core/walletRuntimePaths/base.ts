@@ -16,6 +16,7 @@
  */
 export const W3A_WALLET_SDK_BASE_KEY = '__W3A_WALLET_SDK_BASE__';
 export const W3A_WALLET_SDK_BASE_EVENT = 'W3A_WALLET_SDK_BASE_CHANGED';
+export const W3A_WALLET_ASSET_VERSION_KEY = '__W3A_WALLET_ASSET_VERSION__';
 
 /**
  * Typed CustomEvent emitted when the wallet SDK base changes.
@@ -25,6 +26,7 @@ export type WalletSdkBaseChangedEvent = CustomEvent<string>;
 
 export interface WalletSDKBase {
   [W3A_WALLET_SDK_BASE_KEY]?: string;
+  [W3A_WALLET_ASSET_VERSION_KEY]?: string;
 }
 
 /**
@@ -46,6 +48,19 @@ export function setEmbeddedBase(url: string): void {
   const w = window as unknown as WalletSDKBase;
   w[W3A_WALLET_SDK_BASE_KEY] = url;
   window.dispatchEvent(new CustomEvent(W3A_WALLET_SDK_BASE_EVENT as any, { detail: url }));
+}
+
+export function getEmbeddedAssetVersion(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const value = (window as unknown as WalletSDKBase)[W3A_WALLET_ASSET_VERSION_KEY];
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+export function setEmbeddedAssetVersion(version: string): void {
+  if (typeof window === 'undefined') return;
+  const normalized = version.trim();
+  if (!normalized) return;
+  (window as unknown as WalletSDKBase)[W3A_WALLET_ASSET_VERSION_KEY] = normalized;
 }
 
 /**

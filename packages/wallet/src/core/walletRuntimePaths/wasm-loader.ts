@@ -31,7 +31,7 @@
  *   loader, with a timeout and optional fallback module factory for graceful degradation.
  */
 
-import { getEmbeddedBase } from './base';
+import { getEmbeddedAssetVersion, getEmbeddedBase } from './base';
 
 export interface WasmLoaderOptions {
   workerName: string;
@@ -55,6 +55,11 @@ function getGlobalLocationHref(): string | undefined {
 
 function getGlobalLocationOrigin(): string | undefined {
   return getGlobalSelf()?.location?.origin;
+}
+
+function withAssetVersion(url: URL, version: string | undefined): URL {
+  if (version && !url.searchParams.has('v')) url.searchParams.set('v', version);
+  return url;
 }
 
 /**
@@ -96,7 +101,10 @@ export function resolveWasmUrl(
   try {
     const embeddedBase = getEmbeddedBase();
     if (embeddedBase) {
-      return new URL(`workers/${wasmFilename}`, embeddedBase);
+      return withAssetVersion(
+        new URL(`workers/${wasmFilename}`, embeddedBase),
+        getEmbeddedAssetVersion(),
+      );
     }
   } catch {}
   try {
@@ -115,10 +123,16 @@ export function resolveWasmUrl(
         const sdkSegmentIndex = meta.pathname.indexOf('/sdk/');
         if (sdkSegmentIndex >= 0) {
           const sdkBasePath = meta.pathname.slice(0, sdkSegmentIndex + '/sdk/'.length);
-          return new URL(`${sdkBasePath}workers/${wasmFilename}`, meta.origin);
+          return withAssetVersion(
+            new URL(`${sdkBasePath}workers/${wasmFilename}`, meta.origin),
+            meta.searchParams.get('v') || undefined,
+          );
         }
       }
-      return new URL(`./${wasmFilename}`, meta);
+      return withAssetVersion(
+        new URL(`./${wasmFilename}`, meta),
+        meta.searchParams.get('v') || undefined,
+      );
     }
     const baseUrl = getGlobalLocationHref() || '/';
     return new URL(`./${wasmFilename}`, baseUrl);
