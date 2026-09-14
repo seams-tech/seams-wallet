@@ -68,7 +68,7 @@ service = "router-ab-tenant-root-control-plane-staging"
 
 [env.staging.vars]
 ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING = "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET"
-ROUTER_JWT_ISSUER = "https://staging.api.seams.sh"
+ROUTER_JWT_ISSUER = "https://staging.api.wallet.seams.sh"
 ROUTER_JWT_AUDIENCE = "router-ab"
 ROUTER_JWT_JWKS_JSON = "{\"keys\":[{\"alg\":\"EdDSA\",\"crv\":\"Ed25519\",\"kid\":\"router-ab-ceremony-staging-r1\",\"kty\":\"OKP\",\"use\":\"sig\",\"x\":\"sU-wLEXR48lJIg0m6-ACHKbaQnhZM8uoLQp8OVYtZH4\"}]}"
 DERIVER_A_ENVELOPE_HPKE_KEY_EPOCH = "epoch-1"
