@@ -15,6 +15,7 @@ const PUBLIC_WORKERS = path.join(PUBLIC_SDK, 'workers');
 const WALLET_SERVICE_HTML = path.join(DIST_PUBLIC, 'wallet-service/index.html');
 const HEADERS_MANIFEST = path.join(DIST_PUBLIC, 'headers.manifest.json');
 const ASSETS_MANIFEST = path.join(DIST_PUBLIC, 'wallet-assets.manifest.json');
+const PAGES_HEADERS = path.join(DIST_PUBLIC, '_headers');
 const DIST_WALLET_MESSAGES = path.join(
   DIST_ROOT,
   'esm/SeamsWeb/walletIframe/shared/messages.js',
@@ -70,7 +71,7 @@ function compareBySourceFile(left, right) {
 }
 
 function isNotGeneratedAssetsManifest(sourceFile) {
-  return sourceFile !== 'wallet-assets.manifest.json';
+  return sourceFile !== 'wallet-assets.manifest.json' && sourceFile !== '_headers';
 }
 
 function routeForSourceFile(sourceFile) {
@@ -182,7 +183,32 @@ async function readWalletProtocolVersion() {
 async function writeHtmlDocuments() {
   const { buildWalletServiceHtml } = await readPluginUtils();
   await fs.mkdir(path.dirname(WALLET_SERVICE_HTML), { recursive: true });
-  await fs.writeFile(WALLET_SERVICE_HTML, buildWalletServiceHtml('/sdk', undefined, 'runtime'));
+  await fs.writeFile(
+    WALLET_SERVICE_HTML,
+    buildWalletServiceHtml('/sdk', PACKAGE_JSON.version, 'runtime'),
+  );
+}
+
+async function writePagesHeaders() {
+  const content = `/sdk/*
+  Cache-Control: ${ROUTE_CLASS_HEADERS.javascript.cachePolicy}
+  Access-Control-Allow-Origin: *
+
+/wallet-service
+  Cache-Control: ${ROUTE_CLASS_HEADERS.htmlDocument.cachePolicy}
+
+/wallet-service/*
+  Cache-Control: ${ROUTE_CLASS_HEADERS.htmlDocument.cachePolicy}
+
+/wallet-assets.manifest.json
+  Content-Type: ${ROUTE_CLASS_HEADERS.json.contentType}
+  Cache-Control: ${ROUTE_CLASS_HEADERS.json.cachePolicy}
+
+/headers.manifest.json
+  Content-Type: ${ROUTE_CLASS_HEADERS.json.contentType}
+  Cache-Control: ${ROUTE_CLASS_HEADERS.json.cachePolicy}
+`;
+  await fs.writeFile(PAGES_HEADERS, content);
 }
 
 async function collectFiles(directory) {
@@ -295,6 +321,7 @@ async function emitStaticWalletAssets() {
   await copyDirectory(DIST_ESM_SDK, PUBLIC_SDK);
   await copyDirectory(DIST_WORKERS, PUBLIC_WORKERS);
   await writeHtmlDocuments();
+  await writePagesHeaders();
   await fs.writeFile(HEADERS_MANIFEST, `${JSON.stringify(buildHeadersManifest(), null, 2)}\n`);
   const walletProtocolVersion = await readWalletProtocolVersion();
   const assets = await buildAssetEntries();

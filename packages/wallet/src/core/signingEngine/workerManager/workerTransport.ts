@@ -146,6 +146,8 @@ type AnyWorkerOperationArgs =
 const SIGNER_WORKER_KINDS: readonly SignerWorkerKind[] = [
   'nearSigner',
   'ecdsaDerivationClient',
+  'ecdsaPresignClient',
+  'ecdsaOnlineClient',
   'evmCrypto',
   'tempoSigner',
   'emailOtp',
@@ -164,7 +166,11 @@ function isReadyFrame(value: unknown): boolean {
   );
 }
 
-type WasmPrewarmWorkerKind = 'evmCrypto' | 'tempoSigner';
+type WasmPrewarmWorkerKind =
+  | 'nearSigner'
+  | 'ecdsaDerivationClient'
+  | 'evmCrypto'
+  | 'tempoSigner';
 
 type WorkerReadiness = {
   readonly promise: Promise<void>;
@@ -297,6 +303,8 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
       this.getOrCreateWorker(kind);
     }
     await Promise.all([
+      this.requireWorkerReadiness('nearSigner'),
+      this.requireWorkerReadiness('ecdsaDerivationClient'),
       this.requireWorkerReadiness('evmCrypto'),
       this.requireWorkerReadiness('tempoSigner'),
     ]);

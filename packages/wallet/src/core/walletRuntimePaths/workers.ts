@@ -1,3 +1,5 @@
+import { getEmbeddedAssetVersion, getEmbeddedBase } from './base';
+
 /**
  * Resolve the base origin for worker scripts.
  * Priority:
@@ -96,16 +98,31 @@ export function resolveWorkerUrl(
     }
     const candidate =
       typeof override === 'string' && override ? override : input || defaultWorkerPath(worker);
-    if (/^https?:\/\//i.test(candidate)) {
-      return new URL(candidate).toString();
-    }
-    return new URL(candidate, baseOrigin).toString();
+    const resolved = /^https?:\/\//i.test(candidate)
+      ? new URL(candidate)
+      : new URL(candidate, baseOrigin);
+    return versionEmbeddedWorkerUrl(resolved, override).toString();
   } catch {
     try {
       return new URL(input || defaultWorkerPath(worker), baseOrigin).toString();
     } catch {}
     return input || defaultWorkerPath(worker);
   }
+}
+
+function versionEmbeddedWorkerUrl(resolved: URL, override: unknown): URL {
+  if (typeof override === 'string' && override.length > 0) return resolved;
+  const version = getEmbeddedAssetVersion();
+  const embeddedBase = getEmbeddedBase();
+  if (!version || !embeddedBase || resolved.searchParams.has('v')) return resolved;
+  try {
+    const base = new URL(embeddedBase);
+    if (resolved.origin !== base.origin || !resolved.pathname.startsWith(base.pathname)) {
+      return resolved;
+    }
+    resolved.searchParams.set('v', version);
+  } catch {}
+  return resolved;
 }
 
 type DedicatedWorkerKind =

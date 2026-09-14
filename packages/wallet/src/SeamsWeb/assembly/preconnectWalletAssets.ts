@@ -1,7 +1,3 @@
-import {
-  normalizeWalletHostVariant,
-  walletHostScriptFileForVariant,
-} from '@/core/browser/walletIframe/hostVariant';
 import { setEmbeddedBase } from '@/core/walletRuntimePaths';
 import type { SeamsConfigsInput } from '@/core/types/seams';
 
@@ -9,7 +5,6 @@ export type PreconnectWalletAssetsArgs = {
   walletOrigin?: string;
   servicePath: string;
   sdkBasePath: string;
-  walletHostVariant: ReturnType<typeof normalizeWalletHostVariant>;
   relayerUrl?: string;
 };
 
@@ -63,23 +58,6 @@ export function preconnectWalletAssets(args: PreconnectWalletAssetsArgs): void {
           });
         } catch {}
       }
-
-      try {
-        const withSlash = args.sdkBasePath.endsWith('/')
-          ? args.sdkBasePath
-          : `${args.sdkBasePath}/`;
-        const base = new URL(withSlash, args.walletOrigin);
-        ensureLink(
-          'modulepreload',
-          new URL(walletHostScriptFileForVariant(args.walletHostVariant), base).toString(),
-          { crossorigin: '' },
-        );
-        ensureLink('prefetch', new URL('workers/wasm_signer_worker_bg.wasm', base).toString(), {
-          as: 'fetch',
-          crossorigin: '',
-          type: 'application/wasm',
-        });
-      } catch {}
     }
 
     if (args.relayerUrl) {
@@ -94,7 +72,6 @@ export function preconnectWalletAssetsFromConfig(config: SeamsConfigsInput): voi
     walletOrigin: config?.iframeWallet?.walletOrigin,
     servicePath: config?.iframeWallet?.walletServicePath || '/wallet-service',
     sdkBasePath: config?.iframeWallet?.sdkBasePath || '/sdk',
-    walletHostVariant: normalizeWalletHostVariant(config?.iframeWallet?.walletHostVariant),
     relayerUrl: config?.relayer?.url,
   });
 }

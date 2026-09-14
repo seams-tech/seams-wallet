@@ -161,11 +161,16 @@ async function initializeWasm(): Promise<void> {
   return wasmInitPromise;
 }
 
-// Signal readiness so the main thread can health-check persisted worker availability.
-// Delay one tick to allow listener registration on main thread
-setTimeout(() => {
+async function prewarmWasmAndSignalWorkerReady(): Promise<void> {
+  try {
+    await initializeWasm();
+  } catch {
+    // The operation path reports initialization failures with request context.
+  }
   self.postMessage({ type: WorkerControlMessage.WORKER_READY, ready: true });
-}, 0);
+}
+
+void prewarmWasmAndSignalWorkerReady();
 
 /**
  * Process a WASM worker message (main operation)

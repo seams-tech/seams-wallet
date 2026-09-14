@@ -1,16 +1,12 @@
 import React from 'react';
 import type { SeamsContextProviderProps } from '../types';
-import {
-  normalizeWalletHostVariant,
-} from '../../core/browser/walletIframe/hostVariant';
 import { preconnectWalletAssets } from '../../SeamsWeb/assembly/preconnectWalletAssets';
 
 // Internal: Add preconnect/prefetch hints for wallet service + relayer and
 // expose an absolute embedded asset base for srcdoc iframes.
 //
 // What this hook does
-// - Adds resource hints for the configured wallet origin (dns‑prefetch, preconnect, prefetch)
-//   and modulepreload for the wallet host script.
+// - Adds connection hints for the configured wallet origin and relayer.
 // - Sets `window.__W3A_WALLET_SDK_BASE__` to an absolute `${walletOrigin}${sdkBasePath}/` so
 //   any embedded srcdoc iframes created by the SDK load ESM bundles from the wallet origin,
 //   not from the host app origin.
@@ -32,7 +28,6 @@ export function usePreconnectWalletAssets(config: SeamsContextProviderProps['con
   const walletOrigin = config?.iframeWallet?.walletOrigin as string | undefined;
   const servicePath = config?.iframeWallet?.walletServicePath || '/wallet-service';
   const sdkBasePath = config?.iframeWallet?.sdkBasePath || '/sdk';
-  const walletHostVariant = normalizeWalletHostVariant(config?.iframeWallet?.walletHostVariant);
   const relayerUrl = config?.relayer?.url as string | undefined;
 
   React.useEffect(() => {
@@ -40,10 +35,9 @@ export function usePreconnectWalletAssets(config: SeamsContextProviderProps['con
       walletOrigin,
       servicePath,
       sdkBasePath,
-      walletHostVariant,
       relayerUrl,
     });
-  }, [walletOrigin, servicePath, sdkBasePath, walletHostVariant, relayerUrl]);
+  }, [walletOrigin, servicePath, sdkBasePath, relayerUrl]);
 }
 
 export default usePreconnectWalletAssets;

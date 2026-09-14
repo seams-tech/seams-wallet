@@ -10,6 +10,7 @@ const PUBLIC_ROOT = path.join(SDK_ROOT, 'dist/public');
 const PUBLIC_SDK = path.join(PUBLIC_ROOT, 'sdk');
 const ASSETS_MANIFEST_PATH = path.join(PUBLIC_ROOT, 'wallet-assets.manifest.json');
 const HEADERS_MANIFEST_PATH = path.join(PUBLIC_ROOT, 'headers.manifest.json');
+const PAGES_HEADERS_PATH = path.join(PUBLIC_ROOT, '_headers');
 const WALLET_STATIC_ASSETS_ROOT = path.join(SDK_ROOT, 'src/static/wallet-assets');
 
 const REQUIRED_BASE_ROUTES = [
@@ -484,12 +485,38 @@ function assertManifestShape(assetsManifest, headersManifest) {
   assertVersionSkewContract(assetsManifest.versionSkewContract);
 }
 
+async function assertPagesDeploymentControls(assetsManifest) {
+  const pagesHeaders = await fs.readFile(PAGES_HEADERS_PATH, 'utf-8');
+  assert(
+    pagesHeaders.includes(
+      '/sdk/*\n  Cache-Control: public, max-age=300, must-revalidate\n  Access-Control-Allow-Origin: *',
+    ),
+    'Cloudflare Pages _headers must apply the SDK cache and CORS policy',
+  );
+  assert(
+    pagesHeaders.includes('/wallet-service\n  Cache-Control: no-store'),
+    'Cloudflare Pages _headers must disable wallet-service document caching',
+  );
+
+  const walletServiceHtml = await fs.readFile(
+    path.join(PUBLIC_ROOT, 'wallet-service/index.html'),
+    'utf-8',
+  );
+  const encodedVersion = encodeURIComponent(assetsManifest.packageVersion);
+  assert(
+    walletServiceHtml.includes(`/sdk/wallet-iframe-host-runtime.js?v=${encodedVersion}`),
+    'wallet-service must load the package-versioned host runtime',
+  );
+}
+
 async function assertStaticWalletAssets() {
   await assertFileExists(ASSETS_MANIFEST_PATH, 'wallet-assets.manifest.json');
   await assertFileExists(HEADERS_MANIFEST_PATH, 'headers.manifest.json');
+  await assertFileExists(PAGES_HEADERS_PATH, 'Cloudflare Pages _headers');
   const assetsManifest = await readJson(ASSETS_MANIFEST_PATH);
   const headersManifest = await readJson(HEADERS_MANIFEST_PATH);
   assertManifestShape(assetsManifest, headersManifest);
+  await assertPagesDeploymentControls(assetsManifest);
   assertHeaderManifest(headersManifest);
   assertForbiddenDefaultHeaders(headersManifest);
   assertForbiddenDefaultHeaderCoverage(headersManifest);
