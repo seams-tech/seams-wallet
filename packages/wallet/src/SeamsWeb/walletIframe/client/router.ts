@@ -4088,29 +4088,36 @@ export class WalletIframeRouter {
 
   async cancelRequest(requestId: string): Promise<void> {
     this.transactionSurfaceQueue.cancel(requestId);
-    await this.post<void>({ type: 'PM_CANCEL', payload: { requestId } }).catch(() => {});
-    this.progressBus.unregister(requestId);
+    const cancellation = this.post<void>({
+      type: 'PM_CANCEL',
+      payload: { requestId },
+    }).catch(() => {});
     const authMenuSessionId = this.hostedAuthMenuSessionIdForRequestId(requestId);
+    if (!authMenuSessionId) {
+      this.finishRequestSurface(requestId as WalletIframeRequestId, true);
+    }
+    await cancellation;
+    this.progressBus.unregister(requestId);
     if (authMenuSessionId) {
       this.settleHostedAuthMenuCancellation(authMenuSessionId, 'component_unmounted');
-      return;
     }
-    this.finishRequestSurface(requestId as WalletIframeRequestId, true);
   }
 
   async cancelAll(): Promise<void> {
     this.transactionSurfaceQueue.cancelAll(new Error('Wallet requests cancelled'));
-    await this.post<void>({ type: 'PM_CANCEL', payload: {} }).catch(() => {});
+    const cancellation = this.post<void>({ type: 'PM_CANCEL', payload: {} }).catch(() => {});
+    if (this.walletIframeSurface.kind !== 'hidden') {
+      this.transitionWalletIframeSurface({
+        kind: 'request_cancelled',
+        connectionId: this.walletIframeSurface.connectionId,
+        identity: this.walletIframeSurface.identity,
+      });
+    }
+    await cancellation;
     this.progressBus.clearAll();
     for (const authMenuSessionId of Array.from(this.hostedAuthMenuRequestIds.keys())) {
       this.settleHostedAuthMenuCancellation(authMenuSessionId, 'component_unmounted');
     }
-    if (this.walletIframeSurface.kind === 'hidden') return;
-    this.transitionWalletIframeSurface({
-      kind: 'request_cancelled',
-      connectionId: this.walletIframeSurface.connectionId,
-      identity: this.walletIframeSurface.identity,
-    });
   }
 
   private onPortMessage(e: MessageEvent<unknown>, connectionId: WalletIframeConnectionId): void {

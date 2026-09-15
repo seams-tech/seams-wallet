@@ -66,6 +66,20 @@ const TOUCH_CONFIRM_PROGRESS_PHASE = {
   PASSKEY_PROMPT_SUCCEEDED: 'auth.passkey.prompt.succeeded',
 } as const;
 
+function sendConfirmationCancelledProgress(
+  worker: UserConfirmResponsePort,
+  requestId: string,
+  message: string | undefined,
+): void {
+  sendConfirmProgress(worker, {
+    requestId,
+    step: 2,
+    phase: TOUCH_CONFIRM_PROGRESS_PHASE.CONFIRMATION_COMPLETE,
+    status: 'failed',
+    message: message || ERROR_MESSAGES.cancelled,
+  });
+}
+
 function getTransactionSigningAuthMode(request: SigningUserConfirmRequest) {
   if (request.type === UserConfirmationType.SIGN_TRANSACTION) {
     return getSigningAuthMode(request) ?? 'webauthn';
@@ -519,6 +533,7 @@ export async function handleTransactionSigningFlow(
     }
     const { confirmed, error: uiError, otpCode, emailOtpChallengeId } = promptDecisionOrExpiry;
     if (!confirmed) {
+      sendConfirmationCancelledProgress(worker, request.requestId, uiError);
       cancelNearOperationStepUpPreparation({
         ctx,
         requestId: request.requestId,
@@ -856,13 +871,7 @@ export async function handleIntentDigestSigningFlow(
     decisionResolved = true;
     if (!confirmed) {
       if (requiresExplicitConfirmClick) {
-        sendConfirmProgress(worker, {
-          requestId: request.requestId,
-          step: 2,
-          phase: TOUCH_CONFIRM_PROGRESS_PHASE.CONFIRMATION_COMPLETE,
-          status: 'failed',
-          message: uiError || ERROR_MESSAGES.cancelled,
-        });
+        sendConfirmationCancelledProgress(worker, request.requestId, uiError);
       }
       return session.confirmAndCloseModal({
         requestId: request.requestId,

@@ -186,4 +186,62 @@ test.describe('WalletIframeRouter cancellation progress', () => {
       interaction: { kind: 'none', overlay: 'hide' },
     });
   });
+
+  test('hides the overlay before the wallet service acknowledges cancellation', async ({
+    page,
+  }) => {
+    await page.unroute(WALLET_SERVICE_ROUTE);
+    await registerWalletServiceRoute(
+      page,
+      buildWalletServiceHtml({ cancelResponseDelayMs: 1_000 }),
+      WALLET_SERVICE_ROUTE,
+    );
+
+    const result = await page.evaluate(
+      async ({ routerPath, walletOrigin, captureOverlaySource, waitForSource }) => {
+        const mod = await import(routerPath);
+        const { WalletIframeRouter } =
+          mod as typeof import('@/SeamsWeb/walletIframe/client/router');
+        const capture = eval(captureOverlaySource) as typeof import('./harness').captureOverlay;
+        const waitFor = eval(waitForSource) as typeof import('./harness').waitFor;
+        const router = new WalletIframeRouter({
+          walletOrigin,
+          servicePath: '/wallet-service',
+          connectTimeoutMs: 3_000,
+          requestTimeoutMs: 5_000,
+          debug: true,
+          sdkBasePath: '/sdk',
+        });
+        await router.init();
+
+        const request = router
+          .executeAction({
+            walletId: 'alice.testnet',
+            nearAccountId: 'alice.testnet',
+            receiverId: 'seams-v1.testnet',
+            actionArgs: { type: 'Transfer', amount: '1' } as any,
+          })
+          .catch(() => undefined);
+        await waitFor(() => router.getOverlayState().visible, 3_000);
+
+        const cancelStartedAt = performance.now();
+        const cancellation = router.cancelAll();
+        const hiddenBeforeAcknowledgement = !router.getOverlayState().visible && !capture().visible;
+        const visualDismissalMs = performance.now() - cancelStartedAt;
+
+        await cancellation;
+        await request;
+        return { hiddenBeforeAcknowledgement, visualDismissalMs };
+      },
+      {
+        routerPath: SDK_ESM_PATHS.walletIframeRouter,
+        walletOrigin: WALLET_ORIGIN,
+        captureOverlaySource: CAPTURE_OVERLAY_SOURCE,
+        waitForSource: WAIT_FOR_SOURCE,
+      },
+    );
+
+    expect(result.hiddenBeforeAcknowledgement).toBe(true);
+    expect(result.visualDismissalMs).toBeLessThan(100);
+  });
 });

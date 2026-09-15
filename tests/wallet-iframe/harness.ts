@@ -12,6 +12,7 @@ export interface WalletServiceHtmlOptions {
   protocolVersion?: string;
   expectedConnectProtocolVersion?: string | null;
   exactSessionState?: Record<string, unknown>;
+  cancelResponseDelayMs?: number;
   extraScript?: string;
 }
 
@@ -43,6 +44,7 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
     protocolVersion = WALLET_PROTOCOL_VERSION,
     expectedConnectProtocolVersion = WALLET_PROTOCOL_VERSION,
     exactSessionState = { kind: 'wallet_locked' },
+    cancelResponseDelayMs = 0,
     extraScript = '',
   } = options;
   const config = JSON.stringify({
@@ -51,6 +53,7 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
     protocolVersion,
     expectedConnectProtocolVersion,
     exactSessionState,
+    cancelResponseDelayMs,
   });
 
   const script = `
@@ -141,25 +144,32 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
           if (type === 'PM_CANCEL') {
             const targetId = (message.payload && typeof message.payload === 'object') ? message.payload.requestId : undefined;
             const targets = targetId ? [targetId] : Array.from(pendingRequests.keys());
-            for (const id of targets) {
-              if (!pendingRequests.has(id)) continue;
-              pendingRequests.delete(id);
-              try {
-                adoptedPort.postMessage({
-                  type: 'ERROR',
-                  requestId: id,
-                  payload: { code: 'cancelled', message: 'Cancelled by test harness' }
-                });
-              } catch (err) {
-                console.error('Failed to post ERROR for cancelled request', err);
+            const respondToCancellation = () => {
+              for (const id of targets) {
+                if (!pendingRequests.has(id)) continue;
+                pendingRequests.delete(id);
+                try {
+                  adoptedPort.postMessage({
+                    type: 'ERROR',
+                    requestId: id,
+                    payload: { code: 'cancelled', message: 'Cancelled by test harness' }
+                  });
+                } catch (err) {
+                  console.error('Failed to post ERROR for cancelled request', err);
+                }
               }
-            }
-            if (requestId) {
-              try {
-                adoptedPort.postMessage({ type: 'PM_RESULT', requestId, payload: { ok: true, result: undefined } });
-              } catch (err) {
-                console.error('Failed to acknowledge PM_CANCEL', err);
+              if (requestId) {
+                try {
+                  adoptedPort.postMessage({ type: 'PM_RESULT', requestId, payload: { ok: true, result: undefined } });
+                } catch (err) {
+                  console.error('Failed to acknowledge PM_CANCEL', err);
+                }
               }
+            };
+            if (CONFIG.cancelResponseDelayMs > 0) {
+              setTimeout(respondToCancellation, CONFIG.cancelResponseDelayMs);
+            } else {
+              respondToCancellation();
             }
             return;
           }
