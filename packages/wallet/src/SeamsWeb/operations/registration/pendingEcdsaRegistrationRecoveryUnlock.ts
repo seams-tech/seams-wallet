@@ -1,3 +1,4 @@
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { joinCustodyJsonFromEstablishedCommitPayload } from '@/core/signingEngine/walletCustody/registrationCeremony';
 import { buildFreshEmailOtpRoutePlan } from '@/core/signingEngine/session/emailOtp/routePlan';
 import { unlockEmailOtpWallet } from '@/core/signingEngine/session/emailOtp/walletUnlock';
@@ -261,18 +262,22 @@ async function unlockWithPasskey(args: {
     throw new Error('ECDSA registration unlock returned a different Passkey credential');
   }
   const prfFirstB64u = requirePasskeyPrfFirstB64u(credential, 'ECDSA registration recovery');
-  const verified = await verifyPasskeyWalletUnlock(args.relayerUrl, {
-    type: 'passkey_assertion',
-    challengeId: challenge.challengeId,
-    walletId: String(args.pending.walletId),
-    webauthn_authentication: credential,
-    ed25519SessionRequest: { kind: 'not_requested' },
-    expected_origin: expectedOrigin,
-    ecdsaSessionPolicy: buildEcdsaUnlockPolicy({
-      keyHandle: primaryKey.keyHandle,
-      runtimePolicyScope: requireEcdsaProjection(args.response).ecdsa.runtimePolicyScope,
-    }),
-  });
+  const verified = await verifyPasskeyWalletUnlock(
+    args.relayerUrl,
+    {
+      type: 'passkey_assertion',
+      challengeId: challenge.challengeId,
+      walletId: String(args.pending.walletId),
+      webauthn_authentication: credential,
+      ed25519SessionRequest: { kind: 'not_requested' },
+      expected_origin: expectedOrigin,
+      ecdsaSessionPolicy: buildEcdsaUnlockPolicy({
+        keyHandle: primaryKey.keyHandle,
+        runtimePolicyScope: requireEcdsaProjection(args.response).ecdsa.runtimePolicyScope,
+      }),
+    },
+    new WalletSessionStatusReadScope(),
+  );
   if (!verified.success)
     throw new Error(verified.error || 'Passkey ECDSA registration unlock failed');
   if (

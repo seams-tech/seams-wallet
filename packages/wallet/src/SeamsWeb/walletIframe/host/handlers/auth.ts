@@ -28,26 +28,31 @@ import { createHostedAuthMenuHandlers } from './authMenu';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
-import { createRelayerExactWalletSessionStatusPort } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 
 async function readWalletIframeExactSessionStatus(
   relayUrl: string,
+  reads: WalletSessionStatusReadScope,
   input: Parameters<WalletIframeExactSessionReadDependencies['readStatus']>[0],
 ): Promise<WalletIframeExactSessionStatus> {
   const normalizedRelayUrl = String(relayUrl || '').trim();
   if (!normalizedRelayUrl) throw new Error('Wallet iframe relayer URL is required');
-  return await createRelayerExactWalletSessionStatusPort({
-    relayerUrl: normalizedRelayUrl,
-    operationCredential: input.operationCredential,
-  }).read({
-    walletSessionId: input.operationCredential.walletSessionId,
-    quotaId: input.authorization.quotaId,
-  });
+  return await reads.read(
+    {
+      relayerUrl: normalizedRelayUrl,
+      operationCredential: input.operationCredential,
+    },
+    {
+      walletSessionId: input.operationCredential.walletSessionId,
+      quotaId: input.authorization.quotaId,
+    },
+  );
 }
 
 function exactSessionReadDependenciesForRelay(
   relayUrl: string,
 ): WalletIframeExactSessionReadDependencies & WalletIframeExactSessionReconciliationDependencies {
+  const reads = new WalletSessionStatusReadScope();
   return {
     resolveSelectedWalletAuthority:
       IndexedDBManager.resolveSelectedWalletAuthority.bind(IndexedDBManager),
@@ -58,7 +63,7 @@ function exactSessionReadDependenciesForRelay(
     readExactActiveForWallet: walletSessionAuthorizations.readExactActiveForWallet.bind(
       walletSessionAuthorizations,
     ),
-    readStatus: readWalletIframeExactSessionStatus.bind(null, relayUrl),
+    readStatus: readWalletIframeExactSessionStatus.bind(null, relayUrl, reads),
     writeExactWithOperationCredential:
       walletSessionAuthorizations.writeExactWithOperationCredential.bind(
         walletSessionAuthorizations,

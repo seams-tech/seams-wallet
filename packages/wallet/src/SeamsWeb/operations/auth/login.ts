@@ -1,3 +1,4 @@
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type {
   AfterCall,
   CreateUnlockFlowEventInput,
@@ -102,7 +103,10 @@ import {
   walletSessionAuthorizations,
   WalletSessionAuthorizationUpgradeRequiredError,
 } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
-import { resolveBrowserActiveEcdsaCapabilityRuntime } from '@/SeamsWeb/assembly/browserSigningSurfaceAssembly';
+import {
+  resolveBrowserActiveEcdsaCapabilityRuntime,
+  listBrowserCanonicalEcdsaSigningCapabilitiesForWallet,
+} from '@/SeamsWeb/assembly/browserSigningSurfaceAssembly';
 import { getNearAccountProjection } from '@/core/accountData/near/accountProjection';
 import { getNearThresholdKeyMaterial } from '@/core/accountData/near/keyMaterial';
 import type {
@@ -2067,6 +2071,7 @@ function resolveThresholdLoginWarmupPhaseInput(
 
 async function assertPasskeyUnlockRuntimePostconditions(args: {
   context: LoginWebContext;
+  statusReads: WalletSessionStatusReadScope;
   walletIdentity: ResolvedLoginWalletIdentity;
   signersWarmed: readonly ('ed25519' | 'ecdsa')[];
   credential: WebAuthnAuthenticationCredential;
@@ -2112,7 +2117,7 @@ async function assertPasskeyUnlockRuntimePostconditions(args: {
     ownerScope,
     requiredTargets,
     readOwnerScopedSigningLanes: async (input) =>
-      await args.context.signingEngine.readOwnerScopedSigningLanes(input),
+      await args.context.signingEngine.readOwnerScopedSigningLanes(input, args.statusReads),
   });
 }
 
@@ -4365,6 +4370,7 @@ async function unlockInternal(
         return assertNeverLoginState(noServerSessionPasskeyCredentialPlan);
     }
 
+    const statusReads = new WalletSessionStatusReadScope();
     // One verified wallet-unlock assertion mints every passkey warm session requested below.
     if (requireThresholdWarmup && localUnlockAuthMethod === SIGNER_AUTH_METHODS.passkey) {
       const preparedActivation = await preparePasskeyExchangeEcdsaActivation({
@@ -4379,25 +4385,28 @@ async function unlockInternal(
       if (!relayUrl || !rpId) {
         throw new Error('[login] passkey wallet unlock requires relayer URL and rpId');
       }
-      const completedUnlock = await completePasskeyWalletUnlock({
-        context,
-        walletIdentity,
-        unlockSubjectId,
-        onEvent,
-        authenticators,
-        signerSlot: baseSignerSlot,
-        remainingUses: requireLoginUnlockSessionUses(signingSessionPolicy.unlockRemainingUses),
-        relayUrl,
-        rpId,
-        expectedOrigin: undefined,
-        activation: preparedActivation,
-        collectCredentialForChallenge: async (challenge) =>
-          await collectLocalPasskeyCredentialForChallenge({
-            challengeB64u: challenge.challengeB64u,
-            saveAsLoginCredential: true,
-            credentialIds: challenge.credentialIds,
-          }),
-      });
+      const completedUnlock = await completePasskeyWalletUnlock(
+        {
+          context,
+          walletIdentity,
+          unlockSubjectId,
+          onEvent,
+          authenticators,
+          signerSlot: baseSignerSlot,
+          remainingUses: requireLoginUnlockSessionUses(signingSessionPolicy.unlockRemainingUses),
+          relayUrl,
+          rpId,
+          expectedOrigin: undefined,
+          activation: preparedActivation,
+          collectCredentialForChallenge: async (challenge) =>
+            await collectLocalPasskeyCredentialForChallenge({
+              challengeB64u: challenge.challengeB64u,
+              saveAsLoginCredential: true,
+              credentialIds: challenge.credentialIds,
+            }),
+        },
+        statusReads,
+      );
       loginCredential = completedUnlock.credential;
       completedPasskeyExchangeEcdsaActivation = completedUnlock.activation;
       completedPasskeyEd25519Session = completedUnlock.result.ed25519Session;
@@ -4458,6 +4467,7 @@ async function unlockInternal(
         }
         await assertPasskeyUnlockRuntimePostconditions({
           context,
+          statusReads,
           walletIdentity,
           signersWarmed: warmupPhase.signersWarmed,
           credential: authenticatedCredential,
@@ -5012,6 +5022,7 @@ export function bindPasskeyEcdsaSessionPolicyToUnlockChallenge(
 
 async function completePasskeyWalletUnlock(
   args: CompletePasskeyWalletUnlockArgs,
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<CompletedPasskeyWalletUnlock> {
   emitUnlockEvent(args.onEvent, args.unlockSubjectId, {
     phase: UnlockEventPhase.STEP_03_PASSKEY_CHALLENGE_STARTED,
@@ -5076,7 +5087,7 @@ async function completePasskeyWalletUnlock(
     walletIdentity: args.walletIdentity,
     activation,
   });
-  const result = await verifyPasskeyWalletUnlock(args.relayUrl, unlockInput);
+  const result = await verifyPasskeyWalletUnlock(args.relayUrl, unlockInput, statusReads);
   if (!result.success) {
     throw new Error(result.error || 'Passkey wallet unlock failed');
   }
@@ -6931,39 +6942,6 @@ async function resolveProfileContinuityThresholdEcdsaEthereumAddress(
   return null;
 }
 
-async function resolveThresholdEcdsaEthereumAddress(
-  context: WalletSessionWebContext,
-  walletId: WalletId,
-): Promise<string | null> {
-  const profileAddress = await resolveProfileContinuityThresholdEcdsaEthereumAddress(
-    context,
-    walletId,
-  );
-  if (profileAddress) return profileAddress;
-  const snapshot = await readAvailableSigningLanesForUi(context, walletId).catch(() => null);
-  if (!snapshot) return null;
-  const addresses = [
-    ...new Set(
-      ecdsaAvailableLaneTargets(snapshot)
-        .map((target) => ecdsaAvailableLaneForTarget(snapshot, target))
-        .filter(
-          (lane): lane is ConcreteAvailableEcdsaSigningLane =>
-            lane.curve === 'ecdsa' && isConcreteAvailableSigningLane(lane),
-        )
-        .map((lane) => normalizeEvmOwnerAddress(lane.key.thresholdOwnerAddress))
-        .filter(Boolean),
-    ),
-  ];
-  if (addresses.length === 1) return addresses[0]!;
-  if (addresses.length > 1) {
-    console.warn('[WalletSession] conflicting threshold ECDSA sealed lane addresses', {
-      walletId: String(walletId),
-      addresses,
-    });
-  }
-  return null;
-}
-
 function resolveThresholdLoginWarmSigners(args: {
   selection: WalletUnlockSelection;
   configuredEcdsaTargets: readonly ConfiguredThresholdEcdsaPublicationTarget[];
@@ -7603,33 +7581,33 @@ async function resolveCanonicalThresholdEcdsaWarmSessionContext(
     exactStoredKeys,
     runtimePolicyScope,
   );
-  const snapshot = await readAvailableSigningLanesForUi(context, walletId, authMethod);
+  const capabilities = await listBrowserCanonicalEcdsaSigningCapabilitiesForWallet({
+    walletId,
+    chainTargets: configuredTargets.map((target) => target.chainTarget),
+    ...(authMethod ? { authMethod } : {}),
+  });
   const availableLaneKeys: ConfiguredTargetThresholdEcdsaWarmKey[] = [];
   let availableLaneRuntimePolicyScope: ThresholdRuntimePolicyScope | undefined;
-  if (snapshot) {
-    for (const target of ecdsaAvailableLaneTargets(snapshot)) {
-      const lane = ecdsaAvailableLaneForTarget(snapshot, target);
-      if (!isConcreteAvailableSigningLane(lane)) continue;
-      if (lane.source !== 'canonical_capability') continue;
-      const keyHandle = String(lane.publicFacts.keyHandle || '').trim();
-      if (!keyHandle) continue;
-      const publicFacts = lane.capability.manifest.durableMaterial.roleLocalPublicFacts;
-      if (String(publicFacts.keyHandle) !== keyHandle) {
-        throw new Error(
-          `[login] threshold ECDSA canonical lane identity mismatch for ${thresholdEcdsaChainTargetKey(target)}`,
-        );
-      }
+  for (const capability of capabilities) {
+    const manifest = capability.manifest;
+    for (const { chainTarget: target } of configuredTargets) {
+      const includesTarget = manifest.signer.scope.targetMemberships.some((membership) =>
+        thresholdEcdsaChainTargetKey(membership) === thresholdEcdsaChainTargetKey(target),
+      );
+      if (!includesTarget) continue;
+      const publicFacts = manifest.durableMaterial.roleLocalPublicFacts;
+      const keyHandle = String(publicFacts.keyHandle);
       const publicCapability = publicFacts.publicCapability;
-      const existingRoleLocalMaterial = lane.capability.material;
-      const laneRuntimePolicyScope = lane.capability.manifest.durableMaterial.runtimePolicyScope;
+      const existingRoleLocalMaterial = capability.material;
+      const laneRuntimePolicyScope = manifest.durableMaterial.runtimePolicyScope;
       const signingRootBinding = resolveThresholdSigningRootBindingFromRuntimePolicyScope({
         runtimePolicyScope: laneRuntimePolicyScope,
       });
       if (
         String(signingRootBinding.signingRootId) !==
-          String(lane.capability.manifest.signer.signingRootId) ||
+          String(manifest.signer.signingRootId) ||
         String(signingRootBinding.signingRootVersion) !==
-          String(lane.capability.manifest.signer.signingRootVersion)
+          String(manifest.signer.signingRootVersion)
       ) {
         throw new Error(
           `[login] threshold ECDSA canonical runtime policy scope mismatch for ${thresholdEcdsaChainTargetKey(target)}`,
@@ -7651,7 +7629,14 @@ async function resolveCanonicalThresholdEcdsaWarmSessionContext(
         configuredTargetThresholdEcdsaWarmKey({
           chainTarget: target,
           keyHandle,
-          key: lane.key,
+          key: buildBaseEvmFamilyEcdsaKeyIdentity({
+            walletId: manifest.signer.walletId,
+            ecdsaThresholdKeyId: manifest.durableMaterial.roleLocalBinding.ecdsaThresholdKeyId,
+            signingRootId: manifest.signer.signingRootId,
+            signingRootVersion: manifest.signer.signingRootVersion,
+            participantIds: manifest.signer.registeredPublicFacts.participantIds,
+            thresholdOwnerAddress: manifest.signer.registeredPublicFacts.thresholdOwnerAddress,
+          }),
           publicCapability,
           existingRoleLocalMaterial,
         }),
@@ -7720,30 +7705,6 @@ async function resolveProfileContinuityThresholdEcdsaPublicKeyB64u(
   return null;
 }
 
-async function resolveAvailableThresholdEcdsaPublicKeyB64u(
-  context: WalletSessionWebContext,
-  walletId: WalletId,
-): Promise<string | null> {
-  const snapshot = await readAvailableSigningLanesForUi(context, walletId).catch(() => null);
-  if (!snapshot || String(snapshot.walletId) !== String(walletId)) return null;
-  const publicKeys = new Set<string>();
-  for (const target of ecdsaAvailableLaneTargets(snapshot)) {
-    const lane = ecdsaAvailableLaneForTarget(snapshot, target);
-    if (lane.curve !== 'ecdsa' || !isConcreteAvailableSigningLane(lane)) continue;
-    const publicKey = String(lane.publicFacts.publicKeyB64u || '').trim();
-    if (publicKey) publicKeys.add(publicKey);
-  }
-  const uniquePublicKeys = [...publicKeys];
-  if (uniquePublicKeys.length === 1) return uniquePublicKeys[0]!;
-  if (uniquePublicKeys.length > 1) {
-    console.warn('[WalletSession] conflicting threshold ECDSA sealed lane public keys', {
-      walletId: String(walletId),
-      publicKeyCount: uniquePublicKeys.length,
-    });
-  }
-  return null;
-}
-
 async function resolveThresholdEcdsaLoginMetadata(
   context: WalletSessionWebContext,
   walletId: WalletId,
@@ -7751,27 +7712,31 @@ async function resolveThresholdEcdsaLoginMetadata(
   ethereumAddress: string | null;
   thresholdEcdsaPublicKeyB64u: string | null;
 }> {
-  const [ethereumAddress, profilePublicKey] = await Promise.all([
-    resolveThresholdEcdsaEthereumAddress(context, walletId),
+  const [profileAddress, profilePublicKey] = await Promise.all([
+    resolveProfileContinuityThresholdEcdsaEthereumAddress(context, walletId),
     resolveProfileContinuityThresholdEcdsaPublicKeyB64u(context, walletId),
   ]);
-  const thresholdEcdsaPublicKeyB64u =
-    profilePublicKey || (await resolveAvailableThresholdEcdsaPublicKeyB64u(context, walletId));
-  return {
-    ethereumAddress,
-    thresholdEcdsaPublicKeyB64u,
-  };
-}
-
-async function readAvailableSigningLanesForUi(
-  context: WalletSessionWebContext,
-  walletId: WalletId,
-  authMethod?: WalletAuthMethod,
-): Promise<AvailableSigningLanes | null> {
-  return await context.signingEngine.readPersistedAvailableSigningLanes({
+  if (profileAddress && profilePublicKey) {
+    return { ethereumAddress: profileAddress, thresholdEcdsaPublicKeyB64u: profilePublicKey };
+  }
+  const capabilities = await listBrowserCanonicalEcdsaSigningCapabilitiesForWallet({
     walletId,
-    ...(authMethod ? { authMethod } : {}),
+    chainTargets: listConfiguredThresholdEcdsaPublicationTargets(
+      context.configs.network.chains,
+    ).map((target) => target.chainTarget),
   });
+  const addresses = new Set<string>();
+  const publicKeys = new Set<string>();
+  for (const capability of capabilities) {
+    const facts = capability.manifest.signer.registeredPublicFacts;
+    addresses.add(normalizeEvmOwnerAddress(facts.thresholdOwnerAddress));
+    publicKeys.add(facts.publicKeyB64u);
+  }
+  return {
+    ethereumAddress: profileAddress ?? (addresses.size === 1 ? [...addresses][0]! : null),
+    thresholdEcdsaPublicKeyB64u:
+      profilePublicKey ?? (publicKeys.size === 1 ? [...publicKeys][0]! : null),
+  };
 }
 
 type ExactWalletSessionAvailableLanesRead = Awaited<

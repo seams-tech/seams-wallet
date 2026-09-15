@@ -1,3 +1,4 @@
+import type { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { NonceCoordinator } from '@/core/signingEngine/nonce/NonceCoordinator';
 import type { EmailOtpAuthorityUnlockEd25519Request } from '@/core/signingEngine/session/emailOtp/walletUnlock';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
@@ -603,10 +604,13 @@ export interface SigningSessionSurface {
   readPersistedAvailableSigningLanes(
     args: Omit<ReadAvailableSigningLanesInput, 'ecdsaChainTargets'>,
   ): Promise<AvailableSigningLanes>;
-  readOwnerScopedSigningLanes(args: {
-    readonly walletId: WalletId | string;
-    readonly ownerScope: OwnerLaneScope;
-  }): Promise<AvailableSigningLanes>;
+  readOwnerScopedSigningLanes(
+    args: {
+      readonly walletId: WalletId | string;
+      readonly ownerScope: OwnerLaneScope;
+    },
+    statusReads: WalletSessionStatusReadScope,
+  ): Promise<AvailableSigningLanes>;
 }
 
 export interface WalletAuthenticationSurface {

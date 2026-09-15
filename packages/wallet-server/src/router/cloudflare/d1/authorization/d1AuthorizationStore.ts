@@ -1,6 +1,7 @@
 import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
+  mpcMaterialActivationRefsEqual,
   type MpcMaterialActivationRef,
   type WalletAuthorityId,
   type WalletAuthMethodId,
@@ -1894,33 +1895,23 @@ export class CloudflareD1AuthorizationStore
   private async exactWalletSessionCapabilitySubjectsResolveMaterial(
     session: WalletSessionAuthorizationV2,
   ): Promise<boolean> {
+    const materials: {
+      readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
+      readonly materialActivation: MpcMaterialActivationRef;
+    }[] = [];
     for (const subject of session.capabilitySubjects) {
       switch (subject.kind) {
         case 'sign':
         case 'export_keys': {
-          const materialActivation = routerAbMpcMaterialActivationRefToWire(
-            subject.materialActivation,
+          const alreadyRead = materials.some((material) =>
+            material.keyFamily === subject.keyFamily &&
+            mpcMaterialActivationRefsEqual(material.materialActivation, subject.materialActivation),
           );
-          const signer =
-            subject.keyFamily === 'ed25519'
-              ? await this.walletStore.getEd25519SignerByMaterialActivation({
-                  walletId: session.walletId,
-                  materialActivation,
-                })
-              : await this.walletStore.getEcdsaSignerByMaterialActivation({
-                  walletId: session.walletId,
-                  materialActivation,
-                });
-          if (!signer) {
-            /* Linked-device lane material never joins the wallet signer rows;
-               it lives on the installed linked-authority projection. A subject
-               that resolves neither is genuinely unavailable. */
-            const linked = await this.readLinkedAuthorityMaterial(session.walletId, subject);
-            if (!linked) return false;
-            break;
-          }
-          if (signer.walletId !== session.walletId) {
-            throw new Error('Stored wallet signer material identity does not match the session');
+          if (!alreadyRead) {
+            materials.push({
+              keyFamily: subject.keyFamily,
+              materialActivation: subject.materialActivation,
+            });
           }
           break;
         }
@@ -1930,6 +1921,30 @@ export class CloudflareD1AuthorizationStore
         default:
           return false;
       }
+    }
+    const resolved = await Promise.all(
+      materials.map(this.exactWalletSessionMaterialResolves.bind(this, session.walletId)),
+    );
+    return resolved.every(Boolean);
+  }
+
+  private async exactWalletSessionMaterialResolves(
+    walletId: WalletId,
+    subject: {
+      readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
+      readonly materialActivation: MpcMaterialActivationRef;
+    },
+  ): Promise<boolean> {
+    const materialActivation = routerAbMpcMaterialActivationRefToWire(subject.materialActivation);
+    const signer = subject.keyFamily === 'ed25519'
+      ? await this.walletStore.getEd25519SignerByMaterialActivation({ walletId, materialActivation })
+      : await this.walletStore.getEcdsaSignerByMaterialActivation({ walletId, materialActivation });
+    if (!signer) {
+      // Linked-device material lives on its installed authority projection.
+      return (await this.readLinkedAuthorityMaterial(walletId, subject)) !== null;
+    }
+    if (signer.walletId !== walletId) {
+      throw new Error('Stored wallet signer material identity does not match the session');
     }
     return true;
   }

@@ -8,7 +8,7 @@ import {
 import { IndexedDbEcdsaCapabilityManifestStore } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import {
-  createRelayerExactWalletSessionStatusPort,
+  WalletSessionStatusReadScope,
   type ExactWalletSessionStatus,
 } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { readPersistedAvailableSigningLanesForSigning as readPersistedAvailableSigningLanesForSigningOperation } from '@/core/signingEngine/session/availability/persistedAvailableSigningLanes';
@@ -426,8 +426,9 @@ function nearEd25519ReadResultFromRemoteStatus(
  * authorizes an operation without the status read.
  */
 export async function readBrowserExactNearEd25519WalletSessionAuthorization(
-  walletIdInput: ReturnType<typeof toWalletId>,
   relayerUrlInput: string,
+  statusReads: WalletSessionStatusReadScope,
+  walletIdInput: ReturnType<typeof toWalletId>,
 ): Promise<NearEd25519WalletSessionAuthorizationReadResult> {
   const walletId = toWalletId(walletIdInput);
   let selectedResult: BrowserSelectedWalletAuthorityResolution;
@@ -469,13 +470,16 @@ export async function readBrowserExactNearEd25519WalletSessionAuthorization(
 
   let status: ExactWalletSessionStatus;
   try {
-    status = await createRelayerExactWalletSessionStatusPort({
-      relayerUrl,
-      operationCredential: exactRead.operationCredential,
-    }).read({
-      walletSessionId: exactRead.operationCredential.walletSessionId,
-      quotaId: exactRead.record.quotaId,
-    });
+    status = await statusReads.read(
+      {
+        relayerUrl,
+        operationCredential: exactRead.operationCredential,
+      },
+      {
+        walletSessionId: exactRead.operationCredential.walletSessionId,
+        quotaId: exactRead.record.quotaId,
+      },
+    );
   } catch {
     return { kind: 'unavailable' };
   }
@@ -535,7 +539,11 @@ export async function resolveBrowserActiveNearEd25519WalletSessionAuthorization(
   walletId: ReturnType<typeof toWalletId>,
   relayerUrl: string,
 ): Promise<ExactNearEd25519WalletSessionAuthorization | null> {
-  const read = await readBrowserExactNearEd25519WalletSessionAuthorization(walletId, relayerUrl);
+  const read = await readBrowserExactNearEd25519WalletSessionAuthorization(
+    relayerUrl,
+    new WalletSessionStatusReadScope(),
+    walletId,
+  );
   return read.kind === 'found' ? read.authorization : null;
 }
 
@@ -679,6 +687,7 @@ export type BrowserWalletSessionAuthorizationResolution =
 export async function resolveBrowserActiveEcdsaWalletSessionAuthorization(
   args: BrowserEcdsaCapabilityReaderContext,
   input: BrowserEcdsaWalletSessionAuthorizationInput,
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<BrowserWalletSessionAuthorizationResolution> {
   const walletId = toWalletId(input.walletId);
   const nowMs = Date.now();
@@ -702,13 +711,16 @@ export async function resolveBrowserActiveEcdsaWalletSessionAuthorization(
   if (exactAuthorization.record.expiresAtMs <= nowMs) {
     return { kind: 'inactive', reason: 'Exact Wallet Session authorization is expired' };
   }
-  const status = await createRelayerExactWalletSessionStatusPort({
-    relayerUrl,
-    operationCredential: exactAuthorization.operationCredential,
-  }).read({
-    walletSessionId: exactAuthorization.operationCredential.walletSessionId,
-    quotaId: exactAuthorization.record.quotaId,
-  });
+  const status = await statusReads.read(
+    {
+      relayerUrl,
+      operationCredential: exactAuthorization.operationCredential,
+    },
+    {
+      walletSessionId: exactAuthorization.operationCredential.walletSessionId,
+      quotaId: exactAuthorization.record.quotaId,
+    },
+  );
   if (status.status !== 'active') {
     return { kind: 'inactive', reason: `Exact Wallet Session is ${status.status}` };
   }
@@ -767,7 +779,11 @@ export function createBrowserActiveEcdsaWalletSessionAuthorizationResolver(
   input: BrowserEcdsaWalletSessionAuthorizationInput,
 ) => Promise<ExactEvmFamilyWalletSessionAuthorization | null> {
   return async (input) => {
-    const resolution = await resolveBrowserActiveEcdsaWalletSessionAuthorization(args, input);
+    const resolution = await resolveBrowserActiveEcdsaWalletSessionAuthorization(
+      args,
+      input,
+      new WalletSessionStatusReadScope(),
+    );
     return resolution.kind === 'active' ? resolution.authorization : null;
   };
 }
@@ -954,7 +970,11 @@ async function getBrowserEcdsaSigningCapability(
     Parameters<typeof createSigningEnginePorts>[0]['resolveAuthorizedEcdsaSigningCapability']
   >[0],
 ): Promise<AuthorizedEvmFamilyEcdsaSigningCapability> {
-  const resolution = await resolveBrowserActiveEcdsaWalletSessionAuthorization(args, input);
+  const resolution = await resolveBrowserActiveEcdsaWalletSessionAuthorization(
+    args,
+    input,
+    new WalletSessionStatusReadScope(),
+  );
   if (resolution.kind !== 'active') {
     throw new Error(resolution.reason);
   }
@@ -993,11 +1013,68 @@ export async function listBrowserEcdsaSigningCapabilitiesForWallet(
     chainTargets: readonly ThresholdEcdsaChainTarget[];
     authMethod?: SignerAuthMethod;
   },
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<readonly EvmFamilyEcdsaSigningCapabilityAvailability[]> {
-  const walletId = toWalletId(input.walletId);
-  const subjects = await ecdsaCapabilityManifestStore.listActiveWalletCapabilitySubjects(walletId);
+  const capabilities = await listBrowserCanonicalEcdsaSigningCapabilitiesForWallet({
+    walletId: toWalletId(input.walletId),
+    chainTargets: input.chainTargets,
+    ...(input.authMethod ? { authMethod: input.authMethod } : {}),
+  });
+  return await Promise.all(
+    capabilities.map(
+      resolveBrowserEcdsaCapabilityAvailability.bind(null, args, input.chainTargets, statusReads),
+    ),
+  );
+}
+
+async function resolveBrowserEcdsaCapabilityAvailability(
+  args: BrowserEcdsaCapabilityReaderContext,
+  chainTargets: readonly ThresholdEcdsaChainTarget[],
+  statusReads: WalletSessionStatusReadScope,
+  capability: CanonicalEvmFamilyEcdsaSigningCapability,
+): Promise<EvmFamilyEcdsaSigningCapabilityAvailability> {
+  const manifest = capability.manifest;
+  const matchingTarget = chainTargets.find((target) =>
+    manifest.signer.scope.targetMemberships.some(
+      (membership) =>
+        thresholdEcdsaChainTargetKey(target) === thresholdEcdsaChainTargetKey(membership),
+    ),
+  );
+  if (!matchingTarget) return { kind: 'authorization_required', capability };
+  const resolution = await resolveBrowserActiveEcdsaWalletSessionAuthorization(
+    args,
+    {
+      walletId: manifest.signer.walletId,
+      chainTarget: matchingTarget,
+      materialActivation: manifest.activation.materialActivation,
+    },
+    statusReads,
+  );
+  if (resolution.kind === 'active') {
+    try {
+      return authorizeEvmFamilyEcdsaSigningCapability({
+        capability,
+        authorization: resolution.authorization,
+        nowMs: Date.now(),
+      });
+    } catch {
+      // The selected session may belong to a sibling capability.
+    }
+  }
+  return { kind: 'authorization_required', capability };
+}
+
+/** Durable key facts are independent of a Wallet Session's current budget. */
+export async function listBrowserCanonicalEcdsaSigningCapabilitiesForWallet(input: {
+  walletId: ReturnType<typeof toWalletId>;
+  chainTargets: readonly ThresholdEcdsaChainTarget[];
+  authMethod?: SignerAuthMethod;
+}): Promise<readonly CanonicalEvmFamilyEcdsaSigningCapability[]> {
+  const subjects = await ecdsaCapabilityManifestStore.listActiveWalletCapabilitySubjects(
+    input.walletId,
+  );
   if (subjects.kind !== 'resolved') return [];
-  const capabilities: EvmFamilyEcdsaSigningCapabilityAvailability[] = [];
+  const capabilities: CanonicalEvmFamilyEcdsaSigningCapability[] = [];
   for (const subject of subjects.subjects) {
     const lookup = await ecdsaCapabilityManifestStore.lookup(subject);
     if (lookup.kind !== 'active') continue;
@@ -1012,13 +1089,6 @@ export async function listBrowserEcdsaSigningCapabilitiesForWallet(
     ) {
       continue;
     }
-    const matchingTarget = input.chainTargets.find((target) =>
-      manifest.signer.scope.targetMemberships.some(
-        (membership) =>
-          thresholdEcdsaChainTargetKey(target) === thresholdEcdsaChainTargetKey(membership),
-      ),
-    );
-    if (!matchingTarget) continue;
     // This loop is already walking one subject at a time, so use that subject's
     // own manifest. Going back through the activation would collapse every
     // sibling projection onto whichever method is currently selected, and an
@@ -1042,30 +1112,7 @@ export async function listBrowserEcdsaSigningCapabilitiesForWallet(
     if (!capabilityAuthMethod || (input.authMethod && capabilityAuthMethod !== input.authMethod)) {
       continue;
     }
-    const authorizationResolution = await resolveBrowserActiveEcdsaWalletSessionAuthorization(
-      args,
-      {
-        walletId,
-        chainTarget: matchingTarget,
-        materialActivation: manifest.activation.materialActivation,
-      },
-    );
-    if (authorizationResolution.kind === 'active') {
-      try {
-        capabilities.push(
-          authorizeEvmFamilyEcdsaSigningCapability({
-            capability,
-            authorization: authorizationResolution.authorization,
-            nowMs: Date.now(),
-          }),
-        );
-        continue;
-      } catch {
-        // The exact session may authorize a sibling capability for the same
-        // authority while this manifest names different material.
-      }
-    }
-    capabilities.push({ kind: 'authorization_required', capability });
+    capabilities.push(capability);
   }
   return capabilities;
 }
@@ -1270,13 +1317,15 @@ export function createBrowserSigningSurfaceEnginePorts(
                 );
             }
           },
-          readActiveWalletSessionAuthorization: (walletId) =>
-            readBrowserExactNearEd25519WalletSessionAuthorization(
-              toWalletId(walletId),
-              String(args.seamsWebConfigs.network.relayer?.url || '').trim(),
+          readActiveWalletSessionAuthorization:
+            readBrowserExactNearEd25519WalletSessionAuthorization.bind(
+              null,
+              args.seamsWebConfigs.network.relayer.url,
             ),
-          listEcdsaSigningCapabilitiesForWallet: (input) =>
-            listBrowserEcdsaSigningCapabilitiesForWallet(args, input),
+          listEcdsaSigningCapabilitiesForWallet: listBrowserEcdsaSigningCapabilitiesForWallet.bind(
+            null,
+            args,
+          ),
         },
         readArgs,
         configuredThresholdEcdsaChainTargets(args.seamsWebConfigs.network.chains),

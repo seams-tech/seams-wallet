@@ -58,6 +58,7 @@ import {
   confirmationConfigForSigningAuthPlan,
   runSigningConfirmationCommand,
 } from '../shared/signingConfirmation';
+import { emitNearSigningConfirmationProgress } from './shared/confirmationProgress';
 import {
   requireNearStepUpAuth,
   signingAuthPlanForNearMaterialRequirement,
@@ -472,6 +473,11 @@ export async function runNearDelegateActionSigning({
         confirmationConfigOverride: confirmationConfigForSigningAuthPlan({
           signingAuthPlan: confirmationAuthPayload.signingAuthPlan,
           override: confirmationConfigOverride,
+        }),
+        onProgress: emitNearSigningConfirmationProgress.bind(undefined, {
+          onEvent,
+          nearAccountId,
+          signingAuthPlan: confirmationAuthPayload.signingAuthPlan,
         }),
         title,
         body,

@@ -92,10 +92,37 @@ export type RelayerExactWalletSessionStatusPortOptions = {
 };
 
 const defaultStatusFetch: typeof fetch = (input, init) => globalThis.fetch(input, init);
-const statusReadsByFetch = new WeakMap<
-  typeof fetch,
-  Map<string, Promise<ExactWalletSessionStatus>>
->();
+
+/** One operation owns this snapshot; subsequent operations create a new scope. */
+export class WalletSessionStatusReadScope {
+  private readonly readsByFetch = new Map<
+    typeof fetch,
+    Map<string, Promise<ExactWalletSessionStatus>>
+  >();
+
+  read(
+    options: RelayerExactWalletSessionStatusPortOptions,
+    identity: ExactWalletSessionStatusIdentity,
+  ): Promise<ExactWalletSessionStatus> {
+    const fetchImpl = options.fetchImpl ?? defaultStatusFetch;
+    let reads = this.readsByFetch.get(fetchImpl);
+    if (!reads) {
+      reads = new Map();
+      this.readsByFetch.set(fetchImpl, reads);
+    }
+    const key = JSON.stringify([
+      normalizeRelayerBaseUrl(options.relayerUrl),
+      options.operationCredential.token,
+      identity.walletSessionId,
+      identity.quotaId,
+    ]);
+    const existing = reads.get(key);
+    if (existing) return existing;
+    const pending = createRelayerExactWalletSessionStatusPort(options).read(identity);
+    reads.set(key, pending);
+    return pending;
+  }
+}
 
 const OBSERVED_FIELDS = [
   'ok',
@@ -312,32 +339,6 @@ export class RelayerExactWalletSessionStatusPort implements ExactWalletSessionSt
   }
 
   async read(input: ExactWalletSessionStatusIdentity): Promise<ExactWalletSessionStatus> {
-    let reads = statusReadsByFetch.get(this.fetchImpl);
-    if (!reads) {
-      reads = new Map();
-      statusReadsByFetch.set(this.fetchImpl, reads);
-    }
-    const readKey = [
-      this.relayerUrl,
-      this.operationCredential.token,
-      input.walletSessionId,
-      input.quotaId,
-    ].join('\u0000');
-    const existing = reads.get(readKey);
-    if (existing) return await existing;
-
-    const pending = this.readRemote(input);
-    reads.set(readKey, pending);
-    try {
-      return await pending;
-    } finally {
-      if (reads.get(readKey) === pending) reads.delete(readKey);
-    }
-  }
-
-  private async readRemote(
-    input: ExactWalletSessionStatusIdentity,
-  ): Promise<ExactWalletSessionStatus> {
     const response = await this.fetchImpl(`${this.relayerUrl}${EXACT_WALLET_SESSION_STATUS_PATH}`, {
       ...buildRelayerJsonPostRequestInit({
         body: {

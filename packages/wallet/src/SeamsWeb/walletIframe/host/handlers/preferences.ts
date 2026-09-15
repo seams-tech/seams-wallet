@@ -1,4 +1,5 @@
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+import { IndexedDBManager } from '@/core/indexedDB';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
 import { respondOk, respondOkResult } from './shared';
 
@@ -21,19 +22,8 @@ export function createPreferencesWalletIframeHandlers(deps: HandlerDeps): Handle
       let patch: Record<string, unknown> = { ...incoming };
       if (walletId) {
         pm.preferences.setCurrentWallet(toWalletId(walletId));
-        await pm.auth
-          .getWalletSession(walletId)
-          .then((session) => {
-            const existing =
-              session.appIdentity.kind === 'resolved'
-                ? ((session.appIdentity.userData?.preferences?.confirmationConfig || {}) as Record<
-                    string,
-                    unknown
-                  >)
-                : {};
-            patch = { ...existing, ...incoming };
-          })
-          .catch(() => undefined);
+        const preferences = await IndexedDBManager.getWalletPreferences(walletId).catch(() => null);
+        patch = { ...preferences?.confirmationConfig, ...incoming };
       }
       const base = pm.preferences.getConfirmationConfig();
       pm.preferences.setConfirmationConfig({ ...base, ...patch });

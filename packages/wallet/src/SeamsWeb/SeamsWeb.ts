@@ -1,3 +1,4 @@
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { BrowserSigningSurface } from '@/SeamsWeb/signingSurface/BrowserSigningSurface';
 import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import type { ExactWalletSessionAuthorization } from '@/core/signingEngine/session/persistence/walletSessionAuthorizationProjection';
@@ -2752,7 +2753,10 @@ export class SeamsWeb {
           })),
         ],
         readOwnerScopedSigningLanes: async (input) =>
-          await this.signingEngine.readOwnerScopedSigningLanes(input),
+          await this.signingEngine.readOwnerScopedSigningLanes(
+            input,
+            new WalletSessionStatusReadScope(),
+          ),
       });
       logEmailOtpUnlockActivationPlan(
         buildEmailOtpEcdsaUnlockActivationPlan({

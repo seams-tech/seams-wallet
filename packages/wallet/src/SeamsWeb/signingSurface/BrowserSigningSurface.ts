@@ -273,7 +273,10 @@ import { sha256HexUtf8 } from '@shared/utils/digests';
 import { signingRootScopeFromRuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import { materialActivationKey } from '@/core/signingEngine/session/sealedRecovery/materialActivationKey';
 import { WalletSessionAuthorizationUpgradeRequiredError } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
-import { createRelayerExactWalletSessionStatusPort } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
+import {
+  createRelayerExactWalletSessionStatusPort,
+  WalletSessionStatusReadScope,
+} from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import {
   buildThresholdEd25519WebAuthnPrfSecretSource,
   type Ed25519OperationStepUpProof,
@@ -2523,8 +2526,9 @@ export class BrowserSigningSurface {
     walletId: WalletId,
   ): ReturnType<typeof readBrowserExactNearEd25519WalletSessionAuthorization> {
     return readBrowserExactNearEd25519WalletSessionAuthorization(
-      walletId,
       String(this.seamsWebConfigs.network.relayer?.url || '').trim(),
+      new WalletSessionStatusReadScope(),
+      walletId,
     );
   }
 
@@ -2647,8 +2651,11 @@ export class BrowserSigningSurface {
       ed25519YaoPublicCapabilityLanes: deps.ed25519YaoPublicCapabilityReferences,
       isEd25519YaoPublicCapabilityActive: this.isEd25519YaoPublicCapabilityActive.bind(this),
       readActiveWalletSessionAuthorization:
-        this.readExactNearEd25519WalletSessionAuthorization.bind(this),
-      listEcdsaSigningCapabilitiesForWallet: (input) =>
+        readBrowserExactNearEd25519WalletSessionAuthorization.bind(
+          null,
+          this.seamsWebConfigs.network.relayer.url,
+        ),
+      listEcdsaSigningCapabilitiesForWallet: (input, statusReads) =>
         listBrowserEcdsaSigningCapabilitiesForWallet(
           {
             seamsWebConfigs: this.seamsWebConfigs,
@@ -2658,6 +2665,7 @@ export class BrowserSigningSurface {
             sealedSigningSessionStore: deps.sealedSigningSessionStore,
           },
           input,
+          statusReads,
         ),
       getWalletSessionStatus: createBrowserCanonicalWalletSessionStatusReader({
         seamsWebConfigs: this.seamsWebConfigs,
@@ -2711,8 +2719,11 @@ export class BrowserSigningSurface {
       ed25519YaoPublicCapabilityLanes: deps.ed25519YaoPublicCapabilityReferences,
       isEd25519YaoPublicCapabilityActive: this.isEd25519YaoPublicCapabilityActive.bind(this),
       readActiveWalletSessionAuthorization:
-        this.readExactNearEd25519WalletSessionAuthorization.bind(this),
-      listEcdsaSigningCapabilitiesForWallet: (input) =>
+        readBrowserExactNearEd25519WalletSessionAuthorization.bind(
+          null,
+          this.seamsWebConfigs.network.relayer.url,
+        ),
+      listEcdsaSigningCapabilitiesForWallet: (input, statusReads) =>
         listBrowserEcdsaSigningCapabilitiesForWallet(
           {
             seamsWebConfigs: this.seamsWebConfigs,
@@ -2722,6 +2733,7 @@ export class BrowserSigningSurface {
             sealedSigningSessionStore: deps.sealedSigningSessionStore,
           },
           input,
+          statusReads,
         ),
       resolveOwnerLaneScope: (walletId) => this.resolveSelectedOwnerLaneScope(walletId),
     });
@@ -3233,11 +3245,18 @@ export class BrowserSigningSurface {
     return await sessionPublic.readPersistedAvailableSigningLanes(this.sessionPublicDeps, args);
   }
 
-  async readOwnerScopedSigningLanes(args: {
-    readonly walletId: WalletId | string;
-    readonly ownerScope: OwnerLaneScope;
-  }): Promise<AvailableSigningLanes> {
-    return await sessionPublic.readOwnerScopedSigningLanes(this.sessionPublicDeps, args);
+  async readOwnerScopedSigningLanes(
+    args: {
+      readonly walletId: WalletId | string;
+      readonly ownerScope: OwnerLaneScope;
+    },
+    statusReads: WalletSessionStatusReadScope,
+  ): Promise<AvailableSigningLanes> {
+    return await sessionPublic.readOwnerScopedSigningLanes(
+      this.sessionPublicDeps,
+      args,
+      statusReads,
+    );
   }
 
   /**

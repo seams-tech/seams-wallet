@@ -277,6 +277,7 @@ export type NearNep413Payload = {
   commandSubject: NearCommandSubject;
   nearAccount: NearAccountRef;
   signingSessionCoordinator: SigningSessionCoordinator;
+  onEvent?: (update: SigningFlowEvent) => void;
   forceFreshAuth: boolean;
   selection: NearAdHocEd25519Selection;
   passkeyEd25519OperationStepUp: NearPasskeyEd25519OperationStepUpHook | null;
