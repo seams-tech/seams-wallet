@@ -9,9 +9,10 @@ Status: implementation plan; consumes the
 ## Goal
 
 Let an agent runtime propose payments under owner-authorized spending grants.
-Deliver Airwallex card payments first, Wise transfers second, and traditional bank
-transfers third. Reuse the same services for Console and embedded apps. Start with
-direct backend API calls and one registered agent integration; add each provider's
+Deliver Wise payment proposals for Japanese businesses first, Airwallex cards
+for eligible programs second, and traditional bank transfers third. Reuse the
+same services for Console and embedded apps. Start with direct backend API calls
+and one registered agent integration; add each provider's
 account bindings and operations when its phase is implemented.
 
 ```text
@@ -91,12 +92,20 @@ R130D resolves each provider-supported authorization method. Provider consent
 establishes account access; an owner's Seams grant establishes agent authority.
 Required owner/provider authentication becomes an explicit action-required result.
 
+For Wise, distinguish automation of the account owner's own business from a
+customer-facing Wise Platform integration. Standard business API tokens have
+limited permissions and cannot fund transfers for Japanese accounts. Select and
+verify the supported access model before enrolling customers. Expose proposal,
+execution, and card capabilities from confirmed account permissions; account or
+card ownership cannot imply API execution scope.
+
 ## Delivery and proof
 
 - [ ] Enroll one backend agent with owner/account-bound credentials and grants.
-- [ ] Phase 1: call the shared tools for Airwallex card proposals and sandbox
-      execution from one reference agent integration.
-- [ ] Phase 2: add Wise proposal support; phase 3: add traditional bank proposals.
+- [ ] Phase 1: call the shared tools for Wise proposals from one reference agent
+      integration bound to an eligible Japanese business account. Show missing
+      funding permissions and provider action requirements accurately.
+- [ ] Phase 2: add Airwallex cards for eligible programs; phase 3: add bank proposals.
       Reuse the same Console services and test harness in each phase.
 - [ ] Prove proposal-only access cannot execute, approve, administer grants, or
       invoke arbitrary provider mutations.
@@ -105,9 +114,10 @@ Required owner/provider authentication becomes an explicit action-required resul
 - [ ] Exercise ready and approval-required proposals, quote expiry, unknown
       execution, and duplicate requests through the shared R130 journey.
 
-Complete the card milestone first, then extend proposal support to Wise and the
-selected bank integration in order. Each phase must preserve exact account
-authority and inspectable outcomes. Verify execution scope through the corresponding
-sandbox adapter. Add MCP, agent-facing OAuth, or CLI when a concrete
+Complete the Wise proposal milestone first, then add the eligible Airwallex card
+path and selected bank integration in order. Each phase must preserve exact
+account authority and inspectable outcomes. Verify execution scope through the
+corresponding sandbox adapter; sandbox access cannot imply Japanese production
+permissions. Add MCP, agent-facing OAuth, or CLI when a concrete
 integration requires them; all reuse these services. Provider OAuth, when required
 to connect an account, belongs to its provider integration.

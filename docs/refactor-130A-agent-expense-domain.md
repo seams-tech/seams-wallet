@@ -12,15 +12,17 @@ An owner connects a funding account, grants an agent bounded authority, and
 reviews proposed payments. Seams enforces the grant and records the outcome.
 Implement in this order:
 
-1. **Airwallex card payments:** complete the wallet-funded sandbox checkout,
-   approval, execution, and reconciliation journey first.
-2. **Wise transfers:** extend the same services to connected Wise accounts and
-   Japan-relevant transfer proposals.
-3. **Traditional bank transfers:** add one selected banking integration after Wise.
+1. **Wise business payments:** connect an eligible Japanese business account and
+   deliver transfer proposals, exact approvals, and durable status first. Verify
+   transfer execution and Wise card API access separately.
+2. **Airwallex card payments:** add the wallet-funded sandbox checkout, execution,
+   and reconciliation journey for eligible account/issuing programs.
+3. **Traditional bank transfers:** add one selected banking integration.
 
-Each phase has its own completion evidence. Later transfer integrations are not
-prerequisites for the first card milestone. Japan is a target market; R130D records
-product-specific account and issuing eligibility that must be confirmed.
+Support for Japanese companies is a launch requirement. The first milestone uses
+Wise account funds and requires no wallet deposit or Airwallex issuing access.
+Each phase has its own completion evidence. R130D records Japan account eligibility,
+the standard Wise API's funding limits, and access required for automated execution.
 
 ```text
 Owner connects an account and grants spending authority
@@ -34,7 +36,7 @@ Owner connects an account and grants spending authority
 
 [R130B](refactor-130B-agent-connections.md) owns authenticated agent access,
 [R130C](refactor-130C-agent-expense-console.md) owns the Console and embedded
-experience, and [R130D](refactor-130D-airwallex-card-rail.md) owns provider
+experience, and [R130D](refactor-130D-wise-and-payment-rails.md) owns provider
 integrations. [Spec 8](spec-8-agent-authority-spending-and-payment-rails.md) owns
 the proposed shared architecture.
 
@@ -63,11 +65,13 @@ against both per-payment and grant limits. Use integer minor units and explicit
 currency precision. Cross-currency proposals preserve source and recipient amounts,
 fees, exchange rate, quote identity, and expiry.
 
-Separate operation from provider. Start with merchant checkout and its cart,
-delivery, and quote details in the Airwallex card branch. Add Wise bank transfers
-in phase 2 and the selected banking provider in phase 3. Add account and operation
-types when their phase is implemented. Use branch-specific builders for supported
-combinations; independent enums must not admit invalid combinations.
+Separate operation from provider. Start with Wise bank transfer terms and a
+Japanese business source profile. Add merchant checkout and its cart/delivery
+details for Airwallex in phase 2 and the selected banking provider in phase 3.
+Wise business card availability does not establish access to card APIs; add that
+operation only after R130D verifies the program and controls. Add types when their
+operation is implemented. Use branch-specific builders for supported combinations;
+independent enums must not admit invalid combinations.
 
 Parse requests and provider data once. Core functions consume precise types with
 required identity and lifecycle fields. Use discriminated states for preparation,
@@ -99,7 +103,27 @@ has separate semantics.
 
 ## Funding accounts
 
-### Wallet-funded card capacity
+### Connected Wise and bank accounts
+
+Wise is the first funding account. The authorized human establishes the Japanese
+business profile and provider access. A Seams account connection cannot substitute
+for Wise's business verification or enable unsupported API operations.
+
+Resolve each connection to an owner-authorized account and supported currency and
+capabilities. Connecting an account creates no funding credit. Keep provider
+balances, Seams reservations, and agent budgets distinct. Platform billing credits
+cannot fund a customer's payment.
+
+Use one canonical local funding account per provider account/currency so multiple
+agents and connections share its reservation boundary. Refresh provider availability
+before admission and reconcile provider holds with unresolved local claims without
+counting either twice. Local reservations bound Seams-originated payments; they
+cannot lock funds against external spending. Provider acceptance and settlement
+remain authoritative. Unavailable balance evidence blocks automated admission in
+the first implementation. A proposal may remain reviewable while balance access
+or transfer funding requires provider action or additional API permissions.
+
+### Wallet-funded card capacity — phase 2
 
 Retain the testnet wallet-to-escrow path for Airwallex sandbox cards. The owner
 selects an amount and submits through existing Wallet APIs. Verify chain, token,
@@ -113,21 +137,6 @@ rate with integer arithmetic. Credit capacity after finalized escrow funding and
 confirmed sandbox funding evidence. The issuer bridge is simulated; Airwallex
 receives no testnet tokens. This branch creates no Wise or bank balance.
 Withdrawals and live conversion remain separate work.
-
-### Connected Wise and bank accounts
-
-Resolve each connection to an owner-authorized account and supported currency and
-capabilities. Connecting an account creates no funding credit. Keep provider
-balances, Seams reservations, and agent budgets distinct. Platform billing credits
-cannot fund a customer's payment.
-
-Use one canonical local funding account per provider account/currency so multiple
-agents and connections share its reservation boundary. Refresh provider availability
-before admission and reconcile provider holds with unresolved local claims without
-counting either twice. Local reservations bound Seams-originated payments; they
-cannot lock funds against external spending. Provider acceptance and settlement
-remain authoritative. Unavailable balance evidence blocks automated admission in
-the first implementation.
 
 ## Admission, retries, and accounting
 
@@ -167,9 +176,11 @@ new background reconciliation service remain later work.
 
 - [ ] Implement account bindings, immutable grants, prepared proposals, exact
       approvals, and independently authorized execution admission.
-- [ ] Phase 1: prepare and execute an Airwallex sandbox card purchase through
-      the complete wallet funding, grant, approval, and reconciliation flow.
-- [ ] Phase 2: add Wise account bindings and reviewable transfer proposals.
+- [ ] Phase 1: bind an eligible Japanese Wise business profile and prepare
+      transfer proposals through the complete grant and exact approval flow.
+      Keep funding/action-required and execution availability explicit.
+- [ ] Phase 2: prepare and execute an Airwallex sandbox card purchase through
+      wallet funding, grant, approval, and reconciliation for eligible programs.
 - [ ] Phase 3: add proposals through one selected traditional banking integration.
 - [ ] Prove cross-owner/account/recipient isolation and denial after revocation,
       changed terms, expired quotes, or insufficient authority.
@@ -179,9 +190,10 @@ new background reconciliation service remain later work.
 - [ ] Reconcile sandbox execution without duplicate payment, debit, release, or
       refund; retain unknown outcomes across reload and retries.
 
-Complete phase 1 with the Airwallex sandbox card journey. Then complete reviewable
-Wise proposals, followed by traditional bank proposals, using the same authority
-and accounting services. Proposal preparation moves no money. Record transfer
-execution evidence separately for each adapter under R130D. Live banking, issuing,
-settlement, and agent-controlled direct onchain merchant payments require separate
-delivery work.
+Complete phase 1 with reviewable Wise proposals for a Japanese business through
+one owner/agent journey. Then deliver the eligible Airwallex sandbox card path
+and traditional bank proposals in order. Proposal preparation moves no money.
+Record execution evidence separately under R130D; Wise's standard Japanese
+business API access cannot establish automated transfer funding or card issuance.
+Live banking, issuing, settlement, and agent-controlled direct onchain merchant
+payments require separate delivery work.

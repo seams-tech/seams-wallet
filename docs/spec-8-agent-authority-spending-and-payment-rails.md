@@ -1,12 +1,14 @@
 # Spec 8: Agent authority, spending, and payment rails
 
-This is a proposed extension for agent-driven payments. R130A–D deliver Airwallex
-card payments first, Wise transfers second, and traditional bank transfers third.
-The first milestone is the wallet-funded Airwallex sandbox journey. Later phases
-reuse its authority, approval, and accounting services. Provider execution is
-verified separately from proposal support; live payments remain subsequent work.
-Japan is a target market, with account and issuing eligibility verified per
-product as described in [R130D](refactor-130D-airwallex-card-rail.md).
+This is a proposed extension for agent-driven payments. R130A–D deliver Wise
+business payments first, Airwallex cards for eligible programs second, and
+traditional bank transfers third. Support for Japanese companies is a launch
+requirement. The first milestone connects an eligible Japanese Wise business
+profile and delivers transfer proposals and exact approvals without wallet funding.
+Later phases reuse its authority, approval, and accounting services. Provider
+execution is verified separately from proposal support; live payments remain
+subsequent work. Wise transfer funding and card APIs have separate access gates
+described in [R130D](refactor-130D-wise-and-payment-rails.md).
 
 ## Authority to propose and spend
 
@@ -46,8 +48,8 @@ cannot expand hard grant limits. The executor must honor admitted terms or fail.
 
 ## Funding and budgets
 
-Connected Wise accounts in phase 2 and bank accounts in phase 3 supply provider
-balance evidence.
+Connected Wise accounts in phase 1 and bank accounts in phase 3 supply provider
+balance evidence where the account's API permissions allow it.
 Connection and grant creation produce no funding credit. Keep observed balances,
 Seams reservations, and agent budgets distinct. Several agents using the same
 provider account/currency share one local account reservation boundary.
@@ -55,10 +57,13 @@ provider account/currency share one local account reservation boundary.
 Local reservations constrain Seams-originated spending. External spending remains
 possible, so provider acceptance and settlement are authoritative. Refresh balance
 evidence before admission and reconcile local claims with provider holds without
-double counting. Missing availability evidence blocks automated admission.
+double counting. Missing availability evidence blocks automated admission while
+proposals can remain reviewable. Japanese Wise accounts using standard business
+API tokens cannot fund transfers through the API; represent required provider
+action and unavailable execution explicitly until broader access is confirmed.
 
-Airwallex sandbox card capacity uses a separate funding branch. An owner transfers
-a chosen amount of testnet stablecoins into controlled escrow through existing
+Airwallex sandbox card capacity in phase 2 uses a separate funding branch. An owner
+transfers a chosen amount of testnet stablecoins into controlled escrow through existing
 Wallet APIs. Verified finality, exact customer attribution, and deduplicated
 transfer identity produce one credit after confirmed sandbox funding evidence.
 The fiat bridge is simulated. Ordinary wallet deposits cannot credit cards or
