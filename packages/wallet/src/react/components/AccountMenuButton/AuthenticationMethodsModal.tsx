@@ -155,7 +155,6 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
 }) => {
   const { seams, loginState, refreshLoginState } = useSeams();
   const [loadState, setLoadState] = React.useState<LoadState>({ kind: 'idle' });
-  const [initialContentReady, setInitialContentReady] = React.useState(false);
   const [actionState, setActionState] = React.useState<ActionState>({ kind: 'idle' });
   const [emailAddress, setEmailAddress] = React.useState('');
   const [announcement, setAnnouncement] = React.useState('');
@@ -183,18 +182,15 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   const loadInventory = React.useCallback(async () => {
     if (!walletId) {
       setLoadState({ kind: 'error', message: 'Wallet identity is unavailable. Try again.' });
-      setInitialContentReady(true);
       return;
     }
     if (!selectedWalletAuthMethodId) {
       setLoadState({ kind: 'error', message: 'Unlock this wallet to manage authentication.' });
-      setInitialContentReady(true);
       return;
     }
     const currentLoginState = loginStateRef.current;
     if (!currentLoginState.isLoggedIn || currentLoginState.currentAuthMethod.kind !== 'selected') {
       setLoadState({ kind: 'error', message: 'Unlock this wallet to manage authentication.' });
-      setInitialContentReady(true);
       return;
     }
     const sequence = loadSequence.current + 1;
@@ -213,12 +209,10 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       });
       if (loadSequence.current === sequence) {
         setLoadState({ kind: 'loaded', inventory });
-        setInitialContentReady(true);
       }
     } catch (error: unknown) {
       if (loadSequence.current === sequence) {
         setLoadState({ kind: 'error', message: errorMessage(error) });
-        setInitialContentReady(true);
       }
     }
   }, [selectedWalletAuthMethodId, walletId]);
@@ -251,7 +245,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   );
 
   useEffect(() => {
-    if (!isOpen || !initialContentReady) return;
+    if (!isOpen) return;
     previousFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.focus({ preventScroll: true });
@@ -261,13 +255,12 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       previousFocusRef.current?.focus();
       previousFocusRef.current = null;
     };
-  }, [handleDialogKeyDown, initialContentReady, isOpen]);
+  }, [handleDialogKeyDown, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
       loadSequence.current += 1;
       setLoadState({ kind: 'idle' });
-      setInitialContentReady(false);
       setActionState({ kind: 'idle' });
       setEmailAddress('');
       setAnnouncement('');
@@ -344,15 +337,9 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
           if (event.target === event.currentTarget) onClose();
         }}
       >
-        {!initialContentReady ? (
-          <div className="w3a-linked-devices-modal-live" role="status" aria-live="polite">
-            Checking authentication methods…
-          </div>
-        ) : null}
         <div
           ref={dialogRef}
           className="w3a-linked-devices-modal-content w3a-auth-methods-modal-content"
-          hidden={!initialContentReady}
           role="dialog"
           aria-modal="true"
           aria-labelledby="w3a-auth-methods-modal-title"
