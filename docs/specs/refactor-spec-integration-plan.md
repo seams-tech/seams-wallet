@@ -49,9 +49,10 @@ real contradiction is resolved in both documents rather than left to inference.
 
 The copied R130A-D documents remain as implementation proposals until the domain
 and its intended-behaviour contracts land. Their durable target architecture is
-owned by Spec 8. R130 defines escrow-funded agent spending and sandbox issued-card
-execution. The earlier PSP-vaulted, user-present card-on-file checkout concept is
-outside that active direction.
+owned by Spec 8. R130 delivers the wallet-funded Airwallex sandbox card journey
+first, Wise transfers second, and traditional bank transfers third. Each phase
+uses exact owner approval when required and separately verified execution. Hosted payment services, provider-account operations, and Console UI belong
+to the private repository's implementation.
 
 ## Excluded private and historical material
 

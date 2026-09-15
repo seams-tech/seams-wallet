@@ -1,129 +1,181 @@
-# Refactor 130D — Experimental stablecoin card funding sandbox
+# Refactor 130D — Airwallex cards, then Wise, then bank transfers
 
 Date created: August 29, 2026
-Last revised: September 8, 2026
+Last revised: September 15, 2026
 
-Status: experimental sandbox adapter required for the shared R130A–D demo; consumes [R130A purchase admission](refactor-130A-agent-expense-domain.md).
+Status: implementation plan. Complete Airwallex card payments first, add Wise
+second, and traditional bank transfers third. All phases consume
+[R130A](refactor-130A-agent-expense-domain.md) authority and accounting.
 
-## Direction and scope
+## Delivery order
 
-Seams aims to provide stablecoin-backed funding and settlement infrastructure
-for Airwallex and other virtual-card providers. Seams would own the funding
-allocation, liquidity accounting, reconciliation, and agent spending controls.
-Card partners would provide issuing and card-network processing. Production
-responsibilities and funds movement depend on the eventual partner agreements.
+Card checkout is the first product path for broad merchant purchasing. Wise
+extends it to transfers, followed by a selected traditional banking integration.
+Implement each phase around the same proposal, approval, and payment services.
 
-R130D tests this role with one Airwallex sandbox account, one currency, and one
-virtual card per approved purchase. Use real testnet stablecoin deposits and simulated issuer funding alongside
-actual provider sandbox APIs. No real cash pool, mainnet customer funds, live
-cards, or live conversion/settlement is required.
-Airwallex is the first experimental adapter; do not build a multi-provider
-framework or select a production funding model during this proof.
+| Priority | Integration                | Required milestone                                                                                                              |
+| -------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 1        | Airwallex card payments    | Wallet-funded sandbox card proposal, exact approval, authorization/capture, receipt, and reconciliation.                        |
+| 2        | Wise transfers             | Owner-authorized account and recipient, current quote, source debit/fees, and reviewable proposal; verify execution separately. |
+| 3        | Traditional bank transfers | One selected bank/payment API and supported transfer route, exact beneficiary-bound proposal; verify execution separately.      |
 
-## One operating path
+Later phases do not gate the first card milestone. Add provider branches as their
+phase is implemented. Bank transfer names an operation; Wise and Airwallex name
+providers that can reach payment rails. Keep supported combinations explicit.
 
-```text
-User funds their Seams wallet and moves a selected amount into escrow
-  -> R130A verifies finality and records one funding credit
-  -> Seams shows card spending capacity against sandbox issuer funds
-  -> user clicks Pay for an admitted purchase in the demo checkout
-  -> Airwallex issuing simulator authorizes and captures by card ID
-  -> R130A reconciles card events, account capacity, and agent budget
-  -> demo shows receipt and updated balances
-```
+Proposal preparation is read/quote work plus a local Seams record. Owner-managed
+account and recipient enrollment are separate from agent proposal tools. Provider
+mutations that create a payable transfer, funding request, or card charge belong
+to separately authorized execution.
 
-R130A owns chain observation, customer attribution, finality, deposit deduplication,
-and funding accounting. This adapter supplies provider evidence and implements
-sandbox card calls. Do not duplicate escrow ingestion or funding ledgers here.
+## Shared adapter boundary
 
-Use a fixed, labeled test conversion rate. Airwallex's deposit simulation can
-credit a sandbox Global Account when enabled; otherwise allocate against its
-existing test Wallet balance. Report which path ran. Provider test funds alone
-cannot credit a customer's balance; R130A requires a finalized escrow deposit.
-If a funding call has an ambiguous response, reconcile it before retrying and
-leave the corresponding credit pending. This simulates the fiat bridge;
-Airwallex does not receive testnet tokens.
+Resolve provider credentials to the exact owner, environment, and source account.
+Normalize supported capabilities, saved recipients, balances, fees/quotes, and
+payment evidence at the boundary. Use the provider's supported authorization
+method and least required permissions. Keep secrets and sensitive bank details
+out of agent context, browser bundles, logs, and public read models.
 
-Build one small checkout in the existing demo app: order summary, sandbox card
-selection, Pay, and receipt/status. Reuse the R130C views and R130A admission,
-including exact approval when required. The backend invokes Airwallex's issuing
-simulation by card ID after admission. Keep this simulator route sandbox-only.
-No PAN/CVV entry or separate acquiring integration is needed.
+Account access does not establish agent authority. Every mutation that can move
+money consumes R130A's admitted payment with stable operation identity and exact
+terms. Do not accept a caller-selected provider URL, account, or raw request body.
+Keep test and live connections separate through precise connection state.
 
-Airwallex documents acquiring test-card checkout and issued-card simulation as
-separate testing surfaces. A hosted checkout that charges this issued sandbox
-card has not been verified. The first implementation uses the explicit simulator
-flow above and labels it “Sandbox checkout.” A successful acquiring test payment
-alone cannot prove the issued card's balance was debited.
+Represent proposal preparation and execution capabilities separately. Missing
+execution access can leave proposal support usable; missing required preparation
+data must return an explicit unavailable result. Owner/provider authentication
+requirements become action-required states. Approval alone cannot imply provider
+submission, and submission alone cannot imply payment completion.
 
-Reuse R130A funding, grant, and purchase records. Add only provider allocation
-and event evidence needed to link the card and payment. Retries
-must reconcile ambiguous provider funding or payment results before attempting
-another credit or charge. Funding accounting creates no second agent budget.
+Persist references before subsequent provider steps. Use supported idempotency
+and lookup to recover interrupted creation, funding, and submission. Each step
+retains stable identity under one payment execution. Verify provider event
+signatures using that provider's protocol, including replay checks where supported.
+Apply event effects durably once; reconcile duplicate, reordered, or inconclusive
+events with provider reads. R130A owns reservations and journal transitions.
 
-## Sandbox adapter
+## Priority 1 — Airwallex card payments
 
-- Implement R130A's single sandbox-card execution variant. Consume
-  its exact grant, immutable purchase, approval when required, budget claim, and
-  operation identity. Blocked or pending purchases
-  cannot create or dispatch a card payment.
-- Require a fixed allowed sandbox origin and complete sandbox credentials.
-  Normalize provider data once, use bounded calls, and keep secrets out of logs.
-  Simulate transactions by card ID; Seams never handles PAN/CVV.
-- Create a cardholder and purchase-bound card under stable request identity.
-  Reconcile uncertain creation before retrying. Close the card after the run.
-- Verify webhook signatures and timestamp bounds before parsing. Keep durable,
-  retryable event processing so duplicates and reordered events converge.
-- Reconcile capture, reversal, linked refund, and unknown outcomes against provider
-  reads. Commit budget on authoritative payment success, release definitive
-  unpaid failures, and retain uncertain claims until resolved. Refunds restore
-  the applicable funding balance without automatically renewing the agent budget.
+Preserve one testnet stablecoin, controlled escrow deposit path, card currency,
+merchant, and Airwallex sandbox account. R130A verifies deposit finality, attribution,
+and one-time credit. R130D supplies sandbox funding evidence using enabled deposit
+simulation or existing sandbox funds, explicitly recording which path ran. The
+issuer bridge uses a labeled test conversion rate; testnet tokens never become
+real fiat or another provider account balance.
 
-Use the provider controls available in the sandbox and record their limits.
-Remote authorization is an optional experiment, not a completion dependency.
-Without it, demonstrate Seams admission before simulation and the available card
-controls; report any unproven enforcement of subsequent provider authorizations.
-Unknown or unsupported events remain unresolved for inspection rather than being
-silently treated as success. No merchant checkout automation is required.
+Create a cardholder and purchase-bound card under stable identities after admission.
+Build the sandbox checkout in the existing reference app and invoke the issued-card
+simulator by card ID. Seams handles no PAN/CVV in this path. Verify authorization,
+capture, reversal, linked refund, and unknown outcomes; close the card after the run. Actual merchant
+acceptance and credential handoff require separate evidence.
 
-## Proof and completion
+Record available issuer controls and their limits. Remote authorization remains
+an optional sandbox experiment. A pre-simulation Seams check proves admission to
+that operation; later card authorizations need their own issuer-control evidence
+before claiming end-to-end enforcement for live cards.
 
-- [ ] Fund the Seams wallet, move a selected amount into escrow, and show pending
-      then confirmed card funding through R130A. Reload or replay detection without crediting twice.
-- [ ] Create a sandbox card backed by the credited allocation and show its spending
-      balance. Demonstrate pending or already-allocated funds cannot be reused.
-- [ ] Pay for one demo order through R130A admission and the Airwallex issuing
-      simulator. Show a receipt, provider transaction reference, and reduced
-      spending capacity after capture; reload to verify durable state.
-- [ ] Demonstrate insufficient-budget denial, duplicate Pay without a second
-      charge, reversal, linked refund, and reconciliation of an ambiguous outcome.
-      Use additional simulated transactions only where needed.
-- [ ] Close the card after the run and retain safe request IDs and a short account
-      of the real testnet/provider operations, simulated bridge, and limitations.
+Japan is a target market. As reviewed September 15, 2026, the
+[Airwallex Japan card page](https://www.airwallex.com/ja-jp/spend-management/cards)
+states that corporate cards and global accounts are currently unavailable in
+Japan. Confirm contracting-entity, cardholder, and issuing-program eligibility
+before a Japan launch. Merchant acceptance and local issuing eligibility need
+separate evidence; sandbox success cannot establish either.
 
-Complete when a user can move testnet stablecoins from their wallet into escrow,
-see card spending
-capacity credited, and spend it in the demo checkout with reconciled records.
-A script-only simulation is insufficient. Use one opt-in operating test and the
-existing demo app; no full dashboard or background reconciliation service.
-Missing core sandbox issuing/simulation access blocks the proof. Missing optional
-capabilities remain documented limitations.
+## Priority 2 — Wise transfers
 
-## Beyond the experiment
+Use [Wise Send Money](https://docs.wise.com/guides/product/send-money) for the
+quote, recipient, transfer, and funding flow. Select the Wise-supported account
+integration model before implementing authentication; access to one business
+profile cannot imply permission to act for unrelated customers.
 
-Live custody, conversion, liquidity sourcing, collateral/withdrawal controls,
-issuer funding, settlement obligations, customer onboarding, and operational
-responsibilities need separate design and partner agreement. Real merchant
-checkout needs a supported credential handoff. This experiment proves neither
-production funding nor unrestricted card acceptance and requires no production
-launch work. Its evidence informs the next plan for Seams' funding layer.
+Prepare the proposal using the exact profile, saved recipient, funding method,
+and [current quote](https://docs.wise.com/guides/product/send-money/quotes).
+Bind source debit, recipient amount, currency pair, fees, and expiry. Recipient
+or funding-method changes require fresh terms. An expired quote cannot be silently
+replaced under an existing approval.
 
-## Provider references
+Preparation stops before transfer creation and funding. Sandbox execution performs
+those steps only after R130A admission and records their references independently.
+Recover an uncertain funding result against the same transfer. Map Wise processing
+and returned-funds evidence through the shared payment lifecycle.
 
-- [Sandbox environment](https://www.airwallex.com/docs/developer-tools/sandbox-environment)
-- [Deposit simulation](https://www.airwallex.com/docs/api/simulation/deposits/create)
-- [Issued-card simulation](https://www.airwallex.com/docs/api/simulation/issuing/create)
-- [Acquiring test cards](https://www.airwallex.com/docs/payments/test-and-go-live/test-card-numbers)
+Target one Japan-relevant transfer flow. Wise documents
+[JPY transfers](https://wise.com/help/articles/2932156/guide-to-jpy-transfers),
+with requirements that depend on account location and funding method. Verify the
+actual business profile, recipient details, currency pair, limits, and permitted
+API operations. [Business API tokens](https://docs.wise.com/guides/developer)
+have limited endpoint access; Japanese transfer availability alone cannot prove
+all required automation is enabled. Complete proposal preparation before offering
+separately verified sandbox execution.
 
-Reviewed September 8, 2026. Confirm account capabilities and API versions when
-implementing; hosted checkout interoperability remains unverified.
+## Priority 3 — Traditional bank transfers
+
+Select one concrete bank/payment API, account authorization method, source currency,
+beneficiary country, and supported transfer rail before implementation. Airwallex
+payouts may be evaluated alongside its card account; existing issuing access does
+not establish payout access. Do not build a generic bank connector or promise
+coverage of every ACH, SEPA, local-transfer, or wire route.
+
+Prepare an exact account/beneficiary-bound proposal with recipient amount, source
+debit, fees, currency, reference, and payment method. Resolve beneficiary details
+from owner-enrolled provider records. Preserve any provider-required human approval.
+A requested payment date is a proposal term; autonomous scheduling is separate work.
+Document the selected API's acceptance, processing, completion, failure, and return
+semantics before implementing execution.
+
+## Delivery and proof
+
+### Phase 1: Airwallex
+
+- [ ] Confirm sandbox issuing access, supported currency, and test facilities.
+      Record eligibility for the target Japan business/cardholder separately.
+- [ ] Complete the wallet-to-escrow funding and card proposal/approval journey.
+      Prove one funding credit per finalized deposit and bounded shared capacity.
+- [ ] Authorize/capture one purchase, show a receipt after reload, reconcile
+      reversal/refund and unknown outcomes, and close the sandbox card.
+- [ ] Record merchant acceptance, credential handoff, and issuer-control evidence
+      still required before live card execution.
+
+### Phase 2: Wise
+
+- [ ] Confirm the Japan-relevant business profile and its account/API permissions.
+- [ ] Prepare a provider-backed transfer proposal with exact recipient, source
+      debit, fees, currency conversion, and expiry, without submitting a transfer.
+- [ ] Show changed/expired terms, denied authority, and required provider actions.
+      Verify creation, funding, status recovery, and returns in sandbox before
+      offering execution.
+
+### Phase 3: Traditional banking
+
+- [ ] Select the concrete banking API, account authorization, and transfer route.
+- [ ] Prepare a provider-backed beneficiary/account-bound proposal through the
+      shared tools and owner approval flow.
+- [ ] Verify provider submission, processing, failure/return, and required human
+      authorization in its test environment before offering execution.
+
+For every adapter with execution, prove insufficient funds, duplicate calls/events,
+and ambiguous outcomes under the same durable payment identity. Report evidence
+per phase and adapter; unsupported execution cannot be marked complete. Missing
+account/API access is a concrete integration blocker. Local mocks support focused
+tests and cannot replace provider-backed integration evidence. Use the existing
+composed test harness and UI throughout.
+
+Live execution requires confirmed account/program access, funding and settlement
+responsibilities, and verified provider controls. Live custody, conversion,
+liquidity, withdrawal, and unattended financial operations belong to subsequent
+delivery work.
+
+## References
+
+Reviewed September 15, 2026. Confirm capabilities and API versions against the
+actual connected accounts during implementation.
+
+- [Airwallex Japan cards](https://www.airwallex.com/ja-jp/spend-management/cards)
+- [Airwallex sandbox](https://www.airwallex.com/docs/developer-tools/sandbox-environment)
+- [Airwallex issued-card simulation](https://www.airwallex.com/docs/api/simulation/issuing/create)
+- [Airwallex remote authorization](https://www.airwallex.com/docs/issuing/card-controls/remote-authorization)
+- [Wise Send Money](https://docs.wise.com/guides/product/send-money)
+- [Wise quotes](https://docs.wise.com/guides/product/send-money/quotes)
+- [Wise JPY transfers](https://wise.com/help/articles/2932156/guide-to-jpy-transfers)
+- [Wise API access](https://docs.wise.com/guides/developer)
+- [Airwallex payout network](https://www.airwallex.com/docs/payouts/payout-network)

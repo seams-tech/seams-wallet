@@ -1,99 +1,115 @@
 # Spec 8: Agent authority, spending, and payment rails
 
-This is a proposed extension for agent purchases. The initial payment rail is
-an Airwallex sandbox card; production card spending is outside this proposal.
+This is a proposed extension for agent-driven payments. R130A–D deliver Airwallex
+card payments first, Wise transfers second, and traditional bank transfers third.
+The first milestone is the wallet-funded Airwallex sandbox journey. Later phases
+reuse its authority, approval, and accounting services. Provider execution is
+verified separately from proposal support; live payments remain subsequent work.
+Japan is a target market, with account and issuing eligibility verified per
+product as described in [R130D](refactor-130D-airwallex-card-rail.md).
 
-An owner funds an account and gives an agent permission to spend within defined
-limits. The agent proposes a purchase, the server checks it, and the payment
-provider executes it.
+## Authority to propose and spend
 
-## Permission to make purchases
+An owner connects a funding account and grants an agent limited authority. The
+account-owning business/customer, authorized human, integration tenant, and agent
+are distinct identities with server-verified relationships.
 
-An agent connection identifies who is calling the API. Its credential stays in
-the integrator's backend.
+An agent connection identifies the calling backend and permitted API operations.
+A provider connection supplies owner-authorized account access. An **Agent Grant**
+binds the agent to one funding account, permitted operations/providers and
+recipients, budget, per-payment limit, approval threshold, and expiry. Its rules
+are immutable; changing them creates a new grant. Connections and grants have
+independent revocation states.
 
-An **Agent Grant** states what that agent may buy: the customer and funding
-account, merchant, budget, purchase limit, approval threshold, expiry, and
-payment rail. A grant can be revoked. Changing its rules creates a new grant.
+The initial tools are `get_spending_authority`, `propose_payment`,
+`get_payment_status`, and separately scoped `execute_payment`. Owners connect
+accounts, administer grants, and approve payments through their own authenticated
+surface. Proposal-only agent access cannot approve or execute a payment.
 
-The server checks that the connection and grant belong to the requested
-customer, tenant, and environment. Revoking either blocks the corresponding new
-requests or purchases. Previously accepted work still needs reconciliation.
+## Payment proposals
 
-## Funding and approval
+A proposal records an immutable payment with authoritative prepared terms. It
+includes the account, provider/operation, beneficiary and destination, source
+debit, recipient amount, currency, fees, payment reference, and applicable quote
+identity, conversion, and expiry. Merchant checkout also binds cart and delivery
+details. Operation and provider are separate concepts: several integrations can
+execute bank transfers.
 
-Card capacity comes from a verified, finalized transfer of wallet stablecoins
-to the configured escrow. The server records each transfer once. A wallet
-balance or a newly created grant does not create card capacity.
+Preparation can obtain quotes and validate owner-enrolled recipients. It cannot
+submit payouts, create/fund payable transfers, or charge cards. Missing required
+terms or account capabilities produce explicit preparation failures. Valid
+proposals become blocked, pending approval, or ready for admission.
 
-A proposed purchase includes the merchant's quote, items, delivery details,
-currency, and total. When approval is required, the owner approves that specific
-purchase. Changing those details invalidates the approval, and approval cannot
-expand the grant's limits.
+Approval binds the exact proposal and terms. Changed terms require a new proposal
+and any required approval; expired quotes require fresh preparation. Approval
+cannot expand hard grant limits. The executor must honor admitted terms or fail.
 
-Amounts use integer units so funding and budget calculations remain exact.
+## Funding and budgets
 
-Here is an illustrative ledger view, using USD cents. These names show the
-calculation without specifying a storage format:
+Connected Wise accounts in phase 2 and bank accounts in phase 3 supply provider
+balance evidence.
+Connection and grant creation produce no funding credit. Keep observed balances,
+Seams reservations, and agent budgets distinct. Several agents using the same
+provider account/currency share one local account reservation boundary.
 
-```json
-{
-  "currency": "USD",
-  "availableFundingMinor": 10000,
-  "grant": {
-    "budgetMinor": 3000,
-    "spentMinor": 800,
-    "reservedMinor": 1200
-  }
-}
-```
+Local reservations constrain Seams-originated spending. External spending remains
+possible, so provider acceptance and settlement are authoritative. Refresh balance
+evidence before admission and reconcile local claims with provider holds without
+double counting. Missing availability evidence blocks automated admission.
 
-The grant has $10 left: $30 budget minus $8 spent and $12 reserved. Another $12
-purchase exceeds that grant, even though the funding account has $100 available.
+Airwallex sandbox card capacity uses a separate funding branch. An owner transfers
+a chosen amount of testnet stablecoins into controlled escrow through existing
+Wallet APIs. Verified finality, exact customer attribution, and deduplicated
+transfer identity produce one credit after confirmed sandbox funding evidence.
+The fiat bridge is simulated. Ordinary wallet deposits cannot credit cards or
+connected provider accounts.
 
-## Executing a purchase
+Amounts use integer minor units and explicit currencies. A grant reserves the
+source debit including fees. For example, a $30 grant with $8 spent and $12
+reserved has $10 remaining regardless of the account's larger balance.
 
-Before contacting the provider, the server checks the grant and approval and
-reserves both the purchase amount and the agent's budget in one transaction.
-Concurrent purchases cannot spend the same available funds.
+## Execution and reconciliation
 
-One purchase has one payment operation. Repeated requests find that operation,
-even when the caller changes its retry key.
-
-The initial agent API supports checking spending authority, proposing a
-purchase, executing it, and reading its status. Owners manage grants and approve
-purchases through a separate authenticated surface.
-
-For an approved purchase, the main flow is:
+Before executing, recheck current account access, agent scope, grant, approval,
+terms, and funding availability. In one local transaction, claim the proposal
+and reserve both account capacity and grant budget. Network calls stay outside
+that transaction. Serialize admission with revocation: revoked authority blocks
+new admissions, including previously approved proposals. Accepted operations
+still require reconciliation.
 
 ```mermaid
 sequenceDiagram
     participant A as Agent backend
     participant S as Seams
     participant P as Payment provider
-    A->>S: Execute the approved purchase
-    S->>S: Check limits and reserve funding plus budget
-    S->>P: Execute the same payment operation
-    P-->>S: Result or later verified event
-    S->>S: Commit, release, or keep the reservation
-    Note over S,P: An unknown outcome keeps the reservation
-    S-->>A: Current purchase status
+    A->>S: Propose a payment
+    S-->>A: Prepared terms and policy/approval state
+    Note over A,S: Owner approval uses a separate authenticated surface
+    A->>S: Execute existing ready payment with execution scope
+    S->>S: Recheck authority and reserve account plus budget
+    S->>P: Submit under stable operation identity
+    P-->>S: Processing result or verified event
+    S->>S: Reconcile outcome and accounting
+    S-->>A: Durable payment status
 ```
 
-## Following the payment result
+One proposal has one execution even when request retry keys change. Persist
+operation identity before provider mutations and recover interrupted steps by
+idempotency or lookup. An unknown outcome retains its reservation; blind retries
+cannot create a second payment.
 
-The adapter manages the purchase-bound sandbox card and verifies provider
-events. Seams handles no card numbers or security codes.
+Provider acceptance and completed payment are distinct states. Capture or a
+provider-confirmed transfer outcome commits spend. A definitive unpaid failure
+releases the applicable claim. Linked returns/refunds restore applicable funding
+without renewing consumed agent budget. Apply each accounting effect and processed
+marker atomically so duplicate or reordered events converge.
 
-A confirmed capture commits the reserved spend once. A definitive unpaid failure
-releases the applicable reservation. A linked refund restores funding capacity
-without renewing the agent's consumed budget.
+Provider credentials stay in private adapters; providers process payments and
+supply authoritative outcomes. Hosted account connections, provider adapters, payment
+accounting, and Console UI live in the private application layer. Wallet custody
+and onchain execution remain in `seams-wallet`.
 
-When the provider's result is unknown, the purchase stays pending and its
-reservation remains in place. The server checks the same payment before trying
-again. Duplicate or reordered provider events must converge on the same ledger
-result.
-
-[Spec 4](spec-4-persistence-and-durable-authority.md) explains the shared rules
-for transactions and retries. Production funding, settlement, conversion, and
-withdrawal would require separate designs before enabling a live rail.
+[Spec 4](spec-4-persistence-and-durable-authority.md) supplies transaction and retry
+rules. The [R130A–D plans](refactor-130A-agent-expense-domain.md) define proposal
+and sandbox evidence; provider availability or a local approval alone cannot
+establish live execution support.

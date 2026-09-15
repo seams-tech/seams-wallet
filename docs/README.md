@@ -59,7 +59,7 @@ Read Specs 1–3 for the core system. Continue with the topics relevant to your 
 | [5. Router A/B](spec-5-router-ab-threshold-protocol.md) | How the cryptographic roles work together |
 | [6. Tenant recovery](spec-6-tenant-roots-recovery-and-portability.md) | How operators back up and move the server side |
 | [7. Integration](spec-7-hosted-surfaces-and-provider-boundaries.md) | How an application opens Wallet UI and connects providers |
-| [8. Agent spending](spec-8-agent-authority-spending-and-payment-rails.md) | The proposed system for purchases with spending limits |
+| [8. Agent payments](spec-8-agent-authority-spending-and-payment-rails.md) | Airwallex cards, then Wise, then bank transfers with bounded authority |
 | [9. Testing](spec-9-behaviour-and-test-authority.md) | How to check a change against expected behaviour |
 
 The specs state architecture requirements. Exact user journeys live in
