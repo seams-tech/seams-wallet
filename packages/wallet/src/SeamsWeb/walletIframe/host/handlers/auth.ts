@@ -28,39 +28,31 @@ import { createHostedAuthMenuHandlers } from './authMenu';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
-import { createRelayerExactWalletSessionStatusPort } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 
 async function readWalletIframeExactSessionStatus(
   relayUrl: string,
-  reads: Map<string, Promise<WalletIframeExactSessionStatus>>,
+  reads: WalletSessionStatusReadScope,
   input: Parameters<WalletIframeExactSessionReadDependencies['readStatus']>[0],
 ): Promise<WalletIframeExactSessionStatus> {
   const normalizedRelayUrl = String(relayUrl || '').trim();
   if (!normalizedRelayUrl) throw new Error('Wallet iframe relayer URL is required');
-  const key = [
-    input.operationCredential.token,
-    input.operationCredential.walletSessionId,
-    input.authorization.quotaId,
-  ].join('\u0000');
-  const existing = reads.get(key);
-  if (existing) return await existing;
-  const pending = createRelayerExactWalletSessionStatusPort({
-    relayerUrl: normalizedRelayUrl,
-    operationCredential: input.operationCredential,
-  }).read({
-    walletSessionId: input.operationCredential.walletSessionId,
-    quotaId: input.authorization.quotaId,
-  });
-  reads.set(key, pending);
-  return await pending;
+  return await reads.read(
+    {
+      relayerUrl: normalizedRelayUrl,
+      operationCredential: input.operationCredential,
+    },
+    {
+      walletSessionId: input.operationCredential.walletSessionId,
+      quotaId: input.authorization.quotaId,
+    },
+  );
 }
 
 function exactSessionReadDependenciesForRelay(
   relayUrl: string,
 ): WalletIframeExactSessionReadDependencies & WalletIframeExactSessionReconciliationDependencies {
-  // Reconciliation and selection belong to one read. A subsequent host request
-  // gets a new map and rechecks expiry, revocation, and budget with the server.
-  const reads = new Map<string, Promise<WalletIframeExactSessionStatus>>();
+  const reads = new WalletSessionStatusReadScope();
   return {
     resolveSelectedWalletAuthority:
       IndexedDBManager.resolveSelectedWalletAuthority.bind(IndexedDBManager),

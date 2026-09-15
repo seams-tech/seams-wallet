@@ -1,4 +1,5 @@
 import { SIGNER_AUTH_METHODS, type SignerAuthMethod } from '@shared/utils/signerDomain';
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { signingLaneAuthMethod, type OwnerLaneScope } from '../identity/signingLaneAuthBinding';
 import type {
   ThresholdEcdsaChainTarget,
@@ -54,13 +55,17 @@ export type PersistedAvailableSigningLanesDeps = {
     reference: Ed25519YaoPublicCapabilityLaneReferenceV1,
   ) => boolean;
   readActiveWalletSessionAuthorization?: (
+    statusReads: WalletSessionStatusReadScope,
     walletId: WalletId,
   ) => Promise<NearEd25519WalletSessionAuthorizationReadResult>;
-  listEcdsaSigningCapabilitiesForWallet: (args: {
-    walletId: string;
-    chainTargets: readonly ThresholdEcdsaChainTarget[];
-    authMethod?: SignerAuthMethod;
-  }) => Promise<readonly EvmFamilyEcdsaSigningCapabilityAvailability[]>;
+  listEcdsaSigningCapabilitiesForWallet: (
+    args: {
+      walletId: string;
+      chainTargets: readonly ThresholdEcdsaChainTarget[];
+      authMethod?: SignerAuthMethod;
+    },
+    statusReads: WalletSessionStatusReadScope,
+  ) => Promise<readonly EvmFamilyEcdsaSigningCapabilityAvailability[]>;
 };
 
 function canonicalEcdsaLaneFromCapability(args: {
@@ -148,11 +153,15 @@ export async function readPersistedAvailableSigningLanes(
   args: Omit<ReadAvailableSigningLanesInput, 'ecdsaChainTargets'>,
   ecdsaChainTargets: readonly ThresholdEcdsaChainTarget[],
 ): Promise<AvailableSigningLanes> {
-  return await readPersistedAvailableSigningLanesForTargets(deps, {
-    ...args,
-    ecdsaChainTargets,
-    requiredEcdsaCapability: 'sign',
-  });
+  return await readPersistedAvailableSigningLanesForTargets(
+    deps,
+    {
+      ...args,
+      ecdsaChainTargets,
+      requiredEcdsaCapability: 'sign',
+    },
+    new WalletSessionStatusReadScope(),
+  );
 }
 
 /**
@@ -169,15 +178,20 @@ export async function readOwnerScopedAvailableSigningLanes(
     readonly requiredEcdsaCapability: EcdsaLaneCapability;
     readonly nowMs?: number;
   },
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<AvailableSigningLanes> {
-  return await readPersistedAvailableSigningLanesForTargets(deps, {
-    walletId: args.walletId,
-    authMethod: signingLaneAuthMethod(args.ownerScope.auth),
-    ownerScope: args.ownerScope,
-    ecdsaChainTargets: args.ecdsaChainTargets,
-    requiredEcdsaCapability: args.requiredEcdsaCapability,
-    ...(args.nowMs !== undefined ? { nowMs: args.nowMs } : {}),
-  });
+  return await readPersistedAvailableSigningLanesForTargets(
+    deps,
+    {
+      walletId: args.walletId,
+      authMethod: signingLaneAuthMethod(args.ownerScope.auth),
+      ownerScope: args.ownerScope,
+      ecdsaChainTargets: args.ecdsaChainTargets,
+      requiredEcdsaCapability: args.requiredEcdsaCapability,
+      ...(args.nowMs !== undefined ? { nowMs: args.nowMs } : {}),
+    },
+    statusReads,
+  );
 }
 
 export async function readPersistedAvailableSigningLanesForSigning(
@@ -191,11 +205,15 @@ export async function readPersistedAvailableSigningLanesForSigning(
     for (const chainTarget of [...args.ecdsaChainTargets, ...defaultEcdsaChainTargets]) {
       ecdsaChainTargetsByKey.set(thresholdEcdsaChainTargetKey(chainTarget), chainTarget);
     }
-    return await readPersistedAvailableSigningLanesForTargets(deps, {
-      ...availableLanesArgs,
-      ecdsaChainTargets: [...ecdsaChainTargetsByKey.values()],
-      requiredEcdsaCapability: 'sign',
-    });
+    return await readPersistedAvailableSigningLanesForTargets(
+      deps,
+      {
+        ...availableLanesArgs,
+        ecdsaChainTargets: [...ecdsaChainTargetsByKey.values()],
+        requiredEcdsaCapability: 'sign',
+      },
+      new WalletSessionStatusReadScope(),
+    );
   }
   const { curve, ...availableLanesArgs } = args;
   return await readPersistedAvailableSigningLanes(deps, availableLanesArgs, []);
@@ -240,6 +258,7 @@ export async function readPersistedAvailableSigningLanesForTargets(
     ecdsaChainTargets: readonly ThresholdEcdsaChainTarget[];
     requiredEcdsaCapability: EcdsaLaneCapability;
   },
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<AvailableSigningLanes> {
   const walletId = String(toWalletId(args.walletId)).trim();
   return await readAvailableSigningLanes(
@@ -253,7 +272,10 @@ export async function readPersistedAvailableSigningLanesForTargets(
         ? deps.ed25519YaoPublicCapabilityLanes.listLanes.bind(deps.ed25519YaoPublicCapabilityLanes)
         : undefined,
       isPublicCapabilityActive: deps.isEd25519YaoPublicCapabilityActive,
-      readActiveWalletSessionAuthorization: deps.readActiveWalletSessionAuthorization,
+      readActiveWalletSessionAuthorization: deps.readActiveWalletSessionAuthorization?.bind(
+        null,
+        statusReads,
+      ),
       listSealedRecordsForWallet: async ({ walletId: recordWalletId, filter }) => {
         const listByAuthMethod = async (
           authMethod: SignerAuthMethod,
@@ -294,11 +316,14 @@ export async function readPersistedAvailableSigningLanesForTargets(
       listCanonicalEcdsaLanesForWallet: async ({ walletId: recordWalletId }) => {
         const lanes: ConcreteAvailableEcdsaSigningLane[] = [];
         const seen = new Set<string>();
-        const capabilities = await deps.listEcdsaSigningCapabilitiesForWallet({
-          walletId: recordWalletId,
-          chainTargets: args.ecdsaChainTargets,
-          ...(args.authMethod ? { authMethod: args.authMethod } : {}),
-        });
+        const capabilities = await deps.listEcdsaSigningCapabilitiesForWallet(
+          {
+            walletId: recordWalletId,
+            chainTargets: args.ecdsaChainTargets,
+            ...(args.authMethod ? { authMethod: args.authMethod } : {}),
+          },
+          statusReads,
+        );
         for (const available of capabilities) {
           for (const chainTarget of args.ecdsaChainTargets) {
             const lane = canonicalEcdsaLaneFromCapability({ available, chainTarget });

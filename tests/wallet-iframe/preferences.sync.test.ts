@@ -360,6 +360,41 @@ test.describe('Wallet iframe preferences sync', () => {
     expect(result).toEqual(['PM_SIGN_DELEGATE_ACTION']);
   });
 
+  test('current-wallet preference updates do not revalidate the session', async ({ page }) => {
+    const requests = await page.evaluate(
+      async ({ walletOrigin }) => {
+        const { WalletIframeRouter } =
+          await import('/_test-sdk/esm/SeamsWeb/walletIframe/client/router.js');
+        const router = new WalletIframeRouter({
+          walletOrigin,
+          servicePath: '/wallet-service',
+          sdkBasePath: '/sdk',
+          requestTimeoutMs: 3_000,
+        });
+        await router.init();
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        const requests: string[] = [];
+        const listener = (event: MessageEvent) => {
+          if (event.data?.type === 'TEST_PREFERENCE_TRACE') {
+            requests.push(event.data.payload.type);
+          }
+        };
+        window.addEventListener('message', listener);
+        try {
+          await router.setConfirmationConfig({ uiMode: 'drawer' });
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          return requests;
+        } finally {
+          window.removeEventListener('message', listener);
+          router.dispose();
+        }
+      },
+      { walletOrigin: WALLET_ORIGIN },
+    );
+
+    expect(requests).toEqual(['PM_SET_CONFIRMATION_CONFIG']);
+  });
+
   test('seams.setTheme forwards appearance updates to the wallet host', async ({ page }) => {
     const seamsPath = SDK_ESM_PATHS.seamsWeb;
     const result = await page.evaluate(

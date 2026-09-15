@@ -2648,9 +2648,10 @@ export class WalletIframeRouter {
   }
 
   private handlePreferencesChanged(payload: PreferencesChangedPayload): void {
+    const previousWalletId = this.lastPreferencesChangedPayload?.walletId;
     this.emitPreferencesChanged(payload);
     const walletId = String(payload.walletId || '').trim();
-    if (!walletId) return;
+    if (!walletId || walletId === previousWalletId) return;
     void this.refreshExactSessionAndEmitLoginStatus('current', {
       kind: 'exact',
       walletId: parseRequestedWalletId(walletId),
