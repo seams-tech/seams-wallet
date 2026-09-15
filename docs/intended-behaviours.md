@@ -198,6 +198,11 @@ Expected behaviour:
   primary operation credential. Local warm signing state can authorize multiple
   transactions within that session's quota.
 - Unlock should not require Email OTP.
+- Restoring durable key facts and display metadata must use local inventory without
+  querying signing-session status. Readiness validation runs after hydration, with
+  independent curve reads started together. A mixed-wallet passkey unlock makes
+  at most four status requests after verification, including its returned UI state;
+  later operations still read current expiry, revocation, and quota state.
 - Unlock should not delete durable sealed/session records that are needed for
   future refresh or recovery unless the user explicitly removes the wallet,
   device, auth method, or account.

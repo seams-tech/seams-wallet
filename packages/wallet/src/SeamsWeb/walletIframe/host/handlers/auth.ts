@@ -32,22 +32,35 @@ import { createRelayerExactWalletSessionStatusPort } from '@/core/rpcClients/rel
 
 async function readWalletIframeExactSessionStatus(
   relayUrl: string,
+  reads: Map<string, Promise<WalletIframeExactSessionStatus>>,
   input: Parameters<WalletIframeExactSessionReadDependencies['readStatus']>[0],
 ): Promise<WalletIframeExactSessionStatus> {
   const normalizedRelayUrl = String(relayUrl || '').trim();
   if (!normalizedRelayUrl) throw new Error('Wallet iframe relayer URL is required');
-  return await createRelayerExactWalletSessionStatusPort({
+  const key = [
+    input.operationCredential.token,
+    input.operationCredential.walletSessionId,
+    input.authorization.quotaId,
+  ].join('\u0000');
+  const existing = reads.get(key);
+  if (existing) return await existing;
+  const pending = createRelayerExactWalletSessionStatusPort({
     relayerUrl: normalizedRelayUrl,
     operationCredential: input.operationCredential,
   }).read({
     walletSessionId: input.operationCredential.walletSessionId,
     quotaId: input.authorization.quotaId,
   });
+  reads.set(key, pending);
+  return await pending;
 }
 
 function exactSessionReadDependenciesForRelay(
   relayUrl: string,
 ): WalletIframeExactSessionReadDependencies & WalletIframeExactSessionReconciliationDependencies {
+  // Reconciliation and selection belong to one read. A subsequent host request
+  // gets a new map and rechecks expiry, revocation, and budget with the server.
+  const reads = new Map<string, Promise<WalletIframeExactSessionStatus>>();
   return {
     resolveSelectedWalletAuthority:
       IndexedDBManager.resolveSelectedWalletAuthority.bind(IndexedDBManager),
@@ -58,7 +71,7 @@ function exactSessionReadDependenciesForRelay(
     readExactActiveForWallet: walletSessionAuthorizations.readExactActiveForWallet.bind(
       walletSessionAuthorizations,
     ),
-    readStatus: readWalletIframeExactSessionStatus.bind(null, relayUrl),
+    readStatus: readWalletIframeExactSessionStatus.bind(null, relayUrl, reads),
     writeExactWithOperationCredential:
       walletSessionAuthorizations.writeExactWithOperationCredential.bind(
         walletSessionAuthorizations,

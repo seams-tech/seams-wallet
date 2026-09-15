@@ -868,6 +868,18 @@ async function persistIntendedLifecycleTrace(args: {
   await writeFile(filePath, JSON.stringify(args.payload, null, 2), 'utf8');
 }
 
+function isRequestTraceEntry(entry: TraceEntry): boolean {
+  return entry.kind === 'request';
+}
+
+function isWalletUnlockVerifyRequest(entry: TraceEntry): boolean {
+  return entry.url !== undefined && new URL(entry.url).pathname === '/wallet/unlock/verify';
+}
+
+function isWalletSessionStatusRequest(entry: TraceEntry): boolean {
+  return entry.url !== undefined && new URL(entry.url).pathname === '/wallet/session/status';
+}
+
 function intendedPageActionIsComplete(expectedAction: string): boolean {
   const status = document.querySelector('[data-testid="intended-action-status"]');
   if (!status) return false;
@@ -1686,6 +1698,11 @@ export class IntendedBehaviourHarness {
     if (observedPaths.includes('/router-ab/wallet-session/ed25519')) {
       throw new Error('Passkey unlock requested a second Ed25519 Wallet Session ceremony');
     }
+    const unlockRequests = this.trace.slice(traceStartIndex).filter(isRequestTraceEntry);
+    const verifyIndex = unlockRequests.findIndex(isWalletUnlockVerifyRequest);
+    const statusReads = unlockRequests.slice(verifyIndex + 1).filter(isWalletSessionStatusRequest);
+    expect(statusReads.length, 'post-passkey unlock must avoid redundant session-status reads')
+      .toBeLessThanOrEqual(4);
     this.assertNoRouterAbEd25519YaoRecoveryRoutes(traceStartIndex, {
       kind: 'passkey_unlock',
     });
