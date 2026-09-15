@@ -176,18 +176,14 @@ export type BuildPromotedPasskeyEd25519YaoLocalMaterialRecordInputV1 = {
 
 export type RehydratePasskeyEd25519YaoLocalMaterialInputV1 = {
   store: Ed25519YaoLocalMaterialStorePort;
-  walletSessionState: NearResolvedEd25519SigningSessionState;
-  rpId: string;
-  credentialIdB64u: string;
+  identity: Ed25519YaoLocalMaterialIdentity;
   passkeyPrfFirstB64u: string;
 };
 
 export type RehydratePasskeyEd25519YaoLocalMaterialRecordInputV1 = {
   stored: KeyMaterialRecord;
   target: PasskeyEd25519YaoLocalMaterialTargetV1;
-  walletSessionState: NearResolvedEd25519SigningSessionState;
-  rpId: string;
-  credentialIdB64u: string;
+  identity: Ed25519YaoLocalMaterialIdentity;
   ownedPasskeyPrfFirst: Uint8Array;
 };
 
@@ -315,7 +311,7 @@ function requireU64String(value: unknown, label: string): string {
   return parsed;
 }
 
-function walletSessionIdentity(
+export function ed25519YaoLocalMaterialIdentityFromWalletSession(
   walletSessionState: NearResolvedEd25519SigningSessionState,
   rpId: string,
   credentialIdB64u: string,
@@ -745,7 +741,7 @@ function buildPasskeyEd25519YaoLocalMaterialRecordV1(input: {
 export function buildPromotedPasskeyEd25519YaoLocalMaterialRecordV1(
   input: BuildPromotedPasskeyEd25519YaoLocalMaterialRecordInputV1,
 ): KeyMaterialRecord {
-  const identity = walletSessionIdentity(
+  const identity = ed25519YaoLocalMaterialIdentityFromWalletSession(
     input.walletSessionState,
     input.rpId,
     input.credentialIdB64u,
@@ -769,7 +765,7 @@ export function buildPromotedPasskeyEd25519YaoLocalMaterialRecordV1(
 export async function persistPasskeyEd25519YaoLocalMaterialV1(
   input: PersistPasskeyEd25519YaoLocalMaterialInputV1,
 ): Promise<void> {
-  const identity = walletSessionIdentity(
+  const identity = ed25519YaoLocalMaterialIdentityFromWalletSession(
     input.walletSessionState,
     input.rpId,
     input.credentialIdB64u,
@@ -853,33 +849,30 @@ export async function readPasskeyEd25519YaoLocalMaterialLocatorV1(
   };
 }
 
-function publicLocatorMatchesWalletSession(args: {
+function publicLocatorMatchesIdentity(args: {
   publicLocator: Extract<PasskeyEd25519YaoPublicLocatorObservationV1, { kind: 'available' }>;
-  walletSessionState: NearResolvedEd25519SigningSessionState;
+  identity: Ed25519YaoLocalMaterialIdentity;
 }): boolean {
-  const signer = args.walletSessionState.signingLane.identity.signer;
   return (
-    args.publicLocator.walletId === String(signer.account.wallet.walletId) &&
-    args.publicLocator.nearAccountId === String(signer.account.nearAccountId) &&
-    args.publicLocator.signerSlot === signer.signerSlot
+    args.publicLocator.walletId === args.identity.walletId &&
+    args.publicLocator.nearAccountId === args.identity.nearAccountId &&
+    args.publicLocator.signerSlot === args.identity.signerSlot
   );
 }
 
 async function expectedPasskeyAuthority(args: {
-  walletSessionState: NearResolvedEd25519SigningSessionState;
-  rpId: string;
-  credentialIdB64u: string;
+  identity: Ed25519YaoLocalMaterialIdentity;
   authority: WalletAuthAuthorityRef;
 }): Promise<WalletAuthAuthorityRef> {
   const authority = parsePasskeyWalletAuthAuthority({
-    walletId: args.walletSessionState.signingLane.identity.signer.account.wallet.walletId,
+    walletId: args.identity.walletId,
     factor: {
       kind: 'passkey',
-      credentialIdB64u: args.credentialIdB64u,
+      credentialIdB64u: args.identity.credentialIdB64u,
     },
     verifier: {
       kind: 'webauthn',
-      rpId: args.rpId,
+      rpId: args.identity.rpId,
     },
     bindingId: args.authority.walletAuthMethodId,
   });
@@ -914,18 +907,16 @@ function hydrationBlocked(
 
 export async function preparePasskeyEd25519YaoLocalMaterialRehydrationV1(input: {
   store: Ed25519YaoLocalMaterialStorePort;
-  walletSessionState: NearResolvedEd25519SigningSessionState;
-  rpId: string;
-  credentialIdB64u: string;
+  identity: Ed25519YaoLocalMaterialIdentity;
   authority: WalletAuthAuthorityRef;
   publicLocator: PasskeyEd25519YaoPublicLocatorObservationV1;
 }): Promise<PreparePasskeyEd25519YaoLocalMaterialRehydrationResultV1> {
   const expectedAuthority = await expectedPasskeyAuthority(input);
   const publicLocator: NearEd25519YaoPublicLocatorObservationV1 =
     input.publicLocator.kind === 'available' &&
-    !publicLocatorMatchesWalletSession({
+    !publicLocatorMatchesIdentity({
       publicLocator: input.publicLocator,
-      walletSessionState: input.walletSessionState,
+      identity: input.identity,
     })
       ? { kind: 'conflict' }
       : input.publicLocator.kind === 'available'
@@ -935,18 +926,12 @@ export async function preparePasskeyEd25519YaoLocalMaterialRehydrationV1(input: 
   try {
     localMaterial = await readPasskeyEd25519YaoLocalMaterialLocatorV1({
       store: input.store,
-      walletId: String(
-        input.walletSessionState.signingLane.identity.signer.account.wallet.walletId,
-      ),
-      nearAccountId: String(
-        input.walletSessionState.signingLane.identity.signer.account.nearAccountId,
-      ),
-      nearEd25519SigningKeyId: String(
-        input.walletSessionState.signingLane.identity.signer.nearEd25519SigningKeyId,
-      ),
-      signerSlot: input.walletSessionState.signingLane.identity.signer.signerSlot,
-      rpId: input.rpId,
-      credentialIdB64u: input.credentialIdB64u,
+      walletId: String(input.identity.walletId),
+      nearAccountId: String(input.identity.nearAccountId),
+      nearEd25519SigningKeyId: String(input.identity.nearEd25519SigningKeyId),
+      signerSlot: input.identity.signerSlot,
+      rpId: input.identity.rpId,
+      credentialIdB64u: input.identity.credentialIdB64u,
       authority: expectedAuthority,
     });
   } catch {
@@ -994,9 +979,7 @@ export async function preparePasskeyEd25519YaoLocalMaterialRehydrationV1(input: 
 
 export async function hydratePasskeyEd25519YaoLocalMaterialV1(input: {
   store: Ed25519YaoLocalMaterialStorePort;
-  walletSessionState: NearResolvedEd25519SigningSessionState;
-  rpId: string;
-  credentialIdB64u: string;
+  identity: Ed25519YaoLocalMaterialIdentity;
   authority: WalletAuthAuthorityRef;
   publicLocator: PasskeyEd25519YaoPublicLocatorObservationV1;
   unlockSource: PasskeyEd25519YaoUnlockSourceV1;
@@ -1005,9 +988,9 @@ export async function hydratePasskeyEd25519YaoLocalMaterialV1(input: {
   const expectedAuthority = await expectedPasskeyAuthority(input);
   const publicLocator: NearEd25519YaoPublicLocatorObservationV1 =
     input.publicLocator.kind === 'available' &&
-    !publicLocatorMatchesWalletSession({
+    !publicLocatorMatchesIdentity({
       publicLocator: input.publicLocator,
-      walletSessionState: input.walletSessionState,
+      identity: input.identity,
     })
       ? { kind: 'conflict' }
       : input.publicLocator.kind === 'available'
@@ -1017,18 +1000,12 @@ export async function hydratePasskeyEd25519YaoLocalMaterialV1(input: {
   try {
     localMaterial = await readPasskeyEd25519YaoLocalMaterialLocatorV1({
       store: input.store,
-      walletId: String(
-        input.walletSessionState.signingLane.identity.signer.account.wallet.walletId,
-      ),
-      nearAccountId: String(
-        input.walletSessionState.signingLane.identity.signer.account.nearAccountId,
-      ),
-      nearEd25519SigningKeyId: String(
-        input.walletSessionState.signingLane.identity.signer.nearEd25519SigningKeyId,
-      ),
-      signerSlot: input.walletSessionState.signingLane.identity.signer.signerSlot,
-      rpId: input.rpId,
-      credentialIdB64u: input.credentialIdB64u,
+      walletId: String(input.identity.walletId),
+      nearAccountId: String(input.identity.nearAccountId),
+      nearEd25519SigningKeyId: String(input.identity.nearEd25519SigningKeyId),
+      signerSlot: input.identity.signerSlot,
+      rpId: input.identity.rpId,
+      credentialIdB64u: input.identity.credentialIdB64u,
       authority: expectedAuthority,
     });
   } catch {
@@ -1082,9 +1059,7 @@ export async function hydratePasskeyEd25519YaoLocalMaterialV1(input: {
       }
       const rehydrated = await rehydratePasskeyEd25519YaoLocalMaterialV1({
         store: input.store,
-        walletSessionState: input.walletSessionState,
-        rpId: input.rpId,
-        credentialIdB64u: input.credentialIdB64u,
+        identity: input.identity,
         passkeyPrfFirstB64u: input.unlockSource.passkeyPrfFirstB64u,
       });
       if (rehydrated.kind !== 'rehydrated') {
@@ -1112,7 +1087,7 @@ export async function hydratePasskeyEd25519YaoLocalMaterialV1(input: {
 export async function deletePasskeyEd25519YaoLocalMaterialV1(
   input: DeletePasskeyEd25519YaoLocalMaterialInputV1,
 ): Promise<void> {
-  const identity = walletSessionIdentity(
+  const identity = ed25519YaoLocalMaterialIdentityFromWalletSession(
     input.walletSessionState,
     input.rpId,
     input.credentialIdB64u,
@@ -1132,11 +1107,7 @@ export async function deletePasskeyEd25519YaoLocalMaterialV1(
 export async function rehydratePasskeyEd25519YaoLocalMaterialV1(
   input: RehydratePasskeyEd25519YaoLocalMaterialInputV1,
 ): Promise<RehydratePasskeyEd25519YaoLocalMaterialResultV1> {
-  const identity = walletSessionIdentity(
-    input.walletSessionState,
-    input.rpId,
-    input.credentialIdB64u,
-  );
+  const identity = input.identity;
   const target = await resolveAccountKeyMaterialTarget(input.store, {
     accountRefs: buildNearAccountRefs(identity.nearAccountId),
   });
@@ -1151,9 +1122,7 @@ export async function rehydratePasskeyEd25519YaoLocalMaterialV1(
   return rehydratePasskeyEd25519YaoLocalMaterialRecordV1({
     stored,
     target,
-    walletSessionState: input.walletSessionState,
-    rpId: input.rpId,
-    credentialIdB64u: input.credentialIdB64u,
+    identity,
     ownedPasskeyPrfFirst: base64UrlDecode(input.passkeyPrfFirstB64u),
   });
 }
@@ -1161,11 +1130,7 @@ export async function rehydratePasskeyEd25519YaoLocalMaterialV1(
 export async function rehydratePasskeyEd25519YaoLocalMaterialRecordV1(
   input: RehydratePasskeyEd25519YaoLocalMaterialRecordInputV1,
 ): Promise<Extract<RehydratePasskeyEd25519YaoLocalMaterialResultV1, { kind: 'rehydrated' }>> {
-  const identity = walletSessionIdentity(
-    input.walletSessionState,
-    input.rpId,
-    input.credentialIdB64u,
-  );
+  const identity = input.identity;
   const stored = input.stored;
   const target = input.target;
   const envelope = stored.payloadEnvelope;
