@@ -35,6 +35,7 @@ import {
   confirmationConfigForSigningAuthPlan,
   runSigningConfirmationCommand,
 } from '../shared/signingConfirmation';
+import { emitNearSigningConfirmationProgress } from './shared/confirmationProgress';
 import {
   requireNearStepUpAuth,
   signingAuthPlanForNearMaterialRequirement,
@@ -188,6 +189,7 @@ export async function signNep413Message({
   yaoSigningPreparation,
   yaoMaterialExecutor,
   selection,
+  onEvent,
 }: NearNep413Payload): Promise<InternalSignNep413MessageResult> {
   const selectionAuth =
     selection.kind === 'authorized' ? selection.selectedLane.auth : selection.candidate.auth;
@@ -383,6 +385,11 @@ export async function signNep413Message({
         confirmationConfigOverride: confirmationConfigForSigningAuthPlan({
           signingAuthPlan: preparedStepUp.confirmationAuthPayload.signingAuthPlan,
           override: payload.confirmationConfigOverride,
+        }),
+        onProgress: emitNearSigningConfirmationProgress.bind(undefined, {
+          onEvent,
+          nearAccountId,
+          signingAuthPlan: preparedStepUp.confirmationAuthPayload.signingAuthPlan,
         }),
       },
     });
