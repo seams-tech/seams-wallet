@@ -77,6 +77,9 @@ Router A/B preserves the user-facing latency model:
   signing, and consume the matching server presignature exactly once.
 - Pool miss: perform Router A/B pool-fill, then continue through the normal-
   signing boundary.
+- A foreground pool miss that overlaps a background refill resumes when the
+  first presignature becomes available. The background refill continues to its
+  target depth independently.
 - A missing pool-fill response is a hard failure. There is no alternate
   threshold presignature route.
 
