@@ -332,4 +332,87 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
     });
     expect(result.mirroredState).toEqual({ kind: 'wallet_locked' });
   });
+
+  test('locks immediately when operation-scoped step-up is cancelled', async ({ page }) => {
+    const result = await page.evaluate(
+      async ({ routerPath, walletOrigin, walletId }) => {
+        const module = await import(routerPath);
+        const { WalletIframeRouter } =
+          module as typeof import('@/SeamsWeb/walletIframe/client/router');
+        const router = new WalletIframeRouter({
+          walletOrigin,
+          servicePath: '/wallet-service',
+          connectTimeoutMs: 3_000,
+          requestTimeoutMs: 5_000,
+          sdkBasePath: '/sdk',
+        });
+        const loginStatuses: Array<{ isLoggedIn: boolean; walletId: string | null }> = [];
+        router.onLoginStatusChanged((status) => loginStatuses.push(status));
+        await router.init();
+
+        const request = router.executeAction({
+          walletId,
+          nearAccountId: 'refactor-92.testnet',
+          receiverId: 'seams-v1.testnet',
+          actionArgs: { type: 'Transfer', amount: '1' } as any,
+          options: {},
+        });
+        await new Promise((resolve) => window.setTimeout(resolve, 30));
+
+        const state = Reflect.get(router, 'state') as {
+          connectionId: string;
+          pending: Map<string, unknown>;
+        };
+        const requestId = [...state.pending.keys()][0];
+        const onPortMessage = Reflect.get(router, 'onPortMessage');
+        if (!requestId || typeof onPortMessage !== 'function') {
+          throw new Error('wallet iframe pending request boundary is unavailable');
+        }
+        onPortMessage.call(
+          router,
+          new MessageEvent('message', {
+            data: {
+              type: 'ERROR',
+              requestId,
+              payload: {
+                code: 'wallet_operation_step_up_cancelled',
+                message: 'Request cancelled.',
+              },
+            },
+          }),
+          state.connectionId,
+        );
+
+        const requestResult = await request.then(
+          () => ({ kind: 'resolved' as const }),
+          (error: unknown) => ({
+            kind: 'rejected' as const,
+            code: String((error as { code?: unknown }).code || ''),
+            message: String((error as { message?: unknown }).message || ''),
+          }),
+        );
+        return {
+          requestResult,
+          mirroredState: router.getMirroredExactSessionState(),
+          loginStatuses,
+        };
+      },
+      {
+        routerPath: SDK_ESM_PATHS.walletIframeRouter,
+        walletOrigin: WALLET_ORIGIN,
+        walletId: WALLET_ID,
+      },
+    );
+
+    expect(result.requestResult).toEqual({
+      kind: 'rejected',
+      code: 'wallet_operation_step_up_cancelled',
+      message: 'Request cancelled.',
+    });
+    expect(result.loginStatuses).toEqual([
+      { isLoggedIn: true, walletId: WALLET_ID },
+      { isLoggedIn: false, walletId: null },
+    ]);
+    expect(result.mirroredState).toEqual({ kind: 'wallet_locked' });
+  });
 });

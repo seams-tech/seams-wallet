@@ -1260,8 +1260,35 @@ const CANONICAL_SIGNER_BOUNDARY_MESSAGES: Record<string, string> = {
     'Threshold signing session is not ready. Refresh the signing session and retry.',
   nonce_conflict_retryable: 'Nonce conflict detected. Refresh nonce state and retry the request.',
   rpc_request_failed: 'RPC request failed. Retry the request or use another RPC endpoint.',
+  wallet_signing_material_invalid:
+    'Wallet signing material is invalid. Log in again or recover the wallet.',
+  wallet_full_login_required: 'A full wallet login is required before signing.',
+  wallet_signing_material_temporarily_unavailable:
+    'Wallet signing material storage is temporarily unavailable. Retry the operation.',
+  wallet_operation_step_up_cancelled: 'Request cancelled.',
   cancelled: 'Request cancelled.',
 };
+
+type TerminalWalletStateErrorCode =
+  | 'wallet_signing_material_invalid'
+  | 'wallet_full_login_required'
+  | 'wallet_operation_step_up_cancelled';
+
+function isTerminalWalletStateErrorCode(
+  code: unknown,
+): code is TerminalWalletStateErrorCode {
+  return (
+    code === 'wallet_signing_material_invalid' ||
+    code === 'wallet_full_login_required' ||
+    code === 'wallet_operation_step_up_cancelled'
+  );
+}
+
+function isWalletOperationCancellationCode(
+  code: unknown,
+): code is 'cancelled' | 'wallet_operation_step_up_cancelled' {
+  return code === 'cancelled' || code === 'wallet_operation_step_up_cancelled';
+}
 
 function resolveCanonicalSignerBoundaryMessage(rawCode: unknown, fallbackMessage: unknown): string {
   const code = String(rawCode || '')
@@ -4251,10 +4278,16 @@ export class WalletIframeRouter {
       const err: Error & { code?: string; details?: unknown } = new Error(message);
       err.code = msg.payload?.code;
       err.details = msg.payload?.details;
+      if (isTerminalWalletStateErrorCode(msg.payload?.code)) {
+        this.exactSessionState = { kind: 'wallet_locked' };
+        this.emitLoginStatusChanged({ isLoggedIn: false, walletId: null });
+      }
       // Deliver to pending promise if present
       pending.reject(err);
       // Also notify all progress subscribers for this requestId
-      const terminalStatus = msg.payload?.code === 'cancelled' ? 'cancelled' : 'failed';
+      const terminalStatus = isWalletOperationCancellationCode(msg.payload?.code)
+        ? 'cancelled'
+        : 'failed';
       const fallbackProgress = createTerminalProgressForRequest({
         requestType: pending.requestType,
         requestId,

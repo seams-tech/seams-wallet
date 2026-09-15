@@ -3,7 +3,6 @@ import { ActionType } from '@/core/types/actions';
 import { computeUiIntentDigestFromTxs, orderActionForDigest } from '@/utils/intentDigest';
 import {
   SigningAuthPlanKind,
-  signingAuthModeFromSigningAuthPlan,
   type SigningAuthPlan,
 } from '../../stepUpConfirmation/types';
 import {
@@ -31,7 +30,6 @@ import type {
 import {
   PENDING_CHALLENGE_B64U,
   PENDING_INTENT_DIGEST,
-  registerIntentDigestPreparation,
 } from '../../stepUpConfirmation/intentDigestPreparation';
 import {
   clearConfirmationReadiness,
@@ -248,8 +246,6 @@ export async function orchestrateSigningConfirmation(
 > {
   const { sessionId } = params;
   const requestUserConfirmation = resolveRequestUserConfirmationBridge(params.ctx);
-  const effectiveSigningAuthMode = signingAuthModeFromSigningAuthPlan(params.signingAuthPlan);
-
   let intentDigest: string;
   let request: UserConfirmRequest;
 
@@ -267,51 +263,6 @@ export async function orchestrateSigningConfirmation(
         ...(params.title != null ? { title: params.title } : {}),
         ...(params.body != null ? { body: params.body } : {}),
       };
-
-      if (params.chain === 'near' && effectiveSigningAuthMode === 'warmSession') {
-        const eagerDisplayModel = buildNearDisplayModelWithFallback({
-          txSigningRequests,
-          signerAccountId: params.rpcCall.nearAccountId,
-          title: summaryBase.title,
-          body: summaryBase.body,
-        });
-        registerIntentDigestPreparation({
-          requestId: sessionId,
-          preparation: (async () => {
-            const preparedIntentDigest = await computeUiIntentDigestFromTxs(normalizedTxs);
-            const preparedDisplayModel = buildNearDisplayModelWithFallback({
-              txSigningRequests,
-              intentDigest: preparedIntentDigest,
-              signerAccountId: params.rpcCall.nearAccountId,
-              title: summaryBase.title,
-              body: summaryBase.body,
-            });
-            return {
-              intentDigest: preparedIntentDigest,
-              challengeB64u: preparedIntentDigest,
-              displayModel: preparedDisplayModel,
-              ...(summaryBase.title != null ? { title: summaryBase.title } : {}),
-              ...(summaryBase.body != null ? { body: summaryBase.body } : {}),
-            };
-          })(),
-        });
-        intentDigest = PENDING_INTENT_DIGEST;
-
-        request = {
-          requestId: sessionId,
-          type: UserConfirmationType.SIGN_TRANSACTION,
-          summary: summaryBase,
-          payload: buildSignTransactionPayload({
-            params,
-            txSigningRequests,
-            intentDigest: PENDING_INTENT_DIGEST,
-            displayModel: eagerDisplayModel,
-          }),
-          confirmationConfig: params.confirmationConfigOverride,
-          intentDigest: PENDING_INTENT_DIGEST,
-        };
-        break;
-      }
 
       intentDigest = await computeUiIntentDigestFromTxs(normalizedTxs);
 

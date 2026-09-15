@@ -341,7 +341,10 @@ async function resolveBrowserSelectedPasskeyFactorAuthorityForSealedRuntime(args
 
 type BrowserNearEd25519PasskeyMaterialAuthorizationRead =
   | Extract<NearEd25519WalletSessionAuthorizationReadResult, { readonly kind: 'found' }>
-  | { readonly kind: 'exhausted'; readonly authorization?: never };
+  | {
+      readonly kind: 'expired' | 'exhausted';
+      readonly authorization?: never;
+    };
 
 export async function resolveBrowserNearEd25519PasskeyAuthorityForMaterial(args: {
   readonly walletId: ReturnType<typeof toWalletId>;
@@ -349,6 +352,7 @@ export async function resolveBrowserNearEd25519PasskeyAuthorityForMaterial(args:
   readonly authorizationRead: BrowserNearEd25519PasskeyMaterialAuthorizationRead;
 }): Promise<WalletAuthAuthorityRef> {
   switch (args.authorizationRead.kind) {
+    case 'expired':
     case 'exhausted':
       return await resolveBrowserSelectedPasskeyFactorAuthorityForSealedRuntime(args);
     case 'found': {

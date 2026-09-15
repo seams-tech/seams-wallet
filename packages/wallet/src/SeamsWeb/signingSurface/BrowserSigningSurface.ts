@@ -21,6 +21,7 @@ import type {
 } from '@/core/types/seams';
 import { WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
+import { isUserCancellationError } from '@shared/utils/errors';
 import { type WalletEmailOtpChannel } from '@shared/utils/emailOtpDomain';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
 import {
@@ -179,9 +180,11 @@ import {
 } from '@/core/signingEngine/session/warmCapabilities/routerAbEd25519WalletSessionState';
 import { buildRouterAbEd25519SigningWalletSession } from '@/core/signingEngine/session/routerAbSigningWalletSession';
 import {
+  ed25519YaoLocalMaterialIdentityFromWalletSession,
   hydratePasskeyEd25519YaoLocalMaterialV1,
   preparePasskeyEd25519YaoLocalMaterialRehydrationV1,
   readPasskeyEd25519YaoLocalMaterialLocatorV1,
+  type Ed25519YaoLocalMaterialIdentity,
   type PasskeyEd25519YaoPublicLocatorObservationV1,
   type PasskeyEd25519YaoUnlockSourceV1,
 } from '@/core/signingEngine/session/passkey/ed25519YaoLocalMaterial';
@@ -193,11 +196,19 @@ import { readEmailOtpProviderSubjectForWalletV1 } from '@/core/signingEngine/thr
 import {
   buildAuthorizationRequiredNearEd25519YaoSigningPreparation,
   buildAuthorizedNearEd25519YaoSigningPreparation,
+  classifyNearEd25519WalletSessionAuthorization,
   nearEd25519SessionMatchesMaterialActivation,
   type ExactNearEd25519WalletSessionAuthorization,
   type NearEd25519WalletSessionAuthorizationReadResult,
   type NearEd25519YaoSigningPreparation,
 } from '@/core/signingEngine/session/material/nearEd25519YaoSigningPreparation';
+import {
+  fullWalletLoginRequired,
+  invalidWalletSigningMaterial,
+  isWalletSigningStateFailure,
+  walletOperationStepUpCancelled,
+  walletSigningMaterialBlockError,
+} from '@/core/signingEngine/session/material/walletSigningStateFailure';
 import {
   buildBlockedMpcCapabilityHydrationPlan,
   buildRehydrateMaterialActivationHydrationPlan,
@@ -1723,7 +1734,9 @@ async function requireExactEd25519SealedRuntimeForLane(args: {
 }): Promise<ExactEd25519SealedSessionRuntime> {
   const resolution = await resolveExactEd25519SealedSessionRuntimeForLane(args);
   if (resolution.kind !== 'resolved') {
-    throw new Error(`[SigningEngine][near] exact persisted Ed25519 runtime is ${resolution.kind}`);
+    throw invalidWalletSigningMaterial(
+      resolution.kind === 'conflict' ? 'runtime_conflict' : 'missing_runtime',
+    );
   }
   return resolution.runtime;
 }
@@ -1785,10 +1798,10 @@ async function requireExactEd25519SealedRuntimeForMaterialIdentity(args: {
         nearEd25519RuntimeMatchesMaterialIdentity({ runtime, identity: args.identity }),
     );
   if (runtimes.length === 0) {
-    throw new Error('[SigningEngine][near] exact persisted Ed25519 runtime is missing');
+    throw invalidWalletSigningMaterial('missing_runtime');
   }
   if (runtimes.length !== 1) {
-    throw new Error('[SigningEngine][near] exact persisted Ed25519 runtime is conflicting');
+    throw invalidWalletSigningMaterial('runtime_conflict');
   }
   return runtimes[0];
 }
@@ -1908,6 +1921,65 @@ async function walletSessionStateFromExactEd25519Runtime(args: {
     authorization,
     nowMs: Date.now(),
   });
+}
+
+function passkeyEd25519LocalMaterialIdentityFromExactRuntime(
+  runtime: ExactEd25519SealedSessionRuntime,
+): Ed25519YaoLocalMaterialIdentity {
+  if (runtime.factor.kind !== WALLET_AUTH_METHODS.passkey) {
+    throw invalidWalletSigningMaterial('binding_mismatch');
+  }
+  return {
+    walletId: String(runtime.walletId),
+    nearAccountId: String(runtime.nearAccountId),
+    nearEd25519SigningKeyId: String(runtime.nearEd25519SigningKeyId),
+    thresholdSessionId: String(runtime.thresholdSessionId),
+    signerSlot: runtime.signerSlot,
+    rpId: String(runtime.factor.rpId),
+    credentialIdB64u: runtime.factor.credentialIdB64u,
+    signingRootId: runtime.signingRootId,
+    signingRootVersion: runtime.signingRootVersion,
+    signingWorkerId: runtime.routerAbNormalSigning.signingWorkerId,
+  };
+}
+
+function nearEd25519OperationMaterialFactsFromExactRuntime(
+  runtime: ExactEd25519SealedSessionRuntime,
+): NearEd25519YaoOperationMaterialFacts {
+  return {
+    thresholdSessionId: runtime.thresholdSessionId,
+    signer: nearEd25519SignerBindingFromBoundaryFields({
+      walletId: runtime.walletId,
+      nearAccountId: runtime.nearAccountId,
+      nearEd25519SigningKeyId: runtime.nearEd25519SigningKeyId,
+      signerSlot: runtime.signerSlot,
+    }),
+    signingRootId: runtime.signingRootId,
+    signingRootVersion: runtime.signingRootVersion,
+    routerAbNormalSigning: runtime.routerAbNormalSigning,
+    runtimePolicyScope: runtime.runtimePolicyScope,
+    relayerUrl: runtime.relayerUrl,
+  };
+}
+
+async function prepareExactPasskeyEd25519YaoLocalMaterialRehydration(
+  input: Parameters<typeof preparePasskeyEd25519YaoLocalMaterialRehydrationV1>[0],
+): Promise<Awaited<ReturnType<typeof preparePasskeyEd25519YaoLocalMaterialRehydrationV1>>> {
+  try {
+    return await preparePasskeyEd25519YaoLocalMaterialRehydrationV1(input);
+  } catch {
+    throw invalidWalletSigningMaterial('binding_mismatch');
+  }
+}
+
+async function hydrateExactPasskeyEd25519YaoLocalMaterial(
+  input: Parameters<typeof hydratePasskeyEd25519YaoLocalMaterialV1>[0],
+): Promise<Awaited<ReturnType<typeof hydratePasskeyEd25519YaoLocalMaterialV1>>> {
+  try {
+    return await hydratePasskeyEd25519YaoLocalMaterialV1(input);
+  } catch {
+    throw invalidWalletSigningMaterial('corrupt');
+  }
 }
 
 function nearEd25519YaoRuntimeObservation(
@@ -3543,7 +3615,42 @@ export class BrowserSigningSurface {
   async signNear<TRequest extends NearSignIntentRequest>(
     request: TRequest,
   ): Promise<NearSignIntentResult<TRequest>> {
-    return await signNearOperation(this.enginePorts.nearSigningDeps, request);
+    const walletId = request.args.commandSubject.walletSession.walletId;
+    try {
+      return await signNearOperation(this.enginePorts.nearSigningDeps, request);
+    } catch (error) {
+      if (isWalletSigningStateFailure(error)) {
+        await this.terminateWalletStateAfterSigningFailure(walletId);
+        throw error;
+      }
+      if (
+        this.walletAuthenticationState.kind === 'signed_out' &&
+        isUserCancellationError(error)
+      ) {
+        await this.terminateWalletStateAfterSigningFailure(walletId);
+        throw walletOperationStepUpCancelled();
+      }
+      throw error;
+    }
+  }
+
+  private async terminateWalletStateAfterSigningFailure(walletId: WalletId): Promise<void> {
+    try {
+      await this.advanceWalletLockGeneration(walletId);
+      await this.retireActiveWalletSessionAuthorizationForLock(walletId);
+    } catch {}
+    try {
+      this.clearWalletAuthentication();
+    } catch {}
+    try {
+      this.nonceCoordinator.clearAll();
+    } catch {}
+    try {
+      this.clearThresholdEcdsaSigningQueue();
+    } catch {}
+    try {
+      await this.clearVolatileWarmSigningMaterial(walletId);
+    } catch {}
   }
 
   private async ensureNearEd25519YaoCapabilityForSigning(
@@ -3617,6 +3724,9 @@ export class BrowserSigningSurface {
       identity.auth.kind === WALLET_AUTH_METHODS.passkey
         ? await this.readExactNearEd25519WalletSessionAuthorization(args.walletId)
         : null;
+    const passkeyAuthorization = passkeyAuthorizationRead
+      ? classifyNearEd25519WalletSessionAuthorization(passkeyAuthorizationRead)
+      : null;
     if (identity.auth.kind === WALLET_AUTH_METHODS.passkey && publicCapabilityMaterialActivation) {
       const activeMaterial = this.enginePorts.ed25519YaoActiveClients.resolve({
         walletId: identity.signer.account.wallet.walletId,
@@ -3625,8 +3735,8 @@ export class BrowserSigningSurface {
       });
       const liveRuntime = nearEd25519YaoRuntimeObservation(activeMaterial);
       if (activeMaterial && liveRuntime.kind === 'live') {
-        if (passkeyAuthorizationRead?.kind === 'found') {
-          const authorization = passkeyAuthorizationRead.authorization;
+        if (passkeyAuthorization?.kind === 'authorized') {
+          const authorization = passkeyAuthorization.authorization;
           if (authorization.selectedAuthMethod.kind !== WALLET_AUTH_METHODS.passkey) {
             throw new Error('[SigningEngine][near] active Wallet Session method is unavailable');
           }
@@ -3643,10 +3753,19 @@ export class BrowserSigningSurface {
             authorization,
           });
         }
-        if (passkeyAuthorizationRead?.kind !== 'exhausted') {
-          throw new Error('[SigningEngine][near] active Wallet Session is unavailable');
+        if (passkeyAuthorization?.kind !== 'operation_step_up') {
+          if (passkeyAuthorization?.kind === 'full_login_required') {
+            throw fullWalletLoginRequired(passkeyAuthorization.reason);
+          }
+          throw new Error('[SigningEngine][near] Wallet Session status is temporarily unavailable');
         }
       }
+    }
+    if (passkeyAuthorization?.kind === 'full_login_required') {
+      throw fullWalletLoginRequired(passkeyAuthorization.reason);
+    }
+    if (passkeyAuthorization?.kind === 'temporarily_unavailable') {
+      throw new Error('[SigningEngine][near] Wallet Session persistence is temporarily unavailable');
     }
     const sealedRuntime =
       identity.auth.kind === WALLET_AUTH_METHODS.passkey
@@ -3661,7 +3780,7 @@ export class BrowserSigningSurface {
         ? nearEd25519YaoMaterialActivationFromMetadata(activeForAccount.activeClient.metadata())
         : publicCapabilityMaterialActivation);
     if (!materialActivation) {
-      throw new Error('[SigningEngine][near] Ed25519 material activation is unavailable');
+      throw invalidWalletSigningMaterial('missing_capability');
     }
     const activeCapability = this.enginePorts.ed25519YaoActiveClients.resolve({
       walletId: identity.signer.account.wallet.walletId,
@@ -3673,20 +3792,31 @@ export class BrowserSigningSurface {
     switch (identity.auth.kind) {
       case WALLET_AUTH_METHODS.passkey: {
         if (!sealedRuntime) {
-          throw new Error('[SigningEngine][near] passkey sealed runtime is unavailable');
+          throw invalidWalletSigningMaterial('missing_runtime');
         }
-        if (!passkeyAuthorizationRead) {
+        if (!passkeyAuthorization) {
           throw new Error('[SigningEngine][near] exact Passkey authorization read is unavailable');
         }
         let authorizationRead:
           | Extract<NearEd25519WalletSessionAuthorizationReadResult, { readonly kind: 'found' }>
-          | { readonly kind: 'exhausted'; readonly authorization?: never };
-        if (passkeyAuthorizationRead.kind === 'found') {
-          authorizationRead = passkeyAuthorizationRead;
-        } else if (passkeyAuthorizationRead.kind === 'exhausted') {
-          authorizationRead = { kind: 'exhausted' };
-        } else {
-          throw new Error('[SigningEngine][near] exact Passkey authority is unavailable');
+          | {
+              readonly kind: 'expired' | 'exhausted';
+              readonly authorization?: never;
+            };
+        switch (passkeyAuthorization.kind) {
+          case 'authorized':
+            authorizationRead = {
+              kind: 'found',
+              authorization: passkeyAuthorization.authorization,
+            };
+            break;
+          case 'operation_step_up':
+            authorizationRead = { kind: passkeyAuthorization.reason };
+            this.clearWalletAuthentication();
+            break;
+          default:
+            passkeyAuthorization satisfies never;
+            throw new Error('[SigningEngine][near] unsupported Wallet Session state');
         }
         const walletSessionState =
           authorizationRead.kind === 'found'
@@ -3707,11 +3837,35 @@ export class BrowserSigningSurface {
               purpose: { curve: 'ed25519', materialActivation },
               consume: false,
             });
-        const authority = await resolveBrowserNearEd25519PasskeyAuthorityForMaterial({
-          walletId: args.walletId,
-          runtime: sealedRuntime,
-          authorizationRead,
-        });
+        let authority: WalletAuthAuthorityRef;
+        try {
+          authority = await resolveBrowserNearEd25519PasskeyAuthorityForMaterial({
+            walletId: args.walletId,
+            runtime: sealedRuntime,
+            authorizationRead,
+          });
+        } catch {
+          throw invalidWalletSigningMaterial('binding_mismatch');
+        }
+        const localMaterialIdentity = passkeyEd25519LocalMaterialIdentityFromExactRuntime(
+          sealedRuntime,
+        );
+        if (authorizationRead.kind !== 'found') {
+          const prepared = await prepareExactPasskeyEd25519YaoLocalMaterialRehydration({
+            store: IndexedDBManager,
+            identity: localMaterialIdentity,
+            authority,
+            publicLocator: {
+              kind: 'available',
+              walletId: String(identity.signer.account.wallet.walletId),
+              nearAccountId: String(identity.signer.account.nearAccountId),
+              signerSlot: identity.signer.signerSlot,
+              materialActivation,
+            },
+          });
+          hydration = prepared.plan;
+          break;
+        }
         const localMaterial = await readPasskeyEd25519YaoLocalMaterialLocatorV1({
           store: IndexedDBManager,
           walletId: String(identity.signer.account.wallet.walletId),
@@ -3746,6 +3900,15 @@ export class BrowserSigningSurface {
             ? { kind: 'available', authority }
             : { kind: 'unavailable' },
         });
+        if (hydration.kind === 'blocked' && hydration.reason === 'missing_material') {
+          const prepared = await prepareExactPasskeyEd25519YaoLocalMaterialRehydration({
+            store: IndexedDBManager,
+            identity: localMaterialIdentity,
+            authority,
+            publicLocator,
+          });
+          hydration = prepared.plan;
+        }
         break;
       }
       case WALLET_AUTH_METHODS.emailOtp:
@@ -3760,6 +3923,12 @@ export class BrowserSigningSurface {
       default:
         identity.auth satisfies never;
         throw new Error('[SigningEngine][near] unsupported Ed25519 material authority');
+    }
+    if (hydration.kind === 'blocked') {
+      if (hydration.reason === 'persistence_unavailable') {
+        throw new Error('[SigningEngine][near] signing material persistence is unavailable');
+      }
+      throw walletSigningMaterialBlockError(hydration.reason);
     }
     return buildAuthorizationRequiredNearEd25519YaoSigningPreparation({
       hydration,
@@ -4975,9 +5144,11 @@ export class BrowserSigningSurface {
         if (hydration.kind === 'blocked' && hydration.reason === 'missing_material') {
           const prepared = await preparePasskeyEd25519YaoLocalMaterialRehydrationV1({
             store: IndexedDBManager,
-            walletSessionState: input.walletSessionState,
-            rpId: args.auth.rpId,
-            credentialIdB64u: args.auth.credentialIdB64u,
+            identity: ed25519YaoLocalMaterialIdentityFromWalletSession(
+              input.walletSessionState,
+              args.auth.rpId,
+              args.auth.credentialIdB64u,
+            ),
             authority: input.walletSessionState.authority,
             publicLocator: input.publicLocator,
           });
@@ -5043,45 +5214,48 @@ export class BrowserSigningSurface {
             walletId: args.walletId,
             identity,
           });
-    const walletSessionState = await walletSessionStateFromExactEd25519Runtime({
-      runtime,
-      relayerUrl: String(this.seamsWebConfigs.network.relayer?.url || '').trim(),
-    });
     const credentialIdB64u =
       runtime.factor.kind === 'passkey' ? runtime.factor.credentialIdB64u : '';
     const rpId = runtime.factor.kind === 'passkey' ? runtime.factor.rpId : '';
     if (!credentialIdB64u || !rpId) {
-      throw new Error('[SigningEngine][near] sealed Ed25519 passkey authority is unavailable');
+      throw invalidWalletSigningMaterial('binding_mismatch');
     }
-    const signer = walletSessionState.signingLane.identity.signer;
+    let authority: WalletAuthAuthorityRef;
+    try {
+      authority = await resolveBrowserNearEd25519PasskeyAuthorityForMaterial({
+        walletId: args.walletId,
+        runtime,
+        authorizationRead: { kind: 'expired' },
+      });
+    } catch {
+      throw invalidWalletSigningMaterial('binding_mismatch');
+    }
+    const localMaterialIdentity = passkeyEd25519LocalMaterialIdentityFromExactRuntime(runtime);
     const publicLocator: PasskeyEd25519YaoPublicLocatorObservationV1 = {
       kind: 'available',
-      walletId: String(signer.account.wallet.walletId),
-      nearAccountId: String(signer.account.nearAccountId),
-      signerSlot: signer.signerSlot,
+      walletId: localMaterialIdentity.walletId,
+      nearAccountId: localMaterialIdentity.nearAccountId,
+      signerSlot: localMaterialIdentity.signerSlot,
       materialActivation: runtime.sealedRecord.ed25519Restore.materialActivation,
     };
-    const prepared = await preparePasskeyEd25519YaoLocalMaterialRehydrationV1({
+    const prepared = await prepareExactPasskeyEd25519YaoLocalMaterialRehydration({
       store: IndexedDBManager,
-      walletSessionState,
-      rpId,
-      credentialIdB64u,
-      authority: walletSessionState.authority,
+      identity: localMaterialIdentity,
+      authority,
       publicLocator,
     });
     if (prepared.kind === 'blocked') {
-      throw new Error(
-        `[SigningEngine][near] sealed Ed25519 operation hydration blocked: ${prepared.plan.reason}`,
-      );
+      throw walletSigningMaterialBlockError(prepared.plan.reason);
     }
     return {
       materialActivation: prepared.plan.materialActivation,
-      facts: nearEd25519YaoOperationMaterialFacts(walletSessionState),
+      facts: nearEd25519OperationMaterialFactsFromExactRuntime(runtime),
       participantIds: [...runtime.participantIds],
       rehydrate: this.rehydratePreparedPasskeyEd25519YaoOperationStepUp.bind(this, {
         input: args,
-        walletSessionState,
-        authority: walletSessionState.authority,
+        identity: localMaterialIdentity,
+        facts: nearEd25519OperationMaterialFactsFromExactRuntime(runtime),
+        authority,
         rpId,
         credentialIdB64u,
         publicLocator,
@@ -5093,7 +5267,8 @@ export class BrowserSigningSurface {
   private async rehydratePreparedPasskeyEd25519YaoOperationStepUp(
     prepared: {
       input: PrepareNearEd25519YaoMaterialBoundaryInput;
-      walletSessionState: NearResolvedEd25519SigningSessionState;
+      identity: Ed25519YaoLocalMaterialIdentity;
+      facts: NearEd25519YaoOperationMaterialFacts;
       authority: WalletAuthAuthorityRef;
       rpId: string;
       credentialIdB64u: string;
@@ -5104,17 +5279,15 @@ export class BrowserSigningSurface {
   ): Promise<NearEd25519YaoOperationMaterial> {
     const credentialIdB64u = String(credential.rawId || credential.id || '').trim();
     if (credentialIdB64u !== prepared.credentialIdB64u) {
-      throw new Error('[SigningEngine][near] operation assertion changed passkey credential');
+      throw invalidWalletSigningMaterial('binding_mismatch');
     }
     const secretSource = buildThresholdEd25519WebAuthnPrfSecretSource({
       credential,
       rpId: prepared.rpId,
     });
-    const hydrated = await hydratePasskeyEd25519YaoLocalMaterialV1({
+    const hydrated = await hydrateExactPasskeyEd25519YaoLocalMaterial({
       store: IndexedDBManager,
-      walletSessionState: prepared.walletSessionState,
-      rpId: prepared.rpId,
-      credentialIdB64u: prepared.credentialIdB64u,
+      identity: prepared.identity,
       authority: prepared.authority,
       publicLocator: prepared.publicLocator,
       unlockSource: {
@@ -5124,24 +5297,20 @@ export class BrowserSigningSurface {
       liveMaterial: null,
     });
     if (hydrated.kind === 'blocked') {
-      throw new Error(
-        `[SigningEngine][near] operation assertion hydration blocked: ${hydrated.plan.reason}`,
-      );
+      throw walletSigningMaterialBlockError(hydrated.plan.reason);
     }
     if (hydrated.kind !== 'rehydrated') {
-      throw new Error(
-        '[SigningEngine][near] operation assertion did not rehydrate sealed material',
-      );
+      throw invalidWalletSigningMaterial('corrupt');
     }
     if (
       !mpcMaterialActivationRefsEqual(prepared.materialActivation, hydrated.plan.materialActivation)
     ) {
       hydrated.activeClient.dispose();
-      throw new Error('[SigningEngine][near] operation assertion changed material activation');
+      throw invalidWalletSigningMaterial('binding_mismatch');
     }
     const material = {
       activeClient: hydrated.activeClient,
-      facts: nearEd25519YaoOperationMaterialFacts(prepared.walletSessionState),
+      facts: prepared.facts,
     };
     try {
       return validateExactNearEd25519YaoOperationMaterial({
@@ -5149,9 +5318,9 @@ export class BrowserSigningSurface {
         input: prepared.input,
         expectedActivation: prepared.materialActivation,
       });
-    } catch (error) {
+    } catch {
       material.activeClient.dispose();
-      throw error;
+      throw invalidWalletSigningMaterial('binding_mismatch');
     }
   }
 
@@ -5741,9 +5910,11 @@ export class BrowserSigningSurface {
     const signer = args.walletSessionState.signingLane.identity.signer;
     return hydratePasskeyEd25519YaoLocalMaterialV1({
       store: IndexedDBManager,
-      walletSessionState: args.walletSessionState,
-      rpId: this.getRpId(),
-      credentialIdB64u: args.credentialIdB64u,
+      identity: ed25519YaoLocalMaterialIdentityFromWalletSession(
+        args.walletSessionState,
+        this.getRpId(),
+        args.credentialIdB64u,
+      ),
       authority: args.walletSessionState.authority,
       publicLocator: args.publicLocator,
       unlockSource: args.unlockSource,

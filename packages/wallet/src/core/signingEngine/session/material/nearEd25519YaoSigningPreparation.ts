@@ -59,6 +59,64 @@ export type NearEd25519WalletSessionAuthorizationReadResult =
       readonly authorization?: never;
     };
 
+export type NearEd25519WalletSessionFullLoginReason =
+  | 'missing'
+  | 'corrupt'
+  | 'upgrade_required'
+  | 'superseded'
+  | 'authority_unavailable'
+  | 'method_unavailable'
+  | 'capability_unavailable'
+  | 'unavailable';
+
+export type NearEd25519WalletSessionAuthorizationDisposition =
+  | {
+      readonly kind: 'authorized';
+      readonly authorization: ExactNearEd25519WalletSessionAuthorization;
+      readonly reason?: never;
+    }
+  | {
+      readonly kind: 'operation_step_up';
+      readonly reason: 'expired' | 'exhausted';
+      readonly authorization?: never;
+    }
+  | {
+      readonly kind: 'full_login_required';
+      readonly reason: NearEd25519WalletSessionFullLoginReason;
+      readonly authorization?: never;
+    }
+  | {
+      readonly kind: 'temporarily_unavailable';
+      readonly reason: 'persistence_unavailable';
+      readonly authorization?: never;
+    };
+
+export function classifyNearEd25519WalletSessionAuthorization(
+  result: NearEd25519WalletSessionAuthorizationReadResult,
+): NearEd25519WalletSessionAuthorizationDisposition {
+  switch (result.kind) {
+    case 'found':
+      return { kind: 'authorized', authorization: result.authorization };
+    case 'expired':
+    case 'exhausted':
+      return { kind: 'operation_step_up', reason: result.kind };
+    case 'persistence_unavailable':
+      return { kind: 'temporarily_unavailable', reason: result.kind };
+    case 'missing':
+    case 'corrupt':
+    case 'upgrade_required':
+    case 'superseded':
+    case 'authority_unavailable':
+    case 'method_unavailable':
+    case 'capability_unavailable':
+    case 'unavailable':
+      return { kind: 'full_login_required', reason: result.kind };
+    default:
+      result satisfies never;
+      throw new Error('[SigningEngine][near] unsupported Wallet Session authorization state');
+  }
+}
+
 export type NearEd25519OperationAuthorizationState =
   | {
       readonly kind: 'authorized';

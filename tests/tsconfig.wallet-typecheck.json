@@ -7,7 +7,8 @@
     "typecheck/tenant-root-ecdsa-wallet-session-composition.typecheck.ts",
     "typecheck/tenant-root-ed25519-wallet-session-composition.typecheck.ts",
     "typecheck/tenant-root-identity-resolution.typecheck.ts",
-    "typecheck/tenant-root-restore-operation.typecheck.ts"
+    "typecheck/tenant-root-restore-operation.typecheck.ts",
+    "typecheck/wallet-signing-lifecycle.typecheck.ts"
   ],
   "exclude": ["node_modules"]
 }
