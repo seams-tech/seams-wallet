@@ -1701,8 +1701,10 @@ export class IntendedBehaviourHarness {
     const unlockRequests = this.trace.slice(traceStartIndex).filter(isRequestTraceEntry);
     const verifyIndex = unlockRequests.findIndex(isWalletUnlockVerifyRequest);
     const statusReads = unlockRequests.slice(verifyIndex + 1).filter(isWalletSessionStatusRequest);
-    expect(statusReads.length, 'post-passkey unlock must avoid redundant session-status reads')
-      .toBeLessThanOrEqual(4);
+    expect(
+      statusReads.length,
+      'post-passkey unlock must avoid redundant session-status reads',
+    ).toBeLessThanOrEqual(3);
     this.assertNoRouterAbEd25519YaoRecoveryRoutes(traceStartIndex, {
       kind: 'passkey_unlock',
     });

@@ -57,7 +57,7 @@ import {
   type ActiveWalletSessionV1,
   type WalletSessionOperationCredentialV1,
 } from '@shared/device-linking';
-import { createRelayerExactWalletSessionStatusPort } from '../relayer/walletSessionAuthorizationStatus';
+import { WalletSessionStatusReadScope } from '../relayer/walletSessionAuthorizationStatus';
 import type { ExactWalletSessionAuthorization } from '../../signingEngine/session/persistence/walletSessionAuthorizationProjection';
 import {
   parseWalletSessionAlreadyCommittedResponseV1,
@@ -744,11 +744,14 @@ function assertPasskeyEd25519SessionMatchesAuthorization(input: {
   }
 }
 
-async function resolvePasskeyEd25519SessionAuthorization(input: {
-  readonly relayServerUrl: string;
-  readonly data: Record<string, unknown>;
-  readonly ed25519Session: PasskeyWalletUnlockEd25519Session;
-}): Promise<ExactWalletSessionAuthorization> {
+async function resolvePasskeyEd25519SessionAuthorization(
+  input: {
+    readonly relayServerUrl: string;
+    readonly data: Record<string, unknown>;
+    readonly ed25519Session: PasskeyWalletUnlockEd25519Session;
+  },
+  statusReads: WalletSessionStatusReadScope,
+): Promise<ExactWalletSessionAuthorization> {
   const hasWalletSession = input.data.walletSession !== undefined;
   const hasOperationCredential = input.data.operationCredential !== undefined;
   if (hasWalletSession !== hasOperationCredential) {
@@ -773,13 +776,16 @@ async function resolvePasskeyEd25519SessionAuthorization(input: {
   if (input.ed25519Session.sessionKind !== 'issued_exact_wallet_session') {
     throw new Error('Passkey wallet unlock omitted the exact Wallet Session credential');
   }
-  const status = await createRelayerExactWalletSessionStatusPort({
-    relayerUrl: input.relayServerUrl,
-    operationCredential: input.ed25519Session.operationCredential,
-  }).read({
-    walletSessionId: input.ed25519Session.walletSessionId,
-    quotaId: input.ed25519Session.quotaId,
-  });
+  const status = await statusReads.read(
+    {
+      relayerUrl: input.relayServerUrl,
+      operationCredential: input.ed25519Session.operationCredential,
+    },
+    {
+      walletSessionId: input.ed25519Session.walletSessionId,
+      quotaId: input.ed25519Session.quotaId,
+    },
+  );
   if (
     status.status !== 'active' ||
     status.walletSessionId !== input.ed25519Session.walletSessionId ||
@@ -800,13 +806,16 @@ async function resolvePasskeyEd25519SessionAuthorization(input: {
   return authorization;
 }
 
-async function resolvePasskeyCredentialFreeSessionAuthorization(input: {
-  readonly relayServerUrl: string;
-  readonly data: Record<string, unknown>;
-  readonly ed25519Session: PasskeyWalletUnlockEd25519Session;
-  readonly ecdsaSession: RouterAbEcdsaCredentialFreeSessionActivationResponseV1;
-}): Promise<ExactWalletSessionAuthorization> {
-  const authorization = await resolvePasskeyEd25519SessionAuthorization(input);
+async function resolvePasskeyCredentialFreeSessionAuthorization(
+  input: {
+    readonly relayServerUrl: string;
+    readonly data: Record<string, unknown>;
+    readonly ed25519Session: PasskeyWalletUnlockEd25519Session;
+    readonly ecdsaSession: RouterAbEcdsaCredentialFreeSessionActivationResponseV1;
+  },
+  statusReads: WalletSessionStatusReadScope,
+): Promise<ExactWalletSessionAuthorization> {
+  const authorization = await resolvePasskeyEd25519SessionAuthorization(input, statusReads);
   assertPasskeyCredentialFreeActivationMatchesAuthorization({
     ed25519Session: input.ed25519Session,
     ecdsaSession: input.ecdsaSession,
@@ -837,10 +846,12 @@ function parseWalletUnlockAlreadyCommittedFailure(
 export function verifyPasskeyWalletUnlock<Input extends PasskeyWalletUnlockInput>(
   relayServerUrl: string,
   input: Input,
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<WalletUnlockResultFor<Input>>;
 export async function verifyPasskeyWalletUnlock(
   relayServerUrl: string,
   input: PasskeyWalletUnlockInput,
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<WalletUnlockResult> {
   try {
     if (input.type !== 'passkey_assertion') {
@@ -931,21 +942,27 @@ export async function verifyPasskeyWalletUnlock(
         if (!ed25519Session) {
           throw new Error('Credential-free ECDSA activation requires an Ed25519 Wallet Session');
         }
-        walletSessionAuthorization = await resolvePasskeyCredentialFreeSessionAuthorization({
-          relayServerUrl,
-          data,
-          ed25519Session,
-          ecdsaSession,
-        });
+        walletSessionAuthorization = await resolvePasskeyCredentialFreeSessionAuthorization(
+          {
+            relayServerUrl,
+            data,
+            ed25519Session,
+            ecdsaSession,
+          },
+          statusReads,
+        );
       }
     } else if (data.ecdsaSession !== undefined) {
       throw new Error('Wallet unlock returned an unrequested ECDSA Wallet Session activation');
     } else if (ed25519Session) {
-      walletSessionAuthorization = await resolvePasskeyEd25519SessionAuthorization({
-        relayServerUrl,
-        data,
-        ed25519Session,
-      });
+      walletSessionAuthorization = await resolvePasskeyEd25519SessionAuthorization(
+        {
+          relayServerUrl,
+          data,
+          ed25519Session,
+        },
+        statusReads,
+      );
     }
     if (ecdsaSession && ecdsaActivationReceipt && ecdsaCustody && walletCustody) {
       if (ecdsaSession.kind === 'router_ab_ecdsa_credential_free_session_activated_v1') {

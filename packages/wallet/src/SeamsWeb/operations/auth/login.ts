@@ -1,3 +1,4 @@
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type {
   AfterCall,
   CreateUnlockFlowEventInput,
@@ -2070,6 +2071,7 @@ function resolveThresholdLoginWarmupPhaseInput(
 
 async function assertPasskeyUnlockRuntimePostconditions(args: {
   context: LoginWebContext;
+  statusReads: WalletSessionStatusReadScope;
   walletIdentity: ResolvedLoginWalletIdentity;
   signersWarmed: readonly ('ed25519' | 'ecdsa')[];
   credential: WebAuthnAuthenticationCredential;
@@ -2115,7 +2117,7 @@ async function assertPasskeyUnlockRuntimePostconditions(args: {
     ownerScope,
     requiredTargets,
     readOwnerScopedSigningLanes: async (input) =>
-      await args.context.signingEngine.readOwnerScopedSigningLanes(input),
+      await args.context.signingEngine.readOwnerScopedSigningLanes(input, args.statusReads),
   });
 }
 
@@ -4368,6 +4370,7 @@ async function unlockInternal(
         return assertNeverLoginState(noServerSessionPasskeyCredentialPlan);
     }
 
+    const statusReads = new WalletSessionStatusReadScope();
     // One verified wallet-unlock assertion mints every passkey warm session requested below.
     if (requireThresholdWarmup && localUnlockAuthMethod === SIGNER_AUTH_METHODS.passkey) {
       const preparedActivation = await preparePasskeyExchangeEcdsaActivation({
@@ -4382,25 +4385,28 @@ async function unlockInternal(
       if (!relayUrl || !rpId) {
         throw new Error('[login] passkey wallet unlock requires relayer URL and rpId');
       }
-      const completedUnlock = await completePasskeyWalletUnlock({
-        context,
-        walletIdentity,
-        unlockSubjectId,
-        onEvent,
-        authenticators,
-        signerSlot: baseSignerSlot,
-        remainingUses: requireLoginUnlockSessionUses(signingSessionPolicy.unlockRemainingUses),
-        relayUrl,
-        rpId,
-        expectedOrigin: undefined,
-        activation: preparedActivation,
-        collectCredentialForChallenge: async (challenge) =>
-          await collectLocalPasskeyCredentialForChallenge({
-            challengeB64u: challenge.challengeB64u,
-            saveAsLoginCredential: true,
-            credentialIds: challenge.credentialIds,
-          }),
-      });
+      const completedUnlock = await completePasskeyWalletUnlock(
+        {
+          context,
+          walletIdentity,
+          unlockSubjectId,
+          onEvent,
+          authenticators,
+          signerSlot: baseSignerSlot,
+          remainingUses: requireLoginUnlockSessionUses(signingSessionPolicy.unlockRemainingUses),
+          relayUrl,
+          rpId,
+          expectedOrigin: undefined,
+          activation: preparedActivation,
+          collectCredentialForChallenge: async (challenge) =>
+            await collectLocalPasskeyCredentialForChallenge({
+              challengeB64u: challenge.challengeB64u,
+              saveAsLoginCredential: true,
+              credentialIds: challenge.credentialIds,
+            }),
+        },
+        statusReads,
+      );
       loginCredential = completedUnlock.credential;
       completedPasskeyExchangeEcdsaActivation = completedUnlock.activation;
       completedPasskeyEd25519Session = completedUnlock.result.ed25519Session;
@@ -4461,6 +4467,7 @@ async function unlockInternal(
         }
         await assertPasskeyUnlockRuntimePostconditions({
           context,
+          statusReads,
           walletIdentity,
           signersWarmed: warmupPhase.signersWarmed,
           credential: authenticatedCredential,
@@ -5015,6 +5022,7 @@ export function bindPasskeyEcdsaSessionPolicyToUnlockChallenge(
 
 async function completePasskeyWalletUnlock(
   args: CompletePasskeyWalletUnlockArgs,
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<CompletedPasskeyWalletUnlock> {
   emitUnlockEvent(args.onEvent, args.unlockSubjectId, {
     phase: UnlockEventPhase.STEP_03_PASSKEY_CHALLENGE_STARTED,
@@ -5079,7 +5087,7 @@ async function completePasskeyWalletUnlock(
     walletIdentity: args.walletIdentity,
     activation,
   });
-  const result = await verifyPasskeyWalletUnlock(args.relayUrl, unlockInput);
+  const result = await verifyPasskeyWalletUnlock(args.relayUrl, unlockInput, statusReads);
   if (!result.success) {
     throw new Error(result.error || 'Passkey wallet unlock failed');
   }
@@ -7713,8 +7721,9 @@ async function resolveThresholdEcdsaLoginMetadata(
   }
   const capabilities = await listBrowserCanonicalEcdsaSigningCapabilitiesForWallet({
     walletId,
-    chainTargets: listConfiguredThresholdEcdsaPublicationTargets(context.configs.network.chains)
-      .map((target) => target.chainTarget),
+    chainTargets: listConfiguredThresholdEcdsaPublicationTargets(
+      context.configs.network.chains,
+    ).map((target) => target.chainTarget),
   });
   const addresses = new Set<string>();
   const publicKeys = new Set<string>();

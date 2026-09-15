@@ -1,3 +1,4 @@
+import { WalletSessionStatusReadScope } from '../relayer/walletSessionAuthorizationStatus';
 import type { WebAuthnAuthenticationCredential } from '../../types/webauthn';
 import type { RouterAbEcdsaPostRegistrationSessionActivationPolicyV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type {
@@ -27,7 +28,11 @@ const activatedInput: PasskeyWalletUnlockInputWithEcdsaActivation = {
   walletId: 'wallet.testnet',
 };
 
-const activatedUnlock = verifyPasskeyWalletUnlock('https://relay.example', activatedInput);
+const activatedUnlock = verifyPasskeyWalletUnlock(
+  'https://relay.example',
+  activatedInput,
+  new WalletSessionStatusReadScope(),
+);
 
 void activatedUnlock.then((result) => {
   if (result.success) {
@@ -48,7 +53,11 @@ const ed25519OnlyInput: PasskeyWalletUnlockInputWithoutEcdsaActivation = {
   ed25519SessionRequest: { kind: 'requested', remainingUses: 2 },
 };
 
-void verifyPasskeyWalletUnlock('https://relay.example', ed25519OnlyInput).then((result) => {
+void verifyPasskeyWalletUnlock(
+  'https://relay.example',
+  ed25519OnlyInput,
+  new WalletSessionStatusReadScope(),
+).then((result) => {
   if (result.success && result.ed25519Session) {
     result.walletSessionAuthorization.operationCredential.walletSessionId satisfies string;
   }

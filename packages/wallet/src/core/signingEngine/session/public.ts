@@ -2,6 +2,7 @@ import {
   toWalletId,
   type ThresholdEcdsaChainTarget,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+import type { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import {
   readPersistedAvailableSigningLanes as readPersistedAvailableSigningLanesValue,
   readOwnerScopedAvailableSigningLanes as readOwnerScopedAvailableSigningLanesValue,
@@ -95,13 +96,18 @@ export async function readOwnerScopedSigningLanes(
     readonly walletId: WalletId | string;
     readonly ownerScope: OwnerLaneScope;
   },
+  statusReads: WalletSessionStatusReadScope,
 ): Promise<AvailableSigningLanes> {
-  return await readOwnerScopedAvailableSigningLanesValue(deps.availableLanes, {
-    walletId: args.walletId,
-    ownerScope: args.ownerScope,
-    ecdsaChainTargets: deps.getConfiguredEcdsaChainTargets(),
-    requiredEcdsaCapability: 'sign',
-  });
+  return await readOwnerScopedAvailableSigningLanesValue(
+    deps.availableLanes,
+    {
+      walletId: args.walletId,
+      ownerScope: args.ownerScope,
+      ecdsaChainTargets: deps.getConfiguredEcdsaChainTargets(),
+      requiredEcdsaCapability: 'sign',
+    },
+    statusReads,
+  );
 }
 
 export type {

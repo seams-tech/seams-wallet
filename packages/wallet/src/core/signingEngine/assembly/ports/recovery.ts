@@ -1,3 +1,4 @@
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { configuredThresholdEcdsaChainTargets } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { thresholdEcdsaChainTargetKey } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import {
@@ -101,6 +102,7 @@ export function createRecoveryPublicDeps(args: {
             ...completeConfiguredEcdsaTargets(availableLanesArgs),
             requiredEcdsaCapability: 'export_keys',
           },
+          new WalletSessionStatusReadScope(),
         ),
       readOwnerScopedAvailableSigningLanesForTargets: async (availableLanesArgs) =>
         await readOwnerScopedAvailableSigningLanes(
@@ -116,6 +118,7 @@ export function createRecoveryPublicDeps(args: {
             requiredEcdsaCapability: 'export_keys',
             ownerScope: await args.resolveOwnerLaneScope(String(availableLanesArgs.walletId)),
           },
+          new WalletSessionStatusReadScope(),
         ),
     },
     ecdsa: {
