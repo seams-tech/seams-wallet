@@ -298,7 +298,8 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
     this.transactionPreparationModalState = { kind: 'opening', generation };
     const handle = await mountConfirmUI({
       ctx: this.getContext(),
-      summary: { title: 'Confirm transaction' },
+      summary: { title: 'Review transaction' },
+      ...(params.chain === 'near' ? { txSigningRequests: params.txSigningRequests } : {}),
       model: params.model,
       securityContext: rpId ? { rpId } : undefined,
       loading: false,

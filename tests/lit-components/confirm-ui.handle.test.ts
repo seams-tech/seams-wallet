@@ -185,6 +185,113 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
     expect(result.modalOutline).toBe('none');
   });
 
+  test('keeps the compact NEAR transaction summary when reusing a preparation surface', async ({
+    page,
+  }) => {
+    const result = await page.evaluate(
+      async ({ paths }) => {
+        const confirmUiModule = await import(paths.confirmUi);
+        const eventsModule = await import(paths.walletEvents);
+        const { awaitConfirmUIDecision, mountConfirmUI } =
+          confirmUiModule as typeof import('@/core/signingEngine/uiConfirm/ui/confirm-ui');
+        const { WalletIframeDomEvents } =
+          eventsModule as typeof import('@/core/browser/walletIframe/events');
+        const ctx: any = {
+          userPreferencesManager: {
+            getCurrentWalletId: () => 'alice.testnet',
+          },
+          surfaceMeasurementBinding: { kind: 'disabled' },
+        };
+        const txSigningRequests = [
+          {
+            receiverId: 'seams-v1.testnet',
+            actions: [
+              {
+                action_type: 'FunctionCall',
+                method_name: 'set_greeting',
+                args: btoa(JSON.stringify({ greeting: 'Hello from Seams' })),
+                gas: '10000000000000',
+                deposit: '0',
+              },
+            ],
+          },
+        ] as any;
+        const model = {
+          chain: 'near',
+          title: 'NEAR Transaction',
+          operations: [
+            {
+              id: 'near.tx.0',
+              kind: 'generic.contractCall',
+              label: 'Transaction',
+              fields: [
+                { label: 'Receiver', value: 'seams-v1.testnet' },
+                { label: 'Action Count', value: '1' },
+              ],
+            },
+          ],
+        } as any;
+        const handle = await mountConfirmUI({
+          ctx,
+          summary: { title: 'Review transaction' } as any,
+          txSigningRequests,
+          model,
+          loading: false,
+          theme: 'light',
+          uiMode: 'modal',
+          nearAccountIdOverride: 'alice.testnet',
+        });
+
+        const initialTransaction = (handle.element as any).txSigningRequests?.[0];
+        const initialTitle = (handle.element as any).title;
+
+        handle.element.dispatchEvent(
+          new CustomEvent(WalletIframeDomEvents.TX_CONFIRMER_CANCEL, {
+            detail: { confirmed: false },
+          }),
+        );
+
+        const decision = await awaitConfirmUIDecision({
+          ctx,
+          summary: { title: 'Review transaction', intentDigest: 'digest-1' } as any,
+          txSigningRequests,
+          model,
+          loading: false,
+          theme: 'light',
+          uiMode: 'modal',
+          nearAccountIdOverride: 'alice.testnet',
+          signingAuthMode: 'warmSession',
+          surface: { kind: 'reuse_mounted', handle },
+        });
+        const updatedTransaction = (handle.element as any).txSigningRequests?.[0];
+        decision.handle.close(false);
+
+        return {
+          initial: {
+            title: initialTitle,
+            receiverId: initialTransaction?.receiverId,
+            methodName: initialTransaction?.actions?.[0]?.method_name,
+          },
+          updated: {
+            title: (handle.element as any).title,
+            receiverId: updatedTransaction?.receiverId,
+            methodName: updatedTransaction?.actions?.[0]?.method_name,
+          },
+          confirmed: decision.confirmed,
+        };
+      },
+      { paths: IMPORT_PATHS },
+    );
+
+    expect(result.initial).toEqual({
+      title: 'Review transaction',
+      receiverId: 'seams-v1.testnet',
+      methodName: 'set_greeting',
+    });
+    expect(result.updated).toEqual(result.initial);
+    expect(result.confirmed).toBe(false);
+  });
+
   test('replays a decision made while a transaction surface is preparing', async ({ page }) => {
     const result = await page.evaluate(
       async ({ paths }) => {

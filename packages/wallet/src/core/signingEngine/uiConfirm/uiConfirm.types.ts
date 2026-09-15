@@ -16,6 +16,7 @@ import type {
 } from '@/core/signingEngine/stepUpConfirmation/channel/confirmTypes';
 import type { UserConfirmProgressEvent } from '../stepUpConfirmation/types';
 import type { ConfirmationConfig } from '../../types/signer-worker';
+import type { TransactionInputWasm } from '../../types/actions';
 import type { WalletAddAuthMethodRegistrationOptions } from '@/core/rpcClients/relayer/walletRegistration';
 import type { AppearanceConfig, ThemeMode, SeamsChainConfig } from '../../types/seams';
 import type { RegistrationCredentialConfirmationPayload } from '../workerManager/validation';
@@ -128,11 +129,21 @@ export type OpenRegistrationPreparationModalParams = {
   signerSlot: number;
 };
 
-export type OpenTransactionPreparationModalParams = {
+type OpenTransactionPreparationModalBase = {
   walletLabel: string;
   model: TxDisplayModel;
   confirmationConfigOverride?: Partial<ConfirmationConfig>;
 };
+
+export type OpenTransactionPreparationModalParams =
+  | (OpenTransactionPreparationModalBase & {
+      chain: 'near';
+      txSigningRequests: TransactionInputWasm[];
+    })
+  | (OpenTransactionPreparationModalBase & {
+      chain: 'evm_family';
+      txSigningRequests?: never;
+    });
 
 export interface WarmSessionStatusReader {
   getWarmSessionStatus(args: { thresholdSessionId: string }): Promise<WarmSessionStatusResult>;

@@ -1441,7 +1441,9 @@ export async function signTransactionWithActions(
   args: SignTransactionWithActionsInput,
 ): Promise<SignTransactionResult> {
   await deps.touchConfirm.openTransactionPreparationModal({
+    chain: 'near',
     walletLabel: String(args.commandSubject.nearAccount.accountId),
+    txSigningRequests: [args.transaction],
     model: buildNearTransactionPreparationDisplayModel(args),
     confirmationConfigOverride: args.confirmationConfigOverride,
   });
