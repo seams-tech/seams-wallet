@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { emitNearSigningConfirmationProgress } from '@/core/signingEngine/flows/signNear/signTransactions';
+import { emitNearSigningConfirmationProgress } from '@/core/signingEngine/flows/signNear/shared/confirmationProgress';
 import { SigningAuthPlanKind } from '@/core/signingEngine/stepUpConfirmation/types';
 
 const PASSKEY_REAUTH_PLAN = {

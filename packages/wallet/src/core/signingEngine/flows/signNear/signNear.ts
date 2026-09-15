@@ -201,6 +201,7 @@ export type SignNep413MessagePayload = {
   nonce: string;
   state: string | null;
   commandSubject: NearCommandSubject;
+  onEvent?: (update: SigningFlowEvent) => void;
   signerSlot?: number;
   title?: string;
   body?: string;
@@ -1864,6 +1865,7 @@ async function runPreparedNearNep413Signing(args: {
       commandSubject: args.input.commandSubject,
       nearAccount,
       signingSessionCoordinator: args.deps.signingSessionCoordinator,
+      onEvent: args.input.onEvent,
       forceFreshAuth: args.prepared.forceFreshAuth,
       selection:
         args.prepared.kind === 'authorized'
@@ -1898,7 +1900,7 @@ async function executeNearNep413SigningAttempt(
     commandSubject: args.input.commandSubject,
     signerSlot: args.input.signerSlot,
     operationId: args.operationId,
-    onEvent: undefined,
+    onEvent: args.input.onEvent,
     attempt: args.attempt,
   });
   try {

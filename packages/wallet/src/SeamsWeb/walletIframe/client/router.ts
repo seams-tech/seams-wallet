@@ -1274,6 +1274,14 @@ function resolveCanonicalSignerBoundaryMessage(rawCode: unknown, fallbackMessage
   return fallback || 'Wallet error';
 }
 
+function walletIframeRequestCancelledError(): Error & { code: 'cancelled' } {
+  const error = new Error(CANONICAL_SIGNER_BOUNDARY_MESSAGES.cancelled) as Error & {
+    code: 'cancelled';
+  };
+  error.code = 'cancelled';
+  return error;
+}
+
 function emitDemoEmailOtpCodeFromWire(args: {
   wire: PMGoogleEmailOtpWalletAuthWireFlow;
   onDemoOtp: ((response: DemoEmailOtpCodeResponse) => void) | undefined;
@@ -2231,6 +2239,31 @@ export class WalletIframeRouter {
       this.sendBestEffortCancel(pending.requestId);
       pending.reject(error);
     }
+  }
+
+  private settlePendingRequestCancellation(
+    requestId: WalletIframeRequestId,
+    emitTerminalProgress: boolean,
+  ): void {
+    const pending = this.state.pending.get(requestId);
+    if (pending) {
+      this.state.pending.delete(requestId);
+      if (pending.timer !== undefined) window.clearTimeout(pending.timer);
+      if (emitTerminalProgress) {
+        const message = CANONICAL_SIGNER_BOUNDARY_MESSAGES.cancelled;
+        const progress = createTerminalProgressForRequest({
+          requestType: pending.requestType,
+          requestId,
+          status: 'cancelled',
+          message,
+          errorCode: 'cancelled',
+        });
+        if (progress) this.progressBus.dispatch({ requestId, payload: progress });
+      }
+      pending.reject(walletIframeRequestCancelledError());
+    }
+    this.progressBus.unregister(requestId);
+    this.finishRequestSurface(requestId, true);
   }
 
   private handleConnectionClosed(connectionId: WalletIframeConnectionId): void {
@@ -4079,33 +4112,29 @@ export class WalletIframeRouter {
       requestId: activeRequestId,
       reason,
     });
-    try {
-      await this.post<void>({ type: 'PM_CANCEL_AUTH_MENU', payload });
-    } catch {
-      this.settleHostedAuthMenuCancellation(authMenuSessionId, reason);
-    }
+    this.settleHostedAuthMenuCancellation(authMenuSessionId, reason);
+    this.sendBestEffortHostedAuthMenuCancel(payload);
   }
 
   async cancelRequest(requestId: string): Promise<void> {
     this.transactionSurfaceQueue.cancel(requestId);
-    const cancellation = this.post<void>({
-      type: 'PM_CANCEL',
-      payload: { requestId },
-    }).catch(() => {});
     const authMenuSessionId = this.hostedAuthMenuSessionIdForRequestId(requestId);
-    if (!authMenuSessionId) {
-      this.finishRequestSurface(requestId as WalletIframeRequestId, true);
-    }
-    await cancellation;
-    this.progressBus.unregister(requestId);
     if (authMenuSessionId) {
       this.settleHostedAuthMenuCancellation(authMenuSessionId, 'component_unmounted');
+    } else {
+      this.settlePendingRequestCancellation(requestId as WalletIframeRequestId, true);
     }
+    this.sendBestEffortCancel(requestId);
   }
 
   async cancelAll(): Promise<void> {
     this.transactionSurfaceQueue.cancelAll(new Error('Wallet requests cancelled'));
-    const cancellation = this.post<void>({ type: 'PM_CANCEL', payload: {} }).catch(() => {});
+    for (const authMenuSessionId of Array.from(this.hostedAuthMenuRequestIds.keys())) {
+      this.settleHostedAuthMenuCancellation(authMenuSessionId, 'component_unmounted');
+    }
+    for (const requestId of Array.from(this.state.pending.keys())) {
+      this.settlePendingRequestCancellation(requestId as WalletIframeRequestId, true);
+    }
     if (this.walletIframeSurface.kind !== 'hidden') {
       this.transitionWalletIframeSurface({
         kind: 'request_cancelled',
@@ -4113,11 +4142,8 @@ export class WalletIframeRouter {
         identity: this.walletIframeSurface.identity,
       });
     }
-    await cancellation;
+    this.sendBestEffortCancel();
     this.progressBus.clearAll();
-    for (const authMenuSessionId of Array.from(this.hostedAuthMenuRequestIds.keys())) {
-      this.settleHostedAuthMenuCancellation(authMenuSessionId, 'component_unmounted');
-    }
   }
 
   private onPortMessage(e: MessageEvent<unknown>, connectionId: WalletIframeConnectionId): void {
@@ -4206,6 +4232,11 @@ export class WalletIframeRouter {
     if (msg.type === 'PROGRESS') {
       const payload = msg.payload;
       this.progressBus.dispatch({ requestId: requestId, payload: payload });
+      if (isWalletFlowEvent(payload) && payload.status === 'cancelled') {
+        this.settlePendingRequestCancellation(requestId as WalletIframeRequestId, false);
+        this.sendBestEffortCancel(requestId);
+        return;
+      }
       this.extendMeasurementFallbackOnProgress(requestId);
       if (shouldHideWalletIframeSurface(payload)) {
         this.hideRequestSurface(requestId as WalletIframeRequestId);
@@ -4499,7 +4530,24 @@ export class WalletIframeRouter {
       requestId: `cancel-${Date.now()}-${secureRandomBase36(12, 'wallet iframe cancel request IDs')}`,
       payload: targetRequestId ? { requestId: targetRequestId } : {},
     };
-    port.postMessage(cancelEnvelope);
+    try {
+      port.postMessage(cancelEnvelope);
+    } catch {}
+  }
+
+  private sendBestEffortHostedAuthMenuCancel(payload: HostedAuthMenuCancelPayload): void {
+    const port = this.state.port;
+    if (!port) return;
+    try {
+      port.postMessage({
+        type: 'PM_CANCEL_AUTH_MENU',
+        requestId: `cancel-auth-menu-${Date.now()}-${secureRandomBase36(
+          12,
+          'wallet iframe auth menu cancel request IDs',
+        )}`,
+        payload,
+      });
+    } catch {}
   }
 
   /** Public helper for tests/tools: get the underlying iframe element. */

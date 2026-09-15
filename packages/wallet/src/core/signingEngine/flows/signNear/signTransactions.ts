@@ -64,11 +64,11 @@ import {
 import {
   buildSigningConfirmationAuthParams,
   confirmationConfigForSigningAuthPlan,
-  mapSigningConfirmationProgress,
   resolveSigningConfirmationAuthMethod,
   runSigningConfirmationCommand,
   type ConfirmTransactionSigningOperationResult,
 } from '../shared/signingConfirmation';
+import { emitNearSigningConfirmationProgress } from './shared/confirmationProgress';
 import { buildNearEd25519StepUpAuthorization } from './stepUpAuthorization';
 import { requiredNearTransactionSignatureUses } from './signatureUses';
 import {
@@ -207,29 +207,6 @@ function emitNearSigningEvent(
       }),
     );
   } catch {}
-}
-
-export function emitNearSigningConfirmationProgress(
-  args: {
-    onEvent: ((event: SigningFlowEvent) => void) | undefined;
-    nearAccountId: AccountId | string;
-    signingAuthPlan: SigningAuthPlan;
-  },
-  progress: UserConfirmProgressEvent,
-): void {
-  const authMethod = resolveSigningConfirmationAuthMethod(args.signingAuthPlan);
-  if (progress.phase === 'confirmation.complete') {
-    if (authMethod === 'passkey' && progress.status === 'succeeded') return;
-  } else if (
-    authMethod !== 'passkey' ||
-    (progress.phase !== 'auth.passkey.prompt.started' &&
-      progress.phase !== 'auth.passkey.prompt.succeeded')
-  ) {
-    return;
-  }
-  const event = mapSigningConfirmationProgress(progress, authMethod);
-  if (!event) return;
-  emitNearSigningEvent(args.onEvent, args.nearAccountId, { ...event, authMethod });
 }
 
 async function requireActiveAuthorizedWalletSessionState(args: {

@@ -92,6 +92,7 @@ export async function signNEP413Message(args: {
           nearAccountId,
           walletSession: args.walletSession,
         }),
+        onEvent: options?.onEvent,
         message: params.message,
         recipient: params.recipient,
         nonce,
