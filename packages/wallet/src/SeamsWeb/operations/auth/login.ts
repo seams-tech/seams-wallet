@@ -5544,6 +5544,29 @@ async function resolvePersistedEcdsaPublicCapabilityForLogin(args: {
   return publicFacts.publicCapability;
 }
 
+async function scheduleLoginEcdsaPresignaturePrefill(args: {
+  signingEngine: Pick<
+    LoginUnlockSigningSurface,
+    'scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill'
+  >;
+  walletId: WalletId;
+  chainTarget: ThresholdEcdsaChainTarget;
+}): Promise<void> {
+  try {
+    const resolved = await resolveBrowserActiveEcdsaCapabilityRuntime({
+      walletId: args.walletId,
+      chainTarget: args.chainTarget,
+    });
+    if (resolved.kind !== 'resolved') return;
+    await args.signingEngine.scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill({
+      walletId: args.walletId,
+      chainTarget: args.chainTarget,
+      manifest: resolved.manifest,
+      runtime: resolved.runtime,
+    });
+  } catch {}
+}
+
 function buildThresholdLoginWarmSignerSelection(
   signersToWarm: readonly ThresholdLoginWarmSigner[],
 ): ThresholdLoginWarmSigner[] {
@@ -6520,6 +6543,11 @@ async function primeThresholdLoginWarmSigners(args: {
               targetEcdsaKey,
             );
             ecdsaBootstraps.push(bootstrap);
+            void scheduleLoginEcdsaPresignaturePrefill({
+              signingEngine: args.signingEngine,
+              walletId: args.walletIdentity.walletId,
+              chainTarget: target.chainTarget,
+            });
             rememberEcdsaAuthorizedEd25519Mint(bootstrap);
             const activation = preauthorizedEcdsaActivationFromBootstrap(bootstrap);
             const activationKey = sharedEcdsaActivationKey(activation.public_capability);

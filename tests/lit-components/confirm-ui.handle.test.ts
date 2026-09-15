@@ -3,6 +3,7 @@ import { setupBasicPasskeyTest, SDK_ESM_PATHS, sdkEsmPath } from '../setup';
 
 const IMPORT_PATHS = {
   confirmUi: SDK_ESM_PATHS.confirmUi,
+  confirmManager: sdkEsmPath('core/signingEngine/uiConfirm/UiConfirmManager.js'),
   walletEvents: SDK_ESM_PATHS.walletEvents,
   evmBuilder: sdkEsmPath('core/signingEngine/chains/evm/display/evmTx.js'),
 } as const;
@@ -346,6 +347,66 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
     );
 
     expect(result).toBe(true);
+  });
+
+  test('closes a cancelled preparation surface before transaction preparation finishes', async ({
+    page,
+  }) => {
+    const result = await page.evaluate(
+      async ({ paths }) => {
+        const managerModule = await import(paths.confirmManager);
+        const eventsModule = await import(paths.walletEvents);
+        const { createUiConfirmManager } =
+          managerModule as typeof import('@/core/signingEngine/uiConfirm/UiConfirmManager');
+        const { WalletIframeDomEvents } =
+          eventsModule as typeof import('@/core/browser/walletIframe/events');
+        const manager = createUiConfirmManager(
+          {},
+          {
+            userPreferencesManager: {
+              getConfirmationConfig: () => ({
+                behavior: 'requireClick',
+                uiMode: 'modal',
+              }),
+              getCurrentWalletId: () => 'alice.testnet',
+            },
+            touchIdPrompt: {
+              getRpId: () => 'example.test',
+            },
+            surfaceMeasurementBinding: { kind: 'disabled' },
+            getTheme: () => 'light',
+          } as any,
+        );
+
+        await manager.openTransactionPreparationModal({
+          chain: 'tempo',
+          walletLabel: 'alice.testnet',
+          model: {
+            chain: 'tempo',
+            title: 'Review transaction',
+            operations: [],
+          } as any,
+        });
+        const element = document.querySelector('w3a-tx-confirmer') as HTMLElement;
+        element.dispatchEvent(
+          new CustomEvent(WalletIframeDomEvents.TX_CONFIRMER_CANCEL, {
+            detail: { confirmed: false },
+          }),
+        );
+        const surface = (manager as any).takeTransactionConfirmationSurface();
+
+        return {
+          elementConnected: element.isConnected,
+          surfaceKind: surface.kind,
+        };
+      },
+      { paths: IMPORT_PATHS },
+    );
+
+    expect(result).toEqual({
+      elementConnected: false,
+      surfaceKind: 'preparation_cancelled',
+    });
   });
 
   test('requires the Email OTP decision after an early preparation confirmation', async ({

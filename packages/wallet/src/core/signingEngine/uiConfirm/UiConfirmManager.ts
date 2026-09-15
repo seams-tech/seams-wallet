@@ -86,7 +86,8 @@ type RegistrationPreparationModalState =
 type TransactionPreparationModalState =
   | { kind: 'closed'; generation: number }
   | { kind: 'opening'; generation: number }
-  | { kind: 'open'; generation: number; handle: MountedConfirmUIHandle };
+  | { kind: 'open'; generation: number; handle: MountedConfirmUIHandle }
+  | { kind: 'cancelled'; generation: number };
 
 const USER_CONFIRM_WORKER_STARTUP_PING_TIMEOUT_MS = 15_000;
 
@@ -313,6 +314,25 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
       return;
     }
     this.transactionPreparationModalState = { kind: 'open', generation, handle };
+    handle.onCancel?.(
+      this.handleTransactionPreparationCancel.bind(this, generation, handle),
+    );
+  }
+
+  private handleTransactionPreparationCancel(
+    generation: number,
+    handle: MountedConfirmUIHandle,
+  ): void {
+    const state = this.transactionPreparationModalState;
+    if (
+      state.kind !== 'open' ||
+      state.generation !== generation ||
+      state.handle !== handle
+    ) {
+      return;
+    }
+    this.transactionPreparationModalState = { kind: 'cancelled', generation };
+    handle.close(false);
   }
 
   closeTransactionPreparationModal(): void {
@@ -333,6 +353,12 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
         return { kind: 'mount_new' };
       case 'opening':
         throw new Error('Transaction confirmation started before its preparation modal opened');
+      case 'cancelled':
+        this.transactionPreparationModalState = {
+          kind: 'closed',
+          generation: state.generation,
+        };
+        return { kind: 'preparation_cancelled' };
       case 'open':
         this.transactionPreparationModalState = {
           kind: 'closed',

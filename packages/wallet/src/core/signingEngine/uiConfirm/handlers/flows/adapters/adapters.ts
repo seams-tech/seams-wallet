@@ -360,6 +360,13 @@ async function renderConfirmUI({
   surface,
   onMounted,
 }: BaseRenderConfirmUIArgs): Promise<RenderConfirmUIResult> {
+  if (surface.kind === 'preparation_cancelled') {
+    return {
+      confirmed: false,
+      confirmHandle: undefined,
+      diagnostics: emptyConfirmDiagnostics(),
+    };
+  }
   const nearAccountIdForUi = getSubjectLabel(request);
 
   const txSigningRequests =
