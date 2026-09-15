@@ -990,10 +990,56 @@ export async function listBrowserEcdsaSigningCapabilitiesForWallet(
     authMethod?: SignerAuthMethod;
   },
 ): Promise<readonly EvmFamilyEcdsaSigningCapabilityAvailability[]> {
-  const walletId = toWalletId(input.walletId);
-  const subjects = await ecdsaCapabilityManifestStore.listActiveWalletCapabilitySubjects(walletId);
+  const capabilities = await listBrowserCanonicalEcdsaSigningCapabilitiesForWallet({
+    walletId: toWalletId(input.walletId),
+    chainTargets: input.chainTargets,
+    ...(input.authMethod ? { authMethod: input.authMethod } : {}),
+  });
+  return await Promise.all(
+    capabilities.map(resolveBrowserEcdsaCapabilityAvailability.bind(null, args, input.chainTargets)),
+  );
+}
+
+async function resolveBrowserEcdsaCapabilityAvailability(
+  args: BrowserEcdsaCapabilityReaderContext,
+  chainTargets: readonly ThresholdEcdsaChainTarget[],
+  capability: CanonicalEvmFamilyEcdsaSigningCapability,
+): Promise<EvmFamilyEcdsaSigningCapabilityAvailability> {
+  const manifest = capability.manifest;
+  const matchingTarget = chainTargets.find((target) =>
+    manifest.signer.scope.targetMemberships.some((membership) =>
+      thresholdEcdsaChainTargetKey(target) === thresholdEcdsaChainTargetKey(membership),
+    ),
+  );
+  if (!matchingTarget) return { kind: 'authorization_required', capability };
+  const resolution = await resolveBrowserActiveEcdsaWalletSessionAuthorization(args, {
+    walletId: manifest.signer.walletId,
+    chainTarget: matchingTarget,
+    materialActivation: manifest.activation.materialActivation,
+  });
+  if (resolution.kind === 'active') {
+    try {
+      return authorizeEvmFamilyEcdsaSigningCapability({
+        capability,
+        authorization: resolution.authorization,
+        nowMs: Date.now(),
+      });
+    } catch {
+      // The selected session may belong to a sibling capability.
+    }
+  }
+  return { kind: 'authorization_required', capability };
+}
+
+/** Durable key facts are independent of a Wallet Session's current budget. */
+export async function listBrowserCanonicalEcdsaSigningCapabilitiesForWallet(input: {
+  walletId: ReturnType<typeof toWalletId>;
+  chainTargets: readonly ThresholdEcdsaChainTarget[];
+  authMethod?: SignerAuthMethod;
+}): Promise<readonly CanonicalEvmFamilyEcdsaSigningCapability[]> {
+  const subjects = await ecdsaCapabilityManifestStore.listActiveWalletCapabilitySubjects(input.walletId);
   if (subjects.kind !== 'resolved') return [];
-  const capabilities: EvmFamilyEcdsaSigningCapabilityAvailability[] = [];
+  const capabilities: CanonicalEvmFamilyEcdsaSigningCapability[] = [];
   for (const subject of subjects.subjects) {
     const lookup = await ecdsaCapabilityManifestStore.lookup(subject);
     if (lookup.kind !== 'active') continue;
@@ -1008,13 +1054,6 @@ export async function listBrowserEcdsaSigningCapabilitiesForWallet(
     ) {
       continue;
     }
-    const matchingTarget = input.chainTargets.find((target) =>
-      manifest.signer.scope.targetMemberships.some(
-        (membership) =>
-          thresholdEcdsaChainTargetKey(target) === thresholdEcdsaChainTargetKey(membership),
-      ),
-    );
-    if (!matchingTarget) continue;
     // This loop is already walking one subject at a time, so use that subject's
     // own manifest. Going back through the activation would collapse every
     // sibling projection onto whichever method is currently selected, and an
@@ -1038,30 +1077,7 @@ export async function listBrowserEcdsaSigningCapabilitiesForWallet(
     if (!capabilityAuthMethod || (input.authMethod && capabilityAuthMethod !== input.authMethod)) {
       continue;
     }
-    const authorizationResolution = await resolveBrowserActiveEcdsaWalletSessionAuthorization(
-      args,
-      {
-        walletId,
-        chainTarget: matchingTarget,
-        materialActivation: manifest.activation.materialActivation,
-      },
-    );
-    if (authorizationResolution.kind === 'active') {
-      try {
-        capabilities.push(
-          authorizeEvmFamilyEcdsaSigningCapability({
-            capability,
-            authorization: authorizationResolution.authorization,
-            nowMs: Date.now(),
-          }),
-        );
-        continue;
-      } catch {
-        // The exact session may authorize a sibling capability for the same
-        // authority while this manifest names different material.
-      }
-    }
-    capabilities.push({ kind: 'authorization_required', capability });
+    capabilities.push(capability);
   }
   return capabilities;
 }

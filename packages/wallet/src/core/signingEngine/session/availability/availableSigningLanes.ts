@@ -1899,19 +1899,23 @@ export async function readAvailableSigningLanes(
     ecdsaTargetsByKey.set(thresholdEcdsaChainTargetKey(chainTarget), chainTarget);
   }
   const ecdsaChainTargets = [...ecdsaTargetsByKey.values()];
-  const ed25519Records = await ports.listSealedRecordsForWallet({
-    walletId,
-    filter: {
-      ...(input.authMethod ? { authMethod: input.authMethod } : {}),
-      curve: 'ed25519',
-    },
-  });
-  const publicCapabilityReferences = ports.listPublicCapabilityReferences
-    ? await ports.listPublicCapabilityReferences()
-    : [];
-  const activeAuthorizationRead = ports.readActiveWalletSessionAuthorization
-    ? await ports.readActiveWalletSessionAuthorization(walletId)
-    : { kind: 'missing' as const };
+  // Curve readers share the in-flight exact-session status request. Start them
+  // together so one lane never waits for another lane's network round trip.
+  const [ed25519Records, publicCapabilityReferences, activeAuthorizationRead, canonicalEcdsaLanes] =
+    await Promise.all([
+      ports.listSealedRecordsForWallet({
+        walletId,
+        filter: {
+          ...(input.authMethod ? { authMethod: input.authMethod } : {}),
+          curve: 'ed25519',
+        },
+      }),
+      ports.listPublicCapabilityReferences?.() ?? [],
+      ports.readActiveWalletSessionAuthorization?.(walletId) ?? { kind: 'missing' as const },
+      ecdsaChainTargets.length > 0 && ports.listCanonicalEcdsaLanesForWallet
+        ? ports.listCanonicalEcdsaLanesForWallet({ walletId })
+        : [],
+    ]);
   const activeAuthorization =
     activeAuthorizationRead.kind === 'found' ? activeAuthorizationRead.authorization : null;
   const ecdsaTargets = [...ecdsaChainTargets];
@@ -1949,10 +1953,6 @@ export async function readAvailableSigningLanes(
     if (input.authMethod && signingLaneAuthMethod(lane.auth) !== input.authMethod) continue;
     ed25519Candidates.push(lane);
   }
-  const canonicalEcdsaLanes =
-    ecdsaChainTargets.length > 0 && ports.listCanonicalEcdsaLanesForWallet
-      ? await ports.listCanonicalEcdsaLanesForWallet({ walletId })
-      : [];
   for (const lane of canonicalEcdsaLanes) {
     const authMethod = signingLaneAuthMethod(lane.auth);
     if (input.authMethod && authMethod !== input.authMethod) continue;
