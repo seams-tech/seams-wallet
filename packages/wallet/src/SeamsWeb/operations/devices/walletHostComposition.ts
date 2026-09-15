@@ -24,6 +24,16 @@ import type { WalletHostManagementRequestV1 } from './walletHostOwnerAuthority';
 
 export const LINKED_DEVICE_MANAGEMENT_HTTP_BASE_PATH_V1 =
   '/wallet/device-linking/v1/devices' as const;
+export const OWNER_WALLET_SESSION_REAUTH_REQUIRED = 'owner_wallet_session_reauth_required' as const;
+
+export class OwnerWalletSessionReauthRequiredError extends Error {
+  readonly code = OWNER_WALLET_SESSION_REAUTH_REQUIRED;
+
+  constructor() {
+    super('The owner Wallet Session must be renewed');
+    this.name = 'OwnerWalletSessionReauthRequiredError';
+  }
+}
 
 /**
  * The owner request closures are created by the wallet-host signing surface.
@@ -130,6 +140,9 @@ function assertManagementSuccess(
   operation: string,
 ): void {
   if (response.status < 200 || response.status >= 300) {
+    if (response.status === 401 && isManagementUnauthorizedFailureRecordV1(response.body)) {
+      throw new OwnerWalletSessionReauthRequiredError();
+    }
     const detail = managementFailureDetail(response.body);
     throw new Error(
       detail
@@ -233,8 +246,9 @@ type ManagementUnauthorizedFailureRecordV1 = {
 };
 
 function isManagementUnauthorizedFailureRecordV1(
-  value: object,
+  value: unknown,
 ): value is ManagementUnauthorizedFailureRecordV1 {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
   if (Object.keys(value).sort().join('|') !== 'code|kind|message|ok') return false;
   if (!('ok' in value) || !('kind' in value) || !('code' in value) || !('message' in value)) {
     return false;
