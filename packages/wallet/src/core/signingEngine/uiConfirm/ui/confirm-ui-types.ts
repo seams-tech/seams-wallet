@@ -65,7 +65,8 @@ export interface MountedConfirmUIHandle extends ConfirmUIHandle {
 
 export type ConfirmUISurfaceSource =
   | { kind: 'mount_new' }
-  | { kind: 'reuse_mounted'; handle: MountedConfirmUIHandle };
+  | { kind: 'reuse_mounted'; handle: MountedConfirmUIHandle }
+  | { kind: 'preparation_cancelled' };
 
 export type ConfirmUIPromptDiagnostics = {
   kind: 'confirm_ui_prompt_diagnostics_v1';

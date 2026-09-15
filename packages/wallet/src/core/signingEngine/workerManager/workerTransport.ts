@@ -180,7 +180,12 @@ type WorkerReadiness = {
 };
 
 function isWasmPrewarmWorkerKind(kind: SignerWorkerKind): kind is WasmPrewarmWorkerKind {
-  return kind === 'evmCrypto' || kind === 'tempoSigner';
+  return (
+    kind === 'nearSigner' ||
+    kind === 'ecdsaDerivationClient' ||
+    kind === 'evmCrypto' ||
+    kind === 'tempoSigner'
+  );
 }
 
 function createWorkerReadiness(): WorkerReadiness {

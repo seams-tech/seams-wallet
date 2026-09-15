@@ -521,6 +521,7 @@ function createHostConfirmHandle(
   let closed = false;
   const queuedDecisions: ConfirmUISurfaceDecision[] = [];
   const decisionWaiters: Array<(decision: ConfirmUISurfaceDecision) => void> = [];
+  const cancelListeners = new Set<(detail: { error?: string }) => void>();
   const publishDecision = (decision: ConfirmUISurfaceDecision): void => {
     const waiter = decisionWaiters.shift();
     if (waiter) {
@@ -551,10 +552,14 @@ function createHostConfirmHandle(
   };
   const onCancel = (event: Event): void => {
     const detail = (event as CustomEvent<ConfirmEventDetail> | undefined)?.detail;
+    const error = typeof detail?.error === 'string' ? detail.error : undefined;
     publishDecision({
       kind: 'cancelled',
-      error: typeof detail?.error === 'string' ? detail.error : null,
+      error: error ?? null,
     });
+    for (const listener of cancelListeners) {
+      listener({ ...(error ? { error } : {}) });
+    }
   };
   const removeDecisionListeners = (): void => {
     element.removeEventListener(
@@ -574,10 +579,15 @@ function createHostConfirmHandle(
       if (queuedDecisions.length === 0) {
         publishDecision({ kind: 'cancelled', error: null });
       }
+      cancelListeners.clear();
       disconnectConfirmSurfaceMeasurementReporter(element);
       closeHostConfirmerElement(element, confirmed, onClose);
     },
     update: (props: ConfirmUIUpdate) => applyHostElementProps(ctx, element, props),
+    onCancel: (listener) => {
+      cancelListeners.add(listener);
+      return () => cancelListeners.delete(listener);
+    },
     takeDecision: async () => {
       const queued = queuedDecisions.shift();
       if (queued) return queued;
@@ -721,6 +731,8 @@ function resolveDecisionSurface(args: ResolveDecisionSurfaceArgs): {
         ...args,
         surface: args.surface,
       });
+    case 'preparation_cancelled':
+      throw new Error('A cancelled preparation surface cannot be mounted');
     default:
       return assertNeverConfirmationSurface(args.surface);
   }

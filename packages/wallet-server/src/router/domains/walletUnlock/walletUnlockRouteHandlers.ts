@@ -1409,13 +1409,12 @@ export async function handleWalletUnlockVerifyRoute(input: {
         proof: authorization.proof,
       };
     }
-    const ecdsaSession: WalletUnlockEcdsaSessionResult = passkeyCustody
-      ? await provisionFirstEcdsaWalletSession({
-          context: input.ecdsaSession,
-          verifiedWalletId: userId,
-          authorization: ecdsaAuthorization,
-        })
-      : { ok: true, activation: null, activationReceipt: null, continuity: null };
+    const ecdsaSession: WalletUnlockEcdsaSessionResult =
+      await provisionFirstEcdsaWalletSession({
+        context: input.ecdsaSession,
+        verifiedWalletId: userId,
+        authorization: ecdsaAuthorization,
+      });
     if (!ecdsaSession.ok) return ecdsaSession.response;
     await input.service.markEmailOtpStrongAuthSatisfied({ walletId: userId });
     await emitSuccessfulWalletUnlock({
