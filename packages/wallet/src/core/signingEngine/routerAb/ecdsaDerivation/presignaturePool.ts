@@ -535,6 +535,17 @@ async function waitForAvailablePresignatureFromInFlightRefill(poolKey: string): 
   }
 }
 
+export async function waitForRouterAbEcdsaDerivationClientPresignaturePoolReady(args: {
+  relayerUrl: string;
+  scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
+  materialActivation: RouterAbMpcMaterialActivationRefWire;
+}): Promise<boolean> {
+  const poolKey = makePresignaturePoolKey(args);
+  if (getClientPresignaturePoolDepth(poolKey) > 0) return true;
+  await waitForAvailablePresignatureFromInFlightRefill(poolKey);
+  return getClientPresignaturePoolDepth(poolKey) > 0;
+}
+
 function buildPresignatureRefillNotScheduledResult(
   reason: RouterAbEcdsaDerivationClientPresignatureRefillNotScheduledReason,
   depth: number,

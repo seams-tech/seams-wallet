@@ -3699,8 +3699,6 @@ export class WalletIframeRouter {
     options: {
       chainTarget: ThresholdEcdsaChainTarget;
       waitForPoolReady?: boolean;
-      poolReadyTimeoutMs?: number;
-      poolReadyPollIntervalMs?: number;
       minRemainingUsesBeforePrefill?: number;
     };
   }): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {

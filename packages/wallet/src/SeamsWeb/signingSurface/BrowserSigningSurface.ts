@@ -6816,6 +6816,7 @@ export class BrowserSigningSurface {
     manifest: ActiveEcdsaCapabilityManifest;
     runtime: ExactEcdsaSealedRuntime;
     minRemainingUsesBeforePrefill?: number;
+    waitForPoolReady?: boolean;
   }): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {
     return await warmCapabilitiesPublic.scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
       this.warmCapabilitiesPublicDeps,

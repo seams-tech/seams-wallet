@@ -109,6 +109,7 @@ export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
     manifest: ActiveEcdsaCapabilityManifest;
     runtime: ExactEcdsaSealedRuntime;
     minRemainingUsesBeforePrefill?: number;
+    waitForPoolReady?: boolean;
   },
 ): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {
   return await scheduleRouterAbEcdsaDerivationLoginPresignaturePrefillValue(

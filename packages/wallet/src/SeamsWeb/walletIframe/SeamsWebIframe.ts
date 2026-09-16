@@ -906,8 +906,6 @@ export class SeamsWebIframe {
     walletSession: WalletSessionRef;
     chainTarget: ThresholdEcdsaChainTarget;
     waitForPoolReady?: boolean;
-    poolReadyTimeoutMs?: number;
-    poolReadyPollIntervalMs?: number;
     minRemainingUsesBeforePrefill?: number;
   }): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {
     await this.requireRouterReady();
@@ -917,12 +915,6 @@ export class SeamsWebIframe {
         chainTarget: args.chainTarget,
         ...(typeof args.waitForPoolReady === 'boolean'
           ? { waitForPoolReady: args.waitForPoolReady }
-          : {}),
-        ...(typeof args.poolReadyTimeoutMs === 'number'
-          ? { poolReadyTimeoutMs: args.poolReadyTimeoutMs }
-          : {}),
-        ...(typeof args.poolReadyPollIntervalMs === 'number'
-          ? { poolReadyPollIntervalMs: args.poolReadyPollIntervalMs }
           : {}),
         ...(typeof args.minRemainingUsesBeforePrefill === 'number'
           ? { minRemainingUsesBeforePrefill: args.minRemainingUsesBeforePrefill }

@@ -150,6 +150,7 @@ import {
 } from '@/core/rpcClients/relayer/walletRegistration';
 import type {
   AccountSignerRecord,
+  LocalWalletAuthMethodRecord,
   LocalWalletAuthMethodRecordV2,
   WalletAuthorityExportRootRecordV1,
   WalletAuthorityLinkedSignerMaterialRecordV1,
@@ -8178,32 +8179,57 @@ export type LocalLoginAuthMethod =
       readonly emailAddress: string | null;
     };
 
-function localLoginAuthMethod(record: WalletAuthMethodRecordV2): LocalLoginAuthMethod | null {
+function localEmailOtpAddressByAuthMethod(
+  records: readonly LocalWalletAuthMethodRecord[],
+): ReadonlyMap<WalletAuthMethodId, string> {
+  const addresses = new Map<WalletAuthMethodId, string>();
+  for (const record of records) {
+    if (record.kind !== 'email_otp' || record.status !== 'active') continue;
+    const emailAddress = parseVerifiedEmailAddress(record.authority.factor.providerUserId);
+    if (!emailAddress.ok) continue;
+    addresses.set(record.authority.bindingId, String(emailAddress.value));
+  }
+  return addresses;
+}
+
+function localLoginAuthMethod(
+  record: WalletAuthMethodRecordV2,
+  emailOtpAddresses: ReadonlyMap<WalletAuthMethodId, string>,
+): LocalLoginAuthMethod | null {
   if (record.status !== 'active') return null;
   switch (record.kind) {
     case 'passkey':
       return { walletId: record.walletId, authMethod: 'passkey' };
-    case 'email_otp': {
-      const emailAddress = parseVerifiedEmailAddress(record.registrationAuthorityId);
+    case 'email_otp':
       return {
         walletId: record.walletId,
         authMethod: 'email_otp',
-        emailAddress: emailAddress.ok ? String(emailAddress.value) : null,
+        emailAddress: emailOtpAddresses.get(record.walletAuthMethodId) ?? null,
       };
-    }
     default:
       return assertNeverLoginState(record);
   }
 }
 
-async function localLoginAuthMethodsForWallet(walletId: WalletId): Promise<LocalLoginAuthMethod[]> {
-  const records = await IndexedDBManager.listWalletAuthMethodsV2ForWallet(walletId);
+export function projectLocalLoginAuthMethods(args: {
+  records: readonly WalletAuthMethodRecordV2[];
+  localRecords: readonly LocalWalletAuthMethodRecord[];
+}): LocalLoginAuthMethod[] {
+  const emailOtpAddresses = localEmailOtpAddressByAuthMethod(args.localRecords);
   const methods: LocalLoginAuthMethod[] = [];
-  for (const record of records) {
-    const method = localLoginAuthMethod(record);
+  for (const record of args.records) {
+    const method = localLoginAuthMethod(record, emailOtpAddresses);
     if (method) methods.push(method);
   }
   return methods;
+}
+
+async function localLoginAuthMethodsForWallet(walletId: WalletId): Promise<LocalLoginAuthMethod[]> {
+  const [records, localRecords] = await Promise.all([
+    IndexedDBManager.listWalletAuthMethodsV2ForWallet(walletId),
+    IndexedDBManager.listWalletAuthMethodsForWallet(walletId),
+  ]);
+  return projectLocalLoginAuthMethods({ records, localRecords });
 }
 
 export async function listLocalLoginAuthMethods(): Promise<LocalLoginAuthMethod[]> {
