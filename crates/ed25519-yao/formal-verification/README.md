@@ -579,7 +579,7 @@ close.
 - [Assumption ledger](docs/assumption-ledger.md)
 - [Compliance baseline](docs/compliance-baseline.md)
 - [Full phased plan](../docs/formal-verification-plan.md)
-- [Protocol implementation plan](../../../docs/router-ab/ed25519-yao/implementation-plan.md)
+- [Current product protocol](../../../docs/router-ab/ed25519-yao.md)
 
 Generated Lean files are committed. Charon LLBC remains a transient intermediate
 because its internal identifier ordering is nondeterministic even when the
