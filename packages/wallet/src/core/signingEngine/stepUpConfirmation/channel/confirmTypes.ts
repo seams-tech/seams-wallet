@@ -20,6 +20,7 @@ import type {
   NearTransactionReadiness,
 } from '../../nonce/nearTransactionReadiness';
 import type { NearOperationStepUpPreparationRef } from '../../interfaces/operationStepUpPreparation';
+import type { SigningOperationConfirmationStateKind } from '../../flows/shared/signingStateMachine';
 import type { WalletRecoveryRegistrationOptions } from '@/core/rpcClients/relayer/walletRecoveryPrepare';
 import type { WalletAddAuthMethodRegistrationOptions } from '@/core/rpcClients/relayer/walletRegistration';
 import { UserConfirmationType } from '../userConfirmationType';
@@ -228,7 +229,10 @@ type SignTransactionPayloadBase = {
   nearPublicKeyStr?: string;
 };
 
-type NearTransactionSigningPayload = SignTransactionPayloadBase & { signingKind: 'transaction' } & (
+type NearTransactionSigningPayload = SignTransactionPayloadBase & {
+  signingKind: 'transaction';
+  signingOperationStateKind: SigningOperationConfirmationStateKind;
+} & (
     | {
         signingAuthPlan: Extract<SigningAuthPlan, { kind: 'warmSession' }>;
         nearFundingRequest: NearFundingRequest;

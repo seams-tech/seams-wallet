@@ -34,7 +34,13 @@ import {
   type WalletFlowAuthMethod,
   type WalletFlowInteractionKind,
 } from '@/core/types/sdkSentEvents';
-import { SigningOperationCommandKind, runSigningOperationCommand } from './signingStateMachine';
+import {
+  SigningOperationCommandKind,
+  approveSigningOperationConfirmation,
+  planSigningOperationAttempt,
+  runSigningOperationCommand,
+  type SigningOperationStateRef,
+} from './signingStateMachine';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 
 export type {
@@ -91,6 +97,44 @@ export function createSigningConfirmationCommandHandler(args: {
   return async () => await run({ runtime: args.runtime, request: args.request });
 }
 
+type DistributiveOmit<T, TKey extends PropertyKey> = T extends unknown ? Omit<T, TKey> : never;
+
+type PendingTransactionSigningConfirmationRequest = DistributiveOmit<
+  ConfirmTransactionSigningOperationRequest,
+  'signingOperationStateKind' | 'onSigningOperationReviewApproved'
+>;
+
+export async function runTransactionSigningConfirmationCommand(args: {
+  signingSessionPlan: SigningSessionPlan;
+  signingOperation: SigningOperationContext;
+  runtime: ConfirmSigningOperationRuntime;
+  request: PendingTransactionSigningConfirmationRequest;
+  signingOperationState: SigningOperationStateRef;
+}): Promise<ConfirmTransactionSigningOperationResult> {
+  const confirmationState = planSigningOperationAttempt(
+    args.signingOperationState,
+    args.signingSessionPlan,
+  );
+  const request: ConfirmTransactionSigningOperationRequest = {
+    ...args.request,
+    signingOperationStateKind: confirmationState.kind,
+    onSigningOperationReviewApproved: approveSigningOperationConfirmation.bind(
+      undefined,
+      args.signingOperationState,
+    ),
+  };
+  const runConfirmation = createSigningConfirmationCommandHandler({
+    runtime: args.runtime,
+    request,
+  });
+  return await runSigningOperationCommand({
+    signingSessionPlan: args.signingSessionPlan,
+    signingOperation: args.signingOperation,
+    commandKind: SigningOperationCommandKind.ShowConfirmation,
+    execute: runConfirmation,
+  });
+}
+
 export async function runSigningConfirmationCommand(args: {
   signingSessionPlan: SigningSessionPlan;
   signingOperation: SigningOperationContext;
@@ -101,20 +145,18 @@ export async function runSigningConfirmationCommand(args: {
   signingSessionPlan: SigningSessionPlan;
   signingOperation: SigningOperationContext;
   runtime: ConfirmSigningOperationRuntime;
-  request: ConfirmTransactionSigningOperationRequest;
-}): Promise<ConfirmTransactionSigningOperationResult>;
-export async function runSigningConfirmationCommand(args: {
-  signingSessionPlan: SigningSessionPlan;
-  signingOperation: SigningOperationContext;
-  runtime: ConfirmSigningOperationRuntime;
   request: ConfirmSignatureOnlySigningOperationRequest;
 }): Promise<ConfirmSignatureOnlySigningOperationResult>;
-export async function runSigningConfirmationCommand(args: {
-  signingSessionPlan: SigningSessionPlan;
-  signingOperation: SigningOperationContext;
-  runtime: ConfirmSigningOperationRuntime;
-  request: ConfirmSigningOperationParams;
-}): Promise<ConfirmSigningOperationResult> {
+export async function runSigningConfirmationCommand(
+  args: {
+    signingSessionPlan: SigningSessionPlan;
+    signingOperation: SigningOperationContext;
+    runtime: ConfirmSigningOperationRuntime;
+    request:
+      | ConfirmIntentDigestSigningOperationRequest
+      | ConfirmSignatureOnlySigningOperationRequest;
+  },
+): Promise<ConfirmIntentDigestSigningOperationResult | ConfirmSignatureOnlySigningOperationResult> {
   const runConfirmation = createSigningConfirmationCommandHandler({
     runtime: args.runtime,
     request: args.request,

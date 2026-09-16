@@ -11,7 +11,6 @@ import {
   type WorkerSuccessResponse,
 } from '@/core/types/signer-worker';
 import { AccountId, toAccountId } from '@/core/types/accountIds';
-import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import type { NearSigningRuntimeDeps } from '../../interfaces/runtime';
 import type {
   NearEd25519YaoOperationMaterial,
@@ -39,7 +38,6 @@ import {
   SigningSessionPlanKind,
   type DeferredEd25519MaterialIdentity,
   type SigningSessionPlan,
-  type SigningOperationId,
 } from '../../session/operationState/types';
 import { nearEd25519SignerBindingFromBoundaryFields } from '../../session/identity/exactSigningLaneIdentity';
 import type { NonceLeaseRef } from '../../interfaces/nonceLease';
@@ -54,6 +52,7 @@ import {
 } from '@shared/threshold/ed25519OperationFingerprint';
 import {
   SigningOperationCommandKind,
+  isSigningOperationReviewApprovedStateKind,
   runSigningOperationCommand,
   type SigningOperationCommand,
 } from '../shared/signingStateMachine';
@@ -65,7 +64,7 @@ import {
   buildSigningConfirmationAuthParams,
   confirmationConfigForSigningAuthPlan,
   resolveSigningConfirmationAuthMethod,
-  runSigningConfirmationCommand,
+  runTransactionSigningConfirmationCommand,
   type ConfirmTransactionSigningOperationResult,
 } from '../shared/signingConfirmation';
 import { emitNearSigningConfirmationProgress } from './shared/confirmationProgress';
@@ -227,11 +226,6 @@ async function requireActiveAuthorizedWalletSessionState(args: {
   return authorized;
 }
 
-function createNearTransactionSigningOperationId(): SigningOperationId {
-  const randomId = secureRandomBase64Url(32, 'NEAR transaction signing operation IDs');
-  return SigningSessionIds.signingOperation(`near-transaction-sign:${randomId}`);
-}
-
 type NearTransactionStepUpMethod = 'passkey' | 'email_otp';
 
 type NearTransactionOperationPreparationContext = Omit<
@@ -364,7 +358,7 @@ async function runNearAuthorizationRequiredTransactionSigning(
     title,
     body,
     signerSlot,
-    signingOperationId: providedOperationId,
+    signingOperationState,
     signingSessionCoordinator: sessionCoordinator,
     selection,
     yaoSigningPreparation,
@@ -372,13 +366,9 @@ async function runNearAuthorizationRequiredTransactionSigning(
     passkeyEd25519OperationStepUp,
     emailOtpEd25519StepUp,
   } = payload;
+  const operationId = signingOperationState.operationId;
   const candidate = selection.candidate;
   const nearAccountId = toAccountId(nearAccount.accountId);
-  const operationId =
-    providedOperationId ||
-    SigningSessionIds.signingOperation(
-      `near-transaction-sign:${secureRandomBase64Url(32, 'NEAR operation')}`,
-    );
   const warnings: string[] = [];
   if (!ctx.touchConfirm) throw new Error('UiConfirm bridge not available for signing');
   if (!sessionCoordinator) {
@@ -422,6 +412,10 @@ async function runNearAuthorizationRequiredTransactionSigning(
       transactions: [parsedTransaction],
     }),
   );
+  sessionCoordinator.bindCallerProvidedOperationIdToFingerprint({
+    operationId,
+    operationFingerprint,
+  });
   const operationFingerprintDigest = parseSigningOperationFingerprintDigest(operationFingerprint);
   const deferredIdentity: DeferredEd25519MaterialIdentity = {
     kind: 'deferred_ed25519_material_identity',
@@ -491,9 +485,10 @@ async function runNearAuthorizationRequiredTransactionSigning(
   });
   let confirmation: ConfirmTransactionSigningOperationResult;
   try {
-    confirmation = await runSigningConfirmationCommand({
+    confirmation = await runTransactionSigningConfirmationCommand({
       signingSessionPlan,
       signingOperation,
+      signingOperationState,
       runtime: ctx.touchConfirm,
       request: {
         ctx: { touchConfirm: ctx.touchConfirm },
@@ -639,7 +634,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
   title,
   body,
   signerSlot,
-  signingOperationId: providedSigningOperationId,
+  signingOperationState,
   signingSessionCoordinator: sessionCoordinator,
   transactionOperation,
   ed25519SigningBoundary,
@@ -652,12 +647,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
   nearAccountId: AccountId;
   logs?: string[];
 }> {
-  let signingOperationId = providedSigningOperationId;
-  const callerProvidedSigningOperationId = Boolean(providedSigningOperationId);
-  const ensureSigningOperationId = (): SigningOperationId => {
-    signingOperationId = signingOperationId || createNearTransactionSigningOperationId();
-    return signingOperationId;
-  };
+  const signingOperationId = signingOperationState.operationId;
   const nearAccountId = toAccountId(nearAccount.accountId);
   const relayerUrl = ctx.relayerUrl;
   const warnings: string[] = [];
@@ -718,14 +708,12 @@ async function runAuthorizedNearTransactionWithActionsSigning({
   if (!sessionCoordinator) {
     throw new Error('[SigningEngine][near] production signing session coordinator is required');
   }
-  if (callerProvidedSigningOperationId) {
-    sessionCoordinator.bindCallerProvidedOperationIdToFingerprint({
-      operationId: ensureSigningOperationId(),
-      operationFingerprint,
-    });
-  }
+  sessionCoordinator.bindCallerProvidedOperationIdToFingerprint({
+    operationId: signingOperationId,
+    operationFingerprint,
+  });
   const requiredSignatureUses = requiredNearTransactionSignatureUses(transaction);
-  const confirmationOperationId = ensureSigningOperationId();
+  const confirmationOperationId = signingOperationId;
   const signingOperation = {
     operationId: confirmationOperationId,
     operationFingerprint,
@@ -817,12 +805,17 @@ async function runAuthorizedNearTransactionWithActionsSigning({
       },
     });
   }
-  emitNearSigningEvent(onEvent, nearAccountId, {
-    phase: SigningEventPhase.STEP_05_CONFIRMATION_DISPLAYED,
-    status: 'waiting_for_user',
-    message: 'Opening confirmation prompt',
-    interaction: { kind: 'transaction_confirmation', overlay: 'show' },
-  });
+  const transactionReviewRequired = !isSigningOperationReviewApprovedStateKind(
+    signingOperationState.current.kind,
+  );
+  if (transactionReviewRequired) {
+    emitNearSigningEvent(onEvent, nearAccountId, {
+      phase: SigningEventPhase.STEP_05_CONFIRMATION_DISPLAYED,
+      status: 'waiting_for_user',
+      message: 'Opening confirmation prompt',
+      interaction: { kind: 'transaction_confirmation', overlay: 'show' },
+    });
+  }
   const operationStepUpReadiness =
     preparedStepUp.kind === 'warm_session'
       ? null
@@ -850,9 +843,10 @@ async function runAuthorizedNearTransactionWithActionsSigning({
         });
   let confirmation: ConfirmTransactionSigningOperationResult;
   try {
-    confirmation = await runSigningConfirmationCommand({
+    confirmation = await runTransactionSigningConfirmationCommand({
       signingSessionPlan: ed25519SigningBoundary.signingSessionPlan,
       signingOperation,
+      signingOperationState,
       runtime: touchConfirm,
       request: {
         ctx: { touchConfirm },
@@ -902,11 +896,13 @@ async function runAuthorizedNearTransactionWithActionsSigning({
     });
   }
   const operationStepUpMaterial = operationStepUpReadiness ? await operationStepUpReadiness : null;
-  emitNearSigningEvent(onEvent, nearAccountId, {
-    phase: SigningEventPhase.STEP_05_CONFIRMATION_APPROVED,
-    status: 'succeeded',
-    interaction: { kind: 'transaction_confirmation', overlay: 'hide' },
-  });
+  if (transactionReviewRequired) {
+    emitNearSigningEvent(onEvent, nearAccountId, {
+      phase: SigningEventPhase.STEP_05_CONFIRMATION_APPROVED,
+      status: 'succeeded',
+      interaction: { kind: 'transaction_confirmation', overlay: 'hide' },
+    });
+  }
   const stepUpAuthorization = buildNearEd25519StepUpAuthorization({
     prepared: preparedStepUp,
     confirmation,

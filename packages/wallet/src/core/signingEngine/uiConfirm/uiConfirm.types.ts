@@ -57,6 +57,7 @@ import type { TxDisplayModel } from '../interfaces/display';
 
 export type RequestUserConfirmationOptions = {
   onProgress?: (progress: UserConfirmProgressEvent) => void;
+  onSigningOperationReviewApproved?: () => void;
 };
 
 export type ExportPrivateKeysWithUiOptions = {

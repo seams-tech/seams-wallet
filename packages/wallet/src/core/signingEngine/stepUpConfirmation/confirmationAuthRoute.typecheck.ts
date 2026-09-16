@@ -7,6 +7,9 @@ import type { NearFundingRequest } from '../nonce/nearTransactionReadiness';
 import { toAccountId } from '@/core/types/accountIds';
 import { toWalletId } from '../interfaces/ecdsaChainTarget';
 import { SigningOperationIntent, SigningSessionIds } from '../session/operationState/types';
+import { SigningOperationStateKind } from '../flows/shared/signingStateMachine';
+
+function approveReview(): void {}
 
 const ctx = {} as OrchestrateNearTransactionSigningConfirmationParams['ctx'];
 const rpcCall = {} as RpcCallPayload;
@@ -66,6 +69,8 @@ const baseTransaction = {
   rpcCall,
   nearPublicKeyStr,
   nearFundingRequest,
+  signingOperationStateKind: SigningOperationStateKind.Planned,
+  onSigningOperationReviewApproved: approveReview,
 } as const;
 
 const validWarmTransaction: OrchestrateNearTransactionSigningConfirmationParams = {
