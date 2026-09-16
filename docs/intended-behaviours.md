@@ -389,7 +389,10 @@ Expected behaviour:
 
 Failure behaviour:
 
-- A cancelled passkey prompt cancels the operation and must not spend budget.
+- Cancelling transaction review before the passkey prompt begins cancels only
+  that operation and preserves the selected wallet authority.
+- A cancelled passkey step-up prompt cancels the operation, leaves the wallet
+  locked, and must not spend budget.
 - A passkey step-up result cannot authorize an Email OTP lane.
 
 ### Email OTP Account
@@ -407,8 +410,9 @@ Expected behaviour:
 
 Failure behaviour:
 
-- A cancelled or failed OTP prompt cancels the operation and must not spend
-  budget.
+- A cancelled Email OTP step-up prompt cancels the operation, leaves the wallet
+  locked, and must not spend budget. A failed OTP attempt cancels the operation
+  without spending budget.
 - An Email OTP step-up result cannot authorize a passkey lane.
 - A step-up OTP challenge cannot be reused for wallet unlock, registration, or
   key export.

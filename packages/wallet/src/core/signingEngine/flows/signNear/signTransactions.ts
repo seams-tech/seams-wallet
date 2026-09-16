@@ -52,7 +52,7 @@ import {
 } from '@shared/threshold/ed25519OperationFingerprint';
 import {
   SigningOperationCommandKind,
-  isSigningOperationReviewApprovedStateKind,
+  isSigningOperationReviewApprovedState,
   runSigningOperationCommand,
   type SigningOperationCommand,
 } from '../shared/signingStateMachine';
@@ -805,8 +805,8 @@ async function runAuthorizedNearTransactionWithActionsSigning({
       },
     });
   }
-  const transactionReviewRequired = !isSigningOperationReviewApprovedStateKind(
-    signingOperationState.current.kind,
+  const transactionReviewRequired = !isSigningOperationReviewApprovedState(
+    signingOperationState.current,
   );
   if (transactionReviewRequired) {
     emitNearSigningEvent(onEvent, nearAccountId, {

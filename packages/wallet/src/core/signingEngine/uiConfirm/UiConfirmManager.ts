@@ -63,7 +63,8 @@ type PendingConfirmState =
       kind: 'awaiting_decision';
       request: UserConfirmRequest;
       requestToken: string;
-      onSigningOperationReviewApproved?: () => void;
+      onSigningOperationInteractionEvent?:
+        RequestUserConfirmationOptions['onSigningOperationInteractionEvent'];
       decision?: never;
     }
   | {
@@ -210,9 +211,9 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
       kind: 'awaiting_decision',
       request,
       requestToken,
-      ...(options?.onSigningOperationReviewApproved
+      ...(options?.onSigningOperationInteractionEvent
         ? {
-            onSigningOperationReviewApproved: options.onSigningOperationReviewApproved,
+            onSigningOperationInteractionEvent: options.onSigningOperationInteractionEvent,
           }
         : {}),
     });
@@ -708,9 +709,9 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
       void handlePromptFromWorker(ctx, promptEnv, sourceWorker, {
         signingSurface,
         onDecision: this.capturePendingConfirmationDecision.bind(this, pending),
-        ...(pending.onSigningOperationReviewApproved
+        ...(pending.onSigningOperationInteractionEvent
           ? {
-              onSigningOperationReviewApproved: pending.onSigningOperationReviewApproved,
+              onSigningOperationInteractionEvent: pending.onSigningOperationInteractionEvent,
             }
           : {}),
       }).catch((error) => {

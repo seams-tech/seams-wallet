@@ -14,7 +14,10 @@ import type {
   NearTransactionReadiness,
 } from '../nonce/nearTransactionReadiness';
 import type { NearOperationStepUpPreparationRef } from '../interfaces/operationStepUpPreparation';
-import type { SigningOperationConfirmationStateKind } from '../flows/shared/signingStateMachine';
+import type {
+  SigningOperationConfirmationStateKind,
+  SigningOperationInteractionEvent,
+} from '../flows/shared/signingStateMachine';
 
 export type SigningConfirmationChain = 'near' | 'evm' | 'tempo';
 
@@ -22,7 +25,7 @@ export type RequestUserConfirmationBridge = (
   request: UserConfirmRequest,
   options?: {
     onProgress?: (progress: UserConfirmProgressEvent) => void;
-    onSigningOperationReviewApproved?: () => void;
+    onSigningOperationInteractionEvent?: (event: SigningOperationInteractionEvent) => void;
   },
 ) => Promise<UserConfirmDecision>;
 
@@ -130,7 +133,7 @@ type OrchestrateNearTransactionSigningConfirmationBaseParams =
     nearPublicKeyStr: string;
     nearFundingRequest: NearFundingRequest;
     signingOperationStateKind: SigningOperationConfirmationStateKind;
-    onSigningOperationReviewApproved: () => void;
+    onSigningOperationInteractionEvent: (event: SigningOperationInteractionEvent) => void;
     title?: string;
     body?: string;
   };

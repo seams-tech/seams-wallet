@@ -39,3 +39,4 @@ invalidWalletSigningMaterial('persistence_unavailable');
 invalidWalletSigningMaterial('revoked');
 
 fullWalletLoginRequired('revoked');
+fullWalletLoginRequired('wallet_locked');

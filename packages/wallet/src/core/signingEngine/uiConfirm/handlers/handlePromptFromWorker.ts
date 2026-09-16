@@ -22,6 +22,7 @@ import { coerceThemeMode } from '@shared/utils/theme';
 import type { ThemeMode } from '@/core/types/seams';
 import { handleIntentDigestSigningFlow, handleTransactionSigningFlow } from './flows/signing';
 import type { ConfirmUISurfaceSource } from '../ui/confirm-ui';
+import type { SigningOperationInteractionEvent } from '../../flows/shared/signingStateMachine';
 
 /**
  * Handles secure confirmation requests from the worker with robust error handling
@@ -35,7 +36,7 @@ export async function handlePromptFromWorker(
   options?: {
     signingSurface: ConfirmUISurfaceSource;
     onDecision?: (decision: UserConfirmDecision) => void;
-    onSigningOperationReviewApproved?: () => void;
+    onSigningOperationInteractionEvent?: (event: SigningOperationInteractionEvent) => void;
   },
 ): Promise<void> {
   const scopedWorker = createUserConfirmScopedWorker(worker, {
@@ -94,9 +95,10 @@ export async function handlePromptFromWorker(
       case UserConfirmationType.SIGN_NEP413_MESSAGE:
         await handleTransactionSigningFlow(ctx, request, scopedWorker, {
           ...flowOptions,
-          ...(options?.onSigningOperationReviewApproved
+          ...(options?.onSigningOperationInteractionEvent
             ? {
-                onSigningOperationReviewApproved: options.onSigningOperationReviewApproved,
+                onSigningOperationInteractionEvent:
+                  options.onSigningOperationInteractionEvent,
               }
             : {}),
         });

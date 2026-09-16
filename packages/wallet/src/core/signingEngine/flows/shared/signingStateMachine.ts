@@ -16,6 +16,7 @@ export const SigningOperationStateKind = {
   Created: 'created',
   Planned: 'planned',
   ConfirmationApproved: 'confirmation_approved',
+  AuthenticationInProgress: 'authentication_in_progress',
   AuthReady: 'auth_ready',
   ThresholdConnected: 'threshold_connected',
   PayloadPrepared: 'payload_prepared',
@@ -23,6 +24,7 @@ export const SigningOperationStateKind = {
   CleanedUp: 'cleaned_up',
   Completed: 'completed',
   Failed: 'failed',
+  Cancelled: 'cancelled',
 } as const;
 
 export type SigningOperationStateKind =
@@ -45,13 +47,56 @@ export type SigningOperationState =
   | { kind: typeof SigningOperationStateKind.Created }
   | { kind: typeof SigningOperationStateKind.Planned; plan: SigningSessionPlan }
   | { kind: typeof SigningOperationStateKind.ConfirmationApproved; plan: SigningSessionPlan }
+  | {
+      kind: typeof SigningOperationStateKind.AuthenticationInProgress;
+      plan: SigningSessionPlan;
+      reviewApproval: SigningOperationReviewApproval;
+    }
   | { kind: typeof SigningOperationStateKind.AuthReady; plan: SigningSessionPlan }
   | { kind: typeof SigningOperationStateKind.ThresholdConnected; plan: SigningSessionPlan }
   | { kind: typeof SigningOperationStateKind.PayloadPrepared; plan: SigningSessionPlan }
   | { kind: typeof SigningOperationStateKind.Signed; plan: SigningSessionPlan }
   | { kind: typeof SigningOperationStateKind.CleanedUp; plan: SigningSessionPlan }
   | { kind: typeof SigningOperationStateKind.Completed; plan: SigningSessionPlan }
-  | { kind: typeof SigningOperationStateKind.Failed; plan: SigningSessionPlan; reason: string };
+  | { kind: typeof SigningOperationStateKind.Failed; plan: SigningSessionPlan; reason: string }
+  | {
+      kind: typeof SigningOperationStateKind.Cancelled;
+      plan: SigningSessionPlan;
+      phase: SigningOperationCancellationPhase;
+    };
+
+export const SigningOperationCancellationPhase = {
+  Review: 'review',
+  Authentication: 'authentication',
+  Execution: 'execution',
+} as const;
+
+export type SigningOperationCancellationPhase =
+  (typeof SigningOperationCancellationPhase)[keyof typeof SigningOperationCancellationPhase];
+
+export const SigningOperationReviewApproval = {
+  Pending: 'pending',
+  Approved: 'approved',
+} as const;
+
+export type SigningOperationReviewApproval =
+  (typeof SigningOperationReviewApproval)[keyof typeof SigningOperationReviewApproval];
+
+export const SigningOperationInteractionEventKind = {
+  ReviewApproved: 'review_approved',
+  AuthenticationStarted: 'authentication_started',
+  AuthenticationCompleted: 'authentication_completed',
+} as const;
+
+export type SigningOperationInteractionEvent =
+  | { kind: typeof SigningOperationInteractionEventKind.ReviewApproved }
+  | { kind: typeof SigningOperationInteractionEventKind.AuthenticationStarted }
+  | { kind: typeof SigningOperationInteractionEventKind.AuthenticationCompleted };
+
+export type CancelledSigningOperationState = Extract<
+  SigningOperationState,
+  { kind: typeof SigningOperationStateKind.Cancelled }
+>;
 
 export type SigningOperationConfirmationState = Extract<
   SigningOperationState,
@@ -223,10 +268,23 @@ export function planSigningOperationAttempt(
       stateRef.current = nextState;
       return nextState;
     }
+    case SigningOperationStateKind.AuthenticationInProgress: {
+      const nextState: SigningOperationConfirmationState = {
+        kind:
+          stateRef.current.reviewApproval === SigningOperationReviewApproval.Approved
+            ? SigningOperationStateKind.ConfirmationApproved
+            : SigningOperationStateKind.Planned,
+        plan,
+      };
+      stateRef.current = nextState;
+      return nextState;
+    }
     case SigningOperationStateKind.Completed:
       throw new Error('[SigningOperationMachine] completed operation cannot be replanned');
     case SigningOperationStateKind.Failed:
       throw new Error('[SigningOperationMachine] failed operation cannot be replanned');
+    case SigningOperationStateKind.Cancelled:
+      throw new Error('[SigningOperationMachine] cancelled operation cannot be replanned');
     default:
       return assertNeverSigningOperationState(stateRef.current);
   }
@@ -247,25 +305,187 @@ export function approveSigningOperationConfirmation(stateRef: SigningOperationSt
     case SigningOperationStateKind.Signed:
     case SigningOperationStateKind.CleanedUp:
       return;
+    case SigningOperationStateKind.AuthenticationInProgress:
+      stateRef.current = {
+        kind: SigningOperationStateKind.AuthenticationInProgress,
+        plan: stateRef.current.plan,
+        reviewApproval: SigningOperationReviewApproval.Approved,
+      };
+      return;
     case SigningOperationStateKind.Created:
       throw new Error('[SigningOperationMachine] operation must be planned before confirmation');
     case SigningOperationStateKind.Completed:
       throw new Error('[SigningOperationMachine] completed operation cannot be confirmed');
     case SigningOperationStateKind.Failed:
       throw new Error('[SigningOperationMachine] failed operation cannot be confirmed');
+    case SigningOperationStateKind.Cancelled:
+      throw new Error('[SigningOperationMachine] cancelled operation cannot be confirmed');
     default:
       return assertNeverSigningOperationState(stateRef.current);
   }
 }
 
+export function beginSigningOperationAuthentication(
+  stateRef: SigningOperationStateRef,
+): void {
+  switch (stateRef.current.kind) {
+    case SigningOperationStateKind.Planned:
+      stateRef.current = {
+        kind: SigningOperationStateKind.AuthenticationInProgress,
+        plan: stateRef.current.plan,
+        reviewApproval: SigningOperationReviewApproval.Pending,
+      };
+      return;
+    case SigningOperationStateKind.ConfirmationApproved:
+      stateRef.current = {
+        kind: SigningOperationStateKind.AuthenticationInProgress,
+        plan: stateRef.current.plan,
+        reviewApproval: SigningOperationReviewApproval.Approved,
+      };
+      return;
+    case SigningOperationStateKind.AuthenticationInProgress:
+      return;
+    case SigningOperationStateKind.Created:
+      throw new Error(
+        '[SigningOperationMachine] operation must be planned before authentication',
+      );
+    case SigningOperationStateKind.AuthReady:
+    case SigningOperationStateKind.ThresholdConnected:
+    case SigningOperationStateKind.PayloadPrepared:
+    case SigningOperationStateKind.Signed:
+    case SigningOperationStateKind.CleanedUp:
+      return;
+    case SigningOperationStateKind.Completed:
+      throw new Error('[SigningOperationMachine] completed operation cannot authenticate');
+    case SigningOperationStateKind.Failed:
+      throw new Error('[SigningOperationMachine] failed operation cannot authenticate');
+    case SigningOperationStateKind.Cancelled:
+      throw new Error('[SigningOperationMachine] cancelled operation cannot authenticate');
+    default:
+      return assertNeverSigningOperationState(stateRef.current);
+  }
+}
+
+export function completeSigningOperationAuthentication(
+  stateRef: SigningOperationStateRef,
+): void {
+  switch (stateRef.current.kind) {
+    case SigningOperationStateKind.AuthenticationInProgress:
+      if (stateRef.current.reviewApproval !== SigningOperationReviewApproval.Approved) {
+        throw new Error(
+          '[SigningOperationMachine] authentication cannot complete before transaction approval',
+        );
+      }
+      stateRef.current = {
+        kind: SigningOperationStateKind.AuthReady,
+        plan: stateRef.current.plan,
+      };
+      return;
+    case SigningOperationStateKind.ConfirmationApproved:
+    case SigningOperationStateKind.AuthReady:
+    case SigningOperationStateKind.ThresholdConnected:
+    case SigningOperationStateKind.PayloadPrepared:
+    case SigningOperationStateKind.Signed:
+    case SigningOperationStateKind.CleanedUp:
+      return;
+    case SigningOperationStateKind.Created:
+    case SigningOperationStateKind.Planned:
+      throw new Error(
+        '[SigningOperationMachine] authentication cannot complete before transaction approval',
+      );
+    case SigningOperationStateKind.Completed:
+      throw new Error('[SigningOperationMachine] completed operation cannot authenticate');
+    case SigningOperationStateKind.Failed:
+      throw new Error('[SigningOperationMachine] failed operation cannot authenticate');
+    case SigningOperationStateKind.Cancelled:
+      throw new Error('[SigningOperationMachine] cancelled operation cannot authenticate');
+    default:
+      return assertNeverSigningOperationState(stateRef.current);
+  }
+}
+
+export function applySigningOperationInteractionEvent(
+  stateRef: SigningOperationStateRef,
+  event: SigningOperationInteractionEvent,
+): void {
+  switch (event.kind) {
+    case SigningOperationInteractionEventKind.ReviewApproved:
+      approveSigningOperationConfirmation(stateRef);
+      return;
+    case SigningOperationInteractionEventKind.AuthenticationStarted:
+      beginSigningOperationAuthentication(stateRef);
+      return;
+    case SigningOperationInteractionEventKind.AuthenticationCompleted:
+      completeSigningOperationAuthentication(stateRef);
+      return;
+    default:
+      return assertNeverSigningOperationInteractionEvent(event);
+  }
+}
+
+export function cancelSigningOperation(
+  stateRef: SigningOperationStateRef,
+): CancelledSigningOperationState {
+  let phase: SigningOperationCancellationPhase;
+  switch (stateRef.current.kind) {
+    case SigningOperationStateKind.Planned:
+      phase = SigningOperationCancellationPhase.Review;
+      break;
+    case SigningOperationStateKind.AuthenticationInProgress:
+      phase = SigningOperationCancellationPhase.Authentication;
+      break;
+    case SigningOperationStateKind.ConfirmationApproved:
+    case SigningOperationStateKind.AuthReady:
+    case SigningOperationStateKind.ThresholdConnected:
+    case SigningOperationStateKind.PayloadPrepared:
+      phase = SigningOperationCancellationPhase.Execution;
+      break;
+    case SigningOperationStateKind.Created:
+      throw new Error('[SigningOperationMachine] operation must be planned before cancellation');
+    case SigningOperationStateKind.Signed:
+    case SigningOperationStateKind.CleanedUp:
+    case SigningOperationStateKind.Completed:
+      throw new Error('[SigningOperationMachine] completed signing cannot be cancelled');
+    case SigningOperationStateKind.Failed:
+      throw new Error('[SigningOperationMachine] failed operation cannot be cancelled');
+    case SigningOperationStateKind.Cancelled:
+      return stateRef.current;
+    default:
+      return assertNeverSigningOperationState(stateRef.current);
+  }
+  const cancelled: CancelledSigningOperationState = {
+    kind: SigningOperationStateKind.Cancelled,
+    plan: stateRef.current.plan,
+    phase,
+  };
+  stateRef.current = cancelled;
+  return cancelled;
+}
+
 export function isSigningOperationReviewApprovedStateKind(
-  kind: SigningOperationStateKind,
+  kind: SigningOperationConfirmationStateKind,
 ): boolean {
   switch (kind) {
+    case SigningOperationStateKind.Planned:
+      return false;
+    case SigningOperationStateKind.ConfirmationApproved:
+      return true;
+    default:
+      return assertNeverSigningOperationStateKind(kind);
+  }
+}
+
+export function isSigningOperationReviewApprovedState(
+  state: SigningOperationState,
+): boolean {
+  switch (state.kind) {
     case SigningOperationStateKind.Created:
     case SigningOperationStateKind.Planned:
     case SigningOperationStateKind.Failed:
+    case SigningOperationStateKind.Cancelled:
       return false;
+    case SigningOperationStateKind.AuthenticationInProgress:
+      return state.reviewApproval === SigningOperationReviewApproval.Approved;
     case SigningOperationStateKind.ConfirmationApproved:
     case SigningOperationStateKind.AuthReady:
     case SigningOperationStateKind.ThresholdConnected:
@@ -275,7 +495,7 @@ export function isSigningOperationReviewApprovedStateKind(
     case SigningOperationStateKind.Completed:
       return true;
     default:
-      return assertNeverSigningOperationStateKind(kind);
+      return assertNeverSigningOperationState(state);
   }
 }
 
@@ -717,6 +937,12 @@ function getExecutionErrorReason(error: unknown): string {
 
 function assertNeverSigningOperationState(value: never): never {
   throw new Error(`Unsupported signing operation state: ${String(value)}`);
+}
+
+function assertNeverSigningOperationInteractionEvent(value: never): never {
+  throw new Error(
+    `[SigningOperationMachine] unsupported interaction event: ${String(value)}`,
+  );
 }
 
 function assertNeverSigningOperationStateKind(value: never): never {

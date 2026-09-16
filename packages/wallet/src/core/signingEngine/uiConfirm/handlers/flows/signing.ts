@@ -61,8 +61,10 @@ import {
   type WalletSessionFailure,
 } from '@/core/signingEngine/session/lifecycle/walletSessionFailure';
 import {
+  SigningOperationInteractionEventKind,
   isSigningOperationReviewApprovedStateKind,
   type SigningOperationConfirmationStateKind,
+  type SigningOperationInteractionEvent,
 } from '@/core/signingEngine/flows/shared/signingStateMachine';
 
 const TOUCH_CONFIRM_PROGRESS_PHASE = {
@@ -105,11 +107,11 @@ export function shouldRenderNearTransactionReview(args: {
   );
 }
 
-function requireSigningOperationReviewApprovalCallback(
-  callback: (() => void) | undefined,
-): () => void {
+function requireSigningOperationInteractionCallback(
+  callback: ((event: SigningOperationInteractionEvent) => void) | undefined,
+): (event: SigningOperationInteractionEvent) => void {
   if (!callback) {
-    throw new Error('NEAR transaction review approval callback is required');
+    throw new Error('NEAR transaction signing lifecycle callback is required');
   }
   return callback;
 }
@@ -332,7 +334,7 @@ export async function handleTransactionSigningFlow(
     transactionSummary: TransactionSummary;
     theme: ThemeMode;
     surface: ConfirmUISurfaceSource;
-    onSigningOperationReviewApproved?: () => void;
+    onSigningOperationInteractionEvent?: (event: SigningOperationInteractionEvent) => void;
   },
 ): Promise<void> {
   const { confirmationConfig, transactionSummary, theme, surface } = opts;
@@ -362,10 +364,8 @@ export async function handleTransactionSigningFlow(
         : null;
     const nearTransactionReviewPayload =
       signTransactionPayload?.signingKind === 'transaction' ? signTransactionPayload : null;
-    const approveNearTransactionReview = nearTransactionReviewPayload
-      ? requireSigningOperationReviewApprovalCallback(
-          opts.onSigningOperationReviewApproved,
-        )
+    const notifySigningOperationInteraction = nearTransactionReviewPayload
+      ? requireSigningOperationInteractionCallback(opts.onSigningOperationInteractionEvent)
       : null;
     const reviewAlreadyApproved = nearTransactionReviewPayload
       ? isSigningOperationReviewApprovedStateKind(
@@ -436,6 +436,11 @@ export async function handleTransactionSigningFlow(
       resolvePromptReady?.();
       resolvePromptReady = undefined;
     };
+    if (signingAuthMode === 'emailOtp') {
+      notifySigningOperationInteraction?.({
+        kind: SigningOperationInteractionEventKind.AuthenticationStarted,
+      });
+    }
     const promptDecisionPromise: Promise<ConfirmationPromptDecision> = reviewPromptRequired
       ? session.promptUser({
           securityContext: baseSecurityContext,
@@ -606,8 +611,10 @@ export async function handleTransactionSigningFlow(
         error: uiError,
       });
     }
-    if (approveNearTransactionReview && !reviewAlreadyApproved) {
-      approveNearTransactionReview();
+    if (notifySigningOperationInteraction && !reviewAlreadyApproved) {
+      notifySigningOperationInteraction({
+        kind: SigningOperationInteractionEventKind.ReviewApproved,
+      });
       session.dismissReviewSurface();
     }
 
@@ -735,6 +742,9 @@ export async function handleTransactionSigningFlow(
       });
     }
     if (signingAuthMode === 'emailOtp') {
+      notifySigningOperationInteraction?.({
+        kind: SigningOperationInteractionEventKind.AuthenticationCompleted,
+      });
       session.confirmAndCloseModal({
         requestId: request.requestId,
         intentDigest: resolvedIntentDigestForResponse,
@@ -777,11 +787,17 @@ export async function handleTransactionSigningFlow(
     if (!challengeB64u) {
       throw new Error('Missing WebAuthn challenge digest for signing flow');
     }
+    notifySigningOperationInteraction?.({
+      kind: SigningOperationInteractionEventKind.AuthenticationStarted,
+    });
     const serializedCredential = await collectAuthenticationCredentialForWalletChallengeB64u({
       credentialStore: ctx.webauthnCredentialStore,
       touchIdPrompt: ctx.touchIdPrompt,
       walletId: request.payload.walletId,
       challengeB64u,
+    });
+    notifySigningOperationInteraction?.({
+      kind: SigningOperationInteractionEventKind.AuthenticationCompleted,
     });
 
     // 6) Respond; keep nonces reserved for worker to use

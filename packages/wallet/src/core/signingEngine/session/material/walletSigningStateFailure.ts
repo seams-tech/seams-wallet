@@ -18,6 +18,7 @@ export type InvalidWalletSigningMaterialReason =
 
 export type WalletFullLoginRequiredReason =
   | NearEd25519WalletSessionFullLoginReason
+  | 'wallet_locked'
   | 'revoked'
   | 'replaced';
 
@@ -75,9 +76,19 @@ export class WalletFullLoginRequiredError extends Error {
   }
 }
 
+export class WalletOperationStepUpCancelled extends Error {
+  readonly name = 'WalletOperationStepUpCancelled';
+  readonly code = WALLET_OPERATION_STEP_UP_CANCELLED;
+
+  constructor() {
+    super('Request cancelled.');
+  }
+}
+
 export type WalletSigningStateFailure =
   | InvalidWalletSigningMaterialError
-  | WalletFullLoginRequiredError;
+  | WalletFullLoginRequiredError
+  | WalletOperationStepUpCancelled;
 
 export class WalletSigningMaterialTemporarilyUnavailableError extends Error {
   readonly name = 'WalletSigningMaterialTemporarilyUnavailableError';
@@ -122,15 +133,6 @@ export function walletSigningMaterialBlockError(
   }
 }
 
-export class WalletOperationStepUpCancelled extends Error {
-  readonly name = 'WalletOperationStepUpCancelled';
-  readonly code = WALLET_OPERATION_STEP_UP_CANCELLED;
-
-  constructor() {
-    super('Request cancelled.');
-  }
-}
-
 export function walletOperationStepUpCancelled(): WalletOperationStepUpCancelled {
   return new WalletOperationStepUpCancelled();
 }
@@ -138,6 +140,7 @@ export function walletOperationStepUpCancelled(): WalletOperationStepUpCancelled
 export function isWalletSigningStateFailure(error: unknown): error is WalletSigningStateFailure {
   return (
     error instanceof InvalidWalletSigningMaterialError ||
-    error instanceof WalletFullLoginRequiredError
+    error instanceof WalletFullLoginRequiredError ||
+    error instanceof WalletOperationStepUpCancelled
   );
 }

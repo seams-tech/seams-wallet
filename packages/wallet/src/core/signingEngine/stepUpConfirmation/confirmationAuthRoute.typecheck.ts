@@ -70,7 +70,7 @@ const baseTransaction = {
   nearPublicKeyStr,
   nearFundingRequest,
   signingOperationStateKind: SigningOperationStateKind.Planned,
-  onSigningOperationReviewApproved: approveReview,
+  onSigningOperationInteractionEvent: () => approveReview(),
 } as const;
 
 const validWarmTransaction: OrchestrateNearTransactionSigningConfirmationParams = {
