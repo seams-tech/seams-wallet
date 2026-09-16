@@ -52,6 +52,7 @@ function buildSignTransactionPayload(args: {
     rpcCall: args.params.rpcCall,
     nearPublicKeyStr: args.params.nearPublicKeyStr,
     nearFundingRequest: args.params.nearFundingRequest,
+    signingOperationStateKind: args.params.signingOperationStateKind,
   };
   switch (args.params.signingAuthPlan.kind) {
     case SigningAuthPlanKind.WarmSession:
@@ -418,6 +419,11 @@ export async function orchestrateSigningConfirmation(
 
   const decision = await requestUserConfirmation(request, {
     onProgress: params.onProgress,
+    ...(params.kind === 'transaction'
+      ? {
+          onSigningOperationReviewApproved: params.onSigningOperationReviewApproved,
+        }
+      : {}),
   }).finally(() => {
     clearConfirmationReadiness(sessionId);
   });

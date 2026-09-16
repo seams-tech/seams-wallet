@@ -89,6 +89,10 @@ import {
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { SigningSessionCoordinator } from '../../session/SigningSessionCoordinator';
 import {
+  createSigningOperationStateRef,
+  type SigningOperationStateRef,
+} from '../shared/signingStateMachine';
+import {
   buildWalletSessionQuotaAdmissionQueueKey,
   WalletSessionQuotaAdmissionError,
   classifyWalletSessionQuotaAdmissionFailure,
@@ -1410,7 +1414,7 @@ async function prepareNearEd25519TransactionSigningSession(args: {
 
 type NearTransactionSigningAttempt = {
   forceFreshAuth?: boolean;
-  operationId?: SigningOperationId;
+  signingOperationState: SigningOperationStateRef;
   retryingFreshAuth?: boolean;
   signingSessionCoordinator?: SigningSessionCoordinator;
 };
@@ -1449,7 +1453,10 @@ export async function signTransactionWithActions(
     confirmationConfigOverride: args.confirmationConfigOverride,
   });
   try {
-    return await signTransactionWithActionsAttempt(deps, args, {});
+    const operationId = createNearTransactionSigningOperationId();
+    return await signTransactionWithActionsAttempt(deps, args, {
+      signingOperationState: createSigningOperationStateRef({ operationId }),
+    });
   } finally {
     deps.touchConfirm.closeTransactionPreparationModal();
   }
@@ -1469,12 +1476,7 @@ async function signTransactionWithActionsAttempt(
     body: args.body,
     onEvent: args.onEvent,
   };
-  let operationId = attempt.operationId;
-  const ensureOperationId = (): SigningOperationId => {
-    operationId = operationId || createNearTransactionSigningOperationId();
-    return operationId;
-  };
-  const confirmationOperationId = ensureOperationId();
+  const confirmationOperationId = attempt.signingOperationState.operationId;
   const signingSessionCoordinator =
     attempt.signingSessionCoordinator || deps.signingSessionCoordinator;
   const authorizationRequired = await prepareNearAuthorizationRequiredTransaction({
@@ -1506,7 +1508,7 @@ async function signTransactionWithActionsAttempt(
             title: publicOptions.title,
             body: publicOptions.body,
             onEvent: publicOptions.onEvent,
-            signingOperationId: confirmationOperationId,
+            signingOperationState: attempt.signingOperationState,
             signingSessionCoordinator,
             selection: {
               kind: 'authorization_required',
@@ -1591,7 +1593,7 @@ async function signTransactionWithActionsAttempt(
           title: publicOptions.title,
           body: publicOptions.body,
           onEvent: publicOptions.onEvent,
-          signingOperationId: confirmationOperationId,
+          signingOperationState: attempt.signingOperationState,
           signingSessionCoordinator: executionState.signingSessionCoordinator,
           selection: { kind: 'authorized', selectedLane: transactionLane },
           transactionOperation: executionState.transactionOperation,
@@ -1631,12 +1633,11 @@ async function signTransactionWithActionsAttempt(
       preparationAuthorization.kind === 'authorized' &&
       (walletSessionRequiresStepUp || admissionDecision)
     ) {
-      const nextOperationId = operationId || createNearTransactionSigningOperationId();
       if (admissionDecision?.kind === 'wait_and_retry_admission') {
         await waitForWalletSessionQuotaAdmissionRetry(admissionDecision.retryAfterMs);
         return await signTransactionWithActionsAttempt(deps, args, {
           forceFreshAuth: false,
-          operationId: nextOperationId,
+          signingOperationState: attempt.signingOperationState,
           retryingFreshAuth: attempt.retryingFreshAuth,
           signingSessionCoordinator,
         });
@@ -1682,14 +1683,14 @@ async function signTransactionWithActionsAttempt(
           refresh: async () =>
             await signTransactionWithActionsAttempt(deps, args, {
               forceFreshAuth: true,
-              operationId: nextOperationId,
+              signingOperationState: attempt.signingOperationState,
               retryingFreshAuth: true,
               signingSessionCoordinator,
             }),
           retryAfterRefresh: async () =>
             await signTransactionWithActionsAttempt(deps, args, {
               forceFreshAuth: false,
-              operationId: nextOperationId,
+              signingOperationState: attempt.signingOperationState,
               retryingFreshAuth: attempt.retryingFreshAuth,
               signingSessionCoordinator,
             }),
@@ -1697,7 +1698,7 @@ async function signTransactionWithActionsAttempt(
       }
       return await signTransactionWithActionsAttempt(deps, args, {
         forceFreshAuth: true,
-        operationId: nextOperationId,
+        signingOperationState: attempt.signingOperationState,
         retryingFreshAuth: true,
         signingSessionCoordinator,
       });

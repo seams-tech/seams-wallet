@@ -35,6 +35,7 @@ export async function handlePromptFromWorker(
   options?: {
     signingSurface: ConfirmUISurfaceSource;
     onDecision?: (decision: UserConfirmDecision) => void;
+    onSigningOperationReviewApproved?: () => void;
   },
 ): Promise<void> {
   const scopedWorker = createUserConfirmScopedWorker(worker, {
@@ -91,7 +92,14 @@ export async function handlePromptFromWorker(
       }
       case UserConfirmationType.SIGN_TRANSACTION:
       case UserConfirmationType.SIGN_NEP413_MESSAGE:
-        await handleTransactionSigningFlow(ctx, request, scopedWorker, flowOptions);
+        await handleTransactionSigningFlow(ctx, request, scopedWorker, {
+          ...flowOptions,
+          ...(options?.onSigningOperationReviewApproved
+            ? {
+                onSigningOperationReviewApproved: options.onSigningOperationReviewApproved,
+              }
+            : {}),
+        });
         break;
       case UserConfirmationType.SIGN_INTENT_DIGEST:
         await handleIntentDigestSigningFlow(ctx, request, scopedWorker, flowOptions);

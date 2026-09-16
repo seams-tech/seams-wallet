@@ -496,6 +496,7 @@ export function createConfirmSession({
     emailOtpChallengeId?: string;
     diagnostics: ConfirmUIPromptDiagnostics;
   }>;
+  dismissReviewSurface: () => void;
   /**
    * Send decision back to worker and perform standard cleanup.
    * - On `confirmed: false`, releases any reserved nonces.
@@ -558,10 +559,16 @@ export function createConfirmSession({
     }
   };
 
+  const dismissReviewSurface = () => {
+    adapters.ui.closeModalSafely(true, confirmHandle);
+    confirmHandle = undefined;
+  };
+
   return {
     setNonceLeases,
     updateUI,
     promptUser,
+    dismissReviewSurface,
     confirmAndCloseModal,
   };
 }

@@ -19,6 +19,7 @@ import {
 } from '@/core/signingEngine/stepUpConfirmation/channel/confirmTypes';
 import {
   SigningAuthPlanKind,
+  type SigningAuthMode,
   type SigningAuthPlanKind as SigningAuthPlanKindType,
 } from '@/core/signingEngine/stepUpConfirmation/types';
 import {
@@ -59,6 +60,10 @@ import {
   walletSessionFailureFromError,
   type WalletSessionFailure,
 } from '@/core/signingEngine/session/lifecycle/walletSessionFailure';
+import {
+  isSigningOperationReviewApprovedStateKind,
+  type SigningOperationConfirmationStateKind,
+} from '@/core/signingEngine/flows/shared/signingStateMachine';
 
 const TOUCH_CONFIRM_PROGRESS_PHASE = {
   CONFIRMATION_COMPLETE: 'confirmation.complete',
@@ -90,6 +95,25 @@ function getTransactionSigningAuthMode(request: SigningUserConfirmRequest) {
   return 'webauthn';
 }
 
+export function shouldRenderNearTransactionReview(args: {
+  signingOperationStateKind: SigningOperationConfirmationStateKind;
+  signingAuthMode: SigningAuthMode;
+}): boolean {
+  return (
+    !isSigningOperationReviewApprovedStateKind(args.signingOperationStateKind) ||
+    args.signingAuthMode === 'emailOtp'
+  );
+}
+
+function requireSigningOperationReviewApprovalCallback(
+  callback: (() => void) | undefined,
+): () => void {
+  if (!callback) {
+    throw new Error('NEAR transaction review approval callback is required');
+  }
+  return callback;
+}
+
 type NearSigningReadinessMode =
   | {
       kind: 'transaction_access_key';
@@ -101,6 +125,13 @@ type NearSigningReadinessMode =
 type WalletSessionExpiredConfirmationOutcome = {
   readonly kind: 'wallet_session_expired';
   readonly failure: Extract<WalletSessionFailure, { readonly kind: 'expired' }>;
+};
+
+type ConfirmationPromptDecision = {
+  confirmed: boolean;
+  error?: string;
+  otpCode?: string;
+  emailOtpChallengeId?: string;
 };
 
 function keepPromisePending(): void {}
@@ -301,6 +332,7 @@ export async function handleTransactionSigningFlow(
     transactionSummary: TransactionSummary;
     theme: ThemeMode;
     surface: ConfirmUISurfaceSource;
+    onSigningOperationReviewApproved?: () => void;
   },
 ): Promise<void> {
   const { confirmationConfig, transactionSummary, theme, surface } = opts;
@@ -324,6 +356,28 @@ export async function handleTransactionSigningFlow(
   }
   try {
     const signingAuthMode = getTransactionSigningAuthMode(request);
+    const signTransactionPayload =
+      request.type === UserConfirmationType.SIGN_TRANSACTION
+        ? getSignTransactionPayload(request)
+        : null;
+    const nearTransactionReviewPayload =
+      signTransactionPayload?.signingKind === 'transaction' ? signTransactionPayload : null;
+    const approveNearTransactionReview = nearTransactionReviewPayload
+      ? requireSigningOperationReviewApprovalCallback(
+          opts.onSigningOperationReviewApproved,
+        )
+      : null;
+    const reviewAlreadyApproved = nearTransactionReviewPayload
+      ? isSigningOperationReviewApprovedStateKind(
+          nearTransactionReviewPayload.signingOperationStateKind,
+        )
+      : false;
+    const reviewPromptRequired = nearTransactionReviewPayload
+      ? shouldRenderNearTransactionReview({
+          signingOperationStateKind: nearTransactionReviewPayload.signingOperationStateKind,
+          signingAuthMode,
+        })
+      : true;
     const usesNeeded = getTxCount(request);
     const intentPreparation =
       request.type === UserConfirmationType.SIGN_TRANSACTION
@@ -382,23 +436,29 @@ export async function handleTransactionSigningFlow(
       resolvePromptReady?.();
       resolvePromptReady = undefined;
     };
-    const promptDecisionPromise = session.promptUser({
-      securityContext: baseSecurityContext,
-      // The transaction summary already contains every fact the user reviews.
-      // Exact nonce, session, and challenge preparation continues concurrently
-      // and is awaited below before authentication or signing can proceed.
-      loading: false,
-      onMounted: () => {
-        markPromptReady();
-        if (confirmationReadinessPending && confirmationReadinessBody) {
-          session.updateUI({
-            loading: false,
-            body: confirmationReadinessBody,
-          });
-        }
-      },
-    });
-    void promptDecisionPromise.finally(markPromptReady);
+    const promptDecisionPromise: Promise<ConfirmationPromptDecision> = reviewPromptRequired
+      ? session.promptUser({
+          securityContext: baseSecurityContext,
+          // The transaction summary already contains every fact the user reviews.
+          // Exact nonce, session, and challenge preparation continues concurrently
+          // and is awaited below before authentication or signing can proceed.
+          loading: false,
+          onMounted: () => {
+            markPromptReady();
+            if (confirmationReadinessPending && confirmationReadinessBody) {
+              session.updateUI({
+                loading: false,
+                body: confirmationReadinessBody,
+              });
+            }
+          },
+        })
+      : Promise.resolve({ confirmed: true });
+    if (reviewPromptRequired) {
+      void promptDecisionPromise.finally(markPromptReady);
+    } else {
+      markPromptReady();
+    }
 
     let nearRpcResolved: NearContextFetchResult | undefined;
     const applyPreparedIntentData = (prepared: IntentDigestPreparationResult): void => {
@@ -545,6 +605,10 @@ export async function handleTransactionSigningFlow(
         confirmed: false,
         error: uiError,
       });
+    }
+    if (approveNearTransactionReview && !reviewAlreadyApproved) {
+      approveNearTransactionReview();
+      session.dismissReviewSurface();
     }
 
     const nearRpc = nearContextPromise ? nearRpcResolved || (await nearContextPromise) : undefined;
