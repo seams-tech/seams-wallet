@@ -90,7 +90,7 @@ void ({
   signerSlot: 1,
   // @ts-expect-error registration credential prompts must not carry NEAR RPC context
   rpcCall: {
-    nearRpcUrl: 'https://rpc.testnet.near.org',
+    nearRpcUrl: 'https://rpc.testnet.fastnear.com',
     nearAccountId: 'alice.testnet',
   },
 } satisfies RegisterAccountPayload);

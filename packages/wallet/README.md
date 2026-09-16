@@ -64,7 +64,7 @@ function App() {
         chains: [
           {
             network: 'near-testnet',
-            rpcUrl: 'https://rpc.testnet.near.org',
+            rpcUrl: 'https://rpc.testnet.fastnear.com',
             explorerUrl: 'https://testnet.nearblocks.io',
           },
         ],

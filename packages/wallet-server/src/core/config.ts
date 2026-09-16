@@ -10,7 +10,7 @@ import { toOptionalTrimmedString, toTrimmedString } from '@shared/utils/validati
 export const AUTH_SERVICE_CONFIG_DEFAULTS = {
   // Prefer FastNEAR for testnet by default (more reliable in practice).
   // If you set `networkId: 'mainnet'` and omit `nearRpcUrl`, the default switches to NEAR mainnet RPC.
-  nearRpcUrlTestnet: 'https://test.rpc.fastnear.com',
+  nearRpcUrlTestnet: 'https://rpc.testnet.fastnear.com',
   nearRpcUrlMainnet: 'https://rpc.mainnet.near.org',
   networkId: 'testnet',
   // 0.03 NEAR for local/demo implicit-account funding.

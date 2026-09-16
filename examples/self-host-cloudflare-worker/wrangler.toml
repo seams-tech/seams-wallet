@@ -13,7 +13,7 @@ new_sqlite_classes = ["ThresholdStoreDurableObject"]
 
 [vars]
 NETWORK_ID = "testnet"
-NEAR_RPC_URL = "https://rpc.testnet.near.org"
+NEAR_RPC_URL = "https://rpc.testnet.fastnear.com"
 EXPECTED_ORIGIN = "https://wallet.example.com"
 EXPECTED_WALLET_ORIGIN = "https://wallet.example.com"
 THRESHOLD_PREFIX = "self-host:"
