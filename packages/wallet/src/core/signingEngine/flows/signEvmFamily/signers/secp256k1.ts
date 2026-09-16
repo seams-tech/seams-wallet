@@ -91,8 +91,6 @@ export type BuildReadySecp256k1SigningMaterialInput =
       operationStepUpPreparation: RouterAbEcdsaOperationStepUpPreparationV1Wire;
     });
 
-type RouterAbEcdsaDerivationSigningRefillTrigger = 'commit_start' | 'post_sign_success';
-
 export function buildReadySecp256k1SigningMaterial(
   args: BuildReadySecp256k1SigningMaterialInput,
 ): ReadySecp256k1SigningMaterial {
@@ -166,8 +164,7 @@ function routerAbTransportCredential(
   throw new Error('[multichain] unsupported ECDSA signing credential');
 }
 
-function scheduleRouterAbEcdsaDerivationSigningRefill(args: {
-  trigger: RouterAbEcdsaDerivationSigningRefillTrigger;
+function scheduleRouterAbEcdsaDerivationPostSignRefill(args: {
   loadedMaterial: LoadedRouterAbEcdsaDerivationSigningMaterialSource;
   workerCtx: WorkerOperationContext;
   credential: RouterAbOwnerNormalSigningCredential;
@@ -194,7 +191,6 @@ function scheduleRouterAbEcdsaDerivationSigningRefill(args: {
     },
     workerCtx: args.workerCtx,
     authorization: args.authorization,
-    ...(args.trigger === 'commit_start' ? { triggerIfDepthAtOrBelow: 0 } : {}),
   });
 }
 
@@ -225,16 +221,6 @@ export class Secp256k1Engine {
       signerSession: material.signerSession,
       workerCtx: this.workerCtx,
     });
-    if (material.authorization.kind === 'reusable_wallet_session') {
-      scheduleRouterAbEcdsaDerivationSigningRefill({
-        trigger: 'commit_start',
-        loadedMaterial,
-        workerCtx: this.workerCtx,
-        credential: routerAbTransportCredential(material.credential),
-        expiresAtMs: material.expiresAtMs,
-        authorization: material.authorization,
-      });
-    }
     const signerSession = loadedMaterial.signerSession;
     const publicFacts = signerSession.publicFacts;
     const signerTransport = signerSession.transport;
@@ -287,8 +273,7 @@ export class Secp256k1Engine {
       }
 
       if (material.authorization.kind === 'reusable_wallet_session') {
-        scheduleRouterAbEcdsaDerivationSigningRefill({
-          trigger: 'post_sign_success',
+        scheduleRouterAbEcdsaDerivationPostSignRefill({
           loadedMaterial,
           workerCtx: this.workerCtx,
           credential: transportCredential,

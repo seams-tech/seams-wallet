@@ -1,6 +1,6 @@
 # Router A/B ECDSA Derivation Signing
 
-Last updated: 2026-08-30
+Last updated: 2026-09-16
 
 ## Scope
 
@@ -75,6 +75,10 @@ Router A/B preserves the user-facing latency model:
 
 - Pool hit: pop one local presignature, finalize through Router A/B normal
   signing, and consume the matching server presignature exactly once.
+- The dedicated client worker is the authoritative owner of opaque client
+  presignatures. Signing hydrates its local reference cache from that worker
+  before waiting for a refill. A local in-flight refill coordinates only the
+  page runtime that owns that worker.
 - Pool miss: perform Router A/B pool-fill, then continue through the normal-
   signing boundary.
 - A foreground pool miss that overlaps a background refill resumes when the
@@ -82,6 +86,9 @@ Router A/B preserves the user-facing latency model:
   target depth independently.
 - A missing pool-fill response is a hard failure. There is no alternate
   threshold presignature route.
+- Login prefill and post-sign replenishment are the only background refill
+  triggers. Signing does not start a competing refill before checking the
+  authoritative worker pool.
 
 Signing and pool-fill admission consume the exact session quota and bind the
 operation claim to the request and material scope. A claimed presignature must

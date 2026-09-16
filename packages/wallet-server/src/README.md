@@ -70,6 +70,6 @@ key versions only until their sealed records expire.
 RELAYER_ACCOUNT_ID=relayer.testnet
 RELAYER_PRIVATE_KEY=ed25519:...
 ROR_RP_ID=wallet.example.localhost
-NEAR_RPC_URL=https://rpc.testnet.near.org
+NEAR_RPC_URL=https://rpc.testnet.fastnear.com
 NETWORK_ID=testnet
 ```

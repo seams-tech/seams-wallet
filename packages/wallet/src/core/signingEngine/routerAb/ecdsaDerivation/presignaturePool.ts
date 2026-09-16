@@ -122,20 +122,27 @@ function recoverableSignatureErrorMessage(error: unknown): string {
   );
 }
 
-export type RouterAbEcdsaDerivationClientPresignatureRefillScheduleResult = {
-  scheduled: boolean;
-  reason:
-    | 'scheduled'
-    | 'disabled'
-    | 'cold_start_pool_empty'
-    | 'depth_above_trigger'
-    | 'depth_at_or_above_target'
-    | 'in_flight_for_pool_key'
-    | 'global_in_flight_limit'
-    | 'invalid_args';
-  depth: number;
-  targetDepth: number;
-};
+type RouterAbEcdsaDerivationClientPresignatureRefillNotScheduledReason =
+  | 'disabled'
+  | 'depth_above_trigger'
+  | 'depth_at_or_above_target'
+  | 'in_flight_for_pool_key'
+  | 'global_in_flight_limit'
+  | 'invalid_args';
+
+export type RouterAbEcdsaDerivationClientPresignatureRefillScheduleResult =
+  | {
+      readonly scheduled: true;
+      readonly reason: 'scheduled';
+      readonly depth: number;
+      readonly targetDepth: number;
+    }
+  | {
+      readonly scheduled: false;
+      readonly reason: RouterAbEcdsaDerivationClientPresignatureRefillNotScheduledReason;
+      readonly depth: number;
+      readonly targetDepth: number;
+    };
 
 export type RouterAbEcdsaDerivationClientSigningMaterialSource = {
   kind: 'router_ab_ecdsa_derivation_client_signing_material_source_v1';
@@ -266,7 +273,6 @@ function assertRouterAbEcdsaDerivationClientSigningMaterialSource(
 const MAX_HANDSHAKE_STEPS = 64;
 const ROUTER_AB_ECDSA_DERIVATION_SIGNING_TTL_MS = 60_000;
 const ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_EXPIRY_SKEW_MS = 2_000;
-const PRESIGN_REFILL_AUTHORITY_LOCK_PREFIX = 'w3a:router-ab-ecdsa-derivation:presignature-refill:';
 const clientPresignaturePool = new Map<string, RouterAbEcdsaDerivationClientPresignatureRef[]>();
 const clientPresignatureRefillInFlightByPoolKey = new Map<string, PresignatureRefillProgressV1>();
 const foregroundSignInFlightByPoolKey = new Map<string, number>();
@@ -286,14 +292,6 @@ function resolvePresignExchangeStage(input: {
     ? 'presign'
     : 'triples';
 }
-
-type NavigatorLocksLike = {
-  request: <T>(
-    name: string,
-    options: { mode?: 'exclusive' | 'shared'; ifAvailable?: boolean },
-    callback: (lock: unknown) => Promise<T> | T,
-  ) => Promise<T>;
-};
 
 function normalizeIntInRange(value: unknown, fallback: number, min: number, max: number): number {
   const n = Math.floor(Number(value));
@@ -400,30 +398,6 @@ function makeClientPresignPoolIdentity(args: {
     activationEpoch: parsedScope.activation_epoch,
     protocolId: FIXED_ECDSA_PRESIGN_PROTOCOL_ID,
   };
-}
-
-async function runAsCrossRuntimeRefillAuthority(input: {
-  poolKey: string;
-  task: () => Promise<void>;
-}): Promise<'acquired' | 'not_available'> {
-  const navigatorObj = (globalThis as unknown as { navigator?: { locks?: NavigatorLocksLike } })
-    .navigator;
-  const locks = navigatorObj?.locks;
-  if (!locks || typeof locks.request !== 'function') {
-    await input.task();
-    return 'acquired';
-  }
-  let acquired = false;
-  await locks.request(
-    `${PRESIGN_REFILL_AUTHORITY_LOCK_PREFIX}${input.poolKey}`,
-    { mode: 'exclusive', ifAvailable: true },
-    async (lock) => {
-      if (!lock) return;
-      acquired = true;
-      await input.task();
-    },
-  );
-  return acquired ? 'acquired' : 'not_available';
 }
 
 function popClientPresignature(
@@ -561,6 +535,14 @@ async function waitForAvailablePresignatureFromInFlightRefill(poolKey: string): 
   }
 }
 
+function buildPresignatureRefillNotScheduledResult(
+  reason: RouterAbEcdsaDerivationClientPresignatureRefillNotScheduledReason,
+  depth: number,
+  targetDepth: number,
+): RouterAbEcdsaDerivationClientPresignatureRefillScheduleResult {
+  return { scheduled: false, reason, depth, targetDepth };
+}
+
 export function clearAllRouterAbEcdsaDerivationClientPresignatures(): void {
   const invalidatedPoolKeys = new Set([
     ...clientPresignaturePool.keys(),
@@ -602,13 +584,6 @@ export function scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(
     triggerIfDepthAtOrBelow?: number;
   },
 ): RouterAbEcdsaDerivationClientPresignatureRefillScheduleResult {
-  const finalizeUnschedule = (
-    reason: RouterAbEcdsaDerivationClientPresignatureRefillScheduleResult['reason'],
-    depth: number,
-    targetDepth: number,
-  ): RouterAbEcdsaDerivationClientPresignatureRefillScheduleResult => {
-    return { scheduled: false, reason, depth, targetDepth };
-  };
   try {
     const policy = resolveRouterAbEcdsaDerivationPresignaturePoolPolicy(args.poolPolicy);
     const poolKey = makePresignaturePoolKey({
@@ -626,22 +601,42 @@ export function scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(
     const scheduledGeneration = getClientPresignaturePoolGeneration(poolKey);
 
     if (!policy.enabled) {
-      return finalizeUnschedule('disabled', depth, targetDepth);
+      return buildPresignatureRefillNotScheduledResult('disabled', depth, targetDepth);
     }
     if (depth > triggerDepth) {
-      return finalizeUnschedule('depth_above_trigger', depth, targetDepth);
+      return buildPresignatureRefillNotScheduledResult(
+        'depth_above_trigger',
+        depth,
+        targetDepth,
+      );
     }
     if (depth >= targetDepth) {
-      return finalizeUnschedule('depth_at_or_above_target', depth, targetDepth);
+      return buildPresignatureRefillNotScheduledResult(
+        'depth_at_or_above_target',
+        depth,
+        targetDepth,
+      );
     }
     if (clientPresignatureRefillInFlightByPoolKey.has(poolKey)) {
-      return finalizeUnschedule('in_flight_for_pool_key', depth, targetDepth);
+      return buildPresignatureRefillNotScheduledResult(
+        'in_flight_for_pool_key',
+        depth,
+        targetDepth,
+      );
     }
     if (getForegroundSignInFlightCount(poolKey) > 0) {
-      return finalizeUnschedule('in_flight_for_pool_key', depth, targetDepth);
+      return buildPresignatureRefillNotScheduledResult(
+        'in_flight_for_pool_key',
+        depth,
+        targetDepth,
+      );
     }
     if (clientPresignatureRefillInFlightByPoolKey.size >= policy.maxRefillInFlight) {
-      return finalizeUnschedule('global_in_flight_limit', depth, targetDepth);
+      return buildPresignatureRefillNotScheduledResult(
+        'global_in_flight_limit',
+        depth,
+        targetDepth,
+      );
     }
 
     const refillInput: RouterAbEcdsaDerivationClientPresignatureRefillInput = {
@@ -662,22 +657,31 @@ export function scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(
     clientPresignatureRefillInFlightByPoolKey.set(poolKey, progress);
     const deadlineAtMs = Date.now() + policy.refillAttemptTimeoutMs;
     const refillTask = (async (): Promise<void> => {
-      const authority = await runAsCrossRuntimeRefillAuthority({
-        poolKey,
-        task: async () => {
-          while (Date.now() < deadlineAtMs) {
-            if (getClientPresignaturePoolGeneration(poolKey) !== scheduledGeneration) return;
-            const currentDepth = getClientPresignaturePoolDepth(poolKey);
-            if (currentDepth >= targetDepth) return;
-            const refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
-              ...refillInput,
-            });
-            if (!refill.ok) return;
-            progress.publishAvailable();
-          }
-        },
+      const poolIdentity = makeClientPresignPoolIdentity({
+        relayerUrl: args.relayerUrl,
+        scope: args.routerAbEcdsaDerivationPoolFill.scope,
+        materialActivation: args.materialActivation,
       });
-      if (authority !== 'acquired') return;
+      try {
+        await hydrateClientPresignaturePool({
+          poolKey,
+          poolIdentity,
+          clientSigningMaterial: args.clientSigningMaterial,
+          workerCtx: args.workerCtx,
+          generation: scheduledGeneration,
+        });
+      } catch {}
+      if (getClientPresignaturePoolDepth(poolKey) > 0) {
+        progress.publishAvailable();
+      }
+      while (Date.now() < deadlineAtMs) {
+        if (getClientPresignaturePoolGeneration(poolKey) !== scheduledGeneration) return;
+        const currentDepth = getClientPresignaturePoolDepth(poolKey);
+        if (currentDepth >= targetDepth) return;
+        const refill = await refillRouterAbEcdsaDerivationClientPresignaturePool(refillInput);
+        if (!refill.ok) return;
+        progress.publishAvailable();
+      }
     })()
       .catch(() => {})
       .finally(() => {
@@ -690,7 +694,7 @@ export function scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(
     void refillTask;
     return { scheduled: true, reason: 'scheduled', depth, targetDepth };
   } catch {
-    return { scheduled: false, reason: 'invalid_args', depth: 0, targetDepth: 0 };
+    return buildPresignatureRefillNotScheduledResult('invalid_args', 0, 0);
   }
 }
 
@@ -1187,11 +1191,6 @@ export async function signRouterAbEcdsaDerivationDigestWithPoolHit(
 
     presignature = popClientPresignature(poolKey);
     if (!presignature) {
-      await waitForAvailablePresignatureFromInFlightRefill(poolKey);
-      poolGeneration = getClientPresignaturePoolGeneration(poolKey);
-      presignature = popClientPresignature(poolKey);
-    }
-    if (!presignature) {
       await hydrateClientPresignaturePool({
         poolKey,
         poolIdentity,
@@ -1199,6 +1198,11 @@ export async function signRouterAbEcdsaDerivationDigestWithPoolHit(
         workerCtx: args.workerCtx,
         generation: poolGeneration,
       });
+      poolGeneration = getClientPresignaturePoolGeneration(poolKey);
+      presignature = popClientPresignature(poolKey);
+    }
+    if (!presignature) {
+      await waitForAvailablePresignatureFromInFlightRefill(poolKey);
       poolGeneration = getClientPresignaturePoolGeneration(poolKey);
       presignature = popClientPresignature(poolKey);
     }

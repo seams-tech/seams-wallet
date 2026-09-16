@@ -70,7 +70,7 @@ export const DEFAULT_CHAIN_CONFIGS: SeamsChainConfig[] = [
     network: 'near-testnet',
     // You can provide a single URL or a comma-separated list for failover.
     // First URL is treated as primary, subsequent URLs are fallbacks.
-    rpcUrl: 'https://test.rpc.fastnear.com, https://rpc.testnet.near.org',
+    rpcUrl: 'https://rpc.testnet.fastnear.com',
     explorerUrl: 'https://testnet.nearblocks.io',
   },
   {
