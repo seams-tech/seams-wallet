@@ -74,7 +74,8 @@
 }
 
 /* User Details States */
-.w3a-user-account--user-details .w3a-user-account--account-id.hidden {
+.w3a-user-account--user-details .w3a-user-account--account-id.hidden,
+.w3a-user-account--user-details .w3a-user-account--email.hidden {
   position: absolute;
   opacity: 0;
   transform: scale(0.7);
@@ -90,7 +91,8 @@
     max-height 0s ease;
 }
 
-.w3a-user-account--user-details .w3a-user-account--account-id.visible {
+.w3a-user-account--user-details .w3a-user-account--account-id.visible,
+.w3a-user-account--user-details .w3a-user-account--email.visible {
   opacity: 1;
   display: block;
   transform: scale(1);
@@ -159,13 +161,22 @@
   white-space: nowrap;
 }
 
-.w3a-user-account--account-id {
-  font-size: 0.7rem;
+.w3a-user-account--account-id,
+.w3a-user-account--email {
+  font-size: 12px;
   color: var(--w3a-colors-textSecondary);
   margin: 0;
   text-decoration: none;
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transition:
     color 0.1s ease,
     opacity 0.1s ease,
     transform 0s ease;
+}
+
+.w3a-user-account--email {
+  color: var(--w3a-colors-textMuted);
 }

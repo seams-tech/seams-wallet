@@ -6,6 +6,7 @@ export const UserAccountButton: React.FC<UserAccountButtonProps> = ({
   username,
   hideUsername,
   fullAccountId,
+  emailAddress,
   isOpen,
   onClick,
   onMouseEnter,
@@ -49,6 +50,7 @@ export const UserAccountButton: React.FC<UserAccountButtonProps> = ({
             <UserAccountId
               username={username}
               fullAccountId={fullAccountId}
+              emailAddress={emailAddress}
               isOpen={isOpen}
               theme={theme}
             />
@@ -62,11 +64,13 @@ export const UserAccountButton: React.FC<UserAccountButtonProps> = ({
 export const UserAccountId = ({
   username,
   fullAccountId,
+  emailAddress,
   isOpen,
   theme = 'dark',
 }: {
   username: string;
   fullAccountId?: string;
+  emailAddress?: string;
   isOpen: boolean;
   theme?: 'dark' | 'light';
 }) => {
@@ -83,6 +87,14 @@ export const UserAccountId = ({
       >
         {displayAccountId}
       </span>
+      {emailAddress && (
+        <span
+          title={emailAddress}
+          className={`w3a-user-account--email ${isOpen ? 'visible' : 'hidden'}`}
+        >
+          {emailAddress}
+        </span>
+      )}
     </div>
   );
 };

@@ -116,13 +116,18 @@ export type DeviceLinkingOwnerAuthorizationRouteServiceV1 = {
   }): Promise<DeviceLinkingOwnerAuthorizationResponseV1>;
 };
 
+type DeviceLinkingOwnerWalletSessionReaderV1 = Pick<
+  RouterApiAuthorizationSessionService,
+  'tenantId' | 'readWalletSessionAuthorizationV2ByOperationCredential'
+>;
+
 /**
  * Request-scoped owner bearer verifier used by claim, approval, and the owner
  * authorization metadata route. The returned binding is valid only until the
  * verified Wallet Session expires and is bound to the exact request bytes.
  */
 export function createDeviceLinkingOwnerRequestAuthenticatorV1(input: {
-  readonly authorizationSessions: RouterApiAuthorizationSessionService;
+  readonly authorizationSessions: DeviceLinkingOwnerWalletSessionReaderV1;
   readonly nowV1?: () => number;
 }): (
   input: DeviceLinkingOwnerRequestInputV1,
@@ -150,7 +155,7 @@ export async function authenticateDeviceLinkingOwnerWalletSessionRequestV1(input
   readonly pathname: string;
   readonly bodyDigestB64u: DigestB64u;
   readonly requestedAtMs: number;
-  readonly authorizationSessions: RouterApiAuthorizationSessionService | null | undefined;
+  readonly authorizationSessions: DeviceLinkingOwnerWalletSessionReaderV1 | null | undefined;
   readonly nowV1?: () => number;
 }): Promise<DeviceLinkingOwnerRequestAuthenticationV1> {
   if (input.method !== 'GET' && input.method !== 'POST') {
@@ -261,7 +266,7 @@ type OwnerValidationResultV1 =
 
 async function validateOwnerWalletSessionV1(input: {
   readonly headers: Record<string, string>;
-  readonly authorizationSessions: RouterApiAuthorizationSessionService | null | undefined;
+  readonly authorizationSessions: DeviceLinkingOwnerWalletSessionReaderV1 | null | undefined;
   readonly nowV1: () => number;
 }): Promise<OwnerValidationResultV1> {
   const bearerToken = extractBearerCredential(input.headers);

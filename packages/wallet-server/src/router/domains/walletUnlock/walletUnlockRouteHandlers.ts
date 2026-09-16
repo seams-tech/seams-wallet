@@ -21,6 +21,7 @@ import {
   parseWebAuthnCredentialIdB64u,
   parseWebAuthnRpId,
   type WalletAuthMethodId,
+  type WalletId,
 } from '@shared/utils/domainIds';
 import {
   buildVerifiedWalletSessionEmailOtpFactorResult,
@@ -32,7 +33,10 @@ import {
   type PasskeyWalletAuthAuthority,
   type WalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
-import type { WalletAuthorityProvenanceV1 } from '@shared/authorization/walletAuthority';
+import type {
+  ActiveWalletAuthorityV1,
+  WalletAuthorityProvenanceV1,
+} from '@shared/authorization/walletAuthority';
 import { ROUTER_AB_ED25519_YAO_EMAIL_OTP_RECOVERY_BOOTSTRAP_KIND_V1 } from '@shared/utils/routerAbEd25519Yao';
 import type {
   DirectV2IssueResult,
@@ -276,6 +280,146 @@ type WalletUnlockEcdsaSessionResult =
 type WalletUnlockEmailOtpCustodyResult =
   | { readonly ok: true; readonly projection: WalletUnlockEmailOtpCustodyProjectionV1 }
   | { readonly ok: false; readonly response: WalletUnlockRouteResponse };
+
+type WalletUnlockSessionState =
+  | {
+      readonly kind: 'absent';
+      readonly authorization?: never;
+      readonly operationCredential?: never;
+    }
+  | {
+      readonly kind: 'active';
+      readonly authorization: IssuedWalletSessionAuthorizationV2;
+      readonly operationCredential: WalletSessionOperationCredentialV1;
+    };
+
+type WalletUnlockSessionRefreshResult =
+  | { readonly ok: true; readonly state: WalletUnlockSessionState }
+  | { readonly ok: false; readonly response: WalletUnlockRouteResponse };
+
+type WalletUnlockActiveAuthorityProjection = {
+  readonly authority: ActiveWalletAuthorityV1;
+  readonly authMethod: { readonly walletAuthMethodId: WalletAuthMethodId };
+};
+
+function walletUnlockSessionAuthorization(
+  state: WalletUnlockSessionState,
+): IssuedWalletSessionAuthorizationV2 | null {
+  switch (state.kind) {
+    case 'absent':
+      return null;
+    case 'active':
+      return state.authorization;
+  }
+}
+
+function walletUnlockSessionOperationCredential(
+  state: WalletUnlockSessionState,
+): WalletSessionOperationCredentialV1 | null {
+  switch (state.kind) {
+    case 'absent':
+      return null;
+    case 'active':
+      return state.operationCredential;
+  }
+}
+
+async function refreshWalletUnlockSessionState(input: {
+  readonly service: Pick<RouterApiWalletUnlockService, 'refreshWalletSessionAuthorityProjection'>;
+  readonly state: WalletUnlockSessionState;
+  readonly projection: WalletUnlockActiveAuthorityProjection;
+}): Promise<WalletUnlockSessionState> {
+  switch (input.state.kind) {
+    case 'absent':
+      return input.state;
+    case 'active':
+      return {
+        kind: 'active',
+        authorization: await input.service.refreshWalletSessionAuthorityProjection({
+          existing: input.state.authorization,
+          authority: input.projection.authority,
+          walletAuthMethodId: input.projection.authMethod.walletAuthMethodId,
+        }),
+        operationCredential: input.state.operationCredential,
+      };
+  }
+}
+
+async function refreshEmailOtpWalletUnlockSessionState(input: {
+  readonly service: Pick<
+    RouterApiWalletUnlockService,
+    'refreshWalletSessionAuthorityProjection' | 'resolveEmailOtpAuthorityForUnlock'
+  >;
+  readonly state: WalletUnlockSessionState;
+  readonly walletId: WalletId;
+  readonly orgId: string;
+  readonly walletAuthMethodId: WalletAuthMethodId;
+  readonly providerUserId: string;
+}): Promise<WalletUnlockSessionRefreshResult> {
+  if (input.state.kind === 'absent') return { ok: true, state: input.state };
+  let authorityResolution: Awaited<
+    ReturnType<RouterApiWalletUnlockService['resolveEmailOtpAuthorityForUnlock']>
+  >;
+  try {
+    authorityResolution = await input.service.resolveEmailOtpAuthorityForUnlock({
+      walletId: input.walletId,
+      orgId: input.orgId,
+      walletAuthMethodId: input.walletAuthMethodId,
+      providerUserId: input.providerUserId,
+    });
+  } catch (error: unknown) {
+    return {
+      ok: false,
+      response: {
+        status: 500,
+        body: {
+          ok: false,
+          code: 'internal',
+          message:
+            error instanceof Error ? error.message : 'Email OTP authority refresh resolution failed',
+        },
+      },
+    };
+  }
+  if (authorityResolution.kind === 'rejected') {
+    return {
+      ok: false,
+      response: {
+        status: authorityResolution.code === 'internal' ? 500 : 403,
+        body: {
+          ok: false,
+          code: authorityResolution.code,
+          message: authorityResolution.message,
+        },
+      },
+    };
+  }
+  try {
+    return {
+      ok: true,
+      state: await refreshWalletUnlockSessionState({
+        service: input.service,
+        state: input.state,
+        projection: authorityResolution,
+      }),
+    };
+  } catch (error: unknown) {
+    return {
+      ok: false,
+      response: {
+        status: 500,
+        body: {
+          ok: false,
+          code: 'internal',
+          message:
+            error instanceof Error
+              ? error.message
+              : 'Email OTP Wallet Session authority projection refresh failed',
+        },
+      },
+    };
+  }
+}
 
 function emailOtpCustodyFailureResponse(
   lookup: Exclude<
@@ -1252,8 +1396,7 @@ export async function handleWalletUnlockVerifyRoute(input: {
         },
       };
     }
-    let activeWalletSession: IssuedWalletSessionAuthorizationV2 | null = null;
-    let activeOperationCredential: WalletSessionOperationCredentialV1 | null = null;
+    let walletSessionState: WalletUnlockSessionState = { kind: 'absent' };
     let passkeyCustodyRequired = false;
     let authorityResolution: WalletUnlockPasskeyAuthorityResolution;
     try {
@@ -1330,8 +1473,11 @@ export async function handleWalletUnlockVerifyRoute(input: {
         }
         switch (sessionResolution.kind) {
           case 'active_authority':
-            activeWalletSession = sessionResolution.walletSession;
-            activeOperationCredential = sessionResolution.operationCredential;
+            walletSessionState = {
+              kind: 'active',
+              authorization: sessionResolution.walletSession,
+              operationCredential: sessionResolution.operationCredential,
+            };
             passkeyCustodyRequired =
               sessionResolution.authorityProvenanceKind === 'wallet_recovery';
             break;
@@ -1390,7 +1536,7 @@ export async function handleWalletUnlockVerifyRoute(input: {
       challengeId,
       walletId: userId,
       authorization,
-      linkedWalletSession: activeWalletSession,
+      linkedWalletSession: walletUnlockSessionAuthorization(walletSessionState),
     });
     if (!ed25519Session.ok) return ed25519Session.response;
     let ecdsaAuthorization: WalletUnlockEcdsaAuthorization = {
@@ -1400,7 +1546,7 @@ export async function handleWalletUnlockVerifyRoute(input: {
     if (ed25519Session.session) {
       const operationCredential = walletUnlockEcdsaOperationCredential({
         ed25519Session: ed25519Session.session,
-        activeOperationCredential,
+        activeOperationCredential: walletUnlockSessionOperationCredential(walletSessionState),
       });
       if (!operationCredential) return walletUnlockEcdsaCredentialUnavailableResponse();
       ecdsaAuthorization = {
@@ -1416,6 +1562,59 @@ export async function handleWalletUnlockVerifyRoute(input: {
         authorization: ecdsaAuthorization,
       });
     if (!ecdsaSession.ok) return ecdsaSession.response;
+    if (walletSessionState.kind === 'active') {
+      let refreshedAuthority: WalletUnlockPasskeyAuthorityResolution;
+      try {
+        refreshedAuthority = await input.service.resolveActivePasskeyAuthorityForUnlock({
+          walletId: walletId.value,
+          walletAuthMethodId: walletAuthMethodId.value,
+          walletAuthorityId: walletAuthorityId.value,
+          rpId: rpId.value,
+          credentialIdB64u: credentialIdB64u.value,
+        });
+      } catch (error: unknown) {
+        return {
+          status: 500,
+          body: {
+            ok: false,
+            code: 'internal',
+            message:
+              error instanceof Error
+                ? error.message
+                : 'Passkey authority refresh resolution failed',
+          },
+        };
+      }
+      if (refreshedAuthority.kind === 'rejected') {
+        return {
+          status: walletUnlockIssuanceRejectionStatus(refreshedAuthority),
+          body: {
+            ok: false,
+            code: refreshedAuthority.code,
+            message: refreshedAuthority.message,
+          },
+        };
+      }
+      try {
+        walletSessionState = await refreshWalletUnlockSessionState({
+          service: input.service,
+          state: walletSessionState,
+          projection: refreshedAuthority,
+        });
+      } catch (error: unknown) {
+        return {
+          status: 500,
+          body: {
+            ok: false,
+            code: 'internal',
+            message:
+              error instanceof Error
+                ? error.message
+                : 'Passkey Wallet Session authority projection refresh failed',
+          },
+        };
+      }
+    }
     await input.service.markEmailOtpStrongAuthSatisfied({ walletId: userId });
     await emitSuccessfulWalletUnlock({
       unlockBackend,
@@ -1433,10 +1632,10 @@ export async function handleWalletUnlockVerifyRoute(input: {
         unlockBackend,
         userId,
         ...(passkeyCustody ? { walletCustody: passkeyCustody } : {}),
-        ...(activeWalletSession
+        ...(walletSessionState.kind === 'active'
           ? {
-              walletSession: projectActiveWalletSession(activeWalletSession),
-              operationCredential: activeOperationCredential,
+              walletSession: projectActiveWalletSession(walletSessionState.authorization),
+              operationCredential: walletSessionState.operationCredential,
             }
           : {}),
         ed25519Session: projectPasskeyEd25519WalletSession(ed25519Session.session),
@@ -1576,8 +1775,7 @@ export async function handleWalletUnlockVerifyRoute(input: {
     };
   }
 
-  let activeWalletSession: IssuedWalletSessionAuthorizationV2 | null = null;
-  let activeOperationCredential: WalletSessionOperationCredentialV1 | null = null;
+  let walletSessionState: WalletUnlockSessionState = { kind: 'absent' };
   if (requestedCapabilities.kind !== 'none') {
     const walletId = parseWalletId(result.walletId);
     if (!walletId.ok) {
@@ -1615,8 +1813,11 @@ export async function handleWalletUnlockVerifyRoute(input: {
     }
     switch (sessionResolution.kind) {
       case 'active_authority':
-        activeWalletSession = sessionResolution.walletSession;
-        activeOperationCredential = sessionResolution.operationCredential;
+        walletSessionState = {
+          kind: 'active',
+          authorization: sessionResolution.walletSession,
+          operationCredential: sessionResolution.operationCredential,
+        };
         break;
       case 'already_committed':
         return walletUnlockAlreadyCommittedRouteResponse({
@@ -1650,6 +1851,16 @@ export async function handleWalletUnlockVerifyRoute(input: {
       },
     });
     if (!ecdsaSession.ok) return ecdsaSession.response;
+    const refreshedSession = await refreshEmailOtpWalletUnlockSessionState({
+      service: input.service,
+      state: walletSessionState,
+      walletId: walletId.value,
+      orgId: result.orgId,
+      walletAuthMethodId: requestedWalletAuthMethodId.value,
+      providerUserId: result.providerUserId,
+    });
+    if (!refreshedSession.ok) return refreshedSession.response;
+    walletSessionState = refreshedSession.state;
     await emitSuccessfulWalletUnlock({
       unlockBackend,
       challengeId,
@@ -1667,10 +1878,10 @@ export async function handleWalletUnlockVerifyRoute(input: {
         userId: result.userId,
         ...(verifiedAuthorityProjection ? { verifiedAuthorityProjection } : {}),
         ...(emailOtpCustody ? { walletCustody: emailOtpCustody.projection } : {}),
-        ...(activeWalletSession
+        ...(walletSessionState.kind === 'active'
           ? {
-              walletSession: projectActiveWalletSession(activeWalletSession),
-              operationCredential: activeOperationCredential,
+              walletSession: projectActiveWalletSession(walletSessionState.authorization),
+              operationCredential: walletSessionState.operationCredential,
             }
           : {}),
         ...(ecdsaSession.activation ? { ecdsaSession: ecdsaSession.activation } : {}),
@@ -1691,12 +1902,12 @@ export async function handleWalletUnlockVerifyRoute(input: {
     context: input.capabilityContext,
     verifiedUnlock: result,
     authorization,
-    linkedWalletSession: activeWalletSession,
+    linkedWalletSession: walletUnlockSessionAuthorization(walletSessionState),
   });
   if (!capabilityResult.ok) return capabilityResult.response;
   const ed25519OperationCredential = walletUnlockEcdsaOperationCredential({
     ed25519Session: capabilityResult.value.session,
-    activeOperationCredential,
+    activeOperationCredential: walletUnlockSessionOperationCredential(walletSessionState),
   });
   if (!ed25519OperationCredential) return walletUnlockEcdsaCredentialUnavailableResponse();
   const ecdsaSession = await provisionFirstEcdsaWalletSession({
@@ -1709,6 +1920,16 @@ export async function handleWalletUnlockVerifyRoute(input: {
     },
   });
   if (!ecdsaSession.ok) return ecdsaSession.response;
+  const refreshedSession = await refreshEmailOtpWalletUnlockSessionState({
+    service: input.service,
+    state: walletSessionState,
+    walletId: walletId.value,
+    orgId: result.orgId,
+    walletAuthMethodId: requestedWalletAuthMethodId.value,
+    providerUserId: result.providerUserId,
+  });
+  if (!refreshedSession.ok) return refreshedSession.response;
+  walletSessionState = refreshedSession.state;
   await emitSuccessfulWalletUnlock({
     unlockBackend,
     challengeId,
@@ -1727,10 +1948,10 @@ export async function handleWalletUnlockVerifyRoute(input: {
       ...(verifiedAuthorityProjection ? { verifiedAuthorityProjection } : {}),
       ...(emailOtpCustody ? { walletCustody: emailOtpCustody.projection } : {}),
       ed25519YaoCapability: capabilityResult.value,
-      ...(activeWalletSession
+      ...(walletSessionState.kind === 'active'
         ? {
-            walletSession: projectActiveWalletSession(activeWalletSession),
-            operationCredential: activeOperationCredential,
+            walletSession: projectActiveWalletSession(walletSessionState.authorization),
+            operationCredential: walletSessionState.operationCredential,
           }
         : {}),
       ...(ecdsaSession.activation ? { ecdsaSession: ecdsaSession.activation } : {}),

@@ -17,6 +17,38 @@ function walletId() {
   return parsed.value;
 }
 
+test('linked-device inventory keeps an active owner session without renewal', async () => {
+  let listCalls = 0;
+  let renewalCalls = 0;
+  const expected = parseLinkedDeviceListResultV1({
+    devices: [],
+    ownerDevices: [],
+    nextCursor: null,
+  });
+  const management: LinkedDeviceManagementPortV1 = {
+    listLinkedDevices: async () => {
+      listCalls += 1;
+      return expected;
+    },
+    revokeLinkedDevice: async () => parseLinkedDeviceRevokeResultV1({ kind: 'unauthorized' }),
+  };
+
+  const result = await listLinkedDevicesWithOwnerSessionRenewalV1(
+    management,
+    {
+      renew: async () => {
+        renewalCalls += 1;
+        return { kind: 'renewed' };
+      },
+    },
+    { walletId: walletId(), limit: 50, cursor: null },
+  );
+
+  expect(result).toEqual(expected);
+  expect(listCalls).toBe(1);
+  expect(renewalCalls).toBe(0);
+});
+
 test('linked-device inventory renews a rejected owner session once and retries', async () => {
   let listCalls = 0;
   let renewalCalls = 0;

@@ -6,6 +6,7 @@ const IMPORT_PATHS = {
     '/_test-sdk/esm/react/components/AccountMenuButton/AuthenticationMethodsModal.js',
   linkedDevices: '/_test-sdk/esm/react/components/AccountMenuButton/LinkedDevicesModal.js',
   theme: '/_test-sdk/esm/react/components/theme/ThemeProvider.js',
+  userAccountButton: '/_test-sdk/esm/react/components/AccountMenuButton/UserAccountButton.js',
 } as const;
 
 const TEST_CONTEXT_ROUTE = '**/_test-sdk/esm/react/context/index.js';
@@ -148,5 +149,35 @@ test.describe('account-menu modal responsiveness', () => {
     const dialog = page.getByRole('dialog', { name: 'Your devices' });
     await expect(dialog).toBeVisible({ timeout: 500 });
     await expect(dialog.getByText('Checking your devices…')).toBeVisible({ timeout: 500 });
+  });
+
+  test('shows the Email OTP address under the wallet id when the menu is open', async ({
+    page,
+  }) => {
+    await page.evaluate(async ({ path }) => {
+      const React = await import('react');
+      const ReactDOMClient = await import('react-dom/client');
+      const ReactDOM = await import('react-dom');
+      const { UserAccountButton } = await import(path);
+      const mount = document.createElement('div');
+      document.body.appendChild(mount);
+      const root = ReactDOMClient.createRoot(mount);
+      ReactDOM.flushSync(() => {
+        root.render(
+          React.createElement(UserAccountButton, {
+            username: 'User',
+            hideUsername: false,
+            fullAccountId: 'coral-reef-r8f5ju',
+            emailAddress: 'n6378056@gmail.com',
+            isOpen: true,
+            onClick: () => undefined,
+            theme: 'light',
+          }),
+        );
+      });
+    }, { path: IMPORT_PATHS.userAccountButton });
+
+    await expect(page.getByText('coral-reef-r8f5ju', { exact: true })).toBeVisible();
+    await expect(page.getByText('n6378056@gmail.com', { exact: true })).toBeVisible();
   });
 });
