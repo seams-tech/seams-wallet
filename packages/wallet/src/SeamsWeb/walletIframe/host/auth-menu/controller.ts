@@ -269,7 +269,6 @@ export class AuthMenuController {
         : [
             {
               walletId: requestedWalletId,
-              displayName: requestedWalletId,
               authMethod: WALLET_AUTH_METHODS.passkey,
             },
           ];
