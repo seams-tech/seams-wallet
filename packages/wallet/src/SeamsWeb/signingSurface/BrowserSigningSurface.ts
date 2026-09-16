@@ -21,7 +21,6 @@ import type {
 } from '@/core/types/seams';
 import { WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
-import { isUserCancellationError } from '@shared/utils/errors';
 import { type WalletEmailOtpChannel } from '@shared/utils/emailOtpDomain';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
 import {
@@ -205,7 +204,6 @@ import {
   fullWalletLoginRequired,
   invalidWalletSigningMaterial,
   isWalletSigningStateFailure,
-  walletOperationStepUpCancelled,
   walletSigningMaterialBlockError,
 } from '@/core/signingEngine/session/material/walletSigningStateFailure';
 import {
@@ -3209,12 +3207,14 @@ export class BrowserSigningSurface {
       ) {
         throw new Error('[SigningEngine] selected Wallet Authority identity mismatch');
       }
-      if (
-        selection.lockState !== 'unlocked' ||
-        authMethod.status !== 'active' ||
-        authority.state !== 'active'
-      ) {
-        throw new Error('[SigningEngine] selected Wallet Authority is inactive or locked');
+      if (selection.lockState !== 'unlocked') {
+        throw fullWalletLoginRequired('wallet_locked');
+      }
+      if (authMethod.status !== 'active') {
+        throw fullWalletLoginRequired('method_unavailable');
+      }
+      if (authority.state !== 'active') {
+        throw fullWalletLoginRequired('authority_unavailable');
       }
       if (
         authority.provenance.kind === 'device_link' &&
@@ -3559,13 +3559,6 @@ export class BrowserSigningSurface {
         await this.terminateWalletStateAfterSigningFailure(walletId);
         throw error;
       }
-      if (
-        this.walletAuthenticationState.kind === 'signed_out' &&
-        isUserCancellationError(error)
-      ) {
-        await this.terminateWalletStateAfterSigningFailure(walletId);
-        throw walletOperationStepUpCancelled();
-      }
       throw error;
     }
   }
@@ -3740,7 +3733,6 @@ export class BrowserSigningSurface {
             break;
           case 'operation_step_up':
             authorizationRead = { kind: passkeyAuthorization.reason };
-            this.clearWalletAuthentication();
             break;
           default:
             passkeyAuthorization satisfies never;

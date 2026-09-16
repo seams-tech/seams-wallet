@@ -4,6 +4,7 @@ import {
   classifyWalletSigningMaterialBlock,
   fullWalletLoginRequired,
   invalidWalletSigningMaterial,
+  isWalletSigningStateFailure,
   WALLET_FULL_LOGIN_REQUIRED,
   WALLET_OPERATION_STEP_UP_CANCELLED,
   WALLET_SIGNING_MATERIAL_TEMPORARILY_UNAVAILABLE,
@@ -49,7 +50,9 @@ test.describe('NEAR signing authorization disposition', () => {
       WALLET_SIGNING_MATERIAL_INVALID,
     );
     expect(fullWalletLoginRequired('superseded').code).toBe(WALLET_FULL_LOGIN_REQUIRED);
-    expect(walletOperationStepUpCancelled().code).toBe(WALLET_OPERATION_STEP_UP_CANCELLED);
+    const stepUpCancellation = walletOperationStepUpCancelled();
+    expect(stepUpCancellation.code).toBe(WALLET_OPERATION_STEP_UP_CANCELLED);
+    expect(isWalletSigningStateFailure(stepUpCancellation)).toBe(true);
   });
 
   test('material blocks distinguish terminal corruption, revocation, and retryable storage', () => {

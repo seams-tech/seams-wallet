@@ -35,13 +35,17 @@ import {
   type WalletFlowInteractionKind,
 } from '@/core/types/sdkSentEvents';
 import {
+  SigningOperationCancellationPhase,
   SigningOperationCommandKind,
-  approveSigningOperationConfirmation,
+  applySigningOperationInteractionEvent,
+  cancelSigningOperation,
   planSigningOperationAttempt,
   runSigningOperationCommand,
   type SigningOperationStateRef,
 } from './signingStateMachine';
 import { secureRandomId } from '@shared/utils/secureRandomId';
+import { isUserCancellationError } from '@shared/utils/errors';
+import { walletOperationStepUpCancelled } from '@/core/signingEngine/session/material/walletSigningStateFailure';
 
 export type {
   ConfirmIntentDigestSigningOperationRequest,
@@ -101,7 +105,8 @@ type DistributiveOmit<T, TKey extends PropertyKey> = T extends unknown ? Omit<T,
 
 type PendingTransactionSigningConfirmationRequest = DistributiveOmit<
   ConfirmTransactionSigningOperationRequest,
-  'signingOperationStateKind' | 'onSigningOperationReviewApproved'
+  | 'signingOperationStateKind'
+  | 'onSigningOperationInteractionEvent'
 >;
 
 export async function runTransactionSigningConfirmationCommand(args: {
@@ -118,7 +123,7 @@ export async function runTransactionSigningConfirmationCommand(args: {
   const request: ConfirmTransactionSigningOperationRequest = {
     ...args.request,
     signingOperationStateKind: confirmationState.kind,
-    onSigningOperationReviewApproved: approveSigningOperationConfirmation.bind(
+    onSigningOperationInteractionEvent: applySigningOperationInteractionEvent.bind(
       undefined,
       args.signingOperationState,
     ),
@@ -127,12 +132,21 @@ export async function runTransactionSigningConfirmationCommand(args: {
     runtime: args.runtime,
     request,
   });
-  return await runSigningOperationCommand({
-    signingSessionPlan: args.signingSessionPlan,
-    signingOperation: args.signingOperation,
-    commandKind: SigningOperationCommandKind.ShowConfirmation,
-    execute: runConfirmation,
-  });
+  try {
+    return await runSigningOperationCommand({
+      signingSessionPlan: args.signingSessionPlan,
+      signingOperation: args.signingOperation,
+      commandKind: SigningOperationCommandKind.ShowConfirmation,
+      execute: runConfirmation,
+    });
+  } catch (error: unknown) {
+    if (!isUserCancellationError(error)) throw error;
+    const cancelled = cancelSigningOperation(args.signingOperationState);
+    if (cancelled.phase === SigningOperationCancellationPhase.Authentication) {
+      throw walletOperationStepUpCancelled();
+    }
+    throw error;
+  }
 }
 
 export async function runSigningConfirmationCommand(args: {

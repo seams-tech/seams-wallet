@@ -10,8 +10,12 @@ import {
 } from '@/core/signingEngine/session/operationState/types';
 import { planSigningSession } from '@/core/signingEngine/session/planning/planner';
 import {
+  SigningOperationCancellationPhase,
+  SigningOperationInteractionEventKind,
   SigningOperationStateKind,
+  applySigningOperationInteractionEvent,
   approveSigningOperationConfirmation,
+  cancelSigningOperation,
   createSigningOperationStateRef,
   isSigningOperationReviewApprovedStateKind,
   planSigningOperationAttempt,
@@ -115,4 +119,112 @@ test('approved passkey retries continue without rendering transaction review aga
       signingAuthMode: 'emailOtp',
     }),
   ).toBe(true);
+});
+
+test('cancelling transaction review records a review cancellation', () => {
+  const plans = buildPasskeySigningPlans();
+  const state = createSigningOperationStateRef({
+    operationId: SigningSessionIds.signingOperation('review-cancelled-operation'),
+  });
+
+  planSigningOperationAttempt(state, plans.fresh);
+  const cancelled = cancelSigningOperation(state);
+
+  expect(cancelled).toEqual({
+    kind: SigningOperationStateKind.Cancelled,
+    plan: plans.fresh,
+    phase: SigningOperationCancellationPhase.Review,
+  });
+});
+
+test('cancelling the passkey prompt records an authentication cancellation', () => {
+  const plans = buildPasskeySigningPlans();
+  const state = createSigningOperationStateRef({
+    operationId: SigningSessionIds.signingOperation('authentication-cancelled-operation'),
+  });
+
+  planSigningOperationAttempt(state, plans.fresh);
+  applySigningOperationInteractionEvent(state, {
+    kind: SigningOperationInteractionEventKind.ReviewApproved,
+  });
+  applySigningOperationInteractionEvent(state, {
+    kind: SigningOperationInteractionEventKind.AuthenticationStarted,
+  });
+  const cancelled = cancelSigningOperation(state);
+
+  expect(cancelled).toEqual({
+    kind: SigningOperationStateKind.Cancelled,
+    plan: plans.fresh,
+    phase: SigningOperationCancellationPhase.Authentication,
+  });
+});
+
+test('cancelling a combined Email OTP review records an authentication cancellation', () => {
+  const plans = buildPasskeySigningPlans();
+  const state = createSigningOperationStateRef({
+    operationId: SigningSessionIds.signingOperation('email-otp-cancelled-operation'),
+  });
+
+  planSigningOperationAttempt(state, plans.fresh);
+  applySigningOperationInteractionEvent(state, {
+    kind: SigningOperationInteractionEventKind.AuthenticationStarted,
+  });
+  const cancelled = cancelSigningOperation(state);
+
+  expect(cancelled).toEqual({
+    kind: SigningOperationStateKind.Cancelled,
+    plan: plans.fresh,
+    phase: SigningOperationCancellationPhase.Authentication,
+  });
+});
+
+test('a combined Email OTP prompt retains whether review was approved', () => {
+  const plans = buildPasskeySigningPlans();
+  const pendingReview = createSigningOperationStateRef({
+    operationId: SigningSessionIds.signingOperation('email-otp-pending-review'),
+  });
+
+  planSigningOperationAttempt(pendingReview, plans.fresh);
+  applySigningOperationInteractionEvent(pendingReview, {
+    kind: SigningOperationInteractionEventKind.AuthenticationStarted,
+  });
+  planSigningOperationAttempt(pendingReview, plans.fresh);
+  expect(pendingReview.current.kind).toBe(SigningOperationStateKind.Planned);
+
+  applySigningOperationInteractionEvent(pendingReview, {
+    kind: SigningOperationInteractionEventKind.AuthenticationStarted,
+  });
+  applySigningOperationInteractionEvent(pendingReview, {
+    kind: SigningOperationInteractionEventKind.ReviewApproved,
+  });
+  applySigningOperationInteractionEvent(pendingReview, {
+    kind: SigningOperationInteractionEventKind.AuthenticationCompleted,
+  });
+  planSigningOperationAttempt(pendingReview, plans.fresh);
+  expect(pendingReview.current.kind).toBe(SigningOperationStateKind.ConfirmationApproved);
+});
+
+test('cancelling after passkey authentication records an execution cancellation', () => {
+  const plans = buildPasskeySigningPlans();
+  const state = createSigningOperationStateRef({
+    operationId: SigningSessionIds.signingOperation('execution-cancelled-operation'),
+  });
+
+  planSigningOperationAttempt(state, plans.fresh);
+  applySigningOperationInteractionEvent(state, {
+    kind: SigningOperationInteractionEventKind.ReviewApproved,
+  });
+  applySigningOperationInteractionEvent(state, {
+    kind: SigningOperationInteractionEventKind.AuthenticationStarted,
+  });
+  applySigningOperationInteractionEvent(state, {
+    kind: SigningOperationInteractionEventKind.AuthenticationCompleted,
+  });
+  const cancelled = cancelSigningOperation(state);
+
+  expect(cancelled).toEqual({
+    kind: SigningOperationStateKind.Cancelled,
+    plan: plans.fresh,
+    phase: SigningOperationCancellationPhase.Execution,
+  });
 });

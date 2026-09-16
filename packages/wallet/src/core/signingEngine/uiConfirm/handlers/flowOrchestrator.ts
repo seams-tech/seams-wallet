@@ -421,7 +421,7 @@ export async function orchestrateSigningConfirmation(
     onProgress: params.onProgress,
     ...(params.kind === 'transaction'
       ? {
-          onSigningOperationReviewApproved: params.onSigningOperationReviewApproved,
+          onSigningOperationInteractionEvent: params.onSigningOperationInteractionEvent,
         }
       : {}),
   }).finally(() => {

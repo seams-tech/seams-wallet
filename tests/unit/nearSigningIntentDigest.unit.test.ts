@@ -16,10 +16,19 @@ import {
   type UserConfirmRequest,
 } from '@/core/signingEngine/stepUpConfirmation/channel/confirmTypes';
 import { parseWalletId } from '@shared/utils/domainIds';
-import { SigningOperationStateKind } from '@/core/signingEngine/flows/shared/signingStateMachine';
+import {
+  SigningOperationInteractionEventKind,
+  SigningOperationStateKind,
+  type SigningOperationInteractionEvent,
+} from '@/core/signingEngine/flows/shared/signingStateMachine';
 
-function incrementReviewApprovals(counter: { count: number }): void {
-  counter.count += 1;
+function recordSigningInteraction(
+  counter: { count: number },
+  event: SigningOperationInteractionEvent,
+): void {
+  if (event.kind === SigningOperationInteractionEventKind.ReviewApproved) {
+    counter.count += 1;
+  }
 }
 
 test('warm NEAR confirmation carries one final digest for the exact displayed transaction', async () => {
@@ -48,7 +57,9 @@ test('warm NEAR confirmation carries one final digest for the exact displayed tr
         touchConfirm: {
           requestUserConfirmation: async (request, options): Promise<UserConfirmDecision> => {
             capturedRequest = request;
-            options?.onSigningOperationReviewApproved?.();
+            options?.onSigningOperationInteractionEvent?.({
+              kind: SigningOperationInteractionEventKind.ReviewApproved,
+            });
             return {
               requestId: request.requestId,
               confirmed: false,
@@ -93,7 +104,7 @@ test('warm NEAR confirmation carries one final digest for the exact displayed tr
         signatureUses: 1,
       },
       signingOperationStateKind: SigningOperationStateKind.Planned,
-      onSigningOperationReviewApproved: incrementReviewApprovals.bind(
+      onSigningOperationInteractionEvent: recordSigningInteraction.bind(
         undefined,
         reviewApprovals,
       ),
