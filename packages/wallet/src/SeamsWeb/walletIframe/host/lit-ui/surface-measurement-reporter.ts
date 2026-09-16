@@ -92,12 +92,16 @@ function measurementForSize(
 }
 
 /**
- * A surface posts one measurement per change: it announces where its content
- * is going and the parent eases there once (refactor 116). A burst of them is
- * the signature of content animating its own height inside a box that is
- * sized from that height — the parent then chases a moving target and the card
- * is clipped by a box that never catches up. It is worth one console line,
- * because no test can enumerate every component that might start doing it.
+ * A measured request surface posts one measurement per change: it announces
+ * where its content is going and the parent eases there once (refactor 116).
+ * A burst of them is the signature of content animating its own height inside
+ * a box that is sized from that height — the parent then chases a moving target
+ * and the card is clipped by a box that never catches up. It is worth one
+ * console line, because no test can enumerate every component that might
+ * start doing it.
+ *
+ * The anchored auth menu has a separate contract: its content owns the height
+ * animation and the parent tracks every measurement without easing.
  */
 const STREAMING_POSTS_THRESHOLD = 4;
 const STREAMING_WINDOW_MS = 150;
@@ -193,6 +197,7 @@ class SurfaceMeasurementReporter implements WalletIframeSurfaceMeasurementReport
   }
 
   private noteStreaming(): void {
+    if (this.options.kind === 'auth_menu_surface') return;
     if (this.warnedAboutStreaming) return;
     const now = typeof performance === 'object' ? performance.now() : Date.now();
     const previous = this.recentPostTimes.at(-1);
