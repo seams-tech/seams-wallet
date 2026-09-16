@@ -29,6 +29,7 @@ import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
+import { scheduleRestoredSessionPresignaturePrefills } from '../restoredSessionPresignaturePrefill';
 
 async function readWalletIframeExactSessionStatus(
   relayUrl: string,
@@ -184,6 +185,22 @@ async function resolveExactWalletSessionState(
   );
 }
 
+function reportRestoredSessionPresignaturePrefillFailure(error: unknown): void {
+  console.warn('[WalletIframeHost] Restored-session presignature prefill failed:', error);
+}
+
+function scheduleRestoredSessionPresignaturePrefill(
+  pm: ReturnType<HandlerDeps['getSeamsWeb']>,
+  state: WalletIframeExactSessionState,
+): void {
+  const prefill = scheduleRestoredSessionPresignaturePrefills({
+    state,
+    chainTargets: pm.configuredChainTargets(),
+    prefill: pm.auth.prefillRouterAbEcdsaDerivationPresignaturePool,
+  });
+  void prefill.catch(reportRestoredSessionPresignaturePrefillFailure);
+}
+
 export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
     ...createHostedAuthMenuHandlers(deps),
@@ -248,7 +265,11 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       ) {
         throw new Error('Wallet iframe exact session read mode is invalid');
       }
-      respondOkResult(deps, req.requestId, await resolveExactWalletSessionState(pm, payload));
+      const state = await resolveExactWalletSessionState(pm, payload);
+      if (payload.authenticationRead === 'restore') {
+        scheduleRestoredSessionPresignaturePrefill(pm, state);
+      }
+      respondOkResult(deps, req.requestId, state);
     },
 
     PM_GET_RECENT_UNLOCKS: async (req: Req<'PM_GET_RECENT_UNLOCKS'>) => {
