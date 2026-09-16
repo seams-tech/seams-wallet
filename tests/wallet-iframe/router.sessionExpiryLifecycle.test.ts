@@ -279,6 +279,117 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
     });
   });
 
+  test('keeps export and device inventory under their operation-specific expiry flows', async ({
+    page,
+  }) => {
+    const result = await page.evaluate(
+      async ({ routerPath, walletOrigin, walletId, activeSessionId, expiresAtMs }) => {
+        const module = await import(routerPath);
+        const { WalletIframeRouter } =
+          module as typeof import('@/SeamsWeb/walletIframe/client/router');
+        const router = new WalletIframeRouter({
+          walletOrigin,
+          servicePath: '/wallet-service',
+          connectTimeoutMs: 3_000,
+          requestTimeoutMs: 5_000,
+          sdkBasePath: '/sdk',
+        });
+        await router.init();
+
+        const settlement = {
+          signing: false,
+          exportLane: false,
+          exportOperation: false,
+          inventory: false,
+        };
+        const signingRequest = router
+          .executeAction({
+            walletId,
+            nearAccountId: 'refactor-92.testnet',
+            receiverId: 'seams-v1.testnet',
+            actionArgs: { type: 'Transfer', amount: '1' } as any,
+            options: {},
+          })
+          .finally(() => {
+            settlement.signing = true;
+          });
+        const exportLaneRequest = router
+          .resolveExactKeyExportLane({
+            kind: 'ed25519',
+            walletSession: { walletId },
+            nearAccount: { accountId: 'refactor-92.testnet' },
+          })
+          .finally(() => {
+            settlement.exportLane = true;
+          });
+        const post = Reflect.get(router, 'post');
+        if (typeof post !== 'function') {
+          throw new Error('wallet iframe request boundary is unavailable');
+        }
+        const exportOperationRequest = post
+          .call(router, {
+            type: 'PM_EXPORT_KEYPAIR_UI',
+            payload: {
+              kind: 'ed25519',
+              walletSession: { walletId },
+              nearAccount: { accountId: 'refactor-92.testnet' },
+            },
+          })
+          .finally(() => {
+            settlement.exportOperation = true;
+          });
+        const inventoryRequest = router
+          .listLinkedDevices({ walletId, limit: 50, cursor: null })
+          .finally(() => {
+            settlement.inventory = true;
+          });
+        await new Promise((resolve) => window.setTimeout(resolve, 50));
+
+        const emitSdkLifecycleEvent = Reflect.get(router, 'emitSdkLifecycleEvent');
+        if (typeof emitSdkLifecycleEvent !== 'function') {
+          throw new Error('wallet iframe lifecycle consumer is unavailable');
+        }
+        emitSdkLifecycleEvent.call(router, {
+          version: 1,
+          event: 'signing_session.expired',
+          walletId,
+          walletSessionId: activeSessionId,
+          authMethod: 'passkey',
+          expiresAtMs,
+          detectedAtMs: Date.now(),
+          source: 'server_rejection',
+        });
+        await signingRequest.catch(() => undefined);
+        await new Promise((resolve) => window.setTimeout(resolve, 50));
+        const afterExpiry = { ...settlement };
+
+        await router.cancelAll();
+        await Promise.allSettled([exportLaneRequest, exportOperationRequest, inventoryRequest]);
+        return { afterExpiry, afterCancel: settlement };
+      },
+      {
+        routerPath: SDK_ESM_PATHS.walletIframeRouter,
+        walletOrigin: WALLET_ORIGIN,
+        walletId: WALLET_ID,
+        activeSessionId: ACTIVE_SESSION_ID,
+        expiresAtMs: EXPIRES_AT_MS,
+      },
+    );
+
+    expect(result.afterExpiry).toEqual({
+      signing: true,
+      exportLane: false,
+      exportOperation: false,
+      inventory: false,
+    });
+    expect(result.afterCancel).toEqual({
+      signing: true,
+      exportLane: true,
+      exportOperation: true,
+      inventory: true,
+    });
+  });
+
   test('locks only the exact session selected by the caller', async ({ page }) => {
     const result = await page.evaluate(
       async ({ routerPath, walletOrigin, expected }) => {

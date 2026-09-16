@@ -26,7 +26,6 @@ import { type WalletEmailOtpChannel } from '@shared/utils/emailOtpDomain';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
 import {
   exactEd25519ExportMaterialIdentity,
-  exactEd25519SigningLaneIdentity,
   nearEd25519SignerBindingFromBoundaryFields,
   type ExactEd25519ExportMaterialIdentity,
   type ExactEd25519SigningLaneIdentity,
@@ -271,7 +270,6 @@ import {
 } from '@shared/utils/domainIds';
 import { sha256HexUtf8 } from '@shared/utils/digests';
 import { signingRootScopeFromRuntimePolicyScope } from '@shared/threshold/signingRootScope';
-import { materialActivationKey } from '@/core/signingEngine/session/sealedRecovery/materialActivationKey';
 import { WalletSessionAuthorizationUpgradeRequiredError } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import {
   createRelayerExactWalletSessionStatusPort,
@@ -355,6 +353,13 @@ import {
   resolveExactEd25519SealedSessionRuntimeForWalletSubject,
   type ExactEd25519SealedSessionRuntime,
 } from '@/core/signingEngine/session/warmCapabilities/ed25519SealedSessionRuntime';
+import {
+  exactEd25519LaneIdentityFromAvailableLane,
+  nearEd25519CapabilityRehydrationKey,
+  nearEd25519CapabilityRehydrationMaterialIdentity,
+  nearEd25519LaneMatchesCapabilityRehydrationSubject,
+  type NearEd25519CapabilityRehydrationSubject,
+} from '@/core/signingEngine/session/warmCapabilities/nearEd25519CapabilityRehydration';
 import type {
   OwnerLaneScope,
   SigningLaneAuthBinding,
@@ -993,60 +998,8 @@ async function readExactEmailOtpEd25519ExportAuthorization(args: {
   };
 }
 
-type NearEd25519CapabilityRehydrationSubject =
-  | {
-      readonly kind: 'account_signer';
-      readonly walletId: WalletId;
-      readonly nearAccountId: AccountId;
-      readonly signerSlot: number | null;
-    }
-  | {
-      readonly kind: 'exact_lane';
-      readonly walletId: WalletId;
-      readonly nearAccountId: AccountId;
-      readonly signerSlot: number;
-      readonly thresholdSessionId: ThresholdEd25519SessionId;
-      readonly laneIdentity: ExactEd25519SigningLaneIdentity;
-    }
-  | {
-      readonly kind: 'export_exact_lane';
-      readonly walletId: WalletId;
-      readonly nearAccountId: AccountId;
-      readonly signerSlot: number;
-      readonly thresholdSessionId: ThresholdEd25519SessionId;
-      readonly laneIdentity: ExactEd25519ExportMaterialIdentity;
-      readonly materialActivation: MpcMaterialActivationRef;
-    }
-  | {
-      readonly kind: 'material_identity';
-      readonly walletId: WalletId;
-      readonly nearAccountId: AccountId;
-      readonly signerSlot: number;
-      readonly thresholdSessionId: ThresholdEd25519SessionId;
-      readonly materialIdentity: NearEd25519MaterialIdentity;
-    };
-
 function fetchWithGlobalThis(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   return globalThis.fetch(input, init);
-}
-
-function nearEd25519LaneMatchesCapabilityRehydrationSubject(
-  lane: AvailableEd25519SigningLane,
-  subject: NearEd25519CapabilityRehydrationSubject,
-): boolean {
-  if (!isConcreteAvailableSigningLane(lane) || lane.curve !== 'ed25519') return false;
-  if (
-    String(lane.walletId) !== String(subject.walletId) ||
-    String(lane.nearAccountId) !== String(subject.nearAccountId)
-  ) {
-    return false;
-  }
-  if (subject.signerSlot !== null && lane.signerSlot !== subject.signerSlot) return false;
-  if (subject.kind === 'account_signer') return true;
-  if (String(lane.thresholdSessionId) !== subject.thresholdSessionId) return false;
-  return subject.kind === 'export_exact_lane'
-    ? mpcMaterialActivationRefsEqual(lane.materialActivation, subject.materialActivation)
-    : true;
 }
 
 function currentNearEd25519CapabilityRehydrationSubject(args: {
@@ -1055,28 +1008,24 @@ function currentNearEd25519CapabilityRehydrationSubject(args: {
 }): NearEd25519CapabilityRehydrationSubject {
   const thresholdSessionId = args.walletSessionState.thresholdSessionId;
   switch (args.subject.kind) {
-    case 'account_signer':
-      return args.subject;
     case 'exact_lane':
       return {
-        ...args.subject,
-        thresholdSessionId,
+        kind: 'exact_lane',
         laneIdentity: args.walletSessionState.signingLane.identity,
       };
     case 'export_exact_lane':
       return {
-        ...args.subject,
-        thresholdSessionId,
+        kind: 'export_exact_lane',
         laneIdentity: exactEd25519ExportMaterialIdentity({
           signer: args.walletSessionState.signingLane.identity.signer,
           auth: args.walletSessionState.signingLane.identity.auth,
           thresholdSessionId,
         }),
+        materialActivation: args.subject.materialActivation,
       };
     case 'material_identity':
       return {
-        ...args.subject,
-        thresholdSessionId,
+        kind: 'material_identity',
         materialIdentity: {
           kind: 'near_ed25519_material_identity',
           signer: args.walletSessionState.signingLane.identity.signer,
@@ -1224,18 +1173,6 @@ export async function ensurePasskeyEd25519WarmSessionForSigning(args: {
   return claim;
 }
 
-function nearEd25519CapabilityRehydrationKey(
-  subject: NearEd25519CapabilityRehydrationSubject,
-): string {
-  return JSON.stringify([
-    String(subject.walletId),
-    String(subject.nearAccountId),
-    subject.signerSlot,
-    subject.kind === 'account_signer' ? null : subject.thresholdSessionId,
-    subject.kind === 'export_exact_lane' ? materialActivationKey(subject.materialActivation) : null,
-  ]);
-}
-
 export function nearEd25519PublicLocatorObservation(args: {
   references: readonly Ed25519YaoPublicCapabilityLaneReferenceV1[];
   walletId: WalletId;
@@ -1308,26 +1245,6 @@ function emailOtpEd25519YaoLaneReferenceFromRecovery(args: {
     remainingUses: args.walletSessionState.signingWalletSession.remainingUses,
     expiresAtMs: args.walletSessionState.signingWalletSession.expiresAtMs,
   };
-}
-
-function exactEd25519LaneIdentityFromAvailableLane(
-  lane: ConcreteAvailableEd25519SigningLane,
-): ExactEd25519SigningLaneIdentity {
-  if (!lane.authorization) {
-    throw new Error('Available Ed25519 lane requires Wallet Session authorization');
-  }
-  return exactEd25519SigningLaneIdentity({
-    signer: nearEd25519SignerBindingFromBoundaryFields({
-      walletId: lane.walletId,
-      nearAccountId: lane.nearAccountId,
-      nearEd25519SigningKeyId: lane.nearEd25519SigningKeyId,
-      signerSlot: lane.signerSlot,
-    }),
-    auth: lane.auth,
-    walletSessionId: lane.authorization.operationCredential.walletSessionId,
-    quotaId: lane.authorization.session.quotaId,
-    thresholdSessionId: lane.thresholdSessionId,
-  });
 }
 
 function isLinkedEd25519SignerMaterial(
@@ -3706,18 +3623,10 @@ export class BrowserSigningSurface {
       args.laneIdentity !== undefined
         ? {
             kind: 'exact_lane',
-            walletId: args.walletId,
-            nearAccountId: args.nearAccountId,
-            signerSlot: identity.signer.signerSlot,
-            thresholdSessionId: identity.thresholdSessionId,
             laneIdentity: args.laneIdentity,
           }
         : {
             kind: 'material_identity',
-            walletId: args.walletId,
-            nearAccountId: args.nearAccountId,
-            signerSlot: identity.signer.signerSlot,
-            thresholdSessionId: identity.thresholdSessionId,
             materialIdentity: identity,
           },
     );
@@ -5205,18 +5114,10 @@ export class BrowserSigningSurface {
       ...(args.laneIdentity !== undefined
         ? {
             kind: 'exact_lane' as const,
-            walletId: args.walletId,
-            nearAccountId: args.nearAccountId,
-            signerSlot: args.laneIdentity.signer.signerSlot,
-            thresholdSessionId: args.laneIdentity.thresholdSessionId,
             laneIdentity: args.laneIdentity,
           }
         : {
             kind: 'material_identity' as const,
-            walletId: args.walletId,
-            nearAccountId: args.nearAccountId,
-            signerSlot: identity.signer.signerSlot,
-            thresholdSessionId: identity.thresholdSessionId,
             materialIdentity: identity,
           }),
     });
@@ -5736,16 +5637,17 @@ export class BrowserSigningSurface {
   ): Promise<NearEd25519YaoOperationMaterial | null> {
     const lane = await this.resolveNearEd25519YaoSigningLane(subject);
     if (!lane) return null;
+    const identity = nearEd25519CapabilityRehydrationMaterialIdentity(subject);
     const capability =
       subject.kind === 'export_exact_lane'
         ? this.enginePorts.ed25519YaoActiveClients.resolve({
-            walletId: subject.walletId,
-            nearAccountId: subject.nearAccountId,
+            walletId: identity.signer.account.wallet.walletId,
+            nearAccountId: identity.signer.account.nearAccountId,
             materialActivation: subject.materialActivation,
           })
         : this.enginePorts.ed25519YaoActiveClients.resolveForWalletAccount({
-            walletId: subject.walletId,
-            nearAccountId: subject.nearAccountId,
+            walletId: identity.signer.account.wallet.walletId,
+            nearAccountId: identity.signer.account.nearAccountId,
           });
     return capability?.activeClient.status().kind === 'active' ? capability : null;
   }
@@ -5753,8 +5655,9 @@ export class BrowserSigningSurface {
   private async resolveNearEd25519YaoSigningLane(
     subject: NearEd25519CapabilityRehydrationSubject,
   ): Promise<ConcreteAvailableEd25519SigningLane | null> {
+    const identity = nearEd25519CapabilityRehydrationMaterialIdentity(subject);
     const availableLanes = await this.readPersistedAvailableSigningLanes({
-      walletId: subject.walletId,
+      walletId: identity.signer.account.wallet.walletId,
     });
     const matches: ConcreteAvailableEd25519SigningLane[] = [];
     for (const lane of availableLanes.candidates.ed25519.near) {
@@ -5812,6 +5715,7 @@ export class BrowserSigningSurface {
   private async rehydrateNearEd25519YaoCapabilityForSigning(
     subject: NearEd25519CapabilityRehydrationSubject,
   ): Promise<NearEd25519CapabilityRehydrationSubject> {
+    const identity = nearEd25519CapabilityRehydrationMaterialIdentity(subject);
     const lane = await this.resolveNearEd25519YaoSigningLane(subject);
     if (!lane) {
       throw new Error('[SigningEngine][near] local Ed25519 material lane is unavailable');
@@ -5819,7 +5723,7 @@ export class BrowserSigningSurface {
     let runtime: ExactEd25519SealedSessionRuntime;
     if (subject.kind === 'export_exact_lane') {
       runtime = await requireExactEd25519SealedRuntimeForMaterialActivation({
-        walletId: subject.walletId,
+        walletId: identity.signer.account.wallet.walletId,
         laneIdentity: subject.laneIdentity,
         materialActivation: subject.materialActivation,
       });
@@ -5829,7 +5733,7 @@ export class BrowserSigningSurface {
           ? subject.laneIdentity
           : exactEd25519LaneIdentityFromAvailableLane(lane);
       runtime = await requireExactEd25519SealedRuntimeForLane({
-        walletId: subject.walletId,
+        walletId: identity.signer.account.wallet.walletId,
         laneIdentity,
       });
     }

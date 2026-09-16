@@ -17,6 +17,7 @@ import {
   parseLinkedDeviceRevokeResultV1,
 } from '@shared/device-linking';
 import { OWNER_WALLET_SESSION_REAUTH_REQUIRED } from '@/SeamsWeb/operations/devices/walletHostComposition';
+import { DeviceLinkingErrorCode } from '@/core/types/linkDevice';
 
 export {
   parseLinkedDeviceListRequestV1,
@@ -68,6 +69,21 @@ export type OwnerWalletSessionRenewalPortV1 = {
   renew(walletId: WalletId): Promise<OwnerWalletSessionRenewalResultV1>;
 };
 
+type DevicesCapabilityDependencies = {
+  readonly getContext: () => DeviceLinkingWebContext;
+  readonly walletIframe: Pick<WalletIframeCoordinator, 'shouldUseWalletIframe' | 'requireRouter'>;
+} &
+  (
+    | {
+        readonly domain: Extract<DevicesCapabilityDomainMethods, { readonly kind: 'iframe' }>;
+        readonly ownerSessionRenewal?: never;
+      }
+    | {
+        readonly domain: Extract<DevicesCapabilityDomainMethods, { readonly kind: 'direct' }>;
+        readonly ownerSessionRenewal: OwnerWalletSessionRenewalPortV1;
+      }
+  );
+
 export const OWNER_WALLET_SESSION_REAUTH_CANCELLED =
   'owner_wallet_session_reauth_cancelled' as const;
 
@@ -85,6 +101,14 @@ function errorCode(error: unknown): string {
   return String(error.code || '').trim();
 }
 
+function ownerWalletSessionRenewalRequired(error: unknown): boolean {
+  const code = errorCode(error);
+  return (
+    code === OWNER_WALLET_SESSION_REAUTH_REQUIRED ||
+    code === DeviceLinkingErrorCode.WALLET_UNLOCK_REQUIRED
+  );
+}
+
 export async function listLinkedDevicesWithOwnerSessionRenewalV1(
   management: LinkedDeviceManagementPortV1,
   renewal: OwnerWalletSessionRenewalPortV1,
@@ -93,7 +117,7 @@ export async function listLinkedDevicesWithOwnerSessionRenewalV1(
   try {
     return await management.listLinkedDevices(request);
   } catch (error: unknown) {
-    if (errorCode(error) !== OWNER_WALLET_SESSION_REAUTH_REQUIRED) throw error;
+    if (!ownerWalletSessionRenewalRequired(error)) throw error;
   }
 
   const renewed = await renewal.renew(request.walletId);
@@ -130,12 +154,7 @@ export function createWalletIframeLinkedDeviceManagementPortV1(deps: {
   };
 }
 
-export function createDevicesCapability(deps: {
-  readonly getContext: () => DeviceLinkingWebContext;
-  readonly walletIframe: Pick<WalletIframeCoordinator, 'shouldUseWalletIframe' | 'requireRouter'>;
-  readonly domain: DevicesCapabilityDomainMethods;
-  readonly ownerSessionRenewal: OwnerWalletSessionRenewalPortV1;
-}): DevicesCapability {
+export function createDevicesCapability(deps: DevicesCapabilityDependencies): DevicesCapability {
   const deviceLinking =
     deps.domain.kind === 'direct'
       ? new DeviceLinkingDomain({
@@ -167,20 +186,16 @@ export function createDevicesCapability(deps: {
         cursor: request.cursor,
       };
       let result: LinkedDeviceListResultV1;
-      switch (deps.domain.kind) {
-        case 'direct':
-          result = await listLinkedDevicesWithOwnerSessionRenewalV1(
-            deps.domain.linkedDeviceManagement,
-            deps.ownerSessionRenewal,
-            managementRequest,
-          );
-          break;
-        case 'iframe':
-          result = await deps.domain.linkedDeviceManagement.listLinkedDevices(managementRequest);
-          break;
-        default:
-          deps.domain satisfies never;
-          throw new Error('Unsupported devices capability domain');
+      if (deps.domain.kind === 'direct') {
+        const renewal = deps.ownerSessionRenewal;
+        if (!renewal) throw new Error('Direct device inventory requires owner-session renewal');
+        result = await listLinkedDevicesWithOwnerSessionRenewalV1(
+          deps.domain.linkedDeviceManagement,
+          renewal,
+          managementRequest,
+        );
+      } else {
+        result = await deps.domain.linkedDeviceManagement.listLinkedDevices(managementRequest);
       }
       return parseLinkedDeviceListResultV1(result);
     },

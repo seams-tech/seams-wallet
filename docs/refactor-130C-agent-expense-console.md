@@ -1,84 +1,109 @@
-# Refactor 130C — Embedded spending experience and Console
+# Refactor 130C — Agent payments in Console and embedded apps
 
 Date created: August 29, 2026
-Last revised: September 8, 2026
+Last revised: September 15, 2026
 
-Status: implementation plan; consume the minimal
+Status: implementation plan; consumes the
 [R130A domain](refactor-130A-agent-expense-domain.md) and
-[R130B backend integration](refactor-130B-agent-connections.md).
+[R130B tools](refactor-130B-agent-connections.md).
 
 ## Goal
 
-Let a customer set an embedded shopping agent's budget, approve an exact
-purchase, and understand its outcome without leaving the host app's flow.
-Use the existing embedded wallet/customer authentication surfaces and server
-services. Reuse existing Console diagnostics when useful; new Console screens
-are outside the MVP.
+Make Wallet Console the human control surface for agent-proposed business
+payments. Owners connect accounts, grant budgets, review exact payments, and
+inspect outcomes. Embedded apps can present the same server read models and
+approval actions within shopping or business workflows.
 
-The host app owns conversation, catalog discovery, cart, and order presentation.
-Seams supplies spending authority, budget, approval, and payment read models.
-Start with one reference app integration; a generalized component library and
-full expense dashboard are unnecessary for the first proof.
+Deliver Wise transfer proposals for Japanese businesses first, the eligible
+Airwallex card journey second, and traditional bank proposals third. Add views with
+their phase. Implement in the private `apps/wallet-console` and existing server
+packages. Reuse Console components, authentication, scope selection, audit, and
+approval patterns.
 
-## First customer journey
+## First owner journey
 
-1. Sign in to the host app and connect or select the customer's Seams funding
-   wallet through the existing authorized customer flow and fund it with testnet
-   stablecoins. Show the wallet balance and existing stablecoin spending action.
-   Choose “Move to card balance” for a selected amount, submit the wallet-to-escrow
-   transfer, and show pending finality followed by credited card capacity.
-2. Review and create an expiring grant for this app's agent: merchant, budget,
-   per-purchase limit, and approval threshold.
-3. Ask the embedded agent to buy an item. The backend submits the final merchant
-   quote and exact purchase to Seams.
-4. See the policy decision and remaining budget. When required, approve the
-   exact merchant, cart, total including fees, and execution constraints through
-   verified customer authorization.
-5. Pay in the demo checkout through R130D's Airwallex sandbox authorization and
-   capture. Show the receipt, payment/order status, and updated card capacity.
-6. Reload and inspect durable purchase activity and budget usage.
-7. Revoke the grant and observe denied reuse.
+1. Sign in and select the account-owning Japanese business/customer. Connect its
+   verified Wise profile through supported owner authorization. Show account
+   readiness and permitted operations. The account uses its own funds; the first
+   journey requires no wallet deposit. Add Airwallex wallet-to-card sandbox
+   funding in phase 2 for eligible programs and a bank account in phase 3.
+2. Enroll an agent and create an expiring grant: funding account, permitted
+   operations/providers and recipients, fixed budget, per-payment limit, and
+   approval threshold. Show proposal-only versus execution access clearly.
+3. Ask the agent to prepare a Wise supplier transfer. Extend this interaction to
+   an Airwallex card purchase in phase 2 and a bank transfer in phase 3.
+   The backend prepares authoritative terms for the account, amount, and purpose.
+4. Review the policy decision. When required, approve the exact account,
+   beneficiary/destination, recipient amount, source debit including fees,
+   conversion terms, and reference. Card proposals also show cart and delivery
+   details. Expired terms require fresh preparation.
+5. Inspect the approved or ready proposal. Execution is a separate authorized
+   action offered only when supported by the connected provider. Awaiting execution
+   cannot imply that a payment was submitted.
+6. When funding requires action in Wise, show that requirement and keep the
+   proposal inspectable after reload. Once execution access is verified, follow
+   a sandbox transfer through pending, succeeded, failed, or unknown status and
+   inspect its provider reference and reconciled budget usage.
+7. Revoke the grant and observe denied admission of previously approved proposals.
+   Accepted operations retain their status and reconciliation history.
 
-A changed purchase requires fresh admission and any required approval. Display
-pending and ambiguous payment states explicitly; retrying a UI action retains
-the same operation identity. Distinguish payment confirmation from merchant
-order acceptance.
+## Minimal Console surfaces
 
-## Minimal surfaces
+| Surface                | Owner-facing information and actions                                                                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accounts               | Wise first, eligible Airwallex card sources second, bank accounts third; owner, currency, connection status, observed balance/freshness or unavailable state, reservations, supported operations. |
+| Agents                 | Agent, account grants, remaining budget, expiry, proposal/execution access, revoke action.                                                                                                        |
+| Payments and approvals | Proposals, policy decisions, exact review, approve/deny, authorized execution, durable status.                                                                                                    |
+| Activity               | Agent, approving human when required, decision reason, provider references, outcome, linked returns or refunds.                                                                                   |
 
-- **Budget and authority:** funding source, granted limit, available spending
-  budget, reserved amounts, expiry, and revocation. Show wallet balance separately
-  from budget; a grant is permission to spend and does not create funds.
-- **Purchase approval:** exact agent, merchant, cart, total, reason, expiry, and
-  approve/deny action. The agent cannot use this customer authority.
-- **Activity:** pending approval, executing, succeeded, failed, or unknown payment,
-  with order reference and concise evidence. Show unresolved payment status and
-  the reconciled result; a refund interface is deferred.
-- **Revocation:** revoke the grant in the host app. Connection revocation can use
-  the authenticated administration API during the MVP; no credential-management
-  dashboard is required.
+Reuse existing routes and add only views needed by this journey. Show integration
+settings in payment review when the owner must repair a connection. Agent chat
+lives in the host runtime; a new chat system or agent-hosting platform is outside
+this implementation.
 
-Routes consume server-assembled read models and narrow lifecycle mutations.
-React never joins raw provider/storage records or decides spending permission.
-Browser requests carry customer authentication through the supported boundary;
-backend integration credentials remain on the server.
+Embedded apps use the same account, grant, proposal, and approval services. The
+host owns conversation, cart, and order presentation. Payment confirmation and
+merchant order acceptance remain distinct records.
+
+## State and presentation rules
+
+- Proposal, approval, provider submission, and confirmed outcome have distinct
+  states. An approval or successful API request cannot display “Paid.”
+- Show source debit, recipient amount, fees, conversion, and quote expiry. Changed
+  approval-bound terms require a new proposal and any required approval.
+- Separate provider-observed balances, Seams reservations, and spending budgets.
+  Display freshness and connection failures; never invent available funds.
+- Mask bank details in normal read models. Credentials and full destination data
+  stay within their supported collection/storage boundaries.
+- Execution retries retain payment identity. Unknown outcomes retain reservations
+  and remain visible with an authorized status-refresh action.
+- Label sandbox operations and the simulated card funding bridge. Unsupported
+  execution remains unavailable; its local proposal stays inspectable.
+- Japanese business support is required for the first Wise journey. Show transfer
+  funding and card API availability separately from account/card ownership. Wise
+  debit card availability alone cannot enable an “Issue agent card” action.
+
+React consumes server-assembled read models and narrow mutations. The server
+determines authority. Browser requests carry owner authentication; agent and
+provider credentials remain on their respective backends.
 
 ## Delivery and proof
 
-- [ ] Integrate budget setup, exact approval, status, and revocation into one host
-      app using existing UI and authentication patterns.
-- [ ] Add only the server read models needed by that host app. Use one budget
-      view with deposit/card capacity, an exact approval view, and a sandbox checkout
-      and purchase status view; reuse existing
-      components and avoid a new UI package.
-- [ ] Demonstrate the shared A/B/C/D journey against real services and testnet,
-      including reload, payment outcome, and revoked reuse. Extend the R117
-      harness where it fits; avoid a parallel test harness. Read `tests/AGENTS.md`
-      before editing tests.
+- [ ] Expose connected accounts, agent grants, proposals, exact approvals, and
+      revocation in Console using existing components and services.
+- [ ] Phase 1: complete the Wise account, proposal, and exact approval journey for
+      a Japanese business from one agent integration, including the embedded view
+      and explicit provider action requirements.
+- [ ] Phase 2: add eligible Airwallex cards; phase 3: add traditional bank proposals.
+- [ ] Demonstrate preparation and approval without money movement; execute only
+      through a separately authorized supported sandbox path.
+- [ ] Show denied access, changed/expired terms, provider action required, duplicate
+      execution, unresolved outcomes, and reconciled results after reload.
+- [ ] Run the shared composed journey in `seams-monorepo` tests. Reuse its harness
+      and read its `tests/AGENTS.md` before editing tests.
 
-Complete when a customer funds their wallet, moves an amount into escrow, waits
-for finality, sees credited
-card spending capacity, and pays for a demo order with the agent's budget enforced.
-[R130D](refactor-130D-airwallex-card-rail.md) supplies the required sandbox adapter.
-A script-only proof is insufficient. Full dashboards, policy templates, and
-additional agent-management screens remain later work.
+Complete the owner-facing Wise journey first. Then add eligible Airwallex cards
+and traditional bank proposals in order, reusing the same services. Each
+milestone must represent execution capability and outcome accurately. Report
+adapter sandbox evidence separately under
+[R130D](refactor-130D-wise-and-payment-rails.md). A script-only proof is insufficient.

@@ -155,7 +155,7 @@ test('signing uses an available worker presignature without waiting for a refill
       { status: 200, headers: { 'content-type': 'application/json' } },
     );
   };
-  const schedule = scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill({
+  const refillInput = {
     relayerUrl: 'https://router.example',
     keyHandle: parseEcdsaKeyHandle('key-handle-1'),
     ecdsaThresholdKeyId: parseEcdsaThresholdKeyId('ecdsa-key-1'),
@@ -177,9 +177,16 @@ test('signing uses an available worker presignature without waiting for a refill
     authorization,
     targetDepth: 1,
     triggerIfDepthAtOrBelow: 0,
-  });
+  };
+  const schedule = scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(refillInput);
+  const duplicateSchedule =
+    scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(refillInput);
 
   expect(schedule).toMatchObject({ scheduled: true, reason: 'scheduled' });
+  expect(duplicateSchedule).toMatchObject({
+    scheduled: false,
+    reason: 'in_flight_for_pool_key',
+  });
   await refillStarted.promise;
 
   try {

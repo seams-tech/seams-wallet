@@ -4632,10 +4632,7 @@ function exactSessionRequestWalletId(envelope: WalletIframeRequestEnvelope): str
     case 'PM_SIGN_NEP413':
       return requestPayloadWalletId(payload);
     case 'PM_SIGN_TEMPO':
-    case 'PM_RESOLVE_EXACT_KEY_EXPORT_LANE':
-    case 'PM_EXPORT_KEYPAIR_UI':
       return requestPayloadSessionWalletId(payload);
-    case 'PM_LIST_LINKED_DEVICES':
     case 'PM_REVOKE_LINKED_DEVICE':
     case 'PM_ROTATE_WALLET_RECOVERY_CODES':
       return requestPayloadWalletId(payload);

@@ -168,6 +168,21 @@ export function createPublicApi(deps: {
     getWalletAuthDeps: deps.getWalletAuthDeps,
     domain: deps.auth,
   });
+  const devices =
+    deps.devices.kind === 'direct'
+      ? createDevicesCapability({
+          getContext: getDeviceLinkingContext,
+          walletIframe: walletIframeRoutingSurface,
+          domain: deps.devices,
+          ownerSessionRenewal: {
+            renew: renewOwnerWalletSession.bind(null, auth),
+          },
+        })
+      : createDevicesCapability({
+          getContext: getDeviceLinkingContext,
+          walletIframe: walletIframeRoutingSurface,
+          domain: deps.devices,
+        });
   // Defaults for calls that do not name a wallet come from the authenticated
   // session, never from the `preferences` current-wallet mirror.
   const currentWallet: CurrentWalletResolver = createCurrentWalletResolver({
@@ -226,14 +241,7 @@ export function createPublicApi(deps: {
       walletIframe: walletIframeRoutingSurface,
       domain: deps.recovery,
     }),
-    devices: createDevicesCapability({
-      getContext: getDeviceLinkingContext,
-      walletIframe: walletIframeRoutingSurface,
-      domain: deps.devices,
-      ownerSessionRenewal: {
-        renew: renewOwnerWalletSession.bind(null, auth),
-      },
-    }),
+    devices,
     keys: createKeyExportCapability({
       configs: deps.configs,
       currentWallet,

@@ -1,177 +1,199 @@
-# Refactor 130A — Escrow funding, agent budgets, and card accounting
+# Refactor 130A — Agent payment proposals, authority, and accounting
 
 Date created: August 29, 2026
-Last revised: September 8, 2026
+Last revised: September 15, 2026
 
-Status: implementation plan. R130A–D together deliver one testnet/sandbox demo.
+Status: implementation plan. R130A–D deliver a shared proposal and approval flow
+for business payments, with separately verified sandbox execution.
 
-## One operating path
+## Direction and ownership
 
-```text
-User funds their Seams wallet with testnet stablecoins
-  -> spends stablecoins through the existing wallet flow, OR
-  -> moves a chosen amount from the wallet into escrow for card spending
-  -> Seams verifies escrow finality and credits card capacity once
-  -> agent proposes a purchase through R130B
-  -> Seams checks approval and reserves funding capacity and agent budget
-  -> Airwallex sandbox authorizes and captures through R130D
-  -> Seams reconciles card events, capacity, and budget
-  -> R130C displays the receipt and updated balances
-```
+An owner connects a funding account, grants an agent bounded authority, and
+reviews proposed payments. Seams enforces the grant and records the outcome.
+Implement in this order:
 
-Use one host app, agent integration, merchant, escrow deposit path, token, chain,
-and card currency. Wallet deposits remain available for ordinary stablecoin spending. The user
-selects “Move to card balance” and submits that amount to escrow through the
-existing wallet transfer flow. Only this escrow deposit funds card capacity.
-Seams observes the finalized deposit; it does not sweep a wallet or send an
-onchain merchant payment. No durable signed-transaction submission engine is
-required in R130A.
+1. **Wise business payments:** connect an eligible Japanese business account and
+   deliver transfer proposals, exact approvals, and durable status first. Verify
+   transfer execution and Wise card API access separately.
+2. **Airwallex card payments:** add the wallet-funded sandbox checkout, execution,
+   and reconciliation journey for eligible account/issuing programs.
+3. **Traditional bank transfers:** add one selected banking integration.
 
-[R130B](refactor-130B-agent-connections.md) owns authenticated agent API access,
-[R130C](refactor-130C-agent-expense-console.md) owns the embedded flow, and
-[R130D](refactor-130D-airwallex-card-rail.md) owns the Airwallex sandbox adapter.
-D is required for the complete demo. Production funding and settlement remain
-separate work; the issuer-side funding bridge is explicitly simulated here.
-
-## Wallet balance and card balance
-
-The wallet is the initial funding surface. Stablecoins held there can be spent
-through the existing wallet APIs, or transferred into escrow for card spending.
-Moving funds to escrow reduces the wallet's spendable balance onchain; the same
-amount cannot remain available in both balances. Show the transfer as pending
-until escrow finality and any sandbox funding step complete, then credit card
-capacity once. A deposit into the ordinary wallet alone never credits a card.
-
-Reuse wallet signing, submission, and status behavior for the user-initiated
-transfer. This plan adds no new general transaction recovery subsystem; an
-uncertain transfer remains pending and must not prompt a blind second transfer.
-Existing direct stablecoin spending stays supported. Agent-controlled direct
-merchant transfers are outside this card path; its single payment-rail variant
-remains `AirwallexSandboxCard`.
-
-## Minimal records and typed boundaries
-
-- **Funding credit:** exact customer/escrow binding, finalized transfer identity,
-  token amount, credited card-currency amount, and credit state. One finalized
-  transfer produces at most one credit.
-- **Agent Grant:** owner, funding account, agent, merchant, fixed budget,
-  per-purchase limit, approval threshold, expiry, configured payment rail, and
-  active/revoked state. Create, inspect, and revoke; rules remain immutable.
-- **Purchase:** immutable commercial intent, grant, exact approval when required,
-  budget/funding claim, operation identity, and card payment state. Link provider
-  events through existing audit/storage patterns.
-
-Keep the universal commercial schema and configurable payment-rail structures.
-Implement one variant each for this flow:
-
-```rust
-enum PurchaseIntent {
-    MerchantCheckout(MerchantCheckout),
-}
-
-enum PaymentRail {
-    AirwallexSandboxCard(AirwallexSandboxCardConfig),
-}
-
-enum PaymentExecution {
-    AirwallexSandboxCard(AirwallexSandboxCardExecution),
-}
-```
-
-`MerchantCheckout` contains the merchant, immutable quote reference/digest,
-expiry, reviewed items, and exact price breakdown and total in card currency.
-Parse merchant/UCP checkout data once at the boundary. Preserve approval-relevant
-cart and delivery details; changed quotes require a new purchase and approval.
-A full UCP implementation and generic policy engine are unnecessary.
-
-Rail configuration binds the supported sandbox account/environment and currency.
-The admitted execution binds one purchase, card allocation, amount, currency,
-and stable operation identity. Keep provider credentials in the adapter. Reuse
-existing identity, amount, authorization, and lifecycle types with narrow builders
-and exhaustive handling. No unused rail variants, provider registry, or routing UI.
-
-## Finalized escrow deposit → one funding credit
-
-Select the supported testnet, token, finality rule, and an escrow deposit mechanism
-with authoritative customer attribution before implementing. Reuse an existing
-controlled deposit facility if available; missing escrow support is an explicit
-implementation prerequisite. A freely withdrawable source-wallet balance cannot
-serve as escrow backing. Withdrawals and collateral release are outside the demo.
-
-Verify chain, token, escrow recipient, customer attribution, amount, and finality
-from authoritative chain data. Ignore browser success claims. Deduplicate by exact
-transfer identity, such as chain + transaction hash + log index for an EVM token
-transfer. Polling/refresh is sufficient; pre-final deposits remain pending.
-
-Atomically insert the consumed deposit identity and credit the customer's funding
-ledger. A unique constraint and conditional state transition prevent re-crediting
-on replay, concurrent processing, or restart. Bind the identity to its customer
-and amount so it cannot be reused with altered details.
-
-Use one labeled test conversion rate with deterministic integer arithmetic and
-explicit precision handling. The credited balance is Seams' allocation against
-sandbox issuer capacity; escrow tokens are not sent to Airwallex. R130D supplies
-sandbox funding evidence. Where an external funding simulation is needed, keep
-credit pending until its outcome is confirmed; ambiguous responses require lookup
-before retry. No real conversion or liquidity pool is required for this demo.
-
-## Atomic budgets and idempotent card accounting
-
-Card spending capacity represents available funding. An agent budget represents
-permission to use it. Multiple agents share the funding account; granting budgets
-does not create additional money.
-
-In one database transaction, claim a purchase, validate the active grant and exact
-approval, and reserve its amount against both the grant and account capacity:
+Support for Japanese companies is a launch requirement. The first milestone uses
+Wise account funds and requires no wallet deposit or Airwallex issuing access.
+Each phase has its own completion evidence. R130D records Japan account eligibility,
+the standard Wise API's funding limits, and access required for automated execution.
 
 ```text
-spent + reserved + purchase amount <= grant budget
-purchase amount <= account available card capacity
+Owner connects an account and grants spending authority
+  -> agent proposes a payment with recipient, amount, and purpose
+  -> Seams resolves account access and obtains provider payment terms
+  -> Seams records the policy decision and exact approval when required
+  -> separately authorized execution reserves budget and funding capacity
+  -> provider processes the payment
+  -> Seams reconciles the result and Console displays the evidence
 ```
 
-Use database-enforced conditional writes and unique operation identity. Failed
-admission rolls back both reservations and the claim. No network calls inside the
-transaction; no process-local locks or separate read/check/write budget checks.
-Approval can cross its threshold within the hard limits, never expand authority.
-Serialize revocation and admission using existing authorization/fencing patterns.
+[R130B](refactor-130B-agent-connections.md) owns authenticated agent access,
+[R130C](refactor-130C-agent-expense-console.md) owns the Console and embedded
+experience, and [R130D](refactor-130D-wise-and-payment-rails.md) owns provider
+integrations. [Spec 8](spec-8-agent-authority-spending-and-payment-rails.md) owns
+the proposed shared architecture.
 
-One purchase has one payment operation even if callers supply new idempotency
-keys. Bind request keys to authenticated scope and immutable content. Reuse with
-different content fails; duplicates return the existing result or pending state.
-Persist operation identity before calling Airwallex. An ambiguous provider response
-never triggers a blind second authorization, funding request, or card creation.
-Use supported provider idempotency or lookup; if the simulator cannot resolve an
-uncertain request, retain it as unknown instead of creating another payment.
+Implement hosted payment services and composed tests in `seams-monorepo`. Keep
+Wallet custody, signing, and reusable Wallet contracts in `seams-wallet`; private
+services consume its published packages. Reuse existing Console identity,
+authorization, audit, journal, and reservation patterns.
 
-Airwallex owns card authorization/capture processing. Seams still deduplicates and
-reconciles events into its own ledger. Apply each financial transition and its
-processed marker atomically. Event receipt alone is not proof it was applied.
-Authorization holds retain capacity; confirmed capture commits spend once;
-definitive unpaid failure or reversal releases the applicable hold once. Refunds
-restore funding capacity without automatically renewing the agent budget.
-Unknown outcomes retain claims; duplicate or reordered events must not debit,
-release, or refund twice. Query provider state when events are inconclusive.
+## Minimal domain
 
-Reuse existing operation claims and audit. Wallet Session quotas are a pattern
-for atomic admission, not an implemented monetary ledger. Purchase status reads
-can reconcile against R130D provider reads; no new background service is required.
+Distinguish the account-owning business/customer, its authorized human, the
+integration tenant, and the agent. Enrollment establishes their relationship.
+An organization ID or provider account ID alone proves no authority over funds.
+
+| Record            | Required meaning                                                                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Funding account   | Owner, tenant/environment binding, currency, provider connection, and exact provider account or escrow-backed allocation.                                                 |
+| Agent Grant       | Owner, agent, funding account, allowed operation/provider, recipients or merchant, fixed budget, per-payment limit, approval threshold, expiry, and active/revoked state. |
+| Payment proposal  | Immutable operation, account, recipient, amount, purpose/reference, grant, and prepared payment terms.                                                                    |
+| Payment approval  | Authorized human, exact proposal/terms digest, decision, and expiry.                                                                                                      |
+| Payment execution | One proposal, durable operation identity, admitted terms, reservations, provider references, and execution state.                                                         |
+
+Grant rules are immutable; changed rules require a new grant. Budget currency is
+the funding account's debit currency. Count total source debit, including fees,
+against both per-payment and grant limits. Use integer minor units and explicit
+currency precision. Cross-currency proposals preserve source and recipient amounts,
+fees, exchange rate, quote identity, and expiry.
+
+Separate operation from provider. Start with Wise bank transfer terms and a
+Japanese business source profile. Add merchant checkout and its cart/delivery
+details for Airwallex in phase 2 and the selected banking provider in phase 3.
+Wise business card availability does not establish access to card APIs; add that
+operation only after R130D verifies the program and controls. Add types when their
+operation is implemented. Use branch-specific builders for supported combinations;
+independent enums must not admit invalid combinations.
+
+Parse requests and provider data once. Core functions consume precise types with
+required identity and lifecycle fields. Use discriminated states for preparation,
+approval, account availability, and execution. Incomplete or expired terms cannot
+construct an executable payment. Add type fixtures for invalid branch combinations,
+object construction, and broad spreads. No generic provider registry, policy
+language, or transport framework is needed.
+
+## Proposal and approval
+
+Creating a proposal records intent and may obtain a quote or validate a saved
+recipient. It cannot create a payable transfer, fund a transfer, charge a card,
+or submit a payout. Results distinguish blocked, pending approval, and ready for
+admission. Missing capabilities or payment terms produce an explicit preparation
+failure; guessed terms cannot become ready.
+
+Approval binds account, operation/provider, beneficiary and destination, source
+debit, recipient amount, fees, conversion terms, reference, and applicable checkout
+details. A mutable provider default destination cannot alter an approved payment.
+Changed approval-bound terms require a new proposal and any required approval;
+expired quotes require fresh preparation. The provider call must execute admitted
+terms or fail without silently accepting new terms.
+
+Approval satisfies its threshold within hard grant limits. Recheck current
+connection, grant, owner authority, and terms at admission. Serialize revocation
+with admission: revocation blocks new admissions, including previously approved
+proposals. Admitted operations still require reconciliation; provider cancellation
+has separate semantics.
+
+## Funding accounts
+
+### Connected Wise and bank accounts
+
+Wise is the first funding account. The authorized human establishes the Japanese
+business profile and provider access. A Seams account connection cannot substitute
+for Wise's business verification or enable unsupported API operations.
+
+Resolve each connection to an owner-authorized account and supported currency and
+capabilities. Connecting an account creates no funding credit. Keep provider
+balances, Seams reservations, and agent budgets distinct. Platform billing credits
+cannot fund a customer's payment.
+
+Use one canonical local funding account per provider account/currency so multiple
+agents and connections share its reservation boundary. Refresh provider availability
+before admission and reconcile provider holds with unresolved local claims without
+counting either twice. Local reservations bound Seams-originated payments; they
+cannot lock funds against external spending. Provider acceptance and settlement
+remain authoritative. Unavailable balance evidence blocks automated admission in
+the first implementation. A proposal may remain reviewable while balance access
+or transfer funding requires provider action or additional API permissions.
+
+### Wallet-funded card capacity — phase 2
+
+Retain the testnet wallet-to-escrow path for Airwallex sandbox cards. The owner
+selects an amount and submits through existing Wallet APIs. Verify chain, token,
+escrow recipient, customer attribution, amount, and finality from chain evidence.
+Deduplicate exact transfer identity and atomically record one funding credit.
+Ordinary wallet deposits cannot credit card capacity.
+
+Select one testnet, token, finality rule, and controlled escrow facility before
+implementation. Pending deposits stay pending. Use a labeled fixed test conversion
+rate with integer arithmetic. Credit capacity after finalized escrow funding and
+confirmed sandbox funding evidence. The issuer bridge is simulated; Airwallex
+receives no testnet tokens. This branch creates no Wise or bank balance.
+Withdrawals and live conversion remain separate work.
+
+## Admission, retries, and accounting
+
+In one local transaction, claim the proposal and reserve its total debit against
+the grant and account's reconciled Seams spending capacity:
+
+```text
+spent + reserved + proposed debit <= grant budget
+proposed debit <= available account capacity
+```
+
+Use conditional writes and uniqueness constraints. Failed admission rolls back
+both reservations and the claim. Keep network calls outside the transaction.
+Wallet Session quotas supply admission patterns; monetary accounting requires its
+own journal and reservations.
+
+One proposal has one execution even when callers change retry keys. Bind request
+identity to authenticated scope and immutable content. Persist operation identity
+before provider mutations. Reuse with changed content fails; duplicates return
+the existing execution. Reconcile ambiguous mutations before retrying. Unsupported
+provider recovery leaves the same operation unknown with its reservation held.
+
+Normalize provider evidence into pending, succeeded, definitively failed, or
+unknown execution states, preserving the provider's actual processing status.
+Request acceptance alone cannot prove settlement. Card authorization retains a
+hold; confirmed capture commits spend. Transfers commit against the provider's
+documented payment outcome. Apply commit, release, and linked return/refund postings
+atomically with processed markers. Duplicate or reordered events converge. Returned
+funds restore applicable availability without renewing consumed agent budget. A
+return after success stays linked to the original payment.
+
+Use verified events and status-triggered provider reads for the first proof.
+Persist unresolved work for inspection after reload. Autonomous scheduling and a
+new background reconciliation service remain later work.
 
 ## Delivery and proof
 
-- [ ] Implement verified escrow deposit ingestion and atomic, one-time funding
-      credit. Demonstrate replay and concurrent processing cannot credit twice.
-- [ ] Implement grant create/inspect/revoke, typed purchase proposal, exact owner
-      approval, and atomic reservation of budget plus shared account capacity.
-- [ ] Integrate R130D's card events with idempotent accounting. Demonstrate duplicate
-      Pay, webhook retries, and an interrupted provider request without a second
-      credit, charge, or release.
-- [ ] Complete one shared A/B/C/D demo: deposit, wait for finality, see card capacity,
-      approve and pay a purchase, reload the result, and revoke agent authority.
-- [ ] Verify two competing purchases cannot exceed one grant or shared account
-      capacity. Add the required lifecycle type fixtures and narrow operating
-      assertions; update intended-behaviour docs with implementation.
+- [ ] Implement account bindings, immutable grants, prepared proposals, exact
+      approvals, and independently authorized execution admission.
+- [ ] Phase 1: bind an eligible Japanese Wise business profile and prepare
+      transfer proposals through the complete grant and exact approval flow.
+      Keep funding/action-required and execution availability explicit.
+- [ ] Phase 2: prepare and execute an Airwallex sandbox card purchase through
+      wallet funding, grant, approval, and reconciliation for eligible programs.
+- [ ] Phase 3: add proposals through one selected traditional banking integration.
+- [ ] Prove cross-owner/account/recipient isolation and denial after revocation,
+      changed terms, expired quotes, or insufficient authority.
+- [ ] Prove competing payments stay within shared local allocations and budgets;
+      validate external balance changes and provider rejection separately.
+- [ ] Prove escrow deposits credit once and never fund another account branch.
+- [ ] Reconcile sandbox execution without duplicate payment, debit, release, or
+      refund; retain unknown outcomes across reload and retries.
 
-Complete when finalized deposits credit once, concurrent spending remains bounded,
-and provider outcomes reconcile once. Direct onchain merchant payments, automated
-sweeps, serialized signed-transaction storage, nonce recovery, additional rails,
-withdrawals, production treasury, and full dashboards are outside this plan.
+Complete phase 1 with reviewable Wise proposals for a Japanese business through
+one owner/agent journey. Then deliver the eligible Airwallex sandbox card path
+and traditional bank proposals in order. Proposal preparation moves no money.
+Record execution evidence separately under R130D; Wise's standard Japanese
+business API access cannot establish automated transfer funding or card issuance.
+Live banking, issuing, settlement, and agent-controlled direct onchain merchant
+payments require separate delivery work.
