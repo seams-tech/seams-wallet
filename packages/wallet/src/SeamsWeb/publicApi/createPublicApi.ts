@@ -1,13 +1,11 @@
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
 import type { SeamsConfigsReadonly, ThemeMode } from '@/core/types/seams';
-import { UnlockEventPhase, type UnlockFlowEvent } from '@/core/types/sdkSentEvents';
 import type { WalletAuthDomainDeps } from '@/SeamsWeb/operations/auth/walletAuth';
 import { createAuthCapability, type AuthCapabilityDomainMethods } from '@/SeamsWeb/publicApi/auth';
 import {
   createDevicesCapability,
   type DevicesCapabilityDomainMethods,
-  type OwnerWalletSessionRenewalResultV1,
 } from '@/SeamsWeb/publicApi/devices';
 import { createEvmSignerCapability } from '@/SeamsWeb/publicApi/evm';
 import { createNearSignerCapability } from '@/SeamsWeb/publicApi/near';
@@ -80,30 +78,6 @@ export type RegistrationCapabilityDomainMethods = {
   enrollEmailOtp: RegistrationCapability['enrollEmailOtp'];
 };
 
-type OwnerWalletSessionRenewalObservationV1 = {
-  cancelled: boolean;
-};
-
-function observeOwnerWalletSessionRenewal(
-  observation: OwnerWalletSessionRenewalObservationV1,
-  event: UnlockFlowEvent,
-): void {
-  if (event.phase === UnlockEventPhase.CANCELLED) observation.cancelled = true;
-}
-
-async function renewOwnerWalletSession(
-  auth: Pick<AuthCapability, 'unlock'>,
-  walletId: Parameters<AuthCapability['unlock']>[0],
-): Promise<OwnerWalletSessionRenewalResultV1> {
-  const observation: OwnerWalletSessionRenewalObservationV1 = { cancelled: false };
-  const result = await auth.unlock(String(walletId), {
-    onEvent: observeOwnerWalletSessionRenewal.bind(null, observation),
-  });
-  if (result.success) return { kind: 'renewed' };
-  if (observation.cancelled) return { kind: 'cancelled' };
-  return { kind: 'failed', error: result.error };
-}
-
 export type KeyExportCapabilityDomainMethods = KeyExportDomainMethods;
 
 function createWalletIframeRoutingSurface(
@@ -168,21 +142,11 @@ export function createPublicApi(deps: {
     getWalletAuthDeps: deps.getWalletAuthDeps,
     domain: deps.auth,
   });
-  const devices =
-    deps.devices.kind === 'direct'
-      ? createDevicesCapability({
-          getContext: getDeviceLinkingContext,
-          walletIframe: walletIframeRoutingSurface,
-          domain: deps.devices,
-          ownerSessionRenewal: {
-            renew: renewOwnerWalletSession.bind(null, auth),
-          },
-        })
-      : createDevicesCapability({
-          getContext: getDeviceLinkingContext,
-          walletIframe: walletIframeRoutingSurface,
-          domain: deps.devices,
-        });
+  const devices = createDevicesCapability({
+    getContext: getDeviceLinkingContext,
+    walletIframe: walletIframeRoutingSurface,
+    domain: deps.devices,
+  });
   // Defaults for calls that do not name a wallet come from the authenticated
   // session, never from the `preferences` current-wallet mirror.
   const currentWallet: CurrentWalletResolver = createCurrentWalletResolver({

@@ -20,7 +20,15 @@ export interface AuthenticationMethodsModalProps {
 type AuthenticationMethodView = {
   readonly kind: LinkedOwnerCredentialMetadataV1['kind'];
   readonly walletAuthMethodId: string;
-  readonly credential: LinkedOwnerCredentialMetadataV1;
+  readonly presentation:
+    | {
+        readonly kind: 'passkey';
+        readonly description: string;
+      }
+    | {
+        readonly kind: 'email_otp';
+        readonly emailAddress: string | null;
+      };
 };
 
 type CurrentAuthorityInventory =
@@ -33,6 +41,10 @@ type CurrentAuthorityInventory =
       readonly kind: 'linked_authority';
       readonly deviceId: string;
       readonly methods: readonly AuthenticationMethodView[];
+    }
+  | {
+      readonly kind: 'local_selection';
+      readonly methods: readonly [AuthenticationMethodView];
     };
 
 type LoadState =
@@ -67,11 +79,45 @@ function activeLinkedDevices(
 }
 
 function methodView(credential: LinkedOwnerCredentialMetadataV1): AuthenticationMethodView {
-  return {
-    kind: credential.kind,
-    walletAuthMethodId: String(credential.walletAuthMethodId),
-    credential,
-  };
+  switch (credential.kind) {
+    case 'passkey': {
+      const provider = credential.device.providerLabel ?? credential.device.provider;
+      return {
+        kind: 'passkey',
+        walletAuthMethodId: String(credential.walletAuthMethodId),
+        presentation: {
+          kind: 'passkey',
+          description: provider ? `${provider} passkey` : credential.device.label,
+        },
+      };
+    }
+    case 'email_otp':
+      return {
+        kind: 'email_otp',
+        walletAuthMethodId: String(credential.walletAuthMethodId),
+        presentation: {
+          kind: 'email_otp',
+          emailAddress: String(credential.email),
+        },
+      };
+  }
+}
+
+function selectedMethodView(binding: WalletAuthMethodBinding): AuthenticationMethodView {
+  switch (binding.kind) {
+    case 'passkey':
+      return {
+        kind: 'passkey',
+        walletAuthMethodId: String(binding.walletAuthMethodId),
+        presentation: { kind: 'passkey', description: 'Passkey on this device' },
+      };
+    case 'email_otp':
+      return {
+        kind: 'email_otp',
+        walletAuthMethodId: String(binding.walletAuthMethodId),
+        presentation: { kind: 'email_otp', emailAddress: null },
+      };
+  }
 }
 
 function requireValidMethodSet(
@@ -143,9 +189,12 @@ function methodTitle(method: AuthenticationMethodView): string {
 }
 
 function methodDescription(method: AuthenticationMethodView): string {
-  if (method.credential.kind === 'email_otp') return String(method.credential.email);
-  const provider = method.credential.device.providerLabel ?? method.credential.device.provider;
-  return provider ? `${provider} passkey` : method.credential.device.label;
+  switch (method.presentation.kind) {
+    case 'passkey':
+      return method.presentation.description;
+    case 'email_otp':
+      return method.presentation.emailAddress ?? 'Email OTP on this device';
+  }
 }
 
 export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProps> = ({
@@ -193,9 +242,13 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       setLoadState({ kind: 'error', message: 'Unlock this wallet to manage authentication.' });
       return;
     }
+    const localInventory: CurrentAuthorityInventory = {
+      kind: 'local_selection',
+      methods: [selectedMethodView(currentLoginState.currentAuthMethod.binding)],
+    };
     const sequence = loadSequence.current + 1;
     loadSequence.current = sequence;
-    setLoadState({ kind: 'loading' });
+    setLoadState({ kind: 'loaded', inventory: localInventory });
     try {
       const result = await seamsRef.current.devices.listLinkedDevices({
         walletId,
@@ -212,7 +265,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       }
     } catch (error: unknown) {
       if (loadSequence.current === sequence) {
-        setLoadState({ kind: 'error', message: errorMessage(error) });
+        setLoadState({ kind: 'loaded', inventory: localInventory });
       }
     }
   }, [selectedWalletAuthMethodId, walletId]);
@@ -326,6 +379,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   const methods = inventory?.methods ?? [];
   const hasPasskey = methods.some((method) => method.kind === 'passkey');
   const hasEmailOtp = methods.some((method) => method.kind === 'email_otp');
+  const canManageMethods = inventory !== null && inventory.kind !== 'local_selection';
   const actionInProgress = actionState.kind === 'adding' || actionState.kind === 'revoking';
 
   return (
@@ -440,7 +494,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                           </span>
                         )}
                       </div>
-                      {!confirming && methods.length > 1 ? (
+                      {!confirming && canManageMethods && methods.length > 1 ? (
                         <button
                           type="button"
                           className="w3a-linked-devices-modal-secondary w3a-linked-devices-modal-remove"
@@ -457,7 +511,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
               </ul>
             ) : null}
 
-            {inventory && !hasPasskey ? (
+            {inventory && canManageMethods && !hasPasskey ? (
               <section className="w3a-linked-devices-modal-add-method">
                 <h3>Add Passkey</h3>
                 <p className="w3a-linked-devices-modal-security-note">
@@ -466,7 +520,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                 <button
                   type="button"
                   className="w3a-linked-devices-modal-secondary"
-                  disabled={actionInProgress}
+                  disabled={actionInProgress || !canManageMethods}
                   onClick={() => void addMethod('passkey')}
                 >
                   {actionState.kind === 'adding' && actionState.method === 'passkey'
@@ -476,7 +530,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
               </section>
             ) : null}
 
-            {inventory && !hasEmailOtp ? (
+            {inventory && canManageMethods && !hasEmailOtp ? (
               <section className="w3a-linked-devices-modal-add-method">
                 <h3>Add Email OTP</h3>
                 <form
@@ -511,6 +565,12 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                   </button>
                 </form>
               </section>
+            ) : null}
+
+            {inventory?.kind === 'local_selection' ? (
+              <p className="w3a-linked-devices-modal-item-detail" role="status">
+                Additional methods and changes are unavailable while the owner session is inactive.
+              </p>
             ) : null}
 
             {actionState.kind === 'error' ? (

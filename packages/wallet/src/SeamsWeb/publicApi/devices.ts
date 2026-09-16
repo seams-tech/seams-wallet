@@ -16,8 +16,6 @@ import {
   parseLinkedDeviceRevokeRequestV1,
   parseLinkedDeviceRevokeResultV1,
 } from '@shared/device-linking';
-import { OWNER_WALLET_SESSION_REAUTH_REQUIRED } from '@/SeamsWeb/operations/devices/walletHostComposition';
-import { DeviceLinkingErrorCode } from '@/core/types/linkDevice';
 
 export {
   parseLinkedDeviceListRequestV1,
@@ -60,79 +58,11 @@ export type DevicesCapabilityDomainMethods =
       readonly deviceLinkingPorts: DeviceLinkingFlowPortsV1;
     };
 
-export type OwnerWalletSessionRenewalResultV1 =
-  | { readonly kind: 'renewed' }
-  | { readonly kind: 'cancelled' }
-  | { readonly kind: 'failed'; readonly error: string };
-
-export type OwnerWalletSessionRenewalPortV1 = {
-  renew(walletId: WalletId): Promise<OwnerWalletSessionRenewalResultV1>;
-};
-
 type DevicesCapabilityDependencies = {
   readonly getContext: () => DeviceLinkingWebContext;
   readonly walletIframe: Pick<WalletIframeCoordinator, 'shouldUseWalletIframe' | 'requireRouter'>;
-} &
-  (
-    | {
-        readonly domain: Extract<DevicesCapabilityDomainMethods, { readonly kind: 'iframe' }>;
-        readonly ownerSessionRenewal?: never;
-      }
-    | {
-        readonly domain: Extract<DevicesCapabilityDomainMethods, { readonly kind: 'direct' }>;
-        readonly ownerSessionRenewal: OwnerWalletSessionRenewalPortV1;
-      }
-  );
-
-export const OWNER_WALLET_SESSION_REAUTH_CANCELLED =
-  'owner_wallet_session_reauth_cancelled' as const;
-
-class OwnerWalletSessionReauthCancelledError extends Error {
-  readonly code = OWNER_WALLET_SESSION_REAUTH_CANCELLED;
-
-  constructor() {
-    super('Wallet unlock was cancelled');
-    this.name = 'OwnerWalletSessionReauthCancelledError';
-  }
-}
-
-function errorCode(error: unknown): string {
-  if (error === null || typeof error !== 'object' || !('code' in error)) return '';
-  return String(error.code || '').trim();
-}
-
-function ownerWalletSessionRenewalRequired(error: unknown): boolean {
-  const code = errorCode(error);
-  return (
-    code === OWNER_WALLET_SESSION_REAUTH_REQUIRED ||
-    code === DeviceLinkingErrorCode.WALLET_UNLOCK_REQUIRED
-  );
-}
-
-export async function listLinkedDevicesWithOwnerSessionRenewalV1(
-  management: LinkedDeviceManagementPortV1,
-  renewal: OwnerWalletSessionRenewalPortV1,
-  request: Parameters<LinkedDeviceManagementPortV1['listLinkedDevices']>[0],
-): Promise<LinkedDeviceListResultV1> {
-  try {
-    return await management.listLinkedDevices(request);
-  } catch (error: unknown) {
-    if (!ownerWalletSessionRenewalRequired(error)) throw error;
-  }
-
-  const renewed = await renewal.renew(request.walletId);
-  switch (renewed.kind) {
-    case 'renewed':
-      return await management.listLinkedDevices(request);
-    case 'cancelled':
-      throw new OwnerWalletSessionReauthCancelledError();
-    case 'failed':
-      throw new Error(`Wallet unlock failed: ${renewed.error}`);
-    default:
-      renewed satisfies never;
-      throw new Error('Unsupported owner Wallet Session renewal result');
-  }
-}
+  readonly domain: DevicesCapabilityDomainMethods;
+};
 
 export function createWalletIframeLinkedDeviceManagementPortV1(deps: {
   readonly walletIframe: Pick<WalletIframeCoordinator, 'requireRouter'>;
@@ -185,18 +115,7 @@ export function createDevicesCapability(deps: DevicesCapabilityDependencies): De
         limit: request.limit,
         cursor: request.cursor,
       };
-      let result: LinkedDeviceListResultV1;
-      if (deps.domain.kind === 'direct') {
-        const renewal = deps.ownerSessionRenewal;
-        if (!renewal) throw new Error('Direct device inventory requires owner-session renewal');
-        result = await listLinkedDevicesWithOwnerSessionRenewalV1(
-          deps.domain.linkedDeviceManagement,
-          renewal,
-          managementRequest,
-        );
-      } else {
-        result = await deps.domain.linkedDeviceManagement.listLinkedDevices(managementRequest);
-      }
+      const result = await deps.domain.linkedDeviceManagement.listLinkedDevices(managementRequest);
       return parseLinkedDeviceListResultV1(result);
     },
     revokeLinkedDevice: async (args) => {

@@ -561,11 +561,10 @@ than chosen by the caller.
 
 Expected behaviour:
 
-- Opening authentication-method or linked-device inventory with an expired
-  owner Wallet Session performs one same-method wallet unlock, then retries the
-  inventory request once with the newly issued exact session. Cancelling the
-  unlock leaves the inventory unavailable and never loops or reuses the rejected
-  credential.
+- Opening authentication-method or linked-device inventory never starts wallet
+  unlock or step-up authentication. Inventory reads use the exact owner Wallet
+  Session already established by wallet unlock, do not consume its signing-use
+  budget, and surface an unavailable session without retrying or prompting.
 - Linking creates a fresh `deviceId`, `walletAuthorityId`,
   `walletAuthMethodId`, and signer activation for every signer family present
   on the source authority. The wallet's public signer identities remain

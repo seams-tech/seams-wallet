@@ -74,9 +74,16 @@ async function mountModalWithPendingInventory(page: Page, kind: ModalKind): Prom
       };
       const loginState = {
         isLoggedIn: true,
+        walletId,
+        authMethods: [],
         currentAuthMethod: {
           kind: 'selected',
-          binding: { walletAuthMethodId },
+          binding: {
+            kind: 'passkey',
+            walletAuthMethodId,
+            scope: { wallet: { walletId }, rpId: 'wallet.example.localhost' },
+            credentialIdB64u: 'credential-owner',
+          },
         },
       };
       (
@@ -133,12 +140,15 @@ test.describe('account-menu modal responsiveness', () => {
     });
   });
 
-  test('shows Authentication Methods while its inventory request is pending', async ({ page }) => {
+  test('shows the selected authentication method while remote inventory is pending', async ({
+    page,
+  }) => {
     await mountModalWithPendingInventory(page, 'authentication_methods');
 
     const dialog = page.getByRole('dialog', { name: 'Authentication methods' });
     await expect(dialog).toBeVisible({ timeout: 500 });
-    await expect(dialog.getByText('Checking authentication methods…')).toBeVisible({
+    await expect(dialog.getByText('Passkey', { exact: true })).toBeVisible({ timeout: 500 });
+    await expect(dialog.getByText('Passkey on this device', { exact: true })).toBeVisible({
       timeout: 500,
     });
   });
