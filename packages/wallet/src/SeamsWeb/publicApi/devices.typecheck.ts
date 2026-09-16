@@ -2,11 +2,21 @@ import type { DeviceLinkingFlowPortsV1 } from '@/SeamsWeb/operations/devices/dev
 import type {
   LinkedDeviceManagementPortV1,
   DevicesCapabilityDomainMethods,
+  OwnerWalletSessionRenewalPortV1,
   OwnerWalletSessionRenewalResultV1,
 } from './devices';
+import { createDevicesCapability } from './devices';
+import type { DeviceLinkingWebContext } from '@/SeamsWeb/signingSurface/types';
+import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
 
 declare const linkedDeviceManagement: LinkedDeviceManagementPortV1;
 declare const deviceLinkingPorts: DeviceLinkingFlowPortsV1;
+declare const getContext: () => DeviceLinkingWebContext;
+declare const walletIframe: Pick<
+  WalletIframeCoordinator,
+  'shouldUseWalletIframe' | 'requireRouter'
+>;
+declare const ownerSessionRenewal: OwnerWalletSessionRenewalPortV1;
 const directDomain = {
   kind: 'direct',
   linkedDeviceManagement,
@@ -38,3 +48,31 @@ const invalidOwnerSessionRenewal: OwnerWalletSessionRenewalResultV1 = {
   error: 'invalid state',
 };
 void invalidOwnerSessionRenewal;
+
+createDevicesCapability({
+  getContext,
+  walletIframe,
+  domain: directDomain,
+  ownerSessionRenewal,
+});
+
+createDevicesCapability({
+  getContext,
+  walletIframe,
+  domain: iframeDomain,
+});
+
+// @ts-expect-error The application-side iframe branch cannot own Wallet Session renewal.
+createDevicesCapability({
+  getContext,
+  walletIframe,
+  domain: iframeDomain,
+  ownerSessionRenewal,
+});
+
+// @ts-expect-error The direct wallet-host branch must own Wallet Session renewal.
+createDevicesCapability({
+  getContext,
+  walletIframe,
+  domain: directDomain,
+});
