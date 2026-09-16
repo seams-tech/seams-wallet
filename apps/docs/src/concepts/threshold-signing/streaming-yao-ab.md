@@ -10,11 +10,12 @@ Deriver A garbles one fixed circuit and Deriver B evaluates it. The circuit
 computes the export-compatible Ed25519 derivation while neither Deriver learns
 the joined seed, scalar, or signing outputs.
 
-This is an implementation target under active development. Production remains
-gated on a reviewed actively secure construction, malicious-secure OT, input
-consistency, authenticated private outputs, separate-account deployment,
-constant-time review, and independent security review. The passive
-free-XOR/half-gates circuit is a benchmark artifact only.
+The deployed P0 profile uses the reviewed free-XOR/half-gates construction in
+separate Deriver Workers connected by a Service Binding WebSocket. Its release
+claim is passive, honest execution with abort: the roles remain isolated while
+the shared Cloudflare account control plane remains honest. Stronger active
+security and independently administered Deriver accounts remain deferred
+profiles and are not implied by the deployed benchmark.
 
 ## When Yao runs
 
@@ -172,64 +173,88 @@ evaluation. Devices still need a secure random number generator, protected key
 storage, ordinary curve and AEAD support, and network access to Router. Normal
 signing uses the device's threshold-signing share and stays independent of Yao.
 
-## Payload and latency
+## Measured payload and latency
 
-The initial passive fixed-circuit estimate is `1.65-2.10 MiB` from A to B.
-Garbled tables are pseudorandom, so compression is ineffective. The production
-actively secure payload remains unknown until the compiler and input-provenance
-scheme are selected and measured.
+The fixed activation ceremony transfers exactly `2,222,584` bytes between the
+Derivers: `2,185,420` bytes from A to B and `37,164` bytes from B to A. The
+largest encoded envelope is `131,180` bytes. Explicit export transfers
+`103,416` A/B bytes. Ordinary signing performs no Deriver traffic.
 
-For a `2 MiB` stream, serialization alone takes approximately:
+The selected same-account Service Binding WebSocket was measured in two paired
+deployed campaigns on July 17, 2026:
 
-| Effective throughput | Payload time |
-| -------------------: | -----------: |
-|            `50 Mbps` |     `336 ms` |
-|           `100 Mbps` |     `168 ms` |
-|           `250 Mbps` |      `67 ms` |
-|           `500 Mbps` |      `34 ms` |
-|             `1 Gbps` |      `17 ms` |
+| Transport and campaign | p50 | p95 | p99 | Mean | Failures |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Service Binding HTTP stream, 60-pair control | 234 ms | 258 ms | 318 ms | 232.5 ms | 0/60 |
+| Service Binding WebSocket, 60-pair candidate | **202 ms** | **230 ms** | **236 ms** | **204.7 ms** | 0/60 |
+| Service Binding WebSocket, 40-pair control | **198 ms** | **222 ms** | **232 ms** | **200.8 ms** | 0/40 |
+| Native Workers RPC streams, 40-pair candidate | 231 ms | 249 ms | 264 ms | 227.5 ms | 0/40 |
+| Cross-account public WebSocket, separate checkpoint | 203 ms | 315 ms | 424 ms | 219.4 ms | 0/30 |
 
-Routing, connection setup, RTT, authentication, cold starts, and tail latency
-add to these floors. Streaming overlaps transfer with compute. Prepositioning a
-one-use circuit can move the large stream out of the online ceremony after the
-just-in-time protocol is correct and reviewed.
+A later production-artifact campaign recorded 21 successful ceremonies and no
+failures. Its 20 warm samples measured `202 ms` p50, `216 ms` p95, and `219 ms`
+p99 of Worker protocol time. The first immediate post-deploy cohort in the
+promotion campaign measured `298 ms` p50, `360 ms` p95, and `480 ms` p99; the
+following warm cohort measured `196 ms` p50, `224 ms` p95, and `296 ms` p99.
+Cloudflare does not expose whether an invocation created a fresh isolate, so
+these first-observation measurements describe warm-up behavior without claiming
+a cold-start distribution.
+
+Local release-mode lifecycle measurements provide implementation baselines,
+rather than deployed latency claims:
+
+| Operation | p50 | p95 | p99 |
+| --- | ---: | ---: | ---: |
+| Registration | 94.070 ms | 100.068 ms | 102.040 ms |
+| Recovery | 64.607 ms | 70.351 ms | 72.197 ms |
+| Refresh | 64.205 ms | 72.893 ms | 74.966 ms |
+| Export | 19.035 ms | 23.780 ms | 24.566 ms |
+| Ordinary signing | 2.362 ms | 2.430 ms | 2.471 ms |
+
+The canonical benchmark sources are checked in with the implementation:
+
+- [deployed Cloudflare release evidence](https://github.com/seams-tech/seams-wallet/blob/main/docs/router-ab/ed25519-yao/deployment.md)
+- [local lifecycle latency report](https://github.com/seams-tech/seams-wallet/blob/main/crates/router-ab-dev/reports/ed25519-yao-local-latency-v1.json)
+- [same-account Worker benchmark report](https://github.com/seams-tech/seams-wallet/blob/main/crates/ed25519-yao-cloudflare-bench/docs/phase9b-same-account-report.md)
 
 ## Cloudflare deployment
 
 The client protocol is identical for both supported deployment profiles. The
 profile is selected before startup and cannot be selected by a request.
 
-| Profile                             | Intended use                                                       | A/B transport                             | Security property                                                                                            |
-| ----------------------------------- | ------------------------------------------------------------------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| One Cloudflare account              | Local development, staging, and optimistic latency/cost benchmarks | Service Bindings                          | Separate Worker runtime and storage bindings while the shared control plane remains honest.                  |
-| Two independent Cloudflare accounts | Production and production-parity development                       | Authenticated, pinned cross-account HTTPS | Independent administrators, deployment credentials, secrets, storage, logs, backups, and incident authority. |
+| Profile | Status and use | A/B transport | Security property |
+| --- | --- | --- | --- |
+| One Cloudflare account | Selected P0 production, staging, local parity, and benchmarks | Service Binding WebSocket | Separate Worker runtimes and role-local secrets while the shared control plane remains honest. |
+| Two independent Cloudflare accounts | Deferred stronger-operator experiment | Public WebSocket in the measured checkpoint | Independent administration can strengthen the control-plane boundary after reconnect and tail-latency gates pass. |
 
 Same-account deployment contains a compromise confined to one Worker runtime
 while the account administration and deployment control plane remain honest.
 An account administrator or shared deployment credential can replace both
-Workers and create effective A+B collusion. It therefore cannot support the
-strict production claim.
+Workers and create effective A+B collusion. The selected P0 claim excludes that
+threat. The cross-account experiment preserved the exact wire protocol but its
+`315 ms` p95 missed the `250 ms` objective and a later reconnect defect remains
+unresolved.
 
 ## Security properties
 
-With the production gates complete and A and B in independent administrative
-domains, the target provides privacy and correctness-with-abort against Router
-plus at most one malicious Deriver:
+The selected P0 profile provides split-role privacy under passive, honest
+execution while the shared account control plane remains honest:
 
 - Router sees public metadata, timing, ciphertexts, and signed receipts;
 - Deriver A never receives B's plaintext input or joined output;
 - Deriver B never receives A's plaintext input or joined output;
 - output shares are generated inside the approved protocol and encrypted
   separately to the client and SigningWorker;
-- malicious-secure OT, input consistency, selective-failure resistance, and
-  authenticated private outputs detect active cheating before acceptance;
 - one-use tickets prevent preprocessing, labels, masks, and transcript nonces
   from being reused;
 - the client can reconstruct the seed only during a freshly authorized export;
 - normal signing never reconstructs the private key.
 
-The claim excludes A+B collusion, Cloudflare platform-wide compromise,
-fairness, guaranteed output delivery, and availability when a Deriver aborts.
+The claim excludes malicious Deriver behavior, A+B collusion, shared-account
+administrator compromise, Cloudflare platform-wide compromise, fairness,
+guaranteed output delivery, and availability when a Deriver aborts. Active
+security, malicious-secure OT, input consistency, and authenticated private
+outputs belong to a stronger future profile.
 
 ## Cost model
 
@@ -244,25 +269,19 @@ storage while contributing `$0` in Workers bandwidth fees. CPU, active-protocol
 rounds, retries, Durable Objects, and any prepositioned circuit storage drive
 variable cost.
 
-For one million successful ceremonies, equal CPU on A and B, dedicated accounts,
-and request counts within the included allowance:
-
-| CPU per Deriver per ceremony | Two-account monthly total |
-| ---------------------------: | ------------------------: |
-|                      `30 ms` |                  `$10.00` |
-|                      `50 ms` |                  `$10.80` |
-|                     `100 ms` |                  `$12.80` |
-|                     `500 ms` |                  `$28.80` |
-|                   `1 second` |                  `$48.80` |
-
-A same-account development deployment has a `$5` base under the same planning
-assumptions and shares one CPU allowance. Service Binding calls do not add
-request fees. This is an optimistic benchmark under the shared-control-plane
-security model.
+The production-artifact campaign measured mean CPU of `226.3 ms` for Deriver A
+and `167.0 ms` for Deriver B, or `393.2 ms` combined per ceremony. Sampled p99
+isolate memory was `27.7 MB` for A and `33.8 MB` for B, with no
+`exceededMemory` outcome. At the July 17 pricing snapshot, those measurements
+model to approximately `$8.16` of gross request plus CPU usage per million
+ceremonies before included monthly usage. Service Binding calls and Worker
+bandwidth add no separate charge, and the benchmark Workers use no storage
+binding.
 
 The historical approximately `300 ms` repository HSS measurement covered a
 simulator and wrapper path. It does not establish latency, cost, or security for
 a genuine succinct-HSS construction. The closed succinct-HSS analysis predicted
 group-heavy computation and left amplification, active security, and complete
-wire volume unresolved. Streaming Yao is the selected Ed25519 path; deployed
-active-Yao measurements determine its final latency and cost.
+wire volume unresolved. Streaming Yao is the selected Ed25519 path. The
+measurements above describe the deployed P0 profile; stronger active-security
+profiles require their own latency, resource, and cost evidence.

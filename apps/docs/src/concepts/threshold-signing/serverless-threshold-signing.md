@@ -51,8 +51,8 @@ no server fleet.
 
 That gives teams a practical path from prototype to production:
 
-- start with a same-account development deployment or a separate-account
-  production-parity deployment;
+- use the selected same-account P0 deployment for production, staging, local
+  parity, and benchmarks;
 - keep Router, Deriver, and SigningWorker roles separated;
 - scale with Workers instead of managing long-running servers;
 - preserve the same wallet architecture as operational isolation increases.
@@ -60,6 +60,8 @@ That gives teams a practical path from prototype to production:
 Small teams can test the model without standing up bespoke infrastructure.
 Larger deployments can add private bindings, isolated workers, dedicated
 storage, TEEs, and stricter release controls around the same protocol shape.
+Independently administered Deriver accounts remain a stronger deferred profile
+until their reconnect reliability and tail-latency gates pass.
 
 Deployable runtime artifacts and development examples are available separately
 from the planned production portability product. R122 will add the customer
