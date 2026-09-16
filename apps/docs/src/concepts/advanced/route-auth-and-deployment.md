@@ -25,13 +25,14 @@ browser CORS or parse Wallet Session credentials directly.
 Both supported Cloudflare profiles keep Router, Deriver A, Deriver B, and
 SigningWorker as distinct runtime roles:
 
-| Profile           | Use                                          | A/B transport               | Security boundary                                                                         |
-| ----------------- | -------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------- |
-| Same account      | Development, staging, and latency benchmarks | Service Bindings            | Separate Worker runtimes under one shared account control plane.                          |
-| Separate accounts | Production and production-parity development | Authenticated, pinned HTTPS | Independent A and B administration, credentials, storage, logs, and deployment authority. |
+| Profile | Use | A/B transport | Security boundary |
+| --- | --- | --- | --- |
+| Same account | Selected P0 production, staging, local parity, and benchmarks | Service Binding WebSocket | Separate Worker runtimes under one shared account control plane. |
+| Separate accounts | Deferred stronger-operator experiment | Public WebSocket in the measured checkpoint | Independent A and B administration can strengthen the control-plane boundary after its open reliability and latency gates pass. |
 
 The deployment profile is selected before startup. Client requests cannot
 choose the topology. Same-account deployment retains isolation against a
 runtime compromise confined to one Worker while the account control plane
-remains honest. An account administrator can modify both roles, so the strict
-production claim requires separate accounts.
+remains honest. Its P0 claim excludes shared-account administrator compromise.
+The measured separate-account checkpoint missed the current p95 objective and
+remains a deferred profile.
