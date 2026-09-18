@@ -3,6 +3,7 @@ import {
   getWalletSessionDomain,
   hasPasskeyCredentialDomain,
   lockDomain,
+  logoutDomain,
   prefillRouterAbEcdsaDerivationPresignaturePoolDomain,
   unlockDomain,
   type WalletAuthDomainDeps,
@@ -26,6 +27,7 @@ export function createAuthCapability(deps: {
     unlock: async (walletId, options) =>
       await unlockDomain(deps.getWalletAuthDeps(), walletId, options),
     lock: async () => await lockDomain(deps.getWalletAuthDeps()),
+    logout: async () => await logoutDomain(deps.getWalletAuthDeps()),
     getWalletSession: async (walletId) =>
       await getWalletSessionDomain(deps.getWalletAuthDeps(), walletId),
     getRecentUnlocks: async () => await getRecentUnlocksDomain(deps.getWalletAuthDeps()),

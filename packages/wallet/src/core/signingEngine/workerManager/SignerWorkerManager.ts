@@ -18,6 +18,7 @@ import type { ThemeMode, SeamsChainConfig } from '@/core/types/seams';
 import type { NearSigningKeyOps } from '../interfaces/nearKeyOps';
 import type { WorkerTransport } from './workerTransport';
 import { createNearKeyOps } from './nearKeyOps/createNearKeyOps';
+import type { EcdsaClientPresignCleanupTarget } from './ecdsaPresignLifecycle';
 
 export interface SignerWorkerManagerContext extends NearSigningRuntimeDeps {
   userPreferencesManager: UserPreferencesManager;
@@ -116,6 +117,10 @@ export class SignerWorkerManager {
 
   async prewarmWorkers(): Promise<void> {
     await this.workerTransport.prewarmWorkers();
+  }
+
+  async clearEcdsaClientWorkerState(target: EcdsaClientPresignCleanupTarget): Promise<void> {
+    await this.workerTransport.clearEcdsaClientWorkerState(target);
   }
 
   async prewarmEcdsaRegistrationCrypto(): Promise<{

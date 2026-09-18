@@ -4,6 +4,7 @@ import {
   scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill,
   signRouterAbEcdsaDerivationDigestWithPool,
 } from '../../../routerAb/ecdsaDerivation/presignaturePool';
+import { MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS } from '../../../workerManager/ecdsaPresignLifecycle';
 import type { HydratedEcdsaSignerMaterial } from '../../../session/identity/evmFamilyEcdsaIdentity';
 import {
   loadRouterAbEcdsaDerivationSigningMaterialSource,
@@ -187,7 +188,8 @@ function scheduleRouterAbEcdsaDerivationPostSignRefill(args: {
     routerAbEcdsaDerivationPoolFill: {
       kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
       scope: signerSession.routerAbEcdsaDerivationNormalSigning.state.scope,
-      expiresAtMs: args.expiresAtMs,
+      ceremonyExpiresAtMs: args.expiresAtMs,
+      materialExpiresAtMs: Date.now() + MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS,
     },
     workerCtx: args.workerCtx,
     authorization: args.authorization,

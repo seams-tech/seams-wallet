@@ -33,6 +33,7 @@ import type {
 import { toAccountId, type AccountId } from '@/core/types/accountIds';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
+import type { EcdsaClientPresignCleanupTarget } from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
 import type { EcdsaCapabilitySelector } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
 import {
   resolveManagedRuntimeScopeBootstrap,
@@ -8220,10 +8221,16 @@ export type LockOperationContext = {
     readWalletAuthenticationState(): WalletAuthenticationState;
     advanceWalletLockGeneration(walletId: WalletId): Promise<number>;
     retireActiveWalletSessionAuthorizationForLock(walletId: WalletId): Promise<void>;
-    clearWalletAuthentication(): void;
+    clearWalletAuthenticationIfCurrent(expected: WalletAuthenticationState): boolean;
     getNonceCoordinator(): { clearAll(): void };
     clearThresholdEcdsaSigningQueue(): void;
-    clearVolatileWarmSigningMaterial(): Promise<void>;
+    clearVolatileWarmSigningMaterial(walletId?: WalletId): Promise<void>;
+  };
+};
+
+export type LogoutOperationContext = {
+  signingEngine: LockOperationContext['signingEngine'] & {
+    deleteDurableEcdsaPresignatures(target: EcdsaClientPresignCleanupTarget): Promise<number>;
   };
 };
 
@@ -8232,34 +8239,71 @@ export async function lock(context: LockOperationContext): Promise<void> {
   const authentication = signingEngine.readWalletAuthenticationState();
   let failure: unknown;
   let failed = false;
+  let authenticationCleared = false;
   if (authentication.kind === 'authenticated') {
     try {
       await signingEngine.advanceWalletLockGeneration(authentication.walletId);
-      await signingEngine.retireActiveWalletSessionAuthorizationForLock(authentication.walletId);
     } catch (error: unknown) {
       failure = error;
       failed = true;
     }
+    try {
+      await signingEngine.retireActiveWalletSessionAuthorizationForLock(authentication.walletId);
+    } catch (error: unknown) {
+      if (!failed) {
+        failure = error;
+        failed = true;
+      }
+    }
   }
   try {
-    signingEngine.clearWalletAuthentication();
+    authenticationCleared = signingEngine.clearWalletAuthenticationIfCurrent(authentication);
   } catch (error: unknown) {
     if (!failed) {
       failure = error;
       failed = true;
     }
   }
+  if (authenticationCleared) {
+    try {
+      signingEngine.getNonceCoordinator().clearAll();
+    } catch {}
+    try {
+      signingEngine.clearThresholdEcdsaSigningQueue();
+    } catch {}
+  }
   try {
-    signingEngine.getNonceCoordinator().clearAll();
-  } catch {}
-  try {
-    signingEngine.clearThresholdEcdsaSigningQueue();
-  } catch {}
-  try {
-    await signingEngine.clearVolatileWarmSigningMaterial();
+    await signingEngine.clearVolatileWarmSigningMaterial(
+      authentication.kind === 'authenticated' ? authentication.walletId : undefined,
+    );
   } catch (error: unknown) {
     if (!failed) {
       failure = error;
+      failed = true;
+    }
+  }
+  if (failed) throw failure;
+}
+
+export async function logout(context: LogoutOperationContext): Promise<void> {
+  const authentication = context.signingEngine.readWalletAuthenticationState();
+  const cleanupTarget: Extract<EcdsaClientPresignCleanupTarget, { kind: 'wallet' }> | null =
+    authentication.kind === 'authenticated'
+      ? { kind: 'wallet', walletId: authentication.walletId }
+      : null;
+  let failure: unknown;
+  let failed = false;
+  try {
+    await lock(context);
+  } catch (error: unknown) {
+    failure = error;
+    failed = true;
+  }
+  if (cleanupTarget) {
+    try {
+      await context.signingEngine.deleteDurableEcdsaPresignatures(cleanupTarget);
+    } catch (error: unknown) {
+      if (!failed) failure = error;
       failed = true;
     }
   }

@@ -140,11 +140,6 @@ export type ThresholdStoreEnvInput = {
   THRESHOLD_ECDSA_SESSION_PREFIX?: string;
   THRESHOLD_ECDSA_WALLET_SESSION_PREFIX?: string;
   /**
-   * Optional prefix for threshold ECDSA presignature pool storage.
-   * Defaults derive from `THRESHOLD_PREFIX` with a `threshold-ecdsa:*` namespace when unset.
-   */
-  THRESHOLD_ECDSA_PRESIGN_PREFIX?: string;
-  /**
    * Optional override for the client FROST participant identifier (u16, >= 1).
    * Must be distinct from `THRESHOLD_ED25519_RELAYER_PARTICIPANT_ID`.
    */
@@ -827,7 +822,8 @@ export type RouterAbEcdsaDerivationPoolFillInitRequest = {
   poolFill: {
     kind: 'router_ab_ecdsa_derivation_signing_worker_pool';
     scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
-    expiresAtMs: number;
+    ceremonyExpiresAtMs: number;
+    materialExpiresAtMs: number;
   };
 };
 
@@ -836,6 +832,7 @@ export type RouterAbEcdsaDerivationPoolFillInitResponse = {
   code?: string;
   message?: string;
   presignSessionId?: string;
+  ceremonyExpiresAtMs?: number;
   materialExpiresAtMs?: number;
   stage?: 'triples' | 'triples_done' | 'presign' | 'done';
   outgoingMessagesB64u?: string[];
@@ -843,6 +840,8 @@ export type RouterAbEcdsaDerivationPoolFillInitResponse = {
 
 export type RouterAbEcdsaDerivationPoolFillStepRequest = {
   presignSessionId: string;
+  ceremonyExpiresAtMs: number;
+  materialExpiresAtMs: number;
   /**
    * The client-requested stage transition:
    * - `triples`: continue triple generation

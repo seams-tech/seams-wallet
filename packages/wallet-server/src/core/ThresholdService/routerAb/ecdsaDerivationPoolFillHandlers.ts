@@ -19,7 +19,6 @@ import {
   type RuntimePolicyScope,
 } from '@shared/threshold/signingRootScope';
 import type { ThresholdNodeRole } from '../config';
-import type { RouterAbEcdsaDerivationPoolFillSessionDestination } from '../stores/EcdsaSigningStore';
 import {
   startRouterAbEcdsaPresignSession,
   stepRouterAbEcdsaPresignSession,
@@ -31,6 +30,8 @@ type ParseOk<T> = { ok: true; value: T };
 type ParseErr = { ok: false; code: string; message: string };
 type ParseResult<T> = ParseOk<T> | ParseErr;
 const PRESIGN_SESSION_ID_PREFIX = 'ecdsa-presign-v2';
+const MAX_PRESIGN_CEREMONY_LIFETIME_MS = 5 * 60_000;
+const MAX_DURABLE_PRESIGNATURE_LIFETIME_MS = 24 * 60 * 60_000;
 
 type RouterAbEcdsaDerivationPoolFillBinding = {
   readonly walletId: string;
@@ -39,8 +40,36 @@ type RouterAbEcdsaDerivationPoolFillBinding = {
   readonly runtimePolicyScope: RuntimePolicyScope;
   readonly participantIds: readonly [number, number];
   readonly thresholdExpiresAtMs: number;
+  readonly authorization:
+    | { readonly kind: 'wallet_session' }
+    | { readonly kind: 'operation_step_up'; readonly materialExpiresAtMs: number };
   readonly routerAbEcdsaDerivationNormalSigning: RouterAbEcdsaDerivationNormalSigningStateV1;
 };
+
+export function resolveRouterAbEcdsaPresignDeadlines(input: {
+  readonly requestedCeremonyExpiresAtMs: number;
+  readonly requestedMaterialExpiresAtMs: number;
+  readonly thresholdExpiresAtMs: number;
+  readonly authorization: RouterAbEcdsaDerivationPoolFillBinding['authorization'];
+  readonly nowMs: number;
+}): { readonly ceremonyExpiresAtMs: number; readonly materialExpiresAtMs: number } {
+  const ceremonyExpiresAtMs = Math.min(
+    input.requestedCeremonyExpiresAtMs,
+    input.thresholdExpiresAtMs,
+    input.nowMs + MAX_PRESIGN_CEREMONY_LIFETIME_MS,
+  );
+  const maximumAuthorizedMaterialExpiry =
+    input.authorization.kind === 'operation_step_up'
+      ? input.authorization.materialExpiresAtMs
+      : Number.MAX_SAFE_INTEGER;
+  const materialExpiresAtMs = Math.min(
+    input.requestedMaterialExpiresAtMs,
+    maximumAuthorizedMaterialExpiry,
+    input.nowMs + MAX_DURABLE_PRESIGNATURE_LIFETIME_MS,
+  );
+  return { ceremonyExpiresAtMs, materialExpiresAtMs };
+}
+
 function presignSessionExpiresAtMs(presignSessionId: string): number | null {
   const [prefix, expiresAtRaw] = presignSessionId.split(':', 3);
   if (prefix !== PRESIGN_SESSION_ID_PREFIX) return null;
@@ -71,10 +100,8 @@ type ThresholdEcdsaRoleLocalKeyRecordSelector = {
   ecdsaThresholdKeyId?: never;
 };
 
-type RouterAbEcdsaDerivationSigningWorkerPoolFillDestination = Extract<
-  RouterAbEcdsaDerivationPoolFillSessionDestination,
-  { kind: 'router_ab_ecdsa_derivation_signing_worker_pool' }
->;
+type RouterAbEcdsaDerivationSigningWorkerPoolFillDestination =
+  RouterAbEcdsaDerivationPoolFillInitRequest['poolFill'];
 
 function requireExactPoolFillKeys(
   record: Record<string, unknown>,
@@ -116,7 +143,12 @@ function parseRouterAbEcdsaDerivationPoolFillRequest(
       message: 'poolFill.kind must be router_ab_ecdsa_derivation_signing_worker_pool',
     };
   }
-  const exactKeys = requireExactPoolFillKeys(record, ['kind', 'scope', 'expiresAtMs']);
+  const exactKeys = requireExactPoolFillKeys(record, [
+    'kind',
+    'scope',
+    'ceremonyExpiresAtMs',
+    'materialExpiresAtMs',
+  ]);
   if (!exactKeys.ok) return exactKeys;
 
   let scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
@@ -130,20 +162,36 @@ function parseRouterAbEcdsaDerivationPoolFillRequest(
     };
   }
 
-  const expiresAtMs = record.expiresAtMs;
-  if (typeof expiresAtMs !== 'number' || !Number.isFinite(expiresAtMs)) {
+  const ceremonyExpiresAtMs = record.ceremonyExpiresAtMs;
+  if (typeof ceremonyExpiresAtMs !== 'number' || !Number.isFinite(ceremonyExpiresAtMs)) {
     return {
       ok: false,
       code: 'invalid_body',
-      message: 'poolFill.expiresAtMs must be a finite number',
+      message: 'poolFill.ceremonyExpiresAtMs must be a finite number',
     };
   }
-  const expiresAtMsInt = Math.floor(expiresAtMs);
-  if (expiresAtMsInt !== expiresAtMs || expiresAtMsInt <= 0) {
+  const ceremonyExpiresAtMsInt = Math.floor(ceremonyExpiresAtMs);
+  if (ceremonyExpiresAtMsInt !== ceremonyExpiresAtMs || ceremonyExpiresAtMsInt <= 0) {
     return {
       ok: false,
       code: 'invalid_body',
-      message: 'poolFill.expiresAtMs must be a positive integer timestamp',
+      message: 'poolFill.ceremonyExpiresAtMs must be a positive integer timestamp',
+    };
+  }
+  const materialExpiresAtMs = record.materialExpiresAtMs;
+  if (typeof materialExpiresAtMs !== 'number' || !Number.isFinite(materialExpiresAtMs)) {
+    return {
+      ok: false,
+      code: 'invalid_body',
+      message: 'poolFill.materialExpiresAtMs must be a finite number',
+    };
+  }
+  const materialExpiresAtMsInt = Math.floor(materialExpiresAtMs);
+  if (materialExpiresAtMsInt !== materialExpiresAtMs || materialExpiresAtMsInt <= 0) {
+    return {
+      ok: false,
+      code: 'invalid_body',
+      message: 'poolFill.materialExpiresAtMs must be a positive integer timestamp',
     };
   }
 
@@ -151,10 +199,9 @@ function parseRouterAbEcdsaDerivationPoolFillRequest(
     ok: true,
     value: {
       kind,
-      routerAbEcdsaDerivation: {
-        scope,
-        expiresAtMs: expiresAtMsInt,
-      },
+      scope,
+      ceremonyExpiresAtMs: ceremonyExpiresAtMsInt,
+      materialExpiresAtMs: materialExpiresAtMsInt,
     },
   };
 }
@@ -209,12 +256,28 @@ function parseRouterAbEcdsaDerivationPoolFillStepRequest(
   request: RouterAbEcdsaDerivationPoolFillStepRequest,
 ): ParseResult<{
   presignSessionId: string;
+  ceremonyExpiresAtMs: number;
+  materialExpiresAtMs: number;
   stage: 'triples' | 'presign';
   outgoingMessagesB64u: string[];
 }> {
   const presignSessionId = toOptionalTrimmedString(request.presignSessionId);
   if (!presignSessionId)
     return { ok: false, code: 'invalid_body', message: 'presignSessionId is required' };
+  const ceremonyExpiresAtMs = Number(request.ceremonyExpiresAtMs);
+  const materialExpiresAtMs = Number(request.materialExpiresAtMs);
+  if (
+    !Number.isSafeInteger(ceremonyExpiresAtMs) ||
+    ceremonyExpiresAtMs <= 0 ||
+    !Number.isSafeInteger(materialExpiresAtMs) ||
+    materialExpiresAtMs <= 0
+  ) {
+    return {
+      ok: false,
+      code: 'invalid_body',
+      message: 'ceremonyExpiresAtMs and materialExpiresAtMs must be positive integer timestamps',
+    };
+  }
   const stageRaw = toOptionalTrimmedString((request as { stage?: unknown }).stage);
   if (stageRaw !== 'triples' && stageRaw !== 'presign') {
     return { ok: false, code: 'invalid_body', message: 'stage must be "triples" or "presign"' };
@@ -223,7 +286,16 @@ function parseRouterAbEcdsaDerivationPoolFillStepRequest(
   const outgoingMessagesB64u = Array.isArray(msgsRaw)
     ? msgsRaw.map((v) => toOptionalTrimmedString(v)).filter((v): v is string => Boolean(v))
     : [];
-  return { ok: true, value: { presignSessionId, stage: stageRaw, outgoingMessagesB64u } };
+  return {
+    ok: true,
+    value: {
+      presignSessionId,
+      ceremonyExpiresAtMs,
+      materialExpiresAtMs,
+      stage: stageRaw,
+      outgoingMessagesB64u,
+    },
+  };
 }
 
 function sameParticipantIds(a: number[], b: number[]): boolean {
@@ -271,7 +343,7 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
     signingRoot: Pick<ThresholdEcdsaSigningRootMetadata, 'signingRootId' | 'signingRootVersion'>;
   }): Promise<RouterAbEcdsaDerivationPoolFillInitResponse> {
     const transport = this.signingWorkerTransport;
-    const scope = input.poolFill.routerAbEcdsaDerivation.scope;
+    const scope = input.poolFill.scope;
     const trustedScope = input.binding.routerAbEcdsaDerivationNormalSigning.scope;
     if (!sameRouterAbEcdsaDerivationNormalSigningScopeV1(scope, trustedScope)) {
       return {
@@ -293,16 +365,28 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
       };
     }
     const nowMs = Date.now();
-    const expiresAtMs = Math.min(
-      input.poolFill.routerAbEcdsaDerivation.expiresAtMs,
-      input.binding.thresholdExpiresAtMs,
-      nowMs + 5 * 60_000,
-    );
-    if (expiresAtMs <= nowMs) {
+    const { ceremonyExpiresAtMs, materialExpiresAtMs } =
+      resolveRouterAbEcdsaPresignDeadlines({
+        requestedCeremonyExpiresAtMs:
+          input.poolFill.ceremonyExpiresAtMs,
+        requestedMaterialExpiresAtMs:
+          input.poolFill.materialExpiresAtMs,
+        thresholdExpiresAtMs: input.binding.thresholdExpiresAtMs,
+        authorization: input.binding.authorization,
+        nowMs,
+      });
+    if (ceremonyExpiresAtMs <= nowMs || materialExpiresAtMs <= nowMs) {
       return {
         ok: false,
         code: WALLET_SESSION_FAILURE_CODES.expired,
-        message: 'Wallet Session expired',
+        message: 'ECDSA presignature expiry is unavailable or expired',
+      };
+    }
+    if (materialExpiresAtMs < ceremonyExpiresAtMs) {
+      return {
+        ok: false,
+        code: WALLET_SESSION_FAILURE_CODES.expired,
+        message: 'ECDSA material expiry must cover the presign ceremony',
       };
     }
     const participantIds = normalizeThresholdEd25519ParticipantIds(input.binding.participantIds);
@@ -313,12 +397,13 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
         message: 'Wallet Session participantIds do not match the ECDSA signer set',
       };
     }
-    const presignSessionId = this.createPoolFillSessionId(expiresAtMs);
+    const presignSessionId = this.createPoolFillSessionId(ceremonyExpiresAtMs);
     const started = await startRouterAbEcdsaPresignSession({
       signingWorkerBaseUrl: transport.signingWorkerBaseUrl,
       scope,
       presignSessionId,
-      expiresAtMs,
+      ceremonyExpiresAtMs,
+      materialExpiresAtMs,
       auth: transport.auth,
       fetchImpl: transport.fetchImpl,
     });
@@ -335,7 +420,8 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
     return {
       ok: true,
       presignSessionId,
-      materialExpiresAtMs: expiresAtMs,
+      ceremonyExpiresAtMs,
+      materialExpiresAtMs,
       stage: started.value.stage,
       outgoingMessagesB64u: started.value.outgoingMessagesB64u,
     };
@@ -344,6 +430,8 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
   private async stepStrictPresignSession(input: {
     binding: RouterAbEcdsaDerivationPoolFillBinding;
     presignSessionId: string;
+    ceremonyExpiresAtMs: number;
+    materialExpiresAtMs: number;
     requestedStage: 'triples' | 'presign';
     outgoingMessagesB64u: string[];
   }): Promise<RouterAbEcdsaDerivationPoolFillStepResponse> {
@@ -355,7 +443,8 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
       presignSessionId: input.presignSessionId,
       requestedStage: input.requestedStage,
       outgoingMessagesB64u: input.outgoingMessagesB64u,
-      expiresAtMs: input.binding.thresholdExpiresAtMs,
+      ceremonyExpiresAtMs: input.ceremonyExpiresAtMs,
+      materialExpiresAtMs: input.materialExpiresAtMs,
       auth: transport.auth,
       fetchImpl: transport.fetchImpl,
     });
@@ -472,9 +561,15 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
 
     const parsedRequest = parseRouterAbEcdsaDerivationPoolFillStepRequest(input.request);
     if (!parsedRequest.ok) return parsedRequest;
-    const { presignSessionId, stage: requestedStage, outgoingMessagesB64u } = parsedRequest.value;
+    const {
+      presignSessionId,
+      ceremonyExpiresAtMs,
+      materialExpiresAtMs,
+      stage: requestedStage,
+      outgoingMessagesB64u,
+    } = parsedRequest.value;
     const binding = input.binding;
-    const expiresAtMs = presignSessionExpiresAtMs(presignSessionId);
+    const sessionCeremonyExpiresAtMs = presignSessionExpiresAtMs(presignSessionId);
     const walletId = toOptionalTrimmedString(binding.walletId);
     try {
       parseEcdsaKeyHandle(binding.keyHandle);
@@ -488,7 +583,7 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
     const relayerKeyId = toOptionalTrimmedString(binding.relayerKeyId);
     const participantIds = normalizeThresholdEd25519ParticipantIds(binding.participantIds);
     const scope = binding.routerAbEcdsaDerivationNormalSigning.scope;
-    if (!walletId || !relayerKeyId || !participantIds || !expiresAtMs) {
+    if (!walletId || !relayerKeyId || !participantIds || !sessionCeremonyExpiresAtMs) {
       return {
         ok: false,
         code: WALLET_SESSION_FAILURE_CODES.invalid,
@@ -505,7 +600,11 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
         message: 'Wallet Session normal-signing scope does not match presign binding',
       };
     }
-    if (Date.now() > expiresAtMs || expiresAtMs > binding.thresholdExpiresAtMs) {
+    if (
+      Date.now() > sessionCeremonyExpiresAtMs ||
+      ceremonyExpiresAtMs !== sessionCeremonyExpiresAtMs ||
+      sessionCeremonyExpiresAtMs > binding.thresholdExpiresAtMs
+    ) {
       return {
         ok: false,
         code: WALLET_SESSION_FAILURE_CODES.expired,
@@ -513,8 +612,10 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
       };
     }
     return await this.stepStrictPresignSession({
-      binding: { ...binding, thresholdExpiresAtMs: expiresAtMs },
+      binding: { ...binding, thresholdExpiresAtMs: sessionCeremonyExpiresAtMs },
       presignSessionId,
+      ceremonyExpiresAtMs,
+      materialExpiresAtMs,
       requestedStage,
       outgoingMessagesB64u,
     });

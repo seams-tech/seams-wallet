@@ -76,6 +76,10 @@ import {
   type EcdsaClientPresignPoolIdentity,
 } from '../../workerManager/ecdsaPresignPoolIdentity';
 import type {
+  EcdsaClientPresignAdmissionStorage,
+  EcdsaClientPresignReservationResult,
+} from '../../workerManager/ecdsaPresignLifecycle';
+import type {
   CloseRouterAbEcdsaRegistrationCeremonyRequestV1,
   CloseRouterAbEcdsaRegistrationCeremonyResultV1,
   CreateRouterAbEcdsaRegistrationCeremonyRequestV1,
@@ -651,6 +655,7 @@ export async function thresholdEcdsaRoleLocalPresignSessionInitFromMaterialHandl
       };
   sessionId: string;
   groupPublicKey33: Uint8Array;
+  ceremonyExpiresAtMs: number;
   materialExpiresAtMs: number;
   poolIdentity: EcdsaClientPresignPoolIdentity;
   workerCtx: WorkerOperationContext;
@@ -669,6 +674,7 @@ export async function thresholdEcdsaRoleLocalPresignSessionInitFromMaterialHandl
         },
         sessionId: input.sessionId,
         groupPublicKey33: groupPublicKey33.buffer,
+        ceremonyExpiresAtMs: input.ceremonyExpiresAtMs,
         materialExpiresAtMs: input.materialExpiresAtMs,
         poolIdentity: input.poolIdentity,
       },
@@ -688,6 +694,7 @@ export async function thresholdEcdsaLinkedHolderPresignSessionInitWasm(input: {
   holderHandleId: string;
   sessionId: string;
   groupPublicKey33: Uint8Array;
+  ceremonyExpiresAtMs: number;
   materialExpiresAtMs: number;
   poolIdentity: EcdsaClientPresignPoolIdentity;
   workerCtx: WorkerOperationContext;
@@ -705,6 +712,7 @@ export async function thresholdEcdsaLinkedHolderPresignSessionInitWasm(input: {
         },
         sessionId: input.sessionId,
         groupPublicKey33: groupPublicKey33.buffer,
+        ceremonyExpiresAtMs: input.ceremonyExpiresAtMs,
         materialExpiresAtMs: input.materialExpiresAtMs,
         poolIdentity: input.poolIdentity,
       },
@@ -975,8 +983,9 @@ export async function thresholdEcdsaRoleLocalAdmitPresignatureWasm(input: {
   materialHandle: string;
   expectedPresignatureId: string;
   poolIdentity: EcdsaClientPresignPoolIdentity;
+  admissionMode: 'durable' | 'resident';
   workerCtx: WorkerOperationContext;
-}): Promise<void> {
+}): Promise<EcdsaClientPresignAdmissionStorage> {
   const response = await requestEcdsaPresignOperation({
     workerCtx: input.workerCtx,
     request: {
@@ -986,6 +995,7 @@ export async function thresholdEcdsaRoleLocalAdmitPresignatureWasm(input: {
         materialHandle: input.materialHandle,
         expectedPresignatureId: input.expectedPresignatureId,
         poolIdentity: input.poolIdentity,
+        admissionMode: input.admissionMode,
       },
     },
   });
@@ -999,6 +1009,7 @@ export async function thresholdEcdsaRoleLocalAdmitPresignatureWasm(input: {
   ) {
     throw new Error('ThresholdEcdsaRoleLocalAdmitPresignature returned invalid binding');
   }
+  return response.payload.storage;
 }
 
 export async function thresholdEcdsaRoleLocalDestroyPresignatureWasm(input: {
@@ -1027,12 +1038,13 @@ export async function thresholdEcdsaRoleLocalDestroyPresignatureWasm(input: {
 
 export async function thresholdEcdsaRoleLocalReservePresignatureWasm(input: {
   materialHandle: string;
+  expectedPresignatureId: string;
   poolIdentity: EcdsaClientPresignPoolIdentity;
   requestBinding: string;
   reservationId: string;
   leaseExpiresAtMs: number;
   workerCtx: WorkerOperationContext;
-}): Promise<void> {
+}): Promise<EcdsaClientPresignReservationResult> {
   const response = await requestEcdsaPresignOperation({
     workerCtx: input.workerCtx,
     request: {
@@ -1040,6 +1052,7 @@ export async function thresholdEcdsaRoleLocalReservePresignatureWasm(input: {
       timeoutMs: ECDSA_DERIVATION_CLIENT_WORKER_TIMEOUT_MS,
       payload: {
         materialHandle: input.materialHandle,
+        expectedPresignatureId: input.expectedPresignatureId,
         poolIdentity: input.poolIdentity,
         requestBinding: input.requestBinding,
         reservationId: input.reservationId,
@@ -1050,6 +1063,7 @@ export async function thresholdEcdsaRoleLocalReservePresignatureWasm(input: {
   if (response.type !== EcdsaPresignClientResponseType.ReserveSuccess) {
     throw new Error('ThresholdEcdsaRoleLocalReservePresignature failed');
   }
+  return response.payload;
 }
 
 export async function thresholdEcdsaRoleLocalCommitPresignatureWasm(input: {
@@ -1093,34 +1107,6 @@ export async function thresholdEcdsaRoleLocalListAvailablePresignaturesWasm(inpu
     throw new Error('ThresholdEcdsaRoleLocalListAvailablePresignatures failed');
   }
   return response.payload.map(parseListedClientPresignature);
-}
-
-export async function thresholdEcdsaRoleLocalRetirePresignaturePoolWasm(input: {
-  poolIdentity: EcdsaClientPresignPoolIdentity;
-  reason: 'key_epoch_retired' | 'activation_epoch_retired';
-  workerCtx: WorkerOperationContext;
-}): Promise<number> {
-  const response = await requestEcdsaOnlineOperation({
-    workerCtx: input.workerCtx,
-    request: {
-      type: EcdsaOnlineClientRequestType.RetirePool,
-      timeoutMs: ECDSA_DERIVATION_CLIENT_WORKER_TIMEOUT_MS,
-      payload: { poolIdentity: input.poolIdentity, reason: input.reason },
-    },
-  });
-  if (response.type !== EcdsaOnlineClientResponseType.RetirePoolSuccess) {
-    throw new Error('ThresholdEcdsaRoleLocalRetirePresignaturePool failed');
-  }
-  if (
-    response.payload.kind !== 'ecdsa_client_presignature_pool_retired_v1' ||
-    response.payload.reason !== input.reason ||
-    !equalEcdsaClientPresignPoolIdentity(response.payload.poolIdentity, input.poolIdentity) ||
-    !Number.isSafeInteger(response.payload.retiredCount) ||
-    response.payload.retiredCount < 0
-  ) {
-    throw new Error('ThresholdEcdsaRoleLocalRetirePresignaturePool returned invalid receipt');
-  }
-  return response.payload.retiredCount;
 }
 
 export async function thresholdEcdsaRoleLocalComputeSignatureShareFromPresignatureHandleWasm(input: {

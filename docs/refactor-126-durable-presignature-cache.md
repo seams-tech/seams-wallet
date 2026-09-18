@@ -1,7 +1,7 @@
 # Refactor 126: durable encrypted ECDSA presignature cache
 
-**Status:** Proposed. This document plans implementation; it does not change
-signing behavior.
+**Status:** Implemented. Release validation and production latency measurement
+remain operational follow-up work.
 
 ## Decision
 
@@ -58,19 +58,10 @@ for both the short-lived presign ceremony and the completed material. Durable
 storage alone would preserve an already-expired record. Implementation must
 separate the ceremony deadline from the completed material lifetime.
 
-Add timing telemetry before changing behavior to confirm this diagnosis in
-production. Record stage durations and categorical outcomes only:
-
-- cache discovery and atomic take;
-- cache decrypt and Rust parse;
-- presign protocol generation;
-- SigningWorker reserve/prepare, including the existing private D1 mutation;
-- online share generation and finalize;
-- cache outcome: `hit`, `miss`, `expired`, `binding_rejected`, `corrupt`, or
-  `claimed_elsewhere`.
-
-Do not log wallet identifiers, authority identifiers, presignature
-identifiers, ciphertext, protocol messages, or key material.
+Use existing request timing to measure the production latency change. Add a
+dedicated metrics sink later if cache outcome metrics become necessary; the
+first implementation does not create browser performance entries without a
+consumer.
 
 ## Existing ownership to preserve
 
@@ -433,15 +424,12 @@ operational recovery.
 
 ### 1. Confirm the latency and lifecycle boundaries
 
-- [ ] Add stage timing and cache-outcome telemetry without identity or secret
-  fields.
 - [ ] Capture representative cold and warm Tempo signing traces. Confirm
-  presign rounds account for the gap before enabling durable caching; use
-  production telemetry to verify the result after release.
-- [ ] Record the exact current server lifecycle tests that protect
+  presign rounds account for the gap and verify the result after release.
+- [x] Record the exact current server lifecycle tests that protect
   availability, reservation, consumption, interruption recovery, expiry, and
   retirement.
-- [ ] Add type fixtures for the revised available-storage union and reject
+- [x] Add type fixtures for the revised available-storage union and reject
   missing bindings, resident-plus-sealed objects, reserved durable rows, broad
   spreads, and direct invalid construction.
 
@@ -451,27 +439,27 @@ project.
 
 ### 2. Add completed-material serialization and client persistence
 
-- [ ] Add a Rust decoder for the existing 97-byte encoding with exact length,
+- [x] Add a Rust decoder for the existing 97-byte encoding with exact length,
   point, and scalar validation.
-- [ ] Add an opaque completed-presignature WASM type that can be created from
+- [x] Add an opaque completed-presignature WASM type that can be created from
   validated bytes, expose public big R, compute the online share once, and
   zeroize on drop. Support sealing while retaining the sole owner until the
   write outcome is known.
-- [ ] Refactor `OpaqueEcdsaPresignAuthorityV1` to own this completed type after
+- [x] Refactor `OpaqueEcdsaPresignAuthorityV1` to own this completed type after
   a presign session finishes. Do not represent completed material as a live
   protocol session.
-- [ ] Add Rust round-trip vectors and malformed point/scalar cases. Use the
+- [x] Add Rust round-trip vectors and malformed point/scalar cases. Use the
   production encoder and decoder in the tests.
-- [ ] Add a versioned object store and indexes for exact pool identity,
+- [x] Add a versioned object store and indexes for exact pool identity,
   material activation, wallet, and expiry.
-- [ ] Implement boundary parsing, domain-separated AAD construction, sealing,
+- [x] Implement boundary parsing, domain-separated AAD construction, sealing,
   public metadata discovery, strict-durability atomic take, and deletion
   through the existing ECDSA capability repository.
-- [ ] Reuse the active material sealing key only after proving the manifest,
+- [x] Reuse the active material sealing key only after proving the manifest,
   durable material reference, sealing-key identity, and pool identity agree.
-- [ ] Keep all secret byte handling in the derivation worker and zeroize every
+- [x] Keep all secret byte handling in the derivation worker and zeroize every
   temporary buffer.
-- [ ] Add bounded cleanup by wallet and activation. Avoid scanning unrelated
+- [x] Add bounded cleanup by wallet and activation. Avoid scanning unrelated
   wallets during a signing operation.
 
 **Exit:** A completed client presignature survives a validated
@@ -480,21 +468,21 @@ failure leaves at most one available owner.
 
 ### 3. Separate expiry while retaining the server store
 
-- [ ] Replace the overloaded pool-fill expiry with required
+- [x] Replace the overloaded pool-fill expiry with required
   `ceremonyExpiresAtMs` and `materialExpiresAtMs` fields at request, live-
   session, and response boundaries. Pass the negotiated material expiry into
   the existing D1 admission record.
-- [ ] Keep the live protocol session short and admit completed reusable-
+- [x] Keep the live protocol session short and admit completed reusable-
   session material with the bounded 24-hour durable lifetime.
-- [ ] Stop deriving completed-material expiry from Wallet Session expiry.
+- [x] Stop deriving completed-material expiry from Wallet Session expiry.
   Require current authorization when the material is created and whenever it
   is reserved.
-- [ ] Preserve operation-step-up scope and short expiry for operation-bound
+- [x] Preserve operation-step-up scope and short expiry for operation-bound
   fills.
-- [ ] Preserve the D1 encrypted envelope, revision checks, and consume-before-
+- [x] Preserve the D1 encrypted envelope, revision checks, and consume-before-
   finalize ordering. Verify bounded expiry cleanup uses the existing index and
   Rust lifecycle commands and leaves replay protection intact.
-- [ ] Add server tests showing that an expired fill ceremony cannot advance,
+- [x] Add server tests showing that an expired fill ceremony cannot advance,
   a still-valid material record can later be reserved under fresh signing
   authorization, and retirement prevents use before material expiry.
 
@@ -504,21 +492,21 @@ remains the single completed-material authority.
 
 ### 4. Integrate discovery, admission, reservation, and invalidation
 
-- [ ] Seal on admission before publishing an available reference. Recheck the
+- [x] Seal on admission before publishing an available reference. Recheck the
   active binding and enforce the three-entry available capacity in that
   transaction.
-- [ ] Hydrate references through `listAvailableClientPresignatures`, then open
+- [x] Hydrate references through `listAvailableClientPresignatures`, then open
   sealed material during the existing reserve transition.
-- [ ] Add bounded typed pre-prepare retries for `claimed_elsewhere`, `expired`,
+- [x] Add bounded typed pre-prepare retries for `claimed_elsewhere`, `expired`,
   and `not_found`. Keep post-prepare ambiguity terminal.
-- [ ] Wire logout, lock, authority retirement, recovery, and activation
+- [x] Wire logout, lock, authority retirement, recovery, and activation
   replacement to cleanup and existing refill invalidation.
-- [ ] Discover the local cache after unlock returns.
-- [ ] Let foreground signing await an in-flight local discovery, then fall
+- [x] Discover the local cache after unlock returns.
+- [x] Let foreground signing await an in-flight local discovery, then fall
   through to the existing coalesced refill on a miss.
-- [ ] Refill after consumption toward the fixed capacity of three and retain
+- [x] Refill after consumption toward the fixed capacity of three and retain
   the current concurrency limits.
-- [ ] Run the verification matrix and relevant contracts. Deploy the expiry
+- [ ] Run the remaining release verification and deploy the expiry
   split and client cache, populate caches naturally, and compare stage timings.
 
 **Exit:** A cache hit after page reload performs no presign protocol rounds,
@@ -542,7 +530,7 @@ unlock timing does not regress, and cold fallback remains functional.
 | Session independence | Material survives reload and Wallet Session renewal under the same activation for up to 24 hours, subject to fresh authorization. Session expiry alone does not delete it. |
 | Single server authority | Existing encrypted D1 records and Rust lifecycle remain authoritative. Concurrent reservations have one winner; stale revisions cannot consume or resurrect records. |
 | Refill and cleanup | The atomic IndexedDB admission rejects a fourth sealed available row for the exact pool identity. The resident fallback holds at most three available entries per page-local pool. Orphaned server halves expire and are cleaned up; three is not asserted as a global server retained-material bound. |
-| Latency | On a cache hit, telemetry records zero presign-protocol time and only local take/decrypt overhead before the existing warm signing path. |
+| Latency | On a cache hit, no presign-protocol requests run; existing request timing measures local take/decrypt overhead before the warm signing path. |
 | Unlock | Cache discovery and refill begin after the unlock result; unlock acceptance timing stays within its existing baseline. |
 | Cold fallback | A new profile, empty cache, or expired cache completes through the existing presign flow and seeds the durable pool. |
 

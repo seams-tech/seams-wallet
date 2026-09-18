@@ -14,6 +14,7 @@ import type {
   EcdsaPresignClientSessionInitRequest,
   EcdsaPresignClientSessionStepRequest,
 } from './workerTypes';
+import type { OpaqueEcdsaPresignMaterialState } from './ecdsaPresignLifecycle';
 import type {
   CapabilityInstanceRef,
   MpcMaterialActivationRef,
@@ -436,9 +437,11 @@ const ecdsaPresignInitRequest: EcdsaPresignClientSessionInitRequest = {
   },
   sessionId: 'presign-session',
   groupPublicKey33: incomingMessage,
+  ceremonyExpiresAtMs: 900,
   materialExpiresAtMs: 1_000,
   poolIdentity: {
-    poolKey: 'pool-key',
+    relayerUrl: 'https://relay.example',
+    materialActivationB64u: 'activation-ref',
     materialActivationId: 'activation-1',
     capability: 'evm-ecdsa-capability-1',
     keyBinding: 'ecdsa-threshold-key-1',
@@ -460,6 +463,78 @@ const linkedHolderEcdsaPresignInitRequest: EcdsaPresignClientSessionInitRequest 
   },
 };
 void linkedHolderEcdsaPresignInitRequest;
+
+const residentAvailablePresignatureState: OpaqueEcdsaPresignMaterialState = {
+  kind: 'available',
+  storage: {
+    kind: 'resident',
+    authorityMaterialHandle: 'resident-material-handle',
+  },
+};
+void residentAvailablePresignatureState;
+
+const sealedAvailablePresignatureState: OpaqueEcdsaPresignMaterialState = {
+  kind: 'available',
+  storage: {
+    kind: 'sealed_indexed_db',
+    durableRecordId: 'durable-record-id',
+  },
+};
+void sealedAvailablePresignatureState;
+
+const invalidResidentAndSealedStorage = {
+  kind: 'resident' as const,
+  authorityMaterialHandle: 'resident-material-handle',
+  durableRecordId: 'durable-record-id',
+};
+const invalidResidentAndSealedPresignatureState: OpaqueEcdsaPresignMaterialState = {
+  kind: 'available',
+  // @ts-expect-error An available presignature has exactly one resident or durable owner.
+  storage: invalidResidentAndSealedStorage,
+};
+void invalidResidentAndSealedPresignatureState;
+
+const invalidSealedAndResidentStorage = {
+  kind: 'sealed_indexed_db' as const,
+  durableRecordId: 'durable-record-id',
+  authorityMaterialHandle: 'resident-material-handle',
+};
+const invalidSealedAndResidentPresignatureState: OpaqueEcdsaPresignMaterialState = {
+  kind: 'available',
+  // @ts-expect-error A sealed presignature cannot also retain a resident authority handle.
+  storage: invalidSealedAndResidentStorage,
+};
+void invalidSealedAndResidentPresignatureState;
+
+const invalidMissingResidentHandlePresignatureState: OpaqueEcdsaPresignMaterialState = {
+  kind: 'available',
+  // @ts-expect-error Resident storage must name its sole authority material handle.
+  storage: { kind: 'resident' },
+};
+void invalidMissingResidentHandlePresignatureState;
+
+const invalidMissingDurableRecordPresignatureState: OpaqueEcdsaPresignMaterialState = {
+  kind: 'available',
+  // @ts-expect-error Sealed storage must name its sole durable record.
+  storage: { kind: 'sealed_indexed_db' },
+};
+void invalidMissingDurableRecordPresignatureState;
+
+const invalidReservedDurablePresignature = {
+  kind: 'reserved' as const,
+  requestBinding: 'request-binding',
+  reservationId: 'reservation-id',
+  leaseExpiresAtMs: 1_000,
+  authorityMaterialHandle: 'resident-material-handle',
+  storage: {
+    kind: 'sealed_indexed_db' as const,
+    durableRecordId: 'durable-record-id',
+  },
+};
+// @ts-expect-error A reserved presignature can only have its resident authority owner.
+const invalidReservedDurablePresignatureState: OpaqueEcdsaPresignMaterialState =
+  invalidReservedDurablePresignature;
+void invalidReservedDurablePresignatureState;
 
 const invalidLinkedHolderPresignAuthorityWithRoleLocalMaterial: EcdsaPresignClientSessionInitRequest =
   {

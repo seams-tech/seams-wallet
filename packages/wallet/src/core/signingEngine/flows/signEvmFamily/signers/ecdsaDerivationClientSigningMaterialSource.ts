@@ -10,7 +10,6 @@ import {
   thresholdEcdsaRoleLocalReservePresignatureWasm,
   thresholdEcdsaRoleLocalCommitPresignatureWasm,
   thresholdEcdsaRoleLocalListAvailablePresignaturesWasm,
-  thresholdEcdsaRoleLocalRetirePresignaturePoolWasm,
   thresholdEcdsaRoleLocalComputeSignatureShareFromPresignatureHandleWasm,
   thresholdEcdsaRoleLocalPresignSessionAbortWasm,
   thresholdEcdsaRoleLocalPresignSessionInitFromMaterialHandleWasm,
@@ -70,7 +69,6 @@ export async function loadRouterAbEcdsaDerivationSigningMaterialSource(args: {
         reserveClientPresignature: thresholdEcdsaRoleLocalReservePresignatureWasm,
         commitClientPresignature: thresholdEcdsaRoleLocalCommitPresignatureWasm,
         listAvailableClientPresignatures: thresholdEcdsaRoleLocalListAvailablePresignaturesWasm,
-        retireClientPresignaturePool: thresholdEcdsaRoleLocalRetirePresignaturePoolWasm,
         computeSignatureShareFromPresignatureHandle:
           thresholdEcdsaRoleLocalComputeSignatureShareFromPresignatureHandleWasm,
       },
@@ -110,7 +108,6 @@ export async function loadRouterAbEcdsaDerivationSigningMaterialSource(args: {
       reserveClientPresignature: thresholdEcdsaRoleLocalReservePresignatureWasm,
       commitClientPresignature: thresholdEcdsaRoleLocalCommitPresignatureWasm,
       listAvailableClientPresignatures: thresholdEcdsaRoleLocalListAvailablePresignaturesWasm,
-      retireClientPresignaturePool: thresholdEcdsaRoleLocalRetirePresignaturePoolWasm,
       computeSignatureShareFromPresignatureHandle:
         thresholdEcdsaRoleLocalComputeSignatureShareFromPresignatureHandleWasm,
     },

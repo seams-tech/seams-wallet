@@ -88,6 +88,7 @@ export type RouterAbEcdsaDerivationPoolFillProgress = {
   ok: boolean;
   code?: string;
   message?: string;
+  ceremonyExpiresAtMs?: number;
   materialExpiresAtMs?: number;
   stage?: 'triples' | 'triples_done' | 'presign' | 'done';
   event?: 'none' | 'triples_done' | 'presign_done';
@@ -104,7 +105,8 @@ export type RouterAbEcdsaDerivationPoolFillInitKeySelector = {
 export type RouterAbEcdsaDerivationPresignaturePoolFill = {
   kind: 'router_ab_ecdsa_derivation_signing_worker_pool';
   scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
-  expiresAtMs: number;
+  ceremonyExpiresAtMs: number;
+  materialExpiresAtMs: number;
 };
 
 function resolveRouterAbEcdsaDerivationPoolFillInitKeySelector(args: {
@@ -167,6 +169,7 @@ async function postEcdsaPresignInit(
     code: string;
     message: string;
     presignSessionId: string;
+    ceremonyExpiresAtMs: number;
     materialExpiresAtMs: number;
     stage: 'triples' | 'triples_done' | 'presign' | 'done';
     outgoingMessagesB64u: string[];
@@ -200,6 +203,9 @@ async function postEcdsaPresignInit(
     return {
       ok: data.ok === true,
       presignSessionId: data.presignSessionId,
+      ...(Number.isSafeInteger(data.ceremonyExpiresAtMs)
+        ? { ceremonyExpiresAtMs: data.ceremonyExpiresAtMs }
+        : {}),
       ...(Number.isSafeInteger(data.materialExpiresAtMs)
         ? { materialExpiresAtMs: data.materialExpiresAtMs }
         : {}),
@@ -232,6 +238,8 @@ export async function routerAbEcdsaDerivationPresignaturePoolFillInit(
 export type RouterAbEcdsaDerivationPoolFillStepArgs = {
   relayerUrl: string;
   presignSessionId: string;
+  ceremonyExpiresAtMs: number;
+  materialExpiresAtMs: number;
   stage: 'triples' | 'presign';
   outgoingMessagesB64u?: string[];
   credential: RouterAbOwnerNormalSigningCredential;
@@ -292,6 +300,8 @@ async function postEcdsaPresignStep(
         credentials: auth.credentials,
         body: JSON.stringify({
           presignSessionId,
+          ceremonyExpiresAtMs: args.ceremonyExpiresAtMs,
+          materialExpiresAtMs: args.materialExpiresAtMs,
           stage: args.stage,
           outgoingMessagesB64u: Array.isArray(args.outgoingMessagesB64u)
             ? args.outgoingMessagesB64u

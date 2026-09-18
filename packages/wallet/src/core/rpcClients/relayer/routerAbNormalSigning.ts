@@ -42,6 +42,22 @@ type RouterAbSigningErrorPayload = {
     | RouterAbEd25519OwnerOperationAuthorizationDecisionV1Wire;
 };
 
+export class RouterAbSigningRequestError extends Error {
+  readonly code: string;
+  readonly path: string;
+  readonly status: number;
+
+  constructor(args: { code: string; message: string; path: string; status: number }) {
+    super(
+      `Router A/B signing ${args.path} returned HTTP ${args.status}: ${args.message || args.code}`,
+    );
+    this.name = 'RouterAbSigningRequestError';
+    this.code = args.code;
+    this.path = args.path;
+    this.status = args.status;
+  }
+}
+
 export function routerAbNormalSigningAdmissionErrorFromPayload(args: {
   code: string;
   message: string;
@@ -1294,6 +1310,12 @@ function routerAbSigningHttpError(args: { path: string; status: number; bodyText
       message: `Router A/B signing ${args.path} returned HTTP ${args.status}: ${payload.message}`,
     });
     if (walletSessionError) return walletSessionError;
+    return new RouterAbSigningRequestError({
+      code: payload.code,
+      message: payload.message,
+      path: args.path,
+      status: args.status,
+    });
   }
   return new Error(
     `Router A/B signing ${args.path} returned HTTP ${args.status}${

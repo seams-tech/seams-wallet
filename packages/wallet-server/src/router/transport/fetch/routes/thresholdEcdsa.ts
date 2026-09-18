@@ -1355,6 +1355,9 @@ type RouterAbEcdsaPoolFillBinding = Pick<
 > & {
   readonly walletId: string;
   readonly thresholdExpiresAtMs: number;
+  readonly authorization:
+    | { readonly kind: 'wallet_session' }
+    | { readonly kind: 'operation_step_up'; readonly materialExpiresAtMs: number };
 };
 
 type RouterAbEcdsaPoolFillAuthorizationResult =
@@ -1565,6 +1568,10 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
       runtimePolicyScope: authenticated.session.runtimePolicyScope,
       participantIds: [...input.operation.participant_ids],
       thresholdExpiresAtMs: input.operation.expires_at_ms,
+      authorization: {
+        kind: 'operation_step_up',
+        materialExpiresAtMs: input.operation.expires_at_ms,
+      },
       routerAbEcdsaDerivationNormalSigning: {
         kind: ROUTER_AB_ECDSA_DERIVATION_NORMAL_SIGNING_STATE_KIND_V1,
         scope: input.operation.normal_signing_scope,
@@ -1678,6 +1685,7 @@ export async function authorizeEcdsaPoolFill(input: {
           runtimePolicyScope: activeMaterial.runtimePolicyScope,
           participantIds: activeMaterial.participantIds,
           thresholdExpiresAtMs: session.expiresAtMs,
+          authorization: { kind: 'wallet_session' },
           routerAbEcdsaDerivationNormalSigning: normalSigning,
         },
       };
@@ -1726,6 +1734,8 @@ function ecdsaPoolFillStepRuntimeRequest(
 ): RouterAbEcdsaDerivationPoolFillStepRequest {
   return {
     presignSessionId: request.presignSessionId,
+    ceremonyExpiresAtMs: request.ceremonyExpiresAtMs,
+    materialExpiresAtMs: request.materialExpiresAtMs,
     stage: request.stage,
     ...(request.outgoingMessagesB64u === undefined
       ? {}

@@ -5,9 +5,19 @@ import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  defaultEnvFile,
+  describeUsableGoogleIdToken,
+  intendedIsolatedGoogleTokenMinimumTtlSeconds,
+  readEnvFile,
+  resolveGoogleClientId,
+  resolveGoogleIdToken,
+  resolveRepoPath,
+} from './intended-google-oidc-env.mjs';
 
 const testsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const listCasesOnly = process.argv.includes('--list-cases');
+const requireGoogleToken = process.argv.includes('--require-google-token');
 const selectionArgs = process.argv.slice(2).filter(isSelectionArgument);
 const report = parseJsonReport(
   runPnpmCapture([
@@ -28,7 +38,9 @@ if (listCasesOnly) listCases(cases);
 else runCases(cases);
 
 function isSelectionArgument(argument) {
-  return argument !== '--' && argument !== '--list-cases';
+  return (
+    argument !== '--' && argument !== '--list-cases' && argument !== '--require-google-token'
+  );
 }
 
 function listCases(casesToList) {
@@ -44,10 +56,25 @@ function runCases(casesToRun) {
 }
 
 function runCase(testCase, index, total) {
+  const childEnvironment = loadChildEnvironment();
+  if (requireGoogleToken) {
+    runPnpmInherited(
+      [
+        'run',
+        'ensure:intended-google-token',
+        '--',
+        '--minimum-ttl',
+        String(intendedIsolatedGoogleTokenMinimumTtlSeconds),
+      ],
+      childEnvironment,
+    );
+  }
+  const refreshedEnvironment = loadChildEnvironment();
+  const googleIdToken = readUsableGoogleIdToken(refreshedEnvironment, requireGoogleToken);
   const caseNumber = index + 1;
   const caseRoot = path.join(tmpdir(), `seams-wallet-intended-${process.pid}-${caseNumber}`);
   const environment = {
-    ...process.env,
+    ...refreshedEnvironment,
     SEAMS_INTENDED_APP_URL: 'http://localhost:4201',
     SEAMS_INTENDED_ROUTER_URL: 'http://127.0.0.1:4100',
     SEAMS_INTENDED_WALLET_ORIGIN: 'http://localhost:4202',
@@ -57,6 +84,8 @@ function runCase(testCase, index, total) {
     SEAMS_INTENDED_TEST_APP_VITE_CACHE_DIR: path.join(caseRoot, '.runtime', 'vite-app'),
     ...(index > 0 ? { SEAMS_INTENDED_SKIP_BUILD: '1' } : {}),
   };
+  delete environment.SEAMS_INTENDED_GOOGLE_ID_TOKEN;
+  if (googleIdToken) environment.SEAMS_INTENDED_GOOGLE_ID_TOKEN = googleIdToken;
   console.log(
     `[wallet-intended] ${caseNumber}/${total} ${testCase.file}:${String(testCase.line)} ${testCase.title}`,
   );
@@ -78,6 +107,39 @@ function runCase(testCase, index, total) {
   } finally {
     rmSync(caseRoot, { recursive: true, force: true });
   }
+}
+
+function loadChildEnvironment() {
+  const envFilePath = resolveRepoPath(process.env.SEAMS_INTENDED_ENV_FILE || defaultEnvFile);
+  const fileEnvironment = readEnvFile(envFilePath);
+  const environment = {
+    ...fileEnvironment,
+    ...process.env,
+  };
+  return environment;
+}
+
+function readUsableGoogleIdToken(environment, required) {
+  const envFilePath = resolveRepoPath(environment.SEAMS_INTENDED_ENV_FILE || defaultEnvFile);
+  const fileEnvironment = readEnvFile(envFilePath);
+  const clientId = resolveGoogleClientId({
+    processEnv: environment,
+    fileEnv: fileEnvironment,
+  });
+  const token = resolveGoogleIdToken({
+    processToken: environment.SEAMS_INTENDED_GOOGLE_ID_TOKEN,
+    fileToken: fileEnvironment.SEAMS_INTENDED_GOOGLE_ID_TOKEN,
+    clientId,
+    minimumTtlSeconds: intendedIsolatedGoogleTokenMinimumTtlSeconds,
+  });
+  const status = describeUsableGoogleIdToken({
+    token,
+    clientId,
+    minimumTtlSeconds: intendedIsolatedGoogleTokenMinimumTtlSeconds,
+  });
+  if (status.status === 'usable') return token;
+  if (!required) return '';
+  throw new Error(`fresh intended Google ID token is ${status.reason}`);
 }
 
 function collectCases(suites, parentTitles = [], depth = 0) {

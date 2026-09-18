@@ -113,6 +113,7 @@ import type {
   EmailOtpEd25519YaoActiveCapabilityDescriptorV1,
 } from '@/core/signingEngine/workerManager/workerTypes';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
+import type { EcdsaClientPresignCleanupTarget } from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
 import {
   importWalletCustodyEcdsaContinuity,
   IndexedDbEcdsaCapabilityManifestStore,
@@ -3447,6 +3448,12 @@ export class BrowserSigningSurface {
     void this.destroyUnlockedWalletEd25519ExportRootCapabilitiesV1({ kind: 'all' });
   }
 
+  clearWalletAuthenticationIfCurrent(expected: WalletAuthenticationState): boolean {
+    if (this.walletAuthenticationState !== expected) return false;
+    this.clearWalletAuthentication();
+    return true;
+  }
+
   /**
    * The wallet custody ceremony worker as the small structural port the
    * custody modules take, so they can be exercised without a worker.
@@ -3654,19 +3661,25 @@ export class BrowserSigningSurface {
   }
 
   private async terminateWalletStateAfterSigningFailure(walletId: WalletId): Promise<void> {
+    const authentication = this.readWalletAuthenticationState();
+    let authenticationCleared = false;
     try {
       await this.advanceWalletLockGeneration(walletId);
+    } catch {}
+    try {
       await this.retireActiveWalletSessionAuthorizationForLock(walletId);
     } catch {}
     try {
-      this.clearWalletAuthentication();
+      authenticationCleared = this.clearWalletAuthenticationIfCurrent(authentication);
     } catch {}
-    try {
-      this.nonceCoordinator.clearAll();
-    } catch {}
-    try {
-      this.clearThresholdEcdsaSigningQueue();
-    } catch {}
+    if (authenticationCleared) {
+      try {
+        this.nonceCoordinator.clearAll();
+      } catch {}
+      try {
+        this.clearThresholdEcdsaSigningQueue();
+      } catch {}
+    }
     try {
       await this.clearVolatileWarmSigningMaterial(walletId);
     } catch {}
@@ -6939,6 +6952,12 @@ export class BrowserSigningSurface {
     }
   }
 
+  async deleteDurableEcdsaPresignatures(
+    target: EcdsaClientPresignCleanupTarget,
+  ): Promise<number> {
+    return await new IndexedDbEcdsaCapabilityManifestStore().deleteClientPresignatures(target);
+  }
+
   private async clearVolatileWarmSigningMaterialInternal(walletId?: WalletId): Promise<void> {
     try {
       if (walletId) {
@@ -6953,10 +6972,16 @@ export class BrowserSigningSurface {
           walletId,
         );
       } finally {
-        if (walletId === undefined) {
-          await this.clearLinkedEcdsaHolderMaterials();
-        } else {
-          await this.clearLinkedEcdsaHolderMaterialsForWallet(walletId);
+        try {
+          if (walletId === undefined) {
+            await this.clearLinkedEcdsaHolderMaterials();
+          } else {
+            await this.clearLinkedEcdsaHolderMaterialsForWallet(walletId);
+          }
+        } finally {
+          await this.signerWorkerManager.clearEcdsaClientWorkerState(
+            walletId === undefined ? { kind: 'all' } : { kind: 'wallet', walletId },
+          );
         }
       }
     }

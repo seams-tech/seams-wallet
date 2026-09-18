@@ -6,6 +6,7 @@ import {
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import {
   clearAllRouterAbEcdsaDerivationClientPresignatures,
+  getRouterAbEcdsaDerivationClientPresignaturePoolDepth,
   scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill,
   signRouterAbEcdsaDerivationDigestWithPoolHit,
   type RouterAbEcdsaDerivationClientSigningMaterialSource,
@@ -103,6 +104,7 @@ test('signing uses an available worker presignature without waiting for a refill
   const releaseRefill = createDeferred();
   let listCount = 0;
   let selectedWorkerPresignature = false;
+  const destroyedHandles: string[] = [];
 
   const clientSigningMaterial: RouterAbEcdsaDerivationClientSigningMaterialSource = {
     kind: 'router_ab_ecdsa_derivation_client_signing_material_source_v1',
@@ -115,8 +117,10 @@ test('signing uses an available worker presignature without waiting for a refill
       throw new Error('test must not step the blocked refill');
     },
     abortClientPresignSession: async () => {},
-    admitClientPresignature: async () => {},
-    destroyClientPresignature: async () => {},
+    admitClientPresignature: async () => ({ kind: 'resident' }),
+    destroyClientPresignature: async ({ materialHandle }) => {
+      destroyedHandles.push(materialHandle);
+    },
     reserveClientPresignature: async () => {
       selectedWorkerPresignature = true;
       throw new Error('worker presignature selected');
@@ -125,17 +129,31 @@ test('signing uses an available worker presignature without waiting for a refill
     listAvailableClientPresignatures: async () => {
       listCount += 1;
       if (listCount === 1) return [];
+      const nowMs = Date.now();
       return [
+        {
+          presignatureId: 'expired-presignature',
+          materialHandle: 'expired-material',
+          bigR33: Uint8Array.from(Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
+          createdAtMs: nowMs - 5_000,
+          expiresAtMs: nowMs + 1_000,
+        },
         {
           presignatureId: 'worker-presignature-1',
           materialHandle: 'worker-material-1',
           bigR33: Uint8Array.from(Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
-          createdAtMs: Date.now(),
-          expiresAtMs: Date.now() + 30_000,
+          createdAtMs: nowMs,
+          expiresAtMs: nowMs + 30_000,
         },
+        ...[2, 3, 4].map((index) => ({
+          presignatureId: `worker-presignature-${index}`,
+          materialHandle: `worker-material-${index}`,
+          bigR33: Uint8Array.from(Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
+          createdAtMs: nowMs + index,
+          expiresAtMs: nowMs + 30_000,
+        })),
       ];
     },
-    retireClientPresignaturePool: async () => 0,
     computeSignatureShareFromPresignatureHandle: async () => new Uint8Array(32),
   };
   const workerCtx = buildWorkerContext();
@@ -148,6 +166,7 @@ test('signing uses an available worker presignature without waiting for a refill
       JSON.stringify({
         ok: true,
         presignSessionId: 'presign-session-1',
+        ceremonyExpiresAtMs: Date.now() + 20_000,
         materialExpiresAtMs: Date.now() + 20_000,
         stage: 'triples',
         outgoingMessagesB64u: [],
@@ -171,7 +190,8 @@ test('signing uses an available worker presignature without waiting for a refill
     routerAbEcdsaDerivationPoolFill: {
       kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
       scope,
-      expiresAtMs: Date.now() + 30_000,
+      ceremonyExpiresAtMs: Date.now() + 30_000,
+      materialExpiresAtMs: Date.now() + 24 * 60 * 60_000,
     },
     workerCtx,
     authorization,
@@ -211,9 +231,330 @@ test('signing uses an available worker presignature without waiting for a refill
     });
     expect(selectedWorkerPresignature).toBe(true);
     expect(listCount).toBe(2);
+    expect(destroyedHandles).toEqual(
+      expect.arrayContaining(['expired-material', 'worker-material-4', 'worker-material-1']),
+    );
+    expect(
+      getRouterAbEcdsaDerivationClientPresignaturePoolDepth({
+        relayerUrl: 'https://router.example',
+        scope,
+        materialActivation,
+      }),
+    ).toBe(2);
   } finally {
     releaseRefill.resolve();
     globalThis.fetch = originalFetch;
+    clearAllRouterAbEcdsaDerivationClientPresignatures();
+  }
+});
+
+test('an entry popped before reservation is returned to the local pool', async () => {
+  clearAllRouterAbEcdsaDerivationClientPresignatures();
+  const scope = await buildScope();
+  let listCount = 0;
+  let reserveCount = 0;
+  let destroyCount = 0;
+  const clientSigningMaterial: RouterAbEcdsaDerivationClientSigningMaterialSource = {
+    kind: 'router_ab_ecdsa_derivation_client_signing_material_source_v1',
+    initClientPresignSession: async () => {
+      throw new Error('test must not refill');
+    },
+    stepClientPresignSession: async () => {
+      throw new Error('test must not step a refill');
+    },
+    abortClientPresignSession: async () => {},
+    admitClientPresignature: async () => ({ kind: 'resident' }),
+    destroyClientPresignature: async () => {
+      destroyCount += 1;
+    },
+    reserveClientPresignature: async () => {
+      reserveCount += 1;
+      throw new Error('reservation reached');
+    },
+    commitClientPresignature: async () => {},
+    listAvailableClientPresignatures: async () => {
+      listCount += 1;
+      return [
+        {
+          presignatureId: 'worker-presignature-1',
+          materialHandle: 'worker-material-1',
+          bigR33: Uint8Array.from(Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
+          createdAtMs: Date.now(),
+          expiresAtMs: Date.now() + 30_000,
+        },
+      ];
+    },
+    computeSignatureShareFromPresignatureHandle: async () => new Uint8Array(32),
+  };
+  const commonInput = {
+    relayerUrl: 'https://router.example',
+    scope,
+    operationId: 'operation-1',
+    operationDigests: {
+      lane_digest_b64u: 'CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo',
+      intent_digest_b64u: 'CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCws',
+      display_digest_b64u: 'DAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAw',
+    },
+    materialActivation,
+    credential: {
+      kind: 'wallet_session_opaque' as const,
+      walletSessionToken: 'wallet-session-token',
+    },
+    signingDigest32: new Uint8Array(32).fill(11),
+    clientSigningMaterial,
+    workerCtx: buildWorkerContext(),
+    authorization,
+  };
+
+  try {
+    const beforeReservation = await signRouterAbEcdsaDerivationDigestWithPoolHit({
+      ...commonInput,
+      expiresAtMs: Date.now() - 1,
+    });
+    expect(beforeReservation).toMatchObject({ ok: false, code: 'pool_entry_expired' });
+    expect(reserveCount).toBe(0);
+    expect(destroyCount).toBe(0);
+
+    const retried = await signRouterAbEcdsaDerivationDigestWithPoolHit({
+      ...commonInput,
+      expiresAtMs: Date.now() + 30_000,
+    });
+    expect(retried).toMatchObject({
+      ok: false,
+      code: 'router_ab_sign_failed',
+      message: 'reservation reached',
+    });
+    expect(listCount).toBe(1);
+    expect(reserveCount).toBe(1);
+    expect(destroyCount).toBe(1);
+  } finally {
+    clearAllRouterAbEcdsaDerivationClientPresignatures();
+  }
+});
+
+test('a corrupt durable entry is skipped for the next cached entry', async () => {
+  clearAllRouterAbEcdsaDerivationClientPresignatures();
+  const scope = await buildScope();
+  let reserveCount = 0;
+  let destroyCount = 0;
+  const clientSigningMaterial: RouterAbEcdsaDerivationClientSigningMaterialSource = {
+    kind: 'router_ab_ecdsa_derivation_client_signing_material_source_v1',
+    initClientPresignSession: async () => {
+      throw new Error('test must not refill');
+    },
+    stepClientPresignSession: async () => {
+      throw new Error('test must not step a refill');
+    },
+    abortClientPresignSession: async () => {},
+    admitClientPresignature: async () => ({ kind: 'resident' }),
+    destroyClientPresignature: async () => {
+      destroyCount += 1;
+    },
+    reserveClientPresignature: async () => {
+      reserveCount += 1;
+      if (reserveCount === 1) {
+        return { kind: 'unavailable', reason: 'corrupt' };
+      }
+      throw new Error('second cached entry selected');
+    },
+    commitClientPresignature: async () => {},
+    listAvailableClientPresignatures: async () => [
+      {
+        presignatureId: 'worker-presignature-1',
+        materialHandle: 'worker-material-1',
+        bigR33: Uint8Array.from(Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
+        createdAtMs: Date.now(),
+        expiresAtMs: Date.now() + 30_000,
+      },
+      {
+        presignatureId: 'worker-presignature-2',
+        materialHandle: 'worker-material-2',
+        bigR33: Uint8Array.from(Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
+        createdAtMs: Date.now() + 1,
+        expiresAtMs: Date.now() + 30_000,
+      },
+    ],
+    computeSignatureShareFromPresignatureHandle: async () => new Uint8Array(32),
+  };
+
+  try {
+    const result = await signRouterAbEcdsaDerivationDigestWithPoolHit({
+      relayerUrl: 'https://router.example',
+      scope,
+      operationId: 'operation-1',
+      operationDigests: {
+        lane_digest_b64u: 'CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo',
+        intent_digest_b64u: 'CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCws',
+        display_digest_b64u: 'DAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAw',
+      },
+      materialActivation,
+      credential: {
+        kind: 'wallet_session_opaque',
+        walletSessionToken: 'wallet-session-token',
+      },
+      signingDigest32: new Uint8Array(32).fill(11),
+      clientSigningMaterial,
+      expiresAtMs: Date.now() + 30_000,
+      workerCtx: buildWorkerContext(),
+      authorization,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: 'router_ab_sign_failed',
+      message: 'second cached entry selected',
+    });
+    expect(reserveCount).toBe(2);
+    expect(destroyCount).toBe(2);
+  } finally {
+    clearAllRouterAbEcdsaDerivationClientPresignatures();
+  }
+});
+
+test('a reservation claimed by another request is never destroyed by the loser', async () => {
+  clearAllRouterAbEcdsaDerivationClientPresignatures();
+  const scope = await buildScope();
+  let reserveCount = 0;
+  const destroyedHandles: string[] = [];
+  const clientSigningMaterial: RouterAbEcdsaDerivationClientSigningMaterialSource = {
+    kind: 'router_ab_ecdsa_derivation_client_signing_material_source_v1',
+    initClientPresignSession: async () => {
+      throw new Error('test must not refill');
+    },
+    stepClientPresignSession: async () => {
+      throw new Error('test must not step a refill');
+    },
+    abortClientPresignSession: async () => {},
+    admitClientPresignature: async () => ({ kind: 'resident' }),
+    destroyClientPresignature: async ({ materialHandle }) => {
+      destroyedHandles.push(materialHandle);
+    },
+    reserveClientPresignature: async () => {
+      reserveCount += 1;
+      return { kind: 'unavailable', reason: 'claimed_elsewhere' };
+    },
+    commitClientPresignature: async () => {},
+    listAvailableClientPresignatures: async () => [
+      {
+        presignatureId: 'worker-presignature-1',
+        materialHandle: 'worker-material-1',
+        bigR33: Uint8Array.from(Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
+        createdAtMs: Date.now(),
+        expiresAtMs: Date.now() + 30_000,
+      },
+    ],
+    computeSignatureShareFromPresignatureHandle: async () => new Uint8Array(32),
+  };
+
+  try {
+    const result = await signRouterAbEcdsaDerivationDigestWithPoolHit({
+      relayerUrl: 'https://router.example',
+      scope,
+      operationId: 'operation-1',
+      operationDigests: {
+        lane_digest_b64u: 'CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo',
+        intent_digest_b64u: 'CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCws',
+        display_digest_b64u: 'DAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAw',
+      },
+      materialActivation,
+      credential: {
+        kind: 'wallet_session_opaque',
+        walletSessionToken: 'wallet-session-token',
+      },
+      signingDigest32: new Uint8Array(32).fill(11),
+      clientSigningMaterial,
+      expiresAtMs: Date.now() + 30_000,
+      workerCtx: buildWorkerContext(),
+      authorization,
+    });
+
+    expect(result).toMatchObject({ ok: false, code: 'pool_entry_unavailable' });
+    expect(reserveCount).toBe(3);
+    expect(destroyedHandles).toEqual([]);
+  } finally {
+    clearAllRouterAbEcdsaDerivationClientPresignatures();
+  }
+});
+
+test('concurrent pool misses share one worker hydration', async () => {
+  clearAllRouterAbEcdsaDerivationClientPresignatures();
+  const scope = await buildScope();
+  const listStarted = createDeferred();
+  const releaseList = createDeferred();
+  let listCount = 0;
+  let reserveCount = 0;
+  const clientSigningMaterial: RouterAbEcdsaDerivationClientSigningMaterialSource = {
+    kind: 'router_ab_ecdsa_derivation_client_signing_material_source_v1',
+    initClientPresignSession: async () => {
+      throw new Error('test must not refill');
+    },
+    stepClientPresignSession: async () => {
+      throw new Error('test must not step a refill');
+    },
+    abortClientPresignSession: async () => {},
+    admitClientPresignature: async () => ({ kind: 'resident' }),
+    destroyClientPresignature: async () => {},
+    reserveClientPresignature: async () => {
+      reserveCount += 1;
+      throw new Error('single hydrated entry selected');
+    },
+    commitClientPresignature: async () => {},
+    listAvailableClientPresignatures: async () => {
+      listCount += 1;
+      listStarted.resolve();
+      await releaseList.promise;
+      return [
+        {
+          presignatureId: 'worker-presignature-1',
+          materialHandle: 'worker-material-1',
+          bigR33: Uint8Array.from(Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
+          createdAtMs: Date.now(),
+          expiresAtMs: Date.now() + 30_000,
+        },
+      ];
+    },
+    computeSignatureShareFromPresignatureHandle: async () => new Uint8Array(32),
+  };
+  const commonInput = {
+    relayerUrl: 'https://router.example',
+    scope,
+    operationId: 'operation-1',
+    operationDigests: {
+      lane_digest_b64u: 'CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo',
+      intent_digest_b64u: 'CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCws',
+      display_digest_b64u: 'DAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAw',
+    },
+    materialActivation,
+    credential: {
+      kind: 'wallet_session_opaque' as const,
+      walletSessionToken: 'wallet-session-token',
+    },
+    signingDigest32: new Uint8Array(32).fill(11),
+    clientSigningMaterial,
+    expiresAtMs: Date.now() + 30_000,
+    workerCtx: buildWorkerContext(),
+    authorization,
+  };
+
+  try {
+    const first = signRouterAbEcdsaDerivationDigestWithPoolHit(commonInput);
+    await listStarted.promise;
+    const second = signRouterAbEcdsaDerivationDigestWithPoolHit(commonInput);
+    await Promise.resolve();
+    await Promise.resolve();
+    releaseList.resolve();
+    const results = await Promise.all([first, second]);
+
+    expect(listCount).toBe(1);
+    expect(reserveCount).toBe(1);
+    expect(results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ ok: false, code: 'router_ab_sign_failed' }),
+        expect.objectContaining({ ok: false, code: 'pool_empty' }),
+      ]),
+    );
+  } finally {
+    releaseList.resolve();
     clearAllRouterAbEcdsaDerivationClientPresignatures();
   }
 });

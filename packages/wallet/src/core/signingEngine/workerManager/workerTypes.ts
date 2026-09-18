@@ -41,6 +41,10 @@ import type {
   SigningSessionSealKeyVersion,
 } from '@/core/signingEngine/session/keyMaterialBrands';
 import type { EcdsaClientPresignPoolIdentity } from './ecdsaPresignPoolIdentity';
+import type {
+  EcdsaClientPresignAdmissionStorage,
+  EcdsaClientPresignReservationResult,
+} from './ecdsaPresignLifecycle';
 import type { ThresholdRuntimePolicyScope } from '../threshold/sessionPolicy';
 import type { WalletEmailOtpChannel } from '@shared/utils/emailOtpDomain';
 import type {
@@ -1411,6 +1415,7 @@ export type FinalizeEcdsaHolderOrdinaryExportResponseWorkerV1 = {
 type EcdsaPresignClientSessionParameters = {
   sessionId: string;
   groupPublicKey33: ArrayBuffer;
+  ceremonyExpiresAtMs: number;
   materialExpiresAtMs: number;
   poolIdentity: EcdsaClientPresignPoolIdentity;
 };
@@ -1486,6 +1491,7 @@ export type EcdsaPresignClientAdmitRequest = {
   materialHandle: string;
   expectedPresignatureId: string;
   poolIdentity: EcdsaClientPresignPoolIdentity;
+  admissionMode: 'durable' | 'resident';
 };
 
 export type EcdsaPresignClientAdmitResponse = {
@@ -1494,6 +1500,7 @@ export type EcdsaPresignClientAdmitResponse = {
     kind: 'ecdsa_client_presignature_admitted_v1';
     materialHandle: string;
     presignatureId: string;
+    storage: EcdsaClientPresignAdmissionStorage;
   };
   diagnostics?: WorkerResponseDiagnostics;
 };
@@ -1512,6 +1519,20 @@ export type EcdsaPresignClientDestroyResponse = {
   diagnostics?: WorkerResponseDiagnostics;
 };
 
+export type EcdsaPresignClientClearWalletRequest = {
+  walletId: string;
+};
+
+export type EcdsaPresignClientClearWalletResponse = {
+  type: typeof EcdsaPresignClientResponseType.ClearWalletSuccess;
+  payload: {
+    kind: 'ecdsa_client_wallet_worker_state_cleared_v1';
+    walletId: string;
+    clearedCount: number;
+  };
+  diagnostics?: WorkerResponseDiagnostics;
+};
+
 export type EcdsaPresignClientUseBinding = {
   materialHandle: string;
   poolIdentity: EcdsaClientPresignPoolIdentity;
@@ -1520,13 +1541,18 @@ export type EcdsaPresignClientUseBinding = {
 };
 
 export type EcdsaPresignClientReserveRequest = EcdsaPresignClientUseBinding & {
+  expectedPresignatureId: string;
   leaseExpiresAtMs: number;
 };
 
-export type EcdsaPresignClientLifecycleResponse = {
-  type:
-    | typeof EcdsaPresignClientResponseType.ReserveSuccess
-    | typeof EcdsaPresignClientResponseType.CommitSuccess;
+export type EcdsaPresignClientReserveResponse = {
+  type: typeof EcdsaPresignClientResponseType.ReserveSuccess;
+  payload: EcdsaClientPresignReservationResult;
+  diagnostics?: WorkerResponseDiagnostics;
+};
+
+export type EcdsaPresignClientCommitResponse = {
+  type: typeof EcdsaPresignClientResponseType.CommitSuccess;
   payload: {
     kind: 'ecdsa_client_presignature_lifecycle_advanced_v1';
     materialHandle: string;
@@ -1565,22 +1591,6 @@ export type EcdsaOnlineClientComputeSignatureShareRequest = {
 export type EcdsaOnlineClientComputeSignatureShareResponse = {
   type: typeof EcdsaOnlineClientResponseType.ComputeSignatureShareSuccess;
   payload: ArrayBuffer;
-  diagnostics?: WorkerResponseDiagnostics;
-};
-
-export type EcdsaOnlineClientRetirePoolRequest = {
-  poolIdentity: EcdsaClientPresignPoolIdentity;
-  reason: 'key_epoch_retired' | 'activation_epoch_retired';
-};
-
-export type EcdsaOnlineClientRetirePoolResponse = {
-  type: typeof EcdsaOnlineClientResponseType.RetirePoolSuccess;
-  payload: {
-    kind: 'ecdsa_client_presignature_pool_retired_v1';
-    poolIdentity: EcdsaClientPresignPoolIdentity;
-    reason: EcdsaOnlineClientRetirePoolRequest['reason'];
-    retiredCount: number;
-  };
   diagnostics?: WorkerResponseDiagnostics;
 };
 
@@ -1755,6 +1765,7 @@ export const EcdsaPresignClientRequestType = {
   Reserve: 71_005,
   Commit: 71_006,
   ListAvailable: 71_007,
+  ClearWallet: 71_008,
 } as const;
 
 export const EcdsaPresignClientResponseType = {
@@ -1766,6 +1777,7 @@ export const EcdsaPresignClientResponseType = {
   ReserveSuccess: 71_105,
   CommitSuccess: 71_106,
   ListAvailableSuccess: 71_107,
+  ClearWalletSuccess: 71_108,
 } as const;
 
 export type EcdsaPresignClientOperationMap = {
@@ -1791,36 +1803,34 @@ export type EcdsaPresignClientOperationMap = {
   };
   [EcdsaPresignClientRequestType.Reserve]: {
     payload: EcdsaPresignClientReserveRequest;
-    result: EcdsaPresignClientLifecycleResponse;
+    result: EcdsaPresignClientReserveResponse;
   };
   [EcdsaPresignClientRequestType.Commit]: {
     payload: EcdsaPresignClientUseBinding;
-    result: EcdsaPresignClientLifecycleResponse;
+    result: EcdsaPresignClientCommitResponse;
   };
   [EcdsaPresignClientRequestType.ListAvailable]: {
     payload: EcdsaPresignClientListAvailableRequest;
     result: EcdsaPresignClientListAvailableResponse;
   };
+  [EcdsaPresignClientRequestType.ClearWallet]: {
+    payload: EcdsaPresignClientClearWalletRequest;
+    result: EcdsaPresignClientClearWalletResponse;
+  };
 };
 
 export const EcdsaOnlineClientRequestType = {
   ComputeSignatureShare: 72_000,
-  RetirePool: 72_001,
 } as const;
 
 export const EcdsaOnlineClientResponseType = {
   ComputeSignatureShareSuccess: 72_100,
-  RetirePoolSuccess: 72_101,
 } as const;
 
 export type EcdsaOnlineClientOperationMap = {
   [EcdsaOnlineClientRequestType.ComputeSignatureShare]: {
     payload: EcdsaOnlineClientComputeSignatureShareRequest;
     result: EcdsaOnlineClientComputeSignatureShareResponse;
-  };
-  [EcdsaOnlineClientRequestType.RetirePool]: {
-    payload: EcdsaOnlineClientRetirePoolRequest;
-    result: EcdsaOnlineClientRetirePoolResponse;
   };
 };
 

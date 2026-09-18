@@ -168,7 +168,6 @@ const ecdsaDerivationClientWasmUrl = resolveWasmUrl(
 let ecdsaDerivationClientInitPromise: Promise<void> | null = null;
 let messageQueue: Promise<void> = Promise.resolve();
 let presignPort: MessagePort | null = null;
-const opaquePresignAuthority = new OpaqueEcdsaPresignAuthorityV1();
 const linkedHolderMaterials = new Map<string, EcdsaLinkedHolderMaterialV1>();
 const DIAGNOSTIC_BREAKDOWN_MAX_DEPTH = 2;
 const DIAGNOSTIC_BREAKDOWN_MAX_FIELDS = 64;
@@ -219,6 +218,10 @@ function buildStoredCanonicalEcdsaRoleLocalSigningMaterial(input: {
 
 const ecdsaRoleLocalSigningMaterialStore = new Map<string, StoredEcdsaRoleLocalSigningMaterial>();
 const ecdsaCapabilityManifestStore = new IndexedDbEcdsaCapabilityManifestStore();
+const opaquePresignAuthority = new OpaqueEcdsaPresignAuthorityV1(
+  ecdsaCapabilityManifestStore,
+  (bytes) => EcdsaRoleLocalPresignSessionV1.from_completed_presignature_97(bytes),
+);
 
 type ActiveRouterAbEcdsaRegistrationCeremony =
   | {
@@ -2898,6 +2901,22 @@ type EcdsaOpaquePresignRequestV1 =
   | Extract<
       OpaqueEcdsaPresignAuthorityRequestV1,
       { readonly kind: 'opaque_ecdsa_presign_material_destroy_v1' }
+    >
+  | Extract<
+      OpaqueEcdsaPresignAuthorityRequestV1,
+      { readonly kind: 'opaque_ecdsa_presign_material_admit_v1' }
+    >
+  | Extract<
+      OpaqueEcdsaPresignAuthorityRequestV1,
+      { readonly kind: 'opaque_ecdsa_presign_material_restore_v1' }
+    >
+  | Extract<
+      OpaqueEcdsaPresignAuthorityRequestV1,
+      { readonly kind: 'opaque_ecdsa_presign_material_list_v1' }
+    >
+  | Extract<
+      OpaqueEcdsaPresignAuthorityRequestV1,
+      { readonly kind: 'opaque_ecdsa_presign_material_delete_v1' }
     >;
 
 function sendOpaquePresignFailure(requestId: string, error: unknown): void {
@@ -2961,8 +2980,14 @@ async function handleOpaquePresignRequest(event: MessageEvent<unknown>): Promise
           presignSessionId: request.sessionId,
           session,
           groupPublicKey33: new Uint8Array(request.groupPublicKey33),
-          expiresAtMs: request.materialExpiresAtMs,
+          ceremonyExpiresAtMs: request.ceremonyExpiresAtMs,
+          materialExpiresAtMs: request.materialExpiresAtMs,
           poolIdentity: request.poolIdentity,
+          durableMaterialRef:
+            request.authority.kind === 'role_local_derivation_handle' &&
+            request.authority.material.kind === 'persisted'
+              ? request.authority.material.materialRef
+              : null,
         });
         result = { kind: 'progress', progress };
         break;
@@ -2992,6 +3017,61 @@ async function handleOpaquePresignRequest(event: MessageEvent<unknown>): Promise
         await opaquePresignAuthority.destroyMaterial(request.materialHandle);
         result = { kind: 'material_destroyed', materialHandle: request.materialHandle };
         break;
+      case 'opaque_ecdsa_presign_material_admit_v1': {
+        const admission = await opaquePresignAuthority.admitMaterial({
+          materialHandle: request.materialHandle,
+          expectedPresignatureId: request.expectedPresignatureId,
+          admissionMode: request.admissionMode,
+        });
+        result = {
+          kind: 'material_admitted',
+          materialHandle: request.materialHandle,
+          storage:
+            admission.kind === 'sealed_indexed_db'
+              ? { kind: admission.kind, durableRecordId: admission.durableRecordId }
+              : admission,
+          presignatureId: request.expectedPresignatureId,
+        };
+        break;
+      }
+      case 'opaque_ecdsa_presign_material_list_v1': {
+        const entries = await opaquePresignAuthority.listDurablePresignatures(
+          request.poolIdentity,
+        );
+        result = {
+          kind: 'durable_list',
+          entries: entries.map((entry) => ({
+            recordId: entry.recordId,
+            presignatureId: entry.presignatureId,
+            groupPublicKey33B64u: entry.groupPublicKey33B64u,
+            bigR33B64u: entry.bigR33B64u,
+            createdAtMs: entry.createdAtMs,
+            expiresAtMs: entry.expiresAtMs,
+          })),
+        };
+        break;
+      }
+      case 'opaque_ecdsa_presign_material_restore_v1': {
+        const restored = await opaquePresignAuthority.restoreDurablePresignature({
+          recordId: request.recordId,
+          expectedPresignatureId: request.expectedPresignatureId,
+          poolIdentity: request.poolIdentity,
+          groupPublicKey33: new Uint8Array(request.groupPublicKey33),
+          bigR33: new Uint8Array(request.bigR33),
+        });
+        result =
+          restored.kind === 'restored'
+            ? { kind: 'durable_restored', materialHandle: restored.materialHandle }
+            : { kind: 'durable_restore_failed', reason: restored.kind };
+        break;
+      }
+      case 'opaque_ecdsa_presign_material_delete_v1':
+        await opaquePresignAuthority.deleteDurablePresignature({
+          recordId: request.recordId,
+          poolIdentity: request.poolIdentity,
+        });
+        result = { kind: 'durable_deleted', recordId: request.recordId };
+        break;
     }
     const response: OpaqueEcdsaPresignAuthorityResponseV1 = {
       kind: 'opaque_ecdsa_presign_authority_result_v1',
@@ -3018,12 +3098,20 @@ function parseEcdsaOpaquePresignRequest(value: unknown): EcdsaOpaquePresignReque
       if (!Number.isSafeInteger(materialExpiresAtMs) || materialExpiresAtMs <= Date.now()) {
         throw new Error('ECDSA presign material expiry must be in the future');
       }
+      const ceremonyExpiresAtMs = Number(record.ceremonyExpiresAtMs);
+      if (!Number.isSafeInteger(ceremonyExpiresAtMs) || ceremonyExpiresAtMs <= Date.now()) {
+        throw new Error('ECDSA presign ceremony expiry must be in the future');
+      }
+      if (materialExpiresAtMs < ceremonyExpiresAtMs) {
+        throw new Error('ECDSA presign material expiry must cover the ceremony');
+      }
       const common = {
         kind: record.kind,
         requestId,
         sessionId: readNonEmptyString(record, 'sessionId'),
         poolIdentity: parseEcdsaClientPresignPoolIdentity(record.poolIdentity),
         groupPublicKey33: record.groupPublicKey33,
+        ceremonyExpiresAtMs,
         materialExpiresAtMs,
       } as const;
       if (authority.kind === 'linked_holder_signing_material') {
@@ -3113,6 +3201,41 @@ function parseEcdsaOpaquePresignRequest(value: unknown): EcdsaOpaquePresignReque
         kind: record.kind,
         requestId,
         materialHandle: readNonEmptyString(record, 'materialHandle'),
+      };
+    case 'opaque_ecdsa_presign_material_admit_v1': {
+      if (record.admissionMode !== 'durable' && record.admissionMode !== 'resident') {
+        throw new Error('ECDSA presign admission mode is invalid');
+      }
+      return {
+        kind: record.kind,
+        requestId,
+        materialHandle: readNonEmptyString(record, 'materialHandle'),
+        expectedPresignatureId: readNonEmptyString(record, 'expectedPresignatureId'),
+        admissionMode: record.admissionMode,
+      };
+    }
+    case 'opaque_ecdsa_presign_material_restore_v1':
+      return {
+        kind: record.kind,
+        requestId,
+        recordId: readNonEmptyString(record, 'recordId'),
+        expectedPresignatureId: readNonEmptyString(record, 'expectedPresignatureId'),
+        poolIdentity: parseEcdsaClientPresignPoolIdentity(record.poolIdentity),
+        groupPublicKey33: requireArrayBufferLength(record.groupPublicKey33, 33, 'groupPublicKey33'),
+        bigR33: requireArrayBufferLength(record.bigR33, 33, 'bigR33'),
+      };
+    case 'opaque_ecdsa_presign_material_list_v1':
+      return {
+        kind: record.kind,
+        requestId,
+        poolIdentity: parseEcdsaClientPresignPoolIdentity(record.poolIdentity),
+      };
+    case 'opaque_ecdsa_presign_material_delete_v1':
+      return {
+        kind: record.kind,
+        requestId,
+        recordId: readNonEmptyString(record, 'recordId'),
+        poolIdentity: parseEcdsaClientPresignPoolIdentity(record.poolIdentity),
       };
     default:
       throw new Error('ECDSA role-local presign request kind is invalid');

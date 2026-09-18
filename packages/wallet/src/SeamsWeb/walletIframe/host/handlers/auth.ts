@@ -210,6 +210,13 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       respondOk(deps, req.requestId);
     },
 
+    PM_LOGOUT: async (req: Req<'PM_LOGOUT'>) => {
+      const pm = deps.getSeamsWeb();
+      clearHostedWalletSessions();
+      await pm.auth.logout();
+      respondOk(deps, req.requestId);
+    },
+
     PM_LOCK_EXACT_WALLET_SESSION: async (req: Req<'PM_LOCK_EXACT_WALLET_SESSION'>) => {
       const pm = deps.getSeamsWeb();
       const expected = parseWalletIframeExactSessionIdentity(req.payload);

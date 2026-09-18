@@ -1,4 +1,5 @@
 import { safeErrorMessage } from '@shared/utils/errors';
+import { base64UrlDecode } from '@shared/utils/base64';
 import { WorkerDeferred } from '../workerDeferred';
 import {
   EcdsaPresignClientRequestType,
@@ -22,6 +23,11 @@ import {
   parseEcdsaClientPresignPoolIdentity,
   type EcdsaClientPresignPoolIdentity,
 } from '../ecdsaPresignPoolIdentity';
+import type {
+  EcdsaClientPresignAdmissionStorage,
+  EcdsaClientPresignReservationResult,
+  OpaqueEcdsaPresignMaterialState,
+} from '../ecdsaPresignLifecycle';
 
 type PresignOperationType = keyof EcdsaPresignClientOperationMap;
 type PresignRpcRequest = {
@@ -50,22 +56,6 @@ type PendingOpaquePresignAuthority = {
   readonly deferred: WorkerDeferred<OpaqueEcdsaPresignAuthorityResultV1>;
 };
 
-type OpaquePresignMaterialState =
-  | { readonly kind: 'pending_admission' }
-  | { readonly kind: 'available' }
-  | {
-      readonly kind: 'reserved';
-      readonly requestBinding: string;
-      readonly reservationId: string;
-      readonly leaseExpiresAtMs: number;
-    }
-  | {
-      readonly kind: 'committed';
-      readonly requestBinding: string;
-      readonly reservationId: string;
-      readonly leaseExpiresAtMs: number;
-    };
-
 type OpaquePresignMaterialEntry = {
   readonly authorityPort: MessagePort;
   readonly poolIdentity: EcdsaClientPresignPoolIdentity;
@@ -73,7 +63,7 @@ type OpaquePresignMaterialEntry = {
   readonly bigR33: ArrayBuffer;
   readonly createdAtMs: number;
   readonly expiresAtMs: number;
-  state: OpaquePresignMaterialState;
+  state: OpaqueEcdsaPresignMaterialState;
 };
 
 const opaqueMaterials = new Map<string, OpaquePresignMaterialEntry>();
@@ -84,7 +74,8 @@ const opaqueSessionBindings = new Map<
   {
     readonly poolIdentity: EcdsaClientPresignPoolIdentity;
     readonly groupPublicKey33: Uint8Array;
-    readonly expiresAtMs: number;
+    readonly ceremonyExpiresAtMs: number;
+    readonly materialExpiresAtMs: number;
   }
 >();
 let derivationPort: MessagePort | null = null;
@@ -185,10 +176,17 @@ async function initializeSession(
   const poolIdentity = parseEcdsaClientPresignPoolIdentity(payload.poolIdentity);
   const groupPublicKey33 = toBytes(payload.groupPublicKey33, 'groupPublicKey33');
   if (groupPublicKey33.length !== 33) throw new Error('groupPublicKey33 must be 33 bytes');
+  const ceremonyExpiresAtMs = requireFutureTimestamp(
+    payload.ceremonyExpiresAtMs,
+    'ceremonyExpiresAtMs',
+  );
   const materialExpiresAtMs = requireFutureTimestamp(
     payload.materialExpiresAtMs,
     'materialExpiresAtMs',
   );
+  if (materialExpiresAtMs < ceremonyExpiresAtMs) {
+    throw new Error('ECDSA presign material expiry must cover the ceremony');
+  }
   switch (payload.authority.kind) {
     case 'role_local_derivation_handle': {
       if (!derivationPort) {
@@ -209,6 +207,7 @@ async function initializeSession(
           },
           poolIdentity,
           groupPublicKey33: groupPublicKeyBuffer,
+          ceremonyExpiresAtMs,
           materialExpiresAtMs,
         },
         [groupPublicKeyBuffer],
@@ -226,7 +225,8 @@ async function initializeSession(
         opaqueSessionBindings.set(sessionId, {
           poolIdentity,
           groupPublicKey33: groupPublicKey33.slice(),
-          expiresAtMs: materialExpiresAtMs,
+          ceremonyExpiresAtMs,
+          materialExpiresAtMs,
         });
       }
       return { authority: { kind: 'role_local_derivation_handle' }, progress };
@@ -249,6 +249,7 @@ async function initializeSession(
           },
           poolIdentity,
           groupPublicKey33: groupPublicKeyBuffer,
+          ceremonyExpiresAtMs,
           materialExpiresAtMs,
         },
         [groupPublicKeyBuffer],
@@ -266,7 +267,8 @@ async function initializeSession(
         opaqueSessionBindings.set(sessionId, {
           poolIdentity,
           groupPublicKey33: groupPublicKey33.slice(),
-          expiresAtMs: materialExpiresAtMs,
+          ceremonyExpiresAtMs,
+          materialExpiresAtMs,
         });
       }
       return { authority: { kind: 'linked_holder_signing_material' }, progress };
@@ -284,7 +286,7 @@ async function stepSession(
   const opaquePort = opaqueSessionPorts.get(sessionId);
   if (opaquePort) {
     const activeBinding = opaqueSessionBindings.get(sessionId);
-    if (!activeBinding || Date.now() >= activeBinding.expiresAtMs) {
+    if (!activeBinding || Date.now() >= activeBinding.ceremonyExpiresAtMs) {
       await abortSession({ sessionId });
       throw new Error('Opaque ECDSA presign session expired');
     }
@@ -311,7 +313,7 @@ async function stepSession(
           authorityPort: opaquePort,
           poolIdentity: binding.poolIdentity,
           groupPublicKey33: binding.groupPublicKey33,
-          expiresAtMs: binding.expiresAtMs,
+          expiresAtMs: binding.materialExpiresAtMs,
         });
         opaqueSessionPorts.delete(sessionId);
         opaqueSessionBindings.delete(sessionId);
@@ -385,7 +387,7 @@ function retainCompletedMaterial(args: {
     bigR33: bigR33.slice().buffer,
     createdAtMs: Date.now(),
     expiresAtMs: args.expiresAtMs,
-    state: { kind: 'pending_admission' },
+    state: { kind: 'pending_admission', authorityMaterialHandle: materialHandle },
   });
 }
 
@@ -397,26 +399,45 @@ function requireOpaqueMaterial(
   if (!entry) throw new Error('ECDSA Client presign material unavailable: not_found');
   if (!equalEcdsaClientPresignPoolIdentity(entry.poolIdentity, poolIdentity)) {
     opaqueMaterials.delete(materialHandle);
-    void destroyOpaqueMaterial(materialHandle, entry);
+    void destroyOpaqueMaterial(entry);
     throw new Error('ECDSA Client presign material unavailable: binding_rejected');
   }
   if (Date.now() >= entry.expiresAtMs) {
     opaqueMaterials.delete(materialHandle);
-    void destroyOpaqueMaterial(materialHandle, entry);
+    void destroyOpaqueMaterial(entry);
     throw new Error('ECDSA Client presign material unavailable: material_expired');
   }
   return entry;
 }
 
-async function destroyOpaqueMaterial(
-  materialHandle: string,
-  entry: OpaquePresignMaterialEntry,
-): Promise<void> {
+async function destroyOpaqueMaterial(entry: OpaquePresignMaterialEntry): Promise<void> {
+  if (entry.state.kind === 'available' && entry.state.storage.kind === 'sealed_indexed_db') {
+    await requestOpaqueAuthority(entry.authorityPort, {
+      kind: 'opaque_ecdsa_presign_material_delete_v1',
+      requestId: randomHandle('opaque-ecdsa-presign-delete'),
+      recordId: entry.state.storage.durableRecordId,
+      poolIdentity: entry.poolIdentity,
+    }).catch(() => undefined);
+    return;
+  }
+  const authorityMaterialHandle = residentAuthorityMaterialHandle(entry.state);
   await requestOpaqueAuthority(entry.authorityPort, {
     kind: 'opaque_ecdsa_presign_material_destroy_v1',
     requestId: randomHandle('opaque-ecdsa-presign-destroy'),
-    materialHandle,
+    materialHandle: authorityMaterialHandle,
   }).catch(() => undefined);
+}
+
+function residentAuthorityMaterialHandle(state: OpaqueEcdsaPresignMaterialState): string {
+  switch (state.kind) {
+    case 'pending_admission':
+    case 'reserved':
+    case 'committed':
+      return state.authorityMaterialHandle;
+    case 'available':
+      if (state.storage.kind === 'resident') return state.storage.authorityMaterialHandle;
+      throw new Error('ECDSA Client sealed presignature has no resident authority handle');
+  }
 }
 
 async function admitPresignature(
@@ -425,6 +446,7 @@ async function admitPresignature(
   kind: 'ecdsa_client_presignature_admitted_v1';
   materialHandle: string;
   presignatureId: string;
+  storage: EcdsaClientPresignAdmissionStorage;
 }> {
   const materialHandle = requireString(payload.materialHandle, 'materialHandle');
   const expectedPresignatureId = requireString(
@@ -438,17 +460,50 @@ async function admitPresignature(
   const actualPresignatureId = await presignatureId(entry.bigR33);
   if (actualPresignatureId !== expectedPresignatureId) {
     opaqueMaterials.delete(materialHandle);
-    await destroyOpaqueMaterial(materialHandle, entry);
+    await destroyOpaqueMaterial(entry);
     throw new Error('ECDSA Client presign admission failed: binding_rejected');
   }
-  if (entry.state.kind !== 'pending_admission' && entry.state.kind !== 'available') {
+  if (
+    entry.state.kind !== 'pending_admission' &&
+    !(entry.state.kind === 'available' && entry.state.storage.kind === 'resident')
+  ) {
     throw new Error('ECDSA Client presign admission failed: invalid_state');
   }
-  entry.state = { kind: 'available' };
+  const authorityMaterialHandle = residentAuthorityMaterialHandle(entry.state);
+  const authorityResult = await requestOpaqueAuthority(entry.authorityPort, {
+    kind: 'opaque_ecdsa_presign_material_admit_v1',
+    requestId: randomHandle('opaque-ecdsa-presign-admit'),
+    materialHandle: authorityMaterialHandle,
+    expectedPresignatureId: actualPresignatureId,
+    admissionMode: payload.admissionMode,
+  });
+  if (authorityResult.kind !== 'material_admitted') {
+    throw new Error('Opaque ECDSA presign authority returned an invalid admission result');
+  }
+  if (
+    authorityResult.storage.kind === 'discarded_capacity' ||
+    authorityResult.storage.kind === 'discarded_ambiguous'
+  ) {
+    opaqueMaterials.delete(materialHandle);
+  } else if (authorityResult.storage.kind === 'sealed_indexed_db') {
+    entry.state = {
+      kind: 'available',
+      storage: {
+        kind: 'sealed_indexed_db',
+        durableRecordId: authorityResult.storage.durableRecordId,
+      },
+    };
+  } else {
+    entry.state = {
+      kind: 'available',
+      storage: { kind: 'resident', authorityMaterialHandle },
+    };
+  }
   return {
     kind: 'ecdsa_client_presignature_admitted_v1',
     materialHandle,
     presignatureId: actualPresignatureId,
+    storage: authorityResult.storage,
   };
 }
 
@@ -464,35 +519,116 @@ async function destroyPresignature(
     parseEcdsaClientPresignPoolIdentity(payload.poolIdentity),
   );
   opaqueMaterials.delete(materialHandle);
-  await destroyOpaqueMaterial(materialHandle, entry);
+  await destroyOpaqueMaterial(entry);
   return { kind: 'ecdsa_client_presignature_destroyed_v1', materialHandle };
+}
+
+async function clearWalletPresignatureWorkerState(
+  payload: EcdsaPresignClientOperationMap[typeof EcdsaPresignClientRequestType.ClearWallet]['payload'],
+): Promise<{
+  kind: 'ecdsa_client_wallet_worker_state_cleared_v1';
+  walletId: string;
+  clearedCount: number;
+}> {
+  const walletId = requireString(payload.walletId, 'walletId');
+  let clearedCount = 0;
+  for (const [sessionId, binding] of [...opaqueSessionBindings]) {
+    if (binding.poolIdentity.walletId !== walletId) continue;
+    try {
+      await abortSession({ sessionId });
+    } catch {
+      // The session maps are cleared before the opaque authority acknowledges the abort.
+    }
+    clearedCount += 1;
+  }
+  for (const [materialHandle, entry] of [...opaqueMaterials]) {
+    if (entry.poolIdentity.walletId !== walletId) continue;
+    opaqueMaterials.delete(materialHandle);
+    if (entry.state.kind === 'available' && entry.state.storage.kind === 'sealed_indexed_db') {
+      clearedCount += 1;
+      continue;
+    }
+    await destroyOpaqueMaterial(entry);
+    clearedCount += 1;
+  }
+  return {
+    kind: 'ecdsa_client_wallet_worker_state_cleared_v1',
+    walletId,
+    clearedCount,
+  };
 }
 
 async function reservePresignature(
   payload: EcdsaPresignClientOperationMap[typeof EcdsaPresignClientRequestType.Reserve]['payload'],
-): Promise<{
-  kind: 'ecdsa_client_presignature_lifecycle_advanced_v1';
-  materialHandle: string;
-}> {
+): Promise<EcdsaClientPresignReservationResult> {
   const materialHandle = requireString(payload.materialHandle, 'materialHandle');
-  const entry = requireOpaqueMaterial(
-    materialHandle,
-    parseEcdsaClientPresignPoolIdentity(payload.poolIdentity),
+  const poolIdentity = parseEcdsaClientPresignPoolIdentity(payload.poolIdentity);
+  const expectedPresignatureId = requireString(
+    payload.expectedPresignatureId,
+    'expectedPresignatureId',
   );
-  if (entry.state.kind !== 'available') {
-    throw new Error('ECDSA Client presign reservation failed: invalid_state');
-  }
+  const requestBinding = requireString(payload.requestBinding, 'requestBinding');
+  const reservationId = requireString(payload.reservationId, 'reservationId');
   const leaseExpiresAtMs = requireFutureTimestamp(payload.leaseExpiresAtMs, 'leaseExpiresAtMs');
+  const entry = opaqueMaterials.get(materialHandle);
+  if (!entry) return { kind: 'unavailable', reason: 'not_found' };
+  if (!equalEcdsaClientPresignPoolIdentity(entry.poolIdentity, poolIdentity)) {
+    opaqueMaterials.delete(materialHandle);
+    await destroyOpaqueMaterial(entry);
+    return { kind: 'unavailable', reason: 'binding_rejected' };
+  }
+  if (entry.state.kind !== 'available') {
+    return { kind: 'unavailable', reason: 'claimed_elsewhere' };
+  }
+  let restoredDurableMaterial = false;
+  let authorityMaterialHandle: string;
+  if (entry.state.storage.kind === 'sealed_indexed_db') {
+    const groupPublicKey33 = entry.groupPublicKey33.slice();
+    const bigR33 = new Uint8Array(entry.bigR33.slice(0));
+    const restored = await requestOpaqueAuthority(
+      entry.authorityPort,
+      {
+        kind: 'opaque_ecdsa_presign_material_restore_v1',
+        requestId: randomHandle('opaque-ecdsa-presign-restore'),
+        recordId: entry.state.storage.durableRecordId,
+        expectedPresignatureId,
+        poolIdentity: entry.poolIdentity,
+        groupPublicKey33: groupPublicKey33.buffer,
+        bigR33: bigR33.buffer,
+      },
+      [groupPublicKey33.buffer, bigR33.buffer],
+    );
+    if (restored.kind === 'durable_restore_failed') {
+      opaqueMaterials.delete(materialHandle);
+      return { kind: 'unavailable', reason: restored.reason };
+    }
+    if (restored.kind !== 'durable_restored') {
+      throw new Error('Opaque ECDSA presign authority returned an invalid restore result');
+    }
+    authorityMaterialHandle = restored.materialHandle;
+    entry.state = {
+      kind: 'available',
+      storage: { kind: 'resident', authorityMaterialHandle },
+    };
+    restoredDurableMaterial = true;
+  } else {
+    authorityMaterialHandle = entry.state.storage.authorityMaterialHandle;
+  }
   if (leaseExpiresAtMs > entry.expiresAtMs) {
-    throw new Error('ECDSA Client presign reservation failed: material_expired');
+    if (restoredDurableMaterial) {
+      opaqueMaterials.delete(materialHandle);
+      await destroyOpaqueMaterial(entry);
+    }
+    return { kind: 'unavailable', reason: 'expired' };
   }
   entry.state = {
     kind: 'reserved',
-    requestBinding: requireString(payload.requestBinding, 'requestBinding'),
-    reservationId: requireString(payload.reservationId, 'reservationId'),
+    requestBinding,
+    reservationId,
     leaseExpiresAtMs,
+    authorityMaterialHandle,
   };
-  return { kind: 'ecdsa_client_presignature_lifecycle_advanced_v1', materialHandle };
+  return { kind: 'reserved' };
 }
 
 async function commitPresignature(
@@ -521,8 +657,22 @@ async function commitPresignature(
     requestBinding,
     reservationId,
     leaseExpiresAtMs: entry.state.leaseExpiresAtMs,
+    authorityMaterialHandle: entry.state.authorityMaterialHandle,
   };
   return { kind: 'ecdsa_client_presignature_lifecycle_advanced_v1', materialHandle };
+}
+
+function hasLoadedDurableRecord(recordId: string): boolean {
+  for (const entry of opaqueMaterials.values()) {
+    if (
+      entry.state.kind === 'available' &&
+      entry.state.storage.kind === 'sealed_indexed_db' &&
+      entry.state.storage.durableRecordId === recordId
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 async function listAvailablePresignatures(
@@ -535,7 +685,7 @@ async function listAvailablePresignatures(
     if (!equalEcdsaClientPresignPoolIdentity(entry.poolIdentity, poolIdentity)) continue;
     if (Date.now() >= entry.expiresAtMs) {
       opaqueMaterials.delete(materialHandle);
-      await destroyOpaqueMaterial(materialHandle, entry);
+      await destroyOpaqueMaterial(entry);
       continue;
     }
     refs.push({
@@ -545,6 +695,47 @@ async function listAvailablePresignatures(
       createdAtMs: entry.createdAtMs,
       expiresAtMs: entry.expiresAtMs,
     });
+  }
+  if (derivationPort) {
+    const result = await requestOpaqueAuthority(derivationPort, {
+      kind: 'opaque_ecdsa_presign_material_list_v1',
+      requestId: randomHandle('opaque-ecdsa-presign-list'),
+      poolIdentity,
+    });
+    if (result.kind !== 'durable_list') {
+      throw new Error('Opaque ECDSA presign authority returned an invalid durable list result');
+    }
+    for (const durable of result.entries) {
+      if (hasLoadedDurableRecord(durable.recordId)) continue;
+      const materialHandle = `durable-${durable.recordId}`;
+      if (opaqueMaterials.has(materialHandle)) continue;
+      const groupPublicKey33 = base64UrlDecode(durable.groupPublicKey33B64u);
+      const bigR33 = base64UrlDecode(durable.bigR33B64u);
+      if (groupPublicKey33.length !== 33 || bigR33.length !== 33) {
+        groupPublicKey33.fill(0);
+        bigR33.fill(0);
+        continue;
+      }
+      opaqueMaterials.set(materialHandle, {
+        authorityPort: derivationPort,
+        poolIdentity,
+        groupPublicKey33,
+        bigR33: bigR33.buffer,
+        createdAtMs: durable.createdAtMs,
+        expiresAtMs: durable.expiresAtMs,
+        state: {
+          kind: 'available',
+          storage: { kind: 'sealed_indexed_db', durableRecordId: durable.recordId },
+        },
+      });
+      refs.push({
+        presignatureId: durable.presignatureId,
+        materialHandle,
+        bigR33: bigR33.slice().buffer,
+        createdAtMs: durable.createdAtMs,
+        expiresAtMs: durable.expiresAtMs,
+      });
+    }
   }
   return refs.sort((left, right) => left.createdAtMs - right.createdAtMs);
 }
@@ -615,7 +806,7 @@ async function computeOnlineShare(
   const suppliedGroupPublicKey33 = new Uint8Array(payload.groupPublicKey33);
   if (!equalPublicBytes(entry.groupPublicKey33, suppliedGroupPublicKey33)) {
     opaqueMaterials.delete(materialHandle);
-    await destroyOpaqueMaterial(materialHandle, entry);
+    await destroyOpaqueMaterial(entry);
     throw new Error('ECDSA Client presign material unavailable: binding_rejected');
   }
   const buffers = [
@@ -625,13 +816,14 @@ async function computeOnlineShare(
     copyArrayBuffer(payload.clientRerandomizationContribution32),
     copyArrayBuffer(payload.signingWorkerRerandomizationContribution32),
   ];
+  const authorityMaterialHandle = entry.state.authorityMaterialHandle;
   try {
     const result = await requestOpaqueAuthority(
       entry.authorityPort,
       {
         kind: 'opaque_ecdsa_online_compute_v1',
         requestId: randomHandle('opaque-ecdsa-online'),
-        materialHandle,
+        materialHandle: authorityMaterialHandle,
         groupPublicKey33: buffers[0]!,
         expectedPresignBigR33: buffers[1]!,
         digest32: buffers[2]!,
@@ -647,7 +839,7 @@ async function computeOnlineShare(
     return result.signatureShare32;
   } catch (error) {
     opaqueMaterials.delete(materialHandle);
-    await destroyOpaqueMaterial(materialHandle, entry);
+    await destroyOpaqueMaterial(entry);
     throw error;
   }
 }
@@ -658,25 +850,6 @@ function equalPublicBytes(left: Uint8Array, right: Uint8Array): boolean {
     if (left[index] !== right[index]) return false;
   }
   return true;
-}
-
-async function retireOpaquePool(
-  payload: EcdsaOnlineClientOperationMap[typeof EcdsaOnlineClientRequestType.RetirePool]['payload'],
-) {
-  const poolIdentity = parseEcdsaClientPresignPoolIdentity(payload.poolIdentity);
-  let retiredCount = 0;
-  for (const [materialHandle, entry] of opaqueMaterials) {
-    if (!equalEcdsaClientPresignPoolIdentity(entry.poolIdentity, poolIdentity)) continue;
-    opaqueMaterials.delete(materialHandle);
-    await destroyOpaqueMaterial(materialHandle, entry);
-    retiredCount += 1;
-  }
-  return {
-    kind: 'ecdsa_client_presignature_pool_retired_v1' as const,
-    poolIdentity,
-    reason: payload.reason,
-    retiredCount,
-  };
 }
 
 async function handleOnlineRequest(port: MessagePort, request: OnlineRpcRequest): Promise<void> {
@@ -699,18 +872,6 @@ async function handleOnlineRequest(port: MessagePort, request: OnlineRpcRequest)
         );
         return;
       }
-      case EcdsaOnlineClientRequestType.RetirePool:
-        port.postMessage({
-          id: request.id,
-          ok: true,
-          result: {
-            type: EcdsaOnlineClientResponseType.RetirePoolSuccess,
-            payload: await retireOpaquePool(
-              request.payload as EcdsaOnlineClientOperationMap[72001]['payload'],
-            ),
-          },
-        });
-        return;
     }
   } catch (error) {
     try {
@@ -775,6 +936,16 @@ async function handleRpcRequest(request: PresignRpcRequest): Promise<void> {
           result: {
             type: EcdsaPresignClientResponseType.DestroySuccess,
             payload: await destroyPresignature(request.payload),
+          },
+        });
+        return;
+      case EcdsaPresignClientRequestType.ClearWallet:
+        self.postMessage({
+          id: request.id,
+          ok: true,
+          result: {
+            type: EcdsaPresignClientResponseType.ClearWalletSuccess,
+            payload: await clearWalletPresignatureWorkerState(request.payload),
           },
         });
         return;

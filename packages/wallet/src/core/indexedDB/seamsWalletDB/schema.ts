@@ -33,10 +33,8 @@ function createCanonicalStore(
 }
 
 export function upgradeSeamsWalletDBSchema(db: IDBPDatabase | IDBDatabase): void {
-  for (const storeName of Array.from(db.objectStoreNames)) {
-    db.deleteObjectStore(storeName);
-  }
   for (const definition of SEAMS_WALLET_SCHEMA_MANIFEST) {
+    if (db.objectStoreNames.contains(definition.store)) continue;
     createCanonicalStore(db, definition);
   }
 }

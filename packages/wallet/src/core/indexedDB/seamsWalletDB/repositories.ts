@@ -924,6 +924,7 @@ const WALLET_RECOVERY_PUBLICATION_STORES = [
   SEAMS_WALLET_STORES.ecdsaCurrentCapabilityManifests,
   SEAMS_WALLET_STORES.ecdsaRoleLocalMaterial,
   SEAMS_WALLET_STORES.ecdsaMaterialSealingKeys,
+  SEAMS_WALLET_STORES.ecdsaClientPresignatures,
 ] as const;
 
 const DEFAULT_WALLET_RP_ID = 'local';
@@ -7414,6 +7415,11 @@ export class SeamsWalletRepositories {
       },
       ctx,
     );
+    await deleteRowsByIndex({
+      store: ctx.store(SEAMS_WALLET_STORES.ecdsaClientPresignatures),
+      indexName: SEAMS_WALLET_INDEXES.walletId,
+      key: IDBKeyRange.only(String(input.authority.walletId)),
+    });
     for (const continuity of input.ecdsaContinuity) {
       await persistPreparedImportedWalletCustodyEcdsaContinuityInTransaction(ctx, continuity);
     }
@@ -7809,6 +7815,7 @@ export class SeamsWalletRepositories {
         SEAMS_WALLET_STORES.nearAccountProjections,
         SEAMS_WALLET_STORES.signerOpsOutbox,
         SEAMS_WALLET_STORES.keyMaterial,
+        SEAMS_WALLET_STORES.ecdsaClientPresignatures,
       ],
       'readwrite',
       async (ctx) => {
@@ -7852,6 +7859,11 @@ export class SeamsWalletRepositories {
         });
         await deleteRowsByIndex({
           store: ctx.store(SEAMS_WALLET_STORES.keyMaterial),
+          indexName: SEAMS_WALLET_INDEXES.walletId,
+          key: IDBKeyRange.only(normalizedProfileId),
+        });
+        await deleteRowsByIndex({
+          store: ctx.store(SEAMS_WALLET_STORES.ecdsaClientPresignatures),
           indexName: SEAMS_WALLET_INDEXES.walletId,
           key: IDBKeyRange.only(normalizedProfileId),
         });
