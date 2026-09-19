@@ -40,6 +40,8 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
   exact Wallet Session for the authenticated registration authority. Default
   wallet unlock hydrates that durable inventory; explicit partial unlock
   hydrates only the requested lane subset.
+- The registration-established Wallet Session can read and manage authentication
+  methods immediately after registration completes.
 - Tenant-root operational-share rotation preserves existing wallet signing
   keys and leaves normal signing available while a Deriver is unavailable.
   New derivation ceremonies may wait for rotation to finish. The local contract
@@ -565,6 +567,9 @@ Expected behaviour:
   unlock or step-up authentication. Inventory reads use the exact owner Wallet
   Session already established by wallet unlock, do not consume its signing-use
   budget, and surface an unavailable session without retrying or prompting.
+- Exhausting the signing-use budget preserves the session's owner-management
+  capabilities until the exact session expires or its method or authority is
+  revoked or retired.
 - Linking creates a fresh `deviceId`, `walletAuthorityId`,
   `walletAuthMethodId`, and signer activation for every signer family present
   on the source authority. The wallet's public signer identities remain
