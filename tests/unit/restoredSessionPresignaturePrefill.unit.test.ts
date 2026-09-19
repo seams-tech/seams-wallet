@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { parseWalletSessionId } from '../../packages/shared-ts/src/authorization/capabilityKinds';
 import {
   scheduleRestoredSessionPresignaturePrefills,
   type RestoredSessionPresignaturePrefill,
@@ -45,10 +46,13 @@ function expiredSessionState(): WalletIframeExactSessionState {
   });
 }
 
+const walletSessionId = parseWalletSessionId('wallet-session-1');
+if (!walletSessionId.ok) throw new Error(walletSessionId.error.message);
+
 const skippedPrefillResult = {
   status: 'skipped',
   reason: 'pool_disabled',
-  thresholdSessionId: 'threshold-session-1',
+  walletSessionId: walletSessionId.value,
 } as const;
 
 test('restored active session schedules the existing presignature coordinator for every configured target', async () => {

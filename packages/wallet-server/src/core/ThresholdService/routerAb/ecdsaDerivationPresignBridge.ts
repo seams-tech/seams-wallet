@@ -147,9 +147,7 @@ function encodeClientProtocolMaterialActivation(
   };
 }
 
-function encodeClientProtocolExportBinding(
-  input: RouterAbEcdsaSigningWorkerExportShareBindingV1,
-) {
+function encodeClientProtocolExportBinding(input: RouterAbEcdsaSigningWorkerExportShareBindingV1) {
   return {
     ...input,
     material_activation: encodeClientProtocolMaterialActivation(input.material_activation),
@@ -228,9 +226,7 @@ function parseStrictPresignProgress(input: unknown): RouterAbEcdsaPresignSession
       presignSessionId,
       serverPresignatureId,
       serverBigR33B64u,
-      ...(contribution
-        ? { signingWorkerRerandomizationContribution32B64u: contribution }
-        : {}),
+      ...(contribution ? { signingWorkerRerandomizationContribution32B64u: contribution } : {}),
       ...(preparedResponse ? { linkedPrepareResponse: preparedResponse } : {}),
     };
   }
@@ -262,6 +258,7 @@ async function postStrictPresignSession(input: {
   body: unknown;
   auth: RouterAbEcdsaDerivationPresignaturePoolFillAuth;
   fetchImpl: typeof fetch;
+  onServerTiming?: (header: string | null) => void;
 }): Promise<RouterAbEcdsaPresignSessionHttpResult> {
   const base = input.signingWorkerBaseUrl.trim().replace(/\/+$/, '');
   if (!base)
@@ -271,6 +268,7 @@ async function postStrictPresignSession(input: {
     body: input.body,
     authSecret: input.auth.secret,
     fetchImpl: input.fetchImpl,
+    onServerTiming: input.onServerTiming,
   });
   if (!response.ok) {
     return {
@@ -297,6 +295,7 @@ export async function startRouterAbEcdsaPresignSession(input: {
   materialExpiresAtMs: number;
   auth: RouterAbEcdsaDerivationPresignaturePoolFillAuth;
   fetchImpl: typeof fetch;
+  onServerTiming?: (header: string | null) => void;
 }): Promise<RouterAbEcdsaPresignSessionHttpResult> {
   return postStrictPresignSession({
     signingWorkerBaseUrl: input.signingWorkerBaseUrl,
@@ -309,6 +308,7 @@ export async function startRouterAbEcdsaPresignSession(input: {
     },
     auth: input.auth,
     fetchImpl: input.fetchImpl,
+    onServerTiming: input.onServerTiming,
   });
 }
 
@@ -322,6 +322,7 @@ export async function stepRouterAbEcdsaPresignSession(input: {
   materialExpiresAtMs: number;
   auth: RouterAbEcdsaDerivationPresignaturePoolFillAuth;
   fetchImpl: typeof fetch;
+  onServerTiming?: (header: string | null) => void;
 }): Promise<RouterAbEcdsaPresignSessionHttpResult> {
   return postStrictPresignSession({
     signingWorkerBaseUrl: input.signingWorkerBaseUrl,
@@ -336,6 +337,7 @@ export async function stepRouterAbEcdsaPresignSession(input: {
     },
     auth: input.auth,
     fetchImpl: input.fetchImpl,
+    onServerTiming: input.onServerTiming,
   });
 }
 

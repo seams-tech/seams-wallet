@@ -1,4 +1,5 @@
 import type { FetchRouterApiContext } from '../createFetchRouter';
+import { parseEcdsaServerTiming } from '@shared/utils/ecdsaServerTiming';
 import { json, readJson } from '../../../framework/http';
 import { thresholdEcdsaStatusCode } from '../../../../threshold/statusCodes';
 import {
@@ -412,7 +413,10 @@ async function handleRouterAbEcdsaDerivationNormalSigningRoute(input: {
   const headers = new Headers(response.headers);
   for (const [stage, duration] of Object.entries(timing)) {
     if (duration !== null) {
-      headers.append('Server-Timing', `ecdsa_sign_${stage};dur=${Math.max(0, duration).toFixed(1)}`);
+      headers.append(
+        'Server-Timing',
+        `ecdsa_sign_${stage};dur=${Math.max(0, duration).toFixed(1)}`,
+      );
     }
   }
   return new Response(response.body, {
@@ -1420,6 +1424,116 @@ type RouterAbEcdsaPoolFillAuthorizationResult =
       };
     };
 
+type EcdsaPresignGatewayTiming = {
+  queue: number | null;
+  authenticate: number | null;
+  material: number | null;
+  admit: number | null;
+  proxy: number | null;
+  total: number | null;
+};
+
+async function handleEcdsaPoolFillRoute(input: {
+  readonly ctx: FetchRouterApiContext;
+  readonly body: Record<string, unknown>;
+  readonly phase: 'init' | 'step';
+}): Promise<Response> {
+  const startedAt = performance.now();
+  const timing: EcdsaPresignGatewayTiming = {
+    queue: null,
+    authenticate: null,
+    material: null,
+    admit: null,
+    proxy: null,
+    total: null,
+  };
+  const workerTimings = new Map<string, number>();
+  const response = await executeEcdsaPoolFillRoute(input, timing, workerTimings);
+  timing.total = performance.now() - startedAt;
+  const headers = new Headers(response.headers);
+  for (const [stage, duration] of Object.entries(timing)) {
+    if (duration !== null) {
+      headers.append(
+        'Server-Timing',
+        `ecdsa_presign_${stage};dur=${Math.max(0, duration).toFixed(1)}`,
+      );
+    }
+  }
+  for (const [name, duration] of workerTimings) {
+    headers.append('Server-Timing', `${name};dur=${duration.toFixed(1)}`);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+function collectEcdsaPresignWorkerTiming(
+  durations: Map<string, number>,
+  header: string | null,
+): void {
+  for (const [name, duration] of parseEcdsaServerTiming(header)) {
+    if (name.startsWith('ecdsa_presign_sw_')) durations.set(name, duration);
+  }
+}
+
+async function executeEcdsaPoolFillRoute(
+  input: {
+    readonly ctx: FetchRouterApiContext;
+    readonly body: Record<string, unknown>;
+    readonly phase: 'init' | 'step';
+  },
+  timing: EcdsaPresignGatewayTiming,
+  workerTimings: Map<string, number>,
+): Promise<Response> {
+  const runtime = input.ctx.service.thresholdRuntime.getRouterAbEcdsaPresignRuntime();
+  if (!runtime) {
+    const failure = {
+      ok: false,
+      code: 'not_configured',
+      message: 'Router A/B ECDSA presign runtime is not configured on this server',
+    };
+    return json(failure, { status: thresholdEcdsaStatusCode(failure) });
+  }
+  const parsed =
+    input.phase === 'init'
+      ? parseRouterAbEcdsaDerivationPoolFillInitRouteRequest(input.body)
+      : parseRouterAbEcdsaDerivationPoolFillStepRouteRequest(input.body);
+  if (!parsed.ok) {
+    return json(parsed.body, { status: thresholdEcdsaStatusCode(parsed.body) });
+  }
+  const request = parsed.request;
+  const queuedAt = performance.now();
+  const gateTicket = await presignPriorityGate.acquire(
+    resolvePresignTrafficClass(request.requestTag),
+  );
+  timing.queue = performance.now() - queuedAt;
+  try {
+    const authorized = await authorizeEcdsaPoolFill({ ctx: input.ctx, request, timing });
+    if (!authorized.ok) {
+      return json(authorized.error.body, { status: authorized.error.status });
+    }
+    const proxyStartedAt = performance.now();
+    const result =
+      'poolFill' in request
+        ? await runtime.initializePoolFill({
+            binding: authorized.binding,
+            request: ecdsaPoolFillInitRuntimeRequest(request),
+            onServerTiming: collectEcdsaPresignWorkerTiming.bind(undefined, workerTimings),
+          })
+        : await runtime.advancePoolFill({
+            binding: authorized.binding,
+            request: ecdsaPoolFillStepRuntimeRequest(request),
+            onServerTiming: collectEcdsaPresignWorkerTiming.bind(undefined, workerTimings),
+          });
+    timing.proxy = performance.now() - proxyStartedAt;
+    return json(result, { status: thresholdEcdsaStatusCode(result) });
+  } finally {
+    gateTicket.release();
+  }
+}
+
 function poolFillMaterialActivation(
   request: RouterAbEcdsaPoolFillInitRouteRequest | RouterAbEcdsaPoolFillStepRouteRequest,
 ): RouterAbMpcMaterialActivationRefWire | null {
@@ -1459,6 +1573,7 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
   >;
   readonly operation: RouterAbEcdsaOperationStepUpPreparationV1Wire;
   readonly poolFillMaterialActivation: RouterAbMpcMaterialActivationRefWire | null;
+  readonly timing: EcdsaPresignGatewayTiming;
 }): Promise<RouterAbEcdsaPoolFillAuthorizationResult> {
   if (!validateEcdsaPoolFillOperationIdentity(input.operation)) {
     return {
@@ -1473,6 +1588,7 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
       },
     };
   }
+  const authenticationStartedAt = performance.now();
   const authenticated = await authenticateRouterAbEcdsaOperationStepUpWithExhaustedCandidate({
     headers: Object.fromEntries(input.ctx.request.headers.entries()),
     request: input.operation,
@@ -1483,58 +1599,9 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
         input.ctx.service.walletRegistration,
       ),
   });
+  input.timing.authenticate = performance.now() - authenticationStartedAt;
   if (!authenticated.ok) return authenticated;
-  const activeMaterial = await input.ctx.service.walletRegistration.resolveEcdsaMaterialActivation({
-    walletId: authenticated.session.walletId,
-    materialActivation: input.operation.material_activation,
-  });
-  if (!activeMaterial.ok) {
-    return {
-      ok: false,
-      error: {
-        status: activeMaterial.code === 'internal' ? 500 : 403,
-        body: {
-          ok: false,
-          code: activeMaterial.code === 'internal' ? 'internal' : 'scope_mismatch',
-          message:
-            activeMaterial.code === 'internal'
-              ? activeMaterial.message
-              : 'ECDSA pool-fill material is no longer active',
-        },
-      },
-    };
-  }
-  if (
-    activeMaterial.keyHandle !== input.operation.key_handle ||
-    activeMaterial.relayerKeyId !== input.operation.relayer_key_id ||
-    activeMaterial.participantIds[0] !== input.operation.participant_ids[0] ||
-    activeMaterial.participantIds[1] !== input.operation.participant_ids[1] ||
-    !sameRouterAbMpcMaterialActivationRef(
-      activeMaterial.materialActivation,
-      input.operation.material_activation,
-    ) ||
-    !sameRouterAbMpcMaterialActivationRef(
-      activeMaterial.materialActivation,
-      input.operation.normal_signing_scope.material_activation,
-    ) ||
-    (input.poolFillMaterialActivation !== null &&
-      !sameRouterAbMpcMaterialActivationRef(
-        activeMaterial.materialActivation,
-        input.poolFillMaterialActivation,
-      ))
-  ) {
-    return {
-      ok: false,
-      error: {
-        status: 403,
-        body: {
-          ok: false,
-          code: 'scope_mismatch',
-          message: 'ECDSA pool-fill scopes do not name the active material',
-        },
-      },
-    };
-  }
+  const materialStartedAt = performance.now();
   const freshMaterial = await resolveFreshRouterAbEcdsaMaterialActivation({
     resolveEcdsaMaterialActivation:
       input.ctx.service.walletRegistration.resolveEcdsaMaterialActivation.bind(
@@ -1543,6 +1610,7 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
     walletId: authenticated.session.walletId,
     expected: input.operation.material_activation,
   });
+  input.timing.material = performance.now() - materialStartedAt;
   if (!freshMaterial.ok) {
     return {
       ok: false,
@@ -1583,6 +1651,7 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
       },
     };
   }
+  const admissionStartedAt = performance.now();
   const claimFailure = await claimRouterAbEcdsaOperationStepUp({
     operationKind: 'evm.sign_transaction',
     operation: input.operation,
@@ -1590,6 +1659,7 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
     keyHandle: freshMaterial.keyHandle,
     authenticated,
   });
+  input.timing.admit = performance.now() - admissionStartedAt;
   if (claimFailure && 'status' in claimFailure) {
     return {
       ok: false,
@@ -1630,14 +1700,17 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
 export async function authorizeEcdsaPoolFill(input: {
   readonly ctx: FetchRouterApiContext;
   readonly request: RouterAbEcdsaPoolFillInitRouteRequest | RouterAbEcdsaPoolFillStepRouteRequest;
+  readonly timing: EcdsaPresignGatewayTiming;
 }): Promise<RouterAbEcdsaPoolFillAuthorizationResult> {
   switch (input.request.authorization.kind) {
     case 'reusable_wallet_session': {
+      const authenticationStartedAt = performance.now();
       const validated = await validateRouterAbEcdsaDerivationWalletSessionInputs({
         headers: Object.fromEntries(input.ctx.request.headers.entries()),
         authorizationSessions: input.ctx.service.authorizationSessions,
         operationKind: 'evm.sign_transaction',
       });
+      input.timing.authenticate = performance.now() - authenticationStartedAt;
       if (!validated.ok) {
         return {
           ok: false,
@@ -1662,11 +1735,13 @@ export async function authorizeEcdsaPoolFill(input: {
         };
       }
       const admitted = validated.admission.admission;
+      const materialStartedAt = performance.now();
       const activeMaterial =
         await input.ctx.service.walletRegistration.resolveEcdsaMaterialActivation({
           walletId: String(session.walletId),
           materialActivation: routerAbMpcMaterialActivationRefToWire(admitted.materialActivation),
         });
+      input.timing.material = performance.now() - materialStartedAt;
       if (!activeMaterial.ok) {
         return {
           ok: false,
@@ -1757,6 +1832,7 @@ export async function authorizeEcdsaPoolFill(input: {
         authorization: input.request.authorization,
         operation,
         poolFillMaterialActivation: poolFillMaterialActivation(input.request),
+        timing: input.timing,
       });
     }
   }
@@ -3276,70 +3352,10 @@ export async function handleThresholdEcdsa(ctx: FetchRouterApiContext): Promise<
   }
 
   if (pathname === ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_FILL_INIT_PATH) {
-    const runtime = ctx.service.thresholdRuntime.getRouterAbEcdsaPresignRuntime();
-    if (!runtime) {
-      const failure = {
-        ok: false,
-        code: 'not_configured',
-        message: 'Router A/B ECDSA presign runtime is not configured on this server',
-      };
-      return json(failure, { status: thresholdEcdsaStatusCode(failure) });
-    }
-    const parsedBody = parseRouterAbEcdsaDerivationPoolFillInitRouteRequest(body);
-    const requestTag = parsedBody.ok ? parsedBody.request.requestTag : undefined;
-    const gateTicket = await presignPriorityGate.acquire(resolvePresignTrafficClass(requestTag));
-    try {
-      if (!parsedBody.ok) {
-        return json(parsedBody.body, { status: thresholdEcdsaStatusCode(parsedBody.body) });
-      }
-      const authorized = await authorizeEcdsaPoolFill({
-        ctx,
-        request: parsedBody.request,
-      });
-      if (!authorized.ok) {
-        return json(authorized.error.body, { status: authorized.error.status });
-      }
-      const result = await runtime.initializePoolFill({
-        binding: authorized.binding,
-        request: ecdsaPoolFillInitRuntimeRequest(parsedBody.request),
-      });
-      return json(result, { status: thresholdEcdsaStatusCode(result) });
-    } finally {
-      gateTicket.release();
-    }
+    return handleEcdsaPoolFillRoute({ ctx, body, phase: 'init' });
   }
   if (pathname === ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_FILL_STEP_PATH) {
-    const runtime = ctx.service.thresholdRuntime.getRouterAbEcdsaPresignRuntime();
-    if (!runtime) {
-      const failure = {
-        ok: false,
-        code: 'not_configured',
-        message: 'Router A/B ECDSA presign runtime is not configured on this server',
-      };
-      return json(failure, { status: thresholdEcdsaStatusCode(failure) });
-    }
-    const parsedBody = parseRouterAbEcdsaDerivationPoolFillStepRouteRequest(body);
-    const requestTag = parsedBody.ok ? parsedBody.request.requestTag : undefined;
-    const gateTicket = await presignPriorityGate.acquire(resolvePresignTrafficClass(requestTag));
-    try {
-      if (!parsedBody.ok) {
-        return json(parsedBody.body, { status: thresholdEcdsaStatusCode(parsedBody.body) });
-      }
-      const authorized = await authorizeEcdsaPoolFill({
-        ctx,
-        request: parsedBody.request,
-      });
-      if (!authorized.ok) {
-        return json(authorized.error.body, { status: authorized.error.status });
-      }
-      const result = await runtime.advancePoolFill({
-        binding: authorized.binding,
-        request: ecdsaPoolFillStepRuntimeRequest(parsedBody.request),
-      });
-      return json(result, { status: thresholdEcdsaStatusCode(result) });
-    } finally {
-      gateTicket.release();
-    }
+    return handleEcdsaPoolFillRoute({ ctx, body, phase: 'step' });
   }
   return null;
 }

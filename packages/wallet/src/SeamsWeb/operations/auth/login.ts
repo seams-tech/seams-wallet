@@ -1,3 +1,4 @@
+import { scheduleEcdsaSessionPresignaturePrefill } from './scheduleEcdsaSessionPresignaturePrefill';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type {
   AfterCall,
@@ -4237,6 +4238,7 @@ async function unlockInternal(
 
       // Run Ed25519/ECDSA warmup and then derive the public signing-session status.
       const warmupResult = await primeThresholdLoginWarmSigners({
+        statusReads,
         context,
         signingEngine,
         walletIdentity,
@@ -5557,29 +5559,6 @@ async function resolvePersistedEcdsaPublicCapabilityForLogin(args: {
   return publicFacts.publicCapability;
 }
 
-async function scheduleLoginEcdsaPresignaturePrefill(args: {
-  signingEngine: Pick<
-    LoginUnlockSigningSurface,
-    'scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill'
-  >;
-  walletId: WalletId;
-  chainTarget: ThresholdEcdsaChainTarget;
-}): Promise<void> {
-  try {
-    const resolved = await resolveBrowserActiveEcdsaCapabilityRuntime({
-      walletId: args.walletId,
-      chainTarget: args.chainTarget,
-    });
-    if (resolved.kind !== 'resolved') return;
-    await args.signingEngine.scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill({
-      walletId: args.walletId,
-      chainTarget: args.chainTarget,
-      manifest: resolved.manifest,
-      runtime: resolved.runtime,
-    });
-  } catch {}
-}
-
 function buildThresholdLoginWarmSignerSelection(
   signersToWarm: readonly ThresholdLoginWarmSigner[],
 ): ThresholdLoginWarmSigner[] {
@@ -6111,6 +6090,7 @@ async function restorePasskeyEcdsaCustodyLogin(input: {
 }
 
 async function primeThresholdLoginWarmSigners(args: {
+  statusReads: WalletSessionStatusReadScope;
   context: LoginWebContext;
   signingEngine: LoginUnlockSigningSurface;
   walletIdentity: ResolvedLoginWalletIdentity;
@@ -6556,7 +6536,9 @@ async function primeThresholdLoginWarmSigners(args: {
               targetEcdsaKey,
             );
             ecdsaBootstraps.push(bootstrap);
-            void scheduleLoginEcdsaPresignaturePrefill({
+            void scheduleEcdsaSessionPresignaturePrefill({
+              statusReads: args.statusReads,
+              trigger: 'unlock',
               signingEngine: args.signingEngine,
               walletId: args.walletIdentity.walletId,
               chainTarget: target.chainTarget,

@@ -11667,6 +11667,8 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
     runtime: &CloudflareSigningWorkerRuntimeV1,
     now_unix_ms: u64,
 ) -> worker::Result<worker::Response> {
+    let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
+    let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     if request.method() != worker::Method::Post {
         return worker::Response::error("SigningWorker ECDSA presign init requires POST", 405);
     }
@@ -11690,6 +11692,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
     if let Err(error) = parsed.validate_at(now_unix_ms) {
         return cloudflare_signing_worker_presign_error_response_v1(error);
     }
+    let material_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let (active_signing_worker, material) =
         match load_cloudflare_signing_worker_active_ecdsa_derivation_material_v1(
             env,
@@ -11701,6 +11704,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
             Ok(value) => value,
             Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
         };
+    timing.mark("ecdsa_presign_sw_material", material_started_at_ms);
     let (relayer_share, _) =
         match cloudflare_router_ab_ecdsa_derivation_relayer_share_and_public_identity_from_active_material_v1(
             &parsed.scope,
@@ -11714,6 +11718,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
         request: parsed,
         relayer_share32_b64u: encode_base64url_bytes_v1(&relayer_share.x_relayer32),
     };
+    let session_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let progress: durable_object::CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1 =
         match durable_object::execute_cloudflare_durable_object_custom_json_call_v1(
             env,
@@ -11727,6 +11732,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
             Ok(value) => value,
             Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
         };
+    timing.mark("ecdsa_presign_sw_session", session_started_at_ms);
     let durable_object::CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1::Continue {
         presign_session_id,
         stage,
@@ -11739,14 +11745,17 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
             500,
         );
     };
-    worker::Response::from_json(
+    let response = worker::Response::from_json(
         &CloudflareSigningWorkerEcdsaPresignSessionProgressV1::Continue {
             presign_session_id,
             stage,
             event,
             outgoing_messages_b64u,
         },
-    )
+    )?;
+    timing.mark("ecdsa_presign_sw_total", started_at_ms);
+    timing.apply_to(&response)?;
+    Ok(response)
 }
 
 /// Handles SigningWorker's private linked-device ECDSA presign-session init
@@ -12038,6 +12047,8 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
     runtime: &CloudflareSigningWorkerRuntimeV1,
     now_unix_ms: u64,
 ) -> worker::Result<worker::Response> {
+    let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
+    let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     if request.method() != worker::Method::Post {
         return worker::Response::error("SigningWorker ECDSA presign step requires POST", 405);
     }
@@ -12061,6 +12072,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
     if let Err(error) = parsed.validate_at(now_unix_ms) {
         return cloudflare_signing_worker_presign_error_response_v1(error);
     }
+    let session_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let progress = match durable_object::execute_cloudflare_durable_object_custom_json_call_v1(
         env,
         &runtime.bindings().presign_session,
@@ -12073,7 +12085,8 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
         Ok(value) => value,
         Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
     };
-    match progress {
+    timing.mark("ecdsa_presign_sw_session", session_started_at_ms);
+    let response = match progress {
         durable_object::CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1::Continue {
             presign_session_id,
             stage,
@@ -12102,6 +12115,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
                     return cloudflare_signing_worker_presign_error_response_v1(error);
                 }
             };
+            let admission_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
             let admission = handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_presignature_pool_put_private_fetch_v1(
                 internal_request,
                 env,
@@ -12109,6 +12123,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
                 now_unix_ms,
             )
             .await?;
+            timing.mark("ecdsa_presign_sw_admit", admission_started_at_ms);
             if !(200..=299).contains(&admission.status_code()) {
                 return Ok(admission);
             }
@@ -12122,7 +12137,10 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
                 },
             )
         }
-    }
+    }?;
+    timing.mark("ecdsa_presign_sw_total", started_at_ms);
+    timing.apply_to(&response)?;
+    Ok(response)
 }
 
 /// Handles SigningWorker's private linked-device ECDSA presign-session step

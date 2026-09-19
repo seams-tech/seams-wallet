@@ -78,7 +78,7 @@ function secureRerandomizationContribution32(): Uint8Array {
 
 type RouterAbEcdsaDerivationClientPresignatureRefillInputBase = {
   relayerUrl: string;
-  keyHandle?: EcdsaKeyHandle;
+  keyHandle: EcdsaKeyHandle;
   ecdsaThresholdKeyId: EcdsaThresholdKeyId;
   clientVerifyingShareB64u: EcdsaClientVerifyingShareB64u;
   clientSigningMaterial: RouterAbEcdsaDerivationClientSigningMaterialSource;
@@ -1262,23 +1262,6 @@ function resolveSigningRequestExpiresAtMs(input: {
   return Number.isSafeInteger(expiresAtMs) && expiresAtMs > input.nowMs ? expiresAtMs : null;
 }
 
-function resolveRouterAbEcdsaDerivationPoolFillInitKeySelector(args: {
-  keyHandle?: EcdsaKeyHandle;
-  ecdsaThresholdKeyId: EcdsaThresholdKeyId;
-}):
-  | { ok: true; value: RouterAbEcdsaDerivationPoolFillInitKeySelector }
-  | { ok: false; code: 'invalid_args'; message: string } {
-  if (args.keyHandle) {
-    const keyHandle = formatEcdsaKeyHandleForWire(args.keyHandle);
-    return { ok: true, value: { keyHandle } };
-  }
-  return {
-    ok: false,
-    code: 'invalid_args',
-    message: 'Missing keyHandle for Router A/B ECDSA derivation pool-fill init selector',
-  };
-}
-
 export async function signRouterAbEcdsaDerivationDigestWithPoolHit(
   args: {
     relayerUrl: string;
@@ -1712,7 +1695,7 @@ export async function signRouterAbEcdsaDerivationDigestWithPool(
     operationDigests: RouterAbEcdsaDerivationOperationDigestsV1Wire;
     materialActivation: RouterAbMpcMaterialActivationRefWire;
     credential: RouterAbOwnerNormalSigningCredential;
-    keyHandle?: EcdsaKeyHandle;
+    keyHandle: EcdsaKeyHandle;
     signingDigest32: Uint8Array;
     clientSigningMaterial: RouterAbEcdsaDerivationClientSigningMaterialSource;
     expiresAtMs: number;
@@ -1836,15 +1819,9 @@ export async function refillRouterAbEcdsaDerivationClientPresignaturePool(
       relayerVerifyingShareB64u: args.relayerVerifyingShareB64u,
       workerCtx: args.workerCtx,
     });
-    const poolFillInitKeySelector = resolveRouterAbEcdsaDerivationPoolFillInitKeySelector({
-      keyHandle: args.keyHandle,
-      ecdsaThresholdKeyId: args.ecdsaThresholdKeyId,
-    });
-    if (!poolFillInitKeySelector.ok) return poolFillInitKeySelector;
-
     const generated = await runPresignHandshake({
       relayerUrl: args.relayerUrl,
-      poolFillInitKeySelector: poolFillInitKeySelector.value,
+      poolFillInitKeySelector: { keyHandle: formatEcdsaKeyHandleForWire(args.keyHandle) },
       clientSigningMaterial: args.clientSigningMaterial,
       groupPublicKey33,
       materialActivation: args.materialActivation,

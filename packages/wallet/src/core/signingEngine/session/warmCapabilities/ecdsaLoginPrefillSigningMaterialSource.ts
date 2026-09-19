@@ -10,7 +10,6 @@ import {
   thresholdEcdsaRoleLocalPresignSessionStepWasm,
 } from '../../threshold/crypto/ecdsaDerivationClientWasm';
 import type { RouterAbEcdsaDerivationClientSigningMaterialSource } from '../../routerAb/ecdsaDerivation/presignaturePool';
-import type { ExactEcdsaSealedRuntime } from '../material/ecdsaSealedRuntime';
 import type { ActiveEcdsaCapabilityManifest } from '../material/ecdsaCapabilityManifest';
 import {
   ecdsaRoleLocalPersistedMaterialSource,
@@ -39,7 +38,6 @@ function requireResolvedLoginPrefillMaterial(
 
 export function createEcdsaLoginPrefillClientSigningMaterialSource(args: {
   manifest: ActiveEcdsaCapabilityManifest;
-  runtime: ExactEcdsaSealedRuntime;
 }): RouterAbEcdsaDerivationClientSigningMaterialSource {
   return {
     kind: 'router_ab_ecdsa_derivation_client_signing_material_source_v1',

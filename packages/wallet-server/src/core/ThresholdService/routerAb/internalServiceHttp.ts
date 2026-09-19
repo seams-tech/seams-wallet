@@ -28,6 +28,7 @@ export async function postRouterAbInternalServiceJson(input: {
   body: unknown;
   authSecret: string;
   fetchImpl: typeof fetch;
+  onServerTiming?: (header: string | null) => void;
 }): Promise<RouterAbInternalServiceJsonResult> {
   let response: Response;
   try {
@@ -45,6 +46,7 @@ export async function postRouterAbInternalServiceJson(input: {
     return { ok: false, code: 'network_error', message: errorMessage(error) };
   }
 
+  input.onServerTiming?.(response.headers.get('Server-Timing'));
   const bodyText = await response.text().catch(() => '');
   if (!response.ok) {
     return { ok: false, code: 'http_error', status: response.status, bodyText };

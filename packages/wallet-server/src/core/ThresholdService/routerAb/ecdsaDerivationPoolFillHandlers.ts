@@ -334,6 +334,7 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
   }
 
   private async startStrictPresignSession(input: {
+    onServerTiming?: (header: string | null) => void;
     binding: RouterAbEcdsaDerivationPoolFillBinding;
     keySelector: ThresholdEcdsaRoleLocalKeyRecordSelector;
     poolFill: RouterAbEcdsaDerivationSigningWorkerPoolFillDestination;
@@ -365,16 +366,13 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
       };
     }
     const nowMs = Date.now();
-    const { ceremonyExpiresAtMs, materialExpiresAtMs } =
-      resolveRouterAbEcdsaPresignDeadlines({
-        requestedCeremonyExpiresAtMs:
-          input.poolFill.ceremonyExpiresAtMs,
-        requestedMaterialExpiresAtMs:
-          input.poolFill.materialExpiresAtMs,
-        thresholdExpiresAtMs: input.binding.thresholdExpiresAtMs,
-        authorization: input.binding.authorization,
-        nowMs,
-      });
+    const { ceremonyExpiresAtMs, materialExpiresAtMs } = resolveRouterAbEcdsaPresignDeadlines({
+      requestedCeremonyExpiresAtMs: input.poolFill.ceremonyExpiresAtMs,
+      requestedMaterialExpiresAtMs: input.poolFill.materialExpiresAtMs,
+      thresholdExpiresAtMs: input.binding.thresholdExpiresAtMs,
+      authorization: input.binding.authorization,
+      nowMs,
+    });
     if (ceremonyExpiresAtMs <= nowMs || materialExpiresAtMs <= nowMs) {
       return {
         ok: false,
@@ -406,6 +404,7 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
       materialExpiresAtMs,
       auth: transport.auth,
       fetchImpl: transport.fetchImpl,
+      onServerTiming: input.onServerTiming,
     });
     if (!started.ok) {
       return { ok: false, code: started.code, message: started.message };
@@ -428,6 +427,7 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
   }
 
   private async stepStrictPresignSession(input: {
+    onServerTiming?: (header: string | null) => void;
     binding: RouterAbEcdsaDerivationPoolFillBinding;
     presignSessionId: string;
     ceremonyExpiresAtMs: number;
@@ -447,6 +447,7 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
       materialExpiresAtMs: input.materialExpiresAtMs,
       auth: transport.auth,
       fetchImpl: transport.fetchImpl,
+      onServerTiming: input.onServerTiming,
     });
     if (!stepped.ok) {
       return {
@@ -481,6 +482,7 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
   }
 
   async routerAbEcdsaDerivationPresignaturePoolFillInit(input: {
+    onServerTiming?: (header: string | null) => void;
     binding: RouterAbEcdsaDerivationPoolFillBinding;
     request: RouterAbEcdsaDerivationPoolFillInitRequest;
   }): Promise<RouterAbEcdsaDerivationPoolFillInitResponse> {
@@ -541,10 +543,12 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
       keyHandle: tokenKeyHandle,
       relayerKeyId: tokenRelayerKeyId,
       signingRoot: tokenSigningRoot,
+      onServerTiming: input.onServerTiming,
     });
   }
 
   async routerAbEcdsaDerivationPresignaturePoolFillStep(input: {
+    readonly onServerTiming?: (header: string | null) => void;
     readonly binding: RouterAbEcdsaDerivationPoolFillBinding;
     readonly request: RouterAbEcdsaDerivationPoolFillStepRequest;
   }): Promise<RouterAbEcdsaDerivationPoolFillStepResponse> {
@@ -618,6 +622,7 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
       materialExpiresAtMs,
       requestedStage,
       outgoingMessagesB64u,
+      onServerTiming: input.onServerTiming,
     });
   }
 }

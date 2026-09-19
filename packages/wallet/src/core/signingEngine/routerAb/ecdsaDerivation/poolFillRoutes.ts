@@ -7,6 +7,7 @@ import {
 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { RouterAbNormalSigningAuthorizationWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { fetchRouterAbEcdsaDerivationJson } from './httpRequest';
+import { emitEcdsaPresignServerTiming } from '../../session/operationState/trace';
 import type { RouterAbOwnerNormalSigningCredential } from '../../../rpcClients/relayer/routerAbNormalSigning';
 
 type RouterAbEcdsaDerivationPoolFillAuth = {
@@ -193,6 +194,13 @@ async function postEcdsaPresignInit(
         }),
       },
     });
+    if (typeof data.presignSessionId === 'string') {
+      emitEcdsaPresignServerTiming(
+        data.presignSessionId,
+        'init',
+        response.headers.get('Server-Timing'),
+      );
+    }
     if (!response.ok) {
       return {
         ok: false,
@@ -311,6 +319,7 @@ async function postEcdsaPresignStep(
         }),
       },
     });
+    emitEcdsaPresignServerTiming(presignSessionId, 'step', response.headers.get('Server-Timing'));
     if (!response.ok) {
       return {
         ok: false,

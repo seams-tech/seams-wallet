@@ -15,11 +15,10 @@ import { ed25519WalletSessionStatusOwner } from '../lifecycle/walletSessionStatu
 import {
   scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill as scheduleRouterAbEcdsaDerivationLoginPresignaturePrefillValue,
   type RouterAbEcdsaDerivationLoginPresignaturePrefillResult,
+  type EcdsaSessionPresignaturePrefillInput,
 } from './ecdsaLoginPrefill';
 import type { ThresholdEcdsaSessionBootstrapResult } from '../../threshold/ecdsa/activation';
 import type { ThresholdEcdsaBootstrapSignerAuth } from './ecdsaBootstrapPersistence';
-import type { ExactEcdsaSealedRuntime } from '../material/ecdsaSealedRuntime';
-import type { ActiveEcdsaCapabilityManifest } from '../material/ecdsaCapabilityManifest';
 import type { ThresholdWarmSessionStatusReader } from './types';
 import type { ExactEd25519SealedSessionRuntime } from './ed25519SealedSessionRuntime';
 import type { ExactNearEd25519WalletSessionAuthorization } from '../material/nearEd25519YaoSigningPreparation';
@@ -51,12 +50,6 @@ export type WarmCapabilitiesPublicDeps = {
   getSignerWorkerContext: Parameters<
     typeof scheduleRouterAbEcdsaDerivationLoginPresignaturePrefillValue
   >[0]['getSignerWorkerContext'];
-  resolveActiveWalletAuthority: Parameters<
-    typeof scheduleRouterAbEcdsaDerivationLoginPresignaturePrefillValue
-  >[0]['resolveActiveWalletAuthority'];
-  readExactWalletSessionWithOperationCredential: Parameters<
-    typeof scheduleRouterAbEcdsaDerivationLoginPresignaturePrefillValue
-  >[0]['readExactWalletSessionWithOperationCredential'];
   resolveClientSigningMaterialSource: Parameters<
     typeof scheduleRouterAbEcdsaDerivationLoginPresignaturePrefillValue
   >[0]['resolveClientSigningMaterialSource'];
@@ -103,21 +96,11 @@ export async function getWarmThresholdEd25519SessionStatus(
 
 export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
   deps: WarmCapabilitiesPublicDeps,
-  args: {
-    walletId: WalletId;
-    chainTarget: ThresholdEcdsaChainTarget;
-    manifest: ActiveEcdsaCapabilityManifest;
-    runtime: ExactEcdsaSealedRuntime;
-    minRemainingUsesBeforePrefill?: number;
-    waitForPoolReady?: boolean;
-  },
+  args: EcdsaSessionPresignaturePrefillInput,
 ): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {
   return await scheduleRouterAbEcdsaDerivationLoginPresignaturePrefillValue(
     {
       getSignerWorkerContext: deps.getSignerWorkerContext,
-      resolveActiveWalletAuthority: deps.resolveActiveWalletAuthority,
-      readExactWalletSessionWithOperationCredential:
-        deps.readExactWalletSessionWithOperationCredential,
       resolveClientSigningMaterialSource: deps.resolveClientSigningMaterialSource,
       routerAbEcdsaDerivationPresignaturePoolPolicy:
         deps.routerAbEcdsaDerivationPresignaturePoolPolicy,
