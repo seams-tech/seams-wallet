@@ -227,6 +227,12 @@ for these cached prepare/finalize requests was 0.29–0.74 seconds, compared wit
 were milliseconds. Placement is useful, but the remaining empty-pool cohort
 still fails the three-second target.
 
+The live signing-worker tail independently supports the placement result:
+prepare wall-time medians were 799 ms before and 137 ms afterward; finalize
+medians were 1,188 ms before and 201 ms afterward. Seven baseline request pairs
+and five post-change pairs were captured by that tail. These per-role spans are
+nested inside the gateway proxy and client timings, rather than additional work.
+
 Sample 13 reproduces the recurring slow transaction after the reusable signing
 budget and precomputed material are consumed. Operation step-up with an empty
 pool requires foreground generation. One init request and seven sequential
