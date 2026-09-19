@@ -153,6 +153,122 @@ Remaining acceptance work:
 
 ## Production ECDSA acceptance cases
 
+### Deployed measurements on 2026-09-19
+
+The deployed `0.5.24` wallet at `wallet.seams.sh` was exercised against
+`test.api.wallet.seams.sh` and `test.sign.seams.sh` from Japan. Chromium used a
+virtual passkey with automatic user verification. MPC, storage, and Tempo RPC
+requests used the deployed services. Human passkey time is therefore excluded;
+these are signing measurements, not full click-to-chain-confirmation timings.
+Two registrations and thirteen successful Tempo signatures were captured.
+One signature configured the funded account's fee token; the remainder signed
+the demo greeting transaction. These are small diagnostic cohorts, not p95s.
+
+Registration succeeded in 8.17 and 8.33 seconds. The NEAR custody join took
+3.53 and 3.98 seconds before success. The subsequent asynchronous provisioning
+task took 4.11 and 2.75 seconds, including signer activation of 2.51 and 1.35
+seconds. This verifies that slow NEAR activation remains outside the success
+gate. The earlier custody join remains a registration optimization target;
+it participates in proving the combined key manifest and cannot simply be
+removed from that proof boundary.
+
+Before measuring signing, the site exposed a separate startup regression:
+optional mainnet discovery returned HTTP 503 without CORS, making browser
+configuration loading fail. Monorepo PR 24 fixed the public unavailable
+response. Mainnet deployment `35443614586` passed, and a fresh page reload
+without interception verified the fix. Early measurements used a browser-only
+CORS header correction for that optional discovery request; signing traffic
+was never intercepted or mocked.
+
+The baseline signing-worker version was
+`a9c5e678-2efc-4139-9358-f171ea60b492`. The gateway and MPC router versions were
+`cd65e890-59ef-4824-a264-06b8b9c6f169` and
+`4d3974e4-b60f-4df0-8f93-f8e0f4718eed`. Live tails showed prepare/finalize
+waiting in the signing worker with relatively small CPU time. Read-only D1
+`SELECT 1` probes reported the gateway primary in Singapore (`SIN`) and the
+signing-worker private primary in Osaka (`KIX`). The gateway targets Singapore;
+the signing worker had no placement policy. Its source performs several
+sequential primary reads and writes on the signing path.
+
+A placement-only change put the production-testnet signing worker near Osaka
+(`aws:ap-northeast-3`), producing version
+`81eb18f1-3475-450e-9ca7-5a904904a290`. Bindings and cryptographic material were
+unchanged. Monorepo PR 25 records this region in the existing deployment target
+and renders it into the selected Wrangler environment. No other lane's
+placement was changed. [Cloudflare's placement documentation](https://developers.cloudflare.com/workers/configuration/placement/)
+supports placing a service-bound worker near its backend. Exact database
+location should be rechecked before changing another lane.
+
+All durations below are seconds. Commit includes authorization after
+confirmation, pool work, prepare/finalize, and transaction assembly. Refill is
+nested inside commit and must not be added again. A dash means no foreground
+generation was required.
+
+| Sample | Placement | Authorization | Initial pool | Refill | Prepare | Finalize | Commit |
+| --- | --- | --- | --- | ---: | ---: | ---: | ---: |
+| 1 | Baseline | Reusable | Empty | 6.32 | 1.30 | 1.91 | 9.76 |
+| 2 | Baseline | Reusable | Available | — | 2.27 | 2.74 | 5.63 |
+| 3 | Baseline | Reusable | Available | — | 1.63 | 1.61 | 3.47 |
+| 4 | Baseline, after unlock | Reusable | Empty | 6.74 | 1.47 | 1.91 | 10.55 |
+| 5 | Baseline | Reusable | Available | — | 1.31 | 1.69 | 3.34 |
+| 6 | Baseline | Reusable | Available | — | 1.35 | 1.93 | 3.65 |
+| 7 | Baseline | Operation step-up | Available | — | 1.33 | 1.74 | 3.61 |
+| 8 | Osaka | Operation step-up | Empty | 7.32 | 1.38 | 1.11 | 10.63 |
+| 9 | Osaka, after unlock | Reusable | Empty | 5.32 | 0.99 | 1.26 | 7.88 |
+| 10 | Osaka | Reusable | Available | — | 0.89 | 1.47 | 2.58 |
+| 11 | Osaka | Reusable | Available | — | 1.00 | 1.17 | 2.46 |
+| 12 | Osaka | Operation step-up | Available | — | 0.98 | 1.17 | 2.80 |
+| 13 | Osaka | Operation step-up | Empty | 9.93 | 1.66 | 1.17 | 13.35 |
+
+Cached signing improved from 3.34–5.63 seconds (five samples) to 2.46–2.80
+seconds (three samples). After the change, the gateway's upstream proxy span
+for these cached prepare/finalize requests was 0.29–0.74 seconds, compared with
+0.82–1.30 seconds before it. Client share computation and signature verification
+were milliseconds. Placement is useful, but the remaining empty-pool cohort
+still fails the three-second target.
+
+Sample 13 reproduces the recurring slow transaction after the reusable signing
+budget and precomputed material are consumed. Operation step-up with an empty
+pool requires foreground generation. One init request and seven sequential
+step requests precede signing; its step timings were 0.75–1.57 seconds apiece.
+Post-sign refill is deliberately absent for operation-specific authorization.
+Increasing the reusable allowance or weakening exact-operation authorization
+would change the product's authorization policy and is not part of this fix.
+
+The next implementation priorities are now:
+
+1. Attribute presign init, each step, and completion separately inside the gateway,
+   signing worker, and session Durable Object. Record the actual execution
+   locations, storage time, and authorization branch for an empty-pool step-up.
+   Preserve numeric-only diagnostics and correlate a single operation across roles.
+2. Reduce the measured round-trip and storage overhead in that exchange. Batch
+   independent storage reads where the existing consistency contract permits it;
+   examine a persistent transport for the seven client/server rounds. Keep
+   nonce reservation, exact-operation admission, revocation, and one-use
+   presignature consumption enforced. Validate protocol changes with vectors
+   and the sustained intended-behaviour contract before deployment.
+3. Start permitted presign preparation earlier in an already authorized session
+   and measure immediate signing without an artificial warmup interval. Treat
+   preparation after the reusable budget is exhausted as an explicit protocol
+   and authorization design question; do not extend session authority silently.
+4. Optimize the measured 3.5–4.0-second NEAR custody join and 1.4–2.5-second
+   asynchronous activation while preserving ECDSA-ready registration success.
+5. Repeat the production matrix, including Arc, cold runtimes, concurrent
+   requests, expired sessions, reload, and exhausted pools. Arc signing was
+   blocked by the external faucet's CAPTCHA and has no production sample in
+   this run. A separate attempt after the five-minute session expired stopped
+   with `exact ECDSA Wallet Session is unavailable` before signing; reload and
+   passkey unlock restored signing. That expiry case needs a focused lifecycle
+   reproduction and must not be counted as a successful latency sample.
+
+Mainnet activation remains separate: its production environment is disabled,
+has no active binding, and its organization has zero prepaid balance. Stripe
+integration is unfinished. No credit was issued, checkout performed, or billing
+guard bypassed during this work. Testnet-backed production measurements remain
+available independently of that decision.
+
+### Acceptance criteria
+
 The user reports **10–20 seconds** waiting at “Creating transaction signature”
 on `wallet.seams.sh`, including an approximately 13-second example with Tempo
 selected and the account already funded. The screenshot identifies the
