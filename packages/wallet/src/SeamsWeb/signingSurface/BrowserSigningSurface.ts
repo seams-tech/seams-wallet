@@ -5661,8 +5661,10 @@ export class BrowserSigningSurface {
     subject: NearEd25519CapabilityRehydrationSubject,
   ): Promise<ConcreteAvailableEd25519SigningLane | null> {
     const identity = nearEd25519CapabilityRehydrationMaterialIdentity(subject);
+    const walletId = identity.signer.account.wallet.walletId;
     const availableLanes = await this.readPersistedAvailableSigningLanes({
-      walletId: identity.signer.account.wallet.walletId,
+      walletId,
+      ownerScope: await this.resolveSelectedOwnerLaneScope(walletId),
     });
     const matches: ConcreteAvailableEd25519SigningLane[] = [];
     for (const lane of availableLanes.candidates.ed25519.near) {
