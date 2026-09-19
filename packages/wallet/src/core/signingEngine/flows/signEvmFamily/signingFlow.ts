@@ -39,6 +39,7 @@ import type {
   SigningSessionPlan,
 } from '../../session/operationState/types';
 import { SigningSessionIds } from '../../session/operationState/types';
+import { emitEcdsaSigningTiming } from '../../session/operationState/trace';
 import { parseSigningOperationFingerprintDigest } from '../../session/planning/operationFingerprint';
 import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import {
@@ -449,6 +450,31 @@ function buildPendingActiveWalletAuthorityConfirmationRequest<
     body: args.config.body,
     confirmationConfigOverride: args.input.confirmationConfigOverride,
   };
+}
+
+async function signQueuedEcdsaRequest(args: {
+  request: SignRequest;
+  engine: ReadySecp256k1Signer;
+  operation: EvmFamilyThresholdEcdsaOperation;
+  operationDigests: OperationDigestSet;
+  queuedAt: number;
+  resolveMaterial: (
+    request: SignRequest,
+    operation: EvmFamilyThresholdEcdsaOperation,
+    operationDigests: OperationDigestSet,
+  ) => Promise<ReadyEcdsaSigningMaterialSource>;
+}): Promise<SignatureBytes> {
+  const operationId = String(args.operation.intent.operationId);
+  emitEcdsaSigningTiming(operationId, 'material_queue', args.queuedAt);
+  const authorizationStartedAt = performance.now();
+  const ready = await args.resolveMaterial(args.request, args.operation, args.operationDigests);
+  emitEcdsaSigningTiming(operationId, 'material_authorization', authorizationStartedAt);
+  return await args.engine.signReady(
+    args.request,
+    ready.material,
+    args.operation,
+    args.operationDigests,
+  );
 }
 
 export async function signEvmFamilyWithUiConfirm<TRequest, TResult extends object>(args: {
@@ -972,6 +998,7 @@ export async function signEvmFamilyWithUiConfirm<TRequest, TResult extends objec
   };
 
   const runSignCommand = async (): Promise<void> => {
+    const commitStartedAt = performance.now();
     if (!intentPrepared) {
       throw new Error('[chains] signing intent must be prepared before signing');
     }
@@ -1046,19 +1073,16 @@ export async function signEvmFamilyWithUiConfirm<TRequest, TResult extends objec
           throw new Error('[chains] secp256k1 signing requires exact material serialization');
         }
         signatures.push(
-          await input.runEcdsaMaterialUse(async () => {
-            const readyMaterialSource = await ensureReadySecp256k1SigningMaterial(
-              signReq,
-              thresholdEcdsaOperation,
+          await input.runEcdsaMaterialUse(
+            signQueuedEcdsaRequest.bind(undefined, {
+              request: signReq,
+              engine,
+              operation: thresholdEcdsaOperation,
               operationDigests,
-            );
-            return await engine.signReady(
-              signReq,
-              readyMaterialSource.material,
-              thresholdEcdsaOperation,
-              operationDigests,
-            );
-          }),
+              queuedAt: performance.now(),
+              resolveMaterial: ensureReadySecp256k1SigningMaterial,
+            }),
+          ),
         );
         continue;
       } else {
@@ -1073,9 +1097,15 @@ export async function signEvmFamilyWithUiConfirm<TRequest, TResult extends objec
       }
       signatures.push(await engine.sign(signReq, keyRef));
     }
+    const assemblyStartedAt = performance.now();
     signedResult = await intent.finalize(signatures);
     thresholdSignatureCreated = true;
     await markNonceReservationSigned();
+    if (activeThresholdEcdsaOperation) {
+      const operationId = String(activeThresholdEcdsaOperation.intent.operationId);
+      emitEcdsaSigningTiming(operationId, 'transaction_assembly', assemblyStartedAt);
+      emitEcdsaSigningTiming(operationId, 'commit_total', commitStartedAt);
+    }
     emitProgress({
       phase: SigningEventPhase.STEP_11_TRANSACTION_SIGNED,
       status: 'succeeded',

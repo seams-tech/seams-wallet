@@ -62,6 +62,11 @@ import {
   type EcdsaThresholdKeyId,
 } from '../../session/keyMaterialBrands';
 import { PresignatureRefillProgressV1 } from './presignatureRefillProgress';
+import {
+  emitEcdsaSigningTiming,
+  emitEcdsaServerTiming,
+  emitSigningSessionFlowTrace,
+} from '../../session/operationState/trace';
 
 function secureRerandomizationContribution32(): Uint8Array {
   const cryptoApi = globalThis.crypto;
@@ -780,14 +785,28 @@ export function scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(
       } catch {}
       if (getClientPresignaturePoolDepth(poolKey) > 0) {
         progress.publishAvailable();
+        if (getForegroundSignInFlightCount(poolKey) > 0) return;
       }
       while (Date.now() < deadlineAtMs) {
         if (getClientPresignaturePoolGeneration(poolKey) !== scheduledGeneration) return;
         const currentDepth = getClientPresignaturePoolDepth(poolKey);
         if (currentDepth >= targetDepth) return;
-        const refill = await refillRouterAbEcdsaDerivationClientPresignaturePool(refillInput);
+        const refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
+          ...refillInput,
+          trafficClass: 'background',
+        });
+        emitSigningSessionFlowTrace('evm-family', {
+          event: 'ecdsa_background_refill_result',
+          authorization: args.authorization.kind,
+          outcome: refill.ok ? 'available' : 'failed',
+          code: refill.ok ? null : refill.code,
+          depth: getClientPresignaturePoolDepth(poolKey),
+          targetDepth,
+        });
         if (!refill.ok) return;
         progress.publishAvailable();
+        // The signer replenishes the pool after its online exchange completes.
+        if (getForegroundSignInFlightCount(poolKey) > 0) return;
       }
     })()
       .catch(() => {})
@@ -869,7 +888,7 @@ type RouterAbEcdsaPresignHandshakeArgs = {
   groupPublicKey33: Uint8Array;
   materialActivation: RouterAbMpcMaterialActivationRefWire;
   credential: RouterAbOwnerNormalSigningCredential;
-  requestTag?: string;
+  requestTag: 'background_presign_pool_refill' | 'foreground_presign_pool_refill';
   routerAbEcdsaDerivationPoolFill: RouterAbEcdsaDerivationPresignaturePoolFill;
   workerCtx: WorkerOperationContext;
 } & RouterAbEcdsaDerivationPoolFillAuthorization;
@@ -898,6 +917,7 @@ async function runPresignHandshakeAttempt(
   | RouterAbEcdsaDerivationCoordinatorError
 > {
   assertRouterAbEcdsaDerivationClientSigningMaterialSource(args.clientSigningMaterial);
+  const handshakeStartedAt = performance.now();
   const init = await routerAbEcdsaDerivationPresignaturePoolFillInit({
     relayerUrl: args.relayerUrl,
     ...args.poolFillInitKeySelector,
@@ -1000,6 +1020,7 @@ async function runPresignHandshakeAttempt(
       }
 
       if (!serverDone) {
+        const roundStartedAt = performance.now();
         const stepArgs = {
           relayerUrl: args.relayerUrl,
           presignSessionId,
@@ -1012,6 +1033,16 @@ async function runPresignHandshakeAttempt(
           ...ecdsaPoolFillAuthorization(args),
         } as const;
         const stepped = await routerAbEcdsaDerivationPresignaturePoolFillStep(stepArgs);
+        emitSigningSessionFlowTrace('evm-family', {
+          event: 'ecdsa_presignature_round',
+          requestTag: args.requestTag,
+          presignSessionId,
+          authorization: args.authorization.kind,
+          round: i,
+          stage: stepArgs.stage,
+          durationMs: performance.now() - roundStartedAt,
+          outcome: stepped.ok ? 'succeeded' : 'failed',
+        });
         pendingClientOutgoing = [];
         if (!stepped.ok) {
           return {
@@ -1131,6 +1162,14 @@ async function runPresignHandshakeAttempt(
     );
     return { ok: false, code: 'presign_failed', message: msg };
   } finally {
+    emitSigningSessionFlowTrace('evm-family', {
+      event: 'ecdsa_presignature_generation',
+      requestTag: args.requestTag,
+      presignSessionId,
+      authorization: args.authorization.kind,
+      durationMs: performance.now() - handshakeStartedAt,
+      outcome: keepLocalMaterial ? 'available' : 'failed',
+    });
     zeroizeBytes(localBigR33);
     if (!keepLocalMaterial && localPresignatureHandle) {
       await args.clientSigningMaterial
@@ -1302,11 +1341,14 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
         message: 'signingDigest32 must be 32 bytes for Router A/B ECDSA derivation signing',
       };
     }
+    const publicKeyStartedAt = performance.now();
     const groupPublicKey33 = await resolveGroupPublicKey33({
       clientVerifyingShareB64u,
       thresholdEcdsaPublicKeyB64u: signingIdentity.thresholdEcdsaPublicKeyB64u,
       workerCtx: args.workerCtx,
     });
+
+    emitEcdsaSigningTiming(args.operationId, 'public_key_validation', publicKeyStartedAt);
 
     poolIdentity = makeClientPresignPoolIdentity({
       relayerUrl,
@@ -1319,13 +1361,16 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
     foregroundStarted = true;
     poolGeneration = getClientPresignaturePoolGeneration(poolKey);
 
+    const lookupStartedAt = performance.now();
     presignature = await takeClientPresignature({
       poolKey,
       poolIdentity,
       clientSigningMaterial: args.clientSigningMaterial,
       workerCtx: args.workerCtx,
     });
+    emitEcdsaSigningTiming(args.operationId, 'pool_lookup', lookupStartedAt);
     if (!presignature) {
+      const restoreStartedAt = performance.now();
       await hydrateClientPresignaturePool({
         poolKey,
         poolIdentity,
@@ -1333,6 +1378,7 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
         workerCtx: args.workerCtx,
         generation: poolGeneration,
       });
+      emitEcdsaSigningTiming(args.operationId, 'pool_restore', restoreStartedAt);
       poolGeneration = getClientPresignaturePoolGeneration(poolKey);
       presignature = await takeClientPresignature({
         poolKey,
@@ -1342,7 +1388,9 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
       });
     }
     if (!presignature) {
+      const refillWaitStartedAt = performance.now();
       await waitForAvailablePresignatureFromInFlightRefill(poolKey);
+      emitEcdsaSigningTiming(args.operationId, 'refill_wait', refillWaitStartedAt);
       poolGeneration = getClientPresignaturePoolGeneration(poolKey);
       presignature = await takeClientPresignature({
         poolKey,
@@ -1351,6 +1399,14 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
         workerCtx: args.workerCtx,
       });
     }
+    emitSigningSessionFlowTrace('evm-family', {
+      event: 'ecdsa_presignature_selection',
+      operationId: args.operationId,
+      authorization: args.authorization.kind,
+      outcome: presignature ? 'available' : 'empty',
+      remainingDepth: getClientPresignaturePoolDepth(poolKey),
+      attempt: retryCount,
+    });
     if (!presignature) {
       return {
         ok: false,
@@ -1407,6 +1463,7 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
       'Router A/B ECDSA Client presignature reservation',
     );
     clientPresignatureCleanupState = { kind: 'destroy' };
+    const reserveStartedAt = performance.now();
     const reservation = await args.clientSigningMaterial.reserveClientPresignature({
       materialHandle: presignature.materialHandle,
       expectedPresignatureId: presignature.presignatureId,
@@ -1416,6 +1473,7 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
       leaseExpiresAtMs: prepareRequest.expires_at_ms,
       workerCtx: args.workerCtx,
     });
+    emitEcdsaSigningTiming(args.operationId, 'presignature_reserve', reserveStartedAt);
     if (reservation.kind === 'unavailable') {
       if (reservation.reason === 'claimed_elsewhere') {
         clientPresignatureCleanupState = { kind: 'owned_elsewhere' };
@@ -1438,11 +1496,14 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
       };
     }
     preparationState = { kind: 'prepare_submitted' };
+    const prepareStartedAt = performance.now();
     const prepareResponse = await prepareRouterAbEcdsaDerivationEvmDigestSigningV1({
       relayServerUrl: relayerUrl,
       credential: args.credential,
       request: prepareRequest,
+      onServerTiming: emitEcdsaServerTiming.bind(undefined, args.operationId, 'prepare'),
     });
+    emitEcdsaSigningTiming(args.operationId, 'prepare', prepareStartedAt);
     if (prepareResponse.server_big_r33_b64u !== presignature.bigRB64u) {
       return {
         ok: false,
@@ -1450,6 +1511,7 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
         message: 'Router A/B ECDSA derivation SigningWorker returned a different presignature bigR',
       };
     }
+    const commitStartedAt = performance.now();
     await args.clientSigningMaterial.commitClientPresignature({
       materialHandle: presignature.materialHandle,
       poolIdentity,
@@ -1457,6 +1519,8 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
       reservationId,
       workerCtx: args.workerCtx,
     });
+
+    emitEcdsaSigningTiming(args.operationId, 'presignature_commit', commitStartedAt);
 
     const bigR33 = base64UrlDecode(presignature.bigRB64u);
     const signingWorkerRerandomizationContribution32 = base64UrlDecode(
@@ -1479,6 +1543,7 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
         };
       }
 
+      const shareStartedAt = performance.now();
       clientSignatureShare32 =
         await args.clientSigningMaterial.computeSignatureShareFromPresignatureHandle({
           materialHandle: presignature.materialHandle,
@@ -1492,6 +1557,7 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
           signingWorkerRerandomizationContribution32,
           workerCtx: args.workerCtx,
         });
+      emitEcdsaSigningTiming(args.operationId, 'client_share', shareStartedAt);
       clientPresignatureCleanupState = { kind: 'consumed' };
     } finally {
       zeroizeBytes(bigR33);
@@ -1519,11 +1585,14 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
       clientSignatureShare32,
       clientRerandomizationContribution32,
     });
+    const finalizeStartedAt = performance.now();
     const finalized = await finalizeRouterAbEcdsaDerivationEvmDigestSigningV1({
       relayServerUrl: relayerUrl,
       credential: args.credential,
       request: finalizeRequest,
+      onServerTiming: emitEcdsaServerTiming.bind(undefined, args.operationId, 'finalize'),
     });
+    emitEcdsaSigningTiming(args.operationId, 'finalize', finalizeStartedAt);
     const signature65 = base64UrlDecode(finalized.signature65_b64u);
     if (signature65.length !== 65) {
       return {
@@ -1533,12 +1602,14 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
       };
     }
     try {
+      const verifyStartedAt = performance.now();
       await verifySecp256k1RecoverableSignatureAgainstPublicKey33Wasm({
         digest32: args.signingDigest32,
         signature65,
         publicKey33: groupPublicKey33,
         workerCtx: args.workerCtx,
       });
+      emitEcdsaSigningTiming(args.operationId, 'signature_verify', verifyStartedAt);
     } catch (error: unknown) {
       return {
         ok: false,
@@ -1684,10 +1755,29 @@ export async function signRouterAbEcdsaDerivationDigestWithPool(
     workerCtx: args.workerCtx,
     ...ecdsaPoolFillAuthorization(args),
   };
-  let refill = await refillRouterAbEcdsaDerivationClientPresignaturePool(refillInput);
+  emitSigningSessionFlowTrace('evm-family', {
+    event: 'ecdsa_foreground_refill',
+    operationId: args.operationId,
+    authorization: args.authorization.kind,
+    reason: firstAttempt.code,
+  });
+  const refillStartedAt = performance.now();
+  let refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
+    ...refillInput,
+    trafficClass: 'foreground',
+  });
   if (!refill.ok && refill.code === 'invalidated') {
-    refill = await refillRouterAbEcdsaDerivationClientPresignaturePool(refillInput);
+    refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
+      ...refillInput,
+      trafficClass: 'foreground',
+    });
   }
+  emitEcdsaSigningTiming(
+    args.operationId,
+    'foreground_refill',
+    refillStartedAt,
+    refill.ok ? 'succeeded' : 'failed',
+  );
   if (!refill.ok) return refill;
 
   return await signRouterAbEcdsaDerivationDigestWithPoolHit({
@@ -1706,7 +1796,9 @@ export async function signRouterAbEcdsaDerivationDigestWithPool(
 }
 
 export async function refillRouterAbEcdsaDerivationClientPresignaturePool(
-  args: RouterAbEcdsaDerivationClientPresignatureRefillInput,
+  args: RouterAbEcdsaDerivationClientPresignatureRefillInput & {
+    trafficClass: 'foreground' | 'background';
+  },
 ): Promise<{ ok: true; presignatureId: string } | RouterAbEcdsaDerivationCoordinatorError> {
   try {
     const poolIdentity = makeClientPresignPoolIdentity({
@@ -1741,7 +1833,10 @@ export async function refillRouterAbEcdsaDerivationClientPresignaturePool(
       groupPublicKey33,
       materialActivation: args.materialActivation,
       credential: args.credential,
-      requestTag: 'background_presign_pool_refill',
+      requestTag:
+        args.trafficClass === 'foreground'
+          ? 'foreground_presign_pool_refill'
+          : 'background_presign_pool_refill',
       routerAbEcdsaDerivationPoolFill: args.routerAbEcdsaDerivationPoolFill,
       workerCtx: args.workerCtx,
       ...ecdsaPoolFillAuthorization(args),

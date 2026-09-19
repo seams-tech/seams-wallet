@@ -1334,6 +1334,7 @@ async function postRouterAbNormalSigningJson<T>(args: {
   credential: RouterAbEd25519NormalSigningCredential;
   body: unknown;
   parse: (value: unknown) => T | Promise<T>;
+  onServerTiming?: (header: string | null) => void;
 }): Promise<T> {
   if (typeof fetch !== 'function') {
     throw new Error('fetch is not available for Router A/B normal-signing request');
@@ -1345,6 +1346,11 @@ async function postRouterAbNormalSigningJson<T>(args: {
     `${base}${args.path}`,
     buildRouterAbRequestInit({ credential: args.credential, body: args.body }),
   );
+  try {
+    args.onServerTiming?.(response.headers.get('Server-Timing'));
+  } catch {
+    // Diagnostics cannot change the signing outcome.
+  }
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');
     throw routerAbSigningHttpError({
@@ -1374,11 +1380,13 @@ export async function prepareRouterAbEcdsaDerivationEvmDigestSigningV1(args: {
   relayServerUrl: string;
   credential: RouterAbEd25519NormalSigningCredential;
   request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire;
+  onServerTiming?: (header: string | null) => void;
 }): Promise<RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1Wire> {
   await routerAbEcdsaDerivationEvmDigestSigningRequestDigestV1(args.request);
   return postRouterAbNormalSigningJson({
     relayServerUrl: args.relayServerUrl,
     path: '/router-ab/ecdsa-derivation/sign/prepare',
+    onServerTiming: args.onServerTiming,
     credential: args.credential,
     body: args.request,
     parse: (value) =>
@@ -1404,11 +1412,13 @@ export async function finalizeRouterAbEcdsaDerivationEvmDigestSigningV1(args: {
   relayServerUrl: string;
   credential: RouterAbEd25519NormalSigningCredential;
   request: RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1Wire;
+  onServerTiming?: (header: string | null) => void;
 }): Promise<RouterAbEcdsaDerivationEvmDigestSigningResponseV1Wire> {
   await routerAbEcdsaDerivationEvmDigestSigningFinalizeCoreRequestDigestV1(args.request);
   return postRouterAbNormalSigningJson({
     relayServerUrl: args.relayServerUrl,
     path: '/router-ab/ecdsa-derivation/sign',
+    onServerTiming: args.onServerTiming,
     credential: args.credential,
     body: args.request,
     parse: (value) =>

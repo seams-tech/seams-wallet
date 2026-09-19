@@ -750,7 +750,10 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
     authorityKind: 'role_local_derivation_handle' | 'linked_holder_signing_material',
   ): void {
     if (this.presignAuthorityKind === authorityKind) return;
-    clearAllRouterAbEcdsaDerivationClientPresignatures();
+    // First connection happens inside the initial refill; only replacement invalidates it.
+    if (this.presignAuthorityKind !== null) {
+      clearAllRouterAbEcdsaDerivationClientPresignatures();
+    }
     const derivationWorker = this.getOrCreateWorker('ecdsaDerivationClient');
     const channel = new MessageChannel();
     const controlKind =

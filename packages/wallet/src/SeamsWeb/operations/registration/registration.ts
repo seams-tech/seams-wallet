@@ -215,6 +215,7 @@ import {
   createSucceededRegistrationTimingSummary,
   emitRegistrationTimingSpan,
   emitRegistrationTimingSummary,
+  emitNearRegistrationTiming,
   recordStrictEcdsaServerTimingBuckets,
   registrationTimingSignerSetFromPlan,
   roundDurationMs,
@@ -2405,6 +2406,8 @@ async function startDeferredNearWalletCustody(
   }
   base.factorSecretOwner.value = null;
   const admission = input.deferredNear.admissionRequest;
+  const startedAt = performance.now();
+  let outcome: 'success' | 'failure' = 'failure';
   try {
     const joined = await base.context.signingEngine.joinWalletCustodyNearEd25519KeySet({
       custodyJson: joinCustodyJsonFromEstablishedCommitPayload(input.establishedEvmCustodyCommit),
@@ -2418,6 +2421,7 @@ async function startDeferredNearWalletCustody(
       authorization: `Bearer ${base.signedSetup}`,
       traceContext: base.traceContext,
     });
+    outcome = 'success';
     return {
       joined,
       envelope: walletCustodyCacheEnvelopeFromRegistrationCommit(input.establishedEvmCustodyCommit),
@@ -2427,6 +2431,13 @@ async function startDeferredNearWalletCustody(
   } catch (error) {
     zeroizeArrayBuffer(factorSecret);
     throw error;
+  } finally {
+    emitNearRegistrationTiming({
+      ceremonyId: base.registrationCeremonyId,
+      stage: 'custody_join',
+      startedAt,
+      outcome,
+    });
   }
 }
 
@@ -2618,6 +2629,8 @@ async function commitDeferredEd25519Registration(args: {
   authMaterial: DeferredRegistrationFinalizeAuthMaterial;
 }): Promise<NearProvisioningState> {
   const auth = args.plan.auth;
+  const startedAt = performance.now();
+  let outcome: 'success' | 'failure' = 'failure';
   let retainedFactorSecret32: ArrayBuffer | null = null;
   try {
     const nearCustody = await args.nearCustodyWork;
@@ -2636,6 +2649,7 @@ async function commitDeferredEd25519Registration(args: {
     });
     /* Route 4 uses its own deterministic server idempotency key, while local
        publication remains bound to the retained activation row. */
+    const finalizationStartedAt = performance.now();
     const completed = await completeWalletRegistrationNearProvisioning({
       relayerUrl: args.relayerUrl,
       registrationCeremonyId: args.registrationCeremonyId,
@@ -2661,6 +2675,12 @@ async function commitDeferredEd25519Registration(args: {
       const status = finalized.walletCustody?.status ?? 'not_reported';
       throw new Error(`Deferred NEAR custody join did not commit (${status})`);
     }
+    emitNearRegistrationTiming({
+      ceremonyId: args.registrationCeremonyId,
+      stage: 'server_finalize',
+      startedAt: finalizationStartedAt,
+      outcome: 'success',
+    });
     const registrationSession = mixedRegistrationSessionFromDeferredResult(
       args.plan.ecdsa.session.registrationEstablishedSession,
       finalized.registrationEstablishedSession,
@@ -2700,6 +2720,7 @@ async function commitDeferredEd25519Registration(args: {
       nearEd25519SigningKeyId: finalized.ed25519.nearEd25519SigningKeyId,
       signerSlot: finalized.ed25519.signerSlot,
     });
+    const publicationStartedAt = performance.now();
     const registration = await prepareMixedRegistrationPublication({
       auth,
       walletId: args.walletId,
@@ -2738,6 +2759,13 @@ async function commitDeferredEd25519Registration(args: {
     if (!storedNearActivation || storedNearActivation.signerSlot !== finalized.ed25519.signerSlot) {
       throw new Error('Deferred Ed25519 registration persisted a different signer slot');
     }
+    emitNearRegistrationTiming({
+      ceremonyId: args.registrationCeremonyId,
+      stage: 'local_publication',
+      startedAt: publicationStartedAt,
+      outcome: 'success',
+    });
+    const sessionStartedAt = performance.now();
     if (args.authMaterial.kind === 'passkey') {
       const registrationEd25519Session = registrationEstablishedEd25519Session(registrationSession);
       await args.context.signingEngine.hydrateSigningSession({
@@ -2784,6 +2812,13 @@ async function commitDeferredEd25519Registration(args: {
       ),
       signerSlot: finalized.ed25519.signerSlot,
     });
+    emitNearRegistrationTiming({
+      ceremonyId: args.registrationCeremonyId,
+      stage: 'session_install',
+      startedAt: sessionStartedAt,
+      outcome: 'success',
+    });
+    const activationStartedAt = performance.now();
     if (auth.kind === 'email_otp') {
       const walletSessionState = await buildRegistrationEmailOtpEd25519SessionState({
         registrationEstablishedSession: registrationSession,
@@ -2849,6 +2884,13 @@ async function commitDeferredEd25519Registration(args: {
         activatedAtMs: Date.now(),
       });
     }
+    emitNearRegistrationTiming({
+      ceremonyId: args.registrationCeremonyId,
+      stage: 'signer_activation',
+      startedAt: activationStartedAt,
+      outcome: 'success',
+    });
+    const readyStartedAt = performance.now();
     /* Durable first: finalize, capability persistence, and the Yao seal have
        all succeeded by here, and the record is authoritative. If this write
        throws, the catch below records a retryable failure — near_ready is
@@ -2862,6 +2904,13 @@ async function commitDeferredEd25519Registration(args: {
       registrationCeremonyId: pending.registrationCeremonyId,
       operation: pending.operation,
     });
+    emitNearRegistrationTiming({
+      ceremonyId: args.registrationCeremonyId,
+      stage: 'durable_ready',
+      startedAt: readyStartedAt,
+      outcome: 'success',
+    });
+    outcome = 'success';
     return {
       status: 'near_ready',
       updatedAtMs: Date.now(),
@@ -2889,6 +2938,12 @@ async function commitDeferredEd25519Registration(args: {
     };
   } finally {
     if (retainedFactorSecret32) zeroizeArrayBuffer(retainedFactorSecret32);
+    emitNearRegistrationTiming({
+      ceremonyId: args.registrationCeremonyId,
+      stage: 'provisioning_total',
+      startedAt,
+      outcome,
+    });
   }
 }
 

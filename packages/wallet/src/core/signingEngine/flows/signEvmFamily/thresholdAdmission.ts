@@ -37,6 +37,7 @@ export async function prepareEvmFamilyEcdsaOperationStepUp(args: {
   readonly operation: EvmFamilyThresholdEcdsaOperation;
   readonly operationDigests: OperationDigestSet;
   readonly material: HydratedEcdsaSignerMaterial;
+  readonly sessionExpiresAtMs: number;
 }): Promise<PreparedEcdsaOperationStepUp> {
   const signerSession = args.material;
   const participantIds = signerSession.publicFacts.participantIds;
@@ -44,7 +45,7 @@ export async function prepareEvmFamilyEcdsaOperationStepUp(args: {
     throw new Error('[chains] ECDSA operation step-up requires exactly two participants');
   }
   const operationId = String(args.operation.intent.operationId || '').trim();
-  const expiresAtMs = Date.now() + 5 * 60_000;
+  const expiresAtMs = Math.min(Date.now() + 5 * 60_000, args.sessionExpiresAtMs);
   return await prepareEcdsaOperationStepUp({
     walletId: signerSession.walletId,
     operationKind: 'evm.sign_transaction',

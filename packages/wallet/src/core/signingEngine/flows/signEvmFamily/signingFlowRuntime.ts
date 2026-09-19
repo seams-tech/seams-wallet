@@ -135,7 +135,7 @@ function sessionAuthorizesCanonicalEcdsaCapability(args: {
   return matches.length === 1;
 }
 
-export async function resolveExactEcdsaOperationStepUpCredential(args: {
+export async function resolveExactEcdsaOperationStepUpSession(args: {
   readonly ports: ExactWalletSessionReadPorts;
   readonly scope: {
     readonly walletId: WalletId;
@@ -143,7 +143,10 @@ export async function resolveExactEcdsaOperationStepUpCredential(args: {
     readonly materialActivation: EvmFamilyEcdsaMaterialActivation;
   };
   readonly capability: CanonicalEvmFamilyEcdsaSigningCapability;
-}): Promise<WalletSessionOperationCredentialV1> {
+}): Promise<{
+  readonly credential: WalletSessionOperationCredentialV1;
+  readonly expiresAtMs: number;
+}> {
   if (!capabilityMatchesOperationScope(args)) {
     throw new Error('[SigningEngine] exact ECDSA Wallet Session material changed');
   }
@@ -202,7 +205,21 @@ export async function resolveExactEcdsaOperationStepUpCredential(args: {
   ) {
     throw new Error('[SigningEngine] exact ECDSA Wallet Session is unavailable');
   }
-  return read.operationCredential;
+  return { credential: read.operationCredential, expiresAtMs: session.expiresAtMs };
+}
+
+async function prepareSessionBoundEcdsaOperationStepUp(
+  sessionScope: Parameters<typeof resolveExactEcdsaOperationStepUpSession>[0],
+  input: Parameters<EvmFamilyThresholdEcdsaStepUpRuntime['operationStepUp']['prepare']>[0],
+) {
+  const session = await resolveExactEcdsaOperationStepUpSession(sessionScope);
+  // Bind expiry before the passkey/OTP challenge commits to the operation.
+  return await prepareEvmFamilyEcdsaOperationStepUp({
+    operation: input.operation,
+    operationDigests: input.operationDigests,
+    material: input.material,
+    sessionExpiresAtMs: session.expiresAtMs,
+  });
 }
 
 async function runSerializedEcdsaMaterialUse<T>(
@@ -518,17 +535,16 @@ export async function createEvmFamilySigningFlowRuntime(args: {
                 requiredFactor: signerAuthMethodForWalletAuthority(capability.authority),
               },
           operationStepUp: {
-            prepare: async ({ operation, operationDigests, material }) =>
-              await prepareEvmFamilyEcdsaOperationStepUp({
-                operation,
-                operationDigests,
-                material,
-              }),
+            prepare: prepareSessionBoundEcdsaOperationStepUp.bind(undefined, {
+              ports: args.deps.activeWalletAuthorityEcdsaRuntimeReadPorts,
+              scope: exactOperationCredentialScope,
+              capability,
+            }),
             authorize: async ({ authorization, prepared, material }) => {
               args.onAuthSideEffectStarted?.(
                 authorization.kind === 'passkey' ? 'passkey_reauth' : 'email_otp_challenge',
               );
-              const operationCredential = await resolveExactEcdsaOperationStepUpCredential({
+              const session = await resolveExactEcdsaOperationStepUpSession({
                 ports: args.deps.activeWalletAuthorityEcdsaRuntimeReadPorts,
                 scope: exactOperationCredentialScope,
                 capability,
@@ -539,7 +555,7 @@ export async function createEvmFamilySigningFlowRuntime(args: {
                 authorization,
                 prepared,
                 material,
-                walletSessionToken: operationCredential.token,
+                walletSessionToken: session.credential.token,
               });
             },
           },

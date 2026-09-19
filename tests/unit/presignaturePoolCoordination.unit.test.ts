@@ -8,6 +8,7 @@ import {
   clearAllRouterAbEcdsaDerivationClientPresignatures,
   getRouterAbEcdsaDerivationClientPresignaturePoolDepth,
   scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill,
+  signRouterAbEcdsaDerivationDigestWithPool,
   signRouterAbEcdsaDerivationDigestWithPoolHit,
   type RouterAbEcdsaDerivationClientSigningMaterialSource,
 } from '@/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool';
@@ -41,6 +42,80 @@ const materialActivation: RouterAbMpcMaterialActivationRefWire = {
   lifecycle_binding: 'lifecycle-binding-1',
   signing_worker: 'signing-worker-1',
 };
+
+async function unexpectedMaterialOperation(): Promise<never> {
+  throw new Error('The rejected pool-fill init must not create or consume material');
+}
+
+async function emptyAvailablePresignatures(): Promise<[]> {
+  return [];
+}
+
+function emptyPresignatureMaterialSource(): RouterAbEcdsaDerivationClientSigningMaterialSource {
+  return {
+    kind: 'router_ab_ecdsa_derivation_client_signing_material_source_v1',
+    initClientPresignSession: unexpectedMaterialOperation,
+    stepClientPresignSession: unexpectedMaterialOperation,
+    abortClientPresignSession: unexpectedMaterialOperation,
+    admitClientPresignature: unexpectedMaterialOperation,
+    destroyClientPresignature: unexpectedMaterialOperation,
+    reserveClientPresignature: unexpectedMaterialOperation,
+    commitClientPresignature: unexpectedMaterialOperation,
+    listAvailableClientPresignatures: emptyAvailablePresignatures,
+    computeSignatureShareFromPresignatureHandle: unexpectedMaterialOperation,
+  };
+}
+
+async function rejectPoolFillAndRecordTraffic(
+  tags: string[],
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  expect(String(input)).toContain('/presignature-pool/fill/init');
+  const body: unknown = JSON.parse(String(init?.body));
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    !('requestTag' in body) ||
+    typeof body.requestTag !== 'string'
+  ) {
+    throw new Error('Pool fill must identify its traffic class');
+  }
+  tags.push(body.requestTag);
+  return Response.json({ ok: false, code: 'test_stop', message: 'Stop after admission' });
+}
+
+test('a signing cache miss receives foreground pool-fill priority', async () => {
+  clearAllRouterAbEcdsaDerivationClientPresignatures();
+  const originalFetch = globalThis.fetch;
+  const tags: string[] = [];
+  globalThis.fetch = rejectPoolFillAndRecordTraffic.bind(undefined, tags);
+  try {
+    const result = await signRouterAbEcdsaDerivationDigestWithPool({
+      relayerUrl: 'https://router.example',
+      scope: await buildScope(),
+      operationId: 'operation-foreground-miss',
+      operationDigests: {
+        lane_digest_b64u: 'CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo',
+        intent_digest_b64u: 'CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCws',
+        display_digest_b64u: 'DAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAw',
+      },
+      materialActivation,
+      credential: { kind: 'wallet_session_opaque', walletSessionToken: 'wallet-session-token' },
+      keyHandle: parseEcdsaKeyHandle('key-handle-1'),
+      signingDigest32: new Uint8Array(32).fill(11),
+      clientSigningMaterial: emptyPresignatureMaterialSource(),
+      expiresAtMs: Date.now() + 30_000,
+      workerCtx: buildWorkerContext(),
+      authorization,
+    });
+    expect(result).toMatchObject({ ok: false, code: 'test_stop' });
+    expect(tags).toEqual(['foreground_presign_pool_refill']);
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearAllRouterAbEcdsaDerivationClientPresignatures();
+  }
+});
 
 type Deferred = {
   readonly promise: Promise<void>;
@@ -476,11 +551,20 @@ test('a reservation claimed by another request is never destroyed by the loser',
   }
 });
 
-test('concurrent pool misses share one worker hydration', async () => {
+async function rejectUnexpectedRefillRequest(state: { requests: number }): Promise<Response> {
+  state.requests += 1;
+  throw new Error('Background refill competed with foreground signing');
+}
+
+test('concurrent signing shares hydration and takes priority over background refill', async () => {
   clearAllRouterAbEcdsaDerivationClientPresignatures();
+  const originalFetch = globalThis.fetch;
+  const refillRequests = { requests: 0 };
+  globalThis.fetch = rejectUnexpectedRefillRequest.bind(undefined, refillRequests);
   const scope = await buildScope();
   const listStarted = createDeferred();
   const releaseList = createDeferred();
+  const releaseReservation = createDeferred();
   let listCount = 0;
   let reserveCount = 0;
   const clientSigningMaterial: RouterAbEcdsaDerivationClientSigningMaterialSource = {
@@ -496,6 +580,7 @@ test('concurrent pool misses share one worker hydration', async () => {
     destroyClientPresignature: async () => {},
     reserveClientPresignature: async () => {
       reserveCount += 1;
+      await releaseReservation.promise;
       throw new Error('single hydrated entry selected');
     },
     commitClientPresignature: async () => {},
@@ -537,16 +622,39 @@ test('concurrent pool misses share one worker hydration', async () => {
   };
 
   try {
-    const first = signRouterAbEcdsaDerivationDigestWithPoolHit(commonInput);
+    const refill = scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill({
+      relayerUrl: commonInput.relayerUrl,
+      keyHandle: parseEcdsaKeyHandle('key-handle-1'),
+      ecdsaThresholdKeyId: parseEcdsaThresholdKeyId(scope.ecdsa_threshold_key_id),
+      clientVerifyingShareB64u: parseEcdsaClientVerifyingShareB64u(CLIENT_PUBLIC_KEY_B64U),
+      clientSigningMaterial,
+      thresholdEcdsaPublicKeyB64u: THRESHOLD_PUBLIC_KEY_B64U,
+      credential: commonInput.credential,
+      materialActivation,
+      routerAbEcdsaDerivationPoolFill: {
+        kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
+        scope,
+        ceremonyExpiresAtMs: commonInput.expiresAtMs,
+        materialExpiresAtMs: Date.now() + 24 * 60 * 60_000,
+      },
+      workerCtx: commonInput.workerCtx,
+      authorization,
+      targetDepth: 3,
+    });
+    expect(refill.scheduled).toBe(true);
     await listStarted.promise;
+    const first = signRouterAbEcdsaDerivationDigestWithPoolHit(commonInput);
     const second = signRouterAbEcdsaDerivationDigestWithPoolHit(commonInput);
-    await Promise.resolve();
-    await Promise.resolve();
+    await new Promise<void>(setImmediate);
     releaseList.resolve();
+    await new Promise<void>(setImmediate);
+    const requestsWhileSigning = refillRequests.requests;
+    releaseReservation.resolve();
     const results = await Promise.all([first, second]);
 
     expect(listCount).toBe(1);
     expect(reserveCount).toBe(1);
+    expect(requestsWhileSigning).toBe(0);
     expect(results).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ ok: false, code: 'router_ab_sign_failed' }),
@@ -555,6 +663,8 @@ test('concurrent pool misses share one worker hydration', async () => {
     );
   } finally {
     releaseList.resolve();
+    releaseReservation.resolve();
+    globalThis.fetch = originalFetch;
     clearAllRouterAbEcdsaDerivationClientPresignatures();
   }
 });
