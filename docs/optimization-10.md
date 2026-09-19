@@ -654,8 +654,24 @@ fixtures reject an unauthorized capability and a refill without a key handle.
 The blocked-init registration contract passes, as does sustained signing with
 20 distinct consumed presignatures. All 197 Wallet unit tests pass. Unlock
 prefill shares the existing operation-scoped status reader so that preparing
-Tempo and Arc does not add duplicate status reads; its lifecycle rerun is in
-progress. Production before/after refill measurements remain required.
+Tempo and Arc does not add duplicate status reads. Passkey unlock, cold unlock
+from empty browser storage, and the Email OTP registration/unlock/refresh/export
+lifecycle pass. Production before/after refill measurements remain required.
+
+The passkey refresh contract also exposed a pre-existing NEAR failure:
+`local Ed25519 material lane is unavailable`. It reproduced on the unchanged
+`0.5.24` source baseline. Rehydration read the lane inventory without the
+selected owner scope, so the valid sealed lane was classified as requiring
+authorization and failed exact-lane matching. Rehydration now uses the existing
+selected-owner resolver; exact wallet, material, session, and quota checks are
+retained. The refresh contract passes through key export, NEAR/Tempo/Arc signing,
+budget exhaustion, and subsequent step-up signing. Seven focused owner-scope
+and authorization tests, the SDK build, and Wallet type-check also pass.
+
+Both packages are prepared as `0.5.25` in
+[Wallet PR 7](https://github.com/seams-tech/seams-wallet/pull/7). This version has
+not been published or deployed. Release CI and deployed comparison remain open;
+the local lifecycle results do not establish the production latency target.
 
 Reuse the [durable presignature cache](./refactor-126-durable-presignature-cache.md),
 [login prefill](../packages/wallet/src/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill.ts),
