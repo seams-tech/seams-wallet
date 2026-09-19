@@ -70,38 +70,38 @@ export const SeamsAuthMenuSkeletonInner = React.forwardRef<
     return (
       <div
         ref={ref}
-        className={`w3a-signup-menu-root w3a-skeleton${className ? ` ${className}` : ''}`}
+        className={`seams-signup-menu-root seams-skeleton${className ? ` ${className}` : ''}`}
         style={style}
         data-mode={mode}
         data-mode-label={AuthMenuModeMap[mode]}
         data-waiting="false"
         data-scan-device="false"
       >
-        <div className="w3a-content-switcher">
-          <button aria-label="Back" type="button" className="w3a-back-button" disabled>
+        <div className="seams-content-switcher">
+          <button aria-label="Back" type="button" className="seams-back-button" disabled>
             <ArrowLeftIcon size={18} strokeWidth={2.25} style={{ display: 'block' }} />
           </button>
 
-          <div className="w3a-content-area">
-            <div className="w3a-content-sizer">
-              <div className="w3a-signin-menu">
-                <div className="w3a-header">
+          <div className="seams-content-area">
+            <div className="seams-content-sizer">
+              <div className="seams-signin-menu">
+                <div className="seams-header">
                   <div>
-                    <div className="w3a-title">{title.title}</div>
-                    <div className="w3a-subhead">{title.subtitle}</div>
+                    <div className="seams-title">{title.title}</div>
+                    <div className="seams-subhead">{title.subtitle}</div>
                   </div>
                 </div>
 
                 {showAccountInput ? (
-                  <div className="w3a-passkey-row">
-                    <div className="w3a-input-pill">
-                      <div className="w3a-input-wrap">
+                  <div className="seams-passkey-row">
+                    <div className="seams-input-pill">
+                      <div className="seams-input-wrap">
                         <input
                           type="text"
                           name="passkey"
                           disabled
                           placeholder={placeholder}
-                          className="w3a-input"
+                          className="seams-input"
                           aria-disabled="true"
                           autoCapitalize="none"
                           autoCorrect="off"
@@ -115,17 +115,17 @@ export const SeamsAuthMenuSkeletonInner = React.forwardRef<
                 ) : null}
 
                 {(mode === AuthMenuMode.Login || mode === AuthMenuMode.Register) && (
-                  <div className="w3a-auth-methods">
-                    <div className="w3a-auth-method-stack">
+                  <div className="seams-auth-methods">
+                    <div className="seams-auth-method-stack">
                       {mode === AuthMenuMode.Login && (
                         <>
                           <button
-                            className="w3a-auth-method-btn w3a-auth-method-btn-primary"
+                            className="seams-auth-method-btn seams-auth-method-btn-primary"
                             disabled
                           >
                             <FingerprintIcon size={22} style={{ display: 'block' }} />
                             <span>{getPasskeyButtonLabel(AuthMenuMode.Login)}</span>
-                            <ArrowRightAnim size={16} className="w3a-auth-method-arrow" />
+                            <ArrowRightAnim size={16} className="seams-auth-method-arrow" />
                           </button>
                           <SocialProviders
                             socialLogin={{ google: () => undefined }}
@@ -146,11 +146,11 @@ export const SeamsAuthMenuSkeletonInner = React.forwardRef<
                       {mode === AuthMenuMode.Register && (
                         <>
                           <button
-                            className="w3a-auth-method-btn w3a-auth-method-btn-primary"
+                            className="seams-auth-method-btn seams-auth-method-btn-primary"
                             disabled
                           >
                             <span>{getPasskeyButtonLabel(AuthMenuMode.Register)}</span>
-                            <ArrowRightAnim size={16} className="w3a-auth-method-arrow" />
+                            <ArrowRightAnim size={16} className="seams-auth-method-arrow" />
                           </button>
                           <SocialProviders
                             socialLogin={{ google: () => undefined }}
@@ -173,12 +173,12 @@ export const SeamsAuthMenuSkeletonInner = React.forwardRef<
                 )}
 
                 {(mode === AuthMenuMode.Login || mode === AuthMenuMode.Register) && (
-                  <div className="w3a-scan-device-row">
-                    <div className="w3a-section-divider">
-                      <span className="w3a-section-divider-text">Other options</span>
+                  <div className="seams-scan-device-row">
+                    <div className="seams-section-divider">
+                      <span className="seams-section-divider-text">Other options</span>
                     </div>
-                    <div className="w3a-secondary-actions">
-                      <button className="w3a-link-device-btn" disabled>
+                    <div className="seams-secondary-actions">
+                      <button className="seams-link-device-btn" disabled>
                         <QRCodeIcon width={18} height={18} strokeWidth={2} />
                         Scan and Link Device
                       </button>
@@ -186,9 +186,9 @@ export const SeamsAuthMenuSkeletonInner = React.forwardRef<
                   </div>
                 )}
                 {(mode === AuthMenuMode.Login || mode === AuthMenuMode.Register) && (
-                  <div className="w3a-auth-intent-switch">
+                  <div className="seams-auth-intent-switch">
                     <span>{intentSwitchPrompt}</span>
-                    <span className="w3a-auth-intent-switch-action">{intentSwitchAction}</span>
+                    <span className="seams-auth-intent-switch-action">{intentSwitchAction}</span>
                   </div>
                 )}
               </div>

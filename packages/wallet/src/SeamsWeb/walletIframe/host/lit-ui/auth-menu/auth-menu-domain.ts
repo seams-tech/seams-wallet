@@ -448,7 +448,7 @@ export type AuthMenuIntent =
       readonly kind: 'retry';
     };
 
-export const AUTH_MENU_INTENT_EVENT = 'w3a-auth-menu-intent' as const;
+export const AUTH_MENU_INTENT_EVENT = 'seams-auth-menu-intent' as const;
 
 export type AuthMenuIntentEvent = CustomEvent<AuthMenuIntent>;
 

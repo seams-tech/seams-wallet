@@ -5,7 +5,7 @@ import type { ConfirmUIElement, ThemeMode } from '../../confirm-ui-types';
 import { WalletIframeDomEvents } from '@/core/browser/walletIframe/events';
 import type { UserConfirmSecurityContext } from '@/core/types';
 import type { AppearanceConfig } from '@/core/types/seams';
-import { W3A_TX_CONFIRMER_ID } from '../../registry';
+import { SEAMS_TX_CONFIRMER_ID } from '../../registry';
 import { DrawerTxConfirmerElement } from './viewer-drawer';
 import { ModalTxConfirmElement } from './viewer-modal';
 import type { TxDisplayModel } from '@/core/signingEngine/interfaces/display';
@@ -142,7 +142,7 @@ export class TxConfirmerWrapperElement extends LitElementWithProps {
 
     if (variant === 'drawer') {
       return html`
-        <w3a-drawer-tx-confirmer
+        <seams-drawer-tx-confirmer
           ${ref(this.childRef)}
           .nearAccountId=${this.nearAccountId}
           .txSigningRequests=${this.txSigningRequests}
@@ -162,12 +162,12 @@ export class TxConfirmerWrapperElement extends LitElementWithProps {
           .signingAuthMode=${this.signingAuthMode}
           .emailOtpPrompt=${this.emailOtpPrompt}
           .deferClose=${this.deferClose}
-        ></w3a-drawer-tx-confirmer>
+        ></seams-drawer-tx-confirmer>
       `;
     }
 
     return html`
-      <w3a-modal-tx-confirmer
+      <seams-modal-tx-confirmer
         ${ref(this.childRef)}
         .nearAccountId=${this.nearAccountId}
         .txSigningRequests=${this.txSigningRequests}
@@ -187,7 +187,7 @@ export class TxConfirmerWrapperElement extends LitElementWithProps {
         .signingAuthMode=${this.signingAuthMode}
         .emailOtpPrompt=${this.emailOtpPrompt}
         .deferClose=${this.deferClose}
-      ></w3a-modal-tx-confirmer>
+      ></seams-modal-tx-confirmer>
     `;
   }
 
@@ -364,6 +364,6 @@ export class TxConfirmerWrapperElement extends LitElementWithProps {
   }
 }
 
-if (!customElements.get(W3A_TX_CONFIRMER_ID)) {
-  customElements.define(W3A_TX_CONFIRMER_ID, TxConfirmerWrapperElement);
+if (!customElements.get(SEAMS_TX_CONFIRMER_ID)) {
+  customElements.define(SEAMS_TX_CONFIRMER_ID, TxConfirmerWrapperElement);
 }

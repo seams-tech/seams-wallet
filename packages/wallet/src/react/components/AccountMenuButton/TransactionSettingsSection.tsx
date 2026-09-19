@@ -3,7 +3,7 @@ import type { TransactionSettingsSectionProps } from './types';
 import { SegmentedControl } from './SegmentedControl';
 
 const TRANSACTION_SETTINGS_ACTIVE_BACKGROUND =
-  'var(--w3a-colors-buttonBackground, var(--w3a-colors-primary))';
+  'var(--seams-colors-buttonBackground, var(--seams-colors-primary))';
 
 export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProps> = ({
   currentConfirmConfig,
@@ -33,13 +33,13 @@ export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProp
 
   return (
     <div
-      className={`w3a-dropdown-tx-settings-root ${isOpen ? 'is-expanded' : ''} ${className || ''}`}
+      className={`seams-dropdown-tx-settings-root ${isOpen ? 'is-expanded' : ''} ${className || ''}`}
       style={style}
       onClick={handleClick}
     >
-      <div className="w3a-dropdown-toggle-tx-settings">
+      <div className="seams-dropdown-toggle-tx-settings">
         <div
-          className="w3a-dropdown-toggle-tx-settings-content"
+          className="seams-dropdown-toggle-tx-settings-content"
           aria-hidden={!isOpen}
           style={{ pointerEvents: isOpen ? 'auto' : 'none' }}
         >
@@ -52,7 +52,7 @@ export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProp
             }}
           >
             <div>
-              <div className="w3a-confirmation-options">Confirmer UI</div>
+              <div className="seams-confirmation-options">Confirmer UI</div>
               <div style={{ width: '100%' }}>
                 <SegmentedControl
                   items={[
@@ -65,14 +65,14 @@ export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProp
                   activeBg={TRANSACTION_SETTINGS_ACTIVE_BACKGROUND}
                   height={40}
                   buttonFontSize={12}
-                  containerStyle={{ background: 'var(--w3a-colors-surface2)', width: '100%' }}
+                  containerStyle={{ background: 'var(--seams-colors-surface2)', width: '100%' }}
                   buttonStyle={{
                     display: 'grid',
                     placeItems: 'center',
                     lineHeight: 1,
                     padding: '0 10px',
                   }}
-                  activeButtonStyle={{ color: 'var(--w3a-colors-textButton)' }}
+                  activeButtonStyle={{ color: 'var(--seams-colors-textButton)' }}
                 />
               </div>
             </div>
@@ -82,7 +82,7 @@ export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProp
                 pointerEvents: disableRequireClick ? 'none' : 'auto',
               }}
             >
-              <div className="w3a-confirmation-options">Confirmation Options</div>
+              <div className="seams-confirmation-options">Confirmation Options</div>
               <div style={{ width: '100%' }}>
                 <SegmentedControl
                   items={[
@@ -111,14 +111,14 @@ export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProp
                   activeBg={TRANSACTION_SETTINGS_ACTIVE_BACKGROUND}
                   height={40}
                   buttonFontSize={12}
-                  containerStyle={{ background: 'var(--w3a-colors-surface2)', width: '100%' }}
+                  containerStyle={{ background: 'var(--seams-colors-surface2)', width: '100%' }}
                   buttonStyle={{
                     display: 'grid',
                     placeItems: 'center',
                     lineHeight: 1,
                     padding: '0 10px',
                   }}
-                  activeButtonStyle={{ color: 'var(--w3a-colors-textButton)' }}
+                  activeButtonStyle={{ color: 'var(--seams-colors-textButton)' }}
                 />
               </div>
             </div>

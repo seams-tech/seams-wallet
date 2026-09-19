@@ -65,11 +65,11 @@ test.describe('wallet-host auth-menu integration', () => {
     );
 
     const surface = page
-      .frameLocator('iframe[data-w3a-owner="auth-menu-host-test"]')
+      .frameLocator('iframe[data-seams-owner="auth-menu-host-test"]')
       .locator('seams-auth-menu-surface');
     await expect(surface).toHaveCount(1);
     await expect(page.locator('seams-auth-menu-surface')).toHaveCount(0);
-    const dialog = page.locator('dialog.w3a-wallet-overlay-dialog');
+    const dialog = page.locator('dialog.seams-wallet-overlay-dialog');
     await expect(dialog).not.toHaveClass(/is-viewport-fallback/);
     const dialogBox = await dialog.boundingBox();
     const viewport = page.viewportSize();

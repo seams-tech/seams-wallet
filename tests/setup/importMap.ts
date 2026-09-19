@@ -39,7 +39,7 @@ export const TEST_BROWSER_IMPORTS = {
   'lit/reactive-element.js': 'https://esm.sh/lit@3.1.0/reactive-element.js',
 } as const;
 
-export const TEST_BROWSER_IMPORT_MAP_ATTR = 'data-w3a-importmap';
+export const TEST_BROWSER_IMPORT_MAP_ATTR = 'data-seams-importmap';
 export const TEST_BROWSER_IMPORT_MAP_MARKER = `${TEST_BROWSER_IMPORT_MAP_ATTR}="1"`;
 
 export function buildTestBrowserImportMapHtml(): string {

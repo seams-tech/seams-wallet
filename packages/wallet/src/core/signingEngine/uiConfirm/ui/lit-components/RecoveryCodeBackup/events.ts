@@ -4,13 +4,13 @@
 // its static import graph.
 
 /** Bubbles from the viewer when the single close control is activated. */
-export const RECOVERY_BACKUP_CLOSE_EVENT = 'w3a-recovery-backup-close';
+export const RECOVERY_BACKUP_CLOSE_EVENT = 'seams-recovery-backup-close';
 
 /** Bubbles whenever the one recovery dialog advances to a new visual stage. */
-export const RECOVERY_BACKUP_STAGE_EVENT = 'w3a-recovery-backup-stage';
+export const RECOVERY_BACKUP_STAGE_EVENT = 'seams-recovery-backup-stage';
 
 /** Dispatched from the host when Escape cancels the native dialog. */
-export const RECOVERY_BACKUP_CANCEL_EVENT = 'w3a-recovery-backup-cancel';
+export const RECOVERY_BACKUP_CANCEL_EVENT = 'seams-recovery-backup-cancel';
 
 export type RecoveryBackupCloseDetail =
   | { readonly kind: 'dismissed' }

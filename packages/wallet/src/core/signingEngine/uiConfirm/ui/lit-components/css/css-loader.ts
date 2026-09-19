@@ -24,7 +24,7 @@ function resolveStylesheetUrl(assetName: string): string {
     ) {
       warnedRelativeBaseOnce = true;
       console.warn(
-        `[W3A][css-loader] Embedded SDK base is relative: "${base}". ` +
+        `[SEAMS][css-loader] Embedded SDK base is relative: "${base}". ` +
           `In production, configure an absolute base so iframe assets resolve: ` +
           `set SeamsWebProvider config { iframeWallet: { walletOrigin: "https://wallet.example.com", sdkBasePath: "/sdk" } }, `,
       );
@@ -49,13 +49,13 @@ function getDoc(root: ShadowRoot | DocumentFragment | HTMLElement): Document | n
 }
 
 function waitForStylesheet(link: HTMLLinkElement): Promise<void> {
-  const statefulLink = link as HTMLLinkElement & { _w3aLoaded?: boolean };
+  const statefulLink = link as HTMLLinkElement & { _seamsLoaded?: boolean };
   return new Promise<void>((resolve) => {
     const done = () => {
-      statefulLink._w3aLoaded = true;
+      statefulLink._seamsLoaded = true;
       resolve();
     };
-    if (statefulLink._w3aLoaded || link.sheet) return done();
+    if (statefulLink._seamsLoaded || link.sheet) return done();
     link.addEventListener('load', done, { once: true } as AddEventListenerOptions);
     link.addEventListener('error', done, { once: true } as AddEventListenerOptions);
   });
@@ -153,6 +153,6 @@ export async function ensureExternalStyles(
       await ensureDocumentLink(doc, assetName, markerAttr);
     }
   } catch (err) {
-    console.warn('[W3A][css-loader] Failed to ensure stylesheet:', assetName, err);
+    console.warn('[SEAMS][css-loader] Failed to ensure stylesheet:', assetName, err);
   }
 }

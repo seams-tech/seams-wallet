@@ -4,7 +4,7 @@ A single theme module powers the UI using a scoped token → CSS variable system
 
 ## Exports (single module)
 
-- `Theme` — consolidated component. By default provides theme context and renders a boundary that applies CSS variables and `data-w3a-theme`. `mode` controls behavior: `'provider+scope' | 'provider-only' | 'scope-only'`.
+- `Theme` — consolidated component. By default provides theme context and renders a boundary that applies CSS variables and `data-seams-theme`. `mode` controls behavior: `'provider+scope' | 'provider-only' | 'scope-only'`.
 - `useTheme` — reads from context and returns `{ theme, tokens, isDark }`.
 
 Import from the barrel for clarity:
@@ -16,7 +16,7 @@ import { Theme, useTheme } from '@seams/wallet/react';
 
 ## Token → CSS Variable Mapping
 
-Tokens are defined in `design-tokens.ts` and converted to CSS custom properties with a prefix (default `--w3a`) via `createCSSVariables` in `utils.ts`.
+Tokens are defined in `design-tokens.ts` and converted to CSS custom properties with a prefix (default `--seams`) via `createCSSVariables` in `utils.ts`.
 
 - Colors: `tokens.colors.<key>` → `--<prefix>-colors-<key>`
 - Spacing: `tokens.spacing.<key>` → `--<prefix>-spacing-<key>`
@@ -28,14 +28,14 @@ The mapping is applied inline by the `Theme` boundary element.
 ## Naming Convention
 
 - Token keys are lowerCamelCase (e.g., `colorBackground`, `textSecondary`).
-- CSS variables are prefixed with `--w3a` by default. Change via `Theme`'s `prefix` prop to avoid collisions when embedding.
+- CSS variables are prefixed with `--seams` by default. Change via `Theme`'s `prefix` prop to avoid collisions when embedding.
 
 Examples in CSS:
 
-- Background: `background-color: var(--w3a-colors-colorBackground);`
-- Border: `border-color: var(--w3a-colors-borderPrimary);`
-- Text: `color: var(--w3a-colors-textPrimary);`
-- Hover border: `border-color: var(--w3a-colors-borderHover);`
+- Background: `background-color: var(--seams-colors-colorBackground);`
+- Border: `border-color: var(--seams-colors-borderPrimary);`
+- Text: `color: var(--seams-colors-textPrimary);`
+- Hover border: `border-color: var(--seams-colors-borderHover);`
 
 ## Controlled Only
 
@@ -50,7 +50,7 @@ Pass partial overrides for dark/light only for the keys you need to change:
 <Theme tokens={{
   dark: { colors: { colorBackground: 'oklch(0.25 0.012 240)' } },
   light: { colors: { borderHover: '#cbd5e1' } }
-}} as="div" className="w3a-theme-provider">
+}} as="div" className="seams-theme-provider">
   ...
 ```
 
@@ -58,35 +58,35 @@ You can also provide a function to compute overrides from the base tokens via th
 
 ## CSS Color Variables (reference)
 
-The following CSS variables are generated from `tokens.colors.*` with the default prefix `--w3a`.
+The following CSS variables are generated from `tokens.colors.*` with the default prefix `--seams`.
 
 ```
-/* Color variables applied on the Theme boundary (default prefix: --w3a) */
---w3a-colors-primary
---w3a-colors-primaryHover
---w3a-colors-secondary
---w3a-colors-accent
---w3a-colors-textPrimary
---w3a-colors-textSecondary
---w3a-colors-textMuted
---w3a-colors-colorBackground
---w3a-colors-surface
---w3a-colors-surface2
---w3a-colors-hover
---w3a-colors-active
---w3a-colors-focus
---w3a-colors-success
---w3a-colors-warning
---w3a-colors-error
---w3a-colors-info
---w3a-colors-highlightPrimary
---w3a-colors-highlightHalo
---w3a-colors-highlightReceiver
---w3a-colors-highlightMethodName
---w3a-colors-highlightAmount
---w3a-colors-borderPrimary
---w3a-colors-borderSecondary
---w3a-colors-borderHover
+/* Color variables applied on the Theme boundary (default prefix: --seams) */
+--seams-colors-primary
+--seams-colors-primaryHover
+--seams-colors-secondary
+--seams-colors-accent
+--seams-colors-textPrimary
+--seams-colors-textSecondary
+--seams-colors-textMuted
+--seams-colors-colorBackground
+--seams-colors-surface
+--seams-colors-surface2
+--seams-colors-hover
+--seams-colors-active
+--seams-colors-focus
+--seams-colors-success
+--seams-colors-warning
+--seams-colors-error
+--seams-colors-info
+--seams-colors-highlightPrimary
+--seams-colors-highlightHalo
+--seams-colors-highlightReceiver
+--seams-colors-highlightMethodName
+--seams-colors-highlightAmount
+--seams-colors-borderPrimary
+--seams-colors-borderSecondary
+--seams-colors-borderHover
 ```
 
 ## Notes

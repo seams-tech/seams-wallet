@@ -18,10 +18,10 @@
 /* Global default z-index tokens for wallet overlay + SDK modals */
 :root {
   /* Base z-index for wallet iframe overlay (host surface) */
-  --w3a-wallet-overlay-z: 2147483646;
+  --seams-wallet-overlay-z: 2147483646;
   /* Offset used by SDK modals that should sit just under the wallet overlay */
-  --w3a-wallet-underlay-backdrop-offset: 2;
-  --w3a-wallet-underlay-content-offset: 1;
+  --seams-wallet-underlay-backdrop-offset: 2;
+  --seams-wallet-underlay-content-offset: 1;
 
   /* Derived z-index layers (SDK defaults)
    *
@@ -32,12 +32,12 @@
    * - Nav/profile overlays should sit below these SDK modals and the wallet overlay
    *   but above typical app chrome.
    */
-  --w3a-z-underlay-backdrop: calc(
-    var(--w3a-wallet-overlay-z, 2147483646) - var(--w3a-wallet-underlay-backdrop-offset, 2)
+  --seams-z-underlay-backdrop: calc(
+    var(--seams-wallet-overlay-z, 2147483646) - var(--seams-wallet-underlay-backdrop-offset, 2)
   );
-  --w3a-z-underlay-content: calc(
-    var(--w3a-wallet-overlay-z, 2147483646) - var(--w3a-wallet-underlay-content-offset, 1)
+  --seams-z-underlay-content: calc(
+    var(--seams-wallet-overlay-z, 2147483646) - var(--seams-wallet-underlay-content-offset, 1)
   );
-  --w3a-z-profile-overlay: calc(var(--w3a-wallet-overlay-z, 2147483646) - 4);
-  --w3a-z-nav-root: calc(var(--w3a-wallet-overlay-z, 2147483646) - 5);
+  --seams-z-profile-overlay: calc(var(--seams-wallet-overlay-z, 2147483646) - 4);
+  --seams-z-nav-root: calc(var(--seams-wallet-overlay-z, 2147483646) - 5);
 }

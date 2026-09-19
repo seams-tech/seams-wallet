@@ -1,46 +1,46 @@
 // Lit component tag names
 // These are rendered as web components:
-// e.g. <w3a-modal-tx-confirmer></w3a-modal-tx-confirmer>, <w3a-tx-tree>, etc.
+// e.g. <seams-modal-tx-confirmer></seams-modal-tx-confirmer>, <seams-tx-tree>, etc.
 
 // Transaction confirmer element tags (host-rendered)
 // Canonical tag names use the "-tx-confirmer" suffix for consistency.
-export const W3A_TX_CONFIRMER_ID = 'w3a-tx-confirmer';
-export const W3A_MODAL_TX_CONFIRMER_ID = 'w3a-modal-tx-confirmer';
-export const W3A_DRAWER_TX_CONFIRMER_ID = 'w3a-drawer-tx-confirmer';
-export const W3A_TX_CONFIRM_CONTENT_ID = 'w3a-tx-confirm-content';
+export const SEAMS_TX_CONFIRMER_ID = 'seams-tx-confirmer';
+export const SEAMS_MODAL_TX_CONFIRMER_ID = 'seams-modal-tx-confirmer';
+export const SEAMS_DRAWER_TX_CONFIRMER_ID = 'seams-drawer-tx-confirmer';
+export const SEAMS_TX_CONFIRM_CONTENT_ID = 'seams-tx-confirm-content';
 
 // Shared building blocks
-export const W3A_DRAWER_ID = 'w3a-drawer';
-export const W3A_TX_TREE_ID = 'w3a-tx-tree';
-export const W3A_HALO_BORDER_ID = 'w3a-halo-border';
-export const W3A_PASSKEY_HALO_LOADING_ID = 'w3a-passkey-halo-loading';
+export const SEAMS_DRAWER_ID = 'seams-drawer';
+export const SEAMS_TX_TREE_ID = 'seams-tx-tree';
+export const SEAMS_HALO_BORDER_ID = 'seams-halo-border';
+export const SEAMS_PASSKEY_HALO_LOADING_ID = 'seams-passkey-halo-loading';
 
 // Unified list of confirmer hosts the wallet may need to target for lifecycle events.
 export const CONFIRM_UI_ELEMENT_SELECTORS = [
-  W3A_TX_CONFIRMER_ID,
-  W3A_MODAL_TX_CONFIRMER_ID,
-  W3A_DRAWER_TX_CONFIRMER_ID,
+  SEAMS_TX_CONFIRMER_ID,
+  SEAMS_MODAL_TX_CONFIRMER_ID,
+  SEAMS_DRAWER_TX_CONFIRMER_ID,
 ] as const;
 
 // Dedicated portal container to enforce a single confirmer instance.
-export const W3A_CONFIRM_PORTAL_ID = 'w3a-confirm-portal';
+export const SEAMS_CONFIRM_PORTAL_ID = 'seams-confirm-portal';
 
 // Export viewer host (direct-mount; the tag keeps its historical name) and
 // the standalone viewer bundle tests and embedders load by path.
-export const W3A_EXPORT_VIEWER_IFRAME_ID = 'w3a-export-viewer-iframe';
-export const W3A_EXPORT_KEY_VIEWER_ID = 'w3a-export-key-viewer';
+export const SEAMS_EXPORT_VIEWER_IFRAME_ID = 'seams-export-viewer-iframe';
+export const SEAMS_EXPORT_KEY_VIEWER_ID = 'seams-export-key-viewer';
 export const EXPORT_VIEWER_BUNDLE = 'export-private-key-viewer.js';
 
 // Wallet recovery-code backup dialog (direct-mount host + content viewer).
-export const W3A_RECOVERY_CODE_BACKUP_HOST_ID = 'w3a-recovery-code-backup-host';
-export const W3A_RECOVERY_CODE_BACKUP_VIEWER_ID = 'w3a-recovery-code-backup-viewer';
+export const SEAMS_RECOVERY_CODE_BACKUP_HOST_ID = 'seams-recovery-code-backup-host';
+export const SEAMS_RECOVERY_CODE_BACKUP_VIEWER_ID = 'seams-recovery-code-backup-viewer';
 
-// Consolidated loaders for known W3A custom elements that may be used across runtimes.
+// Consolidated loaders for known SEAMS custom elements that may be used across runtimes.
 // This allows dev tooling to auto-ensure definitions for common elements when possible.
 export const TAG_LOADERS: Record<string, () => Promise<unknown>> = {
-  [W3A_TX_CONFIRMER_ID]: () => import('./lit-components/IframeTxConfirmer/tx-confirmer-wrapper'),
-  [W3A_EXPORT_VIEWER_IFRAME_ID]: () => import('./lit-components/ExportPrivateKey/iframe-host'),
-  [W3A_RECOVERY_CODE_BACKUP_HOST_ID]: () => import('./lit-components/RecoveryCodeBackup/host'),
+  [SEAMS_TX_CONFIRMER_ID]: () => import('./lit-components/IframeTxConfirmer/tx-confirmer-wrapper'),
+  [SEAMS_EXPORT_VIEWER_IFRAME_ID]: () => import('./lit-components/ExportPrivateKey/iframe-host'),
+  [SEAMS_RECOVERY_CODE_BACKUP_HOST_ID]: () => import('./lit-components/RecoveryCodeBackup/host'),
 };
 
 /**
@@ -59,8 +59,8 @@ export async function ensureDefined(tag: string, loader: () => Promise<unknown>)
   }
 }
 
-/** Attempt to ensure a known W3A element by tag; returns true if a loader ran. */
-export async function ensureKnownW3aElement(tag: string): Promise<boolean> {
+/** Attempt to ensure a known SEAMS element by tag; returns true if a loader ran. */
+export async function ensureKnownSeamsElement(tag: string): Promise<boolean> {
   try {
     const t = (tag || '').toLowerCase();
     const loader = TAG_LOADERS[t];

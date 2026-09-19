@@ -15,7 +15,7 @@ import {
 const TEST_ESM_ROUTE_PATTERN = `**${SDK_ESM_BASE_PATH}/**`;
 
 function resolveRepoRoot(): string {
-  if (process.env.W3A_REPO_ROOT) return process.env.W3A_REPO_ROOT;
+  if (process.env.SEAMS_REPO_ROOT) return process.env.SEAMS_REPO_ROOT;
   const cwd = process.cwd();
   if (fs.existsSync(path.join(cwd, 'packages/wallet-server'))) return cwd;
   return path.resolve(cwd, '..');
@@ -67,7 +67,7 @@ function buildCssModuleFixture(filePath: string): string {
   return [
     `const css = ${JSON.stringify(css)};`,
     'const style = document.createElement("style");',
-    'style.setAttribute("data-w3a-test-css-module", "1");',
+    'style.setAttribute("data-seams-test-css-module", "1");',
     'style.textContent = css;',
     'document.head.appendChild(style);',
     'export default css;',

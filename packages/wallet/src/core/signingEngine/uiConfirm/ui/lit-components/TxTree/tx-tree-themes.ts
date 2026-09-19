@@ -134,15 +134,15 @@ export const TX_TREE_THEMES: Record<TxTreeTheme, TxTreeStyles> = {
     // Highlighting - using unified color scheme from base colors
     highlightReceiver: {
       color:
-        'var(--w3a-colors-highlightReceiver, var(--w3a-colors-highlightPrimary, var(--w3a-colors-info)))',
+        'var(--seams-colors-highlightReceiver, var(--seams-colors-highlightPrimary, var(--seams-colors-info)))',
       fontWeight: '600',
     },
     highlightMethodName: {
-      color: 'var(--w3a-colors-highlightMethodName)',
+      color: 'var(--seams-colors-highlightMethodName)',
       fontWeight: '600',
     },
     highlightAmount: {
-      color: 'var(--w3a-colors-highlightAmount)',
+      color: 'var(--seams-colors-highlightAmount)',
       fontWeight: '600',
     },
 
@@ -259,15 +259,15 @@ export const TX_TREE_THEMES: Record<TxTreeTheme, TxTreeStyles> = {
     // Highlighting - using unified color scheme from base colors
     highlightReceiver: {
       color:
-        'var(--w3a-colors-highlightReceiver, var(--w3a-colors-highlightPrimary, var(--w3a-colors-info)))',
+        'var(--seams-colors-highlightReceiver, var(--seams-colors-highlightPrimary, var(--seams-colors-info)))',
       fontWeight: '600',
     },
     highlightMethodName: {
-      color: 'var(--w3a-colors-highlightMethodName)',
+      color: 'var(--seams-colors-highlightMethodName)',
       fontWeight: '600',
     },
     highlightAmount: {
-      color: 'var(--w3a-colors-highlightAmount)',
+      color: 'var(--seams-colors-highlightAmount)',
       fontWeight: '600',
     },
 

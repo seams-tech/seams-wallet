@@ -2,7 +2,7 @@
  * Resolve the base URL for embedded Lit bundles in a robust, readable way.
  *
  * Priority:
- * 1) window.__W3A_WALLET_SDK_BASE__ when set by the wallet host (absolute URL)
+ * 1) window.__SEAMS_WALLET_SDK_BASE__ when set by the wallet host (absolute URL)
  * 2) Current ESM module location (import.meta.url):
  *    - If the URL contains a '/sdk/' segment, slice up to that segment.
  *    - Else return `${origin}/sdk/` when the origin is http(s).
@@ -18,7 +18,7 @@ function withTrailingSlash(s: string): string {
 function readGlobalEmbeddedBase(): string | undefined {
   try {
     if (typeof window === 'undefined') return undefined;
-    const v = (window as Window & { __W3A_WALLET_SDK_BASE__?: unknown }).__W3A_WALLET_SDK_BASE__;
+    const v = (window as Window & { __SEAMS_WALLET_SDK_BASE__?: unknown }).__SEAMS_WALLET_SDK_BASE__;
     if (typeof v === 'string' && v.length > 0) return withTrailingSlash(v);
   } catch {}
   return undefined;

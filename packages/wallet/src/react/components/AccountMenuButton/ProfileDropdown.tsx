@@ -70,10 +70,10 @@ export const ProfileDropdown = forwardRef<HTMLDivElement, ProfileDropdownWithRef
     return (
       <div
         ref={ref}
-        className={`w3a-profile-dropdown-morphed ${theme}`}
+        className={`seams-profile-dropdown-morphed ${theme}`}
         data-state={isOpen ? 'open' : 'closed'}
       >
-        <div className="w3a-profile-dropdown-menu">
+        <div className="seams-profile-dropdown-menu">
           {/* Menu Items */}
           {menuItems.map((item, index) => {
             const refCallback = (el: HTMLElement | null) => {
@@ -139,7 +139,7 @@ export const ProfileDropdown = forwardRef<HTMLDivElement, ProfileDropdownWithRef
           {/* Lock Section */}
           <LockMenuItem
             onLock={onLock}
-            className="w3a-lock-menu-item"
+            className="seams-lock-menu-item"
             // Set CSS variable to calculate stagger delay in CSS stylesheet
             style={{
               ['--stagger-item-n' as any]: hasTransactionSettings

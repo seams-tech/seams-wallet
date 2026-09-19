@@ -52,8 +52,8 @@ const PREFERENCES_PUSH_STUB = `
     };
 
     const wrapPort = () => {
-      if (!adoptedPort || adoptedPort.__w3aPrefsWrapped) return;
-      adoptedPort.__w3aPrefsWrapped = true;
+      if (!adoptedPort || adoptedPort.__seamsPrefsWrapped) return;
+      adoptedPort.__seamsPrefsWrapped = true;
       const original = adoptedPort.onmessage;
       adoptedPort.onmessage = (event) => {
         const message = event.data || {};

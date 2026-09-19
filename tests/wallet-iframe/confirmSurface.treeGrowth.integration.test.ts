@@ -158,7 +158,7 @@ async function openRealModal(page: Page, options: { greeting?: string } = {}): P
 
   await page.waitForFunction(
     () => {
-      const dialog = document.querySelector('dialog.w3a-wallet-overlay-dialog');
+      const dialog = document.querySelector('dialog.seams-wallet-overlay-dialog');
       return (
         !!dialog &&
         dialog.classList.contains('is-modal') &&
@@ -178,7 +178,7 @@ async function openRealModal(page: Page, options: { greeting?: string } = {}): P
     );
   await frame.waitForFunction(
     () =>
-      (window as any).__mounted === true && !!document.querySelector('w3a-tx-tree details.folder'),
+      (window as any).__mounted === true && !!document.querySelector('seams-tx-tree details.folder'),
     undefined,
     { timeout: 30_000 },
   );
@@ -189,7 +189,7 @@ async function openRealModal(page: Page, options: { greeting?: string } = {}): P
 
 async function recordMotion(frame: Frame, action: MotionAction): Promise<MotionTrace> {
   return frame.evaluate(async (action) => {
-    const host = document.getElementById('w3a-confirm-portal')!.firstElementChild as HTMLElement;
+    const host = document.getElementById('seams-confirm-portal')!.firstElementChild as HTMLElement;
     const card = host.querySelector('.modal-container-root') as HTMLElement;
     let begin: MotionTrace['begin'] | null = null;
     host.addEventListener(
@@ -199,7 +199,7 @@ async function recordMotion(frame: Frame, action: MotionAction): Promise<MotionT
           deltaCssPx: e.detail.deltaCssPx,
           viewportPx: document.documentElement.clientHeight,
           hostPx: host.getBoundingClientRect().height,
-          surface: host.getAttribute('data-w3a-confirm-surface'),
+          surface: host.getAttribute('data-seams-confirm-surface'),
         };
       },
       { capture: true, once: true },
@@ -212,7 +212,7 @@ async function recordMotion(frame: Frame, action: MotionAction): Promise<MotionT
       frames.push({
         viewportPx: document.documentElement.clientHeight,
         cardPx: card.getBoundingClientRect().height,
-        pinned: host.classList.contains('w3a-confirm-surface-pinned'),
+        pinned: host.classList.contains('seams-confirm-surface-pinned'),
       });
     };
     // ResizeObserver callbacks run after layout and after every animation-frame
@@ -232,12 +232,12 @@ async function recordMotion(frame: Frame, action: MotionAction): Promise<MotionT
       case 'folder':
         click(
           action.open
-            ? 'w3a-tx-tree details.folder:not([open]) > summary'
-            : 'w3a-tx-tree details.folder[open]:not(:has(> .folder-children > details.folder[open])) > summary',
+            ? 'seams-tx-tree details.folder:not([open]) > summary'
+            : 'seams-tx-tree details.folder[open]:not(:has(> .folder-children > details.folder[open])) > summary',
         );
         break;
       case 'file-content-mode':
-        click('w3a-tx-tree .file-content-mode-toggle');
+        click('seams-tx-tree .file-content-mode-toggle');
         break;
       case 'error-banner':
         (host as unknown as { errorMessage: string }).errorMessage = action.message;
@@ -254,7 +254,7 @@ async function recordMotion(frame: Frame, action: MotionAction): Promise<MotionT
       frames,
       finalHostPx: host.getBoundingClientRect().height,
       blipFrames:
-        (window as unknown as { __w3aSurfaceMotion?: { blipFrames: number } }).__w3aSurfaceMotion
+        (window as unknown as { __seamsSurfaceMotion?: { blipFrames: number } }).__seamsSurfaceMotion
           ?.blipFrames ?? 0,
     };
   }, action);
@@ -360,7 +360,7 @@ test.describe('wallet iframe host-driven interior motion', () => {
       frame.evaluate(() =>
         Math.round(
           (
-            document.getElementById('w3a-confirm-portal')!.firstElementChild as HTMLElement
+            document.getElementById('seams-confirm-portal')!.firstElementChild as HTMLElement
           ).getBoundingClientRect().height,
         ),
       );
@@ -369,7 +369,7 @@ test.describe('wallet iframe host-driven interior motion', () => {
     const setBoxHeightCssPx = async (px: number | null) => {
       await page.evaluate((height) => {
         const iframe = document.querySelector(
-          'dialog.w3a-wallet-overlay-dialog iframe',
+          'dialog.seams-wallet-overlay-dialog iframe',
         ) as HTMLIFrameElement;
         iframe.style.height = height === null ? '' : `${height}px`;
       }, px);

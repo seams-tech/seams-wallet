@@ -4,7 +4,7 @@ Inline-only, instance-safe rotating halo built as a Lit element.
 
 Goal: draw a thin, animated arc that orbits around a rounded rectangle, with a visible gap between the arc and the content, and keep that arc outside the component’s box (a “floating” halo). Each instance computes its own geometry (no shared CSS variables), so different `ringGap`/`ringWidth` values can coexist.
 
-Entrypoint: `index.ts` is the component-local export for `<w3a-halo-border>`.
+Entrypoint: `index.ts` is the component-local export for `<seams-halo-border>`.
 
 ## How It Works
 
@@ -49,7 +49,7 @@ const step = (now: number) => {
 
 ## Component API
 
-HaloBorder (custom element: `w3a-halo-border`) supports:
+HaloBorder (custom element: `seams-halo-border`) supports:
 
 - `animated?: boolean` — enable/disable rotation.
 - `theme?: 'light' | 'dark'` — applied as a class on the wrapper for theme tokens.
@@ -61,9 +61,9 @@ HaloBorder (custom element: `w3a-halo-border`) supports:
 - `ringBackground?: string` — the stops for the conic-gradient (e.g. `"transparent 0%, #4DAFFE 10%, #4DAFFE 25%, transparent 35%"`).
 - `padding?: string` — optional outer padding override (defaults to `ringGap + ringWidth`).
 - `innerPadding?: string` — padding for the inner content box (default `2rem`).
-- `innerBackground?: string` — background for the inner content (default `var(--w3a-colors-surfacePrimary)`).
+- `innerBackground?: string` — background for the inner content (default `var(--seams-colors-surfacePrimary)`).
 
-PasskeyHaloLoading (custom element: `w3a-passkey-halo-loading`) forwards the same halo props and adds:
+PasskeyHaloLoading (custom element: `seams-passkey-halo-loading`) forwards the same halo props and adds:
 
 - `height?: number`, `width?: number` — icon size controls.
 
@@ -72,7 +72,7 @@ PasskeyHaloLoading (custom element: `w3a-passkey-halo-loading`) forwards the sam
 HTML (plain Web Component):
 
 ```html
-<w3a-halo-border
+<seams-halo-border
   animated
   duration-ms="800"
   ring-gap="8"
@@ -80,10 +80,10 @@ HTML (plain Web Component):
   ring-border-radius="1.5rem"
   ring-background="transparent 0%, #4DAFFE 12%, #4DAFFE 28%, transparent 36%"
   inner-padding="20px"
-  inner-background="var(--w3a-colors-surfaceSecondary)"
+  inner-background="var(--seams-colors-surfaceSecondary)"
 >
   <div>Content</div>
-</w3a-halo-border>
+</seams-halo-border>
 ```
 
 React (via @lit/react wrappers):

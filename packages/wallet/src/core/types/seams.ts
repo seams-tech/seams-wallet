@@ -477,7 +477,7 @@ export interface AppearanceThemeInput {
   mode: ThemeMode;
   colors?: Record<string, string>;
   /**
-   * Component geometry overrides, emitted as --w3a-shape-<key> CSS vars
+   * Component geometry overrides, emitted as --seams-shape-<key> CSS vars
    * (e.g. { card: '3rem', control: '2rem' }). Omitted keys fall back to the
    * square preset values baked into the component CSS.
    */

@@ -74,7 +74,7 @@ export class LitElementWithProps extends LitElement {
    * Optional: Tag names that should be defined before this component renders.
    * When missing, a console.warn is emitted to remind developers to import/keep the child.
    * Example:
-   *   static requiredChildTags = ['w3a-tx-tree'];
+   *   static requiredChildTags = ['seams-tx-tree'];
    */
   static requiredChildTags?: ReadonlyArray<string>;
 
@@ -160,7 +160,7 @@ export class LitElementWithProps extends LitElement {
           try {
             if (typeof tag === 'string' && tag.includes('-') && !customElements.get(tag)) {
               const msg =
-                `[W3A] Required child custom element not defined: <${tag}>. ` +
+                `[SEAMS] Required child custom element not defined: <${tag}>. ` +
                 'Import the module that defines it and keep a reference via `static keepDefinitions` ' +
                 'or a private field to avoid tree-shaking. See LitComponents/README.md (tree-shake checklist).';
               if (strictChildDefinitions) {
@@ -202,11 +202,11 @@ export class LitElementWithProps extends LitElement {
    *
    * How it works
    * - Flattens top-level tokens (e.g., colors, radii) to canonical CSS vars
-   *   (e.g., --w3a-colors-*, --w3a-border-radius-*).
+   *   (e.g., --seams-colors-*, --seams-border-radius-*).
    * - Transforms viewport units to dvh/dvw on capable engines to avoid
    *   Safari 100vh issues.
    * - Maps sectioned styles (nested objects) to namespaced variables of the
-   *   form --w3a-${prefix}__${section}__${prop} to scope tokens per-component.
+   *   form --seams-${prefix}__${section}__${prop} to scope tokens per-component.
    * - Delegates to setCssVars(), which merges vars and updates the appropriate
    *   constructable stylesheet target (ShadowRoot preferred).
    *
@@ -246,21 +246,21 @@ export class LitElementWithProps extends LitElement {
 
     // Map known tokens to canonical CSS variables
     const colorMappings: Record<string, string> = {
-      colorSecondary: '--w3a-colors-secondary',
-      colorSuccess: '--w3a-colors-success',
-      colorWarning: '--w3a-colors-warning',
-      colorError: '--w3a-colors-error',
-      colorBackground: '--w3a-colors-colorBackground',
-      surface: '--w3a-colors-surface',
-      surface2: '--w3a-colors-surface2',
-      txDetailsBackground: '--w3a-colors-txDetailsBackground',
-      surface3: '--w3a-colors-surface3',
-      borderPrimary: '--w3a-colors-borderPrimary',
-      borderSecondary: '--w3a-colors-borderSecondary',
-      borderHover: '--w3a-colors-borderHover',
-      textPrimary: '--w3a-colors-textPrimary',
-      textSecondary: '--w3a-colors-textSecondary',
-      textMuted: '--w3a-colors-textMuted',
+      colorSecondary: '--seams-colors-secondary',
+      colorSuccess: '--seams-colors-success',
+      colorWarning: '--seams-colors-warning',
+      colorError: '--seams-colors-error',
+      colorBackground: '--seams-colors-colorBackground',
+      surface: '--seams-colors-surface',
+      surface2: '--seams-colors-surface2',
+      txDetailsBackground: '--seams-colors-txDetailsBackground',
+      surface3: '--seams-colors-surface3',
+      borderPrimary: '--seams-colors-borderPrimary',
+      borderSecondary: '--seams-colors-borderSecondary',
+      borderHover: '--seams-colors-borderHover',
+      textPrimary: '--seams-colors-textPrimary',
+      textSecondary: '--seams-colors-textSecondary',
+      textMuted: '--seams-colors-textMuted',
     };
 
     const radiusMatcher = /^radius([A-Z].*)$/;
@@ -278,18 +278,18 @@ export class LitElementWithProps extends LitElement {
 
       const r = key.match(radiusMatcher);
       if (r) {
-        setVar(`--w3a-border-radius-${r[1].toLowerCase()}`, maybeTransformed);
+        setVar(`--seams-border-radius-${r[1].toLowerCase()}`, maybeTransformed);
         return;
       }
 
       const s = key.match(shadowMatcher);
       if (s) {
-        setVar(`--w3a-shadows-${s[1].toLowerCase()}`, maybeTransformed);
+        setVar(`--seams-shadows-${s[1].toLowerCase()}`, maybeTransformed);
         return;
       }
 
       // Spacing is owned by theme tokens.
-      setVar(`--w3a-${toKebab(key)}`, maybeTransformed);
+      setVar(`--seams-${toKebab(key)}`, maybeTransformed);
     });
 
     // Component-scoped CSS variables
@@ -298,7 +298,7 @@ export class LitElementWithProps extends LitElement {
         Object.entries(sectionStyles).forEach(([prop, value]) => {
           const kebabSection = toKebab(section);
           const kebabProp = toKebab(prop);
-          const cssVarNew = `--w3a-${prefix}__${kebabSection}__${kebabProp}`;
+          const cssVarNew = `--seams-${prefix}__${kebabSection}__${kebabProp}`;
           const v = typeof value === 'string' ? transformViewportUnits(value) : String(value);
           vars[cssVarNew] = v;
         });
@@ -352,7 +352,7 @@ export class LitElementWithProps extends LitElement {
       const doc = rootNode instanceof Document ? rootNode : document;
       const cssTextScoped = () => {
         if (!this._varsClassName) {
-          this._varsClassName = `w3a-vars-${Math.random().toString(36).slice(2)}`;
+          this._varsClassName = `seams-vars-${Math.random().toString(36).slice(2)}`;
           try {
             this.classList.add(this._varsClassName);
           } catch {}

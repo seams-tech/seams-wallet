@@ -49,7 +49,7 @@ export function buildWalletServiceHtml(
     `${sdkBasePath}/passkey-halo-loading.css`,
     assetVersion,
   );
-  const componentsCss = withAssetVersion(`${sdkBasePath}/w3a-components.css`, assetVersion);
+  const componentsCss = withAssetVersion(`${sdkBasePath}/seams-components.css`, assetVersion);
   const txConfirmerCss = withAssetVersion(`${sdkBasePath}/tx-confirmer.css`, assetVersion);
   const recoveryCodeBackupCss = withAssetVersion(
     `${sdkBasePath}/recovery-code-backup.css`,
@@ -78,19 +78,19 @@ export function buildWalletServiceHtml(
     <link rel="prefetch" as="style" href="${haloBorderCss}" />
     <link rel="prefetch" as="style" href="${passkeyHaloLoadingCss}" />
     <!-- Component theme CSS: shared tokens + component-scoped tokens -->
-    <link rel="stylesheet" href="${componentsCss}" data-w3a-components-css />
+    <link rel="stylesheet" href="${componentsCss}" data-seams-components-css />
     <link rel="stylesheet" href="${drawerCss}" />
     <link rel="stylesheet" href="${txTreeCss}" />
     <link rel="stylesheet" href="${txConfirmerCss}" />
-    <link rel="stylesheet" href="${recoveryCodeBackupCss}" data-w3a-recovery-code-backup-css />
-    <link rel="stylesheet" href="${copyIconCss}" data-w3a-copy-icon-css />
+    <link rel="stylesheet" href="${recoveryCodeBackupCss}" data-seams-recovery-code-backup-css />
+    <link rel="stylesheet" href="${copyIconCss}" data-seams-copy-icon-css />
     <!-- Key export holds its first paint until these are adopted, and it renders
          into a measured surface: fetched on demand, the host is measured empty
          and the box is revealed small, then jumps to the real size once they
          land. That cost is paid once per browser cache, which is exactly what
          makes it easy to miss. -->
-    <link rel="stylesheet" href="${exportViewerCss}" data-w3a-export-viewer-css />
-    <link rel="stylesheet" href="${exportIframeCss}" data-w3a-export-iframe-css />
+    <link rel="stylesheet" href="${exportViewerCss}" data-seams-export-viewer-css />
+    <link rel="stylesheet" href="${exportIframeCss}" data-seams-export-iframe-css />
     <!-- Minimal shims some ESM bundles expect (externalized to enable strict CSP) -->
     <script src="${walletShimsJs}"></script>
     <!-- Hint the browser to fetch the host script earlier -->

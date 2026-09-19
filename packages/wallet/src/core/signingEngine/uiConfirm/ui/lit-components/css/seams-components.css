@@ -1,0 +1,283 @@
+/*
+  AUTO-GENERATED FILE – DO NOT EDIT.
+  Source: packages/wallet/src/theme/palette.json + mappings from packages/wallet/src/theme/base-styles.js (createThemeTokens)
+  Run: node packages/wallet/scripts/codegen/generate-seams-components-css.mjs
+*/
+
+:root {
+  /* Palette scales */
+  --seams-grey25: oklch(0.99 0.001 240);
+  --seams-grey50: oklch(0.98 0.001 240);
+  --seams-grey75: oklch(0.97 0.002 240);
+  --seams-grey100: oklch(0.95 0.005 240);
+  --seams-grey150: oklch(0.92 0.007 240);
+  --seams-grey200: oklch(0.88 0.01 240);
+  --seams-grey250: oklch(0.85 0.012 240);
+  --seams-grey300: oklch(0.82 0.014 240);
+  --seams-grey350: oklch(0.75 0.016 240);
+  --seams-grey400: oklch(0.65 0.02 240);
+  --seams-grey450: oklch(0.6 0.021 240);
+  --seams-grey500: oklch(0.53 0.02 240);
+  --seams-grey550: oklch(0.48 0.02 240);
+  --seams-grey600: oklch(0.4 0.02 240);
+  --seams-grey650: oklch(0.35 0.018 240);
+  --seams-grey700: oklch(0.3 0.015 240);
+  --seams-grey750: oklch(0.25 0.012 240);
+  --seams-grey800: oklch(0.2 0.01 240);
+  --seams-grey825: oklch(0.17 0.009 240);
+  --seams-grey850: oklch(0.15 0.008 240);
+  --seams-grey900: oklch(0.1 0.005 240);
+  --seams-grey950: oklch(0.05 0.002 240);
+  --seams-grey975: oklch(0.025 0.001 240);
+  --seams-slate25: oklch(0.99 0.003 240);
+  --seams-slate50: oklch(0.98 0.005 240);
+  --seams-slate75: oklch(0.965 0.007 240);
+  --seams-slate100: oklch(0.95 0.01 240);
+  --seams-slate150: oklch(0.915 0.0125 240);
+  --seams-slate200: oklch(0.88 0.015 240);
+  --seams-slate250: oklch(0.84 0.0175 240);
+  --seams-slate300: oklch(0.8 0.02 240);
+  --seams-slate350: oklch(0.725 0.0225 240);
+  --seams-slate400: oklch(0.65 0.025 240);
+  --seams-slate450: oklch(0.59 0.0275 240);
+  --seams-slate500: oklch(0.53 0.03 240);
+  --seams-slate550: oklch(0.465 0.0275 240);
+  --seams-slate600: oklch(0.4 0.025 240);
+  --seams-slate650: oklch(0.35 0.0225 240);
+  --seams-slate700: oklch(0.3 0.02 240);
+  --seams-slate750: oklch(0.25 0.0175 240);
+  --seams-slate800: oklch(0.2 0.015 240);
+  --seams-slate825: oklch(0.175 0.015 240);
+  --seams-slate850: oklch(0.15 0.0125 240);
+  --seams-slate900: oklch(0.1 0.01 240);
+
+  /* Blue */
+  --seams-blue50: oklch(0.97 0.040 255);
+  --seams-blue100: oklch(0.95 0.062 255);
+  --seams-blue150: oklch(0.93 0.074 255);
+  --seams-blue200: oklch(0.90 0.086 255);
+  --seams-blue250: oklch(0.87 0.100 255);
+  --seams-blue300: oklch(0.82 0.130 255);
+  --seams-blue350: oklch(0.78 0.150 255);
+  --seams-blue400: oklch(0.74 0.166 255);
+  --seams-blue450: oklch(0.70 0.174 255);
+  --seams-blue500: oklch(0.66 0.180 255);
+  --seams-blue550: oklch(0.62 0.176 255);
+  --seams-blue600: oklch(0.56 0.158 255);
+  --seams-blue650: oklch(0.52 0.138 255);
+  --seams-blue700: oklch(0.46 0.108 255);
+  --seams-blue750: oklch(0.42 0.088 255);
+  --seams-blue800: oklch(0.36 0.065 255);
+  --seams-blue850: oklch(0.32 0.056 255);
+  --seams-blue900: oklch(0.26 0.050 255);
+  --seams-blue950: oklch(0.22 0.040 255);
+
+  /* Green */
+  --seams-green50: oklch(0.97 0.040 170);
+  --seams-green100: oklch(0.95 0.062 170);
+  --seams-green150: oklch(0.93 0.074 170);
+  --seams-green200: oklch(0.90 0.086 170);
+  --seams-green250: oklch(0.87 0.100 170);
+  --seams-green300: oklch(0.82 0.130 170);
+  --seams-green350: oklch(0.78 0.150 170);
+  --seams-green400: oklch(0.74 0.166 170);
+  --seams-green450: oklch(0.70 0.174 170);
+  --seams-green500: oklch(0.66 0.180 170);
+  --seams-green550: oklch(0.62 0.176 170);
+  --seams-green600: oklch(0.56 0.158 170);
+  --seams-green650: oklch(0.52 0.138 170);
+  --seams-green700: oklch(0.46 0.108 170);
+  --seams-green750: oklch(0.42 0.088 170);
+  --seams-green800: oklch(0.36 0.065 170);
+  --seams-green850: oklch(0.32 0.056 170);
+  --seams-green900: oklch(0.26 0.050 170);
+  --seams-green950: oklch(0.22 0.040 170);
+
+  /* Orange */
+  --seams-orange100: oklch(0.82 0.08 52);
+  --seams-orange200: oklch(0.8 0.1 55);
+  --seams-orange300: oklch(0.75 0.12 58);
+  --seams-orange400: oklch(0.7 0.14 60);
+  --seams-orange500: oklch(0.65 0.13 62);
+  --seams-orange600: oklch(0.6 0.12 65);
+  --seams-orange700: oklch(0.55 0.11 68);
+  --seams-orange800: oklch(0.5 0.1 70);
+  --seams-orange900: oklch(0.45 0.09 72);
+
+  /* Red */
+  --seams-red50: oklch(0.97 0.040 19);
+  --seams-red100: oklch(0.95 0.060 19);
+  --seams-red150: oklch(0.93 0.072 19);
+  --seams-red200: oklch(0.90 0.086 19);
+  --seams-red250: oklch(0.87 0.100 19);
+  --seams-red300: oklch(0.82 0.130 19);
+  --seams-red350: oklch(0.78 0.150 19);
+  --seams-red400: oklch(0.74 0.166 19);
+  --seams-red450: oklch(0.70 0.174 19);
+  --seams-red500: oklch(0.66 0.180 19);
+  --seams-red550: oklch(0.62 0.176 19);
+  --seams-red600: oklch(0.56 0.158 19);
+  --seams-red650: oklch(0.52 0.138 19);
+  --seams-red700: oklch(0.46 0.108 19);
+  --seams-red750: oklch(0.42 0.088 19);
+  --seams-red800: oklch(0.36 0.065 19);
+  --seams-red850: oklch(0.32 0.056 19);
+  --seams-red900: oklch(0.26 0.050 19);
+  --seams-red950: oklch(0.22 0.040 19);
+
+  /* Violet */
+  --seams-violet100: oklch(0.80 0.08 308);
+  --seams-violet200: oklch(0.75 0.1 305);
+  --seams-violet300: oklch(0.72 0.12 302);
+  --seams-violet400: oklch(0.68 0.14 300);
+  --seams-violet500: oklch(0.65 0.15 298);
+  --seams-violet600: oklch(0.6 0.14 295);
+  --seams-violet700: oklch(0.55 0.13 292);
+  --seams-violet800: oklch(0.5 0.12 290);
+  --seams-violet900: oklch(0.45 0.11 288);
+
+  /* Yellow */
+  --seams-yellow50: oklch(0.97 0.050 95);
+  --seams-yellow100: oklch(0.95 0.070 95);
+  --seams-yellow150: oklch(0.93 0.082 95);
+  --seams-yellow200: oklch(0.90 0.094 95);
+  --seams-yellow250: oklch(0.87 0.108 95);
+  --seams-yellow300: oklch(0.82 0.140 95);
+  --seams-yellow350: oklch(0.78 0.160 95);
+  --seams-yellow400: oklch(0.74 0.176 95);
+  --seams-yellow450: oklch(0.70 0.184 95);
+  --seams-yellow500: oklch(0.66 0.188 95);
+  --seams-yellow550: oklch(0.62 0.182 95);
+  --seams-yellow600: oklch(0.56 0.160 95);
+  --seams-yellow650: oklch(0.52 0.138 95);
+  --seams-yellow700: oklch(0.46 0.106 95);
+  --seams-yellow750: oklch(0.42 0.086 95);
+  --seams-yellow800: oklch(0.36 0.062 95);
+  --seams-yellow850: oklch(0.32 0.052 95);
+  --seams-yellow900: oklch(0.26 0.044 95);
+  --seams-yellow950: oklch(0.22 0.036 95);
+  --seams-gradient-black: linear-gradient(45deg, oklch(0.53 0.03 240) 0%, oklch(0.2 0.015 240) 50%);
+  --seams-gradient-blue: linear-gradient(45deg, oklch(0.82 0.130 255) 0%, oklch(0.66 0.180 255) 50%);
+  --seams-gradient-blueWhite: linear-gradient(90deg, hsla(213, 62%, 45%, 1) 0%, hsla(203, 89%, 71%, 1) 50%, hsla(0, 0%, 96%, 1) 100%);
+  --seams-gradient-green: linear-gradient(45deg, oklch(0.82 0.130 170) 0%, oklch(0.66 0.180 170) 50%);
+  --seams-gradient-red: linear-gradient(45deg, oklch(0.82 0.130 19) 0%, oklch(0.66 0.180 19) 50%);
+  --seams-gradient-sage: linear-gradient(160deg, #919690 0%, #c7d0cf 100%);
+  --seams-gradient-sageDeep: linear-gradient(160deg, #004737 0%, #919690 100%);
+}
+
+/* Base CSS variables for SEAMS custom elements (applied on hosts) */
+seams-tx-tree,
+seams-drawer,
+seams-modal-tx-confirmer,
+seams-drawer-tx-confirmer,
+seams-tx-confirm-content,
+seams-halo-border,
+seams-passkey-halo-loading,
+seams-export-key-viewer,
+seams-recovery-code-backup-viewer {
+  /* Component defaults (no token alias assignments here) */
+  --seams-modal__btn__focus-outline-color: oklch(0.74 0.166 255);
+  --seams-tree__file-content__scrollbar-track__background: rgba(255,255,255,0.06);
+  --seams-tree__file-content__scrollbar-thumb__background: rgba(255,255,255,0.22);
+
+  /* Neutral defaults for PasskeyHaloLoading (baseline outside confirmer context) */
+  --seams-modal__passkey-halo-loading__ring-background: transparent 0%, var(--seams-colors-highlightHalo) 10%, var(--seams-colors-highlightHalo) 25%, transparent 35%;
+  --seams-modal__passkey-halo-loading__inner-background: transparent;
+  --seams-modal__passkey-halo-loading__inner-padding: 3px;
+  --seams-modal__passkey-halo-loading-icon-container__background-color: var(--seams-colors-passkeyHaloBackground, var(--seams-colors-surface));
+  --seams-modal__passkey-halo-loading-touch-icon__color: var(--seams-colors-textPrimary);
+  --seams-modal__passkey-halo-loading-touch-icon__margin: 0.75rem;
+  --seams-modal__passkey-halo-loading-touch-icon__stroke-width: 3.5;
+
+  /* Default token aliases (dark) so components have tokens without relying on :root */
+  --seams-colors-textPrimary: oklch(0.97 0.002 240);
+  --seams-colors-textSecondary: oklch(0.53 0.02 240);
+  --seams-colors-textMuted: oklch(0.35 0.018 240);
+  --seams-colors-textButton: oklch(0.97 0.002 240);
+  --seams-colors-colorBackground: oklch(0.2 0.01 240);
+  --seams-colors-surface: oklch(0.3 0.02 240);
+  --seams-colors-surface2: oklch(0.25 0.0175 240);
+  --seams-colors-txDetailsBackground: oklch(0.25 0.0175 240);
+  --seams-colors-surface3: oklch(0.2 0.015 240);
+  --seams-colors-surface4: oklch(0.175 0.015 240);
+  --seams-colors-primary: oklch(0.52 0.138 255);
+  --seams-colors-primaryHover: oklch(0.56 0.158 255);
+  --seams-colors-secondary: oklch(0.6 0.14 295);
+  --seams-colors-secondaryHover: oklch(0.65 0.15 298);
+  --seams-colors-accent: oklch(0.74 0.166 170);
+  --seams-colors-buttonBackground: oklch(0.66 0.180 255);
+  --seams-colors-buttonHoverBackground: oklch(0.70 0.174 255);
+  --seams-colors-hover: oklch(0.15 0.008 240);
+  --seams-colors-active: oklch(0.35 0.018 240);
+  --seams-colors-focus: oklch(0.74 0.166 255);
+  --seams-colors-success: oklch(0.74 0.166 255);
+  --seams-colors-warning: oklch(0.74 0.176 95);
+  --seams-colors-error: oklch(0.74 0.166 19);
+  --seams-colors-info: oklch(0.74 0.166 255);
+  --seams-colors-highlightPrimary: oklch(0.74 0.166 255);
+  --seams-colors-highlightHalo: oklch(0.74 0.166 255);
+  --seams-colors-borderPrimary: oklch(0.35 0.018 240);
+  --seams-colors-borderSecondary: oklch(0.35 0.0225 240);
+  --seams-colors-borderHover: oklch(0.4 0.02 240);
+  --seams-colors-gradientPrimary: linear-gradient(45deg, oklch(0.82 0.130 255) 0%, oklch(0.66 0.180 255) 50%);
+  --seams-colors-gradientSecondary: linear-gradient(90deg, hsla(213, 62%, 45%, 1) 0%, hsla(203, 89%, 71%, 1) 50%, hsla(0, 0%, 96%, 1) 100%);
+  --seams-colors-gradientTertiary: linear-gradient(45deg, oklch(0.53 0.03 240) 0%, oklch(0.2 0.015 240) 50%);
+  --seams-colors-highlightReceiver: oklch(0.74 0.166 255);
+  --seams-colors-highlightMethodName: oklch(0.74 0.166 255);
+  --seams-colors-highlightAmount: oklch(0.74 0.166 255);
+}
+
+seams-tx-tree[theme="light"],
+:root[data-seams-theme="light"] seams-tx-tree:not([theme="dark"]),
+seams-drawer[theme="light"],
+:root[data-seams-theme="light"] seams-drawer:not([theme="dark"]),
+seams-modal-tx-confirmer[theme="light"],
+:root[data-seams-theme="light"] seams-modal-tx-confirmer:not([theme="dark"]),
+seams-drawer-tx-confirmer[theme="light"],
+:root[data-seams-theme="light"] seams-drawer-tx-confirmer:not([theme="dark"]),
+seams-tx-confirm-content[theme="light"],
+:root[data-seams-theme="light"] seams-tx-confirm-content:not([theme="dark"]),
+seams-halo-border[theme="light"],
+:root[data-seams-theme="light"] seams-halo-border:not([theme="dark"]),
+seams-passkey-halo-loading[theme="light"],
+:root[data-seams-theme="light"] seams-passkey-halo-loading:not([theme="dark"]),
+seams-export-key-viewer[theme="light"],
+:root[data-seams-theme="light"] seams-export-key-viewer:not([theme="dark"]),
+seams-recovery-code-backup-viewer[theme="light"],
+:root[data-seams-theme="light"] seams-recovery-code-backup-viewer:not([theme="dark"]) {
+  --seams-colors-textPrimary: oklch(0.35 0.018 240);
+  --seams-colors-textSecondary: oklch(0.53 0.02 240);
+  --seams-colors-textMuted: oklch(0.75 0.016 240);
+  --seams-colors-textButton: oklch(0.97 0.002 240);
+  --seams-colors-colorBackground: oklch(0.98 0.001 240);
+  --seams-colors-surface: oklch(0.95 0.01 240);
+  --seams-colors-surface2: oklch(0.915 0.0125 240);
+  --seams-colors-txDetailsBackground: #f8f8f7;
+  --seams-colors-surface3: oklch(0.88 0.015 240);
+  --seams-colors-surface4: oklch(0.84 0.0175 240);
+  --seams-colors-primary: oklch(0.56 0.158 255);
+  --seams-colors-primaryHover: oklch(0.66 0.180 255);
+  --seams-colors-secondary: oklch(0.6 0.14 295);
+  --seams-colors-secondaryHover: oklch(0.65 0.15 298);
+  --seams-colors-accent: oklch(0.74 0.166 170);
+  --seams-colors-buttonBackground: oklch(0.66 0.180 255);
+  --seams-colors-buttonHoverBackground: oklch(0.70 0.174 255);
+  --seams-colors-hover: oklch(0.95 0.005 240);
+  --seams-colors-active: oklch(0.88 0.01 240);
+  --seams-colors-focus: oklch(0.74 0.166 255);
+  --seams-colors-success: oklch(0.66 0.180 255);
+  --seams-colors-warning: oklch(0.66 0.188 95);
+  --seams-colors-error: oklch(0.66 0.180 19);
+  --seams-colors-info: oklch(0.74 0.166 255);
+  --seams-colors-highlightPrimary: oklch(0.82 0.130 255);
+  --seams-colors-highlightHalo: oklch(0.78 0.150 255);
+  --seams-colors-borderPrimary: oklch(0.8 0.02 240);
+  --seams-colors-borderSecondary: oklch(0.82 0.014 240);
+  --seams-colors-borderHover: oklch(0.725 0.0225 240);
+  --seams-colors-gradientPrimary: linear-gradient(45deg, oklch(0.82 0.130 255) 0%, oklch(0.66 0.180 255) 50%);
+  --seams-colors-gradientSecondary: linear-gradient(90deg, hsla(213, 62%, 45%, 1) 0%, hsla(203, 89%, 71%, 1) 50%, hsla(0, 0%, 96%, 1) 100%);
+  --seams-colors-gradientTertiary: linear-gradient(45deg, oklch(0.53 0.03 240) 0%, oklch(0.2 0.015 240) 50%);
+  --seams-colors-highlightReceiver: oklch(0.66 0.180 255);
+  --seams-colors-highlightMethodName: oklch(0.66 0.180 255);
+  --seams-colors-highlightAmount: oklch(0.66 0.180 255);
+}

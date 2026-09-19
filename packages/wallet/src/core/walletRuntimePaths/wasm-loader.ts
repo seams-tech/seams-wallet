@@ -6,7 +6,7 @@
  * - Production (wallet origin)
  *   - WASM Workers live under the wallet site at `${walletOrigin}/sdk/workers/*`.
  *   - `.wasm` must be served with `Content-Type: application/wasm`.
- *   - The wallet iframe announces `window.__W3A_WALLET_SDK_BASE__ = ${walletOrigin}/sdk/`.
+ *   - The wallet iframe announces `window.__SEAMS_WALLET_SDK_BASE__ = ${walletOrigin}/sdk/`.
  *   - resolveWorkerBaseOrigin() uses that base; resolveWasmUrl() uses the bundler-relative
  *     URL first (import.meta.url) and falls back to `/sdk/workers/*` when needed.
  *

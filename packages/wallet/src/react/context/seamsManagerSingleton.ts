@@ -12,7 +12,7 @@ type SingletonState = {
   configKey: string | null;
 };
 
-const WINDOW_SINGLETON_KEY = '__w3a_seams_passkey_singleton__';
+const WINDOW_SINGLETON_KEY = '__seams_seams_passkey_singleton__';
 
 const moduleSingletonState: SingletonState = {
   manager: null,

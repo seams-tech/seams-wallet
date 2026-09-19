@@ -9,9 +9,9 @@ export function resolveEmailOtpWorkerUrl(opts?: { baseOrigin?: string }): string
 
   const override =
     typeof window !== 'undefined' &&
-    typeof (window as { __W3A_EMAIL_OTP_WORKER_URL__?: unknown }).__W3A_EMAIL_OTP_WORKER_URL__ ===
+    typeof (window as { __SEAMS_EMAIL_OTP_WORKER_URL__?: unknown }).__SEAMS_EMAIL_OTP_WORKER_URL__ ===
       'string'
-      ? String((window as { __W3A_EMAIL_OTP_WORKER_URL__?: string }).__W3A_EMAIL_OTP_WORKER_URL__)
+      ? String((window as { __SEAMS_EMAIL_OTP_WORKER_URL__?: string }).__SEAMS_EMAIL_OTP_WORKER_URL__)
       : '';
   const candidate = override || '/sdk/workers/email-otp.worker.js';
   if (/^https?:\/\//i.test(candidate)) return candidate;

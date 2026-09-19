@@ -10,7 +10,7 @@ import {
 /* Relative, not `@/`-aliased: unit tests load this module as raw source over
    Vite's /@fs route, where the SDK's path alias is not configured. Type-only
    `@/` imports above are erased before that matters; these are values. */
-import { W3A_RECOVERY_CODE_BACKUP_HOST_ID } from '../../../core/signingEngine/uiConfirm/ui/registry';
+import { SEAMS_RECOVERY_CODE_BACKUP_HOST_ID } from '../../../core/signingEngine/uiConfirm/ui/registry';
 import {
   RECOVERY_BACKUP_CANCEL_EVENT,
   RECOVERY_BACKUP_CLOSE_EVENT,
@@ -36,10 +36,10 @@ export type WalletRecoveryCodesUiRequest = Omit<AccountMenuRecoveryCodeExperienc
 async function createRecoveryCodeBackupHost(): Promise<RecoveryCodeBackupHost> {
   const { default: HostElement } =
     await import('../../../core/signingEngine/uiConfirm/ui/lit-components/RecoveryCodeBackup/host');
-  if (!customElements.get(W3A_RECOVERY_CODE_BACKUP_HOST_ID)) {
-    customElements.define(W3A_RECOVERY_CODE_BACKUP_HOST_ID, HostElement);
+  if (!customElements.get(SEAMS_RECOVERY_CODE_BACKUP_HOST_ID)) {
+    customElements.define(SEAMS_RECOVERY_CODE_BACKUP_HOST_ID, HostElement);
   }
-  return document.createElement(W3A_RECOVERY_CODE_BACKUP_HOST_ID) as RecoveryCodeBackupHost;
+  return document.createElement(SEAMS_RECOVERY_CODE_BACKUP_HOST_ID) as RecoveryCodeBackupHost;
 }
 
 /**

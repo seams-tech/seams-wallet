@@ -25,14 +25,14 @@ export const MenuItem = memo(
           ref={ref}
           type="button"
           disabled={item.disabled}
-          className={`w3a-dropdown-menu-item${disabledClass}${classNameProps}${highlightedClass}`}
+          className={`seams-dropdown-menu-item${disabledClass}${classNameProps}${highlightedClass}`}
           style={style}
           onClick={handleClick}
         >
-          <div className="w3a-dropdown-menu-item-icon">{item.icon}</div>
-          <div className="w3a-dropdown-menu-item-content">
-            <div className="w3a-dropdown-menu-item-label">{item.label}</div>
-            <div className="w3a-dropdown-menu-item-description">{item.description}</div>
+          <div className="seams-dropdown-menu-item-icon">{item.icon}</div>
+          <div className="seams-dropdown-menu-item-content">
+            <div className="seams-dropdown-menu-item-label">{item.label}</div>
+            <div className="seams-dropdown-menu-item-description">{item.description}</div>
           </div>
         </button>
       );

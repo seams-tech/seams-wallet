@@ -215,7 +215,7 @@ class SurfaceMeasurementReporter implements WalletIframeSurfaceMeasurementReport
     if (this.recentPostTimes.length < STREAMING_POSTS_THRESHOLD) return;
     this.warnedAboutStreaming = true;
     console.warn(
-      `[W3A] ${this.options.kind} posted ${this.recentPostTimes.length} surface measurements in ` +
+      `[SEAMS] ${this.options.kind} posted ${this.recentPostTimes.length} surface measurements in ` +
         `${STREAMING_WINDOW_MS}ms after it had settled. Content inside a measured surface must ` +
         'announce a height change once (announceSurfaceResize) instead of animating its own ' +
         'height; the host box cannot follow a moving target. See ' +

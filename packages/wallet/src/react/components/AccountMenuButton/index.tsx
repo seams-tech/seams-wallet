@@ -539,7 +539,7 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonProps> = ({
   return (
     <div
       ref={refs.buttonRef}
-      className={`w3a-profile-button-morphable ${isOpen ? 'open' : 'closed'}${className ? ` ${className}` : ''}`}
+      className={`seams-profile-button-morphable ${isOpen ? 'open' : 'closed'}${className ? ` ${className}` : ''}`}
       style={style}
       data-state={isOpen ? 'open' : 'closed'}
     >

@@ -37,13 +37,13 @@ export const ExportKeysSection: React.FC<ExportKeysSectionProps> = ({
 
   return (
     <div
-      className={`w3a-dropdown-export-keys-root ${isOpen ? 'is-expanded' : ''} ${className || ''}`}
+      className={`seams-dropdown-export-keys-root ${isOpen ? 'is-expanded' : ''} ${className || ''}`}
       style={style}
       onClick={handleClick}
     >
-      <div className="w3a-dropdown-export-keys-clip">
+      <div className="seams-dropdown-export-keys-clip">
         <div
-          className="w3a-dropdown-export-keys-content"
+          className="seams-dropdown-export-keys-content"
           aria-hidden={!isOpen}
           style={{ pointerEvents: isOpen ? 'auto' : 'none' }}
         >
@@ -51,7 +51,7 @@ export const ExportKeysSection: React.FC<ExportKeysSectionProps> = ({
             <button
               key={row.chain}
               type="button"
-              className="w3a-export-keys-row"
+              className="seams-export-keys-row"
               disabled={
                 isBusy || (row.chain === 'near' ? !canExportNearKey : !canExportEvmKeys)
               }
@@ -61,11 +61,11 @@ export const ExportKeysSection: React.FC<ExportKeysSectionProps> = ({
                 onSelectChain(row.chain);
               }}
             >
-              <span className="w3a-export-keys-row-label">{row.label}</span>
-              <span className="w3a-export-keys-row-description">{row.description}</span>
+              <span className="seams-export-keys-row-label">{row.label}</span>
+              <span className="seams-export-keys-row-description">{row.description}</span>
               {/* always-reserved slot: the spinner appearing must not resize
                   the row (and with it the menu) */}
-              <span className="w3a-export-keys-row-spinner" aria-hidden>
+              <span className="seams-export-keys-row-spinner" aria-hidden>
                 {loadingChain === row.chain ? <SpinnerIcon /> : null}
               </span>
             </button>

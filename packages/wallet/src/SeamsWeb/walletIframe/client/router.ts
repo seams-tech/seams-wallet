@@ -1619,7 +1619,7 @@ export class WalletIframeRouter {
       }
     }
 
-    const defaultRouterId = `w3a-${Date.now()}-${secureRandomBase36(6, 'wallet iframe router IDs')}`;
+    const defaultRouterId = `seams-${Date.now()}-${secureRandomBase36(6, 'wallet iframe router IDs')}`;
     const testOptions = {
       routerId: defaultRouterId,
       ownerTag: undefined as string | undefined,

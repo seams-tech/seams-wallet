@@ -37,9 +37,9 @@ function tokensForThemeMode(mode: SeamsAuthMenuResolvedThemeMode): DesignTokens 
  */
 export const SeamsAuthMenuThemeScope: React.FC<SeamsAuthMenuThemeScopeProps> = ({
   tag = 'div',
-  className = 'w3a-theme-provider',
+  className = 'seams-theme-provider',
   style,
-  dataAttr = 'data-w3a-theme',
+  dataAttr = 'data-seams-theme',
   theme,
   tokens,
   children,
@@ -49,7 +49,7 @@ export const SeamsAuthMenuThemeScope: React.FC<SeamsAuthMenuThemeScopeProps> = (
     () => tokens ?? tokensForThemeMode(themeMode),
     [themeMode, tokens],
   );
-  const vars = React.useMemo(() => createCSSVariables(resolvedTokens, '--w3a'), [resolvedTokens]);
+  const vars = React.useMemo(() => createCSSVariables(resolvedTokens, '--seams'), [resolvedTokens]);
   const Comp: any = tag;
   const attrs: any = { [dataAttr]: themeMode };
   return (

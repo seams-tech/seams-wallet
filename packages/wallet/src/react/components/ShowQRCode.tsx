@@ -150,7 +150,7 @@ function emailOtpDigits(code: string): readonly string[] {
 
 function renderEmailOtpDigit(digit: string, index: number) {
   return (
-    <span key={index} className={`w3a-otp-slot${digit.trim() ? ' is-filled' : ''}`}>
+    <span key={index} className={`seams-otp-slot${digit.trim() ? ' is-filled' : ''}`}>
       {digit}
     </span>
   );
@@ -531,41 +531,41 @@ function FactorSelection({
   return (
     <div className="qr-code-container" onClick={stopPropagation}>
       <div className="qr-body">
-        <div className="w3a-otp-prompt" role="group" aria-labelledby="w3a-device-link-factor-title">
-          <div className="w3a-otp-prompt-copy">
-            <h2 id="w3a-device-link-factor-title" className="w3a-otp-title">
+        <div className="seams-otp-prompt" role="group" aria-labelledby="seams-device-link-factor-title">
+          <div className="seams-otp-prompt-copy">
+            <h2 id="seams-device-link-factor-title" className="seams-otp-title">
               Match your other device
             </h2>
-            <p className="w3a-otp-description">
+            <p className="seams-otp-description">
               Choose the unlock method for Device 2. Email code sends a one-time code to the address
               you enter.
             </p>
           </div>
-          <fieldset className="w3a-device-link-factor-options">
-            <legend className="w3a-field-label">Wallet unlock method</legend>
-            <label className="w3a-device-link-factor-option">
-              <span className="w3a-device-link-factor-icon" aria-hidden="true">
+          <fieldset className="seams-device-link-factor-options">
+            <legend className="seams-field-label">Wallet unlock method</legend>
+            <label className="seams-device-link-factor-option">
+              <span className="seams-device-link-factor-icon" aria-hidden="true">
                 <FingerprintIcon size={22} />
               </span>
-              <span className="w3a-device-link-factor-label">
+              <span className="seams-device-link-factor-label">
                 Passkey <span>(recommended)</span>
               </span>
               <input
                 type="radio"
-                name="w3a-device-link-target-factor"
+                name="seams-device-link-target-factor"
                 value="passkey_prf"
                 checked={targetFactor.kind === 'passkey_prf'}
                 onChange={onChange}
               />
             </label>
-            <label className="w3a-device-link-factor-option">
-              <span className="w3a-device-link-factor-icon" aria-hidden="true">
+            <label className="seams-device-link-factor-option">
+              <span className="seams-device-link-factor-icon" aria-hidden="true">
                 <EmailOtpMethodIcon />
               </span>
-              <span className="w3a-device-link-factor-label">Email code</span>
+              <span className="seams-device-link-factor-label">Email code</span>
               <input
                 type="radio"
-                name="w3a-device-link-target-factor"
+                name="seams-device-link-target-factor"
                 value="email_otp"
                 checked={targetFactor.kind === 'email_otp'}
                 onChange={onChange}
@@ -573,11 +573,11 @@ function FactorSelection({
             </label>
           </fieldset>
           {emailTargetSelected ? (
-            <label className="w3a-device-link-email-field">
-              <span className="w3a-field-label">Email address</span>
+            <label className="seams-device-link-email-field">
+              <span className="seams-field-label">Email address</span>
               <input
                 type="email"
-                name="w3a-device-link-target-email"
+                name="seams-device-link-target-email"
                 autoComplete="email"
                 value={targetEmail}
                 onChange={onEmailAddressChange}
@@ -585,14 +585,14 @@ function FactorSelection({
               />
             </label>
           ) : null}
-          <p className="w3a-otp-helper">
+          <p className="seams-otp-helper">
             {emailTargetSelected
               ? 'The address is normalized before the QR code is created.'
               : 'Device 2 will create a new passkey for this wallet.'}
           </p>
           <button
             type="button"
-            className="w3a-link-device-btn"
+            className="seams-link-device-btn"
             onClick={onStart}
             disabled={!canStart}
           >
@@ -623,7 +623,7 @@ function QrDisplay({
               />
             ) : (
               <div className="qr-code-placeholder">
-                <span className="w3a-spinner" aria-hidden="true"></span>
+                <span className="seams-spinner" aria-hidden="true"></span>
               </div>
             )}
           </div>
@@ -656,21 +656,21 @@ function PasskeyActivation({
     <div className="qr-code-container" onClick={stopPropagation}>
       <div className="qr-body">
         <div
-          className="w3a-otp-prompt"
+          className="seams-otp-prompt"
           role="group"
-          aria-labelledby="w3a-device-link-passkey-title"
+          aria-labelledby="seams-device-link-passkey-title"
         >
-          <div className="w3a-otp-prompt-copy">
-            <h2 id="w3a-device-link-passkey-title" className="w3a-otp-title">
+          <div className="seams-otp-prompt-copy">
+            <h2 id="seams-device-link-passkey-title" className="seams-otp-title">
               Create a passkey
             </h2>
-            <p className="w3a-otp-description">
+            <p className="seams-otp-description">
               Confirm on this device to finish linking it to your wallet.
             </p>
           </div>
           <button
             type="button"
-            className="w3a-link-device-btn"
+            className="seams-link-device-btn"
             onClick={onCreate}
             disabled={isCreating}
             aria-busy={isCreating}
@@ -766,13 +766,13 @@ function EmailOtpActivation({
   return (
     <div className="qr-code-container" onClick={stopPropagation}>
       <div className="qr-body">
-        <div className="w3a-otp-prompt" role="group" aria-labelledby="w3a-device-link-email-title">
-          <div className="w3a-otp-prompt-copy">
-            <h2 id="w3a-device-link-email-title" className="w3a-otp-title">
+        <div className="seams-otp-prompt" role="group" aria-labelledby="seams-device-link-email-title">
+          <div className="seams-otp-prompt-copy">
+            <h2 id="seams-device-link-email-title" className="seams-otp-title">
               Confirm with an email code
             </h2>
             {state.kind !== 'unavailable' && (
-              <p className="w3a-otp-description">
+              <p className="seams-otp-description">
                 Use the code sent to <strong>{state.maskedEmailHint}</strong>. The destination is
                 managed by your wallet and cannot be changed here.
               </p>
@@ -796,14 +796,14 @@ function EmailOtpActivation({
           {(state.kind === 'code_input' ||
             state.kind === 'submitting' ||
             state.kind === 'incorrect') && (
-            <form className="w3a-otp-code-field" onSubmit={handleSubmit}>
-              <label className="w3a-field-label" htmlFor="w3a-device-link-email-otp">
+            <form className="seams-otp-code-field" onSubmit={handleSubmit}>
+              <label className="seams-field-label" htmlFor="seams-device-link-email-otp">
                 Email code
               </label>
               <input
                 ref={inputRef}
-                id="w3a-device-link-email-otp"
-                className="w3a-otp-input"
+                id="seams-device-link-email-otp"
+                className="seams-otp-input"
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
@@ -812,23 +812,23 @@ function EmailOtpActivation({
                 aria-label="Email verification code"
                 aria-invalid={state.kind === 'incorrect'}
                 aria-describedby={
-                  state.kind === 'incorrect' ? 'w3a-device-link-email-error' : undefined
+                  state.kind === 'incorrect' ? 'seams-device-link-email-error' : undefined
                 }
                 value={otpCode}
                 disabled={state.kind === 'submitting' || isSubmitting}
                 onChange={handleCodeInput}
               />
-              <div className="w3a-otp-slots" aria-hidden="true">
+              <div className="seams-otp-slots" aria-hidden="true">
                 {emailOtpDigits(otpCode).map(renderEmailOtpDigit)}
               </div>
               {state.kind === 'incorrect' && (
-                <p id="w3a-device-link-email-error" className="w3a-otp-error" role="alert">
+                <p id="seams-device-link-email-error" className="seams-otp-error" role="alert">
                   {state.message}
                 </p>
               )}
               <button
                 type="submit"
-                className="w3a-link-device-btn"
+                className="seams-link-device-btn"
                 disabled={state.kind === 'submitting' || isSubmitting}
                 aria-busy={state.kind === 'submitting' || isSubmitting}
               >
@@ -837,18 +837,18 @@ function EmailOtpActivation({
             </form>
           )}
           {state.kind === 'expired' && (
-            <p className="w3a-otp-error" role="alert">
+            <p className="seams-otp-error" role="alert">
               {state.message}
             </p>
           )}
           {state.kind === 'unavailable' && (
             <>
-              <p className="w3a-otp-error" role="alert">
+              <p className="seams-otp-error" role="alert">
                 {state.message}
               </p>
               <button
                 type="button"
-                className="w3a-link-device-btn"
+                className="seams-link-device-btn"
                 onClick={handleRetry}
                 disabled={isSending}
                 aria-busy={isSending}
@@ -862,7 +862,7 @@ function EmailOtpActivation({
             state.kind === 'expired') && (
             <button
               type="button"
-              className="w3a-otp-resend"
+              className="seams-otp-resend"
               onClick={handleResend}
               disabled={isResending}
               aria-busy={isResending}
@@ -884,15 +884,15 @@ function FailureView({
   readonly onChooseAnother: () => void;
 }) {
   return (
-    <div className="w3a-link-device-failure" onClick={stopPropagation}>
-      <div className="w3a-link-device-failure-icon">
+    <div className="seams-link-device-failure" onClick={stopPropagation}>
+      <div className="seams-link-device-failure-icon">
         <LinkFailedIcon />
       </div>
       <h2 className="qr-title">Couldn&apos;t link device</h2>
-      <p className="w3a-link-device-failure-detail" role="alert">
+      <p className="seams-link-device-failure-detail" role="alert">
         {message || 'Device linking failed'}
       </p>
-      <button type="button" className="w3a-link-device-btn" onClick={onChooseAnother}>
+      <button type="button" className="seams-link-device-btn" onClick={onChooseAnother}>
         Choose another factor
       </button>
     </div>

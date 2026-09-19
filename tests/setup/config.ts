@@ -1,7 +1,7 @@
 import type { PasskeyTestConfig } from './types';
 
 const FRONTEND_URL =
-  String(process.env.W3A_TEST_FRONTEND_URL || '').trim() ||
+  String(process.env.SEAMS_TEST_FRONTEND_URL || '').trim() ||
   (process.env.NO_CADDY === '1' || process.env.CI === '1'
     ? 'http://localhost:4004'
     : 'https://example.localhost');
@@ -9,9 +9,9 @@ const FRONTEND_URL =
 // In tests we default the RP ID to the wallet-origin base domain. This matches the
 // default `iframeWallet.rpIdOverride` (example.localhost) so WebAuthn rpIdHash checks
 // stay consistent across app + wallet origins (wallet.example.localhost).
-const RP_ID = String(process.env.W3A_TEST_RP_ID || '').trim() || 'example.localhost';
+const RP_ID = String(process.env.SEAMS_TEST_RP_ID || '').trim() || 'example.localhost';
 const WALLET_ORIGIN =
-  String(process.env.W3A_TEST_WALLET_ORIGIN || process.env.VITE_WALLET_ORIGIN || '').trim() ||
+  String(process.env.SEAMS_TEST_WALLET_ORIGIN || process.env.VITE_WALLET_ORIGIN || '').trim() ||
   'https://wallet.example.localhost';
 
 export const DEFAULT_TEST_CONFIG: PasskeyTestConfig = {

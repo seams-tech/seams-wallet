@@ -1,7 +1,7 @@
 import { html, type PropertyValues } from 'lit';
 import { LitElementWithProps } from '../LitElementWithProps';
 import DrawerElement from '../Drawer';
-// Tokens for this component now come from w3a-components.css host scoping.
+// Tokens for this component now come from seams-components.css host scoping.
 // We no longer map full color sets from DARK_THEME/LIGHT_THEME here.
 import { dispatchLitCancel, dispatchLitCopy } from '../../lit-events';
 import { ensureExternalStyles } from '../css/css-loader';
@@ -335,7 +335,7 @@ export class ExportPrivateKeyViewer extends LitElementWithProps {
     const p1 = ensureExternalStyles(
       root as ShadowRoot | DocumentFragment | HTMLElement,
       'export-viewer.css',
-      'data-w3a-export-viewer-css',
+      'data-seams-export-viewer-css',
     );
     this._stylePromises.push(p1);
     p1.catch(() => {});
@@ -343,15 +343,15 @@ export class ExportPrivateKeyViewer extends LitElementWithProps {
     const pCopyIcon = ensureExternalStyles(
       root as ShadowRoot | DocumentFragment | HTMLElement,
       'copy-icon.css',
-      'data-w3a-copy-icon-css',
+      'data-seams-copy-icon-css',
     );
     this._stylePromises.push(pCopyIcon);
     pCopyIcon.catch(() => {});
     // Also adopt token sheet so color/background vars are available even without host styles
     const p2 = ensureExternalStyles(
       root as ShadowRoot | DocumentFragment | HTMLElement,
-      'w3a-components.css',
-      'data-w3a-components-css',
+      'seams-components.css',
+      'data-seams-components-css',
     );
     this._stylePromises.push(p2);
     p2.catch(() => {});
@@ -359,7 +359,7 @@ export class ExportPrivateKeyViewer extends LitElementWithProps {
     const p3 = ensureExternalStyles(
       root as ShadowRoot | DocumentFragment | HTMLElement,
       'drawer.css',
-      'data-w3a-drawer-css',
+      'data-seams-drawer-css',
     );
     this._stylePromises.push(p3);
     p3.catch(() => {});
@@ -520,7 +520,7 @@ export class ExportPrivateKeyViewer extends LitElementWithProps {
     try {
       const docEl = this.ownerDocument?.documentElement as HTMLElement | undefined;
       if (docEl && this.theme) {
-        docEl.setAttribute('data-w3a-theme', this.theme);
+        docEl.setAttribute('data-seams-theme', this.theme);
       }
     } catch {}
   }
@@ -574,7 +574,7 @@ export class ExportPrivateKeyViewer extends LitElementWithProps {
       const ta = document.createElement('textarea');
       ta.value = text;
       ta.setAttribute('readonly', '');
-      ta.className = 'w3a-offscreen';
+      ta.className = 'seams-offscreen';
       document.body.appendChild(ta);
       ta.focus();
       ta.select();
@@ -597,7 +597,7 @@ export class ExportPrivateKeyViewer extends LitElementWithProps {
             >`,
         )}
       </span>
-      <span class="w3a-sr-only" role="status">Decrypting private key</span>
+      <span class="seams-sr-only" role="status">Decrypting private key</span>
     `;
   }
 
@@ -611,7 +611,7 @@ export class ExportPrivateKeyViewer extends LitElementWithProps {
     return html`
       <span>${maskedPrivateKey(privateKey)}</span>
       ${state?.kind === 'settled'
-        ? html`<span class="w3a-sr-only" role="status">Private key ready</span>`
+        ? html`<span class="seams-sr-only" role="status">Private key ready</span>`
         : null}
     `;
   }
@@ -793,8 +793,8 @@ export class ExportPrivateKeyViewer extends LitElementWithProps {
   }
 }
 
-if (!customElements.get('w3a-export-key-viewer')) {
-  customElements.define('w3a-export-key-viewer', ExportPrivateKeyViewer);
+if (!customElements.get('seams-export-key-viewer')) {
+  customElements.define('seams-export-key-viewer', ExportPrivateKeyViewer);
 }
 
 // Ensure DrawerElement is kept by bundlers (used as container in iframe bootstrap)

@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { injectImportMap } from '../setup/bootstrap';
 
 const IMPORT_PATHS = {
+  authMenuThemeScope: '/_test-sdk/esm/react/components/SeamsAuthMenu/themeScope.js',
   authenticationMethods:
     '/_test-sdk/esm/react/components/AccountMenuButton/AuthenticationMethodsModal.js',
   linkedDevices: '/_test-sdk/esm/react/components/AccountMenuButton/LinkedDevicesModal.js',
@@ -165,6 +166,55 @@ test.describe('account-menu modal responsiveness', () => {
         ].join('\n'),
       });
     });
+  });
+
+  test('emits seams-prefixed variables from every React theme boundary', async ({ page }) => {
+    const themeVariables = await page.evaluate(
+      async ({ themePath, authMenuThemeScopePath }) => {
+        const React = await import('react');
+        const ReactDOMClient = await import('react-dom/client');
+        const ReactDOM = await import('react-dom');
+        const themeModule = await import(themePath);
+        const authMenuThemeScopeModule = await import(authMenuThemeScopePath);
+        const Theme = themeModule.Theme;
+        const SeamsAuthMenuThemeScope = authMenuThemeScopeModule.default;
+
+        const mount = document.createElement('div');
+        document.body.appendChild(mount);
+        const root = ReactDOMClient.createRoot(mount);
+        ReactDOM.flushSync(() => {
+          root.render(
+            React.createElement(
+              React.Fragment,
+              null,
+              React.createElement(Theme, { theme: 'dark' }, React.createElement('span')),
+              React.createElement(
+                SeamsAuthMenuThemeScope,
+                { theme: 'dark' },
+                React.createElement('span'),
+              ),
+            ),
+          );
+        });
+
+        return Array.from(mount.querySelectorAll<HTMLElement>('.seams-theme-provider')).map(
+          (element) => ({
+            seamsPrimary: element.style.getPropertyValue('--seams-colors-primary'),
+            retiredPrimary: element.style.getPropertyValue('--w3a-colors-primary'),
+          }),
+        );
+      },
+      {
+        themePath: IMPORT_PATHS.theme,
+        authMenuThemeScopePath: IMPORT_PATHS.authMenuThemeScope,
+      },
+    );
+
+    expect(themeVariables).toHaveLength(2);
+    for (const variables of themeVariables) {
+      expect(variables.seamsPrimary).not.toBe('');
+      expect(variables.retiredPrimary).toBe('');
+    }
   });
 
   test('shows the selected authentication method while remote inventory is pending', async ({

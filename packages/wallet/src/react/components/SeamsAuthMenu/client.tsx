@@ -138,7 +138,7 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
     () => ({
       ...style,
       ...(loadingScreenDelayMs != null
-        ? { '--w3a-waiting-delay': `${loadingScreenDelayMs}ms` }
+        ? { '--seams-waiting-delay': `${loadingScreenDelayMs}ms` }
         : null),
     }),
     [loadingScreenDelayMs, style],
@@ -198,7 +198,7 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
 
   return (
     <div
-      className={`w3a-signup-menu-root${className ? ` ${className}` : ''}`}
+      className={`seams-signup-menu-root${className ? ` ${className}` : ''}`}
       data-mode={controller.mode}
       data-mode-label={AuthMenuModeMap[controller.mode]}
       data-waiting={controller.waiting}
@@ -239,7 +239,7 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
               }
               controller.onResetToStart();
             }}
-            className={`w3a-back-button${
+            className={`seams-back-button${
               controller.waiting ||
               controller.showScanDevice ||
               controller.registrationPrompt ||
@@ -262,7 +262,7 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
                   <div className="qr-code-section">
                     <div className="qr-code-display">
                       <div className="qr-code-placeholder">
-                        <span className="w3a-spinner" aria-hidden="true"></span>
+                        <span className="seams-spinner" aria-hidden="true"></span>
                       </div>
                     </div>
                     <div className="qr-header">
@@ -288,29 +288,29 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
           </React.Suspense>
         }
       >
-        <div className="w3a-header">
+        <div className="seams-header">
           {header ?? (
             <div>
-              <div className="w3a-title">{controller.title.title}</div>
-              <div className="w3a-subhead">{controller.title.subtitle}</div>
+              <div className="seams-title">{controller.title.title}</div>
+              <div className="seams-subhead">{controller.title.subtitle}</div>
             </div>
           )}
         </div>
 
         {controller.registrationPrompt ? (
-          <div className="w3a-otp-prompt" aria-live="polite">
-            <div className="w3a-otp-prompt-copy">
-              <div className="w3a-otp-title">{controller.registrationPrompt.title}</div>
-              <p className="w3a-otp-description">{controller.registrationPrompt.description}</p>
-              <div className="w3a-otp-account" title={controller.registrationPrompt.accountId}>
-                <span className="w3a-otp-account-label">Wallet</span>
-                <span className="w3a-otp-account-value">
+          <div className="seams-otp-prompt" aria-live="polite">
+            <div className="seams-otp-prompt-copy">
+              <div className="seams-otp-title">{controller.registrationPrompt.title}</div>
+              <p className="seams-otp-description">{controller.registrationPrompt.description}</p>
+              <div className="seams-otp-account" title={controller.registrationPrompt.accountId}>
+                <span className="seams-otp-account-label">Wallet</span>
+                <span className="seams-otp-account-value">
                   {controller.registrationPrompt.accountId}
                 </span>
               </div>
               <button
                 type="button"
-                className="w3a-otp-reroll"
+                className="seams-otp-reroll"
                 onClick={controller.registrationPrompt.onRerollAccount}
                 disabled={controller.registrationPrompt.rerollAccountDisabled}
               >
@@ -318,15 +318,15 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
               </button>
             </div>
             {controller.registrationPrompt.error ? (
-              <p className="w3a-otp-error" role="alert">
+              <p className="seams-otp-error" role="alert">
                 {controller.registrationPrompt.error}
               </p>
             ) : controller.registrationPrompt.helperText ? (
-              <p className="w3a-otp-helper">{controller.registrationPrompt.helperText}</p>
+              <p className="seams-otp-helper">{controller.registrationPrompt.helperText}</p>
             ) : null}
             <button
               type="button"
-              className="w3a-auth-method-btn w3a-auth-method-btn-primary"
+              className="seams-auth-method-btn seams-auth-method-btn-primary"
               onClick={controller.registrationPrompt.onSubmit}
               disabled={controller.registrationPrompt.submitting}
             >
@@ -336,20 +336,20 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
             </button>
           </div>
         ) : controller.otpPrompt ? (
-          <div className="w3a-otp-prompt" aria-live="polite">
-            <div className="w3a-otp-prompt-copy">
-              <div className="w3a-otp-title">{controller.otpPrompt.title}</div>
-              <p className="w3a-otp-description">{controller.otpPrompt.description}</p>
+          <div className="seams-otp-prompt" aria-live="polite">
+            <div className="seams-otp-prompt-copy">
+              <div className="seams-otp-title">{controller.otpPrompt.title}</div>
+              <p className="seams-otp-description">{controller.otpPrompt.description}</p>
               {controller.otpPrompt.accountId ? (
-                <div className="w3a-otp-account" title={controller.otpPrompt.accountId}>
-                  <span className="w3a-otp-account-label">Wallet</span>
-                  <span className="w3a-otp-account-value">{controller.otpPrompt.accountId}</span>
+                <div className="seams-otp-account" title={controller.otpPrompt.accountId}>
+                  <span className="seams-otp-account-label">Wallet</span>
+                  <span className="seams-otp-account-value">{controller.otpPrompt.accountId}</span>
                 </div>
               ) : null}
               {controller.otpPrompt.onRerollAccount ? (
                 <button
                   type="button"
-                  className="w3a-otp-reroll"
+                  className="seams-otp-reroll"
                   onClick={controller.otpPrompt.onRerollAccount}
                   disabled={controller.otpPrompt.rerollAccountDisabled}
                 >
@@ -357,18 +357,18 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
                 </button>
               ) : null}
             </div>
-            <label className="w3a-field-label" htmlFor="w3a-email-otp-code">
+            <label className="seams-field-label" htmlFor="seams-email-otp-code">
               Email code
             </label>
             <div
-              className="w3a-otp-code-field"
+              className="seams-otp-code-field"
               data-disabled={controller.otpPrompt.submitting ? 'true' : 'false'}
               onClick={() => otpInputRef.current?.focus()}
             >
               <input
                 ref={otpInputRef}
-                id="w3a-email-otp-code"
-                className="w3a-otp-input"
+                id="seams-email-otp-code"
+                className="seams-otp-input"
                 value={controller.otpPrompt.code}
                 onChange={(event) => controller.otpPrompt?.onCodeChange(event.currentTarget.value)}
                 onKeyDown={(event) => {
@@ -380,24 +380,24 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
                 maxLength={OTP_CODE_LENGTH}
                 disabled={controller.otpPrompt.submitting}
               />
-              <div className="w3a-otp-slots" aria-hidden="true">
+              <div className="seams-otp-slots" aria-hidden="true">
                 {otpDigits.map((digit, index) => (
-                  <span key={index} className={`w3a-otp-slot${digit ? ' is-filled' : ''}`}>
+                  <span key={index} className={`seams-otp-slot${digit ? ' is-filled' : ''}`}>
                     {digit}
                   </span>
                 ))}
               </div>
             </div>
             {controller.otpPrompt.recoveryKeyRequired ? (
-              <div className="w3a-recovery-key-section">
-                <div className="w3a-recovery-key-label-row">
-                  <label className="w3a-field-label" htmlFor="w3a-email-otp-recovery-key">
+              <div className="seams-recovery-key-section">
+                <div className="seams-recovery-key-label-row">
+                  <label className="seams-field-label" htmlFor="seams-email-otp-recovery-key">
                     {controller.otpPrompt.recoveryKeyLabel}
                   </label>
                   {controller.otpPrompt.onRecoveryKeyScan ? (
                     <button
                       type="button"
-                      className="w3a-recovery-key-scan"
+                      className="seams-recovery-key-scan"
                       onClick={controller.otpPrompt.onRecoveryKeyScan}
                       disabled={
                         controller.otpPrompt.submitting || controller.otpPrompt.recoveryKeyScanBusy
@@ -408,8 +408,8 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
                   ) : null}
                 </div>
                 <input
-                  id="w3a-email-otp-recovery-key"
-                  className="w3a-recovery-key-input"
+                  id="seams-email-otp-recovery-key"
+                  className="seams-recovery-key-input"
                   value={controller.otpPrompt.recoveryKey}
                   onChange={(event) =>
                     controller.otpPrompt?.onRecoveryKeyChange(event.currentTarget.value)
@@ -425,19 +425,19 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
                   maxLength={39}
                   disabled={controller.otpPrompt.submitting}
                 />
-                <p className="w3a-otp-helper">{controller.otpPrompt.recoveryKeyHelperText}</p>
+                <p className="seams-otp-helper">{controller.otpPrompt.recoveryKeyHelperText}</p>
               </div>
             ) : null}
             {controller.otpPrompt.error ? (
-              <p className="w3a-otp-error" role="alert">
+              <p className="seams-otp-error" role="alert">
                 {controller.otpPrompt.error}
               </p>
             ) : controller.otpPrompt.helperText ? (
-              <p className="w3a-otp-helper">{controller.otpPrompt.helperText}</p>
+              <p className="seams-otp-helper">{controller.otpPrompt.helperText}</p>
             ) : null}
             <button
               type="button"
-              className="w3a-auth-method-btn w3a-auth-method-btn-primary"
+              className="seams-auth-method-btn seams-auth-method-btn-primary"
               onClick={controller.otpPrompt.onSubmit}
               disabled={
                 controller.otpPrompt.submitting ||
@@ -450,7 +450,7 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
             {controller.otpPrompt.onResend ? (
               <button
                 type="button"
-                className="w3a-otp-resend"
+                className="seams-otp-resend"
                 onClick={controller.otpPrompt.onResend}
                 disabled={controller.otpPrompt.resendDisabled}
               >
@@ -488,20 +488,20 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
 
             {(controller.mode === AuthMenuMode.Login ||
               controller.mode === AuthMenuMode.Register) && (
-              <div className="w3a-auth-methods">
-                <div className="w3a-auth-method-stack">
+              <div className="seams-auth-methods">
+                <div className="seams-auth-method-stack">
                   {controller.mode === AuthMenuMode.Login && (
                     <>
                       <button
                         type="button"
                         onClick={controller.onProceed}
-                        className="w3a-auth-method-btn w3a-auth-method-btn-primary"
+                        className="seams-auth-method-btn seams-auth-method-btn-primary"
                         disabled={!controller.canSubmit || controller.waiting}
                       >
                         <LastUsedBadge active={passkeyLastUsed} />
                         <FingerprintIcon size={22} style={{ display: 'block' }} />
                         <span>{getPasskeyButtonLabel(AuthMenuMode.Login)}</span>
-                        <ArrowRightAnim size={16} className="w3a-auth-method-arrow" />
+                        <ArrowRightAnim size={16} className="seams-auth-method-arrow" />
                       </button>
                       <SocialProviders
                         socialLogin={socialLogin}
@@ -529,11 +529,11 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
                       <button
                         type="button"
                         onClick={controller.onProceed}
-                        className="w3a-auth-method-btn w3a-auth-method-btn-primary"
+                        className="seams-auth-method-btn seams-auth-method-btn-primary"
                         disabled={!controller.canSubmit || controller.waiting}
                       >
                         <span>{getPasskeyButtonLabel(AuthMenuMode.Register)}</span>
-                        <ArrowRightAnim size={16} className="w3a-auth-method-arrow" />
+                        <ArrowRightAnim size={16} className="seams-auth-method-arrow" />
                       </button>
                       <SocialProviders
                         socialLogin={socialLogin}
@@ -556,7 +556,7 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
                   )}
                 </div>
                 {controller.methodError ? (
-                  <p className="w3a-method-error" role="alert">
+                  <p className="seams-method-error" role="alert">
                     {controller.methodError}
                   </p>
                 ) : null}
@@ -565,11 +565,11 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
 
             {(controller.mode === AuthMenuMode.Login ||
               controller.mode === AuthMenuMode.Register) && (
-              <div className="w3a-scan-device-row">
-                <div className="w3a-section-divider">
-                  <span className="w3a-section-divider-text">Other options</span>
+              <div className="seams-scan-device-row">
+                <div className="seams-section-divider">
+                  <span className="seams-section-divider-text">Other options</span>
                 </div>
-                <div className="w3a-secondary-actions">
+                <div className="seams-secondary-actions">
                   <button
                     type="button"
                     onClick={() => {
@@ -578,7 +578,7 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
                     onPointerEnter={prefetchQRCode}
                     onFocus={prefetchQRCode}
                     onTouchStart={prefetchQRCode}
-                    className="w3a-link-device-btn"
+                    className="seams-link-device-btn"
                   >
                     <QRCodeIcon width={18} height={18} strokeWidth={2} />
                     Scan and Link Device
@@ -588,7 +588,7 @@ export const SeamsAuthMenuClient: React.FC<SeamsAuthMenuProps> = ({
             )}
             {(controller.mode === AuthMenuMode.Login ||
               controller.mode === AuthMenuMode.Register) && (
-              <div className="w3a-auth-intent-switch">
+              <div className="seams-auth-intent-switch">
                 <span>{authIntentSwitchCopy.prompt}</span>
                 <button type="button" onClick={onAuthIntentSwitchClick}>
                   {authIntentSwitchCopy.action}

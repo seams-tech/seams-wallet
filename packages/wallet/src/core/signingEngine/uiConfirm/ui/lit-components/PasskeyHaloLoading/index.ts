@@ -49,7 +49,7 @@ export class PasskeyHaloLoadingElement extends LitElementWithProps {
   private _stylesReady = false;
   private _stylePromises: Promise<void>[] = [];
   private _stylesAwaiting: Promise<void> | null = null;
-  private static readonly _STYLE_MARKER = 'data-w3a-passkey-halo-loading-css';
+  private static readonly _STYLE_MARKER = 'data-seams-passkey-halo-loading-css';
 
   protected createRenderRoot(): HTMLElement | DocumentFragment {
     const root = super.createRenderRoot();
@@ -94,8 +94,8 @@ export class PasskeyHaloLoadingElement extends LitElementWithProps {
       `link[${PasskeyHaloLoadingElement._STYLE_MARKER}]`,
     ) as HTMLLinkElement | null;
     if (!link) return false;
-    const statefulLink = link as HTMLLinkElement & { _w3aLoaded?: boolean };
-    return !!(statefulLink._w3aLoaded || link.sheet);
+    const statefulLink = link as HTMLLinkElement & { _seamsLoaded?: boolean };
+    return !!(statefulLink._seamsLoaded || link.sheet);
   }
 
   connectedCallback(): void {
@@ -111,11 +111,11 @@ export class PasskeyHaloLoadingElement extends LitElementWithProps {
     this.setAppearanceCssVars(this.appearance);
     const vars: Record<string, string> = {};
     if (this.iconContainerBackgroundColor) {
-      vars['--w3a-modal__passkey-halo-loading-icon-container__background-color'] =
+      vars['--seams-modal__passkey-halo-loading-icon-container__background-color'] =
         this.iconContainerBackgroundColor;
     }
     if (this.iconContainerBorderRadius) {
-      vars['--w3a-modal__passkey-halo-loading-icon-container__border-radius'] =
+      vars['--seams-modal__passkey-halo-loading-icon-container__border-radius'] =
         this.iconContainerBorderRadius;
     }
     if (Object.keys(vars).length) this.setCssVars(vars);
@@ -137,8 +137,8 @@ export class PasskeyHaloLoadingElement extends LitElementWithProps {
     const iconVariant = this.iconVariant === 'mail' ? 'mail' : 'fingerprint';
 
     return html`
-      <div class="w3a-passkey-loading-root ${theme}">
-        <w3a-halo-border
+      <div class="seams-passkey-loading-root ${theme}">
+        <seams-halo-border
           .theme=${theme}
           .appearance=${this.appearance}
           .animated=${animated}
@@ -151,10 +151,10 @@ export class PasskeyHaloLoadingElement extends LitElementWithProps {
           .innerPadding=${innerPadding}
           .innerBackground=${innerBackground}
         >
-          <div class="w3a-passkey-loading-touch-icon-container">
+          <div class="seams-passkey-loading-touch-icon-container">
             ${this.renderIcon({ height, width, iconVariant })}
           </div>
-        </w3a-halo-border>
+        </seams-halo-border>
       </div>
     `;
   }
@@ -174,11 +174,11 @@ export class PasskeyHaloLoadingElement extends LitElementWithProps {
   }
 
   private renderFingerprintIcon({ height, width }: { height: number; width: number }) {
-    const strokeWidth = 'var(--w3a-modal__passkey-halo-loading-touch-icon__stroke-width, 3)';
+    const strokeWidth = 'var(--seams-modal__passkey-halo-loading-touch-icon__stroke-width, 3)';
 
     return html`
       <svg
-        class="w3a-passkey-loading-touch-icon"
+        class="seams-passkey-loading-touch-icon"
         width=${width}
         height=${height}
         viewBox="0 0 24 24"
@@ -199,11 +199,11 @@ export class PasskeyHaloLoadingElement extends LitElementWithProps {
   }
 
   private renderMailIcon({ height, width }: { height: number; width: number }) {
-    const strokeWidth = 'var(--w3a-modal__passkey-halo-loading-touch-icon__stroke-width, 3)';
+    const strokeWidth = 'var(--seams-modal__passkey-halo-loading-touch-icon__stroke-width, 3)';
 
     return html`
       <svg
-        class="w3a-passkey-loading-touch-icon"
+        class="seams-passkey-loading-touch-icon"
         width=${width}
         height=${height}
         viewBox="0 0 24 24"
@@ -231,10 +231,10 @@ export class PasskeyHaloLoadingElement extends LitElementWithProps {
   }
 }
 
-import { W3A_PASSKEY_HALO_LOADING_ID } from '../../registry';
+import { SEAMS_PASSKEY_HALO_LOADING_ID } from '../../registry';
 
-if (!customElements.get(W3A_PASSKEY_HALO_LOADING_ID)) {
-  customElements.define(W3A_PASSKEY_HALO_LOADING_ID, PasskeyHaloLoadingElement);
+if (!customElements.get(SEAMS_PASSKEY_HALO_LOADING_ID)) {
+  customElements.define(SEAMS_PASSKEY_HALO_LOADING_ID, PasskeyHaloLoadingElement);
 }
 
 export default PasskeyHaloLoadingElement;

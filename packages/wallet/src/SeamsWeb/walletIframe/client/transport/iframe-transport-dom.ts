@@ -23,7 +23,7 @@ export function buildAllowAttr(walletOrigin: string): string {
 }
 
 function isOverlayForOrigin(el: HTMLIFrameElement, walletOrigin: string): boolean {
-  const dsOrigin = (el as { dataset?: { w3aOrigin?: string } }).dataset?.w3aOrigin;
+  const dsOrigin = (el as { dataset?: { seamsOrigin?: string } }).dataset?.seamsOrigin;
   if (dsOrigin) return dsOrigin === walletOrigin;
   try {
     return new URL(el.src).origin === walletOrigin;
@@ -35,14 +35,14 @@ function isOverlayForOrigin(el: HTMLIFrameElement, walletOrigin: string): boolea
 export function removeExistingOverlaysForOrigin(walletOrigin: string): void {
   if (typeof document === 'undefined') return;
   const existing = Array.from(
-    document.querySelectorAll('iframe.w3a-wallet-overlay'),
+    document.querySelectorAll('iframe.seams-wallet-overlay'),
   ) as HTMLIFrameElement[];
   const matches = existing.filter((el) => isOverlayForOrigin(el, walletOrigin));
   if (!matches.length) return;
 
   if (isDevHost()) {
     const routerIds = matches
-      .map((el) => (el as { dataset?: { w3aRouterId?: string } }).dataset?.w3aRouterId)
+      .map((el) => (el as { dataset?: { seamsRouterId?: string } }).dataset?.seamsRouterId)
       .filter((v): v is string => typeof v === 'string' && v.length > 0);
     console.warn(
       `[IframeTransport] Found existing wallet overlay iframe(s) for ${walletOrigin}. This usually indicates multiple SDK instances. Removing old iframe(s) to avoid duplicates.`,
@@ -52,7 +52,7 @@ export function removeExistingOverlaysForOrigin(walletOrigin: string): void {
 
   for (const el of matches) {
     try {
-      const dialog = el.closest('dialog.w3a-wallet-overlay-dialog');
+      const dialog = el.closest('dialog.seams-wallet-overlay-dialog');
       (dialog ?? el).remove();
     } catch {}
   }
@@ -68,7 +68,7 @@ export function createWalletIframe(opts: {
   const iframe = document.createElement('iframe');
   // The transport mounts hidden. OverlayController owns dialog placement and
   // presentation transitions after the authenticated handshake.
-  iframe.classList.add('w3a-wallet-overlay', 'is-hidden');
+  iframe.classList.add('seams-wallet-overlay', 'is-hidden');
   // Ensure the base overlay stylesheet is installed early so computed styles
   // (opacity/pointer-events) reflect the hidden state immediately after mount.
   try {
@@ -83,9 +83,9 @@ export function createWalletIframe(opts: {
   iframe.setAttribute('loading', 'eager');
   iframe.setAttribute('fetchpriority', 'high');
 
-  iframe.dataset.w3aRouterId = opts.testOptions?.routerId || '';
-  if (opts.testOptions?.ownerTag) iframe.dataset.w3aOwner = opts.testOptions.ownerTag;
-  iframe.dataset.w3aOrigin = opts.walletOrigin;
+  iframe.dataset.seamsRouterId = opts.testOptions?.routerId || '';
+  if (opts.testOptions?.ownerTag) iframe.dataset.seamsOwner = opts.testOptions.ownerTag;
+  iframe.dataset.seamsOrigin = opts.walletOrigin;
 
   // Delegate WebAuthn + clipboard capabilities to the wallet origin frame
   try {

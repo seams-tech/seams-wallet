@@ -4,16 +4,16 @@ import { resolveWorkerUrl } from '@/core/walletRuntimePaths/workers';
 
 type AssetVersionWindow = {
   readonly location: { readonly origin: string };
-  readonly __W3A_WALLET_SDK_BASE__: string;
-  readonly __W3A_WALLET_ASSET_VERSION__: string;
+  readonly __SEAMS_WALLET_SDK_BASE__: string;
+  readonly __SEAMS_WALLET_ASSET_VERSION__: string;
 };
 
 function installAssetVersionWindow(): () => void {
   const originalWindow = Reflect.get(globalThis, 'window');
   const fakeWindow: AssetVersionWindow = {
     location: { origin: 'https://test.sign.seams.sh' },
-    __W3A_WALLET_SDK_BASE__: 'https://test.sign.seams.sh/sdk/',
-    __W3A_WALLET_ASSET_VERSION__: '0.5.4',
+    __SEAMS_WALLET_SDK_BASE__: 'https://test.sign.seams.sh/sdk/',
+    __SEAMS_WALLET_ASSET_VERSION__: '0.5.4',
   };
   Reflect.set(globalThis, 'window', fakeWindow);
   return function restoreWindow(): void {

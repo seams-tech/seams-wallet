@@ -3,8 +3,8 @@ import { setupBasicPasskeyTest } from '../setup';
 import { ensureComponentModule, mountComponent } from './harness';
 
 // We load the wrapper module which includes the drawer variant and its internals
-const WRAPPER_MODULE = '/sdk/w3a-tx-confirmer.js';
-const WRAPPER_TAG = 'w3a-tx-confirmer';
+const WRAPPER_MODULE = '/sdk/seams-tx-confirmer.js';
+const WRAPPER_TAG = 'seams-tx-confirmer';
 
 test.describe('Lit component – drawer events', () => {
   test.beforeEach(async ({ page }) => {
@@ -16,10 +16,10 @@ test.describe('Lit component – drawer events', () => {
   });
 
   test('emits open/close lifecycle events', async ({ page }) => {
-    // Mount the wrapper in drawer variant (renders <w3a-drawer> internally)
+    // Mount the wrapper in drawer variant (renders <seams-drawer> internally)
     await mountComponent(page, {
       tagName: WRAPPER_TAG,
-      attributes: { 'data-w3a-confirm-surface': 'standalone' },
+      attributes: { 'data-seams-confirm-surface': 'standalone' },
       props: {
         variant: 'drawer',
         nearAccountId: 'demo.testnet',
@@ -28,23 +28,23 @@ test.describe('Lit component – drawer events', () => {
       },
     });
 
-    // Attach listeners to the inner <w3a-drawer>
+    // Attach listeners to the inner <seams-drawer>
     const counters = await page.evaluate(async () => {
-      const wrapper = document.querySelector('w3a-tx-confirmer') as HTMLElement | null;
+      const wrapper = document.querySelector('seams-tx-confirmer') as HTMLElement | null;
       if (!wrapper) throw new Error('wrapper not found');
       // Wait a tick for the child to render
       await new Promise((r) => setTimeout(r, 0));
-      const child = wrapper.querySelector('w3a-drawer-tx-confirmer') as HTMLElement | null;
+      const child = wrapper.querySelector('seams-drawer-tx-confirmer') as HTMLElement | null;
       if (!child) throw new Error('drawer variant element not found');
       const drawerRoot = (child as any).shadowRoot || child;
-      const drawer = drawerRoot.querySelector('w3a-drawer') as HTMLElement | null;
-      if (!drawer) throw new Error('w3a-drawer not found');
+      const drawer = drawerRoot.querySelector('seams-drawer') as HTMLElement | null;
+      if (!drawer) throw new Error('seams-drawer not found');
 
       const counts = { os: 0, oe: 0, cs: 0, ce: 0 };
-      drawer.addEventListener('w3a:drawer-open-start', () => counts.os++);
-      drawer.addEventListener('w3a:drawer-open-end', () => counts.oe++);
-      drawer.addEventListener('w3a:drawer-close-start', () => counts.cs++);
-      drawer.addEventListener('w3a:drawer-close-end', () => counts.ce++);
+      drawer.addEventListener('seams:drawer-open-start', () => counts.os++);
+      drawer.addEventListener('seams:drawer-open-end', () => counts.oe++);
+      drawer.addEventListener('seams:drawer-close-start', () => counts.cs++);
+      drawer.addEventListener('seams:drawer-close-end', () => counts.ce++);
 
       // Return handles for later interaction
       (window as any).__drawerTestRefs = { wrapper, child, drawer, counts };

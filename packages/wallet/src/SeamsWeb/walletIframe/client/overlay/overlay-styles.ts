@@ -12,10 +12,10 @@ import {
 } from '@/core/browser/walletIframe/csp-stylesheet';
 import { WALLET_IFRAME_SURFACE_INSET_CSS_PX } from '../surface/geometry';
 
-const CLASS_BASE = 'w3a-wallet-overlay';
-const CLASS_DIALOG = 'w3a-wallet-overlay-dialog';
-const CLASS_INLINE_DIALOG = 'w3a-wallet-inline-dialog';
-const CLASS_IFRAME = 'w3a-wallet-overlay-iframe';
+const CLASS_BASE = 'seams-wallet-overlay';
+const CLASS_DIALOG = 'seams-wallet-overlay-dialog';
+const CLASS_INLINE_DIALOG = 'seams-wallet-inline-dialog';
+const CLASS_IFRAME = 'seams-wallet-overlay-iframe';
 const CLASS_HIDDEN = 'is-hidden';
 const CLASS_MODAL = 'is-modal';
 const CLASS_DRAWER = 'is-drawer';
@@ -25,7 +25,7 @@ const CLASS_AUTH_MENU = 'is-auth-menu';
 const CLASS_HAS_GEOMETRY = 'has-geometry';
 const CLASS_RESIZE_ANIMATED = 'is-resize-animated';
 const CLASS_REVEAL_PENDING = 'is-reveal-pending';
-const DIALOG_ID_PREFIX = 'w3a-wallet-overlay-dialog-';
+const DIALOG_ID_PREFIX = 'seams-wallet-overlay-dialog-';
 
 const BASE_CSS = `
   dialog.${CLASS_DIALOG} {
@@ -45,11 +45,11 @@ const BASE_CSS = `
     background: transparent;
     color-scheme: normal;
     box-sizing: border-box;
-    --w3a-wallet-overlay-safe-top: env(safe-area-inset-top, 0px);
-    --w3a-wallet-overlay-safe-right: env(safe-area-inset-right, 0px);
-    --w3a-wallet-overlay-safe-bottom: env(safe-area-inset-bottom, 0px);
-    --w3a-wallet-overlay-safe-left: env(safe-area-inset-left, 0px);
-    z-index: var(--w3a-wallet-overlay-z, 2147483646);
+    --seams-wallet-overlay-safe-top: env(safe-area-inset-top, 0px);
+    --seams-wallet-overlay-safe-right: env(safe-area-inset-right, 0px);
+    --seams-wallet-overlay-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --seams-wallet-overlay-safe-left: env(safe-area-inset-left, 0px);
+    z-index: var(--seams-wallet-overlay-z, 2147483646);
   }
   /* A dialog with no geometry rule would otherwise fall back to its static
      position — the top-left of <body> — which is never right for an overlay.
@@ -72,7 +72,7 @@ const BASE_CSS = `
   dialog.${CLASS_DIALOG}.${CLASS_DRAWER}::backdrop {
     background: transparent;
   }
-  @keyframes w3a-wallet-overlay-backdrop-in {
+  @keyframes seams-wallet-overlay-backdrop-in {
     from {
       background: transparent;
     }
@@ -85,7 +85,7 @@ const BASE_CSS = `
   }
   dialog.${CLASS_DIALOG}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_AUTH_MENU}):not(.${CLASS_REVEAL_PENDING})::backdrop {
     background: rgb(0 0 0 / 0.26);
-    animation: w3a-wallet-overlay-backdrop-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation: seams-wallet-overlay-backdrop-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
   /* The host owns the modal frame. Keep the focused dialog and iframe from
      adding a user-agent outline around the rounded card. */
@@ -136,11 +136,11 @@ const BASE_CSS = `
      wallet iframe is mounted into this dialog once, before connect(), and
      cannot be reparented afterwards without discarding its browsing context and
      MessagePort — so the dialog stays a body child and mirrors the host
-     anchor's rect; --w3a-wallet-inline-dialog-z is the host's hook for placing
+     anchor's rect; --seams-wallet-inline-dialog-z is the host's hook for placing
      it within the page's own layering. */
   dialog.${CLASS_DIALOG}.${CLASS_INLINE_DIALOG} {
     position: absolute;
-    z-index: var(--w3a-wallet-inline-dialog-z, auto);
+    z-index: var(--seams-wallet-inline-dialog-z, auto);
     transform-origin: top left;
   }
   dialog.${CLASS_DIALOG}.${CLASS_INLINE_DIALOG}::backdrop {
@@ -218,7 +218,7 @@ const getStyleManager = () => {
     styleManager = createCspStylesheetManager({
       doc: document,
       baseCss: BASE_CSS,
-      dynamicStyleDataAttr: 'data-w3a-overlay-dyn',
+      dynamicStyleDataAttr: 'data-seams-overlay-dyn',
       nonce: () => getDefaultCspNonce(),
     });
   }
@@ -340,10 +340,10 @@ export function setDialogGeometry(
   ensureOverlayDialog(dialog);
   const id = ensureDialogId(dialog);
   const inset = cssPx(WALLET_IFRAME_SURFACE_INSET_CSS_PX);
-  const safeTop = 'var(--w3a-wallet-overlay-safe-top, 0px)';
-  const safeRight = 'var(--w3a-wallet-overlay-safe-right, 0px)';
-  const safeBottom = 'var(--w3a-wallet-overlay-safe-bottom, 0px)';
-  const safeLeft = 'var(--w3a-wallet-overlay-safe-left, 0px)';
+  const safeTop = 'var(--seams-wallet-overlay-safe-top, 0px)';
+  const safeRight = 'var(--seams-wallet-overlay-safe-right, 0px)';
+  const safeBottom = 'var(--seams-wallet-overlay-safe-bottom, 0px)';
+  const safeLeft = 'var(--seams-wallet-overlay-safe-left, 0px)';
   const width = `min(${cssPx(rect.widthCssPx)},max(1px,calc(100vw - ${safeLeft} - ${safeRight} - ${inset} - ${inset})))`;
   const height = `min(${cssPx(rect.heightCssPx)},max(1px,calc(100dvh - ${safeTop} - ${safeBottom} - ${inset} - ${inset})))`;
   // An auth-menu rect arrives from the router already in DOCUMENT coordinates

@@ -212,7 +212,7 @@ type PendingWalletRecoveryCommitIdentity = {
 };
 
 function intendedIndexedDbModulePath(appUrl: string): string {
-  const configured = String(process.env.W3A_REPO_ROOT || '').trim();
+  const configured = String(process.env.SEAMS_REPO_ROOT || '').trim();
   const cwd = process.cwd();
   const repoRoot =
     configured || (existsSync(path.join(cwd, 'packages/wallet')) ? cwd : path.resolve(cwd, '..'));
@@ -1801,7 +1801,7 @@ export class IntendedBehaviourHarness {
     await this.page.route(`**${ROUTER_AB_WALLET_RECOVERY_FINALIZE_PATH}`, failFirstFinalization);
     try {
       const frame = await fillHostedRecoveryCode(this.page, recoveryCode, 'passkey');
-      await expect(frame.locator('.w3a-recovery-status')).toHaveText(
+      await expect(frame.locator('.seams-recovery-status')).toHaveText(
         'Recovery couldn’t be completed. Try again.',
         { timeout: 60_000 },
       );
@@ -2039,7 +2039,7 @@ export class IntendedBehaviourHarness {
     await this.page.getByTestId(action.buttonTestId).click();
     await this.waitForIntendedPageActionStarted(action.name);
     const frame = await fillHostedRecoveryCode(this.page, recoveryCode, target);
-    await expect(frame.locator('.w3a-recovery-status')).toHaveText(
+    await expect(frame.locator('.seams-recovery-status')).toHaveText(
       'That recovery code has already been used. Use another code.',
       { timeout: 30_000 },
     );
@@ -5896,7 +5896,7 @@ async function fillHostedRecoveryCode(
 async function waitForHostedPasskeyRecoverySignIn(page: Page, frame: FrameLocator): Promise<void> {
   const deadline = Date.now() + 90_000;
   const primary = frame.locator('[data-auth-menu-primary]');
-  const status = frame.locator('.w3a-recovery-status').last();
+  const status = frame.locator('.seams-recovery-status').last();
   while (Date.now() < deadline) {
     const label = (await primary.textContent({ timeout: 100 }).catch(() => null))?.trim() ?? '';
     const message = (await status.textContent({ timeout: 100 }).catch(() => null))?.trim() ?? '';
@@ -6010,7 +6010,7 @@ async function fillWalletIframeEmailOtpIfAvailable(
   const timeoutMs = Math.max(50, Math.floor(opts?.timeoutMs ?? 500));
   const input = frame
     .locator(
-      '#email-otp-confirm-code, #drawer-email-otp-confirm-code, #w3a-auth-menu-google-otp, #w3a-recovery-google-otp',
+      '#email-otp-confirm-code, #drawer-email-otp-confirm-code, #seams-auth-menu-google-otp, #seams-recovery-google-otp',
     )
     .first();
   const visible = await input
@@ -6073,7 +6073,7 @@ async function fillWalletIframeEmailOtpIfAvailable(
     opts.diagnostics.otpFilled = true;
   }
   recordAutoConfirmMark(opts?.diagnostics, opts?.diagnosticsStartedAtMs, 'firstOtpFillDispatchMs');
-  const recoveryOtp = frame.locator('#w3a-recovery-google-otp').first();
+  const recoveryOtp = frame.locator('#seams-recovery-google-otp').first();
   if (await recoveryOtp.isVisible().catch(() => false)) {
     await frame.locator('[data-auth-menu-primary]').first().click({ timeout: timeoutMs });
     if (opts?.diagnostics) {
@@ -6220,7 +6220,7 @@ function intendedActionRequiresConfirmationSettlement(action: string): boolean {
 
 function walletIframeSecureConfirmationControl(frame: FrameLocator): Locator {
   return frame
-    .locator('#w3a-confirm-portal button.btn-confirm, #w3a-confirm-portal button.confirm')
+    .locator('#seams-confirm-portal button.btn-confirm, #seams-confirm-portal button.confirm')
     .last();
 }
 
@@ -6340,13 +6340,13 @@ async function clickWalletIframeConfirm(
         if (!walletId) {
           throw new Error('Passkey auto-confirm requires current intended wallet id');
         }
-        const accountMenuTrigger = frame.locator('.w3a-account-menu-trigger').first();
+        const accountMenuTrigger = frame.locator('.seams-account-menu-trigger').first();
         const triggerVisible = await accountMenuTrigger.isVisible().catch(() => false);
         if (triggerVisible) {
           await accountMenuTrigger.click({ timeout: timeoutMs });
           const passkeyAccount = frame
             .locator(
-              `.w3a-account-menu-option[data-wallet-id=${JSON.stringify(
+              `.seams-account-menu-option[data-wallet-id=${JSON.stringify(
                 walletId,
               )}][data-auth-method="passkey"]`,
             )
@@ -6422,7 +6422,7 @@ async function acknowledgeWalletRecoveryCodeBackup(
 ): Promise<readonly string[] | null> {
   for (const frame of page.frames()) {
     const acknowledgement = frame
-      .locator('[data-w3a-wallet-recovery-backup-acknowledgement]')
+      .locator('[data-seams-wallet-recovery-backup-acknowledgement]')
       .first();
     const visible = await acknowledgement.isVisible().catch(() => false);
     if (!visible) continue;
@@ -6441,7 +6441,7 @@ async function acknowledgeWalletRecoveryCodeBackup(
     }
     // With the acknowledgement checked, the single close control completes the
     // backup (there is no separate "Finish backup" button).
-    await frame.locator('[data-w3a-wallet-recovery-backup-close]').evaluate((button) => {
+    await frame.locator('[data-seams-wallet-recovery-backup-close]').evaluate((button) => {
       if (!(button instanceof HTMLButtonElement)) {
         throw new Error('Wallet recovery backup close control is not a button');
       }

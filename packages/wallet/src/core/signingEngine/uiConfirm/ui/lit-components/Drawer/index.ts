@@ -95,7 +95,7 @@ export class DrawerElement extends LitElementWithProps {
     const p = ensureExternalStyles(
       root as ShadowRoot | DocumentFragment | HTMLElement,
       'drawer.css',
-      'data-w3a-drawer-css',
+      'data-seams-drawer-css',
     );
     this._stylePromises.push(p);
     p.catch(() => {});
@@ -195,7 +195,7 @@ export class DrawerElement extends LitElementWithProps {
     // we have published a pixel value, it falls back to the current open
     // translate instead of 0px. This prevents any momentary jump to the top.
     try {
-      this.setCssVars({ '--w3a-drawer__drag-translate': 'var(--w3a-drawer__open-translate)' });
+      this.setCssVars({ '--seams-drawer__drag-translate': 'var(--seams-drawer__open-translate)' });
     } catch {}
     // Ensure no transition on first measurement; enable after a frame
     requestAnimationFrame(() => {
@@ -247,11 +247,11 @@ export class DrawerElement extends LitElementWithProps {
         // No first-open transition suppression; double rAF in the viewer handles settle.
         this._firstOpen = false;
         this.dispatchEvent(
-          new CustomEvent('w3a:drawer-open-start', { bubbles: true, composed: true }),
+          new CustomEvent('seams:drawer-open-start', { bubbles: true, composed: true }),
         );
       } else {
         this.dispatchEvent(
-          new CustomEvent('w3a:drawer-close-start', { bubbles: true, composed: true }),
+          new CustomEvent('seams:drawer-close-start', { bubbles: true, composed: true }),
         );
       }
     }
@@ -337,10 +337,10 @@ export class DrawerElement extends LitElementWithProps {
       const visibleVh = clamp(parseFloat(m[1]), 0, 100);
       const pct = clamp(100 - visibleVh, 0, 100);
       // Sheet uses same viewport unit as provided height for better alignment
-      this.setCssVars({ '--w3a-drawer__sheet-height': `100${unit}` });
+      this.setCssVars({ '--seams-drawer__sheet-height': `100${unit}` });
       // Freeze rest position while open to avoid mid-open jumps
       if (!this.open) {
-        this.setCssVars({ '--w3a-drawer__open-translate': pct + '%' });
+        this.setCssVars({ '--seams-drawer__open-translate': pct + '%' });
       }
       return;
     }
@@ -348,7 +348,7 @@ export class DrawerElement extends LitElementWithProps {
     // Default: auto-fit to content height (.above-fold)
     const unit =
       typeof CSS !== 'undefined' && CSS.supports && CSS.supports('height', '1dvh') ? 'dvh' : 'vh';
-    this.setCssVars({ '--w3a-drawer__sheet-height': `${SHEET_HEIGHT_VH}${unit}` });
+    this.setCssVars({ '--seams-drawer__sheet-height': `${SHEET_HEIGHT_VH}${unit}` });
 
     // Measure above-fold bottom relative to drawer top to fit content exactly above the fold
     const root = this.renderRoot as unknown as ParentNode;
@@ -378,7 +378,7 @@ export class DrawerElement extends LitElementWithProps {
       this.drawerElement?.classList.remove('vv-sync');
     }
 
-    this.setCssVars({ '--w3a-drawer__open-translate': pct });
+    this.setCssVars({ '--seams-drawer__open-translate': pct });
     this._lastOpenTranslatePct = pct;
   }
 
@@ -395,7 +395,7 @@ export class DrawerElement extends LitElementWithProps {
     if (!this.drawerElement) return;
     if (e.target !== this.drawerElement) return;
     if (e.propertyName !== 'transform') return;
-    const type = this.open ? 'w3a:drawer-open-end' : 'w3a:drawer-close-end';
+    const type = this.open ? 'seams:drawer-open-end' : 'seams:drawer-close-end';
     this.dispatchEvent(new CustomEvent(type, { bubbles: true, composed: true }));
   };
 
@@ -434,8 +434,8 @@ export class DrawerElement extends LitElementWithProps {
       const dur = durations[Math.min(idx, durations.length - 1)] || '100ms';
       const ease = easings[Math.min(idx, easings.length - 1)] || 'cubic-bezier(0.2, 0.6, 0.2, 1)';
       this.setCssVars({
-        '--w3a-drawer__transition-duration': dur,
-        '--w3a-drawer__transition-easing': ease,
+        '--seams-drawer__transition-duration': dur,
+        '--seams-drawer__transition-easing': ease,
       });
     };
 
@@ -732,7 +732,7 @@ export class DrawerElement extends LitElementWithProps {
       // Seed drag translate to current position before enabling .dragging to prevent jumps
       // Prevent initial flash to top when adding the dragging class by
       // publishing the current translateY as the drag variable first.
-      this.setCssVars({ '--w3a-drawer__drag-translate': `${this.startTranslateYPx}px` });
+      this.setCssVars({ '--seams-drawer__drag-translate': `${this.startTranslateYPx}px` });
       // Force a layout flush so the newly-applied CSS variable is visible to
       // the next style recalculation that includes the `.dragging` selector.
       // Without this, some engines may briefly resolve the var() fallback (0px)
@@ -781,7 +781,7 @@ export class DrawerElement extends LitElementWithProps {
       targetTranslateY = this.openRestTranslateYPx - elasticUp;
     }
     // Disable transitions via class; drive transform via CSS variable for CSP compliance
-    this.setCssVars({ '--w3a-drawer__drag-translate': `${targetTranslateY}px` });
+    this.setCssVars({ '--seams-drawer__drag-translate': `${targetTranslateY}px` });
 
     this.lastDragTime = now;
   }
@@ -974,9 +974,9 @@ export class DrawerElement extends LitElementWithProps {
   };
 }
 
-import { W3A_DRAWER_ID } from '../../registry';
+import { SEAMS_DRAWER_ID } from '../../registry';
 export default (function ensureDefined() {
-  const TAG = W3A_DRAWER_ID;
+  const TAG = SEAMS_DRAWER_ID;
   if (!customElements.get(TAG)) {
     customElements.define(TAG, DrawerElement);
   }

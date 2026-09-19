@@ -9,7 +9,7 @@
 export type PmActionName = 'signAndSendTransaction';
 
 export type UIEventBinding = {
-  event: string; // e.g. 'w3a-register-click'
+  event: string; // e.g. 'seams-register-click'
   action: PmActionName;
   // Map action args from element props (e.g., { nearAccountId: 'nearAccountId' })
   argsFromProps?: Record<string, string>;

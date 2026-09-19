@@ -19,7 +19,7 @@ export const PasskeyHaloLoading: React.FC<PasskeyHaloLoadingProps> = ({
 }) => {
   const { theme } = useTheme();
   return (
-    <div className={`w3a-passkey-loading-root ${theme} ${className}`} style={style}>
+    <div className={`seams-passkey-loading-root ${theme} ${className}`} style={style}>
       <LitHaloBorder
         theme={theme}
         animated={true}
@@ -27,19 +27,19 @@ export const PasskeyHaloLoading: React.FC<PasskeyHaloLoadingProps> = ({
         ringWidth={4}
         ringBorderRadius="1.5rem"
         innerPadding={`${innerPadding}px`}
-        innerBackground="var(--w3a-colors-surface)"
+        innerBackground="var(--seams-colors-surface)"
         ringBackground={
           theme === 'dark'
-            ? `transparent 0%, var(--w3a-colors-green400) 10%, var(--w3a-colors-green500) 25%, transparent 35%`
-            : `transparent 0%, var(--w3a-colors-blue400) 10%, var(--w3a-colors-blue500) 25%, transparent 35%`
+            ? `transparent 0%, var(--seams-colors-green400) 10%, var(--seams-colors-green500) 25%, transparent 35%`
+            : `transparent 0%, var(--seams-colors-blue400) 10%, var(--seams-colors-blue500) 25%, transparent 35%`
         }
       >
         <div
-          className="w3a-passkey-loading-touch-icon-container"
+          className="seams-passkey-loading-touch-icon-container"
           style={{
             display: 'grid',
             placeItems: 'center',
-            backgroundColor: 'var(--w3a-colors-colorBackground)',
+            backgroundColor: 'var(--seams-colors-colorBackground)',
             borderRadius: '1.25rem',
             width: 'fit-content',
             height: 'fit-content',
@@ -50,7 +50,7 @@ export const PasskeyHaloLoading: React.FC<PasskeyHaloLoadingProps> = ({
             width={width}
             strokeWidth={4}
             style={{
-              color: 'var(--w3a-colors-textSecondary)',
+              color: 'var(--seams-colors-textSecondary)',
               margin: '0.75rem',
             }}
           />

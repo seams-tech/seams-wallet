@@ -73,7 +73,7 @@ export function bootstrapTransparentHost(): void {
   const norm = here.endsWith('/') ? here : here + '/';
   if (!getEmbeddedBase()) setEmbeddedBase(norm);
 
-  // Dev-only: warn when w3a-* custom elements remain un-upgraded
+  // Dev-only: warn when seams-* custom elements remain un-upgraded
   setupDevUnupgradedObserver();
 }
 
@@ -83,8 +83,8 @@ export function bootstrapTransparentHost(): void {
 export function ensureTransparentSurface(): void {
   const apply = () => {
     const doc = document;
-    doc.documentElement.classList.add('w3a-transparent');
-    doc.body?.classList.add('w3a-transparent');
+    doc.documentElement.classList.add('seams-transparent');
+    doc.body?.classList.add('seams-transparent');
     doc.documentElement.classList.remove('dark');
     doc.body?.classList.remove('dark');
   };
@@ -98,7 +98,7 @@ export function ensureTransparentSurface(): void {
 }
 
 /**
- * Development-only observer that warns if any <w3a-*> element remains
+ * Development-only observer that warns if any <seams-*> element remains
  * un-upgraded for >250ms after insertion.
  */
 function setupDevUnupgradedObserver(): void {
@@ -108,7 +108,7 @@ function setupDevUnupgradedObserver(): void {
   const pending = new WeakMap<Element, number>();
   const schedule = (el: Element) => {
     const tag = (el.tagName || '').toLowerCase();
-    if (!tag.startsWith('w3a-')) return;
+    if (!tag.startsWith('seams-')) return;
     if (customElements.get(tag)) return; // already defined
     if (pending.has(el)) return;
     const id = window.setTimeout(async () => {
@@ -116,7 +116,7 @@ function setupDevUnupgradedObserver(): void {
       if (customElements.get(tag)) return; // defined in the meantime
       if (!customElements.get(tag)) {
         console.warn(
-          `[W3A][Dev] <${tag}> not upgraded after 250ms. Ensure a dynamic import runs before createElement. See LitComponents/README-lit-elements.md (Never Break Again).`,
+          `[SEAMS][Dev] <${tag}> not upgraded after 250ms. Ensure a dynamic import runs before createElement. See LitComponents/README-lit-elements.md (Never Break Again).`,
         );
       }
     }, 250);

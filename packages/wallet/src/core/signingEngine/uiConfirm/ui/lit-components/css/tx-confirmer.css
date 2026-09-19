@@ -4,113 +4,113 @@
 
   Tokens are generated from client/src/theme/palette.json via
   client/src/theme/base-styles.js (createThemeTokens) and emitted as
-  w3a-components.css by the dev/build pipelines. Components ensure the
+  seams-components.css by the dev/build pipelines. Components ensure the
   stylesheet is present (see css-loader.ts and usages).
 */
 
 /* Defaults (dark theme) */
-w3a-modal-tx-confirmer,
-w3a-drawer-tx-confirmer,
-w3a-tx-confirm-content,
+seams-modal-tx-confirmer,
+seams-drawer-tx-confirmer,
+seams-tx-confirm-content,
 /* Declare at document root for global availability across the iframe */
 :root {
   /* Passkey halo loading defaults (dark) */
-  --w3a-modal__passkey-halo-loading__ring-background:
+  --seams-modal__passkey-halo-loading__ring-background:
     transparent 0%,
     var(
-        --w3a-colors-highlightHalo,
-        var(--w3a-colors-highlightPrimary, var(--w3a-colors-info, #4daffe))
+        --seams-colors-highlightHalo,
+        var(--seams-colors-highlightPrimary, var(--seams-colors-info, #4daffe))
       )
       10%,
     var(
-        --w3a-colors-highlightHalo,
-        var(--w3a-colors-highlightPrimary, var(--w3a-colors-info, #4daffe))
+        --seams-colors-highlightHalo,
+        var(--seams-colors-highlightPrimary, var(--seams-colors-info, #4daffe))
       )
       25%,
     transparent 35%;
-  --w3a-modal__passkey-halo-loading__inner-background: transparent;
-  --w3a-modal__passkey-halo-loading__inner-padding: 3px;
-  --w3a-modal__passkey-halo-loading-icon-container__background-color: var(
-    --w3a-colors-passkeyHaloBackground,
-    var(--w3a-colors-surface)
+  --seams-modal__passkey-halo-loading__inner-background: transparent;
+  --seams-modal__passkey-halo-loading__inner-padding: 3px;
+  --seams-modal__passkey-halo-loading-icon-container__background-color: var(
+    --seams-colors-passkeyHaloBackground,
+    var(--seams-colors-surface)
   );
   /* Muted token keeps the icon lower-contrast against the chip: lighter in
      light themes, darker in dark themes. Falls back to textSecondary. */
-  --w3a-modal__passkey-halo-loading-touch-icon__color: var(
-    --w3a-colors-textMuted,
-    var(--w3a-colors-textSecondary)
+  --seams-modal__passkey-halo-loading-touch-icon__color: var(
+    --seams-colors-textMuted,
+    var(--seams-colors-textSecondary)
   );
-  --w3a-modal__passkey-halo-loading-touch-icon__margin: 0.75rem;
-  --w3a-modal__passkey-halo-loading-touch-icon__stroke-width: 3.5;
+  --seams-modal__passkey-halo-loading-touch-icon__margin: 0.75rem;
+  --seams-modal__passkey-halo-loading-touch-icon__stroke-width: 3.5;
   /* Provide explicit radius token so consumers avoid "undefined" */
-  --w3a-modal__passkey-halo-loading-icon-container__border-radius: 1.125rem;
+  --seams-modal__passkey-halo-loading-icon-container__border-radius: 1.125rem;
 }
 
 /* Tx confimer variants set layout tokens */
-w3a-modal-tx-confirmer {
+seams-modal-tx-confirmer {
   /* Modal uses column layout for rpid */
-  --w3a-modal__rpid__flex-direction: column;
+  --seams-modal__rpid__flex-direction: column;
   /* Keep registration/confirm modal from collapsing too narrow on desktop */
-  --w3a-modal__container-min-width: 25rem; /* 400px */
+  --seams-modal__container-min-width: 25rem; /* 400px */
   /* Prefer a wider confirmation surface so calldata is easier to inspect. */
-  --w3a-modal__container-max-width: 26rem; /* 416px */
+  --seams-modal__container-max-width: 26rem; /* 416px */
   display: block;
   inline-size: fit-content;
   max-inline-size: 100%;
 }
 
-w3a-drawer-tx-confirmer {
+seams-drawer-tx-confirmer {
   /* Drawer uses row layout for rpid */
-  --w3a-modal__rpid__flex-direction: row;
+  --seams-modal__rpid__flex-direction: row;
 }
 
 /* Structural styles for modal confirmer */
 :host {
   /* Default style-guide variables (can be overridden by applyStyles) */
-  --w3a-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --w3a-font-size-sm: 0.8rem;
-  --w3a-font-size-base: 1rem;
-  --w3a-font-size-lg: 1.125rem;
-  --w3a-font-size-xl: 1.25rem;
+  --seams-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --seams-font-size-sm: 0.8rem;
+  --seams-font-size-base: 1rem;
+  --seams-font-size-lg: 1.125rem;
+  --seams-font-size-xl: 1.25rem;
 
-  --w3a-radius-md: 0.5rem;
-  --w3a-radius-lg: 0.75rem;
-  --w3a-radius-xl: 1rem;
+  --seams-radius-md: 0.5rem;
+  --seams-radius-lg: 0.75rem;
+  --seams-radius-xl: 1rem;
 
   /* Component display */
   display: block;
 
   /* Use global tokens directly */
-  font-family: var(--w3a-font-family);
-  font-size: var(--w3a-font-size-base);
+  font-family: var(--seams-font-family);
+  font-size: var(--seams-font-size-base);
   line-height: 1.5;
-  color: var(--w3a-colors-textPrimary);
-  background-color: var(--w3a-colors-colorBackground);
+  color: var(--seams-colors-textPrimary);
+  background-color: var(--seams-colors-colorBackground);
 
   scrollbar-width: thin;
   scrollbar-color: rgba(25, 25, 25, 0.2);
 }
 
 /* Light DOM host equivalents when Shadow DOM is disabled */
-w3a-modal-tx-confirmer,
-w3a-drawer-tx-confirmer,
-w3a-tx-confirm-content {
-  --w3a-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --w3a-font-size-sm: 0.8rem;
-  --w3a-font-size-base: 1rem;
-  --w3a-font-size-lg: 1.125rem;
-  --w3a-font-size-xl: 1.25rem;
+seams-modal-tx-confirmer,
+seams-drawer-tx-confirmer,
+seams-tx-confirm-content {
+  --seams-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --seams-font-size-sm: 0.8rem;
+  --seams-font-size-base: 1rem;
+  --seams-font-size-lg: 1.125rem;
+  --seams-font-size-xl: 1.25rem;
 
-  --w3a-radius-md: 0.5rem;
-  --w3a-radius-lg: 0.75rem;
-  --w3a-radius-xl: 1rem;
+  --seams-radius-md: 0.5rem;
+  --seams-radius-lg: 0.75rem;
+  --seams-radius-xl: 1rem;
 
   display: block;
-  font-family: var(--w3a-font-family);
-  font-size: var(--w3a-font-size-base);
+  font-family: var(--seams-font-family);
+  font-size: var(--seams-font-size-base);
   line-height: 1.5;
-  color: var(--w3a-colors-textPrimary);
-  background-color: var(--w3a-colors-colorBackground);
+  color: var(--seams-colors-textPrimary);
+  background-color: var(--seams-colors-colorBackground);
   scrollbar-width: thin;
   scrollbar-color: rgba(25, 25, 25, 0.2);
 }
@@ -125,7 +125,7 @@ w3a-tx-confirm-content {
   /* Default tx-tree wrapper width fills the available card width. */
   --tooltip-width: 100%;
 }
-:is(w3a-tx-confirm-content) {
+:is(seams-tx-confirm-content) {
   display: block;
   width: 100%;
   max-width: 100%;
@@ -137,39 +137,39 @@ w3a-tx-confirm-content {
   width: min(100%, var(--tooltip-width, 100%));
   max-width: 100%;
   box-sizing: border-box;
-  border-radius: var(--w3a-shape-box, 10px);
+  border-radius: var(--seams-shape-box, 10px);
   transition: border-radius 300ms cubic-bezier(0.22, 1, 0.36, 1);
-  background: var(--w3a-colors-txDetailsBackground, var(--w3a-colors-surface2));
+  background: var(--seams-colors-txDetailsBackground, var(--seams-colors-surface2));
 }
-.tooltip-width > w3a-tx-tree,
-.tooltip-width > w3a-tx-tree[theme] {
+.tooltip-width > seams-tx-tree,
+.tooltip-width > seams-tx-tree[theme] {
   width: 100%;
   max-width: 100%;
-  --w3a-tree__tooltip-border-outer__background: var(
-    --w3a-colors-txDetailsBackground,
-    var(--w3a-colors-surface2)
+  --seams-tree__tooltip-border-outer__background: var(
+    --seams-colors-txDetailsBackground,
+    var(--seams-colors-surface2)
   );
-  --w3a-tree__tooltip-tree-root__background: var(
-    --w3a-colors-txDetailsBackground,
-    var(--w3a-colors-surface2)
+  --seams-tree__tooltip-tree-root__background: var(
+    --seams-colors-txDetailsBackground,
+    var(--seams-colors-surface2)
   );
-  --w3a-tree__file-content__background: var(
-    --w3a-colors-txDetailsBackground,
-    var(--w3a-colors-surface2)
+  --seams-tree__file-content__background: var(
+    --seams-colors-txDetailsBackground,
+    var(--seams-colors-surface2)
   );
 }
-.tooltip-width > w3a-tx-tree .tooltip-tree-root,
-.tooltip-width > w3a-tx-tree .tooltip-border-outer {
+.tooltip-width > seams-tx-tree .tooltip-tree-root,
+.tooltip-width > seams-tx-tree .tooltip-border-outer {
   width: 100%;
   max-width: 100%;
 }
 .label {
   font-size: 0.75rem;
-  color: var(--w3a-colors-textMuted, rgba(255, 255, 255, 0.7));
+  color: var(--seams-colors-textMuted, rgba(255, 255, 255, 0.7));
 }
 .value {
   font-size: 0.8125rem;
-  color: var(--w3a-colors-textPrimary, #f6f7f8);
+  color: var(--seams-colors-textPrimary, #f6f7f8);
   word-break: break-word;
   overflow-wrap: anywhere;
   hyphens: auto;
@@ -198,9 +198,9 @@ w3a-tx-confirm-content {
 }
 .cancel {
   background: none;
-  color: var(--w3a-colors-textPrimary);
-  border: 1px solid var(--w3a-colors-borderPrimary);
-  border-radius: var(--w3a-shape-control, 10px);
+  color: var(--seams-colors-textPrimary);
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: var(--seams-shape-control, 10px);
   transition: border-radius 300ms cubic-bezier(0.22, 1, 0.36, 1);
   font: inherit;
   padding: 0.7em 1em;
@@ -208,10 +208,10 @@ w3a-tx-confirm-content {
   cursor: pointer;
 }
 .confirm {
-  background: var(--w3a-colors-buttonBackground);
-  color: var(--w3a-colors-textButton, #fff);
+  background: var(--seams-colors-buttonBackground);
+  color: var(--seams-colors-textButton, #fff);
   border: 1px solid transparent;
-  border-radius: var(--w3a-shape-control, 10px);
+  border-radius: var(--seams-shape-control, 10px);
   transition: border-radius 300ms cubic-bezier(0.22, 1, 0.36, 1);
   display: inline-flex;
   align-items: center;
@@ -230,39 +230,39 @@ w3a-tx-confirm-content {
   margin-right: 0;
 }
 .cancel:hover {
-  background: var(--w3a-colors-hover);
-  border: 1px solid var(--w3a-colors-borderHover);
+  background: var(--seams-colors-hover);
+  border: 1px solid var(--seams-colors-borderHover);
 }
 .confirm:hover {
-  background: var(--w3a-colors-buttonHoverBackground);
+  background: var(--seams-colors-buttonHoverBackground);
   border: 1px solid transparent;
 }
 .cancel:focus-visible,
 .confirm:focus-visible {
-  outline: 2px solid var(--w3a-colors-focus, var(--w3a-blue400));
+  outline: 2px solid var(--seams-colors-focus, var(--seams-blue400));
   outline-offset: 3px;
 }
-w3a-modal-tx-confirmer {
+seams-modal-tx-confirmer {
   /* Default style-guide variables (can be overridden by applyStyles) */
-  --w3a-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --w3a-font-size-sm: 0.8rem;
-  --w3a-font-size-base: 1rem;
-  --w3a-font-size-lg: 1.125rem;
-  --w3a-font-size-xl: 1.25rem;
+  --seams-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --seams-font-size-sm: 0.8rem;
+  --seams-font-size-base: 1rem;
+  --seams-font-size-lg: 1.125rem;
+  --seams-font-size-xl: 1.25rem;
 
-  --w3a-radius-md: 0.5rem;
-  --w3a-radius-lg: 0.75rem;
-  --w3a-radius-xl: 1rem;
+  --seams-radius-md: 0.5rem;
+  --seams-radius-lg: 0.75rem;
+  --seams-radius-xl: 1rem;
 
   /* Component display */
   display: block;
 
   /* Use global tokens directly */
-  font-family: var(--w3a-font-family);
-  font-size: var(--w3a-font-size-base);
+  font-family: var(--seams-font-family);
+  font-size: var(--seams-font-size-base);
   line-height: 1.5;
-  color: var(--w3a-colors-textPrimary);
-  background-color: var(--w3a-colors-colorBackground);
+  color: var(--seams-colors-textPrimary);
+  background-color: var(--seams-colors-colorBackground);
 
   scrollbar-width: thin;
   scrollbar-color: rgba(25, 25, 25, 0.2);
@@ -293,7 +293,7 @@ w3a-modal-tx-confirmer {
 }
 
 /* Direct/headless confirmation keeps its document-owned modal presentation. */
-w3a-tx-confirmer[data-w3a-confirm-surface='standalone'][data-w3a-confirm-variant='modal'] {
+seams-tx-confirmer[data-seams-confirm-surface='standalone'][data-seams-confirm-variant='modal'] {
   position: fixed;
   inset: 0;
   display: grid;
@@ -304,8 +304,8 @@ w3a-tx-confirmer[data-w3a-confirm-surface='standalone'][data-w3a-confirm-variant
   isolation: isolate;
 }
 
-w3a-tx-confirmer[data-w3a-confirm-surface='standalone'][data-w3a-confirm-variant='modal']
-  w3a-modal-tx-confirmer
+seams-tx-confirmer[data-seams-confirm-surface='standalone'][data-seams-confirm-variant='modal']
+  seams-modal-tx-confirmer
   > .standalone-surface-backdrop {
   display: block;
   position: fixed;
@@ -316,45 +316,45 @@ w3a-tx-confirmer[data-w3a-confirm-surface='standalone'][data-w3a-confirm-variant
   animation: backdrop-opacity 150ms ease-out;
 }
 
-w3a-tx-confirmer[data-w3a-confirm-surface='standalone'][data-w3a-confirm-variant='modal']
-  w3a-modal-tx-confirmer
+seams-tx-confirmer[data-seams-confirm-surface='standalone'][data-seams-confirm-variant='modal']
+  seams-modal-tx-confirmer
   > .modal-surface {
   position: relative;
   z-index: 1;
-  inline-size: min(var(--w3a-modal__container-max-width, 26rem), calc(100vw - 2rem));
+  inline-size: min(var(--seams-modal__container-max-width, 26rem), calc(100vw - 2rem));
   max-inline-size: calc(100vw - 2rem);
 }
 
 /* Wallet-iframe confirmations are measured content shells inside the host dialog. */
-w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] {
+seams-tx-confirmer[data-seams-confirm-surface='wallet-iframe'] {
   display: block;
   inline-size: max-content;
   max-inline-size: 26rem;
 }
 
 /* Keep compact modal surfaces at one width while details expand inside the card. */
-w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'][data-w3a-confirm-variant='modal'] {
-  inline-size: var(--w3a-modal__container-max-width, 26rem);
+seams-tx-confirmer[data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal'] {
+  inline-size: var(--seams-modal__container-max-width, 26rem);
   max-inline-size: 100%;
   background: transparent;
   outline: none;
 }
 
-w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] w3a-modal-tx-confirmer {
+seams-tx-confirmer[data-seams-confirm-surface='wallet-iframe'] seams-modal-tx-confirmer {
   inline-size: max-content;
-  max-inline-size: var(--w3a-modal__container-max-width, 26rem);
+  max-inline-size: var(--seams-modal__container-max-width, 26rem);
 }
 
-w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'][data-w3a-confirm-variant='modal']
-  w3a-modal-tx-confirmer {
+seams-tx-confirmer[data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal']
+  seams-modal-tx-confirmer {
   inline-size: 100%;
   max-inline-size: 100%;
   background: transparent;
   outline: none;
 }
 
-w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'][data-w3a-confirm-variant='modal']
-  w3a-modal-tx-confirmer
+seams-tx-confirmer[data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal']
+  seams-modal-tx-confirmer
   .modal-surface {
   inline-size: 100%;
   max-inline-size: 100%;
@@ -362,9 +362,9 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'][data-w3a-confirm-vari
   outline: none;
 }
 
-w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] w3a-drawer-tx-confirmer {
+seams-tx-confirmer[data-seams-confirm-surface='wallet-iframe'] seams-drawer-tx-confirmer {
   inline-size: max-content;
-  max-inline-size: var(--w3a-drawer__max-width, 24rem);
+  max-inline-size: var(--seams-drawer__max-width, 24rem);
 }
 
 .modal-surface > * {
@@ -374,18 +374,18 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] w3a-drawer-tx-confirm
 .modal-container-root {
   display: grid;
   gap: 0.5rem;
-  inline-size: min(var(--w3a-modal__container-max-width, 26rem), 100%);
-  min-inline-size: min(var(--w3a-modal__container-min-width, 25rem), 100%);
+  inline-size: min(var(--seams-modal__container-max-width, 26rem), 100%);
+  min-inline-size: min(var(--seams-modal__container-min-width, 25rem), 100%);
   max-inline-size: 100%;
   position: relative;
-  border: 1px solid var(--w3a-colors-borderPrimary);
+  border: 1px solid var(--seams-colors-borderPrimary);
   /* card shape, capped at the modal's classic 2rem for the rounded preset */
-  border-radius: min(var(--w3a-shape-card, 16px), 2rem);
+  border-radius: min(var(--seams-shape-card, 16px), 2rem);
   margin: 0;
   padding: 0.75rem;
   /* clear the rounded top corner: square stays 0.75rem, rounded opens up so
      the halo + heading aren't cramped against the curve */
-  padding-top: max(0.75rem, calc(var(--w3a-shape-card, 16px) * 0.5));
+  padding-top: max(0.75rem, calc(var(--seams-shape-card, 16px) * 0.5));
   transition:
     border-radius 300ms cubic-bezier(0.22, 1, 0.36, 1),
     padding 300ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -394,9 +394,9 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] w3a-drawer-tx-confirm
   box-shadow:
     0 12px 24px rgba(0, 0, 0, 0.22),
     0 2px 8px rgba(0, 0, 0, 0.12);
-  background: var(--w3a-colors-colorBackground);
+  background: var(--seams-colors-colorBackground);
   animation: var(
-    --w3a-modal__modal-container__animation,
+    --seams-modal__modal-container__animation,
     fadeIn 150ms cubic-bezier(0.2, 0.6, 0.2, 1)
   );
   will-change: opacity, transform;
@@ -408,10 +408,10 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] w3a-drawer-tx-confirm
 }
 
 /* Softer elevation in light theme */
-:root[data-w3a-theme='light'] .modal-container-root,
-w3a-modal-tx-confirmer[theme='light'] .modal-container-root,
-w3a-drawer-tx-confirmer[theme='light'] .modal-container-root {
-  border: 1px solid var(--w3a-colors-surface);
+:root[data-seams-theme='light'] .modal-container-root,
+seams-modal-tx-confirmer[theme='light'] .modal-container-root,
+seams-drawer-tx-confirmer[theme='light'] .modal-container-root {
+  border: 1px solid var(--seams-colors-surface);
   box-shadow:
     0 12px 24px rgba(0, 0, 0, 0.14),
     0 2px 8px rgba(0, 0, 0, 0.08);
@@ -422,13 +422,13 @@ w3a-drawer-tx-confirmer[theme='light'] .modal-container-root {
    clipped, which is what "revealed by the box" means. The variable is written
    by the owning component through a constructable stylesheet, because the
    wallet origin ships style-src-attr 'none'. */
-.w3a-surface-height-driven {
+.seams-surface-height-driven {
   overflow: hidden;
-  height: var(--w3a-surface-height-driven-target, auto);
+  height: var(--seams-surface-height-driven-target, auto);
 }
 
 /* The host dialog paints compact modal elevation outside the iframe bounds. */
-w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'][data-w3a-confirm-variant='modal']
+seams-tx-confirmer[data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal']
   .modal-container-root {
   box-shadow: none;
 }
@@ -439,19 +439,19 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'][data-w3a-confirm-vari
    posts a larger measurement, which grows the box again — and each round
    re-lays the interior out instantly while the box trails behind. Content in
    this surface must have an intrinsic height, so the caps are fixed here. */
-w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] w3a-tx-tree .file-content {
+seams-tx-confirmer[data-seams-confirm-surface='wallet-iframe'] seams-tx-tree .file-content {
   max-height: 12rem;
   /* The drag handle resizes content continuously, and the host box eases one
      step behind every measurement, so the box can never follow the pointer.
      The block scrolls inside its cap here instead. */
   resize: none;
 }
-w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe']
-  w3a-tx-tree
+seams-tx-confirmer[data-seams-confirm-surface='wallet-iframe']
+  seams-tx-tree
   .tooltip-tree-root.scrollable-root {
   max-height: 20rem;
 }
-w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
+seams-tx-confirmer[data-seams-confirm-surface='wallet-iframe'] .action-content {
   max-height: 16rem;
 }
 
@@ -467,31 +467,31 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 }
 
 .card-background-border {
-  border-radius: min(var(--w3a-shape-card, 16px), 2rem);
-  background: var(--w3a-colors-colorBackground);
-  border: 1px solid var(--w3a-colors-borderPrimary);
+  border-radius: min(var(--seams-shape-card, 16px), 2rem);
+  background: var(--seams-colors-colorBackground);
+  border: 1px solid var(--seams-colors-borderPrimary);
   margin: 0px;
 }
 
 .modal-container-root .rpid {
   display: flex;
   /* Allow host to control direction via CSS var */
-  flex-direction: var(--w3a-modal__rpid__flex-direction, column);
+  flex-direction: var(--seams-modal__rpid__flex-direction, column);
   align-items: flex-start;
   gap: 2px;
   margin-top: 2px;
   font-size: 0.7rem;
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
   font-weight: 400;
 }
 .domain-text {
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
 }
 .loading-ellipsis {
   display: inline-flex;
   min-inline-size: 1.25rem;
   justify-content: center;
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
 }
 .loading-ellipsis__dot {
   opacity: 0.35;
@@ -537,15 +537,15 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 }
 .hero-heading {
   margin: 0;
-  font-size: var(--w3a-font-size-lg);
+  font-size: var(--seams-font-size-lg);
   font-weight: 500;
-  color: var(--w3a-colors-textPrimary);
+  color: var(--seams-colors-textPrimary);
   text-align: start;
 }
 .hero-subheading {
   margin: 0;
   font-size: 0.9rem;
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
   text-align: start;
 }
 
@@ -565,7 +565,7 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 
 .passkey-registration-confirm__body {
   margin: 0;
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
   font-size: 0.86rem;
   line-height: 1.42;
 }
@@ -576,10 +576,10 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
   /* one 0.75rem beat between hero, identity card, and actions */
   margin-top: 0.75rem;
   padding: 0.75rem;
-  border-radius: var(--w3a-shape-box, 10px);
+  border-radius: var(--seams-shape-box, 10px);
   background: var(
-    --w3a-colors-txDetailsBackground,
-    color-mix(in srgb, var(--w3a-colors-surface), var(--w3a-colors-colorBackground) 44%)
+    --seams-colors-txDetailsBackground,
+    color-mix(in srgb, var(--seams-colors-surface), var(--seams-colors-colorBackground) 44%)
   );
 }
 
@@ -593,14 +593,14 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 /* quiet labels, machine identifiers in mono: the values read as data, not as
    the loudest text in the dialog */
 .passkey-registration-confirm__label {
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
   font-size: 0.75rem;
   font-weight: 400;
   line-height: 1.5;
 }
 
 .passkey-registration-confirm__value {
-  color: var(--w3a-colors-textPrimary);
+  color: var(--seams-colors-textPrimary);
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
     monospace;
@@ -622,12 +622,12 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 /* Cancel needs a visible resting fill on the white card; scoped here so the
    transaction confirmers keep their bordered cancel */
 .passkey-registration-confirm .btn-cancel {
-  background-color: var(--w3a-colors-hover);
+  background-color: var(--seams-colors-hover);
   border-color: transparent;
 }
 
 .passkey-registration-confirm .btn-cancel:hover {
-  background-color: var(--w3a-colors-active);
+  background-color: var(--seams-colors-active);
   border-color: transparent;
 }
 
@@ -646,7 +646,7 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 /* Transactions section */
 
 .action-item {
-  margin-bottom: var(--w3a-spacing-sm);
+  margin-bottom: var(--seams-spacing-sm);
   overflow: hidden;
   position: relative;
 }
@@ -660,7 +660,7 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
   /* Content-aware label column that adapts to larger text sizes */
   grid-template-columns: minmax(7.5em, max-content) 1fr;
   align-items: center;
-  gap: var(--w3a-spacing-sm);
+  gap: var(--seams-spacing-sm);
   padding: 0;
   margin-bottom: 0;
   background: transparent;
@@ -675,9 +675,9 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 }
 
 .action-label {
-  font-family: var(--w3a-font-family);
-  color: var(--w3a-colors-textSecondary);
-  font-size: var(--w3a-font-size-sm);
+  font-family: var(--seams-font-family);
+  color: var(--seams-colors-textSecondary);
+  font-size: var(--seams-font-size-sm);
   line-height: 1.5;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -687,13 +687,13 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 
 .action-content {
   padding: 0.5rem;
-  font-size: var(--w3a-font-size-sm);
+  font-size: var(--seams-font-size-sm);
   line-height: 1.4;
   max-height: 50vh;
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  background: var(--w3a-colors-surface2);
+  background: var(--seams-colors-surface2);
   border-radius: 12px;
 }
 
@@ -713,25 +713,25 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 }
 
 .action-content::-webkit-scrollbar-track {
-  background: var(--w3a-colors-surface2);
-  border-radius: var(--w3a-radius-md);
+  background: var(--seams-colors-surface2);
+  border-radius: var(--seams-radius-md);
 }
 
 .action-content::-webkit-scrollbar-thumb {
-  background: var(--w3a-colors-borderPrimary);
-  border-radius: var(--w3a-radius-md);
+  background: var(--seams-colors-borderPrimary);
+  border-radius: var(--seams-radius-md);
 }
 
 .action-value {
-  color: var(--w3a-colors-textPrimary);
+  color: var(--seams-colors-textPrimary);
   word-break: break-word;
   font-weight: 500;
-  font-size: var(--w3a-font-size-sm);
+  font-size: var(--seams-font-size-sm);
 }
 
 .action-subitem {
-  margin-bottom: var(--w3a-spacing-sm);
-  padding: 0rem 0rem 0rem var(--w3a-spacing-md);
+  margin-bottom: var(--seams-spacing-sm);
+  padding: 0rem 0rem 0rem var(--seams-spacing-md);
   background: unset;
   position: relative;
 }
@@ -741,34 +741,34 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 }
 
 .action-subheader {
-  font-size: var(--w3a-font-size-sm);
+  font-size: var(--seams-font-size-sm);
   font-weight: 600;
-  color: var(--w3a-colors-accent, var(--w3a-blue400));
+  color: var(--seams-colors-accent, var(--seams-blue400));
 }
 
 .code-block {
-  background: var(--w3a-colors-surface2);
+  background: var(--seams-colors-surface2);
   border: 1px solid transparent;
-  border-radius: var(--w3a-radius-md);
+  border-radius: var(--seams-radius-md);
   /* dimensions */
   margin: 4px 0px 0px 0px;
-  padding: var(--w3a-spacing-sm);
+  padding: var(--seams-spacing-sm);
   min-height: calc(1.4em * 3);
-  max-height: var(--w3a-modal__code-block__max-height, 400px);
+  max-height: var(--seams-modal__code-block__max-height, 400px);
   height: auto;
-  max-width: var(--w3a-modal__code-block__max-width, 100%);
+  max-width: var(--seams-modal__code-block__max-width, 100%);
   overflow: auto;
   /* text styles */
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
     monospace;
-  font-size: var(--w3a-modal__code-block__font-size, var(--w3a-font-size-sm));
-  color: var(--w3a-colors-textSecondary);
+  font-size: var(--seams-modal__code-block__font-size, var(--seams-font-size-sm));
+  color: var(--seams-colors-textSecondary);
   line-height: 1.4;
   /* pretty print JSON and text wrap */
   white-space: pre;
   text-wrap: auto;
-  word-break: var(--w3a-modal__code-block__word-break, break-word);
+  word-break: var(--seams-modal__code-block__word-break, break-word);
   /* Ensure resize handle is visible and functional */
   resize: vertical;
   box-sizing: border-box;
@@ -779,7 +779,7 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
     monospace;
   font-weight: 600;
-  color: var(--w3a-colors-highlightMethodName, var(--w3a-colors-info, var(--w3a-blue400)));
+  color: var(--seams-colors-highlightMethodName, var(--seams-colors-info, var(--seams-blue400)));
 }
 
 /* Button styles */
@@ -793,9 +793,9 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 }
 
 .error-banner {
-  color: var(--w3a-colors-error, var(--w3a-red400));
+  color: var(--seams-colors-error, var(--seams-red400));
   font-size: 0.9rem;
-  text-align: var(--w3a-modal__error-banner__text-align, start);
+  text-align: var(--seams-modal__error-banner__text-align, start);
   font-weight: 500;
 }
 
@@ -808,7 +808,7 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 }
 
 .email-otp-confirm__label {
-  color: var(--w3a-colors-textPrimary);
+  color: var(--seams-colors-textPrimary);
   font-size: 0.8rem;
   font-weight: 600;
 }
@@ -839,7 +839,7 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
   background: transparent;
   color: transparent;
   caret-color: transparent;
-  font-family: var(--w3a-font-family);
+  font-family: var(--seams-font-family);
   font-size: 16px;
   outline: none;
 }
@@ -870,11 +870,11 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
   border-radius: 6px;
   background: color-mix(
     in srgb,
-    var(--w3a-colors-borderPrimary),
-    var(--w3a-colors-colorBackground) 68%
+    var(--seams-colors-borderPrimary),
+    var(--seams-colors-colorBackground) 68%
   );
-  color: var(--w3a-colors-textPrimary);
-  font-family: var(--w3a-font-family);
+  color: var(--seams-colors-textPrimary);
+  font-family: var(--seams-font-family);
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1;
@@ -887,24 +887,24 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 .email-otp-confirm__slot.is-filled {
   background: color-mix(
     in srgb,
-    var(--w3a-colors-colorBackground),
-    var(--w3a-colors-textPrimary) 7%
+    var(--seams-colors-colorBackground),
+    var(--seams-colors-textPrimary) 7%
   );
 }
 
 .email-otp-confirm__code-field:focus-within .email-otp-confirm__slot {
-  border-color: var(--w3a-colors-primary, var(--w3a-colors-textPrimary));
+  border-color: var(--seams-colors-primary, var(--seams-colors-textPrimary));
   box-shadow: 0 0 0 3px rgba(142, 122, 180, 0.18);
 }
 
 .email-otp-confirm__helper {
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
   font-size: 0.75rem;
   line-height: 1.35;
 }
 
 .email-otp-confirm__error {
-  color: var(--w3a-colors-error, var(--w3a-red400));
+  color: var(--seams-colors-error, var(--seams-red400));
   font-size: 0.8rem;
   font-weight: 600;
 }
@@ -913,45 +913,45 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
   justify-self: center;
   border: 0;
   background: transparent;
-  color: var(--w3a-colors-primary, var(--w3a-colors-textPrimary));
+  color: var(--seams-colors-primary, var(--seams-colors-textPrimary));
   cursor: pointer;
-  font-family: var(--w3a-font-family);
+  font-family: var(--seams-font-family);
   font-size: 0.8rem;
   font-weight: 700;
   padding: 0.15rem 0.45rem;
 }
 
 .email-otp-confirm__resend:disabled {
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
   cursor: not-allowed;
 }
 
 .btn {
-  background-color: var(--w3a-colors-surface);
-  box-shadow: var(--w3a-modal__btn__box-shadow, none);
-  color: var(--w3a-colors-textPrimary);
+  background-color: var(--seams-colors-surface);
+  box-shadow: var(--seams-modal__btn__box-shadow, none);
+  color: var(--seams-colors-textPrimary);
   text-align: center;
-  border-radius: var(--w3a-shape-control, 10px);
+  border-radius: var(--seams-shape-control, 10px);
   margin-right: 1px;
   justify-content: center;
   align-items: center;
   /* Scalable tap target: ~44px at 16px root */
   min-height: 2.75em;
   width: 100%;
-  padding: var(--w3a-modal__btn__padding, 0.7em 1em);
-  font-size: var(--w3a-font-size-base);
+  padding: var(--seams-modal__btn__padding, 0.7em 1em);
+  font-size: var(--seams-font-size-base);
   display: inline-flex;
   gap: 0.5em;
   cursor: pointer;
   border: none;
-  font-family: var(--w3a-font-family);
-  font-weight: var(--w3a-modal__btn__font-weight, 500);
+  font-family: var(--seams-font-family);
+  font-weight: var(--seams-modal__btn__font-weight, 500);
   min-width: 0;
   position: relative;
   overflow: hidden;
   /* Smooth press-down and release animation */
   transition:
-    transform var(--w3a-modal__btn__transition-transform, 120ms cubic-bezier(0.2, 0.6, 0.2, 1)),
+    transform var(--seams-modal__btn__transition-transform, 120ms cubic-bezier(0.2, 0.6, 0.2, 1)),
     background-color 120ms ease-out,
     box-shadow 120ms ease-out;
   transform-origin: center;
@@ -960,53 +960,53 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 }
 
 .btn:hover {
-  background-color: var(--w3a-colors-hover);
-  box-shadow: var(--w3a-modal__btn-hover__box-shadow, none);
+  background-color: var(--seams-colors-hover);
+  box-shadow: var(--seams-modal__btn-hover__box-shadow, none);
 }
 
 .btn:active {
-  background-color: var(--w3a-colors-active);
+  background-color: var(--seams-colors-active);
   /* Default to a subtle scale-down on press; overridable via CSS var */
-  transform: var(--w3a-modal__btn__active-transform, scale(0.98));
+  transform: var(--seams-modal__btn__active-transform, scale(0.98));
 }
 
 .btn-cancel {
   box-shadow: none;
-  color: var(--w3a-colors-textPrimary);
-  background-color: var(--w3a-colors-surface);
-  border: 1px solid var(--w3a-colors-borderPrimary);
+  color: var(--seams-colors-textPrimary);
+  background-color: var(--seams-colors-surface);
+  border: 1px solid var(--seams-colors-borderPrimary);
 }
 
 .btn-cancel:hover {
-  color: var(--w3a-colors-textPrimary);
-  background-color: var(--w3a-colors-hover);
-  border: 1px solid var(--w3a-colors-borderHover);
+  color: var(--seams-colors-textPrimary);
+  background-color: var(--seams-colors-hover);
+  border: 1px solid var(--seams-colors-borderHover);
 }
 
 .btn-confirm {
-  background-color: var(--w3a-colors-buttonBackground);
-  color: var(--w3a-colors-textButton, #fff);
+  background-color: var(--seams-colors-buttonBackground);
+  color: var(--seams-colors-textButton, #fff);
   border: 1px solid transparent;
 }
 
 .btn-confirm:hover {
-  background-color: var(--w3a-colors-buttonHoverBackground);
+  background-color: var(--seams-colors-buttonHoverBackground);
   border: 1px solid transparent;
 }
 
 .btn-danger {
-  background-color: var(--w3a-red500);
+  background-color: var(--seams-red500);
   color: #ffffff;
-  border: 1px solid var(--w3a-red450);
+  border: 1px solid var(--seams-red450);
 }
 .btn-danger:hover {
-  background-color: var(--w3a-red400);
+  background-color: var(--seams-red400);
 }
 
 .btn:focus-visible {
-  outline: 2px solid var(--w3a-colors-focus, var(--w3a-blue400));
+  outline: 2px solid var(--seams-colors-focus, var(--seams-blue400));
   outline-offset: 3px;
-  box-shadow: var(--w3a-modal__btn__focus-box-shadow, 0 0 0 3px oklch(0.55 0.18 240 / 0.12));
+  box-shadow: var(--seams-modal__btn__focus-box-shadow, 0 0 0 3px oklch(0.55 0.18 240 / 0.12));
 }
 
 .btn:disabled {
@@ -1053,7 +1053,7 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
   .action-row {
     grid-template-columns: 100px 1fr;
     gap: 0.25rem;
-    padding: var(--w3a-spacing-sm);
+    padding: var(--seams-spacing-sm);
   }
 
   .buttons {
@@ -1072,11 +1072,11 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 
   .btn {
     width: 100%;
-    padding: var(--w3a-spacing-md) calc(var(--w3a-spacing-md) + var(--w3a-spacing-xs));
+    padding: var(--seams-spacing-md) calc(var(--seams-spacing-md) + var(--seams-spacing-xs));
   }
 
   .action-content {
-    font-size: var(--w3a-font-size-sm);
+    font-size: var(--seams-font-size-sm);
     max-height: 100px;
   }
 }
@@ -1104,7 +1104,7 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
   border-radius: 50%;
   border-top-color: rgba(255, 255, 255, 0.95);
   animation: spin 1s ease-in-out infinite;
-  margin-right: var(--w3a-spacing-sm);
+  margin-right: var(--seams-spacing-sm);
 }
 
 @keyframes spin {
@@ -1127,13 +1127,13 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
     background: transparent;
   }
   .action-content {
-    background: var(--w3a-colors-surface2);
+    background: var(--seams-colors-surface2);
   }
   .btn {
-    background: var(--w3a-colors-surface);
+    background: var(--seams-colors-surface);
   }
   .btn-confirm {
-    background: var(--w3a-colors-buttonBackground);
+    background: var(--seams-colors-buttonBackground);
   }
 }
 
@@ -1141,16 +1141,16 @@ w3a-tx-confirmer[data-w3a-confirm-surface='wallet-iframe'] .action-content {
 :host {
   display: block;
 }
-w3a-drawer-tx-confirmer {
+seams-drawer-tx-confirmer {
   display: block;
   inline-size: fit-content;
   max-inline-size: 100%;
 }
 
 /* Narrower sheet for tx confirmer drawer */
-w3a-drawer {
+seams-drawer {
   /* Scale with viewport and base font size for better zoom behavior */
-  --w3a-drawer__max-width: 24rem;
+  --seams-drawer__max-width: 24rem;
 }
 .drawer-tx-confirmer-root {
   display: block;
@@ -1169,7 +1169,7 @@ w3a-drawer {
 }
 .drawer-title {
   margin: 0;
-  font-size: var(--w3a-font-size-lg, 1.125rem);
+  font-size: var(--seams-font-size-lg, 1.125rem);
   line-height: 1.3;
   font-weight: 600;
 }
@@ -1178,17 +1178,17 @@ w3a-drawer {
   gap: 8px;
 }
 .drawer-btn {
-  border: 1px solid var(--w3a-colors-borderPrimary, rgba(255, 255, 255, 0.12));
-  background: var(--w3a-colors-surface, rgba(255, 255, 255, 0.06));
-  color: var(--w3a-colors-textPrimary, #f6f7f8);
+  border: 1px solid var(--seams-colors-borderPrimary, rgba(255, 255, 255, 0.12));
+  background: var(--seams-colors-surface, rgba(255, 255, 255, 0.06));
+  color: var(--seams-colors-textPrimary, #f6f7f8);
   border-radius: 10px;
   padding: 0.6em 0.9em;
   font-weight: 600;
   cursor: pointer;
 }
 .drawer-btn.primary {
-  background: var(--w3a-btn-primary, var(--w3a-colors-buttonBackground, #4daffe));
-  color: var(--w3a-colors-textButton, #0b1220);
+  background: var(--seams-btn-primary, var(--seams-colors-buttonBackground, #4daffe));
+  color: var(--seams-colors-textButton, #0b1220);
   border-color: transparent;
 }
 .footer-actions {
@@ -1238,7 +1238,7 @@ w3a-drawer {
 .drawer-tx-confirmer-root .margin-left1 {
   margin-left: 0;
 }
-w3a-drawer .above-fold > .drawer-tx-confirmer-root {
+seams-drawer .above-fold > .drawer-tx-confirmer-root {
   width: 100%;
   max-width: 100%;
 }
@@ -1251,7 +1251,7 @@ w3a-drawer .above-fold > .drawer-tx-confirmer-root {
    one unit (tight 4-8px gaps), so the dominant break sits before the
    transaction content. Section margins collapse, so the 8px section default
    is lowered here or it floors every gap; the buttons are inside
-   w3a-tx-confirm-content and keep their own spacing. The modal keeps the
+   seams-tx-confirm-content and keep their own spacing. The modal keeps the
    defaults (its header is centered with different rhythm). */
 .drawer-tx-confirmer-root .section {
   margin: 4px 0;
@@ -1273,7 +1273,7 @@ w3a-drawer .above-fold > .drawer-tx-confirmer-root {
   margin-top: 0.5rem;
   font-size: 0.8rem;
   line-height: 1.35;
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
   max-width: 340px;
   margin: 0.5rem;
   /* overflow-wrap: anywhere; */
@@ -1285,7 +1285,7 @@ w3a-drawer .above-fold > .drawer-tx-confirmer-root {
   align-items: baseline;
   justify-content: center;
   gap: 0.25rem;
-  color: var(--w3a-colors-textPrimary);
+  color: var(--seams-colors-textPrimary);
   font-weight: 500;
   min-block-size: 1.55rem;
   max-width: none;
@@ -1307,7 +1307,7 @@ w3a-drawer .above-fold > .drawer-tx-confirmer-root {
   min-block-size: 1.55rem;
   max-width: none;
   margin: 0.5rem auto;
-  color: var(--w3a-colors-textPrimary);
+  color: var(--seams-colors-textPrimary);
   font-size: 0.82rem;
   font-weight: 600;
   text-align: center;
@@ -1317,10 +1317,10 @@ w3a-drawer .above-fold > .drawer-tx-confirmer-root {
   appearance: none;
   border: 0;
   border-radius: 999px;
-  background: var(--w3a-modal__funding-copy__background, rgba(151, 124, 184, 0.16));
+  background: var(--seams-modal__funding-copy__background, rgba(151, 124, 184, 0.16));
   color: var(
-    --w3a-modal__funding-copy__color,
-    var(--w3a-colors-accent, var(--w3a-colors-primary, var(--w3a-colors-textPrimary)))
+    --seams-modal__funding-copy__color,
+    var(--seams-colors-accent, var(--seams-colors-primary, var(--seams-colors-textPrimary)))
   );
   cursor: copy;
   display: inline-flex;
@@ -1334,7 +1334,7 @@ w3a-drawer .above-fold > .drawer-tx-confirmer-root {
   vertical-align: baseline;
 }
 .confirmation-body__copy-target:hover {
-  background: var(--w3a-modal__funding-copy__background-hover, rgba(151, 124, 184, 0.24));
+  background: var(--seams-modal__funding-copy__background-hover, rgba(151, 124, 184, 0.24));
 }
 .confirmation-body__copy-target:focus-visible {
   outline: 2px solid currentColor;
@@ -1349,7 +1349,7 @@ w3a-drawer .above-fold > .drawer-tx-confirmer-root {
   font-size: 0.7rem;
   overflow-wrap: anywhere;
   hyphens: auto;
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
   font-weight: 400;
 }
 .secure-indicator {
@@ -1363,7 +1363,7 @@ w3a-drawer .above-fold > .drawer-tx-confirmer-root {
   height: 1em;
   margin-inline-end: 0.5em;
   flex: none;
-  color: var(--w3a-colors-info, var(--w3a-blue600));
+  color: var(--seams-colors-info, var(--seams-blue600));
 }
 
 .security-details {
@@ -1371,23 +1371,23 @@ w3a-drawer .above-fold > .drawer-tx-confirmer-root {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
 }
 .block-height-icon {
   width: 1em;
   height: 1em;
   margin-inline-end: 0.5em;
   flex: none;
-  color: var(--w3a-colors-info, var(--w3a-blue600));
+  color: var(--seams-colors-info, var(--seams-blue600));
 }
 .divider {
   width: 1px;
   height: 12px;
-  background: var(--w3a-colors-borderPrimary, rgba(255, 255, 255, 0.18));
+  background: var(--seams-colors-borderPrimary, rgba(255, 255, 255, 0.18));
   margin: 0 4px;
 }
 
 /* TxTree connector elbow tweak within confirmers: shorten by 0.1rem via token */
-:host w3a-tx-tree {
-  --w3a-tree__connector__elbow-delta: -0.1rem;
+:host seams-tx-tree {
+  --seams-tree__connector__elbow-delta: -0.1rem;
 }

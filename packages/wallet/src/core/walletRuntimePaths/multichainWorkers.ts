@@ -15,12 +15,12 @@ function resolveOverride(kind: MultichainWorkerKind): string | undefined {
   const ovAny = (typeof window !== 'undefined' ? (window as any) : {}) as any;
   switch (kind) {
     case 'evmCrypto':
-      return typeof ovAny.__W3A_EVM_CRYPTO_WORKER_URL__ === 'string'
-        ? ovAny.__W3A_EVM_CRYPTO_WORKER_URL__
+      return typeof ovAny.__SEAMS_EVM_CRYPTO_WORKER_URL__ === 'string'
+        ? ovAny.__SEAMS_EVM_CRYPTO_WORKER_URL__
         : undefined;
     case 'tempoSigner':
-      return typeof ovAny.__W3A_TEMPO_SIGNER_WORKER_URL__ === 'string'
-        ? ovAny.__W3A_TEMPO_SIGNER_WORKER_URL__
+      return typeof ovAny.__SEAMS_TEMPO_SIGNER_WORKER_URL__ === 'string'
+        ? ovAny.__SEAMS_TEMPO_SIGNER_WORKER_URL__
         : undefined;
   }
 }

@@ -37,7 +37,7 @@ export class HaloBorderElement extends LitElementWithProps {
   private _stylesReady = false;
   private _stylePromises: Promise<void>[] = [];
   private _stylesAwaiting: Promise<void> | null = null;
-  private static readonly _STYLE_MARKER = 'data-w3a-halo-border-css';
+  private static readonly _STYLE_MARKER = 'data-seams-halo-border-css';
 
   protected createRenderRoot(): HTMLElement | DocumentFragment {
     const root = super.createRenderRoot();
@@ -82,8 +82,8 @@ export class HaloBorderElement extends LitElementWithProps {
       `link[${HaloBorderElement._STYLE_MARKER}]`,
     ) as HTMLLinkElement | null;
     if (!link) return false;
-    const statefulLink = link as HTMLLinkElement & { _w3aLoaded?: boolean };
-    return !!(statefulLink._w3aLoaded || link.sheet);
+    const statefulLink = link as HTMLLinkElement & { _seamsLoaded?: boolean };
+    return !!(statefulLink._seamsLoaded || link.sheet);
   }
 
   private _rafId: number | null = null;
@@ -168,10 +168,10 @@ export class HaloBorderElement extends LitElementWithProps {
   }
 }
 
-import { W3A_HALO_BORDER_ID } from '../../registry';
+import { SEAMS_HALO_BORDER_ID } from '../../registry';
 
-if (!customElements.get(W3A_HALO_BORDER_ID)) {
-  customElements.define(W3A_HALO_BORDER_ID, HaloBorderElement);
+if (!customElements.get(SEAMS_HALO_BORDER_ID)) {
+  customElements.define(SEAMS_HALO_BORDER_ID, HaloBorderElement);
 }
 
 export default HaloBorderElement;
