@@ -34,13 +34,20 @@ const POOL_FILL_INIT_KEYS = [
 ] as const;
 const POOL_FILL_STEP_KEYS = [
   'presignSessionId',
+  'ceremonyExpiresAtMs',
+  'materialExpiresAtMs',
   'stage',
   'outgoingMessagesB64u',
   'requestTag',
   'authorization',
   'operation',
 ] as const;
-const POOL_FILL_ENVELOPE_KEYS = ['kind', 'scope', 'expiresAtMs'] as const;
+const POOL_FILL_ENVELOPE_KEYS = [
+  'kind',
+  'scope',
+  'ceremonyExpiresAtMs',
+  'materialExpiresAtMs',
+] as const;
 
 export type RouterAbEcdsaPoolFillAuthorization =
   | {
@@ -142,8 +149,17 @@ export function parseRouterAbEcdsaDerivationPoolFillInitRouteRequest(
   if (!scope) {
     return invalidThresholdEcdsaBody('poolFill.scope is invalid');
   }
-  if (typeof raw.poolFill.expiresAtMs !== 'number' || !Number.isFinite(raw.poolFill.expiresAtMs)) {
-    return invalidThresholdEcdsaBody('poolFill.expiresAtMs is required');
+  if (
+    typeof raw.poolFill.ceremonyExpiresAtMs !== 'number' ||
+    !Number.isFinite(raw.poolFill.ceremonyExpiresAtMs)
+  ) {
+    return invalidThresholdEcdsaBody('poolFill.ceremonyExpiresAtMs is required');
+  }
+  if (
+    typeof raw.poolFill.materialExpiresAtMs !== 'number' ||
+    !Number.isFinite(raw.poolFill.materialExpiresAtMs)
+  ) {
+    return invalidThresholdEcdsaBody('poolFill.materialExpiresAtMs is required');
   }
   if (raw.count !== undefined && (typeof raw.count !== 'number' || !Number.isFinite(raw.count))) {
     return invalidThresholdEcdsaBody('count must be a number');
@@ -169,7 +185,8 @@ export function parseRouterAbEcdsaDerivationPoolFillInitRouteRequest(
       poolFill: {
         kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
         scope,
-        expiresAtMs: raw.poolFill.expiresAtMs,
+        ceremonyExpiresAtMs: raw.poolFill.ceremonyExpiresAtMs,
+        materialExpiresAtMs: raw.poolFill.materialExpiresAtMs,
       },
       ...routeAuthorization,
     },
@@ -189,6 +206,18 @@ export function parseRouterAbEcdsaDerivationPoolFillStepRouteRequest(
   const presignSessionId = optionalStringField(raw, 'presignSessionId');
   if (!presignSessionId) {
     return invalidThresholdEcdsaBody('presignSessionId is required');
+  }
+  if (
+    typeof raw.ceremonyExpiresAtMs !== 'number' ||
+    !Number.isFinite(raw.ceremonyExpiresAtMs)
+  ) {
+    return invalidThresholdEcdsaBody('ceremonyExpiresAtMs is required');
+  }
+  if (
+    typeof raw.materialExpiresAtMs !== 'number' ||
+    !Number.isFinite(raw.materialExpiresAtMs)
+  ) {
+    return invalidThresholdEcdsaBody('materialExpiresAtMs is required');
   }
   if (raw.stage !== 'triples' && raw.stage !== 'presign') {
     return invalidThresholdEcdsaBody('stage must be triples or presign');
@@ -215,6 +244,8 @@ export function parseRouterAbEcdsaDerivationPoolFillStepRouteRequest(
     ok: true,
     request: {
       presignSessionId,
+      ceremonyExpiresAtMs: raw.ceremonyExpiresAtMs,
+      materialExpiresAtMs: raw.materialExpiresAtMs,
       stage: raw.stage,
       ...(outgoingMessagesB64u ? { outgoingMessagesB64u } : {}),
       ...(optionalStringField(raw, 'requestTag') ? { requestTag: optionalStringField(raw, 'requestTag') } : {}),

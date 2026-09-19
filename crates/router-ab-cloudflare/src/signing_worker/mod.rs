@@ -109,6 +109,7 @@ pub enum CloudflareSigningWorkerEcdsaPresignRequestedStageV1 {
 }
 
 const MAX_ECDSA_PRESIGN_SESSION_TTL_MS: u64 = 15 * 60 * 1_000;
+pub(crate) const MAX_ECDSA_PRESIGN_MATERIAL_LIFETIME_MS: u64 = 24 * 60 * 60 * 1_000;
 
 fn validate_presign_session_expiry(
     field: &str,
@@ -132,13 +133,38 @@ fn validate_presign_session_expiry(
     Ok(())
 }
 
+fn validate_presign_material_expiry(
+    material_expires_at_ms: u64,
+    ceremony_expires_at_ms: u64,
+    now_unix_ms: u64,
+) -> RouterAbProtocolResult<()> {
+    require_positive_ms(
+        "ECDSA presign material_expires_at_ms",
+        material_expires_at_ms,
+    )?;
+    if material_expires_at_ms < ceremony_expires_at_ms {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MalformedWirePayload,
+            "ECDSA presign material expiry must cover the ceremony",
+        ));
+    }
+    if material_expires_at_ms.saturating_sub(now_unix_ms) > MAX_ECDSA_PRESIGN_MATERIAL_LIFETIME_MS {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MalformedWirePayload,
+            "ECDSA presign material expiry exceeds the server maximum",
+        ));
+    }
+    Ok(())
+}
+
 /// Private request to create a SigningWorker-owned ECDSA presign session.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
     pub scope: RouterAbEcdsaDerivationNormalSigningScopeV1,
     pub presign_session_id: String,
-    pub expires_at_ms: u64,
+    pub ceremony_expires_at_ms: u64,
+    pub material_expires_at_ms: u64,
 }
 
 impl CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
@@ -146,8 +172,13 @@ impl CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
         self.scope.validate()?;
         require_non_empty("presign_session_id", &self.presign_session_id)?;
         validate_presign_session_expiry(
-            "ECDSA presign session expires_at_ms",
-            self.expires_at_ms,
+            "ECDSA presign session ceremony_expires_at_ms",
+            self.ceremony_expires_at_ms,
+            now_unix_ms,
+        )?;
+        validate_presign_material_expiry(
+            self.material_expires_at_ms,
+            self.ceremony_expires_at_ms,
             now_unix_ms,
         )?;
         Ok(())
@@ -162,7 +193,8 @@ pub struct CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 {
     pub presign_session_id: String,
     pub requested_stage: CloudflareSigningWorkerEcdsaPresignRequestedStageV1,
     pub outgoing_messages_b64u: Vec<String>,
-    pub expires_at_ms: u64,
+    pub ceremony_expires_at_ms: u64,
+    pub material_expires_at_ms: u64,
 }
 
 impl CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 {
@@ -170,8 +202,13 @@ impl CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 {
         self.scope.validate()?;
         require_non_empty("presign_session_id", &self.presign_session_id)?;
         validate_presign_session_expiry(
-            "ECDSA presign session expires_at_ms",
-            self.expires_at_ms,
+            "ECDSA presign session ceremony_expires_at_ms",
+            self.ceremony_expires_at_ms,
+            now_unix_ms,
+        )?;
+        validate_presign_material_expiry(
+            self.material_expires_at_ms,
+            self.ceremony_expires_at_ms,
             now_unix_ms,
         )?;
         for message in &self.outgoing_messages_b64u {
@@ -2655,7 +2692,10 @@ fn map_cloudflare_online_ecdsa_error_v1(error: OnlineError) -> RouterAbProtocolE
 
 #[cfg(test)]
 mod presign_expiry_tests {
-    use super::{validate_presign_session_expiry, MAX_ECDSA_PRESIGN_SESSION_TTL_MS};
+    use super::{
+        validate_presign_material_expiry, validate_presign_session_expiry,
+        MAX_ECDSA_PRESIGN_MATERIAL_LIFETIME_MS, MAX_ECDSA_PRESIGN_SESSION_TTL_MS,
+    };
     use crate::RouterAbProtocolErrorCode;
 
     #[test]
@@ -2678,6 +2718,28 @@ mod presign_expiry_tests {
             now_ms,
         )
         .expect_err("expiry beyond the server maximum must be rejected");
+        assert_eq!(
+            error.code(),
+            RouterAbProtocolErrorCode::MalformedWirePayload
+        );
+    }
+
+    #[test]
+    fn material_expiry_accepts_a_longer_bounded_retention_window() {
+        let now_ms = 1_900_000_000_000;
+        validate_presign_material_expiry(
+            now_ms + MAX_ECDSA_PRESIGN_MATERIAL_LIFETIME_MS,
+            now_ms + MAX_ECDSA_PRESIGN_SESSION_TTL_MS,
+            now_ms,
+        )
+        .expect("completed material may outlive the ceremony");
+    }
+
+    #[test]
+    fn material_expiry_rejects_shorter_than_the_ceremony() {
+        let now_ms = 1_900_000_000_000;
+        let error = validate_presign_material_expiry(now_ms + 1_000, now_ms + 2_000, now_ms)
+            .expect_err("completed material must cover the ceremony");
         assert_eq!(
             error.code(),
             RouterAbProtocolErrorCode::MalformedWirePayload

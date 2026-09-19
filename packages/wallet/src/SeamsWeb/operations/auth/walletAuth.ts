@@ -15,7 +15,9 @@ import {
   getRecentUnlocks as getRecentUnlocksCore,
   unlockResolvedWalletSubjectSet as unlockCoreWithSubjectSet,
   lock as lockCore,
+  logout as logoutCore,
   type LockOperationContext,
+  type LogoutOperationContext,
 } from '@/SeamsWeb/operations/auth/login';
 import { IndexedDBManager } from '@/core/indexedDB';
 import type { LocalWalletAuthMethodRecordV2 } from '@/core/indexedDB/passkeyClientDB.types';
@@ -61,6 +63,14 @@ export type WalletLockDomainDeps = {
   walletIframe: {
     shouldUseWalletIframe(): boolean;
     requireRouter(): Promise<{ lock(): Promise<unknown> }>;
+  };
+};
+
+export type WalletLogoutDomainDeps = {
+  getContext: () => LogoutOperationContext;
+  walletIframe: {
+    shouldUseWalletIframe(): boolean;
+    requireRouter(): Promise<{ logout(): Promise<unknown> }>;
   };
 };
 
@@ -176,6 +186,15 @@ export async function lockDomain(deps: WalletLockDomainDeps): Promise<void> {
     return;
   }
   await lockCore(deps.getContext());
+}
+
+export async function logoutDomain(deps: WalletLogoutDomainDeps): Promise<void> {
+  if (deps.walletIframe.shouldUseWalletIframe()) {
+    const router = await deps.walletIframe.requireRouter();
+    await router.logout();
+    return;
+  }
+  await logoutCore(deps.getContext());
 }
 
 export async function getWalletSessionDomain(

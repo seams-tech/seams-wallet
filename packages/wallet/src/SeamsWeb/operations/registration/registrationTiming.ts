@@ -166,6 +166,36 @@ export function isRegistrationBenchmarkDiagnosticsEnabled(): boolean {
   return globalFlag === true;
 }
 
+export function emitNearRegistrationTiming(input: {
+  ceremonyId: string;
+  stage:
+    | 'custody_join'
+    | 'server_finalize'
+    | 'local_publication'
+    | 'session_install'
+    | 'signer_activation'
+    | 'durable_ready'
+    | 'provisioning_total';
+  startedAt: number;
+  outcome: 'success' | 'failure';
+}): void {
+  if (!isRegistrationBenchmarkDiagnosticsEnabled()) return;
+  try {
+    console.info(
+      '[Registration] NEAR timing',
+      JSON.stringify({
+        event: 'near_registration_timing',
+        ceremonyId: input.ceremonyId,
+        stage: input.stage,
+        durationMs: Math.max(0, performance.now() - input.startedAt),
+        outcome: input.outcome,
+      }),
+    );
+  } catch {
+    // Diagnostics cannot change registration behavior.
+  }
+}
+
 type RegistrationTimingAuthMethod = RegistrationAuthMethodInput['kind'];
 
 type RegistrationTimingSignerBranch = 'near_ed25519' | 'evm_family_ecdsa';

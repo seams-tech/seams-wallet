@@ -21,7 +21,11 @@ import { resolveWorkerUrl } from '@/core/walletRuntimePaths';
 import { resolveEmailOtpWorkerUrl } from '@/core/walletRuntimePaths/emailOtpWorker';
 import { resolveWalletCustodyCeremonyWorkerUrl } from '@/core/walletRuntimePaths/walletCustodyCeremonyWorker';
 import { EcdsaClientWorkerControlKind } from './ecdsaClientWorkerChannels';
-import { clearAllRouterAbEcdsaDerivationClientPresignatures } from '../routerAb/ecdsaDerivation/presignaturePool';
+import {
+  clearAllRouterAbEcdsaDerivationClientPresignatures,
+  clearRouterAbEcdsaDerivationClientPresignaturesForWallet,
+} from '../routerAb/ecdsaDerivation/presignaturePool';
+import type { EcdsaClientPresignCleanupTarget } from './ecdsaPresignLifecycle';
 import type {
   EcdsaDerivationWorkerOperationRequest,
   EcdsaDerivationWorkerOperationResult,
@@ -313,6 +317,26 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
       this.requireWorkerReadiness('evmCrypto'),
       this.requireWorkerReadiness('tempoSigner'),
     ]);
+  }
+
+  async clearEcdsaClientWorkerState(target: EcdsaClientPresignCleanupTarget): Promise<void> {
+    switch (target.kind) {
+      case 'all':
+        this.resetWorker('ecdsaPresignClient');
+        return;
+      case 'wallet':
+        clearRouterAbEcdsaDerivationClientPresignaturesForWallet(target.walletId);
+        if (!this.workers.has('ecdsaPresignClient')) return;
+        await this.requestOperation({
+          kind: 'ecdsaPresignClient',
+          request: {
+            type: EcdsaPresignClientRequestType.ClearWallet,
+            timeoutMs: 20_000,
+            payload: { walletId: target.walletId },
+          },
+        });
+        return;
+    }
   }
 
   private requireWorkerReadiness(kind: WasmPrewarmWorkerKind): Promise<void> {
@@ -726,7 +750,10 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
     authorityKind: 'role_local_derivation_handle' | 'linked_holder_signing_material',
   ): void {
     if (this.presignAuthorityKind === authorityKind) return;
-    clearAllRouterAbEcdsaDerivationClientPresignatures();
+    // First connection happens inside the initial refill; only replacement invalidates it.
+    if (this.presignAuthorityKind !== null) {
+      clearAllRouterAbEcdsaDerivationClientPresignatures();
+    }
     const derivationWorker = this.getOrCreateWorker('ecdsaDerivationClient');
     const channel = new MessageChannel();
     const controlKind =

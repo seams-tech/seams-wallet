@@ -4,7 +4,8 @@ export const FIXED_ECDSA_PRESIGN_PROTOCOL_ID =
   'seams/router-ab-ecdsa-presign/fixed-2of2/v1' as const;
 
 export type EcdsaClientPresignPoolIdentity = {
-  readonly poolKey: string;
+  readonly relayerUrl: string;
+  readonly materialActivationB64u: string;
   readonly materialActivationId: string;
   readonly capability: string;
   readonly keyBinding: string;
@@ -17,7 +18,8 @@ export type EcdsaClientPresignPoolIdentity = {
 };
 
 function requireIdentityString(value: unknown, label: string): string {
-  if (typeof value !== 'string' || !value.trim()) throw new Error(`${label} is required`);
+  if (typeof value !== 'string' || !value) throw new Error(`${label} is required`);
+  if (value.trim() !== value) throw new Error(`${label} must be canonical`);
   return value;
 }
 
@@ -32,8 +34,16 @@ export function parseEcdsaClientPresignPoolIdentity(
   if (raw.protocolId !== FIXED_ECDSA_PRESIGN_PROTOCOL_ID) {
     throw new Error('poolIdentity.protocolId is unsupported');
   }
+  const relayerUrl = requireIdentityString(raw.relayerUrl, 'poolIdentity.relayerUrl');
+  if (relayerUrl.replace(/\/+$/g, '') !== relayerUrl) {
+    throw new Error('poolIdentity.relayerUrl must be canonical');
+  }
   return {
-    poolKey: requireIdentityString(raw.poolKey, 'poolIdentity.poolKey'),
+    relayerUrl,
+    materialActivationB64u: requireIdentityString(
+      raw.materialActivationB64u,
+      'poolIdentity.materialActivationB64u',
+    ),
     materialActivationId: requireIdentityString(
       raw.materialActivationId,
       'poolIdentity.materialActivationId',
@@ -60,7 +70,8 @@ export function equalEcdsaClientPresignPoolIdentity(
   right: EcdsaClientPresignPoolIdentity,
 ): boolean {
   return (
-    left.poolKey === right.poolKey &&
+    left.relayerUrl === right.relayerUrl &&
+    left.materialActivationB64u === right.materialActivationB64u &&
     left.materialActivationId === right.materialActivationId &&
     left.capability === right.capability &&
     left.keyBinding === right.keyBinding &&
@@ -71,4 +82,13 @@ export function equalEcdsaClientPresignPoolIdentity(
     left.activationEpoch === right.activationEpoch &&
     left.protocolId === right.protocolId
   );
+}
+
+export function ecdsaClientPresignPoolKey(identity: EcdsaClientPresignPoolIdentity): string {
+  return [
+    identity.protocolId,
+    identity.relayerUrl,
+    identity.signingScopeB64u,
+    identity.materialActivationB64u,
+  ].join('|');
 }

@@ -2,7 +2,6 @@ import { isObject } from '@shared/utils/validation';
 import type { AuthService } from '../AuthService';
 import { coerceLogger, type Logger } from '../logger';
 import type { ThresholdStoreConfigInput } from '../types';
-import { createThresholdEcdsaSigningStores } from '../ThresholdService/stores/EcdsaSigningStore';
 import {
   createEcdsaWalletSessionStore,
   createEd25519WalletSessionStore,
@@ -58,7 +57,6 @@ function thresholdStoreConfigFromEnvironment(
     THRESHOLD_ECDSA_KEYSTORE_PREFIX: environment.THRESHOLD_ECDSA_KEYSTORE_PREFIX,
     THRESHOLD_ECDSA_SESSION_PREFIX: environment.THRESHOLD_ECDSA_SESSION_PREFIX,
     THRESHOLD_ECDSA_WALLET_SESSION_PREFIX: environment.THRESHOLD_ECDSA_WALLET_SESSION_PREFIX,
-    THRESHOLD_ECDSA_PRESIGN_PREFIX: environment.THRESHOLD_ECDSA_PRESIGN_PREFIX,
     THRESHOLD_ED25519_CLIENT_PARTICIPANT_ID:
       environment.THRESHOLD_ED25519_CLIENT_PARTICIPANT_ID,
     THRESHOLD_ED25519_RELAYER_PARTICIPANT_ID:
@@ -102,7 +100,6 @@ export function createRouterAbSigningRuntimes(input: {
 
   const ed25519WalletSessionStore = createEd25519WalletSessionStore({ config, logger, isNode });
   const ecdsaWalletSessionStore = createEcdsaWalletSessionStore({ config, logger, isNode });
-  const ecdsaSigningStores = createThresholdEcdsaSigningStores({ config, logger, isNode });
   const ensureReady = ensureRouterAbSigningRuntimeReady.bind(input.authService);
   const normalSigningConfig = parseRouterAbNormalSigningRuntimeConfig(configRecord);
   const signingWorkerTransport = requireRouterAbConfiguredSigningWorkerPrivateTransport(

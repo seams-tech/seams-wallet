@@ -155,6 +155,7 @@ export class SeamsWalletDBManager {
     stores: readonly SeamsWalletStoreName[],
     mode: SeamsWalletTransactionMode,
     task: (context: SeamsWalletTransactionContext) => Promise<T> | T,
+    options?: { readonly durability?: IDBTransactionDurability },
   ): Promise<T> {
     const db = await withTimeout(
       this.getDB(),
@@ -163,7 +164,7 @@ export class SeamsWalletDBManager {
         `[SeamsWalletDBManager] IndexedDB connection timed out for ${this.config.dbName}. Close other tabs using this app and retry.`,
       ),
     );
-    const tx = db.transaction([...stores], mode);
+    const tx = db.transaction([...stores], mode, options);
     const context: SeamsWalletTransactionContext = {
       db,
       tx,

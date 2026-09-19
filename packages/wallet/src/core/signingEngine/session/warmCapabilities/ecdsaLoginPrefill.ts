@@ -11,6 +11,7 @@ import {
   type RouterAbEcdsaDerivationClientSigningMaterialSource,
   type RouterAbEcdsaDerivationClientPresignatureRefillScheduleResult,
 } from '../../routerAb/ecdsaDerivation/presignaturePool';
+import { MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS } from '../../workerManager/ecdsaPresignLifecycle';
 import type { SignerWorkerManagerContext } from '../../workerManager/SignerWorkerManager';
 import type {
   ThresholdEcdsaChainTarget,
@@ -332,7 +333,8 @@ export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
     const routerAbEcdsaDerivationPoolFill = {
       kind: 'router_ab_ecdsa_derivation_signing_worker_pool' as const,
       scope: runtime.normalSigning.scope,
-      expiresAtMs: routerAbPoolFillExpiresAtMs,
+      ceremonyExpiresAtMs: routerAbPoolFillExpiresAtMs,
+      materialExpiresAtMs: nowMs + MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS,
     };
 
     const remainingUsesAfterDispense = remainingUsesBefore;

@@ -4,7 +4,6 @@ import { THRESHOLD_DO_OBJECT_NAME_DEFAULT } from '../../defaultConfigsServer';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import {
   isObject,
-  parseRouterAbEcdsaDerivationPoolFillSessionRecord,
   parseEcdsaWalletSessionRecord,
   parseEd25519WalletSessionRecord,
   parseThresholdEcdsaMpcSessionRecord,
@@ -14,7 +13,6 @@ import {
   parseThresholdEd25519SigningSessionRecord,
   canonicalThresholdEd25519RelayerKeyId,
   toThresholdEcdsaWalletSessionPrefix,
-  toThresholdEcdsaPresignPrefix,
   toThresholdEcdsaPrefixFromBase,
   toThresholdEcdsaSessionPrefix,
   toThresholdEd25519WalletSessionPrefix,
@@ -46,19 +44,6 @@ import type {
   ThresholdEd25519SessionStore,
   ThresholdEd25519SigningSessionRecord,
 } from './SessionStore';
-import type {
-  RouterAbEcdsaDerivationPoolFillSessionCasResult,
-  RouterAbEcdsaDerivationPoolFillSessionRecord,
-  RouterAbEcdsaDerivationPoolFillSessionStore,
-} from './EcdsaSigningStore';
-import type {
-  RouterAbEcdsaDerivationPoolFillLiveSessionCreateInput,
-  RouterAbEcdsaDerivationPoolFillLiveSessionCreateValue,
-  RouterAbEcdsaDerivationPoolFillLiveSessionOwner,
-  RouterAbEcdsaDerivationPoolFillLiveSessionStepInput,
-  RouterAbEcdsaDerivationPoolFillParseResult,
-  RouterAbEcdsaDerivationPoolFillPreparedStep,
-} from '../routerAb/ecdsaDerivationPoolFillLiveSession';
 
 type DurableObjectStubLike = { fetch(input: RequestInfo, init?: RequestInit): Promise<Response> };
 
@@ -110,31 +95,6 @@ type DoAuthReserveReplayGuardRequest = {
   key: string;
   expiresAtMs: number;
 };
-type DoRouterAbEcdsaDerivationPoolFillSessionCreateRequest = {
-  op: 'routerAbEcdsaDerivationPoolFillSessionCreate';
-  key: string;
-  value: unknown;
-  ttlMs?: number;
-};
-type DoRouterAbEcdsaDerivationPoolFillSessionAdvanceCasRequest = {
-  op: 'routerAbEcdsaDerivationPoolFillSessionAdvanceCas';
-  key: string;
-  expectedVersion: number;
-  value: unknown;
-  ttlMs?: number;
-};
-type DoRouterAbEcdsaDerivationPoolFillLiveSessionCreateRequest = {
-  op: 'routerAbEcdsaDerivationPoolFillLiveSessionCreate';
-  input: RouterAbEcdsaDerivationPoolFillLiveSessionCreateInput;
-};
-type DoRouterAbEcdsaDerivationPoolFillLiveSessionStepRequest = {
-  op: 'routerAbEcdsaDerivationPoolFillLiveSessionStep';
-  input: RouterAbEcdsaDerivationPoolFillLiveSessionStepInput;
-};
-type DoRouterAbEcdsaDerivationPoolFillLiveSessionDeleteRequest = {
-  op: 'routerAbEcdsaDerivationPoolFillLiveSessionDelete';
-  presignSessionId: string;
-};
 type DoRequest =
   | DoGetRequest
   | DoSetRequest
@@ -148,12 +108,7 @@ type DoRequest =
   | DoAuthConsumeUseCountOnceRequest
   | DoAuthHasConsumedUseCountOnceRequest
   | DoAuthGetSessionStatusRequest
-  | DoAuthReserveReplayGuardRequest
-  | DoRouterAbEcdsaDerivationPoolFillSessionCreateRequest
-  | DoRouterAbEcdsaDerivationPoolFillSessionAdvanceCasRequest
-  | DoRouterAbEcdsaDerivationPoolFillLiveSessionCreateRequest
-  | DoRouterAbEcdsaDerivationPoolFillLiveSessionStepRequest
-  | DoRouterAbEcdsaDerivationPoolFillLiveSessionDeleteRequest;
+  | DoAuthReserveReplayGuardRequest;
 
 type DoAuthEntry<TRecord extends WalletSessionRecord> = {
   record: TRecord;
@@ -257,14 +212,6 @@ function computeSessionPrefixEcdsa(config: Record<string, unknown>): string {
   const explicit = toOptionalTrimmedString(config.THRESHOLD_ECDSA_SESSION_PREFIX);
   return toThresholdEcdsaSessionPrefix(
     explicit || toThresholdEcdsaPrefixFromBase(basePrefix, 'sess'),
-  );
-}
-
-function computePresignPrefixEcdsa(config: Record<string, unknown>): string {
-  const basePrefix = toOptionalTrimmedString(config.THRESHOLD_PREFIX);
-  const explicit = toOptionalTrimmedString(config.THRESHOLD_ECDSA_PRESIGN_PREFIX);
-  return toThresholdEcdsaPresignPrefix(
-    explicit || toThresholdEcdsaPrefixFromBase(basePrefix, 'presign'),
   );
 }
 
@@ -575,192 +522,6 @@ export class CloudflareDurableObjectThresholdEd25519KeyStore implements Threshol
   }
 }
 
-export class CloudflareDurableObjectRouterAbEcdsaDerivationPoolFillSessionStore implements RouterAbEcdsaDerivationPoolFillSessionStore {
-  private readonly stub: DurableObjectStubLike;
-  private readonly keyPrefix: string;
-
-  constructor(input: {
-    namespace: CloudflareDurableObjectNamespaceLike;
-    objectName: string;
-    keyPrefix: string;
-  }) {
-    this.stub = resolveDoStub({ namespace: input.namespace, objectName: input.objectName });
-    this.keyPrefix = input.keyPrefix;
-  }
-
-  private key(id: string): string {
-    return `${this.keyPrefix}${id}`;
-  }
-
-  async createSession(
-    id: string,
-    record: RouterAbEcdsaDerivationPoolFillSessionRecord,
-    ttlMs: number,
-  ): Promise<{ ok: true } | { ok: false; code: 'exists' }> {
-    const key = toOptionalTrimmedString(id);
-    if (!key) throw new Error('Missing presignSessionId');
-    const parsed = parseRouterAbEcdsaDerivationPoolFillSessionRecord(record);
-    if (!parsed) throw new Error('Invalid Router A/B ECDSA derivation pool-fill session record');
-    const resp = await callDo<{ status?: unknown }>(this.stub, {
-      op: 'routerAbEcdsaDerivationPoolFillSessionCreate',
-      key: this.key(key),
-      value: parsed,
-      ttlMs: Math.max(0, Number(ttlMs) || 0),
-    });
-    if (!resp.ok) throw new Error(resp.message);
-    const status = toOptionalTrimmedString(resp.value?.status);
-    if (status === 'ok') return { ok: true };
-    if (status === 'exists') return { ok: false, code: 'exists' };
-    throw new Error(
-      `[threshold-ecdsa] Durable Object Router A/B ECDSA derivation pool-fill session create returned unexpected status: ${String(status || 'null')}`,
-    );
-  }
-
-  async getSession(id: string): Promise<RouterAbEcdsaDerivationPoolFillSessionRecord | null> {
-    const key = toOptionalTrimmedString(id);
-    if (!key) return null;
-    const resp = await callDo<unknown | null>(this.stub, { op: 'get', key: this.key(key) });
-    if (!resp.ok) return null;
-    const parsed = parseRouterAbEcdsaDerivationPoolFillSessionRecord(
-      resp.value,
-    ) as RouterAbEcdsaDerivationPoolFillSessionRecord | null;
-    if (!parsed) return null;
-    if (Date.now() > parsed.expiresAtMs) {
-      await this.deleteSession(key);
-      return null;
-    }
-    return parsed;
-  }
-
-  async advanceSessionCas(input: {
-    id: string;
-    expectedVersion: number;
-    nextRecord: RouterAbEcdsaDerivationPoolFillSessionRecord;
-    ttlMs: number;
-  }): Promise<RouterAbEcdsaDerivationPoolFillSessionCasResult> {
-    const key = toOptionalTrimmedString(input.id);
-    if (!key) return { ok: false, code: 'not_found' };
-    const expectedVersion = Math.floor(Number(input.expectedVersion));
-    if (!Number.isFinite(expectedVersion) || expectedVersion < 1)
-      return { ok: false, code: 'version_mismatch' };
-    const parsed = parseRouterAbEcdsaDerivationPoolFillSessionRecord(input.nextRecord);
-    if (!parsed) throw new Error('Invalid Router A/B ECDSA derivation pool-fill session record');
-    const resp = await callDo<{ status?: unknown; record?: unknown }>(this.stub, {
-      op: 'routerAbEcdsaDerivationPoolFillSessionAdvanceCas',
-      key: this.key(key),
-      expectedVersion,
-      value: parsed,
-      ttlMs: Math.max(0, Number(input.ttlMs) || 0),
-    });
-    if (!resp.ok) throw new Error(resp.message);
-    const status = toOptionalTrimmedString(resp.value?.status);
-    if (status === 'not_found') return { ok: false, code: 'not_found' };
-    if (status === 'expired') return { ok: false, code: 'expired' };
-    if (status === 'version_mismatch') return { ok: false, code: 'version_mismatch' };
-    if (status !== 'ok') {
-      throw new Error(
-        `[threshold-ecdsa] Durable Object Router A/B ECDSA derivation pool-fill session CAS returned unexpected status: ${String(status || 'null')}`,
-      );
-    }
-    const record = parseRouterAbEcdsaDerivationPoolFillSessionRecord(
-      resp.value?.record,
-    ) as RouterAbEcdsaDerivationPoolFillSessionRecord | null;
-    if (!record)
-      throw new Error(
-        '[threshold-ecdsa] Durable Object Router A/B ECDSA derivation pool-fill session CAS returned invalid record',
-      );
-    return { ok: true, record };
-  }
-
-  async deleteSession(id: string): Promise<void> {
-    const key = toOptionalTrimmedString(id);
-    if (!key) return;
-    const resp = await callDo<void>(this.stub, { op: 'del', key: this.key(key) });
-    if (!resp.ok) throw new Error(resp.message);
-  }
-}
-
-export class CloudflareDurableObjectRouterAbEcdsaDerivationPoolFillLiveSessionOwner implements RouterAbEcdsaDerivationPoolFillLiveSessionOwner {
-  private readonly namespace: CloudflareDurableObjectNamespaceLike;
-  private readonly objectNamePrefix: string;
-
-  constructor(input: { namespace: CloudflareDurableObjectNamespaceLike; objectName: string }) {
-    this.namespace = input.namespace;
-    this.objectNamePrefix = input.objectName;
-  }
-
-  private stubForPresignSession(presignSessionId: string): DurableObjectStubLike {
-    const id = toOptionalTrimmedString(presignSessionId);
-    if (!id) throw new Error('Missing presignSessionId');
-    return resolveDoStub({
-      namespace: this.namespace,
-      objectName: `${this.objectNamePrefix}:ecdsa-pool-fill:${id}`,
-    });
-  }
-
-  async createSession(
-    input: RouterAbEcdsaDerivationPoolFillLiveSessionCreateInput,
-  ): Promise<
-    RouterAbEcdsaDerivationPoolFillParseResult<RouterAbEcdsaDerivationPoolFillLiveSessionCreateValue>
-  > {
-    const parsedRecord = parseRouterAbEcdsaDerivationPoolFillSessionRecord(input.record);
-    if (!parsedRecord) {
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'Invalid Router A/B ECDSA derivation pool-fill session record',
-      };
-    }
-    const resp = await callDo<
-      RouterAbEcdsaDerivationPoolFillParseResult<RouterAbEcdsaDerivationPoolFillLiveSessionCreateValue>
-    >(this.stubForPresignSession(input.presignSessionId), {
-      op: 'routerAbEcdsaDerivationPoolFillLiveSessionCreate',
-      input: {
-        ...input,
-        record: parsedRecord,
-      },
-    });
-    if (!resp.ok) throw new Error(resp.message);
-    return resp.value;
-  }
-
-  async stepSession(
-    input: RouterAbEcdsaDerivationPoolFillLiveSessionStepInput,
-  ): Promise<
-    RouterAbEcdsaDerivationPoolFillParseResult<RouterAbEcdsaDerivationPoolFillPreparedStep>
-  > {
-    const parsedRecord = parseRouterAbEcdsaDerivationPoolFillSessionRecord(input.record);
-    if (!parsedRecord) {
-      return {
-        ok: false,
-        code: 'invalid_body',
-        message: 'Invalid Router A/B ECDSA derivation pool-fill session record',
-      };
-    }
-    const resp = await callDo<
-      RouterAbEcdsaDerivationPoolFillParseResult<RouterAbEcdsaDerivationPoolFillPreparedStep>
-    >(this.stubForPresignSession(input.presignSessionId), {
-      op: 'routerAbEcdsaDerivationPoolFillLiveSessionStep',
-      input: {
-        ...input,
-        record: parsedRecord,
-      },
-    });
-    if (!resp.ok) throw new Error(resp.message);
-    return resp.value;
-  }
-
-  async deleteSession(presignSessionId: string): Promise<void> {
-    const id = toOptionalTrimmedString(presignSessionId);
-    if (!id) return;
-    const resp = await callDo<void>(this.stubForPresignSession(id), {
-      op: 'routerAbEcdsaDerivationPoolFillLiveSessionDelete',
-      presignSessionId: id,
-    });
-    if (!resp.ok) throw new Error(resp.message);
-  }
-}
-
 export function createCloudflareDurableObjectThresholdEd25519Stores(input: {
   config?: ThresholdStoreConfigInput | null;
   logger: NormalizedLogger;
@@ -819,8 +580,6 @@ export function createCloudflareDurableObjectThresholdEcdsaStores(input: {
 }): {
   sessionStore: ThresholdEcdsaSessionStore;
   walletSessionStore: EcdsaWalletSessionStore;
-  poolFillSessionStore: RouterAbEcdsaDerivationPoolFillSessionStore;
-  poolFillLiveSessionOwner: RouterAbEcdsaDerivationPoolFillLiveSessionOwner;
 } | null {
   const config = (isObject(input.config) ? input.config : {}) as Record<string, unknown>;
   const kind = toOptionalTrimmedString(config.kind);
@@ -841,7 +600,6 @@ export function createCloudflareDurableObjectThresholdEcdsaStores(input: {
 
   const walletSessionPrefix = computeWalletSessionPrefixEcdsa(config);
   const sessionPrefix = computeSessionPrefixEcdsa(config);
-  const presignPrefix = computePresignPrefixEcdsa(config);
 
   input.logger.info(
     '[threshold-ecdsa] Using Cloudflare Durable Object store for threshold session persistence',
@@ -861,15 +619,5 @@ export function createCloudflareDurableObjectThresholdEcdsaStores(input: {
       keyPrefix: walletSessionPrefix,
       parseRecord: parseEcdsaWalletSessionRecord,
     }),
-    poolFillSessionStore: new CloudflareDurableObjectRouterAbEcdsaDerivationPoolFillSessionStore({
-      namespace,
-      objectName: ecdsaObjectName,
-      keyPrefix: presignPrefix,
-    }),
-    poolFillLiveSessionOwner:
-      new CloudflareDurableObjectRouterAbEcdsaDerivationPoolFillLiveSessionOwner({
-        namespace,
-        objectName: ecdsaObjectName,
-      }),
   };
 }

@@ -386,11 +386,51 @@ export function decideRouterAbEcdsaOperationStepUpExecution(input: {
   return { kind: 'execute', operation: input.operation };
 }
 
+type EcdsaSigningGatewayTiming = {
+  authorize: number | null;
+  admit: number | null;
+  proxy: number | null;
+  complete: number | null;
+  total: number | null;
+};
+
 async function handleRouterAbEcdsaDerivationNormalSigningRoute(input: {
   ctx: FetchRouterApiContext;
   body: Record<string, unknown>;
   phase: 'prepare' | 'finalize';
 }): Promise<Response> {
+  const startedAt = performance.now();
+  const timing: EcdsaSigningGatewayTiming = {
+    authorize: null,
+    admit: null,
+    proxy: null,
+    complete: null,
+    total: null,
+  };
+  const response = await executeRouterAbEcdsaDerivationNormalSigningRoute(input, timing);
+  timing.total = performance.now() - startedAt;
+  const headers = new Headers(response.headers);
+  for (const [stage, duration] of Object.entries(timing)) {
+    if (duration !== null) {
+      headers.append('Server-Timing', `ecdsa_sign_${stage};dur=${Math.max(0, duration).toFixed(1)}`);
+    }
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+async function executeRouterAbEcdsaDerivationNormalSigningRoute(
+  input: {
+    ctx: FetchRouterApiContext;
+    body: Record<string, unknown>;
+    phase: 'prepare' | 'finalize';
+  },
+  timing: EcdsaSigningGatewayTiming,
+): Promise<Response> {
+  const authorizationStartedAt = performance.now();
   const authorization = await authorizeRouterAbEcdsaDerivationNormalSigningRoute({
     body: input.body,
     rawBody: input.body,
@@ -405,9 +445,11 @@ async function handleRouterAbEcdsaDerivationNormalSigningRoute(input: {
       ),
     phase: input.phase,
   });
+  timing.authorize = performance.now() - authorizationStartedAt;
   if (!authorization.ok) {
     return json(authorization.result.body, { status: authorization.result.status });
   }
+  const admissionStartedAt = performance.now();
   let authorizedOperation: AuthorizedOperation;
   let authorizedOperationWire: RouterAbEcdsaAuthorizedOperationWire;
   if (authorization.kind === 'operation_step_up') {
@@ -576,6 +618,7 @@ async function handleRouterAbEcdsaDerivationNormalSigningRoute(input: {
       },
     });
   }
+  timing.admit = performance.now() - admissionStartedAt;
   const signingRequest =
     input.phase === 'prepare'
       ? parseRouterAbEcdsaDerivationEvmDigestSigningRequestV1(input.body)
@@ -601,6 +644,7 @@ async function handleRouterAbEcdsaDerivationNormalSigningRoute(input: {
     ...input.body,
     authorized_operation: authorizedOperationWire,
   };
+  const proxyStartedAt = performance.now();
   const upstream =
     authorization.kind === 'wallet_session_operation_credential_v1' ||
     authorization.kind === 'wallet_session_operation_credential_exhausted_candidate_v1'
@@ -623,6 +667,7 @@ async function handleRouterAbEcdsaDerivationNormalSigningRoute(input: {
     .clone()
     .text()
     .catch(() => '');
+  timing.proxy = performance.now() - proxyStartedAt;
   if (
     isRouterAbEcdsaOperationInProgressResponse({
       status: upstream.status,
@@ -634,6 +679,7 @@ async function handleRouterAbEcdsaDerivationNormalSigningRoute(input: {
   if (input.phase === 'prepare' && upstream.ok) {
     return upstream;
   }
+  const completionStartedAt = performance.now();
   await completeRouterAbEcdsaOperation({
     authorizedOperations: input.ctx.service.authorizedOperations,
     operation: authorizedOperation,
@@ -648,6 +694,7 @@ async function handleRouterAbEcdsaDerivationNormalSigningRoute(input: {
       bodyText: upstreamBodyText,
     },
   });
+  timing.complete = performance.now() - completionStartedAt;
   return upstream;
 }
 
@@ -1355,6 +1402,9 @@ type RouterAbEcdsaPoolFillBinding = Pick<
 > & {
   readonly walletId: string;
   readonly thresholdExpiresAtMs: number;
+  readonly authorization:
+    | { readonly kind: 'wallet_session' }
+    | { readonly kind: 'operation_step_up'; readonly materialExpiresAtMs: number };
 };
 
 type RouterAbEcdsaPoolFillAuthorizationResult =
@@ -1565,6 +1615,10 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
       runtimePolicyScope: authenticated.session.runtimePolicyScope,
       participantIds: [...input.operation.participant_ids],
       thresholdExpiresAtMs: input.operation.expires_at_ms,
+      authorization: {
+        kind: 'operation_step_up',
+        materialExpiresAtMs: input.operation.expires_at_ms,
+      },
       routerAbEcdsaDerivationNormalSigning: {
         kind: ROUTER_AB_ECDSA_DERIVATION_NORMAL_SIGNING_STATE_KIND_V1,
         scope: input.operation.normal_signing_scope,
@@ -1678,6 +1732,7 @@ export async function authorizeEcdsaPoolFill(input: {
           runtimePolicyScope: activeMaterial.runtimePolicyScope,
           participantIds: activeMaterial.participantIds,
           thresholdExpiresAtMs: session.expiresAtMs,
+          authorization: { kind: 'wallet_session' },
           routerAbEcdsaDerivationNormalSigning: normalSigning,
         },
       };
@@ -1726,6 +1781,8 @@ function ecdsaPoolFillStepRuntimeRequest(
 ): RouterAbEcdsaDerivationPoolFillStepRequest {
   return {
     presignSessionId: request.presignSessionId,
+    ceremonyExpiresAtMs: request.ceremonyExpiresAtMs,
+    materialExpiresAtMs: request.materialExpiresAtMs,
     stage: request.stage,
     ...(request.outgoingMessagesB64u === undefined
       ? {}

@@ -4,6 +4,7 @@ import {
   scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill,
   signRouterAbEcdsaDerivationDigestWithPool,
 } from '../../../routerAb/ecdsaDerivation/presignaturePool';
+import { MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS } from '../../../workerManager/ecdsaPresignLifecycle';
 import type { HydratedEcdsaSignerMaterial } from '../../../session/identity/evmFamilyEcdsaIdentity';
 import {
   loadRouterAbEcdsaDerivationSigningMaterialSource,
@@ -16,6 +17,10 @@ import type { OperationDigestSet } from '@shared/authorization/operationFingerpr
 import type { RouterAbNormalSigningAuthorizationWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { RouterAbEcdsaOperationStepUpPreparationV1Wire } from '@shared/utils/routerAbEcdsaDerivation';
 import type { RouterAbOwnerNormalSigningCredential } from '@/core/rpcClients/relayer/routerAbNormalSigning';
+import {
+  emitEcdsaSigningTiming,
+  emitSigningSessionFlowTrace,
+} from '../../../session/operationState/trace';
 
 export type ReusableEcdsaSigningAuthorization = Extract<
   RouterAbNormalSigningAuthorizationWire,
@@ -165,6 +170,7 @@ function routerAbTransportCredential(
 }
 
 function scheduleRouterAbEcdsaDerivationPostSignRefill(args: {
+  operationId: string;
   loadedMaterial: LoadedRouterAbEcdsaDerivationSigningMaterialSource;
   workerCtx: WorkerOperationContext;
   credential: RouterAbOwnerNormalSigningCredential;
@@ -174,7 +180,7 @@ function scheduleRouterAbEcdsaDerivationPostSignRefill(args: {
   const signerSession = args.loadedMaterial.signerSession;
   const publicFacts = signerSession.publicFacts;
   const signingMaterial = signerSession.transport.signingMaterial;
-  scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill({
+  const result = scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill({
     relayerUrl: signerSession.transport.relayerUrl,
     keyHandle: parseEcdsaKeyHandle(publicFacts.keyHandle),
     ecdsaThresholdKeyId: signingMaterial.ecdsaThresholdKeyId,
@@ -187,10 +193,19 @@ function scheduleRouterAbEcdsaDerivationPostSignRefill(args: {
     routerAbEcdsaDerivationPoolFill: {
       kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
       scope: signerSession.routerAbEcdsaDerivationNormalSigning.state.scope,
-      expiresAtMs: args.expiresAtMs,
+      ceremonyExpiresAtMs: args.expiresAtMs,
+      materialExpiresAtMs: Date.now() + MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS,
     },
     workerCtx: args.workerCtx,
     authorization: args.authorization,
+  });
+  emitSigningSessionFlowTrace('evm-family', {
+    event: 'ecdsa_post_sign_refill',
+    operationId: args.operationId,
+    scheduled: result.scheduled,
+    reason: result.reason,
+    depth: result.depth,
+    targetDepth: result.targetDepth,
   });
 }
 
@@ -217,15 +232,18 @@ export class Secp256k1Engine {
     operation: EvmFamilyThresholdEcdsaOperation,
     operationDigests: OperationDigestSet,
   ): Promise<SignatureBytes> {
+    const operationId = requireEvmSigningOperationId(operation);
+    const signStartedAt = performance.now();
     const loadedMaterial = await loadRouterAbEcdsaDerivationSigningMaterialSource({
       signerSession: material.signerSession,
       workerCtx: this.workerCtx,
     });
+    emitEcdsaSigningTiming(operationId, 'material_load', signStartedAt);
     const signerSession = loadedMaterial.signerSession;
     const publicFacts = signerSession.publicFacts;
     const signerTransport = signerSession.transport;
-    const operationId = requireEvmSigningOperationId(operation);
     const transportCredential = routerAbTransportCredential(material.credential);
+    let signatureCreated = false;
 
     try {
       const signingInput = {
@@ -274,18 +292,33 @@ export class Secp256k1Engine {
 
       if (material.authorization.kind === 'reusable_wallet_session') {
         scheduleRouterAbEcdsaDerivationPostSignRefill({
+          operationId,
           loadedMaterial,
           workerCtx: this.workerCtx,
           credential: transportCredential,
           expiresAtMs: material.expiresAtMs,
           authorization: material.authorization,
         });
+      } else {
+        emitSigningSessionFlowTrace('evm-family', {
+          event: 'ecdsa_post_sign_refill',
+          operationId,
+          scheduled: false,
+          reason: 'operation_step_up',
+        });
       }
+      signatureCreated = true;
       return signed.signature65;
     } finally {
       await loadedMaterial.cleanupAfterSign({
         singleUseEmailOtpSession: material.singleUseEmailOtpSession,
       });
+      emitEcdsaSigningTiming(
+        operationId,
+        'sign_total',
+        signStartedAt,
+        signatureCreated ? 'succeeded' : 'failed',
+      );
     }
   }
 

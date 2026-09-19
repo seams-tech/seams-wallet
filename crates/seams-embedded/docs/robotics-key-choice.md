@@ -45,10 +45,9 @@ relation, and retains only its active FROST share. Ordinary signing performs no
 Yao evaluation.
 
 Registration, recovery, refresh, and authorized seed export carry the Yao
-latency and service-compute cost. This cost belongs to the independently
-operated Derivers rather than the embedded client. Local evidence and exact
-wire counts are recorded in `docs/router-ab/ed25519-yao/implementation-plan.md`; deployed latency remains a
-separate release gate.
+latency and service-compute cost. This cost belongs to the Deriver Workers
+rather than the embedded client. The fixed protocol and wire tests own local
+counts; deployed latency remains a separate release gate.
 
 ## Security Posture
 

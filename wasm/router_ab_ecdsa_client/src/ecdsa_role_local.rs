@@ -62,8 +62,13 @@ pub fn finalize_ecdsa_client_bootstrap_v1(input_json: &str) -> Result<String, Js
 
 #[wasm_bindgen]
 pub struct EcdsaRoleLocalPresignSessionV1 {
-    inner: FixedClientPresignSession,
-    completed: Option<PresignOutput>,
+    state: EcdsaRoleLocalPresignSessionStateV1,
+}
+
+enum EcdsaRoleLocalPresignSessionStateV1 {
+    Protocol(FixedClientPresignSession),
+    Completed(PresignOutput),
+    Consumed,
 }
 
 #[wasm_bindgen]
@@ -727,18 +732,45 @@ impl EcdsaLinkedHolderMaterialV1 {
             ));
         }
         Ok(EcdsaRoleLocalPresignSessionV1 {
-            inner: new_presign_session(
+            state: EcdsaRoleLocalPresignSessionStateV1::Protocol(new_presign_session(
                 &self.signing_share32,
                 &group_public_key33,
                 presign_session_id,
-            )?,
-            completed: None,
+            )?),
         })
     }
 }
 
 #[wasm_bindgen]
 impl EcdsaRoleLocalPresignSessionV1 {
+    fn ensure_completed(&mut self) -> Result<(), JsValue> {
+        let state = core::mem::replace(
+            &mut self.state,
+            EcdsaRoleLocalPresignSessionStateV1::Consumed,
+        );
+        match state {
+            EcdsaRoleLocalPresignSessionStateV1::Protocol(mut session) => {
+                match session.take_presignature() {
+                    Ok(output) => {
+                        self.state = EcdsaRoleLocalPresignSessionStateV1::Completed(output);
+                        Ok(())
+                    }
+                    Err(error) => {
+                        self.state = EcdsaRoleLocalPresignSessionStateV1::Protocol(session);
+                        Err(js_presign_error(error))
+                    }
+                }
+            }
+            EcdsaRoleLocalPresignSessionStateV1::Completed(output) => {
+                self.state = EcdsaRoleLocalPresignSessionStateV1::Completed(output);
+                Ok(())
+            }
+            EcdsaRoleLocalPresignSessionStateV1::Consumed => {
+                Err(JsValue::from_str("presignature is unavailable"))
+            }
+        }
+    }
+
     #[wasm_bindgen(constructor)]
     pub fn new(
         state_blob_b64u: &str,
@@ -754,40 +786,103 @@ impl EcdsaRoleLocalPresignSessionV1 {
                 .map_err(|error| JsValue::from_str(&error.to_string()))?,
         );
         Ok(Self {
-            inner: new_presign_session(&signing_share32, group_public_key33, presign_session_id)?,
-            completed: None,
+            state: EcdsaRoleLocalPresignSessionStateV1::Protocol(new_presign_session(
+                &signing_share32,
+                group_public_key33,
+                presign_session_id,
+            )?),
+        })
+    }
+
+    /// Creates an opaque completed-material owner from the canonical bytes
+    /// persisted by the ECDSA worker. The protocol session is deliberately
+    /// absent: restored material can only be inspected for its public R or
+    /// consumed by the online signing step.
+    pub fn from_completed_presignature_97(bytes: &[u8]) -> Result<Self, JsValue> {
+        let output = PresignOutput::from_bytes(bytes)
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        Ok(Self {
+            state: EcdsaRoleLocalPresignSessionStateV1::Completed(output),
         })
     }
 
     pub fn stage(&self) -> String {
-        self.inner.stage().as_str().to_owned()
+        match &self.state {
+            EcdsaRoleLocalPresignSessionStateV1::Protocol(session) => {
+                session.stage().as_str().to_owned()
+            }
+            EcdsaRoleLocalPresignSessionStateV1::Completed(_)
+            | EcdsaRoleLocalPresignSessionStateV1::Consumed => "done".to_owned(),
+        }
     }
 
     pub fn poll(&mut self) -> Result<JsValue, JsValue> {
-        progress_to_js(self.inner.poll())
+        match &mut self.state {
+            EcdsaRoleLocalPresignSessionStateV1::Protocol(session) => {
+                progress_to_js(session.poll())
+            }
+            EcdsaRoleLocalPresignSessionStateV1::Completed(_)
+            | EcdsaRoleLocalPresignSessionStateV1::Consumed => {
+                Err(JsValue::from_str("presign protocol session is unavailable"))
+            }
+        }
     }
 
     pub fn message(&mut self, message: &[u8]) -> Result<(), JsValue> {
-        self.inner
-            .message(message, &mut OsRng)
-            .map_err(js_presign_error)
+        match &mut self.state {
+            EcdsaRoleLocalPresignSessionStateV1::Protocol(session) => session
+                .message(message, &mut OsRng)
+                .map_err(js_presign_error),
+            EcdsaRoleLocalPresignSessionStateV1::Completed(_)
+            | EcdsaRoleLocalPresignSessionStateV1::Consumed => {
+                Err(JsValue::from_str("presign protocol session is unavailable"))
+            }
+        }
     }
 
     pub fn start_presign(&mut self) -> Result<(), JsValue> {
-        self.inner.start_presign().map_err(js_presign_error)
+        match &mut self.state {
+            EcdsaRoleLocalPresignSessionStateV1::Protocol(session) => {
+                session.start_presign().map_err(js_presign_error)
+            }
+            EcdsaRoleLocalPresignSessionStateV1::Completed(_)
+            | EcdsaRoleLocalPresignSessionStateV1::Consumed => {
+                Err(JsValue::from_str("presign protocol session is unavailable"))
+            }
+        }
     }
 
     pub fn presignature_big_r_33(&mut self) -> Result<Vec<u8>, JsValue> {
-        if self.completed.is_none() {
-            self.completed = Some(self.inner.take_presignature().map_err(js_presign_error)?);
+        self.ensure_completed()?;
+        match &self.state {
+            EcdsaRoleLocalPresignSessionStateV1::Completed(output) => {
+                Ok(output.big_r_bytes().as_bytes().to_vec())
+            }
+            EcdsaRoleLocalPresignSessionStateV1::Protocol(_)
+            | EcdsaRoleLocalPresignSessionStateV1::Consumed => {
+                Err(JsValue::from_str("presignature is unavailable"))
+            }
         }
-        Ok(self
-            .completed
-            .as_ref()
-            .expect("completed presignature was just installed")
-            .big_r_bytes()
-            .as_bytes()
-            .to_vec())
+    }
+
+    pub fn copy_presignature_bytes_97(&mut self, destination: &mut [u8]) -> Result<(), JsValue> {
+        if destination.len() != router_ab_ecdsa_presign::PRESIGNATURE_SIZE {
+            return Err(JsValue::from_str(
+                "presignature destination must contain exactly 97 bytes",
+            ));
+        }
+        self.ensure_completed()?;
+        match &self.state {
+            EcdsaRoleLocalPresignSessionStateV1::Completed(output) => {
+                let bytes = Zeroizing::new(output.to_bytes());
+                destination.copy_from_slice(bytes.as_slice());
+                Ok(())
+            }
+            EcdsaRoleLocalPresignSessionStateV1::Protocol(_)
+            | EcdsaRoleLocalPresignSessionStateV1::Consumed => {
+                Err(JsValue::from_str("presignature is unavailable"))
+            }
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -799,10 +894,14 @@ impl EcdsaRoleLocalPresignSessionV1 {
         client_rerandomization_contribution32: &[u8],
         signing_worker_rerandomization_contribution32: &[u8],
     ) -> Result<Vec<u8>, JsValue> {
-        let output = self
-            .completed
-            .take()
-            .ok_or_else(|| JsValue::from_str("presignature is unavailable"))?;
+        self.ensure_completed()?;
+        let state = core::mem::replace(
+            &mut self.state,
+            EcdsaRoleLocalPresignSessionStateV1::Consumed,
+        );
+        let EcdsaRoleLocalPresignSessionStateV1::Completed(output) = state else {
+            return Err(JsValue::from_str("presignature is unavailable"));
+        };
         compute_online_share(
             output,
             group_public_key33,

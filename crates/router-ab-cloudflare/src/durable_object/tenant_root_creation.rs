@@ -6387,7 +6387,6 @@ fn validate_restore_initial_activation_receipt_against_checkpoint_v1(
     ))
 }
 
-#[cfg(feature = "workers-rs")]
 fn restore_bootstrap_destruction_receipt_v1(
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,

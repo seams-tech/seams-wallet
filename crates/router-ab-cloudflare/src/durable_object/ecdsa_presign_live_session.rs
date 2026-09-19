@@ -40,7 +40,8 @@ use crate::{
 
 pub(super) struct CloudflareSigningWorkerEcdsaPresignLiveSessionV1 {
     scope: RouterAbEcdsaDerivationNormalSigningScopeV1,
-    expires_at_ms: u64,
+    ceremony_expires_at_ms: u64,
+    material_expires_at_ms: u64,
     session: SigningWorkerPresignSession,
 }
 
@@ -226,7 +227,7 @@ fn create_presign_session(
     )
     .map_err(presign_protocol_error)?;
     let mut sessions = sessions.borrow_mut();
-    sessions.retain(|_, entry| entry.expires_at_ms > now_unix_ms);
+    sessions.retain(|_, entry| entry.ceremony_expires_at_ms > now_unix_ms);
     if sessions.contains_key(&input.request.presign_session_id) {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ReplayedLocalRequest,
@@ -235,7 +236,8 @@ fn create_presign_session(
     }
     let mut entry = CloudflareSigningWorkerEcdsaPresignLiveSessionV1 {
         scope: input.request.scope,
-        expires_at_ms: input.request.expires_at_ms,
+        ceremony_expires_at_ms: input.request.ceremony_expires_at_ms,
+        material_expires_at_ms: input.request.material_expires_at_ms,
         session,
     };
     let progress = continue_progress(&input.request.presign_session_id, entry.session.poll());
@@ -258,8 +260,9 @@ fn step_presign_session(
                 "SigningWorker ECDSA presign session is missing; restart pool fill",
             )
         })?;
-    if entry.expires_at_ms <= now_unix_ms
-        || entry.expires_at_ms != input.expires_at_ms
+    if entry.ceremony_expires_at_ms <= now_unix_ms
+        || entry.ceremony_expires_at_ms != input.ceremony_expires_at_ms
+        || entry.material_expires_at_ms != input.material_expires_at_ms
         || entry.scope != input.scope
     {
         return Err(RouterAbProtocolError::new(
@@ -353,7 +356,7 @@ fn step_presign_session(
                 encode_base64url_bytes_v1(big_r),
                 encode_base64url_bytes_v1(k_share),
                 encode_base64url_bytes_v1(sigma_share),
-                entry.expires_at_ms,
+                entry.material_expires_at_ms,
             )?;
         return Ok(
             CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1::Complete { pool_put_request },

@@ -4,6 +4,74 @@ import type { SigningPlannerDecisionTraceEvent } from '../planning/planner';
 
 export type SigningSessionTraceScope = 'evm-family' | 'near';
 
+const ECDSA_GATEWAY_TIMING_METRICS = new Set([
+  'ecdsa_sign_authorize',
+  'ecdsa_sign_admit',
+  'ecdsa_sign_proxy',
+  'ecdsa_sign_complete',
+  'ecdsa_sign_total',
+]);
+
+export function emitEcdsaServerTiming(
+  operationId: string,
+  phase: 'prepare' | 'finalize',
+  header: string | null,
+): void {
+  if (!header || !isSigningSessionTraceEnabled()) return;
+  for (const metric of header.split(',')) {
+    const [name, ...parameters] = metric.trim().split(';');
+    if (!ECDSA_GATEWAY_TIMING_METRICS.has(name)) continue;
+    for (const parameter of parameters) {
+      const [key, rawValue] = parameter.trim().split('=');
+      if (key !== 'dur' || !rawValue?.trim()) continue;
+      const durationMs = Number(rawValue);
+      if (!Number.isFinite(durationMs) || durationMs < 0) break;
+      emitSigningSessionFlowTrace('evm-family', {
+        event: 'ecdsa_server_timing',
+        operationId,
+        phase,
+        stage: name,
+        durationMs,
+      });
+      break;
+    }
+  }
+}
+
+export type EcdsaSigningTimingStage =
+  | 'material_queue'
+  | 'material_authorization'
+  | 'material_load'
+  | 'public_key_validation'
+  | 'pool_lookup'
+  | 'pool_restore'
+  | 'refill_wait'
+  | 'foreground_refill'
+  | 'presignature_reserve'
+  | 'prepare'
+  | 'presignature_commit'
+  | 'client_share'
+  | 'finalize'
+  | 'signature_verify'
+  | 'sign_total'
+  | 'transaction_assembly'
+  | 'commit_total';
+
+export function emitEcdsaSigningTiming(
+  operationId: string,
+  stage: EcdsaSigningTimingStage,
+  startedAt: number,
+  outcome: 'succeeded' | 'failed' = 'succeeded',
+): void {
+  emitSigningSessionFlowTrace('evm-family', {
+    event: 'ecdsa_signing_timing',
+    operationId,
+    stage,
+    durationMs: Math.max(0, performance.now() - startedAt),
+    outcome,
+  });
+}
+
 export type SigningLaneResolutionTraceEvent = {
   event: 'signing_lane_resolved';
   lane: SigningLaneSummary;
@@ -84,7 +152,7 @@ export function emitSigningSessionFlowTrace(
   if (!isSigningSessionTraceEnabled()) return;
 
   try {
-    console.info(`[SigningFlow][${scope}]`, event);
+    console.info(`[SigningFlow][${scope}]`, JSON.stringify(event));
   } catch {}
 }
 

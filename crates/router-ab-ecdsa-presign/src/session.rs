@@ -29,7 +29,6 @@ use crate::{AdditiveKeyShare, PresignOutput};
 const SCOPE_DOMAIN: &[u8] = b"seams/router-ab-ecdsa-presign/signing-scope/v1";
 const PAIR_DOMAIN: &[u8] = b"seams/router-ab-ecdsa-presign/pair-context/v1";
 const MAX_SESSION_ID_SIZE: usize = 256;
-const PRESIGNATURE_SIZE: usize = 97;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PresignSessionStage {
@@ -572,12 +571,7 @@ fn advance_signing_worker(
 }
 
 fn output_bytes(output: PresignOutput) -> Vec<u8> {
-    let (big_r, k, sigma) = output.into_parts();
-    let mut bytes = Vec::with_capacity(PRESIGNATURE_SIZE);
-    bytes.extend_from_slice(big_r.as_bytes());
-    bytes.extend_from_slice(&k.into_bytes());
-    bytes.extend_from_slice(&sigma.into_bytes());
-    bytes
+    output.to_bytes().to_vec()
 }
 
 #[cfg(test)]
@@ -587,6 +581,7 @@ mod tests {
     use router_ab_ecdsa_wire::{ScalarBytes, COMPRESSED_POINT_SIZE};
 
     use super::*;
+    use crate::PRESIGNATURE_SIZE;
 
     fn key_share(value: u64) -> AdditiveKeyShare {
         AdditiveKeyShare::from_bytes(ScalarBytes::new(Scalar::from(value).to_bytes().into()))

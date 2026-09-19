@@ -20,7 +20,11 @@ import {
   type WalletAuthorityId,
   type WalletId,
 } from '@shared/utils/domainIds';
-import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
+import {
+  canonicalRouterAbMpcMaterialActivationRefBytes,
+  routerAbMpcMaterialActivationRefFromWire,
+  routerAbMpcMaterialActivationRefToWire,
+} from '@shared/utils/routerAbNormalSigningIdentity';
 import {
   parseCanonicalEcdsaServerActivationRequest,
   parseEcdsaCapabilityManifestId,
@@ -45,6 +49,7 @@ import {
 import {
   parseRouterAbEcdsaDerivationPublicCapabilityV1,
   parseRouterAbEcdsaRegistrationActivationReceiptV1,
+  routerAbEcdsaDerivationNormalSigningScopeCanonicalBytesV1,
   requireRouterAbEcdsaDerivationNormalSigningStateV1,
   sameRouterAbEcdsaDerivationNormalSigningStateV1,
   sameRouterAbEcdsaDerivationPublicCapabilityV1,
@@ -128,6 +133,18 @@ import { SEAMS_WALLET_INDEXES, SEAMS_WALLET_STORES } from '../schemaNames';
 import { seamsWalletDB } from '../singletons';
 import { SeamsWalletRepositories } from './repositories';
 import type { SeamsWalletDBManager, SeamsWalletTransactionContext } from './manager';
+import {
+  ecdsaClientPresignPoolKey,
+  equalEcdsaClientPresignPoolIdentity,
+  parseEcdsaClientPresignPoolIdentity,
+  type EcdsaClientPresignPoolIdentity,
+} from '@/core/signingEngine/workerManager/ecdsaPresignPoolIdentity';
+import {
+  ECDSA_CLIENT_PRESIGNATURE_CAPACITY,
+  MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS,
+  type EcdsaClientPresignCleanupTarget,
+  type EcdsaClientPresignUnavailableReason,
+} from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
 
 // Bumped with the authority ref: these rows now record which wallet auth
 // method issued the authority, so a row written before that is read as the
@@ -143,8 +160,87 @@ const POINTER_STORE = SEAMS_WALLET_STORES.ecdsaCurrentCapabilityManifests;
 const MATERIAL_STORE = SEAMS_WALLET_STORES.ecdsaRoleLocalMaterial;
 const JOURNAL_STORE = SEAMS_WALLET_STORES.ecdsaActivationCommitJournals;
 const SEALING_KEY_STORE = SEAMS_WALLET_STORES.ecdsaMaterialSealingKeys;
+const PRESIGNATURE_STORE = SEAMS_WALLET_STORES.ecdsaClientPresignatures;
 const AES_GCM_IV_BYTES = 12;
 const MATERIAL_AAD_VERSION = 1;
+const CLIENT_PRESIGNATURE_AAD_DOMAIN = 'seams/ecdsa-client-presignature/v1' as const;
+const MAX_EXPIRED_CLIENT_PRESIGNATURE_DELETIONS_PER_TRANSACTION = 32;
+const MAX_DURABLE_CLIENT_PRESIGNATURE_FUTURE_SKEW_MS = 5 * 60_000;
+
+export type DurableClientPresignatureRecordId = string & {
+  readonly __brand: 'DurableClientPresignatureRecordId';
+};
+
+export type DurableClientPresignatureMetadata = {
+  readonly kind: 'sealed_available_client_presignature_v1';
+  readonly recordId: DurableClientPresignatureRecordId;
+  readonly poolIdentity: EcdsaClientPresignPoolIdentity;
+  readonly durableMaterialRef: EcdsaRoleLocalPersistedMaterialRef;
+  readonly presignatureId: string;
+  readonly groupPublicKey33B64u: string;
+  readonly bigR33B64u: string;
+  readonly createdAtMs: number;
+  readonly expiresAtMs: number;
+  readonly sealingKeyId: EcdsaMaterialSealingKeyId;
+};
+
+export type DurableClientPresignatureAdmissionResult =
+  | {
+      readonly kind: 'stored';
+      readonly metadata: DurableClientPresignatureMetadata;
+    }
+  | {
+      readonly kind: 'capacity_full';
+    }
+  | {
+      readonly kind: 'persistence_unavailable';
+    }
+  | {
+      readonly kind: 'persistence_ambiguous';
+    };
+
+export type DurableClientPresignatureAdmissionInput = {
+  readonly poolIdentity: EcdsaClientPresignPoolIdentity;
+  readonly durableMaterialRef: EcdsaRoleLocalPersistedMaterialRef;
+  readonly presignatureId: string;
+  readonly groupPublicKey33: Uint8Array;
+  readonly bigR33: Uint8Array;
+  readonly plaintext97: Uint8Array;
+  readonly createdAtMs: number;
+  readonly expiresAtMs: number;
+};
+
+export type DurableClientPresignatureTakeResult =
+  | {
+      readonly kind: 'opened';
+      readonly metadata: DurableClientPresignatureMetadata;
+      readonly plaintext97: Uint8Array;
+    }
+  | {
+      readonly kind: Exclude<EcdsaClientPresignUnavailableReason, 'not_found'>;
+    };
+
+type SealedAvailableClientPresignatureRow = {
+  readonly kind: 'sealed_available_client_presignature_v1';
+  readonly record_id: DurableClientPresignatureRecordId;
+  readonly pool_identity: EcdsaClientPresignPoolIdentity;
+  readonly pool_identity_key: string;
+  readonly wallet_id: string;
+  readonly material_activation_id: string;
+  readonly durable_material_ref: EcdsaRoleLocalPersistedMaterialRef;
+  readonly presignature_id: string;
+  readonly group_public_key33_b64u: string;
+  readonly big_r33_b64u: string;
+  readonly created_at_ms: number;
+  readonly expires_at_ms: number;
+  readonly sealed: {
+    readonly kind: 'ecdsa_activation_aes_gcm_v1';
+    readonly sealing_key_id: EcdsaMaterialSealingKeyId;
+    readonly iv12_b64u: string;
+    readonly ciphertext_b64u: string;
+    readonly ciphertext_digest_b64u: string;
+  };
+};
 
 export type EcdsaCapabilitySelector = {
   readonly capability: CapabilityInstanceRef;
@@ -1149,6 +1245,290 @@ function importedReadyAadProjection(input: {
 
 function additionalData(projection: unknown): Uint8Array {
   return new TextEncoder().encode(alphabetizeStringify(projection));
+}
+
+function activeMaterialMatchesPresignaturePoolIdentity(
+  material: ValidatedEncryptedEcdsaReadyMaterial,
+  poolIdentity: EcdsaClientPresignPoolIdentity,
+): boolean {
+  const normalSigning = material.binding.routerAbEcdsaDerivationNormalSigning;
+  const scope = normalSigning.scope;
+  const materialActivation = routerAbMpcMaterialActivationRefToWire(
+    material.binding.materialActivation,
+  );
+  return (
+    scope.wallet_id === poolIdentity.walletId &&
+    base64UrlEncode(routerAbEcdsaDerivationNormalSigningScopeCanonicalBytesV1(scope)) ===
+      poolIdentity.signingScopeB64u &&
+    base64UrlEncode(canonicalRouterAbMpcMaterialActivationRefBytes(materialActivation)) ===
+      poolIdentity.materialActivationB64u &&
+    scope.signing_worker.key_epoch === poolIdentity.keyEpoch &&
+    scope.activation_epoch === poolIdentity.activationEpoch &&
+    materialActivation.activation_id === poolIdentity.materialActivationId &&
+    materialActivation.capability === poolIdentity.capability &&
+    materialActivation.key_binding === poolIdentity.keyBinding &&
+    materialActivation.material_owner === poolIdentity.walletId
+  );
+}
+
+function parseDurableClientPresignatureRecordId(value: unknown): DurableClientPresignatureRecordId {
+  if (typeof value !== 'string' || !/^ecdsa-client-presignature-[A-Za-z0-9_-]+$/.test(value)) {
+    throw new Error('ECDSA durable presignature record id is invalid');
+  }
+  return value as DurableClientPresignatureRecordId;
+}
+
+function parsePresignatureTimestamp(value: unknown, label: string): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${label} is invalid`);
+  }
+  return value;
+}
+
+function rawRecordId(value: unknown): string | null {
+  if (!value || typeof value !== 'object' || !('record_id' in value)) return null;
+  const recordId = value.record_id;
+  return typeof recordId === 'string' ? recordId : null;
+}
+
+function supportsStrictIndexedDbDurability(): boolean {
+  return typeof IDBTransaction !== 'undefined' && 'durability' in IDBTransaction.prototype;
+}
+
+async function deleteExpiredClientPresignatureRows(
+  context: SeamsWalletTransactionContext,
+  walletId: string,
+  nowMs: number,
+): Promise<number> {
+  const expiryIndex = context
+    .store(PRESIGNATURE_STORE)
+    .index(SEAMS_WALLET_INDEXES.walletExpiresAt);
+  let cursor = await expiryIndex.openCursor(
+    IDBKeyRange.bound([walletId, 0], [walletId, nowMs]),
+  );
+  let deletedCount = 0;
+  while (cursor && deletedCount < MAX_EXPIRED_CLIENT_PRESIGNATURE_DELETIONS_PER_TRANSACTION) {
+    await cursor.delete();
+    deletedCount += 1;
+    cursor = await cursor.continue();
+  }
+  return deletedCount;
+}
+
+function presignatureAadProjection(metadata: DurableClientPresignatureMetadata): unknown {
+  return {
+    domain: CLIENT_PRESIGNATURE_AAD_DOMAIN,
+    version: 1,
+    pool_identity: metadata.poolIdentity,
+    durable_material_ref: metadata.durableMaterialRef,
+    presignature_id: metadata.presignatureId,
+    group_public_key33_b64u: metadata.groupPublicKey33B64u,
+    big_r33_b64u: metadata.bigR33B64u,
+    created_at_ms: metadata.createdAtMs,
+    expires_at_ms: metadata.expiresAtMs,
+    sealing_key_id: metadata.sealingKeyId,
+  };
+}
+
+function parseSealedAvailableClientPresignatureRow(
+  value: unknown,
+): SealedAvailableClientPresignatureRow {
+  const record = requireRecord(value, 'ECDSA durable presignature row');
+  requireExactKeys(record, 'ECDSA durable presignature row', [
+    'kind',
+    'record_id',
+    'pool_identity',
+    'pool_identity_key',
+    'wallet_id',
+    'material_activation_id',
+    'durable_material_ref',
+    'presignature_id',
+    'group_public_key33_b64u',
+    'big_r33_b64u',
+    'created_at_ms',
+    'expires_at_ms',
+    'sealed',
+  ]);
+  if (record.kind !== 'sealed_available_client_presignature_v1') {
+    throw new Error('ECDSA durable presignature row kind is invalid');
+  }
+  const poolIdentityRecord = requireRecord(
+    record.pool_identity,
+    'ECDSA durable presignature pool identity',
+  );
+  requireExactKeys(poolIdentityRecord, 'ECDSA durable presignature pool identity', [
+    'activationEpoch',
+    'capability',
+    'keyBinding',
+    'keyEpoch',
+    'materialActivationB64u',
+    'materialActivationId',
+    'pairRole',
+    'protocolId',
+    'relayerUrl',
+    'signingScopeB64u',
+    'walletId',
+  ]);
+  const poolIdentity = parseEcdsaClientPresignPoolIdentity(poolIdentityRecord);
+  const recordId = parseDurableClientPresignatureRecordId(record.record_id);
+  const poolIdentityKeyValue = String(record.pool_identity_key ?? '');
+  if (poolIdentityKeyValue !== ecdsaClientPresignPoolKey(poolIdentity)) {
+    throw new Error('ECDSA durable presignature pool identity index is inconsistent');
+  }
+  const walletId = String(record.wallet_id ?? '').trim();
+  const materialActivationId = String(record.material_activation_id ?? '').trim();
+  if (!walletId || walletId !== poolIdentity.walletId) {
+    throw new Error('ECDSA durable presignature wallet binding is inconsistent');
+  }
+  if (!materialActivationId || materialActivationId !== poolIdentity.materialActivationId) {
+    throw new Error('ECDSA durable presignature activation binding is inconsistent');
+  }
+  const durableMaterialRef = parseEcdsaRoleLocalPersistedMaterialRef(record.durable_material_ref);
+  if (
+    durableMaterialRef.materialActivation.activationId !== poolIdentity.materialActivationId ||
+    durableMaterialRef.materialActivation.capability !== poolIdentity.capability ||
+    durableMaterialRef.materialActivation.keyBinding !== poolIdentity.keyBinding ||
+    durableMaterialRef.materialActivation.materialOwner !== poolIdentity.walletId
+  ) {
+    throw new Error('ECDSA durable presignature material binding is inconsistent');
+  }
+  const presignatureId = String(record.presignature_id ?? '').trim();
+  if (!presignatureId) throw new Error('ECDSA durable presignature id is invalid');
+  const groupPublicKey33B64u = parseEcdsaClientVerifyingPublicKey33B64u(
+    record.group_public_key33_b64u,
+  );
+  const bigR33B64u = parseEcdsaClientVerifyingPublicKey33B64u(record.big_r33_b64u);
+  const createdAtMs = parsePresignatureTimestamp(record.created_at_ms, 'created_at_ms');
+  const expiresAtMs = parsePresignatureTimestamp(record.expires_at_ms, 'expires_at_ms');
+  if (createdAtMs > Date.now() + MAX_DURABLE_CLIENT_PRESIGNATURE_FUTURE_SKEW_MS) {
+    throw new Error('ECDSA durable presignature creation timestamp is in the future');
+  }
+  if (expiresAtMs <= createdAtMs) {
+    throw new Error('ECDSA durable presignature expiry must follow creation');
+  }
+  if (expiresAtMs - createdAtMs > MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS) {
+    throw new Error('ECDSA durable presignature lifetime exceeds the maximum');
+  }
+  const sealed = requireRecord(record.sealed, 'ECDSA durable presignature sealed payload');
+  requireExactKeys(sealed, 'ECDSA durable presignature sealed payload', [
+    'kind',
+    'sealing_key_id',
+    'iv12_b64u',
+    'ciphertext_b64u',
+    'ciphertext_digest_b64u',
+  ]);
+  if (sealed.kind !== 'ecdsa_activation_aes_gcm_v1') {
+    throw new Error('ECDSA durable presignature sealing kind is invalid');
+  }
+  return {
+    kind: 'sealed_available_client_presignature_v1',
+    record_id: recordId,
+    pool_identity: poolIdentity,
+    pool_identity_key: poolIdentityKeyValue,
+    wallet_id: walletId,
+    material_activation_id: materialActivationId,
+    durable_material_ref: durableMaterialRef,
+    presignature_id: presignatureId,
+    group_public_key33_b64u: groupPublicKey33B64u,
+    big_r33_b64u: bigR33B64u,
+    created_at_ms: createdAtMs,
+    expires_at_ms: expiresAtMs,
+    sealed: {
+      kind: 'ecdsa_activation_aes_gcm_v1',
+      sealing_key_id: parseEcdsaMaterialSealingKeyId(sealed.sealing_key_id),
+      iv12_b64u: parseEcdsaIv12B64u(sealed.iv12_b64u),
+      ciphertext_b64u: parseEcdsaCiphertextB64u(sealed.ciphertext_b64u),
+      ciphertext_digest_b64u: parseEcdsaCiphertextDigest(sealed.ciphertext_digest_b64u),
+    },
+  };
+}
+
+function metadataFromPresignatureRow(
+  row: SealedAvailableClientPresignatureRow,
+): DurableClientPresignatureMetadata {
+  return {
+    kind: 'sealed_available_client_presignature_v1',
+    recordId: row.record_id,
+    poolIdentity: row.pool_identity,
+    durableMaterialRef: row.durable_material_ref,
+    presignatureId: row.presignature_id,
+    groupPublicKey33B64u: row.group_public_key33_b64u,
+    bigR33B64u: row.big_r33_b64u,
+    createdAtMs: row.created_at_ms,
+    expiresAtMs: row.expires_at_ms,
+    sealingKeyId: row.sealed.sealing_key_id,
+  };
+}
+
+async function encryptPresignatureBytes(input: {
+  readonly key: CryptoKey;
+  readonly plaintext97: Uint8Array;
+  readonly metadata: DurableClientPresignatureMetadata;
+}): Promise<{
+  readonly iv12B64u: ReturnType<typeof parseEcdsaIv12B64u>;
+  readonly ciphertextB64u: ReturnType<typeof parseEcdsaCiphertextB64u>;
+  readonly ciphertextDigestB64u: ReturnType<typeof parseEcdsaCiphertextDigest>;
+}> {
+  const iv12 = crypto.getRandomValues(new Uint8Array(AES_GCM_IV_BYTES));
+  const aad = additionalData(presignatureAadProjection(input.metadata));
+  try {
+    const ciphertext = new Uint8Array(
+      await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: iv12, additionalData: aad },
+        input.key,
+        input.plaintext97,
+      ),
+    );
+    try {
+      const ciphertextB64u = base64UrlEncode(ciphertext);
+      return {
+        iv12B64u: parseEcdsaIv12B64u(base64UrlEncode(iv12)),
+        ciphertextB64u: parseEcdsaCiphertextB64u(ciphertextB64u),
+        ciphertextDigestB64u: parseEcdsaCiphertextDigest(
+          base64UrlEncode(await sha256Bytes(ciphertext)),
+        ),
+      };
+    } finally {
+      ciphertext.fill(0);
+    }
+  } finally {
+    iv12.fill(0);
+    aad.fill(0);
+    input.plaintext97.fill(0);
+  }
+}
+
+async function decryptPresignatureBytes(input: {
+  readonly key: CryptoKey;
+  readonly metadata: DurableClientPresignatureMetadata;
+  readonly sealed: SealedAvailableClientPresignatureRow['sealed'];
+}): Promise<Uint8Array> {
+  const iv12 = base64UrlDecode(input.sealed.iv12_b64u);
+  const ciphertext = base64UrlDecode(input.sealed.ciphertext_b64u);
+  const aad = additionalData(presignatureAadProjection(input.metadata));
+  let plaintext: Uint8Array | null = null;
+  try {
+    const digest = base64UrlEncode(await sha256Bytes(ciphertext));
+    if (digest !== input.sealed.ciphertext_digest_b64u) {
+      throw new Error('ECDSA durable presignature ciphertext digest mismatch');
+    }
+    plaintext = new Uint8Array(
+      await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: iv12, additionalData: aad },
+        input.key,
+        ciphertext,
+      ),
+    );
+    if (plaintext.length !== 97) {
+      throw new Error('ECDSA durable presignature plaintext length is invalid');
+    }
+    return plaintext.slice();
+  } finally {
+    iv12.fill(0);
+    ciphertext.fill(0);
+    aad.fill(0);
+    plaintext?.fill(0);
+  }
 }
 
 async function generateMaterialSealingKey(): Promise<CryptoKey> {
@@ -2280,6 +2660,346 @@ export class IndexedDbEcdsaCapabilityManifestStore {
     this.manager = manager;
   }
 
+  async admitClientPresignature(
+    input: DurableClientPresignatureAdmissionInput,
+  ): Promise<DurableClientPresignatureAdmissionResult> {
+    if (!supportsStrictIndexedDbDurability()) return { kind: 'persistence_unavailable' };
+    const poolIdentity = parseEcdsaClientPresignPoolIdentity(input.poolIdentity);
+    const durableMaterialRef = parseEcdsaRoleLocalPersistedMaterialRef(
+      input.durableMaterialRef,
+    );
+    if (
+      durableMaterialRef.materialActivation.activationId !== poolIdentity.materialActivationId ||
+      durableMaterialRef.materialActivation.capability !== poolIdentity.capability ||
+      durableMaterialRef.materialActivation.keyBinding !== poolIdentity.keyBinding ||
+      durableMaterialRef.materialActivation.materialOwner !== poolIdentity.walletId
+    ) {
+      return { kind: 'persistence_unavailable' };
+    }
+    if (input.groupPublicKey33.length !== 33 || input.bigR33.length !== 33) {
+      return { kind: 'persistence_unavailable' };
+    }
+    const createdAtMs = parsePresignatureTimestamp(input.createdAtMs, 'createdAtMs');
+    const expiresAtMs = parsePresignatureTimestamp(input.expiresAtMs, 'expiresAtMs');
+    if (
+      createdAtMs > Date.now() + MAX_DURABLE_CLIENT_PRESIGNATURE_FUTURE_SKEW_MS ||
+      expiresAtMs <= createdAtMs ||
+      expiresAtMs > createdAtMs + MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS
+    ) {
+      return { kind: 'persistence_unavailable' };
+    }
+    const presignatureId = String(input.presignatureId || '').trim();
+    if (!presignatureId || input.plaintext97.length !== 97) {
+      return { kind: 'persistence_unavailable' };
+    }
+
+    let lookup: EcdsaCapabilityMaterialRefLookup;
+    try {
+      lookup = await this.lookupByMaterialRef(durableMaterialRef);
+    } catch {
+      return { kind: 'persistence_unavailable' };
+    }
+    if (lookup.kind !== 'active') return { kind: 'persistence_unavailable' };
+    if (
+      !activeMaterialMatchesPresignaturePoolIdentity(lookup.material, poolIdentity) ||
+      lookup.material.binding.durableMaterialRef !== durableMaterialRef.durableMaterialRef ||
+      lookup.material.binding.bindingDigest !== durableMaterialRef.bindingDigest ||
+      !mpcMaterialActivationRefsEqual(
+        lookup.material.binding.materialActivation,
+        durableMaterialRef.materialActivation,
+      )
+    ) {
+      return { kind: 'persistence_unavailable' };
+    }
+    let sealingKey: CryptoKey | null;
+    try {
+      sealingKey = await this.readMaterialSealingKey(lookup.material.sealingKeyId);
+    } catch {
+      return { kind: 'persistence_unavailable' };
+    }
+    if (!sealingKey) return { kind: 'persistence_unavailable' };
+
+    const recordId = parseDurableClientPresignatureRecordId(
+      secureRandomId('ecdsa-client-presignature', 32, 'ECDSA durable presignature record'),
+    );
+    const groupPublicKey33B64u = parseEcdsaClientVerifyingPublicKey33B64u(
+      base64UrlEncode(input.groupPublicKey33),
+    );
+    const bigR33B64u = parseEcdsaClientVerifyingPublicKey33B64u(base64UrlEncode(input.bigR33));
+    const metadata: DurableClientPresignatureMetadata = {
+      kind: 'sealed_available_client_presignature_v1',
+      recordId,
+      poolIdentity,
+      durableMaterialRef,
+      presignatureId,
+      groupPublicKey33B64u,
+      bigR33B64u,
+      createdAtMs,
+      expiresAtMs,
+      sealingKeyId: lookup.material.sealingKeyId,
+    };
+    let encrypted: Awaited<ReturnType<typeof encryptPresignatureBytes>>;
+    try {
+      encrypted = await encryptPresignatureBytes({
+        key: sealingKey,
+        plaintext97: input.plaintext97,
+        metadata,
+      });
+    } catch {
+      input.plaintext97.fill(0);
+      return { kind: 'persistence_unavailable' };
+    }
+
+    const row: SealedAvailableClientPresignatureRow = {
+      kind: 'sealed_available_client_presignature_v1',
+      record_id: recordId,
+      pool_identity: poolIdentity,
+      pool_identity_key: ecdsaClientPresignPoolKey(poolIdentity),
+      wallet_id: poolIdentity.walletId,
+      material_activation_id: poolIdentity.materialActivationId,
+      durable_material_ref: durableMaterialRef,
+      presignature_id: presignatureId,
+      group_public_key33_b64u: groupPublicKey33B64u,
+      big_r33_b64u: bigR33B64u,
+      created_at_ms: createdAtMs,
+      expires_at_ms: expiresAtMs,
+      sealed: {
+        kind: 'ecdsa_activation_aes_gcm_v1',
+        sealing_key_id: lookup.material.sealingKeyId,
+        iv12_b64u: encrypted.iv12B64u,
+        ciphertext_b64u: encrypted.ciphertextB64u,
+        ciphertext_digest_b64u: encrypted.ciphertextDigestB64u,
+      },
+    };
+    try {
+      const result = await this.manager.runTransaction(
+        [PRESIGNATURE_STORE, MATERIAL_STORE],
+        'readwrite',
+        async (context) => {
+          const nowMs = Date.now();
+          await deleteExpiredClientPresignatureRows(context, poolIdentity.walletId, nowMs);
+          const store = context.store(PRESIGNATURE_STORE);
+          const rows = await store
+            .index(SEAMS_WALLET_INDEXES.poolIdentityKey)
+            .getAll(row.pool_identity_key);
+          let availableCount = 0;
+          for (const raw of rows) {
+            try {
+              const existing = parseSealedAvailableClientPresignatureRow(raw);
+              if (existing.expires_at_ms <= nowMs) {
+                await store.delete(existing.record_id);
+              } else {
+                availableCount += 1;
+              }
+            } catch {
+              const malformedRecordId = rawRecordId(raw);
+              if (malformedRecordId) await store.delete(malformedRecordId);
+            }
+          }
+          if (availableCount >= ECDSA_CLIENT_PRESIGNATURE_CAPACITY) {
+            return { kind: 'capacity_full' as const };
+          }
+          const materialRow = await context
+            .store(MATERIAL_STORE)
+            .get(durableMaterialRef.durableMaterialRef);
+          if (materialRow === undefined) return { kind: 'persistence_unavailable' as const };
+          try {
+            const locator = parseMaterialLocator(materialRow);
+            const materialRecord = requireRecord(materialRow, 'ECDSA role-local material row');
+            if (
+              locator.durableMaterialRef !== durableMaterialRef.durableMaterialRef ||
+              locator.bindingDigest !== durableMaterialRef.bindingDigest ||
+              String(locator.selector.capability) !== poolIdentity.capability ||
+              String(locator.selector.authority.walletId) !== poolIdentity.walletId ||
+              parseEcdsaMaterialSealingKeyId(materialRecord.sealing_key_id) !==
+                lookup.material.sealingKeyId
+            ) {
+              return { kind: 'persistence_unavailable' as const };
+            }
+          } catch {
+            return { kind: 'persistence_unavailable' as const };
+          }
+          await store.put(row);
+          return { kind: 'stored' as const };
+        },
+        { durability: 'strict' },
+      );
+      return result.kind === 'stored' ? { kind: 'stored', metadata } : result;
+    } catch {
+      return { kind: 'persistence_ambiguous' };
+    }
+  }
+
+  async listAvailableClientPresignatures(
+    poolIdentityInput: EcdsaClientPresignPoolIdentity,
+  ): Promise<readonly DurableClientPresignatureMetadata[]> {
+    if (!supportsStrictIndexedDbDurability()) return [];
+    const poolIdentity = parseEcdsaClientPresignPoolIdentity(poolIdentityInput);
+    const nowMs = Date.now();
+    try {
+      return await this.manager.runTransaction(
+        [PRESIGNATURE_STORE],
+        'readwrite',
+        async (context) => {
+          await deleteExpiredClientPresignatureRows(context, poolIdentity.walletId, nowMs);
+          const store = context.store(PRESIGNATURE_STORE);
+          const rows = await store
+            .index(SEAMS_WALLET_INDEXES.poolIdentityKey)
+            .getAll(ecdsaClientPresignPoolKey(poolIdentity));
+          const metadata: DurableClientPresignatureMetadata[] = [];
+          for (const raw of rows) {
+            try {
+              const row = parseSealedAvailableClientPresignatureRow(raw);
+              if (row.expires_at_ms <= nowMs) {
+                await store.delete(row.record_id);
+                continue;
+              }
+              metadata.push(metadataFromPresignatureRow(row));
+            } catch {
+              const malformedRecordId = rawRecordId(raw);
+              if (malformedRecordId) await store.delete(malformedRecordId);
+            }
+          }
+          return metadata.sort((left, right) => left.createdAtMs - right.createdAtMs);
+        },
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  async takeClientPresignature(input: {
+    readonly recordId: string;
+    readonly poolIdentity: EcdsaClientPresignPoolIdentity;
+  }): Promise<DurableClientPresignatureTakeResult> {
+    if (!supportsStrictIndexedDbDurability()) return { kind: 'persistence_unavailable' };
+    const recordId = parseDurableClientPresignatureRecordId(input.recordId);
+    const poolIdentity = parseEcdsaClientPresignPoolIdentity(input.poolIdentity);
+    let row: SealedAvailableClientPresignatureRow | undefined;
+    try {
+      const claimed = await this.manager.runTransaction(
+        [PRESIGNATURE_STORE],
+        'readwrite',
+        async (context) => {
+          const store = context.store(PRESIGNATURE_STORE);
+          const raw = await store.get(recordId);
+          if (raw === undefined) return { kind: 'claimed_elsewhere' as const };
+          let parsed: SealedAvailableClientPresignatureRow;
+          try {
+            parsed = parseSealedAvailableClientPresignatureRow(raw);
+          } catch {
+            const malformedRecordId = rawRecordId(raw);
+            if (malformedRecordId) await store.delete(malformedRecordId);
+            return { kind: 'corrupt' as const };
+          }
+          if (!equalEcdsaClientPresignPoolIdentity(parsed.pool_identity, poolIdentity)) {
+            await store.delete(recordId);
+            return { kind: 'binding_rejected' as const };
+          }
+          if (parsed.expires_at_ms <= Date.now()) {
+            await store.delete(recordId);
+            return { kind: 'expired' as const };
+          }
+          await store.delete(recordId);
+          return { kind: 'claimed' as const, row: parsed };
+        },
+        { durability: 'strict' },
+      );
+      if (claimed.kind !== 'claimed') return { kind: claimed.kind };
+      row = claimed.row;
+    } catch {
+      return { kind: 'persistence_unavailable' };
+    }
+
+    let lookup: EcdsaCapabilityMaterialRefLookup;
+    try {
+      lookup = await this.lookupByMaterialRef(row.durable_material_ref);
+    } catch {
+      return { kind: 'persistence_unavailable' };
+    }
+    if (
+      lookup.kind !== 'active' ||
+      !activeMaterialMatchesPresignaturePoolIdentity(lookup.material, poolIdentity) ||
+      lookup.material.sealingKeyId !== row.sealed.sealing_key_id ||
+      lookup.material.binding.durableMaterialRef !== row.durable_material_ref.durableMaterialRef ||
+      lookup.material.binding.bindingDigest !== row.durable_material_ref.bindingDigest ||
+      !mpcMaterialActivationRefsEqual(
+        lookup.material.binding.materialActivation,
+        row.durable_material_ref.materialActivation,
+      )
+    ) {
+      return { kind: 'binding_rejected' };
+    }
+    let sealingKey: CryptoKey | null;
+    try {
+      sealingKey = await this.readMaterialSealingKey(row.sealed.sealing_key_id);
+    } catch {
+      return { kind: 'persistence_unavailable' };
+    }
+    if (!sealingKey) return { kind: 'corrupt' };
+    const metadata = metadataFromPresignatureRow(row);
+    try {
+      return {
+        kind: 'opened',
+        metadata,
+        plaintext97: await decryptPresignatureBytes({
+          key: sealingKey,
+          metadata,
+          sealed: row.sealed,
+        }),
+      };
+    } catch {
+      return { kind: 'corrupt' };
+    }
+  }
+
+  async deleteClientPresignature(input: {
+    readonly recordId: string;
+    readonly poolIdentity: EcdsaClientPresignPoolIdentity;
+  }): Promise<void> {
+    const recordId = parseDurableClientPresignatureRecordId(input.recordId);
+    const poolIdentity = parseEcdsaClientPresignPoolIdentity(input.poolIdentity);
+    await this.manager.runTransaction([PRESIGNATURE_STORE], 'readwrite', async (context) => {
+      const store = context.store(PRESIGNATURE_STORE);
+      const raw = await store.get(recordId);
+      if (raw === undefined) return;
+      const row = parseSealedAvailableClientPresignatureRow(raw);
+      if (equalEcdsaClientPresignPoolIdentity(row.pool_identity, poolIdentity)) {
+        await store.delete(recordId);
+      }
+    });
+  }
+
+  async deleteClientPresignatures(target: EcdsaClientPresignCleanupTarget): Promise<number> {
+    return await this.manager.runTransaction([PRESIGNATURE_STORE], 'readwrite', async (context) => {
+      const store = context.store(PRESIGNATURE_STORE);
+      let deletedCount = 0;
+      switch (target.kind) {
+        case 'wallet': {
+          const walletId = String(target.walletId).trim();
+          if (!walletId) throw new Error('ECDSA durable presignature wallet id is required');
+          let cursor = await store.index(SEAMS_WALLET_INDEXES.walletId).openCursor(walletId);
+          while (cursor) {
+            await cursor.delete();
+            deletedCount += 1;
+            cursor = await cursor.continue();
+          }
+          break;
+        }
+        case 'all': {
+          let cursor = await store.openCursor();
+          while (cursor) {
+            await cursor.delete();
+            deletedCount += 1;
+            cursor = await cursor.continue();
+          }
+          break;
+        }
+      }
+      return deletedCount;
+    });
+  }
+
   async listActiveWalletCapabilitySubjects(
     walletIdInput: WalletId,
   ): Promise<ActiveEcdsaWalletCapabilitySubjectListResult> {
@@ -3240,7 +3960,14 @@ export class IndexedDbEcdsaCapabilityManifestStore {
         aadProjection: readyAadProjection(input.committedJournal),
       });
       await this.manager.runTransaction(
-        [MANIFEST_STORE, POINTER_STORE, MATERIAL_STORE, JOURNAL_STORE, SEALING_KEY_STORE],
+        [
+          MANIFEST_STORE,
+          POINTER_STORE,
+          MATERIAL_STORE,
+          JOURNAL_STORE,
+          SEALING_KEY_STORE,
+          PRESIGNATURE_STORE,
+        ],
         'readwrite',
         async (context) => {
           await finalizeInTransaction(context, input, activeProof, selector);
@@ -3881,6 +4608,21 @@ async function lookupWithoutPointer(
   };
 }
 
+async function retireClientPresignaturesForActivationInTransaction(
+  context: SeamsWalletTransactionContext,
+  walletId: string,
+  materialActivationId: string,
+): Promise<void> {
+  const store = context.store(PRESIGNATURE_STORE);
+  const rows = await store
+    .index(SEAMS_WALLET_INDEXES.walletMaterialActivationId)
+    .getAll([walletId, materialActivationId]);
+  for (const raw of rows) {
+    const recordId = rawRecordId(raw);
+    if (recordId) await store.delete(recordId);
+  }
+}
+
 async function finalizeInTransaction(
   context: SeamsWalletTransactionContext,
   input: FinalizeEcdsaCapabilityActivationInput,
@@ -4009,6 +4751,11 @@ async function finalizeInTransaction(
         'replacement ECDSA activation is missing its prior sealing key identity',
       );
     }
+    await retireClientPresignaturesForActivationInTransaction(
+      context,
+      String(previousProof.durableMaterial.materialActivation.materialOwner),
+      String(previousProof.durableMaterial.materialActivation.activationId),
+    );
     await manifestStore.put(storedReplacedManifestRow(previousProof, activeProof));
     await materialStore.delete(previousProof.durableMaterial.durableMaterialRef);
     await context.store(SEALING_KEY_STORE).delete(previousSealingKeyId);

@@ -30,7 +30,7 @@ export const CLOUDFLARE_SIGNING_WORKER_ECDSA_LINKED_EXPORT_SHARE_PATH =
 export type RouterAbEcdsaDerivationPresignaturePoolFillInput = {
   scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
   presignature: RouterAbEcdsaDerivationServerPresignatureShareV1;
-  expiresAtMs: number;
+  materialExpiresAtMs: number;
 };
 
 export function buildRouterAbEcdsaDerivationPresignaturePoolPutRequest(
@@ -40,7 +40,7 @@ export function buildRouterAbEcdsaDerivationPresignaturePoolPutRequest(
     buildCloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1({
       scope: parseRouterAbEcdsaDerivationNormalSigningScopeV1(input.scope),
       presignature: input.presignature,
-      expiresAtMs: input.expiresAtMs,
+      expiresAtMs: input.materialExpiresAtMs,
     }),
   );
 }
@@ -293,7 +293,8 @@ export async function startRouterAbEcdsaPresignSession(input: {
   signingWorkerBaseUrl: string;
   scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
   presignSessionId: string;
-  expiresAtMs: number;
+  ceremonyExpiresAtMs: number;
+  materialExpiresAtMs: number;
   auth: RouterAbEcdsaDerivationPresignaturePoolFillAuth;
   fetchImpl: typeof fetch;
 }): Promise<RouterAbEcdsaPresignSessionHttpResult> {
@@ -303,7 +304,8 @@ export async function startRouterAbEcdsaPresignSession(input: {
     body: {
       scope: parseRouterAbEcdsaDerivationNormalSigningScopeV1(input.scope),
       presign_session_id: input.presignSessionId,
-      expires_at_ms: input.expiresAtMs,
+      ceremony_expires_at_ms: input.ceremonyExpiresAtMs,
+      material_expires_at_ms: input.materialExpiresAtMs,
     },
     auth: input.auth,
     fetchImpl: input.fetchImpl,
@@ -316,7 +318,8 @@ export async function stepRouterAbEcdsaPresignSession(input: {
   presignSessionId: string;
   requestedStage: 'triples' | 'presign';
   outgoingMessagesB64u: string[];
-  expiresAtMs: number;
+  ceremonyExpiresAtMs: number;
+  materialExpiresAtMs: number;
   auth: RouterAbEcdsaDerivationPresignaturePoolFillAuth;
   fetchImpl: typeof fetch;
 }): Promise<RouterAbEcdsaPresignSessionHttpResult> {
@@ -328,7 +331,8 @@ export async function stepRouterAbEcdsaPresignSession(input: {
       presign_session_id: input.presignSessionId,
       requested_stage: input.requestedStage,
       outgoing_messages_b64u: input.outgoingMessagesB64u,
-      expires_at_ms: input.expiresAtMs,
+      ceremony_expires_at_ms: input.ceremonyExpiresAtMs,
+      material_expires_at_ms: input.materialExpiresAtMs,
     },
     auth: input.auth,
     fetchImpl: input.fetchImpl,

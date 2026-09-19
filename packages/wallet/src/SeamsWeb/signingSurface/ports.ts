@@ -151,6 +151,7 @@ import type { WebAuthnAllowCredential } from '@/core/signingEngine/webauthnAuth/
 import type { RegistrationCredentialConfirmationPayload } from '@/core/signingEngine/workerManager/validation';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
+import type { EcdsaClientPresignCleanupTarget } from '@/core/signingEngine/workerManager/ecdsaPresignLifecycle';
 import type {
   WarmSessionSealAndPersistResult,
   WarmSessionSealTransportInput,
@@ -621,6 +622,7 @@ export interface WalletAuthenticationSurface {
   ): void;
   retireActiveWalletSessionAuthorizationForLock(walletId: WalletId): Promise<void>;
   clearWalletAuthentication(): void;
+  clearWalletAuthenticationIfCurrent(expected: WalletAuthenticationState): boolean;
 }
 
 export interface WalletLockGenerationSurface {
@@ -690,6 +692,7 @@ export type RecentUnlocksSigningSurface = Pick<
 
 export interface EcdsaSessionControlSurface {
   clearVolatileWarmSigningMaterial(walletId?: EcdsaWalletId): Promise<void>;
+  deleteDurableEcdsaPresignatures(target: EcdsaClientPresignCleanupTarget): Promise<number>;
   clearThresholdEcdsaSigningQueue(): void;
 }
 
@@ -704,8 +707,11 @@ export type LockSigningSurface = NonceCoordinatorSurface &
     WalletAuthenticationSurface,
     | 'readWalletAuthenticationState'
     | 'retireActiveWalletSessionAuthorizationForLock'
-    | 'clearWalletAuthentication'
+    | 'clearWalletAuthenticationIfCurrent'
   >;
+
+export type LogoutSigningSurface = LockSigningSurface &
+  Pick<EcdsaSessionControlSurface, 'deleteDurableEcdsaPresignatures'>;
 
 export type LocalLoginStateSurface = WalletSessionReadSurface &
   Pick<

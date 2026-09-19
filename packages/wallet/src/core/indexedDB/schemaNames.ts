@@ -1,5 +1,5 @@
 export const SEAMS_WALLET_DB_NAME = 'seams_wallet' as const;
-export const SEAMS_WALLET_DB_VERSION = 23 as const;
+export const SEAMS_WALLET_DB_VERSION = 24 as const;
 
 export const SEAMS_WALLET_STORES = {
   appState: 'app_state',
@@ -25,6 +25,7 @@ export const SEAMS_WALLET_STORES = {
   ecdsaRoleLocalMaterial: 'ecdsa_role_local_material',
   ecdsaActivationCommitJournals: 'ecdsa_activation_commit_journals',
   ecdsaMaterialSealingKeys: 'ecdsa_material_sealing_keys',
+  ecdsaClientPresignatures: 'ecdsa_client_presignatures',
 } as const;
 
 export const SEAMS_WALLET_INDEXES = {
@@ -104,6 +105,8 @@ export const SEAMS_WALLET_INDEXES = {
   walletIdLockGeneration: 'wallet_id_lock_generation',
   authorityDigest: 'authority_digest',
   revocationEpoch: 'revocation_epoch',
+  poolIdentityKey: 'pool_identity_key',
+  walletMaterialActivationId: 'wallet_material_activation_id',
 } as const;
 
 export type SeamsWalletStoreName = (typeof SEAMS_WALLET_STORES)[keyof typeof SEAMS_WALLET_STORES];
@@ -525,6 +528,25 @@ export const SEAMS_WALLET_SCHEMA_MANIFEST = [
     store: SEAMS_WALLET_STORES.ecdsaMaterialSealingKeys,
     keyPath: 'key_id',
     indexes: [],
+  },
+  {
+    store: SEAMS_WALLET_STORES.ecdsaClientPresignatures,
+    keyPath: 'record_id',
+    indexes: [
+      { name: SEAMS_WALLET_INDEXES.poolIdentityKey, keyPath: 'pool_identity_key', unique: false },
+      { name: SEAMS_WALLET_INDEXES.walletId, keyPath: 'wallet_id', unique: false },
+      {
+        name: SEAMS_WALLET_INDEXES.walletMaterialActivationId,
+        keyPath: ['wallet_id', 'material_activation_id'],
+        unique: false,
+      },
+      { name: SEAMS_WALLET_INDEXES.expiresAtMs, keyPath: 'expires_at_ms', unique: false },
+      {
+        name: SEAMS_WALLET_INDEXES.walletExpiresAt,
+        keyPath: ['wallet_id', 'expires_at_ms'],
+        unique: false,
+      },
+    ],
   },
 ] as const satisfies readonly SeamsWalletStoreDefinition[];
 

@@ -4,7 +4,6 @@ import {
   thresholdEcdsaRoleLocalReservePresignatureWasm,
   thresholdEcdsaRoleLocalCommitPresignatureWasm,
   thresholdEcdsaRoleLocalListAvailablePresignaturesWasm,
-  thresholdEcdsaRoleLocalRetirePresignaturePoolWasm,
   thresholdEcdsaRoleLocalComputeSignatureShareFromPresignatureHandleWasm,
   thresholdEcdsaRoleLocalPresignSessionAbortWasm,
   thresholdEcdsaRoleLocalPresignSessionInitFromMaterialHandleWasm,
@@ -73,7 +72,6 @@ export function createEcdsaLoginPrefillClientSigningMaterialSource(args: {
     reserveClientPresignature: thresholdEcdsaRoleLocalReservePresignatureWasm,
     commitClientPresignature: thresholdEcdsaRoleLocalCommitPresignatureWasm,
     listAvailableClientPresignatures: thresholdEcdsaRoleLocalListAvailablePresignaturesWasm,
-    retireClientPresignaturePool: thresholdEcdsaRoleLocalRetirePresignaturePoolWasm,
     computeSignatureShareFromPresignatureHandle:
       thresholdEcdsaRoleLocalComputeSignatureShareFromPresignatureHandleWasm,
   };

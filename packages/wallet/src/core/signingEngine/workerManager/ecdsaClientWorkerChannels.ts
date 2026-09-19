@@ -38,6 +38,10 @@ import type {
 import type { EcdsaRoleLocalPublicFacts } from '@/core/platform';
 import type { EcdsaRoleLocalReadyStateBlob } from '@/core/platform';
 import type { EcdsaClientPresignPoolIdentity } from './ecdsaPresignPoolIdentity';
+import type {
+  EcdsaClientPresignAdmissionStorage,
+  EcdsaClientPresignUnavailableReason,
+} from './ecdsaPresignLifecycle';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { WalletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
@@ -90,6 +94,7 @@ type OpaqueEcdsaPresignSessionInitBaseV1 = OpaqueEcdsaPresignSessionRequestBaseV
   readonly kind: 'opaque_ecdsa_presign_session_init_v1';
   readonly poolIdentity: EcdsaClientPresignPoolIdentity;
   readonly groupPublicKey33: ArrayBuffer;
+  readonly ceremonyExpiresAtMs: number;
   readonly materialExpiresAtMs: number;
 };
 
@@ -140,6 +145,29 @@ export type OpaqueEcdsaPresignAuthorityRequestV1 =
   | (OpaqueEcdsaPresignRequestBaseV1 & {
       readonly kind: 'opaque_ecdsa_presign_material_destroy_v1';
       readonly materialHandle: string;
+    })
+  | (OpaqueEcdsaPresignRequestBaseV1 & {
+      readonly kind: 'opaque_ecdsa_presign_material_admit_v1';
+      readonly materialHandle: string;
+      readonly expectedPresignatureId: string;
+      readonly admissionMode: 'durable' | 'resident';
+    })
+  | (OpaqueEcdsaPresignRequestBaseV1 & {
+      readonly kind: 'opaque_ecdsa_presign_material_restore_v1';
+      readonly recordId: string;
+      readonly expectedPresignatureId: string;
+      readonly poolIdentity: EcdsaClientPresignPoolIdentity;
+      readonly groupPublicKey33: ArrayBuffer;
+      readonly bigR33: ArrayBuffer;
+    })
+  | (OpaqueEcdsaPresignRequestBaseV1 & {
+      readonly kind: 'opaque_ecdsa_presign_material_list_v1';
+      readonly poolIdentity: EcdsaClientPresignPoolIdentity;
+    })
+  | (OpaqueEcdsaPresignRequestBaseV1 & {
+      readonly kind: 'opaque_ecdsa_presign_material_delete_v1';
+      readonly recordId: string;
+      readonly poolIdentity: EcdsaClientPresignPoolIdentity;
     });
 
 type OpaqueEcdsaPresignSessionInitAuthorityV1 = Extract<
@@ -202,6 +230,35 @@ export type OpaqueEcdsaPresignAuthorityResponseV1 =
         | {
             readonly kind: 'material_destroyed';
             readonly materialHandle: string;
+          }
+        | {
+            readonly kind: 'material_admitted';
+            readonly materialHandle: string;
+            readonly storage: EcdsaClientPresignAdmissionStorage;
+            readonly presignatureId: string;
+          }
+        | {
+            readonly kind: 'durable_list';
+            readonly entries: readonly {
+              readonly recordId: string;
+              readonly presignatureId: string;
+              readonly groupPublicKey33B64u: string;
+              readonly bigR33B64u: string;
+              readonly createdAtMs: number;
+              readonly expiresAtMs: number;
+            }[];
+          }
+        | {
+            readonly kind: 'durable_restored';
+            readonly materialHandle: string;
+          }
+        | {
+            readonly kind: 'durable_restore_failed';
+            readonly reason: EcdsaClientPresignUnavailableReason;
+          }
+        | {
+            readonly kind: 'durable_deleted';
+            readonly recordId: string;
           };
       readonly error?: never;
     }

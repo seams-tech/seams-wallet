@@ -6,8 +6,8 @@ runtime/profile realization remain open**
 
 ## Source precedence
 
-1. [`docs/router-ab/ed25519-yao/implementation-plan.md`](../../../../docs/router-ab/ed25519-yao/implementation-plan.md) owns the approved
-   architecture, corruption model, and phased protocol plan.
+1. [`docs/router-ab/ed25519-yao.md`](../../../../docs/router-ab/ed25519-yao.md) owns the current
+   product architecture, custody boundary, and deployed trust assumptions.
 2. [`tools/ed25519-yao-generator/docs/fixed-reference-v1.md`](../../../../tools/ed25519-yao-generator/docs/fixed-reference-v1.md)
    owns the extracted fixed reference encodings, domains, identifiers,
    arithmetic relations, KDF definition, and generator-owned golden blocks

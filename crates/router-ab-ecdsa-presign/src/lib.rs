@@ -70,10 +70,11 @@ use router_ab_ecdsa_wire::{
     ClientAlphaBetaMessage, ClientEShareMessage, CompressedPointBytes, PresignPairContext,
     ScalarBytes, SigningWorkerAlphaBetaMessage, SigningWorkerEShareMessage,
 };
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 const CLIENT_LAGRANGE: u64 = 3;
 const SIGNING_WORKER_LAGRANGE_MAGNITUDE: u64 = 2;
+pub const PRESIGNATURE_SIZE: usize = 97;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PresignError {
@@ -81,6 +82,8 @@ pub enum PresignError {
     IdentityPoint,
     InvalidPoint,
     NonCanonicalScalar,
+    InvalidPresignatureLength,
+    ZeroPresignatureNonce,
     ZeroKeyShare,
     ZeroEShare,
     ECommitmentMismatch,
@@ -95,6 +98,8 @@ impl fmt::Display for PresignError {
             Self::IdentityPoint => "identity point is forbidden",
             Self::InvalidPoint => "invalid compressed secp256k1 point",
             Self::NonCanonicalScalar => "non-canonical secp256k1 scalar",
+            Self::InvalidPresignatureLength => "presignature must contain exactly 97 bytes",
+            Self::ZeroPresignatureNonce => "presignature nonce is zero",
             Self::ZeroKeyShare => "zero key share is forbidden",
             Self::ZeroEShare => "zero e share is forbidden",
             Self::ECommitmentMismatch => "reconstructed e does not match its commitment",
@@ -337,6 +342,54 @@ pub struct PresignOutput {
 }
 
 impl PresignOutput {
+    /// Encodes the role-local output as the one canonical persisted form.
+    ///
+    /// The layout is compressed R (33 bytes), followed by k and sigma scalar
+    /// encodings (32 bytes each). Keeping this encoder beside the decoder
+    /// prevents TypeScript from interpreting secret material.
+    pub fn to_bytes(&self) -> [u8; PRESIGNATURE_SIZE] {
+        let (big_r, k, sigma) = self.clone_parts();
+        let mut bytes = [0_u8; PRESIGNATURE_SIZE];
+        bytes[..33].copy_from_slice(big_r.as_bytes());
+        bytes[33..65].copy_from_slice(&k);
+        bytes[65..].copy_from_slice(&sigma);
+        let mut k = k;
+        let mut sigma = sigma;
+        k.zeroize();
+        sigma.zeroize();
+        bytes
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, PresignError> {
+        if bytes.len() != PRESIGNATURE_SIZE {
+            return Err(PresignError::InvalidPresignatureLength);
+        }
+
+        let big_r: [u8; 33] = bytes[..33]
+            .try_into()
+            .expect("presignature point width is fixed after length validation");
+        let k_bytes = Zeroizing::new(
+            bytes[33..65]
+                .try_into()
+                .expect("presignature nonce width is fixed after length validation"),
+        );
+        let sigma_bytes = Zeroizing::new(
+            bytes[65..]
+                .try_into()
+                .expect("presignature sigma width is fixed after length validation"),
+        );
+        let k = parse_scalar(*k_bytes)?;
+        if bool::from(k.is_zero()) {
+            return Err(PresignError::ZeroPresignatureNonce);
+        }
+
+        Ok(Self {
+            big_r: parse_nonidentity_point(CompressedPointBytes::new(big_r))?,
+            k,
+            sigma: parse_scalar(*sigma_bytes)?,
+        })
+    }
+
     pub fn big_r_bytes(&self) -> CompressedPointBytes {
         point_bytes(self.big_r)
     }
@@ -346,6 +399,14 @@ impl PresignOutput {
             point_bytes(self.big_r),
             scalar_bytes(self.k),
             scalar_bytes(self.sigma),
+        )
+    }
+
+    fn clone_parts(&self) -> (CompressedPointBytes, [u8; 32], [u8; 32]) {
+        (
+            point_bytes(self.big_r),
+            self.k.to_bytes().into(),
+            self.sigma.to_bytes().into(),
         )
     }
 }
@@ -746,6 +807,58 @@ mod tests {
         let k_inverse = Option::<Scalar>::from(reconstructed_k.invert()).expect("non-zero k");
         let expected_r = generator_multiple(k_inverse);
         assert_eq!(client_big_r, expected_r);
+    }
+
+    #[test]
+    fn presign_output_round_trips_through_canonical_bytes() {
+        let output = PresignOutput {
+            big_r: (ProjectivePoint::GENERATOR * Scalar::from(3u64)).to_affine(),
+            k: Scalar::from(5u64),
+            sigma: Scalar::from(7u64),
+        };
+        let encoded = output.to_bytes();
+        let decoded = PresignOutput::from_bytes(&encoded).expect("canonical output");
+
+        assert_eq!(decoded.to_bytes(), encoded);
+        assert_eq!(decoded.big_r_bytes(), output.big_r_bytes());
+    }
+
+    #[test]
+    fn presign_output_rejects_malformed_point_and_scalars() {
+        let mut invalid_point = [0_u8; PRESIGNATURE_SIZE];
+        invalid_point[0] = 0x02;
+        invalid_point[33..65].copy_from_slice(&Scalar::from(5u64).to_bytes());
+        invalid_point[65..].copy_from_slice(&Scalar::from(7u64).to_bytes());
+        expect_presign_error(
+            PresignOutput::from_bytes(&invalid_point),
+            PresignError::InvalidPoint,
+        );
+
+        let mut invalid_scalar = [0_u8; PRESIGNATURE_SIZE];
+        invalid_scalar[..33].copy_from_slice(
+            point_bytes((ProjectivePoint::GENERATOR * Scalar::from(3u64)).to_affine()).as_bytes(),
+        );
+        invalid_scalar[33..65].fill(0xff);
+        invalid_scalar[65..].copy_from_slice(&Scalar::from(7u64).to_bytes());
+        expect_presign_error(
+            PresignOutput::from_bytes(&invalid_scalar),
+            PresignError::NonCanonicalScalar,
+        );
+
+        expect_presign_error(
+            PresignOutput::from_bytes(&[0_u8; PRESIGNATURE_SIZE - 1]),
+            PresignError::InvalidPresignatureLength,
+        );
+
+        let mut zero_nonce = [0_u8; PRESIGNATURE_SIZE];
+        zero_nonce[..33].copy_from_slice(
+            point_bytes((ProjectivePoint::GENERATOR * Scalar::from(3u64)).to_affine()).as_bytes(),
+        );
+        zero_nonce[65..].copy_from_slice(&Scalar::from(7u64).to_bytes());
+        expect_presign_error(
+            PresignOutput::from_bytes(&zero_nonce),
+            PresignError::ZeroPresignatureNonce,
+        );
     }
 
     #[test]

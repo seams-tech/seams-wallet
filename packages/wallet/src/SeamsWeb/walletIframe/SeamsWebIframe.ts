@@ -339,6 +339,7 @@ export class SeamsWebIframe {
     this.auth = {
       unlock: async (walletId, options) => await this.unlockDomain(walletId, options),
       lock: async () => await this.lockDomain(),
+      logout: async () => await this.logoutDomain(),
       getWalletSession: async (walletId) => await this.getWalletSessionDomain(walletId),
       getRecentUnlocks: async () => await this.getRecentUnlocksDomain(),
       hasPasskeyCredential: async (walletId) => await this.hasPasskeyCredentialDomain(walletId),
@@ -891,6 +892,10 @@ export class SeamsWebIframe {
 
   private async lockDomain(): Promise<void> {
     await this.router.lock();
+  }
+
+  private async logoutDomain(): Promise<void> {
+    await this.router.logout();
   }
 
   private async getWalletSessionDomain(walletId?: string): Promise<WalletSession> {

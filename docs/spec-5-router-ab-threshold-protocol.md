@@ -33,8 +33,9 @@ flowchart TB
 
 The diagram shows cryptographic traffic after Gateway admission.
 The Router handles encrypted messages and public information. It has no
-participant secret share or mutable store. Each private role saves only its own
-material and progress.
+participant secret share. Its Durable Object serializes tenant-root lifecycle
+progress without storing either Deriver share. Each private role saves only its
+own material and progress.
 
 ## What is split?
 

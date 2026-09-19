@@ -1149,7 +1149,7 @@ impl CloudflareSigningWorkerEcdsaPresignaturePoolRecordV1 {
         }
         if expires_at_ms > self.expires_at_ms {
             return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidTimeRange,
+                RouterAbProtocolErrorCode::ExpiredLocalRequest,
                 "SigningWorker ECDSA presignature pool record expires before prepare request",
             ));
         }
