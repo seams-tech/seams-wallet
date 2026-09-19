@@ -2,12 +2,12 @@
   "schemaVersion": "seams_wallet_server_artifact_manifest_v1",
   "package": {
     "name": "@seams/wallet-server",
-    "version": "0.5.2"
+    "version": "0.5.24"
   },
   "workers": {
     "router": {
       "entry": "cloudflare-router-ab/build/router/worker/shim.mjs",
-      "fingerprint": "a5cc7ce49fdc0006e63c0381d94c620c01a61e00ac95af82f63aa7977e1a3de0",
+      "fingerprint": "3234cc925ce75055e325bf87d1c29bd2ad2fc49d0324cc4726d3fe95c2694771",
       "files": [
         {
           "path": "cloudflare-router-ab/build/router/index.js",
@@ -16,8 +16,8 @@
         },
         {
           "path": "cloudflare-router-ab/build/router/index_bg.wasm",
-          "bytes": 6675984,
-          "sha256": "0c51ae9d17202cd66ed9dcb3a44453559adaa5371cfd500f21341905075e36a5"
+          "bytes": 6677956,
+          "sha256": "30619ea0367e70e7aa7cd87e6705ac60aba452bf227f66578e8c06efb7a97886"
         },
         {
           "path": "cloudflare-router-ab/build/router/package.json",
@@ -33,7 +33,7 @@
     },
     "deriver-a": {
       "entry": "cloudflare-router-ab/build/deriver-a/worker/shim.mjs",
-      "fingerprint": "22364bef8f1952236898794afe82eb208abfd905c429dfb0f97ac88bf18eb12d",
+      "fingerprint": "4bd7903586a595eff27b56d0f343e6f0936ffeb0cd758919411bbc3fd39c0a1d",
       "files": [
         {
           "path": "cloudflare-router-ab/build/deriver-a/index.js",
@@ -42,8 +42,8 @@
         },
         {
           "path": "cloudflare-router-ab/build/deriver-a/index_bg.wasm",
-          "bytes": 13235155,
-          "sha256": "dcbd08d84b266cf26263224e09c5acf365dcf0b35e363efeb5aed0e3a6a204ce"
+          "bytes": 13237117,
+          "sha256": "ac69598065421e5e0bfec729be1f39aebc51c96e974b7775e8222f1a31590e74"
         },
         {
           "path": "cloudflare-router-ab/build/deriver-a/package.json",
@@ -59,7 +59,7 @@
     },
     "deriver-b": {
       "entry": "cloudflare-router-ab/build/deriver-b/worker/shim.mjs",
-      "fingerprint": "7625d8c55a59f82e2ae9551f64796d921855552f9136f3f17fd00e5544adc9a7",
+      "fingerprint": "db5770cbe7c41f104de6a01d05bb5a60d790fa0a7787aa2ab03f164466b6feec",
       "files": [
         {
           "path": "cloudflare-router-ab/build/deriver-b/index.js",
@@ -68,8 +68,8 @@
         },
         {
           "path": "cloudflare-router-ab/build/deriver-b/index_bg.wasm",
-          "bytes": 13059981,
-          "sha256": "b3caf0ba975f218b98f4c05e350c4003433f551daea3a07d9b779b8b92a14c69"
+          "bytes": 13061951,
+          "sha256": "823ff254aa3472b2302eb0c16104af0153753593355a8cb5d378ef6a91db580f"
         },
         {
           "path": "cloudflare-router-ab/build/deriver-b/package.json",
@@ -85,7 +85,7 @@
     },
     "signing-worker": {
       "entry": "cloudflare-router-ab/build/signing-worker/worker/shim.mjs",
-      "fingerprint": "cce7d21f0206603da29764337324358820e81d4814aea2acd60fe7f033892083",
+      "fingerprint": "6e7a18165c6a2ac9fd2b0655b8f5cecfd035ba3066a7deddbd439ce3f16d9a47",
       "files": [
         {
           "path": "cloudflare-router-ab/build/signing-worker/index.js",
@@ -94,8 +94,8 @@
         },
         {
           "path": "cloudflare-router-ab/build/signing-worker/index_bg.wasm",
-          "bytes": 6645994,
-          "sha256": "1164ae36ae1661c3516164d2b6d4c1e0246f25eda57fe232626282622b3c9162"
+          "bytes": 6647915,
+          "sha256": "d101dc62a0b91644c89944fac93387ea7686c95bb62f697f855de0048cb1c888"
         },
         {
           "path": "cloudflare-router-ab/build/signing-worker/package.json",
@@ -111,7 +111,7 @@
     },
     "tenant-root-control-plane": {
       "entry": "cloudflare-router-ab/build/tenant-root-control-plane/worker/shim.mjs",
-      "fingerprint": "4de496ec236f6dd29ec80adfe3f33c55d044d7d10444ffc65edb243e189631ee",
+      "fingerprint": "594259b9cc8ee748f95f38d28e2c3ed2febb13a76903383769eb7a75f9beaf61",
       "files": [
         {
           "path": "cloudflare-router-ab/build/tenant-root-control-plane/index.js",
@@ -120,8 +120,8 @@
         },
         {
           "path": "cloudflare-router-ab/build/tenant-root-control-plane/index_bg.wasm",
-          "bytes": 4474217,
-          "sha256": "ba2d10bfb861b12e0e7b80686477dcc091c2c77b2d74644970728fa050182d5d"
+          "bytes": 4476228,
+          "sha256": "b1651289f40317c4c93699b8977c5b4cca487b2345990adb59bb92364721a6ee"
         },
         {
           "path": "cloudflare-router-ab/build/tenant-root-control-plane/package.json",
