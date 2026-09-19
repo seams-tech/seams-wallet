@@ -142,9 +142,9 @@ Remaining acceptance work:
 1. Complete mainnet tenant activation for the intended production environment.
    The coordinated SDK/server/frontend release is now `0.5.24`; production-testnet
    is available for signing measurements independently of mainnet activation.
-2. Capture a slow production Tempo/Arc request with client timings and matching
-   gateway/role traces. Compare cache hits against generation misses and record
-   authorization branch, placement, deployed versions, failures, and sample counts.
+2. Extend the production Tempo measurements below to Arc and the remaining
+   acceptance cohorts. Keep client timings and matching gateway/role traces,
+   including cache misses, authorization, placement, deployed versions, and failures.
 3. Optimize the dominant measured production stage and rerun the full first-use,
    sustained, reload, expiry, and cold-runtime cohorts against the 3-second target.
 4. Use the NEAR activation spans to optimize its slow production stages while
@@ -198,6 +198,14 @@ and renders it into the selected Wrangler environment. No other lane's
 placement was changed. [Cloudflare's placement documentation](https://developers.cloudflare.com/workers/configuration/placement/)
 supports placing a service-bound worker near its backend. Exact database
 location should be rechecked before changing another lane.
+
+PR 25 merged, and standard production-testnet deployment
+[`35444951877`](https://github.com/seams-tech/seams-monorepo/actions/runs/35444951877)
+completed successfully. A fresh settings read confirmed that Osaka placement
+survived deployment; all five live Gateway smoke checks returned HTTP 200.
+Its temporary build cache was removed after the deployment consumers finished.
+The signing samples below were collected during the preceding placement
+comparison, before this standard redeploy.
 
 All durations below are seconds. Commit includes authorization after
 confirmation, pool work, prepare/finalize, and transaction assembly. Refill is
