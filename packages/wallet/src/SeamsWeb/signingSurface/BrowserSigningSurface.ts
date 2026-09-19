@@ -1,3 +1,4 @@
+import type { AuthorizedEvmFamilyEcdsaSigningCapability } from '@/core/signingEngine/session/material/ecdsaSigningCapability';
 import type { DurableRecordStore, RuntimePorts } from '@/core/platform';
 import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
@@ -144,7 +145,6 @@ import type { TempoSigningRequest } from '@/core/signingEngine/chains/tempo/temp
 import type { TempoSignedResult } from '@/core/signingEngine/chains/tempo/tempoAdapter';
 import type { EcdsaBootstrapRequest } from '@/core/signingEngine/session/passkey/ecdsaBootstrap';
 import { type ThresholdEcdsaBootstrapStorePort } from '@/core/signingEngine/session/warmCapabilities/ecdsaBootstrapPersistence';
-import type { ExactEcdsaSealedRuntime } from '@/core/signingEngine/session/material/ecdsaSealedRuntime';
 import type { ActiveEcdsaCapabilityManifest } from '@/core/signingEngine/session/material/ecdsaCapabilityManifest';
 import { SigningSessionIds } from '@/core/signingEngine/session/operationState/types';
 import {
@@ -6823,17 +6823,46 @@ export class BrowserSigningSurface {
     );
   }
 
-  async scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(args: {
-    walletId: WalletId;
-    chainTarget: ThresholdEcdsaChainTarget;
-    manifest: ActiveEcdsaCapabilityManifest;
-    runtime: ExactEcdsaSealedRuntime;
-    minRemainingUsesBeforePrefill?: number;
-    waitForPoolReady?: boolean;
-  }): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {
+  async scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
+    args: {
+      walletId: WalletId;
+      chainTarget: ThresholdEcdsaChainTarget;
+      minRemainingUsesBeforePrefill?: number;
+      waitForPoolReady?: boolean;
+    },
+    statusReads: WalletSessionStatusReadScope,
+  ): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {
+    const capabilities =
+      await this.sessionPublicDeps.availableLanes.listEcdsaSigningCapabilitiesForWallet(
+        { walletId: args.walletId, chainTargets: [args.chainTarget] },
+        statusReads,
+      );
+    let authorized: AuthorizedEvmFamilyEcdsaSigningCapability | null = null;
+    for (const capability of capabilities) {
+      if (capability.kind !== 'authorized_evm_family_ecdsa_signing_capability') continue;
+      if (authorized) {
+        return {
+          status: 'skipped',
+          reason: 'exact_wallet_session_unavailable',
+          walletSessionId: null,
+        };
+      }
+      authorized = capability;
+    }
+    if (!authorized) {
+      return {
+        status: 'skipped',
+        reason: 'exact_wallet_session_unavailable',
+        walletSessionId: null,
+      };
+    }
     return await warmCapabilitiesPublic.scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
       this.warmCapabilitiesPublicDeps,
-      args,
+      {
+        capability: authorized,
+        minRemainingUsesBeforePrefill: args.minRemainingUsesBeforePrefill,
+        waitForPoolReady: args.waitForPoolReady,
+      },
     );
   }
 

@@ -1,3 +1,4 @@
+import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { toError } from '@shared/utils/errors';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import type { RouterAbEcdsaDerivationLoginPresignaturePrefillResult } from '@/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
@@ -21,7 +22,6 @@ import {
 } from '@/SeamsWeb/operations/auth/login';
 import { IndexedDBManager } from '@/core/indexedDB';
 import type { LocalWalletAuthMethodRecordV2 } from '@/core/indexedDB/passkeyClientDB.types';
-import { resolveBrowserActiveEcdsaCapabilityRuntime } from '@/SeamsWeb/assembly/browserSigningSurfaceAssembly';
 import { SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';
 import type {
   WalletAuthWebContext,
@@ -277,33 +277,18 @@ export async function prefillRouterAbEcdsaDerivationPresignaturePoolDomain(
     });
   }
 
-  // Canonical resolution: the manifest selects the exact capability and the
-  // sealed store supplies its runtime state. A missing or mismatched half is a
-  // typed skip, not a throw -- prefill is an optimisation, and failing it must
-  // never fail the unlock that triggered it.
   const walletId = toWalletId(args.walletSession.walletId);
-  const resolved = await resolveBrowserActiveEcdsaCapabilityRuntime({
-    walletId,
-    chainTarget: args.chainTarget,
-  });
-  if (resolved.kind !== 'resolved') {
-    return {
-      status: 'skipped',
-      reason: 'invalid_session_record',
-      thresholdSessionId: null,
-      details: resolved.reason,
-    };
-  }
-  return await deps.signingEngine.scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill({
-    walletId,
-    chainTarget: args.chainTarget,
-    manifest: resolved.manifest,
-    runtime: resolved.runtime,
-    ...(typeof args.waitForPoolReady === 'boolean'
-      ? { waitForPoolReady: args.waitForPoolReady }
-      : {}),
-    ...(typeof args.minRemainingUsesBeforePrefill === 'number'
-      ? { minRemainingUsesBeforePrefill: args.minRemainingUsesBeforePrefill }
-      : {}),
-  });
+  return await deps.signingEngine.scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
+    {
+      walletId,
+      chainTarget: args.chainTarget,
+      ...(typeof args.waitForPoolReady === 'boolean'
+        ? { waitForPoolReady: args.waitForPoolReady }
+        : {}),
+      ...(typeof args.minRemainingUsesBeforePrefill === 'number'
+        ? { minRemainingUsesBeforePrefill: args.minRemainingUsesBeforePrefill }
+        : {}),
+    },
+    new WalletSessionStatusReadScope(),
+  );
 }

@@ -1,16 +1,9 @@
 import type { SelectedSigningSessionPlanningLane, SigningLaneSummary } from './types';
+import { parseEcdsaServerTiming } from '@shared/utils/ecdsaServerTiming';
 import { summarizeSigningLane } from './types';
 import type { SigningPlannerDecisionTraceEvent } from '../planning/planner';
 
 export type SigningSessionTraceScope = 'evm-family' | 'near';
-
-const ECDSA_GATEWAY_TIMING_METRICS = new Set([
-  'ecdsa_sign_authorize',
-  'ecdsa_sign_admit',
-  'ecdsa_sign_proxy',
-  'ecdsa_sign_complete',
-  'ecdsa_sign_total',
-]);
 
 export function emitEcdsaServerTiming(
   operationId: string,
@@ -18,23 +11,31 @@ export function emitEcdsaServerTiming(
   header: string | null,
 ): void {
   if (!header || !isSigningSessionTraceEnabled()) return;
-  for (const metric of header.split(',')) {
-    const [name, ...parameters] = metric.trim().split(';');
-    if (!ECDSA_GATEWAY_TIMING_METRICS.has(name)) continue;
-    for (const parameter of parameters) {
-      const [key, rawValue] = parameter.trim().split('=');
-      if (key !== 'dur' || !rawValue?.trim()) continue;
-      const durationMs = Number(rawValue);
-      if (!Number.isFinite(durationMs) || durationMs < 0) break;
-      emitSigningSessionFlowTrace('evm-family', {
-        event: 'ecdsa_server_timing',
-        operationId,
-        phase,
-        stage: name,
-        durationMs,
-      });
-      break;
-    }
+  for (const [stage, durationMs] of parseEcdsaServerTiming(header)) {
+    emitSigningSessionFlowTrace('evm-family', {
+      event: 'ecdsa_server_timing',
+      operationId,
+      phase,
+      stage,
+      durationMs,
+    });
+  }
+}
+
+export function emitEcdsaPresignServerTiming(
+  presignSessionId: string,
+  phase: 'init' | 'step',
+  header: string | null,
+): void {
+  if (!header || !isSigningSessionTraceEnabled()) return;
+  for (const [stage, durationMs] of parseEcdsaServerTiming(header)) {
+    emitSigningSessionFlowTrace('evm-family', {
+      event: 'ecdsa_presign_server_timing',
+      presignSessionId,
+      phase,
+      stage,
+      durationMs,
+    });
   }
 }
 

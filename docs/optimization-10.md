@@ -503,7 +503,8 @@ signing. Scheduled prewarming alone cannot establish this.
 
 ### ECDSA
 
-Status: the following steps are planned. Production generation still takes
+Status: steps 4.1 and 4.4 have local implementation; production comparison and
+the remaining decision gates are open. Production generation still takes
 5.32–9.93 seconds in the measured post-placement empty-pool samples. The share
 attributable to authorization, network transit, protocol computation, and
 completion storage has not yet been measured independently.
@@ -518,11 +519,34 @@ moving both secret shares into one service.
 
 #### 4.1 Instrument and consolidate repeated authorization reads
 
+Implementation update: the local patch removes the duplicate material lookup
+from step-up pool-fill admission. The remaining fresh lookup and atomic
+material/operation admission still run on each request. Gateway `Server-Timing`
+now separates queueing, authentication, material resolution, admission, proxy,
+and total duration. Signing-worker metrics separate initial material loading,
+the session-object call, terminal pool admission, and total duration. A shared
+allowlist forwards only finite, nonnegative durations to client diagnostics.
+Presign session IDs correlate these timings with the existing round trace.
+
+Local verification passed: 197 Wallet unit tests, 46 Rust presign tests,
+SDK/server type checks and builds, registration with immediate Tempo and
+asynchronous NEAR readiness, and sustained Tempo/Arc signing with 20 unique
+presignatures. The sustained contract verifies timing propagation and rejection
+of changed material handles and expired step-up requests before worker dispatch.
+The server build was rerun after the SDK build completed because simultaneous
+builds briefly removed a generated WASM module it imports.
+
+Production attribution remains open. These boundary spans include I/O and
+cannot establish pure CPU duration: Cloudflare advances its runtime clock
+across I/O. Use runtime CPU telemetry alongside them. Per-storage-call counts,
+actual execution locations, and a deployed before/after comparison remain
+necessary before selecting the placement or transport change below.
+
 Start in the [pool-fill authorization handler](../packages/wallet-server/src/router/transport/fetch/routes/thresholdEcdsa.ts)
 and its [operation admission helpers](../packages/wallet-server/src/router/domains/signingOperations/routerAbPrivateSigningWorker.ts).
-The step-up handler currently resolves active material, validates it, then
-resolves it again through `resolveFreshRouterAbEcdsaMaterialActivation` before
-claiming the operation. This sequence repeats on initialization and every step.
+Before this patch, the step-up handler resolved active material, validated it,
+then resolved it again through `resolveFreshRouterAbEcdsaMaterialActivation`
+before claiming the operation, on initialization and every step.
 
 - Add correlated timings for gateway queueing, authentication, each material
   resolution, operation read/admission, the service-binding call, session-object
@@ -604,6 +628,35 @@ decision instead of adding a second permanent transport.
 
 #### 4.4 Restore and replenish material at the earliest authorized point
 
+Implementation update: registration now schedules bounded refill after committing
+its authenticated ECDSA session, without awaiting the pool or NEAR readiness.
+Registration and unlock share the scheduling helper and report scheduling
+outcomes through the existing signing diagnostics.
+
+The registration contract exposed two existing prefill defects. Prefill required
+a sealed warm-session record even though current registration signs through the
+durable capability and exact Wallet Session. After correcting that resolution,
+prefill still omitted the required key handle and stopped with `invalid_args`.
+The scheduler now accepts the same authorized capability used for signing,
+reads live quota through the existing resolver, and supplies the validated key
+handle. The refill input requires the handle at compile time. The obsolete
+sealed-record-only checks and duplicate authority resolver were removed.
+Reload prefill uses this same corrected path. Prefill results identify the
+Wallet Session with `walletSessionId`; the obsolete threshold-session result
+field and dispense counters were removed. Prefill does not dispense signing
+allowance.
+
+The existing pool scheduler restores durable material before generation,
+deduplicates shared-pool requests, publishes its first available entry, and yields
+to foreground signing. Target depth, concurrency limits, minimum remaining uses,
+expiry, one-use consumption, and server authorization are unchanged. Type
+fixtures reject an unauthorized capability and a refill without a key handle.
+The blocked-init registration contract passes, as does sustained signing with
+20 distinct consumed presignatures. All 197 Wallet unit tests pass. Unlock
+prefill shares the existing operation-scoped status reader so that preparing
+Tempo and Arc does not add duplicate status reads; its lifecycle rerun is in
+progress. Production before/after refill measurements remain required.
+
 Reuse the [durable presignature cache](./refactor-126-durable-presignature-cache.md),
 [login prefill](../packages/wallet/src/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill.ts),
 pool scheduler, and reusable-session post-sign refill in the
@@ -648,6 +701,25 @@ use distinct domain types and negative tests proving it cannot authorize
 signing, export, another wallet, another activation, or generation after expiry
 or revocation. If deferred, exhausted-pool step-up remains a required acceptance
 cohort under the existing policy.
+
+Proposed permission contract for that decision (design only):
+
+| Property | Proposed bound |
+| --- | --- |
+| Issuer | The existing authorization service, only after a full registration or unlock authentication that includes this capability in the authorized policy. A transaction step-up cannot mint or renew it. |
+| Scope | One tenant/environment, wallet, selected authority and auth method, exact material activation, signing worker, and presign pool identity. |
+| Operation | A separate `ecdsa.presign` permission accepted only by preprocessing admission. It never satisfies signing, export, device linking, or recovery admission. |
+| Lifetime | At most 10 minutes and never beyond the authorizing Wallet Session's expiry. Signing allowance exhaustion may leave this permission alive; expiry, replacement, revocation, or logout do not. |
+| Initial limits | At most three available entries, one generation in flight, and twelve generated entries per grant. Enforce limits atomically server-side across tabs; measure throughput before revising them. |
+| Client custody | Require an unlocked client and its existing local role-specific material. Stop background work on lock; do not move the client share to a service or retain an extra secret copy for refill. |
+| Revocation | Bind the authority epoch and material activation. Revalidate on every admitted continuation and before publishing the result. Lock/logout cancel local work; revoke the grant and invalidate its unused entries server-side through the existing lifecycle path. |
+| Consumption | Keep the existing exact-operation/reusable-session signing admission and atomic one-use reservation/consumption. Holding a presignature gives no signing authority. |
+| Failure | Abort incomplete generation and use a fresh ceremony after uncertain continuation. Bound retries by the same grant generation limit; never recycle consumed or uncertain nonces. |
+
+Implementation remains gated on accepting this contract, adding it to the
+intended-behavior specification, and testing permission separation. The current
+patch preserves the existing allowance policy. The proposed numbers bound a
+first implementation; they are not measured throughput guarantees.
 
 #### 4.6 Validate the complete production path and release incrementally
 

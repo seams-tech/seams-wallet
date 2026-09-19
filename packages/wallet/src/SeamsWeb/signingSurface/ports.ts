@@ -26,8 +26,6 @@ import type {
   DiscoverPersistedSessionsForWalletResult,
 } from '@/core/signingEngine/session/public';
 import type { OwnerLaneScope } from '@/core/signingEngine/session/identity/signingLaneAuthBinding';
-import type { ExactEcdsaSealedRuntime } from '@/core/signingEngine/session/material/ecdsaSealedRuntime';
-import type { ActiveEcdsaCapabilityManifest } from '@/core/signingEngine/session/material/ecdsaCapabilityManifest';
 import type { NearEd25519SignerBinding } from '@shared/utils/walletCapabilityBindings';
 import type {
   NearSignIntentRequest,
@@ -249,14 +247,15 @@ export type UserAccountLookupSurface = Pick<
 >;
 
 export interface EcdsaLoginSessionSurface {
-  scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(args: {
-    walletId: EcdsaWalletId;
-    chainTarget: ThresholdEcdsaChainTarget;
-    manifest: ActiveEcdsaCapabilityManifest;
-    runtime: ExactEcdsaSealedRuntime;
-    minRemainingUsesBeforePrefill?: number;
-    waitForPoolReady?: boolean;
-  }): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult>;
+  scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
+    args: {
+      walletId: EcdsaWalletId;
+      chainTarget: ThresholdEcdsaChainTarget;
+      minRemainingUsesBeforePrefill?: number;
+      waitForPoolReady?: boolean;
+    },
+    statusReads: WalletSessionStatusReadScope,
+  ): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult>;
 }
 
 export interface Ed25519SessionConnectionSurface {
@@ -879,6 +878,7 @@ export interface EmailOtpRegistrationEnrollmentSurface {
 }
 
 export type RegistrationSigningSurface = RpIdSurface &
+  EcdsaLoginSessionSurface &
   WalletIframeSurfaceMeasurementSurface &
   Ed25519YaoCapabilityActivationSurface &
   UnlockedEd25519ExportRootCapabilitySurface &

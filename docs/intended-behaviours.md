@@ -128,6 +128,9 @@ Expected behaviour:
 - Registration returns after the wallet, auth method, configured ECDSA signer
   inventory, and exact Wallet Session are durable and the primary operation
   credential has been issued. Tempo and Arc/EVM signing may begin immediately.
+- Registration schedules bounded ECDSA presignature refill under the established
+  session. Registration success does not await pool readiness. Immediate signing
+  may use the first completed entry while background refill continues.
 - For a mixed signer set, Ed25519/NEAR provisioning continues under the same
   authenticated ceremony and publishes one of `near_pending`,
   `near_provisioning`, `near_ready`, or `near_failed_retryable`.
@@ -161,6 +164,8 @@ Expected behaviour:
   signer inventory, and exact Wallet Session are durable and the primary
   operation credential has been issued. Tempo and Arc/EVM signing may begin
   immediately.
+- Registration schedules bounded ECDSA presignature refill under the established
+  session without awaiting pool readiness, as in Passkey registration.
 - For a mixed signer set, Ed25519/NEAR provisioning continues with the live
   registration factor and publishes one of `near_pending`,
   `near_provisioning`, `near_ready`, or `near_failed_retryable`.
