@@ -88,15 +88,26 @@ checks that initial connection does not duplicate foreground generation. It
 covers the three-use reusable session followed by exact-operation step-up;
 a production reusable-session cohort beyond that budget is still needed.
 
+Release `0.5.24` now includes these SDK and wallet-server changes. Hosted package
+pins and frontend assets were updated, and the production-testnet backend smoke
+checks passed. Production attribution and the 1–3-second acceptance measurements
+remain open. Capture fresh deployed Worker version IDs with each signing trace;
+the pre-release version IDs are no longer the comparison baseline.
+
+The mainnet rollout exposed a separate deployment dependency: the Gateway's
+tenant-binding lookup returned HTTP 404 from an older Console worker, which
+caused public HTTP 500 responses. Deploying the current Console revision fixed
+that mismatch. Mainnet now explicitly returns HTTP 503 with
+`tenant_deployment_unavailable`: its Console has no active binding and its
+production project environment is disabled. Infrastructure smoke accepts that
+bootstrap state; it does not establish wallet availability. Enabling and
+provisioning the intended production environment remains a separate prerequisite
+for mainnet signing measurements.
+
 Historical Cloudflare telemetry access returned HTTP 403 with the current login.
-Read-only live tails worked but observed only scheduled prewarming during the
-45-second sample. Deployment metadata identifies production-testnet gateway
-version `f60c22ef-971a-424d-92fd-c7e053395c17` (2026-09-19 05:11 UTC), Router version
-`fb7ceae9-445e-428f-8ed0-b7eb9db3c898`, and SigningWorker version
-`bc31eb69-bf78-4151-b2ff-44839ebd15f8`. Correlate the wallet-origin SDK release and
-an actual slow signing request with these versions before comparing deployments.
-Production attribution and the 1–3-second acceptance measurements remain open.
-No production deployment or release has been made by this implementation pass.
+Live tails work and were sufficient to identify the mainnet exception. Use live
+tails alongside client signing timings until historical telemetry access is
+available.
 
 The corrected sustained local run completed all 20 signatures with 20 unique
 presignature IDs. It exercised 17 foreground generations and three background
@@ -128,8 +139,9 @@ startup time is excluded from the per-signature timings above.
 
 Remaining acceptance work:
 
-1. Release the SDK and wallet-server changes through the existing release
-   pipeline and upgrade the hosted consumers to those exact versions.
+1. Complete mainnet tenant activation for the intended production environment.
+   The coordinated SDK/server/frontend release is now `0.5.24`; production-testnet
+   is available for signing measurements independently of mainnet activation.
 2. Capture a slow production Tempo/Arc request with client timings and matching
    gateway/role traces. Compare cache hits against generation misses and record
    authorization branch, placement, deployed versions, failures, and sample counts.

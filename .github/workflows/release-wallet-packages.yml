@@ -39,6 +39,7 @@ jobs:
           name: local-tools-${{ matrix.target }}
           path: crates/router-ab-cloudflare/build/local-tools
           if-no-files-found: error
+          retention-days: 1
 
   publish:
     needs: local_tools
