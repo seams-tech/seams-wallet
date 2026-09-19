@@ -255,6 +255,7 @@ export interface EcdsaLoginSessionSurface {
     manifest: ActiveEcdsaCapabilityManifest;
     runtime: ExactEcdsaSealedRuntime;
     minRemainingUsesBeforePrefill?: number;
+    waitForPoolReady?: boolean;
   }): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult>;
 }
 

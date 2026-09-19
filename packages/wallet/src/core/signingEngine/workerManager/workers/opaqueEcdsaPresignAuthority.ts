@@ -7,6 +7,7 @@ import type {
   DurableClientPresignatureMetadata,
   DurableClientPresignatureTakeResult,
 } from '../../../indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
+import type { OpaqueEcdsaPresignMaterialAuthorityIdentityV1 } from '../ecdsaClientWorkerChannels';
 import type {
   ThresholdEcdsaPresignAbortResult,
   ThresholdEcdsaPresignProgressResult,
@@ -39,6 +40,7 @@ type OpaqueEcdsaPresignSessionBindingV1 = {
   readonly materialExpiresAtMs: number;
   readonly poolIdentity: EcdsaClientPresignPoolIdentity;
   readonly durableMaterialRef: EcdsaRoleLocalPersistedMaterialRef | null;
+  readonly authority: OpaqueEcdsaPresignMaterialAuthorityIdentityV1;
 };
 
 type OpaqueEcdsaPresignSessionEntryV1 = {
@@ -139,6 +141,7 @@ export class OpaqueEcdsaPresignAuthorityV1 {
           materialExpiresAtMs: input.materialExpiresAtMs,
           poolIdentity: input.poolIdentity,
           durableMaterialRef: input.durableMaterialRef,
+          authority: input.authority,
         },
       });
       try {
@@ -322,6 +325,10 @@ export class OpaqueEcdsaPresignAuthorityV1 {
           materialExpiresAtMs: result.metadata.expiresAtMs,
           poolIdentity: result.metadata.poolIdentity,
           durableMaterialRef: result.metadata.durableMaterialRef,
+          authority: {
+            kind: 'role_local_derivation_handle',
+            materialHandle,
+          },
         },
       });
       return { kind: 'restored', materialHandle };
@@ -364,6 +371,26 @@ export class OpaqueEcdsaPresignAuthorityV1 {
     for (const sessionId of this.sessions.keys()) this.abortNow(sessionId);
     for (const entry of this.materials.values()) entry.session.free();
     this.materials.clear();
+  }
+
+  disposeLinkedHolderMaterials(
+    scope:
+      | { readonly kind: 'all'; readonly holderHandleId?: never }
+      | { readonly kind: 'one'; readonly holderHandleId: string },
+  ): void {
+    for (const [sessionId, entry] of this.sessions) {
+      const authority = entry.binding.authority;
+      if (authority.kind !== 'linked_holder_signing_material') continue;
+      if (scope.kind === 'one' && authority.holderHandleId !== scope.holderHandleId) continue;
+      this.abortNow(sessionId);
+    }
+    for (const [materialHandle, entry] of this.materials) {
+      const authority = entry.binding.authority;
+      if (authority.kind !== 'linked_holder_signing_material') continue;
+      if (scope.kind === 'one' && authority.holderHandleId !== scope.holderHandleId) continue;
+      this.materials.delete(materialHandle);
+      entry.session.free();
+    }
   }
 
   private requireSession(sessionId: string): OpaqueEcdsaPresignSessionEntryV1 {

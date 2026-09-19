@@ -1,5 +1,13 @@
 import type { AppearanceConfig } from '@/core/types/seams';
-import type { AuthMenuLoginAccountResolution, AuthMenuRecoveryViewModel } from './auth-menu-domain';
+import type {
+  AuthMenuAccountOption,
+  AuthMenuLoginAccountResolution,
+  AuthMenuRecoveryViewModel,
+} from './auth-menu-domain';
+import type {
+  LocalWalletAuthMethodProjectionV2,
+  WalletAuthMethodLocalPresentationV1,
+} from '@/core/indexedDB/passkeyClientDB.types';
 import type { WalletRecoveryTargetV1 } from '@shared/wallet-recovery/walletRecoveryTarget';
 
 declare const appearance: AppearanceConfig;
@@ -54,12 +62,53 @@ const discoverableLogin: AuthMenuLoginAccountResolution = {
   loginTarget: { kind: 'discoverable' },
 };
 
+// @ts-expect-error Passkey account options cannot carry Email OTP presentation data.
+const invalidPasskeyAccountOption: AuthMenuAccountOption = {
+  walletId: 'wallet.test',
+  authMethod: 'passkey',
+  emailAddress: 'owner@example.test',
+};
+
+// @ts-expect-error Email OTP account options must represent email availability explicitly.
+const invalidEmailAccountOption: AuthMenuAccountOption = {
+  walletId: 'wallet.test',
+  authMethod: 'email_otp',
+};
+
+const invalidPasskeyPresentation: WalletAuthMethodLocalPresentationV1 = {
+  version: 'wallet_auth_method_local_presentation_v1',
+  kind: 'passkey',
+  // @ts-expect-error Passkey presentation cannot carry an email state.
+  email: { kind: 'unavailable' },
+};
+
+// @ts-expect-error Email OTP presentation must represent email availability explicitly.
+const invalidEmailPresentation: WalletAuthMethodLocalPresentationV1 = {
+  version: 'wallet_auth_method_local_presentation_v1',
+  kind: 'email_otp',
+};
+
+declare const passkeyRecord: Extract<
+  LocalWalletAuthMethodProjectionV2,
+  { readonly kind: 'passkey' }
+>['record'];
+declare const emailPresentation: Extract<
+  WalletAuthMethodLocalPresentationV1,
+  { readonly kind: 'email_otp' }
+>;
+
+// @ts-expect-error A passkey projection cannot carry Email OTP presentation metadata.
+const invalidAuthMethodProjection: LocalWalletAuthMethodProjectionV2 = {
+  kind: 'passkey',
+  record: passkeyRecord,
+  presentation: emailPresentation,
+};
+
 // @ts-expect-error A discoverable login cannot carry a selected wallet.
 const invalidDiscoverableLogin: AuthMenuLoginAccountResolution = {
   kind: 'discoverable',
   selectedAccount: {
     walletId: 'wallet.test',
-    displayName: 'Wallet',
     authMethod: 'passkey' as const,
   },
   loginTarget: { kind: 'discoverable' },
@@ -70,7 +119,6 @@ const invalidResolvedLogin: AuthMenuLoginAccountResolution = {
   kind: 'passkey_and_email_otp',
   selectedAccount: {
     walletId: 'wallet.test',
-    displayName: 'Wallet',
     authMethod: 'passkey' as const,
   },
   walletId: 'wallet.test',
@@ -82,5 +130,10 @@ void invalidEntryWalletIdentity;
 void invalidCodeEntry;
 void invalidFinalization;
 void discoverableLogin;
+void invalidPasskeyAccountOption;
+void invalidEmailAccountOption;
+void invalidPasskeyPresentation;
+void invalidEmailPresentation;
+void invalidAuthMethodProjection;
 void invalidDiscoverableLogin;
 void invalidResolvedLogin;

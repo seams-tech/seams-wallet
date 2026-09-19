@@ -258,8 +258,6 @@ export async function prefillRouterAbEcdsaDerivationPresignaturePoolDomain(
     walletSession: WalletSessionRef;
     chainTarget: ThresholdEcdsaChainTarget;
     waitForPoolReady?: boolean;
-    poolReadyTimeoutMs?: number;
-    poolReadyPollIntervalMs?: number;
     minRemainingUsesBeforePrefill?: number;
   },
 ): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {
@@ -271,12 +269,6 @@ export async function prefillRouterAbEcdsaDerivationPresignaturePoolDomain(
         chainTarget: args.chainTarget,
         ...(typeof args.waitForPoolReady === 'boolean'
           ? { waitForPoolReady: args.waitForPoolReady }
-          : {}),
-        ...(typeof args.poolReadyTimeoutMs === 'number'
-          ? { poolReadyTimeoutMs: args.poolReadyTimeoutMs }
-          : {}),
-        ...(typeof args.poolReadyPollIntervalMs === 'number'
-          ? { poolReadyPollIntervalMs: args.poolReadyPollIntervalMs }
           : {}),
         ...(typeof args.minRemainingUsesBeforePrefill === 'number'
           ? { minRemainingUsesBeforePrefill: args.minRemainingUsesBeforePrefill }
@@ -309,12 +301,6 @@ export async function prefillRouterAbEcdsaDerivationPresignaturePoolDomain(
     runtime: resolved.runtime,
     ...(typeof args.waitForPoolReady === 'boolean'
       ? { waitForPoolReady: args.waitForPoolReady }
-      : {}),
-    ...(typeof args.poolReadyTimeoutMs === 'number'
-      ? { poolReadyTimeoutMs: args.poolReadyTimeoutMs }
-      : {}),
-    ...(typeof args.poolReadyPollIntervalMs === 'number'
-      ? { poolReadyPollIntervalMs: args.poolReadyPollIntervalMs }
       : {}),
     ...(typeof args.minRemainingUsesBeforePrefill === 'number'
       ? { minRemainingUsesBeforePrefill: args.minRemainingUsesBeforePrefill }

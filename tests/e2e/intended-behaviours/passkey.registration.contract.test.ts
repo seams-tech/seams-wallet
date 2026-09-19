@@ -28,11 +28,14 @@ function isLastWarmSessionUse(remaining: number): boolean {
   return remaining <= 1;
 }
 
-test('passkey registration establishes an immediately usable signing session', async ({ harness }) => {
+test('passkey registration establishes an immediately usable owner session', async ({ harness }) => {
   await harness.registerPasskeyWallet();
+  await harness.assertRegistrationOwnerSessionIsActive();
   await harness.signTempoTransaction('post_registration');
   await harness.awaitNearReady();
   await harness.signNearTransaction('post_registration');
+  await harness.signArcEvmTransaction('post_registration');
+  await harness.assertRegistrationOwnerSessionIsActive();
 });
 
 test('sustained Tempo and Arc signing uses fresh presignatures beyond pool capacity', async ({

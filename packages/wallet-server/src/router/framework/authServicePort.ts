@@ -1438,6 +1438,11 @@ export interface RouterApiWalletUnlockService {
     readonly verifiedChallengeId: string;
     readonly requestedCapabilities: WalletUnlockEmailOtpSessionRequest;
   }): Promise<WalletUnlockPasskeySessionResolution>;
+  refreshWalletSessionAuthorityProjection(input: {
+    readonly existing: IssuedWalletSessionAuthorizationV2;
+    readonly authority: ActiveWalletAuthorityV1;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+  }): Promise<IssuedWalletSessionAuthorizationV2>;
 }
 
 export interface RouterApiEmailOtpRouteService extends RouterApiEmailOtpChallengeService {

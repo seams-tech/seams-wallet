@@ -582,6 +582,18 @@ async function persistRegistrationEcdsaPlan(args: {
       authority: args.plan.foundingAuthority,
       authMethod: args.plan.foundingAuthMethod,
     });
+    if (args.plan.auth.kind === 'email_otp') {
+      const emailAddress = parseVerifiedEmailAddress(args.plan.auth.email);
+      if (!emailAddress.ok) throw new Error(emailAddress.error.message);
+      const retained = await IndexedDBManager.retainVerifiedEmailOtpLocalPresentation({
+        walletId: args.plan.walletId,
+        walletAuthMethodId: args.plan.foundingAuthMethod.walletAuthMethodId,
+        emailAddress: emailAddress.value,
+      });
+      if (retained.kind !== 'retained') {
+        throw new Error(`Verified Email OTP presentation was not retained: ${retained.reason}`);
+      }
+    }
   } finally {
     args.registrationTiming.record(
       'ecdsaRegistrationLocalRecordPersistenceMs',

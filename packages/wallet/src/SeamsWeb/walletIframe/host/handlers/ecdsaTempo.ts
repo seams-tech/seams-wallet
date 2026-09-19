@@ -188,12 +188,6 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
         ...(typeof options.waitForPoolReady === 'boolean'
           ? { waitForPoolReady: options.waitForPoolReady }
           : {}),
-        ...(typeof options.poolReadyTimeoutMs === 'number'
-          ? { poolReadyTimeoutMs: options.poolReadyTimeoutMs }
-          : {}),
-        ...(typeof options.poolReadyPollIntervalMs === 'number'
-          ? { poolReadyPollIntervalMs: options.poolReadyPollIntervalMs }
-          : {}),
         ...(typeof options.minRemainingUsesBeforePrefill === 'number'
           ? { minRemainingUsesBeforePrefill: options.minRemainingUsesBeforePrefill }
           : {}),

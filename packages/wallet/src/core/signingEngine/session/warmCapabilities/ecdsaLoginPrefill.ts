@@ -7,6 +7,7 @@ import {
   getRouterAbEcdsaDerivationClientPresignaturePoolDepth,
   resolveRouterAbEcdsaDerivationPresignaturePoolPolicy,
   scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill,
+  waitForRouterAbEcdsaDerivationClientPresignaturePoolReady,
   type RouterAbEcdsaDerivationClientSigningMaterialSource,
   type RouterAbEcdsaDerivationClientPresignatureRefillScheduleResult,
 } from '../../routerAb/ecdsaDerivation/presignaturePool';
@@ -161,6 +162,7 @@ export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
     runtime: ExactEcdsaSealedRuntime;
     chainTarget: ThresholdEcdsaChainTarget;
     minRemainingUsesBeforePrefill?: number;
+    waitForPoolReady?: boolean;
   },
 ): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {
   let thresholdSessionId: string | undefined;
@@ -366,6 +368,13 @@ export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
     });
 
     if (!schedule.scheduled) {
+      if (args.waitForPoolReady && schedule.reason === 'in_flight_for_pool_key') {
+        await waitForRouterAbEcdsaDerivationClientPresignaturePoolReady({
+          relayerUrl,
+          scope: runtime.normalSigning.scope,
+          materialActivation: routerAbMpcMaterialActivationRefToWire(runtime.materialActivation),
+        });
+      }
       return {
         status: 'skipped',
         reason: 'refill_not_scheduled',
@@ -373,6 +382,14 @@ export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
         remainingUses: remainingUsesAfterDispense,
         schedule,
       };
+    }
+
+    if (args.waitForPoolReady) {
+      await waitForRouterAbEcdsaDerivationClientPresignaturePoolReady({
+        relayerUrl,
+        scope: runtime.normalSigning.scope,
+        materialActivation: routerAbMpcMaterialActivationRefToWire(runtime.materialActivation),
+      });
     }
 
     return {

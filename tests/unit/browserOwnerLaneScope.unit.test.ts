@@ -25,6 +25,7 @@ import {
 } from '@shared/utils/domainIds';
 import { buildWalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 import { buildMpcMaterialActivationRefFixture } from './helpers/ecdsaMaterialRef.fixtures';
+import { WalletFullLoginRequiredError } from '@/core/signingEngine/session/material/walletSigningStateFailure';
 
 type ResolvedOwnerAuthority = Extract<
   ResolveSelectedWalletAuthorityResultV1,
@@ -38,7 +39,9 @@ function required<T>(
   return result.value;
 }
 
-async function buildSelectedEcdsaAuthority(): Promise<ResolvedOwnerAuthority> {
+async function buildSelectedEcdsaAuthority(
+  lockState: 'locked' | 'unlocked' = 'unlocked',
+): Promise<ResolvedOwnerAuthority> {
   const walletId = required(parseWalletId('wallet:expired-session-step-up'));
   const authorityId = required(parseWalletAuthorityId('authority:expired-session-step-up'));
   const walletAuthMethodId = required(
@@ -134,7 +137,7 @@ async function buildSelectedEcdsaAuthority(): Promise<ResolvedOwnerAuthority> {
       walletId,
       walletAuthMethodId,
       lockGeneration: 0,
-      lockState: 'unlocked',
+      lockState,
       updatedAtMs: 2,
     },
     authMethod,
@@ -172,5 +175,23 @@ test('resolves the selected owner lane without requiring a live Wallet Session',
   } finally {
     IndexedDBManager.resolveSelectedWalletAuthority = originalResolveSelected;
     walletSessionAuthorizations.readExactActiveForWallet = originalReadExact;
+  }
+});
+
+test('reports a locked selected authority as requiring full login', async () => {
+  const selected = await buildSelectedEcdsaAuthority('locked');
+  const surface = Object.create(BrowserSigningSurface.prototype) as BrowserSigningSurface;
+  const originalResolveSelected = IndexedDBManager.resolveSelectedWalletAuthority;
+  try {
+    IndexedDBManager.resolveSelectedWalletAuthority = async () => selected;
+
+    const error = await surface
+      .resolveSelectedOwnerLaneScope(selected.authority.walletId)
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(WalletFullLoginRequiredError);
+    expect((error as WalletFullLoginRequiredError).reason).toBe('wallet_locked');
+  } finally {
+    IndexedDBManager.resolveSelectedWalletAuthority = originalResolveSelected;
   }
 });

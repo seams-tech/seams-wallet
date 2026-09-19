@@ -63,6 +63,8 @@ type PendingConfirmState =
       kind: 'awaiting_decision';
       request: UserConfirmRequest;
       requestToken: string;
+      onSigningOperationInteractionEvent?:
+        RequestUserConfirmationOptions['onSigningOperationInteractionEvent'];
       decision?: never;
     }
   | {
@@ -209,6 +211,11 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
       kind: 'awaiting_decision',
       request,
       requestToken,
+      ...(options?.onSigningOperationInteractionEvent
+        ? {
+            onSigningOperationInteractionEvent: options.onSigningOperationInteractionEvent,
+          }
+        : {}),
     });
 
     try {
@@ -702,6 +709,11 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
       void handlePromptFromWorker(ctx, promptEnv, sourceWorker, {
         signingSurface,
         onDecision: this.capturePendingConfirmationDecision.bind(this, pending),
+        ...(pending.onSigningOperationInteractionEvent
+          ? {
+              onSigningOperationInteractionEvent: pending.onSigningOperationInteractionEvent,
+            }
+          : {}),
       }).catch((error) => {
         console.error('[UserConfirmWorker] failed to handle confirmation prompt:', error);
         this.postPromptEnvelopeError(

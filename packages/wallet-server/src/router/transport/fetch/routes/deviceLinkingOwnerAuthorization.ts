@@ -35,6 +35,7 @@ import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
 import type {
   RouterApiAuthorizationSessionService,
   RouterApiWalletSessionAuthorizationV2AdmissionContext,
+  RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext,
 } from '../../../framework/authServicePort';
 import type { FetchRouterApiContext } from '../createFetchRouter';
 import type { DeviceLinkingAuthDeniedV1, DeviceLinkingOwnerRequestInputV1 } from './deviceLinking';
@@ -116,13 +117,30 @@ export type DeviceLinkingOwnerAuthorizationRouteServiceV1 = {
   }): Promise<DeviceLinkingOwnerAuthorizationResponseV1>;
 };
 
+type DeviceLinkingOwnerWalletSessionReaderV1 = Pick<
+  RouterApiAuthorizationSessionService,
+  | 'tenantId'
+  | 'readWalletSessionAuthorizationV2ByOperationCredential'
+  | 'readExhaustedWalletSessionAuthorizationV2CandidateByOperationCredential'
+>;
+
+type DeviceLinkingOwnerWalletSessionReadV1 =
+  | {
+      readonly kind: 'signing_quota_active';
+      readonly context: RouterApiWalletSessionAuthorizationV2AdmissionContext;
+    }
+  | {
+      readonly kind: 'signing_quota_exhausted';
+      readonly context: RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext;
+    };
+
 /**
  * Request-scoped owner bearer verifier used by claim, approval, and the owner
  * authorization metadata route. The returned binding is valid only until the
  * verified Wallet Session expires and is bound to the exact request bytes.
  */
 export function createDeviceLinkingOwnerRequestAuthenticatorV1(input: {
-  readonly authorizationSessions: RouterApiAuthorizationSessionService;
+  readonly authorizationSessions: DeviceLinkingOwnerWalletSessionReaderV1;
   readonly nowV1?: () => number;
 }): (
   input: DeviceLinkingOwnerRequestInputV1,
@@ -150,7 +168,7 @@ export async function authenticateDeviceLinkingOwnerWalletSessionRequestV1(input
   readonly pathname: string;
   readonly bodyDigestB64u: DigestB64u;
   readonly requestedAtMs: number;
-  readonly authorizationSessions: RouterApiAuthorizationSessionService | null | undefined;
+  readonly authorizationSessions: DeviceLinkingOwnerWalletSessionReaderV1 | null | undefined;
   readonly nowV1?: () => number;
 }): Promise<DeviceLinkingOwnerRequestAuthenticationV1> {
   if (input.method !== 'GET' && input.method !== 'POST') {
@@ -261,7 +279,7 @@ type OwnerValidationResultV1 =
 
 async function validateOwnerWalletSessionV1(input: {
   readonly headers: Record<string, string>;
-  readonly authorizationSessions: RouterApiAuthorizationSessionService | null | undefined;
+  readonly authorizationSessions: DeviceLinkingOwnerWalletSessionReaderV1 | null | undefined;
   readonly nowV1: () => number;
 }): Promise<OwnerValidationResultV1> {
   const bearerToken = extractBearerCredential(input.headers);
@@ -271,18 +289,13 @@ async function validateOwnerWalletSessionV1(input: {
   }
 
   const nowMs = input.nowV1();
-  let context: RouterApiWalletSessionAuthorizationV2AdmissionContext | null;
-  try {
-    context = await authorizationSessions.readWalletSessionAuthorizationV2ByOperationCredential({
-      tenantId: authorizationSessions.tenantId,
-      token: bearerToken,
-      nowMs,
-    });
-  } catch {
-    return denied('unauthorized', 'An active owner Wallet Session is required');
-  }
+  const context = await readDeviceLinkingOwnerWalletSessionV1({
+    authorizationSessions,
+    bearerToken,
+    nowMs,
+  });
   if (!context) {
-    return denied('unauthorized', 'An exact owner Wallet Session is required');
+    return denied('unauthorized', 'An active owner Wallet Session is required');
   }
 
   const owner = await ownerContextFromExactV2AuthorizationV1({
@@ -293,15 +306,52 @@ async function validateOwnerWalletSessionV1(input: {
   return { kind: 'authorized', owner };
 }
 
+async function readDeviceLinkingOwnerWalletSessionV1(input: {
+  readonly authorizationSessions: DeviceLinkingOwnerWalletSessionReaderV1;
+  readonly bearerToken: string;
+  readonly nowMs: number;
+}): Promise<DeviceLinkingOwnerWalletSessionReadV1 | null> {
+  const request = {
+    tenantId: input.authorizationSessions.tenantId,
+    token: input.bearerToken,
+    nowMs: input.nowMs,
+  };
+  try {
+    const context =
+      await input.authorizationSessions.readWalletSessionAuthorizationV2ByOperationCredential(
+        request,
+      );
+    if (context) return { kind: 'signing_quota_active', context };
+  } catch {
+    // The active read also rejects an exhausted signing quota. Owner-management
+    // capabilities remain valid until the exact Wallet Session itself expires.
+  }
+  try {
+    const context =
+      await input.authorizationSessions.readExhaustedWalletSessionAuthorizationV2CandidateByOperationCredential(
+        request,
+      );
+    return context ? { kind: 'signing_quota_exhausted', context } : null;
+  } catch {
+    return null;
+  }
+}
+
 async function ownerContextFromExactV2AuthorizationV1(input: {
-  readonly context: RouterApiWalletSessionAuthorizationV2AdmissionContext;
+  readonly context: DeviceLinkingOwnerWalletSessionReadV1;
   readonly nowMs: number;
 }): Promise<DeviceLinkingOwnerWalletSessionContextV1 | null> {
-  const { authorization, authority, authMethod } = input.context;
-  const session = authorization.session;
-  const quota = authorization.quota;
+  const { authority, authMethod } = input.context.context;
+  const session =
+    input.context.kind === 'signing_quota_active'
+      ? input.context.context.authorization.session
+      : input.context.context.status.session;
+  const quota =
+    input.context.kind === 'signing_quota_active'
+      ? input.context.context.authorization.quota
+      : input.context.context.status.quota;
   if (
-    input.context.retiredAtMs !== null ||
+    input.context.context.retiredAtMs !== null ||
     authority.state !== 'active' ||
     authMethod.status !== 'active' ||
     session.expiresAtMs <= input.nowMs ||

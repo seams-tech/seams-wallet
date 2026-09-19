@@ -14,12 +14,19 @@ import type {
   NearTransactionReadiness,
 } from '../nonce/nearTransactionReadiness';
 import type { NearOperationStepUpPreparationRef } from '../interfaces/operationStepUpPreparation';
+import type {
+  SigningOperationConfirmationStateKind,
+  SigningOperationInteractionEvent,
+} from '../flows/shared/signingStateMachine';
 
 export type SigningConfirmationChain = 'near' | 'evm' | 'tempo';
 
 export type RequestUserConfirmationBridge = (
   request: UserConfirmRequest,
-  options?: { onProgress?: (progress: UserConfirmProgressEvent) => void },
+  options?: {
+    onProgress?: (progress: UserConfirmProgressEvent) => void;
+    onSigningOperationInteractionEvent?: (event: SigningOperationInteractionEvent) => void;
+  },
 ) => Promise<UserConfirmDecision>;
 
 export type UiConfirmRequestBridgeContext = {
@@ -125,6 +132,8 @@ type OrchestrateNearTransactionSigningConfirmationBaseParams =
     rpcCall: RpcCallPayload;
     nearPublicKeyStr: string;
     nearFundingRequest: NearFundingRequest;
+    signingOperationStateKind: SigningOperationConfirmationStateKind;
+    onSigningOperationInteractionEvent: (event: SigningOperationInteractionEvent) => void;
     title?: string;
     body?: string;
   };

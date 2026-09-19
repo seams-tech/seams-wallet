@@ -151,6 +151,7 @@ import {
 } from '@/core/rpcClients/relayer/walletRegistration';
 import type {
   AccountSignerRecord,
+  LocalWalletAuthMethodProjectionV2,
   LocalWalletAuthMethodRecordV2,
   WalletAuthorityExportRootRecordV1,
   WalletAuthorityLinkedSignerMaterialRecordV1,
@@ -8179,32 +8180,98 @@ export type LocalLoginAuthMethod =
       readonly emailAddress: string | null;
     };
 
-function localLoginAuthMethod(record: WalletAuthMethodRecordV2): LocalLoginAuthMethod | null {
-  if (record.status !== 'active') return null;
-  switch (record.kind) {
+function localLoginAuthMethod(
+  projection: LocalWalletAuthMethodProjectionV2,
+): LocalLoginAuthMethod | null {
+  if (projection.record.status !== 'active') return null;
+  switch (projection.kind) {
     case 'passkey':
-      return { walletId: record.walletId, authMethod: 'passkey' };
+      return { walletId: projection.record.walletId, authMethod: 'passkey' };
     case 'email_otp': {
-      const emailAddress = parseVerifiedEmailAddress(record.registrationAuthorityId);
+      const emailAddress =
+        projection.presentation.email.kind === 'verified'
+          ? String(projection.presentation.email.address)
+          : null;
       return {
-        walletId: record.walletId,
+        walletId: projection.record.walletId,
         authMethod: 'email_otp',
-        emailAddress: emailAddress.ok ? String(emailAddress.value) : null,
+        emailAddress,
       };
     }
     default:
-      return assertNeverLoginState(record);
+      return assertNeverLoginState(projection);
   }
 }
 
-async function localLoginAuthMethodsForWallet(walletId: WalletId): Promise<LocalLoginAuthMethod[]> {
-  const records = await IndexedDBManager.listWalletAuthMethodsV2ForWallet(walletId);
+export function projectLocalLoginAuthMethods(
+  projections: readonly LocalWalletAuthMethodProjectionV2[],
+): LocalLoginAuthMethod[] {
   const methods: LocalLoginAuthMethod[] = [];
-  for (const record of records) {
-    const method = localLoginAuthMethod(record);
+  for (const projection of projections) {
+    const method = localLoginAuthMethod(projection);
     if (method) methods.push(method);
   }
   return methods;
+}
+
+async function localLoginAuthMethodsForWallet(walletId: WalletId): Promise<LocalLoginAuthMethod[]> {
+  const projections =
+    await IndexedDBManager.listLocalWalletAuthMethodProjectionsV2ForWallet(walletId);
+  const migrated = await migrateLegacyEmailOtpLocalPresentation(walletId, projections);
+  return projectLocalLoginAuthMethods(migrated);
+}
+
+function needsLegacyEmailOtpPresentationMigration(
+  projection: LocalWalletAuthMethodProjectionV2,
+): projection is Extract<LocalWalletAuthMethodProjectionV2, { readonly kind: 'email_otp' }> {
+  return (
+    projection.kind === 'email_otp' &&
+    projection.record.status === 'active' &&
+    projection.presentation.email.kind === 'unavailable'
+  );
+}
+
+async function migrateLegacyEmailOtpLocalPresentation(
+  walletId: WalletId,
+  projections: readonly LocalWalletAuthMethodProjectionV2[],
+): Promise<LocalWalletAuthMethodProjectionV2[]> {
+  const candidates: Extract<
+    LocalWalletAuthMethodProjectionV2,
+    { readonly kind: 'email_otp' }
+  >[] = [];
+  for (const projection of projections) {
+    if (needsLegacyEmailOtpPresentationMigration(projection)) candidates.push(projection);
+  }
+  if (candidates.length === 0) return [...projections];
+
+  // Older installations retained this verified identity only on the local
+  // Ed25519 lane. The repository accepts it only when it hashes to the V2 method.
+  const providerSubject = await readEmailOtpProviderSubjectForWalletV1(
+    IndexedDBManager,
+    walletId,
+  );
+  const emailAddress = parseVerifiedEmailAddress(providerSubject);
+  if (!emailAddress.ok) return [...projections];
+
+  let retained = false;
+  for (const candidate of candidates) {
+    const result = await IndexedDBManager.retainVerifiedEmailOtpLocalPresentation({
+      walletId,
+      walletAuthMethodId: candidate.record.walletAuthMethodId,
+      emailAddress: emailAddress.value,
+    });
+    switch (result.kind) {
+      case 'retained':
+        retained = true;
+        break;
+      case 'not_retained':
+        break;
+      default:
+        assertNeverLoginState(result);
+    }
+  }
+  if (!retained) return [...projections];
+  return await IndexedDBManager.listLocalWalletAuthMethodProjectionsV2ForWallet(walletId);
 }
 
 export async function listLocalLoginAuthMethods(): Promise<LocalLoginAuthMethod[]> {

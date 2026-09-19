@@ -170,6 +170,27 @@ export type OpaqueEcdsaPresignAuthorityRequestV1 =
       readonly poolIdentity: EcdsaClientPresignPoolIdentity;
     });
 
+type OpaqueEcdsaPresignSessionInitAuthorityV1 = Extract<
+  OpaqueEcdsaPresignAuthorityRequestV1,
+  { readonly kind: 'opaque_ecdsa_presign_session_init_v1' }
+>['authority'];
+
+export type OpaqueEcdsaPresignMaterialAuthorityIdentityV1 =
+  | Pick<
+      Extract<
+        OpaqueEcdsaPresignSessionInitAuthorityV1,
+        { readonly kind: 'role_local_derivation_handle' }
+      >,
+      'kind' | 'materialHandle'
+    >
+  | Pick<
+      Extract<
+        OpaqueEcdsaPresignSessionInitAuthorityV1,
+        { readonly kind: 'linked_holder_signing_material' }
+      >,
+      'kind' | 'holderHandleId'
+    >;
+
 export type OpaqueEcdsaPresignAuthorityResponseV1 =
   | {
       readonly kind: 'opaque_ecdsa_presign_authority_result_v1';

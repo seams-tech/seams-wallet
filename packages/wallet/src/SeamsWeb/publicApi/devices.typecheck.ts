@@ -2,11 +2,18 @@ import type { DeviceLinkingFlowPortsV1 } from '@/SeamsWeb/operations/devices/dev
 import type {
   LinkedDeviceManagementPortV1,
   DevicesCapabilityDomainMethods,
-  OwnerWalletSessionRenewalResultV1,
 } from './devices';
+import { createDevicesCapability } from './devices';
+import type { DeviceLinkingWebContext } from '@/SeamsWeb/signingSurface/types';
+import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
 
 declare const linkedDeviceManagement: LinkedDeviceManagementPortV1;
 declare const deviceLinkingPorts: DeviceLinkingFlowPortsV1;
+declare const getContext: () => DeviceLinkingWebContext;
+declare const walletIframe: Pick<
+  WalletIframeCoordinator,
+  'shouldUseWalletIframe' | 'requireRouter'
+>;
 const directDomain = {
   kind: 'direct',
   linkedDeviceManagement,
@@ -27,14 +34,22 @@ const incompleteDirectDomain: DevicesCapabilityDomainMethods = {
 };
 void incompleteDirectDomain;
 
-const renewedOwnerSession = {
-  kind: 'renewed',
-} satisfies OwnerWalletSessionRenewalResultV1;
-void renewedOwnerSession;
+createDevicesCapability({
+  getContext,
+  walletIframe,
+  domain: directDomain,
+});
 
-const invalidOwnerSessionRenewal: OwnerWalletSessionRenewalResultV1 = {
-  kind: 'renewed',
-  // @ts-expect-error renewed sessions cannot carry a failure.
-  error: 'invalid state',
-};
-void invalidOwnerSessionRenewal;
+createDevicesCapability({
+  getContext,
+  walletIframe,
+  domain: iframeDomain,
+});
+
+createDevicesCapability({
+  getContext,
+  walletIframe,
+  domain: directDomain,
+  // @ts-expect-error inventory reads cannot own an implicit wallet-unlock path.
+  ownerSessionRenewal: { renew: async () => ({ kind: 'renewed' as const }) },
+});

@@ -46,6 +46,7 @@ import type { NearEd25519YaoSigningPreparation } from '../session/material/nearE
 import type { RouterAbNormalSigningPrepareRequestV2Wire } from '@/core/rpcClients/relayer/routerAbNormalSigning';
 import type { Ed25519OperationStepUpProof } from '../threshold/ed25519/walletSession';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
+import type { SigningOperationStateRef } from '../flows/shared/signingStateMachine';
 export type NearResolvedEd25519WalletSessionAuth = {
   kind: 'wallet_session_opaque';
   walletSessionToken: string;
@@ -210,7 +211,7 @@ type NearTransactionWithActionsPayloadBase = {
   title?: string;
   body?: string;
   signerSlot?: number;
-  signingOperationId?: SigningOperationId;
+  signingOperationState: SigningOperationStateRef;
   signingSessionCoordinator: SigningSessionCoordinator;
   passkeyEd25519OperationStepUp?: NearPasskeyEd25519OperationStepUpHook;
   emailOtpEd25519StepUp?: NearEmailOtpEd25519StepUpHook;

@@ -7,15 +7,22 @@ function accountOptionKey(option: AuthMenuAccountOption): string {
   return `${option.walletId}:${option.authMethod}`;
 }
 
-function localAuthMethodDisplayName(
+function localAuthMethodOption(
   method: LocalLoginAuthMethod,
   existingOption: AuthMenuAccountOption | undefined,
-): string {
+): AuthMenuAccountOption {
+  const walletId = String(method.walletId);
   switch (method.authMethod) {
     case 'passkey':
-      return existingOption?.displayName ?? String(method.walletId);
+      return { walletId, authMethod: 'passkey' };
     case 'email_otp':
-      return method.emailAddress ?? existingOption?.displayName ?? String(method.walletId);
+      return {
+        walletId,
+        authMethod: 'email_otp',
+        emailAddress:
+          method.emailAddress ??
+          (existingOption?.authMethod === 'email_otp' ? existingOption.emailAddress : null),
+      };
   }
 }
 
@@ -32,23 +39,21 @@ export function loginAccountOptions(
       continue;
     const walletId = String(account.walletId || '').trim();
     if (!walletId) continue;
-    const displayName = String(account.displayName || walletId).trim() || walletId;
-    const option: AuthMenuAccountOption = {
-      walletId,
-      displayName,
-      authMethod: account.authMethod,
-    };
+    const option: AuthMenuAccountOption =
+      account.authMethod === WALLET_AUTH_METHODS.passkey
+        ? { walletId, authMethod: 'passkey' }
+        : {
+            walletId,
+            authMethod: 'email_otp',
+            emailAddress: null,
+          };
     byWalletAuthMethod.set(accountOptionKey(option), option);
   }
   for (const localMethod of localAuthMethods) {
     const walletId = String(localMethod.walletId || '').trim();
     if (!walletId) continue;
     const key = `${walletId}:${localMethod.authMethod}`;
-    const option: AuthMenuAccountOption = {
-      walletId,
-      displayName: localAuthMethodDisplayName(localMethod, byWalletAuthMethod.get(key)),
-      authMethod: localMethod.authMethod,
-    };
+    const option = localAuthMethodOption(localMethod, byWalletAuthMethod.get(key));
     byWalletAuthMethod.set(key, option);
   }
   return [...byWalletAuthMethod.values()];

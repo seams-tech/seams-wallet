@@ -22,6 +22,7 @@ import type {
 import type { EcdsaThresholdKeyId } from '../signingEngine/session/keyMaterialBrands';
 import type {
   MpcMaterialActivationRef,
+  VerifiedEmailAddress,
   WalletAuthMethodId,
   WalletAuthorityId,
   WalletKeyId,
@@ -191,6 +192,61 @@ export type LocalWalletAuthMethodRecord =
     });
 
 export type LocalWalletAuthMethodRecordV2 = WalletAuthMethodRecordV2;
+
+export type WalletAuthMethodLocalPresentationV1 =
+  | {
+      readonly version: 'wallet_auth_method_local_presentation_v1';
+      readonly kind: 'passkey';
+      readonly email?: never;
+    }
+  | {
+      readonly version: 'wallet_auth_method_local_presentation_v1';
+      readonly kind: 'email_otp';
+      readonly email:
+        | {
+            readonly kind: 'verified';
+            readonly address: VerifiedEmailAddress;
+          }
+        | {
+            readonly kind: 'unavailable';
+            readonly address?: never;
+          };
+    };
+
+export type LocalWalletAuthMethodProjectionV2 =
+  | Readonly<{
+      kind: 'passkey';
+      record: Extract<LocalWalletAuthMethodRecordV2, { readonly kind: 'passkey' }>;
+      presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'passkey' }>;
+    }>
+  | Readonly<{
+      kind: 'email_otp';
+      record: Extract<LocalWalletAuthMethodRecordV2, { readonly kind: 'email_otp' }>;
+      presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'email_otp' }>;
+    }>;
+
+export type RetainVerifiedEmailOtpLocalPresentationInputV1 = Readonly<{
+  walletId: WalletId;
+  walletAuthMethodId: WalletAuthMethodId;
+  emailAddress: VerifiedEmailAddress;
+}>;
+
+export type RetainVerifiedEmailOtpLocalPresentationResultV1 =
+  | {
+      readonly kind: 'retained';
+      readonly projection: Extract<
+        LocalWalletAuthMethodProjectionV2,
+        { readonly kind: 'email_otp' }
+      >;
+    }
+  | {
+      readonly kind: 'not_retained';
+      readonly reason:
+        | 'missing_auth_method'
+        | 'wallet_mismatch'
+        | 'auth_method_not_email_otp'
+        | 'email_hash_mismatch';
+    };
 
 type WalletAuthoritySignerMaterialRecordBaseV1 = {
   readonly kind: 'wallet_authority_signer_material_v1';

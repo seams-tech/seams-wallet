@@ -19,6 +19,7 @@ import {
 } from '@/core/signingEngine/stepUpConfirmation/channel/confirmTypes';
 import {
   SigningAuthPlanKind,
+  type SigningAuthMode,
   type SigningAuthPlanKind as SigningAuthPlanKindType,
 } from '@/core/signingEngine/stepUpConfirmation/types';
 import {
@@ -59,6 +60,12 @@ import {
   walletSessionFailureFromError,
   type WalletSessionFailure,
 } from '@/core/signingEngine/session/lifecycle/walletSessionFailure';
+import {
+  SigningOperationInteractionEventKind,
+  isSigningOperationReviewApprovedStateKind,
+  type SigningOperationConfirmationStateKind,
+  type SigningOperationInteractionEvent,
+} from '@/core/signingEngine/flows/shared/signingStateMachine';
 
 const TOUCH_CONFIRM_PROGRESS_PHASE = {
   CONFIRMATION_COMPLETE: 'confirmation.complete',
@@ -90,6 +97,25 @@ function getTransactionSigningAuthMode(request: SigningUserConfirmRequest) {
   return 'webauthn';
 }
 
+export function shouldRenderNearTransactionReview(args: {
+  signingOperationStateKind: SigningOperationConfirmationStateKind;
+  signingAuthMode: SigningAuthMode;
+}): boolean {
+  return (
+    !isSigningOperationReviewApprovedStateKind(args.signingOperationStateKind) ||
+    args.signingAuthMode === 'emailOtp'
+  );
+}
+
+function requireSigningOperationInteractionCallback(
+  callback: ((event: SigningOperationInteractionEvent) => void) | undefined,
+): (event: SigningOperationInteractionEvent) => void {
+  if (!callback) {
+    throw new Error('NEAR transaction signing lifecycle callback is required');
+  }
+  return callback;
+}
+
 type NearSigningReadinessMode =
   | {
       kind: 'transaction_access_key';
@@ -101,6 +127,13 @@ type NearSigningReadinessMode =
 type WalletSessionExpiredConfirmationOutcome = {
   readonly kind: 'wallet_session_expired';
   readonly failure: Extract<WalletSessionFailure, { readonly kind: 'expired' }>;
+};
+
+type ConfirmationPromptDecision = {
+  confirmed: boolean;
+  error?: string;
+  otpCode?: string;
+  emailOtpChallengeId?: string;
 };
 
 function keepPromisePending(): void {}
@@ -301,6 +334,7 @@ export async function handleTransactionSigningFlow(
     transactionSummary: TransactionSummary;
     theme: ThemeMode;
     surface: ConfirmUISurfaceSource;
+    onSigningOperationInteractionEvent?: (event: SigningOperationInteractionEvent) => void;
   },
 ): Promise<void> {
   const { confirmationConfig, transactionSummary, theme, surface } = opts;
@@ -324,6 +358,26 @@ export async function handleTransactionSigningFlow(
   }
   try {
     const signingAuthMode = getTransactionSigningAuthMode(request);
+    const signTransactionPayload =
+      request.type === UserConfirmationType.SIGN_TRANSACTION
+        ? getSignTransactionPayload(request)
+        : null;
+    const nearTransactionReviewPayload =
+      signTransactionPayload?.signingKind === 'transaction' ? signTransactionPayload : null;
+    const notifySigningOperationInteraction = nearTransactionReviewPayload
+      ? requireSigningOperationInteractionCallback(opts.onSigningOperationInteractionEvent)
+      : null;
+    const reviewAlreadyApproved = nearTransactionReviewPayload
+      ? isSigningOperationReviewApprovedStateKind(
+          nearTransactionReviewPayload.signingOperationStateKind,
+        )
+      : false;
+    const reviewPromptRequired = nearTransactionReviewPayload
+      ? shouldRenderNearTransactionReview({
+          signingOperationStateKind: nearTransactionReviewPayload.signingOperationStateKind,
+          signingAuthMode,
+        })
+      : true;
     const usesNeeded = getTxCount(request);
     const intentPreparation =
       request.type === UserConfirmationType.SIGN_TRANSACTION
@@ -382,23 +436,34 @@ export async function handleTransactionSigningFlow(
       resolvePromptReady?.();
       resolvePromptReady = undefined;
     };
-    const promptDecisionPromise = session.promptUser({
-      securityContext: baseSecurityContext,
-      // The transaction summary already contains every fact the user reviews.
-      // Exact nonce, session, and challenge preparation continues concurrently
-      // and is awaited below before authentication or signing can proceed.
-      loading: false,
-      onMounted: () => {
-        markPromptReady();
-        if (confirmationReadinessPending && confirmationReadinessBody) {
-          session.updateUI({
-            loading: false,
-            body: confirmationReadinessBody,
-          });
-        }
-      },
-    });
-    void promptDecisionPromise.finally(markPromptReady);
+    if (signingAuthMode === 'emailOtp') {
+      notifySigningOperationInteraction?.({
+        kind: SigningOperationInteractionEventKind.AuthenticationStarted,
+      });
+    }
+    const promptDecisionPromise: Promise<ConfirmationPromptDecision> = reviewPromptRequired
+      ? session.promptUser({
+          securityContext: baseSecurityContext,
+          // The transaction summary already contains every fact the user reviews.
+          // Exact nonce, session, and challenge preparation continues concurrently
+          // and is awaited below before authentication or signing can proceed.
+          loading: false,
+          onMounted: () => {
+            markPromptReady();
+            if (confirmationReadinessPending && confirmationReadinessBody) {
+              session.updateUI({
+                loading: false,
+                body: confirmationReadinessBody,
+              });
+            }
+          },
+        })
+      : Promise.resolve({ confirmed: true });
+    if (reviewPromptRequired) {
+      void promptDecisionPromise.finally(markPromptReady);
+    } else {
+      markPromptReady();
+    }
 
     let nearRpcResolved: NearContextFetchResult | undefined;
     const applyPreparedIntentData = (prepared: IntentDigestPreparationResult): void => {
@@ -546,6 +611,12 @@ export async function handleTransactionSigningFlow(
         error: uiError,
       });
     }
+    if (notifySigningOperationInteraction && !reviewAlreadyApproved) {
+      notifySigningOperationInteraction({
+        kind: SigningOperationInteractionEventKind.ReviewApproved,
+      });
+      session.dismissReviewSurface();
+    }
 
     const nearRpc = nearContextPromise ? nearRpcResolved || (await nearContextPromise) : undefined;
     let nearTransactionReadiness: NearTransactionReadiness | undefined;
@@ -671,6 +742,9 @@ export async function handleTransactionSigningFlow(
       });
     }
     if (signingAuthMode === 'emailOtp') {
+      notifySigningOperationInteraction?.({
+        kind: SigningOperationInteractionEventKind.AuthenticationCompleted,
+      });
       session.confirmAndCloseModal({
         requestId: request.requestId,
         intentDigest: resolvedIntentDigestForResponse,
@@ -713,11 +787,17 @@ export async function handleTransactionSigningFlow(
     if (!challengeB64u) {
       throw new Error('Missing WebAuthn challenge digest for signing flow');
     }
+    notifySigningOperationInteraction?.({
+      kind: SigningOperationInteractionEventKind.AuthenticationStarted,
+    });
     const serializedCredential = await collectAuthenticationCredentialForWalletChallengeB64u({
       credentialStore: ctx.webauthnCredentialStore,
       touchIdPrompt: ctx.touchIdPrompt,
       walletId: request.payload.walletId,
       challengeB64u,
+    });
+    notifySigningOperationInteraction?.({
+      kind: SigningOperationInteractionEventKind.AuthenticationCompleted,
     });
 
     // 6) Respond; keep nonces reserved for worker to use

@@ -19,6 +19,7 @@ import {
 import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
+  parseVerifiedEmailAddress,
   type WalletAuthMethodId,
   type WalletAuthorityId,
 } from '@shared/utils/domainIds';
@@ -55,6 +56,8 @@ export async function persistFinalizedEmailOtpAuthMethodV1(
   if (!registrationAuthorityId) {
     throw new Error('Wallet add-email-code finalize returned no provider identity');
   }
+  const emailAddress = parseVerifiedEmailAddress(args.emailAddress);
+  if (!emailAddress.ok) throw new Error(emailAddress.error.message);
   const nowMs = Date.now();
   await IndexedDBManager.upsertWalletAuthMethod({
     version: 'wallet_auth_method_v1',
@@ -83,4 +86,12 @@ export async function persistFinalizedEmailOtpAuthMethodV1(
       activatedAtMs: nowMs,
     }),
   );
+  const retained = await IndexedDBManager.retainVerifiedEmailOtpLocalPresentation({
+    walletId: args.walletId,
+    walletAuthMethodId: walletAuthMethodId.value,
+    emailAddress: emailAddress.value,
+  });
+  if (retained.kind !== 'retained') {
+    throw new Error(`Verified Email OTP presentation was not retained: ${retained.reason}`);
+  }
 }

@@ -16,6 +16,20 @@ import {
   type UserConfirmRequest,
 } from '@/core/signingEngine/stepUpConfirmation/channel/confirmTypes';
 import { parseWalletId } from '@shared/utils/domainIds';
+import {
+  SigningOperationInteractionEventKind,
+  SigningOperationStateKind,
+  type SigningOperationInteractionEvent,
+} from '@/core/signingEngine/flows/shared/signingStateMachine';
+
+function recordSigningInteraction(
+  counter: { count: number },
+  event: SigningOperationInteractionEvent,
+): void {
+  if (event.kind === SigningOperationInteractionEventKind.ReviewApproved) {
+    counter.count += 1;
+  }
+}
 
 test('warm NEAR confirmation carries one final digest for the exact displayed transaction', async () => {
   const nearAccountId = toAccountId('alice.testnet');
@@ -35,13 +49,17 @@ test('warm NEAR confirmation carries one final digest for the exact displayed tr
     ],
   };
   let capturedRequest: UserConfirmRequest | undefined;
+  const reviewApprovals = { count: 0 };
 
   await expect(
     orchestrateSigningConfirmation({
       ctx: {
         touchConfirm: {
-          requestUserConfirmation: async (request): Promise<UserConfirmDecision> => {
+          requestUserConfirmation: async (request, options): Promise<UserConfirmDecision> => {
             capturedRequest = request;
+            options?.onSigningOperationInteractionEvent?.({
+              kind: SigningOperationInteractionEventKind.ReviewApproved,
+            });
             return {
               requestId: request.requestId,
               confirmed: false,
@@ -85,6 +103,11 @@ test('warm NEAR confirmation carries one final digest for the exact displayed tr
         },
         signatureUses: 1,
       },
+      signingOperationStateKind: SigningOperationStateKind.Planned,
+      onSigningOperationInteractionEvent: recordSigningInteraction.bind(
+        undefined,
+        reviewApprovals,
+      ),
     }),
   ).rejects.toThrow('test_cancelled');
 
@@ -98,4 +121,5 @@ test('warm NEAR confirmation carries one final digest for the exact displayed tr
   expect(capturedRequest.summary.intentDigest).toBe(expectedDigest);
   expect(capturedRequest.payload.intentDigest).toBe(expectedDigest);
   expect(capturedRequest.payload.txSigningRequests).toEqual([transaction]);
+  expect(reviewApprovals.count).toBe(1);
 });

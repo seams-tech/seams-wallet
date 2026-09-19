@@ -395,26 +395,19 @@ function selectedLoginAccount(viewModel: AuthMenuLoginViewModel) {
 }
 
 function selectedAccountPrimaryText(account: AuthMenuAccountOption): string {
-  switch (account.authMethod) {
-    case 'passkey':
-      return account.walletId;
-    case 'email_otp':
-      return account.displayName;
-  }
-  account.authMethod satisfies never;
-  throw new Error('Selected auth-menu account method is invalid');
+  return account.walletId;
 }
 
-function selectedAccountShowsWalletId(account: AuthMenuAccountOption): boolean {
-  return account.authMethod === 'email_otp' && account.walletId !== account.displayName;
+function accountSecondaryText(account: AuthMenuAccountOption): string | null {
+  return account.authMethod === 'email_otp' ? account.emailAddress : null;
 }
 
 function savedAccountsTriggerLabel(account: AuthMenuAccountOption | null): string {
   if (!account) return 'Saved accounts';
-  const primary = selectedAccountPrimaryText(account);
-  return selectedAccountShowsWalletId(account)
-    ? `Saved accounts. Selected ${primary}, wallet ID ${account.walletId}`
-    : `Saved accounts. Selected ${primary}`;
+  const emailAddress = accountSecondaryText(account);
+  return emailAddress
+    ? `Saved accounts. Selected wallet ID ${account.walletId}, email ${emailAddress}`
+    : `Saved accounts. Selected ${account.walletId}`;
 }
 
 type AuthMenuAccountGroup = Readonly<{
@@ -953,9 +946,9 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
                       <span class="w3a-account-menu-account-primary"
                         >${selectedAccountPrimaryText(selected)}</span
                       >
-                      ${selectedAccountShowsWalletId(selected)
+                      ${accountSecondaryText(selected)
                         ? html`<span class="w3a-account-menu-account-secondary"
-                            >${selected.walletId}</span
+                            >${accountSecondaryText(selected)}</span
                           >`
                         : null}
                     </div>
@@ -1015,9 +1008,7 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
                                     const isSelected =
                                       account.walletId === selected?.walletId &&
                                       account.authMethod === selected.authMethod;
-                                    const showWalletId =
-                                      account.authMethod === 'email_otp' &&
-                                      account.walletId !== account.displayName;
+                                    const secondaryText = accountSecondaryText(account);
                                     return html`
                                       <button
                                         class="w3a-account-menu-option ${isSelected
@@ -1026,9 +1017,9 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
                                         type="button"
                                         role="option"
                                         aria-selected=${isSelected ? 'true' : 'false'}
-                                        title=${showWalletId
-                                          ? `${account.displayName} ${account.walletId}`
-                                          : account.displayName}
+                                        title=${secondaryText
+                                          ? `${account.walletId} ${secondaryText}`
+                                          : account.walletId}
                                         data-wallet-id=${account.walletId}
                                         data-auth-method=${account.authMethod}
                                         @click=${this.onLoginAccountSelect}
@@ -1039,11 +1030,11 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
                                         ></span>
                                         <span class="w3a-account-menu-account">
                                           <span class="w3a-account-menu-account-primary"
-                                            >${account.displayName}</span
+                                            >${account.walletId}</span
                                           >
-                                          ${showWalletId
+                                          ${secondaryText
                                             ? html`<span class="w3a-account-menu-account-secondary"
-                                                >${account.walletId}</span
+                                                >${secondaryText}</span
                                               >`
                                             : null}
                                         </span>

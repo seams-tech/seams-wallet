@@ -2250,6 +2250,10 @@ function createD1WalletUnlockRouteService(
         authorizationService: assembly.authorizationService,
         request,
       }),
+    refreshWalletSessionAuthorityProjection:
+      assembly.authorizationService.refreshWalletSessionAuthorizationV2AuthorityProjection.bind(
+        assembly.authorizationService,
+      ),
   };
 }
 

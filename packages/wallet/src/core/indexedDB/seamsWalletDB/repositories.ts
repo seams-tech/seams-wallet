@@ -8,6 +8,7 @@ import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
   parseWalletId,
+  parseVerifiedEmailAddress,
   parseWalletKeyId,
   parseWalletRecoveryOperationId,
   type WalletRecoveryOperationId,
@@ -69,11 +70,14 @@ import type {
   LastProfileState,
   LocalAuthorityInstallationReceiptV1,
   LocalWalletAuthMethodRecord,
+  LocalWalletAuthMethodProjectionV2,
   NonceLaneLeaseStoreRecord,
   NonceLaneLeaseStoreRecordState,
   ProfileAuthenticatorRecord,
   ProfileContinuitySnapshot,
   ProfileRecord,
+  RetainVerifiedEmailOtpLocalPresentationInputV1,
+  RetainVerifiedEmailOtpLocalPresentationResultV1,
   SignerMutationOptions,
   SignerOperationStatus,
   SignerOperationType,
@@ -86,6 +90,7 @@ import type {
   WalletAuthorityLinkedSignerMaterialRecordV1,
   WalletAuthoritySignerMaterialRecordV1,
   WalletSelectionRecordV1,
+  WalletAuthMethodLocalPresentationV1,
   WalletSignerLookup,
 } from '../passkeyClientDB.types';
 import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
@@ -318,15 +323,25 @@ type WalletAuthorityRow = {
   record: WalletAuthorityV1;
 };
 
-type WalletAuthMethodV2Row = {
+type WalletAuthMethodV2RowBase = {
   wallet_auth_method_id: string;
   wallet_id: string;
   wallet_authority_id: string;
-  kind: WalletAuthMethodRecordV2['kind'];
   status: WalletAuthMethodRecordV2['status'];
   updated_at: number;
-  record: WalletAuthMethodRecordV2;
 };
+
+type WalletAuthMethodV2Row =
+  | (WalletAuthMethodV2RowBase & {
+      kind: 'passkey';
+      presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'passkey' }>;
+      record: Extract<WalletAuthMethodRecordV2, { readonly kind: 'passkey' }>;
+    })
+  | (WalletAuthMethodV2RowBase & {
+      kind: 'email_otp';
+      presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'email_otp' }>;
+      record: Extract<WalletAuthMethodRecordV2, { readonly kind: 'email_otp' }>;
+    });
 
 type WalletAuthoritySignerMaterialRow = {
   wallet_authority_id: string;
@@ -2454,10 +2469,87 @@ function walletAuthorityStorageRow(record: WalletAuthorityV1): WalletAuthorityRo
   };
 }
 
+function unavailableWalletAuthMethodPresentation(
+  record: WalletAuthMethodRecordV2,
+): WalletAuthMethodLocalPresentationV1 {
+  switch (record.kind) {
+    case 'passkey':
+      return {
+        version: 'wallet_auth_method_local_presentation_v1',
+        kind: 'passkey',
+      };
+    case 'email_otp':
+      return {
+        version: 'wallet_auth_method_local_presentation_v1',
+        kind: 'email_otp',
+        email: { kind: 'unavailable' },
+      };
+    default:
+      record satisfies never;
+      throw new Error('Wallet auth-method presentation kind is invalid');
+  }
+}
+
+function parseWalletAuthMethodLocalPresentationV1(
+  value: unknown,
+  record: WalletAuthMethodRecordV2,
+): WalletAuthMethodLocalPresentationV1 | null {
+  if (value === undefined) return unavailableWalletAuthMethodPresentation(record);
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
+  if (
+    Reflect.get(value, 'version') !== 'wallet_auth_method_local_presentation_v1' ||
+    Reflect.get(value, 'kind') !== record.kind
+  ) {
+    return null;
+  }
+  switch (record.kind) {
+    case 'passkey':
+      if (!hasExactKeys(value, ['version', 'kind'])) return null;
+      return {
+        version: 'wallet_auth_method_local_presentation_v1',
+        kind: 'passkey',
+      };
+    case 'email_otp': {
+      if (!hasExactKeys(value, ['version', 'kind', 'email'])) return null;
+      const email = Reflect.get(value, 'email');
+      if (email === null || typeof email !== 'object' || Array.isArray(email)) return null;
+      switch (Reflect.get(email, 'kind')) {
+        case 'unavailable':
+          if (!hasExactKeys(email, ['kind'])) return null;
+          return {
+            version: 'wallet_auth_method_local_presentation_v1',
+            kind: 'email_otp',
+            email: { kind: 'unavailable' },
+          };
+        case 'verified': {
+          if (!hasExactKeys(email, ['kind', 'address'])) return null;
+          const address = parseVerifiedEmailAddress(Reflect.get(email, 'address'));
+          if (!address.ok) return null;
+          return {
+            version: 'wallet_auth_method_local_presentation_v1',
+            kind: 'email_otp',
+            email: { kind: 'verified', address: address.value },
+          };
+        }
+        default:
+          return null;
+      }
+    }
+    default:
+      record satisfies never;
+      return null;
+  }
+}
+
 function parseWalletAuthMethodV2StorageRow(value: unknown): WalletAuthMethodV2Row | null {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
   const record = parseWalletAuthMethodRecordV2(Reflect.get(value, 'record'));
   if (!record) return null;
+  const presentation = parseWalletAuthMethodLocalPresentationV1(
+    Reflect.get(value, 'presentation'),
+    record,
+  );
+  if (!presentation) return null;
   if (
     Reflect.get(value, 'wallet_auth_method_id') !== record.walletAuthMethodId ||
     Reflect.get(value, 'wallet_id') !== record.walletId ||
@@ -2468,27 +2560,150 @@ function parseWalletAuthMethodV2StorageRow(value: unknown): WalletAuthMethodV2Ro
   ) {
     return null;
   }
+  return walletAuthMethodV2StorageRow(localWalletAuthMethodProjectionV2(record, presentation));
+}
+
+function walletAuthMethodV2StorageRow(
+  projection: LocalWalletAuthMethodProjectionV2,
+): WalletAuthMethodV2Row {
+  switch (projection.kind) {
+    case 'passkey':
+      return {
+        wallet_auth_method_id: projection.record.walletAuthMethodId,
+        wallet_id: projection.record.walletId,
+        wallet_authority_id: projection.record.walletAuthorityId,
+        kind: 'passkey',
+        status: projection.record.status,
+        updated_at: projection.record.updatedAtMs,
+        presentation: projection.presentation,
+        record: projection.record,
+      };
+    case 'email_otp':
+      return {
+        wallet_auth_method_id: projection.record.walletAuthMethodId,
+        wallet_id: projection.record.walletId,
+        wallet_authority_id: projection.record.walletAuthorityId,
+        kind: 'email_otp',
+        status: projection.record.status,
+        updated_at: projection.record.updatedAtMs,
+        presentation: projection.presentation,
+        record: projection.record,
+      };
+    default:
+      projection satisfies never;
+      throw new Error('Wallet auth-method projection kind is invalid');
+  }
+}
+
+function verifiedEmailPresentationFromLocalRecords(
+  record: Extract<WalletAuthMethodRecordV2, { readonly kind: 'email_otp' }>,
+  rows: readonly unknown[],
+): WalletAuthMethodLocalPresentationV1 | null {
+  const addresses = new Set<string>();
+  for (const row of rows) {
+    const local = parseWalletAuthMethodStorageRow(row)?.record;
+    if (
+      !local ||
+      local.kind !== 'email_otp' ||
+      local.emailHashHex !== record.emailHashHex ||
+      local.authority.bindingId !== record.walletAuthMethodId
+    ) {
+      continue;
+    }
+    const address = parseVerifiedEmailAddress(local.authority.factor.providerUserId);
+    if (address.ok) addresses.add(String(address.value));
+  }
+  if (addresses.size !== 1) return null;
+  const address = parseVerifiedEmailAddress([...addresses][0]);
+  if (!address.ok) return null;
   return {
-    wallet_auth_method_id: record.walletAuthMethodId,
-    wallet_id: record.walletId,
-    wallet_authority_id: record.walletAuthorityId,
-    kind: record.kind,
-    status: record.status,
-    updated_at: record.updatedAtMs,
-    record,
+    version: 'wallet_auth_method_local_presentation_v1',
+    kind: 'email_otp',
+    email: { kind: 'verified', address: address.value },
   };
 }
 
-function walletAuthMethodV2StorageRow(record: WalletAuthMethodRecordV2): WalletAuthMethodV2Row {
-  return {
-    wallet_auth_method_id: record.walletAuthMethodId,
-    wallet_id: record.walletId,
-    wallet_authority_id: record.walletAuthorityId,
-    kind: record.kind,
-    status: record.status,
-    updated_at: record.updatedAtMs,
-    record,
-  };
+function walletAuthMethodLocalPresentation(
+  record: WalletAuthMethodRecordV2,
+  rows: readonly unknown[],
+  current: WalletAuthMethodLocalPresentationV1 | null,
+): WalletAuthMethodLocalPresentationV1 {
+  switch (record.kind) {
+    case 'passkey':
+      return unavailableWalletAuthMethodPresentation(record);
+    case 'email_otp':
+      return (
+        verifiedEmailPresentationFromLocalRecords(record, rows) ??
+        (current?.kind === 'email_otp' && current.email.kind === 'verified'
+          ? current
+          : unavailableWalletAuthMethodPresentation(record))
+      );
+    default:
+      record satisfies never;
+      throw new Error('Wallet auth-method presentation kind is invalid');
+  }
+}
+
+function walletAuthMethodLocalPresentationsMatch(
+  left: WalletAuthMethodLocalPresentationV1,
+  right: WalletAuthMethodLocalPresentationV1,
+): boolean {
+  if (left.kind !== right.kind) return false;
+  if (left.kind === 'passkey' && right.kind === 'passkey') return true;
+  if (left.kind !== 'email_otp' || right.kind !== 'email_otp') return false;
+  if (left.email.kind !== right.email.kind) return false;
+  if (left.email.kind === 'unavailable' && right.email.kind === 'unavailable') return true;
+  return (
+    left.email.kind === 'verified' &&
+    right.email.kind === 'verified' &&
+    left.email.address === right.email.address
+  );
+}
+
+function rawWalletAuthMethodRowHasPresentation(value: unknown): boolean {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Reflect.get(value, 'presentation') !== undefined
+  );
+}
+
+function localWalletAuthMethodProjectionV2(
+  record: WalletAuthMethodRecordV2,
+  presentation: WalletAuthMethodLocalPresentationV1,
+): LocalWalletAuthMethodProjectionV2 {
+  switch (record.kind) {
+    case 'passkey':
+      if (presentation.kind !== 'passkey') {
+        throw new Error('Passkey auth method has non-passkey local presentation');
+      }
+      return { kind: 'passkey', record, presentation };
+    case 'email_otp':
+      if (presentation.kind !== 'email_otp') {
+        throw new Error('Email OTP auth method has non-email local presentation');
+      }
+      return { kind: 'email_otp', record, presentation };
+    default:
+      record satisfies never;
+      throw new Error('Wallet auth-method projection kind is invalid');
+  }
+}
+
+async function walletAuthMethodV2StorageRowForStore(
+  store: ReturnType<SeamsWalletTransactionContext['store']>,
+  record: WalletAuthMethodRecordV2,
+): Promise<WalletAuthMethodV2Row> {
+  const existingRaw = await store.get(record.walletAuthMethodId);
+  const existing = parseWalletAuthMethodV2StorageRow(existingRaw);
+  const walletRows = (await store.index(SEAMS_WALLET_INDEXES.walletId).getAll(record.walletId)) as
+    unknown[];
+  return walletAuthMethodV2StorageRow(
+    localWalletAuthMethodProjectionV2(
+      record,
+      walletAuthMethodLocalPresentation(record, walletRows, existing?.presentation ?? null),
+    ),
+  );
 }
 
 function parseWalletAuthoritySignerMaterialRecord(
@@ -4825,7 +5040,9 @@ export class SeamsWalletRepositories {
       ctx,
     );
     await authorityStore.put(walletAuthorityStorageRow(input.authority));
-    await authMethodStore.put(walletAuthMethodV2StorageRow(input.authMethod));
+    await authMethodStore.put(
+      await walletAuthMethodV2StorageRowForStore(authMethodStore, input.authMethod),
+    );
     await sessionStore.put(
       toStoredExactWalletSessionAuthorizationRowV6(input.walletSession, input.operationCredential),
     );
@@ -4855,10 +5072,9 @@ export class SeamsWalletRepositories {
     ) {
       throw new Error('local authority profile projection identity does not match activation');
     }
-    const expectedV2Row = walletAuthMethodV2StorageRow(authMethod);
     if (
-      projection.authenticator?.wallet_auth_method_id === expectedV2Row.wallet_auth_method_id ||
-      projection.localAuthMethod?.wallet_auth_method_id === expectedV2Row.wallet_auth_method_id
+      projection.authenticator?.wallet_auth_method_id === authMethod.walletAuthMethodId ||
+      projection.localAuthMethod?.wallet_auth_method_id === authMethod.walletAuthMethodId
     ) {
       throw new Error('local authority profile projection collides with the V2 auth-method key');
     }
@@ -4885,7 +5101,9 @@ export class SeamsWalletRepositories {
       }
       await authMethodStore.put(row);
     }
-    await authMethodStore.put(expectedV2Row);
+    await authMethodStore.put(
+      await walletAuthMethodV2StorageRowForStore(authMethodStore, authMethod),
+    );
     await ctx
       .store(SEAMS_WALLET_STORES.appState)
       .delete(localAuthorityPendingProfileProjectionAppStateKeyV1(authority.authorityId));
@@ -5107,9 +5325,10 @@ export class SeamsWalletRepositories {
       throw new Error('recovered Wallet Authority conflicts with local authority');
     }
     await authorityStore.put(walletAuthorityStorageRow(input.authority));
-    await ctx
-      .store(SEAMS_WALLET_STORES.walletAuthMethods)
-      .put(walletAuthMethodV2StorageRow(input.authMethod));
+    const authMethodStore = ctx.store(SEAMS_WALLET_STORES.walletAuthMethods);
+    await authMethodStore.put(
+      await walletAuthMethodV2StorageRowForStore(authMethodStore, input.authMethod),
+    );
     const selectionStore = ctx.store(SEAMS_WALLET_STORES.walletSelections);
     const selectionRaw = await selectionStore.get(input.authority.walletId);
     const selection =
@@ -5353,7 +5572,9 @@ export class SeamsWalletRepositories {
 
     await appStateStore.put({ key: profileProjectionKey, value: profileProjectionRecord });
     await authorityStore.put(walletAuthorityStorageRow(input.authority));
-    await authMethodStore.put(walletAuthMethodV2StorageRow(input.authMethod));
+    await authMethodStore.put(
+      await walletAuthMethodV2StorageRowForStore(authMethodStore, input.authMethod),
+    );
     for (const material of input.signerMaterials) {
       await signerMaterialStore.put(walletAuthoritySignerMaterialStorageRow(material));
     }
@@ -5402,9 +5623,10 @@ export class SeamsWalletRepositories {
     await ctx
       .store(SEAMS_WALLET_STORES.walletAuthorities)
       .put(walletAuthorityStorageRow(input.authority));
-    await ctx
-      .store(SEAMS_WALLET_STORES.walletAuthMethods)
-      .put(walletAuthMethodV2StorageRow(input.authMethod));
+    const authMethodStore = ctx.store(SEAMS_WALLET_STORES.walletAuthMethods);
+    await authMethodStore.put(
+      await walletAuthMethodV2StorageRowForStore(authMethodStore, input.authMethod),
+    );
     await ctx.store(SEAMS_WALLET_STORES.walletSelections).put(
       walletSelectionStorageRow({
         kind: 'wallet_selection_v1',
@@ -5464,6 +5686,88 @@ export class SeamsWalletRepositories {
       const parsed = parseWalletAuthMethodV2StorageRow(row);
       return parsed ? [parsed.record] : [];
     });
+  }
+
+  async listLocalWalletAuthMethodProjectionsV2ForWallet(
+    walletId: string,
+  ): Promise<LocalWalletAuthMethodProjectionV2[]> {
+    const normalizedWalletId = toTrimmedString(walletId || '');
+    if (!normalizedWalletId) return [];
+    return await this.manager.runTransaction(
+      [SEAMS_WALLET_STORES.walletAuthMethods],
+      'readwrite',
+      async (ctx) => {
+        const store = ctx.store(SEAMS_WALLET_STORES.walletAuthMethods);
+        const rows = (await store
+          .index(SEAMS_WALLET_INDEXES.walletId)
+          .getAll(normalizedWalletId)) as unknown[];
+        const projections: LocalWalletAuthMethodProjectionV2[] = [];
+        for (const raw of rows) {
+          const parsed = parseWalletAuthMethodV2StorageRow(raw);
+          if (!parsed) continue;
+          const presentation = walletAuthMethodLocalPresentation(
+            parsed.record,
+            rows,
+            parsed.presentation,
+          );
+          if (
+            !rawWalletAuthMethodRowHasPresentation(raw) ||
+            !walletAuthMethodLocalPresentationsMatch(parsed.presentation, presentation)
+          ) {
+            await store.put(
+              walletAuthMethodV2StorageRow(
+                localWalletAuthMethodProjectionV2(parsed.record, presentation),
+              ),
+            );
+          }
+          projections.push(localWalletAuthMethodProjectionV2(parsed.record, presentation));
+        }
+        return projections;
+      },
+    );
+  }
+
+  async retainVerifiedEmailOtpLocalPresentation(
+    input: RetainVerifiedEmailOtpLocalPresentationInputV1,
+  ): Promise<RetainVerifiedEmailOtpLocalPresentationResultV1> {
+    const emailHashHex = await sha256HexUtf8(String(input.emailAddress));
+    return await this.manager.runTransaction(
+      [SEAMS_WALLET_STORES.walletAuthMethods],
+      'readwrite',
+      async (ctx) => {
+        const store = ctx.store(SEAMS_WALLET_STORES.walletAuthMethods);
+        const row = parseWalletAuthMethodV2StorageRow(
+          await store.get(input.walletAuthMethodId),
+        );
+        if (!row) {
+          return { kind: 'not_retained', reason: 'missing_auth_method' };
+        }
+        if (row.record.walletId !== input.walletId) {
+          return { kind: 'not_retained', reason: 'wallet_mismatch' };
+        }
+        if (row.record.kind !== 'email_otp') {
+          return { kind: 'not_retained', reason: 'auth_method_not_email_otp' };
+        }
+        if (row.record.emailHashHex !== emailHashHex) {
+          return { kind: 'not_retained', reason: 'email_hash_mismatch' };
+        }
+        const presentation: Extract<
+          WalletAuthMethodLocalPresentationV1,
+          { readonly kind: 'email_otp' }
+        > = {
+          version: 'wallet_auth_method_local_presentation_v1',
+          kind: 'email_otp',
+          email: { kind: 'verified', address: input.emailAddress },
+        };
+        await store.put(
+          walletAuthMethodV2StorageRow({ kind: 'email_otp', record: row.record, presentation }),
+        );
+        return {
+          kind: 'retained',
+          projection: { kind: 'email_otp', record: row.record, presentation },
+        };
+      },
+    );
   }
 
   async resolveSelectedWalletAuthority(
@@ -5926,9 +6230,10 @@ export class SeamsWalletRepositories {
             { profileId: String(parsed.walletId) },
           );
         }
-        await ctx
-          .store(SEAMS_WALLET_STORES.walletAuthMethods)
-          .put(walletAuthMethodV2StorageRow(parsed));
+        const authMethodStore = ctx.store(SEAMS_WALLET_STORES.walletAuthMethods);
+        await authMethodStore.put(
+          await walletAuthMethodV2StorageRowForStore(authMethodStore, parsed),
+        );
       },
     );
   }

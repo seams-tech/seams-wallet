@@ -99,11 +99,17 @@ export type AuthMenuRegisterViewModel = AuthMenuViewModelCommon & {
   readonly passkeyNameLabel: string;
 };
 
-export type AuthMenuAccountOption = Readonly<{
-  readonly walletId: string;
-  readonly displayName: string;
-  readonly authMethod: WalletAuthMethod;
-}>;
+export type AuthMenuAccountOption =
+  | Readonly<{
+      readonly walletId: string;
+      readonly authMethod: Extract<WalletAuthMethod, 'passkey'>;
+      readonly emailAddress?: never;
+    }>
+  | Readonly<{
+      readonly walletId: string;
+      readonly authMethod: Extract<WalletAuthMethod, 'email_otp'>;
+      readonly emailAddress: string | null;
+    }>;
 
 type ResolvedAuthMenuLoginAccount = Readonly<{
   selectedAccount: AuthMenuAccountOption;

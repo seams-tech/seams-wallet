@@ -1969,12 +1969,13 @@ function disposeLinkedDeviceEcdsaHolderMaterials(
   const record = requireRecordPayload(payload);
   switch (record.kind) {
     case 'all':
-      opaquePresignAuthority.close();
+      opaquePresignAuthority.disposeLinkedHolderMaterials({ kind: 'all' });
       for (const material of linkedHolderMaterials.values()) material.free();
       linkedHolderMaterials.clear();
       return { kind: 'all' };
     case 'one': {
       const holderHandleId = readNonEmptyString(record, 'holderHandleId');
+      opaquePresignAuthority.disposeLinkedHolderMaterials({ kind: 'one', holderHandleId });
       const material = linkedHolderMaterials.get(holderHandleId);
       if (material) {
         material.free();
@@ -2988,6 +2989,16 @@ async function handleOpaquePresignRequest(event: MessageEvent<unknown>): Promise
             request.authority.material.kind === 'persisted'
               ? request.authority.material.materialRef
               : null,
+          authority:
+            request.authority.kind === 'linked_holder_signing_material'
+              ? {
+                  kind: request.authority.kind,
+                  holderHandleId: request.authority.holderHandleId,
+                }
+              : {
+                  kind: request.authority.kind,
+                  materialHandle: request.authority.materialHandle,
+                },
         });
         result = { kind: 'progress', progress };
         break;

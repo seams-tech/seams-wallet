@@ -13,11 +13,14 @@ import type {
   LastProfileState,
   LocalWalletAuthMethodRecord,
   LocalWalletAuthMethodRecordV2,
+  LocalWalletAuthMethodProjectionV2,
   LocalAuthorityInstallationReceiptV1,
   NonceLaneLeaseStoreRecord,
   ProfileAuthenticatorRecord,
   ProfileContinuitySnapshot,
   ProfileRecord,
+  RetainVerifiedEmailOtpLocalPresentationInputV1,
+  RetainVerifiedEmailOtpLocalPresentationResultV1,
   SignerMutationOptions,
   SignerOperationStatus,
   SignerOpOutboxRecord,
@@ -482,6 +485,18 @@ export class UnifiedIndexedDBManager {
     walletId: string,
   ): Promise<LocalWalletAuthMethodRecordV2[]> {
     return this.seamsWalletRepositories.listWalletAuthMethodsV2ForWallet(walletId);
+  }
+
+  async listLocalWalletAuthMethodProjectionsV2ForWallet(
+    walletId: string,
+  ): Promise<LocalWalletAuthMethodProjectionV2[]> {
+    return this.seamsWalletRepositories.listLocalWalletAuthMethodProjectionsV2ForWallet(walletId);
+  }
+
+  async retainVerifiedEmailOtpLocalPresentation(
+    input: RetainVerifiedEmailOtpLocalPresentationInputV1,
+  ): Promise<RetainVerifiedEmailOtpLocalPresentationResultV1> {
+    return this.seamsWalletRepositories.retainVerifiedEmailOtpLocalPresentation(input);
   }
 
   async installLocalAuthority(

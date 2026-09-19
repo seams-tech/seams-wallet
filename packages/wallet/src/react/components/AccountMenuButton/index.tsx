@@ -29,6 +29,24 @@ import {
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { NearProvisioningState } from '@/core/types/seams';
 import { accountMenuCapabilitiesForLoginState } from '../../context/reactLoginStateBuilders';
+import type { StoredAccountOption } from '../../types';
+import { parseVerifiedEmailAddress } from '@shared/utils/domainIds';
+import { WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
+
+function emailAddressForWallet(
+  accountOptions: readonly StoredAccountOption[],
+  walletId: string | null,
+): string | null {
+  if (!walletId) return null;
+  for (const option of accountOptions) {
+    if (option.walletId !== walletId || option.authMethod !== WALLET_AUTH_METHODS.emailOtp) {
+      continue;
+    }
+    const emailAddress = parseVerifiedEmailAddress(option.displayName);
+    if (emailAddress.ok) return String(emailAddress.value);
+  }
+  return null;
+}
 
 function formatExportKeyErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) return error.message;
@@ -123,7 +141,7 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonProps> = ({
   highlightedMenuItem,
 }) => {
   // Get values from context if not provided as props
-  const { loginState, seams, lock } = useSeams();
+  const { accountInputState, loginState, seams, lock } = useSeams();
   const recovery = useMemo(() => seams.recovery, [seams]);
 
   // Use props if provided, otherwise fall back to context
@@ -135,6 +153,10 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonProps> = ({
   const loggedInAccountId = loginState.nearAccountId;
   const nearAccountId = nearAccountIdProp || loggedInAccountId;
   const walletId = loginState.walletId;
+  const emailAddress = useMemo(
+    () => emailAddressForWallet(accountInputState.indexDBAccountOptions, walletId),
+    [accountInputState.indexDBAccountOptions, walletId],
+  );
   const canExportNearKey = Boolean(nearAccountId);
   const canExportEvmKeys = Boolean(loginState.thresholdEcdsaEthereumAddress);
 
@@ -526,6 +548,7 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonProps> = ({
         hideUsername={hideUsername}
         // identity line under "Settings": the wallet id, not the chain account
         fullAccountId={walletId || undefined}
+        emailAddress={emailAddress || undefined}
         isOpen={isOpen}
         onClick={handleToggle}
         theme={theme}

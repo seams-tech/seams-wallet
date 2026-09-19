@@ -100,6 +100,7 @@ export interface UserAccountButtonProps {
   username: string;
   hideUsername: boolean;
   fullAccountId?: string;
+  emailAddress?: string;
   isOpen: boolean;
   onClick: () => void;
   onMouseEnter?: () => void;

@@ -135,8 +135,8 @@ async function mountAuthMenu(page: Page, viewModel: unknown) {
 
 type AuthMethodAccountOption = Readonly<{
   walletId: string;
-  displayName: string;
   authMethod: 'passkey' | 'email_otp';
+  emailAddress?: string | null;
 }>;
 
 async function readAuthMethodButtonStates(args: {
@@ -768,13 +768,12 @@ test.describe('wallet-host Lit auth menu surface', () => {
   test('renders a multi-wallet login selector and emits the selected wallet', async ({ page }) => {
     const walletA = {
       walletId: 'wallet-a',
-      displayName: 'Wallet A',
       authMethod: 'passkey',
     } as const;
     const walletB = {
       walletId: 'wallet-b',
-      displayName: 'Wallet B',
       authMethod: 'email_otp',
+      emailAddress: 'wallet-b@example.com',
     } as const;
     await mountAuthMenu(page, {
       ...loginViewModel(),
@@ -817,14 +816,14 @@ test.describe('wallet-host Lit auth menu surface', () => {
       { kind: 'login_account_selected', walletId: 'wallet-b', authMethod: 'email_otp' },
     ]);
     await expect(selectedAccount.locator('.w3a-account-menu-account-primary')).toHaveText(
-      'Wallet B',
+      'wallet-b',
     );
     await expect(selectedAccount.locator('.w3a-account-menu-account-secondary')).toHaveText(
-      'wallet-b',
+      'wallet-b@example.com',
     );
     await expect(page.locator(`${AUTH_MENU_TAG} .w3a-account-menu-trigger`)).toHaveAttribute(
       'aria-label',
-      'Saved accounts. Selected Wallet B, wallet ID wallet-b',
+      'Saved accounts. Selected wallet ID wallet-b, email wallet-b@example.com',
     );
     const selectedAccountLayout = await selectedAccount.evaluate((account) => ({
       clientHeight: account.clientHeight,
@@ -842,13 +841,12 @@ test.describe('wallet-host Lit auth menu surface', () => {
   test('shows a dual-method wallet in both groups and enables both methods', async ({ page }) => {
     const passkey = {
       walletId: 'jade-brook',
-      displayName: 'jade-brook',
       authMethod: 'passkey',
     } as const;
     const emailOtp = {
-      ...passkey,
-      displayName: 'n637805@gmail.com',
+      walletId: 'jade-brook',
       authMethod: 'email_otp',
+      emailAddress: 'n637805@gmail.com',
     } as const;
     await mountAuthMenu(page, {
       ...loginViewModel(),
@@ -878,10 +876,10 @@ test.describe('wallet-host Lit auth menu surface', () => {
     );
     await expect(emailOtpOption).toHaveCount(1);
     await expect(emailOtpOption.locator('.w3a-account-menu-account-primary')).toHaveText(
-      'n637805@gmail.com',
+      'jade-brook',
     );
     await expect(emailOtpOption.locator('.w3a-account-menu-account-secondary')).toHaveText(
-      'jade-brook',
+      'n637805@gmail.com',
     );
     await emailOtpOption.focus();
     await expect(emailOtpOption).toBeFocused();

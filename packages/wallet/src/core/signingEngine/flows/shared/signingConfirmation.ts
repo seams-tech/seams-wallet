@@ -34,8 +34,18 @@ import {
   type WalletFlowAuthMethod,
   type WalletFlowInteractionKind,
 } from '@/core/types/sdkSentEvents';
-import { SigningOperationCommandKind, runSigningOperationCommand } from './signingStateMachine';
+import {
+  SigningOperationCancellationPhase,
+  SigningOperationCommandKind,
+  applySigningOperationInteractionEvent,
+  cancelSigningOperation,
+  planSigningOperationAttempt,
+  runSigningOperationCommand,
+  type SigningOperationStateRef,
+} from './signingStateMachine';
 import { secureRandomId } from '@shared/utils/secureRandomId';
+import { isUserCancellationError } from '@shared/utils/errors';
+import { walletOperationStepUpCancelled } from '@/core/signingEngine/session/material/walletSigningStateFailure';
 
 export type {
   ConfirmIntentDigestSigningOperationRequest,
@@ -91,6 +101,54 @@ export function createSigningConfirmationCommandHandler(args: {
   return async () => await run({ runtime: args.runtime, request: args.request });
 }
 
+type DistributiveOmit<T, TKey extends PropertyKey> = T extends unknown ? Omit<T, TKey> : never;
+
+type PendingTransactionSigningConfirmationRequest = DistributiveOmit<
+  ConfirmTransactionSigningOperationRequest,
+  | 'signingOperationStateKind'
+  | 'onSigningOperationInteractionEvent'
+>;
+
+export async function runTransactionSigningConfirmationCommand(args: {
+  signingSessionPlan: SigningSessionPlan;
+  signingOperation: SigningOperationContext;
+  runtime: ConfirmSigningOperationRuntime;
+  request: PendingTransactionSigningConfirmationRequest;
+  signingOperationState: SigningOperationStateRef;
+}): Promise<ConfirmTransactionSigningOperationResult> {
+  const confirmationState = planSigningOperationAttempt(
+    args.signingOperationState,
+    args.signingSessionPlan,
+  );
+  const request: ConfirmTransactionSigningOperationRequest = {
+    ...args.request,
+    signingOperationStateKind: confirmationState.kind,
+    onSigningOperationInteractionEvent: applySigningOperationInteractionEvent.bind(
+      undefined,
+      args.signingOperationState,
+    ),
+  };
+  const runConfirmation = createSigningConfirmationCommandHandler({
+    runtime: args.runtime,
+    request,
+  });
+  try {
+    return await runSigningOperationCommand({
+      signingSessionPlan: args.signingSessionPlan,
+      signingOperation: args.signingOperation,
+      commandKind: SigningOperationCommandKind.ShowConfirmation,
+      execute: runConfirmation,
+    });
+  } catch (error: unknown) {
+    if (!isUserCancellationError(error)) throw error;
+    const cancelled = cancelSigningOperation(args.signingOperationState);
+    if (cancelled.phase === SigningOperationCancellationPhase.Authentication) {
+      throw walletOperationStepUpCancelled();
+    }
+    throw error;
+  }
+}
+
 export async function runSigningConfirmationCommand(args: {
   signingSessionPlan: SigningSessionPlan;
   signingOperation: SigningOperationContext;
@@ -101,20 +159,18 @@ export async function runSigningConfirmationCommand(args: {
   signingSessionPlan: SigningSessionPlan;
   signingOperation: SigningOperationContext;
   runtime: ConfirmSigningOperationRuntime;
-  request: ConfirmTransactionSigningOperationRequest;
-}): Promise<ConfirmTransactionSigningOperationResult>;
-export async function runSigningConfirmationCommand(args: {
-  signingSessionPlan: SigningSessionPlan;
-  signingOperation: SigningOperationContext;
-  runtime: ConfirmSigningOperationRuntime;
   request: ConfirmSignatureOnlySigningOperationRequest;
 }): Promise<ConfirmSignatureOnlySigningOperationResult>;
-export async function runSigningConfirmationCommand(args: {
-  signingSessionPlan: SigningSessionPlan;
-  signingOperation: SigningOperationContext;
-  runtime: ConfirmSigningOperationRuntime;
-  request: ConfirmSigningOperationParams;
-}): Promise<ConfirmSigningOperationResult> {
+export async function runSigningConfirmationCommand(
+  args: {
+    signingSessionPlan: SigningSessionPlan;
+    signingOperation: SigningOperationContext;
+    runtime: ConfirmSigningOperationRuntime;
+    request:
+      | ConfirmIntentDigestSigningOperationRequest
+      | ConfirmSignatureOnlySigningOperationRequest;
+  },
+): Promise<ConfirmIntentDigestSigningOperationResult | ConfirmSignatureOnlySigningOperationResult> {
   const runConfirmation = createSigningConfirmationCommandHandler({
     runtime: args.runtime,
     request: args.request,

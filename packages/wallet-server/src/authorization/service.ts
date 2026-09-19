@@ -471,16 +471,9 @@ export class AuthorizationService {
       createdAtMs: current.createdAtMs,
       expiresAtMs: current.expiresAtMs,
     });
-    const persisted = await this.ports.grants.readWalletSessionAuthorizationV2ByAuthorizationId({
-      expected: current,
-      nowMs: Date.now(),
-    });
-    if (!persisted) {
-      throw new Error('Direct V2 Wallet Session authority projection is unavailable');
-    }
     await this.ports.grants.replaceWalletSessionAuthorizationV2AuthorityProjection({
       session,
-      quota: persisted.quota,
+      quota: input.existing.quota,
     });
     const refreshed = await this.ports.grants.readWalletSessionAuthorizationV2ByAuthorizationId({
       expected: session,
