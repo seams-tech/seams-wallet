@@ -14,10 +14,15 @@ const WALLET_ID = 'swift-sable-hgmrzh';
 const WALLET_AUTH_METHOD_ID = 'passkey:wallet.example.localhost:credential-owner';
 
 type ModalKind = 'authentication_methods' | 'linked_devices';
+type AuthenticationInventoryMode = 'pending' | 'owner_session_inactive';
 
-async function mountModalWithPendingInventory(page: Page, kind: ModalKind): Promise<void> {
+async function mountModalWithPendingInventory(
+  page: Page,
+  kind: ModalKind,
+  authenticationInventoryMode: AuthenticationInventoryMode = 'pending',
+): Promise<void> {
   await page.evaluate(
-    async ({ paths, walletId, walletAuthMethodId, modalKind }) => {
+    async ({ paths, walletId, walletAuthMethodId, modalKind, inventoryMode }) => {
       const React = await import('react');
       const ReactDOMClient = await import('react-dom/client');
       const ReactDOM = await import('react-dom');
@@ -36,13 +41,26 @@ async function mountModalWithPendingInventory(page: Page, kind: ModalKind): Prom
         throw new Error('Account-menu modal test exports are unavailable');
       }
 
+      let inventoryAttempts = 0;
+      let ownerUnlocks = 0;
       const seams = {
         configs: {
           wallet: { iframe: { rpIdOverride: 'wallet.example.localhost' } },
         },
+        auth: {
+          unlock: async () => {
+            ownerUnlocks += 1;
+            return { success: true };
+          },
+        },
         devices: {
           listLinkedDevices: async () => {
-            await new Promise((resolve) => window.setTimeout(resolve, 2_000));
+            inventoryAttempts += 1;
+            if (inventoryMode === 'pending') {
+              await new Promise((resolve) => window.setTimeout(resolve, 2_000));
+            } else if (inventoryAttempts === 1) {
+              throw new Error('The owner Wallet Session must be renewed');
+            }
             return {
               devices: [],
               ownerDevices: [
@@ -87,12 +105,20 @@ async function mountModalWithPendingInventory(page: Page, kind: ModalKind): Prom
         },
       };
       (
-        globalThis as typeof globalThis & { __accountMenuModalTestContext?: unknown }
+        globalThis as typeof globalThis & {
+          __accountMenuModalTestContext?: unknown;
+          __accountMenuModalOwnerUnlockCount?: () => number;
+        }
       ).__accountMenuModalTestContext = {
         seams,
         loginState,
         refreshLoginState: async () => undefined,
       };
+      (
+        globalThis as typeof globalThis & {
+          __accountMenuModalOwnerUnlockCount?: () => number;
+        }
+      ).__accountMenuModalOwnerUnlockCount = () => ownerUnlocks;
 
       const mount = document.createElement('div');
       mount.id = 'account-menu-modal-test-root';
@@ -117,6 +143,7 @@ async function mountModalWithPendingInventory(page: Page, kind: ModalKind): Prom
       walletId: WALLET_ID,
       walletAuthMethodId: WALLET_AUTH_METHOD_ID,
       modalKind: kind,
+      inventoryMode: authenticationInventoryMode,
     },
   );
 }
@@ -151,6 +178,33 @@ test.describe('account-menu modal responsiveness', () => {
     await expect(dialog.getByText('Passkey on this device', { exact: true })).toBeVisible({
       timeout: 500,
     });
+  });
+
+  test('unlocks owner management explicitly after passive inventory authorization fails', async ({
+    page,
+  }) => {
+    await mountModalWithPendingInventory(
+      page,
+      'authentication_methods',
+      'owner_session_inactive',
+    );
+
+    const dialog = page.getByRole('dialog', { name: 'Authentication methods' });
+    const unlockButton = dialog.getByRole('button', { name: 'Unlock wallet' });
+    await expect(unlockButton).toBeVisible();
+    await unlockButton.click();
+
+    await expect(dialog.getByRole('heading', { name: 'Add Email OTP' })).toBeVisible();
+    await expect(dialog).toBeFocused();
+    const unlockCount = await page.evaluate(() => {
+      const read = (
+        globalThis as typeof globalThis & {
+          __accountMenuModalOwnerUnlockCount?: () => number;
+        }
+      ).__accountMenuModalOwnerUnlockCount;
+      return read?.() ?? 0;
+    });
+    expect(unlockCount).toBe(1);
   });
 
   test('shows Linked Devices while its inventory request is pending', async ({ page }) => {

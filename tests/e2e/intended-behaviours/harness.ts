@@ -299,7 +299,22 @@ declare global {
     __seamsIntendedE2EReadWalletLockState?: () => Promise<{
       authenticationKind: 'authenticated' | 'signed_out';
     }>;
+    __seamsIntendedE2EReadAuthenticationMethods?: () => Promise<{
+      ownerDeviceCount: number;
+      linkedDeviceCount: number;
+    }>;
   }
+}
+
+async function readAuthenticationMethodsFromIntendedPage(): Promise<{
+  ownerDeviceCount: number;
+  linkedDeviceCount: number;
+}> {
+  const read = window.__seamsIntendedE2EReadAuthenticationMethods;
+  if (!read) {
+    throw new Error('authentication-method inventory helper is unavailable');
+  }
+  return await read();
 }
 
 type IntendedConcurrentActionObserver = {
@@ -1120,6 +1135,16 @@ export class IntendedBehaviourHarness {
       result.nearReadiness === 'ready'
         ? `passkey registration succeeded wallet=${result.walletId} near=${result.nearAccountId}`
         : `passkey registration succeeded ECDSA-ready wallet=${result.walletId} near=${nearStateLabel(result)}`,
+    );
+  }
+
+  async assertRegistrationOwnerSessionIsActive(): Promise<void> {
+    const inventory = await this.page.evaluate(readAuthenticationMethodsFromIntendedPage);
+    if (inventory.ownerDeviceCount < 1) {
+      throw new Error('registration owner session returned no owner authentication method');
+    }
+    this.recordService(
+      `registration owner session active ownerMethods=${inventory.ownerDeviceCount} linkedDevices=${inventory.linkedDeviceCount}`,
     );
   }
 

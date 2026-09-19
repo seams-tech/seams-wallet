@@ -528,6 +528,10 @@ declare global {
     __seamsIntendedE2EReadWalletLockState?: () => Promise<{
       authenticationKind: WalletSession['authentication']['kind'];
     }>;
+    __seamsIntendedE2EReadAuthenticationMethods?: () => Promise<{
+      ownerDeviceCount: number;
+      linkedDeviceCount: number;
+    }>;
   }
 }
 
@@ -891,6 +895,24 @@ class IntendedPageController {
 
   runRegisterPasskeyWallet = (): void => {
     void this.registerPasskeyWallet();
+  };
+
+  readAuthenticationMethodsForIntendedTest = async (): Promise<{
+    ownerDeviceCount: number;
+    linkedDeviceCount: number;
+  }> => {
+    if (!this.walletId) {
+      throw new Error('authentication-method inventory requires a registered wallet');
+    }
+    const inventory = await this.seams.devices.listLinkedDevices({
+      walletId: toWalletId(this.walletId),
+      limit: 50,
+      cursor: null,
+    });
+    return {
+      ownerDeviceCount: inventory.ownerDevices.length,
+      linkedDeviceCount: inventory.devices.length,
+    };
   };
 
   runRegisterPasskeyEd25519YaoWallet = (): void => {
@@ -3281,6 +3303,8 @@ function installIntendedE2EHelpers(controller: IntendedPageController): void {
   window.__seamsIntendedE2EReadEmailOtpCode = controller.readEmailOtpCodeForChallenge;
   window.__seamsIntendedE2ELockWallet = controller.lockWalletForIntendedTest;
   window.__seamsIntendedE2EReadWalletLockState = controller.readWalletLockStateForIntendedTest;
+  window.__seamsIntendedE2EReadAuthenticationMethods =
+    controller.readAuthenticationMethodsForIntendedTest;
 }
 
 function requireHex(value: unknown, label: string): `0x${string}` {
