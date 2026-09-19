@@ -25,12 +25,12 @@ let initialized = false;
 
 const CONFIRM_UI_SELECTORS = [
   'seams-auth-menu-surface',
-  'w3a-modal-tx-confirmer',
-  'w3a-drawer-tx-confirmer',
-  'w3a-tx-confirmer',
-  'w3a-export-key-viewer',
-  '[data-w3a-email-otp-recovery-code-dialog]',
-  '[data-w3a-wallet-recovery-backup-dialog]',
+  'seams-modal-tx-confirmer',
+  'seams-drawer-tx-confirmer',
+  'seams-tx-confirmer',
+  'seams-export-key-viewer',
+  '[data-seams-email-otp-recovery-code-dialog]',
+  '[data-seams-wallet-recovery-backup-dialog]',
 ] as const;
 
 export type WalletHostRuntimeKind = RuntimeWalletHostRoute['kind'];
@@ -170,7 +170,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
       try {
         if (el.matches('seams-auth-menu-surface')) {
           el.dispatchEvent(
-            new CustomEvent('w3a-auth-menu-intent', {
+            new CustomEvent('seams-auth-menu-intent', {
               bubbles: true,
               composed: true,
               detail: { kind: 'close', reason: 'close_button' },
@@ -186,7 +186,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
         }
       } catch {}
       const recoveryCodeCloseButton = el.querySelector<HTMLButtonElement>(
-        '[data-w3a-email-otp-recovery-code-dialog-close], [data-w3a-wallet-recovery-backup-close]',
+        '[data-seams-email-otp-recovery-code-dialog-close], [data-seams-wallet-recovery-backup-close]',
       );
       recoveryCodeCloseButton?.click();
     }

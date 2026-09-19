@@ -3,7 +3,7 @@ import { getEmbeddedAssetVersion, getEmbeddedBase } from './base';
 /**
  * Resolve the base origin for worker scripts.
  * Priority:
- * 1) window.__W3A_WALLET_SDK_BASE__ (absolute `${walletOrigin}${sdkBasePath}/`) → take its origin (only if same-origin)
+ * 1) window.__SEAMS_WALLET_SDK_BASE__ (absolute `${walletOrigin}${sdkBasePath}/`) → take its origin (only if same-origin)
  * 2) window.location.origin (host/app origin)
  *
  * @returns The origin (protocol + host [+ port]) used to resolve worker script URLs.
@@ -17,7 +17,7 @@ export function resolveWorkerBaseOrigin(): string {
   // the current origin. Cross-origin worker scripts are not reliably loadable
   // across browsers (even for module workers) and will fail with CORS errors.
   try {
-    const embeddedBase = (window as any)?.__W3A_WALLET_SDK_BASE__ as string | undefined;
+    const embeddedBase = (window as any)?.__SEAMS_WALLET_SDK_BASE__ as string | undefined;
     if (embeddedBase) {
       const embeddedOrigin = new URL(embeddedBase, currentOrigin || 'https://invalid.local').origin;
       if (embeddedOrigin === currentOrigin) {
@@ -32,7 +32,7 @@ export function resolveWorkerBaseOrigin(): string {
 /**
  * Build an absolute worker script URL from a path or absolute URL.
  * If `input` is a path (e.g., `/sdk/workers/foo.js`), it will be resolved
- * against the wallet origin (from `__W3A_WALLET_SDK_BASE__`) when available,
+ * against the wallet origin (from `__SEAMS_WALLET_SDK_BASE__`) when available,
  * otherwise against the host origin.
  *
  * @param input - Absolute URL or path (e.g., `/sdk/workers/near-signer.worker.js`).
@@ -70,28 +70,28 @@ export function resolveWorkerUrl(
     let override: unknown;
     switch (worker) {
       case 'signer':
-        override = ovAny.__W3A_SIGNER_WORKER_URL__;
+        override = ovAny.__SEAMS_SIGNER_WORKER_URL__;
         break;
       case 'ecdsaDerivationClient':
-        override = ovAny.__W3A_ECDSA_DERIVATION_CLIENT_WORKER_URL__;
+        override = ovAny.__SEAMS_ECDSA_DERIVATION_CLIENT_WORKER_URL__;
         break;
       case 'ecdsaPresignClient':
-        override = ovAny.__W3A_ECDSA_PRESIGN_CLIENT_WORKER_URL__;
+        override = ovAny.__SEAMS_ECDSA_PRESIGN_CLIENT_WORKER_URL__;
         break;
       case 'ecdsaOnlineClient':
-        override = ovAny.__W3A_ECDSA_ONLINE_CLIENT_WORKER_URL__;
+        override = ovAny.__SEAMS_ECDSA_ONLINE_CLIENT_WORKER_URL__;
         break;
       case 'touchConfirm':
-        override = ovAny.__W3A_TOUCH_CONFIRM_WORKER_URL__;
+        override = ovAny.__SEAMS_TOUCH_CONFIRM_WORKER_URL__;
         break;
       case 'passkeyMpcExport':
-        override = ovAny.__W3A_PASSKEY_MPC_EXPORT_WORKER_URL__;
+        override = ovAny.__SEAMS_PASSKEY_MPC_EXPORT_WORKER_URL__;
         break;
       case 'passkeyMpcSession':
-        override = ovAny.__W3A_PASSKEY_MPC_SESSION_WORKER_URL__;
+        override = ovAny.__SEAMS_PASSKEY_MPC_SESSION_WORKER_URL__;
         break;
       case 'deviceLinking':
-        override = ovAny.__W3A_DEVICE_LINKING_WORKER_URL__;
+        override = ovAny.__SEAMS_DEVICE_LINKING_WORKER_URL__;
         break;
       default:
         worker satisfies never;

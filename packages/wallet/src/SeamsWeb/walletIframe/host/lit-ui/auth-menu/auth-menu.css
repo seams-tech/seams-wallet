@@ -3,12 +3,12 @@ seams-auth-menu-surface {
   display: block;
   inline-size: 100dvw;
   max-inline-size: min(100dvw, 420px);
-  --w3a-spacing-sm: 0.5rem;
-  --w3a-spacing-md: 1rem;
-  --w3a-spacing-lg: 1.5rem;
+  --seams-spacing-sm: 0.5rem;
+  --seams-spacing-md: 1rem;
+  --seams-spacing-lg: 1.5rem;
   /* Two curves, no more — mixed generic eases read as cheap.
-     --w3a-ease-out decelerates an entering view.
-     --w3a-ease-settle is the container's resize curve: a critically damped
+     --seams-ease-out decelerates an entering view.
+     --seams-ease-settle is the container's resize curve: a critically damped
      spring, i.e. bounce 0. Overshoot was the wrong instinct here. An elastic
      curve on a box whose height is sampled across the iframe boundary spends
      its most legible frames past the target and then walks back, which reads
@@ -18,17 +18,17 @@ seams-auth-menu-surface {
      duration, so the deceleration stays readable at 200ms. */
   /* One duration for the whole box. Every part of the card's geometry reads
      from this, so header, switcher and root can never settle at different
-     rates and split one movement into two. --w3a-duration-enter matches it
+     rates and split one movement into two. --seams-duration-enter matches it
      so the incoming view finishes with the box rather than trailing it. */
   /* The card's height floor. The waiting view derives its own floor from this
-     so the two can never drift apart — see .w3a-waiting. */
-  --w3a-menu-min-block-size: 250px;
-  --w3a-duration-resize: 200ms;
-  --w3a-duration-enter: 200ms;
-  --w3a-ease-out: cubic-bezier(0.25, 1, 0.5, 1);
-  --w3a-ease-settle: cubic-bezier(0.32, 0.72, 0, 1);
+     so the two can never drift apart — see .seams-waiting. */
+  --seams-menu-min-block-size: 250px;
+  --seams-duration-resize: 200ms;
+  --seams-duration-enter: 200ms;
+  --seams-ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+  --seams-ease-settle: cubic-bezier(0.32, 0.72, 0, 1);
   /* The card's height is a composite: the content switcher animates px -> px
-     (syncContentHeight measures .w3a-content-sizer and writes an explicit
+     (syncContentHeight measures .seams-content-sizer and writes an explicit
      height), while the header collapses `height: auto` -> `0px`, which is not
      interpolable. So one part of the box eased and the other stepped, and the
      sum read as a jump followed by a glide rather than one curve. Making
@@ -39,9 +39,9 @@ seams-auth-menu-surface {
   interpolate-size: allow-keywords;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: var(--w3a-colors-textPrimary);
+  color: var(--seams-colors-textPrimary);
   font-family: var(
-    --w3a-font-family,
+    --seams-font-family,
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
@@ -51,54 +51,54 @@ seams-auth-menu-surface {
 }
 
 /* Root container */
-.w3a-no-animation {
+.seams-no-animation {
   animation: none !important;
   transition: none !important;
 }
 
-.w3a-signup-menu-root {
+.seams-signup-menu-root {
   /* CSS sentinel (used by tests/diagnostics to confirm stylesheet is applied) */
-  --w3a-seams-auth-menu-css-ready: 1;
-  --w3a-seams-auth-menu-padding-top: calc(var(--w3a-spacing-lg) + 4px);
+  --seams-auth-menu-css-ready: 1;
+  --seams-auth-menu-padding-top: calc(var(--seams-spacing-lg) + 4px);
   position: relative;
   box-sizing: border-box;
   /* relative position to anchor back button */
   width: min(100dvw, 420px);
   max-width: 100dvw;
   min-width: min(330px, 100dvw);
-  min-height: var(--w3a-menu-min-block-size, 250px);
-  color: var(--w3a-colors-textPrimary);
+  min-height: var(--seams-menu-min-block-size, 250px);
+  color: var(--seams-colors-textPrimary);
   font-family: var(
-    --w3a-font-family,
+    --seams-font-family,
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
     Roboto,
     sans-serif
   );
-  background: var(--w3a-colors-colorBackground);
-  border: 1px solid var(--w3a-colors-borderPrimary);
-  border-radius: var(--w3a-shape-card, 16px);
+  background: var(--seams-colors-colorBackground);
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: var(--seams-shape-card, 16px);
   /* No box-shadow here: the iframe clips it at its layout edge (the surface
      only extends 16px past the card). The elevation is painted by the host
      page instead — a drop-shadow on the wallet iframe in overlay-styles.ts —
      which follows the card's silhouette and can extend past the iframe. The
      variable remains as an escape hatch for embedders. */
-  box-shadow: var(--w3a-seams-auth-menu-shadow, none);
-  padding: var(--w3a-spacing-lg);
-  padding-top: var(--w3a-seams-auth-menu-padding-top);
+  box-shadow: var(--seams-auth-menu-shadow, none);
+  padding: var(--seams-spacing-lg);
+  padding-top: var(--seams-auth-menu-padding-top);
   position: relative;
   display: flex;
   flex-direction: column;
   transition:
-    min-height var(--w3a-duration-resize, 200ms)
-      var(--w3a-ease-settle, cubic-bezier(0.32, 0.72, 0, 1)),
-    padding var(--w3a-duration-resize, 200ms) var(--w3a-ease-settle, cubic-bezier(0.32, 0.72, 0, 1)),
+    min-height var(--seams-duration-resize, 200ms)
+      var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1)),
+    padding var(--seams-duration-resize, 200ms) var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1)),
     border-radius 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Back button */
-.w3a-back-button {
+.seams-back-button {
   position: absolute;
   top: 1rem;
   left: 1rem;
@@ -110,7 +110,7 @@ seams-auth-menu-surface {
   place-items: center;
   line-height: 0;
   border-radius: 50%;
-  color: var(--w3a-colors-textPrimary);
+  color: var(--seams-colors-textPrimary);
   background: transparent;
   cursor: pointer;
   border: none;
@@ -124,29 +124,29 @@ seams-auth-menu-surface {
   filter: blur(0.2px);
 }
 
-.w3a-back-button.is-visible {
+.seams-back-button.is-visible {
   opacity: 1;
   pointer-events: auto;
   filter: none;
 }
 
-.w3a-signup-menu-root[data-scan-device='true'] .w3a-back-button.is-visible,
-.w3a-signup-menu-root[data-waiting='true'] .w3a-back-button.is-visible,
-.w3a-signup-menu-root[data-otp-prompt='true'] .w3a-back-button.is-visible {
+.seams-signup-menu-root[data-scan-device='true'] .seams-back-button.is-visible,
+.seams-signup-menu-root[data-waiting='true'] .seams-back-button.is-visible,
+.seams-signup-menu-root[data-otp-prompt='true'] .seams-back-button.is-visible {
   z-index: 30;
 }
 
-.w3a-back-button:hover {
+.seams-back-button:hover {
   transform: scale(1.02);
-  background: var(--w3a-colors-surface);
+  background: var(--seams-colors-surface);
 }
 
-.w3a-back-button:active {
+.seams-back-button:active {
   transform: scale(0.96);
 }
 
 /* Header */
-.w3a-header {
+.seams-header {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -155,9 +155,9 @@ seams-auth-menu-surface {
   overflow: hidden;
   transition:
     opacity 120ms ease-out,
-    height var(--w3a-duration-resize, 200ms) var(--w3a-ease-settle, cubic-bezier(0.32, 0.72, 0, 1)),
-    padding var(--w3a-duration-resize, 200ms) var(--w3a-ease-settle, cubic-bezier(0.32, 0.72, 0, 1)),
-    margin var(--w3a-duration-resize, 200ms) var(--w3a-ease-settle, cubic-bezier(0.32, 0.72, 0, 1));
+    height var(--seams-duration-resize, 200ms) var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1)),
+    padding var(--seams-duration-resize, 200ms) var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1)),
+    margin var(--seams-duration-resize, 200ms) var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1));
   pointer-events: auto;
   position: relative;
 }
@@ -170,14 +170,14 @@ seams-auth-menu-surface {
    The override lives on the root, so every geometry transition inside (header,
    switcher, content area) retimes together; leaving the state restores the
    default in the same style recalc that starts the return transition. */
-.w3a-signup-menu-root[data-waiting='true'] {
-  --w3a-duration-resize: 150ms;
+.seams-signup-menu-root[data-waiting='true'] {
+  --seams-duration-resize: 150ms;
 }
 
-.w3a-signup-menu-root[data-waiting='true'] .w3a-header,
-.w3a-signup-menu-root[data-scan-device='true'] .w3a-header,
-.w3a-signup-menu-root[data-otp-prompt='true'] .w3a-header,
-.w3a-signup-menu-root[data-registration-prompt='true'] .w3a-header {
+.seams-signup-menu-root[data-waiting='true'] .seams-header,
+.seams-signup-menu-root[data-scan-device='true'] .seams-header,
+.seams-signup-menu-root[data-otp-prompt='true'] .seams-header,
+.seams-signup-menu-root[data-registration-prompt='true'] .seams-header {
   opacity: 0;
   height: 0px;
   padding-top: 0px;
@@ -188,10 +188,10 @@ seams-auth-menu-surface {
 }
 
 /* Adjust content area when header is hidden */
-.w3a-signup-menu-root[data-waiting='true'] .w3a-content-area,
-.w3a-signup-menu-root[data-scan-device='true'] .w3a-content-area,
-.w3a-signup-menu-root[data-otp-prompt='true'] .w3a-content-area,
-.w3a-signup-menu-root[data-registration-prompt='true'] .w3a-content-area {
+.seams-signup-menu-root[data-waiting='true'] .seams-content-area,
+.seams-signup-menu-root[data-scan-device='true'] .seams-content-area,
+.seams-signup-menu-root[data-otp-prompt='true'] .seams-content-area,
+.seams-signup-menu-root[data-registration-prompt='true'] .seams-content-area {
   flex: 1 1 auto;
   /* The switcher's box is what animates during a resize; the content inside
      keeps its intrinsic height. Centre it in that animating box so the message
@@ -200,35 +200,35 @@ seams-auth-menu-surface {
      scrollHeight is what drives the animation, so stretching it would feed its
      own height back into the measurement. */
   justify-content: center;
-  transition: height var(--w3a-duration-resize, 200ms)
-    var(--w3a-ease-settle, cubic-bezier(0.32, 0.72, 0, 1));
+  transition: height var(--seams-duration-resize, 200ms)
+    var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1));
 }
 
 /* Specific height adjustments for different states */
-.w3a-signup-menu-root[data-scan-device='true'] {
+.seams-signup-menu-root[data-scan-device='true'] {
   min-height: 280px;
 }
 
-.w3a-signup-menu-root[data-otp-prompt='true'] {
+.seams-signup-menu-root[data-otp-prompt='true'] {
   min-height: 270px;
 }
 
-.w3a-title {
+.seams-title {
   font-size: 21px;
   font-weight: 600;
   margin: 0.5rem 0.75rem;
   text-wrap: balance;
 }
 
-.w3a-signup-menu-root[data-registration-prompt='true'] .w3a-header {
+.seams-signup-menu-root[data-registration-prompt='true'] .seams-header {
   padding-left: 44px;
 }
 
-.w3a-subhead {
+.seams-subhead {
   font-size: 0.9rem;
   font-weight: 500;
   line-height: 1;
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), var(--w3a-colors-textPrimary) 20%);
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 20%);
   margin: 0;
   margin-bottom: 1rem;
   margin-left: 0.75rem;
@@ -236,38 +236,38 @@ seams-auth-menu-surface {
 }
 
 /* Content switcher container */
-.w3a-content-switcher {
+.seams-content-switcher {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   /* ensure smooth height animations without spillover */
-  transition: height var(--w3a-duration-resize, 200ms)
-    var(--w3a-ease-settle, cubic-bezier(0.32, 0.72, 0, 1));
+  transition: height var(--seams-duration-resize, 200ms)
+    var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1));
 }
 
-.w3a-content-switcher:has(.w3a-account-menu.is-open) {
+.seams-content-switcher:has(.seams-account-menu.is-open) {
   overflow: visible;
 }
 
 /* Content area container */
-.w3a-content-area {
+.seams-content-area {
   position: relative;
   /* do not force-stretch; let content define intrinsic height */
   flex: 0 1 auto;
   display: flex;
   flex-direction: column;
-  transition: height var(--w3a-duration-resize, 200ms)
-    var(--w3a-ease-settle, cubic-bezier(0.32, 0.72, 0, 1));
+  transition: height var(--seams-duration-resize, 200ms)
+    var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1));
 }
 
 /* Intrinsic sizer wrapper inside content area used for height measurement */
-.w3a-content-sizer {
+.seams-content-sizer {
   display: block;
   width: 100%;
 }
 
 /* Default content */
-.w3a-signin-menu {
+.seams-signin-menu {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -275,28 +275,28 @@ seams-auth-menu-surface {
   width: 100%;
 }
 
-.w3a-signup-menu-root[data-recovery='true'] .w3a-signin-menu {
-  padding-block-start: calc(var(--w3a-spacing-md) + 0rem);
+.seams-signup-menu-root[data-recovery='true'] .seams-signin-menu {
+  padding-block-start: calc(var(--seams-spacing-md) + 0rem);
 }
 
-.w3a-signup-menu-root[data-recovery='true'] .w3a-title,
-.w3a-signup-menu-root[data-recovery='true'] .w3a-subhead {
+.seams-signup-menu-root[data-recovery='true'] .seams-title,
+.seams-signup-menu-root[data-recovery='true'] .seams-subhead {
   text-align: center;
 }
 
-.w3a-signup-menu-root[data-recovery='true'] .w3a-header {
+.seams-signup-menu-root[data-recovery='true'] .seams-header {
   justify-content: center;
 }
 
-.w3a-signup-menu-root[data-recovery='true'] .w3a-back-button {
-  top: calc(var(--w3a-seams-auth-menu-padding-top) + var(--w3a-spacing-md));
+.seams-signup-menu-root[data-recovery='true'] .seams-back-button {
+  top: calc(var(--seams-auth-menu-padding-top) + var(--seams-spacing-md));
 }
 
-.w3a-signup-menu-root[data-recovery='true'] .w3a-header > div {
+.seams-signup-menu-root[data-recovery='true'] .seams-header > div {
   inline-size: 100%;
 }
 
-.w3a-signup-menu-root[data-recovery='true'] .w3a-subhead {
+.seams-signup-menu-root[data-recovery='true'] .seams-subhead {
   margin-inline: 0;
 }
 
@@ -327,58 +327,58 @@ seams-auth-menu-surface {
   }
 }
 
-.w3a-auth-methods {
+.seams-auth-methods {
   margin-top: 12px;
 }
 
-.w3a-passkey-row + .w3a-auth-methods {
+.seams-passkey-row + .seams-auth-methods {
   margin-top: 6px;
 }
 
-.w3a-auth-method-stack {
+.seams-auth-method-stack {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
 
-.w3a-auth-method-note {
+.seams-auth-method-note {
   margin: 10px 0 0;
   padding: 0 0.25rem;
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
   font-size: 0.9rem;
   line-height: 1.4;
   text-align: center;
 }
 
-.w3a-social-stack {
+.seams-social-stack {
   margin-top: 0;
 }
 
-.w3a-social-provider {
+.seams-social-provider {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.w3a-social-helper {
+.seams-social-helper {
   margin-top: 0;
 }
 
-.w3a-auth-method-btn {
+.seams-auth-method-btn {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
   width: 100%;
-  min-height: var(--w3a-shape-controlHeight, 44px);
+  min-height: var(--seams-shape-controlHeight, 44px);
   padding: 0.5rem 1rem;
-  border-radius: var(--w3a-shape-control, 10px);
-  border: 1px solid var(--w3a-colors-borderPrimary);
-  background: var(--w3a-colors-surface);
-  color: var(--w3a-colors-textPrimary);
+  border-radius: var(--seams-shape-control, 10px);
+  border: 1px solid var(--seams-colors-borderPrimary);
+  background: var(--seams-colors-surface);
+  color: var(--seams-colors-textPrimary);
   font-family: var(
-    --w3a-font-family,
+    --seams-font-family,
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
@@ -397,15 +397,15 @@ seams-auth-menu-surface {
     min-height 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.w3a-auth-method-badge {
-  --w3a-auth-method-badge-background: var(
-    --w3a-colors-lastUsedBadgeBackground,
-    var(--w3a-colors-success)
+.seams-auth-method-badge {
+  --seams-auth-method-badge-background: var(
+    --seams-colors-lastUsedBadgeBackground,
+    var(--seams-colors-success)
   );
-  --w3a-auth-method-badge-text: var(--w3a-colors-lastUsedBadgeText, var(--w3a-colors-textButton));
-  --w3a-auth-method-badge-border: var(
-    --w3a-colors-lastUsedBadgeBorder,
-    var(--w3a-colors-colorBackground)
+  --seams-auth-method-badge-text: var(--seams-colors-lastUsedBadgeText, var(--seams-colors-textButton));
+  --seams-auth-method-badge-border: var(
+    --seams-colors-lastUsedBadgeBorder,
+    var(--seams-colors-colorBackground)
   );
   position: absolute;
   inset-block-start: -0.42rem;
@@ -414,60 +414,60 @@ seams-auth-menu-surface {
   align-items: center;
   justify-content: center;
   padding: 0.18rem 0.5rem;
-  border: 1px solid var(--w3a-auth-method-badge-border);
+  border: 1px solid var(--seams-auth-method-badge-border);
   border-radius: 999px;
-  background: var(--w3a-auth-method-badge-background);
-  color: var(--w3a-auth-method-badge-text);
+  background: var(--seams-auth-method-badge-background);
+  color: var(--seams-auth-method-badge-text);
   font-size: 0.62rem;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0;
   white-space: nowrap;
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--w3a-colors-textPrimary), transparent 72%),
-    0 6px 14px -10px var(--w3a-auth-method-badge-background);
+    0 0 0 1px color-mix(in srgb, var(--seams-colors-textPrimary), transparent 72%),
+    0 6px 14px -10px var(--seams-auth-method-badge-background);
   pointer-events: none;
 }
 
-.w3a-auth-method-btn:hover:not(:disabled),
-.w3a-auth-method-btn:focus-visible {
-  background: var(--w3a-colors-surface2);
-  box-shadow: var(--w3a-shadows-sm);
+.seams-auth-method-btn:hover:not(:disabled),
+.seams-auth-method-btn:focus-visible {
+  background: var(--seams-colors-surface2);
+  box-shadow: var(--seams-shadows-sm);
 }
 
 /* Press acknowledgement. Lives in the existing transform transition, so a
    released or moved pointer retargets mid-flight instead of finishing a
    stale keyframe. */
-.w3a-auth-method-btn:active:not(:disabled) {
+.seams-auth-method-btn:active:not(:disabled) {
   transform: scale(0.98);
 }
 
-.w3a-auth-method-btn:disabled {
+.seams-auth-method-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   box-shadow: none;
 }
 
-.w3a-auth-method-btn-primary {
-  background: var(--w3a-colors-buttonBackground, var(--w3a-colors-primary, #3b82f6));
+.seams-auth-method-btn-primary {
+  background: var(--seams-colors-buttonBackground, var(--seams-colors-primary, #3b82f6));
   border-color: transparent;
-  color: var(--w3a-colors-textButton, white);
+  color: var(--seams-colors-textButton, white);
 }
 
-.w3a-auth-method-btn-primary:hover:not(:disabled),
-.w3a-auth-method-btn-primary:focus-visible {
-  background: var(--w3a-colors-buttonHoverBackground, var(--w3a-colors-primaryHover, #2563eb));
-  color: var(--w3a-colors-textButton, white);
+.seams-auth-method-btn-primary:hover:not(:disabled),
+.seams-auth-method-btn-primary:focus-visible {
+  background: var(--seams-colors-buttonHoverBackground, var(--seams-colors-primaryHover, #2563eb));
+  color: var(--seams-colors-textButton, white);
 }
 
-.w3a-auth-method-arrow {
+.seams-auth-method-arrow {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
 }
 
-.w3a-auth-method-btn .w3a-auth-method-arrow > .HoverArrow {
+.seams-auth-method-btn .seams-auth-method-arrow > .HoverArrow {
   position: relative;
   margin-top: 0.1rem;
   margin-left: 0;
@@ -476,7 +476,7 @@ seams-auth-menu-surface {
   stroke: currentColor;
 }
 
-.w3a-auth-method-btn .w3a-auth-method-arrow > .HoverArrow .HoverArrow__linePath {
+.seams-auth-method-btn .seams-auth-method-arrow > .HoverArrow .HoverArrow__linePath {
   opacity: 0;
   filter: none;
   transform: scaleX(1);
@@ -487,26 +487,26 @@ seams-auth-menu-surface {
     transform 120ms cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 
-.w3a-auth-method-btn .w3a-auth-method-arrow > .HoverArrow .HoverArrow__tipPath {
+.seams-auth-method-btn .seams-auth-method-arrow > .HoverArrow .HoverArrow__tipPath {
   transition: transform 120ms cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 
-.w3a-auth-method-btn:hover:not(:disabled)
-  .w3a-auth-method-arrow
+.seams-auth-method-btn:hover:not(:disabled)
+  .seams-auth-method-arrow
   > .HoverArrow
   .HoverArrow__linePath,
-.w3a-auth-method-btn:focus-visible .w3a-auth-method-arrow > .HoverArrow .HoverArrow__linePath {
+.seams-auth-method-btn:focus-visible .seams-auth-method-arrow > .HoverArrow .HoverArrow__linePath {
   opacity: 1;
   filter: none;
   transform: scaleX(1);
 }
 
-.w3a-auth-method-btn:hover:not(:disabled) .w3a-auth-method-arrow > .HoverArrow .HoverArrow__tipPath,
-.w3a-auth-method-btn:focus-visible .w3a-auth-method-arrow > .HoverArrow .HoverArrow__tipPath {
+.seams-auth-method-btn:hover:not(:disabled) .seams-auth-method-arrow > .HoverArrow .HoverArrow__tipPath,
+.seams-auth-method-btn:focus-visible .seams-auth-method-arrow > .HoverArrow .HoverArrow__tipPath {
   transform: translateX(3px);
 }
 
-.w3a-otp-prompt {
+.seams-otp-prompt {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -519,10 +519,10 @@ seams-auth-menu-surface {
   min-height: 230px;
   padding-top: 42px;
   justify-content: center;
-  animation: content-enter var(--w3a-duration-enter, 200ms) var(--w3a-ease-out, ease-out);
+  animation: content-enter var(--seams-duration-enter, 200ms) var(--seams-ease-out, ease-out);
 }
 
-.w3a-otp-prompt-copy {
+.seams-otp-prompt-copy {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -530,23 +530,23 @@ seams-auth-menu-surface {
   margin: 0 0 4px;
 }
 
-.w3a-otp-title {
-  color: var(--w3a-colors-textPrimary);
+.seams-otp-title {
+  color: var(--seams-colors-textPrimary);
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.15;
 }
 
-.w3a-otp-description,
-.w3a-otp-helper {
+.seams-otp-description,
+.seams-otp-helper {
   margin: 0;
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), var(--w3a-colors-textPrimary) 25%);
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 25%);
   font-size: 0.9rem;
   line-height: 1.4;
   text-align: center;
   text-wrap: pretty;
   /* A status line, not a hero: fade + focus only, no positional motion. */
-  animation: status-enter 200ms var(--w3a-ease-out, ease-out) both;
+  animation: status-enter 200ms var(--seams-ease-out, ease-out) both;
 }
 
 @keyframes status-enter {
@@ -561,23 +561,23 @@ seams-auth-menu-surface {
   }
 }
 
-.w3a-otp-account {
+.seams-otp-account {
   box-sizing: border-box;
   align-self: center;
   width: min(100%, 360px);
   /* rounded shapes inset the label/value further so the corner curve does not
      crowd them; square keeps the 12px fallback */
-  padding: 8px 12px 8px var(--w3a-shape-boxPaddingInlineStart, 12px);
-  border: 1px solid color-mix(in srgb, var(--w3a-colors-borderPrimary), transparent 18%);
-  border-radius: var(--w3a-shape-box, 10px);
-  background: color-mix(in srgb, var(--w3a-colors-surface), transparent 12%);
+  padding: 8px 12px 8px var(--seams-shape-boxPaddingInlineStart, 12px);
+  border: 1px solid color-mix(in srgb, var(--seams-colors-borderPrimary), transparent 18%);
+  border-radius: var(--seams-shape-box, 10px);
+  background: color-mix(in srgb, var(--seams-colors-surface), transparent 12%);
   display: grid;
   gap: 2px;
   text-align: left;
 }
 
-.w3a-otp-account-label {
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), var(--w3a-colors-textPrimary) 12%);
+.seams-otp-account-label {
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 12%);
   font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -585,8 +585,8 @@ seams-auth-menu-surface {
   text-transform: uppercase;
 }
 
-.w3a-otp-account-value {
-  color: var(--w3a-colors-textPrimary);
+.seams-otp-account-value {
+  color: var(--seams-colors-textPrimary);
   font-size: 0.82rem;
   font-weight: 700;
   line-height: 1.25;
@@ -595,11 +595,11 @@ seams-auth-menu-surface {
   white-space: nowrap;
 }
 
-.w3a-otp-reroll {
+.seams-otp-reroll {
   align-self: center;
   border: 0;
   background: transparent;
-  color: var(--w3a-colors-primary);
+  color: var(--seams-colors-primary);
   cursor: pointer;
   font: inherit;
   font-size: 0.82rem;
@@ -607,8 +607,8 @@ seams-auth-menu-surface {
   padding: 0 8px;
 }
 
-.w3a-otp-reroll:disabled {
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), transparent 20%);
+.seams-otp-reroll:disabled {
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 20%);
   cursor: not-allowed;
 }
 
@@ -616,27 +616,27 @@ seams-auth-menu-surface {
    own title is the sole header. Anchor it to the top, left-align everything to
    share one edge with the wallet field, and match the title to the auth-card
    header scale (not larger). */
-.w3a-signup-menu-root[data-registration-prompt='true'] .w3a-otp-prompt {
+.seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-prompt {
   justify-content: flex-start;
   min-height: 0;
 }
-.w3a-signup-menu-root[data-registration-prompt='true'] .w3a-otp-prompt-copy {
+.seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-prompt-copy {
   text-align: left;
 }
-.w3a-signup-menu-root[data-registration-prompt='true'] .w3a-otp-title {
+.seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-title {
   font-size: 21px;
   font-weight: 600;
 }
-.w3a-signup-menu-root[data-registration-prompt='true'] .w3a-otp-description,
-.w3a-signup-menu-root[data-registration-prompt='true'] .w3a-otp-helper {
+.seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-description,
+.seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-helper {
   text-align: left;
 }
-.w3a-signup-menu-root[data-registration-prompt='true'] .w3a-otp-account {
+.seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-account {
   align-self: stretch;
   width: 100%;
 }
 
-.w3a-otp-code-field {
+.seams-otp-code-field {
   box-sizing: border-box;
   position: relative;
   width: 100%;
@@ -646,12 +646,12 @@ seams-auth-menu-surface {
   cursor: text;
 }
 
-.w3a-otp-code-field[data-disabled='true'] {
+.seams-otp-code-field[data-disabled='true'] {
   cursor: not-allowed;
   opacity: 0.72;
 }
 
-.w3a-otp-input {
+.seams-otp-input {
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -666,7 +666,7 @@ seams-auth-menu-surface {
   color: transparent;
   caret-color: transparent;
   font-family: var(
-    --w3a-font-family,
+    --seams-font-family,
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
@@ -677,7 +677,7 @@ seams-auth-menu-surface {
   outline: none;
 }
 
-.w3a-otp-slots {
+.seams-otp-slots {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: clamp(6px, 1.5vw, 10px);
@@ -685,7 +685,7 @@ seams-auth-menu-surface {
   pointer-events: none;
 }
 
-.w3a-otp-slot {
+.seams-otp-slot {
   aspect-ratio: 1;
   min-width: 0;
   min-height: 44px;
@@ -693,10 +693,10 @@ seams-auth-menu-surface {
   place-items: center;
   border: 1px solid transparent;
   border-radius: 6px;
-  background: color-mix(in srgb, var(--w3a-colors-borderPrimary), var(--w3a-colors-surface) 68%);
-  color: var(--w3a-colors-textPrimary);
+  background: color-mix(in srgb, var(--seams-colors-borderPrimary), var(--seams-colors-surface) 68%);
+  color: var(--seams-colors-textPrimary);
   font-family: var(
-    --w3a-font-family,
+    --seams-font-family,
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
@@ -715,41 +715,41 @@ seams-auth-menu-surface {
     background-color 160ms ease;
 }
 
-.w3a-otp-slot.is-filled {
-  background: color-mix(in srgb, var(--w3a-colors-surface), var(--w3a-colors-textPrimary) 6%);
+.seams-otp-slot.is-filled {
+  background: color-mix(in srgb, var(--seams-colors-surface), var(--seams-colors-textPrimary) 6%);
 }
 
-.w3a-otp-code-field:focus-within .w3a-otp-slot {
-  border-color: var(--w3a-colors-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--w3a-colors-primary), transparent 72%);
+.seams-otp-code-field:focus-within .seams-otp-slot {
+  border-color: var(--seams-colors-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-primary), transparent 72%);
 }
 
-.w3a-recovery-key-section {
+.seams-recovery-key-section {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.w3a-recovery-key-label-row {
+.seams-recovery-key-label-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 
-.w3a-recovery-key-label-row .w3a-field-label {
+.seams-recovery-key-label-row .seams-field-label {
   margin-bottom: 0;
 }
 
-.w3a-recovery-key-input {
+.seams-recovery-key-input {
   box-sizing: border-box;
   width: 100%;
   height: 48px;
   padding: 0 12px;
-  border: 1px solid var(--w3a-colors-borderPrimary);
+  border: 1px solid var(--seams-colors-borderPrimary);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--w3a-colors-surface), transparent 6%);
-  color: var(--w3a-colors-textPrimary);
+  background: color-mix(in srgb, var(--seams-colors-surface), transparent 6%);
+  color: var(--seams-colors-textPrimary);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
   font-size: 13px;
   font-weight: 700;
@@ -759,24 +759,24 @@ seams-auth-menu-surface {
   text-transform: uppercase;
 }
 
-.w3a-recovery-key-input::placeholder {
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), transparent 20%);
+.seams-recovery-key-input::placeholder {
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 20%);
 }
 
-.w3a-recovery-key-input:focus {
-  border-color: var(--w3a-colors-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--w3a-colors-primary), transparent 72%);
+.seams-recovery-key-input:focus {
+  border-color: var(--seams-colors-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-primary), transparent 72%);
 }
 
-.w3a-recovery-key-input:disabled {
+.seams-recovery-key-input:disabled {
   cursor: not-allowed;
   opacity: 0.72;
 }
 
-.w3a-recovery-key-scan {
+.seams-recovery-key-scan {
   border: 0;
   background: transparent;
-  color: var(--w3a-colors-primary);
+  color: var(--seams-colors-primary);
   cursor: pointer;
   font: inherit;
   font-size: 0.82rem;
@@ -785,16 +785,16 @@ seams-auth-menu-surface {
   white-space: nowrap;
 }
 
-.w3a-recovery-key-scan:disabled {
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), transparent 20%);
+.seams-recovery-key-scan:disabled {
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 20%);
   cursor: not-allowed;
 }
 
-.w3a-otp-resend {
+.seams-otp-resend {
   align-self: center;
   border: 0;
   background: transparent;
-  color: var(--w3a-colors-primary);
+  color: var(--seams-colors-primary);
   cursor: pointer;
   font: inherit;
   font-size: 0.9rem;
@@ -802,13 +802,13 @@ seams-auth-menu-surface {
   padding: 2px 8px;
 }
 
-.w3a-otp-resend:disabled {
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), transparent 20%);
+.seams-otp-resend:disabled {
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 20%);
   cursor: not-allowed;
 }
 
 /* Passkey row */
-.w3a-passkey-row {
+.seams-passkey-row {
   position: relative;
   display: flex;
   align-items: center;
@@ -817,20 +817,20 @@ seams-auth-menu-surface {
   z-index: 4;
 }
 
-.w3a-input-pill {
+.seams-input-pill {
   position: relative;
   box-sizing: border-box;
   display: flex;
   flex: 1;
   align-items: center;
   padding: 0rem 1rem;
-  height: calc(var(--w3a-shape-fieldHeight, 44px) + 4px);
+  height: calc(var(--seams-shape-fieldHeight, 44px) + 4px);
   gap: 8px;
   /* field treatment comes from the shape preset: square is a bordered
      surface (border carries the affordance), rounded is a tinted pill */
-  border: 1px solid var(--w3a-shape-fieldBorder, var(--w3a-colors-borderPrimary));
-  background: var(--w3a-shape-fieldBackground, var(--w3a-colors-surface));
-  border-radius: var(--w3a-shape-field, 10px);
+  border: 1px solid var(--seams-shape-fieldBorder, var(--seams-colors-borderPrimary));
+  background: var(--seams-shape-fieldBackground, var(--seams-colors-surface));
+  border-radius: var(--seams-shape-field, 10px);
   box-shadow: none;
   overflow: visible;
   transition:
@@ -843,11 +843,11 @@ seams-auth-menu-surface {
 
 /* border-only focus: outward rings clip against the content switcher's
    overflow:hidden, so the 1px border carries the focus state instead */
-.w3a-input-pill:focus-within {
-  border-color: var(--w3a-colors-focus, var(--w3a-colors-primary));
+.seams-input-pill:focus-within {
+  border-color: var(--seams-colors-focus, var(--seams-colors-primary));
 }
 
-.w3a-input-wrap {
+.seams-input-wrap {
   position: relative;
   flex: 1;
   height: 32px;
@@ -857,13 +857,13 @@ seams-auth-menu-surface {
   /* allow input to shrink inside flex container without clipping */
 }
 
-.w3a-input {
+.seams-input {
   width: 100%;
   height: 32px;
   border: none;
   outline: none;
   background: transparent;
-  color: var(--w3a-colors-textPrimary);
+  color: var(--seams-colors-textPrimary);
   font-size: 16px;
   padding: 0;
   min-width: 0;
@@ -871,22 +871,22 @@ seams-auth-menu-surface {
 }
 
 /* Absolute status message anchored to bottom-right of the input area */
-.w3a-input::placeholder {
+.seams-input::placeholder {
   /* Improve contrast for placeholders on dark */
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), var(--w3a-colors-textPrimary) 35%);
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 35%);
   opacity: 0.95;
 }
 
-.w3a-input:read-only {
+.seams-input:read-only {
   cursor: default;
 }
 
-.w3a-postfix {
+.seams-postfix {
   position: absolute;
   top: 50%;
   left: 0;
   transform: translateY(-50%);
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
   font-size: 16px;
   max-width: 100%;
   overflow: hidden;
@@ -895,35 +895,35 @@ seams-auth-menu-surface {
   pointer-events: none;
   visibility: hidden;
   /* React enables once measured */
-  transition: left 32ms var(--w3a-ease-out, cubic-bezier(0.25, 1, 0.5, 1));
+  transition: left 32ms var(--seams-ease-out, cubic-bezier(0.25, 1, 0.5, 1));
 }
 
-.w3a-postfix.is-existing {
-  color: var(--w3a-colors-success);
+.seams-postfix.is-existing {
+  color: var(--seams-colors-success);
 }
 
 /* On focus, keep postfix subtle for readability */
-.w3a-input:focus ~ .w3a-postfix {
-  color: var(--w3a-colors-textMuted);
+.seams-input:focus ~ .seams-postfix {
+  color: var(--seams-colors-textMuted);
 }
 
-.w3a-account-menu {
+.seams-account-menu {
   position: static;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
 }
 
-.w3a-input-action-trigger,
-.w3a-account-menu-trigger {
+.seams-input-action-trigger,
+.seams-account-menu-trigger {
   width: 34px;
   height: 34px;
   display: grid;
   place-items: center;
   border: 0;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--w3a-colors-surface2), transparent 58%);
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), transparent 18%);
+  background: color-mix(in srgb, var(--seams-colors-surface2), transparent 58%);
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 18%);
   cursor: pointer;
   outline: none;
   padding: 0;
@@ -935,29 +935,29 @@ seams-auth-menu-surface {
     transform 120ms ease;
 }
 
-.w3a-input-action-trigger:hover:not(:disabled),
-.w3a-input-action-trigger:focus-visible,
-.w3a-account-menu-trigger:hover:not(:disabled),
-.w3a-account-menu-trigger:focus-visible,
-.w3a-account-menu.is-open .w3a-account-menu-trigger {
-  background: color-mix(in srgb, var(--w3a-colors-surface2), transparent 18%);
-  color: color-mix(in srgb, var(--w3a-colors-textPrimary), var(--w3a-colors-primary) 18%);
+.seams-input-action-trigger:hover:not(:disabled),
+.seams-input-action-trigger:focus-visible,
+.seams-account-menu-trigger:hover:not(:disabled),
+.seams-account-menu-trigger:focus-visible,
+.seams-account-menu.is-open .seams-account-menu-trigger {
+  background: color-mix(in srgb, var(--seams-colors-surface2), transparent 18%);
+  color: color-mix(in srgb, var(--seams-colors-textPrimary), var(--seams-colors-primary) 18%);
   box-shadow: none;
 }
 
-.w3a-input-action-trigger:active:not(:disabled),
-.w3a-account-menu-trigger:active:not(:disabled) {
+.seams-input-action-trigger:active:not(:disabled),
+.seams-account-menu-trigger:active:not(:disabled) {
   transform: scale(0.96);
 }
 
-.w3a-input-action-trigger:disabled,
-.w3a-account-menu-trigger:disabled {
+.seams-input-action-trigger:disabled,
+.seams-account-menu-trigger:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
-.w3a-input-action-icon,
-.w3a-account-dropdown-arrow {
+.seams-input-action-icon,
+.seams-account-dropdown-arrow {
   width: 21px;
   height: 21px;
   display: block;
@@ -965,16 +965,16 @@ seams-auth-menu-surface {
   transition: color 160ms ease;
 }
 
-.w3a-input-action-icon {
+.seams-input-action-icon {
   fill: none;
   stroke: currentColor;
 }
 
-.w3a-account-dropdown-arrow {
+.seams-account-dropdown-arrow {
   fill: currentColor;
 }
 
-.w3a-account-menu-popover {
+.seams-account-menu-popover {
   position: absolute;
   top: calc(100% + 4px);
   /* a hair wider than the input so their edges don't optically collide */
@@ -983,31 +983,31 @@ seams-auth-menu-surface {
   max-height: 300px;
   overflow-y: auto;
   padding: 10px;
-  border: 1px solid color-mix(in srgb, var(--w3a-colors-borderPrimary), transparent 8%);
+  border: 1px solid color-mix(in srgb, var(--seams-colors-borderPrimary), transparent 8%);
   /* control radius + 2px, capped so the rounded preset stays list-friendly */
-  border-radius: min(calc(var(--w3a-shape-control, 10px) + 2px), 20px);
-  background: var(--w3a-colors-colorBackground);
-  box-shadow: var(--w3a-shadows-lg);
+  border-radius: min(calc(var(--seams-shape-control, 10px) + 2px), 20px);
+  background: var(--seams-colors-colorBackground);
+  box-shadow: var(--seams-shadows-lg);
   z-index: 20;
-  animation: content-enter 180ms var(--w3a-ease-out, ease-out);
+  animation: content-enter 180ms var(--seams-ease-out, ease-out);
 }
 
-.w3a-account-menu-group + .w3a-account-menu-group {
+.seams-account-menu-group + .seams-account-menu-group {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid color-mix(in srgb, var(--w3a-colors-borderPrimary), transparent 45%);
+  border-top: 1px solid color-mix(in srgb, var(--seams-colors-borderPrimary), transparent 45%);
 }
 
-.w3a-account-menu-group-label {
+.seams-account-menu-group-label {
   padding: 2px 10px 6px;
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), var(--w3a-colors-textPrimary) 12%);
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 12%);
   font-size: 0.68rem;
   font-weight: 800;
   line-height: 1.1;
   text-transform: uppercase;
 }
 
-.w3a-account-menu-option {
+.seams-account-menu-option {
   width: 100%;
   min-height: 38px;
   display: grid;
@@ -1016,9 +1016,9 @@ seams-auth-menu-surface {
   gap: 8px;
   padding: 7px 10px;
   border: 0;
-  border-radius: var(--w3a-shape-item, 8px);
+  border-radius: var(--seams-shape-item, 8px);
   background: transparent;
-  color: var(--w3a-colors-textPrimary);
+  color: var(--seams-colors-textPrimary);
   cursor: pointer;
   font: inherit;
   font-size: 0.84rem;
@@ -1029,28 +1029,28 @@ seams-auth-menu-surface {
     color 140ms ease;
 }
 
-.w3a-account-menu-option:hover {
-  background: var(--w3a-colors-surface2);
+.seams-account-menu-option:hover {
+  background: var(--seams-colors-surface2);
 }
 
-.w3a-account-menu-option:focus-visible {
-  background: var(--w3a-colors-surface2);
-  outline: 2px solid var(--w3a-colors-focus, var(--w3a-colors-primary));
+.seams-account-menu-option:focus-visible {
+  background: var(--seams-colors-surface2);
+  outline: 2px solid var(--seams-colors-focus, var(--seams-colors-primary));
   outline-offset: -2px;
 }
 
-.w3a-account-menu-option.is-selected {
-  background: color-mix(in srgb, var(--w3a-colors-primary), transparent 84%);
-  color: var(--w3a-colors-textPrimary);
+.seams-account-menu-option.is-selected {
+  background: color-mix(in srgb, var(--seams-colors-primary), transparent 84%);
+  color: var(--seams-colors-textPrimary);
 }
 
-.w3a-account-menu-check {
+.seams-account-menu-check {
   position: relative;
   width: 16px;
   height: 16px;
 }
 
-.w3a-account-menu-option.is-selected .w3a-account-menu-check::after {
+.seams-account-menu-option.is-selected .seams-account-menu-check::after {
   content: '';
   position: absolute;
   left: 5px;
@@ -1062,40 +1062,40 @@ seams-auth-menu-surface {
   transform: rotate(45deg);
 }
 
-.w3a-account-menu-account {
+.seams-account-menu-account {
   display: grid;
   gap: 2px;
   min-width: 0;
   overflow: hidden;
 }
 
-.w3a-account-menu-account-primary,
-.w3a-account-menu-account-secondary {
+.seams-account-menu-account-primary,
+.seams-account-menu-account-secondary {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.w3a-account-menu-account-secondary {
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), var(--w3a-colors-textPrimary) 12%);
+.seams-account-menu-account-secondary {
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 12%);
   font-size: 0.72rem;
   font-weight: 650;
   line-height: 1.2;
 }
 
-.w3a-selected-account {
+.seams-selected-account {
   width: 100%;
   align-content: center;
 }
 
-.w3a-selected-account .w3a-account-menu-account-primary {
+.seams-selected-account .seams-account-menu-account-primary {
   font-size: 0.84rem;
   font-weight: 650;
   line-height: 1.15;
 }
 
 /* Waiting state */
-.w3a-waiting {
+.seams-waiting {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1112,29 +1112,29 @@ seams-auth-menu-surface {
      downward instead of holding still. Matching the card's inner height makes
      the box and the card the same thing, so centring in one centres in both. */
   min-height: calc(
-    var(--w3a-menu-min-block-size, 250px) - var(--w3a-seams-auth-menu-padding-top) -
-      var(--w3a-spacing-lg)
+    var(--seams-menu-min-block-size, 250px) - var(--seams-auth-menu-padding-top) -
+      var(--seams-spacing-lg)
   );
 }
 
 /* No enter animation on the waiting view: arriving here is instant, so the
    spinner is already turning the moment the state flips. The spinner keeps
-   only its rotation (see .w3a-spinner) — do not add an `animation:` shorthand
+   only its rotation (see .seams-spinner) — do not add an `animation:` shorthand
    on this selector, it would shadow the rotation and freeze it. */
 
-.w3a-waiting-message {
+.seams-waiting-message {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  /* Deliberately longer than --w3a-duration-enter and than the 150ms resize
+  /* Deliberately longer than --seams-duration-enter and than the 150ms resize
      into this view: the box arrives first and the wording settles into it,
      rather than both landing at once. `both` holds opacity 0 before the first
      frame so the text cannot flash at full opacity.
-     This lives on the message wrapper, never on .w3a-waiting — the spinner is
+     This lives on the message wrapper, never on .seams-waiting — the spinner is
      a sibling there, and an `animation` shorthand on the parent would shadow
      its rotation and freeze it. */
-  animation: fade-in 250ms var(--w3a-ease-out, ease-out) both;
+  animation: fade-in 250ms var(--seams-ease-out, ease-out) both;
   /* Centring is recomputed by layout on every frame of the resize, so the
      block's offset lands on fractional pixels and the glyphs re-rasterise at a
      slightly different rounded position each frame — seen as jitter. Promoting
@@ -1147,34 +1147,34 @@ seams-auth-menu-surface {
   transform: translateZ(0);
 }
 
-.w3a-waiting-text {
+.seams-waiting-text {
   font-size: 18px;
   font-weight: 600;
   text-wrap: balance;
 }
 
-.w3a-waiting-subtext {
+.seams-waiting-subtext {
   font-size: 12px;
   font-weight: 500;
   line-height: 1.35;
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), var(--w3a-colors-textPrimary) 25%);
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 25%);
 }
 
-.w3a-waiting-sdk-events {
+.seams-waiting-sdk-events {
   font-size: 11px;
   font-weight: 500;
   line-height: 1.35;
   white-space: pre-wrap;
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), var(--w3a-colors-textPrimary) 15%);
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 15%);
 }
 
-.w3a-spinner {
+.seams-spinner {
   width: 36px;
   height: 36px;
   border-radius: 999px;
-  border: 3px solid var(--w3a-colors-borderPrimary);
-  border-top-color: var(--w3a-colors-primary);
-  animation: w3a-spin 0.9s linear infinite;
+  border: 3px solid var(--seams-colors-borderPrimary);
+  border-top-color: var(--seams-colors-primary);
+  animation: seams-spin 0.9s linear infinite;
 }
 
 /* Scan device content wrapper */
@@ -1198,7 +1198,7 @@ seams-auth-menu-surface {
 .qr-title {
   margin: 0;
   padding-top: 0;
-  color: var(--w3a-colors-textPrimary, #1e293b);
+  color: var(--seams-colors-textPrimary, #1e293b);
   font-size: 1.3125rem;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -1251,12 +1251,12 @@ seams-auth-menu-surface {
 
 /* On the white plate the spinner's default translucent-white track is invisible;
    restate the track against the plate rather than the card. */
-.qr-code-placeholder .w3a-spinner {
+.qr-code-placeholder .seams-spinner {
   width: 28px;
   height: 28px;
   border-width: 3px;
   border-color: rgba(15, 23, 42, 0.12);
-  border-top-color: var(--w3a-colors-primary);
+  border-top-color: var(--seams-colors-primary);
 }
 
 @keyframes qr-placeholder-pulse {
@@ -1279,7 +1279,7 @@ seams-auth-menu-surface {
 .qr-instruction,
 .qr-status {
   margin: 0;
-  color: var(--w3a-colors-textSecondary, #1e293b);
+  color: var(--seams-colors-textSecondary, #1e293b);
   font-weight: 500;
   text-align: center;
   text-wrap: pretty;
@@ -1296,7 +1296,7 @@ seams-auth-menu-surface {
    hierarchy instead of a paragraph. */
 .qr-status {
   margin-bottom: 0.25rem;
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary, #64748b), transparent 25%);
+  color: color-mix(in srgb, var(--seams-colors-textSecondary, #64748b), transparent 25%);
   font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1.4;
@@ -1336,11 +1336,11 @@ seams-auth-menu-surface {
   max-width: 200px;
   height: auto;
   border-radius: 0.5rem;
-  animation: content-enter var(--w3a-duration-enter, 200ms) var(--w3a-ease-out, ease-out);
+  animation: content-enter var(--seams-duration-enter, 200ms) var(--seams-ease-out, ease-out);
   animation-fill-mode: both;
 }
 
-.w3a-scan-device-content {
+.seams-scan-device-content {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1352,20 +1352,20 @@ seams-auth-menu-surface {
   min-height: 260px;
   width: 100%;
   overflow: hidden;
-  animation: content-enter var(--w3a-duration-enter, 200ms) var(--w3a-ease-out, ease-out);
+  animation: content-enter var(--seams-duration-enter, 200ms) var(--seams-ease-out, ease-out);
   animation-fill-mode: both;
 }
 
 /* Ensure QR code content stays within bounds */
-.w3a-scan-device-content .qr-code-container,
-.w3a-scan-device-content .qr-modal-backdrop,
-.w3a-scan-device-content .qr-modal-content {
+.seams-scan-device-content .qr-code-container,
+.seams-scan-device-content .qr-modal-backdrop,
+.seams-scan-device-content .qr-modal-content {
   max-width: 100%;
   max-height: 100%;
   overflow: hidden;
 }
 
-.w3a-link-device-confirmation {
+.seams-link-device-confirmation {
   min-height: 260px;
   width: min(100%, 360px);
   margin-inline: auto;
@@ -1376,13 +1376,13 @@ seams-auth-menu-surface {
   justify-content: center;
   gap: 0.875rem;
   text-align: center;
-  animation: content-enter var(--w3a-duration-enter, 200ms) var(--w3a-ease-out, ease-out);
+  animation: content-enter var(--seams-duration-enter, 200ms) var(--seams-ease-out, ease-out);
   animation-fill-mode: both;
 }
 
 /* These sub-views title with a full instruction sentence, not a short heading,
    so they speak one size quieter than the QR view's .qr-title. */
-.w3a-link-device-confirmation .qr-title {
+.seams-link-device-confirmation .qr-title {
   max-width: 26ch;
   font-size: 1.0625rem;
   line-height: 1.35;
@@ -1392,14 +1392,14 @@ seams-auth-menu-surface {
    while waiting the dots sweep like a clock spinner; once approved they settle
    into a faint ring and the check strokes itself in. Monochrome on purpose —
    nothing here should claim success louder than the flow has earned. */
-.w3a-link-device-dot-ring {
+.seams-link-device-dot-ring {
   position: relative;
   width: 52px;
   height: 52px;
-  color: var(--w3a-colors-textSecondary, #64748b);
+  color: var(--seams-colors-textSecondary, #64748b);
 }
 
-.w3a-link-device-dot-ring > span {
+.seams-link-device-dot-ring > span {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -1411,47 +1411,47 @@ seams-auth-menu-surface {
   transform: rotate(calc(var(--dot-index) * 30deg)) translateY(-18px);
 }
 
-.w3a-link-device-dot-ring.is-waiting > span {
-  animation: w3a-link-dot-sweep 1s linear infinite;
+.seams-link-device-dot-ring.is-waiting > span {
+  animation: seams-link-dot-sweep 1s linear infinite;
   animation-delay: calc((var(--dot-index) - 12) / 12 * 1s);
 }
 
-.w3a-link-device-dot-ring.is-idle > span,
-.w3a-link-device-dot-ring.is-approved > span {
+.seams-link-device-dot-ring.is-idle > span,
+.seams-link-device-dot-ring.is-approved > span {
   opacity: 0.25;
 }
 
 /* The badge's centre. A view can hand the ring a glyph (the envelope, for the
    email code) to name what is being waited on; the check replaces it on
    approval so the two never stack. */
-.w3a-link-device-dot-ring-glyph {
+.seams-link-device-dot-ring-glyph {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-  color: var(--w3a-colors-textPrimary, #1e293b);
+  color: var(--seams-colors-textPrimary, #1e293b);
   transition: opacity 160ms ease;
 }
 
-.w3a-link-device-dot-ring.is-approved .w3a-link-device-dot-ring-glyph {
+.seams-link-device-dot-ring.is-approved .seams-link-device-dot-ring-glyph {
   opacity: 0;
 }
 
-.w3a-link-device-dot-ring-check {
+.seams-link-device-dot-ring-check {
   position: absolute;
   inset: 0;
-  color: var(--w3a-colors-textPrimary, #1e293b);
+  color: var(--seams-colors-textPrimary, #1e293b);
   opacity: 0;
 }
 
-.w3a-link-device-dot-ring.is-approved .w3a-link-device-dot-ring-check {
+.seams-link-device-dot-ring.is-approved .seams-link-device-dot-ring-check {
   opacity: 1;
   stroke-dasharray: 23;
   stroke-dashoffset: 0;
-  animation: w3a-link-check-draw 450ms var(--w3a-ease-out, ease-out) 150ms both;
+  animation: seams-link-check-draw 450ms var(--seams-ease-out, ease-out) 150ms both;
 }
 
-@keyframes w3a-link-dot-sweep {
+@keyframes seams-link-dot-sweep {
   from {
     opacity: 1;
   }
@@ -1460,7 +1460,7 @@ seams-auth-menu-surface {
   }
 }
 
-@keyframes w3a-link-check-draw {
+@keyframes seams-link-check-draw {
   from {
     stroke-dashoffset: 23;
   }
@@ -1470,32 +1470,32 @@ seams-auth-menu-surface {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .w3a-link-device-dot-ring.is-waiting > span {
+  .seams-link-device-dot-ring.is-waiting > span {
     animation: none;
     opacity: 0.45;
   }
 
-  .w3a-link-device-dot-ring.is-approved .w3a-link-device-dot-ring-check {
+  .seams-link-device-dot-ring.is-approved .seams-link-device-dot-ring-check {
     animation: none;
   }
 }
 
-.w3a-link-device-confirmation-copy {
+.seams-link-device-confirmation-copy {
   max-width: 30ch;
   margin: 0;
-  color: var(--w3a-colors-textSecondary, #64748b);
+  color: var(--seams-colors-textSecondary, #64748b);
   font-size: 0.9375rem;
   font-weight: 500;
   line-height: 1.5;
   text-wrap: pretty;
 }
 
-.w3a-link-device-confirmation .w3a-link-device-btn {
+.seams-link-device-confirmation .seams-link-device-btn {
   width: min(100%, 280px);
   margin-top: 0.25rem;
 }
 
-.w3a-link-device-factor-options {
+.seams-link-device-factor-options {
   width: min(100%, 280px);
   margin: 0;
   padding: 0;
@@ -1505,78 +1505,78 @@ seams-auth-menu-surface {
   text-align: start;
 }
 
-.w3a-link-device-factor-options label {
+.seams-link-device-factor-options label {
   min-height: 44px;
   padding: 0.625rem 0.75rem;
   display: flex;
   align-items: center;
   gap: 0.625rem;
-  border: 1px solid var(--w3a-colors-borderPrimary, #d7dde5);
+  border: 1px solid var(--seams-colors-borderPrimary, #d7dde5);
   border-radius: 0.75rem;
   cursor: pointer;
 }
 
-.w3a-link-device-factor-options label:has(input:checked) {
-  border-color: var(--w3a-colors-textPrimary, #1e293b);
-  background: var(--w3a-colors-surface2, #f1f5f9);
+.seams-link-device-factor-options label:has(input:checked) {
+  border-color: var(--seams-colors-textPrimary, #1e293b);
+  background: var(--seams-colors-surface2, #f1f5f9);
 }
 
-.w3a-auth-method-choice-label {
+.seams-auth-method-choice-label {
   flex: 1;
 }
 
-.w3a-link-device-factor-options input {
+.seams-link-device-factor-options input {
   flex: 0 0 auto;
   width: 1rem;
   height: 1rem;
   margin: 0 0 0 auto;
 }
 
-.w3a-link-device-factor-options input:focus-visible {
-  outline: 2px solid var(--w3a-colors-focusRing, #2563eb);
+.seams-link-device-factor-options input:focus-visible {
+  outline: 2px solid var(--seams-colors-focusRing, #2563eb);
   outline-offset: 3px;
 }
 
-.w3a-link-device-target-email {
+.seams-link-device-target-email {
   width: min(100%, 280px);
   display: grid;
   gap: 0.375rem;
   text-align: start;
 }
 
-.w3a-link-device-target-email .w3a-field-label {
-  color: var(--w3a-colors-textSecondary, #64748b);
+.seams-link-device-target-email .seams-field-label {
+  color: var(--seams-colors-textSecondary, #64748b);
   font-size: 0.8125rem;
   font-weight: 600;
 }
 
-.w3a-link-device-target-email input {
+.seams-link-device-target-email input {
   min-height: 44px;
   box-sizing: border-box;
   width: 100%;
   padding: 0.625rem 0.75rem;
-  color: var(--w3a-colors-textPrimary, #1e293b);
-  background: var(--w3a-colors-surface, #ffffff);
-  border: 1px solid var(--w3a-colors-borderPrimary, #d7dde5);
-  border-radius: var(--w3a-shape-control, 10px);
+  color: var(--seams-colors-textPrimary, #1e293b);
+  background: var(--seams-colors-surface, #ffffff);
+  border: 1px solid var(--seams-colors-borderPrimary, #d7dde5);
+  border-radius: var(--seams-shape-control, 10px);
   font: inherit;
 }
 
-.w3a-link-device-target-email input:focus-visible {
-  outline: 2px solid var(--w3a-colors-focusRing, #2563eb);
+.seams-link-device-target-email input:focus-visible {
+  outline: 2px solid var(--seams-colors-focusRing, #2563eb);
   outline-offset: 2px;
 }
 
-.w3a-link-device-inline-error {
+.seams-link-device-inline-error {
   width: min(100%, 280px);
   margin: 0;
-  color: var(--w3a-colors-error, #ef4444);
+  color: var(--seams-colors-error, #ef4444);
   font-size: 0.8125rem;
   line-height: 1.4;
   text-align: start;
 }
 
-.w3a-link-device-confirmation .sr-only {
+.seams-link-device-confirmation .sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1591,35 +1591,35 @@ seams-auth-menu-surface {
 /* Failure view. Same skeleton as the approved-device confirmation — badge,
    title, copy, one control — so the flow's two end states are the same shape
    and only the colour of the badge changes. */
-.w3a-link-device-failure {
+.seams-link-device-failure {
   gap: 0.75rem;
 }
 
 /* A flat disc, sized to the dot-ring badge the other link views use, so the
    failure frame sits where the confirmation frame sat. No halo or drop shadow:
    the tint and the glyph carry the tone on their own. */
-.w3a-link-device-failure-icon {
+.seams-link-device-failure-icon {
   width: 52px;
   height: 52px;
   display: grid;
   place-items: center;
   border-radius: 999px;
-  color: var(--w3a-colors-error, #ef4444);
-  background: color-mix(in srgb, var(--w3a-colors-error, #ef4444), transparent 90%);
-  border: 1px solid color-mix(in srgb, var(--w3a-colors-error, #ef4444), transparent 80%);
+  color: var(--seams-colors-error, #ef4444);
+  background: color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 90%);
+  border: 1px solid color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 80%);
 }
 
 /* The detail is a raw error string, so it is sized and coloured as evidence
    rather than as prose: quiet, tight, and allowed to break mid-token so a long
    technical message wraps instead of forcing the card wider. */
-.w3a-link-device-failure-detail {
+.seams-link-device-failure-detail {
   width: min(100%, 320px);
   margin: 0;
   padding: 0.75rem 0.875rem;
-  border: 1px solid color-mix(in srgb, var(--w3a-colors-error, #ef4444), transparent 84%);
-  border-radius: calc(var(--w3a-shape-card, 16px) - 6px);
-  background: color-mix(in srgb, var(--w3a-colors-error, #ef4444), transparent 94%);
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary, #64748b), transparent 15%);
+  border: 1px solid color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 84%);
+  border-radius: calc(var(--seams-shape-card, 16px) - 6px);
+  background: color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 94%);
+  color: color-mix(in srgb, var(--seams-colors-textSecondary, #64748b), transparent 15%);
   font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1.5;
@@ -1630,62 +1630,62 @@ seams-auth-menu-surface {
 /* Email-OTP variant of the link-device confirmation. Same skeleton as the
    passkey view — badge, title, copy, controls — so the two ways of finishing a
    link read as one flow and only the badge's centre changes. */
-.w3a-link-device-email-otp {
+.seams-link-device-email-otp {
   gap: 0.625rem;
 }
 
 /* The masked address is the one fact the user has to check, so it leaves the
    sentence and becomes an object: a quiet pill directly under the title. */
-.w3a-link-device-email-chip {
+.seams-link-device-email-chip {
   box-sizing: border-box;
   max-width: min(100%, 260px);
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.625rem;
-  border: 1px solid color-mix(in srgb, var(--w3a-colors-borderPrimary, #d7dde5), transparent 25%);
+  border: 1px solid color-mix(in srgb, var(--seams-colors-borderPrimary, #d7dde5), transparent 25%);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--w3a-colors-surface, #f1f5f9), transparent 45%);
-  color: var(--w3a-colors-textPrimary, #1e293b);
+  background: color-mix(in srgb, var(--seams-colors-surface, #f1f5f9), transparent 45%);
+  color: var(--seams-colors-textPrimary, #1e293b);
   font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1.3;
 }
 
-.w3a-link-device-email-chip > span {
+.seams-link-device-email-chip > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.w3a-link-device-email-status {
+.seams-link-device-email-status {
   max-width: 30ch;
   margin: 0;
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary, #64748b), transparent 15%);
+  color: color-mix(in srgb, var(--seams-colors-textSecondary, #64748b), transparent 15%);
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.45;
   text-wrap: pretty;
-  animation: status-enter 200ms var(--w3a-ease-out, ease-out) both;
+  animation: status-enter 200ms var(--seams-ease-out, ease-out) both;
 }
 
 /* A rejected or expired code is not a failure of the flow, so the error tone
    stays inside the type and the slot borders — no red banner, no red badge
    ring that would outrank the still-usable input below it. */
-.w3a-link-device-email-otp[data-tone='error'] .w3a-link-device-email-status {
-  color: color-mix(in srgb, var(--w3a-colors-error, #ef4444), var(--w3a-colors-textPrimary) 20%);
+.seams-link-device-email-otp[data-tone='error'] .seams-link-device-email-status {
+  color: color-mix(in srgb, var(--seams-colors-error, #ef4444), var(--seams-colors-textPrimary) 20%);
 }
 
-.w3a-link-device-email-otp[data-tone='error'] .w3a-link-device-dot-ring {
-  color: color-mix(in srgb, var(--w3a-colors-error, #ef4444), transparent 45%);
+.seams-link-device-email-otp[data-tone='error'] .seams-link-device-dot-ring {
+  color: color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 45%);
 }
 
-.w3a-link-device-email-otp[data-tone='error'] .w3a-link-device-dot-ring-glyph {
-  color: var(--w3a-colors-error, #ef4444);
+.seams-link-device-email-otp[data-tone='error'] .seams-link-device-dot-ring-glyph {
+  color: var(--seams-colors-error, #ef4444);
 }
 
 /* Six slots at card width read as a keypad; capped so they stay finger-sized
    rather than stretching to the full 360px card. */
-.w3a-link-device-email-otp .w3a-otp-code-field {
+.seams-link-device-email-otp .seams-otp-code-field {
   width: min(100%, 296px);
   margin-block: 0.125rem;
 }
@@ -1693,20 +1693,20 @@ seams-auth-menu-surface {
 /* Tinted against the surface rather than toward transparency: a translucent
    red washes out to nothing on the dark theme, where the card is already
    near-black. */
-.w3a-link-device-email-otp[data-tone='error'] .w3a-otp-slot {
-  border-color: color-mix(in srgb, var(--w3a-colors-error, #ef4444), transparent 45%);
-  background: color-mix(in srgb, var(--w3a-colors-error, #ef4444), var(--w3a-colors-surface) 82%);
+.seams-link-device-email-otp[data-tone='error'] .seams-otp-slot {
+  border-color: color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 45%);
+  background: color-mix(in srgb, var(--seams-colors-error, #ef4444), var(--seams-colors-surface) 82%);
 }
 
-.w3a-link-device-email-otp[data-otp-phase='incorrect'] .w3a-otp-slots {
-  animation: w3a-otp-reject 320ms var(--w3a-ease-out, ease-out) both;
+.seams-link-device-email-otp[data-otp-phase='incorrect'] .seams-otp-slots {
+  animation: seams-otp-reject 320ms var(--seams-ease-out, ease-out) both;
 }
 
 /* Quiet neutral under an ink button: a brand-blue link below a black primary
    reads as a second, competing call to action. */
-.w3a-link-device-email-otp .w3a-otp-resend {
+.seams-link-device-email-otp .seams-otp-resend {
   margin-top: -0.125rem;
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), var(--w3a-colors-textPrimary) 30%);
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 30%);
   font-size: 0.8125rem;
   text-decoration-color: transparent;
   text-underline-offset: 3px;
@@ -1715,14 +1715,14 @@ seams-auth-menu-surface {
     text-decoration-color 160ms ease;
 }
 
-.w3a-link-device-email-otp .w3a-otp-resend:hover:not(:disabled),
-.w3a-link-device-email-otp .w3a-otp-resend:focus-visible {
-  color: var(--w3a-colors-textPrimary);
+.seams-link-device-email-otp .seams-otp-resend:hover:not(:disabled),
+.seams-link-device-email-otp .seams-otp-resend:focus-visible {
+  color: var(--seams-colors-textPrimary);
   text-decoration: underline;
   text-decoration-color: currentColor;
 }
 
-@keyframes w3a-otp-reject {
+@keyframes seams-otp-reject {
   0%,
   100% {
     transform: translateX(0);
@@ -1739,13 +1739,13 @@ seams-auth-menu-surface {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .w3a-link-device-email-otp[data-otp-phase='incorrect'] .w3a-otp-slots {
+  .seams-link-device-email-otp[data-otp-phase='incorrect'] .seams-otp-slots {
     animation: none;
   }
 }
 
 /* Status message row */
-.w3a-status-row {
+.seams-status-row {
   position: absolute;
   font-size: 0.75rem;
   bottom: -10px;
@@ -1755,39 +1755,39 @@ seams-auth-menu-surface {
   justify-content: flex-end;
 }
 
-.w3a-status-message {
+.seams-status-message {
   font-size: 11px;
   font-weight: 500;
 }
 
 /* Section divider */
-.w3a-section-divider {
+.seams-section-divider {
   display: flex;
   align-items: center;
-  margin: var(--w3a-spacing-md) 0;
+  margin: var(--seams-spacing-md) 0;
   position: relative;
 }
 
-.w3a-section-divider::before,
-.w3a-section-divider::after {
+.seams-section-divider::before,
+.seams-section-divider::after {
   content: '';
   flex: 1;
   height: 1px;
-  background: var(--w3a-colors-borderSecondary);
+  background: var(--seams-colors-borderSecondary);
 }
 
-.w3a-section-divider-text {
-  padding: 0 var(--w3a-spacing-sm);
+.seams-section-divider-text {
+  padding: 0 var(--seams-spacing-sm);
   font-size: 12px;
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
   font-weight: 500;
-  background: var(--w3a-colors-colorBackground);
+  background: var(--seams-colors-colorBackground);
 }
 
 /* Labels and helper text */
-.w3a-field-label {
+.seams-field-label {
   font-size: 16px;
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), var(--w3a-colors-textPrimary) 35%);
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 35%);
   /* left margin matches the OTP code field's inner padding so the label's
      edge lines up with the first code slot */
   margin: 8px 2px 6px 4px;
@@ -1795,14 +1795,14 @@ seams-auth-menu-surface {
 }
 
 /* Tooltip for account existence status */
-.w3a-input-wrap .w3a-tooltip {
+.seams-input-wrap .seams-tooltip {
   position: absolute;
   right: 0;
   padding: 4px 8px;
-  border-radius: var(--w3a-shape-item, 8px);
+  border-radius: var(--seams-shape-item, 8px);
   font-size: 0.7rem;
-  background: var(--w3a-colors-surface2);
-  color: var(--w3a-colors-textPrimary);
+  background: var(--seams-colors-surface2);
+  color: var(--seams-colors-textPrimary);
   opacity: 0;
   transform: translateX(50px) scale(0.9);
   pointer-events: none;
@@ -1812,24 +1812,24 @@ seams-auth-menu-surface {
   z-index: 2;
 }
 
-.w3a-input-wrap .w3a-tooltip.is-visible {
+.seams-input-wrap .seams-tooltip.is-visible {
   opacity: 0.8;
   transform: translateX(0px) scale(1);
 }
 
-.w3a-input-wrap .w3a-tooltip.is-error {
-  color: var(--w3a-colors-error);
-  background: var(--w3a-colors-colorBackground);
-  /* background: color-mix(in srgb, var(--w3a-colors-error), transparent 90%); */
+.seams-input-wrap .seams-tooltip.is-error {
+  color: var(--seams-colors-error);
+  background: var(--seams-colors-colorBackground);
+  /* background: color-mix(in srgb, var(--seams-colors-error), transparent 90%); */
 }
 
-.w3a-input-wrap .w3a-tooltip.is-success {
-  color: var(--w3a-colors-blue400);
-  background: var(--w3a-colors-colorBackground);
-  /* background: color-mix(in srgb, var(--w3a-colors-blue400), transparent 90%); */
+.seams-input-wrap .seams-tooltip.is-success {
+  color: var(--seams-colors-blue400);
+  background: var(--seams-colors-colorBackground);
+  /* background: color-mix(in srgb, var(--seams-colors-blue400), transparent 90%); */
 }
 
-@keyframes w3a-spin {
+@keyframes seams-spin {
   from {
     transform: rotate(0deg);
   }
@@ -1839,7 +1839,7 @@ seams-auth-menu-surface {
   }
 }
 
-@keyframes w3a-ellipsis-dot {
+@keyframes seams-ellipsis-dot {
   0%,
   80%,
   100% {
@@ -1851,43 +1851,43 @@ seams-auth-menu-surface {
   }
 }
 
-.w3a-ellipsis {
+.seams-ellipsis {
   display: inline-block;
 }
 
-.w3a-ellipsis-dot {
+.seams-ellipsis-dot {
   display: inline-block;
   opacity: 0;
-  animation: w3a-ellipsis-dot 1.2s infinite;
+  animation: seams-ellipsis-dot 1.2s infinite;
 }
 
-.w3a-ellipsis-dot:nth-child(2) {
+.seams-ellipsis-dot:nth-child(2) {
   animation-delay: 0.15s;
 }
 
-.w3a-ellipsis-dot:nth-child(3) {
+.seams-ellipsis-dot:nth-child(3) {
   animation-delay: 0.3s;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .w3a-ellipsis-dot {
+  .seams-ellipsis-dot {
     animation: none;
     opacity: 1;
   }
 }
 
 /* Button System */
-.w3a-scan-device-row {
+.seams-scan-device-row {
   padding-bottom: 1px;
 }
 
-.w3a-secondary-actions {
+.seams-secondary-actions {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.w3a-signup-menu-root > .sr-only {
+.seams-signup-menu-root > .sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1899,128 +1899,128 @@ seams-auth-menu-surface {
   border: 0;
 }
 
-.w3a-recovery-form,
-.w3a-recovery-confirmation {
+.seams-recovery-form,
+.seams-recovery-confirmation {
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 0 0.75rem 0.25rem;
 }
 
-.w3a-recovery-form {
+.seams-recovery-form {
   gap: 8px;
 }
 
-.w3a-recovery-field {
+.seams-recovery-field {
   display: flex;
   flex-direction: column;
 }
 
-.w3a-recovery-field .w3a-field-label {
+.seams-recovery-field .seams-field-label {
   margin: 0 0 6px;
 }
 
-.w3a-recovery-input {
+.seams-recovery-input {
   box-sizing: border-box;
   inline-size: 100%;
   min-block-size: 44px;
   padding: 10px 12px;
-  border: 1px solid var(--w3a-colors-borderPrimary);
-  border-radius: var(--w3a-shape-control, 10px);
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: var(--seams-shape-control, 10px);
   outline: none;
-  background: var(--w3a-colors-surface);
-  color: var(--w3a-colors-textPrimary);
+  background: var(--seams-colors-surface);
+  color: var(--seams-colors-textPrimary);
   font: inherit;
   font-size: 16px;
 }
 
-.w3a-recovery-code-input {
+.seams-recovery-code-input {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
 }
 
-.w3a-recovery-input:focus-visible {
-  border-color: var(--w3a-colors-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--w3a-colors-primary), transparent 72%);
+.seams-recovery-input:focus-visible {
+  border-color: var(--seams-colors-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-primary), transparent 72%);
 }
 
 @media (forced-colors: active) {
-  .w3a-recovery-input:focus-visible,
-  .w3a-link-device-btn:focus-visible {
+  .seams-recovery-input:focus-visible,
+  .seams-link-device-btn:focus-visible {
     outline: 2px solid Highlight;
     outline-offset: 2px;
   }
 }
 
-.w3a-recovery-input[aria-invalid='true'] {
-  border-color: var(--w3a-colors-error);
+.seams-recovery-input[aria-invalid='true'] {
+  border-color: var(--seams-colors-error);
 }
 
-.w3a-recovery-error,
-.w3a-recovery-status {
+.seams-recovery-error,
+.seams-recovery-status {
   min-block-size: 1.25em;
   margin: 5px 0 0;
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
   font-size: 0.8rem;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
-.w3a-recovery-error {
-  color: var(--w3a-colors-error);
+.seams-recovery-error {
+  color: var(--seams-colors-error);
   text-align: center;
 }
 
-#w3a-recovery-code-feedback {
+#seams-recovery-code-feedback {
   margin: 4px;
 }
 
 @media (max-width: 320px) {
-  .w3a-signup-menu-root {
+  .seams-signup-menu-root {
     padding-inline: 1rem;
   }
 
-  .w3a-recovery-form,
-  .w3a-recovery-confirmation {
+  .seams-recovery-form,
+  .seams-recovery-confirmation {
     padding-inline: 0;
   }
 }
 
-.w3a-auth-intent-switch {
+.seams-auth-intent-switch {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
   margin: 1rem 0 0;
-  color: color-mix(in srgb, var(--w3a-colors-textSecondary), var(--w3a-colors-textPrimary) 10%);
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 10%);
   font-size: 0.84rem;
   font-weight: 500;
   line-height: 1.3;
   text-align: center;
 }
 
-.w3a-auth-intent-switch button,
-.w3a-auth-intent-switch-action {
+.seams-auth-intent-switch button,
+.seams-auth-intent-switch-action {
   appearance: none;
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--w3a-colors-primary);
+  color: var(--seams-colors-primary);
   font: inherit;
   font-weight: 700;
 }
 
-.w3a-auth-intent-switch button {
+.seams-auth-intent-switch button {
   cursor: pointer;
 }
 
-.w3a-auth-intent-switch button:hover,
-.w3a-auth-intent-switch button:focus-visible {
-  color: var(--w3a-colors-primaryHover);
+.seams-auth-intent-switch button:hover,
+.seams-auth-intent-switch button:focus-visible {
+  color: var(--seams-colors-primaryHover);
   text-decoration: underline;
   text-underline-offset: 0.16em;
 }
 
-.w3a-link-device-btn {
+.seams-link-device-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2028,17 +2028,17 @@ seams-auth-menu-surface {
   overflow: hidden;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  /* match .w3a-auth-method-btn's min-height so stacked options align */
-  height: var(--w3a-shape-controlHeight, 44px);
+  /* match .seams-auth-method-btn's min-height so stacked options align */
+  height: var(--seams-shape-controlHeight, 44px);
   width: 100%;
   max-width: 100%;
-  background: var(--w3a-colors-surface) !important;
-  border: 1px solid var(--w3a-colors-borderPrimary);
-  border-radius: var(--w3a-shape-control, 10px);
+  background: var(--seams-colors-surface) !important;
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: var(--seams-shape-control, 10px);
   cursor: pointer;
-  color: var(--w3a-colors-textPrimary);
+  color: var(--seams-colors-textPrimary);
   font-family: var(
-    --w3a-font-family,
+    --seams-font-family,
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
@@ -2059,38 +2059,38 @@ seams-auth-menu-surface {
 }
 
 /* Hover/focus elevated state (theme-reactive via CSS vars) */
-.w3a-link-device-btn:hover:not(:disabled),
-.w3a-link-device-btn:focus-visible {
-  background: var(--w3a-colors-surface2) !important;
+.seams-link-device-btn:hover:not(:disabled),
+.seams-link-device-btn:focus-visible {
+  background: var(--seams-colors-surface2) !important;
 }
 
-.w3a-link-device-btn:focus-visible {
+.seams-link-device-btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--w3a-colors-primary), transparent 72%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-primary), transparent 72%);
 }
 
-.w3a-link-device-btn-primary {
-  background: var(--w3a-colors-buttonBackground, var(--w3a-colors-primary, #3b82f6)) !important;
+.seams-link-device-btn-primary {
+  background: var(--seams-colors-buttonBackground, var(--seams-colors-primary, #3b82f6)) !important;
   border-color: transparent;
-  border-radius: var(--w3a-shape-control, 10px);
-  color: var(--w3a-colors-textButton, white);
+  border-radius: var(--seams-shape-control, 10px);
+  color: var(--seams-colors-textButton, white);
 }
 
-.w3a-link-device-btn-primary:hover:not(:disabled),
-.w3a-link-device-btn-primary:focus-visible {
+.seams-link-device-btn-primary:hover:not(:disabled),
+.seams-link-device-btn-primary:focus-visible {
   background: var(
-    --w3a-colors-buttonHoverBackground,
-    var(--w3a-colors-primaryHover, #2563eb)
+    --seams-colors-buttonHoverBackground,
+    var(--seams-colors-primaryHover, #2563eb)
   ) !important;
-  color: var(--w3a-colors-textButton, white);
+  color: var(--seams-colors-textButton, white);
 }
 
-.w3a-link-device-btn-primary:disabled {
+.seams-link-device-btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.w3a-auth-method-choice-btn {
+.seams-auth-method-choice-btn {
   justify-content: flex-start;
   min-height: 48px;
   height: auto;
@@ -2098,14 +2098,14 @@ seams-auth-menu-surface {
   text-align: start;
 }
 
-.w3a-auth-method-choice-icon {
+.seams-auth-method-choice-icon {
   display: grid;
   flex: 0 0 22px;
   place-items: center;
-  color: var(--w3a-colors-textSecondary, #64748b);
+  color: var(--seams-colors-textSecondary, #64748b);
 }
 
-.w3a-auth-method-choice-icon svg {
+.seams-auth-method-choice-icon svg {
   display: block;
 }
 
@@ -2114,33 +2114,33 @@ seams-auth-menu-surface {
    as "the next step" rather than as an offer. Derived from the text colour so
    it inverts with the theme — near-black on light, near-white on dark — which
    is what "black button" has to mean on a card that is itself near-black. */
-.w3a-link-device-confirmation .w3a-link-device-btn-primary {
-  background: color-mix(in srgb, var(--w3a-colors-textPrimary, #1e293b), #000000 25%) !important;
+.seams-link-device-confirmation .seams-link-device-btn-primary {
+  background: color-mix(in srgb, var(--seams-colors-textPrimary, #1e293b), #000000 25%) !important;
   border-color: transparent;
-  color: var(--w3a-colors-colorBackground, #ffffff);
+  color: var(--seams-colors-colorBackground, #ffffff);
 }
 
-.w3a-link-device-confirmation .w3a-link-device-btn-primary:hover:not(:disabled),
-.w3a-link-device-confirmation .w3a-link-device-btn-primary:focus-visible {
+.seams-link-device-confirmation .seams-link-device-btn-primary:hover:not(:disabled),
+.seams-link-device-confirmation .seams-link-device-btn-primary:focus-visible {
   background: color-mix(
     in srgb,
-    var(--w3a-colors-textPrimary, #1e293b),
-    var(--w3a-colors-colorBackground, #ffffff) 14%
+    var(--seams-colors-textPrimary, #1e293b),
+    var(--seams-colors-colorBackground, #ffffff) 14%
   ) !important;
-  color: var(--w3a-colors-colorBackground, #ffffff);
+  color: var(--seams-colors-colorBackground, #ffffff);
 }
 
-.w3a-link-device-confirmation .w3a-link-device-btn-primary:focus-visible {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--w3a-colors-textPrimary), transparent 78%);
+.seams-link-device-confirmation .seams-link-device-btn-primary:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-textPrimary), transparent 78%);
 }
 
-.w3a-signup-menu-root {
+.seams-signup-menu-root {
   box-sizing: border-box;
 }
 
-.w3a-signup-menu-root *,
-.w3a-signup-menu-root *::before,
-.w3a-signup-menu-root *::after {
+.seams-signup-menu-root *,
+.seams-signup-menu-root *::before,
+.seams-signup-menu-root *::after {
   box-sizing: border-box;
 }
 

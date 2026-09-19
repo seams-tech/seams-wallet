@@ -20,26 +20,26 @@ import {
   getDefaultCspNonce,
 } from '@/core/browser/walletIframe/csp-stylesheet';
 
-const W3A_LIT_THEME_OVERRIDE_RULE_ID = 'w3a-lit-theme-overrides';
-const W3A_LIT_HOST_SELECTORS = [
-  'w3a-tx-tree',
-  'w3a-drawer',
-  'w3a-modal-tx-confirmer',
-  'w3a-drawer-tx-confirmer',
-  'w3a-tx-confirm-content',
-  'w3a-halo-border',
-  'w3a-passkey-halo-loading',
-  'w3a-export-key-viewer',
-  'w3a-recovery-code-backup-viewer',
+const SEAMS_LIT_THEME_OVERRIDE_RULE_ID = 'seams-lit-theme-overrides';
+const SEAMS_LIT_HOST_SELECTORS = [
+  'seams-tx-tree',
+  'seams-drawer',
+  'seams-modal-tx-confirmer',
+  'seams-drawer-tx-confirmer',
+  'seams-tx-confirm-content',
+  'seams-halo-border',
+  'seams-passkey-halo-loading',
+  'seams-export-key-viewer',
+  'seams-recovery-code-backup-viewer',
   'seams-auth-menu-surface',
   /* host-document dialogs (plain DOM, not lit) that must follow the app
      palette, e.g. the recovery codes backup dialog shell */
-  '.w3a-host-themed-dialog',
+  '.seams-host-themed-dialog',
 ] as const;
-const W3A_LIT_DARK_SELECTOR = W3A_LIT_HOST_SELECTORS.join(',\n');
-const W3A_LIT_LIGHT_SELECTOR = W3A_LIT_HOST_SELECTORS.map(
+const SEAMS_LIT_DARK_SELECTOR = SEAMS_LIT_HOST_SELECTORS.join(',\n');
+const SEAMS_LIT_LIGHT_SELECTOR = SEAMS_LIT_HOST_SELECTORS.map(
   (selector) =>
-    `${selector}[theme="light"],\n:root[data-w3a-theme="light"] ${selector}:not([theme="dark"])`,
+    `${selector}[theme="light"],\n:root[data-seams-theme="light"] ${selector}:not([theme="dark"])`,
 ).join(',\n');
 let litThemeOverrideStyleManager: ReturnType<typeof createCspStylesheetManager> | null = null;
 
@@ -48,7 +48,7 @@ function getLitThemeOverrideStyleManager(): ReturnType<typeof createCspStyleshee
     litThemeOverrideStyleManager = createCspStylesheetManager({
       doc: document,
       baseCss: '',
-      dynamicStyleDataAttr: 'data-w3a-lit-theme-overrides',
+      dynamicStyleDataAttr: 'data-seams-lit-theme-overrides',
       nonce: () => getDefaultCspNonce(),
     });
   }
@@ -137,8 +137,8 @@ function serializeTokenOverrides(
     const tokenValue = sanitizeTokenValue(rawValue);
     if (!tokenValue) continue;
     // Use !important so app-provided token overrides keep precedence even if
-    // generated w3a-components.css is loaded/reloaded later.
-    lines.push(`  --w3a-${group}-${tokenName}: ${tokenValue} !important;`);
+    // generated seams-components.css is loaded/reloaded later.
+    lines.push(`  --seams-${group}-${tokenName}: ${tokenValue} !important;`);
   }
   return lines;
 }
@@ -222,16 +222,16 @@ function upsertLitThemeOverrideStyle(appearance?: AppearanceConfigInput): void {
   const cssBlocks: string[] = [];
 
   if (mode && lines.length > 0) {
-    const selector = mode === 'light' ? W3A_LIT_LIGHT_SELECTOR : W3A_LIT_DARK_SELECTOR;
+    const selector = mode === 'light' ? SEAMS_LIT_LIGHT_SELECTOR : SEAMS_LIT_DARK_SELECTOR;
     cssBlocks.push(`${selector} {\n${lines.join('\n')}\n}`);
   }
 
   const cssText = cssBlocks.join('\n\n').trim();
   if (!cssText) {
-    getLitThemeOverrideStyleManager().deleteDynamicRule(W3A_LIT_THEME_OVERRIDE_RULE_ID);
+    getLitThemeOverrideStyleManager().deleteDynamicRule(SEAMS_LIT_THEME_OVERRIDE_RULE_ID);
     return;
   }
-  getLitThemeOverrideStyleManager().setDynamicRule(W3A_LIT_THEME_OVERRIDE_RULE_ID, cssText);
+  getLitThemeOverrideStyleManager().setDynamicRule(SEAMS_LIT_THEME_OVERRIDE_RULE_ID, cssText);
 }
 
 export interface HostContext {
@@ -299,7 +299,7 @@ export function updateThemeBridge(ctx: HostContext): void {
     if (!pm) return;
     const theme = pm.theme;
     if (theme === 'light' || theme === 'dark') {
-      document.documentElement.setAttribute('data-w3a-theme', theme);
+      document.documentElement.setAttribute('data-seams-theme', theme);
     }
   } catch {}
 }
@@ -351,7 +351,7 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
   // Keep wallet-host theme + Lit token overrides in sync with app appearance config.
   try {
     if (nextTheme) {
-      document.documentElement.setAttribute('data-w3a-theme', nextTheme);
+      document.documentElement.setAttribute('data-seams-theme', nextTheme);
     }
     upsertLitThemeOverrideStyle(nextAppearance);
   } catch {}

@@ -26,8 +26,8 @@ import type {
 } from './confirm-ui-types';
 import {
   CONFIRM_UI_ELEMENT_SELECTORS,
-  W3A_CONFIRM_PORTAL_ID,
-  W3A_TX_CONFIRMER_ID,
+  SEAMS_CONFIRM_PORTAL_ID,
+  SEAMS_TX_CONFIRMER_ID,
   ensureDefined,
 } from './registry';
 import {
@@ -128,7 +128,7 @@ export type ConfirmUIRenderContext = {
 
 async function ensureTxConfirmerElementDefined(): Promise<void> {
   await ensureDefined(
-    W3A_TX_CONFIRMER_ID,
+    SEAMS_TX_CONFIRMER_ID,
     () => import('./lit-components/IframeTxConfirmer/tx-confirmer-wrapper'),
   );
 }
@@ -138,11 +138,11 @@ export async function prewarmTxConfirmerUi(): Promise<void> {
   const root = typeof document === 'undefined' ? null : document.documentElement;
   if (!root) return;
   await Promise.all([
-    ensureExternalStyles(root, 'w3a-components.css', 'data-w3a-components-css'),
-    ensureExternalStyles(root, 'tx-tree.css', 'data-w3a-tx-tree-css'),
-    ensureExternalStyles(root, 'tx-confirmer.css', 'data-w3a-tx-confirmer-css'),
-    ensureExternalStyles(root, 'halo-border.css', 'data-w3a-halo-border-css'),
-    ensureExternalStyles(root, 'passkey-halo-loading.css', 'data-w3a-passkey-halo-loading-css'),
+    ensureExternalStyles(root, 'seams-components.css', 'data-seams-components-css'),
+    ensureExternalStyles(root, 'tx-tree.css', 'data-seams-tx-tree-css'),
+    ensureExternalStyles(root, 'tx-confirmer.css', 'data-seams-tx-confirmer-css'),
+    ensureExternalStyles(root, 'halo-border.css', 'data-seams-halo-border-css'),
+    ensureExternalStyles(root, 'passkey-halo-loading.css', 'data-seams-passkey-halo-loading-css'),
   ]);
 }
 
@@ -223,9 +223,9 @@ async function checkIntentDigestGuard(
 
 function updateConfirmPortalState(portal: HTMLElement): void {
   if (portal.childElementCount > 0) {
-    portal.classList.add('w3a-portal--visible');
+    portal.classList.add('seams-portal--visible');
   } else {
-    portal.classList.remove('w3a-portal--visible');
+    portal.classList.remove('seams-portal--visible');
   }
 }
 
@@ -247,16 +247,16 @@ function cleanupExistingConfirmers(): void {
     );
     element.remove();
   }
-  const portal = document.getElementById(W3A_CONFIRM_PORTAL_ID) as HTMLElement | null;
+  const portal = document.getElementById(SEAMS_CONFIRM_PORTAL_ID) as HTMLElement | null;
   if (portal) updateConfirmPortalState(portal);
 }
 
 function ensureConfirmPortal(): HTMLElement {
-  let portal = document.getElementById(W3A_CONFIRM_PORTAL_ID) as HTMLElement | null;
+  let portal = document.getElementById(SEAMS_CONFIRM_PORTAL_ID) as HTMLElement | null;
   if (!portal) {
     portal = document.createElement('div');
-    portal.id = W3A_CONFIRM_PORTAL_ID;
-    portal.classList.add('w3a-portal');
+    portal.id = SEAMS_CONFIRM_PORTAL_ID;
+    portal.classList.add('seams-portal');
     const root = document.body ?? document.documentElement;
     if (root) root.appendChild(portal);
   }
@@ -266,12 +266,12 @@ function ensureConfirmPortal(): HTMLElement {
 function removeHostConfirmerElement(element: HTMLElement): void {
   disconnectConfirmSurfaceMeasurementReporter(element);
   element.remove();
-  const portal = document.getElementById(W3A_CONFIRM_PORTAL_ID) as HTMLElement | null;
+  const portal = document.getElementById(SEAMS_CONFIRM_PORTAL_ID) as HTMLElement | null;
   if (portal) updateConfirmPortalState(portal);
 }
 
 function postWalletUiClosedIfPortalEmpty(): void {
-  const portal = document.getElementById(W3A_CONFIRM_PORTAL_ID);
+  const portal = document.getElementById(SEAMS_CONFIRM_PORTAL_ID);
   if ((portal?.childElementCount ?? 0) > 0) return;
   postWalletUiMessage('WALLET_UI_CLOSED');
 }
@@ -311,13 +311,13 @@ function closeHostConfirmerElement(
     finish();
   };
 
-  element.addEventListener('w3a:drawer-close-end', onDrawerCloseEnd as EventListener, {
+  element.addEventListener('seams:drawer-close-end', onDrawerCloseEnd as EventListener, {
     once: true,
   });
   element.close?.(confirmed);
 
   const timeoutId = window.setTimeout(() => {
-    element.removeEventListener('w3a:drawer-close-end', onDrawerCloseEnd as EventListener);
+    element.removeEventListener('seams:drawer-close-end', onDrawerCloseEnd as EventListener);
     finish();
   }, DRAWER_CLOSE_FALLBACK_MS);
 }
@@ -469,9 +469,9 @@ function createConfirmSurfaceMeasurementReporter(
  * Two independent values decide how a confirmation is laid out, and conflating
  * them is what once stranded the Email OTP export prompt in the top-left corner:
  *
- * - `data-w3a-confirm-variant` is what THIS confirmation renders (modal card or
+ * - `data-seams-confirm-variant` is what THIS confirmation renders (modal card or
  *   bottom sheet). It comes from the Confirmer UI setting.
- * - `data-w3a-confirm-surface` is the shape of the HOST BOX it renders into.
+ * - `data-seams-confirm-surface` is the shape of the HOST BOX it renders into.
  *   `wallet-iframe` means the parent measured the card and sized the box to hug
  *   it, so the card must not position itself. `standalone` means the card owns a
  *   full-viewport canvas and centres (modal) or bottom-anchors (drawer) itself.
@@ -492,7 +492,7 @@ function applyConfirmSurfaceMode(
   const surface =
     binding.kind === 'wallet_iframe' && hostBoxVariant === 'modal' ? 'wallet-iframe' : 'standalone';
   element.setAttribute(CONFIRM_SURFACE_MODE_ATTR, surface);
-  if (variant) element.setAttribute('data-w3a-confirm-variant', variant);
+  if (variant) element.setAttribute('data-seams-confirm-variant', variant);
 }
 
 function bindConfirmSurfaceMeasurementReporter(
@@ -968,7 +968,7 @@ function mountHostElement({
   const resolvedVariant: 'modal' | 'drawer' = variant || 'modal';
   cleanupExistingConfirmers();
 
-  const element = document.createElement(W3A_TX_CONFIRMER_ID) as HostTxConfirmerElement;
+  const element = document.createElement(SEAMS_TX_CONFIRMER_ID) as HostTxConfirmerElement;
   element.variant = resolvedVariant;
   element.nearAccountId =
     nearAccountIdOverride || ctx.userPreferencesManager.getCurrentWalletId() || '';
@@ -1030,9 +1030,9 @@ function mountHostElement({
 
   bindConfirmSurfaceMeasurementReporter(element, ctx.surfaceMeasurementBinding);
 
-  portal.classList.remove('w3a-portal--visible');
+  portal.classList.remove('seams-portal--visible');
   requestAnimationFrame(() => {
-    portal.classList.add('w3a-portal--visible');
+    portal.classList.add('seams-portal--visible');
   });
 
   postWalletUiMessage('WALLET_UI_OPENED');
@@ -1043,4 +1043,4 @@ function mountHostElement({
 }
 
 export type { TxConfirmerWrapperElement } from './lit-components/IframeTxConfirmer/tx-confirmer-wrapper';
-export { W3A_TX_CONFIRMER_ID };
+export { SEAMS_TX_CONFIRMER_ID };

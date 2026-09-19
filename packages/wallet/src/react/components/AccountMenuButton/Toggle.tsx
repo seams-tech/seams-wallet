@@ -72,7 +72,7 @@ export const Toggle: React.FC<ToggleProps> = ({
           ...(isLarge && {
             display: 'flex',
             alignItems: 'center',
-            gap: 'var(--w3a-spacing-sm)',
+            gap: 'var(--seams-spacing-sm)',
           }),
         }}
       >
@@ -102,12 +102,12 @@ export const Toggle: React.FC<ToggleProps> = ({
               : checked
                 ? { background: themeColors.activeBackground as any }
                 : { backgroundColor: themeColors.inactiveBackground }),
-            borderRadius: isLarge ? 'var(--w3a-border-radius-lg)' : 'var(--w3a-border-radius-md)',
+            borderRadius: isLarge ? 'var(--seams-border-radius-lg)' : 'var(--seams-border-radius-md)',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             cursor: disabled ? 'not-allowed' : 'pointer',
             transform: disabled ? 'scale(1)' : checked ? 'scale(1.02)' : 'scale(1)',
             ...(isLarge && {
-              [isTextOnLeft ? 'marginLeft' : 'marginRight']: 'var(--w3a-spacing-sm)',
+              [isTextOnLeft ? 'marginLeft' : 'marginRight']: 'var(--seams-spacing-sm)',
             }),
           }}
         >
@@ -137,7 +137,7 @@ export const Toggle: React.FC<ToggleProps> = ({
             fontWeight: '500',
             fontSize: isLarge ? '14px' : '0.8rem',
             color: disabled ? themeColors.disabledBackground : themeColors.textColor,
-            [isTextOnLeft ? 'marginRight' : 'marginLeft']: isLarge ? '0' : 'var(--w3a-spacing-sm)',
+            [isTextOnLeft ? 'marginRight' : 'marginLeft']: isLarge ? '0' : 'var(--seams-spacing-sm)',
             display: 'flex',
             alignItems: 'center',
             height: isLarge ? '24px' : '16px',

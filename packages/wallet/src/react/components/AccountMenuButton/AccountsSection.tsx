@@ -29,30 +29,30 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
 
   return (
     <div
-      className={`w3a-dropdown-accounts-root ${isOpen ? 'is-expanded' : ''} ${className || ''}`}
+      className={`seams-dropdown-accounts-root ${isOpen ? 'is-expanded' : ''} ${className || ''}`}
       style={style}
       onClick={handleClick}
     >
-      <div className="w3a-dropdown-accounts-clip">
+      <div className="seams-dropdown-accounts-clip">
         <div
-          className="w3a-dropdown-accounts-content"
+          className="seams-dropdown-accounts-content"
           aria-hidden={!isOpen}
           style={{ pointerEvents: isOpen ? 'auto' : 'none' }}
         >
           {rows.map((row) => (
             <a
               key={row.id}
-              className="w3a-accounts-row"
+              className="seams-accounts-row"
               href={row.href}
               target="_blank"
               rel="noopener noreferrer"
               tabIndex={isOpen ? 0 : -1}
               title={row.address}
             >
-              <span className="w3a-accounts-row-chain">{row.label}</span>
-              <span className="w3a-accounts-row-address">{shortenAddress(row.address)}</span>
+              <span className="seams-accounts-row-chain">{row.label}</span>
+              <span className="seams-accounts-row-address">{shortenAddress(row.address)}</span>
               <svg
-                className="w3a-accounts-row-arrow"
+                className="seams-accounts-row-arrow"
                 width="14"
                 height="14"
                 viewBox="0 0 24 24"

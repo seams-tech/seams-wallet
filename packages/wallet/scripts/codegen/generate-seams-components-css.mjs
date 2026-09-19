@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Generate w3a-components.css from the single source of truth:
+ * Generate seams-components.css from the single source of truth:
  * - packages/wallet/src/theme/palette.json (all base scales + gradients)
  * - Mappings used by DARK_THEME/LIGHT_THEME in base-styles.ts for surfaces/text/borders
  *
@@ -32,11 +32,11 @@ const cssOutPath = path.join(
   'ui',
   'lit-components',
   'css',
-  'w3a-components.css',
+  'seams-components.css',
 );
 
 function fail(msg) {
-  console.error(`\n[generate-w3a-components-css] ${msg}`);
+  console.error(`\n[generate-seams-components-css] ${msg}`);
   process.exit(1);
 }
 
@@ -83,7 +83,7 @@ function resolveRef(v) {
 const emitScale = (name, scale) => {
   const keys = Object.keys(scale);
   keys.sort((a, b) => Number(a) - Number(b));
-  return keys.map((k) => `  --w3a-${name}${k}: ${scale[k]};`).join('\n');
+  return keys.map((k) => `  --seams-${name}${k}: ${scale[k]};`).join('\n');
 };
 
 const emitChroma = () => {
@@ -94,7 +94,7 @@ const emitChroma = () => {
     const keys = Object.keys(chroma[fam]);
     keys.sort((a, b) => Number(a) - Number(b));
     out.push(`\n  /* ${fam[0].toUpperCase()}${fam.slice(1)} */`);
-    for (const k of keys) out.push(`  --w3a-${fam}${k}: ${chroma[fam][k]};`);
+    for (const k of keys) out.push(`  --seams-${fam}${k}: ${chroma[fam][k]};`);
   }
   return out.join('\n');
 };
@@ -102,7 +102,7 @@ const emitChroma = () => {
 const emitGradients = () => {
   const names = Object.keys(gradients);
   names.sort();
-  return names.map((n) => `  --w3a-gradient-${n}: ${gradients[n]};`).join('\n');
+  return names.map((n) => `  --seams-gradient-${n}: ${gradients[n]};`).join('\n');
 };
 
 const paletteVariablesBlock = `:root {
@@ -122,39 +122,39 @@ const { DARK_THEME: DARK_VARS, LIGHT_THEME: LIGHT_VARS } = createThemeTokens(pal
 const header = `/*
   AUTO-GENERATED FILE – DO NOT EDIT.
   Source: packages/wallet/src/theme/palette.json + mappings from packages/wallet/src/theme/base-styles.js (createThemeTokens)
-  Run: node packages/wallet/scripts/codegen/generate-w3a-components-css.mjs
+  Run: node packages/wallet/scripts/codegen/generate-seams-components-css.mjs
 */`;
 
 const hostSelectorsArr = [
-  'w3a-tx-tree',
-  'w3a-drawer',
-  'w3a-modal-tx-confirmer',
-  'w3a-drawer-tx-confirmer',
-  'w3a-tx-confirm-content',
-  'w3a-halo-border',
-  'w3a-passkey-halo-loading',
+  'seams-tx-tree',
+  'seams-drawer',
+  'seams-modal-tx-confirmer',
+  'seams-drawer-tx-confirmer',
+  'seams-tx-confirm-content',
+  'seams-halo-border',
+  'seams-passkey-halo-loading',
   // Export Private Key viewer host (responds to theme + tokens)
-  'w3a-export-key-viewer',
+  'seams-export-key-viewer',
   // Recovery-code backup viewer (light-DOM card inside the backup dialog)
-  'w3a-recovery-code-backup-viewer',
+  'seams-recovery-code-backup-viewer',
 ];
 const hostSelectors = hostSelectorsArr.join(',\n');
 
-const darkBlock = `/* Base CSS variables for W3A custom elements (applied on hosts) */
+const darkBlock = `/* Base CSS variables for SEAMS custom elements (applied on hosts) */
 ${hostSelectors} {
   /* Component defaults (no token alias assignments here) */
-  --w3a-modal__btn__focus-outline-color: ${chroma?.blue?.['400'] || '#3b82f6'};
-  --w3a-tree__file-content__scrollbar-track__background: rgba(255,255,255,0.06);
-  --w3a-tree__file-content__scrollbar-thumb__background: rgba(255,255,255,0.22);
+  --seams-modal__btn__focus-outline-color: ${chroma?.blue?.['400'] || '#3b82f6'};
+  --seams-tree__file-content__scrollbar-track__background: rgba(255,255,255,0.06);
+  --seams-tree__file-content__scrollbar-thumb__background: rgba(255,255,255,0.22);
 
   /* Neutral defaults for PasskeyHaloLoading (baseline outside confirmer context) */
-  --w3a-modal__passkey-halo-loading__ring-background: transparent 0%, var(--w3a-colors-highlightHalo) 10%, var(--w3a-colors-highlightHalo) 25%, transparent 35%;
-  --w3a-modal__passkey-halo-loading__inner-background: transparent;
-  --w3a-modal__passkey-halo-loading__inner-padding: 3px;
-  --w3a-modal__passkey-halo-loading-icon-container__background-color: var(--w3a-colors-passkeyHaloBackground, var(--w3a-colors-surface));
-  --w3a-modal__passkey-halo-loading-touch-icon__color: var(--w3a-colors-textPrimary);
-  --w3a-modal__passkey-halo-loading-touch-icon__margin: 0.75rem;
-  --w3a-modal__passkey-halo-loading-touch-icon__stroke-width: 3.5;
+  --seams-modal__passkey-halo-loading__ring-background: transparent 0%, var(--seams-colors-highlightHalo) 10%, var(--seams-colors-highlightHalo) 25%, transparent 35%;
+  --seams-modal__passkey-halo-loading__inner-background: transparent;
+  --seams-modal__passkey-halo-loading__inner-padding: 3px;
+  --seams-modal__passkey-halo-loading-icon-container__background-color: var(--seams-colors-passkeyHaloBackground, var(--seams-colors-surface));
+  --seams-modal__passkey-halo-loading-touch-icon__color: var(--seams-colors-textPrimary);
+  --seams-modal__passkey-halo-loading-touch-icon__margin: 0.75rem;
+  --seams-modal__passkey-halo-loading-touch-icon__stroke-width: 3.5;
 
   /* Default token aliases (dark) so components have tokens without relying on :root */
 ${emitAliasBlock(DARK_VARS)}
@@ -166,47 +166,47 @@ const lightBlock = '';
 // Helper to emit a complete alias block from a vars map
 function emitAliasBlock(vars) {
   return [
-    `  --w3a-colors-textPrimary: ${vars.textPrimary};`,
-    `  --w3a-colors-textSecondary: ${vars.textSecondary};`,
-    `  --w3a-colors-textMuted: ${vars.textMuted};`,
-    `  --w3a-colors-textButton: ${vars.textButton};`,
-    `  --w3a-colors-colorBackground: ${vars.colorBackground};`,
-    `  --w3a-colors-surface: ${vars.surface};`,
-    `  --w3a-colors-surface2: ${vars.surface2};`,
-    `  --w3a-colors-txDetailsBackground: ${vars.txDetailsBackground};`,
-    `  --w3a-colors-surface3: ${vars.surface3};`,
-    `  --w3a-colors-surface4: ${vars.surface4};`,
-    `  --w3a-colors-primary: ${vars.primary};`,
-    `  --w3a-colors-primaryHover: ${vars.primaryHover};`,
-    `  --w3a-colors-secondary: ${vars.secondary};`,
-    `  --w3a-colors-secondaryHover: ${vars.secondaryHover};`,
-    `  --w3a-colors-accent: ${vars.accent};`,
-    `  --w3a-colors-buttonBackground: ${vars.buttonBackground};`,
-    `  --w3a-colors-buttonHoverBackground: ${vars.buttonHoverBackground};`,
-    `  --w3a-colors-hover: ${vars.hover};`,
-    `  --w3a-colors-active: ${vars.active};`,
-    `  --w3a-colors-focus: ${vars.focus};`,
-    `  --w3a-colors-success: ${vars.success};`,
-    `  --w3a-colors-warning: ${vars.warning};`,
-    `  --w3a-colors-error: ${vars.error};`,
-    `  --w3a-colors-info: ${vars.info};`,
-    `  --w3a-colors-highlightPrimary: ${vars.highlightPrimary};`,
-    `  --w3a-colors-highlightHalo: ${vars.highlightHalo};`,
-    `  --w3a-colors-borderPrimary: ${vars.borderPrimary};`,
-    `  --w3a-colors-borderSecondary: ${vars.borderSecondary};`,
-    `  --w3a-colors-borderHover: ${vars.borderHover};`,
-    `  --w3a-colors-gradientPrimary: ${vars.gradientPrimary};`,
-    `  --w3a-colors-gradientSecondary: ${vars.gradientSecondary};`,
-    `  --w3a-colors-gradientTertiary: ${vars.gradientTertiary};`,
-    `  --w3a-colors-highlightReceiver: ${vars.highlightReceiver};`,
-    `  --w3a-colors-highlightMethodName: ${vars.highlightMethodName};`,
-    `  --w3a-colors-highlightAmount: ${vars.highlightAmount};`,
+    `  --seams-colors-textPrimary: ${vars.textPrimary};`,
+    `  --seams-colors-textSecondary: ${vars.textSecondary};`,
+    `  --seams-colors-textMuted: ${vars.textMuted};`,
+    `  --seams-colors-textButton: ${vars.textButton};`,
+    `  --seams-colors-colorBackground: ${vars.colorBackground};`,
+    `  --seams-colors-surface: ${vars.surface};`,
+    `  --seams-colors-surface2: ${vars.surface2};`,
+    `  --seams-colors-txDetailsBackground: ${vars.txDetailsBackground};`,
+    `  --seams-colors-surface3: ${vars.surface3};`,
+    `  --seams-colors-surface4: ${vars.surface4};`,
+    `  --seams-colors-primary: ${vars.primary};`,
+    `  --seams-colors-primaryHover: ${vars.primaryHover};`,
+    `  --seams-colors-secondary: ${vars.secondary};`,
+    `  --seams-colors-secondaryHover: ${vars.secondaryHover};`,
+    `  --seams-colors-accent: ${vars.accent};`,
+    `  --seams-colors-buttonBackground: ${vars.buttonBackground};`,
+    `  --seams-colors-buttonHoverBackground: ${vars.buttonHoverBackground};`,
+    `  --seams-colors-hover: ${vars.hover};`,
+    `  --seams-colors-active: ${vars.active};`,
+    `  --seams-colors-focus: ${vars.focus};`,
+    `  --seams-colors-success: ${vars.success};`,
+    `  --seams-colors-warning: ${vars.warning};`,
+    `  --seams-colors-error: ${vars.error};`,
+    `  --seams-colors-info: ${vars.info};`,
+    `  --seams-colors-highlightPrimary: ${vars.highlightPrimary};`,
+    `  --seams-colors-highlightHalo: ${vars.highlightHalo};`,
+    `  --seams-colors-borderPrimary: ${vars.borderPrimary};`,
+    `  --seams-colors-borderSecondary: ${vars.borderSecondary};`,
+    `  --seams-colors-borderHover: ${vars.borderHover};`,
+    `  --seams-colors-gradientPrimary: ${vars.gradientPrimary};`,
+    `  --seams-colors-gradientSecondary: ${vars.gradientSecondary};`,
+    `  --seams-colors-gradientTertiary: ${vars.gradientTertiary};`,
+    `  --seams-colors-highlightReceiver: ${vars.highlightReceiver};`,
+    `  --seams-colors-highlightMethodName: ${vars.highlightMethodName};`,
+    `  --seams-colors-highlightAmount: ${vars.highlightAmount};`,
   ].join('\n');
 }
 
 // Also emit theme-specific alias blocks scoped to component hosts, so tokens pierce Shadow DOM via host inheritance
 const themedLightHostSelectors = hostSelectorsArr
-  .map((s) => `${s}[theme="light"],\n:root[data-w3a-theme="light"] ${s}:not([theme="dark"])`)
+  .map((s) => `${s}[theme="light"],\n:root[data-seams-theme="light"] ${s}:not([theme="dark"])`)
   .join(',\n');
 const hostThemeTokens = `${themedLightHostSelectors} {\n${emitAliasBlock(LIGHT_VARS)}\n}`;
 
@@ -214,4 +214,4 @@ const cssOut = `${header}\n\n${paletteVariablesBlock}\n\n${darkBlock}\n\n${hostT
 
 fs.mkdirSync(path.dirname(cssOutPath), { recursive: true });
 fs.writeFileSync(cssOutPath, cssOut);
-console.log('[generate-w3a-components-css] Wrote', path.relative(process.cwd(), cssOutPath));
+console.log('[generate-seams-components-css] Wrote', path.relative(process.cwd(), cssOutPath));

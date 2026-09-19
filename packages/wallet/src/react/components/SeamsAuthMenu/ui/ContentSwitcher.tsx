@@ -89,32 +89,32 @@ export const ContentSwitcher: React.FC<ContentSwitcherProps> = ({
   }, [syncHeight, waiting, showScanDevice, children]);
 
   return (
-    <div ref={switcherRef} className="w3a-content-switcher">
+    <div ref={switcherRef} className="seams-content-switcher">
       {/* Back button - absolutely positioned overlay */}
       {backButton}
 
       {/* Content areas - conditionally rendered with smooth transitions */}
-      <div ref={contentAreaRef} className="w3a-content-area">
-        <div ref={sizerRef} className="w3a-content-sizer">
+      <div ref={contentAreaRef} className="seams-content-area">
+        <div ref={sizerRef} className="seams-content-sizer">
           {waiting && (
-            <div className="w3a-waiting">
-              <div className="w3a-waiting-message">
-                <div className="w3a-waiting-text">{waitingText}</div>
+            <div className="seams-waiting">
+              <div className="seams-waiting-message">
+                <div className="seams-waiting-text">{waitingText}</div>
                 {waitingSubtext.trim().length > 0 && (
-                  <div className="w3a-waiting-subtext">{waitingSubtext}</div>
+                  <div className="seams-waiting-subtext">{waitingSubtext}</div>
                 )}
                 {waitingSDKEventsText.trim().length > 0 && (
-                  <div className="w3a-waiting-sdk-events">{waitingSDKEventsText}</div>
+                  <div className="seams-waiting-sdk-events">{waitingSDKEventsText}</div>
                 )}
               </div>
-              <div aria-label="Loading" className="w3a-spinner" />
+              <div aria-label="Loading" className="seams-spinner" />
             </div>
           )}
 
-          {showScanDevice && <div className="w3a-scan-device-content">{showQRCodeElement}</div>}
+          {showScanDevice && <div className="seams-scan-device-content">{showQRCodeElement}</div>}
 
           {!waiting && !showScanDevice && (
-            <div className={`w3a-signin-menu${isInitialMount.current ? ' w3a-no-animation' : ''}`}>
+            <div className={`seams-signin-menu${isInitialMount.current ? ' seams-no-animation' : ''}`}>
               {children}
             </div>
           )}

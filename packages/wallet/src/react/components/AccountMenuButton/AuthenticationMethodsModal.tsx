@@ -408,7 +408,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   return (
     <Theme theme={theme} tokens={scopedTokens}>
       <div
-        className={`w3a-linked-devices-modal-backdrop theme-${theme}`}
+        className={`seams-linked-devices-modal-backdrop theme-${theme}`}
         role="presentation"
         onMouseDown={(event) => {
           if (event.target === event.currentTarget) onClose();
@@ -416,38 +416,38 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       >
         <div
           ref={dialogRef}
-          className="w3a-linked-devices-modal-content w3a-auth-methods-modal-content"
+          className="seams-linked-devices-modal-content seams-auth-methods-modal-content"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="w3a-auth-methods-modal-title"
+          aria-labelledby="seams-auth-methods-modal-title"
           tabIndex={-1}
         >
           <button
             type="button"
-            className="w3a-linked-devices-modal-close"
+            className="seams-linked-devices-modal-close"
             onClick={onClose}
             aria-label="Close authentication methods"
           >
             ✕
           </button>
-          <h2 id="w3a-auth-methods-modal-title" className="w3a-linked-devices-modal-title">
+          <h2 id="seams-auth-methods-modal-title" className="seams-linked-devices-modal-title">
             Authentication methods
           </h2>
-          <p className="w3a-auth-methods-modal-intro">Manage how this device unlocks the wallet.</p>
+          <p className="seams-auth-methods-modal-intro">Manage how this device unlocks the wallet.</p>
 
-          <div className="w3a-linked-devices-modal-body">
+          <div className="seams-linked-devices-modal-body">
             {loadState.kind === 'loading' || loadState.kind === 'idle' ? (
-              <div className="w3a-linked-devices-modal-placeholder" role="status">
+              <div className="seams-linked-devices-modal-placeholder" role="status">
                 Checking authentication methods…
               </div>
             ) : null}
 
             {loadState.kind === 'error' ? (
-              <div className="w3a-linked-devices-modal-placeholder" role="alert">
+              <div className="seams-linked-devices-modal-placeholder" role="alert">
                 <span>Unable to load authentication methods: {loadState.message}</span>
                 <button
                   type="button"
-                  className="w3a-linked-devices-modal-secondary"
+                  className="seams-linked-devices-modal-secondary"
                   onClick={() => void loadInventory()}
                 >
                   Try again
@@ -456,7 +456,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
             ) : null}
 
             {inventory ? (
-              <ul className="w3a-linked-devices-modal-list w3a-linked-devices-modal-list--grouped">
+              <ul className="seams-linked-devices-modal-list seams-linked-devices-modal-list--grouped">
                 {methods.map((method) => {
                   const confirming =
                     actionState.kind === 'confirming_revoke' &&
@@ -467,44 +467,44 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                   return (
                     <li
                       key={method.walletAuthMethodId}
-                      className="w3a-linked-devices-modal-item w3a-linked-devices-modal-item--row"
+                      className="seams-linked-devices-modal-item seams-linked-devices-modal-item--row"
                     >
-                      <span className="w3a-linked-devices-modal-item-icon" aria-hidden="true">
+                      <span className="seams-linked-devices-modal-item-icon" aria-hidden="true">
                         {method.kind === 'passkey' ? (
                           <KeyIcon size={20} strokeWidth={1.75} />
                         ) : (
                           <MailIcon size={20} strokeWidth={1.75} />
                         )}
                       </span>
-                      <div className="w3a-linked-devices-modal-item-content">
-                        <div className="w3a-linked-devices-modal-item-main">
-                          <span className="w3a-linked-devices-modal-item-name">
+                      <div className="seams-linked-devices-modal-item-content">
+                        <div className="seams-linked-devices-modal-item-main">
+                          <span className="seams-linked-devices-modal-item-name">
                             {methodTitle(method)}
                           </span>
-                          <span className="w3a-linked-devices-modal-standing tone-active">
+                          <span className="seams-linked-devices-modal-standing tone-active">
                             Active
                           </span>
                         </div>
-                        <div className="w3a-linked-devices-modal-item-detail">
+                        <div className="seams-linked-devices-modal-item-detail">
                           {methodDescription(method)}
                         </div>
                         {confirming ? (
-                          <div className="w3a-linked-devices-modal-confirm">
+                          <div className="seams-linked-devices-modal-confirm">
                             <span>
                               Remove {methodTitle(method)} from this device? You will need the other
                               active method to unlock it.
                             </span>
-                            <div className="w3a-linked-devices-modal-confirm-actions">
+                            <div className="seams-linked-devices-modal-confirm-actions">
                               <button
                                 type="button"
-                                className="w3a-linked-devices-modal-secondary"
+                                className="seams-linked-devices-modal-secondary"
                                 onClick={() => setActionState({ kind: 'idle' })}
                               >
                                 Keep it
                               </button>
                               <button
                                 type="button"
-                                className="w3a-linked-devices-modal-danger"
+                                className="seams-linked-devices-modal-danger"
                                 onClick={() => void revokeMethod()}
                               >
                                 Remove method
@@ -512,7 +512,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                             </div>
                           </div>
                         ) : methods.length > 1 ? null : (
-                          <span className="w3a-linked-devices-modal-item-detail">
+                          <span className="seams-linked-devices-modal-item-detail">
                             Add another method before removing this one.
                           </span>
                         )}
@@ -520,7 +520,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                       {!confirming && canManageMethods && methods.length > 1 ? (
                         <button
                           type="button"
-                          className="w3a-linked-devices-modal-secondary w3a-linked-devices-modal-remove"
+                          className="seams-linked-devices-modal-secondary seams-linked-devices-modal-remove"
                           disabled={actionInProgress}
                           aria-label={`Remove ${methodTitle(method)}`}
                           onClick={() => setActionState({ kind: 'confirming_revoke', method })}
@@ -535,14 +535,14 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
             ) : null}
 
             {inventory && canManageMethods && !hasPasskey ? (
-              <section className="w3a-linked-devices-modal-add-method">
+              <section className="seams-linked-devices-modal-add-method">
                 <h3>Add Passkey</h3>
-                <p className="w3a-linked-devices-modal-security-note">
+                <p className="seams-linked-devices-modal-security-note">
                   Use a passkey from this device to unlock the wallet.
                 </p>
                 <button
                   type="button"
-                  className="w3a-linked-devices-modal-secondary"
+                  className="seams-linked-devices-modal-secondary"
                   disabled={actionInProgress || !canManageMethods}
                   onClick={() => void addMethod('passkey')}
                 >
@@ -554,10 +554,10 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
             ) : null}
 
             {inventory && canManageMethods && !hasEmailOtp ? (
-              <section className="w3a-linked-devices-modal-add-method">
+              <section className="seams-linked-devices-modal-add-method">
                 <h3>Add Email OTP</h3>
                 <form
-                  className="w3a-linked-devices-modal-otp-form"
+                  className="seams-linked-devices-modal-otp-form"
                   onSubmit={(event) => {
                     event.preventDefault();
                     void addMethod('email_otp');
@@ -566,7 +566,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                   <label htmlFor={emailInputId}>Email address</label>
                   <input
                     id={emailInputId}
-                    className="w3a-linked-devices-modal-otp-input"
+                    className="seams-linked-devices-modal-otp-input"
                     type="email"
                     autoComplete="email"
                     required
@@ -579,7 +579,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                   />
                   <button
                     type="submit"
-                    className="w3a-linked-devices-modal-secondary"
+                    className="seams-linked-devices-modal-secondary"
                     disabled={actionInProgress}
                   >
                     {actionState.kind === 'adding' && actionState.method === 'email_otp'
@@ -591,14 +591,14 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
             ) : null}
 
             {inventory?.kind === 'local_selection' ? (
-              <section className="w3a-linked-devices-modal-add-method">
+              <section className="seams-linked-devices-modal-add-method">
                 <h3>Unlock to manage methods</h3>
-                <p className="w3a-linked-devices-modal-security-note">
+                <p className="seams-linked-devices-modal-security-note">
                   Confirm your current authentication method to add or remove methods.
                 </p>
                 <button
                   type="button"
-                  className="w3a-linked-devices-modal-secondary"
+                  className="seams-linked-devices-modal-secondary"
                   disabled={actionInProgress}
                   onClick={() => void unlockOwnerSession()}
                 >
@@ -608,12 +608,12 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
             ) : null}
 
             {actionState.kind === 'error' ? (
-              <div className="w3a-linked-devices-modal-error" role="alert">
+              <div className="seams-linked-devices-modal-error" role="alert">
                 {actionState.message}
               </div>
             ) : null}
 
-            <div className="w3a-linked-devices-modal-live" role="status" aria-live="polite">
+            <div className="seams-linked-devices-modal-live" role="status" aria-live="polite">
               {announcement}
             </div>
           </div>

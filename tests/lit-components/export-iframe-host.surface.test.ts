@@ -15,7 +15,7 @@ import { setupBasicPasskeyTest } from '../setup';
 
 const IFRAME_HOST_MODULE =
   '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/lit-components/ExportPrivateKey/iframe-host.js';
-const EXPORT_IFRAME_HOST_TAG = 'w3a-export-viewer-iframe';
+const EXPORT_IFRAME_HOST_TAG = 'seams-export-viewer-iframe';
 
 test.describe('export iframe host wallet-iframe surface sizing', () => {
   test.beforeEach(async ({ page }) => {
@@ -31,7 +31,7 @@ test.describe('export iframe host wallet-iframe surface sizing', () => {
         try {
           await import(modulePath);
           const el = document.createElement(tagName);
-          el.setAttribute('data-w3a-export-surface', 'wallet-iframe');
+          el.setAttribute('data-seams-export-surface', 'wallet-iframe');
           document.body.appendChild(el);
           await customElements.whenDefined(tagName);
           // Styles are adopted asynchronously by the css loader; wait for a

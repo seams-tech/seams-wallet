@@ -42,9 +42,9 @@ function createRootStyle(input: {
   containerStyle?: React.CSSProperties;
 }): React.CSSProperties {
   return {
-    '--w3a-account-seg-active-bg': input.activeBg,
-    '--w3a-account-seg-active-index': input.activeIndex,
-    '--w3a-account-seg-count': input.count,
+    '--seams-account-seg-active-bg': input.activeBg,
+    '--seams-account-seg-active-index': input.activeIndex,
+    '--seams-account-seg-count': input.count,
     height: toCssDim(input.height),
     minHeight: toCssDim(input.height),
     borderRadius: toCssDim(input.radius),
@@ -98,9 +98,9 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({
   });
 
   return (
-    <div className={`w3a-account-seg${className ? ` ${className}` : ''}`} style={rootStyle}>
-      <div className="w3a-account-seg-active" />
-      <div className="w3a-account-seg-grid">
+    <div className={`seams-account-seg${className ? ` ${className}` : ''}`} style={rootStyle}>
+      <div className="seams-account-seg-active" />
+      <div className="seams-account-seg-grid">
         {items.map((item, index) => {
           const isActive = index === activeIndex;
           const itemStyle = createButtonStyle({
@@ -117,7 +117,7 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({
               key={String(item.value)}
               type="button"
               aria-pressed={isActive}
-              className={`w3a-account-seg-btn${isActive ? ' is-active' : ''}${buttonClassName ? ` ${buttonClassName}` : ''}${item.className ? ` ${item.className}` : ''}`}
+              className={`seams-account-seg-btn${isActive ? ' is-active' : ''}${buttonClassName ? ` ${buttonClassName}` : ''}${item.className ? ` ${item.className}` : ''}`}
               disabled={!!item.disabled}
               onClick={() => onValueChange(item.value)}
               style={itemStyle}

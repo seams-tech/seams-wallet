@@ -33,7 +33,7 @@ type AccountOptionGroup = {
 
 const AccountDropdownArrow: React.FC = () => (
   <svg
-    className="w3a-account-dropdown-arrow"
+    className="seams-account-dropdown-arrow"
     viewBox="0 0 24 24"
     aria-hidden="true"
     focusable="false"
@@ -45,7 +45,7 @@ const AccountDropdownArrow: React.FC = () => (
 const RerollValueIcon: React.FC = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    className="w3a-input-action-icon lucide lucide-refresh-cw-icon lucide-refresh-cw"
+    className="seams-input-action-icon lucide lucide-refresh-cw-icon lucide-refresh-cw"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -253,9 +253,9 @@ export const PasskeyInput: React.FC<PasskeyInputProps> = ({
   };
 
   return (
-    <div className="w3a-passkey-row">
-      <div className="w3a-input-pill">
-        <div className="w3a-input-wrap">
+    <div className="seams-passkey-row">
+      <div className="seams-input-pill">
+        <div className="seams-input-wrap">
           <input
             ref={attachInputRef}
             type="text"
@@ -268,7 +268,7 @@ export const PasskeyInput: React.FC<PasskeyInputProps> = ({
             }}
             onKeyDown={onEnter}
             placeholder={placeholder}
-            className="w3a-input"
+            className="seams-input"
             aria-describedby={statusId}
             autoCapitalize="none"
             autoCorrect="off"
@@ -279,7 +279,7 @@ export const PasskeyInput: React.FC<PasskeyInputProps> = ({
           {postfixText && renderedValue.length > 0 && (
             <span
               title={isUsingExistingAccount ? 'Using saved account domain' : 'New account domain'}
-              className={`w3a-postfix${isUsingExistingAccount ? ' is-existing' : ''}`}
+              className={`seams-postfix${isUsingExistingAccount ? ' is-existing' : ''}`}
               ref={bindPostfix}
             >
               {postfixText}
@@ -296,7 +296,7 @@ export const PasskeyInput: React.FC<PasskeyInputProps> = ({
         {onRerollValue ? (
           <button
             type="button"
-            className="w3a-input-action-trigger"
+            className="seams-input-action-trigger"
             aria-label={rerollValueLabel}
             title={rerollValueLabel}
             onClick={onRerollValue}
@@ -307,11 +307,11 @@ export const PasskeyInput: React.FC<PasskeyInputProps> = ({
         ) : showAccountOptions ? (
           <div
             ref={accountMenuRef}
-            className={`w3a-account-menu${accountMenuOpen ? ' is-open' : ''}`}
+            className={`seams-account-menu${accountMenuOpen ? ' is-open' : ''}`}
           >
             <button
               type="button"
-              className="w3a-account-menu-trigger"
+              className="seams-account-menu-trigger"
               aria-label="Saved accounts"
               aria-haspopup="listbox"
               aria-expanded={accountMenuOpen}
@@ -322,10 +322,10 @@ export const PasskeyInput: React.FC<PasskeyInputProps> = ({
               <AccountDropdownArrow />
             </button>
             {accountMenuOpen ? (
-              <div id={menuId} className="w3a-account-menu-popover" role="listbox">
+              <div id={menuId} className="seams-account-menu-popover" role="listbox">
                 {accountGroups.map((group) => (
-                  <div key={group.label} className="w3a-account-menu-group">
-                    <div className="w3a-account-menu-group-label">{group.label}</div>
+                  <div key={group.label} className="seams-account-menu-group">
+                    <div className="seams-account-menu-group-label">{group.label}</div>
                     {group.accounts.map((account) => {
                       const selected = accountOptionSelected(account, value);
                       return (
@@ -334,20 +334,20 @@ export const PasskeyInput: React.FC<PasskeyInputProps> = ({
                           type="button"
                           role="option"
                           aria-selected={selected}
-                          className={`w3a-account-menu-option${selected ? ' is-selected' : ''}`}
+                          className={`seams-account-menu-option${selected ? ' is-selected' : ''}`}
                           title={accountOptionTitle(account)}
                           onClick={() => {
                             onChange(account.walletId);
                             setAccountMenuOpen(false);
                           }}
                         >
-                          <span className="w3a-account-menu-check" aria-hidden="true" />
-                          <span className="w3a-account-menu-account">
-                            <span className="w3a-account-menu-account-primary">
+                          <span className="seams-account-menu-check" aria-hidden="true" />
+                          <span className="seams-account-menu-account">
+                            <span className="seams-account-menu-account-primary">
                               {account.displayName}
                             </span>
                             {shouldShowAccountWalletId(account) ? (
-                              <span className="w3a-account-menu-account-secondary">
+                              <span className="seams-account-menu-account-secondary">
                                 {account.walletId}
                               </span>
                             ) : null}

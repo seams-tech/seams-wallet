@@ -24,7 +24,7 @@ type ReactWebComponent<P> = React.ForwardRefExoticComponent<
 
 export const LitHaloBorder = createComponent({
   react: React,
-  tagName: 'w3a-halo-border',
+  tagName: 'seams-halo-border',
   elementClass: HaloBorderElement,
   displayName: 'LitHaloBorder',
 }) as ReactWebComponent<LitHaloBorderProps>;

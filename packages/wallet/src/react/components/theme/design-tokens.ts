@@ -9,22 +9,22 @@ import { CHROMA_COLORS, GREY_COLORS, GRADIENTS, LIGHT_THEME, DARK_THEME } from '
  * components and React styles can read the same values.
  *
  * Mapping rules (applied by Theme via createCSSVariables):
- * - colors:   --w3a-colors-<key>
- *   e.g. tokens.colors.primary → --w3a-colors-primary
- * - spacing:  --w3a-spacing-<key>
- *   e.g. tokens.spacing.md     → --w3a-spacing-md
- * - borderRadius:   --w3a-border-radius-<key>
- *   e.g. tokens.borderRadius.lg→ --w3a-border-radius-lg
- * - shadows:  --w3a-shadows-<key>
- *   e.g. tokens.shadows.sm     → --w3a-shadow-sm
- * - shape:    --w3a-shape-<key>
- *   e.g. tokens.shape.card     → --w3a-shape-card
+ * - colors:   --seams-colors-<key>
+ *   e.g. tokens.colors.primary → --seams-colors-primary
+ * - spacing:  --seams-spacing-<key>
+ *   e.g. tokens.spacing.md     → --seams-spacing-md
+ * - borderRadius:   --seams-border-radius-<key>
+ *   e.g. tokens.borderRadius.lg→ --seams-border-radius-lg
+ * - shadows:  --seams-shadows-<key>
+ *   e.g. tokens.shadows.sm     → --seams-shadow-sm
+ * - shape:    --seams-shape-<key>
+ *   e.g. tokens.shape.card     → --seams-shape-card
  *   Optional: when absent, component CSS falls back to the 'square' preset
  *   values baked in as var() fallbacks.
  *
  * Where they’re used:
  * - Theme injects variables inline on a boundary element; components
- *   reference them with var(--w3a-colors-primary), etc.
+ *   reference them with var(--seams-colors-primary), etc.
  * - Component-specific helpers (e.g., PROFILE_BUTTON_TOKENS, PROFILE_TOGGLE_TOKENS)
  *   derive from LIGHT_TOKENS/DARK_TOKENS and are read by components directly
  *   or mapped to CSS vars via their own applyStyles helpers.
@@ -200,8 +200,8 @@ export const SHAPE_SQUARE: ShapeTokens = {
   controlHeight: '44px',
   fieldHeight: '44px',
   boxPaddingInlineStart: '12px',
-  fieldBackground: 'var(--w3a-colors-surface)',
-  fieldBorder: 'var(--w3a-colors-borderPrimary)',
+  fieldBackground: 'var(--seams-colors-surface)',
+  fieldBorder: 'var(--seams-colors-borderPrimary)',
 };
 
 export const SHAPE_ROUNDED: ShapeTokens = {
@@ -214,8 +214,8 @@ export const SHAPE_ROUNDED: ShapeTokens = {
   fieldHeight: '54px',
   // the 1.5rem box curve crowds the label/value, so inset them a further 0.5rem
   boxPaddingInlineStart: '20px',
-  fieldBackground: 'var(--w3a-colors-surface2)',
-  fieldBorder: 'color-mix(in srgb, var(--w3a-colors-borderPrimary), transparent 36%)',
+  fieldBackground: 'var(--seams-colors-surface2)',
+  fieldBorder: 'color-mix(in srgb, var(--seams-colors-borderPrimary), transparent 36%)',
 };
 
 export const SHAPE_PRESETS: Record<WalletShapeId, ShapeTokens> = {
@@ -472,12 +472,12 @@ export const DARK_TOKENS: DesignTokens = {
  * Generates CSS custom properties from design tokens
  * This would replace all the manual CSS variable definitions
  */
-export function generateThemeCSS(tokens: DesignTokens, prefix = '--w3a'): string {
+export function generateThemeCSS(tokens: DesignTokens, prefix = '--seams'): string {
   const cssVars: string[] = [];
 
   // Colors
   Object.entries(tokens.colors).forEach(([key, value]) => {
-    // Naming (plural): --w3a-colors-<key>
+    // Naming (plural): --seams-colors-<key>
     cssVars.push(`${prefix}-colors-${key}: ${value};`);
   });
 
@@ -488,13 +488,13 @@ export function generateThemeCSS(tokens: DesignTokens, prefix = '--w3a'): string
 
   // Border radius
   Object.entries(tokens.borderRadius).forEach(([key, value]) => {
-    // Naming (hyphenated): --w3a-border-radius-<key>
+    // Naming (hyphenated): --seams-border-radius-<key>
     cssVars.push(`${prefix}-border-radius-${key}: ${value};`);
   });
 
   // Shadows
   Object.entries(tokens.shadows).forEach(([key, value]) => {
-    // Naming (plural): --w3a-shadows-<key>
+    // Naming (plural): --seams-shadows-<key>
     cssVars.push(`${prefix}-shadows-${key}: ${value};`);
   });
 

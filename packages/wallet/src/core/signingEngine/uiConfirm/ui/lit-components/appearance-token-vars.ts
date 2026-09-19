@@ -24,7 +24,7 @@ export function appearanceTokenCssVars(appearance?: AppearanceConfig): Record<st
     if (!name) continue;
     const value = sanitizeTokenValue(rawValue);
     if (!value) continue;
-    vars[`--w3a-colors-${name}`] = `${value} !important`;
+    vars[`--seams-colors-${name}`] = `${value} !important`;
   }
   return vars;
 }

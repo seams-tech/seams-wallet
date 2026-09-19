@@ -7,8 +7,8 @@
 import { html, type PropertyValues } from 'lit';
 import { LitElementWithProps } from '../LitElementWithProps';
 import {
-  W3A_RECOVERY_CODE_BACKUP_HOST_ID,
-  W3A_RECOVERY_CODE_BACKUP_VIEWER_ID,
+  SEAMS_RECOVERY_CODE_BACKUP_HOST_ID,
+  SEAMS_RECOVERY_CODE_BACKUP_VIEWER_ID,
 } from '../../registry';
 // BINDING import, not a side-effect import: the per-file ESM build honors
 // sideEffects and would drop a bare `import './viewer'`.
@@ -22,9 +22,9 @@ import {
 
 if (
   typeof customElements !== 'undefined' &&
-  !customElements.get(W3A_RECOVERY_CODE_BACKUP_VIEWER_ID)
+  !customElements.get(SEAMS_RECOVERY_CODE_BACKUP_VIEWER_ID)
 ) {
-  customElements.define(W3A_RECOVERY_CODE_BACKUP_VIEWER_ID, RecoveryCodeBackupViewer);
+  customElements.define(SEAMS_RECOVERY_CODE_BACKUP_VIEWER_ID, RecoveryCodeBackupViewer);
 }
 
 export class RecoveryCodeBackupHost extends LitElementWithProps {
@@ -53,7 +53,7 @@ export class RecoveryCodeBackupHost extends LitElementWithProps {
     const dialog = event.currentTarget;
     if (!(dialog instanceof HTMLDialogElement)) return;
     const detail = (event as CustomEvent<RecoveryBackupStageDetail>).detail;
-    dialog.dataset.w3aRecoveryStage = detail.stage;
+    dialog.dataset.seamsRecoveryStage = detail.stage;
   };
 
   constructor() {
@@ -86,12 +86,12 @@ export class RecoveryCodeBackupHost extends LitElementWithProps {
     let dialog = this.dialogEl;
     if (!dialog || !dialog.isConnected) {
       dialog = document.createElement('dialog');
-      dialog.setAttribute('data-w3a-wallet-recovery-backup-dialog', '');
-      dialog.setAttribute('aria-labelledby', 'w3a-wallet-recovery-title');
-      dialog.setAttribute('aria-describedby', 'w3a-wallet-recovery-description');
+      dialog.setAttribute('data-seams-wallet-recovery-backup-dialog', '');
+      dialog.setAttribute('aria-labelledby', 'seams-wallet-recovery-title');
+      dialog.setAttribute('aria-describedby', 'seams-wallet-recovery-description');
       // The app-palette override rules in the wallet-iframe host target this
       // class; keep it so appearance colors keep applying.
-      dialog.className = 'w3a-host-themed-dialog';
+      dialog.className = 'seams-host-themed-dialog';
       dialog.tabIndex = -1;
       // Escape is surfaced to the mount; preventDefault keeps the dialog under
       // the recovery experience's single lifecycle owner.
@@ -104,7 +104,7 @@ export class RecoveryCodeBackupHost extends LitElementWithProps {
     let viewer = this.viewerEl;
     if (!viewer || !viewer.isConnected) {
       viewer = document.createElement(
-        W3A_RECOVERY_CODE_BACKUP_VIEWER_ID,
+        SEAMS_RECOVERY_CODE_BACKUP_VIEWER_ID,
       ) as RecoveryCodeBackupViewer;
       viewer.configure(this.experience);
       dialog.appendChild(viewer);
@@ -128,12 +128,12 @@ export class RecoveryCodeBackupHost extends LitElementWithProps {
     super.updated(changed);
     const { dialog, viewer } = this.ensureDialogAndViewer();
     dialog.setAttribute(
-      'data-w3a-recovery-surface',
+      'data-seams-recovery-surface',
       this.surface === 'wallet-iframe' ? 'wallet-iframe' : 'standalone',
     );
     viewer.configure(this.experience);
     const stage = viewer.currentStage();
-    if (stage) dialog.dataset.w3aRecoveryStage = stage;
+    if (stage) dialog.dataset.seamsRecoveryStage = stage;
     if (!this.shown) {
       this.shown = true;
       void this.showDialogWhenReady(viewer);
@@ -150,9 +150,9 @@ export class RecoveryCodeBackupHost extends LitElementWithProps {
 
 if (
   typeof customElements !== 'undefined' &&
-  !customElements.get(W3A_RECOVERY_CODE_BACKUP_HOST_ID)
+  !customElements.get(SEAMS_RECOVERY_CODE_BACKUP_HOST_ID)
 ) {
-  customElements.define(W3A_RECOVERY_CODE_BACKUP_HOST_ID, RecoveryCodeBackupHost);
+  customElements.define(SEAMS_RECOVERY_CODE_BACKUP_HOST_ID, RecoveryCodeBackupHost);
 }
 
 export default RecoveryCodeBackupHost;

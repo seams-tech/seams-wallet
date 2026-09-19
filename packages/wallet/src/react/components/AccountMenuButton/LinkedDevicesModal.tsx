@@ -587,7 +587,7 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
   return (
     <Theme theme={theme} tokens={scopedTokens}>
       <div
-        className={`w3a-linked-devices-modal-backdrop theme-${theme}`}
+        className={`seams-linked-devices-modal-backdrop theme-${theme}`}
         role="presentation"
         onMouseDown={(event) => {
           if (event.target === event.currentTarget) onClose();
@@ -595,40 +595,40 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
       >
         <div
           ref={dialogRef}
-          className="w3a-linked-devices-modal-content w3a-linked-devices-inventory-content"
+          className="seams-linked-devices-modal-content seams-linked-devices-inventory-content"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="w3a-linked-devices-modal-title"
+          aria-labelledby="seams-linked-devices-modal-title"
           tabIndex={-1}
         >
           <button
             type="button"
-            className="w3a-linked-devices-modal-close"
+            className="seams-linked-devices-modal-close"
             onClick={onClose}
             aria-label="Close linked devices"
           >
             ✕
           </button>
-          <h2 id="w3a-linked-devices-modal-title" className="w3a-linked-devices-modal-title">
+          <h2 id="seams-linked-devices-modal-title" className="seams-linked-devices-modal-title">
             Your devices
           </h2>
-          <p className="w3a-linked-devices-modal-subtitle">
+          <p className="seams-linked-devices-modal-subtitle">
             Anything listed here can unlock this wallet.
           </p>
 
-          <div className="w3a-linked-devices-modal-body">
+          <div className="seams-linked-devices-modal-body">
             {loadState.kind === 'loading' || loadState.kind === 'idle' ? (
-              <div className="w3a-linked-devices-modal-placeholder" role="status">
+              <div className="seams-linked-devices-modal-placeholder" role="status">
                 Checking your devices…
               </div>
             ) : null}
 
             {loadState.kind === 'error' ? (
-              <div className="w3a-linked-devices-modal-placeholder" role="alert">
+              <div className="seams-linked-devices-modal-placeholder" role="alert">
                 <span>Unable to load your devices: {loadState.message}</span>
                 <button
                   type="button"
-                  className="w3a-linked-devices-modal-secondary"
+                  className="seams-linked-devices-modal-secondary"
                   onClick={() => void loadDevices()}
                 >
                   Try again
@@ -637,13 +637,13 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
             ) : null}
 
             {showEmpty ? (
-              <div className="w3a-linked-devices-modal-placeholder">
+              <div className="seams-linked-devices-modal-placeholder">
                 No other devices are using this wallet.
               </div>
             ) : null}
 
             {devices.length > 0 ? (
-              <ul className="w3a-linked-devices-modal-list w3a-linked-devices-modal-list--grouped">
+              <ul className="seams-linked-devices-modal-list seams-linked-devices-modal-list--grouped">
                 {devices.map(({ view, deviceNumber }) => {
                   const cardId = viewId(view);
                   const title = credentialDescription(viewCredential(view));
@@ -672,34 +672,34 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
                   return (
                     <li
                       key={cardId}
-                      className="w3a-linked-devices-modal-item w3a-linked-devices-modal-item--row"
+                      className="seams-linked-devices-modal-item seams-linked-devices-modal-item--row"
                       data-device-kind={view.kind}
                       data-device-state={deviceStateAttr(view)}
                     >
-                      <span className="w3a-linked-devices-modal-item-icon" aria-hidden="true">
+                      <span className="seams-linked-devices-modal-item-icon" aria-hidden="true">
                         {credentialIcon(viewCredential(view))}
                       </span>
-                      <div className="w3a-linked-devices-modal-item-content">
-                        <div className="w3a-linked-devices-modal-item-main">
-                          <span className="w3a-linked-devices-modal-item-name">{title}</span>
+                      <div className="seams-linked-devices-modal-item-content">
+                        <div className="seams-linked-devices-modal-item-main">
+                          <span className="seams-linked-devices-modal-item-name">{title}</span>
                           {chip ? (
-                            <span className={`w3a-linked-devices-modal-standing tone-${chip.tone}`}>
+                            <span className={`seams-linked-devices-modal-standing tone-${chip.tone}`}>
                               {chip.label}
                             </span>
                           ) : null}
                         </div>
-                        <div className="w3a-linked-devices-modal-item-detail">
+                        <div className="seams-linked-devices-modal-item-detail">
                           {deviceMetaLine(view, deviceNumber, titleCollides, Date.now())}
                         </div>
                         {isSelectedMethod && hasRemovableSibling ? (
-                          <div className="w3a-linked-devices-modal-hint">
+                          <div className="seams-linked-devices-modal-hint">
                             <LockIcon size={15} strokeWidth={1.75} />
                             <span>{selectedMethodRemovalHint(view, devices)}</span>
                           </div>
                         ) : null}
                         {awaitingEmailOtp && revokeState.kind === 'email_otp' ? (
                           <form
-                            className="w3a-linked-devices-modal-otp-form"
+                            className="seams-linked-devices-modal-otp-form"
                             onSubmit={(event) => {
                               event.preventDefault();
                               void submitEmailOtpRevocation();
@@ -707,14 +707,14 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
                           >
                             <label htmlFor={otpInputId}>Verification code</label>
                             {revokeState.emailHint ? (
-                              <span className="w3a-linked-devices-modal-item-detail">
+                              <span className="seams-linked-devices-modal-item-detail">
                                 Sent to {revokeState.emailHint}
                               </span>
                             ) : null}
                             <input
                               ref={otpInputRef}
                               id={otpInputId}
-                              className="w3a-linked-devices-modal-otp-input"
+                              className="seams-linked-devices-modal-otp-input"
                               type="text"
                               inputMode="numeric"
                               autoComplete="one-time-code"
@@ -737,16 +737,16 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
                             {revokeState.error ? (
                               <span
                                 id={`${otpInputId}-error`}
-                                className="w3a-linked-devices-modal-error"
+                                className="seams-linked-devices-modal-error"
                                 role="alert"
                               >
                                 {revokeState.error}
                               </span>
                             ) : null}
-                            <div className="w3a-linked-devices-modal-confirm-actions">
+                            <div className="seams-linked-devices-modal-confirm-actions">
                               <button
                                 type="button"
-                                className="w3a-linked-devices-modal-secondary"
+                                className="seams-linked-devices-modal-secondary"
                                 disabled={revokeState.submitting}
                                 onClick={() => setRevokeState({ kind: 'idle' })}
                               >
@@ -754,7 +754,7 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
                               </button>
                               <button
                                 type="submit"
-                                className="w3a-linked-devices-modal-danger"
+                                className="seams-linked-devices-modal-danger"
                                 disabled={revokeState.submitting}
                               >
                                 {revokeState.submitting ? 'Removing…' : 'Verify and remove'}
@@ -762,19 +762,19 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
                             </div>
                           </form>
                         ) : confirming ? (
-                          <div className="w3a-linked-devices-modal-confirm">
+                          <div className="seams-linked-devices-modal-confirm">
                             <span>Remove {title}? It will lose access right away.</span>
-                            <div className="w3a-linked-devices-modal-confirm-actions">
+                            <div className="seams-linked-devices-modal-confirm-actions">
                               <button
                                 type="button"
-                                className="w3a-linked-devices-modal-secondary"
+                                className="seams-linked-devices-modal-secondary"
                                 onClick={() => setRevokeState({ kind: 'idle' })}
                               >
                                 Keep it
                               </button>
                               <button
                                 type="button"
-                                className="w3a-linked-devices-modal-danger"
+                                className="seams-linked-devices-modal-danger"
                                 onClick={() => void revokeMethod(view, deviceNumber)}
                               >
                                 Yes, remove
@@ -786,7 +786,7 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
                       {showRemoveButton ? (
                         <button
                           type="button"
-                          className="w3a-linked-devices-modal-secondary w3a-linked-devices-modal-remove"
+                          className="seams-linked-devices-modal-secondary seams-linked-devices-modal-remove"
                           disabled={revocationInProgress}
                           aria-label={`Remove ${deviceDescription(view, deviceNumber)}`}
                           onClick={() => setRevokeState({ kind: 'confirming', walletAuthMethodId })}
@@ -801,12 +801,12 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
             ) : null}
 
             {revokeState.kind === 'error' ? (
-              <div className="w3a-linked-devices-modal-error" role="alert">
+              <div className="seams-linked-devices-modal-error" role="alert">
                 {revokeState.message}
               </div>
             ) : null}
 
-            <div className="w3a-linked-devices-modal-live" role="status" aria-live="polite">
+            <div className="seams-linked-devices-modal-live" role="status" aria-live="polite">
               {announcement}
             </div>
           </div>

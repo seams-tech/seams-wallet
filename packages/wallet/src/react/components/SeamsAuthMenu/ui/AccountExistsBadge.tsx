@@ -60,7 +60,7 @@ export const AccountExistsBadge: React.FC<AccountExistsBadgeProps> = ({
 
   const toneClass = tone === 'error' ? 'is-error' : tone === 'success' ? 'is-success' : '';
 
-  const classes = ['w3a-tooltip', toneClass, visible ? 'is-visible' : '', className]
+  const classes = ['seams-tooltip', toneClass, visible ? 'is-visible' : '', className]
     .filter(Boolean)
     .join(' ');
 

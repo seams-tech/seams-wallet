@@ -7,7 +7,7 @@ export function __setWalletIframeHostMode(enabled: boolean = true): void {
 
 function readForcedHostModeFlag(): boolean | undefined {
   try {
-    const forced = (globalThis as Record<string, unknown>).__W3A_TEST_WALLET_IFRAME_HOST_MODE__;
+    const forced = (globalThis as Record<string, unknown>).__SEAMS_TEST_WALLET_IFRAME_HOST_MODE__;
     return typeof forced === 'boolean' ? forced : undefined;
   } catch {
     return undefined;

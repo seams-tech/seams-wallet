@@ -25,13 +25,13 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
             const observer = new MutationObserver((records) => {
               for (const record of records) {
                 for (const node of Array.from(record.addedNodes)) {
-                  if (!(node instanceof HTMLElement) || node.tagName !== 'W3A-TX-CONFIRMER') {
+                  if (!(node instanceof HTMLElement) || node.tagName !== 'SEAMS-TX-CONFIRMER') {
                     continue;
                   }
                   observer.disconnect();
                   resolve({
-                    surface: node.getAttribute('data-w3a-confirm-surface'),
-                    variant: node.getAttribute('data-w3a-confirm-variant'),
+                    surface: node.getAttribute('data-seams-confirm-surface'),
+                    variant: node.getAttribute('data-seams-confirm-variant'),
                   });
                   return;
                 }
@@ -134,13 +134,13 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
           }
         };
 
-        await waitFor(() => !!document.querySelector('w3a-tx-confirm-content'));
-        await waitFor(() => !!document.querySelector('w3a-tx-tree'));
+        await waitFor(() => !!document.querySelector('seams-tx-confirm-content'));
+        await waitFor(() => !!document.querySelector('seams-tx-tree'));
 
-        const portalChild = document.getElementById('w3a-confirm-portal')?.firstElementChild as any;
-        const modalElement = portalChild?.querySelector('w3a-modal-tx-confirmer') as HTMLElement;
-        const contentEl = document.querySelector('w3a-tx-confirm-content') as any;
-        const treeEl = document.querySelector('w3a-tx-tree') as any;
+        const portalChild = document.getElementById('seams-confirm-portal')?.firstElementChild as any;
+        const modalElement = portalChild?.querySelector('seams-modal-tx-confirmer') as HTMLElement;
+        const contentEl = document.querySelector('seams-tx-confirm-content') as any;
+        const treeEl = document.querySelector('seams-tx-tree') as any;
         const treeNode = contentEl?._treeNode;
 
         const firstOperation = Array.isArray(treeNode?.children) ? treeNode.children[0] : null;
@@ -387,7 +387,7 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
             operations: [],
           } as any,
         });
-        const element = document.querySelector('w3a-tx-confirmer') as HTMLElement;
+        const element = document.querySelector('seams-tx-confirmer') as HTMLElement;
         element.dispatchEvent(
           new CustomEvent(WalletIframeDomEvents.TX_CONFIRMER_CANCEL, {
             detail: { confirmed: false },
@@ -586,8 +586,8 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
           return null;
         };
 
-        await waitFor(() => !!document.querySelector('w3a-tx-confirm-content'));
-        const contentEl = document.querySelector('w3a-tx-confirm-content') as any;
+        await waitFor(() => !!document.querySelector('seams-tx-confirm-content'));
+        const contentEl = document.querySelector('seams-tx-confirm-content') as any;
         await waitFor(() => {
           const root = contentEl?._treeNode;
           const callNode = findNode(root, (candidate) =>
@@ -725,10 +725,10 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
             nearAccountIdOverride: 'alice.testnet',
           });
 
-          await waitFor(() => !!document.querySelector('w3a-tx-confirm-content'));
-          await waitFor(() => !!document.querySelector('w3a-tx-tree'));
+          await waitFor(() => !!document.querySelector('seams-tx-confirm-content'));
+          await waitFor(() => !!document.querySelector('seams-tx-tree'));
 
-          const contentEl = document.querySelector('w3a-tx-confirm-content') as any;
+          const contentEl = document.querySelector('seams-tx-confirm-content') as any;
           const treeNode = contentEl?._treeNode;
           const firstOperation = Array.isArray(treeNode?.children) ? treeNode.children[0] : null;
           const operationLabel = String(firstOperation?.label || '');
@@ -742,7 +742,7 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
 
           handle.close(true);
           await waitFor(
-            () => (document.getElementById('w3a-confirm-portal')?.childElementCount || 0) === 0,
+            () => (document.getElementById('seams-confirm-portal')?.childElementCount || 0) === 0,
           );
         }
 
@@ -814,14 +814,14 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
         };
 
         await waitFor(() => !!document.querySelector('.security-details'));
-        await waitFor(() => !!document.querySelector('w3a-tx-tree'));
+        await waitFor(() => !!document.querySelector('seams-tx-tree'));
 
         const securityDetails = document.querySelector('.security-details');
         const securityDetailsText = String(securityDetails?.textContent || '')
           .replace(/\s+/g, ' ')
           .trim();
 
-        const allLabelTexts = Array.from(document.querySelectorAll('w3a-tx-tree .label-text')).map(
+        const allLabelTexts = Array.from(document.querySelectorAll('seams-tx-tree .label-text')).map(
           (el) =>
             String(el.textContent || '')
               .replace(/\s+/g, ' ')
@@ -928,11 +928,11 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
             nearAccountIdOverride: 'alice.testnet',
           });
 
-          await waitFor(() => !!document.querySelector('w3a-tx-tree .highlight-receiver-id[href]'));
+          await waitFor(() => !!document.querySelector('seams-tx-tree .highlight-receiver-id[href]'));
           const href =
             (
               document.querySelector(
-                'w3a-tx-tree .highlight-receiver-id[href]',
+                'seams-tx-tree .highlight-receiver-id[href]',
               ) as HTMLAnchorElement | null
             )?.href || '';
           handle.close(true);
@@ -991,15 +991,15 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
           nearAccountIdOverride: 'alice.testnet',
         });
 
-        const portal = document.getElementById('w3a-confirm-portal');
+        const portal = document.getElementById('seams-confirm-portal');
         const initialEl = portal?.firstElementChild as HTMLElement | null;
         const initial = !!initialEl && getComputedStyle(initialEl).display !== 'none';
-        const hasTreeBeforeUpdate = !!document.querySelector('w3a-tx-tree');
+        const hasTreeBeforeUpdate = !!document.querySelector('seams-tx-tree');
         const hasNoActionsTextBeforeUpdate = /no actions/i.test(String(portal?.textContent || ''));
 
         // Update loading to false and set error message
         handle.update({ loading: false, errorMessage: 'Oops' });
-        const el = document.getElementById('w3a-confirm-portal')
+        const el = document.getElementById('seams-confirm-portal')
           ?.firstElementChild as HTMLElement | null;
         const updated = {
           hasPortal: !!portal,
@@ -1007,17 +1007,17 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
           loading: el ? (el as any).loading : undefined,
           errorMessage: el ? (el as any).errorMessage : undefined,
           dataError: el ? el.getAttribute('data-error-message') : undefined,
-          hasTree: !!document.querySelector('w3a-tx-tree'),
+          hasTree: !!document.querySelector('seams-tx-tree'),
           hasNoActionsText: /no actions/i.test(
-            String(document.getElementById('w3a-confirm-portal')?.textContent || ''),
+            String(document.getElementById('seams-confirm-portal')?.textContent || ''),
           ),
         };
 
         // Close should remove the element
         handle.close(true);
         const afterClose = {
-          portalExists: !!document.getElementById('w3a-confirm-portal'),
-          childCount: document.getElementById('w3a-confirm-portal')?.childElementCount || 0,
+          portalExists: !!document.getElementById('seams-confirm-portal'),
+          childCount: document.getElementById('seams-confirm-portal')?.childElementCount || 0,
         };
 
         return { initial, updated, afterClose, hasTreeBeforeUpdate, hasNoActionsTextBeforeUpdate };
@@ -1073,8 +1073,8 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
           surface: { kind: 'mount_new' },
         });
 
-        await waitFor(() => document.getElementById('w3a-confirm-portal')?.childElementCount === 1);
-        const portal = document.getElementById('w3a-confirm-portal') as HTMLElement;
+        await waitFor(() => document.getElementById('seams-confirm-portal')?.childElementCount === 1);
+        const portal = document.getElementById('seams-confirm-portal') as HTMLElement;
         const firstElement = portal.firstElementChild as HTMLElement;
 
         const secondHandle = await mountConfirmUI({
@@ -1168,9 +1168,9 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
         });
 
         await waitFor(
-          () => !!document.querySelector('w3a-tx-tree details[data-node-id="evm.eip1559"]'),
+          () => !!document.querySelector('seams-tx-tree details[data-node-id="evm.eip1559"]'),
         );
-        const initialTree = document.querySelector('w3a-tx-tree') as HTMLElement | null;
+        const initialTree = document.querySelector('seams-tx-tree') as HTMLElement | null;
         const initialOperation = initialTree?.querySelector(
           'details[data-node-id="evm.eip1559"]',
         ) as HTMLDetailsElement | null;
@@ -1192,10 +1192,10 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
         });
 
         await waitFor(() => {
-          const content = document.querySelector('w3a-tx-confirm-content') as any;
+          const content = document.querySelector('seams-tx-confirm-content') as any;
           return content?.model?.intentDigest === 'prepared-intent-digest';
         });
-        const tree = document.querySelector('w3a-tx-tree') as HTMLElement | null;
+        const tree = document.querySelector('seams-tx-tree') as HTMLElement | null;
         const hydratedOperation = tree?.querySelector(
           'details[data-node-id="evm.eip1559"]',
         ) as HTMLDetailsElement | null;
@@ -1310,11 +1310,11 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
       'title',
       'wallet.example.test',
     );
-    expect(await page.locator('w3a-tx-tree').count()).toBe(0);
+    expect(await page.locator('seams-tx-tree').count()).toBe(0);
     await expect
       .poll(() =>
         page
-          .locator('.passkey-registration-confirm w3a-passkey-halo-loading')
+          .locator('.passkey-registration-confirm seams-passkey-halo-loading')
           .evaluate((element: any) => element.animated),
       )
       .toBe(true);
@@ -1373,11 +1373,11 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
           nearAccountIdOverride: 'bob.testnet',
         });
 
-        const portal = document.getElementById('w3a-confirm-portal');
+        const portal = document.getElementById('seams-confirm-portal');
         const initialEl = portal?.firstElementChild as any;
         const exists = !!initialEl;
         handle.update({ loading: false, theme: 'dark' });
-        const el = document.getElementById('w3a-confirm-portal')?.firstElementChild as any;
+        const el = document.getElementById('seams-confirm-portal')?.firstElementChild as any;
         const stillThere = !!el;
         const afterUpdate = {
           loading: el ? el.loading : undefined,
@@ -1385,7 +1385,7 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
         };
         handle.close(false);
         await new Promise((resolve) => setTimeout(resolve, 300));
-        const gone = (document.getElementById('w3a-confirm-portal')?.childElementCount || 0) === 0;
+        const gone = (document.getElementById('seams-confirm-portal')?.childElementCount || 0) === 0;
         return { exists, stillThere, gone, afterUpdate };
       },
       { paths: IMPORT_PATHS },
@@ -1426,20 +1426,20 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
           nearAccountIdOverride: 'carol.testnet',
         });
 
-        const portal = document.getElementById('w3a-confirm-portal');
+        const portal = document.getElementById('seams-confirm-portal');
         const initialEl = portal?.firstElementChild as any;
         const exists = !!initialEl;
         handle.update({ loading: false, theme: 'dark', errorMessage: 'Denied' });
-        const el = document.getElementById('w3a-confirm-portal')?.firstElementChild as any;
+        const el = document.getElementById('seams-confirm-portal')?.firstElementChild as any;
         (el as any)?.requestUpdate?.();
         await new Promise((resolve) => setTimeout(resolve, 20));
-        const portalChild = document.getElementById('w3a-confirm-portal')?.firstElementChild as any;
+        const portalChild = document.getElementById('seams-confirm-portal')?.firstElementChild as any;
         const afterUpdate = {
           dataError: portalChild ? portalChild.getAttribute?.('data-error-message') : undefined,
         };
         handle.close(true);
         await new Promise((resolve) => setTimeout(resolve, 300));
-        const gone = (document.getElementById('w3a-confirm-portal')?.childElementCount || 0) === 0;
+        const gone = (document.getElementById('seams-confirm-portal')?.childElementCount || 0) === 0;
         return { exists, afterUpdate, gone };
       },
       { paths: IMPORT_PATHS },

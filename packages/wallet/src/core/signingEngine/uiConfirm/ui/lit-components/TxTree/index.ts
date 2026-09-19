@@ -29,7 +29,7 @@ const HEIGHT_DRIVEN_CLASSES = ['anim-h', 'anim-h-active', 'anim-h-driven'] as co
  * A small, dependency-free Lit component that renders a tree-like UI suitable for tooltips.
  *
  * Usage:
- *   <w3a-tx-tree .node=${node} depth="0"></w3a-tx-tree>
+ *   <seams-tx-tree .node=${node} depth="0"></seams-tx-tree>
  *
  * Mapping note: txSigningRequests (TransactionInput[]) → TreeNode structure
  * Example (single FunctionCall):
@@ -134,7 +134,7 @@ export class TxTree extends LitElementWithProps {
         const ta = document.createElement('textarea');
         ta.value = value;
         ta.setAttribute('readonly', '');
-        ta.className = 'w3a-offscreen';
+        ta.className = 'seams-offscreen';
         document.body.appendChild(ta);
         ta.select();
         try {
@@ -204,7 +204,7 @@ export class TxTree extends LitElementWithProps {
     // so neither the screen nor the surface reporter sees it.
     if (shell) {
       shell.classList.add(...HEIGHT_DRIVEN_CLASSES);
-      this.setCssVars({ '--w3a-tree__anim-target': `${fromCssPx}px` });
+      this.setCssVars({ '--seams-tree__anim-target': `${fromCssPx}px` });
     }
     this._fileContentModes.set(node.id, nextMode);
     this.requestUpdate();
@@ -221,7 +221,7 @@ export class TxTree extends LitElementWithProps {
         drivenClasses: HEIGHT_DRIVEN_CLASSES,
         fromCssPx,
         toCssPx,
-        setHeightCssPx: (px) => this.setCssVars({ '--w3a-tree__anim-target': `${px}px` }),
+        setHeightCssPx: (px) => this.setCssVars({ '--seams-tree__anim-target': `${px}px` }),
       });
       if (!claimed) shell.classList.remove(...HEIGHT_DRIVEN_CLASSES);
     });
@@ -322,7 +322,7 @@ export class TxTree extends LitElementWithProps {
       }
       const target = `${targetPx}px`;
       // Drive animation via host CSS variable; avoid inline styles
-      this.setCssVars({ '--w3a-tree__anim-target': target });
+      this.setCssVars({ '--seams-tree__anim-target': target });
       // Activate transition to target height
       body.classList.remove('anim-h-hold');
       body.classList.add('anim-h-active');
@@ -353,7 +353,7 @@ export class TxTree extends LitElementWithProps {
     const startPx = body.scrollHeight;
     const start = `${startPx}px`;
     // Pin the current height without a transition, then let it tween to 0.
-    this.setCssVars({ '--w3a-tree__anim-target': start });
+    this.setCssVars({ '--seams-tree__anim-target': start });
     body.classList.add('anim-h', 'anim-h-active', 'anim-h-hold');
     // Force reflow to ensure start height is applied
     void body.offsetHeight;
@@ -405,7 +405,7 @@ export class TxTree extends LitElementWithProps {
       drivenClasses: HEIGHT_DRIVEN_CLASSES,
       fromCssPx: open ? 0 : deltaCssPx,
       toCssPx: open ? deltaCssPx : 0,
-      setHeightCssPx: (px) => this.setCssVars({ '--w3a-tree__anim-target': `${px}px` }),
+      setHeightCssPx: (px) => this.setCssVars({ '--seams-tree__anim-target': `${px}px` }),
       onSettled: () => {
         if (!open) details.open = false;
         body.classList.remove('anim-h-hold');
@@ -433,7 +433,7 @@ export class TxTree extends LitElementWithProps {
       ensureExternalStyles(
         root as ShadowRoot | DocumentFragment | HTMLElement,
         'tx-tree.css',
-        'data-w3a-tx-tree-css',
+        'data-seams-tx-tree-css',
       ).catch(() => {});
       return root;
     }
@@ -441,11 +441,11 @@ export class TxTree extends LitElementWithProps {
     ensureExternalStyles(
       this as unknown as HTMLElement,
       'tx-tree.css',
-      'data-w3a-tx-tree-css',
+      'data-seams-tx-tree-css',
     ).catch(() => {});
     const root = this.getRootNode ? this.getRootNode() : null;
     if (root instanceof ShadowRoot) {
-      ensureExternalStyles(root as ShadowRoot, 'tx-tree.css', 'data-w3a-tx-tree-css').catch(
+      ensureExternalStyles(root as ShadowRoot, 'tx-tree.css', 'data-seams-tx-tree-css').catch(
         () => {},
       );
     }
@@ -467,7 +467,7 @@ export class TxTree extends LitElementWithProps {
       this.applyStyles(this.styles as TxTreeStyles);
     }
     // 2) Fall back to theme-driven defaults when styles are not provided/changed
-    // This makes <w3a-tx-tree theme="dark|light"> responsive even if a parent forgets
+    // This makes <seams-tx-tree theme="dark|light"> responsive even if a parent forgets
     // to pass a styles object for the theme.
     if (changedProperties.has('theme') && !hasExplicitStyles && this.theme) {
       const preset = TX_TREE_THEMES[this.theme] || TX_TREE_THEMES.dark;
@@ -889,10 +889,10 @@ export class TxTree extends LitElementWithProps {
   }
 }
 
-import { W3A_TX_TREE_ID } from '../../registry';
+import { SEAMS_TX_TREE_ID } from '../../registry';
 
-if (!customElements.get(W3A_TX_TREE_ID)) {
-  customElements.define(W3A_TX_TREE_ID, TxTree);
+if (!customElements.get(SEAMS_TX_TREE_ID)) {
+  customElements.define(SEAMS_TX_TREE_ID, TxTree);
 }
 
 export default TxTree;

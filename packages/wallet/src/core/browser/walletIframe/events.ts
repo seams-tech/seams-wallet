@@ -2,9 +2,9 @@
 // These are re-used across the iframe host, Lit components, and tests.
 
 export const WalletIframeDomEvents = {
-  TX_CONFIRMER_CONFIRM: 'w3a:tx-confirmer-confirm',
-  TX_CONFIRMER_CANCEL: 'w3a:tx-confirmer-cancel',
-  TX_CONFIRMER_INTERACTIVE: 'w3a:tx-confirmer-interactive',
+  TX_CONFIRMER_CONFIRM: 'seams:tx-confirmer-confirm',
+  TX_CONFIRMER_CANCEL: 'seams:tx-confirmer-cancel',
+  TX_CONFIRMER_INTERACTIVE: 'seams:tx-confirmer-interactive',
 } as const;
 
 export type WalletIframeDomEvent =

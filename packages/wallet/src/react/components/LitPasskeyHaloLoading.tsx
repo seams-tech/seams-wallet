@@ -27,7 +27,7 @@ type ReactWebComponent<P> = React.ForwardRefExoticComponent<
 
 export const LitPasskeyHaloLoading = createComponent({
   react: React,
-  tagName: 'w3a-passkey-halo-loading',
+  tagName: 'seams-passkey-halo-loading',
   elementClass: PasskeyHaloLoadingElement,
   displayName: 'LitPasskeyHaloLoading',
 }) as ReactWebComponent<LitPasskeyHaloLoadingProps>;

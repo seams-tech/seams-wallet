@@ -23,10 +23,10 @@ export const UserAccountButton: React.FC<UserAccountButtonProps> = ({
   };
   const hideWhenClosed = hideUsername && !isOpen;
   return (
-    <div className={`w3a-user-account-button-root ${theme}`}>
+    <div className={`seams-user-account-button-root ${theme}`}>
       <div
         id={triggerId}
-        className={`w3a-user-account-button-trigger ${hideWhenClosed ? 'hide-username' : ''} ${isOpen ? 'open' : 'closed'}`}
+        className={`seams-user-account-button-trigger ${hideWhenClosed ? 'hide-username' : ''} ${isOpen ? 'open' : 'closed'}`}
         onClick={onClick}
         role="button"
         tabIndex={0}
@@ -37,12 +37,12 @@ export const UserAccountButton: React.FC<UserAccountButtonProps> = ({
         {...(onMouseEnter && { onMouseEnter })}
         {...(onMouseLeave && { onMouseLeave })}
       >
-        <div className="w3a-user-account--user-content">
+        <div className="seams-user-account--user-content">
           <div
-            className={`w3a-user-account--avatar ${hideWhenClosed ? 'hide-username' : ''} ${isOpen ? 'expanded' : 'shrunk'}`}
+            className={`seams-user-account--avatar ${hideWhenClosed ? 'hide-username' : ''} ${isOpen ? 'expanded' : 'shrunk'}`}
           >
             <TouchIcon
-              className={`w3a-fingerprint-icon ${isOpen ? 'open' : 'closed'}`}
+              className={`seams-fingerprint-icon ${isOpen ? 'open' : 'closed'}`}
               strokeWidth={1.4}
             />
           </div>
@@ -79,18 +79,18 @@ export const UserAccountId = ({
   /* plain identity label (the wallet id) — explorer links live in the
      Accounts section of the dropdown */
   return (
-    <div className="w3a-user-account--user-details">
-      <p className="w3a-user-account--username">Settings</p>
+    <div className="seams-user-account--user-details">
+      <p className="seams-user-account--username">Settings</p>
       <span
         title={displayAccountId || undefined}
-        className={`w3a-user-account--account-id ${isOpen ? 'visible' : 'hidden'}`}
+        className={`seams-user-account--account-id ${isOpen ? 'visible' : 'hidden'}`}
       >
         {displayAccountId}
       </span>
       {emailAddress && (
         <span
           title={emailAddress}
-          className={`w3a-user-account--email ${isOpen ? 'visible' : 'hidden'}`}
+          className={`seams-user-account--email ${isOpen ? 'visible' : 'hidden'}`}
         >
           {emailAddress}
         </span>

@@ -1,63 +1,63 @@
 /*
-  Tokens and defaults for <w3a-drawer>
+  Tokens and defaults for <seams-drawer>
 
-  Theme tokens come from w3a-components.css, generated from
+  Theme tokens come from seams-components.css, generated from
   client/src/theme/palette.json via createThemeTokens in client/src/theme/base-styles.js.
   See css-loader.ts for how components ensure the stylesheet is present.
   Modify palette.json or base-styles.js to change colors/aliases.
 */
 
-w3a-drawer {
-  --w3a-drawer__max-width: 384px; /* 360px toolTip width + 1.5rem (24px) */
-  --w3a-drawer__sheet-height: 100dvh; /* prefer dynamic viewport */
-  --w3a-drawer__open-offset: 0px; /* mobile chrome compensation */
+seams-drawer {
+  --seams-drawer__max-width: 384px; /* 360px toolTip width + 1.5rem (24px) */
+  --seams-drawer__sheet-height: 100dvh; /* prefer dynamic viewport */
+  --seams-drawer__open-offset: 0px; /* mobile chrome compensation */
   /* Match TxTree row expand/collapse timing */
-  --w3a-drawer__transition-duration: 100ms;
-  --w3a-drawer__transition-easing: cubic-bezier(0.2, 0.6, 0.2, 1);
+  --seams-drawer__transition-duration: 100ms;
+  --seams-drawer__transition-easing: cubic-bezier(0.2, 0.6, 0.2, 1);
 }
 
 /* Duplicate token defaults for shadow-adopted usage */
 :host {
-  --w3a-drawer__max-width: var(--w3a-drawer__max-width, 384px);
-  --w3a-drawer__sheet-height: var(--w3a-drawer__sheet-height, 100dvh);
-  --w3a-drawer__open-offset: var(--w3a-drawer__open-offset, 0px);
+  --seams-drawer__max-width: var(--seams-drawer__max-width, 384px);
+  --seams-drawer__sheet-height: var(--seams-drawer__sheet-height, 100dvh);
+  --seams-drawer__open-offset: var(--seams-drawer__open-offset, 0px);
 }
 
-/* Structural styles for <w3a-drawer> (Shadow and Light DOM) */
+/* Structural styles for <seams-drawer> (Shadow and Light DOM) */
 :host,
-w3a-drawer {
+seams-drawer {
   display: block;
   width: 100%;
   max-width: 100%;
 }
 
-w3a-drawer .overlay,
+seams-drawer .overlay,
 :host .overlay {
   display: none;
 }
 
-w3a-drawer .drawer,
+seams-drawer .drawer,
 :host .drawer {
   position: relative;
   inset: auto;
   width: 100%;
   max-width: 100%;
   /* Use AccessKeysModal token set; fall back to Lit host vars */
-  background: var(--w3a-colors-colorBackground, var(--w3a-color-background, #111));
-  color: var(--w3a-colors-textPrimary, var(--w3a-text-primary, #f6f7f8));
+  background: var(--seams-colors-colorBackground, var(--seams-color-background, #111));
+  color: var(--seams-colors-textPrimary, var(--seams-text-primary, #f6f7f8));
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
     sans-serif;
   font-size: 1rem;
   /* bottom sheet: top-only rounding, one step past the card shape and
      capped at the classic 34px for the rounded preset */
-  --w3a-drawer__sheet-radius: min(calc(var(--w3a-shape-card, 16px) + 2px), 2.125rem);
-  border-radius: var(--w3a-drawer__sheet-radius) var(--w3a-drawer__sheet-radius) 0 0;
+  --seams-drawer__sheet-radius: min(calc(var(--seams-shape-card, 16px) + 2px), 2.125rem);
+  border-radius: var(--seams-drawer__sheet-radius) var(--seams-drawer__sheet-radius) 0 0;
   border: none;
   transform: translateY(0);
   transition:
-    transform var(--w3a-drawer__transition-duration, 100ms)
-      var(--w3a-drawer__transition-easing, cubic-bezier(0.2, 0.6, 0.2, 1)),
+    transform var(--seams-drawer__transition-duration, 100ms)
+      var(--seams-drawer__transition-easing, cubic-bezier(0.2, 0.6, 0.2, 1)),
     border-radius 300ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
   box-shadow: 0 0px 8px rgba(0, 0, 0, 0.2);
@@ -73,20 +73,20 @@ w3a-drawer .drawer,
 .drawer.vv-sync {
   transition: none;
 }
-w3a-drawer .drawer.init,
+seams-drawer .drawer.init,
 :host .drawer.init {
   transition: none !important;
 }
-w3a-drawer[open] .drawer.dragging,
+seams-drawer[open] .drawer.dragging,
 :host([open]) .drawer.dragging {
-  transform: translateY(var(--w3a-drawer__drag-translate, 0px));
+  transform: translateY(var(--seams-drawer__drag-translate, 0px));
 }
 
 .handle {
   width: 36px;
   height: 4px;
   border-radius: 2px;
-  background: var(--w3a-colors-borderPrimary, rgba(255, 255, 255, 0.25));
+  background: var(--seams-colors-borderPrimary, rgba(255, 255, 255, 0.25));
   margin: 1rem auto;
   /* Ensure vertical drag gestures on the handle don't trigger page scroll */
   touch-action: none;
@@ -122,7 +122,7 @@ w3a-drawer[open] .drawer.dragging,
   font-size: 24px;
   background: none;
   border: none;
-  color: var(--w3a-colors-textMuted, #99a0aa);
+  color: var(--seams-colors-textMuted, #99a0aa);
   font-size: 28px;
   line-height: 1;
   cursor: pointer;
@@ -137,8 +137,8 @@ w3a-drawer[open] .drawer.dragging,
 }
 
 .close-btn:hover {
-  color: var(--w3a-colors-textPrimary, #f6f7f8);
-  background: var(--w3a-colors-surface, rgba(255, 255, 255, 0.08));
+  color: var(--seams-colors-textPrimary, #f6f7f8);
+  background: var(--seams-colors-surface, rgba(255, 255, 255, 0.08));
 }
 
 .close-btn:active {
@@ -147,14 +147,14 @@ w3a-drawer[open] .drawer.dragging,
 .close-btn:focus-visible {
   outline: 2px solid
     var(
-      --w3a-modal__btn__focus-outline-color,
-      var(--w3a-colors-accent, var(--w3a-color-primary, #3b82f6))
+      --seams-modal__btn__focus-outline-color,
+      var(--seams-colors-accent, var(--seams-color-primary, #3b82f6))
     );
   outline-offset: 3px;
 }
 
 .error {
-  color: var(--w3a-colors-error, var(--w3a-red400, #ff7a7a));
+  color: var(--seams-colors-error, var(--seams-red400, #ff7a7a));
   font-size: 0.9rem;
   margin-top: 0.5rem;
 }
@@ -163,31 +163,31 @@ w3a-drawer[open] .drawer.dragging,
 }
 
 /* Light theme adjustments */
-w3a-drawer[theme='light'] .close-btn,
+seams-drawer[theme='light'] .close-btn,
 :host([theme='light']) .close-btn {
-  color: var(--w3a-colors-textMuted, #667085);
+  color: var(--seams-colors-textMuted, #667085);
 }
-w3a-drawer[theme='light'] .close-btn:hover,
+seams-drawer[theme='light'] .close-btn:hover,
 :host([theme='light']) .close-btn:hover {
-  color: var(--w3a-colors-textPrimary, #181a1f);
-  background: var(--w3a-colors-surface, rgba(0, 0, 0, 0.06));
+  color: var(--seams-colors-textPrimary, #181a1f);
+  background: var(--seams-colors-surface, rgba(0, 0, 0, 0.06));
 }
-w3a-drawer[theme='light'] .drawer,
+seams-drawer[theme='light'] .drawer,
 :host([theme='light']) .drawer {
-  background: var(--w3a-colors-colorBackground, #fff);
-  color: var(--w3a-colors-textPrimary, #181a1f);
-  border-color: var(--w3a-colors-borderPrimary, rgba(0, 0, 0, 0.08));
+  background: var(--seams-colors-colorBackground, #fff);
+  color: var(--seams-colors-textPrimary, #181a1f);
+  border-color: var(--seams-colors-borderPrimary, rgba(0, 0, 0, 0.08));
   /* Softer elevation for light theme */
   box-shadow: 0 0px 12px rgba(0, 0, 0, 0.12);
 }
 
 /* Standalone confirmations retain the document-owned bottom-sheet overlay. */
-w3a-tx-confirmer[data-w3a-confirm-surface='standalone'] w3a-drawer-tx-confirmer,
-w3a-tx-confirmer[data-w3a-confirm-surface='standalone'] w3a-drawer {
+seams-tx-confirmer[data-seams-confirm-surface='standalone'] seams-drawer-tx-confirmer,
+seams-tx-confirmer[data-seams-confirm-surface='standalone'] seams-drawer {
   display: contents;
 }
 
-w3a-tx-confirmer[data-w3a-confirm-surface='standalone'] w3a-drawer .overlay {
+seams-tx-confirmer[data-seams-confirm-surface='standalone'] seams-drawer .overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.1);
@@ -197,32 +197,32 @@ w3a-tx-confirmer[data-w3a-confirm-surface='standalone'] w3a-drawer .overlay {
   transition: opacity 0.15s ease;
 }
 
-w3a-tx-confirmer[data-w3a-confirm-surface='standalone'] w3a-drawer[open] .overlay {
+seams-tx-confirmer[data-seams-confirm-surface='standalone'] seams-drawer[open] .overlay {
   pointer-events: auto;
 }
 
-w3a-tx-confirmer[data-w3a-confirm-surface='standalone'] w3a-drawer .drawer {
+seams-tx-confirmer[data-seams-confirm-surface='standalone'] seams-drawer .drawer {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 2147483647;
   width: auto;
-  max-width: var(--w3a-drawer__max-width, 384px);
+  max-width: var(--seams-drawer__max-width, 384px);
   margin-inline: auto;
-  height: var(--w3a-drawer__sheet-height, 100dvh);
+  height: var(--seams-drawer__sheet-height, 100dvh);
   max-height: none;
   transform: translateY(100%);
 }
 
-w3a-tx-confirmer[data-w3a-confirm-surface='standalone'] w3a-drawer[open] .drawer {
+seams-tx-confirmer[data-seams-confirm-surface='standalone'] seams-drawer[open] .drawer {
   transform: translateY(
-    calc(var(--w3a-drawer__open-translate, 100%) - var(--w3a-drawer__open-offset, 0px))
+    calc(var(--seams-drawer__open-translate, 100%) - var(--seams-drawer__open-offset, 0px))
   );
 }
 
 /* Standalone export viewers use the same document-owned bottom-sheet surface. */
-w3a-drawer[data-w3a-export-surface='standalone'] .overlay {
+seams-drawer[data-seams-export-surface='standalone'] .overlay {
   display: block;
   position: fixed;
   inset: 0;
@@ -233,26 +233,26 @@ w3a-drawer[data-w3a-export-surface='standalone'] .overlay {
   transition: opacity 0.15s ease;
 }
 
-w3a-drawer[data-w3a-export-surface='standalone'][open] .overlay {
+seams-drawer[data-seams-export-surface='standalone'][open] .overlay {
   pointer-events: auto;
 }
 
-w3a-drawer[data-w3a-export-surface='standalone'] .drawer {
+seams-drawer[data-seams-export-surface='standalone'] .drawer {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 2147483647;
   width: auto;
-  max-width: var(--w3a-drawer__max-width, 384px);
+  max-width: var(--seams-drawer__max-width, 384px);
   margin-inline: auto;
-  height: var(--w3a-drawer__sheet-height, 100dvh);
+  height: var(--seams-drawer__sheet-height, 100dvh);
   max-height: none;
   transform: translateY(100%);
 }
 
-w3a-drawer[data-w3a-export-surface='standalone'][open] .drawer {
+seams-drawer[data-seams-export-surface='standalone'][open] .drawer {
   transform: translateY(
-    calc(var(--w3a-drawer__open-translate, 100%) - var(--w3a-drawer__open-offset, 0px))
+    calc(var(--seams-drawer__open-translate, 100%) - var(--seams-drawer__open-offset, 0px))
   );
 }

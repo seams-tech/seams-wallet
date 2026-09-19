@@ -15,11 +15,11 @@ export function resolveWalletCustodyCeremonyWorkerUrl(opts?: { baseOrigin?: stri
 
   const override =
     typeof window !== 'undefined' &&
-    typeof (window as { __W3A_WALLET_CUSTODY_CEREMONY_WORKER_URL__?: unknown })
-      .__W3A_WALLET_CUSTODY_CEREMONY_WORKER_URL__ === 'string'
+    typeof (window as { __SEAMS_WALLET_CUSTODY_CEREMONY_WORKER_URL__?: unknown })
+      .__SEAMS_WALLET_CUSTODY_CEREMONY_WORKER_URL__ === 'string'
       ? String(
-          (window as { __W3A_WALLET_CUSTODY_CEREMONY_WORKER_URL__?: string })
-            .__W3A_WALLET_CUSTODY_CEREMONY_WORKER_URL__,
+          (window as { __SEAMS_WALLET_CUSTODY_CEREMONY_WORKER_URL__?: string })
+            .__SEAMS_WALLET_CUSTODY_CEREMONY_WORKER_URL__,
         )
       : '';
   const candidate = override || '/sdk/workers/wallet-custody-ceremony.worker.js';

@@ -238,7 +238,7 @@ async function startHostedAuthMenu(
 
 async function readDialogGeometry(page: Page) {
   return page.evaluate(() => {
-    const dialog = document.querySelector('dialog.w3a-wallet-overlay-dialog');
+    const dialog = document.querySelector('dialog.seams-wallet-overlay-dialog');
     if (!(dialog instanceof HTMLDialogElement)) throw new Error('wallet overlay dialog missing');
     const rect = dialog.getBoundingClientRect();
     return {
@@ -259,7 +259,7 @@ async function waitForDialogGeometry(
 ): Promise<void> {
   await page.waitForFunction(
     ({ expected }) => {
-      const dialog = document.querySelector('dialog.w3a-wallet-overlay-dialog');
+      const dialog = document.querySelector('dialog.seams-wallet-overlay-dialog');
       if (!(dialog instanceof HTMLDialogElement)) return false;
       const rect = dialog.getBoundingClientRect();
       return (
@@ -272,7 +272,7 @@ async function waitForDialogGeometry(
 
 async function waitForMeasuredDialog(page: Page): Promise<void> {
   await page.waitForFunction(() => {
-    const dialog = document.querySelector('dialog.w3a-wallet-overlay-dialog');
+    const dialog = document.querySelector('dialog.seams-wallet-overlay-dialog');
     return dialog instanceof HTMLDialogElement && !dialog.classList.contains('is-provisional');
   });
 }
@@ -284,7 +284,7 @@ async function postSurfaceMeasurement(
   await page.evaluate(
     ({ walletOrigin, ownerTag, payload }) => {
       const iframe = document.querySelector(
-        `iframe[data-w3a-owner="${ownerTag}"]`,
+        `iframe[data-seams-owner="${ownerTag}"]`,
       ) as HTMLIFrameElement | null;
       if (!iframe?.contentWindow) throw new Error('wallet iframe missing');
       iframe.contentWindow.postMessage(
@@ -300,7 +300,7 @@ async function completeCurrentSurface(page: Page): Promise<void> {
   await page.evaluate(
     ({ walletOrigin, ownerTag }) => {
       const iframe = document.querySelector(
-        `iframe[data-w3a-owner="${ownerTag}"]`,
+        `iframe[data-seams-owner="${ownerTag}"]`,
       ) as HTMLIFrameElement | null;
       if (!iframe?.contentWindow) throw new Error('wallet iframe missing');
       iframe.contentWindow.postMessage({ type: 'TEST_COMPLETE_SURFACE' }, walletOrigin);
@@ -341,7 +341,7 @@ test.describe('wallet iframe compact surface measurement routing', () => {
     await startHostedAuthMenu(page, 'compact-initial-paint-session');
 
     const initialPaint = await page.evaluate(() => {
-      const dialog = document.querySelector('dialog.w3a-wallet-overlay-dialog');
+      const dialog = document.querySelector('dialog.seams-wallet-overlay-dialog');
       if (!(dialog instanceof HTMLDialogElement)) throw new Error('wallet overlay dialog missing');
       return {
         provisional: dialog.classList.contains('is-provisional'),
@@ -352,7 +352,7 @@ test.describe('wallet iframe compact surface measurement routing', () => {
 
     await page.waitForTimeout(150);
     const settledPaint = await page.evaluate(() => {
-      const dialog = document.querySelector('dialog.w3a-wallet-overlay-dialog');
+      const dialog = document.querySelector('dialog.seams-wallet-overlay-dialog');
       if (!(dialog instanceof HTMLDialogElement)) throw new Error('wallet overlay dialog missing');
       return {
         provisional: dialog.classList.contains('is-provisional'),
@@ -489,7 +489,7 @@ test.describe('wallet iframe compact surface measurement routing', () => {
     await waitForDialogGeometry(page, { width: 378, height: 387 });
 
     const geometry = await page.evaluate(() => {
-      const dialog = document.querySelector('dialog.w3a-wallet-overlay-dialog');
+      const dialog = document.querySelector('dialog.seams-wallet-overlay-dialog');
       const iframe = dialog?.querySelector('iframe');
       if (!(dialog instanceof HTMLDialogElement) || !(iframe instanceof HTMLIFrameElement)) {
         throw new Error('wallet auth-menu overlay missing');
@@ -531,7 +531,7 @@ test.describe('wallet iframe compact surface measurement routing', () => {
     await page.waitForTimeout(800);
 
     const scrolled = await page.evaluate(async () => {
-      const dialog = document.querySelector('dialog.w3a-wallet-overlay-dialog');
+      const dialog = document.querySelector('dialog.seams-wallet-overlay-dialog');
       const anchor = document.querySelector('[data-test-auth-menu-anchor]');
       if (!(dialog instanceof HTMLDialogElement) || !(anchor instanceof HTMLElement)) {
         throw new Error('wallet auth-menu overlay or anchor missing');

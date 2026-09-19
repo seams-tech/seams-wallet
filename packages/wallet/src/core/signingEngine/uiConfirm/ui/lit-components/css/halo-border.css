@@ -1,5 +1,5 @@
 /*
-  Uses host-scoped tokens (w3a-components.css) generated from palette.json
+  Uses host-scoped tokens (seams-components.css) generated from palette.json
   via client/src/theme/base-styles.js. Adjust palette/aliases there.
 */
 
@@ -21,17 +21,17 @@
   --ring-width: 4px;
   --ring-border-radius: 2rem;
   --inner-padding: 2rem;
-  --inner-background: var(--w3a-grey650, transparent);
+  --inner-background: var(--seams-grey650, transparent);
   --ring-stops:
     transparent 0%,
     var(
-        --w3a-colors-highlightHalo,
-        var(--w3a-colors-highlightPrimary, var(--w3a-colors-info, #4daffe))
+        --seams-colors-highlightHalo,
+        var(--seams-colors-highlightPrimary, var(--seams-colors-info, #4daffe))
       )
       10%,
     var(
-        --w3a-colors-highlightHalo,
-        var(--w3a-colors-highlightPrimary, var(--w3a-colors-info, #4daffe))
+        --seams-colors-highlightHalo,
+        var(--seams-colors-highlightPrimary, var(--seams-colors-info, #4daffe))
       )
       25%,
     transparent 35%;

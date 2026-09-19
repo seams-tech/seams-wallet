@@ -1,7 +1,7 @@
 /*
   Export Private Key viewer structural and visual styles.
-  Reads theme tokens from w3a-components.css (generated from palette.json).
-  See client/src/theme/base-styles.js and packages/wallet/scripts/codegen/generate-w3a-components-css.mjs.
+  Reads theme tokens from seams-components.css (generated from palette.json).
+  See client/src/theme/base-styles.js and packages/wallet/scripts/codegen/generate-seams-components-css.mjs.
 */
 
 :host {
@@ -12,7 +12,7 @@
     sans-serif;
 }
 /* Light DOM fallback when ShadowRoot is not used */
-w3a-export-key-viewer {
+seams-export-key-viewer {
   display: block;
   position: relative;
   font-family:
@@ -58,12 +58,12 @@ w3a-export-key-viewer {
   transition: all 0.2s ease;
 }
 .close-btn:hover {
-  color: var(--w3a-colors-textPrimary, #f6f7f8);
-  background: var(--w3a-colors-surface, rgba(255, 255, 255, 0.08));
+  color: var(--seams-colors-textPrimary, #f6f7f8);
+  background: var(--seams-colors-surface, rgba(255, 255, 255, 0.08));
 }
 
 .warning {
-  color: var(--w3a-colors-textSecondary, rgba(255, 255, 255, 0.7));
+  color: var(--seams-colors-textSecondary, rgba(255, 255, 255, 0.7));
   padding: 12px;
   border-radius: 1rem;
   font-size: 0.85rem;
@@ -71,7 +71,7 @@ w3a-export-key-viewer {
 }
 
 .error-banner {
-  color: var(--w3a-colors-error, #f87171);
+  color: var(--seams-colors-error, #f87171);
   background: rgba(248, 113, 113, 0.12);
   border: 1px solid rgba(248, 113, 113, 0.35);
   border-radius: 0.75rem;
@@ -92,7 +92,7 @@ w3a-export-key-viewer {
   gap: 0.5rem;
 }
 .key-title {
-  color: var(--w3a-colors-textPrimary, #f6f7f8);
+  color: var(--seams-colors-textPrimary, #f6f7f8);
   font-size: 0.9rem;
   font-weight: 700;
   padding-left: 0.5rem;
@@ -101,7 +101,7 @@ w3a-export-key-viewer {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  background: var(--w3a-colors-surface2);
+  background: var(--seams-colors-surface2);
   padding: 0.75rem;
   border-radius: 1rem;
 }
@@ -122,11 +122,11 @@ w3a-export-key-viewer {
 }
 
 .copy-field:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--w3a-colors-surface2) 92%, currentColor 8%);
+  background: color-mix(in srgb, var(--seams-colors-surface2) 92%, currentColor 8%);
 }
 
 .copy-field:focus-visible {
-  outline: 2px solid var(--w3a-colors-primary, #4daffe);
+  outline: 2px solid var(--seams-colors-primary, #4daffe);
   outline-offset: 2px;
 }
 
@@ -135,7 +135,7 @@ w3a-export-key-viewer {
 }
 
 .field-label {
-  color: var(--w3a-colors-textPrimary, #f6f7f8);
+  color: var(--seams-colors-textPrimary, #f6f7f8);
   font-size: 0.9rem;
   font-weight: 600;
 }
@@ -148,7 +148,7 @@ w3a-export-key-viewer {
 }
 
 .value {
-  color: var(--w3a-colors-textSecondary, rgba(255, 255, 255, 0.7));
+  color: var(--seams-colors-textSecondary, rgba(255, 255, 255, 0.7));
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   word-break: break-all; /* allow breaks within long keys */
   /* Clamp to 2 lines with ellipsis for overflow */
@@ -171,7 +171,7 @@ w3a-export-key-viewer {
    here. */
 .copy-icon {
   margin: 0 4px 0 auto;
-  color: var(--w3a-colors-textSecondary, rgba(255, 255, 255, 0.7));
+  color: var(--seams-colors-textSecondary, rgba(255, 255, 255, 0.7));
 }
 
 .private-key-reel {
@@ -203,7 +203,7 @@ w3a-export-key-viewer {
   }
 }
 
-.w3a-sr-only {
+.seams-sr-only {
   position: absolute;
   width: 1px;
   height: 1px;

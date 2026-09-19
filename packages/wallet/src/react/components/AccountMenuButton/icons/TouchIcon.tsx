@@ -11,7 +11,7 @@ interface TouchIconProps {
 
 const TouchIcon: React.FC<TouchIconProps> = ({ className, strokeWidth, width, height, style }) => (
   <svg
-    className={`w3a-fingerprint-icon ${className || ''}`}
+    className={`seams-fingerprint-icon ${className || ''}`}
     style={{ ...style }}
     width={width || 24}
     height={height || 24}

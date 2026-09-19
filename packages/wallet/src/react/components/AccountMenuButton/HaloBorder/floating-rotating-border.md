@@ -21,14 +21,14 @@ This yields a true “floating ring,” not a background fake gap.
 ## Key CSS
 
 ```css
-.w3a-rotating-border-container {
+.seams-rotating-border-container {
   position: relative;
   border-radius: 2rem;
   overflow: visible; /* allow the outside ring to show */
 }
 
 /* Outer floating ring */
-.w3a-rotating-border-container::before {
+.seams-rotating-border-container::before {
   content: '';
   position: absolute;
   /* extend beyond the element so the ring lives OUTSIDE */
@@ -39,7 +39,7 @@ This yields a true “floating ring,” not a background fake gap.
 
   /* rotating arc */
   background: conic-gradient(
-    from var(--w3a-ring-angle, 0deg),
+    from var(--seams-ring-angle, 0deg),
     transparent 0%,
     #4daffe 10%,
     #4daffe 25%,
@@ -54,21 +54,21 @@ This yields a true “floating ring,” not a background fake gap.
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 
-  animation: w3a-ring-rotate 1.15s linear infinite;
+  animation: seams-ring-rotate 1.15s linear infinite;
 }
 
-@property --w3a-ring-angle {
+@property --seams-ring-angle {
   syntax: '<angle>';
   initial-value: 0deg;
   inherits: false;
 }
 
-@keyframes w3a-ring-rotate {
+@keyframes seams-ring-rotate {
   from {
-    --w3a-ring-angle: 0deg;
+    --seams-ring-angle: 0deg;
   }
   to {
-    --w3a-ring-angle: 360deg;
+    --seams-ring-angle: 360deg;
   }
 }
 ```
@@ -112,7 +112,7 @@ Ensure any parent container allows the ring to be visible outside the box; the c
 ## Customization
 
 - Color/gradient: change the stops in the `conic-gradient` to any theme tokens or brand colors.
-- Speed: adjust the duration in `animation: w3a-ring-rotate …`.
+- Speed: adjust the duration in `animation: seams-ring-rotate …`.
 - Arc length: tweak the percentages in the gradient stops to make the arc shorter/longer.
 
 ## Browser Support & Fallbacks

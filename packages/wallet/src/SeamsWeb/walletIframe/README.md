@@ -211,8 +211,8 @@ never appeared at all), so keep them distinct:
 
 | Value | Attribute | Who decides | What it means |
 | --- | --- | --- | --- |
-| Confirmation variant | `data-w3a-confirm-variant` | the Confirmer UI setting | what THIS confirmation renders: a modal card, or a bottom sheet |
-| Host box shape | `data-w3a-confirm-surface` | the parent, per request | `wallet-iframe` = the parent measured the card and sized the iframe to hug it, so the card must NOT position itself. `standalone` = the card owns a full-viewport canvas and centres (modal) or bottom-anchors (drawer) itself. |
+| Confirmation variant | `data-seams-confirm-variant` | the Confirmer UI setting | what THIS confirmation renders: a modal card, or a bottom sheet |
+| Host box shape | `data-seams-confirm-surface` | the parent, per request | `wallet-iframe` = the parent measured the card and sized the iframe to hug it, so the card must NOT position itself. `standalone` = the card owns a full-viewport canvas and centres (modal) or bottom-anchors (drawer) itself. |
 
 For every request except key export the two are the same value, so the box shape
 is inferred from the variant. **Key export is the exception**, and it is
@@ -240,4 +240,4 @@ two wrong turns; the layout knob is the box shape.
 ### Notes
 
 - Layering: the iframe overlay uses `z-index: 2147483646`, kept one below the inner modal card (2147483647) to ensure the UI remains clickable when visible.
-- Debugging: set `window.__W3A_DEBUG__ = true` (or pass `debug: true` to the client) to log surface transitions and progress routing.
+- Debugging: set `window.__SEAMS_DEBUG__ = true` (or pass `debug: true` to the client) to log surface transitions and progress routing.

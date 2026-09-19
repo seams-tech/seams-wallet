@@ -15,7 +15,7 @@
 // churn best done on its own.
 import { html, type PropertyValues } from 'lit';
 import { LitElementWithProps } from '../LitElementWithProps';
-import { W3A_DRAWER_ID, W3A_EXPORT_KEY_VIEWER_ID } from '../../registry';
+import { SEAMS_DRAWER_ID, SEAMS_EXPORT_KEY_VIEWER_ID } from '../../registry';
 // BINDING imports, not side-effect imports: the per-file ESM build honors
 // sideEffects and drops a bare `import './viewer'`, which shipped a host whose
 // drawer upgraded (the tx-confirmer bundle happens to define it) around a
@@ -35,8 +35,8 @@ import {
   getDefaultCspNonce,
 } from '@/core/browser/walletIframe/csp-stylesheet';
 
-if (!customElements.get(W3A_EXPORT_KEY_VIEWER_ID)) {
-  customElements.define(W3A_EXPORT_KEY_VIEWER_ID, ExportPrivateKeyViewer);
+if (!customElements.get(SEAMS_EXPORT_KEY_VIEWER_ID)) {
+  customElements.define(SEAMS_EXPORT_KEY_VIEWER_ID, ExportPrivateKeyViewer);
 }
 void DrawerElement; // Drawer/index self-defines on import; the binding keeps the import.
 
@@ -66,15 +66,15 @@ type ExportViewerElement = HTMLElement & {
 // Appearance color overrides live on a document-level constructed stylesheet.
 // The nested document used to take these to its grave; in the shared document
 // they must be removed when the host disconnects.
-const EXPORT_TOKEN_RULE_ID = 'w3a-export-token-overrides';
-const EXPORT_HOST_SELECTORS = [W3A_DRAWER_ID, W3A_EXPORT_KEY_VIEWER_ID] as const;
+const EXPORT_TOKEN_RULE_ID = 'seams-export-token-overrides';
+const EXPORT_HOST_SELECTORS = [SEAMS_DRAWER_ID, SEAMS_EXPORT_KEY_VIEWER_ID] as const;
 const EXPORT_DARK_SELECTOR = EXPORT_HOST_SELECTORS.map(
   (selector) =>
-    `${selector}[theme="dark"],\n:root[data-w3a-theme="dark"] ${selector}:not([theme="light"])`,
+    `${selector}[theme="dark"],\n:root[data-seams-theme="dark"] ${selector}:not([theme="light"])`,
 ).join(',\n');
 const EXPORT_LIGHT_SELECTOR = EXPORT_HOST_SELECTORS.map(
   (selector) =>
-    `${selector}[theme="light"],\n:root[data-w3a-theme="light"] ${selector}:not([theme="dark"])`,
+    `${selector}[theme="light"],\n:root[data-seams-theme="light"] ${selector}:not([theme="dark"])`,
 ).join(',\n');
 let exportTokenStyleManager: ReturnType<typeof createCspStylesheetManager> | null = null;
 
@@ -83,7 +83,7 @@ function getExportTokenStyleManager(): ReturnType<typeof createCspStylesheetMana
     exportTokenStyleManager = createCspStylesheetManager({
       doc: document,
       baseCss: '',
-      dynamicStyleDataAttr: 'data-w3a-export-token-overrides',
+      dynamicStyleDataAttr: 'data-seams-export-token-overrides',
       nonce: () => getDefaultCspNonce(),
     });
   }
@@ -120,7 +120,7 @@ function serializeColorOverrides(colors: Record<string, string>): string[] {
     if (!tokenName) continue;
     const tokenValue = sanitizeTokenValue(rawValue);
     if (!tokenValue) continue;
-    lines.push(`  --w3a-colors-${tokenName}: ${tokenValue} !important;`);
+    lines.push(`  --seams-colors-${tokenName}: ${tokenValue} !important;`);
   }
   return lines;
 }
@@ -158,7 +158,7 @@ export class IframeExportHost extends LitElementWithProps {
     errorMessage: { type: String },
     // Reflected by export-viewer-host; re-render when the surface changes so
     // the drawer attribute below tracks it.
-    surface: { type: String, attribute: 'data-w3a-export-surface', reflect: false },
+    surface: { type: String, attribute: 'data-seams-export-surface', reflect: false },
   } as const;
 
   declare theme: 'dark' | 'light';
@@ -200,7 +200,7 @@ export class IframeExportHost extends LitElementWithProps {
     this.stylePromise = ensureExternalStyles(
       root as ShadowRoot | DocumentFragment | HTMLElement,
       'export-iframe.css',
-      'data-w3a-export-iframe-css',
+      'data-seams-export-iframe-css',
     ).catch(() => {});
     return root;
   }
@@ -235,14 +235,14 @@ export class IframeExportHost extends LitElementWithProps {
   private ensureDrawerAndViewer(): { drawer: ExportDrawerElement; viewer: ExportViewerElement } {
     let drawer = this.drawerEl;
     if (!drawer || !drawer.isConnected) {
-      drawer = document.createElement(W3A_DRAWER_ID) as ExportDrawerElement;
+      drawer = document.createElement(SEAMS_DRAWER_ID) as ExportDrawerElement;
       this.appendChild(drawer);
       this.drawerEl = drawer;
       this.viewerEl = null;
     }
     let viewer = this.viewerEl;
     if (!viewer || !viewer.isConnected) {
-      viewer = document.createElement(W3A_EXPORT_KEY_VIEWER_ID) as ExportViewerElement;
+      viewer = document.createElement(SEAMS_EXPORT_KEY_VIEWER_ID) as ExportViewerElement;
       const target =
         drawer.contentRoot ||
         drawer.querySelector('.above-fold') ||
@@ -258,7 +258,7 @@ export class IframeExportHost extends LitElementWithProps {
     super.updated(changed);
     const { drawer, viewer } = this.ensureDrawerAndViewer();
     const surface =
-      this.getAttribute('data-w3a-export-surface') === 'wallet-iframe'
+      this.getAttribute('data-seams-export-surface') === 'wallet-iframe'
         ? 'wallet-iframe'
         : 'standalone';
     const resolvedTheme = coerceTheme(this.appearance?.theme.mode) ?? coerceTheme(this.theme);
@@ -281,7 +281,7 @@ export class IframeExportHost extends LitElementWithProps {
       viewer.loading = false;
     }
 
-    drawer.setAttribute('data-w3a-export-surface', surface);
+    drawer.setAttribute('data-seams-export-surface', surface);
     // Auto-fit to content: the drawer computes its visible height from the
     // content above the fold.
     drawer.height = undefined;
@@ -310,7 +310,7 @@ export class IframeExportHost extends LitElementWithProps {
   }
 }
 
-// Strongly-typed element shape for 'w3a-export-viewer-iframe'
+// Strongly-typed element shape for 'seams-export-viewer-iframe'
 export type ExportViewerIframeElement = HTMLElement & {
   requestUpdate?: () => void;
   theme?: ExportViewerTheme;
@@ -325,7 +325,7 @@ export type ExportViewerIframeElement = HTMLElement & {
   errorMessage?: string;
 };
 
-import { W3A_EXPORT_VIEWER_IFRAME_ID } from '../../registry';
-customElements.define(W3A_EXPORT_VIEWER_IFRAME_ID, IframeExportHost);
+import { SEAMS_EXPORT_VIEWER_IFRAME_ID } from '../../registry';
+customElements.define(SEAMS_EXPORT_VIEWER_IFRAME_ID, IframeExportHost);
 
 export default IframeExportHost;

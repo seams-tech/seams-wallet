@@ -84,13 +84,13 @@ export async function setupBasicPasskeyTest(
       (args: { rpId: string }) => {
         try {
           const v = String(args?.rpId || '').trim();
-          if (v) (window as any).__W3A_TEST_RP_ID__ = v;
+          if (v) (window as any).__SEAMS_TEST_RP_ID__ = v;
         } catch {}
       },
       { rpId },
     );
 
-    // (1) Lock __W3A_WALLET_SDK_BASE__ to per-frame same-origin /sdk/
+    // (1) Lock __SEAMS_WALLET_SDK_BASE__ to per-frame same-origin /sdk/
     await page.addInitScript(
       (args: { appOrigin: string }) => {
         const { appOrigin } = args || ({} as any);
@@ -104,7 +104,7 @@ export async function setupBasicPasskeyTest(
           })();
 
           const base = String(frameOrigin || '').replace(/\/$/, '') + '/sdk/';
-          Object.defineProperty(window, '__W3A_WALLET_SDK_BASE__', {
+          Object.defineProperty(window, '__SEAMS_WALLET_SDK_BASE__', {
             get() {
               return base;
             },
@@ -115,7 +115,7 @@ export async function setupBasicPasskeyTest(
           } as any);
           try {
             window.addEventListener(
-              'W3A_WALLET_SDK_BASE_CHANGED' as any,
+              'SEAMS_WALLET_SDK_BASE_CHANGED' as any,
               (e: Event) => {
                 try {
                   (e as any).stopImmediatePropagation?.();

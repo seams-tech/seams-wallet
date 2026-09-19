@@ -1419,7 +1419,7 @@ export class SeamsWeb {
     } catch {}
     if (__isWalletIframeHostMode()) {
       try {
-        document.documentElement.setAttribute('data-w3a-theme', this.theme);
+        document.documentElement.setAttribute('data-seams-theme', this.theme);
       } catch {}
     }
 

@@ -36,7 +36,7 @@ export async function installWalletSdkCorsShim(
   const injectWalletServiceImportMap = options.injectWalletServiceImportMap === true;
 
   const repoRoot = (() => {
-    if (process.env.W3A_REPO_ROOT) return process.env.W3A_REPO_ROOT;
+    if (process.env.SEAMS_REPO_ROOT) return process.env.SEAMS_REPO_ROOT;
     const cwd = process.cwd();
     if (fs.existsSync(path.join(cwd, 'packages/wallet'))) return cwd;
     return path.resolve(cwd, '..');

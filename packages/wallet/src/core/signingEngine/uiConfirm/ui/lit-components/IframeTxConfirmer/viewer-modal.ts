@@ -86,7 +86,7 @@ export class ModalTxConfirmElement extends LitElementWithProps implements Confir
     settled: () => this.updateComplete,
   });
 
-  static requiredChildTags = ['w3a-tx-confirm-content'];
+  static requiredChildTags = ['seams-tx-confirm-content'];
   static strictChildDefinitions = true;
   // Prevent bundlers from dropping nested custom element definitions used via templates
   static keepDefinitions = [TxConfirmContentElement];
@@ -226,7 +226,7 @@ export class ModalTxConfirmElement extends LitElementWithProps implements Confir
 
   private _isStandaloneSurface(): boolean {
     return (
-      this.closest('w3a-tx-confirmer')?.getAttribute('data-w3a-confirm-surface') === 'standalone'
+      this.closest('seams-tx-confirmer')?.getAttribute('data-seams-confirm-surface') === 'standalone'
     );
   }
 
@@ -321,20 +321,20 @@ export class ModalTxConfirmElement extends LitElementWithProps implements Confir
         <div class="modal-container-root passkey-registration-confirm">
           <div class="responsive-card">
             <div class="hero passkey-registration-confirm__hero">
-              <w3a-passkey-halo-loading
+              <seams-passkey-halo-loading
                 .theme=${this.theme}
                 .appearance=${this.appearance}
                 .animated=${!this.errorMessage}
                 .ringGap=${4}
                 .ringWidth=${4}
                 .ringBorderRadius=${'1.125rem'}
-                .ringBackground=${'var(--w3a-modal__passkey-halo-loading__ring-background)'}
+                .ringBackground=${'var(--seams-modal__passkey-halo-loading__ring-background)'}
                 .innerPadding=${'0px'}
-                .innerBackground=${'var(--w3a-modal__passkey-halo-loading__inner-background)'}
+                .innerBackground=${'var(--seams-modal__passkey-halo-loading__inner-background)'}
                 .iconVariant=${'fingerprint'}
                 .height=${44}
                 .width=${44}
-              ></w3a-passkey-halo-loading>
+              ></seams-passkey-halo-loading>
               <div class="hero-container passkey-registration-confirm__hero-copy">
                 <h2 class="hero-heading">${(this.title || '').trim() || 'Create your passkey'}</h2>
                 <p class="passkey-registration-confirm__body">${this._passkeyRegistrationBody()}</p>
@@ -532,12 +532,12 @@ export class ModalTxConfirmElement extends LitElementWithProps implements Confir
     const root = (document?.documentElement || null) as unknown as HTMLElement | null;
     if (root) {
       this._stylePromises.push(
-        ensureExternalStyles(root, 'w3a-components.css', 'data-w3a-components-css'),
-        ensureExternalStyles(root, 'tx-tree.css', 'data-w3a-tx-tree-css'),
-        ensureExternalStyles(root, 'tx-confirmer.css', 'data-w3a-tx-confirmer-css'),
+        ensureExternalStyles(root, 'seams-components.css', 'data-seams-components-css'),
+        ensureExternalStyles(root, 'tx-tree.css', 'data-seams-tx-tree-css'),
+        ensureExternalStyles(root, 'tx-confirmer.css', 'data-seams-tx-confirmer-css'),
         // Preload nested visuals to avoid first-paint jank when halo/loader mount
-        ensureExternalStyles(root, 'halo-border.css', 'data-w3a-halo-border-css'),
-        ensureExternalStyles(root, 'passkey-halo-loading.css', 'data-w3a-passkey-halo-loading-css'),
+        ensureExternalStyles(root, 'halo-border.css', 'data-seams-halo-border-css'),
+        ensureExternalStyles(root, 'passkey-halo-loading.css', 'data-seams-passkey-halo-loading-css'),
       );
     }
   }
@@ -568,12 +568,12 @@ export class ModalTxConfirmElement extends LitElementWithProps implements Confir
       this._lastAutoOtpSubmitCode = '';
       this._resetOtpSubmitAnimation();
     }
-    // Keep the iframe/root document's theme in sync so :root[data-w3a-theme] tokens apply
+    // Keep the iframe/root document's theme in sync so :root[data-seams-theme] tokens apply
     if (changedProperties.has('theme')) {
       try {
         const docEl = this.ownerDocument?.documentElement as HTMLElement | undefined;
         if (docEl && this.theme && this._ownsThemeAttr) {
-          docEl.setAttribute('data-w3a-theme', this.theme);
+          docEl.setAttribute('data-seams-theme', this.theme);
         }
       } catch {}
     }
@@ -586,17 +586,17 @@ export class ModalTxConfirmElement extends LitElementWithProps implements Confir
   protected createRenderRoot(): HTMLElement | DocumentFragment {
     const root = this as unknown as HTMLElement;
     // tx-tree.css for nested TxTree visuals inside the modal
-    this._stylePromises.push(ensureExternalStyles(root, 'tx-tree.css', 'data-w3a-tx-tree-css'));
+    this._stylePromises.push(ensureExternalStyles(root, 'tx-tree.css', 'data-seams-tx-tree-css'));
     // tx-confirmer.css for modal layout + tokens
     this._stylePromises.push(
-      ensureExternalStyles(root, 'tx-confirmer.css', 'data-w3a-tx-confirmer-css'),
+      ensureExternalStyles(root, 'tx-confirmer.css', 'data-seams-tx-confirmer-css'),
     );
     // Ensure nested loader/halo styles are present before first paint to avoid FOUC
     this._stylePromises.push(
-      ensureExternalStyles(root, 'halo-border.css', 'data-w3a-halo-border-css'),
+      ensureExternalStyles(root, 'halo-border.css', 'data-seams-halo-border-css'),
     );
     this._stylePromises.push(
-      ensureExternalStyles(root, 'passkey-halo-loading.css', 'data-w3a-passkey-halo-loading-css'),
+      ensureExternalStyles(root, 'passkey-halo-loading.css', 'data-seams-passkey-halo-loading-css'),
     );
     return root;
   }
@@ -620,10 +620,10 @@ export class ModalTxConfirmElement extends LitElementWithProps implements Confir
     try {
       const docEl = this.ownerDocument?.documentElement as HTMLElement | undefined;
       if (docEl && this.theme) {
-        const current = docEl.getAttribute('data-w3a-theme');
+        const current = docEl.getAttribute('data-seams-theme');
         // If missing or already using built-in values, take ownership and set
         if (!current || current === 'dark' || current === 'light') {
-          docEl.setAttribute('data-w3a-theme', this.theme);
+          docEl.setAttribute('data-seams-theme', this.theme);
           this._ownsThemeAttr = true;
         }
       }
@@ -675,20 +675,20 @@ export class ModalTxConfirmElement extends LitElementWithProps implements Confir
         <div class="modal-container-root">
           <div class="responsive-card">
             <div class="hero">
-              <w3a-passkey-halo-loading
+              <seams-passkey-halo-loading
                 .theme=${this.theme}
                 .appearance=${this.appearance}
                 .animated=${!this.errorMessage ? true : false}
                 .ringGap=${4}
                 .ringWidth=${4}
                 .ringBorderRadius=${'1.125rem'}
-                .ringBackground=${'var(--w3a-modal__passkey-halo-loading__ring-background)'}
+                .ringBackground=${'var(--seams-modal__passkey-halo-loading__ring-background)'}
                 .innerPadding=${'0px'}
-                .innerBackground=${'var(--w3a-modal__passkey-halo-loading__inner-background)'}
+                .innerBackground=${'var(--seams-modal__passkey-halo-loading__inner-background)'}
                 .iconVariant=${this._isEmailOtpMode() ? 'mail' : 'fingerprint'}
                 .height=${36}
                 .width=${36}
-              ></w3a-passkey-halo-loading>
+              ></seams-passkey-halo-loading>
               <div class="hero-container">
                 <!-- Hero heading -->
                 ${(() => {
@@ -774,7 +774,7 @@ export class ModalTxConfirmElement extends LitElementWithProps implements Confir
           </div>
 
           <div class="responsive-card">
-            <w3a-tx-confirm-content
+            <seams-tx-confirm-content
               .nearAccountId=${this['nearAccountId'] || ''}
               .txSigningRequests=${this.txSigningRequests}
               .model=${this.model}
@@ -793,7 +793,7 @@ export class ModalTxConfirmElement extends LitElementWithProps implements Confir
               .cancelText=${this.cancelText}
               @lit-confirm=${this._handleConfirm}
               @lit-cancel=${this._handleCancel}
-            ></w3a-tx-confirm-content>
+            ></seams-tx-confirm-content>
           </div>
         </div>
       </div>
@@ -877,9 +877,9 @@ export class ModalTxConfirmElement extends LitElementWithProps implements Confir
 }
 
 // Register the custom element
-import { W3A_MODAL_TX_CONFIRMER_ID } from '../../registry';
+import { SEAMS_MODAL_TX_CONFIRMER_ID } from '../../registry';
 
 // Define canonical tag
-if (!customElements.get(W3A_MODAL_TX_CONFIRMER_ID)) {
-  customElements.define(W3A_MODAL_TX_CONFIRMER_ID, ModalTxConfirmElement);
+if (!customElements.get(SEAMS_MODAL_TX_CONFIRMER_ID)) {
+  customElements.define(SEAMS_MODAL_TX_CONFIRMER_ID, ModalTxConfirmElement);
 }

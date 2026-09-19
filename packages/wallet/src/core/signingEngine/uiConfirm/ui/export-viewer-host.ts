@@ -4,7 +4,7 @@ import type {
   ExportPrivateKeyDisplayEntry,
 } from '@/core/signingEngine/stepUpConfirmation/channel/confirmTypes';
 import { addLitEventListener, LitComponentEvents } from './lit-events';
-import { ensureDefined, W3A_EXPORT_VIEWER_IFRAME_ID } from './registry';
+import { ensureDefined, SEAMS_EXPORT_VIEWER_IFRAME_ID } from './registry';
 import type { ExportViewerIframeElement } from './lit-components/ExportPrivateKey/iframe-host';
 import type { UiConfirmSurfaceMeasurementBinding } from '../uiConfirm.types';
 import {
@@ -28,8 +28,8 @@ export type UpsertExportViewerHostArgs = {
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
 };
 
-const EXPORT_VIEWER_SESSION_ATTR = 'data-w3a-export-viewer-session-id';
-const EXPORT_VIEWER_SURFACE_ATTR = 'data-w3a-export-surface';
+const EXPORT_VIEWER_SESSION_ATTR = 'data-seams-export-viewer-session-id';
+const EXPORT_VIEWER_SURFACE_ATTR = 'data-seams-export-surface';
 const exportViewerLifecycleByHost = new WeakMap<
   ExportViewerIframeElement,
   (event: 'opened' | 'closed') => void
@@ -137,7 +137,7 @@ function emitExportViewerLifecycle(
 
 function getMountedExportViewerHost(): ExportViewerIframeElement | null {
   if (typeof document === 'undefined') return null;
-  return document.querySelector(W3A_EXPORT_VIEWER_IFRAME_ID) as ExportViewerIframeElement | null;
+  return document.querySelector(SEAMS_EXPORT_VIEWER_IFRAME_ID) as ExportViewerIframeElement | null;
 }
 
 export function isExportViewerSessionOpen(sessionId: string): boolean {
@@ -155,13 +155,13 @@ export async function upsertExportViewerHost(
     throw new Error('Export viewer host requires a DOM environment');
   }
   await ensureDefined(
-    W3A_EXPORT_VIEWER_IFRAME_ID,
+    SEAMS_EXPORT_VIEWER_IFRAME_ID,
     () => import('./lit-components/ExportPrivateKey/iframe-host'),
   );
 
   let host = getMountedExportViewerHost();
   if (!host) {
-    host = document.createElement(W3A_EXPORT_VIEWER_IFRAME_ID) as ExportViewerIframeElement;
+    host = document.createElement(SEAMS_EXPORT_VIEWER_IFRAME_ID) as ExportViewerIframeElement;
     host.variant = args.variant;
     host.setAttribute(
       EXPORT_VIEWER_SURFACE_ATTR,

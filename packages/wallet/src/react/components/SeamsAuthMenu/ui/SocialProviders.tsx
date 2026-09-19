@@ -48,7 +48,7 @@ export const SocialProviders: React.FC<SocialProvidersProps> = ({
   if (!visibleProviders.length) return null;
 
   return (
-    <div className="w3a-auth-method-stack w3a-social-stack">
+    <div className="seams-auth-method-stack seams-social-stack">
       {visibleProviders.map((provider) => {
         const { Icon, label } = iconByKey[provider];
         const copy = providerCopy?.[provider];
@@ -60,10 +60,10 @@ export const SocialProviders: React.FC<SocialProvidersProps> = ({
         const helperId = helperText ? `${helperIdBase}-${provider}` : undefined;
         const isLastUsed = provider === lastUsedProvider;
         return (
-          <div key={provider} className="w3a-social-provider">
+          <div key={provider} className="seams-social-provider">
             <button
               type="button"
-              className="w3a-auth-method-btn w3a-auth-method-btn-secondary"
+              className="seams-auth-method-btn seams-auth-method-btn-secondary"
               onClick={() => {
                 if (!hasHandler) return;
                 onProviderClick?.(provider);
@@ -74,10 +74,10 @@ export const SocialProviders: React.FC<SocialProvidersProps> = ({
               <LastUsedBadge active={isLastUsed} />
               <Icon size={18} style={{ display: 'block' }} />
               <span>{buttonLabel}</span>
-              <ArrowRightAnim size={16} className="w3a-auth-method-arrow" />
+              <ArrowRightAnim size={16} className="seams-auth-method-arrow" />
             </button>
             {helperText ? (
-              <p id={helperId} className="w3a-auth-method-note w3a-social-helper">
+              <p id={helperId} className="seams-auth-method-note seams-social-helper">
                 {helperText}
               </p>
             ) : null}

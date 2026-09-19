@@ -1,7 +1,7 @@
 import { html, type PropertyValues } from 'lit';
 import { LitElementWithProps } from '../LitElementWithProps';
 import DrawerElement from '../Drawer';
-import { W3A_DRAWER_ID } from '../../registry';
+import { SEAMS_DRAWER_ID } from '../../registry';
 import TxConfirmContentElement from './tx-confirm-content';
 import PadlockIconElement from '../common/PadlockIcon';
 import PasskeyHaloLoadingElement from '../PasskeyHaloLoading';
@@ -48,7 +48,7 @@ function formatEmailOtpResendError(error: unknown): string {
  * DrawerTxConfirmer: Drawer variant of the transaction confirmer
  */
 export class DrawerTxConfirmerElement extends LitElementWithProps implements ConfirmUIElement {
-  static requiredChildTags = ['w3a-tx-confirm-content', 'w3a-drawer'];
+  static requiredChildTags = ['seams-tx-confirm-content', 'seams-drawer'];
   static strictChildDefinitions = true;
   // Prevent bundlers from dropping nested custom element definitions used via templates
   static keepDefinitions = [TxConfirmContentElement, PadlockIconElement, PasskeyHaloLoadingElement];
@@ -152,7 +152,7 @@ export class DrawerTxConfirmerElement extends LitElementWithProps implements Con
           }),
         );
       }
-      // Rely on drawer's `cancel` event -> onDrawerCancel to emit w3a:modal-cancel
+      // Rely on drawer's `cancel` event -> onDrawerCancel to emit seams:modal-cancel
     }
   };
 
@@ -463,9 +463,9 @@ export class DrawerTxConfirmerElement extends LitElementWithProps implements Con
     // Light DOM root so tokens cascade without Shadow DOM boundaries
     const root = this as unknown as HTMLElement;
     // Preload tokens + styles on host
-    ensureExternalStyles(root, 'w3a-components.css', 'data-w3a-components-css').catch(() => {});
-    ensureExternalStyles(root, 'tx-tree.css', 'data-w3a-tx-tree-css').catch(() => {});
-    ensureExternalStyles(root, 'tx-confirmer.css', 'data-w3a-tx-confirmer-css').catch(() => {});
+    ensureExternalStyles(root, 'seams-components.css', 'data-seams-components-css').catch(() => {});
+    ensureExternalStyles(root, 'tx-tree.css', 'data-seams-tx-tree-css').catch(() => {});
+    ensureExternalStyles(root, 'tx-confirmer.css', 'data-seams-tx-confirmer-css').catch(() => {});
     return root;
   }
 
@@ -476,9 +476,9 @@ export class DrawerTxConfirmerElement extends LitElementWithProps implements Con
     try {
       const docEl = this.ownerDocument?.documentElement as HTMLElement | undefined;
       if (docEl && this.theme) {
-        const current = docEl.getAttribute('data-w3a-theme');
+        const current = docEl.getAttribute('data-seams-theme');
         if (!current || current === 'dark' || current === 'light') {
-          docEl.setAttribute('data-w3a-theme', this.theme);
+          docEl.setAttribute('data-seams-theme', this.theme);
           this._ownsThemeAttr = true;
         }
       }
@@ -487,7 +487,7 @@ export class DrawerTxConfirmerElement extends LitElementWithProps implements Con
     try {
       const docEl = this.ownerDocument?.documentElement as HTMLElement | undefined;
       if (docEl)
-        ensureExternalStyles(docEl, 'w3a-components.css', 'data-w3a-components-css').catch(
+        ensureExternalStyles(docEl, 'seams-components.css', 'data-seams-components-css').catch(
           () => {},
         );
     } catch {}
@@ -505,17 +505,17 @@ export class DrawerTxConfirmerElement extends LitElementWithProps implements Con
   }
 
   async firstUpdated(): Promise<void> {
-    this._drawerEl = (this as unknown as HTMLElement).querySelector(W3A_DRAWER_ID) as InstanceType<
+    this._drawerEl = (this as unknown as HTMLElement).querySelector(SEAMS_DRAWER_ID) as InstanceType<
       typeof DrawerElement
     > | null;
     // Ensure external styles are ready before opening (await Promise-based loader)
     const root = this.renderRoot as unknown as ShadowRoot | DocumentFragment | HTMLElement;
     await Promise.all([
-      ensureExternalStyles(root, 'w3a-components.css', 'data-w3a-components-css'),
-      ensureExternalStyles(root, 'tx-tree.css', 'data-w3a-tx-tree-css'),
-      ensureExternalStyles(root, 'tx-confirmer.css', 'data-w3a-tx-confirmer-css'),
+      ensureExternalStyles(root, 'seams-components.css', 'data-seams-components-css'),
+      ensureExternalStyles(root, 'tx-tree.css', 'data-seams-tx-tree-css'),
+      ensureExternalStyles(root, 'tx-confirmer.css', 'data-seams-tx-confirmer-css'),
       // Preload drawer.css so fallback <link> is loaded before opening
-      ensureExternalStyles(root, 'drawer.css', 'data-w3a-drawer-css'),
+      ensureExternalStyles(root, 'drawer.css', 'data-seams-drawer-css'),
     ]);
     // Open after mount with double-rAF to let layout/styles settle
     await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
@@ -547,11 +547,11 @@ export class DrawerTxConfirmerElement extends LitElementWithProps implements Con
       this._lastAutoOtpSubmitCode = '';
       this._resetOtpSubmitAnimation();
     }
-    // Keep the iframe/root document's theme in sync so :root[data-w3a-theme] tokens apply
+    // Keep the iframe/root document's theme in sync so :root[data-seams-theme] tokens apply
     if (changed.has('theme')) {
       const docEl = this.ownerDocument?.documentElement as HTMLElement | undefined;
       if (docEl && this.theme && this._ownsThemeAttr) {
-        docEl.setAttribute('data-w3a-theme', this.theme);
+        docEl.setAttribute('data-seams-theme', this.theme);
       }
     }
   }
@@ -641,7 +641,7 @@ export class DrawerTxConfirmerElement extends LitElementWithProps implements Con
     const passkeyRegistration = this.passkeyRegistrationDisplay();
     if (passkeyRegistration) {
       return html`
-        <w3a-drawer
+        <seams-drawer
           .open=${this._open}
           theme=${this.theme}
           .appearance=${this.appearance}
@@ -656,20 +656,20 @@ export class DrawerTxConfirmerElement extends LitElementWithProps implements Con
           <div class="drawer-tx-confirmer-root passkey-registration-confirm">
             <div class="section responsive-card margin-left1">
               <div class="hero passkey-registration-confirm__hero">
-                <w3a-passkey-halo-loading
+                <seams-passkey-halo-loading
                   .theme=${this.theme}
                   .appearance=${this.appearance}
                   .animated=${!this.errorMessage}
                   .ringGap=${4}
                   .ringWidth=${4}
                   .ringBorderRadius=${'1.125rem'}
-                  .ringBackground=${'var(--w3a-modal__passkey-halo-loading__ring-background)'}
+                  .ringBackground=${'var(--seams-modal__passkey-halo-loading__ring-background)'}
                   .innerPadding=${'0px'}
-                  .innerBackground=${'var(--w3a-modal__passkey-halo-loading__inner-background)'}
+                  .innerBackground=${'var(--seams-modal__passkey-halo-loading__inner-background)'}
                   .iconVariant=${'fingerprint'}
                   .height=${44}
                   .width=${44}
-                ></w3a-passkey-halo-loading>
+                ></seams-passkey-halo-loading>
                 <div class="hero-container passkey-registration-confirm__hero-copy">
                   <h2 class="hero-heading">
                     ${(this.title || '').trim() || 'Create your passkey'}
@@ -686,7 +686,7 @@ export class DrawerTxConfirmerElement extends LitElementWithProps implements Con
               ${this.renderPasskeyRegistrationActions()}
             </div>
           </div>
-        </w3a-drawer>
+        </seams-drawer>
       `;
     }
 
@@ -694,7 +694,7 @@ export class DrawerTxConfirmerElement extends LitElementWithProps implements Con
     const securityDetailsLoading = this._isSecurityDetailsLoading();
     const rpIdText = this._rpIdText();
     return html`
-      <w3a-drawer
+      <seams-drawer
         .open=${this._open}
         theme=${this.theme}
         .appearance=${this.appearance}
@@ -737,7 +737,7 @@ export class DrawerTxConfirmerElement extends LitElementWithProps implements Con
             <div class="rpid-wrapper">
               <div class="rpid">
                 <div class="secure-indicator">
-                  <w3a-padlock-icon class="padlock-icon"></w3a-padlock-icon>
+                  <seams-padlock-icon class="padlock-icon"></seams-padlock-icon>
                   <span role="status">
                     ${rpIdText
                       ? html`<span class="domain-text">${rpIdText}</span>`
@@ -788,7 +788,7 @@ export class DrawerTxConfirmerElement extends LitElementWithProps implements Con
             ${this._renderEmailOtpPrompt()}
           </div>
           <div class="section responsive-card responsive-card-center">
-            <w3a-tx-confirm-content
+            <seams-tx-confirm-content
               .nearAccountId=${this.nearAccountId || ''}
               .txSigningRequests=${this.txSigningRequests}
               .model=${this.model}
@@ -807,10 +807,10 @@ export class DrawerTxConfirmerElement extends LitElementWithProps implements Con
               .cancelText=${this.cancelText}
               @lit-confirm=${this.onContentConfirm}
               @lit-cancel=${this.onContentCancel}
-            ></w3a-tx-confirm-content>
+            ></seams-tx-confirm-content>
           </div>
         </div>
-      </w3a-drawer>
+      </seams-drawer>
     `;
   }
 
@@ -819,11 +819,11 @@ export class DrawerTxConfirmerElement extends LitElementWithProps implements Con
   }
 }
 
-import { W3A_DRAWER_TX_CONFIRMER_ID } from '../../registry';
+import { SEAMS_DRAWER_TX_CONFIRMER_ID } from '../../registry';
 
 // Define canonical tag
-if (!customElements.get(W3A_DRAWER_TX_CONFIRMER_ID)) {
-  customElements.define(W3A_DRAWER_TX_CONFIRMER_ID, DrawerTxConfirmerElement);
+if (!customElements.get(SEAMS_DRAWER_TX_CONFIRMER_ID)) {
+  customElements.define(SEAMS_DRAWER_TX_CONFIRMER_ID, DrawerTxConfirmerElement);
 }
 
 export default DrawerTxConfirmerElement;
