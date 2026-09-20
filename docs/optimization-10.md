@@ -1334,3 +1334,25 @@ Use the narrowest relevant checks during implementation, then run the broader
 lifecycle and protocol verification required by shared behavior changes.
 Compare deployed results against the same workload and release metadata used
 for the baseline.
+
+
+## 0.5.28 durable-pool correction and fresh authorization acceptance
+
+The 0.5.27 persistence gap has two identified causes: comparing capability-instance
+and MPC capability identifiers during admission, and connecting the durable-store
+worker channel only during generation. The follow-up corrects both; see
+[refactor-128.md](refactor-128.md#durable-restoration-follow-up-0528).
+
+A fresh virtual-passkey wallet on hosted testnet verified authorization separately
+from persistence. After funding's `setUserToken` confirmation, six Tempo signatures
+completed in 1.50–1.74 seconds. A subsequent run completed 24/24 signatures with
+`operation_step_up` authorization and available cached presignatures; each sent a
+successful operation-step-up request. Their commit-total durations were
+1.245–1.995 seconds, median 1.639 seconds. Background generation continued.
+These are a single-browser smoke cohort on 0.5.27, not a population latency SLO
+or evidence of durable restoration. The prior fresh-wallet funding timeout came
+from an unhandled funding transaction confirmation in the benchmark workflow.
+
+Allowlisted local measurement artifact: `output/playwright/opt27-exhaust-quota.txt`
+in the private monorepo (ignored, no raw credentials). The 0.5.28 release and hosted
+reload acceptance remain pending; mainnet backend remains billing-blocked.

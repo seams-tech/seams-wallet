@@ -701,6 +701,16 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
       SignerWorkerOperationType<'ecdsaPresignClient'>
     >,
   ): void {
+    if (
+      request.type === EcdsaPresignClientRequestType.ListAvailable &&
+      this.presignAuthorityKind === null
+    ) {
+      this.connectDerivationPresignChannel(
+        this.getOrCreateWorker('ecdsaPresignClient'),
+        'role_local_derivation_handle',
+      );
+      return;
+    }
     if (request.type !== EcdsaPresignClientRequestType.SessionInit) return;
     const presignWorker = this.getOrCreateWorker('ecdsaPresignClient');
     const authorityKind = this.parsePresignAuthorityKind(request.payload);
@@ -750,7 +760,7 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
     authorityKind: 'role_local_derivation_handle' | 'linked_holder_signing_material',
   ): void {
     if (this.presignAuthorityKind === authorityKind) return;
-    // First connection happens inside the initial refill; only replacement invalidates it.
+    // Initial restoration or refill connects the authority; only replacement invalidates it.
     if (this.presignAuthorityKind !== null) {
       clearAllRouterAbEcdsaDerivationClientPresignatures();
     }
