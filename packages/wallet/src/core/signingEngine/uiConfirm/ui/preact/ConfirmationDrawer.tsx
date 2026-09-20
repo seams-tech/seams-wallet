@@ -10,6 +10,7 @@ type DrawerState =
 export type ConfirmationDrawerProps = {
   context: 'standalone' | 'wallet-iframe';
   label: string;
+  errorMessage?: string;
   state: DrawerState;
   styles: CspStylesheetManager;
   onCancel: () => void;
@@ -328,6 +329,7 @@ class DrawerShell extends Component<ConfirmationDrawerProps, { settled: boolean 
           </button>
         </div>
         <div class="seams-drawer-body" ref={this.body}>
+          {this.props.errorMessage && <div class="error">{this.props.errorMessage}</div>}
           <div class="seams-drawer-content" ref={this.content}>
             {this.props.children}
           </div>

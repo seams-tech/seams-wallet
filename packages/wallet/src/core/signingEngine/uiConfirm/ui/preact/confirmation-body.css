@@ -20,7 +20,10 @@
   text-align: center;
   white-space: nowrap;
 }
-:where(.seams-wallet-ui) .drawer-tx-confirmer-root .confirmation-body--funding {
+:where(.seams-wallet-ui)
+  .seams-confirmation-drawer
+  .seams-confirmation-content--drawer
+  .confirmation-body--funding {
   box-sizing: border-box;
   width: 100%;
   padding: 0.35rem clamp(0.75rem, 4vw, 1.25rem);

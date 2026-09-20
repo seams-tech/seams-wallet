@@ -66,7 +66,7 @@ export function ConfirmHeader(props: ConfirmHeaderProps) {
   );
 }
 
-function LoadingStatus(props: { label: string }) {
+export function LoadingStatus(props: { label: string }) {
   return (
     <>
       <span class="loading-ellipsis" aria-hidden="true">

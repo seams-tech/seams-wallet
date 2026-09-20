@@ -267,6 +267,24 @@ test('mount updates complete models and invokes the current callback synchronous
   expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
+test('hosted drawer keeps its compact content inside the sheet', async ({ page }) => {
+  const id = await page.evaluate(() => window.__confirmationMount.mount('drawer', 'wallet-iframe'));
+  const root = page.locator(`#${id}`);
+  await expect(root.getByRole('heading')).toHaveText('First confirmation');
+  await expect(root.locator('.seams-passkey-halo-loading')).toHaveCount(0);
+  await expect(root.getByRole('button', { name: 'Confirm', exact: true })).toBeEnabled();
+  const sheet = await root.locator('.seams-confirmation-drawer').boundingBox();
+  const actions = await root.locator('.actions').boundingBox();
+  expect(sheet).not.toBeNull();
+  expect(actions).not.toBeNull();
+  expect(actions!.x).toBeGreaterThan(sheet!.x);
+  expect(actions!.x + actions!.width).toBeLessThan(sheet!.x + sheet!.width);
+  await root.getByRole('button', { name: 'Confirm', exact: true }).click();
+  expect(await page.evaluate(() => window.__confirmationMount.calls)).toEqual(['first']);
+  await page.evaluate(() => window.__confirmationMount.dispose(0));
+  expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
+});
+
 test('drawer close filters callbacks and disposes after its transition', async ({ page }) => {
   await page.locator('#opener').focus();
   const id = await page.evaluate(() => window.__confirmationMount.mount('drawer', 'standalone'));

@@ -165,7 +165,13 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     if (state.kind === 'disposed') return;
     const source = state.model.content;
     const model = this.contentModel(source, state.kind === 'closing');
-    const content = <ConfirmationContent model={model} styles={this.styles} />;
+    const content = (
+      <ConfirmationContent
+        model={model}
+        styles={this.styles}
+        variant={this.presentation.variant}
+      />
+    );
     const label =
       source.kind === 'registration' ? source.registration.heading : source.header.heading;
     if (this.presentation.variant === 'modal') {
@@ -183,6 +189,11 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
       <ConfirmationDrawer
         context={this.presentation.context}
         label={label}
+        errorMessage={
+          source.kind === 'registration'
+            ? source.registration.errorMessage
+            : source.transaction.errorMessage
+        }
         styles={this.styles}
         state={
           state.kind === 'closing'
