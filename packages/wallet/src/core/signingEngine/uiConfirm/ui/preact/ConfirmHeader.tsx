@@ -1,5 +1,6 @@
 /** @jsxImportSource preact */
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
+import { PadlockIcon } from './PadlockIcon';
 import { PasskeyHaloLoading } from './PasskeyHaloLoading';
 
 export type ConfirmationStatusText =
@@ -25,20 +26,7 @@ export function ConfirmHeader(props: ConfirmHeaderProps) {
         <div class="rpid-wrapper">
           <div class="rpid">
             <div class="secure-indicator">
-              <svg
-                class="padlock-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
+              <PadlockIcon />
               <span role="status">
                 {props.website.kind === 'ready' ? (
                   <span class="domain-text">{props.website.text}</span>

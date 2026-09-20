@@ -73,6 +73,10 @@
   display: inline-block;
 }
 
+:where(.seams-wallet-ui) .seams-padlock-icon {
+  display: block;
+}
+
 :where(.seams-wallet-ui .seams-passkey-halo-loading) .seams-halo-border {
   --ring-border-radius: 1.125rem;
   --inner-padding: 0px;
