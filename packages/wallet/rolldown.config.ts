@@ -226,6 +226,7 @@ const emitSeamsThemeAliases = (vars: any, indent = '  '): string[] => [
   `${indent}--seams-colors-colorBackground: ${vars.colorBackground};`,
   `${indent}--seams-colors-surface: ${vars.surface};`,
   `${indent}--seams-colors-surface2: ${vars.surface2};`,
+  `${indent}--seams-colors-txDetailsBackground: ${vars.txDetailsBackground};`,
   `${indent}--seams-colors-surface3: ${vars.surface3};`,
   `${indent}--seams-colors-surface4: ${vars.surface4};`,
   `${indent}--seams-colors-primary: ${vars.primary};`,
