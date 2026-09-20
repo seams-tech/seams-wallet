@@ -1391,6 +1391,20 @@ Transaction-tree visual checkpoint — 2026-09-21:
   unknown-chain fallback, keyboard expansion, clipboard fallback, disposal,
   and hosted resize choreography.
 
+Confirmation tree-in-surface checkpoint — 2026-09-21:
+
+- `4efbcb6` restores the generated `--seams-colors-txDetailsBackground` token
+  used by the shared confirmation and transaction-tree stylesheet. Without it,
+  the Preact tree fell back to `surface2` and visibly darkened the light
+  confirmer card.
+- `62eef4e` changes the matched confirmer visual fixture to include an EVM
+  contract-call tree with a decoded/raw calldata field and copy control. The
+  saved-Lit and Preact production mounts now pass all 12 modal/drawer,
+  loading/error, and light/dark captures; dimensions match in every pair.
+  Surface differences are 0.09–0.74% of each crop, below the existing
+  thresholds. The built CSS, browser-test type-check, saved-Lit capture, and
+  Preact comparison all passed.
+
 Luna review checkpoint — 2026-09-21:
 
 - Follow-up work from this checkpoint is expected to use Luna. Before merging
