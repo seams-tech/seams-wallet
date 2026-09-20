@@ -954,6 +954,36 @@ close the earlier unlock/session failure investigation. Deployment-discovery
 HTTP 503 responses were captured separately; their cause was not established by
 the timing-only recorder.
 
+### Returning after weeks of inactivity
+
+The product requirement includes the first signature after days or weeks away,
+using the same browser and unchanged key activation. The initial 24-hour cache
+cap does not satisfy that requirement. A returning user with an unused retained
+entry should use the cached signing path after fresh authentication; unlock must
+not conceal presign generation by waiting for it.
+
+Evaluate a 90-day retention policy for reusable completed material. This is a
+proposal pending the focused retention review described in refactor-126, not a
+change to current policy. Review both encrypted halves, actual activation expiry,
+server cleanup, backups, and replay barriers before changing the coordinated
+client/server limits. Preserve single-use claims and immediate invalidation on
+retirement or revocation. Operation-scoped material remains operation-scoped.
+
+Verify durable admission and restoration across page/worker restarts first, then
+test equivalent clock advances of 1, 7, 30 and 90 days with a new authorized
+Wallet Session. Below the selected expiry, an available retained entry must
+produce zero presign-generation requests. Test the exact expiry boundary and
+invalidation separately. Confirm real production reload restoration as well as
+controlled-clock lifecycle behavior before claiming multi-week readiness.
+
+Retention alone cannot protect a user who leaves with an empty pool. Replenish
+promptly after consumption within current authority, and resolve the separate
+presign-only authority proposal before promising replenishment after signing
+quota exhaustion. Browser closure cannot guarantee completion of in-flight
+generation. Track durable available depth and refill failure reasons so the
+returning-user acceptance case can distinguish expiry, depletion, persistence
+failure and activation replacement.
+
 Next implementation priorities:
 
 1. Preserve the cached-signing path and measure pool depth against consumption
