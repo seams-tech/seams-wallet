@@ -174,9 +174,31 @@ for (const theme of ['light', 'dark'] as const) {
               },
               summary: { title: 'Review transaction', body: 'Synthetic visual fixture' },
               model: {
-                chain: 'tempo' as const,
+                chain: 'evm' as const,
+                chainId: 11155111,
                 title: 'Review transaction',
-                operations: [],
+                operations: [
+                  {
+                    id: 'contract-call',
+                    kind: 'generic.contractCall' as const,
+                    label: 'Transfer to contract',
+                    to: '0x1111111111111111111111111111111111111111',
+                    fields: [
+                      { label: 'recipient', value: 'visual-fixture' },
+                      {
+                        label: 'calldata',
+                        value: '{\n  "amount": "1000000"\n}',
+                        renderAs: 'file-content' as const,
+                        contentVariants: {
+                          decoded: '{\n  "amount": "1000000"\n}',
+                          raw: '0xa9059cbb',
+                          defaultMode: 'decoded' as const,
+                        },
+                        copyValue: '0xa9059cbb',
+                      },
+                    ],
+                  },
+                ],
               },
               securityContext: { rpId: 'wallet.example.test', blockHeight: '1' },
               loading: state === 'loading',
