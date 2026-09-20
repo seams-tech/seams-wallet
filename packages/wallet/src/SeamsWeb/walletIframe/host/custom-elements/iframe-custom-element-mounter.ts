@@ -1,16 +1,16 @@
 /**
- * Lit Element Mounter - Host-Side Execution Layer
+ * Custom-element mounter - host-side execution layer
  *
- * This module manages Lit-based UI components inside the wallet iframe. It provides
- * a bridge between the parent application and UI components that need to run in
- * the wallet origin for proper WebAuthn activation.
+ * This module manages externally registered UI components inside the wallet iframe.
+ * It provides a bridge between the parent application and UI components that need
+ * to run in the wallet origin for proper WebAuthn activation.
  *
  * Key Responsibilities:
- * - Component Mounting: Creates and mounts Lit UI components on demand
+ * - Component Mounting: Creates and mounts registered custom elements on demand
  * - Event Wiring: Connects UI interactions to SeamsWeb methods
  * - Lifecycle Management: Handles mount/unmount/update operations
  * - Message API: Exposes window.postMessage interface for parent communication
- * - Component Registry: Uses declarative registry for component definitions
+ * - Component Registry: Uses a declarative registry for component definitions
  * - SeamsWeb Integration: Wires UI actions to actual wallet operations
  *
  * Architecture:
@@ -27,11 +27,7 @@
 
 import type { SeamsWeb } from '@/SeamsWeb';
 import { type SeamsConfigsInput } from '@/core/types';
-import {
-  uiBuiltinRegistry,
-  type PmActionName,
-  type WalletUIRegistry,
-} from './iframe-lit-element-registry';
+import { type WalletUiActionName, type WalletUIRegistry } from './iframe-custom-element-registry';
 import { errorMessage } from '@shared/utils/errors';
 import { isObject, isString } from '@shared/utils/validation';
 import {
@@ -107,7 +103,7 @@ type MountedEntry = {
   allowedProps?: Set<string>;
 };
 
-type SetupLitElemMounterOptions = {
+type SetupCustomElementMounterOptions = {
   ensureSeamsWeb: EnsureSeamsWeb;
   getSeamsWeb: GetSeamsWeb;
   updateWalletConfigs: UpdateWalletConfigs;
@@ -275,11 +271,11 @@ const mountAnchored = (
   return container;
 };
 
-export function setupLitElemMounter(opts: SetupLitElemMounterOptions) {
+export function setupCustomElementMounter(opts: SetupCustomElementMounterOptions) {
   const { ensureSeamsWeb, getSeamsWeb, updateWalletConfigs } = opts;
 
-  // Generic registry for mountable components
-  let uiRegistry: WalletUIRegistry = { ...uiBuiltinRegistry };
+  // Generic registry for externally registered mountable components.
+  let uiRegistry: WalletUIRegistry = {};
   let uidCounter = 0;
   const mountedById = new Map<string, MountedEntry>();
   let parentOrigin: string | null = null;
@@ -287,7 +283,7 @@ export function setupLitElemMounter(opts: SetupLitElemMounterOptions) {
   // Ensure global host styles via stylesheet (no inline style attributes)
   ensureHostBaseStyles();
 
-  const runPmAction = async <T extends PmActionName>(
+  const runPmAction = async <T extends WalletUiActionName>(
     action: T,
     args: PmActionArgsMap[T],
   ): Promise<PmActionResultMap[T]> => {

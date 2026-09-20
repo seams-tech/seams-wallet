@@ -75,7 +75,7 @@ import {
 } from '@/core/types/signer-worker';
 import type { SignNEP413MessageParams, SignNEP413MessageResult } from '@/SeamsWeb/operations/near';
 import { toError } from '@shared/utils/errors';
-import type { WalletUIRegistry } from './host/lit-ui/iframe-lit-element-registry';
+import type { WalletUIRegistry } from './host/custom-elements/iframe-custom-element-registry';
 import type { DelegateActionInput, SignedDelegate } from '@/core/types/delegate';
 import { buildConfigsFromEnv } from '@/core/config/defaultConfigs';
 import { resolveAppearanceTheme, resolveThemePalette } from '@/core/config/configHelpers';

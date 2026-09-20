@@ -404,7 +404,7 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
     ctx.seamsWeb = null;
   }
 
-  // Forward UI registry to iframe-lit-elem-mounter if provided
+  // Forward the external custom-element registry if provided.
   try {
     const uiRegistry = payload?.uiRegistry;
     if (uiRegistry && typeof uiRegistry === 'object') {

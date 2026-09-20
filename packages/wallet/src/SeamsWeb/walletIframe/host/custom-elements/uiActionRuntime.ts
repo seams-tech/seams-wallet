@@ -6,7 +6,7 @@ import {
 import type { SignAndSendTransactionHooksOptions } from '@/core/types/sdkSentEvents';
 import { type ActionResult, type ActionArgs } from '@/core/types';
 import { toTrimmedString } from '@shared/utils/validation';
-import type { PmActionName } from './iframe-lit-element-registry';
+import type { WalletUiActionName } from './iframe-custom-element-registry';
 
 export type StructuredPrimitive = string | number | boolean | null;
 export type StructuredValue =
@@ -35,15 +35,15 @@ export type PmActionResultMap = {
   signAndSendTransaction: ActionResult;
 };
 
-export type PmActionArgs = PmActionArgsMap[PmActionName];
-export type PmActionResult = PmActionResultMap[PmActionName];
+export type PmActionArgs = PmActionArgsMap[WalletUiActionName];
+export type PmActionResult = PmActionResultMap[WalletUiActionName];
 
-export type RunPmAction = <T extends PmActionName>(
+export type RunPmAction = <T extends WalletUiActionName>(
   action: T,
   args: PmActionArgsMap[T],
 ) => Promise<PmActionResultMap[T]>;
 
-export async function runWalletUiAction<T extends PmActionName>(
+export async function runWalletUiAction<T extends WalletUiActionName>(
   pm: SeamsWeb,
   action: T,
   args: PmActionArgsMap[T],

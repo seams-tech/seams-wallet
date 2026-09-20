@@ -54,12 +54,12 @@ When you call methods like `registerPasskey()` or `signTransaction()`, the reque
   - Executes wallet operations (register, login, sign, etc.)
   - Sends progress events back to the parent
   - Handles UI component mounting requests
-- **`host/lit-ui/iframe-lit-elem-mounter.ts`** - Manages Lit-based UI components inside the iframe:
+- **`host/custom-elements/iframe-custom-element-mounter.ts`** - Manages externally registered custom elements inside the iframe:
   - Mounts transaction buttons and other UI elements
   - Wires UI interactions to SeamsWeb methods
   - Handles component lifecycle (mount/unmount/update)
-- **`host/lit-ui/iframe-lit-element-registry.ts`** - Declarative registry of available UI components:
-  - Defines which Lit components can be mounted
+- **`host/custom-elements/iframe-custom-element-registry.ts`** - Declarative registry of available UI components:
+  - Defines which custom elements can be mounted
   - Maps UI events to SeamsWeb actions
   - Provides type-safe component definitions
 
@@ -88,7 +88,7 @@ When you call methods like `registerPasskey()` or `signTransaction()`, the reque
 │ Iframe          │    │ Router           │    │ (real instance) │
 │                 │    │                  │    │                 │
 │                 │    │ IframeTransport  │    │                 │
-│                 │    │ ProgressBus      │    │ LitElemMounter  │
+│                 │    │ ProgressBus      │    │ CustomElemMounter│
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                       │                       │
          │                       │                       │

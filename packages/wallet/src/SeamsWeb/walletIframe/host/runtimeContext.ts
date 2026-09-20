@@ -8,7 +8,7 @@ import type {
 } from '../shared/messages';
 import { SeamsWeb } from '@/SeamsWeb';
 import type { SeamsConfigsInput } from '@/core/types/seams';
-import { setupLitElemMounter } from './lit-ui/iframe-lit-elem-mounter';
+import { setupCustomElementMounter } from './custom-elements/iframe-custom-element-mounter';
 import {
   applyWalletConfig,
   createHostContext,
@@ -45,7 +45,7 @@ type HandlerFactory = (deps: HandlerDeps) => HandlerMap;
 
 let runtimeContext: HostContext | null = null;
 const handlerMaps = new Map<HandlerFactory, HandlerMap>();
-let litMounterInstalled = false;
+let customElementMounterInstalled = false;
 
 const FOREGROUND_CONFIRMATION_REQUEST_TYPES: ReadonlySet<ParentToChildType> = new Set([
   'PM_REGISTER_WALLET',
@@ -180,9 +180,9 @@ export function syncActiveWalletHostRuntimeConfig(state: WalletHostRuntimeState)
   syncRuntimeContext(state);
 }
 
-function installLitMounterOnce(ctx: HostContext, input: WalletHostRuntimeRequest): void {
-  if (litMounterInstalled) return;
-  litMounterInstalled = true;
+function installCustomElementMounterOnce(ctx: HostContext, input: WalletHostRuntimeRequest): void {
+  if (customElementMounterInstalled) return;
+  customElementMounterInstalled = true;
 
   const ensureHostSeamsWeb = (): SeamsWeb => {
     const prev = ctx.seamsWeb;
@@ -219,7 +219,7 @@ function installLitMounterOnce(ctx: HostContext, input: WalletHostRuntimeRequest
     return pm;
   };
 
-  setupLitElemMounter({
+  setupCustomElementMounter({
     ensureSeamsWeb: ensureHostSeamsWeb,
     getSeamsWeb: () => ctx.seamsWeb,
     updateWalletConfigs: (patch) => {
@@ -270,7 +270,7 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
   if (foregroundBinding) {
     takeForegroundSurfaceBinding(ctx, foregroundBinding.binding);
   }
-  installLitMounterOnce(ctx, input);
+  installCustomElementMounterOnce(ctx, input);
 
   try {
     let handlers = handlerMaps.get(createHandlers);

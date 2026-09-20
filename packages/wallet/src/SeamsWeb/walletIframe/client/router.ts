@@ -259,7 +259,7 @@ import {
   isBoolean,
   toBasePath,
 } from '@shared/utils/validation';
-import type { WalletUIRegistry } from '../host/lit-ui/iframe-lit-element-registry';
+import type { WalletUIRegistry } from '../host/custom-elements/iframe-custom-element-registry';
 import { toError } from '@shared/utils/errors';
 import { secureRandomBase36 } from '@shared/utils/secureRandomId';
 import {
@@ -1640,7 +1640,7 @@ export class WalletIframeRouter {
       // Normalize path-like options so empty strings (common when CI env vars are unset)
       // don't accidentally become the wallet origin root. If sdkBasePath becomes "", then:
       //   new URL("", "https://wallet.example.com") -> "https://wallet.example.com/"
-      // which makes Lit components request CSS from the origin root (Pages SPA fallback),
+      // which makes embedded components request CSS from the origin root (Pages SPA fallback),
       // yielding `Content-Type: text/html` and browser MIME-type errors.
       servicePath: normalizedServicePath,
       sdkBasePath: normalizedSdkBasePath,

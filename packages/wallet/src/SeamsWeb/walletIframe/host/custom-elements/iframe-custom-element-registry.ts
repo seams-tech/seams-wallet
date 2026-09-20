@@ -1,16 +1,16 @@
 /**
- * Iframe Lit Element Registry - Host-Side Execution Layer
+ * Iframe custom-element registry - host-side execution layer
  *
  * This module provides a declarative registry of UI components that can be mounted
  * inside the wallet iframe. It defines the available components and how they should
  * be wired to SeamsWeb actions.
  */
 
-export type PmActionName = 'signAndSendTransaction';
+export type WalletUiActionName = 'signAndSendTransaction';
 
 export type UIEventBinding = {
   event: string; // e.g. 'seams-register-click'
-  action: PmActionName;
+  action: WalletUiActionName;
   // Map action args from element props (e.g., { nearAccountId: 'nearAccountId' })
   argsFromProps?: Record<string, string>;
   // Post message to parent when resolved
@@ -19,7 +19,7 @@ export type UIEventBinding = {
 
 export type UIPropBinding = {
   prop: string; // e.g. 'externalConfirm'
-  action: PmActionName;
+  action: WalletUiActionName;
 };
 
 export type UIBridgeProps = {
@@ -39,6 +39,3 @@ export type UIComponentDef = {
 };
 
 export type WalletUIRegistry = Record<string, UIComponentDef>;
-
-// Built-in components available out of the box inside the wallet host.
-export const uiBuiltinRegistry: WalletUIRegistry = {};
