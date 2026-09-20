@@ -1602,8 +1602,8 @@ Preact integration checkpoint — 2026-09-21:
   The delayed-import browser test uses the built module response and passes
   across Chromium, Firefox, and WebKit.
 - Remaining gates are bundle accounting, deletion of the retained recovery
-  custom-element host/viewer and event module, and the standalone retained
-  viewer fixture. Keep the Lit visual baseline until Phase 8d.
+  custom-element host/viewer and event module. Keep the Lit visual baseline
+  until Phase 8d.
 
 - [x] Implement the existing summary, opening, code display, acknowledgement,
   failure, and cancellation states with exact typed callbacks.
@@ -1622,8 +1622,9 @@ Preact integration checkpoint — 2026-09-21:
 - [x] Capture the matched recovery host fixture and review every image diff.
   The saved-Lit/Preact state matrix covers summary, opening, status-error,
   opening-error, and acknowledged states in light and dark themes.
-- [ ] Capture and review the retained standalone recovery viewer fixture after
-  its Preact replacement is available.
+- [x] Capture and review the retained standalone recovery viewer fixture after
+  its Preact replacement is available. The light/dark crops are 520×372 with
+  zero changed pixels against the saved Lit viewer.
 - [x] Replace host creation with an explicit lazy Preact mount.
 - [ ] Delete the recovery host/viewer custom elements and internal event module.
 
@@ -1664,6 +1665,14 @@ Recovery visual-state checkpoint — 2026-09-21 (`62f6abb`):
   build remain ignored under `.artifacts/refactor-127/`; retain them until
   Phase 8d has reviewed every migrated component and the final cleanup gates
   pass.
+
+Recovery viewer fixture checkpoint — 2026-09-21 (`1616a1b`):
+
+- Added the retained standalone viewer comparison to the recovery visual
+  harness. Both light and dark saved-Lit/Preact crops match at 520×372 with
+  zero changed pixels; the full recovery state run now passes **12/12**.
+- This closes the recovery visual fixture gate. Bundle accounting and deletion
+  of the retained Lit host/viewer and event module remain open.
 
 Luna handoff checkpoint — 2026-09-21 (`62f6abb`):
 
