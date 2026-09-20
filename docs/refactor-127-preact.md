@@ -1439,10 +1439,23 @@ Confirmation chain-context checkpoint — 2026-09-21 (`e3639ce`):
   that run. Because this is post-Luna work, re-review the context mapping and
   close timing before accepting the confirmation phase.
 
+Confirmation lifecycle checkpoint — 2026-09-21 (`ab7ee29`):
+
+- Added delayed feature-import coverage and a sequential cancel-to-confirm auth
+  handoff through the public confirmation API. The focused lifecycle cases pass
+  **6/6** across Chromium, Firefox, and WebKit; the broader confirmation,
+  content, and transaction-tree run remains **99/99**.
+- The existing drawer interruption and callback-filtering checks cover rapid
+  close/replacement behavior. Re-review delayed-import settlement and portal
+  cleanup at the Luna audit boundary before deleting the confirmation Lit
+  subtree.
+
 #### 4a. Characterize primitives and build the confirmation subtree
 
-- [ ] Cover drawer pointer capture, dismissal thresholds, interrupted
-  transitions, focus trapping/restoration, reduced motion, and resizing.
+- [x] Cover drawer pointer capture, dismissal thresholds, interrupted
+  transitions, focus trapping/restoration, reduced motion, and resizing. The
+  confirmation content and mount suites pass these cases in all three
+  supported browser engines.
 - [x] Cover transaction tree expansion, chain-specific formatting, explorer
   links, copy, long values, and error/loading content.
 - [x] Implement Preact primitives only as the confirmation subtree needs them:
@@ -1469,8 +1482,10 @@ Confirmation chain-context checkpoint — 2026-09-21 (`e3639ce`):
   entrypoint visual acceptance remains open.
 - [ ] Capture matched confirmer, drawer, transaction-tree, halo, passkey-loader,
   and padlock fixtures and review every image diff.
-- [ ] Test rapid confirm/cancel, replacement while closing, delayed imports,
-  and auth-to-confirm-to-auth handoff with no stale state or focus.
+- [x] Test rapid confirm/cancel, replacement while closing, delayed imports,
+  and auth-to-confirm-to-auth handoff with no stale state or focus. The
+  lifecycle gate passes across Chromium, Firefox, and WebKit; standalone and
+  hosted drawer interruption cases remain in the same focused matrix.
 - [ ] Delete confirmation's Lit subtree and registrations. Keep shared Lit
   primitives still needed by export, recovery, or React adapters.
 
