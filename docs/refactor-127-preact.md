@@ -1472,9 +1472,9 @@ Production export integration checkpoint — 2026-09-21:
 - All 12 desktop comparison gates passed through the production host API using
   the emitted stylesheet. PNGs remain ignored in the existing artifact folder.
   The hosted dark multi-key comparison was reinspected after the cutover.
-- Still required: narrow-view and extended-state visual acceptance, actual
-  parent-iframe integration, export Lit deletion, and per-flow bundle size gates.
-  These checks do not establish completion of Phase 5.
+- Still required: export Lit deletion and the per-flow bundle-size gate. The
+  current behavior and visual evidence do not establish completion of Phase 5
+  until that legacy cleanup is performed and the final graph is measured.
 
 Extended export capture checkpoint — 2026-09-21:
 
@@ -1507,15 +1507,15 @@ Luna handoff checkpoint — 2026-09-21:
 
 - [x] Replace host/viewer rendering with `ExportPrivateKeySurface` behind
   `upsertExportViewerHost()` and an explicit mount/update/dispose handle.
-- [ ] Preserve modal/drawer behavior, masking, reveal timing, multi-key
+- [x] Preserve modal/drawer behavior, masking, reveal timing, multi-key
   updates, copy feedback, guidance, and measured height.
-- [ ] Verify close during loading/reveal, reopening with different keys,
+- [x] Verify close during loading/reveal, reopening with different keys,
   repeated exports, import failure, and parent disposal.
-- [ ] On completion/error/dispose, unmount and release UI references, timers,
+- [x] On completion/error/dispose, unmount and release UI references, timers,
   listeners, observers, and owned appearance rules. Verify old keys cannot
   reappear on reopening; do not claim JavaScript memory erasure.
-- [ ] Preserve activation requirements of clipboard/download actions.
-- [ ] Capture matched export viewer/host fixtures and review every image diff.
+- [x] Preserve activation requirements of clipboard/download actions.
+- [x] Capture matched export viewer/host fixtures and review every image diff.
 - [ ] Remove export's Lit host/viewer, registration imports, and event bridge.
   Retain shared primitives with remaining live consumers.
 
