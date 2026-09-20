@@ -827,6 +827,12 @@ Implemented in the next server patch:
   reuse. Each subsequent init/step request still authenticates and resolves
   material again; key handle, relayer, participant, activation, and atomic
   exact-operation admission checks remain.
+- Promote the remaining rounds of an in-flight background ceremony while a
+  signer is waiting for that pool. Passive readiness observers and signers
+  already using cached material do not promote background work. The client
+  retains the same ceremony and authorization; each round still passes through
+  the existing gateway checks. A request already queued at the gateway cannot
+  be reprioritized by this client change.
 
 The previous cohort attributed 68 ms per ceremony to the duplicate material
 read, so this is an incremental reduction. No deployed improvement is claimed
@@ -875,6 +881,11 @@ Remaining work, in order:
 
 The coordinated package release candidate is **0.5.26**. Publication, deployment,
 and post-release measurements follow successful validation of its exact commit.
+The priority regression verifies a background init followed by a foreground
+step under the same session and authorization, with no duplicate ceremony.
+The combined candidate passes all 200 Wallet unit tests, Wallet type-checking,
+and the SDK build; server checks and type fixtures passed for the unchanged
+server portion. Production latency for these changes remains unmeasured.
 
 ## Execution order
 

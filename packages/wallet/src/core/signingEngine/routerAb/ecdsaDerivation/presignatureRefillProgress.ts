@@ -9,10 +9,20 @@ export class PresignatureRefillProgressV1 {
     kind: 'refilling',
     revision: 0,
   };
-  private readonly waiters = new Set<PresignatureRefillProgressWaiterV1>();
+  private readonly waiters = new Map<
+    PresignatureRefillProgressWaiterV1,
+    'foreground' | 'background'
+  >();
 
   snapshot(): PresignatureRefillProgressSnapshotV1 {
     return this.state;
+  }
+
+  hasForegroundWaiters(): boolean {
+    for (const priority of this.waiters.values()) {
+      if (priority === 'foreground') return true;
+    }
+    return false;
   }
 
   publishAvailable(): void {
@@ -29,12 +39,13 @@ export class PresignatureRefillProgressV1 {
 
   waitForChange(
     observed: PresignatureRefillProgressSnapshotV1,
+    priority: 'foreground' | 'background',
   ): Promise<PresignatureRefillProgressSnapshotV1> {
     if (this.state.kind === 'settled' || this.state.revision !== observed.revision) {
       return Promise.resolve(this.state);
     }
     return new Promise((resolve) => {
-      this.waiters.add(resolve);
+      this.waiters.set(resolve, priority);
       if (this.state.kind === 'settled' || this.state.revision !== observed.revision) {
         this.waiters.delete(resolve);
         resolve(this.state);
@@ -44,7 +55,7 @@ export class PresignatureRefillProgressV1 {
 
   private flushWaiters(): void {
     const snapshot = this.state;
-    const waiters = [...this.waiters];
+    const waiters = [...this.waiters.keys()];
     this.waiters.clear();
     for (const waiter of waiters) waiter(snapshot);
   }
