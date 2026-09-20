@@ -46,6 +46,7 @@ class MountedRecoveryCodeBackupSurface implements RecoveryCodeBackupSurfaceHandl
     this.dialog.className = 'seams-host-themed-dialog';
     this.dialog.tabIndex = -1;
     this.dialog.setAttribute('data-seams-wallet-recovery-backup-dialog', '');
+    this.dialog.dataset.seamsRecoverySurface = input.surface;
     this.dialog.setAttribute('aria-labelledby', 'seams-wallet-recovery-title');
     this.dialog.setAttribute('aria-describedby', 'seams-wallet-recovery-description');
     this.dialog.addEventListener('cancel', this.handleCancel);
@@ -125,4 +126,3 @@ function ensureRecoveryStyles(document: Document): void {
     throw new Error(`Wallet recovery-code stylesheet unavailable: ${marker}`);
   }
 }
-
