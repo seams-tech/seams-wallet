@@ -696,46 +696,58 @@ pool scheduler, and reusable-session post-sign refill in the
 works across reload, and sustained signing validates refill throughput beyond
 the initial pool. Immediate signing is tested without a warmup delay.
 
-#### 4.5 Resolve preprocessing permission after the reusable allowance expires
+#### 4.5 Session-independent preprocessing (approved 2026-09-20)
 
-The present operation-step-up branch permits preparation for that operation
-and omits post-sign refill. Keep that behavior while implementing 4.1–4.4.
-Do not increase the signing allowance or infer future-operation authority
-from a successful signature.
+The user approved 90-day material retention and replenishment independent of
+active signing sessions and signing quota. Target three unused presignatures
+so a user returning once a month can use cached material immediately after
+fresh signing authentication. This replaces the earlier proposal that limited
+preprocessing permission to the signing session's ten-minute lifetime.
 
-Write a bounded design for a separate preprocessing permission if sustained
-step-up latency still requires advance generation. Specify who grants it,
-its exact wallet/material binding, lifetime, generation/storage limits,
-revocation and logout behavior, and which client material must remain unlocked.
-Preprocessing permission must authorize no transaction signatures or exports;
-every signature still requires its existing exact-operation or reusable-session
-admission. Reuse the existing pool and one-use consumption model.
+Issue a distinct, wallet/material-bound preprocessing permission during an
+owner-authenticated registration or unlock. Accept it only for presign pool
+creation and continuation, never signing, export, device linking or recovery.
+Keep it independent of signing-session expiry and quota, while enforcing its
+own bounded lifetime, live authority revocation and exact material activation.
+Persist the permission separately from signing-session state. Refill must use
+client role-local material inside the existing crypto worker; no client share
+may be uploaded or copied to a background service.
 
-**Decision gate:** settle the authorization policy explicitly and update the
-intended-behavior specification before implementing this permission. If adopted,
-use distinct domain types and negative tests proving it cannot authorize
-signing, export, another wallet, another activation, or generation after expiry
-or revocation. If deferred, exhausted-pool step-up remains a required acceptance
-cohort under the existing policy.
+While client execution is available, restore durable inventory and refill to
+three on startup/resume and after consumption. Generate one entry at a time,
+coalesce work by exact pool, and use the existing atomic durable admission to
+avoid exceeding client capacity. Signing can consume the first available entry
+while the rest refill. Browser shutdown can interrupt generation, so preserve
+completed material for 90 days and resume deficits when client execution returns.
+Do not present a guarantee of generation while the browser is closed.
 
-Proposed permission contract for that decision (design only):
+Implementation checkpoints:
 
-| Property | Proposed bound |
-| --- | --- |
-| Issuer | The existing authorization service, only after a full registration or unlock authentication that includes this capability in the authorized policy. A transaction step-up cannot mint or renew it. |
-| Scope | One tenant/environment, wallet, selected authority and auth method, exact material activation, signing worker, and presign pool identity. |
-| Operation | A separate `ecdsa.presign` permission accepted only by preprocessing admission. It never satisfies signing, export, device linking, or recovery admission. |
-| Lifetime | At most 10 minutes and never beyond the authorizing Wallet Session's expiry. Signing allowance exhaustion may leave this permission alive; expiry, replacement, revocation, or logout do not. |
-| Initial limits | At most three available entries, one generation in flight, and twelve generated entries per grant. Enforce limits atomically server-side across tabs; measure throughput before revising them. |
-| Client custody | Require an unlocked client and its existing local role-specific material. Stop background work on lock; do not move the client share to a service or retain an extra secret copy for refill. |
-| Revocation | Bind the authority epoch and material activation. Revalidate on every admitted continuation and before publishing the result. Lock/logout cancel local work; revoke the grant and invalidate its unused entries server-side through the existing lifecycle path. |
-| Consumption | Keep the existing exact-operation/reusable-session signing admission and atomic one-use reservation/consumption. Holding a presignature gives no signing authority. |
-| Failure | Abort incomplete generation and use a fresh ceremony after uncertain continuation. Bound retries by the same grant generation limit; never recycle consumed or uncertain nonces. |
+- [x] Change client validation, TypeScript server policy and Rust SigningWorker
+  retention limits together to 90 days; preserve short ceremony and exact-operation
+  limits. Trigger post-consumption refill at depth two.
+- [x] Complete retention validation, including real IndexedDB reopen and a
+  30-day-old encrypted entry, server boundary tests and one-use replay checks.
+- [ ] Implement and persist the separate preprocessing permission, validate it
+  against current authority/material on every round, and isolate it from signing
+  and export admission with runtime and type-level negative tests.
+- [ ] Start/resume refill without an active signing session and after exhausted
+  quota. Preserve cryptographic ownership, bounded concurrency, and cancellation
+  on material retirement or revocation.
+- [ ] Verify reload restoration and sustained signing in production; measure the
+  first signature after a simulated 30-day absence with zero generation requests.
 
-Implementation remains gated on accepting this contract, adding it to the
-intended-behavior specification, and testing permission separation. The current
-patch preserves the existing allowance policy. The proposed numbers bound a
-first implementation; they are not measured throughput guarantees.
+The retention/scheduling patch passes all 200 Wallet unit tests, Wallet/server
+type checks, Wallet state type fixtures, SDK build, and five focused Rust expiry
+tests. The IndexedDB test reopens a connection with a 30-day-old encrypted entry
+and verifies decryption and atomic one-use claims; this is controlled storage
+coverage, not a production time-travel benchmark. An initial run reused another
+checkout's Vite server; isolated validation used port 4283. The new test's repository-reopen fixture was corrected to retain its active-material lookup.
+The broader Rust integration harness references retired APIs and was not repaired
+for this patch; targeted library tests passed. The patch remains unreleased. Session-independent
+preprocessing is approved but remains unimplemented until the separate permission
+path and its tests are complete. Do not relax existing signing-session validation
+as a substitute for that permission.
 
 #### 4.6 Validate the complete production path and release incrementally
 

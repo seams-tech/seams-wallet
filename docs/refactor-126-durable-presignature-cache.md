@@ -10,7 +10,7 @@ one-use record in the wallet's existing IndexedDB database. Restore it lazily
 inside the ECDSA worker when a transaction reserves it. Persist the matching
 server half through the existing encrypted SigningWorker-private D1 adapter.
 Separate the presign ceremony deadline from completed-material expiry and use
-a 24-hour maximum material lifetime for the first release.
+a 90-day maximum material lifetime for the first release.
 
 The first implementation has two functional changes: client persistence and
 expiry separation. It reuses the current signing path:
@@ -293,7 +293,7 @@ min(requested material expiry,
     now + MAX_DURABLE_PRESIGNATURE_LIFETIME)
 ```
 
-Set `MAX_DURABLE_PRESIGNATURE_LIFETIME` to 24 hours for the first release.
+Set `MAX_DURABLE_PRESIGNATURE_LIFETIME` to 90 days for the first release.
 Enforce the cap on the server and bind the client record to the returned
 material expiry. Keep one server-owned constant and add no SDK tuning knob.
 The activation bound means an actual material-lifecycle expiry; do not reuse
@@ -315,12 +315,14 @@ IndexedDB admission transaction. Clean expired material through the existing
 stores. Do not introduce a distributed refill lock or a new server capacity
 subsystem in this change.
 
-Twenty-four hours is a conservative initial retention choice, not a proven
-security threshold. Combining both roles' `k` and `sigma` shares exposes the
-wallet private scalar through `sigma = k * x`. Fresh authorization cannot
-prevent offline reconstruction from stolen halves. Any extension, including
-30 days, needs cache-hit/return-interval evidence and a focused security review
-of retention, cleanup, backups, and key ownership.
+The approved retention policy is 90 days, to cover users returning after weeks
+of inactivity. This changes the exposure window for both retained halves.
+Combining both roles' `k` and `sigma` shares exposes the wallet private scalar
+through `sigma = k * x`; online authorization cannot prevent offline reconstruction
+from stolen halves. Preserve separate client/server ownership, existing encryption,
+atomic one-use claims, revocation/retirement checks, and expiry cleanup. Existing
+records keep their authenticated original expiry; never rewrite ciphertext
+metadata to extend an already-issued entry.
 
 The Wallet Session authorizes creation and later reservation. Its expiry does
 not expire already-created material. Every later reservation still requires a
@@ -473,7 +475,7 @@ failure leaves at most one available owner.
   session, and response boundaries. Pass the negotiated material expiry into
   the existing D1 admission record.
 - [x] Keep the live protocol session short and admit completed reusable-
-  session material with the bounded 24-hour durable lifetime.
+  session material with the bounded 90-day durable lifetime.
 - [x] Stop deriving completed-material expiry from Wallet Session expiry.
   Require current authorization when the material is created and whenever it
   is reserved.
@@ -527,7 +529,7 @@ unlock timing does not regress, and cold fallback remains functional.
 | Retirement | Logout clears the local cache and invalidates pending refill; revocation, recovery, rotation, and activation replacement reject retired material even if stale client rows remain. Late refill cannot repopulate retired material. |
 | Storage failure | A definite admission failure selects one resident owner. An ambiguous write burns the entry. A failed take never decrypts the row; cold generation remains available. |
 | Authorization | Possessing a cached client row cannot prepare or finalize a signature without current Wallet Session or operation-step-up authority. |
-| Session independence | Material survives reload and Wallet Session renewal under the same activation for up to 24 hours, subject to fresh authorization. Session expiry alone does not delete it. |
+| Session independence | Material survives reload and Wallet Session renewal under the same activation for up to 90 days, subject to fresh authorization. Session expiry alone does not delete it. |
 | Single server authority | Existing encrypted D1 records and Rust lifecycle remain authoritative. Concurrent reservations have one winner; stale revisions cannot consume or resurrect records. |
 | Refill and cleanup | The atomic IndexedDB admission rejects a fourth sealed available row for the exact pool identity. The resident fallback holds at most three available entries per page-local pool. Orphaned server halves expire and are cleaned up; three is not asserted as a global server retained-material bound. |
 | Latency | On a cache hit, no presign-protocol requests run; existing request timing measures local take/decrypt overhead before the warm signing path. |
@@ -578,7 +580,7 @@ This refactor is complete when:
 6. Each exact pool identity holds at most three sealed available client
    presignatures in IndexedDB, and each page-local resident fallback holds at
    most three available entries.
-7. Reusable material has a 24-hour maximum lifetime independent of the
+7. Reusable material has a 90-day maximum lifetime independent of the
    Wallet Session that created it, and each use requires current authorization.
 8. The existing encrypted private D1 store remains the single server-side
    persistence authority; consumption is durable before finalization.

@@ -28,7 +28,7 @@ export const DEFAULT_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_POLICY: Router
   {
     enabled: true,
     targetDepth: 3,
-    lowWatermark: 1,
+    lowWatermark: 2,
     maxRefillInFlight: 1,
     refillAttemptTimeoutMs: 30_000,
   };

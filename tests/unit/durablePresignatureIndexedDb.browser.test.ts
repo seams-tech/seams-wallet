@@ -5,6 +5,7 @@ type DurablePresignatureBrowserResult = {
   readonly admissionKinds: readonly [string, string];
   readonly concurrentTakeKinds: readonly string[];
   readonly openedPlaintextMatches: boolean;
+  readonly restoredAfterThirtyDays: number;
   readonly tamperedTakeKind: string;
   readonly takeAfterTamperKind: string;
   readonly malformedRowsDeleted: number;
@@ -142,6 +143,8 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
   const bigR33 = encoders.base64UrlDecode(
     'A_KHc8LZdSiLx9HSBcN0hlGwdfvGYQ5Yzd7t348ZQFqo',
   );
+  const dayMs = 24 * 60 * 60_000;
+  const createdAtMs = Date.now() - 30 * dayMs;
   const firstPlaintext = new Uint8Array(97).fill(17);
   const firstAdmission = await store.admitClientPresignature({
     poolIdentity,
@@ -150,12 +153,15 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
     groupPublicKey33,
     bigR33,
     plaintext97: firstPlaintext,
-    createdAtMs: Date.now(),
-    expiresAtMs: Date.now() + 60_000,
+    createdAtMs,
+    expiresAtMs: createdAtMs + 90 * dayMs,
   });
   if (firstAdmission.kind !== 'stored') {
     throw new Error(`First durable presignature admission failed: ${firstAdmission.kind}`);
   }
+  manager.close();
+  const restoredEntries = await store.listAvailableClientPresignatures(poolIdentity);
+  const restoredAfterThirtyDays = restoredEntries.length;
   const concurrentTakes = await Promise.all([
     store.takeClientPresignature({
       recordId: firstAdmission.metadata.recordId,
@@ -228,6 +234,7 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
     admissionKinds: [firstAdmission.kind, secondAdmission.kind],
     concurrentTakeKinds: concurrentTakes.map((result: { kind: string }) => result.kind).sort(),
     openedPlaintextMatches,
+    restoredAfterThirtyDays,
     tamperedTakeKind: tamperedTake.kind,
     takeAfterTamperKind: takeAfterTamper.kind,
     malformedRowsDeleted,
@@ -240,7 +247,7 @@ async function runDurablePresignatureChecks(page: Page): Promise<DurablePresigna
   return await page.evaluate(runDurablePresignatureBrowserChecks);
 }
 
-test('durable presignatures are single-claim and reject tampered ciphertext in IndexedDB', async ({
+test('90-day presignatures restore after 30 days and preserve single-claim and ciphertext checks', async ({
   page,
 }) => {
   const result = await runDurablePresignatureChecks(page);
@@ -248,6 +255,7 @@ test('durable presignatures are single-claim and reject tampered ciphertext in I
   expect(result.admissionKinds).toEqual(['stored', 'stored']);
   expect(result.concurrentTakeKinds).toEqual(['claimed_elsewhere', 'opened']);
   expect(result.openedPlaintextMatches).toBe(true);
+  expect(result.restoredAfterThirtyDays).toBe(1);
   expect(result.tamperedTakeKind).toBe('corrupt');
   expect(result.takeAfterTamperKind).toBe('claimed_elsewhere');
   expect(result.malformedRowsDeleted).toBe(1);
