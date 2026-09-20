@@ -1490,7 +1490,6 @@ export interface PMPrefillRouterAbEcdsaDerivationPresignaturePoolPayload {
   options: {
     chainTarget: ThresholdEcdsaChainTarget;
     waitForPoolReady?: boolean;
-    minRemainingUsesBeforePrefill?: number;
   };
 }
 

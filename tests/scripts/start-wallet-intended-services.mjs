@@ -49,6 +49,7 @@ function buildWalletRuntime() {
     ]);
   }
   runRequired('Wallet server build', 'pnpm', ['-C', 'packages/wallet-server', 'run', 'build']);
+  runRequired('Wallet local initializer build', 'pnpm', ['run', 'build:local-tools']);
 }
 
 function startWalletSystem() {

@@ -941,52 +941,48 @@ pool scheduler, and reusable-session post-sign refill in the
 works across reload, and sustained signing validates refill throughput beyond
 the initial pool. Immediate signing is tested without a warmup delay.
 
-#### 4.5 Resolve preprocessing permission after the reusable allowance expires
+#### 4.5 Five-entry durable pools with session-authorized refill
 
-The present operation-step-up branch permits preparation for that operation
-and omits post-sign refill. Keep that behavior while implementing 4.1–4.4.
-Do not increase the signing allowance or infer future-operation authority
-from a successful signature.
+The revised plan is [refactor-128](./refactor-128.md). The user selected the
+simpler policy: retain reusable material for 90 days, restore and fill each exact
+client pool to five while the client can execute with a valid session, and refill
+after every consumption. This supersedes the separate long-lived preprocessing
+credential proposal.
 
-Write a bounded design for a separate preprocessing permission if sustained
-step-up latency still requires advance generation. Specify who grants it,
-its exact wallet/material binding, lifetime, generation/storage limits,
-revocation and logout behavior, and which client material must remain unlocked.
-Preprocessing permission must authorize no transaction signatures or exports;
-every signature still requires its existing exact-operation or reusable-session
-admission. Reuse the existing pool and one-use consumption model.
+Decouple preprocessing from transaction signing quota. A live, unrevoked,
+correctly scoped session may refill at zero remaining signing uses. Preprocessing
+must not consume those uses. Preserve signing quota enforcement, session expiry,
+authority revocation, active material checks, and exact-operation restrictions.
+This requires both client eligibility and server pool-fill admission changes;
+removing only the client minimum-use guard is insufficient.
 
-**Decision gate:** settle the authorization policy explicitly and update the
-intended-behavior specification before implementing this permission. If adopted,
-use distinct domain types and negative tests proving it cannot authorize
-signing, export, another wallet, another activation, or generation after expiry
-or revocation. If deferred, exhausted-pool step-up remains a required acceptance
-cohort under the existing policy.
+Implementation checkpoints:
 
-Proposed permission contract for that decision (design only):
+- [x] Draft coordinated 90-day retention limits in the client, TypeScript server,
+  and Rust SigningWorker, preserving short ceremony and exact-operation limits.
+- [x] Validate retention with 200 Wallet unit tests, Wallet/server type checks,
+  state type fixtures, SDK build, and five focused Rust expiry tests. The completed
+  refactor-128 implementation passes all 208 Wallet unit tests. IndexedDB
+  coverage reopens a connection with a 30-day-old encrypted entry; it is not a
+  production elapsed-time measurement. Changes remain unreleased in draft PR #11.
+- [x] Separate preprocessing admission from signing-use quota while retaining
+  live session and material authorization; cover zero-use and rejection cases.
+- [x] Align capacity, login policy, and post-consumption refill at five entries.
+- [x] Reconcile on startup/resume and consumption; continue bounded partial fills
+  and transient retries while eligible, without blocking registration or unlock.
+- [ ] Verify persisted cache hits and sustained production signing, including
+  refill after the final signing use and rejection after session expiry.
 
-| Property | Proposed bound |
-| --- | --- |
-| Issuer | The existing authorization service, only after a full registration or unlock authentication that includes this capability in the authorized policy. A transaction step-up cannot mint or renew it. |
-| Scope | One tenant/environment, wallet, selected authority and auth method, exact material activation, signing worker, and presign pool identity. |
-| Operation | A separate `ecdsa.presign` permission accepted only by preprocessing admission. It never satisfies signing, export, device linking, or recovery admission. |
-| Lifetime | At most 10 minutes and never beyond the authorizing Wallet Session's expiry. Signing allowance exhaustion may leave this permission alive; expiry, replacement, revocation, or logout do not. |
-| Initial limits | At most three available entries, one generation in flight, and twelve generated entries per grant. Enforce limits atomically server-side across tabs; measure throughput before revising them. |
-| Client custody | Require an unlocked client and its existing local role-specific material. Stop background work on lock; do not move the client share to a service or retain an extra secret copy for refill. |
-| Revocation | Bind the authority epoch and material activation. Revalidate on every admitted continuation and before publishing the result. Lock/logout cancel local work; revoke the grant and invalidate its unused entries server-side through the existing lifecycle path. |
-| Consumption | Keep the existing exact-operation/reusable-session signing admission and atomic one-use reservation/consumption. Holding a presignature gives no signing authority. |
-| Failure | Abort incomplete generation and use a fresh ceremony after uncertain continuation. Bound retries by the same grant generation limit; never recycle consumed or uncertain nonces. |
-
-Implementation remains gated on accepting this contract, adding it to the
-intended-behavior specification, and testing permission separation. The current
-patch preserves the existing allowance policy. The proposed numbers bound a
-first implementation; they are not measured throughput guarantees.
+Completed material survives ordinary session expiry under its own retention
+policy. Explicit logout/reset and material-retirement cleanup retain their
+existing semantics. Refill stops when the client cannot execute or its session
+expires or is revoked. A returning user still needs fresh signing authorization.
 
 #### 4.6 Validate the complete production path and release incrementally
 
 Deploy 4.1 first, evaluate 4.2 next, then compare 4.3. Improve authorized refill
-using 4.4 with its own before/after measurement. Keep the 4.5 policy decision
-separate from those optimizations. Wallet owns SDK/server/Rust changes;
+using 4.4 with its own before/after measurement. Implement the revised 4.5 inventory and admission policy
+with its own authorization coverage and cache-hit measurements. Wallet owns SDK/server/Rust changes;
 monorepo consumes exact package releases and owns placement and hosted rollout.
 
 - Test Tempo and Arc independently: immediate first use, cached signing,

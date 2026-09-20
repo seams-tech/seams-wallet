@@ -5,8 +5,12 @@ import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNo
 import { parseRouterAbEcdsaDerivationNormalSigningScopeV1 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { RouterApiWalletSessionExactOperationContext } from '../../packages/wallet-server/src/router/framework/authServicePort';
 import type { FetchRouterApiContext } from '../../packages/wallet-server/src/router/transport/fetch/fetchRouter.types';
+import { validateRouterAbEcdsaDerivationWalletSessionInputs } from '../../packages/wallet-server/src/router/auth/commonRouterUtils';
 import { authorizeEcdsaPoolFill } from '../../packages/wallet-server/src/router/transport/fetch/routes/thresholdEcdsa';
-import { parseRouterAbEcdsaDerivationPoolFillStepRouteRequest } from '../../packages/wallet-server/src/router/domains/ecdsa/thresholdEcdsaRequestValidation';
+import {
+  parseRouterAbEcdsaDerivationPoolFillInitRouteRequest,
+  parseRouterAbEcdsaDerivationPoolFillStepRouteRequest,
+} from '../../packages/wallet-server/src/router/domains/ecdsa/thresholdEcdsaRequestValidation';
 import { buildMpcMaterialActivationRefFixture } from './helpers/ecdsaMaterialRef.fixtures';
 import { buildEmailOtpEcdsaWalletSessionFixture } from './helpers/linkedDeviceManagement.fixtures';
 import { CloudflareD1AuthorizationStore } from '../../packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
@@ -164,10 +168,10 @@ class PresignStepServices {
     } as unknown as FetchRouterApiContext;
   }
 
-  authorize() {
+  authorize(request: Parameters<typeof authorizeEcdsaPoolFill>[0]['request'] = this.data.request) {
     return authorizeEcdsaPoolFill({
       ctx: this.context(),
-      request: this.data.request,
+      request,
       timing: {
         queue: null,
         authenticate: null,
@@ -285,7 +289,7 @@ class SessionRowDatabase implements D1DatabaseLike, D1PreparedStatementLike {
   }
 }
 
-test('one credential lookup accepts exhausted identity only for exact operations and rejects stale provenance', async () => {
+test('live credential lookup accepts exhausted identity and rejects stale provenance', async () => {
   const data = await buildPresignStepFixture();
   const database = new SessionRowDatabase(joinedSessionRow(data));
   const store = new CloudflareD1AuthorizationStore({
@@ -349,4 +353,88 @@ test('one credential lookup accepts exhausted identity only for exact operations
   ).rejects.toThrow('expired');
   database.row = null;
   await expect(store.readWalletSessionForExactOperationByCredential(input)).resolves.toBeNull();
+});
+
+function reusablePresignRequest(
+  data: Awaited<ReturnType<typeof buildPresignStepFixture>>,
+  walletSessionId: string,
+) {
+  const parsed = parseRouterAbEcdsaDerivationPoolFillStepRouteRequest({
+    presignSessionId: 'presign:material-reads',
+    ceremonyExpiresAtMs: Date.now() + 30_000,
+    materialExpiresAtMs: Date.now() + 90 * 24 * 60 * 60_000,
+    stage: 'presign',
+    authorization: { kind: 'reusable_wallet_session', wallet_session_id: walletSessionId },
+  });
+  if (!parsed.ok) throw new Error(parsed.body.message);
+  return parsed.request;
+}
+
+test('live exhausted sessions can preprocess while signing admission still rejects their quota', async () => {
+  const services = new PresignStepServices(await buildPresignStepFixture());
+  const request = reusablePresignRequest(services.data, services.data.session.walletSessionId);
+  await expect(services.authorize(request)).resolves.toMatchObject({ ok: true });
+  expect(services.sessionReads).toBe(1);
+  expect(services.materialReads).toBe(1);
+  expect(services.operationReads).toBe(0);
+  const ctx = services.context();
+  await expect(
+    validateRouterAbEcdsaDerivationWalletSessionInputs({
+      headers: { authorization: ctx.request.headers.get('authorization') ?? '' },
+      authorizationSessions: ctx.service.authorizationSessions,
+      operationKind: 'evm.sign_transaction',
+    }),
+  ).resolves.toMatchObject({ ok: false });
+
+  await expect(
+    services.authorize(reusablePresignRequest(services.data, 'other-session')),
+  ).resolves.toMatchObject({ ok: false, error: { status: 403 } });
+  services.materialAvailable = false;
+  await expect(services.authorize(request)).resolves.toMatchObject({
+    ok: false,
+    error: { status: 403 },
+  });
+});
+
+test('preprocessing admission rejects a session that expires between rounds', async () => {
+  const services = new PresignStepServices(await buildPresignStepFixture());
+  const request = reusablePresignRequest(services.data, services.data.session.walletSessionId);
+  await expect(services.authorize(request)).resolves.toMatchObject({ ok: true });
+  const originalNow = Date.now;
+  Date.now = expiredSessionTime.bind(null, services.data.session.expiresAtMs);
+  try {
+    await expect(services.authorize(request)).resolves.toMatchObject({ ok: false });
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+function expiredSessionTime(expiresAtMs: number): number {
+  return expiresAtMs + 1;
+}
+
+test('exhausted-session preprocessing init remains bound to the current material and key', async () => {
+  const services = new PresignStepServices(await buildPresignStepFixture());
+  const parsed = parseRouterAbEcdsaDerivationPoolFillInitRouteRequest({
+    keyHandle: services.keyHandle,
+    count: 1,
+    poolFill: {
+      kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
+      scope: services.data.scope,
+      ceremonyExpiresAtMs: Date.now() + 30_000,
+      materialExpiresAtMs: Date.now() + 90 * 24 * 60 * 60_000,
+    },
+    authorization: {
+      kind: 'reusable_wallet_session',
+      wallet_session_id: services.data.session.walletSessionId,
+    },
+  });
+  if (!parsed.ok) throw new Error(parsed.body.message);
+  await expect(services.authorize(parsed.request)).resolves.toMatchObject({ ok: true });
+  services.keyHandle = 'key:replacement';
+  await expect(services.authorize(parsed.request)).resolves.toMatchObject({
+    ok: false,
+    error: { status: 403 },
+  });
+  expect(services.operationReads).toBe(0);
 });

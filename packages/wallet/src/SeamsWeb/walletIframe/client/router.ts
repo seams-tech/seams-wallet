@@ -3706,7 +3706,6 @@ export class WalletIframeRouter {
     options: {
       chainTarget: ThresholdEcdsaChainTarget;
       waitForPoolReady?: boolean;
-      minRemainingUsesBeforePrefill?: number;
     };
   }): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {
     const res = await this.post<RouterAbEcdsaDerivationLoginPresignaturePrefillResult>(

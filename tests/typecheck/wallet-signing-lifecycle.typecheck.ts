@@ -2,7 +2,7 @@ import type { NearEd25519WalletSessionAuthorizationDisposition } from '../../pac
 import type { EcdsaSessionPresignaturePrefillInput } from '../../packages/wallet/src/core/signingEngine/session/warmCapabilities/ecdsaLoginPrefill';
 import type { RouterAbEcdsaDerivationClientPresignatureRefillInput } from '../../packages/wallet/src/core/signingEngine/routerAb/ecdsaDerivation/presignaturePool';
 import type {
-  AuthorizedEvmFamilyEcdsaSigningCapability,
+  AuthorizedEcdsaPreprocessingCapability,
   CanonicalEvmFamilyEcdsaSigningCapability,
 } from '../../packages/wallet/src/core/signingEngine/session/material/ecdsaSigningCapability';
 import {
@@ -47,7 +47,7 @@ invalidWalletSigningMaterial('revoked');
 fullWalletLoginRequired('revoked');
 fullWalletLoginRequired('wallet_locked');
 
-declare const authorizedEcdsa: AuthorizedEvmFamilyEcdsaSigningCapability;
+declare const authorizedEcdsa: AuthorizedEcdsaPreprocessingCapability;
 declare const durableEcdsa: CanonicalEvmFamilyEcdsaSigningCapability;
 
 const prefill: EcdsaSessionPresignaturePrefillInput = { capability: authorizedEcdsa };

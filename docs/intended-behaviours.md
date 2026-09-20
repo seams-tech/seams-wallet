@@ -49,6 +49,27 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 | tenant derivation root            | Server-side tenant secret derivation origin used for operational holder material. It is distinct from every wallet custody seed and owner signing root.                                                   |
 | `deviceId`                        | Installation identity for one Wallet authority on one browser or device. It is not a hardware fingerprint.                                                                                                |
 
+## Durable ECDSA preprocessing
+
+- Retain unused reusable ECDSA presignatures encrypted on both participants for
+  up to 90 days, subject to material retirement and revocation. Session expiry
+  alone does not invalidate the retained material. Operation-scoped preparation
+  remains bounded to its exact operation.
+- Target five available entries per exact client pool identity. Restore and refill
+  any deficit while the client can execute with an unexpired, unrevoked session
+  scoped to the wallet and active material. Refill after every consumption,
+  including the last permitted reusable signature. Preserve single-use and atomic
+  cross-tab claim rules.
+- Preprocessing requires no remaining signing uses and consumes no signing quota.
+  Actual signing retains its quota checks. Stop refill on expiry, revocation,
+  logout, or material invalidation; resume transient failures with bounded backoff.
+  Generation cannot continue while the browser is closed.
+- A returning user with an unchanged activation and an available persisted entry
+  must restore it after a page or worker restart and reach signing without any
+  presign-generation requests. Verify the 30-day return case explicitly.
+- Registration and unlock return promptly while missing inventory is replenished
+  in the background. Signing itself still requires current signing authorization.
+
 ## Global Invariants
 
 - Passkey and Email OTP are separate auth methods. A flow selected as

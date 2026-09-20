@@ -1,4 +1,3 @@
-import type { AuthorizedEvmFamilyEcdsaSigningCapability } from '@/core/signingEngine/session/material/ecdsaSigningCapability';
 import type { DurableRecordStore, RuntimePorts } from '@/core/platform';
 import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
@@ -462,6 +461,7 @@ import {
   createBrowserSigningSurfaceEnginePorts,
   listBrowserActiveEcdsaCapabilityManifestsForWallet,
   listBrowserEcdsaSigningCapabilitiesForWallet,
+  listBrowserEcdsaPreprocessingCapabilitiesForWallet,
   resolveBrowserActiveEcdsaCapabilityRuntime,
   resolveBrowserActiveEcdsaCapabilityRuntimeForChain,
   resolveBrowserNearEd25519PasskeyAuthorityForMaterial,
@@ -2457,6 +2457,11 @@ export class BrowserSigningSurface {
     );
   }
 
+  private readonly listPreprocessingCapabilities: (
+    input: Parameters<typeof listBrowserEcdsaPreprocessingCapabilitiesForWallet>[1],
+    statusReads: WalletSessionStatusReadScope,
+  ) => ReturnType<typeof listBrowserEcdsaPreprocessingCapabilitiesForWallet>;
+
   constructor(
     seamsWebConfigs: SeamsConfigsReadonly,
     nearClient: NearClient,
@@ -2559,6 +2564,16 @@ export class BrowserSigningSurface {
       resolveActiveEd25519WalletSessionAuthorization:
         this.resolveActiveNearEd25519WalletSessionAuthorization.bind(this),
     });
+    this.listPreprocessingCapabilities = listBrowserEcdsaPreprocessingCapabilitiesForWallet.bind(
+      null,
+      {
+        seamsWebConfigs: this.seamsWebConfigs,
+        touchIdPrompt: this.touchIdPrompt,
+        stores: deps.signingEngineStores,
+        emailOtpSessions: this.emailOtpSessions,
+        sealedSigningSessionStore: deps.sealedSigningSessionStore,
+      },
+    );
     this.sessionPublicDeps = createSessionPublicDeps({
       seamsWebConfigs: this.seamsWebConfigs,
       touchConfirm: this.touchConfirm,
@@ -6829,28 +6844,15 @@ export class BrowserSigningSurface {
     args: {
       walletId: WalletId;
       chainTarget: ThresholdEcdsaChainTarget;
-      minRemainingUsesBeforePrefill?: number;
       waitForPoolReady?: boolean;
     },
     statusReads: WalletSessionStatusReadScope,
   ): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {
-    const capabilities =
-      await this.sessionPublicDeps.availableLanes.listEcdsaSigningCapabilitiesForWallet(
-        { walletId: args.walletId, chainTargets: [args.chainTarget] },
-        statusReads,
-      );
-    let authorized: AuthorizedEvmFamilyEcdsaSigningCapability | null = null;
-    for (const capability of capabilities) {
-      if (capability.kind !== 'authorized_evm_family_ecdsa_signing_capability') continue;
-      if (authorized) {
-        return {
-          status: 'skipped',
-          reason: 'exact_wallet_session_unavailable',
-          walletSessionId: null,
-        };
-      }
-      authorized = capability;
-    }
+    const capabilities = await this.listPreprocessingCapabilities(
+      { walletId: args.walletId, chainTargets: [args.chainTarget] },
+      statusReads,
+    );
+    const authorized = capabilities.length === 1 ? capabilities[0] : null;
     if (!authorized) {
       return {
         status: 'skipped',
@@ -6862,7 +6864,6 @@ export class BrowserSigningSurface {
       this.warmCapabilitiesPublicDeps,
       {
         capability: authorized,
-        minRemainingUsesBeforePrefill: args.minRemainingUsesBeforePrefill,
         waitForPoolReady: args.waitForPoolReady,
       },
     );

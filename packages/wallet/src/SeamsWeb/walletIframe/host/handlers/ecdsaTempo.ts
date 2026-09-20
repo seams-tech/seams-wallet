@@ -188,9 +188,6 @@ export function createEcdsaTempoWalletIframeHandlers(deps: HandlerDeps): Handler
         ...(typeof options.waitForPoolReady === 'boolean'
           ? { waitForPoolReady: options.waitForPoolReady }
           : {}),
-        ...(typeof options.minRemainingUsesBeforePrefill === 'number'
-          ? { minRemainingUsesBeforePrefill: options.minRemainingUsesBeforePrefill }
-          : {}),
       });
       if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, result);

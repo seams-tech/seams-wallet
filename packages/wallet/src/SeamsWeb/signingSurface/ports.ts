@@ -251,7 +251,6 @@ export interface EcdsaLoginSessionSurface {
     args: {
       walletId: EcdsaWalletId;
       chainTarget: ThresholdEcdsaChainTarget;
-      minRemainingUsesBeforePrefill?: number;
       waitForPoolReady?: boolean;
     },
     statusReads: WalletSessionStatusReadScope,

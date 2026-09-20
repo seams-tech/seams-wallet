@@ -6,7 +6,7 @@ test('operation step-up bounds completed presignature material to the operation 
   const operationExpiresAtMs = nowMs + 30_000;
   const deadlines = resolveRouterAbEcdsaPresignDeadlines({
     requestedCeremonyExpiresAtMs: nowMs + 5 * 60_000,
-    requestedMaterialExpiresAtMs: nowMs + 24 * 60 * 60_000,
+    requestedMaterialExpiresAtMs: nowMs + 90 * 24 * 60 * 60_000,
     thresholdExpiresAtMs: operationExpiresAtMs,
     authorization: {
       kind: 'operation_step_up',
@@ -21,11 +21,11 @@ test('operation step-up bounds completed presignature material to the operation 
   });
 });
 
-test('wallet-session presignature material uses the server-owned 24-hour maximum', () => {
+test('wallet-session presignature material uses the server-owned 90-day maximum', () => {
   const nowMs = 1_000_000;
   const deadlines = resolveRouterAbEcdsaPresignDeadlines({
     requestedCeremonyExpiresAtMs: nowMs + 10 * 60_000,
-    requestedMaterialExpiresAtMs: nowMs + 48 * 60 * 60_000,
+    requestedMaterialExpiresAtMs: nowMs + 91 * 24 * 60 * 60_000,
     thresholdExpiresAtMs: nowMs + 60 * 60_000,
     authorization: { kind: 'wallet_session' },
     nowMs,
@@ -33,6 +33,6 @@ test('wallet-session presignature material uses the server-owned 24-hour maximum
 
   expect(deadlines).toEqual({
     ceremonyExpiresAtMs: nowMs + 5 * 60_000,
-    materialExpiresAtMs: nowMs + 24 * 60 * 60_000,
+    materialExpiresAtMs: nowMs + 90 * 24 * 60 * 60_000,
   });
 });
