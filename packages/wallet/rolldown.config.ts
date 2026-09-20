@@ -529,6 +529,8 @@ const configs = [
       'src/core/signingEngine/uiConfirm/ui/preact/PasskeyRegistrationContent.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/EmailOtpContent.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationContent.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/ExportPrivateKeySurface.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/mountExportPrivateKeySurface.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationModal.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationDrawer.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface.tsx',

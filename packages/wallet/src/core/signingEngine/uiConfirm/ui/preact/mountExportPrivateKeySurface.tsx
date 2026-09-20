@@ -1,0 +1,100 @@
+/** @jsxImportSource preact */
+import { render } from 'preact';
+import type { AppearanceConfig } from '@/core/types/seams';
+import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
+import { appearanceTokenCssVars } from '../appearance-token-vars';
+import { ConfirmationDrawer } from './ConfirmationDrawer';
+import { ExportPrivateKeySurface, type ExportPrivateKeyViewModel } from './ExportPrivateKeySurface';
+
+export type ExportSurfaceModel = {
+  appearance: AppearanceConfig;
+  content: ExportPrivateKeyViewModel;
+};
+
+type MountExportInput = {
+  parent: HTMLElement;
+  context: 'standalone' | 'wallet-iframe';
+  styles: CspStylesheetManager;
+  model: ExportSurfaceModel;
+  onClosed: () => void;
+};
+
+export type ExportSurfaceHandle = {
+  readonly element: HTMLElement;
+  update(model: ExportSurfaceModel): void;
+  dispose(): void;
+};
+
+type ExportSurfaceState =
+  | { kind: 'mounted'; onClosed: () => void }
+  | { kind: 'disposed'; onClosed?: never };
+
+let nextExportId = 0;
+
+class MountedExportSurface implements ExportSurfaceHandle {
+  readonly element: HTMLElement;
+  private readonly styles: CspStylesheetManager;
+  private readonly context: MountExportInput['context'];
+  private state: ExportSurfaceState;
+
+  constructor(input: MountExportInput) {
+    this.styles = input.styles;
+    this.context = input.context;
+    this.state = { kind: 'mounted', onClosed: input.onClosed };
+    this.element = input.parent.ownerDocument.createElement('div');
+    this.element.id = `seams-export-surface-${++nextExportId}`;
+    this.element.className = 'seams-wallet-ui seams-export-surface';
+    this.element.dataset.seamsExportSurface = input.context;
+    input.parent.appendChild(this.element);
+    try {
+      this.update(input.model);
+    } catch (error) {
+      this.remove();
+      throw error;
+    }
+  }
+
+  update(model: ExportSurfaceModel): void {
+    if (this.state.kind === 'disposed') return;
+    this.element.dataset.theme = model.appearance.theme.mode;
+    const declarations = Object.entries(appearanceTokenCssVars(model.appearance))
+      .map(appearanceDeclaration)
+      .join('');
+    this.styles.setDynamicRule(this.element.id, `#${this.element.id}{${declarations}}`);
+    render(
+      <ConfirmationDrawer
+        context={this.context}
+        label="Exported Keys"
+        dismissOnBackdrop={false}
+        styles={this.styles}
+        state={{ kind: 'open', interaction: 'ready' }}
+        onCancel={this.dispose}
+      >
+        <ExportPrivateKeySurface model={model.content} />
+      </ConfirmationDrawer>,
+      this.element,
+    );
+  }
+
+  dispose = (): void => {
+    if (this.state.kind === 'disposed') return;
+    const onClosed = this.state.onClosed;
+    this.remove();
+    onClosed();
+  };
+
+  private remove(): void {
+    this.state = { kind: 'disposed' };
+    render(null, this.element);
+    this.styles.deleteDynamicRule(this.element.id);
+    this.element.remove();
+  }
+}
+
+export function mountExportPrivateKeySurface(input: MountExportInput): ExportSurfaceHandle {
+  return new MountedExportSurface(input);
+}
+
+function appearanceDeclaration([name, value]: [string, string]): string {
+  return `${name}:${value};`;
+}

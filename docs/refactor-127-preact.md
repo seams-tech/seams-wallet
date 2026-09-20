@@ -1381,8 +1381,40 @@ Implementation started: extracted the existing key-reveal reel and masking
 functions into `ui/export-private-key-reveal.ts`. The current Lit viewer consumes
 that single implementation, ready for reuse by Preact. Focused Node tests cover
 both key schemes, masked-target settling, and reduced-motion placeholders using
-synthetic keys. Host mounting, typed export view models, Preact rendering, copy
-feedback/disposal, and matched export screenshots remain to implement.
+synthetic keys.
+
+Staged export checkpoint — 2026-09-21:
+
+- Added `ExportPrivateKeySurface` with loading/ready/failed view models,
+  masked reveal, copy feedback, and stale-copy protection on key replacement.
+- Added an explicit mount/update/dispose handle with owned appearance rules.
+  The production `upsertExportViewerHost()` still uses Lit until acceptance.
+- Shared drawer options preserve export's non-dismissing backdrop and exclude
+  selectable export content from drag initiation. Focused tests cover both,
+  closing during loading/reveal, repeated disposal, multi-key reopening,
+  failure clearing key rows, and delayed clipboard completion/rejection.
+- Export, confirmation-mount, and transaction-tree browser checks passed 60/60
+  across Chromium, Firefox, and WebKit, including rejected-clipboard fallback
+  and strict CSP. Aborting a key's lifetime prevents a delayed clipboard
+  rejection from initiating fallback after replacement/disposal; an already
+  submitted Clipboard API write cannot be revoked.
+- Rolldown build, declaration build, and browser TypeScript checks passed,
+  including invalid-state type fixtures.
+- Captured and inspected 12 matched desktop export pairs: loading, ready, and
+  multi-key in light/dark and hosted/standalone contexts. Artifacts are ignored
+  under `.artifacts/refactor-127/visual/export/`. Standalone pairs differ by
+  0–2 pixels; single-key hosted pairs by 24–27 pixels. The visual harness checks
+  geometry and a 0.1% changed-pixel ceiling for these 1024×900 captures.
+- Intentional correction: long hosted multi-key exports scroll inside their
+  36rem host rather than clipping unreachable content. These pairs differ by
+  1,130–2,040 pixels (0.13–0.23% of the frame), with a separate 0.3% ceiling.
+  Behavioral tests scroll to the final warning; additional scrolled screenshots
+  record the newly reachable content. Existing confirmation visual checks also
+  passed 12/12 after matching the drawer's whole-pixel content measurement.
+- Remaining priority: production host/session/measurement and document-CSS
+  integration, narrow viewports, copied/error/appearance visual fixtures, then
+  removal of the accepted export Lit subtree. These staged desktop captures
+  do not establish production integration or complete export acceptance.
 
 - [ ] Replace host/viewer rendering with `ExportPrivateKeySurface` behind
   `upsertExportViewerHost()` and an explicit mount/update/dispose handle.

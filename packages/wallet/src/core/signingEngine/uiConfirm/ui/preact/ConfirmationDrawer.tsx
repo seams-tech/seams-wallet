@@ -11,6 +11,7 @@ export type ConfirmationDrawerProps = {
   context: 'standalone' | 'wallet-iframe';
   label: string;
   errorMessage?: string;
+  dismissOnBackdrop?: boolean;
   state: DrawerState;
   styles: CspStylesheetManager;
   onCancel: () => void;
@@ -122,8 +123,9 @@ class DrawerShell extends Component<ConfirmationDrawerProps, { settled: boolean 
     if (this.gesture.kind !== 'idle') return;
     const sheet = this.sheet.current!;
     const content = this.content.current!;
-    const contentBottom =
-      content.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top;
+    const contentBottom = Math.round(
+      content.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top,
+    );
     const rest =
       this.props.context === 'standalone' ? Math.max(0, sheet.offsetHeight - contentBottom) : 0;
     this.props.styles.setDynamicDeclarations(this.id, `#${this.id}`, {
@@ -167,7 +169,12 @@ class DrawerShell extends Component<ConfirmationDrawerProps, { settled: boolean 
   };
 
   private backdropClick = (event: MouseEvent): void => {
-    if (event.target === this.dialog.current && this.canDrag()) this.cancel(event);
+    if (
+      this.props.dismissOnBackdrop !== false &&
+      event.target === this.dialog.current &&
+      this.canDrag()
+    )
+      this.cancel(event);
   };
 
   private keyDown = (event: KeyboardEvent): void => {
@@ -185,7 +192,9 @@ class DrawerShell extends Component<ConfirmationDrawerProps, { settled: boolean 
     const target = event.target;
     if (
       target instanceof Element &&
-      target.closest('a, input, textarea, select, summary, button:not(.seams-drawer-handle)')
+      target.closest(
+        'a, input, textarea, select, summary, button:not(.seams-drawer-handle), [data-seams-drawer-no-drag]',
+      )
     )
       return;
     this.gesture = { kind: 'pending', pointerId: event.pointerId, startY: event.clientY };
