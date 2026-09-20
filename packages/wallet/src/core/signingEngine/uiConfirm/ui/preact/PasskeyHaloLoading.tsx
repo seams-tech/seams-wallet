@@ -6,6 +6,7 @@ type PasskeyHaloLoadingProps = {
   animated: boolean;
   icon: 'fingerprint' | 'mail';
   styles: CspStylesheetManager;
+  innerPadding?: string;
   size?: 36 | 44;
 };
 
@@ -13,7 +14,11 @@ export function PasskeyHaloLoading(props: PasskeyHaloLoadingProps) {
   return (
     <div class="seams-passkey-halo-loading" aria-hidden="true">
       <div class="seams-passkey-loading-root">
-        <HaloBorder animated={props.animated} styles={props.styles}>
+        <HaloBorder
+          animated={props.animated}
+          innerPadding={props.innerPadding}
+          styles={props.styles}
+        >
           <div class="seams-passkey-loading-touch-icon-container">
             <svg
               class="seams-passkey-loading-touch-icon"

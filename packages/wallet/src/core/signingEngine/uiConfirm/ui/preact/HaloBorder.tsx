@@ -7,6 +7,7 @@ type HaloBorderProps = {
   styles: CspStylesheetManager;
   children: ComponentChildren;
   durationMs?: number;
+  innerPadding?: string;
 };
 
 let nextHaloId = 0;
@@ -17,17 +18,20 @@ export class HaloBorder extends Component<HaloBorderProps> {
   private motion: MediaQueryList | null = null;
   private frame: number | null = null;
   private startedAt: number | null = null;
+  private angle: string | null = null;
 
   componentDidMount(): void {
     this.motion = this.element.current!.ownerDocument.defaultView!.matchMedia(
       '(prefers-reduced-motion: no-preference)',
     );
     this.motion.addEventListener('change', this.updateAnimation);
+    this.syncDynamicStyles();
     this.updateAnimation();
   }
 
   componentDidUpdate(previous: HaloBorderProps): void {
     if (previous.styles !== this.props.styles) previous.styles.deleteDynamicRule(this.id);
+    if (previous.innerPadding !== this.props.innerPadding) this.syncDynamicStyles();
     if (
       previous.animated !== this.props.animated ||
       previous.durationMs !== this.props.durationMs ||
@@ -53,7 +57,8 @@ export class HaloBorder extends Component<HaloBorderProps> {
 
   private updateAnimation = (): void => {
     this.cancelFrame();
-    this.props.styles.deleteDynamicRule(this.id);
+    this.angle = null;
+    this.syncDynamicStyles();
     if (this.props.animated && this.motion?.matches) {
       this.frame = this.element.current!.ownerDocument.defaultView!.requestAnimationFrame(
         this.tick,
@@ -70,11 +75,21 @@ export class HaloBorder extends Component<HaloBorderProps> {
         ? configuredDuration
         : 1150;
     const angle = (((timestamp - this.startedAt) % duration) / duration) * 360;
-    this.props.styles.setDynamicDeclarations(this.id, `#${this.id}`, {
-      '--halo-angle': `${angle}deg`,
-    });
+    this.angle = `${angle}deg`;
+    this.syncDynamicStyles();
     this.frame = this.element.current.ownerDocument.defaultView!.requestAnimationFrame(this.tick);
   };
+
+  private syncDynamicStyles(): void {
+    const declarations: Record<string, string> = {};
+    if (this.props.innerPadding) declarations['--inner-padding'] = this.props.innerPadding;
+    if (this.angle) declarations['--halo-angle'] = this.angle;
+    if (Object.keys(declarations).length === 0) {
+      this.props.styles.deleteDynamicRule(this.id);
+      return;
+    }
+    this.props.styles.setDynamicDeclarations(this.id, `#${this.id}`, declarations);
+  }
 
   render(): ComponentChildren {
     return (
