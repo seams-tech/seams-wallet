@@ -810,6 +810,60 @@ existing role and custody boundaries.
 **Exit:** deployed registration improvement with unchanged cryptographic and
 lifecycle invariants.
 
+## Follow-up: request-local authentication overhead (2026-09-20)
+
+The deployed gateway JOIN change is recorded in the measurement report in
+[PR #8](https://github.com/seams-tech/seams-wallet/pull/8). Its settled-session
+sample measured cached Tempo signing at a 2.11-second median and foreground
+step-up signing at a 7.50-second median. Foreground presignature generation
+itself took 5.15 seconds. These are small diagnostic cohorts, not production p95.
+
+Implemented in the next server patch:
+
+- Read the fresh authority and auth-method records concurrently after resolving
+  a reusable or exhausted operation credential. Existing validation remains.
+- Reuse the active material returned by exhausted-session authentication in the
+  same presign request. There is no intervening asynchronous operation before
+  reuse. Each subsequent init/step request still authenticates and resolves
+  material again; key handle, relayer, participant, activation, and atomic
+  exact-operation admission checks remain.
+
+The previous cohort attributed 68 ms per ceremony to the duplicate material
+read, so this is an incremental reduction. No deployed improvement is claimed
+for this patch until it is released and measured.
+
+Verification: server type-check and build, Wallet SDK build, and all 198 Wallet
+unit tests passed across the initial run and an infrastructure-only rerun.
+The new regression covers one material read per exhausted-session request,
+replacement/retirement between requests, and mandatory exact-operation lookup.
+The initial worktree lacked generated WASM and browser assets; restoring the
+matching WASM artifacts and building the SDK resolved those setup failures.
+
+Remaining work, in order:
+
+1. Consolidate reusable/exhausted credential resolution into one typed lookup.
+   The current exhausted path first attempts reusable authentication and then
+   repeats credential resolution. Preserve live authority, auth-method,
+   revocation, expiry, capability, and material validation. An exhausted status
+   projection alone does not establish authorization. Cover the shared recovery
+   paths before replacing the existing resolution interfaces.
+2. Reproduce the immediate-unlock failure seen in production. Determine whether
+   signing races installation of the replacement session or another authority
+   transition. Add a lifecycle regression before changing readiness; use an
+   explicit state transition rather than a fixed delay. Registration success
+   must continue to allow pending NEAR activation.
+3. Benchmark a persistent presign transport against the current eight HTTP
+   requests using equivalent clients, regions, and session state. Separate
+   browser/network time, gateway authentication, service-binding/DO transit,
+   and protocol CPU. Preserve custody boundaries and fresh authorization
+   requirements; a persistent connection does not grant durable authority.
+4. Release the validated server changes and repeat first-use, immediate-unlock,
+   rapid repeated, paced, and expired/exhausted-session cohorts. Record failures
+   as well as successful timings. Measure Arc when the test wallet is funded.
+5. Resolve the separate presignature-only permission proposal before changing
+   refill authority after reusable signing quota reaches zero. Existing
+   authority remains the implemented policy.
+
 ## Execution order
 
 1. Capture the recurring production Tempo/ArcEVM delay, compare equivalent

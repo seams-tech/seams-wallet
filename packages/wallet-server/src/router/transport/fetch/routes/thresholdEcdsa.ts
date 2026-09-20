@@ -1602,14 +1602,18 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
   input.timing.authenticate = performance.now() - authenticationStartedAt;
   if (!authenticated.ok) return authenticated;
   const materialStartedAt = performance.now();
-  const freshMaterial = await resolveFreshRouterAbEcdsaMaterialActivation({
-    resolveEcdsaMaterialActivation:
-      input.ctx.service.walletRegistration.resolveEcdsaMaterialActivation.bind(
-        input.ctx.service.walletRegistration,
-      ),
-    walletId: authenticated.session.walletId,
-    expected: input.operation.material_activation,
-  });
+  // Authentication just validated this material in the same request, before any admission.
+  const freshMaterial =
+    'activeMaterial' in authenticated
+      ? authenticated.activeMaterial
+      : await resolveFreshRouterAbEcdsaMaterialActivation({
+          resolveEcdsaMaterialActivation:
+            input.ctx.service.walletRegistration.resolveEcdsaMaterialActivation.bind(
+              input.ctx.service.walletRegistration,
+            ),
+          walletId: authenticated.session.walletId,
+          expected: input.operation.material_activation,
+        });
   input.timing.material = performance.now() - materialStartedAt;
   if (!freshMaterial.ok) {
     return {

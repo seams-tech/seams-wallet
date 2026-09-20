@@ -2400,12 +2400,12 @@ function createD1AuthorizationSessionRouteService(
           input,
         );
       if (!authorization) return null;
-      const authority = await assembly.walletAuthorityStore.readById(
-        authorization.session.authorityId,
-      );
-      const authMethod = await assembly.walletAuthMethodStore.readByIdV2({
-        walletAuthMethodId: authorization.session.walletAuthMethodId,
-      });
+      const [authority, authMethod] = await Promise.all([
+        assembly.walletAuthorityStore.readById(authorization.session.authorityId),
+        assembly.walletAuthMethodStore.readByIdV2({
+          walletAuthMethodId: authorization.session.walletAuthMethodId,
+        }),
+      ]);
       if (
         !authority ||
         authority.state !== 'active' ||
@@ -2427,10 +2427,12 @@ function createD1AuthorizationSessionRouteService(
           input,
         );
       if (!isExhaustedWalletSessionStatus(status)) return null;
-      const authority = await assembly.walletAuthorityStore.readById(status.session.authorityId);
-      const authMethod = await assembly.walletAuthMethodStore.readByIdV2({
-        walletAuthMethodId: status.session.walletAuthMethodId,
-      });
+      const [authority, authMethod] = await Promise.all([
+        assembly.walletAuthorityStore.readById(status.session.authorityId),
+        assembly.walletAuthMethodStore.readByIdV2({
+          walletAuthMethodId: status.session.walletAuthMethodId,
+        }),
+      ]);
       if (
         !authority ||
         authority.state !== 'active' ||
