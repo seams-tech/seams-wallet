@@ -77,6 +77,7 @@ const confirmSurfaceMeasurementBindings = new WeakMap<
   UiConfirmSurfaceMeasurementBinding
 >();
 const confirmationHosts = new WeakMap<HTMLElement, ConfirmationHost>();
+const confirmationChannels = new WeakMap<HTMLElement, ConfirmationDecisionChannel>();
 
 export type ConfirmUIRenderContext = {
   userPreferencesManager: Pick<UiConfirmContext['userPreferencesManager'], 'getCurrentWalletId'>;
@@ -190,6 +191,7 @@ function mountedConfirmerHosts(): HTMLElement[] {
 
 function cleanupExistingConfirmers(): void {
   for (const element of mountedConfirmerHosts()) {
+    confirmationChannels.get(element)?.callbacks.cancel();
     confirmationHosts.get(element)?.dispose();
     disconnectConfirmSurfaceMeasurementReporter(element);
     element.remove();
@@ -444,9 +446,6 @@ function createHostConfirmHandle(
       if (closed) return;
       closed = true;
       if (!confirmed) channel.callbacks.cancel();
-      if (!confirmed && channel.cancelListeners.size === 0) {
-        channel.publish({ kind: 'cancelled', error: null });
-      }
       channel.cancelListeners.clear();
       disconnectConfirmSurfaceMeasurementReporter(host.element);
       closeConfirmationHost(host, confirmed, onClose);
@@ -847,6 +846,7 @@ function mountHostElement({
     onClosed: postWalletUiClosedIfPortalEmpty,
   });
   confirmationHosts.set(host.element, host);
+  confirmationChannels.set(host.element, channel);
   applyConfirmSurfaceMode(host.element, resolvedVariant, ctx.surfaceMeasurementBinding);
   updateConfirmPortalState(portal);
   bindConfirmSurfaceMeasurementReporter(
