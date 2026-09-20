@@ -62,8 +62,9 @@ const childScript = (calldata: string) => String.raw`
     const ctx = { userPreferencesManager: { getCurrentWalletId: () => 'alice.testnet' },
       surfaceMeasurementBinding: { kind: 'wallet_iframe', requestId,
         postMeasurement: (m) => { window.__measurements.push(m.heightCssPx); adoptedPort.postMessage({ type: 'SURFACE_MEASUREMENT', payload: m }); } } };
-    await confirmUi.mountConfirmUI({ ctx, summary: { intentDigest: 'tree-growth' }, model,
+    const handle = await confirmUi.mountConfirmUI({ ctx, summary: { intentDigest: 'tree-growth' }, model,
       securityContext: { blockHeight: '1', blockHash: 'h' }, loading: false, theme: 'light', uiMode: 'modal', nearAccountIdOverride: 'alice.testnet' });
+    window.__confirmHandle = handle;
     window.__mounted = true;
   };
 `;
@@ -104,7 +105,10 @@ async function openRealModal(page: Page, options: { greeting?: string } = {}): P
   // the host each round, and the two chase each other in width.
   const html = buildWalletServiceHtml({ extraScript: childScript(calldata) }).replace(
     '</head>',
-    `<link rel="stylesheet" href="/sdk/wallet-service.css" />${buildTestBrowserImportMapHtml()}</head>`,
+    `<link rel="stylesheet" href="/sdk/wallet-service.css" />
+      <link rel="stylesheet" data-seams-components-css href="/sdk/seams-components.css" />
+      <link rel="stylesheet" data-seams-confirmation-css href="/sdk/confirmation-ui.css" />
+      ${buildTestBrowserImportMapHtml()}</head>`,
   );
   await registerWalletServiceRoute(page, html, WALLET_SERVICE_ROUTE);
 
@@ -178,7 +182,7 @@ async function openRealModal(page: Page, options: { greeting?: string } = {}): P
     );
   await frame.waitForFunction(
     () =>
-      (window as any).__mounted === true && !!document.querySelector('seams-tx-tree details.folder'),
+      (window as any).__mounted === true && !!document.querySelector('.seams-tx-tree details.folder'),
     undefined,
     { timeout: 30_000 },
   );
@@ -232,15 +236,19 @@ async function recordMotion(frame: Frame, action: MotionAction): Promise<MotionT
       case 'folder':
         click(
           action.open
-            ? 'seams-tx-tree details.folder:not([open]) > summary'
-            : 'seams-tx-tree details.folder[open]:not(:has(> .folder-children > details.folder[open])) > summary',
+            ? '.seams-tx-tree details.folder:not([open]) > summary'
+            : '.seams-tx-tree details.folder[open]:not(:has(> .folder-children > details.folder[open])) > summary',
         );
         break;
       case 'file-content-mode':
-        click('seams-tx-tree .file-content-mode-toggle');
+        click('.seams-tx-tree .file-content-mode-toggle');
         break;
       case 'error-banner':
-        (host as unknown as { errorMessage: string }).errorMessage = action.message;
+        const handle = (window as unknown as {
+          __confirmHandle?: { update: (update: { errorMessage: string }) => void };
+        }).__confirmHandle;
+        if (!handle) throw new Error('confirmation handle is missing');
+        handle.update({ errorMessage: action.message });
         break;
     }
 
