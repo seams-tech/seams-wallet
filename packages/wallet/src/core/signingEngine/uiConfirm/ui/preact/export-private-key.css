@@ -10,6 +10,7 @@
 :where(.seams-wallet-ui).seams-export-surface
   .seams-confirmation-drawer[data-context='standalone'] {
   inline-size: auto;
+  block-size: calc(100dvh - 1rem);
 }
 
 :where(.seams-wallet-ui).seams-export-surface[data-seams-export-surface='wallet-iframe'] {
