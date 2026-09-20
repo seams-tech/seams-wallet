@@ -1407,6 +1407,17 @@ Confirmation tree-in-surface checkpoint — 2026-09-21:
   confirmation-mount browser matrix passed **72/72** across Chromium, Firefox,
   and WebKit after the token and fixture changes.
 
+Luna audit checkpoint — 2026-09-21 (`b8ef031`):
+
+- Treat `b8ef031` as the review boundary for the next implementation turns.
+  Re-review the generated transaction-detail token, the saved-Lit/Preact visual
+  threshold rationale, expanded-tree rendering inside modal and drawer
+  confirmers, and confirmation surface reflow/cleanup before accepting the
+  confirmation phase or deleting any Lit baseline code.
+- The temporary visual comparisons and saved Lit build remain intentionally
+  retained. Do not remove them until Phase 8d has reviewed every migrated
+  component and the final cleanup gates pass.
+
 Luna review checkpoint — 2026-09-21:
 
 - Follow-up work from this checkpoint is expected to use Luna. Before merging
