@@ -4,6 +4,7 @@ import {
   type Request,
   type Response,
   type Route,
+  type Page,
 } from '@playwright/test';
 import { intendedTest as test, type IntendedSigningStage } from './harness';
 import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
@@ -14,6 +15,47 @@ type SigningRequests = {
   foregroundFills: number;
   presignatureIds: string[];
 };
+
+async function readDurablePresignatureIds(page: Page): Promise<string[]> {
+  const frame = page.frames().find(isWalletServiceFrame);
+  if (!frame) return [];
+  return await frame.evaluate(readPresignatureStoreIds);
+}
+
+async function readDurablePresignatureCount(page: Page): Promise<number> {
+  return (await readDurablePresignatureIds(page)).length;
+}
+
+function isWalletServiceFrame(frame: { url(): string }): boolean {
+  return new URL(frame.url()).pathname.startsWith('/wallet-service');
+}
+
+async function readPresignatureStoreIds(): Promise<string[]> {
+  return await new Promise<string[]>((resolve, reject) => {
+    const open = indexedDB.open('seams_wallet');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      const request = db.transaction('ecdsa_client_presignatures', 'readonly')
+        .objectStore('ecdsa_client_presignatures').getAll();
+      request.onsuccess = () => {
+        db.close();
+        resolve(request.result.map((row) => String(row.presignature_id)));
+      };
+      request.onerror = () => {
+        db.close();
+        reject(request.error);
+      };
+    };
+  });
+}
+
+async function rejectPresignatureGeneration(route: Route): Promise<void> {
+  await route.fulfill({
+    status: 403,
+    json: { ok: false, code: 'unauthorized', message: 'Generation disabled for reload coverage' },
+  });
+}
 
 function collectSigningRequests(requests: SigningRequests, request: Request): void {
   const pathname = new URL(request.url()).pathname;
@@ -141,6 +183,7 @@ class RegistrationPresignGate {
 test('passkey registration establishes an immediately usable owner session without waiting for presignatures', async ({
   harness,
   context,
+  page,
 }) => {
   const gate = new RegistrationPresignGate();
   const presignInit = '**/router-ab/ecdsa-derivation/presignature-pool/fill/init';
@@ -154,11 +197,33 @@ test('passkey registration establishes an immediately usable owner session witho
     await context.unroute(presignInit, hold);
   }
   await harness.assertRegistrationOwnerSessionIsActive();
+  await expect.poll(readDurablePresignatureCount.bind(undefined, page), { timeout: 30_000 })
+    .toBeGreaterThan(0);
   await harness.signTempoTransaction('post_registration');
   await harness.awaitNearReady();
   await harness.signNearTransaction('post_registration');
   await harness.signArcEvmTransaction('post_registration');
   await harness.assertRegistrationOwnerSessionIsActive();
+  await expect.poll(readDurablePresignatureCount.bind(undefined, page), { timeout: 30_000 })
+    .toBe(ECDSA_CLIENT_PRESIGNATURE_CAPACITY);
+  const persistedIds = await readDurablePresignatureIds(page);
+  const signingRequests: SigningRequests = { foregroundFills: 0, presignatureIds: [] };
+  const collect = collectSigningRequests.bind(undefined, signingRequests);
+  context.on('request', collect);
+  await context.route(presignInit, rejectPresignatureGeneration);
+  try {
+    await harness.unlockPasskeyWallet();
+    expect(await readDurablePresignatureIds(page)).toEqual(persistedIds);
+    await harness.signTempoTransaction('post_unlock');
+    expect(signingRequests.presignatureIds).toHaveLength(1);
+    expect(persistedIds).toContain(signingRequests.presignatureIds[0]);
+    expect(await readDurablePresignatureIds(page))
+      .not.toContain(signingRequests.presignatureIds[0]);
+  } finally {
+    context.off('request', collect);
+    await context.unroute(presignInit, rejectPresignatureGeneration);
+  }
+
 });
 
 test('sustained Tempo and Arc signing uses fresh presignatures beyond pool capacity', async ({

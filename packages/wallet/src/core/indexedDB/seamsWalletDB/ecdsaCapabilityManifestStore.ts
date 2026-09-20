@@ -2806,10 +2806,11 @@ export class IndexedDbEcdsaCapabilityManifestStore {
           try {
             const locator = parseMaterialLocator(materialRow);
             const materialRecord = requireRecord(materialRow, 'ECDSA role-local material row');
+            // The manifest identifies the wallet capability instance; the pool names its MPC capability.
             if (
               locator.durableMaterialRef !== durableMaterialRef.durableMaterialRef ||
               locator.bindingDigest !== durableMaterialRef.bindingDigest ||
-              String(locator.selector.capability) !== poolIdentity.capability ||
+              locator.selector.capability !== lookup.manifest.signer.capability ||
               String(locator.selector.authority.walletId) !== poolIdentity.walletId ||
               parseEcdsaMaterialSealingKeyId(materialRecord.sealing_key_id) !==
                 lookup.material.sealingKeyId

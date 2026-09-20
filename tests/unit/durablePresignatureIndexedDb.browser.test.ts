@@ -30,7 +30,8 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
   manager.setDbName(dbName);
   const store = new storeModule.IndexedDbEcdsaCapabilityManifestStore(manager);
   const walletId = 'wallet-1';
-  const capability = 'capability-1';
+  const capability = 'mpc-protocol-capability-1';
+  const capabilityInstance = 'wallet-capability-instance-1';
   const materialActivationWire = {
     kind: 'mpc_material_activation_ref',
     activation_id: 'activation-1',
@@ -109,7 +110,11 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
     },
   };
   Object.assign(store, {
-    lookupByMaterialRef: async () => ({ kind: 'active', material: activeMaterial }),
+    lookupByMaterialRef: async () => ({
+      kind: 'active',
+      material: activeMaterial,
+      manifest: { signer: { capability: capabilityInstance } },
+    }),
     readMaterialSealingKey: async () => sealingKey,
   });
 
@@ -120,7 +125,7 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
       record_version: 'ecdsa_role_local_material_v2',
       durable_material_ref: durableMaterialRef.durableMaterialRef,
       binding_digest: durableMaterialRef.bindingDigest,
-      capability_ref: capability,
+      capability_ref: capabilityInstance,
       wallet_id: walletId,
       authority_digest: 'authority-digest-1',
       wallet_auth_method_id: 'wallet-auth-method-1',

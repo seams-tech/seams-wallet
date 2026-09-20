@@ -213,4 +213,34 @@ the separate work to shorten the measured roughly five-second generation path.
   empty-pool step-up generation and reject altered operation key/expiry bindings.
   The earlier CI assertion incorrectly required step-up generation even when
   authorized background refill kept the pool supplied.
-- Release, hosted latency measurements, and production rollout remain pending.
+- Released as 0.5.27; frontend and testnet backend rollout completed. Mainnet backend remains billing-blocked. See optimization-10.md for hosted acceptance results.
+
+
+## Durable restoration follow-up (0.5.28)
+
+The 0.5.27 hosted acceptance gap reproduced locally as a `production_regression`:
+
+- Durable admission compared the stored wallet capability-instance identifier with
+  the MPC protocol capability identifier. Real activations use distinct values,
+  so valid generated entries fell back to resident memory. Admission now compares
+  the stored instance with the validated active manifest's signer instance. Exact
+  material, activation, wallet, sealing-key and binding checks remain enforced.
+- After a reload, listing saved entries did not connect the presign worker to the
+  derivation worker that owns durable storage. That channel was initialized only
+  by generation. The initial durable listing now establishes the channel, without
+  replacing an existing authority connection.
+
+The focused storage fixture previously used the same identifier in both roles;
+this is classified `valid_test_needs_update`. It now uses distinct identifiers.
+The real registration contract also checks durable pool depth and reload: it
+blocks new generation, unlocks after resetting browser runtime, signs with a
+previously saved presignature ID, and verifies that the consumed entry disappears.
+
+The corrected real registration/reload contract passed locally (39.0 seconds),
+with generation blocked throughout reload and cached signing. All 208 unit tests, the SDK build, and full workspace type-check passed. Release and hosted reload verification for 0.5.28 are pending.
+
+The sustained local rerun also exposed a test-harness race: after a successful
+signature, confirmation fingerprint evaluation waited indefinitely when its
+button disappeared between visibility and evaluation. Classified
+`valid_test_needs_update`; the evaluation now uses the existing auto-confirm
+attempt timeout. Production confirmation behavior is unchanged.
