@@ -627,12 +627,15 @@ function finishForegroundSign(poolKey: string): void {
   foregroundSignInFlightByPoolKey.set(poolKey, current - 1);
 }
 
-async function waitForAvailablePresignatureFromInFlightRefill(poolKey: string): Promise<void> {
+async function waitForAvailablePresignatureFromInFlightRefill(
+  poolKey: string,
+  priority: 'foreground' | 'background',
+): Promise<void> {
   const progress = clientPresignatureRefillInFlightByPoolKey.get(poolKey);
   if (!progress) return;
   let observed = progress.snapshot();
   while (getClientPresignaturePoolDepth(poolKey) === 0 && observed.kind === 'refilling') {
-    observed = await progress.waitForChange(observed);
+    observed = await progress.waitForChange(observed, priority);
   }
 }
 
@@ -648,7 +651,7 @@ export async function waitForRouterAbEcdsaDerivationClientPresignaturePoolReady(
   });
   const poolKey = ecdsaClientPresignPoolKey(poolIdentity);
   if (getClientPresignaturePoolDepth(poolKey) > 0) return true;
-  await waitForAvailablePresignatureFromInFlightRefill(poolKey);
+  await waitForAvailablePresignatureFromInFlightRefill(poolKey, 'background');
   return getClientPresignaturePoolDepth(poolKey) > 0;
 }
 
@@ -904,10 +907,24 @@ type RouterAbEcdsaPresignHandshakeArgs = {
   groupPublicKey33: Uint8Array;
   materialActivation: RouterAbMpcMaterialActivationRefWire;
   credential: RouterAbOwnerNormalSigningCredential;
-  requestTag: 'background_presign_pool_refill' | 'foreground_presign_pool_refill';
+  poolKey: string;
+  trafficClass: 'background' | 'foreground';
   routerAbEcdsaDerivationPoolFill: RouterAbEcdsaDerivationPresignaturePoolFill;
   workerCtx: WorkerOperationContext;
 } & RouterAbEcdsaDerivationPoolFillAuthorization;
+
+function presignHandshakeRequestTag(
+  args: Pick<RouterAbEcdsaPresignHandshakeArgs, 'poolKey' | 'trafficClass'>,
+): 'background_presign_pool_refill' | 'foreground_presign_pool_refill' {
+  // A signer waiting for this pool makes the remaining rounds foreground work.
+  if (
+    args.trafficClass === 'foreground' ||
+    clientPresignatureRefillInFlightByPoolKey.get(args.poolKey)?.hasForegroundWaiters()
+  ) {
+    return 'foreground_presign_pool_refill';
+  }
+  return 'background_presign_pool_refill';
+}
 
 async function runPresignHandshake(
   args: RouterAbEcdsaPresignHandshakeArgs,
@@ -939,7 +956,7 @@ async function runPresignHandshakeAttempt(
     ...args.poolFillInitKeySelector,
     count: 1,
     credential: args.credential,
-    requestTag: args.requestTag,
+    requestTag: presignHandshakeRequestTag(args),
     poolFill: args.routerAbEcdsaDerivationPoolFill,
     ...ecdsaPoolFillAuthorization(args),
   });
@@ -1037,6 +1054,7 @@ async function runPresignHandshakeAttempt(
 
       if (!serverDone) {
         const roundStartedAt = performance.now();
+        const requestTag = presignHandshakeRequestTag(args);
         const stepArgs = {
           relayerUrl: args.relayerUrl,
           presignSessionId,
@@ -1045,13 +1063,13 @@ async function runPresignHandshakeAttempt(
           stage: resolvePresignExchangeStage({ clientStage, serverStage }),
           outgoingMessagesB64u: toB64uMessages(pendingClientOutgoing),
           credential: args.credential,
-          requestTag: args.requestTag,
+          requestTag,
           ...ecdsaPoolFillAuthorization(args),
         } as const;
         const stepped = await routerAbEcdsaDerivationPresignaturePoolFillStep(stepArgs);
         emitSigningSessionFlowTrace('evm-family', {
           event: 'ecdsa_presignature_round',
-          requestTag: args.requestTag,
+          requestTag,
           presignSessionId,
           authorization: args.authorization.kind,
           round: i,
@@ -1180,7 +1198,7 @@ async function runPresignHandshakeAttempt(
   } finally {
     emitSigningSessionFlowTrace('evm-family', {
       event: 'ecdsa_presignature_generation',
-      requestTag: args.requestTag,
+      requestTag: presignHandshakeRequestTag(args),
       presignSessionId,
       authorization: args.authorization.kind,
       durationMs: performance.now() - handshakeStartedAt,
@@ -1388,7 +1406,7 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
     }
     if (!presignature) {
       const refillWaitStartedAt = performance.now();
-      await waitForAvailablePresignatureFromInFlightRefill(poolKey);
+      await waitForAvailablePresignatureFromInFlightRefill(poolKey, 'foreground');
       emitEcdsaSigningTiming(args.operationId, 'refill_wait', refillWaitStartedAt);
       poolGeneration = getClientPresignaturePoolGeneration(poolKey);
       presignature = await takeClientPresignature({
@@ -1826,10 +1844,8 @@ export async function refillRouterAbEcdsaDerivationClientPresignaturePool(
       groupPublicKey33,
       materialActivation: args.materialActivation,
       credential: args.credential,
-      requestTag:
-        args.trafficClass === 'foreground'
-          ? 'foreground_presign_pool_refill'
-          : 'background_presign_pool_refill',
+      poolKey,
+      trafficClass: args.trafficClass,
       routerAbEcdsaDerivationPoolFill: args.routerAbEcdsaDerivationPoolFill,
       workerCtx: args.workerCtx,
       ...ecdsaPoolFillAuthorization(args),

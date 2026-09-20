@@ -131,6 +131,144 @@ function createDeferred(): Deferred {
   return { promise, resolve: resolvePromise };
 }
 
+class WaitingSignerRefill {
+  readonly kind = 'router_ab_ecdsa_derivation_client_signing_material_source_v1';
+  readonly initStarted = createDeferred();
+  readonly releaseInit = createDeferred();
+  readonly signerHydrating = createDeferred();
+  readonly requests: unknown[] = [];
+  private listCount = 0;
+
+  async initClientPresignSession() {
+    this.initStarted.resolve();
+    await this.releaseInit.promise;
+    return {
+      stage: 'presign' as const,
+      outgoingMessages: [],
+      presignatureHandle: 'promoted-material',
+      presignatureBigR33: Uint8Array.from(Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
+    };
+  }
+
+  async listAvailableClientPresignatures(): Promise<[]> {
+    this.listCount += 1;
+    if (this.listCount === 2) this.signerHydrating.resolve();
+    return [];
+  }
+
+  async admitClientPresignature() {
+    return { kind: 'resident' as const };
+  }
+
+  async reserveClientPresignature(): Promise<never> {
+    throw new Error('signer received promoted presignature');
+  }
+
+  async abortClientPresignSession(): Promise<void> {}
+  async destroyClientPresignature(): Promise<void> {}
+  readonly stepClientPresignSession = unexpectedMaterialOperation;
+  readonly commitClientPresignature = unexpectedMaterialOperation;
+  readonly computeSignatureShareFromPresignatureHandle = unexpectedMaterialOperation;
+
+  async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    this.requests.push(JSON.parse(String(init?.body)));
+    const url = String(input);
+    if (url.endsWith('/presignature-pool/fill/init')) {
+      return Response.json({
+        ok: true,
+        presignSessionId: 'promoted-session',
+        ceremonyExpiresAtMs: Date.now() + 20_000,
+        materialExpiresAtMs: Date.now() + 20_000,
+        stage: 'triples',
+        outgoingMessagesB64u: [],
+      });
+    }
+    if (url.endsWith('/presignature-pool/fill/step')) {
+      return Response.json({
+        ok: true,
+        stage: 'done',
+        event: 'presign_done',
+        outgoingMessagesB64u: [],
+        presignatureId: 'promoted-presignature',
+        bigRB64u: PRESIGNATURE_BIG_R_B64U,
+      });
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  }
+}
+
+test('a signer waiting on background generation promotes its remaining rounds without restarting', async () => {
+  clearAllRouterAbEcdsaDerivationClientPresignatures();
+  const originalFetch = globalThis.fetch;
+  const source = new WaitingSignerRefill();
+  globalThis.fetch = source.fetch.bind(source);
+  const scope = await buildScope();
+  const workerCtx = buildWorkerContext();
+  const credential = { kind: 'wallet_session_opaque' as const, walletSessionToken: 'test-token' };
+  try {
+    const scheduled = scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill({
+      relayerUrl: 'https://router.example',
+      keyHandle: parseEcdsaKeyHandle('key-handle-1'),
+      ecdsaThresholdKeyId: parseEcdsaThresholdKeyId('ecdsa-key-1'),
+      clientVerifyingShareB64u: parseEcdsaClientVerifyingShareB64u(CLIENT_PUBLIC_KEY_B64U),
+      clientSigningMaterial: source,
+      thresholdEcdsaPublicKeyB64u: THRESHOLD_PUBLIC_KEY_B64U,
+      relayerVerifyingShareB64u: SERVER_PUBLIC_KEY_B64U,
+      credential,
+      materialActivation,
+      routerAbEcdsaDerivationPoolFill: {
+        kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
+        scope,
+        ceremonyExpiresAtMs: Date.now() + 30_000,
+        materialExpiresAtMs: Date.now() + 60_000,
+      },
+      workerCtx,
+      authorization,
+      targetDepth: 1,
+    });
+    expect(scheduled.scheduled).toBe(true);
+    await source.initStarted.promise;
+    const signing = signRouterAbEcdsaDerivationDigestWithPoolHit({
+      relayerUrl: 'https://router.example',
+      scope,
+      operationId: 'operation-promoted-refill',
+      operationDigests: {
+        lane_digest_b64u: 'CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo',
+        intent_digest_b64u: 'CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCws',
+        display_digest_b64u: 'DAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAw',
+      },
+      materialActivation,
+      credential,
+      signingDigest32: new Uint8Array(32).fill(11),
+      clientSigningMaterial: source,
+      expiresAtMs: Date.now() + 30_000,
+      workerCtx,
+      authorization,
+    });
+    await source.signerHydrating.promise;
+    await new Promise<void>(setImmediate);
+    source.releaseInit.resolve();
+    await expect(signing).resolves.toMatchObject({
+      ok: false,
+      message: 'signer received promoted presignature',
+    });
+    expect(source.requests).toHaveLength(2);
+    expect(source.requests[0]).toMatchObject({
+      requestTag: 'background_presign_pool_refill',
+      authorization,
+    });
+    expect(source.requests[1]).toMatchObject({
+      requestTag: 'foreground_presign_pool_refill',
+      authorization,
+      presignSessionId: 'promoted-session',
+    });
+  } finally {
+    source.releaseInit.resolve();
+    globalThis.fetch = originalFetch;
+    clearAllRouterAbEcdsaDerivationClientPresignatures();
+  }
+});
+
 async function buildScope(): Promise<RouterAbEcdsaDerivationNormalSigningScopeV1> {
   const context = {
     application_binding_digest_b64u: 'BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc',

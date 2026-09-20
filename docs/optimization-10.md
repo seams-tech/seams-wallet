@@ -810,6 +810,83 @@ existing role and custody boundaries.
 **Exit:** deployed registration improvement with unchanged cryptographic and
 lifecycle invariants.
 
+## Follow-up: request-local authentication overhead (2026-09-20)
+
+The deployed gateway JOIN change is recorded in the measurement report in
+[PR #8](https://github.com/seams-tech/seams-wallet/pull/8). Its settled-session
+sample measured cached Tempo signing at a 2.11-second median and foreground
+step-up signing at a 7.50-second median. Foreground presignature generation
+itself took 5.15 seconds. These are small diagnostic cohorts, not production p95.
+
+Implemented in the next server patch:
+
+- Read the fresh authority and auth-method records concurrently after resolving
+  a reusable or exhausted operation credential. Existing validation remains.
+- Reuse the active material returned by exhausted-session authentication in the
+  same presign request. There is no intervening asynchronous operation before
+  reuse. Each subsequent init/step request still authenticates and resolves
+  material again; key handle, relayer, participant, activation, and atomic
+  exact-operation admission checks remain.
+- Promote the remaining rounds of an in-flight background ceremony while a
+  signer is waiting for that pool. Passive readiness observers and signers
+  already using cached material do not promote background work. The client
+  retains the same ceremony and authorization; each round still passes through
+  the existing gateway checks. A request already queued at the gateway cannot
+  be reprioritized by this client change.
+
+The previous cohort attributed 68 ms per ceremony to the duplicate material
+read, so this is an incremental reduction. No deployed improvement is claimed
+for this patch until it is released and measured.
+
+Verification: server type-check and build, Wallet SDK build, and all 198 Wallet
+unit tests passed across the initial run and an infrastructure-only rerun.
+The new regression covers one material read per exhausted-session request,
+replacement/retirement between requests, and mandatory exact-operation lookup.
+The initial worktree lacked generated WASM and browser assets; restoring the
+matching WASM artifacts and building the SDK resolved those setup failures.
+
+Remaining work, in order:
+
+1. Credential consolidation is implemented in the follow-up to PR #9. Exact
+   ECDSA operation authentication now performs one live credential lookup for
+   either quota state and returns the validated material. Reusable signing
+   retains its positive-quota requirement. Both paths share the same persistence
+   parser for live provenance, expiry, retirement, and record agreement; exact
+   operation reads also validate quota identity and lifecycle consistency.
+   Recovery's existing exhausted-candidate interface remains unchanged.
+   Server type-check/build, type fixtures, and all 199 unit tests pass. Release
+   and production measurement remain pending.
+2. Reproduce the immediate-unlock failure seen in production. Two further
+   production 0.5.25 attempts on September 20 succeeded: total commit latency
+   9.057 s / 6.160 s, including background-generation waits of 6.430 s / 3.578 s.
+   The second observed a failed background generation followed by an available
+   replacement; transaction signing succeeded. These samples do not establish
+   the cause of the earlier HTTP 503, and no readiness fix is claimed.
+   Determine whether
+   signing races installation of the replacement session or another authority
+   transition. Add a lifecycle regression before changing readiness; use an
+   explicit state transition rather than a fixed delay. Registration success
+   must continue to allow pending NEAR activation.
+3. Benchmark a persistent presign transport against the current eight HTTP
+   requests using equivalent clients, regions, and session state. Separate
+   browser/network time, gateway authentication, service-binding/DO transit,
+   and protocol CPU. Preserve custody boundaries and fresh authorization
+   requirements; a persistent connection does not grant durable authority.
+4. Release the validated server changes and repeat first-use, immediate-unlock,
+   rapid repeated, paced, and expired/exhausted-session cohorts. Record failures
+   as well as successful timings. Measure Arc when the test wallet is funded.
+5. Resolve the separate presignature-only permission proposal before changing
+   refill authority after reusable signing quota reaches zero. Existing
+   authority remains the implemented policy.
+
+The coordinated package release candidate is **0.5.26**. Publication, deployment,
+and post-release measurements follow successful validation of its exact commit.
+The priority regression verifies a background init followed by a foreground
+step under the same session and authorization, with no duplicate ceremony.
+The combined candidate passes all 200 Wallet unit tests, Wallet type-checking,
+and the SDK build; server checks and type fixtures passed for the unchanged
+server portion. Production latency for these changes remains unmeasured.
+
 ## Execution order
 
 1. Capture the recurring production Tempo/ArcEVM delay, compare equivalent

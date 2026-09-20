@@ -36,7 +36,7 @@ import {
   type RouterAbEcdsaPostRegistrationSessionActivationRequestV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import {
-  authenticateRouterAbEcdsaOperationStepUpWithExhaustedCandidate,
+  authenticateRouterAbEcdsaOperationStepUp,
   authenticateRouterAbWalletOperationStepUpIdentity,
   authorizeRouterAbEcdsaDerivationNormalSigningRoute,
   admitRouterAbEcdsaReusableWalletSessionOperation,
@@ -1589,7 +1589,7 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
     };
   }
   const authenticationStartedAt = performance.now();
-  const authenticated = await authenticateRouterAbEcdsaOperationStepUpWithExhaustedCandidate({
+  const authenticated = await authenticateRouterAbEcdsaOperationStepUp({
     headers: Object.fromEntries(input.ctx.request.headers.entries()),
     request: input.operation,
     authorizedOperations: input.ctx.service.authorizedOperations,
@@ -1602,28 +1602,8 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
   input.timing.authenticate = performance.now() - authenticationStartedAt;
   if (!authenticated.ok) return authenticated;
   const materialStartedAt = performance.now();
-  const freshMaterial = await resolveFreshRouterAbEcdsaMaterialActivation({
-    resolveEcdsaMaterialActivation:
-      input.ctx.service.walletRegistration.resolveEcdsaMaterialActivation.bind(
-        input.ctx.service.walletRegistration,
-      ),
-    walletId: authenticated.session.walletId,
-    expected: input.operation.material_activation,
-  });
+  const freshMaterial = authenticated.activeMaterial;
   input.timing.material = performance.now() - materialStartedAt;
-  if (!freshMaterial.ok) {
-    return {
-      ok: false,
-      error: {
-        status: freshMaterial.code === 'internal' ? 500 : 403,
-        body: {
-          ok: false,
-          code: freshMaterial.code === 'internal' ? 'internal' : 'scope_mismatch',
-          message: freshMaterial.message,
-        },
-      },
-    };
-  }
   if (
     freshMaterial.keyHandle !== input.operation.key_handle ||
     freshMaterial.relayerKeyId !== input.operation.relayer_key_id ||
