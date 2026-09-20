@@ -3,13 +3,18 @@ import { base64UrlEncode } from '@shared/utils/base64';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { parseRouterAbEcdsaDerivationNormalSigningScopeV1 } from '@shared/utils/routerAbEcdsaDerivation';
-import { buildExactWalletSessionQuotaProjectionV1 } from '../../packages/wallet-server/src/authorization/domain';
-import type { RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext } from '../../packages/wallet-server/src/router/framework/authServicePort';
+import type { RouterApiWalletSessionExactOperationContext } from '../../packages/wallet-server/src/router/framework/authServicePort';
 import type { FetchRouterApiContext } from '../../packages/wallet-server/src/router/transport/fetch/fetchRouter.types';
 import { authorizeEcdsaPoolFill } from '../../packages/wallet-server/src/router/transport/fetch/routes/thresholdEcdsa';
 import { parseRouterAbEcdsaDerivationPoolFillStepRouteRequest } from '../../packages/wallet-server/src/router/domains/ecdsa/thresholdEcdsaRequestValidation';
 import { buildMpcMaterialActivationRefFixture } from './helpers/ecdsaMaterialRef.fixtures';
 import { buildEmailOtpEcdsaWalletSessionFixture } from './helpers/linkedDeviceManagement.fixtures';
+import { CloudflareD1AuthorizationStore } from '../../packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
+import type {
+  D1DatabaseLike,
+  D1PreparedStatementLike,
+  D1ResultLike,
+} from '../../packages/wallet-server/src/storage/tenantRoute';
 
 async function buildPresignStepFixture() {
   const walletId = 'wallet:presign-material-reads';
@@ -73,20 +78,8 @@ async function buildPresignStepFixture() {
     },
   });
   if (!parsed.ok) throw new Error(parsed.body.message);
-  const candidate: RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext = {
-    status: {
-      kind: 'exhausted',
-      session,
-      quota: buildExactWalletSessionQuotaProjectionV1({
-        lifecycle: 'exhausted',
-        tenantId: session.tenantId,
-        principalId: session.principalId,
-        walletSessionId: session.walletSessionId,
-        quotaId: session.quotaId,
-        remainingUses: 0,
-        expiresAtMs: session.expiresAtMs,
-      }),
-    },
+  const candidate: RouterApiWalletSessionExactOperationContext = {
+    session,
     authority: fixture.authority,
     authMethod: fixture.authMethod,
     retiredAtMs: null,
@@ -95,6 +88,7 @@ async function buildPresignStepFixture() {
 }
 
 class PresignStepServices {
+  sessionReads = 0;
   materialReads = 0;
   operationReads = 0;
   materialAvailable = true;
@@ -106,7 +100,8 @@ class PresignStepServices {
     throw new Error('Wallet Session quota is exhausted');
   }
 
-  async readExhaustedSession() {
+  async readExactSession() {
+    this.sessionReads += 1;
     return this.data.candidate;
   }
 
@@ -157,8 +152,7 @@ class PresignStepServices {
           tenantId: this.data.session.tenantId,
           readWalletSessionAuthorizationV2ByOperationCredential:
             this.readReusableSession.bind(this),
-          readExhaustedWalletSessionAuthorizationV2CandidateByOperationCredential:
-            this.readExhaustedSession.bind(this),
+          readWalletSessionExactOperationContextByCredential: this.readExactSession.bind(this),
         },
         authorizedOperations: {
           tenantId: this.data.session.tenantId,
@@ -193,6 +187,7 @@ test('exhausted presign steps read material once per request and still require e
     ok: false,
     error: { status: 409, body: { code: 'authorized_operation_missing' } },
   });
+  expect(services.sessionReads).toBe(1);
   expect(services.materialReads).toBe(1);
   expect(services.operationReads).toBe(1);
 
@@ -211,6 +206,147 @@ test('exhausted presign steps read material once per request and still require e
     ok: false,
     error: { status: 403, body: { code: 'scope_mismatch' } },
   });
+  expect(services.sessionReads).toBe(3);
   expect(services.materialReads).toBe(3);
   expect(services.operationReads).toBe(1);
+});
+
+function joinedSessionRow(data: Awaited<ReturnType<typeof buildPresignStepFixture>>) {
+  const session = data.session;
+  return {
+    session_record_json: JSON.stringify(session),
+    session_capability_subjects_json: JSON.stringify(session.capabilitySubjects),
+    session_tenant_id: session.tenantId,
+    session_authorization_id: session.authorizationId,
+    session_mint_id: session.mintId,
+    session_wallet_session_id: session.walletSessionId,
+    session_quota_id: session.quotaId,
+    session_principal_id: session.principalId,
+    session_wallet_id: session.walletId,
+    session_authority_id: session.authorityId,
+    session_wallet_auth_method_id: session.walletAuthMethodId,
+    session_authority_digest_b64u: session.authorityDigestB64u,
+    session_authority_revocation_epoch: session.authorityRevocationEpoch,
+    session_issued_at_ms: session.createdAtMs,
+    session_expires_at_ms: session.expiresAtMs,
+    session_retired_at_ms: null,
+    authority_id: session.authorityId,
+    authority_wallet_id: session.walletId,
+    authority_lifecycle_state: 'active',
+    authority_digest_b64u: session.authorityDigestB64u,
+    authority_revocation_epoch: session.authorityRevocationEpoch,
+    auth_method_id: session.walletAuthMethodId,
+    auth_method_wallet_id: session.walletId,
+    auth_method_authority_id: session.authorityId,
+    auth_method_status: 'active',
+    quota_tenant_id: session.tenantId,
+    quota_principal_id: session.principalId,
+    quota_wallet_session_id: session.walletSessionId,
+    quota_id: session.quotaId,
+    quota_remaining_uses: 0,
+    quota_lifecycle_kind: 'exhausted',
+    quota_expires_at_ms: session.expiresAtMs,
+  };
+}
+
+class SessionRowDatabase implements D1DatabaseLike, D1PreparedStatementLike {
+  reads = 0;
+
+  constructor(public row: Record<string, unknown> | null) {}
+
+  prepare(): D1PreparedStatementLike {
+    return this;
+  }
+
+  bind(): D1PreparedStatementLike {
+    return this;
+  }
+
+  async first<T>(): Promise<T | null> {
+    this.reads += 1;
+    // Simulate the untrusted D1 result boundary; production parses every field.
+    return structuredClone(this.row) as T | null;
+  }
+
+  async all<T>(): Promise<D1ResultLike<T>> {
+    throw new Error('Unexpected all query');
+  }
+
+  async run<T>(): Promise<D1ResultLike<T>> {
+    throw new Error('Unexpected mutation');
+  }
+
+  async batch<T>(): Promise<readonly T[]> {
+    throw new Error('Unexpected batch');
+  }
+
+  async exec(): Promise<never> {
+    throw new Error('Unexpected exec');
+  }
+}
+
+test('one credential lookup accepts exhausted identity only for exact operations and rejects stale provenance', async () => {
+  const data = await buildPresignStepFixture();
+  const database = new SessionRowDatabase(joinedSessionRow(data));
+  const store = new CloudflareD1AuthorizationStore({
+    database,
+    namespace: 'presign-test',
+    walletSignerScope: {
+      namespace: 'presign-test',
+      orgId: String(data.session.tenantId),
+      projectId: 'presign-test',
+      envId: 'test',
+    },
+  });
+  const input = {
+    tenantId: data.session.tenantId,
+    tokenHash: parseDigestB64u(base64UrlEncode(new Uint8Array(32).fill(1))),
+    nowMs: Date.now(),
+  };
+  await expect(store.readWalletSessionForExactOperationByCredential(input)).resolves.toEqual(
+    data.session,
+  );
+  expect(database.reads).toBe(1);
+  await expect(store.readWalletSessionAuthorizationV2ByOperationCredential(input)).rejects.toThrow(
+    'quota',
+  );
+
+  database.row = {
+    ...joinedSessionRow(data),
+    quota_lifecycle_kind: 'active',
+    quota_remaining_uses: 1,
+  };
+  await expect(store.readWalletSessionForExactOperationByCredential(input)).resolves.toEqual(
+    data.session,
+  );
+  await expect(
+    store.readWalletSessionAuthorizationV2ByOperationCredential(input),
+  ).resolves.toMatchObject({ quota: { remainingUses: 1 } });
+
+  const invalidColumns: readonly (readonly [string, unknown])[] = [
+    ['authority_lifecycle_state', 'revoked'],
+    ['authority_revocation_epoch', data.session.authorityRevocationEpoch + 1],
+    ['auth_method_status', 'revoked'],
+    ['auth_method_wallet_id', 'wallet:different'],
+    ['session_retired_at_ms', Date.now()],
+    ['quota_remaining_uses', 1],
+    ['quota_id', 'quota:different'],
+    ['session_capability_subjects_json', '[]'],
+  ];
+  for (const [column, value] of invalidColumns) {
+    database.row = { ...joinedSessionRow(data), [column]: value };
+    await expect(
+      store.readWalletSessionForExactOperationByCredential(input),
+      column,
+    ).rejects.toThrow();
+  }
+  database.row = joinedSessionRow(data);
+  await expect(
+    store.readWalletSessionForExactOperationByCredential({
+      ...input,
+      nowMs: data.session.expiresAtMs,
+    }),
+  ).rejects.toThrow('expired');
+  database.row = null;
+  await expect(store.readWalletSessionForExactOperationByCredential(input)).resolves.toBeNull();
 });

@@ -841,12 +841,15 @@ matching WASM artifacts and building the SDK resolved those setup failures.
 
 Remaining work, in order:
 
-1. Consolidate reusable/exhausted credential resolution into one typed lookup.
-   The current exhausted path first attempts reusable authentication and then
-   repeats credential resolution. Preserve live authority, auth-method,
-   revocation, expiry, capability, and material validation. An exhausted status
-   projection alone does not establish authorization. Cover the shared recovery
-   paths before replacing the existing resolution interfaces.
+1. Credential consolidation is implemented in the follow-up to PR #9. Exact
+   ECDSA operation authentication now performs one live credential lookup for
+   either quota state and returns the validated material. Reusable signing
+   retains its positive-quota requirement. Both paths share the same persistence
+   parser for live provenance, expiry, retirement, and record agreement; exact
+   operation reads also validate quota identity and lifecycle consistency.
+   Recovery's existing exhausted-candidate interface remains unchanged.
+   Server type-check/build, type fixtures, and all 199 unit tests pass. Release
+   and production measurement remain pending.
 2. Reproduce the immediate-unlock failure seen in production. Determine whether
    signing races installation of the replacement session or another authority
    transition. Add a lifecycle regression before changing readiness; use an

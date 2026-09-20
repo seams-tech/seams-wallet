@@ -269,6 +269,26 @@ function activeV2AuthorityMethodBindings(
   ];
 }
 
+type WalletSessionAuthorizationV2Read =
+  | {
+      readonly expected: WalletSessionAuthorizationV2;
+      readonly nowMs: number;
+    }
+  | {
+      readonly identity: {
+        readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
+        readonly walletId: WalletSessionAuthorizationV2['walletId'];
+        readonly walletSessionId: WalletSessionAuthorizationV2['walletSessionId'];
+        readonly authorizationId: WalletSessionAuthorizationV2['authorizationId'];
+      };
+      readonly nowMs: number;
+    }
+  | {
+      readonly operationCredentialHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
+      readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
+      readonly nowMs: number;
+    };
+
 export class CloudflareD1AuthorizationStore
   implements
     AuthorizationSessionPort,
@@ -1787,6 +1807,27 @@ export class CloudflareD1AuthorizationStore
     );
   }
 
+  async readWalletSessionForExactOperationByCredential(input: {
+    readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
+    readonly tokenHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
+    readonly nowMs: number;
+  }): Promise<WalletSessionAuthorizationV2 | null> {
+    const row = await this.readJoinedWalletSessionAuthorizationV2Row({
+      lookupColumn: 'operation_credential_hash',
+      tenantId: input.tenantId,
+      lookupValue: input.tokenHash,
+    });
+    if (!row) return null;
+    const session = parseLiveWalletSessionAuthorizationV2Row(row, {
+      operationCredentialHash: input.tokenHash,
+      tenantId: input.tenantId,
+      nowMs: input.nowMs,
+    });
+    // Exhaustion permits identity resolution; exact-operation admission grants authority.
+    parseExactWalletSessionQuotaProjectionRow(row, session);
+    return session;
+  }
+
   /**
    * Resolves one exact operation credential to the whole digest-free
    * authorization lifecycle. Every observed row returns typed data: expiry,
@@ -2070,25 +2111,7 @@ export class CloudflareD1AuthorizationStore
   }
 
   private async readWalletSessionAuthorizationV2(
-    input:
-      | {
-          readonly expected: WalletSessionAuthorizationV2;
-          readonly nowMs: number;
-        }
-      | {
-          readonly identity: {
-            readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
-            readonly walletId: WalletSessionAuthorizationV2['walletId'];
-            readonly walletSessionId: WalletSessionAuthorizationV2['walletSessionId'];
-            readonly authorizationId: WalletSessionAuthorizationV2['authorizationId'];
-          };
-          readonly nowMs: number;
-        }
-      | {
-          readonly operationCredentialHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
-          readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
-          readonly nowMs: number;
-        },
+    input: WalletSessionAuthorizationV2Read,
     lookupColumn: 'mint_id' | 'authorization_id' | 'operation_credential_hash',
   ): Promise<IssuedWalletSessionAuthorizationV2 | null> {
     const lookup =
@@ -2106,49 +2129,7 @@ export class CloudflareD1AuthorizationStore
             : operationCredentialHash,
     });
     if (!row) return null;
-    if (row.session_retired_at_ms !== null && row.session_retired_at_ms !== undefined) {
-      throw new Error('Stored V2 Wallet Session authorization is retired');
-    }
-    const session = parseWalletSessionAuthorizationV2(parseD1JsonColumn(row.session_record_json));
-    if (!walletSessionAuthorizationV2RowMatches(row, session)) {
-      throw new Error('Stored V2 Wallet Session authorization columns disagree with record');
-    }
-    const subjectsRecord = parseWalletSessionAuthorizationV2WithSubjects(
-      row,
-      parseD1JsonColumn(row.session_capability_subjects_json),
-    );
-    if (!walletSessionAuthorizationV2RecordsEqual(subjectsRecord, session)) {
-      throw new Error('Stored V2 Wallet Session capability subjects disagree with record');
-    }
-    if (
-      row.authority_id !== String(session.authorityId) ||
-      row.authority_wallet_id !== String(session.walletId) ||
-      row.authority_lifecycle_state !== 'active' ||
-      row.authority_digest_b64u !== String(session.authorityDigestB64u) ||
-      integerColumn(row.authority_revocation_epoch, 'authority.revocationEpoch') !==
-        session.authorityRevocationEpoch ||
-      row.auth_method_id !== String(session.walletAuthMethodId) ||
-      row.auth_method_wallet_id !== String(session.walletId) ||
-      row.auth_method_authority_id !== String(session.authorityId) ||
-      row.auth_method_status !== 'active'
-    ) {
-      throw new Error('Stored V2 Wallet Session authority provenance is no longer active');
-    }
-    if (
-      'identity' in input &&
-      (session.walletId !== input.identity.walletId ||
-        session.walletSessionId !== input.identity.walletSessionId ||
-        session.authorizationId !== input.identity.authorizationId)
-    ) {
-      throw new Error('Stored V2 Wallet Session identity does not match the request');
-    }
-    if ('expected' in input && !walletSessionAuthorizationV2RecordsEqual(session, input.expected)) {
-      throw new Error('Stored V2 Wallet Session authorization replay does not match');
-    }
-    const nowMs = requirePositiveInteger(input.nowMs, 'V2 authorization read time');
-    if (session.expiresAtMs <= nowMs) {
-      throw new Error('Stored V2 Wallet Session authorization has expired');
-    }
+    const session = parseLiveWalletSessionAuthorizationV2Row(row, input);
     const quota = parseWalletSessionAuthorizationV2QuotaRow(row, session);
     return { session, quota };
   }
@@ -3050,6 +3031,56 @@ function parseWalletSessionAuthorizationV2WithSubjects(
     createdAtMs: row.session_issued_at_ms,
     expiresAtMs: row.session_expires_at_ms,
   });
+}
+
+function parseLiveWalletSessionAuthorizationV2Row(
+  row: D1Row,
+  input: WalletSessionAuthorizationV2Read,
+): WalletSessionAuthorizationV2 {
+  if (row.session_retired_at_ms !== null && row.session_retired_at_ms !== undefined) {
+    throw new Error('Stored V2 Wallet Session authorization is retired');
+  }
+  const session = parseWalletSessionAuthorizationV2(parseD1JsonColumn(row.session_record_json));
+  if (!walletSessionAuthorizationV2RowMatches(row, session)) {
+    throw new Error('Stored V2 Wallet Session authorization columns disagree with record');
+  }
+  const subjectsRecord = parseWalletSessionAuthorizationV2WithSubjects(
+    row,
+    parseD1JsonColumn(row.session_capability_subjects_json),
+  );
+  if (!walletSessionAuthorizationV2RecordsEqual(subjectsRecord, session)) {
+    throw new Error('Stored V2 Wallet Session capability subjects disagree with record');
+  }
+  if (
+    row.authority_id !== String(session.authorityId) ||
+    row.authority_wallet_id !== String(session.walletId) ||
+    row.authority_lifecycle_state !== 'active' ||
+    row.authority_digest_b64u !== String(session.authorityDigestB64u) ||
+    integerColumn(row.authority_revocation_epoch, 'authority.revocationEpoch') !==
+      session.authorityRevocationEpoch ||
+    row.auth_method_id !== String(session.walletAuthMethodId) ||
+    row.auth_method_wallet_id !== String(session.walletId) ||
+    row.auth_method_authority_id !== String(session.authorityId) ||
+    row.auth_method_status !== 'active'
+  ) {
+    throw new Error('Stored V2 Wallet Session authority provenance is no longer active');
+  }
+  if (
+    'identity' in input &&
+    (session.walletId !== input.identity.walletId ||
+      session.walletSessionId !== input.identity.walletSessionId ||
+      session.authorizationId !== input.identity.authorizationId)
+  ) {
+    throw new Error('Stored V2 Wallet Session identity does not match the request');
+  }
+  if ('expected' in input && !walletSessionAuthorizationV2RecordsEqual(session, input.expected)) {
+    throw new Error('Stored V2 Wallet Session authorization replay does not match');
+  }
+  const nowMs = requirePositiveInteger(input.nowMs, 'V2 authorization read time');
+  if (session.expiresAtMs <= nowMs) {
+    throw new Error('Stored V2 Wallet Session authorization has expired');
+  }
+  return session;
 }
 
 function parseWalletSessionAuthorizationV2QuotaRow(

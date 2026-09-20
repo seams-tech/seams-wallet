@@ -132,6 +132,11 @@ export interface AuthorizationGrantPort {
     readonly tokenHash: DigestB64u;
     readonly nowMs: number;
   }): Promise<IssuedWalletSessionAuthorizationV2 | null>;
+  readWalletSessionForExactOperationByCredential(input: {
+    readonly tenantId: TenantId;
+    readonly tokenHash: DigestB64u;
+    readonly nowMs: number;
+  }): Promise<WalletSessionAuthorizationV2 | null>;
   readExactWalletSessionStatusByOperationCredential(input: {
     readonly tenantId: TenantId;
     readonly tokenHash: DigestB64u;
@@ -561,6 +566,24 @@ export class AuthorizationService {
     return await this.ports.grants.readWalletSessionAuthorizationV2ByOperationCredential({
       tenantId: input.tenantId,
       tokenHash: await digestOpaqueValue(input.token),
+      nowMs: input.nowMs,
+    });
+  }
+
+  async readWalletSessionForExactOperationByCredential(input: {
+    readonly tenantId: TenantId;
+    readonly token: string;
+    readonly nowMs: number;
+  }): Promise<WalletSessionAuthorizationV2 | null> {
+    let token: ReturnType<typeof parsePrimaryWalletSessionOperationCredentialToken>;
+    try {
+      token = parsePrimaryWalletSessionOperationCredentialToken(input.token);
+    } catch {
+      return null;
+    }
+    return await this.ports.grants.readWalletSessionForExactOperationByCredential({
+      tenantId: input.tenantId,
+      tokenHash: await digestOpaqueValue(token),
       nowMs: input.nowMs,
     });
   }

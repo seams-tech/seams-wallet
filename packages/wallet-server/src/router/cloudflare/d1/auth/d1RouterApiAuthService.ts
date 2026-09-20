@@ -2381,6 +2381,37 @@ function isExhaustedWalletSessionStatus(
   return status.kind === 'exhausted';
 }
 
+async function readD1WalletSessionExactOperationContext(
+  assembly: D1AuthorizationSessionRouteServiceAssembly,
+  input: Parameters<
+    RouterApiServiceBag['authorizationSessions']['readWalletSessionExactOperationContextByCredential']
+  >[0],
+): ReturnType<
+  RouterApiServiceBag['authorizationSessions']['readWalletSessionExactOperationContextByCredential']
+> {
+  const session =
+    await assembly.authorizationService.readWalletSessionForExactOperationByCredential(input);
+  if (!session) return null;
+  const [authority, authMethod] = await Promise.all([
+    assembly.walletAuthorityStore.readById(session.authorityId),
+    assembly.walletAuthMethodStore.readByIdV2({ walletAuthMethodId: session.walletAuthMethodId }),
+  ]);
+  if (
+    !authority ||
+    authority.state !== 'active' ||
+    !authMethod ||
+    authMethod.status !== 'active' ||
+    authority.walletId !== session.walletId ||
+    authority.authorityDigestB64u !== session.authorityDigestB64u ||
+    authority.revocationEpoch !== session.authorityRevocationEpoch ||
+    authMethod.walletId !== session.walletId ||
+    authMethod.walletAuthorityId !== session.authorityId ||
+    authMethod.walletAuthMethodId !== session.walletAuthMethodId
+  )
+    return null;
+  return { session, authority, authMethod, retiredAtMs: null };
+}
+
 function createD1AuthorizationSessionRouteService(
   assembly: D1AuthorizationSessionRouteServiceAssembly,
 ): RouterApiServiceBag['authorizationSessions'] {
@@ -2421,6 +2452,8 @@ function createD1AuthorizationSessionRouteService(
         retiredAtMs: null,
       };
     },
+    readWalletSessionExactOperationContextByCredential:
+      readD1WalletSessionExactOperationContext.bind(null, assembly),
     readExhaustedWalletSessionAuthorizationV2CandidateByOperationCredential: async (input) => {
       const status =
         await assembly.authorizationService.readExactWalletSessionStatusByOperationCredential(
