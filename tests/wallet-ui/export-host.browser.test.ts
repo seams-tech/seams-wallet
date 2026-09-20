@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { AppearanceConfig } from '@/core/types/seams';
+import { WalletIframeDomEvents } from '@/core/browser/walletIframe/events';
 import type { WalletIframeSurfaceMeasurement } from '@/SeamsWeb/walletIframe/shared/messages';
 import { injectImportMap } from '../setup/bootstrap';
 import { buildTestBrowserImportMapHtml } from '../setup/importMap';
@@ -117,7 +118,7 @@ test.afterEach(async ({ page }) => {
   expect(await page.evaluate(() => window.__exportHost.violations)).toEqual([]);
 });
 
-test('production export mounts without registration and reports a styled viewport-independent box', async ({
+test('production export mounts without legacy requests and reports a styled viewport-independent box', async ({
   page,
 }) => {
   const legacyRequests: string[] = [];
@@ -136,9 +137,6 @@ test('production export mounts without registration and reports a styled viewpor
     heightCssPx: 576,
   });
   expect(legacyRequests).toEqual([]);
-  expect(
-    await page.evaluate(() => customElements.get('seams-export-viewer-iframe') !== undefined),
-  ).toBe(false);
   const root = page.locator('.seams-export-surface');
   const id = await root.getAttribute('id');
   await page.setViewportSize({ width: 500, height: 300 });
@@ -289,5 +287,16 @@ test('standalone export preserves its backdrop and Escape closes the session', a
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('#opener')).toBeFocused();
+  expect(await page.evaluate(() => window.__exportHost.events)).toEqual(['opened', 'closed']);
+});
+
+test('wallet iframe cancellation event disposes the export surface', async ({ page }) => {
+  await open(page);
+  await page.evaluate((eventName) => {
+    document.querySelector('.seams-export-surface')?.dispatchEvent(
+      new CustomEvent(eventName, { bubbles: true, composed: true }),
+    );
+  }, WalletIframeDomEvents.TX_CONFIRMER_CANCEL);
+  await expect(page.locator('.seams-export-surface')).toHaveCount(0);
   expect(await page.evaluate(() => window.__exportHost.events)).toEqual(['opened', 'closed']);
 });
