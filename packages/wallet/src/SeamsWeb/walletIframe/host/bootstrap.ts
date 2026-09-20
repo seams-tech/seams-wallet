@@ -3,7 +3,6 @@ import {
   setEmbeddedAssetVersion,
   setEmbeddedBase,
 } from '@/core/walletRuntimePaths';
-import { isDevHost } from '../shared/is-dev-host';
 
 interface GlobalThis {
   global?: unknown;
@@ -72,9 +71,6 @@ export function bootstrapTransparentHost(): void {
   const here = new URL('.', moduleUrl).toString();
   const norm = here.endsWith('/') ? here : here + '/';
   if (!getEmbeddedBase()) setEmbeddedBase(norm);
-
-  // Dev-only: warn when seams-* custom elements remain un-upgraded
-  setupDevUnupgradedObserver();
 }
 
 /**
@@ -95,48 +91,4 @@ export function ensureTransparentSurface(): void {
     apply();
   }
   window.addEventListener('load', () => apply(), { once: true });
-}
-
-/**
- * Development-only observer that warns if any <seams-*> element remains
- * un-upgraded for >250ms after insertion.
- */
-function setupDevUnupgradedObserver(): void {
-  const isDev = isDevHost();
-  if (!isDev) return;
-
-  const pending = new WeakMap<Element, number>();
-  const schedule = (el: Element) => {
-    const tag = (el.tagName || '').toLowerCase();
-    if (!tag.startsWith('seams-')) return;
-    if (customElements.get(tag)) return; // already defined
-    if (pending.has(el)) return;
-    const id = window.setTimeout(async () => {
-      pending.delete(el);
-      if (customElements.get(tag)) return; // defined in the meantime
-      if (!customElements.get(tag)) {
-        console.warn(
-          `[SEAMS][Dev] <${tag}> not upgraded after 250ms. Ensure a dynamic import runs before createElement. See LitComponents/README-lit-elements.md (Never Break Again).`,
-        );
-      }
-    }, 250);
-    pending.set(el, id);
-  };
-
-  const observer = new MutationObserver((mutations) => {
-    for (const m of mutations) {
-      for (const node of Array.from(m.addedNodes)) {
-        if (!(node instanceof Element)) continue;
-        schedule(node);
-        const nodes = (node as Element).querySelectorAll('*');
-        for (const n of Array.from(nodes)) schedule(n as Element);
-      }
-    }
-  });
-
-  observer.observe(document.documentElement || document.body, { childList: true, subtree: true });
-
-  // Seed: schedule existing nodes
-  const nodes = document.querySelectorAll('*');
-  for (const n of Array.from(nodes)) schedule(n as Element);
 }
