@@ -933,8 +933,8 @@ Preparation — 2026-09-21:
 - Production build and browser-test type-check passed. Combined auth, host,
   confirmation handle, inline/host, and resize contracts passed **90/90**;
   see `.artifacts/refactor-127/confirmation-pure-move-contracts.log`.
-- Confirmation remains on its existing Lit renderer; no Preact confirmation
-  implementation or visual acceptance is claimed by this preparation.
+- At this preparation checkpoint confirmation remained on its existing Lit
+  renderer; the production Preact cutover is recorded below.
 
 Primitive implementation in progress:
 
@@ -945,8 +945,8 @@ Primitive implementation in progress:
   replacement of the style owner, and unmount release its keyed rule.
 - The new primitive stylesheet is document-owned and explicitly linked by the
   harness. It has no custom-element registration, style fetch, or first-paint
-  gate. Production confirmation still uses its existing Lit subtree; wire the
-  new stylesheet into the document asset contract with the complete cutover.
+  gate. The production Preact confirmation now consumes this document-owned
+  stylesheet; the remaining Lit consumers stay until their acceptance gates.
 - Extracted local Preact module routing from the auth harness into shared test
   setup. Added cross-engine lifecycle/CSP checks and temporary light/dark icon
   captures under `.artifacts/refactor-127/visual/preact-primitives/`.
@@ -966,8 +966,8 @@ Primitive implementation in progress:
   type-check encountered WASM files being regenerated; its post-build rerun
   passed. Future type-checks must wait for WASM-generating builds to finish.
 - These component captures are initial inspection artifacts. Matched Lit/Preact
-  visual acceptance, the remaining primitives, and confirmation cutover remain
-  incomplete. Do not delete shared Lit halo/loading consumers yet.
+  visual acceptance and the remaining primitives remain incomplete. Do not
+  delete shared Lit halo/loading consumers yet.
 
 Transaction-tree implementation — 2026-09-21:
 
@@ -980,7 +980,8 @@ Transaction-tree implementation — 2026-09-21:
   decoded/raw mode, and copy feedback timer. Disposal cancels local work and
   rejects late clipboard completion. Copy controls are now native buttons.
 - Added document-scoped tree CSS and a harness-visible build entry. Production
-  confirmation still uses Lit; the complete surface cutover remains pending.
+  confirmation now renders this tree through Preact; the old Lit tree remains
+  only for the migration baseline and other uncut surfaces.
 - Production build and browser-test type-check passed. **9/9** browser tests
   passed across Chromium, Firefox, and WebKit: NEAR formatting, unknown-chain
   behavior, keyboard expansion, decoded/raw switching, copy feedback, explorer
@@ -1337,31 +1338,65 @@ Email confirmation form routing:
   **66/66** composed-content and mount browser checks across Chromium, Firefox,
   and WebKit (`otp-form-browser.log`), Rolldown, declaration generation, and
   browser-test/type-fixture checks (`otp-form-build.log`, `otp-form-types.log`,
-  `otp-form-test-types.log`). Production controller normalization/cutover and
-  full matched visual acceptance remain pending.
+  `otp-form-test-types.log`). At this staging checkpoint, production controller
+  normalization/cutover and full matched visual acceptance remained pending;
+  production integration is recorded below.
+
+Production confirmation integration checkpoint — 2026-09-21:
+
+- `695ab0f` restores the fixed hosted transaction-tree caps required by the
+  parent iframe measurement contract. Viewport-relative caps remain for
+  standalone documents; hosted file content uses the established 12rem/20rem
+  limits and cannot chase the easing box.
+- `db0d9a4` makes the Preact confirmation-content owner capture the complete
+  modal/drawer surface before header and body updates. Registration content
+  participates through the same root ref, and the surface clamp is expressed
+  through the existing CSP-safe declaration stylesheet. This prevents nested
+  header/body updates from posting multiple measurements.
+- `beae197` adapts the real cross-origin tree-growth harness to the Preact
+  mount handle, ordinary-DOM selectors, and the document-linked confirmation
+  stylesheet. The production harness now exercises the actual parent overlay,
+  wallet iframe, confirmation surface, and transaction tree.
+- Verification: the cross-origin motion suite passed **4/4** in Chromium
+  (folder open/close, decoded/raw mode, error banner, and box-independent
+  content height); the public confirmation/mount/tree suite passed **51/51**
+  across Chromium, Firefox, and WebKit; the basic confirmation visual matrix
+  passed **12/12**. Wallet and browser-test type checks passed.
+- Remaining gates are the full registration/OTP/responsive/mount-context visual
+  matrix, standalone and inline acceptance, bundle accounting, and deletion of
+  the old confirmation Lit subtree. Keep the temporary visual comparisons and
+  saved Lit build until Phase 8d.
+
+Luna review checkpoint — 2026-09-21:
+
+- Follow-up work from this checkpoint is expected to use Luna. Before merging
+  later phases, perform an extra review of confirmation reflow ownership,
+  hosted sizing, registration/error updates, strict-CSP declaration rules, and
+  the adapted cross-origin harness. Re-run the four motion cases and the 51
+  public browser checks after any related change.
 
 #### 4a. Characterize primitives and build the confirmation subtree
 
 - [ ] Cover drawer pointer capture, dismissal thresholds, interrupted
   transitions, focus trapping/restoration, reduced motion, and resizing.
-- [ ] Cover transaction tree expansion, chain-specific formatting, explorer
+- [x] Cover transaction tree expansion, chain-specific formatting, explorer
   links, copy, long values, and error/loading content.
-- [ ] Implement Preact primitives only as the confirmation subtree needs them:
+- [x] Implement Preact primitives only as the confirmation subtree needs them:
   drawer, halo, passkey loader, padlock, and transaction tree.
-- [ ] Reuse framework-neutral parsing/formatting and measurement algorithms.
+- [x] Reuse framework-neutral parsing/formatting and measurement algorithms.
   Keep geometry writes on the existing keyed CSP rule path.
-- [ ] Develop against the established surface contract in the test harness;
-  the production switch and deletion form one reviewable cutover.
+- [x] Develop against the established surface contract in the test harness;
+  the production switch and deletion remain separate reviewable cutovers.
 
 #### 4b. Switch the complete confirmation surface
 
-- [ ] Replace wrapper/modal/drawer/content rendering together with a
-  discriminated `TxConfirmSurface`; preserve `ConfirmUIHandle`.
-- [ ] Normalize complete internal models at `confirm-ui.ts`, preserving
+- [x] Replace wrapper/modal/drawer/content rendering together with the
+  discriminated Preact surface model; preserve `ConfirmUIHandle`.
+- [x] Normalize complete internal models at `confirm-ui.ts`, preserving
   security context, display data, appearance, signing mode, and Email OTP.
-- [ ] Preserve preparation reuse, two-phase close, onCancel subscriptions,
+- [x] Preserve preparation reuse, two-phase close, onCancel subscriptions,
   takeDecision semantics, exactly-once settlement, and opened/closed messages.
-- [ ] Keep a single feature import that returns a mount API.
+- [x] Keep a single feature import that returns a mount API.
   `prewarmTxConfirmerUi()` warms code without registration side effects.
 - [ ] Verify every supported chain and mount context, including standalone
   modal/drawer and inline entrypoints. Test CSS isolation in host documents.
