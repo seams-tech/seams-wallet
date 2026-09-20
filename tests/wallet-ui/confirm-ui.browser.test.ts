@@ -131,6 +131,93 @@ test.describe('Preact production confirmation mount', () => {
     expect(result).toEqual({ confirmed: false, error: null });
   });
 
+  test('mounts every supported chain in standalone and hosted modal/drawer contexts', async ({
+    page,
+  }) => {
+    const results = await page.evaluate(async ({ confirmUiPath }) => {
+      const { mountConfirmUI } = await import(confirmUiPath);
+      const chains = [
+        { kind: 'near', label: 'NEAR', chainId: 4000 },
+        { kind: 'evm', label: 'EVM', chainId: 11155111 },
+        { kind: 'tempo', label: 'Tempo', chainId: 4242 },
+      ] as const;
+      const contexts = ['standalone', 'wallet-iframe'] as const;
+      const variants = ['modal', 'drawer'] as const;
+      const mounted: Array<{
+        chain: string;
+        context: string;
+        variant: string;
+        surface: string | undefined;
+        tree: boolean;
+        chainLabel: boolean;
+      }> = [];
+      for (const chain of chains) {
+        for (const context of contexts) {
+          for (const variant of variants) {
+            const handle = await mountConfirmUI({
+              ctx: {
+                userPreferencesManager: { getCurrentWalletId: () => 'alice.testnet' },
+                surfaceMeasurementBinding:
+                  context === 'wallet-iframe'
+                    ? {
+                        kind: 'wallet_iframe' as const,
+                        requestId: `${chain.kind}-${context}-${variant}`,
+                        hostSurfaceVariant: variant,
+                        postMeasurement: () => {},
+                      }
+                    : { kind: 'disabled' as const },
+              },
+              summary: { title: `${chain.label} review`, body: 'Synthetic chain fixture' },
+              model: {
+                chain: chain.kind,
+                chainId: chain.chainId,
+                operations: [
+                  {
+                    id: `${chain.kind}-operation`,
+                    kind: 'generic.contractCall',
+                    label: 'Synthetic contract call',
+                    fields: [{ label: 'Target', value: 'fixture.testnet' }],
+                  },
+                ],
+              },
+              securityContext: { rpId: 'wallet.example.test', blockHeight: '1' },
+              loading: false,
+              theme: context === 'standalone' ? 'light' : 'dark',
+              uiMode: variant,
+              nearAccountIdOverride: 'alice.testnet',
+            });
+            const root = handle.element;
+            const text = root.textContent ?? '';
+            mounted.push({
+              chain: chain.kind,
+              context,
+              variant,
+              surface: root.dataset.seamsConfirmSurface,
+              tree: Boolean(root.querySelector('.seams-tx-tree')),
+              chainLabel: text.includes(`${chain.label} | ChainID: ${chain.chainId}`),
+            });
+            handle.close(true);
+            if (variant === 'drawer') {
+              await new Promise((resolve) => setTimeout(resolve, 300));
+            }
+          }
+        }
+      }
+      return mounted;
+    }, { confirmUiPath: IMPORT_PATHS.confirmUi });
+
+    expect(results).toHaveLength(12);
+    expect(results.every((result) => result.tree && result.chainLabel)).toBe(true);
+    for (const result of results) {
+      const expectedSurface =
+        result.context === 'wallet-iframe' && result.variant === 'modal'
+          ? 'wallet-iframe'
+          : 'standalone';
+      expect(result.surface).toBe(expectedSurface);
+    }
+    await expect(page.locator('.seams-confirmation-surface')).toHaveCount(0);
+  });
+
   test('lazily enriches ABI hints without replacing the mounted surface', async ({ page }) => {
     const result = await page.evaluate(
       async ({ confirmUiPath }) => {
