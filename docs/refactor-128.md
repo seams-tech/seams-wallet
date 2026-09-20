@@ -238,3 +238,9 @@ previously saved presignature ID, and verifies that the consumed entry disappear
 
 The corrected real registration/reload contract passed locally (39.0 seconds),
 with generation blocked throughout reload and cached signing. All 208 unit tests, the SDK build, and full workspace type-check passed. Release and hosted reload verification for 0.5.28 are pending.
+
+The sustained local rerun also exposed a test-harness race: after a successful
+signature, confirmation fingerprint evaluation waited indefinitely when its
+button disappeared between visibility and evaluation. Classified
+`valid_test_needs_update`; the evaluation now uses the existing auto-confirm
+attempt timeout. Production confirmation behavior is unchanged.

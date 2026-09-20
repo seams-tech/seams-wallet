@@ -6143,8 +6143,11 @@ function readWalletIframeConfirmationState(anchor: Element): {
 async function readWalletIframeConfirmationFingerprint(
   control: Locator,
   intendedAction: string | null,
+  timeoutMs: number,
 ): Promise<WalletIframeConfirmationFingerprint> {
-  const state = await control.evaluate(readWalletIframeConfirmationState);
+  const state = await control.evaluate(readWalletIframeConfirmationState, undefined, {
+    timeout: timeoutMs,
+  });
   return {
     intendedAction: intendedAction || '',
     controlIdentity: state.controlIdentity,
@@ -6316,7 +6319,7 @@ async function clickWalletIframeConfirm(
         googleVisible = false;
       }
       if (googleVisible) {
-        const fingerprint = await readWalletIframeConfirmationFingerprint(google, intendedAction);
+        const fingerprint = await readWalletIframeConfirmationFingerprint(google, intendedAction, timeoutMs);
         if (walletIframeConfirmationAlreadyDispatched(dispatchedConfirmations, fingerprint)) {
           return false;
         }
@@ -6372,7 +6375,7 @@ async function clickWalletIframeConfirm(
     });
     await confirmBtn.waitFor({ state: 'visible', timeout: timeoutMs });
     recordAutoConfirmMark(opts?.diagnostics, opts?.diagnosticsStartedAtMs, 'firstButtonVisibleMs');
-    const fingerprint = await readWalletIframeConfirmationFingerprint(confirmBtn, intendedAction);
+    const fingerprint = await readWalletIframeConfirmationFingerprint(confirmBtn, intendedAction, timeoutMs);
     if (walletIframeConfirmationAlreadyDispatched(dispatchedConfirmations, fingerprint)) {
       return false;
     }
