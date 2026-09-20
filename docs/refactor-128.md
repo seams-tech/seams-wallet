@@ -204,6 +204,8 @@ the separate work to shorten the measured roughly five-second generation path.
 - Final local validation: all 208 Wallet unit tests pass, including real encrypted
   IndexedDB capacity/restore coverage. SDK build, Wallet/server type checks,
   Wallet-state type fixtures, intended-contract type checks, and the full workspace
-  type-check pass. The local registration lifecycle
-  contract is building its isolated full Worker stack; it is not yet a passed check.
+  type-check pass. The local registration lifecycle contract passes against the
+  isolated Worker stack (1/1): registration establishes an immediately usable
+  owner session without waiting for presignatures. The harness now builds its
+  required local initializer, fixing the earlier missing-executable startup failure.
 - Release, hosted latency measurements, and production rollout remain pending.
