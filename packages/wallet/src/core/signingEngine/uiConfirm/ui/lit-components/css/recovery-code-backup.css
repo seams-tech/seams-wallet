@@ -7,11 +7,11 @@
   into host documents.
 */
 
-seams-recovery-code-backup-host {
+:is(seams-recovery-code-backup-host, .seams-recovery-code-backup-host) {
   display: contents;
 }
 
-seams-recovery-code-backup-viewer {
+:is(seams-recovery-code-backup-viewer, .seams-recovery-code-backup-viewer) {
   display: block;
 }
 
@@ -96,7 +96,7 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wa
     transition: width 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
   }
 
-  seams-recovery-code-backup-viewer[data-seams-recovery-entry='account_menu'][data-seams-recovery-stage='recovery_codes'] {
+  :is(seams-recovery-code-backup-viewer, .seams-recovery-code-backup-viewer)[data-seams-recovery-entry='account_menu'][data-seams-recovery-stage='recovery_codes'] {
     animation: seams-recovery-codes-content-in 160ms ease-out both;
   }
 
@@ -144,8 +144,8 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wa
   outline-offset: 2px;
 }
 
-seams-recovery-code-backup-viewer[data-seams-recovery-stage='summary'] .recovery-backup-title,
-seams-recovery-code-backup-viewer[data-seams-recovery-stage='opening'] .recovery-backup-title {
+:is(seams-recovery-code-backup-viewer, .seams-recovery-code-backup-viewer)[data-seams-recovery-stage='summary'] .recovery-backup-title,
+:is(seams-recovery-code-backup-viewer, .seams-recovery-code-backup-viewer)[data-seams-recovery-stage='opening'] .recovery-backup-title {
   padding-inline-end: 2.75rem;
 }
 

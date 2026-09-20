@@ -10,14 +10,10 @@ import {
 /* Relative, not `@/`-aliased: unit tests load this module as raw source over
    Vite's /@fs route, where the SDK's path alias is not configured. Type-only
    `@/` imports above are erased before that matters; these are values. */
-import { SEAMS_RECOVERY_CODE_BACKUP_HOST_ID } from '../../../core/signingEngine/uiConfirm/ui/registry';
-import {
-  RECOVERY_BACKUP_CANCEL_EVENT,
-  RECOVERY_BACKUP_CLOSE_EVENT,
-  type RecoveryBackupCloseDetail,
-} from '../../../core/signingEngine/uiConfirm/ui/lit-components/RecoveryCodeBackup/events';
-import type RecoveryCodeBackupHost from '../../../core/signingEngine/uiConfirm/ui/lit-components/RecoveryCodeBackup/host';
-import type { RecoveryCodeBackupExperience } from '../../../core/signingEngine/uiConfirm/ui/lit-components/RecoveryCodeBackup/viewer';
+import type {
+  RecoveryBackupCloseDetail,
+  RecoveryCodeBackupExperience,
+} from '../../../core/signingEngine/uiConfirm/ui/preact/RecoveryCodeBackupSurface';
 
 const CANCELLED_MESSAGE = 'Recovery-code backup was cancelled before acknowledgement';
 
@@ -29,25 +25,10 @@ type AccountMenuRecoveryCodeExperience = Extract<
 export type WalletRecoveryCodesUiRequest = Omit<AccountMenuRecoveryCodeExperience, 'kind'>;
 
 /**
- * The lit host/viewer pair loads on demand: this module sits in the static
- * import graph of registration and SeamsWeb, and the dialog is the only
- * reason to pull lit into it.
- */
-async function createRecoveryCodeBackupHost(): Promise<RecoveryCodeBackupHost> {
-  const { default: HostElement } =
-    await import('../../../core/signingEngine/uiConfirm/ui/lit-components/RecoveryCodeBackup/host');
-  if (!customElements.get(SEAMS_RECOVERY_CODE_BACKUP_HOST_ID)) {
-    customElements.define(SEAMS_RECOVERY_CODE_BACKUP_HOST_ID, HostElement);
-  }
-  return document.createElement(SEAMS_RECOVERY_CODE_BACKUP_HOST_ID) as RecoveryCodeBackupHost;
-}
-
-/**
  * Shows the recovery-code backup dialog and resolves with the user's
- * acknowledgement. The dialog is the lit RecoveryCodeBackup host/viewer pair;
- * this wrapper owns the promise contract: an acknowledged close resolves as
- * backed-up, an unacknowledged close defers during registration and cancels
- * from the account menu, and Escape always cancels.
+ * acknowledgement. This wrapper owns the promise contract: an acknowledged
+ * close resolves as backed-up, an unacknowledged close defers during
+ * registration and cancels from the account menu, and Escape always cancels.
  */
 async function showRecoveryCodeExperience(
   experience: RecoveryCodeBackupExperience,
@@ -59,18 +40,20 @@ async function showRecoveryCodeExperience(
 
   const previousFocus =
     document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  const host = await createRecoveryCodeBackupHost();
-  host.experience = experience;
-  host.surface = measurementBinding.kind === 'wallet_iframe' ? 'wallet-iframe' : 'standalone';
+  const surfaceModule = await import(
+    '../../../core/signingEngine/uiConfirm/ui/preact/mountRecoveryCodeBackupSurface'
+  );
 
   let measurementReporter: WalletIframeSurfaceMeasurementReporter | null = null;
+  let surface: ReturnType<typeof surfaceModule.mountRecoveryCodeBackupSurface> | null = null;
   let settled = false;
 
   return await new Promise<WalletRecoveryCodeBackupAcknowledgementV1>((resolve, reject) => {
     const cleanup = (): void => {
       measurementReporter?.disconnect();
       measurementReporter = null;
-      host.remove(); // disconnectedCallback closes and removes the dialog
+      surface?.dispose();
+      surface = null;
       previousFocus?.focus();
     };
 
@@ -82,8 +65,7 @@ async function showRecoveryCodeExperience(
       else resolve(result);
     };
 
-    host.addEventListener(RECOVERY_BACKUP_CLOSE_EVENT, (event) => {
-      const detail = (event as CustomEvent<RecoveryBackupCloseDetail>).detail;
+    const handleClose = (detail: RecoveryBackupCloseDetail): void => {
       switch (detail.kind) {
         case 'dismissed':
           settle(new Error(CANCELLED_MESSAGE));
@@ -103,23 +85,28 @@ async function showRecoveryCodeExperience(
           settle(new Error(CANCELLED_MESSAGE));
           return;
       }
-    });
+    };
 
-    host.addEventListener(RECOVERY_BACKUP_CANCEL_EVENT, () => {
-      settle(new Error(CANCELLED_MESSAGE));
-    });
-
-    document.body.appendChild(host);
-
-    void host.whenDialogShown().then((dialog) => {
-      if (settled || measurementBinding.kind !== 'wallet_iframe') return;
-      measurementReporter = createWalletIframeSurfaceMeasurementReporter({
-        kind: 'request_scroll_surface',
-        requestId: measurementBinding.requestId,
-        element: dialog,
-        postMeasurement: measurementBinding.postMeasurement,
+    try {
+      surface = surfaceModule.mountRecoveryCodeBackupSurface({
+        parent: document.body,
+        experience,
+        surface: measurementBinding.kind === 'wallet_iframe' ? 'wallet-iframe' : 'standalone',
+        onClose: handleClose,
+        onCancel: () => settle(new Error(CANCELLED_MESSAGE)),
+        onShown: (dialog) => {
+          if (settled || measurementBinding.kind !== 'wallet_iframe') return;
+          measurementReporter = createWalletIframeSurfaceMeasurementReporter({
+            kind: 'request_scroll_surface',
+            requestId: measurementBinding.requestId,
+            element: dialog,
+            postMeasurement: measurementBinding.postMeasurement,
+          });
+        },
       });
-    });
+    } catch (error) {
+      settle(error instanceof Error ? error : new Error(String(error)));
+    }
   });
 }
 
