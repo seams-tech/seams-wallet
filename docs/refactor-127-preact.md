@@ -1537,7 +1537,7 @@ Preact integration checkpoint — 2026-09-21:
   acknowledgement/defer behavior, download filenames, clipboard feedback, and
   generation-guarded disposal. Recovery CSS now scopes both the migration
   class root and the retained Lit baseline root.
-- Verification passed: the recovery browser matrix passed **9/9** across
+- Verification passed: the recovery browser matrix passed **12/12** across
   Chromium, Firefox, and WebKit; the cross-origin recovery host flow passed
   **1/1** in Chromium; wallet type-check, browser-test type-check, Rolldown,
   and static asset emission passed.
@@ -1546,6 +1546,11 @@ Preact integration checkpoint — 2026-09-21:
   Chromium captures for the retained Lit host baseline (light and dark), with
   478 and 480 changed pixels respectively out of 235,200 (under 0.21%).
   Captures and diffs remain ignored under `.artifacts/refactor-127/visual/`.
+- The cancellation gate now passes through the host boundary: the recovery
+  operation checks cancellation before and after its lazy Preact import, so a
+  request cancelled while the module is loading cannot mount a stale dialog.
+  The delayed-import browser test uses the built module response and passes
+  across Chromium, Firefox, and WebKit.
 - Remaining gates are delayed-load/cancellation and pending-callback disposal
   stress, broader recovery visual states, bundle accounting, and deletion of
   the retained recovery custom-element host/viewer and event module. Keep the
@@ -1557,7 +1562,7 @@ Preact integration checkpoint — 2026-09-21:
   clipboard behavior, native dialog cancellation, focus, and live status.
 - [x] Test registration-time and account-menu entrypoints, failed opening,
   repeated open/close, and explicit acknowledgement.
-- [ ] Test cancellation while the lazy Preact module is pending.
+- [x] Test cancellation while the lazy Preact module is pending.
 - [ ] Verify disposal releases displayed codes, pending callbacks, timers,
   and rules; reopening must not display a previous operation's codes.
 - [x] Capture the matched recovery host fixture and review every image diff;
@@ -1567,6 +1572,20 @@ Preact integration checkpoint — 2026-09-21:
 
 **Exit:** recovery UI and enclosing registration/account flows pass behavior,
 visual, CSP, cleanup, browser, and size checks.
+
+Recovery cancellation checkpoint — 2026-09-21:
+
+- This checkpoint is implemented in the recovery operation and host runtime,
+  with a browser regression test that holds the lazy Preact module response
+  until after cancellation. The recovery browser matrix passes **12/12** across
+  Chromium, Firefox, and WebKit; the cross-origin recovery host flow passes
+  **1/1** in Chromium. Wallet type-check, browser-test type-check, and Rolldown
+  build also pass.
+- This is an intentional audit marker for the Luna handoff. Future work should
+  re-review the cancellation predicate, delayed-import harness, and host error
+  propagation before recovery cleanup is accepted. Disposal stress, broader
+  visual states, bundle accounting, and removal of the retained Lit host/viewer
+  remain open.
 
 ### 7. Remove React's remaining Lit dependencies
 
