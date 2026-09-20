@@ -1369,6 +1369,20 @@ Production confirmation integration checkpoint — 2026-09-21:
   the old confirmation Lit subtree. Keep the temporary visual comparisons and
   saved Lit build until Phase 8d.
 
+Transaction-tree visual checkpoint — 2026-09-21:
+
+- `7ebbdb9` adds a deterministic before/after gate for the default transaction
+  tree fixture in light and dark themes. It mounts the saved Lit build and the
+  current Preact tree through the same document stylesheet and host geometry,
+  then compares the component crops.
+- Both captures match the saved Lit baseline exactly: 420×48px, zero changed
+  pixels, and zero maximum channel delta. The browser-test type-check and the
+  two-case Chromium visual run passed.
+- This is evidence for the default tree fixture only. Chain-specific details,
+  expanded content, copy/mode interactions, hosted resizing, and the complete
+  confirmation visual matrix remain open. Keep this temporary comparison until
+  Phase 8d, when all migration visual gates have passed.
+
 Luna review checkpoint — 2026-09-21:
 
 - Follow-up work from this checkpoint is expected to use Luna. Before merging
