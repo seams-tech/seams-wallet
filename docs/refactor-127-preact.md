@@ -1445,16 +1445,28 @@ Extended export capture checkpoint — 2026-09-21:
   viewports, both themes and contexts, and ready/multi-key/loading/failed/copied/
   custom-appearance states. All cases pass after targeted reruns. Browser-test
   TypeScript checking also passes. Clipboard writes use synthetic fixture data.
-- Two narrow hosted multi-key cases initially exceeded the full-frame percentage
-  gate because the smaller canvas changes its denominator. Inspected differences
-  remain the accepted scroll-boundary correction (1,240 and 2,285 pixels); the
-  gate now retains the original desktop absolute allowance of 2,764.8 pixels
-  for this case only. Other geometry and percentage gates remain unchanged.
+- The final run passed all 48 pairs. Hosted multi-key comparisons use an explicit
+  scroll-edge region plus separate narrow/desktop ceilings so the accepted
+  fixed-height scroll boundary is measured directly. The inspected differences
+  remain localized to that boundary and small renderer edge differences.
 - Inspected copied feedback, narrow error, narrow multi-key, and visibly custom
   appearance comparisons. Appearance overrides the actual `success` and
-  `textPrimary` tokens. Screenshots remain ignored; comprehensive image review
-  and parent-iframe fit/scroll acceptance remain open. A fixed-size hosted
-  surface captured in a narrow document alone does not prove parent fit.
+  `textPrimary` tokens. Screenshots remain ignored.
+- The export sheet now subtracts its content-box padding from `100dvh`, keeping
+  its top edge reachable in short documents. A parent-overlay fixture exercises
+  the real `OverlayController`, provisional and measured geometry, iframe
+  measurement, scroll-to-warning, close/focus restoration, and strict CSP at
+  1024×900, 390×844, and 390×300. Export-host, renderer, and parent-overlay
+  checks passed 51/51 across Chromium, Firefox, and WebKit.
+
+Luna handoff checkpoint — 2026-09-21:
+
+- The export checkpoint is split across `97bd286` (short-viewport layout),
+  `b7d3922` (parent-overlay integration), and `7dcc2a6` (visual parity gates).
+- This is an intentional audit marker. Future work performed with Luna requires
+  an extra review of export lifecycle invalidation, measurement ownership,
+  content-box sizing, strict-CSP behavior, and the visual threshold rationale
+  before the export phase can be treated as complete.
 
 - [x] Replace host/viewer rendering with `ExportPrivateKeySurface` behind
   `upsertExportViewerHost()` and an explicit mount/update/dispose handle.
