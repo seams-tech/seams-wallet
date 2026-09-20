@@ -1,6 +1,8 @@
 # Optimization 10: registration readiness and MPC signing latency
 
-Status: implementation in progress; production latency target remains unverified.
+Status: 0.5.25 released and measured on production testnet. Cached Tempo signing
+meets the target in four diagnostic samples; immediate and sustained signing
+still exceed it. Production p95 and Arc acceptance remain unverified.
 
 Execution constraint: keep mixed registration's ECDSA-ready success asynchronous
 while NEAR provisioning is slow. Reduce and measure the underlying NEAR work
@@ -276,6 +278,249 @@ has no active binding, and its organization has zero prepaid balance. Stripe
 integration is unfinished. No credit was issued, checkout performed, or billing
 guard bypassed during this work. Testnet-backed production measurements remain
 available independently of that decision.
+
+### Fresh pre-release baseline: 0.5.24
+
+Six additional Tempo signatures were measured on `wallet.seams.sh` after the
+standard testnet deployment, from Japan, with real MPC, storage, and chain RPCs.
+Chromium used an automatically verified virtual passkey; there was no response
+interception. These are diagnostic samples, not a production p95 estimate.
+
+| Sample | Authorization | Presignature source | Generation or refill wait (s) | Prepare (s) | Finalize (s) | Commit (s) |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 1 | Reusable | Foreground generation | 6.57 | 1.26 | 1.58 | 9.79 |
+| 2 | Reusable | Wait for background generation | 5.91 | 1.20 | 1.75 | 9.14 |
+| 3 | Reusable | Wait for background generation | 4.84 | 0.92 | 0.97 | 6.97 |
+| 4 | Operation step-up | Foreground generation | 6.63 | 1.57 | 2.05 | 10.95 |
+| 5 | Operation step-up | Foreground generation | 7.80 | 1.96 | 1.29 | 11.63 |
+| 6 | Operation step-up | Foreground generation | 8.91 | 0.92 | 1.18 | 11.69 |
+
+The `available` selection event occurs after waiting for an in-flight refill.
+Samples 2 and 3 therefore cannot be classified as cache hits. Classify pool
+behavior using both selection and refill-wait timings.
+
+The sanitized signing-worker tail captured all six generation ceremonies:
+48 session-object invocations used 1,226 ms of CPU in total, approximately
+204 ms per generation. Their combined wall time was 1,264 ms. The 48 enclosing
+worker requests used 473 ms CPU and 9,185 ms wall time. These are nested spans;
+do not add parent and child durations. Browser generation took several seconds
+per ceremony, directing the next investigation toward transport and surrounding
+authorization/storage waits. Ingress `NRT` metadata does not establish the
+execution location of a Worker or Durable Object.
+
+One attempt after session expiry failed before generation with
+`exact ECDSA Wallet Session is unavailable`. Reload and full passkey unlock
+restored signing. It remains a reliability failure, outside the six successful
+latency samples.
+
+Baseline signing-worker version: `ab81d5c3-078a-4463-8684-52de17b314f1`;
+gateway version: `73fed18f-809a-47de-b527-6587e6aeba2b`.
+
+The private gateway entrypoint also resolves the active tenant binding through
+Console before entering the SDK handler. Console performs two sequential D1
+reads for this lookup. The new SDK `ecdsa_presign_total` span excludes that
+outer work. Capture gateway and Console runtime telemetry together; the
+difference between browser duration and SDK total is not purely network time.
+Normal ECDSA signing executes directly in Gateway and does not traverse the
+separate Wallet Runtime service.
+
+### Release 0.5.25: deployed results on 2026-09-19
+
+Both public npm packages are published as `0.5.25` with signed provenance from
+[release run 35452323708](https://github.com/seams-tech/seams-wallet/actions/runs/35452323708).
+Wallet [PR 7](https://github.com/seams-tech/seams-wallet/pull/7) merged as
+`1a61e44403ac3a38fac2a57e1cff2593fb1daf2e`. Exact private pins, lockfile,
+and the existing release-age allowlist were updated in
+[monorepo PR 28](https://github.com/seams-tech/seams-monorepo/pull/28), merged as
+`c844f38db11c574c3f712438ea4ec705049ef154`. Local `pnpm check`, full application
+build, and GitHub composition checks passed.
+
+The coordinated [frontend deployment](https://github.com/seams-tech/seams-monorepo/actions/runs/35455056375)
+and [production-testnet backend deployment](https://github.com/seams-tech/seams-monorepo/actions/runs/35455054477)
+passed, including smoke checks and temporary backend cache cleanup. Both
+`test.sign.seams.sh` and `sign.seams.sh` expose manifest version `0.5.25`.
+Signing measurements below use the testnet backend. Mainnet activation remains
+blocked independently; this release did not issue credits or change billing policy.
+
+Measured gateway version: `352f7dd1-dd62-4a37-a94a-08f238f7f207`;
+signing-worker version: `3ef722b9-5e58-4f52-8483-faa17fb5c295`.
+The Console lookup service remained version
+`9f005685-f13a-41ee-9eab-a2c9842ab219`.
+
+Fourteen Tempo signatures completed successfully on `wallet.seams.sh`, using the
+same Japan client and automatically verified virtual passkey as the fresh
+baseline. Ten were consecutive after a full unlock. Four followed another
+unlock, with a controlled 12-second pause before and between signatures to
+allow authorized prefill. Commit includes post-confirmation authorization,
+generation or refill waiting, signing, and transaction assembly; human prompt
+time and chain confirmation are excluded.
+
+| Cohort | Samples | Median commit (s) | Range (s) |
+| --- | ---: | ---: | ---: |
+| Immediate/consecutive reusable session, waiting for refill | 3 | 6.35 | 5.90–6.35 |
+| Consecutive operation step-up, empty pool | 7 | 8.65 | 7.73–9.21 |
+| Paced, cached material; three reusable and one step-up | 4 | 2.26 | 2.13–2.96 |
+
+The fresh 0.5.24 reusable cohort had a 9.14-second median; its three empty-pool
+step-up samples had an 11.63-second median. The new samples show improvement,
+but these small cohorts do not establish a population p95 or isolate every
+change's contribution. Cached signing meets the requested range in this run;
+the immediate and sustained cohorts still fail acceptance.
+
+Unlock prefill now demonstrably schedules and produces material. Duplicate
+Tempo/Arc scheduling is coalesced by the existing pool key. Immediate signing
+still waits 3.67–3.93 seconds for that generation. Once reusable authority is
+exhausted, foreground generation takes 5.51–6.41 seconds. One background refill
+was rejected with HTTP 503 / `wallet_session_unavailable` at the allowance
+boundary; the next operation successfully used exact-operation step-up. Record
+that rejected background attempt separately from the 14 successful signatures.
+
+#### Remaining bottleneck: sequential authorization and transport
+
+Each of the seven foreground ceremonies used one init and seven sequential step
+requests. The table shows medians of per-ceremony summed timing spans. Rows are
+nested or overlapping and must not be added together.
+
+| Measurement | Median per ceremony (s) |
+| --- | ---: |
+| Foreground generation, client | 6.07 |
+| Sum of browser request-to-response-start times | 5.53 |
+| Sum of gateway runtime wall times | 4.51 |
+| SDK presign handler total | 3.57 |
+| Gateway authentication within SDK handler | 1.28 |
+| Material resolution / admission within SDK handler | 0.11 / 0.27 |
+| Gateway upstream proxy | 1.90 |
+| Signing-worker measured total, nested in proxy | 0.83 |
+| Session-object call, nested in worker total | 0.68 |
+
+Across these ceremonies, gateway runtime wall time minus the SDK span has a
+median of 0.90 seconds. The outer tenant-binding lookup is one uninstrumented
+boundary. The Console
+lookup itself has a 28 ms median wall time across the rapid batch, so the
+Console function's compute/storage alone does not explain that whole gap.
+Gateway proxy time minus the worker's measured total has a 1.02-second median
+per ceremony. Browser response-start sums minus gateway wall sums add a further
+0.97-second median. These residuals are diagnostic comparisons, not an exclusive
+critical-path decomposition. [Cloudflare runtime wall time](https://developers.cloudflare.com/workers/observability/metrics-and-analytics/#wall-time-per-execution)
+includes `waitUntil()` work and can differ from response duration. Add explicit
+request-path spans around the outer lookup and service calls before assigning
+these gaps to network latency or storage.
+
+The rapid batch's 80 session-object invocations used 1.96 seconds of wall time
+in total, approximately 0.20 seconds per generation. Step calls had median
+6 ms CPU and 6 ms wall time. Gateway presign queue spans were zero. Repeated
+multi-second generation therefore persists with low session-object compute
+and without measured admission queueing. Warm-up alone cannot address the
+observed sequential request costs.
+
+#### Next implementation sequence
+
+1. Benchmark the existing persistent-transport proposal against the current
+   eight-request exchange. Preserve protocol rounds, client/server custody,
+   exact material binding, revocation, expiry, and atomic admission. Measure
+   gateway-to-worker and worker-to-object dispatch separately, including actual
+   object placement. A session-object call spans more than its crypto execution.
+2. Reduce repeated gateway authentication/storage work using the measured
+   request path. Investigate the outer Console round trip and its two reads;
+   preserve fresh authority checks and avoid an unbounded tenant-binding cache.
+   Measure each change separately before accepting a placement or transport change.
+3. Keep authorized prefill running early and prevent futile refill scheduling
+   after allowance exhaustion. Improving refill throughput remains necessary:
+   the paced cohort hides generation, while rapid signing catches up with it.
+   Separate preprocessing permission is still an explicit policy decision;
+   no allowance expansion was included in this release.
+4. Repeat immediate, rapid, cached, exhausted, reload, expiry, and cold cohorts
+   after the next change. Arc remains blocked on test gas for benchmark address
+   `0x1fce806a5b24a3a7005eaf7dc1bb28c13dcefcb4`; its production sign button was
+   still disabled after this release. Do not infer Arc acceptance from Tempo.
+
+Release artifact uploads succeeded in the public Wallet repository. Private
+GitHub artifact quota recovery remains unverified; public uploads do not prove
+that private uploads are available. Existing retention cleanup and exact-run
+cache handoff remain in place.
+
+### Follow-up: request-path attribution and tenant lookup, 2026-09-20
+
+[Monorepo PR 29](https://github.com/seams-tech/seams-monorepo/pull/29) replaces
+the two sequential Console binding reads with one LEFT JOIN. Each request still
+reads the current active pointer, validates both records, and rejects a dangling
+pointer. No cache or authorization relaxation was introduced. Eight focused
+tests, full application checks/build, and CI passed.
+
+The [Console deployment](https://github.com/seams-tech/seams-monorepo/actions/runs/35484983679)
+and [testnet backend deployment](https://github.com/seams-tech/seams-monorepo/actions/runs/35484984736)
+passed at monorepo revision `0e35b0192ef6ca2d5c53ff76e05e6df208994d7b`.
+Gateway version is `580cdf3d-258d-4b72-9daf-d40b0ab80d67`; Console version is
+`9daf7519-5425-4747-a353-b4f9fbdded43`. Public Wallet packages remain `0.5.25`.
+
+New `wallet_gateway_binding` and `wallet_gateway_total` response timing spans
+measure the awaited service call and entrypoint directly. Seven successful
+foreground generations produced these median per-ceremony sums:
+
+| Boundary | Seconds |
+| --- | ---: |
+| Client foreground generation | 5.15 |
+| Browser request-to-response-start sum | 4.77 |
+| Gateway entrypoint total | 3.19 |
+| Outer binding service calls | 0.13 |
+| SDK handler total | 3.04 |
+| SDK authentication | 0.96 |
+| SDK material / admission | 0.07 / 0.23 |
+| Gateway upstream proxy | 1.81 |
+| Signing-worker measured total, inside proxy | 0.91 |
+
+The per-ceremony median of browser time minus gateway time is 1.49 seconds.
+Entrypoint time outside the binding lookup and SDK handler is only 5 ms per
+ceremony. These request-path spans supersede the earlier runtime-wall residual
+as an attribution of synchronous outer work. The Console lookup is a small
+remaining contributor; prioritize authentication and repeated transport.
+Nested spans must still not be added together.
+
+After unlock settled, ten signatures succeeded: three cached reusable signatures
+took 1.93–2.17 seconds (median 2.11), and seven empty-pool operation step-ups took
+6.99–7.82 seconds (median 7.50). Foreground generation took 4.94–5.63 seconds.
+The preceding batch's corresponding step-up median was 8.65 seconds, but the
+whole difference cannot be attributed to the JOIN: SDK authentication also
+became faster despite unchanged code. These remain small, temporally separated
+diagnostic cohorts, not a controlled p95 comparison.
+
+One preceding immediate attempt failed with HTTP 503 `wallet_session_unavailable`
+before producing a signature. It selected operation step-up, then background
+reusable-session prefill completed afterward. This suggests an unlock/readiness
+race, which needs a focused reproduction; the benchmark's wait for a visible
+sign button does not establish completion of replacement-session installation.
+Retain this failure separately from the ten settled-session successes.
+
+Source inspection identified the next authorization optimization: exhausted
+step-up first attempts reusable-session resolution, then rereads the credential
+through the exact-status path, loads authority and auth-method records, and
+resolves active material. Replace repeated resolution with one typed result
+that distinguishes reusable, exhausted, unavailable, and rejected states.
+Preserve current origin, identity, expiry, revocation, material, and atomic
+operation-admission checks. Exercise both active and exhausted paths, plus
+revocation between protocol rounds, before releasing that shared change.
+
+Persistent transport should be benchmarked with the same fresh checks. A
+WebSocket does not itself remove database work or protocol dependencies. Compare
+browser-to-gateway and gateway-to-worker hops separately; retain the current
+transport until the benchmark justifies a production replacement.
+
+#### Concrete preprocessing-permission decision
+
+For sustained 1–3-second signing after the reusable allowance is exhausted,
+consider a distinct **presignature-only permission**, issued during an
+authenticated unlock or registration. It would retain the existing target
+depth of three and concurrency limits, expire no later than its wallet session,
+and bind to the exact wallet, origin, authority, auth method, material activation,
+and signing worker. Revocation, retirement, expiry, or material replacement
+would stop replenishment. Existing generation rate limits and single-use
+reservation/consumption remain mandatory.
+
+This permission would allow background replenishment with zero reusable signing
+uses. It would grant no transaction-signing authority: each transaction after
+allowance exhaustion would still require fresh exact-operation step-up. That
+is an authorization-policy change requiring an explicit decision. It has not
+been implemented or enabled by the transport/lookup work above.
 
 ### Acceptance criteria
 
