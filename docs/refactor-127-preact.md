@@ -4,8 +4,10 @@
 worktree; its Lit element and internal intent-event bridge are removed.
 Phase 0–2 baseline, contract, document-style, and build work supports that slice.
 Production confirmation now mounts through Preact, including lazy ABI enrichment.
-Its broader visual/state/mount-context acceptance remains incomplete. Export,
-recovery backup, and React adapters still use their existing renderers.
+Its broader visual/state/mount-context acceptance remains incomplete. Production
+key export now mounts through Preact; its remaining visual/integration acceptance
+and Lit cleanup are pending. Recovery backup and React adapters still use their
+existing renderers.
 This plan changes the wallet's internal UI renderer while
 preserving wallet behavior, iframe protocols, strict-CSP guarantees, and public
 React APIs.
@@ -1416,7 +1418,28 @@ Staged export checkpoint — 2026-09-21:
   removal of the accepted export Lit subtree. These staged desktop captures
   do not establish production integration or complete export acceptance.
 
-- [ ] Replace host/viewer rendering with `ExportPrivateKeySurface` behind
+Production export integration checkpoint — 2026-09-21:
+
+- `upsertExportViewerHost()` now imports an explicit Preact mount function.
+  Session lifetime, first measurement, updates, and disposal are owned by the
+  host; cancellation invalidates pending imports. Loading and failure models
+  discard ready key material at the request boundary.
+- Export CSS is emitted in the document-linked `confirmation-ui.css` bundle.
+  Export and confirmation share document stylesheet validation and the existing
+  CSP-safe dynamic-rule manager; no export component fetches or adopts CSS.
+- Fresh Rolldown build, declaration generation, wallet type-check, and browser
+  test type-check passed. Export-host, export-renderer, and confirmation-mount
+  behavior checks passed 66/66 across Chromium, Firefox, and WebKit. Coverage
+  includes failed imports, unavailable CSS, stale mounts, session replacement,
+  synchronous removal from first measurement, clipboard lifetime, and focus.
+- All 12 desktop comparison gates passed through the production host API using
+  the emitted stylesheet. PNGs remain ignored in the existing artifact folder.
+  The hosted dark multi-key comparison was reinspected after the cutover.
+- Still required: narrow-view and extended-state visual acceptance, actual
+  parent-iframe integration, export Lit deletion, and per-flow bundle size gates.
+  These checks do not establish completion of Phase 5.
+
+- [x] Replace host/viewer rendering with `ExportPrivateKeySurface` behind
   `upsertExportViewerHost()` and an explicit mount/update/dispose handle.
 - [ ] Preserve modal/drawer behavior, masking, reveal timing, multi-key
   updates, copy feedback, guidance, and measured height.

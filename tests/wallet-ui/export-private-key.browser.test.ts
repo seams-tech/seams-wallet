@@ -69,7 +69,7 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({
       contentType: 'text/html',
       headers: { 'content-security-policy': "style-src 'self'; style-src-attr 'none'" },
-      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" href="/_test-sdk/esm/sdk/seams-components.css"><link rel="stylesheet" href="/export-test.css"></head><body><main class="seams-wallet-ui" data-theme="light"></main></body></html>`,
+      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-components-css href="/_test-sdk/esm/sdk/seams-components.css"><link rel="stylesheet" data-seams-confirmation-css href="/export-test.css"></head><body><main class="seams-wallet-ui" data-theme="light"></main></body></html>`,
     }),
   );
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -77,14 +77,7 @@ test.beforeEach(async ({ page }) => {
   await page.evaluate(async () => {
     const viewPath =
       '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/preact/mountExportPrivateKeySurface.js';
-    const stylesPath = '/_test-sdk/esm/core/browser/walletIframe/csp-stylesheet.js';
     const { mountExportPrivateKeySurface } = await import(viewPath);
-    const { createCspStylesheetManager } = await import(stylesPath);
-    const styles = createCspStylesheetManager({
-      doc: document,
-      baseCss: '',
-      dynamicStyleDataAttr: 'data-export-test',
-    });
     const root = document.querySelector('main')!;
     let handle: ExportSurfaceHandle | null = null;
     let resolvePending: (() => void) | null = null;
@@ -114,7 +107,6 @@ test.beforeEach(async ({ page }) => {
         handle = mountExportPrivateKeySurface({
           parent: root,
           context,
-          styles,
           model: surfaceModel,
           onClosed: closed,
         });

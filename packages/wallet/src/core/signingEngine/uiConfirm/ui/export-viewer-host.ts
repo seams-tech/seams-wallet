@@ -3,10 +3,16 @@ import type {
   ExportGuidance,
   ExportPrivateKeyDisplayEntry,
 } from '@/core/signingEngine/stepUpConfirmation/channel/confirmTypes';
-import { addLitEventListener, LitComponentEvents } from './lit-events';
-import { ensureDefined, SEAMS_EXPORT_VIEWER_IFRAME_ID } from './registry';
-import type { ExportViewerIframeElement } from './lit-components/ExportPrivateKey/iframe-host';
 import type { UiConfirmSurfaceMeasurementBinding } from '../uiConfirm.types';
+import type {
+  ExportKeyViewModel,
+  ExportPrivateKeyViewModel,
+} from './preact/ExportPrivateKeySurface';
+import type {
+  ExportSurfaceHandle,
+  ExportSurfaceModel,
+  mountExportPrivateKeySurface,
+} from './preact/mountExportPrivateKeySurface';
 import {
   createWalletIframeSurfaceMeasurementReporter,
   type WalletIframeSurfaceMeasurementReporter,
@@ -28,188 +34,252 @@ export type UpsertExportViewerHostArgs = {
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
 };
 
-const EXPORT_VIEWER_SESSION_ATTR = 'data-seams-export-viewer-session-id';
-const EXPORT_VIEWER_SURFACE_ATTR = 'data-seams-export-surface';
-const exportViewerLifecycleByHost = new WeakMap<
-  ExportViewerIframeElement,
-  (event: 'opened' | 'closed') => void
->();
-const exportViewerClosedHosts = new WeakSet<ExportViewerIframeElement>();
-const exportViewerMeasurementReporters = new WeakMap<
-  ExportViewerIframeElement,
-  WalletIframeSurfaceMeasurementReporter
->();
-const exportViewerMeasurementBindings = new WeakMap<
-  ExportViewerIframeElement,
-  UiConfirmSurfaceMeasurementBinding
->();
+type ExportSession = { kind: 'tracked'; id: string } | { kind: 'untracked'; id?: never };
+type ExportContext = 'standalone' | 'wallet-iframe';
+type ExportLifecycle = NonNullable<UpsertExportViewerHostArgs['onLifecycle']>;
+type HostState =
+  | {
+      kind: 'mounted';
+      lifecycle: ExportLifecycle | null;
+      binding: UiConfirmSurfaceMeasurementBinding;
+      reporter: WalletIframeSurfaceMeasurementReporter | null;
+    }
+  | { kind: 'disposed' };
 
-/**
- * `wallet-iframe` means the parent measured this element and sized the host box
- * to hug it; `standalone` means the element owns a full-viewport canvas and
- * positions itself inside it. The HOST BOX shape decides, not what the viewer
- * renders — see applyConfirmSurfaceMode in confirm-ui.ts for why the two are
- * separate values.
- */
-function exportViewerSurfacePresentation(
-  variant: UpsertExportViewerHostArgs['variant'] | undefined,
-  binding: UiConfirmSurfaceMeasurementBinding,
-): 'standalone' | 'wallet-iframe' {
-  if (binding.kind !== 'wallet_iframe') return 'standalone';
-  const hostBoxVariant = binding.hostSurfaceVariant ?? variant;
-  return hostBoxVariant === 'modal' ? 'wallet-iframe' : 'standalone';
-}
+let mountedHost: ExportViewerHost | null = null;
+let mountVersion = 0;
 
-function sameExportViewerMeasurementBinding(
-  left: UiConfirmSurfaceMeasurementBinding | undefined,
-  right: UiConfirmSurfaceMeasurementBinding,
-): boolean {
-  if (!left || left.kind !== right.kind) return false;
-  switch (left.kind) {
-    case 'disabled':
-      return right.kind === 'disabled';
-    case 'wallet_iframe':
-      return (
-        right.kind === 'wallet_iframe' &&
-        left.requestId === right.requestId &&
-        left.postMeasurement === right.postMeasurement &&
-        left.hostSurfaceVariant === right.hostSurfaceVariant
-      );
+class ExportViewerHost {
+  readonly surface: ExportSurfaceHandle;
+  private state: HostState;
+
+  constructor(
+    readonly session: ExportSession,
+    readonly context: ExportContext,
+    model: ExportSurfaceModel,
+    binding: UiConfirmSurfaceMeasurementBinding,
+    lifecycle: ExportLifecycle | null,
+    mount: typeof mountExportPrivateKeySurface,
+  ) {
+    this.state = {
+      kind: 'mounted',
+      lifecycle,
+      binding,
+      reporter: null,
+    };
+    this.surface = mount({ parent: document.body, context, model, onClosed: this.closed });
   }
-}
 
-function disconnectExportViewerMeasurementReporter(
-  host: ExportViewerIframeElement | null | undefined,
-): void {
-  if (!host) return;
-  exportViewerMeasurementReporters.get(host)?.disconnect();
-  exportViewerMeasurementReporters.delete(host);
-  exportViewerMeasurementBindings.delete(host);
-}
-
-function bindExportViewerMeasurementReporter(
-  host: ExportViewerIframeElement,
-  binding: UiConfirmSurfaceMeasurementBinding,
-): void {
-  host.setAttribute(
-    EXPORT_VIEWER_SURFACE_ATTR,
-    exportViewerSurfacePresentation(host.variant, binding),
-  );
-  if (sameExportViewerMeasurementBinding(exportViewerMeasurementBindings.get(host), binding)) {
-    return;
+  start(): void {
+    if (this.state.kind === 'disposed') return;
+    notifyLifecycle(this.state.lifecycle, 'opened');
+    if (this.state.kind === 'mounted') this.bindMeasurement(this.state.binding);
   }
-  disconnectExportViewerMeasurementReporter(host);
-  exportViewerMeasurementBindings.set(host, binding);
-  host.requestUpdate?.();
-  if (binding.kind !== 'wallet_iframe') return;
-  exportViewerMeasurementReporters.set(
-    host,
-    createWalletIframeSurfaceMeasurementReporter({
+
+  matches(session: ExportSession, context: ExportContext): boolean {
+    return (
+      this.surface.element.isConnected &&
+      this.context === context &&
+      this.session.kind === session.kind &&
+      this.session.id === session.id
+    );
+  }
+
+  update(
+    model: ExportSurfaceModel,
+    binding: UiConfirmSurfaceMeasurementBinding,
+    lifecycle?: ExportLifecycle,
+  ): void {
+    if (this.state.kind === 'disposed') return;
+    if (lifecycle) this.state.lifecycle = lifecycle;
+    this.surface.update(model);
+    if (!sameMeasurementBinding(this.state.binding, binding)) {
+      this.bindMeasurement(binding);
+    }
+  }
+
+  dispose(): void {
+    if (mountedHost === this) mountedHost = null;
+    this.surface.dispose();
+  }
+
+  private closed = (): void => {
+    const state = this.state;
+    if (state.kind === 'disposed') return;
+    this.state = { kind: 'disposed' };
+    if (mountedHost === this) {
+      mountedHost = null;
+      mountVersion += 1;
+    }
+    state.reporter?.disconnect();
+    notifyLifecycle(state.lifecycle, 'closed');
+  };
+
+  private bindMeasurement(binding: UiConfirmSurfaceMeasurementBinding): void {
+    const state = this.state;
+    if (state.kind === 'disposed') return;
+    state.reporter?.disconnect();
+    state.binding = binding;
+    state.reporter = null;
+    if (binding.kind === 'disabled') return;
+    const reporter = createWalletIframeSurfaceMeasurementReporter({
       kind: 'request_surface',
-      element: host,
+      element: this.surface.element,
       requestId: binding.requestId,
       postMeasurement: binding.postMeasurement,
-    }),
-  );
+    });
+    if (this.state === state) state.reporter = reporter;
+    else reporter.disconnect();
+  }
 }
 
-function emitExportViewerLifecycle(
-  host: ExportViewerIframeElement | null | undefined,
-  event: 'opened' | 'closed',
-): void {
-  if (!host) return;
-  if (event === 'opened') {
-    exportViewerClosedHosts.delete(host);
-  } else if (exportViewerClosedHosts.has(host)) {
-    return;
-  }
-  if (event === 'closed') {
-    exportViewerClosedHosts.add(host);
-  }
-  const listener = exportViewerLifecycleByHost.get(host);
+function notifyLifecycle(listener: ExportLifecycle | null, event: 'opened' | 'closed'): void {
   try {
     listener?.(event);
   } catch {}
-  if (event === 'closed') {
-    exportViewerLifecycleByHost.delete(host);
-  }
 }
 
-function getMountedExportViewerHost(): ExportViewerIframeElement | null {
-  if (typeof document === 'undefined') return null;
-  return document.querySelector(SEAMS_EXPORT_VIEWER_IFRAME_ID) as ExportViewerIframeElement | null;
+function sameMeasurementBinding(
+  left: UiConfirmSurfaceMeasurementBinding,
+  right: UiConfirmSurfaceMeasurementBinding,
+): boolean {
+  if (left.kind === 'disabled') return right.kind === 'disabled';
+  return (
+    right.kind === 'wallet_iframe' &&
+    left.requestId === right.requestId &&
+    left.postMeasurement === right.postMeasurement &&
+    left.hostSurfaceVariant === right.hostSurfaceVariant
+  );
+}
+
+function exportContext(args: UpsertExportViewerHostArgs): ExportContext {
+  const binding = args.surfaceMeasurementBinding;
+  if (binding.kind !== 'wallet_iframe') return 'standalone';
+  return (binding.hostSurfaceVariant ?? args.variant) === 'modal' ? 'wallet-iframe' : 'standalone';
+}
+
+function normalizeGuidance(guidance: ExportGuidance | undefined): ExportGuidance | undefined {
+  if (!guidance) return undefined;
+  const title = guidance.title.trim();
+  const body = guidance.body?.trim();
+  const steps = guidance.steps?.map(trimText).filter(nonemptyText);
+  if (!title && !body && !steps?.length) return undefined;
+  return { title, body, steps };
+}
+
+function trimText(value: string): string {
+  return value.trim();
+}
+function nonemptyText(value: string): boolean {
+  return value.length > 0;
+}
+function hasKey(entry: ExportPrivateKeyDisplayEntry): boolean {
+  return !!entry.publicKey.trim() || !!entry.privateKey.trim();
+}
+
+function keyMetadata(
+  entry: ExportPrivateKeyDisplayEntry,
+  index: number,
+): Omit<ExportKeyViewModel, 'material'> {
+  return {
+    id: `${entry.scheme}-${index}`,
+    scheme: entry.scheme,
+    label: entry.label.trim(),
+    publicKey: entry.publicKey.trim(),
+    address: entry.address?.trim() ?? '',
+  };
+}
+
+function normalizeExportContent(args: UpsertExportViewerHostArgs): ExportPrivateKeyViewModel {
+  const accountId = args.accountId.trim();
+  const guidance = normalizeGuidance(args.guidance);
+  const message = args.errorMessage?.trim();
+  if (message) return { kind: 'failed', accountId, guidance, message };
+  const entries = args.keys?.filter(hasKey) ?? [];
+  if (entries.length === 0) {
+    const publicKey = args.publicKey?.trim() ?? '';
+    const privateKey = args.privateKey?.trim() ?? '';
+    if (publicKey || privateKey)
+      entries.push({ scheme: 'ed25519', label: 'NEAR Ed25519', publicKey, privateKey });
+  }
+  if (args.loading) {
+    const loading: Extract<ExportPrivateKeyViewModel, { kind: 'loading' }> = {
+      kind: 'loading',
+      accountId,
+      guidance,
+      entries: [],
+    };
+    for (const [index, entry] of entries.entries()) {
+      loading.entries.push({ ...keyMetadata(entry, index), material: { kind: 'loading' } });
+    }
+    return loading;
+  }
+  const ready: Extract<ExportPrivateKeyViewModel, { kind: 'ready' }> = {
+    kind: 'ready',
+    accountId,
+    guidance,
+    entries: [],
+  };
+  for (const [index, entry] of entries.entries()) {
+    const privateKey = entry.privateKey.trim();
+    ready.entries.push({
+      ...keyMetadata(entry, index),
+      material: privateKey ? { kind: 'ready', value: privateKey } : { kind: 'unavailable' },
+    });
+  }
+  return ready;
 }
 
 export function isExportViewerSessionOpen(sessionId: string): boolean {
-  const expectedSessionId = String(sessionId || '').trim();
-  if (!expectedSessionId) return false;
-  const host = getMountedExportViewerHost();
-  if (!host) return false;
-  return String(host.getAttribute(EXPORT_VIEWER_SESSION_ATTR) || '').trim() === expectedSessionId;
+  const id = sessionId.trim();
+  return (
+    !!id &&
+    mountedHost?.session.kind === 'tracked' &&
+    mountedHost.session.id === id &&
+    mountedHost.surface.element.isConnected
+  );
 }
 
-export async function upsertExportViewerHost(
-  args: UpsertExportViewerHostArgs,
-): Promise<ExportViewerIframeElement> {
-  if (typeof document === 'undefined') {
+export async function upsertExportViewerHost(args: UpsertExportViewerHostArgs): Promise<void> {
+  if (typeof document === 'undefined')
     throw new Error('Export viewer host requires a DOM environment');
+  const version = ++mountVersion;
+  const model: ExportSurfaceModel = {
+    appearance: args.appearance ?? {
+      palette: 'default',
+      theme: { id: 'default', mode: args.theme, colors: {} },
+    },
+    content: normalizeExportContent(args),
+  };
+  const id = args.sessionId?.trim();
+  const session: ExportSession = id ? { kind: 'tracked', id } : { kind: 'untracked' };
+  const context = exportContext(args);
+  const { mountExportPrivateKeySurface } = await import('./preact/mountExportPrivateKeySurface');
+  if (version !== mountVersion) return;
+  if (mountedHost?.matches(session, context)) {
+    mountedHost.update(model, args.surfaceMeasurementBinding, args.onLifecycle);
+    return;
   }
-  await ensureDefined(
-    SEAMS_EXPORT_VIEWER_IFRAME_ID,
-    () => import('./lit-components/ExportPrivateKey/iframe-host'),
+  mountedHost?.dispose();
+  if (version !== mountVersion) return;
+  const host = new ExportViewerHost(
+    session,
+    context,
+    model,
+    args.surfaceMeasurementBinding,
+    args.onLifecycle ?? null,
+    mountExportPrivateKeySurface,
   );
-
-  let host = getMountedExportViewerHost();
-  if (!host) {
-    host = document.createElement(SEAMS_EXPORT_VIEWER_IFRAME_ID) as ExportViewerIframeElement;
-    host.variant = args.variant;
-    host.setAttribute(
-      EXPORT_VIEWER_SURFACE_ATTR,
-      exportViewerSurfacePresentation(args.variant, args.surfaceMeasurementBinding),
-    );
-    document.body.appendChild(host);
-    if (args.onLifecycle) {
-      exportViewerLifecycleByHost.set(host, args.onLifecycle);
-    }
-    emitExportViewerLifecycle(host, 'opened');
-    const closeViewer = () => {
-      disconnectExportViewerMeasurementReporter(host);
-      emitExportViewerLifecycle(host, 'closed');
-      host?.remove();
-    };
-    addLitEventListener(host, LitComponentEvents.CONFIRM, closeViewer, { once: true });
-    addLitEventListener(host, LitComponentEvents.CANCEL, closeViewer, { once: true });
-  } else {
-    if (args.onLifecycle) {
-      exportViewerLifecycleByHost.set(host, args.onLifecycle);
-    }
+  mountedHost = host;
+  try {
+    host.start();
+  } catch (error) {
+    host.dispose();
+    throw error;
   }
-
-  const sessionId = String(args.sessionId || '').trim();
-  if (sessionId) {
-    host.setAttribute(EXPORT_VIEWER_SESSION_ATTR, sessionId);
-  } else {
-    host.removeAttribute(EXPORT_VIEWER_SESSION_ATTR);
-  }
-  host.theme = args.theme;
-  host.variant = args.variant;
-  host.accountId = args.accountId;
-  host.publicKey = String(args.publicKey || '').trim();
-  host.privateKey = String(args.privateKey || '').trim() || undefined;
-  host.keys = Array.isArray(args.keys) ? args.keys : undefined;
-  host.guidance = args.guidance;
-  host.appearance = args.appearance;
-  host.loading = args.loading === true;
-  host.errorMessage = String(args.errorMessage || '').trim() || undefined;
-  bindExportViewerMeasurementReporter(host, args.surfaceMeasurementBinding);
-  return host;
 }
 
 export function removeExportViewerHostIfPresent(): void {
-  if (typeof document === 'undefined') return;
-  const host = getMountedExportViewerHost();
-  if (!host) return;
-  disconnectExportViewerMeasurementReporter(host);
-  emitExportViewerLifecycle(host, 'closed');
-  host.remove();
+  mountVersion += 1;
+  mountedHost?.dispose();
 }

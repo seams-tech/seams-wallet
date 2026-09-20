@@ -1,11 +1,8 @@
 /** @jsxImportSource preact */
 import { render } from 'preact';
 import type { AppearanceConfig } from '@/core/types/seams';
-import {
-  createCspStylesheetManager,
-  getDefaultCspNonce,
-  type CspStylesheetManager,
-} from '@/core/browser/walletIframe/csp-stylesheet';
+import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
+import { confirmationDocumentStyles } from './confirmation-styles';
 import { appearanceTokenCssVars } from '../appearance-token-vars';
 import { ConfirmationContent, type ConfirmationContentModel } from './ConfirmationContent';
 import { ConfirmationModal } from './ConfirmationModal';
@@ -39,34 +36,7 @@ type SurfaceState =
   | { kind: 'mounted' | 'closing'; model: ConfirmSurfaceModel; onClosed: () => void }
   | { kind: 'disposed'; model?: never; onClosed?: never };
 
-const documentStyles = new WeakMap<Document, CspStylesheetManager>();
 let nextSurfaceId = 0;
-
-function confirmationStyles(document: Document): CspStylesheetManager {
-  let styles = documentStyles.get(document);
-  if (!styles) {
-    styles = createCspStylesheetManager({
-      doc: document,
-      baseCss: '',
-      dynamicStyleDataAttr: 'data-seams-confirmation-dynamic',
-      nonce: getDefaultCspNonce,
-    });
-    documentStyles.set(document, styles);
-  }
-  return styles;
-}
-
-function requireConfirmationStyles(document: Document): void {
-  for (const marker of ['data-seams-components-css', 'data-seams-confirmation-css']) {
-    const link = document.head.querySelector<HTMLLinkElement>(`link[rel="stylesheet"][${marker}]`);
-    try {
-      if (link?.sheet && !link.disabled && link.sheet.cssRules.length > 0) continue;
-    } catch {
-      // Failed or inaccessible styles cannot establish a styled first measurement.
-    }
-    throw new Error(`Wallet confirmation stylesheet unavailable: ${marker}`);
-  }
-}
 
 function appearanceDeclaration([name, value]: [string, string]): string {
   return `${name}:${value};`;
@@ -80,8 +50,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
 
   constructor(input: MountConfirmationInput) {
     const document = input.parent.ownerDocument;
-    requireConfirmationStyles(document);
-    this.styles = confirmationStyles(document);
+    this.styles = confirmationDocumentStyles(document);
     this.presentation = {
       variant: input.presentation.variant,
       context: input.presentation.context,

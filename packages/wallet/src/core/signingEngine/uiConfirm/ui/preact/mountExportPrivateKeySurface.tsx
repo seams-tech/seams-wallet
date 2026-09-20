@@ -2,6 +2,7 @@
 import { render } from 'preact';
 import type { AppearanceConfig } from '@/core/types/seams';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
+import { confirmationDocumentStyles } from './confirmation-styles';
 import { appearanceTokenCssVars } from '../appearance-token-vars';
 import { ConfirmationDrawer } from './ConfirmationDrawer';
 import { ExportPrivateKeySurface, type ExportPrivateKeyViewModel } from './ExportPrivateKeySurface';
@@ -14,7 +15,6 @@ export type ExportSurfaceModel = {
 type MountExportInput = {
   parent: HTMLElement;
   context: 'standalone' | 'wallet-iframe';
-  styles: CspStylesheetManager;
   model: ExportSurfaceModel;
   onClosed: () => void;
 };
@@ -38,7 +38,7 @@ class MountedExportSurface implements ExportSurfaceHandle {
   private state: ExportSurfaceState;
 
   constructor(input: MountExportInput) {
-    this.styles = input.styles;
+    this.styles = confirmationDocumentStyles(input.parent.ownerDocument);
     this.context = input.context;
     this.state = { kind: 'mounted', onClosed: input.onClosed };
     this.element = input.parent.ownerDocument.createElement('div');

@@ -12,13 +12,6 @@ const output = path.join(root, '.artifacts/refactor-127/visual/export');
 type Renderer = 'lit' | 'preact';
 type FixtureState = 'ready' | 'multi-key' | 'loading';
 
-function readCss(name: string): string {
-  return fs.readFileSync(
-    path.join(root, `packages/wallet/src/core/signingEngine/uiConfirm/ui/preact/${name}.css`),
-    'utf8',
-  );
-}
-
 async function preparePage(page: Page, renderer: Renderer): Promise<void> {
   await injectImportMap(page);
   await routePreactModules(page);
@@ -42,16 +35,13 @@ async function preparePage(page: Page, renderer: Renderer): Promise<void> {
     'sdk/seams-components.css',
   );
   await page.route('**/seams-components.css', (route) => route.fulfill({ path: components }));
-  const css = ['confirmation-primitives', 'confirmation-drawer', 'export-private-key']
-    .map(readCss)
-    .join('\n');
   await page.route('**/export-visual.css', (route) =>
-    route.fulfill({ contentType: 'text/css', body: css }),
+    route.fulfill({ path: path.join(root, 'packages/wallet/dist/esm/sdk/confirmation-ui.css') }),
   );
   await page.route('**/export-preact-visual', (route) =>
     route.fulfill({
       contentType: 'text/html',
-      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-components-css href="/seams-components.css"><link rel="stylesheet" href="/export-visual.css"></head><body></body></html>`,
+      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-components-css href="/seams-components.css"><link rel="stylesheet" data-seams-confirmation-css href="/export-visual.css"></head><body></body></html>`,
     }),
   );
   await page.goto('/export-preact-visual');
@@ -148,68 +138,27 @@ for (const theme of ['light', 'dark'] as const) {
                   steps: ['Keep this window private.', 'Store your backup securely.'],
                 };
                 const prefix = '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/';
-                if (renderer === 'lit') {
-                  const { upsertExportViewerHost } = await import(`${prefix}export-viewer-host.js`);
-                  await upsertExportViewerHost({
-                    theme,
-                    variant: 'drawer',
-                    accountId: 'synthetic.testnet',
-                    keys: entries.map((entry) => ({
-                      ...entry,
-                      privateKey: state === 'loading' ? '' : entry.privateKey,
-                    })),
-                    loading: state === 'loading',
-                    guidance,
-                    surfaceMeasurementBinding:
-                      surfaceContext === 'standalone'
-                        ? { kind: 'disabled' }
-                        : {
-                            kind: 'wallet_iframe',
-                            requestId: 'export-visual',
-                            hostSurfaceVariant: 'modal',
-                            postMeasurement: () => {},
-                          },
-                  });
-                } else {
-                  const { mountExportPrivateKeySurface } = await import(
-                    `${prefix}preact/mountExportPrivateKeySurface.js`
-                  );
-                  const { createCspStylesheetManager } = await import(
-                    '/_test-sdk/esm/core/browser/walletIframe/csp-stylesheet.js'
-                  );
-                  mountExportPrivateKeySurface({
-                    parent: document.body,
-                    context: surfaceContext,
-                    styles: createCspStylesheetManager({
-                      doc: document,
-                      baseCss: '',
-                      dynamicStyleDataAttr: 'data-export-visual',
-                    }),
-                    onClosed: () => {},
-                    model: {
-                      appearance: {
-                        palette: 'default',
-                        theme: { id: 'default', mode: theme, colors: {} },
-                      },
-                      content: {
-                        kind: state === 'loading' ? 'loading' : 'ready',
-                        accountId: 'synthetic.testnet',
-                        guidance,
-                        entries: entries.map((entry) => ({
-                          id: entry.id,
-                          scheme: entry.scheme,
-                          label: entry.label,
-                          publicKey: entry.publicKey,
-                          address: entry.address,
-                          material:
-                            state === 'loading'
-                              ? { kind: 'loading' }
-                              : { kind: 'ready', value: entry.privateKey },
-                        })),
-                      },
-                    },
-                  });
-                }
+                const { upsertExportViewerHost } = await import(`${prefix}export-viewer-host.js`);
+                await upsertExportViewerHost({
+                  theme,
+                  variant: 'drawer',
+                  accountId: 'synthetic.testnet',
+                  keys: entries.map((entry) => ({
+                    ...entry,
+                    privateKey: state === 'loading' ? '' : entry.privateKey,
+                  })),
+                  loading: state === 'loading',
+                  guidance,
+                  surfaceMeasurementBinding:
+                    surfaceContext === 'standalone'
+                      ? { kind: 'disabled' }
+                      : {
+                          kind: 'wallet_iframe',
+                          requestId: 'export-visual',
+                          hostSurfaceVariant: 'modal',
+                          postMeasurement: () => {},
+                        },
+                });
                 await document.fonts.ready;
               },
               { renderer, theme, surfaceContext, state },

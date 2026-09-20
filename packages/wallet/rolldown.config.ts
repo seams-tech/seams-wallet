@@ -30,6 +30,7 @@ const PREACT_CONFIRMATION_CSS_FILES = [
   'transaction-tree.css',
   'confirmation-modal.css',
   'confirmation-drawer.css',
+  'export-private-key.css',
 ] as const;
 const NEAR_SIGNER_WASM_JS_ABS = path.resolve(
   SDK_ROOT_ABS,
@@ -529,8 +530,6 @@ const configs = [
       'src/core/signingEngine/uiConfirm/ui/preact/PasskeyRegistrationContent.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/EmailOtpContent.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationContent.tsx',
-      'src/core/signingEngine/uiConfirm/ui/preact/ExportPrivateKeySurface.tsx',
-      'src/core/signingEngine/uiConfirm/ui/preact/mountExportPrivateKeySurface.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationModal.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationDrawer.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface.tsx',
