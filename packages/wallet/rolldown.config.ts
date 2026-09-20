@@ -215,7 +215,6 @@ const SEAMS_COMPONENT_HOSTS = [
   'seams-tx-confirm-content',
   'seams-halo-border',
   'seams-passkey-halo-loading',
-  'seams-recovery-code-backup-viewer',
 ] as const;
 
 const emitSeamsThemeAliases = (vars: any, indent = '  '): string[] => [
