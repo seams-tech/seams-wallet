@@ -208,4 +208,9 @@ the separate work to shorten the measured roughly five-second generation path.
   isolated Worker stack (1/1): registration establishes an immediately usable
   owner session without waiting for presignatures. The harness now builds its
   required local initializer, fixing the earlier missing-executable startup failure.
+- Updated and passed the sustained Tempo/Arc contract: 20 distinct signatures
+  across signing-quota exhaustion, then explicitly disabled refill to exercise
+  empty-pool step-up generation and reject altered operation key/expiry bindings.
+  The earlier CI assertion incorrectly required step-up generation even when
+  authorized background refill kept the pool supplied.
 - Release, hosted latency measurements, and production rollout remain pending.

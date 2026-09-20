@@ -8,6 +8,7 @@ import {
 import { intendedTest as test, type IntendedSigningStage } from './harness';
 import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
+import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '../../../packages/wallet/src/core/signingEngine/workerManager/ecdsaPresignLifecycle';
 
 type SigningRequests = {
   foregroundFills: number;
@@ -65,6 +66,22 @@ function isStepUpPresignResponse(response: Response): boolean {
     isPlainObject(body.authorization) &&
     body.authorization.kind === 'operation_step_up'
   );
+}
+
+async function rejectReusablePresignRefill(route: Route): Promise<void> {
+  const body: unknown = route.request().postDataJSON();
+  if (
+    isPlainObject(body) &&
+    isPlainObject(body.authorization) &&
+    body.authorization.kind === 'reusable_wallet_session'
+  ) {
+    await route.fulfill({
+      status: 403,
+      json: { ok: false, code: 'unauthorized', message: 'Refill disabled for empty-pool coverage' },
+    });
+    return;
+  }
+  await route.continue();
 }
 
 async function assertChangedPresignOperationRejected(
@@ -167,11 +184,26 @@ test('sustained Tempo and Arc signing uses fresh presignatures beyond pool capac
     }
     expect(requests.presignatureIds).toHaveLength(20);
     expect(new Set(requests.presignatureIds).size).toBe(20);
+    expect(stage).toBe('step_up_required');
     expect(presignResponses.length).toBeGreaterThan(0);
     for (const response of presignResponses) await assertPresignResponseTiming(response);
+
+    // Live-session refill can supply every step-up signature. Drain it explicitly
+    // to exercise operation-bound generation and its rejection checks as well.
+    const presignFill = '**/router-ab/ecdsa-derivation/presignature-pool/fill/*';
+    await context.route(presignFill, rejectReusablePresignRefill);
+    try {
+      // Allow for the full pool and one generation already completing in flight.
+      for (let index = 0; index < ECDSA_CLIENT_PRESIGNATURE_CAPACITY + 2; index += 1) {
+        if (presignResponses.some(isStepUpPresignResponse)) break;
+        await harness.signTempoTransaction('step_up_required');
+      }
+    } finally {
+      await context.unroute(presignFill, rejectReusablePresignRefill);
+    }
     const stepUpResponse = presignResponses.find(isStepUpPresignResponse);
     if (!stepUpResponse)
-      throw new Error('Sustained signing must exercise step-up presign generation');
+      throw new Error('An empty pool must exercise step-up presign generation');
     await assertChangedPresignOperationRejected(
       context.request,
       stepUpResponse.request(),
