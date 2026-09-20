@@ -850,7 +850,13 @@ Remaining work, in order:
    Recovery's existing exhausted-candidate interface remains unchanged.
    Server type-check/build, type fixtures, and all 199 unit tests pass. Release
    and production measurement remain pending.
-2. Reproduce the immediate-unlock failure seen in production. Determine whether
+2. Reproduce the immediate-unlock failure seen in production. Two further
+   production 0.5.25 attempts on September 20 succeeded: total commit latency
+   9.057 s / 6.160 s, including background-generation waits of 6.430 s / 3.578 s.
+   The second observed a failed background generation followed by an available
+   replacement; transaction signing succeeded. These samples do not establish
+   the cause of the earlier HTTP 503, and no readiness fix is claimed.
+   Determine whether
    signing races installation of the replacement session or another authority
    transition. Add a lifecycle regression before changing readiness; use an
    explicit state transition rather than a fixed delay. Registration success
@@ -866,6 +872,9 @@ Remaining work, in order:
 5. Resolve the separate presignature-only permission proposal before changing
    refill authority after reusable signing quota reaches zero. Existing
    authority remains the implemented policy.
+
+The coordinated package release candidate is **0.5.26**. Publication, deployment,
+and post-release measurements follow successful validation of its exact commit.
 
 ## Execution order
 
