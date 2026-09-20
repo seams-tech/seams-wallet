@@ -41,25 +41,33 @@ export class ConfirmContent extends Component<ConfirmContentProps, { armed: bool
   private readonly root = createRef<HTMLDivElement>();
   private readonly reflow: SurfaceHeightReflow;
   private frame: number | null = null;
+  private capturedBeforeUpdate = false;
+  private reflowEnabled = true;
 
   constructor(props: ConfirmContentProps) {
     super(props);
     this.reflow = createSurfaceHeightReflow({
       reason: 'tx-body',
-      element: this.getRoot,
+      element: this.getReflowElement,
       setHeightCssPx: this.setHeight,
     });
   }
 
-  private getRoot = (): HTMLElement | null => this.root.current;
+  private getReflowElement = (): HTMLElement | null => {
+    const root = this.root.current;
+    return root?.closest<HTMLElement>('.modal-container-root, .seams-confirmation-drawer') ?? root;
+  };
 
   private setHeight = (height: number): void => {
-    this.props.styles.setDynamicDeclarations(this.id, `#${this.id}`, {
+    const element = this.getReflowElement();
+    const selector = element?.id ? `#${element.id}` : `#${this.id}`;
+    this.props.styles.setDynamicDeclarations(this.id, selector, {
       [CONFIRM_SURFACE_HEIGHT_DRIVEN_VAR]: `${height}px`,
     });
   };
 
   componentDidMount(): void {
+    this.reflowEnabled = this.getReflowElement() === this.root.current;
     this.frame = this.root.current!.ownerDocument.defaultView!.requestAnimationFrame(
       this.afterFirstPaint,
     );
@@ -74,12 +82,21 @@ export class ConfirmContent extends Component<ConfirmContentProps, { armed: bool
     this.setState({ armed: true });
   };
 
-  getSnapshotBeforeUpdate(): null {
+  componentWillReceiveProps(): void {
+    if (!this.reflowEnabled) return;
     this.reflow.capture();
-    return null;
+    this.capturedBeforeUpdate = true;
+  }
+
+  componentWillUpdate(): void {
+    if (!this.reflowEnabled) return;
+    if (this.capturedBeforeUpdate) return;
+    this.reflow.capture();
   }
 
   componentDidUpdate(previous: ConfirmContentProps): void {
+    if (!this.reflowEnabled) return;
+    this.capturedBeforeUpdate = false;
     if (previous.styles !== this.props.styles) previous.styles.deleteDynamicRule(this.id);
     this.reflow.commit();
   }

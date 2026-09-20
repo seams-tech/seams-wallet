@@ -1,6 +1,11 @@
 /** @jsxImportSource preact */
 import { Component, createRef, type ComponentChildren } from 'preact';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
+import {
+  CONFIRM_SURFACE_HEIGHT_DRIVEN_VAR,
+  createSurfaceHeightReflow,
+  type SurfaceHeightReflow,
+} from '../confirm-surface-resize';
 import { ConfirmHeader, LoadingStatus, type ConfirmHeaderProps } from './ConfirmHeader';
 import {
   ConfirmContent,
@@ -55,17 +60,59 @@ export class ConfirmationContent extends Component<{
 }> {
   private readonly root = createRef<HTMLDivElement>();
   private readonly otpFormId = `seams-confirmation-email-${++nextConfirmationId}`;
+  private readonly reflowId = `seams-confirmation-content-surface-${nextConfirmationId}`;
+
+  private getReflowElement = (): HTMLElement | null => {
+    const root = this.root.current;
+    return root?.closest<HTMLElement>('.modal-container-root, .seams-confirmation-drawer') ?? null;
+  };
+
+  private setHeight = (height: number): void => {
+    const element = this.getReflowElement();
+    if (!element?.id) return;
+    this.props.styles.setDynamicDeclarations(this.reflowId, `#${element.id}`, {
+      [CONFIRM_SURFACE_HEIGHT_DRIVEN_VAR]: `${height}px`,
+    });
+  };
+
+  private readonly reflow: SurfaceHeightReflow = createSurfaceHeightReflow({
+    reason: 'confirm-body',
+    element: this.getReflowElement,
+    setHeightCssPx: this.setHeight,
+  });
 
   private copyAccount = (accountId: string): void => {
     const root = this.root.current;
     if (root) void copySurfaceText(root, accountId).catch(ignoreCopyFailure);
   };
 
+  componentWillReceiveProps(): void {
+    this.reflow.capture();
+  }
+
+  componentDidUpdate(previous: { styles: CspStylesheetManager }): void {
+    if (previous.styles !== this.props.styles) {
+      previous.styles.deleteDynamicRule(this.reflowId);
+    }
+    this.reflow.commit();
+  }
+
+  componentWillUnmount(): void {
+    this.reflow.dispose();
+    this.props.styles.deleteDynamicRule(this.reflowId);
+  }
+
   render() {
     const model = this.props.model;
     switch (model.kind) {
       case 'registration':
-        return <PasskeyRegistrationContent {...model.registration} styles={this.props.styles} />;
+        return (
+          <PasskeyRegistrationContent
+            {...model.registration}
+            root={this.root}
+            styles={this.props.styles}
+          />
+        );
       case 'transaction':
         return this.renderTransaction(model);
       default:

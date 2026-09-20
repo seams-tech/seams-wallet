@@ -8,6 +8,8 @@ export type ConfirmationModalProps = {
   children: ComponentChildren;
 };
 
+let nextModalId = 0;
+
 export function ConfirmationModal(props: ConfirmationModalProps) {
   return <ModalShell key={props.context} {...props} />;
 }
@@ -15,6 +17,7 @@ export function ConfirmationModal(props: ConfirmationModalProps) {
 class ModalShell extends Component<ConfirmationModalProps> {
   private readonly dialog = createRef<HTMLDialogElement>();
   private readonly hosted = createRef<HTMLDivElement>();
+  private readonly containerId = `seams-confirmation-modal-${++nextModalId}`;
 
   componentDidMount(): void {
     if (this.props.context === 'standalone') {
@@ -64,7 +67,9 @@ class ModalShell extends Component<ConfirmationModalProps> {
           onCancel={this.cancel}
           onClick={this.backdropClick}
         >
-          <div class="modal-container-root">{this.props.children}</div>
+          <div id={this.containerId} class="modal-container-root">
+            {this.props.children}
+          </div>
         </dialog>
       );
     }
@@ -75,7 +80,9 @@ class ModalShell extends Component<ConfirmationModalProps> {
         tabIndex={-1}
         onKeyDown={this.hostedKeyDown}
       >
-        <div class="modal-container-root">{this.props.children}</div>
+        <div id={this.containerId} class="modal-container-root">
+          {this.props.children}
+        </div>
       </div>
     );
   }

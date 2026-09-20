@@ -41,6 +41,10 @@
 :where(.seams-wallet-ui) .seams-confirmation-drawer[data-context='wallet-iframe'] {
   inline-size: fit-content;
 }
+:where(.seams-wallet-ui) .seams-confirmation-drawer.seams-surface-height-driven {
+  block-size: var(--seams-surface-height-driven-target, auto);
+  overflow: hidden;
+}
 :where(.seams-wallet-ui[data-theme='light']) .seams-confirmation-drawer {
   box-shadow: 0 0 12px rgba(0, 0, 0, 0.12);
 }

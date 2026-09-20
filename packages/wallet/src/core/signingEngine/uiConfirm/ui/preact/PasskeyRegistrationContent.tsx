@@ -1,5 +1,5 @@
 /** @jsxImportSource preact */
-import { Component } from 'preact';
+import { Component, type RefObject } from 'preact';
 import type { PasskeyRegistrationConfirmDisplay } from '@/core/types';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
 import { PasskeyHaloLoading } from './PasskeyHaloLoading';
@@ -18,6 +18,7 @@ export type PasskeyRegistrationContentProps = {
   decision: PasskeyRegistrationDecision;
   styles: CspStylesheetManager;
   onCancel: () => void;
+  root?: RefObject<HTMLDivElement>;
 };
 
 export class PasskeyRegistrationContent extends Component<PasskeyRegistrationContentProps> {
@@ -32,7 +33,7 @@ export class PasskeyRegistrationContent extends Component<PasskeyRegistrationCon
   render() {
     const creating = this.props.decision.kind === 'creating';
     return (
-      <div class="passkey-registration-confirm">
+      <div ref={this.props.root} class="passkey-registration-confirm">
         <div class="hero passkey-registration-confirm__hero">
           <PasskeyHaloLoading
             animated={!this.props.errorMessage}
