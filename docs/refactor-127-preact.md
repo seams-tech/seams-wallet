@@ -1450,6 +1450,31 @@ Confirmation lifecycle checkpoint — 2026-09-21 (`ab7ee29`):
   cleanup at the Luna audit boundary before deleting the confirmation Lit
   subtree.
 
+Confirmation primitive visual checkpoint — 2026-09-21 (`772d172`, `3c77dd8`):
+
+- Matched the saved Lit and production Preact confirmation primitives under the
+  strict-CSP visual harness: HaloBorder, PasskeyHaloLoading, and PadlockIcon in
+  light and dark themes. All **6/6** comparisons have identical dimensions and
+  zero changed pixels; the browser visual run and browser-test type-check pass.
+- The passkey fixture uses the production confirmer contract (36px icon,
+  zero inner padding, transparent inner background). The Preact halo now owns
+  its keyed dynamic declarations for explicit inner padding and animation angle;
+  the lifecycle/CSP browser matrix remains **6/6** across Chromium, Firefox,
+  and WebKit.
+- Evidence remains ignored under
+  `.artifacts/refactor-127/visual/confirmation-primitives/`. This closes the
+  primitive fixture gate only; complete confirmer, drawer, registration/OTP,
+  responsive, and inline-entrypoint visual acceptance remain open. Retain this
+  temporary comparison and the saved Lit build until Phase 8d.
+
+Luna extra-review checkpoint — 2026-09-21 (`3c77dd8`):
+
+- Work after this checkpoint is expected to use Luna. Before accepting later
+  confirmation or cleanup changes, re-review the halo dynamic-declaration
+  lifecycle, passkey geometry props, strict-CSP visual harness, and the zero-
+  pixel threshold evidence. Re-run the primitive comparison and the broader
+  confirmation browser matrix after related changes.
+
 #### 4a. Characterize primitives and build the confirmation subtree
 
 - [x] Cover drawer pointer capture, dismissal thresholds, interrupted
