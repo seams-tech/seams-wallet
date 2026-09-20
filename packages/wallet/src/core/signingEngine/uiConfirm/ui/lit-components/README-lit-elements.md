@@ -110,7 +110,7 @@ When adding or refactoring components:
   - `LitElementWithProps.ts` — CSP‑safe CSS variable application
   - `confirm-ui.ts`, `confirm-ui-types.ts` — confirm UI API and types
   - `css/css-loader.ts` — external CSS adoption
-  - `registry.ts` — tag names and ensure-defined helpers
+  - `registry.ts` — tag names used by the remaining Lit elements
 
 ## Importing and Composing (quick checklist)
 
