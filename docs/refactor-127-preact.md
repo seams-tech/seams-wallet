@@ -1466,6 +1466,10 @@ Confirmation primitive visual checkpoint — 2026-09-21 (`772d172`, `3c77dd8`):
   primitive fixture gate only; complete confirmer, drawer, registration/OTP,
   responsive, and inline-entrypoint visual acceptance remain open. Retain this
   temporary comparison and the saved Lit build until Phase 8d.
+- After the source cutover, the broader confirmation/content/tree/mount matrix
+  passed **108/108** across Chromium, Firefox, and WebKit. Wallet type-check,
+  browser-test type-check, production Rolldown build, the 6-case primitive
+  visual run, and the 12-case confirmation visual run also passed.
 
 Luna extra-review checkpoint — 2026-09-21 (`3c77dd8`):
 
