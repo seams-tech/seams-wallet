@@ -7,7 +7,9 @@ Production confirmation now mounts through Preact, including lazy ABI enrichment
 Its broader visual/state/mount-context acceptance remains incomplete. Production
 key export now mounts through Preact; its remaining visual/integration acceptance
 and Lit cleanup are pending. Recovery backup and React adapters still use their
-existing renderers.
+existing renderers. The recovery backup now mounts through Preact, and the
+public React tree no longer depends on `@lit/react`; the retained Lit baseline
+and hosted-surface cleanup remain pending.
 This plan changes the wallet's internal UI renderer while
 preserving wallet behavior, iframe protocols, strict-CSP guarantees, and public
 React APIs.
@@ -1571,18 +1573,35 @@ visual, CSP, cleanup, browser, and size checks.
 **Depends on:** baseline coverage of public React usage; execute as a separate
 change from hosted-surface cutovers.
 
-- [ ] Inventory actual callers and package exports of `LitDrawer`,
+- [x] Inventory actual callers and package exports of `LitDrawer`,
   `LitHaloBorder`, and `LitPasskeyHaloLoading`. Confirm whether any are
-  supported public APIs before deletion; resolve any API change explicitly.
-- [ ] Use the existing React halo implementation where its contract matches.
-  Supply native React replacements for used drawer/loading behavior; remove
-  unused adapters without inventing replacement components.
+  supported public APIs before deletion; none were exported by the React
+  barrel or package subpath maps. The only internal caller used the passkey
+  loader and now imports the native React `HaloBorder`.
+- [x] Use the existing React halo implementation where its contract matches.
+  The native halo now accepts the loader's custom gradient stops; no drawer or
+  passkey adapter replacement was needed because those adapter files were
+  unreachable from the built React entries.
 - [ ] Preserve public props, children composition, SSR importability, mounting
   under StrictMode, controlled theme, custom colors, and focus behavior.
-- [ ] Run the React theme regression and account-menu tests against built
+- [x] Run the React theme regression and account-menu tests against built
   artifacts, including scoped tokens and the normalized auth-menu CSS names.
-- [ ] Verify public React output introduces no Preact types or React aliasing.
-- [ ] Delete `@lit/react` and obsolete adapters after their callers are migrated.
+- [x] Verify public React output introduces no Preact types or React aliasing.
+  The React build remains native React and the built source graph contains no
+  `@lit/react` imports.
+- [x] Delete `@lit/react` and obsolete adapters after their callers are
+  migrated. This is recorded in `a825859` and `941d930`.
+
+Luna handoff checkpoint — 2026-09-21:
+
+- `a825859` switches the internal React passkey-loader path to the native
+  `HaloBorder` and preserves custom ring colors. `941d930` removes the three
+  unreachable `@lit/react` adapters, the dependency, and their stale wrapper
+  documentation.
+- This is an intentional audit marker. Work performed with Luna after this
+  checkpoint requires extra review of public React exports, SSR and StrictMode
+  importability, theme and custom-color behavior, dependency-lock accuracy,
+  and the absence of Preact types or renderer aliases before Phase 7 can exit.
 
 **Exit:** public React behavior passes independently of the hosted renderer,
 and no React consumer keeps a built-in Lit primitive alive.
