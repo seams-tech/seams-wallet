@@ -1,5 +1,6 @@
 import { UserVerificationPolicy, type AuthenticatorOptions } from '../types/authenticatorOptions';
 import type { EcdsaSignerProvisioningDefaults } from '../types/ecdsaSignerProvisioningDefaults';
+import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '../signingEngine/workerManager/ecdsaPresignLifecycle';
 import { DEFAULT_THRESHOLD_SESSION_TTL_MS } from '../signingEngine/threshold/sessionPolicy';
 import type {
   SeamsChainConfig,
@@ -27,8 +28,8 @@ export {
 export const DEFAULT_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_POLICY: RouterAbEcdsaDerivationPresignaturePoolPolicy =
   {
     enabled: true,
-    targetDepth: 3,
-    lowWatermark: 2,
+    targetDepth: ECDSA_CLIENT_PRESIGNATURE_CAPACITY,
+    lowWatermark: ECDSA_CLIENT_PRESIGNATURE_CAPACITY - 1,
     maxRefillInFlight: 1,
     refillAttemptTimeoutMs: 30_000,
   };
@@ -51,11 +52,6 @@ export const DEFAULT_THRESHOLD_ECDSA_PROVISIONING_DEFAULTS: EcdsaSignerProvision
     },
   },
 };
-
-// Login prefill keeps a small warm presign buffer available immediately after auth.
-export const LOGIN_PREFILL_TARGET_DEPTH = 3;
-export const LOGIN_PREFILL_TRIGGER_DEPTH = 1;
-export const LOGIN_PREFILL_MIN_REMAINING_USES = 2;
 
 //////////////////////////////////////////
 /// ED25519 Threshold (2P Frost) Configs

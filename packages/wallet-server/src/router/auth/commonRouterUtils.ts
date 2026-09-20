@@ -1,6 +1,9 @@
 import type { ThresholdRuntimePolicyScope } from '../../core/types';
 import type { RouterApiAuthorizationSessionService } from '../framework/authServicePort';
-import type { RouterApiWalletSessionAuthorizationV2AdmissionContext } from '../framework/authServicePort';
+import type {
+  RouterApiWalletSessionAuthorizationV2AdmissionContext,
+  RouterApiWalletSessionExactOperationContext,
+} from '../framework/authServicePort';
 import type {
   RouterApiProjectEnvironmentResolver,
   RouterApiPublishableKeyAuthAdapter,
@@ -275,6 +278,68 @@ export type ThresholdEcdsaSessionInputs =
       readonly context: RouterApiWalletSessionAuthorizationV2AdmissionContext;
     }
   | AuthorizeErr;
+
+export async function validateEcdsaPreprocessingSession(input: {
+  readonly headers: Record<string, string | string[] | undefined>;
+  readonly authorizationSessions: RouterApiAuthorizationSessionService | null | undefined;
+}): Promise<
+  | AuthorizeErr
+  | {
+      readonly ok: true;
+      readonly kind: 'ecdsa_preprocessing_session';
+      readonly session: RouterApiWalletSessionExactOperationContext['session'];
+      readonly signer: Extract<
+        WalletSessionAuthorizationV2AdmissionResult,
+        { readonly ok: true; readonly keyFamily: 'ecdsa_secp256k1' }
+      >['signer'];
+      readonly materialActivation: Extract<
+        WalletSessionAuthorizationV2AdmissionResult,
+        { readonly ok: true; readonly keyFamily: 'ecdsa_secp256k1' }
+      >['materialActivation'];
+    }
+> {
+  const service = input.authorizationSessions;
+  if (!service)
+    return { ok: false, code: 'sessions_disabled', message: 'Sessions are not configured' };
+  const token = extractBearerCredential(input.headers);
+  if (!token) return walletSessionFailure('wallet_session_missing');
+  try {
+    // This reader validates live identity without requiring a signing allowance.
+    const context = await service.readWalletSessionExactOperationContextByCredential({
+      tenantId: service.tenantId,
+      token,
+      nowMs: Date.now(),
+    });
+    if (!context) return walletSessionFailure('wallet_session_invalid');
+    const session = context.session;
+    const admission = resolveWalletSessionAuthorizationV2Admission({
+      authorization: session,
+      authority: context.authority,
+      authMethod: context.authMethod,
+      retiredAtMs: context.retiredAtMs,
+      nowMs: Date.now(),
+      operation: {
+        tenantId: service.tenantId,
+        principalId: session.principalId,
+        walletId: session.walletId,
+        keyFamily: 'ecdsa_secp256k1',
+        operationKind: 'evm.sign_transaction',
+      },
+    });
+    if (!admission.ok || admission.keyFamily !== 'ecdsa_secp256k1') {
+      return walletSessionFailure('wallet_session_scope_mismatch');
+    }
+    return {
+      ok: true,
+      kind: 'ecdsa_preprocessing_session',
+      session,
+      signer: admission.signer,
+      materialActivation: admission.materialActivation,
+    };
+  } catch {
+    return walletSessionFailure('wallet_session_unavailable');
+  }
+}
 
 export async function validateRouterAbEcdsaDerivationWalletSessionInputs(input: {
   headers: Record<string, string | string[] | undefined>;

@@ -55,9 +55,15 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
   up to 90 days, subject to material retirement and revocation. Session expiry
   alone does not invalidate the retained material. Operation-scoped preparation
   remains bounded to its exact operation.
-- Target three available entries per exact client pool identity. Trigger refill
-  after the first consumption, at depth two, and retain the existing single-use
-  and atomic cross-tab claim rules.
+- Target five available entries per exact client pool identity. Restore and refill
+  any deficit while the client can execute with an unexpired, unrevoked session
+  scoped to the wallet and active material. Refill after every consumption,
+  including the last permitted reusable signature. Preserve single-use and atomic
+  cross-tab claim rules.
+- Preprocessing requires no remaining signing uses and consumes no signing quota.
+  Actual signing retains its quota checks. Stop refill on expiry, revocation,
+  logout, or material invalidation; resume transient failures with bounded backoff.
+  Generation cannot continue while the browser is closed.
 - A returning user with an unchanged activation and an available persisted entry
   must restore it after a page or worker restart and reach signing without any
   presign-generation requests. Verify the 30-day return case explicitly.

@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.wallet-intended.json",
   "include": [
+    "typecheck/ecdsa-preprocessing.typecheck.ts",
     "typecheck/exact-operation-session.typecheck.ts",
     "typecheck/committed-signer-packages.typecheck.ts",
     "typecheck/delegated-authority.typecheck.ts",

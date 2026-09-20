@@ -89,6 +89,17 @@ export type AuthorizedEvmFamilyEcdsaSigningCapability = {
   readonly authorization: ExactEvmFamilyWalletSessionAuthorization;
 };
 
+export type AuthorizedEcdsaPreprocessingCapability = {
+  readonly kind: 'authorized_ecdsa_preprocessing_capability';
+  readonly capability: CanonicalEvmFamilyEcdsaSigningCapability;
+  readonly authorization: {
+    readonly kind: 'ecdsa_preprocessing_session';
+  } & (
+    | Omit<ExactPasskeyEvmFamilyWalletSessionAuthorization, 'kind'>
+    | Omit<ExactEmailOtpEvmFamilyWalletSessionAuthorization, 'kind'>
+  );
+};
+
 export type EvmFamilyEcdsaSigningCapabilityAvailability =
   | AuthorizedEvmFamilyEcdsaSigningCapability
   | {
@@ -210,9 +221,12 @@ function selectedAuthMethodMatchesRuntime(args: {
 
 function exactAuthorizationMatchesCapability(args: {
   readonly capability: CanonicalEvmFamilyEcdsaSigningCapability;
-  readonly authorization: ExactEvmFamilyWalletSessionAuthorization;
+  readonly authorization:
+    | ExactEvmFamilyWalletSessionAuthorization
+    | AuthorizedEcdsaPreprocessingCapability['authorization'];
   readonly nowMs: number;
 }): boolean {
+  if (!Number.isSafeInteger(args.nowMs) || args.nowMs < 0) return false;
   const { capability, authorization } = args;
   const session = authorization.session;
   const operationCredential = authorization.operationCredential;
@@ -266,7 +280,8 @@ function exactAuthorizationMatchesCapability(args: {
     ) ||
     activation.signer.walletId !== session.walletId ||
     runtime.expiresAtMs <= 0 ||
-    runtime.remainingUses <= 0
+    !Number.isSafeInteger(runtime.remainingUses) ||
+    runtime.remainingUses < 0
   ) {
     return false;
   }
@@ -314,15 +329,15 @@ function isExactEmailOtpWalletSessionRuntime(
   return runtime.authBinding.kind === 'email_otp';
 }
 
-function buildExactAuthorizationObject(
+function buildPreprocessingSessionBinding(
   input: BuildExactEvmFamilyWalletSessionAuthorizationInput,
-): ExactEvmFamilyWalletSessionAuthorization {
-  if (isExactPasskeyWalletSessionRuntime(input.runtime)) {
-    if (input.selected.authMethod.kind !== 'passkey') {
-      throw new Error('Exact EVM-family Wallet Session authorization auth method is invalid');
-    }
+): AuthorizedEcdsaPreprocessingCapability['authorization'] {
+  if (
+    isExactPasskeyWalletSessionRuntime(input.runtime) &&
+    input.selected.authMethod.kind === 'passkey'
+  ) {
     return {
-      kind: 'exact_evm_family_wallet_session_authorization_v1',
+      kind: 'ecdsa_preprocessing_session',
       selectedAuthority: input.selected.authority,
       selectedAuthMethod: input.selected.authMethod,
       session: input.session,
@@ -330,12 +345,12 @@ function buildExactAuthorizationObject(
       runtime: input.runtime,
     };
   }
-  if (isExactEmailOtpWalletSessionRuntime(input.runtime)) {
-    if (input.selected.authMethod.kind !== 'email_otp') {
-      throw new Error('Exact EVM-family Wallet Session authorization auth method is invalid');
-    }
+  if (
+    isExactEmailOtpWalletSessionRuntime(input.runtime) &&
+    input.selected.authMethod.kind === 'email_otp'
+  ) {
     return {
-      kind: 'exact_evm_family_wallet_session_authorization_v1',
+      kind: 'ecdsa_preprocessing_session',
       selectedAuthority: input.selected.authority,
       selectedAuthMethod: input.selected.authMethod,
       session: input.session,
@@ -343,7 +358,7 @@ function buildExactAuthorizationObject(
       runtime: input.runtime,
     };
   }
-  throw new Error('Exact EVM-family Wallet Session authorization runtime is invalid');
+  throw new Error('ECDSA preprocessing session auth method is inconsistent');
 }
 
 function directRuntimeAuthBinding(
@@ -371,15 +386,15 @@ function directRuntimeAuthBinding(
 export function buildExactEcdsaDirectCapabilityRuntime(args: {
   readonly runtime: ExactEcdsaCapabilityRuntime;
   readonly authority: WalletAuthAuthority;
-  readonly status: ActiveWalletSessionQuotaStatusV1;
+  readonly status: Pick<ActiveWalletSessionQuotaStatusV1, 'expiresAtMs' | 'remainingUses'>;
 }): ExactEcdsaDirectCapabilityRuntime {
   if (
     !Number.isSafeInteger(args.status.expiresAtMs) ||
     args.status.expiresAtMs <= 0 ||
     !Number.isSafeInteger(args.status.remainingUses) ||
-    args.status.remainingUses <= 0
+    args.status.remainingUses < 0
   ) {
-    throw new Error('Exact ECDSA direct capability requires an active quota');
+    throw new Error('Exact ECDSA direct capability requires valid session facts');
   }
   return {
     kind: 'exact_ecdsa_direct_capability_runtime_v1',
@@ -460,9 +475,9 @@ export function exactEcdsaWalletSessionRuntimesMatch(
   }
 }
 
-export function buildExactEvmFamilyWalletSessionAuthorization(
+function validateExactSessionAuthorization(
   input: BuildExactEvmFamilyWalletSessionAuthorizationInput,
-): ExactEvmFamilyWalletSessionAuthorization {
+): AuthorizedEcdsaPreprocessingCapability['authorization'] {
   const walletId = input.session.walletId;
   if (!Number.isSafeInteger(input.nowMs) || input.nowMs < 0) {
     throw new Error('Exact EVM-family Wallet Session authorization requires a valid timestamp');
@@ -479,7 +494,7 @@ export function buildExactEvmFamilyWalletSessionAuthorization(
   ) {
     throw new Error('Exact EVM-family Wallet Session authorization selected authority is invalid');
   }
-  const authorization = buildExactAuthorizationObject(input);
+  const authorization = buildPreprocessingSessionBinding(input);
   if (
     !exactAuthorizationMatchesCapability({
       capability: input.capability,
@@ -492,12 +507,78 @@ export function buildExactEvmFamilyWalletSessionAuthorization(
   return authorization;
 }
 
+export function buildExactEvmFamilyWalletSessionAuthorization(
+  input: BuildExactEvmFamilyWalletSessionAuthorizationInput,
+): ExactEvmFamilyWalletSessionAuthorization {
+  const capability = buildEcdsaPreprocessingCapability(input);
+  const authorization = signingAuthorizationFromPreprocessing(capability, input.nowMs);
+  if (!authorization) {
+    throw new Error('Exact ECDSA signing authorization requires remaining signing uses');
+  }
+  return authorization;
+}
+
+export function buildEcdsaPreprocessingCapability(
+  input: BuildExactEvmFamilyWalletSessionAuthorizationInput,
+): AuthorizedEcdsaPreprocessingCapability {
+  return {
+    kind: 'authorized_ecdsa_preprocessing_capability',
+    capability: input.capability,
+    authorization: validateExactSessionAuthorization(input),
+  };
+}
+
+export function signingAuthorizationFromPreprocessing(
+  input: AuthorizedEcdsaPreprocessingCapability,
+  nowMs: number,
+): ExactEvmFamilyWalletSessionAuthorization | null {
+  const authorization = input.authorization;
+  const runtime = authorization.runtime;
+  if (
+    runtime.remainingUses <= 0 ||
+    !exactAuthorizationMatchesCapability({
+      capability: input.capability,
+      authorization,
+      nowMs,
+    })
+  )
+    return null;
+  if (
+    isExactPasskeyWalletSessionRuntime(runtime) &&
+    authorization.selectedAuthMethod.kind === 'passkey'
+  ) {
+    return {
+      kind: 'exact_evm_family_wallet_session_authorization_v1',
+      selectedAuthority: authorization.selectedAuthority,
+      selectedAuthMethod: authorization.selectedAuthMethod,
+      session: authorization.session,
+      operationCredential: authorization.operationCredential,
+      runtime,
+    };
+  }
+  if (
+    isExactEmailOtpWalletSessionRuntime(runtime) &&
+    authorization.selectedAuthMethod.kind === 'email_otp'
+  ) {
+    return {
+      kind: 'exact_evm_family_wallet_session_authorization_v1',
+      selectedAuthority: authorization.selectedAuthority,
+      selectedAuthMethod: authorization.selectedAuthMethod,
+      session: authorization.session,
+      operationCredential: authorization.operationCredential,
+      runtime,
+    };
+  }
+  return null;
+}
+
 export function authorizeEvmFamilyEcdsaSigningCapability(input: {
   readonly capability: CanonicalEvmFamilyEcdsaSigningCapability;
   readonly authorization: ExactEvmFamilyWalletSessionAuthorization;
   readonly nowMs: number;
 }): AuthorizedEvmFamilyEcdsaSigningCapability {
   if (
+    input.authorization.runtime.remainingUses <= 0 ||
     !exactAuthorizationMatchesCapability({
       capability: input.capability,
       authorization: input.authorization,

@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { setupBasicPasskeyTest } from '../setup';
 
 type DurablePresignatureBrowserResult = {
+  readonly capacityAdmissionKinds: readonly string[];
   readonly admissionKinds: readonly [string, string];
   readonly concurrentTakeKinds: readonly string[];
   readonly openedPlaintextMatches: boolean;
@@ -13,21 +14,16 @@ type DurablePresignatureBrowserResult = {
 };
 
 async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatureBrowserResult> {
-  const storeModule = await import(
-    '/_test-sdk/esm/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore.js'
-  );
-  const managerModule = await import(
-    '/_test-sdk/esm/core/indexedDB/seamsWalletDB/manager.js'
-  );
+  const storeModule =
+    await import('/_test-sdk/esm/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore.js');
+  const managerModule = await import('/_test-sdk/esm/core/indexedDB/seamsWalletDB/manager.js');
   const schemaModule = await import('/_test-sdk/esm/core/indexedDB/schemaNames.js');
   const encoders = await import('/_test-sdk/esm/shared-ts/src/utils/base64.js');
   const digests = await import('/_test-sdk/esm/shared-ts/src/utils/digests.js');
-  const ecdsaDerivation = await import(
-    '/_test-sdk/esm/shared-ts/src/utils/routerAbEcdsaDerivation.js'
-  );
-  const normalSigningIdentity = await import(
-    '/_test-sdk/esm/shared-ts/src/utils/routerAbNormalSigningIdentity.js'
-  );
+  const ecdsaDerivation =
+    await import('/_test-sdk/esm/shared-ts/src/utils/routerAbEcdsaDerivation.js');
+  const normalSigningIdentity =
+    await import('/_test-sdk/esm/shared-ts/src/utils/routerAbNormalSigningIdentity.js');
 
   const dbName = `seams_test_wallet_durable_presignature_${crypto.randomUUID()}`;
   const manager = new managerModule.SeamsWalletDBManager();
@@ -44,9 +40,8 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
     lifecycle_binding: 'lifecycle-binding-1',
     signing_worker: 'signing-worker-1',
   } as const;
-  const materialActivation = normalSigningIdentity.routerAbMpcMaterialActivationRefFromWire(
-    materialActivationWire,
-  );
+  const materialActivation =
+    normalSigningIdentity.routerAbMpcMaterialActivationRefFromWire(materialActivationWire);
   const scope = {
     wallet_id: walletId,
     ecdsa_threshold_key_id: 'ecdsa-key-1',
@@ -57,8 +52,7 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
     },
     public_identity: {
       context_binding_b64u: 'BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc',
-      derivation_client_share_public_key33_b64u:
-        'Anm-Zn753LusVaBilc6HCwcCm_zbLc4o2VnygVsW-BeY',
+      derivation_client_share_public_key33_b64u: 'Anm-Zn753LusVaBilc6HCwcCm_zbLc4o2VnygVsW-BeY',
       server_public_key33_b64u: 'AsYEf5RB7X1tMEVAbpXAfNhcd45LjO88p6usCblccJ7l',
       threshold_public_key33_b64u: 'AvkwigGSWMMQSTRPhfidUim1MchFg2-ZsIYB8RO84Db5',
       ethereum_address20_b64u: 'BQUFBQUFBQUFBQUFBQUFBQUFBQU',
@@ -98,11 +92,10 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
     materialActivation,
   } as const;
   const sealingKeyId = 'sealing-key-1';
-  const sealingKey = await crypto.subtle.generateKey(
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt'],
-  );
+  const sealingKey = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
+    'encrypt',
+    'decrypt',
+  ]);
   const activeMaterial = {
     sealingKeyId,
     binding: {
@@ -140,9 +133,7 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
   const groupPublicKey33 = encoders.base64UrlDecode(
     scope.public_identity.threshold_public_key33_b64u,
   );
-  const bigR33 = encoders.base64UrlDecode(
-    'A_KHc8LZdSiLx9HSBcN0hlGwdfvGYQ5Yzd7t348ZQFqo',
-  );
+  const bigR33 = encoders.base64UrlDecode('A_KHc8LZdSiLx9HSBcN0hlGwdfvGYQ5Yzd7t348ZQFqo');
   const dayMs = 24 * 60 * 60_000;
   const createdAtMs = Date.now() - 30 * dayMs;
   const firstPlaintext = new Uint8Array(97).fill(17);
@@ -216,6 +207,25 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
     recordId: secondAdmission.metadata.recordId,
     poolIdentity,
   });
+  const capacityAdmissions = [];
+  for (let index = 0; index < 6; index += 1) {
+    capacityAdmissions.push(
+      store.admitClientPresignature({
+        poolIdentity,
+        durableMaterialRef,
+        presignatureId: `capacity-${index}`,
+        groupPublicKey33,
+        bigR33,
+        plaintext97: new Uint8Array(97).fill(index + 1),
+        createdAtMs: Date.now(),
+        expiresAtMs: Date.now() + 90 * dayMs,
+      }),
+    );
+  }
+  const capacityAdmissionKinds = (await Promise.all(capacityAdmissions))
+    .map((entry) => entry.kind)
+    .sort();
+  await store.deleteClientPresignatures({ kind: 'wallet', walletId });
   await manager.runTransaction([presignatureStore], 'readwrite', async (context: any) => {
     await context.store(presignatureStore).put({ record_id: 42, wallet_id: walletId });
   });
@@ -231,6 +241,7 @@ async function runDurablePresignatureBrowserChecks(): Promise<DurablePresignatur
 
   manager.close();
   return {
+    capacityAdmissionKinds,
     admissionKinds: [firstAdmission.kind, secondAdmission.kind],
     concurrentTakeKinds: concurrentTakes.map((result: { kind: string }) => result.kind).sort(),
     openedPlaintextMatches,
@@ -252,6 +263,14 @@ test('90-day presignatures restore after 30 days and preserve single-claim and c
 }) => {
   const result = await runDurablePresignatureChecks(page);
 
+  expect(result.capacityAdmissionKinds).toEqual([
+    'capacity_full',
+    'stored',
+    'stored',
+    'stored',
+    'stored',
+    'stored',
+  ]);
   expect(result.admissionKinds).toEqual(['stored', 'stored']);
   expect(result.concurrentTakeKinds).toEqual(['claimed_elsewhere', 'opened']);
   expect(result.openedPlaintextMatches).toBe(true);

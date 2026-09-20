@@ -1,4 +1,4 @@
-export const ECDSA_CLIENT_PRESIGNATURE_CAPACITY = 3 as const;
+export const ECDSA_CLIENT_PRESIGNATURE_CAPACITY = 5 as const;
 export const MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS = 90 * 24 * 60 * 60_000;
 
 export type EcdsaClientPresignAdmissionStorage =

@@ -258,7 +258,6 @@ export async function prefillRouterAbEcdsaDerivationPresignaturePoolDomain(
     walletSession: WalletSessionRef;
     chainTarget: ThresholdEcdsaChainTarget;
     waitForPoolReady?: boolean;
-    minRemainingUsesBeforePrefill?: number;
   },
 ): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult> {
   if (deps.walletIframe.shouldUseWalletIframe()) {
@@ -269,9 +268,6 @@ export async function prefillRouterAbEcdsaDerivationPresignaturePoolDomain(
         chainTarget: args.chainTarget,
         ...(typeof args.waitForPoolReady === 'boolean'
           ? { waitForPoolReady: args.waitForPoolReady }
-          : {}),
-        ...(typeof args.minRemainingUsesBeforePrefill === 'number'
-          ? { minRemainingUsesBeforePrefill: args.minRemainingUsesBeforePrefill }
           : {}),
       },
     });
@@ -284,9 +280,6 @@ export async function prefillRouterAbEcdsaDerivationPresignaturePoolDomain(
       chainTarget: args.chainTarget,
       ...(typeof args.waitForPoolReady === 'boolean'
         ? { waitForPoolReady: args.waitForPoolReady }
-        : {}),
-      ...(typeof args.minRemainingUsesBeforePrefill === 'number'
-        ? { minRemainingUsesBeforePrefill: args.minRemainingUsesBeforePrefill }
         : {}),
     },
     new WalletSessionStatusReadScope(),

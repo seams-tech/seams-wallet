@@ -4,7 +4,7 @@ import { json, readJson } from '../../../framework/http';
 import { thresholdEcdsaStatusCode } from '../../../../threshold/statusCodes';
 import {
   resolveWalletSessionOperationCredentialAdmission,
-  validateRouterAbEcdsaDerivationWalletSessionInputs,
+  validateEcdsaPreprocessingSession,
   type WalletSessionOperationCredentialAdmission,
 } from '../../../auth/commonRouterUtils';
 import {
@@ -1685,10 +1685,9 @@ export async function authorizeEcdsaPoolFill(input: {
   switch (input.request.authorization.kind) {
     case 'reusable_wallet_session': {
       const authenticationStartedAt = performance.now();
-      const validated = await validateRouterAbEcdsaDerivationWalletSessionInputs({
+      const validated = await validateEcdsaPreprocessingSession({
         headers: Object.fromEntries(input.ctx.request.headers.entries()),
         authorizationSessions: input.ctx.service.authorizationSessions,
-        operationKind: 'evm.sign_transaction',
       });
       input.timing.authenticate = performance.now() - authenticationStartedAt;
       if (!validated.ok) {
@@ -1700,7 +1699,7 @@ export async function authorizeEcdsaPoolFill(input: {
           },
         };
       }
-      const session = validated.admission.context.authorization.session;
+      const session = validated.session;
       if (input.request.authorization.wallet_session_id !== session.walletSessionId) {
         return {
           ok: false,
@@ -1714,7 +1713,7 @@ export async function authorizeEcdsaPoolFill(input: {
           },
         };
       }
-      const admitted = validated.admission.admission;
+      const admitted = validated;
       const materialStartedAt = performance.now();
       const activeMaterial =
         await input.ctx.service.walletRegistration.resolveEcdsaMaterialActivation({

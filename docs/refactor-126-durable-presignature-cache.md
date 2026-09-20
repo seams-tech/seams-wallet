@@ -24,8 +24,8 @@ expiry separation. It reuses the current signing path:
   background. Neither task delays successful unlock.
 - A foreground signing request checks the local cache before it starts a new
   presign protocol.
-- The IndexedDB cache holds at most three available client presignatures per
-  exact pool identity. Three is both the refill target and admission limit.
+- The IndexedDB cache holds at most five available client presignatures per
+  exact pool identity. Five is both the refill target and admission limit.
 
 Keep the current server storage, encryption keys, routing, and lifecycle.
 Server-store migration, new infrastructure, cross-tab refill leadership,
@@ -191,7 +191,7 @@ presignature-ID checks pass:
    presignature ID, creation and expiry times, and record version.
 4. Recheck the active material binding and count the available entries for the
    exact pool identity, then store the row and its public lookup metadata in
-   one IndexedDB transaction. If three entries already exist, destroy this
+   one IndexedDB transaction. If five entries already exist, destroy this
    surplus client output without publishing it; its server half follows
    existing expiry cleanup.
 5. Zeroize the plaintext buffer and free the completed Rust object.
@@ -301,11 +301,11 @@ the sealed runtime's Wallet Session expiry as a material deadline. Completed
 D1 records retain their existing expiry field with material-expiry semantics;
 only the live ceremony needs both deadlines.
 
-Set the available client presignature capacity to three per exact pool
-identity. Use three as both the refill target and the admission limit. The
-IndexedDB admission transaction must reject a fourth sealed available row for
+Set the available client presignature capacity to five per exact pool
+identity. Use five as both the refill target and the admission limit. The
+IndexedDB admission transaction must reject a sixth sealed available row for
 that pool, and the resident fallback must stop refilling when its page-local
-pool holds three available entries. Reserved or committed material is in
+pool holds five available entries. Reserved or committed material is in
 flight and does not count toward the available capacity.
 
 This is a client cache bound, not a global server inventory guarantee. A
@@ -348,7 +348,7 @@ material and Wallet Session are available:
 2. Schedule durable metadata discovery for the exact pool.
 3. Publish discovered entries into the existing pool map.
 4. Schedule a network refill only for the remaining deficit up to the fixed
-   capacity of three.
+   capacity of five.
 
 A signing request performs the same metadata discovery synchronously when the
 background task has not completed. IndexedDB discovery and an eventual local
@@ -364,9 +364,9 @@ ordinary page and worker lifetimes while keeping unlock non-blocking.
 
 After a successful signing operation, refill in the background when depth
 reaches the existing low watermark. Persist each new entry before publishing
-it as available, refill toward three, and reject admission of a fourth
-available entry. Keep the capacity fixed for the first release. Any increase
-requires production evidence that pools of three are regularly exhausted.
+it as available, refill toward five, and reject admission of a sixth
+available entry. Refactor 128 sets the capacity to five and replenishes any
+deficit during a live session, independently of the transaction signing allowance.
 
 ## Invalidation and failure rules
 
@@ -495,7 +495,7 @@ remains the single completed-material authority.
 ### 4. Integrate discovery, admission, reservation, and invalidation
 
 - [x] Seal on admission before publishing an available reference. Recheck the
-  active binding and enforce the three-entry available capacity in that
+  active binding and enforce the five-entry available capacity in that
   transaction.
 - [x] Hydrate references through `listAvailableClientPresignatures`, then open
   sealed material during the existing reserve transition.
@@ -506,7 +506,7 @@ remains the single completed-material authority.
 - [x] Discover the local cache after unlock returns.
 - [x] Let foreground signing await an in-flight local discovery, then fall
   through to the existing coalesced refill on a miss.
-- [x] Refill after consumption toward the fixed capacity of three and retain
+- [x] Refill after consumption toward the fixed capacity of five and retain
   the current concurrency limits.
 - [ ] Run the remaining release verification and deploy the expiry
   split and client cache, populate caches naturally, and compare stage timings.
@@ -531,7 +531,7 @@ unlock timing does not regress, and cold fallback remains functional.
 | Authorization | Possessing a cached client row cannot prepare or finalize a signature without current Wallet Session or operation-step-up authority. |
 | Session independence | Material survives reload and Wallet Session renewal under the same activation for up to 90 days, subject to fresh authorization. Session expiry alone does not delete it. |
 | Single server authority | Existing encrypted D1 records and Rust lifecycle remain authoritative. Concurrent reservations have one winner; stale revisions cannot consume or resurrect records. |
-| Refill and cleanup | The atomic IndexedDB admission rejects a fourth sealed available row for the exact pool identity. The resident fallback holds at most three available entries per page-local pool. Orphaned server halves expire and are cleaned up; three is not asserted as a global server retained-material bound. |
+| Refill and cleanup | The atomic IndexedDB admission rejects a sixth sealed available row for the exact pool identity. The resident fallback holds at most five available entries per page-local pool. Orphaned server halves expire and are cleaned up; five is not asserted as a global server retained-material bound. |
 | Latency | On a cache hit, no presign-protocol requests run; existing request timing measures local take/decrypt overhead before the warm signing path. |
 | Unlock | Cache discovery and refill begin after the unlock result; unlock acceptance timing stays within its existing baseline. |
 | Cold fallback | A new profile, empty cache, or expired cache completes through the existing presign flow and seeds the durable pool. |
@@ -577,9 +577,9 @@ This refactor is complete when:
 4. Wallet unlock returns before cache discovery or refill completes.
 5. Cross-tab races, cancellation, crash ambiguity, expiry, logout, revocation,
    recovery, and activation replacement preserve one-use safety.
-6. Each exact pool identity holds at most three sealed available client
+6. Each exact pool identity holds at most five sealed available client
    presignatures in IndexedDB, and each page-local resident fallback holds at
-   most three available entries.
+   most five available entries.
 7. Reusable material has a 90-day maximum lifetime independent of the
    Wallet Session that created it, and each use requires current authorization.
 8. The existing encrypted private D1 store remains the single server-side

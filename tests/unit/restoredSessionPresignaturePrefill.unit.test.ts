@@ -111,3 +111,25 @@ test('restored non-active session states never schedule presignature work', asyn
 
   expect(calls).toEqual([]);
 });
+
+class PrefillRecorder {
+  readonly calls: Parameters<RestoredSessionPresignaturePrefill>[0][] = [];
+  async prefill(args: Parameters<RestoredSessionPresignaturePrefill>[0]) {
+    this.calls.push(args);
+    return skippedPrefillResult;
+  }
+}
+
+test('restored exhausted sessions reconcile preprocessing eligibility without granting signing readiness', async () => {
+  const recorder = new PrefillRecorder();
+  await scheduleRestoredSessionPresignaturePrefills({
+    state: parseWalletIframeExactSessionState({
+      kind: 'wallet_unlocked_without_signing_session',
+      walletId: 'wallet-1',
+      reason: 'exhausted',
+    }),
+    chainTargets: [tempoTarget],
+    prefill: recorder.prefill.bind(recorder),
+  });
+  expect(recorder.calls).toHaveLength(1);
+});

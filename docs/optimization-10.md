@@ -696,64 +696,48 @@ pool scheduler, and reusable-session post-sign refill in the
 works across reload, and sustained signing validates refill throughput beyond
 the initial pool. Immediate signing is tested without a warmup delay.
 
-#### 4.5 Session-independent preprocessing (approved 2026-09-20)
+#### 4.5 Five-entry durable pools with session-authorized refill
 
-The user approved 90-day material retention and replenishment independent of
-active signing sessions and signing quota. Target three unused presignatures
-so a user returning once a month can use cached material immediately after
-fresh signing authentication. This replaces the earlier proposal that limited
-preprocessing permission to the signing session's ten-minute lifetime.
+The revised plan is [refactor-128](./refactor-128.md). The user selected the
+simpler policy: retain reusable material for 90 days, restore and fill each exact
+client pool to five while the client can execute with a valid session, and refill
+after every consumption. This supersedes the separate long-lived preprocessing
+credential proposal.
 
-Issue a distinct, wallet/material-bound preprocessing permission during an
-owner-authenticated registration or unlock. Accept it only for presign pool
-creation and continuation, never signing, export, device linking or recovery.
-Keep it independent of signing-session expiry and quota, while enforcing its
-own bounded lifetime, live authority revocation and exact material activation.
-Persist the permission separately from signing-session state. Refill must use
-client role-local material inside the existing crypto worker; no client share
-may be uploaded or copied to a background service.
-
-While client execution is available, restore durable inventory and refill to
-three on startup/resume and after consumption. Generate one entry at a time,
-coalesce work by exact pool, and use the existing atomic durable admission to
-avoid exceeding client capacity. Signing can consume the first available entry
-while the rest refill. Browser shutdown can interrupt generation, so preserve
-completed material for 90 days and resume deficits when client execution returns.
-Do not present a guarantee of generation while the browser is closed.
+Decouple preprocessing from transaction signing quota. A live, unrevoked,
+correctly scoped session may refill at zero remaining signing uses. Preprocessing
+must not consume those uses. Preserve signing quota enforcement, session expiry,
+authority revocation, active material checks, and exact-operation restrictions.
+This requires both client eligibility and server pool-fill admission changes;
+removing only the client minimum-use guard is insufficient.
 
 Implementation checkpoints:
 
-- [x] Change client validation, TypeScript server policy and Rust SigningWorker
-  retention limits together to 90 days; preserve short ceremony and exact-operation
-  limits. Trigger post-consumption refill at depth two.
-- [x] Complete retention validation, including real IndexedDB reopen and a
-  30-day-old encrypted entry, server boundary tests and one-use replay checks.
-- [ ] Implement and persist the separate preprocessing permission, validate it
-  against current authority/material on every round, and isolate it from signing
-  and export admission with runtime and type-level negative tests.
-- [ ] Start/resume refill without an active signing session and after exhausted
-  quota. Preserve cryptographic ownership, bounded concurrency, and cancellation
-  on material retirement or revocation.
-- [ ] Verify reload restoration and sustained signing in production; measure the
-  first signature after a simulated 30-day absence with zero generation requests.
+- [x] Draft coordinated 90-day retention limits in the client, TypeScript server,
+  and Rust SigningWorker, preserving short ceremony and exact-operation limits.
+- [x] Validate retention with 200 Wallet unit tests, Wallet/server type checks,
+  state type fixtures, SDK build, and five focused Rust expiry tests. The completed
+  refactor-128 implementation passes all 208 Wallet unit tests. IndexedDB
+  coverage reopens a connection with a 30-day-old encrypted entry; it is not a
+  production elapsed-time measurement. Changes remain unreleased in draft PR #11.
+- [x] Separate preprocessing admission from signing-use quota while retaining
+  live session and material authorization; cover zero-use and rejection cases.
+- [x] Align capacity, login policy, and post-consumption refill at five entries.
+- [x] Reconcile on startup/resume and consumption; continue bounded partial fills
+  and transient retries while eligible, without blocking registration or unlock.
+- [ ] Verify persisted cache hits and sustained production signing, including
+  refill after the final signing use and rejection after session expiry.
 
-The retention/scheduling patch passes all 200 Wallet unit tests, Wallet/server
-type checks, Wallet state type fixtures, SDK build, and five focused Rust expiry
-tests. The IndexedDB test reopens a connection with a 30-day-old encrypted entry
-and verifies decryption and atomic one-use claims; this is controlled storage
-coverage, not a production time-travel benchmark. An initial run reused another
-checkout's Vite server; isolated validation used port 4283. The new test's repository-reopen fixture was corrected to retain its active-material lookup.
-The broader Rust integration harness references retired APIs and was not repaired
-for this patch; targeted library tests passed. The patch remains unreleased. Session-independent
-preprocessing is approved but remains unimplemented until the separate permission
-path and its tests are complete. Do not relax existing signing-session validation
-as a substitute for that permission.
+Completed material survives ordinary session expiry under its own retention
+policy. Explicit logout/reset and material-retirement cleanup retain their
+existing semantics. Refill stops when the client cannot execute or its session
+expires or is revoked. A returning user still needs fresh signing authorization.
 
 #### 4.6 Validate the complete production path and release incrementally
 
 Deploy 4.1 first, evaluate 4.2 next, then compare 4.3. Improve authorized refill
-using 4.4 with its own before/after measurement. Keep the 4.5 policy decision
-separate from those optimizations. Wallet owns SDK/server/Rust changes;
+using 4.4 with its own before/after measurement. Implement the revised 4.5 inventory and admission policy
+with its own authorization coverage and cache-hit measurements. Wallet owns SDK/server/Rust changes;
 monorepo consumes exact package releases and owns placement and hosted rollout.
 
 - Test Tempo and Arc independently: immediate first use, cached signing,
