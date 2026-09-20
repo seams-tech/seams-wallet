@@ -18,7 +18,7 @@ const WALLET_HOST_STATIC_ASSETS = [
   {
     source: path.resolve(
       SDK_ROOT_ABS,
-      'src/SeamsWeb/walletIframe/host/lit-ui/auth-menu/auth-menu.css',
+      'src/SeamsWeb/walletIframe/host/ui/auth-menu/auth-menu.css',
     ),
     fileName: 'auth-menu.css',
   },
@@ -123,6 +123,7 @@ const external = [
   'react',
   'react-dom',
   'react/jsx-runtime',
+  /^preact(?:\/.*)?$/,
 
   // All @near-js packages
   /@near-js\/.*/,
@@ -197,6 +198,7 @@ const copyWalletStaticAssets = (sdkDir: string): void => {
 };
 
 const SEAMS_COMPONENT_HOSTS = [
+  '.seams-wallet-ui',
   'seams-tx-tree',
   'seams-drawer',
   'seams-modal-tx-confirmer',
@@ -297,9 +299,12 @@ const buildSeamsComponentsCss = async (sdkRoot: string): Promise<string> => {
   lines.push(...emitSeamsThemeAliases(lightVars, '  '));
   lines.push('}');
 
-  const themedSelLight = SEAMS_COMPONENT_HOSTS.map((s) => `:root[data-seams-theme="light"] ${s}`).join(
-    ',\n',
-  );
+  const themedSelLight = SEAMS_COMPONENT_HOSTS.map((s) => {
+    if (s === '.seams-wallet-ui') {
+      return `${s}[data-theme="light"],\n:root[data-seams-theme="light"] ${s}:not([data-theme="dark"])`;
+    }
+    return `:root[data-seams-theme="light"] ${s}`;
+  }).join(',\n');
 
   lines.push('');
   lines.push(`${themedSelLight} {`);
@@ -487,8 +492,18 @@ const configs = [
       'src/core/signingEngine/chains/evm/evmCryptoWasm.ts',
       // Keep compact wallet-iframe surface modules stable for deep imports used by tests/tools.
       'src/SeamsWeb/walletIframe/client/surface/geometry.ts',
-      'src/SeamsWeb/walletIframe/host/lit-ui/surface-measurement-reporter.ts',
-      'src/SeamsWeb/walletIframe/host/lit-ui/auth-menu/seams-auth-menu-surface.ts',
+      'src/SeamsWeb/walletIframe/host/surface-measurement-reporter.ts',
+      'src/SeamsWeb/walletIframe/host/ui/auth-menu/mountAuthMenuSurface.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/PasskeyHaloLoading.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/TransactionTree.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/ConfirmContent.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/ConfirmHeader.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/PasskeyRegistrationContent.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/EmailOtpContent.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationContent.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationModal.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationDrawer.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface.tsx',
     ],
     output: {
       dir: BUILD_PATHS.BUILD.ESM,

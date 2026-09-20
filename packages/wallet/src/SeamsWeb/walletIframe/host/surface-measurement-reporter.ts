@@ -2,7 +2,7 @@ import type { WalletIframeRequestId } from '@/core/types/walletIframeIdentity';
 import type {
   HostedAuthMenuSessionId,
   WalletIframeSurfaceMeasurement,
-} from '../../shared/messages';
+} from '../shared/messages';
 
 type SurfaceMeasurementReporterOptions =
   | {

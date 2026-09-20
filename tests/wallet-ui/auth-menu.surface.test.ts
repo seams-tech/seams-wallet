@@ -1,12 +1,14 @@
-import { expect, test, type Page } from '@playwright/test';
-import { setupBasicPasskeyTest, sdkEsmPath } from '../setup';
-import { ensureComponentModule, mountComponent } from './harness';
-import type { AuthMenuRecoveryViewModel } from '@/SeamsWeb/walletIframe/host/lit-ui/auth-menu/auth-menu-domain';
+import { expect, test } from '@playwright/test';
+import { setupBasicPasskeyTest } from '../setup';
+import { prepareAuthMenuDocument, mountAuthMenu } from './auth-menu.harness';
+import type {
+  AuthMenuRecoveryViewModel,
+  AuthMenuViewModel,
+  AuthMenuAccountOption,
+} from '@/SeamsWeb/walletIframe/host/auth-menu/domain';
+import { parseWalletRecoveryTargetV1 } from '@shared/wallet-recovery/walletRecoveryTarget';
 
-const AUTH_MENU_MODULE = sdkEsmPath(
-  'SeamsWeb/walletIframe/host/lit-ui/auth-menu/seams-auth-menu-surface.js',
-);
-const AUTH_MENU_TAG = 'seams-auth-menu-surface';
+const AUTH_MENU_TAG = '.seams-auth-menu-surface';
 
 const APPEARANCE = {
   theme: {
@@ -18,7 +20,7 @@ const APPEARANCE = {
 } as const;
 
 function registrationViewModel(
-  status: unknown = { kind: 'idle', interaction: 'arming' },
+  status: AuthMenuViewModel['status'] = { kind: 'idle', interaction: 'arming' },
   showRegistrationInput = true,
 ) {
   return {
@@ -39,7 +41,9 @@ function registrationViewModel(
   };
 }
 
-function loginViewModel(status: unknown = { kind: 'idle', interaction: 'actionable' }) {
+function loginViewModel(
+  status: AuthMenuViewModel['status'] = { kind: 'idle', interaction: 'actionable' },
+) {
   return {
     appearance: { ...APPEARANCE, theme: { ...APPEARANCE.theme, mode: 'light' as const } },
     hostname: 'wallet.example.test',
@@ -90,6 +94,7 @@ function recoveryFinalizingViewModel(): Extract<
     ...recoveryEntryViewModel(),
     walletId: 'wallet-1.test',
     stage: 'finalizing',
+    target: parseWalletRecoveryTargetV1({ kind: 'passkey', rpId: 'example.test' }),
     recoveryCode: '',
     status: { kind: 'busy', headline: 'Finishing recovery…' },
   };
@@ -120,34 +125,22 @@ function recoveryPasskeySignInReadyViewModel(): Extract<
     ctaLabel: 'Sign in with new passkey',
     walletId: 'wallet-1.test',
     stage: 'sign_in_ready',
-    target: { kind: 'passkey_prf' },
+    target: parseWalletRecoveryTargetV1({ kind: 'passkey', rpId: 'example.test' }),
     status: { kind: 'idle', interaction: 'actionable' },
   };
 }
 
-async function mountAuthMenu(page: Page, viewModel: unknown) {
-  await mountComponent(page, {
-    tagName: AUTH_MENU_TAG,
-    props: { viewModel },
-  });
-  await page.waitForSelector(`${AUTH_MENU_TAG} [data-auth-menu-close]`, { state: 'attached' });
-}
-
-type AuthMethodAccountOption = Readonly<{
-  walletId: string;
-  authMethod: 'passkey' | 'email_otp';
-  emailAddress?: string | null;
-}>;
+type AuthMethodAccountOption = AuthMenuAccountOption;
 
 async function readAuthMethodButtonStates(args: {
   tagName: string;
   passkeyOption: AuthMethodAccountOption;
   emailOtpOption: AuthMethodAccountOption;
 }) {
-  const element = document.querySelector(args.tagName) as HTMLElement & {
-    viewModel: Record<string, unknown>;
-    updateComplete?: Promise<unknown>;
-  };
+  const element = document.querySelector(args.tagName) as HTMLElement;
+  if (window.__authMenu.model.kind !== 'passkey' || window.__authMenu.model.mode !== 'login') {
+    throw new Error('Expected a login model');
+  }
   const snapshots = [
     {
       passkey: !(element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).disabled,
@@ -155,23 +148,25 @@ async function readAuthMethodButtonStates(args: {
         .disabled,
     },
   ];
-  element.viewModel = {
-    ...element.viewModel,
+  window.__authMenu.model = {
+    ...window.__authMenu.model,
     accountOptions: [args.emailOtpOption],
     selectedAccount: args.emailOtpOption,
   };
-  await element.updateComplete;
+  window.__authMenu.handle.update(window.__authMenu.model);
+  await Promise.resolve();
   snapshots.push({
     passkey: !(element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).disabled,
     emailOtp: !(element.querySelector('[data-auth-menu-provider="google"]') as HTMLButtonElement)
       .disabled,
   });
-  element.viewModel = {
-    ...element.viewModel,
+  window.__authMenu.model = {
+    ...window.__authMenu.model,
     accountOptions: [args.passkeyOption, args.emailOtpOption],
     selectedAccount: args.passkeyOption,
   };
-  await element.updateComplete;
+  window.__authMenu.handle.update(window.__authMenu.model);
+  await Promise.resolve();
   snapshots.push({
     passkey: !(element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).disabled,
     emailOtp: !(element.querySelector('[data-auth-menu-provider="google"]') as HTMLButtonElement)
@@ -180,13 +175,10 @@ async function readAuthMethodButtonStates(args: {
   return snapshots;
 }
 
-test.describe('wallet-host Lit auth menu surface', () => {
+test.describe('wallet-host Preact auth menu surface', () => {
   test.beforeEach(async ({ page }) => {
     await setupBasicPasskeyTest(page);
-    await ensureComponentModule(page, {
-      modulePath: AUTH_MENU_MODULE,
-      tagName: AUTH_MENU_TAG,
-    });
+    await prepareAuthMenuDocument(page);
   });
 
   test('renders compact registration content and emits typed intents', async ({ page }) => {
@@ -226,20 +218,24 @@ test.describe('wallet-host Lit auth menu surface', () => {
     expect(initial.hasTick).toBe(false);
 
     const intents = await page.evaluate(async (tagName) => {
-      const element = document.querySelector(tagName) as HTMLElement & {
-        viewModel: unknown;
-        updateComplete?: Promise<unknown>;
-      };
+      const element = document.querySelector(tagName) as HTMLElement;
       const received: unknown[] = [];
-      element.addEventListener('seams-auth-menu-intent', (event) => {
-        received.push((event as CustomEvent<unknown>).detail);
-      });
-      element.viewModel = {
-        ...(element.viewModel as Record<string, unknown>),
+      window.__authMenu.onIntent = (intent) => {
+        received.push(intent);
+      };
+      if (
+        window.__authMenu.model.kind !== 'passkey' ||
+        window.__authMenu.model.mode !== 'register'
+      ) {
+        throw new Error('Expected a registration model');
+      }
+      window.__authMenu.model = {
+        ...window.__authMenu.model,
         passkeyName: 'Ledger passkey',
         status: { kind: 'idle', interaction: 'actionable' },
       };
-      await element.updateComplete;
+      window.__authMenu.handle.update(window.__authMenu.model);
+      await Promise.resolve();
       const input = element.querySelector('#seams-auth-menu-passkey-name') as HTMLInputElement;
       input.value = 'Ledger passkey';
       input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
@@ -265,9 +261,9 @@ test.describe('wallet-host Lit auth menu surface', () => {
     await page.evaluate((tagName) => {
       const element = document.querySelector(tagName) as HTMLElement & { intents?: unknown[] };
       element.intents = [];
-      element.addEventListener('seams-auth-menu-intent', (event) => {
-        element.intents?.push((event as CustomEvent<unknown>).detail);
-      });
+      window.__authMenu.onIntent = (intent) => {
+        element.intents?.push(intent);
+      };
     }, AUTH_MENU_TAG);
 
     await page.locator(`${AUTH_MENU_TAG} [data-recovery-action]`).click();
@@ -281,12 +277,10 @@ test.describe('wallet-host Lit auth menu surface', () => {
 
     await page.evaluate(
       async ({ tagName, viewModel }) => {
-        const element = document.querySelector(tagName) as HTMLElement & {
-          viewModel: unknown;
-          updateComplete: Promise<unknown>;
-        };
-        element.viewModel = viewModel;
-        await element.updateComplete;
+        const element = document.querySelector(tagName) as HTMLElement;
+        window.__authMenu.model = viewModel;
+        window.__authMenu.handle.update(window.__authMenu.model);
+        await Promise.resolve();
       },
       { tagName: AUTH_MENU_TAG, viewModel: recoveryEntryViewModel() },
     );
@@ -309,12 +303,10 @@ test.describe('wallet-host Lit auth menu surface', () => {
 
     await page.evaluate(
       async ({ tagName, viewModel }) => {
-        const element = document.querySelector(tagName) as HTMLElement & {
-          viewModel: unknown;
-          updateComplete: Promise<unknown>;
-        };
-        element.viewModel = viewModel;
-        await element.updateComplete;
+        const element = document.querySelector(tagName) as HTMLElement;
+        window.__authMenu.model = viewModel;
+        window.__authMenu.handle.update(window.__authMenu.model);
+        await Promise.resolve();
       },
       {
         tagName: AUTH_MENU_TAG,
@@ -347,12 +339,10 @@ test.describe('wallet-host Lit auth menu surface', () => {
 
     await page.evaluate(
       async ({ tagName, viewModel }) => {
-        const element = document.querySelector(tagName) as HTMLElement & {
-          viewModel: unknown;
-          updateComplete: Promise<unknown>;
-        };
-        element.viewModel = viewModel;
-        await element.updateComplete;
+        const element = document.querySelector(tagName) as HTMLElement;
+        window.__authMenu.model = viewModel;
+        window.__authMenu.handle.update(window.__authMenu.model);
+        await Promise.resolve();
       },
       { tagName: AUTH_MENU_TAG, viewModel: loginViewModel() },
     );
@@ -394,9 +384,9 @@ test.describe('wallet-host Lit auth menu surface', () => {
     await page.evaluate((tagName) => {
       const element = document.querySelector(tagName) as HTMLElement & { intents?: unknown[] };
       element.intents = [];
-      element.addEventListener('seams-auth-menu-intent', (event) => {
-        element.intents?.push((event as CustomEvent<unknown>).detail);
-      });
+      window.__authMenu.onIntent = (intent) => {
+        element.intents?.push(intent);
+      };
     }, AUTH_MENU_TAG);
 
     await expect(page.locator(`${AUTH_MENU_TAG} [data-auth-menu-close]`)).toBeDisabled();
@@ -428,9 +418,9 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const result = await page.evaluate((tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const received: unknown[] = [];
-      element.addEventListener('seams-auth-menu-intent', (event) => {
-        received.push((event as CustomEvent<unknown>).detail);
-      });
+      window.__authMenu.onIntent = (intent) => {
+        received.push(intent);
+      };
       const image = element.querySelector('.qr-code-image') as HTMLImageElement | null;
       (element.querySelector('[data-auth-menu-close]') as HTMLButtonElement).click();
       return {
@@ -468,8 +458,12 @@ test.describe('wallet-host Lit auth menu surface', () => {
       const element = document.querySelector(tagName) as HTMLElement;
       return {
         title: element.querySelector('.qr-title')?.textContent?.trim(),
-        status: element.querySelector('[role="status"]')?.textContent?.trim(),
-        live: element.querySelector('[role="status"]')?.getAttribute('aria-live'),
+        status: element
+          .querySelector('.seams-link-device-confirmation-copy[role="status"]')
+          ?.textContent?.trim(),
+        live: element
+          .querySelector('.seams-link-device-confirmation-copy[role="status"]')
+          ?.getAttribute('aria-live'),
         hasQrImage: !!element.querySelector('.qr-code-image'),
         text: element.textContent ?? '',
       };
@@ -499,9 +493,9 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const result = await page.evaluate((tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const intents: unknown[] = [];
-      element.addEventListener('seams-auth-menu-intent', (event) => {
-        intents.push((event as CustomEvent<unknown>).detail);
-      });
+      window.__authMenu.onIntent = (intent) => {
+        intents.push(intent);
+      };
       (element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).click();
       return {
         title: element.querySelector('.qr-title')?.textContent?.trim(),
@@ -528,11 +522,9 @@ test.describe('wallet-host Lit auth menu surface', () => {
       const element = document.querySelector(tagName);
       if (!element) throw new Error('auth-menu surface is missing');
       (window as Window & { __authMenuIntents?: unknown[] }).__authMenuIntents = [];
-      element.addEventListener('seams-auth-menu-intent', (event) => {
-        (window as Window & { __authMenuIntents?: unknown[] }).__authMenuIntents?.push(
-          (event as CustomEvent<unknown>).detail,
-        );
-      });
+      window.__authMenu.onIntent = (intent) => {
+        (window as Window & { __authMenuIntents?: unknown[] }).__authMenuIntents?.push(intent);
+      };
     }, AUTH_MENU_TAG);
 
     await page.locator(`${AUTH_MENU_TAG} [data-auth-menu-close]`).click();
@@ -550,9 +542,9 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const fromWaiting = await page.evaluate(async (tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const received: unknown[] = [];
-      element.addEventListener('seams-auth-menu-intent', (event) => {
-        received.push((event as CustomEvent<unknown>).detail);
-      });
+      window.__authMenu.onIntent = (intent) => {
+        received.push(intent);
+      };
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       return received;
     }, AUTH_MENU_TAG);
@@ -562,9 +554,9 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const fromMenu = await page.evaluate(async (tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const received: unknown[] = [];
-      element.addEventListener('seams-auth-menu-intent', (event) => {
-        received.push((event as CustomEvent<unknown>).detail);
-      });
+      window.__authMenu.onIntent = (intent) => {
+        received.push(intent);
+      };
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       return received;
     }, AUTH_MENU_TAG);
@@ -658,9 +650,9 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const intents = await page.evaluate(async (tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const received: unknown[] = [];
-      element.addEventListener('seams-auth-menu-intent', (event) => {
-        received.push((event as CustomEvent<unknown>).detail);
-      });
+      window.__authMenu.onIntent = (intent) => {
+        received.push(intent);
+      };
       (element.querySelector('[data-auth-menu-mode="login"]') as HTMLButtonElement).click();
       (element.querySelector('.auth-menu-registration-reroll') as HTMLButtonElement).click();
       return received;
@@ -709,9 +701,9 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const submitIntent = await page.evaluate(async (tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const received: unknown[] = [];
-      element.addEventListener('seams-auth-menu-intent', (event) => {
-        received.push((event as CustomEvent<unknown>).detail);
-      });
+      window.__authMenu.onIntent = (intent) => {
+        received.push(intent);
+      };
       (element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).click();
       return received;
     }, AUTH_MENU_TAG);
@@ -724,6 +716,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
     await mountAuthMenu(page, {
       ...loginViewModel({ kind: 'idle', interaction: 'actionable' }),
       kind: 'google_otp_login',
+      challengeId: 'test-google-otp-challenge',
       mode: 'login',
       emailHint: 'g***@example.test',
       walletId: 'wallet-google-test',
@@ -742,18 +735,22 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const intents = await page.evaluate(async (tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const received: unknown[] = [];
-      element.addEventListener('seams-auth-menu-intent', (event) => {
-        received.push((event as CustomEvent<unknown>).detail);
-      });
+      window.__authMenu.onIntent = (intent) => {
+        received.push(intent);
+      };
       const input = element.querySelector('#seams-auth-menu-google-otp') as HTMLInputElement;
       input.value = '123456';
       input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
       (element.querySelector('.auth-menu-google-resend') as HTMLButtonElement).click();
-      element.viewModel = {
-        ...(element.viewModel as Record<string, unknown>),
+      if (window.__authMenu.model.kind !== 'google_otp_login') {
+        throw new Error('Expected a Google OTP model');
+      }
+      window.__authMenu.model = {
+        ...window.__authMenu.model,
         otpCode: '123456',
       };
-      await (element as HTMLElement & { updateComplete?: Promise<unknown> }).updateComplete;
+      window.__authMenu.handle.update(window.__authMenu.model);
+      await Promise.resolve();
       (element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).click();
       return received;
     }, AUTH_MENU_TAG);
@@ -794,19 +791,23 @@ test.describe('wallet-host Lit auth menu surface', () => {
 
     const selected = await page.evaluate(
       async ({ tagName, selectedAccount }) => {
-        const element = document.querySelector(tagName) as HTMLElement & {
-          viewModel: Record<string, unknown>;
-          updateComplete?: Promise<unknown>;
-        };
+        const element = document.querySelector(tagName) as HTMLElement;
         const received: unknown[] = [];
-        element.addEventListener('seams-auth-menu-intent', (event) => {
-          received.push((event as CustomEvent<unknown>).detail);
-        });
+        window.__authMenu.onIntent = (intent) => {
+          received.push(intent);
+        };
         (element.querySelector('.seams-account-menu-trigger') as HTMLButtonElement).click();
-        await element.updateComplete;
+        await Promise.resolve();
         (element.querySelector('[data-wallet-id="wallet-b"]') as HTMLButtonElement).click();
-        element.viewModel = { ...element.viewModel, selectedAccount };
-        await element.updateComplete;
+        if (
+          window.__authMenu.model.kind !== 'passkey' ||
+          window.__authMenu.model.mode !== 'login'
+        ) {
+          throw new Error('Expected a login model');
+        }
+        window.__authMenu.model = { ...window.__authMenu.model, selectedAccount };
+        window.__authMenu.handle.update(window.__authMenu.model);
+        await Promise.resolve();
         return received;
       },
       { tagName: AUTH_MENU_TAG, selectedAccount: walletB },
@@ -885,6 +886,65 @@ test.describe('wallet-host Lit auth menu surface', () => {
     await expect(emailOtpOption).toBeFocused();
   });
 
+  test('delivers the submit intent synchronously during trusted user activation', async ({
+    page,
+  }) => {
+    await mountAuthMenu(page, loginViewModel());
+    await page.evaluate((tagName) => {
+      const element = document.querySelector(tagName) as HTMLElement;
+      window.__authMenu.onIntent = (intent) => {
+        if (intent.kind !== 'submit') return;
+        element.dataset.intentActivation = String(navigator.userActivation.isActive);
+        element.dataset.deliveryOrder = 'intent';
+      };
+      element.addEventListener('click', () => {
+        element.dataset.deliveryOrder += ',click-bubbled';
+      });
+    }, AUTH_MENU_TAG);
+
+    await page.locator(`${AUTH_MENU_TAG} [data-auth-menu-primary]`).click();
+    await expect(page.locator(AUTH_MENU_TAG)).toHaveAttribute('data-intent-activation', 'true');
+    await expect(page.locator(AUTH_MENU_TAG)).toHaveAttribute(
+      'data-delivery-order',
+      'intent,click-bubbled',
+    );
+  });
+
+  test('traps keyboard focus and restores it without retaining document listeners', async ({
+    page,
+  }) => {
+    await page.evaluate(() => {
+      const trigger = document.createElement('button');
+      trigger.id = 'auth-menu-test-trigger';
+      trigger.textContent = 'Open wallet';
+      document.body.appendChild(trigger);
+      trigger.focus();
+    });
+    await mountAuthMenu(page, loginViewModel());
+    await expect(page.locator(`${AUTH_MENU_TAG} [data-auth-menu-input]`)).toBeFocused();
+    const controls = page.locator(
+      `${AUTH_MENU_TAG} button:not([disabled]), ${AUTH_MENU_TAG} input:not([disabled]), ${AUTH_MENU_TAG} a[href]`,
+    );
+    await controls.last().focus();
+    await page.keyboard.press('Tab');
+    await expect(controls.first()).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(controls.last()).toBeFocused();
+
+    const detachedIntents = await page.evaluate((tagName) => {
+      const element = document.querySelector(tagName) as HTMLElement;
+      const intents: unknown[] = [];
+      window.__authMenu.onIntent = (intent) => {
+        intents.push(intent);
+      };
+      window.__authMenu.handle.dispose();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      return intents;
+    }, AUTH_MENU_TAG);
+    await expect(page.locator('#auth-menu-test-trigger')).toBeFocused();
+    expect(detachedIntents).toEqual([]);
+  });
+
   test('starts a ready login intent from the primary CTA and closes on Escape', async ({
     page,
   }) => {
@@ -893,9 +953,9 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const intents = await page.evaluate(async (tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const received: unknown[] = [];
-      element.addEventListener('seams-auth-menu-intent', (event) => {
-        received.push((event as CustomEvent<unknown>).detail);
-      });
+      window.__authMenu.onIntent = (intent) => {
+        received.push(intent);
+      };
       (element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).click();
       const root = element.querySelector('.auth-menu-root') as HTMLElement;
       root.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));

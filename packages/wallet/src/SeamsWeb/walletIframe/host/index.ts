@@ -24,7 +24,7 @@ import {
 let initialized = false;
 
 const CONFIRM_UI_SELECTORS = [
-  'seams-auth-menu-surface',
+  '.seams-auth-menu-surface',
   'seams-modal-tx-confirmer',
   'seams-drawer-tx-confirmer',
   'seams-tx-confirmer',
@@ -168,14 +168,8 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
     );
     for (const el of els) {
       try {
-        if (el.matches('seams-auth-menu-surface')) {
-          el.dispatchEvent(
-            new CustomEvent('seams-auth-menu-intent', {
-              bubbles: true,
-              composed: true,
-              detail: { kind: 'close', reason: 'close_button' },
-            }),
-          );
+        if (el.matches('.seams-auth-menu-surface')) {
+          el.dispatchEvent(new Event('cancel'));
         } else {
           el.dispatchEvent(
             new CustomEvent(WalletIframeDomEvents.TX_CONFIRMER_CANCEL, {

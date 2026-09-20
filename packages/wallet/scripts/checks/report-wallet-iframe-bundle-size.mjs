@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Report wallet iframe boot-path, worker, and WASM sizes.
+ * Report wallet iframe boot, lazy feature closures, direct entries, CSS, workers, and WASM.
  *
  * Usage:
- *   pnpm build:sdk-prod
+ *   pnpm -C packages/wallet build:prod
  *   pnpm -C packages/wallet check:bundle-size
  *   pnpm -C packages/wallet check:bundle-size -- --budget walletHostGzip=100000 --budget ecdsaWasmGzip=1500000
  */
@@ -11,11 +11,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
+import { collectBrowserGraph } from './browser-module-graph.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const sdkRoot = path.resolve(path.join(__dirname, '../..'));
 const distRoot = path.join(sdkRoot, 'dist');
+const sizeCache = new Map();
 
 const argv = process.argv.slice(2);
 const help = argv.includes('--help') || argv.includes('-h');
@@ -28,7 +30,8 @@ if (help) {
 
 Reads from:
   - dist/esm/sdk/wallet-iframe-host-runtime.js
-  - static JS/CSS files imported by that host entry
+  - static and lazy imports reachable from the host and direct browser entries
+  - dist/esm/sdk/*.css
   - dist/workers/*
 
 Options:
@@ -39,7 +42,7 @@ Options:
 Budget keys:
   walletHostGzip, walletHostBootPathGzip, walletHostStaticImportsGzip
   workerAndWasmGzip, ecdsaWasmGzip, nearWasmGzip, tempoWasmGzip
-  ecdsaRegistrationPathGzip, registrationWasmGzip, derivationWasmGzip
+  derivationWasmGzip, walletReachableGzip
   ed25519YaoClientWasmGzip
 `.trim(),
   );
@@ -67,12 +70,16 @@ function relFromSdk(absPath) {
 }
 
 function readSize(absPath) {
+  const cached = sizeCache.get(absPath);
+  if (cached) return cached;
   const buf = fs.readFileSync(absPath);
-  return {
+  const size = {
     raw: buf.length,
     gzip: gzipSize(buf),
     brotli: brotliSize(buf),
   };
+  sizeCache.set(absPath, size);
+  return size;
 }
 
 function parseBudgetArgs(args) {
@@ -93,57 +100,6 @@ function parseBudgetArgs(args) {
     budgets.set(key, Math.floor(value));
   }
   return budgets;
-}
-
-function parseStaticImportSpecifiers(source) {
-  const specs = [];
-  const patterns = [
-    /\bimport\s+(?:[^'"]+?\s+from\s*)?['"]([^'"]+)['"]/g,
-    /\bexport\s+[^'"]+?\s+from\s+['"]([^'"]+)['"]/g,
-  ];
-  for (const pattern of patterns) {
-    let match;
-    while ((match = pattern.exec(source))) {
-      specs.push(match[1]);
-    }
-  }
-  return specs;
-}
-
-function resolveImport(fromAbs, specifier) {
-  if (!specifier.startsWith('.')) return null;
-  const base = path.resolve(path.dirname(fromAbs), specifier);
-  const candidates = [
-    base,
-    `${base}.js`,
-    `${base}.mjs`,
-    `${base}.css`,
-    path.join(base, 'index.js'),
-  ];
-  return (
-    candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile()) ??
-    null
-  );
-}
-
-function collectStaticImports(entryAbs) {
-  const seen = new Set();
-  const ordered = [];
-  const visit = (fileAbs) => {
-    const source = fs.readFileSync(fileAbs, 'utf8');
-    for (const specifier of parseStaticImportSpecifiers(source)) {
-      const resolved = resolveImport(fileAbs, specifier);
-      if (!resolved) continue;
-      const relativeToDist = path.relative(distRoot, resolved);
-      if (relativeToDist.startsWith('..') || path.isAbsolute(relativeToDist)) continue;
-      if (seen.has(resolved) || resolved === entryAbs) continue;
-      seen.add(resolved);
-      ordered.push(resolved);
-      if (/\.(mjs|js)$/.test(resolved)) visit(resolved);
-    }
-  };
-  if (fs.existsSync(entryAbs)) visit(entryAbs);
-  return ordered.sort((a, b) => relFromSdk(a).localeCompare(relFromSdk(b)));
 }
 
 function makeRow(label, absPath, group) {
@@ -218,10 +174,6 @@ const workerTargets = [
     'dist/workers/ecdsa-derivation-client.worker.js',
   ],
   [
-    'registrationWasm',
-    'ECDSA registration client WASM',
-  ],
-  [
     'derivationWasm',
     'ECDSA deferred export client WASM',
     'dist/workers/router_ab_ecdsa_client_bg.wasm',
@@ -253,7 +205,10 @@ const workerRows = [];
 
 if (fs.existsSync(hostAbs)) {
   hostRows.push(makeRow('wallet host runtime', hostAbs, 'walletHost'));
-  for (const staticImportAbs of collectStaticImports(hostAbs)) {
+  for (const staticImportAbs of collectBrowserGraph([hostAbs], {
+    root: distRoot,
+    includeDynamic: false,
+  }).files.filter((filename) => filename !== hostAbs)) {
     staticImportRows.push(
       makeRow(path.basename(staticImportAbs), staticImportAbs, 'walletHostStaticImport'),
     );
@@ -275,32 +230,101 @@ const hostTotal = sumRows(hostRows);
 const staticImportTotal = sumRows(staticImportRows);
 const bootPathTotal = sumRows([...hostRows, ...staticImportRows]);
 const workerTotal = sumRows(workerRows);
-const ecdsaRegistrationPathRows = workerRows.filter((row) => {
-  return row.id === 'ecdsaDerivationClientWorker' || row.id === 'registrationWasm';
-});
-const ecdsaRegistrationPathTotal = sumRows(ecdsaRegistrationPathRows);
 
 const metrics = {
   walletHostGzip: hostTotal.gzip,
   walletHostBootPathGzip: bootPathTotal.gzip,
   walletHostStaticImportsGzip: staticImportTotal.gzip,
   workerAndWasmGzip: workerTotal.gzip,
-  ecdsaRegistrationPathGzip: ecdsaRegistrationPathTotal.gzip,
 };
 for (const row of workerRows) {
   if (row.id === 'ecdsaWasm') metrics.ecdsaWasmGzip = row.gzip;
   if (row.id === 'nearWasm') metrics.nearWasmGzip = row.gzip;
   if (row.id === 'tempoWasm') metrics.tempoWasmGzip = row.gzip;
-  if (row.id === 'registrationWasm') metrics.registrationWasmGzip = row.gzip;
   if (row.id === 'derivationWasm') metrics.derivationWasmGzip = row.gzip;
   if (row.id === 'ed25519YaoClientWasm') metrics.ed25519YaoClientWasmGzip = row.gzip;
 }
+
+const browserRoot = path.join(distRoot, 'esm/sdk');
+const browserFiles = fs.readdirSync(browserRoot);
+const importCache = new Map();
+const bootFiles = new Set([...hostRows, ...staticImportRows].map((row) => row.path));
+const reachableFiles = new Set();
+
+function reportGraph(label, entryPaths) {
+  const graph = collectBrowserGraph(entryPaths, {
+    root: distRoot,
+    includeDynamic: true,
+    importCache,
+  });
+  const rows = graph.files.map((filename) => makeRow(path.basename(filename), filename, label));
+  for (const filename of graph.files) reachableFiles.add(filename);
+  return {
+    entries: entryPaths.map(relFromSdk),
+    files: rows,
+    cold: sumRows(rows),
+    incrementalOverRuntimeBoot: sumRows(rows.filter((row) => !bootFiles.has(row.path))),
+    external: graph.external,
+    unresolved: graph.unresolved,
+  };
+}
+
+function findFeatureEntry(prefix) {
+  const matches = browserFiles.filter(
+    (filename) => filename.startsWith(`${prefix}-`) && filename.endsWith('.js'),
+  );
+  if (matches.length !== 1)
+    throw new Error(`Expected one ${prefix} browser entry; found ${matches.join(', ')}`);
+  return path.join(browserRoot, matches[0]);
+}
+
+const flows = {
+  auth: reportGraph('auth', [findFeatureEntry('runtime-auth')]),
+  confirmation: reportGraph('confirmation', [findFeatureEntry('confirm-ui')]),
+  export: reportGraph('export', [findFeatureEntry('export-viewer-host')]),
+  recovery: reportGraph('recovery', [findFeatureEntry('runtime-recovery-codes')]),
+};
+const directEntries = {};
+for (const filename of [
+  'wallet-iframe-host-runtime.js',
+  'wallet-iframe-host-near.js',
+  'wallet-iframe-host-ecdsa.js',
+  'wallet-iframe-host-full.js',
+  'tx-confirm-ui.js',
+  'seams-tx-confirmer.js',
+  'export-private-key-viewer.js',
+  'halo-border.js',
+  'passkey-halo-loading.js',
+  'wallet-shims.js',
+]) {
+  directEntries[filename] = reportGraph(filename, [path.join(browserRoot, filename)]);
+}
+const cssRows = browserFiles
+  .filter((filename) => filename.endsWith('.css'))
+  .sort()
+  .map((filename) => makeRow(filename, path.join(browserRoot, filename), 'css'));
+const reachableRows = [...reachableFiles]
+  .sort()
+  .map((filename) => makeRow(path.basename(filename), filename, 'reachableBrowserJavaScript'));
+const reachableTotal = sumRows(reachableRows);
+metrics.walletReachableGzip = reachableTotal.gzip;
+const browserGraphs = {
+  accounting:
+    'Per-file compression, deduplicated by emitted URL within each closure. Lazy closures are conservative reachable assets, not an observed network trace. Incremental bytes exclude runtime static boot only. Independently bundled copies count separately. Workers/WASM and CSS are separate totals.',
+  flows,
+  directEntries,
+  reachable: { files: reachableRows, total: reachableTotal },
+  css: { files: cssRows, total: sumRows(cssRows) },
+};
 
 if (jsonOutput) {
   console.log(
     JSON.stringify(
       {
         sdkRoot,
+        buildInputsHash: fs.existsSync(path.join(distRoot, '.build-inputs.sha256'))
+          ? fs.readFileSync(path.join(distRoot, '.build-inputs.sha256'), 'utf8').trim()
+          : null,
         host: hostRows,
         staticImports: staticImportRows,
         workersAndWasm: workerRows,
@@ -308,10 +332,10 @@ if (jsonOutput) {
           walletHost: hostTotal,
           walletHostStaticImports: staticImportTotal,
           walletHostBootPath: bootPathTotal,
-          ecdsaRegistrationPath: ecdsaRegistrationPathTotal,
           workerAndWasm: workerTotal,
         },
         metrics,
+        browserGraphs,
         missing,
       },
       null,
@@ -326,9 +350,15 @@ if (jsonOutput) {
     `\nWallet host boot-path total: ${formatBytes(bootPathTotal.raw)} raw / ${formatBytes(bootPathTotal.gzip)} gzip / ${formatBytes(bootPathTotal.brotli)} brotli`,
   );
   printRows('Wallet workers and WASM', workerRows);
+  for (const [label, graph] of Object.entries(flows)) {
+    console.log(
+      `\n${label}: ${formatBytes(graph.cold.raw)} raw / ${formatBytes(graph.cold.gzip)} gzip / ${formatBytes(graph.cold.brotli)} brotli; incremental gzip ${formatBytes(graph.incrementalOverRuntimeBoot.gzip)}`,
+    );
+  }
   console.log(
-    `\nECDSA registration path: ${formatBytes(ecdsaRegistrationPathTotal.raw)} raw / ${formatBytes(ecdsaRegistrationPathTotal.gzip)} gzip / ${formatBytes(ecdsaRegistrationPathTotal.brotli)} brotli`,
+    `\nReachable browser JS union: ${formatBytes(reachableTotal.raw)} raw / ${formatBytes(reachableTotal.gzip)} gzip / ${formatBytes(reachableTotal.brotli)} brotli`,
   );
+  printRows('Wallet document CSS assets', cssRows);
   console.log(
     `\nWorker/WASM total: ${formatBytes(workerTotal.raw)} raw / ${formatBytes(workerTotal.gzip)} gzip / ${formatBytes(workerTotal.brotli)} brotli`,
   );
@@ -336,12 +366,20 @@ if (jsonOutput) {
     console.warn(
       `\n[report-wallet-iframe-bundle-size] Missing build outputs:\n${missing
         .map((p) => `  - ${p}`)
-        .join('\n')}\n\nRun 'pnpm build:sdk-prod' before using this report in CI.`,
+        .join('\n')}\n\nRun 'pnpm -C packages/wallet build:prod' before using this report in CI.`,
     );
   }
 }
 
 const failures = [];
+for (const [label, graph] of Object.entries({ ...flows, ...directEntries })) {
+  if (graph.external.length || graph.unresolved.length) {
+    failures.push(
+      `${label}: incomplete graph: ${[...graph.external, ...graph.unresolved].join(', ')}`,
+    );
+  }
+}
+if (missing.length) failures.push(`Missing assets: ${missing.join(', ')}`);
 for (const [key, budget] of budgets) {
   const measured = metrics[key];
   if (typeof measured !== 'number') {
@@ -353,7 +391,7 @@ for (const [key, budget] of budgets) {
 
 if (failures.length) {
   console.error(
-    `\n[report-wallet-iframe-bundle-size] Bundle size budgets exceeded:\n${failures
+    `\n[report-wallet-iframe-bundle-size] Bundle verification failed:\n${failures
       .map((failure) => `  - ${failure}`)
       .join('\n')}`,
   );

@@ -126,6 +126,7 @@ const header = `/*
 */`;
 
 const hostSelectorsArr = [
+  '.seams-wallet-ui',
   'seams-tx-tree',
   'seams-drawer',
   'seams-modal-tx-confirmer',
@@ -206,7 +207,10 @@ function emitAliasBlock(vars) {
 
 // Also emit theme-specific alias blocks scoped to component hosts, so tokens pierce Shadow DOM via host inheritance
 const themedLightHostSelectors = hostSelectorsArr
-  .map((s) => `${s}[theme="light"],\n:root[data-seams-theme="light"] ${s}:not([theme="dark"])`)
+  .map((s) => {
+    const themeAttribute = s === '.seams-wallet-ui' ? 'data-theme' : 'theme';
+    return `${s}[${themeAttribute}="light"],\n:root[data-seams-theme="light"] ${s}:not([${themeAttribute}="dark"])`;
+  })
   .join(',\n');
 const hostThemeTokens = `${themedLightHostSelectors} {\n${emitAliasBlock(LIGHT_VARS)}\n}`;
 

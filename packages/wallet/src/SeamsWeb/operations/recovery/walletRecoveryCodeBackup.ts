@@ -6,7 +6,7 @@ import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/ui
 import {
   createWalletIframeSurfaceMeasurementReporter,
   type WalletIframeSurfaceMeasurementReporter,
-} from '../../walletIframe/host/lit-ui/surface-measurement-reporter';
+} from '../../walletIframe/host/surface-measurement-reporter';
 /* Relative, not `@/`-aliased: unit tests load this module as raw source over
    Vite's /@fs route, where the SDK's path alias is not configured. Type-only
    `@/` imports above are erased before that matters; these are values. */

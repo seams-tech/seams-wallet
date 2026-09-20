@@ -31,7 +31,7 @@ const SEAMS_LIT_HOST_SELECTORS = [
   'seams-passkey-halo-loading',
   'seams-export-key-viewer',
   'seams-recovery-code-backup-viewer',
-  'seams-auth-menu-surface',
+  '.seams-auth-menu-surface',
   /* host-document dialogs (plain DOM, not lit) that must follow the app
      palette, e.g. the recovery codes backup dialog shell */
   '.seams-host-themed-dialog',

@@ -14,7 +14,6 @@ import {
   toEvmFamilyEcdsaKeyHandle,
   toRpId,
 } from '@/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
-import { deriveEvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 import { buildMpcMaterialActivationRefFixture } from '../unit/helpers/ecdsaMaterialRef.fixtures';
 
 /**
@@ -40,11 +39,6 @@ const EVM_TARGET = thresholdEcdsaChainTargetFromChainFamily({
 });
 const ECDSA_KEY = buildEvmFamilyEcdsaKeyIdentity({
   walletId: SUBJECT_ID,
-  evmFamilySigningKeySlotId: deriveEvmFamilySigningKeySlotId({
-    walletId: SUBJECT_ID,
-    signingRootId: 'signing-root-export-variant',
-    signingRootVersion: 'root-v1',
-  }),
   ecdsaThresholdKeyId: 'ecdsa-threshold-export-variant',
   signingRootId: 'signing-root-export-variant',
   signingRootVersion: 'root-v1',
@@ -64,7 +58,6 @@ const EXPORT_LANE = exactEcdsaSigningLaneIdentity({
     rpId: toRpId('example.localhost'),
     credentialIdB64u: 'credential-export-variant',
   },
-  thresholdSessionId: 'threshold-ecdsa-export-variant',
 });
 
 /**
@@ -268,8 +261,8 @@ test.describe('wallet iframe export surface variant', () => {
 
       // Both halves of the agreement, for the same request.
       expect(result.stampedVariant).toBe(expected);
-      expect(result.presentation.drawer).toBe(expected === 'drawer');
-      expect(result.presentation.modal).toBe(expected === 'modal');
+      expect(result.presentation.drawer).toBe(true);
+      expect(result.presentation.modal).toBe(false);
     });
   }
 });

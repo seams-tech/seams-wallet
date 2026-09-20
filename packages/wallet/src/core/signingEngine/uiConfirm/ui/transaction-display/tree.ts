@@ -6,7 +6,7 @@ import type {
   TxDisplayFileContentVariants,
 } from '@/core/signingEngine/interfaces/display';
 import type { ActionArgs, TransactionInput } from '@/core/types/actions';
-import { formatArgs, formatCodeSize, shortenPubkey } from '../common/formatters';
+import { formatArgs, formatCodeSize, shortenPubkey } from './formatters';
 import { isString } from '@shared/utils/validation';
 import { isNearDisplayOperation, renderNearDisplayOperation } from './renderers/near';
 import { isEvmDisplayOperation, renderEvmDisplayOperation } from './renderers/evm';

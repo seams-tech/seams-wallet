@@ -14,17 +14,16 @@ function sanitizeTokenValue(value: string): string | undefined {
 }
 
 export function appearanceTokenCssVars(appearance?: AppearanceConfig): Record<string, string> {
-  const colors = appearance?.theme.colors;
-  if (!colors) return {};
-
   const vars: Record<string, string> = {};
-  for (const [rawName, rawValue] of Object.entries(colors)) {
-    if (typeof rawValue !== 'string') continue;
-    const name = sanitizeTokenName(rawName);
-    if (!name) continue;
-    const value = sanitizeTokenValue(rawValue);
-    if (!value) continue;
-    vars[`--seams-colors-${name}`] = `${value} !important`;
+  for (const group of ['colors', 'shape'] as const) {
+    for (const [rawName, rawValue] of Object.entries(appearance?.theme[group] ?? {})) {
+      if (typeof rawValue !== 'string') continue;
+      const name = sanitizeTokenName(rawName);
+      if (!name) continue;
+      const value = sanitizeTokenValue(rawValue);
+      if (!value) continue;
+      vars[`--seams-${group}-${name}`] = `${value} !important`;
+    }
   }
   return vars;
 }

@@ -166,6 +166,7 @@
 }
 
 /* Base CSS variables for SEAMS custom elements (applied on hosts) */
+.seams-wallet-ui,
 seams-tx-tree,
 seams-drawer,
 seams-modal-tx-confirmer,
@@ -227,6 +228,8 @@ seams-recovery-code-backup-viewer {
   --seams-colors-highlightAmount: oklch(0.74 0.166 255);
 }
 
+.seams-wallet-ui[data-theme="light"],
+:root[data-seams-theme="light"] .seams-wallet-ui:not([data-theme="dark"]),
 seams-tx-tree[theme="light"],
 :root[data-seams-theme="light"] seams-tx-tree:not([theme="dark"]),
 seams-drawer[theme="light"],

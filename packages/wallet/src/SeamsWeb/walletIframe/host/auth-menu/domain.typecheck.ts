@@ -3,7 +3,7 @@ import type {
   AuthMenuAccountOption,
   AuthMenuLoginAccountResolution,
   AuthMenuRecoveryViewModel,
-} from './auth-menu-domain';
+} from './domain';
 import type {
   LocalWalletAuthMethodProjectionV2,
   WalletAuthMethodLocalPresentationV1,

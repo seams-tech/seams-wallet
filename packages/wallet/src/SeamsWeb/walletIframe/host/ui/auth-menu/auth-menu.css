@@ -1,5 +1,4 @@
-:host,
-seams-auth-menu-surface {
+.seams-auth-menu-surface {
   display: block;
   inline-size: 100dvw;
   max-inline-size: min(100dvw, 420px);
@@ -51,12 +50,12 @@ seams-auth-menu-surface {
 }
 
 /* Root container */
-.seams-no-animation {
+:where(.seams-auth-menu-surface) .seams-no-animation {
   animation: none !important;
   transition: none !important;
 }
 
-.seams-signup-menu-root {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root {
   /* CSS sentinel (used by tests/diagnostics to confirm stylesheet is applied) */
   --seams-auth-menu-css-ready: 1;
   --seams-auth-menu-padding-top: calc(var(--seams-spacing-lg) + 4px);
@@ -98,7 +97,7 @@ seams-auth-menu-surface {
 }
 
 /* Back button */
-.seams-back-button {
+:where(.seams-auth-menu-surface) .seams-back-button {
   position: absolute;
   top: 1rem;
   left: 1rem;
@@ -124,29 +123,29 @@ seams-auth-menu-surface {
   filter: blur(0.2px);
 }
 
-.seams-back-button.is-visible {
+:where(.seams-auth-menu-surface) .seams-back-button.is-visible {
   opacity: 1;
   pointer-events: auto;
   filter: none;
 }
 
-.seams-signup-menu-root[data-scan-device='true'] .seams-back-button.is-visible,
-.seams-signup-menu-root[data-waiting='true'] .seams-back-button.is-visible,
-.seams-signup-menu-root[data-otp-prompt='true'] .seams-back-button.is-visible {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-scan-device='true'] .seams-back-button.is-visible,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-waiting='true'] .seams-back-button.is-visible,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-otp-prompt='true'] .seams-back-button.is-visible {
   z-index: 30;
 }
 
-.seams-back-button:hover {
+:where(.seams-auth-menu-surface) .seams-back-button:hover {
   transform: scale(1.02);
   background: var(--seams-colors-surface);
 }
 
-.seams-back-button:active {
+:where(.seams-auth-menu-surface) .seams-back-button:active {
   transform: scale(0.96);
 }
 
 /* Header */
-.seams-header {
+:where(.seams-auth-menu-surface) .seams-header {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -170,14 +169,14 @@ seams-auth-menu-surface {
    The override lives on the root, so every geometry transition inside (header,
    switcher, content area) retimes together; leaving the state restores the
    default in the same style recalc that starts the return transition. */
-.seams-signup-menu-root[data-waiting='true'] {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-waiting='true'] {
   --seams-duration-resize: 150ms;
 }
 
-.seams-signup-menu-root[data-waiting='true'] .seams-header,
-.seams-signup-menu-root[data-scan-device='true'] .seams-header,
-.seams-signup-menu-root[data-otp-prompt='true'] .seams-header,
-.seams-signup-menu-root[data-registration-prompt='true'] .seams-header {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-waiting='true'] .seams-header,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-scan-device='true'] .seams-header,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-otp-prompt='true'] .seams-header,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-header {
   opacity: 0;
   height: 0px;
   padding-top: 0px;
@@ -188,10 +187,10 @@ seams-auth-menu-surface {
 }
 
 /* Adjust content area when header is hidden */
-.seams-signup-menu-root[data-waiting='true'] .seams-content-area,
-.seams-signup-menu-root[data-scan-device='true'] .seams-content-area,
-.seams-signup-menu-root[data-otp-prompt='true'] .seams-content-area,
-.seams-signup-menu-root[data-registration-prompt='true'] .seams-content-area {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-waiting='true'] .seams-content-area,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-scan-device='true'] .seams-content-area,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-otp-prompt='true'] .seams-content-area,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-content-area {
   flex: 1 1 auto;
   /* The switcher's box is what animates during a resize; the content inside
      keeps its intrinsic height. Centre it in that animating box so the message
@@ -205,26 +204,26 @@ seams-auth-menu-surface {
 }
 
 /* Specific height adjustments for different states */
-.seams-signup-menu-root[data-scan-device='true'] {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-scan-device='true'] {
   min-height: 280px;
 }
 
-.seams-signup-menu-root[data-otp-prompt='true'] {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-otp-prompt='true'] {
   min-height: 270px;
 }
 
-.seams-title {
+:where(.seams-auth-menu-surface) .seams-title {
   font-size: 21px;
   font-weight: 600;
   margin: 0.5rem 0.75rem;
   text-wrap: balance;
 }
 
-.seams-signup-menu-root[data-registration-prompt='true'] .seams-header {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-header {
   padding-left: 44px;
 }
 
-.seams-subhead {
+:where(.seams-auth-menu-surface) .seams-subhead {
   font-size: 0.9rem;
   font-weight: 500;
   line-height: 1;
@@ -236,7 +235,7 @@ seams-auth-menu-surface {
 }
 
 /* Content switcher container */
-.seams-content-switcher {
+:where(.seams-auth-menu-surface) .seams-content-switcher {
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -245,12 +244,12 @@ seams-auth-menu-surface {
     var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1));
 }
 
-.seams-content-switcher:has(.seams-account-menu.is-open) {
+:where(.seams-auth-menu-surface) .seams-content-switcher:has(.seams-account-menu.is-open) {
   overflow: visible;
 }
 
 /* Content area container */
-.seams-content-area {
+:where(.seams-auth-menu-surface) .seams-content-area {
   position: relative;
   /* do not force-stretch; let content define intrinsic height */
   flex: 0 1 auto;
@@ -261,13 +260,13 @@ seams-auth-menu-surface {
 }
 
 /* Intrinsic sizer wrapper inside content area used for height measurement */
-.seams-content-sizer {
+:where(.seams-auth-menu-surface) .seams-content-sizer {
   display: block;
   width: 100%;
 }
 
 /* Default content */
-.seams-signin-menu {
+:where(.seams-auth-menu-surface) .seams-signin-menu {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -275,28 +274,28 @@ seams-auth-menu-surface {
   width: 100%;
 }
 
-.seams-signup-menu-root[data-recovery='true'] .seams-signin-menu {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-signin-menu {
   padding-block-start: calc(var(--seams-spacing-md) + 0rem);
 }
 
-.seams-signup-menu-root[data-recovery='true'] .seams-title,
-.seams-signup-menu-root[data-recovery='true'] .seams-subhead {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-title,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-subhead {
   text-align: center;
 }
 
-.seams-signup-menu-root[data-recovery='true'] .seams-header {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-header {
   justify-content: center;
 }
 
-.seams-signup-menu-root[data-recovery='true'] .seams-back-button {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-back-button {
   top: calc(var(--seams-auth-menu-padding-top) + var(--seams-spacing-md));
 }
 
-.seams-signup-menu-root[data-recovery='true'] .seams-header > div {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-header > div {
   inline-size: 100%;
 }
 
-.seams-signup-menu-root[data-recovery='true'] .seams-subhead {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-subhead {
   margin-inline: 0;
 }
 
@@ -327,21 +326,21 @@ seams-auth-menu-surface {
   }
 }
 
-.seams-auth-methods {
+:where(.seams-auth-menu-surface) .seams-auth-methods {
   margin-top: 12px;
 }
 
-.seams-passkey-row + .seams-auth-methods {
+:where(.seams-auth-menu-surface) .seams-passkey-row + .seams-auth-methods {
   margin-top: 6px;
 }
 
-.seams-auth-method-stack {
+:where(.seams-auth-menu-surface) .seams-auth-method-stack {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
 
-.seams-auth-method-note {
+:where(.seams-auth-menu-surface) .seams-auth-method-note {
   margin: 10px 0 0;
   padding: 0 0.25rem;
   color: var(--seams-colors-textSecondary);
@@ -350,21 +349,21 @@ seams-auth-menu-surface {
   text-align: center;
 }
 
-.seams-social-stack {
+:where(.seams-auth-menu-surface) .seams-social-stack {
   margin-top: 0;
 }
 
-.seams-social-provider {
+:where(.seams-auth-menu-surface) .seams-social-provider {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.seams-social-helper {
+:where(.seams-auth-menu-surface) .seams-social-helper {
   margin-top: 0;
 }
 
-.seams-auth-method-btn {
+:where(.seams-auth-menu-surface) .seams-auth-method-btn {
   position: relative;
   display: flex;
   align-items: center;
@@ -397,7 +396,7 @@ seams-auth-menu-surface {
     min-height 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.seams-auth-method-badge {
+:where(.seams-auth-menu-surface) .seams-auth-method-badge {
   --seams-auth-method-badge-background: var(
     --seams-colors-lastUsedBadgeBackground,
     var(--seams-colors-success)
@@ -429,8 +428,8 @@ seams-auth-menu-surface {
   pointer-events: none;
 }
 
-.seams-auth-method-btn:hover:not(:disabled),
-.seams-auth-method-btn:focus-visible {
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:focus-visible {
   background: var(--seams-colors-surface2);
   box-shadow: var(--seams-shadows-sm);
 }
@@ -438,36 +437,36 @@ seams-auth-menu-surface {
 /* Press acknowledgement. Lives in the existing transform transition, so a
    released or moved pointer retargets mid-flight instead of finishing a
    stale keyframe. */
-.seams-auth-method-btn:active:not(:disabled) {
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:active:not(:disabled) {
   transform: scale(0.98);
 }
 
-.seams-auth-method-btn:disabled {
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   box-shadow: none;
 }
 
-.seams-auth-method-btn-primary {
+:where(.seams-auth-menu-surface) .seams-auth-method-btn-primary {
   background: var(--seams-colors-buttonBackground, var(--seams-colors-primary, #3b82f6));
   border-color: transparent;
   color: var(--seams-colors-textButton, white);
 }
 
-.seams-auth-method-btn-primary:hover:not(:disabled),
-.seams-auth-method-btn-primary:focus-visible {
+:where(.seams-auth-menu-surface) .seams-auth-method-btn-primary:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-auth-method-btn-primary:focus-visible {
   background: var(--seams-colors-buttonHoverBackground, var(--seams-colors-primaryHover, #2563eb));
   color: var(--seams-colors-textButton, white);
 }
 
-.seams-auth-method-arrow {
+:where(.seams-auth-menu-surface) .seams-auth-method-arrow {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
 }
 
-.seams-auth-method-btn .seams-auth-method-arrow > .HoverArrow {
+:where(.seams-auth-menu-surface) .seams-auth-method-btn .seams-auth-method-arrow > .HoverArrow {
   position: relative;
   margin-top: 0.1rem;
   margin-left: 0;
@@ -476,7 +475,7 @@ seams-auth-menu-surface {
   stroke: currentColor;
 }
 
-.seams-auth-method-btn .seams-auth-method-arrow > .HoverArrow .HoverArrow__linePath {
+:where(.seams-auth-menu-surface) .seams-auth-method-btn .seams-auth-method-arrow > .HoverArrow .HoverArrow__linePath {
   opacity: 0;
   filter: none;
   transform: scaleX(1);
@@ -487,26 +486,26 @@ seams-auth-menu-surface {
     transform 120ms cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 
-.seams-auth-method-btn .seams-auth-method-arrow > .HoverArrow .HoverArrow__tipPath {
+:where(.seams-auth-menu-surface) .seams-auth-method-btn .seams-auth-method-arrow > .HoverArrow .HoverArrow__tipPath {
   transition: transform 120ms cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 
-.seams-auth-method-btn:hover:not(:disabled)
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:hover:not(:disabled)
   .seams-auth-method-arrow
   > .HoverArrow
   .HoverArrow__linePath,
-.seams-auth-method-btn:focus-visible .seams-auth-method-arrow > .HoverArrow .HoverArrow__linePath {
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:focus-visible .seams-auth-method-arrow > .HoverArrow .HoverArrow__linePath {
   opacity: 1;
   filter: none;
   transform: scaleX(1);
 }
 
-.seams-auth-method-btn:hover:not(:disabled) .seams-auth-method-arrow > .HoverArrow .HoverArrow__tipPath,
-.seams-auth-method-btn:focus-visible .seams-auth-method-arrow > .HoverArrow .HoverArrow__tipPath {
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:hover:not(:disabled) .seams-auth-method-arrow > .HoverArrow .HoverArrow__tipPath,
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:focus-visible .seams-auth-method-arrow > .HoverArrow .HoverArrow__tipPath {
   transform: translateX(3px);
 }
 
-.seams-otp-prompt {
+:where(.seams-auth-menu-surface) .seams-otp-prompt {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -522,7 +521,7 @@ seams-auth-menu-surface {
   animation: content-enter var(--seams-duration-enter, 200ms) var(--seams-ease-out, ease-out);
 }
 
-.seams-otp-prompt-copy {
+:where(.seams-auth-menu-surface) .seams-otp-prompt-copy {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -530,15 +529,15 @@ seams-auth-menu-surface {
   margin: 0 0 4px;
 }
 
-.seams-otp-title {
+:where(.seams-auth-menu-surface) .seams-otp-title {
   color: var(--seams-colors-textPrimary);
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.15;
 }
 
-.seams-otp-description,
-.seams-otp-helper {
+:where(.seams-auth-menu-surface) .seams-otp-description,
+:where(.seams-auth-menu-surface) .seams-otp-helper {
   margin: 0;
   color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 25%);
   font-size: 0.9rem;
@@ -561,7 +560,7 @@ seams-auth-menu-surface {
   }
 }
 
-.seams-otp-account {
+:where(.seams-auth-menu-surface) .seams-otp-account {
   box-sizing: border-box;
   align-self: center;
   width: min(100%, 360px);
@@ -576,7 +575,7 @@ seams-auth-menu-surface {
   text-align: left;
 }
 
-.seams-otp-account-label {
+:where(.seams-auth-menu-surface) .seams-otp-account-label {
   color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 12%);
   font-size: 0.66rem;
   font-weight: 700;
@@ -585,7 +584,7 @@ seams-auth-menu-surface {
   text-transform: uppercase;
 }
 
-.seams-otp-account-value {
+:where(.seams-auth-menu-surface) .seams-otp-account-value {
   color: var(--seams-colors-textPrimary);
   font-size: 0.82rem;
   font-weight: 700;
@@ -595,7 +594,7 @@ seams-auth-menu-surface {
   white-space: nowrap;
 }
 
-.seams-otp-reroll {
+:where(.seams-auth-menu-surface) .seams-otp-reroll {
   align-self: center;
   border: 0;
   background: transparent;
@@ -607,7 +606,7 @@ seams-auth-menu-surface {
   padding: 0 8px;
 }
 
-.seams-otp-reroll:disabled {
+:where(.seams-auth-menu-surface) .seams-otp-reroll:disabled {
   color: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 20%);
   cursor: not-allowed;
 }
@@ -616,27 +615,27 @@ seams-auth-menu-surface {
    own title is the sole header. Anchor it to the top, left-align everything to
    share one edge with the wallet field, and match the title to the auth-card
    header scale (not larger). */
-.seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-prompt {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-prompt {
   justify-content: flex-start;
   min-height: 0;
 }
-.seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-prompt-copy {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-prompt-copy {
   text-align: left;
 }
-.seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-title {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-title {
   font-size: 21px;
   font-weight: 600;
 }
-.seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-description,
-.seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-helper {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-description,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-helper {
   text-align: left;
 }
-.seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-account {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-account {
   align-self: stretch;
   width: 100%;
 }
 
-.seams-otp-code-field {
+:where(.seams-auth-menu-surface) .seams-otp-code-field {
   box-sizing: border-box;
   position: relative;
   width: 100%;
@@ -646,12 +645,12 @@ seams-auth-menu-surface {
   cursor: text;
 }
 
-.seams-otp-code-field[data-disabled='true'] {
+:where(.seams-auth-menu-surface) .seams-otp-code-field[data-disabled='true'] {
   cursor: not-allowed;
   opacity: 0.72;
 }
 
-.seams-otp-input {
+:where(.seams-auth-menu-surface) .seams-otp-input {
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -677,7 +676,7 @@ seams-auth-menu-surface {
   outline: none;
 }
 
-.seams-otp-slots {
+:where(.seams-auth-menu-surface) .seams-otp-slots {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: clamp(6px, 1.5vw, 10px);
@@ -685,7 +684,7 @@ seams-auth-menu-surface {
   pointer-events: none;
 }
 
-.seams-otp-slot {
+:where(.seams-auth-menu-surface) .seams-otp-slot {
   aspect-ratio: 1;
   min-width: 0;
   min-height: 44px;
@@ -715,33 +714,33 @@ seams-auth-menu-surface {
     background-color 160ms ease;
 }
 
-.seams-otp-slot.is-filled {
+:where(.seams-auth-menu-surface) .seams-otp-slot.is-filled {
   background: color-mix(in srgb, var(--seams-colors-surface), var(--seams-colors-textPrimary) 6%);
 }
 
-.seams-otp-code-field:focus-within .seams-otp-slot {
+:where(.seams-auth-menu-surface) .seams-otp-code-field:focus-within .seams-otp-slot {
   border-color: var(--seams-colors-primary);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-primary), transparent 72%);
 }
 
-.seams-recovery-key-section {
+:where(.seams-auth-menu-surface) .seams-recovery-key-section {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.seams-recovery-key-label-row {
+:where(.seams-auth-menu-surface) .seams-recovery-key-label-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 
-.seams-recovery-key-label-row .seams-field-label {
+:where(.seams-auth-menu-surface) .seams-recovery-key-label-row .seams-field-label {
   margin-bottom: 0;
 }
 
-.seams-recovery-key-input {
+:where(.seams-auth-menu-surface) .seams-recovery-key-input {
   box-sizing: border-box;
   width: 100%;
   height: 48px;
@@ -759,21 +758,21 @@ seams-auth-menu-surface {
   text-transform: uppercase;
 }
 
-.seams-recovery-key-input::placeholder {
+:where(.seams-auth-menu-surface) .seams-recovery-key-input::placeholder {
   color: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 20%);
 }
 
-.seams-recovery-key-input:focus {
+:where(.seams-auth-menu-surface) .seams-recovery-key-input:focus {
   border-color: var(--seams-colors-primary);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-primary), transparent 72%);
 }
 
-.seams-recovery-key-input:disabled {
+:where(.seams-auth-menu-surface) .seams-recovery-key-input:disabled {
   cursor: not-allowed;
   opacity: 0.72;
 }
 
-.seams-recovery-key-scan {
+:where(.seams-auth-menu-surface) .seams-recovery-key-scan {
   border: 0;
   background: transparent;
   color: var(--seams-colors-primary);
@@ -785,12 +784,12 @@ seams-auth-menu-surface {
   white-space: nowrap;
 }
 
-.seams-recovery-key-scan:disabled {
+:where(.seams-auth-menu-surface) .seams-recovery-key-scan:disabled {
   color: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 20%);
   cursor: not-allowed;
 }
 
-.seams-otp-resend {
+:where(.seams-auth-menu-surface) .seams-otp-resend {
   align-self: center;
   border: 0;
   background: transparent;
@@ -802,13 +801,13 @@ seams-auth-menu-surface {
   padding: 2px 8px;
 }
 
-.seams-otp-resend:disabled {
+:where(.seams-auth-menu-surface) .seams-otp-resend:disabled {
   color: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 20%);
   cursor: not-allowed;
 }
 
 /* Passkey row */
-.seams-passkey-row {
+:where(.seams-auth-menu-surface) .seams-passkey-row {
   position: relative;
   display: flex;
   align-items: center;
@@ -817,7 +816,7 @@ seams-auth-menu-surface {
   z-index: 4;
 }
 
-.seams-input-pill {
+:where(.seams-auth-menu-surface) .seams-input-pill {
   position: relative;
   box-sizing: border-box;
   display: flex;
@@ -843,11 +842,11 @@ seams-auth-menu-surface {
 
 /* border-only focus: outward rings clip against the content switcher's
    overflow:hidden, so the 1px border carries the focus state instead */
-.seams-input-pill:focus-within {
+:where(.seams-auth-menu-surface) .seams-input-pill:focus-within {
   border-color: var(--seams-colors-focus, var(--seams-colors-primary));
 }
 
-.seams-input-wrap {
+:where(.seams-auth-menu-surface) .seams-input-wrap {
   position: relative;
   flex: 1;
   height: 32px;
@@ -857,7 +856,7 @@ seams-auth-menu-surface {
   /* allow input to shrink inside flex container without clipping */
 }
 
-.seams-input {
+:where(.seams-auth-menu-surface) .seams-input {
   width: 100%;
   height: 32px;
   border: none;
@@ -871,17 +870,17 @@ seams-auth-menu-surface {
 }
 
 /* Absolute status message anchored to bottom-right of the input area */
-.seams-input::placeholder {
+:where(.seams-auth-menu-surface) .seams-input::placeholder {
   /* Improve contrast for placeholders on dark */
   color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 35%);
   opacity: 0.95;
 }
 
-.seams-input:read-only {
+:where(.seams-auth-menu-surface) .seams-input:read-only {
   cursor: default;
 }
 
-.seams-postfix {
+:where(.seams-auth-menu-surface) .seams-postfix {
   position: absolute;
   top: 50%;
   left: 0;
@@ -898,24 +897,24 @@ seams-auth-menu-surface {
   transition: left 32ms var(--seams-ease-out, cubic-bezier(0.25, 1, 0.5, 1));
 }
 
-.seams-postfix.is-existing {
+:where(.seams-auth-menu-surface) .seams-postfix.is-existing {
   color: var(--seams-colors-success);
 }
 
 /* On focus, keep postfix subtle for readability */
-.seams-input:focus ~ .seams-postfix {
+:where(.seams-auth-menu-surface) .seams-input:focus ~ .seams-postfix {
   color: var(--seams-colors-textMuted);
 }
 
-.seams-account-menu {
+:where(.seams-auth-menu-surface) .seams-account-menu {
   position: static;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
 }
 
-.seams-input-action-trigger,
-.seams-account-menu-trigger {
+:where(.seams-auth-menu-surface) .seams-input-action-trigger,
+:where(.seams-auth-menu-surface) .seams-account-menu-trigger {
   width: 34px;
   height: 34px;
   display: grid;
@@ -935,29 +934,29 @@ seams-auth-menu-surface {
     transform 120ms ease;
 }
 
-.seams-input-action-trigger:hover:not(:disabled),
-.seams-input-action-trigger:focus-visible,
-.seams-account-menu-trigger:hover:not(:disabled),
-.seams-account-menu-trigger:focus-visible,
-.seams-account-menu.is-open .seams-account-menu-trigger {
+:where(.seams-auth-menu-surface) .seams-input-action-trigger:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-input-action-trigger:focus-visible,
+:where(.seams-auth-menu-surface) .seams-account-menu-trigger:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-account-menu-trigger:focus-visible,
+:where(.seams-auth-menu-surface) .seams-account-menu.is-open .seams-account-menu-trigger {
   background: color-mix(in srgb, var(--seams-colors-surface2), transparent 18%);
   color: color-mix(in srgb, var(--seams-colors-textPrimary), var(--seams-colors-primary) 18%);
   box-shadow: none;
 }
 
-.seams-input-action-trigger:active:not(:disabled),
-.seams-account-menu-trigger:active:not(:disabled) {
+:where(.seams-auth-menu-surface) .seams-input-action-trigger:active:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-account-menu-trigger:active:not(:disabled) {
   transform: scale(0.96);
 }
 
-.seams-input-action-trigger:disabled,
-.seams-account-menu-trigger:disabled {
+:where(.seams-auth-menu-surface) .seams-input-action-trigger:disabled,
+:where(.seams-auth-menu-surface) .seams-account-menu-trigger:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
-.seams-input-action-icon,
-.seams-account-dropdown-arrow {
+:where(.seams-auth-menu-surface) .seams-input-action-icon,
+:where(.seams-auth-menu-surface) .seams-account-dropdown-arrow {
   width: 21px;
   height: 21px;
   display: block;
@@ -965,16 +964,16 @@ seams-auth-menu-surface {
   transition: color 160ms ease;
 }
 
-.seams-input-action-icon {
+:where(.seams-auth-menu-surface) .seams-input-action-icon {
   fill: none;
   stroke: currentColor;
 }
 
-.seams-account-dropdown-arrow {
+:where(.seams-auth-menu-surface) .seams-account-dropdown-arrow {
   fill: currentColor;
 }
 
-.seams-account-menu-popover {
+:where(.seams-auth-menu-surface) .seams-account-menu-popover {
   position: absolute;
   top: calc(100% + 4px);
   /* a hair wider than the input so their edges don't optically collide */
@@ -992,13 +991,13 @@ seams-auth-menu-surface {
   animation: content-enter 180ms var(--seams-ease-out, ease-out);
 }
 
-.seams-account-menu-group + .seams-account-menu-group {
+:where(.seams-auth-menu-surface) .seams-account-menu-group + .seams-account-menu-group {
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid color-mix(in srgb, var(--seams-colors-borderPrimary), transparent 45%);
 }
 
-.seams-account-menu-group-label {
+:where(.seams-auth-menu-surface) .seams-account-menu-group-label {
   padding: 2px 10px 6px;
   color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 12%);
   font-size: 0.68rem;
@@ -1007,7 +1006,7 @@ seams-auth-menu-surface {
   text-transform: uppercase;
 }
 
-.seams-account-menu-option {
+:where(.seams-auth-menu-surface) .seams-account-menu-option {
   width: 100%;
   min-height: 38px;
   display: grid;
@@ -1029,28 +1028,28 @@ seams-auth-menu-surface {
     color 140ms ease;
 }
 
-.seams-account-menu-option:hover {
+:where(.seams-auth-menu-surface) .seams-account-menu-option:hover {
   background: var(--seams-colors-surface2);
 }
 
-.seams-account-menu-option:focus-visible {
+:where(.seams-auth-menu-surface) .seams-account-menu-option:focus-visible {
   background: var(--seams-colors-surface2);
   outline: 2px solid var(--seams-colors-focus, var(--seams-colors-primary));
   outline-offset: -2px;
 }
 
-.seams-account-menu-option.is-selected {
+:where(.seams-auth-menu-surface) .seams-account-menu-option.is-selected {
   background: color-mix(in srgb, var(--seams-colors-primary), transparent 84%);
   color: var(--seams-colors-textPrimary);
 }
 
-.seams-account-menu-check {
+:where(.seams-auth-menu-surface) .seams-account-menu-check {
   position: relative;
   width: 16px;
   height: 16px;
 }
 
-.seams-account-menu-option.is-selected .seams-account-menu-check::after {
+:where(.seams-auth-menu-surface) .seams-account-menu-option.is-selected .seams-account-menu-check::after {
   content: '';
   position: absolute;
   left: 5px;
@@ -1062,40 +1061,40 @@ seams-auth-menu-surface {
   transform: rotate(45deg);
 }
 
-.seams-account-menu-account {
+:where(.seams-auth-menu-surface) .seams-account-menu-account {
   display: grid;
   gap: 2px;
   min-width: 0;
   overflow: hidden;
 }
 
-.seams-account-menu-account-primary,
-.seams-account-menu-account-secondary {
+:where(.seams-auth-menu-surface) .seams-account-menu-account-primary,
+:where(.seams-auth-menu-surface) .seams-account-menu-account-secondary {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.seams-account-menu-account-secondary {
+:where(.seams-auth-menu-surface) .seams-account-menu-account-secondary {
   color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 12%);
   font-size: 0.72rem;
   font-weight: 650;
   line-height: 1.2;
 }
 
-.seams-selected-account {
+:where(.seams-auth-menu-surface) .seams-selected-account {
   width: 100%;
   align-content: center;
 }
 
-.seams-selected-account .seams-account-menu-account-primary {
+:where(.seams-auth-menu-surface) .seams-selected-account .seams-account-menu-account-primary {
   font-size: 0.84rem;
   font-weight: 650;
   line-height: 1.15;
 }
 
 /* Waiting state */
-.seams-waiting {
+:where(.seams-auth-menu-surface) .seams-waiting {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1122,7 +1121,7 @@ seams-auth-menu-surface {
    only its rotation (see .seams-spinner) — do not add an `animation:` shorthand
    on this selector, it would shadow the rotation and freeze it. */
 
-.seams-waiting-message {
+:where(.seams-auth-menu-surface) .seams-waiting-message {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1147,20 +1146,20 @@ seams-auth-menu-surface {
   transform: translateZ(0);
 }
 
-.seams-waiting-text {
+:where(.seams-auth-menu-surface) .seams-waiting-text {
   font-size: 18px;
   font-weight: 600;
   text-wrap: balance;
 }
 
-.seams-waiting-subtext {
+:where(.seams-auth-menu-surface) .seams-waiting-subtext {
   font-size: 12px;
   font-weight: 500;
   line-height: 1.35;
   color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 25%);
 }
 
-.seams-waiting-sdk-events {
+:where(.seams-auth-menu-surface) .seams-waiting-sdk-events {
   font-size: 11px;
   font-weight: 500;
   line-height: 1.35;
@@ -1168,7 +1167,7 @@ seams-auth-menu-surface {
   color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 15%);
 }
 
-.seams-spinner {
+:where(.seams-auth-menu-surface) .seams-spinner {
   width: 36px;
   height: 36px;
   border-radius: 999px;
@@ -1178,13 +1177,13 @@ seams-auth-menu-surface {
 }
 
 /* Scan device content wrapper */
-.qr-code-container {
+:where(.seams-auth-menu-surface) .qr-code-container {
   padding-top: 0.25rem;
 }
 
 /* The plate carries 1rem of its own padding around the code, so the title can
    sit tight against it and still read as separated from the QR modules. */
-.qr-header {
+:where(.seams-auth-menu-surface) .qr-header {
   position: relative;
   display: grid;
   place-content: center;
@@ -1195,7 +1194,7 @@ seams-auth-menu-surface {
    sits inside the same card, so a heavier scale reads as a second, competing
    header. Shared with the link-device confirmation and failure views so every
    sub-view of this flow speaks at one volume. */
-.qr-title {
+:where(.seams-auth-menu-surface) .qr-title {
   margin: 0;
   padding-top: 0;
   color: var(--seams-colors-textPrimary, #1e293b);
@@ -1206,7 +1205,7 @@ seams-auth-menu-surface {
   text-wrap: balance;
 }
 
-.qr-body {
+:where(.seams-auth-menu-surface) .qr-body {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -1216,7 +1215,7 @@ seams-auth-menu-surface {
 
 /* One tight gap for the whole stack: the three text lines read as a single
    block, and the title sits close under the code plate. */
-.qr-code-section {
+:where(.seams-auth-menu-surface) .qr-code-section {
   display: flex;
   width: 100%;
   flex-direction: column;
@@ -1228,7 +1227,7 @@ seams-auth-menu-surface {
    so on a dark theme an unbacked image reads as a raw white rectangle. The
    plate is a fixed square in both states — the placeholder below occupies the
    same box, so nothing under it moves when the image arrives. */
-.qr-code-display {
+:where(.seams-auth-menu-surface) .qr-code-display {
   display: grid;
   place-items: center;
   width: min(100%, 232px);
@@ -1239,7 +1238,7 @@ seams-auth-menu-surface {
   background: #ffffff;
 }
 
-.qr-code-placeholder {
+:where(.seams-auth-menu-surface) .qr-code-placeholder {
   display: grid;
   place-items: center;
   width: 100%;
@@ -1251,7 +1250,7 @@ seams-auth-menu-surface {
 
 /* On the white plate the spinner's default translucent-white track is invisible;
    restate the track against the plate rather than the card. */
-.qr-code-placeholder .seams-spinner {
+:where(.seams-auth-menu-surface) .qr-code-placeholder .seams-spinner {
   width: 28px;
   height: 28px;
   border-width: 3px;
@@ -1271,13 +1270,13 @@ seams-auth-menu-surface {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .qr-code-placeholder {
+  :where(.seams-auth-menu-surface) .qr-code-placeholder {
     animation: none;
   }
 }
 
-.qr-instruction,
-.qr-status {
+:where(.seams-auth-menu-surface) .qr-instruction,
+:where(.seams-auth-menu-surface) .qr-status {
   margin: 0;
   color: var(--seams-colors-textSecondary, #1e293b);
   font-weight: 500;
@@ -1285,7 +1284,7 @@ seams-auth-menu-surface {
   text-wrap: pretty;
 }
 
-.qr-instruction {
+:where(.seams-auth-menu-surface) .qr-instruction {
   max-width: 34ch;
   font-size: 0.95rem;
   line-height: 1.45;
@@ -1294,7 +1293,7 @@ seams-auth-menu-surface {
 /* The status is a running commentary on the pairing, not a peer of the
    instruction — one step quieter and smaller so the two lines stack as a
    hierarchy instead of a paragraph. */
-.qr-status {
+:where(.seams-auth-menu-surface) .qr-status {
   margin-bottom: 0.25rem;
   color: color-mix(in srgb, var(--seams-colors-textSecondary, #64748b), transparent 25%);
   font-size: 0.8125rem;
@@ -1302,13 +1301,13 @@ seams-auth-menu-surface {
   line-height: 1.4;
 }
 
-.animated-ellipsis {
+:where(.seams-auth-menu-surface) .animated-ellipsis {
   display: inline-block;
   width: 1.2em;
   text-align: left;
 }
 
-.animated-ellipsis::after {
+:where(.seams-auth-menu-surface) .animated-ellipsis::after {
   content: '...';
   animation: ellipsis 1.5s infinite;
 }
@@ -1331,7 +1330,7 @@ seams-auth-menu-surface {
   }
 }
 
-.qr-code-image {
+:where(.seams-auth-menu-surface) .qr-code-image {
   width: 100%;
   max-width: 200px;
   height: auto;
@@ -1340,7 +1339,7 @@ seams-auth-menu-surface {
   animation-fill-mode: both;
 }
 
-.seams-scan-device-content {
+:where(.seams-auth-menu-surface) .seams-scan-device-content {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1357,15 +1356,15 @@ seams-auth-menu-surface {
 }
 
 /* Ensure QR code content stays within bounds */
-.seams-scan-device-content .qr-code-container,
-.seams-scan-device-content .qr-modal-backdrop,
-.seams-scan-device-content .qr-modal-content {
+:where(.seams-auth-menu-surface) .seams-scan-device-content .qr-code-container,
+:where(.seams-auth-menu-surface) .seams-scan-device-content .qr-modal-backdrop,
+:where(.seams-auth-menu-surface) .seams-scan-device-content .qr-modal-content {
   max-width: 100%;
   max-height: 100%;
   overflow: hidden;
 }
 
-.seams-link-device-confirmation {
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation {
   min-height: 260px;
   width: min(100%, 360px);
   margin-inline: auto;
@@ -1382,7 +1381,7 @@ seams-auth-menu-surface {
 
 /* These sub-views title with a full instruction sentence, not a short heading,
    so they speak one size quieter than the QR view's .qr-title. */
-.seams-link-device-confirmation .qr-title {
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation .qr-title {
   max-width: 26ch;
   font-size: 1.0625rem;
   line-height: 1.35;
@@ -1392,14 +1391,14 @@ seams-auth-menu-surface {
    while waiting the dots sweep like a clock spinner; once approved they settle
    into a faint ring and the check strokes itself in. Monochrome on purpose —
    nothing here should claim success louder than the flow has earned. */
-.seams-link-device-dot-ring {
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring {
   position: relative;
   width: 52px;
   height: 52px;
   color: var(--seams-colors-textSecondary, #64748b);
 }
 
-.seams-link-device-dot-ring > span {
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring > span {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -1411,20 +1410,20 @@ seams-auth-menu-surface {
   transform: rotate(calc(var(--dot-index) * 30deg)) translateY(-18px);
 }
 
-.seams-link-device-dot-ring.is-waiting > span {
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring.is-waiting > span {
   animation: seams-link-dot-sweep 1s linear infinite;
   animation-delay: calc((var(--dot-index) - 12) / 12 * 1s);
 }
 
-.seams-link-device-dot-ring.is-idle > span,
-.seams-link-device-dot-ring.is-approved > span {
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring.is-idle > span,
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring.is-approved > span {
   opacity: 0.25;
 }
 
 /* The badge's centre. A view can hand the ring a glyph (the envelope, for the
    email code) to name what is being waited on; the check replaces it on
    approval so the two never stack. */
-.seams-link-device-dot-ring-glyph {
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring-glyph {
   position: absolute;
   inset: 0;
   display: grid;
@@ -1433,18 +1432,18 @@ seams-auth-menu-surface {
   transition: opacity 160ms ease;
 }
 
-.seams-link-device-dot-ring.is-approved .seams-link-device-dot-ring-glyph {
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring.is-approved .seams-link-device-dot-ring-glyph {
   opacity: 0;
 }
 
-.seams-link-device-dot-ring-check {
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring-check {
   position: absolute;
   inset: 0;
   color: var(--seams-colors-textPrimary, #1e293b);
   opacity: 0;
 }
 
-.seams-link-device-dot-ring.is-approved .seams-link-device-dot-ring-check {
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring.is-approved .seams-link-device-dot-ring-check {
   opacity: 1;
   stroke-dasharray: 23;
   stroke-dashoffset: 0;
@@ -1470,17 +1469,17 @@ seams-auth-menu-surface {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .seams-link-device-dot-ring.is-waiting > span {
+  :where(.seams-auth-menu-surface) .seams-link-device-dot-ring.is-waiting > span {
     animation: none;
     opacity: 0.45;
   }
 
-  .seams-link-device-dot-ring.is-approved .seams-link-device-dot-ring-check {
+  :where(.seams-auth-menu-surface) .seams-link-device-dot-ring.is-approved .seams-link-device-dot-ring-check {
     animation: none;
   }
 }
 
-.seams-link-device-confirmation-copy {
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation-copy {
   max-width: 30ch;
   margin: 0;
   color: var(--seams-colors-textSecondary, #64748b);
@@ -1490,12 +1489,12 @@ seams-auth-menu-surface {
   text-wrap: pretty;
 }
 
-.seams-link-device-confirmation .seams-link-device-btn {
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation .seams-link-device-btn {
   width: min(100%, 280px);
   margin-top: 0.25rem;
 }
 
-.seams-link-device-factor-options {
+:where(.seams-auth-menu-surface) .seams-link-device-factor-options {
   width: min(100%, 280px);
   margin: 0;
   padding: 0;
@@ -1505,7 +1504,7 @@ seams-auth-menu-surface {
   text-align: start;
 }
 
-.seams-link-device-factor-options label {
+:where(.seams-auth-menu-surface) .seams-link-device-factor-options label {
   min-height: 44px;
   padding: 0.625rem 0.75rem;
   display: flex;
@@ -1516,41 +1515,41 @@ seams-auth-menu-surface {
   cursor: pointer;
 }
 
-.seams-link-device-factor-options label:has(input:checked) {
+:where(.seams-auth-menu-surface) .seams-link-device-factor-options label:has(input:checked) {
   border-color: var(--seams-colors-textPrimary, #1e293b);
   background: var(--seams-colors-surface2, #f1f5f9);
 }
 
-.seams-auth-method-choice-label {
+:where(.seams-auth-menu-surface) .seams-auth-method-choice-label {
   flex: 1;
 }
 
-.seams-link-device-factor-options input {
+:where(.seams-auth-menu-surface) .seams-link-device-factor-options input {
   flex: 0 0 auto;
   width: 1rem;
   height: 1rem;
   margin: 0 0 0 auto;
 }
 
-.seams-link-device-factor-options input:focus-visible {
+:where(.seams-auth-menu-surface) .seams-link-device-factor-options input:focus-visible {
   outline: 2px solid var(--seams-colors-focusRing, #2563eb);
   outline-offset: 3px;
 }
 
-.seams-link-device-target-email {
+:where(.seams-auth-menu-surface) .seams-link-device-target-email {
   width: min(100%, 280px);
   display: grid;
   gap: 0.375rem;
   text-align: start;
 }
 
-.seams-link-device-target-email .seams-field-label {
+:where(.seams-auth-menu-surface) .seams-link-device-target-email .seams-field-label {
   color: var(--seams-colors-textSecondary, #64748b);
   font-size: 0.8125rem;
   font-weight: 600;
 }
 
-.seams-link-device-target-email input {
+:where(.seams-auth-menu-surface) .seams-link-device-target-email input {
   min-height: 44px;
   box-sizing: border-box;
   width: 100%;
@@ -1562,12 +1561,12 @@ seams-auth-menu-surface {
   font: inherit;
 }
 
-.seams-link-device-target-email input:focus-visible {
+:where(.seams-auth-menu-surface) .seams-link-device-target-email input:focus-visible {
   outline: 2px solid var(--seams-colors-focusRing, #2563eb);
   outline-offset: 2px;
 }
 
-.seams-link-device-inline-error {
+:where(.seams-auth-menu-surface) .seams-link-device-inline-error {
   width: min(100%, 280px);
   margin: 0;
   color: var(--seams-colors-error, #ef4444);
@@ -1576,7 +1575,7 @@ seams-auth-menu-surface {
   text-align: start;
 }
 
-.seams-link-device-confirmation .sr-only {
+:where(.seams-auth-menu-surface) .sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1591,14 +1590,14 @@ seams-auth-menu-surface {
 /* Failure view. Same skeleton as the approved-device confirmation — badge,
    title, copy, one control — so the flow's two end states are the same shape
    and only the colour of the badge changes. */
-.seams-link-device-failure {
+:where(.seams-auth-menu-surface) .seams-link-device-failure {
   gap: 0.75rem;
 }
 
 /* A flat disc, sized to the dot-ring badge the other link views use, so the
    failure frame sits where the confirmation frame sat. No halo or drop shadow:
    the tint and the glyph carry the tone on their own. */
-.seams-link-device-failure-icon {
+:where(.seams-auth-menu-surface) .seams-link-device-failure-icon {
   width: 52px;
   height: 52px;
   display: grid;
@@ -1612,7 +1611,7 @@ seams-auth-menu-surface {
 /* The detail is a raw error string, so it is sized and coloured as evidence
    rather than as prose: quiet, tight, and allowed to break mid-token so a long
    technical message wraps instead of forcing the card wider. */
-.seams-link-device-failure-detail {
+:where(.seams-auth-menu-surface) .seams-link-device-failure-detail {
   width: min(100%, 320px);
   margin: 0;
   padding: 0.75rem 0.875rem;
@@ -1630,13 +1629,13 @@ seams-auth-menu-surface {
 /* Email-OTP variant of the link-device confirmation. Same skeleton as the
    passkey view — badge, title, copy, controls — so the two ways of finishing a
    link read as one flow and only the badge's centre changes. */
-.seams-link-device-email-otp {
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp {
   gap: 0.625rem;
 }
 
 /* The masked address is the one fact the user has to check, so it leaves the
    sentence and becomes an object: a quiet pill directly under the title. */
-.seams-link-device-email-chip {
+:where(.seams-auth-menu-surface) .seams-link-device-email-chip {
   box-sizing: border-box;
   max-width: min(100%, 260px);
   display: inline-flex;
@@ -1651,13 +1650,13 @@ seams-auth-menu-surface {
   line-height: 1.3;
 }
 
-.seams-link-device-email-chip > span {
+:where(.seams-auth-menu-surface) .seams-link-device-email-chip > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.seams-link-device-email-status {
+:where(.seams-auth-menu-surface) .seams-link-device-email-status {
   max-width: 30ch;
   margin: 0;
   color: color-mix(in srgb, var(--seams-colors-textSecondary, #64748b), transparent 15%);
@@ -1671,21 +1670,21 @@ seams-auth-menu-surface {
 /* A rejected or expired code is not a failure of the flow, so the error tone
    stays inside the type and the slot borders — no red banner, no red badge
    ring that would outrank the still-usable input below it. */
-.seams-link-device-email-otp[data-tone='error'] .seams-link-device-email-status {
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp[data-tone='error'] .seams-link-device-email-status {
   color: color-mix(in srgb, var(--seams-colors-error, #ef4444), var(--seams-colors-textPrimary) 20%);
 }
 
-.seams-link-device-email-otp[data-tone='error'] .seams-link-device-dot-ring {
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp[data-tone='error'] .seams-link-device-dot-ring {
   color: color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 45%);
 }
 
-.seams-link-device-email-otp[data-tone='error'] .seams-link-device-dot-ring-glyph {
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp[data-tone='error'] .seams-link-device-dot-ring-glyph {
   color: var(--seams-colors-error, #ef4444);
 }
 
 /* Six slots at card width read as a keypad; capped so they stay finger-sized
    rather than stretching to the full 360px card. */
-.seams-link-device-email-otp .seams-otp-code-field {
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp .seams-otp-code-field {
   width: min(100%, 296px);
   margin-block: 0.125rem;
 }
@@ -1693,18 +1692,18 @@ seams-auth-menu-surface {
 /* Tinted against the surface rather than toward transparency: a translucent
    red washes out to nothing on the dark theme, where the card is already
    near-black. */
-.seams-link-device-email-otp[data-tone='error'] .seams-otp-slot {
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp[data-tone='error'] .seams-otp-slot {
   border-color: color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 45%);
   background: color-mix(in srgb, var(--seams-colors-error, #ef4444), var(--seams-colors-surface) 82%);
 }
 
-.seams-link-device-email-otp[data-otp-phase='incorrect'] .seams-otp-slots {
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp[data-otp-phase='incorrect'] .seams-otp-slots {
   animation: seams-otp-reject 320ms var(--seams-ease-out, ease-out) both;
 }
 
 /* Quiet neutral under an ink button: a brand-blue link below a black primary
    reads as a second, competing call to action. */
-.seams-link-device-email-otp .seams-otp-resend {
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp .seams-otp-resend {
   margin-top: -0.125rem;
   color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 30%);
   font-size: 0.8125rem;
@@ -1715,8 +1714,8 @@ seams-auth-menu-surface {
     text-decoration-color 160ms ease;
 }
 
-.seams-link-device-email-otp .seams-otp-resend:hover:not(:disabled),
-.seams-link-device-email-otp .seams-otp-resend:focus-visible {
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp .seams-otp-resend:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp .seams-otp-resend:focus-visible {
   color: var(--seams-colors-textPrimary);
   text-decoration: underline;
   text-decoration-color: currentColor;
@@ -1739,13 +1738,13 @@ seams-auth-menu-surface {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .seams-link-device-email-otp[data-otp-phase='incorrect'] .seams-otp-slots {
+  :where(.seams-auth-menu-surface) .seams-link-device-email-otp[data-otp-phase='incorrect'] .seams-otp-slots {
     animation: none;
   }
 }
 
 /* Status message row */
-.seams-status-row {
+:where(.seams-auth-menu-surface) .seams-status-row {
   position: absolute;
   font-size: 0.75rem;
   bottom: -10px;
@@ -1755,28 +1754,28 @@ seams-auth-menu-surface {
   justify-content: flex-end;
 }
 
-.seams-status-message {
+:where(.seams-auth-menu-surface) .seams-status-message {
   font-size: 11px;
   font-weight: 500;
 }
 
 /* Section divider */
-.seams-section-divider {
+:where(.seams-auth-menu-surface) .seams-section-divider {
   display: flex;
   align-items: center;
   margin: var(--seams-spacing-md) 0;
   position: relative;
 }
 
-.seams-section-divider::before,
-.seams-section-divider::after {
+:where(.seams-auth-menu-surface) .seams-section-divider::before,
+:where(.seams-auth-menu-surface) .seams-section-divider::after {
   content: '';
   flex: 1;
   height: 1px;
   background: var(--seams-colors-borderSecondary);
 }
 
-.seams-section-divider-text {
+:where(.seams-auth-menu-surface) .seams-section-divider-text {
   padding: 0 var(--seams-spacing-sm);
   font-size: 12px;
   color: var(--seams-colors-textSecondary);
@@ -1785,7 +1784,7 @@ seams-auth-menu-surface {
 }
 
 /* Labels and helper text */
-.seams-field-label {
+:where(.seams-auth-menu-surface) .seams-field-label {
   font-size: 16px;
   color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 35%);
   /* left margin matches the OTP code field's inner padding so the label's
@@ -1795,7 +1794,7 @@ seams-auth-menu-surface {
 }
 
 /* Tooltip for account existence status */
-.seams-input-wrap .seams-tooltip {
+:where(.seams-auth-menu-surface) .seams-input-wrap .seams-tooltip {
   position: absolute;
   right: 0;
   padding: 4px 8px;
@@ -1812,18 +1811,18 @@ seams-auth-menu-surface {
   z-index: 2;
 }
 
-.seams-input-wrap .seams-tooltip.is-visible {
+:where(.seams-auth-menu-surface) .seams-input-wrap .seams-tooltip.is-visible {
   opacity: 0.8;
   transform: translateX(0px) scale(1);
 }
 
-.seams-input-wrap .seams-tooltip.is-error {
+:where(.seams-auth-menu-surface) .seams-input-wrap .seams-tooltip.is-error {
   color: var(--seams-colors-error);
   background: var(--seams-colors-colorBackground);
   /* background: color-mix(in srgb, var(--seams-colors-error), transparent 90%); */
 }
 
-.seams-input-wrap .seams-tooltip.is-success {
+:where(.seams-auth-menu-surface) .seams-input-wrap .seams-tooltip.is-success {
   color: var(--seams-colors-blue400);
   background: var(--seams-colors-colorBackground);
   /* background: color-mix(in srgb, var(--seams-colors-blue400), transparent 90%); */
@@ -1851,76 +1850,64 @@ seams-auth-menu-surface {
   }
 }
 
-.seams-ellipsis {
+:where(.seams-auth-menu-surface) .seams-ellipsis {
   display: inline-block;
 }
 
-.seams-ellipsis-dot {
+:where(.seams-auth-menu-surface) .seams-ellipsis-dot {
   display: inline-block;
   opacity: 0;
   animation: seams-ellipsis-dot 1.2s infinite;
 }
 
-.seams-ellipsis-dot:nth-child(2) {
+:where(.seams-auth-menu-surface) .seams-ellipsis-dot:nth-child(2) {
   animation-delay: 0.15s;
 }
 
-.seams-ellipsis-dot:nth-child(3) {
+:where(.seams-auth-menu-surface) .seams-ellipsis-dot:nth-child(3) {
   animation-delay: 0.3s;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .seams-ellipsis-dot {
+  :where(.seams-auth-menu-surface) .seams-ellipsis-dot {
     animation: none;
     opacity: 1;
   }
 }
 
 /* Button System */
-.seams-scan-device-row {
+:where(.seams-auth-menu-surface) .seams-scan-device-row {
   padding-bottom: 1px;
 }
 
-.seams-secondary-actions {
+:where(.seams-auth-menu-surface) .seams-secondary-actions {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.seams-signup-menu-root > .sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.seams-recovery-form,
-.seams-recovery-confirmation {
+:where(.seams-auth-menu-surface) .seams-recovery-form,
+:where(.seams-auth-menu-surface) .seams-recovery-confirmation {
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 0 0.75rem 0.25rem;
 }
 
-.seams-recovery-form {
+:where(.seams-auth-menu-surface) .seams-recovery-form {
   gap: 8px;
 }
 
-.seams-recovery-field {
+:where(.seams-auth-menu-surface) .seams-recovery-field {
   display: flex;
   flex-direction: column;
 }
 
-.seams-recovery-field .seams-field-label {
+:where(.seams-auth-menu-surface) .seams-recovery-field .seams-field-label {
   margin: 0 0 6px;
 }
 
-.seams-recovery-input {
+:where(.seams-auth-menu-surface) .seams-recovery-input {
   box-sizing: border-box;
   inline-size: 100%;
   min-block-size: 44px;
@@ -1934,29 +1921,29 @@ seams-auth-menu-surface {
   font-size: 16px;
 }
 
-.seams-recovery-code-input {
+:where(.seams-auth-menu-surface) .seams-recovery-code-input {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
 }
 
-.seams-recovery-input:focus-visible {
+:where(.seams-auth-menu-surface) .seams-recovery-input:focus-visible {
   border-color: var(--seams-colors-primary);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-primary), transparent 72%);
 }
 
 @media (forced-colors: active) {
-  .seams-recovery-input:focus-visible,
-  .seams-link-device-btn:focus-visible {
+  :where(.seams-auth-menu-surface) .seams-recovery-input:focus-visible,
+  :where(.seams-auth-menu-surface) .seams-link-device-btn:focus-visible {
     outline: 2px solid Highlight;
     outline-offset: 2px;
   }
 }
 
-.seams-recovery-input[aria-invalid='true'] {
+:where(.seams-auth-menu-surface) .seams-recovery-input[aria-invalid='true'] {
   border-color: var(--seams-colors-error);
 }
 
-.seams-recovery-error,
-.seams-recovery-status {
+:where(.seams-auth-menu-surface) .seams-recovery-error,
+:where(.seams-auth-menu-surface) .seams-recovery-status {
   min-block-size: 1.25em;
   margin: 5px 0 0;
   color: var(--seams-colors-textSecondary);
@@ -1965,27 +1952,27 @@ seams-auth-menu-surface {
   overflow-wrap: anywhere;
 }
 
-.seams-recovery-error {
+:where(.seams-auth-menu-surface) .seams-recovery-error {
   color: var(--seams-colors-error);
   text-align: center;
 }
 
-#seams-recovery-code-feedback {
+:where(.seams-auth-menu-surface) #seams-recovery-code-feedback {
   margin: 4px;
 }
 
 @media (max-width: 320px) {
-  .seams-signup-menu-root {
+  :where(.seams-auth-menu-surface) .seams-signup-menu-root {
     padding-inline: 1rem;
   }
 
-  .seams-recovery-form,
-  .seams-recovery-confirmation {
+  :where(.seams-auth-menu-surface) .seams-recovery-form,
+  :where(.seams-auth-menu-surface) .seams-recovery-confirmation {
     padding-inline: 0;
   }
 }
 
-.seams-auth-intent-switch {
+:where(.seams-auth-menu-surface) .seams-auth-intent-switch {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1998,8 +1985,8 @@ seams-auth-menu-surface {
   text-align: center;
 }
 
-.seams-auth-intent-switch button,
-.seams-auth-intent-switch-action {
+:where(.seams-auth-menu-surface) .seams-auth-intent-switch button,
+:where(.seams-auth-menu-surface) .seams-auth-intent-switch-action {
   appearance: none;
   padding: 0;
   border: 0;
@@ -2009,18 +1996,18 @@ seams-auth-menu-surface {
   font-weight: 700;
 }
 
-.seams-auth-intent-switch button {
+:where(.seams-auth-menu-surface) .seams-auth-intent-switch button {
   cursor: pointer;
 }
 
-.seams-auth-intent-switch button:hover,
-.seams-auth-intent-switch button:focus-visible {
+:where(.seams-auth-menu-surface) .seams-auth-intent-switch button:hover,
+:where(.seams-auth-menu-surface) .seams-auth-intent-switch button:focus-visible {
   color: var(--seams-colors-primaryHover);
   text-decoration: underline;
   text-underline-offset: 0.16em;
 }
 
-.seams-link-device-btn {
+:where(.seams-auth-menu-surface) .seams-link-device-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2059,25 +2046,25 @@ seams-auth-menu-surface {
 }
 
 /* Hover/focus elevated state (theme-reactive via CSS vars) */
-.seams-link-device-btn:hover:not(:disabled),
-.seams-link-device-btn:focus-visible {
+:where(.seams-auth-menu-surface) .seams-link-device-btn:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-link-device-btn:focus-visible {
   background: var(--seams-colors-surface2) !important;
 }
 
-.seams-link-device-btn:focus-visible {
+:where(.seams-auth-menu-surface) .seams-link-device-btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-primary), transparent 72%);
 }
 
-.seams-link-device-btn-primary {
+:where(.seams-auth-menu-surface) .seams-link-device-btn-primary {
   background: var(--seams-colors-buttonBackground, var(--seams-colors-primary, #3b82f6)) !important;
   border-color: transparent;
   border-radius: var(--seams-shape-control, 10px);
   color: var(--seams-colors-textButton, white);
 }
 
-.seams-link-device-btn-primary:hover:not(:disabled),
-.seams-link-device-btn-primary:focus-visible {
+:where(.seams-auth-menu-surface) .seams-link-device-btn-primary:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-link-device-btn-primary:focus-visible {
   background: var(
     --seams-colors-buttonHoverBackground,
     var(--seams-colors-primaryHover, #2563eb)
@@ -2085,12 +2072,12 @@ seams-auth-menu-surface {
   color: var(--seams-colors-textButton, white);
 }
 
-.seams-link-device-btn-primary:disabled {
+:where(.seams-auth-menu-surface) .seams-link-device-btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.seams-auth-method-choice-btn {
+:where(.seams-auth-menu-surface) .seams-auth-method-choice-btn {
   justify-content: flex-start;
   min-height: 48px;
   height: auto;
@@ -2098,14 +2085,14 @@ seams-auth-menu-surface {
   text-align: start;
 }
 
-.seams-auth-method-choice-icon {
+:where(.seams-auth-menu-surface) .seams-auth-method-choice-icon {
   display: grid;
   flex: 0 0 22px;
   place-items: center;
   color: var(--seams-colors-textSecondary, #64748b);
 }
 
-.seams-auth-method-choice-icon svg {
+:where(.seams-auth-menu-surface) .seams-auth-method-choice-icon svg {
   display: block;
 }
 
@@ -2114,14 +2101,14 @@ seams-auth-menu-surface {
    as "the next step" rather than as an offer. Derived from the text colour so
    it inverts with the theme — near-black on light, near-white on dark — which
    is what "black button" has to mean on a card that is itself near-black. */
-.seams-link-device-confirmation .seams-link-device-btn-primary {
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation .seams-link-device-btn-primary {
   background: color-mix(in srgb, var(--seams-colors-textPrimary, #1e293b), #000000 25%) !important;
   border-color: transparent;
   color: var(--seams-colors-colorBackground, #ffffff);
 }
 
-.seams-link-device-confirmation .seams-link-device-btn-primary:hover:not(:disabled),
-.seams-link-device-confirmation .seams-link-device-btn-primary:focus-visible {
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation .seams-link-device-btn-primary:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation .seams-link-device-btn-primary:focus-visible {
   background: color-mix(
     in srgb,
     var(--seams-colors-textPrimary, #1e293b),
@@ -2130,17 +2117,17 @@ seams-auth-menu-surface {
   color: var(--seams-colors-colorBackground, #ffffff);
 }
 
-.seams-link-device-confirmation .seams-link-device-btn-primary:focus-visible {
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation .seams-link-device-btn-primary:focus-visible {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-textPrimary), transparent 78%);
 }
 
-.seams-signup-menu-root {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root {
   box-sizing: border-box;
 }
 
-.seams-signup-menu-root *,
-.seams-signup-menu-root *::before,
-.seams-signup-menu-root *::after {
+:where(.seams-auth-menu-surface) .seams-signup-menu-root *,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root *::before,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root *::after {
   box-sizing: border-box;
 }
 
@@ -2148,3 +2135,27 @@ seams-auth-menu-surface {
    mode toggle, so an opacity 0 -> 1 fade re-fires on content that is largely
    unchanged and reads as a flash. The host dialog's own 150ms height
    transition carries the toggle; the rows simply swap. */
+
+:where(.seams-auth-menu-surface) [data-dot-index="0"] { --dot-index: 0; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="1"] { --dot-index: 1; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="2"] { --dot-index: 2; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="3"] { --dot-index: 3; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="4"] { --dot-index: 4; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="5"] { --dot-index: 5; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="6"] { --dot-index: 6; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="7"] { --dot-index: 7; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="8"] { --dot-index: 8; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="9"] { --dot-index: 9; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="10"] { --dot-index: 10; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="11"] { --dot-index: 11; }

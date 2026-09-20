@@ -104,11 +104,13 @@ test.describe('confirm-ui inline confirmer', () => {
         const events = await import(paths.events);
         const { awaitConfirmUIDecision, mountConfirmUI } =
           mod as typeof import('@/core/signingEngine/uiConfirm/ui/confirm-ui');
+        const { toWalletId } =
+          await import('/_test-sdk/esm/core/signingEngine/interfaces/ecdsaChainTarget.js');
         const ctx = {
           userPreferencesManager: {
-            getCurrentWalletId: () => 'alice.testnet',
+            getCurrentWalletId: () => toWalletId('alice.testnet'),
           },
-          surfaceMeasurementBinding: { kind: 'disabled' },
+          surfaceMeasurementBinding: { kind: 'disabled' as const },
         };
         const preparationHandle = await mountConfirmUI({
           ctx,

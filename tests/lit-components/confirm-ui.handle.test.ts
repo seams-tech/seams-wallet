@@ -137,7 +137,8 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
         await waitFor(() => !!document.querySelector('seams-tx-confirm-content'));
         await waitFor(() => !!document.querySelector('seams-tx-tree'));
 
-        const portalChild = document.getElementById('seams-confirm-portal')?.firstElementChild as any;
+        const portalChild = document.getElementById('seams-confirm-portal')
+          ?.firstElementChild as any;
         const modalElement = portalChild?.querySelector('seams-modal-tx-confirmer') as HTMLElement;
         const contentEl = document.querySelector('seams-tx-confirm-content') as any;
         const treeEl = document.querySelector('seams-tx-tree') as any;
@@ -360,26 +361,23 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
           managerModule as typeof import('@/core/signingEngine/uiConfirm/UiConfirmManager');
         const { WalletIframeDomEvents } =
           eventsModule as typeof import('@/core/browser/walletIframe/events');
-        const manager = createUiConfirmManager(
-          {},
-          {
-            userPreferencesManager: {
-              getConfirmationConfig: () => ({
-                behavior: 'requireClick',
-                uiMode: 'modal',
-              }),
-              getCurrentWalletId: () => 'alice.testnet',
-            },
-            touchIdPrompt: {
-              getRpId: () => 'example.test',
-            },
-            surfaceMeasurementBinding: { kind: 'disabled' },
-            getTheme: () => 'light',
-          } as any,
-        );
+        const manager = createUiConfirmManager({}, {
+          userPreferencesManager: {
+            getConfirmationConfig: () => ({
+              behavior: 'requireClick',
+              uiMode: 'modal',
+            }),
+            getCurrentWalletId: () => 'alice.testnet',
+          },
+          touchIdPrompt: {
+            getRpId: () => 'example.test',
+          },
+          surfaceMeasurementBinding: { kind: 'disabled' },
+          getTheme: () => 'light',
+        } as any);
 
         await manager.openTransactionPreparationModal({
-          chain: 'tempo',
+          chain: 'evm_family',
           walletLabel: 'alice.testnet',
           model: {
             chain: 'tempo',
@@ -510,7 +508,7 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
           operations: [
             {
               id: 'evm.eip1559',
-              kind: 'generic.contractCall',
+              kind: 'generic.contractCall' as const,
               label: `Transaction to contract ${contractAddress}`,
               to: contractAddress,
               value: '0',
@@ -821,11 +819,12 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
           .replace(/\s+/g, ' ')
           .trim();
 
-        const allLabelTexts = Array.from(document.querySelectorAll('seams-tx-tree .label-text')).map(
-          (el) =>
-            String(el.textContent || '')
-              .replace(/\s+/g, ' ')
-              .trim(),
+        const allLabelTexts = Array.from(
+          document.querySelectorAll('seams-tx-tree .label-text'),
+        ).map((el) =>
+          String(el.textContent || '')
+            .replace(/\s+/g, ' ')
+            .trim(),
         );
         const hasZeroWeiValueRow = allLabelTexts.some((txt) => txt.includes('Value (wei): 0'));
 
@@ -928,7 +927,9 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
             nearAccountIdOverride: 'alice.testnet',
           });
 
-          await waitFor(() => !!document.querySelector('seams-tx-tree .highlight-receiver-id[href]'));
+          await waitFor(
+            () => !!document.querySelector('seams-tx-tree .highlight-receiver-id[href]'),
+          );
           const href =
             (
               document.querySelector(
@@ -1073,7 +1074,9 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
           surface: { kind: 'mount_new' },
         });
 
-        await waitFor(() => document.getElementById('seams-confirm-portal')?.childElementCount === 1);
+        await waitFor(
+          () => document.getElementById('seams-confirm-portal')?.childElementCount === 1,
+        );
         const portal = document.getElementById('seams-confirm-portal') as HTMLElement;
         const firstElement = portal.firstElementChild as HTMLElement;
 
@@ -1146,7 +1149,7 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
           operations: [
             {
               id: 'evm.eip1559',
-              kind: 'generic.contractCall',
+              kind: 'generic.contractCall' as const,
               label: 'Contract call',
               to: `0x${'11'.repeat(20)}`,
               fields: [
@@ -1385,7 +1388,8 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
         };
         handle.close(false);
         await new Promise((resolve) => setTimeout(resolve, 300));
-        const gone = (document.getElementById('seams-confirm-portal')?.childElementCount || 0) === 0;
+        const gone =
+          (document.getElementById('seams-confirm-portal')?.childElementCount || 0) === 0;
         return { exists, stillThere, gone, afterUpdate };
       },
       { paths: IMPORT_PATHS },
@@ -1433,13 +1437,15 @@ test.describe('confirm-ui mountConfirmUI handle', () => {
         const el = document.getElementById('seams-confirm-portal')?.firstElementChild as any;
         (el as any)?.requestUpdate?.();
         await new Promise((resolve) => setTimeout(resolve, 20));
-        const portalChild = document.getElementById('seams-confirm-portal')?.firstElementChild as any;
+        const portalChild = document.getElementById('seams-confirm-portal')
+          ?.firstElementChild as any;
         const afterUpdate = {
           dataError: portalChild ? portalChild.getAttribute?.('data-error-message') : undefined,
         };
         handle.close(true);
         await new Promise((resolve) => setTimeout(resolve, 300));
-        const gone = (document.getElementById('seams-confirm-portal')?.childElementCount || 0) === 0;
+        const gone =
+          (document.getElementById('seams-confirm-portal')?.childElementCount || 0) === 0;
         return { exists, afterUpdate, gone };
       },
       { paths: IMPORT_PATHS },

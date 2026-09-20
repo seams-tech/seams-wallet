@@ -33,7 +33,7 @@ import {
 import {
   createWalletIframeSurfaceMeasurementReporter,
   type WalletIframeSurfaceMeasurementReporter,
-} from '@/SeamsWeb/walletIframe/host/lit-ui/surface-measurement-reporter';
+} from '@/SeamsWeb/walletIframe/host/surface-measurement-reporter';
 import { ensureExternalStyles } from './lit-components/css/css-loader';
 import {
   attachConfirmSurfaceResizeChoreographer,

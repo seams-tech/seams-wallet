@@ -1,0 +1,69 @@
+:where(.seams-wallet-ui) .confirmation-body {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--seams-colors-textSecondary);
+  max-width: 340px;
+  margin: 0.5rem;
+  white-space: pre-line;
+}
+:where(.seams-wallet-ui) .confirmation-body--funding {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.25rem;
+  color: var(--seams-colors-textPrimary);
+  font-weight: 500;
+  min-block-size: 1.55rem;
+  max-width: none;
+  margin: 0.5rem auto;
+  text-align: center;
+  white-space: nowrap;
+}
+:where(.seams-wallet-ui) .drawer-tx-confirmer-root .confirmation-body--funding {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.35rem clamp(0.75rem, 4vw, 1.25rem);
+  flex-wrap: wrap;
+  white-space: normal;
+}
+:where(.seams-wallet-ui) .confirmation-body--status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 1.55rem;
+  max-width: none;
+  margin: 0.5rem auto;
+  color: var(--seams-colors-textPrimary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+  white-space: normal;
+}
+:where(.seams-wallet-ui) .confirmation-body__copy-target {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: var(--seams-modal__funding-copy__background, rgba(151, 124, 184, 0.16));
+  color: var(
+    --seams-modal__funding-copy__color,
+    var(--seams-colors-accent, var(--seams-colors-primary, var(--seams-colors-textPrimary)))
+  );
+  cursor: copy;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 0.1rem;
+  padding: 0.1rem 0.35rem;
+  vertical-align: baseline;
+}
+:where(.seams-wallet-ui) .confirmation-body__copy-target:hover {
+  background: var(--seams-modal__funding-copy__background-hover, rgba(151, 124, 184, 0.24));
+}
+:where(.seams-wallet-ui) .confirmation-body__copy-target:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

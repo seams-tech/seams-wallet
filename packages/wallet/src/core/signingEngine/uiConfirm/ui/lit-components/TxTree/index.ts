@@ -9,10 +9,10 @@ import {
   dispatchTxReviewToggleNode,
 } from '../../lit-events';
 import { announceClampedSurfaceResize } from '../../confirm-surface-resize';
-import type { TreeNode } from './tx-tree-utils';
+import type { TreeNode } from '../../transaction-display/tree';
 import type { TxTreeStyles } from './tx-tree-themes';
 import { TX_TREE_THEMES } from './tx-tree-themes';
-import { formatGas, formatDeposit, formatCodeSize, shortenPubkey } from '../common/formatters';
+import { formatGas, formatDeposit, formatCodeSize, shortenPubkey } from '../../transaction-display/formatters';
 import { isNumber, isString } from '@shared/utils/validation';
 import { ensureExternalStyles } from '../css/css-loader';
 import type { AppearanceConfig } from '@/core/types/seams';

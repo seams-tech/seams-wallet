@@ -23,7 +23,7 @@
 import { LitElement } from 'lit';
 import { isObject } from '@shared/utils/validation';
 import type { AppearanceConfig } from '@/core/types/seams';
-import { appearanceTokenCssVars } from './appearance-token-vars';
+import { appearanceTokenCssVars } from '../appearance-token-vars';
 
 export type CSSProperties = Record<string, string | Record<string, string> | undefined>;
 

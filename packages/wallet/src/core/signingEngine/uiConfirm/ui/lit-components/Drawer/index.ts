@@ -3,17 +3,13 @@ import { LitElementWithProps } from '../LitElementWithProps';
 import { dispatchLitCancel } from '../../lit-events';
 import { ensureExternalStyles } from '../css/css-loader';
 import type { AppearanceConfig } from '@/core/types/seams';
+import { drawerDragTranslate, shouldDismissDrawerDrag } from '../../drawer-gesture';
 
 export type DrawerTheme = 'dark' | 'light';
 
 // Consolidated constants (single source of truth)
 const SHEET_HEIGHT_VH = 100; // Tall sheet to allow reveal/overpull
 const DEFAULT_VISIBLE_VH = 50; // Fallback visible height when not provided
-const FLICK_UP_CLOSE_THRESHOLD = -0.6; // px/ms (~600 px/s upward)
-const FLICK_DOWN_CLOSE_THRESHOLD = 0.7; // px/ms (~700 px/s downward)
-const NEAR_CLOSED_PX = 50; // Close when within 50px of bottom
-const OVERPULL_SHEET_FACTOR = 0.5; // Allow at least 50% of sheet height
-const OVERPULL_VIEWPORT_FACTOR = 0.5; // Or 50% of viewport height
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
@@ -758,28 +754,14 @@ export class DrawerElement extends LitElementWithProps {
     this.currentY = y;
     this.dragDistance = y - this.startY; // negative = upward, positive = downward
 
-    // Elastic overdrag only when crossing above the fully-open rest position
-    // Allow at least 50% of sheet or viewport height, or the configured minimum
-    const viewportHalf =
-      typeof window !== 'undefined' && window.innerHeight
-        ? window.innerHeight * OVERPULL_VIEWPORT_FACTOR
-        : 0;
-    const maxOverdragUpPx = Math.max(
-      this.drawerHeight * OVERPULL_SHEET_FACTOR,
-      viewportHalf,
-      this.overpullPx,
-    );
-
-    const rawTargetTranslateY = this.startTranslateYPx + this.dragDistance;
-    let targetTranslateY = rawTargetTranslateY;
-
-    // openRestTranslateYPx is the minimal (most open) resting translateY.
-    // If the user drags above this (smaller translateY), apply elastic.
-    if (rawTargetTranslateY < this.openRestTranslateYPx) {
-      const overdragUp = this.openRestTranslateYPx - rawTargetTranslateY; // positive px
-      const elasticUp = maxOverdragUpPx * (1 - 1 / (overdragUp / maxOverdragUpPx + 1));
-      targetTranslateY = this.openRestTranslateYPx - elasticUp;
-    }
+    const targetTranslateY = drawerDragTranslate({
+      startTranslatePx: this.startTranslateYPx,
+      deltaPx: this.dragDistance,
+      restTranslatePx: this.openRestTranslateYPx,
+      sheetHeightPx: this.drawerHeight,
+      viewportHeightPx: typeof window === 'undefined' ? 0 : window.innerHeight,
+      minimumOverpullPx: this.overpullPx,
+    });
     // Disable transitions via class; drive transform via CSS variable for CSP compliance
     this.setCssVars({ '--seams-drawer__drag-translate': `${targetTranslateY}px` });
 
@@ -799,37 +781,20 @@ export class DrawerElement extends LitElementWithProps {
       ? this.openRestTranslateYPx
       : drawerHeight * 0.2;
 
-    // Compute effective velocities (instantaneous and average over gesture)
-    const now = Date.now();
-    const gestureMs = Math.max(1, now - this.dragStartTime);
-    const totalDeltaPx = this.currentY - this.startY; // positive = down, negative = up
-    const avgVelocity = totalDeltaPx / gestureMs; // px/ms
-    const effectiveDownV = Math.max(this.velocity, avgVelocity);
-    const effectiveUpV = Math.min(this.velocity, avgVelocity);
-
-    // Velocity-based flick-to-close (upward flick)
-    // negative means upward movement
-    if (effectiveUpV <= FLICK_UP_CLOSE_THRESHOLD) {
-      this.closeDrawer();
-      this.resetDragState();
-      return;
-    }
-
-    // Velocity-based flick-to-close (downward flick)
-    if (effectiveDownV >= FLICK_DOWN_CLOSE_THRESHOLD) {
-      this.closeDrawer();
-      this.resetDragState();
-      return;
-    }
-
-    // Evaluate current position for near-closed detection
     const currentTransformTy = this.parseTranslateY(getComputedStyle(this.drawerElement).transform);
     const currentTranslatePx = Number.isFinite(currentTransformTy)
       ? currentTransformTy
       : openRestPx;
 
-    // If near fully closed (bottom within threshold), close
-    if (currentTranslatePx >= drawerHeight - NEAR_CLOSED_PX) {
+    if (
+      shouldDismissDrawerDrag({
+        velocityPxPerMs: this.velocity,
+        totalDeltaPx: this.currentY - this.startY,
+        durationMs: Date.now() - this.dragStartTime,
+        translatePx: currentTranslatePx,
+        sheetHeightPx: drawerHeight,
+      })
+    ) {
       this.closeDrawer();
       this.resetDragState();
       return;

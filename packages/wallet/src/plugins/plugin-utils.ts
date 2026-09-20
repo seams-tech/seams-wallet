@@ -50,6 +50,7 @@ export function buildWalletServiceHtml(
     assetVersion,
   );
   const componentsCss = withAssetVersion(`${sdkBasePath}/seams-components.css`, assetVersion);
+  const authMenuCss = withAssetVersion(`${sdkBasePath}/auth-menu.css`, assetVersion);
   const txConfirmerCss = withAssetVersion(`${sdkBasePath}/tx-confirmer.css`, assetVersion);
   const recoveryCodeBackupCss = withAssetVersion(
     `${sdkBasePath}/recovery-code-backup.css`,
@@ -79,6 +80,7 @@ export function buildWalletServiceHtml(
     <link rel="prefetch" as="style" href="${passkeyHaloLoadingCss}" />
     <!-- Component theme CSS: shared tokens + component-scoped tokens -->
     <link rel="stylesheet" href="${componentsCss}" data-seams-components-css />
+    <link rel="stylesheet" href="${authMenuCss}" data-seams-auth-menu-css />
     <link rel="stylesheet" href="${drawerCss}" />
     <link rel="stylesheet" href="${txTreeCss}" />
     <link rel="stylesheet" href="${txConfirmerCss}" />

@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { HostedAuthMenuOpenRequest } from '@/SeamsWeb/walletIframe/shared/messages';
 import { setupBasicPasskeyTest } from '../setup';
-import { injectImportMap } from '../setup/bootstrap';
 import { buildWalletServiceHtml, registerWalletServiceRoute } from './harness';
 
 const WALLET_ORIGIN = 'https://wallet.example.localhost';
@@ -93,7 +92,7 @@ type TestWindow = Window & {
     init: () => Promise<void>;
     dispose: () => void;
     getOverlayState: () => { visible: boolean };
-    getExactSessionState: () => Promise<unknown>;
+    getMirroredExactSessionState: () => unknown;
     openHostedAuthMenu: (
       request: HostedAuthMenuOpenRequest,
       anchorElement?: HTMLElement,
@@ -165,6 +164,7 @@ async function startHostedAuthMenu(
       } else {
         await router.init();
       }
+      if (!router) throw new Error('Wallet router was not initialized');
 
       const messages = await import('/_test-sdk/esm/SeamsWeb/walletIframe/shared/messages.js');
       const request = messages.buildHostedAuthMenuOpenRequest({
@@ -319,8 +319,6 @@ test.describe('wallet iframe compact surface measurement routing', () => {
       skipSeamsWebInit: true,
       injectWalletServiceImportMap: true,
     });
-    await page.goto('about:blank');
-    await injectImportMap(page);
     await registerWalletServiceRoute(
       page,
       buildWalletServiceHtml({ extraScript: SURFACE_MEASUREMENT_HARNESS_SCRIPT }),
@@ -337,7 +335,7 @@ test.describe('wallet iframe compact surface measurement routing', () => {
     await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
   });
 
-  test('keeps an unmeasured surface hidden through its initial paints', async ({ page }) => {
+  test('keeps a provisional auth menu rendering so its child can measure', async ({ page }) => {
     await startHostedAuthMenu(page, 'compact-initial-paint-session');
 
     const initialPaint = await page.evaluate(() => {
@@ -348,7 +346,7 @@ test.describe('wallet iframe compact surface measurement routing', () => {
         visibility: getComputedStyle(dialog).visibility,
       };
     });
-    expect(initialPaint).toEqual({ provisional: true, visibility: 'hidden' });
+    expect(initialPaint).toEqual({ provisional: true, visibility: 'visible' });
 
     await page.waitForTimeout(150);
     const settledPaint = await page.evaluate(() => {
@@ -359,7 +357,7 @@ test.describe('wallet iframe compact surface measurement routing', () => {
         visibility: getComputedStyle(dialog).visibility,
       };
     });
-    expect(settledPaint).toEqual({ provisional: true, visibility: 'hidden' });
+    expect(settledPaint).toEqual({ provisional: true, visibility: 'visible' });
   });
 
   test('ignores malformed, stale, and mismatched measurements before accepting a newer size', async ({
@@ -581,10 +579,13 @@ test.describe('wallet iframe compact surface measurement routing', () => {
       return testWindow.__compactExactSessionReadCount ?? 0;
     });
 
-    await page.evaluate(async () => {
+    const state = await page.evaluate(() => {
       const testWindow = window as TestWindow;
-      await testWindow.__compactSurfaceRouter?.getExactSessionState();
+      const router = testWindow.__compactSurfaceRouter;
+      if (!router) throw new Error('Wallet router missing');
+      return router.getMirroredExactSessionState();
     });
+    expect(state).toEqual({ kind: 'wallet_locked' });
 
     const after = await page.evaluate(() => {
       const testWindow = window as TestWindow;

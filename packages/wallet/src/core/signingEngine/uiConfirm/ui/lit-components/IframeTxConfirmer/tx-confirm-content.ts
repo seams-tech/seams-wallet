@@ -6,7 +6,7 @@ import type { TransactionInputWasm } from '@/core/types';
 import { fromTransactionInputsWasm } from '@/core/types/actions';
 import type { UserConfirmSecurityContext } from '@/core/types';
 import TxTree from '../TxTree';
-import { buildDisplayTreeFromModel, buildDisplayTreeFromTxPayloads } from '../TxTree/tx-tree-utils';
+import { buildDisplayTreeFromModel, buildDisplayTreeFromTxPayloads } from '../../transaction-display/tree';
 import { ensureExternalStyles } from '../css/css-loader';
 import {
   createSurfaceHeightReflow,
@@ -262,7 +262,7 @@ export class TxConfirmContentElement extends LitElementWithProps {
 
   private async _enrichTreeWithAbi(args: { model: TxDisplayModel; buildVersion: number }) {
     try {
-      const module = await import('../TxTree/abi/enrichDisplayModelWithAbi');
+      const module = await import('../../transaction-display/abi/enrichDisplayModelWithAbi');
       if (args.buildVersion !== this._treeBuildVersion) return;
       const enrichedModel = module.enrichDisplayModelWithAbi(args.model);
       if (args.buildVersion !== this._treeBuildVersion) return;

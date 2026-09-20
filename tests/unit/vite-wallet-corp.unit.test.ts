@@ -108,6 +108,9 @@ test.describe('plugins/vite hosted wallet helper headers', () => {
       '<link rel="stylesheet" href="/sdk/seams-components.css?v=test-version" data-seams-components-css />',
     );
     expect(html).toContain(
+      '<link rel="stylesheet" href="/sdk/auth-menu.css?v=test-version" data-seams-auth-menu-css />',
+    );
+    expect(html).toContain(
       '<link rel="stylesheet" href="/sdk/recovery-code-backup.css?v=test-version" data-seams-recovery-code-backup-css />',
     );
     expect(html).toContain(

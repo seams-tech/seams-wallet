@@ -1,5 +1,5 @@
 import type { AppearanceConfig } from '@/core/types/seams';
-import type { HostedAuthMenuExternalProvider } from '../../../shared/messages';
+import type { HostedAuthMenuExternalProvider } from '../../shared/messages';
 import type {
   GoogleEmailOtpWalletAuthDelivery,
   GoogleEmailOtpWalletAuthLoginTarget,
@@ -10,14 +10,6 @@ import type { LinkedDeviceTargetFactorV1 } from '@shared/device-linking';
 import type { WalletRecoveryTargetV1 } from '@shared/wallet-recovery/walletRecoveryTarget';
 import type { EmailOtpChallengeDelivery } from '@/core/signingEngine/session/emailOtp/publicTypes';
 import type { WalletAuthMethod } from '@shared/utils/signerDomain';
-
-function isAuthMenuRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isAuthMenuWalletAuthMethod(value: unknown): value is WalletAuthMethod {
-  return value === 'passkey' || value === 'email_otp';
-}
 
 /**
  * The view model is normalized by the wallet-host controller before it reaches
@@ -448,78 +440,6 @@ export type AuthMenuIntent =
       readonly kind: 'retry';
     };
 
-export const AUTH_MENU_INTENT_EVENT = 'seams-auth-menu-intent' as const;
-
-export type AuthMenuIntentEvent = CustomEvent<AuthMenuIntent>;
-
-export function isAuthMenuIntent(value: unknown): value is AuthMenuIntent {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const record = value as Record<string, unknown>;
-  switch (record.kind) {
-    case 'close':
-      return record.reason === 'close_button' || record.reason === 'escape';
-    case 'mode_selected':
-      return record.mode === 'login' || record.mode === 'register';
-    case 'back':
-    case 'link_device_open':
-    case 'recovery_open':
-    case 'recovery_passkey_selected':
-    case 'recovery_google_selected':
-    case 'recovery_google_otp_submit':
-    case 'recovery_create_passkey':
-    case 'recovery_sign_in':
-    case 'link_device_create_passkey':
-    case 'link_device_start':
-    case 'link_device_email_otp_resend':
-    case 'link_device_email_otp_submit':
-    case 'registration_reroll':
-      return true;
-    case 'recovery_code_changed':
-      return typeof record.recoveryCode === 'string';
-    case 'recovery_google_otp_code_changed':
-      return typeof record.code === 'string';
-    case 'link_device_factor_selected':
-      return (
-        isAuthMenuRecord(record.targetFactor) &&
-        (record.targetFactor.kind === 'passkey_prf' || record.targetFactor.kind === 'email_otp')
-      );
-    case 'link_device_target_email_changed':
-      return typeof record.emailAddress === 'string';
-    case 'link_device_email_otp_code_changed':
-      return typeof record.code === 'string';
-    case 'submit':
-      return (
-        record.mode === 'login' ||
-        (record.mode === 'register' && typeof record.passkeyName === 'string')
-      );
-    case 'passkey_name_changed':
-      return typeof record.passkeyName === 'string';
-    case 'login_account_selected':
-      return typeof record.walletId === 'string' && isAuthMenuWalletAuthMethod(record.authMethod);
-    case 'external_auth':
-      return record.provider === 'google';
-    case 'google_otp_code_changed':
-      return typeof record.code === 'string';
-    case 'google_otp_resend':
-    case 'google_otp_submit':
-    case 'google_registration_reroll':
-    case 'google_registration_complete':
-    case 'retry':
-      return true;
-    default:
-      return false;
-  }
-}
-
-export function dispatchAuthMenuIntent(target: EventTarget, detail: AuthMenuIntent): boolean {
-  return target.dispatchEvent(
-    new CustomEvent<AuthMenuIntent>(AUTH_MENU_INTENT_EVENT, {
-      bubbles: true,
-      composed: true,
-      detail,
-    }),
-  );
-}
 
 export function isAuthMenuLoadingStatus(status: AuthMenuSurfaceStatus): boolean {
   return status.kind === 'busy';

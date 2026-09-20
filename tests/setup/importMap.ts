@@ -1,4 +1,7 @@
 export const TEST_BROWSER_IMPORTS = {
+  preact: '/_test-preact/preact.module.js',
+  'preact/hooks': '/_test-preact/hooks.module.js',
+  'preact/jsx-runtime': '/_test-preact/jsxRuntime.module.js',
   react: 'https://esm.sh/react@19.1.1',
   'react/jsx-runtime': 'https://esm.sh/react@19.1.1/jsx-runtime',
   'react/jsx-dev-runtime': 'https://esm.sh/react@19.1.1/jsx-dev-runtime',

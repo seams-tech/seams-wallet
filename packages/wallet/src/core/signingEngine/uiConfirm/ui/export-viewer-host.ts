@@ -10,7 +10,7 @@ import type { UiConfirmSurfaceMeasurementBinding } from '../uiConfirm.types';
 import {
   createWalletIframeSurfaceMeasurementReporter,
   type WalletIframeSurfaceMeasurementReporter,
-} from '@/SeamsWeb/walletIframe/host/lit-ui/surface-measurement-reporter';
+} from '@/SeamsWeb/walletIframe/host/surface-measurement-reporter';
 
 export type UpsertExportViewerHostArgs = {
   theme: 'dark' | 'light';
