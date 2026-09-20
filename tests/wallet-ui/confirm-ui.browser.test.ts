@@ -130,4 +130,85 @@ test.describe('Preact production confirmation mount', () => {
 
     expect(result).toEqual({ confirmed: false, error: null });
   });
+
+  test('lazily enriches ABI hints without replacing the mounted surface', async ({ page }) => {
+    const result = await page.evaluate(
+      async ({ confirmUiPath }) => {
+        const { mountConfirmUI } = await import(confirmUiPath);
+        const ctx = {
+          userPreferencesManager: { getCurrentWalletId: () => 'alice.testnet' },
+          surfaceMeasurementBinding: { kind: 'disabled' as const },
+        };
+        const model = {
+          chain: 'evm' as const,
+          intentDigest: '0x22',
+          operations: [
+            {
+              id: 'evm.call',
+              kind: 'generic.contractCall' as const,
+              label: 'Transaction to contract',
+              children: [
+                {
+                  id: 'evm.call.set-greeting',
+                  kind: 'generic.contractCall' as const,
+                  label: 'Calling contract function using 200k gas',
+                  fields: [
+                    {
+                      label: 'Data',
+                      value:
+                        'data: 0xa41368620000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d68656c6c6f2c20776f726c642100000000000000000000000000000000000000',
+                    },
+                  ],
+                  abiDecodeHint: {
+                    dataHex:
+                      '0xa41368620000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d68656c6c6f2c20776f726c642100000000000000000000000000000000000000',
+                    abi: [
+                      {
+                        type: 'function',
+                        name: 'setGreeting',
+                        inputs: [{ name: 'greeting', type: 'string' }],
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          ],
+        };
+        const handle = await mountConfirmUI({
+          ctx,
+          summary: { title: 'Lazy ABI Decode' },
+          model,
+          securityContext: { blockHeight: '1' },
+          loading: false,
+          theme: 'dark',
+          uiMode: 'modal',
+          nearAccountIdOverride: 'alice.testnet',
+        });
+        const surface = handle.element;
+        const initialSurface = surface;
+        const startedAt = performance.now();
+        while (!surface.textContent?.includes('setGreeting()')) {
+          if (performance.now() - startedAt > 5_000) {
+            throw new Error('Timed out waiting for lazy ABI enrichment');
+          }
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+        }
+        const text = surface.textContent ?? '';
+        handle.close(true);
+        return {
+          sameSurface: initialSurface === surface,
+          callLabel: text.includes('Calling setGreeting() using 200k gas'),
+          decodedArgument: text.includes('"greeting": "hello, world!"'),
+        };
+      },
+      { confirmUiPath: IMPORT_PATHS.confirmUi },
+    );
+
+    expect(result).toEqual({
+      sameSurface: true,
+      callLabel: true,
+      decodedArgument: true,
+    });
+  });
 });

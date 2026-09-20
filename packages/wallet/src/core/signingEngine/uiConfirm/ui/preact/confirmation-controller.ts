@@ -11,6 +11,7 @@ import {
   type ConfirmationSurfaceHandle,
 } from './mountConfirmationSurface';
 import type { TreeNode } from '../transaction-display/tree';
+import { buildConfirmationTree } from '../transaction-display/confirmation-tree';
 
 export type ConfirmationSurfaceController = {
   readonly element: HTMLElement;
@@ -61,6 +62,9 @@ class MountedConfirmationController implements ConfirmationSurfaceController {
   update(update: ConfirmUIUpdate): void {
     this.presentation = mergeConfirmationPresentation(this.presentation, update);
     if (update.appearance) this.appearance = update.appearance;
+    if (hasOwn(update, 'model')) {
+      this.tree = buildConfirmationTree({ model: update.model });
+    }
     this.currentModel = this.normalize();
     this.surface.update(this.currentModel);
   }

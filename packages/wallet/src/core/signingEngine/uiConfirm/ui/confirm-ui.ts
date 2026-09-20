@@ -14,7 +14,10 @@ import { computeUiIntentDigestFromTxs, orderActionForDigest } from '@/utils/inte
 import type { UiConfirmContext, UiConfirmSurfaceMeasurementBinding } from '../uiConfirm.types';
 import type { TransactionSummary } from '@/core/signingEngine/stepUpConfirmation/channel/confirmTypes';
 import type { EmailOtpConfirmPrompt, SigningAuthMode } from '../../stepUpConfirmation/types';
-import { buildConfirmationTree } from './transaction-display/confirmation-tree';
+import {
+  buildConfirmationTree,
+  modelHasAbiDecodeHints,
+} from './transaction-display/confirmation-tree';
 import {
   createConfirmationSurfaceController,
   type ConfirmationSurfaceController,
@@ -78,6 +81,7 @@ const confirmSurfaceMeasurementBindings = new WeakMap<
 >();
 const confirmationHosts = new WeakMap<HTMLElement, ConfirmationHost>();
 const confirmationChannels = new WeakMap<HTMLElement, ConfirmationDecisionChannel>();
+const confirmationTreeBuildVersions = new WeakMap<HTMLElement, number>();
 
 export type ConfirmUIRenderContext = {
   userPreferencesManager: Pick<UiConfirmContext['userPreferencesManager'], 'getCurrentWalletId'>;
@@ -193,6 +197,7 @@ function cleanupExistingConfirmers(): void {
   for (const element of mountedConfirmerHosts()) {
     confirmationChannels.get(element)?.callbacks.cancel();
     confirmationHosts.get(element)?.dispose();
+    confirmationTreeBuildVersions.delete(element);
     disconnectConfirmSurfaceMeasurementReporter(element);
     element.remove();
   }
@@ -214,6 +219,7 @@ function ensureConfirmPortal(): HTMLElement {
 
 function removeHostConfirmerElement(element: HTMLElement): void {
   confirmationHosts.delete(element);
+  confirmationTreeBuildVersions.delete(element);
   disconnectConfirmSurfaceMeasurementReporter(element);
   element.remove();
   const portal = document.getElementById(SEAMS_CONFIRM_PORTAL_ID) as HTMLElement | null;
@@ -277,6 +283,40 @@ function applyHostElementProps(
 ): void {
   if (!props) return;
   host.update(props);
+  if (hasOwn(props, 'model')) {
+    scheduleConfirmationAbiEnrichment(host.element, host, props.model);
+  }
+}
+
+function scheduleConfirmationAbiEnrichment(
+  element: HTMLElement,
+  host: ConfirmationHost,
+  model: TxDisplayModel | undefined,
+): void {
+  const buildVersion = (confirmationTreeBuildVersions.get(element) ?? 0) + 1;
+  confirmationTreeBuildVersions.set(element, buildVersion);
+  if (!model || !modelHasAbiDecodeHints(model)) return;
+
+  void import('./transaction-display/abi/enrichDisplayModelWithAbi')
+    .then((module) => {
+      if (
+        confirmationTreeBuildVersions.get(element) !== buildVersion ||
+        !element.isConnected ||
+        confirmationHosts.get(element) !== host
+      ) {
+        return;
+      }
+      const enrichedModel = module.enrichDisplayModelWithAbi(model);
+      if (confirmationTreeBuildVersions.get(element) !== buildVersion) return;
+      host.setTree(buildConfirmationTree({ model: enrichedModel }));
+    })
+    .catch((error) => {
+      console.warn('[ConfirmUI] failed to lazy-load ABI display enrichment', error);
+    });
+}
+
+function hasOwn<T extends object>(value: T, key: PropertyKey): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key);
 }
 
 function sameConfirmSurfaceMeasurementBinding(
@@ -560,6 +600,7 @@ function reuseMountedDecisionSurface(
   host.setTree(
     buildConfirmationTree({ txSigningRequests: args.txSigningRequests, model: args.model }),
   );
+  scheduleConfirmationAbiEnrichment(el, host, args.model);
   return { el, handle, reused: true };
 }
 
@@ -854,6 +895,7 @@ function mountHostElement({
     resolvedVariant,
     ctx.surfaceMeasurementBinding,
   );
+  scheduleConfirmationAbiEnrichment(host.element, host, model);
 
   portal.classList.remove('seams-portal--visible');
   requestAnimationFrame(() => {
