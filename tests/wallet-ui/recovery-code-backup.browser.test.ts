@@ -8,7 +8,10 @@ type RecoveryTestState = {
   startDirect(): void;
   startAccount(mode: 'ready' | 'failed'): void;
   startAccountPending(): void;
+  startAccountOpeningPending(): void;
   cancelPending(): void;
+  resolveOpening(): void;
+  releaseOpening: () => void;
   result: Promise<unknown> | null;
   copied: string[];
   pendingCancelled: boolean;
@@ -54,6 +57,7 @@ async function prepare(page: Page): Promise<void> {
       result: null,
       copied: [],
       pendingCancelled: false,
+      releaseOpening: () => {},
       startDirect() {
         state.result = import(modulePath).then(({ showWalletRecoveryCodeBackupUi }) =>
           showWalletRecoveryCodeBackupUi({
@@ -116,8 +120,40 @@ async function prepare(page: Page): Promise<void> {
           ),
         );
       },
+      startAccountOpeningPending() {
+        state.releaseOpening = () => {};
+        state.result = import(modulePath).then(({ showWalletRecoveryCodesUi }) =>
+          showWalletRecoveryCodesUi({
+            walletId: 'recovery.testnet',
+            loadStatus: async () => ({
+              kind: 'ready',
+              walletId: 'recovery.testnet',
+              activeCodeCount: codes.length,
+              totalCodeCount: codes.length,
+              issuedAtMs: 0,
+              storeVersion: 'synthetic-v1',
+              backupOutstanding: true,
+              pendingLocalBackup: true,
+            }),
+            loadPendingBackup: () =>
+              new Promise((resolve) => {
+                state.releaseOpening = () => {
+                  resolve({
+                    kind: 'wallet_recovery_code_backup_request_v1',
+                    walletId: 'recovery.testnet',
+                    recoveryCodes: codes,
+                    continuation: 'pending_backup_must_finish',
+                  });
+                };
+              }),
+          }),
+        );
+      },
       cancelPending() {
         state.pendingCancelled = true;
+      },
+      resolveOpening() {
+        state.releaseOpening();
       },
     };
     Object.defineProperty(navigator, 'clipboard', {
@@ -224,5 +260,19 @@ test('cancellation while the lazy Preact module is pending does not mount a stal
 
   await expect.poll(() => result(page)).toEqual('Recovery-code backup was cancelled before acknowledgement');
   await expect(page.locator('[data-seams-wallet-recovery-backup-dialog]')).toHaveCount(0);
+  await expect(page.locator('.seams-recovery-code-backup-viewer')).toHaveCount(0);
+});
+
+test('closing while recovery codes are opening ignores the late result', async ({ page }) => {
+  await page.evaluate(() => window.__recoveryTest.startAccountOpeningPending());
+  await expect(page.getByRole('button', { name: 'View recovery codes' })).toBeVisible();
+  await page.getByRole('button', { name: 'View recovery codes' }).click();
+  await expect(page.getByRole('button', { name: 'Opening recovery codes' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Close recovery codes' }).click();
+  await expect.poll(() => result(page)).toEqual('Recovery-code backup was cancelled before acknowledgement');
+
+  await page.evaluate(() => window.__recoveryTest.resolveOpening());
+  await expect(page.locator('[data-seams-wallet-recovery-backup-dialog]')).toHaveCount(0);
+  await expect(page.locator('.recovery-code-item')).toHaveCount(0);
   await expect(page.locator('.seams-recovery-code-backup-viewer')).toHaveCount(0);
 });

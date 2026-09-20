@@ -206,6 +206,7 @@ export class RecoveryCodeBackupSurface extends Component<
   private active = false;
   private loadGeneration = 0;
   private copiedResetTimer: number | null = null;
+  private focusFrame: number | null = null;
 
   componentDidMount(): void {
     this.active = true;
@@ -217,6 +218,7 @@ export class RecoveryCodeBackupSurface extends Component<
   componentWillReceiveProps(nextProps: RecoveryCodeBackupSurfaceProps): void {
     if (nextProps.experience === this.props.experience) return;
     this.loadGeneration += 1;
+    this.clearFocusFrame();
     this.clearCopiedFlash();
     this.setState(initialState(nextProps.experience));
     this.beginAccountStatus(nextProps.experience, this.loadGeneration);
@@ -240,6 +242,7 @@ export class RecoveryCodeBackupSurface extends Component<
   componentWillUnmount(): void {
     this.active = false;
     this.loadGeneration += 1;
+    this.clearFocusFrame();
     this.clearCopiedFlash();
   }
 
@@ -408,10 +411,18 @@ export class RecoveryCodeBackupSurface extends Component<
     this.copiedResetTimer = null;
   }
 
+  private clearFocusFrame(): void {
+    const view = this.root.current?.ownerDocument.defaultView;
+    if (view && this.focusFrame !== null) view.cancelAnimationFrame(this.focusFrame);
+    this.focusFrame = null;
+  }
+
   private focusTitleAfterRender(): void {
     const view = this.root.current?.ownerDocument.defaultView;
     if (!view) return;
-    view.requestAnimationFrame(() => {
+    this.clearFocusFrame();
+    this.focusFrame = view.requestAnimationFrame(() => {
+      this.focusFrame = null;
       if (this.active) this.root.current?.querySelector<HTMLElement>('.recovery-backup-title')?.focus();
     });
   }
