@@ -116,9 +116,9 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 
 ## Hosted Auth Menu Entry Point
 
-When hosted wallet-iframe mode is configured, mounting `SeamsAuthMenu` opens one
+When hosted wallet-iframe mode is configured, mounting `HostedSeamsAuthMenu` opens one
 `modal_auth_menu` surface in the wallet-origin iframe. The app document contains
-only an inert lifecycle marker; auth inputs, progress, OTP prompts, and the final
+an inert loading shell until the hosted surface appears; auth inputs, progress, OTP prompts, and the final
 CTA belong to the wallet origin.
 
 - Login and registration prepare their asynchronous prerequisites before enabling

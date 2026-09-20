@@ -24,7 +24,7 @@ import {
   normalizeLinkedDeviceTargetEmailAddressV1,
 } from '../../core/types/linkDevice';
 import { toAccountId } from '../../core/types/accountIds';
-import { FingerprintIcon } from './SeamsAuthMenu/ui/icons';
+import { FingerprintIcon } from './FingerprintIcon';
 import './ShowQRCode.css';
 
 export interface ShowQRCodeProps {

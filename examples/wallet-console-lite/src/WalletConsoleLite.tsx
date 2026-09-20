@@ -7,7 +7,10 @@ import {
   useWalletAuth,
   type LoginState,
 } from '@seams/wallet/react';
-import { SeamsAuthMenu } from '@seams/wallet/react/seams-auth-menu';
+import {
+  HostedSeamsAuthMenu,
+  type HostedAuthMenuOutcome,
+} from '@seams/wallet/react/hosted-seams-auth-menu';
 import {
   provisionLocalWorkspace,
   type LocalWorkspaceState,
@@ -32,9 +35,7 @@ export function WalletConsoleLite() {
     const projectName = String(form.get('projectName') || '');
     setWorkspace({ kind: 'provisioning' });
     const result = await provisionLocalWorkspace({ organizationName, projectName });
-    setWorkspace(
-      result.ok ? result.workspace : { kind: 'failed', message: result.message },
-    );
+    setWorkspace(result.ok ? result.workspace : { kind: 'failed', message: result.message });
   }, []);
 
   if (workspace.kind !== 'ready') {
@@ -54,8 +55,8 @@ function SetupScreen(props: {
         <p className="eyebrow">Seams Wallet · local SDK playground</p>
         <h1>Set up a local Wallet project</h1>
         <p>
-          Create one local organisation, project, and development environment. Runtime secrets
-          stay in the local controller process.
+          Create one local organisation, project, and development environment. Runtime secrets stay
+          in the local controller process.
         </p>
       </header>
       <form className="panel setup-form" onSubmit={props.onSubmit}>
@@ -114,10 +115,7 @@ function createWalletConfig(workspace: ReadyLocalWorkspace) {
     projectEnvironmentId: walletConfig.projectEnvironmentId,
     publishableKey: walletConfig.publishableKey,
     iframeWallet: { rpIdOverride: new URL(walletConfig.walletOrigin).hostname },
-    chains: [
-      { network: 'near-testnet' },
-      { network: 'tempo-testnet', chainId: 42_431 },
-    ],
+    chains: [{ network: 'near-testnet' }, { network: 'tempo-testnet', chainId: 42_431 }],
     signingSessionPersistenceMode: 'sealed_refresh_v1',
     routerAb: {
       normalSigning: {
@@ -133,6 +131,30 @@ function createWalletConfig(workspace: ReadyLocalWorkspace) {
       refillAttemptTimeoutMs: 30_000,
     },
   });
+}
+
+function handleAuthOutcome(
+  refreshLoginState: (walletId?: string) => Promise<void>,
+  outcome: HostedAuthMenuOutcome,
+): void {
+  switch (outcome.kind) {
+    case 'authenticated':
+    case 'registered':
+    case 'account_synced':
+      void refreshLoginState(outcome.walletId);
+      return;
+    case 'failed':
+      console.error(outcome.message);
+      return;
+    case 'cancelled':
+      return;
+    default:
+      return assertNever(outcome);
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected auth outcome: ${JSON.stringify(value)}`);
 }
 
 function WalletPlayground({ workspace }: { workspace: ReadyLocalWorkspace }) {
@@ -220,7 +242,10 @@ function WalletPlayground({ workspace }: { workspace: ReadyLocalWorkspace }) {
                 <p className="eyebrow">Authentication</p>
                 <h2>Register or unlock a Wallet</h2>
               </div>
-              <SeamsAuthMenu showSDKEvents />
+              <HostedSeamsAuthMenu
+                showProgress
+                onOutcome={handleAuthOutcome.bind(null, refreshLoginState)}
+              />
             </section>
           ) : (
             <SignedInPanel
@@ -236,7 +261,10 @@ function WalletPlayground({ workspace }: { workspace: ReadyLocalWorkspace }) {
           <details className="panel configuration">
             <summary>Public local configuration</summary>
             <dl>
-              <IdentityRow label="Project environment" value={workspace.walletConfig.projectEnvironmentId} />
+              <IdentityRow
+                label="Project environment"
+                value={workspace.walletConfig.projectEnvironmentId}
+              />
               <IdentityRow label="Publishable key" value={workspace.walletConfig.publishableKey} />
               <IdentityRow label="Gateway" value={workspace.walletConfig.gatewayUrl} />
               <IdentityRow label="Wallet origin" value={workspace.walletConfig.walletOrigin} />
@@ -271,14 +299,19 @@ function SignedInPanel(props: {
       <dl className="identity-list">
         <IdentityRow label="Wallet ID" value={props.loginState.walletId} />
         <IdentityRow label="Authentication" value={authMethod} />
-        <IdentityRow label="NEAR account" value={props.loginState.nearAccountId || 'Provisioning'} />
+        <IdentityRow
+          label="NEAR account"
+          value={props.loginState.nearAccountId || 'Provisioning'}
+        />
         <IdentityRow
           label="EVM address"
           value={props.loginState.thresholdEcdsaEthereumAddress || 'Provisioning'}
         />
       </dl>
       <div className="actions">
-        <button type="button" onClick={props.onRefresh}>Refresh session</button>
+        <button type="button" onClick={props.onRefresh}>
+          Refresh session
+        </button>
         <button
           type="button"
           onClick={props.onSigningCheck}
@@ -286,7 +319,9 @@ function SignedInPanel(props: {
         >
           {props.signingCheck.kind === 'signing' ? 'Signing…' : 'Run signing check'}
         </button>
-        <button type="button" onClick={props.onLock}>Lock wallet</button>
+        <button type="button" onClick={props.onLock}>
+          Lock wallet
+        </button>
       </div>
       {props.signingCheck.kind === 'signed' || props.signingCheck.kind === 'failed' ? (
         <p
