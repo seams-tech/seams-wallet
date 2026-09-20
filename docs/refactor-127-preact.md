@@ -15,6 +15,25 @@ This plan changes the wallet's internal UI renderer while
 preserving wallet behavior, iframe protocols, strict-CSP guarantees, and public
 React APIs.
 
+### Luna handoff checkpoint — 2026-09-21
+
+The implementation is now split into reviewable commits before the remaining
+surface and build cleanup:
+
+- `969dc84` renames the generic iframe extension bridge from `lit` to
+  `custom-elements`, removes its empty built-in registry, and preserves the
+  external registration/mount protocol.
+- `52e1bbf` removes the development-only observer that warned about custom
+  elements failing to upgrade.
+
+Wallet type-checking passes at this boundary. The continuation may use Luna,
+but this checkpoint requires an extra review before merge: verify the generic
+custom-element API and message payloads, confirm that no built-in surface still
+depends on the renamed bridge, and rerun the browser, build, bundle, and visual
+gates after the remaining Lit deletion and stylesheet consolidation. The
+temporary visual comparison harness and ignored artifacts remain required until
+Phase 8d.
+
 The `w3a-*` to `seams-*` rename is complete: Wallet commit `52a9c7d`
 and monorepo commit `823fc40`. This refactor starts from that state. Consumer
 release adoption remains pending; source migration and published-package
@@ -345,7 +364,7 @@ release browser/version matrix before the final release gate.
 | Key export | `ExportPrivateKey/iframe-host.ts`, `viewer.ts`, and `export-viewer-host.ts` | `ExportPrivateKeySurface.tsx` plus an imperative `mountExportPrivateKeySurface()` handle. |
 | Recovery-code backup | `RecoveryCodeBackup/host.ts`, `viewer.ts`, `events.ts` | `RecoveryCodeBackupSurface.tsx` with typed result callbacks. |
 | Surface measurement | `host/surface-measurement-reporter.ts` | Moved to the shared host boundary; remains framework-neutral. |
-| Generic iframe UI extension | `iframe-lit-elem-mounter.ts`, `iframe-lit-element-registry.ts` | Rename to `iframe-custom-element-mounter.ts` and `iframe-custom-element-registry.ts`; do not use it for built-in Preact surfaces. |
+| Generic iframe UI extension | `iframe-custom-element-mounter.ts`, `iframe-custom-element-registry.ts` | Preserve the external custom-element registration/mount API; do not use it for built-in Preact surfaces. |
 | React adapters | `LitDrawer.tsx`, `LitHaloBorder.tsx`, `LitPasskeyHaloLoading.tsx` | Delete. Use native React components in the public React tree; reuse existing React `HaloBorder` where appropriate. |
 | Build inputs and static CSS emission | `packages/wallet/rolldown.config.ts`, `plugin-utils.ts`, static-asset assertions | Point entries at Preact mount modules and emit a consolidated wallet UI stylesheet. |
 | Browser coverage | `tests/lit-components/*`, `tests/wallet-iframe/*` | Move renderer-independent surface tests to `tests/wallet-ui/*`; retain wallet-iframe integration tests. |
