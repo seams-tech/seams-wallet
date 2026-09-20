@@ -9,6 +9,10 @@ import { SDK_ESM_PATHS } from '../setup';
 const IMPORT_PATHS = {
   confirmUi: SDK_ESM_PATHS.confirmUi,
 } as const;
+const confirmationMountModuleFile = path.resolve(
+  import.meta.dirname,
+  '../../packages/wallet/dist/esm/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface.js',
+);
 
 test.describe('Preact production confirmation mount', () => {
   test.beforeEach(async ({ page }) => {
@@ -216,6 +220,99 @@ test.describe('Preact production confirmation mount', () => {
       expect(result.surface).toBe(expectedSurface);
     }
     await expect(page.locator('.seams-confirmation-surface')).toHaveCount(0);
+  });
+
+  test('waits for the delayed Preact feature import before mounting', async ({ page }) => {
+    let moduleRequested!: () => void;
+    let releaseModule!: () => void;
+    const moduleRequest = new Promise<void>((resolve) => {
+      moduleRequested = resolve;
+    });
+    const moduleGate = new Promise<void>((resolve) => {
+      releaseModule = resolve;
+    });
+    await page.route('**/mountConfirmationSurface.js', async (route) => {
+      moduleRequested();
+      await moduleGate;
+      await route.fulfill({ path: confirmationMountModuleFile, contentType: 'text/javascript' });
+    });
+
+    const mountPromise = page.evaluate(async ({ confirmUiPath }) => {
+      const { mountConfirmUI } = await import(confirmUiPath);
+      const handle = await mountConfirmUI({
+        ctx: {
+          userPreferencesManager: { getCurrentWalletId: () => 'alice.testnet' },
+          surfaceMeasurementBinding: { kind: 'disabled' as const },
+        },
+        summary: { title: 'Delayed confirmation' },
+        model: { chain: 'near', operations: [] },
+        securityContext: { blockHeight: '1' },
+        loading: false,
+        theme: 'light',
+        uiMode: 'modal',
+        nearAccountIdOverride: 'alice.testnet',
+      });
+      (globalThis as { __delayedConfirmationHandle?: typeof handle }).__delayedConfirmationHandle =
+        handle;
+      return handle.element.id;
+    }, { confirmUiPath: IMPORT_PATHS.confirmUi });
+    await moduleRequest;
+    await expect(page.locator('.seams-confirmation-surface')).toHaveCount(0);
+    releaseModule();
+    const handleId = await mountPromise;
+    await expect(page.locator('.seams-confirmation-surface')).toHaveCount(1);
+    expect(handleId).toMatch(/^seams-confirmation-surface-/);
+    await page.evaluate(() => {
+      const handle = (
+        globalThis as {
+          __delayedConfirmationHandle?: { close: (confirmed: boolean) => void };
+        }
+      ).__delayedConfirmationHandle;
+      handle?.close(true);
+    });
+    await expect(page.locator('.seams-confirmation-surface')).toHaveCount(0);
+  });
+
+  test('cleans up a cancelled confirmation before the next auth handoff', async ({ page }) => {
+    const result = await page.evaluate(async ({ confirmUiPath }) => {
+      const { awaitConfirmUIDecision } = await import(confirmUiPath);
+      const ctx = {
+        userPreferencesManager: { getCurrentWalletId: () => 'alice.testnet' },
+        surfaceMeasurementBinding: { kind: 'disabled' as const },
+      };
+      const input = (title: string) => ({
+        ctx,
+        summary: { title },
+        txSigningRequests: [],
+        theme: 'light' as const,
+        uiMode: 'modal' as const,
+        nearAccountIdOverride: 'alice.testnet',
+        surface: { kind: 'mount_new' as const },
+      });
+      const cancelled = awaitConfirmUIDecision(input('Cancel before auth handoff'));
+      while (!document.querySelector<HTMLButtonElement>('button.cancel')) {
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
+      document.querySelector<HTMLButtonElement>('button.cancel')!.click();
+      const cancelledResult = await cancelled;
+      cancelledResult.handle.close(false);
+      const confirmed = awaitConfirmUIDecision(input('Confirm after auth handoff'));
+      let confirmButton: HTMLButtonElement | null = null;
+      while (!confirmButton || confirmButton.disabled) {
+        confirmButton = document.querySelector<HTMLButtonElement>('button.confirm');
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
+      confirmButton.click();
+      const confirmedResult = await confirmed;
+      confirmedResult.handle.close(true);
+      return {
+        cancelled: cancelledResult.confirmed,
+        confirmed: confirmedResult.confirmed,
+        remaining: document.querySelectorAll('.seams-confirmation-surface').length,
+      };
+    }, { confirmUiPath: IMPORT_PATHS.confirmUi });
+
+    expect(result).toEqual({ cancelled: false, confirmed: true, remaining: 0 });
   });
 
   test('lazily enriches ABI hints without replacing the mounted surface', async ({ page }) => {
