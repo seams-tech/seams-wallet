@@ -86,35 +86,6 @@ HTML (plain Web Component):
 </seams-halo-border>
 ```
 
-React (via @lit/react wrappers):
-
-```tsx
-import { LitHaloBorder, LitPasskeyHaloLoading } from '@seams/wallet/react';
-
-<LitHaloBorder
-  animated
-  theme="light"
-  durationMs={800}
-  ringGap={8}
-  ringWidth={4}
-  ringBorderRadius="1.5rem"
-  ringBackground="transparent 0%, #4DAFFE 10%, #4DAFFE 25%, transparent 35%"
->
-  <div>Content</div>
-</LitHaloBorder>
-
-<LitPasskeyHaloLoading
-  animated
-  theme="dark"
-  durationMs={1200}
-  ringGap={6}
-  ringWidth={3}
-  innerPadding="8px"
-  height={48}
-  width={48}
-/>;
-```
-
 ## Why This Approach
 
 - Inline-only: No stylesheet or CSS variables required; styles are instance-local.

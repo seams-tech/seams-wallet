@@ -170,7 +170,6 @@
     }
   },
   "dependencies": {
-    "@lit/react": "^1.0.8",
     "@near-js/types": "^2.4.0",
     "@noble/hashes": "^2.0.1",
     "bs58": "^6.0.0",
