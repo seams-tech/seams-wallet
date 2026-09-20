@@ -439,6 +439,89 @@ GitHub artifact quota recovery remains unverified; public uploads do not prove
 that private uploads are available. Existing retention cleanup and exact-run
 cache handoff remain in place.
 
+### Follow-up: request-path attribution and tenant lookup, 2026-09-20
+
+[Monorepo PR 29](https://github.com/seams-tech/seams-monorepo/pull/29) replaces
+the two sequential Console binding reads with one LEFT JOIN. Each request still
+reads the current active pointer, validates both records, and rejects a dangling
+pointer. No cache or authorization relaxation was introduced. Eight focused
+tests, full application checks/build, and CI passed.
+
+The [Console deployment](https://github.com/seams-tech/seams-monorepo/actions/runs/35484983679)
+and [testnet backend deployment](https://github.com/seams-tech/seams-monorepo/actions/runs/35484984736)
+passed at monorepo revision `0e35b0192ef6ca2d5c53ff76e05e6df208994d7b`.
+Gateway version is `580cdf3d-258d-4b72-9daf-d40b0ab80d67`; Console version is
+`9daf7519-5425-4747-a353-b4f9fbdded43`. Public Wallet packages remain `0.5.25`.
+
+New `wallet_gateway_binding` and `wallet_gateway_total` response timing spans
+measure the awaited service call and entrypoint directly. Seven successful
+foreground generations produced these median per-ceremony sums:
+
+| Boundary | Seconds |
+| --- | ---: |
+| Client foreground generation | 5.15 |
+| Browser request-to-response-start sum | 4.77 |
+| Gateway entrypoint total | 3.19 |
+| Outer binding service calls | 0.13 |
+| SDK handler total | 3.04 |
+| SDK authentication | 0.96 |
+| SDK material / admission | 0.07 / 0.23 |
+| Gateway upstream proxy | 1.81 |
+| Signing-worker measured total, inside proxy | 0.91 |
+
+The per-ceremony median of browser time minus gateway time is 1.49 seconds.
+Entrypoint time outside the binding lookup and SDK handler is only 5 ms per
+ceremony. These request-path spans supersede the earlier runtime-wall residual
+as an attribution of synchronous outer work. The Console lookup is a small
+remaining contributor; prioritize authentication and repeated transport.
+Nested spans must still not be added together.
+
+After unlock settled, ten signatures succeeded: three cached reusable signatures
+took 1.93–2.17 seconds (median 2.11), and seven empty-pool operation step-ups took
+6.99–7.82 seconds (median 7.50). Foreground generation took 4.94–5.63 seconds.
+The preceding batch's corresponding step-up median was 8.65 seconds, but the
+whole difference cannot be attributed to the JOIN: SDK authentication also
+became faster despite unchanged code. These remain small, temporally separated
+diagnostic cohorts, not a controlled p95 comparison.
+
+One preceding immediate attempt failed with HTTP 503 `wallet_session_unavailable`
+before producing a signature. It selected operation step-up, then background
+reusable-session prefill completed afterward. This suggests an unlock/readiness
+race, which needs a focused reproduction; the benchmark's wait for a visible
+sign button does not establish completion of replacement-session installation.
+Retain this failure separately from the ten settled-session successes.
+
+Source inspection identified the next authorization optimization: exhausted
+step-up first attempts reusable-session resolution, then rereads the credential
+through the exact-status path, loads authority and auth-method records, and
+resolves active material. Replace repeated resolution with one typed result
+that distinguishes reusable, exhausted, unavailable, and rejected states.
+Preserve current origin, identity, expiry, revocation, material, and atomic
+operation-admission checks. Exercise both active and exhausted paths, plus
+revocation between protocol rounds, before releasing that shared change.
+
+Persistent transport should be benchmarked with the same fresh checks. A
+WebSocket does not itself remove database work or protocol dependencies. Compare
+browser-to-gateway and gateway-to-worker hops separately; retain the current
+transport until the benchmark justifies a production replacement.
+
+#### Concrete preprocessing-permission decision
+
+For sustained 1–3-second signing after the reusable allowance is exhausted,
+consider a distinct **presignature-only permission**, issued during an
+authenticated unlock or registration. It would retain the existing target
+depth of three and concurrency limits, expire no later than its wallet session,
+and bind to the exact wallet, origin, authority, auth method, material activation,
+and signing worker. Revocation, retirement, expiry, or material replacement
+would stop replenishment. Existing generation rate limits and single-use
+reservation/consumption remain mandatory.
+
+This permission would allow background replenishment with zero reusable signing
+uses. It would grant no transaction-signing authority: each transaction after
+allowance exhaustion would still require fresh exact-operation step-up. That
+is an authorization-policy change requiring an explicit decision. It has not
+been implemented or enabled by the transport/lookup work above.
+
 ### Acceptance criteria
 
 The user reports **10–20 seconds** waiting at “Creating transaction signature”
