@@ -577,6 +577,22 @@
   overflow-wrap: anywhere;
 }
 
+/* A hosted confirmation is measured by the parent iframe. Viewport-relative
+   caps would make the content height follow the parent's easing box and post
+   a new measurement on every frame. */
+:where(.seams-wallet-ui[data-seams-confirm-surface='wallet-iframe'])
+  .seams-tx-tree
+  .file-content {
+  max-height: 12rem;
+  resize: none;
+}
+
+:where(.seams-wallet-ui[data-seams-confirm-surface='wallet-iframe'])
+  .seams-tx-tree
+  .tooltip-tree-root.scrollable-root {
+  max-height: 20rem;
+}
+
 :where(.seams-wallet-ui) .seams-tx-tree .file-content-shell {
   position: relative;
   width: 100%;
