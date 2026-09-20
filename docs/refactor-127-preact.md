@@ -1551,10 +1551,10 @@ Preact integration checkpoint — 2026-09-21:
   request cancelled while the module is loading cannot mount a stale dialog.
   The delayed-import browser test uses the built module response and passes
   across Chromium, Firefox, and WebKit.
-- Remaining gates are delayed-load/cancellation and pending-callback disposal
-  stress, broader recovery visual states, bundle accounting, and deletion of
-  the retained recovery custom-element host/viewer and event module. Keep the
-  Lit visual baseline until Phase 8d.
+- Remaining gates are copied-flash/timer disposal stress, broader recovery
+  visual states, bundle accounting, and deletion of the retained recovery
+  custom-element host/viewer and event module. Keep the Lit visual baseline
+  until Phase 8d.
 
 - [x] Implement the existing summary, opening, code display, acknowledgement,
   failure, and cancellation states with exact typed callbacks.
@@ -1563,8 +1563,10 @@ Preact integration checkpoint — 2026-09-21:
 - [x] Test registration-time and account-menu entrypoints, failed opening,
   repeated open/close, and explicit acknowledgement.
 - [x] Test cancellation while the lazy Preact module is pending.
-- [ ] Verify disposal releases displayed codes, pending callbacks, timers,
-  and rules; reopening must not display a previous operation's codes.
+- [x] Verify disposal ignores a late opening callback and reopening does not
+  display the previous operation's codes.
+- [ ] Verify disposal releases displayed codes, copied-flash timers, and
+  appearance rules.
 - [x] Capture the matched recovery host fixture and review every image diff;
   broader recovery states and the retained viewer fixture remain open.
 - [x] Replace host creation with an explicit lazy Preact mount.
@@ -1583,9 +1585,9 @@ Recovery cancellation checkpoint — 2026-09-21:
   build also pass.
 - This is an intentional audit marker for the Luna handoff. Future work should
   re-review the cancellation predicate, delayed-import harness, and host error
-  propagation before recovery cleanup is accepted. Disposal stress, broader
-  visual states, bundle accounting, and removal of the retained Lit host/viewer
-  remain open.
+  propagation before recovery cleanup is accepted. Copied-flash/timer disposal,
+  broader visual states, bundle accounting, and removal of the retained Lit
+  host/viewer remain open.
 
 ### 7. Remove React's remaining Lit dependencies
 
