@@ -1427,6 +1427,18 @@ Luna review checkpoint — 2026-09-21:
   the adapted cross-origin harness. Re-run the four motion cases and the 51
   public browser checks after any related change.
 
+Confirmation chain-context checkpoint — 2026-09-21 (`e3639ce`):
+
+- Added a public `mountConfirmUI` matrix covering NEAR, EVM, and Tempo across
+  standalone and wallet-iframe modal/drawer combinations. All 12 combinations
+  render their chain details and transaction tree, and the expected host-box
+  context is asserted for each variant.
+- The focused confirmation, content, and transaction-tree browser matrix now
+  passes **99/99** across Chromium, Firefox, and WebKit. Existing strict-CSP,
+  missing-stylesheet, focus, resize, close, and disposal assertions remain in
+  that run. Because this is post-Luna work, re-review the context mapping and
+  close timing before accepting the confirmation phase.
+
 #### 4a. Characterize primitives and build the confirmation subtree
 
 - [ ] Cover drawer pointer capture, dismissal thresholds, interrupted
@@ -1450,8 +1462,11 @@ Luna review checkpoint — 2026-09-21:
   takeDecision semantics, exactly-once settlement, and opened/closed messages.
 - [x] Keep a single feature import that returns a mount API.
   `prewarmTxConfirmerUi()` warms code without registration side effects.
-- [ ] Verify every supported chain and mount context, including standalone
-  modal/drawer and inline entrypoints. Test CSS isolation in host documents.
+- [x] Verify every supported chain and mount context, including standalone
+  modal/drawer and wallet-iframe entrypoints. The public mount matrix covers
+  all 12 chain/context/variant combinations; the browser suite also exercises
+  CSS isolation, strict-CSP stylesheet failure, focus, and disposal. Inline
+  entrypoint visual acceptance remains open.
 - [ ] Capture matched confirmer, drawer, transaction-tree, halo, passkey-loader,
   and padlock fixtures and review every image diff.
 - [ ] Test rapid confirm/cancel, replacement while closing, delayed imports,
