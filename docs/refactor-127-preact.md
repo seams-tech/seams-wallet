@@ -1581,9 +1581,8 @@ Production export integration checkpoint — 2026-09-21:
 - All 12 desktop comparison gates passed through the production host API using
   the emitted stylesheet. PNGs remain ignored in the existing artifact folder.
   The hosted dark multi-key comparison was reinspected after the cutover.
-- Still required: export Lit deletion and the per-flow bundle-size gate. The
-  current behavior and visual evidence do not establish completion of Phase 5
-  until that legacy cleanup is performed and the final graph is measured.
+- At this checkpoint, export Lit deletion and the per-flow bundle-size gate
+  remained open; the cleanup and final graph evidence are recorded below.
 
 Extended export capture checkpoint — 2026-09-21:
 
@@ -1614,6 +1613,34 @@ Luna handoff checkpoint — 2026-09-21:
   content-box sizing, strict-CSP behavior, and the visual threshold rationale
   before the export phase can be treated as complete.
 
+Export Lit cleanup checkpoint — 2026-09-21 (`c20eaca`, `6722949`):
+
+- Deleted the Lit export host/viewer, their external CSS assets, direct browser
+  bundle, registration constants/loader, build-script entries, static-asset
+  assertions, and export-only drawer rules. The wallet host now targets the
+  Preact `.seams-export-surface`; it listens for the existing cancellation event
+  and disposes the surface without a legacy event bridge.
+- Removed the retired Lit export tests. The Preact export host, renderer, and
+  parent-overlay matrix passes **54/54** across Chromium, Firefox, and WebKit,
+  including strict CSP, import failure, stale mount, measurement, focus, and
+  cancellation disposal coverage. Wallet type-check, browser-test type-check,
+  clean SDK build, hosted-asset assertions, and hosted-doc assertions pass.
+- The per-flow bundle report passes; the export flow is **64.0 KiB raw / 19.9
+  KiB gzip / 17.3 KiB brotli**. A clean build emits no
+  `export-private-key-viewer.js`, `export-viewer.css`, or `export-iframe.css`.
+- Temporary saved-Lit visual comparisons and their ignored artifacts remain in
+  place for the final Phase 8d parity audit. They must be removed only after
+  every component migration and CSS consolidation has been accepted.
+
+Luna extra-review checkpoint — 2026-09-21 (`c20eaca`, `6722949`):
+
+- Work after this checkpoint is expected to use Luna. Before accepting later
+  export or cleanup changes, perform an extra review of cancellation-event
+  ownership, import invalidation, measurement disposal, strict-CSP stylesheet
+  removal, clean-build asset accounting, and the retained visual-baseline
+  boundary. Re-run the 54-case export matrix and the bundle-size check after
+  related changes.
+
 - [x] Replace host/viewer rendering with `ExportPrivateKeySurface` behind
   `upsertExportViewerHost()` and an explicit mount/update/dispose handle.
 - [x] Preserve modal/drawer behavior, masking, reveal timing, multi-key
@@ -1625,8 +1652,9 @@ Luna handoff checkpoint — 2026-09-21:
   reappear on reopening; do not claim JavaScript memory erasure.
 - [x] Preserve activation requirements of clipboard/download actions.
 - [x] Capture matched export viewer/host fixtures and review every image diff.
-- [ ] Remove export's Lit host/viewer, registration imports, and event bridge.
-  Retain shared primitives with remaining live consumers.
+- [x] Remove export's Lit host/viewer, registration imports, and event bridge.
+  Retain shared primitives with remaining live consumers. Completed in
+  `c20eaca` and `6722949`; temporary visual comparisons remain for Phase 8d.
 
 **Exit:** export integration, synthetic-key visual tests, cleanup, CSP, browser,
 and size checks pass.
