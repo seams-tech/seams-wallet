@@ -89,6 +89,9 @@ export async function handleWalletHostRuntimeRequest(
       requestId,
       postMeasurement: postSurfaceMeasurement.bind(null, input),
     },
+    {
+      shouldCancel: () => input.isCancelled(requestId),
+    },
   );
   if (acknowledgement.kind !== 'wallet_recovery_codes_backed_up_v1') {
     throw new Error('Pending wallet recovery-code backup was not completed');

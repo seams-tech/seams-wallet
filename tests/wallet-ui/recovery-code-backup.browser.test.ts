@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import path from 'node:path';
 import { injectImportMap } from '../setup/bootstrap';
 import { buildTestBrowserImportMapHtml } from '../setup/importMap';
 import { routePreactModules } from '../setup/preact';
@@ -6,8 +7,11 @@ import { routePreactModules } from '../setup/preact';
 type RecoveryTestState = {
   startDirect(): void;
   startAccount(mode: 'ready' | 'failed'): void;
+  startAccountPending(): void;
+  cancelPending(): void;
   result: Promise<unknown> | null;
   copied: string[];
+  pendingCancelled: boolean;
 };
 
 declare global {
@@ -28,6 +32,10 @@ const recoveryCodes = [
   'juniper-09',
   'kestrel-10',
 ];
+const recoveryMountModuleFile = path.resolve(
+  import.meta.dirname,
+  '../../packages/wallet/dist/esm/core/signingEngine/uiConfirm/ui/preact/mountRecoveryCodeBackupSurface.js',
+);
 
 async function prepare(page: Page): Promise<void> {
   await injectImportMap(page);
@@ -45,6 +53,7 @@ async function prepare(page: Page): Promise<void> {
     const state: RecoveryTestState = {
       result: null,
       copied: [],
+      pendingCancelled: false,
       startDirect() {
         state.result = import(modulePath).then(({ showWalletRecoveryCodeBackupUi }) =>
           showWalletRecoveryCodeBackupUi({
@@ -83,6 +92,32 @@ async function prepare(page: Page): Promise<void> {
             },
           }),
         );
+      },
+      startAccountPending() {
+        state.pendingCancelled = false;
+        state.result = import(modulePath).then(({ showWalletRecoveryCodesUi }) =>
+          showWalletRecoveryCodesUi(
+            {
+              walletId: 'recovery.testnet',
+              loadStatus: async () => ({
+                kind: 'ready',
+                walletId: 'recovery.testnet',
+                activeCodeCount: codes.length,
+                totalCodeCount: codes.length,
+                issuedAtMs: 0,
+                storeVersion: 'synthetic-v1',
+                backupOutstanding: true,
+                pendingLocalBackup: true,
+              }),
+              loadPendingBackup: async () => null,
+            },
+            { kind: 'disabled' },
+            { shouldCancel: () => state.pendingCancelled },
+          ),
+        );
+      },
+      cancelPending() {
+        state.pendingCancelled = true;
       },
     };
     Object.defineProperty(navigator, 'clipboard', {
@@ -163,4 +198,31 @@ test('account-menu backup rejects an unacknowledged close and handles opening fa
   await expect(page.getByText('Synthetic opening failure', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close recovery codes' }).click();
   await expect.poll(() => result(page)).toEqual('Recovery-code backup was cancelled before acknowledgement');
+});
+
+test('cancellation while the lazy Preact module is pending does not mount a stale dialog', async ({
+  page,
+}) => {
+  let moduleRequested!: () => void;
+  let releaseModule!: () => void;
+  const moduleRequest = new Promise<void>((resolve) => {
+    moduleRequested = resolve;
+  });
+  const moduleGate = new Promise<void>((resolve) => {
+    releaseModule = resolve;
+  });
+  await page.route('**/mountRecoveryCodeBackupSurface.js', async (route) => {
+    moduleRequested();
+    await moduleGate;
+    await route.fulfill({ path: recoveryMountModuleFile, contentType: 'text/javascript' });
+  });
+
+  await page.evaluate(() => window.__recoveryTest.startAccountPending());
+  await moduleRequest;
+  await page.evaluate(() => window.__recoveryTest.cancelPending());
+  releaseModule();
+
+  await expect.poll(() => result(page)).toEqual('Recovery-code backup was cancelled before acknowledgement');
+  await expect(page.locator('[data-seams-wallet-recovery-backup-dialog]')).toHaveCount(0);
+  await expect(page.locator('.seams-recovery-code-backup-viewer')).toHaveCount(0);
 });

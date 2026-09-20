@@ -24,6 +24,10 @@ type AccountMenuRecoveryCodeExperience = Extract<
 
 export type WalletRecoveryCodesUiRequest = Omit<AccountMenuRecoveryCodeExperience, 'kind'>;
 
+type RecoveryCodeBackupUiOptions = {
+  readonly shouldCancel?: () => boolean;
+};
+
 /**
  * Shows the recovery-code backup dialog and resolves with the user's
  * acknowledgement. This wrapper owns the promise contract: an acknowledged
@@ -33,6 +37,7 @@ export type WalletRecoveryCodesUiRequest = Omit<AccountMenuRecoveryCodeExperienc
 async function showRecoveryCodeExperience(
   experience: RecoveryCodeBackupExperience,
   measurementBinding: UiConfirmSurfaceMeasurementBinding = { kind: 'disabled' },
+  options: RecoveryCodeBackupUiOptions = {},
 ): Promise<WalletRecoveryCodeBackupAcknowledgementV1> {
   if (typeof document === 'undefined') {
     throw new Error('Wallet recovery-code backup requires a browser or a backup handler');
@@ -40,9 +45,11 @@ async function showRecoveryCodeExperience(
 
   const previousFocus =
     document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  if (options.shouldCancel?.()) throw new Error(CANCELLED_MESSAGE);
   const surfaceModule = await import(
     '../../../core/signingEngine/uiConfirm/ui/preact/mountRecoveryCodeBackupSurface'
   );
+  if (options.shouldCancel?.()) throw new Error(CANCELLED_MESSAGE);
 
   let measurementReporter: WalletIframeSurfaceMeasurementReporter | null = null;
   let surface: ReturnType<typeof surfaceModule.mountRecoveryCodeBackupSurface> | null = null;
@@ -120,6 +127,11 @@ export async function showWalletRecoveryCodeBackupUi(
 export async function showWalletRecoveryCodesUi(
   request: WalletRecoveryCodesUiRequest,
   measurementBinding: UiConfirmSurfaceMeasurementBinding = { kind: 'disabled' },
+  options: RecoveryCodeBackupUiOptions = {},
 ): Promise<WalletRecoveryCodeBackupAcknowledgementV1> {
-  return await showRecoveryCodeExperience({ kind: 'account_menu', ...request }, measurementBinding);
+  return await showRecoveryCodeExperience(
+    { kind: 'account_menu', ...request },
+    measurementBinding,
+    options,
+  );
 }
