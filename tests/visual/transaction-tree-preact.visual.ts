@@ -34,6 +34,38 @@ const tree: TreeNode = {
   ],
 };
 
+const evmTree: TreeNode = {
+  id: 'root',
+  type: 'folder',
+  label: 'Transactions',
+  open: true,
+  children: [
+    {
+      id: 'transaction',
+      type: 'folder',
+      label: 'Transaction to contract',
+      open: true,
+      chain: 'evm',
+      contractAddress: '0x1111111111111111111111111111111111111111',
+      children: [
+        {
+          id: 'data',
+          type: 'file',
+          label: 'Calling transfer using EVM',
+          open: true,
+          content: '{\n  "recipient": "visual-fixture",\n  "amount": "1000000"\n}',
+          copyValue: '0xa9059cbb',
+          contentVariants: {
+            decoded: '{\n  "recipient": "visual-fixture",\n  "amount": "1000000"\n}',
+            raw: '0xa9059cbb',
+            defaultMode: 'decoded',
+          },
+        },
+      ],
+    },
+  ],
+};
+
 async function prepare(page: Page, renderer: 'lit' | 'preact'): Promise<void> {
   await injectImportMap(page);
   await routePreactModules(page);
@@ -92,7 +124,12 @@ async function waitForStableSurface(surface: Locator): Promise<void> {
     .toBeGreaterThanOrEqual(3);
 }
 
-async function mount(page: Page, renderer: 'lit' | 'preact', theme: 'light' | 'dark'): Promise<void> {
+async function mount(
+  page: Page,
+  renderer: 'lit' | 'preact',
+  theme: 'light' | 'dark',
+  node: TreeNode,
+): Promise<void> {
   await page.evaluate(
     async ({ renderer, theme, tree }) => {
       document.documentElement.dataset.seamsTheme = theme;
@@ -147,7 +184,7 @@ async function mount(page: Page, renderer: 'lit' | 'preact', theme: 'light' | 'd
         root,
       );
     },
-    { renderer, theme, tree },
+    { renderer, theme, tree: node },
   );
 }
 
@@ -190,7 +227,7 @@ for (const theme of ['light', 'dark'] as const) {
       try {
         await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
         await prepare(page, renderer);
-        await mount(page, renderer, theme);
+        await mount(page, renderer, theme, tree);
         const surface = page.locator(renderer === 'lit' ? 'seams-tx-tree' : '.seams-tx-tree');
         await expect(surface).toBeVisible();
         await page.evaluate(() => document.fonts.ready);
@@ -212,5 +249,41 @@ for (const theme of ['light', 'dark'] as const) {
       JSON.stringify({ comparison }, null, 2),
     );
     expect(comparison.changedPixels).toBeLessThan(1024);
+  });
+
+  test(`transaction-tree/evm-expanded-${theme}`, async ({ browser }) => {
+    const captures: Record<'lit' | 'preact', string> = {
+      lit: '',
+      preact: '',
+    };
+    for (const renderer of ['lit', 'preact'] as const) {
+      const page = await browser.newPage({ viewport: { width: 1024, height: 900 } });
+      try {
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+        await prepare(page, renderer);
+        await mount(page, renderer, theme, evmTree);
+        const surface = page.locator(renderer === 'lit' ? 'seams-tx-tree' : '.seams-tx-tree');
+        await expect(surface).toBeVisible();
+        await page.evaluate(() => document.fonts.ready);
+        await waitForStableSurface(surface);
+        const capturePath = path.join(afterRoot, `evm-expanded-${theme}-${renderer}.png`);
+        fs.mkdirSync(path.dirname(capturePath), { recursive: true });
+        await surface.screenshot({ path: capturePath, animations: 'disabled' });
+        captures[renderer] = capturePath;
+      } finally {
+        await page.close();
+      }
+    }
+    const comparison = compare(
+      captures.lit,
+      captures.preact,
+      path.join(diffRoot, `evm-expanded-${theme}.png`),
+    );
+    fs.writeFileSync(
+      path.join(afterRoot, `evm-expanded-${theme}.json`),
+      JSON.stringify({ comparison }, null, 2),
+    );
+    const pixels = comparison.dimensions.width * comparison.dimensions.height;
+    expect(comparison.changedPixels / pixels).toBeLessThan(0.01);
   });
 }
