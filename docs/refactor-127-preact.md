@@ -7,9 +7,10 @@ Production confirmation now mounts through Preact, including lazy ABI enrichment
 Its broader visual/state/mount-context acceptance remains incomplete. Production
 key export now mounts through Preact; its remaining visual/integration acceptance
 and Lit cleanup are pending. Recovery backup and React adapters still use their
-existing renderers. The recovery backup now mounts through Preact, and the
-public React tree no longer depends on `@lit/react`; the retained Lit baseline
-and hosted-surface cleanup remain pending.
+existing renderers. The recovery backup now mounts through Preact, and its
+expanded saved-Lit/Preact visual state matrix passes; the retained Lit baseline,
+viewer fixture, and hosted-surface cleanup remain pending. The public React tree
+no longer depends on `@lit/react`.
 This plan changes the wallet's internal UI renderer while
 preserving wallet behavior, iframe protocols, strict-CSP guarantees, and public
 React APIs.
@@ -1600,9 +1601,9 @@ Preact integration checkpoint — 2026-09-21:
   request cancelled while the module is loading cannot mount a stale dialog.
   The delayed-import browser test uses the built module response and passes
   across Chromium, Firefox, and WebKit.
-- Remaining gates are broader recovery visual states, bundle accounting, and
-  deletion of the retained recovery custom-element host/viewer and event
-  module. Keep the Lit visual baseline until Phase 8d.
+- Remaining gates are bundle accounting, deletion of the retained recovery
+  custom-element host/viewer and event module, and the standalone retained
+  viewer fixture. Keep the Lit visual baseline until Phase 8d.
 
 - [x] Implement the existing summary, opening, code display, acknowledgement,
   failure, and cancellation states with exact typed callbacks.
@@ -1618,8 +1619,11 @@ Preact integration checkpoint — 2026-09-21:
   removed, the copied timer is cleared before reopening, delayed clipboard
   completion is ignored, and the document-owned recovery stylesheet remains
   linked without a surface-owned rule.
-- [x] Capture the matched recovery host fixture and review every image diff;
-  broader recovery states and the retained viewer fixture remain open.
+- [x] Capture the matched recovery host fixture and review every image diff.
+  The saved-Lit/Preact state matrix covers summary, opening, status-error,
+  opening-error, and acknowledged states in light and dark themes.
+- [ ] Capture and review the retained standalone recovery viewer fixture after
+  its Preact replacement is available.
 - [x] Replace host creation with an explicit lazy Preact mount.
 - [ ] Delete the recovery host/viewer custom elements and internal event module.
 
@@ -1649,6 +1653,25 @@ Recovery disposal checkpoint — 2026-09-21 (`3363e08`):
   completion suppression, and preservation of the document-owned stylesheet.
 - This closes the recovery disposal gate. Broader visual states, bundle
   accounting, and deletion of the retained Lit host/viewer remain open.
+
+Recovery visual-state checkpoint — 2026-09-21 (`62f6abb`):
+
+- Added a strict-CSP saved-Lit/Preact comparison for ten recovery captures:
+  summary, opening, status-error, opening-error, and acknowledged states in
+  light and dark themes. All 10/10 pairs have identical dimensions and zero
+  changed pixels. The browser-test type-check and Chromium visual run pass.
+- The temporary state comparison, side-by-side images, diffs, and saved Lit
+  build remain ignored under `.artifacts/refactor-127/`; retain them until
+  Phase 8d has reviewed every migrated component and the final cleanup gates
+  pass.
+
+Luna handoff checkpoint — 2026-09-21 (`62f6abb`):
+
+- Work after this checkpoint is expected to use Luna. Before accepting later
+  recovery or cleanup changes, perform an extra review of fixture routing,
+  strict-CSP stylesheet ownership, lifecycle/disposal guards, and the visual
+  threshold rationale. Re-run the recovery browser matrix and this 10-case
+  comparison after related changes.
 
 ### 7. Remove React's remaining Lit dependencies
 
