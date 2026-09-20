@@ -3,8 +3,9 @@
 **Status:** The auth-menu pilot now renders through native Preact in this
 worktree; its Lit element and internal intent-event bridge are removed.
 Phase 0–2 baseline, contract, document-style, and build work supports that slice.
-The broader state/browser/mount-context matrix remains incomplete. Confirmation,
-export, recovery backup, and React adapters still use their existing renderers.
+Production confirmation now mounts through Preact, including lazy ABI enrichment.
+Its broader visual/state/mount-context acceptance remains incomplete. Export,
+recovery backup, and React adapters still use their existing renderers.
 This plan changes the wallet's internal UI renderer while
 preserving wallet behavior, iframe protocols, strict-CSP guarantees, and public
 React APIs.
@@ -92,6 +93,48 @@ already done for other embedded runtime dependencies. Do not alias `react` or
   to Preact.
 
 ## Current inventory
+
+### Confirmation integration checkpoint — 2026-09-21
+
+The audit handoff marker remains `2e2a956`. Production integration and lifecycle
+changes follow in `c767150`, `16b30ad`, `b358f97`, and `5b167fd`.
+
+The Preact transaction drawer now preserves the compact title/security layout,
+outer and content error messages, intrinsic hosted width, and padded action
+bounds. Modal transactions retain their halo header. The confirmation document
+root supplies the inherited typography previously supplied by custom elements.
+
+The production visual fixture mounts the same public API against the saved Lit
+build and current Preact build. It records distinct modal/drawer content crops,
+sets the document theme explicitly, and keeps all PNGs and reports under ignored
+`.artifacts/refactor-127/visual`. Capture the saved reference with
+`CONFIRMATION_VISUAL_RENDERER=saved-lit`, then run the same
+`tests/visual/confirmation-preact.visual.ts` test with the default renderer.
+The saved build is required; component-only fixtures are not interchangeable
+with these production mount captures.
+
+All six drawer captures (default/loading/error, light/dark) now have identical
+outer dimensions to the saved Lit build. Inspected differences are confined to
+small rendering/edge differences (31–429 changed pixels, below 1% per capture).
+The harness enforces matching drawer dimensions and the 1% pixel ceiling.
+Modal default/loading dimensions also match. Modal error remains 32px shorter
+because the saved Lit stopped halo expands into a large padded block; its cause
+and intended appearance still require review. Modal captures remain diagnostic,
+and this checkpoint does **not** approve final confirmation visual acceptance.
+
+Wallet declaration generation, Rolldown, and browser-test TypeScript checks
+pass. The focused production/lifecycle suite passes 30/30 across Chromium,
+Firefox, and WebKit, including
+a regression test for compact drawer layout, action bounds, callback delivery,
+and strict CSP. Both renderer capture matrices complete 12/12; capture completion
+alone does not establish modal parity. A separate attempt on port 4215 failed
+before tests started because the port was occupied; classified as an environment
+failure and rerun on a free port without changing application behavior.
+
+Lit confirmation cleanup remains gated on the outstanding modal, transaction
+tree, registration, OTP, responsive, and mount-context visual acceptance. Export,
+recovery backup, React adapter migration, and final bundle/dependency cleanup
+remain subsequent phases.
 
 ### Phase 0 implementation record — 2026-09-20
 
