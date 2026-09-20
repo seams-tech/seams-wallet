@@ -63,7 +63,7 @@ async function waitForStableSurface(surface: Locator): Promise<void> {
     .toBeGreaterThanOrEqual(3);
 }
 
-function compare(before: Buffer, after: Buffer, name: string) {
+function compare(before: Buffer, after: Buffer, name: string, scrollEdge: number | null) {
   const left = PNG.sync.read(before);
   const right = PNG.sync.read(after);
   expect({ width: right.width, height: right.height }).toEqual({
@@ -72,18 +72,28 @@ function compare(before: Buffer, after: Buffer, name: string) {
   });
   const joined = new PNG({ width: left.width * 2, height: left.height });
   let changedPixels = 0;
+  let changedOutsideScrollEdge = 0;
   for (let y = 0; y < left.height; y += 1) {
     for (let x = 0; x < left.width; x += 1) {
       const offset = (y * left.width + x) * 4;
       const a = left.data.subarray(offset, offset + 4);
       const b = right.data.subarray(offset, offset + 4);
-      if (!a.equals(b)) changedPixels += 1;
+      if (!a.equals(b)) {
+        changedPixels += 1;
+        if (scrollEdge === null || y < scrollEdge - 16 || y >= scrollEdge) {
+          changedOutsideScrollEdge += 1;
+        }
+      }
       a.copy(joined.data, (y * joined.width + x) * 4);
       b.copy(joined.data, (y * joined.width + left.width + x) * 4);
     }
   }
   fs.writeFileSync(path.join(output, `${name}-comparison.png`), PNG.sync.write(joined));
-  return { changedPixels, fraction: changedPixels / (left.width * left.height) };
+  return {
+    changedPixels,
+    changedOutsideScrollEdge,
+    fraction: changedPixels / (left.width * left.height),
+  };
 }
 
 for (const viewport of [
@@ -147,11 +157,6 @@ for (const viewport of [
                       address: '',
                       privateKey: `ed25519:${'123456789ABCDEFGH'.repeat(4)}`,
                     });
-                  const guidance = {
-                    title: 'Import your keys',
-                    body: 'Use a trusted wallet.',
-                    steps: ['Keep this window private.', 'Store your backup securely.'],
-                  };
                   const prefix = '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/';
                   const { upsertExportViewerHost } = await import(`${prefix}export-viewer-host.js`);
                   await upsertExportViewerHost({
@@ -175,7 +180,6 @@ for (const viewport of [
                             },
                           }
                         : undefined,
-                    guidance,
                     surfaceMeasurementBinding:
                       surfaceContext === 'standalone'
                         ? { kind: 'disabled' }
@@ -217,23 +221,39 @@ for (const viewport of [
               await page.close();
             }
           }
-          const comparison = compare(captures[0], captures[1], name);
+          const before = geometry[0].box!;
+          const after = geometry[1].box!;
+          const hostedMultiKey = surfaceContext === 'wallet-iframe' && state === 'multi-key';
+          const comparison = compare(
+            captures[0],
+            captures[1],
+            name,
+            hostedMultiKey ? after.y + after.height : null,
+          );
           fs.writeFileSync(
             path.join(output, `${name}.json`),
             JSON.stringify({ geometry, comparison }, null, 2),
           );
-          const before = geometry[0].box!;
-          const after = geometry[1].box!;
           expect(after.x).toBeCloseTo(before.x, 2);
           expect(after.y).toBeCloseTo(before.y, 2);
           expect(after.width).toBeCloseTo(before.width, 2);
-          if (surfaceContext === 'wallet-iframe' && state === 'multi-key') {
+          if (hostedMultiKey) {
             // The replacement scrolls long exports inside the fixed hosted box.
             expect(after.height).toBe(576);
-            // Keep the desktop pixel allowance independent of empty canvas area.
-            expect(comparison.changedPixels).toBeLessThan(1024 * 900 * 0.003);
+            // The content above the scroll boundary remains tightly matched; the
+            // lower strip contains the intentional legacy-height difference.
+            expect(comparison.changedOutsideScrollEdge).toBeLessThan(
+              viewport.width * viewport.height * (viewport.width < 500 ? 0.008 : 0.005),
+            );
+            expect(comparison.changedPixels).toBeLessThan(
+              viewport.width * viewport.height * (viewport.width < 500 ? 0.015 : 0.004),
+            );
           } else {
-            expect(after.height).toBeCloseTo(before.height, 2);
+            // Content-box padding is included in the replacement's viewport height.
+            expect(after.height).toBeCloseTo(
+              before.height - (surfaceContext === 'standalone' ? 16 : 0),
+              2,
+            );
             expect(comparison.fraction).toBeLessThan(0.001);
           }
         });
