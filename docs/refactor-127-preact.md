@@ -1539,10 +1539,15 @@ Preact integration checkpoint — 2026-09-21:
   Chromium, Firefox, and WebKit; the cross-origin recovery host flow passed
   **1/1** in Chromium; wallet type-check, browser-test type-check, Rolldown,
   and static asset emission passed.
+- `6108140` applies the surface context to the native dialog itself, restoring
+  the hosted 35rem geometry. The matched visual gate in `7cf3779` passes **2/2**
+  Chromium captures for the retained Lit host baseline (light and dark), with
+  478 and 480 changed pixels respectively out of 235,200 (under 0.21%).
+  Captures and diffs remain ignored under `.artifacts/refactor-127/visual/`.
 - Remaining gates are delayed-load/cancellation and pending-callback disposal
-  stress, matched Lit/Preact recovery screenshots, bundle accounting, and
-  deletion of the retained recovery custom-element host/viewer and event
-  module. Keep the Lit visual baseline until Phase 8d.
+  stress, broader recovery visual states, bundle accounting, and deletion of
+  the retained recovery custom-element host/viewer and event module. Keep the
+  Lit visual baseline until Phase 8d.
 
 - [x] Implement the existing summary, opening, code display, acknowledgement,
   failure, and cancellation states with exact typed callbacks.
@@ -1553,7 +1558,8 @@ Preact integration checkpoint — 2026-09-21:
 - [ ] Test cancellation while the lazy Preact module is pending.
 - [ ] Verify disposal releases displayed codes, pending callbacks, timers,
   and rules; reopening must not display a previous operation's codes.
-- [ ] Capture matched recovery viewer/host fixtures and review every image diff.
+- [x] Capture the matched recovery host fixture and review every image diff;
+  broader recovery states and the retained viewer fixture remain open.
 - [x] Replace host creation with an explicit lazy Preact mount.
 - [ ] Delete the recovery host/viewer custom elements and internal event module.
 
