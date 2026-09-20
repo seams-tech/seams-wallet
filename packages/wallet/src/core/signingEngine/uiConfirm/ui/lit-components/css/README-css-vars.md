@@ -23,7 +23,7 @@ This document explains how theme colors and CSS variables are defined, generated
 
 - What it contains (host‑scoped, Shadow‑DOM friendly):
   - Default dark alias tokens applied directly on Web3Auth custom element hosts:
-    - `seams-tx-tree, seams-drawer, seams-modal-tx-confirmer, seams-drawer-tx-confirmer, seams-tx-confirm-content, seams-halo-border, seams-passkey-halo-loading, seams-export-key-viewer { --seams-colors-* }`
+    - `seams-tx-tree, seams-drawer, seams-modal-tx-confirmer, seams-drawer-tx-confirmer, seams-tx-confirm-content, seams-halo-border, seams-passkey-halo-loading { --seams-colors-* }`
   - Theme overrides scoped by a document attribute and again limited to hosts:
     - `:root[data-seams-theme="light"] <hosts> { --seams-colors-* }`
 
@@ -51,7 +51,6 @@ Where we ensure the tokens are present:
 
 - `seams-modal-tx-confirmer` (viewer-modal.ts): ensures `seams-components.css` at document level.
 - `seams-tx-confirm-content` (tx-confirm-content.ts): pre‑ensures `seams-components.css` at document level.
-- `ExportPrivateKey` viewer also ensures tokens.
 
 Note: `@import` inside constructable stylesheets is ignored by browsers. Do not rely on `@import` for tokens; ensure `seams-components.css` with `ensureExternalStyles` or a regular `<link>`.
 

@@ -30,7 +30,6 @@ const SEAMS_LIT_HOST_SELECTORS = [
   'seams-tx-confirm-content',
   'seams-halo-border',
   'seams-passkey-halo-loading',
-  'seams-export-key-viewer',
   'seams-recovery-code-backup-viewer',
   '.seams-auth-menu-surface',
   /* host-document dialogs (plain DOM, not lit) that must follow the app

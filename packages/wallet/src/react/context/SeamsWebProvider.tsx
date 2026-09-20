@@ -93,7 +93,6 @@ const APP_LIT_HOST_SELECTORS = [
   'seams-tx-confirm-content',
   'seams-halo-border',
   'seams-passkey-halo-loading',
-  'seams-export-key-viewer',
 ] as const;
 const APP_LIT_DARK_SELECTOR = APP_LIT_HOST_SELECTORS.join(',\n');
 const APP_LIT_LIGHT_SELECTOR = APP_LIT_HOST_SELECTORS.map(

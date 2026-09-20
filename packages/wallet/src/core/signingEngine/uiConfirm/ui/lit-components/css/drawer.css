@@ -220,39 +220,3 @@ seams-tx-confirmer[data-seams-confirm-surface='standalone'] seams-drawer[open] .
     calc(var(--seams-drawer__open-translate, 100%) - var(--seams-drawer__open-offset, 0px))
   );
 }
-
-/* Standalone export viewers use the same document-owned bottom-sheet surface. */
-seams-drawer[data-seams-export-surface='standalone'] .overlay {
-  display: block;
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.1);
-  z-index: 2147483646;
-  opacity: 1;
-  pointer-events: none;
-  transition: opacity 0.15s ease;
-}
-
-seams-drawer[data-seams-export-surface='standalone'][open] .overlay {
-  pointer-events: auto;
-}
-
-seams-drawer[data-seams-export-surface='standalone'] .drawer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2147483647;
-  width: auto;
-  max-width: var(--seams-drawer__max-width, 384px);
-  margin-inline: auto;
-  height: var(--seams-drawer__sheet-height, 100dvh);
-  max-height: none;
-  transform: translateY(100%);
-}
-
-seams-drawer[data-seams-export-surface='standalone'][open] .drawer {
-  transform: translateY(
-    calc(var(--seams-drawer__open-translate, 100%) - var(--seams-drawer__open-offset, 0px))
-  );
-}

@@ -174,7 +174,6 @@ seams-drawer-tx-confirmer,
 seams-tx-confirm-content,
 seams-halo-border,
 seams-passkey-halo-loading,
-seams-export-key-viewer,
 seams-recovery-code-backup-viewer {
   /* Component defaults (no token alias assignments here) */
   --seams-modal__btn__focus-outline-color: oklch(0.74 0.166 255);
@@ -244,8 +243,6 @@ seams-halo-border[theme="light"],
 :root[data-seams-theme="light"] seams-halo-border:not([theme="dark"]),
 seams-passkey-halo-loading[theme="light"],
 :root[data-seams-theme="light"] seams-passkey-halo-loading:not([theme="dark"]),
-seams-export-key-viewer[theme="light"],
-:root[data-seams-theme="light"] seams-export-key-viewer:not([theme="dark"]),
 seams-recovery-code-backup-viewer[theme="light"],
 :root[data-seams-theme="light"] seams-recovery-code-backup-viewer:not([theme="dark"]) {
   --seams-colors-textPrimary: oklch(0.35 0.018 240);

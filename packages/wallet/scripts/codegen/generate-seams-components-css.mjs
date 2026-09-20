@@ -134,8 +134,6 @@ const hostSelectorsArr = [
   'seams-tx-confirm-content',
   'seams-halo-border',
   'seams-passkey-halo-loading',
-  // Export Private Key viewer host (responds to theme + tokens)
-  'seams-export-key-viewer',
   // Recovery-code backup viewer (light-DOM card inside the backup dialog)
   'seams-recovery-code-backup-viewer',
 ];

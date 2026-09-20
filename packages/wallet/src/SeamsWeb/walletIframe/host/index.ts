@@ -28,7 +28,7 @@ const CONFIRM_UI_SELECTORS = [
   'seams-modal-tx-confirmer',
   'seams-drawer-tx-confirmer',
   'seams-tx-confirmer',
-  'seams-export-key-viewer',
+  '.seams-export-surface',
   '[data-seams-email-otp-recovery-code-dialog]',
   '[data-seams-wallet-recovery-backup-dialog]',
 ] as const;

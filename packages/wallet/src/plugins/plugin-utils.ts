@@ -58,8 +58,6 @@ export function buildWalletServiceHtml(
     assetVersion,
   );
   const copyIconCss = withAssetVersion(`${sdkBasePath}/copy-icon.css`, assetVersion);
-  const exportViewerCss = withAssetVersion(`${sdkBasePath}/export-viewer.css`, assetVersion);
-  const exportIframeCss = withAssetVersion(`${sdkBasePath}/export-iframe.css`, assetVersion);
   const walletShimsJs = withAssetVersion(`${sdkBasePath}/wallet-shims.js`, assetVersion);
   const walletHostScript = withAssetVersion(
     `${sdkBasePath}/${walletHostScriptFileForVariant(normalizeWalletHostVariant(walletHostVariant))}`,
@@ -88,13 +86,6 @@ export function buildWalletServiceHtml(
     <link rel="stylesheet" href="${txConfirmerCss}" />
     <link rel="stylesheet" href="${recoveryCodeBackupCss}" data-seams-recovery-code-backup-css />
     <link rel="stylesheet" href="${copyIconCss}" data-seams-copy-icon-css />
-    <!-- Key export holds its first paint until these are adopted, and it renders
-         into a measured surface: fetched on demand, the host is measured empty
-         and the box is revealed small, then jumps to the real size once they
-         land. That cost is paid once per browser cache, which is exactly what
-         makes it easy to miss. -->
-    <link rel="stylesheet" href="${exportViewerCss}" data-seams-export-viewer-css />
-    <link rel="stylesheet" href="${exportIframeCss}" data-seams-export-iframe-css />
     <!-- Minimal shims some ESM bundles expect (externalized to enable strict CSP) -->
     <script src="${walletShimsJs}"></script>
     <!-- Hint the browser to fetch the host script earlier -->

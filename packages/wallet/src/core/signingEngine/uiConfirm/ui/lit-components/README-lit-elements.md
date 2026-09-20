@@ -6,7 +6,7 @@ Lit‑based web components that power the wallet UI in the wallet iframe (wallet
 
 - `<seams-modal-tx-confirmer>` and `<seams-drawer-tx-confirmer>` render directly in the wallet iframe.
 - Shared building blocks include `<seams-drawer>`, `<seams-tx-tree>`, `<seams-halo-border>`, and `<seams-passkey-halo-loading>`.
-- The export viewer uses an additional iframe host: `<seams-export-viewer-iframe>` + `<seams-export-key-viewer>`.
+- Private-key export is rendered by the Preact surface in `ui/preact/ExportPrivateKeySurface.tsx`.
 
 All components are CSP‑safe: static CSS is externalized under `/sdk/*` and dynamic values are applied via constructable stylesheets (no inline styles or `<style>` tags). TxTree defaults to light DOM (opt‑in Shadow DOM via `shadow-dom`).
 
@@ -16,14 +16,13 @@ All components are CSP‑safe: static CSS is externalized under `/sdk/*` and dyn
 - Drawer: reusable sliding container used by the drawer variant
 - TxTree: lightweight, themeable transaction tree
 - HaloBorder and PasskeyHaloLoading: animated visuals used in confirm flows
-- ExportPrivateKey: export viewer (iframe host + viewer + bootstrap)
 
 See the component index below for file paths and tags.
 
 ## Runtime Architecture
 
 - Confirmer UI elements run in the wallet iframe (wallet origin) and never require parent DOM access.
-- Some flows use a nested srcdoc iframe for hard isolation (e.g., ExportPrivateKey viewer) and communicate via postMessage.
+- Components render in the wallet iframe and communicate through the wallet protocol.
 
 ## Editing Components and Styles
 
@@ -66,7 +65,7 @@ Other notes:
 - Tx confirmer layout/tokens: `css/tx-confirmer.css`
 - Drawer (when used): `css/drawer.css`
 - Halo ring + loading icon: `css/halo-border.css`, `css/passkey-halo-loading.css`, `css/padlock-icon.css`
-- Export private key UI: `css/export-iframe.css`, `css/export-viewer.css`
+- Export private key UI: `ui/preact/export-private-key.css` (included by `confirmation-ui.css`)
 
 These assets are emitted under the SDK base and are loaded at runtime through `ensureExternalStyles()`.
 
@@ -92,7 +91,7 @@ When adding or refactoring components:
 
 - Expose a single defining module that calls `customElements.define()`.
 - If moving/renaming, update build entries and re‑exports so the defining chunk still emits under `/sdk/*`.
-- In the wallet host, dynamically import the element module before `document.createElement()` (see tree‑shaking section).
+- In the wallet host, dynamically import the element module before `document.createElement()`.
 - Ensure required CSS assets exist in `css/` and are adopted via `ensureExternalStyles()`.
 
 ## Component Index
@@ -107,100 +106,11 @@ When adding or refactoring components:
 - HaloBorder/ — `index.ts` — `<seams-halo-border>`
 - PasskeyHaloLoading/ — `index.ts` — `<seams-passkey-halo-loading>`
 
-- ExportPrivateKey/
-  - `viewer.ts` — `<seams-export-key-viewer>`
-  - `iframe-host.ts` — `<seams-export-viewer-iframe>`
-  - `iframe-export-bootstrap-script.ts` — child bootstrap
-
 - Base / helpers
   - `LitElementWithProps.ts` — CSP‑safe CSS variable application
   - `confirm-ui.ts`, `confirm-ui-types.ts` — confirm UI API and types
   - `css/css-loader.ts` — external CSS adoption
   - `registry.ts` — tag names and ensure-defined helpers
-
-## Wallet-Iframe Lit Components: Tree-shaking Gotchas
-
-When adding a new Lit component that must render inside the wallet iframe host (e.g., a new drawer or modal), there are a few integration pitfalls that can make the custom element appear in the DOM but never upgrade (empty UI). This section documents the fixes and a repeatable checklist.
-
-### Core issue we hit
-
-- The wallet host appended a custom element tag (e.g., `<seams-export-viewer-iframe>`), but the defining module that calls `customElements.define()` was not executed in that runtime. Depending on bundler tree‑shaking and sideEffects settings, a pure side‑effect import may be omitted. Result: element never upgrades, so the inner iframe/bootstrap never runs.
-
-### The fix
-
-- Do not rely solely on a static, side‑effect import. Perform a dynamic import at the use‑site right before creating the element. This guarantees the defining module runs:
-
-  ```ts
-  // Before creating the element
-  await import('../../LitComponents/ExportPrivateKey/host');
-  const host = document.createElement('seams-export-viewer-iframe');
-  document.body.appendChild(host);
-  ```
-
-- Keep the static import too (for type graphs and when bundlers honor side‑effects), but the dynamic import makes it robust.
-
-Implementation reference:
-
-- `client/src/core/signingEngine/uiConfirm/handlers/handlePromptFromWorker.ts` (SHOW_SECURE_PRIVATE_KEY_UI path) dynamically imports the iframe host module before creating the element.
-
-### Embedded assets (dev)
-
-- Bundles load from `/sdk/` (viewer + bootstrap) under `dist/esm/sdk/`.
-- Dev plugin serves JS/CSS with correct MIME and COEP/CORP.
-- Sanity: `/sdk/<bundle>.js` returns 200; no “Unknown custom element” warnings.
-
-### Two-phase key export
-
-Key export keeps its progress subscription after the initial RPC result so the
-wallet-origin viewer can open. The router's typed key-export surface owns the
-iframe until `key_export.viewer.closed` or `key_export.completed`; progress
-metadata never writes overlay DOM state directly.
-
-### Build entries
-
-- Add both: `iframe-<feature>-bootstrap.js` and `<feature>-viewer.js` (emit under `dist/esm/sdk/`).
-
-### Hard rules (never break again)
-
-- Always ensure definition at use‑site: before `document.createElement('seams-*')`, dynamically import the module that calls `customElements.define()` for that tag.
-- Never rely only on side‑effect imports for elements rendered inside the wallet iframe.
-- Centralize tag names in `registry.ts` and prefer a small helper to ensure definition.
-
-### Use‑site helper pattern
-
-Create a tiny helper to guarantee the module runs before creating the element:
-
-```ts
-// client/src/core/signingEngine/uiConfirm/ui/registry.ts
-export async function ensureDefined(tag: string, loader: () => Promise<unknown>) {
-  if (!customElements.get(tag)) await loader();
-}
-
-// Usage (export viewer)
-import { SEAMS_EXPORT_VIEWER_IFRAME_ID } from '../../registry';
-import { ensureDefined } from '../../registry';
-await ensureDefined(
-  SEAMS_EXPORT_VIEWER_IFRAME_ID,
-  () => import('../../lit-components/ExportPrivateKey/iframe-host'),
-);
-const host = document.createElement(SEAMS_EXPORT_VIEWER_IFRAME_ID);
-document.body.appendChild(host);
-```
-
-Reference in codebase:
-
-- `uiConfirm/handlers/flows/localOnly.ts` dynamically imports `ui/lit-components/ExportPrivateKey/iframe-host` before `createElement('seams-export-viewer-iframe')`.
-
-### Dev/Test guardrails
-
-- Unit: keep the SHOW_SECURE_PRIVATE_KEY_UI test that verifies the viewer remains mounted (already present under `tests/unit/confirmTxFlow.defensivePaths.test.ts`).
-- E2E: add a production‑bundle run that triggers export viewer to catch treeshaking differences from dev.
-- Lint/check: optional script that fails CI if a `document.createElement('seams-…')` call is not preceded by an `ensureDefined(...)` in the same module.
-- Dev observer: optional `MutationObserver` in wallet host that warns if a `seams-*` element is un‑upgraded for >250ms after insertion.
-
-### Build config notes
-
-- `package.json#sideEffects` cannot protect intra‑bundle treeshaking across all tools. The reliable fix is dynamic import at use‑site, plus keep‑imports in the wallet host.
 
 ## Importing and Composing (quick checklist)
 
@@ -209,7 +119,6 @@ Reference in codebase:
 - When composing, keep required sub‑elements referenced so they aren’t tree‑shaken (e.g., private field or `static keepDefinitions`).
 - For iframe bootstraps, set variant flags before element creation.
 - Use two‑phase close (`deferClose`) for animated flows; close after animation.
-- Ensure srcdoc loads viewer + bootstrap from `/sdk/` with `type="module"`.
 - Validate in dev: `/sdk/*.js` 200; element upgrades; READY/SET\_\* messages flow.
 
 ## Troubleshooting Styles + FOUC

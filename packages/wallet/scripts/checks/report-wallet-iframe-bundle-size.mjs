@@ -292,7 +292,6 @@ for (const filename of [
   'wallet-iframe-host-full.js',
   'tx-confirm-ui.js',
   'seams-tx-confirmer.js',
-  'export-private-key-viewer.js',
   'halo-border.js',
   'passkey-halo-loading.js',
   'wallet-shims.js',

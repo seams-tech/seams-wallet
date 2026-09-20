@@ -393,14 +393,6 @@ const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<v
     path.join(sdkDir, 'padlock-icon.css'),
   );
   copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/export-viewer.css'),
-    path.join(sdkDir, 'export-viewer.css'),
-  );
-  copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/export-iframe.css'),
-    path.join(sdkDir, 'export-iframe.css'),
-  );
-  copyIfMissing(
     path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/copy-icon.css'),
     path.join(sdkDir, 'copy-icon.css'),
   );
@@ -789,22 +781,6 @@ const configs = [
     },
     // Minification is controlled via CLI flags; no config option in current Rolldown types
     plugins: [...prodPlugins, emitWalletServiceStaticPlugin],
-  },
-  // Export Private Key viewer bundle (Lit element rendered inside iframe)
-  {
-    input: 'src/core/signingEngine/uiConfirm/ui/lit-components/ExportPrivateKey/viewer.ts',
-    output: {
-      dir: BUILD_PATHS.BUILD.ESM,
-      format: 'esm',
-      entryFileNames: 'sdk/export-private-key-viewer.js',
-      chunkFileNames: 'sdk/[name]-[hash].js',
-    },
-    external: embeddedExternal,
-    resolve: {
-      alias: aliasConfig,
-    },
-    // Minification is controlled via CLI flags; no config option in current Rolldown types
-    plugins: prodPlugins,
   },
   // Standalone bundles for HaloBorder + PasskeyHaloLoading (for iframe/embedded usage)
   {

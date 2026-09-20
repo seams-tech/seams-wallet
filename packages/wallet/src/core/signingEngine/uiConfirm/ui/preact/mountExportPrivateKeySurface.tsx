@@ -1,6 +1,7 @@
 /** @jsxImportSource preact */
 import { render } from 'preact';
 import type { AppearanceConfig } from '@/core/types/seams';
+import { WalletIframeDomEvents } from '@/core/browser/walletIframe/events';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
 import { confirmationDocumentStyles } from './confirmation-styles';
 import { appearanceTokenCssVars } from '../appearance-token-vars';
@@ -45,6 +46,7 @@ class MountedExportSurface implements ExportSurfaceHandle {
     this.element.id = `seams-export-surface-${++nextExportId}`;
     this.element.className = 'seams-wallet-ui seams-export-surface';
     this.element.dataset.seamsExportSurface = input.context;
+    this.element.addEventListener(WalletIframeDomEvents.TX_CONFIRMER_CANCEL, this.handleCancel);
     input.parent.appendChild(this.element);
     try {
       this.update(input.model);
@@ -83,8 +85,13 @@ class MountedExportSurface implements ExportSurfaceHandle {
     onClosed();
   };
 
+  private handleCancel = (): void => {
+    this.dispose();
+  };
+
   private remove(): void {
     this.state = { kind: 'disposed' };
+    this.element.removeEventListener(WalletIframeDomEvents.TX_CONFIRMER_CANCEL, this.handleCancel);
     render(null, this.element);
     this.styles.deleteDynamicRule(this.element.id);
     this.element.remove();

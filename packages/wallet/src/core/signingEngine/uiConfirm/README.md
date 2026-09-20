@@ -7,8 +7,8 @@
 - the worker/main-thread handshake for `UserConfirmRequest`
 - main-thread routing of prompts to typed confirmation flows
 - UserConfirm worker lifecycle plus PRF.first warm-session cache helpers
-- confirmation modal/drawer/export viewer rendering
-- Lit confirmation components and `TxDisplayModel` rendering
+- confirmation modal/drawer and private-key export rendering
+- Lit confirmation components and Preact surface rendering
 
 ## May Import
 

@@ -25,12 +25,6 @@ export const CONFIRM_UI_ELEMENT_SELECTORS = [
 // Dedicated portal container to enforce a single confirmer instance.
 export const SEAMS_CONFIRM_PORTAL_ID = 'seams-confirm-portal';
 
-// Export viewer host (direct-mount; the tag keeps its historical name) and
-// the standalone viewer bundle tests and embedders load by path.
-export const SEAMS_EXPORT_VIEWER_IFRAME_ID = 'seams-export-viewer-iframe';
-export const SEAMS_EXPORT_KEY_VIEWER_ID = 'seams-export-key-viewer';
-export const EXPORT_VIEWER_BUNDLE = 'export-private-key-viewer.js';
-
 // Wallet recovery-code backup dialog (direct-mount host + content viewer).
 export const SEAMS_RECOVERY_CODE_BACKUP_HOST_ID = 'seams-recovery-code-backup-host';
 export const SEAMS_RECOVERY_CODE_BACKUP_VIEWER_ID = 'seams-recovery-code-backup-viewer';
@@ -39,7 +33,6 @@ export const SEAMS_RECOVERY_CODE_BACKUP_VIEWER_ID = 'seams-recovery-code-backup-
 // This allows dev tooling to auto-ensure definitions for common elements when possible.
 export const TAG_LOADERS: Record<string, () => Promise<unknown>> = {
   [SEAMS_TX_CONFIRMER_ID]: () => import('./lit-components/IframeTxConfirmer/tx-confirmer-wrapper'),
-  [SEAMS_EXPORT_VIEWER_IFRAME_ID]: () => import('./lit-components/ExportPrivateKey/iframe-host'),
   [SEAMS_RECOVERY_CODE_BACKUP_HOST_ID]: () => import('./lit-components/RecoveryCodeBackup/host'),
 };
 
