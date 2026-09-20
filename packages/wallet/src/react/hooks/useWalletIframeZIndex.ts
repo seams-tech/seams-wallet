@@ -24,7 +24,7 @@ import { useEffect } from 'react';
  *   - CSS: `react/components/QRCodeScanner.css`
  *   - Backdrop/container: `z-index: calc(--seams-wallet-overlay-z - 2)`
  *
- * - AccountMenuButton / SeamsAuthMenu:
+ * - AccountMenuButton / HostedSeamsAuthMenu:
  *   - Uses only small local z-indices (1–3),
  *     so it naturally stays below the wallet overlay.
  *

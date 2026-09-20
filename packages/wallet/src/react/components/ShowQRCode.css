@@ -264,7 +264,7 @@
 
 /* Failure view. Same skeleton as the link-device confirmation — badge, title,
    copy, one control. Styles are restated here because ShowQRCode is also
-   exported standalone, outside SeamsAuthMenu.css. */
+   shared by device-linking surfaces. */
 .seams-link-device-failure {
   min-height: 300px;
   width: min(100%, 360px);
@@ -303,7 +303,7 @@
   overflow-wrap: anywhere;
 }
 
-/* Values mirror SeamsAuthMenu.css's .seams-link-device-btn so the button looks
+/* Device-linking button styling keeps the button looking
    the same whether or not that sheet is loaded alongside this one. */
 .seams-link-device-failure .seams-link-device-btn {
   display: flex;

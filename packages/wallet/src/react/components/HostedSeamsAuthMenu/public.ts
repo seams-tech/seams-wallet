@@ -1,3 +1,4 @@
+export { SeamsAuthMenuMock } from './SeamsAuthMenuMock';
 import { HostedSeamsAuthMenu } from './shell';
 
 export { HostedSeamsAuthMenu };

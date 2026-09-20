@@ -553,11 +553,6 @@ const configs = [
       'src/react/index.ts',
       'src/react/context/SeamsWebProvider.tsx',
       // Ensure public subpath entrypoints exist in dist even when re-exports are flattened.
-      'src/react/components/SeamsAuthMenu/public.ts',
-      'src/react/components/SeamsAuthMenu/preload.ts',
-      'src/react/components/SeamsAuthMenu/shell.tsx',
-      'src/react/components/SeamsAuthMenu/skeleton.tsx',
-      'src/react/components/SeamsAuthMenu/client.tsx',
       'src/react/components/HostedSeamsAuthMenu/public.ts',
     ],
     output: {

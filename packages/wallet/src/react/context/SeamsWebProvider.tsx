@@ -33,7 +33,7 @@ export interface SeamsWebProviderProps {
    * - Wallet iframe overlay: `var(--seams-wallet-overlay-z, 2147483646)`
    * - Linked Devices modal + QR scanner: `overlayZ - 2` / `overlayZ - 1`
    *   (always below the wallet overlay so tx confirmer wins)
-   * - ProfileSettingsMenu/SeamsAuthMenu: small local z-indexes only (1–3),
+   * - ProfileSettingsMenu/HostedSeamsAuthMenu: small local z-indexes only (1–3),
    *   no fullscreen overlay z-index.
    */
   walletOverlayZIndex?: number;
