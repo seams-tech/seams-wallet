@@ -1714,8 +1714,9 @@ Preact integration checkpoint — 2026-09-21:
   zero changed pixels against the saved Lit viewer.
 - [x] Replace host creation with an explicit lazy Preact mount.
 - [x] Delete the recovery host/viewer custom elements and internal event module.
-  Completed in `a34a8f2` and `0de67e5`; the latter also regenerates the shared
-  theme CSS without recovery custom-tag selectors.
+  Completed in `a34a8f2`, `0de67e5`, and `552baa7`; the latter removes the
+  duplicated Rolldown static-emitter selector and keeps emitted SDK CSS free of
+  recovery custom-tag selectors.
 
 **Exit:** recovery UI and enclosing registration/account flows pass behavior,
 visual, CSP, cleanup, browser, and size checks.
@@ -1763,20 +1764,22 @@ Recovery viewer fixture checkpoint — 2026-09-21 (`1616a1b`):
 - This closes the recovery visual fixture gate. The temporary comparison and
   saved-Lit build remain until Phase 8d.
 
-Recovery Lit cleanup checkpoint — 2026-09-21 (`a34a8f2`, `0de67e5`):
+Recovery Lit cleanup checkpoint — 2026-09-21 (`a34a8f2`, `0de67e5`, `552baa7`):
 
 - Removed the recovery Lit host, viewer, and internal event module; removed
   their registry constants, dynamic registration loader, host theme selector,
-  and generated custom-tag theme selectors. The production path now contains
-  only the lazy Preact surface and native dialog lifecycle.
+  generated custom-tag theme selectors, and the duplicated Rolldown static
+  emitter selector. The production path now contains only the lazy Preact
+  surface and native dialog lifecycle.
 - A clean SDK build emits no recovery Lit host/viewer modules. The recovery
   flow reports **289.7 KiB** raw / **64.6 KiB** gzip / **56.5 KiB** Brotli,
   with **58.4 KiB** incremental gzip. Static assets emit 162 files.
 - This checkpoint needs extra review because the remaining implementation work
   is expected to use Luna. Re-review the cancellation predicate, delayed import
-  boundary, registry deletion, theme-token inheritance through `.seams-wallet-ui`,
-  and recovery CSS coverage. Re-run the 22-case recovery matrix and bundle
-  report before accepting follow-up cleanup.
+  boundary, registry deletion, duplicated CSS emitters, theme-token inheritance
+  through `.seams-wallet-ui`, and recovery CSS coverage. The post-fix 22-case
+  recovery matrix passes; re-run it and the bundle report before accepting
+  follow-up cleanup.
 
 Luna handoff checkpoint — 2026-09-21 (`62f6abb`):
 
