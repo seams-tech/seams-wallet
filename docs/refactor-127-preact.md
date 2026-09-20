@@ -1586,7 +1586,7 @@ Preact integration checkpoint — 2026-09-21:
   acknowledgement/defer behavior, download filenames, clipboard feedback, and
   generation-guarded disposal. Recovery CSS now scopes both the migration
   class root and the retained Lit baseline root.
-- Verification passed: the recovery browser matrix passed **12/12** across
+- Verification passed: the recovery browser matrix passed **21/21** across
   Chromium, Firefox, and WebKit; the cross-origin recovery host flow passed
   **1/1** in Chromium; wallet type-check, browser-test type-check, Rolldown,
   and static asset emission passed.
@@ -1600,10 +1600,9 @@ Preact integration checkpoint — 2026-09-21:
   request cancelled while the module is loading cannot mount a stale dialog.
   The delayed-import browser test uses the built module response and passes
   across Chromium, Firefox, and WebKit.
-- Remaining gates are copied-flash/timer disposal stress, broader recovery
-  visual states, bundle accounting, and deletion of the retained recovery
-  custom-element host/viewer and event module. Keep the Lit visual baseline
-  until Phase 8d.
+- Remaining gates are broader recovery visual states, bundle accounting, and
+  deletion of the retained recovery custom-element host/viewer and event
+  module. Keep the Lit visual baseline until Phase 8d.
 
 - [x] Implement the existing summary, opening, code display, acknowledgement,
   failure, and cancellation states with exact typed callbacks.
@@ -1614,8 +1613,11 @@ Preact integration checkpoint — 2026-09-21:
 - [x] Test cancellation while the lazy Preact module is pending.
 - [x] Verify disposal ignores a late opening callback and reopening does not
   display the previous operation's codes.
-- [ ] Verify disposal releases displayed codes, copied-flash timers, and
-  appearance rules.
+- [x] Verify disposal releases displayed codes, copied-flash timers, and
+  appearance rules. The browser gate confirms the surface and code nodes are
+  removed, the copied timer is cleared before reopening, delayed clipboard
+  completion is ignored, and the document-owned recovery stylesheet remains
+  linked without a surface-owned rule.
 - [x] Capture the matched recovery host fixture and review every image diff;
   broader recovery states and the retained viewer fixture remain open.
 - [x] Replace host creation with an explicit lazy Preact mount.
@@ -1634,9 +1636,19 @@ Recovery cancellation checkpoint — 2026-09-21:
   build also pass.
 - This is an intentional audit marker for the Luna handoff. Future work should
   re-review the cancellation predicate, delayed-import harness, and host error
-  propagation before recovery cleanup is accepted. Copied-flash/timer disposal,
-  broader visual states, bundle accounting, and removal of the retained Lit
-  host/viewer remain open.
+  propagation before recovery cleanup is accepted. At this checkpoint,
+  copied-flash/timer disposal, broader visual states, bundle accounting, and
+  removal of the retained Lit host/viewer remained open; the disposal gate is
+  now closed by `3363e08`.
+
+Recovery disposal checkpoint — 2026-09-21 (`3363e08`):
+
+- Added copied-flash timer instrumentation and delayed-clipboard disposal
+  coverage. The recovery browser matrix now passes **21/21** across Chromium,
+  Firefox, and WebKit, including code-node removal, timer cancellation, stale
+  completion suppression, and preservation of the document-owned stylesheet.
+- This closes the recovery disposal gate. Broader visual states, bundle
+  accounting, and deletion of the retained Lit host/viewer remain open.
 
 ### 7. Remove React's remaining Lit dependencies
 
