@@ -22,6 +22,7 @@ import {
 
 const SEAMS_LIT_THEME_OVERRIDE_RULE_ID = 'seams-lit-theme-overrides';
 const SEAMS_LIT_HOST_SELECTORS = [
+  '.seams-wallet-ui',
   'seams-tx-tree',
   'seams-drawer',
   'seams-modal-tx-confirmer',

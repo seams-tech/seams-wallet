@@ -51,6 +51,7 @@ export function buildWalletServiceHtml(
   );
   const componentsCss = withAssetVersion(`${sdkBasePath}/seams-components.css`, assetVersion);
   const authMenuCss = withAssetVersion(`${sdkBasePath}/auth-menu.css`, assetVersion);
+  const confirmationUiCss = withAssetVersion(`${sdkBasePath}/confirmation-ui.css`, assetVersion);
   const txConfirmerCss = withAssetVersion(`${sdkBasePath}/tx-confirmer.css`, assetVersion);
   const recoveryCodeBackupCss = withAssetVersion(
     `${sdkBasePath}/recovery-code-backup.css`,
@@ -81,6 +82,7 @@ export function buildWalletServiceHtml(
     <!-- Component theme CSS: shared tokens + component-scoped tokens -->
     <link rel="stylesheet" href="${componentsCss}" data-seams-components-css />
     <link rel="stylesheet" href="${authMenuCss}" data-seams-auth-menu-css />
+    <link rel="stylesheet" href="${confirmationUiCss}" data-seams-confirmation-css />
     <link rel="stylesheet" href="${drawerCss}" />
     <link rel="stylesheet" href="${txTreeCss}" />
     <link rel="stylesheet" href="${txConfirmerCss}" />

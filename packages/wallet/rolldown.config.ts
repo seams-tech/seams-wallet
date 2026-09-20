@@ -16,12 +16,20 @@ const WALLET_STATIC_ASSETS_ROOT_ABS = path.resolve(SDK_ROOT_ABS, 'src/static/wal
 const WALLET_STATIC_ASSET_FILES = ['wallet-shims.js', 'wallet-service.css'] as const;
 const WALLET_HOST_STATIC_ASSETS = [
   {
-    source: path.resolve(
-      SDK_ROOT_ABS,
-      'src/SeamsWeb/walletIframe/host/ui/auth-menu/auth-menu.css',
-    ),
+    source: path.resolve(SDK_ROOT_ABS, 'src/SeamsWeb/walletIframe/host/ui/auth-menu/auth-menu.css'),
     fileName: 'auth-menu.css',
   },
+] as const;
+const PREACT_CONFIRMATION_CSS_FILES = [
+  'confirmation-primitives.css',
+  'confirm-header.css',
+  'confirmation-body.css',
+  'passkey-registration.css',
+  'email-otp.css',
+  'confirm-content.css',
+  'transaction-tree.css',
+  'confirmation-modal.css',
+  'confirmation-drawer.css',
 ] as const;
 const NEAR_SIGNER_WASM_JS_ABS = path.resolve(
   SDK_ROOT_ABS,
@@ -262,8 +270,12 @@ const buildSeamsComponentsCss = async (sdkRoot: string): Promise<string> => {
   );
   lines.push(`${hostSelector} {`);
   lines.push(`  --seams-modal__btn__focus-outline-color: ${darkVars?.focus || '#3b82f6'};`);
-  lines.push('  --seams-tree__file-content__scrollbar-track__background: rgba(255, 255, 255, 0.06);');
-  lines.push('  --seams-tree__file-content__scrollbar-thumb__background: rgba(255, 255, 255, 0.22);');
+  lines.push(
+    '  --seams-tree__file-content__scrollbar-track__background: rgba(255, 255, 255, 0.06);',
+  );
+  lines.push(
+    '  --seams-tree__file-content__scrollbar-thumb__background: rgba(255, 255, 255, 0.22);',
+  );
 
   const pushScale = (name: string, scale: Record<string, string>) => {
     Object.keys(scale || {}).forEach((k) => {
@@ -314,6 +326,14 @@ const buildSeamsComponentsCss = async (sdkRoot: string): Promise<string> => {
   return `${lines.join('\n')}\n`;
 };
 
+const buildPreactConfirmationCss = (sdkRoot: string): string => {
+  const preactRoot = path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/preact');
+  return `${PREACT_CONFIRMATION_CSS_FILES.map((fileName) => {
+    const source = path.join(preactRoot, fileName);
+    return `/* ${fileName} */\n${fs.readFileSync(source, 'utf-8')}`;
+  }).join('\n')}\n`;
+};
+
 const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<void> => {
   const sdkDir = path.join(sdkRoot, `${BUILD_PATHS.BUILD.ESM}/sdk`);
   fs.mkdirSync(sdkDir, { recursive: true });
@@ -336,6 +356,12 @@ const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<v
     const dest = path.join(sdkDir, 'seams-components.css');
     if (fs.existsSync(src)) fs.copyFileSync(src, dest);
   }
+
+  fs.writeFileSync(
+    path.join(sdkDir, 'confirmation-ui.css'),
+    buildPreactConfirmationCss(sdkRoot),
+    'utf-8',
+  );
 
   copyIfMissing(
     path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/tx-tree.css'),
@@ -383,7 +409,9 @@ const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<v
     ),
     path.join(sdkDir, 'recovery-code-backup.css'),
   );
-  console.log('✅ Emitted /sdk wallet-shims.js, wallet-service.css, and auth-menu.css');
+  console.log(
+    '✅ Emitted /sdk wallet-shims.js, wallet-service.css, auth-menu.css, and confirmation-ui.css',
+  );
 };
 
 const emitWalletServiceStaticPlugin = {

@@ -41,6 +41,7 @@
 import { Page, test } from '@playwright/test';
 import { executeSequentialSetup } from './bootstrap';
 import { DEFAULT_TEST_CONFIG } from './config';
+import { routePreactModules } from './preact';
 import type { PasskeyTestConfig, PasskeyTestSetupOptions } from './types';
 export { SDK_ESM_BASE_PATH, SDK_ESM_PATHS, sdkEsmPath } from './sdkEsmPaths';
 
@@ -188,6 +189,7 @@ export async function setupBasicPasskeyTest(
   } catch {}
 
   // Execute the generic sequential setup process.
+  await routePreactModules(page);
   const authenticatorId = await executeSequentialSetup(page, config, {
     skipSeamsWebInit: options.skipSeamsWebInit,
     injectWalletServiceImportMap: options.injectWalletServiceImportMap,
