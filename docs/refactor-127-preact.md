@@ -1385,7 +1385,11 @@ Transaction-tree visual checkpoint — 2026-09-21:
 - This is evidence for the default tree fixture only. Chain-specific details,
   expanded content, copy/mode interactions, hosted resizing, and the complete
   confirmation visual matrix remain open. Keep this temporary comparison until
-  Phase 8d, when all migration visual gates have passed.
+  Phase 8d, when all migration visual gates have passed. The existing
+  transaction-tree behavior matrix passed **18/18** across Chromium, Firefox,
+  and WebKit after the parity gate was added, including NEAR formatting,
+  unknown-chain fallback, keyboard expansion, clipboard fallback, disposal,
+  and hosted resize choreography.
 
 Luna review checkpoint — 2026-09-21:
 
