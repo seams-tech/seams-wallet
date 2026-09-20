@@ -10,7 +10,7 @@ const root = path.resolve(import.meta.dirname, '../..');
 const savedLit = path.join(root, '.artifacts/refactor-127/lit-baseline-build/esm');
 const output = path.join(root, '.artifacts/refactor-127/visual/export');
 type Renderer = 'lit' | 'preact';
-type FixtureState = 'ready' | 'multi-key' | 'loading';
+type FixtureState = 'ready' | 'multi-key' | 'loading' | 'failed' | 'copied' | 'appearance';
 
 async function preparePage(page: Page, renderer: Renderer): Promise<void> {
   await injectImportMap(page);
@@ -86,123 +86,158 @@ function compare(before: Buffer, after: Buffer, name: string) {
   return { changedPixels, fraction: changedPixels / (left.width * left.height) };
 }
 
-for (const theme of ['light', 'dark'] as const) {
-  for (const surfaceContext of ['wallet-iframe', 'standalone'] as const) {
-    for (const state of ['ready', 'multi-key', 'loading'] as const) {
-      test(`export/${surfaceContext}/${state}-${theme}`, async ({ context }) => {
-        fs.mkdirSync(output, { recursive: true });
-        const name = `${surfaceContext}-${state}-${theme}`;
-        const captures: Buffer[] = [];
-        const geometry = [];
-        for (const renderer of ['lit', 'preact'] as const) {
-          const page = await context.newPage();
-          try {
-            await page.setViewportSize({ width: 1024, height: 900 });
-            await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
-            await preparePage(page, renderer);
-            await page.evaluate(
-              async ({
-                renderer,
-                theme,
-                surfaceContext,
-                state,
-              }: {
-                renderer: Renderer;
-                theme: 'light' | 'dark';
-                surfaceContext: 'wallet-iframe' | 'standalone';
-                state: FixtureState;
-              }) => {
-                document.documentElement.dataset.seamsTheme = theme;
-                const entries = [
-                  {
-                    id: 'evm',
-                    scheme: 'secp256k1' as 'secp256k1' | 'ed25519',
-                    label: 'EVM',
-                    publicKey: '0x02abcd',
-                    address: '0x1234567890abcdef',
-                    privateKey: `0x${'1234567890abcdef'.repeat(4)}`,
-                  },
-                ];
-                if (state === 'multi-key')
-                  entries.push({
-                    id: 'near',
-                    scheme: 'ed25519',
-                    label: 'NEAR',
-                    publicKey: 'ed25519:synthetic-public-key',
-                    address: '',
-                    privateKey: `ed25519:${'123456789ABCDEFGH'.repeat(4)}`,
-                  });
-                const guidance = {
-                  title: 'Import your keys',
-                  body: 'Use a trusted wallet.',
-                  steps: ['Keep this window private.', 'Store your backup securely.'],
-                };
-                const prefix = '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/';
-                const { upsertExportViewerHost } = await import(`${prefix}export-viewer-host.js`);
-                await upsertExportViewerHost({
+for (const viewport of [
+  { width: 1024, height: 900 },
+  { width: 390, height: 844 },
+]) {
+  for (const theme of ['light', 'dark'] as const) {
+    for (const surfaceContext of ['wallet-iframe', 'standalone'] as const) {
+      for (const state of [
+        'ready',
+        'multi-key',
+        'loading',
+        'failed',
+        'copied',
+        'appearance',
+      ] as const) {
+        test(`export/${viewport.width}/${surfaceContext}/${state}-${theme}`, async ({
+          context,
+        }) => {
+          fs.mkdirSync(output, { recursive: true });
+          const name = `${surfaceContext}-${state}-${theme}${viewport.width === 1024 ? '' : '-narrow'}`;
+          const captures: Buffer[] = [];
+          const geometry = [];
+          for (const renderer of ['lit', 'preact'] as const) {
+            const page = await context.newPage();
+            try {
+              await page.setViewportSize(viewport);
+              await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+              await preparePage(page, renderer);
+              await page.evaluate(
+                async ({
                   theme,
-                  variant: 'drawer',
-                  accountId: 'synthetic.testnet',
-                  keys: entries.map((entry) => ({
-                    ...entry,
-                    privateKey: state === 'loading' ? '' : entry.privateKey,
-                  })),
-                  loading: state === 'loading',
-                  guidance,
-                  surfaceMeasurementBinding:
-                    surfaceContext === 'standalone'
-                      ? { kind: 'disabled' }
-                      : {
-                          kind: 'wallet_iframe',
-                          requestId: 'export-visual',
-                          hostSurfaceVariant: 'modal',
-                          postMeasurement: () => {},
-                        },
-                });
-                await document.fonts.ready;
-              },
-              { renderer, theme, surfaceContext, state },
-            );
-            const surface = page.locator(
-              renderer === 'lit' ? 'seams-drawer .drawer' : '.seams-confirmation-drawer',
-            );
-            await expect(surface).toBeVisible();
-            await waitForStableSurface(surface);
-            geometry.push({ renderer, box: await surface.boundingBox() });
-            captures.push(
-              await page.screenshot({ path: path.join(output, `${name}-${renderer}.png`) }),
-            );
-            if (
-              renderer === 'preact' &&
-              surfaceContext === 'wallet-iframe' &&
-              state === 'multi-key'
-            ) {
-              await page.locator('.warning').last().scrollIntoViewIfNeeded();
-              await page.screenshot({ path: path.join(output, `${name}-preact-scrolled.png`) });
+                  surfaceContext,
+                  state,
+                }: {
+                  theme: 'light' | 'dark';
+                  surfaceContext: 'wallet-iframe' | 'standalone';
+                  state: FixtureState;
+                }) => {
+                  document.documentElement.dataset.seamsTheme = theme;
+                  Object.defineProperty(navigator, 'clipboard', {
+                    configurable: true,
+                    value: { writeText: async () => {} },
+                  });
+                  const entries = [
+                    {
+                      id: 'evm',
+                      scheme: 'secp256k1' as 'secp256k1' | 'ed25519',
+                      label: 'EVM',
+                      publicKey: '0x02abcd',
+                      address: '0x1234567890abcdef',
+                      privateKey: `0x${'1234567890abcdef'.repeat(4)}`,
+                    },
+                  ];
+                  if (state === 'multi-key')
+                    entries.push({
+                      id: 'near',
+                      scheme: 'ed25519',
+                      label: 'NEAR',
+                      publicKey: 'ed25519:synthetic-public-key',
+                      address: '',
+                      privateKey: `ed25519:${'123456789ABCDEFGH'.repeat(4)}`,
+                    });
+                  const guidance = {
+                    title: 'Import your keys',
+                    body: 'Use a trusted wallet.',
+                    steps: ['Keep this window private.', 'Store your backup securely.'],
+                  };
+                  const prefix = '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/';
+                  const { upsertExportViewerHost } = await import(`${prefix}export-viewer-host.js`);
+                  await upsertExportViewerHost({
+                    theme,
+                    variant: 'drawer',
+                    accountId: 'synthetic.testnet',
+                    keys: (state === 'failed' ? [] : entries).map((entry) => ({
+                      ...entry,
+                      privateKey: state === 'loading' ? '' : entry.privateKey,
+                    })),
+                    loading: state === 'loading',
+                    errorMessage: state === 'failed' ? 'Export failed. Please try again.' : '',
+                    appearance:
+                      state === 'appearance'
+                        ? {
+                            palette: 'default',
+                            theme: {
+                              id: 'default',
+                              mode: theme,
+                              colors: { success: '#8367ce', textPrimary: '#987bcf' },
+                            },
+                          }
+                        : undefined,
+                    guidance,
+                    surfaceMeasurementBinding:
+                      surfaceContext === 'standalone'
+                        ? { kind: 'disabled' }
+                        : {
+                            kind: 'wallet_iframe',
+                            requestId: 'export-visual',
+                            hostSurfaceVariant: 'modal',
+                            postMeasurement: () => {},
+                          },
+                  });
+                  await document.fonts.ready;
+                },
+                { theme, surfaceContext, state },
+              );
+              const surface = page.locator(
+                renderer === 'lit' ? 'seams-drawer .drawer' : '.seams-confirmation-drawer',
+              );
+              await expect(surface).toBeVisible();
+              await waitForStableSurface(surface);
+              if (state === 'copied' || state === 'appearance') {
+                await page.getByRole('button', { name: 'Copy private key', exact: true }).click();
+                await expect(
+                  page.getByRole('button', { name: 'Private key copied', exact: true }),
+                ).toBeVisible();
+              }
+              geometry.push({ renderer, box: await surface.boundingBox() });
+              captures.push(
+                await page.screenshot({ path: path.join(output, `${name}-${renderer}.png`) }),
+              );
+              if (
+                renderer === 'preact' &&
+                surfaceContext === 'wallet-iframe' &&
+                state === 'multi-key'
+              ) {
+                await page.locator('.warning').last().scrollIntoViewIfNeeded();
+                await page.screenshot({ path: path.join(output, `${name}-preact-scrolled.png`) });
+              }
+            } finally {
+              await page.close();
             }
-          } finally {
-            await page.close();
           }
-        }
-        const comparison = compare(captures[0], captures[1], name);
-        fs.writeFileSync(
-          path.join(output, `${name}.json`),
-          JSON.stringify({ geometry, comparison }, null, 2),
-        );
-        const before = geometry[0].box!;
-        const after = geometry[1].box!;
-        expect(after.x).toBeCloseTo(before.x, 2);
-        expect(after.y).toBeCloseTo(before.y, 2);
-        expect(after.width).toBeCloseTo(before.width, 2);
-        if (surfaceContext === 'wallet-iframe' && state === 'multi-key') {
-          // The replacement scrolls long exports inside the fixed hosted box.
-          expect(after.height).toBe(576);
-          expect(comparison.fraction).toBeLessThan(0.003);
-        } else {
-          expect(after.height).toBeCloseTo(before.height, 2);
-          expect(comparison.fraction).toBeLessThan(0.001);
-        }
-      });
+          const comparison = compare(captures[0], captures[1], name);
+          fs.writeFileSync(
+            path.join(output, `${name}.json`),
+            JSON.stringify({ geometry, comparison }, null, 2),
+          );
+          const before = geometry[0].box!;
+          const after = geometry[1].box!;
+          expect(after.x).toBeCloseTo(before.x, 2);
+          expect(after.y).toBeCloseTo(before.y, 2);
+          expect(after.width).toBeCloseTo(before.width, 2);
+          if (surfaceContext === 'wallet-iframe' && state === 'multi-key') {
+            // The replacement scrolls long exports inside the fixed hosted box.
+            expect(after.height).toBe(576);
+            // Keep the desktop pixel allowance independent of empty canvas area.
+            expect(comparison.changedPixels).toBeLessThan(1024 * 900 * 0.003);
+          } else {
+            expect(after.height).toBeCloseTo(before.height, 2);
+            expect(comparison.fraction).toBeLessThan(0.001);
+          }
+        });
+      }
     }
   }
 }

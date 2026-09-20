@@ -1439,6 +1439,23 @@ Production export integration checkpoint — 2026-09-21:
   parent-iframe integration, export Lit deletion, and per-flow bundle size gates.
   These checks do not establish completion of Phase 5.
 
+Extended export capture checkpoint — 2026-09-21:
+
+- Expanded the public-host comparison harness to 48 pairs: 1024px and 390px
+  viewports, both themes and contexts, and ready/multi-key/loading/failed/copied/
+  custom-appearance states. All cases pass after targeted reruns. Browser-test
+  TypeScript checking also passes. Clipboard writes use synthetic fixture data.
+- Two narrow hosted multi-key cases initially exceeded the full-frame percentage
+  gate because the smaller canvas changes its denominator. Inspected differences
+  remain the accepted scroll-boundary correction (1,240 and 2,285 pixels); the
+  gate now retains the original desktop absolute allowance of 2,764.8 pixels
+  for this case only. Other geometry and percentage gates remain unchanged.
+- Inspected copied feedback, narrow error, narrow multi-key, and visibly custom
+  appearance comparisons. Appearance overrides the actual `success` and
+  `textPrimary` tokens. Screenshots remain ignored; comprehensive image review
+  and parent-iframe fit/scroll acceptance remain open. A fixed-size hosted
+  surface captured in a narrow document alone does not prove parent fit.
+
 - [x] Replace host/viewer rendering with `ExportPrivateKeySurface` behind
   `upsertExportViewerHost()` and an explicit mount/update/dispose handle.
 - [ ] Preserve modal/drawer behavior, masking, reveal timing, multi-key
