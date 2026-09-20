@@ -1274,9 +1274,7 @@ type TerminalWalletStateErrorCode =
   | 'wallet_full_login_required'
   | 'wallet_operation_step_up_cancelled';
 
-function isTerminalWalletStateErrorCode(
-  code: unknown,
-): code is TerminalWalletStateErrorCode {
+function isTerminalWalletStateErrorCode(code: unknown): code is TerminalWalletStateErrorCode {
   return (
     code === 'wallet_signing_material_invalid' ||
     code === 'wallet_full_login_required' ||
@@ -1949,6 +1947,11 @@ export class WalletIframeRouter {
     }
     this.overlayState.controller.setAuthMenuVisualScale(authMenuVisualScale);
     this.surfaceRenderer.render(surface, geometry);
+    if (surface.kind === 'modal_auth_menu' && geometry.kind !== 'provisional_centered_modal') {
+      this.hostedAuthMenuAnchors
+        .get(surface.authMenuSessionId)
+        ?.style.setProperty('--seams-auth-menu-placeholder-opacity', '0');
+    }
   }
 
   private startHostedAuthMenuAnchorTracking(authMenuSessionId: HostedAuthMenuSessionId): void {

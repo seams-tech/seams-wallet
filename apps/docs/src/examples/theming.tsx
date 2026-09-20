@@ -1,5 +1,10 @@
 import type { SeamsWeb } from '@seams/wallet';
-import { SeamsAuthMenu, SHAPE_PRESETS, Theme } from '@seams/wallet/react';
+import {
+  HostedSeamsAuthMenu,
+  type HostedAuthMenuOutcome,
+  SHAPE_PRESETS,
+  Theme,
+} from '@seams/wallet/react';
 
 const colors = {
   colorBackground: '#ffffff',
@@ -7,7 +12,11 @@ const colors = {
   buttonBackground: '#000000',
 };
 
-export function ThemedAuthMenu() {
+export function ThemedAuthMenu({
+  onOutcome,
+}: {
+  onOutcome: (outcome: HostedAuthMenuOutcome) => void;
+}) {
   return (
     <Theme
       theme="light"
@@ -18,7 +27,7 @@ export function ThemedAuthMenu() {
         },
       }}
     >
-      <SeamsAuthMenu />
+      <HostedSeamsAuthMenu onOutcome={onOutcome} />
     </Theme>
   );
 }

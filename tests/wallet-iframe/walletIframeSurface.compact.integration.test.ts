@@ -335,6 +335,32 @@ test.describe('wallet iframe compact surface measurement routing', () => {
     await page.unroute(WALLET_SERVICE_ROUTE).catch(() => {});
   });
 
+  test('keeps the loading placeholder until the anchored hosted menu is visible', async ({
+    page,
+  }) => {
+    await startHostedAuthMenu(page, 'compact-loading-placeholder-session', { anchorInFlow: true });
+    const anchor = page.locator('[data-test-auth-menu-anchor]');
+    expect(
+      await anchor.evaluate((element) =>
+        getComputedStyle(element).getPropertyValue('--seams-auth-menu-placeholder-opacity').trim(),
+      ),
+    ).toBe('');
+    await postSurfaceMeasurement(page, {
+      kind: 'measured_auth_menu_v1',
+      requestId: '__current__',
+      authMenuSessionId: '__current__',
+      sequence: 1,
+      widthCssPx: 420,
+      heightCssPx: 430,
+    });
+    await waitForDialogGeometry(page, { width: 420, height: 430 });
+    expect(
+      await anchor.evaluate((element) =>
+        getComputedStyle(element).getPropertyValue('--seams-auth-menu-placeholder-opacity').trim(),
+      ),
+    ).toBe('0');
+  });
+
   test('keeps a provisional auth menu rendering so its child can measure', async ({ page }) => {
     await startHostedAuthMenu(page, 'compact-initial-paint-session');
 

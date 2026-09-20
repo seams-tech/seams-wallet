@@ -1,4 +1,5 @@
 import React from 'react';
+import { SeamsAuthMenuMock } from './SeamsAuthMenuMock';
 import { useSeams } from '@/react/context';
 import {
   buildHostedAuthMenuOpenRequest,
@@ -16,7 +17,7 @@ import {
 import type { SeamsWeb } from '@/SeamsWeb';
 import type { HostedAuthMenuExternalAuthBroker, HostedSeamsAuthMenuProps } from './types';
 
-type SeamsAuthMenuBridge = Pick<
+type HostedAuthMenuBridge = Pick<
   SeamsWeb,
   | 'openHostedAuthMenu'
   | 'cancelHostedAuthMenu'
@@ -31,7 +32,7 @@ type BrokerRef = React.MutableRefObject<HostedAuthMenuExternalAuthBroker | null>
 type HostedAuthMenuFailureCode = Extract<HostedAuthMenuOutcome, { kind: 'failed' }>['code'];
 
 type HostedAuthMenuSessionArgs = {
-  seams: SeamsAuthMenuBridge;
+  seams: HostedAuthMenuBridge;
   anchorElement: HTMLElement;
   authMenuSessionId: HostedAuthMenuSessionId;
   initialMode: HostedAuthMenuMode;
@@ -191,7 +192,7 @@ function hostedAuthMenuEffectConfigKey(config: HostedAuthMenuEffectConfig): stri
 }
 
 class HostedAuthMenuSessionController {
-  private readonly seams: SeamsAuthMenuBridge;
+  private readonly seams: HostedAuthMenuBridge;
   private readonly anchorElement: HTMLElement;
   private readonly authMenuSessionId: HostedAuthMenuSessionId;
   private readonly initialMode: HostedAuthMenuMode;
@@ -231,6 +232,7 @@ class HostedAuthMenuSessionController {
   start(): void {
     if (this.isActive) return;
     this.isActive = true;
+    this.anchorElement.style.setProperty('--seams-auth-menu-placeholder-opacity', '1');
     this.unsubscribeExternalAuthRequest = this.seams.onHostedAuthMenuExternalAuthRequest(
       this.handleExternalAuthRequestBound,
     );
@@ -359,6 +361,7 @@ class HostedAuthMenuSessionController {
   private emitOutcome(outcome: HostedAuthMenuOutcome): void {
     if (this.hasTerminalOutcome) return;
     this.hasTerminalOutcome = true;
+    this.anchorElement.style.setProperty('--seams-auth-menu-placeholder-opacity', '0');
     try {
       this.onOutcome.current(outcome);
     } catch {
@@ -510,8 +513,21 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
         // The wallet host measures the menu and publishes its height back onto
         // this element, so the anchor reserves the space the menu paints over.
         minHeight: 'var(--seams-auth-menu-height, 450px)',
+        position: 'relative',
       }}
-    />
+    >
+      {!terminalGate?.completed && (
+        <span
+          style={{
+            position: 'absolute',
+            inset: '0 0 auto',
+            opacity: 'var(--seams-auth-menu-placeholder-opacity, 1)',
+          }}
+        >
+          <SeamsAuthMenuMock initialMode={initialMode} />
+        </span>
+      )}
+    </span>
   );
 };
 
