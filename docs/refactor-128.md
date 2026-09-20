@@ -1,7 +1,10 @@
 # Refactor 128: Five durable presignatures with session-authorized refill
 
-Status: implemented in draft PR #11, unreleased, 2026-09-20. Supersedes the session-independent
-preprocessing credential proposal in optimization-10 section 4.5.
+Status: released in Wallet 0.5.27, with the durable restoration correction released
+in 0.5.28 and accepted against the hosted testnet frontend on 2026-09-21. The
+coordinated 0.5.28 testnet backend deployment remains blocked by GitHub billing.
+Supersedes the session-independent preprocessing credential proposal in
+optimization-10 section 4.5.
 
 ## Objective
 
@@ -237,7 +240,24 @@ blocks new generation, unlocks after resetting browser runtime, signs with a
 previously saved presignature ID, and verifies that the consumed entry disappears.
 
 The corrected real registration/reload contract passed locally (39.0 seconds),
-with generation blocked throughout reload and cached signing. All 208 unit tests, the SDK build, and full workspace type-check passed. Release and hosted reload verification for 0.5.28 are pending.
+with generation blocked throughout reload and cached signing. All 208 unit tests,
+the SDK build, and full workspace type-check passed.
+
+Wallet 0.5.28 was published from `d0e4c263fb711b6cc2c6e9b4e9025ce68110acbd`.
+The production and testnet frontend manifests both report 0.5.28. A fresh hosted
+testnet wallet reached five encrypted durable entries with approximately 90-day
+expiry. The same five hashed record identifiers survived a page reload. The first
+post-reload Tempo signature selected an available reusable-session presignature,
+reported four entries remaining, and completed its signing `commit_total` stage in
+1.365 seconds. Refill restored the pool to five; the consumed record fingerprint
+was absent and one new fingerprint appeared, confirming one-use replacement.
+
+The coordinated testnet backend workflow built the release successfully, then
+GitHub refused to start the migration job because recent account payments failed
+or the Actions spending limit needs to be increased. No deployment jobs ran, so
+the hosted check exercised the 0.5.28 frontend against the previous testnet backend.
+This infrastructure failure does not invalidate the client persistence result,
+but a fully coordinated backend rollout remains outstanding.
 
 The sustained local rerun also exposed a test-harness race: after a successful
 signature, confirmation fingerprint evaluation waited indefinitely when its
