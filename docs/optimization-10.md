@@ -879,13 +879,105 @@ Remaining work, in order:
    refill authority after reusable signing quota reaches zero. Existing
    authority remains the implemented policy.
 
-The coordinated package release candidate is **0.5.26**. Publication, deployment,
-and post-release measurements follow successful validation of its exact commit.
+The coordinated package release candidate was **0.5.26**. Publication, deployment,
+and post-release measurements are recorded in the following section.
 The priority regression verifies a background init followed by a foreground
 step under the same session and authorization, with no duplicate ceremony.
 The combined candidate passes all 200 Wallet unit tests, Wallet type-checking,
 and the SDK build; server checks and type fixtures passed for the unchanged
-server portion. Production latency for these changes remains unmeasured.
+server portion. The production results below supersede the pending-measurement status.
+
+## Deployed 0.5.26 results (2026-09-20)
+
+Both Wallet packages were published from `a2900753fbf4651078c6c36767224151e90b7f0d`.
+Private PR #30 merged as `2c576d60401fb3082e6fd742ee0ce84d98869932`.
+[Frontend deployment](https://github.com/seams-tech/seams-monorepo/actions/runs/35502825879)
+and [testnet backend deployment](https://github.com/seams-tech/seams-monorepo/actions/runs/35502827351)
+passed, including smoke tests. Mainnet and testnet wallet asset manifests report
+0.5.26. Mainnet backend activation remains blocked by the existing billing policy;
+these signing measurements use the production-hosted testnet service.
+
+The benchmark ran from Japan with Chromium, a virtual passkey, real MPC and chain
+requests, and no response interception. The previous browser's passkey unlock
+timed out, so a fresh isolated test wallet was registered and funded with testnet
+tokens. Account identity and measurement time differ from the previous cohort.
+These small diagnostic samples establish neither p95 nor a causal release gain.
+Signing timings below use `commit_total`, excluding user interaction and chain
+finality. The first failed harness attempts are excluded: they did not collect
+usable signing timings. A further diagnostic attempt did not return a completed
+result and was stopped; it is also excluded from latency statistics.
+
+| Case | Samples | 0.5.26 observed signing time |
+| --- | ---: | --- |
+| Rapid-repeat transactions | 10 successful | 2.412–7.654 s |
+| Immediate first signing after unlock, within that batch | 1 successful | 6.020 s; 3.654 s waiting for background generation |
+| Empty-pool exact-operation step-up, batch samples 5–10 | 6 successful | median 7.413 s |
+| Foreground generation, batch samples 2 and 5–10 | 7 | median 5.065 s |
+| Paced transactions, 12-second preparation interval | 4 successful | 1.9995, 1.7949, 2.4836, 2.5470 s; median 2.242 s |
+
+The paced cohort includes three reusable-session transactions and one exact-operation
+step-up. All four used available presignatures. The previous diagnostic medians
+were 7.499 s for empty-pool step-up and 5.150 s for foreground generation. The
+small observed difference does not establish a material latency improvement.
+The 1–3-second target is achieved in this cached cohort and remains unmet when
+new preprocessing is required during signing.
+
+For the six empty-pool exact-operation samples, each ceremony made eight HTTP
+requests. The following are medians of per-ceremony sums. Spans are nested and
+must not be added together as independent costs.
+
+| Span | Median per ceremony |
+| --- | ---: |
+| Browser request start to response headers | 4.683 s |
+| Gateway total | 3.329 s |
+| Gateway service binding | 0.154 s |
+| SDK presign route total | 3.166 s |
+| Authentication | 1.010 s |
+| Separate gateway material read | 0.000 s |
+| Admission | 0.239 s |
+| Worker proxy | 1.949 s |
+| Signing worker total, inside proxy | 0.997 s |
+| Worker session handling, inside worker total | 0.817 s |
+| Foreground priority queue | 0.000 s |
+
+The duplicate material-read span is removed as intended. Authentication remains
+about one second across eight rounds; fresh authorization and storage work still
+matter. Browser-to-gateway and gateway-to-worker transit also remain substantial.
+Foreground scheduling was not the limiting factor in these samples.
+
+The first signing sample observed one failed background generation followed by
+a successful generation whose later rounds carried foreground priority. Seven
+round events were foreground and one was background. This confirms promotion
+on the measured path; it does not establish multi-user fairness. Background
+pool-fill HTTP 503 responses were also observed. Successful transactions do not
+close the earlier unlock/session failure investigation. Deployment-discovery
+HTTP 503 responses were captured separately; their cause was not established by
+the timing-only recorder.
+
+Next implementation priorities:
+
+1. Preserve the cached-signing path and measure pool depth against consumption
+   rate. A 12-second preparation interval succeeded in these samples, but sustained
+   rapid signing still exhausts the pool. Resolve presignature-only authority as
+   a separate policy decision before changing generation after reusable quota
+   exhaustion; current authority remains unchanged.
+2. Diagnose failed refill requests by their response code and authority transition.
+   Distinguish an expected exhausted-quota rejection from an unlock race before
+   changing readiness or retries. Preserve registration success while NEAR is pending.
+3. Benchmark transport and placement against this eight-request baseline. Measure
+   browser-to-gateway transit, gateway-to-worker transit, session storage and
+   authentication separately. Keep fresh authorization and custody boundaries;
+   persistent transport alone cannot remove storage or protocol dependencies.
+4. Exercise multiple independent wallets concurrently and check foreground latency,
+   background progress, and ownership isolation. The current per-instance gate has
+   no tenant fairness guarantee. Add scheduling complexity only for demonstrated
+   contention; existing presignatures must never be reassigned across owners.
+5. Repeat Arc measurements after test funding is available, then collect larger
+   geographically representative cohorts before claiming the target as an SLO.
+
+Raw allowlisted traces, summaries, attribution and release metadata are retained
+under the private monorepo's ignored `output/playwright/optimization-10-0.5.26-*`
+artifacts. Public documentation intentionally contains aggregate measurements.
 
 ## Execution order
 
