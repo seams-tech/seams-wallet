@@ -10,6 +10,10 @@
   scrollbar-width: thin;
 }
 
+:where(.seams-wallet-ui).seams-confirmation-surface {
+  --seams-modal__passkey-halo-loading-touch-icon__stroke-width: 3.5;
+}
+
 :where(.seams-wallet-ui) .seams-halo-border {
   display: inline-block;
   background: transparent;

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { PNG } from 'pngjs';
@@ -86,6 +86,22 @@ function compareImages(beforePath: string, afterPath: string, diffPath: string) 
   };
 }
 
+async function waitForStableSurface(surface: Locator): Promise<void> {
+  let previous = '';
+  let stableSamples = 0;
+  await expect
+    .poll(
+      async () => {
+        const box = JSON.stringify(await surface.boundingBox());
+        stableSamples = box === previous ? stableSamples + 1 : 0;
+        previous = box;
+        return stableSamples;
+      },
+      { intervals: [100], timeout: 10_000 },
+    )
+    .toBeGreaterThanOrEqual(3);
+}
+
 test.describe.configure({ mode: 'serial' });
 
 test.beforeEach(async ({ page }) => {
@@ -168,7 +184,6 @@ for (const theme of ['light', 'dark'] as const) {
               uiMode: variant,
               nearAccountIdOverride: 'visual-fixture.testnet',
             });
-            if (state === 'error') handle.update({ errorMessage: 'Unable to prepare transaction.' });
             (globalThis as { __preactVisualHandle?: typeof handle }).__preactVisualHandle = handle;
           },
           {
@@ -187,19 +202,17 @@ for (const theme of ['light', 'dark'] as const) {
             );
         await expect(surface).toBeVisible();
         await page.evaluate(() => document.fonts.ready);
-        let previous = '';
-        let stableSamples = 0;
-        await expect
-          .poll(
-            async () => {
-              const box = JSON.stringify(await surface.boundingBox());
-              stableSamples = box === previous ? stableSamples + 1 : 0;
-              previous = box;
-              return stableSamples;
-            },
-            { intervals: [100], timeout: 10_000 },
-          )
-          .toBeGreaterThanOrEqual(3);
+        await waitForStableSurface(surface);
+        if (state === 'error') {
+          await page.evaluate(() => {
+            const handle = (globalThis as {
+              __preactVisualHandle?: { update: (update: { errorMessage: string }) => void };
+            }).__preactVisualHandle;
+            if (!handle) throw new Error('Confirmation handle is missing');
+            handle.update({ errorMessage: 'Unable to prepare transaction.' });
+          });
+          await waitForStableSurface(surface);
+        }
 
         const rendererRoot = captureSavedLit ? path.join(output, 'lit-production') : afterRoot;
         const surfacePath = path.join(
@@ -244,11 +257,11 @@ for (const theme of ['light', 'dark'] as const) {
         comparisons.push({ renderer, variant, state, theme, browser: browser.version(), comparison });
         expect(comparison.surface.after.width).toBeGreaterThan(0);
         expect(comparison.content.after.width).toBeGreaterThan(0);
-        if (variant === 'drawer') {
-          expect(comparison.surface.after).toEqual(comparison.surface.before);
-          const pixels = comparison.surface.after.width * comparison.surface.after.height;
-          expect(comparison.surface.changedPixels / pixels).toBeLessThan(0.01);
-        }
+        expect(comparison.surface.after).toEqual(comparison.surface.before);
+        const pixels = comparison.surface.after.width * comparison.surface.after.height;
+        // Lit's JS-driven halo keeps rotating under reduced motion; allow its captured angle.
+        const pixelThreshold = variant === 'modal' && state !== 'error' ? 0.025 : 0.01;
+        expect(comparison.surface.changedPixels / pixels).toBeLessThan(pixelThreshold);
 
         await page.evaluate(() => {
           const handle = (globalThis as { __preactVisualHandle?: { close: (confirmed: boolean) => void } })

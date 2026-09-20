@@ -117,10 +117,20 @@ All six drawer captures (default/loading/error, light/dark) now have identical
 outer dimensions to the saved Lit build. Inspected differences are confined to
 small rendering/edge differences (31–429 changed pixels, below 1% per capture).
 The harness enforces matching drawer dimensions and the 1% pixel ceiling.
-Modal default/loading dimensions also match. Modal error remains 32px shorter
-because the saved Lit stopped halo expands into a large padded block; its cause
-and intended appearance still require review. Modal captures remain diagnostic,
-and this checkpoint does **not** approve final confirmation visual acceptance.
+Modal default/loading dimensions also match. The initial modal error capture
+was 32px taller in Lit due to an initial stylesheet-adoption race. A follow-up
+compared the same error after first-render geometry settled: Lit's halo then
+retains 78×78px, zero inner padding, and transparent content, matching Preact.
+The earlier capture had fallen back to the halo defaults (2rem padding and a
+dark background). `css-loader.ts` appends static sheets after instance overrides;
+the running halo ordinarily restores override precedence on its next tick.
+Preact now has a regression test for an error arriving immediately after mount
+and recovery back to the ready state, without changing halo dimensions.
+The old 3.5 fingerprint stroke token is also restored on the Preact surface.
+All 12 basic modal/drawer captures now match dimensions. The comparison allows
+under 1% changed pixels except animated modal cases (2.5%, allowing the saved
+Lit's JS-driven halo angle). This covers basic synthetic transactions; it does
+**not** approve the full transaction-tree, OTP, or registration visual matrix.
 
 Wallet declaration generation, Rolldown, and browser-test TypeScript checks
 pass. The focused production/lifecycle suite passes 30/30 across Chromium,
@@ -431,6 +441,13 @@ During the intervening phases, documents may link separate surface stylesheets;
 each static rule has one authoritative source.
 
 ## Delivery phases
+
+Priority update — 2026-09-21: at the user's request, focus next on private-key
+export drawers, transaction confirmer drawers, and transaction trees, in that
+order. The phase numbers below remain stable for tracking. Export may proceed
+using the verified drawer primitives while broader confirmation acceptance is
+completed alongside it. Recovery and React-adapter migration follow these
+surfaces; legacy removal remains conditional on each replacement's acceptance.
 
 Each numbered phase is a review checkpoint. Subphases are separate changes
 where practical. Finish a phase's exit checks before starting its dependent
@@ -1359,6 +1376,13 @@ browsers, and per-flow size gates pass through the public integration boundary.
 ### 5. Migrate private-key export
 
 **Depends on:** Phase 4's verified primitives.
+
+Implementation started: extracted the existing key-reveal reel and masking
+functions into `ui/export-private-key-reveal.ts`. The current Lit viewer consumes
+that single implementation, ready for reuse by Preact. Focused Node tests cover
+both key schemes, masked-target settling, and reduced-motion placeholders using
+synthetic keys. Host mounting, typed export view models, Preact rendering, copy
+feedback/disposal, and matched export screenshots remain to implement.
 
 - [ ] Replace host/viewer rendering with `ExportPrivateKeySurface` behind
   `upsertExportViewerHost()` and an explicit mount/update/dispose handle.

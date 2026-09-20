@@ -39,6 +39,7 @@ declare global {
     __confirmationMount: {
       mount(variant: 'modal' | 'drawer', context: 'standalone' | 'wallet-iframe'): string;
       update(index: number, heading: string, ready: boolean): void;
+      error(index: number): void;
       email(index: number, challengeId: string, verification: EmailOtpVerificationState): void;
       close(index: number): void;
       dispose(index: number): void;
@@ -145,6 +146,13 @@ test.beforeEach(async ({ page }) => {
     function update(index: number, heading: string, ready: boolean) {
       handles[index].update(model(heading, ready));
     }
+    function error(index: number) {
+      const viewModel = model('First confirmation', true);
+      if (viewModel.content.kind !== 'transaction') throw new Error('Expected transaction fixture');
+      viewModel.content.header.errorMessage = 'Unable to prepare transaction.';
+      viewModel.content.transaction.errorMessage = 'Unable to prepare transaction.';
+      handles[index].update(viewModel);
+    }
     function close(index: number) {
       handles[index].close();
     }
@@ -157,6 +165,7 @@ test.beforeEach(async ({ page }) => {
     window.__confirmationMount = {
       mount,
       update,
+      error,
       email,
       close,
       dispose,
@@ -264,6 +273,30 @@ test('mount updates complete models and invokes the current callback synchronous
   });
   await expect(root).toHaveCount(0);
   expect(await page.evaluate(() => window.__confirmationMount.closed)).toBe(1);
+  expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
+});
+
+test('an immediate error preserves the modal halo geometry and background', async ({ page }) => {
+  const id = await page.evaluate(() => {
+    const id = window.__confirmationMount.mount('modal', 'wallet-iframe');
+    window.__confirmationMount.error(0);
+    return id;
+  });
+  const root = page.locator(`#${id}`);
+  await expect(root.locator('.error-banner')).toHaveText('Unable to prepare transaction.');
+  const halo = root.locator('.seams-halo-border');
+  await expect(halo.locator('.halo-ring')).toHaveCount(0);
+  await expect(halo.locator('.halo-content')).toHaveCSS('padding', '0px');
+  await expect(halo.locator('.halo-content')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  const before = await halo.boundingBox();
+  await page.evaluate(() => window.__confirmationMount.update(0, 'First confirmation', true));
+  await expect(halo.locator('.halo-ring')).toHaveCount(1);
+  const after = await halo.boundingBox();
+  expect(before).not.toBeNull();
+  expect(after).not.toBeNull();
+  expect(after!.width).toBeCloseTo(before!.width, 2);
+  expect(after!.height).toBeCloseTo(before!.height, 2);
+  await page.evaluate(() => window.__confirmationMount.dispose(0));
   expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
