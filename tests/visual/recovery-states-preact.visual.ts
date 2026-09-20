@@ -12,7 +12,13 @@ const output = path.join(root, '.artifacts/refactor-127/visual/recovery-states')
 
 type Renderer = 'lit' | 'preact';
 type Theme = 'light' | 'dark';
-type RecoveryState = 'summary' | 'opening' | 'status-error' | 'opening-error' | 'acknowledged';
+type RecoveryState =
+  | 'summary'
+  | 'opening'
+  | 'status-error'
+  | 'opening-error'
+  | 'acknowledged'
+  | 'viewer';
 
 const recoveryCodes = ['TEST-ONLY-0001-AAAA', 'TEST-ONLY-0002-BBBB', 'TEST-ONLY-0003-CCCC'];
 
@@ -110,7 +116,7 @@ async function mount(
         };
       };
       const experience =
-        state === 'acknowledged'
+        state === 'acknowledged' || state === 'viewer'
           ? { kind: 'direct_backup' as const, request }
           : {
               kind: 'account_menu' as const,
@@ -166,6 +172,44 @@ async function mount(
     await page.getByRole('checkbox').check();
     await expect(page.getByRole('button', { name: 'Finish backup' })).toBeVisible();
   }
+}
+
+for (const theme of ['light', 'dark'] as const) {
+  test(`recovery/viewer-${theme}`, async ({ browser }) => {
+    const captures: Record<Renderer, string> = { lit: '', preact: '' };
+    for (const renderer of ['lit', 'preact'] as const) {
+      const page = await browser.newPage({ viewport: { width: 560, height: 420 } });
+      try {
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+        await prepare(page, renderer);
+        await mount(page, renderer, theme, 'viewer');
+        const viewer = page.locator(
+          renderer === 'lit'
+            ? 'seams-recovery-code-backup-viewer'
+            : '.seams-recovery-code-backup-viewer',
+        );
+        await expect(viewer).toBeVisible();
+        await page.evaluate(() => document.fonts.ready);
+        const capturePath = path.join(output, `viewer-${theme}-${renderer}.png`);
+        fs.mkdirSync(path.dirname(capturePath), { recursive: true });
+        await viewer.screenshot({ path: capturePath, animations: 'disabled' });
+        captures[renderer] = capturePath;
+      } finally {
+        await page.close();
+      }
+    }
+    const comparison = compareImages(
+      captures.lit,
+      captures.preact,
+      path.join(output, 'diff', `viewer-${theme}.png`),
+    );
+    fs.writeFileSync(
+      path.join(output, `viewer-${theme}.json`),
+      JSON.stringify({ comparison }, null, 2),
+    );
+    const pixels = comparison.dimensions.width * comparison.dimensions.height;
+    expect(comparison.changedPixels / pixels).toBeLessThan(0.01);
+  });
 }
 
 for (const theme of ['light', 'dark'] as const) {
