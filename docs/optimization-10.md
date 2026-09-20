@@ -1250,6 +1250,53 @@ Raw allowlisted traces, summaries, attribution and release metadata are retained
 under the private monorepo's ignored `output/playwright/optimization-10-0.5.26-*`
 artifacts. Public documentation intentionally contains aggregate measurements.
 
+## Deployed 0.5.27 acceptance check (2026-09-21 JST)
+
+Both public packages were published as `0.5.27` from
+`1740d3aefe31122844a20c208a1fbd195391193f` in
+[release run 35522750356](https://github.com/seams-tech/seams-wallet/actions/runs/35522750356).
+Monorepo PR #31 merged as `ae633197a3225c98c2caf04b6a7438dbd21f7096`.
+[Frontend deployment](https://github.com/seams-tech/seams-monorepo/actions/runs/35525989475)
+and [testnet backend deployment](https://github.com/seams-tech/seams-monorepo/actions/runs/35525988159)
+passed, including smoke checks. Both `sign.seams.sh` and `test.sign.seams.sh`
+returned asset manifest version `0.5.27`. Mainnet backend rollout remains blocked
+by billing; these measurements use the production-hosted testnet service.
+
+A bounded check reused the existing funded Tempo test wallet in Chromium from
+Japan. No signing requests or responses were intercepted. Three consecutive
+signatures succeeded with cached presignatures; `commit_total` was **2.2705,
+1.5145, and 1.3696 seconds** (median **1.5145 seconds**), excluding user interaction
+and chain confirmation. The first selection reported four entries remaining,
+consistent with a five-entry available pool. Background generation continued
+while signing and completed another reusable-session ceremony after the third
+signature exhausted its signing allowance.
+
+The fourth attempt failed during fresh authorization before signature creation.
+Diagnostics reported `wallet_session_reauthorization_required` and
+`wallet_signing_budget_exhausted`, with retry blocked because an auth prompt had
+already started. No HTTP failure was captured for that attempt. The original
+virtual passkey's availability after browser restoration was not established;
+the cause remains unclassified between harness authentication and application
+behavior. Preserve this failed attempt separately from the three successful
+latency samples. This run does not establish successful post-quota signing.
+
+A read-only probe of the wallet iframe's IndexedDB presignature store after the
+failed attempt found zero records. This does not establish when or why entries
+were absent. Cached in-memory signing is proven; durable return-after-reload and
+multi-week readiness are **not accepted** by this production check. Local encrypted
+30-day restore, capacity, one-use, and sustained-signing contracts passed before
+release, but they do not replace this missing hosted evidence.
+
+Remaining focused follow-up: reproduce fresh step-up with a known available test
+passkey; observe durable admission and cleanup before and after quota exhaustion;
+then verify an unused retained entry survives reload and signs without generation
+on the critical path. Arc and geographically representative p95 remain unmeasured.
+The three successful samples meet the 1–3-second target and do not establish an
+SLO or a controlled causal improvement over 0.5.26.
+
+Sanitized measurement artifacts are retained in the private monorepo's ignored
+`output/playwright/optimization-10-0.5.27-*` files.
+
 ## Execution order
 
 1. Capture the recurring production Tempo/ArcEVM delay, compare equivalent
