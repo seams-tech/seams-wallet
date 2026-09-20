@@ -1403,7 +1403,9 @@ Confirmation tree-in-surface checkpoint — 2026-09-21:
   loading/error, and light/dark captures; dimensions match in every pair.
   Surface differences are 0.09–0.74% of each crop, below the existing
   thresholds. The built CSS, browser-test type-check, saved-Lit capture, and
-  Preact comparison all passed.
+  Preact comparison all passed. The focused confirmation-content and
+  confirmation-mount browser matrix passed **72/72** across Chromium, Firefox,
+  and WebKit after the token and fixture changes.
 
 Luna review checkpoint — 2026-09-21:
 
