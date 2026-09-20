@@ -1374,10 +1374,14 @@ Transaction-tree visual checkpoint — 2026-09-21:
 - `7ebbdb9` adds a deterministic before/after gate for the default transaction
   tree fixture in light and dark themes. It mounts the saved Lit build and the
   current Preact tree through the same document stylesheet and host geometry,
-  then compares the component crops.
+  then compares the component crops. `82b83b3` extends the gate with an
+  expanded EVM tree containing an explorer link, decoded/raw content, and a
+  copy control.
 - Both captures match the saved Lit baseline exactly: 420×48px, zero changed
-  pixels, and zero maximum channel delta. The browser-test type-check and the
-  two-case Chromium visual run passed.
+  pixels, and zero maximum channel delta. The expanded EVM pair matches at
+  420×139px in both themes with 180 changed pixels (0.31%), below the 1%
+  ceiling. The browser-test type-check and four-case Chromium visual run
+  passed.
 - This is evidence for the default tree fixture only. Chain-specific details,
   expanded content, copy/mode interactions, hosted resizing, and the complete
   confirmation visual matrix remain open. Keep this temporary comparison until
