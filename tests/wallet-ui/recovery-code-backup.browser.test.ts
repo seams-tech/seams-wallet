@@ -12,8 +12,11 @@ type RecoveryTestState = {
   cancelPending(): void;
   resolveOpening(): void;
   releaseOpening: () => void;
+  releaseCopy: () => void;
   result: Promise<unknown> | null;
   copied: string[];
+  copiedTimerScheduled: number;
+  copiedTimerCleared: number;
   pendingCancelled: boolean;
 };
 
@@ -58,6 +61,9 @@ async function prepare(page: Page): Promise<void> {
       copied: [],
       pendingCancelled: false,
       releaseOpening: () => {},
+      releaseCopy: () => {},
+      copiedTimerScheduled: 0,
+      copiedTimerCleared: 0,
       startDirect() {
         state.result = import(modulePath).then(({ showWalletRecoveryCodeBackupUi }) =>
           showWalletRecoveryCodeBackupUi({
@@ -156,6 +162,27 @@ async function prepare(page: Page): Promise<void> {
         state.releaseOpening();
       },
     };
+    const originalSetTimeout = window.setTimeout.bind(window);
+    const originalClearTimeout = window.clearTimeout.bind(window);
+    const copiedTimers = new Set<number>();
+    Object.defineProperty(window, 'setTimeout', {
+      configurable: true,
+      value: (handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
+        const handle = originalSetTimeout(handler, timeout, ...args);
+        if (timeout === 1800) {
+          state.copiedTimerScheduled += 1;
+          copiedTimers.add(handle);
+        }
+        return handle;
+      },
+    });
+    Object.defineProperty(window, 'clearTimeout', {
+      configurable: true,
+      value: (handle: number) => {
+        if (copiedTimers.delete(handle)) state.copiedTimerCleared += 1;
+        originalClearTimeout(handle);
+      },
+    });
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText: async (value: string) => state.copied.push(value) },
@@ -216,6 +243,58 @@ test('registration backup can defer without leaking codes into the next session'
   await page.evaluate(() => window.__recoveryTest.startDirect());
   await expect(page.locator('.recovery-code-item')).toHaveCount(10);
   expect(await page.locator('.seams-recovery-code-backup-viewer').count()).toBe(1);
+});
+
+test('disposal clears copied feedback timers before a new backup opens', async ({ page }) => {
+  await page.evaluate(() => window.__recoveryTest.startDirect());
+  await expect(page.locator('.recovery-code-item')).toHaveCount(10);
+  await page.getByRole('button', { name: 'Copy codes' }).click();
+  await expect(page.locator('.recovery-backup-copy.copied')).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => window.__recoveryTest.copiedTimerScheduled))
+    .toBe(1);
+
+  await page.getByRole('button', { name: 'Back up later' }).click();
+  await expect.poll(() => result(page)).toEqual({ kind: 'wallet_recovery_code_backup_deferred_v1' });
+  await expect(page.locator('[data-seams-recovery-surface]')).toHaveCount(0);
+  await expect(page.locator('link[data-seams-recovery-code-backup-css]')).toHaveCount(1);
+  await expect
+    .poll(() => page.evaluate(() => window.__recoveryTest.copiedTimerCleared))
+    .toBe(1);
+
+  await page.evaluate(() => window.__recoveryTest.startDirect());
+  await expect(page.locator('.recovery-code-item')).toHaveCount(10);
+  await expect(page.getByRole('button', { name: 'Copy codes' })).not.toHaveClass(/copied/);
+  await expect(page.locator('.recovery-backup-status')).toHaveText('');
+});
+
+test('disposal ignores a delayed clipboard completion', async ({ page }) => {
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText(value: string) {
+          window.__recoveryTest.copied.push(value);
+          return new Promise<void>((resolve) => {
+            window.__recoveryTest.releaseCopy = resolve;
+          });
+        },
+      },
+    });
+    window.__recoveryTest.startDirect();
+  });
+  await expect(page.locator('.recovery-code-item')).toHaveCount(10);
+  await page.getByRole('button', { name: 'Copy codes' }).click();
+  await expect.poll(() => page.evaluate(() => window.__recoveryTest.copied)).toHaveLength(1);
+
+  await page.getByRole('button', { name: 'Back up later' }).click();
+  await expect.poll(() => result(page)).toEqual({ kind: 'wallet_recovery_code_backup_deferred_v1' });
+  await page.evaluate(() => window.__recoveryTest.releaseCopy());
+
+  await page.evaluate(() => window.__recoveryTest.startDirect());
+  await expect(page.locator('.recovery-code-item')).toHaveCount(10);
+  await expect(page.locator('.recovery-backup-status')).toHaveText('');
+  await expect(page.getByRole('button', { name: 'Copy codes' })).not.toHaveClass(/copied/);
 });
 
 test('account-menu backup rejects an unacknowledged close and handles opening failure', async ({
