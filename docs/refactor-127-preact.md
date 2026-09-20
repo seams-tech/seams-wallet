@@ -1561,6 +1561,20 @@ component. Cleanup is a required deliverable, not optional follow-up work.
 - [ ] Delete obsolete generated assets, markers, generators, and assertions
   only when their actual consumers have been replaced.
 
+#### 8d. Retire temporary visual-parity tests after full migration
+
+- [ ] Once every component has migrated to Preact and all visual acceptance
+  gates, including CSS consolidation, have passed, delete all temporary visual
+  comparison tests used for migration parity. This includes the Lit baseline
+  capture suite and the auth, confirmation, and export before/after suites.
+- [ ] Remove their migration-only fixtures, saved-build routing, comparison
+  helpers, visual-runner configuration, and commands when no permanent test
+  consumes them. Preserve the acceptance record in this plan; screenshots stay
+  local and uncommitted.
+- [ ] Retain permanent behavioral, accessibility, lifecycle, CSP, measurement,
+  and regression tests for the final Preact implementation. Move any lasting
+  behavioral assertion out of a temporary parity test before deleting it.
+
 **Exit:** static CSS is document-owned, dynamic rules have explicit owners,
 every Preact replacement has reviewed visual evidence, and no legacy built-in
 component, adapter, dependency, registration repair, or component CSS fetcher
