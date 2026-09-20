@@ -1672,12 +1672,13 @@ Preact integration checkpoint — 2026-09-21:
 - The Preact surface implements direct registration backup and account-menu
   summary/opening states, status and opening failures, code display,
   acknowledgement/defer behavior, download filenames, clipboard feedback, and
-  generation-guarded disposal. Recovery CSS now scopes both the migration
-  class root and the retained Lit baseline root.
-- Verification passed: the recovery browser matrix passed **21/21** across
-  Chromium, Firefox, and WebKit; the cross-origin recovery host flow passed
-  **1/1** in Chromium; wallet type-check, browser-test type-check, Rolldown,
-  and static asset emission passed.
+  generation-guarded disposal. Recovery CSS scopes the migrated class root;
+  the saved Lit baseline remains isolated in the visual harness.
+- Verification passed: the recovery browser matrix passed **22/22** total
+  (**21/21** recovery UI cases across Chromium, Firefox, and WebKit plus the
+  **1/1** cross-origin recovery host flow); wallet type-check, browser-test
+  type-check, Rolldown, static/hosted asset guards, and bundle accounting all
+  pass.
 - `6108140` applies the surface context to the native dialog itself, restoring
   the hosted 35rem geometry. The matched visual gate in `7cf3779` passes **2/2**
   Chromium captures for the retained Lit host baseline (light and dark), with
@@ -1688,9 +1689,8 @@ Preact integration checkpoint — 2026-09-21:
   request cancelled while the module is loading cannot mount a stale dialog.
   The delayed-import browser test uses the built module response and passes
   across Chromium, Firefox, and WebKit.
-- Remaining gates are bundle accounting, deletion of the retained recovery
-  custom-element host/viewer and event module. Keep the Lit visual baseline
-  until Phase 8d.
+- The retained Lit visual baseline remains intentionally in place until Phase
+  8d. The production cleanup and recovery bundle gate are recorded below.
 
 - [x] Implement the existing summary, opening, code display, acknowledgement,
   failure, and cancellation states with exact typed callbacks.
@@ -1713,7 +1713,9 @@ Preact integration checkpoint — 2026-09-21:
   its Preact replacement is available. The light/dark crops are 520×372 with
   zero changed pixels against the saved Lit viewer.
 - [x] Replace host creation with an explicit lazy Preact mount.
-- [ ] Delete the recovery host/viewer custom elements and internal event module.
+- [x] Delete the recovery host/viewer custom elements and internal event module.
+  Completed in `a34a8f2` and `0de67e5`; the latter also regenerates the shared
+  theme CSS without recovery custom-tag selectors.
 
 **Exit:** recovery UI and enclosing registration/account flows pass behavior,
 visual, CSP, cleanup, browser, and size checks.
@@ -1758,8 +1760,23 @@ Recovery viewer fixture checkpoint — 2026-09-21 (`1616a1b`):
 - Added the retained standalone viewer comparison to the recovery visual
   harness. Both light and dark saved-Lit/Preact crops match at 520×372 with
   zero changed pixels; the full recovery state run now passes **12/12**.
-- This closes the recovery visual fixture gate. Bundle accounting and deletion
-  of the retained Lit host/viewer and event module remain open.
+- This closes the recovery visual fixture gate. The temporary comparison and
+  saved-Lit build remain until Phase 8d.
+
+Recovery Lit cleanup checkpoint — 2026-09-21 (`a34a8f2`, `0de67e5`):
+
+- Removed the recovery Lit host, viewer, and internal event module; removed
+  their registry constants, dynamic registration loader, host theme selector,
+  and generated custom-tag theme selectors. The production path now contains
+  only the lazy Preact surface and native dialog lifecycle.
+- A clean SDK build emits no recovery Lit host/viewer modules. The recovery
+  flow reports **289.7 KiB** raw / **64.6 KiB** gzip / **56.5 KiB** Brotli,
+  with **58.4 KiB** incremental gzip. Static assets emit 162 files.
+- This checkpoint needs extra review because the remaining implementation work
+  is expected to use Luna. Re-review the cancellation predicate, delayed import
+  boundary, registry deletion, theme-token inheritance through `.seams-wallet-ui`,
+  and recovery CSS coverage. Re-run the 22-case recovery matrix and bundle
+  report before accepting follow-up cleanup.
 
 Luna handoff checkpoint — 2026-09-21 (`62f6abb`):
 
