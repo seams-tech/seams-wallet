@@ -22,6 +22,7 @@ export async function prepareAuthMenuDocument(page: Page): Promise<void> {
     for (const [filename, marker] of [
       ['seams-components.css', 'data-seams-components-css'],
       ['auth-menu.css', 'data-seams-auth-menu-css'],
+      ['confirmation-ui.css', 'data-seams-confirmation-css'],
     ]) {
       await new Promise<void>((resolve, reject) => {
         const link = document.createElement('link');

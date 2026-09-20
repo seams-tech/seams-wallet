@@ -104,7 +104,7 @@ for (const variant of ['modal', 'drawer'] as const) {
         window.__authBrowser.confirmation = null;
         window.__authBrowser.confirmationDecision = null;
       }, confirmed);
-      await expect(page.locator('seams-tx-confirmer')).toHaveCount(0);
+      await expect(page.locator('.seams-confirmation-surface')).toHaveCount(0);
       const returnFocus = await page.evaluateHandle(() => document.activeElement);
       await mountAuthMenu(page, registration('light'));
       await expect(page.locator('[data-auth-menu-input]')).toHaveValue('Visual fixture');
