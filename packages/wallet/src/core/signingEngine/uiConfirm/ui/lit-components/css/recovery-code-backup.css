@@ -1,17 +1,17 @@
 /*
   Wallet recovery-code backup dialog + viewer.
   Reads theme tokens from seams-components.css (generated from palette.json).
-  Both the native <dialog> shell and the light-DOM viewer content are styled
+  Both the native <dialog> shell and the light-DOM surface content are styled
   here, at document level, so strict-CSP hosts need no inline styles. Every
   content rule is scoped under the dialog's data attribute so nothing leaks
   into host documents.
 */
 
-:is(seams-recovery-code-backup-host, .seams-recovery-code-backup-host) {
+.seams-recovery-code-backup-host {
   display: contents;
 }
 
-:is(seams-recovery-code-backup-viewer, .seams-recovery-code-backup-viewer) {
+.seams-recovery-code-backup-viewer {
   display: block;
 }
 
@@ -96,7 +96,7 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wa
     transition: width 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
   }
 
-  :is(seams-recovery-code-backup-viewer, .seams-recovery-code-backup-viewer)[data-seams-recovery-entry='account_menu'][data-seams-recovery-stage='recovery_codes'] {
+  .seams-recovery-code-backup-viewer[data-seams-recovery-entry='account_menu'][data-seams-recovery-stage='recovery_codes'] {
     animation: seams-recovery-codes-content-in 160ms ease-out both;
   }
 
@@ -144,8 +144,8 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wa
   outline-offset: 2px;
 }
 
-:is(seams-recovery-code-backup-viewer, .seams-recovery-code-backup-viewer)[data-seams-recovery-stage='summary'] .recovery-backup-title,
-:is(seams-recovery-code-backup-viewer, .seams-recovery-code-backup-viewer)[data-seams-recovery-stage='opening'] .recovery-backup-title {
+.seams-recovery-code-backup-viewer[data-seams-recovery-stage='summary'] .recovery-backup-title,
+.seams-recovery-code-backup-viewer[data-seams-recovery-stage='opening'] .recovery-backup-title {
   padding-inline-end: 2.75rem;
 }
 

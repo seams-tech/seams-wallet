@@ -134,8 +134,6 @@ const hostSelectorsArr = [
   'seams-tx-confirm-content',
   'seams-halo-border',
   'seams-passkey-halo-loading',
-  // Recovery-code backup viewer (light-DOM card inside the backup dialog)
-  'seams-recovery-code-backup-viewer',
 ];
 const hostSelectors = hostSelectorsArr.join(',\n');
 
