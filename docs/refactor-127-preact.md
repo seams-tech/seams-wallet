@@ -1524,17 +1524,38 @@ and size checks pass.
 
 **Depends on:** Phase 5; registration/recovery baseline gates pass.
 
-- [ ] Implement the existing summary, opening, code display, acknowledgement,
+Preact integration checkpoint — 2026-09-21:
+
+- `73771ff` replaces the recovery operation's Lit host/viewer import with an
+  explicit lazy Preact mount. The native dialog remains the lifecycle owner;
+  the mount preserves stage updates, focus restoration, iframe scroll-surface
+  measurement, and the typed acknowledgement contract.
+- The Preact surface implements direct registration backup and account-menu
+  summary/opening states, status and opening failures, code display,
+  acknowledgement/defer behavior, download filenames, clipboard feedback, and
+  generation-guarded disposal. Recovery CSS now scopes both the migration
+  class root and the retained Lit baseline root.
+- Verification passed: the recovery browser matrix passed **9/9** across
+  Chromium, Firefox, and WebKit; the cross-origin recovery host flow passed
+  **1/1** in Chromium; wallet type-check, browser-test type-check, Rolldown,
+  and static asset emission passed.
+- Remaining gates are delayed-load/cancellation and pending-callback disposal
+  stress, matched Lit/Preact recovery screenshots, bundle accounting, and
+  deletion of the retained recovery custom-element host/viewer and event
+  module. Keep the Lit visual baseline until Phase 8d.
+
+- [x] Implement the existing summary, opening, code display, acknowledgement,
   failure, and cancellation states with exact typed callbacks.
-- [ ] Preserve `WalletRecoveryCodeBackupAcknowledgementV1`, download filenames,
+- [x] Preserve `WalletRecoveryCodeBackupAcknowledgementV1`, download filenames,
   clipboard behavior, native dialog cancellation, focus, and live status.
-- [ ] Test registration-time and account-menu entrypoints, cancellation before
-  load, failed opening, repeated open/close, and explicit acknowledgement.
+- [x] Test registration-time and account-menu entrypoints, failed opening,
+  repeated open/close, and explicit acknowledgement.
+- [ ] Test cancellation while the lazy Preact module is pending.
 - [ ] Verify disposal releases displayed codes, pending callbacks, timers,
   and rules; reopening must not display a previous operation's codes.
 - [ ] Capture matched recovery viewer/host fixtures and review every image diff.
-- [ ] Replace host creation with an explicit lazy mount and delete the
-  recovery host/viewer custom elements and internal event module.
+- [x] Replace host creation with an explicit lazy Preact mount.
+- [ ] Delete the recovery host/viewer custom elements and internal event module.
 
 **Exit:** recovery UI and enclosing registration/account flows pass behavior,
 visual, CSP, cleanup, browser, and size checks.
