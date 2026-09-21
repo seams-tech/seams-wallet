@@ -249,7 +249,7 @@ test('cancel and replacement during lazy loading cannot mount stale exports', as
 test('missing document CSS rejects without opening a session or reporting geometry', async ({
   page,
 }) => {
-  await page.locator('[data-seams-confirmation-css]').evaluate((element) => element.remove());
+  await page.locator('[data-seams-wallet-ui-css]').evaluate((element) => element.remove());
   await expect(open(page)).rejects.toThrow('Wallet confirmation stylesheet unavailable');
   await expect(page.locator('.seams-export-surface')).toHaveCount(0);
   expect(

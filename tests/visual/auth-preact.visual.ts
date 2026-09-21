@@ -4,7 +4,7 @@ import path from 'node:path';
 import { PNG } from 'pngjs';
 import { setupBasicPasskeyTest } from '../setup';
 import { prepareAuthMenuDocument, mountAuthMenu } from '../wallet-ui/auth-menu.harness';
-import { authBranchFixtures, registration } from './lit-fixtures';
+import { authBranchFixtures, registration } from '../wallet-ui/auth-menu-fixtures';
 import type { AuthMenuViewModel } from '@/SeamsWeb/walletIframe/host/auth-menu/domain';
 import { ensureComponentModule, mountComponent } from './component-harness';
 

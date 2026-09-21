@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { injectImportMap } from '../setup/bootstrap';
-import { authBranchFixtures, registration } from '../visual/lit-fixtures';
+import { authBranchFixtures, registration } from './auth-menu-fixtures';
 import { mountAuthMenu, prepareAuthMenuDocument } from './auth-menu.harness';
 import type { AuthMenuIntent } from '@/SeamsWeb/walletIframe/host/auth-menu/domain';
 import type { WalletIframeSurfaceMeasurement } from '@/SeamsWeb/walletIframe/shared/messages';
@@ -242,7 +242,11 @@ test('auth measurements follow normal-motion updates and stop after disposal', a
 test('recovery announcements remain accessible without consuming control space', async ({
   page,
 }) => {
-  await mountAuthMenu(page, registration('light'));
+  const recoveryFixture = authBranchFixtures('light').find(
+    (fixture) => fixture.name === 'recovery-entry',
+  );
+  if (!recoveryFixture) throw new Error('Missing recovery-entry fixture');
+  await mountAuthMenu(page, recoveryFixture.model);
   const initialAnnouncement = await page.locator('.sr-only[role="status"]').elementHandle();
   if (!initialAnnouncement) throw new Error('Missing initial recovery announcement region');
   await expect(page.locator('.sr-only[role="status"]')).toHaveText('');

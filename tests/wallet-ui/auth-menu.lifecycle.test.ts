@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { injectImportMap } from '../setup/bootstrap';
 import { buildTestBrowserImportMapHtml } from '../setup/importMap';
-import { authBranchFixtures, registration } from '../visual/lit-fixtures';
+import { authBranchFixtures, registration } from './auth-menu-fixtures';
 import { mountAuthMenu, prepareAuthMenuDocument } from './auth-menu.harness';
 
 declare global {
