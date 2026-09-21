@@ -3583,16 +3583,6 @@ async function registerEcdsaOrMixedWallet(
       }),
     );
     commitSuccessfulWalletAuthentication(args.context, result, args.authMethod.kind);
-    const prefillStatusReads = new WalletSessionStatusReadScope();
-    for (const chainTarget of ecdsaSession.chainTargets) {
-      void scheduleEcdsaSessionPresignaturePrefill({
-        signingEngine: context.signingEngine,
-        walletId: deferredWalletId,
-        chainTarget,
-        trigger: 'registration',
-        statusReads: prefillStatusReads,
-      });
-    }
     afterCall?.(true, result);
     return result;
   } catch (error: unknown) {
