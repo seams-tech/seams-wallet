@@ -8,6 +8,7 @@ import {
   type TransactionReceiptModel,
 } from '../transaction-receipt';
 import { ReviewDisclosure } from './ReviewDisclosure';
+import type { ExplorerUrls } from './TransactionLabel';
 import {
   CopyReviewValue,
   ReviewIcon,
@@ -22,6 +23,7 @@ import {
 export class TransactionReceipt extends Component<{
   receipt: TransactionReceiptModel;
   data: TransactionReviewData;
+  explorers: ExplorerUrls;
 }> {
   private minimize = (): void => {
     this.props.receipt.onView('toast');
@@ -40,6 +42,9 @@ export class TransactionReceipt extends Component<{
     const pending = receiptIsPending(receipt.state);
     const completedStages = receiptCompletedStages(receipt.state);
     const recipient = reviewRecipient(data.model);
+    const explorerHref = receipt.state.kind === 'confirmed' && receipt.state.hash
+      ? transactionExplorerHref(data.model, this.props.explorers, receipt.state.hash)
+      : null;
     if (receipt.view === 'toast') {
       return (
         <div
@@ -175,10 +180,51 @@ export class TransactionReceipt extends Component<{
         <button type="button" class="seams-receipt-primary" onClick={this.close}>
           {receiptIsPending(receipt.state) ? 'Continue in background' : 'Done'}
         </button>
+        {explorerHref && (
+          <a
+            class="seams-receipt-explorer"
+            href={explorerHref}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View transaction <ReviewIcon kind="arrow" />
+          </a>
+        )}
         <WalletReceiptFooter />
       </div>
     );
   }
+}
+
+function transactionExplorerHref(
+  model: TransactionReviewData['model'],
+  explorers: ExplorerUrls,
+  hash: string,
+): string | null {
+  if (!model) return null;
+  let base: string | undefined;
+  switch (model.chain) {
+    case 'near':
+      base = explorers.near;
+      break;
+    case 'evm':
+      base = explorers.evm;
+      break;
+    case 'tempo':
+      base = explorers.tempo;
+      break;
+    case 'unknown':
+      return null;
+    default:
+      return assertNeverDisplayChain(model.chain);
+  }
+  if (!base) return null;
+  const path = model.chain === 'near' ? 'txns' : 'tx';
+  return `${base.trim().replace(/\/$/, '')}/${path}/${encodeURIComponent(hash)}`;
+}
+
+function assertNeverDisplayChain(chain: never): never {
+  throw new Error(`Unexpected display chain: ${String(chain)}`);
 }
 
 function ReceiptStep(props: {
