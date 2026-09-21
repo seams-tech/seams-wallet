@@ -44,7 +44,7 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({
       contentType: 'text/html',
       headers: { 'content-security-policy': "style-src 'self'; style-src-attr 'none'" },
-      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-wallet-ui-css href="/_test-sdk/esm/sdk/wallet-ui.css"></head><body><button id="opener">Export</button></body></html>`,
+      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" href="/_test-sdk/esm/sdk/wallet-ui.css"></head><body><button id="opener">Export</button></body></html>`,
     }),
   );
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -244,21 +244,6 @@ test('cancel and replacement during lazy loading cannot mount stale exports', as
   await expect(page.locator('.seams-export-surface')).toHaveCount(1);
   expect(await page.evaluate(() => window.__exportHost.isOpen('latest'))).toBe(true);
   expect(await page.evaluate(() => window.__exportHost.events)).toEqual(['opened']);
-});
-
-test('missing document CSS rejects without opening a session or reporting geometry', async ({
-  page,
-}) => {
-  await page.locator('[data-seams-wallet-ui-css]').evaluate((element) => element.remove());
-  await expect(open(page)).rejects.toThrow('Wallet confirmation stylesheet unavailable');
-  await expect(page.locator('.seams-export-surface')).toHaveCount(0);
-  expect(
-    await page.evaluate(() => ({
-      events: window.__exportHost.events,
-      measurements: window.__exportHost.measurements,
-      open: window.__exportHost.isOpen('export-one'),
-    })),
-  ).toEqual({ events: [], measurements: [], open: false });
 });
 
 test('failed renderer import leaves no session, events, or DOM', async ({ page }) => {

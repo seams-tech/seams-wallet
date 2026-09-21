@@ -50,7 +50,7 @@ async function prepare(page: Page): Promise<void> {
     route.fulfill({
       contentType: 'text/html',
       headers: { 'content-security-policy': "style-src 'self'; style-src-attr 'none'" },
-      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-wallet-ui-css href="/_test-sdk/esm/sdk/wallet-ui.css"></head><body><button id="opener">Open</button></body></html>`,
+      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" href="/_test-sdk/esm/sdk/wallet-ui.css"></head><body><button id="opener">Open</button></body></html>`,
     }),
   );
   await page.goto('/recovery-test');
@@ -257,7 +257,7 @@ test('disposal clears copied feedback timers before a new backup opens', async (
   await page.getByRole('button', { name: 'Back up later' }).click();
   await expect.poll(() => result(page)).toEqual({ kind: 'wallet_recovery_code_backup_deferred_v1' });
   await expect(page.locator('[data-seams-recovery-surface]')).toHaveCount(0);
-  await expect(page.locator('link[data-seams-wallet-ui-css]')).toHaveCount(1);
+  await expect(page.locator('link[href$="wallet-ui.css"]')).toHaveCount(1);
   await expect
     .poll(() => page.evaluate(() => window.__recoveryTest.copiedTimerCleared))
     .toBe(1);

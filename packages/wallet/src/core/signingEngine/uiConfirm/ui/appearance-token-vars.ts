@@ -13,7 +13,7 @@ function sanitizeTokenValue(value: string): string | undefined {
   return trimmed;
 }
 
-export function appearanceTokenCssVars(appearance?: AppearanceConfig): Record<string, string> {
+function appearanceTokenCssVars(appearance?: AppearanceConfig): Record<string, string> {
   const vars: Record<string, string> = {};
   for (const group of ['colors', 'shape'] as const) {
     for (const [rawName, rawValue] of Object.entries(appearance?.theme[group] ?? {})) {
@@ -26,4 +26,14 @@ export function appearanceTokenCssVars(appearance?: AppearanceConfig): Record<st
     }
   }
   return vars;
+}
+
+export function appearanceTokenCssRule(
+  elementId: string,
+  appearance?: AppearanceConfig,
+): string {
+  const declarations = Object.entries(appearanceTokenCssVars(appearance))
+    .map(([name, value]) => `${name}:${value};`)
+    .join('');
+  return `#${elementId}{${declarations}}`;
 }

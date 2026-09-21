@@ -37,7 +37,6 @@ class MountedRecoveryCodeBackupSurface implements RecoveryCodeBackupSurfaceHandl
   constructor(input: MountRecoveryCodeBackupInput) {
     this.input = input;
     this.document = input.parent.ownerDocument;
-    ensureRecoveryStyles(this.document);
     this.element = this.document.createElement('div');
     this.element.id = `seams-recovery-surface-${++nextRecoverySurfaceId}`;
     this.element.className = 'seams-wallet-ui seams-recovery-code-backup-host';
@@ -109,15 +108,4 @@ export function mountRecoveryCodeBackupSurface(
   input: MountRecoveryCodeBackupInput,
 ): RecoveryCodeBackupSurfaceHandle {
   return new MountedRecoveryCodeBackupSurface(input);
-}
-
-function ensureRecoveryStyles(document: Document): void {
-  const marker = 'data-seams-wallet-ui-css';
-  const link = document.head.querySelector<HTMLLinkElement>(`link[rel="stylesheet"][${marker}]`);
-  try {
-    if (link?.sheet && !link.disabled && link.sheet.cssRules.length > 0) return;
-  } catch {
-    // Failed or inaccessible styles cannot establish a styled first measurement.
-  }
-  throw new Error(`Wallet recovery-code stylesheet unavailable: ${marker}`);
 }

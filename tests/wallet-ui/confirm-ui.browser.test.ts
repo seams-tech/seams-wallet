@@ -9,10 +9,6 @@ import { SDK_ESM_PATHS } from '../setup';
 const IMPORT_PATHS = {
   confirmUi: SDK_ESM_PATHS.confirmUi,
 } as const;
-const confirmationMountModuleFile = path.resolve(
-  import.meta.dirname,
-  '../../packages/wallet/dist/esm/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface.js',
-);
 
 test.describe('Preact production confirmation mount', () => {
   test.beforeEach(async ({ page }) => {
@@ -28,7 +24,7 @@ test.describe('Preact production confirmation mount', () => {
     await page.route('**/confirm-ui-test', (route) =>
       route.fulfill({
         contentType: 'text/html',
-        body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-wallet-ui-css href="/wallet-ui.css"></head><body><main></main></body></html>`,
+        body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" href="/wallet-ui.css"></head><body><main></main></body></html>`,
       }),
     );
     await page.goto('/confirm-ui-test');
@@ -39,7 +35,6 @@ test.describe('Preact production confirmation mount', () => {
       async ({ confirmUiPath }) => {
         const { mountConfirmUI } = await import(confirmUiPath);
         const ctx = {
-          userPreferencesManager: { getCurrentWalletId: () => 'alice.testnet' },
           surfaceMeasurementBinding: { kind: 'disabled' as const },
         };
         const handle = await mountConfirmUI({
@@ -61,7 +56,6 @@ test.describe('Preact production confirmation mount', () => {
           loading: false,
           theme: 'light',
           uiMode: 'modal',
-          nearAccountIdOverride: 'alice.testnet',
         });
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const root = handle.element;
@@ -96,7 +90,6 @@ test.describe('Preact production confirmation mount', () => {
       async ({ confirmUiPath }) => {
         const { awaitConfirmUIDecision } = await import(confirmUiPath);
         const ctx = {
-          userPreferencesManager: { getCurrentWalletId: () => 'alice.testnet' },
           surfaceMeasurementBinding: { kind: 'disabled' as const },
         };
         const decision = awaitConfirmUIDecision({
@@ -106,7 +99,6 @@ test.describe('Preact production confirmation mount', () => {
           txSigningRequests: [],
           theme: 'dark',
           uiMode: 'modal',
-          nearAccountIdOverride: 'alice.testnet',
         });
         await pageClickCancel();
         const resolved = await decision;
@@ -153,7 +145,6 @@ test.describe('Preact production confirmation mount', () => {
           for (const variant of variants) {
             const handle = await mountConfirmUI({
               ctx: {
-                userPreferencesManager: { getCurrentWalletId: () => 'alice.testnet' },
                 surfaceMeasurementBinding:
                   context === 'wallet-iframe'
                     ? {
@@ -181,7 +172,6 @@ test.describe('Preact production confirmation mount', () => {
               loading: false,
               theme: context === 'standalone' ? 'light' : 'dark',
               uiMode: variant,
-              nearAccountIdOverride: 'alice.testnet',
             });
             const root = handle.element;
             const text = root.textContent ?? '';
@@ -215,62 +205,10 @@ test.describe('Preact production confirmation mount', () => {
     await expect(page.locator('.seams-confirmation-surface')).toHaveCount(0);
   });
 
-  test('waits for the delayed Preact feature import before mounting', async ({ page }) => {
-    let moduleRequested!: () => void;
-    let releaseModule!: () => void;
-    const moduleRequest = new Promise<void>((resolve) => {
-      moduleRequested = resolve;
-    });
-    const moduleGate = new Promise<void>((resolve) => {
-      releaseModule = resolve;
-    });
-    await page.route('**/mountConfirmationSurface.js', async (route) => {
-      moduleRequested();
-      await moduleGate;
-      await route.fulfill({ path: confirmationMountModuleFile, contentType: 'text/javascript' });
-    });
-
-    const mountPromise = page.evaluate(async ({ confirmUiPath }) => {
-      const { mountConfirmUI } = await import(confirmUiPath);
-      const handle = await mountConfirmUI({
-        ctx: {
-          userPreferencesManager: { getCurrentWalletId: () => 'alice.testnet' },
-          surfaceMeasurementBinding: { kind: 'disabled' as const },
-        },
-        summary: { title: 'Delayed confirmation' },
-        model: { chain: 'near', operations: [] },
-        securityContext: { blockHeight: '1' },
-        loading: false,
-        theme: 'light',
-        uiMode: 'modal',
-        nearAccountIdOverride: 'alice.testnet',
-      });
-      (globalThis as { __delayedConfirmationHandle?: typeof handle }).__delayedConfirmationHandle =
-        handle;
-      return handle.element.id;
-    }, { confirmUiPath: IMPORT_PATHS.confirmUi });
-    await moduleRequest;
-    await expect(page.locator('.seams-confirmation-surface')).toHaveCount(0);
-    releaseModule();
-    const handleId = await mountPromise;
-    await expect(page.locator('.seams-confirmation-surface')).toHaveCount(1);
-    expect(handleId).toMatch(/^seams-confirmation-surface-/);
-    await page.evaluate(() => {
-      const handle = (
-        globalThis as {
-          __delayedConfirmationHandle?: { close: (confirmed: boolean) => void };
-        }
-      ).__delayedConfirmationHandle;
-      handle?.close(true);
-    });
-    await expect(page.locator('.seams-confirmation-surface')).toHaveCount(0);
-  });
-
   test('cleans up a cancelled confirmation before the next auth handoff', async ({ page }) => {
     const result = await page.evaluate(async ({ confirmUiPath }) => {
       const { awaitConfirmUIDecision } = await import(confirmUiPath);
       const ctx = {
-        userPreferencesManager: { getCurrentWalletId: () => 'alice.testnet' },
         surfaceMeasurementBinding: { kind: 'disabled' as const },
       };
       const input = (title: string) => ({
@@ -279,7 +217,6 @@ test.describe('Preact production confirmation mount', () => {
         txSigningRequests: [],
         theme: 'light' as const,
         uiMode: 'modal' as const,
-        nearAccountIdOverride: 'alice.testnet',
         surface: { kind: 'mount_new' as const },
       });
       const cancelled = awaitConfirmUIDecision(input('Cancel before auth handoff'));
@@ -313,7 +250,6 @@ test.describe('Preact production confirmation mount', () => {
       async ({ confirmUiPath }) => {
         const { mountConfirmUI } = await import(confirmUiPath);
         const ctx = {
-          userPreferencesManager: { getCurrentWalletId: () => 'alice.testnet' },
           surfaceMeasurementBinding: { kind: 'disabled' as const },
         };
         const model = {
@@ -360,7 +296,6 @@ test.describe('Preact production confirmation mount', () => {
           loading: false,
           theme: 'dark',
           uiMode: 'modal',
-          nearAccountIdOverride: 'alice.testnet',
         });
         const surface = handle.element;
         const initialSurface = surface;

@@ -313,7 +313,6 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
       loading: false,
       theme: this.context.getTheme?.() ?? 'dark',
       uiMode: confirmationConfig.uiMode,
-      nearAccountIdOverride: walletLabel,
     });
     const state = this.transactionPreparationModalState;
     if (state.kind !== 'opening' || state.generation !== generation) {
@@ -460,7 +459,6 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
       loading: true,
       theme: this.context.getTheme?.() ?? 'dark',
       uiMode: 'modal',
-      nearAccountIdOverride: walletLabel,
     });
     const state = this.registrationPreparationModalState;
     if (state.kind !== 'opening' || state.generation !== generation) {

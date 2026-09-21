@@ -59,11 +59,10 @@ const childScript = (calldata: string) => String.raw`
     const model = evm.buildEvmDisplayModel({ request: { chain: 'evm', kind: 'eip1559', senderSignatureAlgorithm: 'secp256k1',
       tx: { chainId: 42431, nonce: 1n, maxPriorityFeePerGas: 1500000000n, maxFeePerGas: 3000000000n, gasLimit: 200000n,
         to: '${CONTRACT}', value: 0n, data: CALLDATA, accessList: [], abi: ABI } } });
-    const ctx = { userPreferencesManager: { getCurrentWalletId: () => 'alice.testnet' },
-      surfaceMeasurementBinding: { kind: 'wallet_iframe', requestId,
+    const ctx = { surfaceMeasurementBinding: { kind: 'wallet_iframe', requestId,
         postMeasurement: (m) => { window.__measurements.push(m.heightCssPx); adoptedPort.postMessage({ type: 'SURFACE_MEASUREMENT', payload: m }); } } };
     const handle = await confirmUi.mountConfirmUI({ ctx, summary: { intentDigest: 'tree-growth' }, model,
-      securityContext: { blockHeight: '1', blockHash: 'h' }, loading: false, theme: 'light', uiMode: 'modal', nearAccountIdOverride: 'alice.testnet' });
+      securityContext: { blockHeight: '1', blockHash: 'h' }, loading: false, theme: 'light', uiMode: 'modal' });
     window.__confirmHandle = handle;
     window.__mounted = true;
   };
@@ -105,7 +104,7 @@ async function openRealModal(page: Page, options: { greeting?: string } = {}): P
   // the host each round, and the two chase each other in width.
   const html = buildWalletServiceHtml({ extraScript: childScript(calldata) }).replace(
     '</head>',
-    `<link rel="stylesheet" href="/sdk/wallet-ui.css" data-seams-wallet-ui-css />
+    `<link rel="stylesheet" href="/sdk/wallet-ui.css" />
       ${buildTestBrowserImportMapHtml()}</head>`,
   );
   await registerWalletServiceRoute(page, html, WALLET_SERVICE_ROUTE);

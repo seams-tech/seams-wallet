@@ -237,41 +237,6 @@ test.describe('wallet-host auth-menu integration', () => {
     }
   });
 
-  for (const stylesheet of ['wallet-ui.css']) {
-    test(`failed ${stylesheet} settles auth without an unstyled prompt`, async ({ page }) => {
-      await page.route(`**/${stylesheet}*`, (route) => route.abort('failed'));
-      await openTestAuthMenu(page);
-      await expect
-        .poll(
-          async () =>
-            page.evaluate(() =>
-              Promise.race([
-                (window as AuthMenuTestWindow).__authMenuHostTestOutcome?.then(() => 'settled'),
-                new Promise((resolve) => setTimeout(resolve, 10, 'pending')),
-              ]),
-            ),
-          { timeout: 10_000 },
-        )
-        .toBe('settled');
-      const outcome = await page.evaluate(
-        () => (window as AuthMenuTestWindow).__authMenuHostTestOutcome,
-      );
-      expect(outcome).toEqual({
-        kind: 'test_error',
-        message: expect.stringContaining('Wallet auth-menu stylesheet unavailable'),
-      });
-      await expect(
-        page
-          .frameLocator('iframe[data-seams-owner="auth-menu-host-test"]')
-          .locator('.seams-auth-menu-surface'),
-      ).toHaveCount(0);
-      await expect(page.locator('dialog.seams-wallet-overlay-dialog')).not.toBeVisible();
-      await page.evaluate(() => {
-        (window as AuthMenuTestWindow).__authMenuHostTestRouter?.dispose();
-      });
-    });
-  }
-
   test('renders auth under strict style CSP without violations or duplicate stylesheet links', async ({
     page,
   }) => {
@@ -301,7 +266,7 @@ test.describe('wallet-host auth-menu integration', () => {
     await openTestAuthMenu(page);
     const frame = page.frameLocator('iframe[data-seams-owner="auth-menu-host-test"]');
     await expect(frame.locator('.seams-auth-menu-surface')).toBeVisible();
-    await expect(frame.locator('link[data-seams-wallet-ui-css]')).toHaveCount(1);
+    await expect(frame.locator('link[href*="wallet-ui.css"]')).toHaveCount(1);
     expect(violations).toEqual([]);
     await page.evaluate(() => {
       (window as AuthMenuTestWindow).__authMenuHostTestRouter?.dispose();

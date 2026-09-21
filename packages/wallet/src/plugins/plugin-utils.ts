@@ -55,7 +55,7 @@ export function buildWalletServiceHtml(
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Web3Authn Wallet Service</title>
     <!-- Surface styles are external so strict CSP can keep style-src 'self' -->
-    <link rel="stylesheet" href="${walletUiCss}" data-seams-wallet-ui-css />
+    <link rel="stylesheet" href="${walletUiCss}" />
     <!-- Minimal shims some ESM bundles expect (externalized to enable strict CSP) -->
     <script src="${walletShimsJs}"></script>
     <!-- Hint the browser to fetch the host script earlier -->

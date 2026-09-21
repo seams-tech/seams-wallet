@@ -3,7 +3,7 @@ import { render } from 'preact';
 import type { AppearanceConfig } from '@/core/types/seams';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
 import { confirmationDocumentStyles } from './confirmation-styles';
-import { appearanceTokenCssVars } from '../appearance-token-vars';
+import { appearanceTokenCssRule } from '../appearance-token-vars';
 import { ConfirmationContent, type ConfirmationContentModel } from './ConfirmationContent';
 import { ConfirmationModal } from './ConfirmationModal';
 import { ConfirmationDrawer } from './ConfirmationDrawer';
@@ -38,10 +38,6 @@ type SurfaceState =
 
 let nextSurfaceId = 0;
 
-function appearanceDeclaration([name, value]: [string, string]): string {
-  return `${name}:${value};`;
-}
-
 class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
   readonly element: HTMLElement;
   private readonly styles: CspStylesheetManager;
@@ -75,10 +71,10 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     if (this.state.kind !== 'mounted') return;
     this.state.model = model;
     this.element.dataset.theme = model.appearance.theme.mode;
-    const declarations = Object.entries(appearanceTokenCssVars(model.appearance))
-      .map(appearanceDeclaration)
-      .join('');
-    this.styles.setDynamicRule(this.element.id, `#${this.element.id}{${declarations}}`);
+    this.styles.setDynamicRule(
+      this.element.id,
+      appearanceTokenCssRule(this.element.id, model.appearance),
+    );
     this.renderSurface();
   }
 

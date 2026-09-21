@@ -15,7 +15,6 @@ import { buildConfirmationTree } from '../transaction-display/confirmation-tree'
 
 export type ConfirmationSurfaceController = {
   readonly element: HTMLElement;
-  readonly variant: 'modal' | 'drawer';
   update(update: ConfirmUIUpdate): void;
   setTree(tree: TreeNode | null): void;
   close(): void;
@@ -35,7 +34,6 @@ export type CreateConfirmationSurfaceControllerInput = {
 
 class MountedConfirmationController implements ConfirmationSurfaceController {
   readonly element: HTMLElement;
-  readonly variant: 'modal' | 'drawer';
   private readonly surface: ConfirmationSurfaceHandle;
   private readonly callbacks: ConfirmationCallbacks;
   private appearance: AppearanceConfig;
@@ -44,7 +42,6 @@ class MountedConfirmationController implements ConfirmationSurfaceController {
   private currentModel: ConfirmSurfaceModel;
 
   constructor(input: CreateConfirmationSurfaceControllerInput) {
-    this.variant = input.variant;
     this.callbacks = input.callbacks;
     this.appearance = input.appearance;
     this.presentation = input.presentation;
@@ -62,7 +59,7 @@ class MountedConfirmationController implements ConfirmationSurfaceController {
   update(update: ConfirmUIUpdate): void {
     this.presentation = mergeConfirmationPresentation(this.presentation, update);
     if (update.appearance) this.appearance = update.appearance;
-    if (hasOwn(update, 'model')) {
+    if (Object.hasOwn(update, 'model')) {
       this.tree = buildConfirmationTree({ model: update.model });
     }
     this.currentModel = this.normalize();
@@ -102,36 +99,34 @@ function mergeConfirmationPresentation(
   update: ConfirmUIUpdate,
 ): ConfirmationPresentationInput {
   return {
-    model: hasOwn(update, 'model') ? update.model : current.model,
-    securityContext: hasOwn(update, 'securityContext')
+    model: Object.hasOwn(update, 'model') ? update.model : current.model,
+    securityContext: Object.hasOwn(update, 'securityContext')
       ? update.securityContext
       : current.securityContext,
-    loading: hasOwn(update, 'loading') ? update.loading : current.loading,
-    title: hasOwn(update, 'title') ? update.title : current.title,
-    body: hasOwn(update, 'body') ? update.body : current.body,
-    errorMessage: hasOwn(update, 'errorMessage') ? update.errorMessage : current.errorMessage,
-    confirmText: hasOwn(update, 'confirmText') ? update.confirmText : current.confirmText,
-    cancelText: hasOwn(update, 'cancelText') ? update.cancelText : current.cancelText,
-    signingAuthMode: hasOwn(update, 'signingAuthMode')
+    loading: Object.hasOwn(update, 'loading') ? update.loading : current.loading,
+    title: Object.hasOwn(update, 'title') ? update.title : current.title,
+    body: Object.hasOwn(update, 'body') ? update.body : current.body,
+    errorMessage: Object.hasOwn(update, 'errorMessage')
+      ? update.errorMessage
+      : current.errorMessage,
+    confirmText: Object.hasOwn(update, 'confirmText') ? update.confirmText : current.confirmText,
+    cancelText: Object.hasOwn(update, 'cancelText') ? update.cancelText : current.cancelText,
+    signingAuthMode: Object.hasOwn(update, 'signingAuthMode')
       ? update.signingAuthMode
       : current.signingAuthMode,
-    emailOtpPrompt: hasOwn(update, 'emailOtpPrompt')
+    emailOtpPrompt: Object.hasOwn(update, 'emailOtpPrompt')
       ? update.emailOtpPrompt
       : current.emailOtpPrompt,
-    nearExplorerUrl: hasOwn(update, 'nearExplorerUrl')
+    nearExplorerUrl: Object.hasOwn(update, 'nearExplorerUrl')
       ? update.nearExplorerUrl
       : current.nearExplorerUrl,
-    tempoExplorerUrl: hasOwn(update, 'tempoExplorerUrl')
+    tempoExplorerUrl: Object.hasOwn(update, 'tempoExplorerUrl')
       ? update.tempoExplorerUrl
       : current.tempoExplorerUrl,
-    evmExplorerUrl: hasOwn(update, 'evmExplorerUrl')
+    evmExplorerUrl: Object.hasOwn(update, 'evmExplorerUrl')
       ? update.evmExplorerUrl
       : current.evmExplorerUrl,
   };
-}
-
-function hasOwn<T extends object>(value: T, key: PropertyKey): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key);
 }
 
 export function createConfirmationSurfaceController(

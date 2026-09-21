@@ -5,7 +5,7 @@ import {
   getDefaultCspNonce,
   type CspStylesheetManager,
 } from '@/core/browser/walletIframe/csp-stylesheet';
-import { appearanceTokenCssVars } from '@/core/signingEngine/uiConfirm/ui/appearance-token-vars';
+import { appearanceTokenCssRule } from '@/core/signingEngine/uiConfirm/ui/appearance-token-vars';
 import type { AuthMenuIntent, AuthMenuViewModel } from '../../auth-menu/domain';
 import { AuthMenuSurface } from './AuthMenuSurface';
 
@@ -38,22 +38,6 @@ function authMenuStyles(document: Document): CspStylesheetManager {
   return styles;
 }
 
-function requireAuthMenuDocumentStyles(document: Document): void {
-  // Wallet entry scripts execute after the document's blocking stylesheets settle.
-  const marker = 'data-seams-wallet-ui-css';
-  const link = document.head.querySelector<HTMLLinkElement>(`link[rel="stylesheet"][${marker}]`);
-  try {
-    if (link?.sheet && !link.disabled && link.sheet.cssRules.length > 0) return;
-  } catch {
-    // A failed stylesheet can retain a sheet whose rules are inaccessible.
-  }
-  throw new Error(`Wallet auth-menu stylesheet unavailable: ${marker}`);
-}
-
-function appearanceDeclaration([name, value]: [string, string]): string {
-  return `${name}:${value};`;
-}
-
 class MountedAuthMenuSurface implements AuthMenuSurfaceHandle {
   readonly element: HTMLElement;
   private readonly styles: CspStylesheetManager;
@@ -63,7 +47,6 @@ class MountedAuthMenuSurface implements AuthMenuSurfaceHandle {
 
   constructor(input: MountAuthMenuSurfaceInput) {
     const document = input.parent.ownerDocument;
-    requireAuthMenuDocumentStyles(document);
     this.styles = authMenuStyles(document);
     this.element = document.createElement('div');
     this.element.className = 'seams-wallet-ui seams-auth-menu-surface';
@@ -82,12 +65,9 @@ class MountedAuthMenuSurface implements AuthMenuSurfaceHandle {
   update(viewModel: AuthMenuViewModel): void {
     if (this.state.kind === 'disposed') return;
     this.element.dataset.theme = viewModel.appearance.theme.mode;
-    const declarations = Object.entries(appearanceTokenCssVars(viewModel.appearance))
-      .map(appearanceDeclaration)
-      .join('');
     this.styles.setDynamicRule(
       this.element.id + '-appearance',
-      `#${this.element.id}{${declarations}}`,
+      appearanceTokenCssRule(this.element.id, viewModel.appearance),
     );
     render(
       <AuthMenuSurface

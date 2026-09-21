@@ -35,7 +35,7 @@ for (const viewport of [
       route.fulfill({
         contentType: 'text/html',
         headers: { 'content-security-policy': "style-src 'self'; style-src-attr 'none'" },
-        body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-wallet-ui-css href="/_test-sdk/esm/sdk/wallet-ui.css"></head><body><button id="opener">Export</button></body></html>`,
+        body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" href="/_test-sdk/esm/sdk/wallet-ui.css"></head><body><button id="opener">Export</button></body></html>`,
       }),
     );
     await page.setViewportSize(viewport);

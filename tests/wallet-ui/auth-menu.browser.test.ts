@@ -76,7 +76,6 @@ for (const variant of ['modal', 'drawer'] as const) {
           module.mountConfirmUI;
         const handle = await mountConfirmUI({
           ctx: {
-            userPreferencesManager: { getCurrentWalletId: () => null },
             surfaceMeasurementBinding: { kind: 'disabled' },
           },
           summary: { title: 'Synthetic handoff transaction' },
@@ -84,7 +83,6 @@ for (const variant of ['modal', 'drawer'] as const) {
           uiMode: variant,
           theme: 'light',
           loading: false,
-          nearAccountIdOverride: 'visual-fixture.testnet',
         });
         handle.update({ confirmText: 'Approve handoff', cancelText: 'Cancel handoff' });
         window.__authBrowser.confirmation = handle;

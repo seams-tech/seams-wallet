@@ -4,7 +4,7 @@ import type { AppearanceConfig } from '@/core/types/seams';
 import { WalletIframeDomEvents } from '@/core/browser/walletIframe/events';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
 import { confirmationDocumentStyles } from './confirmation-styles';
-import { appearanceTokenCssVars } from '../appearance-token-vars';
+import { appearanceTokenCssRule } from '../appearance-token-vars';
 import { ConfirmationDrawer } from './ConfirmationDrawer';
 import { ExportPrivateKeySurface, type ExportPrivateKeyViewModel } from './ExportPrivateKeySurface';
 
@@ -59,10 +59,10 @@ class MountedExportSurface implements ExportSurfaceHandle {
   update(model: ExportSurfaceModel): void {
     if (this.state.kind === 'disposed') return;
     this.element.dataset.theme = model.appearance.theme.mode;
-    const declarations = Object.entries(appearanceTokenCssVars(model.appearance))
-      .map(appearanceDeclaration)
-      .join('');
-    this.styles.setDynamicRule(this.element.id, `#${this.element.id}{${declarations}}`);
+    this.styles.setDynamicRule(
+      this.element.id,
+      appearanceTokenCssRule(this.element.id, model.appearance),
+    );
     render(
       <ConfirmationDrawer
         context={this.context}
@@ -100,8 +100,4 @@ class MountedExportSurface implements ExportSurfaceHandle {
 
 export function mountExportPrivateKeySurface(input: MountExportInput): ExportSurfaceHandle {
   return new MountedExportSurface(input);
-}
-
-function appearanceDeclaration([name, value]: [string, string]): string {
-  return `${name}:${value};`;
 }

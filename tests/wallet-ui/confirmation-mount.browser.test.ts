@@ -42,7 +42,7 @@ test.beforeEach(async ({ page }) => {
       contentType: 'text/html',
       headers: { 'content-security-policy': "style-src 'self'; style-src-attr 'none'" },
       body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}
-      <link rel="stylesheet" data-seams-wallet-ui-css href="/wallet-ui.css">
+      <link rel="stylesheet" href="/wallet-ui.css">
       </head><body><button id="opener">Open confirmation</button><main></main></body></html>`,
     }),
   );
@@ -314,15 +314,6 @@ test('drawer close filters callbacks and disposes after its transition', async (
   expect(await page.evaluate(() => window.__confirmationMount.calls)).toEqual([]);
   await expect(page.locator('#opener')).toBeFocused();
   expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
-});
-
-test('missing document CSS rejects before creating a surface', async ({ page }) => {
-  await page.locator('link[data-seams-wallet-ui-css]').evaluate((link) => link.remove());
-  await expect(
-    page.evaluate(() => window.__confirmationMount.mount('modal', 'wallet-iframe')),
-  ).rejects.toThrow('Wallet confirmation stylesheet unavailable');
-  await expect(page.locator('.seams-confirmation-surface')).toHaveCount(0);
-  expect(await page.evaluate(() => window.__confirmationMount.closed)).toBe(0);
 });
 
 test('disposing one surface leaves the other mounted and styled', async ({ page }) => {

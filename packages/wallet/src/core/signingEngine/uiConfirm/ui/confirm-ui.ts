@@ -40,6 +40,7 @@ import {
   CONFIRM_SURFACE_MODE_ATTR,
   type ConfirmSurfaceResizeChoreographer,
 } from './confirm-surface-resize';
+import { sameSurfaceMeasurementBinding } from './surface-measurement-binding';
 
 const CONFIRM_PORTAL_ID = 'seams-confirm-portal';
 
@@ -64,8 +65,6 @@ type ConfirmDecisionResult = {
   emailOtpChallengeId?: string;
 };
 
-type ConfirmationHost = ConfirmationSurfaceController;
-
 const confirmSurfaceMeasurementReporters = new WeakMap<
   HTMLElement,
   WalletIframeSurfaceMeasurementReporter
@@ -80,12 +79,11 @@ const confirmSurfaceMeasurementBindings = new WeakMap<
   HTMLElement,
   UiConfirmSurfaceMeasurementBinding
 >();
-const confirmationHosts = new WeakMap<HTMLElement, ConfirmationHost>();
+const confirmationHosts = new WeakMap<HTMLElement, ConfirmationSurfaceController>();
 const confirmationChannels = new WeakMap<HTMLElement, ConfirmationDecisionChannel>();
 const confirmationTreeBuildVersions = new WeakMap<HTMLElement, number>();
 
 export type ConfirmUIRenderContext = {
-  userPreferencesManager: Pick<UiConfirmContext['userPreferencesManager'], 'getCurrentWalletId'>;
   chains?: UiConfirmContext['chains'];
   getAppearance?: UiConfirmContext['getAppearance'];
   nearExplorerUrl?: string;
@@ -93,14 +91,6 @@ export type ConfirmUIRenderContext = {
   evmExplorerUrl?: string;
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
 };
-
-async function ensureConfirmationSurfaceModule(): Promise<void> {
-  await import('./preact/mountConfirmationSurface');
-}
-
-export async function prewarmTxConfirmerUi(): Promise<void> {
-  await ensureConfirmationSurfaceModule();
-}
 
 const DEFAULT_CONFIRM_APPEARANCE: AppearanceConfig = {
   theme: {
@@ -233,31 +223,6 @@ function postWalletUiClosedIfPortalEmpty(): void {
   postWalletUiMessage('WALLET_UI_CLOSED');
 }
 
-const DRAWER_CLOSE_FALLBACK_MS = 250;
-
-function closeConfirmationHost(
-  host: ConfirmationHost,
-  _confirmed: boolean,
-  onClose: () => void,
-): void {
-  let finished = false;
-  const finish = () => {
-    if (finished) return;
-    finished = true;
-    removeHostConfirmerElement(host.element);
-    onClose();
-  };
-
-  if (host.variant !== 'drawer') {
-    host.close();
-    finish();
-    return;
-  }
-
-  const timeoutId = window.setTimeout(() => finish(), DRAWER_CLOSE_FALLBACK_MS);
-  host.close();
-}
-
 function resolveExplorerUrlsFromModel(
   ctx: ConfirmUIRenderContext,
   model?: TxDisplayModel,
@@ -278,20 +243,19 @@ function resolveExplorerUrlsFromModel(
 }
 
 function applyHostElementProps(
-  _ctx: ConfirmUIRenderContext,
-  host: ConfirmationHost,
+  host: ConfirmationSurfaceController,
   props?: ConfirmUIUpdate,
 ): void {
   if (!props) return;
   host.update(props);
-  if (hasOwn(props, 'model')) {
+  if (Object.hasOwn(props, 'model')) {
     scheduleConfirmationAbiEnrichment(host.element, host, props.model);
   }
 }
 
 function scheduleConfirmationAbiEnrichment(
   element: HTMLElement,
-  host: ConfirmationHost,
+  host: ConfirmationSurfaceController,
   model: TxDisplayModel | undefined,
 ): void {
   const buildVersion = (confirmationTreeBuildVersions.get(element) ?? 0) + 1;
@@ -314,28 +278,6 @@ function scheduleConfirmationAbiEnrichment(
     .catch((error) => {
       console.warn('[ConfirmUI] failed to lazy-load ABI display enrichment', error);
     });
-}
-
-function hasOwn<T extends object>(value: T, key: PropertyKey): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key);
-}
-
-function sameConfirmSurfaceMeasurementBinding(
-  left: UiConfirmSurfaceMeasurementBinding | undefined,
-  right: UiConfirmSurfaceMeasurementBinding,
-): boolean {
-  if (!left || left.kind !== right.kind) return false;
-  switch (left.kind) {
-    case 'disabled':
-      return right.kind === 'disabled';
-    case 'wallet_iframe':
-      return (
-        right.kind === 'wallet_iframe' &&
-        left.requestId === right.requestId &&
-        left.postMeasurement === right.postMeasurement &&
-        left.hostSurfaceVariant === right.hostSurfaceVariant
-      );
-  }
 }
 
 function disconnectConfirmSurfaceMeasurementReporter(element: HTMLElement): void {
@@ -389,12 +331,8 @@ function applyConfirmSurfaceMode(
   variant: 'modal' | 'drawer',
   binding: UiConfirmSurfaceMeasurementBinding,
 ): void {
-  const hostBoxVariant =
-    binding.kind === 'wallet_iframe' ? (binding.hostSurfaceVariant ?? variant) : variant;
-  const surface =
-    binding.kind === 'wallet_iframe' && hostBoxVariant === 'modal' ? 'wallet-iframe' : 'standalone';
-  element.setAttribute(CONFIRM_SURFACE_MODE_ATTR, surface);
-  if (variant) element.setAttribute('data-seams-confirm-variant', variant);
+  element.setAttribute(CONFIRM_SURFACE_MODE_ATTR, confirmationSurfaceContext(binding, variant));
+  element.setAttribute('data-seams-confirm-variant', variant);
 }
 
 function bindConfirmSurfaceMeasurementReporter(
@@ -404,7 +342,7 @@ function bindConfirmSurfaceMeasurementReporter(
 ): void {
   applyConfirmSurfaceMode(element, variant, binding);
   if (
-    sameConfirmSurfaceMeasurementBinding(confirmSurfaceMeasurementBindings.get(element), binding)
+    sameSurfaceMeasurementBinding(confirmSurfaceMeasurementBindings.get(element), binding)
   ) {
     return;
   }
@@ -423,7 +361,6 @@ type ConfirmationDecisionChannel = {
     cancel: () => void;
     submitEmail: (code: string, challengeId: string) => void;
   };
-  publish(decision: ConfirmUISurfaceDecision): void;
   takeDecision(): Promise<ConfirmUISurfaceDecision>;
 };
 
@@ -463,7 +400,6 @@ function createConfirmationDecisionChannel(): ConfirmationDecisionChannel {
         });
       },
     },
-    publish: publishDecision,
     takeDecision: async () => {
       const queued = queuedDecisions.shift();
       if (queued) return queued;
@@ -475,9 +411,7 @@ function createConfirmationDecisionChannel(): ConfirmationDecisionChannel {
 }
 
 function createHostConfirmHandle(
-  ctx: ConfirmUIRenderContext,
-  host: ConfirmationHost,
-  onClose: () => void,
+  host: ConfirmationSurfaceController,
   channel: ConfirmationDecisionChannel,
 ): MountedConfirmUIHandle {
   let closed = false;
@@ -489,9 +423,9 @@ function createHostConfirmHandle(
       if (!confirmed) channel.callbacks.cancel();
       channel.cancelListeners.clear();
       disconnectConfirmSurfaceMeasurementReporter(host.element);
-      closeConfirmationHost(host, confirmed, onClose);
+      host.close();
     },
-    update: (props: ConfirmUIUpdate) => applyHostElementProps(ctx, host, props),
+    update: (props: ConfirmUIUpdate) => applyHostElementProps(host, props),
     onCancel: (listener) => {
       channel.cancelListeners.add(listener);
       return () => channel.cancelListeners.delete(listener);
@@ -510,7 +444,6 @@ export async function mountConfirmUI({
   theme,
   appearance,
   uiMode,
-  nearAccountIdOverride,
   signingAuthMode,
   emailOtpPrompt,
 }: {
@@ -523,14 +456,11 @@ export async function mountConfirmUI({
   theme?: ThemeMode;
   appearance?: AppearanceConfig;
   uiMode: ConfirmationUIMode;
-  nearAccountIdOverride?: string;
   signingAuthMode?: SigningAuthMode;
   emailOtpPrompt?: EmailOtpConfirmPrompt;
 }): Promise<MountedConfirmUIHandle> {
-  await ensureConfirmationSurfaceModule();
-
   const variant = uiModeToVariant(uiMode);
-  const { handle } = mountHostElement({
+  return mountHostElement({
     ctx,
     summary,
     txSigningRequests,
@@ -540,11 +470,9 @@ export async function mountConfirmUI({
     theme,
     appearance,
     variant,
-    nearAccountIdOverride,
     signingAuthMode,
     emailOtpPrompt,
   });
-  return handle;
 }
 
 type ResolveDecisionSurfaceArgs = {
@@ -557,7 +485,6 @@ type ResolveDecisionSurfaceArgs = {
   theme: ThemeMode;
   appearance?: AppearanceConfig;
   variant: 'modal' | 'drawer';
-  nearAccountIdOverride: string;
   signingAuthMode?: SigningAuthMode;
   emailOtpPrompt?: EmailOtpConfirmPrompt;
   surface: ConfirmUISurfaceSource;
@@ -567,11 +494,7 @@ function reuseMountedDecisionSurface(
   args: ResolveDecisionSurfaceArgs & {
     surface: Extract<ConfirmUISurfaceSource, { kind: 'reuse_mounted' }>;
   },
-): {
-  el: HTMLElement;
-  handle: MountedConfirmUIHandle;
-  reused: true;
-} {
+): { handle: MountedConfirmUIHandle; reused: true } {
   const handle = args.surface.handle;
   const el = handle.element;
   if (!el.isConnected) {
@@ -602,7 +525,7 @@ function reuseMountedDecisionSurface(
     buildConfirmationTree({ txSigningRequests: args.txSigningRequests, model: args.model }),
   );
   scheduleConfirmationAbiEnrichment(el, host, args.model);
-  return { el, handle, reused: true };
+  return { handle, reused: true };
 }
 
 function assertNeverConfirmationSurface(value: never): never {
@@ -610,13 +533,12 @@ function assertNeverConfirmationSurface(value: never): never {
 }
 
 function resolveDecisionSurface(args: ResolveDecisionSurfaceArgs): {
-  el: HTMLElement;
   handle: MountedConfirmUIHandle;
   reused: boolean;
 } {
   switch (args.surface.kind) {
     case 'mount_new': {
-      const mounted = mountHostElement({
+      const handle = mountHostElement({
         ctx: args.ctx,
         summary: args.summary,
         txSigningRequests: args.txSigningRequests,
@@ -626,11 +548,10 @@ function resolveDecisionSurface(args: ResolveDecisionSurfaceArgs): {
         theme: args.theme,
         appearance: args.appearance,
         variant: args.variant,
-        nearAccountIdOverride: args.nearAccountIdOverride,
         signingAuthMode: args.signingAuthMode,
         emailOtpPrompt: args.emailOtpPrompt,
       });
-      return { ...mounted, reused: false };
+      return { handle, reused: false };
     }
     case 'reuse_mounted':
       return reuseMountedDecisionSurface({
@@ -654,12 +575,10 @@ export async function prepareConfirmUISurface(args: {
   theme: ThemeMode;
   appearance?: AppearanceConfig;
   uiMode: ConfirmationUIMode;
-  nearAccountIdOverride: string;
   signingAuthMode?: SigningAuthMode;
   emailOtpPrompt?: EmailOtpConfirmPrompt;
   surface: ConfirmUISurfaceSource;
 }): Promise<MountedConfirmUIHandle> {
-  await ensureConfirmationSurfaceModule();
   const resolved = resolveDecisionSurface({
     ctx: args.ctx,
     summary: args.summary,
@@ -670,7 +589,6 @@ export async function prepareConfirmUISurface(args: {
     theme: args.theme,
     appearance: args.appearance,
     variant: uiModeToVariant(args.uiMode),
-    nearAccountIdOverride: args.nearAccountIdOverride,
     signingAuthMode: args.signingAuthMode,
     emailOtpPrompt: args.emailOtpPrompt,
     surface: args.surface,
@@ -688,7 +606,6 @@ export async function awaitConfirmUIDecision({
   theme,
   appearance,
   uiMode,
-  nearAccountIdOverride,
   onMounted,
   signingAuthMode,
   emailOtpPrompt,
@@ -703,7 +620,6 @@ export async function awaitConfirmUIDecision({
   theme: ThemeMode;
   appearance?: AppearanceConfig;
   uiMode: ConfirmationUIMode;
-  nearAccountIdOverride: string;
   onMounted?: (handle: ConfirmUIHandle) => void;
   signingAuthMode?: SigningAuthMode;
   emailOtpPrompt?: EmailOtpConfirmPrompt;
@@ -714,16 +630,11 @@ export async function awaitConfirmUIDecision({
     diagnostics: ConfirmUIPromptDiagnostics;
   }
 > {
-  const elementDefineStartedAt = performance.now();
-  await ensureConfirmationSurfaceModule();
-  const elementDefineMs = roundConfirmUiDurationMs(elementDefineStartedAt);
-
   const variant = uiModeToVariant(uiMode);
-  const resolvedVariant: 'modal' | 'drawer' = variant || 'modal';
 
   return new Promise((resolve) => {
     const mountStartedAt = performance.now();
-    const { el, handle, reused } = resolveDecisionSurface({
+    const { handle, reused } = resolveDecisionSurface({
       ctx,
       summary,
       txSigningRequests,
@@ -732,8 +643,7 @@ export async function awaitConfirmUIDecision({
       loading,
       theme,
       appearance,
-      variant: resolvedVariant,
-      nearAccountIdOverride,
+      variant,
       signingAuthMode,
       emailOtpPrompt,
       surface,
@@ -758,7 +668,7 @@ export async function awaitConfirmUIDecision({
     const finalize = (result: ConfirmDecisionResult) => {
       const diagnostics: ConfirmUIPromptDiagnostics = {
         kind: 'confirm_ui_prompt_diagnostics_v1',
-        elementDefineMs,
+        elementDefineMs: 0,
         mountMs,
         hostFirstUpdateMs,
         hostInteractiveMs,
@@ -839,7 +749,6 @@ function mountHostElement({
   theme,
   appearance,
   variant,
-  nearAccountIdOverride,
   signingAuthMode,
   emailOtpPrompt,
 }: {
@@ -851,12 +760,10 @@ function mountHostElement({
   loading?: boolean;
   theme?: ThemeMode;
   appearance?: AppearanceConfig;
-  variant?: 'modal' | 'drawer';
-  nearAccountIdOverride?: string;
+  variant: 'modal' | 'drawer';
   signingAuthMode?: SigningAuthMode;
   emailOtpPrompt?: EmailOtpConfirmPrompt;
-}): { el: HTMLElement; handle: MountedConfirmUIHandle } {
-  const resolvedVariant: 'modal' | 'drawer' = variant || 'modal';
+}): MountedConfirmUIHandle {
   cleanupExistingConfirmers();
   const resolvedAppearance = resolveAppearance({
     ctx,
@@ -866,10 +773,11 @@ function mountHostElement({
   const portal = ensureConfirmPortal();
   const explorerOverrides = resolveExplorerUrlsFromModel(ctx, model);
   const channel = createConfirmationDecisionChannel();
-  const host = createConfirmationSurfaceController({
+  let host: ConfirmationSurfaceController;
+  host = createConfirmationSurfaceController({
     parent: portal,
-    variant: resolvedVariant,
-    context: confirmationSurfaceContext(ctx.surfaceMeasurementBinding, resolvedVariant),
+    variant,
+    context: confirmationSurfaceContext(ctx.surfaceMeasurementBinding, variant),
     appearance: resolvedAppearance,
     presentation: {
       model,
@@ -885,17 +793,15 @@ function mountHostElement({
     },
     tree: buildConfirmationTree({ txSigningRequests, model }),
     callbacks: channel.callbacks,
-    onClosed: postWalletUiClosedIfPortalEmpty,
+    onClosed: () => {
+      removeHostConfirmerElement(host.element);
+      postWalletUiClosedIfPortalEmpty();
+    },
   });
   confirmationHosts.set(host.element, host);
   confirmationChannels.set(host.element, channel);
-  applyConfirmSurfaceMode(host.element, resolvedVariant, ctx.surfaceMeasurementBinding);
   updateConfirmPortalState(portal);
-  bindConfirmSurfaceMeasurementReporter(
-    host.element,
-    resolvedVariant,
-    ctx.surfaceMeasurementBinding,
-  );
+  bindConfirmSurfaceMeasurementReporter(host.element, variant, ctx.surfaceMeasurementBinding);
   scheduleConfirmationAbiEnrichment(host.element, host, model);
 
   portal.classList.remove('seams-portal--visible');
@@ -905,9 +811,7 @@ function mountHostElement({
 
   postWalletUiMessage('WALLET_UI_OPENED');
 
-  const handle = createHostConfirmHandle(ctx, host, postWalletUiClosedIfPortalEmpty, channel);
-
-  return { el: host.element, handle };
+  return createHostConfirmHandle(host, channel);
 }
 
 function confirmationSurfaceContext(

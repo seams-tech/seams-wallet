@@ -17,6 +17,7 @@ import {
   createWalletIframeSurfaceMeasurementReporter,
   type WalletIframeSurfaceMeasurementReporter,
 } from '@/SeamsWeb/walletIframe/host/surface-measurement-reporter';
+import { sameSurfaceMeasurementBinding } from './surface-measurement-binding';
 
 export type UpsertExportViewerHostArgs = {
   theme: 'dark' | 'light';
@@ -93,7 +94,7 @@ class ExportViewerHost {
     if (this.state.kind === 'disposed') return;
     if (lifecycle) this.state.lifecycle = lifecycle;
     this.surface.update(model);
-    if (!sameMeasurementBinding(this.state.binding, binding)) {
+    if (!sameSurfaceMeasurementBinding(this.state.binding, binding)) {
       this.bindMeasurement(binding);
     }
   }
@@ -137,19 +138,6 @@ function notifyLifecycle(listener: ExportLifecycle | null, event: 'opened' | 'cl
   try {
     listener?.(event);
   } catch {}
-}
-
-function sameMeasurementBinding(
-  left: UiConfirmSurfaceMeasurementBinding,
-  right: UiConfirmSurfaceMeasurementBinding,
-): boolean {
-  if (left.kind === 'disabled') return right.kind === 'disabled';
-  return (
-    right.kind === 'wallet_iframe' &&
-    left.requestId === right.requestId &&
-    left.postMeasurement === right.postMeasurement &&
-    left.hostSurfaceVariant === right.hostSurfaceVariant
-  );
 }
 
 function exportContext(args: UpsertExportViewerHostArgs): ExportContext {

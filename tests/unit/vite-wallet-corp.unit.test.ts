@@ -105,7 +105,7 @@ test.describe('plugins/vite hosted wallet helper headers', () => {
     const html = buildWalletServiceHtml('/sdk', 'test-version');
 
     expect(html).toContain(
-      '<link rel="stylesheet" href="/sdk/wallet-ui.css?v=test-version" data-seams-wallet-ui-css />',
+      '<link rel="stylesheet" href="/sdk/wallet-ui.css?v=test-version" />',
     );
     expect(html.match(/<link rel="stylesheet"/g)).toHaveLength(1);
     expect(html).not.toMatch(

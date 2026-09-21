@@ -19,12 +19,11 @@ declare global {
 export async function prepareAuthMenuDocument(page: Page): Promise<void> {
   await routePreactModules(page);
   await page.evaluate(async () => {
-    for (const [filename, marker] of [['wallet-ui.css', 'data-seams-wallet-ui-css']]) {
+    for (const filename of ['wallet-ui.css']) {
       await new Promise<void>((resolve, reject) => {
         const link = document.createElement('link');
         link.rel = 'stylesheet';
         link.href = '/_test-sdk/esm/sdk/' + filename;
-        link.setAttribute(marker, '');
         link.onload = () => resolve();
         link.onerror = () => reject(new Error('Failed to load ' + filename));
         document.head.appendChild(link);
