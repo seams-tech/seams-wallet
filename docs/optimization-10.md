@@ -1375,11 +1375,12 @@ proves hosted persistence across reload, atomic one-use consumption, and refill 
 the tested browser profile. It does not simulate 90 days of elapsed wall time or
 establish a population p95.
 
-The coordinated
+The first attempt of the coordinated
 [testnet backend workflow 35540454569](https://github.com/seams-tech/seams-monorepo/actions/runs/35540454569)
-built successfully, but GitHub refused to start the migration job because recent
-account payments failed or the Actions spending limit needs to be increased. All
-deployment jobs were skipped. The hosted 0.5.28 acceptance therefore used the new
-frontend with the previous testnet backend. Retrying the backend rollout requires
-the GitHub billing/spending block to be cleared. Mainnet backend rollout remains
-separately billing-blocked.
+built successfully, but GitHub refused to start the migration job because the
+private repository's Actions billing was blocked. The hosted reload acceptance
+therefore initially used the new frontend with the previous testnet backend. After
+temporarily making the repository public, attempt 2 of the same workflow applied
+the migration and deployed every backend role. Gateway smoke checks and ephemeral
+cache cleanup passed. The repository returned to private after completion. Mainnet
+backend rollout remains separately billing-blocked.
