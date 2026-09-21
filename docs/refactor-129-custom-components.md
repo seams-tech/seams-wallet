@@ -1,4 +1,4 @@
-# Refactor 128: application components in the transaction review flow
+# Refactor 129: application components in the transaction review flow
 
 Status: planned; implementation has not started.
 
@@ -16,7 +16,7 @@ The experience should match the supplied purchase-review and passkey-confirmatio
 screens: no second backdrop, close/reopen flash, empty intermediate box, or stacked
 modal. A difference in document origin should have no visible frame or border.
 
-This document is in the refactor-127 worktree. The existing
+This document is now in the transaction-receipt worktree. The existing
 `codex/refactor-128-external-evm` branch is separate work. This filename does not
 authorize changes to that branch, PR 17, or the coordinated 0.5.29 release. Before
 implementation, reconcile the intended base with current main and the uncommitted
