@@ -313,16 +313,8 @@ test('drawer reopen interrupts close and disposal releases pending completion', 
   expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
 });
 
-test('drawer keeps confirmation actions in view across contexts and themes', async ({
-  page,
-  browserName,
-}) => {
+test('drawer keeps confirmation actions in view across contexts and themes', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  const output = path.resolve(
-    import.meta.dirname,
-    '../../.artifacts/refactor-127/visual/preact-primitives',
-  );
-  if (browserName === 'chromium') fs.mkdirSync(output, { recursive: true });
   for (const width of [360, 768]) {
     await page.setViewportSize({ width, height: 800 });
     for (const theme of ['light', 'dark']) {
@@ -371,12 +363,6 @@ test('drawer keeps confirmation actions in view across contexts and themes', asy
           })
           .toBe(true);
         expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
-        if (browserName === 'chromium') {
-          await page.screenshot({
-            path: path.join(output, `drawer-${context}-${theme}-${width}.png`),
-            caret: 'initial',
-          });
-        }
       }
     }
   }
@@ -666,9 +652,7 @@ test('registration preserves displayed identity and cancellation during creation
   expect(await page.evaluate(() => window.__contentTest.violations)).toEqual([]);
 });
 
-test('registration content fits narrow and wide viewports in both themes', async ({
-  page,
-}, testInfo) => {
+test('registration content fits narrow and wide viewports in both themes', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const width of [360, 768]) {
     await page.setViewportSize({ width, height: 640 });
@@ -697,17 +681,6 @@ test('registration content fits narrow and wide viewports in both themes', async
             .boundingBox();
           expect(spinner!.width).toBeCloseTo(20, 1);
           expect(spinner!.height).toBeCloseTo(20, 1);
-        }
-        if (testInfo.project.name === 'chromium') {
-          await surface.screenshot({
-            caret: 'initial',
-            omitBackground: true,
-            path: path.resolve(
-              import.meta.dirname,
-              '../../.artifacts/refactor-127/visual/preact-primitives',
-              `registration-${theme}-${width}-${creating ? 'creating' : 'ready'}.png`,
-            ),
-          });
         }
       }
     }

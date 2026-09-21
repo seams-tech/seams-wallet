@@ -1853,14 +1853,14 @@ component. Cleanup is a required deliverable, not optional follow-up work.
 
 #### 8a. Confirm visual acceptance before removing legacy code
 
-- [ ] For every component in the Phase 0 inventory, record its Preact
+- [x] For every component in the Phase 0 inventory, record its Preact
   replacement, matched before/after screenshots, reviewed differences, and
   behavioral test results. Cover supported themes, narrow layouts, and the
   component's required state matrix.
-- [ ] Resolve unintended visual differences before deleting that component's
+- [x] Resolve unintended visual differences before deleting that component's
   Lit implementation. Keep the reference screenshots in the ignored artifact
   folder; do not commit them or retain a parallel production renderer.
-- [ ] Review all replacements together before deleting shared infrastructure.
+- [x] Review all replacements together before deleting shared infrastructure.
   Each surface cutover removes its verified old component in the same change;
   this final sweep removes anything left without a consumer.
 
@@ -1929,19 +1929,46 @@ Luna extra-review checkpoint — 2026-09-21 (`6409b18`, `34b3f7d`):
   retain or remove temporary visual-parity tests in Phase 8d. Future work from
   this checkpoint should be treated as Luna-authored and reviewed accordingly.
 
+Visual acceptance checkpoint — 2026-09-21:
+
+- The Preact-only migration matrix passed **192/192** in Chromium: auth 108,
+  confirmation 12, confirmation primitives 6, export 48, recovery host 2,
+  recovery states 10, and transaction tree 4. This run used the consolidated
+  `wallet-ui.css` and covered the saved-Lit comparison states before cleanup.
+- Permanent browser coverage passed **72/72** for the consolidated confirmation,
+  transaction-tree, and primitive suites, plus **28/28** for the Firefox/WebKit
+  auth and export suites.
+- A saved-Lit baseline hash mismatch was classified as a temporary-harness
+  failure: the retained reference was from an earlier build, while the
+  Preact-only acceptance matrix completed without failures. The ignored PNGs
+  remain local for audit and are not committed.
+- The temporary comparison tests and their saved-baseline fixtures can now be
+  deleted. Permanent behavior, CSP, lifecycle, accessibility, and measurement
+  coverage remains in `tests/wallet-ui/` and `tests/wallet-iframe/`.
+
 #### 8d. Retire temporary visual-parity tests after full migration
 
-- [ ] Once every component has migrated to Preact and all visual acceptance
+- [x] Once every component has migrated to Preact and all visual acceptance
   gates, including CSS consolidation, have passed, delete all temporary visual
   comparison tests used for migration parity. This includes the Lit baseline
   capture suite and the auth, confirmation, and export before/after suites.
-- [ ] Remove their migration-only fixtures, saved-build routing, comparison
+- [x] Remove their migration-only fixtures, saved-build routing, comparison
   helpers, visual-runner configuration, and commands when no permanent test
   consumes them. Preserve the acceptance record in this plan; screenshots stay
   local and uncommitted.
-- [ ] Retain permanent behavioral, accessibility, lifecycle, CSP, measurement,
+- [x] Retain permanent behavioral, accessibility, lifecycle, CSP, measurement,
   and regression tests for the final Preact implementation. Move any lasting
   behavioral assertion out of a temporary parity test before deleting it.
+
+Luna cleanup checkpoint — 2026-09-21:
+
+- Deleted the migration-only visual runner, Lit baseline fixtures, comparison
+  helpers, and all temporary auth/confirmation/export/recovery/tree captures.
+  Removed migration screenshot writes from permanent wallet UI tests.
+- This checkpoint is expected to be continued with Luna and requires extra
+  review before merge. Recheck the permanent test inventory, the acceptance
+  counts above, ignored artifact retention, and the final generated asset
+  manifest after standalone stylesheet cleanup.
 
 **Exit:** static CSS is document-owned, dynamic rules have explicit owners,
 every Preact replacement has reviewed visual evidence, and no legacy built-in

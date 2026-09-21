@@ -26,7 +26,7 @@ for (const fallback of [false, true]) {
   test(`confirmation indicator motion, updates and disposal under ${fallback ? 'nonce CSP' : 'CSSOM CSP'}`, async ({
     page,
     baseURL,
-  }, testInfo) => {
+  }) => {
     if (!baseURL) throw new Error('Browser origin required');
     await injectImportMap(page, { frontendUrl: baseURL });
     await routePreactModules(page);
@@ -94,17 +94,6 @@ for (const fallback of [false, true]) {
         await page.evaluate((theme) => {
           document.querySelector('main')!.setAttribute('data-theme', theme);
         }, theme);
-        // WebKit screenshots inject an inline animation-sync stylesheet under CSP.
-        if (testInfo.project.name === 'chromium') {
-          await page.locator('.seams-passkey-halo-loading').screenshot({
-            caret: 'initial',
-            path: path.join(
-              root,
-              '.artifacts/refactor-127/visual/preact-primitives',
-              `${testInfo.project.name}-${fallback ? 'nonce' : 'cssom'}-${icon}-${theme}.png`,
-            ),
-          });
-        }
       }
     }
     await page.emulateMedia({ reducedMotion: 'no-preference' });

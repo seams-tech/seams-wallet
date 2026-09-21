@@ -58,9 +58,7 @@ const tree: TreeNode = {
     },
   ],
 };
-test('copy controls remain inside their row at narrow and wide widths', async ({
-  page,
-}, testInfo) => {
+test('copy controls remain inside their row at narrow and wide widths', async ({ page }) => {
   for (const width of [320, 360, 768]) {
     await page.setViewportSize({ width, height: 640 });
     const copy = page.locator('.copy-badge');
@@ -69,16 +67,6 @@ test('copy controls remain inside their row at narrow and wide widths', async ({
     await copy.click();
     await expect(copy).toHaveText('copied');
     expect((await copy.evaluate(copyBounds)).overflow).toBeLessThanOrEqual(-4);
-    if (testInfo.project.name === 'chromium') {
-      await page.locator('main').screenshot({
-        caret: 'initial',
-        path: path.join(
-          root,
-          '.artifacts/refactor-127/visual/preact-primitives',
-          `tree-copy-fixed-${width}.png`,
-        ),
-      });
-    }
     await expect(copy).toHaveText('copy');
   }
 });
@@ -232,9 +220,7 @@ test.beforeEach(async ({ page, baseURL }) => {
   }, tree);
 });
 
-test('keyboard expansion, decoded/raw content, copy feedback and explorer links', async ({
-  page,
-}, testInfo) => {
+test('keyboard expansion, decoded/raw content, copy feedback and explorer links', async ({ page }) => {
   const folder = page.locator('details[data-node-id="transaction"]');
   const summary = folder.locator(':scope > summary');
   await expect(page.getByRole('link')).toHaveAttribute(
@@ -266,15 +252,6 @@ test('keyboard expansion, decoded/raw content, copy feedback and explorer links'
   await expect(copy).toBeVisible();
   await expect(page.locator('main [style]')).toHaveCount(0);
   expect(await page.evaluate(() => window.__treeTest.violations)).toEqual([]);
-  if (testInfo.project.name === 'chromium') {
-    await page.locator('.seams-tx-tree').screenshot({
-      caret: 'initial',
-      path: path.join(
-        root,
-        '.artifacts/refactor-127/visual/preact-primitives/transaction-tree-light.png',
-      ),
-    });
-  }
 });
 
 test('clipboard fallback is scoped, removes its textarea and preserves CSP', async ({ page }) => {
