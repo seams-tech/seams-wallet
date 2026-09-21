@@ -1899,16 +1899,35 @@ Luna extra-review checkpoint — 2026-09-21 (`72da581`, `c337b8a`, `990a987`):
 
 #### 8c. Consolidate static CSS as a separate change
 
-- [ ] Emit one ordered `wallet-ui.css` from the current authoritative sources.
+- [x] Emit one ordered `wallet-ui.css` from the current authoritative sources.
   Preserve rule order, specificity, asset URLs, and document-context scoping.
-- [ ] Replace the hosted document's component stylesheet links and prefetches;
+- [x] Replace the hosted document's component stylesheet links and prefetches;
   retain required public React/standalone stylesheet contracts.
-- [ ] Compare computed styles and baseline screenshots before/after
+- [x] Compare computed styles and baseline screenshots before/after
   consolidation, including simultaneous surfaces with different appearance.
-- [ ] Rerun cold-cache, delayed/failed stylesheet, first-measurement, resize,
+- [x] Rerun cold-cache, delayed/failed stylesheet, first-measurement, resize,
   and CSP tests after the link change.
 - [ ] Delete obsolete generated assets, markers, generators, and assertions
   only when their actual consumers have been replaced.
+
+Luna extra-review checkpoint — 2026-09-21 (`6409b18`, `34b3f7d`):
+
+- `6409b18` emits the ordered hosted `wallet-ui.css`, changes the wallet
+  service document and runtime gates to one document-owned stylesheet marker,
+  and keeps the separate generated files only for compatibility and the saved
+  Lit visual baseline. Recovery explicitly restores its renderer-neutral
+  `line-height` so the consolidated confirmation base styles cannot change its
+  layout.
+- `34b3f7d` updates the hosted/unit/browser fixtures and saved-Lit/Preact
+  visual routes. The focused browser matrix passed **26/26**, Vite unit checks
+  passed **7/7**, the auth visual matrix passed **108/108**, and the remaining
+  Preact visual matrix passed **84/84**. A clean SDK build and static, hosted,
+  and runtime asset audits passed.
+- This is the next Luna handoff. Extra review is required for CSS section
+  order/specificity, asset URL fallback copying, strict-CSP first measurement,
+  delayed/failed stylesheet behavior, saved-Lit routing, and the decision to
+  retain or remove temporary visual-parity tests in Phase 8d. Future work from
+  this checkpoint should be treated as Luna-authored and reviewed accordingly.
 
 #### 8d. Retire temporary visual-parity tests after full migration
 
