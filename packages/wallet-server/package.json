@@ -1,6 +1,6 @@
 {
   "name": "@seams/wallet-server",
-  "version": "0.5.25",
+  "version": "0.5.29",
   "type": "module",
   "description": "Seams server TypeScript SDK for NEAR and EVM-family wallets",
   "main": "./dist/esm/index.js",

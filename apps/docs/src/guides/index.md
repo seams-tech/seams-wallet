@@ -26,6 +26,8 @@ repeating the full SDK reference.
   cancellation, expiry, and retry states.
 - [Embedded wallets](/guides/embedded-wallets) — keep wallet credentials and
   signing runtime on the wallet origin.
+- [External EVM wallets](/guides/external-evm-wallets) — connect MetaMask, Rabby,
+  or Phantom EVM accounts while leaving their keys in the wallet extension.
 - [Policies and mandates](/guides/policies-and-mandates) — bind each operation
   to an exact subject, target, and budget.
 - [Wallet sessions and signing lanes](/guides/wallet-sessions-and-signing-lanes)
