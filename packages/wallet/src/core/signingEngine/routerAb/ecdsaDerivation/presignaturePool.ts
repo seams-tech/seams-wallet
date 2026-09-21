@@ -833,7 +833,7 @@ async function runBackgroundPresignatureRefill(input: {
   poolIdentity: EcdsaClientPresignPoolIdentity;
   scheduledGeneration: number;
   targetDepth: number;
-  deadlineAtMs: number;
+  refillAttemptTimeoutMs: number;
   progress: PresignatureRefillProgressV1;
 }): Promise<void> {
   const {
@@ -843,7 +843,7 @@ async function runBackgroundPresignatureRefill(input: {
     poolIdentity,
     scheduledGeneration,
     targetDepth,
-    deadlineAtMs,
+    refillAttemptTimeoutMs,
     progress,
   } = input;
   try {
@@ -858,16 +858,22 @@ async function runBackgroundPresignatureRefill(input: {
       progress.publishAvailable();
       if (getForegroundSignInFlightCount(poolKey) > 0) return;
     }
-    while (Date.now() < deadlineAtMs) {
+    while (
+      Date.now() < args.routerAbEcdsaDerivationPoolFill.ceremonyExpiresAtMs
+    ) {
       if (getClientPresignaturePoolGeneration(poolKey) !== scheduledGeneration) return;
       if (getClientPresignaturePoolDepth(poolKey) >= targetDepth) return;
       if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+      const attemptDeadlineAtMs = Math.min(
+        Date.now() + refillAttemptTimeoutMs,
+        args.routerAbEcdsaDerivationPoolFill.ceremonyExpiresAtMs,
+      );
       const refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
         ...refillInput,
         routerAbEcdsaDerivationPoolFill: {
           kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
           scope: refillInput.routerAbEcdsaDerivationPoolFill.scope,
-          ceremonyExpiresAtMs: Math.min(deadlineAtMs, Date.now() + 30_000),
+          ceremonyExpiresAtMs: attemptDeadlineAtMs,
           materialExpiresAtMs: refillInput.routerAbEcdsaDerivationPoolFill.materialExpiresAtMs,
         },
         trafficClass: 'background',
@@ -984,10 +990,6 @@ export function scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(
     };
     const progress = new PresignatureRefillProgressV1();
     clientPresignatureRefillInFlightByPoolKey.set(poolKey, progress);
-    const deadlineAtMs = Math.min(
-      Date.now() + policy.refillAttemptTimeoutMs,
-      args.routerAbEcdsaDerivationPoolFill.ceremonyExpiresAtMs,
-    );
     void runBackgroundPresignatureRefill({
       args,
       refillInput,
@@ -995,7 +997,7 @@ export function scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(
       poolIdentity,
       scheduledGeneration,
       targetDepth,
-      deadlineAtMs,
+      refillAttemptTimeoutMs: policy.refillAttemptTimeoutMs,
       progress,
     });
     return { scheduled: true, reason: 'scheduled', depth, targetDepth };
