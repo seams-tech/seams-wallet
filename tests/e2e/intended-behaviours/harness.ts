@@ -6010,7 +6010,7 @@ async function fillWalletIframeEmailOtpIfAvailable(
   const timeoutMs = Math.max(50, Math.floor(opts?.timeoutMs ?? 500));
   const input = frame
     .locator(
-      '#email-otp-confirm-code, #drawer-email-otp-confirm-code, #seams-auth-menu-google-otp, #seams-recovery-google-otp',
+      'input[name="email-code"][autocomplete="one-time-code"], #seams-auth-menu-google-otp, #seams-recovery-google-otp',
     )
     .first();
   const visible = await input

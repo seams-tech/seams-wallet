@@ -129,6 +129,7 @@ class EmailOtpSessionView extends Component<EmailOtpContentProps, EmailOtpSessio
     return (
       <form ref={this.form} id={this.props.formId} onSubmit={this.confirm} noValidate>
         <EmailOtpInput
+          challengeId={this.lifetime.kind === 'active' ? this.lifetime.challengeId : ''}
           code={this.state.code}
           helperText={
             this.props.prompt.helperText?.trim() ||

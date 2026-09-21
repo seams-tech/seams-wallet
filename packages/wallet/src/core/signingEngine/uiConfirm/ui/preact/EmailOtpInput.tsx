@@ -10,6 +10,7 @@ export type EmailOtpResendAction =
   | { kind: 'unavailable'; label: string; onResend?: never };
 
 export type EmailOtpInputProps = {
+  challengeId: string;
   code: string;
   helperText: string;
   errorMessage?: string;
@@ -56,6 +57,7 @@ export class EmailOtpInput extends Component<EmailOtpInputProps> {
             class="email-otp-confirm__input"
             inputMode="numeric"
             autoComplete="one-time-code"
+            data-email-otp-challenge-id={this.props.challengeId}
             pattern="[0-9]*"
             maxLength={6}
             spellcheck={false}
