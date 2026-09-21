@@ -278,9 +278,15 @@ function findFeatureEntry(prefix) {
   return path.join(browserRoot, matches[0]);
 }
 
+function findDirectEntry(filename) {
+  const entry = path.join(browserRoot, filename);
+  if (!fs.existsSync(entry)) throw new Error(`Expected browser entry ${filename}`);
+  return entry;
+}
+
 const flows = {
   auth: reportGraph('auth', [findFeatureEntry('runtime-auth')]),
-  confirmation: reportGraph('confirmation', [findFeatureEntry('confirm-ui')]),
+  confirmation: reportGraph('confirmation', [findDirectEntry('tx-confirm-ui.js')]),
   export: reportGraph('export', [findFeatureEntry('export-viewer-host')]),
   recovery: reportGraph('recovery', [findFeatureEntry('runtime-recovery-codes')]),
 };
