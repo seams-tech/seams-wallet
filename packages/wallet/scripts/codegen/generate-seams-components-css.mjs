@@ -30,8 +30,7 @@ const cssOutPath = path.join(
   'signingEngine',
   'uiConfirm',
   'ui',
-  'lit-components',
-  'css',
+  'preact',
   'seams-components.css',
 );
 
@@ -125,26 +124,17 @@ const header = `/*
   Run: node packages/wallet/scripts/codegen/generate-seams-components-css.mjs
 */`;
 
-const hostSelectorsArr = [
-  '.seams-wallet-ui',
-  'seams-tx-tree',
-  'seams-drawer',
-  'seams-modal-tx-confirmer',
-  'seams-drawer-tx-confirmer',
-  'seams-tx-confirm-content',
-  'seams-halo-border',
-  'seams-passkey-halo-loading',
-];
-const hostSelectors = hostSelectorsArr.join(',\n');
+const surfaceSelectors = ['.seams-wallet-ui'];
+const surfaceSelector = surfaceSelectors.join(',\n');
 
-const darkBlock = `/* Base CSS variables for SEAMS custom elements (applied on hosts) */
-${hostSelectors} {
+const darkBlock = `/* Base CSS variables for SEAMS UI surfaces */
+${surfaceSelector} {
   /* Component defaults (no token alias assignments here) */
   --seams-modal__btn__focus-outline-color: ${chroma?.blue?.['400'] || '#3b82f6'};
   --seams-tree__file-content__scrollbar-track__background: rgba(255,255,255,0.06);
   --seams-tree__file-content__scrollbar-thumb__background: rgba(255,255,255,0.22);
 
-  /* Neutral defaults for PasskeyHaloLoading (baseline outside confirmer context) */
+  /* Neutral defaults for passkey halo loading (baseline outside confirmation context) */
   --seams-modal__passkey-halo-loading__ring-background: transparent 0%, var(--seams-colors-highlightHalo) 10%, var(--seams-colors-highlightHalo) 25%, transparent 35%;
   --seams-modal__passkey-halo-loading__inner-background: transparent;
   --seams-modal__passkey-halo-loading__inner-padding: 3px;
@@ -156,9 +146,6 @@ ${hostSelectors} {
   /* Default token aliases (dark) so components have tokens without relying on :root */
 ${emitAliasBlock(DARK_VARS)}
 }`;
-
-/* No per-host token overrides; tokens come from Theme or host boundary. */
-const lightBlock = '';
 
 // Helper to emit a complete alias block from a vars map
 function emitAliasBlock(vars) {
@@ -201,16 +188,16 @@ function emitAliasBlock(vars) {
   ].join('\n');
 }
 
-// Also emit theme-specific alias blocks scoped to component hosts, so tokens pierce Shadow DOM via host inheritance
-const themedLightHostSelectors = hostSelectorsArr
+// Also emit theme-specific alias blocks scoped to UI surfaces.
+const themedLightSurfaceSelectors = surfaceSelectors
   .map((s) => {
     const themeAttribute = s === '.seams-wallet-ui' ? 'data-theme' : 'theme';
     return `${s}[${themeAttribute}="light"],\n:root[data-seams-theme="light"] ${s}:not([${themeAttribute}="dark"])`;
   })
   .join(',\n');
-const hostThemeTokens = `${themedLightHostSelectors} {\n${emitAliasBlock(LIGHT_VARS)}\n}`;
+const surfaceThemeTokens = `${themedLightSurfaceSelectors} {\n${emitAliasBlock(LIGHT_VARS)}\n}`;
 
-const cssOut = `${header}\n\n${paletteVariablesBlock}\n\n${darkBlock}\n\n${hostThemeTokens}\n`;
+const cssOut = `${header}\n\n${paletteVariablesBlock}\n\n${darkBlock}\n\n${surfaceThemeTokens}\n`;
 
 fs.mkdirSync(path.dirname(cssOutPath), { recursive: true });
 fs.writeFileSync(cssOutPath, cssOut);

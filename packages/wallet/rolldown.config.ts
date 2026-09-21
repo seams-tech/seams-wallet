@@ -195,16 +195,7 @@ const copyWalletStaticAssets = (sdkDir: string): void => {
   }
 };
 
-const SEAMS_COMPONENT_HOSTS = [
-  '.seams-wallet-ui',
-  'seams-tx-tree',
-  'seams-drawer',
-  'seams-modal-tx-confirmer',
-  'seams-drawer-tx-confirmer',
-  'seams-tx-confirm-content',
-  'seams-halo-border',
-  'seams-passkey-halo-loading',
-] as const;
+const SEAMS_UI_SURFACE_SELECTORS = ['.seams-wallet-ui'] as const;
 
 const emitSeamsThemeAliases = (vars: any, indent = '  '): string[] => [
   `${indent}--seams-colors-textPrimary: ${vars.textPrimary};`,
@@ -252,13 +243,13 @@ const buildSeamsComponentsCss = async (sdkRoot: string): Promise<string> => {
   const { createThemeTokens } = base as any;
   const { DARK_THEME: darkVars, LIGHT_THEME: lightVars } = createThemeTokens(palette);
 
-  const hostSelector = SEAMS_COMPONENT_HOSTS.join(',\n');
+  const surfaceSelector = SEAMS_UI_SURFACE_SELECTORS.join(',\n');
   const lines: string[] = [];
 
   lines.push(
     '/* Generated from src/theme/palette.json + src/theme/base-styles.js. Do not edit by hand. */',
   );
-  lines.push(`${hostSelector} {`);
+  lines.push(`${surfaceSelector} {`);
   lines.push(`  --seams-modal__btn__focus-outline-color: ${darkVars?.focus || '#3b82f6'};`);
   lines.push(
     '  --seams-tree__file-content__scrollbar-track__background: rgba(255, 255, 255, 0.06);',
@@ -288,7 +279,7 @@ const buildSeamsComponentsCss = async (sdkRoot: string): Promise<string> => {
   });
 
   lines.push('');
-  lines.push('  /* Default token aliases (dark) for hosts */');
+  lines.push('  /* Default token aliases (dark) for UI surfaces */');
   lines.push(...emitSeamsThemeAliases(darkVars));
   lines.push('}');
 
@@ -301,7 +292,7 @@ const buildSeamsComponentsCss = async (sdkRoot: string): Promise<string> => {
   lines.push(...emitSeamsThemeAliases(lightVars, '  '));
   lines.push('}');
 
-  const themedSelLight = SEAMS_COMPONENT_HOSTS.map((s) => {
+  const themedSelLight = SEAMS_UI_SURFACE_SELECTORS.map((s) => {
     if (s === '.seams-wallet-ui') {
       return `${s}[data-theme="light"],\n:root[data-seams-theme="light"] ${s}:not([data-theme="dark"])`;
     }
@@ -341,7 +332,7 @@ const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<v
     console.warn('⚠️  Failed to generate seams-components.css from palette:', e);
     const src = path.join(
       sdkRoot,
-      'src/core/signingEngine/uiConfirm/ui/lit-components/css/seams-components.css',
+      'src/core/signingEngine/uiConfirm/ui/preact/seams-components.css',
     );
     const dest = path.join(sdkDir, 'seams-components.css');
     if (fs.existsSync(src)) fs.copyFileSync(src, dest);

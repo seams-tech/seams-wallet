@@ -165,21 +165,14 @@
   --seams-gradient-sageDeep: linear-gradient(160deg, #004737 0%, #919690 100%);
 }
 
-/* Base CSS variables for SEAMS custom elements (applied on hosts) */
-.seams-wallet-ui,
-seams-tx-tree,
-seams-drawer,
-seams-modal-tx-confirmer,
-seams-drawer-tx-confirmer,
-seams-tx-confirm-content,
-seams-halo-border,
-seams-passkey-halo-loading {
+/* Base CSS variables for SEAMS UI surfaces */
+.seams-wallet-ui {
   /* Component defaults (no token alias assignments here) */
   --seams-modal__btn__focus-outline-color: oklch(0.74 0.166 255);
   --seams-tree__file-content__scrollbar-track__background: rgba(255,255,255,0.06);
   --seams-tree__file-content__scrollbar-thumb__background: rgba(255,255,255,0.22);
 
-  /* Neutral defaults for PasskeyHaloLoading (baseline outside confirmer context) */
+  /* Neutral defaults for passkey halo loading (baseline outside confirmation context) */
   --seams-modal__passkey-halo-loading__ring-background: transparent 0%, var(--seams-colors-highlightHalo) 10%, var(--seams-colors-highlightHalo) 25%, transparent 35%;
   --seams-modal__passkey-halo-loading__inner-background: transparent;
   --seams-modal__passkey-halo-loading__inner-padding: 3px;
@@ -227,21 +220,7 @@ seams-passkey-halo-loading {
 }
 
 .seams-wallet-ui[data-theme="light"],
-:root[data-seams-theme="light"] .seams-wallet-ui:not([data-theme="dark"]),
-seams-tx-tree[theme="light"],
-:root[data-seams-theme="light"] seams-tx-tree:not([theme="dark"]),
-seams-drawer[theme="light"],
-:root[data-seams-theme="light"] seams-drawer:not([theme="dark"]),
-seams-modal-tx-confirmer[theme="light"],
-:root[data-seams-theme="light"] seams-modal-tx-confirmer:not([theme="dark"]),
-seams-drawer-tx-confirmer[theme="light"],
-:root[data-seams-theme="light"] seams-drawer-tx-confirmer:not([theme="dark"]),
-seams-tx-confirm-content[theme="light"],
-:root[data-seams-theme="light"] seams-tx-confirm-content:not([theme="dark"]),
-seams-halo-border[theme="light"],
-:root[data-seams-theme="light"] seams-halo-border:not([theme="dark"]),
-seams-passkey-halo-loading[theme="light"],
-:root[data-seams-theme="light"] seams-passkey-halo-loading:not([theme="dark"]) {
+:root[data-seams-theme="light"] .seams-wallet-ui:not([data-theme="dark"]) {
   --seams-colors-textPrimary: oklch(0.35 0.018 240);
   --seams-colors-textSecondary: oklch(0.53 0.02 240);
   --seams-colors-textMuted: oklch(0.75 0.016 240);
