@@ -41,6 +41,7 @@ import {
   type ConfirmSurfaceResizeChoreographer,
 } from './confirm-surface-resize';
 import { sameSurfaceMeasurementBinding } from './surface-measurement-binding';
+import { resolveUiAppearance } from './appearance';
 
 const CONFIRM_PORTAL_ID = 'seams-confirm-portal';
 
@@ -91,39 +92,6 @@ export type ConfirmUIRenderContext = {
   evmExplorerUrl?: string;
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
 };
-
-const DEFAULT_CONFIRM_APPEARANCE: AppearanceConfig = {
-  theme: {
-    id: 'default',
-    mode: 'dark',
-    colors: {},
-  },
-  palette: 'default',
-};
-
-function isThemeMode(value: unknown): value is ThemeMode {
-  return value === 'light' || value === 'dark';
-}
-
-function withAppearanceMode(appearance: AppearanceConfig, mode?: ThemeMode): AppearanceConfig {
-  if (!isThemeMode(mode) || mode === appearance.theme.mode) return appearance;
-  return {
-    ...appearance,
-    theme: {
-      ...appearance.theme,
-      mode,
-    },
-  };
-}
-
-function resolveAppearance(args: {
-  ctx: ConfirmUIRenderContext;
-  requestedAppearance?: AppearanceConfig;
-  requestedMode?: ThemeMode;
-}): AppearanceConfig {
-  const base = args.requestedAppearance ?? args.ctx.getAppearance?.() ?? DEFAULT_CONFIRM_APPEARANCE;
-  return withAppearanceMode(base, args.requestedMode);
-}
 
 function postWalletUiMessage(type: 'WALLET_UI_OPENED' | 'WALLET_UI_CLOSED'): void {
   try {
@@ -503,8 +471,8 @@ function reuseMountedDecisionSurface(
   const host = confirmationHosts.get(el);
   if (!host) throw new Error('Cannot reuse an unmanaged confirmation surface');
   bindConfirmSurfaceMeasurementReporter(el, args.variant, args.ctx.surfaceMeasurementBinding);
-  const resolvedAppearance = resolveAppearance({
-    ctx: args.ctx,
+  const resolvedAppearance = resolveUiAppearance({
+    getAppearance: args.ctx.getAppearance,
     requestedAppearance: args.appearance,
     requestedMode: args.theme,
   });
@@ -765,8 +733,8 @@ function mountHostElement({
   emailOtpPrompt?: EmailOtpConfirmPrompt;
 }): MountedConfirmUIHandle {
   cleanupExistingConfirmers();
-  const resolvedAppearance = resolveAppearance({
-    ctx,
+  const resolvedAppearance = resolveUiAppearance({
+    getAppearance: ctx.getAppearance,
     requestedAppearance: appearance,
     requestedMode: theme,
   });

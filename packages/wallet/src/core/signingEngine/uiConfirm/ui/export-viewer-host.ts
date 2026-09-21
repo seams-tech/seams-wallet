@@ -18,6 +18,7 @@ import {
   type WalletIframeSurfaceMeasurementReporter,
 } from '@/SeamsWeb/walletIframe/host/surface-measurement-reporter';
 import { sameSurfaceMeasurementBinding } from './surface-measurement-binding';
+import { resolveUiAppearance } from './appearance';
 
 export type UpsertExportViewerHostArgs = {
   theme: 'dark' | 'light';
@@ -233,10 +234,10 @@ export async function upsertExportViewerHost(args: UpsertExportViewerHostArgs): 
     throw new Error('Export viewer host requires a DOM environment');
   const version = ++mountVersion;
   const model: ExportSurfaceModel = {
-    appearance: args.appearance ?? {
-      palette: 'default',
-      theme: { id: 'default', mode: args.theme, colors: {} },
-    },
+    appearance: resolveUiAppearance({
+      requestedAppearance: args.appearance,
+      requestedMode: args.theme,
+    }),
     content: normalizeExportContent(args),
   };
   const id = args.sessionId?.trim();

@@ -483,7 +483,6 @@ export async function handleTransactionSigningFlow(
         ...(prepared.displayModel ? { model: prepared.displayModel } : {}),
         ...(prepared.title ? { title: prepared.title } : {}),
         ...(prepared.body ? { body: prepared.body } : {}),
-        ...(resolvedIntentDigest ? { intentDigest: resolvedIntentDigest } : {}),
         loading: false,
       });
     };
