@@ -16,6 +16,7 @@ function displayModel() {
   if (example === 'near') {
     return {
       chain: 'near', signerAccount: 'alice.testnet', title: 'NEAR contract call',
+      totals: { estimatedFee: '0.0003', feeSymbol: 'NEAR' },
       operations: [{
         id: 'near-transaction', kind: 'generic.contractCall', label: 'Transaction to token.example.testnet',
         to: 'token.example.testnet',
@@ -36,6 +37,7 @@ function displayModel() {
     const dataHex = `0xa9059cbb${recipient.slice(2).toLowerCase().padStart(64, '0')}${(125000000n).toString(16).padStart(64, '0')}`;
     return enrichDisplayModelWithAbi({
       chain: 'evm', chainId: 8453, signerAccount: signer, title: 'EVM contract call',
+      totals: { estimatedFee: '0.000001', feeSymbol: 'ETH' },
       operations: [{
         id: 'evm-call', kind: 'generic.contractCall', label: 'Calling function 0xa9059cbb using 65,000 gas',
         to: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
@@ -65,6 +67,12 @@ function closed() {}
 function changeView(next) {
   view = next;
   renderReceipt();
+}
+function explorerUrls() {
+  if (example === 'near') {
+    return { near: 'https://testnet.nearblocks.io' };
+  }
+  return { evm: 'https://basescan.org' };
 }
 function model() {
   const display = displayModel();
@@ -114,7 +122,7 @@ function model() {
       transaction: {
         tree: null,
         theme,
-        explorers: {},
+        explorers: explorerUrls(),
         decision: { kind: 'ready', onConfirm: confirm },
         confirmText: 'Confirm with passkey',
         cancelText: 'Cancel',

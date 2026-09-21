@@ -66,6 +66,10 @@
 :where(.seams-wallet-ui) .seams-review-fields dt {
   color: var(--seams-colors-textSecondary);
 }
+:where(.seams-wallet-ui) .seams-transaction-review > .seams-review-fields > div {
+  box-sizing: border-box;
+  min-height: 1.875rem;
+}
 :where(.seams-wallet-ui) .seams-review-fields dd {
   margin: 0;
   min-width: 0;
@@ -575,6 +579,15 @@
 }
 :where(.seams-wallet-ui) .seams-review-copy-address:is(:hover, :focus-visible, .copied) > .copy-icon {
   opacity: 1;
+}
+:where(.seams-wallet-ui) .seams-review-account .seams-review-copy-address {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: start;
+}
+:where(.seams-wallet-ui) .seams-review-account .seams-review-copy-address > .copy-icon {
+  background: var(--seams-colors-surface2);
+  box-shadow: 0 0 6px 3px var(--seams-colors-surface2);
 }
 :where(.seams-wallet-ui) .seams-receipt-box {
   background: var(--seams-colors-surface2);

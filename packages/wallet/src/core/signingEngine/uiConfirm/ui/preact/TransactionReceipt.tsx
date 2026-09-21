@@ -105,6 +105,16 @@ export class TransactionReceipt extends Component<{
           )}
           {!recipient && reviewNetwork(data.model)}
         </div>
+        {data.model?.totals?.estimatedFee && (
+          <dl class="seams-review-fields">
+            <div>
+              <dt>Estimated network fee</dt>
+              <dd>
+                {data.model.totals.estimatedFee} {data.model.totals.feeSymbol}
+              </dd>
+            </div>
+          </dl>
+        )}
         <div class="seams-receipt-steps" aria-label="Transaction progress">
           <ReceiptStep
             stage="signing"
@@ -129,16 +139,6 @@ export class TransactionReceipt extends Component<{
           />
         </div>
         <div class="seams-receipt-box">
-          {data.model?.totals?.estimatedFee && (
-            <dl class="seams-review-fields">
-              <div>
-                <dt>Estimated network fee</dt>
-                <dd>
-                  {data.model.totals.estimatedFee} {data.model.totals.feeSymbol}
-                </dd>
-              </div>
-            </dl>
-          )}
           <ReviewDisclosure label="Receipt details">
             <dl class="seams-review-fields">
               {data.model?.signerAccount && (

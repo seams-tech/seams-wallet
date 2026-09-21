@@ -380,10 +380,13 @@ export function TransactionReview({
           <div>
             Signing account
             <small>
-              <ReviewAddress value={model.signerAccount} />
+              <CopyReviewValue
+                value={model.signerAccount}
+                address
+                label={`Copy signing account address ${model.signerAccount}`}
+              />
             </small>
           </div>
-          <CopyReviewValue value={model.signerAccount} />
         </div>
       )}
     </div>
