@@ -137,14 +137,6 @@ const external = [
   // All @near-js packages
   /@near-js\/.*/,
 
-  // Exclude Lit SSR shim (not needed for client-side only)
-  '@lit-labs/ssr-dom-shim',
-  // Externalize Lit for library builds so host bundler resolves a single copy
-  'lit',
-  /lit\/directives\/.*/,
-  'lit-html',
-  /lit-html\/.*/,
-
   // Node.js native modules used by package tooling helpers
   'fs',
   'path',
@@ -173,11 +165,8 @@ const external = [
   /\.css$/,
 ];
 
-// External dependencies for embedded components.
-// IMPORTANT: Externalize Lit so the host app's bundler (e.g., Vite) serves a consistent copy.
-// Bundling Lit directly into SDK bundles caused internal node_modules paths and ESM export mismatches.
 // Embedded bundles are loaded directly in the browser (no bundler/import maps),
-// so do NOT externalize dependencies. Bundle everything needed.
+// so do not externalize dependencies. Bundle everything needed.
 const embeddedExternal: (string | RegExp)[] = [];
 
 const aliasConfig = {
@@ -756,13 +745,9 @@ const configs = [
     // Minification is controlled via CLI flags; no config option in current Rolldown types
     plugins: prodPlugins,
   },
-  // Wallet iframe host + confirmer bundles
+  // Wallet iframe host bundles
   {
     input: {
-      // Tx Confirmer component
-      'seams-tx-confirmer':
-        'src/core/signingEngine/uiConfirm/ui/lit-components/IframeTxConfirmer/tx-confirmer-wrapper.ts',
-      // Wallet service host (headless)
       'wallet-iframe-host-runtime': 'src/SeamsWeb/walletIframe/host/index.ts',
       'wallet-iframe-host-near': 'src/SeamsWeb/walletIframe/host/entry-near.ts',
       'wallet-iframe-host-ecdsa': 'src/SeamsWeb/walletIframe/host/entry-ecdsa.ts',
@@ -780,26 +765,6 @@ const configs = [
     },
     // Minification is controlled via CLI flags; no config option in current Rolldown types
     plugins: [...prodPlugins, emitWalletServiceStaticPlugin],
-  },
-  // Standalone bundles for HaloBorder + PasskeyHaloLoading (for iframe/embedded usage)
-  {
-    input: {
-      'halo-border': 'src/core/signingEngine/uiConfirm/ui/lit-components/HaloBorder/index.ts',
-      'passkey-halo-loading':
-        'src/core/signingEngine/uiConfirm/ui/lit-components/PasskeyHaloLoading/index.ts',
-    },
-    output: {
-      dir: BUILD_PATHS.BUILD.ESM,
-      format: 'esm',
-      entryFileNames: 'sdk/[name].js',
-      chunkFileNames: 'sdk/[name]-[hash].js',
-    },
-    external: embeddedExternal,
-    resolve: {
-      alias: aliasConfig,
-    },
-    // Minification is controlled via CLI flags; no config option in current Rolldown types
-    plugins: prodPlugins,
   },
   // Vite plugin ESM build (source moved to src/plugins)
   {
