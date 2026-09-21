@@ -354,33 +354,6 @@ const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<v
   );
 
   copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/tx-tree.css'),
-    path.join(sdkDir, 'tx-tree.css'),
-  );
-  copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/tx-confirmer.css'),
-    path.join(sdkDir, 'tx-confirmer.css'),
-  );
-  copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/drawer.css'),
-    path.join(sdkDir, 'drawer.css'),
-  );
-  copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/halo-border.css'),
-    path.join(sdkDir, 'halo-border.css'),
-  );
-  copyIfMissing(
-    path.join(
-      sdkRoot,
-      'src/core/signingEngine/uiConfirm/ui/lit-components/css/passkey-halo-loading.css',
-    ),
-    path.join(sdkDir, 'passkey-halo-loading.css'),
-  );
-  copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/padlock-icon.css'),
-    path.join(sdkDir, 'padlock-icon.css'),
-  );
-  copyIfMissing(
     path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/copy-icon.css'),
     path.join(sdkDir, 'copy-icon.css'),
   );

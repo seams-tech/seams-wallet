@@ -42,17 +42,9 @@ export function buildWalletServiceHtml(
   walletHostVariant: WalletHostVariant = 'runtime',
 ): string {
   const walletServiceCss = withAssetVersion(`${sdkBasePath}/wallet-service.css`, assetVersion);
-  const drawerCss = withAssetVersion(`${sdkBasePath}/drawer.css`, assetVersion);
-  const txTreeCss = withAssetVersion(`${sdkBasePath}/tx-tree.css`, assetVersion);
-  const haloBorderCss = withAssetVersion(`${sdkBasePath}/halo-border.css`, assetVersion);
-  const passkeyHaloLoadingCss = withAssetVersion(
-    `${sdkBasePath}/passkey-halo-loading.css`,
-    assetVersion,
-  );
   const componentsCss = withAssetVersion(`${sdkBasePath}/seams-components.css`, assetVersion);
   const authMenuCss = withAssetVersion(`${sdkBasePath}/auth-menu.css`, assetVersion);
   const confirmationUiCss = withAssetVersion(`${sdkBasePath}/confirmation-ui.css`, assetVersion);
-  const txConfirmerCss = withAssetVersion(`${sdkBasePath}/tx-confirmer.css`, assetVersion);
   const recoveryCodeBackupCss = withAssetVersion(
     `${sdkBasePath}/recovery-code-backup.css`,
     assetVersion,
@@ -72,18 +64,10 @@ export function buildWalletServiceHtml(
     <title>Web3Authn Wallet Service</title>
     <!-- Surface styles are external so strict CSP can keep style-src 'self' -->
     <link rel="stylesheet" href="${walletServiceCss}" />
-    <!-- Prefetch component styles so they are warmed without triggering preload warnings -->
-    <link rel="prefetch" as="style" href="${drawerCss}" />
-    <link rel="prefetch" as="style" href="${txTreeCss}" />
-    <link rel="prefetch" as="style" href="${haloBorderCss}" />
-    <link rel="prefetch" as="style" href="${passkeyHaloLoadingCss}" />
     <!-- Component theme CSS: shared tokens + component-scoped tokens -->
     <link rel="stylesheet" href="${componentsCss}" data-seams-components-css />
     <link rel="stylesheet" href="${authMenuCss}" data-seams-auth-menu-css />
     <link rel="stylesheet" href="${confirmationUiCss}" data-seams-confirmation-css />
-    <link rel="stylesheet" href="${drawerCss}" />
-    <link rel="stylesheet" href="${txTreeCss}" />
-    <link rel="stylesheet" href="${txConfirmerCss}" />
     <link rel="stylesheet" href="${recoveryCodeBackupCss}" data-seams-recovery-code-backup-css />
     <link rel="stylesheet" href="${copyIconCss}" data-seams-copy-icon-css />
     <!-- Minimal shims some ESM bundles expect (externalized to enable strict CSP) -->

@@ -116,6 +116,9 @@ test.describe('plugins/vite hosted wallet helper headers', () => {
     expect(html).toContain(
       '<link rel="stylesheet" href="/sdk/copy-icon.css?v=test-version" data-seams-copy-icon-css />',
     );
+    expect(html).not.toMatch(
+      /(?:drawer|tx-tree|tx-confirmer|halo-border|passkey-halo-loading|padlock-icon)\.css/,
+    );
   });
 
   test('dev wallet-service serves the selected host variant', async () => {
