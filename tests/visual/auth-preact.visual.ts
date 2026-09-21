@@ -6,7 +6,7 @@ import { setupBasicPasskeyTest } from '../setup';
 import { prepareAuthMenuDocument, mountAuthMenu } from '../wallet-ui/auth-menu.harness';
 import { authBranchFixtures, registration } from './lit-fixtures';
 import type { AuthMenuViewModel } from '@/SeamsWeb/walletIframe/host/auth-menu/domain';
-import { ensureComponentModule, mountComponent } from '../lit-components/harness';
+import { ensureComponentModule, mountComponent } from './component-harness';
 
 const root = path.resolve(import.meta.dirname, '../..');
 const output = path.join(root, '.artifacts/refactor-127/visual');

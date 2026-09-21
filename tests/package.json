@@ -12,7 +12,7 @@
     "test:intended:representative": "pnpm run type-check:intended && node scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.contract.test.ts",
     "test:intended:list": "node scripts/run-wallet-intended-isolated.mjs --list-cases",
     "test:wallet-browser": "playwright test -c playwright.wallet-browser.config.ts",
-    "test:wallet-browser:representative": "playwright test -c playwright.wallet-browser.config.ts wallet-iframe/router.connectionClosed.test.ts lit-components/export-iframe-host.surface.test.ts",
+    "test:wallet-browser:representative": "playwright test -c playwright.wallet-browser.config.ts wallet-iframe/router.connectionClosed.test.ts wallet-ui/confirm-ui.browser.test.ts",
     "test:wallet-unit": "playwright test -c playwright.wallet-browser.config.ts unit",
     "test:wallet-unit:representative": "playwright test -c playwright.wallet-browser.config.ts unit/configs.appearance.test.ts unit/domainIds.boundary.unit.test.ts unit/committedSignerPackages.unit.test.ts unit/authorizationOperationFingerprint.unit.test.ts unit/githubOAuth.unit.test.ts unit/vite-wallet-corp.unit.test.ts"
   },

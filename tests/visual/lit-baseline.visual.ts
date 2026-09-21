@@ -4,11 +4,12 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { setupBasicPasskeyTest, sdkEsmPath } from '../setup';
-import { ensureComponentModule, mountComponent } from '../lit-components/harness';
+import { ensureComponentModule, mountComponent } from './component-harness';
 import { LIT_COMPONENT_INVENTORY, SYNTHETIC_BACKUP, litVisualFixtures } from './lit-fixtures';
 
 const root = path.resolve(import.meta.dirname, '../..');
 const output = path.join(root, '.artifacts/refactor-127/visual');
+const savedLitRoot = path.join(root, '.artifacts/refactor-127/lit-baseline-build/esm');
 const manifestPath = path.join(output, 'manifest.json');
 const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 const buildInputsHash = fs
@@ -90,6 +91,26 @@ for (const theme of ['light', 'dark'] as const) {
   for (const fixture of fixtures) {
     test(`${fixture.tag}/${fixture.name}-${theme}`, async ({ page, browser }) => {
       await setupBasicPasskeyTest(page);
+      await page.route('**/_test-sdk/esm/**', (route) => {
+        const marker = '/_test-sdk/esm/';
+        const pathname = new URL(route.request().url()).pathname;
+        const relative = pathname.slice(pathname.indexOf(marker) + marker.length);
+        const file = path.join(savedLitRoot, relative);
+        if (!file.startsWith(`${savedLitRoot}${path.sep}`) || !fs.existsSync(file)) {
+          return route.abort();
+        }
+        return route.fulfill({ path: file });
+      });
+      await page.route('**/sdk/**', (route) => {
+        const marker = '/sdk/';
+        const pathname = new URL(route.request().url()).pathname;
+        const relative = pathname.slice(pathname.lastIndexOf(marker) + marker.length);
+        const file = path.join(savedLitRoot, 'sdk', relative);
+        if (!file.startsWith(`${savedLitRoot}/sdk${path.sep}`) || !fs.existsSync(file)) {
+          return route.fallback();
+        }
+        return route.fulfill({ path: file });
+      });
       await page.setViewportSize(fixture.viewport ?? { width: 1024, height: 900 });
       await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
       await page.addStyleTag({ url: new URL('/sdk/seams-components.css', page.url()).href });

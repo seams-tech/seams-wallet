@@ -12,7 +12,6 @@ export default defineConfig({
   testMatch: [
     '**/wallet-iframe/**/*.test.ts',
     '**/wallet-ui/**/*.test.ts',
-    '**/lit-components/**/*.test.ts',
     '**/unit/**/*.test.ts',
   ],
   fullyParallel: false,
