@@ -11,9 +11,10 @@ harness has been deleted after the 192/192 Preact acceptance matrix passed.
 Phase 9 verification is substantially complete: the full wallet browser suite
 passes 506/506 across Chromium, Firefox, and WebKit, the focused public React
 checks pass 7/7, and the final build/static/runtime/CSP/size checks pass. The
-remaining release-boundary items are the credential-gated intended lifecycle
-run, an unrelated generated-WASM declaration path issue, external consumer
-artifact validation, and publication authorization.
+generated-WASM declaration path issue is fixed and its external-consumer probe
+passes. The remaining release-boundary items are the credential-gated intended
+lifecycle run, external consumer artifact validation, and publication
+authorization.
 This plan changes the wallet's internal UI renderer while
 preserving wallet behavior, iframe protocols, strict-CSP guarantees, and public
 React APIs.
@@ -65,6 +66,27 @@ Re-review stylesheet order and specificity, package/Vite asset discovery,
 clean-build deletion behavior, public React exports and declaration paths,
 ignored visual artifacts, and the absence of Lit or duplicate Preact entries
 before accepting the release boundary.
+
+### Release-boundary continuation Luna handoff — 2026-09-21
+
+This continuation adds `ed5c49f`, which emits the generated WASM declaration
+files inside `dist/esm/wasm` and rewrites the public declaration imports to
+those packaged files. `pnpm check:declarations-external` now passes, alongside
+the wallet type-check, fresh-build, runtime-entry, static-asset, and bundle
+checks.
+
+The credential-gated intended lifecycle command was run with a refreshed Google
+OIDC token. It selected 23 isolated cases, but the first case could not start:
+the local Router A/B initializer had no macOS-arm64 binary and ports 4201/4202
+were already held by an unrelated console process. The missing local initializer
+was then built with `pnpm build:local-tools`; the occupied ports remain an
+environment prerequisite for a clean rerun. No intended lifecycle assertion
+was counted as passed from this attempt.
+
+The next audit should re-run the canonical intended command after freeing those
+ports, verify the emitted declaration paths through a packed consumer artifact,
+and review `ed5c49f` plus this checkpoint before release work. Consumer package
+publication and version updates remain outside this authorization.
 
 ## Decision
 
@@ -2061,7 +2083,9 @@ cleanup to detect accidental removal of shared requirements.
 - [x] Run the full affected Wallet UI/iframe suites for auth, confirmation,
   export, recovery, and transaction-tree behavior.
 - [ ] Run the credential-gated intended lifecycle contracts that exercise the
-  same surfaces; this requires the existing external Google token workflow.
+  same surfaces; this requires the existing external Google token workflow and
+  free local service ports. The 23-case attempt on 2026-09-21 was classified as
+  an environment/infrastructure failure before the first assertion.
 - [x] Run the recorded browser matrix; distinguish actual passes from missing
   browser/infrastructure coverage.
 - [x] Exercise sequential and simultaneous surfaces, repeated open/close,
@@ -2072,9 +2096,10 @@ cleanup to detect accidental removal of shared requirements.
 - [x] Verify package exports and all hosted entry variants. Check bundle
   dependency metadata for absence of Lit and duplication of Preact within each
   document graph.
-- [ ] Resolve the external declaration probe's generated-WASM imports, which
-  currently point outside the package output. Track this as a separate
-  packaging fix before publishing.
+- [x] Resolve the external declaration probe's generated-WASM imports, which
+  previously pointed outside the package output. `ed5c49f` emits the matching
+  declaration assets under `dist/esm/wasm`, rewrites the public declaration
+  imports, and passes `pnpm check:declarations-external`.
 - [x] Update the relevant architecture docs, examples, asset assertions, and
   package descriptions.
 - [ ] Test the release candidate artifact through real consumer entrypoints
@@ -2100,8 +2125,10 @@ Phase 9 verification record — 2026-09-21:
   static-asset, and CSP checks passed. No production source or built output
   contains a built-in Lit component, `@lit/react`, registration-only import,
   upgrade observer, or standalone component stylesheet.
-- The intended lifecycle run, external consumer artifact workflow, declaration
-  packaging fix, and publication remain outside this worktree checkpoint.
+- The credential-gated intended lifecycle run remains blocked by the occupied
+  4201/4202 local service ports; the attempted run selected 23 cases but reached
+  no assertion. External consumer artifact validation and publication remain
+  outside this worktree checkpoint.
 
 **Exit:** published-package consumers and hosted surfaces pass the supported
 contracts, final size goals hold, and remaining failures/coverage gaps are
