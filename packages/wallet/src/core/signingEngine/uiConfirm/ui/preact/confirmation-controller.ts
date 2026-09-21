@@ -11,12 +11,14 @@ import {
   type ConfirmationSurfaceHandle,
 } from './mountConfirmationSurface';
 import type { TreeNode } from '../transaction-display/tree';
+import type { TransactionReceiptModel } from '../transaction-receipt';
 import { buildConfirmationTree } from '../transaction-display/confirmation-tree';
 
 export type ConfirmationSurfaceController = {
   readonly element: HTMLElement;
   update(update: ConfirmUIUpdate): void;
   setTree(tree: TreeNode | null): void;
+  showReceipt(model: TransactionReceiptModel): void;
   close(): void;
   dispose(): void;
 };
@@ -74,6 +76,10 @@ class MountedConfirmationController implements ConfirmationSurfaceController {
 
   close(): void {
     this.surface.close();
+  }
+
+  showReceipt(model: TransactionReceiptModel): void {
+    this.surface.showReceipt(model);
   }
 
   dispose(): void {

@@ -1,4 +1,5 @@
 import { __isWalletIframeHostMode } from '@/core/browser/walletIframe/host-mode';
+import { retainTransactionActivity } from './transaction-activity';
 import type { UserConfirmSecurityContext, TransactionInputWasm } from '@/core/types';
 import type { AppearanceConfig, ThemeMode } from '@/core/types/seams';
 import {
@@ -381,6 +382,7 @@ function createConfirmationDecisionChannel(): ConfirmationDecisionChannel {
 function createHostConfirmHandle(
   host: ConfirmationSurfaceController,
   channel: ConfirmationDecisionChannel,
+  binding: UiConfirmSurfaceMeasurementBinding,
 ): MountedConfirmUIHandle {
   let closed = false;
   return {
@@ -390,6 +392,8 @@ function createHostConfirmHandle(
       closed = true;
       if (!confirmed) channel.callbacks.cancel();
       channel.cancelListeners.clear();
+      if (confirmed && binding.kind === 'wallet_iframe' &&
+          retainTransactionActivity(binding.requestId, host)) return;
       disconnectConfirmSurfaceMeasurementReporter(host.element);
       host.close();
     },
@@ -779,7 +783,7 @@ function mountHostElement({
 
   postWalletUiMessage('WALLET_UI_OPENED');
 
-  return createHostConfirmHandle(host, channel);
+  return createHostConfirmHandle(host, channel, ctx.surfaceMeasurementBinding);
 }
 
 function confirmationSurfaceContext(

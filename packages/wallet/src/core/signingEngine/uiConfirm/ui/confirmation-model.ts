@@ -112,6 +112,7 @@ export function normalizeConfirmationModel(input: {
       appearance: input.appearance,
       content: {
         kind: 'transaction',
+        review: { model: source.model ?? null, tree: input.tree },
         header: {
           heading: confirmationHeading(source),
           website: statusText(source.securityContext?.rpId?.trim() ?? ''),

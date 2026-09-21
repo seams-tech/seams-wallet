@@ -25,6 +25,7 @@ const PREACT_CONFIRMATION_CSS_FILES = [
   'confirmation-modal.css',
   'confirmation-drawer.css',
   'export-private-key.css',
+  'transaction-review.css',
 ] as const;
 const NEAR_SIGNER_WASM_JS_ABS = path.resolve(
   SDK_ROOT_ABS,

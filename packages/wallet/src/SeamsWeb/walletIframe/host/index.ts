@@ -205,6 +205,25 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
             post({ type: 'PONG', requestId });
             return;
           }
+          case 'PM_SET_TRANSACTION_VIEW': {
+            const payload = route.request.payload;
+            const target = payload && typeof payload === 'object' ? Reflect.get(payload, 'requestId') : null;
+            const view = payload && typeof payload === 'object' ? Reflect.get(payload, 'view') : null;
+            if (typeof target === 'string' && (view === 'toast' || view === 'closed')) {
+              const activity = await import('@/core/signingEngine/uiConfirm/ui/transaction-activity');
+              activity.setTransactionActivityView(target, view);
+            }
+            return;
+          }
+          case 'PM_TRANSACTION_BROADCAST_STARTED': {
+            const payload = route.request.payload;
+            const signedTransaction: unknown = payload && typeof payload === 'object' ? Reflect.get(payload, 'signedTransaction') : null;
+            if (typeof signedTransaction === 'string') {
+              const activity = await import('@/core/signingEngine/uiConfirm/ui/transaction-activity');
+              activity.transactionBroadcastStarted(signedTransaction);
+            }
+            return;
+          }
         }
       }
 

@@ -86,6 +86,7 @@ test.beforeEach(async ({ page }) => {
         styles,
         model: {
           kind: 'transaction',
+          review: { model: null, tree: null },
           header: {
             heading: 'Confirm transaction',
             website: { kind: 'ready', text: 'wallet.example' },

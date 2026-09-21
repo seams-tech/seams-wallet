@@ -4,28 +4,28 @@
   recovery-code backup dialog's Copy button, so the two copy affordances in
   the wallet read as one control.
 
-  Every rule is scoped to the recovery dialog so generic class names do not
-  leak into host documents. Export-specific placement stays with export CSS.
+  Rules are scoped to wallet surfaces so generic class names do not leak into
+  host documents. Surface-specific placement stays with each surface's CSS.
 
   Context-specific bits (resting color, margins) stay with each surface.
 */
 
-[data-seams-wallet-recovery-backup-dialog] .copy-icon {
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon {
   position: relative;
   width: 16px;
   height: 16px;
   flex: 0 0 16px;
 }
 
-[data-seams-wallet-recovery-backup-dialog] .copy-icon svg {
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon svg {
   display: block;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-[data-seams-wallet-recovery-backup-dialog] .copy-icon-check,
-[data-seams-wallet-recovery-backup-dialog] .copy-icon-copy {
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon-check,
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon-copy {
   position: absolute;
   inset: 0;
   display: grid;
@@ -36,37 +36,37 @@
     filter 300ms ease-in-out;
 }
 
-[data-seams-wallet-recovery-backup-dialog] .copy-icon-check {
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon-check {
   transform: scale(0.25);
   opacity: 0;
   filter: blur(2px);
 }
 
-[data-seams-wallet-recovery-backup-dialog] .copy-icon-copy {
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon-copy {
   transform: scale(1);
   opacity: 1;
   filter: blur(0);
 }
 
-[data-seams-wallet-recovery-backup-dialog] .copied .copy-icon {
-  color: var(--seams-colors-success, #34d399);
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copied .copy-icon {
+  color: var(--seams-colors-buttonBackground, currentColor);
 }
 
-[data-seams-wallet-recovery-backup-dialog] .copied .copy-icon-check {
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copied .copy-icon-check {
   transform: scale(1);
   opacity: 1;
   filter: blur(0);
 }
 
-[data-seams-wallet-recovery-backup-dialog] .copied .copy-icon-copy {
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copied .copy-icon-copy {
   transform: scale(0.25);
   opacity: 0;
   filter: blur(2px);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-seams-wallet-recovery-backup-dialog] .copy-icon-check,
-  [data-seams-wallet-recovery-backup-dialog] .copy-icon-copy {
+  :is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon-check,
+  :is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon-copy {
     transition-duration: 0.01ms;
   }
 }

@@ -9,6 +9,7 @@ export type RenderTreeNodeType = 'folder' | 'file';
 export interface RenderTreeNode {
   id: string;
   label: string;
+  fieldLabel?: string;
   type: RenderTreeNodeType;
   open?: boolean;
   content?: string;
@@ -72,6 +73,7 @@ export function buildFieldNodes(parentId: string, fields?: TxDisplayField[]): Re
         {
           id: `${parentId}-field-${fieldIndex}`,
           label: label ? `${label}:` : '',
+          fieldLabel: label ? `${label}:` : undefined,
           type: 'file',
           open: false,
           content,
@@ -86,6 +88,7 @@ export function buildFieldNodes(parentId: string, fields?: TxDisplayField[]): Re
       {
         id: `${parentId}-field-${fieldIndex}`,
         label: label ? `${label}: ${value}` : value,
+        fieldLabel: label ? `${label}:` : undefined,
         type: 'file',
         open: false,
         copyValue: typeof field.copyValue === 'string' ? field.copyValue : undefined,

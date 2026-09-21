@@ -22,7 +22,7 @@ export type WalletIframeSurfaceRenderMode =
       kind: 'compact_request_modal';
       presentation: WalletIframeModalPresentation;
       geometry: WalletIframeModalGeometry;
-      focusTrap: true;
+      focusTrap: boolean;
       identity: RequestSurfaceIdentity;
       authMenuSessionId?: never;
     }
@@ -181,7 +181,12 @@ export function renderWalletIframeSurface(
 export class WalletIframeSurfaceRenderer {
   constructor(private readonly controller: WalletIframeSurfaceRenderController) {}
 
-  render(surface: WalletIframeSurface, geometry?: WalletIframeSurfaceGeometry): void {
+  render(surface: WalletIframeSurface, geometry?: WalletIframeSurfaceGeometry, receiptView: 'expanded' | 'toast' | null = null): void {
+    if (receiptView && surface.kind === 'modal_transaction_confirm' && geometry && isModalGeometry(geometry)) {
+      this.controller.apply({ kind: 'compact_request_modal', geometry, focusTrap: receiptView === 'expanded',
+        identity: surface.identity, presentation: { kind: 'modal', title: 'Transaction receipt' } });
+      return;
+    }
     this.controller.apply(renderWalletIframeSurface(surface, geometry));
   }
 }

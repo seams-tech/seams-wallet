@@ -9,6 +9,7 @@ import type {
   ConfirmationSurfaceHandle,
 } from '@/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface';
 import type { EmailOtpVerificationState } from '@/core/signingEngine/uiConfirm/ui/preact/email-otp-session';
+import type { TransactionReceiptState } from '@/core/signingEngine/uiConfirm/ui/transaction-receipt';
 
 const walletUiCss = fs.readFileSync(
   path.resolve(import.meta.dirname, '../../packages/wallet/dist/esm/sdk/wallet-ui.css'),
@@ -24,6 +25,8 @@ declare global {
       email(index: number, challengeId: string, verification: EmailOtpVerificationState): void;
       close(index: number): void;
       dispose(index: number): void;
+      receipt(index: number, state: TransactionReceiptState, view?: 'expanded' | 'toast'): void;
+      recipient(index: number, value: string): void;
       calls: string[];
       closed: number;
       violations: string[];
@@ -89,6 +92,7 @@ test.beforeEach(async ({ page }) => {
         },
         content: {
           kind: 'transaction',
+          review: { model: null, tree: null },
           header: {
             heading,
             website: { kind: 'ready', text: 'wallet.example' },
@@ -139,6 +143,33 @@ test.beforeEach(async ({ page }) => {
     function dispose(index: number) {
       handles[index].dispose();
     }
+    function receiptView() {
+      window.__confirmationMount.calls.push('receipt-view');
+    }
+    function recipient(index: number, value: string) {
+      const viewModel = model('Review transfer', true);
+      if (viewModel.content.kind !== 'transaction') throw new Error('Expected transaction fixture');
+      viewModel.content.review = { tree: null, model: {
+        chain: 'evm', chainId: 8453,
+        operations: [{ id: 'transfer', kind: 'generic.contractCall', label: 'Transfer', to: value }],
+      } };
+      handles[index].update(viewModel);
+    }
+    function receiptDismiss() {
+      window.__confirmationMount.calls.push('receipt-dismiss');
+    }
+    function receipt(
+      index: number,
+      state: TransactionReceiptState,
+      view: 'expanded' | 'toast' = 'toast',
+    ) {
+      handles[index].showReceipt({
+        state,
+        view,
+        onView: receiptView,
+        onDismiss: receiptDismiss,
+      });
+    }
     function violation(event: SecurityPolicyViolationEvent) {
       window.__confirmationMount.violations.push(event.violatedDirective);
     }
@@ -149,12 +180,131 @@ test.beforeEach(async ({ page }) => {
       email,
       close,
       dispose,
+      receipt,
+      recipient,
       calls: [],
       closed: 0,
       violations: [],
     };
     document.addEventListener('securitypolicyviolation', violation);
   });
+});
+
+test('toast progress advances in thirds only after completed transaction stages', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    window.__confirmationMount.mount('modal', 'wallet-iframe');
+    window.__confirmationMount.receipt(0, { kind: 'signing' });
+  });
+  const progress = page.locator('.seams-toast-progress');
+  const fill = progress.locator('span');
+  const spinner = page.locator('.seams-transaction-toast .seams-receipt-symbol svg');
+  const stages: { state: TransactionReceiptState; fraction: number; pending: boolean }[] = [
+    { state: { kind: 'signing' }, fraction: 0, pending: true },
+    { state: { kind: 'signed' }, fraction: 1 / 3, pending: false },
+    { state: { kind: 'broadcasting' }, fraction: 1 / 3, pending: true },
+    { state: { kind: 'submitted', hash: '0x123' }, fraction: 2 / 3, pending: true },
+    { state: { kind: 'confirmed', hash: '0x123' }, fraction: 1, pending: false },
+  ];
+  for (const { state, fraction, pending } of stages) {
+    await page.evaluate((state) => window.__confirmationMount.receipt(0, state), state);
+    await expect
+      .poll(async () => {
+        const trackBounds = await progress.boundingBox();
+        const fillBounds = await fill.boundingBox();
+        return fillBounds!.width / trackBounds!.width;
+      })
+      .toBeCloseTo(fraction, 2);
+    await expect(spinner).toHaveCSS('animation-name', pending ? 'seams-receipt-spin' : 'none');
+  }
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate(() =>
+    window.__confirmationMount.receipt(0, { kind: 'submitted', hash: '0x123' }),
+  );
+  await expect(fill).toHaveCSS('transition-duration', '0s');
+  await expect(spinner).toHaveCSS('animation-name', 'none');
+  await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
+});
+
+test('receipt hashes stay on one line and reveal their end on hover and keyboard focus', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  const hash = `0x${'1234567890abcdef'.repeat(4)}`;
+  await page.evaluate((hash) => {
+    window.__confirmationMount.mount('modal', 'wallet-iframe');
+    window.__confirmationMount.receipt(0, { kind: 'confirmed', hash }, 'expanded');
+  }, hash);
+  await page.locator('summary').filter({ hasText: 'Receipt details' }).click();
+  const address = page.locator('.seams-review-address');
+  await expect(address).toHaveCSS('white-space', 'nowrap');
+  await expect(address).toHaveCSS('text-overflow', 'ellipsis');
+  await expect(address).toHaveAttribute('aria-label', hash);
+  await expect
+    .poll(() => address.evaluate((el) => el.firstElementChild!.scrollWidth > el.clientWidth))
+    .toBe(true);
+  await expect
+    .poll(() =>
+      page.locator('.modal-container-root').evaluate((el) => el.scrollWidth <= el.clientWidth),
+    )
+    .toBe(true);
+  await address.hover();
+  expect(await address.locator('span').evaluate(el => {
+    const timing = el.getAnimations()[0]?.effect?.getTiming();
+    return { duration: timing?.duration, delay: timing?.delay };
+  })).toEqual({ duration: 200, delay: 0 });
+  await expect(address).toHaveAttribute('data-revealing', 'true');
+  await expect
+    .poll(() => address.locator('span').evaluate((el) => getComputedStyle(el).transform))
+    .not.toBe('matrix(1, 0, 0, 1, 0, 0)');
+  await page.mouse.move(0, 0);
+  await expect(address).not.toHaveAttribute('data-revealing');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await address.focus();
+  await expect(address).toHaveAttribute('data-revealing', 'true');
+  await expect
+    .poll(() =>
+      address.evaluate((el) => {
+        const text = el.firstElementChild!;
+        return Math.abs(text.getBoundingClientRect().right - el.getBoundingClientRect().right);
+      }),
+    )
+    .toBeLessThan(1);
+  await page.getByRole('button', { name: 'Done', exact: true }).focus();
+  await expect(address).not.toHaveAttribute('data-revealing');
+  await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
+});
+
+test('clicking the receipt address copies the full value and animates the export-style check', async ({ page }) => {
+  const recipient = '0x2F0100000000000000000000000000000000004EC9';
+  await page.evaluate((value) => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+      async writeText(text: string) { window.__confirmationMount.calls.push(text); },
+    } });
+    window.__confirmationMount.mount('modal', 'wallet-iframe');
+    window.__confirmationMount.recipient(0, value);
+    window.__confirmationMount.receipt(0, { kind: 'signed' }, 'expanded');
+  }, recipient);
+  const destination = page.locator('.seams-receipt-destination');
+  const button = destination.getByRole('button', { name: `Copy recipient address ${recipient}`, exact: true });
+  await expect(button.locator('.copy-icon')).toHaveCSS('opacity', '0');
+  await expect(button.locator('.seams-review-full-address')).toHaveText(recipient);
+  await button.hover();
+  await expect(button.locator('.copy-icon')).toHaveCSS('opacity', '1');
+  await expect(button.locator('.seams-review-address')).toHaveCount(0);
+  await button.locator('.seams-review-full-address').click();
+  await expect.poll(() => page.evaluate(() => window.__confirmationMount.calls)).toEqual([recipient]);
+  await expect(button).toHaveCount(0);
+  const copied = destination.locator('.seams-review-copy-address');
+  await expect(copied).toHaveAccessibleName('Copied');
+  await expect(copied.locator('.copy-icon-check')).toHaveCSS('opacity', '1');
+  await expect(copied.locator('.copy-icon-copy')).toHaveCSS('opacity', '0');
+  await expect(copied).toHaveAccessibleName(`Copy recipient address ${recipient}`, { timeout: 5000 });
+  await copied.focus();
+  await copied.press('Enter');
+  await expect.poll(() => page.evaluate(() => window.__confirmationMount.calls)).toEqual([recipient, recipient]);
+  await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
 test('email Confirm Code validates and retries through its native form', async ({ page }) => {
@@ -257,26 +407,18 @@ test('mount updates complete models and invokes the current callback synchronous
   expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
-test('an immediate error preserves the modal halo geometry and background', async ({ page }) => {
+test('an immediate error remains visible and clears when the review updates', async ({ page }) => {
   const id = await page.evaluate(() => {
     const id = window.__confirmationMount.mount('modal', 'wallet-iframe');
     window.__confirmationMount.error(0);
     return id;
   });
   const root = page.locator(`#${id}`);
-  await expect(root.locator('.error-banner')).toHaveText('Unable to prepare transaction.');
-  const halo = root.locator('.seams-halo-border');
-  await expect(halo.locator('.halo-ring')).toHaveCount(0);
-  await expect(halo.locator('.halo-content')).toHaveCSS('padding', '0px');
-  await expect(halo.locator('.halo-content')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  const before = await halo.boundingBox();
+  await expect(root.getByRole('alert')).toHaveText('Unable to prepare transaction.');
+  await expect(root.getByRole('button', { name: 'Cancel', exact: true })).toBeVisible();
   await page.evaluate(() => window.__confirmationMount.update(0, 'First confirmation', true));
-  await expect(halo.locator('.halo-ring')).toHaveCount(1);
-  const after = await halo.boundingBox();
-  expect(before).not.toBeNull();
-  expect(after).not.toBeNull();
-  expect(after!.width).toBeCloseTo(before!.width, 2);
-  expect(after!.height).toBeCloseTo(before!.height, 2);
+  await expect(root.getByRole('alert')).toHaveCount(0);
+  await expect(root.getByRole('button', { name: 'Confirm', exact: true })).toBeEnabled();
   await page.evaluate(() => window.__confirmationMount.dispose(0));
   expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
@@ -304,7 +446,7 @@ test('drawer close filters callbacks and disposes after its transition', async (
   const id = await page.evaluate(() => window.__confirmationMount.mount('drawer', 'standalone'));
   await expect(page.locator(`#${id} .is-open`)).toBeVisible();
   await page.evaluate(() => {
-    const cancel = document.querySelector<HTMLButtonElement>('.cancel')!;
+    const cancel = document.querySelector<HTMLButtonElement>('button[aria-label="Cancel"]')!;
     window.__confirmationMount.close(0);
     cancel.click();
     window.__confirmationMount.close(0);

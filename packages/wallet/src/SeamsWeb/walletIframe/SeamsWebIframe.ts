@@ -1195,6 +1195,7 @@ export class SeamsWebIframe {
   ): Promise<ExecuteEvmFamilyTransactionResult> {
     return await executeEvmFamilyTransactionLifecycle({
       lifecycle: {
+        onBroadcastStarted: this.router.notifyTransactionBroadcastStarted.bind(this.router),
         signEvmFamily: async (innerArgs) => {
           if (innerArgs.request.chain === 'tempo') {
             if (innerArgs.chainTarget.kind !== 'tempo') {

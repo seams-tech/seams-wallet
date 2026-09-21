@@ -6,7 +6,7 @@ import {
   createSurfaceHeightReflow,
   type SurfaceHeightReflow,
 } from '../confirm-surface-resize';
-import { ConfirmHeader, LoadingStatus, type ConfirmHeaderProps } from './ConfirmHeader';
+import { LoadingStatus, type ConfirmHeaderProps } from './ConfirmHeader';
 import {
   ConfirmContent,
   type ConfirmContentProps,
@@ -21,6 +21,13 @@ import {
 import { EmailOtpContent, type EmailOtpContentProps } from './EmailOtpContent';
 import { PadlockIcon } from './PadlockIcon';
 import { copySurfaceText } from './clipboard';
+import {
+  TransactionReview,
+  WalletReceiptFooter,
+  ReviewIcon,
+  reviewNetwork,
+  type TransactionReviewData,
+} from './TransactionReview';
 
 type TransactionPrompt =
   | { kind: 'passkey' | 'session'; email?: never }
@@ -48,10 +55,8 @@ export type ConfirmationContentModel =
       body: ConfirmationBodyModel;
       prompt: TransactionPrompt;
       transaction: TransactionContentProps;
+      review: TransactionReviewData;
     };
-
-type TransactionConfirmationModel = Extract<ConfirmationContentModel, { kind: 'transaction' }>;
-type TransactionConfirmationHeader = TransactionConfirmationModel['header'];
 
 export class ConfirmationContent extends Component<{
   model: ConfirmationContentModel;
@@ -133,89 +138,55 @@ export class ConfirmationContent extends Component<{
         : model.transaction.decision;
     return (
       <div ref={this.root} class={contentClass}>
-        {this.props.variant === 'drawer' ? (
-          <>
-            <div class="responsive-card">
-              <div class="drawer-header">
-                <h2 class="drawer-title">{model.header.heading}</h2>
-              </div>
-            </div>
-            <div class="responsive-card">
-              <DrawerSecurityDetails header={model.header} />
-              <ConfirmationBody model={model.body} onCopyAccount={this.copyAccount} />
-              {model.prompt.kind === 'email' && (
-                <EmailOtpContent {...model.prompt.email} formId={this.otpFormId} />
+        <div class="seams-review-content">
+          <div class="seams-review-toolbar">
+            <div class="seams-review-origin">
+              <PadlockIcon />
+              {model.header.website.kind === 'ready' ? (
+                model.header.website.text
+              ) : (
+                <LoadingStatus label="Loading website" />
               )}
             </div>
-          </>
-        ) : (
-          <div class="responsive-card">
-            <ConfirmHeader
-              {...model.header}
-              icon={model.prompt.kind === 'email' ? 'mail' : 'fingerprint'}
-              styles={this.props.styles}
-            />
+            <button
+              type="button"
+              aria-label={model.transaction.cancelText}
+              onClick={model.transaction.onCancel}
+            >
+              <ReviewIcon kind="close" />
+            </button>
+          </div>
+          {model.review.model && (
+            <div class="seams-review-eyebrow">
+              {model.review.model.operations.length === 1
+                ? model.review.model.operations[0].label
+                : 'Transaction'}{' '}
+              · {reviewNetwork(model.review.model)}
+            </div>
+          )}
+          <h2 class="seams-review-title">{model.header.heading}</h2>
+          <TransactionReview data={model.review} />
+          <div class="seams-review-context">
             <ConfirmationBody model={model.body} onCopyAccount={this.copyAccount} />
             {model.prompt.kind === 'email' && (
               <EmailOtpContent {...model.prompt.email} formId={this.otpFormId} />
             )}
           </div>
-        )}
-        <div class="responsive-card responsive-card-center">
-          <ConfirmContent {...model.transaction} styles={this.props.styles} decision={decision} />
+          <ConfirmContent
+            {...model.transaction}
+            tree={null}
+            styles={this.props.styles}
+            decision={decision}
+            cancelInHeader
+            confirmIcon={
+              model.prompt.kind === 'passkey' ? <ReviewIcon kind="fingerprint" /> : undefined
+            }
+          />
+          <WalletReceiptFooter />
         </div>
       </div>
     );
   }
-}
-
-function DrawerSecurityDetails({ header }: { header: TransactionConfirmationHeader }) {
-  return (
-    <div class="rpid-wrapper">
-      <div class="rpid">
-        <div class="secure-indicator">
-          <PadlockIcon />
-          <span role="status">
-            {header.website.kind === 'ready' ? (
-              <span class="domain-text">{header.website.text}</span>
-            ) : (
-              <LoadingStatus label="Loading website" />
-            )}
-          </span>
-        </div>
-        <span class="security-details">
-          <BlockHeightIcon />
-          <span role="status">
-            {header.chainDetails.kind === 'ready' ? (
-              header.chainDetails.text
-            ) : (
-              <LoadingStatus label="Loading chain details" />
-            )}
-          </span>
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function BlockHeightIcon() {
-  return (
-    <svg
-      class="block-height-icon"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A 2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-      <path d="m3.3 7 8.7 5 8.7-5" />
-      <path d="M12 22V12" />
-    </svg>
-  );
 }
 
 function ignoreCopyFailure(): void {}

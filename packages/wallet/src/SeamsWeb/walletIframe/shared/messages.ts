@@ -865,6 +865,8 @@ export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
 export type WalletProtocolVersion = typeof WALLET_PROTOCOL_VERSION;
 
 export type ParentToChildType =
+  | 'PM_SET_TRANSACTION_VIEW'
+  | 'PM_TRANSACTION_BROADCAST_STARTED'
   | 'PING'
   | 'PM_SET_CONFIG'
   | 'PM_CANCEL'
@@ -936,6 +938,7 @@ export type ParentToChildType =
   | 'PM_SYNC_ACCOUNT_FLOW';
 
 export type ChildToParentType =
+  | 'TRANSACTION_ACTIVITY'
   | 'READY'
   | 'PONG'
   | 'PROGRESS'
@@ -1754,6 +1757,8 @@ export interface ErrorPayload {
 }
 
 export type ParentToChildEnvelope =
+  | RpcEnvelope<'PM_SET_TRANSACTION_VIEW', { requestId: string; view: 'toast' | 'closed' }>
+  | RpcEnvelope<'PM_TRANSACTION_BROADCAST_STARTED', { signedTransaction: string }>
   | RpcEnvelope<'PING'>
   | RpcEnvelope<'PM_SET_CONFIG', PMSetConfigPayload>
   | RpcEnvelope<'PM_CANCEL', PMCancelPayload>
@@ -1870,6 +1875,7 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_SYNC_ACCOUNT_FLOW', { walletId?: string }>;
 
 export type ChildToParentEnvelope =
+  | RpcEnvelope<'TRANSACTION_ACTIVITY', 'expanded' | 'toast' | 'closed'>
   | RpcEnvelope<'READY', ReadyPayload>
   | RpcEnvelope<'PONG'>
   | RpcEnvelope<'PROGRESS', ProgressPayload>

@@ -1351,6 +1351,7 @@ type ParsedChildToParentEnvelope =
       readonly requestId?: string;
       readonly payload: NonNullable<ReturnType<typeof parseWalletIframeSurfaceMeasurement>>;
     }
+  | { readonly type: 'TRANSACTION_ACTIVITY'; readonly requestId: string; readonly payload: 'expanded' | 'toast' | 'closed' }
   | { readonly type: 'PROGRESS'; readonly requestId?: string; readonly payload: ProgressPayload }
   | { readonly type: 'PM_RESULT'; readonly requestId?: string; readonly payload: PMResultPayload }
   | { readonly type: 'ERROR'; readonly requestId?: string; readonly payload: ErrorPayload };
@@ -1498,6 +1499,11 @@ function parseClientChildToParentEnvelope(value: unknown): ParsedChildToParentEn
       const payload = parseWalletIframeSurfaceMeasurement(Reflect.get(record, 'payload'));
       return payload ? { ...requestIdFields, type, payload } : null;
     }
+    case 'TRANSACTION_ACTIVITY': {
+      const payload = Reflect.get(record, 'payload');
+      return typeof requestId === 'string' && (payload === 'expanded' || payload === 'toast' || payload === 'closed')
+        ? { type, requestId, payload } : null;
+    }
     case 'PROGRESS': {
       const payload = parseClientProgressPayload(Reflect.get(record, 'payload'));
       return payload ? { ...requestIdFields, type, payload } : null;
@@ -1568,6 +1574,7 @@ export class WalletIframeRouter {
   private readonly walletOriginOrigin: string;
   private overlayState: WalletIframeOverlayState;
   private walletIframeSurface: WalletIframeSurface = hiddenWalletIframeSurface();
+  private transactionReceipt: { requestId: string; view: 'expanded' | 'toast' } | null = null;
   private surfaceRenderer: WalletIframeSurfaceRenderer;
   private activeSurfaceMeasurement: WalletIframeTrustedSurfaceMeasurement | null = null;
   private activeSurfaceMeasurementUnavailable = false;
@@ -1812,6 +1819,10 @@ export class WalletIframeRouter {
       return;
     }
     if (event.authMenuSessionId !== undefined) return;
+    if (this.transactionReceipt?.requestId === surface.identity.requestId) {
+      this.state.port?.postMessage({ type: 'PM_SET_TRANSACTION_VIEW', payload: { requestId: surface.identity.requestId, view: 'toast' } });
+      return;
+    }
     void this.cancelRequest(surface.identity.requestId);
   };
 
@@ -1873,8 +1884,9 @@ export class WalletIframeRouter {
         ? { kind: 'unavailable' }
         : undefined;
     const viewport = this.currentSurfaceViewport();
+    const receiptView = this.transactionReceipt?.requestId === surface.identity.requestId ? this.transactionReceipt.view : null;
     const resolvedGeometry = resolveWalletIframeSurfaceGeometry({
-      presentation: surface.presentation,
+      presentation: receiptView ? { kind: 'modal', title: 'Transaction receipt' } : surface.presentation,
       viewport,
       measurement,
     });
@@ -1943,7 +1955,15 @@ export class WalletIframeRouter {
       geometry = documentCoordinateAuthMenuGeometry(geometry);
     }
     this.overlayState.controller.setAuthMenuVisualScale(authMenuVisualScale);
-    this.surfaceRenderer.render(surface, geometry);
+    const toast = receiptView === 'toast';
+    if (toast) {
+      const width = Math.min(360, Math.max(1, viewport.widthCssPx - 32));
+      const height = Math.min(this.activeSurfaceMeasurement?.heightCssPx ?? 88, Math.max(1, viewport.heightCssPx - 32));
+      geometry = { kind: 'centered_modal', widthCssPx: width, heightCssPx: height,
+        leftCssPx: viewport.offsetLeftCssPx + viewport.widthCssPx - width - 16,
+        topCssPx: viewport.offsetTopCssPx + viewport.heightCssPx - height - 16 };
+    }
+    this.surfaceRenderer.render(surface, geometry, receiptView);
     if (surface.kind === 'modal_auth_menu' && geometry.kind !== 'provisional_centered_modal') {
       this.hostedAuthMenuAnchors
         .get(surface.authMenuSessionId)
@@ -2041,6 +2061,15 @@ export class WalletIframeRouter {
       throw new Error('Wallet iframe connection is unavailable for a foreground surface');
     }
     const identity = this.requestSurfaceIdentity(args.requestId);
+    if (this.transactionReceipt) {
+      const receiptId = this.transactionReceipt.requestId;
+      this.transactionReceipt = null;
+      this.state.port?.postMessage({ type: 'PM_SET_TRANSACTION_VIEW', payload: { requestId: receiptId, view: 'closed' } });
+      const previous = this.walletIframeSurface;
+      if (previous.kind !== 'hidden' && previous.identity.requestId === receiptId) {
+        this.finishRequestSurface(previous.identity.requestId, false);
+      }
+    }
     let result: ReduceWalletIframeSurfaceResult;
     switch (args.kind) {
       case 'auth_menu': {
@@ -2182,6 +2211,10 @@ export class WalletIframeRouter {
   }
 
   private finishRequestSurface(requestId: WalletIframeRequestId, cancelled: boolean): void {
+    if (this.transactionReceipt?.requestId === requestId) {
+      if (!cancelled) return;
+      this.transactionReceipt = null;
+    }
     const connectionId = this.state.connectionId;
     if (!connectionId) return;
     this.transitionWalletIframeSurface({
@@ -2294,6 +2327,7 @@ export class WalletIframeRouter {
   }
 
   private handleConnectionClosed(connectionId: WalletIframeConnectionId): void {
+    this.transactionReceipt = null;
     this.transactionSurfaceQueue.cancelAll(
       new Error('Wallet iframe connection closed while waiting for transaction surface'),
     );
@@ -2319,6 +2353,8 @@ export class WalletIframeRouter {
   }
 
   private hideRequestSurface(requestId: WalletIframeRequestId): void {
+    if (this.walletIframeSurface.kind === 'modal_transaction_confirm' && this.walletIframeSurface.identity.requestId === requestId) return;
+    if (this.transactionReceipt?.requestId === requestId) return;
     const connectionId = this.state.connectionId;
     if (!connectionId) return;
     this.transitionWalletIframeSurface({
@@ -3499,6 +3535,10 @@ export class WalletIframeRouter {
     });
   }
 
+  notifyTransactionBroadcastStarted(signedResult: TempoSignedResult | EvmSignedResult): void {
+    this.state.port?.postMessage({ type: 'PM_TRANSACTION_BROADCAST_STARTED', payload: { signedTransaction: signedResult.rawTxHex } });
+  }
+
   async reportTempoBroadcastRejected(payload: {
     walletSession: WalletSessionRef;
     signedResult: TempoSignedResult | EvmSignedResult;
@@ -4216,6 +4256,18 @@ export class WalletIframeRouter {
     }
     if (msg.type === 'SURFACE_MEASUREMENT') {
       this.handleSurfaceMeasurement(msg.payload);
+      return;
+    }
+    if (msg.type === 'TRANSACTION_ACTIVITY') {
+      const surface = this.walletIframeSurface;
+      if (surface.kind !== 'modal_transaction_confirm' || surface.identity.requestId !== msg.requestId) return;
+      if (msg.payload === 'closed') {
+        this.transactionReceipt = null;
+        this.finishRequestSurface(surface.identity.requestId, false);
+      } else {
+        this.transactionReceipt = { requestId: msg.requestId, view: msg.payload };
+        this.renderActiveWalletIframeSurface();
+      }
       return;
     }
     const requestId = msg.requestId;

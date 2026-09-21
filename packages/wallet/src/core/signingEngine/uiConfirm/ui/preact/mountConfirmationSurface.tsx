@@ -7,6 +7,8 @@ import { appearanceTokenCssRule } from '../appearance-token-vars';
 import { ConfirmationContent, type ConfirmationContentModel } from './ConfirmationContent';
 import { ConfirmationModal } from './ConfirmationModal';
 import { ConfirmationDrawer } from './ConfirmationDrawer';
+import { TransactionReceipt } from './TransactionReceipt';
+import { receiptIsPending, type TransactionReceiptModel } from '../transaction-receipt';
 
 export { normalizeConfirmationModel } from '../confirmation-model';
 
@@ -18,6 +20,7 @@ export type ConfirmSurfaceModel = {
 export type ConfirmationSurfaceHandle = {
   readonly element: HTMLElement;
   update(model: ConfirmSurfaceModel): void;
+  showReceipt(model: TransactionReceiptModel): void;
   close(): void;
   dispose(): void;
 };
@@ -43,6 +46,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
   private readonly styles: CspStylesheetManager;
   private readonly presentation: MountConfirmationInput['presentation'];
   private state: SurfaceState;
+  private receipt: TransactionReceiptModel | null = null;
 
   constructor(input: MountConfirmationInput) {
     const document = input.parent.ownerDocument;
@@ -70,6 +74,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
   update(model: ConfirmSurfaceModel): void {
     if (this.state.kind !== 'mounted') return;
     this.state.model = model;
+    this.element.dataset.confirmationKind = model.content.kind;
     this.element.dataset.theme = model.appearance.theme.mode;
     this.styles.setDynamicRule(
       this.element.id,
@@ -83,6 +88,21 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     this.state = { kind: 'closing', model: this.state.model, onClosed: this.state.onClosed };
     if (this.presentation.variant === 'modal') this.dispose();
     else this.renderSurface();
+  }
+
+  showReceipt(model: TransactionReceiptModel): void {
+    if (this.state.kind !== 'mounted' || this.state.model.content.kind !== 'transaction') return;
+    const viewChanged = this.receipt?.view !== model.view;
+    this.receipt = model;
+    this.element.dataset.receiptView = model.view;
+    this.element.dataset.seamsConfirmSurface = 'wallet-iframe';
+    this.element.dataset.seamsConfirmVariant = 'modal';
+    this.renderSurface();
+    if (viewChanged && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.element.querySelector('.seams-transaction-receipt, .seams-transaction-toast')?.animate(
+        [{ opacity: 0 }, { opacity: 1 }], { duration: 180, delay: 140, fill: 'backwards', easing: 'ease-out' },
+      );
+    }
   }
 
   dispose = (): void => {
@@ -102,6 +122,11 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
 
   private cancel = (): void => {
     if (this.state.kind !== 'mounted') return;
+    if (this.receipt) {
+      if (receiptIsPending(this.receipt.state)) this.receipt.onView('toast');
+      else this.receipt.onDismiss();
+      return;
+    }
     const content = this.state.model.content;
     if (content.kind === 'registration') content.registration.onCancel();
     else content.transaction.onCancel();
@@ -130,7 +155,9 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     if (state.kind === 'disposed') return;
     const source = state.model.content;
     const model = this.contentModel(source, state.kind === 'closing');
-    const content = (
+    const content = this.receipt && source.kind === 'transaction' ? (
+      <TransactionReceipt receipt={this.receipt} data={source.review} />
+    ) : (
       <ConfirmationContent
         model={model}
         styles={this.styles}
@@ -139,9 +166,9 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     );
     const label =
       source.kind === 'registration' ? source.registration.heading : source.header.heading;
-    if (this.presentation.variant === 'modal') {
+    if (this.receipt || this.presentation.variant === 'modal') {
       render(
-        <ConfirmationModal context={this.presentation.context} label={label} onCancel={this.cancel}>
+        <ConfirmationModal context={this.receipt ? 'wallet-iframe' : this.presentation.context} label={label} onCancel={this.cancel}>
           {content}
         </ConfirmationModal>,
         this.element,
@@ -195,6 +222,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
           kind: 'transaction',
           header: source.header,
           body: source.body,
+          review: source.review,
           prompt:
             source.prompt.kind === 'email'
               ? {

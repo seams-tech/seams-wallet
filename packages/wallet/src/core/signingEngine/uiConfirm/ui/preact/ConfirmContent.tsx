@@ -23,6 +23,8 @@ export type ConfirmContentProps = {
   decision: ConfirmContentDecision;
   confirmText: string;
   cancelText: string;
+  cancelInHeader?: boolean;
+  confirmIcon?: ComponentChildren;
   errorMessage?: string;
   onCancel: () => void;
   onTreeToggle?: (nodeId: string, open: boolean) => void;
@@ -127,7 +129,11 @@ export class ConfirmContent extends Component<ConfirmContentProps, { armed: bool
         onTouchStart={stopDragStart}
       >
         <div id={this.id} ref={this.root} class="txc-root">
-          {this.props.errorMessage && <div class="error">{this.props.errorMessage}</div>}
+          {this.props.errorMessage && (
+            <div class="error" role="alert">
+              {this.props.errorMessage}
+            </div>
+          )}
           {this.props.tree && (
             <div class="tooltip-width">
               <TransactionTree
@@ -142,9 +148,11 @@ export class ConfirmContent extends Component<ConfirmContentProps, { armed: bool
             </div>
           )}
           <div class="actions">
-            <button type="button" class="cancel" onClick={this.cancel}>
-              {this.props.cancelText}
-            </button>
+            {!this.props.cancelInHeader && (
+              <button type="button" class="cancel" onClick={this.cancel}>
+                {this.props.cancelText}
+              </button>
+            )}
             <button
               type={this.props.decision.kind === 'form' ? 'submit' : 'button'}
               form={this.props.decision.kind === 'form' ? this.props.decision.formId : undefined}
@@ -158,7 +166,10 @@ export class ConfirmContent extends Component<ConfirmContentProps, { armed: bool
                   <span>Loading...</span>
                 </>
               ) : (
-                this.props.confirmText
+                <>
+                  {this.props.confirmIcon}
+                  {this.props.confirmText}
+                </>
               )}
             </button>
           </div>

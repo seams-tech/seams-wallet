@@ -24,6 +24,7 @@ export type HighlightSpec =
 export interface TreeNode {
   id: string;
   label: string;
+  fieldLabel?: string;
   type: TreeNodeType;
   chain?: DisplayChain;
   open?: boolean;

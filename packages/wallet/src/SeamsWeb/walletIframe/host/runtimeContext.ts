@@ -24,6 +24,7 @@ import {
 } from '@/core/types/walletIframeIdentity';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import { recordAdoptedWalletIframeParentOrigin } from './hostedWalletSeamsSession';
+import { beginTransactionActivity, observeTransactionActivity, observeTransactionLifecycleReport, failTransactionActivity } from '@/core/signingEngine/uiConfirm/ui/transaction-activity';
 
 export type WalletHostRuntimeState = {
   parentOrigin: string | null;
@@ -217,16 +218,21 @@ function ensureHostSeamsWeb(ctx: HostContext, input: WalletHostRuntimeRequest): 
 function buildHandlerDeps(ctx: HostContext, input: WalletHostRuntimeRequest): HandlerDeps {
   const postProgress = (requestId: string | undefined, payload: ProgressPayload): void => {
     if (!requestId) return;
-    input.post({ type: 'PROGRESS', requestId, payload });
+    postActivityMessage(input, { type: 'PROGRESS', requestId, payload });
   };
 
   return {
     getSeamsWeb: ensureHostSeamsWeb.bind(null, ctx, input),
-    post: input.post,
+    post: postActivityMessage.bind(null, input),
     postProgress,
     isCancelled: input.isCancelled,
     respondIfCancelled: input.respondIfCancelled,
   };
+}
+
+function postActivityMessage(input: WalletHostRuntimeRequest, message: ChildToParentEnvelope): void {
+  observeTransactionActivity(message);
+  input.post(message);
 }
 
 function postLifecycleEvent(ctx: HostContext, event: SdkLifecycleEvent): void {
@@ -238,6 +244,7 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
   createHandlers: HandlerFactory,
 ): Promise<void> {
   const ctx = syncRuntimeContext(input.state);
+  beginTransactionActivity(input.req, input.post);
   const foregroundBinding = isForegroundConfirmationRequest(input)
     ? surfaceMeasurementBindingForRequest(input)
     : null;
@@ -259,6 +266,10 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
       throw new Error(`Unsupported wallet iframe request type: ${input.req.type}`);
     }
     await handler(input.req);
+    observeTransactionLifecycleReport(input.req);
+  } catch (error) {
+    failTransactionActivity(input.req.requestId, error);
+    throw error;
   } finally {
     if (foregroundBinding) {
       clearSurfaceMeasurementBindingForRequest(ctx, foregroundBinding.requestId);

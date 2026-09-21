@@ -302,7 +302,7 @@ export class OverlayController {
     setVisible(iframe);
     setDialogPresentation(dialog, presentationKind(mode), geometryKind(mode.geometry));
     setDialogAuthMenu(dialog, authMenu, animateAuthMenuResize);
-    dialog.setAttribute('aria-modal', authMenu ? 'false' : 'true');
+    dialog.setAttribute('aria-modal', authMenu || !mode.focusTrap ? 'false' : 'true');
     if (geometryChanged || authMenuScaleChanged) {
       if (geometryChanged) this.cancelSurfaceResize();
       // Keep the iframe at the origin while the destination is written and
@@ -330,7 +330,7 @@ export class OverlayController {
     dialog.setAttribute('aria-label', mode.presentation.title);
     dialog.classList.remove(OverlayStyleClasses.HIDDEN);
 
-    const requestedDisplayMode = authMenu ? 'nonmodal' : 'modal';
+    const requestedDisplayMode = authMenu || !mode.focusTrap ? 'nonmodal' : 'modal';
     if (dialog.open && this.dialogDisplayMode !== requestedDisplayMode) {
       this.closeDialogProgrammatically(dialog);
       this.dialogDisplayMode = null;
