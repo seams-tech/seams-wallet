@@ -8,14 +8,17 @@ native React and no longer depends on `@lit/react`. The consolidated
 `wallet-ui.css` is the only hosted UI stylesheet, and the temporary visual-parity
 harness has been deleted after the 192/192 Preact acceptance matrix passed.
 
-Phase 9 verification is substantially complete: the current full wallet browser
-suite passes 496/496 across Chromium, Firefox, and WebKit, the focused public React
-checks pass 7/7, and the final build/static/runtime/CSP/size checks pass. The
-generated-WASM declaration path issue is fixed and its external-consumer probe
-passes. Packed `@seams/wallet` and `@seams/wallet-server` artifacts also pass
-the repository's consumer-entry smoke test. The remaining release-boundary
-items are the credential-gated intended lifecycle run and publication
-authorization.
+Phase 9 engineering verification is complete: the current full wallet browser
+suite passes 511/511 across Chromium, Firefox, and WebKit, the focused public
+React checks pass 7/7, and the final build/static/runtime/CSP/size checks pass.
+All 21 runnable credential-gated lifecycle/UI contracts pass with fresh Wallet
+state. The two Router fault-injection contracts remain a pre-existing test
+infrastructure gap: their harness requires an HTTPS proxy and fault/proof
+implementation that the isolated runner does not start. The generated-WASM
+declaration path issue is fixed, and packed `@seams/wallet` and
+`@seams/wallet-server` artifacts pass the external-consumer smoke test.
+Publication and exact consumer-version rollout remain a separately authorized
+release operation.
 
 This plan changes the wallet's internal UI renderer while
 preserving wallet behavior, iframe protocols, strict-CSP guarantees, and public
@@ -26,17 +29,17 @@ React APIs.
 The implementation is now split into reviewable commits before the remaining
 surface and build cleanup:
 
-- `969dc84` renames the generic iframe extension bridge from `lit` to
-  `custom-elements`, removes its empty built-in registry, and preserves the
-  external registration/mount protocol.
+- `969dc84` provisionally renamed the generic iframe extension bridge from
+  `lit` to `custom-elements` and removed its empty built-in registry. The final
+  audit below removed that unused bridge and its registration/mount protocol.
 - `52e1bbf` removes the development-only observer that warned about custom
   elements failing to upgrade.
 
 Wallet type-checking passes at this boundary. The continuation may use Luna,
-but this checkpoint requires an extra review before merge: verify the generic
+but this checkpoint requires an extra review before merge: audit the generic
 custom-element API and message payloads, confirm that no built-in surface still
-depends on the renamed bridge, and rerun the browser, build, bundle, and visual
-gates after the remaining Lit deletion and stylesheet consolidation. The
+depends on the bridge, and rerun the browser, build, bundle, and visual gates
+after the remaining Lit deletion and stylesheet consolidation. The
 temporary visual comparison harness and ignored artifacts remain required until
 Phase 8d.
 
@@ -121,13 +124,14 @@ CSS, strict CSP, first measurement, lifecycle, focus, handoff, and interrupted
 drawer behavior remain covered by permanent browser tests. The audit changes
 pass Wallet and browser-test type checking, a production SDK build, packed
 consumer validation, a focused confirmation/export matrix of **78/78**, and
-the current complete browser suite at **496/496** across Chromium, Firefox, and
-WebKit. The suite count is lower than the earlier 506-test checkpoint because
-the architecture-only import and stylesheet-gate assertions were deleted. The
-stale bundle-report expectation was classified as `valid_test_needs_update`;
-the corrected report passes. The final reachable browser union is 6,424,159
-raw / 1,219,597 gzip / 958,640 Brotli bytes; document CSS remains 164,897 raw /
-27,626 gzip / 22,526 Brotli bytes.
+the then-current complete browser suite at **496/496** across Chromium, Firefox,
+and WebKit. The suite count was lower than the earlier 506-test checkpoint
+because the architecture-only import and stylesheet-gate assertions were
+deleted. The stale bundle-report expectation was classified as
+`valid_test_needs_update`; the corrected report passes. The final Phase 9 run,
+including later permanent coverage, passes **511/511**. Its reachable browser
+union is 6,318,172 raw / 1,202,833 gzip / 945,840 Brotli bytes; document CSS is
+165,291 raw / 27,687 gzip / 22,591 Brotli bytes.
 
 ## Decision
 
@@ -153,12 +157,12 @@ The target architecture has:
   document;
 - dynamic imports only at real code-splitting boundaries.
 
-The public generic `registerWalletUI` / `mountWalletUI` extension API currently
-accepts custom-element tag definitions. It is separate from the built-in Lit
-surfaces and has no built-in registry entries. Preserve it during this refactor,
-rename its implementation from `lit` to `custom-element`, and document that the
-caller owns definition registration. Removal of that public extension API is a
-separate product/API decision.
+The final audit removed the generic `registerWalletUI` / `mountWalletUI`
+extension API. It had no repository consumers or registered definitions, and
+its parent-controlled element tags and property assignment created an unsafe,
+unnecessary execution path inside the wallet origin. The related window-message
+handlers, registry types, styles, runtime action bridge, and configuration
+payload were deleted together.
 
 ## Why Preact
 
@@ -404,20 +408,20 @@ Values are bytes; compression is per emitted file before summation:
 | All reachable browser entries, deduplicated union | 6,645,508 | 1,296,751 | 1,027,120 | — |
 | Emitted document CSS | 167,161 | 38,206 | 32,046 | — |
 
-Final post-cleanup measurement (`73da034`, `pnpm check:bundle-size -- --json`):
+Final Phase 9 measurement (`pnpm check:bundle-size -- --json`):
 
 | Reachable closure | Raw | Gzip | Brotli | Incremental gzip over runtime boot |
 | --- | ---: | ---: | ---: | ---: |
-| Runtime boot path | 75,852 | 20,372 | 17,670 | — |
-| Auth | 6,206,705 | 1,171,353 | 917,918 | 1,155,631 |
-| Confirmation | 213,211 | 57,908 | 50,681 | 52,863 |
-| Export | 65,224 | 19,956 | 17,504 | 19,766 |
-| Recovery codes | 296,552 | 66,079 | 57,936 | 59,771 |
-| All reachable browser entries, deduplicated union | 6,440,463 | 1,225,483 | 964,078 | — |
-| Emitted document CSS | 164,897 | 27,626 | 22,526 | — |
+| Runtime boot path | 75,617 | 20,108 | 17,461 | — |
+| Auth | 6,184,719 | 1,163,182 | 910,484 | 1,147,656 |
+| Confirmation | 106,693 | 31,703 | 28,508 | 31,703 |
+| Export | 514,902 | 119,178 | 103,539 | 110,415 |
+| Recovery codes | 295,918 | 65,495 | 57,338 | 59,377 |
+| All reachable browser entries, deduplicated union | 6,318,172 | 1,202,833 | 945,840 | — |
+| Emitted document CSS | 165,291 | 27,687 | 22,591 | — |
 
-The final union is below the Phase 0 pure-move reference by 205,045 raw,
-71,268 gzip, and 63,042 Brotli bytes. The final CSS total contains only
+The final union is below the Phase 0 pure-move reference by 327,336 raw,
+93,918 gzip, and 81,280 Brotli bytes. The final CSS total contains only
 `wallet-service.css` and `wallet-ui.css`.
 
 Auth's recursive closure includes reachable wallet/domain code; it is a
@@ -438,7 +442,7 @@ claiming real per-flow loading/performance improvements.
 | Hosted and standalone export | `export-viewer-host.ts` plus `mountExportPrivateKeySurface()` | The owning wallet document links `wallet-ui.css`; measured export height remains viewport-independent. |
 | Recovery backup | `RecoveryCodeBackup/host.ts` plus `mountRecoveryCodeBackupSurface()` | The owning wallet document links `wallet-ui.css`; stage, acknowledgement, and cancellation stay in the host session. |
 | Public React | Native React exports and native `HaloBorder` | The React stylesheet entry remains separate; no Preact or Lit adapter crosses the public boundary. |
-| Generic user-provided elements | `SeamsWebIframe.registerWalletUI/mountWalletUI/unmountWalletUI` | Caller-owned definitions/styles; preserve this extension API separately from built-in renderer removal. |
+| Generic user-provided elements | Removed after the final boundary audit | No caller-controlled element mounting or property bridge runs inside the wallet origin. |
 
 Wallet owns component, theme, protocol, and lifecycle tests. Monorepo owns
 Console composition and released-package acceptance. The private
@@ -455,7 +459,7 @@ checks beyond this source worktree.
 | Responsibility | Current implementation | Final implementation |
 | --- | --- | --- |
 | Shared Lit lifecycle, property upgrade, definition retention, appearance variables | Deleted from the former `lit-components` tree | Complete models are normalized before mounting; appearance uses the document-level CSP stylesheet manager. |
-| Tag registry and definition repair | Built-in registry deleted; generic custom-element extension retained | Built-in surfaces import a mount module directly. Caller-owned `registerWalletUI` remains the only custom-element API. |
+| Tag registry and definition repair | Deleted | Built-in surfaces import a mount module directly; the wallet exposes no generic element registry. |
 | External stylesheet adoption | Component CSS loader and first-paint gates deleted | `wallet-service` HTML owns `wallet-ui.css`; surfaces do not fetch or adopt CSS. |
 | Un-upgraded-element observer | Deleted from wallet bootstrap | No built-in custom element requires upgrade detection. |
 | Auth menu | `host/ui/auth-menu/AuthMenuSurface.tsx` plus `mountAuthMenuSurface.tsx` | Native Preact surface and explicit session handle. |
@@ -467,7 +471,7 @@ checks beyond this source worktree.
 | Key export | `ExportPrivateKey/iframe-host.ts` and `export-viewer-host.ts` | `ExportPrivateKeySurface.tsx` plus `mountExportPrivateKeySurface()`. |
 | Recovery-code backup | `RecoveryCodeBackup/host.ts` and Preact surface | `RecoveryCodeBackupSurface.tsx` with typed result callbacks. |
 | Surface measurement | `host/surface-measurement-reporter.ts` | Moved to the shared host boundary; remains framework-neutral. |
-| Generic iframe UI extension | `iframe-custom-element-mounter.ts`, `iframe-custom-element-registry.ts` | Preserve the external custom-element registration/mount API; do not use it for built-in Preact surfaces. |
+| Generic iframe UI extension | Deleted after confirming it had no consumers or definitions | No generic registration, mount, update, unmount, action, or arbitrary property-assignment path remains. |
 | React adapters | Deleted `LitDrawer.tsx`, `LitHaloBorder.tsx`, and `LitPasskeyHaloLoading.tsx` | Native React components remain the public implementation; React exports contain no Preact or Lit types. |
 | Build inputs and static CSS emission | `packages/wallet/rolldown.config.ts`, `plugin-utils.ts`, static-asset assertions | Preact mount entries are bundled and only `wallet-service.css` plus `wallet-ui.css` are emitted. |
 | Browser coverage | Permanent tests under `tests/wallet-ui/*` and `tests/wallet-iframe/*` | Visual-parity harness and migration-only fixtures deleted after acceptance; behavior/CSP/lifecycle coverage retained. |
@@ -1995,14 +1999,13 @@ component. Cleanup is a required deliverable, not optional follow-up work.
 - [x] Preserve measurement/animation frames that implement visible behavior;
   delete only frames whose purpose was retired stylesheet/upgrade readiness.
 - [x] Move remaining pure files, then delete the empty Lit directories.
-- [x] Rename the generic extension implementation to `iframe-custom-element-*`
-  and preserve its public registration/mount contract and supported messages.
-  Verify an external custom element still mounts and disposes.
+- [x] Audit the provisionally retained generic extension, confirm it has no
+  consumers or registered definitions, then delete its public methods,
+  configuration field, window messages, mounter, action runtime, and styles.
 - [x] Remove `lit` and obsolete embedded entries once all imports are gone.
 - [x] Delete orphaned Lit components, React adapters, registration-only imports,
   styles, tests, fixtures, and generators. Audit source, package exports,
-  declarations, and built bundles for remaining references; retain the generic
-  external custom-element extension contract described above.
+  declarations, and built bundles for remaining references.
 
 Luna extra-review checkpoint — 2026-09-21 (`72da581`, `c337b8a`, `990a987`):
 
@@ -2015,10 +2018,10 @@ Luna extra-review checkpoint — 2026-09-21 (`72da581`, `c337b8a`, `990a987`):
 - Renamed the confirmation resize event module and event to renderer-neutral
   names. Wallet type-check, browser-test type-check, the Rolldown build, and the
   22-test tree/iframe matrix passed across Chromium, Firefox, and WebKit.
-- This is a Luna handoff marker. Before accepting the next cleanup or CSS
-  consolidation slice, perform an extra review of the generic custom-element
-  extension boundary, saved-baseline routing, event payload typing, dependency
-  lock accuracy, and generated/built output on a clean build.
+- This is a Luna handoff marker. The later audit resolved the generic
+  custom-element boundary by deleting it; saved-baseline routing, event payload
+  typing, dependency lock accuracy, and generated/built output still require
+  the stated clean-build checks.
 
 #### 8c. Consolidate static CSS as a separate change
 
@@ -2085,7 +2088,7 @@ Generated asset cleanup checkpoint — 2026-09-21:
   manifest check, and the runtime-entry check passed. The clean manifest
   contained 144 assets at this checkpoint and no standalone UI stylesheet
   routes. The final audit removed redundant chunks and the current clean
-  manifest contains 137 assets.
+  manifest contains 135 assets.
 - This is a Luna-authored checkpoint that needs extra review before merge:
   inspect wallet UI stylesheet order/specificity, package and Vite asset
   discovery, clean-build deletion behavior, and the permanent browser matrix.
@@ -2129,10 +2132,13 @@ cleanup to detect accidental removal of shared requirements.
   classification.
 - [x] Run the full affected Wallet UI/iframe suites for auth, confirmation,
   export, recovery, and transaction-tree behavior.
-- [ ] Run the credential-gated intended lifecycle contracts that exercise the
-  same surfaces; this requires the existing external Google token workflow and
-  free local service ports. The 23-case attempt on 2026-09-21 was classified as
-  an environment/infrastructure failure before the first assertion.
+- [x] Run the credential-gated intended lifecycle contracts that exercise the
+  same surfaces. All 21 runnable lifecycle/UI contracts passed with fresh
+  Wallet state. The two separate Router fault-injection contracts remain an
+  `environment_or_infrastructure_failure`: the isolated runner uses the direct
+  `http://127.0.0.1:4100` gateway, while the harness requires an unstarted
+  `https://localhost:4101` fault/proof proxy whose behavior is absent from the
+  checked-in gateway and proxy configuration.
 - [x] Run the recorded browser matrix; distinguish actual passes from missing
   browser/infrastructure coverage.
 - [x] Exercise sequential and simultaneous surfaces, repeated open/close,
@@ -2178,10 +2184,21 @@ Phase 9 verification record — 2026-09-21:
   static-asset, and CSP checks passed. No production source or built output
   contains a built-in Lit component, `@lit/react`, registration-only import,
   upgrade observer, or standalone component stylesheet.
-- The credential-gated intended lifecycle run remains blocked by the occupied
-  4201/4202 local service ports; the attempted run selected 23 cases but reached
-  no assertion. Packed consumer artifact validation passes; publication remains
-  outside this worktree checkpoint.
+- A final browser run passed **511/511** in 3.8 minutes across Chromium,
+  Firefox, and WebKit. The final production build emitted a 135-asset manifest;
+  declaration, hosted-document, runtime-entry, static-asset, and packed-package
+  external-consumer checks passed.
+- The credential-gated lifecycle/UI matrix passed **21/21**. Its first run
+  exposed a `production_regression` in the durable presignature cache: a
+  foreground refill treated an already-full durable pool as a fatal signing
+  error. The pool now rehydrates and consumes the available durable entry; the
+  focused coordination suite passes **8/8**, the failed recovery/sign/export/
+  step-up contract passes, and sustained Tempo/Arc signing beyond pool capacity
+  passes. The two Router fault-injection-only contracts retain the infrastructure
+  classification above and do not exercise a migrated UI surface.
+- Packed consumer artifact validation passes. Publication remains outside this
+  worktree checkpoint and requires the normal release authorization, version,
+  and coordinated exact consumer update.
 
 **Exit:** published-package consumers and hosted surfaces pass the supported
 contracts, final size goals hold, and remaining failures/coverage gaps are
