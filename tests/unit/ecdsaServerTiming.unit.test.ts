@@ -6,6 +6,7 @@ test('ECDSA diagnostics retain only known finite durations and omit descriptions
     [
       'ecdsa_presign_material;dur=12.5;desc="private material metadata"',
       'ecdsa_presign_sw_session;dur=75',
+      'ecdsa_presign_sw_do_total;dur=42',
       'ecdsa_presign_sw_session;dur=999',
       'ecdsa_sign_total;dur=200',
       'unknown_metric;dur=1',
@@ -19,6 +20,7 @@ test('ECDSA diagnostics retain only known finite durations and omit descriptions
   expect([...timing]).toEqual([
     ['ecdsa_presign_material', 12.5],
     ['ecdsa_presign_sw_session', 75],
+    ['ecdsa_presign_sw_do_total', 42],
     ['ecdsa_sign_total', 200],
   ]);
   expect([...parseEcdsaServerTiming(null)]).toEqual([]);

@@ -14,6 +14,13 @@ export async function scheduleEcdsaSessionPresignaturePrefill(args: {
   statusReads: WalletSessionStatusReadScope;
 }): Promise<void> {
   const startedAt = performance.now();
+  emitSigningSessionFlowTrace('evm-family', {
+    event: 'ecdsa_session_prefill',
+    trigger: args.trigger,
+    chainTarget: args.chainTarget,
+    status: 'started',
+    startedAtMs: startedAt,
+  });
   try {
     const result = await args.signingEngine.scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
       {
@@ -25,6 +32,7 @@ export async function scheduleEcdsaSessionPresignaturePrefill(args: {
     emitSigningSessionFlowTrace('evm-family', {
       event: 'ecdsa_session_prefill',
       trigger: args.trigger,
+      chainTarget: args.chainTarget,
       status: result.status,
       reason: result.reason,
       scheduleReason: 'schedule' in result ? result.schedule.reason : null,
@@ -35,6 +43,7 @@ export async function scheduleEcdsaSessionPresignaturePrefill(args: {
     emitSigningSessionFlowTrace('evm-family', {
       event: 'ecdsa_session_prefill',
       trigger: args.trigger,
+      chainTarget: args.chainTarget,
       status: 'failed',
       reason: 'unexpected_error',
       durationMs: performance.now() - startedAt,

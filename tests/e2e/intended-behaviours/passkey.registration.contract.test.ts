@@ -95,6 +95,7 @@ async function assertPresignResponseTiming(response: Response): Promise<void> {
     'ecdsa_presign_proxy',
     'ecdsa_presign_total',
     'ecdsa_presign_sw_session',
+    'ecdsa_presign_sw_do_total',
     'ecdsa_presign_sw_total',
   ]) {
     expect(timing.has(name), `Missing ${name} on ${new URL(response.url()).pathname}`).toBe(true);

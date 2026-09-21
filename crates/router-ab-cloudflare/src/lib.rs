@@ -11719,8 +11719,8 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
         relayer_share32_b64u: encode_base64url_bytes_v1(&relayer_share.x_relayer32),
     };
     let session_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-    let progress: durable_object::CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1 =
-        match durable_object::execute_cloudflare_durable_object_custom_json_call_v1(
+    let do_response =
+        match durable_object::execute_cloudflare_durable_object_custom_json_call_with_timing_v1(
             env,
             &runtime.bindings().presign_session,
             CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_INIT_PATH,
@@ -11733,6 +11733,8 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
             Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
         };
     timing.mark("ecdsa_presign_sw_session", session_started_at_ms);
+    timing.merge_role("ecdsa_presign_sw", do_response.server_timing);
+    let progress = do_response.value;
     let durable_object::CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1::Continue {
         presign_session_id,
         stage,
@@ -12073,19 +12075,22 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
         return cloudflare_signing_worker_presign_error_response_v1(error);
     }
     let session_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-    let progress = match durable_object::execute_cloudflare_durable_object_custom_json_call_v1(
-        env,
-        &runtime.bindings().presign_session,
-        CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
-        &parsed.presign_session_id,
-        &parsed,
-    )
-    .await
-    {
-        Ok(value) => value,
-        Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
-    };
+    let do_response =
+        match durable_object::execute_cloudflare_durable_object_custom_json_call_with_timing_v1(
+            env,
+            &runtime.bindings().presign_session,
+            CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
+            &parsed.presign_session_id,
+            &parsed,
+        )
+        .await
+        {
+            Ok(value) => value,
+            Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
+        };
     timing.mark("ecdsa_presign_sw_session", session_started_at_ms);
+    timing.merge_role("ecdsa_presign_sw", do_response.server_timing);
+    let progress = do_response.value;
     let response = match progress {
         durable_object::CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1::Continue {
             presign_session_id,
@@ -15580,6 +15585,19 @@ mod tests {
         MPC_PRF_PARTIAL_WIRE_V1_LEN,
     };
     use threshold_prf::PrfPurpose;
+
+    #[cfg(feature = "workers-rs")]
+    #[test]
+    fn boundary_timing_retains_nested_presign_durable_object_duration() {
+        let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
+
+        timing.merge_role(
+            "ecdsa_presign_sw",
+            Some("do_total;dur=42, descriptive;desc=ignored".to_owned()),
+        );
+
+        assert_eq!(timing.server_timing(), "ecdsa_presign_sw_do_total;dur=42");
+    }
 
     #[test]
     fn cloudflare_hpke_recipient_output_encryptor_round_trips() {

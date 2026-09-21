@@ -748,8 +748,10 @@ signing. Scheduled prewarming alone cannot establish this.
 
 ### ECDSA
 
-Status: steps 4.1 and 4.4 have local implementation; production comparison and
-the remaining decision gates are open. Production generation still takes
+Status: steps 4.1 and 4.4 have local implementation. The next implementation
+slice starts registration refill at the earliest durable authorization boundary
+and adds a nested Durable Object timing span. Production comparison and the
+remaining decision gates are open. Production generation still takes
 5.32–9.93 seconds in the measured post-placement empty-pool samples. The share
 attributable to authorization, network transit, protocol computation, and
 completion storage has not yet been measured independently.
@@ -762,6 +764,26 @@ Browser → Gateway → SigningWorker → session Durable Object path and its
 database dependencies; generation does not require adding another cache or
 moving both secret shares into one service.
 
+#### 4.0 Start registration refill at the durable ECDSA boundary
+
+Registration previously scheduled its fire-and-forget refill after passkey
+export-root setup, deferred NEAR setup, pending-row cleanup, completion events,
+and timing summaries. The exact ECDSA capability and Wallet Session are already
+durable after the ECDSA persistence commit. Schedule the same authenticated
+refill immediately after that commit so its first ceremony overlaps the
+remaining registration bookkeeping.
+
+Keep registration completion independent of refill. The scheduling call remains
+fire-and-forget, uses the same precise preprocessing capability, and performs the
+same live session-status read. Do not expose the wallet as authenticated before
+the existing completion boundary. A later registration failure may leave only
+material bound to the already committed ECDSA capability; it cannot make an
+uncommitted capability usable.
+
+**Exit:** registration and unlock contracts still report success without waiting
+for pool fill, and production traces show the first presignature ceremony begins
+earlier relative to registration completion.
+
 #### 4.1 Instrument and consolidate repeated authorization reads
 
 Implementation update: the local patch removes the duplicate material lookup
@@ -772,6 +794,13 @@ and total duration. Signing-worker metrics separate initial material loading,
 the session-object call, terminal pool admission, and total duration. A shared
 allowlist forwards only finite, nonnegative durations to client diagnostics.
 Presign session IDs correlate these timings with the existing round trace.
+
+The next timing layer records `ecdsa_presign_sw_do_total` inside the session
+Durable Object and folds it through the SigningWorker and Gateway allowlists.
+Comparing it with `ecdsa_presign_sw_session` separates time observed inside the
+object handler from the complete worker-to-object call. Cloudflare runtime clocks
+do not establish pure CPU time, so the deployed comparison must still include
+runtime CPU telemetry.
 
 Local verification passed: 197 Wallet unit tests, 46 Rust presign tests,
 SDK/server type checks and builds, registration with immediate Tempo and
