@@ -346,23 +346,14 @@ const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<v
   fs.mkdirSync(sdkDir, { recursive: true });
 
   copyWalletStaticAssets(sdkDir);
-
-  try {
-    fs.writeFileSync(path.join(sdkDir, 'wallet-ui.css'), await buildWalletUiCss(sdkRoot), 'utf-8');
-  } catch (error) {
-    console.warn('⚠️  Failed to generate wallet-ui.css:', error);
-  }
+  fs.writeFileSync(path.join(sdkDir, 'wallet-ui.css'), await buildWalletUiCss(sdkRoot), 'utf-8');
   console.log('✅ Emitted /sdk wallet-shims.js, wallet-service.css, and wallet-ui.css');
 };
 
 const emitWalletServiceStaticPlugin = {
   name: 'emit-wallet-service-static',
   async generateBundle() {
-    try {
-      await emitWalletServiceStaticAssets();
-    } catch (err) {
-      console.warn('⚠️  Unable to emit wallet static assets:', err);
-    }
+    await emitWalletServiceStaticAssets();
   },
 };
 
