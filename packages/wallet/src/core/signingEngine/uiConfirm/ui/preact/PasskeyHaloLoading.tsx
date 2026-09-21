@@ -22,6 +22,7 @@ export function PasskeyHaloLoading(props: PasskeyHaloLoadingProps) {
           <div class="seams-passkey-loading-touch-icon-container">
             <svg
               class="seams-passkey-loading-touch-icon"
+              data-icon={props.icon}
               width={props.size ?? 36}
               height={props.size ?? 36}
               viewBox="0 0 24 24"

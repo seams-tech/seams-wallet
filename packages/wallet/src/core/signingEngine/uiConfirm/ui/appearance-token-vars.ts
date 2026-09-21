@@ -35,5 +35,6 @@ export function appearanceTokenCssRule(
   const declarations = Object.entries(appearanceTokenCssVars(appearance))
     .map(([name, value]) => `${name}:${value};`)
     .join('');
-  return `#${elementId}{${declarations}}`;
+  // Live wallet-host overrides take precedence over a surface's initial appearance.
+  return `:where(#${elementId}){${declarations}}`;
 }

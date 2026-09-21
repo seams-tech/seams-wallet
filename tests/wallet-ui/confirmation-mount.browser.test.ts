@@ -229,6 +229,7 @@ test('mount updates complete models and invokes the current callback synchronous
   const id = await page.evaluate(() => window.__confirmationMount.mount('modal', 'wallet-iframe'));
   const root = page.locator(`#${id}`);
   await expect(root.getByRole('button', { name: 'Confirm', exact: true })).toBeEnabled();
+  await expect(root).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   expect(
     await root.evaluate((element) =>
       getComputedStyle(element).getPropertyValue('--seams-colors-accent').trim(),

@@ -85,6 +85,50 @@ test.describe('Preact production confirmation mount', () => {
     expect(result.confirm).toBe(true);
   });
 
+  test('renders NEP-413 signature details as a transaction tree', async ({ page }) => {
+    await page.evaluate(
+      async ({ confirmUiPath }) => {
+        const { mountConfirmUI } = await import(confirmUiPath);
+        await mountConfirmUI({
+          ctx: { surfaceMeasurementBinding: { kind: 'disabled' as const } },
+          summary: { title: 'Review message signature' },
+          model: {
+            chain: 'near',
+            signerAccount: 'alice.testnet',
+            operations: [
+              {
+                id: 'near.message',
+                kind: 'near.message',
+                label: 'Message signature',
+                fields: [
+                  { label: 'Signer', value: 'alice.testnet' },
+                  { label: 'Recipient', value: 'wallet-console-lite.local' },
+                  {
+                    label: 'Message',
+                    value: 'Sign in to the local Seams playground',
+                    renderAs: 'file-content',
+                    hideChevron: true,
+                  },
+                ],
+              },
+            ],
+          },
+          loading: false,
+          theme: 'dark',
+          uiMode: 'modal',
+        });
+      },
+      { confirmUiPath: IMPORT_PATHS.confirmUi },
+    );
+
+    const tree = page.locator('.seams-tx-tree');
+    await expect(tree).toBeVisible();
+    await expect(tree).toContainText('Message signature');
+    await expect(tree).toContainText('Signer: alice.testnet');
+    await expect(tree).toContainText('Recipient: wallet-console-lite.local');
+    await expect(tree).toContainText('Sign in to the local Seams playground');
+  });
+
   test('resolves cancel through the public decision API', async ({ page }) => {
     const result = await page.evaluate(
       async ({ confirmUiPath }) => {

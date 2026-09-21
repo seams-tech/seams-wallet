@@ -78,6 +78,57 @@ function copyBounds(copy: Element) {
   };
 }
 
+test('message copy controls share an edge with signer and recipient controls', async ({ page }) => {
+  const model: TreeNode = {
+    id: 'root',
+    type: 'folder',
+    label: 'Messages',
+    children: [
+      {
+        id: 'message-signature',
+        type: 'folder',
+        label: 'Message signature',
+        open: true,
+        children: [
+          {
+            id: 'signer',
+            type: 'file',
+            label: `Signer: ${'a'.repeat(64)}`,
+            copyValue: 'a'.repeat(64),
+          },
+          {
+            id: 'recipient',
+            type: 'file',
+            label: 'Recipient: example.test',
+            copyValue: 'example.test',
+          },
+          {
+            id: 'message',
+            type: 'file',
+            label: 'Message:',
+            content: 'Hello, Seams!',
+            copyValue: 'Hello, Seams!',
+            open: true,
+          },
+        ],
+      },
+    ],
+  };
+  await page.evaluate((node) => window.__treeTest.update(node), model);
+  for (const width of [320, 768]) {
+    await page.setViewportSize({ width, height: 640 });
+    const buttons = page.locator('.copy-badge');
+    await expect(buttons).toHaveCount(3);
+    const edges = await buttons.evaluateAll((elements) =>
+      elements.map((element) => element.getBoundingClientRect().right),
+    );
+    expect(Math.max(...edges) - Math.min(...edges)).toBeLessThan(1);
+    await buttons.last().click();
+    await expect(buttons.last()).toHaveText('copied');
+    expect(await page.evaluate(() => window.__treeTest.writes.at(-1))).toBe('Hello, Seams!');
+  }
+});
+
 test('NEAR action formatting and unknown-chain labels retain their display contracts', async ({
   page,
 }) => {

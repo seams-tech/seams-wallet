@@ -17,7 +17,7 @@ export interface SeamsWebProviderProps {
   /** Theme props for the boundary (defaults to provider+scope).
    * Token precedence:
    * 1) `theme.tokens` (React override)
-   * 2) `config.appearance.theme.colors` (SDK config default)
+   * 2) `config.appearance.theme` colors and shape (SDK config defaults)
    * 3) built-in SDK theme tokens
    */
   theme?: SeamsWebProviderThemeProps;
@@ -47,9 +47,10 @@ function resolveConfigTokenOverrides(
   const theme = config.appearance?.theme;
   const mode = theme?.mode;
   const colors = theme?.colors;
-  if ((mode !== 'light' && mode !== 'dark') || !colors) return undefined;
+  const shape = theme?.shape;
+  if ((mode !== 'light' && mode !== 'dark') || (!colors && !shape)) return undefined;
   return {
-    [mode]: { colors },
+    [mode]: { colors, shape },
   };
 }
 
@@ -89,16 +90,6 @@ function toStringRecord(value: unknown): Record<string, string> {
   return out;
 }
 
-function extractThemeColorOverrides(overrides?: ThemeOverrides): {
-  light: { colors: Record<string, string> };
-  dark: { colors: Record<string, string> };
-} {
-  return {
-    light: { colors: toStringRecord(overrides?.light?.colors) },
-    dark: { colors: toStringRecord(overrides?.dark?.colors) },
-  };
-}
-
 /**
  * SeamsWebProvider — ergonomic composition of Theme + PasskeyProvider.
  * Renders a theming boundary (Theme) and provides Passkey context.
@@ -121,7 +112,7 @@ export const SeamsWebProvider: React.FC<SeamsWebProviderProps> = ({
     setTheme,
     tokens: reactTokenOverrides,
     ...themeOverrides
-  } = theme || ({} as any);
+  } = theme ?? {};
   const configTokenOverrides = React.useMemo(() => resolveConfigTokenOverrides(config), [config]);
   const rootTheme = controlledTheme || resolveConfigThemeMode(config) || 'dark';
   const resolvedReactTokenOverrides = React.useMemo<ThemeOverrides | undefined>(() => {
@@ -139,14 +130,8 @@ export const SeamsWebProvider: React.FC<SeamsWebProviderProps> = ({
     return mergedTokenOverrides;
   }, [mergedTokenOverrides]);
 
-  const mergedThemeColorOverrides = React.useMemo(
-    () => extractThemeColorOverrides(mergedTokenOverrides),
-    [mergedTokenOverrides],
-  );
   const providerConfig = React.useMemo<SeamsWebProviderProps['config']>(() => {
-    const lightColors = mergedThemeColorOverrides.light.colors;
-    const darkColors = mergedThemeColorOverrides.dark.colors;
-    const activeColors = rootTheme === 'dark' ? darkColors : lightColors;
+    const activeTokens = mergedTokenOverrides?.[rootTheme];
     return {
       ...config,
       appearance: {
@@ -154,11 +139,12 @@ export const SeamsWebProvider: React.FC<SeamsWebProviderProps> = ({
         theme: {
           id: resolveConfigThemeId(config),
           mode: rootTheme,
-          colors: activeColors,
+          colors: toStringRecord(activeTokens?.colors),
+          shape: toStringRecord(activeTokens?.shape),
         },
       },
     };
-  }, [config, mergedThemeColorOverrides.dark.colors, mergedThemeColorOverrides.light.colors, rootTheme]);
+  }, [config, mergedTokenOverrides, rootTheme]);
 
   const providerAppearance = providerConfig.appearance;
 

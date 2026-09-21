@@ -15,7 +15,10 @@ import {
   type WebAuthnChallenge,
 } from '@/core/signingEngine/stepUpConfirmation/channel/confirmTypes';
 import type { TxDisplayModel } from '../../interfaces/display';
-import { buildNearDisplayModel } from '../../chains/near/display';
+import {
+  buildNearDisplayModel,
+  buildNearMessageDisplayModel,
+} from '../../chains/near/display';
 import type {
   OrchestrateIntentDigestSigningConfirmationParams,
   OrchestrateNearSignatureOnlySigningConfirmationParams,
@@ -348,6 +351,14 @@ export async function orchestrateSigningConfirmation(
     }
     case 'nep413': {
       intentDigest = `${params.nearAccountId}:${params.recipient}:${params.message}`;
+      const displayModel = buildNearMessageDisplayModel({
+        signerAccount: params.nearAccountId,
+        recipient: params.recipient,
+        message: params.message,
+        intentDigest,
+        title: params.title,
+        subtitle: params.body,
+      });
       const summary: TransactionSummary = {
         intentDigest,
         method: 'NEP-413',
@@ -366,6 +377,7 @@ export async function orchestrateSigningConfirmation(
           ...(params.nearPublicKeyStr ? { nearPublicKeyStr: params.nearPublicKeyStr } : {}),
           message: params.message,
           recipient: params.recipient,
+          displayModel,
           ...(params.webauthnChallenge ? { webauthnChallenge: params.webauthnChallenge } : {}),
           signingAuthPlan: params.signingAuthPlan,
           ...(params.emailOtpPrompt ? { emailOtpPrompt: params.emailOtpPrompt } : {}),

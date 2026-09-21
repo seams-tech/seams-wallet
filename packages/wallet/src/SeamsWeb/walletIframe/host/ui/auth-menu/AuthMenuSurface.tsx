@@ -946,138 +946,113 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
   ): ComponentChildren {
     if (viewModel.mode === 'login') {
       const selected = selectedLoginAccount(viewModel);
-      const hasAccounts = viewModel.accountOptions.length > 0;
+      if (!selected) return <></>;
+
       const groups = accountGroups(viewModel.accountOptions);
       return (
         <>
           <div class="seams-passkey-row">
             <div class="seams-input-pill">
               <div class="seams-input-wrap">
-                {selected ? (
+                <div
+                  class="seams-account-menu-account seams-selected-account"
+                  aria-hidden="true"
+                >
+                  <span class="seams-account-menu-account-primary">
+                    {selectedAccountPrimaryText(selected)}
+                  </span>
+                  {accountSecondaryText(selected) ? (
+                    <>
+                      <span class="seams-account-menu-account-secondary">
+                        {accountSecondaryText(selected)}
+                      </span>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+              <div class={`seams-account-menu ${this.accountMenuOpen ? 'is-open' : ''}`}>
+                <button
+                  class="seams-account-menu-trigger"
+                  type="button"
+                  data-auth-menu-input
+                  aria-label={savedAccountsTriggerLabel(selected)}
+                  aria-haspopup="listbox"
+                  aria-expanded={this.accountMenuOpen ? 'true' : 'false'}
+                  aria-controls={AUTH_MENU_ACCOUNT_LIST_ID}
+                  onClick={this.onAccountMenuToggle}
+                >
+                  {accountDropdownIcon()}
+                </button>
+                {this.accountMenuOpen ? (
                   <>
                     <div
-                      class="seams-account-menu-account seams-selected-account"
-                      aria-hidden="true"
+                      id={AUTH_MENU_ACCOUNT_LIST_ID}
+                      class="seams-account-menu-popover"
+                      role="listbox"
                     >
-                      <span class="seams-account-menu-account-primary">
-                        {selectedAccountPrimaryText(selected)}
-                      </span>
-                      {accountSecondaryText(selected) ? (
-                        <>
-                          <span class="seams-account-menu-account-secondary">
-                            {accountSecondaryText(selected)}
-                          </span>
-                        </>
-                      ) : null}
+                      {groups.map((group) => {
+                        const groupLabelId = `${AUTH_MENU_ACCOUNT_LIST_ID}-${group.authMethod}`;
+                        return (
+                          <>
+                            <div
+                              class="seams-account-menu-group"
+                              role="group"
+                              aria-labelledby={groupLabelId}
+                            >
+                              <div id={groupLabelId} class="seams-account-menu-group-label">
+                                {group.label}
+                              </div>
+                              {group.accounts.map((account) => {
+                                const isSelected =
+                                  account.walletId === selected.walletId &&
+                                  account.authMethod === selected.authMethod;
+                                const secondaryText = accountSecondaryText(account);
+                                return (
+                                  <>
+                                    <button
+                                      class={`seams-account-menu-option ${
+                                        isSelected ? 'is-selected' : ''
+                                      }`}
+                                      type="button"
+                                      role="option"
+                                      aria-selected={isSelected ? 'true' : 'false'}
+                                      title={
+                                        secondaryText
+                                          ? `${account.walletId} ${secondaryText}`
+                                          : account.walletId
+                                      }
+                                      data-wallet-id={account.walletId}
+                                      data-auth-method={account.authMethod}
+                                      onClick={this.onLoginAccountSelect}
+                                    >
+                                      <span
+                                        class="seams-account-menu-check"
+                                        aria-hidden="true"
+                                      ></span>
+                                      <span class="seams-account-menu-account">
+                                        <span class="seams-account-menu-account-primary">
+                                          {account.walletId}
+                                        </span>
+                                        {secondaryText ? (
+                                          <>
+                                            <span class="seams-account-menu-account-secondary">
+                                              {secondaryText}
+                                            </span>
+                                          </>
+                                        ) : null}
+                                      </span>
+                                    </button>
+                                  </>
+                                );
+                              })}
+                            </div>
+                          </>
+                        );
+                      })}
                     </div>
                   </>
-                ) : (
-                  <>
-                    <input
-                      id="seams-auth-menu-login-account"
-                      class="seams-input"
-                      data-auth-menu-input
-                      type="text"
-                      name="passkey"
-                      aria-label="Saved account"
-                      autocomplete="off"
-                      autocapitalize="none"
-                      autocorrect="off"
-                      spellcheck={false}
-                      placeholder="Enter your username"
-                      value=""
-                      readonly
-                    />
-                  </>
-                )}
+                ) : null}
               </div>
-              {hasAccounts ? (
-                <>
-                  <div class={`seams-account-menu ${this.accountMenuOpen ? 'is-open' : ''}`}>
-                    <button
-                      class="seams-account-menu-trigger"
-                      type="button"
-                      data-auth-menu-input
-                      aria-label={savedAccountsTriggerLabel(selected)}
-                      aria-haspopup="listbox"
-                      aria-expanded={this.accountMenuOpen ? 'true' : 'false'}
-                      aria-controls={AUTH_MENU_ACCOUNT_LIST_ID}
-                      onClick={this.onAccountMenuToggle}
-                    >
-                      {accountDropdownIcon()}
-                    </button>
-                    {this.accountMenuOpen ? (
-                      <>
-                        <div
-                          id={AUTH_MENU_ACCOUNT_LIST_ID}
-                          class="seams-account-menu-popover"
-                          role="listbox"
-                        >
-                          {groups.map((group) => {
-                            const groupLabelId = `${AUTH_MENU_ACCOUNT_LIST_ID}-${group.authMethod}`;
-                            return (
-                              <>
-                                <div
-                                  class="seams-account-menu-group"
-                                  role="group"
-                                  aria-labelledby={groupLabelId}
-                                >
-                                  <div id={groupLabelId} class="seams-account-menu-group-label">
-                                    {group.label}
-                                  </div>
-                                  {group.accounts.map((account) => {
-                                    const isSelected =
-                                      account.walletId === selected?.walletId &&
-                                      account.authMethod === selected.authMethod;
-                                    const secondaryText = accountSecondaryText(account);
-                                    return (
-                                      <>
-                                        <button
-                                          class={`seams-account-menu-option ${
-                                            isSelected ? 'is-selected' : ''
-                                          }`}
-                                          type="button"
-                                          role="option"
-                                          aria-selected={isSelected ? 'true' : 'false'}
-                                          title={
-                                            secondaryText
-                                              ? `${account.walletId} ${secondaryText}`
-                                              : account.walletId
-                                          }
-                                          data-wallet-id={account.walletId}
-                                          data-auth-method={account.authMethod}
-                                          onClick={this.onLoginAccountSelect}
-                                        >
-                                          <span
-                                            class="seams-account-menu-check"
-                                            aria-hidden="true"
-                                          ></span>
-                                          <span class="seams-account-menu-account">
-                                            <span class="seams-account-menu-account-primary">
-                                              {account.walletId}
-                                            </span>
-                                            {secondaryText ? (
-                                              <>
-                                                <span class="seams-account-menu-account-secondary">
-                                                  {secondaryText}
-                                                </span>
-                                              </>
-                                            ) : null}
-                                          </span>
-                                        </button>
-                                      </>
-                                    );
-                                  })}
-                                </div>
-                              </>
-                            );
-                          })}
-                        </div>
-                      </>
-                    ) : null}
-                  </div>
-                </>
-              ) : null}
             </div>
           </div>
         </>

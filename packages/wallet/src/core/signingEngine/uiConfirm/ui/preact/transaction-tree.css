@@ -273,7 +273,7 @@
 :where(.seams-wallet-ui) .seams-tx-tree details {
   margin: 0;
   padding: 0;
-  border-radius: 8px;
+  border-radius: var(--seams-shape-item, 8px);
   overflow: hidden;
   background: transparent;
 }
@@ -312,6 +312,7 @@
 }
 
 :where(.seams-wallet-ui) .seams-tx-tree .label {
+  position: relative;
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -335,7 +336,6 @@
 
 :where(.seams-wallet-ui) .seams-tx-tree .summary-row > .label {
   display: flex;
-  width: 100%;
 }
 
 :where(.seams-wallet-ui) .seams-tx-tree .label-text {
@@ -381,7 +381,8 @@
 }
 
 :where(.seams-wallet-ui) .seams-tx-tree .copy-badge {
-  margin-left: auto;
+  margin-inline-start: auto;
+  flex-shrink: 0;
   font-size: 0.7em;
   color: var(--seams-color-text-secondary);
   background: transparent;

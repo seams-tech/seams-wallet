@@ -181,6 +181,18 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await prepareAuthMenuDocument(page);
   });
 
+  test('omits the account selector for discoverable login and focuses the passkey action', async ({
+    page,
+  }) => {
+    await mountAuthMenu(page, loginViewModel());
+
+    await expect(page.locator(`${AUTH_MENU_TAG} .seams-passkey-row`)).toHaveCount(0);
+    await expect(page.locator(`${AUTH_MENU_TAG} #seams-auth-menu-login-account`)).toHaveCount(0);
+    const primaryAction = page.locator(`${AUTH_MENU_TAG} [data-auth-menu-primary]`);
+    await expect(primaryAction).toBeFocused();
+    await expect(primaryAction).toHaveAccessibleName('Sign in with Passkey');
+  });
+
   test('renders compact registration content and emits typed intents', async ({ page }) => {
     await mountAuthMenu(page, registrationViewModel());
 
@@ -921,7 +933,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
       trigger.focus();
     });
     await mountAuthMenu(page, loginViewModel());
-    await expect(page.locator(`${AUTH_MENU_TAG} [data-auth-menu-input]`)).toBeFocused();
+    await expect(page.locator(`${AUTH_MENU_TAG} [data-auth-menu-primary]`)).toBeFocused();
     const controls = page.locator(
       `${AUTH_MENU_TAG} button:not([disabled]), ${AUTH_MENU_TAG} input:not([disabled]), ${AUTH_MENU_TAG} a[href]`,
     );

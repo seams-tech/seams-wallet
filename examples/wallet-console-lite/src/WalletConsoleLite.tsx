@@ -1,11 +1,16 @@
-import { useCallback, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import {
+  AccountMenuButton,
   SeamsWebProvider,
+  SHAPE_PRESETS,
   defineSeamsConfig,
+  transfer,
   useSeams,
   useWallet,
   useWalletAuth,
   type LoginState,
+  type SeamsContextType,
+  type WalletShapeId,
 } from '@seams/wallet/react';
 import {
   HostedSeamsAuthMenu,
@@ -22,9 +27,24 @@ type PlaygroundPage = 'wallet' | 'recovery';
 
 type SigningCheckState =
   | { kind: 'idle' }
-  | { kind: 'signing' }
+  | { kind: 'signing'; operation: 'message' | 'transaction' }
   | { kind: 'signed'; message: string }
   | { kind: 'failed'; message: string };
+
+type PlaygroundExportChain = 'near' | 'evm';
+
+async function exportWalletKey(
+  seams: SeamsContextType['seams'],
+  chain: PlaygroundExportChain,
+): Promise<void> {
+  const result =
+    chain === 'near'
+      ? await seams.keys.exportKeypair({ kind: 'ed25519' })
+      : await seams.keys.exportKeypair({ kind: 'ecdsa', chainTarget: 'arc-testnet' });
+  if (result.kind === 'relink_required') {
+    throw new Error('Key export requires re-linking this device to its owner credential.');
+  }
+}
 
 export function WalletConsoleLite() {
   const [workspace, setWorkspace] = useState<LocalWorkspaceState>({ kind: 'empty' });
@@ -100,9 +120,23 @@ function SetupScreen(props: {
 
 function ConfiguredWalletPlayground({ workspace }: { workspace: ReadyLocalWorkspace }) {
   const config = useMemo(() => createWalletConfig(workspace), [workspace]);
+  const [shape, setShape] = useState<WalletShapeId>('square');
+  const theme = useMemo(
+    () => ({
+      tokens: {
+        light: { shape: SHAPE_PRESETS[shape] },
+        dark: { shape: SHAPE_PRESETS[shape] },
+      },
+    }),
+    [shape],
+  );
+  const handleShapeChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
+    const value = event.currentTarget.value;
+    if (value === 'square' || value === 'rounded') setShape(value);
+  }, []);
   return (
-    <SeamsWebProvider eager config={config}>
-      <WalletPlayground workspace={workspace} />
+    <SeamsWebProvider eager config={config} theme={theme}>
+      <WalletPlayground workspace={workspace} shape={shape} onShapeChange={handleShapeChange} />
     </SeamsWebProvider>
   );
 }
@@ -115,7 +149,16 @@ function createWalletConfig(workspace: ReadyLocalWorkspace) {
     projectEnvironmentId: walletConfig.projectEnvironmentId,
     publishableKey: walletConfig.publishableKey,
     iframeWallet: { rpIdOverride: new URL(walletConfig.walletOrigin).hostname },
-    chains: [{ network: 'near-testnet' }, { network: 'tempo-testnet', chainId: 42_431 }],
+    chains: [
+      { network: 'near-testnet' },
+      { network: 'tempo-testnet', chainId: 42_431 },
+      {
+        network: 'arc-testnet',
+        chainId: 5_042_002,
+        rpcUrl: 'https://rpc.testnet.arc.network',
+        explorerUrl: 'https://testnet.arcscan.app',
+      },
+    ],
     signingSessionPersistenceMode: 'sealed_refresh_v1',
     routerAb: {
       normalSigning: {
@@ -157,11 +200,20 @@ function assertNever(value: never): never {
   throw new Error(`Unexpected auth outcome: ${JSON.stringify(value)}`);
 }
 
-function WalletPlayground({ workspace }: { workspace: ReadyLocalWorkspace }) {
-  const { walletIframeConnected } = useSeams();
-  const { loginState, lock, refreshLoginState } = useWalletAuth();
+function WalletPlayground({
+  workspace,
+  shape,
+  onShapeChange,
+}: {
+  workspace: ReadyLocalWorkspace;
+  shape: WalletShapeId;
+  onShapeChange: (event: ChangeEvent<HTMLSelectElement>) => void;
+}) {
+  const { seams, walletIframeConnected } = useSeams();
+  const { loginState, refreshLoginState } = useWalletAuth();
   const wallet = useWallet();
   const [signingCheck, setSigningCheck] = useState<SigningCheckState>({ kind: 'idle' });
+  const [exportingKey, setExportingKey] = useState<PlaygroundExportChain | null>(null);
   const [page, setPage] = useState<PlaygroundPage>('wallet');
 
   const refreshSession = useCallback(async () => {
@@ -169,34 +221,98 @@ function WalletPlayground({ workspace }: { workspace: ReadyLocalWorkspace }) {
     await refreshLoginState(loginState.walletId);
   }, [loginState, refreshLoginState]);
 
-  const lockWallet = useCallback(async () => {
-    await lock();
+  const handleAccountMenuLock = useCallback(() => {
     setSigningCheck({ kind: 'idle' });
-  }, [lock]);
+    setExportingKey(null);
+  }, []);
 
-  const runSigningCheck = useCallback(async () => {
-    if (wallet.status !== 'ready') return;
-    setSigningCheck({ kind: 'signing' });
+  const handleAccountMenuError = useCallback((error: Error) => {
+    setSigningCheck({ kind: 'failed', message: error.message });
+  }, []);
+
+  const runMessageSigningCheck = useCallback(async () => {
+    if (wallet.status !== 'ready' || !loginState.isLoggedIn) return;
+    setSigningCheck({ kind: 'signing', operation: 'message' });
     try {
       const result = await wallet.near.signNEP413Message({
         params: {
-          message: 'Seams Wallet Console Lite local signing check',
+          message: 'Hello, Seams!',
           recipient: 'wallet-console-lite.local',
           state: 'local-signing-check-v1',
+        },
+        options: {
+          confirmerText: {
+            title: 'Review message signature',
+            body: 'Review the signer, recipient, and message before signing.',
+          },
         },
       });
       setSigningCheck(
         result.success
-          ? { kind: 'signed', message: 'Message signed locally. No funds were broadcast.' }
+          ? { kind: 'signed', message: 'Message signed locally.' }
           : { kind: 'failed', message: result.error },
       );
+    } catch (error) {
+      setSigningCheck({
+        kind: 'failed',
+        message: error instanceof Error ? error.message : 'Message signing check failed',
+      });
+    }
+  }, [loginState.isLoggedIn, wallet]);
+
+  const runTransactionSigningCheck = useCallback(async () => {
+    if (wallet.status !== 'ready' || !loginState.isLoggedIn) return;
+    setSigningCheck({ kind: 'signing', operation: 'transaction' });
+    try {
+      await seams.near.signTransactionWithActions({
+        transaction: {
+          receiverId: wallet.near.accountId,
+          actions: [transfer('0')],
+        },
+        options: {
+          confirmerText: {
+            title: 'Review transaction',
+            body: 'Sign a zero-value transfer locally. Nothing will be broadcast.',
+          },
+        },
+      });
+      setSigningCheck({
+        kind: 'signed',
+        message: 'Transaction signed locally. Nothing was broadcast.',
+      });
     } catch (error) {
       setSigningCheck({
         kind: 'failed',
         message: error instanceof Error ? error.message : 'Signing check failed',
       });
     }
-  }, [wallet]);
+  }, [loginState.isLoggedIn, seams, wallet]);
+
+  const runKeyExport = useCallback(
+    async (chain: PlaygroundExportChain) => {
+      setExportingKey(chain);
+      setSigningCheck({ kind: 'idle' });
+      try {
+        await exportWalletKey(seams, chain);
+      } catch (error) {
+        setSigningCheck({
+          kind: 'failed',
+          message: error instanceof Error ? error.message : 'Key export failed',
+        });
+      } finally {
+        setExportingKey(null);
+      }
+    },
+    [seams],
+  );
+
+  const exportNearKey = useCallback(async () => {
+    await runKeyExport('near');
+  }, [runKeyExport]);
+
+  const exportEvmKey = useCallback(async () => {
+    await runKeyExport('evm');
+  }, [runKeyExport]);
 
   const showWallet = useCallback(() => setPage('wallet'), []);
   const showRecovery = useCallback(() => setPage('recovery'), []);
@@ -209,6 +325,13 @@ function WalletPlayground({ workspace }: { workspace: ReadyLocalWorkspace }) {
           <h1>{workspace.identity.projectName}</h1>
           <p>{workspace.identity.organizationName}</p>
         </div>
+        <label>
+          Wallet corners
+          <select value={shape} onChange={onShapeChange}>
+            <option value="square">Sharp</option>
+            <option value="rounded">Rounded</option>
+          </select>
+        </label>
         <span className="environment-badge">dev</span>
       </header>
 
@@ -251,10 +374,15 @@ function WalletPlayground({ workspace }: { workspace: ReadyLocalWorkspace }) {
             <SignedInPanel
               loginState={loginState}
               signingCheck={signingCheck}
+              exportingKey={exportingKey}
               canSign={wallet.status === 'ready'}
               onRefresh={refreshSession}
-              onLock={lockWallet}
-              onSigningCheck={runSigningCheck}
+              onAccountMenuLock={handleAccountMenuLock}
+              onAccountMenuError={handleAccountMenuError}
+              onMessageSigningCheck={runMessageSigningCheck}
+              onTransactionSigningCheck={runTransactionSigningCheck}
+              onExportNearKey={exportNearKey}
+              onExportEvmKey={exportEvmKey}
             />
           )}
 
@@ -281,10 +409,15 @@ function WalletPlayground({ workspace }: { workspace: ReadyLocalWorkspace }) {
 function SignedInPanel(props: {
   loginState: Extract<LoginState, { isLoggedIn: true }>;
   signingCheck: SigningCheckState;
+  exportingKey: PlaygroundExportChain | null;
   canSign: boolean;
   onRefresh: () => Promise<void>;
-  onLock: () => Promise<void>;
-  onSigningCheck: () => Promise<void>;
+  onAccountMenuLock: () => void;
+  onAccountMenuError: (error: Error) => void;
+  onMessageSigningCheck: () => Promise<void>;
+  onTransactionSigningCheck: () => Promise<void>;
+  onExportNearKey: () => Promise<void>;
+  onExportEvmKey: () => Promise<void>;
 }) {
   const authMethod =
     props.loginState.currentAuthMethod.kind === 'selected'
@@ -292,9 +425,17 @@ function SignedInPanel(props: {
       : 'signing only';
   return (
     <section className="panel wallet-panel">
-      <div className="section-heading">
-        <p className="eyebrow">Active Wallet</p>
-        <h2>Wallet session</h2>
+      <div className="wallet-panel-heading">
+        <div className="section-heading">
+          <p className="eyebrow">Active Wallet</p>
+          <h2>Wallet session</h2>
+        </div>
+        <AccountMenuButton
+          nearAccountId={props.loginState.nearAccountId}
+          username={props.loginState.walletId}
+          onLock={props.onAccountMenuLock}
+          onExportKeyError={props.onAccountMenuError}
+        />
       </div>
       <dl className="identity-list">
         <IdentityRow label="Wallet ID" value={props.loginState.walletId} />
@@ -314,13 +455,37 @@ function SignedInPanel(props: {
         </button>
         <button
           type="button"
-          onClick={props.onSigningCheck}
+          onClick={props.onMessageSigningCheck}
           disabled={!props.canSign || props.signingCheck.kind === 'signing'}
         >
-          {props.signingCheck.kind === 'signing' ? 'Signing…' : 'Run signing check'}
+          {props.signingCheck.kind === 'signing' && props.signingCheck.operation === 'message'
+            ? 'Signing message…'
+            : 'Sign message'}
         </button>
-        <button type="button" onClick={props.onLock}>
-          Lock wallet
+        <button
+          type="button"
+          onClick={props.onTransactionSigningCheck}
+          disabled={!props.canSign || props.signingCheck.kind === 'signing'}
+        >
+          {props.signingCheck.kind === 'signing' && props.signingCheck.operation === 'transaction'
+            ? 'Signing transaction…'
+            : 'Sign transaction'}
+        </button>
+        <button
+          type="button"
+          onClick={props.onExportNearKey}
+          disabled={props.exportingKey !== null || !props.loginState.nearAccountId}
+        >
+          {props.exportingKey === 'near' ? 'Exporting NEAR key…' : 'Export NEAR key'}
+        </button>
+        <button
+          type="button"
+          onClick={props.onExportEvmKey}
+          disabled={
+            props.exportingKey !== null || !props.loginState.thresholdEcdsaEthereumAddress
+          }
+        >
+          {props.exportingKey === 'evm' ? 'Exporting EVM keys…' : 'Export EVM keys'}
         </button>
       </div>
       {props.signingCheck.kind === 'signed' || props.signingCheck.kind === 'failed' ? (

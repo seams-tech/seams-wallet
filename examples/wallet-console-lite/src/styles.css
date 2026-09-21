@@ -20,6 +20,7 @@ body {
 }
 
 button,
+select,
 input {
   font: inherit;
 }
@@ -117,7 +118,8 @@ label {
   font-weight: 650;
 }
 
-input {
+input,
+select {
   width: 100%;
   min-height: 3rem;
   padding: 0.75rem 0.85rem;
@@ -128,6 +130,7 @@ input {
 }
 
 input:focus,
+select:focus-visible,
 button:focus-visible,
 summary:focus-visible {
   outline: 3px solid rgba(57, 112, 85, 0.25);
@@ -261,6 +264,13 @@ summary:focus-visible {
   margin-bottom: 1.2rem;
 }
 
+.wallet-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
 .identity-list,
 .configuration dl {
   margin: 0;
@@ -330,5 +340,10 @@ summary {
   .configuration dl > div {
     grid-template-columns: 1fr;
     gap: 0.25rem;
+  }
+
+  .wallet-panel-heading {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

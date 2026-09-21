@@ -63,6 +63,33 @@ test('auth appearance is instance-owned and disposal removes rules and rejects l
   }
 });
 
+test('live host corners override initial surface tokens without remounting', async ({ page }) => {
+  await prepareAuthMenuDocument(page);
+  const model = registration('dark');
+  await mountAuthMenu(page, {
+    ...model,
+    appearance: {
+      ...model.appearance,
+      theme: { ...model.appearance.theme, shape: { card: '16px' } },
+    },
+  });
+  const card = page.locator('.auth-menu-root');
+  await expect(card).toHaveCSS('border-radius', '16px');
+  const name = page.locator('#seams-auth-menu-passkey-name');
+  await name.fill('corner-check');
+  await name.focus();
+  for (const radius of ['48px', '16px']) {
+    await page.evaluate((radius) => {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(`.seams-wallet-ui { --seams-shape-card: ${radius} !important; }`);
+      document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    }, radius);
+    await expect(card).toHaveCSS('border-radius', radius);
+    await expect(name).toHaveValue('corner-check');
+    await expect(name).toBeFocused();
+  }
+});
+
 for (const fallback of [false, true]) {
   test(`auth branches preserve strict style CSP with ${fallback ? 'nonce fallback' : 'CSSOM'}`, async ({
     page,

@@ -22,10 +22,8 @@ import { Theme, useTheme } from '../theme';
 import { requirePrimaryChainByFamily, resolvePrimaryExplorerUrl } from '@/core/config/chains';
 import type { ConfirmationBehavior, ConfirmationConfig } from '@/core/types/signer-worker';
 import {
-  nearAccountRefFromAccountId,
   thresholdEcdsaChainTargetFromConfig,
   toWalletId,
-  walletSessionRefFromSession,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { NearProvisioningState } from '@/core/types/seams';
 import { accountMenuCapabilitiesForLoginState } from '../../context/reactLoginStateBuilders';
@@ -257,11 +255,6 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonProps> = ({
         return;
       }
 
-      const walletSession = walletSessionRefFromSession({
-        walletId,
-        walletSessionUserId: walletId,
-      });
-
       setExportLoadingChain(chain);
       try {
         if (chain === 'near') {
@@ -270,58 +263,33 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonProps> = ({
             sessionNearAccountId: nearAccountId,
             getNearProvisioningState: seams.registration.getNearProvisioningState,
           });
-          const nearAccount = nearAccountRefFromAccountId(exportNearAccountId);
-          const resolvedLane = await seams.keys.resolveExactKeyExportLane({
+          const result = await seams.keys.exportKeypair({
             kind: 'ed25519',
-            walletSession,
-            nearAccount,
+            walletSession: walletId,
+            nearAccount: exportNearAccountId,
+            options: { onEvent: onExportKeyEvent },
           });
-          if (resolvedLane.kind === 'relink_required') {
+          if (result.kind === 'relink_required') {
             throw new Error(
               'Key export requires re-linking this device to a canonical owner credential.',
             );
           }
-          if (resolvedLane.kind !== 'ed25519') {
-            throw new Error('Ed25519 export lane resolution returned the wrong curve.');
-          }
-          await seams.keys.exportKeypairWithUI({
-            kind: 'ed25519',
-            walletSession,
-            nearAccount,
-            laneIdentity: resolvedLane.laneIdentity,
-            materialActivation: resolvedLane.materialActivation,
-            // No variant: key export always presents as a bottom drawer
-            // (the router stamps it), independent of the Confirmer UI setting.
-            options: { onEvent: onExportKeyEvent },
-          });
           return;
         }
         const chainTarget = thresholdEcdsaChainTargetFromConfig(
           requirePrimaryChainByFamily(seams.configs.network.chains, 'evm'),
         );
-        const resolvedLane = await seams.keys.resolveExactKeyExportLane({
+        const result = await seams.keys.exportKeypair({
           kind: 'ecdsa',
-          walletSession,
+          walletSession: walletId,
           chainTarget,
+          options: { onEvent: onExportKeyEvent },
         });
-        if (resolvedLane.kind === 'relink_required') {
+        if (result.kind === 'relink_required') {
           throw new Error(
             'Key export requires re-linking this device to a canonical owner credential.',
           );
         }
-        if (resolvedLane.kind !== 'ecdsa') {
-          throw new Error('ECDSA export lane resolution returned the wrong curve.');
-        }
-        await seams.keys.exportKeypairWithUI({
-          kind: 'ecdsa',
-          walletSession,
-          chainTarget,
-          laneIdentity: resolvedLane.laneIdentity,
-          options: {
-            // See the ed25519 branch: always a drawer, stamped by the router.
-            onEvent: onExportKeyEvent,
-          },
-        });
       } catch (error: unknown) {
         console.error('[AccountMenuButton] Key export failed:', error);
         // Surface through the host (e.g. as a toast) instead of inline menu UI

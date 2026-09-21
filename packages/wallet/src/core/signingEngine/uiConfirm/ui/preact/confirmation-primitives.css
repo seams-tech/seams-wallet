@@ -12,6 +12,7 @@
 
 :where(.seams-wallet-ui).seams-confirmation-surface {
   --seams-modal__passkey-halo-loading-touch-icon__stroke-width: 3.5;
+  background-color: transparent;
 }
 
 :where(.seams-wallet-ui) .seams-halo-border {
@@ -128,4 +129,11 @@
     var(--seams-colors-textMuted, oklch(0.35 0.018 240))
   );
   margin: var(--seams-modal__passkey-halo-loading-touch-icon__margin, 0.75rem);
+}
+
+:where(.seams-wallet-ui[data-theme='dark'] .seams-passkey-halo-loading) .seams-passkey-loading-touch-icon[data-icon='fingerprint'] {
+  color: var(
+    --seams-modal__passkey-halo-loading-touch-icon__color,
+    color-mix(in oklab, var(--seams-colors-textMuted, oklch(0.35 0.018 240)) 88%, white)
+  );
 }
