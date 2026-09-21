@@ -8,8 +8,8 @@ native React and no longer depends on `@lit/react`. The consolidated
 `wallet-ui.css` is the only hosted UI stylesheet, and the temporary visual-parity
 harness has been deleted after the 192/192 Preact acceptance matrix passed.
 
-Phase 9 verification is substantially complete: the full wallet browser suite
-passes 506/506 across Chromium, Firefox, and WebKit, the focused public React
+Phase 9 verification is substantially complete: the current full wallet browser
+suite passes 496/496 across Chromium, Firefox, and WebKit, the focused public React
 checks pass 7/7, and the final build/static/runtime/CSP/size checks pass. The
 generated-WASM declaration path issue is fixed and its external-consumer probe
 passes. Packed `@seams/wallet` and `@seams/wallet-server` artifacts also pass
@@ -120,11 +120,14 @@ architecture rather than a supported behavior. Document-level render-blocking
 CSS, strict CSP, first measurement, lifecycle, focus, handoff, and interrupted
 drawer behavior remain covered by permanent browser tests. The audit changes
 pass Wallet and browser-test type checking, a production SDK build, packed
-consumer validation, and a focused confirmation/export matrix of **78/78**
-across Chromium, Firefox, and WebKit. The stale bundle-report expectation was
-classified as `valid_test_needs_update`; the corrected report passes. The final
-reachable browser union is 6,424,159 raw / 1,219,597 gzip / 958,640 Brotli
-bytes; document CSS remains 164,897 raw / 27,626 gzip / 22,526 Brotli bytes.
+consumer validation, a focused confirmation/export matrix of **78/78**, and
+the current complete browser suite at **496/496** across Chromium, Firefox, and
+WebKit. The suite count is lower than the earlier 506-test checkpoint because
+the architecture-only import and stylesheet-gate assertions were deleted. The
+stale bundle-report expectation was classified as `valid_test_needs_update`;
+the corrected report passes. The final reachable browser union is 6,424,159
+raw / 1,219,597 gzip / 958,640 Brotli bytes; document CSS remains 164,897 raw /
+27,626 gzip / 22,526 Brotli bytes.
 
 ## Decision
 
@@ -2159,6 +2162,9 @@ Phase 9 verification record — 2026-09-21:
 - `SEAMS_TEST_FRONTEND_URL=http://localhost:4376 pnpm test:wallet-browser`
   passed **506/506** in 4.0 minutes. The run covered the complete Chromium
   suite plus the permanent Firefox and WebKit wallet-UI matrix.
+- After the duplication cleanup retired architecture-only assertions, the
+  current full matrix passed **496/496** in 3.7 minutes across the same browser
+  coverage.
 - The focused public React run passed **7/7** on a clean test server. The
   permanent auth/export cross-browser matrix passed **28/28**, and the
   confirmation/transaction-tree/primitive matrix passed **72/72**.
