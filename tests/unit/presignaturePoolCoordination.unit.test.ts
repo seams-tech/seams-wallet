@@ -930,6 +930,7 @@ class MaintainingPresignatureSource extends WaitingSignerRefill {
   initRequests = 0;
   successfulInitializations = 0;
   delayFirstTwoInitializationsMs = 0;
+  requestedCeremonyLifetimeMs: number[] = [];
 
   constructor(readonly firstFailure: string) {
     super();
@@ -964,6 +965,7 @@ class MaintainingPresignatureSource extends WaitingSignerRefill {
       }
       this.successfulInitializations += 1;
       const body = JSON.parse(String(init?.body));
+      this.requestedCeremonyLifetimeMs.push(body.poolFill.ceremonyExpiresAtMs - Date.now());
       return Response.json({
         ok: true,
         presignSessionId: `maintained-session-${this.successfulInitializations}`,
@@ -1080,7 +1082,7 @@ test('session expiry cancels a pending transient refill retry', async () => {
   }
 });
 
-test('a partial pool continues after its refill attempt budget ends', async () => {
+test('each entry in a refill batch receives a fresh attempt deadline', async () => {
   clearAllRouterAbEcdsaDerivationClientPresignatures();
   const originalFetch = globalThis.fetch;
   const source = new MaintainingPresignatureSource('');
@@ -1101,6 +1103,10 @@ test('a partial pool continues after its refill attempt budget ends', async () =
     await expect.poll(maintainedDepth.bind(null, input), { timeout: 4_500 }).toBe(1);
     await expect.poll(maintainedDepth.bind(null, input), { timeout: 12_000 }).toBe(5);
     expect(source.initRequests).toBe(5);
+    expect(source.requestedCeremonyLifetimeMs).toHaveLength(5);
+    expect(source.requestedCeremonyLifetimeMs.every((lifetimeMs) => lifetimeMs > 4_000)).toBe(
+      true,
+    );
   } finally {
     clearAllRouterAbEcdsaDerivationClientPresignatures();
     globalThis.fetch = originalFetch;
