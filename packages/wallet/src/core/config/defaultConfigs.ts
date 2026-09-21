@@ -53,11 +53,6 @@ export const DEFAULT_THRESHOLD_ECDSA_PROVISIONING_DEFAULTS: EcdsaSignerProvision
   },
 };
 
-// Login prefill keeps a small warm presign buffer available immediately after auth.
-export const LOGIN_PREFILL_TARGET_DEPTH = 3;
-export const LOGIN_PREFILL_TRIGGER_DEPTH = 1;
-export const LOGIN_PREFILL_MIN_REMAINING_USES = 2;
-
 //////////////////////////////////////////
 /// ED25519 Threshold (2P Frost) Configs
 //////////////////////////////////////////

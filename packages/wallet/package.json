@@ -1,6 +1,6 @@
 {
   "name": "@seams/wallet",
-  "version": "0.5.25",
+  "version": "0.5.30",
   "type": "module",
   "description": "Seams web and runtime TypeScript SDK for NEAR and EVM-family wallets",
   "main": "./dist/esm/index.js",
@@ -12,6 +12,11 @@
       "import": "./dist/esm/index.js",
       "default": "./dist/esm/index.js",
       "types": "./dist/types/wallet/src/index.d.ts"
+    },
+    "./external-evm": {
+      "import": "./dist/esm/externalEvm/index.js",
+      "default": "./dist/esm/externalEvm/index.js",
+      "types": "./dist/types/wallet/src/externalEvm/index.d.ts"
     },
     "./advanced": {
       "import": "./dist/esm/advanced.js",
@@ -48,6 +53,11 @@
       "default": "./dist/esm/react/context/SeamsWebProvider.js",
       "types": "./dist/types/wallet/src/react/context/SeamsWebProvider.d.ts"
     },
+    "./react/external-evm": {
+      "import": "./dist/esm/react/externalEvm.js",
+      "default": "./dist/esm/react/externalEvm.js",
+      "types": "./dist/types/wallet/src/react/externalEvm.d.ts"
+    },
     "./react/styles": "./dist/esm/react/styles/styles.css",
     "./web/wallet-iframe-client-html": {
       "import": "./dist/esm/SeamsWeb/walletIframe/client/html.js",
@@ -67,6 +77,9 @@
   },
   "typesVersions": {
     "*": {
+      "external-evm": [
+        "dist/types/wallet/src/externalEvm/index.d.ts"
+      ],
       "threshold": [
         "dist/types/wallet/src/threshold.d.ts"
       ],
@@ -75,6 +88,9 @@
       ],
       "runtime": [
         "dist/types/wallet/src/runtime.d.ts"
+      ],
+      "react/external-evm": [
+        "dist/types/wallet/src/react/externalEvm.d.ts"
       ],
       "react": [
         "dist/types/wallet/src/react/index.d.ts"
@@ -173,7 +189,8 @@
     "bs58": "^6.0.0",
     "idb": "^8.0.3",
     "preact": "10.29.8",
-    "tslib": "^2.8.1"
+    "tslib": "^2.8.1",
+    "viem": "^2.38.6"
   },
   "devDependencies": {
     "@simplewebauthn/server": "^13.2.2",

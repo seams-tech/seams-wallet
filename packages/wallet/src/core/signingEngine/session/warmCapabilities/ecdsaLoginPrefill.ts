@@ -3,7 +3,6 @@ import type {
   RouterAbEcdsaDerivationPresignaturePoolPolicyInput,
 } from '@/core/types/seams';
 import {
-  getRouterAbEcdsaDerivationClientPresignaturePoolDepth,
   resolveRouterAbEcdsaDerivationPresignaturePoolPolicy,
   scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill,
   waitForRouterAbEcdsaDerivationClientPresignaturePoolReady,
@@ -12,13 +11,8 @@ import {
 } from '../../routerAb/ecdsaDerivation/presignaturePool';
 import { MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS } from '../../workerManager/ecdsaPresignLifecycle';
 import type { SignerWorkerManagerContext } from '../../workerManager/SignerWorkerManager';
-import {
-  LOGIN_PREFILL_MIN_REMAINING_USES,
-  LOGIN_PREFILL_TARGET_DEPTH,
-  LOGIN_PREFILL_TRIGGER_DEPTH,
-} from '@/core/config/defaultConfigs';
 import type { ActiveEcdsaCapabilityManifest } from '../material/ecdsaCapabilityManifest';
-import type { AuthorizedEvmFamilyEcdsaSigningCapability } from '../material/ecdsaSigningCapability';
+import type { AuthorizedEcdsaPreprocessingCapability } from '../material/ecdsaSigningCapability';
 import type { WalletSessionId } from '@shared/authorization/capabilityKinds';
 import {
   parseEcdsaClientVerifyingShareB64u,
@@ -42,14 +36,8 @@ export type RouterAbEcdsaDerivationLoginPresignaturePrefillResult =
     }
   | {
       status: 'skipped';
-      reason: 'pool_disabled' | 'pool_already_warm' | 'session_expired';
+      reason: 'pool_disabled' | 'session_expired';
       walletSessionId: WalletSessionId;
-    }
-  | {
-      status: 'skipped';
-      reason: 'low_remaining_uses';
-      walletSessionId: WalletSessionId;
-      remainingUses: number;
     }
   | {
       status: 'skipped';
@@ -76,8 +64,7 @@ export type RouterAbEcdsaDerivationLoginPresignaturePrefillDeps = {
 };
 
 export type EcdsaSessionPresignaturePrefillInput = {
-  capability: AuthorizedEvmFamilyEcdsaSigningCapability;
-  minRemainingUsesBeforePrefill?: number;
+  capability: AuthorizedEcdsaPreprocessingCapability;
   waitForPoolReady?: boolean;
 };
 
@@ -91,11 +78,7 @@ export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
     const relayerUrl = runtime.relayerUrl;
     const clientVerifyingPublicKey33B64u = runtime.clientVerifyingPublicKey33B64u;
     const nowMs = Date.now();
-    const routerAbPoolFillExpiresAtMs = Math.min(
-      runtime.expiresAtMs,
-      session.expiresAtMs,
-      nowMs + 60_000,
-    );
+    const routerAbPoolFillExpiresAtMs = Math.min(runtime.expiresAtMs, session.expiresAtMs);
     if (routerAbPoolFillExpiresAtMs <= nowMs) {
       return { status: 'skipped', reason: 'session_expired', walletSessionId };
     }
@@ -105,32 +88,7 @@ export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
     if (!policy.enabled) {
       return { status: 'skipped', reason: 'pool_disabled', walletSessionId };
     }
-    const existingDepth = getRouterAbEcdsaDerivationClientPresignaturePoolDepth({
-      relayerUrl,
-      scope: runtime.normalSigning.scope,
-      materialActivation: routerAbMpcMaterialActivationRefToWire(runtime.materialActivation),
-    });
-    if (existingDepth >= LOGIN_PREFILL_TARGET_DEPTH) {
-      return {
-        status: 'skipped',
-        reason: 'pool_already_warm',
-        walletSessionId,
-      };
-    }
-
-    const minimumUses = Math.max(
-      LOGIN_PREFILL_MIN_REMAINING_USES,
-      Math.floor(Number(args.minRemainingUsesBeforePrefill ?? LOGIN_PREFILL_MIN_REMAINING_USES)),
-    );
     const remainingUsesBefore = runtime.remainingUses;
-    if (remainingUsesBefore < minimumUses) {
-      return {
-        status: 'skipped',
-        reason: 'low_remaining_uses',
-        walletSessionId,
-        remainingUses: remainingUsesBefore,
-      };
-    }
 
     const routerAbEcdsaDerivationPoolFill = {
       kind: 'router_ab_ecdsa_derivation_signing_worker_pool' as const,
@@ -164,8 +122,6 @@ export async function scheduleRouterAbEcdsaDerivationLoginPresignaturePrefill(
       routerAbEcdsaDerivationPoolFill,
       workerCtx: deps.getSignerWorkerContext(),
       poolPolicy: policy,
-      targetDepth: LOGIN_PREFILL_TARGET_DEPTH,
-      triggerIfDepthAtOrBelow: LOGIN_PREFILL_TRIGGER_DEPTH,
     });
 
     if (!schedule.scheduled) {

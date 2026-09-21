@@ -12,6 +12,7 @@ const ECDSA_TIMING_METRICS = new Set([
   'ecdsa_presign_total',
   'ecdsa_presign_sw_material',
   'ecdsa_presign_sw_session',
+  'ecdsa_presign_sw_do_total',
   'ecdsa_presign_sw_admit',
   'ecdsa_presign_sw_total',
 ]);
