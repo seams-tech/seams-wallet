@@ -1,16 +1,19 @@
 # Refactor 127: replace internal Lit surfaces with Preact
 
-**Status:** The auth-menu pilot now renders through native Preact in this
-worktree; its Lit element and internal intent-event bridge are removed.
-Phase 0–2 baseline, contract, document-style, and build work supports that slice.
-Production confirmation now mounts through Preact, including lazy ABI enrichment.
-Its broader visual/state/mount-context acceptance remains incomplete. Production
-key export now mounts through Preact; its remaining visual/integration acceptance
-and Lit cleanup are pending. Recovery backup and React adapters still use their
-existing renderers. The recovery backup now mounts through Preact, and its
-expanded saved-Lit/Preact visual state matrix passes; the retained Lit baseline,
-viewer fixture, and hosted-surface cleanup remain pending. The public React tree
-no longer depends on `@lit/react`.
+**Status:** All built-in wallet-owned hosted surfaces—auth menu, confirmation,
+private-key export, and recovery backup—now mount through native Preact. Their
+Lit elements, registration-only imports, upgrade observer, component stylesheet
+adoption, and first-paint gates are removed. The public React package remains
+native React and no longer depends on `@lit/react`. The consolidated
+`wallet-ui.css` is the only hosted UI stylesheet, and the temporary visual-parity
+harness has been deleted after the 192/192 Preact acceptance matrix passed.
+
+Phase 9 verification is substantially complete: the full wallet browser suite
+passes 506/506 across Chromium, Firefox, and WebKit, the focused public React
+checks pass 7/7, and the final build/static/runtime/CSP/size checks pass. The
+remaining release-boundary items are the credential-gated intended lifecycle
+run, an unrelated generated-WASM declaration path issue, external consumer
+artifact validation, and publication authorization.
 This plan changes the wallet's internal UI renderer while
 preserving wallet behavior, iframe protocols, strict-CSP guarantees, and public
 React APIs.
@@ -38,6 +41,30 @@ The `w3a-*` to `seams-*` rename is complete: Wallet commit `52a9c7d`
 and monorepo commit `823fc40`. This refactor starts from that state. Consumer
 release adoption remains pending; source migration and published-package
 integration must be verified separately.
+
+### Final verification Luna handoff — 2026-09-21
+
+This checkpoint follows `5a4321c` and `73da034`. The next continuation uses
+Luna and requires extra review before merge:
+
+- The complete wallet browser matrix passed **506/506** across Chromium,
+  Firefox, and WebKit after the final stylesheet and visual-harness cleanup.
+- Built React checks passed **7/7**, covering SSR importability, StrictMode
+  lifecycle, theme scoping, custom-color behavior, and account-menu behavior.
+- `pnpm type-check`, build-freshness, hosted-doc, runtime-entry,
+  static-asset, and bundle-size checks passed. The final reachable browser
+  union is 6,440,463 raw / 1,225,483 gzip / 964,078 Brotli bytes; document CSS
+  is 164,897 raw / 27,626 gzip / 22,526 Brotli bytes.
+- The stale Wallet `test:source-guards` forwarding script was removed in
+  `5a4321c`; the private tests workspace has no corresponding command.
+- The external declaration probe still reports generated WASM declaration
+  imports outside the package output. This is an unrelated packaging blocker,
+  not a renderer regression, and remains open for a separate release fix.
+
+Re-review stylesheet order and specificity, package/Vite asset discovery,
+clean-build deletion behavior, public React exports and declaration paths,
+ignored visual artifacts, and the absence of Lit or duplicate Preact entries
+before accepting the release boundary.
 
 ## Decision
 
@@ -314,6 +341,22 @@ Values are bytes; compression is per emitted file before summation:
 | All reachable browser entries, deduplicated union | 6,645,508 | 1,296,751 | 1,027,120 | — |
 | Emitted document CSS | 167,161 | 38,206 | 32,046 | — |
 
+Final post-cleanup measurement (`73da034`, `pnpm check:bundle-size -- --json`):
+
+| Reachable closure | Raw | Gzip | Brotli | Incremental gzip over runtime boot |
+| --- | ---: | ---: | ---: | ---: |
+| Runtime boot path | 75,852 | 20,372 | 17,670 | — |
+| Auth | 6,206,705 | 1,171,353 | 917,918 | 1,155,631 |
+| Confirmation | 213,211 | 57,908 | 50,681 | 52,863 |
+| Export | 65,224 | 19,956 | 17,504 | 19,766 |
+| Recovery codes | 296,552 | 66,079 | 57,936 | 59,771 |
+| All reachable browser entries, deduplicated union | 6,440,463 | 1,225,483 | 964,078 | — |
+| Emitted document CSS | 164,897 | 27,626 | 22,526 | — |
+
+The final union is below the Phase 0 pure-move reference by 205,045 raw,
+71,268 gzip, and 63,042 Brotli bytes. The final CSS total contains only
+`wallet-service.css` and `wallet-ui.css`.
+
 Auth's recursive closure includes reachable wallet/domain code; it is a
 conservative dependency inventory, not observed first-open transfer size or
 the isolated auth component size. Independently bundled copies count as
@@ -326,48 +369,45 @@ claiming real per-flow loading/performance improvements.
 
 | Context | Current owner / integration boundary | Static style owner today |
 | --- | --- | --- |
-| Hosted auth menu | `host/auth-menu/session.ts`; normalized view model and `AUTH_MENU_INTENT_EVENT` | Auth component ensures `auth-menu.css`; wallet HTML owns shared document assets. |
-| Hosted transaction modal/drawer | `confirm-ui.ts`, `ConfirmUIHandle`, request-bound surface measurement | Wallet-service HTML plus remaining Lit adoption; preserve confirm/cancel and drawer-close completion semantics. |
-| Inline / host-document confirmation | `confirm-ui.ts` direct mounts and portal; covered by `confirm-ui.host-and-inline.test.ts` | Explicit host helpers plus component adoption. This context must gain its own document stylesheet owner. |
-| Hosted and standalone export | `export-viewer-host.ts`; variant and surface-measurement binding determine ownership | Export host owns token rules; viewer/host adopt their external sheets. Standalone can own viewport; measured modal must remain viewport-independent. |
-| Recovery backup | `RecoveryCodeBackup/host.ts` native dialog and `viewer.configure(experience)` | Host/viewer ensure document recovery/copy/token sheets; preserve stage/acknowledgement/cancel ownership. |
-| Public React | Native React exports; `AccountMenuButton/PasskeyHaloLoading.tsx` currently consumes `LitHaloBorder` | React stylesheet entry plus the adapter's Lit adoption. Lit adapter symbols are absent from the public React barrel and package subpath exports. |
+| Hosted auth menu | `host/auth-menu/session.ts` plus `mountAuthMenuSurface.tsx`; normalized view model and typed callbacks | Wallet-service HTML links `wallet-ui.css`; dynamic appearance and geometry rules use the centralized CSP manager. |
+| Hosted transaction modal/drawer | `confirm-ui.ts`, `ConfirmUIHandle`, and the Preact confirmation mount handle | Wallet-service HTML links `wallet-ui.css`; the surface owns only dynamic geometry and appearance rules. |
+| Inline / host-document confirmation | `confirm-ui.ts` direct Preact mounts and portal; covered by permanent confirmation mount tests | The embedding document owns the explicit `wallet-ui.css` contract; no surface fetches CSS. |
+| Hosted and standalone export | `export-viewer-host.ts` plus `mountExportPrivateKeySurface()` | The owning wallet document links `wallet-ui.css`; measured export height remains viewport-independent. |
+| Recovery backup | `RecoveryCodeBackup/host.ts` plus `mountRecoveryCodeBackupSurface()` | The owning wallet document links `wallet-ui.css`; stage, acknowledgement, and cancellation stay in the host session. |
+| Public React | Native React exports and native `HaloBorder` | The React stylesheet entry remains separate; no Preact or Lit adapter crosses the public boundary. |
 | Generic user-provided elements | `SeamsWebIframe.registerWalletUI/mountWalletUI/unmountWalletUI` | Caller-owned definitions/styles; preserve this extension API separately from built-in renderer removal. |
 
 Wallet owns component, theme, protocol, and lifecycle tests. Monorepo owns
 Console composition and released-package acceptance. The private
 `tests/unit/theme.react.unit.test.ts` still imports a missing setup module and
-is not migration evidence; do not redirect it to Wallet source across repo
-boundaries. The new Wallet-native theme regression test establishes the local
-scope behavior. Private consumer acceptance must use a candidate package
-artifact when that later phase begins.
+is not migration evidence; the Wallet-native theme and public React checks are
+the local evidence. Private consumer acceptance must use a candidate package
+artifact at the release gate.
 
-Current repository browser and intended-contract configurations execute
-Chromium only. This slice adds no claim of Firefox, WebKit, shipping Safari,
-mobile Safari, real passkey, or trusted-activation coverage. Run those target
-environments before accepting the affected cutover; virtual-authenticator
-and reduced-motion screenshots do not establish their behavior. Confirm the
-release browser/version matrix before the final release gate.
+The final browser configuration covers Chromium for the complete wallet suite
+and Firefox/WebKit for the permanent wallet UI matrix. The 506-test run passed
+all three engines; real passkey and external consumer acceptance remain release
+checks beyond this source worktree.
 
-| Responsibility | Current implementation | Target |
+| Responsibility | Current implementation | Final implementation |
 | --- | --- | --- |
-| Shared Lit lifecycle, property upgrade, definition retention, appearance variables | `packages/wallet/src/core/signingEngine/uiConfirm/ui/lit-components/LitElementWithProps.ts` | Delete. Normalize props before mounting; apply appearance through the document-level CSP stylesheet manager. |
-| Tag registry and definition repair | `packages/wallet/src/core/signingEngine/uiConfirm/ui/registry.ts` | Delete for built-in surfaces. Import a surface module and call its exported mount function. |
-| External stylesheet adoption | `packages/wallet/src/core/signingEngine/uiConfirm/ui/lit-components/css/css-loader.ts` | Delete after the final Lit surface is removed. Static CSS is owned by wallet-service HTML. |
-| Un-upgraded-element observer | `packages/wallet/src/SeamsWeb/walletIframe/host/bootstrap.ts` | Delete after the last built-in custom-element consumer is migrated. |
-| Auth menu | `host/lit-ui/auth-menu/seams-auth-menu-surface.ts` | `host/ui/auth-menu/AuthMenuSurface.tsx` plus `mountAuthMenuSurface.tsx`. |
+| Shared Lit lifecycle, property upgrade, definition retention, appearance variables | Deleted from the former `lit-components` tree | Complete models are normalized before mounting; appearance uses the document-level CSP stylesheet manager. |
+| Tag registry and definition repair | Built-in registry deleted; generic custom-element extension retained | Built-in surfaces import a mount module directly. Caller-owned `registerWalletUI` remains the only custom-element API. |
+| External stylesheet adoption | Component CSS loader and first-paint gates deleted | `wallet-service` HTML owns `wallet-ui.css`; surfaces do not fetch or adopt CSS. |
+| Un-upgraded-element observer | Deleted from wallet bootstrap | No built-in custom element requires upgrade detection. |
+| Auth menu | `host/ui/auth-menu/AuthMenuSurface.tsx` plus `mountAuthMenuSurface.tsx` | Native Preact surface and explicit session handle. |
 | Auth-menu domain model | `host/auth-menu/domain.ts` | Moved beside its existing controller and session; discriminated states unchanged. |
-| Auth-menu orchestration | `host/auth-menu/session.ts` | Keep as owner of lifecycle state; replace element creation/property writes/events with a Preact surface handle. |
-| Transaction confirmation | `IframeTxConfirmer/*` | One Preact subtree under `ui/surfaces/tx-confirm/`; keep the existing `ConfirmUIHandle` boundary. |
+| Auth-menu orchestration | `host/auth-menu/session.ts` | Owns lifecycle state and the Preact surface handle; no element property bridge or internal intent event. |
+| Transaction confirmation | `IframeTxConfirmer/*` and `confirm-ui.ts` | One native Preact subtree with the existing `ConfirmUIHandle` boundary. |
 | Transaction tree parsing and formatting | `TxTree/abi/*`, `TxTree/renderers/*`, `tx-tree-utils.ts`, `common/formatters.ts` | Move unchanged framework-neutral logic under `ui/model/tx-tree/`; render it with Preact components. |
-| Drawer, halo, passkey loader, padlock | Lit elements beneath `lit-components/` | Plain Preact components and inline SVG/ordinary DOM. They are internal primitives, with no standalone custom-element registration. |
-| Key export | `ExportPrivateKey/iframe-host.ts`, `viewer.ts`, and `export-viewer-host.ts` | `ExportPrivateKeySurface.tsx` plus an imperative `mountExportPrivateKeySurface()` handle. |
-| Recovery-code backup | `RecoveryCodeBackup/host.ts`, `viewer.ts`, `events.ts` | `RecoveryCodeBackupSurface.tsx` with typed result callbacks. |
+| Drawer, halo, passkey loader, padlock | Preact primitives under the confirmation surface | Ordinary DOM and inline SVG; no standalone custom-element registration. |
+| Key export | `ExportPrivateKey/iframe-host.ts` and `export-viewer-host.ts` | `ExportPrivateKeySurface.tsx` plus `mountExportPrivateKeySurface()`. |
+| Recovery-code backup | `RecoveryCodeBackup/host.ts` and Preact surface | `RecoveryCodeBackupSurface.tsx` with typed result callbacks. |
 | Surface measurement | `host/surface-measurement-reporter.ts` | Moved to the shared host boundary; remains framework-neutral. |
 | Generic iframe UI extension | `iframe-custom-element-mounter.ts`, `iframe-custom-element-registry.ts` | Preserve the external custom-element registration/mount API; do not use it for built-in Preact surfaces. |
-| React adapters | `LitDrawer.tsx`, `LitHaloBorder.tsx`, `LitPasskeyHaloLoading.tsx` | Delete. Use native React components in the public React tree; reuse existing React `HaloBorder` where appropriate. |
-| Build inputs and static CSS emission | `packages/wallet/rolldown.config.ts`, `plugin-utils.ts`, static-asset assertions | Point entries at Preact mount modules and emit a consolidated wallet UI stylesheet. |
-| Browser coverage | `tests/lit-components/*`, `tests/wallet-iframe/*` | Move renderer-independent surface tests to `tests/wallet-ui/*`; retain wallet-iframe integration tests. |
+| React adapters | Deleted `LitDrawer.tsx`, `LitHaloBorder.tsx`, and `LitPasskeyHaloLoading.tsx` | Native React components remain the public implementation; React exports contain no Preact or Lit types. |
+| Build inputs and static CSS emission | `packages/wallet/rolldown.config.ts`, `plugin-utils.ts`, static-asset assertions | Preact mount entries are bundled and only `wallet-service.css` plus `wallet-ui.css` are emitted. |
+| Browser coverage | Permanent tests under `tests/wallet-ui/*` and `tests/wallet-iframe/*` | Visual-parity harness and migration-only fixtures deleted after acceptance; behavior/CSP/lifecycle coverage retained. |
 
 Pure model, parsing, formatting, measurement, and CSP-rule code must move out
 of directories named after Lit. Avoid rewriting correct domain logic while
@@ -479,30 +519,30 @@ renderer cutover. The initial implementation task is Phase 0.
 
 ### Rules for every phase
 
-- [ ] Record the starting commit, affected surfaces, supported mount contexts,
+- [x] Record the starting commit, affected surfaces, supported mount contexts,
   and the focused commands that establish their current behavior.
-- [ ] Add missing behavioral coverage against the existing implementation
+- [x] Add missing behavioral coverage against the existing implementation
   before replacing it. Preserve assertions for supported behavior; adapt only
   renderer-specific setup/selectors during the cutover.
-- [ ] Separate moves of pure code, renderer changes, CSS consolidation, and
+- [x] Separate moves of pure code, renderer changes, CSS consolidation, and
   domain bug fixes into reviewable changes. Keep changes to a surface's DOM and
   matching CSS together where they are inseparable.
-- [ ] Keep controllers, protocols, and state transitions stable. If a renderer
+- [x] Keep controllers, protocols, and state transitions stable. If a renderer
   cannot express the existing contract, resolve that issue before expanding
   the migration.
-- [ ] Maintain one active renderer per surface. Different surfaces may use
+- [x] Maintain one active renderer per surface. Different surfaces may use
   different renderers during migration. Add no renderer flags, duplicate
   production implementations of the same surface, or fallback render paths.
-- [ ] Review matched before/after screenshots and pass the surface's behavior
+- [x] Review matched before/after screenshots and pass the surface's behavior
   checks before deleting its Lit implementation in the cutover change.
   Delete shared Lit infrastructure in Phase 8 only after every replacement is
   visually verified and its final live Lit consumer is gone.
-- [ ] Run focused behavior and neighboring-surface smoke tests, production
+- [x] Run focused behavior and neighboring-surface smoke tests, production
   build/type checks, CSP checks, and relevant bundle measurements.
-- [ ] Investigate every new failure before advancing. Revert the complete
+- [x] Investigate every new failure before advancing. Revert the complete
   phase change if it cannot meet its gate; use Git history for rollback.
   No runtime compatibility switch is introduced.
-- [ ] Record actual results and remaining prerequisites here. Do not mark a
+- [x] Record actual results and remaining prerequisites here. Do not mark a
   checkbox complete solely because implementation exists.
 
 ### 0. Establish a trustworthy regression baseline
@@ -521,7 +561,7 @@ renderer cutover. The initial implementation task is Phase 0.
   `valid_test_needs_update`, `obsolete_test_or_fixture`, or
   `environment_or_infrastructure_failure`. Fix supported production behavior
   separately; repair valid tests; remove obsolete tests with the rationale.
-- [ ] Require green tests for a surface's affected invariants before migrating
+- [x] Require green tests for a surface's affected invariants before migrating
   it. An unrelated failure may remain documented with its owner and scope;
   a failure in measurement, overlays, focus, or decision handling blocks the
   dependent surface's cutover. Do not skip or weaken assertions to proceed.
@@ -534,14 +574,18 @@ renderer cutover. The initial implementation task is Phase 0.
 - [x] Capture the visual baseline described below for every registered
   wallet-owned Lit element. Use deterministic synthetic account, transaction,
   key, and recovery-code fixtures.
-- [ ] Inventory supported wallet-service, standalone, inline, host-document,
+- [x] Inventory supported wallet-service, standalone, inline, host-document,
   and public React entrypoints, including external event consumers and
   stylesheet ownership.
-- [ ] Identify the authoritative Wallet tests and private consumer tests.
+- [x] Identify the authoritative Wallet tests and private consumer tests.
   Resolve the monorepo React theme test's missing `tests/setup/bootstrap`
   dependency through current test ownership before relying on that suite.
-- [ ] Record the supported browser matrix and which tests need actual
+- [x] Record the supported browser matrix and which tests need actual
   WebAuthn/browser evidence beyond Chromium's virtual authenticator.
+
+**Baseline closure:** the affected invariant gate is green in the final
+506-test browser run. Private consumer acceptance and the credential-gated
+intended lifecycle remain release-boundary checks.
 
 **Exit:** every baseline failure is classified, affected invariants have
 passing tests, and reproducible behavior/visual/size baselines are recorded.
@@ -675,23 +719,27 @@ transaction parsing/formatting moves. The auth host now has a strict style-CSP
 smoke contract; state transitions, appearance overrides, and fallback styling
 still need their broader policy matrix before renderer cutover.
 
-- [ ] Characterize auth intent delivery; confirmation mount/update/reuse and
+- [x] Characterize auth intent delivery; confirmation mount/update/reuse and
   exactly-once decisions; export/recovery completion and cancellation.
-- [ ] Cover cancellation while a lazy import is pending, disposal before its
+- [x] Cover cancellation while a lazy import is pending, disposal before its
   completion, duplicate close/confirm events, and updates during closing.
   Late work must not recreate a disposed surface.
-- [ ] Move only pure auth-domain, transaction parsing/formatting, and
+- [x] Move only pure auth-domain, transaction parsing/formatting, and
   measurement code out of Lit directories. Keep algorithms and behavior intact.
-- [ ] Preserve existing handle APIs. Introduce complete discriminated render
+- [x] Preserve existing handle APIs. Introduce complete discriminated render
   models at the existing imperative boundary only where required; normalize
   optional patches there and use branch-specific inputs internally.
-- [ ] Add type fixtures for newly introduced domain/lifecycle unions, including
+- [x] Add type fixtures for newly introduced domain/lifecycle unions, including
   rejected invalid combinations, plus behavioral tests for boundary updates.
-- [ ] Establish ownership of roots, measurements, timers, focus restoration,
+- [x] Establish ownership of roots, measurements, timers, focus restoration,
   and dynamic stylesheet rules using existing controllers.
 
 **Exit:** existing Lit surfaces still pass their focused contracts after the
 moves. No renderer, stylesheet cascade, or public API change ships in this phase.
+
+Phase 1 closure is covered by the final browser suite and the surface-specific
+type fixtures. The remaining Lit references in this historical section name
+the pre-migration baseline only; no built-in Lit surface remains in production.
 
 ### 2. Establish document styling and the Preact build path
 
@@ -721,22 +769,26 @@ Auth-document slice implemented on 2026-09-20:
 Other surface documents, custom appearance, geometry transitions, and the
 non-constructable stylesheet fallback remain unverified by this slice.
 
-- [ ] Make each supported document link the static CSS needed by its surfaces
+- [x] Make each supported document link the static CSS needed by its surfaces
   before initialization; preserve current stylesheet order and selectors.
   Keep working Shadow DOM adoption for surfaces still using Lit.
-- [ ] Give the browser harness the same explicit stylesheet contract as its
+- [x] Give the browser harness the same explicit stylesheet contract as its
   production entrypoint.
-- [ ] Test cold cache, delayed CSS, failed CSS, and failed lazy module loading.
+- [x] Test cold cache, delayed CSS, failed CSS, and failed lazy module loading.
   No unstyled interactive prompt or provisional first size may be published.
   A resource failure must settle the pending operation and permit cleanup.
-- [ ] Verify dynamic geometry and appearance rules through the existing CSP
+- [x] Verify dynamic geometry and appearance rules through the existing CSP
   manager under production policy, including the supported fallback path.
   Keep rule removal scoped to its owning surface.
-- [ ] Preserve motion timings, selectors, and appearance while establishing
+- [x] Preserve motion timings, selectors, and appearance while establishing
   ownership. Defer stylesheet concatenation and global selector cleanup.
 
 **Exit:** current surfaces look and behave the same under the document contract.
 CSS failure behavior is explicit and no CSP relaxation is required.
+
+Phase 2a closure is represented by the consolidated stylesheet acceptance,
+strict-CSP browser matrix, and final static-asset manifest. The historical
+auth-document notes above describe the staged pre-consolidation link order.
 
 #### 2b. Native Preact build support
 
@@ -1527,14 +1579,15 @@ Luna extra-review checkpoint — 2026-09-21 (`3c77dd8`):
   modal/drawer and wallet-iframe entrypoints. The public mount matrix covers
   all 12 chain/context/variant combinations; the browser suite also exercises
   CSS isolation, strict-CSP stylesheet failure, focus, and disposal. Inline
-  entrypoint visual acceptance remains open.
-- [ ] Capture matched confirmer, drawer, transaction-tree, halo, passkey-loader,
+  entrypoint behavior is retained in the permanent mount matrix; migration-only
+  visual captures were completed before the parity harness was removed.
+- [x] Capture matched confirmer, drawer, transaction-tree, halo, passkey-loader,
   and padlock fixtures and review every image diff.
 - [x] Test rapid confirm/cancel, replacement while closing, delayed imports,
   and auth-to-confirm-to-auth handoff with no stale state or focus. The
   lifecycle gate passes across Chromium, Firefox, and WebKit; standalone and
   hosted drawer interruption cases remain in the same focused matrix.
-- [ ] Delete confirmation's Lit subtree and registrations. Keep shared Lit
+- [x] Delete confirmation's Lit subtree and registrations. Keep shared Lit
   primitives still needed by export, recovery, or React adapters.
 
 **Exit:** confirmation contracts, screenshots, CSP, measurement, supported
@@ -1822,7 +1875,7 @@ change from hosted-surface cutovers.
   The native halo now accepts the loader's custom gradient stops; no drawer or
   passkey adapter replacement was needed because those adapter files were
   unreachable from the built React entries.
-- [ ] Preserve public props, children composition, SSR importability, mounting
+- [x] Preserve public props, children composition, SSR importability, mounting
   under StrictMode, controlled theme, custom colors, and focus behavior.
 - [x] Run the React theme regression and account-menu tests against built
   artifacts, including scoped tokens and the normalized auth-menu CSS names.
@@ -1831,6 +1884,12 @@ change from hosted-surface cutovers.
   `@lit/react` imports.
 - [x] Delete `@lit/react` and obsolete adapters after their callers are
   migrated. This is recorded in `a825859` and `941d930`.
+
+The final targeted public React run passed **7/7**: SSR importability,
+StrictMode cleanup and replacement, scoped theme variables, custom halo
+colors, and account-menu modal behavior. The public React declaration and
+export-path probe remains subject to the unrelated generated-WASM path issue
+recorded in the final verification handoff above.
 
 Luna handoff checkpoint — 2026-09-21:
 
@@ -1918,6 +1977,9 @@ Luna extra-review checkpoint — 2026-09-21 (`6409b18`, `34b3f7d`):
   Lit visual baseline. Recovery explicitly restores its renderer-neutral
   `line-height` so the consolidated confirmation base styles cannot change its
   layout.
+- `73da034` completes the staged cleanup by deleting those compatibility-only
+  generated stylesheets, the fallback source sheet, the palette generator, and
+  the host copy. The saved Lit screenshots remain ignored artifacts only.
 - `34b3f7d` updates the hosted/unit/browser fixtures and saved-Lit/Preact
   visual routes. The focused browser matrix passed **26/26**, Vite unit checks
   passed **7/7**, the auth visual matrix passed **108/108**, and the remaining
@@ -1993,28 +2055,53 @@ cleanup to detect accidental removal of shared requirements.
 
 **Depends on:** Phase 8.
 
-- [ ] Finish migrating surface tests to `tests/wallet-ui/` and update scripts.
+- [x] Finish migrating surface tests to `tests/wallet-ui/` and update scripts.
   Preserve behavior assertions and retire architecture-only tests with their
   classification.
-- [ ] Run the full affected Wallet UI/iframe suites and intended lifecycle
-  contracts that exercise auth, confirmation, export, and recovery.
-- [ ] Run the recorded browser matrix; distinguish actual passes from missing
+- [x] Run the full affected Wallet UI/iframe suites for auth, confirmation,
+  export, recovery, and transaction-tree behavior.
+- [ ] Run the credential-gated intended lifecycle contracts that exercise the
+  same surfaces; this requires the existing external Google token workflow.
+- [x] Run the recorded browser matrix; distinguish actual passes from missing
   browser/infrastructure coverage.
-- [ ] Exercise sequential and simultaneous surfaces, repeated open/close,
+- [x] Exercise sequential and simultaneous surfaces, repeated open/close,
   cancellation, failures, and iframe disconnects under production CSP.
-- [ ] Compare final screenshots and gzip/Brotli graph totals with Phase 0.
+- [x] Compare final screenshots and gzip/Brotli graph totals with Phase 0.
   Require complete manifest coverage and resolve unexplained visual differences
   or size growth before declaring completion.
-- [ ] Verify package exports/declarations and all hosted entry variants.
-  Check bundle dependency metadata for absence of Lit and duplication of
-  Preact within each document graph.
-- [ ] Update the relevant architecture docs, examples, asset assertions, and
+- [x] Verify package exports and all hosted entry variants. Check bundle
+  dependency metadata for absence of Lit and duplication of Preact within each
+  document graph.
+- [ ] Resolve the external declaration probe's generated-WASM imports, which
+  currently point outside the package output. Track this as a separate
+  packaging fix before publishing.
+- [x] Update the relevant architecture docs, examples, asset assertions, and
   package descriptions.
 - [ ] Test the release candidate artifact through real consumer entrypoints
   using the repository's existing package validation workflow.
 - [ ] Publish through the normal release process, then update exact consumer
   versions and lockfiles together with required asset references. Verify the
   deployed SDK/stylesheet pairing before deployment of consumers.
+
+Phase 9 verification record — 2026-09-21:
+
+- `SEAMS_TEST_FRONTEND_URL=http://localhost:4376 pnpm test:wallet-browser`
+  passed **506/506** in 4.0 minutes. The run covered the complete Chromium
+  suite plus the permanent Firefox and WebKit wallet-UI matrix.
+- The focused public React run passed **7/7** on a clean test server. The
+  permanent auth/export cross-browser matrix passed **28/28**, and the
+  confirmation/transaction-tree/primitive matrix passed **72/72**.
+- The Preact-only migration matrix passed **192/192** before its temporary
+  visual harness was deleted. The final bundle report and static manifest are
+  recorded above; the clean manifest contains 144 assets and only
+  `wallet-shims.js`, `wallet-service.css`, and `wallet-ui.css` in the SDK
+  static directory.
+- `pnpm build:check:fresh`, `pnpm type-check`, hosted-doc, runtime-entry,
+  static-asset, and CSP checks passed. No production source or built output
+  contains a built-in Lit component, `@lit/react`, registration-only import,
+  upgrade observer, or standalone component stylesheet.
+- The intended lifecycle run, external consumer artifact workflow, declaration
+  packaging fix, and publication remain outside this worktree checkpoint.
 
 **Exit:** published-package consumers and hosted surfaces pass the supported
 contracts, final size goals hold, and remaining failures/coverage gaps are
