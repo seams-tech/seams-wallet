@@ -328,8 +328,8 @@ const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<v
   const sdkDir = path.join(sdkRoot, `${BUILD_PATHS.BUILD.ESM}/sdk`);
   fs.mkdirSync(sdkDir, { recursive: true });
 
-  const copyIfMissing = (src: string, dest: string) => {
-    if (fs.existsSync(src) && !fs.existsSync(dest)) fs.copyFileSync(src, dest);
+  const copyStaticAsset = (src: string, dest: string) => {
+    if (fs.existsSync(src)) fs.copyFileSync(src, dest);
   };
 
   copyWalletStaticAssets(sdkDir);
@@ -353,15 +353,12 @@ const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<v
     'utf-8',
   );
 
-  copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/copy-icon.css'),
+  copyStaticAsset(
+    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/preact/copy-icon.css'),
     path.join(sdkDir, 'copy-icon.css'),
   );
-  copyIfMissing(
-    path.join(
-      sdkRoot,
-      'src/core/signingEngine/uiConfirm/ui/lit-components/css/recovery-code-backup.css',
-    ),
+  copyStaticAsset(
+    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/preact/recovery-code-backup.css'),
     path.join(sdkDir, 'recovery-code-backup.css'),
   );
   console.log(

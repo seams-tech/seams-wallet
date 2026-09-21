@@ -1,18 +1,15 @@
 /*
-  Shared copy-affordance icon: a copy glyph that crossfades to a check inside
+  Shared Preact copy-affordance icon: a copy glyph that crossfades to a check inside
   a `.copied` ancestor. Used by the Preact export surface's copy fields and the
   recovery-code backup dialog's Copy button, so the two copy affordances in
   the wallet read as one control.
 
-  Every rule carries two scopes so this file works from any root without
-  leaking generic class names into host documents:
-  - `:host …` for the Lit copy icon's shadow-root adoption;
-  - explicit attribute prefixes for document-level recovery-dialog loading.
+  Every rule is scoped to the recovery dialog so generic class names do not
+  leak into host documents. Export-specific placement stays with export CSS.
 
   Context-specific bits (resting color, margins) stay with each surface.
 */
 
-:host .copy-icon,
 [data-seams-wallet-recovery-backup-dialog] .copy-icon {
   position: relative;
   width: 16px;
@@ -20,7 +17,6 @@
   flex: 0 0 16px;
 }
 
-:host .copy-icon svg,
 [data-seams-wallet-recovery-backup-dialog] .copy-icon svg {
   display: block;
   stroke-width: 2;
@@ -28,8 +24,6 @@
   stroke-linejoin: round;
 }
 
-:host .copy-icon-check,
-:host .copy-icon-copy,
 [data-seams-wallet-recovery-backup-dialog] .copy-icon-check,
 [data-seams-wallet-recovery-backup-dialog] .copy-icon-copy {
   position: absolute;
@@ -42,33 +36,28 @@
     filter 300ms ease-in-out;
 }
 
-:host .copy-icon-check,
 [data-seams-wallet-recovery-backup-dialog] .copy-icon-check {
   transform: scale(0.25);
   opacity: 0;
   filter: blur(2px);
 }
 
-:host .copy-icon-copy,
 [data-seams-wallet-recovery-backup-dialog] .copy-icon-copy {
   transform: scale(1);
   opacity: 1;
   filter: blur(0);
 }
 
-:host .copied .copy-icon,
 [data-seams-wallet-recovery-backup-dialog] .copied .copy-icon {
   color: var(--seams-colors-success, #34d399);
 }
 
-:host .copied .copy-icon-check,
 [data-seams-wallet-recovery-backup-dialog] .copied .copy-icon-check {
   transform: scale(1);
   opacity: 1;
   filter: blur(0);
 }
 
-:host .copied .copy-icon-copy,
 [data-seams-wallet-recovery-backup-dialog] .copied .copy-icon-copy {
   transform: scale(0.25);
   opacity: 0;
@@ -76,8 +65,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :host .copy-icon-check,
-  :host .copy-icon-copy,
   [data-seams-wallet-recovery-backup-dialog] .copy-icon-check,
   [data-seams-wallet-recovery-backup-dialog] .copy-icon-copy {
     transition-duration: 0.01ms;
