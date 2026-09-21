@@ -30,18 +30,34 @@ const NEAR_SIGNER_WASM_JS_ABS = path.resolve(
   SDK_ROOT_ABS,
   '../../wasm/near_signer/pkg/wasm_signer_worker.js',
 );
+const NEAR_SIGNER_WASM_DTS_ABS = path.resolve(
+  SDK_ROOT_ABS,
+  '../../wasm/near_signer/pkg/wasm_signer_worker.d.ts',
+);
 const NEAR_SIGNER_WASM_JS_OUT = 'wasm/near_signer/pkg/wasm_signer_worker.js';
+const NEAR_SIGNER_WASM_DTS_OUT = 'wasm/near_signer/pkg/wasm_signer_worker.d.ts';
 const ED25519_YAO_CLIENT_WASM_JS_ABS = path.resolve(
   SDK_ROOT_ABS,
   '../../crates/router-ab-ed25519-yao-client/pkg/router_ab_ed25519_yao_client.js',
 );
+const ED25519_YAO_CLIENT_WASM_DTS_ABS = path.resolve(
+  SDK_ROOT_ABS,
+  '../../crates/router-ab-ed25519-yao-client/pkg/router_ab_ed25519_yao_client.d.ts',
+);
 const ED25519_YAO_CLIENT_WASM_JS_OUT =
   'wasm/router_ab_ed25519_yao_client/pkg/router_ab_ed25519_yao_client.js';
+const ED25519_YAO_CLIENT_WASM_DTS_OUT =
+  'wasm/router_ab_ed25519_yao_client/pkg/router_ab_ed25519_yao_client.d.ts';
 const ECDSA_CLIENT_WASM_JS_ABS = path.resolve(
   SDK_ROOT_ABS,
   '../../wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client.js',
 );
+const ECDSA_CLIENT_WASM_DTS_ABS = path.resolve(
+  SDK_ROOT_ABS,
+  '../../wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client.d.ts',
+);
 const ECDSA_CLIENT_WASM_JS_OUT = 'wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client.js';
+const ECDSA_CLIENT_WASM_DTS_OUT = 'wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client.d.ts';
 const NEAR_SIGNER_WORKER_ENUM_EXPORTS = [
   'ConfirmationBehavior',
   'ConfirmationUIMode',
@@ -591,6 +607,12 @@ const configs = [
               source,
             });
             console.log('✅ Emitted dist/esm/wasm/near_signer/pkg/wasm_signer_worker_bg.wasm');
+            (this as any).emitFile({
+              type: 'asset',
+              fileName: NEAR_SIGNER_WASM_DTS_OUT,
+              source: fs.readFileSync(NEAR_SIGNER_WASM_DTS_ABS),
+            });
+            console.log('✅ Emitted dist/esm/wasm/near_signer/pkg/wasm_signer_worker.d.ts');
           } catch (error) {
             console.error('❌ Failed to copy signer WASM asset:', error);
             throw error;
@@ -627,7 +649,13 @@ const configs = [
             fileName: 'wasm/router_ab_ed25519_yao_client/pkg/router_ab_ed25519_yao_client_bg.wasm',
             source,
           });
+          (this as any).emitFile({
+            type: 'asset',
+            fileName: ED25519_YAO_CLIENT_WASM_DTS_OUT,
+            source: fs.readFileSync(ED25519_YAO_CLIENT_WASM_DTS_ABS),
+          });
           console.log('✅ Emitted Ed25519 Yao Client WASM asset');
+          console.log('✅ Emitted Ed25519 Yao Client declaration');
         },
       },
     ],
@@ -660,9 +688,15 @@ const configs = [
               fileName: 'wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client_bg.wasm',
               source,
             });
+            (this as any).emitFile({
+              type: 'asset',
+              fileName: ECDSA_CLIENT_WASM_DTS_OUT,
+              source: fs.readFileSync(ECDSA_CLIENT_WASM_DTS_ABS),
+            });
             console.log(
               '✅ Emitted dist/esm/wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client_bg.wasm',
             );
+            console.log('✅ Emitted ECDSA client declaration');
           } catch (error) {
             console.error('❌ Failed to copy ECDSA client signer WASM asset:', error);
             throw error;

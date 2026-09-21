@@ -21,10 +21,26 @@ import { fileURLToPath } from 'node:url';
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const typesRoot = join(packageRoot, 'dist/types');
+const emittedWasmRoot = join(packageRoot, 'dist/esm/wasm');
 /* Each alias maps to a package `src` that tsc emits under its own subtree. */
 const ALIAS_ROOTS = [
   { prefix: '@/', root: join(typesRoot, 'wallet/src') },
   { prefix: '@shared/', root: join(typesRoot, 'shared-ts/src') },
+];
+
+const GENERATED_WASM_TARGETS = [
+  {
+    source: /^(?:\.\.\/)+wasm\/near_signer\/pkg\/(.+)$/,
+    outputRoot: join(emittedWasmRoot, 'near_signer/pkg'),
+  },
+  {
+    source: /^(?:\.\.\/)+crates\/router-ab-ed25519-yao-client\/pkg\/(.+)$/,
+    outputRoot: join(emittedWasmRoot, 'router_ab_ed25519_yao_client/pkg'),
+  },
+  {
+    source: /^(?:\.\.\/)+wasm\/router_ab_ecdsa_client\/pkg\/(.+)$/,
+    outputRoot: join(emittedWasmRoot, 'router_ab_ecdsa_client/pkg'),
+  },
 ];
 
 /** Matches the specifier in `from '<alias>x'`, `import('<alias>x')`, etc. */
@@ -54,16 +70,33 @@ function toRelativeSpecifier(fromFile, prefix, aliasTarget) {
   return specifier;
 }
 
+function toEmittedWasmSpecifier(fromFile, specifier) {
+  const target = GENERATED_WASM_TARGETS.find((entry) => entry.source.test(specifier));
+  if (!target) return specifier;
+  const filename = specifier.match(target.source)?.[1];
+  if (!filename) return specifier;
+  let relativeSpecifier = relative(dirname(fromFile), join(target.outputRoot, filename))
+    .split('\\')
+    .join('/');
+  if (!relativeSpecifier.startsWith('.')) relativeSpecifier = `./${relativeSpecifier}`;
+  return relativeSpecifier;
+}
+
 let rewrittenFiles = 0;
 let rewrittenSpecifiers = 0;
 for await (const file of declarationFiles(typesRoot)) {
   const source = await readFile(file, 'utf8');
-  if (!/(['"])(@\/|@shared\/)/.test(source)) continue;
   let count = 0;
-  const next = source.replace(ALIAS_SPECIFIER, (_match, quote, prefix, target) => {
-    count += 1;
-    return `${quote}${toRelativeSpecifier(file, prefix, target)}${quote}`;
-  });
+  const next = source
+    .replace(ALIAS_SPECIFIER, (_match, quote, prefix, target) => {
+      count += 1;
+      return `${quote}${toRelativeSpecifier(file, prefix, target)}${quote}`;
+    })
+    .replace(/(['"])(\.\.\/[^'\"]+)\1/g, (_match, quote, specifier) => {
+      const rewritten = toEmittedWasmSpecifier(file, specifier);
+      if (rewritten !== specifier) count += 1;
+      return `${quote}${rewritten}${quote}`;
+    });
   if (count === 0) continue;
   await writeFile(file, next, 'utf8');
   rewrittenFiles += 1;
