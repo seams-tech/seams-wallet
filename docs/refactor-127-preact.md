@@ -12,9 +12,11 @@ Phase 9 verification is substantially complete: the full wallet browser suite
 passes 506/506 across Chromium, Firefox, and WebKit, the focused public React
 checks pass 7/7, and the final build/static/runtime/CSP/size checks pass. The
 generated-WASM declaration path issue is fixed and its external-consumer probe
-passes. The remaining release-boundary items are the credential-gated intended
-lifecycle run, external consumer artifact validation, and publication
+passes. Packed `@seams/wallet` and `@seams/wallet-server` artifacts also pass
+the repository's consumer-entry smoke test. The remaining release-boundary
+items are the credential-gated intended lifecycle run and publication
 authorization.
+
 This plan changes the wallet's internal UI renderer while
 preserving wallet behavior, iframe protocols, strict-CSP guarantees, and public
 React APIs.
@@ -83,10 +85,46 @@ was then built with `pnpm build:local-tools`; the occupied ports remain an
 environment prerequisite for a clean rerun. No intended lifecycle assertion
 was counted as passed from this attempt.
 
-The next audit should re-run the canonical intended command after freeing those
-ports, verify the emitted declaration paths through a packed consumer artifact,
-and review `ed5c49f` plus this checkpoint before release work. Consumer package
-publication and version updates remain outside this authorization.
+`pnpm check:packed-wallet` subsequently packed and inspected
+`@seams/wallet@0.5.25` and `@seams/wallet-server@0.5.25`, then imported the
+packed runtime, hosted React auth menu, and Wallet Server entrypoints
+successfully. The next audit should re-run the canonical intended command after
+freeing those ports and review `ed5c49f`, `eebf9a9`, and `32c5e20` before
+release work. `1426fb4` updates the size report for the final direct confirmer
+entry and belongs in that review. Consumer package publication and version
+updates remain outside this authorization.
+
+### Post-implementation duplication audit — 2026-09-21
+
+The completed renderer was audited against the target architecture after the
+full migration. The following duplicate or retired paths were removed:
+
+- the confirmation controller's redundant lazy import and prewarm path, leaving
+  one statically imported mount path inside the real confirmation feature entry;
+- the unused NEAR account-label path and ignored confirmation update fields;
+- duplicate confirmation surface-context application, close bookkeeping,
+  decision-channel state, and an outer drawer-close fallback already owned by
+  `ConfirmationDrawer`;
+- three independent default-appearance/theme-resolution implementations,
+  replaced by `resolveUiAppearance()`;
+- duplicate surface-measurement binding comparison and appearance-token rule
+  assembly;
+- the hosted stylesheet marker, renderer-owned stylesheet readiness gates, and
+  tests that asserted those retired implementation details.
+- the bundle report's stale expectation of a lazy `confirm-ui-*` chunk; it now
+  measures the real `tx-confirm-ui.js` feature entry directly.
+
+The delayed-import and missing-marker tests were classified as
+`obsolete_test_or_fixture`: they asserted the removed registration/gating
+architecture rather than a supported behavior. Document-level render-blocking
+CSS, strict CSP, first measurement, lifecycle, focus, handoff, and interrupted
+drawer behavior remain covered by permanent browser tests. The audit changes
+pass Wallet and browser-test type checking, a production SDK build, packed
+consumer validation, and a focused confirmation/export matrix of **78/78**
+across Chromium, Firefox, and WebKit. The stale bundle-report expectation was
+classified as `valid_test_needs_update`; the corrected report passes. The final
+reachable browser union is 6,424,159 raw / 1,219,597 gzip / 958,640 Brotli
+bytes; document CSS remains 164,897 raw / 27,626 gzip / 22,526 Brotli bytes.
 
 ## Decision
 
@@ -1595,22 +1633,23 @@ Luna extra-review checkpoint — 2026-09-21 (`3c77dd8`):
   security context, display data, appearance, signing mode, and Email OTP.
 - [x] Preserve preparation reuse, two-phase close, onCancel subscriptions,
   takeDecision semantics, exactly-once settlement, and opened/closed messages.
-- [x] Keep a single feature import that returns a mount API.
-  `prewarmTxConfirmerUi()` warms code without registration side effects.
+- [x] Keep one confirmation controller/mount path inside the confirmation
+  feature entry. Remove the redundant dynamic import and prewarm path.
 - [x] Verify every supported chain and mount context, including standalone
   modal/drawer and wallet-iframe entrypoints. The public mount matrix covers
   all 12 chain/context/variant combinations; the browser suite also exercises
-  CSS isolation, strict-CSP stylesheet failure, focus, and disposal. Inline
+  CSS isolation under the document-owned render-blocking stylesheet, focus,
+  and disposal. Inline
   entrypoint behavior is retained in the permanent mount matrix; migration-only
   visual captures were completed before the parity harness was removed.
 - [x] Capture matched confirmer, drawer, transaction-tree, halo, passkey-loader,
   and padlock fixtures and review every image diff.
-- [x] Test rapid confirm/cancel, replacement while closing, delayed imports,
-  and auth-to-confirm-to-auth handoff with no stale state or focus. The
-  lifecycle gate passes across Chromium, Firefox, and WebKit; standalone and
-  hosted drawer interruption cases remain in the same focused matrix.
-- [x] Delete confirmation's Lit subtree and registrations. Keep shared Lit
-  primitives still needed by export, recovery, or React adapters.
+- [x] Test rapid confirm/cancel, replacement while closing, lazy ABI
+  enrichment, and auth-to-confirm-to-auth handoff with no stale state or focus.
+  The lifecycle gate passes across Chromium, Firefox, and WebKit; standalone
+  and hosted drawer interruption cases remain in the same focused matrix.
+- [x] Delete confirmation's Lit subtree and registrations. The temporarily
+  shared Lit primitives were deleted after export and recovery migrated.
 
 **Exit:** confirmation contracts, screenshots, CSP, measurement, supported
 browsers, and per-flow size gates pass through the public integration boundary.
@@ -2012,6 +2051,9 @@ Luna extra-review checkpoint — 2026-09-21 (`6409b18`, `34b3f7d`):
   delayed/failed stylesheet behavior, saved-Lit routing, and the decision to
   retain or remove temporary visual-parity tests in Phase 8d. Future work from
   this checkpoint should be treated as Luna-authored and reviewed accordingly.
+- The post-implementation audit later removed the temporary marker and
+  renderer-owned readiness gates. The linked stylesheet remains document-owned
+  and render-blocking.
 
 Visual acceptance checkpoint — 2026-09-21:
 
@@ -2038,7 +2080,9 @@ Generated asset cleanup checkpoint — 2026-09-21:
   and host stylesheet copy are deleted.
 - `pnpm build:sdk`, the palette-variable assertion, the static-wallet-assets
   manifest check, and the runtime-entry check passed. The clean manifest
-  contains 144 assets and no standalone UI stylesheet routes.
+  contained 144 assets at this checkpoint and no standalone UI stylesheet
+  routes. The final audit removed redundant chunks and the current clean
+  manifest contains 137 assets.
 - This is a Luna-authored checkpoint that needs extra review before merge:
   inspect wallet UI stylesheet order/specificity, package and Vite asset
   discovery, clean-build deletion behavior, and the permanent browser matrix.
@@ -2102,8 +2146,10 @@ cleanup to detect accidental removal of shared requirements.
   imports, and passes `pnpm check:declarations-external`.
 - [x] Update the relevant architecture docs, examples, asset assertions, and
   package descriptions.
-- [ ] Test the release candidate artifact through real consumer entrypoints
+- [x] Test the release candidate artifact through real consumer entrypoints
   using the repository's existing package validation workflow.
+  `pnpm check:packed-wallet` packed both public packages and imported the packed
+  Wallet runtime, hosted React auth menu, and Wallet Server entrypoints.
 - [ ] Publish through the normal release process, then update exact consumer
   versions and lockfiles together with required asset references. Verify the
   deployed SDK/stylesheet pairing before deployment of consumers.
@@ -2118,7 +2164,8 @@ Phase 9 verification record — 2026-09-21:
   confirmation/transaction-tree/primitive matrix passed **72/72**.
 - The Preact-only migration matrix passed **192/192** before its temporary
   visual harness was deleted. The final bundle report and static manifest are
-  recorded above; the clean manifest contains 144 assets and only
+  recorded above; after the duplication audit the clean manifest contains 137
+  assets and only
   `wallet-shims.js`, `wallet-service.css`, and `wallet-ui.css` in the SDK
   static directory.
 - `pnpm build:check:fresh`, `pnpm type-check`, hosted-doc, runtime-entry,
@@ -2127,7 +2174,7 @@ Phase 9 verification record — 2026-09-21:
   upgrade observer, or standalone component stylesheet.
 - The credential-gated intended lifecycle run remains blocked by the occupied
   4201/4202 local service ports; the attempted run selected 23 cases but reached
-  no assertion. External consumer artifact validation and publication remain
+  no assertion. Packed consumer artifact validation passes; publication remains
   outside this worktree checkpoint.
 
 **Exit:** published-package consumers and hosted surfaces pass the supported
