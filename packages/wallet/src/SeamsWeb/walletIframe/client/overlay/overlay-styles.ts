@@ -109,7 +109,7 @@ const BASE_CSS = `
       drop-shadow(0 12px 24px rgb(0 0 0 / 0.22))
       drop-shadow(0 2px 8px rgb(0 0 0 / 0.12));
   }
-  /* The auth-menu card paints no shadow of its own (auth-menu.css) for the
+  /* The auth-menu card paints no shadow of its own (wallet-ui.css) for the
      same clipping reason; give it the quieter card elevation here, where the
      drop-shadow hugs the card's silhouette and may extend past the iframe. */
   dialog.${CLASS_DIALOG}.${CLASS_AUTH_MENU} iframe.${CLASS_IFRAME} {

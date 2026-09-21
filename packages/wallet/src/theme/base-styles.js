@@ -1,7 +1,7 @@
 // Single source of truth for palettes and theme tokens used by:
-// - Lit components
+// - wallet UI surfaces
 // - React design tokens
-// - CSS variable generators (rolldown + dev script)
+// - CSS variable generation in the Rolldown build
 
 export function createThemeTokens(palette) {
   const CHROMA_COLORS = {

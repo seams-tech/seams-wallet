@@ -1907,7 +1907,7 @@ Luna extra-review checkpoint — 2026-09-21 (`72da581`, `c337b8a`, `990a987`):
   consolidation, including simultaneous surfaces with different appearance.
 - [x] Rerun cold-cache, delayed/failed stylesheet, first-measurement, resize,
   and CSP tests after the link change.
-- [ ] Delete obsolete generated assets, markers, generators, and assertions
+- [x] Delete obsolete generated assets, markers, generators, and assertions
   only when their actual consumers have been replaced.
 
 Luna extra-review checkpoint — 2026-09-21 (`6409b18`, `34b3f7d`):
@@ -1945,6 +1945,19 @@ Visual acceptance checkpoint — 2026-09-21:
 - The temporary comparison tests and their saved-baseline fixtures can now be
   deleted. Permanent behavior, CSP, lifecycle, accessibility, and measurement
   coverage remains in `tests/wallet-ui/` and `tests/wallet-iframe/`.
+
+Generated asset cleanup checkpoint — 2026-09-21:
+
+- Rolldown now emits only `wallet-shims.js`, `wallet-service.css`, and
+  `wallet-ui.css` in the SDK static directory. The standalone generated
+  component stylesheets, palette codegen script, fallback source stylesheet,
+  and host stylesheet copy are deleted.
+- `pnpm build:sdk`, the palette-variable assertion, the static-wallet-assets
+  manifest check, and the runtime-entry check passed. The clean manifest
+  contains 144 assets and no standalone UI stylesheet routes.
+- This is a Luna-authored checkpoint that needs extra review before merge:
+  inspect wallet UI stylesheet order/specificity, package and Vite asset
+  discovery, clean-build deletion behavior, and the permanent browser matrix.
 
 #### 8d. Retire temporary visual-parity tests after full migration
 

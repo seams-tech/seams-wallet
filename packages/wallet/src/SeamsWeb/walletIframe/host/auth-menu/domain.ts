@@ -14,7 +14,7 @@ import type { WalletAuthMethod } from '@shared/utils/signerDomain';
 /**
  * The view model is normalized by the wallet-host controller before it reaches
  * the element. Keeping the model here makes the component usable by a future
- * host controller without coupling it to Lit, React, or the message router.
+ * host controller without coupling it to a renderer or the message router.
  */
 /**
  * Discriminated by PRESENTATION, not by which internal phase produced it.

@@ -1,6 +1,6 @@
 /*
   Wallet recovery-code backup dialog + viewer.
-  Reads theme tokens from seams-components.css (generated from palette.json).
+  Reads theme tokens from wallet-ui.css (generated from palette.json).
   Both the native <dialog> shell and the light-DOM surface content are styled
   here, at document level, so strict-CSP hosts need no inline styles. Every
   content rule is scoped under the dialog's data attribute so nothing leaks

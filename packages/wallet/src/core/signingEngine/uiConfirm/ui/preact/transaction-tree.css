@@ -1,4 +1,4 @@
-/* Document-owned transaction-tree styles; palette values come from seams-components.css. */
+/* Document-owned transaction-tree styles; palette values come from wallet-ui.css. */
 
 :where(.seams-wallet-ui) .seams-tx-tree {
   display: block;

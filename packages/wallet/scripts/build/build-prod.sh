@@ -54,9 +54,6 @@ fi
 print_step "Building TypeScript..."
 if pnpm run build:types; then print_success "TypeScript compilation and declaration rewrite completed"; else print_error "TypeScript compilation or declaration rewrite failed"; exit 1; fi
 
-print_step "Generating CSS variables from palette.json (seams-components.css)..."
-if node "$SDK_ROOT/scripts/codegen/generate-seams-components-css.mjs"; then print_success "seams-components.css generated"; else print_error "Failed to generate seams-components.css"; exit 1; fi
-
 print_step "Bundling with Rolldown (production)..."
 if NODE_ENV=production npx rolldown -c rolldown.config.ts; then print_success "Rolldown bundling completed"; else print_error "Rolldown bundling failed"; exit 1; fi
 

@@ -14,12 +14,6 @@ const CLIENT_REACT_ROOT_ABS = path.resolve(SDK_ROOT_ABS, 'src/react');
 const CLIENT_PLUGINS_ROOT_ABS = path.resolve(SDK_ROOT_ABS, 'src/plugins');
 const WALLET_STATIC_ASSETS_ROOT_ABS = path.resolve(SDK_ROOT_ABS, 'src/static/wallet-assets');
 const WALLET_STATIC_ASSET_FILES = ['wallet-shims.js', 'wallet-service.css'] as const;
-const WALLET_HOST_STATIC_ASSETS = [
-  {
-    source: path.resolve(SDK_ROOT_ABS, 'src/SeamsWeb/walletIframe/host/ui/auth-menu/auth-menu.css'),
-    fileName: 'auth-menu.css',
-  },
-] as const;
 const PREACT_CONFIRMATION_CSS_FILES = [
   'confirmation-primitives.css',
   'confirm-header.css',
@@ -190,9 +184,6 @@ const copyWalletStaticAssets = (sdkDir: string): void => {
   for (const fileName of WALLET_STATIC_ASSET_FILES) {
     copyWalletStaticAsset(sdkDir, fileName);
   }
-  for (const asset of WALLET_HOST_STATIC_ASSETS) {
-    fs.copyFileSync(asset.source, path.join(sdkDir, asset.fileName));
-  }
 };
 
 const SEAMS_UI_SURFACE_SELECTORS = ['.seams-wallet-ui'] as const;
@@ -233,7 +224,7 @@ const emitSeamsThemeAliases = (vars: any, indent = '  '): string[] => [
   `${indent}--seams-colors-highlightAmount: ${vars.highlightAmount};`,
 ];
 
-const buildSeamsComponentsCss = async (sdkRoot: string): Promise<string> => {
+const buildWalletThemeCss = async (sdkRoot: string): Promise<string> => {
   const palettePath = path.join(sdkRoot, 'src/theme/palette.json');
   const paletteRaw = fs.readFileSync(palettePath, 'utf-8');
   const palette = JSON.parse(paletteRaw) as any;
@@ -318,18 +309,18 @@ const buildPreactConfirmationCss = (sdkRoot: string): string => {
 const buildWalletUiCss = async (sdkRoot: string): Promise<string> => {
   const read = (relativePath: string): string =>
     fs.readFileSync(path.join(sdkRoot, relativePath), 'utf-8');
-  const seamsComponentsCss = await buildSeamsComponentsCss(sdkRoot);
+  const walletThemeCss = await buildWalletThemeCss(sdkRoot);
   const confirmationCss = buildPreactConfirmationCss(sdkRoot);
   const sections = [
     ['wallet-service.css', read('src/static/wallet-assets/wallet-service.css')],
-    ['seams-components.css', seamsComponentsCss],
-    ['auth-menu.css', read('src/SeamsWeb/walletIframe/host/ui/auth-menu/auth-menu.css')],
-    ['confirmation-ui.css', confirmationCss],
+    ['wallet-theme-tokens', walletThemeCss],
+    ['auth-menu-surface', read('src/SeamsWeb/walletIframe/host/ui/auth-menu/auth-menu.css')],
+    ['confirmation-surfaces', confirmationCss],
     [
-      'recovery-code-backup.css',
+      'recovery-backup-surface',
       read('src/core/signingEngine/uiConfirm/ui/preact/recovery-code-backup.css'),
     ],
-    ['copy-icon.css', read('src/core/signingEngine/uiConfirm/ui/preact/copy-icon.css')],
+    ['copy-controls', read('src/core/signingEngine/uiConfirm/ui/preact/copy-icon.css')],
   ];
   return `${sections.map(([name, css]) => `/* ${name} */\n${css}`).join('\n')}\n`;
 };
@@ -338,48 +329,14 @@ const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<v
   const sdkDir = path.join(sdkRoot, `${BUILD_PATHS.BUILD.ESM}/sdk`);
   fs.mkdirSync(sdkDir, { recursive: true });
 
-  const copyStaticAsset = (src: string, dest: string) => {
-    if (fs.existsSync(src)) fs.copyFileSync(src, dest);
-  };
-
   copyWalletStaticAssets(sdkDir);
-
-  try {
-    const seamsComponentsCss = await buildSeamsComponentsCss(sdkRoot);
-    fs.writeFileSync(path.join(sdkDir, 'seams-components.css'), seamsComponentsCss, 'utf-8');
-  } catch (e) {
-    console.warn('⚠️  Failed to generate seams-components.css from palette:', e);
-    const src = path.join(
-      sdkRoot,
-      'src/core/signingEngine/uiConfirm/ui/preact/seams-components.css',
-    );
-    const dest = path.join(sdkDir, 'seams-components.css');
-    if (fs.existsSync(src)) fs.copyFileSync(src, dest);
-  }
-
-  fs.writeFileSync(
-    path.join(sdkDir, 'confirmation-ui.css'),
-    buildPreactConfirmationCss(sdkRoot),
-    'utf-8',
-  );
 
   try {
     fs.writeFileSync(path.join(sdkDir, 'wallet-ui.css'), await buildWalletUiCss(sdkRoot), 'utf-8');
   } catch (error) {
     console.warn('⚠️  Failed to generate wallet-ui.css:', error);
   }
-
-  copyStaticAsset(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/preact/copy-icon.css'),
-    path.join(sdkDir, 'copy-icon.css'),
-  );
-  copyStaticAsset(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/preact/recovery-code-backup.css'),
-    path.join(sdkDir, 'recovery-code-backup.css'),
-  );
-  console.log(
-    '✅ Emitted /sdk wallet-shims.js, wallet-ui.css, and compatibility stylesheet assets',
-  );
+  console.log('✅ Emitted /sdk wallet-shims.js, wallet-service.css, and wallet-ui.css');
 };
 
 const emitWalletServiceStaticPlugin = {

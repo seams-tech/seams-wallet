@@ -5,8 +5,8 @@ import { CHROMA_COLORS, GREY_COLORS, GRADIENTS, LIGHT_THEME, DARK_THEME } from '
  * About these tokens and CSS variables
  *
  * DesignTokens is a JS/TS representation of theming primitives. We expose these
- * runtime tokens to CSS via custom properties (aka CSS variables) so both Lit
- * components and React styles can read the same values.
+ * runtime tokens to CSS via custom properties (aka CSS variables) so wallet UI
+ * surfaces and React styles can read the same values.
  *
  * Mapping rules (applied by Theme via createCSSVariables):
  * - colors:   --seams-colors-<key>

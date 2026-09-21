@@ -3692,7 +3692,7 @@ export class WalletIframeRouter {
   /**
    * Push appearance (theme name and/or color token overrides) to the wallet
    * host at runtime. The host merges this with prior config and re-applies the
-   * Lit token override stylesheet, so embedded components (tx confirmer, etc.)
+   * document-owned wallet UI token stylesheet, so embedded components (tx confirmer, etc.)
    * re-theme without a re-init. Appearance is excluded from the runtime-reset
    * fingerprint, so this never drops warm signing-session state.
    */

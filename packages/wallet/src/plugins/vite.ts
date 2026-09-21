@@ -106,7 +106,7 @@ function copyWalletStaticAssetIfMissing(
 /**
  * Seams SDK plugin: serve SDK assets under a stable base (default: /sdk) with optional COEP/CORP (strict mode) and permissive CORS.
  * Where it runs: both the app server and the wallet-iframe server.
- * - App server: lets host pages and Lit components load SDK CSS/JS locally.
+ * - App server: lets host pages and wallet UI surfaces load SDK CSS/JS locally.
  * - Wallet server: used by /wallet-service to load the selected wallet host script and related CSS/JS.
  */
 export function seamsServeSdk(opts: ServeSdkOptions = {}): VitePlugin {

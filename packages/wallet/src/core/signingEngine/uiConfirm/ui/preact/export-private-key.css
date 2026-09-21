@@ -157,7 +157,7 @@
   min-width: 0;
 }
 
-/* Crossfade mechanics live in the shared copy-icon.css (adopted alongside
+/* Crossfade mechanics live in the consolidated wallet-ui.css (which includes
    this sheet); only the export-specific placement and resting color live
    here. */
 :where(.seams-wallet-ui) .seams-export-key-viewer .copy-icon {
@@ -216,7 +216,7 @@
     animation: none;
   }
 
-  /* copy-icon transitions are stilled by the shared copy-icon.css */
+  /* copy-icon transitions are stilled by the consolidated wallet-ui.css */
   :where(.seams-wallet-ui) .seams-export-key-viewer .copy-field {
     transition-duration: 0.01ms;
   }
