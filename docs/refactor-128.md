@@ -1,10 +1,9 @@
 # Refactor 128: Five durable presignatures with session-authorized refill
 
 Status: released in Wallet 0.5.27, with the durable restoration correction released
-in 0.5.28 and accepted against the hosted testnet frontend on 2026-09-21. The
-coordinated 0.5.28 testnet backend deployment remains blocked by GitHub billing.
-Supersedes the session-independent preprocessing credential proposal in
-optimization-10 section 4.5.
+and fully deployed to hosted testnet in 0.5.28 on 2026-09-21. Supersedes the
+session-independent preprocessing credential proposal in optimization-10 section
+4.5.
 
 ## Objective
 
@@ -252,12 +251,12 @@ reported four entries remaining, and completed its signing `commit_total` stage 
 1.365 seconds. Refill restored the pool to five; the consumed record fingerprint
 was absent and one new fingerprint appeared, confirming one-use replacement.
 
-The coordinated testnet backend workflow built the release successfully, then
-GitHub refused to start the migration job because recent account payments failed
-or the Actions spending limit needs to be increased. No deployment jobs ran, so
-the hosted check exercised the 0.5.28 frontend against the previous testnet backend.
-This infrastructure failure does not invalidate the client persistence result,
-but a fully coordinated backend rollout remains outstanding.
+The first coordinated testnet backend attempt built the release successfully, then
+GitHub refused to start the migration job because the private repository's Actions
+billing was blocked. The hosted reload check therefore initially exercised the
+0.5.28 frontend against the previous testnet backend. After temporarily making the
+repository public, attempt 2 of the same workflow deployed the migrations and all
+backend roles successfully; the gateway smoke checks and cache cleanup passed.
 
 The sustained local rerun also exposed a test-harness race: after a successful
 signature, confirmation fingerprint evaluation waited indefinitely when its
