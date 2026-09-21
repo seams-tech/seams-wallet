@@ -6,10 +6,6 @@ import { usePreconnectWalletAssets } from '../hooks/usePreconnectWalletAssets';
 import { useWalletIframeZIndex } from '../hooks/useWalletIframeZIndex';
 import type { SeamsContextProviderProps } from '../types';
 import { deepMerge } from '../components/theme/utils';
-import {
-  createCspStylesheetManager,
-  getDefaultCspNonce,
-} from '../../core/browser/walletIframe/csp-stylesheet';
 
 export type SeamsWebProviderThemeProps = Omit<ThemeProps, 'children'> & {
   setTheme?: (theme: ThemeMode) => void;
@@ -84,35 +80,6 @@ function mergeThemeOverrideLayers(
   return hasLayer ? merged : undefined;
 }
 
-const APP_LIT_THEME_OVERRIDE_RULE_ID = 'seams-lit-theme-overrides-app';
-const APP_LIT_HOST_SELECTORS = [
-  'seams-tx-tree',
-  'seams-drawer',
-  'seams-modal-tx-confirmer',
-  'seams-drawer-tx-confirmer',
-  'seams-tx-confirm-content',
-  'seams-halo-border',
-  'seams-passkey-halo-loading',
-] as const;
-const APP_LIT_DARK_SELECTOR = APP_LIT_HOST_SELECTORS.join(',\n');
-const APP_LIT_LIGHT_SELECTOR = APP_LIT_HOST_SELECTORS.map(
-  (selector) =>
-    `${selector}[theme="light"],\n:root[data-seams-theme="light"] ${selector}:not([theme="dark"])`,
-).join(',\n');
-let appLitThemeOverrideStyleManager: ReturnType<typeof createCspStylesheetManager> | null = null;
-
-function getAppLitThemeOverrideStyleManager(): ReturnType<typeof createCspStylesheetManager> {
-  if (!appLitThemeOverrideStyleManager) {
-    appLitThemeOverrideStyleManager = createCspStylesheetManager({
-      doc: document,
-      baseCss: '',
-      dynamicStyleDataAttr: 'data-seams-lit-theme-overrides-app',
-      nonce: () => getDefaultCspNonce(),
-    });
-  }
-  return appLitThemeOverrideStyleManager;
-}
-
 function toStringRecord(value: unknown): Record<string, string> {
   if (!value || typeof value !== 'object') return {};
   const out: Record<string, string> = {};
@@ -120,32 +87,6 @@ function toStringRecord(value: unknown): Record<string, string> {
     if (typeof v === 'string') out[k] = v;
   }
   return out;
-}
-
-function sanitizeTokenName(name: string): string | null {
-  const trimmed = name.trim();
-  if (!trimmed) return null;
-  return /^[A-Za-z][A-Za-z0-9_-]*$/.test(trimmed) ? trimmed : null;
-}
-
-function sanitizeTokenValue(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  if (trimmed.length > 1024) return null;
-  if (/[{};\n\r]/.test(trimmed)) return null;
-  return trimmed;
-}
-
-function serializeColorOverrides(colors: Record<string, string>): string[] {
-  const lines: string[] = [];
-  for (const [rawName, rawValue] of Object.entries(colors)) {
-    const tokenName = sanitizeTokenName(rawName);
-    if (!tokenName) continue;
-    const tokenValue = sanitizeTokenValue(rawValue);
-    if (!tokenValue) continue;
-    lines.push(`  --seams-colors-${tokenName}: ${tokenValue} !important;`);
-  }
-  return lines;
 }
 
 function extractThemeColorOverrides(overrides?: ThemeOverrides): {
@@ -156,27 +97,6 @@ function extractThemeColorOverrides(overrides?: ThemeOverrides): {
     light: { colors: toStringRecord(overrides?.light?.colors) },
     dark: { colors: toStringRecord(overrides?.dark?.colors) },
   };
-}
-
-function upsertAppLitThemeOverrides(args: {
-  lightColors: Record<string, string>;
-  darkColors: Record<string, string>;
-}): void {
-  const darkLines = serializeColorOverrides(args.darkColors);
-  const lightLines = serializeColorOverrides(args.lightColors);
-  const cssBlocks: string[] = [];
-  if (darkLines.length > 0) {
-    cssBlocks.push(`${APP_LIT_DARK_SELECTOR} {\n${darkLines.join('\n')}\n}`);
-  }
-  if (lightLines.length > 0) {
-    cssBlocks.push(`${APP_LIT_LIGHT_SELECTOR} {\n${lightLines.join('\n')}\n}`);
-  }
-  const cssText = cssBlocks.join('\n\n').trim();
-  if (!cssText) {
-    getAppLitThemeOverrideStyleManager().deleteDynamicRule(APP_LIT_THEME_OVERRIDE_RULE_ID);
-    return;
-  }
-  getAppLitThemeOverrideStyleManager().setDynamicRule(APP_LIT_THEME_OVERRIDE_RULE_ID, cssText);
 }
 
 /**
@@ -249,15 +169,6 @@ export const SeamsWebProvider: React.FC<SeamsWebProviderProps> = ({
       } catch {}
     }
   }, [rootTheme]);
-
-  React.useEffect(() => {
-    try {
-      upsertAppLitThemeOverrides({
-        darkColors: mergedThemeColorOverrides.dark.colors,
-        lightColors: mergedThemeColorOverrides.light.colors,
-      });
-    } catch {}
-  }, [mergedThemeColorOverrides.dark.colors, mergedThemeColorOverrides.light.colors]);
 
   const themeProps: ThemeProps = {
     theme: controlledTheme,
