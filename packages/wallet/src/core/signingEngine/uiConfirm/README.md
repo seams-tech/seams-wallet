@@ -8,7 +8,7 @@
 - main-thread routing of prompts to typed confirmation flows
 - UserConfirm worker lifecycle plus PRF.first warm-session cache helpers
 - confirmation modal/drawer and private-key export rendering
-- Lit confirmation components and Preact surface rendering
+- Preact confirmation surface rendering
 
 ## May Import
 
@@ -50,9 +50,8 @@ client/src/core/signingEngine/uiConfirm/
 └── ui/
     ├── confirm-ui.ts
     ├── confirm-ui-types.ts
-    ├── registry.ts
-    ├── lit-events.ts
-    └── lit-components/*
+    ├── surface-resize-events.ts
+    └── preact/*
 ```
 
 Transaction display formatting now lives under `client/src/core/signingEngine/chains/*`.

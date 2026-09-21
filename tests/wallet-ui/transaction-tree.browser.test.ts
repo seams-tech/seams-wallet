@@ -345,7 +345,7 @@ test('hosted expansion waits for the iframe box before revealing the transaction
     host.setAttribute(module.CONFIRM_SURFACE_MODE_ATTR, 'wallet-iframe');
     const viewportPx = Math.round(host.getBoundingClientRect().height);
     const state = { viewportPx, deltas: [] as number[], dispose: () => {} };
-    host.addEventListener('lit-surface-resize-begin', (event) => {
+    host.addEventListener('seams-surface-resize-begin', (event) => {
       state.deltas.push((event as CustomEvent<{ deltaCssPx: number }>).detail.deltaCssPx);
     });
     const choreographer = module.attachConfirmSurfaceResizeChoreographer(host, {

@@ -1,9 +1,0 @@
-/* This icon inherits theme tokens from seams-components.css (generated from palette.json). */
-:host {
-  display: inline-flex;
-}
-svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}

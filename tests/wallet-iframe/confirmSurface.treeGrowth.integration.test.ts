@@ -197,7 +197,7 @@ async function recordMotion(frame: Frame, action: MotionAction): Promise<MotionT
     const card = host.querySelector('.modal-container-root') as HTMLElement;
     let begin: MotionTrace['begin'] | null = null;
     host.addEventListener(
-      'lit-surface-resize-begin',
+      'seams-surface-resize-begin',
       (e: any) => {
         begin = {
           deltaCssPx: e.detail.deltaCssPx,

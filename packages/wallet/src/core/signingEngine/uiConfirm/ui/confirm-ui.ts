@@ -31,7 +31,6 @@ import type {
   ConfirmationUIMode,
   MountedConfirmUIHandle,
 } from './confirm-ui-types';
-import { SEAMS_CONFIRM_PORTAL_ID } from './registry';
 import {
   createWalletIframeSurfaceMeasurementReporter,
   type WalletIframeSurfaceMeasurementReporter,
@@ -41,6 +40,8 @@ import {
   CONFIRM_SURFACE_MODE_ATTR,
   type ConfirmSurfaceResizeChoreographer,
 } from './confirm-surface-resize';
+
+const CONFIRM_PORTAL_ID = 'seams-confirm-portal';
 
 export type {
   ConfirmUIHandle,
@@ -201,15 +202,15 @@ function cleanupExistingConfirmers(): void {
     disconnectConfirmSurfaceMeasurementReporter(element);
     element.remove();
   }
-  const portal = document.getElementById(SEAMS_CONFIRM_PORTAL_ID) as HTMLElement | null;
+  const portal = document.getElementById(CONFIRM_PORTAL_ID) as HTMLElement | null;
   if (portal) updateConfirmPortalState(portal);
 }
 
 function ensureConfirmPortal(): HTMLElement {
-  let portal = document.getElementById(SEAMS_CONFIRM_PORTAL_ID) as HTMLElement | null;
+  let portal = document.getElementById(CONFIRM_PORTAL_ID) as HTMLElement | null;
   if (!portal) {
     portal = document.createElement('div');
-    portal.id = SEAMS_CONFIRM_PORTAL_ID;
+    portal.id = CONFIRM_PORTAL_ID;
     portal.classList.add('seams-portal');
     const root = document.body ?? document.documentElement;
     if (root) root.appendChild(portal);
@@ -222,12 +223,12 @@ function removeHostConfirmerElement(element: HTMLElement): void {
   confirmationTreeBuildVersions.delete(element);
   disconnectConfirmSurfaceMeasurementReporter(element);
   element.remove();
-  const portal = document.getElementById(SEAMS_CONFIRM_PORTAL_ID) as HTMLElement | null;
+  const portal = document.getElementById(CONFIRM_PORTAL_ID) as HTMLElement | null;
   if (portal) updateConfirmPortalState(portal);
 }
 
 function postWalletUiClosedIfPortalEmpty(): void {
-  const portal = document.getElementById(SEAMS_CONFIRM_PORTAL_ID);
+  const portal = document.getElementById(CONFIRM_PORTAL_ID);
   if ((portal?.childElementCount ?? 0) > 0) return;
   postWalletUiMessage('WALLET_UI_CLOSED');
 }

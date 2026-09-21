@@ -118,12 +118,19 @@ test.afterEach(async ({ page }) => {
   expect(await page.evaluate(() => window.__exportHost.violations)).toEqual([]);
 });
 
-test('production export mounts without legacy requests and reports a styled viewport-independent box', async ({
+test('production export mounts without obsolete requests and reports a styled viewport-independent box', async ({
   page,
 }) => {
-  const legacyRequests: string[] = [];
+  const obsoleteRequests: string[] = [];
   page.on('request', (request) => {
-    if (request.url().includes('/lit-components/')) legacyRequests.push(request.url());
+    const url = request.url();
+    if (
+      ['/lit-components/', '/seams-tx-confirmer.js', '/halo-border.js', '/passkey-halo-loading.js'].some(
+        (fragment) => url.includes(fragment),
+      )
+    ) {
+      obsoleteRequests.push(url);
+    }
   });
   await page.setViewportSize({ width: 1024, height: 900 });
   await open(page, fixture('loading'));
@@ -136,7 +143,7 @@ test('production export mounts without legacy requests and reports a styled view
     widthCssPx: 384,
     heightCssPx: 576,
   });
-  expect(legacyRequests).toEqual([]);
+  expect(obsoleteRequests).toEqual([]);
   const root = page.locator('.seams-export-surface');
   const id = await root.getAttribute('id');
   await page.setViewportSize({ width: 500, height: 300 });
