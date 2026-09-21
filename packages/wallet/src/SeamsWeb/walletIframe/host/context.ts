@@ -127,8 +127,8 @@ function serializeTokenOverrides(
     if (!tokenName) continue;
     const tokenValue = sanitizeTokenValue(rawValue);
     if (!tokenValue) continue;
-    // Use !important so app-provided token overrides keep precedence even if
-    // generated seams-components.css is loaded/reloaded later.
+    // Use !important so app-provided token overrides keep precedence over the
+    // generated wallet-ui.css stylesheet.
     lines.push(`  --seams-${group}-${tokenName}: ${tokenValue} !important;`);
   }
   return lines;

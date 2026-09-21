@@ -60,7 +60,11 @@ export type DevHeadersOptions = {
 };
 
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const WALLET_STATIC_ASSET_NAMES = ['wallet-shims.js', 'wallet-service.css'] as const;
+const WALLET_STATIC_ASSET_NAMES = [
+  'wallet-shims.js',
+  'wallet-service.css',
+  'wallet-ui.css',
+] as const;
 
 type WalletStaticAssetName = (typeof WALLET_STATIC_ASSET_NAMES)[number];
 
@@ -78,6 +82,7 @@ function walletStaticAssetCandidates(fileName: WalletStaticAssetName): string[] 
   return [
     path.resolve(MODULE_DIR, '../static/wallet-assets', fileName),
     path.resolve(MODULE_DIR, '../sdk', fileName),
+    path.resolve(MODULE_DIR, '../../dist/esm/sdk', fileName),
     path.resolve(MODULE_DIR, '../../public/sdk', fileName),
     path.resolve(process.cwd(), 'src/static/wallet-assets', fileName),
     path.resolve(process.cwd(), 'packages/wallet/src/static/wallet-assets', fileName),
@@ -396,6 +401,8 @@ export function seamsBuildHeaders(
         copyWalletStaticAssetIfMissing('wallet-shims.js', shimPath);
         const cssPath = path.join(sdkDir, 'wallet-service.css');
         copyWalletStaticAssetIfMissing('wallet-service.css', cssPath);
+        const walletUiCssPath = path.join(sdkDir, 'wallet-ui.css');
+        copyWalletStaticAssetIfMissing('wallet-ui.css', walletUiCssPath);
 
         // Emit minimal wallet-service/index.html if the app hasn't provided one
         const walletRel = walletServicePath.replace(/^\//, '');

@@ -40,15 +40,14 @@ function authMenuStyles(document: Document): CspStylesheetManager {
 
 function requireAuthMenuDocumentStyles(document: Document): void {
   // Wallet entry scripts execute after the document's blocking stylesheets settle.
-  for (const marker of ['data-seams-components-css', 'data-seams-auth-menu-css']) {
-    const link = document.head.querySelector<HTMLLinkElement>(`link[rel="stylesheet"][${marker}]`);
-    try {
-      if (link?.sheet && !link.disabled && link.sheet.cssRules.length > 0) continue;
-    } catch {
-      // A failed stylesheet can retain a sheet whose rules are inaccessible.
-    }
-    throw new Error(`Wallet auth-menu stylesheet unavailable: ${marker}`);
+  const marker = 'data-seams-wallet-ui-css';
+  const link = document.head.querySelector<HTMLLinkElement>(`link[rel="stylesheet"][${marker}]`);
+  try {
+    if (link?.sheet && !link.disabled && link.sheet.cssRules.length > 0) return;
+  } catch {
+    // A failed stylesheet can retain a sheet whose rules are inaccessible.
   }
+  throw new Error(`Wallet auth-menu stylesheet unavailable: ${marker}`);
 }
 
 function appearanceDeclaration([name, value]: [string, string]): string {

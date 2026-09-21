@@ -41,15 +41,7 @@ export function buildWalletServiceHtml(
   assetVersion?: string,
   walletHostVariant: WalletHostVariant = 'runtime',
 ): string {
-  const walletServiceCss = withAssetVersion(`${sdkBasePath}/wallet-service.css`, assetVersion);
-  const componentsCss = withAssetVersion(`${sdkBasePath}/seams-components.css`, assetVersion);
-  const authMenuCss = withAssetVersion(`${sdkBasePath}/auth-menu.css`, assetVersion);
-  const confirmationUiCss = withAssetVersion(`${sdkBasePath}/confirmation-ui.css`, assetVersion);
-  const recoveryCodeBackupCss = withAssetVersion(
-    `${sdkBasePath}/recovery-code-backup.css`,
-    assetVersion,
-  );
-  const copyIconCss = withAssetVersion(`${sdkBasePath}/copy-icon.css`, assetVersion);
+  const walletUiCss = withAssetVersion(`${sdkBasePath}/wallet-ui.css`, assetVersion);
   const walletShimsJs = withAssetVersion(`${sdkBasePath}/wallet-shims.js`, assetVersion);
   const walletHostScript = withAssetVersion(
     `${sdkBasePath}/${walletHostScriptFileForVariant(normalizeWalletHostVariant(walletHostVariant))}`,
@@ -63,13 +55,7 @@ export function buildWalletServiceHtml(
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Web3Authn Wallet Service</title>
     <!-- Surface styles are external so strict CSP can keep style-src 'self' -->
-    <link rel="stylesheet" href="${walletServiceCss}" />
-    <!-- Component theme CSS: shared tokens + component-scoped tokens -->
-    <link rel="stylesheet" href="${componentsCss}" data-seams-components-css />
-    <link rel="stylesheet" href="${authMenuCss}" data-seams-auth-menu-css />
-    <link rel="stylesheet" href="${confirmationUiCss}" data-seams-confirmation-css />
-    <link rel="stylesheet" href="${recoveryCodeBackupCss}" data-seams-recovery-code-backup-css />
-    <link rel="stylesheet" href="${copyIconCss}" data-seams-copy-icon-css />
+    <link rel="stylesheet" href="${walletUiCss}" data-seams-wallet-ui-css />
     <!-- Minimal shims some ESM bundles expect (externalized to enable strict CSP) -->
     <script src="${walletShimsJs}"></script>
     <!-- Hint the browser to fetch the host script earlier -->

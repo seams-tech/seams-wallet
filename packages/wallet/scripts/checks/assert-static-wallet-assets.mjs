@@ -18,6 +18,7 @@ const REQUIRED_BASE_ROUTES = [
   '/headers.manifest.json',
   '/wallet-assets.manifest.json',
   '/sdk/wallet-shims.js',
+  '/sdk/wallet-ui.css',
   '/sdk/wallet-service.css',
   '/sdk/wallet-iframe-host-runtime.js',
   '/sdk/wallet-iframe-host-near.js',

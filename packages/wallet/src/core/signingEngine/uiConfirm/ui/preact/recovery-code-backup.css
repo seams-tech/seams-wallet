@@ -9,6 +9,7 @@
 
 .seams-recovery-code-backup-host {
   display: contents;
+  line-height: normal;
 }
 
 .seams-recovery-code-backup-viewer {

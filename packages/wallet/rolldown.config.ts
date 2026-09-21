@@ -315,6 +315,25 @@ const buildPreactConfirmationCss = (sdkRoot: string): string => {
   }).join('\n')}\n`;
 };
 
+const buildWalletUiCss = async (sdkRoot: string): Promise<string> => {
+  const read = (relativePath: string): string =>
+    fs.readFileSync(path.join(sdkRoot, relativePath), 'utf-8');
+  const seamsComponentsCss = await buildSeamsComponentsCss(sdkRoot);
+  const confirmationCss = buildPreactConfirmationCss(sdkRoot);
+  const sections = [
+    ['wallet-service.css', read('src/static/wallet-assets/wallet-service.css')],
+    ['seams-components.css', seamsComponentsCss],
+    ['auth-menu.css', read('src/SeamsWeb/walletIframe/host/ui/auth-menu/auth-menu.css')],
+    ['confirmation-ui.css', confirmationCss],
+    [
+      'recovery-code-backup.css',
+      read('src/core/signingEngine/uiConfirm/ui/preact/recovery-code-backup.css'),
+    ],
+    ['copy-icon.css', read('src/core/signingEngine/uiConfirm/ui/preact/copy-icon.css')],
+  ];
+  return `${sections.map(([name, css]) => `/* ${name} */\n${css}`).join('\n')}\n`;
+};
+
 const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<void> => {
   const sdkDir = path.join(sdkRoot, `${BUILD_PATHS.BUILD.ESM}/sdk`);
   fs.mkdirSync(sdkDir, { recursive: true });
@@ -344,6 +363,12 @@ const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<v
     'utf-8',
   );
 
+  try {
+    fs.writeFileSync(path.join(sdkDir, 'wallet-ui.css'), await buildWalletUiCss(sdkRoot), 'utf-8');
+  } catch (error) {
+    console.warn('⚠️  Failed to generate wallet-ui.css:', error);
+  }
+
   copyStaticAsset(
     path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/preact/copy-icon.css'),
     path.join(sdkDir, 'copy-icon.css'),
@@ -353,7 +378,7 @@ const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<v
     path.join(sdkDir, 'recovery-code-backup.css'),
   );
   console.log(
-    '✅ Emitted /sdk wallet-shims.js, wallet-service.css, auth-menu.css, and confirmation-ui.css',
+    '✅ Emitted /sdk wallet-shims.js, wallet-ui.css, and compatibility stylesheet assets',
   );
 };
 

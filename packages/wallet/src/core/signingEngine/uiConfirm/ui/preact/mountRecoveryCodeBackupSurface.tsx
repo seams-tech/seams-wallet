@@ -112,17 +112,12 @@ export function mountRecoveryCodeBackupSurface(
 }
 
 function ensureRecoveryStyles(document: Document): void {
-  for (const marker of [
-    'data-seams-components-css',
-    'data-seams-recovery-code-backup-css',
-    'data-seams-copy-icon-css',
-  ]) {
-    const link = document.head.querySelector<HTMLLinkElement>(`link[rel="stylesheet"][${marker}]`);
-    try {
-      if (link?.sheet && !link.disabled && link.sheet.cssRules.length > 0) continue;
-    } catch {
-      // Failed or inaccessible styles cannot establish a styled first measurement.
-    }
-    throw new Error(`Wallet recovery-code stylesheet unavailable: ${marker}`);
+  const marker = 'data-seams-wallet-ui-css';
+  const link = document.head.querySelector<HTMLLinkElement>(`link[rel="stylesheet"][${marker}]`);
+  try {
+    if (link?.sheet && !link.disabled && link.sheet.cssRules.length > 0) return;
+  } catch {
+    // Failed or inaccessible styles cannot establish a styled first measurement.
   }
+  throw new Error(`Wallet recovery-code stylesheet unavailable: ${marker}`);
 }
