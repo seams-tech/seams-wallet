@@ -838,6 +838,18 @@ test.describe('wallet-host Lit auth menu surface', () => {
       selectedAccountLayout.clientWidth,
     );
   });
+
+  test('does not render a username field for discoverable passkey login', async ({ page }) => {
+    await mountAuthMenu(page, loginViewModel());
+
+    await expect(page.locator(`${AUTH_MENU_TAG} input`)).toHaveCount(0);
+    await expect(page.locator(`${AUTH_MENU_TAG} .seams-passkey-row`)).toHaveCount(0);
+    await expect(page.locator(`${AUTH_MENU_TAG} [data-auth-menu-primary]`)).toHaveText(
+      'Sign in with Passkey',
+    );
+    await expect(page.locator(`${AUTH_MENU_TAG}`)).not.toContainText('username');
+  });
+
   test('shows a dual-method wallet in both groups and enables both methods', async ({ page }) => {
     const passkey = {
       walletId: 'jade-brook',

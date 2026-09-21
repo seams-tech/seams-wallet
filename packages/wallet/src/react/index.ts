@@ -25,6 +25,11 @@
  */
 
 export { SeamsContextProvider, useSeams } from './context';
+export * from '../externalEvm';
+export {
+  ExternalEvmWalletPicker,
+  useExternalEvm,
+} from './externalEvm';
 export { SeamsWebProvider } from './context/SeamsWebProvider';
 
 // === RE-EXPORT CORE TYPES ===
