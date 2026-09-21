@@ -11,6 +11,7 @@ import {
   parsePhantomProvider,
   parseTransaction,
   parseTypedData,
+  providerErrorCode,
   providerFailure,
   readExternalProviderState,
   type DiscoveredExternalProvider,
@@ -407,7 +408,29 @@ export class ExternalEvmController {
           params: [{ chainId: numberToHex(configuredChain.chainId) }],
         });
       } catch (error) {
-        return providerFailure(error);
+        if (providerErrorCode(error) !== 4902 || !configuredChain.nativeCurrency) {
+          return providerFailure(error);
+        }
+        try {
+          await lease.binding.detail.provider.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: numberToHex(configuredChain.chainId),
+              chainName: configuredChain.name,
+              nativeCurrency: configuredChain.nativeCurrency,
+              rpcUrls: [configuredChain.rpcUrl],
+              ...(configuredChain.blockExplorerUrl
+                ? { blockExplorerUrls: [configuredChain.blockExplorerUrl] }
+                : {}),
+            }],
+          });
+          await lease.binding.detail.provider.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: numberToHex(configuredChain.chainId) }],
+          });
+        } catch (addError) {
+          return providerFailure(addError);
+        }
       }
       const version = this.eventVersion;
       const observed = await readExternalProviderState(lease.binding.detail.provider);

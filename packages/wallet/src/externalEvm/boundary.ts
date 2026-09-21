@@ -184,11 +184,41 @@ export function parseChains(chains: readonly ExternalEvmChain[]): readonly Exter
     if (!['https:', 'http:'].includes(url.protocol)) {
       throw new Error('Configure a chain name and HTTP RPC URL.');
     }
+    let nativeCurrency: ExternalEvmChain['nativeCurrency'];
+    if (chain.nativeCurrency !== undefined) {
+      if (
+        !isRecord(chain.nativeCurrency) ||
+        typeof chain.nativeCurrency.name !== 'string' ||
+        !chain.nativeCurrency.name.trim() ||
+        typeof chain.nativeCurrency.symbol !== 'string' ||
+        !chain.nativeCurrency.symbol.trim() ||
+        !Number.isInteger(chain.nativeCurrency.decimals) ||
+        chain.nativeCurrency.decimals < 0 ||
+        chain.nativeCurrency.decimals > 255
+      ) {
+        throw new Error('Configure valid native currency metadata.');
+      }
+      nativeCurrency = Object.freeze({
+        name: chain.nativeCurrency.name.trim(),
+        symbol: chain.nativeCurrency.symbol.trim(),
+        decimals: chain.nativeCurrency.decimals,
+      });
+    }
+    let blockExplorerUrl: string | undefined;
+    if (chain.blockExplorerUrl !== undefined) {
+      const explorer = new URL(chain.blockExplorerUrl);
+      if (!['https:', 'http:'].includes(explorer.protocol)) {
+        throw new Error('Configure an HTTP block explorer URL.');
+      }
+      blockExplorerUrl = explorer.href;
+    }
     ids.add(chain.chainId);
     result.push(Object.freeze({
       chainId: chain.chainId,
       name: chain.name.trim(),
       rpcUrl: url.href,
+      ...(nativeCurrency ? { nativeCurrency } : {}),
+      ...(blockExplorerUrl ? { blockExplorerUrl } : {}),
     }));
   }
   return Object.freeze(result);
@@ -347,11 +377,49 @@ export function parseTypedData(input: unknown, chainId: number): string {
   return serialized;
 }
 
+function numericProviderCode(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value)) return value;
+  if (typeof value === 'string' && /^-?\d+$/.test(value.trim())) {
+    const parsed = Number(value);
+    if (Number.isSafeInteger(parsed)) return parsed;
+  }
+  return null;
+}
+
+export function providerErrorCode(error: unknown): number | null {
+  if (!isRecord(error)) return null;
+  const direct = numericProviderCode(error.code);
+  if (direct !== null && direct !== -32603) return direct;
+  for (const nested of [error.data, error.cause]) {
+    if (!isRecord(nested)) continue;
+    const nestedCode = numericProviderCode(nested.code);
+    if (nestedCode !== null) return nestedCode;
+    if (isRecord(nested.originalError)) {
+      const originalCode = numericProviderCode(nested.originalError.code);
+      if (originalCode !== null) return originalCode;
+    }
+  }
+  return direct;
+}
+
+function providerErrorMessage(error: unknown): string {
+  if (!isRecord(error)) return '';
+  if (typeof error.message === 'string') return error.message;
+  for (const nested of [error.data, error.cause]) {
+    if (isRecord(nested) && typeof nested.message === 'string') return nested.message;
+  }
+  return '';
+}
+
 export function providerFailure(error: unknown): ExternalEvmFailure {
-  const code = isRecord(error) ? error.code : null;
+  const code = providerErrorCode(error);
+  if (
+    code === 4001 ||
+    /(?:user|request).*(?:reject|den(?:y|ied)|cancel)/i.test(providerErrorMessage(error))
+  ) {
+    return externalEvmFailure('rejected', 'Request declined in your wallet.');
+  }
   switch (code) {
-    case 4001:
-      return externalEvmFailure('rejected', 'Request declined in your wallet.');
     case 4100:
     case 4900:
       return externalEvmFailure('unavailable', 'Reconnect your wallet to continue.');

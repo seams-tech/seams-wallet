@@ -149,7 +149,9 @@ function createExternalEvmController(): ExternalEvmController {
     {
       chainId: 11_155_111,
       name: 'Sepolia testnet',
-      rpcUrl: 'https://rpc.sepolia.org',
+      rpcUrl: 'https://ethereum-sepolia-rpc.publicnode.com',
+      nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
+      blockExplorerUrl: 'https://sepolia.etherscan.io',
     },
   ]);
 }

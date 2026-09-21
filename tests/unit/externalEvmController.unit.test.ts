@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { ExternalEvmController } from '@/externalEvm';
-import type { ExternalProvider } from '@/externalEvm/boundary';
+import { providerFailure, type ExternalProvider } from '@/externalEvm/boundary';
 import type { ExternalEvmSubmission } from '@/externalEvm';
 
 const ICON = 'data:image/png;base64,AA==';
@@ -59,6 +59,7 @@ class MockProvider implements ExternalProvider {
   chainIdAfterSwitch: unknown = undefined;
   requestError: unknown = null;
   sendTransactionError: unknown = null;
+  switchChainErrors: unknown[] = [];
 
   holdNextRequest(method: string): Deferred<unknown> {
     this.pendingRequest = { method, deferred: deferred<unknown>(), consumed: false };
@@ -89,6 +90,7 @@ class MockProvider implements ExternalProvider {
       case 'eth_signTypedData_v4':
         return SIGNATURE;
       case 'wallet_switchEthereumChain':
+        if (this.switchChainErrors.length > 0) throw this.switchChainErrors.shift();
         if (this.chainIdAfterSwitch === undefined) {
           this.chainId = requestedSwitchChainId(request, this.chainId);
         } else {
@@ -97,6 +99,8 @@ class MockProvider implements ExternalProvider {
         if (this.accountsAfterSwitch !== undefined) {
           this.accounts = this.accountsAfterSwitch;
         }
+        return null;
+      case 'wallet_addEthereumChain':
         return null;
       case 'eth_sendTransaction':
         if (this.sendTransactionError !== null) throw this.sendTransactionError;
@@ -301,6 +305,40 @@ test('switches only to configured chains and verifies the provider result', asyn
   if (switched.ok) expect(switched.value.chainId).toBe(11_155_111);
 });
 
+test('adds a configured chain when the wallet reports it as unknown, then retries switching', async () => {
+  const provider = new MockProvider();
+  provider.switchChainErrors.push({
+    code: -32603,
+    data: { originalError: { code: 4902 } },
+  });
+  const controller = new ExternalEvmController([
+    {
+      chainId: 1,
+      name: 'Ethereum',
+      rpcUrl: 'https://rpc.example.test',
+    },
+    {
+      chainId: 11_155_111,
+      name: 'Sepolia',
+      rpcUrl: 'https://sepolia.example.test',
+      nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
+      blockExplorerUrl: 'https://sepolia.example.test/explorer',
+    },
+  ]);
+  const target = new EventTarget();
+  controller.start(target);
+  announce(target, provider);
+  const connected = await controller.connect(WALLET_ID);
+  expect(connected.ok).toBe(true);
+  if (!connected.ok) return;
+
+  const switched = await controller.switchChain(connected.value, 11_155_111);
+
+  expect(switched.ok).toBe(true);
+  expect(provider.calls.map((call) => call.method)).toContain('wallet_addEthereumChain');
+  expect(provider.calls.filter((call) => call.method === 'wallet_switchEthereumChain')).toHaveLength(2);
+});
+
 test('disconnects when post-switch authorization no longer matches', async () => {
   const provider = new MockProvider();
   const controller = new ExternalEvmController([
@@ -371,6 +409,27 @@ test('rejects stale connections and wallet approval failures', async () => {
   const oldSign = await controller.signMessage(connected.value, new Uint8Array([1]));
   expect(oldSign.ok).toBe(false);
   if (!oldSign.ok) expect(oldSign.code).toBe('connection_changed');
+});
+
+test('normalizes serialized and message-only wallet rejection errors', () => {
+  expect(providerFailure({ code: '4001', message: 'User rejected the request.' })).toEqual({
+    ok: false,
+    code: 'rejected',
+    message: 'Request declined in your wallet.',
+  });
+  expect(providerFailure({
+    code: -32603,
+    data: { originalError: { code: 4001 } },
+  })).toEqual({
+    ok: false,
+    code: 'rejected',
+    message: 'Request declined in your wallet.',
+  });
+  expect(providerFailure(new Error('User rejected signing'))).toEqual({
+    ok: false,
+    code: 'rejected',
+    message: 'Request declined in your wallet.',
+  });
 });
 
 test('invalidates signing when the provider chain changes during approval', async () => {

@@ -2,7 +2,17 @@ import type { Address, Hex } from 'viem';
 
 const connectionBrand: unique symbol = Symbol('external EVM connection');
 
-export type ExternalEvmChain = Readonly<{ chainId: number; name: string; rpcUrl: string }>;
+export type ExternalEvmChain = Readonly<{
+  chainId: number;
+  name: string;
+  rpcUrl: string;
+  nativeCurrency?: Readonly<{
+    name: string;
+    symbol: string;
+    decimals: number;
+  }>;
+  blockExplorerUrl?: string;
+}>;
 export type ExternalEvmWallet = Readonly<{
   id: string;
   name: string;

@@ -9,15 +9,18 @@ preparation is in progress.
 
 - [x] Validate the packed Wallet artifact contains the public external-EVM runtime
   and declaration entries, and no retired `./react/seams-auth-menu` export.
-- [ ] Run the extension smoke checklist in a clean desktop browser profile with
-  MetaMask, Rabby, and Phantom EVM, recording wallet versions and any unsupported
-  operation. Chrome 153.0.8010.48 with MetaMask 13.48.0, Rabby 0.94.9, and
-  Phantom 26.30.2 enabled discovered all three providers. MetaMask reached its
-  locked extension approval screen. Rabby returned a wallet-side rejection and
-  Phantom failed to inject its EVM provider while all three extensions competed
-  for the legacy `window.ethereum` property. Unlocking the extensions and running
-  each separately remains required before account selection, switching, signing,
-  and transaction submission can be accepted as release evidence.
+- [x] Run the requested Chrome extension smoke checks. Chrome 153.0.8010.48 with
+  MetaMask 13.48.0, Rabby 0.94.9, and Phantom 26.30.2 discovered all three EIP-6963
+  providers together. MetaMask passed connection, account selection, Sepolia
+  switching, message and typed-data signing, rejection, transaction submission,
+  and local disconnect. Rabby passed connection, message and typed-data signing,
+  rejection, local disconnect, and Sepolia selection after the controller learned
+  to unwrap Rabby's nested EIP error and add an unknown configured chain through
+  `wallet_addEthereumChain`; the transaction path became enabled on Sepolia. The
+  user waived a separate Phantom approval matrix after discovery because Phantom
+  follows the same EIP-1193/EIP-6963 path. With all three extensions enabled,
+  Phantom and MetaMask also logged their own legacy `window.ethereum` injection
+  collision; provider discovery through EIP-6963 still found all three wallets.
 - [ ] Run the established Wallet release workflow from `main` with coordinated
   version `0.5.29` for `@seams/wallet` and `@seams/wallet-server`.
 - [ ] Update `seams-monorepo` to published `0.5.29`, refresh its lockfile, and
