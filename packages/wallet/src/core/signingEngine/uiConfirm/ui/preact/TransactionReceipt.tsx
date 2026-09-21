@@ -139,9 +139,12 @@ export class TransactionReceipt extends Component<{
               {data.model?.signerAccount && (
                 <div>
                   <dt>From</dt>
-                  <dd>
-                    <ReviewAddress value={data.model.signerAccount} />
-                    <CopyReviewValue value={data.model.signerAccount} />
+                  <dd class="seams-review-recipient">
+                    <CopyReviewValue
+                      value={data.model.signerAccount}
+                      address
+                      label={`Copy signer address ${data.model.signerAccount}`}
+                    />
                   </dd>
                 </div>
               )}
