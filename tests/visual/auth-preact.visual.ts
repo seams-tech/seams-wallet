@@ -146,6 +146,12 @@ for (const theme of ['light', 'dark'] as const) {
           });
         }
         await prepareAuthMenuDocument(page);
+        // Keep the component-focused baseline's document geometry stable while
+        // the hosted wallet stylesheet also resets the service body's margin.
+        await page.addStyleTag({
+          content:
+            'html { margin: 0 !important; } body { margin: 8px !important; padding: 0 !important; background: #fff !important; color-scheme: normal !important; }',
+        });
         await page.addStyleTag({
           content: '* { animation: none !important; transition: none !important; }',
         });

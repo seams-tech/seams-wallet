@@ -18,24 +18,17 @@ test.describe('Preact production confirmation mount', () => {
   test.beforeEach(async ({ page }) => {
     await injectImportMap(page);
     await routePreactModules(page);
-    const confirmationCss = fs.readFileSync(
-      path.resolve(import.meta.dirname, '../../packages/wallet/dist/esm/sdk/confirmation-ui.css'),
+    const walletUiCss = fs.readFileSync(
+      path.resolve(import.meta.dirname, '../../packages/wallet/dist/esm/sdk/wallet-ui.css'),
       'utf8',
     );
-    const componentsCss = fs.readFileSync(
-      path.resolve(import.meta.dirname, '../../packages/wallet/dist/esm/sdk/seams-components.css'),
-      'utf8',
-    );
-    await page.route('**/confirmation-ui.css', (route) =>
-      route.fulfill({ contentType: 'text/css', body: confirmationCss }),
-    );
-    await page.route('**/seams-components.css', (route) =>
-      route.fulfill({ contentType: 'text/css', body: componentsCss }),
+    await page.route('**/wallet-ui.css', (route) =>
+      route.fulfill({ contentType: 'text/css', body: walletUiCss }),
     );
     await page.route('**/confirm-ui-test', (route) =>
       route.fulfill({
         contentType: 'text/html',
-        body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-components-css href="/seams-components.css"><link rel="stylesheet" data-seams-confirmation-css href="/confirmation-ui.css"></head><body><main></main></body></html>`,
+        body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-wallet-ui-css href="/wallet-ui.css"></head><body><main></main></body></html>`,
       }),
     );
     await page.goto('/confirm-ui-test');

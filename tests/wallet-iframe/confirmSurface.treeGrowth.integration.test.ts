@@ -105,9 +105,7 @@ async function openRealModal(page: Page, options: { greeting?: string } = {}): P
   // the host each round, and the two chase each other in width.
   const html = buildWalletServiceHtml({ extraScript: childScript(calldata) }).replace(
     '</head>',
-    `<link rel="stylesheet" href="/sdk/wallet-service.css" />
-      <link rel="stylesheet" data-seams-components-css href="/sdk/seams-components.css" />
-      <link rel="stylesheet" data-seams-confirmation-css href="/sdk/confirmation-ui.css" />
+    `<link rel="stylesheet" href="/sdk/wallet-ui.css" data-seams-wallet-ui-css />
       ${buildTestBrowserImportMapHtml()}</head>`,
   );
   await registerWalletServiceRoute(page, html, WALLET_SERVICE_ROUTE);

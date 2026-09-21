@@ -76,12 +76,16 @@ async function prepare(page: import('@playwright/test').Page, renderer: Renderer
       }
       return route.fulfill({ path: file });
     });
+  } else {
+    await page.route('**/wallet-ui.css', (route) =>
+      route.fulfill({ path: path.join(root, 'packages/wallet/dist/esm/sdk/wallet-ui.css') }),
+    );
   }
   await page.route('**/recovery-states-visual', (route) =>
     route.fulfill({
       contentType: 'text/html',
       headers: { 'content-security-policy': "style-src 'self'; style-src-attr 'none'" },
-      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-components-css href="/_test-sdk/esm/sdk/seams-components.css"><link rel="stylesheet" data-seams-recovery-code-backup-css href="/_test-sdk/esm/sdk/recovery-code-backup.css"><link rel="stylesheet" data-seams-copy-icon-css href="/_test-sdk/esm/sdk/copy-icon.css"></head><body></body></html>`,
+      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}${renderer === 'lit' ? '<link rel="stylesheet" data-seams-components-css href="/_test-sdk/esm/sdk/seams-components.css"><link rel="stylesheet" data-seams-recovery-code-backup-css href="/_test-sdk/esm/sdk/recovery-code-backup.css"><link rel="stylesheet" data-seams-copy-icon-css href="/_test-sdk/esm/sdk/copy-icon.css">' : '<link rel="stylesheet" data-seams-wallet-ui-css href="/wallet-ui.css">'}</head><body></body></html>`,
     }),
   );
   await page.goto('/recovery-states-visual');

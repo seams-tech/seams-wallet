@@ -53,11 +53,14 @@ test.describe.configure({ mode: 'serial' });
 test.beforeEach(async ({ page }) => {
   await injectImportMap(page);
   await routePreactModules(page);
+  await page.route('**/wallet-ui.css', (route) =>
+    route.fulfill({ path: path.join(root, 'packages/wallet/dist/esm/sdk/wallet-ui.css') }),
+  );
   await page.route('**/recovery-preact-visual', (route) =>
     route.fulfill({
       contentType: 'text/html',
       headers: { 'content-security-policy': "style-src 'self'; style-src-attr 'none'" },
-      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-components-css href="/_test-sdk/esm/sdk/seams-components.css"><link rel="stylesheet" data-seams-recovery-code-backup-css href="/_test-sdk/esm/sdk/recovery-code-backup.css"><link rel="stylesheet" data-seams-copy-icon-css href="/_test-sdk/esm/sdk/copy-icon.css"></head><body></body></html>`,
+      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-wallet-ui-css href="/wallet-ui.css"></head><body></body></html>`,
     }),
   );
   await page.goto('/recovery-preact-visual');

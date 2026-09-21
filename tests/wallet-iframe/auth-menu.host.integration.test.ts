@@ -213,7 +213,7 @@ test.describe('wallet-host auth-menu integration', () => {
     const stylesGate = new Promise<void>((resolve) => {
       releaseStyles = resolve;
     });
-    const stylesheet = /\/auth-menu\.css(?:\?.*)?$/;
+    const stylesheet = /\/wallet-ui\.css(?:\?.*)?$/;
     await page.route(stylesheet, async (route) => {
       await stylesGate;
       await route.fallback();
@@ -237,7 +237,7 @@ test.describe('wallet-host auth-menu integration', () => {
     }
   });
 
-  for (const stylesheet of ['auth-menu.css', 'seams-components.css']) {
+  for (const stylesheet of ['wallet-ui.css']) {
     test(`failed ${stylesheet} settles auth without an unstyled prompt`, async ({ page }) => {
       await page.route(`**/${stylesheet}*`, (route) => route.abort('failed'));
       await openTestAuthMenu(page);
@@ -301,7 +301,7 @@ test.describe('wallet-host auth-menu integration', () => {
     await openTestAuthMenu(page);
     const frame = page.frameLocator('iframe[data-seams-owner="auth-menu-host-test"]');
     await expect(frame.locator('.seams-auth-menu-surface')).toBeVisible();
-    await expect(frame.locator('link[data-seams-auth-menu-css]')).toHaveCount(1);
+    await expect(frame.locator('link[data-seams-wallet-ui-css]')).toHaveCount(1);
     expect(violations).toEqual([]);
     await page.evaluate(() => {
       (window as AuthMenuTestWindow).__authMenuHostTestRouter?.dispose();

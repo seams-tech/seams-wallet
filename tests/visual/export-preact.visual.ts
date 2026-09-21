@@ -30,21 +30,32 @@ async function preparePage(page: Page, renderer: Renderer): Promise<void> {
       return route.fulfill({ path: file });
     });
   }
-  const components = path.join(
-    renderer === 'lit' ? savedLit : path.join(root, 'packages/wallet/dist/esm'),
-    'sdk/seams-components.css',
-  );
-  await page.route('**/seams-components.css', (route) => route.fulfill({ path: components }));
-  await page.route('**/export-visual.css', (route) =>
-    route.fulfill({ path: path.join(root, 'packages/wallet/dist/esm/sdk/confirmation-ui.css') }),
-  );
+  if (renderer === 'lit') {
+    const components = path.join(savedLit, 'sdk/seams-components.css');
+    await page.route('**/seams-components.css', (route) => route.fulfill({ path: components }));
+    await page.route('**/export-visual.css', (route) =>
+      route.fulfill({
+        path: path.join(root, 'packages/wallet/dist/esm/sdk/confirmation-ui.css'),
+      }),
+    );
+  } else {
+    await page.route('**/wallet-ui.css', (route) =>
+      route.fulfill({ path: path.join(root, 'packages/wallet/dist/esm/sdk/wallet-ui.css') }),
+    );
+  }
   await page.route('**/export-preact-visual', (route) =>
     route.fulfill({
       contentType: 'text/html',
-      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-components-css href="/seams-components.css"><link rel="stylesheet" data-seams-confirmation-css href="/export-visual.css"></head><body></body></html>`,
+      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}${renderer === 'lit' ? '<link rel="stylesheet" data-seams-components-css href="/seams-components.css"><link rel="stylesheet" data-seams-confirmation-css href="/export-visual.css">' : '<link rel="stylesheet" data-seams-wallet-ui-css href="/wallet-ui.css">'}</head><body></body></html>`,
     }),
   );
   await page.goto('/export-preact-visual');
+  if (renderer === 'preact') {
+    await page.addStyleTag({
+      content:
+        'html { margin: 0 !important; } body { margin: 8px !important; padding: 0 !important; background: #fff !important; color-scheme: normal !important; }',
+    });
+  }
 }
 
 async function waitForStableSurface(surface: Locator): Promise<void> {

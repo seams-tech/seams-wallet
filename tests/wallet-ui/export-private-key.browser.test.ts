@@ -69,7 +69,7 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({
       contentType: 'text/html',
       headers: { 'content-security-policy': "style-src 'self'; style-src-attr 'none'" },
-      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-components-css href="/_test-sdk/esm/sdk/seams-components.css"><link rel="stylesheet" data-seams-confirmation-css href="/export-test.css"></head><body><main class="seams-wallet-ui" data-theme="light"></main></body></html>`,
+      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-wallet-ui-css href="/export-test.css"></head><body><main class="seams-wallet-ui" data-theme="light"></main></body></html>`,
     }),
   );
   await page.emulateMedia({ reducedMotion: 'reduce' });

@@ -44,7 +44,7 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({
       contentType: 'text/html',
       headers: { 'content-security-policy': "style-src 'self'; style-src-attr 'none'" },
-      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-components-css href="/_test-sdk/esm/sdk/seams-components.css"><link rel="stylesheet" data-seams-confirmation-css href="/_test-sdk/esm/sdk/confirmation-ui.css"></head><body><button id="opener">Export</button></body></html>`,
+      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-wallet-ui-css href="/_test-sdk/esm/sdk/wallet-ui.css"></head><body><button id="opener">Export</button></body></html>`,
     }),
   );
   await page.emulateMedia({ reducedMotion: 'reduce' });

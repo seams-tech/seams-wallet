@@ -10,29 +10,10 @@ import type {
 } from '@/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface';
 import type { EmailOtpVerificationState } from '@/core/signingEngine/uiConfirm/ui/preact/email-otp-session';
 
-function readConfirmationCss(name: string): string {
-  return fs.readFileSync(
-    path.resolve(
-      import.meta.dirname,
-      `../../packages/wallet/src/core/signingEngine/uiConfirm/ui/preact/${name}.css`,
-    ),
-    'utf8',
-  );
-}
-
-const confirmationCss = [
-  'confirmation-primitives',
-  'confirm-header',
-  'confirmation-body',
-  'passkey-registration',
-  'email-otp',
-  'confirm-content',
-  'transaction-tree',
-  'confirmation-modal',
-  'confirmation-drawer',
-]
-  .map(readConfirmationCss)
-  .join('\n');
+const walletUiCss = fs.readFileSync(
+  path.resolve(import.meta.dirname, '../../packages/wallet/dist/esm/sdk/wallet-ui.css'),
+  'utf8',
+);
 
 declare global {
   interface Window {
@@ -53,16 +34,15 @@ declare global {
 test.beforeEach(async ({ page }) => {
   await injectImportMap(page);
   await routePreactModules(page);
-  await page.route('**/confirmation-ui.css', (route) =>
-    route.fulfill({ contentType: 'text/css', body: confirmationCss }),
+  await page.route('**/wallet-ui.css', (route) =>
+    route.fulfill({ contentType: 'text/css', body: walletUiCss }),
   );
   await page.route('**/confirmation-mount-test', (route) =>
     route.fulfill({
       contentType: 'text/html',
       headers: { 'content-security-policy': "style-src 'self'; style-src-attr 'none'" },
       body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}
-      <link rel="stylesheet" data-seams-components-css href="/_test-sdk/esm/sdk/seams-components.css">
-      <link rel="stylesheet" data-seams-confirmation-css href="/confirmation-ui.css">
+      <link rel="stylesheet" data-seams-wallet-ui-css href="/wallet-ui.css">
       </head><body><button id="opener">Open confirmation</button><main></main></body></html>`,
     }),
   );
@@ -337,7 +317,7 @@ test('drawer close filters callbacks and disposes after its transition', async (
 });
 
 test('missing document CSS rejects before creating a surface', async ({ page }) => {
-  await page.locator('link[data-seams-confirmation-css]').evaluate((link) => link.remove());
+  await page.locator('link[data-seams-wallet-ui-css]').evaluate((link) => link.remove());
   await expect(
     page.evaluate(() => window.__confirmationMount.mount('modal', 'wallet-iframe')),
   ).rejects.toThrow('Wallet confirmation stylesheet unavailable');

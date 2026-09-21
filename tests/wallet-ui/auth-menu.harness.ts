@@ -19,11 +19,7 @@ declare global {
 export async function prepareAuthMenuDocument(page: Page): Promise<void> {
   await routePreactModules(page);
   await page.evaluate(async () => {
-    for (const [filename, marker] of [
-      ['seams-components.css', 'data-seams-components-css'],
-      ['auth-menu.css', 'data-seams-auth-menu-css'],
-      ['confirmation-ui.css', 'data-seams-confirmation-css'],
-    ]) {
+    for (const [filename, marker] of [['wallet-ui.css', 'data-seams-wallet-ui-css']]) {
       await new Promise<void>((resolve, reject) => {
         const link = document.createElement('link');
         link.rel = 'stylesheet';

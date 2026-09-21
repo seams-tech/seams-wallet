@@ -16,32 +16,6 @@ const renderer = process.env.CONFIRMATION_VISUAL_RENDERER ?? 'preact';
 const captureSavedLit = renderer === 'saved-lit';
 const comparisons: Record<string, unknown>[] = [];
 
-const confirmationCssFiles = [
-  'confirmation-primitives',
-  'confirm-header',
-  'confirmation-body',
-  'passkey-registration',
-  'email-otp',
-  'confirm-content',
-  'transaction-tree',
-  'confirmation-modal',
-  'confirmation-drawer',
-];
-
-function readConfirmationCss(): string {
-  return confirmationCssFiles
-    .map((name) =>
-      fs.readFileSync(
-        path.join(
-          root,
-          `packages/wallet/src/core/signingEngine/uiConfirm/ui/preact/${name}.css`,
-        ),
-        'utf8',
-      ),
-    )
-    .join('\n');
-}
-
 function compareImages(beforePath: string, afterPath: string, diffPath: string) {
   const before = PNG.sync.read(fs.readFileSync(beforePath));
   const after = PNG.sync.read(fs.readFileSync(afterPath));
@@ -129,23 +103,20 @@ test.beforeEach(async ({ page }) => {
       return route.fulfill({ path: file });
     });
   }
-  const confirmationCss = readConfirmationCss();
-  const componentsCss = fs.readFileSync(
-    path.join(root, 'packages/wallet/dist/esm/sdk/seams-components.css'),
-    'utf8',
-  );
-  await page.route('**/confirmation-ui.css', (route) =>
-    route.fulfill({ contentType: 'text/css', body: captureSavedLit ? '' : confirmationCss }),
-  );
-  await page.route('**/seams-components.css', (route) =>
-    captureSavedLit
-      ? route.fulfill({ path: path.join(savedLitRoot, 'sdk/seams-components.css') })
-      : route.fulfill({ contentType: 'text/css', body: componentsCss }),
-  );
+  if (captureSavedLit) {
+    await page.route('**/confirmation-ui.css', (route) => route.fulfill({ body: '' }));
+    await page.route('**/seams-components.css', (route) =>
+      route.fulfill({ path: path.join(savedLitRoot, 'sdk/seams-components.css') }),
+    );
+  } else {
+    await page.route('**/wallet-ui.css', (route) =>
+      route.fulfill({ path: path.join(root, 'packages/wallet/dist/esm/sdk/wallet-ui.css') }),
+    );
+  }
   await page.route('**/confirmation-preact-visual', (route) =>
     route.fulfill({
       contentType: 'text/html',
-      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-components-css href="/seams-components.css"><link rel="stylesheet" data-seams-confirmation-css href="/confirmation-ui.css"></head><body><main id="visual-root"></main></body></html>`,
+      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}${captureSavedLit ? '<link rel="stylesheet" data-seams-components-css href="/seams-components.css"><link rel="stylesheet" data-seams-confirmation-css href="/confirmation-ui.css">' : '<link rel="stylesheet" data-seams-wallet-ui-css href="/wallet-ui.css">'}</head><body><main id="visual-root"></main></body></html>`,
     }),
   );
   await page.goto('/confirmation-preact-visual');
