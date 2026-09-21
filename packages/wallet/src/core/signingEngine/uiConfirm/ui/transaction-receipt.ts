@@ -46,7 +46,7 @@ export function receiptHeading(state: TransactionReceiptState): string {
 export function receiptDescription(state: TransactionReceiptState): string {
   switch (state.kind) {
     case 'signing': return 'Preparing your signed transaction.';
-    case 'signed': return 'Signature created. No network receipt has been received.';
+    case 'signed': return 'Signature created, ready to broadcast.';
     case 'broadcasting': return 'Submitting your signed transaction to the network.';
     case 'submitted': return 'Submitted to the network. Waiting for the receipt.';
     case 'confirmed': return 'The network confirmed your transaction.';

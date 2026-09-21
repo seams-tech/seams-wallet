@@ -159,7 +159,7 @@ export class ConfirmationContent extends Component<{
           {model.review.model && (
             <div class="seams-review-eyebrow">
               {model.review.model.operations.length === 1
-                ? model.review.model.operations[0].label
+                ? model.review.model.operations[0].label.replace(/\s+using\s+[\d,.]+\s+gas$/i, '')
                 : 'Transaction'}{' '}
               · {reviewNetwork(model.review.model)}
             </div>
