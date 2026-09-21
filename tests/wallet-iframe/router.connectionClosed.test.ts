@@ -101,8 +101,8 @@ test.describe('WalletIframeRouter connection teardown', () => {
         }
         const shown = router.getOverlayState().visible;
         const ownedDialog = document
-          .querySelector('iframe[data-w3a-owner="connection-closed-request-test"]')
-          ?.closest('dialog.w3a-wallet-overlay-dialog');
+          .querySelector('iframe[data-seams-owner="connection-closed-request-test"]')
+          ?.closest('dialog.seams-wallet-overlay-dialog');
         const disposedAt = Date.now();
         router.dispose();
         const outcome = await Promise.race([

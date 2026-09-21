@@ -107,7 +107,7 @@ test.describe('wallet-iframe surface measurement diagnostics', () => {
     }, REPORTER_MODULE);
 
     expect(warnings.requestWarnings).toContainEqual(
-      expect.stringContaining('[W3A] request_surface posted 4 surface measurements'),
+      expect.stringContaining('[SEAMS] request_surface posted 4 surface measurements'),
     );
     expect(warnings.authMenuWarnings).toEqual([]);
   });

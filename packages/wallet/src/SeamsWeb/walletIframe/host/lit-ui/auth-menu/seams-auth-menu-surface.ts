@@ -21,16 +21,16 @@ import {
 import { isLinkedDeviceTargetEmailAddressV1 } from '@/core/types/linkDevice';
 
 const AUTH_MENU_TAG = 'seams-auth-menu-surface';
-const AUTH_MENU_CSS_MARKER = 'data-w3a-auth-menu-css';
-const AUTH_MENU_TITLE_ID = 'w3a-auth-menu-title';
-const AUTH_MENU_ACCOUNT_LIST_ID = 'w3a-auth-menu-account-list';
+const AUTH_MENU_CSS_MARKER = 'data-seams-auth-menu-css';
+const AUTH_MENU_TITLE_ID = 'seams-auth-menu-title';
+const AUTH_MENU_ACCOUNT_LIST_ID = 'seams-auth-menu-account-list';
 
 function otpCodeDigits(code: string): readonly string[] {
   return code.padEnd(6, ' ').slice(0, 6).split('');
 }
 
 function renderOtpCodeDigit(digit: string): TemplateResult {
-  return html`<span class="w3a-otp-slot ${digit.trim() ? 'is-filled' : ''}">${digit}</span>`;
+  return html`<span class="seams-otp-slot ${digit.trim() ? 'is-filled' : ''}">${digit}</span>`;
 }
 
 function authViewKey(viewModel: AuthMenuViewModel): string {
@@ -119,7 +119,7 @@ function googleIcon(): TemplateResult {
 
 function arrowIcon(): TemplateResult {
   return html`
-    <div class="stripe-arrow w3a-auth-method-arrow">
+    <div class="stripe-arrow seams-auth-method-arrow">
       <svg class="HoverArrow" width="16" height="16" viewBox="0 0 10 10" aria-hidden="true">
         <g fill-rule="evenodd">
           <path class="HoverArrow__linePath" d="M0 5h7" />
@@ -133,7 +133,7 @@ function arrowIcon(): TemplateResult {
 function accountDropdownIcon(): TemplateResult {
   return html`
     <svg
-      class="w3a-account-dropdown-arrow"
+      class="seams-account-dropdown-arrow"
       viewBox="0 0 24 24"
       aria-hidden="true"
       focusable="false"
@@ -221,14 +221,14 @@ type LinkDeviceRingPhase = 'waiting' | 'idle' | 'approved';
 
 function linkDeviceDotRing(phase: LinkDeviceRingPhase, glyph?: TemplateResult): TemplateResult {
   return html`
-    <div class="w3a-link-device-dot-ring is-${phase}" aria-hidden="true">
+    <div class="seams-link-device-dot-ring is-${phase}" aria-hidden="true">
       ${Array.from(
         { length: LINK_DEVICE_DOT_COUNT },
         (_, index) => html`<span style="--dot-index: ${index}"></span>`,
       )}
-      ${glyph ? html`<div class="w3a-link-device-dot-ring-glyph">${glyph}</div>` : null}
+      ${glyph ? html`<div class="seams-link-device-dot-ring-glyph">${glyph}</div>` : null}
       <svg
-        class="w3a-link-device-dot-ring-check"
+        class="seams-link-device-dot-ring-check"
         viewBox="0 0 52 52"
         fill="none"
         stroke="currentColor"
@@ -372,7 +372,7 @@ function linkFailedIcon(): TemplateResult {
 function rerollIcon(): TemplateResult {
   return html`
     <svg
-      class="w3a-input-action-icon"
+      class="seams-input-action-icon"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -387,11 +387,6 @@ function rerollIcon(): TemplateResult {
       <path d="M8 16H3v5" />
     </svg>
   `;
-}
-
-function selectedLoginAccount(viewModel: AuthMenuLoginViewModel) {
-  return resolveAuthMenuLoginAccount(viewModel.accountOptions, viewModel.selectedAccount)
-    .selectedAccount;
 }
 
 function selectedAccountPrimaryText(account: AuthMenuAccountOption): string {
@@ -566,7 +561,7 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
 
   private observeContentSize(): void {
     if (this.contentResizeObserver) return;
-    const sizer = this.querySelector<HTMLElement>('.w3a-content-sizer');
+    const sizer = this.querySelector<HTMLElement>('.seams-content-sizer');
     if (!sizer) return;
     this.contentResizeObserver = new ResizeObserver(this.queueContentHeightSync);
     this.contentResizeObserver.observe(sizer);
@@ -580,8 +575,8 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
 
   private readonly syncContentHeight = (): void => {
     this.contentHeightFrame = null;
-    const switcher = this.querySelector<HTMLElement>('.w3a-content-switcher');
-    const sizer = this.querySelector<HTMLElement>('.w3a-content-sizer');
+    const switcher = this.querySelector<HTMLElement>('.seams-content-switcher');
+    const sizer = this.querySelector<HTMLElement>('.seams-content-sizer');
     if (!switcher || !sizer) return;
     switcher.style.height = `${sizer.scrollHeight}px`;
   };
@@ -699,7 +694,7 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
 
   private onDocumentPointerDown = (event: PointerEvent): void => {
     if (!this.accountMenuOpen || !(event.target instanceof Node)) return;
-    if (this.querySelector('.w3a-account-menu')?.contains(event.target)) return;
+    if (this.querySelector('.seams-account-menu')?.contains(event.target)) return;
     this.accountMenuOpen = false;
   };
 
@@ -856,7 +851,7 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
 
     return html`
       <div
-        class="w3a-signup-menu-root auth-menu-root"
+        class="seams-signup-menu-root auth-menu-root"
         data-mode=${viewModel.mode}
         data-waiting=${loading ? 'true' : 'false'}
         data-scan-device=${linkDevice ? 'true' : 'false'}
@@ -868,9 +863,9 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
         tabindex="-1"
         @keydown=${this.onKeydown}
       >
-        <div class="w3a-content-switcher">
+        <div class="seams-content-switcher">
           <button
-            class="w3a-back-button ${loading ||
+            class="seams-back-button ${loading ||
             linkDevice ||
             otpPrompt ||
             registrationPrompt ||
@@ -890,12 +885,12 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
                 ${recoveryAnnouncement(viewModel)}
               </div>`
             : null}
-          <div class="w3a-content-area">
-            <div class="w3a-content-sizer">
+          <div class="seams-content-area">
+            <div class="seams-content-sizer">
               ${loading
                 ? this.renderWaiting(viewModel)
                 : html`
-                    <div class="w3a-signin-menu">
+                    <div class="seams-signin-menu">
                       ${keyed(authViewKey(viewModel), this.renderActiveView(viewModel))}
                     </div>
                   `}
@@ -920,10 +915,10 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
 
   private renderHeader(viewModel: AuthMenuViewModel): TemplateResult {
     return html`
-      <div class="w3a-header">
+      <div class="seams-header">
         <div>
-          <div class="w3a-title" id=${AUTH_MENU_TITLE_ID}>${viewModel.heading}</div>
-          <div class="w3a-subhead">${viewModel.subtitle}</div>
+          <div class="seams-title" id=${AUTH_MENU_TITLE_ID}>${viewModel.heading}</div>
+          <div class="seams-subhead">${viewModel.subtitle}</div>
         </div>
       </div>
     `;
@@ -933,123 +928,104 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
     viewModel: AuthMenuLoginViewModel | AuthMenuRegisterViewModel,
   ): TemplateResult {
     if (viewModel.mode === 'login') {
-      const selected = selectedLoginAccount(viewModel);
-      const hasAccounts = viewModel.accountOptions.length > 0;
+      const loginAccount = resolveAuthMenuLoginAccount(
+        viewModel.accountOptions,
+        viewModel.selectedAccount,
+      );
+      if (loginAccount.kind === 'discoverable') return html``;
+
+      const selected = loginAccount.selectedAccount;
       const groups = accountGroups(viewModel.accountOptions);
       return html`
-        <div class="w3a-passkey-row">
-          <div class="w3a-input-pill">
-            <div class="w3a-input-wrap">
-              ${selected
-                ? html`
-                    <div class="w3a-account-menu-account w3a-selected-account" aria-hidden="true">
-                      <span class="w3a-account-menu-account-primary"
-                        >${selectedAccountPrimaryText(selected)}</span
-                      >
-                      ${accountSecondaryText(selected)
-                        ? html`<span class="w3a-account-menu-account-secondary"
-                            >${accountSecondaryText(selected)}</span
-                          >`
-                        : null}
-                    </div>
-                  `
-                : html`
-                    <input
-                      id="w3a-auth-menu-login-account"
-                      class="w3a-input"
-                      data-auth-menu-input
-                      type="text"
-                      name="passkey"
-                      aria-label="Saved account"
-                      autocomplete="off"
-                      autocapitalize="none"
-                      autocorrect="off"
-                      spellcheck="false"
-                      placeholder="Enter your username"
-                      value=""
-                      readonly
-                    />
-                  `}
+        <div class="seams-passkey-row">
+          <div class="seams-input-pill">
+            <div class="seams-input-wrap">
+              <div class="seams-account-menu-account seams-selected-account" aria-hidden="true">
+                <span class="seams-account-menu-account-primary"
+                  >${selectedAccountPrimaryText(selected)}</span
+                >
+                ${accountSecondaryText(selected)
+                  ? html`<span class="seams-account-menu-account-secondary"
+                      >${accountSecondaryText(selected)}</span
+                    >`
+                  : null}
+              </div>
             </div>
-            ${hasAccounts
-              ? html`
-                  <div class="w3a-account-menu ${this.accountMenuOpen ? 'is-open' : ''}">
-                    <button
-                      class="w3a-account-menu-trigger"
-                      type="button"
-                      data-auth-menu-input
-                      aria-label=${savedAccountsTriggerLabel(selected)}
-                      aria-haspopup="listbox"
-                      aria-expanded=${this.accountMenuOpen ? 'true' : 'false'}
-                      aria-controls=${AUTH_MENU_ACCOUNT_LIST_ID}
-                      @click=${this.onAccountMenuToggle}
+            <div class="seams-account-menu ${this.accountMenuOpen ? 'is-open' : ''}">
+              <button
+                class="seams-account-menu-trigger"
+                type="button"
+                data-auth-menu-input
+                aria-label=${savedAccountsTriggerLabel(selected)}
+                aria-haspopup="listbox"
+                aria-expanded=${this.accountMenuOpen ? 'true' : 'false'}
+                aria-controls=${AUTH_MENU_ACCOUNT_LIST_ID}
+                @click=${this.onAccountMenuToggle}
+              >
+                ${accountDropdownIcon()}
+              </button>
+              ${this.accountMenuOpen
+                ? html`
+                    <div
+                      id=${AUTH_MENU_ACCOUNT_LIST_ID}
+                      class="seams-account-menu-popover"
+                      role="listbox"
                     >
-                      ${accountDropdownIcon()}
-                    </button>
-                    ${this.accountMenuOpen
-                      ? html`
+                      ${groups.map((group) => {
+                        const groupLabelId = `${AUTH_MENU_ACCOUNT_LIST_ID}-${group.authMethod}`;
+                        return html`
                           <div
-                            id=${AUTH_MENU_ACCOUNT_LIST_ID}
-                            class="w3a-account-menu-popover"
-                            role="listbox"
+                            class="seams-account-menu-group"
+                            role="group"
+                            aria-labelledby=${groupLabelId}
                           >
-                            ${groups.map((group) => {
-                              const groupLabelId = `${AUTH_MENU_ACCOUNT_LIST_ID}-${group.authMethod}`;
+                            <div id=${groupLabelId} class="seams-account-menu-group-label">
+                              ${group.label}
+                            </div>
+                            ${group.accounts.map((account) => {
+                              const isSelected =
+                                account.walletId === selected.walletId &&
+                                account.authMethod === selected.authMethod;
+                              const secondaryText = accountSecondaryText(account);
                               return html`
-                                <div
-                                  class="w3a-account-menu-group"
-                                  role="group"
-                                  aria-labelledby=${groupLabelId}
+                                <button
+                                  class="seams-account-menu-option ${isSelected
+                                    ? 'is-selected'
+                                    : ''}"
+                                  type="button"
+                                  role="option"
+                                  aria-selected=${isSelected ? 'true' : 'false'}
+                                  title=${secondaryText
+                                    ? `${account.walletId} ${secondaryText}`
+                                    : account.walletId}
+                                  data-wallet-id=${account.walletId}
+                                  data-auth-method=${account.authMethod}
+                                  @click=${this.onLoginAccountSelect}
                                 >
-                                  <div id=${groupLabelId} class="w3a-account-menu-group-label">
-                                    ${group.label}
-                                  </div>
-                                  ${group.accounts.map((account) => {
-                                    const isSelected =
-                                      account.walletId === selected?.walletId &&
-                                      account.authMethod === selected.authMethod;
-                                    const secondaryText = accountSecondaryText(account);
-                                    return html`
-                                      <button
-                                        class="w3a-account-menu-option ${isSelected
-                                          ? 'is-selected'
-                                          : ''}"
-                                        type="button"
-                                        role="option"
-                                        aria-selected=${isSelected ? 'true' : 'false'}
-                                        title=${secondaryText
-                                          ? `${account.walletId} ${secondaryText}`
-                                          : account.walletId}
-                                        data-wallet-id=${account.walletId}
-                                        data-auth-method=${account.authMethod}
-                                        @click=${this.onLoginAccountSelect}
-                                      >
-                                        <span
-                                          class="w3a-account-menu-check"
-                                          aria-hidden="true"
-                                        ></span>
-                                        <span class="w3a-account-menu-account">
-                                          <span class="w3a-account-menu-account-primary"
-                                            >${account.walletId}</span
-                                          >
-                                          ${secondaryText
-                                            ? html`<span class="w3a-account-menu-account-secondary"
-                                                >${secondaryText}</span
-                                              >`
-                                            : null}
-                                        </span>
-                                      </button>
-                                    `;
-                                  })}
-                                </div>
+                                  <span
+                                    class="seams-account-menu-check"
+                                    aria-hidden="true"
+                                  ></span>
+                                  <span class="seams-account-menu-account">
+                                    <span class="seams-account-menu-account-primary"
+                                      >${account.walletId}</span
+                                    >
+                                    ${secondaryText
+                                      ? html`<span class="seams-account-menu-account-secondary"
+                                          >${secondaryText}</span
+                                        >`
+                                      : null}
+                                  </span>
+                                </button>
                               `;
                             })}
                           </div>
-                        `
-                      : null}
-                  </div>
-                `
-              : null}
+                        `;
+                      })}
+                    </div>
+                  `
+                : null}
+            </div>
           </div>
         </div>
       `;
@@ -1057,12 +1033,12 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
 
     if (!viewModel.showRegistrationInput) return html``;
     return html`
-      <div class="w3a-passkey-row">
-        <div class="w3a-input-pill">
-          <div class="w3a-input-wrap">
+      <div class="seams-passkey-row">
+        <div class="seams-input-pill">
+          <div class="seams-input-wrap">
             <input
-              id="w3a-auth-menu-passkey-name"
-              class="w3a-input"
+              id="seams-auth-menu-passkey-name"
+              class="seams-input"
               data-auth-menu-input
               type="text"
               autocomplete="nickname"
@@ -1076,7 +1052,7 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
           ${viewModel.passkeyNameReadOnly
             ? html`
                 <button
-                  class="w3a-input-action-trigger auth-menu-registration-reroll"
+                  class="seams-input-action-trigger auth-menu-registration-reroll"
                   type="button"
                   title="Generate another name"
                   aria-label="Generate another name"
@@ -1097,10 +1073,10 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
   ): TemplateResult {
     const googleEnabled = viewModel.enabledExternalProviders?.includes('google') ?? false;
     return html`
-      <div class="w3a-auth-methods">
-        <div class="w3a-auth-method-stack">
+      <div class="seams-auth-methods">
+        <div class="seams-auth-method-stack">
           <button
-            class="w3a-auth-method-btn w3a-auth-method-btn-primary"
+            class="seams-auth-method-btn seams-auth-method-btn-primary"
             type="button"
             data-auth-menu-primary
             ?disabled=${!isAuthMenuActionReady(viewModel)}
@@ -1112,10 +1088,10 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
           </button>
           ${googleEnabled
             ? html`
-                <div class="w3a-auth-method-stack w3a-social-stack">
-                  <div class="w3a-social-provider">
+                <div class="seams-auth-method-stack seams-social-stack">
+                  <div class="seams-social-provider">
                     <button
-                      class="w3a-auth-method-btn w3a-auth-method-btn-primary"
+                      class="seams-auth-method-btn seams-auth-method-btn-primary"
                       type="button"
                       data-auth-menu-provider="google"
                       ?disabled=${!isAuthMenuGoogleActionReady(viewModel)}
@@ -1136,16 +1112,16 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
 
   private renderOtherOptions(viewModel: AuthMenuLoginViewModel | AuthMenuRegisterViewModel) {
     return html`
-      <div class="w3a-scan-device-row">
-        <div class="w3a-section-divider">
-          <span class="w3a-section-divider-text">Other options</span>
+      <div class="seams-scan-device-row">
+        <div class="seams-section-divider">
+          <span class="seams-section-divider-text">Other options</span>
         </div>
-        <div class="w3a-secondary-actions">
-          <button class="w3a-link-device-btn" type="button" @click=${this.onLinkDeviceOpen}>
+        <div class="seams-secondary-actions">
+          <button class="seams-link-device-btn" type="button" @click=${this.onLinkDeviceOpen}>
             ${linkDeviceIcon()} Scan and Link Device
           </button>
           <button
-            class="w3a-link-device-btn"
+            class="seams-link-device-btn"
             type="button"
             data-recovery-action
             @click=${this.onRecoveryOpen}
@@ -1165,19 +1141,19 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
       return html`
         ${this.renderHeader(viewModel)}
         <p
-          id="w3a-recovery-code-feedback"
-          class="w3a-recovery-status ${feedbackIsError ? 'w3a-recovery-error' : ''}"
+          id="seams-recovery-code-feedback"
+          class="seams-recovery-status ${feedbackIsError ? 'seams-recovery-error' : ''}"
           aria-hidden=${feedbackIsError ? 'false' : 'true'}
           role=${feedbackIsError ? 'alert' : 'status'}
         >
           ${feedbackMessage}
         </p>
-        <form class="w3a-recovery-form" novalidate @submit=${this.onRecoverySubmit}>
-          <div class="w3a-recovery-field">
-            <label class="w3a-field-label" for="w3a-recovery-code">Recovery code</label>
+        <form class="seams-recovery-form" novalidate @submit=${this.onRecoverySubmit}>
+          <div class="seams-recovery-field">
+            <label class="seams-field-label" for="seams-recovery-code">Recovery code</label>
             <input
-              id="w3a-recovery-code"
-              class="w3a-recovery-input w3a-recovery-code-input"
+              id="seams-recovery-code"
+              class="seams-recovery-input seams-recovery-code-input"
               data-recovery-code
               name="recoveryCode"
               type="text"
@@ -1186,28 +1162,28 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
               autocorrect="off"
               spellcheck="false"
               aria-invalid=${viewModel.recoveryCodeError ? 'true' : 'false'}
-              aria-describedby=${viewModel.recoveryCodeError ? 'w3a-recovery-code-feedback' : ''}
+              aria-describedby=${viewModel.recoveryCodeError ? 'seams-recovery-code-feedback' : ''}
               .value=${viewModel.recoveryCode}
               @input=${this.onRecoveryCodeInput}
             />
           </div>
-          <div class="w3a-secondary-actions">
+          <div class="seams-secondary-actions">
             <button
-              class="w3a-link-device-btn w3a-auth-method-choice-btn"
+              class="seams-link-device-btn seams-auth-method-choice-btn"
               type="button"
               data-recovery-target="passkey"
               @click=${this.onRecoveryPasskeySelected}
             >
-              <span class="w3a-auth-method-choice-icon">${fingerprintIcon()}</span>
+              <span class="seams-auth-method-choice-icon">${fingerprintIcon()}</span>
               <span>Recover with Passkey</span>
             </button>
             <button
-              class="w3a-link-device-btn w3a-auth-method-choice-btn"
+              class="seams-link-device-btn seams-auth-method-choice-btn"
               type="button"
               data-recovery-target="google_email_otp"
               @click=${this.onRecoveryGoogleSelected}
             >
-              <span class="w3a-auth-method-choice-icon">${googleIcon()}</span>
+              <span class="seams-auth-method-choice-icon">${googleIcon()}</span>
               <span>Recover with Google</span>
             </button>
           </div>
@@ -1223,16 +1199,16 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
           : `A 6-digit code was sent to ${viewModel.emailHint}.`;
       return html`
         ${this.renderHeader(viewModel)}
-        <div class="w3a-otp-prompt" aria-live="polite">
-          <p class="w3a-otp-description">${deliveryMessage}</p>
-          <label class="w3a-field-label" for="w3a-recovery-google-otp">Email code</label>
+        <div class="seams-otp-prompt" aria-live="polite">
+          <p class="seams-otp-description">${deliveryMessage}</p>
+          <label class="seams-field-label" for="seams-recovery-google-otp">Email code</label>
           <div
-            class="w3a-otp-code-field"
+            class="seams-otp-code-field"
             data-disabled=${viewModel.status.kind === 'busy' ? 'true' : 'false'}
           >
             <input
-              class="w3a-otp-input"
-              id="w3a-recovery-google-otp"
+              class="seams-otp-input"
+              id="seams-recovery-google-otp"
               data-auth-menu-input
               data-email-otp-challenge-id=${viewModel.challengeId}
               data-email-otp-wallet-id=${viewModel.walletId}
@@ -1245,26 +1221,26 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
               maxlength="6"
               aria-invalid=${viewModel.status.kind === 'recoverable' ? 'true' : 'false'}
               aria-describedby=${viewModel.status.kind === 'recoverable'
-                ? 'w3a-recovery-google-otp-error'
+                ? 'seams-recovery-google-otp-error'
                 : ''}
               .value=${viewModel.otpCode}
               ?disabled=${viewModel.status.kind === 'busy'}
               @input=${this.onRecoveryGoogleOtpCodeInput}
               @keydown=${this.onRecoveryGoogleOtpKeydown}
             />
-            <div class="w3a-otp-slots" aria-hidden="true">${digits.map(renderOtpCodeDigit)}</div>
+            <div class="seams-otp-slots" aria-hidden="true">${digits.map(renderOtpCodeDigit)}</div>
           </div>
           ${viewModel.status.kind === 'recoverable'
             ? html`<p
-                id="w3a-recovery-google-otp-error"
-                class="w3a-recovery-status w3a-recovery-error"
+                id="seams-recovery-google-otp-error"
+                class="seams-recovery-status seams-recovery-error"
                 role="alert"
               >
                 ${viewModel.status.message}
               </p>`
             : null}
           <button
-            class="w3a-link-device-btn w3a-link-device-btn-primary"
+            class="seams-link-device-btn seams-link-device-btn-primary"
             type="button"
             data-auth-menu-primary
             ?disabled=${!canSubmit}
@@ -1298,10 +1274,10 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
         : this.onRecoveryCreatePasskey;
     return html`
       ${this.renderHeader(viewModel)}
-      <div class="w3a-recovery-confirmation">
-        ${message === null ? null : html`<p class="w3a-recovery-status">${message}</p>`}
+      <div class="seams-recovery-confirmation">
+        ${message === null ? null : html`<p class="seams-recovery-status">${message}</p>`}
         <button
-          class="w3a-link-device-btn w3a-link-device-btn-primary"
+          class="seams-link-device-btn seams-link-device-btn-primary"
           type="button"
           data-auth-menu-primary
           @click=${action}
@@ -1324,7 +1300,7 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
   private renderIntentSwitch(viewModel: AuthMenuLoginViewModel | AuthMenuRegisterViewModel) {
     const copy = modeSwitchCopy(viewModel.mode);
     return html`
-      <div class="w3a-auth-intent-switch">
+      <div class="seams-auth-intent-switch">
         <span>${copy.prompt}</span>
         <button
           type="button"
@@ -1344,14 +1320,14 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
     // inherit here — every wait names itself.
     const waitingText = status.headline;
     return html`
-      <div class="w3a-waiting" role="status" aria-live="polite">
-        <div class="w3a-waiting-message">
-          <span class="w3a-waiting-text">${waitingText}</span>
+      <div class="seams-waiting" role="status" aria-live="polite">
+        <div class="seams-waiting-message">
+          <span class="seams-waiting-text">${waitingText}</span>
           ${viewModel.showProgress && status.detail && status.detail !== waitingText
-            ? html`<span class="w3a-waiting-sdk-events">${status.detail}</span>`
+            ? html`<span class="seams-waiting-sdk-events">${status.detail}</span>`
             : null}
         </div>
-        <div aria-label="Loading" class="w3a-spinner"></div>
+        <div aria-label="Loading" class="seams-spinner"></div>
       </div>
     `;
   }
@@ -1380,7 +1356,7 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
     // the placeholder simply dissolves into the code.
     const ready = linkDevice.kind === 'ready';
     return html`
-      <div class="w3a-scan-device-content">
+      <div class="seams-scan-device-content">
         <div class="qr-code-container">
           <div class="qr-body">
             <div class="qr-code-section">
@@ -1395,7 +1371,7 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
                     `
                   : html`
                       <div class="qr-code-placeholder">
-                        <span class="w3a-spinner" aria-hidden="true"></span>
+                        <span class="seams-spinner" aria-hidden="true"></span>
                       </div>
                     `}
               </div>
@@ -1427,17 +1403,17 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
         : '';
     const canStart = !emailTargetSelected || isLinkedDeviceTargetEmailAddressV1(emailAddress);
     return html`
-      <div class="w3a-link-device-confirmation">
+      <div class="seams-link-device-confirmation">
         <h2 class="qr-title" id=${AUTH_MENU_TITLE_ID}>Match your other device</h2>
-        <p class="w3a-link-device-confirmation-copy">
+        <p class="seams-link-device-confirmation-copy">
           Choose the unlock method for Device 2. Email code sends a one-time code to the address you
           enter.
         </p>
-        <fieldset class="w3a-link-device-factor-options">
+        <fieldset class="seams-link-device-factor-options">
           <legend class="sr-only">Wallet unlock method</legend>
           <label>
-            <span class="w3a-auth-method-choice-icon">${fingerprintIcon()}</span>
-            <span class="w3a-auth-method-choice-label">Passkey</span>
+            <span class="seams-auth-method-choice-icon">${fingerprintIcon()}</span>
+            <span class="seams-auth-method-choice-label">Passkey</span>
             <input
               type="radio"
               name="linked-device-factor"
@@ -1447,8 +1423,8 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
             />
           </label>
           <label>
-            <span class="w3a-auth-method-choice-icon">${mailIcon()}</span>
-            <span class="w3a-auth-method-choice-label">Email code</span>
+            <span class="seams-auth-method-choice-icon">${mailIcon()}</span>
+            <span class="seams-auth-method-choice-label">Email code</span>
             <input
               type="radio"
               name="linked-device-factor"
@@ -1460,8 +1436,8 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
         </fieldset>
         ${emailTargetSelected
           ? html`
-              <label class="w3a-link-device-target-email">
-                <span class="w3a-field-label">Email address</span>
+              <label class="seams-link-device-target-email">
+                <span class="seams-field-label">Email address</span>
                 <input
                   type="email"
                   name="linked-device-target-email"
@@ -1475,10 +1451,10 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
             `
           : null}
         ${linkDevice.error
-          ? html`<p class="w3a-link-device-inline-error" role="alert">${linkDevice.error}</p>`
+          ? html`<p class="seams-link-device-inline-error" role="alert">${linkDevice.error}</p>`
           : null}
         <button
-          class="w3a-link-device-btn w3a-link-device-btn-primary"
+          class="seams-link-device-btn seams-link-device-btn-primary"
           type="button"
           data-auth-menu-primary
           ?disabled=${!canStart}
@@ -1510,7 +1486,7 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
     const digits = otpCodeDigits(linkDevice.otpCode);
     return html`
       <div
-        class="w3a-link-device-confirmation w3a-link-device-email-otp"
+        class="seams-link-device-confirmation seams-link-device-email-otp"
         data-tone=${view.tone}
         data-otp-phase=${activation.kind}
       >
@@ -1518,14 +1494,14 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
         <h2 class="qr-title" id=${AUTH_MENU_TITLE_ID}>${view.heading}</h2>
         ${hint
           ? html`
-              <div class="w3a-link-device-email-chip" title=${hint}>
+              <div class="seams-link-device-email-chip" title=${hint}>
                 <span>${hint}</span>
               </div>
             `
           : null}
         <p
-          class="w3a-link-device-email-status"
-          id="w3a-linked-device-otp-status"
+          class="seams-link-device-email-status"
+          id="seams-linked-device-otp-status"
           role="status"
           aria-live="polite"
         >
@@ -1535,11 +1511,11 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
         </p>
         ${showCodeField
           ? html`
-              <label class="sr-only" for="w3a-linked-device-email-otp">Email code</label>
-              <div class="w3a-otp-code-field" data-disabled=${busy ? 'true' : 'false'}>
+              <label class="sr-only" for="seams-linked-device-email-otp">Email code</label>
+              <div class="seams-otp-code-field" data-disabled=${busy ? 'true' : 'false'}>
                 <input
-                  class="w3a-otp-input"
-                  id="w3a-linked-device-email-otp"
+                  class="seams-otp-input"
+                  id="seams-linked-device-email-otp"
                   data-auth-menu-input
                   type="text"
                   inputmode="numeric"
@@ -1547,14 +1523,14 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
                   pattern="[0-9]*"
                   maxlength="6"
                   aria-label="Email verification code"
-                  aria-describedby="w3a-linked-device-otp-status"
+                  aria-describedby="seams-linked-device-otp-status"
                   aria-invalid=${activation.kind === 'incorrect' ? 'true' : 'false'}
                   .value=${linkDevice.otpCode}
                   ?disabled=${busy}
                   @input=${this.onLinkDeviceEmailOtpCodeInput}
                   @keydown=${this.onLinkDeviceEmailOtpKeydown}
                 />
-                <div class="w3a-otp-slots" aria-hidden="true">
+                <div class="seams-otp-slots" aria-hidden="true">
                   ${digits.map(renderOtpCodeDigit)}
                 </div>
               </div>
@@ -1575,7 +1551,7 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
     if (activation.kind === 'unavailable') {
       return html`
         <button
-          class="w3a-link-device-btn"
+          class="seams-link-device-btn"
           type="button"
           data-link-device-error-dismiss
           @click=${this.onBackClick}
@@ -1587,7 +1563,7 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
     if (activation.kind === 'expired') {
       return html`
         <button
-          class="w3a-link-device-btn w3a-link-device-btn-primary"
+          class="seams-link-device-btn seams-link-device-btn-primary"
           type="button"
           @click=${this.onLinkDeviceEmailOtpResend}
         >
@@ -1597,7 +1573,7 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
     }
     return html`
       <button
-        class="w3a-link-device-btn w3a-link-device-btn-primary"
+        class="seams-link-device-btn seams-link-device-btn-primary"
         type="button"
         ?disabled=${!input.canSubmit}
         @click=${this.onLinkDeviceEmailOtpSubmit}
@@ -1605,7 +1581,7 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
         ${activation.kind === 'submitting' ? 'Verifying' : 'Verify code'}
       </button>
       <button
-        class="w3a-otp-resend"
+        class="seams-otp-resend"
         type="button"
         ?disabled=${input.busy}
         @click=${this.onLinkDeviceEmailOtpResend}
@@ -1620,18 +1596,18 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
   ): TemplateResult {
     const activationFailed = linkDevice.kind === 'activation_error';
     return html`
-      <div class="w3a-link-device-confirmation w3a-link-device-failure">
-        <div class="w3a-link-device-failure-icon">${linkFailedIcon()}</div>
+      <div class="seams-link-device-confirmation seams-link-device-failure">
+        <div class="seams-link-device-failure-icon">${linkFailedIcon()}</div>
         <h2 class="qr-title" id=${AUTH_MENU_TITLE_ID}>
           ${activationFailed ? 'Device linked' : "Couldn't link device"}
         </h2>
-        <p class="w3a-link-device-failure-detail" role="alert">
+        <p class="seams-link-device-failure-detail" role="alert">
           ${activationFailed
             ? html`Unable to open the wallet. Return to sign in and try again. ${linkDevice.message}`
             : linkDevice.message}
         </p>
         <button
-          class="w3a-link-device-btn"
+          class="seams-link-device-btn"
           type="button"
           data-auth-menu-primary
           data-link-device-error-dismiss
@@ -1647,12 +1623,12 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
     linkDevice: Extract<AuthMenuLinkDeviceState, { kind: 'expired' }>,
   ): TemplateResult {
     return html`
-      <div class="w3a-link-device-confirmation w3a-link-device-failure">
-        <div class="w3a-link-device-failure-icon">${linkFailedIcon()}</div>
+      <div class="seams-link-device-confirmation seams-link-device-failure">
+        <div class="seams-link-device-failure-icon">${linkFailedIcon()}</div>
         <h2 class="qr-title" id=${AUTH_MENU_TITLE_ID}>Linking expired</h2>
-        <p class="w3a-link-device-failure-detail" role="alert">${linkDevice.message}</p>
+        <p class="seams-link-device-failure-detail" role="alert">${linkDevice.message}</p>
         <button
-          class="w3a-link-device-btn"
+          class="seams-link-device-btn"
           type="button"
           data-auth-menu-primary
           data-link-device-expired-dismiss
@@ -1668,12 +1644,12 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
     linkDevice: Extract<AuthMenuLinkDeviceState, { kind: 'cancelled' }>,
   ): TemplateResult {
     return html`
-      <div class="w3a-link-device-confirmation w3a-link-device-failure">
-        <div class="w3a-link-device-failure-icon">${linkFailedIcon()}</div>
+      <div class="seams-link-device-confirmation seams-link-device-failure">
+        <div class="seams-link-device-failure-icon">${linkFailedIcon()}</div>
         <h2 class="qr-title" id=${AUTH_MENU_TITLE_ID}>Linking cancelled</h2>
-        <p class="w3a-link-device-failure-detail" role="alert">${linkDevice.message}</p>
+        <p class="seams-link-device-failure-detail" role="alert">${linkDevice.message}</p>
         <button
-          class="w3a-link-device-btn"
+          class="seams-link-device-btn"
           type="button"
           data-auth-menu-primary
           data-link-device-cancelled-dismiss
@@ -1689,10 +1665,10 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
     linkDevice: Extract<AuthMenuLinkDeviceState, { kind: 'activating' }>,
   ): TemplateResult {
     return html`
-      <div class="w3a-link-device-confirmation">
-        <span class="w3a-spinner" aria-hidden="true"></span>
+      <div class="seams-link-device-confirmation">
+        <span class="seams-spinner" aria-hidden="true"></span>
         <h2 class="qr-title" id=${AUTH_MENU_TITLE_ID}>Opening linked wallet</h2>
-        <p class="w3a-link-device-confirmation-copy" role="status" aria-live="polite">
+        <p class="seams-link-device-confirmation-copy" role="status" aria-live="polite">
           ${linkDevice.message}
         </p>
       </div>
@@ -1704,11 +1680,11 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
   ): TemplateResult {
     const creating = linkDevice.kind === 'creating_passkey';
     return html`
-      <div class="w3a-link-device-confirmation">
+      <div class="seams-link-device-confirmation">
         ${linkDeviceDotRing(creating ? 'waiting' : 'approved')}
         <h2 class="qr-title" id=${AUTH_MENU_TITLE_ID} aria-live="polite">${linkDevice.message}</h2>
         <button
-          class="w3a-link-device-btn w3a-link-device-btn-primary"
+          class="seams-link-device-btn seams-link-device-btn-primary"
           type="button"
           data-auth-menu-primary
           data-link-device-passkey-action
@@ -1728,20 +1704,20 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
         : `A 6-digit code was sent to ${viewModel.emailHint}.`;
     const digits = otpCodeDigits(viewModel.otpCode);
     return html`
-      <div class="w3a-otp-prompt" aria-live="polite">
-        <div class="w3a-otp-prompt-copy">
-          <div class="w3a-otp-title" id=${AUTH_MENU_TITLE_ID}>${viewModel.heading}</div>
-          <p class="w3a-otp-description">${deliveryMessage}</p>
-          <div class="w3a-otp-account" title=${viewModel.walletId}>
-            <span class="w3a-otp-account-label">Wallet</span>
-            <span class="w3a-otp-account-value">${viewModel.walletId}</span>
+      <div class="seams-otp-prompt" aria-live="polite">
+        <div class="seams-otp-prompt-copy">
+          <div class="seams-otp-title" id=${AUTH_MENU_TITLE_ID}>${viewModel.heading}</div>
+          <p class="seams-otp-description">${deliveryMessage}</p>
+          <div class="seams-otp-account" title=${viewModel.walletId}>
+            <span class="seams-otp-account-label">Wallet</span>
+            <span class="seams-otp-account-value">${viewModel.walletId}</span>
           </div>
         </div>
-        <label class="w3a-field-label" for="w3a-auth-menu-google-otp">Email code</label>
-        <div class="w3a-otp-code-field" data-disabled=${viewModel.submitBusy ? 'true' : 'false'}>
+        <label class="seams-field-label" for="seams-auth-menu-google-otp">Email code</label>
+        <div class="seams-otp-code-field" data-disabled=${viewModel.submitBusy ? 'true' : 'false'}>
           <input
-            class="w3a-otp-input"
-            id="w3a-auth-menu-google-otp"
+            class="seams-otp-input"
+            id="seams-auth-menu-google-otp"
             data-auth-menu-input
             data-email-otp-challenge-id=${viewModel.challengeId}
             data-email-otp-wallet-id=${viewModel.walletId}
@@ -1755,11 +1731,11 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
             @input=${this.onGoogleOtpCodeInput}
             @keydown=${this.onGoogleOtpKeydown}
           />
-          <div class="w3a-otp-slots" aria-hidden="true">${digits.map(renderOtpCodeDigit)}</div>
+          <div class="seams-otp-slots" aria-hidden="true">${digits.map(renderOtpCodeDigit)}</div>
         </div>
-        <p class="w3a-otp-helper">${viewModel.prompt.helperText ?? ''}</p>
+        <p class="seams-otp-helper">${viewModel.prompt.helperText ?? ''}</p>
         <button
-          class="w3a-auth-method-btn w3a-auth-method-btn-primary"
+          class="seams-auth-method-btn seams-auth-method-btn-primary"
           type="button"
           data-auth-menu-primary
           ?disabled=${!isAuthMenuActionReady(viewModel)}
@@ -1768,7 +1744,7 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
           ${viewModel.submitBusy ? 'Unlocking…' : viewModel.ctaLabel}
         </button>
         <button
-          class="w3a-otp-resend auth-menu-google-resend"
+          class="seams-otp-resend auth-menu-google-resend"
           type="button"
           ?disabled=${viewModel.resendBusy || viewModel.submitBusy}
           @click=${this.onGoogleOtpResend}
@@ -1783,16 +1759,16 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
     viewModel: Extract<AuthMenuViewModel, { kind: 'google_registration' }>,
   ) {
     return html`
-      <div class="w3a-otp-prompt" aria-live="polite">
-        <div class="w3a-otp-prompt-copy">
-          <div class="w3a-otp-title" id=${AUTH_MENU_TITLE_ID}>${viewModel.heading}</div>
-          <p class="w3a-otp-description">${viewModel.subtitle}</p>
-          <div class="w3a-otp-account" title=${viewModel.walletId}>
-            <span class="w3a-otp-account-label">Wallet</span>
-            <span class="w3a-otp-account-value">${viewModel.walletId}</span>
+      <div class="seams-otp-prompt" aria-live="polite">
+        <div class="seams-otp-prompt-copy">
+          <div class="seams-otp-title" id=${AUTH_MENU_TITLE_ID}>${viewModel.heading}</div>
+          <p class="seams-otp-description">${viewModel.subtitle}</p>
+          <div class="seams-otp-account" title=${viewModel.walletId}>
+            <span class="seams-otp-account-label">Wallet</span>
+            <span class="seams-otp-account-value">${viewModel.walletId}</span>
           </div>
           <button
-            class="w3a-otp-reroll"
+            class="seams-otp-reroll"
             type="button"
             ?disabled=${viewModel.rerollBusy || viewModel.submitBusy}
             @click=${this.onGoogleRegistrationReroll}
@@ -1801,7 +1777,7 @@ export class SeamsAuthMenuSurfaceElement extends LitElementWithProps {
           </button>
         </div>
         <button
-          class="w3a-auth-method-btn w3a-auth-method-btn-primary"
+          class="seams-auth-method-btn seams-auth-method-btn-primary"
           type="button"
           data-auth-menu-primary
           ?disabled=${!isAuthMenuActionReady(viewModel)}

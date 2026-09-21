@@ -1,26 +1,26 @@
 /* Expander (AccountsSection) — same grid-rows collapse mechanism as the
    Transaction Settings expander so the two sections open with one motion */
-.w3a-dropdown-accounts-root {
-  background-color: var(--w3a-expander-surface, var(--w3a-colors-surface));
+.seams-dropdown-accounts-root {
+  background-color: var(--seams-expander-surface, var(--seams-colors-surface));
   transform-origin: top;
   display: grid;
   grid-template-rows: 0fr;
   transition: grid-template-rows 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.w3a-dropdown-accounts-root.is-expanded {
-  border-top: 1px solid var(--w3a-colors-borderPrimary);
-  border-bottom: 1px solid var(--w3a-colors-borderPrimary);
+.seams-dropdown-accounts-root.is-expanded {
+  border-top: 1px solid var(--seams-colors-borderPrimary);
+  border-bottom: 1px solid var(--seams-colors-borderPrimary);
   grid-template-rows: 1fr;
 }
 
-.w3a-dropdown-accounts-clip {
+.seams-dropdown-accounts-clip {
   overflow: hidden;
   min-height: 0;
   min-width: 0;
 }
 
-.w3a-dropdown-accounts-content {
+.seams-dropdown-accounts-content {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -32,35 +32,35 @@
   transform: translateY(4px);
 }
 
-.w3a-dropdown-accounts-root.is-expanded .w3a-dropdown-accounts-content {
+.seams-dropdown-accounts-root.is-expanded .seams-dropdown-accounts-content {
   opacity: 1;
   transform: translateY(0);
 }
 
-.w3a-accounts-row {
+.seams-accounts-row {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: var(--w3a-shape-item, 8px);
+  border-radius: var(--seams-shape-item, 8px);
   text-decoration: none;
   color: inherit;
   transition: background 150ms ease;
 }
 
-.w3a-accounts-row:hover {
-  background: var(--w3a-colors-surface2);
+.seams-accounts-row:hover {
+  background: var(--seams-colors-surface2);
 }
 
-.w3a-accounts-row-chain {
+.seams-accounts-row-chain {
   flex: 0 0 auto;
   min-width: 56px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--w3a-colors-textPrimary);
+  color: var(--seams-colors-textPrimary);
 }
 
-.w3a-accounts-row-address {
+.seams-accounts-row-address {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -68,14 +68,14 @@
   white-space: nowrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
 }
 
-.w3a-accounts-row-arrow {
+.seams-accounts-row-arrow {
   flex: 0 0 auto;
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
 }
 
-.w3a-accounts-row:hover .w3a-accounts-row-arrow {
-  color: var(--w3a-colors-textPrimary);
+.seams-accounts-row:hover .seams-accounts-row-arrow {
+  color: var(--seams-colors-textPrimary);
 }

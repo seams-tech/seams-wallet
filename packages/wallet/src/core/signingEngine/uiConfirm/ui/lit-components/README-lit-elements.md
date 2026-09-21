@@ -4,9 +4,9 @@
 
 Lit‑based web components that power the wallet UI in the wallet iframe (wallet origin):
 
-- `<w3a-modal-tx-confirmer>` and `<w3a-drawer-tx-confirmer>` render directly in the wallet iframe.
-- Shared building blocks include `<w3a-drawer>`, `<w3a-tx-tree>`, `<w3a-halo-border>`, and `<w3a-passkey-halo-loading>`.
-- The export viewer uses an additional iframe host: `<w3a-export-viewer-iframe>` + `<w3a-export-key-viewer>`.
+- `<seams-modal-tx-confirmer>` and `<seams-drawer-tx-confirmer>` render directly in the wallet iframe.
+- Shared building blocks include `<seams-drawer>`, `<seams-tx-tree>`, `<seams-halo-border>`, and `<seams-passkey-halo-loading>`.
+- The export viewer uses an additional iframe host: `<seams-export-viewer-iframe>` + `<seams-export-key-viewer>`.
 
 All components are CSP‑safe: static CSS is externalized under `/sdk/*` and dynamic values are applied via constructable stylesheets (no inline styles or `<style>` tags). TxTree defaults to light DOM (opt‑in Shadow DOM via `shadow-dom`).
 
@@ -29,7 +29,7 @@ See the component index below for file paths and tags.
 
 These components use a small base helper and a variable‑driven styling approach:
 
-- `LitElementWithProps.ts` handles the Lit upgrade race and exposes `applyStyles()` that maps JS objects to `--w3a-*` CSS variables.
+- `LitElementWithProps.ts` handles the Lit upgrade race and exposes `applyStyles()` that maps JS objects to `--seams-*` CSS variables.
 - Component themes (e.g., tooltip tree, modal) are plain objects applied through `applyStyles` so you can override any section without touching the component internals.
 
 For guidance on editing properties, style sections, and the CSS variable naming convention, see:
@@ -51,17 +51,17 @@ Key utilities:
 
 Tokens and scoping:
 
-- Theme tokens come from `css/w3a-components.css`.
-- Component variables follow `--w3a-${component}__${section}__${prop}`.
+- Theme tokens come from `css/seams-components.css`.
+- Component variables follow `--seams-${component}__${section}__${prop}`.
 
 Other notes:
 
-- Base resolution: `asset-base.ts#resolveEmbeddedBase()` prefers `window.__W3A_WALLET_SDK_BASE__`, else `/sdk/`.
+- Base resolution: `asset-base.ts#resolveEmbeddedBase()` prefers `window.__SEAMS_WALLET_SDK_BASE__`, else `/sdk/`.
 - Shadow vs light DOM: TxTree defaults to light DOM; others use Shadow DOM and adopt styles there.
 
 ### CSS assets by component
 
-- Shared theme/tokens: `css/w3a-components.css`
+- Shared theme/tokens: `css/seams-components.css`
 - TxTree visuals: `css/tx-tree.css`
 - Tx confirmer layout/tokens: `css/tx-confirmer.css`
 - Drawer (when used): `css/drawer.css`
@@ -98,18 +98,18 @@ When adding or refactoring components:
 ## Component Index
 
 - IframeTxConfirmer/
-  - `viewer-modal.ts` — `<w3a-modal-tx-confirmer>`
-  - `viewer-drawer.ts` — `<w3a-drawer-tx-confirmer>`
+  - `viewer-modal.ts` — `<seams-modal-tx-confirmer>`
+  - `viewer-drawer.ts` — `<seams-drawer-tx-confirmer>`
   - `tx-confirmer-wrapper.ts` — inline wrapper selects variant
 
-- Drawer/ — `index.ts` — `<w3a-drawer>`
-- TxTree/ — `index.ts` — `<w3a-tx-tree>` (light DOM by default)
-- HaloBorder/ — `index.ts` — `<w3a-halo-border>`
-- PasskeyHaloLoading/ — `index.ts` — `<w3a-passkey-halo-loading>`
+- Drawer/ — `index.ts` — `<seams-drawer>`
+- TxTree/ — `index.ts` — `<seams-tx-tree>` (light DOM by default)
+- HaloBorder/ — `index.ts` — `<seams-halo-border>`
+- PasskeyHaloLoading/ — `index.ts` — `<seams-passkey-halo-loading>`
 
 - ExportPrivateKey/
-  - `viewer.ts` — `<w3a-export-key-viewer>`
-  - `iframe-host.ts` — `<w3a-export-viewer-iframe>`
+  - `viewer.ts` — `<seams-export-key-viewer>`
+  - `iframe-host.ts` — `<seams-export-viewer-iframe>`
   - `iframe-export-bootstrap-script.ts` — child bootstrap
 
 - Base / helpers
@@ -124,7 +124,7 @@ When adding a new Lit component that must render inside the wallet iframe host (
 
 ### Core issue we hit
 
-- The wallet host appended a custom element tag (e.g., `<w3a-export-viewer-iframe>`), but the defining module that calls `customElements.define()` was not executed in that runtime. Depending on bundler tree‑shaking and sideEffects settings, a pure side‑effect import may be omitted. Result: element never upgrades, so the inner iframe/bootstrap never runs.
+- The wallet host appended a custom element tag (e.g., `<seams-export-viewer-iframe>`), but the defining module that calls `customElements.define()` was not executed in that runtime. Depending on bundler tree‑shaking and sideEffects settings, a pure side‑effect import may be omitted. Result: element never upgrades, so the inner iframe/bootstrap never runs.
 
 ### The fix
 
@@ -133,7 +133,7 @@ When adding a new Lit component that must render inside the wallet iframe host (
   ```ts
   // Before creating the element
   await import('../../LitComponents/ExportPrivateKey/host');
-  const host = document.createElement('w3a-export-viewer-iframe');
+  const host = document.createElement('seams-export-viewer-iframe');
   document.body.appendChild(host);
   ```
 
@@ -162,7 +162,7 @@ metadata never writes overlay DOM state directly.
 
 ### Hard rules (never break again)
 
-- Always ensure definition at use‑site: before `document.createElement('w3a-*')`, dynamically import the module that calls `customElements.define()` for that tag.
+- Always ensure definition at use‑site: before `document.createElement('seams-*')`, dynamically import the module that calls `customElements.define()` for that tag.
 - Never rely only on side‑effect imports for elements rendered inside the wallet iframe.
 - Centralize tag names in `registry.ts` and prefer a small helper to ensure definition.
 
@@ -177,26 +177,26 @@ export async function ensureDefined(tag: string, loader: () => Promise<unknown>)
 }
 
 // Usage (export viewer)
-import { W3A_EXPORT_VIEWER_IFRAME_ID } from '../../registry';
+import { SEAMS_EXPORT_VIEWER_IFRAME_ID } from '../../registry';
 import { ensureDefined } from '../../registry';
 await ensureDefined(
-  W3A_EXPORT_VIEWER_IFRAME_ID,
+  SEAMS_EXPORT_VIEWER_IFRAME_ID,
   () => import('../../lit-components/ExportPrivateKey/iframe-host'),
 );
-const host = document.createElement(W3A_EXPORT_VIEWER_IFRAME_ID);
+const host = document.createElement(SEAMS_EXPORT_VIEWER_IFRAME_ID);
 document.body.appendChild(host);
 ```
 
 Reference in codebase:
 
-- `uiConfirm/handlers/flows/localOnly.ts` dynamically imports `ui/lit-components/ExportPrivateKey/iframe-host` before `createElement('w3a-export-viewer-iframe')`.
+- `uiConfirm/handlers/flows/localOnly.ts` dynamically imports `ui/lit-components/ExportPrivateKey/iframe-host` before `createElement('seams-export-viewer-iframe')`.
 
 ### Dev/Test guardrails
 
 - Unit: keep the SHOW_SECURE_PRIVATE_KEY_UI test that verifies the viewer remains mounted (already present under `tests/unit/confirmTxFlow.defensivePaths.test.ts`).
 - E2E: add a production‑bundle run that triggers export viewer to catch treeshaking differences from dev.
-- Lint/check: optional script that fails CI if a `document.createElement('w3a-…')` call is not preceded by an `ensureDefined(...)` in the same module.
-- Dev observer: optional `MutationObserver` in wallet host that warns if a `w3a-*` element is un‑upgraded for >250ms after insertion.
+- Lint/check: optional script that fails CI if a `document.createElement('seams-…')` call is not preceded by an `ensureDefined(...)` in the same module.
+- Dev observer: optional `MutationObserver` in wallet host that warns if a `seams-*` element is un‑upgraded for >250ms after insertion.
 
 ### Build config notes
 
@@ -214,6 +214,6 @@ Reference in codebase:
 
 ## Troubleshooting Styles + FOUC
 
-- Unstyled component: ensure correct SDK base; confirm a single head `<link data-w3a-…>` or adopted sheet; check `/sdk/*.css` fetches succeed without CSP errors.
+- Unstyled component: ensure correct SDK base; confirm a single head `<link data-seams-…>` or adopted sheet; check `/sdk/*.css` fetches succeed without CSP errors.
 - FOUC: gate first paint on `ensureExternalStyles()` settling (see HaloBorder, PasskeyHaloLoading, Modal viewer patterns).
 - CSP violations: never write `element.style`; use `setCssVars()` + external CSS.

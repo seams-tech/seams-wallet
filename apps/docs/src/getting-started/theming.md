@@ -34,8 +34,8 @@ leave stale values behind.
 
 ## Token names
 
-Colors become `--w3a-colors-<key>` and shape values become
-`--w3a-shape-<key>`. Common color roles include `colorBackground`,
+Colors become `--seams-colors-<key>` and shape values become
+`--seams-shape-<key>`. Common color roles include `colorBackground`,
 `textPrimary`, `textSecondary`, `buttonBackground`, status colors, and
 transaction highlights. Wallet-iframe appearance accepts additional color
 keys, so a component-specific role can pass through without an SDK release.

@@ -1,13 +1,27 @@
-import { useCallback, useMemo, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+} from 'react';
 import {
   SeamsWebProvider,
   defineSeamsConfig,
   useSeams,
   useWallet,
   useWalletAuth,
+  ExternalEvmController,
+  ExternalEvmWalletPicker,
+  useExternalEvm,
+  type ExternalEvmConnection,
   type LoginState,
 } from '@seams/wallet/react';
-import { SeamsAuthMenu } from '@seams/wallet/react/seams-auth-menu';
+import {
+  HostedSeamsAuthMenu,
+  type HostedAuthMenuOutcome,
+} from '@seams/wallet/react/hosted-seams-auth-menu';
 import {
   provisionLocalWorkspace,
   type LocalWorkspaceState,
@@ -32,9 +46,7 @@ export function WalletConsoleLite() {
     const projectName = String(form.get('projectName') || '');
     setWorkspace({ kind: 'provisioning' });
     const result = await provisionLocalWorkspace({ organizationName, projectName });
-    setWorkspace(
-      result.ok ? result.workspace : { kind: 'failed', message: result.message },
-    );
+    setWorkspace(result.ok ? result.workspace : { kind: 'failed', message: result.message });
   }, []);
 
   if (workspace.kind !== 'ready') {
@@ -54,8 +66,8 @@ function SetupScreen(props: {
         <p className="eyebrow">Seams Wallet · local SDK playground</p>
         <h1>Set up a local Wallet project</h1>
         <p>
-          Create one local organisation, project, and development environment. Runtime secrets
-          stay in the local controller process.
+          Create one local organisation, project, and development environment. Runtime secrets stay
+          in the local controller process.
         </p>
       </header>
       <form className="panel setup-form" onSubmit={props.onSubmit}>
@@ -114,10 +126,7 @@ function createWalletConfig(workspace: ReadyLocalWorkspace) {
     projectEnvironmentId: walletConfig.projectEnvironmentId,
     publishableKey: walletConfig.publishableKey,
     iframeWallet: { rpIdOverride: new URL(walletConfig.walletOrigin).hostname },
-    chains: [
-      { network: 'near-testnet' },
-      { network: 'tempo-testnet', chainId: 42_431 },
-    ],
+    chains: [{ network: 'near-testnet' }, { network: 'tempo-testnet', chainId: 42_431 }],
     signingSessionPersistenceMode: 'sealed_refresh_v1',
     routerAb: {
       normalSigning: {
@@ -135,10 +144,47 @@ function createWalletConfig(workspace: ReadyLocalWorkspace) {
   });
 }
 
+function createExternalEvmController(): ExternalEvmController {
+  return new ExternalEvmController([
+    {
+      chainId: 11_155_111,
+      name: 'Sepolia testnet',
+      rpcUrl: 'https://ethereum-sepolia-rpc.publicnode.com',
+      nativeCurrency: { name: 'Sepolia Ether', symbol: 'ETH', decimals: 18 },
+      blockExplorerUrl: 'https://sepolia.etherscan.io',
+    },
+  ]);
+}
+
+function handleAuthOutcome(
+  refreshLoginState: (walletId?: string) => Promise<void>,
+  outcome: HostedAuthMenuOutcome,
+): void {
+  switch (outcome.kind) {
+    case 'authenticated':
+    case 'registered':
+    case 'account_synced':
+      void refreshLoginState(outcome.walletId);
+      return;
+    case 'failed':
+      console.error(outcome.message);
+      return;
+    case 'cancelled':
+      return;
+    default:
+      return assertNever(outcome);
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected auth outcome: ${JSON.stringify(value)}`);
+}
+
 function WalletPlayground({ workspace }: { workspace: ReadyLocalWorkspace }) {
   const { walletIframeConnected } = useSeams();
   const { loginState, lock, refreshLoginState } = useWalletAuth();
   const wallet = useWallet();
+  const externalEvm = useMemo(createExternalEvmController, []);
   const [signingCheck, setSigningCheck] = useState<SigningCheckState>({ kind: 'idle' });
   const [page, setPage] = useState<PlaygroundPage>('wallet');
 
@@ -220,7 +266,10 @@ function WalletPlayground({ workspace }: { workspace: ReadyLocalWorkspace }) {
                 <p className="eyebrow">Authentication</p>
                 <h2>Register or unlock a Wallet</h2>
               </div>
-              <SeamsAuthMenu showSDKEvents />
+              <HostedSeamsAuthMenu
+                showProgress
+                onOutcome={handleAuthOutcome.bind(null, refreshLoginState)}
+              />
             </section>
           ) : (
             <SignedInPanel
@@ -233,10 +282,15 @@ function WalletPlayground({ workspace }: { workspace: ReadyLocalWorkspace }) {
             />
           )}
 
+          <ExternalEvmPanel controller={externalEvm} />
+
           <details className="panel configuration">
             <summary>Public local configuration</summary>
             <dl>
-              <IdentityRow label="Project environment" value={workspace.walletConfig.projectEnvironmentId} />
+              <IdentityRow
+                label="Project environment"
+                value={workspace.walletConfig.projectEnvironmentId}
+              />
               <IdentityRow label="Publishable key" value={workspace.walletConfig.publishableKey} />
               <IdentityRow label="Gateway" value={workspace.walletConfig.gatewayUrl} />
               <IdentityRow label="Wallet origin" value={workspace.walletConfig.walletOrigin} />
@@ -247,6 +301,128 @@ function WalletPlayground({ workspace }: { workspace: ReadyLocalWorkspace }) {
         <ServerShareRecovery environmentId={workspace.identity.environmentId} />
       )}
     </main>
+  );
+}
+
+type ExternalEvmActionState =
+  | { kind: 'idle' }
+  | { kind: 'running'; label: string }
+  | { kind: 'succeeded'; message: string }
+  | { kind: 'failed'; message: string };
+
+type ExternalEvmActionSetter = Dispatch<SetStateAction<ExternalEvmActionState>>;
+
+async function runExternalMessageSigning(
+  controller: ExternalEvmController,
+  connection: ExternalEvmConnection,
+  setAction: ExternalEvmActionSetter,
+): Promise<void> {
+  setAction({ kind: 'running', label: 'Waiting for wallet approval…' });
+  const result = await controller.signMessage(
+    connection,
+    new TextEncoder().encode('Seams external EVM wallet check'),
+  );
+  setAction(
+    result.ok
+      ? { kind: 'succeeded', message: `Message signed: ${result.value.slice(0, 18)}…` }
+      : { kind: 'failed', message: result.message },
+  );
+}
+
+async function runExternalTypedDataSigning(
+  controller: ExternalEvmController,
+  connection: ExternalEvmConnection,
+  setAction: ExternalEvmActionSetter,
+): Promise<void> {
+  setAction({ kind: 'running', label: 'Waiting for typed-data approval…' });
+  const result = await controller.signTypedData(connection, {
+    types: { SeamsCheck: [{ name: 'message', type: 'string' }] },
+    primaryType: 'SeamsCheck',
+    domain: { name: 'Seams Wallet', version: '1', chainId: connection.chainId },
+    message: { message: 'External EVM wallet check' },
+  });
+  setAction(
+    result.ok
+      ? {
+          kind: 'succeeded',
+          message: `Typed data signed: ${result.value.slice(0, 18)}…`,
+        }
+      : { kind: 'failed', message: result.message },
+  );
+}
+
+async function runExternalTestnetTransaction(
+  controller: ExternalEvmController,
+  connection: ExternalEvmConnection,
+  setAction: ExternalEvmActionSetter,
+): Promise<void> {
+  setAction({ kind: 'running', label: 'Waiting for transaction approval…' });
+  const result = await controller.sendTransaction(connection, {
+    to: '0x000000000000000000000000000000000000dEaD',
+    data: '0x',
+    value: 0n,
+    gas: { kind: 'wallet' },
+    fees: { kind: 'wallet' },
+  });
+  setAction(
+    result.ok
+      ? { kind: 'succeeded', message: `Submitted ${result.value.hash}` }
+      : { kind: 'failed', message: result.message },
+  );
+}
+
+function ExternalEvmPanel({ controller }: { controller: ExternalEvmController }) {
+  const externalEvm = useExternalEvm(controller);
+  const { busy, connection } = externalEvm;
+  const [action, setAction] = useState<ExternalEvmActionState>({ kind: 'idle' });
+
+  return (
+    <section className="panel external-evm-panel">
+      <div className="section-heading">
+        <p className="eyebrow">External account</p>
+        <h2>MetaMask, Rabby, or Phantom (EVM)</h2>
+      </div>
+      <p className="section-description">
+        This account keeps its keys in the browser wallet. Seams never imports or stores them.
+      </p>
+      <ExternalEvmWalletPicker controller={controller} snapshot={externalEvm} />
+      {connection.kind === 'connected' ? (
+        <div className="actions external-evm-actions">
+          <button
+            type="button"
+            onClick={runExternalMessageSigning.bind(null, controller, connection, setAction)}
+            disabled={busy}
+          >
+            Sign message
+          </button>
+          <button
+            type="button"
+            onClick={runExternalTypedDataSigning.bind(null, controller, connection, setAction)}
+            disabled={busy}
+          >
+            Sign typed data
+          </button>
+          <button
+            type="button"
+            onClick={runExternalTestnetTransaction.bind(null, controller, connection, setAction)}
+            disabled={busy || connection.network.kind !== 'configured'}
+          >
+            Send zero-value Sepolia transaction
+          </button>
+        </div>
+      ) : null}
+      {action.kind === 'running' ? (
+        <p className="message" role="status">{action.label}</p>
+      ) : null}
+      {action.kind === 'succeeded' || action.kind === 'failed' ? (
+        <p
+          className={`message ${action.kind === 'failed' ? 'error' : 'success'}`}
+          role="status"
+        >
+          {action.message}
+        </p>
+      ) : null}
+    </section>
   );
 }
 
@@ -271,14 +447,19 @@ function SignedInPanel(props: {
       <dl className="identity-list">
         <IdentityRow label="Wallet ID" value={props.loginState.walletId} />
         <IdentityRow label="Authentication" value={authMethod} />
-        <IdentityRow label="NEAR account" value={props.loginState.nearAccountId || 'Provisioning'} />
+        <IdentityRow
+          label="NEAR account"
+          value={props.loginState.nearAccountId || 'Provisioning'}
+        />
         <IdentityRow
           label="EVM address"
           value={props.loginState.thresholdEcdsaEthereumAddress || 'Provisioning'}
         />
       </dl>
       <div className="actions">
-        <button type="button" onClick={props.onRefresh}>Refresh session</button>
+        <button type="button" onClick={props.onRefresh}>
+          Refresh session
+        </button>
         <button
           type="button"
           onClick={props.onSigningCheck}
@@ -286,7 +467,9 @@ function SignedInPanel(props: {
         >
           {props.signingCheck.kind === 'signing' ? 'Signing…' : 'Run signing check'}
         </button>
-        <button type="button" onClick={props.onLock}>Lock wallet</button>
+        <button type="button" onClick={props.onLock}>
+          Lock wallet
+        </button>
       </div>
       {props.signingCheck.kind === 'signed' || props.signingCheck.kind === 'failed' ? (
         <p

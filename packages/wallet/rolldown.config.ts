@@ -153,6 +153,7 @@ const external = [
   /@noble\/hashes\/.*/,
   'idb',
   'near-api-js',
+  'viem',
 
   // Other common packages
   'tslib',
@@ -196,53 +197,53 @@ const copyWalletStaticAssets = (sdkDir: string): void => {
   }
 };
 
-const W3A_COMPONENT_HOSTS = [
-  'w3a-tx-tree',
-  'w3a-drawer',
-  'w3a-modal-tx-confirmer',
-  'w3a-drawer-tx-confirmer',
-  'w3a-tx-confirm-content',
-  'w3a-halo-border',
-  'w3a-passkey-halo-loading',
-  'w3a-recovery-code-backup-viewer',
+const SEAMS_COMPONENT_HOSTS = [
+  'seams-tx-tree',
+  'seams-drawer',
+  'seams-modal-tx-confirmer',
+  'seams-drawer-tx-confirmer',
+  'seams-tx-confirm-content',
+  'seams-halo-border',
+  'seams-passkey-halo-loading',
+  'seams-recovery-code-backup-viewer',
 ] as const;
 
-const emitW3AThemeAliases = (vars: any, indent = '  '): string[] => [
-  `${indent}--w3a-colors-textPrimary: ${vars.textPrimary};`,
-  `${indent}--w3a-colors-textSecondary: ${vars.textSecondary};`,
-  `${indent}--w3a-colors-textMuted: ${vars.textMuted};`,
-  `${indent}--w3a-colors-textButton: ${vars.textButton};`,
-  `${indent}--w3a-colors-colorBackground: ${vars.colorBackground};`,
-  `${indent}--w3a-colors-surface: ${vars.surface};`,
-  `${indent}--w3a-colors-surface2: ${vars.surface2};`,
-  `${indent}--w3a-colors-surface3: ${vars.surface3};`,
-  `${indent}--w3a-colors-surface4: ${vars.surface4};`,
-  `${indent}--w3a-colors-primary: ${vars.primary};`,
-  `${indent}--w3a-colors-primaryHover: ${vars.primaryHover};`,
-  `${indent}--w3a-colors-secondary: ${vars.secondary};`,
-  `${indent}--w3a-colors-secondaryHover: ${vars.secondaryHover};`,
-  `${indent}--w3a-colors-accent: ${vars.accent};`,
-  `${indent}--w3a-colors-buttonBackground: ${vars.buttonBackground};`,
-  `${indent}--w3a-colors-buttonHoverBackground: ${vars.buttonHoverBackground};`,
-  `${indent}--w3a-colors-hover: ${vars.hover};`,
-  `${indent}--w3a-colors-active: ${vars.active};`,
-  `${indent}--w3a-colors-focus: ${vars.focus};`,
-  `${indent}--w3a-colors-success: ${vars.success};`,
-  `${indent}--w3a-colors-warning: ${vars.warning};`,
-  `${indent}--w3a-colors-error: ${vars.error};`,
-  `${indent}--w3a-colors-info: ${vars.info};`,
-  `${indent}--w3a-colors-borderPrimary: ${vars.borderPrimary};`,
-  `${indent}--w3a-colors-borderSecondary: ${vars.borderSecondary};`,
-  `${indent}--w3a-colors-borderHover: ${vars.borderHover};`,
-  `${indent}--w3a-colors-gradientPrimary: ${vars.gradientPrimary};`,
-  `${indent}--w3a-colors-gradientSecondary: ${vars.gradientSecondary};`,
-  `${indent}--w3a-colors-gradientTertiary: ${vars.gradientTertiary};`,
-  `${indent}--w3a-colors-highlightReceiverId: ${vars.highlightReceiverId};`,
-  `${indent}--w3a-colors-highlightMethodName: ${vars.highlightMethodName};`,
-  `${indent}--w3a-colors-highlightAmount: ${vars.highlightAmount};`,
+const emitSeamsThemeAliases = (vars: any, indent = '  '): string[] => [
+  `${indent}--seams-colors-textPrimary: ${vars.textPrimary};`,
+  `${indent}--seams-colors-textSecondary: ${vars.textSecondary};`,
+  `${indent}--seams-colors-textMuted: ${vars.textMuted};`,
+  `${indent}--seams-colors-textButton: ${vars.textButton};`,
+  `${indent}--seams-colors-colorBackground: ${vars.colorBackground};`,
+  `${indent}--seams-colors-surface: ${vars.surface};`,
+  `${indent}--seams-colors-surface2: ${vars.surface2};`,
+  `${indent}--seams-colors-surface3: ${vars.surface3};`,
+  `${indent}--seams-colors-surface4: ${vars.surface4};`,
+  `${indent}--seams-colors-primary: ${vars.primary};`,
+  `${indent}--seams-colors-primaryHover: ${vars.primaryHover};`,
+  `${indent}--seams-colors-secondary: ${vars.secondary};`,
+  `${indent}--seams-colors-secondaryHover: ${vars.secondaryHover};`,
+  `${indent}--seams-colors-accent: ${vars.accent};`,
+  `${indent}--seams-colors-buttonBackground: ${vars.buttonBackground};`,
+  `${indent}--seams-colors-buttonHoverBackground: ${vars.buttonHoverBackground};`,
+  `${indent}--seams-colors-hover: ${vars.hover};`,
+  `${indent}--seams-colors-active: ${vars.active};`,
+  `${indent}--seams-colors-focus: ${vars.focus};`,
+  `${indent}--seams-colors-success: ${vars.success};`,
+  `${indent}--seams-colors-warning: ${vars.warning};`,
+  `${indent}--seams-colors-error: ${vars.error};`,
+  `${indent}--seams-colors-info: ${vars.info};`,
+  `${indent}--seams-colors-borderPrimary: ${vars.borderPrimary};`,
+  `${indent}--seams-colors-borderSecondary: ${vars.borderSecondary};`,
+  `${indent}--seams-colors-borderHover: ${vars.borderHover};`,
+  `${indent}--seams-colors-gradientPrimary: ${vars.gradientPrimary};`,
+  `${indent}--seams-colors-gradientSecondary: ${vars.gradientSecondary};`,
+  `${indent}--seams-colors-gradientTertiary: ${vars.gradientTertiary};`,
+  `${indent}--seams-colors-highlightReceiverId: ${vars.highlightReceiverId};`,
+  `${indent}--seams-colors-highlightMethodName: ${vars.highlightMethodName};`,
+  `${indent}--seams-colors-highlightAmount: ${vars.highlightAmount};`,
 ];
 
-const buildW3AComponentsCss = async (sdkRoot: string): Promise<string> => {
+const buildSeamsComponentsCss = async (sdkRoot: string): Promise<string> => {
   const palettePath = path.join(sdkRoot, 'src/theme/palette.json');
   const paletteRaw = fs.readFileSync(palettePath, 'utf-8');
   const palette = JSON.parse(paletteRaw) as any;
@@ -252,20 +253,20 @@ const buildW3AComponentsCss = async (sdkRoot: string): Promise<string> => {
   const { createThemeTokens } = base as any;
   const { DARK_THEME: darkVars, LIGHT_THEME: lightVars } = createThemeTokens(palette);
 
-  const hostSelector = W3A_COMPONENT_HOSTS.join(',\n');
+  const hostSelector = SEAMS_COMPONENT_HOSTS.join(',\n');
   const lines: string[] = [];
 
   lines.push(
     '/* Generated from src/theme/palette.json + src/theme/base-styles.js. Do not edit by hand. */',
   );
   lines.push(`${hostSelector} {`);
-  lines.push(`  --w3a-modal__btn__focus-outline-color: ${darkVars?.focus || '#3b82f6'};`);
-  lines.push('  --w3a-tree__file-content__scrollbar-track__background: rgba(255, 255, 255, 0.06);');
-  lines.push('  --w3a-tree__file-content__scrollbar-thumb__background: rgba(255, 255, 255, 0.22);');
+  lines.push(`  --seams-modal__btn__focus-outline-color: ${darkVars?.focus || '#3b82f6'};`);
+  lines.push('  --seams-tree__file-content__scrollbar-track__background: rgba(255, 255, 255, 0.06);');
+  lines.push('  --seams-tree__file-content__scrollbar-thumb__background: rgba(255, 255, 255, 0.22);');
 
   const pushScale = (name: string, scale: Record<string, string>) => {
     Object.keys(scale || {}).forEach((k) => {
-      lines.push(`  --w3a-${name}${k}: ${scale[k]};`);
+      lines.push(`  --seams-${name}${k}: ${scale[k]};`);
     });
   };
 
@@ -280,30 +281,30 @@ const buildW3AComponentsCss = async (sdkRoot: string): Promise<string> => {
     });
 
   Object.keys(palette.gradients || {}).forEach((name) => {
-    lines.push(`  --w3a-gradient-${name}: ${palette.gradients[name]};`);
+    lines.push(`  --seams-gradient-${name}: ${palette.gradients[name]};`);
   });
 
   lines.push('');
   lines.push('  /* Default token aliases (dark) for hosts */');
-  lines.push(...emitW3AThemeAliases(darkVars));
+  lines.push(...emitSeamsThemeAliases(darkVars));
   lines.push('}');
 
   lines.push('');
   lines.push(':root {');
-  lines.push(...emitW3AThemeAliases(darkVars, '  '));
+  lines.push(...emitSeamsThemeAliases(darkVars, '  '));
   lines.push('}');
   lines.push('');
-  lines.push(':root[data-w3a-theme="light"] {');
-  lines.push(...emitW3AThemeAliases(lightVars, '  '));
+  lines.push(':root[data-seams-theme="light"] {');
+  lines.push(...emitSeamsThemeAliases(lightVars, '  '));
   lines.push('}');
 
-  const themedSelLight = W3A_COMPONENT_HOSTS.map((s) => `:root[data-w3a-theme="light"] ${s}`).join(
+  const themedSelLight = SEAMS_COMPONENT_HOSTS.map((s) => `:root[data-seams-theme="light"] ${s}`).join(
     ',\n',
   );
 
   lines.push('');
   lines.push(`${themedSelLight} {`);
-  lines.push(...emitW3AThemeAliases(lightVars, '  '));
+  lines.push(...emitSeamsThemeAliases(lightVars, '  '));
   lines.push('}');
 
   return `${lines.join('\n')}\n`;
@@ -320,15 +321,15 @@ const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<v
   copyWalletStaticAssets(sdkDir);
 
   try {
-    const w3aComponentsCss = await buildW3AComponentsCss(sdkRoot);
-    fs.writeFileSync(path.join(sdkDir, 'w3a-components.css'), w3aComponentsCss, 'utf-8');
+    const seamsComponentsCss = await buildSeamsComponentsCss(sdkRoot);
+    fs.writeFileSync(path.join(sdkDir, 'seams-components.css'), seamsComponentsCss, 'utf-8');
   } catch (e) {
-    console.warn('⚠️  Failed to generate w3a-components.css from palette:', e);
+    console.warn('⚠️  Failed to generate seams-components.css from palette:', e);
     const src = path.join(
       sdkRoot,
-      'src/core/signingEngine/uiConfirm/ui/lit-components/css/w3a-components.css',
+      'src/core/signingEngine/uiConfirm/ui/lit-components/css/seams-components.css',
     );
-    const dest = path.join(sdkDir, 'w3a-components.css');
+    const dest = path.join(sdkDir, 'seams-components.css');
     if (fs.existsSync(src)) fs.copyFileSync(src, dest);
   }
 
@@ -465,6 +466,7 @@ const configs = [
   {
     input: [
       'src/index.ts',
+      'src/externalEvm/index.ts',
       'src/advanced.ts',
       'src/runtime.ts',
       'src/SeamsWeb/index.ts',
@@ -553,12 +555,8 @@ const configs = [
       'src/react/index.ts',
       'src/react/context/SeamsWebProvider.tsx',
       // Ensure public subpath entrypoints exist in dist even when re-exports are flattened.
-      'src/react/components/SeamsAuthMenu/public.ts',
-      'src/react/components/SeamsAuthMenu/preload.ts',
-      'src/react/components/SeamsAuthMenu/shell.tsx',
-      'src/react/components/SeamsAuthMenu/skeleton.tsx',
-      'src/react/components/SeamsAuthMenu/client.tsx',
       'src/react/components/HostedSeamsAuthMenu/public.ts',
+      'src/react/externalEvm.tsx',
     ],
     output: {
       dir: BUILD_PATHS.BUILD.ESM,
@@ -729,7 +727,7 @@ const configs = [
   {
     input: {
       // Tx Confirmer component
-      'w3a-tx-confirmer':
+      'seams-tx-confirmer':
         'src/core/signingEngine/uiConfirm/ui/lit-components/IframeTxConfirmer/tx-confirmer-wrapper.ts',
       // Wallet service host (headless)
       'wallet-iframe-host-runtime': 'src/SeamsWeb/walletIframe/host/index.ts',

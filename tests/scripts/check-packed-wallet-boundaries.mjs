@@ -139,10 +139,10 @@ async function smokePackedEntries() {
   const authMenu = await import(
     path.join(
       nodeModulesDirectory,
-      '@seams/wallet/dist/esm/react/components/SeamsAuthMenu/public.js',
+      '@seams/wallet/dist/esm/react/components/HostedSeamsAuthMenu/public.js',
     )
   );
-  assert.equal(typeof authMenu.SeamsAuthMenu, 'function');
+  assert.equal(typeof authMenu.HostedSeamsAuthMenu, 'function');
 
   const walletServer = await import(
     path.join(nodeModulesDirectory, '@seams/wallet-server/dist/esm/index.js')

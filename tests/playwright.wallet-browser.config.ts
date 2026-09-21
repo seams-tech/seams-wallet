@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 const browserTestOrigin = 'http://localhost:4203';
 
 process.env.NO_CADDY = '1';
-process.env.W3A_TEST_FRONTEND_URL = browserTestOrigin;
+process.env.SEAMS_TEST_FRONTEND_URL = browserTestOrigin;
 
 export default defineConfig({
   tsconfig: './tsconfig.wallet-browser.json',

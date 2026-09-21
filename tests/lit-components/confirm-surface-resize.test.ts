@@ -27,7 +27,7 @@ type HarnessState = {
 
 declare global {
   interface Window {
-    __w3aResizeHarness?: HarnessState & {
+    __seamsResizeHarness?: HarnessState & {
       host: HTMLElement;
       details: HTMLDetailsElement;
       body: HTMLElement;
@@ -48,13 +48,13 @@ async function mountTreeHost(
         paths.choreographer
       )) as typeof import('@/core/signingEngine/uiConfirm/ui/confirm-surface-resize');
 
-      window.__w3aResizeHarness?.dispose();
-      document.getElementById('w3a-resize-harness')?.remove();
+      window.__seamsResizeHarness?.dispose();
+      document.getElementById('seams-resize-harness')?.remove();
 
       const host = document.createElement('div');
-      host.id = 'w3a-resize-harness';
+      host.id = 'seams-resize-harness';
       host.setAttribute(choreography.CONFIRM_SURFACE_MODE_ATTR, surface);
-      const tree = document.createElement('w3a-tx-tree') as HTMLElement & {
+      const tree = document.createElement('seams-tx-tree') as HTMLElement & {
         node?: unknown;
         theme?: string;
         updateComplete?: Promise<unknown>;
@@ -87,7 +87,7 @@ async function mountTreeHost(
       // The tree's external stylesheet carries the .anim-h rules the motion
       // relies on; wait until it has actually loaded.
       const link = document.head.querySelector(
-        'link[data-w3a-tx-tree-css]',
+        'link[data-seams-tx-tree-css]',
       ) as HTMLLinkElement | null;
       if (!link) throw new Error('tx-tree.css link missing');
       if (!link.sheet) {
@@ -138,7 +138,7 @@ async function mountTreeHost(
       const bodyLookup = () =>
         details.querySelector(':scope > .folder-children') as HTMLElement | null;
 
-      window.__w3aResizeHarness = Object.assign(state, {
+      window.__seamsResizeHarness = Object.assign(state, {
         host,
         details,
         summary,
@@ -174,13 +174,13 @@ async function frames(page: import('@playwright/test').Page, count: number): Pro
 
 async function snapshot(page: import('@playwright/test').Page) {
   return await page.evaluate(() => {
-    const h = window.__w3aResizeHarness;
+    const h = window.__seamsResizeHarness;
     if (!h) throw new Error('harness missing');
     const body = h.body;
     return {
       hostPx: Math.round(h.host.getBoundingClientRect().height),
       bodyPx: Math.round(body.getBoundingClientRect().height),
-      pinned: h.host.classList.contains('w3a-confirm-surface-pinned'),
+      pinned: h.host.classList.contains('seams-confirm-surface-pinned'),
       driven: body.classList.contains('anim-h-driven'),
       animating: body.classList.contains('anim-h'),
       open: h.details.open,
@@ -194,19 +194,19 @@ async function snapshot(page: import('@playwright/test').Page) {
 
 async function setViewport(page: import('@playwright/test').Page, px: number): Promise<void> {
   await page.evaluate((value) => {
-    const h = window.__w3aResizeHarness;
+    const h = window.__seamsResizeHarness;
     if (!h) throw new Error('harness missing');
     h.viewportPx = value;
   }, px);
 }
 
 async function sampleViewportBlip({ targetPx, originPx }: { targetPx: number; originPx: number }) {
-  const h = window.__w3aResizeHarness;
+  const h = window.__seamsResizeHarness;
   if (!h) throw new Error('harness missing');
   h.viewportPx = targetPx;
   await new Promise<number>(requestAnimationFrame);
   const blip = {
-    pinned: h.host.classList.contains('w3a-confirm-surface-pinned'),
+    pinned: h.host.classList.contains('seams-confirm-surface-pinned'),
     bodyPx: Math.round(h.body.getBoundingClientRect().height),
     toggled: h.toggled,
   };
@@ -216,7 +216,7 @@ async function sampleViewportBlip({ targetPx, originPx }: { targetPx: number; or
 
 async function clickNode(page: import('@playwright/test').Page): Promise<void> {
   await page.evaluate(() => {
-    window.__w3aResizeHarness?.summary.click();
+    window.__seamsResizeHarness?.summary.click();
   });
 }
 
@@ -243,7 +243,7 @@ test.describe('wallet-iframe confirm surface resize choreography', () => {
   });
 
   test.afterEach(async ({ page }) => {
-    await page.evaluate(() => window.__w3aResizeHarness?.dispose());
+    await page.evaluate(() => window.__seamsResizeHarness?.dispose());
   });
 
   test('opening grows the host first and fills the body from the box, one measurement', async ({
@@ -423,7 +423,7 @@ test.describe('wallet-iframe confirm surface resize choreography', () => {
     await mountTreeHost(page, { surface: 'standalone' });
 
     const heights = await page.evaluate(async () => {
-      const harness = window.__w3aResizeHarness;
+      const harness = window.__seamsResizeHarness;
       if (!harness) throw new Error('harness missing');
       const body = () => harness.body;
       const samples: Array<{ px: number; clipped: boolean }> = [];

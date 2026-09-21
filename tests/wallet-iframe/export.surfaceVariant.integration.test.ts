@@ -114,7 +114,7 @@ const RECORDING_STUB = String.raw`
  */
 const captureDialogPresentation = () => {
   const dialogs = Array.from(
-    document.querySelectorAll('dialog.w3a-wallet-overlay-dialog'),
+    document.querySelectorAll('dialog.seams-wallet-overlay-dialog'),
   ) as HTMLDialogElement[];
   const walletFramed = dialogs.filter((d) =>
     /wallet\.example\.localhost/.test(d.querySelector('iframe')?.getAttribute('src') || ''),

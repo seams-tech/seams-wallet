@@ -8,7 +8,7 @@ import { useEffect } from 'react';
  * Layering model (high level):
  * - Wallet iframe overlay (host surface):
  *   - CSS: `overlay/overlay-styles.ts`
- *   - Uses `z-index: var(--w3a-wallet-overlay-z, 2147483646)`
+ *   - Uses `z-index: var(--seams-wallet-overlay-z, 2147483646)`
  *   - Hosts tx confirmer and other wallet UI; should sit above normal app UI.
  *
  * - Tx confirmer inside iframe:
@@ -16,21 +16,21 @@ import { useEffect } from 'react';
  *   - Uses z-indices above the iframe itself (2147483647–2147483648).
  *
  * - Linked Devices modal:
- *   - Backdrop: `z-index: calc(--w3a-wallet-overlay-z - 2)`
- *   - Inner content: `z-index: calc(--w3a-wallet-overlay-z - 1)`
+ *   - Backdrop: `z-index: calc(--seams-wallet-overlay-z - 2)`
+ *   - Inner content: `z-index: calc(--seams-wallet-overlay-z - 1)`
  *   - Intentionally below the wallet overlay so the tx confirmer always wins.
  *
  * - Device Linking QR scanner modal:
  *   - CSS: `react/components/QRCodeScanner.css`
- *   - Backdrop/container: `z-index: calc(--w3a-wallet-overlay-z - 2)`
+ *   - Backdrop/container: `z-index: calc(--seams-wallet-overlay-z - 2)`
  *
- * - AccountMenuButton / SeamsAuthMenu:
+ * - AccountMenuButton / HostedSeamsAuthMenu:
  *   - Uses only small local z-indices (1–3),
  *     so it naturally stays below the wallet overlay.
  *
  * Hook behavior:
  * - When `overlayZIndex` is a positive, finite number, sets
- *   `document.documentElement.style.setProperty('--w3a-wallet-overlay-z', String(overlayZIndex))`.
+ *   `document.documentElement.style.setProperty('--seams-wallet-overlay-z', String(overlayZIndex))`.
  * - When `overlayZIndex` is null/undefined, non-finite, or <= 0, removes the property so the
  *   SDK default value (2147483646) and static CSS continue to apply.
  */
@@ -41,13 +41,13 @@ export function useWalletIframeZIndex(overlayZIndex?: number | null): void {
 
     if (overlayZIndex == null || !Number.isFinite(overlayZIndex) || overlayZIndex <= 0) {
       try {
-        root.style.removeProperty('--w3a-wallet-overlay-z');
+        root.style.removeProperty('--seams-wallet-overlay-z');
       } catch {}
       return;
     }
 
     try {
-      root.style.setProperty('--w3a-wallet-overlay-z', String(overlayZIndex));
+      root.style.setProperty('--seams-wallet-overlay-z', String(overlayZIndex));
     } catch {}
   }, [overlayZIndex]);
 }

@@ -27,13 +27,13 @@ export interface SeamsWebProviderProps {
   theme?: SeamsWebProviderThemeProps;
   /**
    * Optional z-index override for the wallet iframe overlay.
-   * Sets the CSS variable --w3a-wallet-overlay-z on the document root.
+   * Sets the CSS variable --seams-wallet-overlay-z on the document root.
    *
    * Defaults and layering:
-   * - Wallet iframe overlay: `var(--w3a-wallet-overlay-z, 2147483646)`
+   * - Wallet iframe overlay: `var(--seams-wallet-overlay-z, 2147483646)`
    * - Linked Devices modal + QR scanner: `overlayZ - 2` / `overlayZ - 1`
    *   (always below the wallet overlay so tx confirmer wins)
-   * - ProfileSettingsMenu/SeamsAuthMenu: small local z-indexes only (1–3),
+   * - ProfileSettingsMenu/HostedSeamsAuthMenu: small local z-indexes only (1–3),
    *   no fullscreen overlay z-index.
    */
   walletOverlayZIndex?: number;
@@ -84,21 +84,21 @@ function mergeThemeOverrideLayers(
   return hasLayer ? merged : undefined;
 }
 
-const APP_LIT_THEME_OVERRIDE_RULE_ID = 'w3a-lit-theme-overrides-app';
+const APP_LIT_THEME_OVERRIDE_RULE_ID = 'seams-lit-theme-overrides-app';
 const APP_LIT_HOST_SELECTORS = [
-  'w3a-tx-tree',
-  'w3a-drawer',
-  'w3a-modal-tx-confirmer',
-  'w3a-drawer-tx-confirmer',
-  'w3a-tx-confirm-content',
-  'w3a-halo-border',
-  'w3a-passkey-halo-loading',
-  'w3a-export-key-viewer',
+  'seams-tx-tree',
+  'seams-drawer',
+  'seams-modal-tx-confirmer',
+  'seams-drawer-tx-confirmer',
+  'seams-tx-confirm-content',
+  'seams-halo-border',
+  'seams-passkey-halo-loading',
+  'seams-export-key-viewer',
 ] as const;
 const APP_LIT_DARK_SELECTOR = APP_LIT_HOST_SELECTORS.join(',\n');
 const APP_LIT_LIGHT_SELECTOR = APP_LIT_HOST_SELECTORS.map(
   (selector) =>
-    `${selector}[theme="light"],\n:root[data-w3a-theme="light"] ${selector}:not([theme="dark"])`,
+    `${selector}[theme="light"],\n:root[data-seams-theme="light"] ${selector}:not([theme="dark"])`,
 ).join(',\n');
 let appLitThemeOverrideStyleManager: ReturnType<typeof createCspStylesheetManager> | null = null;
 
@@ -107,7 +107,7 @@ function getAppLitThemeOverrideStyleManager(): ReturnType<typeof createCspStyles
     appLitThemeOverrideStyleManager = createCspStylesheetManager({
       doc: document,
       baseCss: '',
-      dynamicStyleDataAttr: 'data-w3a-lit-theme-overrides-app',
+      dynamicStyleDataAttr: 'data-seams-lit-theme-overrides-app',
       nonce: () => getDefaultCspNonce(),
     });
   }
@@ -144,7 +144,7 @@ function serializeColorOverrides(colors: Record<string, string>): string[] {
     if (!tokenName) continue;
     const tokenValue = sanitizeTokenValue(rawValue);
     if (!tokenValue) continue;
-    lines.push(`  --w3a-colors-${tokenName}: ${tokenValue} !important;`);
+    lines.push(`  --seams-colors-${tokenName}: ${tokenValue} !important;`);
   }
   return lines;
 }
@@ -246,7 +246,7 @@ export const SeamsWebProvider: React.FC<SeamsWebProviderProps> = ({
   React.useEffect(() => {
     if (rootTheme === 'light' || rootTheme === 'dark') {
       try {
-        document.documentElement.setAttribute('data-w3a-theme', rootTheme);
+        document.documentElement.setAttribute('data-seams-theme', rootTheme);
       } catch {}
     }
   }, [rootTheme]);

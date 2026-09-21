@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
  * Assert that all colors from packages/wallet/src/theme/palette.json exist as CSS variables
- * in the generated w3a-components.css.
+ * in the generated seams-components.css.
  *
  * Usage:
- *   node packages/wallet/scripts/checks/assert-palette-css.mjs [path/to/w3a-components.css]
- * Default cssPath: packages/wallet/dist/esm/sdk/w3a-components.css
+ *   node packages/wallet/scripts/checks/assert-palette-css.mjs [path/to/seams-components.css]
+ * Default cssPath: packages/wallet/dist/esm/sdk/seams-components.css
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -24,7 +24,7 @@ function resolveSdkRoot() {
 
 const sdkRoot = resolveSdkRoot();
 const palettePath = path.join(sdkRoot, 'src', 'theme', 'palette.json');
-const defaultCssPath = path.join(sdkRoot, 'dist', 'esm', 'sdk', 'w3a-components.css');
+const defaultCssPath = path.join(sdkRoot, 'dist', 'esm', 'sdk', 'seams-components.css');
 
 const cssPath = process.argv[2] ? path.resolve(process.argv[2]) : defaultCssPath;
 
@@ -59,7 +59,7 @@ const css = readText(cssPath);
 
 // Collect CSS var names present in the generated file
 const present = new Set();
-const re = /(--w3a-[a-z0-9-]+)\s*:/gi;
+const re = /(--seams-[a-z0-9-]+)\s*:/gi;
 let m;
 while ((m = re.exec(css)) !== null) {
   present.add(m[1]);
@@ -71,7 +71,7 @@ const expected = new Set();
 const addVars = (prefix, obj) => {
   if (!obj) return;
   for (const k of Object.keys(obj)) {
-    expected.add(`--w3a-${prefix}${k}`);
+    expected.add(`--seams-${prefix}${k}`);
   }
 };
 
@@ -85,7 +85,7 @@ for (const fam of Object.keys(chroma)) {
 
 const gradients = palette.gradients || {};
 for (const name of Object.keys(gradients)) {
-  expected.add(`--w3a-gradient-${name}`);
+  expected.add(`--seams-gradient-${name}`);
 }
 
 // Diff
@@ -94,7 +94,7 @@ const missing = Array.from(expected)
   .sort();
 
 if (missing.length) {
-  console.error('[assert-palette-css] Missing CSS variables from generated w3a-components.css:');
+  console.error('[assert-palette-css] Missing CSS variables from generated seams-components.css:');
   for (const v of missing) console.error(`  ${v}`);
   process.exit(1);
 }

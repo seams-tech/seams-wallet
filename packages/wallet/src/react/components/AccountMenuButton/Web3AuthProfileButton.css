@@ -2,15 +2,15 @@
   box-sizing: border-box;
 }
 
-.w3a-profile-button-morphable {
+.seams-profile-button-morphable {
   position: relative;
-  background-color: var(--w3a-colors-colorBackground);
-  border: 1px solid var(--w3a-colors-borderPrimary);
+  background-color: var(--seams-colors-colorBackground);
+  border: 1px solid var(--seams-colors-borderPrimary);
   border-radius: 2rem;
-  box-shadow: var(--w3a-shadows-sm);
+  box-shadow: var(--seams-shadows-sm);
   font-size: 14px;
   font-weight: 500;
-  color: var(--w3a-colors-textPrimary);
+  color: var(--seams-colors-textPrimary);
   cursor: pointer;
   outline: none;
   overflow: visible;
@@ -18,38 +18,38 @@
   transition: none;
 }
 
-.w3a-profile-button-morphable:hover {
-  border-color: var(--w3a-colors-borderHover);
+.seams-profile-button-morphable:hover {
+  border-color: var(--seams-colors-borderHover);
 }
 
-.w3a-profile-button-icon {
+.seams-profile-button-icon {
   flex-shrink: 0;
 }
 
-.w3a-profile-button-icon svg {
+.seams-profile-button-icon svg {
   overflow: visible;
 }
 
-.w3a-profile-button-username {
+.seams-profile-button-username {
   white-space: nowrap;
   overflow: hidden;
   display: inline-block;
 }
 
-.w3a-profile-button-icon {
-  color: var(--w3a-colors-textSecondary);
+.seams-profile-button-icon {
+  color: var(--seams-colors-textSecondary);
 }
 
-.w3a-profile-button-username {
+.seams-profile-button-username {
   display: block;
-  color: var(--w3a-colors-textSecondary);
+  color: var(--seams-colors-textSecondary);
 }
 
-.w3a-profile-button-username.hidden {
+.seams-profile-button-username.hidden {
   display: none;
 }
 
-.w3a-user-account--toggle-content {
+.seams-user-account--toggle-content {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -57,19 +57,19 @@
   transition: opacity 0.15s ease-in-out;
 }
 
-.w3a-user-account--toggle-text {
+.seams-user-account--toggle-text {
   flex: 1;
 }
 
-.w3a-user-account--toggle-title {
+.seams-user-account--toggle-title {
   font-weight: 500;
-  color: var(--w3a-colors-textPrimary);
+  color: var(--seams-colors-textPrimary);
   font-size: 14px;
   margin: 0;
 }
 
-.w3a-user-account--toggle-description {
+.seams-user-account--toggle-description {
   font-size: 14px;
-  color: var(--w3a-colors-textMuted);
+  color: var(--seams-colors-textMuted);
   margin: 0;
 }

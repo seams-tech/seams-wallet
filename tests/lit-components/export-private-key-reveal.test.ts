@@ -3,7 +3,7 @@ import { setupBasicPasskeyTest } from '../setup';
 import { ensureComponentModule, mountComponent } from './harness';
 
 const EXPORT_VIEWER_MODULE = '/sdk/export-private-key-viewer.js';
-const EXPORT_VIEWER_TAG = 'w3a-export-key-viewer';
+const EXPORT_VIEWER_TAG = 'seams-export-key-viewer';
 const PRIVATE_KEY = `0x${'1'.repeat(64)}`;
 const ED25519_PRIVATE_KEY = `ed25519:${'1'.repeat(88)}`;
 

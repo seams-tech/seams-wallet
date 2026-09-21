@@ -304,7 +304,7 @@ export function setupLitElemMounter(opts: SetupLitElemMounterOptions) {
     const componentKey = payload?.key;
     const def = resolveComponentDef(uiRegistry, componentKey);
     if (!def || !componentKey) return null;
-    const id = payload?.id ?? `w3a-ui-${++uidCounter}`;
+    const id = payload?.id ?? `seams-ui-${++uidCounter}`;
     const rawProps: UiProps = payload?.props || {};
     const props = resolveProps(def, payload);
     const allowedProps = def.allowedProps ? new Set(def.allowedProps) : undefined;

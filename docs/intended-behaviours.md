@@ -116,9 +116,9 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 
 ## Hosted Auth Menu Entry Point
 
-When hosted wallet-iframe mode is configured, mounting `SeamsAuthMenu` opens one
+When hosted wallet-iframe mode is configured, mounting `HostedSeamsAuthMenu` opens one
 `modal_auth_menu` surface in the wallet-origin iframe. The app document contains
-only an inert lifecycle marker; auth inputs, progress, OTP prompts, and the final
+an inert loading shell until the hosted surface appears; auth inputs, progress, OTP prompts, and the final
 CTA belong to the wallet origin.
 
 - Login and registration prepare their asynchronous prerequisites before enabling
@@ -665,6 +665,7 @@ restore, lane selection, or budget handling.
 | Google/Email OTP recovery preserves public identities, signs through the fresh authority, and refuses code reuse | `tests/e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts`                                        |
 | Tenant-root rotation preserves signing and recovery across operational-share changes                             | Private acceptance coverage: `seams-monorepo/tests/e2e/intended-behaviours/tenant-root.rotation.contract.test.ts` |
 | Sibling revocation, inventory UI, and exact Email OTP boundary failures                                          | Private focused coverage in `seams-monorepo/tests/unit` as mapped by the owning change.                           |
+| External EVM discovery, connection binding, stale-request rejection, and transaction outcomes                    | `tests/unit/externalEvmController.unit.test.ts`                                                                    |
 
 ## Non-Goals
 
@@ -675,3 +676,25 @@ restore, lane selection, or budget handling.
 - Do not treat public ECDSA identity as signing material.
 - Do not use session ids alone to identify ECDSA readiness or budget.
 - Do not send extra OTP codes during registration reroll.
+
+## External EVM accounts
+
+- Discovery uses EIP-6963 plus Phantom's wallet-specific
+  `window.phantom.ethereum` namespace. It never selects the shared
+  `window.ethereum` provider. The user explicitly selects the provider before
+  `eth_requestAccounts` is sent.
+- MetaMask, Rabby, and Phantom EVM providers use the same EIP-1193 connector.
+  Provider metadata is display data; it cannot authenticate a wallet or establish
+  Seams custody authority.
+- External connection state is separate from Seams authentication, Wallet
+  Sessions, custody seeds, and MPC signing lanes. An external account cannot be
+  represented as a Seams `WalletSessionRef`.
+- Account, chain, provider, and local-disconnect changes invalidate prepared
+  operations. A returned transaction hash remains tied to its captured account
+  and chain; a transport failure after dispatch is an unknown outcome and must not
+  trigger an automatic resend.
+- The connector validates account, chain, signature, transaction hash, and receipt
+  responses at the provider boundary. Unsupported chains and methods are explicit
+  failures, and connection alone does not imply transaction support.
+- Local disconnect removes browser listeners and connection state. Revoking the
+  site's permission remains an explicit action in the external wallet.

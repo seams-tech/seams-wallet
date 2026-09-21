@@ -320,7 +320,7 @@ export const waitFor = async (
 // host exists, treat it as visible.
 export const captureOverlay = () => {
   const iframeEls = Array.from(document.querySelectorAll('iframe')) as HTMLIFrameElement[];
-  const testOwned = iframeEls.filter((f) => f.getAttribute('data-w3a-owner') === 'tests');
+  const testOwned = iframeEls.filter((f) => f.getAttribute('data-seams-owner') === 'tests');
   const overlayCandidates = (testOwned.length ? testOwned : iframeEls).filter((f) => {
     const allow = f.getAttribute('allow') || '';
     const src = f.getAttribute('src') || '';
@@ -366,11 +366,11 @@ export const captureOverlay = () => {
     } as const;
   }
 
-  const portal = document.getElementById('w3a-confirm-portal');
+  const portal = document.getElementById('seams-confirm-portal');
   const host = portal?.firstElementChild as HTMLElement | null;
   if (!host) return { exists: false, visible: false } as const;
   const interactive = host.querySelector<HTMLElement>(
-    'w3a-drawer-tx-confirmer, w3a-modal-tx-confirmer, w3a-drawer, w3a-modal',
+    'seams-drawer-tx-confirmer, seams-modal-tx-confirmer, seams-drawer, seams-modal',
   );
   const target = interactive || host;
   const style = getComputedStyle(target);

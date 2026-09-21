@@ -278,7 +278,7 @@ export function buildConfigsFromDefaults(args: {
   // When a GitHub Actions env var is missing, expressions like `${{ vars.VITE_SDK_BASE_PATH }}`
   // frequently become the empty string at build-time. Treat empty strings as "unset" so we
   // fall back to SDK defaults instead of accidentally generating root-relative URLs like:
-  //   https://wallet.example.com/w3a-components.css  (wrong; should be /sdk/w3a-components.css)
+  //   https://wallet.example.com/seams-components.css  (wrong; should be /sdk/seams-components.css)
   const walletServicePath =
     toTrimmedString(overrides.iframeWallet?.walletServicePath) ||
     toTrimmedString(defaults.wallet.iframe.servicePath) ||

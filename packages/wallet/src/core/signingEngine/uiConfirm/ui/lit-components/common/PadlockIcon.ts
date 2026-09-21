@@ -17,7 +17,7 @@ export class PadlockIconElement extends LitElement {
     ensureExternalStyles(
       root as ShadowRoot | DocumentFragment | HTMLElement,
       'padlock-icon.css',
-      'data-w3a-padlock-icon-css',
+      'data-seams-padlock-icon-css',
     ).catch(() => {});
     return root;
   }
@@ -53,8 +53,8 @@ export class PadlockIconElement extends LitElement {
 }
 
 try {
-  if (!customElements.get('w3a-padlock-icon')) {
-    customElements.define('w3a-padlock-icon', PadlockIconElement);
+  if (!customElements.get('seams-padlock-icon')) {
+    customElements.define('seams-padlock-icon', PadlockIconElement);
   }
 } catch {}
 

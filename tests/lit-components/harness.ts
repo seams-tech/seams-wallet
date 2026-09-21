@@ -27,10 +27,10 @@ export const ensureComponentModule = async (
         }
       };
 
-      if (!(window as any).__w3aLoadedModules) {
-        (window as any).__w3aLoadedModules = new Set<string>();
+      if (!(window as any).__seamsLoadedModules) {
+        (window as any).__seamsLoadedModules = new Set<string>();
       }
-      const cache: Set<string> = (window as any).__w3aLoadedModules;
+      const cache: Set<string> = (window as any).__seamsLoadedModules;
       if (!cache.has(path)) {
         await withTimeout(import(path), 30_000, `Timed out importing module: ${path}`);
         cache.add(path);

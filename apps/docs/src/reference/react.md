@@ -9,7 +9,7 @@ Import React integrations from `@seams/wallet/react` and place consumers inside 
 `SeamsWebProvider` or `SeamsContextProvider`.
 
 ```tsx [Import example]
-import { SeamsWebProvider, SeamsAuthMenu, useSeams } from '@seams/wallet/react';
+import { SeamsWebProvider, HostedSeamsAuthMenu, useSeams } from '@seams/wallet/react';
 ```
 
 ## Providers and hooks
@@ -50,17 +50,17 @@ second one; `useSeams` still exposes everything.
 
 ## Components
 
-The stable surface includes `SeamsAuthMenu`, `HostedSeamsAuthMenu`,
+The stable surface includes `HostedSeamsAuthMenu`,
 `AccountMenuButton`, `ProfileSettingsButton`, `QRCodeScanner`, and `ShowQRCode`.
 Use the hosted auth menu when the wallet-origin boundary owns the complete auth
-experience.
+experience. `SeamsAuthMenuMock` is an inert loading shell and display preview;
+`HostedSeamsAuthMenu` shows it while the wallet surface opens.
 
 Focused entrypoints are available for applications that need smaller or
 SSR-specific imports:
 
 - `@seams/wallet/react/provider`;
 - `@seams/wallet/react/profile`;
-- `@seams/wallet/react/seams-auth-menu` plus `/client`, `/skeleton`, and `/preload`;
 - `@seams/wallet/react/hosted-seams-auth-menu`;
 - `@seams/wallet/react/styles`.
 

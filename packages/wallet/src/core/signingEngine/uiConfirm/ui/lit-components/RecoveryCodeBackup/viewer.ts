@@ -208,9 +208,9 @@ export class RecoveryCodeBackupViewer extends LitElementWithProps {
   protected createRenderRoot(): HTMLElement {
     const root = this as unknown as HTMLElement;
     this.stylePromise = Promise.all([
-      ensureExternalStyles(root, 'recovery-code-backup.css', 'data-w3a-recovery-code-backup-css'),
-      ensureExternalStyles(root, 'copy-icon.css', 'data-w3a-copy-icon-css'),
-      ensureExternalStyles(root, 'w3a-components.css', 'data-w3a-components-css'),
+      ensureExternalStyles(root, 'recovery-code-backup.css', 'data-seams-recovery-code-backup-css'),
+      ensureExternalStyles(root, 'copy-icon.css', 'data-seams-copy-icon-css'),
+      ensureExternalStyles(root, 'seams-components.css', 'data-seams-components-css'),
     ]).then(() => {});
     this.stylePromise.catch(() => {});
     return root;
@@ -228,10 +228,10 @@ export class RecoveryCodeBackupViewer extends LitElementWithProps {
     switch (this.viewState.kind) {
       case 'summary':
       case 'opening':
-        this.querySelector<HTMLElement>('#w3a-wallet-recovery-title')?.focus();
+        this.querySelector<HTMLElement>('#seams-wallet-recovery-title')?.focus();
         return;
       case 'recovery_codes':
-        this.querySelector<HTMLElement>('#w3a-wallet-recovery-title')?.focus();
+        this.querySelector<HTMLElement>('#seams-wallet-recovery-title')?.focus();
         return;
       case 'unconfigured':
         return;
@@ -243,7 +243,7 @@ export class RecoveryCodeBackupViewer extends LitElementWithProps {
   configure(experience: RecoveryCodeBackupExperience): void {
     if (experience.kind === 'unconfigured' || this.experience === experience) return;
     this.experience = experience;
-    this.dataset.w3aRecoveryEntry = experience.kind;
+    this.dataset.seamsRecoveryEntry = experience.kind;
     this.loadGeneration += 1;
     this.acknowledged = false;
     this.statusMessage = '';
@@ -251,7 +251,7 @@ export class RecoveryCodeBackupViewer extends LitElementWithProps {
     switch (experience.kind) {
       case 'direct_backup':
         this.viewState = { kind: 'recovery_codes', request: experience.request };
-        this.dataset.w3aRecoveryStage = 'recovery_codes';
+        this.dataset.seamsRecoveryStage = 'recovery_codes';
         return;
       case 'account_menu': {
         this.viewState = {
@@ -260,7 +260,7 @@ export class RecoveryCodeBackupViewer extends LitElementWithProps {
           loadState: { kind: 'loading' },
           actionError: null,
         };
-        this.dataset.w3aRecoveryStage = 'summary';
+        this.dataset.seamsRecoveryStage = 'summary';
         void this.loadSummaryStatus(experience, this.loadGeneration);
         return;
       }
@@ -283,7 +283,7 @@ export class RecoveryCodeBackupViewer extends LitElementWithProps {
     if (!changed.has('viewState')) return;
     const stage = stageForState(this.viewState);
     if (!stage) return;
-    this.dataset.w3aRecoveryStage = stage;
+    this.dataset.seamsRecoveryStage = stage;
     this.dispatchEvent(
       new CustomEvent(RECOVERY_BACKUP_STAGE_EVENT, {
         detail: { stage },
@@ -360,7 +360,7 @@ export class RecoveryCodeBackupViewer extends LitElementWithProps {
       this.viewState = { kind: 'recovery_codes', request };
       await this.updateComplete;
       await new Promise<number>(requestAnimationFrame);
-      this.querySelector<HTMLElement>('#w3a-wallet-recovery-title')?.focus();
+      this.querySelector<HTMLElement>('#seams-wallet-recovery-title')?.focus();
     } catch (error: unknown) {
       if (generation !== this.loadGeneration) return;
       this.viewState = {
@@ -457,10 +457,10 @@ export class RecoveryCodeBackupViewer extends LitElementWithProps {
           <path d="M6 6l12 12M18 6 6 18"></path>
         </svg>
       </button>
-      <h1 id="w3a-wallet-recovery-title" class="recovery-backup-title" tabindex="-1">
+      <h1 id="seams-wallet-recovery-title" class="recovery-backup-title" tabindex="-1">
         Wallet recovery codes
       </h1>
-      <p id="w3a-wallet-recovery-description" class="recovery-backup-description">
+      <p id="seams-wallet-recovery-description" class="recovery-backup-description">
         View and save the recovery codes retained by this wallet after registration.
       </p>
       <div class="recovery-summary-body">
@@ -526,10 +526,10 @@ export class RecoveryCodeBackupViewer extends LitElementWithProps {
         ? 'These ten single-use codes recover every signing key in this wallet. Save them now, or back them up later from Recovery Codes in the account menu.'
         : 'These ten single-use codes recover every signing key in this wallet. Save them somewhere private.';
     return html`
-      <h1 id="w3a-wallet-recovery-title" class="recovery-backup-title" tabindex="-1">
+      <h1 id="seams-wallet-recovery-title" class="recovery-backup-title" tabindex="-1">
         Save your wallet recovery codes
       </h1>
-      <p id="w3a-wallet-recovery-description" class="recovery-backup-description">${description}</p>
+      <p id="seams-wallet-recovery-description" class="recovery-backup-description">${description}</p>
       <ol class="recovery-code-list">${request.recoveryCodes.map(renderRecoveryCodeItem)}</ol>
       <div class="recovery-backup-actions">
         <button type="button" class="recovery-backup-button primary" @click=${this.download}>
@@ -559,7 +559,7 @@ export class RecoveryCodeBackupViewer extends LitElementWithProps {
       <label class="recovery-backup-acknowledgement">
         <input
           type="checkbox"
-          data-w3a-wallet-recovery-backup-acknowledgement
+          data-seams-wallet-recovery-backup-acknowledgement
           .checked=${this.acknowledged}
           @change=${this.onAcknowledgementChange}
         />
@@ -570,7 +570,7 @@ export class RecoveryCodeBackupViewer extends LitElementWithProps {
         <button
           type="button"
           class="recovery-backup-button ${this.acknowledged ? 'primary' : 'secondary'}"
-          data-w3a-wallet-recovery-backup-close
+          data-seams-wallet-recovery-backup-close
           @click=${this.closeRecoveryCodes}
         >
           ${this.closeLabel(request)}

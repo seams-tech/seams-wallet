@@ -1,4 +1,4 @@
-type GlobalWithNonce = typeof window & { litNonce?: string; w3aNonce?: string };
+type GlobalWithNonce = typeof window & { litNonce?: string; seamsNonce?: string };
 
 type NonceSource = string | (() => string | undefined);
 
@@ -38,7 +38,7 @@ function declarationsToCssText(selector: string, declarations: Declarations): st
 export function getDefaultCspNonce(): string | undefined {
   if (typeof window === 'undefined') return undefined;
   const w = window as GlobalWithNonce;
-  return w.w3aNonce || w.litNonce || undefined;
+  return w.seamsNonce || w.litNonce || undefined;
 }
 
 export function createCspStylesheetManager(opts: {

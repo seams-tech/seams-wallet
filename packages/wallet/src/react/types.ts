@@ -170,7 +170,7 @@ export interface SeamsContextType {
 
   /**
    * SDK progress state for the most recent flow (login/registration).
-   * Used by UI components (e.g., SeamsAuthMenu) to keep waiting screens visible
+   * Used by UI components (e.g., HostedSeamsAuthMenu) to keep waiting screens visible
    * even when integrators do not return a Promise from their handlers.
    */
   sdkFlow: SDKFlowRuntime;

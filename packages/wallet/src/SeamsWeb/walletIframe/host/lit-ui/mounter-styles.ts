@@ -10,8 +10,8 @@ import {
 
 export type DOMRectLike = { top: number; left: number; width: number; height: number };
 
-const CLASS_CONTAINER = 'w3a-host-container';
-const CLASS_ELEMENT = 'w3a-host-element';
+const CLASS_CONTAINER = 'seams-host-container';
+const CLASS_ELEMENT = 'seams-host-element';
 const CLASS_ANCHORED = 'is-anchored';
 const BASE_CSS = `
   html, body { background: transparent; margin: 0; padding: 0; }
@@ -25,7 +25,7 @@ const getStyleManager = () => {
     styleManager = createCspStylesheetManager({
       doc: document,
       baseCss: BASE_CSS,
-      dynamicStyleDataAttr: 'data-w3a-host-dyn',
+      dynamicStyleDataAttr: 'data-seams-host-dyn',
       nonce: () => getDefaultCspNonce(),
     });
   }
@@ -38,10 +38,10 @@ export function ensureHostBaseStyles(): void {
 
 let containerIdCounter = 0;
 function ensureContainerId(el: HTMLElement): string {
-  if (el.id && el.id.startsWith('w3a-host-')) {
+  if (el.id && el.id.startsWith('seams-host-')) {
     return el.id;
   }
-  const id = `w3a-host-${++containerIdCounter}`;
+  const id = `seams-host-${++containerIdCounter}`;
   el.id = id;
   return id;
 }
@@ -49,7 +49,7 @@ function ensureContainerId(el: HTMLElement): string {
 export function markContainer(el: HTMLElement): string {
   ensureHostBaseStyles();
   el.classList.add(CLASS_CONTAINER);
-  el.dataset.w3aContainer = '1';
+  el.dataset.seamsContainer = '1';
   return ensureContainerId(el);
 }
 

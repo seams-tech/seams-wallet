@@ -13,7 +13,7 @@ import {
   CONFIRM_SURFACE_HEIGHT_DRIVEN_VAR,
   type SurfaceHeightReflow,
 } from '../../confirm-surface-resize';
-import { W3A_TX_TREE_ID } from '../../registry';
+import { SEAMS_TX_TREE_ID } from '../../registry';
 import type { ThemeMode } from '../../confirm-ui-types';
 import type { AppearanceConfig } from '@/core/types/seams';
 import type { TxDisplayModel, TxDisplayOperation } from '@/core/signingEngine/interfaces/display';
@@ -21,7 +21,7 @@ import type { TxDisplayModel, TxDisplayOperation } from '@/core/signingEngine/in
 /**
  * Shared confirmation content surface used by both Modal and Drawer containers.
  * - Renders summary, TxTree, and confirm/cancel actions
- * - Emits semantic events: `lit-confirm` and `lit-cancel` (containers bridge to w3a:* events)
+ * - Emits semantic events: `lit-confirm` and `lit-cancel` (containers bridge to seams:* events)
  * - Does not own backdrop, focus traps, or ESC handling
  */
 export class TxConfirmContentElement extends LitElementWithProps {
@@ -38,7 +38,7 @@ export class TxConfirmContentElement extends LitElementWithProps {
   });
 
   // Fail fast in dev if nested custom elements are not defined
-  static requiredChildTags = [W3A_TX_TREE_ID];
+  static requiredChildTags = [SEAMS_TX_TREE_ID];
   static keepDefinitions = [TxTree];
   static properties = {
     nearAccountId: { type: String, attribute: 'near-account-id' },
@@ -94,9 +94,9 @@ export class TxConfirmContentElement extends LitElementWithProps {
   private _stylePromises: Promise<void>[] = [];
   private _stylesAwaiting: Promise<void> | null = null;
   private static readonly _STYLE_MARKERS = [
-    'data-w3a-tx-tree-css',
-    'data-w3a-tx-confirmer-css',
-    'data-w3a-components-css',
+    'data-seams-tx-tree-css',
+    'data-seams-tx-confirmer-css',
+    'data-seams-components-css',
   ] as const;
   private _treeBuildVersion = 0;
   // Guard against "ghost" confirm clicks caused by the same user gesture that
@@ -111,9 +111,9 @@ export class TxConfirmContentElement extends LitElementWithProps {
     const root = (document?.documentElement || null) as unknown as HTMLElement | null;
     if (root) {
       this._stylePromises.push(
-        ensureExternalStyles(root, 'tx-tree.css', 'data-w3a-tx-tree-css'),
-        ensureExternalStyles(root, 'tx-confirmer.css', 'data-w3a-tx-confirmer-css'),
-        ensureExternalStyles(root, 'w3a-components.css', 'data-w3a-components-css'),
+        ensureExternalStyles(root, 'tx-tree.css', 'data-seams-tx-tree-css'),
+        ensureExternalStyles(root, 'tx-confirmer.css', 'data-seams-tx-confirmer-css'),
+        ensureExternalStyles(root, 'seams-components.css', 'data-seams-components-css'),
       );
     }
     this.nearAccountId = '';
@@ -136,10 +136,10 @@ export class TxConfirmContentElement extends LitElementWithProps {
   protected createRenderRoot(): HTMLElement | DocumentFragment {
     const root = this as unknown as HTMLElement;
     // Ensure tx-tree.css for nested light-DOM TxTree
-    this._stylePromises.push(ensureExternalStyles(root, 'tx-tree.css', 'data-w3a-tx-tree-css'));
+    this._stylePromises.push(ensureExternalStyles(root, 'tx-tree.css', 'data-seams-tx-tree-css'));
     // Also ensure tx-confirmer.css for shared confirmer styles
     this._stylePromises.push(
-      ensureExternalStyles(root, 'tx-confirmer.css', 'data-w3a-tx-confirmer-css'),
+      ensureExternalStyles(root, 'tx-confirmer.css', 'data-seams-tx-confirmer-css'),
     );
     return root;
   }
@@ -197,8 +197,8 @@ export class TxConfirmContentElement extends LitElementWithProps {
     for (const marker of TxConfirmContentElement._STYLE_MARKERS) {
       const link = doc.head.querySelector(`link[${marker}]`) as HTMLLinkElement | null;
       if (!link) return false;
-      const statefulLink = link as HTMLLinkElement & { _w3aLoaded?: boolean };
-      if (!(statefulLink._w3aLoaded || link.sheet)) return false;
+      const statefulLink = link as HTMLLinkElement & { _seamsLoaded?: boolean };
+      if (!(statefulLink._seamsLoaded || link.sheet)) return false;
     }
     return true;
   }
@@ -336,7 +336,7 @@ export class TxConfirmContentElement extends LitElementWithProps {
         ${this.errorMessage ? html`<div class="error">${this.errorMessage}</div>` : null}
         ${this._treeNode
           ? html`<div class="tooltip-width">
-              <w3a-tx-tree
+              <seams-tx-tree
                 light-dom
                 .node=${this._treeNode}
                 .theme=${treeTheme}
@@ -345,7 +345,7 @@ export class TxConfirmContentElement extends LitElementWithProps {
                 .tempoExplorerUrl=${this.tempoExplorerUrl}
                 .evmExplorerUrl=${this.evmExplorerUrl}
                 .showShadow=${this.showShadow}
-              ></w3a-tx-tree>
+              ></seams-tx-tree>
             </div>`
           : null}
         <div class="actions">
@@ -394,10 +394,10 @@ export class TxConfirmContentElement extends LitElementWithProps {
   }
 }
 
-import { W3A_TX_CONFIRM_CONTENT_ID } from '../../registry';
+import { SEAMS_TX_CONFIRM_CONTENT_ID } from '../../registry';
 
-if (!customElements.get(W3A_TX_CONFIRM_CONTENT_ID)) {
-  customElements.define(W3A_TX_CONFIRM_CONTENT_ID, TxConfirmContentElement);
+if (!customElements.get(SEAMS_TX_CONFIRM_CONTENT_ID)) {
+  customElements.define(SEAMS_TX_CONFIRM_CONTENT_ID, TxConfirmContentElement);
 }
 
 export default TxConfirmContentElement;

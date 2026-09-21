@@ -167,6 +167,47 @@ test.describe('account-menu modal responsiveness', () => {
     });
   });
 
+  test('emits seams-prefixed variables from every React theme boundary', async ({ page }) => {
+    const themeVariables = await page.evaluate(
+      async ({ themePath }) => {
+        const React = await import('react');
+        const ReactDOMClient = await import('react-dom/client');
+        const ReactDOM = await import('react-dom');
+        const themeModule = await import(themePath);
+        const Theme = themeModule.Theme;
+
+        const mount = document.createElement('div');
+        document.body.appendChild(mount);
+        const root = ReactDOMClient.createRoot(mount);
+        ReactDOM.flushSync(() => {
+          root.render(
+            React.createElement(
+              React.Fragment,
+              null,
+              React.createElement(Theme, { theme: 'dark' }, React.createElement('span')),
+            ),
+          );
+        });
+
+        return Array.from(mount.querySelectorAll<HTMLElement>('.seams-theme-provider')).map(
+          (element) => ({
+            seamsPrimary: element.style.getPropertyValue('--seams-colors-primary'),
+            retiredPrimary: element.style.getPropertyValue('--w3a-colors-primary'),
+          }),
+        );
+      },
+      {
+        themePath: IMPORT_PATHS.theme,
+      },
+    );
+
+    expect(themeVariables).toHaveLength(1);
+    for (const variables of themeVariables) {
+      expect(variables.seamsPrimary).not.toBe('');
+      expect(variables.retiredPrimary).toBe('');
+    }
+  });
+
   test('shows the selected authentication method while remote inventory is pending', async ({
     page,
   }) => {

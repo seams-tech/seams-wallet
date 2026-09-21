@@ -7,12 +7,12 @@ import React, { useEffect, useRef } from 'react';
  * The ring is implemented via a ::before pseudo-element on a wrapper div.
  *
  * How it works:
- * - The wrapper (`.w3a-rotating-border-container`) sets CSS vars `--ring-gap` and `--ring-width`.
+ * - The wrapper (`.seams-rotating-border-container`) sets CSS vars `--ring-gap` and `--ring-width`.
  * - Its ::before element is positioned with a negative `inset` so it extends OUTSIDE the box,
  *   creating real space between the content and the ring.
  * - A conic-gradient fills the ::before element, and `mask-composite: exclude` keeps only
  *   the padding area (a thin band) visible; the band thickness == `--ring-width`.
- * - We animate the gradient’s start angle via `--w3a-ring-angle` to rotate the arc.
+ * - We animate the gradient’s start angle via `--seams-ring-angle` to rotate the arc.
  */
 
 interface HaloBorderProps {
@@ -42,7 +42,7 @@ export const HaloBorder: React.FC<HaloBorderProps> = ({
   ringBorderShadow,
   padding,
   innerPadding = '2rem',
-  innerBackground = 'var(--w3a-colors-colorBackground)',
+  innerBackground = 'var(--seams-colors-colorBackground)',
 }) => {
   // Compose inline-only styles and optional JS-driven animation
   const paddingOverride = padding ? padding : `${ringGap + ringWidth}px`;
@@ -123,17 +123,17 @@ export const HaloBorder: React.FC<HaloBorderProps> = ({
   };
 
   return (
-    <div className={`w3a-halo-border-root ${theme}`} style={haloRootStyle}>
-      <div className="w3a-halo-border-inner" style={haloInnerStyle}>
+    <div className={`seams-halo-border-root ${theme}`} style={haloRootStyle}>
+      <div className="seams-halo-border-inner" style={haloInnerStyle}>
         {animated ? (
           <div style={containerStyle}>
             <div ref={ringRef} style={ringStyle} />
-            <div className={`w3a-halo-border-content ${className}`} style={contentStyle}>
+            <div className={`seams-halo-border-content ${className}`} style={contentStyle}>
               {children}
             </div>
           </div>
         ) : (
-          <div className={`w3a-halo-border-content ${className}`} style={contentStyle}>
+          <div className={`seams-halo-border-content ${className}`} style={contentStyle}>
             {children}
           </div>
         )}

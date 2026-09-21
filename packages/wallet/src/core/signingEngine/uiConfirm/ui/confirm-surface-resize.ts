@@ -31,11 +31,11 @@ import {
   type LitSurfaceResizeBeginDetail,
   type LitSurfaceResizeDriver,
 } from './lit-events';
-export const CONFIRM_SURFACE_MODE_ATTR = 'data-w3a-confirm-surface';
+export const CONFIRM_SURFACE_MODE_ATTR = 'data-seams-confirm-surface';
 export const CONFIRM_SURFACE_MODE_WALLET_IFRAME = 'wallet-iframe';
 export const CONFIRM_SURFACE_MODE_STANDALONE = 'standalone';
 /** Marks the confirmer host while its height is held at a motion's target. */
-export const CONFIRM_SURFACE_PINNED_CLASS = 'w3a-confirm-surface-pinned';
+export const CONFIRM_SURFACE_PINNED_CLASS = 'seams-confirm-surface-pinned';
 /**
  * Marks the document root for the same span. It is a second class rather than
  * the one above because the host rule must match any element that hosts a
@@ -43,11 +43,11 @@ export const CONFIRM_SURFACE_PINNED_CLASS = 'w3a-confirm-surface-pinned';
  * so it cannot be qualified by tag, and an unqualified height rule would
  * otherwise also size `<html>`.
  */
-export const CONFIRM_SURFACE_PINNED_ROOT_CLASS = 'w3a-confirm-surface-pinned-root';
+export const CONFIRM_SURFACE_PINNED_ROOT_CLASS = 'seams-confirm-surface-pinned-root';
 /** Marks an element whose height is being driven through a motion. */
-export const CONFIRM_SURFACE_HEIGHT_DRIVEN_CLASS = 'w3a-surface-height-driven';
+export const CONFIRM_SURFACE_HEIGHT_DRIVEN_CLASS = 'seams-surface-height-driven';
 /** The CSS variable the class above reads. Components own the write (CSP). */
-export const CONFIRM_SURFACE_HEIGHT_DRIVEN_VAR = '--w3a-surface-height-driven-target';
+export const CONFIRM_SURFACE_HEIGHT_DRIVEN_VAR = '--seams-surface-height-driven-target';
 
 /** Frames the box may sit still, after it has moved, before its motion counts as over. */
 const SETTLED_FRAMES_AFTER_MOTION = 8;
@@ -315,7 +315,7 @@ export function announceClampedSurfaceResize(args: {
  * module exists to prevent was only ever visible in a real browser, frame by
  * frame, so the sampler that found it ships with the code.
  *
- * From the wallet frame's console: `await __w3aSurfaceMotion.trace()`, then
+ * From the wallet frame's console: `await __seamsSurfaceMotion.trace()`, then
  * interact. `blipFrames` counts frames where the box reported its target and
  * then moved away again — the parent laying out the destination before its
  * ease reaches it, which must stay at zero.
@@ -351,7 +351,7 @@ const surfaceMotionDiagnostics: SurfaceMotionDiagnostics = {
 function publishDiagnostics(element: HTMLElement): void {
   diagnosticHost = element;
   try {
-    (window as unknown as { __w3aSurfaceMotion?: SurfaceMotionDiagnostics }).__w3aSurfaceMotion =
+    (window as unknown as { __seamsSurfaceMotion?: SurfaceMotionDiagnostics }).__seamsSurfaceMotion =
       surfaceMotionDiagnostics;
   } catch {
     // A locked-down global is not worth failing a confirmation over.

@@ -100,43 +100,21 @@ Identity token acquisition and the SDK owns wallet registration, unlock,
 challenge routing, signing-session readiness, and wallet-iframe routing.
 
 ```tsx
-import { SeamsAuthMenu } from '@seams/wallet/react';
+import { HostedSeamsAuthMenu, type HostedAuthMenuOutcome } from '@seams/wallet/react';
+
+function handleOutcome(outcome: HostedAuthMenuOutcome): void {
+  console.log('Wallet authentication:', outcome);
+}
 
 function AuthMenu() {
-  const seams = useSeams();
-
-  return (
-    <SeamsAuthMenu
-      socialLogin={{
-        google: async ({ mode, emailOtpAuthPolicy }) => {
-          const idToken = await getGoogleIdTokenFromYourApp();
-          const flow = await seams.auth.beginGoogleEmailOtpWalletAuth({
-            idToken,
-            mode,
-            emailOtpAuthPolicy,
-          });
-          if (!flow.ok) throw new Error(flow.error.message);
-          return {
-            kind: 'otp_flow',
-            flow: flow.value,
-            onComplete: async ({ walletId }) => {
-              console.log('Wallet ready:', walletId);
-            },
-          };
-        },
-      }}
-    />
-  );
+  return <HostedSeamsAuthMenu onOutcome={handleOutcome} />;
 }
 ```
 
-When the wallet runs in iframe mode, `SeamsAuthMenu` renders the passkey
-registration CTA through the wallet iframe activation surface. The visible
-wrapper keeps the app's normal styling, while the wallet-origin iframe owns the
-actual click that opens WebAuthn. Direct SDK calls such as
-`seams.registerPasskey()` keep the wallet-origin confirmation modal so the user
-can click inside the iframe before Touch ID or the platform authenticator prompt
-appears.
+Mount `HostedSeamsAuthMenu` inside a configured `SeamsWebProvider`. The wallet-origin
+iframe owns auth inputs, progress, OTP prompts, and the final passkey activation.
+Apps can provide `externalAuthBroker` to acquire provider evidence when the wallet
+host requests it. Direct SDK calls keep their wallet-origin confirmation surface.
 
 The public flow only exposes UI-safe data: wallet id, email hint, prompt copy,
 delivery status, expiry, and `resend`/`reroll`/`submit`/`cancel` methods. It

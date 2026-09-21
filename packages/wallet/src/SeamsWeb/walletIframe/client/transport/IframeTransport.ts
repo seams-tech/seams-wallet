@@ -211,7 +211,7 @@ export class IframeTransport {
     this.iframeEl = null;
     if (iframe) {
       iframe.removeEventListener('load', this.onIframeLoad);
-      const dialog = iframe.closest('dialog.w3a-wallet-overlay-dialog');
+      const dialog = iframe.closest('dialog.seams-wallet-overlay-dialog');
       (dialog ?? iframe).remove();
     }
     this.handshakeComplete = false;

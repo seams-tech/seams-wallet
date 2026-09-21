@@ -26,7 +26,7 @@ test.describe('Wallet iframe handshake', () => {
     page.on('console', (msg) => {
       console.log(`[browser] ${msg.type().toUpperCase()}: ${msg.text()}`);
     });
-    const configured = String(process.env.W3A_TEST_FRONTEND_URL || '').trim();
+    const configured = String(process.env.SEAMS_TEST_FRONTEND_URL || '').trim();
     const url =
       configured ||
       (process.env.NO_CADDY === '1' || process.env.CI === '1'
@@ -54,7 +54,7 @@ test.describe('Wallet iframe handshake', () => {
 
     const iframeAttributes = await page.evaluate(() => {
       const iframeEl =
-        document.querySelector('iframe[data-w3a-owner="tests"]') ||
+        document.querySelector('iframe[data-seams-owner="tests"]') ||
         document.querySelector('iframe');
       if (!iframeEl) return null;
       const cs = window.getComputedStyle(iframeEl as HTMLIFrameElement);

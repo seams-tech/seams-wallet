@@ -1,3 +1,4 @@
+export { SeamsAuthMenuMock } from './SeamsAuthMenuMock';
 export { HostedSeamsAuthMenu } from './public';
 export type {
   HostedAuthMenuCopy,

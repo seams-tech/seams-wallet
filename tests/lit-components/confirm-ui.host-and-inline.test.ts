@@ -68,10 +68,10 @@ test.describe('confirm-ui inline confirmer', () => {
           nearAccountIdOverride: 'alice.testnet',
         });
 
-        await waitFor(() => !!document.getElementById('w3a-confirm-portal')?.firstElementChild);
-        const portalChild = document.getElementById('w3a-confirm-portal')
+        await waitFor(() => !!document.getElementById('seams-confirm-portal')?.firstElementChild);
+        const portalChild = document.getElementById('seams-confirm-portal')
           ?.firstElementChild as HTMLElement | null;
-        await waitFor(() => !!portalChild?.querySelector?.('w3a-drawer-tx-confirmer'));
+        await waitFor(() => !!portalChild?.querySelector?.('seams-drawer-tx-confirmer'));
         portalChild?.dispatchEvent(
           new CustomEvent(events.WalletIframeDomEvents.TX_CONFIRMER_CONFIRM, {
             detail: { confirmed: true },
@@ -145,8 +145,8 @@ test.describe('confirm-ui inline confirmer', () => {
             preparationElement.loading === false &&
             preparationElement.body.startsWith('Use Touch ID'),
         );
-        const interactiveElement = document.querySelector('w3a-tx-confirmer');
-        const modalCount = document.querySelectorAll('w3a-tx-confirmer').length;
+        const interactiveElement = document.querySelector('seams-tx-confirmer');
+        const modalCount = document.querySelectorAll('seams-tx-confirmer').length;
         preparationElement.dispatchEvent(
           new CustomEvent(events.WalletIframeDomEvents.TX_CONFIRMER_CANCEL, {
             bubbles: true,
@@ -221,8 +221,8 @@ test.describe('confirm-ui inline confirmer', () => {
           nearAccountIdOverride: 'alice.testnet',
         });
 
-        await waitFor(() => !!document.getElementById('w3a-confirm-portal')?.firstElementChild);
-        const portalChild = document.getElementById('w3a-confirm-portal')
+        await waitFor(() => !!document.getElementById('seams-confirm-portal')?.firstElementChild);
+        const portalChild = document.getElementById('seams-confirm-portal')
           ?.firstElementChild as HTMLElement | null;
         portalChild?.dispatchEvent(
           new CustomEvent(events.WalletIframeDomEvents.TX_CONFIRMER_CANCEL, {
@@ -279,9 +279,9 @@ test.describe('confirm-ui inline confirmer', () => {
           nearAccountIdOverride: 'alice.testnet',
         });
 
-        await waitFor(() => !!document.querySelector('w3a-tx-confirm-content .cancel'));
+        await waitFor(() => !!document.querySelector('seams-tx-confirm-content .cancel'));
         const cancelButton = document.querySelector(
-          'w3a-tx-confirm-content .cancel',
+          'seams-tx-confirm-content .cancel',
         ) as HTMLButtonElement | null;
         const cancelDisabled = cancelButton?.disabled ?? null;
 
@@ -402,18 +402,18 @@ test.describe('confirm-ui inline confirmer', () => {
         await waitFor(
           () =>
             document
-              .getElementById('w3a-confirm-portal')
-              ?.firstElementChild?.getAttribute('data-w3a-confirm-surface') === 'wallet-iframe',
+              .getElementById('seams-confirm-portal')
+              ?.firstElementChild?.getAttribute('data-seams-confirm-surface') === 'wallet-iframe',
         );
         await waitFor(
           () =>
             !!document
-              .getElementById('w3a-confirm-portal')
-              ?.firstElementChild?.querySelector('w3a-modal-tx-confirmer'),
+              .getElementById('seams-confirm-portal')
+              ?.firstElementChild?.querySelector('seams-modal-tx-confirmer'),
         );
-        const walletHost = document.getElementById('w3a-confirm-portal')
+        const walletHost = document.getElementById('seams-confirm-portal')
           ?.firstElementChild as HTMLElement | null;
-        const walletModal = walletHost?.querySelector('w3a-modal-tx-confirmer');
+        const walletModal = walletHost?.querySelector('seams-modal-tx-confirmer');
         const walletHasStandaloneBackdrop = Boolean(
           walletModal?.querySelector('.standalone-surface-backdrop'),
         );
@@ -452,18 +452,18 @@ test.describe('confirm-ui inline confirmer', () => {
         await waitFor(
           () =>
             document
-              .getElementById('w3a-confirm-portal')
-              ?.firstElementChild?.getAttribute('data-w3a-confirm-surface') === 'standalone',
+              .getElementById('seams-confirm-portal')
+              ?.firstElementChild?.getAttribute('data-seams-confirm-surface') === 'standalone',
         );
         await waitFor(
           () =>
             !!document
-              .getElementById('w3a-confirm-portal')
+              .getElementById('seams-confirm-portal')
               ?.firstElementChild?.querySelector('.standalone-surface-backdrop'),
         );
-        const standaloneHost = document.getElementById('w3a-confirm-portal')
+        const standaloneHost = document.getElementById('seams-confirm-portal')
           ?.firstElementChild as HTMLElement | null;
-        const standaloneModal = standaloneHost?.querySelector('w3a-modal-tx-confirmer');
+        const standaloneModal = standaloneHost?.querySelector('seams-modal-tx-confirmer');
         const standaloneBackdrop = standaloneModal?.querySelector(
           '.standalone-surface-backdrop',
         ) as HTMLElement | null;
@@ -474,9 +474,9 @@ test.describe('confirm-ui inline confirmer', () => {
         const standaloneDecision = await standaloneDecisionPromise;
         standaloneDecision.handle.close(false);
         return {
-          walletSurface: walletHost?.getAttribute('data-w3a-confirm-surface'),
+          walletSurface: walletHost?.getAttribute('data-seams-confirm-surface'),
           walletHasStandaloneBackdrop,
-          standaloneSurface: standaloneHost?.getAttribute('data-w3a-confirm-surface'),
+          standaloneSurface: standaloneHost?.getAttribute('data-seams-confirm-surface'),
           standaloneHasBackdrop: Boolean(standaloneBackdrop),
           standaloneConfirmed: standaloneDecision.confirmed,
         };
@@ -549,23 +549,23 @@ test.describe('confirm-ui inline confirmer', () => {
         await waitFor(
           () =>
             document
-              .getElementById('w3a-confirm-portal')
-              ?.firstElementChild?.getAttribute('data-w3a-confirm-surface') === 'standalone',
+              .getElementById('seams-confirm-portal')
+              ?.firstElementChild?.getAttribute('data-seams-confirm-surface') === 'standalone',
         );
         await waitFor(
           () =>
             !!document
-              .getElementById('w3a-confirm-portal')
+              .getElementById('seams-confirm-portal')
               ?.firstElementChild?.querySelector('.standalone-surface-backdrop'),
         );
-        const host = document.getElementById('w3a-confirm-portal')
+        const host = document.getElementById('seams-confirm-portal')
           ?.firstElementChild as HTMLElement | null;
-        const surface = host?.getAttribute('data-w3a-confirm-surface');
-        const variant = host?.getAttribute('data-w3a-confirm-variant');
+        const surface = host?.getAttribute('data-seams-confirm-surface');
+        const variant = host?.getAttribute('data-seams-confirm-variant');
         // The centring rule is keyed on both attributes together.
         const centred = host ? getComputedStyle(host).placeItems.includes('center') : false;
         const hasBackdrop = Boolean(
-          host?.querySelector('w3a-modal-tx-confirmer .standalone-surface-backdrop'),
+          host?.querySelector('seams-modal-tx-confirmer .standalone-surface-backdrop'),
         );
 
         host?.dispatchEvent(
@@ -628,8 +628,8 @@ test.describe('confirm-ui inline confirmer', () => {
           nearAccountIdOverride: 'alice.testnet',
         });
 
-        await waitFor(() => !!document.getElementById('w3a-confirm-portal')?.firstElementChild);
-        const portalChild = document.getElementById('w3a-confirm-portal')
+        await waitFor(() => !!document.getElementById('seams-confirm-portal')?.firstElementChild);
+        const portalChild = document.getElementById('seams-confirm-portal')
           ?.firstElementChild as HTMLElement | null;
         portalChild?.dispatchEvent(
           new CustomEvent(events.WalletIframeDomEvents.TX_CONFIRMER_CONFIRM, {
@@ -654,7 +654,7 @@ test.describe('confirm-ui inline confirmer', () => {
     );
 
     expect(result.confirmed).toBe(true);
-    expect(result.tagName).toBe('W3A-TX-CONFIRMER');
+    expect(result.tagName).toBe('SEAMS-TX-CONFIRMER');
     expect(result.variantAttr ?? 'drawer').toBe('drawer');
     expect(result.hasIframe).toBe(false);
   });
@@ -693,8 +693,8 @@ test.describe('confirm-ui inline confirmer', () => {
           nearAccountIdOverride: 'alice.testnet',
         });
 
-        await waitFor(() => !!document.getElementById('w3a-confirm-portal')?.firstElementChild);
-        const portalChild = document.getElementById('w3a-confirm-portal')
+        await waitFor(() => !!document.getElementById('seams-confirm-portal')?.firstElementChild);
+        const portalChild = document.getElementById('seams-confirm-portal')
           ?.firstElementChild as HTMLElement | null;
         portalChild?.dispatchEvent(
           new CustomEvent(events.WalletIframeDomEvents.TX_CONFIRMER_CONFIRM, {
@@ -772,8 +772,8 @@ test.describe('confirm-ui inline confirmer', () => {
           nearAccountIdOverride: 'alice.testnet',
         });
 
-        await waitFor(() => !!document.querySelector('w3a-tx-confirmer'));
-        const wrapper = document.getElementById('w3a-confirm-portal')
+        await waitFor(() => !!document.querySelector('seams-tx-confirmer'));
+        const wrapper = document.getElementById('seams-confirm-portal')
           ?.firstElementChild as HTMLElement | null;
         // Dispatch on the wrapper itself so the capture-phase handler performs
         // digest validation reliably, independent of child listener timing.
@@ -846,8 +846,8 @@ test.describe('confirm-ui inline confirmer', () => {
           nearAccountIdOverride: 'alice.testnet',
         });
 
-        await waitFor(() => !!document.getElementById('w3a-confirm-portal')?.firstElementChild);
-        const portalChild = document.getElementById('w3a-confirm-portal')
+        await waitFor(() => !!document.getElementById('seams-confirm-portal')?.firstElementChild);
+        const portalChild = document.getElementById('seams-confirm-portal')
           ?.firstElementChild as HTMLElement | null;
         portalChild?.dispatchEvent(
           new CustomEvent(events.WalletIframeDomEvents.TX_CONFIRMER_CONFIRM, {

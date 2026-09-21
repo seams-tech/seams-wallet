@@ -23,12 +23,12 @@ export const useThemeContext = (): ThemeContextValue => {
 
   const theme: ThemeMode = 'dark';
   const tokens: DesignTokens = DARK_TOKENS;
-  const vars = createCSSVariables(tokens, '--w3a');
+  const vars = createCSSVariables(tokens, '--seams');
   return {
     theme,
     tokens,
     isDark: theme === 'dark',
-    prefix: '--w3a',
+    prefix: '--seams',
     vars,
   };
 };
@@ -58,7 +58,7 @@ const ThemeScope: React.FC<ThemeScopeProps> = ({
   tag = 'main',
   className,
   style,
-  dataAttr = 'data-w3a-theme',
+  dataAttr = 'data-seams-theme',
   children,
 }) => {
   const { theme, vars } = useThemeContext();
@@ -88,7 +88,7 @@ const ThemeProvider: React.FC<ThemeProviderProps> = ({
   children,
   theme,
   tokens,
-  prefix = '--w3a',
+  prefix = '--seams',
   setTheme,
 }) => {
   const resolvedTheme: ThemeMode = theme === 'light' || theme === 'dark' ? theme : 'dark';
@@ -138,7 +138,7 @@ export interface ThemeProps
 export const Theme: React.FC<ThemeProps> = ({
   children,
   tag = 'main', // div, main, etc
-  className = 'w3a-theme-provider',
+  className = 'seams-theme-provider',
   style,
   dataAttr,
   // Provider props

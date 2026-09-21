@@ -64,7 +64,7 @@ test('reveals the recovery summary without a child animation frame or the full w
     { walletOrigin: WALLET_ORIGIN },
   );
 
-  const parentDialog = page.locator('dialog.w3a-wallet-overlay-dialog');
+  const parentDialog = page.locator('dialog.seams-wallet-overlay-dialog');
   await expect(parentDialog).toBeVisible({ timeout: 2_000 });
   await expect(parentDialog).not.toHaveClass(/is-provisional/);
   await expect(parentDialog).not.toHaveClass(/is-viewport-fallback/);
@@ -79,8 +79,8 @@ test('reveals the recovery summary without a child animation frame or the full w
   expect(fullWalletRuntimeRequested).toBe(true);
 
   const childDialog = page
-    .frameLocator('iframe[data-w3a-owner="recovery-code-host-test"]')
-    .locator('[data-w3a-wallet-recovery-backup-dialog]');
+    .frameLocator('iframe[data-seams-owner="recovery-code-host-test"]')
+    .locator('[data-seams-wallet-recovery-backup-dialog]');
   await expect(childDialog).toBeVisible();
 
   await page.evaluate(() => {

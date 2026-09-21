@@ -10,7 +10,7 @@ import { setupBasicPasskeyTest } from '../setup';
 
 const IFRAME_HOST_MODULE =
   '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/lit-components/ExportPrivateKey/iframe-host.js';
-const HOST_TAG = 'w3a-export-viewer-iframe';
+const HOST_TAG = 'seams-export-viewer-iframe';
 
 test.describe('export host renders drawer + viewer content directly', () => {
   test.beforeEach(async ({ page }) => {
@@ -33,7 +33,7 @@ test.describe('export host renders drawer + viewer content directly', () => {
             keys?: unknown[];
             loading?: boolean;
           };
-          host.setAttribute('data-w3a-export-surface', 'wallet-iframe');
+          host.setAttribute('data-seams-export-surface', 'wallet-iframe');
           host.theme = 'light';
           host.variant = 'modal';
           host.accountId = 'export-content.testnet';
@@ -52,13 +52,13 @@ test.describe('export host renders drawer + viewer content directly', () => {
 
           const deadline = Date.now() + 6000;
           const snapshot = () => {
-            const drawer = host.querySelector('w3a-drawer');
-            const viewer = host.querySelector('w3a-export-key-viewer') as HTMLElement | null;
+            const drawer = host.querySelector('seams-drawer');
+            const viewer = host.querySelector('seams-export-key-viewer') as HTMLElement | null;
             const aboveFold = drawer?.querySelector('.above-fold') ?? null;
             return {
               hostHeight: host.offsetHeight,
-              drawerDefined: !!customElements.get('w3a-drawer'),
-              viewerDefined: !!customElements.get('w3a-export-key-viewer'),
+              drawerDefined: !!customElements.get('seams-drawer'),
+              viewerDefined: !!customElements.get('seams-export-key-viewer'),
               aboveFoldExists: !!aboveFold,
               drawerChildren: drawer
                 ? Array.from(drawer.children).map((c) => c.tagName.toLowerCase() + '.' + c.className)

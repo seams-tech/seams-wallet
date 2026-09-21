@@ -16,7 +16,7 @@ export function deepMerge<T extends object, U extends object>(target: T, source:
   return out as T & U;
 }
 
-export function createCSSVariables(tokens: DesignTokens, prefix = '--w3a'): React.CSSProperties {
+export function createCSSVariables(tokens: DesignTokens, prefix = '--seams'): React.CSSProperties {
   const vars: Record<string, string> = {};
 
   Object.entries(tokens.colors).forEach(([k, v]) => {

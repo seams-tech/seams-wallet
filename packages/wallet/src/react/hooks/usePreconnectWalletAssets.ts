@@ -7,7 +7,7 @@ import { preconnectWalletAssets } from '../../SeamsWeb/assembly/preconnectWallet
 //
 // What this hook does
 // - Adds connection hints for the configured wallet origin and relayer.
-// - Sets `window.__W3A_WALLET_SDK_BASE__` to an absolute `${walletOrigin}${sdkBasePath}/` so
+// - Sets `window.__SEAMS_WALLET_SDK_BASE__` to an absolute `${walletOrigin}${sdkBasePath}/` so
 //   any embedded srcdoc iframes created by the SDK load ESM bundles from the wallet origin,
 //   not from the host app origin.
 //

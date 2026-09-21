@@ -14,9 +14,9 @@
  *  - WebAuthnManager (to set worker base origin for managers)
  *  - Lit wrappers (to resolve embedded script/css URLs)
  */
-export const W3A_WALLET_SDK_BASE_KEY = '__W3A_WALLET_SDK_BASE__';
-export const W3A_WALLET_SDK_BASE_EVENT = 'W3A_WALLET_SDK_BASE_CHANGED';
-export const W3A_WALLET_ASSET_VERSION_KEY = '__W3A_WALLET_ASSET_VERSION__';
+export const SEAMS_WALLET_SDK_BASE_KEY = '__SEAMS_WALLET_SDK_BASE__';
+export const SEAMS_WALLET_SDK_BASE_EVENT = 'SEAMS_WALLET_SDK_BASE_CHANGED';
+export const SEAMS_WALLET_ASSET_VERSION_KEY = '__SEAMS_WALLET_ASSET_VERSION__';
 
 /**
  * Typed CustomEvent emitted when the wallet SDK base changes.
@@ -25,8 +25,8 @@ export const W3A_WALLET_ASSET_VERSION_KEY = '__W3A_WALLET_ASSET_VERSION__';
 export type WalletSdkBaseChangedEvent = CustomEvent<string>;
 
 export interface WalletSDKBase {
-  [W3A_WALLET_SDK_BASE_KEY]?: string;
-  [W3A_WALLET_ASSET_VERSION_KEY]?: string;
+  [SEAMS_WALLET_SDK_BASE_KEY]?: string;
+  [SEAMS_WALLET_ASSET_VERSION_KEY]?: string;
 }
 
 /**
@@ -35,7 +35,7 @@ export interface WalletSDKBase {
 export function getEmbeddedBase(): string | undefined {
   if (typeof window === 'undefined') return undefined;
   const w = window as unknown as WalletSDKBase;
-  const v = w[W3A_WALLET_SDK_BASE_KEY];
+  const v = w[SEAMS_WALLET_SDK_BASE_KEY];
   return typeof v === 'string' && v.length > 0 ? v : undefined;
 }
 
@@ -46,13 +46,13 @@ export function getEmbeddedBase(): string | undefined {
 export function setEmbeddedBase(url: string): void {
   if (typeof window === 'undefined') return;
   const w = window as unknown as WalletSDKBase;
-  w[W3A_WALLET_SDK_BASE_KEY] = url;
-  window.dispatchEvent(new CustomEvent(W3A_WALLET_SDK_BASE_EVENT as any, { detail: url }));
+  w[SEAMS_WALLET_SDK_BASE_KEY] = url;
+  window.dispatchEvent(new CustomEvent(SEAMS_WALLET_SDK_BASE_EVENT as any, { detail: url }));
 }
 
 export function getEmbeddedAssetVersion(): string | undefined {
   if (typeof window === 'undefined') return undefined;
-  const value = (window as unknown as WalletSDKBase)[W3A_WALLET_ASSET_VERSION_KEY];
+  const value = (window as unknown as WalletSDKBase)[SEAMS_WALLET_ASSET_VERSION_KEY];
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
@@ -60,7 +60,7 @@ export function setEmbeddedAssetVersion(version: string): void {
   if (typeof window === 'undefined') return;
   const normalized = version.trim();
   if (!normalized) return;
-  (window as unknown as WalletSDKBase)[W3A_WALLET_ASSET_VERSION_KEY] = normalized;
+  (window as unknown as WalletSDKBase)[SEAMS_WALLET_ASSET_VERSION_KEY] = normalized;
 }
 
 /**
@@ -73,6 +73,6 @@ export function onEmbeddedBaseChange(cb: (url: string) => void): () => void {
     const d = e.detail;
     if (typeof d === 'string' && d.length > 0) cb(d);
   };
-  window.addEventListener(W3A_WALLET_SDK_BASE_EVENT, handler as EventListener, { passive: true });
-  return () => window.removeEventListener(W3A_WALLET_SDK_BASE_EVENT, handler as EventListener);
+  window.addEventListener(SEAMS_WALLET_SDK_BASE_EVENT, handler as EventListener, { passive: true });
+  return () => window.removeEventListener(SEAMS_WALLET_SDK_BASE_EVENT, handler as EventListener);
 }

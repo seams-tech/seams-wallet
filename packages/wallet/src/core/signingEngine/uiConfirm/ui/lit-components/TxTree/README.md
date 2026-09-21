@@ -2,7 +2,7 @@
 
 Pure presentational tree used inside the embedded tooltip. No internal state; renders from inputs.
 
-Entrypoint: `index.ts` is the component-local export for `<w3a-tx-tree>`.
+Entrypoint: `index.ts` is the component-local export for `<seams-tx-tree>`.
 
 ## Inputs
 
@@ -13,12 +13,12 @@ Entrypoint: `index.ts` is the component-local export for `<w3a-tx-tree>`.
 ## CSS Variable Mapping
 
 - TxTree maps `txTreeStyles` onto CSS custom properties on the host.
-- Variable naming: `--w3a-tree__<section>__<property>` (both section and property are kebab-cased).
+- Variable naming: `--seams-tree__<section>__<property>` (both section and property are kebab-cased).
 
 Examples
 
-- `{ fileContent: { background: '#f8fafc' } }` → sets `--w3a-tree__file-content__background`.
-- `{ label: { color: 'oklch(0.53 0.02 240)' } }` → sets `--w3a-tree__label__color`.
+- `{ fileContent: { background: '#f8fafc' } }` → sets `--seams-tree__file-content__background`.
+- `{ label: { color: 'oklch(0.53 0.02 240)' } }` → sets `--seams-tree__label__color`.
 
 Notes
 
@@ -28,10 +28,10 @@ Notes
 ## Styling (CSS variables)
 
 - TxTree maps `txTreeStyles` onto CSS custom properties on the host.
-- Variable naming: `--w3a-tree__<section>__<property>` (both section and property are kebab-cased).
-- Example mapping: `{ fileContent: { background: '#f8fafc' } }` → `--w3a-tree__file-content__background`.
+- Variable naming: `--seams-tree__<section>__<property>` (both section and property are kebab-cased).
+- Example mapping: `{ fileContent: { background: '#f8fafc' } }` → `--seams-tree__file-content__background`.
 - Common sections: `root`, `details`, `summary`, `summaryRow`, `row`, `indent`, `label`, `chevron`, `fileContent`, `folderChildren`, `highlightReceiver`, `highlightMethodName`.
-- Highlight classes applied to labels: `highlight-receiverId`, `highlight-methodName`; controlled by vars like `--w3a-tree__highlight-receiver-id__color`.
+- Highlight classes applied to labels: `highlight-receiverId`, `highlight-methodName`; controlled by vars like `--seams-tree__highlight-receiver-id__color`.
 
 ## Transaction data → Tree mapping
 
@@ -46,5 +46,5 @@ Notes
 ## Minimal usage
 
 ```html
-<w3a-tx-tree .node="${treeRoot}" .depth="${0}" .txTreeStyles="${themeStyles}"></w3a-tx-tree>
+<seams-tx-tree .node="${treeRoot}" .depth="${0}" .txTreeStyles="${themeStyles}"></seams-tx-tree>
 ```

@@ -6,27 +6,27 @@ body {
   color-scheme: normal;
 }
 
-html.w3a-transparent,
-body.w3a-transparent {
+html.seams-transparent,
+body.seams-transparent {
   background: transparent !important;
   margin: 0;
   padding: 0;
   color-scheme: normal;
 }
 
-.w3a-portal {
+.seams-portal {
   position: relative;
   z-index: 2147483647;
   opacity: 0;
   pointer-events: none;
 }
 
-.w3a-portal.w3a-portal--visible {
+.seams-portal.seams-portal--visible {
   opacity: 1;
   pointer-events: auto;
 }
 
-.w3a-offscreen {
+.seams-offscreen {
   position: fixed;
   left: -9999px;
   top: 0;
@@ -35,22 +35,22 @@ body.w3a-transparent {
 }
 
 /* Hosted drawer integration: preserve the drag transform over the open rest position. */
-w3a-tx-confirmer[data-w3a-confirm-surface='standalone'][data-w3a-confirm-variant='drawer']
-  w3a-drawer[open]
+seams-tx-confirmer[data-seams-confirm-surface='standalone'][data-seams-confirm-variant='drawer']
+  seams-drawer[open]
   .drawer.dragging,
-w3a-drawer[data-w3a-export-surface='standalone'][open] .drawer.dragging {
-  transform: translateY(var(--w3a-drawer__drag-translate, 0px));
+seams-drawer[data-seams-export-surface='standalone'][open] .drawer.dragging {
+  transform: translateY(var(--seams-drawer__drag-translate, 0px));
 }
 
-:root:not([data-w3a-theme]) {
-  --w3a-colors-textPrimary: #f6f7f8;
-  --w3a-colors-textSecondary: rgba(255, 255, 255, 0.7);
-  --w3a-colors-surface: rgba(255, 255, 255, 0.08);
-  --w3a-colors-surface2: rgba(255, 255, 255, 0.06);
-  --w3a-colors-surface3: rgba(255, 255, 255, 0.04);
-  --w3a-colors-borderPrimary: rgba(255, 255, 255, 0.14);
-  --w3a-colors-borderSecondary: rgba(255, 255, 255, 0.1);
-  --w3a-colors-colorBackground: #0b0c10;
-  --w3a-vw: 100vw;
-  --w3a-vh: 100vh;
+:root:not([data-seams-theme]) {
+  --seams-colors-textPrimary: #f6f7f8;
+  --seams-colors-textSecondary: rgba(255, 255, 255, 0.7);
+  --seams-colors-surface: rgba(255, 255, 255, 0.08);
+  --seams-colors-surface2: rgba(255, 255, 255, 0.06);
+  --seams-colors-surface3: rgba(255, 255, 255, 0.04);
+  --seams-colors-borderPrimary: rgba(255, 255, 255, 0.14);
+  --seams-colors-borderSecondary: rgba(255, 255, 255, 0.1);
+  --seams-colors-colorBackground: #0b0c10;
+  --seams-vw: 100vw;
+  --seams-vh: 100vh;
 }

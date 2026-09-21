@@ -197,17 +197,17 @@ test.describe('wallet-host Lit auth menu surface', () => {
       const root = element;
       const closeButton = root.querySelector('[data-auth-menu-close]') as HTMLButtonElement | null;
       const primary = root.querySelector('[data-auth-menu-primary]') as HTMLButtonElement | null;
-      const input = root.querySelector('#w3a-auth-menu-passkey-name') as HTMLInputElement | null;
+      const input = root.querySelector('#seams-auth-menu-passkey-name') as HTMLInputElement | null;
       return {
         closeLabel: closeButton?.getAttribute('aria-label') ?? '',
         hasPrimary: !!primary,
         primaryDisabled: primary?.disabled ?? false,
-        heading: root.querySelector('.w3a-title')?.textContent?.trim() ?? '',
-        subtitle: root.querySelector('.w3a-subhead')?.textContent?.trim() ?? '',
+        heading: root.querySelector('.seams-title')?.textContent?.trim() ?? '',
+        subtitle: root.querySelector('.seams-subhead')?.textContent?.trim() ?? '',
         hasFingerprint: !!root.querySelector('[data-auth-menu-primary] > svg'),
         hasPasskeyName: !!input,
         passkeyNameLabel: input?.getAttribute('placeholder') ?? '',
-        waitingText: root.querySelector('.w3a-waiting-text')?.textContent?.trim() ?? '',
+        waitingText: root.querySelector('.seams-waiting-text')?.textContent?.trim() ?? '',
         hasCancelCopy: root.textContent?.includes('Cancel') ?? false,
         hasTick: !!root.querySelector('[data-verification-tick], .verification-tick'),
       };
@@ -231,7 +231,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
         updateComplete?: Promise<unknown>;
       };
       const received: unknown[] = [];
-      element.addEventListener('w3a-auth-menu-intent', (event) => {
+      element.addEventListener('seams-auth-menu-intent', (event) => {
         received.push((event as CustomEvent<unknown>).detail);
       });
       element.viewModel = {
@@ -240,7 +240,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
         status: { kind: 'idle', interaction: 'actionable' },
       };
       await element.updateComplete;
-      const input = element.querySelector('#w3a-auth-menu-passkey-name') as HTMLInputElement;
+      const input = element.querySelector('#seams-auth-menu-passkey-name') as HTMLInputElement;
       input.value = 'Ledger passkey';
       input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
       (element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).click();
@@ -265,7 +265,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
     await page.evaluate((tagName) => {
       const element = document.querySelector(tagName) as HTMLElement & { intents?: unknown[] };
       element.intents = [];
-      element.addEventListener('w3a-auth-menu-intent', (event) => {
+      element.addEventListener('seams-auth-menu-intent', (event) => {
         element.intents?.push((event as CustomEvent<unknown>).detail);
       });
     }, AUTH_MENU_TAG);
@@ -292,17 +292,17 @@ test.describe('wallet-host Lit auth menu surface', () => {
     );
 
     const codeInput = page.locator(`${AUTH_MENU_TAG} [data-recovery-code]`);
-    const recoveryFeedback = page.locator(`${AUTH_MENU_TAG} #w3a-recovery-code-feedback`);
-    await expect(page.locator(`${AUTH_MENU_TAG} .w3a-title`)).toHaveCSS('text-align', 'center');
-    const recoverySubhead = page.locator(`${AUTH_MENU_TAG} .w3a-subhead`);
+    const recoveryFeedback = page.locator(`${AUTH_MENU_TAG} #seams-recovery-code-feedback`);
+    await expect(page.locator(`${AUTH_MENU_TAG} .seams-title`)).toHaveCSS('text-align', 'center');
+    const recoverySubhead = page.locator(`${AUTH_MENU_TAG} .seams-subhead`);
     await expect(recoverySubhead).toHaveText('Enter a recovery code to recover your wallet.');
     await expect(recoverySubhead).toHaveCSS('text-align', 'center');
     await expect(recoveryFeedback).toBeEmpty();
     await expect(recoveryFeedback).toHaveCSS('margin', '4px');
     await expect(
-      page.locator(`${AUTH_MENU_TAG} .w3a-header + #w3a-recovery-code-feedback`),
+      page.locator(`${AUTH_MENU_TAG} .seams-header + #seams-recovery-code-feedback`),
     ).toHaveCount(1);
-    await expect(page.locator(`${AUTH_MENU_TAG} .w3a-recovery-form`)).toHaveCSS('gap', '8px');
+    await expect(page.locator(`${AUTH_MENU_TAG} .seams-recovery-form`)).toHaveCSS('gap', '8px');
     await expect(codeInput).toHaveAttribute('aria-invalid', 'false');
     await expect(codeInput).toHaveCSS('font-size', '16px');
     await codeInput.fill('ABCD-EFGH');
@@ -324,10 +324,10 @@ test.describe('wallet-host Lit auth menu surface', () => {
       },
     );
     await expect(codeInput).toBeFocused();
-    await expect(codeInput).toHaveAttribute('aria-describedby', 'w3a-recovery-code-feedback');
+    await expect(codeInput).toHaveAttribute('aria-describedby', 'seams-recovery-code-feedback');
     await expect(recoveryFeedback).toHaveCount(1);
     await expect(recoveryFeedback).toHaveText('Enter a recovery code.');
-    await expect(recoveryFeedback).toHaveClass(/w3a-recovery-error/);
+    await expect(recoveryFeedback).toHaveClass(/seams-recovery-error/);
     await expect(recoveryFeedback).toHaveCSS('text-align', 'center');
     await expect(recoveryFeedback).toHaveAttribute('aria-hidden', 'false');
 
@@ -358,7 +358,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
     );
     await expect(page.locator(`${AUTH_MENU_TAG} [data-recovery-action]`)).toBeFocused();
     const reflow = await page
-      .locator(`${AUTH_MENU_TAG} .w3a-signup-menu-root`)
+      .locator(`${AUTH_MENU_TAG} .seams-signup-menu-root`)
       .evaluate((root) => ({
         clientWidth: root.clientWidth,
         scrollWidth: root.scrollWidth,
@@ -371,10 +371,10 @@ test.describe('wallet-host Lit auth menu surface', () => {
   }) => {
     await mountAuthMenu(page, recoveryGoogleSignInReadyViewModel());
 
-    await expect(page.locator(`${AUTH_MENU_TAG} .w3a-subhead`)).toHaveText(
+    await expect(page.locator(`${AUTH_MENU_TAG} .seams-subhead`)).toHaveText(
       'Your Google account is ready to sign in.',
     );
-    await expect(page.locator(`${AUTH_MENU_TAG} .w3a-recovery-status`)).toHaveCount(0);
+    await expect(page.locator(`${AUTH_MENU_TAG} .seams-recovery-status`)).toHaveCount(0);
     const button = page.locator(`${AUTH_MENU_TAG} [data-auth-menu-primary]`);
     await expect(button).toHaveText('Sign in with Google');
     await expect(button.locator(':scope > svg[aria-hidden="true"]')).toHaveCount(1);
@@ -383,10 +383,10 @@ test.describe('wallet-host Lit auth menu surface', () => {
   test('renders recovered Passkey sign-in as one ready message', async ({ page }) => {
     await mountAuthMenu(page, recoveryPasskeySignInReadyViewModel());
 
-    await expect(page.locator(`${AUTH_MENU_TAG} .w3a-subhead`)).toHaveText(
+    await expect(page.locator(`${AUTH_MENU_TAG} .seams-subhead`)).toHaveText(
       'Your account is ready, login again with your Passkey',
     );
-    await expect(page.locator(`${AUTH_MENU_TAG} .w3a-recovery-status`)).toHaveCount(0);
+    await expect(page.locator(`${AUTH_MENU_TAG} .seams-recovery-status`)).toHaveCount(0);
   });
 
   test('locks Back and Escape while recovery finalization is irreversible', async ({ page }) => {
@@ -394,7 +394,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
     await page.evaluate((tagName) => {
       const element = document.querySelector(tagName) as HTMLElement & { intents?: unknown[] };
       element.intents = [];
-      element.addEventListener('w3a-auth-menu-intent', (event) => {
+      element.addEventListener('seams-auth-menu-intent', (event) => {
         element.intents?.push((event as CustomEvent<unknown>).detail);
       });
     }, AUTH_MENU_TAG);
@@ -428,7 +428,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const result = await page.evaluate((tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const received: unknown[] = [];
-      element.addEventListener('w3a-auth-menu-intent', (event) => {
+      element.addEventListener('seams-auth-menu-intent', (event) => {
         received.push((event as CustomEvent<unknown>).detail);
       });
       const image = element.querySelector('.qr-code-image') as HTMLImageElement | null;
@@ -499,7 +499,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const result = await page.evaluate((tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const intents: unknown[] = [];
-      element.addEventListener('w3a-auth-menu-intent', (event) => {
+      element.addEventListener('seams-auth-menu-intent', (event) => {
         intents.push((event as CustomEvent<unknown>).detail);
       });
       (element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).click();
@@ -528,7 +528,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
       const element = document.querySelector(tagName);
       if (!element) throw new Error('auth-menu surface is missing');
       (window as Window & { __authMenuIntents?: unknown[] }).__authMenuIntents = [];
-      element.addEventListener('w3a-auth-menu-intent', (event) => {
+      element.addEventListener('seams-auth-menu-intent', (event) => {
         (window as Window & { __authMenuIntents?: unknown[] }).__authMenuIntents?.push(
           (event as CustomEvent<unknown>).detail,
         );
@@ -550,7 +550,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const fromWaiting = await page.evaluate(async (tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const received: unknown[] = [];
-      element.addEventListener('w3a-auth-menu-intent', (event) => {
+      element.addEventListener('seams-auth-menu-intent', (event) => {
         received.push((event as CustomEvent<unknown>).detail);
       });
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -562,7 +562,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const fromMenu = await page.evaluate(async (tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const received: unknown[] = [];
-      element.addEventListener('w3a-auth-menu-intent', (event) => {
+      element.addEventListener('seams-auth-menu-intent', (event) => {
         received.push((event as CustomEvent<unknown>).detail);
       });
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
@@ -582,7 +582,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
 
     const snapshot = await page.evaluate(async (tagName) => {
       const root = document.querySelector(tagName) as HTMLElement;
-      const input = root.querySelector('#w3a-auth-menu-passkey-name') as HTMLInputElement | null;
+      const input = root.querySelector('#seams-auth-menu-passkey-name') as HTMLInputElement | null;
       return {
         ariaBusy: root.querySelector('.auth-menu-root')?.getAttribute('aria-busy') ?? '',
         ctaDisabled: (root.querySelector('[data-auth-menu-primary]') as HTMLButtonElement)
@@ -591,7 +591,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
         inputValue: input?.value ?? '',
         hasAlert: !!root.querySelector('[role="alert"]'),
         retryCount: root.querySelectorAll('.auth-menu-retry').length,
-        hasProgress: !!root.querySelector('.w3a-waiting'),
+        hasProgress: !!root.querySelector('.seams-waiting'),
       };
     }, AUTH_MENU_TAG);
 
@@ -619,10 +619,10 @@ test.describe('wallet-host Lit auth menu surface', () => {
       const root = document.querySelector(tagName) as HTMLElement;
       return {
         hasPrimary: !!root.querySelector('[data-auth-menu-primary]'),
-        hasPasskeyName: !!root.querySelector('#w3a-auth-menu-passkey-name'),
-        hasHalo: !!root.querySelector('w3a-passkey-halo-loading'),
-        heading: root.querySelector('.w3a-waiting-text')?.textContent?.trim() ?? '',
-        spinnerLabel: root.querySelector('.w3a-spinner')?.getAttribute('aria-label') ?? '',
+        hasPasskeyName: !!root.querySelector('#seams-auth-menu-passkey-name'),
+        hasHalo: !!root.querySelector('seams-passkey-halo-loading'),
+        heading: root.querySelector('.seams-waiting-text')?.textContent?.trim() ?? '',
+        spinnerLabel: root.querySelector('.seams-spinner')?.getAttribute('aria-label') ?? '',
       };
     }, AUTH_MENU_TAG);
 
@@ -642,7 +642,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const snapshot = await page.evaluate((tagName) => {
       const root = document.querySelector(tagName) as HTMLElement;
       return {
-        hasPasskeyName: !!root.querySelector('#w3a-auth-menu-passkey-name'),
+        hasPasskeyName: !!root.querySelector('#seams-auth-menu-passkey-name'),
       };
     }, AUTH_MENU_TAG);
 
@@ -658,7 +658,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const intents = await page.evaluate(async (tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const received: unknown[] = [];
-      element.addEventListener('w3a-auth-menu-intent', (event) => {
+      element.addEventListener('seams-auth-menu-intent', (event) => {
         received.push((event as CustomEvent<unknown>).detail);
       });
       (element.querySelector('[data-auth-menu-mode="login"]') as HTMLButtonElement).click();
@@ -709,7 +709,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const submitIntent = await page.evaluate(async (tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const received: unknown[] = [];
-      element.addEventListener('w3a-auth-menu-intent', (event) => {
+      element.addEventListener('seams-auth-menu-intent', (event) => {
         received.push((event as CustomEvent<unknown>).detail);
       });
       (element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).click();
@@ -742,10 +742,10 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const intents = await page.evaluate(async (tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const received: unknown[] = [];
-      element.addEventListener('w3a-auth-menu-intent', (event) => {
+      element.addEventListener('seams-auth-menu-intent', (event) => {
         received.push((event as CustomEvent<unknown>).detail);
       });
-      const input = element.querySelector('#w3a-auth-menu-google-otp') as HTMLInputElement;
+      const input = element.querySelector('#seams-auth-menu-google-otp') as HTMLInputElement;
       input.value = '123456';
       input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
       (element.querySelector('.auth-menu-google-resend') as HTMLButtonElement).click();
@@ -782,12 +782,12 @@ test.describe('wallet-host Lit auth menu surface', () => {
       selectedAccount: walletA,
     });
 
-    const selectedAccount = page.locator(`${AUTH_MENU_TAG} .w3a-selected-account`);
-    await expect(selectedAccount.locator('.w3a-account-menu-account-primary')).toHaveText(
+    const selectedAccount = page.locator(`${AUTH_MENU_TAG} .seams-selected-account`);
+    await expect(selectedAccount.locator('.seams-account-menu-account-primary')).toHaveText(
       'wallet-a',
     );
-    await expect(selectedAccount.locator('.w3a-account-menu-account-secondary')).toHaveCount(0);
-    await expect(page.locator(`${AUTH_MENU_TAG} .w3a-account-menu-trigger`)).toHaveAttribute(
+    await expect(selectedAccount.locator('.seams-account-menu-account-secondary')).toHaveCount(0);
+    await expect(page.locator(`${AUTH_MENU_TAG} .seams-account-menu-trigger`)).toHaveAttribute(
       'aria-label',
       'Saved accounts. Selected wallet-a',
     );
@@ -799,10 +799,10 @@ test.describe('wallet-host Lit auth menu surface', () => {
           updateComplete?: Promise<unknown>;
         };
         const received: unknown[] = [];
-        element.addEventListener('w3a-auth-menu-intent', (event) => {
+        element.addEventListener('seams-auth-menu-intent', (event) => {
           received.push((event as CustomEvent<unknown>).detail);
         });
-        (element.querySelector('.w3a-account-menu-trigger') as HTMLButtonElement).click();
+        (element.querySelector('.seams-account-menu-trigger') as HTMLButtonElement).click();
         await element.updateComplete;
         (element.querySelector('[data-wallet-id="wallet-b"]') as HTMLButtonElement).click();
         element.viewModel = { ...element.viewModel, selectedAccount };
@@ -815,13 +815,13 @@ test.describe('wallet-host Lit auth menu surface', () => {
     expect(selected).toEqual([
       { kind: 'login_account_selected', walletId: 'wallet-b', authMethod: 'email_otp' },
     ]);
-    await expect(selectedAccount.locator('.w3a-account-menu-account-primary')).toHaveText(
+    await expect(selectedAccount.locator('.seams-account-menu-account-primary')).toHaveText(
       'wallet-b',
     );
-    await expect(selectedAccount.locator('.w3a-account-menu-account-secondary')).toHaveText(
+    await expect(selectedAccount.locator('.seams-account-menu-account-secondary')).toHaveText(
       'wallet-b@example.com',
     );
-    await expect(page.locator(`${AUTH_MENU_TAG} .w3a-account-menu-trigger`)).toHaveAttribute(
+    await expect(page.locator(`${AUTH_MENU_TAG} .seams-account-menu-trigger`)).toHaveAttribute(
       'aria-label',
       'Saved accounts. Selected wallet ID wallet-b, email wallet-b@example.com',
     );
@@ -838,6 +838,18 @@ test.describe('wallet-host Lit auth menu surface', () => {
       selectedAccountLayout.clientWidth,
     );
   });
+
+  test('does not render a username field for discoverable passkey login', async ({ page }) => {
+    await mountAuthMenu(page, loginViewModel());
+
+    await expect(page.locator(`${AUTH_MENU_TAG} input`)).toHaveCount(0);
+    await expect(page.locator(`${AUTH_MENU_TAG} .seams-passkey-row`)).toHaveCount(0);
+    await expect(page.locator(`${AUTH_MENU_TAG} [data-auth-menu-primary]`)).toHaveText(
+      'Sign in with Passkey',
+    );
+    await expect(page.locator(`${AUTH_MENU_TAG}`)).not.toContainText('username');
+  });
+
   test('shows a dual-method wallet in both groups and enables both methods', async ({ page }) => {
     const passkey = {
       walletId: 'jade-brook',
@@ -867,7 +879,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
       { passkey: true, emailOtp: true },
     ]);
 
-    await page.locator(`${AUTH_MENU_TAG} .w3a-account-menu-trigger`).click();
+    await page.locator(`${AUTH_MENU_TAG} .seams-account-menu-trigger`).click();
     await expect(
       page.locator(`${AUTH_MENU_TAG} [data-wallet-id="jade-brook"][data-auth-method="passkey"]`),
     ).toHaveCount(1);
@@ -875,10 +887,10 @@ test.describe('wallet-host Lit auth menu surface', () => {
       `${AUTH_MENU_TAG} [data-wallet-id="jade-brook"][data-auth-method="email_otp"]`,
     );
     await expect(emailOtpOption).toHaveCount(1);
-    await expect(emailOtpOption.locator('.w3a-account-menu-account-primary')).toHaveText(
+    await expect(emailOtpOption.locator('.seams-account-menu-account-primary')).toHaveText(
       'jade-brook',
     );
-    await expect(emailOtpOption.locator('.w3a-account-menu-account-secondary')).toHaveText(
+    await expect(emailOtpOption.locator('.seams-account-menu-account-secondary')).toHaveText(
       'n637805@gmail.com',
     );
     await emailOtpOption.focus();
@@ -893,7 +905,7 @@ test.describe('wallet-host Lit auth menu surface', () => {
     const intents = await page.evaluate(async (tagName) => {
       const element = document.querySelector(tagName) as HTMLElement;
       const received: unknown[] = [];
-      element.addEventListener('w3a-auth-menu-intent', (event) => {
+      element.addEventListener('seams-auth-menu-intent', (event) => {
         received.push((event as CustomEvent<unknown>).detail);
       });
       (element.querySelector('[data-auth-menu-primary]') as HTMLButtonElement).click();
