@@ -431,6 +431,7 @@ const configs = [
   {
     input: [
       'src/index.ts',
+      'src/externalEvm/index.ts',
       'src/advanced.ts',
       'src/runtime.ts',
       'src/SeamsWeb/index.ts',
@@ -530,6 +531,7 @@ const configs = [
       'src/react/context/SeamsWebProvider.tsx',
       // Ensure public subpath entrypoints exist in dist even when re-exports are flattened.
       'src/react/components/HostedSeamsAuthMenu/public.ts',
+      'src/react/externalEvm.tsx',
     ],
     output: {
       dir: BUILD_PATHS.BUILD.ESM,

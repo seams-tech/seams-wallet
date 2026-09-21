@@ -63,10 +63,10 @@ test.describe('Preact production confirmation mount', () => {
           rootClass: root.className,
           surface: root.dataset.seamsConfirmSurface,
           variant: root.dataset.seamsConfirmVariant,
-          heading: root.querySelector('.seams-confirm-header .hero-heading')?.textContent ?? '',
-          tree: !!root.querySelector('.seams-tx-tree'),
-          operation: root.querySelector('.label-text')?.textContent ?? '',
-          cancel: !!root.querySelector('button.cancel'),
+          heading: root.querySelector('.seams-review-title')?.textContent ?? '',
+          review: !!root.querySelector('.seams-transaction-review'),
+          operation: root.querySelector('.seams-review-eyebrow')?.textContent ?? '',
+          cancel: !!root.querySelector('button[aria-label="Cancel"]'),
           confirm: !!root.querySelector('button.confirm'),
         };
         handle.close(true);
@@ -79,13 +79,13 @@ test.describe('Preact production confirmation mount', () => {
     expect(result.surface).toBe('standalone');
     expect(result.variant).toBe('modal');
     expect(result.heading).toBe('Model-only confirmation');
-    expect(result.tree).toBe(true);
+    expect(result.review).toBe(true);
     expect(result.operation).toContain('Contract Call');
     expect(result.cancel).toBe(true);
     expect(result.confirm).toBe(true);
   });
 
-  test('renders NEP-413 signature details as a transaction tree', async ({ page }) => {
+  test('renders NEP-413 signature details in the transaction review', async ({ page }) => {
     await page.evaluate(
       async ({ confirmUiPath }) => {
         const { mountConfirmUI } = await import(confirmUiPath);
@@ -121,12 +121,14 @@ test.describe('Preact production confirmation mount', () => {
       { confirmUiPath: IMPORT_PATHS.confirmUi },
     );
 
-    const tree = page.locator('.seams-tx-tree');
-    await expect(tree).toBeVisible();
-    await expect(tree).toContainText('Message signature');
-    await expect(tree).toContainText('Signer: alice.testnet');
-    await expect(tree).toContainText('Recipient: wallet-console-lite.local');
-    await expect(tree).toContainText('Sign in to the local Seams playground');
+    const review = page.locator('.seams-transaction-review');
+    const details = review.locator('.seams-review-technical');
+    await expect(review).toBeVisible();
+    await details.locator('summary').click();
+    await expect(details).toContainText('Message signature');
+    await expect(details).toContainText('Signer: alice.testnet');
+    await expect(details).toContainText('Recipient: wallet-console-lite.local');
+    await expect(details).toContainText('Sign in to the local Seams playground');
   });
 
   test('resolves cancel through the public decision API', async ({ page }) => {
@@ -150,12 +152,12 @@ test.describe('Preact production confirmation mount', () => {
 
         async function pageClickCancel(): Promise<void> {
           const startedAt = performance.now();
-          while (!document.querySelector<HTMLButtonElement>('button.cancel')) {
+          while (!document.querySelector<HTMLButtonElement>('button[aria-label="Cancel"]')) {
             if (performance.now() - startedAt > 5_000)
               throw new Error('Cancel button did not mount');
             await new Promise((resolve) => requestAnimationFrame(resolve));
           }
-          document.querySelector<HTMLButtonElement>('button.cancel')!.click();
+          document.querySelector<HTMLButtonElement>('button[aria-label="Cancel"]')!.click();
         }
       },
       { confirmUiPath: IMPORT_PATHS.confirmUi },
@@ -170,9 +172,9 @@ test.describe('Preact production confirmation mount', () => {
     const results = await page.evaluate(async ({ confirmUiPath }) => {
       const { mountConfirmUI } = await import(confirmUiPath);
       const chains = [
-        { kind: 'near', label: 'NEAR', chainId: 4000 },
-        { kind: 'evm', label: 'EVM', chainId: 11155111 },
-        { kind: 'tempo', label: 'Tempo', chainId: 4242 },
+        { kind: 'near', label: 'NEAR', chainId: 4000, network: 'NEAR · 4000' },
+        { kind: 'evm', label: 'EVM', chainId: 11155111, network: 'Ethereum Sepolia' },
+        { kind: 'tempo', label: 'Tempo', chainId: 4242, network: 'TEMPO · 4242' },
       ] as const;
       const contexts = ['standalone', 'wallet-iframe'] as const;
       const variants = ['modal', 'drawer'] as const;
@@ -181,8 +183,8 @@ test.describe('Preact production confirmation mount', () => {
         context: string;
         variant: string;
         surface: string | undefined;
-        tree: boolean;
-        chainLabel: boolean;
+        review: boolean;
+        network: boolean;
       }> = [];
       for (const chain of chains) {
         for (const context of contexts) {
@@ -224,8 +226,8 @@ test.describe('Preact production confirmation mount', () => {
               context,
               variant,
               surface: root.dataset.seamsConfirmSurface,
-              tree: Boolean(root.querySelector('.seams-tx-tree')),
-              chainLabel: text.includes(`${chain.label} | ChainID: ${chain.chainId}`),
+              review: Boolean(root.querySelector('.seams-transaction-review')),
+              network: text.includes(chain.network),
             });
             handle.close(true);
             if (variant === 'drawer') {
@@ -238,7 +240,7 @@ test.describe('Preact production confirmation mount', () => {
     }, { confirmUiPath: IMPORT_PATHS.confirmUi });
 
     expect(results).toHaveLength(12);
-    expect(results.every((result) => result.tree && result.chainLabel)).toBe(true);
+    expect(results.every((result) => result.review && result.network)).toBe(true);
     for (const result of results) {
       const expectedSurface =
         result.context === 'wallet-iframe' && result.variant === 'modal'
@@ -264,10 +266,10 @@ test.describe('Preact production confirmation mount', () => {
         surface: { kind: 'mount_new' as const },
       });
       const cancelled = awaitConfirmUIDecision(input('Cancel before auth handoff'));
-      while (!document.querySelector<HTMLButtonElement>('button.cancel')) {
+      while (!document.querySelector<HTMLButtonElement>('button[aria-label="Cancel"]')) {
         await new Promise((resolve) => requestAnimationFrame(resolve));
       }
-      document.querySelector<HTMLButtonElement>('button.cancel')!.click();
+      document.querySelector<HTMLButtonElement>('button[aria-label="Cancel"]')!.click();
       const cancelledResult = await cancelled;
       cancelledResult.handle.close(false);
       const confirmed = awaitConfirmUIDecision(input('Confirm after auth handoff'));
