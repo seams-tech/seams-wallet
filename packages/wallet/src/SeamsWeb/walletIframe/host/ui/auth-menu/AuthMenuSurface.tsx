@@ -884,9 +884,11 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
             >
               {backIcon()}
             </button>
-            <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">
-              {recovery ? recoveryAnnouncement(viewModel) : ''}
-            </div>
+            {recovery ? (
+              <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">
+                {recoveryAnnouncement(viewModel)}
+              </div>
+            ) : null}
             <div class="seams-content-area">
               <div class="seams-content-sizer">
                 {loading ? (

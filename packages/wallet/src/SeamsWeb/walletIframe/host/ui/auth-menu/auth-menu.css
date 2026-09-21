@@ -39,6 +39,8 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: var(--seams-colors-textPrimary);
+  line-height: normal;
+  background: transparent;
   font-family: var(
     --seams-font-family,
     -apple-system,
@@ -215,6 +217,7 @@
 :where(.seams-auth-menu-surface) .seams-title {
   font-size: 21px;
   font-weight: 600;
+  line-height: normal;
   margin: 0.5rem 0.75rem;
   text-wrap: balance;
 }
