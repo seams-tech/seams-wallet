@@ -1866,20 +1866,36 @@ component. Cleanup is a required deliverable, not optional follow-up work.
 
 #### 8b. Remove orphaned Lit glue
 
-- [ ] Recheck imports and runtime consumers before removing the built-in
+- [x] Recheck imports and runtime consumers before removing the built-in
   registry, upgrade observer, `LitElementWithProps`, `ensureDefined`,
   `css-loader`, and component readiness gates.
-- [ ] Preserve measurement/animation frames that implement visible behavior;
+- [x] Preserve measurement/animation frames that implement visible behavior;
   delete only frames whose purpose was retired stylesheet/upgrade readiness.
-- [ ] Move remaining pure files, then delete the empty Lit directories.
-- [ ] Rename the generic extension implementation to `iframe-custom-element-*`
+- [x] Move remaining pure files, then delete the empty Lit directories.
+- [x] Rename the generic extension implementation to `iframe-custom-element-*`
   and preserve its public registration/mount contract and supported messages.
   Verify an external custom element still mounts and disposes.
-- [ ] Remove `lit` and obsolete embedded entries once all imports are gone.
-- [ ] Delete orphaned Lit components, React adapters, registration-only imports,
+- [x] Remove `lit` and obsolete embedded entries once all imports are gone.
+- [x] Delete orphaned Lit components, React adapters, registration-only imports,
   styles, tests, fixtures, and generators. Audit source, package exports,
   declarations, and built bundles for remaining references; retain the generic
   external custom-element extension contract described above.
+
+Luna extra-review checkpoint — 2026-09-21 (`72da581`, `c337b8a`, `990a987`):
+
+- Removed the retired host-document Lit theme bridge, stale Lit browser test
+  configuration, built-in confirmation registry, all built-in Lit confirmation
+  components/CSS, and the `lit` package plus lockfile records.
+- Moved renderer-independent theme and surface-measurement checks to
+  `tests/wallet-ui/`; the temporary visual baseline continues to use the saved
+  Lit build under `.artifacts/refactor-127/` and remains intentionally local.
+- Renamed the confirmation resize event module and event to renderer-neutral
+  names. Wallet type-check, browser-test type-check, the Rolldown build, and the
+  22-test tree/iframe matrix passed across Chromium, Firefox, and WebKit.
+- This is a Luna handoff marker. Before accepting the next cleanup or CSS
+  consolidation slice, perform an extra review of the generic custom-element
+  extension boundary, saved-baseline routing, event payload typing, dependency
+  lock accuracy, and generated/built output on a clean build.
 
 #### 8c. Consolidate static CSS as a separate change
 
