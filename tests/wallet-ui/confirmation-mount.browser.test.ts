@@ -153,6 +153,7 @@ test.beforeEach(async ({ page }) => {
         chain: 'evm', chainId: 8453,
         operations: [{ id: 'transfer', kind: 'generic.contractCall', label: 'Transfer', to: value }],
       } };
+      viewModel.content.transaction.explorers.evm = 'https://basescan.org';
       handles[index].update(viewModel);
     }
     function receiptDismiss() {
@@ -305,6 +306,20 @@ test('clicking the receipt address copies the full value and animates the export
   await copied.press('Enter');
   await expect.poll(() => page.evaluate(() => window.__confirmationMount.calls)).toEqual([recipient, recipient]);
   await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
+});
+
+test('confirmed receipts link to the configured block explorer', async ({ page }) => {
+  const recipient = '0x2F0100000000000000000000000000000000004EC9';
+  const hash = `0x${'1234567890abcdef'.repeat(4)}`;
+  await page.evaluate(({ recipient, hash }) => {
+    window.__confirmationMount.mount('modal', 'wallet-iframe');
+    window.__confirmationMount.recipient(0, recipient);
+    window.__confirmationMount.receipt(0, { kind: 'confirmed', hash }, 'expanded');
+  }, { recipient, hash });
+  const link = page.getByRole('link', { name: 'View transaction' });
+  await expect(link).toHaveAttribute('href', `https://basescan.org/tx/${hash}`);
+  await expect(link).toHaveAttribute('target', '_blank');
+  await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
 });
 
 test('email Confirm Code validates and retries through its native form', async ({ page }) => {

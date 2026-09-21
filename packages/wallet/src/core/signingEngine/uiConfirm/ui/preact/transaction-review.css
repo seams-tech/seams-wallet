@@ -343,6 +343,26 @@
   font: inherit;
   cursor: pointer;
 }
+:where(.seams-wallet-ui) .seams-receipt-explorer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  width: fit-content;
+  margin: -0.25rem auto 0.75rem;
+  color: var(--seams-colors-textSecondary);
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+:where(.seams-wallet-ui) .seams-receipt-explorer:is(:hover, :focus-visible) {
+  color: var(--seams-colors-buttonBackground);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+:where(.seams-wallet-ui) .seams-receipt-explorer svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
 :where(.seams-wallet-ui) .seams-receipt-steps {
   display: flex;
   gap: 0.5rem;
@@ -568,6 +588,13 @@
 }
 :where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields {
   margin-bottom: 6px;
+}
+:where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields dd .seams-review-copy:not(.seams-review-copy-address) > .copy-icon {
+  opacity: 0;
+}
+:where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields dd:is(:hover, :focus-within) .seams-review-copy:not(.seams-review-copy-address) > .copy-icon,
+:where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields .seams-review-copy.copied > .copy-icon {
+  opacity: 1;
 }
 :where(.seams-wallet-ui) .seams-receipt-step[data-state='complete'] {
   color: var(--seams-colors-buttonBackground);

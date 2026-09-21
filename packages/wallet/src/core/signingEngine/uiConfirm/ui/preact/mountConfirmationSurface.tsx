@@ -156,7 +156,11 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     const source = state.model.content;
     const model = this.contentModel(source, state.kind === 'closing');
     const content = this.receipt && source.kind === 'transaction' ? (
-      <TransactionReceipt receipt={this.receipt} data={source.review} />
+      <TransactionReceipt
+        receipt={this.receipt}
+        data={source.review}
+        explorers={source.transaction.explorers}
+      />
     ) : (
       <ConfirmationContent
         model={model}
