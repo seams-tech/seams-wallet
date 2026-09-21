@@ -245,6 +245,21 @@ test('registration backup can defer without leaking codes into the next session'
   expect(await page.locator('.seams-recovery-code-backup-viewer').count()).toBe(1);
 });
 
+test('cancel event rejects a deferrable registration backup', async ({ page }) => {
+  await page.evaluate(() => window.__recoveryTest.startDirect());
+  const dialog = page.locator('[data-seams-wallet-recovery-backup-dialog]');
+  await expect(page.locator('.recovery-code-item')).toHaveCount(10);
+
+  await dialog.evaluate((element) => {
+    element.dispatchEvent(new Event('cancel', { cancelable: true }));
+  });
+
+  await expect
+    .poll(() => result(page))
+    .toEqual('Recovery-code backup was cancelled before acknowledgement');
+  await expect(dialog).toHaveCount(0);
+});
+
 test('disposal clears copied feedback timers before a new backup opens', async ({ page }) => {
   await page.evaluate(() => window.__recoveryTest.startDirect());
   await expect(page.locator('.recovery-code-item')).toHaveCount(10);

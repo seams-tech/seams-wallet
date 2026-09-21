@@ -8,7 +8,6 @@ import type {
 } from '../shared/messages';
 import { SeamsWeb } from '@/SeamsWeb';
 import type { SeamsConfigsInput } from '@/core/types/seams';
-import { setupCustomElementMounter } from './custom-elements/iframe-custom-element-mounter';
 import {
   applyWalletConfig,
   createHostContext,
@@ -36,7 +35,6 @@ export type WalletHostRuntimeRequest = {
   state: WalletHostRuntimeState;
   req: ParentToChildEnvelope;
   post(msg: ChildToParentEnvelope): void;
-  postToParent(msg: unknown): void;
   isCancelled(requestId: string | undefined): boolean;
   respondIfCancelled(requestId: string | undefined): boolean;
 };
@@ -45,7 +43,6 @@ type HandlerFactory = (deps: HandlerDeps) => HandlerMap;
 
 let runtimeContext: HostContext | null = null;
 const handlerMaps = new Map<HandlerFactory, HandlerMap>();
-let customElementMounterInstalled = false;
 
 const FOREGROUND_CONFIRMATION_REQUEST_TYPES: ReadonlySet<ParentToChildType> = new Set([
   'PM_REGISTER_WALLET',
@@ -180,57 +177,41 @@ export function syncActiveWalletHostRuntimeConfig(state: WalletHostRuntimeState)
   syncRuntimeContext(state);
 }
 
-function installCustomElementMounterOnce(ctx: HostContext, input: WalletHostRuntimeRequest): void {
-  if (customElementMounterInstalled) return;
-  customElementMounterInstalled = true;
+function ensureHostSeamsWeb(ctx: HostContext, input: WalletHostRuntimeRequest): SeamsWeb {
+  const previous = ctx.seamsWeb;
+  const seamsWeb = ensureSeamsWeb(ctx) as SeamsWeb;
+  ensureWalletHostLifecycleSubscription(ctx, seamsWeb);
+  if (previous === seamsWeb) return seamsWeb;
 
-  const ensureHostSeamsWeb = (): SeamsWeb => {
-    const prev = ctx.seamsWeb;
-    const pm = ensureSeamsWeb(ctx) as SeamsWeb;
-    ensureWalletHostLifecycleSubscription(ctx, pm);
-    if (prev !== pm) {
-      const up = pm.preferences;
-      ctx.prefsUnsubscribe?.();
-      const emitPreferencesChanged = () => {
-        const id = String(up.getCurrentWalletId?.() || '').trim();
-        input.post({
-          type: 'PREFERENCES_CHANGED',
-          payload: {
-            walletId: id ? id : null,
-            confirmationConfig: up.getConfirmationConfig(),
-            updatedAt: Date.now(),
-          } satisfies PreferencesChangedPayload,
-        });
-      };
-      const unsubCfg = up.onConfirmationConfigChange?.(() => emitPreferencesChanged()) || null;
-      const unsubCurrentWallet = up.onCurrentWalletChange?.(() => emitPreferencesChanged()) || null;
-      ctx.prefsUnsubscribe = () => {
-        try {
-          unsubCfg?.();
-        } catch {}
-        try {
-          unsubCurrentWallet?.();
-        } catch {}
-      };
-      Promise.resolve()
-        .then(() => emitPreferencesChanged())
-        .catch(() => {});
-    }
-    return pm;
+  const preferences = seamsWeb.preferences;
+  ctx.prefsUnsubscribe?.();
+  const emitPreferencesChanged = (): void => {
+    const walletId = String(preferences.getCurrentWalletId?.() || '').trim();
+    input.post({
+      type: 'PREFERENCES_CHANGED',
+      payload: {
+        walletId: walletId || null,
+        confirmationConfig: preferences.getConfirmationConfig(),
+        updatedAt: Date.now(),
+      } satisfies PreferencesChangedPayload,
+    });
   };
-
-  setupCustomElementMounter({
-    ensureSeamsWeb: ensureHostSeamsWeb,
-    getSeamsWeb: () => ctx.seamsWeb,
-    updateWalletConfigs: (patch) => {
-      ctx.walletConfigs = {
-        ...(ctx.walletConfigs || ({} as SeamsConfigsInput)),
-        ...patch,
-      } as SeamsConfigsInput;
-      input.state.walletConfigs = ctx.walletConfigs;
-    },
-    postToParent: input.postToParent,
-  });
+  const unsubscribeConfirmationConfig =
+    preferences.onConfirmationConfigChange?.(emitPreferencesChanged) || null;
+  const unsubscribeCurrentWallet =
+    preferences.onCurrentWalletChange?.(emitPreferencesChanged) || null;
+  ctx.prefsUnsubscribe = (): void => {
+    try {
+      unsubscribeConfirmationConfig?.();
+    } catch {}
+    try {
+      unsubscribeCurrentWallet?.();
+    } catch {}
+  };
+  Promise.resolve()
+    .then(emitPreferencesChanged)
+    .catch(() => {});
+  return seamsWeb;
 }
 
 function buildHandlerDeps(ctx: HostContext, input: WalletHostRuntimeRequest): HandlerDeps {
@@ -239,17 +220,10 @@ function buildHandlerDeps(ctx: HostContext, input: WalletHostRuntimeRequest): Ha
     input.post({ type: 'PROGRESS', requestId, payload });
   };
 
-  const ensureHostSeamsWeb = (): SeamsWeb => {
-    const pm = ensureSeamsWeb(ctx) as SeamsWeb;
-    ensureWalletHostLifecycleSubscription(ctx, pm);
-    return pm;
-  };
-
   return {
-    getSeamsWeb: ensureHostSeamsWeb,
+    getSeamsWeb: ensureHostSeamsWeb.bind(null, ctx, input),
     post: input.post,
     postProgress,
-    postToParent: input.postToParent,
     isCancelled: input.isCancelled,
     respondIfCancelled: input.respondIfCancelled,
   };
@@ -270,7 +244,6 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
   if (foregroundBinding) {
     takeForegroundSurfaceBinding(ctx, foregroundBinding.binding);
   }
-  installCustomElementMounterOnce(ctx, input);
 
   try {
     let handlers = handlerMaps.get(createHandlers);

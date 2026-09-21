@@ -259,7 +259,6 @@ import {
   isBoolean,
   toBasePath,
 } from '@shared/utils/validation';
-import type { WalletUIRegistry } from '../host/custom-elements/iframe-custom-element-registry';
 import { toError } from '@shared/utils/errors';
 import { secureRandomBase36 } from '@shared/utils/secureRandomId';
 import {
@@ -329,8 +328,6 @@ export interface WalletIframeRouterOptions {
   appearance?: AppearanceConfigInput;
   // Runtime appearance source used when init sends PM_SET_CONFIG.
   getAppearance?: () => AppearanceConfigInput | undefined;
-  // Optional: pre-register UI components in wallet host
-  uiRegistry?: Record<string, unknown>;
   // Optional browser assembly hook for owning wallet iframe overlay state construction.
   createOverlayState?: (args: {
     ensureIframe: (mountParent?: HTMLElement) => HTMLIFrameElement;
@@ -2463,7 +2460,6 @@ export class WalletIframeRouter {
         iframeWallet: this.opts.rpIdOverride ? { rpIdOverride: this.opts.rpIdOverride } : undefined,
         authenticatorOptions: this.opts.authenticatorOptions,
         appearance: this.getCurrentAppearance(),
-        uiRegistry: this.opts.uiRegistry,
         assetsBaseUrl: this.walletAssetBaseUrl(),
       },
     });
@@ -2577,44 +2573,6 @@ export class WalletIframeRouter {
     this.updateSurfaceViewportListeners();
     this.overlayState.controller.dispose();
     this.transport.dispose();
-  }
-
-  // ===== UI registry/window-message helpers (generic mounting) =====
-  registerUiTypes(registry: WalletUIRegistry): void {
-    const iframe = this.overlayState.controller.prepare();
-    const w = iframe.contentWindow;
-    if (!w) return;
-    const target = this.walletOriginOrigin;
-    this.postWindowMessage(w, { type: 'WALLET_UI_REGISTER_TYPES', payload: registry }, target);
-  }
-
-  mountUiComponent(params: {
-    key: string;
-    props?: Record<string, unknown>;
-    targetSelector?: string;
-    id?: string;
-  }): void {
-    const iframe = this.overlayState.controller.prepare();
-    const w = iframe.contentWindow;
-    if (!w) return;
-    const target = this.walletOriginOrigin;
-    this.postWindowMessage(w, { type: 'WALLET_UI_MOUNT', payload: params }, target);
-  }
-
-  updateUiComponent(params: { id: string; props?: Record<string, unknown> }): void {
-    const iframe = this.overlayState.controller.prepare();
-    const w = iframe.contentWindow;
-    if (!w) return;
-    const target = this.walletOriginOrigin;
-    this.postWindowMessage(w, { type: 'WALLET_UI_UPDATE', payload: params }, target);
-  }
-
-  unmountUiComponent(id: string): void {
-    const iframe = this.overlayState.controller.prepare();
-    const w = iframe.contentWindow;
-    if (!w) return;
-    const target = this.walletOriginOrigin;
-    this.postWindowMessage(w, { type: 'WALLET_UI_UNMOUNT', payload: { id } }, target);
   }
 
   // ===== Public RPC helpers =====
@@ -4599,17 +4557,6 @@ export class WalletIframeRouter {
   /** Public helper for tests/tools: inspect current overlay state. */
   getOverlayState(): OverlayControllerState {
     return this.overlayState.controller.getState();
-  }
-
-  // Post a window message and surface errors in debug mode instead of silently swallowing them
-  private postWindowMessage(w: Window, data: unknown, target: string): void {
-    try {
-      w.postMessage(data, target);
-    } catch (err) {
-      if (this.debug) {
-        console.error('[WalletIframeRouter] window.postMessage failed', { error: err, data });
-      }
-    }
   }
 }
 

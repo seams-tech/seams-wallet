@@ -236,7 +236,6 @@ export interface HostContext {
   lifecycleUnsubscribe: (() => void) | null;
   lifecycleListener: SdkLifecycleEventListener | null;
   expiredSessionsByWallet: Map<WalletId, Set<WalletSessionId>>;
-  onWindowMessage?: (e: MessageEvent) => void;
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
 }
 export function createHostContext(): HostContext {
@@ -251,7 +250,6 @@ export function createHostContext(): HostContext {
     lifecycleUnsubscribe: null,
     lifecycleListener: null,
     expiredSessionsByWallet: new Map(),
-    onWindowMessage: undefined,
     surfaceMeasurementBinding: { kind: 'disabled' },
   };
 }
@@ -357,7 +355,7 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
     } catch {}
   }
 
-  // Configure the SDK embedded asset base for external custom-element extensions.
+  // Configure the base URL used by SDK-hosted UI assets.
   try {
     const assetsBaseUrl = payload?.assetsBaseUrl as string | undefined;
     const safeOrigin = window.location.origin || window.location.href;
@@ -384,7 +382,7 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
   } catch {}
 
   // Reset runtime instances only when signing/runtime config changes. Cosmetic config updates
-  // (theme/tokens/UI registry/assets base) must not drop warm signing session state.
+  // (theme, tokens, and asset base) must not drop warm signing session state.
   if (nextRuntimeResetFingerprint !== prevRuntimeResetFingerprint) {
     ctx.seamsWeb?.dispose();
     ctx.prefsUnsubscribe?.();
@@ -396,13 +394,6 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
     ctx.seamsWeb = null;
   }
 
-  // Forward the external custom-element registry if provided.
-  try {
-    const uiRegistry = payload?.uiRegistry;
-    if (uiRegistry && typeof uiRegistry === 'object') {
-      window.postMessage({ type: 'WALLET_UI_REGISTER_TYPES', payload: uiRegistry }, '*');
-    }
-  } catch {}
 }
 
 export function ensureWalletHostLifecycleSubscription(ctx: HostContext, pm: SeamsWeb): void {

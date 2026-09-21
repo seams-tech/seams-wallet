@@ -75,7 +75,6 @@ import {
 } from '@/core/types/signer-worker';
 import type { SignNEP413MessageParams, SignNEP413MessageResult } from '@/SeamsWeb/operations/near';
 import { toError } from '@shared/utils/errors';
-import type { WalletUIRegistry } from './host/custom-elements/iframe-custom-element-registry';
 import type { DelegateActionInput, SignedDelegate } from '@/core/types/delegate';
 import { buildConfigsFromEnv } from '@/core/config/defaultConfigs';
 import { resolveAppearanceTheme, resolveThemePalette } from '@/core/config/configHelpers';
@@ -719,25 +718,6 @@ export class SeamsWebIframe {
 
   onSdkLifecycleEvent(listener: SdkLifecycleEventListener): () => void {
     return this.router.onSdkLifecycleEvent(listener);
-  }
-
-  // === Generic Wallet UI registration/mounting ===
-  registerWalletUI(types: WalletUIRegistry): void {
-    this.router.registerUiTypes(types);
-  }
-  mountWalletUI(params: {
-    key: string;
-    props?: Record<string, unknown>;
-    targetSelector?: string;
-    id?: string;
-  }): void {
-    this.router.mountUiComponent(params);
-  }
-  updateWalletUI(id: string, props?: Record<string, unknown>): void {
-    this.router.updateUiComponent({ id, props });
-  }
-  unmountWalletUI(id: string): void {
-    this.router.unmountUiComponent(id);
   }
 
   private async registerPasskeyDomain(

@@ -23,12 +23,14 @@ import {
 
 let initialized = false;
 
-const CONFIRM_UI_SELECTORS = [
-  '.seams-auth-menu-surface',
-  '.seams-confirmation-surface',
-  '.seams-export-surface',
-  '[data-seams-email-otp-recovery-code-dialog]',
-  '[data-seams-wallet-recovery-backup-dialog]',
+const CONFIRM_UI_SURFACES = [
+  { selector: '.seams-auth-menu-surface', cancellationKind: 'native_cancel' },
+  { selector: '.seams-confirmation-surface', cancellationKind: 'native_cancel' },
+  { selector: '.seams-export-surface', cancellationKind: 'wallet_iframe_cancel' },
+  {
+    selector: '[data-seams-wallet-recovery-backup-dialog]',
+    cancellationKind: 'native_cancel',
+  },
 ] as const;
 
 export type WalletHostRuntimeKind = RuntimeWalletHostRoute['kind'];
@@ -129,15 +131,6 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
     } catch {}
   };
 
-  const postToParent = (message: unknown): void => {
-    const parentWindow = window.parent;
-    if (!parentWindow) return;
-    const target = state.parentOrigin && state.parentOrigin !== 'null' ? state.parentOrigin : '*';
-    try {
-      parentWindow.postMessage(message, target);
-    } catch {}
-  };
-
   const markCancelled = (rid?: string): void => {
     if (rid) cancelledRequests.add(rid);
   };
@@ -161,26 +154,22 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
   };
 
   const cancelOpenConfirmers = (): void => {
-    const els = CONFIRM_UI_SELECTORS.flatMap(
-      (selector) => Array.from(document.querySelectorAll(selector)) as HTMLElement[],
-    );
-    for (const el of els) {
-      try {
-        if (el.matches('.seams-auth-menu-surface, .seams-confirmation-surface')) {
-          el.dispatchEvent(new Event('cancel'));
-        } else {
-          el.dispatchEvent(
-            new CustomEvent(WalletIframeDomEvents.TX_CONFIRMER_CANCEL, {
-              bubbles: true,
-              composed: true,
-            }),
-          );
-        }
-      } catch {}
-      const recoveryCodeCloseButton = el.querySelector<HTMLButtonElement>(
-        '[data-seams-email-otp-recovery-code-dialog-close], [data-seams-wallet-recovery-backup-close]',
-      );
-      recoveryCodeCloseButton?.click();
+    for (const surface of CONFIRM_UI_SURFACES) {
+      const elements = document.querySelectorAll<HTMLElement>(surface.selector);
+      for (const element of elements) {
+        try {
+          if (surface.cancellationKind === 'native_cancel') {
+            element.dispatchEvent(new Event('cancel', { cancelable: true }));
+          } else {
+            element.dispatchEvent(
+              new CustomEvent(WalletIframeDomEvents.TX_CONFIRMER_CANCEL, {
+                bubbles: true,
+                composed: true,
+              }),
+            );
+          }
+        } catch {}
+      }
     }
   };
 
@@ -202,7 +191,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
               ...(state.walletConfigs || ({} as SeamsConfigsInput)),
               ...(route.request.payload as PMSetConfigPayload),
             } as SeamsConfigsInput;
-            if (CONFIRM_UI_SELECTORS.some((selector) => document.querySelector(selector))) {
+            if (CONFIRM_UI_SURFACES.some(({ selector }) => document.querySelector(selector))) {
               const runtimeContext = await import('./runtimeContext');
               runtimeContext.syncActiveWalletHostRuntimeConfig(state);
             }
@@ -236,7 +225,6 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
         state,
         req: route.request,
         post,
-        postToParent,
         isCancelled,
         respondIfCancelled,
       });

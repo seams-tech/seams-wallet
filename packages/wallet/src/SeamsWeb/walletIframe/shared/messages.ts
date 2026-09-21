@@ -1,5 +1,4 @@
 // Typed RPC messages for the wallet service iframe channel (SeamsWeb-first)
-import type { WalletUIRegistry } from '../host/custom-elements/iframe-custom-element-registry';
 import type { BootstrapThresholdEcdsaSessionArgs } from '@/SeamsWeb/signingSurface/types';
 import { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import { ActionArgs, TransactionInput } from '@/core/types';
@@ -982,10 +981,8 @@ export interface PreferencesChangedPayload {
 }
 
 export interface PMSetConfigPayload extends Partial<SeamsConfigsInput> {
-  // Absolute base URL for SDK custom-element assets (e.g., https://app.example.com/sdk/)
+  // Absolute base URL for SDK browser assets (e.g., https://app.example.com/sdk/)
   assetsBaseUrl?: string;
-  // Optional: register wallet-host UI components (custom-element tags + bindings)
-  uiRegistry?: WalletUIRegistry;
 }
 
 export interface PMCancelPayload {
