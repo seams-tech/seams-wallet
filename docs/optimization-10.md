@@ -1354,5 +1354,32 @@ or evidence of durable restoration. The prior fresh-wallet funding timeout came
 from an unhandled funding transaction confirmation in the benchmark workflow.
 
 Allowlisted local measurement artifact: `output/playwright/opt27-exhaust-quota.txt`
-in the private monorepo (ignored, no raw credentials). The 0.5.28 release and hosted
-reload acceptance remain pending; mainnet backend remains billing-blocked.
+in the private monorepo (ignored, no raw credentials).
+
+Wallet and Wallet Server 0.5.28 were published from
+`d0e4c263fb711b6cc2c6e9b4e9025ce68110acbd` in
+[release run 35533982117](https://github.com/seams-tech/seams-wallet/actions/runs/35533982117).
+Monorepo PR #32 merged as `6454e5a800168b62a37aca7c2692f182ff58c2d3`.
+[Frontend deployment 35540453218](https://github.com/seams-tech/seams-monorepo/actions/runs/35540453218)
+passed, and both `sign.seams.sh` and `test.sign.seams.sh` returned manifest version
+0.5.28.
+
+A new funded virtual-passkey wallet on the production-hosted testnet service reached
+five durable entries, each carrying approximately 90-day expiry. Five hashed record
+identifiers were unchanged across a page reload. The first post-reload Tempo sign
+selected an available `reusable_wallet_session` presignature with four entries
+remaining. It made no foreground presign-generation request and completed
+`commit_total` in **1.365 seconds**. Background refill then returned the pool to five:
+the selected entry's fingerprint disappeared and a new fingerprint appeared. This
+proves hosted persistence across reload, atomic one-use consumption, and refill for
+the tested browser profile. It does not simulate 90 days of elapsed wall time or
+establish a population p95.
+
+The coordinated
+[testnet backend workflow 35540454569](https://github.com/seams-tech/seams-monorepo/actions/runs/35540454569)
+built successfully, but GitHub refused to start the migration job because recent
+account payments failed or the Actions spending limit needs to be increased. All
+deployment jobs were skipped. The hosted 0.5.28 acceptance therefore used the new
+frontend with the previous testnet backend. Retrying the backend rollout requires
+the GitHub billing/spending block to be cleared. Mainnet backend rollout remains
+separately billing-blocked.
