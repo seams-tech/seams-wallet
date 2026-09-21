@@ -66,7 +66,10 @@ pub(crate) use tenant_root_creation::{
     TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
 };
 #[cfg(feature = "workers-rs")]
-pub(crate) use worker_storage::execute_cloudflare_durable_object_custom_json_call_v1;
+pub(crate) use worker_storage::{
+    execute_cloudflare_durable_object_custom_json_call_v1,
+    execute_cloudflare_durable_object_custom_json_call_with_timing_v1,
+};
 
 /// SigningWorker ECDSA presign rendezvous with durable terminal records.
 #[cfg(feature = "workers-rs")]
