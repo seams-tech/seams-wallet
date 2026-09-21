@@ -31,7 +31,7 @@ type ParseErr = { ok: false; code: string; message: string };
 type ParseResult<T> = ParseOk<T> | ParseErr;
 const PRESIGN_SESSION_ID_PREFIX = 'ecdsa-presign-v2';
 const MAX_PRESIGN_CEREMONY_LIFETIME_MS = 5 * 60_000;
-const MAX_DURABLE_PRESIGNATURE_LIFETIME_MS = 24 * 60 * 60_000;
+const MAX_DURABLE_PRESIGNATURE_LIFETIME_MS = 90 * 24 * 60 * 60_000;
 
 type RouterAbEcdsaDerivationPoolFillBinding = {
   readonly walletId: string;

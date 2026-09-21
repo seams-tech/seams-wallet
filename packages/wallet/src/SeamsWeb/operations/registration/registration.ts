@@ -3419,6 +3419,20 @@ async function registerEcdsaOrMixedWallet(
         plan: persistencePlan,
       });
     }
+    /* Commit #1 has made the exact ECDSA capability and Wallet Session durable.
+       Start preprocessing now so it overlaps export-root setup, deferred NEAR
+       setup, and completion bookkeeping. Registration still reports success
+       independently of this fire-and-forget work. */
+    const prefillStatusReads = new WalletSessionStatusReadScope();
+    for (const chainTarget of ecdsaSession.chainTargets) {
+      void scheduleEcdsaSessionPresignaturePrefill({
+        signingEngine: context.signingEngine,
+        walletId: deferredWalletId,
+        chainTarget,
+        trigger: 'registration',
+        statusReads: prefillStatusReads,
+      });
+    }
     const primaryEcdsaKey = persistencePlan.ecdsa.walletKeys[0];
     /* Commit #2 is deliberately not awaited: registration returns as soon as
        the ECDSA wallet is durable, which is what takes the Yao wait off the

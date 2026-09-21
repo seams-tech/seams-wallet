@@ -43,6 +43,36 @@ Each message is checked against the expected origin, window, request, and live
 surface instance. A message from a closed surface cannot complete a later
 request. Production configuration uses specific allowed origins.
 
+## External EVM accounts
+
+The application document may connect an existing EVM wallet through the public
+external EVM connector. EIP-6963 discovery presents each announced provider as a
+user-selectable wallet. Phantom is also discovered through its wallet-specific
+`window.phantom.ethereum` namespace when it omits an EIP-6963 announcement. The
+connector never selects the shared `window.ethereum` provider. EIP-1193 requests,
+account and chain events, and provider errors remain with the selected wallet.
+The connector never reads private key material and never creates a Seams Wallet
+Session, custody record, signing lane, or iframe message.
+
+External account state is separate from Seams authentication and signing state.
+An application must retain the source as either a Seams account or an external
+EVM account and route operations through the matching capability. Connecting an
+external account does not authenticate a Seams user or authorize a Seams wallet.
+
+The selected provider, account, chain, and connection generation are captured for
+each operation. Account, chain, provider, local-disconnect, and provider-disconnect
+events invalidate prepared operations. A transaction hash returned after a wallet
+approval remains a submitted result for the captured account and chain; transport
+loss after dispatch is reported as an unknown outcome and is never retried
+automatically. Local disconnect clears browser state and listeners; revoking site
+permission remains a wallet action.
+
+The first public connector supports desktop EVM providers, configured chain
+switching, `personal_sign`, EIP-712 typed data, and ordinary `eth_sendTransaction`.
+It excludes Solana, mobile transports, WalletConnect, account linking, and custody
+import. Wallet names, icons, and reverse-domain metadata are untrusted display
+data and cannot establish wallet identity.
+
 Provider secrets and private service credentials stay on the server. Public
 browser configuration contains only the values needed to reach and display
 Wallet. The public Wallet site remains usable without signing in.

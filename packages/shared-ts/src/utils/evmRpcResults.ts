@@ -1,4 +1,6 @@
 export type EvmTransactionReceipt = {
+  transactionHash?: string | null;
+  from?: string | null;
   blockNumber?: string | null;
   status?: string | null;
   gasUsed?: string | null;
@@ -90,6 +92,12 @@ export function decodeEvmTransactionReceipt(value: unknown): EvmTransactionRecei
     throw new Error('Invalid eth_getTransactionReceipt result');
   }
   const record = value as Record<string, unknown>;
+  const transactionHash = optionalRpcHexData(
+    record,
+    'transactionHash',
+    'eth_getTransactionReceipt',
+  );
+  const from = optionalRpcAddress(record, 'from', 'eth_getTransactionReceipt');
   const blockNumber = optionalRpcHexQuantity(record, 'blockNumber', 'eth_getTransactionReceipt');
   const status = optionalRpcHexQuantity(record, 'status', 'eth_getTransactionReceipt');
   const gasUsed = optionalRpcHexQuantity(record, 'gasUsed', 'eth_getTransactionReceipt');
@@ -100,6 +108,8 @@ export function decodeEvmTransactionReceipt(value: unknown): EvmTransactionRecei
   );
   const gasPrice = optionalRpcHexQuantity(record, 'gasPrice', 'eth_getTransactionReceipt');
   return {
+    ...(transactionHash !== undefined ? { transactionHash } : {}),
+    ...(from !== undefined ? { from } : {}),
     ...(blockNumber !== undefined ? { blockNumber } : {}),
     ...(status !== undefined ? { status } : {}),
     ...(gasUsed !== undefined ? { gasUsed } : {}),

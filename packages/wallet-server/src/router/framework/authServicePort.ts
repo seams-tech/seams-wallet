@@ -194,6 +194,14 @@ export type RouterApiWalletSessionAuthorizationV2AdmissionContext = {
   readonly retiredAtMs: number | null;
 };
 
+/** Live identity for exact-operation admission; grants no reusable signing allowance. */
+export type RouterApiWalletSessionExactOperationContext = {
+  readonly session: IssuedWalletSessionAuthorizationV2['session'];
+  readonly authority: ActiveWalletAuthorityV1;
+  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly retiredAtMs: null;
+};
+
 /** Exact exhausted status retained before authorized-operation admission. */
 export type RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext = {
   readonly status: ExactWalletSessionStatusV2 & { readonly kind: 'exhausted' };
@@ -1633,6 +1641,11 @@ export interface RouterApiAuthorizationSessionService {
     readonly token: string;
     readonly nowMs: number;
   }) => Promise<RouterApiWalletSessionAuthorizationV2AdmissionContext | null>;
+  readonly readWalletSessionExactOperationContextByCredential: (input: {
+    readonly tenantId: TenantId;
+    readonly token: string;
+    readonly nowMs: number;
+  }) => Promise<RouterApiWalletSessionExactOperationContext | null>;
   /** Reads the exact active authority for an already-admitted exhausted operation. */
   readonly readExhaustedWalletSessionAuthorizationV2CandidateByOperationCredential: (input: {
     readonly tenantId: TenantId;

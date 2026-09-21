@@ -49,6 +49,27 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 | tenant derivation root            | Server-side tenant secret derivation origin used for operational holder material. It is distinct from every wallet custody seed and owner signing root.                                                   |
 | `deviceId`                        | Installation identity for one Wallet authority on one browser or device. It is not a hardware fingerprint.                                                                                                |
 
+## Durable ECDSA preprocessing
+
+- Retain unused reusable ECDSA presignatures encrypted on both participants for
+  up to 90 days, subject to material retirement and revocation. Session expiry
+  alone does not invalidate the retained material. Operation-scoped preparation
+  remains bounded to its exact operation.
+- Target five available entries per exact client pool identity. Restore and refill
+  any deficit while the client can execute with an unexpired, unrevoked session
+  scoped to the wallet and active material. Refill after every consumption,
+  including the last permitted reusable signature. Preserve single-use and atomic
+  cross-tab claim rules.
+- Preprocessing requires no remaining signing uses and consumes no signing quota.
+  Actual signing retains its quota checks. Stop refill on expiry, revocation,
+  logout, or material invalidation; resume transient failures with bounded backoff.
+  Generation cannot continue while the browser is closed.
+- A returning user with an unchanged activation and an available persisted entry
+  must restore it after a page or worker restart and reach signing without any
+  presign-generation requests. Verify the 30-day return case explicitly.
+- Registration and unlock return promptly while missing inventory is replenished
+  in the background. Signing itself still requires current signing authorization.
+
 ## Global Invariants
 
 - Passkey and Email OTP are separate auth methods. A flow selected as
@@ -644,6 +665,7 @@ restore, lane selection, or budget handling.
 | Google/Email OTP recovery preserves public identities, signs through the fresh authority, and refuses code reuse | `tests/e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts`                                        |
 | Tenant-root rotation preserves signing and recovery across operational-share changes                             | Private acceptance coverage: `seams-monorepo/tests/e2e/intended-behaviours/tenant-root.rotation.contract.test.ts` |
 | Sibling revocation, inventory UI, and exact Email OTP boundary failures                                          | Private focused coverage in `seams-monorepo/tests/unit` as mapped by the owning change.                           |
+| External EVM discovery, connection binding, stale-request rejection, and transaction outcomes                    | `tests/unit/externalEvmController.unit.test.ts`                                                                    |
 
 ## Non-Goals
 
@@ -654,3 +676,25 @@ restore, lane selection, or budget handling.
 - Do not treat public ECDSA identity as signing material.
 - Do not use session ids alone to identify ECDSA readiness or budget.
 - Do not send extra OTP codes during registration reroll.
+
+## External EVM accounts
+
+- Discovery uses EIP-6963 plus Phantom's wallet-specific
+  `window.phantom.ethereum` namespace. It never selects the shared
+  `window.ethereum` provider. The user explicitly selects the provider before
+  `eth_requestAccounts` is sent.
+- MetaMask, Rabby, and Phantom EVM providers use the same EIP-1193 connector.
+  Provider metadata is display data; it cannot authenticate a wallet or establish
+  Seams custody authority.
+- External connection state is separate from Seams authentication, Wallet
+  Sessions, custody seeds, and MPC signing lanes. An external account cannot be
+  represented as a Seams `WalletSessionRef`.
+- Account, chain, provider, and local-disconnect changes invalidate prepared
+  operations. A returned transaction hash remains tied to its captured account
+  and chain; a transport failure after dispatch is an unknown outcome and must not
+  trigger an automatic resend.
+- The connector validates account, chain, signature, transaction hash, and receipt
+  responses at the provider boundary. Unsupported chains and methods are explicit
+  failures, and connection alone does not imply transaction support.
+- Local disconnect removes browser listeners and connection state. Revoking the
+  site's permission remains an explicit action in the external wallet.

@@ -204,9 +204,30 @@ summary:focus-visible {
 
 .auth-panel,
 .wallet-panel,
+.external-evm-panel,
 .configuration,
 .recovery-panel {
   margin-top: 0.9rem;
+}
+
+.external-evm-panel form,
+.external-evm-panel .seams-external-evm {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.external-evm-panel select {
+  min-height: 3rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #bdc8c0;
+  border-radius: 0.7rem;
+  color: #18201c;
+  background: #fff;
+}
+
+.external-evm-actions {
+  flex-wrap: wrap;
+  margin-top: 1rem;
 }
 
 .page-tabs,

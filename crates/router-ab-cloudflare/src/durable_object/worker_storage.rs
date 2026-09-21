@@ -6,6 +6,11 @@ use crate::{
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
 
+pub(crate) struct CloudflareDurableObjectJsonResponseV1<TResponse> {
+    pub(crate) value: TResponse,
+    pub(crate) server_timing: Option<String>,
+}
+
 pub(crate) async fn execute_cloudflare_durable_object_custom_json_call_v1<TRequest, TResponse>(
     env: &worker::Env,
     binding: &CloudflareSigningWorkerPresignSessionBindingV1,
@@ -14,6 +19,33 @@ pub(crate) async fn execute_cloudflare_durable_object_custom_json_call_v1<TReque
     routing_key: &str,
     request: &TRequest,
 ) -> RouterAbProtocolResult<TResponse>
+where
+    TRequest: Serialize,
+    TResponse: DeserializeOwned,
+{
+    Ok(
+        execute_cloudflare_durable_object_custom_json_call_with_timing_v1(
+            env,
+            binding,
+            path,
+            routing_key,
+            request,
+        )
+        .await?
+        .value,
+    )
+}
+
+pub(crate) async fn execute_cloudflare_durable_object_custom_json_call_with_timing_v1<
+    TRequest,
+    TResponse,
+>(
+    env: &worker::Env,
+    binding: &CloudflareSigningWorkerPresignSessionBindingV1,
+    path: &str,
+    routing_key: &str,
+    request: &TRequest,
+) -> RouterAbProtocolResult<CloudflareDurableObjectJsonResponseV1<TResponse>>
 where
     TRequest: Serialize,
     TResponse: DeserializeOwned,
@@ -63,11 +95,16 @@ where
             format!("Durable Object custom request returned HTTP {status}: {body}"),
         ));
     }
-    response.json::<TResponse>().await.map_err(|error| {
+    let server_timing = response.headers().get("Server-Timing").ok().flatten();
+    let value = response.json::<TResponse>().await.map_err(|error| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::MalformedWirePayload,
             format!("Durable Object custom response JSON is invalid: {error}"),
         )
+    })?;
+    Ok(CloudflareDurableObjectJsonResponseV1 {
+        value,
+        server_timing,
     })
 }
 

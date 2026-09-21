@@ -34,7 +34,9 @@ import {
   authorizeEvmFamilyEcdsaSigningCapability,
   buildCanonicalEvmFamilyEcdsaSigningCapability,
   buildExactEcdsaDirectCapabilityRuntime,
-  buildExactEvmFamilyWalletSessionAuthorization,
+  buildEcdsaPreprocessingCapability,
+  signingAuthorizationFromPreprocessing,
+  type AuthorizedEcdsaPreprocessingCapability,
   type AuthorizedEvmFamilyEcdsaSigningCapability,
   type BuildExactEvmFamilyWalletSessionAuthorizationInput,
   type CanonicalEvmFamilyEcdsaSigningCapability,
@@ -573,18 +575,18 @@ function manifestMatchesExactEcdsaAuthorization(args: {
   );
 }
 
-async function buildBrowserExactEcdsaWalletSessionAuthorization(args: {
+async function buildBrowserEcdsaPreprocessingCapability(args: {
   readonly context: BrowserEcdsaCapabilityReaderContext;
   readonly walletId: ReturnType<typeof toWalletId>;
   readonly selected: BrowserSelectedWalletAuthority;
   readonly session: BrowserWalletSession;
   readonly operationCredential: BrowserWalletSessionOperationCredential;
-  readonly status: Extract<ExactWalletSessionStatus, { readonly status: 'active' }>;
+  readonly status: Extract<ExactWalletSessionStatus, { readonly status: 'active' | 'exhausted' }>;
   readonly chainTarget: ThresholdEcdsaChainTarget;
   readonly materialActivation: MpcMaterialActivationRef;
   readonly nowMs: number;
 }): Promise<
-  | { readonly kind: 'resolved'; readonly authorization: ExactEvmFamilyWalletSessionAuthorization }
+  | { readonly kind: 'resolved'; readonly capability: AuthorizedEcdsaPreprocessingCapability }
   | { readonly kind: 'inactive'; readonly reason: string }
 > {
   const manifests = await listBrowserActiveEcdsaCapabilityManifestsForWallet(String(args.walletId));
@@ -623,7 +625,27 @@ async function buildBrowserExactEcdsaWalletSessionAuthorization(args: {
   });
   let runtime: BuildExactEvmFamilyWalletSessionAuthorizationInput['runtime'];
   if (runtimeResolution.kind === 'resolved') {
-    runtime = runtimeResolution.runtime;
+    const sealed = runtimeResolution.runtime;
+    runtime = {
+      kind: 'exact_ecdsa_sealed_runtime_v1',
+      walletId: sealed.walletId,
+      chainTarget: sealed.chainTarget,
+      materialActivation: sealed.materialActivation,
+      normalSigning: sealed.normalSigning,
+      relayerUrl: sealed.relayerUrl,
+      relayerKeyId: sealed.relayerKeyId,
+      clientVerifyingPublicKey33B64u: sealed.clientVerifyingPublicKey33B64u,
+      participantIds: sealed.participantIds,
+      ecdsaThresholdKeyId: sealed.ecdsaThresholdKeyId,
+      thresholdEcdsaPublicKeyB64u: sealed.thresholdEcdsaPublicKeyB64u,
+      keyHandle: sealed.keyHandle,
+      runtimePolicyScope: sealed.runtimePolicyScope,
+      roleLocalMaterialRef: sealed.roleLocalMaterialRef,
+      authBinding: sealed.authBinding,
+      sealedRecord: sealed.sealedRecord,
+      expiresAtMs: Math.min(sealed.expiresAtMs, args.status.expiresAtMs),
+      remainingUses: args.status.remainingUses,
+    };
   } else {
     if (runtimeResolution.reason !== 'missing_material') {
       return {
@@ -655,7 +677,7 @@ async function buildBrowserExactEcdsaWalletSessionAuthorization(args: {
   try {
     return {
       kind: 'resolved',
-      authorization: buildExactEvmFamilyWalletSessionAuthorization({
+      capability: buildEcdsaPreprocessingCapability({
         capability,
         selected: args.selected,
         session: args.session,
@@ -684,11 +706,14 @@ export type BrowserWalletSessionAuthorizationResolution =
 // failures throw; inactive session states return `inactive` so warm-capability
 // readers can degrade to `authorization_required` without treating them as
 // errors.
-export async function resolveBrowserActiveEcdsaWalletSessionAuthorization(
+async function resolveBrowserEcdsaPreprocessingCapability(
   args: BrowserEcdsaCapabilityReaderContext,
   input: BrowserEcdsaWalletSessionAuthorizationInput,
   statusReads: WalletSessionStatusReadScope,
-): Promise<BrowserWalletSessionAuthorizationResolution> {
+): Promise<
+  | { kind: 'active'; capability: AuthorizedEcdsaPreprocessingCapability }
+  | { kind: 'inactive'; reason: string }
+> {
   const walletId = toWalletId(input.walletId);
   const nowMs = Date.now();
   const selectedResult = await IndexedDBManager.resolveSelectedWalletAuthority(String(walletId));
@@ -721,7 +746,7 @@ export async function resolveBrowserActiveEcdsaWalletSessionAuthorization(
       quotaId: exactAuthorization.record.quotaId,
     },
   );
-  if (status.status !== 'active') {
+  if (status.status !== 'active' && status.status !== 'exhausted') {
     return { kind: 'inactive', reason: `Exact Wallet Session is ${status.status}` };
   }
   const currentSelectedResult = await IndexedDBManager.resolveSelectedWalletAuthority(
@@ -753,7 +778,7 @@ export async function resolveBrowserActiveEcdsaWalletSessionAuthorization(
       reason: 'Exact Wallet Session promotion reconciliation could not be persisted',
     };
   }
-  const authorizationResolution = await buildBrowserExactEcdsaWalletSessionAuthorization({
+  const authorizationResolution = await buildBrowserEcdsaPreprocessingCapability({
     context: args,
     walletId,
     selected: currentSelected,
@@ -769,8 +794,51 @@ export async function resolveBrowserActiveEcdsaWalletSessionAuthorization(
   }
   return {
     kind: 'active',
-    authorization: authorizationResolution.authorization,
+    capability: authorizationResolution.capability,
   };
+}
+
+export async function resolveBrowserActiveEcdsaWalletSessionAuthorization(
+  args: BrowserEcdsaCapabilityReaderContext,
+  input: BrowserEcdsaWalletSessionAuthorizationInput,
+  statusReads: WalletSessionStatusReadScope,
+): Promise<BrowserWalletSessionAuthorizationResolution> {
+  const resolution = await resolveBrowserEcdsaPreprocessingCapability(args, input, statusReads);
+  if (resolution.kind === 'inactive') return resolution;
+  const authorization = signingAuthorizationFromPreprocessing(resolution.capability, Date.now());
+  return authorization
+    ? { kind: 'active', authorization }
+    : { kind: 'inactive', reason: 'Exact Wallet Session signing quota is exhausted' };
+}
+
+export async function listBrowserEcdsaPreprocessingCapabilitiesForWallet(
+  args: BrowserEcdsaCapabilityReaderContext,
+  input: { walletId: string; chainTargets: readonly ThresholdEcdsaChainTarget[] },
+  statusReads: WalletSessionStatusReadScope,
+): Promise<readonly AuthorizedEcdsaPreprocessingCapability[]> {
+  const capabilities = await listBrowserCanonicalEcdsaSigningCapabilitiesForWallet({
+    walletId: toWalletId(input.walletId),
+    chainTargets: input.chainTargets,
+  });
+  const available: AuthorizedEcdsaPreprocessingCapability[] = [];
+  for (const capability of capabilities) {
+    for (const chainTarget of input.chainTargets) {
+      const resolution = await resolveBrowserEcdsaPreprocessingCapability(
+        args,
+        {
+          walletId: capability.manifest.signer.walletId,
+          materialActivation: capability.manifest.activation.materialActivation,
+          chainTarget,
+        },
+        statusReads,
+      );
+      if (resolution.kind === 'active') {
+        available.push(resolution.capability);
+        break;
+      }
+    }
+  }
+  return available;
 }
 
 export function createBrowserActiveEcdsaWalletSessionAuthorizationResolver(

@@ -733,7 +733,6 @@ export interface AuthCapability {
     walletSession: WalletSessionRef;
     chainTarget: ThresholdEcdsaChainTarget;
     waitForPoolReady?: boolean;
-    minRemainingUsesBeforePrefill?: number;
   }): Promise<RouterAbEcdsaDerivationLoginPresignaturePrefillResult>;
   requestEmailOtpChallenge(args: {
     walletId: string;

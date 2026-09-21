@@ -109,7 +109,7 @@ pub enum CloudflareSigningWorkerEcdsaPresignRequestedStageV1 {
 }
 
 const MAX_ECDSA_PRESIGN_SESSION_TTL_MS: u64 = 15 * 60 * 1_000;
-pub(crate) const MAX_ECDSA_PRESIGN_MATERIAL_LIFETIME_MS: u64 = 24 * 60 * 60 * 1_000;
+pub(crate) const MAX_ECDSA_PRESIGN_MATERIAL_LIFETIME_MS: u64 = 90 * 24 * 60 * 60 * 1_000;
 
 fn validate_presign_session_expiry(
     field: &str,
@@ -2733,6 +2733,26 @@ mod presign_expiry_tests {
             now_ms,
         )
         .expect("completed material may outlive the ceremony");
+    }
+
+    #[test]
+    fn material_expiry_accepts_ninety_days_and_rejects_the_next_millisecond() {
+        let now_ms = 1_900_000_000_000;
+        let ceremony_expires_at_ms = now_ms + MAX_ECDSA_PRESIGN_SESSION_TTL_MS;
+        let ninety_days_ms = 90 * 24 * 60 * 60 * 1_000;
+        validate_presign_material_expiry(
+            now_ms + ninety_days_ms,
+            ceremony_expires_at_ms,
+            now_ms,
+        )
+        .expect("unused material may be retained for ninety days");
+        let error = validate_presign_material_expiry(
+            now_ms + ninety_days_ms + 1,
+            ceremony_expires_at_ms,
+            now_ms,
+        )
+        .expect_err("material retention must remain bounded");
+        assert_eq!(error.code(), RouterAbProtocolErrorCode::MalformedWirePayload);
     }
 
     #[test]

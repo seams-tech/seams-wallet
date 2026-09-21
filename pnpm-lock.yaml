@@ -157,6 +157,9 @@ importers:
       tslib:
         specifier: ^2.8.1
         version: 2.8.1
+      viem:
+        specifier: ^2.38.6
+        version: 2.46.0(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@3.22.3)
     devDependencies:
       '@simplewebauthn/server':
         specifier: ^13.2.2
