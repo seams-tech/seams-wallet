@@ -17,11 +17,8 @@ declare global {
 }
 
 const root = path.resolve(import.meta.dirname, '../..');
-const css = fs.readFileSync(
-  path.join(
-    root,
-    'packages/wallet/src/core/signingEngine/uiConfirm/ui/preact/confirmation-primitives.css',
-  ),
+const walletUiCss = fs.readFileSync(
+  path.join(root, 'packages/wallet/dist/esm/sdk/wallet-ui.css'),
   'utf8',
 );
 
@@ -40,11 +37,8 @@ for (const fallback of [false, true]) {
       });
       if (fallback) Reflect.deleteProperty(Document.prototype, 'adoptedStyleSheets');
     }, fallback);
-    await page.route('**/confirmation-primitives.css', (route) =>
-      route.fulfill({
-        contentType: 'text/css',
-        body: css,
-      }),
+    await page.route('**/wallet-ui.css', (route) =>
+      route.fulfill({ contentType: 'text/css', body: walletUiCss }),
     );
     await page.route('**/confirmation-primitives', (route) =>
       route.fulfill({
@@ -54,7 +48,7 @@ for (const fallback of [false, true]) {
             ? "style-src 'self' 'nonce-primitive-test'; style-src-attr 'none'"
             : "style-src 'self'; style-src-attr 'none'",
         },
-        body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" href="/confirmation-primitives.css"><link rel="stylesheet" href="/_test-sdk/esm/sdk/seams-components.css"></head><body><main class="seams-wallet-ui" data-theme="light"></main></body></html>`,
+        body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-wallet-ui-css href="/wallet-ui.css"></head><body><main class="seams-wallet-ui" data-theme="light"></main></body></html>`,
       }),
     );
     await page.emulateMedia({ reducedMotion: 'reduce' });

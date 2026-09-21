@@ -11,18 +11,8 @@ import type { ConfirmationBodyModel } from '@/core/signingEngine/uiConfirm/ui/co
 
 type HeaderFixture = Omit<ConfirmHeaderProps, 'styles'>;
 
-const css = fs.readFileSync(
-  path.resolve(
-    import.meta.dirname,
-    '../../packages/wallet/src/core/signingEngine/uiConfirm/ui/preact/confirm-content.css',
-  ),
-  'utf8',
-);
-const treeCss = fs.readFileSync(
-  path.resolve(
-    import.meta.dirname,
-    '../../packages/wallet/src/core/signingEngine/uiConfirm/ui/preact/transaction-tree.css',
-  ),
+const walletUiCss = fs.readFileSync(
+  path.resolve(import.meta.dirname, '../../packages/wallet/dist/esm/sdk/wallet-ui.css'),
   'utf8',
 );
 
@@ -53,56 +43,17 @@ declare global {
 test.beforeEach(async ({ page }) => {
   await injectImportMap(page);
   await routePreactModules(page);
-  for (const name of [
-    'confirm-header',
-    'confirmation-primitives',
-    'passkey-registration',
-    'email-otp',
-    'confirmation-body',
-    'confirmation-modal',
-    'confirmation-drawer',
-  ]) {
-    const body = fs.readFileSync(
-      path.resolve(
-        import.meta.dirname,
-        `../../packages/wallet/src/core/signingEngine/uiConfirm/ui/preact/${name}.css`,
-      ),
-      'utf8',
-    );
-    await page.route(`**/${name}.css`, (route) => route.fulfill({ contentType: 'text/css', body }));
-  }
-  await page.route('**/transaction-tree.css', (route) =>
-    route.fulfill({ contentType: 'text/css', body: treeCss }),
-  );
-  await page.route('**/confirm-content.css', (route) =>
-    route.fulfill({ contentType: 'text/css', body: css }),
+  await page.route('**/wallet-ui.css', (route) =>
+    route.fulfill({ contentType: 'text/css', body: walletUiCss }),
   );
   await page.route('**/confirm-content-test', (route) =>
     route.fulfill({
       contentType: 'text/html',
       headers: { 'content-security-policy': "style-src 'self'; style-src-attr 'none'" },
-      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" href="/_test-sdk/esm/sdk/seams-components.css"><link rel="stylesheet" href="/confirm-content.css"><link rel="stylesheet" href="/transaction-tree.css"><link rel="stylesheet" href="/confirm-header.css"><link rel="stylesheet" href="/confirmation-primitives.css"><link rel="stylesheet" href="/passkey-registration.css"></head><body><main class="seams-wallet-ui" data-theme="light"></main></body></html>`,
+      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-wallet-ui-css href="/wallet-ui.css"></head><body><main class="seams-wallet-ui" data-theme="light"></main></body></html>`,
     }),
   );
   await page.goto('/confirm-content-test');
-  await page.evaluate(() => {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = '/email-otp.css';
-    document.head.append(link);
-    const bodyLink = document.createElement('link');
-    bodyLink.rel = 'stylesheet';
-    bodyLink.href = '/confirmation-body.css';
-    document.head.append(bodyLink);
-    const modalLink = document.createElement('link');
-    modalLink.rel = 'stylesheet';
-    modalLink.href = '/confirmation-modal.css';
-    document.head.append(modalLink);
-    const drawerLink = document.createElement('link');
-    drawerLink.rel = 'stylesheet';
-    drawerLink.href = '/confirmation-drawer.css';
-    document.head.append(drawerLink);
-  });
   await page.evaluate(async () => {
     const runtime = '/_test-preact/preact.module.js';
     const componentUrl = '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/preact/ConfirmContent.js';

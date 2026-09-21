@@ -8,11 +8,8 @@ import type { TreeNode } from '@/core/signingEngine/uiConfirm/ui/transaction-dis
 import { ActionType } from '@/core/types/actions';
 
 const root = path.resolve(import.meta.dirname, '../..');
-const treeCss = fs.readFileSync(
-  path.join(
-    root,
-    'packages/wallet/src/core/signingEngine/uiConfirm/ui/preact/transaction-tree.css',
-  ),
+const walletUiCss = fs.readFileSync(
+  path.join(root, 'packages/wallet/dist/esm/sdk/wallet-ui.css'),
   'utf8',
 );
 
@@ -161,14 +158,14 @@ test.beforeEach(async ({ page, baseURL }) => {
   if (!baseURL) throw new Error('Browser origin required');
   await injectImportMap(page, { frontendUrl: baseURL });
   await routePreactModules(page);
-  await page.route('**/transaction-tree.css', (route) =>
-    route.fulfill({ contentType: 'text/css', body: treeCss }),
+  await page.route('**/wallet-ui.css', (route) =>
+    route.fulfill({ contentType: 'text/css', body: walletUiCss }),
   );
   await page.route('**/transaction-tree-test', (route) =>
     route.fulfill({
       contentType: 'text/html',
       headers: { 'content-security-policy': "style-src 'self'; style-src-attr 'none'" },
-      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" href="/_test-sdk/esm/sdk/seams-components.css"><link rel="stylesheet" href="/transaction-tree.css"></head><body><main class="seams-wallet-ui" data-theme="light"></main></body></html>`,
+      body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}<link rel="stylesheet" data-seams-wallet-ui-css href="/wallet-ui.css"></head><body><main class="seams-wallet-ui" data-theme="light"></main></body></html>`,
     }),
   );
   await page.emulateMedia({ reducedMotion: 'reduce' });
