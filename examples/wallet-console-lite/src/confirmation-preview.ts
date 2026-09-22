@@ -45,6 +45,19 @@ async function showConfirmation(): Promise<void> {
     securityContext: { rpId: window.location.hostname },
     loading: false,
     theme: 'light',
+    appearance: {
+      theme: {
+        id: 'preview-sage',
+        mode: 'light',
+        colors: {
+          buttonBackground: '#587565',
+          buttonHoverBackground: '#466151',
+          textButton: '#ffffff',
+          focus: '#587565',
+        },
+      },
+      palette: 'default',
+    },
     uiMode: 'modal',
   });
   handle.element.setAttribute('data-seams-review-frame', '');
