@@ -5,6 +5,10 @@ description: Apply the same colors and shape presets to React components and wal
 
 # UI customization
 
+For app-specific purchase or transaction content before wallet approval, see
+[custom transaction review](/guides/transaction-review). Pass your React component
+through `review.render` on a transaction method returned by `useWallet()`.
+
 Seams exposes one theme vocabulary for app-owned React components and
 wallet-iframe surfaces. Start with a small token override, then add a shape
 preset when your product needs a different control geometry.

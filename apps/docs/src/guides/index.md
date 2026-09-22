@@ -37,3 +37,5 @@ repeating the full SDK reference.
 - [Recovery, export, and rotation](/guides/recovery-export-and-rotation) —
   treat high-impact account changes as fresh operations.
 - [Theming](/guides/theming) — align app-owned and wallet-owned surfaces.
+- [Custom transaction review](/guides/transaction-review) — show your React
+  component before wallet approval, with explicit expiry and cancellation.
