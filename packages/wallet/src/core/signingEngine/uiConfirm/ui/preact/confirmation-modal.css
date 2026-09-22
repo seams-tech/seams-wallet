@@ -9,6 +9,20 @@
   color: inherit;
   overflow: auto;
   overscroll-behavior: none;
+  scrollbar-width: none;
+}
+
+:where(.seams-wallet-ui) .seams-confirmation-modal::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hosted modals can overflow the iframe viewport independently of the card. */
+html:has([data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal']) {
+  scrollbar-width: none;
+}
+
+html:has([data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal'])::-webkit-scrollbar {
+  display: none;
 }
 
 :where(.seams-wallet-ui) .seams-confirmation-modal::backdrop {

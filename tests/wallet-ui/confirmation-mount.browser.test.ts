@@ -191,6 +191,26 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+for (const context of ['standalone', 'wallet-iframe'] as const) {
+  test(`modal hides its scrollbar and remains scrollable in ${context}`, async ({ page }) => {
+    await page.setViewportSize({ width: 600, height: 120 });
+    await page.evaluate((context) => window.__confirmationMount.mount('modal', context), context);
+    const scrollContainer = context === 'standalone'
+      ? page.locator('.seams-confirmation-modal')
+      : page.locator('html');
+    await expect(scrollContainer).toHaveCSS('scrollbar-width', 'none');
+    const scrollTop = await scrollContainer.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+      return element.scrollTop;
+    });
+    expect(scrollTop).toBeGreaterThan(0);
+    await page.evaluate(() => window.__confirmationMount.dispose(0));
+    if (context === 'wallet-iframe') {
+      await expect(page.locator('html')).toHaveCSS('scrollbar-width', 'auto');
+    }
+  });
+}
+
 test('toast progress advances in thirds only after completed transaction stages', async ({
   page,
 }) => {
