@@ -92,8 +92,8 @@
 }
 
 :where(.seams-wallet-ui) .email-otp-confirm__code-field:focus-within .email-otp-confirm__slot {
-  border-color: var(--seams-colors-primary, var(--seams-colors-textPrimary));
-  box-shadow: 0 0 0 3px rgba(142, 122, 180, 0.18);
+  border-color: var(--seams-colors-buttonBackground);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-buttonBackground) 18%, transparent);
 }
 
 :where(.seams-wallet-ui) .email-otp-confirm__helper {
@@ -112,7 +112,7 @@
   justify-self: center;
   border: 0;
   background: transparent;
-  color: var(--seams-colors-primary, var(--seams-colors-textPrimary));
+  color: var(--seams-colors-buttonBackground);
   cursor: pointer;
   font-family: var(--seams-font-family);
   font-size: 0.8rem;

@@ -1,47 +1,5 @@
 import '../../../packages/wallet/dist/esm/sdk/wallet-ui.css';
 import '../../../tests/browser-app/receipt-preview.js';
-import {
-  addSurfaceResizeBeginListener,
-  type SurfaceResizeBeginDetail,
-  type SurfaceResizeDriver,
-} from '@wallet-preview/core/signingEngine/uiConfirm/ui/surface-resize-events';
-
-let modalResize: { driver: SurfaceResizeDriver; started: number; frame: number } | null = null;
-
-function finishModalResize() {
-  if (!modalResize) return;
-  cancelAnimationFrame(modalResize.frame);
-  modalResize.driver.setProgress(1);
-  modalResize.driver.finish();
-  modalResize = null;
-}
-
-function animateModalResize(now: number) {
-  if (!modalResize) return;
-  const progress = Math.min(1, (now - modalResize.started) / 260);
-  modalResize.driver.setProgress(1 - (1 - progress) ** 3);
-  if (progress === 1) {
-    finishModalResize();
-    return;
-  }
-  modalResize.frame = requestAnimationFrame(animateModalResize);
-}
-
-function beginModalResize(event: CustomEvent<SurfaceResizeBeginDetail>) {
-  if (event.detail.reason !== 'confirm-body' || !(event.target instanceof Element)) return;
-  if (!event.target.matches('.modal-container-root')) return;
-  finishModalResize();
-  const driver = event.detail.claim();
-  if (!driver) return;
-  modalResize = { driver, started: performance.now(), frame: 0 };
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    finishModalResize();
-    return;
-  }
-  modalResize.frame = requestAnimationFrame(animateModalResize);
-}
-
-addSurfaceResizeBeginListener(document, beginModalResize);
 
 function resizePreviewFrame() {
   const frame = window.frameElement;

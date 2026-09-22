@@ -5,6 +5,7 @@ import { enrichDisplayModelWithAbi } from '../../packages/wallet/dist/esm/core/s
 const parent = document.querySelector('main');
 const status = document.querySelector('#status');
 let handle;
+let screenResize;
 let theme = 'light';
 let state = { kind: 'signing' };
 let view = 'expanded';
@@ -70,9 +71,34 @@ function confirm() {
 function showEmailStep() {
   if (authentication.kind !== 'email-review' || !handle?.element.isConnected) return;
   authentication = { kind: 'email-code', verification: { kind: 'ready' } };
-  handle.update(model());
+  updateScreen();
   status.textContent = 'Simulated email verification — use 123456. No email was sent.';
   requestAnimationFrame(focusEmailCode);
+}
+function updateScreen() {
+  const container = handle.element.querySelector('.modal-container-root');
+  const from = container?.getBoundingClientRect().height;
+  screenResize?.cancel();
+  handle.update(model());
+  if (!container || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  requestAnimationFrame(animateScreenResize.bind(null, container, from));
+}
+function animateScreenResize(container, from) {
+  if (!container.isConnected) return;
+  const content = container.querySelector('.seams-confirmation-content');
+  if (!content) return;
+  const style = getComputedStyle(container);
+  const to = content.getBoundingClientRect().height
+    + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
+    + parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+  screenResize = container.animate(
+    [{ blockSize: `${from}px` }, { blockSize: `${to}px` }],
+    { duration: 360, easing: 'cubic-bezier(0.2, 0, 0, 1)' },
+  );
+}
+function backToReview() {
+  authentication = { kind: 'email-review' };
+  updateScreen();
 }
 function focusEmailCode() {
   parent.querySelector('input[autocomplete="one-time-code"]')?.focus({ preventScroll: true });
@@ -211,7 +237,7 @@ function model() {
         confirmText,
         cancelText: 'Cancel',
         onCancel: dismiss,
-        onBack: emailStep ? review : undefined,
+        onBack: emailStep ? backToReview : undefined,
       },
     },
   };
