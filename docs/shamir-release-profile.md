@@ -75,3 +75,22 @@ which follows finalization, and deployed network behavior.
 The fixed SDK snapshot contained custody overlap from `2b147d2`. The workflow
 correction is `a55e944`. The benchmark specifically isolates Shamir3Pass; it does
 not measure the other three runtimes also affected by production build mode.
+
+## Verification
+
+- Isolated release WASM build passed.
+- Two Shamir3Pass Rust tests passed in release mode.
+- Five client-seal ownership unit tests passed.
+- Seventeen NEAR registration contracts passed with the release WASM and matching
+  worker bindings, including held custody, exact replay, lock, zero quota,
+  readiness rollback, hydration failure, and refresh signing.
+- Forty alternating benchmark runs passed; each verified both selected artifact
+  requests and NEAR signatures before and after refresh.
+- `actionlint` passed for the changed release workflow; its parsed build step
+  explicitly selects `WASM_SDK_BUILD_MODE=prod`.
+
+The full multi-package release build and deployment were not run. This validates
+Shamir3Pass and the workflow selection; it does not constitute new lifecycle
+coverage for every auxiliary module. The active demo artifacts were preserved.
+Release/publishing, Console adoption, and deployed cold-start/regional measurement
+remain pending the release hold.
