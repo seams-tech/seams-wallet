@@ -24,6 +24,12 @@ If a run is interrupted, stop any remaining `wrangler dev` processes before rest
 
 ## Prediction-market transaction review
 
+Choose **Preview review component** to inspect the actual React trade summary
+without signing in. This inline preview reuses the component passed to
+`review.render`; its buttons report a preview result or close the preview, and
+never sign or send a transaction. Select a new amount and open the preview again
+to refresh its fixture quote.
+
 After local project setup, create or unlock a NEAR testnet wallet. In the
 **Prediction market · R140 demo** panel, choose YES or NO and a fixture amount,
 then select **Review prediction trade**. Your React trade summary opens inside

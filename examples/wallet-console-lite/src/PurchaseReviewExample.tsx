@@ -43,7 +43,12 @@ function PurchaseSummary({ quote, controls }: PurchaseSummaryProps) {
         Demo only: the wallet will request a zero-value NEAR self-transfer. Testnet gas applies. No
         market position is purchased.
       </p>
-      <button className="prediction-confirm" type="button" onClick={controls.continueToWallet}>
+      <button
+        className="prediction-confirm"
+        type="button"
+        disabled={seconds === 0}
+        onClick={controls.continueToWallet}
+      >
         Confirm in wallet
       </button>
       <button className="prediction-cancel" type="button" onClick={controls.cancel}>
@@ -102,6 +107,43 @@ function purchaseRenderer(scenario: ReviewScenario, quote: FixtureQuote) {
   }
 }
 
+function fixtureQuote(outcome: Outcome, amount: number, expired: boolean): FixtureQuote {
+  const positions = amount * (outcome === 'YES' ? 1.93333 : 2.02901);
+  return {
+    outcome,
+    amount,
+    positions: positions.toFixed(5),
+    fee: (amount * 0.01).toFixed(3),
+    minimumPositions: (positions * 0.99).toFixed(6),
+    expiresAtMs: Date.now() + (expired ? -1 : 90_000),
+  };
+}
+
+function openPreview(
+  outcome: Outcome,
+  amount: number,
+  setPreview: (quote: FixtureQuote | null) => void,
+  setPreviewMessage: (message: string) => void,
+) {
+  setPreviewMessage('');
+  setPreview(fixtureQuote(outcome, amount, false));
+}
+
+function previewContinued(setMessage: (message: string) => void) {
+  setMessage(
+    'Component preview complete. Sign in and choose Review prediction trade to use the real wallet approval flow. Nothing was signed or sent.',
+  );
+}
+
+function showPreview(quote: FixtureQuote | null) {
+  if (quote)
+    document.getElementById('prediction-review-preview')?.scrollIntoView({ block: 'center' });
+}
+
+function previewFailed(setMessage: (message: string) => void, error: unknown) {
+  setMessage(error instanceof Error ? error.message : 'Preview failed.');
+}
+
 async function startPurchase(
   wallet: ReturnType<typeof useWallet>,
   setState: (state: PurchaseState) => void,
@@ -115,14 +157,7 @@ async function startPurchase(
     return;
   }
   if (wallet.status !== 'ready') return;
-  const quote: FixtureQuote = {
-    outcome,
-    amount,
-    positions: (amount * (outcome === 'YES' ? 1.93333 : 2.02901)).toFixed(5),
-    fee: (amount * 0.01).toFixed(3),
-    minimumPositions: (amount * (outcome === 'YES' ? 1.93333 : 2.02901) * 0.99).toFixed(6),
-    expiresAtMs: Date.now() + (scenario === 'expired' ? -1 : 90_000),
-  };
+  const quote = fixtureQuote(outcome, amount, scenario === 'expired');
   setState({ kind: 'pending' });
   try {
     const result = await wallet.near.signAndSendTransaction({
@@ -160,6 +195,9 @@ export function PurchaseReviewExample({ onRequestSignIn }: { onRequestSignIn: ()
   const [state, setState] = useState<PurchaseState>({ kind: 'idle' });
   const [outcome, setOutcome] = useState<Outcome>('YES');
   const [amount, setAmount] = useState(0.1);
+  const [preview, setPreview] = useState<FixtureQuote | null>(null);
+  const [previewMessage, setPreviewMessage] = useState('');
+  useEffect(showPreview.bind(null, preview), [preview]);
   return (
     <section className="panel prediction-demo" id="prediction-market">
       <p className="eyebrow">Prediction market · R140 demo</p>
@@ -200,6 +238,12 @@ export function PurchaseReviewExample({ onRequestSignIn }: { onRequestSignIn: ()
         Review your quote inside the existing transaction confirmer, then continue to wallet
         approval for a zero-value NEAR self-transfer. No market position is purchased.
       </p>
+      <button
+        type="button"
+        onClick={openPreview.bind(null, outcome, amount, setPreview, setPreviewMessage)}
+      >
+        Preview review component
+      </button>
       {wallet.status === 'signed_out' ? (
         <p>Sign in to open the review. You can choose your position and amount first.</p>
       ) : null}
@@ -271,6 +315,28 @@ export function PurchaseReviewExample({ onRequestSignIn }: { onRequestSignIn: ()
         Try failing review
       </button>
       <p role="status">{state.kind === 'complete' ? state.message : ''}</p>
+      {preview ? (
+        <section
+          id="prediction-review-preview"
+          className="prediction-preview"
+          aria-label="Review component preview"
+        >
+          <p className="prediction-caption">Component preview · no wallet or transaction</p>
+          <h3>Review purchase</h3>
+          <PurchaseSummary
+            key={preview.expiresAtMs}
+            quote={preview}
+            controls={{
+              continueToWallet: previewContinued.bind(null, setPreviewMessage),
+              cancel: setPreview.bind(null, null),
+              fail: previewFailed.bind(null, setPreviewMessage),
+            }}
+          />
+          <p role="status" className="prediction-caption">
+            {previewMessage}
+          </p>
+        </section>
+      ) : null}
     </section>
   );
 }

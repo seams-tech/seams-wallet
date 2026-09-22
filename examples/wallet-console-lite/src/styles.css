@@ -461,3 +461,22 @@ summary {
   border-color: transparent;
   border-radius: 4px;
 }
+
+.prediction-preview {
+  --seams-colors-textPrimary: #222;
+  --seams-colors-textSecondary: #686868;
+  --seams-colors-surface2: #f4f4f4;
+  max-width: 28rem;
+  margin: 1.5rem auto 0;
+  padding: 1.5rem;
+  border: 1px solid #d9dfda;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.prediction-preview h3 {
+  margin: 0.7rem 0 1.2rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
