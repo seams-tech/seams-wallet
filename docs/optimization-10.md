@@ -2027,3 +2027,19 @@ response is forwarded, excluding subsequent body delivery. Use completed client
 request timings for end-to-end comparisons. This removes a gateway buffering
 barrier; it does not remove an HTTP exchange or establish a hosted latency gain.
 Owner completion-to-prepare fusion remains unfinished.
+
+The owner-handoff boundary now has a typed pending signing intent carrying the
+ceremony identity and the existing required operation, authorization, scope,
+digest, expiry, and rerandomization commitment fields. It excludes a preselected
+presignature ID. Its parser shares field validation with the existing prepare
+request parser. Completion binds the derived material ID only when the ceremony
+and complete scope match and the original request deadline is still valid within
+the material lifetime; it never extends or rewrites that deadline. The resulting
+prepare request retains the existing canonical transcript.
+
+Three focused tests and a type rejection fixture cover transcript preservation,
+preselected-ID injection, digest mismatch, cross-ceremony/scope binding, and
+expiry. This is the boundary/schema portion of the handoff, not an authorization
+claim. No live route accepts the new intent yet. Immutable attachment inside the
+ceremony, gateway admission, direct reserved publication, and ambiguous-response
+recovery still require integration and end-to-end validation before release.
