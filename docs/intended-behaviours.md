@@ -187,6 +187,9 @@ Expected behaviour:
 - A lock in either tab prevents late NEAR readiness publication. Readiness and
   removal of its repair journal commit atomically; an aborted transaction retains
   the journal for the next authorized unlock.
+- After NEAR authority publication, passkey session hydration and local signer
+  installation may overlap. Durable readiness waits for both; a failed hydration
+  retains the repair journal for normal unlock.
 - With remaining signing quota, NEAR signing becomes available at `near_ready`
   without a second passkey prompt.
   A retryable provisioning failure remains visible to the caller.

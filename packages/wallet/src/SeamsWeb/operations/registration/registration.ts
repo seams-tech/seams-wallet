@@ -2913,6 +2913,33 @@ async function prewarmDeferredPasskeyEd25519Client(
   }
 }
 
+type NearRegistrationHydrationResult =
+  | { readonly kind: 'completed' }
+  | { readonly kind: 'failed'; readonly error: unknown };
+
+async function hydrateDeferredNearRegistrationSession(args: {
+  signingEngine: Pick<NearRegistrationContinuationSigningSurface, 'hydrateSigningSession'>;
+  ceremonyId: string;
+  input: Parameters<NearRegistrationContinuationSigningSurface['hydrateSigningSession']>[0];
+}): Promise<NearRegistrationHydrationResult> {
+  const startedAt = performance.now();
+  let outcome: 'success' | 'failure' = 'failure';
+  try {
+    await args.signingEngine.hydrateSigningSession(args.input);
+    outcome = 'success';
+    return { kind: 'completed' };
+  } catch (error: unknown) {
+    return { kind: 'failed', error };
+  } finally {
+    emitNearRegistrationTiming({
+      ceremonyId: args.ceremonyId,
+      stage: 'session_hydration',
+      startedAt,
+      outcome,
+    });
+  }
+}
+
 function nearRegistrationProfileUnavailable(): null {
   return null;
 }
@@ -2937,6 +2964,7 @@ async function commitDeferredEd25519Registration(args: {
   const startedAt = performance.now();
   let outcome: 'success' | 'failure' = 'failure';
   let retainedFactorSecret32: ArrayBuffer | null = null;
+  let hydration: Promise<NearRegistrationHydrationResult> = Promise.resolve({ kind: 'completed' });
   try {
     const nearCustody = await args.nearCustodyWork();
     retainedFactorSecret32 = nearCustody.factorSecret32;
@@ -3078,44 +3106,43 @@ async function commitDeferredEd25519Registration(args: {
     });
     await requireCurrentNearRegistrationSession(args.sessionAuthority);
     const sessionStartedAt = performance.now();
+    // Hydration owns refresh persistence; signer installation uses the joined custody material.
     if (args.authMaterial.kind === 'passkey' && registrationSession.remainingUses > 0) {
       const registrationEd25519Session = registrationEstablishedEd25519Session(registrationSession);
-      await args.context.signingEngine.hydrateSigningSession({
-        thresholdSessionId: String(registrationEd25519Session.thresholdSessionId),
-        diagnostics: {
-          recordDuration: recordNearRegistrationSessionTiming.bind(
-            undefined,
-            args.registrationCeremonyId,
-          ),
-        },
-        prfFirstB64u: args.authMaterial.prfFirstB64u,
-        expiresAtMs: registrationSession.expiresAtMs,
-        remainingUses: registrationSession.remainingUses,
-        transport: {
-          curve: 'ed25519',
-          authMethod: 'passkey',
-          walletId: String(args.walletId),
-          relayerUrl: args.relayerUrl,
-          walletSessionToken: registrationSession.operationCredential.token,
-          ed25519Restore: buildPasskeyEd25519RestoreMetadata({
-            rpId: args.authMaterial.rpId,
-            nearAccountId: String(nearAccountId),
-            nearEd25519SigningKeyId: finalized.ed25519.nearEd25519SigningKeyId,
-            relayerKeyId: finalized.ed25519.relayerKeyId,
-            participantIds: [...finalized.ed25519.participantIds],
-            runtimePolicyScope: registrationEd25519Session.runtimePolicyScope,
-            signerSlot: finalized.ed25519.signerSlot,
-            routerAbNormalSigning: registrationEd25519Session.routerAbNormalSigning,
-            credentialIdB64u: args.authMaterial.credentialIdB64u,
-            materialActivation,
-          }),
-        },
-      });
-      emitNearRegistrationTiming({
+      hydration = hydrateDeferredNearRegistrationSession({
+        signingEngine: args.context.signingEngine,
         ceremonyId: args.registrationCeremonyId,
-        stage: 'session_hydration',
-        startedAt: sessionStartedAt,
-        outcome: 'success',
+        input: {
+          thresholdSessionId: String(registrationEd25519Session.thresholdSessionId),
+          diagnostics: {
+            recordDuration: recordNearRegistrationSessionTiming.bind(
+              undefined,
+              args.registrationCeremonyId,
+            ),
+          },
+          prfFirstB64u: args.authMaterial.prfFirstB64u,
+          expiresAtMs: registrationSession.expiresAtMs,
+          remainingUses: registrationSession.remainingUses,
+          transport: {
+            curve: 'ed25519',
+            authMethod: 'passkey',
+            walletId: String(args.walletId),
+            relayerUrl: args.relayerUrl,
+            walletSessionToken: registrationSession.operationCredential.token,
+            ed25519Restore: buildPasskeyEd25519RestoreMetadata({
+              rpId: args.authMaterial.rpId,
+              nearAccountId: String(nearAccountId),
+              nearEd25519SigningKeyId: finalized.ed25519.nearEd25519SigningKeyId,
+              relayerKeyId: finalized.ed25519.relayerKeyId,
+              participantIds: [...finalized.ed25519.participantIds],
+              runtimePolicyScope: registrationEd25519Session.runtimePolicyScope,
+              signerSlot: finalized.ed25519.signerSlot,
+              routerAbNormalSigning: registrationEd25519Session.routerAbNormalSigning,
+              credentialIdB64u: args.authMaterial.credentialIdB64u,
+              materialActivation,
+            }),
+          },
+        },
       });
     }
     await args.context.signingEngine.activateAuthenticatedWalletState({
@@ -3219,6 +3246,16 @@ async function commitDeferredEd25519Registration(args: {
       outcome: 'success',
     });
     await requireCurrentNearRegistrationSession(args.sessionAuthority);
+    const hydrationWaitStartedAt = performance.now();
+    const hydrated = await hydration;
+    emitNearRegistrationTiming({
+      ceremonyId: args.registrationCeremonyId,
+      stage: 'session_hydration_wait',
+      startedAt: hydrationWaitStartedAt,
+      outcome: hydrated.kind === 'completed' ? 'success' : 'failure',
+    });
+    if (hydrated.kind === 'failed') throw hydrated.error;
+    await requireCurrentNearRegistrationSession(args.sessionAuthority);
     const readyStartedAt = performance.now();
     await IndexedDBManager.completePendingNearRegistration({
       pending,
@@ -3263,6 +3300,8 @@ async function commitDeferredEd25519Registration(args: {
       errorCode,
     };
   } finally {
+    // A failed or locked installation must settle its sibling before the continuation exits.
+    await hydration;
     if (retainedFactorSecret32) zeroizeArrayBuffer(retainedFactorSecret32);
     emitNearRegistrationTiming({
       ceremonyId: args.registrationCeremonyId,

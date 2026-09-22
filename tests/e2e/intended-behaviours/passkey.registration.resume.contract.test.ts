@@ -1,6 +1,7 @@
 import { assertIndependentNearRegistration } from './registration-near-gate';
 import {
   assertLateNearCompletionKeepsWalletLocked,
+  assertPasskeyHydrationOverlapsInstallation,
   assertNearReadyTransactionRollsBack,
 } from './registration-near-gate';
 import {
@@ -145,4 +146,25 @@ test('passkey NEAR completion preserves an exhausted EVM signing budget', async 
     path: ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
     exhaustBudget: true,
   });
+});
+
+test('passkey hydration overlaps signer installation and gates durable readiness', async ({
+  harness,
+  context,
+}) => {
+  await assertPasskeyHydrationOverlapsInstallation({ harness, context, result: 'success' });
+});
+
+test('passkey overlapping hydration failure retains a repairable registration', async ({
+  harness,
+  context,
+}) => {
+  await assertPasskeyHydrationOverlapsInstallation({ harness, context, result: 'failure' });
+});
+
+test('passkey lock during overlapping hydration prevents late readiness', async ({
+  harness,
+  context,
+}) => {
+  await assertPasskeyHydrationOverlapsInstallation({ harness, context, result: 'lock' });
 });

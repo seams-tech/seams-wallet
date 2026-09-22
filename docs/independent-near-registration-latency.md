@@ -103,3 +103,52 @@ before signing. Existing passkey unlock/export and refresh step-up contracts pas
 The full build and intended/state type checks passed. Release, deployment, and
 private Console package adoption remain on hold. Deployed latency and composed
 acceptance are still required after that hold is lifted.
+
+## Follow-up: overlap passkey hydration with signer installation
+
+The continuation now starts passkey session hydration after server finalization
+and local authority publication, then installs the local signer while hydration
+runs. Durable readiness still waits for both. Hydration errors retain the joined
+repair journal, and all exit paths settle hydration before returning. A wallet
+lock during hydration prevents late readiness; normal unlock repairs the retained
+registration. Zero-quota provisioning continues to skip warm hydration.
+
+Twenty fresh independent registrations passed with the updated SDK, including
+NEAR signatures before and after refresh:
+
+| Span | Median (ms) | p95 (ms) |
+| --- | ---: | ---: |
+| Registration return | 574.5 | 765.0 |
+| Durable NEAR readiness | 989.0 | 1345.5 |
+| Complete session hydration | 146.9 | 180.8 |
+| Hydration wait after installation | 135.6 | 168.6 |
+| Hydration elapsed during installation, calculated per run | 10.9 | 13.1 |
+| Local session installation | 4.1 | 5.2 |
+| Signer activation | 6.1 | 7.6 |
+
+`session_hydration_wait` measures the final join. Subtracting that wait from
+`session_hydration` per sample measures the overlap; differences between aggregate
+medians need not match. `session_install` now covers local installation alone,
+whereas its earlier span included the sequential hydration await.
+
+The observed overlap is about 11 ms. This run has no contemporaneous sequential
+hydration control, so it does not establish an end-to-end percentage improvement.
+The earlier independent median was 1007 ms; this run's authentication median also
+fell from 214 to 196 ms, and its readiness p95 increased. Environment variability
+is larger than this optimization's expected end-to-end effect. The same local,
+virtual-authenticator and stubbed-chain limitations above apply. These timings
+are [recorded separately](./passkey-registration-hydration-latency.json) to preserve
+the earlier balanced architecture comparison.
+
+The next larger opportunity is preparing the client seal before finalization.
+The earlier profile attributes approximately 52 ms to cryptographic setup and
+client sealing. Moving that work would require an explicit worker preparation
+lifecycle, exact binding to the eventual session, and cleanup on failure, lock,
+or abandonment. The authorized server seal and subsequent client unseal remain
+sequential dependencies. This change leaves those operations and cryptographic
+primitives unchanged.
+
+Validation: 14 registration continuation contracts passed, including held
+hydration, hydration failure and unlock repair, lock during hydration, exhausted
+quota, restart and lost responses. The 20 benchmark runs passed. SDK build and
+intended/state type checks passed. Release and deployment remain on hold.

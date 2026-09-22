@@ -267,3 +267,87 @@ async function lockCurrentWallet(): Promise<void> {
   if (!lock) throw new Error('Wallet lock helper is unavailable');
   await lock();
 }
+
+class NearHydrationGate {
+  private releaseGate: () => void = ignoreRelease;
+  private readonly released = new Promise<void>(this.saveRelease.bind(this));
+  private published = false;
+  private held = false;
+  private installed = false;
+  private finished = false;
+
+  constructor(private readonly result: 'success' | 'failure' | 'lock') {}
+
+  private saveRelease(resolve: () => void): void {
+    this.releaseGate = resolve;
+  }
+
+  observe(message: ConsoleMessage): void {
+    const text = message.text();
+    if (!text.startsWith('[Registration] NEAR timing ')) return;
+    if (text.includes('"stage":"local_publication"')) this.published = true;
+    if (text.includes('"stage":"signer_activation"')) this.installed = true;
+    if (text.includes('"stage":"provisioning_total"')) this.finished = true;
+  }
+
+  async hold(route: Route): Promise<void> {
+    if (!this.published || this.held) {
+      await route.continue();
+      return;
+    }
+    this.held = true;
+    await this.released;
+    if (this.result === 'failure')
+      await route.fulfill({ status: 503, body: 'Injected seal failure' });
+    else await route.continue();
+  }
+
+  isInstalledWhileHeld(): boolean {
+    return this.held && this.installed;
+  }
+  isFinished(): boolean {
+    return this.finished;
+  }
+  release(): void {
+    this.releaseGate();
+  }
+}
+
+export async function assertPasskeyHydrationOverlapsInstallation(input: {
+  readonly harness: IntendedBehaviourHarness;
+  readonly context: BrowserContext;
+  readonly result: 'success' | 'failure' | 'lock';
+}): Promise<void> {
+  const gate = new NearHydrationGate(input.result);
+  const handler = gate.hold.bind(gate);
+  const page = input.context.pages()[0];
+  if (!page) throw new Error('Registration page is unavailable');
+  page.on('console', gate.observe.bind(gate));
+  await input.context.route('**/apply-server-seal', handler);
+  try {
+    await input.harness.registerPasskeyWallet();
+    await expect.poll(gate.isInstalledWhileHeld.bind(gate)).toBe(true);
+    expect(gate.isFinished()).toBe(false);
+    const persisted = await page
+      .locator('iframe[allow*="publickey-credentials-get"]')
+      .last()
+      .contentFrame()
+      .locator('body')
+      .evaluate(readNearRegistrationPersistence);
+    expect(persisted.phases).toEqual(['joined']);
+    expect(persisted.statuses).not.toContain('near_ready');
+    if (input.result === 'lock') await input.harness.lockWallet();
+    gate.release();
+    await expect.poll(gate.isFinished.bind(gate)).toBe(true);
+  } finally {
+    gate.release();
+    await input.context.unroute('**/apply-server-seal', handler);
+  }
+  if (input.result === 'lock') await input.harness.assertWalletLocked();
+  if (input.result === 'failure') await input.harness.signTempoTransaction('post_registration');
+  if (input.result !== 'success') await input.harness.unlockPasskeyWithPendingNear();
+  await input.harness.awaitNearReady();
+  await input.harness.signNearTransaction('post_registration');
+  await input.harness.refreshPagePreservingWalletStorage();
+  await input.harness.signNearTransactionAfterRefresh();
+}
