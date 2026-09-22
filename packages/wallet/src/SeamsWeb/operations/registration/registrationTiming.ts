@@ -174,6 +174,8 @@ export function emitNearRegistrationTiming(input: {
     | 'server_finalize'
     | 'local_publication'
     | 'session_install'
+    | 'session_seal_preparation'
+    | 'session_seal_preparation_wait'
     | 'session_hydration_wait'
     | 'session_hydration'
     | 'signer_activation'

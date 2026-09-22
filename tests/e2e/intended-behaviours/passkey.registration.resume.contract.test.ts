@@ -2,6 +2,7 @@ import { assertIndependentNearRegistration } from './registration-near-gate';
 import {
   assertLateNearCompletionKeepsWalletLocked,
   assertPasskeyHydrationOverlapsInstallation,
+  assertPasskeySealPreparedBeforeFinalization,
   assertNearReadyTransactionRollsBack,
 } from './registration-near-gate';
 import {
@@ -167,4 +168,11 @@ test('passkey lock during overlapping hydration prevents late readiness', async 
   context,
 }) => {
   await assertPasskeyHydrationOverlapsInstallation({ harness, context, result: 'lock' });
+});
+
+test('passkey client seal completes before the NEAR finalization response', async ({
+  harness,
+  context,
+}) => {
+  await assertPasskeySealPreparedBeforeFinalization({ harness, context });
 });

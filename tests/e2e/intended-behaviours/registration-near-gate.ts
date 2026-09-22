@@ -101,6 +101,7 @@ class NearFinalizationResponseGate {
   private releaseGate: () => void = ignoreRelease;
   private readonly released = new Promise<void>(this.saveRelease.bind(this));
   private committed = false;
+  private prepared = false;
   private finished = false;
 
   private saveRelease(resolve: () => void): void {
@@ -119,11 +120,20 @@ class NearFinalizationResponseGate {
     const text = message.text();
     if (
       text.startsWith('[Registration] NEAR timing ') &&
+      text.includes('"stage":"session_seal_preparation"') &&
+      text.includes('"outcome":"success"')
+    )
+      this.prepared = true;
+    if (
+      text.startsWith('[Registration] NEAR timing ') &&
       text.includes('"stage":"provisioning_total"')
     )
       this.finished = true;
   }
 
+  isPrepared(): boolean {
+    return this.prepared;
+  }
   isCommitted(): boolean {
     return this.committed;
   }
@@ -350,4 +360,31 @@ export async function assertPasskeyHydrationOverlapsInstallation(input: {
   await input.harness.signNearTransaction('post_registration');
   await input.harness.refreshPagePreservingWalletStorage();
   await input.harness.signNearTransactionAfterRefresh();
+}
+
+export async function assertPasskeySealPreparedBeforeFinalization(input: {
+  readonly harness: IntendedBehaviourHarness;
+  readonly context: BrowserContext;
+}): Promise<void> {
+  const gate = new NearFinalizationResponseGate();
+  const handler = gate.hold.bind(gate);
+  const page = input.context.pages()[0];
+  if (!page) throw new Error('Registration page is unavailable');
+  page.on('console', gate.observe.bind(gate));
+  await input.context.route('**/wallets/register/near-provisioning', handler);
+  try {
+    await input.harness.registerPasskeyWallet();
+    await expect.poll(gate.isCommitted.bind(gate)).toBe(true);
+    await expect.poll(gate.isPrepared.bind(gate)).toBe(true);
+    expect(gate.isFinished()).toBe(false);
+    await input.harness.signTempoTransaction('post_registration');
+    gate.release();
+    await input.harness.awaitNearReady();
+    await input.harness.signNearTransaction('post_registration');
+    await input.harness.refreshPagePreservingWalletStorage();
+    await input.harness.signNearTransactionAfterRefresh();
+  } finally {
+    gate.release();
+    await input.context.unroute('**/wallets/register/near-provisioning', handler);
+  }
 }
