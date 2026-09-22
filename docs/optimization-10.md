@@ -1486,6 +1486,13 @@ registration return to completed Tempo signature (registration **2.707** and
 passes the signature contract. The hold is a benchmark control, not product
 behavior.
 
+In two additional controlled local runs, delaying each presign step request by
+**100 ms** or **250 ms** increased the empty-pool first-sign time to **1.454**
+or **3.017 seconds**, respectively, from an undelayed **0.681–0.700 seconds**.
+These are single-run injected-latency diagnostics, not a fitted network model.
+They confirm that the dependent step exchanges materially amplify per-request
+latency. The benchmark-only request interception was removed after measurement.
+
 One fresh hosted-testnet virtual-passkey run from Japan measured registration
 ready at **9.437 seconds** with **zero** durable presignatures. Signing immediately
 after registration completed **10.205 seconds** later. The signing trace reported
