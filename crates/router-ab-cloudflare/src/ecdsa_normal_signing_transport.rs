@@ -7,7 +7,7 @@ pub(crate) enum CloudflareRouterAbEcdsaNormalSigningServiceRequestV1 {
 }
 
 pub(crate) enum CloudflareRouterAbEcdsaNormalSigningServiceResponseV1 {
-    Prepare(RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1),
+    Prepare(CloudflareEcdsaPrepareResponseV1),
     Finalize(RouterAbEcdsaDerivationEvmDigestSigningResponseV1),
 }
 
@@ -78,13 +78,14 @@ pub(crate) async fn execute_cloudflare_router_ab_ecdsa_normal_signing_prepare_wi
     transport: &mut Transport,
     peer: &CloudflarePeerBindingV1,
     request: CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1,
-) -> RouterAbProtocolResult<RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1>
+) -> RouterAbProtocolResult<CloudflareEcdsaPrepareResponseV1>
 where
     Transport: CloudflareRouterAbEcdsaNormalSigningServiceTransportV1,
 {
     validate_signing_worker_target(peer, "Router A/B ECDSA derivation prepare")?;
     request.validate()?;
     let expected_request = request.request.clone();
+    let expected_source = request.presign_source.clone();
     let response = transport
         .send(
             peer,
@@ -94,7 +95,7 @@ where
     let CloudflareRouterAbEcdsaNormalSigningServiceResponseV1::Prepare(response) = response else {
         return Err(wrong_response_branch("prepare"));
     };
-    response.validate_for_request(&expected_request)?;
+    response.validate_for_request(&expected_request, &expected_source)?;
     Ok(response)
 }
 
@@ -208,7 +209,7 @@ mod tests {
                             )?;
                         Ok(
                             CloudflareRouterAbEcdsaNormalSigningServiceResponseV1::Prepare(
-                                response,
+                                CloudflareEcdsaPrepareResponseV1::AvailablePool(response),
                             ),
                         )
                     }

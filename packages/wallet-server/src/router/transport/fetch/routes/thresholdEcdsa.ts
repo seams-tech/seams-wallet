@@ -13,6 +13,8 @@ import {
   parseRouterAbEcdsaPostRegistrationSessionActivationRequestV1,
   parseRouterAbEcdsaOperationStepUpAuthorizationRequestV1,
   parseRouterAbEcdsaDerivationEvmDigestSigningRequestV1,
+  parseRouterAbEcdsaPrepareSourceV1,
+  type RouterAbEcdsaPrepareSourceV1,
   parseRouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1,
   computeRouterAbEcdsaOperationStepUpChallengeB64u,
   sameRouterAbEcdsaDerivationNormalSigningScopeV1,
@@ -434,6 +436,25 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
   },
   timing: EcdsaSigningGatewayTiming,
 ): Promise<Response> {
+  const { presign_source: rawSource, ...signingBody } = input.body;
+  if (input.phase === 'finalize' && rawSource !== undefined) {
+    return json({ ok: false, code: 'invalid_body', message: 'Finalize cannot carry a presign batch' }, { status: 400 });
+  }
+  let source: RouterAbEcdsaPrepareSourceV1 = { kind: 'available_pool' };
+  if (input.phase === 'prepare') {
+    try {
+      source = parseRouterAbEcdsaPrepareSourceV1(
+        rawSource,
+        parseRouterAbEcdsaDerivationEvmDigestSigningRequestV1(signingBody),
+      );
+    } catch {
+      return json(
+        { ok: false, code: 'invalid_body', message: 'Invalid signing prepare request or final batch' },
+        { status: 400 },
+      );
+    }
+  }
+  input = { ctx: input.ctx, body: signingBody, phase: input.phase };
   const authorizationStartedAt = performance.now();
   const authorization = await authorizeRouterAbEcdsaDerivationNormalSigningRoute({
     body: input.body,
@@ -647,6 +668,7 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
   const admittedBody = {
     ...input.body,
     authorized_operation: authorizedOperationWire,
+    ...(source.kind === 'final_presign_batch' ? { presign_source: source } : {}),
   };
   const proxyStartedAt = performance.now();
   const upstream =

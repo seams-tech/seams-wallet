@@ -2113,3 +2113,22 @@ linear boundary requiring the material ID. Its focused test preserves canonical
 request equality and rejects a missing material ID or mismatched signing digest.
 The shared full-request fixture remains for the upcoming terminal-batch path.
 This cleanup does not expose a combined route or complete the handoff.
+
+
+### Authenticated terminal-batch reservation
+
+The prepare transport now accepts the complete canonical signing request with
+its final presign batch as separate transport metadata. Gateway live admission
+and Router authorization run before the SigningWorker executes that batch. The
+SigningWorker compares completed scope and material identity against the admitted
+request, then persists the material directly as Reserved. Ordinary pool fills
+continue to publish Available material. No secret material passes through the
+Gateway and no additional pending-material store is introduced.
+
+The isolated real workerd/D1 test (`--ecdsa-presign-handoff`) completes actual
+MPC, rejects a substituted scope and repeated terminal batch, and verifies the
+resulting ECDSA signature. It exercises the Router and SigningWorker; full browser
+and Gateway authorization acceptance remains outstanding. The integration exposed
+a timestamp assumption: preparation can now occur after material loading. The
+response and reserved record share the reservation timestamp, which must be at
+or after materialization. No hosted latency improvement is claimed yet.

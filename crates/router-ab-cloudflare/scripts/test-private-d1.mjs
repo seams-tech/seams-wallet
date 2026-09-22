@@ -977,7 +977,7 @@ function parseEcdsaPresignProgress(bytes, sessionId, label) {
   return progress;
 }
 
-async function runEcdsaPresignSession(topology, ecdsa) {
+async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool') {
   const signingWorker = await topology.getWorker('fixture-signing-worker');
   const scope = buildEcdsaNormalSigningScope(ecdsa);
   const groupPublicKey = Buffer.from(
@@ -1017,6 +1017,23 @@ async function runEcdsaPresignSession(topology, ecdsa) {
         if (client.stage() === 'triples_done') client.start_presign();
       }
       clientProgress = client.poll();
+      if (mode === 'prepare' && clientProgress.event === 'final_batch_ready') {
+        const clientBigR = Buffer.from(client.candidate_big_r_33());
+        assert.throws(() => client.presignature_big_r_33());
+        return {
+          client, scope, groupPublicKey, clientBigR,
+          serverPresignatureId: `presig-${hashBase64url(clientBigR)}`,
+          expiresAtMs,
+          presignSource: {
+            kind: 'final_presign_batch',
+            batch: {
+              scope, presign_session_id: presignSessionId, requested_stage: 'presign',
+              outgoing_messages_b64u: clientProgress.outgoing.map(base64urlBytes),
+              ceremony_expires_at_ms: expiresAtMs, material_expires_at_ms: expiresAtMs,
+            },
+          },
+        };
+      }
       const stepResponse = await postWorkerJson(signingWorker, ecdsaPresignSessionStepPath, {
         scope,
         presign_session_id: presignSessionId,
@@ -1096,9 +1113,9 @@ function buildEcdsaAuthorizedOperation(operationId, operationDigests) {
   };
 }
 
-async function testEcdsaNormalSigning(topology, ecdsa) {
+async function testEcdsaNormalSigning(topology, ecdsa, mode = 'pool') {
   const router = await topology.getWorker('router');
-  const presign = await runEcdsaPresignSession(topology, ecdsa);
+  const presign = await runEcdsaPresignSession(topology, ecdsa, mode);
   try {
     const operationId = 'ecdsa-live-normal-sign-operation';
     const signingDigestBytes = createHash('sha256')
@@ -1151,13 +1168,39 @@ async function testEcdsaNormalSigning(topology, ecdsa) {
         authorized_operation: authorizedOperation,
       },
     };
+    if (mode === 'prepare') {
+      prepareRequest.presign_source = presign.presignSource;
+      const substituted = {
+        ...prepareRequest,
+        presign_source: {
+          kind: 'final_presign_batch',
+          batch: {
+            ...presign.presignSource.batch,
+            scope: { ...presign.scope, wallet_id: 'another-wallet' },
+          },
+        },
+      };
+      const rejected = await postWorkerJson(router, ecdsaSigningPreparePath, substituted);
+      assert.equal(rejected.ok, false, 'Wrong-scope handoff must be rejected before MPC advances');
+    }
     const prepareResponse = await postWorkerJson(
       router,
       ecdsaSigningPreparePath,
       prepareRequest,
     );
     const prepareBytes = await expectOk(prepareResponse, 'live ECDSA normal-signing prepare');
-    const prepared = JSON.parse(prepareBytes.toString('utf8'));
+    const response = JSON.parse(prepareBytes.toString('utf8'));
+    const prepared = mode === 'prepare' ? response.prepared_response : response;
+    if (mode === 'prepare') {
+      assert.equal(response.outgoing_messages_b64u.length, 1);
+      for (const message of response.outgoing_messages_b64u) {
+        presign.client.message(Buffer.from(message, 'base64url'));
+      }
+      assert.equal(presign.client.stage(), 'done');
+      assert.deepEqual(Buffer.from(presign.client.presignature_big_r_33()), presign.clientBigR);
+      const replay = await postWorkerJson(router, ecdsaSigningPreparePath, prepareRequest);
+      assert.equal(replay.ok, false, 'Terminal batch cannot execute twice');
+    }
     assert.equal(prepared.request_id, prepareRequest.request_id);
     assert.deepEqual(
       prepared.scope.public_identity,
@@ -1652,6 +1695,11 @@ async function main() {
       signingWorkerMigrationsPath,
     );
     const ecdsa = await testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot, jwtSigner);
+    if (process.argv.includes('--ecdsa-presign-handoff')) {
+      await testEcdsaNormalSigning(topology, ecdsa, 'prepare');
+      console.log('authenticated terminal handoff, scope rejection, replay rejection, and ECDSA signature verification passed');
+      return;
+    }
     if (process.argv.includes('--ecdsa-presign')) {
       const presign = await runEcdsaPresignSession(topology, ecdsa);
       presign.client.free();

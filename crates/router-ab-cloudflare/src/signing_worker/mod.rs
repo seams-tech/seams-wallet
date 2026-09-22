@@ -1397,6 +1397,74 @@ impl CloudflareSigningWorkerMaterializedNormalSigningFinalizeRequestV2 {
     }
 }
 
+/// Material source for a prepare operation. Terminal batches remain bound to the full request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum CloudflareEcdsaPrepareSourceV1 {
+    #[default]
+    AvailablePool,
+    FinalPresignBatch { batch: CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 },
+}
+
+impl CloudflareEcdsaPrepareSourceV1 {
+    pub fn validate_for_request(
+        &self,
+        request: &RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
+    ) -> RouterAbProtocolResult<()> {
+        if let Self::FinalPresignBatch { batch } = self {
+            if batch.scope != request.scope
+                || batch.requested_stage != CloudflareSigningWorkerEcdsaPresignRequestedStageV1::Presign
+                || request.expires_at_ms > batch.material_expires_at_ms
+                || batch.outgoing_messages_b64u.len() != 2
+            {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidGateDecision,
+                    "Final presign batch does not match the admitted prepare request",
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+/// The pool response retains its wire shape; a terminal batch also returns its protocol output.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CloudflareEcdsaPrepareResponseV1 {
+    FinalPresignBatch {
+        prepared_response: RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1,
+        outgoing_messages_b64u: Vec<String>,
+    },
+    AvailablePool(RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1),
+}
+
+impl CloudflareEcdsaPrepareResponseV1 {
+    pub fn validate_for_request(
+        &self,
+        request: &RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
+        source: &CloudflareEcdsaPrepareSourceV1,
+    ) -> RouterAbProtocolResult<()> {
+        match (self, source) {
+            (Self::AvailablePool(response), CloudflareEcdsaPrepareSourceV1::AvailablePool) =>
+                response.validate_for_request(request),
+            (Self::FinalPresignBatch { prepared_response, outgoing_messages_b64u },
+             CloudflareEcdsaPrepareSourceV1::FinalPresignBatch { .. }) => {
+                if outgoing_messages_b64u.len() != 1 {
+                    return Err(RouterAbProtocolError::new(
+                        RouterAbProtocolErrorCode::MalformedWirePayload,
+                        "Final presign response must contain its terminal protocol message",
+                    ));
+                }
+                prepared_response.validate_for_request(request)
+            }
+            _ => Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                "Prepare response does not match its material source",
+            )),
+        }
+    }
+}
+
 /// Router-admitted Router A/B ECDSA derivation normal-signing request sent to SigningWorker.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1 {
@@ -1406,6 +1474,8 @@ pub struct CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSignin
     pub trusted_admission: CloudflareRouterNormalSigningTrustedAdmissionV1,
     /// Exact active material source selected by the Gateway.
     pub material_source: CloudflareSigningWorkerNormalSigningMaterialSourceV1,
+    #[serde(default)]
+    pub presign_source: CloudflareEcdsaPrepareSourceV1,
 }
 
 impl CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1 {
@@ -1422,6 +1492,7 @@ impl CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningReque
             request,
             trusted_admission,
             material_source,
+            presign_source: CloudflareEcdsaPrepareSourceV1::AvailablePool,
         };
         request.validate()?;
         Ok(request)
@@ -1436,6 +1507,7 @@ impl CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningReque
             request,
             trusted_admission,
             material_source,
+            presign_source: CloudflareEcdsaPrepareSourceV1::AvailablePool,
         };
         request.validate()?;
         Ok(request)
@@ -1444,6 +1516,7 @@ impl CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningReque
     /// Validates Router-admitted Router A/B ECDSA derivation normal-signing material.
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         self.request.validate()?;
+        self.presign_source.validate_for_request(&self.request)?;
         self.material_source
             .validate_for_ecdsa_scope(&self.request.scope)?;
         self.trusted_admission.validate()?;
@@ -2158,7 +2231,7 @@ impl CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestPreparedV1 {
         self.record.validate()?;
         let request_digest = request.request.request.request_digest()?;
         let signing_digest = request.request.request.signing_digest()?;
-        if self.response.prepared_at_ms == request.materialized_at_ms
+        if self.response.prepared_at_ms >= request.materialized_at_ms
             && self.response.expires_at_ms == request.request.request.expires_at_ms
             && self.record.active_signing_worker_state == request.active_signing_worker
             && self.record.server_presignature_id == self.response.server_presignature_id
@@ -2171,7 +2244,7 @@ impl CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestPreparedV1 {
                 == self
                     .response
                     .signing_worker_rerandomization_contribution32_b64u
-            && self.record.created_at_ms == request.materialized_at_ms
+            && self.record.created_at_ms == self.response.prepared_at_ms
             && self.record.expires_at_ms == request.request.request.expires_at_ms
         {
             return Ok(());

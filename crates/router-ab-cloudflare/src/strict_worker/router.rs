@@ -4088,6 +4088,7 @@ enum StrictRouterNormalSigningRequestV1 {
     },
     EcdsaPrepare {
         request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
+        presign_source: crate::CloudflareEcdsaPrepareSourceV1,
         authorized_operation: CloudflareRouterEcdsaAcceptedAuthorizedOperationV1,
     },
     EcdsaFinalize {
@@ -5147,10 +5148,11 @@ async fn parse_strict_router_normal_signing_request_v1(
                 request,
                 env,
             )?
-            .map(|(request, authorized_operation)| {
+            .map(|(request, authorized_operation, presign_source)| {
                 StrictRouterNormalSigningRequestV1::EcdsaPrepare {
                     request,
                     authorized_operation,
+                    presign_source,
                 }
             })
         }
@@ -5317,6 +5319,7 @@ async fn execute_strict_router_normal_signing_request_v1(
         }
         StrictRouterNormalSigningRequestV1::EcdsaPrepare {
             request: signing_request,
+            presign_source,
             authorized_operation,
         } if operation_step_up => {
             let response = handle_cloudflare_router_ab_ecdsa_derivation_evm_digest_signing_prepare_internal_step_up_request_v1(
@@ -5325,6 +5328,7 @@ async fn execute_strict_router_normal_signing_request_v1(
                 now_unix_ms,
                 signing_request,
                 authorized_operation,
+                presign_source,
                 trusted_source_digest,
             )
             .await;
@@ -5332,6 +5336,7 @@ async fn execute_strict_router_normal_signing_request_v1(
         }
         StrictRouterNormalSigningRequestV1::EcdsaPrepare {
             request: signing_request,
+            presign_source,
             authorized_operation,
         } => {
             let credential = match authorized_operation
@@ -5352,6 +5357,7 @@ async fn execute_strict_router_normal_signing_request_v1(
                 now_unix_ms,
                 signing_request,
                 authorized_operation,
+                presign_source,
                 credential,
                 trusted_source_digest,
                 verifier,
