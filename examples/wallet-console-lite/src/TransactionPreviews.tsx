@@ -11,9 +11,10 @@ export function TransactionPreviews() {
         <button type="button" aria-pressed={variant === 'drawer'} onClick={setVariant.bind(null, 'drawer')}>Drawer review</button>
       </div>
       <iframe
+        height={850}
         title="Interactive transaction review and receipt examples"
         src={`/transaction-preview.html?variant=${variant}`}
-        style={{ width: '100%', height: '850px', border: 0, borderRadius: '12px', marginTop: '16px' }}
+        style={{ width: '100%', border: 0, borderRadius: '12px', marginTop: '16px' }}
       />
     </section>
   );
