@@ -49,6 +49,18 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 | tenant derivation root            | Server-side tenant secret derivation origin used for operational holder material. It is distinct from every wallet custody seed and owner signing root.                                                   |
 | `deviceId`                        | Installation identity for one Wallet authority on one browser or device. It is not a hardware fingerprint.                                                                                                |
 
+## Wallet settings presentation
+
+- `WalletSettingsPage`, inside `SeamsWebProvider`, presents the account menu as a
+  full-page sidebar and a selected settings panel. Signed-out users authenticate
+  through the hosted authentication menu before accessing wallet settings.
+- Page presentation retains the account menu's capability restrictions and uses
+  the same export, recovery, authentication-method, device-linking, and preference
+  operations. Authentication methods and linked devices render inline without
+  modal focus trapping; sensitive-operation confirmations retain their existing UI.
+- Narrow viewports expose the sidebar through an explicit settings disclosure.
+  Selecting a section moves focus to its heading. Locking returns to authentication.
+
 ## Durable ECDSA preprocessing
 
 - An owner pool-fill ceremony uses six dependent HTTP exchanges: initialization

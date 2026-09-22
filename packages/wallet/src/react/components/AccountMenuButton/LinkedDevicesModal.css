@@ -3,7 +3,9 @@
   inset: 0;
   z-index: var(
     --seams-z-underlay-backdrop,
-    calc(var(--seams-wallet-overlay-z, 2147483646) - var(--seams-wallet-underlay-backdrop-offset, 2))
+    calc(
+      var(--seams-wallet-overlay-z, 2147483646) - var(--seams-wallet-underlay-backdrop-offset, 2)
+    )
   );
   background: rgb(0 0 0 / 0.26);
   display: flex;
@@ -510,4 +512,27 @@
   .seams-linked-devices-modal-backdrop {
     align-items: flex-start;
   }
+}
+
+.seams-linked-devices-modal-backdrop[data-presentation='page'] {
+  position: static;
+  display: block;
+  padding: 0;
+  background: transparent;
+  overflow: visible;
+  animation: none;
+}
+.seams-linked-devices-modal-backdrop[data-presentation='page'] .seams-linked-devices-modal-content {
+  width: 100%;
+  max-height: none;
+  overflow: visible;
+  padding: 24px;
+  border: 1px solid var(--seams-colors-borderPrimary);
+  animation: none;
+}
+.seams-linked-devices-modal-backdrop[data-presentation='page'] .seams-linked-devices-modal-close {
+  display: none;
+}
+.seams-linked-devices-modal-backdrop[data-presentation='page'] .seams-linked-devices-modal-body {
+  overflow: visible;
 }

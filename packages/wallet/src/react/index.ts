@@ -164,7 +164,11 @@ export { TxExecutionStatus } from '../core/types/actions';
 // === REACT COMPONENTS ===
 ////////////////////////////
 
-export { AccountMenuButton, ProfileSettingsButton } from './components/AccountMenuButton';
+export {
+  AccountMenuButton,
+  ProfileSettingsButton,
+  WalletSettingsPage,
+} from './components/AccountMenuButton';
 export { QRCodeScanner } from './components/QRCodeScanner';
 export type { QRCodeScannerProps } from './components/QRCodeScanner';
 export { ShowQRCode } from './components/ShowQRCode';

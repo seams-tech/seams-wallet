@@ -15,6 +15,7 @@ export interface AuthenticationMethodsModalProps {
   readonly walletId: string | null;
   readonly isOpen: boolean;
   readonly onClose: () => void;
+  readonly presentation?: 'modal' | 'page';
 }
 
 type AuthenticationMethodView = {
@@ -202,6 +203,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   walletId,
   isOpen,
   onClose,
+  presentation = 'modal',
 }) => {
   const { seams, loginState, refreshLoginState } = useSeams();
   const [loadState, setLoadState] = React.useState<LoadState>({ kind: 'idle' });
@@ -299,7 +301,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   );
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || presentation === 'page') return;
     previousFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.focus({ preventScroll: true });
@@ -309,7 +311,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       previousFocusRef.current?.focus();
       previousFocusRef.current = null;
     };
-  }, [handleDialogKeyDown, isOpen]);
+  }, [handleDialogKeyDown, isOpen, presentation]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -387,11 +389,16 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
         walletAuthMethodId: method.walletAuthMethodId,
       });
       await refreshLoginStateRef.current(walletId);
-      onClose();
+      if (presentation === 'page') {
+        setActionState({ kind: 'idle' });
+        await loadInventory();
+      } else {
+        onClose();
+      }
     } catch (error: unknown) {
       setActionState({ kind: 'error', message: errorMessage(error) });
     }
-  }, [actionState, onClose, walletId]);
+  }, [actionState, loadInventory, onClose, presentation, walletId]);
 
   if (!isOpen) return null;
 
@@ -409,31 +416,36 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
     <Theme theme={theme} tokens={scopedTokens}>
       <div
         className={`seams-linked-devices-modal-backdrop theme-${theme}`}
+        data-presentation={presentation}
         role="presentation"
         onMouseDown={(event) => {
-          if (event.target === event.currentTarget) onClose();
+          if (presentation === 'modal' && event.target === event.currentTarget) onClose();
         }}
       >
         <div
           ref={dialogRef}
           className="seams-linked-devices-modal-content seams-auth-methods-modal-content"
-          role="dialog"
-          aria-modal="true"
+          role={presentation === 'modal' ? 'dialog' : 'region'}
+          aria-modal={presentation === 'modal' ? true : undefined}
           aria-labelledby="seams-auth-methods-modal-title"
           tabIndex={-1}
         >
-          <button
-            type="button"
-            className="seams-linked-devices-modal-close"
-            onClick={onClose}
-            aria-label="Close authentication methods"
-          >
-            ✕
-          </button>
+          {presentation === 'modal' ? (
+            <button
+              type="button"
+              className="seams-linked-devices-modal-close"
+              onClick={onClose}
+              aria-label="Close authentication methods"
+            >
+              ✕
+            </button>
+          ) : null}
           <h2 id="seams-auth-methods-modal-title" className="seams-linked-devices-modal-title">
             Authentication methods
           </h2>
-          <p className="seams-auth-methods-modal-intro">Manage how this device unlocks the wallet.</p>
+          <p className="seams-auth-methods-modal-intro">
+            Manage how this device unlocks the wallet.
+          </p>
 
           <div className="seams-linked-devices-modal-body">
             {loadState.kind === 'loading' || loadState.kind === 'idle' ? (
