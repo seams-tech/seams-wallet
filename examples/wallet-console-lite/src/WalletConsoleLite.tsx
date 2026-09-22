@@ -215,6 +215,7 @@ function ConfiguredWalletPlayground({
 function createWalletConfig(workspace: ReadyLocalWorkspace) {
   const { walletConfig } = workspace;
   return defineSeamsConfig({
+    appearance: { theme: { id: 'default', mode: 'light' } },
     walletOrigin: walletConfig.walletOrigin,
     relayerUrl: walletConfig.gatewayUrl,
     projectEnvironmentId: walletConfig.projectEnvironmentId,
