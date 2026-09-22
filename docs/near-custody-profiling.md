@@ -47,6 +47,47 @@ The contract test holds NEAR admission or execution, requires preparation to
 finish while the request is held, verifies EVM signing, then releases NEAR and
 checks readiness and signing. Existing resume contracts cover interrupted work.
 
+## Controlled custody-overlap benchmark
+
+Twenty alternating-order pairs ran on one frozen SDK and backend, with the
+release signing-worker artifact. The control delayed the worker's preparation
+message until custody completed; it retained the same production implementation.
+All 40 registrations passed, including verified NEAR signing before and after
+refresh.
+
+| Milliseconds | After custody median | During custody median | After custody p95 | During custody p95 |
+| --- | ---: | ---: | ---: | ---: |
+| Full NEAR readiness | 997.9 | 978.6 | 1499.4 | 1240.1 |
+| EVM registration return | 640.5 | 638.5 | 713.0 | 794.0 |
+| Remaining seal-preparation wait | 13.6 | 0.0 | 23.8 | 0.0 |
+| Custody join | 325.2 | 326.7 | 340.2 | 468.0 |
+| Hydration | 96.5 | 96.0 | 114.2 | 118.3 |
+
+Full readiness improved by 19.3 ms (1.9%) at the cohort median. Fourteen of twenty
+pairs improved; paired median savings were 17.1 ms. The deterministic gate
+contracts and zero remaining preparation wait support the overlap mechanism.
+The noisy tail and 20 samples per cohort limit conclusions about p95: EVM return
+and custody p95 moved in the opposite direction. No EVM speedup is claimed.
+
+Preparation itself took 56.8 ms at the median. The control's preparation duration
+includes its intentional queue delay and must not be interpreted as crypto cost.
+Hydration remains about 96 ms and is the next sizeable client continuation stage;
+its authorized server request still depends on finalization.
+
+[Timing-only samples](./near-custody-overlap-latency.json)
+
+Reproduce the current comparison with the benchmark config and fixed artifacts:
+
+```sh
+playwright test -c playwright.wallet-intended.benchmark.ci.config.ts \
+  e2e/intended-behaviours/passkey.registration.benchmark.test.ts \
+  --grep '(custody_prepared|after_custody) pair'
+```
+
+The measured SDK was built from the changes committed as `2b147d2`. The build
+profile correction is `8d73c8d`. Tests ran on separate ports 7100/7201/7202 and
+7203; the active demo runtime was preserved.
+
 ## Scope
 
 These measurements use local Workers, a virtual passkey authenticator, and
