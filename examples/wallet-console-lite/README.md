@@ -27,32 +27,16 @@ If a run is interrupted, stop any remaining `wrangler dev` processes before rest
 
 ## Prediction-market transaction review
 
-Choose **Preview review → wallet modal** to open the React trade summary inside
-the production SDK review overlay without signing in. **Confirm in wallet**
-transitions that same overlay to the production transaction confirmer, where you
-can expand transaction details, approve the preview, or cancel. Approval is
-simulated: nothing is signed or sent. Select a new amount and reopen the preview
-to refresh its fixture quote.
+Choose **Preview trade** for a sample YES purchase of 0.1 test units.
+The React review and wallet approval share one modal that resizes between screens.
+**Confirm in wallet** opens the transaction confirmer; its Back arrow returns to
+the review. Approval is simulated, with no sign-in, signing, or transaction submission.
+Reopening the preview refreshes its 90-second fixture quote.
 
 This repository-only UI showcase imports SDK internals through the
-`@wallet-preview` Vite alias and uses a separate fixture iframe. It demonstrates
-rendering and interaction; the authenticated example below demonstrates the
-public `review` API and real signing flow.
-
-After local project setup, create or unlock a NEAR testnet wallet. In the
-**Prediction market · R140 demo** panel, choose YES or NO and a fixture amount,
-then select **Review prediction trade**. Your React trade summary opens inside
-the SDK's existing transaction-confirmer modal. **Confirm in wallet** transitions
-the same modal to the standard wallet approval; **Back to trade** cancels it.
-
-While signed out, **Sign in to review trade** opens the hosted wallet sign-in
-panel. Complete authentication, then select **Review prediction trade**.
-Position and amount selection remain available before sign-in.
-
-Quotes expire after 90 seconds. The expired, slow, and failing review buttons
-exercise the same SDK error and loading flows. The fixture market does not buy
-positions: final approval sends a zero-value NEAR self-transfer and incurs
-testnet gas. Actual network fees are shown by the wallet.
+`@wallet-preview` Vite alias and uses a separate fixture iframe. See
+[`docs/transaction-review.md`](../../docs/transaction-review.md) for the public
+`review` API used with real transactions.
 
 The component and renderer live in `src/PurchaseReviewExample.tsx`; styling lives
 in `src/styles.css`. `TransactionReviewHost` is mounted in `WalletConsoleLite.tsx`.

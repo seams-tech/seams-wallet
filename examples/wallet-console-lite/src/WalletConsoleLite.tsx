@@ -488,7 +488,7 @@ function WalletPlayground({
             />
           )}
 
-          <PurchaseReviewExample onRequestSignIn={openAuthMenu.bind(null, setAuthMenu)} />
+          <PurchaseReviewExample />
 
           <details className="panel configuration">
             <summary>Public local configuration</summary>

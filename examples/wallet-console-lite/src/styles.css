@@ -373,24 +373,8 @@ summary {
   margin-top: 0.9rem;
 }
 
-.prediction-demo fieldset {
-  margin: 1.2rem 0;
-  padding: 0;
-  border: 0;
-}
-
-.prediction-demo fieldset p {
-  margin: 1.2rem 0 0;
-}
-
-.prediction-demo button[aria-pressed='true'] {
-  color: #fff;
-  background: #91313e;
-  border-color: #91313e;
-}
-
-.prediction-demo > button {
-  margin: 0 0.5rem 0.5rem 0;
+.prediction-demo > .prediction-caption {
+  margin: 0.75rem 0 0;
 }
 
 .prediction-review {
