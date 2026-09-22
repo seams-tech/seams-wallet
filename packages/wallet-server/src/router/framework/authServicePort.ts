@@ -194,13 +194,8 @@ export type RouterApiWalletSessionAuthorizationV2AdmissionContext = {
   readonly retiredAtMs: number | null;
 };
 
-/** Live identity for exact-operation admission; grants no reusable signing allowance. */
-export type RouterApiWalletSessionExactOperationContext = {
-  readonly session: IssuedWalletSessionAuthorizationV2['session'];
-  readonly authority: ActiveWalletAuthorityV1;
-  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
-  readonly retiredAtMs: null;
-};
+export type RouterApiWalletSessionExactOperationContext =
+  import('../../authorization/domain').WalletSessionExactOperationContext;
 
 /** Exact exhausted status retained before authorized-operation admission. */
 export type RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext = {

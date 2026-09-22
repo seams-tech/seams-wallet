@@ -42,6 +42,7 @@ import type {
   PersistedHostedWalletSeamsSessionExchangeV2Result,
   ExactWalletSessionQuotaProjectionV1,
   ExactWalletSessionStatusV2,
+  WalletSessionExactOperationContext,
   ResolvedHostedWalletSessionOperationCredentialV2,
   VerifiedAuthorizationEvidenceSet,
   VerifiedOwnerProof,
@@ -75,7 +76,11 @@ import type {
 } from '../../../../authorization/service';
 import { D1WalletStore } from '../../../../core/d1WalletStore';
 import type { D1WalletStoreScope } from '../../../../core/d1WalletStore';
-import { D1WalletAuthorityStore } from '../wallet/d1WalletAuthorityStore';
+import {
+  D1WalletAuthorityStore,
+  parseD1WalletAuthorityRow,
+} from '../wallet/d1WalletAuthorityStore';
+import { normalizeWalletAuthMethodV2 } from '../../../../core/d1WalletAuthMethodStore';
 import { prepareD1WalletSessionAuthorityProjectionStatements } from './walletSessionAuthorityProjection';
 import { d1ChangedRows, parseD1JsonColumn, type D1Row } from '../../../../storage/d1Sql';
 import type {
@@ -1807,11 +1812,11 @@ export class CloudflareD1AuthorizationStore
     );
   }
 
-  async readWalletSessionForExactOperationByCredential(input: {
+  async readWalletSessionExactOperationContextByCredential(input: {
     readonly tenantId: WalletSessionAuthorizationV2['tenantId'];
     readonly tokenHash: import('@shared/utils/canonicalPrimitives').DigestB64u;
     readonly nowMs: number;
-  }): Promise<WalletSessionAuthorizationV2 | null> {
+  }): Promise<WalletSessionExactOperationContext | null> {
     const row = await this.readJoinedWalletSessionAuthorizationV2Row({
       lookupColumn: 'operation_credential_hash',
       tenantId: input.tenantId,
@@ -1825,7 +1830,23 @@ export class CloudflareD1AuthorizationStore
     });
     // Exhaustion permits identity resolution; exact-operation admission grants authority.
     parseExactWalletSessionQuotaProjectionRow(row, session);
-    return session;
+    const authority = await parseD1WalletAuthorityRow(row);
+    const authMethod = normalizeWalletAuthMethodV2(parseD1JsonColumn(row.auth_method_record_json));
+    if (
+      authority.state !== 'active' ||
+      !authMethod ||
+      authMethod.status !== 'active' ||
+      authority.walletId !== session.walletId ||
+      authority.authorityId !== session.authorityId ||
+      authority.authorityDigestB64u !== session.authorityDigestB64u ||
+      authority.revocationEpoch !== session.authorityRevocationEpoch ||
+      authMethod.walletId !== session.walletId ||
+      authMethod.walletAuthorityId !== session.authorityId ||
+      authMethod.walletAuthMethodId !== session.walletAuthMethodId
+    ) {
+      return null;
+    }
+    return { session, authority, authMethod, retiredAtMs: null };
   }
 
   /**
@@ -2032,6 +2053,7 @@ export class CloudflareD1AuthorizationStore
     return await this.database
       .prepare(
         `SELECT
+           authority.*,
            session.record_json AS session_record_json,
            session.capability_subjects_json AS session_capability_subjects_json,
            session.tenant_id AS session_tenant_id,
@@ -2048,12 +2070,12 @@ export class CloudflareD1AuthorizationStore
            session.issued_at_ms AS session_issued_at_ms,
            session.expires_at_ms AS session_expires_at_ms,
            session.retired_at_ms AS session_retired_at_ms,
-           authority.authority_id AS authority_id,
            authority.wallet_id AS authority_wallet_id,
            authority.lifecycle_state AS authority_lifecycle_state,
            authority.authority_digest_b64u AS authority_digest_b64u,
            authority.revocation_epoch AS authority_revocation_epoch,
            authority.signer_activations_json AS authority_signer_activations_json,
+           auth_method.record_json AS auth_method_record_json,
            auth_method.wallet_auth_method_id AS auth_method_id,
            auth_method.wallet_id AS auth_method_wallet_id,
            auth_method.wallet_authority_id AS auth_method_authority_id,

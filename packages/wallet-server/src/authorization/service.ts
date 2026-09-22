@@ -14,6 +14,7 @@ import type {
   RedeemHostedWalletSeamsSessionExchangeV2Input,
   RedeemHostedWalletSeamsSessionExchangeV2Result,
   ExactWalletSessionStatusV2,
+  WalletSessionExactOperationContext,
   ResolvedHostedWalletSessionOperationCredentialV2,
   SessionOrigin,
   VerifiedAuthorizationEvidenceSet,
@@ -132,11 +133,11 @@ export interface AuthorizationGrantPort {
     readonly tokenHash: DigestB64u;
     readonly nowMs: number;
   }): Promise<IssuedWalletSessionAuthorizationV2 | null>;
-  readWalletSessionForExactOperationByCredential(input: {
+  readWalletSessionExactOperationContextByCredential(input: {
     readonly tenantId: TenantId;
     readonly tokenHash: DigestB64u;
     readonly nowMs: number;
-  }): Promise<WalletSessionAuthorizationV2 | null>;
+  }): Promise<WalletSessionExactOperationContext | null>;
   readExactWalletSessionStatusByOperationCredential(input: {
     readonly tenantId: TenantId;
     readonly tokenHash: DigestB64u;
@@ -570,18 +571,18 @@ export class AuthorizationService {
     });
   }
 
-  async readWalletSessionForExactOperationByCredential(input: {
+  async readWalletSessionExactOperationContextByCredential(input: {
     readonly tenantId: TenantId;
     readonly token: string;
     readonly nowMs: number;
-  }): Promise<WalletSessionAuthorizationV2 | null> {
+  }): Promise<WalletSessionExactOperationContext | null> {
     let token: ReturnType<typeof parsePrimaryWalletSessionOperationCredentialToken>;
     try {
       token = parsePrimaryWalletSessionOperationCredentialToken(input.token);
     } catch {
       return null;
     }
-    return await this.ports.grants.readWalletSessionForExactOperationByCredential({
+    return await this.ports.grants.readWalletSessionExactOperationContextByCredential({
       tenantId: input.tenantId,
       tokenHash: await digestOpaqueValue(token),
       nowMs: input.nowMs,

@@ -217,7 +217,32 @@ test('exhausted presign steps read material once per request and still require e
 
 function joinedSessionRow(data: Awaited<ReturnType<typeof buildPresignStepFixture>>) {
   const session = data.session;
+  const authority = data.fixture.authority;
+  const provenance = authority.provenance;
   return {
+    record_json: JSON.stringify(authority),
+    wallet_id: authority.walletId,
+    device_id: authority.principal.deviceId,
+    provenance_kind: provenance.kind,
+    enrollment_id: provenance.kind === 'device_link' ? provenance.enrollmentId : null,
+    source_authority_id: provenance.kind === 'device_link' ? provenance.sourceAuthorityId : null,
+    link_session_id: provenance.kind === 'device_link' ? provenance.linkSessionId : null,
+    recovery_operation_id:
+      provenance.kind === 'wallet_recovery' ? provenance.recoveryOperationId : null,
+    continuity_authority_id:
+      provenance.kind === 'wallet_recovery' ? provenance.continuityAuthorityId : null,
+    lifecycle_state: authority.state,
+    permissions_json: JSON.stringify(authority.permissions),
+    signer_activations_json: JSON.stringify(authority.signerActivations),
+    local_install_package_set_digest_b64u: null,
+    signer_activation_set_digest_b64u: authority.signerActivationSetDigestB64u,
+    authority_digest_b64u: authority.authorityDigestB64u,
+    revocation_epoch: authority.revocationEpoch,
+    created_at_ms: authority.createdAtMs,
+    updated_at_ms: authority.updatedAtMs,
+    activated_at_ms: authority.activatedAtMs,
+    revoked_at_ms: null,
+    auth_method_record_json: JSON.stringify(data.fixture.authMethod),
     session_record_json: JSON.stringify(session),
     session_capability_subjects_json: JSON.stringify(session.capabilitySubjects),
     session_tenant_id: session.tenantId,
@@ -307,8 +332,8 @@ test('live credential lookup accepts exhausted identity and rejects stale proven
     tokenHash: parseDigestB64u(base64UrlEncode(new Uint8Array(32).fill(1))),
     nowMs: Date.now(),
   };
-  await expect(store.readWalletSessionForExactOperationByCredential(input)).resolves.toEqual(
-    data.session,
+  await expect(store.readWalletSessionExactOperationContextByCredential(input)).resolves.toEqual(
+    data.candidate,
   );
   expect(database.reads).toBe(1);
   await expect(store.readWalletSessionAuthorizationV2ByOperationCredential(input)).rejects.toThrow(
@@ -320,8 +345,8 @@ test('live credential lookup accepts exhausted identity and rejects stale proven
     quota_lifecycle_kind: 'active',
     quota_remaining_uses: 1,
   };
-  await expect(store.readWalletSessionForExactOperationByCredential(input)).resolves.toEqual(
-    data.session,
+  await expect(store.readWalletSessionExactOperationContextByCredential(input)).resolves.toEqual(
+    data.candidate,
   );
   await expect(
     store.readWalletSessionAuthorizationV2ByOperationCredential(input),
@@ -336,23 +361,44 @@ test('live credential lookup accepts exhausted identity and rejects stale proven
     ['quota_remaining_uses', 1],
     ['quota_id', 'quota:different'],
     ['session_capability_subjects_json', '[]'],
+    ['device_id', 'device:wrong'],
+    ['permissions_json', '{}'],
+    ['record_json', '{}'],
   ];
   for (const [column, value] of invalidColumns) {
     database.row = { ...joinedSessionRow(data), [column]: value };
     await expect(
-      store.readWalletSessionForExactOperationByCredential(input),
+      store.readWalletSessionExactOperationContextByCredential(input),
       column,
     ).rejects.toThrow();
   }
   database.row = joinedSessionRow(data);
   await expect(
-    store.readWalletSessionForExactOperationByCredential({
+    store.readWalletSessionExactOperationContextByCredential({
       ...input,
       nowMs: data.session.expiresAtMs,
     }),
   ).rejects.toThrow('expired');
+  const changedDigest = parseDigestB64u(base64UrlEncode(new Uint8Array(32).fill(9)));
+  const corruptRow = joinedSessionRow(data);
+  const corruptAuthority = JSON.parse(corruptRow.record_json);
+  corruptAuthority.authorityDigestB64u = changedDigest;
+  const corruptSession = JSON.parse(corruptRow.session_record_json);
+  corruptSession.authorityDigestB64u = changedDigest;
+  database.row = {
+    ...corruptRow,
+    record_json: JSON.stringify(corruptAuthority),
+    session_record_json: JSON.stringify(corruptSession),
+    authority_digest_b64u: changedDigest,
+    session_authority_digest_b64u: changedDigest,
+  };
+  await expect(store.readWalletSessionExactOperationContextByCredential(input)).rejects.toThrow(
+    'digest',
+  );
+  database.row = { ...joinedSessionRow(data), auth_method_record_json: '{}' };
+  await expect(store.readWalletSessionExactOperationContextByCredential(input)).resolves.toBeNull();
   database.row = null;
-  await expect(store.readWalletSessionForExactOperationByCredential(input)).resolves.toBeNull();
+  await expect(store.readWalletSessionExactOperationContextByCredential(input)).resolves.toBeNull();
 });
 
 function reusablePresignRequest(
