@@ -27,7 +27,7 @@ If a run is interrupted, stop any remaining `wrangler dev` processes before rest
 
 ## Prediction-market transaction review
 
-Choose **Preview trade** for a sample YES purchase of 0.1 test units.
+Choose **Preview component** for a sample YES purchase of 0.1 test units.
 The React review and wallet approval share one modal that resizes between screens.
 **Confirm in wallet** opens the transaction confirmer; its Back arrow returns to
 the review. Approval is simulated, with no sign-in, signing, or transaction submission.

@@ -66,7 +66,7 @@ connection errors retain their types. Refresh expired quotes and make a new call
 
 See `examples/wallet-console-lite/src/PurchaseReviewExample.tsx` for an interactive
 prediction-market preview using the shared review and wallet approval modal.
-Choose **Preview trade** at `http://localhost:4001/`; no sign-in or signing is required.
+Choose **Preview component** at `http://localhost:4001/`; no sign-in or signing is required.
 
 Wallet approval includes **Back to review** when opened from an application review.
 Back preserves the review component's local state and the original quote deadline.
