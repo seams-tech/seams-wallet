@@ -1413,3 +1413,119 @@ temporarily making the repository public, attempt 2 of the same workflow applied
 the migration and deployed every backend role. Gateway smoke checks and ephemeral
 cache cleanup passed. The repository returned to private after completion. Mainnet
 backend rollout remains separately billing-blocked.
+
+## Deployed 0.5.29–0.5.30 registration refill check (2026-09-22)
+
+Wallet 0.5.29 exposed a registration refill failure on the production-hosted
+testnet service: a fresh wallet retained only three of its intended five ECDSA
+presignatures. The three successful ceremonies took **9.772, 11.033, and 6.933
+seconds**. The 30-second `refillAttemptTimeoutMs` covered the entire sequential
+batch, leaving the fourth ceremony with an almost-expired deadline. The
+[0.5.30 correction](https://github.com/seams-tech/seams-wallet/pull/20) gives
+each entry a fresh, bounded attempt window capped by authenticated session
+expiry. It does not change the five-entry target, authorization, or one-use
+consumption policy.
+
+Both Wallet packages were published as 0.5.30 from
+`4362356dffcd2ed5b2683e757ff679f514cddb29` in
+[release run 35625446070](https://github.com/seams-tech/seams-wallet/actions/runs/35625446070).
+Monorepo PR #34 merged as `c84397813bf1458195984ae4cf443321e28ee1d3`.
+[Frontend deployment](https://github.com/seams-tech/seams-monorepo/actions/runs/35681750563)
+and the [coordinated testnet backend deployment](https://github.com/seams-tech/seams-monorepo/actions/runs/35681756231)
+passed, including frontend and gateway smoke checks. Both hosted wallet asset
+manifests report 0.5.30. Mainnet backend deployment remains a separate billing
+blocker; this check uses testnet services hosted in production.
+
+One fresh Chromium virtual-passkey wallet was registered from Japan without
+request or response interception. The registration UI was ready **10.49 seconds**
+after starting; the first durable entry appeared at **16.36 seconds**, so pool
+completion did not hold registration success. All five ceremonies succeeded,
+with durations **6.009, 5.538, 5.827, 5.800, and 5.406 seconds** (median **5.800
+seconds**), and the durable pool reached **5/5**. All 40 observed fill requests
+returned HTTP 200. Across those requests, median `ecdsa_presign_sw_do_total`
+was **0 ms**, `ecdsa_presign_sw_session` was **23 ms**, and
+`ecdsa_presign_proxy` was **184 ms**. Summed browser request-start-to-response
+spans for each eight-request ceremony were **4.677–5.566 seconds**; these spans
+include server computation, storage, scheduling, and network transit. The zero
+object-handler timing cannot rule out CPU cost: deployed Cloudflare application
+timers advance across I/O and remain frozen during CPU-only work. Use
+[runtime CPU telemetry and profiling](https://developers.cloudflare.com/workers/runtime-apis/performance/)
+to separate those costs before attributing the remaining wait to transport.
+
+All five hashed record fingerprints remained unchanged after reload, with stored
+expiry metadata approximately 90 days away. The first post-reload Tempo funding
+signature consumed one saved presignature, made **zero foreground fill requests**,
+and completed `commit_total` in **2.192 seconds**. The consumed entry was absent
+after signing and background refill restored the pool to five with a new entry.
+This checks hosted persistence, one-use consumption, and refill for one browser
+profile. It does not prove 90 days of wall-clock survival, population p95, Arc
+signing, or the 1–3-second target for empty-pool foreground generation.
+
+Allowlisted local measurements are retained under the private monorepo's ignored
+`output/playwright/presign-registration-attribution-0.5.30.*` and
+`output/playwright/durable-reload-acceptance-0.5.30.*` artifacts. The remaining
+performance task is to measure representative first-use and empty-pool cohorts,
+then benchmark a lower-round-trip presign transport against the current eight
+dependent requests per entry without changing custody or authorization.
+
+### Immediate registration-to-sign comparison on 0.5.30
+
+The public intended-behavior harness completed three local, fresh-passkey Tempo
+registration-to-sign runs. Registration took **2.746–2.761 seconds**; the first
+signature took **0.673–0.687 seconds** afterward. Two further local runs inspected
+the durable pool at registration return: both already had **one** presignature,
+and the first signature took **0.682–0.683 seconds**. These local runs exercise the
+real Wallet SDK and managed local workers, but stub external chain edges. They
+measure the cached path; they do not measure local foreground generation.
+
+To isolate the miss path, the harness held the background presign-init request
+until registration returned, verified pool depth **0**, then released it and
+signed immediately. Two local runs took **0.681** and **0.700 seconds** from
+registration return to completed Tempo signature (registration **2.707** and
+**2.748 seconds**). This includes local presign generation and signing, and
+passes the signature contract. The hold is a benchmark control, not product
+behavior.
+
+In two additional controlled local runs, delaying each presign step request by
+**100 ms** or **250 ms** increased the empty-pool first-sign time to **1.454**
+or **3.017 seconds**, respectively, from an undelayed **0.681–0.700 seconds**.
+These are single-run injected-latency diagnostics, not a fitted network model.
+They confirm that the dependent step exchanges materially amplify per-request
+latency. The benchmark-only request interception was removed after measurement.
+The existing native Rust `local_lifecycle_timing` example, run in release mode
+for 25 iterations on the same machine, reported **34.202 ms** median for both
+presign roles together (including **33.603 ms** for triples). Native CPU timing
+is a useful floor; it does not represent deployed Worker/WASM CPU time.
+
+One fresh hosted-testnet virtual-passkey run from Japan measured registration
+ready at **9.437 seconds** with **zero** durable presignatures. Signing immediately
+after registration completed **10.205 seconds** later. The signing trace reported
+**5.301 seconds** waiting for a presignature, **2.284 seconds** in prepare, and
+**0.983 seconds** in finalize (`commit_total`: **9.084 seconds**). The first
+presignature completed roughly **6.6 seconds** after background generation began.
+The ceremony made eight successful dependent HTTP requests whose browser spans
+totaled **5.506 seconds**; one preceding request returned HTTP 401 and took
+**0.331 seconds**. The eight successful responses reported **0.846 seconds** of
+authentication and **2.222 seconds** of proxy timing in aggregate. Those server
+spans overlap with downstream work and must not be added to the browser spans.
+The cryptographic signature completed; this fresh test wallet's chain funding
+was not established by this sample.
+
+The local and hosted product environments differ, so these are diagnostic
+samples rather than an equivalent-cohort latency claim. They do establish why
+local development missed the immediate-sign delay: local foreground generation
+and signing also finish in about **0.7 seconds** with an empty pool, whereas the
+hosted first signature waited **5.3 seconds** for its first entry. Registration
+prefill was already running before the hosted UI reported success; it had only
+about **0.7 seconds** of overlap by then. The registration path schedules
+prefill immediately after the exact ECDSA session and capability become
+durable. Further movement before that boundary would require a different
+authority design.
+
+Next, benchmark the same empty-pool path locally and hosted, including per-round
+browser spans, server CPU telemetry, and prepare/finalize timings. Compare a
+persistent authenticated transport or fewer protocol exchanges against the
+eight-request baseline. Keep every message bound to the live authorization and
+the same one-use presign session. The 1–3-second immediate-sign target is not
+met by the current hosted empty-pool path; record a before/after cohort before
+claiming an optimization.
