@@ -1949,3 +1949,41 @@ spans supplement invocation wall/CPU measurements and do not cover every early
 error return. They are diagnostics only and do not alter admission, timeout,
 reservation, or signing behavior. Hosted attribution awaits the coordinated
 release; no deployment was performed to collect these new spans.
+
+The historical 9–10s preparation outlier is no longer an active investigation,
+per the user's direction after it failed to recur in these captures. Network
+variability remains a possible explanation, not an established cause. This
+changes the investigation priority; it does not establish that the outlier has
+been fixed. Continue work on the demonstrated recovery race, database round
+trips, and registration-to-first-sign latency.
+
+A local workerd transport experiment covered ingress → gateway → Router →
+SigningWorker → Durable Object with six sequential messages and a fresh modeled
+D1 authorization read per message. Across five samples per transport and body
+size, HTTP versus direct service-binding RPC medians were 14.47ms versus 11.71ms
+for 4KiB and 13.89ms versus 11.85ms for 32KiB. The model checked ordering,
+duplicate messages, immutable expiry, revocation, cancellation, and terminal
+single-use. It uses synthetic messages and admission, not production MPC or its
+full authorization contract. The roughly 2–3ms local difference does not justify
+a production transport rewrite or establish a hosted latency benefit. Results:
+private ignored `output/playwright/presign-internal-transport-local.json`;
+experiment source: `/tmp/presign-internal-transport.mjs`. No remote deployment
+was made for this experiment.
+
+The atomic presign-to-prepare storage prototype reuses the production
+`router-ab-ecdsa-pool` transitions and local SQLite transactions. Six tests pass:
+first durable state is reserved and single-use; a pre-commit crash publishes
+nothing; duplicate completion cannot replace or rebind the reservation; a wrong
+request burns material; expiry burns material; and stale revisions cannot
+restore consumed material. Source and results are `/tmp/presign-atomic-handoff`
+and `/tmp/presign-atomic-handoff.log`. This validates a storage transition only,
+not the production gateway admission, DO-to-D1 delivery, browser recovery, or
+cryptographic signing flow, and provides no latency measurement.
+
+Owner-flow fusion remains unimplemented. Unlike the linked-device path, owner
+preparation currently binds the presignature ID obtained from completion, while
+background generation can start before an operation is confirmed. A fused owner
+path must attach one confirmed operation immutably, publish directly as reserved,
+and preserve live authorization and failure recovery across the client, gateway,
+DO, and D1 boundaries. The local storage result is a prerequisite, not evidence
+that those integration requirements have been met.
