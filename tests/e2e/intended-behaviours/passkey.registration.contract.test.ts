@@ -272,6 +272,48 @@ test('passkey registration establishes an immediately usable owner session witho
   }
 });
 
+async function rejectInitialPresignAdmission(counter: { requests: number }, route: Route): Promise<void> {
+  counter.requests += 1;
+  await route.fulfill({
+    status: 401,
+    json: { ok: false, code: 'wallet_session_invalid', message: 'Authority publication pending' },
+  });
+}
+
+function readRequestCount(counter: { requests: number }): number {
+  return counter.requests;
+}
+
+test('mixed registration reconciles rejected ECDSA refill after deferred authority publication', async ({
+  harness,
+  context,
+  page,
+}) => {
+  const nearGate = new RegistrationPresignGate();
+  const nearProvisioning = '**/wallets/register/near-provisioning';
+  const holdNear = nearGate.hold.bind(nearGate);
+  const presignInit = '**/router-ab/ecdsa-derivation/presignature-pool/fill/init';
+  const rejected = { requests: 0 };
+  const rejectInitial = rejectInitialPresignAdmission.bind(undefined, rejected);
+  await context.route(nearProvisioning, holdNear);
+  await context.route(presignInit, rejectInitial);
+  try {
+    await harness.registerPasskeyWallet();
+    await expect.poll(readRequestCount.bind(undefined, rejected)).toBeGreaterThan(0);
+    expect(await readDurablePresignatureCount(page)).toBe(0);
+    await context.unroute(presignInit, rejectInitial);
+    nearGate.release();
+    await harness.awaitNearReady();
+    await expect.poll(readDurablePresignatureCount.bind(undefined, page), { timeout: 15_000 })
+      .toBe(1);
+    await harness.signTempoTransaction('post_registration');
+  } finally {
+    nearGate.release();
+    await context.unroute(nearProvisioning, holdNear);
+    await context.unroute(presignInit, rejectInitial);
+  }
+});
+
 test('sustained Tempo and Arc signing uses fresh presignatures beyond pool capacity', async ({
   harness,
   context,

@@ -1134,3 +1134,56 @@ test('authorization rejection stops refill without a retry loop', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+class ReconciledSessionPresignatureSource extends MaintainingPresignatureSource {
+  readonly oldAdmissionStarted = createDeferred();
+  readonly releaseOldAdmission = createDeferred();
+  readonly oldAdmissionFinished = createDeferred();
+  private oldAdmissionPending = true;
+
+  constructor() {
+    super('');
+  }
+
+  override async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const credential = new Headers(init?.headers).get('Authorization');
+    expect(credential).toBe('Bearer test-token');
+    if (this.oldAdmissionPending) {
+      this.oldAdmissionPending = false;
+      this.oldAdmissionStarted.resolve();
+      await this.releaseOldAdmission.promise;
+      this.oldAdmissionFinished.resolve();
+      return Response.json({
+        ok: false,
+        code: 'wallet_session_invalid',
+        message: 'The previous session has been superseded',
+      });
+    }
+    return super.fetch(input, init);
+  }
+}
+
+test('authority reconciliation retains its refill when the old attempt rejects the same credential', async () => {
+  clearAllRouterAbEcdsaDerivationClientPresignatures();
+  const originalFetch = globalThis.fetch;
+  const source = new ReconciledSessionPresignatureSource();
+  globalThis.fetch = source.fetch.bind(source);
+  const input = await maintenanceInput(source, 60_000);
+  try {
+    expect(scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(input).scheduled).toBe(true);
+    await source.oldAdmissionStarted.promise;
+    const reconciledInput = await maintenanceInput(source, 60_000);
+    expect(scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(reconciledInput)).toMatchObject({
+      scheduled: false,
+      reason: 'in_flight_for_pool_key',
+    });
+    source.releaseOldAdmission.resolve();
+    await source.oldAdmissionFinished.promise;
+    await expect.poll(maintainedDepth.bind(null, reconciledInput), { timeout: 3_000 }).toBe(5);
+    expect(source.initRequests).toBe(5);
+  } finally {
+    source.releaseOldAdmission.resolve();
+    clearAllRouterAbEcdsaDerivationClientPresignatures();
+    globalThis.fetch = originalFetch;
+  }
+});

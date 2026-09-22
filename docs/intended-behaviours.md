@@ -161,6 +161,10 @@ Expected behaviour:
 - Registration schedules bounded ECDSA presignature refill under the established
   session. Registration success does not await pool readiness. Immediate signing
   may use the first completed entry while background refill continues.
+- Deferred mixed-authority publication reconciles ECDSA refill against the newly
+  committed authority, including when the session credential is retained. A late
+  failure from an older attempt cannot cancel the reconciled refill. Rejection
+  without fresh lifecycle reconciliation stops refill without a retry loop.
 - For a mixed signer set, Ed25519/NEAR provisioning continues under the same
   authenticated ceremony and publishes one of `near_pending`,
   `near_provisioning`, `near_ready`, or `near_failed_retryable`.

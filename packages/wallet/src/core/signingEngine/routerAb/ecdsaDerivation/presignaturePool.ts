@@ -784,17 +784,9 @@ function rememberPresignatureMaintenance(
 ): void {
   if (input.authorization.kind !== 'reusable_wallet_session') return;
   const previous = presignatureMaintenance.get(poolKey);
-  if (
-    previous?.input.authorization.kind === 'reusable_wallet_session' &&
-    previous.input.authorization.wallet_session_id === input.authorization.wallet_session_id &&
-    previous.input.credential.kind === 'wallet_session_opaque' &&
-    input.credential.kind === 'wallet_session_opaque' &&
-    previous.input.credential.walletSessionToken === input.credential.walletSessionToken &&
-    previous.input.routerAbEcdsaDerivationPoolFill.ceremonyExpiresAtMs >=
-      input.routerAbEcdsaDerivationPoolFill.ceremonyExpiresAtMs
-  ) {
-    return;
-  }
+  // Maintenance reuses this input. Lifecycle reconciliation supplies a fresh one,
+  // including when authority publication retains the same session credential.
+  if (previous?.input === input) return;
   stopPresignatureMaintenance(poolKey);
   if (presignatureMaintenance.size === 0 && typeof window !== 'undefined') {
     window.addEventListener('online', resumePresignatureMaintenance);
@@ -809,9 +801,13 @@ function rememberPresignatureMaintenance(
   armPresignatureMaintenance(poolKey, 30_000);
 }
 
-function recordPresignatureRefillFailure(poolKey: string, code: string): void {
+function recordPresignatureRefillFailure(
+  poolKey: string,
+  attemptMaintenance: PresignatureMaintenance | null,
+  code: string,
+): void {
   const maintenance = presignatureMaintenance.get(poolKey);
-  if (!maintenance) return;
+  if (!maintenance || maintenance !== attemptMaintenance) return;
   switch (code) {
     case 'network_error':
     case 'internal':
@@ -846,6 +842,7 @@ async function runBackgroundPresignatureRefill(input: {
     refillAttemptTimeoutMs,
     progress,
   } = input;
+  const attemptMaintenance = presignatureMaintenance.get(poolKey) ?? null;
   try {
     await hydrateClientPresignaturePool({
       poolKey,
@@ -860,6 +857,7 @@ async function runBackgroundPresignatureRefill(input: {
     }
     while (Date.now() < args.routerAbEcdsaDerivationPoolFill.ceremonyExpiresAtMs) {
       if (getClientPresignaturePoolGeneration(poolKey) !== scheduledGeneration) return;
+      if ((presignatureMaintenance.get(poolKey) ?? null) !== attemptMaintenance) return;
       if (getClientPresignaturePoolDepth(poolKey) >= targetDepth) return;
       if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
       const attemptDeadlineAtMs = Math.min(
@@ -885,16 +883,16 @@ async function runBackgroundPresignatureRefill(input: {
         targetDepth,
       });
       if (!refill.ok) {
-        recordPresignatureRefillFailure(poolKey, refill.code);
+        recordPresignatureRefillFailure(poolKey, attemptMaintenance, refill.code);
         return;
       }
       const maintenance = presignatureMaintenance.get(poolKey);
-      if (maintenance) maintenance.failures = 0;
+      if (maintenance && maintenance === attemptMaintenance) maintenance.failures = 0;
       progress.publishAvailable();
       if (getForegroundSignInFlightCount(poolKey) > 0) return;
     }
   } catch {
-    recordPresignatureRefillFailure(poolKey, 'internal');
+    recordPresignatureRefillFailure(poolKey, attemptMaintenance, 'internal');
   } finally {
     progress.settle();
     if (clientPresignatureRefillInFlightByPoolKey.get(poolKey) === progress) {
@@ -902,11 +900,11 @@ async function runBackgroundPresignatureRefill(input: {
     }
     const maintenance = presignatureMaintenance.get(poolKey);
     if (maintenance) {
-      const delayMs = maintenance.failures > 0 ? 2_000 * 2 ** maintenance.failures : 1_000;
-      armPresignatureMaintenance(
-        poolKey,
-        getClientPresignaturePoolDepth(poolKey) >= targetDepth ? 30_000 : delayMs,
-      );
+      // A reconciled session can start as soon as the superseded attempt settles.
+      let delayMs = maintenance.failures > 0 ? 2_000 * 2 ** maintenance.failures : 1_000;
+      if (getClientPresignaturePoolDepth(poolKey) >= targetDepth) delayMs = 30_000;
+      if (maintenance !== attemptMaintenance) delayMs = 0;
+      armPresignatureMaintenance(poolKey, delayMs);
     }
   }
 }

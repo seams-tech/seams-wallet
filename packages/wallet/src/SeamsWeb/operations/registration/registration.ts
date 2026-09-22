@@ -2761,6 +2761,18 @@ async function commitDeferredEd25519Registration(args: {
     if (!storedNearActivation || storedNearActivation.signerSlot !== finalized.ed25519.signerSlot) {
       throw new Error('Deferred Ed25519 registration persisted a different signer slot');
     }
+    // Publication can supersede the authority used by the first ECDSA prefill.
+    // Resolve the newly committed context even when its credential is unchanged.
+    const prefillStatusReads = new WalletSessionStatusReadScope();
+    for (const chainTarget of args.plan.ecdsa.expectedChainTargets) {
+      void scheduleEcdsaSessionPresignaturePrefill({
+        signingEngine: args.context.signingEngine,
+        walletId: args.walletId,
+        chainTarget,
+        trigger: 'registration',
+        statusReads: prefillStatusReads,
+      });
+    }
     emitNearRegistrationTiming({
       ceremonyId: args.registrationCeremonyId,
       stage: 'local_publication',
