@@ -36,7 +36,7 @@ const BASE_CSS = `
     position: absolute;
     inset: 0;
     overflow: auto;
-    overscroll-behavior: contain;
+    overscroll-behavior: none;
     box-sizing: border-box;
     color: var(--seams-colors-textPrimary);
   }
