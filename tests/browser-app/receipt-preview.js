@@ -149,7 +149,7 @@ function model() {
   const display = displayModel();
   const emailStep = authentication.kind === 'email-code';
   let confirmText = 'Confirm with passkey';
-  if (authentication.kind === 'email-review') confirmText = 'Continue with email';
+  if (authentication.kind === 'email-review') confirmText = 'Confirm with email code';
   if (emailStep) confirmText = 'Verify and sign';
   return {
     appearance: {
