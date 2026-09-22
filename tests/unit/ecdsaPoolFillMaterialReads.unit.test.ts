@@ -415,13 +415,16 @@ function expiredSessionTime(expiresAtMs: number): number {
 
 test('exhausted-session preprocessing init remains bound to the current material and key', async () => {
   const services = new PresignStepServices(await buildPresignStepFixture());
+  const ceremonyExpiresAtMs = Date.now() + 30_000;
   const parsed = parseRouterAbEcdsaDerivationPoolFillInitRouteRequest({
+    presignSessionId: `ecdsa-presign-v2:${ceremonyExpiresAtMs}:${'A'.repeat(43)}`,
+    firstMessageB64u: 'AQ',
     keyHandle: services.keyHandle,
     count: 1,
     poolFill: {
       kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
       scope: services.data.scope,
-      ceremonyExpiresAtMs: Date.now() + 30_000,
+      ceremonyExpiresAtMs,
       materialExpiresAtMs: Date.now() + 90 * 24 * 60 * 60_000,
     },
     authorization: {

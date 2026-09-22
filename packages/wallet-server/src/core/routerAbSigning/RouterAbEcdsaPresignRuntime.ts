@@ -2,7 +2,6 @@ import {
   coerceThresholdNodeRole,
   parseThresholdEd25519ParticipantIds2p,
 } from '../ThresholdService/config';
-import { secureRandomIdFragment } from '../ThresholdService/secureRandomId';
 import {
   RouterAbEcdsaDerivationPoolFillHandlers,
   type RouterAbEcdsaPresignSigningWorkerTransport,
@@ -55,10 +54,6 @@ type RouterAbEcdsaPresignStepResult = Awaited<
   >
 >;
 
-function createPresignSessionId(expiresAtMs: number): string {
-  return `ecdsa-presign-v2:${expiresAtMs}:${secureRandomIdFragment()}`;
-}
-
 function routerAbEcdsaPresignGlobalFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
@@ -98,7 +93,6 @@ export class RouterAbEcdsaPresignRuntime {
       nodeRole: input.config.nodeRole,
       participantIds2p: input.config.participantIds.participantIds2p,
       ensureReady: input.ensureReady,
-      createPoolFillSessionId: createPresignSessionId,
       signingWorkerTransport: this.signingWorkerTransport,
     });
   }

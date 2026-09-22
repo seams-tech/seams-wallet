@@ -1558,3 +1558,53 @@ Measure the deployed change before attributing any reduction in full
 generation time. The remaining larger costs are the dependent browser,
 authorization, and worker/object exchanges, followed by signing prepare and
 finalize when the pool is empty.
+
+
+### Six-exchange owner presigning (implementation, deployment pending)
+
+The owner pool-fill path now carries a client-generated, 256-bit random ceremony
+identity and its first protocol message in initialization. The identity includes
+its immutable expiry and participates in the existing cryptographic context.
+Both participants advance directly from completed triples into presigning while
+processing the same message batch. This removes two scheduling-only exchanges:
+**eight → seven → six**, with one initialization followed by five HTTP steps.
+The completion response carries the server's remaining protocol message so the
+client can finish without another request.
+
+Every exchange still performs live authorization. The server requires the exact
+scope and authorized deadlines, atomically persists an initialization claim before
+emitting messages, and rejects reinitialization after failure, completion, or
+Durable Object eviction. An alarm clears the claim after the identity's encoded
+expiry; expired identities remain invalid. Lost responses restart with a fresh
+identity instead of reusing a partially completed ceremony. Role custody and
+presignature single-use rules are unchanged.
+
+Local evidence so far: 25 deterministic seed cases produce byte-identical message
+transcripts and presignature outputs for the 8/7/6 schedules. The actual Rust
+server adapter completes in six exchanges with matching client/server R points.
+The adapter test caught a production regression in the initial implementation:
+the old completion response discarded the final server message. The response
+now delivers it, and the regression test passes. Pool coordination tests passed
+12/12. The authorization fixture required the new initialization fields
+(`valid_test_needs_update`); its five focused tests passed after the update.
+Validation completed locally: full workspace type-check, WASM and SDK builds,
+all **230 unit tests**, and both representative lifecycle contracts. The
+registration/reload contract (39.7s for the entire test) asserts six HTTP
+exchanges per completed ceremony, replay rejection, and persisted signing after
+reload. Sustained Tempo/Arc signing (about 1.1 minutes for the entire test)
+retains 20 distinct signatures, quota exhaustion, forced empty-pool step-up, and
+key/expiry rejection. These whole-test durations are not signing latency samples.
+
+The focused real-workerd test also passes:
+`node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --ecdsa-presign`.
+It completes six exchanges, evicts the session Durable Object, rejects replayed
+initialization after eviction, and rejects changing the identity's expiry.
+The broader private-D1 suite failed twice before presigning in its Yao package
+delivery fixture with `Network connection lost`
+(`environment_or_infrastructure_failure`); that unrelated failure remains visible.
+
+The implementation and version **0.5.32** are staged together for one review/CI
+cycle. No deployment or hosted latency improvement is claimed yet; coordinated
+client/server deployment and an equivalent empty-pool timing cohort remain.
+Two fewer HTTP exchanges do not establish a 25% reduction in end-to-end latency;
+measure equivalent empty-pool cohorts after coordinated deployment.

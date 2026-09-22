@@ -36,8 +36,10 @@ async function readPresignatureStoreIds(): Promise<string[]> {
     open.onerror = () => reject(open.error);
     open.onsuccess = () => {
       const db = open.result;
-      const request = db.transaction('ecdsa_client_presignatures', 'readonly')
-        .objectStore('ecdsa_client_presignatures').getAll();
+      const request = db
+        .transaction('ecdsa_client_presignatures', 'readonly')
+        .objectStore('ecdsa_client_presignatures')
+        .getAll();
       request.onsuccess = () => {
         db.close();
         resolve(request.result.map((row) => String(row.presignature_id)));
@@ -84,6 +86,42 @@ function collectPresignResponses(responses: Response[], response: Response): voi
   if (response.ok() && pathname.startsWith('/router-ab/ecdsa-derivation/presignature-pool/fill/')) {
     responses.push(response);
   }
+}
+
+async function assertSixExchangePresignatures(
+  responses: Response[],
+  request: APIRequestContext,
+): Promise<void> {
+  const ceremonies = new Map<string, { init: Response; steps: number; complete: boolean }>();
+  for (const response of responses) {
+    const body: unknown = response.request().postDataJSON();
+    if (!isPlainObject(body) || typeof body.presignSessionId !== 'string') continue;
+    if (new URL(response.url()).pathname.endsWith('/init')) {
+      expect(body.firstMessageB64u).toEqual(expect.any(String));
+      const progress = await response.json();
+      expect(progress.outgoingMessagesB64u).toHaveLength(2);
+      ceremonies.set(body.presignSessionId, { init: response, steps: 0, complete: false });
+    } else {
+      const ceremony = ceremonies.get(body.presignSessionId);
+      expect(ceremony).toBeDefined();
+      if (!ceremony) throw new Error('Presign step arrived without initialization');
+      ceremony.steps += 1;
+      const progress = await response.json();
+      ceremony.complete = progress.event === 'presign_done';
+    }
+  }
+  const completed = [...ceremonies.values()].filter(isCompletePresignCeremony);
+  expect(completed.length).toBeGreaterThanOrEqual(ECDSA_CLIENT_PRESIGNATURE_CAPACITY);
+  for (const ceremony of completed) expect(ceremony.steps).toBe(5);
+  // The live session remains authorized; rejection must come from the burned ceremony identity.
+  const replay = await request.fetch(completed[completed.length - 1].init.request());
+  const replayBody = await replay.json();
+  expect(replayBody.ok).toBe(false);
+  expect(replayBody.message).toContain('ReplayedLocalRequest');
+}
+
+function isCompletePresignCeremony(ceremony: { complete: boolean }): boolean {
+  return ceremony.complete;
 }
 
 async function assertPresignResponseTiming(response: Response): Promise<void> {
@@ -186,6 +224,9 @@ test('passkey registration establishes an immediately usable owner session witho
   context,
   page,
 }) => {
+  const presignResponses: Response[] = [];
+  const collectResponses = collectPresignResponses.bind(undefined, presignResponses);
+  context.on('response', collectResponses);
   const gate = new RegistrationPresignGate();
   const presignInit = '**/router-ab/ecdsa-derivation/presignature-pool/fill/init';
   const hold = gate.hold.bind(gate);
@@ -198,15 +239,19 @@ test('passkey registration establishes an immediately usable owner session witho
     await context.unroute(presignInit, hold);
   }
   await harness.assertRegistrationOwnerSessionIsActive();
-  await expect.poll(readDurablePresignatureCount.bind(undefined, page), { timeout: 30_000 })
+  await expect
+    .poll(readDurablePresignatureCount.bind(undefined, page), { timeout: 30_000 })
     .toBeGreaterThan(0);
   await harness.signTempoTransaction('post_registration');
   await harness.awaitNearReady();
   await harness.signNearTransaction('post_registration');
   await harness.signArcEvmTransaction('post_registration');
   await harness.assertRegistrationOwnerSessionIsActive();
-  await expect.poll(readDurablePresignatureCount.bind(undefined, page), { timeout: 30_000 })
+  await expect
+    .poll(readDurablePresignatureCount.bind(undefined, page), { timeout: 30_000 })
     .toBe(ECDSA_CLIENT_PRESIGNATURE_CAPACITY);
+  context.off('response', collectResponses);
+  await assertSixExchangePresignatures(presignResponses, context.request);
   const persistedIds = await readDurablePresignatureIds(page);
   const signingRequests: SigningRequests = { foregroundFills: 0, presignatureIds: [] };
   const collect = collectSigningRequests.bind(undefined, signingRequests);
@@ -218,13 +263,13 @@ test('passkey registration establishes an immediately usable owner session witho
     await harness.signTempoTransaction('post_unlock');
     expect(signingRequests.presignatureIds).toHaveLength(1);
     expect(persistedIds).toContain(signingRequests.presignatureIds[0]);
-    expect(await readDurablePresignatureIds(page))
-      .not.toContain(signingRequests.presignatureIds[0]);
+    expect(await readDurablePresignatureIds(page)).not.toContain(
+      signingRequests.presignatureIds[0],
+    );
   } finally {
     context.off('request', collect);
     await context.unroute(presignInit, rejectPresignatureGeneration);
   }
-
 });
 
 test('sustained Tempo and Arc signing uses fresh presignatures beyond pool capacity', async ({
@@ -268,8 +313,7 @@ test('sustained Tempo and Arc signing uses fresh presignatures beyond pool capac
       await context.unroute(presignFill, rejectReusablePresignRefill);
     }
     const stepUpResponse = presignResponses.find(isStepUpPresignResponse);
-    if (!stepUpResponse)
-      throw new Error('An empty pool must exercise step-up presign generation');
+    if (!stepUpResponse) throw new Error('An empty pool must exercise step-up presign generation');
     await assertChangedPresignOperationRejected(
       context.request,
       stepUpResponse.request(),

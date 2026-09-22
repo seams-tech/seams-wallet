@@ -858,9 +858,7 @@ async function runBackgroundPresignatureRefill(input: {
       progress.publishAvailable();
       if (getForegroundSignInFlightCount(poolKey) > 0) return;
     }
-    while (
-      Date.now() < args.routerAbEcdsaDerivationPoolFill.ceremonyExpiresAtMs
-    ) {
+    while (Date.now() < args.routerAbEcdsaDerivationPoolFill.ceremonyExpiresAtMs) {
       if (getClientPresignaturePoolGeneration(poolKey) !== scheduledGeneration) return;
       if (getClientPresignaturePoolDepth(poolKey) >= targetDepth) return;
       if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
@@ -1114,55 +1112,10 @@ async function runPresignHandshakeAttempt(
 > {
   assertRouterAbEcdsaDerivationClientSigningMaterialSource(args.clientSigningMaterial);
   const handshakeStartedAt = performance.now();
-  const init = await routerAbEcdsaDerivationPresignaturePoolFillInit({
-    relayerUrl: args.relayerUrl,
-    ...args.poolFillInitKeySelector,
-    count: 1,
-    credential: args.credential,
-    requestTag: presignHandshakeRequestTag(args),
-    poolFill: args.routerAbEcdsaDerivationPoolFill,
-    ...ecdsaPoolFillAuthorization(args),
-  });
-  if (!init.ok) {
-    return {
-      ok: false,
-      code: init.code || 'presign_init_failed',
-      message: init.message || 'Router A/B ECDSA derivation pool-fill init failed',
-    };
-  }
-
-  const presignSessionId = String(init.presignSessionId || '').trim();
-  if (!presignSessionId) {
-    return {
-      ok: false,
-      code: 'internal',
-      message: 'Router A/B ECDSA derivation pool-fill init returned empty presignSessionId',
-    };
-  }
-  const ceremonyExpiresAtMs = Math.floor(Number(init.ceremonyExpiresAtMs));
-  if (
-    !Number.isSafeInteger(ceremonyExpiresAtMs) ||
-    ceremonyExpiresAtMs <= Date.now() ||
-    ceremonyExpiresAtMs > args.routerAbEcdsaDerivationPoolFill.ceremonyExpiresAtMs
-  ) {
-    return {
-      ok: false,
-      code: 'invalid_pool_fill_expiry',
-      message: 'Router A/B ECDSA derivation pool-fill init returned invalid ceremony expiry',
-    };
-  }
-  const materialExpiresAtMs = clientPresignatureExpiresAtMs({
-    serverExpiresAtMs: init.materialExpiresAtMs,
-    requestedExpiresAtMs: args.routerAbEcdsaDerivationPoolFill.materialExpiresAtMs,
-  });
-  if (materialExpiresAtMs === null) {
-    return {
-      ok: false,
-      code: 'invalid_pool_fill_expiry',
-      message: 'Router A/B ECDSA derivation pool-fill init returned invalid material expiry',
-    };
-  }
-
+  const ceremonyExpiresAtMs = args.routerAbEcdsaDerivationPoolFill.ceremonyExpiresAtMs;
+  const materialExpiresAtMs = args.routerAbEcdsaDerivationPoolFill.materialExpiresAtMs;
+  const nonce = base64UrlEncode(crypto.getRandomValues(new Uint8Array(32)));
+  const presignSessionId = `ecdsa-presign-v2:${ceremonyExpiresAtMs}:${nonce}`;
   const localSessionId = presignSessionId;
   const poolIdentity = makeClientPresignPoolIdentity({
     relayerUrl: args.relayerUrl,
@@ -1176,9 +1129,7 @@ async function runPresignHandshakeAttempt(
   let serverBigRB64u: string | null = null;
   let serverDone = false;
   let clientStage: PresignProtocolStage = 'triples';
-  let serverStage: PresignProtocolStage = init.stage || 'triples';
-  let pendingClientOutgoing = [] as Uint8Array[];
-  let pendingServerOutgoing = fromB64uMessages(init.outgoingMessagesB64u);
+  let pendingClientOutgoing: Uint8Array[] = [];
   let shouldAbortLocalSession = true;
   let keepLocalMaterial = false;
 
@@ -1191,12 +1142,46 @@ async function runPresignHandshakeAttempt(
       poolIdentity,
       workerCtx: args.workerCtx,
     });
-    clientStage = localInit.stage;
-    pendingClientOutgoing = [...localInit.outgoingMessages];
-    if (localInit.presignatureHandle && localInit.presignatureBigR33) {
-      localPresignatureHandle = localInit.presignatureHandle;
-      localBigR33 = localInit.presignatureBigR33;
+    if (localInit.stage !== 'triples' || localInit.outgoingMessages.length !== 1) {
+      return {
+        ok: false,
+        code: 'presign_init_failed',
+        message: 'Client presign init must emit exactly one first message',
+      };
     }
+    clientStage = localInit.stage;
+    const init = await routerAbEcdsaDerivationPresignaturePoolFillInit({
+      relayerUrl: args.relayerUrl,
+      ...args.poolFillInitKeySelector,
+      count: 1,
+      presignSessionId,
+      firstMessageB64u: base64UrlEncode(localInit.outgoingMessages[0]),
+      credential: args.credential,
+      requestTag: presignHandshakeRequestTag(args),
+      poolFill: args.routerAbEcdsaDerivationPoolFill,
+      ...ecdsaPoolFillAuthorization(args),
+    });
+    if (!init.ok) {
+      return {
+        ok: false,
+        code: init.code || 'presign_init_failed',
+        message: init.message || 'Presign initialization failed',
+      };
+    }
+    if (
+      init.presignSessionId !== presignSessionId ||
+      init.ceremonyExpiresAtMs !== ceremonyExpiresAtMs ||
+      init.materialExpiresAtMs !== materialExpiresAtMs ||
+      ceremonyExpiresAtMs <= Date.now()
+    ) {
+      return {
+        ok: false,
+        code: 'invalid_pool_fill_expiry',
+        message: 'Presign initialization changed the bound identity or deadlines',
+      };
+    }
+    let serverStage: PresignProtocolStage = init.stage || 'triples';
+    let pendingServerOutgoing = fromB64uMessages(init.outgoingMessagesB64u);
 
     for (let i = 0; i < MAX_HANDSHAKE_STEPS; i++) {
       if (pendingServerOutgoing.length > 0 && !localPresignatureHandle) {
@@ -1259,25 +1244,6 @@ async function runPresignHandshakeAttempt(
 
       if (localPresignatureHandle && localBigR33 && serverPresignatureId && serverBigRB64u) {
         break;
-      }
-
-      if (
-        !pendingServerOutgoing.length &&
-        !pendingClientOutgoing.length &&
-        !localPresignatureHandle
-      ) {
-        const localStepped = await args.clientSigningMaterial.stepClientPresignSession({
-          sessionId: localSessionId,
-          stage: resolvePresignExchangeStage({ clientStage, serverStage }),
-          incomingMessages: [],
-          workerCtx: args.workerCtx,
-        });
-        clientStage = localStepped.stage;
-        pendingClientOutgoing.push(...localStepped.outgoingMessages);
-        if (localStepped.presignatureHandle && localStepped.presignatureBigR33) {
-          localPresignatureHandle = localStepped.presignatureHandle;
-          localBigR33 = localStepped.presignatureBigR33;
-        }
       }
     }
 
@@ -1407,23 +1373,6 @@ function routerAbEcdsaDerivationSigningIdentityFromScope(
     ),
     thresholdEcdsaPublicKeyB64u: parsed.public_identity.threshold_public_key33_b64u,
   };
-}
-
-function clientPresignatureExpiresAtMs(input: {
-  serverExpiresAtMs: unknown;
-  requestedExpiresAtMs: number;
-}): number | null {
-  const serverExpiresAtMs = Math.floor(Number(input.serverExpiresAtMs));
-  const requestedExpiresAtMs = Math.floor(Number(input.requestedExpiresAtMs));
-  if (
-    !Number.isSafeInteger(serverExpiresAtMs) ||
-    !Number.isSafeInteger(requestedExpiresAtMs) ||
-    serverExpiresAtMs <= Date.now() ||
-    serverExpiresAtMs > requestedExpiresAtMs
-  ) {
-    return null;
-  }
-  return serverExpiresAtMs;
 }
 
 function resolveSigningRequestExpiresAtMs(input: {
