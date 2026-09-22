@@ -193,6 +193,28 @@ test('NEAR action formatting and unknown-chain labels retain their display contr
   await expect(page.getByRole('link')).toHaveCount(1);
 });
 
+test('review renders receiver and action labels from the NEAR transaction payload', async ({ page }) => {
+  await page.evaluate(async () => {
+    const runtime = '/_test-preact/preact.module.js';
+    const { h, render } = await import(runtime);
+    const reviewUrl = '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/preact/TransactionReview.js';
+    const treeUrl = '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/transaction-display/tree.js';
+    const { TransactionReview } = await import(reviewUrl);
+    const { buildDisplayTreeFromTxPayloads } = await import(treeUrl);
+    const tree = buildDisplayTreeFromTxPayloads([{
+      receiverId: 'demo.testnet',
+      actions: [{ type: 'Transfer', amount: '0' }],
+    }]);
+    window.__treeTest.dispose();
+    render(h(TransactionReview, {
+      data: { model: null, tree, detailsInitiallyOpen: true },
+    }), document.querySelector('main')!);
+  });
+  const review = page.locator('.seams-transaction-review');
+  await expect(review).toContainText('Transaction to demo.testnet');
+  await expect(review).toContainText('Transfer 0 NEAR');
+});
+
 test.beforeEach(async ({ page, baseURL }) => {
   if (!baseURL) throw new Error('Browser origin required');
   await injectImportMap(page, { frontendUrl: baseURL });

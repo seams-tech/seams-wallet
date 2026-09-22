@@ -6,6 +6,7 @@ import { copySurfaceText } from './clipboard';
 import { CopyStatusIcon } from './CopyStatusIcon';
 import { ReviewDisclosure } from './ReviewDisclosure';
 import { SeamsWordmark } from './SeamsWordmark';
+import { transactionLabelTitle } from './TransactionLabel';
 
 export type TransactionReviewData = {
   detailsInitiallyOpen?: boolean;
@@ -286,6 +287,9 @@ export class CopyReviewValue extends Component<{ value: string; address?: boolea
 }
 
 function ReviewDetailLabel({ node }: { node: TreeNode }) {
+  if (node.action || node.transaction) {
+    return <>{transactionLabelTitle(node)}</>;
+  }
   if (node.fieldLabel) {
     const value = node.label.slice(node.fieldLabel.length);
     return <>{node.fieldLabel}{node.fieldLabel === 'Method:' ? <span class="seams-review-function">{value}</span> : value}</>;
