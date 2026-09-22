@@ -30,7 +30,7 @@ class PreviewSession {
     requestId: walletIframeRequestIdFromBoundary('prediction-preview'),
     surfaceId: walletIframeSurfaceIdFromBoundary(crypto.randomUUID()),
   });
-  private phase: 'review' | 'preparing' | 'approval' | 'closed' = 'review';
+  private phase: 'mounting' | 'review' | 'preparing' | 'approval' | 'closed' = 'mounting';
   private approvalSize = { widthCssPx: 480, heightCssPx: 420 };
   private readonly observer: ResizeObserver;
 
@@ -40,11 +40,13 @@ class PreviewSession {
       onDismiss: this.cancel,
     });
     this.slot = this.overlay.getTransactionReviewSlot();
+    // Measure the React content at its final width before opening the dialog.
+    this.slot.classList.add('prediction-preview-slot');
+    this.slot.hidden = false;
     this.observer = new ResizeObserver(this.resize);
     this.overlay.setReviewAppearance({ theme: { id: 'preview-light', mode: 'light' } });
     window.addEventListener('message', this.receive);
     window.addEventListener('resize', this.resize);
-    this.resize();
   }
 
   private ensureIframe = (): HTMLIFrameElement => this.iframe;
@@ -52,19 +54,28 @@ class PreviewSession {
   observe(content: HTMLElement | null): void {
     if (!content) return;
     this.observer.observe(content);
-    content.querySelector<HTMLElement>('button')?.focus();
+    if (this.phase !== 'mounting') return;
+    this.phase = 'review';
     this.resize();
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.slot.animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: 180,
+        easing: 'ease-out',
+      });
+    }
+    content.querySelector<HTMLElement>('button')?.focus();
   }
 
   private resize = (): void => {
-    if (this.phase === 'closed') return;
+    if (this.phase === 'closed' || this.phase === 'mounting') return;
     const reviewing = this.phase !== 'approval';
     const presentation = modalWalletIframeSurfacePresentation(
       reviewing ? 'Review purchase · preview' : 'Wallet approval · preview',
     );
     const content = this.slot.firstElementChild;
+    if (!content) return;
     const size = reviewing
-      ? { widthCssPx: 480, heightCssPx: content?.getBoundingClientRect().height || 580 }
+      ? { widthCssPx: 480, heightCssPx: content.getBoundingClientRect().height }
       : this.approvalSize;
     const geometry = measuredWalletIframeSurfaceGeometry(
       presentation,
@@ -93,7 +104,9 @@ class PreviewSession {
   };
 
   private focusWallet = (): void => {
-    this.iframe.contentDocument?.querySelector<HTMLElement>('button')?.focus();
+    this.iframe.contentDocument
+      ?.querySelector<HTMLElement>('.seams-confirmation-modal--hosted')
+      ?.focus({ preventScroll: true });
   };
 
   readonly cancel = (): void => this.finish('Preview closed. Nothing was signed or sent.');

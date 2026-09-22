@@ -462,6 +462,10 @@ summary {
   border-radius: 4px;
 }
 
+.prediction-preview-slot {
+  inline-size: min(480px, calc(100vw - 32px));
+}
+
 .prediction-preview-content {
   padding: 1.5rem;
 }
