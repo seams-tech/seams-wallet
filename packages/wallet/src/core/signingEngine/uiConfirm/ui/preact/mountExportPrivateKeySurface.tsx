@@ -69,15 +69,7 @@ class MountedExportSurface implements ExportSurfaceHandle {
     if (model.variant === 'modal') {
       render(
         <ConfirmationModal context={this.context} label="Exported Keys" onCancel={this.dispose}>
-          <button
-            type="button"
-            class="seams-export-modal-close"
-            aria-label="Close exported keys"
-            onClick={this.dispose}
-          >
-            ×
-          </button>
-          <ExportPrivateKeySurface model={model.content} />
+          <ExportPrivateKeySurface model={model.content} onClose={this.dispose} />
         </ConfirmationModal>,
         this.element,
       );

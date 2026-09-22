@@ -232,14 +232,11 @@
 }
 
 :where(.seams-wallet-ui).seams-export-surface .seams-confirmation-modal .title {
-  padding-inline-end: 2.75rem;
+  min-width: 0;
 }
 
 :where(.seams-wallet-ui).seams-export-surface .seams-export-modal-close {
-  position: absolute;
-  z-index: 1;
-  inset-block-start: 0.75rem;
-  inset-inline-end: 0.75rem;
+  flex: 0 0 44px;
   display: grid;
   place-items: center;
   box-sizing: border-box;
@@ -261,4 +258,15 @@
 :where(.seams-wallet-ui).seams-export-surface .seams-export-modal-close:focus-visible {
   outline: 2px solid var(--seams-colors-primary);
   outline-offset: 2px;
+}
+
+:where(.seams-wallet-ui).seams-export-surface .seams-export-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+:where(.seams-wallet-ui).seams-export-surface .seams-confirmation-modal:focus {
+  outline: none;
 }

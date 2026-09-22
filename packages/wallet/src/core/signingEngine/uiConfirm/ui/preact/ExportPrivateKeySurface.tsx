@@ -51,7 +51,10 @@ export type ExportPrivateKeyViewModel = {
   | { kind: 'failed'; message: string; entries?: never }
 );
 
-export function ExportPrivateKeySurface({ model }: { model: ExportPrivateKeyViewModel }) {
+export function ExportPrivateKeySurface({ model, onClose }: {
+  model: ExportPrivateKeyViewModel;
+  onClose?: () => void;
+}) {
   const entries = model.kind === 'failed' ? [] : model.entries;
   const showAccount = entries.length === 0 || entries.some(isNearKey);
   return (
@@ -63,7 +66,19 @@ export function ExportPrivateKeySurface({ model }: { model: ExportPrivateKeyView
       onTouchStart={stopDrag}
     >
       <div class="content">
-        <h2 class="title">Exported Keys</h2>
+        <div class="seams-export-header">
+          <h2 class="title">Exported Keys</h2>
+          {onClose && (
+            <button
+              type="button"
+              class="seams-export-modal-close"
+              aria-label="Close exported keys"
+              onClick={onClose}
+            >
+              ×
+            </button>
+          )}
+        </div>
         {model.kind === 'failed' && (
           <div class="error-banner" role="alert">
             {model.message}

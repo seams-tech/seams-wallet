@@ -328,7 +328,17 @@ for (const context of ['standalone', 'wallet-iframe'] as const) {
       value: model(secret),
       context,
     });
-    await expect(page.locator('.seams-confirmation-modal')).toBeVisible();
+    const modal = page.locator('.seams-confirmation-modal');
+    await expect(modal).toBeVisible();
+    if (context === 'wallet-iframe') {
+      await expect(modal).toBeFocused();
+      await expect(modal).toHaveCSS('outline-style', 'none');
+    }
+    const close = page.getByRole('button', { name: 'Close exported keys' });
+    const titleBounds = await page.getByRole('heading', { name: 'Exported Keys' }).boundingBox();
+    const closeBounds = await close.boundingBox();
+    expect(closeBounds!.x).toBeGreaterThanOrEqual(titleBounds!.x + titleBounds!.width);
+
     await expect(page.locator('.seams-confirmation-drawer')).toHaveCount(0);
     await page.getByRole('button', { name: 'Copy private key' }).click();
     expect(await page.evaluate(() => window.__exportView.copied)).toEqual([secret]);
