@@ -122,7 +122,12 @@ function strictWorker(name, role, bindings) {
   return {
     name,
     modules: true,
-    scriptPath: join(packageRoot, `build/${role}/worker/shim.mjs`),
+    scriptPath: join(
+      packageRoot,
+      process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev' ? 'build/dev' : 'build',
+      role,
+      'worker/shim.mjs',
+    ),
     modulesRules: [
       { type: 'ESModule', include: ['**/*.js', '**/*.mjs'] },
       { type: 'CompiledWasm', include: ['**/*.wasm'] },

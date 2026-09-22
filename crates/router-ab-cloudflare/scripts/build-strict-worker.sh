@@ -15,6 +15,7 @@ worker_build_profile="${ROUTER_AB_WORKER_BUILD_PROFILE:-release}"
 worker_rustflags=""
 case "$worker_build_profile" in
   dev)
+    worker_output="build/dev/$role"
     worker_build_flags=(--dev --no-opt)
     worker_rustflags="${RUSTFLAGS:-}"
     if [[ -n "$worker_rustflags" ]]; then
@@ -23,6 +24,7 @@ case "$worker_build_profile" in
     worker_rustflags+="-C link-arg=-zstack-size=4194304"
     ;;
   release)
+    worker_output="build/$role"
     worker_build_flags=(--release)
     ;;
   *)
@@ -41,5 +43,5 @@ run_worker_build() {
 
 run_worker_build \
   "${worker_build_flags[@]}" \
-  --out-dir "build/$role" \
+  --out-dir "$worker_output" \
   --features "strict-worker-$role-entrypoint"
