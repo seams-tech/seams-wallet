@@ -46,9 +46,6 @@
   border-inline-end: 1px solid #d9dfda;
 }
 
-.console-sidebar > p {
-  padding-inline: 0.75rem;
-}
 .console-sidebar nav {
   display: grid;
   gap: 0.375rem;
@@ -71,12 +68,6 @@
   background: #dfeae0;
   color: #173d2d;
   font-weight: 700;
-}
-.console-sidebar-note {
-  margin-block-start: 2rem;
-  color: #59645d;
-  font-size: 0.8rem;
-  line-height: 1.6;
 }
 .console-content {
   width: 100%;
@@ -156,9 +147,6 @@
     padding: 0.75rem 1rem;
     border-inline-end: 0;
     border-bottom: 1px solid #d9dfda;
-  }
-  .console-sidebar > p {
-    display: none;
   }
   .console-sidebar nav {
     display: flex;

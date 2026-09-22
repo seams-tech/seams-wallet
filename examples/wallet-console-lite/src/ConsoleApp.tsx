@@ -64,7 +64,6 @@ export function ConsoleApp() {
             </a>
           ))}
         </nav>
-        <p className="console-sidebar-note">Build and test your Wallet experience.</p>
       </aside>
       <main className="console-content" id="console-content" tabIndex={-1}>
         <div className="console-breadcrumb">
