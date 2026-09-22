@@ -27,6 +27,7 @@ export default defineConfig(({ mode }) => {
         input: {
           main: `${exampleRoot}/index.html`,
           confirmationPreview: `${exampleRoot}/confirmation-preview.html`,
+          transactionPreview: `${exampleRoot}/transaction-preview.html`,
         },
       },
     },
