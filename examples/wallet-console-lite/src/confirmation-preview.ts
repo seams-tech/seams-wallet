@@ -54,6 +54,7 @@ async function showConfirmation(): Promise<void> {
           buttonHoverBackground: '#466151',
           textButton: '#ffffff',
           focus: '#587565',
+          txDetailsBackground: '#e4ebe5',
         },
       },
       palette: 'default',
