@@ -300,8 +300,10 @@
   border-top: 1px solid var(--seams-colors-borderPrimary);
   font-size: 0.6875rem;
 }
-:where(.seams-wallet-ui) .seams-receipt-footer strong {
-  font-size: 1rem;
+:where(.seams-wallet-ui) .seams-receipt-footer .seams-receipt-wordmark {
+  width: 4.75rem;
+  height: auto;
+  flex: none;
   color: var(--seams-colors-textPrimary);
 }
 :where(.seams-wallet-ui) .seams-receipt-heading {

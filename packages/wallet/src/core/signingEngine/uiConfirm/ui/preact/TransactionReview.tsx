@@ -5,6 +5,7 @@ import type { TxDisplayModel } from '@/core/signingEngine/interfaces/display';
 import { copySurfaceText } from './clipboard';
 import { CopyStatusIcon } from './CopyStatusIcon';
 import { ReviewDisclosure } from './ReviewDisclosure';
+import { SeamsWordmark } from './SeamsWordmark';
 
 export type TransactionReviewData = {
   detailsInitiallyOpen?: boolean;
@@ -31,7 +32,7 @@ export function ReviewIcon({
     minimize: 'M5 12h14',
     check: 'm5 12 4 4L19 6',
     arrow: 'M7 17 17 7M7 7h10v10',
-    shield: 'M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6ZM8 12l3 3 5-6',
+    shield: 'M12 3 4.5 6v5.5c0 4.2 2.7 7.4 7.5 9.5 4.8-2.1 7.5-5.3 7.5-9.5V6L12 3Z M8.5 11.5l2.5 2.5 4.5-5',
     copy: 'M8 8h12v12H8ZM4 16V4h12',
     loader: 'M12 3a9 9 0 1 1-9 9',
     alert: 'M12 8v5m0 3v.1M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
@@ -210,7 +211,7 @@ export function ReviewAmount({
 export function WalletReceiptFooter() {
   return (
     <div class="seams-receipt-footer">
-      <ReviewIcon kind="shield" /> Secured by <strong>seams</strong>
+      <ReviewIcon kind="shield" /> <span>Secured by</span> <SeamsWordmark />
     </div>
   );
 }
