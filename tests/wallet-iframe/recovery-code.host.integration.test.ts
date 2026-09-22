@@ -13,7 +13,7 @@ const HOST_HTML_WITH_SUSPENDED_ANIMATION_FRAMES = HOST_HTML.replace(
   '<body><script>window.requestAnimationFrame = () => 1;</script>',
 );
 
-test('reveals the recovery summary without a child animation frame or the full wallet runtime', async ({
+test('reveals and cancels the recovery summary without a child animation frame or the full wallet runtime', async ({
   page,
 }) => {
   let fullWalletRuntimeRequested = false;
@@ -82,6 +82,14 @@ test('reveals the recovery summary without a child animation frame or the full w
     .frameLocator('iframe[data-seams-owner="recovery-code-host-test"]')
     .locator('[data-seams-wallet-recovery-backup-dialog]');
   await expect(childDialog).toBeVisible();
+
+  await page.evaluate(async () => {
+    const testWindow = window as typeof window & {
+      __recoveryCodeHostTest?: { readonly router: { cancelAll: () => Promise<void> } };
+    };
+    await testWindow.__recoveryCodeHostTest?.router.cancelAll();
+  });
+  await expect(childDialog).toHaveCount(0);
 
   await page.evaluate(() => {
     const testWindow = window as typeof window & {

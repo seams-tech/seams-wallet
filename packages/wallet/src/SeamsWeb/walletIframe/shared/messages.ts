@@ -1,5 +1,5 @@
+import type { TransactionReviewWire, TransactionReviewStateMessage } from './transactionReview';
 // Typed RPC messages for the wallet service iframe channel (SeamsWeb-first)
-import type { WalletUIRegistry } from '../host/lit-ui/iframe-lit-element-registry';
 import type { BootstrapThresholdEcdsaSessionArgs } from '@/SeamsWeb/signingSurface/types';
 import { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import { ActionArgs, TransactionInput } from '@/core/types';
@@ -866,8 +866,11 @@ export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
 export type WalletProtocolVersion = typeof WALLET_PROTOCOL_VERSION;
 
 export type ParentToChildType =
+  | 'PM_SET_TRANSACTION_VIEW'
+  | 'PM_TRANSACTION_BROADCAST_STARTED'
   | 'PING'
   | 'PM_SET_CONFIG'
+  | 'PM_ACTIVATE_TRANSACTION_REVIEW'
   | 'PM_CANCEL'
   | 'PM_OPEN_AUTH_MENU'
   | 'PM_CANCEL_AUTH_MENU'
@@ -937,6 +940,7 @@ export type ParentToChildType =
   | 'PM_SYNC_ACCOUNT_FLOW';
 
 export type ChildToParentType =
+  | 'TRANSACTION_ACTIVITY'
   | 'READY'
   | 'PONG'
   | 'PROGRESS'
@@ -982,14 +986,14 @@ export interface PreferencesChangedPayload {
 }
 
 export interface PMSetConfigPayload extends Partial<SeamsConfigsInput> {
-  // Absolute base URL for SDK Lit component assets (e.g., https://app.example.com/sdk/)
+  // Absolute base URL for SDK browser assets (e.g., https://app.example.com/sdk/)
   assetsBaseUrl?: string;
-  // Optional: register wallet-host UI components (Lit tags + bindings)
-  uiRegistry?: WalletUIRegistry;
 }
 
 export interface PMCancelPayload {
   requestId?: string; // when omitted, host may attempt best-effort global cancel (close UIs)
+  transactionReview?: TransactionReviewWire;
+  reviewErrorCode?: import('./transactionReview').TransactionReviewCancellationCode;
 }
 
 declare const hostedWalletExchangeCodeBrand: unique symbol;
@@ -1755,7 +1759,13 @@ export interface ErrorPayload {
   details?: unknown;
 }
 
+type ReviewedTransactionEnvelope<T> = T &
+  ({ readonly transactionReview?: never } | { readonly transactionReview: TransactionReviewWire });
+
 export type ParentToChildEnvelope =
+  | RpcEnvelope<'PM_ACTIVATE_TRANSACTION_REVIEW', TransactionReviewStateMessage>
+  | RpcEnvelope<'PM_SET_TRANSACTION_VIEW', { requestId: string; view: 'toast' | 'closed' }>
+  | RpcEnvelope<'PM_TRANSACTION_BROADCAST_STARTED', { signedTransaction: string }>
   | RpcEnvelope<'PING'>
   | RpcEnvelope<'PM_SET_CONFIG', PMSetConfigPayload>
   | RpcEnvelope<'PM_CANCEL', PMCancelPayload>
@@ -1807,16 +1817,16 @@ export type ParentToChildEnvelope =
       PMRequestWalletCustodyEmailOtpChallengePayload
     >
   | RpcEnvelope<'PM_SIGN_TX_WITH_ACTIONS', PMSignTxPayload>
-  | RpcEnvelope<'PM_SIGN_AND_SEND_TX', PMSignAndSendTxPayload>
+  | ReviewedTransactionEnvelope<RpcEnvelope<'PM_SIGN_AND_SEND_TX', PMSignAndSendTxPayload>>
   | RpcEnvelope<
       'PM_FUND_IMPLICIT_NEAR_ACCOUNT_FOR_TESTING',
       PMFundImplicitNearAccountForTestingPayload
     >
   | RpcEnvelope<'PM_SEND_TRANSACTION', PMSendTxPayload>
-  | RpcEnvelope<'PM_EXECUTE_ACTION', PMExecuteActionPayload>
+  | ReviewedTransactionEnvelope<RpcEnvelope<'PM_EXECUTE_ACTION', PMExecuteActionPayload>>
   | RpcEnvelope<'PM_SIGN_DELEGATE_ACTION', PMSignDelegateActionPayload>
   | RpcEnvelope<'PM_SIGN_NEP413', PMSignNep413Payload>
-  | RpcEnvelope<'PM_SIGN_TEMPO', PMSignTempoPayload>
+  | ReviewedTransactionEnvelope<RpcEnvelope<'PM_SIGN_TEMPO', PMSignTempoPayload>>
   | RpcEnvelope<'PM_REPORT_TEMPO_BROADCAST_ACCEPTED', PMReportTempoBroadcastAcceptedPayload>
   | RpcEnvelope<'PM_REPORT_TEMPO_BROADCAST_REJECTED', PMReportTempoBroadcastRejectedPayload>
   | RpcEnvelope<'PM_REPORT_TEMPO_FINALIZED', PMReportTempoFinalizedPayload>
@@ -1872,6 +1882,8 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_SYNC_ACCOUNT_FLOW', { walletId?: string }>;
 
 export type ChildToParentEnvelope =
+  | RpcEnvelope<'TRANSACTION_REVIEW_STATE', TransactionReviewStateMessage>
+  | RpcEnvelope<'TRANSACTION_ACTIVITY', 'expanded' | 'toast' | 'closed'>
   | RpcEnvelope<'READY', ReadyPayload>
   | RpcEnvelope<'PONG'>
   | RpcEnvelope<'PROGRESS', ProgressPayload>

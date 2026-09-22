@@ -26,10 +26,7 @@
 
 export { SeamsContextProvider, useSeams } from './context';
 export * from '../externalEvm';
-export {
-  ExternalEvmWalletPicker,
-  useExternalEvm,
-} from './externalEvm';
+export { ExternalEvmWalletPicker, useExternalEvm } from './externalEvm';
 export { SeamsWebProvider } from './context/SeamsWebProvider';
 
 // === RE-EXPORT CORE TYPES ===
@@ -284,3 +281,13 @@ export type {
   ProfileSettingsMenuItemId,
   HighlightedProfileMenuItem,
 } from './components/AccountMenuButton/types';
+
+export { TransactionReviewHost } from './transactionReview/TransactionReviewHost';
+export { TransactionReviewError } from './transactionReview/contract';
+export type {
+  TransactionReview,
+  TransactionReviewControls,
+  TransactionReviewValidity,
+  TransactionReviewErrorCode,
+  ReviewedTransactionInput,
+} from './transactionReview/contract';

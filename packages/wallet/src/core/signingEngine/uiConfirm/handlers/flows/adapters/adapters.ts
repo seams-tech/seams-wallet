@@ -25,7 +25,6 @@ import {
   getEmailOtpPrompt,
   getSignTransactionPayload,
   getSigningAuthMode,
-  getSubjectLabel,
 } from './request';
 import type { ThemeMode } from '@/core/types/seams';
 import type { ProfileAuthenticatorRecord } from '@/core/indexedDB';
@@ -230,7 +229,6 @@ function closeModalSafely(confirmed: boolean, handle?: ConfirmUIHandle) {
 
 function confirmUiRenderContext(ctx: UiConfirmContext): ConfirmUIRenderContext {
   return {
-    userPreferencesManager: ctx.userPreferencesManager,
     chains: ctx.chains,
     getAppearance: ctx.getAppearance,
     nearExplorerUrl: ctx.nearExplorerUrl,
@@ -267,7 +265,6 @@ type VisibleRenderConfirmUIArgs = BaseRenderConfirmUIArgs & {
   model: ReturnType<typeof getDisplayModel>;
   signingAuthMode: ReturnType<typeof getSigningAuthMode>;
   emailOtpPrompt: ReturnType<typeof getEmailOtpPrompt>;
-  nearAccountIdForUi: string;
 };
 
 function emptyConfirmDiagnostics(): ConfirmUIPromptDiagnostics {
@@ -297,7 +294,6 @@ async function renderAutoProceedConfirmUI(
     loading: args.loading ?? true,
     theme: args.theme,
     uiMode: args.confirmationConfig.uiMode,
-    nearAccountIdOverride: args.nearAccountIdForUi,
     signingAuthMode: args.signingAuthMode,
     emailOtpPrompt: args.emailOtpPrompt,
     surface: args.surface,
@@ -333,7 +329,6 @@ async function renderInteractiveConfirmUI(
       loading: args.loading,
       theme: args.theme,
       uiMode: args.confirmationConfig.uiMode,
-      nearAccountIdOverride: args.nearAccountIdForUi,
       onMounted: args.onMounted,
       signingAuthMode: args.signingAuthMode,
       emailOtpPrompt: args.emailOtpPrompt,
@@ -367,8 +362,6 @@ async function renderConfirmUI({
       diagnostics: emptyConfirmDiagnostics(),
     };
   }
-  const nearAccountIdForUi = getSubjectLabel(request);
-
   const txSigningRequests =
     request.type === UserConfirmationType.SIGN_TRANSACTION
       ? getSignTransactionPayload(request).txSigningRequests
@@ -403,7 +396,6 @@ async function renderConfirmUI({
         model,
         signingAuthMode,
         emailOtpPrompt,
-        nearAccountIdForUi,
       });
     }
     case 'interactive': {
@@ -421,7 +413,6 @@ async function renderConfirmUI({
         model,
         signingAuthMode,
         emailOtpPrompt,
-        nearAccountIdForUi,
       });
     }
     default: {

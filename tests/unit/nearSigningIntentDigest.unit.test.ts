@@ -3,6 +3,8 @@ import { ActionType, type TransactionInputWasm } from '@/core/types/actions';
 import { toAccountId } from '@/core/types/accountIds';
 import { computeUiIntentDigestFromTxs } from '@/utils/intentDigest';
 import { orchestrateSigningConfirmation } from '@/core/signingEngine/uiConfirm/handlers/flowOrchestrator';
+import { buildConfirmationTree } from '@/core/signingEngine/uiConfirm/ui/transaction-display/confirmation-tree';
+import type { TreeNode } from '@/core/signingEngine/uiConfirm/ui/transaction-display/tree';
 import {
   SigningAuthPlanKind,
   type UserConfirmDecision,
@@ -29,6 +31,14 @@ function recordSigningInteraction(
   if (event.kind === SigningOperationInteractionEventKind.ReviewApproved) {
     counter.count += 1;
   }
+}
+
+function collectTreeText(node: TreeNode): string[] {
+  return [
+    node.label,
+    ...(node.content ? [node.content] : []),
+    ...(node.children?.flatMap(collectTreeText) ?? []),
+  ];
 }
 
 test('warm NEAR confirmation carries one final digest for the exact displayed transaction', async () => {
@@ -122,4 +132,59 @@ test('warm NEAR confirmation carries one final digest for the exact displayed tr
   expect(capturedRequest.payload.intentDigest).toBe(expectedDigest);
   expect(capturedRequest.payload.txSigningRequests).toEqual([transaction]);
   expect(reviewApprovals.count).toBe(1);
+});
+
+test('NEP-413 confirmation displays the signer, recipient, and signed message', async () => {
+  const nearAccountId = toAccountId('alice.testnet');
+  const parsedWalletId = parseWalletId('wallet-1');
+  if (!parsedWalletId.ok) throw new Error(parsedWalletId.error.message);
+
+  let capturedRequest: UserConfirmRequest | undefined;
+  await expect(
+    orchestrateSigningConfirmation({
+      ctx: {
+        touchConfirm: {
+          requestUserConfirmation: async (request): Promise<UserConfirmDecision> => {
+            capturedRequest = request;
+            return {
+              requestId: request.requestId,
+              confirmed: false,
+              error: 'test_cancelled',
+            };
+          },
+        },
+      },
+      sessionId: 'threshold-session-nep413',
+      chain: 'near',
+      kind: 'nep413',
+      signingAuthPlan: {
+        kind: SigningAuthPlanKind.WarmSession,
+        method: 'passkey',
+        accountId: nearAccountId,
+        intent: 'transaction_sign',
+        expiresAtMs: Date.now() + 60_000,
+        remainingUses: 1,
+        curve: 'ed25519',
+        thresholdSessionId: 'threshold-session-nep413',
+      },
+      walletId: parsedWalletId.value,
+      nearAccountId,
+      message: 'Sign in to the local Seams playground',
+      recipient: 'wallet-console-lite.local',
+      title: 'Review message signature',
+    }),
+  ).rejects.toThrow('test_cancelled');
+
+  expect(capturedRequest?.type).toBe(UserConfirmationType.SIGN_NEP413_MESSAGE);
+  if (capturedRequest?.type !== UserConfirmationType.SIGN_NEP413_MESSAGE) {
+    throw new Error('Expected a NEP-413 confirmation request');
+  }
+
+  const tree = buildConfirmationTree({ model: capturedRequest.payload.displayModel });
+  expect(tree).not.toBeNull();
+  if (!tree) throw new Error('Expected a NEP-413 display tree');
+  const treeText = collectTreeText(tree);
+  expect(treeText).toContain('Signer: alice.testnet');
+  expect(treeText).toContain('Recipient: wallet-console-lite.local');
+  expect(treeText).toContain('Sign in to the local Seams playground');
 });

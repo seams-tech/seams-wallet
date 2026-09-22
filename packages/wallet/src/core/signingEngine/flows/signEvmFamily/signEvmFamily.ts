@@ -1,3 +1,4 @@
+import { reviewAdmissionForBinding } from '../../uiConfirm/transactionReviewAdmission';
 import { SigningEventPhase } from '@/core/types/sdkSentEvents';
 import type { ConfirmationConfig } from '@/core/types/signer-worker';
 import type { AccountAuthMetadata } from '@/core/signingEngine/interfaces/accountAuthMetadata';
@@ -291,6 +292,13 @@ export async function signEvmFamily(
   deps: EvmFamilySigningDeps,
   args: SignEvmFamilyArgs,
 ): Promise<TempoSignedResult | EvmSignedResult> {
+  const admission = reviewAdmissionForBinding(
+    deps.touchConfirm.getContext().surfaceMeasurementBinding,
+  );
+  if (admission) {
+    admission.assertPending();
+    deps = { ...deps, beforeSigning: admission.beforeSigning };
+  }
   const attempt: SignEvmFamilyAttemptOptions = {
     admissionRetryState: { kind: 'initial_admission' },
     operationIds: createEvmFamilySigningOperationIds(args.signingOperationId),

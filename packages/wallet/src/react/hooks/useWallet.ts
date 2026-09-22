@@ -1,3 +1,7 @@
+import { useTransactionReviewOwner } from '../transactionReview/TransactionReviewHost';
+import type { ReviewedTransactionInput } from '../transactionReview/contract';
+import { createReviewedBoundCalls } from '../transactionReview/boundCalls';
+import type { ReviewOwner, ReviewHostController } from '../transactionReview/controller';
 import { useMemo } from 'react';
 import { useSeams } from '../context';
 import {
@@ -23,10 +27,14 @@ type WithoutWalletSession<T> = T extends unknown ? Omit<T, 'walletSession'> : ne
 export interface BoundNearSigner {
   readonly accountId: string;
   signAndSendTransaction(
-    args: WithoutNearSubject<Parameters<NearSignerCapability['signAndSendTransaction']>[0]>,
+    args: ReviewedTransactionInput<
+      WithoutNearSubject<Parameters<NearSignerCapability['signAndSendTransaction']>[0]>
+    >,
   ): ReturnType<NearSignerCapability['signAndSendTransaction']>;
   executeAction(
-    args: WithoutNearSubject<Parameters<NearSignerCapability['executeAction']>[0]>,
+    args: ReviewedTransactionInput<
+      WithoutNearSubject<Parameters<NearSignerCapability['executeAction']>[0]>
+    >,
   ): ReturnType<NearSignerCapability['executeAction']>;
   signNEP413Message(
     args: WithoutNearSubject<Parameters<NearSignerCapability['signNEP413Message']>[0]>,
@@ -36,20 +44,28 @@ export interface BoundNearSigner {
 /** EIP-1559 signing bound to one wallet. */
 export interface BoundEvmSigner {
   signTransaction(
-    args: WithoutWalletSession<Parameters<EvmSignerCapability['signTransaction']>[0]>,
+    args: ReviewedTransactionInput<
+      WithoutWalletSession<Parameters<EvmSignerCapability['signTransaction']>[0]>
+    >,
   ): ReturnType<EvmSignerCapability['signTransaction']>;
   executeTransaction(
-    args: WithoutWalletSession<Parameters<EvmSignerCapability['executeTransaction']>[0]>,
+    args: ReviewedTransactionInput<
+      WithoutWalletSession<Parameters<EvmSignerCapability['executeTransaction']>[0]>
+    >,
   ): ReturnType<EvmSignerCapability['executeTransaction']>;
 }
 
 /** EIP-2718 Tempo signing bound to one wallet. */
 export interface BoundTempoSigner {
   signTransaction(
-    args: WithoutWalletSession<Parameters<TempoSignerCapability['signTransaction']>[0]>,
+    args: ReviewedTransactionInput<
+      WithoutWalletSession<Parameters<TempoSignerCapability['signTransaction']>[0]>
+    >,
   ): ReturnType<TempoSignerCapability['signTransaction']>;
   executeTransaction(
-    args: WithoutWalletSession<Parameters<TempoSignerCapability['executeTransaction']>[0]>,
+    args: ReviewedTransactionInput<
+      WithoutWalletSession<Parameters<TempoSignerCapability['executeTransaction']>[0]>
+    >,
   ): ReturnType<TempoSignerCapability['executeTransaction']>;
 }
 
@@ -103,11 +119,22 @@ function createBoundWallet(
   seams: SeamsWeb,
   walletId: string,
   nearAccountId: string | null,
+  host: ReviewHostController | null,
+  owner: ReviewOwner,
 ): BoundWallet {
   const walletSession = walletSessionRefFromSession({ walletId });
   const nearAccount: NearAccountRef | null = nearAccountId
     ? nearAccountRefFromAccountId(nearAccountId)
     : null;
+
+  const reviewed = createReviewedBoundCalls({
+    seams,
+    walletId,
+    walletSession,
+    nearAccount,
+    host,
+    owner,
+  });
 
   // Bind the wallet the UI rendered, rather than re-resolving per call: a button
   // signs with the wallet the person was looking at when they clicked.
@@ -115,10 +142,8 @@ function createBoundWallet(
     nearAccount && nearAccountId
       ? {
           accountId: nearAccountId,
-          signAndSendTransaction: (args) =>
-            seams.near.signAndSendTransaction({ ...args, walletSession, nearAccount }),
-          executeAction: (args) =>
-            seams.near.executeAction({ ...args, walletSession, nearAccount }),
+          signAndSendTransaction: reviewed.nearSign,
+          executeAction: reviewed.nearExecute,
           signNEP413Message: (args) =>
             seams.near.signNEP413Message({ ...args, walletSession, nearAccount }),
         }
@@ -129,12 +154,12 @@ function createBoundWallet(
     walletSession,
     near,
     evm: {
-      signTransaction: (args) => seams.evm.signTransaction({ ...args, walletSession }),
-      executeTransaction: (args) => seams.evm.executeTransaction({ ...args, walletSession }),
+      signTransaction: reviewed.evmSign,
+      executeTransaction: reviewed.evmExecute,
     },
     tempo: {
-      signTransaction: (args) => seams.tempo.signTransaction({ ...args, walletSession }),
-      executeTransaction: (args) => seams.tempo.executeTransaction({ ...args, walletSession }),
+      signTransaction: reviewed.tempoSign,
+      executeTransaction: reviewed.tempoExecute,
     },
     exportKey: async (input) => {
       if (input.kind === 'ed25519') {
@@ -166,6 +191,10 @@ export function useWallet(): UseWalletResult {
   const walletId = loginState.isLoggedIn ? loginState.walletId : null;
   const nearAccountId = loginState.isLoggedIn ? loginState.nearAccountId : null;
 
+  const { host, owner } = useTransactionReviewOwner(
+    walletId ? `${walletId}:${nearAccountId ?? ''}` : null,
+  );
+
   return useMemo<UseWalletResult>(() => {
     if (!walletId) {
       return {
@@ -178,7 +207,7 @@ export function useWallet(): UseWalletResult {
         nearAccountId: null,
       };
     }
-    const wallet = createBoundWallet(seams, walletId, nearAccountId);
+    const wallet = createBoundWallet(seams, walletId, nearAccountId, host, owner);
     if (!wallet.near || !nearAccountId) {
       return {
         status: 'no_near_account',
@@ -199,5 +228,5 @@ export function useWallet(): UseWalletResult {
       walletId,
       nearAccountId,
     };
-  }, [seams, walletId, nearAccountId]);
+  }, [seams, walletId, nearAccountId, host, owner]);
 }

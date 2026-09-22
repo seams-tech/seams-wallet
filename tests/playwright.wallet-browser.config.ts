@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const browserTestOrigin = 'http://localhost:4203';
+const browserTestOrigin = process.env.SEAMS_TEST_FRONTEND_URL ?? 'http://localhost:4203';
+const browserTestPort = new URL(browserTestOrigin).port;
 
 process.env.NO_CADDY = '1';
 process.env.SEAMS_TEST_FRONTEND_URL = browserTestOrigin;
@@ -10,7 +11,7 @@ export default defineConfig({
   testDir: '.',
   testMatch: [
     '**/wallet-iframe/**/*.test.ts',
-    '**/lit-components/**/*.test.ts',
+    '**/wallet-ui/**/*.test.ts',
     '**/unit/**/*.test.ts',
   ],
   fullyParallel: false,
@@ -23,11 +24,23 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'firefox-ui',
+      testMatch: ['**/wallet-ui/**/*.browser.test.ts', '**/wallet-ui/auth-menu.lifecycle.test.ts'],
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit-ui',
+      testMatch: ['**/wallet-ui/**/*.browser.test.ts', '**/wallet-ui/auth-menu.lifecycle.test.ts'],
+      use: { ...devices['Desktop Safari'] },
+    },
+  ],
   webServer: {
-    command: 'pnpm exec vite browser-app --host 127.0.0.1 --port 4203 --strictPort',
+    command: `pnpm exec vite browser-app --host 127.0.0.1 --port ${browserTestPort} --strictPort`,
     url: browserTestOrigin,
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     timeout: 60_000,
   },
 });

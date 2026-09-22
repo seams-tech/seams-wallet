@@ -1,3 +1,4 @@
+import type { TransactionDispatch } from '../walletIframe/client/transactionReviewReservation';
 import type {
   NearSignerCapability,
   NearSigningSurface,
@@ -127,14 +128,17 @@ export async function fundImplicitNearAccountFromCurrentSession(args: {
   });
 }
 
-export function createNearSignerCapability(deps: {
-  signingEngine: RegistrationSigningSurface & NearSigningSurface & UserAccountLookupSurface;
-  nearClient: NearSigningWebContext['nearClient'];
-  configs: SeamsConfigsReadonly;
-  getTheme: () => ThemeMode;
-  getWalletIframe: () => WalletIframeCoordinator;
-  currentWallet: CurrentWalletResolver;
-}): NearSignerCapability {
+export function createNearSignerCapability(
+  deps: {
+    signingEngine: RegistrationSigningSurface & NearSigningSurface & UserAccountLookupSurface;
+    nearClient: NearSigningWebContext['nearClient'];
+    configs: SeamsConfigsReadonly;
+    getTheme: () => ThemeMode;
+    getWalletIframe: () => WalletIframeCoordinator;
+    currentWallet: CurrentWalletResolver;
+  },
+  transactionDispatch: TransactionDispatch = { kind: 'ordinary' },
+): NearSignerCapability {
   const getContext = (): NearSigningWebContext => ({
     signingEngine: deps.signingEngine,
     nearClient: deps.nearClient,
@@ -226,13 +230,16 @@ export function createNearSignerCapability(deps: {
       }
       try {
         const router = await walletIframe.requireRouter(commandSubject.walletSession.walletId);
-        const result = await router.executeAction({
-          walletId: commandSubject.walletSession.walletId,
-          nearAccountId,
-          receiverId: args.receiverId,
-          actionArgs: args.actionArgs,
-          options: args.options,
-        });
+        const result = await router.executeAction(
+          {
+            walletId: commandSubject.walletSession.walletId,
+            nearAccountId,
+            receiverId: args.receiverId,
+            actionArgs: args.actionArgs,
+            options: args.options,
+          },
+          transactionDispatch,
+        );
         await args.options?.afterCall?.(true, result);
         return result;
       } catch (error: unknown) {
@@ -279,12 +286,15 @@ export function createNearSignerCapability(deps: {
       }
       try {
         const router = await walletIframe.requireRouter(commandSubject.walletSession.walletId);
-        const result = await router.signAndSendTransaction({
-          walletId: commandSubject.walletSession.walletId,
-          nearAccountId,
-          transaction,
-          options: args.options,
-        });
+        const result = await router.signAndSendTransaction(
+          {
+            walletId: commandSubject.walletSession.walletId,
+            nearAccountId,
+            transaction,
+            options: args.options,
+          },
+          transactionDispatch,
+        );
         await args.options?.afterCall?.(true, result);
         return result;
       } catch (error: unknown) {

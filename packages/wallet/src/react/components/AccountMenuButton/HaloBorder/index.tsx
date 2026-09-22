@@ -25,6 +25,7 @@ interface HaloBorderProps {
   ringWidth?: number; // Thickness of the rotating ring
   ringBorderRadius?: string; // Border radius of the rotating arc
   ringBorderShadow?: string; // Box shadow of the rotating ring
+  ringBackground?: string; // Stops portion of the conic-gradient
   padding?: string; // Padding of the container
   innerPadding?: string; // Inner border padding of the container
   innerBackground?: string; // Inner background color of the container
@@ -40,6 +41,7 @@ export const HaloBorder: React.FC<HaloBorderProps> = ({
   ringWidth = 2,
   ringBorderRadius = '2rem',
   ringBorderShadow,
+  ringBackground = 'transparent 0%, #4DAFFE 10%, #4DAFFE 25%, transparent 35%',
   padding,
   innerPadding = '2rem',
   innerBackground = 'var(--seams-colors-colorBackground)',
@@ -92,13 +94,13 @@ export const HaloBorder: React.FC<HaloBorderProps> = ({
       const progress = (elapsed % durationMs) / durationMs; // 0..1
       const angle = progress * 360; // degrees
       if (ringRef.current) {
-        ringRef.current.style.background = `conic-gradient(from ${angle}deg, transparent 0%, #4DAFFE 10%, #4DAFFE 25%, transparent 35%)`;
+        ringRef.current.style.background = `conic-gradient(from ${angle}deg, ${ringBackground})`;
       }
       rafId = requestAnimationFrame(step);
     };
     rafId = requestAnimationFrame(step);
     return () => cancelAnimationFrame(rafId);
-  }, [animated]);
+  }, [animated, ringBackground]);
 
   const ringInsetPx = `-${ringGap + ringWidth}px`;
   const ringStyle = {
@@ -110,8 +112,7 @@ export const HaloBorder: React.FC<HaloBorderProps> = ({
     borderRadius: `calc(${ringBorderRadius} + ${ringGap}px + ${ringWidth}px)`,
     pointerEvents: 'none' as const,
     zIndex: 3,
-    background:
-      'conic-gradient(from 0deg, transparent 0%, #4DAFFE 10%, #4DAFFE 25%, transparent 35%)',
+    background: `conic-gradient(from 0deg, ${ringBackground})`,
     padding: `${ringWidth}px`,
     WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
     WebkitMaskComposite: 'xor',

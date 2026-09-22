@@ -1,7 +1,7 @@
 import type { GetRecentUnlocksResult } from '@/core/types/seams';
 import type { LocalLoginAuthMethod } from '@/SeamsWeb/operations/auth/login';
 import { WALLET_AUTH_METHODS } from '@shared/utils';
-import type { AuthMenuAccountOption } from '../lit-ui/auth-menu/auth-menu-domain';
+import type { AuthMenuAccountOption } from './domain';
 
 function accountOptionKey(option: AuthMenuAccountOption): string {
   return `${option.walletId}:${option.authMethod}`;

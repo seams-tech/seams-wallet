@@ -1,3 +1,16 @@
+import {
+  TransactionReviewAdmission,
+  transactionReviewAdmission,
+  cancelTransactionReviews,
+} from '@/core/signingEngine/uiConfirm/transactionReviewAdmission';
+import {
+  parseTransactionReviewWire,
+  transactionReviewCancellationCode,
+  parseTransactionReviewState,
+  sameTransactionReviewIdentity,
+  assertTransactionReviewValid,
+  TransactionReviewError,
+} from '../shared/transactionReview';
 import { bootstrapTransparentHost } from './bootstrap';
 import type {
   ChildToParentEnvelope,
@@ -23,14 +36,14 @@ import {
 
 let initialized = false;
 
-const CONFIRM_UI_SELECTORS = [
-  'seams-auth-menu-surface',
-  'seams-modal-tx-confirmer',
-  'seams-drawer-tx-confirmer',
-  'seams-tx-confirmer',
-  'seams-export-key-viewer',
-  '[data-seams-email-otp-recovery-code-dialog]',
-  '[data-seams-wallet-recovery-backup-dialog]',
+const CONFIRM_UI_SURFACES = [
+  { selector: '.seams-auth-menu-surface', cancellationKind: 'native_cancel' },
+  { selector: '.seams-confirmation-surface', cancellationKind: 'native_cancel' },
+  { selector: '.seams-export-surface', cancellationKind: 'wallet_iframe_cancel' },
+  {
+    selector: '[data-seams-wallet-recovery-backup-dialog]',
+    cancellationKind: 'native_cancel',
+  },
 ] as const;
 
 export type WalletHostRuntimeKind = RuntimeWalletHostRoute['kind'];
@@ -131,19 +144,11 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
     } catch {}
   };
 
-  const postToParent = (message: unknown): void => {
-    const parentWindow = window.parent;
-    if (!parentWindow) return;
-    const target = state.parentOrigin && state.parentOrigin !== 'null' ? state.parentOrigin : '*';
-    try {
-      parentWindow.postMessage(message, target);
-    } catch {}
-  };
-
   const markCancelled = (rid?: string): void => {
     if (rid) cancelledRequests.add(rid);
   };
-  const isCancelled = (rid?: string): boolean => !!rid && cancelledRequests.has(rid);
+  const isCancelled = (rid?: string): boolean =>
+    !!rid && (cancelledRequests.has(rid) || transactionReviewAdmission(rid)?.cancelled === true);
   const clearCancelled = (rid?: string): void => {
     if (rid) cancelledRequests.delete(rid);
   };
@@ -157,38 +162,29 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
   };
   const respondIfCancelled = (requestId: string | undefined): boolean => {
     if (!requestId || !isCancelled(requestId)) return false;
+    if (transactionReviewAdmission(requestId)?.cancelled) return true;
     emitCancellationPayload(requestId);
     clearCancelled(requestId);
     return true;
   };
 
   const cancelOpenConfirmers = (): void => {
-    const els = CONFIRM_UI_SELECTORS.flatMap(
-      (selector) => Array.from(document.querySelectorAll(selector)) as HTMLElement[],
-    );
-    for (const el of els) {
-      try {
-        if (el.matches('seams-auth-menu-surface')) {
-          el.dispatchEvent(
-            new CustomEvent('seams-auth-menu-intent', {
-              bubbles: true,
-              composed: true,
-              detail: { kind: 'close', reason: 'close_button' },
-            }),
-          );
-        } else {
-          el.dispatchEvent(
-            new CustomEvent(WalletIframeDomEvents.TX_CONFIRMER_CANCEL, {
-              bubbles: true,
-              composed: true,
-            }),
-          );
-        }
-      } catch {}
-      const recoveryCodeCloseButton = el.querySelector<HTMLButtonElement>(
-        '[data-seams-email-otp-recovery-code-dialog-close], [data-seams-wallet-recovery-backup-close]',
-      );
-      recoveryCodeCloseButton?.click();
+    for (const surface of CONFIRM_UI_SURFACES) {
+      const elements = document.querySelectorAll<HTMLElement>(surface.selector);
+      for (const element of elements) {
+        try {
+          if (surface.cancellationKind === 'native_cancel') {
+            element.dispatchEvent(new Event('cancel', { cancelable: true }));
+          } else {
+            element.dispatchEvent(
+              new CustomEvent(WalletIframeDomEvents.TX_CONFIRMER_CANCEL, {
+                bubbles: true,
+                composed: true,
+              }),
+            );
+          }
+        } catch {}
+      }
     }
   };
 
@@ -197,7 +193,59 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
     if (!req || !isObject(req)) return;
     const requestId = req.requestId;
 
+    let reviewAdmission: TransactionReviewAdmission | null = null;
     try {
+      if ('transactionReview' in req) {
+        if (
+          req.type !== 'PM_SIGN_AND_SEND_TX' &&
+          req.type !== 'PM_EXECUTE_ACTION' &&
+          req.type !== 'PM_SIGN_TEMPO'
+        ) {
+          throw new TransactionReviewError(
+            'review_invalid_input',
+            'Review is unsupported for this request',
+          );
+        }
+        const metadata = parseTransactionReviewWire(req.transactionReview);
+        if (metadata.requestId !== requestId)
+          throw new TransactionReviewError(
+            'review_invalid_input',
+            'Review request identity mismatch',
+          );
+        const config = req.payload?.options?.confirmationConfig;
+        if (config?.uiMode !== 'modal' || config.behavior !== 'requireClick') {
+          throw new TransactionReviewError(
+            'review_unsupported_mode',
+            'Review requires modal presentation and explicit approval',
+          );
+        }
+        reviewAdmission = new TransactionReviewAdmission(
+          metadata,
+          req.type === 'PM_SIGN_TEMPO' &&
+            req.payload?.request.senderSignatureAlgorithm !== 'secp256k1'
+            ? 'credential'
+            : 'mpc',
+          (payload) => post({ type: 'TRANSACTION_REVIEW_STATE', requestId, payload }),
+          (error) =>
+            post({
+              type: 'ERROR',
+              requestId,
+              payload: {
+                code: error instanceof TransactionReviewError ? error.code : 'cancelled',
+                message: error.message,
+              },
+            }),
+        );
+      }
+      if (
+        req.type === 'PM_LOCK' ||
+        req.type === 'PM_LOGOUT' ||
+        req.type === 'PM_LOCK_EXACT_WALLET_SESSION'
+      ) {
+        cancelTransactionReviews(
+          new TransactionReviewError('review_identity_changed', 'The wallet session changed'),
+        );
+      }
       const route = routeWalletHostRequest(req);
 
       if (!routeRequiresRuntime(route)) {
@@ -210,18 +258,86 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
               ...(state.walletConfigs || ({} as SeamsConfigsInput)),
               ...(route.request.payload as PMSetConfigPayload),
             } as SeamsConfigsInput;
-            if (CONFIRM_UI_SELECTORS.some((selector) => document.querySelector(selector))) {
+            if (CONFIRM_UI_SURFACES.some(({ selector }) => document.querySelector(selector))) {
               const runtimeContext = await import('./runtimeContext');
               runtimeContext.syncActiveWalletHostRuntimeConfig(state);
             }
             post({ type: 'PONG', requestId });
             return;
+          case 'PM_ACTIVATE_TRANSACTION_REVIEW': {
+            const identity = parseTransactionReviewState(route.request.payload);
+            if (identity) transactionReviewAdmission(identity.requestId)?.activate(identity);
+            return;
+          }
           case 'PM_CANCEL': {
             const rid = (route.request.payload as { requestId?: string } | undefined)?.requestId;
+            const cancelPayload = route.request.payload;
+            const rawReview =
+              cancelPayload && typeof cancelPayload === 'object'
+                ? Reflect.get(cancelPayload, 'transactionReview')
+                : undefined;
+            if (rawReview !== undefined) {
+              const identity = parseTransactionReviewWire(rawReview);
+              const reviewed = transactionReviewAdmission(identity.requestId);
+              if (
+                identity.requestId === rid &&
+                reviewed &&
+                sameTransactionReviewIdentity(identity, reviewed.metadata)
+              ) {
+                let error: Error = new TransactionReviewError(
+                  transactionReviewCancellationCode(
+                    cancelPayload && typeof cancelPayload === 'object'
+                      ? Reflect.get(cancelPayload, 'reviewErrorCode')
+                      : undefined,
+                  ),
+                  'Reviewed request cancelled',
+                );
+                try {
+                  assertTransactionReviewValid(reviewed.metadata.validity);
+                } catch (expired) {
+                  if (expired instanceof Error) error = expired;
+                }
+                reviewed.cancel(error);
+              }
+              post({ type: 'PONG', requestId });
+              return;
+            }
+            const reviewed = rid ? transactionReviewAdmission(rid) : undefined;
+            if (reviewed) {
+              reviewed.cancel(new TransactionReviewError('cancelled', 'Request cancelled'));
+              post({ type: 'PONG', requestId });
+              return;
+            }
             markCancelled(rid);
             cancelOpenConfirmers();
             if (rid) emitCancellationPayload(rid);
             post({ type: 'PONG', requestId });
+            return;
+          }
+          case 'PM_SET_TRANSACTION_VIEW': {
+            const payload = route.request.payload;
+            const target =
+              payload && typeof payload === 'object' ? Reflect.get(payload, 'requestId') : null;
+            const view =
+              payload && typeof payload === 'object' ? Reflect.get(payload, 'view') : null;
+            if (typeof target === 'string' && (view === 'toast' || view === 'closed')) {
+              const activity =
+                await import('@/core/signingEngine/uiConfirm/ui/transaction-activity');
+              activity.setTransactionActivityView(target, view);
+            }
+            return;
+          }
+          case 'PM_TRANSACTION_BROADCAST_STARTED': {
+            const payload = route.request.payload;
+            const signedTransaction: unknown =
+              payload && typeof payload === 'object'
+                ? Reflect.get(payload, 'signedTransaction')
+                : null;
+            if (typeof signedTransaction === 'string') {
+              const activity =
+                await import('@/core/signingEngine/uiConfirm/ui/transaction-activity');
+              activity.transactionBroadcastStarted(signedTransaction);
+            }
             return;
           }
         }
@@ -241,14 +357,15 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
 
       const runtime = await loadWalletHostRuntime(route);
       await runtime.handleWalletHostRuntimeRequest({
+        transactionReview: reviewAdmission,
         state,
         req: route.request,
         post,
-        postToParent,
         isCancelled,
         respondIfCancelled,
       });
     } catch (err: unknown) {
+      if (reviewAdmission?.cancelled) return;
       const canonicalSignerErrors = await import('./canonicalSignerErrorCode');
       const codeRaw =
         err && typeof err === 'object' && 'code' in err
@@ -281,6 +398,8 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
             : {}),
         },
       });
+    } finally {
+      reviewAdmission?.finish();
     }
   };
 

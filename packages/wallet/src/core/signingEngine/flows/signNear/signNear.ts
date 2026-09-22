@@ -1,3 +1,4 @@
+import { reviewAdmissionForBinding } from '../../uiConfirm/transactionReviewAdmission';
 import { toAccountId, type AccountId } from '@/core/types/accountIds';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { parseSignerSlot } from '@shared/utils/signerSlot';
@@ -295,6 +296,17 @@ export async function signNear<TRequest extends NearSignIntentRequest>(
   request: TRequest,
 ): Promise<NearSignIntentResult<TRequest>> {
   if (request.kind === 'transactionWithActions') {
+    const context = deps.getSignerWorkerContext();
+    const admission = reviewAdmissionForBinding(
+      context.touchConfirm?.getContext().surfaceMeasurementBinding,
+    );
+    if (admission) {
+      admission.assertPending();
+      deps = {
+        ...deps,
+        getSignerWorkerContext: reviewedNearContext.bind(null, context, admission.beforeSigning),
+      };
+    }
     return (await signTransactionWithActions(deps, request.args)) as NearSignIntentResult<TRequest>;
   }
   if (request.kind === 'delegateAction') {
@@ -1439,6 +1451,13 @@ function buildNearTransactionPreparationDisplayModel(
       operations: [],
     };
   }
+}
+
+function reviewedNearContext(
+  context: ReturnType<NearSigningApiDeps['getSignerWorkerContext']>,
+  beforeSigning: () => void,
+): ReturnType<NearSigningApiDeps['getSignerWorkerContext']> {
+  return { ...context, beforeSigning };
 }
 
 export async function signTransactionWithActions(

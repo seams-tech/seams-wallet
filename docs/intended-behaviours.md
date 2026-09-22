@@ -707,3 +707,27 @@ restore, lane selection, or budget handling.
   failures, and connection alone does not imply transaction support.
 - Local disconnect removes browser listeners and connection state. Revoking the
   site's permission remains an explicit action in the external wallet.
+
+## Application transaction review
+
+Hosted React transactions may supply an application review through an explicit
+`TransactionReviewHost`. The six reviewed `useWallet()` transaction methods retain
+their existing core results and callbacks. Ordinary calls need no review host.
+
+- The application review and wallet approval share the existing transaction queue
+  and outer modal. React stays in the application document; authorization stays
+  inside the wallet iframe. Continue alone never signs.
+- Transaction inputs are privately copied at invocation. Effective configuration
+  is pinned before display and requires modal presentation and explicit approval.
+- Queued cancellation, expiry, owner/host disposal, wallet changes and unrelated
+  session replacement invalidate the request before signing. Old controls cannot
+  act on a subsequent request. Request-owned credential work retains its lease.
+- Wallet admission checks expiry after authentication and before each signature.
+  Once a signature starts, cancellation and expiry preserve its actual outcome.
+- Adapter failures before dispatch reject without invoking core callbacks. Wallet
+  failures after dispatch retain the method's existing outcome conventions.
+
+Consumer setup and styling: [Custom React transaction review](transaction-review.md).
+Behavioral coverage: `tests/wallet-ui/transaction-review.browser.test.ts`,
+`tests/unit/transactionReview.snapshot.test.ts`, and
+`tests/typecheck/transaction-review.typecheck.ts`.

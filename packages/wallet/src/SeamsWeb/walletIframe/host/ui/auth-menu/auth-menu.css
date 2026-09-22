@@ -1,0 +1,2164 @@
+.seams-auth-menu-surface {
+  display: block;
+  inline-size: 100dvw;
+  max-inline-size: min(100dvw, 420px);
+  --seams-spacing-sm: 0.5rem;
+  --seams-spacing-md: 1rem;
+  --seams-spacing-lg: 1.5rem;
+  /* Two curves, no more — mixed generic eases read as cheap.
+     --seams-ease-out decelerates an entering view.
+     --seams-ease-settle is the container's resize curve: a critically damped
+     spring, i.e. bounce 0. Overshoot was the wrong instinct here. An elastic
+     curve on a box whose height is sampled across the iframe boundary spends
+     its most legible frames past the target and then walks back, which reads
+     as slop rather than life; the references this is modelled on use bounce 0
+     for every state change and reserve motion character for enters. Front-load
+     the distance instead: ~80% of the travel lands in the first ~40% of the
+     duration, so the deceleration stays readable at 200ms. */
+  /* One duration for the whole box. Every part of the card's geometry reads
+     from this, so header, switcher and root can never settle at different
+     rates and split one movement into two. --seams-duration-enter matches it
+     so the incoming view finishes with the box rather than trailing it. */
+  /* The card's height floor. The waiting view derives its own floor from this
+     so the two can never drift apart — see .seams-waiting. */
+  --seams-menu-min-block-size: 250px;
+  --seams-duration-resize: 200ms;
+  --seams-duration-enter: 200ms;
+  --seams-ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+  --seams-ease-settle: cubic-bezier(0.32, 0.72, 0, 1);
+  /* The card's height is a composite: the content switcher animates px -> px
+     (syncContentHeight measures .seams-content-sizer and writes an explicit
+     height), while the header collapses `height: auto` -> `0px`, which is not
+     interpolable. So one part of the box eased and the other stepped, and the
+     sum read as a jump followed by a glide rather than one curve. Making
+     keyword sizes interpolable puts the header on the same settle as the
+     switcher, so the whole card moves as a single easing.
+     Chromium-only for now; elsewhere the header keeps stepping and the
+     switcher keeps easing, i.e. exactly today's behaviour. */
+  interpolate-size: allow-keywords;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--seams-colors-textPrimary);
+  line-height: normal;
+  background: transparent;
+  font-family: var(
+    --seams-font-family,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif
+  );
+}
+
+/* Root container */
+:where(.seams-auth-menu-surface) .seams-no-animation {
+  animation: none !important;
+  transition: none !important;
+}
+
+:where(.seams-auth-menu-surface) .seams-signup-menu-root {
+  /* CSS sentinel (used by tests/diagnostics to confirm stylesheet is applied) */
+  --seams-auth-menu-css-ready: 1;
+  --seams-auth-menu-padding-top: calc(var(--seams-spacing-lg) + 4px);
+  position: relative;
+  box-sizing: border-box;
+  /* relative position to anchor back button */
+  width: min(100dvw, 420px);
+  max-width: 100dvw;
+  min-width: min(330px, 100dvw);
+  min-height: var(--seams-menu-min-block-size, 250px);
+  color: var(--seams-colors-textPrimary);
+  font-family: var(
+    --seams-font-family,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif
+  );
+  background: var(--seams-colors-colorBackground);
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: var(--seams-shape-card, 16px);
+  /* No box-shadow here: the iframe clips it at its layout edge (the surface
+     only extends 16px past the card). The elevation is painted by the host
+     page instead — a drop-shadow on the wallet iframe in overlay-styles.ts —
+     which follows the card's silhouette and can extend past the iframe. The
+     variable remains as an escape hatch for embedders. */
+  box-shadow: var(--seams-auth-menu-shadow, none);
+  padding: var(--seams-spacing-lg);
+  padding-top: var(--seams-auth-menu-padding-top);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  transition:
+    min-height var(--seams-duration-resize, 200ms)
+      var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1)),
+    padding var(--seams-duration-resize, 200ms) var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1)),
+    border-radius 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Back button */
+:where(.seams-auth-menu-surface) .seams-back-button {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  line-height: 0;
+  border-radius: 50%;
+  color: var(--seams-colors-textPrimary);
+  background: transparent;
+  cursor: pointer;
+  border: none;
+  z-index: 20;
+  transition:
+    transform 120ms ease,
+    background-color 160ms ease,
+    opacity 220ms ease;
+  opacity: 0;
+  pointer-events: none;
+  filter: blur(0.2px);
+}
+
+:where(.seams-auth-menu-surface) .seams-back-button.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  filter: none;
+}
+
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-scan-device='true'] .seams-back-button.is-visible,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-waiting='true'] .seams-back-button.is-visible,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-otp-prompt='true'] .seams-back-button.is-visible {
+  z-index: 30;
+}
+
+:where(.seams-auth-menu-surface) .seams-back-button:hover {
+  transform: scale(1.02);
+  background: var(--seams-colors-surface);
+}
+
+:where(.seams-auth-menu-surface) .seams-back-button:active {
+  transform: scale(0.96);
+}
+
+/* Header */
+:where(.seams-auth-menu-surface) .seams-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  opacity: 1;
+  height: auto;
+  overflow: hidden;
+  transition:
+    opacity 120ms ease-out,
+    height var(--seams-duration-resize, 200ms) var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1)),
+    padding var(--seams-duration-resize, 200ms) var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1)),
+    margin var(--seams-duration-resize, 200ms) var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1));
+  pointer-events: auto;
+  position: relative;
+}
+
+/* Hide the generic menu header when a sub-state renders its own header
+   (waiting / scan / OTP code / wallet-naming) — otherwise two headers stack
+   with a dead gap between them. */
+/* Entering the loading view is the one resize on the critical path of a
+   ceremony the user just initiated — snappier than the browsing-speed default.
+   The override lives on the root, so every geometry transition inside (header,
+   switcher, content area) retimes together; leaving the state restores the
+   default in the same style recalc that starts the return transition. */
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-waiting='true'] {
+  --seams-duration-resize: 150ms;
+}
+
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-waiting='true'] .seams-header,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-scan-device='true'] .seams-header,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-otp-prompt='true'] .seams-header,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-header {
+  opacity: 0;
+  height: 0px;
+  padding-top: 0px;
+  padding-bottom: 0px;
+  margin-top: 0px;
+  margin-bottom: 0px;
+  pointer-events: none;
+}
+
+/* Adjust content area when header is hidden */
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-waiting='true'] .seams-content-area,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-scan-device='true'] .seams-content-area,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-otp-prompt='true'] .seams-content-area,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-content-area {
+  flex: 1 1 auto;
+  /* The switcher's box is what animates during a resize; the content inside
+     keeps its intrinsic height. Centre it in that animating box so the message
+     holds the centre line instead of riding the shrinking top edge downward.
+     Centring here rather than stretching the sizer is deliberate: the sizer's
+     scrollHeight is what drives the animation, so stretching it would feed its
+     own height back into the measurement. */
+  justify-content: center;
+  transition: height var(--seams-duration-resize, 200ms)
+    var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1));
+}
+
+/* Specific height adjustments for different states */
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-scan-device='true'] {
+  min-height: 280px;
+}
+
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-otp-prompt='true'] {
+  min-height: 270px;
+}
+
+:where(.seams-auth-menu-surface) .seams-title {
+  font-size: 21px;
+  font-weight: 600;
+  line-height: normal;
+  margin: 0.5rem 0.75rem;
+  text-wrap: balance;
+}
+
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-header {
+  padding-left: 44px;
+}
+
+:where(.seams-auth-menu-surface) .seams-subhead {
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1;
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 20%);
+  margin: 0;
+  margin-bottom: 1rem;
+  margin-left: 0.75rem;
+  text-wrap: pretty;
+}
+
+/* Content switcher container */
+:where(.seams-auth-menu-surface) .seams-content-switcher {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* ensure smooth height animations without spillover */
+  transition: height var(--seams-duration-resize, 200ms)
+    var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1));
+}
+
+:where(.seams-auth-menu-surface) .seams-content-switcher:has(.seams-account-menu.is-open) {
+  overflow: visible;
+}
+
+/* Content area container */
+:where(.seams-auth-menu-surface) .seams-content-area {
+  position: relative;
+  /* do not force-stretch; let content define intrinsic height */
+  flex: 0 1 auto;
+  display: flex;
+  flex-direction: column;
+  transition: height var(--seams-duration-resize, 200ms)
+    var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1));
+}
+
+/* Intrinsic sizer wrapper inside content area used for height measurement */
+:where(.seams-auth-menu-surface) .seams-content-sizer {
+  display: block;
+  width: 100%;
+}
+
+/* Default content */
+:where(.seams-auth-menu-surface) .seams-signin-menu {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  width: 100%;
+}
+
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-signin-menu {
+  padding-block-start: calc(var(--seams-spacing-md) + 0rem);
+}
+
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-title,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-subhead {
+  text-align: center;
+}
+
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-header {
+  justify-content: center;
+}
+
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-back-button {
+  top: calc(var(--seams-auth-menu-padding-top) + var(--seams-spacing-md));
+}
+
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-header > div {
+  inline-size: 100%;
+}
+
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-recovery='true'] .seams-subhead {
+  margin-inline: 0;
+}
+
+/* Enter recipe: opacity + blur + a small rise. No scale — scaling a text block
+   re-rasterizes glyphs mid-animation and shimmers. Exits stay instant: an
+   outgoing view doesn't deserve the attention an incoming one gets. */
+@keyframes content-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: blur(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-methods {
+  margin-top: 12px;
+}
+
+:where(.seams-auth-menu-surface) .seams-passkey-row + .seams-auth-methods {
+  margin-top: 6px;
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-note {
+  margin: 10px 0 0;
+  padding: 0 0.25rem;
+  color: var(--seams-colors-textSecondary);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+:where(.seams-auth-menu-surface) .seams-social-stack {
+  margin-top: 0;
+}
+
+:where(.seams-auth-menu-surface) .seams-social-provider {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+:where(.seams-auth-menu-surface) .seams-social-helper {
+  margin-top: 0;
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: var(--seams-shape-controlHeight, 44px);
+  padding: 0.5rem 1rem;
+  border-radius: var(--seams-shape-control, 10px);
+  border: 1px solid var(--seams-colors-borderPrimary);
+  background: var(--seams-colors-surface);
+  color: var(--seams-colors-textPrimary);
+  font-family: var(
+    --seams-font-family,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif
+  );
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 120ms ease,
+    box-shadow 160ms ease,
+    border-radius 300ms cubic-bezier(0.22, 1, 0.36, 1),
+    min-height 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-badge {
+  --seams-auth-method-badge-background: var(
+    --seams-colors-lastUsedBadgeBackground,
+    var(--seams-colors-success)
+  );
+  --seams-auth-method-badge-text: var(--seams-colors-lastUsedBadgeText, var(--seams-colors-textButton));
+  --seams-auth-method-badge-border: var(
+    --seams-colors-lastUsedBadgeBorder,
+    var(--seams-colors-colorBackground)
+  );
+  position: absolute;
+  inset-block-start: -0.42rem;
+  inset-inline-end: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.18rem 0.5rem;
+  border: 1px solid var(--seams-auth-method-badge-border);
+  border-radius: 999px;
+  background: var(--seams-auth-method-badge-background);
+  color: var(--seams-auth-method-badge-text);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--seams-colors-textPrimary), transparent 72%),
+    0 6px 14px -10px var(--seams-auth-method-badge-background);
+  pointer-events: none;
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:focus-visible {
+  background: var(--seams-colors-surface2);
+  box-shadow: var(--seams-shadows-sm);
+}
+
+/* Press acknowledgement. Lives in the existing transform transition, so a
+   released or moved pointer retargets mid-flight instead of finishing a
+   stale keyframe. */
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-btn-primary {
+  background: var(--seams-colors-buttonBackground, var(--seams-colors-primary, #3b82f6));
+  border-color: transparent;
+  color: var(--seams-colors-textButton, white);
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-btn-primary:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-auth-method-btn-primary:focus-visible {
+  background: var(--seams-colors-buttonHoverBackground, var(--seams-colors-primaryHover, #2563eb));
+  color: var(--seams-colors-textButton, white);
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-btn .seams-auth-method-arrow > .HoverArrow {
+  position: relative;
+  margin-top: 0.1rem;
+  margin-left: 0;
+  stroke-width: 2;
+  fill: none;
+  stroke: currentColor;
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-btn .seams-auth-method-arrow > .HoverArrow .HoverArrow__linePath {
+  opacity: 0;
+  filter: none;
+  transform: scaleX(1);
+  transform-origin: right center;
+  transition:
+    opacity 120ms cubic-bezier(0.215, 0.61, 0.355, 1),
+    filter 120ms cubic-bezier(0.215, 0.61, 0.355, 1),
+    transform 120ms cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-btn .seams-auth-method-arrow > .HoverArrow .HoverArrow__tipPath {
+  transition: transform 120ms cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:hover:not(:disabled)
+  .seams-auth-method-arrow
+  > .HoverArrow
+  .HoverArrow__linePath,
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:focus-visible .seams-auth-method-arrow > .HoverArrow .HoverArrow__linePath {
+  opacity: 1;
+  filter: none;
+  transform: scaleX(1);
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:hover:not(:disabled) .seams-auth-method-arrow > .HoverArrow .HoverArrow__tipPath,
+:where(.seams-auth-menu-surface) .seams-auth-method-btn:focus-visible .seams-auth-method-arrow > .HoverArrow .HoverArrow__tipPath {
+  transform: translateX(3px);
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-prompt {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  /* Floor, not a target: real content still grows the card. Sized so the OTP
+     view (title, delivery line, six slots, helper, resend) sits comfortably
+     without the ~2.5rem of dead air it used to reserve. padding-top stays —
+     it clears the absolute-positioned back button. */
+  min-height: 230px;
+  padding-top: 42px;
+  justify-content: center;
+  animation: content-enter var(--seams-duration-enter, 200ms) var(--seams-ease-out, ease-out);
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-prompt-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+  margin: 0 0 4px;
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-title {
+  color: var(--seams-colors-textPrimary);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-description,
+:where(.seams-auth-menu-surface) .seams-otp-helper {
+  margin: 0;
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 25%);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  text-align: center;
+  text-wrap: pretty;
+  /* A status line, not a hero: fade + focus only, no positional motion. */
+  animation: status-enter 200ms var(--seams-ease-out, ease-out) both;
+}
+
+@keyframes status-enter {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-account {
+  box-sizing: border-box;
+  align-self: center;
+  width: min(100%, 360px);
+  /* rounded shapes inset the label/value further so the corner curve does not
+     crowd them; square keeps the 12px fallback */
+  padding: 8px 12px 8px var(--seams-shape-boxPaddingInlineStart, 12px);
+  border: 1px solid color-mix(in srgb, var(--seams-colors-borderPrimary), transparent 18%);
+  border-radius: var(--seams-shape-box, 10px);
+  background: color-mix(in srgb, var(--seams-colors-surface), transparent 12%);
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-account-label {
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 12%);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-account-value {
+  color: var(--seams-colors-textPrimary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-reroll {
+  align-self: center;
+  border: 0;
+  background: transparent;
+  color: var(--seams-colors-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0 8px;
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-reroll:disabled {
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 20%);
+  cursor: not-allowed;
+}
+
+/* Registration (wallet-naming): with the generic header hidden, this block's
+   own title is the sole header. Anchor it to the top, left-align everything to
+   share one edge with the wallet field, and match the title to the auth-card
+   header scale (not larger). */
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-prompt {
+  justify-content: flex-start;
+  min-height: 0;
+}
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-prompt-copy {
+  text-align: left;
+}
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-title {
+  font-size: 21px;
+  font-weight: 600;
+}
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-description,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-helper {
+  text-align: left;
+}
+:where(.seams-auth-menu-surface) .seams-signup-menu-root[data-registration-prompt='true'] .seams-otp-account {
+  align-self: stretch;
+  width: 100%;
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-code-field {
+  box-sizing: border-box;
+  position: relative;
+  width: 100%;
+  max-width: 40rem;
+  margin-inline: auto;
+  padding: 3px 4px;
+  cursor: text;
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-code-field[data-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-input {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0.01;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font-family: var(
+    --seams-font-family,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif
+  );
+  font-size: 16px;
+  outline: none;
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-slots {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: clamp(6px, 1.5vw, 10px);
+  width: 100%;
+  pointer-events: none;
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-slot {
+  aspect-ratio: 1;
+  min-width: 0;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--seams-colors-borderPrimary), var(--seams-colors-surface) 68%);
+  color: var(--seams-colors-textPrimary);
+  font-family: var(
+    --seams-font-family,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif
+  );
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1;
+  /* Equal-width digits: a slot's glyph can't nudge its neighbours as the
+     code fills in. */
+  font-variant-numeric: tabular-nums;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-slot.is-filled {
+  background: color-mix(in srgb, var(--seams-colors-surface), var(--seams-colors-textPrimary) 6%);
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-code-field:focus-within .seams-otp-slot {
+  border-color: var(--seams-colors-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-primary), transparent 72%);
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-key-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-key-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-key-label-row .seams-field-label {
+  margin-bottom: 0;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-key-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--seams-colors-surface), transparent 6%);
+  color: var(--seams-colors-textPrimary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+  outline: none;
+  text-transform: uppercase;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-key-input::placeholder {
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 20%);
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-key-input:focus {
+  border-color: var(--seams-colors-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-primary), transparent 72%);
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-key-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-key-scan {
+  border: 0;
+  background: transparent;
+  color: var(--seams-colors-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-key-scan:disabled {
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 20%);
+  cursor: not-allowed;
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-resend {
+  align-self: center;
+  border: 0;
+  background: transparent;
+  color: var(--seams-colors-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+
+:where(.seams-auth-menu-surface) .seams-otp-resend:disabled {
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 20%);
+  cursor: not-allowed;
+}
+
+/* Passkey row */
+:where(.seams-auth-menu-surface) .seams-passkey-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0;
+  z-index: 4;
+}
+
+:where(.seams-auth-menu-surface) .seams-input-pill {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  padding: 0rem 1rem;
+  height: calc(var(--seams-shape-fieldHeight, 44px) + 4px);
+  gap: 8px;
+  /* field treatment comes from the shape preset: square is a bordered
+     surface (border carries the affordance), rounded is a tinted pill */
+  border: 1px solid var(--seams-shape-fieldBorder, var(--seams-colors-borderPrimary));
+  background: var(--seams-shape-fieldBackground, var(--seams-colors-surface));
+  border-radius: var(--seams-shape-field, 10px);
+  box-shadow: none;
+  overflow: visible;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background-color 300ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 300ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* border-only focus: outward rings clip against the content switcher's
+   overflow:hidden, so the 1px border carries the focus state instead */
+:where(.seams-auth-menu-surface) .seams-input-pill:focus-within {
+  border-color: var(--seams-colors-focus, var(--seams-colors-primary));
+}
+
+:where(.seams-auth-menu-surface) .seams-input-wrap {
+  position: relative;
+  flex: 1;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  /* allow input to shrink inside flex container without clipping */
+}
+
+:where(.seams-auth-menu-surface) .seams-input {
+  width: 100%;
+  height: 32px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--seams-colors-textPrimary);
+  font-size: 16px;
+  padding: 0;
+  min-width: 0;
+  /* prevent overflow clipping in flex layouts */
+}
+
+/* Absolute status message anchored to bottom-right of the input area */
+:where(.seams-auth-menu-surface) .seams-input::placeholder {
+  /* Improve contrast for placeholders on dark */
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 35%);
+  opacity: 0.95;
+}
+
+:where(.seams-auth-menu-surface) .seams-input:read-only {
+  cursor: default;
+}
+
+:where(.seams-auth-menu-surface) .seams-postfix {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  color: var(--seams-colors-textSecondary);
+  font-size: 16px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  visibility: hidden;
+  /* React enables once measured */
+  transition: left 32ms var(--seams-ease-out, cubic-bezier(0.25, 1, 0.5, 1));
+}
+
+:where(.seams-auth-menu-surface) .seams-postfix.is-existing {
+  color: var(--seams-colors-success);
+}
+
+/* On focus, keep postfix subtle for readability */
+:where(.seams-auth-menu-surface) .seams-input:focus ~ .seams-postfix {
+  color: var(--seams-colors-textMuted);
+}
+
+:where(.seams-auth-menu-surface) .seams-account-menu {
+  position: static;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+:where(.seams-auth-menu-surface) .seams-input-action-trigger,
+:where(.seams-auth-menu-surface) .seams-account-menu-trigger {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--seams-colors-surface2), transparent 58%);
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 18%);
+  cursor: pointer;
+  outline: none;
+  padding: 0;
+  line-height: 0;
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    transform 120ms ease;
+}
+
+:where(.seams-auth-menu-surface) .seams-input-action-trigger:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-input-action-trigger:focus-visible,
+:where(.seams-auth-menu-surface) .seams-account-menu-trigger:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-account-menu-trigger:focus-visible,
+:where(.seams-auth-menu-surface) .seams-account-menu.is-open .seams-account-menu-trigger {
+  background: color-mix(in srgb, var(--seams-colors-surface2), transparent 18%);
+  color: color-mix(in srgb, var(--seams-colors-textPrimary), var(--seams-colors-primary) 18%);
+  box-shadow: none;
+}
+
+:where(.seams-auth-menu-surface) .seams-input-action-trigger:active:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-account-menu-trigger:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+:where(.seams-auth-menu-surface) .seams-input-action-trigger:disabled,
+:where(.seams-auth-menu-surface) .seams-account-menu-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+:where(.seams-auth-menu-surface) .seams-input-action-icon,
+:where(.seams-auth-menu-surface) .seams-account-dropdown-arrow {
+  width: 21px;
+  height: 21px;
+  display: block;
+  pointer-events: none;
+  transition: color 160ms ease;
+}
+
+:where(.seams-auth-menu-surface) .seams-input-action-icon {
+  fill: none;
+  stroke: currentColor;
+}
+
+:where(.seams-auth-menu-surface) .seams-account-dropdown-arrow {
+  fill: currentColor;
+}
+
+:where(.seams-auth-menu-surface) .seams-account-menu-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  /* a hair wider than the input so their edges don't optically collide */
+  left: -1px;
+  width: calc(100% + 2px);
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--seams-colors-borderPrimary), transparent 8%);
+  /* control radius + 2px, capped so the rounded preset stays list-friendly */
+  border-radius: min(calc(var(--seams-shape-control, 10px) + 2px), 20px);
+  background: var(--seams-colors-colorBackground);
+  box-shadow: var(--seams-shadows-lg);
+  z-index: 20;
+  animation: content-enter 180ms var(--seams-ease-out, ease-out);
+}
+
+:where(.seams-auth-menu-surface) .seams-account-menu-group + .seams-account-menu-group {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--seams-colors-borderPrimary), transparent 45%);
+}
+
+:where(.seams-auth-menu-surface) .seams-account-menu-group-label {
+  padding: 2px 10px 6px;
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 12%);
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+:where(.seams-auth-menu-surface) .seams-account-menu-option {
+  width: 100%;
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--seams-shape-item, 8px);
+  background: transparent;
+  color: var(--seams-colors-textPrimary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 650;
+  text-align: left;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+:where(.seams-auth-menu-surface) .seams-account-menu-option:hover {
+  background: var(--seams-colors-surface2);
+}
+
+:where(.seams-auth-menu-surface) .seams-account-menu-option:focus-visible {
+  background: var(--seams-colors-surface2);
+  outline: 2px solid var(--seams-colors-focus, var(--seams-colors-primary));
+  outline-offset: -2px;
+}
+
+:where(.seams-auth-menu-surface) .seams-account-menu-option.is-selected {
+  background: color-mix(in srgb, var(--seams-colors-primary), transparent 84%);
+  color: var(--seams-colors-textPrimary);
+}
+
+:where(.seams-auth-menu-surface) .seams-account-menu-check {
+  position: relative;
+  width: 16px;
+  height: 16px;
+}
+
+:where(.seams-auth-menu-surface) .seams-account-menu-option.is-selected .seams-account-menu-check::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+:where(.seams-auth-menu-surface) .seams-account-menu-account {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+:where(.seams-auth-menu-surface) .seams-account-menu-account-primary,
+:where(.seams-auth-menu-surface) .seams-account-menu-account-secondary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.seams-auth-menu-surface) .seams-account-menu-account-secondary {
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 12%);
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+:where(.seams-auth-menu-surface) .seams-selected-account {
+  width: 100%;
+  align-content: center;
+}
+
+:where(.seams-auth-menu-surface) .seams-selected-account .seams-account-menu-account-primary {
+  font-size: 0.84rem;
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+/* Waiting state */
+:where(.seams-auth-menu-surface) .seams-waiting {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: transparent;
+  text-align: center;
+  /* Fill the card rather than just the message. The root carries a height
+     floor, so a shorter waiting box sat top-anchored inside a taller card:
+     justify-content centred the message in the BOX, and the box's own dead
+     space below it put the message above the card's true centre. While the
+     card animated its height, the message then rode the moving top edge
+     downward instead of holding still. Matching the card's inner height makes
+     the box and the card the same thing, so centring in one centres in both. */
+  min-height: calc(
+    var(--seams-menu-min-block-size, 250px) - var(--seams-auth-menu-padding-top) -
+      var(--seams-spacing-lg)
+  );
+}
+
+/* No enter animation on the waiting view: arriving here is instant, so the
+   spinner is already turning the moment the state flips. The spinner keeps
+   only its rotation (see .seams-spinner) — do not add an `animation:` shorthand
+   on this selector, it would shadow the rotation and freeze it. */
+
+:where(.seams-auth-menu-surface) .seams-waiting-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  /* Deliberately longer than --seams-duration-enter and than the 150ms resize
+     into this view: the box arrives first and the wording settles into it,
+     rather than both landing at once. `both` holds opacity 0 before the first
+     frame so the text cannot flash at full opacity.
+     This lives on the message wrapper, never on .seams-waiting — the spinner is
+     a sibling there, and an `animation` shorthand on the parent would shadow
+     its rotation and freeze it. */
+  animation: fade-in 250ms var(--seams-ease-out, ease-out) both;
+  /* Centring is recomputed by layout on every frame of the resize, so the
+     block's offset lands on fractional pixels and the glyphs re-rasterise at a
+     slightly different rounded position each frame — seen as jitter. Promoting
+     the block to its own layer lets the compositor interpolate that sub-pixel
+     offset instead of re-rendering the text at each rounded step.
+     This is the sanctioned use of will-change: a compositable property, added
+     only after observing the stutter. The layout-property will-change
+     declarations removed elsewhere in this file were neither. */
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+:where(.seams-auth-menu-surface) .seams-waiting-text {
+  font-size: 18px;
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+:where(.seams-auth-menu-surface) .seams-waiting-subtext {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 25%);
+}
+
+:where(.seams-auth-menu-surface) .seams-waiting-sdk-events {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 15%);
+}
+
+:where(.seams-auth-menu-surface) .seams-spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 3px solid var(--seams-colors-borderPrimary);
+  border-top-color: var(--seams-colors-primary);
+  animation: seams-spin 0.9s linear infinite;
+}
+
+/* Scan device content wrapper */
+:where(.seams-auth-menu-surface) .qr-code-container {
+  padding-top: 0.25rem;
+}
+
+/* The plate carries 1rem of its own padding around the code, so the title can
+   sit tight against it and still read as separated from the QR modules. */
+:where(.seams-auth-menu-surface) .qr-header {
+  position: relative;
+  display: grid;
+  place-content: center;
+  padding: 0;
+}
+
+/* Sized off the menu's own title (21px) rather than louder than it: this heading
+   sits inside the same card, so a heavier scale reads as a second, competing
+   header. Shared with the link-device confirmation and failure views so every
+   sub-view of this flow speaks at one volume. */
+:where(.seams-auth-menu-surface) .qr-title {
+  margin: 0;
+  padding-top: 0;
+  color: var(--seams-colors-textPrimary, #1e293b);
+  font-size: 1.3125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+:where(.seams-auth-menu-surface) .qr-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+}
+
+/* One tight gap for the whole stack: the three text lines read as a single
+   block, and the title sits close under the code plate. */
+:where(.seams-auth-menu-surface) .qr-code-section {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* The code always sits on an opaque white plate: the QR PNG is black-on-white,
+   so on a dark theme an unbacked image reads as a raw white rectangle. The
+   plate is a fixed square in both states — the placeholder below occupies the
+   same box, so nothing under it moves when the image arrives. */
+:where(.seams-auth-menu-surface) .qr-code-display {
+  display: grid;
+  place-items: center;
+  width: min(100%, 232px);
+  aspect-ratio: 1 / 1;
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 1.25rem;
+  background: #ffffff;
+}
+
+:where(.seams-auth-menu-surface) .qr-code-placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.05);
+  animation: qr-placeholder-pulse 1.8s ease-in-out infinite;
+}
+
+/* On the white plate the spinner's default translucent-white track is invisible;
+   restate the track against the plate rather than the card. */
+:where(.seams-auth-menu-surface) .qr-code-placeholder .seams-spinner {
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+  border-color: rgba(15, 23, 42, 0.12);
+  border-top-color: var(--seams-colors-primary);
+}
+
+@keyframes qr-placeholder-pulse {
+  0%,
+  100% {
+    background-color: rgba(15, 23, 42, 0.05);
+  }
+
+  50% {
+    background-color: rgba(15, 23, 42, 0.09);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.seams-auth-menu-surface) .qr-code-placeholder {
+    animation: none;
+  }
+}
+
+:where(.seams-auth-menu-surface) .qr-instruction,
+:where(.seams-auth-menu-surface) .qr-status {
+  margin: 0;
+  color: var(--seams-colors-textSecondary, #1e293b);
+  font-weight: 500;
+  text-align: center;
+  text-wrap: pretty;
+}
+
+:where(.seams-auth-menu-surface) .qr-instruction {
+  max-width: 34ch;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+/* The status is a running commentary on the pairing, not a peer of the
+   instruction — one step quieter and smaller so the two lines stack as a
+   hierarchy instead of a paragraph. */
+:where(.seams-auth-menu-surface) .qr-status {
+  margin-bottom: 0.25rem;
+  color: color-mix(in srgb, var(--seams-colors-textSecondary, #64748b), transparent 25%);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+:where(.seams-auth-menu-surface) .animated-ellipsis {
+  display: inline-block;
+  width: 1.2em;
+  text-align: left;
+}
+
+:where(.seams-auth-menu-surface) .animated-ellipsis::after {
+  content: '...';
+  animation: ellipsis 1.5s infinite;
+}
+
+@keyframes ellipsis {
+  0% {
+    content: '...';
+  }
+  25% {
+    content: '';
+  }
+  50% {
+    content: '.';
+  }
+  75% {
+    content: '..';
+  }
+  100% {
+    content: '...';
+  }
+}
+
+:where(.seams-auth-menu-surface) .qr-code-image {
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+  border-radius: 0.5rem;
+  animation: content-enter var(--seams-duration-enter, 200ms) var(--seams-ease-out, ease-out);
+  animation-fill-mode: both;
+}
+
+:where(.seams-auth-menu-surface) .seams-scan-device-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: transparent;
+  text-align: center;
+  min-height: 260px;
+  width: 100%;
+  overflow: hidden;
+  animation: content-enter var(--seams-duration-enter, 200ms) var(--seams-ease-out, ease-out);
+  animation-fill-mode: both;
+}
+
+/* Ensure QR code content stays within bounds */
+:where(.seams-auth-menu-surface) .seams-scan-device-content .qr-code-container,
+:where(.seams-auth-menu-surface) .seams-scan-device-content .qr-modal-backdrop,
+:where(.seams-auth-menu-surface) .seams-scan-device-content .qr-modal-content {
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation {
+  min-height: 260px;
+  width: min(100%, 360px);
+  margin-inline: auto;
+  padding: 1.5rem 0.5rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.875rem;
+  text-align: center;
+  animation: content-enter var(--seams-duration-enter, 200ms) var(--seams-ease-out, ease-out);
+  animation-fill-mode: both;
+}
+
+/* These sub-views title with a full instruction sentence, not a short heading,
+   so they speak one size quieter than the QR view's .qr-title. */
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation .qr-title {
+  max-width: 26ch;
+  font-size: 1.0625rem;
+  line-height: 1.35;
+}
+
+/* Dot-ring badge for the passkey confirmation. One geometry for both states:
+   while waiting the dots sweep like a clock spinner; once approved they settle
+   into a faint ring and the check strokes itself in. Monochrome on purpose —
+   nothing here should claim success louder than the flow has earned. */
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  color: var(--seams-colors-textSecondary, #64748b);
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring > span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: rotate(calc(var(--dot-index) * 30deg)) translateY(-18px);
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring.is-waiting > span {
+  animation: seams-link-dot-sweep 1s linear infinite;
+  animation-delay: calc((var(--dot-index) - 12) / 12 * 1s);
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring.is-idle > span,
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring.is-approved > span {
+  opacity: 0.25;
+}
+
+/* The badge's centre. A view can hand the ring a glyph (the envelope, for the
+   email code) to name what is being waited on; the check replaces it on
+   approval so the two never stack. */
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring-glyph {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--seams-colors-textPrimary, #1e293b);
+  transition: opacity 160ms ease;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring.is-approved .seams-link-device-dot-ring-glyph {
+  opacity: 0;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring-check {
+  position: absolute;
+  inset: 0;
+  color: var(--seams-colors-textPrimary, #1e293b);
+  opacity: 0;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-dot-ring.is-approved .seams-link-device-dot-ring-check {
+  opacity: 1;
+  stroke-dasharray: 23;
+  stroke-dashoffset: 0;
+  animation: seams-link-check-draw 450ms var(--seams-ease-out, ease-out) 150ms both;
+}
+
+@keyframes seams-link-dot-sweep {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.12;
+  }
+}
+
+@keyframes seams-link-check-draw {
+  from {
+    stroke-dashoffset: 23;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.seams-auth-menu-surface) .seams-link-device-dot-ring.is-waiting > span {
+    animation: none;
+    opacity: 0.45;
+  }
+
+  :where(.seams-auth-menu-surface) .seams-link-device-dot-ring.is-approved .seams-link-device-dot-ring-check {
+    animation: none;
+  }
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation-copy {
+  max-width: 30ch;
+  margin: 0;
+  color: var(--seams-colors-textSecondary, #64748b);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation .seams-link-device-btn {
+  width: min(100%, 280px);
+  margin-top: 0.25rem;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-factor-options {
+  width: min(100%, 280px);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 0.5rem;
+  text-align: start;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-factor-options label {
+  min-height: 44px;
+  padding: 0.625rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  border: 1px solid var(--seams-colors-borderPrimary, #d7dde5);
+  border-radius: 0.75rem;
+  cursor: pointer;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-factor-options label:has(input:checked) {
+  border-color: var(--seams-colors-textPrimary, #1e293b);
+  background: var(--seams-colors-surface2, #f1f5f9);
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-choice-label {
+  flex: 1;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-factor-options input {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  margin: 0 0 0 auto;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-factor-options input:focus-visible {
+  outline: 2px solid var(--seams-colors-focusRing, #2563eb);
+  outline-offset: 3px;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-target-email {
+  width: min(100%, 280px);
+  display: grid;
+  gap: 0.375rem;
+  text-align: start;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-target-email .seams-field-label {
+  color: var(--seams-colors-textSecondary, #64748b);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-target-email input {
+  min-height: 44px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  color: var(--seams-colors-textPrimary, #1e293b);
+  background: var(--seams-colors-surface, #ffffff);
+  border: 1px solid var(--seams-colors-borderPrimary, #d7dde5);
+  border-radius: var(--seams-shape-control, 10px);
+  font: inherit;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-target-email input:focus-visible {
+  outline: 2px solid var(--seams-colors-focusRing, #2563eb);
+  outline-offset: 2px;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-inline-error {
+  width: min(100%, 280px);
+  margin: 0;
+  color: var(--seams-colors-error, #ef4444);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  text-align: start;
+}
+
+:where(.seams-auth-menu-surface) .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Failure view. Same skeleton as the approved-device confirmation — badge,
+   title, copy, one control — so the flow's two end states are the same shape
+   and only the colour of the badge changes. */
+:where(.seams-auth-menu-surface) .seams-link-device-failure {
+  gap: 0.75rem;
+}
+
+/* A flat disc, sized to the dot-ring badge the other link views use, so the
+   failure frame sits where the confirmation frame sat. No halo or drop shadow:
+   the tint and the glyph carry the tone on their own. */
+:where(.seams-auth-menu-surface) .seams-link-device-failure-icon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--seams-colors-error, #ef4444);
+  background: color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 90%);
+  border: 1px solid color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 80%);
+}
+
+/* The detail is a raw error string, so it is sized and coloured as evidence
+   rather than as prose: quiet, tight, and allowed to break mid-token so a long
+   technical message wraps instead of forcing the card wider. */
+:where(.seams-auth-menu-surface) .seams-link-device-failure-detail {
+  width: min(100%, 320px);
+  margin: 0;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 84%);
+  border-radius: calc(var(--seams-shape-card, 16px) - 6px);
+  background: color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 94%);
+  color: color-mix(in srgb, var(--seams-colors-textSecondary, #64748b), transparent 15%);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.5;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+/* Email-OTP variant of the link-device confirmation. Same skeleton as the
+   passkey view — badge, title, copy, controls — so the two ways of finishing a
+   link read as one flow and only the badge's centre changes. */
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp {
+  gap: 0.625rem;
+}
+
+/* The masked address is the one fact the user has to check, so it leaves the
+   sentence and becomes an object: a quiet pill directly under the title. */
+:where(.seams-auth-menu-surface) .seams-link-device-email-chip {
+  box-sizing: border-box;
+  max-width: min(100%, 260px);
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  border: 1px solid color-mix(in srgb, var(--seams-colors-borderPrimary, #d7dde5), transparent 25%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--seams-colors-surface, #f1f5f9), transparent 45%);
+  color: var(--seams-colors-textPrimary, #1e293b);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-email-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-email-status {
+  max-width: 30ch;
+  margin: 0;
+  color: color-mix(in srgb, var(--seams-colors-textSecondary, #64748b), transparent 15%);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.45;
+  text-wrap: pretty;
+  animation: status-enter 200ms var(--seams-ease-out, ease-out) both;
+}
+
+/* A rejected or expired code is not a failure of the flow, so the error tone
+   stays inside the type and the slot borders — no red banner, no red badge
+   ring that would outrank the still-usable input below it. */
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp[data-tone='error'] .seams-link-device-email-status {
+  color: color-mix(in srgb, var(--seams-colors-error, #ef4444), var(--seams-colors-textPrimary) 20%);
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp[data-tone='error'] .seams-link-device-dot-ring {
+  color: color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 45%);
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp[data-tone='error'] .seams-link-device-dot-ring-glyph {
+  color: var(--seams-colors-error, #ef4444);
+}
+
+/* Six slots at card width read as a keypad; capped so they stay finger-sized
+   rather than stretching to the full 360px card. */
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp .seams-otp-code-field {
+  width: min(100%, 296px);
+  margin-block: 0.125rem;
+}
+
+/* Tinted against the surface rather than toward transparency: a translucent
+   red washes out to nothing on the dark theme, where the card is already
+   near-black. */
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp[data-tone='error'] .seams-otp-slot {
+  border-color: color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 45%);
+  background: color-mix(in srgb, var(--seams-colors-error, #ef4444), var(--seams-colors-surface) 82%);
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp[data-otp-phase='incorrect'] .seams-otp-slots {
+  animation: seams-otp-reject 320ms var(--seams-ease-out, ease-out) both;
+}
+
+/* Quiet neutral under an ink button: a brand-blue link below a black primary
+   reads as a second, competing call to action. */
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp .seams-otp-resend {
+  margin-top: -0.125rem;
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 30%);
+  font-size: 0.8125rem;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition:
+    color 160ms ease,
+    text-decoration-color 160ms ease;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp .seams-otp-resend:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-link-device-email-otp .seams-otp-resend:focus-visible {
+  color: var(--seams-colors-textPrimary);
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+}
+
+@keyframes seams-otp-reject {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-5px);
+  }
+  45% {
+    transform: translateX(4px);
+  }
+  70% {
+    transform: translateX(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.seams-auth-menu-surface) .seams-link-device-email-otp[data-otp-phase='incorrect'] .seams-otp-slots {
+    animation: none;
+  }
+}
+
+/* Status message row */
+:where(.seams-auth-menu-surface) .seams-status-row {
+  position: absolute;
+  font-size: 0.75rem;
+  bottom: -10px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+:where(.seams-auth-menu-surface) .seams-status-message {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Section divider */
+:where(.seams-auth-menu-surface) .seams-section-divider {
+  display: flex;
+  align-items: center;
+  margin: var(--seams-spacing-md) 0;
+  position: relative;
+}
+
+:where(.seams-auth-menu-surface) .seams-section-divider::before,
+:where(.seams-auth-menu-surface) .seams-section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--seams-colors-borderSecondary);
+}
+
+:where(.seams-auth-menu-surface) .seams-section-divider-text {
+  padding: 0 var(--seams-spacing-sm);
+  font-size: 12px;
+  color: var(--seams-colors-textSecondary);
+  font-weight: 500;
+  background: var(--seams-colors-colorBackground);
+}
+
+/* Labels and helper text */
+:where(.seams-auth-menu-surface) .seams-field-label {
+  font-size: 16px;
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 35%);
+  /* left margin matches the OTP code field's inner padding so the label's
+     edge lines up with the first code slot */
+  margin: 8px 2px 6px 4px;
+  font-weight: 700;
+}
+
+/* Tooltip for account existence status */
+:where(.seams-auth-menu-surface) .seams-input-wrap .seams-tooltip {
+  position: absolute;
+  right: 0;
+  padding: 4px 8px;
+  border-radius: var(--seams-shape-item, 8px);
+  font-size: 0.7rem;
+  background: var(--seams-colors-surface2);
+  color: var(--seams-colors-textPrimary);
+  opacity: 0;
+  transform: translateX(50px) scale(0.9);
+  pointer-events: none;
+  transition:
+    opacity 180ms ease,
+    transform 200ms ease;
+  z-index: 2;
+}
+
+:where(.seams-auth-menu-surface) .seams-input-wrap .seams-tooltip.is-visible {
+  opacity: 0.8;
+  transform: translateX(0px) scale(1);
+}
+
+:where(.seams-auth-menu-surface) .seams-input-wrap .seams-tooltip.is-error {
+  color: var(--seams-colors-error);
+  background: var(--seams-colors-colorBackground);
+  /* background: color-mix(in srgb, var(--seams-colors-error), transparent 90%); */
+}
+
+:where(.seams-auth-menu-surface) .seams-input-wrap .seams-tooltip.is-success {
+  color: var(--seams-colors-blue400);
+  background: var(--seams-colors-colorBackground);
+  /* background: color-mix(in srgb, var(--seams-colors-blue400), transparent 90%); */
+}
+
+@keyframes seams-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes seams-ellipsis-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0;
+  }
+
+  40% {
+    opacity: 1;
+  }
+}
+
+:where(.seams-auth-menu-surface) .seams-ellipsis {
+  display: inline-block;
+}
+
+:where(.seams-auth-menu-surface) .seams-ellipsis-dot {
+  display: inline-block;
+  opacity: 0;
+  animation: seams-ellipsis-dot 1.2s infinite;
+}
+
+:where(.seams-auth-menu-surface) .seams-ellipsis-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+:where(.seams-auth-menu-surface) .seams-ellipsis-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.seams-auth-menu-surface) .seams-ellipsis-dot {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* Button System */
+:where(.seams-auth-menu-surface) .seams-scan-device-row {
+  padding-bottom: 1px;
+}
+
+:where(.seams-auth-menu-surface) .seams-secondary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-form,
+:where(.seams-auth-menu-surface) .seams-recovery-confirmation {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 0.75rem 0.25rem;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-form {
+  gap: 8px;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-field {
+  display: flex;
+  flex-direction: column;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-field .seams-field-label {
+  margin: 0 0 6px;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-input {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: var(--seams-shape-control, 10px);
+  outline: none;
+  background: var(--seams-colors-surface);
+  color: var(--seams-colors-textPrimary);
+  font: inherit;
+  font-size: 16px;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-code-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-input:focus-visible {
+  border-color: var(--seams-colors-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-primary), transparent 72%);
+}
+
+@media (forced-colors: active) {
+  :where(.seams-auth-menu-surface) .seams-recovery-input:focus-visible,
+  :where(.seams-auth-menu-surface) .seams-link-device-btn:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-input[aria-invalid='true'] {
+  border-color: var(--seams-colors-error);
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-error,
+:where(.seams-auth-menu-surface) .seams-recovery-status {
+  min-block-size: 1.25em;
+  margin: 5px 0 0;
+  color: var(--seams-colors-textSecondary);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+:where(.seams-auth-menu-surface) .seams-recovery-error {
+  color: var(--seams-colors-error);
+  text-align: center;
+}
+
+:where(.seams-auth-menu-surface) #seams-recovery-code-feedback {
+  margin: 4px;
+}
+
+@media (max-width: 320px) {
+  :where(.seams-auth-menu-surface) .seams-signup-menu-root {
+    padding-inline: 1rem;
+  }
+
+  :where(.seams-auth-menu-surface) .seams-recovery-form,
+  :where(.seams-auth-menu-surface) .seams-recovery-confirmation {
+    padding-inline: 0;
+  }
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-intent-switch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 1rem 0 0;
+  color: color-mix(in srgb, var(--seams-colors-textSecondary), var(--seams-colors-textPrimary) 10%);
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: center;
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-intent-switch button,
+:where(.seams-auth-menu-surface) .seams-auth-intent-switch-action {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--seams-colors-primary);
+  font: inherit;
+  font-weight: 700;
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-intent-switch button {
+  cursor: pointer;
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-intent-switch button:hover,
+:where(.seams-auth-menu-surface) .seams-auth-intent-switch button:focus-visible {
+  color: var(--seams-colors-primaryHover);
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  /* match .seams-auth-method-btn's min-height so stacked options align */
+  height: var(--seams-shape-controlHeight, 44px);
+  width: 100%;
+  max-width: 100%;
+  background: var(--seams-colors-surface) !important;
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: var(--seams-shape-control, 10px);
+  cursor: pointer;
+  color: var(--seams-colors-textPrimary);
+  font-family: var(
+    --seams-font-family,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif
+  );
+  font-weight: 500;
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    border-radius 300ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Hover/focus elevated state (theme-reactive via CSS vars) */
+:where(.seams-auth-menu-surface) .seams-link-device-btn:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-link-device-btn:focus-visible {
+  background: var(--seams-colors-surface2) !important;
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-primary), transparent 72%);
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-btn-primary {
+  background: var(--seams-colors-buttonBackground, var(--seams-colors-primary, #3b82f6)) !important;
+  border-color: transparent;
+  border-radius: var(--seams-shape-control, 10px);
+  color: var(--seams-colors-textButton, white);
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-btn-primary:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-link-device-btn-primary:focus-visible {
+  background: var(
+    --seams-colors-buttonHoverBackground,
+    var(--seams-colors-primaryHover, #2563eb)
+  ) !important;
+  color: var(--seams-colors-textButton, white);
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-choice-btn {
+  justify-content: flex-start;
+  min-height: 48px;
+  height: auto;
+  padding-inline: 0.875rem;
+  text-align: start;
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-choice-icon {
+  display: grid;
+  flex: 0 0 22px;
+  place-items: center;
+  color: var(--seams-colors-textSecondary, #64748b);
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-method-choice-icon svg {
+  display: block;
+}
+
+/* The link-device confirmations commit in ink, not in brand blue: these views
+   are the end of a flow the user is already inside, so the one control reads
+   as "the next step" rather than as an offer. Derived from the text colour so
+   it inverts with the theme — near-black on light, near-white on dark — which
+   is what "black button" has to mean on a card that is itself near-black. */
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation .seams-link-device-btn-primary {
+  background: color-mix(in srgb, var(--seams-colors-textPrimary, #1e293b), #000000 25%) !important;
+  border-color: transparent;
+  color: var(--seams-colors-colorBackground, #ffffff);
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation .seams-link-device-btn-primary:hover:not(:disabled),
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation .seams-link-device-btn-primary:focus-visible {
+  background: color-mix(
+    in srgb,
+    var(--seams-colors-textPrimary, #1e293b),
+    var(--seams-colors-colorBackground, #ffffff) 14%
+  ) !important;
+  color: var(--seams-colors-colorBackground, #ffffff);
+}
+
+:where(.seams-auth-menu-surface) .seams-link-device-confirmation .seams-link-device-btn-primary:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-textPrimary), transparent 78%);
+}
+
+:where(.seams-auth-menu-surface) .seams-signup-menu-root {
+  box-sizing: border-box;
+}
+
+:where(.seams-auth-menu-surface) .seams-signup-menu-root *,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root *::before,
+:where(.seams-auth-menu-surface) .seams-signup-menu-root *::after {
+  box-sizing: border-box;
+}
+
+/* No enter animation on the sign-in/sign-up rows. These re-render on every
+   mode toggle, so an opacity 0 -> 1 fade re-fires on content that is largely
+   unchanged and reads as a flash. The host dialog's own 150ms height
+   transition carries the toggle; the rows simply swap. */
+
+:where(.seams-auth-menu-surface) [data-dot-index="0"] { --dot-index: 0; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="1"] { --dot-index: 1; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="2"] { --dot-index: 2; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="3"] { --dot-index: 3; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="4"] { --dot-index: 4; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="5"] { --dot-index: 5; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="6"] { --dot-index: 6; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="7"] { --dot-index: 7; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="8"] { --dot-index: 8; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="9"] { --dot-index: 9; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="10"] { --dot-index: 10; }
+
+:where(.seams-auth-menu-surface) [data-dot-index="11"] { --dot-index: 11; }

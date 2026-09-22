@@ -21,7 +21,7 @@ import { getIntentDigest } from './adapters/request';
 import { errorMessage } from '@shared/utils/errors';
 import { base64UrlEncode } from '@shared/utils/encoders';
 import { createConfirmSession, createConfirmTxFlowAdapters } from './adapters/adapters';
-import type { AppearanceConfig, ThemeMode } from '@/core/types/seams';
+import type { ThemeMode } from '@/core/types/seams';
 import {
   upsertExportViewerHost,
   removeExportViewerHostIfPresent,
@@ -31,38 +31,11 @@ import {
   collectAuthenticationCredentialForExactNearChallengeB64u,
   collectAuthenticationCredentialForExactWalletChallengeB64u,
 } from '@/core/signingEngine/webauthnAuth/credentials/collectAuthenticationCredentialForChallengeB64u';
+import { resolveUiAppearance } from '../../ui/appearance';
 
 function createRandomChallengeB64u(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return base64UrlEncode(bytes.buffer);
-}
-
-const DEFAULT_EXPORT_APPEARANCE: AppearanceConfig = {
-  theme: {
-    id: 'default',
-    mode: 'dark',
-    colors: {},
-  },
-  palette: 'default',
-};
-
-function isThemeMode(value: unknown): value is ThemeMode {
-  return value === 'light' || value === 'dark';
-}
-
-function resolveExportAppearance(
-  ctx: UiConfirmContext,
-  requestedMode?: ThemeMode,
-): AppearanceConfig {
-  const appearance = ctx.getAppearance?.() ?? DEFAULT_EXPORT_APPEARANCE;
-  if (!isThemeMode(requestedMode) || requestedMode === appearance.theme.mode) return appearance;
-  return {
-    ...appearance,
-    theme: {
-      ...appearance.theme,
-      mode: requestedMode,
-    },
-  };
 }
 
 function localOnlyExportSubjectId(subject: LocalOnlyExportSubject): string {
@@ -93,7 +66,10 @@ async function mountExportViewer(
     privateKey: payload.privateKey,
     keys: Array.isArray(payload.keys) ? payload.keys : undefined,
     guidance: payload.guidance,
-    appearance: resolveExportAppearance(ctx, payload.theme),
+    appearance: resolveUiAppearance({
+      getAppearance: ctx.getAppearance,
+      requestedMode: payload.theme,
+    }),
     loading: payload.loading === true,
     errorMessage: payload.errorMessage,
     onLifecycle: payload.onLifecycle,

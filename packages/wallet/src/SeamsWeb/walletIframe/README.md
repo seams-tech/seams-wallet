@@ -53,15 +53,7 @@ When you call methods like `registerPasskey()` or `signTransaction()`, the reque
   - Creates and manages the actual SeamsWeb instance
   - Executes wallet operations (register, login, sign, etc.)
   - Sends progress events back to the parent
-  - Handles UI component mounting requests
-- **`host/lit-ui/iframe-lit-elem-mounter.ts`** - Manages Lit-based UI components inside the iframe:
-  - Mounts transaction buttons and other UI elements
-  - Wires UI interactions to SeamsWeb methods
-  - Handles component lifecycle (mount/unmount/update)
-- **`host/lit-ui/iframe-lit-element-registry.ts`** - Declarative registry of available UI components:
-  - Defines which Lit components can be mounted
-  - Maps UI events to SeamsWeb actions
-  - Provides type-safe component definitions
+  - Routes each request to its typed runtime handler
 
 #### 4. **Shared Communication Protocol**
 
@@ -88,7 +80,7 @@ When you call methods like `registerPasskey()` or `signTransaction()`, the reque
 │ Iframe          │    │ Router           │    │ (real instance) │
 │                 │    │                  │    │                 │
 │                 │    │ IframeTransport  │    │                 │
-│                 │    │ ProgressBus      │    │ LitElemMounter  │
+│                 │    │ ProgressBus      │    │ CustomElemMounter│
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                       │                       │
          │                       │                       │

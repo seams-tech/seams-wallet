@@ -25,6 +25,7 @@ import {
   walletSessionRefFromSession,
 } from '@seams/wallet/advanced';
 import { resolveEmailOtpRegistrationSession } from './registrationSession';
+import { ReviewedSigning } from './ReviewedSigning';
 
 type IntendedActionName =
   | 'registerPasskeyWallet'
@@ -635,6 +636,12 @@ export const IntendedBehaviourE2EPage: React.FC = () => {
     >
       <section style={panelStyle}>
         <h1 style={headingStyle}>Intended Behaviour E2E</h1>
+        <ReviewedSigning
+          input={{
+            chainTarget: INTENDED_ARC_EVM_CHAIN_TARGET,
+            request: buildIntendedArcEvmSigningRequest(),
+          }}
+        />
         <dl style={definitionListStyle}>
           <dt>Flow</dt>
           <dd>{query.flow}</dd>
