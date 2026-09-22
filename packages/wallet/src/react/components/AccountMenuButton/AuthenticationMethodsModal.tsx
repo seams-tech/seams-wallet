@@ -50,7 +50,7 @@ type CurrentAuthorityInventory =
 
 type LoadState =
   | { readonly kind: 'idle' }
-  | { readonly kind: 'loading' }
+  | { readonly kind: 'loading'; readonly inventory: CurrentAuthorityInventory }
   | { readonly kind: 'loaded'; readonly inventory: CurrentAuthorityInventory }
   | { readonly kind: 'error'; readonly message: string };
 
@@ -251,7 +251,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
     };
     const sequence = loadSequence.current + 1;
     loadSequence.current = sequence;
-    setLoadState({ kind: 'loaded', inventory: localInventory });
+    setLoadState({ kind: 'loading', inventory: localInventory });
     try {
       const result = await seamsRef.current.devices.listLinkedDevices({
         walletId,
@@ -402,11 +402,13 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
 
   if (!isOpen) return null;
 
-  const inventory = loadState.kind === 'loaded' ? loadState.inventory : null;
+  const inventory =
+    loadState.kind === 'loaded' || loadState.kind === 'loading' ? loadState.inventory : null;
   const methods = inventory?.methods ?? [];
   const hasPasskey = methods.some((method) => method.kind === 'passkey');
   const hasEmailOtp = methods.some((method) => method.kind === 'email_otp');
-  const canManageMethods = inventory !== null && inventory.kind !== 'local_selection';
+  const canManageMethods =
+    loadState.kind === 'loaded' && loadState.inventory.kind !== 'local_selection';
   const actionInProgress =
     actionState.kind === 'unlocking' ||
     actionState.kind === 'adding' ||
@@ -447,8 +449,8 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
             Manage how this device unlocks the wallet.
           </p>
 
-          <div className="seams-linked-devices-modal-body">
-            {loadState.kind === 'loading' || loadState.kind === 'idle' ? (
+          <div className="seams-linked-devices-modal-body" aria-busy={loadState.kind === 'loading'}>
+            {loadState.kind === 'idle' ? (
               <div className="seams-linked-devices-modal-placeholder" role="status">
                 Checking authentication methods…
               </div>
@@ -546,7 +548,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
               </ul>
             ) : null}
 
-            {inventory && canManageMethods && !hasPasskey ? (
+            {inventory && !hasPasskey ? (
               <section className="seams-linked-devices-modal-add-method">
                 <h3>Add Passkey</h3>
                 <p className="seams-linked-devices-modal-security-note">
@@ -565,7 +567,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
               </section>
             ) : null}
 
-            {inventory && canManageMethods && !hasEmailOtp ? (
+            {inventory && !hasEmailOtp ? (
               <section className="seams-linked-devices-modal-add-method">
                 <h3>Add Email OTP</h3>
                 <form
@@ -583,7 +585,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                     autoComplete="email"
                     required
                     value={emailAddress}
-                    disabled={actionInProgress}
+                    disabled={actionInProgress || !canManageMethods}
                     onChange={(event) => {
                       setEmailAddress(event.currentTarget.value);
                       if (actionState.kind === 'error') setActionState({ kind: 'idle' });
@@ -592,7 +594,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                   <button
                     type="submit"
                     className="seams-linked-devices-modal-secondary"
-                    disabled={actionInProgress}
+                    disabled={actionInProgress || !canManageMethods}
                   >
                     {actionState.kind === 'adding' && actionState.method === 'email_otp'
                       ? 'Adding…'
@@ -602,7 +604,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
               </section>
             ) : null}
 
-            {inventory?.kind === 'local_selection' ? (
+            {loadState.kind === 'loaded' && inventory?.kind === 'local_selection' ? (
               <section className="seams-linked-devices-modal-add-method">
                 <h3>Unlock to manage methods</h3>
                 <p className="seams-linked-devices-modal-security-note">

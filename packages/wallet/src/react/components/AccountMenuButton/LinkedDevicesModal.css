@@ -536,3 +536,56 @@
 .seams-linked-devices-modal-backdrop[data-presentation='page'] .seams-linked-devices-modal-body {
   overflow: visible;
 }
+
+.seams-auth-methods-modal-content .seams-auth-methods-modal-intro {
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+.seams-auth-methods-modal-content .seams-linked-devices-modal-body {
+  gap: 1.5rem;
+}
+.seams-auth-methods-modal-content .seams-linked-devices-modal-item--row {
+  padding: 1rem;
+  border: 0;
+  background: transparent;
+}
+.seams-auth-methods-modal-content .seams-linked-devices-modal-item-detail {
+  font-weight: 400;
+  line-height: 1.5;
+}
+.seams-auth-methods-modal-content .seams-linked-devices-modal-add-method {
+  padding: 0;
+  border: 0;
+  gap: 1rem;
+}
+.seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem 0.75rem;
+  font-weight: 400;
+}
+.seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form label {
+  grid-column: 1 / -1;
+}
+.seams-auth-methods-modal-content .seams-linked-devices-modal-secondary {
+  min-height: 44px;
+  font-size: 0.8125rem;
+}
+.seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form button {
+  background: var(--seams-colors-primary);
+  border-color: transparent;
+  color: var(--seams-colors-textButton);
+}
+.seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form button:hover:not(:disabled) {
+  background: var(--seams-colors-buttonHoverBackground);
+}
+@media (max-width: 480px) {
+  .seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form button {
+    justify-self: stretch;
+  }
+}
+.seams-linked-devices-modal-backdrop[data-presentation='page'] .seams-auth-methods-modal-content {
+  max-width: 40rem;
+}

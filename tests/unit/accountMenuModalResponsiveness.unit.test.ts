@@ -234,6 +234,14 @@ test.describe('account-menu modal responsiveness', () => {
     await expect(dialog.getByText('Passkey on this device', { exact: true })).toBeVisible({
       timeout: 500,
     });
+    const emailInput = dialog.getByRole('textbox', { name: 'Email address' });
+    const addEmailButton = dialog.getByRole('button', { name: 'Add Email OTP', exact: true });
+    await expect(emailInput).toBeVisible();
+    await expect(addEmailButton).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Unlock wallet' })).toHaveCount(0);
+    const initialBounds = await emailInput.boundingBox();
+    await expect(addEmailButton).toBeEnabled();
+    expect(await emailInput.boundingBox()).toEqual(initialBounds);
   });
 
   test('unlocks owner management explicitly after passive inventory authorization fails', async ({
