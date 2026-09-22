@@ -3443,13 +3443,13 @@ export class AuthMenuSession {
       authority = this.startPreparedCredential(prepared);
     } catch (error: unknown) {
       this.updateElement();
-      this.fail(this.ceremonyFailure(prepared, error));
+      this.failPreparedPasskey(prepared, error);
       return;
     }
     this.updateElement();
     void authority.then(
       () => this.finishPreparedPasskey(prepared),
-      (error: unknown) => this.fail(this.ceremonyFailure(prepared, error)),
+      (error: unknown) => this.failPreparedPasskey(prepared, error),
     );
   }
 
@@ -3485,7 +3485,7 @@ export class AuthMenuSession {
           return assertNeverHostedPasskeyPrepared(prepared);
       }
     } catch (error: unknown) {
-      this.fail(this.ceremonyFailure(prepared, error));
+      this.failPreparedPasskey(prepared, error);
     }
   }
 
@@ -3567,25 +3567,20 @@ export class AuthMenuSession {
     });
   }
 
-  /**
-   * Classify a rejection from the WebAuthn ceremony itself.
-   *
-   * Dismissing the platform authenticator sheet is a decision, not a failure,
-   * and so is an abort this session issued (a mode switch or re-preparation
-   * tears the ceremony down). Both re-arm the menu silently — its own buttons
-   * are already the retry affordance.
-   *
-   * Classify on the DOMException name and on our own abort signal, never on
-   * message text. Text matching also swallowed anything whose message merely
-   * mentioned "AbortError" or "cancelled", so genuine failures re-armed the
-   * menu with no explanation at all. An RP-ID misconfiguration arrives as a
-   * SecurityError and therefore still surfaces.
-   */
-  private ceremonyFailure(prepared: HostedPasskeyMenuPrepared, error: unknown): AuthMenuFailure {
-    if (prepared.cancellation.signal.aborted) return { kind: 'dismissed' };
+  private failPreparedPasskey(prepared: HostedPasskeyMenuPrepared, error: unknown): void {
+    if (this.stateValue.kind !== 'performing' || this.stateValue.prepared !== prepared) return;
+    // The prepared operation also aborts its signal during failure cleanup.
+    // Only the menu's own cancellation represents a user leaving this flow.
+    if (this.preparationCancellation?.signal.aborted) {
+      this.fail({ kind: 'dismissed' });
+      return;
+    }
     const name = error instanceof Error ? error.name : '';
-    if (name === 'NotAllowedError' || name === 'AbortError') return { kind: 'dismissed' };
-    return { kind: 'error', error };
+    if (name === 'NotAllowedError' || name === 'AbortError') {
+      this.fail({ kind: 'dismissed' });
+      return;
+    }
+    this.fail({ kind: 'error', error });
   }
 
   private fail(failure: AuthMenuFailure): void {
