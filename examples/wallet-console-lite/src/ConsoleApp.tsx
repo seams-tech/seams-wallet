@@ -38,6 +38,9 @@ export function ConsoleApp() {
   const path = window.location.pathname.replace(/\/$/, '') || '/wallet';
   const current = pages.find((page) => page.path === path);
   document.title = `${current?.title ?? 'Page not found'} · Seams Wallet`;
+  if (path === '/wallet-settings') {
+    return <PageContent path={path} />;
+  }
   return (
     <div className="console-app">
       <a className="console-skip" href="#console-content">
