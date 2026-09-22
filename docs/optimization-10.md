@@ -2106,3 +2106,10 @@ between incoming messages corrected the test without changing protocol behavior.
 The accessor uses the existing k256 field inversion and point multiplication on
 opened E and public triple commitments; it introduces no secret-dependent
 branch or integer division. This review is not an assembly-level timing proof.
+
+The superseded partial signing-intent type, parser, completion binder, and its
+intent-only tests have now been removed. The full prepare parser is again one
+linear boundary requiring the material ID. Its focused test preserves canonical
+request equality and rejects a missing material ID or mismatched signing digest.
+The shared full-request fixture remains for the upcoming terminal-batch path.
+This cleanup does not expose a combined route or complete the handoff.

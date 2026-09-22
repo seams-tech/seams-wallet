@@ -662,17 +662,6 @@ export type RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire =
     authorization: RouterAbNormalSigningAuthorizationWire;
   };
 
-export type RouterAbEcdsaPresignSigningIntentV1Wire = {
-  readonly kind: 'ecdsa_presign_signing_intent_v1';
-  readonly presign_session_id: string;
-  readonly request: Omit<
-    RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire,
-    'client_presignature_id'
-  > & {
-    readonly client_presignature_id?: never;
-  };
-};
-
 export type RouterAbEcdsaOperationStepUpWebAuthnCredentialV1Wire = {
   readonly id: string;
   readonly rawId: string;
@@ -3420,23 +3409,6 @@ export function parseRouterAbEcdsaDerivationEvmDigestSigningRequestV1(
     'signing_digest_b64u',
     'client_rerandomization_commitment32_b64u',
   ]);
-  return bindEcdsaSigningRequestFields(
-    parseEcdsaSigningRequestFields(record),
-    requireAsciiNonEmptyString(
-      record.client_presignature_id,
-      'ecdsaSigningRequest.client_presignature_id',
-    ),
-  );
-}
-
-type EcdsaSigningRequestFields = Omit<
-  RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire,
-  'client_presignature_id'
->;
-
-function parseEcdsaSigningRequestFields(
-  record: Record<string, unknown>,
-): EcdsaSigningRequestFields {
   const parsed = {
     scope: parseRouterAbEcdsaDerivationNormalSigningScopeV1(record.scope),
     request_id: requireAsciiNonEmptyString(record.request_id, 'ecdsaSigningRequest.request_id'),
@@ -3450,6 +3422,10 @@ function parseEcdsaSigningRequestFields(
     ),
     authorization: parseRouterAbNormalSigningAuthorization(record.authorization),
     material_activation: parseRouterAbMpcMaterialActivationRef(record.material_activation),
+    client_presignature_id: requireAsciiNonEmptyString(
+      record.client_presignature_id,
+      'ecdsaSigningRequest.client_presignature_id',
+    ),
     expires_at_ms: requirePositiveUnixMs(record.expires_at_ms, 'ecdsaSigningRequest.expires_at_ms'),
     signing_digest_b64u: requireBase64UrlFixed(
       record.signing_digest_b64u,
@@ -3466,75 +3442,6 @@ function parseEcdsaSigningRequestFields(
     throw new Error('ecdsaSigningRequest intent digest must equal the admitted signing digest');
   }
   return parsed;
-}
-
-function bindEcdsaSigningRequestFields(
-  request: EcdsaSigningRequestFields,
-  presignatureId: string,
-): RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire {
-  return {
-    scope: request.scope,
-    request_id: request.request_id,
-    operation_id: request.operation_id,
-    operation_digests: request.operation_digests,
-    authorization: request.authorization,
-    material_activation: request.material_activation,
-    client_presignature_id: presignatureId,
-    expires_at_ms: request.expires_at_ms,
-    signing_digest_b64u: request.signing_digest_b64u,
-    client_rerandomization_commitment32_b64u: request.client_rerandomization_commitment32_b64u,
-  };
-}
-
-export function parseRouterAbEcdsaPresignSigningIntentV1(
-  value: unknown,
-): RouterAbEcdsaPresignSigningIntentV1Wire {
-  const intent = requireRecord(value, 'ecdsaPresignSigningIntent');
-  requireExactKeys(intent, 'ecdsaPresignSigningIntent', ['kind', 'presign_session_id', 'request']);
-  if (intent.kind !== 'ecdsa_presign_signing_intent_v1') {
-    throw new Error('Invalid ECDSA presign signing intent kind');
-  }
-  const request = requireRecord(intent.request, 'ecdsaPresignSigningIntent.request');
-  requireExactKeys(request, 'ecdsaPresignSigningIntent.request', [
-    'scope',
-    'request_id',
-    'operation_id',
-    'operation_digests',
-    'authorization',
-    'material_activation',
-    'expires_at_ms',
-    'signing_digest_b64u',
-    'client_rerandomization_commitment32_b64u',
-  ]);
-  return {
-    kind: 'ecdsa_presign_signing_intent_v1',
-    presign_session_id: requireAsciiNonEmptyString(intent.presign_session_id, 'presign_session_id'),
-    request: parseEcdsaSigningRequestFields(request),
-  };
-}
-
-export function bindRouterAbEcdsaPresignSigningIntentV1(input: {
-  readonly intent: RouterAbEcdsaPresignSigningIntentV1Wire;
-  readonly completedSessionId: string;
-  readonly completedScope: RouterAbEcdsaDerivationNormalSigningScopeV1;
-  readonly presignatureId: string;
-  readonly materialExpiresAtMs: number;
-  readonly nowMs: number;
-}): RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire {
-  const request = input.intent.request;
-  if (
-    input.intent.presign_session_id !== input.completedSessionId ||
-    !sameRouterAbEcdsaDerivationNormalSigningScopeV1(request.scope, input.completedScope)
-  ) {
-    throw new Error('ECDSA signing intent does not match the completed ceremony');
-  }
-  if (request.expires_at_ms <= input.nowMs || request.expires_at_ms > input.materialExpiresAtMs) {
-    throw new Error('ECDSA signing intent exceeds the completed material lifetime');
-  }
-  return bindEcdsaSigningRequestFields(
-    request,
-    requireAsciiNonEmptyString(input.presignatureId, 'client_presignature_id'),
-  );
 }
 
 function parseRouterAbEcdsaOperationStepUpWebAuthnCredentialV1(
