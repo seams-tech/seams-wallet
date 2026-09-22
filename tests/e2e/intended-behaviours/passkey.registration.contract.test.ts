@@ -35,6 +35,7 @@ test('custom review requires wallet approval before a live Arc signature', async
     .last();
   await expect(confirm).toBeHidden();
   await page.getByRole('button', { name: 'Continue to wallet', exact: true }).click();
+  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
   await expect(confirm).toBeVisible({ timeout: 30_000 });
   await expect(result).toHaveAttribute('data-state', 'pending');
   await confirm.click();
