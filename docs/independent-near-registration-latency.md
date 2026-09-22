@@ -153,3 +153,7 @@ Validation: 14 registration continuation contracts passed, including held
 hydration, hydration failure and unlock repair, lock during hydration, exhausted
 quota, restart and lost responses. The 20 benchmark runs passed. SDK build and
 intended/state type checks passed. Release and deployment remain on hold.
+
+The subsequent [client-seal preparation change](./passkey-client-seal-preparation.md)
+measured a further 47 ms median reduction (3.4%) against a contemporaneous serial
+control. Its absolute timings are not directly comparable with the runs above.

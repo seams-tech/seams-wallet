@@ -16,7 +16,7 @@ const cohorts = [
   { name: 'serial_preparation', run: benchmarkSerialPreparation },
 ] as const;
 
-// Keep both cohorts in one warmed worker and balance their ordering across pairs.
+// Keep each comparison in one warmed worker and balance ordering across pairs.
 for (let pair = 1; pair <= 20; pair += 1) {
   const ordered = pair % 2 === 1 ? cohorts : [...cohorts].reverse();
   for (const cohort of ordered) {
