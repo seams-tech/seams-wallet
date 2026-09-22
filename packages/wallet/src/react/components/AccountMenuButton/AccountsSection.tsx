@@ -11,6 +11,7 @@ function shortenAddress(address: string): string {
 export interface AccountsSectionProps {
   rows: AccountsSectionRow[];
   isOpen?: boolean;
+  presentation?: 'menu' | 'page';
   className?: string;
   style?: React.CSSProperties;
 }
@@ -20,6 +21,7 @@ export interface AccountsSectionProps {
 export const AccountsSection: React.FC<AccountsSectionProps> = ({
   rows,
   isOpen = true,
+  presentation = 'menu',
   className,
   style,
 }) => {
@@ -30,6 +32,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   return (
     <div
       className={`seams-dropdown-accounts-root ${isOpen ? 'is-expanded' : ''} ${className || ''}`}
+      data-presentation={presentation}
       style={style}
       onClick={handleClick}
     >
@@ -50,7 +53,10 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
               title={row.address}
             >
               <span className="seams-accounts-row-chain">{row.label}</span>
-              <span className="seams-accounts-row-address">{shortenAddress(row.address)}</span>
+              <span className="seams-accounts-row-address">{presentation === 'page' ? row.address : shortenAddress(row.address)}</span>
+              {presentation === 'page' ? (
+                <span className="seams-accounts-explorer-label">View on explorer</span>
+              ) : null}
               <svg
                 className="seams-accounts-row-arrow"
                 width="14"

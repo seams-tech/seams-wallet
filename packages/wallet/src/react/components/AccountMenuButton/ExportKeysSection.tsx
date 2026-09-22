@@ -1,10 +1,12 @@
 import React from 'react';
+import { KeyIcon } from './icons/KeyIcon';
 import { SpinnerIcon } from './icons/SpinnerIcon';
 import type { ExportChain } from './types';
 import './ExportKeysSection.css';
 
 export interface ExportKeysSectionProps {
   isOpen?: boolean;
+  presentation?: 'menu' | 'page';
   loadingChain: ExportChain | null;
   canExportNearKey: boolean;
   canExportEvmKeys: boolean;
@@ -22,6 +24,7 @@ const EXPORT_ROWS: Array<{ chain: ExportChain; label: string; description: strin
  * key set, launching the export flow inline instead of via a modal. */
 export const ExportKeysSection: React.FC<ExportKeysSectionProps> = ({
   isOpen = false,
+  presentation = 'menu',
   loadingChain,
   canExportNearKey,
   canExportEvmKeys,
@@ -38,6 +41,7 @@ export const ExportKeysSection: React.FC<ExportKeysSectionProps> = ({
   return (
     <div
       className={`seams-dropdown-export-keys-root ${isOpen ? 'is-expanded' : ''} ${className || ''}`}
+      data-presentation={presentation}
       style={style}
       onClick={handleClick}
     >
@@ -61,8 +65,19 @@ export const ExportKeysSection: React.FC<ExportKeysSectionProps> = ({
                 onSelectChain(row.chain);
               }}
             >
+              {presentation === 'page' ? (
+                <span className="seams-export-keys-card-icon" aria-hidden="true">
+                  <KeyIcon />
+                </span>
+              ) : null}
               <span className="seams-export-keys-row-label">{row.label}</span>
               <span className="seams-export-keys-row-description">{row.description}</span>
+              {presentation === 'page' ? (
+                <span className="seams-export-keys-action">
+                  {loadingChain === row.chain ? 'Preparing export…' : 'Export key'}
+                  <span aria-hidden="true">→</span>
+                </span>
+              ) : null}
               {/* always-reserved slot: the spinner appearing must not resize
                   the row (and with it the menu) */}
               <span className="seams-export-keys-row-spinner" aria-hidden>

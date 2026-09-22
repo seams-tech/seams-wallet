@@ -568,9 +568,10 @@ const AccountMenuButtonInner: React.FC<
           onLock={handleLock}
           error={settingsError}
           sections={{
-            accounts: <AccountsSection rows={accountsRows} />,
+            accounts: <AccountsSection rows={accountsRows} presentation="page" />,
             'export-keys': (
               <ExportKeysSection
+                presentation="page"
                 isOpen
                 loadingChain={exportLoadingChain}
                 canExportNearKey={canExportNearKey}
