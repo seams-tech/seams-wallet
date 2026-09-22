@@ -2014,3 +2014,16 @@ existing available path; direct-reservation handoff still needs end-to-end
 integration and validation. Logs: `/tmp/presign-put-reserved-native.log`,
 `/tmp/presign-pool-worker-build.log`, `/tmp/presign-pool-private-d1.log`.
 No hosted gain, publication, or deployment is claimed.
+
+The gateway now forwards successful signing-prepare response bodies immediately.
+Previously it awaited `upstream.clone().text()` before returning, even though
+prepare leaves the operation pending and the gateway does not inspect its
+successful body. Finalization and errors still await body capture and durable
+operation completion; an in-progress effect remains pending. A controlled open
+response stream reproduced the previous wait, and three focused behavioral tests
+now pass, including replay-body preservation and failure of durable completion.
+Successful prepare `ecdsa_sign_proxy`/`ecdsa_sign_total` timings now end when the
+response is forwarded, excluding subsequent body delivery. Use completed client
+request timings for end-to-end comparisons. This removes a gateway buffering
+barrier; it does not remove an HTTP exchange or establish a hosted latency gain.
+Owner completion-to-prepare fusion remains unfinished.

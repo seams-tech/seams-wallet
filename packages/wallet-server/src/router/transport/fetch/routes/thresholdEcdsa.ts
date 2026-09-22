@@ -667,11 +667,35 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
           walletRegistration: input.ctx.service.walletRegistration,
           body: admittedBody,
         });
+  return finishRouterAbEcdsaSigningResponse({
+    phase: input.phase,
+    upstream,
+    operation: authorizedOperation,
+    authorizedOperations: input.ctx.service.authorizedOperations,
+    timing,
+    proxyStartedAt,
+  });
+}
+
+export async function finishRouterAbEcdsaSigningResponse(input: {
+  readonly phase: 'prepare' | 'finalize';
+  readonly upstream: Response;
+  readonly operation: AuthorizedOperation;
+  readonly authorizedOperations: RouterApiAuthorizedOperationService;
+  readonly timing: Pick<EcdsaSigningGatewayTiming, 'proxy' | 'complete'>;
+  readonly proxyStartedAt: number;
+}): Promise<Response> {
+  const upstream = input.upstream;
+  // Prepare leaves the operation pending until finalize; its body is only needed by the client.
+  if (input.phase === 'prepare' && upstream.ok) {
+    input.timing.proxy = performance.now() - input.proxyStartedAt;
+    return upstream;
+  }
   const upstreamBodyText = await upstream
     .clone()
     .text()
     .catch(() => '');
-  timing.proxy = performance.now() - proxyStartedAt;
+  input.timing.proxy = performance.now() - input.proxyStartedAt;
   if (
     isRouterAbEcdsaOperationInProgressResponse({
       status: upstream.status,
@@ -680,13 +704,10 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
   ) {
     return upstream;
   }
-  if (input.phase === 'prepare' && upstream.ok) {
-    return upstream;
-  }
   const completionStartedAt = performance.now();
   await completeRouterAbEcdsaOperation({
-    authorizedOperations: input.ctx.service.authorizedOperations,
-    operation: authorizedOperation,
+    authorizedOperations: input.authorizedOperations,
+    operation: input.operation,
     result: upstream.ok
       ? 'succeeded'
       : upstream.status < 500
@@ -698,7 +719,7 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
       bodyText: upstreamBodyText,
     },
   });
-  timing.complete = performance.now() - completionStartedAt;
+  input.timing.complete = performance.now() - completionStartedAt;
   return upstream;
 }
 
