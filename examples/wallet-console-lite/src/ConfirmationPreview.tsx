@@ -30,7 +30,14 @@ class PreviewSession {
     requestId: walletIframeRequestIdFromBoundary('prediction-preview'),
     surfaceId: walletIframeSurfaceIdFromBoundary(crypto.randomUUID()),
   });
-  private phase: 'mounting' | 'review' | 'preparing' | 'approval' | 'closed' = 'mounting';
+  private phase:
+    | 'mounting'
+    | 'review'
+    | 'review_again'
+    | 'preparing'
+    | 'approval'
+    | 'closed' = 'mounting';
+  private reviewHeight = 0;
   private approvalSize = { widthCssPx: 480, heightCssPx: 420 };
   private readonly observer: ResizeObserver;
 
@@ -74,8 +81,9 @@ class PreviewSession {
     );
     const content = this.slot.firstElementChild;
     if (!content) return;
+    if (reviewing && !this.slot.hidden) this.reviewHeight = content.getBoundingClientRect().height;
     const size = reviewing
-      ? { widthCssPx: 480, heightCssPx: content.getBoundingClientRect().height }
+      ? { widthCssPx: 480, heightCssPx: this.reviewHeight }
       : this.approvalSize;
     const geometry = measuredWalletIframeSurfaceGeometry(
       presentation,
@@ -98,6 +106,12 @@ class PreviewSession {
   };
 
   readonly continueToWallet = (): void => {
+    if (this.phase === 'review_again') {
+      this.phase = 'approval';
+      this.resize();
+      this.overlay.activateAfterReviewHandoff(this.focusWallet);
+      return;
+    }
     if (this.phase !== 'review') return;
     this.phase = 'preparing';
     this.iframe.src = new URL('confirmation-preview.html', window.location.href).href;
@@ -118,7 +132,10 @@ class PreviewSession {
       return;
     const data = event.data;
     if (!data || typeof data !== 'object' || !('type' in data)) return;
-    if (
+    if (data.type === 'preview-back' && this.phase === 'approval') {
+      this.phase = 'review_again';
+      this.resize();
+    } else if (
       data.type === 'preview-finished' &&
       'confirmed' in data &&
       typeof data.confirmed === 'boolean'

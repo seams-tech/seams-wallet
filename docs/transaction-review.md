@@ -68,3 +68,9 @@ See `examples/wallet-console-lite/src/PurchaseReviewExample.tsx` for a NEAR test
 fixture purchase with a zero-value self-transfer and an explicit expiry. The demo
 also includes expired quotes, a slow Suspense review, and a render failure. Expired
 and failing cases settle before signing; the slow case can proceed after loading.
+
+Wallet approval includes **Back to review** when opened from an application review.
+Back preserves the review component's local state and the original quote deadline.
+Continue resumes the same pending approval without dispatching another transaction.
+The shared modal resizes and crossfades in both directions. Back is available until
+wallet approval is submitted; changing transaction inputs requires a new call.

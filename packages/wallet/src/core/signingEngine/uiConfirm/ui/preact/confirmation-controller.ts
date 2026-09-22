@@ -117,6 +117,7 @@ function mergeConfirmationPresentation(
       : current.errorMessage,
     confirmText: Object.hasOwn(update, 'confirmText') ? update.confirmText : current.confirmText,
     cancelText: Object.hasOwn(update, 'cancelText') ? update.cancelText : current.cancelText,
+    onBack: Object.hasOwn(update, 'onBack') ? update.onBack : current.onBack,
     signingAuthMode: Object.hasOwn(update, 'signingAuthMode')
       ? update.signingAuthMode
       : current.signingAuthMode,

@@ -304,6 +304,88 @@ test('context, immutable intent, continuous iframe handoff and explicit wallet a
   expect(await page.evaluate(() => (window as any).reviewViolations)).toEqual([]);
 });
 
+test('Back preserves review state and resumes the same pending wallet approval', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Buy', exact: true }).click();
+  const note = page.getByRole('textbox', { name: 'Purchase note' });
+  await note.fill('Keep my purchase note');
+  const originalDialog = await page.locator('dialog[open]').elementHandle();
+  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  for (let visit = 0; visit < 2; visit += 1) {
+    await page.getByRole('button', { name: 'Continue to wallet' }).click();
+    await wallet.getByRole('button', { name: 'Back to review', exact: true }).click();
+    await expect(note).toBeVisible();
+    await expect(note).toHaveValue('Keep my purchase note');
+    await expect(page.getByRole('heading', { name: 'Review purchase', exact: true })).toBeFocused();
+    expect(
+      await originalDialog?.evaluate(
+        (element) => element === document.querySelector('dialog[open]'),
+      ),
+    ).toBe(true);
+    expect(await page.evaluate(() => (window as any).reviewDispatches.length)).toBe(1);
+    expect(await page.evaluate(() => (window as any).reviewSigned)).toBe(0);
+  }
+  await page.getByRole('button', { name: 'Continue to wallet' }).click();
+  await wallet.locator('button.confirm').click();
+  await expect.poll(() => page.evaluate(() => (window as any).reviewResults.length)).toBe(1);
+  expect(await page.evaluate(() => (window as any).reviewDispatches.length)).toBe(1);
+  expect(await page.evaluate(() => (window as any).reviewSigned)).toBe(1);
+  expect(await page.evaluate(() => (window as any).reviewViolations)).toEqual([]);
+});
+
+test('cancelling after Back settles the pending request and releases the review queue', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Buy', exact: true }).click();
+  await page.getByRole('button', { name: 'Continue to wallet' }).click();
+  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  await wallet.getByRole('button', { name: 'Back to review', exact: true }).click();
+  await page.getByRole('button', { name: 'Cancel purchase' }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).reviewResults[0]?.code))
+    .toBe('cancelled');
+  expect(await page.evaluate(() => (window as any).reviewSigned)).toBe(0);
+  await page.getByRole('button', { name: 'Buy', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Purchase note' })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel purchase' }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).reviewResults.length)).toBe(2);
+  expect(await page.evaluate(() => (window as any).reviewDispatches.length)).toBe(1);
+});
+
+test('Back keeps the original quote deadline and rejects an expired Continue', async ({ page }) => {
+  const deadline = Date.now() + 60_000;
+  await page.clock.setFixedTime(new Date(deadline - 60_000));
+  await page.evaluate(async (atMs) => {
+    const { createElement } = await import('react');
+    const state = window as any;
+    function render(controls: any) {
+      return createElement('button', { onClick: controls.continueToWallet }, 'Continue quote');
+    }
+    function captureError(error: any) {
+      state.reviewResults.push({ kind: 'error', code: error.code });
+    }
+    void state.reviewWallet.near
+      .signAndSendTransaction({
+        receiverId: 'receiver.testnet',
+        actions: [{ type: 'Transfer', amount: '1' }],
+        review: { title: 'Expiring quote', validity: { kind: 'expires_at', atMs }, render },
+      })
+      .catch(captureError);
+  }, deadline);
+  await page.getByRole('button', { name: 'Continue quote', exact: true }).click();
+  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  await wallet.getByRole('button', { name: 'Back to review', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Continue quote', exact: true })).toBeVisible();
+  await page.clock.setFixedTime(new Date(deadline + 1));
+  await page.getByRole('button', { name: 'Continue quote', exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).reviewResults))
+    .toEqual([{ kind: 'error', code: 'review_expired' }]);
+  expect(await page.evaluate(() => (window as any).reviewSigned)).toBe(0);
+  expect(await page.evaluate(() => (window as any).reviewDispatches.length)).toBe(1);
+});
+
 test('double Continue dispatches once and releases the lease after approval', async ({ page }) => {
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await expect(page.getByText('Purchase context preserved')).toBeVisible();

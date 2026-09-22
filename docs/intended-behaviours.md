@@ -783,6 +783,9 @@ their existing core results and callbacks. Ordinary calls need no review host.
 - The application review and wallet approval share the existing transaction queue
   and outer modal. React stays in the application document; authorization stays
   inside the wallet iframe. Continue alone never signs.
+- Before wallet approval is submitted, Back returns to the same review and preserves
+  component state and the original expiry. Continue resumes the pending approval
+  without dispatching again. Both screens retain the same modal container.
 - Transaction inputs are privately copied at invocation. Effective configuration
   is pinned before display and requires modal presentation and explicit approval.
 - Queued cancellation, expiry, owner/host disposal, wallet changes and unrelated

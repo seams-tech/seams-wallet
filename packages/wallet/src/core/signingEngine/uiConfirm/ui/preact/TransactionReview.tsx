@@ -17,6 +17,7 @@ export function ReviewIcon({
   kind,
 }: {
   kind:
+    | 'back'
     | 'close'
     | 'minimize'
     | 'check'
@@ -28,6 +29,7 @@ export function ReviewIcon({
     | 'fingerprint';
 }) {
   const paths = {
+    back: 'm15 6-6 6 6 6',
     close: 'M6 6l12 12M6 18L18 6',
     minimize: 'M5 12h14',
     check: 'm5 12 4 4L19 6',

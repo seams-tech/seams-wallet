@@ -53,6 +53,7 @@ type ReviewHandoff =
   | { readonly kind: 'idle' }
   | {
       readonly kind: 'animating';
+      readonly destination: 'review' | 'wallet';
       readonly outgoing: Animation;
       readonly incoming: Animation;
       readonly timer: ReturnType<typeof setTimeout>;
@@ -297,6 +298,10 @@ export class OverlayController {
       !identityChanged &&
       this.mode.kind === 'compact_transaction_review' &&
       mode.kind === 'compact_request_modal';
+    const returnToReview =
+      !identityChanged &&
+      this.mode.kind === 'compact_request_modal' &&
+      mode.kind === 'compact_transaction_review';
     const authMenu = mode.kind === 'compact_auth_menu';
     const previousGeometryKind = this.lastAppliedGeometry
       ? geometryKind(this.lastAppliedGeometry)
@@ -369,7 +374,8 @@ export class OverlayController {
     if (reviewing) dialog.setAttribute('data-transaction-review', '');
     else if (!this.mode || !('identity' in this.mode) || identityChanged)
       dialog.removeAttribute('data-transaction-review');
-    if (handoffFromReview) this.startReviewHandoff();
+    if (handoffFromReview) this.startReviewHandoff('wallet');
+    if (returnToReview) this.startReviewHandoff('review');
     const handingOff = this.reviewHandoff.kind === 'animating';
     iframe.inert = reviewing || handingOff;
     iframe.classList.toggle('seams-review-wallet-inactive', reviewing);
@@ -378,8 +384,9 @@ export class OverlayController {
     else iframe.removeAttribute('tabindex');
     const slot = this.getTransactionReviewSlot();
     slot.hidden = !reviewing && !handingOff;
-    slot.inert = !reviewing;
-    slot.setAttribute('aria-hidden', String(!reviewing));
+    slot.inert = !reviewing || handingOff;
+    slot.setAttribute('aria-hidden', String(!reviewing || handingOff));
+    if (returnToReview && !handingOff) this.focusReview();
     iframe.setAttribute('title', mode.presentation.title);
     dialog.setAttribute('aria-label', mode.presentation.title);
     dialog.classList.remove(OverlayStyleClasses.HIDDEN);
@@ -405,7 +412,7 @@ export class OverlayController {
     }
   }
 
-  private startReviewHandoff(): void {
+  private startReviewHandoff(destination: 'review' | 'wallet'): void {
     this.cancelReviewHandoff();
     if (!this.iframe || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const options = {
@@ -413,14 +420,15 @@ export class OverlayController {
       easing: 'linear',
       fill: 'both',
     } as const;
-    const outgoing = this.getTransactionReviewSlot().firstElementChild?.animate(
-      [{ opacity: 1 }, { opacity: 0 }],
-      options,
-    );
-    if (!outgoing) return;
-    const incoming = this.iframe.animate([{ opacity: 0 }, { opacity: 1 }], options);
+    const review = this.getTransactionReviewSlot().firstElementChild;
+    if (!review) return;
+    const outgoingElement = destination === 'wallet' ? review : this.iframe;
+    const incomingElement = destination === 'wallet' ? this.iframe : review;
+    const outgoing = outgoingElement.animate([{ opacity: 1 }, { opacity: 0 }], options);
+    const incoming = incomingElement.animate([{ opacity: 0 }, { opacity: 1 }], options);
     this.reviewHandoff = {
       kind: 'animating',
+      destination,
       outgoing,
       incoming,
       timer: setTimeout(this.finishReviewHandoff.bind(this), SURFACE_RESIZE_DURATION_MS),
@@ -441,13 +449,25 @@ export class OverlayController {
   private finishReviewHandoff(): void {
     if (this.reviewHandoff.kind !== 'animating') return;
     const onReady = this.reviewHandoff.onReady;
+    const reviewing = this.reviewHandoff.destination === 'review';
     this.cancelReviewHandoff();
-    if (this.reviewSlot) this.reviewSlot.hidden = true;
-    if (this.iframe) {
-      this.iframe.inert = false;
-      this.iframe.setAttribute('aria-hidden', 'false');
+    if (this.reviewSlot) {
+      this.reviewSlot.hidden = !reviewing;
+      this.reviewSlot.inert = !reviewing;
+      this.reviewSlot.setAttribute('aria-hidden', String(!reviewing));
     }
+    if (this.iframe) {
+      this.iframe.inert = reviewing;
+      this.iframe.setAttribute('aria-hidden', String(reviewing));
+    }
+    if (reviewing) this.focusReview();
     onReady?.();
+  }
+
+  private focusReview(): void {
+    this.reviewSlot
+      ?.querySelector<HTMLElement>('[tabindex="-1"], button')
+      ?.focus({ preventScroll: true });
   }
 
   private cancelReviewHandoff(): void {

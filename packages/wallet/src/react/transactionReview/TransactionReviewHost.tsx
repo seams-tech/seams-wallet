@@ -51,13 +51,7 @@ export function useTransactionReviewOwner(identity: string | null): {
 
 function ReviewPortal({ call }: { call: ReviewCallView }): ReactNode {
   const state = useSyncExternalStore(call.subscribe, call.snapshot, call.snapshot);
-  if (
-    state.kind === 'queued' ||
-    state.kind === 'settled' ||
-    state.kind === 'wallet_approval' ||
-    state.kind === 'signing'
-  )
-    return null;
+  if (state.kind === 'queued' || state.kind === 'settled' || state.kind === 'signing') return null;
   return createPortal(
     <ReviewContent call={call} />,
     state.reservation.slot,
@@ -70,7 +64,9 @@ function ReviewContent({ call }: { call: ReviewCallView }): ReactNode {
   const heading = useRef<HTMLHeadingElement>(null);
   const content = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
-    if (content.current) content.current.inert = state.kind === 'preparing_approval';
+    if (content.current) {
+      content.current.inert = state.kind === 'preparing_approval' || state.kind === 'wallet_approval';
+    }
   }, [state.kind]);
   useLayoutEffect(() => {
     heading.current?.focus({ preventScroll: true });

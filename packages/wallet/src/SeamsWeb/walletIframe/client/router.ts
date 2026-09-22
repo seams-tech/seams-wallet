@@ -1624,6 +1624,7 @@ export class WalletIframeRouter {
   private reviewSessionDeadline: ReturnType<typeof setTimeout> | null = null;
   private reviewGeneration = 0;
   private reviewResizeObserver: ResizeObserver | null = null;
+  private reviewSurfaceMeasurement: WalletIframeSurfaceMeasurementState | undefined;
   private reviewMutationObserver: MutationObserver | null = null;
   private readonly transactionSurfaceQueue = new WalletIframeTransactionSurfaceQueue();
   private readonly hostedAuthMenuRequestIds = new Map<
@@ -1811,6 +1812,7 @@ export class WalletIframeRouter {
         connectionId,
         identity,
         slot,
+        args.title,
         args.validity,
         confirmationConfig,
         ++this.reviewGeneration,
@@ -1818,6 +1820,7 @@ export class WalletIframeRouter {
         this.assertReviewIdentity.bind(this, connectionId, initialGeneration),
         this.cancelReviewReservation.bind(this, requestId),
         this.finishReviewReservation.bind(this, requestId),
+        this.resumeReviewReservation.bind(this, requestId),
       );
       this.reviews.set(requestId, { reservation, onCancel: args.onCancel });
       const result = this.transitionWalletIframeSurface({
@@ -1907,6 +1910,7 @@ export class WalletIframeRouter {
     this.reviewResizeObserver?.disconnect();
     this.reviewMutationObserver?.disconnect();
     this.reviewResizeObserver = null;
+    this.reviewSurfaceMeasurement = undefined;
     this.reviewMutationObserver = null;
     this.finishRequestSurface(requestId, false);
   }
@@ -1954,6 +1958,15 @@ export class WalletIframeRouter {
       case 'activated':
         entry.reservation.activated();
         return;
+      case 'reviewing':
+        if (!entry.reservation.returnToReview()) return;
+        this.transitionWalletIframeSurface({
+          kind: 'transaction_review_returned',
+          connectionId: entry.reservation.connectionId,
+          identity: entry.reservation.identity,
+          presentation: { kind: 'modal', title: entry.reservation.title },
+        });
+        return;
       case 'signing':
         this.clearReviewCancellationTimer(message.requestId);
         entry.reservation.signing();
@@ -1961,6 +1974,11 @@ export class WalletIframeRouter {
       case 'cancelled':
         return;
     }
+  }
+
+  private resumeReviewReservation(requestId: WalletIframeRequestId): void {
+    const entry = this.reviews.get(requestId);
+    if (entry) this.maybeActivateReview(entry.reservation);
   }
 
   private maybeActivateReview(reservation: TransactionReviewReservation): void {
@@ -2194,15 +2212,17 @@ export class WalletIframeRouter {
         ? { kind: 'unavailable' }
         : undefined;
     if (surface.kind === 'modal_transaction_review') {
-      const content = this.reviews.get(surface.identity.requestId)?.reservation.slot
-        .firstElementChild;
-      measurement = content
-        ? {
-            kind: 'measured',
-            widthCssPx: content.getBoundingClientRect().width,
-            heightCssPx: content.scrollHeight,
-          }
-        : undefined;
+      const slot = this.reviews.get(surface.identity.requestId)?.reservation.slot;
+      const content = slot?.firstElementChild;
+      if (content && !slot.hidden) {
+        this.reviewSurfaceMeasurement = {
+          kind: 'measured',
+          widthCssPx: content.getBoundingClientRect().width,
+          heightCssPx: content.scrollHeight,
+        };
+      }
+      // The review stays mounted but hidden during approval; reuse its size on Back.
+      measurement = this.reviewSurfaceMeasurement;
     }
     const viewport = this.currentSurfaceViewport();
     const receiptView =

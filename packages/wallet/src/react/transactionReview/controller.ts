@@ -255,6 +255,11 @@ export class ReviewCall<T> {
   private readonly reservationChanged = (): void => {
     if (this.state.kind === 'queued' || this.state.kind === 'settled') return;
     const reservation = this.state.reservation;
+    if (reservation.state.kind === 'reviewing_again') {
+      this.transition({ kind: 'reviewing', reservation });
+      this.host.show(this);
+      return;
+    }
     if (reservation.state.kind === 'wallet_approval' || reservation.state.kind === 'signing') {
       if (this.prepareTimer) clearTimeout(this.prepareTimer);
       this.prepareTimer = null;
@@ -262,7 +267,7 @@ export class ReviewCall<T> {
         kind: reservation.state.kind === 'signing' ? 'signing' : 'wallet_approval',
         reservation,
       });
-      this.host.hide(this);
+      if (reservation.state.kind === 'signing') this.host.hide(this);
     }
   };
 
@@ -274,7 +279,8 @@ export class ReviewCall<T> {
       const reservation = this.state.reservation;
       this.transition({ kind: 'preparing_approval', reservation });
       this.prepareTimer = setTimeout(this.prepareTimedOut, 30_000);
-      void this.dispatch(reservation);
+      if (reservation.state.kind === 'reviewing_again') reservation.resume();
+      else void this.dispatch(reservation);
     } catch (error) {
       this.rejectBeforeDispatch(error);
     }
@@ -380,6 +386,10 @@ export class ReviewCall<T> {
       error.code === 'cancelled'
     ) {
       error = this.state.error;
+    }
+    if (this.state.kind !== 'queued' && this.state.reservation.state.kind !== 'reviewing') {
+      this.state.reservation.cancel(error instanceof Error ? error : new Error(String(error)));
+      return;
     }
     this.abort.abort(error);
     this.reject(error);

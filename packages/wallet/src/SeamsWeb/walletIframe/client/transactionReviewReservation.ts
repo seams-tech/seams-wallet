@@ -14,6 +14,7 @@ export type TransactionDispatch =
 
 export type TransactionReviewReservationState =
   | { readonly kind: 'reviewing'; readonly prepared?: never }
+  | { readonly kind: 'reviewing_again'; readonly prepared?: never }
   | { readonly kind: 'preparing'; readonly prepared: boolean }
   | { readonly kind: 'activating'; readonly prepared?: never }
   | { readonly kind: 'wallet_approval'; readonly prepared?: never }
@@ -29,6 +30,7 @@ export class TransactionReviewReservation {
     readonly connectionId: WalletIframeConnectionId,
     readonly identity: RequestSurfaceIdentity,
     readonly slot: HTMLElement,
+    readonly title: string,
     validity: TransactionReviewValidity,
     readonly confirmationConfig: ConfirmationConfig,
     generation: number,
@@ -36,6 +38,7 @@ export class TransactionReviewReservation {
     private readonly assertCurrent: () => void,
     private readonly cancelRequest: (error: Error) => void,
     private readonly finishRequest: () => void,
+    private readonly resumeRequest: () => void,
   ) {
     this.metadata = Object.freeze({
       kind: 'transaction_review_v1',
@@ -90,6 +93,20 @@ export class TransactionReviewReservation {
 
   activated(): void {
     if (this.currentState.kind === 'activating') this.transition({ kind: 'wallet_approval' });
+  }
+
+  returnToReview(): boolean {
+    if (this.currentState.kind !== 'wallet_approval') return false;
+    this.transition({ kind: 'reviewing_again' });
+    return true;
+  }
+
+  resume(): void {
+    if (this.currentState.kind !== 'reviewing_again') return;
+    this.assertCurrent();
+    assertTransactionReviewValid(this.metadata.validity);
+    this.transition({ kind: 'preparing', prepared: true });
+    this.resumeRequest();
   }
 
   signing(): void {

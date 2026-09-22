@@ -39,7 +39,12 @@ export type TransactionReviewWire = TransactionReviewIdentity & {
   readonly render?: never;
 };
 
-export type TransactionReviewPhase = 'prepared' | 'activated' | 'signing' | 'cancelled';
+export type TransactionReviewPhase =
+  | 'prepared'
+  | 'activated'
+  | 'reviewing'
+  | 'signing'
+  | 'cancelled';
 export type TransactionReviewStateMessage = TransactionReviewIdentity & {
   readonly phase: TransactionReviewPhase;
 };
@@ -133,7 +138,13 @@ export function parseTransactionReviewState(value: unknown): TransactionReviewSt
   )
     return null;
   const phase = value.phase;
-  if (phase !== 'prepared' && phase !== 'activated' && phase !== 'signing' && phase !== 'cancelled')
+  if (
+    phase !== 'prepared' &&
+    phase !== 'activated' &&
+    phase !== 'reviewing' &&
+    phase !== 'signing' &&
+    phase !== 'cancelled'
+  )
     return null;
   try {
     const identity = parseIdentity(value);

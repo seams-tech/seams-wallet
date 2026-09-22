@@ -23,6 +23,7 @@ export type ConfirmUIUpdate = {
   errorMessage?: string;
   confirmText?: string;
   cancelText?: string;
+  onBack?: () => void;
   title?: string;
   body?: string;
   signingAuthMode?: SigningAuthMode;

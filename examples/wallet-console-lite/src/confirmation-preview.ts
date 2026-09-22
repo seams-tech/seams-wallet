@@ -9,6 +9,10 @@ function postMeasurement(measurement: WalletIframeSurfaceMeasurement): void {
   window.parent.postMessage({ type: 'preview-measurement', measurement }, window.location.origin);
 }
 
+function returnToReview(): void {
+  window.parent.postMessage({ type: 'preview-back' }, window.location.origin);
+}
+
 async function showConfirmation(): Promise<void> {
   if (window.parent === window) return;
   const handle = await mountConfirmUI({
@@ -44,6 +48,7 @@ async function showConfirmation(): Promise<void> {
     uiMode: 'modal',
   });
   handle.element.setAttribute('data-seams-review-frame', '');
+  handle.update({ onBack: returnToReview });
   const decision = await handle.takeDecision();
   handle.close(decision.kind === 'confirmed');
   window.parent.postMessage(

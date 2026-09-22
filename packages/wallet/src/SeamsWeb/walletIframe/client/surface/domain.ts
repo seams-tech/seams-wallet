@@ -211,6 +211,10 @@ export type WalletIframeSurfaceEvent =
       kind: 'transaction_review_handoff';
       presentation: WalletIframeModalPresentation;
     })
+  | (RequestOwnedEvent & {
+      kind: 'transaction_review_returned';
+      presentation: WalletIframeModalPresentation;
+    })
   | (RequestPresentationEvent & {
       kind: 'registration_modal_request_started';
       preparation: PasskeyRegistrationPreparationReceipt;
@@ -548,6 +552,19 @@ export function reduceWalletIframeSurface(
           identity: event.identity,
           presentation: event.presentation,
         }),
+      };
+    case 'transaction_review_returned':
+      if (current.kind !== 'modal_transaction_confirm' || !requestEventOwnsSurface(current, event)) {
+        return { kind: 'ignored', surface: current };
+      }
+      return {
+        kind: 'applied',
+        surface: {
+          kind: 'modal_transaction_review',
+          connectionId: event.connectionId,
+          identity: event.identity,
+          presentation: event.presentation,
+        },
       };
     case 'registration_modal_request_started':
       return reduceStartResult(

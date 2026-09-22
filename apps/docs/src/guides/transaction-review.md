@@ -120,3 +120,9 @@ The optional `review.className` styles the review wrapper. App CSS is available,
 but the portal changes DOM ancestry: ancestor selectors, inherited CSS variables,
 and CSS-in-JS insertion targets may need adjustment. SDK light/dark and shape
 tokens remain available. Your content must satisfy your application's CSP.
+
+Wallet approval includes **Back to review** when opened from an application review.
+Back preserves the review component's local state and the original quote deadline.
+Continue resumes the same pending approval without dispatching another transaction.
+The shared modal resizes and crossfades in both directions. Back is available until
+wallet approval is submitted; changing transaction inputs requires a new call.

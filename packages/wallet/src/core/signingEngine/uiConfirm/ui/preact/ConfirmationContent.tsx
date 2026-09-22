@@ -140,6 +140,17 @@ export class ConfirmationContent extends Component<{
         <div class="seams-review-content">
           {this.props.variant !== 'drawer' && <div class="seams-review-toolbar">
             <div class="seams-review-origin">
+              {model.transaction.onBack && (
+                <button
+                  type="button"
+                  aria-label="Back to review"
+                  title="Back to review"
+                  disabled={decision.kind === 'preparing'}
+                  onClick={model.transaction.onBack}
+                >
+                  <ReviewIcon kind="back" />
+                </button>
+              )}
               <PadlockIcon />
               {model.header.website.kind === 'ready' ? (
                 model.header.website.text

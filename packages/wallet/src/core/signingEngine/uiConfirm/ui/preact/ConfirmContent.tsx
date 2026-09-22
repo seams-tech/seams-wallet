@@ -27,6 +27,7 @@ export type ConfirmContentProps = {
   confirmIcon?: ComponentChildren;
   errorMessage?: string;
   onCancel: () => void;
+  onBack?: () => void;
   onTreeToggle?: (nodeId: string, open: boolean) => void;
   onCopy?: (value: string) => void;
 };

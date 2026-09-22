@@ -125,6 +125,16 @@ export class TransactionReviewAdmission {
       throw new TransactionReviewError('cancelled', 'The reviewed request has already settled');
   }
 
+  readonly returnToReview = (): void => {
+    if (this.state.kind !== 'active' || !this.allowInteraction()) return;
+    this.state = { kind: 'prepared' };
+    if (this.element) {
+      this.element.inert = true;
+      this.element.setAttribute('aria-hidden', 'true');
+    }
+    this.notify('reviewing');
+  };
+
   assertActive(): void {
     if (this.state.kind === 'cancelled') throw this.state.error;
     if (this.state.kind !== 'active' && this.state.kind !== 'signing') {

@@ -326,6 +326,7 @@ function bindConfirmSurfaceMeasurementReporter(
 
 type ConfirmationDecisionChannel = {
   readonly cancelListeners: Set<(detail: { error?: string }) => void>;
+  readonly onBack: (() => void) | undefined;
   readonly callbacks: {
     confirm: () => void;
     cancel: () => void;
@@ -334,13 +335,24 @@ type ConfirmationDecisionChannel = {
   takeDecision(): Promise<ConfirmUISurfaceDecision>;
 };
 
+type ReviewNavigationState = { kind: 'review_available' | 'decision_published' };
+
+function returnToApplicationReview(
+  admission: TransactionReviewAdmission,
+  navigation: ReviewNavigationState,
+): void {
+  if (navigation.kind === 'review_available') admission.returnToReview();
+}
+
 function createConfirmationDecisionChannel(
   admission?: TransactionReviewAdmission,
 ): ConfirmationDecisionChannel {
+  const navigation: ReviewNavigationState = { kind: 'review_available' };
   const queuedDecisions: ConfirmUISurfaceDecision[] = [];
   const decisionWaiters: Array<(decision: ConfirmUISurfaceDecision) => void> = [];
   const cancelListeners = new Set<(detail: { error?: string }) => void>();
   const publishDecision = (decision: ConfirmUISurfaceDecision): void => {
+    navigation.kind = 'decision_published';
     const waiter = decisionWaiters.shift();
     if (waiter) {
       waiter(decision);
@@ -354,6 +366,7 @@ function createConfirmationDecisionChannel(
   };
   return {
     cancelListeners,
+    onBack: admission ? returnToApplicationReview.bind(null, admission, navigation) : undefined,
     callbacks: {
       confirm: () => {
         if (admission && !admission.allowInteraction()) return;
@@ -764,6 +777,7 @@ function mountHostElement({
     context: confirmationSurfaceContext(ctx.surfaceMeasurementBinding, variant),
     appearance: resolvedAppearance,
     presentation: {
+      onBack: channel.onBack,
       model,
       securityContext,
       loading,

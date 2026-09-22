@@ -18,6 +18,7 @@ export type ConfirmationPresentationInput = Pick<
   | 'errorMessage'
   | 'confirmText'
   | 'cancelText'
+  | 'onBack'
   | 'signingAuthMode'
   | 'emailOtpPrompt'
   | 'nearExplorerUrl'
@@ -139,6 +140,7 @@ export function normalizeConfirmationModel(input: {
           cancelText,
           errorMessage,
           onCancel: input.callbacks.cancel,
+          onBack: source.onBack,
         },
       },
     },

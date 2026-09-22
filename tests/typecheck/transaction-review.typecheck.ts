@@ -130,3 +130,10 @@ const wireWithoutConnection: TransactionReviewWire = {
 };
 void wireWithRenderer;
 void wireWithoutConnection;
+
+// @ts-expect-error Returning to review cannot retain preparation metadata.
+const returnedPreparation: TransactionReviewReservationState = {
+  ...prepared,
+  kind: 'reviewing_again',
+};
+void returnedPreparation;
