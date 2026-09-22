@@ -1554,13 +1554,13 @@ their timings do not measure an authorized MPC ceremony.
 The router now advertises a **600-second** preflight cache lifetime for an
 allowed origin. It continues checking the current allowed-origin list on each
 actual response, and each presign message still receives fresh authorization.
-Measure the deployed change before attributing any reduction in full
-generation time. The remaining larger costs are the dependent browser,
+The deployed measurements below isolate preflight counts and report full
+generation timings. The remaining larger costs are the dependent browser,
 authorization, and worker/object exchanges, followed by signing prepare and
 finalize when the pool is empty.
 
 
-### Six-exchange owner presigning (implementation, deployment pending)
+### Six-exchange owner presigning (released in 0.5.32)
 
 The owner pool-fill path now carries a client-generated, 256-bit random ceremony
 identity and its first protocol message in initialization. The identity includes
@@ -1603,8 +1603,79 @@ The broader private-D1 suite failed twice before presigning in its Yao package
 delivery fixture with `Network connection lost`
 (`environment_or_infrastructure_failure`); that unrelated failure remains visible.
 
-The implementation and version **0.5.32** are staged together for one review/CI
-cycle. No deployment or hosted latency improvement is claimed yet; coordinated
-client/server deployment and an equivalent empty-pool timing cohort remain.
-Two fewer HTTP exchanges do not establish a 25% reduction in end-to-end latency;
-measure equivalent empty-pool cohorts after coordinated deployment.
+Public PR #25 passed Wallet and MPC validation and merged as
+`087bd33cd32aa31b608d4461eeca475ae6d6204c`. Both 0.5.32 packages were
+published by release run `35711623520`. Monorepo PR #38 merged as
+`52568bdedaec18cb2f719c97c3b72f89378bd6e4`; frontend run `35718040323`
+and coordinated testnet backend run `35718042794` passed, including gateway
+readiness smoke. Both hosted asset manifests returned HTTP 200 and version
+0.5.32. The mainnet backend remains outside this rollout because of its billing
+blocker.
+
+### Hosted CORS and six-exchange measurements
+
+The same fresh-registration capture records five sequential pool-fill ceremonies
+per release. These are one registration per version in one browser environment,
+not a population percentile or a controlled estimate of each change's causal
+contribution. Network ceremony timing spans initialization through the final
+response.
+
+| Metric | 0.5.30 | 0.5.31 (CORS cache) | 0.5.32 (six exchanges) |
+| --- | ---: | ---: | ---: |
+| Durable entries reached | 5 | 5 | 5 |
+| Successful fill POSTs | 40 | 40 | 30 |
+| POSTs per ceremony | 8 | 8 | 6 |
+| OPTIONS requests | 13 | 2 | 2 |
+| Total OPTIONS duration | 3.518s | 0.399s | 0.332s |
+| Median network ceremony | 8.761s | 7.908s | 4.069s |
+| Registration ready | 13.476s | 9.934s | 8.456s |
+| First persisted entry after registration ready | 10.720s | 8.892s | 3.812s |
+
+All five 0.5.32 ceremonies used exactly one init and five step POSTs. Generation
+events measured **4.316, 3.467, 4.086, 4.079, and 3.853 seconds**. Registration
+returned before the first entry, while background refill continued to five.
+The reused step URL means preflight cost is not incurred seven times per ceremony.
+The CORS change caches allowed preflights for 600 seconds; live authorization
+still runs for every actual request.
+
+After testnet funding, six cached Tempo signatures succeeded in **1.749, 1.394,
+1.910, 1.822, 1.935, and 2.217 seconds**. The first two used the reusable session;
+the next four used fresh operation step-up after its signing quota was exhausted.
+A reload and passkey unlock preserved all five saved entry identities. Two more
+cached signatures took **1.832 and 1.904 seconds**, each removed a different
+saved entry, the first consumed entry remained absent, and refill restored five.
+Neither post-reload signature needed foreground generation. Entry comparisons
+were performed in memory and exported only as counts and booleans. This tests
+reload persistence and consumption, not 90 days of elapsed retention.
+
+A test-harness error initially suggested an authorization regression on 0.5.31:
+detaching the CDP network session disabled the virtual authenticator environment.
+Keeping that session attached and calling `Network.disable` instead preserved
+the credential and passed six signatures, including four fresh step-ups, then
+two signatures after reload. No production authorization fix was needed.
+
+One valid 0.5.31 cached-signing sample still took **12.182s**: signing prepare
+spent **10.334s** in the gateway's signing-worker proxy span versus **0.183s**
+in authorization. This outlier is independent of an empty pool and needs worker/
+object transit, scheduling, and handler attribution. The faster 0.5.32 sample
+does not establish that the intermittent delay is fixed or that a 1–3s SLO is met.
+
+Sanitized private artifacts: `presign-six-request-comparison-0.5.32.json`,
+`auth32-controlled-preserved-summary.json`, and
+`auth32-reload-acceptance-summary.json` under `output/playwright/`. Remaining
+optimization work includes consolidating live authorization reads, benchmarking
+persistent transport with per-message authorization, and overlapping independent
+transaction RPC preparation. Cryptographic signing prepare requires the chosen
+presignature and rerandomization commitment and cannot precede them.
+
+
+A separate immediate-sign capture remains inconclusive. Its first attempt stopped
+at registration before any fill requests, with HTTP 503 diagnostics. A fresh
+retry completed registration and all five six-request fills, but the demo sign
+request timed out before emitting any signing timing or presignature-selection
+event. That wallet had not been funded. Neither attempt supplies a first-sign
+latency sample or establishes a presignature regression. Diagnose the demo's
+pre-sign request path before retrying or changing production signing behavior;
+the original 1–3s empty-pool target remains unverified on 0.5.32. Sanitized
+artifacts are `presign-immediate-first-sign-0.5.32-summary.json` and
+`presign-immediate-first-sign-0.5.32-retry-summary.json`.
