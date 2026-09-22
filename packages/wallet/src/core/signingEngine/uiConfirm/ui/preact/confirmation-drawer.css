@@ -106,7 +106,7 @@
 :where(.seams-wallet-ui) .seams-drawer-body {
   min-block-size: 0;
   overflow: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
 }
 :where(.seams-wallet-ui) .seams-drawer-content {
   padding-bottom: max(16px, env(safe-area-inset-bottom));

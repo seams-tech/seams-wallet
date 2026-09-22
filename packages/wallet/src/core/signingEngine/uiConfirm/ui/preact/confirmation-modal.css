@@ -8,7 +8,7 @@
   background: transparent;
   color: inherit;
   overflow: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
 }
 
 :where(.seams-wallet-ui) .seams-confirmation-modal::backdrop {

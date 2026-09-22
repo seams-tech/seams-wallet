@@ -255,6 +255,7 @@
 
 :where(.seams-wallet-ui) .seams-tx-tree .tooltip-tree-root.scrollable-root {
   overflow: auto;
+  overscroll-behavior: none;
   max-height: 40vh;
   max-height: 40dvh;
 }
@@ -558,6 +559,7 @@
   width: 100%;
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: none;
   color: var(--seams-tree__file-content__color, #e2e8f0);
   font-family: var(
     --seams-tree__file-content__font-family,

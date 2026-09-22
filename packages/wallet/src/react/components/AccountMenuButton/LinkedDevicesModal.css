@@ -14,6 +14,7 @@
   padding: var(--seams-spacing-sm, 12px);
   box-sizing: border-box;
   overflow: auto;
+  overscroll-behavior: none;
   animation: seams-linked-devices-backdrop-opacity 80ms ease-out;
 }
 
@@ -116,7 +117,7 @@
   min-height: 0;
   gap: var(--seams-spacing-sm, 0.5rem);
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
 }
 
 /* Both the loading and the loaded state render one card per row, so the box
