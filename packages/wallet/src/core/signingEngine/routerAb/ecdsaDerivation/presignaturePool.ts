@@ -1914,7 +1914,7 @@ export async function signRouterAbEcdsaDerivationDigestWithPool(
       refillStartedAt,
       refill.ok ? 'succeeded' : 'failed',
     );
-    if (!refill.ok) return refill;
+    if (!refill.ok && refill.code !== 'pool_full') return refill;
 
     return await signRouterAbEcdsaDerivationDigestWithPoolHit({
       relayerUrl: args.relayerUrl,

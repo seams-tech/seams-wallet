@@ -193,6 +193,16 @@ export const buildWalletServiceHtml = (options: WalletServiceHtmlOptions = {}): 
                     interaction: { kind: 'transaction_confirmation', overlay: 'show' }
                   }
                 });
+                adoptedPort.postMessage({
+                  type: 'SURFACE_MEASUREMENT',
+                  payload: {
+                    kind: 'measured_v1',
+                    requestId,
+                    sequence: 1,
+                    widthCssPx: 420,
+                    heightCssPx: 380,
+                  },
+                });
               } catch (err) {
                 console.error('Failed to post PROGRESS for executeAction', err);
               }

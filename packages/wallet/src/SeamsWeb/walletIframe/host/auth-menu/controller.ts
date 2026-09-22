@@ -8,7 +8,6 @@ import type {
   HostedAuthMenuOpenRequest,
 } from '../../shared/messages';
 import { AuthMenuSession } from './session';
-import '../lit-ui/auth-menu/seams-auth-menu-surface';
 import { prepareHostedPasskeyRegistration } from '@/SeamsWeb/operations/registration/registration';
 import {
   buildNearWalletRegistrationSignerSetSelection,

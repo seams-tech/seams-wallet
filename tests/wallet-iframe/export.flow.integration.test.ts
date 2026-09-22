@@ -19,7 +19,6 @@ import {
   toEvmFamilyEcdsaKeyHandle,
   toRpId,
 } from '@/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
-import { deriveEvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 import { buildMpcMaterialActivationRefFixture } from '../unit/helpers/ecdsaMaterialRef.fixtures';
 
 const WALLET_ORIGIN = 'https://wallet.example.localhost';
@@ -34,11 +33,6 @@ const EXPORT_FLOW_EVM_TARGET = thresholdEcdsaChainTargetFromChainFamily({
 });
 const EXPORT_FLOW_ECDSA_KEY = buildEvmFamilyEcdsaKeyIdentity({
   walletId: EXPORT_FLOW_SUBJECT_ID,
-  evmFamilySigningKeySlotId: deriveEvmFamilySigningKeySlotId({
-    walletId: EXPORT_FLOW_SUBJECT_ID,
-    signingRootId: 'signing-root-export-flow',
-    signingRootVersion: 'root-v1',
-  }),
   ecdsaThresholdKeyId: 'ecdsa-threshold-export-flow',
   signingRootId: 'signing-root-export-flow',
   signingRootVersion: 'root-v1',
@@ -51,17 +45,13 @@ const EXPORT_FLOW_ECDSA_EXPORT_LANE = exactEcdsaSigningLaneIdentity({
     chainTarget: EXPORT_FLOW_EVM_TARGET,
     keyHandle: toEvmFamilyEcdsaKeyHandle('ecdsa-key-handle-export-flow'),
     key: EXPORT_FLOW_ECDSA_KEY,
-    materialActivation: buildMpcMaterialActivationRefFixture(
-      'export-flow',
-      EXPORT_FLOW_SUBJECT_ID,
-    ),
+    materialActivation: buildMpcMaterialActivationRefFixture('export-flow', EXPORT_FLOW_SUBJECT_ID),
   }),
   auth: {
     kind: 'passkey',
     rpId: toRpId('example.test'),
     credentialIdB64u: 'credential-export-flow',
   },
-  thresholdSessionId: 'threshold-ecdsa-export-flow',
 });
 
 const staleGenericCloseAfterExportViewerScript = String.raw`
@@ -333,5 +323,4 @@ test.describe('wallet-origin export flow integration', () => {
     expect(result.closeMarker).toBe(true);
     expect(result.hiddenAfterExportClose).toBe(true);
   });
-
 });

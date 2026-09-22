@@ -1,3 +1,16 @@
+import {
+  TransactionReviewReservation,
+  type TransactionDispatch,
+} from './transactionReviewReservation';
+import {
+  assertTransactionReviewValid,
+  transactionReviewCancellationCode,
+  reviewedConfirmationConfig,
+  TransactionReviewError,
+  parseTransactionReviewState,
+  sameTransactionReviewIdentity,
+  type TransactionReviewValidity,
+} from '../shared/transactionReview';
 /*
  * WalletIframeRouter - Client-Side Communication Layer
  *
@@ -259,7 +272,6 @@ import {
   isBoolean,
   toBasePath,
 } from '@shared/utils/validation';
-import type { WalletUIRegistry } from '../host/lit-ui/iframe-lit-element-registry';
 import { toError } from '@shared/utils/errors';
 import { secureRandomBase36 } from '@shared/utils/secureRandomId';
 import {
@@ -329,8 +341,6 @@ export interface WalletIframeRouterOptions {
   appearance?: AppearanceConfigInput;
   // Runtime appearance source used when init sends PM_SET_CONFIG.
   getAppearance?: () => AppearanceConfigInput | undefined;
-  // Optional: pre-register UI components in wallet host
-  uiRegistry?: Record<string, unknown>;
   // Optional browser assembly hook for owning wallet iframe overlay state construction.
   createOverlayState?: (args: {
     ensureIframe: (mountParent?: HTMLElement) => HTMLIFrameElement;
@@ -369,6 +379,7 @@ type Pending = {
 };
 
 type WalletIframePostOptionsBase = {
+  transactionDispatch?: TransactionDispatch;
   requestId?: WalletIframeRequestId;
   shouldContinue?: () => boolean;
 };
@@ -1328,6 +1339,11 @@ type ParsedSdkLifecycleEnvelope =
   | { readonly kind: 'lifecycle_event'; readonly event: SdkLifecycleEvent };
 
 type ParsedChildToParentEnvelope =
+  | {
+      readonly type: 'TRANSACTION_REVIEW_STATE';
+      readonly requestId?: string;
+      readonly payload: NonNullable<ReturnType<typeof parseTransactionReviewState>>;
+    }
   | { readonly type: 'PONG'; readonly requestId?: string }
   | {
       readonly type: 'PREFERENCES_CHANGED';
@@ -1353,6 +1369,11 @@ type ParsedChildToParentEnvelope =
       readonly type: 'SURFACE_MEASUREMENT';
       readonly requestId?: string;
       readonly payload: NonNullable<ReturnType<typeof parseWalletIframeSurfaceMeasurement>>;
+    }
+  | {
+      readonly type: 'TRANSACTION_ACTIVITY';
+      readonly requestId: string;
+      readonly payload: 'expanded' | 'toast' | 'closed';
     }
   | { readonly type: 'PROGRESS'; readonly requestId?: string; readonly payload: ProgressPayload }
   | { readonly type: 'PM_RESULT'; readonly requestId?: string; readonly payload: PMResultPayload }
@@ -1497,9 +1518,20 @@ function parseClientChildToParentEnvelope(value: unknown): ParsedChildToParentEn
       const payload = parseHostedAuthMenuDemoEmailOtpDelivery(Reflect.get(record, 'payload'));
       return payload ? { ...requestIdFields, type, payload } : null;
     }
+    case 'TRANSACTION_REVIEW_STATE': {
+      const payload = parseTransactionReviewState(Reflect.get(record, 'payload'));
+      return payload ? { ...requestIdFields, type, payload } : null;
+    }
     case 'SURFACE_MEASUREMENT': {
       const payload = parseWalletIframeSurfaceMeasurement(Reflect.get(record, 'payload'));
       return payload ? { ...requestIdFields, type, payload } : null;
+    }
+    case 'TRANSACTION_ACTIVITY': {
+      const payload = Reflect.get(record, 'payload');
+      return typeof requestId === 'string' &&
+        (payload === 'expanded' || payload === 'toast' || payload === 'closed')
+        ? { type, requestId, payload }
+        : null;
     }
     case 'PROGRESS': {
       const payload = parseClientProgressPayload(Reflect.get(record, 'payload'));
@@ -1571,6 +1603,7 @@ export class WalletIframeRouter {
   private readonly walletOriginOrigin: string;
   private overlayState: WalletIframeOverlayState;
   private walletIframeSurface: WalletIframeSurface = hiddenWalletIframeSurface();
+  private transactionReceipt: { requestId: string; view: 'expanded' | 'toast' } | null = null;
   private surfaceRenderer: WalletIframeSurfaceRenderer;
   private activeSurfaceMeasurement: WalletIframeTrustedSurfaceMeasurement | null = null;
   private activeSurfaceMeasurementUnavailable = false;
@@ -1581,6 +1614,17 @@ export class WalletIframeRouter {
   private measurementFallbackTimer: number | null = null;
   private measurementFallbackGeneration = 0;
   private disposed = false;
+  private readonly reviews = new Map<
+    string,
+    { reservation: TransactionReviewReservation; onCancel: (error: Error) => void }
+  >();
+  private readonly reviewCancellationTimers = new Map<string, number>();
+  private reviewIdentityGeneration = 0;
+  private readonly reviewWaiters = new Map<string, (error: Error) => void>();
+  private reviewSessionDeadline: ReturnType<typeof setTimeout> | null = null;
+  private reviewGeneration = 0;
+  private reviewResizeObserver: ResizeObserver | null = null;
+  private reviewMutationObserver: MutationObserver | null = null;
   private readonly transactionSurfaceQueue = new WalletIframeTransactionSurfaceQueue();
   private readonly hostedAuthMenuRequestIds = new Map<
     HostedAuthMenuSessionId,
@@ -1640,7 +1684,7 @@ export class WalletIframeRouter {
       // Normalize path-like options so empty strings (common when CI env vars are unset)
       // don't accidentally become the wallet origin root. If sdkBasePath becomes "", then:
       //   new URL("", "https://wallet.example.com") -> "https://wallet.example.com/"
-      // which makes Lit components request CSS from the origin root (Pages SPA fallback),
+      // which makes embedded components request CSS from the origin root (Pages SPA fallback),
       // yielding `Content-Type: text/html` and browser MIME-type errors.
       servicePath: normalizedServicePath,
       sdkBasePath: normalizedSdkBasePath,
@@ -1686,6 +1730,274 @@ export class WalletIframeRouter {
           }
         : undefined,
     );
+  }
+
+  async reserveTransactionReview(args: {
+    walletId: string;
+    title: string;
+    validity: TransactionReviewValidity;
+    confirmationConfig: Partial<ConfirmationConfig> | undefined;
+    signal: AbortSignal;
+    onCancel: (error: Error) => void;
+  }): Promise<TransactionReviewReservation> {
+    if (args.signal.aborted) throw args.signal.reason;
+    const initialGeneration = this.reviewIdentityGeneration;
+    await this.init();
+    const session = await this.getExactSessionState();
+    const confirmationConfig = reviewedConfirmationConfig(
+      await this.getConfirmationConfig(),
+      args.confirmationConfig,
+    );
+    if (args.signal.aborted) throw args.signal.reason;
+    if (
+      initialGeneration !== this.reviewIdentityGeneration ||
+      session.kind === 'wallet_locked' ||
+      session.walletId !== args.walletId
+    ) {
+      throw new TransactionReviewError(
+        'review_identity_changed',
+        'The selected wallet or signing session changed',
+      );
+    }
+    const connectionId = this.state.connectionId;
+    if (!connectionId) throw new Error('Wallet iframe connection is unavailable');
+    const surface = this.walletIframeSurface;
+    if (
+      surface.kind !== 'hidden' &&
+      surface.kind !== 'modal_transaction_confirm' &&
+      surface.kind !== 'modal_transaction_review'
+    ) {
+      throw walletIframeSurfaceBusyError();
+    }
+    const requestId = this.allocateRequestId();
+    const cancelWaiter = this.transactionSurfaceQueue.cancel.bind(
+      this.transactionSurfaceQueue,
+      requestId,
+    );
+    this.reviewWaiters.set(requestId, args.onCancel);
+    args.signal.addEventListener('abort', cancelWaiter, { once: true });
+    let lease: WalletIframeTransactionSurfaceLease;
+    try {
+      lease = await this.transactionSurfaceQueue.acquire({
+        requestId,
+        deadline: { kind: 'interactive' },
+      });
+    } finally {
+      this.reviewWaiters.delete(requestId);
+      args.signal.removeEventListener('abort', cancelWaiter);
+    }
+    try {
+      if (args.signal.aborted) throw args.signal.reason;
+      this.assertReviewIdentity(connectionId, initialGeneration);
+      assertTransactionReviewValid(args.validity);
+      const identity = this.requestSurfaceIdentity(requestId);
+      const previousReceipt = this.transactionReceipt;
+      if (previousReceipt) {
+        this.state.port?.postMessage({
+          type: 'PM_SET_TRANSACTION_VIEW',
+          payload: { requestId: previousReceipt.requestId, view: 'closed' },
+        });
+        this.transactionReceipt = null;
+        if (
+          this.walletIframeSurface.kind !== 'hidden' &&
+          this.walletIframeSurface.identity.requestId === previousReceipt.requestId
+        ) {
+          this.walletIframeSurface = hiddenWalletIframeSurface();
+        }
+      }
+      const slot = this.overlayState.controller.getTransactionReviewSlot();
+      this.overlayState.controller.setReviewAppearance(this.getCurrentAppearance());
+      const reservation = new TransactionReviewReservation(
+        connectionId,
+        identity,
+        slot,
+        args.validity,
+        confirmationConfig,
+        ++this.reviewGeneration,
+        lease,
+        this.assertReviewIdentity.bind(this, connectionId, initialGeneration),
+        this.cancelReviewReservation.bind(this, requestId),
+        this.finishReviewReservation.bind(this, requestId),
+      );
+      this.reviews.set(requestId, { reservation, onCancel: args.onCancel });
+      const result = this.transitionWalletIframeSurface({
+        kind: 'transaction_review_started',
+        connectionId,
+        identity,
+        presentation: { kind: 'modal', title: args.title },
+      });
+      if (result.kind === 'rejected') throw walletIframeSurfaceBusyError(result.error);
+      this.cancelMeasurementFallback();
+      this.reviewResizeObserver = new ResizeObserver(this.refreshReviewGeometry);
+      this.reviewMutationObserver = new MutationObserver(this.refreshReviewGeometry);
+      this.reviewMutationObserver.observe(slot, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+      return reservation;
+    } catch (error) {
+      this.reviews.delete(requestId);
+      lease.release();
+      throw error;
+    }
+  }
+
+  private invalidateReviews(): void {
+    this.reviewIdentityGeneration += 1;
+    const error = new TransactionReviewError(
+      'review_identity_changed',
+      'The wallet or signing session changed',
+    );
+    for (const [requestId, cancel] of this.reviewWaiters) {
+      this.transactionSurfaceQueue.cancel(requestId);
+      cancel(error);
+    }
+    for (const entry of this.reviews.values()) entry.reservation.cancel(error);
+  }
+
+  private updateReviewSession(state: WalletIframeExactSessionState): void {
+    const previous = this.exactSessionState;
+    if (previous && !sameReviewSession(previous, state)) this.invalidateReviews();
+    if (this.reviewSessionDeadline) clearTimeout(this.reviewSessionDeadline);
+    this.reviewSessionDeadline = null;
+    if (state.kind === 'active_session') {
+      this.reviewSessionDeadline = setTimeout(
+        this.expireReviewSession.bind(this, state),
+        Math.min(Math.max(0, state.expiresAtMs - Date.now()), 2_147_483_647),
+      );
+    }
+  }
+
+  private expireReviewSession(
+    state: WalletIframeExactSessionState & { kind: 'active_session' },
+  ): void {
+    if (this.exactSessionState !== state) return;
+    if (Date.now() < state.expiresAtMs) {
+      this.updateReviewSession(state);
+      return;
+    }
+    this.invalidateReviews();
+  }
+
+  private assertReviewIdentity(connectionId: WalletIframeConnectionId, generation: number): void {
+    if (
+      this.state.connectionId !== connectionId ||
+      generation !== this.reviewIdentityGeneration ||
+      this.disposed
+    ) {
+      throw new TransactionReviewError(
+        'review_identity_changed',
+        'The wallet connection or signing session changed',
+      );
+    }
+  }
+
+  private readonly refreshReviewGeometry = (): void => {
+    const surface = this.walletIframeSurface;
+    if (surface.kind !== 'modal_transaction_review') return;
+    const slot = this.reviews.get(surface.identity.requestId)?.reservation.slot;
+    if (slot?.firstElementChild) this.reviewResizeObserver?.observe(slot.firstElementChild);
+    this.renderActiveWalletIframeSurface();
+  };
+
+  private finishReviewReservation(requestId: WalletIframeRequestId): void {
+    this.reviews.delete(requestId);
+    this.clearReviewCancellationTimer(requestId);
+    this.reviewResizeObserver?.disconnect();
+    this.reviewMutationObserver?.disconnect();
+    this.reviewResizeObserver = null;
+    this.reviewMutationObserver = null;
+    this.finishRequestSurface(requestId, false);
+  }
+
+  private cancelReviewReservation(requestId: WalletIframeRequestId, error: Error): void {
+    const entry = this.reviews.get(requestId);
+    if (!entry) return;
+    if (entry.reservation.state.kind === 'reviewing') {
+      entry.onCancel(error);
+      entry.reservation.finish();
+      return;
+    }
+    if (entry.reservation.state.kind === 'signing' || entry.reservation.state.kind === 'settled')
+      return;
+    if (this.reviewCancellationTimers.has(requestId)) return;
+    this.sendBestEffortCancel(requestId, error);
+    this.reviewCancellationTimers.set(
+      requestId,
+      window.setTimeout(this.reviewCancellationTimedOut.bind(this, requestId), 30_000),
+    );
+  }
+
+  private clearReviewCancellationTimer(requestId: string): void {
+    const timer = this.reviewCancellationTimers.get(requestId);
+    if (timer !== undefined) window.clearTimeout(timer);
+    this.reviewCancellationTimers.delete(requestId);
+  }
+
+  private reviewCancellationTimedOut(requestId: WalletIframeRequestId): void {
+    const pending = this.state.pending.get(requestId);
+    if (!pending) return;
+    pending.reject(pending.onTimeout());
+  }
+
+  private handleReviewState(value: unknown): void {
+    const message = parseTransactionReviewState(value);
+    if (!message) return;
+    const entry = this.reviews.get(message.requestId);
+    if (!entry || !sameTransactionReviewIdentity(entry.reservation.metadata, message)) return;
+    switch (message.phase) {
+      case 'prepared':
+        entry.reservation.prepared();
+        this.maybeActivateReview(entry.reservation);
+        return;
+      case 'activated':
+        entry.reservation.activated();
+        return;
+      case 'signing':
+        this.clearReviewCancellationTimer(message.requestId);
+        entry.reservation.signing();
+        return;
+      case 'cancelled':
+        return;
+    }
+  }
+
+  private maybeActivateReview(reservation: TransactionReviewReservation): void {
+    if (
+      !this.activeSurfaceMeasurement ||
+      this.activeSurfaceMeasurement.identity.requestId !== reservation.identity.requestId
+    )
+      return;
+    if (!reservation.activate()) return;
+    this.transitionWalletIframeSurface({
+      kind: 'transaction_review_handoff',
+      connectionId: reservation.connectionId,
+      identity: reservation.identity,
+      presentation: { kind: 'modal', title: 'Confirm transaction' },
+    });
+    this.overlayState.controller.activateAfterReviewHandoff(
+      this.activateReview.bind(this, reservation),
+    );
+  }
+
+  private activateReview(reservation: TransactionReviewReservation): void {
+    if (
+      reservation.state.kind !== 'activating' ||
+      this.state.connectionId !== reservation.connectionId ||
+      this.reviewCancellationTimers.has(reservation.identity.requestId)
+    )
+      return;
+    this.state.port?.postMessage({
+      type: 'PM_ACTIVATE_TRANSACTION_REVIEW',
+      payload: {
+        connectionId: reservation.connectionId,
+        requestId: reservation.identity.requestId,
+        surfaceId: reservation.identity.surfaceId,
+        generation: reservation.metadata.generation,
+        phase: 'activated',
+      },
+    });
   }
 
   private getCurrentAppearance(): AppearanceConfigInput | undefined {
@@ -1815,6 +2127,13 @@ export class WalletIframeRouter {
       return;
     }
     if (event.authMenuSessionId !== undefined) return;
+    if (this.transactionReceipt?.requestId === surface.identity.requestId) {
+      this.state.port?.postMessage({
+        type: 'PM_SET_TRANSACTION_VIEW',
+        payload: { requestId: surface.identity.requestId, view: 'toast' },
+      });
+      return;
+    }
     void this.cancelRequest(surface.identity.requestId);
   };
 
@@ -1865,8 +2184,7 @@ export class WalletIframeRouter {
       this.surfaceRenderer.render(surface);
       return;
     }
-    const measurement: WalletIframeSurfaceMeasurementState | undefined = this
-      .activeSurfaceMeasurement
+    let measurement: WalletIframeSurfaceMeasurementState | undefined = this.activeSurfaceMeasurement
       ? {
           kind: 'measured',
           widthCssPx: this.activeSurfaceMeasurement.widthCssPx,
@@ -1875,9 +2193,26 @@ export class WalletIframeRouter {
       : this.activeSurfaceMeasurementUnavailable
         ? { kind: 'unavailable' }
         : undefined;
+    if (surface.kind === 'modal_transaction_review') {
+      const content = this.reviews.get(surface.identity.requestId)?.reservation.slot
+        .firstElementChild;
+      measurement = content
+        ? {
+            kind: 'measured',
+            widthCssPx: content.getBoundingClientRect().width,
+            heightCssPx: content.scrollHeight,
+          }
+        : undefined;
+    }
     const viewport = this.currentSurfaceViewport();
+    const receiptView =
+      this.transactionReceipt?.requestId === surface.identity.requestId
+        ? this.transactionReceipt.view
+        : null;
     const resolvedGeometry = resolveWalletIframeSurfaceGeometry({
-      presentation: surface.presentation,
+      presentation: receiptView
+        ? { kind: 'modal', title: 'Transaction receipt' }
+        : surface.presentation,
       viewport,
       measurement,
     });
@@ -1946,7 +2281,22 @@ export class WalletIframeRouter {
       geometry = documentCoordinateAuthMenuGeometry(geometry);
     }
     this.overlayState.controller.setAuthMenuVisualScale(authMenuVisualScale);
-    this.surfaceRenderer.render(surface, geometry);
+    const toast = receiptView === 'toast';
+    if (toast) {
+      const width = Math.min(360, Math.max(1, viewport.widthCssPx - 32));
+      const height = Math.min(
+        this.activeSurfaceMeasurement?.heightCssPx ?? 88,
+        Math.max(1, viewport.heightCssPx - 32),
+      );
+      geometry = {
+        kind: 'centered_modal',
+        widthCssPx: width,
+        heightCssPx: height,
+        leftCssPx: viewport.offsetLeftCssPx + viewport.widthCssPx - width - 16,
+        topCssPx: viewport.offsetTopCssPx + viewport.heightCssPx - height - 16,
+      };
+    }
+    this.surfaceRenderer.render(surface, geometry, receiptView);
     if (surface.kind === 'modal_auth_menu' && geometry.kind !== 'provisional_centered_modal') {
       this.hostedAuthMenuAnchors
         .get(surface.authMenuSessionId)
@@ -2022,6 +2372,8 @@ export class WalletIframeRouter {
     this.activeSurfaceMeasurementUnavailable = false;
     this.activeSurfaceMeasurementGeneration = this.surfaceGeneration;
     this.cancelMeasurementFallback();
+    const review = this.reviews.get(measurement.requestId);
+    if (review) this.maybeActivateReview(review.reservation);
     this.renderActiveWalletIframeSurface();
   }
 
@@ -2044,6 +2396,18 @@ export class WalletIframeRouter {
       throw new Error('Wallet iframe connection is unavailable for a foreground surface');
     }
     const identity = this.requestSurfaceIdentity(args.requestId);
+    if (this.transactionReceipt) {
+      const receiptId = this.transactionReceipt.requestId;
+      this.transactionReceipt = null;
+      this.state.port?.postMessage({
+        type: 'PM_SET_TRANSACTION_VIEW',
+        payload: { requestId: receiptId, view: 'closed' },
+      });
+      const previous = this.walletIframeSurface;
+      if (previous.kind !== 'hidden' && previous.identity.requestId === receiptId) {
+        this.finishRequestSurface(previous.identity.requestId, false);
+      }
+    }
     let result: ReduceWalletIframeSurfaceResult;
     switch (args.kind) {
       case 'auth_menu': {
@@ -2185,6 +2549,10 @@ export class WalletIframeRouter {
   }
 
   private finishRequestSurface(requestId: WalletIframeRequestId, cancelled: boolean): void {
+    if (this.transactionReceipt?.requestId === requestId) {
+      if (!cancelled) return;
+      this.transactionReceipt = null;
+    }
     const connectionId = this.state.connectionId;
     if (!connectionId) return;
     this.transitionWalletIframeSurface({
@@ -2297,6 +2665,18 @@ export class WalletIframeRouter {
   }
 
   private handleConnectionClosed(connectionId: WalletIframeConnectionId): void {
+    this.reviewIdentityGeneration += 1;
+    if (this.reviewSessionDeadline) clearTimeout(this.reviewSessionDeadline);
+    this.reviewSessionDeadline = null;
+    for (const entry of this.reviews.values()) {
+      if (
+        entry.reservation.connectionId === connectionId &&
+        entry.reservation.state.kind === 'reviewing'
+      ) {
+        entry.reservation.cancel(new Error('Wallet iframe connection closed'));
+      }
+    }
+    this.transactionReceipt = null;
     this.transactionSurfaceQueue.cancelAll(
       new Error('Wallet iframe connection closed while waiting for transaction surface'),
     );
@@ -2322,6 +2702,12 @@ export class WalletIframeRouter {
   }
 
   private hideRequestSurface(requestId: WalletIframeRequestId): void {
+    if (
+      this.walletIframeSurface.kind === 'modal_transaction_confirm' &&
+      this.walletIframeSurface.identity.requestId === requestId
+    )
+      return;
+    if (this.transactionReceipt?.requestId === requestId) return;
     const connectionId = this.state.connectionId;
     if (!connectionId) return;
     this.transitionWalletIframeSurface({
@@ -2463,7 +2849,6 @@ export class WalletIframeRouter {
         iframeWallet: this.opts.rpIdOverride ? { rpIdOverride: this.opts.rpIdOverride } : undefined,
         authenticatorOptions: this.opts.authenticatorOptions,
         appearance: this.getCurrentAppearance(),
-        uiRegistry: this.opts.uiRegistry,
         assetsBaseUrl: this.walletAssetBaseUrl(),
       },
     });
@@ -2579,44 +2964,6 @@ export class WalletIframeRouter {
     this.transport.dispose();
   }
 
-  // ===== UI registry/window-message helpers (generic mounting) =====
-  registerUiTypes(registry: WalletUIRegistry): void {
-    const iframe = this.overlayState.controller.prepare();
-    const w = iframe.contentWindow;
-    if (!w) return;
-    const target = this.walletOriginOrigin;
-    this.postWindowMessage(w, { type: 'WALLET_UI_REGISTER_TYPES', payload: registry }, target);
-  }
-
-  mountUiComponent(params: {
-    key: string;
-    props?: Record<string, unknown>;
-    targetSelector?: string;
-    id?: string;
-  }): void {
-    const iframe = this.overlayState.controller.prepare();
-    const w = iframe.contentWindow;
-    if (!w) return;
-    const target = this.walletOriginOrigin;
-    this.postWindowMessage(w, { type: 'WALLET_UI_MOUNT', payload: params }, target);
-  }
-
-  updateUiComponent(params: { id: string; props?: Record<string, unknown> }): void {
-    const iframe = this.overlayState.controller.prepare();
-    const w = iframe.contentWindow;
-    if (!w) return;
-    const target = this.walletOriginOrigin;
-    this.postWindowMessage(w, { type: 'WALLET_UI_UPDATE', payload: params }, target);
-  }
-
-  unmountUiComponent(id: string): void {
-    const iframe = this.overlayState.controller.prepare();
-    const w = iframe.contentWindow;
-    if (!w) return;
-    const target = this.walletOriginOrigin;
-    this.postWindowMessage(w, { type: 'WALLET_UI_UNMOUNT', payload: { id } }, target);
-  }
-
   // ===== Public RPC helpers =====
 
   // Subscribe to wallet-host login status changes observed by this client
@@ -2667,6 +3014,7 @@ export class WalletIframeRouter {
       payload: { authenticationRead, wallet },
     });
     const state = parseWalletIframeExactSessionState(response.result);
+    this.updateReviewSession(state);
     this.exactSessionState = state;
     return state;
   }
@@ -2680,6 +3028,7 @@ export class WalletIframeRouter {
   }
 
   private mirrorExactSessionAndEmitLoginStatus(state: WalletIframeExactSessionState): void {
+    this.updateReviewSession(state);
     this.exactSessionState = state;
     this.emitLoginStatusChanged(walletIframeLoginStatusFromExactSession(state));
   }
@@ -2714,7 +3063,9 @@ export class WalletIframeRouter {
     const previousWalletId = this.lastPreferencesChangedPayload?.walletId;
     this.emitPreferencesChanged(payload);
     const walletId = String(payload.walletId || '').trim();
-    if (!walletId || walletId === previousWalletId) return;
+    if (walletId === previousWalletId) return;
+    if (previousWalletId !== undefined) this.invalidateReviews();
+    if (!walletId) return;
     void this.refreshExactSessionAndEmitLoginStatus('current', {
       kind: 'exact',
       walletId: parseRequestedWalletId(walletId),
@@ -2757,12 +3108,20 @@ export class WalletIframeRouter {
       authMethod: event.authMethod,
       expiresAtMs: event.expiresAtMs,
     };
+    this.updateReviewSession(expiredState);
     this.exactSessionState = expiredState;
     this.emitLoginStatusChanged(walletIframeLoginStatusFromExactSession(expiredState));
   }
 
   private failPendingRequestsForExpiredSession(event: SigningSessionExpiredEvent): void {
     for (const [requestId, pending] of this.state.pending) {
+      const reviewed = this.reviews.get(requestId);
+      if (reviewed) {
+        reviewed.reservation.cancel(
+          new TransactionReviewError('review_identity_changed', 'Wallet session expired'),
+        );
+        continue;
+      }
       const binding = pending.sessionBinding;
       if (binding.kind !== 'exact_session') continue;
       if (
@@ -3419,6 +3778,7 @@ export class WalletIframeRouter {
   }
 
   async lock(): Promise<PostResult<void>> {
+    this.invalidateReviews();
     await this.post<void>({ type: 'PM_LOCK' });
     this.exactSessionState = { kind: 'wallet_locked' };
     this.emitLoginStatusChanged({ isLoggedIn: false, walletId: null });
@@ -3426,6 +3786,7 @@ export class WalletIframeRouter {
   }
 
   async logout(): Promise<PostResult<void>> {
+    this.invalidateReviews();
     await this.post<void>({ type: 'PM_LOGOUT' });
     this.exactSessionState = { kind: 'wallet_locked' };
     this.emitLoginStatusChanged({ isLoggedIn: false, walletId: null });
@@ -3435,6 +3796,7 @@ export class WalletIframeRouter {
   async lockExactSession(
     expected: WalletIframeExactSessionIdentity,
   ): Promise<WalletIframeExactSessionLockResult> {
+    this.invalidateReviews();
     const response = await this.post<unknown>({
       type: 'PM_LOCK_EXACT_WALLET_SESSION',
       payload: expected,
@@ -3489,15 +3851,27 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async signTempo(payload: {
-    walletSession: WalletSessionRef;
-    request: MultichainSigningRequest;
-    chainTarget: ThresholdEcdsaChainTarget;
-    options?: {
-      confirmationConfig?: Partial<ConfirmationConfig>;
-      onEvent?: (ev: SigningFlowEvent) => void;
-    };
-  }): Promise<TempoSignedResult | EvmSignedResult> {
+  async signTempo(
+    payload: {
+      walletSession: WalletSessionRef;
+      request: MultichainSigningRequest;
+      chainTarget: ThresholdEcdsaChainTarget;
+      options?: {
+        confirmationConfig?: Partial<ConfirmationConfig>;
+        onEvent?: (ev: SigningFlowEvent) => void;
+      };
+    },
+    transactionDispatch: TransactionDispatch = { kind: 'ordinary' },
+  ): Promise<TempoSignedResult | EvmSignedResult> {
+    if (transactionDispatch.kind === 'reviewed') {
+      payload = {
+        ...payload,
+        options: {
+          ...payload.options,
+          confirmationConfig: transactionDispatch.reservation.confirmationConfig,
+        },
+      };
+    }
     const res = await this.post<TempoSignedResult>(
       {
         type: 'PM_SIGN_TEMPO',
@@ -3517,6 +3891,7 @@ export class WalletIframeRouter {
       },
       {
         timeout: 'interactive',
+        transactionDispatch,
       },
     );
     return res.result;
@@ -3538,6 +3913,13 @@ export class WalletIframeRouter {
         txHash: payload.txHash,
       },
       options: { onProgress: this.wrapOnEvent(payload.options?.onEvent, isSigningFlowEvent) },
+    });
+  }
+
+  notifyTransactionBroadcastStarted(signedResult: TempoSignedResult | EvmSignedResult): void {
+    this.state.port?.postMessage({
+      type: 'PM_TRANSACTION_BROADCAST_STARTED',
+      payload: { signedTransaction: signedResult.rawTxHex },
     });
   }
 
@@ -3630,14 +4012,26 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async executeAction(payload: {
-    walletId: string;
-    nearAccountId: string;
-    receiverId: string;
-    actionArgs: ActionArgs | ActionArgs[];
-    options: ActionHooksOptions;
-  }): Promise<ActionResult> {
+  async executeAction(
+    payload: {
+      walletId: string;
+      nearAccountId: string;
+      receiverId: string;
+      actionArgs: ActionArgs | ActionArgs[];
+      options: ActionHooksOptions;
+    },
+    transactionDispatch: TransactionDispatch = { kind: 'ordinary' },
+  ): Promise<ActionResult> {
     // Strip non-cloneable functions from options; host emits PROGRESS events
+    if (transactionDispatch.kind === 'reviewed') {
+      payload = {
+        ...payload,
+        options: {
+          ...payload.options,
+          confirmationConfig: transactionDispatch.reservation.confirmationConfig,
+        },
+      };
+    }
     const { options } = payload;
     const safeOptions = {
       waitUntil: options.waitUntil,
@@ -3646,17 +4040,20 @@ export class WalletIframeRouter {
       ...(options.confirmerText ? { confirmerText: options.confirmerText } : {}),
     };
 
-    const res = await this.post<ActionResult>({
-      type: 'PM_EXECUTE_ACTION',
-      payload: {
-        walletId: payload.walletId,
-        nearAccountId: payload.nearAccountId,
-        receiverId: payload.receiverId,
-        actionArgs: payload.actionArgs,
-        options: safeOptions,
+    const res = await this.post<ActionResult>(
+      {
+        type: 'PM_EXECUTE_ACTION',
+        payload: {
+          walletId: payload.walletId,
+          nearAccountId: payload.nearAccountId,
+          receiverId: payload.receiverId,
+          actionArgs: payload.actionArgs,
+          options: safeOptions,
+        },
+        options: { onProgress: this.wrapOnEvent(options?.onEvent, isSigningFlowEvent) },
       },
-      options: { onProgress: this.wrapOnEvent(options?.onEvent, isSigningFlowEvent) },
-    });
+      { transactionDispatch },
+    );
     return res.result;
   }
 
@@ -3692,7 +4089,7 @@ export class WalletIframeRouter {
   /**
    * Push appearance (theme name and/or color token overrides) to the wallet
    * host at runtime. The host merges this with prior config and re-applies the
-   * Lit token override stylesheet, so embedded components (tx confirmer, etc.)
+   * document-owned wallet UI token stylesheet, so embedded components (tx confirmer, etc.)
    * re-theme without a re-init. Appearance is excluded from the runtime-reset
    * fingerprint, so this never drops warm signing-session state.
    */
@@ -3938,12 +4335,24 @@ export class WalletIframeRouter {
     };
   }
 
-  async signAndSendTransaction(payload: {
-    walletId: string;
-    nearAccountId: string;
-    transaction: TransactionInput;
-    options: SignAndSendTransactionHooksOptions;
-  }): Promise<ActionResult> {
+  async signAndSendTransaction(
+    payload: {
+      walletId: string;
+      nearAccountId: string;
+      transaction: TransactionInput;
+      options: SignAndSendTransactionHooksOptions;
+    },
+    transactionDispatch: TransactionDispatch = { kind: 'ordinary' },
+  ): Promise<ActionResult> {
+    if (transactionDispatch.kind === 'reviewed') {
+      payload = {
+        ...payload,
+        options: {
+          ...payload.options,
+          confirmationConfig: transactionDispatch.reservation.confirmationConfig,
+        },
+      };
+    }
     const { options } = payload;
     // cannot send objects/functions through postMessage(), clean options first
     const safeOptions = {
@@ -3953,16 +4362,19 @@ export class WalletIframeRouter {
       ...(options.confirmerText ? { confirmerText: options.confirmerText } : {}),
     };
 
-    const res = await this.post<ActionResult>({
-      type: 'PM_SIGN_AND_SEND_TX',
-      payload: {
-        walletId: payload.walletId,
-        nearAccountId: payload.nearAccountId,
-        transaction: payload.transaction,
-        options: safeOptions,
+    const res = await this.post<ActionResult>(
+      {
+        type: 'PM_SIGN_AND_SEND_TX',
+        payload: {
+          walletId: payload.walletId,
+          nearAccountId: payload.nearAccountId,
+          transaction: payload.transaction,
+          options: safeOptions,
+        },
+        options: { onProgress: this.wrapOnEvent(options?.onEvent, isSigningFlowEvent) },
       },
-      options: { onProgress: this.wrapOnEvent(options?.onEvent, isSigningFlowEvent) },
-    });
+      { transactionDispatch },
+    );
     return res.result;
   }
 
@@ -4151,33 +4563,51 @@ export class WalletIframeRouter {
   }
 
   async cancelRequest(requestId: string): Promise<void> {
+    const review = this.reviews.get(requestId);
+    if (review) {
+      review.reservation.cancel(new TransactionReviewError('cancelled', 'Review cancelled'));
+      return;
+    }
     this.transactionSurfaceQueue.cancel(requestId);
     const authMenuSessionId = this.hostedAuthMenuSessionIdForRequestId(requestId);
     if (authMenuSessionId) {
       this.settleHostedAuthMenuCancellation(authMenuSessionId, 'component_unmounted');
     } else {
-      this.settlePendingRequestCancellation(requestId as WalletIframeRequestId, true);
+      if (!this.reviews.has(requestId))
+        this.settlePendingRequestCancellation(requestId as WalletIframeRequestId, true);
     }
     this.sendBestEffortCancel(requestId);
   }
 
   async cancelAll(): Promise<void> {
+    // Remove waiters before cancelling an owner can release its lease.
     this.transactionSurfaceQueue.cancelAll(new Error('Wallet requests cancelled'));
+    for (const entry of this.reviews.values())
+      entry.reservation.cancel(
+        new TransactionReviewError('cancelled', 'Wallet requests cancelled'),
+      );
     for (const authMenuSessionId of Array.from(this.hostedAuthMenuRequestIds.keys())) {
       this.settleHostedAuthMenuCancellation(authMenuSessionId, 'component_unmounted');
     }
     for (const requestId of Array.from(this.state.pending.keys())) {
+      if (this.reviews.has(requestId)) continue;
       this.settlePendingRequestCancellation(requestId as WalletIframeRequestId, true);
+      this.sendBestEffortCancel(requestId);
     }
-    if (this.walletIframeSurface.kind !== 'hidden') {
+    if (
+      this.walletIframeSurface.kind !== 'hidden' &&
+      !this.reviews.has(this.walletIframeSurface.identity.requestId)
+    ) {
       this.transitionWalletIframeSurface({
         kind: 'request_cancelled',
         connectionId: this.walletIframeSurface.connectionId,
         identity: this.walletIframeSurface.identity,
       });
     }
-    this.sendBestEffortCancel();
-    this.progressBus.clearAll();
+    if (this.reviews.size === 0) {
+      this.sendBestEffortCancel();
+      this.progressBus.clearAll();
+    }
   }
 
   private onPortMessage(e: MessageEvent<unknown>, connectionId: WalletIframeConnectionId): void {
@@ -4255,8 +4685,28 @@ export class WalletIframeRouter {
       dispatchHostedAuthMenuError(anchorElement, payload);
       return;
     }
+    if (msg.type === 'TRANSACTION_REVIEW_STATE') {
+      this.handleReviewState(msg.payload);
+      return;
+    }
     if (msg.type === 'SURFACE_MEASUREMENT') {
       this.handleSurfaceMeasurement(msg.payload);
+      return;
+    }
+    if (msg.type === 'TRANSACTION_ACTIVITY') {
+      const surface = this.walletIframeSurface;
+      if (
+        surface.kind !== 'modal_transaction_confirm' ||
+        surface.identity.requestId !== msg.requestId
+      )
+        return;
+      if (msg.payload === 'closed') {
+        this.transactionReceipt = null;
+        this.finishRequestSurface(surface.identity.requestId, false);
+      } else {
+        this.transactionReceipt = { requestId: msg.requestId, view: msg.payload };
+        this.renderActiveWalletIframeSurface();
+      }
       return;
     }
     const requestId = msg.requestId;
@@ -4266,13 +4716,17 @@ export class WalletIframeRouter {
     if (msg.type === 'PROGRESS') {
       const payload = msg.payload;
       this.progressBus.dispatch({ requestId: requestId, payload: payload });
-      if (isWalletFlowEvent(payload) && payload.status === 'cancelled') {
+      if (
+        !this.reviews.has(requestId) &&
+        isWalletFlowEvent(payload) &&
+        payload.status === 'cancelled'
+      ) {
         this.settlePendingRequestCancellation(requestId as WalletIframeRequestId, false);
         this.sendBestEffortCancel(requestId);
         return;
       }
       this.extendMeasurementFallbackOnProgress(requestId);
-      if (shouldHideWalletIframeSurface(payload)) {
+      if (!this.reviews.has(requestId) && shouldHideWalletIframeSurface(payload)) {
         this.hideRequestSurface(requestId as WalletIframeRequestId);
       }
       if (this.progressBus.isSticky(requestId) && isTerminalStickyWalletFlowProgress(payload)) {
@@ -4384,8 +4838,28 @@ export class WalletIframeRouter {
     }
 
     // Step 2: Generate unique request ID for correlation
-    const requestId = postOpts?.requestId ?? this.allocateRequestId();
-    const full = { ...envelope, requestId };
+    const reservation =
+      postOpts?.transactionDispatch?.kind === 'reviewed'
+        ? postOpts.transactionDispatch.reservation
+        : null;
+    if (reservation) {
+      if (
+        this.reviews.get(reservation.identity.requestId)?.reservation !== reservation ||
+        reservation.connectionId !== connectionId
+      ) {
+        throw new TransactionReviewError(
+          'review_identity_changed',
+          'The review reservation is no longer valid',
+        );
+      }
+      await this.refreshExactSessionState('current', { kind: 'current' });
+      reservation.beginDispatch();
+    }
+    const requestId =
+      reservation?.identity.requestId ?? postOpts?.requestId ?? this.allocateRequestId();
+    const full = reservation
+      ? { ...envelope, requestId, transactionReview: reservation.metadata }
+      : { ...envelope, requestId };
     const sessionBinding = this.sessionBindingForRequest(full);
     const { options } = full;
     const requestStartMs = Date.now();
@@ -4412,7 +4886,7 @@ export class WalletIframeRouter {
     const deadlineAtMs = timeoutPolicy.kind === 'deadline' ? timeoutPolicy.deadlineAtMs : null;
     const surfaceKind = requestSurfaceKindForMessage(envelope.type, full.payload);
     let transactionSurfaceLease: WalletIframeTransactionSurfaceLease | null = null;
-    if (surfaceKind === 'transaction' || surfaceKind === 'email_otp_enrollment') {
+    if (!reservation && (surfaceKind === 'transaction' || surfaceKind === 'email_otp_enrollment')) {
       const queueDeadline: WalletIframeTransactionSurfaceDeadline =
         timeoutPolicy.kind === 'deadline'
           ? { kind: 'deadline', atMs: timeoutPolicy.deadlineAtMs }
@@ -4436,7 +4910,7 @@ export class WalletIframeRouter {
           walletSessionId: admission.identity.walletSessionId,
         });
       }
-      if (surfaceKind) {
+      if (surfaceKind && !reservation) {
         this.beginRequestSurface({
           kind: surfaceKind,
           requestId,
@@ -4562,13 +5036,25 @@ export class WalletIframeRouter {
     return `${Date.now()}-${++this.state.reqCounter}` as WalletIframeRequestId;
   }
 
-  private sendBestEffortCancel(targetRequestId?: string): void {
+  private sendBestEffortCancel(targetRequestId?: string, reviewError?: Error): void {
     const port = this.state.port;
     if (!port) return;
     const cancelEnvelope: ParentToChildEnvelope = {
       type: 'PM_CANCEL',
       requestId: `cancel-${Date.now()}-${secureRandomBase36(12, 'wallet iframe cancel request IDs')}`,
-      payload: targetRequestId ? { requestId: targetRequestId } : {},
+      payload: targetRequestId
+        ? {
+            requestId: targetRequestId,
+            ...(this.reviews.get(targetRequestId)
+              ? {
+                  transactionReview: this.reviews.get(targetRequestId)!.reservation.metadata,
+                  reviewErrorCode: transactionReviewCancellationCode(
+                    reviewError && 'code' in reviewError ? reviewError.code : undefined,
+                  ),
+                }
+              : {}),
+          }
+        : {},
     };
     try {
       port.postMessage(cancelEnvelope);
@@ -4598,17 +5084,6 @@ export class WalletIframeRouter {
   /** Public helper for tests/tools: inspect current overlay state. */
   getOverlayState(): OverlayControllerState {
     return this.overlayState.controller.getState();
-  }
-
-  // Post a window message and surface errors in debug mode instead of silently swallowing them
-  private postWindowMessage(w: Window, data: unknown, target: string): void {
-    try {
-      w.postMessage(data, target);
-    } catch (err) {
-      if (this.debug) {
-        console.error('[WalletIframeRouter] window.postMessage failed', { error: err, data });
-      }
-    }
   }
 }
 
@@ -4742,4 +5217,22 @@ function removeFunctionsFromOptions(options?: object): object | undefined {
 
 function assertNeverLoginUnlockRequest(value: never): never {
   throw new Error(`Unhandled wallet iframe unlock request: ${String(value)}`);
+}
+
+function sameReviewSession(
+  left: WalletIframeExactSessionState,
+  right: WalletIframeExactSessionState,
+): boolean {
+  if (left.kind !== right.kind) return false;
+  if (left.kind === 'wallet_locked' || right.kind === 'wallet_locked') return true;
+  if (left.walletId !== right.walletId) return false;
+  if ('walletSessionId' in left || 'walletSessionId' in right) {
+    return (
+      'walletSessionId' in left &&
+      'walletSessionId' in right &&
+      left.walletSessionId === right.walletSessionId &&
+      left.authorizationId === right.authorizationId
+    );
+  }
+  return true;
 }

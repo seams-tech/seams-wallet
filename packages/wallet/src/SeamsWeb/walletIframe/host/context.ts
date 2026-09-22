@@ -20,39 +20,30 @@ import {
   getDefaultCspNonce,
 } from '@/core/browser/walletIframe/csp-stylesheet';
 
-const SEAMS_LIT_THEME_OVERRIDE_RULE_ID = 'seams-lit-theme-overrides';
-const SEAMS_LIT_HOST_SELECTORS = [
-  'seams-tx-tree',
-  'seams-drawer',
-  'seams-modal-tx-confirmer',
-  'seams-drawer-tx-confirmer',
-  'seams-tx-confirm-content',
-  'seams-halo-border',
-  'seams-passkey-halo-loading',
-  'seams-export-key-viewer',
-  'seams-recovery-code-backup-viewer',
-  'seams-auth-menu-surface',
-  /* host-document dialogs (plain DOM, not lit) that must follow the app
-     palette, e.g. the recovery codes backup dialog shell */
+const SEAMS_THEME_OVERRIDE_RULE_ID = 'seams-theme-overrides';
+const SEAMS_THEME_HOST_SELECTORS = [
+  '.seams-wallet-ui',
+  '.seams-auth-menu-surface',
+  /* Host-document dialogs must follow the app palette. */
   '.seams-host-themed-dialog',
 ] as const;
-const SEAMS_LIT_DARK_SELECTOR = SEAMS_LIT_HOST_SELECTORS.join(',\n');
-const SEAMS_LIT_LIGHT_SELECTOR = SEAMS_LIT_HOST_SELECTORS.map(
+const SEAMS_THEME_DARK_SELECTOR = SEAMS_THEME_HOST_SELECTORS.join(',\n');
+const SEAMS_THEME_LIGHT_SELECTOR = SEAMS_THEME_HOST_SELECTORS.map(
   (selector) =>
     `${selector}[theme="light"],\n:root[data-seams-theme="light"] ${selector}:not([theme="dark"])`,
 ).join(',\n');
-let litThemeOverrideStyleManager: ReturnType<typeof createCspStylesheetManager> | null = null;
+let themeOverrideStyleManager: ReturnType<typeof createCspStylesheetManager> | null = null;
 
-function getLitThemeOverrideStyleManager(): ReturnType<typeof createCspStylesheetManager> {
-  if (!litThemeOverrideStyleManager) {
-    litThemeOverrideStyleManager = createCspStylesheetManager({
+function getThemeOverrideStyleManager(): ReturnType<typeof createCspStylesheetManager> {
+  if (!themeOverrideStyleManager) {
+    themeOverrideStyleManager = createCspStylesheetManager({
       doc: document,
       baseCss: '',
-      dynamicStyleDataAttr: 'data-seams-lit-theme-overrides',
+      dynamicStyleDataAttr: 'data-seams-theme-overrides',
       nonce: () => getDefaultCspNonce(),
     });
   }
-  return litThemeOverrideStyleManager;
+  return themeOverrideStyleManager;
 }
 
 function toStringRecord(value: unknown): Record<string, string> {
@@ -136,8 +127,8 @@ function serializeTokenOverrides(
     if (!tokenName) continue;
     const tokenValue = sanitizeTokenValue(rawValue);
     if (!tokenValue) continue;
-    // Use !important so app-provided token overrides keep precedence even if
-    // generated seams-components.css is loaded/reloaded later.
+    // Use !important so app-provided token overrides keep precedence over the
+    // generated wallet-ui.css stylesheet.
     lines.push(`  --seams-${group}-${tokenName}: ${tokenValue} !important;`);
   }
   return lines;
@@ -212,7 +203,7 @@ function normalizeWalletHostAppearance(args: {
   };
 }
 
-function upsertLitThemeOverrideStyle(appearance?: AppearanceConfigInput): void {
+function upsertThemeOverrideStyle(appearance?: AppearanceConfigInput): void {
   const mode = appearanceMode(appearance);
   const colors = mode ? appearanceColors(appearance, mode) : {};
   const lines = [
@@ -222,16 +213,16 @@ function upsertLitThemeOverrideStyle(appearance?: AppearanceConfigInput): void {
   const cssBlocks: string[] = [];
 
   if (mode && lines.length > 0) {
-    const selector = mode === 'light' ? SEAMS_LIT_LIGHT_SELECTOR : SEAMS_LIT_DARK_SELECTOR;
+    const selector = mode === 'light' ? SEAMS_THEME_LIGHT_SELECTOR : SEAMS_THEME_DARK_SELECTOR;
     cssBlocks.push(`${selector} {\n${lines.join('\n')}\n}`);
   }
 
   const cssText = cssBlocks.join('\n\n').trim();
   if (!cssText) {
-    getLitThemeOverrideStyleManager().deleteDynamicRule(SEAMS_LIT_THEME_OVERRIDE_RULE_ID);
+    getThemeOverrideStyleManager().deleteDynamicRule(SEAMS_THEME_OVERRIDE_RULE_ID);
     return;
   }
-  getLitThemeOverrideStyleManager().setDynamicRule(SEAMS_LIT_THEME_OVERRIDE_RULE_ID, cssText);
+  getThemeOverrideStyleManager().setDynamicRule(SEAMS_THEME_OVERRIDE_RULE_ID, cssText);
 }
 
 export interface HostContext {
@@ -245,7 +236,6 @@ export interface HostContext {
   lifecycleUnsubscribe: (() => void) | null;
   lifecycleListener: SdkLifecycleEventListener | null;
   expiredSessionsByWallet: Map<WalletId, Set<WalletSessionId>>;
-  onWindowMessage?: (e: MessageEvent) => void;
   surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
 }
 export function createHostContext(): HostContext {
@@ -260,7 +250,6 @@ export function createHostContext(): HostContext {
     lifecycleUnsubscribe: null,
     lifecycleListener: null,
     expiredSessionsByWallet: new Map(),
-    onWindowMessage: undefined,
     surfaceMeasurementBinding: { kind: 'disabled' },
   };
 }
@@ -348,12 +337,12 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
   ctx.walletConfigs = sanitizeWalletHostConfigs(base);
   const nextRuntimeResetFingerprint = buildWalletRuntimeResetFingerprint(ctx.walletConfigs);
 
-  // Keep wallet-host theme + Lit token overrides in sync with app appearance config.
+  // Keep wallet-host theme and dynamic appearance tokens in sync with app config.
   try {
     if (nextTheme) {
       document.documentElement.setAttribute('data-seams-theme', nextTheme);
     }
-    upsertLitThemeOverrideStyle(nextAppearance);
+    upsertThemeOverrideStyle(nextAppearance);
   } catch {}
 
   if (
@@ -366,7 +355,7 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
     } catch {}
   }
 
-  // Configure SDK embedded asset base for Lit modal/embedded components
+  // Configure the base URL used by SDK-hosted UI assets.
   try {
     const assetsBaseUrl = payload?.assetsBaseUrl as string | undefined;
     const safeOrigin = window.location.origin || window.location.href;
@@ -393,7 +382,7 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
   } catch {}
 
   // Reset runtime instances only when signing/runtime config changes. Cosmetic config updates
-  // (theme/tokens/UI registry/assets base) must not drop warm signing session state.
+  // (theme, tokens, and asset base) must not drop warm signing session state.
   if (nextRuntimeResetFingerprint !== prevRuntimeResetFingerprint) {
     ctx.seamsWeb?.dispose();
     ctx.prefsUnsubscribe?.();
@@ -405,13 +394,6 @@ export function applyWalletConfig(ctx: HostContext, payload: PMSetConfigPayload)
     ctx.seamsWeb = null;
   }
 
-  // Forward UI registry to iframe-lit-elem-mounter if provided
-  try {
-    const uiRegistry = payload?.uiRegistry;
-    if (uiRegistry && typeof uiRegistry === 'object') {
-      window.postMessage({ type: 'WALLET_UI_REGISTER_TYPES', payload: uiRegistry }, '*');
-    }
-  } catch {}
 }
 
 export function ensureWalletHostLifecycleSubscription(ctx: HostContext, pm: SeamsWeb): void {

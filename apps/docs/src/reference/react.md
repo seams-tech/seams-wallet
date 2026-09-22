@@ -64,6 +64,26 @@ SSR-specific imports:
 - `@seams/wallet/react/hosted-seams-auth-menu`;
 - `@seams/wallet/react/styles`.
 
+## Custom transaction review
+
+Mount `TransactionReviewHost` beneath the wallet provider, then pass `review` to
+`near.signAndSendTransaction`, `near.executeAction`, or the EVM and Tempo
+`signTransaction` and `executeTransaction` methods returned by `useWallet()`.
+
+| Export | Purpose |
+| --- | --- |
+| `TransactionReviewHost` | Hosts app review content in the SDK dialog. |
+| `TransactionReview` | Required `title`, `validity`, and `render`; optional `className`. |
+| `TransactionReviewControls` | `continueToWallet()`, `cancel()`, and `fail(error)`. |
+| `TransactionReviewValidity` | `{ kind: 'unbounded' }` or `{ kind: 'expires_at', atMs: number }`. |
+| `TransactionReviewError` | Review failure class with a typed `code`. |
+| `TransactionReviewErrorCode` | Union of review failure codes. |
+
+The renderer returns React content synchronously. Continue leads to a separate
+wallet approval. Hosted iframe mode, modal confirmation, and explicit approval
+are required. See the [guide and compiled example](/guides/transaction-review)
+for setup, expiry, error handling, and styling.
+
 ## Appearance
 
 `Theme`, `useTheme`, `LIGHT_TOKENS`, `DARK_TOKENS`, and `SHAPE_PRESETS` style

@@ -400,7 +400,8 @@ function shutdown(exitCode) {
   if (stopping) return;
   stopping = true;
   for (const child of children) stopChild(child);
-  setTimeout(forceStopChildren, 2_000).unref();
+  // The role supervisor has two seconds to stop its detached Workers first.
+  setTimeout(forceStopChildren.bind(undefined, exitCode), 4_000);
   process.exitCode = exitCode;
 }
 
@@ -414,9 +415,9 @@ function stopChild(child) {
   }
 }
 
-function forceStopChildren() {
+function forceStopChildren(exitCode) {
   for (const child of children) {
-    if (!child.pid || child.exitCode !== null) continue;
+    if (!child.pid) continue;
     try {
       if (process.platform === 'win32') child.kill('SIGKILL');
       else process.kill(-child.pid, 'SIGKILL');
@@ -424,4 +425,5 @@ function forceStopChildren() {
       child.kill('SIGKILL');
     }
   }
+  process.exit(exitCode);
 }

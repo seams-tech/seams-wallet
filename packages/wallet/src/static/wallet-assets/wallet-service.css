@@ -34,14 +34,6 @@ body.seams-transparent {
   pointer-events: none;
 }
 
-/* Hosted drawer integration: preserve the drag transform over the open rest position. */
-seams-tx-confirmer[data-seams-confirm-surface='standalone'][data-seams-confirm-variant='drawer']
-  seams-drawer[open]
-  .drawer.dragging,
-seams-drawer[data-seams-export-surface='standalone'][open] .drawer.dragging {
-  transform: translateY(var(--seams-drawer__drag-translate, 0px));
-}
-
 :root:not([data-seams-theme]) {
   --seams-colors-textPrimary: #f6f7f8;
   --seams-colors-textSecondary: rgba(255, 255, 255, 0.7);

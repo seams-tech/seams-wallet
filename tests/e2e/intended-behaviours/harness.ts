@@ -167,7 +167,7 @@ const ROUTER_AB_ED25519_YAO_REGISTRATION_PATHS = [
 const LOCAL_INTENDED_YAO_FAULT_HEADER_V1 = 'x-seams-intended-yao-fault-v1';
 const LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1 = 'x-seams-intended-yao-fault-token-v1';
 const LOCAL_INTENDED_YAO_FAULT_PROOF_HEADER_V1 = 'x-seams-intended-yao-fault-proof-v1';
-const LOCAL_INTENDED_YAO_ROUTER_ORIGIN_V1 = 'https://localhost:4101';
+const LOCAL_INTENDED_YAO_ROUTER_ORIGIN_V1 = 'http://127.0.0.1:4100';
 
 type IntendedYaoFaultModeV1 = 'drop_router_response_once' | 'return_terminal_burned_once';
 
@@ -2521,6 +2521,7 @@ export class IntendedBehaviourHarness {
     this.recordService(
       `concurrent Tempo/Arc signatures verified wallet=${this.walletId} remainingUses=0`,
     );
+    await waitForWalletIframeConfirmationSettlement(this.page);
   }
 
   async exhaustSigningBudget(): Promise<void> {
@@ -2809,7 +2810,9 @@ export class IntendedBehaviourHarness {
         },
       );
       this.latestPageSnapshot = snapshot;
-      await waitForWalletIframeConfirmationSettlement(this.page, action);
+      if (intendedActionRequiresConfirmationSettlement(action)) {
+        await waitForWalletIframeConfirmationSettlement(this.page);
+      }
       return snapshot;
     } catch (error) {
       this.latestWalletIframeAutoConfirmDiagnostics = diagnostics;
@@ -6010,7 +6013,7 @@ async function fillWalletIframeEmailOtpIfAvailable(
   const timeoutMs = Math.max(50, Math.floor(opts?.timeoutMs ?? 500));
   const input = frame
     .locator(
-      '#email-otp-confirm-code, #drawer-email-otp-confirm-code, #seams-auth-menu-google-otp, #seams-recovery-google-otp',
+      'input[name="email-code"][autocomplete="one-time-code"], #seams-auth-menu-google-otp, #seams-recovery-google-otp',
     )
     .first();
   const visible = await input
@@ -6241,11 +6244,7 @@ async function dispatchWalletIframeConfirmation(input: {
   });
 }
 
-async function waitForWalletIframeConfirmationSettlement(
-  page: Page,
-  action: string,
-): Promise<void> {
-  if (!intendedActionRequiresConfirmationSettlement(action)) return;
+async function waitForWalletIframeConfirmationSettlement(page: Page): Promise<void> {
   const iframe = page.locator('iframe[allow*="publickey-credentials-get"]').last();
   if ((await iframe.count()) === 0) return;
   await walletIframeSecureConfirmationControl(iframe.contentFrame()).waitFor({
@@ -6253,6 +6252,13 @@ async function waitForWalletIframeConfirmationSettlement(
     timeout: 5_000,
   });
   await page.waitForTimeout(100);
+  const closeReceipt = iframe.contentFrame().getByRole('button', {
+    name: 'Close receipt',
+    exact: true,
+  });
+  if (await closeReceipt.isVisible()) {
+    await closeReceipt.click({ timeout: 5_000 });
+  }
 }
 
 async function resolveWalletIframeConfirmControl(input: {
@@ -6319,7 +6325,11 @@ async function clickWalletIframeConfirm(
         googleVisible = false;
       }
       if (googleVisible) {
-        const fingerprint = await readWalletIframeConfirmationFingerprint(google, intendedAction, timeoutMs);
+        const fingerprint = await readWalletIframeConfirmationFingerprint(
+          google,
+          intendedAction,
+          timeoutMs,
+        );
         if (walletIframeConfirmationAlreadyDispatched(dispatchedConfirmations, fingerprint)) {
           return false;
         }
@@ -6375,7 +6385,11 @@ async function clickWalletIframeConfirm(
     });
     await confirmBtn.waitFor({ state: 'visible', timeout: timeoutMs });
     recordAutoConfirmMark(opts?.diagnostics, opts?.diagnosticsStartedAtMs, 'firstButtonVisibleMs');
-    const fingerprint = await readWalletIframeConfirmationFingerprint(confirmBtn, intendedAction, timeoutMs);
+    const fingerprint = await readWalletIframeConfirmationFingerprint(
+      confirmBtn,
+      intendedAction,
+      timeoutMs,
+    );
     if (walletIframeConfirmationAlreadyDispatched(dispatchedConfirmations, fingerprint)) {
       return false;
     }

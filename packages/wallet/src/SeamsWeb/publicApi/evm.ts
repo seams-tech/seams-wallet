@@ -1,3 +1,4 @@
+import type { TransactionDispatch } from '../walletIframe/client/transactionReviewReservation';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { resolveEvmChainTarget } from '@/SeamsWeb/publicApi/chainTargets';
 import type { CurrentWalletResolver } from '@/SeamsWeb/publicApi/currentWallet';
@@ -48,21 +49,24 @@ function toLocalEvmBootstrapRequest(
   };
 }
 
-export function createEvmSignerCapability(deps: {
-  signingEngine: RegistrationSigningSurface &
-    EcdsaSessionBootstrapSurface &
-    EvmFamilySigningSurface;
-  nearClient: NearClient;
-  configs: SeamsConfigsReadonly;
-  getTheme: () => ThemeMode;
-  getWalletIframe: () => WalletIframeCoordinator;
-  currentWallet: CurrentWalletResolver;
-  /**
-   * The shared EVM-family broadcast lifecycle. Tempo and EVM present it under
-   * their own namespaces; the implementation is written once.
-   */
-  evmFamily: TempoSignerCapability;
-}): EvmSignerCapability {
+export function createEvmSignerCapability(
+  deps: {
+    signingEngine: RegistrationSigningSurface &
+      EcdsaSessionBootstrapSurface &
+      EvmFamilySigningSurface;
+    nearClient: NearClient;
+    configs: SeamsConfigsReadonly;
+    getTheme: () => ThemeMode;
+    getWalletIframe: () => WalletIframeCoordinator;
+    currentWallet: CurrentWalletResolver;
+    /**
+     * The shared EVM-family broadcast lifecycle. Tempo and EVM present it under
+     * their own namespaces; the implementation is written once.
+     */
+    evmFamily: TempoSignerCapability;
+  },
+  transactionDispatch: TransactionDispatch = { kind: 'ordinary' },
+): EvmSignerCapability {
   return {
     executeTransaction: async (args) => await deps.evmFamily.executeEvmFamilyTransaction(args),
     advanced: {
@@ -95,15 +99,18 @@ export function createEvmSignerCapability(deps: {
       }
       try {
         const router = await walletIframe.requireRouter(toWalletId(walletSession.walletId));
-        const result = await router.signTempo({
-          walletSession,
-          request: args.request,
-          chainTarget,
-          options: {
-            confirmationConfig: args.options?.confirmationConfig,
-            onEvent: args.options?.onEvent,
+        const result = await router.signTempo(
+          {
+            walletSession,
+            request: args.request,
+            chainTarget,
+            options: {
+              confirmationConfig: args.options?.confirmationConfig,
+              onEvent: args.options?.onEvent,
+            },
           },
-        });
+          transactionDispatch,
+        );
         return requireEvmSignedResult(result);
       } catch (error: unknown) {
         throw toError(error);

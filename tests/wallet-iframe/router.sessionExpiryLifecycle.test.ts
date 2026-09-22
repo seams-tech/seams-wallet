@@ -1,16 +1,24 @@
 import { expect, test } from '@playwright/test';
 import { setupBasicPasskeyTest, SDK_ESM_PATHS } from '../setup';
 import { buildWalletServiceHtml, registerWalletServiceRoute } from './harness';
+import {
+  toWalletId,
+  nearAccountRefFromAccountId,
+} from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+import {
+  parseWalletIframeExactSessionState,
+  parseWalletIframeExactSessionIdentity,
+} from '@/SeamsWeb/walletIframe/shared/exactSessionState';
 
 const WALLET_ORIGIN = 'https://wallet.example.localhost';
 const WALLET_SERVICE_ROUTE = '**://wallet.example.localhost/wallet-service*';
-const WALLET_ID = 'refactor-92-wallet';
+const WALLET_ID = toWalletId('refactor-92-wallet');
 const ACTIVE_SESSION_ID = 'wss_refactor_92_active';
 const STALE_SESSION_ID = 'wss_refactor_92_stale';
 const AUTHORIZATION_ID = 'wsa_refactor_92_active';
 const EXPIRES_AT_MS = 4_102_444_800_000;
 
-const ACTIVE_SESSION_STATE = {
+const ACTIVE_SESSION_STATE = parseWalletIframeExactSessionState({
   kind: 'active_session',
   status: 'active',
   walletId: WALLET_ID,
@@ -18,7 +26,7 @@ const ACTIVE_SESSION_STATE = {
   walletSessionId: ACTIVE_SESSION_ID,
   authMethod: 'passkey',
   expiresAtMs: EXPIRES_AT_MS,
-};
+});
 
 test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
   test.beforeEach(async ({ page }) => {
@@ -59,7 +67,9 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         });
         const lifecycleEvents: Array<{ walletSessionId: string }> = [];
         const loginStatuses: Array<{ isLoggedIn: boolean; walletId: string | null }> = [];
-        router.onSdkLifecycleEvent((event) => lifecycleEvents.push(event));
+        router.onSdkLifecycleEvent((event) => {
+          if (event.event === 'signing_session.expired') lifecycleEvents.push(event);
+        });
         router.onLoginStatusChanged((status) => loginStatuses.push(status));
         await router.init();
 
@@ -178,7 +188,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
     page,
   }) => {
     const result = await page.evaluate(
-      async ({ routerPath, walletOrigin, walletId, activeSessionId, expiresAtMs }) => {
+      async ({ routerPath, walletOrigin, walletId, activeSessionId, expiresAtMs, nearAccount }) => {
         const module = await import(routerPath);
         const { WalletIframeRouter } =
           module as typeof import('@/SeamsWeb/walletIframe/client/router');
@@ -283,7 +293,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
     page,
   }) => {
     const result = await page.evaluate(
-      async ({ routerPath, walletOrigin, walletId, activeSessionId, expiresAtMs }) => {
+      async ({ routerPath, walletOrigin, walletId, activeSessionId, expiresAtMs, nearAccount }) => {
         const module = await import(routerPath);
         const { WalletIframeRouter } =
           module as typeof import('@/SeamsWeb/walletIframe/client/router');
@@ -316,8 +326,8 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         const exportLaneRequest = router
           .resolveExactKeyExportLane({
             kind: 'ed25519',
-            walletSession: { walletId },
-            nearAccount: { accountId: 'refactor-92.testnet' },
+            walletSession: { walletId, walletSessionUserId: 'refactor-92.testnet' },
+            nearAccount,
           })
           .finally(() => {
             settlement.exportLane = true;
@@ -373,6 +383,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
         walletId: WALLET_ID,
         activeSessionId: ACTIVE_SESSION_ID,
         expiresAtMs: EXPIRES_AT_MS,
+        nearAccount: nearAccountRefFromAccountId('refactor-92.testnet'),
       },
     );
 
@@ -416,7 +427,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
       {
         routerPath: SDK_ESM_PATHS.walletIframeRouter,
         walletOrigin: WALLET_ORIGIN,
-        expected: ACTIVE_SESSION_STATE,
+        expected: parseWalletIframeExactSessionIdentity(ACTIVE_SESSION_STATE),
       },
     );
 

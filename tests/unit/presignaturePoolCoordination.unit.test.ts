@@ -118,6 +118,105 @@ test('a signing cache miss receives foreground pool-fill priority', async () => 
   }
 });
 
+test('a foreground capacity race rehydrates the durable presignature pool', async () => {
+  clearAllRouterAbEcdsaDerivationClientPresignatures();
+  const originalFetch = globalThis.fetch;
+  const scope = await buildScope();
+  let listCount = 0;
+  let selectedDurablePresignature = false;
+  const clientSigningMaterial: RouterAbEcdsaDerivationClientSigningMaterialSource = {
+    kind: 'router_ab_ecdsa_derivation_client_signing_material_source_v1',
+    initClientPresignSession: initialPresignProgress,
+    stepClientPresignSession: async () => ({
+      stage: 'done',
+      outgoingMessages: [],
+      presignatureHandle: 'generated-material',
+      presignatureBigR33: Uint8Array.from(
+        Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url'),
+      ),
+    }),
+    abortClientPresignSession: async () => {},
+    admitClientPresignature: async () => ({ kind: 'discarded_capacity' }),
+    destroyClientPresignature: async () => {},
+    reserveClientPresignature: async () => {
+      selectedDurablePresignature = true;
+      throw new Error('durable capacity entry selected');
+    },
+    commitClientPresignature: async () => {},
+    listAvailableClientPresignatures: async () => {
+      listCount += 1;
+      if (listCount === 1) return [];
+      return [
+        {
+          presignatureId: 'durable-presignature',
+          materialHandle: 'durable-material',
+          bigR33: Uint8Array.from(Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
+          createdAtMs: Date.now(),
+          expiresAtMs: Date.now() + 30_000,
+        },
+      ];
+    },
+    computeSignatureShareFromPresignatureHandle: async () => new Uint8Array(32),
+  };
+  globalThis.fetch = async (input, init) => {
+    const body = JSON.parse(String(init?.body));
+    const url = String(input);
+    if (url.endsWith('/router-ab/ecdsa-derivation/presignature-pool/fill/init')) {
+      return Response.json({
+        ok: true,
+        presignSessionId: body.presignSessionId,
+        ceremonyExpiresAtMs: body.poolFill.ceremonyExpiresAtMs,
+        materialExpiresAtMs: body.poolFill.materialExpiresAtMs,
+        stage: 'triples',
+        outgoingMessagesB64u: ['Ag'],
+      });
+    }
+    if (url.endsWith('/router-ab/ecdsa-derivation/presignature-pool/fill/step')) {
+      return Response.json({
+        ok: true,
+        stage: 'done',
+        event: 'presign_done',
+        outgoingMessagesB64u: [],
+        presignatureId: 'generated-presignature',
+        bigRB64u: PRESIGNATURE_BIG_R_B64U,
+      });
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  try {
+    const result = await signRouterAbEcdsaDerivationDigestWithPool({
+      relayerUrl: 'https://router.example',
+      scope,
+      operationId: 'operation-capacity-race',
+      operationDigests: {
+        lane_digest_b64u: 'CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo',
+        intent_digest_b64u: 'CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCws',
+        display_digest_b64u: 'DAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAw',
+      },
+      materialActivation,
+      credential: { kind: 'wallet_session_opaque', walletSessionToken: 'wallet-session-token' },
+      keyHandle: parseEcdsaKeyHandle('key-handle-1'),
+      signingDigest32: new Uint8Array(32).fill(11),
+      clientSigningMaterial,
+      expiresAtMs: Date.now() + 30_000,
+      workerCtx: buildWorkerContext(),
+      authorization,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: 'router_ab_sign_failed',
+      message: 'durable capacity entry selected',
+    });
+    expect(selectedDurablePresignature).toBe(true);
+    expect(listCount).toBe(2);
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearAllRouterAbEcdsaDerivationClientPresignatures();
+  }
+});
+
 type Deferred = {
   readonly promise: Promise<void>;
   readonly resolve: () => void;

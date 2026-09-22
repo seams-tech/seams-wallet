@@ -13,7 +13,8 @@
   "include": [
     "setup/**/*.ts",
     "wallet-iframe/**/*.ts",
-    "lit-components/**/*.ts",
+    "wallet-ui/**/*.ts",
+    "fixtures/ui/**/*.tsx",
     "unit/helpers/ecdsaMaterialRef.fixtures.ts",
     "types/sdk-paths.d.ts"
   ],

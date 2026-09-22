@@ -212,15 +212,18 @@ function scheduleRouterAbEcdsaDerivationPostSignRefill(args: {
 export class Secp256k1Engine {
   readonly algorithm = 'secp256k1' as const;
 
+  private readonly beforeSigning?: () => void;
   private readonly getRpId?: () => string | null;
   private readonly shouldAbort?: () => boolean;
   private readonly workerCtx: WorkerOperationContext;
 
   constructor(opts: {
+    beforeSigning?: () => void;
     getRpId?: () => string | null;
     shouldAbort?: () => boolean;
     workerCtx: WorkerOperationContext;
   }) {
+    this.beforeSigning = opts.beforeSigning;
     this.getRpId = opts.getRpId;
     this.shouldAbort = opts.shouldAbort;
     this.workerCtx = opts.workerCtx;
@@ -265,6 +268,7 @@ export class Secp256k1Engine {
         expiresAtMs: material.expiresAtMs,
         workerCtx: this.workerCtx,
       } as const;
+      this.beforeSigning?.();
       let signed;
       if (material.authorization.kind === 'reusable_wallet_session') {
         signed = await signRouterAbEcdsaDerivationDigestWithPool({

@@ -1,3 +1,4 @@
+import type { TransactionReviewAdmission } from '@/core/signingEngine/uiConfirm/transactionReviewAdmission';
 import type {
   ChildToParentEnvelope,
   ParentToChildEnvelope,
@@ -8,7 +9,6 @@ import type {
 } from '../shared/messages';
 import { SeamsWeb } from '@/SeamsWeb';
 import type { SeamsConfigsInput } from '@/core/types/seams';
-import { setupLitElemMounter } from './lit-ui/iframe-lit-elem-mounter';
 import {
   applyWalletConfig,
   createHostContext,
@@ -25,6 +25,12 @@ import {
 } from '@/core/types/walletIframeIdentity';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import { recordAdoptedWalletIframeParentOrigin } from './hostedWalletSeamsSession';
+import {
+  beginTransactionActivity,
+  observeTransactionActivity,
+  observeTransactionLifecycleReport,
+  failTransactionActivity,
+} from '@/core/signingEngine/uiConfirm/ui/transaction-activity';
 
 export type WalletHostRuntimeState = {
   parentOrigin: string | null;
@@ -33,10 +39,10 @@ export type WalletHostRuntimeState = {
 };
 
 export type WalletHostRuntimeRequest = {
+  transactionReview: TransactionReviewAdmission | null;
   state: WalletHostRuntimeState;
   req: ParentToChildEnvelope;
   post(msg: ChildToParentEnvelope): void;
-  postToParent(msg: unknown): void;
   isCancelled(requestId: string | undefined): boolean;
   respondIfCancelled(requestId: string | undefined): boolean;
 };
@@ -45,7 +51,6 @@ type HandlerFactory = (deps: HandlerDeps) => HandlerMap;
 
 let runtimeContext: HostContext | null = null;
 const handlerMaps = new Map<HandlerFactory, HandlerMap>();
-let litMounterInstalled = false;
 
 const FOREGROUND_CONFIRMATION_REQUEST_TYPES: ReadonlySet<ParentToChildType> = new Set([
   'PM_REGISTER_WALLET',
@@ -112,6 +117,7 @@ function surfaceMeasurementBindingForRequest(
     requestId,
     binding: {
       kind: 'wallet_iframe',
+      ...(input.transactionReview ? { transactionReview: input.transactionReview } : {}),
       requestId,
       postMeasurement: postSurfaceMeasurement.bind(null, input),
       ...(hostSurfaceVariant ? { hostSurfaceVariant } : {}),
@@ -180,79 +186,64 @@ export function syncActiveWalletHostRuntimeConfig(state: WalletHostRuntimeState)
   syncRuntimeContext(state);
 }
 
-function installLitMounterOnce(ctx: HostContext, input: WalletHostRuntimeRequest): void {
-  if (litMounterInstalled) return;
-  litMounterInstalled = true;
+function ensureHostSeamsWeb(ctx: HostContext, input: WalletHostRuntimeRequest): SeamsWeb {
+  const previous = ctx.seamsWeb;
+  const seamsWeb = ensureSeamsWeb(ctx) as SeamsWeb;
+  ensureWalletHostLifecycleSubscription(ctx, seamsWeb);
+  if (previous === seamsWeb) return seamsWeb;
 
-  const ensureHostSeamsWeb = (): SeamsWeb => {
-    const prev = ctx.seamsWeb;
-    const pm = ensureSeamsWeb(ctx) as SeamsWeb;
-    ensureWalletHostLifecycleSubscription(ctx, pm);
-    if (prev !== pm) {
-      const up = pm.preferences;
-      ctx.prefsUnsubscribe?.();
-      const emitPreferencesChanged = () => {
-        const id = String(up.getCurrentWalletId?.() || '').trim();
-        input.post({
-          type: 'PREFERENCES_CHANGED',
-          payload: {
-            walletId: id ? id : null,
-            confirmationConfig: up.getConfirmationConfig(),
-            updatedAt: Date.now(),
-          } satisfies PreferencesChangedPayload,
-        });
-      };
-      const unsubCfg = up.onConfirmationConfigChange?.(() => emitPreferencesChanged()) || null;
-      const unsubCurrentWallet = up.onCurrentWalletChange?.(() => emitPreferencesChanged()) || null;
-      ctx.prefsUnsubscribe = () => {
-        try {
-          unsubCfg?.();
-        } catch {}
-        try {
-          unsubCurrentWallet?.();
-        } catch {}
-      };
-      Promise.resolve()
-        .then(() => emitPreferencesChanged())
-        .catch(() => {});
-    }
-    return pm;
+  const preferences = seamsWeb.preferences;
+  ctx.prefsUnsubscribe?.();
+  const emitPreferencesChanged = (): void => {
+    const walletId = String(preferences.getCurrentWalletId?.() || '').trim();
+    input.post({
+      type: 'PREFERENCES_CHANGED',
+      payload: {
+        walletId: walletId || null,
+        confirmationConfig: preferences.getConfirmationConfig(),
+        updatedAt: Date.now(),
+      } satisfies PreferencesChangedPayload,
+    });
   };
-
-  setupLitElemMounter({
-    ensureSeamsWeb: ensureHostSeamsWeb,
-    getSeamsWeb: () => ctx.seamsWeb,
-    updateWalletConfigs: (patch) => {
-      ctx.walletConfigs = {
-        ...(ctx.walletConfigs || ({} as SeamsConfigsInput)),
-        ...patch,
-      } as SeamsConfigsInput;
-      input.state.walletConfigs = ctx.walletConfigs;
-    },
-    postToParent: input.postToParent,
-  });
+  const unsubscribeConfirmationConfig =
+    preferences.onConfirmationConfigChange?.(emitPreferencesChanged) || null;
+  const unsubscribeCurrentWallet =
+    preferences.onCurrentWalletChange?.(emitPreferencesChanged) || null;
+  ctx.prefsUnsubscribe = (): void => {
+    try {
+      unsubscribeConfirmationConfig?.();
+    } catch {}
+    try {
+      unsubscribeCurrentWallet?.();
+    } catch {}
+  };
+  Promise.resolve()
+    .then(emitPreferencesChanged)
+    .catch(() => {});
+  return seamsWeb;
 }
 
 function buildHandlerDeps(ctx: HostContext, input: WalletHostRuntimeRequest): HandlerDeps {
   const postProgress = (requestId: string | undefined, payload: ProgressPayload): void => {
     if (!requestId) return;
-    input.post({ type: 'PROGRESS', requestId, payload });
-  };
-
-  const ensureHostSeamsWeb = (): SeamsWeb => {
-    const pm = ensureSeamsWeb(ctx) as SeamsWeb;
-    ensureWalletHostLifecycleSubscription(ctx, pm);
-    return pm;
+    postActivityMessage(input, { type: 'PROGRESS', requestId, payload });
   };
 
   return {
-    getSeamsWeb: ensureHostSeamsWeb,
-    post: input.post,
+    getSeamsWeb: ensureHostSeamsWeb.bind(null, ctx, input),
+    post: postActivityMessage.bind(null, input),
     postProgress,
-    postToParent: input.postToParent,
     isCancelled: input.isCancelled,
     respondIfCancelled: input.respondIfCancelled,
   };
+}
+
+function postActivityMessage(
+  input: WalletHostRuntimeRequest,
+  message: ChildToParentEnvelope,
+): void {
+  observeTransactionActivity(message);
+  input.post(message);
 }
 
 function postLifecycleEvent(ctx: HostContext, event: SdkLifecycleEvent): void {
@@ -263,14 +254,15 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
   input: WalletHostRuntimeRequest,
   createHandlers: HandlerFactory,
 ): Promise<void> {
+  if (input.respondIfCancelled(input.req.requestId)) return;
   const ctx = syncRuntimeContext(input.state);
+  beginTransactionActivity(input.req, input.post);
   const foregroundBinding = isForegroundConfirmationRequest(input)
     ? surfaceMeasurementBindingForRequest(input)
     : null;
   if (foregroundBinding) {
     takeForegroundSurfaceBinding(ctx, foregroundBinding.binding);
   }
-  installLitMounterOnce(ctx, input);
 
   try {
     let handlers = handlerMaps.get(createHandlers);
@@ -286,6 +278,10 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
       throw new Error(`Unsupported wallet iframe request type: ${input.req.type}`);
     }
     await handler(input.req);
+    observeTransactionLifecycleReport(input.req);
+  } catch (error) {
+    failTransactionActivity(input.req.requestId, error);
+    throw error;
   } finally {
     if (foregroundBinding) {
       clearSurfaceMeasurementBindingForRequest(ctx, foregroundBinding.requestId);

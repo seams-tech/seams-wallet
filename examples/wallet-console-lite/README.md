@@ -22,6 +22,26 @@ Use `pnpm router -- --root ./path/to/runtime` to select the backend runtime dire
 Use `pnpm site -- --skip-build` after the public Wallet artifacts have already been built.
 If a run is interrupted, stop any remaining `wrangler dev` processes before restarting.
 
+## Prediction-market transaction review
+
+After local project setup, create or unlock a NEAR testnet wallet. In the
+**Prediction market · R140 demo** panel, choose YES or NO and a fixture amount,
+then select **Review prediction trade**. Your React trade summary opens inside
+the SDK's existing transaction-confirmer modal. **Confirm in wallet** transitions
+the same modal to the standard wallet approval; **Back to trade** cancels it.
+
+While signed out, **Sign in to review trade** opens the hosted wallet sign-in
+panel. Complete authentication, then select **Review prediction trade**.
+Position and amount selection remain available before sign-in.
+
+Quotes expire after 90 seconds. The expired, slow, and failing review buttons
+exercise the same SDK error and loading flows. The fixture market does not buy
+positions: final approval sends a zero-value NEAR self-transfer and incurs
+testnet gas. Actual network fees are shown by the wallet.
+
+The component and renderer live in `src/PurchaseReviewExample.tsx`; styling lives
+in `src/styles.css`. `TransactionReviewHost` is mounted in `WalletConsoleLite.tsx`.
+
 ## Local ports
 
 - `http://localhost:4001` — Wallet Console Lite

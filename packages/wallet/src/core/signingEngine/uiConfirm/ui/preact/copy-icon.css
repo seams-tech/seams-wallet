@@ -1,0 +1,72 @@
+/*
+  Shared Preact copy-affordance icon: a copy glyph that crossfades to a check inside
+  a `.copied` ancestor. Used by the Preact export surface's copy fields and the
+  recovery-code backup dialog's Copy button, so the two copy affordances in
+  the wallet read as one control.
+
+  Rules are scoped to wallet surfaces so generic class names do not leak into
+  host documents. Surface-specific placement stays with each surface's CSS.
+
+  Context-specific bits (resting color, margins) stay with each surface.
+*/
+
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon svg {
+  display: block;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon-check,
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon-copy {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transition:
+    transform 300ms ease-in-out,
+    opacity 300ms ease-in-out,
+    filter 300ms ease-in-out;
+}
+
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon-check {
+  transform: scale(0.25);
+  opacity: 0;
+  filter: blur(2px);
+}
+
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon-copy {
+  transform: scale(1);
+  opacity: 1;
+  filter: blur(0);
+}
+
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copied .copy-icon {
+  color: var(--seams-colors-buttonBackground, currentColor);
+}
+
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copied .copy-icon-check {
+  transform: scale(1);
+  opacity: 1;
+  filter: blur(0);
+}
+
+:is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copied .copy-icon-copy {
+  transform: scale(0.25);
+  opacity: 0;
+  filter: blur(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon-check,
+  :is([data-seams-wallet-recovery-backup-dialog], .seams-wallet-ui) .copy-icon-copy {
+    transition-duration: 0.01ms;
+  }
+}

@@ -310,7 +310,7 @@ function shutdown(exitCode) {
   if (stopping) return;
   stopping = true;
   for (const child of children) stopChild(child);
-  setTimeout(forceStopChildren, 2_000).unref();
+  setTimeout(forceStopChildren.bind(undefined, exitCode), 2_000);
   process.exitCode = exitCode;
 }
 
@@ -322,12 +322,14 @@ function stopChild(child) {
   } catch {}
 }
 
-function forceStopChildren() {
+function forceStopChildren(exitCode) {
   for (const child of children) {
-    if (child.exitCode !== null || child.signalCode !== null) continue;
+    // Detached workers can outlive the package-manager process that launched them.
+    if (!child.pid) continue;
     try {
       if (process.platform !== 'win32' && child.pid) process.kill(-child.pid, 'SIGKILL');
       else child.kill('SIGKILL');
     } catch {}
   }
+  process.exit(exitCode);
 }
