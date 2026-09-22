@@ -37,10 +37,12 @@ const BASE_CSS = `
     inset: 0;
     overflow: auto;
     overscroll-behavior: none;
+    scrollbar-width: none;
     box-sizing: border-box;
     color: var(--seams-colors-textPrimary);
   }
   .seams-transaction-review-slot[hidden] { display: none; }
+  .seams-transaction-review-slot::-webkit-scrollbar { display: none; }
   .seams-review-wallet-inactive { opacity: 0; pointer-events: none; }
   .seams-transaction-review-content { padding: 0.75rem; box-sizing: border-box; overflow-wrap: anywhere; }
   .seams-transaction-review-content button { font: inherit; }
