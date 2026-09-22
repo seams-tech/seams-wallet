@@ -22,6 +22,8 @@ export type ReadyLocalWorkspace = {
 };
 
 export type LocalWorkspaceState =
+  | { kind: 'restoring' }
+  | { kind: 'restore_failed'; message: string }
   | { kind: 'empty' }
   | { kind: 'provisioning' }
   | ReadyLocalWorkspace
@@ -36,6 +38,66 @@ export type ProvisionLocalWorkspaceResult =
   | { ok: true; workspace: ReadyLocalWorkspace }
   | { ok: false; message: string };
 
+const savedWorkspaceKey = 'seams-wallet-console-lite.workspace';
+
+export async function restoreLocalWorkspace(): Promise<LocalWorkspaceState> {
+  try {
+    const response = await fetch('/__local-workspace', { cache: 'no-store' });
+    const body: unknown = await response.json();
+    if (!response.ok) throw new Error(parseFailure(body));
+    const record = requiredRecord(body, 'workspace response');
+    if (record.kind === 'ready') {
+      const workspace = parseReadyWorkspace(record);
+      rememberWorkspace(workspace);
+      return workspace;
+    }
+    if (record.kind !== 'empty' && record.kind !== 'failed') {
+      throw new Error('Local controller returned an unexpected workspace state');
+    }
+    const saved = readSavedWorkspace();
+    if (saved) {
+      const result = await provisionLocalWorkspace(saved);
+      return result.ok ? result.workspace : { kind: 'restore_failed', message: result.message };
+    }
+    return record.kind === 'empty'
+      ? { kind: 'empty' }
+      : { kind: 'failed', message: parseFailure(record) };
+  } catch (error) {
+    return {
+      kind: 'restore_failed',
+      message: error instanceof Error ? error.message : 'Could not reconnect to the local project',
+    };
+  }
+}
+
+function readSavedWorkspace(): ProvisionLocalWorkspaceInput | null {
+  try {
+    const saved = localStorage.getItem(savedWorkspaceKey);
+    if (!saved) return null;
+    const record = requiredRecord(JSON.parse(saved), 'saved project');
+    return {
+      organizationName: requiredString(record.organizationName, 'organisation name'),
+      projectName: requiredString(record.projectName, 'project name'),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function rememberWorkspace(workspace: ReadyLocalWorkspace): void {
+  try {
+    localStorage.setItem(
+      savedWorkspaceKey,
+      JSON.stringify({
+        organizationName: workspace.identity.organizationName,
+        projectName: workspace.identity.projectName,
+      }),
+    );
+  } catch {
+    // The running controller can still restore the project when storage is unavailable.
+  }
+}
+
 export async function provisionLocalWorkspace(
   input: ProvisionLocalWorkspaceInput,
 ): Promise<ProvisionLocalWorkspaceResult> {
@@ -47,7 +109,9 @@ export async function provisionLocalWorkspace(
     });
     const body: unknown = await response.json();
     if (!response.ok) return { ok: false, message: parseFailure(body) };
-    return { ok: true, workspace: parseReadyWorkspace(body) };
+    const workspace = parseReadyWorkspace(body);
+    rememberWorkspace(workspace);
+    return { ok: true, workspace };
   } catch (error) {
     return {
       ok: false,

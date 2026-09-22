@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type ChangeEvent,
@@ -26,6 +27,7 @@ import {
 } from '@seams/wallet/react/hosted-seams-auth-menu';
 import {
   provisionLocalWorkspace,
+  restoreLocalWorkspace,
   type LocalWorkspaceState,
   type ReadyLocalWorkspace,
 } from './localWorkspace';
@@ -57,7 +59,8 @@ async function exportWalletKey(
 }
 
 export function WalletConsoleLite({ children }: { children?: ReactNode }) {
-  const [workspace, setWorkspace] = useState<LocalWorkspaceState>({ kind: 'empty' });
+  const [workspace, setWorkspace] = useState<LocalWorkspaceState>({ kind: 'restoring' });
+  useEffect(restoreWorkspaceOnMount.bind(null, setWorkspace), []);
   const handleSetup = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -68,16 +71,62 @@ export function WalletConsoleLite({ children }: { children?: ReactNode }) {
     setWorkspace(result.ok ? result.workspace : { kind: 'failed', message: result.message });
   }, []);
 
+  if (workspace.kind === 'restoring' || workspace.kind === 'restore_failed') {
+    return (
+      <main className="shell setup-shell">
+        <section className="panel">
+          <h1>Reconnecting to your local project</h1>
+          {workspace.kind === 'restoring' ? (
+            <p role="status">Loading project…</p>
+          ) : (
+            <>
+              <p className="message error" role="alert">
+                {workspace.message}
+              </p>
+              <button
+                type="button"
+                className="primary"
+                onClick={retryWorkspaceRestore.bind(null, setWorkspace)}
+              >
+                Retry connection
+              </button>
+            </>
+          )}
+        </section>
+      </main>
+    );
+  }
   if (workspace.kind !== 'ready') {
     return <SetupScreen state={workspace} onSubmit={handleSetup} />;
   }
-  return (
-    <ConfiguredWalletPlayground workspace={workspace}>{children}</ConfiguredWalletPlayground>
+  return <ConfiguredWalletPlayground workspace={workspace}>{children}</ConfiguredWalletPlayground>;
+}
+
+function restoreWorkspaceOnMount(setWorkspace: (state: LocalWorkspaceState) => void): () => void {
+  const lifetime = new AbortController();
+  void restoreLocalWorkspace().then(
+    applyRestoredWorkspace.bind(null, lifetime.signal, setWorkspace),
   );
+  return lifetime.abort.bind(lifetime);
+}
+
+function applyRestoredWorkspace(
+  signal: AbortSignal,
+  setWorkspace: (state: LocalWorkspaceState) => void,
+  state: LocalWorkspaceState,
+): void {
+  if (!signal.aborted) setWorkspace(state);
+}
+
+async function retryWorkspaceRestore(
+  setWorkspace: (state: LocalWorkspaceState) => void,
+): Promise<void> {
+  setWorkspace({ kind: 'restoring' });
+  setWorkspace(await restoreLocalWorkspace());
 }
 
 function SetupScreen(props: {
-  state: Exclude<LocalWorkspaceState, ReadyLocalWorkspace>;
+  state: Extract<LocalWorkspaceState, { kind: 'empty' | 'provisioning' | 'failed' }>;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const provisioning = props.state.kind === 'provisioning';
@@ -418,7 +467,9 @@ function WalletPlayground({
                 </button>
               )}
               {authMenu.kind === 'failed' ? (
-                <p role="alert" className="message error">{authMenu.message}</p>
+                <p role="alert" className="message error">
+                  {authMenu.message}
+                </p>
               ) : null}
             </section>
           ) : (

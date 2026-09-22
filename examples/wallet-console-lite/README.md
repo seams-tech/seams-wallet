@@ -15,7 +15,10 @@ pnpm site
 ```
 
 Run the commands in separate terminals. Open `http://localhost:4001`, enter an organisation
-and project name, then create or unlock a Wallet. No `.env` file, private Console
+and project name once, then create or unlock a Wallet. Reloads reconnect to the
+existing project automatically. The browser remembers only these display names so
+it can reconnect after a site-controller restart; public runtime configuration is
+always fetched from the controller. No `.env` file, private Console
 service, or `seams-monorepo` checkout is required.
 
 Use `pnpm router -- --root ./path/to/runtime` to select the backend runtime directory.
