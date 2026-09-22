@@ -90,8 +90,7 @@ h2 {
   line-height: 1.6;
 }
 
-.panel,
-.status-card {
+.panel {
   border: 1px solid #d9dfda;
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.9);
@@ -166,20 +165,21 @@ summary:focus-visible {
 }
 
 .status-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.9rem;
-  margin-bottom: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .status-card {
-  gap: 0.7rem;
-  padding: 1rem;
+  gap: 0.5rem;
+  font-size: 0.8rem;
 }
 
 .status-card div {
-  display: grid;
-  gap: 0.15rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
 .status-card span:not(.status-dot) {
@@ -341,13 +341,76 @@ summary {
   margin-bottom: 1rem;
 }
 
+.playground-shell .workspace-header {
+  align-items: flex-start;
+  margin-block-end: 1rem;
+}
+
+.playground-shell .workspace-header p {
+  margin-block-end: 0;
+}
+
+.playground-shell .panel {
+  padding: clamp(1.25rem, 3vw, 2rem);
+  box-shadow: 0 3px 12px rgb(0 0 0 / 3%);
+}
+
+.playground-shell .auth-panel {
+  background: #fff;
+  margin-block: 0 1.5rem;
+}
+
+.playground-shell .section-heading .section-description {
+  margin-block: 0.5rem 0;
+}
+
+.playground-shell .prediction-demo {
+  margin-block-start: 1.5rem;
+}
+
+.playground-shell .prediction-demo .section-description {
+  margin-block: 0.6rem 1.25rem;
+}
+
+.playground-shell .configuration {
+  margin-block-start: 1.5rem;
+  padding-block: 1rem;
+  background: transparent;
+  box-shadow: none;
+}
+
+.wallet-appearance-setting {
+  max-width: 14rem;
+  margin-block: 1.25rem;
+}
+
+.wallet-secondary-actions {
+  margin-block-start: 1.5rem;
+}
+
+.wallet-secondary-actions summary {
+  color: #59645d;
+  font-size: 0.875rem;
+  padding-block: 0.5rem;
+}
+
+.playground-shell .identity-list {
+  padding: 0.25rem 1rem;
+  border-radius: 0.75rem;
+  background: #f5f7f4;
+}
+
+.playground-shell .identity-list > div:first-child {
+  border-top: 0;
+}
+
+.playground-shell .message {
+  margin-block-start: 1rem;
+}
+
 @media (max-width: 640px) {
   .shell {
     padding: 2rem 0;
-  }
-
-  .status-grid {
-    grid-template-columns: 1fr;
   }
 
   .identity-list > div,

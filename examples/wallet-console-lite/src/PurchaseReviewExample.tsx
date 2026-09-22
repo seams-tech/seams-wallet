@@ -117,12 +117,12 @@ export function PurchaseReviewExample() {
   const onPreviewFinished = useCallback(closePreview.bind(null, setPreview), []);
   return (
     <section className="panel prediction-demo" id="prediction-market">
-      <h2>Test tenant-supplied custom components</h2>
+      <h2>Custom review demo</h2>
       <p className="section-description">
         Preview a custom review panel inside the transaction confirmation flow.
       </p>
-      <button className="primary" type="button" onClick={openPreview.bind(null, setPreview)}>
-        Preview component
+      <button type="button" onClick={openPreview.bind(null, setPreview)}>
+        Open preview
       </button>
       <p className="prediction-caption">Interactive demo · nothing is signed or sent.</p>
       {preview ? (

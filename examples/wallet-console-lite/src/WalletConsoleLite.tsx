@@ -411,22 +411,15 @@ function WalletPlayground({
           <h1>{workspace.identity.projectName}</h1>
           <p>{workspace.identity.organizationName}</p>
         </div>
-        <label>
-          Wallet corners
-          <select value={shape} onChange={onShapeChange}>
-            <option value="square">Sharp</option>
-            <option value="rounded">Rounded</option>
-          </select>
-        </label>
         <span className="environment-badge">dev</span>
       </header>
 
       {page === 'wallet' ? (
         <>
           <section className="status-grid" aria-label="Local service status">
-            <StatusCard label="Wallet Gateway" value="Ready" ready />
+            <StatusCard label="Gateway" value="Ready" ready />
             <StatusCard
-              label="Hosted Wallet iframe"
+              label="Wallet"
               value={walletIframeConnected ? 'Connected' : 'Connecting'}
               ready={walletIframeConnected}
             />
@@ -435,7 +428,8 @@ function WalletPlayground({
           {!loginState.isLoggedIn ? (
             <section className="panel auth-panel" id="wallet-auth">
               <div className="section-heading">
-                <h2>Register or unlock a Wallet</h2>
+                <h2>Connect your wallet</h2>
+                <p className="section-description">Sign in to try signing and manage your wallet.</p>
               </div>
               {authMenu.kind === 'open' ? (
                 <HostedSeamsAuthMenu
@@ -476,7 +470,14 @@ function WalletPlayground({
           <PurchaseReviewExample />
 
           <details className="panel configuration">
-            <summary>Public local configuration</summary>
+            <summary>Configuration</summary>
+            <label className="wallet-appearance-setting">
+              Wallet corners
+              <select value={shape} onChange={onShapeChange}>
+                <option value="square">Sharp</option>
+                <option value="rounded">Rounded</option>
+              </select>
+            </label>
             <dl>
               <IdentityRow
                 label="Project environment"
@@ -538,9 +539,6 @@ function SignedInPanel(props: {
         />
       </dl>
       <div className="actions">
-        <button type="button" onClick={props.onRefresh}>
-          Refresh session
-        </button>
         <button
           type="button"
           onClick={props.onMessageSigningCheck}
@@ -552,6 +550,7 @@ function SignedInPanel(props: {
         </button>
         <button
           type="button"
+          className="primary"
           onClick={props.onTransactionSigningCheck}
           disabled={!props.canSign || props.signingCheck.kind === 'signing'}
         >
@@ -559,21 +558,29 @@ function SignedInPanel(props: {
             ? 'Signing transaction…'
             : 'Sign transaction'}
         </button>
-        <button
-          type="button"
-          onClick={props.onExportNearKey}
-          disabled={props.exportingKey !== null || !props.loginState.nearAccountId}
-        >
-          {props.exportingKey === 'near' ? 'Exporting NEAR key…' : 'Export NEAR key'}
-        </button>
-        <button
-          type="button"
-          onClick={props.onExportEvmKey}
-          disabled={props.exportingKey !== null || !props.loginState.thresholdEcdsaEthereumAddress}
-        >
-          {props.exportingKey === 'evm' ? 'Exporting EVM keys…' : 'Export EVM keys'}
-        </button>
       </div>
+      <details className="wallet-secondary-actions">
+        <summary>More wallet actions</summary>
+        <div className="actions">
+          <button type="button" onClick={props.onRefresh}>
+            Refresh session
+          </button>
+          <button
+            type="button"
+            onClick={props.onExportNearKey}
+            disabled={props.exportingKey !== null || !props.loginState.nearAccountId}
+          >
+            {props.exportingKey === 'near' ? 'Exporting NEAR key…' : 'Export NEAR key'}
+          </button>
+          <button
+            type="button"
+            onClick={props.onExportEvmKey}
+            disabled={props.exportingKey !== null || !props.loginState.thresholdEcdsaEthereumAddress}
+          >
+            {props.exportingKey === 'evm' ? 'Exporting EVM keys…' : 'Export EVM keys'}
+          </button>
+        </div>
+      </details>
       {props.signingCheck.kind === 'signed' || props.signingCheck.kind === 'failed' ? (
         <p
           className={`message ${props.signingCheck.kind === 'failed' ? 'error' : 'success'}`}
