@@ -1444,8 +1444,13 @@ with durations **6.009, 5.538, 5.827, 5.800, and 5.406 seconds** (median **5.800
 seconds**), and the durable pool reached **5/5**. All 40 observed fill requests
 returned HTTP 200. Across those requests, median `ecdsa_presign_sw_do_total`
 was **0 ms**, `ecdsa_presign_sw_session` was **23 ms**, and
-`ecdsa_presign_proxy` was **184 ms**. The dependent protocol requests and transit
-remain the larger generation costs in this single hosted run.
+`ecdsa_presign_proxy` was **184 ms**. Summed browser request-start-to-response
+spans for each eight-request ceremony were **4.677–5.566 seconds**; these spans
+include server computation, storage, scheduling, and network transit. The zero
+object-handler timing cannot rule out CPU cost: deployed Cloudflare application
+timers advance across I/O and remain frozen during CPU-only work. Use
+[runtime CPU telemetry and profiling](https://developers.cloudflare.com/workers/runtime-apis/performance/)
+to separate those costs before attributing the remaining wait to transport.
 
 All five hashed record fingerprints remained unchanged after reload, with stored
 expiry metadata approximately 90 days away. The first post-reload Tempo funding
