@@ -6562,6 +6562,140 @@ fn signing_worker_ecdsa_pool_atomic_reducer_rejects_stale_reservation() {
     );
 }
 
+fn directly_reserved_ecdsa_pool_command() -> CloudflareSigningWorkerEcdsaPoolCommandV1 {
+    let request = router_ab_ecdsa_derivation_digest_signing_request();
+    CloudflareSigningWorkerEcdsaPoolCommandV1::PutReserved {
+        material: router_ab_ecdsa_derivation_presignature_pool_record(),
+        request_digest: request.request_digest().expect("prepare request digest"),
+        admitted_signing_digest: request.signing_digest().expect("signing digest"),
+        signing_worker_rerandomization_contribution32_b64u: b64u(&[0x55; 32]),
+        reserved_at_ms: 1_100,
+        request_expires_at_ms: 1_900,
+    }
+}
+
+#[test]
+fn signing_worker_ecdsa_pool_insert_collision_preserves_exact_available_record() {
+    let material = router_ab_ecdsa_derivation_presignature_pool_record();
+    let command = CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable {
+        material: material.clone(),
+    };
+    let existing = apply_cloudflare_signing_worker_ecdsa_pool_command_v1(None, command.clone())
+        .expect("first admission")
+        .record()
+        .clone();
+    let replay =
+        apply_cloudflare_signing_worker_ecdsa_pool_command_v1(Some(existing.clone()), command)
+            .expect("an exact available admission remains idempotent");
+    assert_eq!(replay.record(), &existing);
+    assert!(matches!(
+        replay,
+        CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Available { stored: false, .. }
+    ));
+
+    let mut substituted = material;
+    substituted.server_k_share32_b64u = b64u(&[0x12; 32]);
+    let error = apply_cloudflare_signing_worker_ecdsa_pool_command_v1(
+        Some(existing),
+        CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable {
+            material: substituted,
+        },
+    )
+    .expect_err("an insertion collision must not substitute material");
+    assert_eq!(
+        error.code(),
+        RouterAbProtocolErrorCode::ReplayedLocalRequest
+    );
+}
+
+#[test]
+fn signing_worker_ecdsa_pool_direct_reservation_matches_existing_transition() {
+    let request = router_ab_ecdsa_derivation_digest_signing_request();
+    let expected = CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1::new_available(
+        router_ab_ecdsa_derivation_presignature_pool_record(),
+    )
+    .expect("available material")
+    .reserve(
+        request.request_digest().expect("prepare request digest"),
+        request.signing_digest().expect("signing digest"),
+        b64u(&[0x55; 32]),
+        1_100,
+        1_900,
+    )
+    .expect("reserved material");
+    let command = directly_reserved_ecdsa_pool_command();
+    let wire = serde_json::to_string(&command).expect("command encoding");
+    let decoded = serde_json::from_str(&wire).expect("command decoding");
+    let outcome = apply_cloudflare_signing_worker_ecdsa_pool_command_v1(None, decoded)
+        .expect("first persisted state can be reserved");
+    outcome.validate().expect("valid reserved outcome");
+    let CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Reserved { record } = outcome else {
+        panic!("direct reservation must not publish available material");
+    };
+    assert_eq!(record, expected);
+    assert_eq!(record.lifecycle.revision().value(), 1);
+}
+
+#[test]
+fn signing_worker_ecdsa_pool_direct_reservation_cannot_replace_existing_identity() {
+    let command = directly_reserved_ecdsa_pool_command();
+    let reserved = apply_cloudflare_signing_worker_ecdsa_pool_command_v1(None, command.clone())
+        .expect("initial reservation")
+        .record()
+        .clone();
+    let request = router_ab_ecdsa_derivation_digest_signing_request();
+    let consumed = match reserved
+        .clone()
+        .consume(request.request_digest().expect("request digest"), 1_200)
+        .expect("consume exact reservation")
+    {
+        CloudflareSigningWorkerEcdsaPoolConsumeDecisionV1::Consumed { record, .. } => record,
+        _ => panic!("exact reservation must be consumed"),
+    };
+    let tombstone = reserved
+        .clone()
+        .recover_after_crash(1_200)
+        .expect("burn interrupted attempt");
+    let available = CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1::new_available(
+        router_ab_ecdsa_derivation_presignature_pool_record(),
+    )
+    .expect("available record");
+    for existing in [available, reserved, consumed, tombstone] {
+        let error =
+            apply_cloudflare_signing_worker_ecdsa_pool_command_v1(Some(existing), command.clone())
+                .expect_err("existing identity must never be overwritten or reopened");
+        assert_eq!(
+            error.code(),
+            RouterAbProtocolErrorCode::ReplayedLocalRequest
+        );
+    }
+}
+
+#[test]
+fn signing_worker_ecdsa_pool_direct_reservation_validates_deadlines_and_contribution() {
+    let mut expired = directly_reserved_ecdsa_pool_command();
+    if let CloudflareSigningWorkerEcdsaPoolCommandV1::PutReserved {
+        request_expires_at_ms,
+        ..
+    } = &mut expired
+    {
+        *request_expires_at_ms = 1_100;
+    }
+    assert!(expired.validate().is_err());
+    assert!(apply_cloudflare_signing_worker_ecdsa_pool_command_v1(None, expired).is_err());
+
+    let mut malformed = directly_reserved_ecdsa_pool_command();
+    if let CloudflareSigningWorkerEcdsaPoolCommandV1::PutReserved {
+        signing_worker_rerandomization_contribution32_b64u,
+        ..
+    } = &mut malformed
+    {
+        *signing_worker_rerandomization_contribution32_b64u = b64u(&[0x55; 31]);
+    }
+    assert!(malformed.validate().is_err());
+    assert!(apply_cloudflare_signing_worker_ecdsa_pool_command_v1(None, malformed).is_err());
+}
+
 #[test]
 fn router_ab_ecdsa_derivation_presignature_pool_put_request_materializes_active_pool_record() {
     let request = router_ab_ecdsa_derivation_presignature_pool_put_request(2_000);
