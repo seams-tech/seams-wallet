@@ -35,6 +35,10 @@
   height: 1rem;
   flex: none;
 }
+:where(.seams-wallet-ui) .seams-review-origin .padlock-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
 :where(.seams-wallet-ui) .seams-review-amount {
   display: flex;
   align-items: center;
