@@ -1,3 +1,4 @@
+import { reviewAdmissionForBinding } from '../../transactionReviewAdmission';
 import type { UiConfirmContext } from '../../uiConfirm.types';
 import type { NormalizedConfirmationConfig } from '@/core/types/confirmationConfig';
 import type { UserConfirmSecurityContext } from '@/core/types';
@@ -337,6 +338,7 @@ export async function handleTransactionSigningFlow(
     onSigningOperationInteractionEvent?: (event: SigningOperationInteractionEvent) => void;
   },
 ): Promise<void> {
+  const reviewAdmission = reviewAdmissionForBinding(ctx.surfaceMeasurementBinding);
   const { confirmationConfig, transactionSummary, theme, surface } = opts;
   const adapters = createConfirmTxFlowAdapters(ctx);
   const session = createConfirmSession({
@@ -792,9 +794,14 @@ export async function handleTransactionSigningFlow(
     const serializedCredential = await collectAuthenticationCredentialForWalletChallengeB64u({
       credentialStore: ctx.webauthnCredentialStore,
       touchIdPrompt: ctx.touchIdPrompt,
+      onBeforePrompt: reviewAdmission?.beforeCredential,
+      cancellation: reviewAdmission
+        ? { kind: 'abort_signal', signal: reviewAdmission.abortController.signal }
+        : { kind: 'none' },
       walletId: request.payload.walletId,
       challengeB64u,
     });
+    reviewAdmission?.afterCredential();
     notifySigningOperationInteraction?.({
       kind: SigningOperationInteractionEventKind.AuthenticationCompleted,
     });
@@ -849,6 +856,7 @@ export async function handleIntentDigestSigningFlow(
     surface: ConfirmUISurfaceSource;
   },
 ): Promise<void> {
+  const reviewAdmission = reviewAdmissionForBinding(ctx.surfaceMeasurementBinding);
   const { confirmationConfig, transactionSummary, theme, surface } = opts;
   const adapters = createConfirmTxFlowAdapters(ctx);
   const session = createConfirmSession({
@@ -1032,16 +1040,25 @@ export async function handleIntentDigestSigningFlow(
         ? await collectAuthenticationCredentialForChallengeB64u({
             credentialStore: ctx.webauthnCredentialStore,
             touchIdPrompt: ctx.touchIdPrompt,
+            onBeforePrompt: reviewAdmission?.beforeCredential,
+            cancellation: reviewAdmission
+              ? { kind: 'abort_signal', signal: reviewAdmission.abortController.signal }
+              : { kind: 'none' },
             nearAccountId,
             challengeB64u,
           })
         : await collectAuthenticationCredentialForWalletChallengeB64u({
             credentialStore: ctx.webauthnCredentialStore,
             touchIdPrompt: ctx.touchIdPrompt,
+            onBeforePrompt: reviewAdmission?.beforeCredential,
+            cancellation: reviewAdmission
+              ? { kind: 'abort_signal', signal: reviewAdmission.abortController.signal }
+              : { kind: 'none' },
             walletId: signingSubject.walletId,
             challengeB64u,
           });
 
+    reviewAdmission?.afterCredential();
     sendConfirmProgress(worker, {
       requestId: request.requestId,
       step: 4,

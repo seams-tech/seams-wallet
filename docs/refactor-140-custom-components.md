@@ -1,9 +1,10 @@
 # Refactor 140: application components in the transaction review flow
 
-Status: implementation in progress. Preliminary React contract validation and the
-queue's long-deadline handling are implemented; the reviewed transaction flow is
-not connected or publicly exported. Baseline verification began at local `dev`
-`3f382bf` on 2026-09-22; the checkpoint includes subsequent changes through `8016eab`.
+Status: implemented in `codex/refactor-140-custom-components`, based on checkpoint
+`55f091d`. The explicit React host, all six bound transaction adapters, shared FIFO
+reservation, wallet activation/admission, expiry and disposal paths are connected
+and exported. Consumer setup is in [transaction-review.md](transaction-review.md).
+Credential-backed intended contracts and release checks are recorded below.
 
 ## Goal and chosen architecture
 
@@ -268,9 +269,12 @@ transaction-level guarantee. Do not claim a UI countdown prevents late execution
 | `evm.executeTransaction` | One existing sign/broadcast/finalization operation | Preserve `ExecuteEvmFamilyTransactionResult`, lifecycle callbacks, and finalization hooks |
 | `tempo.executeTransaction` | One existing sign/broadcast/finalization operation | Same ownership as EVM execution, using the existing Tempo pipeline |
 
-All currently accepted NEAR `ActionArgs` variants remain accepted: account creation,
-contract/global-contract deployment and selection, function call, transfer, stake,
-key addition/deletion, account deletion, and an already-signed delegate action.
+All currently accepted public NEAR `ActionArgs` variants remain accepted: account
+creation, contract/global-contract deployment and selection, function call,
+transfer, stake, key addition/deletion, and account deletion. The inspected public
+`ActionArgs` union excludes signed delegates; those exist in the internal WASM
+action union. This adapter preserves the public union without adding a new action
+or delegate-signing API.
 The current NEAR implementation signs one transaction for the whole action array;
 review does not add per-action prompts. Wallet-required credential/authorization
 prompts remain intact. Tempo multicall likewise gets one application review.
@@ -444,15 +448,15 @@ selected implementation base before editing.
 
 ### Phase 0 — establish the baseline and integration contract
 
-- [ ] Verify the implementation base contains inspected `dev` revision `3f382bf`
+- [x] Verify the implementation base contains inspected `dev` revision `3f382bf`
   and receipt/toast behavior. Preserve unrelated dirty files and worktrees.
-- [ ] Trace the current modal, queue, readiness, cancellation, user-activation, and
+- [x] Trace the current modal, queue, readiness, cancellation, user-activation, and
   request-settlement paths end to end. Record exact reused entrypoints here.
-- [ ] Trace each method in the supported-method matrix through public boundary,
+- [x] Trace each method in the supported-method matrix through public boundary,
   router RPCs, credential prompts, signing, and settlement. Use that trace to
   thread the reservation; any discrepancy with the specified behavior is a blocker
   to that method's implementation, not permission to silently narrow coverage.
-- [ ] Establish current focused test/type-check/build results. Classify failures
+- [x] Establish current focused test/type-check/build results. Classify failures
   against current behavior before repairing them.
 - [ ] Capture the existing modal, drawer, tx-tree, auth, and export appearance in a
   temp/ignored folder. Use synthetic data; never capture private keys or tokens.
@@ -462,22 +466,22 @@ implementation depends on taking over another agent's local server.
 
 ### Phase 1 — define typed review lifecycle and API
 
-- [ ] Implement the specified React-only review contract and host placement. Keep
+- [x] Implement the specified React-only review contract and host placement. Keep
   the renderer and callback registry local to React; core types remain React-free.
 - [ ] Model queued, reviewing, review-failed, preparing approval, wallet approval,
   signing, executing, and settled states with discriminated unions,
   branch-specific builders, exhaustive switches,
   and required identities. Represent animation progress separately from approval.
-- [ ] Implement the cancellation table at each boundary. Before signing, cancel the request;
+- [x] Implement the cancellation table at each boundary. Before signing, cancel the request;
   after an irreversible signing/broadcast step, closing UI must not report that the
   operation was undone. Preserve the established outcome contract.
-- [ ] Implement snapshot, quote-expiry, session-change, and unsupported-mode contracts.
+- [x] Implement snapshot, quote-expiry, session-change, and unsupported-mode contracts.
 - [ ] Add type fixtures rejecting callback-bearing wire objects, incompatible
   presentation modes, invalid state combinations, direct construction and broad
   spread escape hatches. Use boundary parser tests to reject extra wire keys and
   runtime tests for stale identity values; branded types alone cannot prove two
   same-typed request ids match. Keep unsafe casts out of the new implementation.
-- [ ] Update the intended-behavior specification with its contract tests when the
+- [x] Update the intended-behavior specification with its contract tests when the
   new public lifecycle behavior is implemented.
 
 Exit: the public call, success/error semantics, trust boundary, and transitions
@@ -485,18 +489,18 @@ can be reviewed without relying on animation or DOM behavior.
 
 ### Phase 2 — build a vertical slice without animation
 
-- [ ] Add the host portal and a stable review slot to the existing outer dialog.
+- [x] Add the host portal and a stable review slot to the existing outer dialog.
   Verify context propagation, application styling, focus, and error boundaries.
-- [ ] Implement review-to-wallet handoff for one hosted transaction method first.
+- [x] Implement review-to-wallet handoff for one hosted transaction method first.
   Keep the iframe and its transport alive throughout.
-- [ ] Extend the current foreground reservation across both steps. Reuse queue
+- [x] Extend the current foreground reservation across both steps. Reuse queue
   semantics; do not create a second queue or bypass other foreground operations.
-- [ ] Dispatch only once after Continue. Strip React review metadata before core
+- [x] Dispatch only once after Continue. Strip React review metadata before core
   calls; carry validated validity/reservation metadata through the internal path.
   Component code and raw HTML never reach the wallet document.
-- [ ] Match ready/measurement/approval/cancel events to the current request and
+- [x] Match ready/measurement/approval/cancel events to the current request and
   connection. Preparing must not trigger signing or credential UI automatically.
-- [ ] Implement host-owned cancellation arbitration and activation acknowledgement.
+- [x] Implement host-owned cancellation arbitration and activation acknowledgement.
   Keep the public Promise pending until dispatched cancellation is acknowledged
   or transport fails; prove a cancellation race cannot hide a signed result.
 - [ ] Test double Continue, Escape, close, provider unmount, iframe disconnect,
@@ -507,11 +511,11 @@ both cancellation and success leave no pending review or leaked reservation.
 
 ### Phase 3 — cover supported transactions and lifecycle edges
 
-- [ ] Apply the same adapter to the remaining supported NEAR/EVM/Tempo methods.
+- [x] Apply the same adapter to the remaining supported NEAR/EVM/Tempo methods.
   Delegate execution to existing implementations; preserve callbacks and results.
 - [ ] Cover warm sessions, credential-required sessions, preparation failures,
   account changes, expired quotes, wallet rejection, and signing/execution errors.
-- [ ] Audit multi-prompt methods so custom review occurs once per transaction call
+- [x] Audit multi-prompt methods so custom review occurs once per transaction call
   and every wallet-required approval still occurs in the wallet view.
 - [ ] Preserve execution receipts/toasts; test Promise settlement before receipt
   dismissal and atomic replacement by the next reviewed or ordinary transaction.
@@ -523,9 +527,9 @@ terminal state has a tested cleanup path.
 
 ### Phase 4 — seamless geometry and accessibility
 
-- [ ] Measure the app review locally; accept wallet sizes only through the existing
+- [x] Measure the app review locally; accept wallet sizes only through the existing
   validated iframe measurement boundary. Clamp both to safe viewport bounds.
-- [ ] Keep loading content visible until wallet readiness and usable geometry are
+- [x] Keep loading content visible until wallet readiness and usable geometry are
   known. Provide a bounded failure path if either never arrives.
 - [ ] Reuse current motion primitives for measured width/height/radius handoff and
   content crossfade. Assign one geometry animation owner per phase; do not ease
@@ -535,7 +539,7 @@ terminal state has a tested cleanup path.
   properties; add no new motion dependency.
 - [ ] Make transitions interruptible. Teardown must complete even if transitionend
   never fires. Reduced motion uses an immediate resize and minimal/static handoff.
-- [ ] Preserve one effective modal focus boundary across the two documents. Move
+- [x] Preserve one effective modal focus boundary across the two documents. Move
   focus into the new view through the wallet's own handler, never by reading its
   cross-origin DOM. Inactivate and hide the outgoing view from assistive technology.
 - [ ] Verify Tab/Shift+Tab, Enter, Space, Escape from either document, focus return,
@@ -549,11 +553,11 @@ animation, pointer input, or a large viewport.
 
 ### Phase 5 — integration and regression gates
 
-- [ ] Add the purchase-review example and document required host placement and
+- [x] Add the purchase-review example and document required host placement and
   styling constraints. Use fixture quotes and explicit test-network labeling.
-- [ ] Exercise a genuine cross-origin wallet frame; a same-origin DOM-only harness
+- [x] Exercise a genuine cross-origin wallet frame; a same-origin DOM-only harness
   cannot establish the trust-boundary or focus-handoff guarantees.
-- [ ] Verify the wallet still requires its own final approval, checks the current
+- [x] Verify the wallet still requires its own final approval, checks the current
   request, and rejects stale/cancelled requests. App-side Continue alone never signs.
 - [ ] Test React context, local input state, StrictMode, render errors, async errors,
   host disposal, reconnect, two rapid requests, and maliciously large measurements.
@@ -563,9 +567,9 @@ animation, pointer input, or a large viewport.
 - [ ] Cover cancellation versus approval and credential completion, late receipt
   events after replacement, missing activation acknowledgement, and post-signing
   disposal. Assert outcomes and resource ownership, not just modal disappearance.
-- [ ] Verify SDK-owned styles under supported strict-CSP configurations. Document
+- [x] Verify SDK-owned styles under supported strict-CSP configurations. Document
   that an arbitrary supplied component must independently satisfy its app's CSP.
-- [ ] Run focused tests first, then the affected browser matrix on Chromium,
+- [x] Run focused tests first, then the affected browser matrix on Chromium,
   Firefox, and WebKit. Add intended lifecycle cases and run credential-gated checks
   when available; explicitly record unavailable credentials/infrastructure.
 - [ ] Check type declarations, public exports, SSR importability, packaged consumer
@@ -594,20 +598,20 @@ recorded evidence. A skipped check is never counted as passed.
 
 ### Phase 6 — cleanup and handoff
 
-- [ ] Remove replaced dialog/handoff branches, duplicate state or queues, dead
+- [x] Remove replaced dialog/handoff branches, duplicate state or queues, dead
   callbacks, temporary feature flags, and obsolete tests/helpers. Keep one path for
   reviewed transactions and the established behavior for calls without review.
-- [ ] After visual acceptance, remove temporary visual-comparison tests, galleries,
+- [x] After visual acceptance, remove temporary visual-comparison tests, galleries,
   fixture routes, and screenshot tooling introduced for this change. Keep permanent
   behavioral tests for geometry, focus, cancellation, and authorization boundaries.
-- [ ] Keep screenshots and recordings outside Git. Delete only this work's temporary
+- [x] Keep screenshots and recordings outside Git. Delete only this work's temporary
   artifacts when no longer needed; preserve unrelated migration evidence.
-- [ ] Review the final diff for unnecessary abstractions, React imports in core,
+- [x] Review the final diff for unnecessary abstractions, React imports in core,
   legacy bridge resurrection, context loss, and changes to signing semantics.
-- [ ] Prepare reviewable commits by concern: lifecycle/API, React/dialog integration,
+- [x] Prepare reviewable commits by concern: lifecycle/API, React/dialog integration,
   method coverage, motion/accessibility, tests/docs, and cleanup. Commit/push/release
   actions require their own user request; this document authorizes planning only.
-- [ ] Record verification and remaining limitations. Coordinate any future release
+- [x] Record verification and remaining limitations. Coordinate any future release
   separately from this implementation.
 
 Exit: the implementation is understandable through one ownership model, obsolete
@@ -615,39 +619,113 @@ paths and temporary parity tooling are gone, and remaining limitations are expli
 
 ## Verification record
 
-Initial inspection began at local `dev` `3f382bf`. The checkpoint checkout later
-advanced to `8016eab`, preserving the intervening receipt and drawer changes.
-The preliminary implementation adds React-only contract types and validation,
-type fixtures, and capped/rescheduled queue deadline timers. It does not yet add
-`TransactionReviewHost`, reviewed `useWallet()` calls, reservations, or the wallet
-handoff and signing admission protocol.
+Implementation checkout: `/Users/pta/Dev/rust/seams-wallet-custom-components`, branch
+`codex/refactor-140-custom-components`, based on the user-authorized `55f091d`
+checkpoint. The implementation, packaging correction, and fixture updates are
+recorded in separate commits on this branch.
 
-Commands executed during the initial implementation run:
+Reused ownership paths: `createPublicApi` capability factories → the existing
+transaction methods → `WalletIframeRouter.post` → the existing host handlers.
+`WalletIframeTransactionSurfaceQueue` owns the single lease. The host passes its
+request admission object through `runtimeContext` and the confirmation binding;
+this avoids a duplicated registry across boot/runtime bundles. Signer callbacks
+capture that request before asynchronous preparation. Cancellation retains the
+lease until core unwinds, and aborts pre-signing WebAuthn through the existing
+prompt cancellation channel.
 
-- `pnpm -C packages/wallet type-check` — passed before and after the changes.
-- `pnpm -C tests type-check:wallet-state` — passed, including the new review fixtures.
-- `pnpm -C tests test:wallet-browser wallet-iframe/router.cancellationProgress.test.ts wallet-iframe/router.connectionClosed.test.ts wallet-iframe/router.sessionExpiryLifecycle.test.ts wallet-iframe/walletIframeSurface.compact.integration.test.ts wallet-ui/confirmation-mount.browser.test.ts --project=chromium`
-  — 31 passed.
-- `pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts unit/transactionSurfaceQueue.deadline.test.ts --project=chromium`
-  — 1 passed.
-- `pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts unit/transactionReview.contract.test.ts --project=chromium`
-  — 1 passed.
-- An initial `test:wallet-unit` invocation unintentionally selected the full unit
-  directory and was interrupted after 195 passes; it is not a completed suite run.
+Verification on 2026-09-22:
 
-Visual baseline captures, Firefox/WebKit, credential-gated contracts, package
-builds, and the remaining Phase 5 gates have not run for this implementation.
+- SDK type check, wallet-state type fixtures and browser-test type check passed.
+- Development SDK build and `NODE_ENV=production pnpm -C packages/wallet build:sdk`
+  passed, including hosted static-asset and runtime-boundary checks. Generated
+  WASM packages were reused unchanged; this TypeScript/UI change did not rebuild Rust.
+- Bundle report: hosted boot path 88.3 KiB raw / 23.9 KiB gzip; browser JS union
+  6.24 MiB raw / 1.19 MiB gzip. The new review admission/metadata chunks contain no React.
+- External consumer declaration check passed. Wallet Console Lite type check and
+  production build passed with the new testnet purchase example.
+- Reviewed transaction tests: nine cases passed in each of Chromium, Firefox and
+  WebKit (27 total). An additional missing-activation-acknowledgement case and
+  the handoff/CSP case passed across the three browsers (six checks). The suite exercises a
+  real cross-origin frame and production admission/Preact confirmation components,
+  while its signer result is a fixture. It covers context, StrictMode, immutable
+  input, explicit wallet approval, FIFO expiry, disposal, stale controls, fallback,
+  viewport clamping, reduced motion, signing/cancellation arbitration, all six
+  adapters' core failures/callbacks, host registration, and Suspense timeout.
+- Focused router/session/geometry and contract/snapshot/deadline regression run:
+  26 Chromium cases passed; the final geometry/snapshot subset passed 14 cases. Confirmation/receipt regression cases passed in all
+  three browsers in the matrix run (33 cases).
+- Parent and child use external wallet CSS under `style-src 'self';
+  style-src-attr 'none'`. The WebKit keyboard-focus/CSP handoff check passed.
+  Temporary screenshots were inspected outside Git and capture code was removed.
+- `pnpm test:intended` passed its type check, then stopped before execution because
+  the Google ID token is missing. This is an environment failure, not a passing
+  credential/signing contract run.
 
-During implementation, record each executed command, revision, result, and any
-infrastructure limitation here. Begin with existing
-`router.cancellationProgress.test.ts`, `router.connectionClosed.test.ts`,
-`router.sessionExpiryLifecycle.test.ts`, `walletIframeSurface.compact.integration.test.ts`,
-and confirmation mount tests. Add focused reviewed-transaction lifecycle and
-cross-origin host tests in the existing `tests/` workspaces; use shared factories.
-Read `tests/AGENTS.md` if present before editing tests. Keep permanent tests for
-the behavior above and the six-method result/callback matrix. Acceptance requires
-the Phase 5 checks and intended-behavior specification to agree; skipped checks
-remain explicit limitations.
+Completion follow-up on 2026-09-22:
+
+- Added the missing expired, slow-loading, and failing purchase-demo cases.
+- Added keyboard/local-input, same-wallet session replacement, render-boundary,
+  and post-signing host-disposal tests. All fourteen review cases have passing
+  results in Chromium, Firefox, and WebKit, plus five contract/snapshot checks.
+  The combined run passed 46 checks; its WebKit keyboard case passed on rerun
+  using macOS Option-Tab for traversal of native buttons.
+- Corrected two fixtures: the simulated signer now reports wallet cancellation,
+  and the session test imports the bridge from the React build's module tree.
+- Removed a redundant review type and fixed visibility-listener cleanup when a
+  quote expires immediately as its controller starts.
+- Added shared-memory byte mutation to the snapshot contract. The check exposed
+  that `structuredClone` retains shared storage; public `Uint8Array` intents now
+  copy into private byte storage before review begins.
+- Production SDK/example builds, example type check, browser-test type check,
+  and wallet-state type fixtures passed during the follow-up.
+- Reused the existing Google test service-account configuration to refresh a
+  token into the ignored worktree-local environment. The original checkout and
+  cloud IAM configuration were not changed. The initial missing-token blocker
+  is resolved. Local Wallet service Rust/WASM builds completed successfully.
+- The isolated passkey registration contract passed in 28.2 seconds, including
+  Tempo, NEAR, and EVM signatures and post-unlock signing. Its first run stalled
+  because the shared intended harness left a completed receipt over the next
+  action. The harness now closes that receipt after operation settlement,
+  including its concurrent Tempo/EVM signing path.
+- After the startup-expiry cleanup fix, the final SDK build and intended type
+  check passed; six cancellation/FIFO-expiry checks passed across all browsers.
+- The full intended run passed its first nine cases, then encountered the Yao
+  fault-injection infrastructure guard: it requires `https://localhost:4101`,
+  while this repository's isolated runner starts `http://127.0.0.1:4100`. The
+  required server-side fault-header implementation is absent here. Both Yao
+  fault-injection cases remain blocked; their expectations and guard are intact.
+- The remaining twelve intended contracts passed after completing the shared
+  receipt cleanup. Total: 21 intended contracts passed, two blocked by the missing
+  fault-injection proxy. Coverage includes recovery, code reuse refusal, failed
+  and lost-response finalization, auth-method addition, export, sustained signing,
+  session step-up, refresh, and cold unlock.
+- The four snapshot/wire/configuration checks passed after the shared-memory
+  byte-copy correction, along with the wallet-state type fixtures.
+
+Failures classified and resolved during verification:
+
+- Test fixture corrections: startup prefetch response, enabled signing capability,
+  wallet-origin module/CSS URLs, and deterministic keyboard opener focus in Safari.
+- The existing drawer-close test used an obsolete `Cancel` aria-label. Its valid
+  callback/cleanup invariant now targets the existing `Close` button.
+- A real bundle-boundary defect in the initial implementation was fixed by passing
+  the admission object explicitly between boot and runtime bundles.
+- Consumer build exposed a pre-existing packaging defect: viem's extensionless v1
+  noble hash import was externalized against the SDK's v2 dependency. The library
+  build now retains viem's own dependency; direct SDK v2 imports stay external.
+- Bare Node import of the broad React entry encounters existing CSS imports;
+  Vite SSR import passed with the exported review host present.
+
+Limitations: browser fixtures do not execute live MPC/broadcast or hardware
+credentials. Manual screen-reader and mobile-keyboard sessions have not run.
+The detailed phase checklist above remains the release acceptance inventory;
+unchecked multi-part items include checks beyond the automated evidence here.
+
+Remaining release work: provide the local Yao fault-injection proxy and run its
+two contracts; complete the manual screen-reader/mobile-keyboard and full visual
+acceptance matrix, including desktop 200% zoom. The custom-review browser suite
+uses simulated signer results; the intended contracts exercise the existing live
+signing paths. Publication and deployment are separate actions.
 
 ## Later enhancement: toggleable views
 

@@ -566,6 +566,7 @@ export async function createEvmFamilySigningFlowRuntime(args: {
       : undefined;
 
   const secp256k1Engine = new Secp256k1Engine({
+    beforeSigning: args.deps.beforeSigning,
     getRpId: () => ctx.touchIdPrompt.getRpId(),
     workerCtx,
     shouldAbort: args.shouldAbort,
@@ -632,7 +633,7 @@ export async function createEvmFamilySigningFlowRuntime(args: {
     onEvent: args.onEvent,
     engines: {
       secp256k1: secp256k1Engine,
-      webauthnP256: new WebAuthnP256Engine(workerCtx),
+      webauthnP256: new WebAuthnP256Engine(workerCtx, args.deps.beforeSigning),
     },
     ...(resolvedSigner && capability
       ? {

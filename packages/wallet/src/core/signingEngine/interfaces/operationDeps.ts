@@ -126,6 +126,7 @@ export type PasskeyEcdsaSigningLookupArgs = EcdsaSigningLookupArgs & {
 };
 
 export type EvmFamilySigningDeps = DurableEmailOtpEcdsaSigningSessionAuthorityResolver & {
+  beforeSigning?: () => void;
   activeWalletAuthorityEcdsaRuntimeReadPorts: ExactWalletSessionReadPorts;
   resolveOwnerLaneScope: (walletId: WalletId) => Promise<OwnerLaneScope>;
   resolveCanonicalEcdsaSigningCapability: (args: {

@@ -1,3 +1,4 @@
+import type { TransactionReviewWire, TransactionReviewStateMessage } from './transactionReview';
 // Typed RPC messages for the wallet service iframe channel (SeamsWeb-first)
 import type { BootstrapThresholdEcdsaSessionArgs } from '@/SeamsWeb/signingSurface/types';
 import { SignedTransaction } from '@/core/rpcClients/near/NearClient';
@@ -869,6 +870,7 @@ export type ParentToChildType =
   | 'PM_TRANSACTION_BROADCAST_STARTED'
   | 'PING'
   | 'PM_SET_CONFIG'
+  | 'PM_ACTIVATE_TRANSACTION_REVIEW'
   | 'PM_CANCEL'
   | 'PM_OPEN_AUTH_MENU'
   | 'PM_CANCEL_AUTH_MENU'
@@ -990,6 +992,8 @@ export interface PMSetConfigPayload extends Partial<SeamsConfigsInput> {
 
 export interface PMCancelPayload {
   requestId?: string; // when omitted, host may attempt best-effort global cancel (close UIs)
+  transactionReview?: TransactionReviewWire;
+  reviewErrorCode?: import('./transactionReview').TransactionReviewCancellationCode;
 }
 
 declare const hostedWalletExchangeCodeBrand: unique symbol;
@@ -1755,7 +1759,11 @@ export interface ErrorPayload {
   details?: unknown;
 }
 
+type ReviewedTransactionEnvelope<T> = T &
+  ({ readonly transactionReview?: never } | { readonly transactionReview: TransactionReviewWire });
+
 export type ParentToChildEnvelope =
+  | RpcEnvelope<'PM_ACTIVATE_TRANSACTION_REVIEW', TransactionReviewStateMessage>
   | RpcEnvelope<'PM_SET_TRANSACTION_VIEW', { requestId: string; view: 'toast' | 'closed' }>
   | RpcEnvelope<'PM_TRANSACTION_BROADCAST_STARTED', { signedTransaction: string }>
   | RpcEnvelope<'PING'>
@@ -1809,16 +1817,16 @@ export type ParentToChildEnvelope =
       PMRequestWalletCustodyEmailOtpChallengePayload
     >
   | RpcEnvelope<'PM_SIGN_TX_WITH_ACTIONS', PMSignTxPayload>
-  | RpcEnvelope<'PM_SIGN_AND_SEND_TX', PMSignAndSendTxPayload>
+  | ReviewedTransactionEnvelope<RpcEnvelope<'PM_SIGN_AND_SEND_TX', PMSignAndSendTxPayload>>
   | RpcEnvelope<
       'PM_FUND_IMPLICIT_NEAR_ACCOUNT_FOR_TESTING',
       PMFundImplicitNearAccountForTestingPayload
     >
   | RpcEnvelope<'PM_SEND_TRANSACTION', PMSendTxPayload>
-  | RpcEnvelope<'PM_EXECUTE_ACTION', PMExecuteActionPayload>
+  | ReviewedTransactionEnvelope<RpcEnvelope<'PM_EXECUTE_ACTION', PMExecuteActionPayload>>
   | RpcEnvelope<'PM_SIGN_DELEGATE_ACTION', PMSignDelegateActionPayload>
   | RpcEnvelope<'PM_SIGN_NEP413', PMSignNep413Payload>
-  | RpcEnvelope<'PM_SIGN_TEMPO', PMSignTempoPayload>
+  | ReviewedTransactionEnvelope<RpcEnvelope<'PM_SIGN_TEMPO', PMSignTempoPayload>>
   | RpcEnvelope<'PM_REPORT_TEMPO_BROADCAST_ACCEPTED', PMReportTempoBroadcastAcceptedPayload>
   | RpcEnvelope<'PM_REPORT_TEMPO_BROADCAST_REJECTED', PMReportTempoBroadcastRejectedPayload>
   | RpcEnvelope<'PM_REPORT_TEMPO_FINALIZED', PMReportTempoFinalizedPayload>
@@ -1874,6 +1882,7 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_SYNC_ACCOUNT_FLOW', { walletId?: string }>;
 
 export type ChildToParentEnvelope =
+  | RpcEnvelope<'TRANSACTION_REVIEW_STATE', TransactionReviewStateMessage>
   | RpcEnvelope<'TRANSACTION_ACTIVITY', 'expanded' | 'toast' | 'closed'>
   | RpcEnvelope<'READY', ReadyPayload>
   | RpcEnvelope<'PONG'>

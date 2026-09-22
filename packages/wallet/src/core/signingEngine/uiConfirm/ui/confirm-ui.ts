@@ -1,3 +1,7 @@
+import {
+  reviewAdmissionForBinding,
+  type TransactionReviewAdmission,
+} from '../transactionReviewAdmission';
 import { __isWalletIframeHostMode } from '@/core/browser/walletIframe/host-mode';
 import { retainTransactionActivity } from './transaction-activity';
 import type { UserConfirmSecurityContext, TransactionInputWasm } from '@/core/types';
@@ -211,10 +215,7 @@ function resolveExplorerUrlsFromModel(
   return { evmExplorerUrl: explorerUrl };
 }
 
-function applyHostElementProps(
-  host: ConfirmationSurfaceController,
-  props?: ConfirmUIUpdate,
-): void {
+function applyHostElementProps(host: ConfirmationSurfaceController, props?: ConfirmUIUpdate): void {
   if (!props) return;
   host.update(props);
   if (Object.hasOwn(props, 'model')) {
@@ -309,10 +310,9 @@ function bindConfirmSurfaceMeasurementReporter(
   variant: 'modal' | 'drawer',
   binding: UiConfirmSurfaceMeasurementBinding,
 ): void {
+  reviewAdmissionForBinding(binding)?.attach(element);
   applyConfirmSurfaceMode(element, variant, binding);
-  if (
-    sameSurfaceMeasurementBinding(confirmSurfaceMeasurementBindings.get(element), binding)
-  ) {
+  if (sameSurfaceMeasurementBinding(confirmSurfaceMeasurementBindings.get(element), binding)) {
     return;
   }
   disconnectConfirmSurfaceMeasurementReporter(element);
@@ -333,7 +333,9 @@ type ConfirmationDecisionChannel = {
   takeDecision(): Promise<ConfirmUISurfaceDecision>;
 };
 
-function createConfirmationDecisionChannel(): ConfirmationDecisionChannel {
+function createConfirmationDecisionChannel(
+  admission?: TransactionReviewAdmission,
+): ConfirmationDecisionChannel {
   const queuedDecisions: ConfirmUISurfaceDecision[] = [];
   const decisionWaiters: Array<(decision: ConfirmUISurfaceDecision) => void> = [];
   const cancelListeners = new Set<(detail: { error?: string }) => void>();
@@ -353,10 +355,12 @@ function createConfirmationDecisionChannel(): ConfirmationDecisionChannel {
     cancelListeners,
     callbacks: {
       confirm: () => {
+        if (admission && !admission.allowInteraction()) return;
         publishDecision({ kind: 'confirmed', emailOtp: { kind: 'absent' } });
       },
       cancel: () => cancel(),
       submitEmail: (code, challengeId) => {
+        if (admission && !admission.allowInteraction()) return;
         const otpCode = code.trim();
         const emailOtpChallengeId = challengeId.trim();
         if (!otpCode || !emailOtpChallengeId) {
@@ -392,8 +396,12 @@ function createHostConfirmHandle(
       closed = true;
       if (!confirmed) channel.callbacks.cancel();
       channel.cancelListeners.clear();
-      if (confirmed && binding.kind === 'wallet_iframe' &&
-          retainTransactionActivity(binding.requestId, host)) return;
+      if (
+        confirmed &&
+        binding.kind === 'wallet_iframe' &&
+        retainTransactionActivity(binding.requestId, host)
+      )
+        return;
       disconnectConfirmSurfaceMeasurementReporter(host.element);
       host.close();
     },
@@ -736,6 +744,7 @@ function mountHostElement({
   signingAuthMode?: SigningAuthMode;
   emailOtpPrompt?: EmailOtpConfirmPrompt;
 }): MountedConfirmUIHandle {
+  reviewAdmissionForBinding(ctx.surfaceMeasurementBinding)?.assertPending();
   cleanupExistingConfirmers();
   const resolvedAppearance = resolveUiAppearance({
     getAppearance: ctx.getAppearance,
@@ -744,7 +753,9 @@ function mountHostElement({
   });
   const portal = ensureConfirmPortal();
   const explorerOverrides = resolveExplorerUrlsFromModel(ctx, model);
-  const channel = createConfirmationDecisionChannel();
+  const channel = createConfirmationDecisionChannel(
+    reviewAdmissionForBinding(ctx.surfaceMeasurementBinding),
+  );
   let host: ConfirmationSurfaceController;
   host = createConfirmationSurfaceController({
     parent: portal,

@@ -1,3 +1,16 @@
+import {
+  TransactionReviewAdmission,
+  transactionReviewAdmission,
+  cancelTransactionReviews,
+} from '@/core/signingEngine/uiConfirm/transactionReviewAdmission';
+import {
+  parseTransactionReviewWire,
+  transactionReviewCancellationCode,
+  parseTransactionReviewState,
+  sameTransactionReviewIdentity,
+  assertTransactionReviewValid,
+  TransactionReviewError,
+} from '../shared/transactionReview';
 import { bootstrapTransparentHost } from './bootstrap';
 import type {
   ChildToParentEnvelope,
@@ -134,7 +147,8 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
   const markCancelled = (rid?: string): void => {
     if (rid) cancelledRequests.add(rid);
   };
-  const isCancelled = (rid?: string): boolean => !!rid && cancelledRequests.has(rid);
+  const isCancelled = (rid?: string): boolean =>
+    !!rid && (cancelledRequests.has(rid) || transactionReviewAdmission(rid)?.cancelled === true);
   const clearCancelled = (rid?: string): void => {
     if (rid) cancelledRequests.delete(rid);
   };
@@ -148,6 +162,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
   };
   const respondIfCancelled = (requestId: string | undefined): boolean => {
     if (!requestId || !isCancelled(requestId)) return false;
+    if (transactionReviewAdmission(requestId)?.cancelled) return true;
     emitCancellationPayload(requestId);
     clearCancelled(requestId);
     return true;
@@ -178,7 +193,59 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
     if (!req || !isObject(req)) return;
     const requestId = req.requestId;
 
+    let reviewAdmission: TransactionReviewAdmission | null = null;
     try {
+      if ('transactionReview' in req) {
+        if (
+          req.type !== 'PM_SIGN_AND_SEND_TX' &&
+          req.type !== 'PM_EXECUTE_ACTION' &&
+          req.type !== 'PM_SIGN_TEMPO'
+        ) {
+          throw new TransactionReviewError(
+            'review_invalid_input',
+            'Review is unsupported for this request',
+          );
+        }
+        const metadata = parseTransactionReviewWire(req.transactionReview);
+        if (metadata.requestId !== requestId)
+          throw new TransactionReviewError(
+            'review_invalid_input',
+            'Review request identity mismatch',
+          );
+        const config = req.payload?.options?.confirmationConfig;
+        if (config?.uiMode !== 'modal' || config.behavior !== 'requireClick') {
+          throw new TransactionReviewError(
+            'review_unsupported_mode',
+            'Review requires modal presentation and explicit approval',
+          );
+        }
+        reviewAdmission = new TransactionReviewAdmission(
+          metadata,
+          req.type === 'PM_SIGN_TEMPO' &&
+            req.payload?.request.senderSignatureAlgorithm !== 'secp256k1'
+            ? 'credential'
+            : 'mpc',
+          (payload) => post({ type: 'TRANSACTION_REVIEW_STATE', requestId, payload }),
+          (error) =>
+            post({
+              type: 'ERROR',
+              requestId,
+              payload: {
+                code: error instanceof TransactionReviewError ? error.code : 'cancelled',
+                message: error.message,
+              },
+            }),
+        );
+      }
+      if (
+        req.type === 'PM_LOCK' ||
+        req.type === 'PM_LOGOUT' ||
+        req.type === 'PM_LOCK_EXACT_WALLET_SESSION'
+      ) {
+        cancelTransactionReviews(
+          new TransactionReviewError('review_identity_changed', 'The wallet session changed'),
+        );
+      }
       const route = routeWalletHostRequest(req);
 
       if (!routeRequiresRuntime(route)) {
@@ -197,8 +264,50 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
             }
             post({ type: 'PONG', requestId });
             return;
+          case 'PM_ACTIVATE_TRANSACTION_REVIEW': {
+            const identity = parseTransactionReviewState(route.request.payload);
+            if (identity) transactionReviewAdmission(identity.requestId)?.activate(identity);
+            return;
+          }
           case 'PM_CANCEL': {
             const rid = (route.request.payload as { requestId?: string } | undefined)?.requestId;
+            const cancelPayload = route.request.payload;
+            const rawReview =
+              cancelPayload && typeof cancelPayload === 'object'
+                ? Reflect.get(cancelPayload, 'transactionReview')
+                : undefined;
+            if (rawReview !== undefined) {
+              const identity = parseTransactionReviewWire(rawReview);
+              const reviewed = transactionReviewAdmission(identity.requestId);
+              if (
+                identity.requestId === rid &&
+                reviewed &&
+                sameTransactionReviewIdentity(identity, reviewed.metadata)
+              ) {
+                let error: Error = new TransactionReviewError(
+                  transactionReviewCancellationCode(
+                    cancelPayload && typeof cancelPayload === 'object'
+                      ? Reflect.get(cancelPayload, 'reviewErrorCode')
+                      : undefined,
+                  ),
+                  'Reviewed request cancelled',
+                );
+                try {
+                  assertTransactionReviewValid(reviewed.metadata.validity);
+                } catch (expired) {
+                  if (expired instanceof Error) error = expired;
+                }
+                reviewed.cancel(error);
+              }
+              post({ type: 'PONG', requestId });
+              return;
+            }
+            const reviewed = rid ? transactionReviewAdmission(rid) : undefined;
+            if (reviewed) {
+              reviewed.cancel(new TransactionReviewError('cancelled', 'Request cancelled'));
+              post({ type: 'PONG', requestId });
+              return;
+            }
             markCancelled(rid);
             cancelOpenConfirmers();
             if (rid) emitCancellationPayload(rid);
@@ -207,19 +316,26 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
           }
           case 'PM_SET_TRANSACTION_VIEW': {
             const payload = route.request.payload;
-            const target = payload && typeof payload === 'object' ? Reflect.get(payload, 'requestId') : null;
-            const view = payload && typeof payload === 'object' ? Reflect.get(payload, 'view') : null;
+            const target =
+              payload && typeof payload === 'object' ? Reflect.get(payload, 'requestId') : null;
+            const view =
+              payload && typeof payload === 'object' ? Reflect.get(payload, 'view') : null;
             if (typeof target === 'string' && (view === 'toast' || view === 'closed')) {
-              const activity = await import('@/core/signingEngine/uiConfirm/ui/transaction-activity');
+              const activity =
+                await import('@/core/signingEngine/uiConfirm/ui/transaction-activity');
               activity.setTransactionActivityView(target, view);
             }
             return;
           }
           case 'PM_TRANSACTION_BROADCAST_STARTED': {
             const payload = route.request.payload;
-            const signedTransaction: unknown = payload && typeof payload === 'object' ? Reflect.get(payload, 'signedTransaction') : null;
+            const signedTransaction: unknown =
+              payload && typeof payload === 'object'
+                ? Reflect.get(payload, 'signedTransaction')
+                : null;
             if (typeof signedTransaction === 'string') {
-              const activity = await import('@/core/signingEngine/uiConfirm/ui/transaction-activity');
+              const activity =
+                await import('@/core/signingEngine/uiConfirm/ui/transaction-activity');
               activity.transactionBroadcastStarted(signedTransaction);
             }
             return;
@@ -241,6 +357,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
 
       const runtime = await loadWalletHostRuntime(route);
       await runtime.handleWalletHostRuntimeRequest({
+        transactionReview: reviewAdmission,
         state,
         req: route.request,
         post,
@@ -248,6 +365,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
         respondIfCancelled,
       });
     } catch (err: unknown) {
+      if (reviewAdmission?.cancelled) return;
       const canonicalSignerErrors = await import('./canonicalSignerErrorCode');
       const codeRaw =
         err && typeof err === 'object' && 'code' in err
@@ -280,6 +398,8 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
             : {}),
         },
       });
+    } finally {
+      reviewAdmission?.finish();
     }
   };
 

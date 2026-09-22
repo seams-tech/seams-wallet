@@ -1,3 +1,5 @@
+import { registerTransactionReviewBridge } from './transactionReview';
+import type { TransactionReviewReservation } from '../walletIframe/client/transactionReviewReservation';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
 import type { SeamsConfigsReadonly, ThemeMode } from '@/core/types/seams';
@@ -111,7 +113,7 @@ type PublicApiSigningSurface = RegistrationSigningSurface &
   TempoSigningSurface &
   EcdsaSessionBootstrapSurface;
 
-export function createPublicApi(deps: {
+type PublicApiDependencies = {
   signingEngine: PublicApiSigningSurface;
   nearClient: NearClient;
   configs: SeamsConfigsReadonly;
@@ -124,7 +126,9 @@ export function createPublicApi(deps: {
   recovery: RecoveryCapabilityDomainMethods;
   devices: DevicesCapabilityDomainMethods;
   keys: KeyExportCapabilityDomainMethods;
-}): SeamsWebPublicApi {
+};
+
+export function createPublicApi(deps: PublicApiDependencies): SeamsWebPublicApi {
   const getAccountSyncContext = (): AccountSyncWebContext => ({
     signingEngine: deps.signingEngine,
     nearClient: deps.nearClient,
@@ -152,15 +156,19 @@ export function createPublicApi(deps: {
   const currentWallet: CurrentWalletResolver = createCurrentWalletResolver({
     getWalletSession: auth.getWalletSession,
   });
-  // One EVM-family implementation, reached from `seams.evm` (generic) and still
-  // exposed as `seams.tempo` for the deprecated names.
-  const evmFamily = createTempoSignerCapability({
+  const signingDeps = {
     signingEngine: deps.signingEngine,
     nearClient: deps.nearClient,
     configs: deps.configs,
     getTheme: deps.getTheme,
     getWalletIframe: deps.getWalletIframe,
     currentWallet,
+  };
+  const near = createNearSignerCapability(signingDeps);
+  const evmFamily = createTempoSignerCapability(signingDeps);
+  registerTransactionReviewBridge(near, {
+    getWalletIframe: deps.getWalletIframe,
+    createCapabilities: createReviewedCapabilities.bind(null, signingDeps),
   });
   return {
     walletIframeControls: {
@@ -211,14 +219,7 @@ export function createPublicApi(deps: {
       currentWallet,
       domain: deps.keys,
     }),
-    near: createNearSignerCapability({
-      signingEngine: deps.signingEngine,
-      nearClient: deps.nearClient,
-      configs: deps.configs,
-      getTheme: deps.getTheme,
-      getWalletIframe: deps.getWalletIframe,
-      currentWallet,
-    }),
+    near,
     tempo: evmFamily,
     evm: createEvmSignerCapability({
       signingEngine: deps.signingEngine,
@@ -229,5 +230,21 @@ export function createPublicApi(deps: {
       currentWallet,
       evmFamily,
     }),
+  };
+}
+
+function createReviewedCapabilities(
+  deps: Pick<
+    PublicApiDependencies,
+    'signingEngine' | 'nearClient' | 'configs' | 'getTheme' | 'getWalletIframe'
+  > & { currentWallet: CurrentWalletResolver },
+  reservation: TransactionReviewReservation,
+) {
+  const dispatch = { kind: 'reviewed', reservation } as const;
+  const tempo = createTempoSignerCapability(deps, dispatch);
+  return {
+    near: createNearSignerCapability(deps, dispatch),
+    tempo,
+    evm: createEvmSignerCapability({ ...deps, evmFamily: tempo }, dispatch),
   };
 }

@@ -1340,6 +1340,7 @@ export async function tryFinalizeRouterAbEd25519NearTransactionNormalSigning(
       thresholdKeyMaterial: args.thresholdKeyMaterial,
     }).credential;
   }
+  args.ctx.beforeSigning?.();
   const signatureResult = isRouterAbEd25519OperationStepUpSigning(args)
     ? await tryFinalizeRouterAbEd25519NormalSigningSignature({
         thresholdSessionId: args.thresholdSessionId,

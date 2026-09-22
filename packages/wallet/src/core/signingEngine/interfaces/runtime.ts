@@ -31,6 +31,7 @@ export type NearSigningKeyMaterialStorePort = NearAccountClientDbPort &
  * Keeps chain signing logic decoupled from SignerWorkerManager internals.
  */
 export interface NearSigningRuntimeDeps {
+  beforeSigning?: () => void;
   resolveOperationStepUpCredential: (args: {
     walletId: WalletId;
     relayerUrl: string;

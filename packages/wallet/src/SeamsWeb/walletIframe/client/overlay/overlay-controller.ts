@@ -1,3 +1,4 @@
+import type { AppearanceConfigInput } from '@/core/types/seams';
 import type { HostedAuthMenuSessionId } from '../../shared/messages';
 import type { RequestSurfaceIdentity } from '../surface/domain';
 import {
@@ -7,6 +8,8 @@ import {
 import type { WalletIframeSurfaceRenderMode } from '../surface/renderer';
 import {
   clearDialogGeometry,
+  setTransactionReviewAppearance,
+  clearTransactionReviewAppearance,
   ensureOverlayDialog,
   OverlayStyleClasses,
   setDialogGeometry,
@@ -98,6 +101,7 @@ function presentationKind(
   mode: Exclude<OverlayRenderMode, { kind: 'hidden' }>,
 ): 'modal' | 'drawer' {
   switch (mode.kind) {
+    case 'compact_transaction_review':
     case 'compact_request_modal':
     case 'compact_auth_menu':
       return 'modal';
@@ -131,6 +135,7 @@ function diagnosticsMode(mode: OverlayRenderMode): OverlayControllerState['mode'
   switch (mode.kind) {
     case 'hidden':
       return 'hidden';
+    case 'compact_transaction_review':
     case 'compact_request_modal':
     case 'compact_auth_menu':
       return mode.geometry.kind === 'viewport_fallback' ? 'viewport_fallback' : 'compact_modal';
@@ -177,6 +182,7 @@ export class OverlayController {
   private dismissHandler: ((event: OverlayDismissEvent) => void | Promise<void>) | undefined;
   private dialog: HTMLDialogElement | null = null;
   private iframe: HTMLIFrameElement | null = null;
+  private reviewSlot: HTMLDivElement | null = null;
   private mode: OverlayRenderMode = { kind: 'hidden' };
   private visible = false;
   private generation = 0;
@@ -192,6 +198,7 @@ export class OverlayController {
   private dialogDisplayMode: 'modal' | 'nonmodal' | null = null;
   private pendingRevealFrame: number | null = null;
   private surfaceResizeAnimation: Animation | null = null;
+  private surfaceResizeTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(opts: OverlayControllerOptions) {
     this.ensureIframe = opts.ensureIframe;
@@ -206,6 +213,23 @@ export class OverlayController {
     return this.ensureDialog().iframe;
   }
 
+  getTransactionReviewSlot(): HTMLElement {
+    const { dialog } = this.ensureDialog();
+    if (!this.reviewSlot) {
+      this.reviewSlot = document.createElement('div');
+      this.reviewSlot.className = 'seams-transaction-review-slot';
+      this.reviewSlot.id = `${dialog.id}-review`;
+      this.reviewSlot.hidden = true;
+      this.reviewSlot.inert = true;
+      dialog.appendChild(this.reviewSlot);
+    }
+    return this.reviewSlot;
+  }
+
+  setReviewAppearance(appearance: AppearanceConfigInput | undefined): void {
+    setTransactionReviewAppearance(this.getTransactionReviewSlot(), appearance);
+  }
+
   setAuthMenuVisualScale(scale: number): void {
     this.authMenuVisualScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
   }
@@ -215,6 +239,7 @@ export class OverlayController {
       case 'hidden':
         this.hideOverlay();
         return;
+      case 'compact_transaction_review':
       case 'compact_request_modal':
       case 'compact_request_drawer':
       case 'compact_auth_menu':
@@ -279,7 +304,7 @@ export class OverlayController {
       geometryKind(this.lastAppliedGeometry) !== 'provisional' &&
       geometryKind(mode.geometry) !== 'provisional';
     const requestResizeOrigin =
-      mode.kind === 'compact_request_modal' &&
+      (mode.kind === 'compact_request_modal' || mode.kind === 'compact_transaction_review') &&
       !identityChanged &&
       geometryChanged &&
       previousGeometryKind === 'measured' &&
@@ -324,8 +349,19 @@ export class OverlayController {
       }
       if (requestResizeOrigin) releaseDialogIframe(dialog);
     }
-    iframe.setAttribute('aria-hidden', 'false');
-    iframe.removeAttribute('tabindex');
+    const reviewing = mode.kind === 'compact_transaction_review';
+    if (reviewing) dialog.setAttribute('data-transaction-review', '');
+    else if (!this.mode || !('identity' in this.mode) || identityChanged)
+      dialog.removeAttribute('data-transaction-review');
+    iframe.inert = reviewing;
+    iframe.classList.toggle('seams-review-wallet-inactive', reviewing);
+    iframe.setAttribute('aria-hidden', String(reviewing));
+    if (reviewing) iframe.setAttribute('tabindex', '-1');
+    else iframe.removeAttribute('tabindex');
+    const slot = this.getTransactionReviewSlot();
+    slot.hidden = !reviewing;
+    slot.inert = !reviewing;
+    slot.setAttribute('aria-hidden', String(!reviewing));
     iframe.setAttribute('title', mode.presentation.title);
     dialog.setAttribute('aria-label', mode.presentation.title);
     dialog.classList.remove(OverlayStyleClasses.HIDDEN);
@@ -371,13 +407,16 @@ export class OverlayController {
       easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)',
     });
     this.surfaceResizeAnimation = animation;
+    this.surfaceResizeTimer = setTimeout(
+      this.cancelSurfaceResize.bind(this),
+      SURFACE_RESIZE_DURATION_MS,
+    );
     animation.addEventListener('finish', this.handleSurfaceResizeFinished, { once: true });
   }
 
   private readonly handleSurfaceResizeFinished = (event: Event): void => {
     if (event.currentTarget !== this.surfaceResizeAnimation) return;
-    this.surfaceResizeAnimation?.cancel();
-    this.surfaceResizeAnimation = null;
+    this.cancelSurfaceResize();
   };
 
   private cancelPendingReveal(): void {
@@ -387,6 +426,8 @@ export class OverlayController {
   }
 
   private cancelSurfaceResize(): void {
+    if (this.surfaceResizeTimer) clearTimeout(this.surfaceResizeTimer);
+    this.surfaceResizeTimer = null;
     this.surfaceResizeAnimation?.cancel();
     this.surfaceResizeAnimation = null;
   }
@@ -425,6 +466,10 @@ export class OverlayController {
     this.lastAppliedAuthMenuVisualScale = 1;
     if (!this.dialog) {
       return;
+    }
+    if (this.reviewSlot) {
+      this.reviewSlot.hidden = true;
+      this.reviewSlot.inert = true;
     }
     const iframe = this.iframe;
     if (iframe) {
@@ -565,9 +610,11 @@ export class OverlayController {
       dialog.close();
     }
     clearDialogGeometry(dialog);
+    if (this.reviewSlot) clearTransactionReviewAppearance(this.reviewSlot);
     dialog.remove();
     this.dialog = null;
     this.iframe = null;
+    this.reviewSlot = null;
     this.listenersInstalled = false;
     this.dismissHandler = undefined;
   }

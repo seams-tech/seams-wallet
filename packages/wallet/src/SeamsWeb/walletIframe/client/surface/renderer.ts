@@ -19,7 +19,7 @@ import type { HostedAuthMenuSessionId } from '../../shared/messages';
 export type WalletIframeSurfaceRenderMode =
   | { kind: 'hidden' }
   | {
-      kind: 'compact_request_modal';
+      kind: 'compact_request_modal' | 'compact_transaction_review';
       presentation: WalletIframeModalPresentation;
       geometry: WalletIframeModalGeometry;
       focusTrap: boolean;
@@ -144,6 +144,20 @@ export function renderWalletIframeSurface(
 
   const resolvedGeometry = geometryForSurface(surface.presentation, geometry);
   switch (surface.kind) {
+    case 'modal_transaction_review': {
+      if (!isModalGeometry(resolvedGeometry)) throw new Error('Review requires modal geometry');
+      const geometry =
+        resolvedGeometry.kind === 'provisional_centered_modal'
+          ? { ...resolvedGeometry, kind: 'centered_modal' as const }
+          : resolvedGeometry;
+      return {
+        kind: 'compact_transaction_review',
+        presentation: surface.presentation,
+        geometry,
+        focusTrap: true,
+        identity: surface.identity,
+      };
+    }
     case 'modal_registration_confirm':
     case 'modal_transaction_confirm':
     case 'modal_key_export_confirm':
@@ -181,10 +195,24 @@ export function renderWalletIframeSurface(
 export class WalletIframeSurfaceRenderer {
   constructor(private readonly controller: WalletIframeSurfaceRenderController) {}
 
-  render(surface: WalletIframeSurface, geometry?: WalletIframeSurfaceGeometry, receiptView: 'expanded' | 'toast' | null = null): void {
-    if (receiptView && surface.kind === 'modal_transaction_confirm' && geometry && isModalGeometry(geometry)) {
-      this.controller.apply({ kind: 'compact_request_modal', geometry, focusTrap: receiptView === 'expanded',
-        identity: surface.identity, presentation: { kind: 'modal', title: 'Transaction receipt' } });
+  render(
+    surface: WalletIframeSurface,
+    geometry?: WalletIframeSurfaceGeometry,
+    receiptView: 'expanded' | 'toast' | null = null,
+  ): void {
+    if (
+      receiptView &&
+      surface.kind === 'modal_transaction_confirm' &&
+      geometry &&
+      isModalGeometry(geometry)
+    ) {
+      this.controller.apply({
+        kind: 'compact_request_modal',
+        geometry,
+        focusTrap: receiptView === 'expanded',
+        identity: surface.identity,
+        presentation: { kind: 'modal', title: 'Transaction receipt' },
+      });
       return;
     }
     this.controller.apply(renderWalletIframeSurface(surface, geometry));

@@ -8,7 +8,13 @@ import { walletIframeRequestIdFromBoundary } from '@/core/types/walletIframeIden
 
 type WalletHostRequest<T extends ParentToChildType> = ParentToChildEnvelope & { type: T };
 
-export type BootWalletRequestType = 'PING' | 'PM_SET_CONFIG' | 'PM_CANCEL' | 'PM_SET_TRANSACTION_VIEW' | 'PM_TRANSACTION_BROADCAST_STARTED';
+export type BootWalletRequestType =
+  | 'PM_ACTIVATE_TRANSACTION_REVIEW'
+  | 'PING'
+  | 'PM_SET_CONFIG'
+  | 'PM_CANCEL'
+  | 'PM_SET_TRANSACTION_VIEW'
+  | 'PM_TRANSACTION_BROADCAST_STARTED';
 export type NearWalletRequestType =
   | 'PM_REGISTER_WALLET'
   | 'PM_RESUME_PENDING_ECDSA_REGISTRATION'
@@ -147,6 +153,7 @@ function requireHostedAuthMenuRequestId(value: unknown): string {
 
 export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHostRoute {
   switch (request.type) {
+    case 'PM_ACTIVATE_TRANSACTION_REVIEW':
     case 'PING':
     case 'PM_SET_CONFIG':
     case 'PM_CANCEL':

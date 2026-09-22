@@ -70,7 +70,13 @@ async function buildProbe(config, fixtureName) {
   }
 }
 
-const library = await buildProbe(libraryConfig, 'PreactBuildProbe.tsx');
-const react = await buildProbe(reactConfig, 'ReactBuildProbe.tsx');
-const embedded = await buildProbe(embeddedConfig, 'PreactBuildProbe.tsx');
-process.stdout.write(JSON.stringify({ library, react, embedded }));
+const fixture = process.argv[2];
+if (fixture) {
+  if (path.basename(fixture) !== fixture) throw new Error('Expected a UI fixture filename');
+  process.stdout.write(JSON.stringify(await buildProbe(embeddedConfig, fixture)));
+} else {
+  const library = await buildProbe(libraryConfig, 'PreactBuildProbe.tsx');
+  const react = await buildProbe(reactConfig, 'ReactBuildProbe.tsx');
+  const embedded = await buildProbe(embeddedConfig, 'PreactBuildProbe.tsx');
+  process.stdout.write(JSON.stringify({ library, react, embedded }));
+}

@@ -85,6 +85,9 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     if (this.state.kind !== 'mounted') return;
     this.state.model = model;
     this.element.dataset.confirmationKind = model.content.kind;
+    this.element.dataset.seamsConfirmReady = String(
+      model.content.kind === 'transaction' && model.content.transaction.decision.kind === 'ready',
+    );
     this.element.dataset.theme = model.appearance.theme.mode;
     this.styles.setDynamicRule(
       this.element.id,

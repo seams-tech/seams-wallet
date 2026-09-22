@@ -1,3 +1,7 @@
+import type { AppearanceConfigInput } from '@/core/types/seams';
+import { resolveAppearanceTheme } from '@/core/config/configHelpers';
+import { DARK_THEME, LIGHT_THEME } from '@/base-styles';
+import { appearanceTokenCssRule } from '@/core/signingEngine/uiConfirm/ui/appearance-token-vars';
 /**
  * CSP-safe styles for the host-owned wallet iframe dialog.
  *
@@ -28,6 +32,26 @@ const CLASS_REVEAL_PENDING = 'is-reveal-pending';
 const DIALOG_ID_PREFIX = 'seams-wallet-overlay-dialog-';
 
 const BASE_CSS = `
+  .seams-transaction-review-slot {
+    position: absolute;
+    inset: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    box-sizing: border-box;
+    border: 1px solid var(--seams-colors-borderPrimary);
+    background: var(--seams-colors-colorBackground);
+    color: var(--seams-colors-textPrimary);
+    border-radius: min(var(--seams-shape-card, 16px), 2rem);
+    box-shadow: 0 12px 24px rgb(0 0 0 / 0.22), 0 2px 8px rgb(0 0 0 / 0.12);
+  }
+  .seams-transaction-review-slot[hidden] { display: none; }
+  .seams-review-wallet-inactive { opacity: 0; pointer-events: none; }
+  .seams-transaction-review-content { padding: 0.75rem; box-sizing: border-box; overflow-wrap: anywhere; }
+  .seams-transaction-review-slot[data-theme='light'] { border-color: var(--seams-colors-surface); }
+  .seams-transaction-review-content button { font: inherit; }
+  dialog.${CLASS_DIALOG}[data-transaction-review]::backdrop { background: rgb(0 0 0 / 0.26); }
+  .seams-transaction-review-content h2 { margin-top: 0; }
+
   dialog.${CLASS_DIALOG} {
     position: fixed;
     display: block;
@@ -444,3 +468,30 @@ export const OverlayStyleClasses = {
 };
 
 export const WALLET_IFRAME_DIALOG_ID_PREFIX = DIALOG_ID_PREFIX;
+
+export function setTransactionReviewAppearance(
+  slot: HTMLElement,
+  input: AppearanceConfigInput | undefined,
+): void {
+  const theme = resolveAppearanceTheme({
+    value: input?.theme,
+    fallback: { id: 'default', mode: 'dark', colors: {} },
+  });
+  slot.dataset.theme = theme.mode;
+  getStyleManager().setDynamicRule(
+    slot.id,
+    appearanceTokenCssRule(slot.id, {
+      palette: 'default',
+      theme: {
+        id: theme.id,
+        mode: theme.mode,
+        colors: { ...(theme.mode === 'light' ? LIGHT_THEME : DARK_THEME), ...theme.colors },
+        ...(theme.shape ? { shape: theme.shape } : {}),
+      },
+    }),
+  );
+}
+
+export function clearTransactionReviewAppearance(slot: HTMLElement): void {
+  getStyleManager().deleteDynamicRule(slot.id);
+}

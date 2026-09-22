@@ -1,3 +1,4 @@
+import type { TransactionReviewAdmission } from './transactionReviewAdmission';
 import type { WarmSessionMaterialOperationTarget } from '../session/emailOtp/sealedRuntimePurpose';
 /**
  * UiConfirm specs (types + interfaces).
@@ -68,9 +69,11 @@ export type ExportPrivateKeysWithUiOptions = {
 export type UiConfirmSurfaceMeasurementBinding =
   | {
       kind: 'disabled';
+      transactionReview?: never;
     }
   | {
       kind: 'wallet_iframe';
+      transactionReview?: TransactionReviewAdmission;
       requestId: WalletIframeRequestId;
       postMeasurement: (measurement: WalletIframeSurfaceMeasurement) => void;
       /**

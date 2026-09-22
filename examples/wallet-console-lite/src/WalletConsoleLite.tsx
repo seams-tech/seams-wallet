@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, type ChangeEvent, type FormEvent } from
 import {
   AccountMenuButton,
   SeamsWebProvider,
+  TransactionReviewHost,
   SHAPE_PRESETS,
   defineSeamsConfig,
   transfer,
@@ -22,6 +23,7 @@ import {
   type ReadyLocalWorkspace,
 } from './localWorkspace';
 import { ServerShareRecovery } from './ServerShareRecovery';
+import { PurchaseReviewExample } from './PurchaseReviewExample';
 
 type PlaygroundPage = 'wallet' | 'recovery';
 
@@ -136,7 +138,9 @@ function ConfiguredWalletPlayground({ workspace }: { workspace: ReadyLocalWorksp
   }, []);
   return (
     <SeamsWebProvider eager config={config} theme={theme}>
-      <WalletPlayground workspace={workspace} shape={shape} onShapeChange={handleShapeChange} />
+      <TransactionReviewHost>
+        <WalletPlayground workspace={workspace} shape={shape} onShapeChange={handleShapeChange} />
+      </TransactionReviewHost>
     </SeamsWebProvider>
   );
 }
@@ -386,6 +390,8 @@ function WalletPlayground({
             />
           )}
 
+          <PurchaseReviewExample />
+
           <details className="panel configuration">
             <summary>Public local configuration</summary>
             <dl>
@@ -481,9 +487,7 @@ function SignedInPanel(props: {
         <button
           type="button"
           onClick={props.onExportEvmKey}
-          disabled={
-            props.exportingKey !== null || !props.loginState.thresholdEcdsaEthereumAddress
-          }
+          disabled={props.exportingKey !== null || !props.loginState.thresholdEcdsaEthereumAddress}
         >
           {props.exportingKey === 'evm' ? 'Exporting EVM keys…' : 'Export EVM keys'}
         </button>

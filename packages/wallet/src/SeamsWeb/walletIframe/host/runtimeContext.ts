@@ -1,3 +1,4 @@
+import type { TransactionReviewAdmission } from '@/core/signingEngine/uiConfirm/transactionReviewAdmission';
 import type {
   ChildToParentEnvelope,
   ParentToChildEnvelope,
@@ -24,7 +25,12 @@ import {
 } from '@/core/types/walletIframeIdentity';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import { recordAdoptedWalletIframeParentOrigin } from './hostedWalletSeamsSession';
-import { beginTransactionActivity, observeTransactionActivity, observeTransactionLifecycleReport, failTransactionActivity } from '@/core/signingEngine/uiConfirm/ui/transaction-activity';
+import {
+  beginTransactionActivity,
+  observeTransactionActivity,
+  observeTransactionLifecycleReport,
+  failTransactionActivity,
+} from '@/core/signingEngine/uiConfirm/ui/transaction-activity';
 
 export type WalletHostRuntimeState = {
   parentOrigin: string | null;
@@ -33,6 +39,7 @@ export type WalletHostRuntimeState = {
 };
 
 export type WalletHostRuntimeRequest = {
+  transactionReview: TransactionReviewAdmission | null;
   state: WalletHostRuntimeState;
   req: ParentToChildEnvelope;
   post(msg: ChildToParentEnvelope): void;
@@ -110,6 +117,7 @@ function surfaceMeasurementBindingForRequest(
     requestId,
     binding: {
       kind: 'wallet_iframe',
+      ...(input.transactionReview ? { transactionReview: input.transactionReview } : {}),
       requestId,
       postMeasurement: postSurfaceMeasurement.bind(null, input),
       ...(hostSurfaceVariant ? { hostSurfaceVariant } : {}),
@@ -230,7 +238,10 @@ function buildHandlerDeps(ctx: HostContext, input: WalletHostRuntimeRequest): Ha
   };
 }
 
-function postActivityMessage(input: WalletHostRuntimeRequest, message: ChildToParentEnvelope): void {
+function postActivityMessage(
+  input: WalletHostRuntimeRequest,
+  message: ChildToParentEnvelope,
+): void {
   observeTransactionActivity(message);
   input.post(message);
 }
@@ -243,6 +254,7 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
   input: WalletHostRuntimeRequest,
   createHandlers: HandlerFactory,
 ): Promise<void> {
+  if (input.respondIfCancelled(input.req.requestId)) return;
   const ctx = syncRuntimeContext(input.state);
   beginTransactionActivity(input.req, input.post);
   const foregroundBinding = isForegroundConfirmationRequest(input)
