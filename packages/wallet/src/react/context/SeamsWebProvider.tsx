@@ -109,12 +109,15 @@ export const SeamsWebProvider: React.FC<SeamsWebProviderProps> = ({
 
   const {
     theme: controlledTheme,
-    setTheme,
+    setTheme: controlledSetTheme,
     tokens: reactTokenOverrides,
     ...themeOverrides
   } = theme ?? {};
   const configTokenOverrides = React.useMemo(() => resolveConfigTokenOverrides(config), [config]);
-  const rootTheme = controlledTheme || resolveConfigThemeMode(config) || 'dark';
+  const [selectedTheme, setSelectedTheme] = React.useState<ThemeMode | null>(null);
+  const configTheme = controlledTheme || resolveConfigThemeMode(config) || 'dark';
+  const rootTheme = controlledTheme || selectedTheme || configTheme;
+  const setTheme = controlledSetTheme ?? setSelectedTheme;
   const resolvedReactTokenOverrides = React.useMemo<ThemeOverrides | undefined>(() => {
     if (!reactTokenOverrides) return undefined;
     return typeof reactTokenOverrides === 'function'
@@ -131,22 +134,34 @@ export const SeamsWebProvider: React.FC<SeamsWebProviderProps> = ({
   }, [mergedTokenOverrides]);
 
   const providerConfig = React.useMemo<SeamsWebProviderProps['config']>(() => {
-    const activeTokens = mergedTokenOverrides?.[rootTheme];
+    const activeTokens = mergedTokenOverrides?.[configTheme];
     return {
       ...config,
       appearance: {
         ...(config.appearance || {}),
         theme: {
           id: resolveConfigThemeId(config),
-          mode: rootTheme,
+          mode: configTheme,
           colors: toStringRecord(activeTokens?.colors),
           shape: toStringRecord(activeTokens?.shape),
         },
       },
     };
-  }, [config, mergedTokenOverrides, rootTheme]);
+  }, [config, mergedTokenOverrides, configTheme]);
 
-  const providerAppearance = providerConfig.appearance;
+  // Apply theme changes without replacing the manager's connection configuration.
+  const providerAppearance = React.useMemo(
+    () => ({
+      ...providerConfig.appearance,
+      theme: {
+        id: resolveConfigThemeId(config),
+        mode: rootTheme,
+        colors: toStringRecord(mergedTokenOverrides?.[rootTheme]?.colors),
+        shape: toStringRecord(mergedTokenOverrides?.[rootTheme]?.shape),
+      },
+    }),
+    [config, providerConfig, rootTheme, mergedTokenOverrides],
+  );
 
   React.useEffect(() => {
     if (rootTheme === 'light' || rootTheme === 'dark') {
@@ -157,7 +172,7 @@ export const SeamsWebProvider: React.FC<SeamsWebProviderProps> = ({
   }, [rootTheme]);
 
   const themeProps: ThemeProps = {
-    theme: controlledTheme,
+    theme: rootTheme,
     setTheme,
     tokens: mergedTokens,
     ...(themeOverrides as Omit<ThemeProps, 'children' | 'theme'>),

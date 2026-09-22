@@ -10,6 +10,10 @@ import { ScanIcon } from './icons/ScanIcon';
 import { LinkIcon } from './icons/LinkIcon';
 import { SlidersIcon } from './icons/SlidersIcon';
 import { LockIcon } from './icons/LockIcon';
+import { useSeams } from '../../context';
+import { useTheme } from '../theme';
+import { SunIcon } from './icons/SunIcon';
+import { MoonIcon } from './icons/MoonIcon';
 import './WalletSettingsLayout.css';
 
 const SETTINGS_ITEMS = [
@@ -63,12 +67,28 @@ const SETTINGS_ITEMS = [
 }[];
 
 export function WalletSettingsHeader() {
+  const { theme } = useTheme();
+  const { seams } = useSeams();
+  const nextTheme = theme === 'dark' ? 'light' : 'dark';
   return (
     <header className="seams-settings-header">
       <svg className="seams-settings-wordmark" viewBox="0 0 1428 285" role="img" aria-label="Seams">
         <path d={SEAMS_STANDARD_WORDMARK_PATH} fill="currentColor" fillRule="evenodd" />
       </svg>
       <span>Wallet</span>
+      <button
+        className="seams-settings-theme-toggle"
+        type="button"
+        aria-label={`Switch to ${nextTheme} mode`}
+        onClick={seams.setTheme.bind(seams, nextTheme)}
+      >
+        {theme === 'dark' ? (
+          <SunIcon size={20} animate={false} />
+        ) : (
+          <MoonIcon size={20} animate={false} />
+        )}
+        <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+      </button>
     </header>
   );
 }
