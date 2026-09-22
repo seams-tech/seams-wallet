@@ -13,7 +13,7 @@
   block-size: calc(100dvh - 1rem);
 }
 
-:where(.seams-wallet-ui).seams-export-surface[data-seams-export-surface='wallet-iframe'] {
+:where(.seams-wallet-ui).seams-export-surface[data-seams-export-surface='wallet-iframe'][data-seams-export-variant='drawer'] {
   position: relative;
   inline-size: 32rem;
   max-inline-size: 100%;
@@ -216,4 +216,49 @@
   :where(.seams-wallet-ui) .seams-export-key-viewer .copy-field {
     transition-duration: 0.01ms;
   }
+}
+
+:where(.seams-wallet-ui).seams-export-surface[data-seams-export-variant='modal'] {
+  --seams-modal__container-max-width: 32rem;
+  color: var(--seams-colors-textPrimary);
+}
+
+:where(.seams-wallet-ui).seams-export-surface[data-seams-export-surface='wallet-iframe'][data-seams-export-variant='modal'] {
+  inline-size: min(32rem, 100%);
+}
+
+:where(.seams-wallet-ui).seams-export-surface .seams-confirmation-modal .modal-container-root {
+  padding: 1.5rem;
+}
+
+:where(.seams-wallet-ui).seams-export-surface .seams-confirmation-modal .title {
+  padding-inline-end: 2.75rem;
+}
+
+:where(.seams-wallet-ui).seams-export-surface .seams-export-modal-close {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: 0.75rem;
+  inset-inline-end: 0.75rem;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--seams-colors-textSecondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+:where(.seams-wallet-ui).seams-export-surface .seams-export-modal-close:hover {
+  background: var(--seams-colors-surface2);
+}
+
+:where(.seams-wallet-ui).seams-export-surface .seams-export-modal-close:focus-visible {
+  outline: 2px solid var(--seams-colors-primary);
+  outline-offset: 2px;
 }

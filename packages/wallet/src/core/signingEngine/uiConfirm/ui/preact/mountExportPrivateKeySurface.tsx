@@ -5,10 +5,12 @@ import { WalletIframeDomEvents } from '@/core/browser/walletIframe/events';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
 import { confirmationDocumentStyles } from './confirmation-styles';
 import { appearanceTokenCssRule } from '../appearance-token-vars';
+import { ConfirmationModal } from './ConfirmationModal';
 import { ConfirmationDrawer } from './ConfirmationDrawer';
 import { ExportPrivateKeySurface, type ExportPrivateKeyViewModel } from './ExportPrivateKeySurface';
 
 export type ExportSurfaceModel = {
+  variant: 'modal' | 'drawer';
   appearance: AppearanceConfig;
   content: ExportPrivateKeyViewModel;
 };
@@ -59,10 +61,28 @@ class MountedExportSurface implements ExportSurfaceHandle {
   update(model: ExportSurfaceModel): void {
     if (this.state.kind === 'disposed') return;
     this.element.dataset.theme = model.appearance.theme.mode;
+    this.element.dataset.seamsExportVariant = model.variant;
     this.styles.setDynamicRule(
       this.element.id,
       appearanceTokenCssRule(this.element.id, model.appearance),
     );
+    if (model.variant === 'modal') {
+      render(
+        <ConfirmationModal context={this.context} label="Exported Keys" onCancel={this.dispose}>
+          <button
+            type="button"
+            class="seams-export-modal-close"
+            aria-label="Close exported keys"
+            onClick={this.dispose}
+          >
+            ×
+          </button>
+          <ExportPrivateKeySurface model={model.content} />
+        </ConfirmationModal>,
+        this.element,
+      );
+      return;
+    }
     render(
       <ConfirmationDrawer
         context={this.context}

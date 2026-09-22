@@ -804,3 +804,10 @@ Consumer setup and styling: [Custom React transaction review](transaction-review
 Behavioral coverage: `tests/wallet-ui/transaction-review.browser.test.ts`,
 `tests/unit/transactionReview.snapshot.test.ts`, and
 `tests/typecheck/transaction-review.typecheck.ts`.
+
+### Export viewer presentation
+
+Key export follows the user's confirmation UI preference: modal or drawer. The
+`none` preference displays exported keys in a modal. An explicit export variant
+overrides the preference. Parent iframe geometry and the key viewer use the same
+resolved variant; closing either presentation disposes the displayed key material.

@@ -234,6 +234,7 @@ export async function upsertExportViewerHost(args: UpsertExportViewerHostArgs): 
     throw new Error('Export viewer host requires a DOM environment');
   const version = ++mountVersion;
   const model: ExportSurfaceModel = {
+    variant: args.variant,
     appearance: resolveUiAppearance({
       requestedAppearance: args.appearance,
       requestedMode: args.theme,

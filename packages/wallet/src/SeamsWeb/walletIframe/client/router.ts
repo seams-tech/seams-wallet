@@ -4500,15 +4500,12 @@ export class WalletIframeRouter {
 
   async exportKeypairWithUI(input: ExportKeypairWithUIInput): Promise<void> {
     const { onEvent, ...messageOptions } = input.options;
-    // Key export ALWAYS presents as a bottom drawer — it deliberately does not
-    // follow the Confirmer UI (modal|drawer|none) preference the tx confirmer
-    // uses. Stamping the variant here keeps the one invariant that matters:
-    // the host box and the in-iframe viewer read the same value, so the two
-    // sides cannot disagree. An explicit options.variant from a caller still
-    // wins for embedders that need it.
+    if (!messageOptions.variant && this.mirroredConfirmationUiMode === null) {
+      await this.getConfirmationConfig();
+    }
     const payload = walletIframeExportPayload(input, {
       ...messageOptions,
-      variant: messageOptions.variant ?? 'drawer',
+      variant: messageOptions.variant ?? (this.mirroredConfirmationUiMode === 'drawer' ? 'drawer' : 'modal'),
     });
     await this.post<void>({
       type: 'PM_EXPORT_KEYPAIR_UI',

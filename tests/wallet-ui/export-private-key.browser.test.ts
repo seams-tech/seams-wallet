@@ -10,7 +10,7 @@ import { routePreactModules } from '../setup/preact';
 declare global {
   interface Window {
     __exportView: {
-      update(model: ExportPrivateKeyViewModel, context?: 'standalone' | 'wallet-iframe'): void;
+      update(model: ExportPrivateKeyViewModel, context?: 'standalone' | 'wallet-iframe', variant?: 'modal' | 'drawer'): void;
       dispose(): void;
       resolveCopy(): void;
       rejectCopy(): void;
@@ -59,7 +59,7 @@ function model(value: string, loading = false): ExportPrivateKeyViewModel {
 test.beforeEach(async ({ page }) => {
   await injectImportMap(page);
   await routePreactModules(page);
-  const css = ['confirmation-primitives', 'confirmation-drawer', 'export-private-key']
+  const css = ['confirmation-primitives', 'confirmation-drawer', 'confirmation-modal', 'export-private-key']
     .map(readCss)
     .join('\n');
   await page.route('**/export-test.css', (route) =>
@@ -94,8 +94,10 @@ test.beforeEach(async ({ page }) => {
     function update(
       model: ExportPrivateKeyViewModel,
       context: 'standalone' | 'wallet-iframe' = 'wallet-iframe',
+      variant: 'modal' | 'drawer' = 'drawer',
     ) {
       const surfaceModel = {
+        variant,
         appearance: {
           palette: 'default' as const,
           theme: { id: 'default', mode: 'light' as const, colors: {} },
@@ -319,3 +321,19 @@ test('closing during loading and reveal allows a clean multi-key reopen', async 
   await expect(page.locator('main')).toBeEmpty();
   expect(await page.evaluate(() => window.__exportView.violations)).toEqual([]);
 });
+
+for (const context of ['standalone', 'wallet-iframe'] as const) {
+  test(`modal export copies and disposes keys in ${context}`, async ({ page }) => {
+    await page.evaluate(({ value, context }) => window.__exportView.update(value, context, 'modal'), {
+      value: model(secret),
+      context,
+    });
+    await expect(page.locator('.seams-confirmation-modal')).toBeVisible();
+    await expect(page.locator('.seams-confirmation-drawer')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Copy private key' }).click();
+    expect(await page.evaluate(() => window.__exportView.copied)).toEqual([secret]);
+    await page.evaluate(() => window.__exportView.resolveCopy());
+    await page.getByRole('button', { name: 'Close exported keys' }).click();
+    await expect(page.locator('.seams-export-key-viewer')).toHaveCount(0);
+  });
+}

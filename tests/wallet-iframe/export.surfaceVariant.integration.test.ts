@@ -16,18 +16,7 @@ import {
 } from '@/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
 import { buildMpcMaterialActivationRefFixture } from '../unit/helpers/ecdsaMaterialRef.fixtures';
 
-/**
- * Key export ALWAYS presents as a bottom drawer. It deliberately does not
- * follow the Confirmer UI (modal|drawer|none) preference that the tx confirmer
- * uses — so these drive every setting and require the drawer regardless.
- *
- * Both halves are asserted together: the variant the parent stamps into the
- * outgoing payload (what the iframe reads back) AND the presentation the parent
- * dressed the dialog with. The two resolving independently is what once painted
- * a drawer into a compact modal box and lost the viewer entirely, so checking
- * only one would miss exactly that bug.
- */
-
+// Parent geometry and the child viewer must use the same user-selected variant.
 const WALLET_ORIGIN = 'https://wallet.example.localhost';
 const WALLET_SERVICE_ROUTE = '**://wallet.example.localhost/wallet-service*';
 const WAIT_FOR_SOURCE = `(${waitFor.toString()})`;
@@ -149,8 +138,8 @@ test.describe('wallet iframe export surface variant', () => {
 
   // The Confirmer UI setting must NOT reach the export surface.
   for (const uiMode of ['drawer', 'modal', 'none'] as UiMode[]) {
-    const expected = 'drawer' as const;
-    test(`export is a drawer regardless of Confirmer UI '${uiMode}'`, async ({ page }) => {
+    const expected = uiMode === 'drawer' ? 'drawer' : 'modal';
+    test(`export follows Confirmer UI '${uiMode}'`, async ({ page }) => {
       await registerWalletServiceRoute(
         page,
         buildWalletServiceHtml({ extraScript: RECORDING_STUB }),
@@ -261,8 +250,8 @@ test.describe('wallet iframe export surface variant', () => {
 
       // Both halves of the agreement, for the same request.
       expect(result.stampedVariant).toBe(expected);
-      expect(result.presentation.drawer).toBe(true);
-      expect(result.presentation.modal).toBe(false);
+      expect(result.presentation.drawer).toBe(expected === 'drawer');
+      expect(result.presentation.modal).toBe(expected === 'modal');
     });
   }
 });
