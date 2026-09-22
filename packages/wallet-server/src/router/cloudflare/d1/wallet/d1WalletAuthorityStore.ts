@@ -347,6 +347,16 @@ function parseAuthorityRow(row: AuthorityRow): WalletAuthorityV1 {
   return authority;
 }
 
+export async function parseD1WalletAuthorityRow(
+  row: AuthorityRow,
+): Promise<WalletAuthorityV1> {
+  const authority = parseAuthorityRow(row);
+  if (!(await walletAuthorityDigestsMatchV1(authority))) {
+    throw new Error('stored wallet authority digest does not match its canonical record');
+  }
+  return authority;
+}
+
 function assertAuthorityProvenanceColumns(
   row: AuthorityRow,
   provenance: WalletAuthorityV1['provenance'],
@@ -772,11 +782,7 @@ export class D1WalletAuthorityStore {
       .bind(...scopeValues(this.scope), String(authorityId))
       .first<AuthorityRow>();
     if (!row) return null;
-    const authority = parseAuthorityRow(row);
-    if (!(await walletAuthorityDigestsMatchV1(authority))) {
-      throw new Error('stored wallet authority digest does not match its canonical record');
-    }
-    return authority;
+    return await parseD1WalletAuthorityRow(row);
   }
 
   async readByWalletAndDevice(input: {
@@ -796,11 +802,7 @@ export class D1WalletAuthorityStore {
       .bind(...scopeValues(this.scope), String(input.walletId), String(input.deviceId))
       .first<AuthorityRow>();
     if (!row) return null;
-    const authority = parseAuthorityRow(row);
-    if (!(await walletAuthorityDigestsMatchV1(authority))) {
-      throw new Error('stored wallet authority digest does not match its canonical record');
-    }
-    return authority;
+    return await parseD1WalletAuthorityRow(row);
   }
 
   async commitPendingAuthority(input: {
@@ -1042,11 +1044,7 @@ export class D1WalletAuthorityStore {
       .all<AuthorityRow>();
     const authorities: WalletAuthorityV1[] = [];
     for (const row of rows.results || []) {
-      const authority = parseAuthorityRow(row);
-      if (!(await walletAuthorityDigestsMatchV1(authority))) {
-        throw new Error('stored wallet authority digest does not match its canonical record');
-      }
-      authorities.push(authority);
+      authorities.push(await parseD1WalletAuthorityRow(row));
     }
     const page = authorities.slice(0, input.limit);
     const last = page.at(-1);

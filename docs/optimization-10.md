@@ -1680,3 +1680,44 @@ transaction-preparation RPC timings on the next measurement;
 the original 1–3s empty-pool target remains unverified on 0.5.32. Sanitized
 artifacts are `presign-immediate-first-sign-0.5.32-summary.json` and
 `presign-immediate-first-sign-0.5.32-retry-summary.json`.
+
+### Immediate signing and live authorization follow-up
+
+Three subsequent fresh 0.5.32 registrations completed an immediate Tempo
+signature from an empty pool. These are single-browser diagnostics with an
+automatic virtual passkey; transaction inclusion was not measured.
+
+| Sample | Registration ready to signature observed | Signing commit | First generation | Background startup |
+| --- | ---: | ---: | ---: | --- |
+| RPC capture | 9.337s | 7.964s | 6.084s | Initial init returned HTTP 401; foreground generation succeeded |
+| Rejection capture | 10.387s | 7.879s | 5.786s | Prefill skipped with exact Wallet Session unavailable |
+| Session-status capture | 12.722s | 10.014s | 11.181s | Background generation started and completed successfully |
+
+The RPC capture's pending-nonce request succeeded in 188ms, prepare took
+709ms, and finalize took 854ms. The last sample observed active session status
+throughout and six successful fill POSTs; one step took 2.998s in the browser
+while its gateway span reported 527ms. The earlier HTTP 401's rejection code
+was not captured, and the next two samples did not reproduce it. Diagnose
+startup admission and transport independently before changing authorization.
+These samples do not establish a population percentile or meet the 1–3s goal.
+Sanitized artifacts are `presign-immediate-first-sign-0.5.32-rpc-fixed-summary.json`,
+`presign-immediate-first-sign-0.5.32-rejection-summary.json`, and
+`presign-immediate-first-sign-0.5.32-session-status-summary.json` in the private
+`output/playwright/` directory.
+
+The next implementation resolves the exact-operation authorization context
+with one fresh D1 join instead of reading the session and then fetching its
+authority and authentication method separately. The joined authority uses the
+same canonical record, column/provenance, and digest validation as standalone
+authority reads. Revocation, expiry, identity binding, and quota interpretation
+are retained; there is no authorization cache across messages. Focused tests
+verify one read and rejection of inconsistent records. All 230 unit tests,
+workspace type checks, the server build, and both representative registration/
+reload and sustained-signing contracts passed locally. Version 0.5.33 is staged
+with this change; no deployed authorization latency gain is claimed yet.
+
+Transaction preparation already overlaps nonce-lease recovery with signer
+loading and starts intent preparation before confirmation. The demo also reads
+fee-token configuration and balance concurrently. Further overlap must preserve
+exact nonce reservation and cancellation behavior. Persistent transport still
+requires an equivalent local/remote benchmark with live per-message admission.

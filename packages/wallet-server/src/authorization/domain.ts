@@ -1,3 +1,4 @@
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 import {
   CAPABILITY_KINDS,
   EVM_ECDSA_MPC_OPERATION_KINDS,
@@ -303,6 +304,14 @@ export type ExactWalletSessionQuotaProjectionV1 = {
   readonly quotaId: MpcWalletSigningQuotaId;
   readonly remainingUses: number;
   readonly expiresAtMs: number;
+};
+
+/** Live identity for exact-operation admission; grants no reusable signing allowance. */
+export type WalletSessionExactOperationContext = {
+  readonly session: WalletSessionAuthorizationV2;
+  readonly authority: ActiveWalletAuthorityV1;
+  readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
+  readonly retiredAtMs: null;
 };
 
 /**
