@@ -634,6 +634,7 @@ export const IntendedBehaviourE2EPage: React.FC = () => {
       data-wallet-id={state.walletId}
       data-login-state={seamsContext.loginState.isLoggedIn ? 'logged_in' : 'logged_out'}
       data-login-wallet-id={seamsContext.loginState.walletId || ''}
+      data-login-near-ready={seamsContext.loginState.nearAccountId ? 'ready' : 'pending'}
       style={pageStyle}
     >
       <section style={panelStyle}>

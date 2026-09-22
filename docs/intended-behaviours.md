@@ -787,6 +787,8 @@ their existing core results and callbacks. Ordinary calls need no review host.
 - The application review and wallet approval share the existing transaction queue
   and outer modal. React stays in the application document; authorization stays
   inside the wallet iframe. Continue alone never signs.
+- A same-wallet NEAR readiness update preserves an in-flight EVM review and
+  wallet approval. Review ownership follows the wallet identity.
 - Before wallet approval is submitted, Back returns to the same review and preserves
   component state and the original expiry. Continue resumes the pending approval
   without dispatching again. Both screens retain the same modal container.

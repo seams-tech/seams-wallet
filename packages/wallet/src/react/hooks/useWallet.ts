@@ -191,9 +191,8 @@ export function useWallet(): UseWalletResult {
   const walletId = loginState.isLoggedIn ? loginState.walletId : null;
   const nearAccountId = loginState.isLoggedIn ? loginState.nearAccountId : null;
 
-  const { host, owner } = useTransactionReviewOwner(
-    walletId ? `${walletId}:${nearAccountId ?? ''}` : null,
-  );
+  // Review ownership stays with the wallet as NEAR provisioning completes.
+  const { host, owner } = useTransactionReviewOwner(walletId);
 
   return useMemo<UseWalletResult>(() => {
     if (!walletId) {

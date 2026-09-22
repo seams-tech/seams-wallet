@@ -16,42 +16,61 @@ import { isHex, parseTransaction, recoverTransactionAddress } from 'viem';
 
 test('custom review requires wallet approval before a live Arc signature', async ({
   harness,
+  context,
   page,
 }) => {
-  await harness.registerPasskeyWallet();
-  const registration = JSON.parse(await page.getByTestId('intended-result-json').innerText());
-  const expectedAddress = registration.action.result.ecdsaTargetKeys.arcEvm.thresholdOwnerAddress;
-  expect(typeof expectedAddress).toBe('string');
-  const result = page.getByTestId('reviewed-signing-result');
-  await page.getByRole('button', { name: 'Review Arc testnet signature', exact: true }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Review testnet signature', exact: true }),
-  ).toBeVisible();
-  await page.getByRole('textbox', { name: 'Review note' }).fill('Live MPC acceptance');
-  await expect(result).toHaveAttribute('data-state', 'pending');
-  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
-  const confirm = wallet
-    .locator('#seams-confirm-portal button.btn-confirm, #seams-confirm-portal button.confirm')
-    .last();
-  await expect(confirm).toBeHidden();
-  await page.getByRole('button', { name: 'Continue to wallet', exact: true }).click();
-  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
-  await expect(confirm).toBeVisible({ timeout: 30_000 });
-  await expect(result).toHaveAttribute('data-state', 'pending');
-  await confirm.click();
-  await expect(result).toHaveAttribute('data-state', 'signed', { timeout: 60_000 });
-  const signed = JSON.parse(await result.innerText());
-  if (!isHex(signed.rawTxHex)) throw new Error('Expected a serialized signed transaction');
-  const transaction = parseTransaction(signed.rawTxHex);
-  expect(transaction.value ?? 0n).toBe(0n);
-  expect(transaction).toMatchObject({
-    type: 'eip1559',
-    chainId: 5_042_002,
-    to: '0x1111111111111111111111111111111111111111',
-  });
-  expect(
-    (await recoverTransactionAddress({ serializedTransaction: signed.rawTxHex })).toLowerCase(),
-  ).toBe(expectedAddress.toLowerCase());
+  const nearGate = new RegistrationPresignGate();
+  const nearProvisioning = '**/wallets/register/near-provisioning';
+  const holdNear = nearGate.hold.bind(nearGate);
+  await context.route(nearProvisioning, holdNear);
+  try {
+    await harness.registerPasskeyWallet();
+    await expect.poll(nearGate.requestCount.bind(nearGate)).toBeGreaterThan(0);
+    const pageRoot = page.getByTestId('intended-e2e-page');
+    await expect(pageRoot).toHaveAttribute('data-login-near-ready', 'pending');
+    const registration = JSON.parse(await page.getByTestId('intended-result-json').innerText());
+    const expectedAddress =
+      registration.action.result.ecdsaTargetKeys.arcEvm.thresholdOwnerAddress;
+    expect(typeof expectedAddress).toBe('string');
+    const result = page.getByTestId('reviewed-signing-result');
+    await page.getByRole('button', { name: 'Review Arc testnet signature', exact: true }).click();
+    const heading = page.getByRole('heading', { name: 'Review testnet signature', exact: true });
+    await expect(heading).toBeVisible();
+    nearGate.release();
+    await expect(pageRoot).toHaveAttribute('data-login-near-ready', 'ready', { timeout: 30_000 });
+    await expect(heading).toBeVisible();
+    await page.getByRole('textbox', { name: 'Review note' }).fill('Live MPC acceptance');
+    await expect(result).toHaveAttribute('data-state', 'pending');
+    const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+    const confirm = wallet
+      .locator('#seams-confirm-portal button.btn-confirm, #seams-confirm-portal button.confirm')
+      .last();
+    await expect(confirm).toBeHidden();
+    await page.getByRole('button', { name: 'Continue to wallet', exact: true }).click();
+    await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute(
+      'inert',
+      '',
+    );
+    await expect(confirm).toBeVisible({ timeout: 30_000 });
+    await expect(result).toHaveAttribute('data-state', 'pending');
+    await confirm.click();
+    await expect(result).toHaveAttribute('data-state', 'signed', { timeout: 60_000 });
+    const signed = JSON.parse(await result.innerText());
+    if (!isHex(signed.rawTxHex)) throw new Error('Expected a serialized signed transaction');
+    const transaction = parseTransaction(signed.rawTxHex);
+    expect(transaction.value ?? 0n).toBe(0n);
+    expect(transaction).toMatchObject({
+      type: 'eip1559',
+      chainId: 5_042_002,
+      to: '0x1111111111111111111111111111111111111111',
+    });
+    expect(
+      (await recoverTransactionAddress({ serializedTransaction: signed.rawTxHex })).toLowerCase(),
+    ).toBe(expectedAddress.toLowerCase());
+  } finally {
+    nearGate.release();
+    await context.unroute(nearProvisioning, holdNear);
+  }
 });
 
 type SigningRequests = {
