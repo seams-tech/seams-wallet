@@ -26,6 +26,7 @@ import { ServerShareRecovery } from './ServerShareRecovery';
 import { PurchaseReviewExample } from './PurchaseReviewExample';
 
 type PlaygroundPage = 'wallet' | 'recovery';
+type AuthMenuState = { kind: 'closed' } | { kind: 'open' } | { kind: 'failed'; message: string };
 
 type SigningCheckState =
   | { kind: 'idle' }
@@ -180,24 +181,39 @@ function createWalletConfig(workspace: ReadyLocalWorkspace) {
   });
 }
 
-function handleAuthOutcome(
+async function handleAuthOutcome(
   refreshLoginState: (walletId?: string) => Promise<void>,
+  setAuthMenu: (state: AuthMenuState) => void,
   outcome: HostedAuthMenuOutcome,
-): void {
+): Promise<void> {
   switch (outcome.kind) {
     case 'authenticated':
     case 'registered':
     case 'account_synced':
-      void refreshLoginState(outcome.walletId);
+      try {
+        await refreshLoginState(outcome.walletId);
+        setAuthMenu({ kind: 'closed' });
+      } catch (error) {
+        setAuthMenu({
+          kind: 'failed',
+          message: error instanceof Error ? error.message : 'Could not refresh the wallet session.',
+        });
+      }
       return;
     case 'failed':
-      console.error(outcome.message);
+      setAuthMenu({ kind: 'failed', message: outcome.message });
       return;
     case 'cancelled':
+      setAuthMenu({ kind: 'closed' });
       return;
     default:
       return assertNever(outcome);
   }
+}
+
+function openAuthMenu(setAuthMenu: (state: AuthMenuState) => void): void {
+  document.getElementById('wallet-auth')?.scrollIntoView({ block: 'center' });
+  setAuthMenu({ kind: 'open' });
 }
 
 function assertNever(value: never): never {
@@ -219,6 +235,7 @@ function WalletPlayground({
   const [signingCheck, setSigningCheck] = useState<SigningCheckState>({ kind: 'idle' });
   const [exportingKey, setExportingKey] = useState<PlaygroundExportChain | null>(null);
   const [page, setPage] = useState<PlaygroundPage>('wallet');
+  const [authMenu, setAuthMenu] = useState<AuthMenuState>({ kind: 'closed' });
 
   const refreshSession = useCallback(async () => {
     if (!loginState.isLoggedIn) return;
@@ -364,15 +381,28 @@ function WalletPlayground({
           </section>
 
           {!loginState.isLoggedIn ? (
-            <section className="panel auth-panel">
+            <section className="panel auth-panel" id="wallet-auth">
               <div className="section-heading">
                 <p className="eyebrow">Authentication</p>
                 <h2>Register or unlock a Wallet</h2>
               </div>
-              <HostedSeamsAuthMenu
-                showProgress
-                onOutcome={handleAuthOutcome.bind(null, refreshLoginState)}
-              />
+              {authMenu.kind === 'open' ? (
+                <HostedSeamsAuthMenu
+                  showProgress
+                  onOutcome={handleAuthOutcome.bind(null, refreshLoginState, setAuthMenu)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={openAuthMenu.bind(null, setAuthMenu)}
+                >
+                  Sign in or create a wallet
+                </button>
+              )}
+              {authMenu.kind === 'failed' ? (
+                <p role="alert" className="message error">{authMenu.message}</p>
+              ) : null}
             </section>
           ) : (
             <SignedInPanel
@@ -390,7 +420,7 @@ function WalletPlayground({
             />
           )}
 
-          <PurchaseReviewExample />
+          <PurchaseReviewExample onRequestSignIn={openAuthMenu.bind(null, setAuthMenu)} />
 
           <details className="panel configuration">
             <summary>Public local configuration</summary>

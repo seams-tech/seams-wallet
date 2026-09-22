@@ -108,7 +108,12 @@ async function startPurchase(
   scenario: ReviewScenario,
   outcome: Outcome,
   amount: number,
+  onRequestSignIn: () => void,
 ) {
+  if (wallet.status === 'signed_out') {
+    onRequestSignIn();
+    return;
+  }
   if (wallet.status !== 'ready') return;
   const quote: FixtureQuote = {
     outcome,
@@ -144,7 +149,13 @@ async function startPurchase(
   }
 }
 
-export function PurchaseReviewExample() {
+function reviewButtonLabel(state: PurchaseState, wallet: ReturnType<typeof useWallet>): string {
+  if (state.kind === 'pending') return 'Review in progress…';
+  if (wallet.status === 'signed_out') return 'Sign in to review trade';
+  return 'Review prediction trade';
+}
+
+export function PurchaseReviewExample({ onRequestSignIn }: { onRequestSignIn: () => void }) {
   const wallet = useWallet();
   const [state, setState] = useState<PurchaseState>({ kind: 'idle' });
   const [outcome, setOutcome] = useState<Outcome>('YES');
@@ -189,35 +200,73 @@ export function PurchaseReviewExample() {
         Review your quote inside the existing transaction confirmer, then continue to wallet
         approval for a zero-value NEAR self-transfer. No market position is purchased.
       </p>
-      {wallet.status !== 'ready' ? (
-        <p>Sign in with a NEAR testnet wallet above to open the review.</p>
+      {wallet.status === 'signed_out' ? (
+        <p>Sign in to open the review. You can choose your position and amount first.</p>
+      ) : null}
+      {wallet.status === 'no_near_account' ? (
+        <p>
+          Your wallet is signed in, but its NEAR account is not ready. Refresh the wallet session
+          above after account provisioning completes.
+        </p>
       ) : null}
       <button
         className="primary"
         type="button"
-        disabled={wallet.status !== 'ready' || state.kind === 'pending'}
-        onClick={startPurchase.bind(null, wallet, setState, 'normal', outcome, amount)}
+        disabled={wallet.status === 'no_near_account' || state.kind === 'pending'}
+        onClick={startPurchase.bind(
+          null,
+          wallet,
+          setState,
+          'normal',
+          outcome,
+          amount,
+          onRequestSignIn,
+        )}
       >
-        {state.kind === 'pending' ? 'Review in progress…' : 'Review prediction trade'}
+        {reviewButtonLabel(state, wallet)}
       </button>
       <button
         type="button"
-        disabled={wallet.status !== 'ready' || state.kind === 'pending'}
-        onClick={startPurchase.bind(null, wallet, setState, 'expired', outcome, amount)}
+        disabled={wallet.status === 'no_near_account' || state.kind === 'pending'}
+        onClick={startPurchase.bind(
+          null,
+          wallet,
+          setState,
+          'expired',
+          outcome,
+          amount,
+          onRequestSignIn,
+        )}
       >
         Try expired quote
       </button>
       <button
         type="button"
-        disabled={wallet.status !== 'ready' || state.kind === 'pending'}
-        onClick={startPurchase.bind(null, wallet, setState, 'slow', outcome, amount)}
+        disabled={wallet.status === 'no_near_account' || state.kind === 'pending'}
+        onClick={startPurchase.bind(
+          null,
+          wallet,
+          setState,
+          'slow',
+          outcome,
+          amount,
+          onRequestSignIn,
+        )}
       >
         Try slow review
       </button>
       <button
         type="button"
-        disabled={wallet.status !== 'ready' || state.kind === 'pending'}
-        onClick={startPurchase.bind(null, wallet, setState, 'failing', outcome, amount)}
+        disabled={wallet.status === 'no_near_account' || state.kind === 'pending'}
+        onClick={startPurchase.bind(
+          null,
+          wallet,
+          setState,
+          'failing',
+          outcome,
+          amount,
+          onRequestSignIn,
+        )}
       >
         Try failing review
       </button>

@@ -30,6 +30,10 @@ then select **Review prediction trade**. Your React trade summary opens inside
 the SDK's existing transaction-confirmer modal. **Confirm in wallet** transitions
 the same modal to the standard wallet approval; **Back to trade** cancels it.
 
+While signed out, **Sign in to review trade** opens the hosted wallet sign-in
+panel. Complete authentication, then select **Review prediction trade**.
+Position and amount selection remain available before sign-in.
+
 Quotes expire after 90 seconds. The expired, slow, and failing review buttons
 exercise the same SDK error and loading flows. The fixture market does not buy
 positions: final approval sends a zero-value NEAR self-transfer and incurs
