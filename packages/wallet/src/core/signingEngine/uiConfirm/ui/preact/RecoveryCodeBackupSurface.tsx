@@ -520,7 +520,7 @@ export class RecoveryCodeBackupSurface extends Component<
           </button>
           <button
             type="button"
-            class={`recovery-backup-button primary recovery-backup-copy${this.state.copied ? ' copied' : ''}`}
+            class={`recovery-backup-button secondary recovery-backup-copy${this.state.copied ? ' copied' : ''}`}
             onClick={this.copy}
           >
             <CopyIcon />
