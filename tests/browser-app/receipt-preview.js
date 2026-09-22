@@ -9,7 +9,9 @@ let theme = 'light';
 let state = { kind: 'signing' };
 let view = 'expanded';
 let example = 'transfer';
-let authentication = { kind: 'passkey' };
+let authentication = {
+  kind: new URLSearchParams(location.search).get('auth') === 'email' ? 'email-review' : 'passkey',
+};
 const variant = new URLSearchParams(location.search).get('variant') === 'drawer' ? 'drawer' : 'modal';
 
 function displayModel() {
