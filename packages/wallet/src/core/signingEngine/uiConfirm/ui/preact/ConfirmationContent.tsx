@@ -25,7 +25,6 @@ import {
   TransactionReview,
   WalletReceiptFooter,
   ReviewIcon,
-  reviewNetwork,
   type TransactionReviewData,
 } from './TransactionReview';
 
@@ -160,8 +159,7 @@ export class ConfirmationContent extends Component<{
             <div class="seams-review-eyebrow">
               {model.review.model.operations.length === 1
                 ? model.review.model.operations[0].label.replace(/\s+using\s+[\d,.]+\s+gas$/i, '')
-                : 'Transaction'}{' '}
-              · {reviewNetwork(model.review.model)}
+                : 'Transaction'}
             </div>
           )}
           <h2 class="seams-review-title">{model.header.heading}</h2>
