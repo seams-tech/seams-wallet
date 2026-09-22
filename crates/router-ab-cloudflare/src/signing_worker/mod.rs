@@ -163,6 +163,7 @@ fn validate_presign_material_expiry(
 pub struct CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
     pub scope: RouterAbEcdsaDerivationNormalSigningScopeV1,
     pub presign_session_id: String,
+    pub first_message_b64u: String,
     pub ceremony_expires_at_ms: u64,
     pub material_expires_at_ms: u64,
 }
@@ -170,7 +171,20 @@ pub struct CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
 impl CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
     pub fn validate_at(&self, now_unix_ms: u64) -> RouterAbProtocolResult<()> {
         self.scope.validate()?;
-        require_non_empty("presign_session_id", &self.presign_session_id)?;
+        let parts: Vec<_> = self.presign_session_id.split(':').collect();
+        if parts.len() != 3
+            || parts[0] != "ecdsa-presign-v2"
+            || parts[1] != self.ceremony_expires_at_ms.to_string()
+            || decode_base64url_fixed_32_v1("presign session nonce", parts[2]).is_err()
+        {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                "Invalid presign session identity or bound expiry",
+            ));
+        }
+        let first_message =
+            decode_base64url_bytes_v1("ECDSA presign first message", &self.first_message_b64u)?;
+        require_non_empty_vec("ECDSA presign first message", &first_message)?;
         validate_presign_session_expiry(
             "ECDSA presign session ceremony_expires_at_ms",
             self.ceremony_expires_at_ms,
@@ -301,6 +315,7 @@ pub enum CloudflareSigningWorkerEcdsaPresignSessionProgressV1 {
         outgoing_messages_b64u: Vec<String>,
     },
     Complete {
+        outgoing_messages_b64u: Vec<String>,
         presign_session_id: String,
         server_presignature_id: String,
         server_big_r33_b64u: String,
@@ -2740,19 +2755,18 @@ mod presign_expiry_tests {
         let now_ms = 1_900_000_000_000;
         let ceremony_expires_at_ms = now_ms + MAX_ECDSA_PRESIGN_SESSION_TTL_MS;
         let ninety_days_ms = 90 * 24 * 60 * 60 * 1_000;
-        validate_presign_material_expiry(
-            now_ms + ninety_days_ms,
-            ceremony_expires_at_ms,
-            now_ms,
-        )
-        .expect("unused material may be retained for ninety days");
+        validate_presign_material_expiry(now_ms + ninety_days_ms, ceremony_expires_at_ms, now_ms)
+            .expect("unused material may be retained for ninety days");
         let error = validate_presign_material_expiry(
             now_ms + ninety_days_ms + 1,
             ceremony_expires_at_ms,
             now_ms,
         )
         .expect_err("material retention must remain bounded");
-        assert_eq!(error.code(), RouterAbProtocolErrorCode::MalformedWirePayload);
+        assert_eq!(
+            error.code(),
+            RouterAbProtocolErrorCode::MalformedWirePayload
+        );
     }
 
     #[test]

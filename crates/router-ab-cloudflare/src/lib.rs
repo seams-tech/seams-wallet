@@ -12107,6 +12107,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
         ),
         durable_object::CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1::Complete {
             pool_put_request,
+            outgoing_messages_b64u,
         } => {
             let presign_session_id = parsed.presign_session_id;
             let server_presignature_id = pool_put_request.server_presignature_id.clone();
@@ -12134,6 +12135,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
             }
             worker::Response::from_json(
                 &CloudflareSigningWorkerEcdsaPresignSessionProgressV1::Complete {
+                    outgoing_messages_b64u,
                     presign_session_id,
                     server_presignature_id,
                     server_big_r33_b64u,
@@ -12221,6 +12223,7 @@ pub async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_session_step_
             prepared_response,
         } => worker::Response::from_json(
             &CloudflareSigningWorkerEcdsaPresignSessionProgressV1::Complete {
+                outgoing_messages_b64u: Vec::new(),
                 presign_session_id,
                 server_presignature_id,
                 server_big_r33_b64u,
