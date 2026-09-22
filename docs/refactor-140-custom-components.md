@@ -702,6 +702,35 @@ Completion follow-up on 2026-09-22:
 - The four snapshot/wire/configuration checks passed after the shared-memory
   byte-copy correction, along with the wallet-state type fixtures.
 
+Release verification follow-up on 2026-09-22:
+
+- Restored the request-scoped Yao fault controller in the local Wallet gateway,
+  using the existing private-repository implementation. Fault arming now targets
+  the isolated runner's exact `http://127.0.0.1:4100` origin. The local Worker
+  validates the origin, registration path, method, mode, and opaque token; the
+  deployed hosted Worker does not import the fault controller.
+- The exact-request replay and terminal-burn contracts now pass. Four focused
+  checks also pass for request isolation, local-only arming, opaque tokens, and
+  rejection of changed replay bodies or retries after a terminal result.
+- Fixed local service teardown discovered during these runs: the test supervisor
+  launches the Wallet system directly, and nested supervisors use ordered,
+  bounded cleanup deadlines that also stop detached descendants after their
+  launcher exits. The initial terminal contract passed its assertions but its
+  runner required interruption during teardown. Final isolated runs passed replay
+  in 26.0 seconds and terminal failure in 33.0 seconds, with clean runner exits and
+  no remaining test-service listeners. All 23 intended contracts now have passing
+  results across the verification runs.
+- Server build, intended type check, and launcher syntax checks passed. A temporary
+  build/startup overlap was classified as infrastructure failure and rerun after
+  the build completed.
+- Thirty-six additional review-to-wallet checks passed: Light/Dark ×
+  Sharp/Rounded × 1280×800, 640×400, and 320×568 viewports × Chromium, Firefox,
+  and WebKit. Captured 72 review/approval images outside Git and inspected
+  representative narrow and short-window handoffs. Approval controls remained
+  inside the wallet frame. Removed the temporary visual tests and probe afterward.
+  These viewport checks do not establish desktop browser zoom or physical keyboard
+  behavior.
+
 Failures classified and resolved during verification:
 
 - Test fixture corrections: startup prefetch response, enabled signing capability,
@@ -721,9 +750,9 @@ credentials. Manual screen-reader and mobile-keyboard sessions have not run.
 The detailed phase checklist above remains the release acceptance inventory;
 unchecked multi-part items include checks beyond the automated evidence here.
 
-Remaining release work: provide the local Yao fault-injection proxy and run its
-two contracts; complete the manual screen-reader/mobile-keyboard and full visual
-acceptance matrix, including desktop 200% zoom. The custom-review browser suite
+Remaining release work: complete manual screen-reader/mobile-keyboard checks and
+actual desktop 200% zoom acceptance, including transition inspection with expanded
+transaction details and slow assets. The custom-review browser suite
 uses simulated signer results; the intended contracts exercise the existing live
 signing paths. Publication and deployment are separate actions.
 
