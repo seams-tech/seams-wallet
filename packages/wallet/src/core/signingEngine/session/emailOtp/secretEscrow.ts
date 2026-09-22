@@ -1,3 +1,5 @@
+import { decodeSigningSessionSecret32 } from '@shared/utils/signingSessionSeal';
+
 export const EMAIL_OTP_ESCROW_SECRET_LENGTH = 32 as const;
 
 export type EmailOtpEscrowSecret32 = {
@@ -49,14 +51,8 @@ function corruptPlaintextLength(actualLength: number): EmailOtpCorruptLocalCusto
 export function decodeEmailOtpEscrowSecret32(
   plaintext: Uint8Array,
 ): EmailOtpEscrowSecret32DecodeResult {
-  const actualLength = plaintext.length;
-  if (actualLength < 1 || actualLength > EMAIL_OTP_ESCROW_SECRET_LENGTH) {
-    return corruptPlaintextLength(actualLength);
-  }
-
-  // Shamir represents plaintext as an integer, so its big-endian output omits leading zeroes.
-  const secret32 = new Uint8Array(EMAIL_OTP_ESCROW_SECRET_LENGTH);
-  secret32.set(plaintext, EMAIL_OTP_ESCROW_SECRET_LENGTH - actualLength);
+  const secret32 = decodeSigningSessionSecret32(plaintext);
+  if (!secret32) return corruptPlaintextLength(plaintext.length);
   return { kind: 'secret32', secret32 };
 }
 

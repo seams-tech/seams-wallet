@@ -8,9 +8,11 @@ import { parseClearVolatileWarmMaterialCommand } from '@/core/signingEngine/sess
 import { bytesToHex } from '../../chains/evm/bytes';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import {
+  decodeSigningSessionSecret32,
   SIGNING_SESSION_SEAL_GROUP_ID,
   WALLET_SESSION_SEAL_BASE_PATH,
 } from '@shared/utils/signingSessionSeal';
+import { base64UrlEncode } from '@shared/utils/base64';
 import {
   joinNormalizedUrl,
   normalizeNonNegativeInteger,
@@ -1200,10 +1202,15 @@ async function runSigningSessionRehydrate(args: {
         });
         if (!removed.ok) return removed;
 
-        const prfFirstB64u = await runtime.removeClientSealWithKeyHandle({
+        const plaintext = await runtime.removeClientSealWithKeyHandleToBytes({
           ciphertextB64u: removed.ciphertext,
           keyHandle: clientKeyHandle.keyHandle,
         });
+        const secret32 = decodeSigningSessionSecret32(plaintext);
+        plaintext.fill(0);
+        if (!secret32) throw new Error('Restored passkey PRF has invalid length');
+        const prfFirstB64u = base64UrlEncode(secret32);
+        secret32.fill(0);
         const policy = resolvePolicyFromServerAndLocal({
           localRemainingUses,
           localExpiresAtMs,
