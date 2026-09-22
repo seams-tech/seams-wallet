@@ -52,7 +52,7 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='st
 }
 
 dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='standalone'][data-seams-recovery-stage='recovery_codes'] {
-  width: min(40rem, calc(100vw - 1.5rem));
+  width: min(46rem, calc(100vw - 1.5rem));
 }
 
 dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='standalone']::backdrop {
@@ -74,12 +74,12 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wa
 
 dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wallet-iframe'][data-seams-recovery-stage='summary'],
 dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wallet-iframe'][data-seams-recovery-stage='opening'] {
-  width: 30rem;
+  width: 46rem;
   max-width: 100vw;
 }
 
 dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wallet-iframe'][data-seams-recovery-stage='recovery_codes'] {
-  width: 35rem;
+  width: 46rem;
   max-width: 100vw;
 }
 
@@ -250,27 +250,69 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wa
   line-height: 1.5;
 }
 
-/* auto-fit rather than a fixed two columns: on a narrow surface the grid
-   collapses to one column instead of wrapping every code to three lines. */
+[data-seams-wallet-recovery-backup-dialog] .recovery-code-sheet {
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: var(--seams-colors-surface2);
+  margin-bottom: 1rem;
+}
+
+[data-seams-wallet-recovery-backup-dialog] .recovery-code-sheet-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--seams-colors-borderPrimary);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+[data-seams-wallet-recovery-backup-dialog] .recovery-code-sheet-heading span:last-child {
+  color: var(--seams-colors-textSecondary);
+}
+
 [data-seams-wallet-recovery-backup-dialog] .recovery-code-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-  gap: 0.5rem;
-  margin: 0 0 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
 [data-seams-wallet-recovery-backup-dialog] .recovery-code-item {
+  box-sizing: border-box;
   display: flex;
-  gap: 0.4rem;
-  align-items: baseline;
-  border-radius: var(--seams-shape-item, 8px);
-  background: var(--seams-colors-surface2, oklch(0.25 0.0175 240));
-  padding: 0.625rem 0.75rem;
+  gap: 0.625rem;
+  align-items: center;
+  min-width: 0;
+  min-height: 3.375rem;
+  border-bottom: 1px solid var(--seams-colors-borderPrimary);
+  padding: 0.625rem 0.875rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.75rem;
-  line-height: 1.4;
+  line-height: 1.5;
+}
+
+[data-seams-wallet-recovery-backup-dialog] .recovery-code-item:nth-child(odd) {
+  border-inline-end: 1px solid var(--seams-colors-borderPrimary);
+}
+
+[data-seams-wallet-recovery-backup-dialog] .recovery-code-item:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+@media (max-width: 36rem) {
+  [data-seams-wallet-recovery-backup-dialog] .recovery-code-list {
+    grid-template-columns: 1fr;
+  }
+  [data-seams-wallet-recovery-backup-dialog] .recovery-code-item:nth-child(odd) {
+    border-inline-end: 0;
+  }
+  [data-seams-wallet-recovery-backup-dialog] .recovery-code-item:nth-last-child(2) {
+    border-bottom: 1px solid var(--seams-colors-borderPrimary);
+  }
 }
 
 [data-seams-wallet-recovery-backup-dialog] .recovery-code-index {
@@ -294,12 +336,6 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wa
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 1rem;
-}
-
-/* flex-basis 0, not auto: both columns split the row evenly instead of
-   tracking their label widths. */
-[data-seams-wallet-recovery-backup-dialog] .recovery-backup-actions > .recovery-backup-button {
-  flex: 1 1 0;
 }
 
 [data-seams-wallet-recovery-backup-dialog] .recovery-backup-button {
@@ -360,10 +396,8 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wa
   display: flex;
   gap: 0.625rem;
   align-items: flex-start;
-  margin-block: 1.25rem 0;
-  padding: 0.875rem;
-  border-radius: 0.625rem;
-  background: var(--seams-colors-surface2, oklch(0.25 0.0175 240));
+  margin: 0;
+  flex: 1 1 20rem;
   font-size: 0.8125rem;
   line-height: 1.4;
   cursor: pointer;
@@ -397,8 +431,10 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wa
 [data-seams-wallet-recovery-backup-dialog] .recovery-backup-footer {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border-top: 1px solid var(--seams-colors-borderPrimary);
   padding-top: 1.25rem;
   background: var(--seams-colors-colorBackground, oklch(0.2 0.01 240));
 }
@@ -421,4 +457,11 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wa
   30% {
     opacity: 1;
   }
+}
+
+[data-seams-wallet-recovery-backup-dialog] .recovery-backup-acknowledgement small {
+  display: block;
+  margin-top: 0.125rem;
+  font-size: 0.75rem;
+  color: var(--seams-colors-textSecondary);
 }

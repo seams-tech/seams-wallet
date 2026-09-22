@@ -217,7 +217,7 @@ test('registration backup preserves copy, download, acknowledgement, and focus',
   await page.evaluate(() => window.__recoveryTest.startDirect());
   const dialog = page.locator('[data-seams-wallet-recovery-backup-dialog]');
   await expect(dialog).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Save your wallet recovery codes' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Save your recovery codes' })).toBeVisible();
   await expect(page.locator('.recovery-code-item')).toHaveCount(10);
 
   await page.getByRole('button', { name: 'Copy codes' }).click();
@@ -387,12 +387,19 @@ test('recovery codes fit the wallet iframe at desktop and mobile widths', async 
       element.textContent = 'DEMO-0000-ABCD-1234-DEMO-0000-ABCD-1234';
     }
   });
-  for (const width of [560, 375]) {
-    await page.setViewportSize({ width, height: 740 });
+  for (const width of [736, 375]) {
+    await page.setViewportSize({ width, height: 640 });
     const bounds = await dialog.boundingBox();
     expect(bounds).not.toBeNull();
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
     expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    if (width === 736) {
+      expect(await dialog.evaluate(element => element.scrollHeight <= element.clientHeight)).toBe(true);
+      const first = await page.locator('.recovery-code-item').nth(0).boundingBox();
+      const second = await page.locator('.recovery-code-item').nth(1).boundingBox();
+      expect(first!.y).toBe(second!.y);
+      expect(second!.x).toBeGreaterThan(first!.x);
+    }
     const close = page.getByRole('button', { name: 'Close', exact: true });
     await close.scrollIntoViewIfNeeded();
     const closeBounds = await close.boundingBox();

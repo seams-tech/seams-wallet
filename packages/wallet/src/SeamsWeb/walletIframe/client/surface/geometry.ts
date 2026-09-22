@@ -312,6 +312,7 @@ function isDrawerPresentation(
 export function provisionalWalletIframeSurfaceGeometry(
   presentation: WalletIframeSurfacePresentation,
   viewportInput: WalletIframeSurfaceViewport,
+  maxModalWidthCssPx = WALLET_IFRAME_SURFACE_MAX_MODAL_WIDTH_CSS_PX,
 ): WalletIframeSurfaceGeometry {
   const viewport = normalizedViewport(viewportInput);
   if (isDrawerPresentation(presentation)) {
@@ -325,9 +326,9 @@ export function provisionalWalletIframeSurfaceGeometry(
   return centeredGeometry(
     viewport,
     clamp(
-      WALLET_IFRAME_SURFACE_MAX_MODAL_WIDTH_CSS_PX,
+      maxModalWidthCssPx,
       WALLET_IFRAME_SURFACE_MIN_COMPACT_WIDTH_CSS_PX,
-      Math.min(WALLET_IFRAME_SURFACE_MAX_MODAL_WIDTH_CSS_PX, availableWidth),
+      Math.min(maxModalWidthCssPx, availableWidth),
     ),
     Math.min(WALLET_IFRAME_SURFACE_PROVISIONAL_HEIGHT_CSS_PX, availableHeight),
     'provisional_centered_modal',
@@ -338,6 +339,7 @@ export function measuredWalletIframeSurfaceGeometry(
   presentation: WalletIframeSurfacePresentation,
   viewportInput: WalletIframeSurfaceViewport,
   measurement: WalletIframeSurfaceMeasurementSize,
+  maxModalWidthCssPx = WALLET_IFRAME_SURFACE_MAX_MODAL_WIDTH_CSS_PX,
 ): WalletIframeSurfaceGeometry {
   const viewport = normalizedViewport(viewportInput);
   if (isDrawerPresentation(presentation)) {
@@ -356,7 +358,7 @@ export function measuredWalletIframeSurfaceGeometry(
     clamp(
       measurement.widthCssPx,
       WALLET_IFRAME_SURFACE_MIN_COMPACT_WIDTH_CSS_PX,
-      Math.min(WALLET_IFRAME_SURFACE_MAX_MODAL_WIDTH_CSS_PX, availableWidth),
+      Math.min(maxModalWidthCssPx, availableWidth),
     ),
     clamp(measurement.heightCssPx, 1, availableHeight),
     'centered_modal',
@@ -367,16 +369,30 @@ export function resolveWalletIframeSurfaceGeometry(args: {
   presentation: WalletIframeSurfacePresentation;
   viewport: WalletIframeSurfaceViewport;
   measurement?: WalletIframeSurfaceMeasurementState;
+  maxModalWidthCssPx?: number;
 }): WalletIframeSurfaceGeometry {
   const measurement = args.measurement;
   if (!measurement) {
-    return provisionalWalletIframeSurfaceGeometry(args.presentation, args.viewport);
+    return provisionalWalletIframeSurfaceGeometry(
+      args.presentation,
+      args.viewport,
+      args.maxModalWidthCssPx,
+    );
   }
   switch (measurement.kind) {
     case 'pending':
-      return provisionalWalletIframeSurfaceGeometry(args.presentation, args.viewport);
+      return provisionalWalletIframeSurfaceGeometry(
+        args.presentation,
+        args.viewport,
+        args.maxModalWidthCssPx,
+      );
     case 'measured':
-      return measuredWalletIframeSurfaceGeometry(args.presentation, args.viewport, measurement);
+      return measuredWalletIframeSurfaceGeometry(
+        args.presentation,
+        args.viewport,
+        measurement,
+        args.maxModalWidthCssPx,
+      );
     case 'unavailable': {
       const viewport = normalizedViewport(args.viewport);
       if (isDrawerPresentation(args.presentation)) {

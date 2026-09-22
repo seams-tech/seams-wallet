@@ -501,19 +501,25 @@ export class RecoveryCodeBackupSurface extends Component<
   private renderRecoveryCodes(request: WalletRecoveryCodeBackupRequestV1) {
     const description =
       request.continuation === 'registration_may_defer'
-        ? 'These ten single-use codes recover every signing key in this wallet. Save them now, or back them up later from Recovery Codes in the account menu.'
-        : 'These ten single-use codes recover every signing key in this wallet. Save them somewhere private.';
+        ? 'Each code can recover your wallet once. Save them now, or back them up later from Recovery Codes.'
+        : 'Each code can recover your wallet once. Keep them somewhere private.';
     return (
       <>
         <h1 id="seams-wallet-recovery-title" class="recovery-backup-title" tabIndex={-1}>
-          Save your wallet recovery codes
+          Save your recovery codes
         </h1>
         <p id="seams-wallet-recovery-description" class="recovery-backup-description">
           {description}
         </p>
-        <ol class="recovery-code-list">
-          {request.recoveryCodes.map(renderRecoveryCodeItem)}
-        </ol>
+        <div class="recovery-code-sheet">
+          <div class="recovery-code-sheet-heading">
+            <span>Recovery codes</span>
+            <span>{request.recoveryCodes.length} single-use codes</span>
+          </div>
+          <ol class="recovery-code-list">
+            {request.recoveryCodes.map(renderRecoveryCodeItem)}
+          </ol>
+        </div>
         <div class="recovery-backup-actions">
           <button type="button" class="recovery-backup-button primary" onClick={this.download}>
             Download codes
@@ -527,19 +533,19 @@ export class RecoveryCodeBackupSurface extends Component<
             Copy codes
           </button>
         </div>
-        <label class="recovery-backup-acknowledgement">
-          <input
-            type="checkbox"
-            data-seams-wallet-recovery-backup-acknowledgement
-            checked={this.state.acknowledged}
-            onChange={this.onAcknowledgementChange}
-          />
-          I saved these recovery codes (these codes will not be shown again).
-        </label>
-        <p class="recovery-backup-status" role="status">
-          {this.state.statusMessage}
-        </p>
         <div class="recovery-backup-footer">
+          <label class="recovery-backup-acknowledgement">
+            <input
+              type="checkbox"
+              data-seams-wallet-recovery-backup-acknowledgement
+              checked={this.state.acknowledged}
+              onChange={this.onAcknowledgementChange}
+            />
+            <span>
+              I saved these recovery codes somewhere safe.
+              <small>They won’t be shown again after you finish.</small>
+            </span>
+          </label>
           <button
             type="button"
             class={`recovery-backup-button ${this.state.acknowledged ? 'primary' : 'secondary'}`}
@@ -549,6 +555,9 @@ export class RecoveryCodeBackupSurface extends Component<
             {recoveryCloseLabel(request, this.state.acknowledged)}
           </button>
         </div>
+        <p class="recovery-backup-status" role="status">
+          {this.state.statusMessage}
+        </p>
       </>
     );
   }
