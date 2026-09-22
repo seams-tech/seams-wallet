@@ -616,6 +616,7 @@ const AccountMenuButtonInner: React.FC<
             ),
             'transaction-settings': currentConfirmConfig ? (
               <TransactionSettingsSection
+                presentation="page"
                 currentConfirmConfig={currentConfirmConfig}
                 onSetUiMode={handleSetUiMode}
                 onToggleSkipClick={handleToggleSkipClick}
