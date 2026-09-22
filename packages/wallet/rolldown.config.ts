@@ -163,7 +163,8 @@ const external = [
   'qrcode',
   'jsqr',
   '@noble/hashes',
-  /@noble\/hashes\/.*/,
+  // Keep viem's extensionless v1 hash imports bundled with its own dependency.
+  /^@noble\/hashes\/.*\.js$/,
   'idb',
   'near-api-js',
 
