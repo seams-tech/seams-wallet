@@ -94,3 +94,13 @@ test('NEAR function arguments retain the established JSON boundary semantics', (
   action.args.when.setFullYear(2030);
   expect(toActionArgsWasm(copied)).not.toEqual(toActionArgsWasm(action));
 });
+
+test('snapshot preserves own __proto__ keys without changing record prototypes', () => {
+  const args = JSON.parse('{"__proto__":{"quantity":2},"item":"purchase"}');
+  const action = { type: ActionType.FunctionCall as const, methodName: 'purchase', args };
+  const copied = snapshotNearAction(action);
+  expect(toActionArgsWasm(copied)).toEqual(toActionArgsWasm(action));
+  const options = snapshotTransactionOptions(args);
+  expect(Object.hasOwn(options, '__proto__')).toBe(true);
+  expect(Object.getPrototypeOf(options)).toBe(Object.prototype);
+});

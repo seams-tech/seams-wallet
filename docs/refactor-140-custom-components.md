@@ -816,6 +816,25 @@ Final lifecycle and package audit on 2026-09-22:
 - VoiceOver/manual screen-reader acceptance is waived at the user's request.
   Keyboard, focus, inertness and strict-CSP checks remain part of acceptance.
 
+Post-merge implementation review on 2026-09-22:
+
+- Classified six failing regression cases as production regressions against the
+  existing contract. They exposed five issues: bulk cancellation prematurely
+  settled signing requests; releasing the active lease admitted a queued review
+  during bulk cancellation; Escape/backdrop dismissal discarded a stored review
+  failure; snapshot assignment treated a JSON `__proto__` key as a prototype
+  mutation; and deferred host cleanup rejected a same-commit replacement host.
+- Bulk cancellation now removes queue waiters first and leaves reviewed requests
+  under host cancellation arbitration. Ordinary pending requests receive their
+  own cancellation messages. Signing outcomes retain their established ownership.
+- Failed-review dismissal preserves the stored error. Snapshot copies define own
+  properties explicitly. Host release frees registration immediately while its
+  generation-checked disposal stays deferred for React StrictMode.
+- Verification passed: 38 targeted browser/unit checks across Chromium, Firefox
+  and WebKit (2.5 minutes), including existing ordinary cancellation-progress
+  contracts. SDK, browser-test and wallet-state type checks passed, as did the
+  production SDK build and hosted static-asset/runtime-entry checks.
+
 Failures classified and resolved during verification:
 
 - Test fixture corrections: startup prefetch response, enabled signing capability,

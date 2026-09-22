@@ -4580,16 +4580,19 @@ export class WalletIframeRouter {
   }
 
   async cancelAll(): Promise<void> {
+    // Remove waiters before cancelling an owner can release its lease.
+    this.transactionSurfaceQueue.cancelAll(new Error('Wallet requests cancelled'));
     for (const entry of this.reviews.values())
       entry.reservation.cancel(
         new TransactionReviewError('cancelled', 'Wallet requests cancelled'),
       );
-    this.transactionSurfaceQueue.cancelAll(new Error('Wallet requests cancelled'));
     for (const authMenuSessionId of Array.from(this.hostedAuthMenuRequestIds.keys())) {
       this.settleHostedAuthMenuCancellation(authMenuSessionId, 'component_unmounted');
     }
     for (const requestId of Array.from(this.state.pending.keys())) {
+      if (this.reviews.has(requestId)) continue;
       this.settlePendingRequestCancellation(requestId as WalletIframeRequestId, true);
+      this.sendBestEffortCancel(requestId);
     }
     if (
       this.walletIframeSurface.kind !== 'hidden' &&

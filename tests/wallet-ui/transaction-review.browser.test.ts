@@ -1111,3 +1111,105 @@ async function pauseReviewHandoff(page: Page): Promise<void> {
     browserWindow.setTimeout = slowFallback;
   });
 }
+
+for (const dismissal of ['escape', 'backdrop'] as const) {
+  test(`failed review preserves its error when dismissed by ${dismissal}`, async ({ page }) => {
+    await page.getByRole('button', { name: 'Buy', exact: true }).click();
+    await expect(page.getByText('Purchase context preserved')).toBeVisible();
+    await page.evaluate(() => (window as any).reviewControls.fail(new Error('Quote fetch failed')));
+    await expect(page.getByRole('alert')).toBeVisible();
+    if (dismissal === 'escape') await page.keyboard.press('Escape');
+    else await page.mouse.click(10, 10);
+    await expect
+      .poll(() => page.evaluate(() => (window as any).reviewResults[0]?.code))
+      .toBe('review_render_failed');
+    expect(await page.evaluate(() => (window as any).reviewDispatches)).toEqual([]);
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+  });
+}
+
+test('cancelAll preserves a signing review until its real result settles', async ({ page }) => {
+  const frame = page.frames().find((frame) => frame.url().startsWith(walletOrigin))!;
+  await frame.evaluate(() => {
+    const state = window as any;
+    state.reviewResultGate = new Promise<void>((resolve) => {
+      state.releaseReviewResult = resolve;
+    });
+  });
+  await page.getByRole('button', { name: 'Buy', exact: true }).click();
+  await page.getByRole('button', { name: 'Continue to wallet' }).click();
+  await page.frameLocator('iframe.seams-wallet-overlay-iframe').locator('button.confirm').click();
+  await expect.poll(() => page.evaluate(() => (window as any).reviewSigned)).toBe(1);
+  await page.evaluate(async () => {
+    const { getTransactionReviewBridge } =
+      await import('/_test-sdk/esm/react/SeamsWeb/publicApi/transactionReview.js');
+    const router = await getTransactionReviewBridge((window as any).reviewSeams.near)!
+      .getWalletIframe()
+      .requireTransportRouter();
+    await router.cancelAll();
+  });
+  expect(await page.evaluate(() => (window as any).reviewResults)).toEqual([]);
+  await frame.evaluate(() => (window as any).releaseReviewResult());
+  await expect
+    .poll(() => page.evaluate(() => (window as any).reviewResults))
+    .toEqual([{ kind: 'result', value: { success: true, transactionId: 'review-transaction' } }]);
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+});
+
+test('cancelAll removes queued reviews before releasing the active review', async ({ page }) => {
+  await page.getByRole('button', { name: 'Buy', exact: true }).click();
+  await expect(page.getByText('Purchase context preserved')).toBeVisible();
+  await page.evaluate(async () => {
+    const { getTransactionReviewBridge } =
+      await import('/_test-sdk/esm/react/SeamsWeb/publicApi/transactionReview.js');
+    (window as any).reviewRouter = await getTransactionReviewBridge(
+      (window as any).reviewSeams.near,
+    )!
+      .getWalletIframe()
+      .requireTransportRouter();
+  });
+  await page.getByRole('button', { name: 'Buy', exact: true }).dispatchEvent('click');
+  await expect
+    .poll(() => page.evaluate(() => (window as any).reviewRouter.reviewWaiters.size))
+    .toBe(1);
+  await page.evaluate(() => (window as any).reviewRouter.cancelAll());
+  await expect.poll(() => page.evaluate(() => (window as any).reviewResults.length)).toBe(2);
+  expect(
+    await page.evaluate(() =>
+      (window as any).reviewResults.every((result: any) => result.kind === 'error'),
+    ),
+  ).toBe(true);
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).reviewDispatches)).toEqual([]);
+  await page.getByRole('button', { name: 'Buy', exact: true }).click();
+  await expect(page.getByText('Purchase context preserved')).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel purchase' }).click();
+});
+
+test('a replacement review host can register in the same commit as the previous host unmounts', async ({
+  page,
+}) => {
+  const result = await page.evaluate(async () => {
+    const { ReviewHostController } =
+      await import('/_test-sdk/esm/react/transactionReview/controller.js');
+    const state = window as any;
+    state.reviewRoot.unmount();
+    const replacement = new ReviewHostController(state.reviewSeams);
+    let release: () => void;
+    try {
+      release = replacement.retain();
+    } catch (error: any) {
+      return { replacementError: error.code, duplicateError: null };
+    }
+    await Promise.resolve();
+    let duplicateError = null;
+    try {
+      new ReviewHostController(state.reviewSeams).retain();
+    } catch (error: any) {
+      duplicateError = error.code;
+    }
+    release();
+    return { replacementError: null, duplicateError };
+  });
+  expect(result).toEqual({ replacementError: null, duplicateError: 'review_host_unavailable' });
+});

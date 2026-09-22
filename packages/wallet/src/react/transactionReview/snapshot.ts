@@ -22,14 +22,22 @@ export function snapshotTransactionInput<T>(input: T): T {
     );
   }
   const copy: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(input)) copy[key] = snapshotTransactionInput(value);
+  for (const [key, value] of Object.entries(input)) {
+    Object.defineProperty(copy, key, {
+      value: snapshotTransactionInput(value),
+      enumerable: true,
+    });
+  }
   return Object.freeze(copy) as T;
 }
 
 export function snapshotTransactionOptions<T extends object>(options: T): T {
   const copy: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(options)) {
-    copy[key] = typeof value === 'function' ? value : snapshotTransactionInput(value);
+    Object.defineProperty(copy, key, {
+      value: typeof value === 'function' ? value : snapshotTransactionInput(value),
+      enumerable: true,
+    });
   }
   return Object.freeze(copy) as T;
 }

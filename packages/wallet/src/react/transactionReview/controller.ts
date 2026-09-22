@@ -93,7 +93,7 @@ export class ReviewHostController {
 
   retain(): () => void {
     const existing = hosts.get(this.seams.near);
-    if (existing && existing !== this) {
+    if (existing && existing !== this && existing.live) {
       throw new TransactionReviewError(
         'review_host_unavailable',
         'Only one TransactionReviewHost may register per SeamsWeb instance',
@@ -105,6 +105,8 @@ export class ReviewHostController {
   }
 
   private release(generation: number): void {
+    if (generation !== this.generation) return;
+    this.live = false;
     queueMicrotask(this.dispose.bind(this, generation));
   }
 
@@ -372,6 +374,13 @@ export class ReviewCall<T> {
 
   private readonly rejectBeforeDispatch = (error: unknown): void => {
     if (this.state.kind === 'settled') return;
+    if (
+      this.state.kind === 'review_failed' &&
+      error instanceof TransactionReviewError &&
+      error.code === 'cancelled'
+    ) {
+      error = this.state.error;
+    }
     this.abort.abort(error);
     this.reject(error);
     this.finish();
