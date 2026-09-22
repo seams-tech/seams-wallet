@@ -380,7 +380,7 @@ export type WorkerControlMessageType =
   (typeof WorkerControlMessage)[keyof typeof WorkerControlMessage];
 
 export type ThresholdEcdsaPresignStage = 'triples' | 'triples_done' | 'presign' | 'done';
-export type ThresholdEcdsaPresignEvent = 'none' | 'triples_done' | 'presign_done';
+export type ThresholdEcdsaPresignEvent = 'none' | 'triples_done' | 'final_batch_ready' | 'presign_done';
 
 export type ThresholdEcdsaPresignProgressResult = {
   stage: ThresholdEcdsaPresignStage;

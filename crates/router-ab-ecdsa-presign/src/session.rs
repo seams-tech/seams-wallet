@@ -53,6 +53,7 @@ impl PresignSessionStage {
 pub enum PresignSessionEvent {
     None,
     TriplesDone,
+    FinalBatchReady,
     PresignDone,
 }
 
@@ -61,6 +62,7 @@ impl PresignSessionEvent {
         match self {
             Self::None => "none",
             Self::TriplesDone => "triples_done",
+            Self::FinalBatchReady => "final_batch_ready",
             Self::PresignDone => "presign_done",
         }
     }
@@ -338,7 +340,7 @@ fn advance_client(
             Ok((
                 ClientState::Round11(Box::new(next)),
                 Some(message.encode_presign_message()?),
-                unchanged,
+                PresignSessionEvent::FinalBatchReady,
             ))
         }
         ClientState::Round11(state) => {

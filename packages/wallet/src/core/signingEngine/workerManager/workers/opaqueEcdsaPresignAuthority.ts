@@ -100,7 +100,7 @@ export type OpaqueEcdsaPresignRestoreResultV1 =
 
 type ParsedPresignPollV1 = {
   readonly stage: 'triples' | 'triples_done' | 'presign' | 'done';
-  readonly event: 'none' | 'triples_done' | 'presign_done';
+  readonly event: 'none' | 'triples_done' | 'final_batch_ready' | 'presign_done';
   readonly outgoing: readonly Uint8Array[];
 };
 
@@ -474,6 +474,7 @@ function parseEvent(value: unknown): ParsedPresignPollV1['event'] {
   switch (value) {
     case 'none':
     case 'triples_done':
+    case 'final_batch_ready':
     case 'presign_done':
       return value;
     default:

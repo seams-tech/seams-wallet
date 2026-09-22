@@ -2043,3 +2043,18 @@ expiry. This is the boundary/schema portion of the handoff, not an authorization
 claim. No live route accepts the new intent yet. Immutable attachment inside the
 ceremony, gateway admission, direct reserved publication, and ambiguous-response
 recovery still require integration and end-to-end validation before release.
+
+The native client now emits `final_batch_ready` when its last outgoing protocol
+batch is ready. The worker forwards this signal while keeping material opaque.
+The real owner adapter test verifies that it appears only on the sixth exchange,
+that this batch contains two protocol messages, and that client material remains
+unavailable until the final response. This gives the pending handoff an explicit
+protocol boundary instead of relying on a browser loop index. It does not attach
+a signing intent or remove a request yet.
+
+Validation passed: all 46 native presign unit tests, the 25-seed byte-identical
+eight/seven/six-exchange scheduling contract, seven compile-fail documentation
+tests, the real six-exchange owner adapter, both opaque-worker behavioral tests,
+focused TypeScript checking, and client WASM compilation. The existing opaque
+fixture needed its current identity and lifetime fields restored; no production
+behavior was changed for that stale fixture. No hosted gain is claimed.

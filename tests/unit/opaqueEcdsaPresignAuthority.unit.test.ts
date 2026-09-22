@@ -17,7 +17,8 @@ function testActivationEpoch() {
 }
 
 const poolIdentity: EcdsaClientPresignPoolIdentity = {
-  poolKey: 'pool-1',
+  relayerUrl: 'https://signing.example.test',
+  materialActivationB64u: 'activation-wire-1',
   materialActivationId: 'activation-1',
   capability: 'capability-1',
   keyBinding: 'key-binding-1',
@@ -50,6 +51,10 @@ class CompletedOpaqueSession implements OpaqueEcdsaPresignSessionV1 {
     return new Uint8Array(33).fill(this.signatureByte);
   }
 
+  copy_presignature_bytes_97(): void {
+    throw new Error('Resident fixture must not export presignature material');
+  }
+
   compute_signature_share(): Uint8Array {
     return new Uint8Array(32).fill(this.signatureByte);
   }
@@ -73,7 +78,9 @@ async function initializeCompletedMaterial(args: {
     presignSessionId: args.sessionId,
     session: args.session,
     groupPublicKey33: new Uint8Array(33).fill(2),
-    expiresAtMs: Date.now() + 30_000,
+    ceremonyExpiresAtMs: Date.now() + 30_000,
+    materialExpiresAtMs: Date.now() + 60_000,
+    durableMaterialRef: null,
     poolIdentity,
     authority: args.materialAuthority,
   });
@@ -127,4 +134,58 @@ test('linked-holder cleanup preserves role-local opaque presign material', async
     new Uint8Array(32).fill(7).buffer,
   );
   expect(roleLocal.wasFreed()).toBe(true);
+});
+
+class FinalBatchOpaqueSession extends CompletedOpaqueSession {
+  private complete = false;
+
+  override stage(): string {
+    return this.complete ? 'done' : 'presign';
+  }
+
+  override poll(): unknown {
+    if (this.complete) return super.poll();
+    return {
+      stage: 'presign',
+      event: 'final_batch_ready',
+      outgoing: [new Uint8Array([1]), new Uint8Array([2])],
+    };
+  }
+
+  override message(): void {
+    this.complete = true;
+  }
+
+  override presignature_big_r_33(): Uint8Array {
+    if (!this.complete) throw new Error('Material is unavailable before the final response');
+    return super.presignature_big_r_33();
+  }
+}
+
+test('the opaque worker forwards the terminal batch signal before material is available', async () => {
+  const authority = new OpaqueEcdsaPresignAuthorityV1();
+  const session = new FinalBatchOpaqueSession(7);
+  const ready = await authority.initialize({
+    presignSessionId: 'terminal-batch-session',
+    session,
+    groupPublicKey33: new Uint8Array(33).fill(2),
+    ceremonyExpiresAtMs: Date.now() + 30_000,
+    materialExpiresAtMs: Date.now() + 60_000,
+    poolIdentity,
+    durableMaterialRef: null,
+    authority: { kind: 'role_local_derivation_handle', materialHandle: 'role-local-material' },
+  });
+  expect(ready.event).toBe('final_batch_ready');
+  expect(ready.outgoingMessages).toHaveLength(2);
+  expect(ready.presignatureHandle).toBeUndefined();
+  expect(ready.presignatureBigR33).toBeUndefined();
+  const completed = await authority.step({
+    presignSessionId: 'terminal-batch-session',
+    stage: 'presign',
+    incomingMessages: [new Uint8Array([3]).buffer],
+  });
+  expect(completed.event).toBe('presign_done');
+  if (!completed.presignatureHandle) throw new Error('Completed material handle is missing');
+  expect(await authority.destroyMaterial(completed.presignatureHandle)).toBe(true);
+  expect(session.wasFreed()).toBe(true);
 });

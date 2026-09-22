@@ -201,7 +201,7 @@ export type OpaqueEcdsaPresignAuthorityResponseV1 =
             readonly kind: 'progress';
             readonly progress: {
               readonly stage: 'triples' | 'triples_done' | 'presign' | 'done';
-              readonly event: 'none' | 'triples_done' | 'presign_done';
+              readonly event: 'none' | 'triples_done' | 'final_batch_ready' | 'presign_done';
               readonly outgoingMessages: ArrayBuffer[];
               readonly presignatureHandle?: string;
               readonly presignatureBigR33?: ArrayBuffer;
@@ -211,7 +211,7 @@ export type OpaqueEcdsaPresignAuthorityResponseV1 =
             readonly kind: 'metered_progress';
             readonly progress: {
               readonly stage: 'triples' | 'triples_done' | 'presign' | 'done';
-              readonly event: 'none' | 'triples_done' | 'presign_done';
+              readonly event: 'none' | 'triples_done' | 'final_batch_ready' | 'presign_done';
               readonly outgoingMessages: ArrayBuffer[];
               readonly presignatureHandle?: string;
               readonly presignatureBigR33?: ArrayBuffer;

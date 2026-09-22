@@ -1109,13 +1109,22 @@ mod tests {
                         "presign" => CloudflareSigningWorkerEcdsaPresignRequestedStageV1::Presign,
                         _ => panic!("Unexpected server stage"),
                     };
+                    let client_progress = client.poll();
+                    assert_eq!(
+                        client_progress.event == PresignSessionEvent::FinalBatchReady,
+                        exchanges == 5,
+                        "Only the terminal client batch may attach a signing intent",
+                    );
+                    if client_progress.event == PresignSessionEvent::FinalBatchReady {
+                        assert_eq!(client_progress.outgoing.len(), 2);
+                        assert!(client.take_presignature_97().is_err());
+                    }
                     progress = step_presign_session(
                         CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 {
                             scope: scope.clone(),
                             presign_session_id: session_id.clone(),
                             requested_stage,
-                            outgoing_messages_b64u: client
-                                .poll()
+                            outgoing_messages_b64u: client_progress
                                 .outgoing
                                 .iter()
                                 .map(|message| encode_base64url_bytes_v1(message))
