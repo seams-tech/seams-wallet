@@ -1,3 +1,4 @@
+import type { AppearanceConfig } from '@/core/types/seams';
 import type { WalletIframeSurfaceMeasurement } from '../../walletIframe/shared/messages';
 import type {
   WalletRecoveryCodeBackupAcknowledgementV1,
@@ -26,6 +27,7 @@ type AccountMenuRecoveryCodeExperience = Extract<
 export type WalletRecoveryCodesUiRequest = Omit<AccountMenuRecoveryCodeExperience, 'kind'>;
 
 type RecoveryCodeBackupUiOptions = {
+  readonly appearance?: AppearanceConfig;
   readonly shouldCancel?: () => boolean;
 };
 
@@ -98,6 +100,7 @@ async function showRecoveryCodeExperience(
     try {
       surface = surfaceModule.mountRecoveryCodeBackupSurface({
         parent: document.body,
+        appearance: options.appearance,
         experience,
         surface: measurementBinding.kind === 'wallet_iframe' ? 'wallet-iframe' : 'standalone',
         onClose: handleClose,

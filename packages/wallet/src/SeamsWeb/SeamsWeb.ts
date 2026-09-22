@@ -2441,6 +2441,7 @@ export class SeamsWeb {
         ),
       },
       this.signingEngine.getWalletIframeSurfaceMeasurementBinding(),
+      { appearance: this.appearance },
     );
     if (acknowledgement.kind !== 'wallet_recovery_codes_backed_up_v1') {
       throw new Error('Pending wallet recovery-code backup was not completed');

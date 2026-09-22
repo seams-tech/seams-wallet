@@ -6,7 +6,7 @@ import { routePreactModules } from '../setup/preact';
 
 type RecoveryTestState = {
   startDirect(): void;
-  startAccount(mode: 'ready' | 'failed'): void;
+  startAccount(mode: 'ready' | 'failed', theme?: 'light' | 'dark'): void;
   startAccountPending(): void;
   startAccountOpeningPending(): void;
   cancelPending(): void;
@@ -75,33 +75,41 @@ async function prepare(page: Page): Promise<void> {
           }),
         );
       },
-      startAccount(mode) {
+      startAccount(mode, theme) {
         state.result = import(modulePath).then(({ showWalletRecoveryCodesUi }) =>
-          showWalletRecoveryCodesUi({
-            walletId: 'recovery.testnet',
-            loadStatus: async () =>
-              mode === 'failed'
-                ? { kind: 'transport_failed', message: 'Synthetic status failure' }
-                : {
-                    kind: 'ready',
-                    walletId: 'recovery.testnet',
-                    activeCodeCount: codes.length,
-                    totalCodeCount: codes.length,
-                    issuedAtMs: 0,
-                    storeVersion: 'synthetic-v1',
-                    backupOutstanding: true,
-                    pendingLocalBackup: true,
-                  },
-            loadPendingBackup: async () => {
-              if (mode === 'failed') throw new Error('Synthetic opening failure');
-              return {
-                kind: 'wallet_recovery_code_backup_request_v1',
-                walletId: 'recovery.testnet',
-                recoveryCodes: codes,
-                continuation: 'pending_backup_must_finish',
-              };
+          showWalletRecoveryCodesUi(
+            {
+              walletId: 'recovery.testnet',
+              loadStatus: async () =>
+                mode === 'failed'
+                  ? { kind: 'transport_failed', message: 'Synthetic status failure' }
+                  : {
+                      kind: 'ready',
+                      walletId: 'recovery.testnet',
+                      activeCodeCount: codes.length,
+                      totalCodeCount: codes.length,
+                      issuedAtMs: 0,
+                      storeVersion: 'synthetic-v1',
+                      backupOutstanding: true,
+                      pendingLocalBackup: true,
+                    },
+              loadPendingBackup: async () => {
+                if (mode === 'failed') throw new Error('Synthetic opening failure');
+                return {
+                  kind: 'wallet_recovery_code_backup_request_v1',
+                  walletId: 'recovery.testnet',
+                  recoveryCodes: codes,
+                  continuation: 'pending_backup_must_finish',
+                };
+              },
             },
-          }),
+            { kind: 'disabled' },
+            {
+              appearance: theme
+                ? { palette: 'default', theme: { id: 'default', mode: theme, colors: {} } }
+                : undefined,
+            },
+          ),
         );
       },
       startAccountPending() {
@@ -423,3 +431,20 @@ test('recovery codes fit the wallet iframe at desktop and mobile widths', async 
     expect(closeBounds!.x + closeBounds!.width).toBeLessThanOrEqual(width);
   }
 });
+
+for (const theme of ['light', 'dark'] as const) {
+  test(`recovery summary and codes use the requested ${theme} theme`, async ({ page }) => {
+    await page.evaluate((theme) => {
+      document.documentElement.dataset.seamsTheme = theme === 'dark' ? 'light' : 'dark';
+      window.__recoveryTest.startAccount('ready', theme);
+    }, theme);
+    const dialog = page.locator('[data-seams-wallet-recovery-backup-dialog]');
+    const background = theme === 'dark' ? 'oklch(0.2 0.01 240)' : 'oklch(0.98 0.001 240)';
+    await expect(dialog).toHaveCSS('background-color', background);
+    await page.getByRole('button', { name: 'View recovery codes' }).click();
+    await expect(page.locator('.recovery-code-item')).toHaveCount(10);
+    await expect(dialog).toHaveCSS('background-color', background);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+  });
+}

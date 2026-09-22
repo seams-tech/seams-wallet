@@ -1,5 +1,8 @@
 /** @jsxImportSource preact */
 import { render } from 'preact';
+import type { AppearanceConfig } from '@/core/types/seams';
+import { appearanceTokenCssRule } from '../appearance-token-vars';
+import { confirmationDocumentStyles } from './confirmation-styles';
 import {
   RecoveryCodeBackupSurface,
   type RecoveryBackupCloseDetail,
@@ -11,6 +14,7 @@ export type RecoveryBackupSurface = 'standalone' | 'wallet-iframe';
 
 type MountRecoveryCodeBackupInput = {
   readonly parent: HTMLElement;
+  readonly appearance?: AppearanceConfig;
   readonly experience: RecoveryCodeBackupExperience;
   readonly surface: RecoveryBackupSurface;
   readonly onClose: (detail: RecoveryBackupCloseDetail) => void;
@@ -41,6 +45,13 @@ class MountedRecoveryCodeBackupSurface implements RecoveryCodeBackupSurfaceHandl
     this.element.id = `seams-recovery-surface-${++nextRecoverySurfaceId}`;
     this.element.className = 'seams-wallet-ui seams-recovery-code-backup-host';
     this.element.dataset.seamsRecoverySurface = input.surface;
+    if (input.appearance) {
+      this.element.dataset.theme = input.appearance.theme.mode;
+      confirmationDocumentStyles(this.document).setDynamicRule(
+        this.element.id,
+        appearanceTokenCssRule(this.element.id, input.appearance),
+      );
+    }
     this.dialog = this.document.createElement('dialog');
     this.dialog.className = 'seams-host-themed-dialog';
     this.dialog.tabIndex = -1;
@@ -73,6 +84,7 @@ class MountedRecoveryCodeBackupSurface implements RecoveryCodeBackupSurfaceHandl
     this.dialog.removeEventListener('cancel', this.handleCancel);
     render(null, this.dialog);
     if (this.dialog.open) this.dialog.close();
+    confirmationDocumentStyles(this.document).deleteDynamicRule(this.element.id);
     this.element.remove();
   }
 
