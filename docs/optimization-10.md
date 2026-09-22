@@ -1721,3 +1721,73 @@ loading and starts intent preparation before confirmation. The demo also reads
 fee-token configuration and balance concurrently. Further overlap must preserve
 exact nonce reservation and cancellation behavior. Persistent transport still
 requires an equivalent local/remote benchmark with live per-message admission.
+
+
+### First-use refill reconciliation and remaining transport work
+
+Two startup races now have focused reproductions. An older in-flight refill
+could reject after a new lifecycle reconciliation installed maintenance and
+then cancel that newer maintenance. Separately, an initial registration refill
+rejection was not reconciled when deferred NEAR provisioning published the
+committed authority. Both are classified as `production_regression`.
+
+The local correction associates attempt completion with the maintenance instance
+that started it. A superseded attempt cannot cancel the replacement; that
+replacement runs after the old attempt settles. Successful deferred authority
+publication schedules fresh ECDSA reconciliation without blocking registration
+or waiting for the pool. An authorization failure without a new lifecycle
+reconciliation still stops maintenance, preserving bounded admission behavior.
+
+The coordination regression verifies recovery to five entries with the same
+credential. A real-D1 registration contract rejects the first fill, holds deferred
+NEAR publication, then proves publication restarts refill and enables signing.
+That fixture intentionally targets one initial entry; the original reload/refill
+contract and the focused coordination test retain their five-entry assertions.
+All 231 unit tests, workspace types, SDK build, and all three representative
+lifecycle contracts passed. This correction is local and has no hosted latency
+claim yet.
+
+A further unchanged-0.5.32 immediate-sign sample reproduced `wallet_session_invalid`
+on the initial background init. The successful foreground ceremony took 9.106s;
+registration-ready to observed signature took 15.742s. Its six successful HTTP
+requests reused connections according to browser timing (no new DNS/connect/TLS
+phase was reported). One response took about 1.212s from first byte to response
+completion. Worker/gateway timing and response delivery must therefore be
+measured separately; a persistent transport cannot be justified by an assumed
+new TLS handshake on every step.
+
+A separate diagnostic held deferred NEAR provisioning until the first ECDSA
+signature completed. One request was held, no initial fill rejection occurred,
+and registration-ready to signature still took 12.339s. This single, ordered
+sample does not justify delaying NEAR publication in production. The experiment
+is excluded from the implementation.
+
+Read-only inspection confirms the deployed gateway is targeted near Singapore
+and the signing Worker near Osaka, each following an earlier database-placement
+optimization. The gateway already uses a private service binding to the Worker.
+The actual session Durable Object location remains unverified. Measure the
+combined database and gateway/Worker/object cost before changing placement;
+co-locating two Workers can worsen their database access.
+
+The browser-only local WebSocket prototype retained live HTTP admission on its
+internal path. Four equivalent empty-pool cases with a modeled 100ms exchange
+delay measured first-sign flows of 1.449/1.448s over HTTP and 1.441/1.446s over
+WebSocket. This tiny ordered cohort demonstrates no multi-second saving. A
+persistent transport across the internal hops remains experimental work and
+must retain live admission, exact ceremony scope, ordering, expiry, cancellation,
+and single-use before a remote comparison.
+
+Further work remains on an atomic presign-completion/signing-preparation handoff,
+placement and full-path transport benchmarks, and protocol preprocessing review.
+The current triples transcript is bound to the wallet public key and fresh
+ceremony identity; generic material generated before those bindings exist
+cannot simply be assigned to a newly registered wallet. No cryptographic
+arithmetic, transcript, or custody change is included in the startup correction.
+
+The actual owner adapter also confirms that the client remains in the presign
+stage with output unavailable until it consumes the sixth response's final
+server message. An experimental assertion passed without changing protocol
+messages. Fusing preparation therefore needs an explicit, atomically claimed
+confirmed-operation handoff into completion; the current pool-entry reservation
+API cannot be invoked before that response. This remains a design and validation
+task, with no fused production route implemented yet.
