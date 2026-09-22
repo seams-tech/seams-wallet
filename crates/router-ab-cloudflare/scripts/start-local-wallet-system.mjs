@@ -32,6 +32,11 @@ const identity = Object.freeze({
   signingRootId: options.signingRootId,
   signingRootVersion: 'default',
 });
+// Separate local stacks reuse Worker names, so each needs its own discovery registry.
+const workerEnv = {
+  ...process.env,
+  WRANGLER_REGISTRY_PATH: path.join(localRoot, '.local', 'worker-registry'),
+};
 const children = [];
 let stopping = false;
 
@@ -279,7 +284,7 @@ function startGateway(runtime) {
 function childOptions() {
   return {
     cwd: repoRoot,
-    env: process.env,
+    env: workerEnv,
     stdio: 'inherit',
     detached: process.platform !== 'win32',
   };
@@ -299,7 +304,7 @@ function runRequired(label, command, args, env = process.env) {
 function runRequiredCapture(label, command, args) {
   const result = spawnSync(command, args, {
     cwd: repoRoot,
-    env: process.env,
+    env: workerEnv,
     encoding: 'utf8',
   });
   if (result.stderr) process.stderr.write(result.stderr);

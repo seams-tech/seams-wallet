@@ -18,6 +18,11 @@ const localRoot = path.resolve(
 const stateRoot = path.join(localRoot, '.local', 'cloudflare-state', 'router-ab');
 const gatewayRuntimeRoot = path.join(localRoot, '.runtime', 'wallet-gateway');
 const ceremonyPrivateJwkPath = path.join(gatewayRuntimeRoot, 'ceremony-private.jwk.json');
+// Separate local stacks reuse Worker names, so each needs its own discovery registry.
+const workerEnv = {
+  ...process.env,
+  WRANGLER_REGISTRY_PATH: path.join(localRoot, '.local', 'worker-registry'),
+};
 const children = [];
 let stopping = false;
 
@@ -206,7 +211,7 @@ function startWorker(config) {
     ],
     {
       cwd: repoRoot,
-      env: process.env,
+      env: workerEnv,
       stdio: 'inherit',
       detached: process.platform !== 'win32',
     },
