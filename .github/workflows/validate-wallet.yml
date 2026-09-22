@@ -36,7 +36,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm type-check
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright install --with-deps chromium firefox webkit
       - run: pnpm -C tests test:wallet-browser:representative
       - run: pnpm -C tests test:wallet-unit:representative
       - run: pnpm -C tests test:intended:representative
