@@ -300,6 +300,9 @@
   border-top: 1px solid var(--seams-colors-borderPrimary);
   font-size: 0.6875rem;
 }
+:where(.seams-wallet-ui) .seams-receipt-footer > svg:first-child {
+  margin-inline-end: -2px;
+}
 :where(.seams-wallet-ui) .seams-receipt-footer .seams-receipt-wordmark {
   width: 4.25rem;
   height: auto;
