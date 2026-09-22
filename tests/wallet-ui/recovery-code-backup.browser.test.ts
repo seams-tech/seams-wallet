@@ -370,3 +370,32 @@ test('closing while recovery codes are opening ignores the late result', async (
   await expect(page.locator('.recovery-code-item')).toHaveCount(0);
   await expect(page.locator('.seams-recovery-code-backup-viewer')).toHaveCount(0);
 });
+
+
+test('recovery codes fit the wallet iframe at desktop and mobile widths', async ({ page }) => {
+  await prepare(page);
+  await page.evaluate(() => window.__recoveryTest.startAccount('ready'));
+  const dialog = page.locator('[data-seams-wallet-recovery-backup-dialog]');
+  await expect(dialog).toBeVisible();
+  await dialog.evaluate(element => {
+    element.setAttribute('data-seams-recovery-surface', 'wallet-iframe');
+  });
+  await page.getByRole('button', { name: 'View recovery codes' }).click();
+  await expect(page.locator('.recovery-code-value')).toHaveCount(10);
+  await page.locator('.recovery-code-value').evaluateAll(elements => {
+    for (const element of elements) {
+      element.textContent = 'DEMO-0000-ABCD-1234-DEMO-0000-ABCD-1234';
+    }
+  });
+  for (const width of [560, 375]) {
+    await page.setViewportSize({ width, height: 740 });
+    const bounds = await dialog.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+    expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    const close = page.getByRole('button', { name: 'Close', exact: true });
+    await close.scrollIntoViewIfNeeded();
+    const closeBounds = await close.boundingBox();
+    expect(closeBounds!.x + closeBounds!.width).toBeLessThanOrEqual(width);
+  }
+});
