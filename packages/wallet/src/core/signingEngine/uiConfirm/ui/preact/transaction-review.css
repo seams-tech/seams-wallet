@@ -270,7 +270,7 @@
   align-items: center;
   gap: 0.625rem;
   border-radius: var(--seams-shape-box, 12px);
-  padding: 0.75rem;
+  padding: 0.5rem 0.75rem;
   margin-block: 0.125rem 1rem;
   background: var(--seams-colors-surface2);
   font-size: 0.75rem;
@@ -584,6 +584,7 @@
 }
 :where(.seams-wallet-ui) .seams-review-account .seams-review-copy-address {
   width: 100%;
+  padding-block: 0.125rem;
   justify-content: flex-start;
   text-align: start;
 }
@@ -617,7 +618,7 @@
   padding-inline: var(--seams-review-inset);
 }
 :where(.seams-wallet-ui) .seams-confirmation-drawer .seams-review-account {
-  padding: 0.5rem;
+  padding: 0.375rem 0.5rem;
 }
 :where(.seams-wallet-ui) .seams-drawer-origin {
   position: absolute;
