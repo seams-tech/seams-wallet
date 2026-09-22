@@ -604,6 +604,45 @@
   border: 1px solid var(--seams-colors-borderPrimary);
   box-shadow: 0 16px 32px -16px rgb(0 0 0 / 0.22);
 }
+:where(.seams-wallet-ui[data-confirmation-kind='transaction']) .seams-confirmation-drawer {
+  --seams-drawer__max-width: 390px;
+}
+:where(.seams-wallet-ui[data-confirmation-kind='transaction']) .seams-drawer-content {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+:where(.seams-wallet-ui) .seams-confirmation-drawer .seams-review-content {
+  --seams-review-inset: 0.75rem;
+  padding-inline: var(--seams-review-inset);
+}
+:where(.seams-wallet-ui) .seams-confirmation-drawer .seams-review-account {
+  padding: 0.5rem;
+}
+:where(.seams-wallet-ui) .seams-drawer-origin {
+  position: absolute;
+  inset-inline-start: 1.25rem;
+  top: 0.5rem;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--seams-colors-textSecondary);
+}
+:where(.seams-wallet-ui) .seams-drawer-origin .padlock-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--seams-colors-buttonBackground);
+}
+:where(.seams-wallet-ui) .seams-drawer-controls:has(.seams-drawer-origin) .seams-drawer-handle {
+  inline-size: 48px;
+  block-size: 40px;
+}
+:where(.seams-wallet-ui) .seams-drawer-controls:has(.seams-drawer-origin) {
+  padding-top: 0.5rem;
+}
+:where(.seams-wallet-ui) .seams-drawer-controls:has(.seams-drawer-origin) .seams-drawer-close {
+  top: 0.5rem;
+}
 :where(.seams-wallet-ui) .seams-receipt-box .seams-review-technical {
   border-top: 0;
   margin: 0;

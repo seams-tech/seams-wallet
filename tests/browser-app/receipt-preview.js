@@ -9,6 +9,7 @@ let theme = 'light';
 let state = { kind: 'signing' };
 let view = 'expanded';
 let example = 'transfer';
+const variant = new URLSearchParams(location.search).get('variant') === 'drawer' ? 'drawer' : 'modal';
 
 function displayModel() {
   const signer = `0x4201${'0'.repeat(32)}891c`;
@@ -111,7 +112,12 @@ function model() {
     },
     content: {
       kind: 'transaction',
-      review: { model: display, tree: buildDisplayTreeFromModel(display) },
+      review: {
+        model: display,
+        tree: buildDisplayTreeFromModel(display),
+        detailsInitiallyOpen: new URLSearchParams(location.search).get('details') === 'open'
+          || (variant !== 'drawer' && new URLSearchParams(location.search).get('details') !== 'closed'),
+      },
       header: {
         heading: example === 'transfer' ? 'Review your transfer' : 'Review contract call',
         website: { kind: 'ready', text: 'preview.local' },
@@ -136,7 +142,7 @@ function review() {
   view = 'expanded';
   handle = mountConfirmationSurface({
     parent,
-    presentation: { variant: 'modal', context: 'wallet-iframe' },
+    presentation: { variant, context: variant === 'drawer' ? 'standalone' : 'wallet-iframe' },
     model: model(),
     onClosed: closed,
   });
@@ -172,8 +178,6 @@ function selectStage(event) {
 function selectExample(event) {
   example = event.currentTarget.dataset.example;
   review();
-  const disclosure = parent.querySelector('summary');
-  if (disclosure) disclosure.click();
   status.textContent = `Simulated ${example} example — no transaction is sent`;
 }
 function minimize() {

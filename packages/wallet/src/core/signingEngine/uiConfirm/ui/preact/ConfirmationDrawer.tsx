@@ -16,6 +16,7 @@ export type ConfirmationDrawerProps = {
   styles: CspStylesheetManager;
   onCancel: () => void;
   children: ComponentChildren;
+  origin?: ComponentChildren;
 };
 
 type Gesture =
@@ -60,7 +61,7 @@ class DrawerShell extends Component<ConfirmationDrawerProps, { settled: boolean 
     const win = sheet.ownerDocument.defaultView!;
     this.dialog.current?.showModal();
     if (!this.dialog.current) sheet.focus({ preventScroll: true });
-    this.observer = new ResizeObserver(this.scheduleMeasure);
+    this.observer = new ResizeObserver(this.measureContent);
     this.observer.observe(this.content.current!);
     this.observer.observe(sheet);
     win.addEventListener('resize', this.scheduleMeasure);
@@ -117,6 +118,10 @@ class DrawerShell extends Component<ConfirmationDrawerProps, { settled: boolean 
   private measureFrame = (): void => {
     this.frame = null;
     this.measure();
+  };
+
+  private measureContent = (): void => {
+    if (this.lifetime === 'active') this.measure();
   };
 
   private measure(): void {
@@ -318,6 +323,7 @@ class DrawerShell extends Component<ConfirmationDrawerProps, { settled: boolean 
         onKeyDown={this.keyDown}
       >
         <div class="seams-drawer-controls">
+          {this.props.origin && <div class="seams-drawer-origin">{this.props.origin}</div>}
           <button
             type="button"
             class="seams-drawer-handle"

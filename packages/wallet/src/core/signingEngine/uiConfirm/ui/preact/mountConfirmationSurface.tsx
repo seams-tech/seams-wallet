@@ -8,6 +8,7 @@ import { ConfirmationContent, type ConfirmationContentModel } from './Confirmati
 import { ConfirmationModal } from './ConfirmationModal';
 import { ConfirmationDrawer } from './ConfirmationDrawer';
 import { TransactionReceipt } from './TransactionReceipt';
+import { PadlockIcon } from './PadlockIcon';
 import { receiptIsPending, type TransactionReceiptModel } from '../transaction-receipt';
 
 export { normalizeConfirmationModel } from '../confirmation-model';
@@ -213,6 +214,9 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
       <ConfirmationDrawer
         context={this.presentation.context}
         label={label}
+        origin={source.kind === 'transaction' && source.header.website.kind === 'ready'
+          ? <><PadlockIcon />{source.header.website.text}</>
+          : undefined}
         errorMessage={
           source.kind === 'registration'
             ? source.registration.errorMessage

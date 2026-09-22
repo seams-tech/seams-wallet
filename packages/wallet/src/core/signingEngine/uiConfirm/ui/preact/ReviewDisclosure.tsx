@@ -5,9 +5,12 @@ import { confirmationDocumentStyles } from './confirmation-styles';
 
 let nextDisclosureId = 0;
 
-export class ReviewDisclosure extends Component<{ label: string; children: ComponentChildren }> {
+export class ReviewDisclosure extends Component<{ label: string; children: ComponentChildren; initiallyOpen?: boolean }> {
   private readonly root = createRef<HTMLDetailsElement>();
   private readonly id = `seams-review-disclosure-${++nextDisclosureId}`;
+  componentDidMount(): void {
+    if (this.root.current) this.root.current.open = this.props.initiallyOpen ?? false;
+  }
   private motion: { kind: 'local'; opening: boolean; size: Animation; fade: Animation } | { kind: 'hosted'; opening: boolean } | null = null;
 
   componentWillUnmount(): void {
@@ -23,6 +26,7 @@ export class ReviewDisclosure extends Component<{ label: string; children: Compo
       this.motion.fade.cancel();
     }
     this.motion = null;
+    this.root.current?.removeAttribute('data-resizing');
   }
 
   private setHeight = (height: number): void => {
@@ -56,6 +60,7 @@ export class ReviewDisclosure extends Component<{ label: string; children: Compo
       return;
     }
     details.open = true;
+    details.setAttribute('data-resizing', '');
     const target = opening ? body.scrollHeight : 0;
     this.motion = { kind: 'hosted', opening };
     if (announceClampedSurfaceResize({ element: body, reason: 'review-details', fromCssPx: height, toCssPx: target,

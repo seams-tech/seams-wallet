@@ -139,7 +139,7 @@ export class ConfirmationContent extends Component<{
     return (
       <div ref={this.root} class={contentClass}>
         <div class="seams-review-content">
-          <div class="seams-review-toolbar">
+          {this.props.variant !== 'drawer' && <div class="seams-review-toolbar">
             <div class="seams-review-origin">
               <PadlockIcon />
               {model.header.website.kind === 'ready' ? (
@@ -155,7 +155,7 @@ export class ConfirmationContent extends Component<{
             >
               <ReviewIcon kind="close" />
             </button>
-          </div>
+          </div>}
           {model.review.model && (
             <div class="seams-review-eyebrow">
               {model.review.model.operations.length === 1

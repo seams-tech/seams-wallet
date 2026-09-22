@@ -7,6 +7,7 @@ import { CopyStatusIcon } from './CopyStatusIcon';
 import { ReviewDisclosure } from './ReviewDisclosure';
 
 export type TransactionReviewData = {
+  detailsInitiallyOpen?: boolean;
   model: TxDisplayModel | null;
   tree: TreeNode | null;
 };
@@ -367,6 +368,7 @@ export function TransactionReview({
       </dl>
       {details && data.tree && (
         <ReviewDisclosure
+          initiallyOpen={data.detailsInitiallyOpen}
           label={operation?.kind === 'near.message' ? 'Message details' : 'Transaction details'}
         >
           <ReviewDetail node={data.tree} />
