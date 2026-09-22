@@ -19,7 +19,11 @@
   transition:
     background-color 0.1s ease-in-out,
     backdrop-filter 0.2s ease-in-out;
-  padding: 0.5rem;
+  padding: 0.75rem;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 
 /* Themed panel similar to ShowQRCode modal content */
@@ -58,8 +62,8 @@
 
 .qr-scanner-progress h2 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.3125rem;
+  font-weight: 600;
   line-height: 1.25;
   letter-spacing: -0.02em;
 }
@@ -120,9 +124,9 @@
 }
 
 .qr-scanner-progress-cancel {
-  color: #fff;
-  background: #000;
-  border-color: #000;
+  color: var(--seams-colors-textPrimary);
+  background: transparent;
+  border-color: var(--seams-colors-borderPrimary);
 }
 
 .qr-scanner-progress-primary {
@@ -132,9 +136,8 @@
 }
 
 .qr-scanner-progress-cancel:hover {
-  color: #fff;
-  background: oklch(0.24 0 0);
-  border-color: oklch(0.24 0 0);
+  background: var(--seams-colors-surface2);
+  border-color: var(--seams-colors-borderHover);
 }
 
 .qr-scanner-progress-primary:hover {

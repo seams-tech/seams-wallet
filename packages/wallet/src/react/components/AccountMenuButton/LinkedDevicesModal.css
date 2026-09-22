@@ -32,7 +32,12 @@
   max-height: calc(100vh - 24px);
   max-height: calc(100dvh - 24px);
   overflow: hidden;
-  padding: var(--seams-spacing-lg, 1.5rem);
+  padding: 1.5rem;
+  color: var(--seams-colors-textPrimary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 0.18);
   border: none;
   border-radius: var(--seams-shape-card, 1.5rem);
   background: var(--seams-colors-colorBackground);
@@ -50,13 +55,13 @@
 }
 
 .seams-auth-methods-modal-content {
-  width: min(520px, 100%);
+  width: min(640px, 100%);
 }
 
 /* The device inventory is two short rows of text; a narrower dialog keeps the
    metadata lines scannable. */
 .seams-linked-devices-inventory-content {
-  width: min(500px, 100%);
+  width: min(560px, 100%);
 }
 
 .seams-auth-methods-modal-intro {
@@ -78,9 +83,9 @@
 .seams-linked-devices-modal-subtitle {
   margin: -0.5rem 2.5rem 1rem 0;
   color: var(--seams-colors-textSecondary);
-  font-size: 0.82rem;
-  font-weight: 500;
-  line-height: 1.4;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 .seams-linked-devices-modal-close {
@@ -93,10 +98,13 @@
   font-weight: 600;
   color: var(--seams-colors-textMuted);
   cursor: pointer;
-  padding: 16px;
-  border-radius: 999px;
+  box-sizing: border-box;
+  padding: 0;
+  border-radius: 50%;
   width: 44px;
+  min-width: 44px;
   height: 44px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -525,6 +533,7 @@
 }
 .seams-linked-devices-modal-backdrop[data-presentation='page'] .seams-linked-devices-modal-content {
   width: 100%;
+  box-shadow: none;
   max-height: none;
   overflow: visible;
   padding: 24px;
@@ -589,4 +598,10 @@
 }
 .seams-linked-devices-modal-backdrop[data-presentation='page'] .seams-auth-methods-modal-content {
   max-width: 40rem;
+}
+
+.seams-linked-devices-modal-content *,
+.seams-linked-devices-modal-content *::before,
+.seams-linked-devices-modal-content *::after {
+  box-sizing: border-box;
 }

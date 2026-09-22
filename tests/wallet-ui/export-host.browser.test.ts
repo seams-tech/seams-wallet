@@ -140,7 +140,7 @@ test('production export mounts without obsolete requests and reports a styled vi
   expect(initial[0]).toMatchObject({
     kind: 'measured_v1',
     requestId: 'request-one',
-    widthCssPx: 384,
+    widthCssPx: 512,
     heightCssPx: 576,
   });
   expect(obsoleteRequests).toEqual([]);

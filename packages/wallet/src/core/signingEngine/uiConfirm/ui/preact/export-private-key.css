@@ -15,7 +15,7 @@
 
 :where(.seams-wallet-ui).seams-export-surface[data-seams-export-surface='wallet-iframe'] {
   position: relative;
-  inline-size: 24rem;
+  inline-size: 32rem;
   max-inline-size: 100%;
   block-size: 36rem;
   overflow: hidden;
@@ -39,26 +39,22 @@
   flex-direction: column;
   gap: 1rem;
 }
-@media (min-width: 769px) {
-  :where(.seams-wallet-ui) .seams-export-key-viewer .content {
-    padding: 1rem;
-  }
-}
 
 :where(.seams-wallet-ui) .seams-export-key-viewer .title {
   margin: 0rem;
-  padding-left: 0.5rem;
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: 1.3125rem;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  font-weight: 600;
   text-align: left;
 }
 
 :where(.seams-wallet-ui) .seams-export-key-viewer .warning {
   color: var(--seams-colors-textSecondary, rgba(255, 255, 255, 0.7));
-  padding: 12px;
-  border-radius: 1rem;
-  font-size: 0.85rem;
-  margin-bottom: 1.25rem;
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0;
 }
 
 :where(.seams-wallet-ui) .seams-export-key-viewer .error-banner {
@@ -84,17 +80,17 @@
 }
 :where(.seams-wallet-ui) .seams-export-key-viewer .key-title {
   color: var(--seams-colors-textPrimary, #f6f7f8);
-  font-size: 0.9rem;
-  font-weight: 700;
-  padding-left: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 :where(.seams-wallet-ui) .seams-export-key-viewer .field {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   background: var(--seams-colors-surface2);
-  padding: 0.75rem;
-  border-radius: 1rem;
+  box-sizing: border-box;
+  padding: 0.875rem;
+  border-radius: 0.75rem;
 }
 
 :where(.seams-wallet-ui) .seams-export-key-viewer .copy-field {
