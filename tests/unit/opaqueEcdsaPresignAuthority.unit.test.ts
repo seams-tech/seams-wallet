@@ -1,3 +1,4 @@
+import type { ThresholdEcdsaPresignProgressResult } from '@/core/signingEngine/workerManager/workerTypes';
 import { expect, test } from '@playwright/test';
 import { parseRootShareEpoch } from '@shared/utils/domainIds';
 import {
@@ -46,6 +47,10 @@ class CompletedOpaqueSession implements OpaqueEcdsaPresignSessionV1 {
   message(): void {}
 
   start_presign(): void {}
+
+  candidate_big_r_33(): Uint8Array {
+    throw new Error('Completed material has no pending final batch');
+  }
 
   presignature_big_r_33(): Uint8Array {
     return new Uint8Array(33).fill(this.signatureByte);
@@ -156,6 +161,10 @@ class FinalBatchOpaqueSession extends CompletedOpaqueSession {
     this.complete = true;
   }
 
+  override candidate_big_r_33(): Uint8Array {
+    return super.presignature_big_r_33();
+  }
+
   override presignature_big_r_33(): Uint8Array {
     if (!this.complete) throw new Error('Material is unavailable before the final response');
     return super.presignature_big_r_33();
@@ -176,6 +185,8 @@ test('the opaque worker forwards the terminal batch signal before material is av
     authority: { kind: 'role_local_derivation_handle', materialHandle: 'role-local-material' },
   });
   expect(ready.event).toBe('final_batch_ready');
+  if (ready.event !== 'final_batch_ready') throw new Error('Missing terminal batch');
+  expect(new Uint8Array(ready.candidateBigR33)).toEqual(new Uint8Array(33).fill(7));
   expect(ready.outgoingMessages).toHaveLength(2);
   expect(ready.presignatureHandle).toBeUndefined();
   expect(ready.presignatureBigR33).toBeUndefined();
@@ -189,3 +200,27 @@ test('the opaque worker forwards the terminal batch signal before material is av
   expect(await authority.destroyMaterial(completed.presignatureHandle)).toBe(true);
   expect(session.wasFreed()).toBe(true);
 });
+
+function rejectIncompleteTerminalProgress(): void {
+  // @ts-expect-error A final batch requires the public candidate point.
+  const missingCandidate: ThresholdEcdsaPresignProgressResult = {
+    stage: 'presign',
+    event: 'final_batch_ready',
+    outgoingMessages: [],
+  };
+  const terminal = {
+    stage: 'presign',
+    event: 'final_batch_ready',
+    outgoingMessages: [],
+    candidateBigR33: new ArrayBuffer(33),
+  } as const;
+  // @ts-expect-error A spread cannot smuggle completed material into a terminal batch.
+  const prematureMaterial: ThresholdEcdsaPresignProgressResult = {
+    ...terminal,
+    outgoingMessages: [],
+    presignatureHandle: 'unverified',
+  };
+  void missingCandidate;
+  void prematureMaterial;
+}
+void rejectIncompleteTerminalProgress;

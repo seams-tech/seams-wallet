@@ -3592,6 +3592,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
   const normalized = filePath.replaceAll('\\', '/');
   if (
     normalized.endsWith('passkey.registration.contract.test.ts') ||
+    normalized.endsWith('passkey.presign-handoff.contract.test.ts') ||
     normalized.endsWith('passkey.registration.checkpoint.contract.test.ts') ||
     normalized.endsWith('passkey.registration.resume.contract.test.ts') ||
     normalized.endsWith('passkey.ed25519-yao-local.contract.test.ts') ||

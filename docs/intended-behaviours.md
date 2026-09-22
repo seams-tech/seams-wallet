@@ -72,6 +72,19 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
   Reinitialization is rejected after completion and worker restart. Requests that
   exceed authorized deadlines fail rather than changing an initialized binding.
 
+- A confirmed foreground signing operation may claim an in-flight ceremony's final
+  batch. Its complete request uses the verified public candidate R-derived
+  material identity. The ordinary live signing authorization and quota admission
+  precede terminal protocol execution; the server first persists this material as
+  Reserved for that exact request. The client claims completed material directly
+  without publishing it in the available pool. If the final batch has already
+  been sent, signing uses ordinary completed-pool preparation.
+- An ambiguous terminal prepare response does not trigger a replacement signing
+  operation. Cancellation or invalidation destroys client material; server
+  reservations remain single-use and expire under the existing lease. Exact
+  completed finalization replay returns the durable first result, while altered
+  finalization input is rejected.
+
 - Retain unused reusable ECDSA presignatures encrypted on both participants for
   up to 90 days, subject to material retirement and revocation. Session expiry
   alone does not invalidate the retained material. Operation-scoped preparation

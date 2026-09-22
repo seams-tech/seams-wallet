@@ -2132,3 +2132,28 @@ and Gateway authorization acceptance remains outstanding. The integration expose
 a timestamp assumption: preparation can now occur after material loading. The
 response and reserved record share the reservation timestamp, which must be at
 or after materialization. No hosted latency improvement is claimed yet.
+
+
+The owner client now claims the terminal batch for a waiting confirmed operation,
+including promotion of background refill. Its worker exposes only the public
+candidate point at `final_batch_ready`; completed material remains gated by the
+last protocol checks. Claimed material moves directly from pending admission to
+an exclusive local reservation. It never enters the available pool. Prepare
+submission ambiguity and cancellation prohibit automatic replacement. The final
+combined exchange retains the five-second response/body budget capped by ceremony
+expiry.
+
+The browser/Gateway/Router/SigningWorker/D1 registration contract passed and
+verified a Tempo signature with one terminal prepare and no ordinary prepare.
+Focused client tests cover lost response, cancellation, and exclusive reservation;
+the existing 15 coordination cases pass, including durable capacity-race recovery.
+Actual D1 finalization replay returns the durable first result and rejects altered
+input without reusing consumed material.
+
+Five alternating local real-MPC/workerd/D1 samples per path measured full generation
+through verified signature: ordinary 4942.8/2027.6/1952.9/1971.3/1931.2ms; combined
+4152.0/2046.5/1933.8/1922.9/1928.6ms. Medians were 1971.3ms and 1933.8ms (37.6ms,
+1.9% lower). This harness uses fixture Gateway admission and an in-process WASM
+client; it is not a hosted browser latency comparison. Samples alternate with the
+ordinary path first, include warm-up effects, and support only a small local
+observation. Production first-sign latency and the 1–3s objective remain unproven.

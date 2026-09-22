@@ -22,6 +22,7 @@ export type OpaqueEcdsaPresignSessionV1 = {
   poll(): unknown;
   message(message: Uint8Array): void;
   start_presign(): void;
+  candidate_big_r_33(): Uint8Array;
   presignature_big_r_33(): Uint8Array;
   copy_presignature_bytes_97(destination: Uint8Array): void;
   compute_signature_share(
@@ -70,9 +71,7 @@ export type OpaqueEcdsaDurablePresignatureStoreV1 = {
   }): Promise<void>;
 };
 
-type OpaqueEcdsaCompletedSessionFactoryV1 = (
-  bytes: Uint8Array,
-) => OpaqueEcdsaPresignSessionV1;
+type OpaqueEcdsaCompletedSessionFactoryV1 = (bytes: Uint8Array) => OpaqueEcdsaPresignSessionV1;
 
 export type OpaqueEcdsaPresignSessionStepV1 = {
   readonly presignSessionId: string;
@@ -408,6 +407,19 @@ export class OpaqueEcdsaPresignAuthorityV1 {
     const result = parsePollResult(entry.session.poll());
     this.requireCurrentGeneration(expectedGeneration);
     const outgoingMessages = result.outgoing.map(copyToArrayBuffer);
+    if (result.event === 'final_batch_ready') {
+      const candidate = entry.session.candidate_big_r_33();
+      this.requireCurrentGeneration(expectedGeneration);
+      if (result.stage !== 'presign' || outgoingMessages.length !== 2 || candidate.length !== 33) {
+        throw new Error('Invalid final presign batch');
+      }
+      return {
+        stage: 'presign',
+        event: 'final_batch_ready',
+        outgoingMessages,
+        candidateBigR33: copyToArrayBuffer(candidate),
+      };
+    }
     if (result.event !== 'presign_done') {
       return { stage: result.stage, event: result.event, outgoingMessages };
     }

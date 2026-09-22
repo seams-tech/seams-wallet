@@ -1,3 +1,4 @@
+import type { ThresholdEcdsaPresignProgressResult } from './workerTypes';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   parseRootShareEpoch,
@@ -199,23 +200,11 @@ export type OpaqueEcdsaPresignAuthorityResponseV1 =
       readonly result:
         | {
             readonly kind: 'progress';
-            readonly progress: {
-              readonly stage: 'triples' | 'triples_done' | 'presign' | 'done';
-              readonly event: 'none' | 'triples_done' | 'final_batch_ready' | 'presign_done';
-              readonly outgoingMessages: ArrayBuffer[];
-              readonly presignatureHandle?: string;
-              readonly presignatureBigR33?: ArrayBuffer;
-            };
+            readonly progress: ThresholdEcdsaPresignProgressResult;
           }
         | {
             readonly kind: 'metered_progress';
-            readonly progress: {
-              readonly stage: 'triples' | 'triples_done' | 'presign' | 'done';
-              readonly event: 'none' | 'triples_done' | 'final_batch_ready' | 'presign_done';
-              readonly outgoingMessages: ArrayBuffer[];
-              readonly presignatureHandle?: string;
-              readonly presignatureBigR33?: ArrayBuffer;
-            };
+            readonly progress: ThresholdEcdsaPresignProgressResult;
             readonly remainingUses: number;
             readonly expiresAtMs: number;
           }
