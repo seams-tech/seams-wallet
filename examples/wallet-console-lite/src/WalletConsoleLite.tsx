@@ -133,7 +133,6 @@ function SetupScreen(props: {
   return (
     <div className="shell setup-shell">
       <header className="hero">
-        <p className="eyebrow">Seams Wallet · local SDK playground</p>
         <h1>Set up a local Wallet project</h1>
         <p>
           Create one local organisation, project, and development environment. Runtime secrets stay
@@ -409,7 +408,6 @@ function WalletPlayground({
     <div className="shell playground-shell">
       <header className="workspace-header">
         <div>
-          <p className="eyebrow">Local Wallet project</p>
           <h1>{workspace.identity.projectName}</h1>
           <p>{workspace.identity.organizationName}</p>
         </div>
@@ -437,7 +435,6 @@ function WalletPlayground({
           {!loginState.isLoggedIn ? (
             <section className="panel auth-panel" id="wallet-auth">
               <div className="section-heading">
-                <p className="eyebrow">Authentication</p>
                 <h2>Register or unlock a Wallet</h2>
               </div>
               {authMenu.kind === 'open' ? (
@@ -519,7 +516,6 @@ function SignedInPanel(props: {
     <section className="panel wallet-panel">
       <div className="wallet-panel-heading">
         <div className="section-heading">
-          <p className="eyebrow">Active Wallet</p>
           <h2>Wallet session</h2>
         </div>
         <AccountMenuButton

@@ -15,7 +15,6 @@ function Overview() {
   return (
     <>
       <header className="console-page-heading">
-        <p className="eyebrow">Developer playground</p>
         <h1>Explore your Wallet integration</h1>
         <p>Preview the experience or connect a wallet to try the live flows.</p>
       </header>
@@ -24,7 +23,6 @@ function Overview() {
           className="console-destination console-destination--featured"
           href="/transaction-previews"
         >
-          <span className="eyebrow">No wallet required</span>
           <h2>Transaction previews</h2>
           <p>
             Try transfers and contract calls. Switch between modal and drawer reviews, passkeys and
@@ -35,7 +33,6 @@ function Overview() {
           </span>
         </a>
         <a className="console-destination" href="/wallet">
-          <span className="eyebrow">Live integration</span>
           <h2>Wallet playground</h2>
           <p>Create or unlock a wallet, inspect your session, and try signing with the real SDK.</p>
           <span className="console-destination-action">
@@ -43,7 +40,6 @@ function Overview() {
           </span>
         </a>
         <a className="console-destination" href="/recovery">
-          <span className="eyebrow">Recovery tools</span>
           <h2>Server share recovery</h2>
           <p>Walk through recovery operations for your local project environment.</p>
           <span className="console-destination-action">
@@ -51,7 +47,6 @@ function Overview() {
           </span>
         </a>
         <a className="console-destination" href="/wallet-settings">
-          <span className="eyebrow">Account controls</span>
           <h2>Wallet settings</h2>
           <p>Review wallet settings and manage authentication from one place.</p>
           <span className="console-destination-action">
@@ -109,7 +104,6 @@ export function ConsoleApp() {
         <span className="console-environment">Local development</span>
       </header>
       <aside className="console-sidebar">
-        <p className="eyebrow">Workspace</p>
         <nav aria-label="Main navigation">
           {pages.map((page) => (
             <a

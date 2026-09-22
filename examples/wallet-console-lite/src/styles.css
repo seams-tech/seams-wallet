@@ -90,15 +90,6 @@ h2 {
   line-height: 1.6;
 }
 
-.eyebrow {
-  margin-bottom: 0.65rem;
-  color: #397055;
-  font-size: 0.76rem;
-  font-weight: 750;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-}
-
 .panel,
 .status-card {
   border: 1px solid #d9dfda;

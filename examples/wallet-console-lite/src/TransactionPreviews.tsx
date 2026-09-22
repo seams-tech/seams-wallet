@@ -12,7 +12,6 @@ export function TransactionPreviews() {
   return (
     <section className="transaction-previews-page" aria-labelledby="transaction-previews-title">
       <header className="console-page-heading">
-        <p className="eyebrow">No wallet required</p>
         <h1 id="transaction-previews-title">Transaction previews</h1>
         <p>Explore ETH transfers, EVM calls, and NEAR calls with simulated data. No signing or network transactions.</p>
       </header>
