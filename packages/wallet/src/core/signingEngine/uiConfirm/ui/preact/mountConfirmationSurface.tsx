@@ -47,6 +47,15 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
   private readonly presentation: MountConfirmationInput['presentation'];
   private state: SurfaceState;
   private receipt: TransactionReceiptModel | null = null;
+  private receiptMotion: Animation[] = [];
+  private receiptShell: HTMLElement | null = null;
+
+  private clearReceiptMotion = (): void => {
+    for (const animation of this.receiptMotion) animation.cancel();
+    this.receiptMotion = [];
+    this.receiptShell?.remove();
+    this.receiptShell = null;
+  };
 
   constructor(input: MountConfirmationInput) {
     const document = input.parent.ownerDocument;
@@ -93,15 +102,33 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
   showReceipt(model: TransactionReceiptModel): void {
     if (this.state.kind !== 'mounted' || this.state.model.content.kind !== 'transaction') return;
     const viewChanged = this.receipt?.view !== model.view;
+    const previousShell = this.receiptShell ?? this.element.querySelector('.modal-container-root');
+    const previousBounds = previousShell?.getBoundingClientRect();
+    const previousRadius = previousShell ? getComputedStyle(previousShell).borderRadius : '26px';
+    if (viewChanged) this.clearReceiptMotion();
     this.receipt = model;
     this.element.dataset.receiptView = model.view;
     this.element.dataset.seamsConfirmSurface = 'wallet-iframe';
     this.element.dataset.seamsConfirmVariant = 'modal';
     this.renderSurface();
-    if (viewChanged && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      this.element.querySelector('.seams-transaction-receipt, .seams-transaction-toast')?.animate(
-        [{ opacity: 0 }, { opacity: 1 }], { duration: 180, delay: 140, fill: 'backwards', easing: 'ease-out' },
-      );
+    const target = this.element.querySelector<HTMLElement>('.modal-container-root');
+    if (viewChanged && previousBounds && target && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const bounds = target.getBoundingClientRect();
+      // Animate an empty surface so its contents never scale or reflow during the morph.
+      const shell = this.element.ownerDocument.createElement('div');
+      shell.className = 'seams-receipt-morph-shell';
+      shell.setAttribute('aria-hidden', 'true');
+      this.element.appendChild(shell);
+      this.receiptShell = shell;
+      const morph = shell.animate([
+        { left: `${previousBounds.left}px`, top: `${previousBounds.top}px`, width: `${previousBounds.width}px`, height: `${previousBounds.height}px`, borderRadius: previousRadius },
+        { left: `${bounds.left}px`, top: `${bounds.top}px`, width: `${bounds.width}px`, height: `${bounds.height}px`, borderRadius: getComputedStyle(target).borderRadius },
+      ], { duration: 360, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'both' });
+      const reveal = target.animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: 140, delay: 220, fill: 'backwards', easing: 'ease-out',
+      });
+      this.receiptMotion = [morph, reveal];
+      reveal.onfinish = this.clearReceiptMotion;
     }
   }
 
@@ -113,6 +140,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
   };
 
   private remove(): void {
+    this.clearReceiptMotion();
     this.state = { kind: 'disposed' };
     this.element.removeEventListener('cancel', this.cancel);
     render(null, this.element);

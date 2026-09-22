@@ -595,6 +595,15 @@
   border-radius: var(--seams-shape-box, 12px);
   margin-block: 0.75rem;
 }
+:where(.seams-wallet-ui) .seams-receipt-morph-shell {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1;
+  box-sizing: border-box;
+  background: var(--seams-colors-colorBackground);
+  border: 1px solid var(--seams-colors-borderPrimary);
+  box-shadow: 0 16px 32px -16px rgb(0 0 0 / 0.22);
+}
 :where(.seams-wallet-ui) .seams-receipt-box .seams-review-technical {
   border-top: 0;
   margin: 0;
