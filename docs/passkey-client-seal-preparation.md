@@ -1,7 +1,7 @@
 # Passkey client-seal preparation
 
-The NEAR continuation starts client-seal preparation after custody join supplies
-its exact threshold-session identity. Preparation runs alongside finalization and
+The implementation measured below started client-seal preparation after custody
+join supplied its exact threshold-session identity. Preparation runs alongside finalization and
 local publication. Hydration then consumes the prepared key/ciphertext and makes
 the authorized server-seal request. Server sealing still follows finalization;
 client unsealing still follows the server response. Local signer installation
@@ -59,9 +59,8 @@ contain only timing data.
 - Zero-quota completion skips warm hydration. Any speculative preparation is
   discarded. No quota or session expiry is renewed by preparation.
 
-Preparation begins after custody join in this implementation. Moving it further
-back into admission/Yao would require carrying its ownership across those stages;
-that is outside this change. The same worker preparation helper serves ordinary
+Preparation began after custody join in this benchmarked implementation. The
+subsequent custody-overlap change moves preparation earlier, after EVM activation. The same worker preparation helper serves ordinary
 inline sealing so there is one client-seal implementation.
 
 ## Verification and measurement method
@@ -95,7 +94,7 @@ The controlled benchmark selects 20 alternating-order pairs using:
 ```text
 playwright test -c playwright.wallet-intended.benchmark.ci.config.ts \
   e2e/intended-behaviours/passkey.registration.benchmark.test.ts \
-  --grep '(prepared|serial_preparation) pair'
+  --grep '(prepared|serial_preparation) pair' # historical benchmark at f8c90f4
 ```
 
 Both cohorts use the same SDK and backend. The serial control gates the
@@ -115,3 +114,6 @@ local installation after preparation has joined.
 
 Release, deployment, Console adoption, and deployed-network profiling remain
 behind the existing release hold.
+
+The subsequent custody-overlap implementation and build-profile investigation are
+recorded in [NEAR custody profiling](./near-custody-profiling.md).
