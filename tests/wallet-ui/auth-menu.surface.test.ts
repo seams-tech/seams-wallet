@@ -676,6 +676,23 @@ test.describe('wallet-host Preact auth menu surface', () => {
     ]);
   });
 
+  test('shows a rejected unlock challenge and keeps sign-in available for retry', async ({
+    page,
+  }) => {
+    await mountAuthMenu(
+      page,
+      loginViewModel({
+        kind: 'recoverable',
+        reason: 'error',
+        message: 'Wallet has no registered passkey credential',
+      }),
+    );
+    await expect(page.getByRole('alert')).toHaveText('Wallet has no registered passkey credential');
+    await expect(page.locator('[data-auth-menu-primary]')).toBeEnabled();
+    await mountAuthMenu(page, loginViewModel({ kind: 'idle', interaction: 'actionable' }));
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+
   test('keeps the primary action live without rendering an expired preparation error', async ({
     page,
   }) => {

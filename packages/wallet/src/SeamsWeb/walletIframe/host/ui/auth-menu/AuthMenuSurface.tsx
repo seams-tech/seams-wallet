@@ -920,6 +920,11 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, { accountMe
     return (
       <>
         {this.renderHeader(viewModel)} {this.renderPasskeyInput(viewModel)}
+        {viewModel.status.kind === 'recoverable' && viewModel.status.reason === 'error' ? (
+          <p class="seams-auth-error" role="alert">
+            {viewModel.status.message}
+          </p>
+        ) : null}
         {this.renderAuthMethods(viewModel)} {this.renderOtherOptions(viewModel)}
         {this.renderIntentSwitch(viewModel)}
       </>
