@@ -1791,3 +1791,38 @@ messages. Fusing preparation therefore needs an explicit, atomically claimed
 confirmed-operation handoff into completion; the current pool-entry reservation
 API cannot be invoked before that response. This remains a design and validation
 task, with no fused production route implemented yet.
+
+### Stalled-exchange recovery diagnosis
+
+An unchanged hosted 0.5.32 sample took 40.822s from registration readiness to
+the first signature. Its failed background ceremony took 26.345s: initialization
+took 4.005s, two successful steps took 1.562s and 0.676s, and the next step
+failed at the client's 20.002s HTTP timeout. That step already carried foreground
+priority. The trace establishes a stalled exchange; it does not identify the
+underlying network or Worker scheduling cause.
+
+Recovery then started foreground and background initializations 18ms apart.
+A focused regression reproduced the cause: the cache-hit attempt released its
+foreground hold before the enclosing operation started replacement generation.
+Maintenance could therefore compete with the first signature. The correction
+holds foreground priority across cache lookup, replacement generation, and
+signing. Failed ceremonies are abandoned and recovery uses a fresh identity.
+
+Presign exchanges now have a five-second response budget capped by the remaining
+ceremony lifetime. The budget includes response-body delivery, and body-read
+aborts retain the timeout error classification. This bounds an individual stall;
+it does not guarantee a five-second complete signing operation. Focused checks
+cover stalled headers, stalled bodies, shorter ceremony expiry, and background
+exclusion during recovery. All 235 unit tests, workspace types, SDK/server builds,
+and four lifecycle contracts passed locally. The real-D1 injected-stall contract
+verifies abort, fresh-identity recovery, a successful Tempo signature, and no
+competing background generation. Normal registration/reload, deferred-authority
+reconciliation, and sustained Tempo/Arc signing also passed. Version 0.5.34
+includes these corrections; hosted acceptance remains pending.
+
+A separate unchanged-0.5.32 sample took 19.611s from readiness to signature,
+including 6.646s waiting for refill and 8.919s in signing preparation. It had no
+failed HTTP request. The preparation outlier remains a separate investigation;
+the recovery correction does not establish a solution to that delay. Sanitized
+gateway, outer Worker, and Durable Object tails include unrelated background
+traffic and cannot be attributed to individual ceremonies without correlation.

@@ -1839,87 +1839,99 @@ export async function signRouterAbEcdsaDerivationDigestWithPool(
       message: 'Router A/B ECDSA derivation pool fill expiry is unavailable or expired',
     };
   }
-  const firstAttempt = await signRouterAbEcdsaDerivationDigestWithPoolHit({
+  const poolIdentity = makeClientPresignPoolIdentity({
     relayerUrl: args.relayerUrl,
     scope: args.scope,
-    operationId: args.operationId,
-    operationDigests: args.operationDigests,
     materialActivation: args.materialActivation,
-    credential: args.credential,
-    signingDigest32: args.signingDigest32,
-    clientSigningMaterial: args.clientSigningMaterial,
-    expiresAtMs,
-    workerCtx: args.workerCtx,
-    ...ecdsaPoolFillAuthorization(args),
   });
-  if (
-    firstAttempt.ok ||
-    (firstAttempt.code !== 'pool_empty' &&
-      firstAttempt.code !== 'pool_entry_expired' &&
-      firstAttempt.code !== 'pool_entry_unavailable')
-  ) {
-    return firstAttempt;
-  }
-
-  const refillInput: RouterAbEcdsaDerivationClientPresignatureRefillInput = {
-    relayerUrl: args.relayerUrl,
-    keyHandle: args.keyHandle,
-    ecdsaThresholdKeyId: signingIdentity.ecdsaThresholdKeyId,
-    clientVerifyingShareB64u: signingIdentity.clientVerifyingShareB64u,
-    clientSigningMaterial: args.clientSigningMaterial,
-    thresholdEcdsaPublicKeyB64u: signingIdentity.thresholdEcdsaPublicKeyB64u,
-    credential: args.credential,
-    materialActivation: args.materialActivation,
-    routerAbEcdsaDerivationPoolFill: {
-      kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
+  const poolKey = ecdsaClientPresignPoolKey(poolIdentity);
+  // Keep maintenance paused across cache lookup, recovery generation, and signing.
+  startForegroundSign(poolKey);
+  try {
+    const firstAttempt = await signRouterAbEcdsaDerivationDigestWithPoolHit({
+      relayerUrl: args.relayerUrl,
       scope: args.scope,
-      ceremonyExpiresAtMs: expiresAtMs,
-      materialExpiresAtMs:
-        args.authorization.kind === 'operation_step_up'
-          ? expiresAtMs
-          : Date.now() + MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS,
-    },
-    workerCtx: args.workerCtx,
-    ...ecdsaPoolFillAuthorization(args),
-  };
-  emitSigningSessionFlowTrace('evm-family', {
-    event: 'ecdsa_foreground_refill',
-    operationId: args.operationId,
-    authorization: args.authorization.kind,
-    reason: firstAttempt.code,
-  });
-  const refillStartedAt = performance.now();
-  let refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
-    ...refillInput,
-    trafficClass: 'foreground',
-  });
-  if (!refill.ok && refill.code === 'invalidated') {
-    refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
+      operationId: args.operationId,
+      operationDigests: args.operationDigests,
+      materialActivation: args.materialActivation,
+      credential: args.credential,
+      signingDigest32: args.signingDigest32,
+      clientSigningMaterial: args.clientSigningMaterial,
+      expiresAtMs,
+      workerCtx: args.workerCtx,
+      ...ecdsaPoolFillAuthorization(args),
+    });
+    if (
+      firstAttempt.ok ||
+      (firstAttempt.code !== 'pool_empty' &&
+        firstAttempt.code !== 'pool_entry_expired' &&
+        firstAttempt.code !== 'pool_entry_unavailable')
+    ) {
+      return firstAttempt;
+    }
+
+    const refillInput: RouterAbEcdsaDerivationClientPresignatureRefillInput = {
+      relayerUrl: args.relayerUrl,
+      keyHandle: args.keyHandle,
+      ecdsaThresholdKeyId: signingIdentity.ecdsaThresholdKeyId,
+      clientVerifyingShareB64u: signingIdentity.clientVerifyingShareB64u,
+      clientSigningMaterial: args.clientSigningMaterial,
+      thresholdEcdsaPublicKeyB64u: signingIdentity.thresholdEcdsaPublicKeyB64u,
+      credential: args.credential,
+      materialActivation: args.materialActivation,
+      routerAbEcdsaDerivationPoolFill: {
+        kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
+        scope: args.scope,
+        ceremonyExpiresAtMs: expiresAtMs,
+        materialExpiresAtMs:
+          args.authorization.kind === 'operation_step_up'
+            ? expiresAtMs
+            : Date.now() + MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS,
+      },
+      workerCtx: args.workerCtx,
+      ...ecdsaPoolFillAuthorization(args),
+    };
+    emitSigningSessionFlowTrace('evm-family', {
+      event: 'ecdsa_foreground_refill',
+      operationId: args.operationId,
+      authorization: args.authorization.kind,
+      reason: firstAttempt.code,
+    });
+    const refillStartedAt = performance.now();
+    let refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
       ...refillInput,
       trafficClass: 'foreground',
     });
-  }
-  emitEcdsaSigningTiming(
-    args.operationId,
-    'foreground_refill',
-    refillStartedAt,
-    refill.ok ? 'succeeded' : 'failed',
-  );
-  if (!refill.ok) return refill;
+    if (!refill.ok && refill.code === 'invalidated') {
+      refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
+        ...refillInput,
+        trafficClass: 'foreground',
+      });
+    }
+    emitEcdsaSigningTiming(
+      args.operationId,
+      'foreground_refill',
+      refillStartedAt,
+      refill.ok ? 'succeeded' : 'failed',
+    );
+    if (!refill.ok) return refill;
 
-  return await signRouterAbEcdsaDerivationDigestWithPoolHit({
-    relayerUrl: args.relayerUrl,
-    scope: args.scope,
-    operationId: args.operationId,
-    operationDigests: args.operationDigests,
-    materialActivation: args.materialActivation,
-    credential: args.credential,
-    signingDigest32: args.signingDigest32,
-    clientSigningMaterial: args.clientSigningMaterial,
-    expiresAtMs,
-    workerCtx: args.workerCtx,
-    ...ecdsaPoolFillAuthorization(args),
-  });
+    return await signRouterAbEcdsaDerivationDigestWithPoolHit({
+      relayerUrl: args.relayerUrl,
+      scope: args.scope,
+      operationId: args.operationId,
+      operationDigests: args.operationDigests,
+      materialActivation: args.materialActivation,
+      credential: args.credential,
+      signingDigest32: args.signingDigest32,
+      clientSigningMaterial: args.clientSigningMaterial,
+      expiresAtMs,
+      workerCtx: args.workerCtx,
+      ...ecdsaPoolFillAuthorization(args),
+    });
+  } finally {
+    finishForegroundSign(poolKey);
+  }
 }
 
 export async function refillRouterAbEcdsaDerivationClientPresignaturePool(

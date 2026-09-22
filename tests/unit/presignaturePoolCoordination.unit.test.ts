@@ -1135,6 +1135,81 @@ test('authorization rejection stops refill without a retry loop', async () => {
   }
 });
 
+class RecoveringPresignatureSource extends MaintainingPresignatureSource {
+  readonly firstAdmissionStarted = createDeferred();
+  readonly releaseFailedAdmission = createDeferred();
+  readonly recoveryStarted = createDeferred();
+  readonly releaseRecovery = createDeferred();
+  competingBackgroundRequests = 0;
+  private firstAdmission = true;
+
+  constructor() {
+    super('');
+  }
+
+  override async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    expect(String(input)).toContain('/presignature-pool/fill/init');
+    const body = JSON.parse(String(init?.body));
+    if (this.firstAdmission) {
+      this.firstAdmission = false;
+      this.firstAdmissionStarted.resolve();
+      await this.releaseFailedAdmission.promise;
+      return Response.json({ ok: false, code: 'network_error', message: 'stalled request' });
+    }
+    if (body.requestTag === 'foreground_presign_pool_refill') {
+      this.recoveryStarted.resolve();
+      await this.releaseRecovery.promise;
+    } else {
+      this.competingBackgroundRequests += 1;
+    }
+    return Response.json({ ok: false, code: 'test_stop', message: 'recovery observed' });
+  }
+}
+
+test('foreground recovery keeps background maintenance paused after a failed refill', async () => {
+  clearAllRouterAbEcdsaDerivationClientPresignatures();
+  const originalFetch = globalThis.fetch;
+  const source = new RecoveringPresignatureSource();
+  const input = await maintenanceInput(source, 60_000);
+  globalThis.fetch = source.fetch.bind(source);
+  let signing: ReturnType<typeof signRouterAbEcdsaDerivationDigestWithPool> | null = null;
+  try {
+    expect(scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(input).scheduled).toBe(true);
+    await source.firstAdmissionStarted.promise;
+    signing = signRouterAbEcdsaDerivationDigestWithPool({
+      relayerUrl: input.relayerUrl,
+      scope: input.routerAbEcdsaDerivationPoolFill.scope,
+      operationId: 'operation-recovery',
+      operationDigests: {
+        lane_digest_b64u: 'CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo',
+        intent_digest_b64u: 'CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCws',
+        display_digest_b64u: 'DAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMA',
+      },
+      materialActivation,
+      credential: input.credential,
+      keyHandle: input.keyHandle,
+      signingDigest32: new Uint8Array(32).fill(11),
+      clientSigningMaterial: source,
+      expiresAtMs: Date.now() + 30_000,
+      workerCtx: input.workerCtx,
+      authorization,
+    });
+    await new Promise<void>(setImmediate);
+    source.releaseFailedAdmission.resolve();
+    await source.recoveryStarted.promise;
+    await delay(100);
+    expect(source.competingBackgroundRequests).toBe(0);
+    source.releaseRecovery.resolve();
+    await expect(signing).resolves.toMatchObject({ ok: false, code: 'test_stop' });
+  } finally {
+    source.releaseFailedAdmission.resolve();
+    source.releaseRecovery.resolve();
+    if (signing) await signing;
+    clearAllRouterAbEcdsaDerivationClientPresignatures();
+    globalThis.fetch = originalFetch;
+  }
+});
+
 class ReconciledSessionPresignatureSource extends MaintainingPresignatureSource {
   readonly oldAdmissionStarted = createDeferred();
   readonly releaseOldAdmission = createDeferred();

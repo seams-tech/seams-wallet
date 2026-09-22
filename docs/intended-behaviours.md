@@ -161,6 +161,11 @@ Expected behaviour:
 - Registration schedules bounded ECDSA presignature refill under the established
   session. Registration success does not await pool readiness. Immediate signing
   may use the first completed entry while background refill continues.
+- A presign HTTP exchange has a five-second response budget capped by the
+  ceremony's remaining lifetime, including response-body delivery. A stalled
+  exchange is aborted; recovery starts a fresh ceremony identity. Foreground
+  signing retains priority through failed-refill recovery so maintenance cannot
+  launch competing generation before that signing operation finishes.
 - Deferred mixed-authority publication reconciles ECDSA refill against the newly
   committed authority, including when the session credential is retained. A late
   failure from an older attempt cannot cancel the reconciled refill. Rejection

@@ -314,6 +314,100 @@ test('mixed registration reconciles rejected ECDSA refill after deferred authori
   }
 });
 
+class StalledPresignExchange {
+  private steps = 0;
+  private held: { request: Request; startedAt: number } | null = null;
+  private releaseHeld: () => void = () => {};
+  private readonly released = new Promise<void>(this.captureRelease.bind(this));
+  private foregroundStarted = false;
+  private signingComplete = false;
+  private readonly identities = new Set<string>();
+  private initializations = 0;
+  competingBackgroundInitializations = 0;
+  failedAfterMs: number | null = null;
+
+  private captureRelease(resolve: () => void): void {
+    this.releaseHeld = resolve;
+  }
+
+  async route(route: Route): Promise<void> {
+    const request = route.request();
+    const body: unknown = request.postDataJSON();
+    if (!isPlainObject(body)) throw new Error('Expected a presign request');
+    if (new URL(request.url()).pathname.endsWith('/init')) {
+      if (typeof body.presignSessionId !== 'string') throw new Error('Missing ceremony identity');
+      this.identities.add(body.presignSessionId);
+      this.initializations += 1;
+      if (body.requestTag === 'foreground_presign_pool_refill') this.foregroundStarted = true;
+      else if (this.foregroundStarted && !this.signingComplete) {
+        this.competingBackgroundInitializations += 1;
+      }
+    } else {
+      this.steps += 1;
+      if (this.steps === 3) {
+        this.held = { request, startedAt: Date.now() };
+        await this.released;
+        await route.abort('aborted');
+        return;
+      }
+    }
+    await route.continue();
+  }
+
+  requestFailed(request: Request): void {
+    if (this.held?.request !== request) return;
+    this.failedAfterMs = Date.now() - this.held.startedAt;
+    this.release();
+  }
+
+  response(response: Response): void {
+    if (response.ok() && new URL(response.url()).pathname === '/router-ab/ecdsa-derivation/sign') {
+      this.signingComplete = true;
+    }
+  }
+
+  isHeld(): boolean {
+    return this.held !== null;
+  }
+
+  usesFreshRecoveryIdentity(): boolean {
+    return this.foregroundStarted && this.initializations >= 2 &&
+      this.identities.size === this.initializations;
+  }
+
+  release(): void {
+    this.releaseHeld();
+  }
+}
+
+test('immediate signing aborts a stalled refill and recovers without competing background generation', async ({
+  harness,
+  context,
+}) => {
+  const stalled = new StalledPresignExchange();
+  const route = stalled.route.bind(stalled);
+  const requestFailed = stalled.requestFailed.bind(stalled);
+  const response = stalled.response.bind(stalled);
+  const fill = '**/router-ab/ecdsa-derivation/presignature-pool/fill/*';
+  context.on('requestfailed', requestFailed);
+  context.on('response', response);
+  await context.route(fill, route);
+  try {
+    await harness.registerPasskeyWallet();
+    await expect.poll(stalled.isHeld.bind(stalled), { timeout: 15_000 }).toBe(true);
+    await harness.signTempoTransaction('post_registration');
+    expect(stalled.failedAfterMs).not.toBeNull();
+    expect(stalled.failedAfterMs).toBeLessThan(7_500);
+    expect(stalled.usesFreshRecoveryIdentity()).toBe(true);
+    expect(stalled.competingBackgroundInitializations).toBe(0);
+  } finally {
+    stalled.release();
+    context.off('requestfailed', requestFailed);
+    context.off('response', response);
+    await context.unroute(fill, route);
+  }
+});
+
 test('sustained Tempo and Arc signing uses fresh presignatures beyond pool capacity', async ({
   harness,
   context,

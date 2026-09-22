@@ -10,6 +10,17 @@ import { fetchRouterAbEcdsaDerivationJson } from './httpRequest';
 import { emitEcdsaPresignServerTiming } from '../../session/operationState/trace';
 import type { RouterAbOwnerNormalSigningCredential } from '../../../rpcClients/relayer/routerAbNormalSigning';
 
+const PRESIGN_EXCHANGE_TIMEOUT_MS = 5_000;
+
+function presignRequestTimeoutMs(expiresAtMs: number, requestedMs?: number): number | null {
+  const remainingMs = Math.min(
+    expiresAtMs - Date.now(),
+    requestedMs ?? PRESIGN_EXCHANGE_TIMEOUT_MS,
+    PRESIGN_EXCHANGE_TIMEOUT_MS,
+  );
+  return Number.isFinite(remainingMs) && remainingMs > 0 ? remainingMs : null;
+}
+
 type RouterAbEcdsaDerivationPoolFillAuth = {
   credential: RouterAbOwnerNormalSigningCredential;
 };
@@ -167,6 +178,14 @@ async function postEcdsaPresignInit(
   const auth = resolvePresignAuthHeaders(args);
   if (!auth.ok) return auth;
 
+  const timeoutMs = presignRequestTimeoutMs(
+    args.poolFill.ceremonyExpiresAtMs,
+    args.requestTimeoutMs,
+  );
+  if (timeoutMs === null) {
+    return { ok: false, code: 'presign_timeout', message: 'Presign ceremony deadline has elapsed' };
+  }
+
   type ResponseBody = Partial<{
     ok: boolean;
     code: string;
@@ -182,7 +201,7 @@ async function postEcdsaPresignInit(
     const { response, data } = await fetchRouterAbEcdsaDerivationJson<ResponseBody>({
       url: `${relayerUrl}${args.path}`,
       operation: 'presign/init',
-      timeoutMs: args.requestTimeoutMs,
+      timeoutMs,
       init: {
         method: 'POST',
         headers: auth.headers,
@@ -290,6 +309,11 @@ async function postEcdsaPresignStep(
   const auth = resolvePresignAuthHeaders(args);
   if (!auth.ok) return auth;
 
+  const timeoutMs = presignRequestTimeoutMs(args.ceremonyExpiresAtMs, args.requestTimeoutMs);
+  if (timeoutMs === null) {
+    return { ok: false, code: 'presign_timeout', message: 'Presign ceremony deadline has elapsed' };
+  }
+
   type ResponseBody = Partial<{
     ok: boolean;
     code: string;
@@ -305,7 +329,7 @@ async function postEcdsaPresignStep(
     const { response, data } = await fetchRouterAbEcdsaDerivationJson<ResponseBody>({
       url: `${relayerUrl}${args.path}`,
       operation: 'presign/step',
-      timeoutMs: args.requestTimeoutMs,
+      timeoutMs,
       init: {
         method: 'POST',
         headers: auth.headers,
