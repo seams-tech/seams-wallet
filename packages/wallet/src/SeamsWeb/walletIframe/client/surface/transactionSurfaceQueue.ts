@@ -29,6 +29,8 @@ type TransactionSurfaceWaiter = {
   timer: ReturnType<typeof setTimeout> | null;
 };
 
+const MAX_DEADLINE_TIMER_DELAY_MS = 2_147_483_647;
+
 class TransactionSurfaceLeaseDeferred {
   readonly promise: Promise<WalletIframeTransactionSurfaceLease>;
   private resolvePromise!: (lease: WalletIframeTransactionSurfaceLease) => void;
@@ -103,10 +105,7 @@ export class WalletIframeTransactionSurfaceQueue {
       timer: null,
     };
     if (args.deadline.kind === 'deadline') {
-      waiter.timer = setTimeout(
-        this.expireWaiter.bind(this, waiter),
-        Math.max(1, args.deadline.atMs - Date.now()),
-      );
+      this.scheduleWaiterDeadline(waiter);
     }
     this.waiters.push(waiter);
     return deferred.promise;
@@ -157,9 +156,22 @@ export class WalletIframeTransactionSurfaceQueue {
   private expireWaiter(waiter: TransactionSurfaceWaiter): void {
     const index = this.waiters.indexOf(waiter);
     if (index < 0) return;
+    if (waiter.deadline.kind === 'deadline' && Date.now() < waiter.deadline.atMs) {
+      this.scheduleWaiterDeadline(waiter);
+      return;
+    }
     this.waiters.splice(index, 1);
     this.clearWaiterTimer(waiter);
     waiter.deferred.reject(this.timeoutError(waiter.requestId));
+  }
+
+  private scheduleWaiterDeadline(waiter: TransactionSurfaceWaiter): void {
+    if (waiter.deadline.kind !== 'deadline') return;
+    const remainingMs = waiter.deadline.atMs - Date.now();
+    waiter.timer = setTimeout(
+      this.expireWaiter.bind(this, waiter),
+      Math.max(1, Math.min(remainingMs, MAX_DEADLINE_TIMER_DELAY_MS)),
+    );
   }
 
   private clearWaiterTimer(waiter: TransactionSurfaceWaiter): void {

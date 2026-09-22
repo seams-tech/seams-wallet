@@ -1,6 +1,9 @@
-# Refactor 129: application components in the transaction review flow
+# Refactor 140: application components in the transaction review flow
 
-Status: planned; implementation has not started.
+Status: implementation in progress. Preliminary React contract validation and the
+queue's long-deadline handling are implemented; the reviewed transaction flow is
+not connected or publicly exported. Baseline verification began at local `dev`
+`3f382bf` on 2026-09-22; the checkpoint includes subsequent changes through `8016eab`.
 
 ## Goal and chosen architecture
 
@@ -12,15 +15,19 @@ The application owns the React component. The SDK owns one outer dialog, backdro
 surface reservation, and transition. The wallet-origin iframe owns the transaction
 details, approval controls, credential prompts, and signing authorization.
 
-The experience should match the supplied purchase-review and passkey-confirmation
-screens: no second backdrop, close/reopen flash, empty intermediate box, or stacked
-modal. A difference in document origin should have no visible frame or border.
+The experience should present purchase review and wallet confirmation as one
+continuous modal: no second backdrop, close/reopen flash, empty intermediate box,
+or stacked modal. A difference in document origin should have no visible frame
+or border. Visual acceptance uses the criteria below; no external mockup is needed.
 
-This document is now in the transaction-receipt worktree. The existing
-`codex/refactor-128-external-evm` branch is separate work. This filename does not
-authorize changes to that branch, PR 17, or the coordinated 0.5.29 release. Before
-implementation, reconcile the intended base with current main and the uncommitted
-refactor-127 fixes. Do not assume this work is included in a published package.
+The inspected wallet checkout is clean on `dev` at `3f382bf`, including transaction
+receipt/toast behavior; its package manifest is `0.5.30`. These are local baseline
+facts, not evidence of publication. Start implementation from this revision or a
+descendant containing these changes. Recheck HEAD and dirty files before editing;
+preserve concurrent work. Historical references to the refactor-127 dirty fixes,
+the transaction-receipt worktree, PR 17, and the 0.5.29 release are superseded for
+this plan. No commit, push, release, or changes to another checkout are authorized
+by this document.
 
 ## Scope
 
@@ -79,7 +86,7 @@ methods. Add a React-only `review` field to their input types and consume it bef
 calling the existing core methods. Preserve each method's successful return type
 and established error/cancellation conventions.
 
-Proposed usage (API sketch; finalize types in phase 1):
+Public usage:
 
 ```tsx
 await wallet.near.signAndSendTransaction({
@@ -88,9 +95,38 @@ await wallet.near.signAndSendTransaction({
   review: {
     title: 'Review purchase',
     render: renderPurchaseReview,
+    validity: { kind: 'expires_at', atMs: quote.expiresAtMs },
   },
 });
 ```
+
+Export these React-only types and `TransactionReviewHost` from `@seams/wallet/react`:
+
+```tsx
+type TransactionReviewValidity =
+  | { readonly kind: 'unbounded'; readonly atMs?: never }
+  | { readonly kind: 'expires_at'; readonly atMs: number };
+
+type TransactionReviewControls = {
+  readonly continueToWallet: () => void;
+  readonly cancel: () => void;
+  readonly fail: (error: unknown) => void;
+};
+
+type TransactionReview = {
+  readonly title: string;
+  readonly validity: TransactionReviewValidity;
+  readonly render: (controls: TransactionReviewControls) => React.ReactNode;
+  readonly className?: string;
+};
+```
+
+`review` is optional because ordinary calls remain supported. Within a reviewed
+call, title, render, and validity are required. A nonempty title and a positive
+safe-integer Unix timestamp in milliseconds are validated before opening UI.
+Use `unbounded` explicitly for transactions without quote expiry. `className`
+scopes application styles on the review wrapper; use the existing theme/token
+mechanism rather than adding another token configuration object.
 
 The renderer receives narrowly typed review controls, including
 `continueToWallet` and `cancel`. It returns ordinary React content, such as a
@@ -103,6 +139,38 @@ application providers the review needs. Its portal renders into the existing
 dialog's review slot. Components calling the reviewed methods must use that host's
 context. A missing host produces an actionable error before opening or dispatching
 a reviewed transaction; calls without review remain usable without the host.
+
+The host is an explicit wrapper, with `children: React.ReactNode`; it is not
+automatically inserted by `SeamsWebProvider`:
+
+```tsx
+<SeamsWebProvider config={config}>
+  <PurchaseContext.Provider value={purchaseContext}>
+    <TransactionReviewHost>
+      <Checkout />
+    </TransactionReviewHost>
+  </PurchaseContext.Provider>
+</SeamsWebProvider>
+```
+
+One host may register per SDK/router instance. Reject a second live registration
+with an actionable error, including nested hosts; independent SDK instances may
+have independent hosts. The owner is the `useWallet()` hook instance that created
+the bound method. Its disposal cancels its queued or pre-signing calls. The host
+owns portal rendering, and its disposal invalidates all its outstanding calls.
+Use generation-bound registrations and defer effect-disposal confirmation until
+the next microtask so StrictMode setup/cleanup/setup retains the live owner.
+Calls through a disposed bound method fail before opening UI.
+
+Controls are stable for one request. Continue synchronously leaves `reviewing`,
+disables its controls, and begins handoff once. Later invocations, including stale
+Cancel or fail callbacks after handoff, do nothing. `fail` normalizes an async
+failure into the same SDK error fallback used by the render boundary. Support
+`React.lazy`/Suspense with SDK loading content and a cancel action. Never invoke
+an async renderer or await arbitrary component return values. Applications report
+event-handler/fetch failures with `fail`; an error boundary cannot intercept them.
+Render/fail errors show the fallback until dismissal, expiry, or disposal; dismissal
+settles with the stored failure. Retry requires a new transaction call.
 
 Context follows the host's React ancestry. Passing an element or renderer through
 an imperative transaction call does not capture providers local to the caller.
@@ -129,7 +197,21 @@ Component contract:
 Capture the bound wallet identity and a normalized snapshot of the caller-supplied
 transaction intent at invocation. Reuse existing boundary builders and operation
 fingerprints; exclude React metadata and callbacks from the serializable snapshot.
-Caller mutation after invocation must not alter the reviewed request.
+Caller mutation after invocation must not alter the reviewed request. Complete
+the copy synchronously before the first await: copy nested action/call arrays,
+plain argument objects, and byte buffers using the existing boundary encoding
+semantics. Separate callbacks, abort probes, and React content from data; JSON
+round-tripping the whole input is forbidden. Resolve chain selectors and effective
+configuration once before showing review. Freeze ordinary internal records and
+keep copied byte buffers private. Do not give the renderer mutable snapshot data.
+
+Reuse `toActionArgsWasm` and existing chain-target/request boundary builders at
+their established boundaries. Existing nonce-operation fingerprints include
+prepared protocol data and are not a universal review-intent fingerprint. Do not
+add a second transaction serializer or require a new digest for review. Retaining
+one private normalized intent and passing it to existing preparation is sufficient;
+test mutation of nested data and protocol preparation separately. Application
+closures can still display changing claims; the SDK does not certify those claims.
 
 Normal protocol preparation may still fill nonce, block reference, and estimated
 fees through the existing pipeline. The final wallet view shows those resulting
@@ -137,15 +219,208 @@ values. Material changes to recipient, chain, amount, calldata/actions, or appro
 economic limits require a fresh review. Account/session changes also invalidate the
 pending review.
 
-For quotes with expiry, normalize a supplied deadline into an explicit internal
-validity union. Check it before review handoff and at the applicable approval
-boundary. Determine whether the existing request deadline contract can express
-this; any required wire extension contains only validated deadline metadata.
+Bind wallet/account plus router connection and local session generation before
+review becomes visible. Capture the exact session identity from
+`shared/exactSessionState.ts` when available; represent absence explicitly for
+credential-required wallets. Recheck after queue acquisition and immediately
+before dispatch. Wallet/account selection changes, explicit lock/logout, exact
+session expiry/replacement, and reconnect invalidate queued/reviewing calls even
+if the wallet id later returns to the same value. Do not silently rebind.
+After handoff, request-owned credential step-up may establish its required signing
+session; that transition is admitted only for the active request. Unrelated
+identity/session replacement still cancels before signing. Observe authoritative
+session state and request ownership, never diagnostic event text.
+
+For quotes with expiry, use the validity union above. Check at invocation, queue
+grant, Continue, and inside the wallet immediately before entering signing. Recheck
+after credential acquisition. If a composed call requires later signatures, check
+before each one; expiry prevents additional signatures and preserves any already
+completed work in the existing core failure outcome. Expiry is
+`Date.now() >= atMs`. While queued/reviewing, a deadline timer settles and cleans up
+the request; after dispatch it requests host cancellation and waits for arbitration.
+Recheck on document visibility restoration. Before signing,
+wallet expiry cancels pending approval and credential work through existing probes.
+Once a signing step starts, expiry does not cancel that step or suppress its real
+result. Long deadlines use capped/rescheduled timers; transport progress never
+extends quote validity.
+
+Router transport timeouts begin at dispatch today and are distinct from quote
+validity. Add validated serializable review validity to the reviewed transaction
+wire branch and retain it in host request context; ordinary requests keep their
+existing branch. This metadata contains no React values or caller functions.
+All relevant transaction handlers enforce it through one shared host admission
+check. Reject a malformed reviewed branch before execution. The API defines an
+approval deadline, not a guarantee about the eventual execution time.
 An expired review requires a refreshed quote and a new request. Local time checks
 are UX safeguards; contract-enforced deadlines and slippage bounds provide the
 transaction-level guarantee. Do not claim a UI countdown prevents late execution.
 
 ## Implementation inventory
+
+### Supported methods and result ownership
+
+| React method | Reviewed unit | Success and terminal core outcomes |
+| --- | --- | --- |
+| `near.signAndSendTransaction` | One transaction, one receiver, existing `ActionArgs[]` | Preserve `ActionResult` and existing rejection behavior |
+| `near.executeAction` | One transaction, one receiver; normalize a single action to an array | Preserve `ActionResult`, including `success: false`, and `afterCall` behavior |
+| `evm.signTransaction` | One EIP-1559 request | Preserve `EvmSignedResult`; no broadcast or execution receipt is added |
+| `tempo.signTransaction` | One EIP-2718 request, including its calls | Preserve `TempoSignedResult`; no broadcast or execution receipt is added |
+| `evm.executeTransaction` | One existing sign/broadcast/finalization operation | Preserve `ExecuteEvmFamilyTransactionResult`, lifecycle callbacks, and finalization hooks |
+| `tempo.executeTransaction` | One existing sign/broadcast/finalization operation | Same ownership as EVM execution, using the existing Tempo pipeline |
+
+All currently accepted NEAR `ActionArgs` variants remain accepted: account creation,
+contract/global-contract deployment and selection, function call, transfer, stake,
+key addition/deletion, account deletion, and an already-signed delegate action.
+The current NEAR implementation signs one transaction for the whole action array;
+review does not add per-action prompts. Wallet-required credential/authorization
+prompts remain intact. Tempo multicall likewise gets one application review.
+Do not add review support to the separate delegate-signing API, message signing,
+fee-token preference mutation, or external-wallet adapters.
+
+Reviewed input types distribute over existing method branches. They narrow explicit
+confirmation overrides to modal/requireClick. At runtime resolve the existing
+per-call override over stored/default preferences, reject an effective `none`,
+`drawer`, or `skipClick`, then pin modal/requireClick for this request. Validate
+before showing review and revalidate at the wallet boundary. Changes to defaults
+afterward do not change the captured configuration. JavaScript callers receive
+the same validation as TypeScript callers. No configuration is silently upgraded.
+
+Adapter failures before core dispatch reject the returned Promise for all six
+methods, including `executeAction`. Export `TransactionReviewError` with a `code`
+union: `cancelled`, `review_expired`, `review_invalid_input`,
+`review_host_unavailable`, `review_owner_disposed`, `review_unsupported_mode`,
+`review_identity_changed`, `review_render_failed`, and `review_prepare_timeout`.
+Retain the existing router busy/connection error types. Pre-dispatch failures emit
+no signing lifecycle events and invoke no core callbacks: core has not started.
+Document this distinction from `executeAction`'s core `success: false` result.
+After dispatch, forward the core outcome and callbacks unchanged; the adapter
+never synthesizes duplicate `onError`, `afterCall`, or finalization notifications.
+Host-side review expiry uses `review_expired` through existing wire error mapping;
+preserve that code in methods that reject, and existing failure-result semantics
+where applicable. Add no new signing-event vocabulary for the app review.
+
+### Reservation, lifecycle, and cancellation
+
+Reuse the router's `WalletIframeTransactionSurfaceQueue`, request-id allocation,
+surface reducer, and pending-request cleanup. Add internal branch-specific
+reservation/dispatch entrypoints accessible to the React adapter through the
+existing SDK assembly; keep them out of the public core API. Pass an explicit
+request-local reservation through the existing transaction implementation into
+`post()`. Avoid ambient flags, proxy interception, or a second queue.
+
+Admission order is: snapshot input and bound wallet/account plus local owner/session
+generation, validate owner and raw options, initialize the iframe connection without
+opening approval, reject any identity change during initialization, resolve effective
+configuration and exact session binding, allocate a
+request identity, acquire the FIFO transaction lease, recheck validity/identity,
+then claim the foreground surface and render review. Waiting calls render nothing.
+An existing non-transaction foreground surface rejects admission with the current
+busy error. Auth/export attempts during review receive that same busy behavior.
+Receipt replacement follows the rule below. A cancelled waiter is removed from
+the queue before it can be granted a surface.
+
+The reservation owns call id, request/surface identity, connection, owner generation,
+session binding, validity, and the lease. `post()` either acquires its ordinary
+lease or consumes the matching reserved lease, never both. Validate identity and
+connection before consumption. The reducer has an explicit review-to-wallet
+transition for the same identity; ordinary start events cannot steal ownership.
+Retain ownership across any request-owned credential or subsequent approval step.
+If an existing composed method issues multiple RPCs, map their request identities
+to the same owning call, sequentially, and return lease ownership to that call
+between RPCs. Release exactly once when its foreground workflow ends; permit no
+unrelated RPC to consume that reservation. Test the composed execute paths.
+
+Lifecycle branches are `queued`, `reviewing`, `review_failed`, `preparing_approval`,
+`wallet_approval`, `signing`, `executing`, and `settled`. Builders require only
+identities/resources valid in that branch; animation state is separate. The host
+owns the authoritative pre-signing/signing transition and cancellation arbitration.
+Add a validated request-scoped phase/cancel acknowledgement only where existing
+messages cannot convey that decision. UI close must not settle a dispatched call
+as cancelled merely because a cancel message was sent.
+The current host `PM_CANCEL` path marks cancellation and closes confirmers without
+phase arbitration; update this path for reviewed requests. Its generic PONG is
+not an acknowledgement that signing was prevented. Scope cancellation to the
+matching request so delayed cancels cannot close a later request's confirmer.
+Use a 30-second cancellation-acknowledgement bound; if no authoritative outcome
+arrives, reject with the existing transport timeout error and clean up local
+ownership. This is an unknown operation outcome, never proof of cancellation.
+
+| Boundary | Close, Escape, disposal, or cancellation | Public settlement |
+| --- | --- | --- |
+| Queued or reviewing | Remove waiter/review; release owned resources | Reject with the adapter error code |
+| Review failed | Dismiss SDK fallback; never dispatch | Reject stored `review_render_failed` |
+| Preparing or wallet approval, including credential acquisition | Host arbitrates cancellation before signing, aborts approval/credential work, and acknowledges | Preserve core cancellation convention after acknowledgement |
+| Signing started, including sign-only calls | Detach application review resources; close/minimize UI where existing wallet behavior permits; do not cancel signing | Await actual core outcome |
+| Broadcast/finalization | Preserve existing receipt/toast and operation tracking | Await actual core outcome |
+| Connection lost after dispatch | Existing transport failure and cleanup; no automatic retry | Preserve connection error; never claim signing/broadcast was undone |
+| Settled or stale callback | No effect on this or any newer call | No second settlement |
+
+Continue versus review cancellation is decided by the first synchronous controller
+transition. Approval versus cancel/expiry is decided by the host before the signing
+transition; receipt or diagnostic events cannot make that decision. An unmounted
+host does not orphan a dispatched operation: core/router retain settlement ownership.
+After signing begins, later prompts for the same composed operation keep their
+existing core cancellation semantics; do not claim earlier work was rolled back.
+
+### Receipt coexistence
+
+Preserve current `TRANSACTION_ACTIVITY` and `PM_SET_TRANSACTION_VIEW` behavior.
+Executing transactions may retain an expanded receipt after their Promise settles
+and collapse to a toast on close. Sign-only methods do not gain an execution receipt.
+Dispose React review content at handoff completion; remove its registry on terminal
+settlement. Receipt ownership remains in the existing wallet/router implementation.
+
+Release the call's queue lease when the core call settles; an existing receipt is
+replaceable presentation, not an active signing reservation. When the next call
+wins admission, close the previous receipt/toast by its exact request id and claim
+the new review surface in one renderer update. Do not render an intermediate hidden
+dialog. Late receipt measurements/activity cannot reopen or resize the new review.
+Retain existing call-start replacement behavior for ordinary transactions.
+
+### Handoff readiness and visual acceptance
+
+`READY` establishes transport availability only. `SURFACE_MEASUREMENT` provides
+validated request geometry; it does not prove approval is interactive. Extend the
+existing surface protocol with request-scoped prepared/activate/activated states
+where no equivalent exists. Include connection binding, request/surface identity,
+and handoff generation, validated at the message boundary. No callback crosses it.
+
+The wallet prepares its confirmation inert and without credential requests, reports
+prepared after required UI styles/content are ready, and reports a valid measurement.
+The parent retains visible SDK loading content until both are known, then atomically
+shows the inert wallet view and inactivates/hides review before requesting wallet
+activation. The wallet enables its now-visible view, focuses its own initial control,
+and acknowledges activation. Preparing may expose a credential-required view first,
+but initiating credentials still requires its wallet-origin button. Never require
+credentials to obtain the first usable prepared view. Loading and the wallet view
+must not be simultaneously interactive; no hidden approval control accepts activation.
+Forward Escape from the wallet to the existing close owner. Use existing focus
+behavior when sufficient; add only the missing identity-bound handshake. The outer
+dialog supplies the single modal boundary and returns focus to the original trigger.
+
+Preparation has a 30-second bound from Continue, including activation acknowledgement,
+shortened by quote expiry. Transport initialization uses existing connection timeout
+behavior. Preparation timeout cancels through host arbitration and cleans up; if
+signing has already won the race, preserve the signing outcome instead. Reading
+time in a ready review is unbounded unless the quote expires. A suspended review
+uses the same 30-second loading bound, which ends when its content commits.
+
+Use existing motion duration/easing, geometry clamps, and CSP stylesheet manager.
+Do not invent dimensions or timings for pixel parity. No reference screenshots are
+attached to this plan; the current modal and purchase demo establish the baseline.
+Required visual evidence: one continuous backdrop, no empty intermediate paint,
+no iframe reload/reparent, no duplicate shadow, and no clipped controls at 320px
+width or 200% zoom. Content exceeding viewport limits scrolls within the active
+view. Reduced motion skips geometry interpolation. Transition completion has a
+timer fallback and never gates cancellation/resource release.
+
+Verify parent and wallet documents under external stylesheet loading with
+`style-src 'self'; style-src-attr 'none'`, plus the existing nonce fallback tests.
+Reuse `createCspStylesheetManager` for dynamic geometry/theme rules. No CSP weakening,
+inline style attributes, eval, or new remote script/module loading is allowed.
+The React component must independently meet the application's script/style policy.
+
+### Files and reused entrypoints
 
 Paths are relative to this wallet repository; confirm ownership against the
 selected implementation base before editing.
@@ -158,6 +433,8 @@ selected implementation base before editing.
 | Surface state | `packages/wallet/src/SeamsWeb/walletIframe/client/surface/domain.ts`, `domain.typecheck.ts`, `renderer.ts`, `geometry.ts` | Review/handoff states, identity-bound measurements, geometry and interaction ownership |
 | Foreground serialization | `packages/wallet/src/SeamsWeb/walletIframe/client/surface/transactionSurfaceQueue.ts`, `client/router.ts` | One reservation spanning review and approval; cancellation and late-event filtering |
 | Wallet boundary | `packages/wallet/src/SeamsWeb/walletIframe/shared/messages.ts`, `host/runtimeContext.ts` | Audit existing readiness/cancel/measurement messages; extend only demonstrated gaps |
+| Dispatch and session binding | `packages/wallet/src/SeamsWeb/publicApi/near.ts`, `publicApi/types.ts`, `assembly/`, `walletIframe/shared/exactSessionState.ts`, `walletIframe/host/requestRouter.ts`, `walletIframe/host/index.ts`, `walletIframe/host/handlers/` | Thread reserved dispatch through existing implementations; enforce host validity/cancellation and session binding |
+| Receipt integration | `packages/wallet/src/SeamsWeb/walletIframe/client/router.ts`, `client/surface/renderer.ts` | Preserve receipt/toast lifecycle and atomically replace an old receipt at review admission |
 | Preact approval | `packages/wallet/src/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface.tsx`, `ConfirmationModal.tsx` | Keep existing approval rendering; only make minimal handoff changes |
 | Resize coordination | `packages/wallet/src/core/signingEngine/uiConfirm/ui/confirm-surface-resize.ts` | Reuse the existing measured-size handshake and avoid competing animation owners |
 | Integration example | `examples/wallet-console-lite/src/WalletConsoleLite.tsx`, `styles.css` | Purchase-review demo with normal, expired, slow, and failing review cases |
@@ -167,13 +444,14 @@ selected implementation base before editing.
 
 ### Phase 0 — establish the baseline and integration contract
 
-- [ ] Reconcile the implementation base with current main and the refactor-127
-  fixes. Preserve unrelated dirty files and concurrent worktrees.
+- [ ] Verify the implementation base contains inspected `dev` revision `3f382bf`
+  and receipt/toast behavior. Preserve unrelated dirty files and worktrees.
 - [ ] Trace the current modal, queue, readiness, cancellation, user-activation, and
   request-settlement paths end to end. Record exact reused entrypoints here.
-- [ ] Write the supported-method matrix: NEAR `signAndSendTransaction` and
-  `executeAction`; EVM/Tempo `signTransaction` and `executeTransaction`. Identify
-  which action variants may need multiple wallet prompts before advertising them.
+- [ ] Trace each method in the supported-method matrix through public boundary,
+  router RPCs, credential prompts, signing, and settlement. Use that trace to
+  thread the reservation; any discrepancy with the specified behavior is a blocker
+  to that method's implementation, not permission to silently narrow coverage.
 - [ ] Establish current focused test/type-check/build results. Classify failures
   against current behavior before repairing them.
 - [ ] Capture the existing modal, drawer, tx-tree, auth, and export appearance in a
@@ -184,17 +462,21 @@ implementation depends on taking over another agent's local server.
 
 ### Phase 1 — define typed review lifecycle and API
 
-- [ ] Finalize the React-only review contract and host placement. Keep the renderer
-  and callback registry local to React; core types remain React-free.
-- [ ] Model review, preparing approval, wallet approval, executing, and settled
-  states with discriminated unions, branch-specific builders, exhaustive switches,
+- [ ] Implement the specified React-only review contract and host placement. Keep
+  the renderer and callback registry local to React; core types remain React-free.
+- [ ] Model queued, reviewing, review-failed, preparing approval, wallet approval,
+  signing, executing, and settled states with discriminated unions,
+  branch-specific builders, exhaustive switches,
   and required identities. Represent animation progress separately from approval.
-- [ ] Define cancellation at each boundary. Before approval, cancel the request;
+- [ ] Implement the cancellation table at each boundary. Before signing, cancel the request;
   after an irreversible signing/broadcast step, closing UI must not report that the
   operation was undone. Preserve the established outcome contract.
-- [ ] Define snapshot, quote-expiry, session-change, and unsupported-mode behavior.
+- [ ] Implement snapshot, quote-expiry, session-change, and unsupported-mode contracts.
 - [ ] Add type fixtures rejecting callback-bearing wire objects, incompatible
-  presentation modes, invalid state combinations, and stale identity combinations.
+  presentation modes, invalid state combinations, direct construction and broad
+  spread escape hatches. Use boundary parser tests to reject extra wire keys and
+  runtime tests for stale identity values; branded types alone cannot prove two
+  same-typed request ids match. Keep unsafe casts out of the new implementation.
 - [ ] Update the intended-behavior specification with its contract tests when the
   new public lifecycle behavior is implemented.
 
@@ -209,10 +491,14 @@ can be reviewed without relying on animation or DOM behavior.
   Keep the iframe and its transport alive throughout.
 - [ ] Extend the current foreground reservation across both steps. Reuse queue
   semantics; do not create a second queue or bypass other foreground operations.
-- [ ] Dispatch only once after Continue. Strip review metadata before core calls.
+- [ ] Dispatch only once after Continue. Strip React review metadata before core
+  calls; carry validated validity/reservation metadata through the internal path.
   Component code and raw HTML never reach the wallet document.
 - [ ] Match ready/measurement/approval/cancel events to the current request and
   connection. Preparing must not trigger signing or credential UI automatically.
+- [ ] Implement host-owned cancellation arbitration and activation acknowledgement.
+  Keep the public Promise pending until dispatched cancellation is acknowledged
+  or transport fails; prove a cancellation race cannot hide a signed result.
 - [ ] Test double Continue, Escape, close, provider unmount, iframe disconnect,
   timeout, concurrent requests, and late responses. Release resources exactly once.
 
@@ -227,6 +513,8 @@ both cancellation and success leave no pending review or leaked reservation.
   account changes, expired quotes, wallet rejection, and signing/execution errors.
 - [ ] Audit multi-prompt methods so custom review occurs once per transaction call
   and every wallet-required approval still occurs in the wallet view.
+- [ ] Preserve execution receipts/toasts; test Promise settlement before receipt
+  dismissal and atomic replacement by the next reviewed or ordinary transaction.
 - [ ] Verify ordinary calls without review, auth, export, recovery, and drawer
   behavior remain intact. Reject unsupported reviewed operations explicitly.
 
@@ -269,6 +557,12 @@ animation, pointer input, or a large viewport.
   request, and rejects stale/cancelled requests. App-side Continue alone never signs.
 - [ ] Test React context, local input state, StrictMode, render errors, async errors,
   host disposal, reconnect, two rapid requests, and maliciously large measurements.
+- [ ] Cover nested input mutation, queued expiry/cancellation, same-wallet session
+  replacement, owned credential step-up, inherited skipClick/drawer rejection,
+  preference changes during review, Suspense timeout, and duplicate hosts.
+- [ ] Cover cancellation versus approval and credential completion, late receipt
+  events after replacement, missing activation acknowledgement, and post-signing
+  disposal. Assert outcomes and resource ownership, not just modal disappearance.
 - [ ] Verify SDK-owned styles under supported strict-CSP configurations. Document
   that an arbitrary supplied component must independently satisfy its app's CSP.
 - [ ] Run focused tests first, then the affected browser matrix on Chromium,
@@ -314,10 +608,46 @@ recorded evidence. A skipped check is never counted as passed.
   method coverage, motion/accessibility, tests/docs, and cleanup. Commit/push/release
   actions require their own user request; this document authorizes planning only.
 - [ ] Record verification and remaining limitations. Coordinate any future release
-  separately from PR 17 and 0.5.29.
+  separately from this implementation.
 
 Exit: the implementation is understandable through one ownership model, obsolete
 paths and temporary parity tooling are gone, and remaining limitations are explicit.
+
+## Verification record
+
+Initial inspection began at local `dev` `3f382bf`. The checkpoint checkout later
+advanced to `8016eab`, preserving the intervening receipt and drawer changes.
+The preliminary implementation adds React-only contract types and validation,
+type fixtures, and capped/rescheduled queue deadline timers. It does not yet add
+`TransactionReviewHost`, reviewed `useWallet()` calls, reservations, or the wallet
+handoff and signing admission protocol.
+
+Commands executed during the initial implementation run:
+
+- `pnpm -C packages/wallet type-check` — passed before and after the changes.
+- `pnpm -C tests type-check:wallet-state` — passed, including the new review fixtures.
+- `pnpm -C tests test:wallet-browser wallet-iframe/router.cancellationProgress.test.ts wallet-iframe/router.connectionClosed.test.ts wallet-iframe/router.sessionExpiryLifecycle.test.ts wallet-iframe/walletIframeSurface.compact.integration.test.ts wallet-ui/confirmation-mount.browser.test.ts --project=chromium`
+  — 31 passed.
+- `pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts unit/transactionSurfaceQueue.deadline.test.ts --project=chromium`
+  — 1 passed.
+- `pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts unit/transactionReview.contract.test.ts --project=chromium`
+  — 1 passed.
+- An initial `test:wallet-unit` invocation unintentionally selected the full unit
+  directory and was interrupted after 195 passes; it is not a completed suite run.
+
+Visual baseline captures, Firefox/WebKit, credential-gated contracts, package
+builds, and the remaining Phase 5 gates have not run for this implementation.
+
+During implementation, record each executed command, revision, result, and any
+infrastructure limitation here. Begin with existing
+`router.cancellationProgress.test.ts`, `router.connectionClosed.test.ts`,
+`router.sessionExpiryLifecycle.test.ts`, `walletIframeSurface.compact.integration.test.ts`,
+and confirmation mount tests. Add focused reviewed-transaction lifecycle and
+cross-origin host tests in the existing `tests/` workspaces; use shared factories.
+Read `tests/AGENTS.md` if present before editing tests. Keep permanent tests for
+the behavior above and the six-method result/callback matrix. Acceptance requires
+the Phase 5 checks and intended-behavior specification to agree; skipped checks
+remain explicit limitations.
 
 ## Later enhancement: toggleable views
 
