@@ -1,3 +1,4 @@
+import { recordWalletCustodyTiming } from '@/core/signingEngine/walletCustody/ceremonyDriver';
 import { walletSessionPreservesCapabilities } from '@shared/device-linking/activeWalletSession';
 import type { LoginWebContext } from '@/SeamsWeb/signingSurface/types';
 import { listConfiguredThresholdEcdsaPublicationTargets } from '@/SeamsWeb/operations/session/thresholdEcdsaProvisioning';
@@ -2348,10 +2349,12 @@ async function persistPreparedNearRegistration(
   receipt: DeferredNearCustodyWork['admissionReceipt'],
   checkpointJson: string,
 ): Promise<void> {
+  const startedAt = performance.now();
   await IndexedDBManager.advancePendingNearRegistration({
     expected: pending,
     next: preparePendingNearRegistration(pending, receipt, checkpointJson),
   });
+  recordWalletCustodyTiming(pending.registrationCeremonyId, 'journal_prepared', startedAt);
 }
 
 function ignoreNearCustodyFailure(): void {}
@@ -2443,6 +2446,7 @@ export async function continueNearRegistrationCustody(args: {
       : journal;
   if (pending.phase === 'joined') throw new Error('Invalid NEAR continuation phase');
   const admission = pending.admissionRequest;
+  const admissionStartedAt = performance.now();
   const admissionReceipt =
     pending.phase === 'execution_prepared'
       ? pending.admissionReceipt
@@ -2455,6 +2459,7 @@ export async function continueNearRegistrationCustody(args: {
             traceContext: args.traceContext,
           },
         );
+  recordWalletCustodyTiming(pending.registrationCeremonyId, 'admission', admissionStartedAt);
   const joined = await args.signingEngine.joinWalletCustodyNearEd25519KeySet({
     ...(pending.phase === 'planned'
       ? {
@@ -2488,6 +2493,7 @@ export async function continueNearRegistrationCustody(args: {
     }
     return { joined, admissionReceipt };
   }
+  const journalStartedAt = performance.now();
   const prepared = await IndexedDBManager.getPendingWalletRegistrationCommit({
     registrationCeremonyId: pending.registrationCeremonyId,
     operation: 'near_provisioning',
@@ -2531,6 +2537,7 @@ export async function continueNearRegistrationCustody(args: {
     expected: prepared,
     next: joinedPending,
   });
+  recordWalletCustodyTiming(pending.registrationCeremonyId, 'journal_joined', journalStartedAt);
   return { joined, admissionReceipt };
 }
 
@@ -2965,6 +2972,71 @@ async function prepareDeferredNearSessionHydration(args: {
   }
 }
 
+type NearRegistrationSealPreparation =
+  | { readonly kind: 'none' }
+  | {
+      readonly kind: 'preparing';
+      readonly thresholdSessionId: string;
+      readonly preparationId: string;
+      readonly result: Promise<NearRegistrationHydrationResult>;
+    };
+
+function startNearRegistrationSealPreparation(args: {
+  signingEngine: NearRegistrationContinuationSigningSurface;
+  ceremonyId: string;
+  thresholdSessionId: string;
+  prfFirstB64u: string;
+}): NearRegistrationSealPreparation {
+  const sessionId = parseThresholdEd25519SessionId(args.thresholdSessionId);
+  if (!sessionId.ok) throw new Error('Invalid admitted NEAR session identity');
+  const preparationId = createRegistrationOperationIdempotencyKey('near-session-client-seal');
+  return {
+    kind: 'preparing',
+    thresholdSessionId: String(sessionId.value),
+    preparationId,
+    result: prepareDeferredNearSessionHydration({
+      signingEngine: args.signingEngine,
+      ceremonyId: args.ceremonyId,
+      input: {
+        preparationId,
+        thresholdSessionId: String(sessionId.value),
+        prfFirstB64u: args.prfFirstB64u,
+      },
+    }),
+  };
+}
+
+async function prepareNearSessionSealWhileCustodyRuns(args: {
+  signingEngine: NearRegistrationContinuationSigningSurface;
+  ceremonyId: string;
+  sessionAuthority: NearRegistrationSessionAuthority;
+  prfFirstB64u: string;
+}): Promise<NearRegistrationSealPreparation> {
+  try {
+    await requireCurrentNearRegistrationSession(args.sessionAuthority);
+    const pending = await IndexedDBManager.getPendingWalletRegistrationCommit({
+      registrationCeremonyId: args.ceremonyId,
+      operation: 'near_provisioning',
+    });
+    if (!pending || pending.operation !== 'near_provisioning' || pending.phase === 'joined')
+      return { kind: 'none' };
+    if (
+      pending.walletId !== args.sessionAuthority.record.walletId ||
+      pending.walletAuthMethodId !== args.sessionAuthority.record.authMethodId
+    )
+      return { kind: 'none' };
+    return startNearRegistrationSealPreparation({
+      signingEngine: args.signingEngine,
+      ceremonyId: args.ceremonyId,
+      thresholdSessionId: pending.admissionRequest.scope.threshold_session_id,
+      prfFirstB64u: args.prfFirstB64u,
+    });
+  } catch {
+    // The normal continuation still validates the joined journal and current authority.
+    return { kind: 'none' };
+  }
+}
+
 function nearRegistrationProfileUnavailable(): null {
   return null;
 }
@@ -2990,15 +3062,16 @@ async function commitDeferredEd25519Registration(args: {
   let outcome: 'success' | 'failure' = 'failure';
   let retainedFactorSecret32: ArrayBuffer | null = null;
   let hydration: Promise<NearRegistrationHydrationResult> = Promise.resolve({ kind: 'completed' });
-  let preparation:
-    | { kind: 'none' }
-    | {
-        kind: 'preparing';
-        thresholdSessionId: string;
-        preparationId: string;
-        result: Promise<NearRegistrationHydrationResult>;
-      } = { kind: 'none' };
+  let preparation: NearRegistrationSealPreparation = { kind: 'none' };
   try {
+    if (auth.kind === 'passkey') {
+      preparation = await prepareNearSessionSealWhileCustodyRuns({
+        signingEngine: args.context.signingEngine,
+        ceremonyId: args.registrationCeremonyId,
+        sessionAuthority: args.sessionAuthority,
+        prfFirstB64u: auth.prfFirstB64u,
+      });
+    }
     const nearCustody = await args.nearCustodyWork();
     retainedFactorSecret32 = nearCustody.factorSecret32;
     const joined = nearCustody.joined;
@@ -3016,24 +3089,13 @@ async function commitDeferredEd25519Registration(args: {
     /* Route 4 uses its own deterministic server idempotency key, while local
        publication remains bound to the retained activation row. */
     await requireCurrentNearRegistrationSession(args.sessionAuthority);
-    if (auth.kind === 'passkey') {
-      const sessionId = parseThresholdEd25519SessionId(joined.metadata.scope.threshold_session_id);
-      if (!sessionId.ok) throw new Error('Invalid admitted NEAR session identity');
-      const preparationId = createRegistrationOperationIdempotencyKey('near-session-client-seal');
-      preparation = {
-        kind: 'preparing',
-        thresholdSessionId: String(sessionId.value),
-        preparationId,
-        result: prepareDeferredNearSessionHydration({
-          signingEngine: args.context.signingEngine,
-          ceremonyId: args.registrationCeremonyId,
-          input: {
-            preparationId,
-            thresholdSessionId: String(sessionId.value),
-            prfFirstB64u: auth.prfFirstB64u,
-          },
-        }),
-      };
+    if (auth.kind === 'passkey' && preparation.kind === 'none') {
+      preparation = startNearRegistrationSealPreparation({
+        signingEngine: args.context.signingEngine,
+        ceremonyId: args.registrationCeremonyId,
+        thresholdSessionId: joined.metadata.scope.threshold_session_id,
+        prfFirstB64u: auth.prfFirstB64u,
+      });
     }
     const finalizationStartedAt = performance.now();
     const completed = await completeWalletRegistrationNearProvisioning({

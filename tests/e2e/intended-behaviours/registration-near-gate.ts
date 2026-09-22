@@ -41,6 +41,11 @@ export async function assertIndependentNearRegistration(input: {
   exhaustBudget?: boolean;
 }): Promise<void> {
   const gate = new NearRegistrationGate();
+  const preparation = new NearFinalizationResponseGate();
+  const page = input.context.pages()[0];
+  if (!page) throw new Error('Registration page is unavailable');
+  const observePreparation = preparation.observe.bind(preparation);
+  page.on('console', observePreparation);
   let pendingSession: Awaited<
     ReturnType<IntendedBehaviourHarness['readCurrentWalletSessionStatus']>
   > | null = null;
@@ -56,6 +61,10 @@ export async function assertIndependentNearRegistration(input: {
         break;
     }
     await expect.poll(gate.observed.bind(gate)).toBeGreaterThan(0);
+    if (input.factor === 'passkey') {
+      await expect.poll(preparation.isPrepared.bind(preparation)).toBe(true);
+      expect(preparation.isFinished()).toBe(false);
+    }
     await input.harness.signTempoTransaction('post_registration');
     await input.harness.signArcEvmTransaction('post_registration');
     if (input.exhaustBudget) await input.harness.signTempoTransaction('post_registration');
@@ -64,6 +73,7 @@ export async function assertIndependentNearRegistration(input: {
   } finally {
     gate.release();
     await input.context.unroute(`**${input.path}`, handler);
+    page.off('console', observePreparation);
   }
   await input.harness.awaitNearReady();
   if (!pendingSession) throw new Error('NEAR gate did not capture the pending session');

@@ -212,9 +212,9 @@ Expected behaviour:
 - A lock in either tab prevents late NEAR readiness publication. Readiness and
   removal of its repair journal commit atomically; an aborted transaction retains
   the journal for the next authorized unlock.
-- Once the NEAR custody join supplies the exact session identity, passkey client-seal
-  preparation may overlap server finalization. Preparation creates no signing authority
-  and performs no server sealing. Temporary keys are consumed once for the matching
+- After EVM activation, the retained NEAR journal supplies the exact session identity.
+  Passkey client-seal preparation may overlap custody execution and server finalization.
+  Preparation creates no signing authority and performs no server sealing. Temporary keys are consumed once for the matching
   session and factor, or discarded on failure, lock, expiry, or abandonment.
 - After NEAR authority publication, passkey session hydration and local signer
   installation may overlap. Durable readiness waits for both; a failed hydration

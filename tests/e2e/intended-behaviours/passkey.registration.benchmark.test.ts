@@ -12,8 +12,8 @@ import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation'
 const cohorts = [
   { name: 'independent', run: benchmarkNearRegistration },
   { name: 'serialized', run: benchmarkSerializedNearRegistration },
-  { name: 'prepared', run: benchmarkNearRegistration },
-  { name: 'serial_preparation', run: benchmarkSerialPreparation },
+  { name: 'custody_prepared', run: benchmarkNearRegistration },
+  { name: 'after_custody', run: benchmarkAfterCustodyPreparation },
 ] as const;
 
 // Keep each comparison in one warmed worker and balance ordering across pairs.
@@ -47,27 +47,7 @@ class SerializedNearRegistrationGate {
   }
 }
 
-class SerializedPreparationGate {
-  private release: () => void = ignoreRelease;
-  private readonly prepared = new Promise<void>(this.saveRelease.bind(this));
-
-  private saveRelease(resolve: () => void): void {
-    this.release = resolve;
-  }
-
-  observe(message: ConsoleMessage): void {
-    const timings = new Map<string, number>();
-    collectRegistrationTimings(timings, message);
-    if (timings.has('session_seal_preparation')) this.release();
-  }
-
-  async holdFinalization(route: Route): Promise<void> {
-    await this.prepared;
-    await route.continue();
-  }
-}
-
-async function benchmarkSerialPreparation(
+async function benchmarkAfterCustodyPreparation(
   {
     harness,
     page,
@@ -75,10 +55,32 @@ async function benchmarkSerialPreparation(
   }: { harness: IntendedBehaviourHarness; page: Page; context: BrowserContext },
   testInfo: TestInfo,
 ): Promise<void> {
-  // Both cohorts perform identical work; this control serializes preparation before finalization.
-  const gate = new SerializedPreparationGate();
-  page.on('console', gate.observe.bind(gate));
-  await context.route('**/wallets/register/near-provisioning', gate.holdFinalization.bind(gate));
+  // Restore preparation after custody completion without a production behavior flag.
+  await context.addInitScript({
+    content: `
+    const originalPostMessage = Worker.prototype.postMessage;
+    const originalInfo = console.info;
+    let custodyCompleted = false;
+    const held = [];
+    function postAfterCustody(message, ...transfer) {
+      if (message?.type === 'PREPARE_SESSION_CLIENT_SEAL' && !custodyCompleted) {
+        held.push({ worker: this, message, transfer });
+        return;
+      }
+      return originalPostMessage.call(this, message, ...transfer);
+    }
+    function observeCustodyCompletion(...args) {
+      originalInfo.apply(console, args);
+      if (args[0] !== '[Registration] NEAR timing' || typeof args[1] !== 'string') return;
+      const timing = JSON.parse(args[1]);
+      if (timing.stage !== 'custody_join' || timing.outcome !== 'success') return;
+      custodyCompleted = true;
+      for (const item of held.splice(0)) originalPostMessage.call(item.worker, item.message, ...item.transfer);
+    }
+    Worker.prototype.postMessage = postAfterCustody;
+    console.info = observeCustodyCompletion;
+  `,
+  });
   await benchmarkNearRegistration({ harness, page }, testInfo);
 }
 
@@ -123,7 +125,8 @@ async function benchmarkNearRegistration(
 function collectRegistrationTimings(timings: Map<string, number>, message: ConsoleMessage): void {
   const text = message.text();
   const jsonStart = text.indexOf('{"');
-  if (jsonStart < 0 || !text.startsWith('[Registration]')) return;
+  if (jsonStart < 0 || !(text.startsWith('[Registration]') || text.startsWith('[WalletCustody]')))
+    return;
   let value: unknown;
   try {
     value = JSON.parse(text.slice(jsonStart));
@@ -132,7 +135,7 @@ function collectRegistrationTimings(timings: Map<string, number>, message: Conso
   }
   if (!isPlainObject(value)) return;
   if (
-    value.event === 'near_registration_timing' &&
+    (value.event === 'near_registration_timing' || value.event === 'wallet_custody_timing') &&
     value.outcome === 'success' &&
     typeof value.stage === 'string' &&
     typeof value.durationMs === 'number' &&
