@@ -235,7 +235,6 @@ summary:focus-visible {
   margin-top: 1rem;
 }
 
-.page-tabs,
 .operation-tabs {
   display: flex;
   gap: 0.5rem;
@@ -243,12 +242,10 @@ summary:focus-visible {
   overflow-x: auto;
 }
 
-.page-tabs button,
 .operation-tabs button {
   white-space: nowrap;
 }
 
-.page-tabs button.active,
 .operation-tabs button.active {
   color: #fff;
   border-color: #24593f;

@@ -1,0 +1,225 @@
+.console-app {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+.console-navbar {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.75rem;
+  background: #fff;
+  border-bottom: 1px solid #d9dfda;
+}
+
+.console-brand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  color: #173d2d;
+  font-size: 1.6rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.console-brand span {
+  color: #59645d;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.console-environment {
+  color: #397055;
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.console-sidebar {
+  padding: 2rem 1rem;
+  background: #f8faf7;
+  border-inline-end: 1px solid #d9dfda;
+}
+
+.console-sidebar > p {
+  padding-inline: 0.75rem;
+}
+.console-sidebar nav {
+  display: grid;
+  gap: 0.375rem;
+}
+.console-sidebar a {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.7rem 0.75rem;
+  border-radius: 0.6rem;
+  color: #59645d;
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+.console-sidebar a:hover {
+  background: #eaf0e9;
+  color: #173d2d;
+}
+.console-sidebar a[aria-current='page'] {
+  background: #dfeae0;
+  color: #173d2d;
+  font-weight: 700;
+}
+.console-sidebar-note {
+  margin-block-start: 2rem;
+  color: #59645d;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+.console-content {
+  width: 100%;
+  max-width: 76rem;
+  padding: 2rem clamp(1rem, 4vw, 4rem) 4rem;
+  min-width: 0;
+}
+.console-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-block-end: 2.5rem;
+  color: #59645d;
+  font-size: 0.8rem;
+}
+.console-breadcrumb strong {
+  color: #18201c;
+  font-weight: 550;
+}
+.console-page-heading {
+  max-width: 42rem;
+  margin-block-end: 2rem;
+}
+.console-page-heading h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.1;
+}
+.console-page-heading > p:last-child,
+.console-footnote {
+  color: #59645d;
+  line-height: 1.65;
+}
+.console-destinations {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+.console-destination {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  padding: 1.75rem;
+  color: #18201c;
+  background: #fff;
+  border-radius: 1rem;
+  text-decoration: none;
+  box-shadow:
+    0 0 0 1px #d9dfda,
+    0 4px 12px #24362b06;
+}
+.console-destination:hover {
+  box-shadow: 0 0 0 2px #397055;
+}
+.console-destination p {
+  margin-block: 0.8rem 1.5rem;
+  color: #59645d;
+  line-height: 1.6;
+}
+.console-destination-action {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  margin-block-start: auto;
+  color: #24593f;
+  font-weight: 650;
+  font-size: 0.875rem;
+}
+.console-destination--featured {
+  background: #eaf1e8;
+}
+.console-footnote {
+  margin-block-start: 1.5rem;
+  font-size: 0.8rem;
+}
+.console-content .shell {
+  width: 100%;
+  padding: 0;
+}
+.console-content .setup-shell {
+  max-width: 38rem;
+  margin-inline: 0;
+}
+.console-content .workspace-header {
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.console-content .workspace-header h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+.console-skip {
+  position: fixed;
+  inset-block-start: -5rem;
+  inset-inline-start: 1rem;
+  z-index: 10;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  color: #173d2d;
+}
+.console-skip:focus {
+  inset-block-start: 1rem;
+}
+.console-app a:focus-visible {
+  outline: 2px solid #24593f;
+  outline-offset: 4px;
+}
+
+@media (max-width: 62rem) {
+  .console-app {
+    grid-template-columns: 12rem minmax(0, 1fr);
+  }
+  .console-destinations {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 44rem) {
+  .console-app {
+    display: block;
+  }
+  .console-navbar {
+    padding: 1rem;
+  }
+  .console-sidebar {
+    padding: 0.75rem 1rem;
+    border-inline-end: 0;
+    border-bottom: 1px solid #d9dfda;
+  }
+  .console-sidebar > p {
+    display: none;
+  }
+  .console-sidebar nav {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .console-sidebar a {
+    font-size: 0.8rem;
+  }
+  .console-content {
+    padding-block-start: 1.5rem;
+  }
+  .console-breadcrumb {
+    margin-block-end: 1.5rem;
+  }
+  .console-destination {
+    padding: 1.25rem;
+  }
+}

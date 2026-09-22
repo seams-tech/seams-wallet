@@ -3,6 +3,18 @@
   justify-items: start;
   gap: 12px;
   margin-block-start: 20px;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #d9dfda;
+  border-radius: 1rem;
+}
+
+.transaction-preview-frame {
+  display: block;
+  width: 100%;
+  border: 1px solid #d9dfda;
+  border-radius: 1rem;
+  margin-block-start: 1.5rem;
 }
 
 .transaction-preview-settings-row {
@@ -34,7 +46,7 @@
 
 .transaction-preview-toggle span {
   display: block;
-  padding: 10px 16px;
+  padding: 12px;
   border-radius: 8px;
 }
 

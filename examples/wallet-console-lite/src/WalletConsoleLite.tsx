@@ -58,7 +58,7 @@ async function exportWalletKey(
   }
 }
 
-export function WalletConsoleLite({ children }: { children?: ReactNode }) {
+export function WalletConsoleLite({ children, page }: { children?: ReactNode; page: PlaygroundPage }) {
   const [workspace, setWorkspace] = useState<LocalWorkspaceState>({ kind: 'restoring' });
   useEffect(restoreWorkspaceOnMount.bind(null, setWorkspace), []);
   const handleSetup = useCallback(async (event: FormEvent<HTMLFormElement>) => {
@@ -73,7 +73,7 @@ export function WalletConsoleLite({ children }: { children?: ReactNode }) {
 
   if (workspace.kind === 'restoring' || workspace.kind === 'restore_failed') {
     return (
-      <main className="shell setup-shell">
+      <div className="shell setup-shell">
         <section className="panel">
           <h1>Reconnecting to your local project</h1>
           {workspace.kind === 'restoring' ? (
@@ -93,13 +93,13 @@ export function WalletConsoleLite({ children }: { children?: ReactNode }) {
             </>
           )}
         </section>
-      </main>
+      </div>
     );
   }
   if (workspace.kind !== 'ready') {
     return <SetupScreen state={workspace} onSubmit={handleSetup} />;
   }
-  return <ConfiguredWalletPlayground workspace={workspace}>{children}</ConfiguredWalletPlayground>;
+  return <ConfiguredWalletPlayground workspace={workspace} page={page}>{children}</ConfiguredWalletPlayground>;
 }
 
 function restoreWorkspaceOnMount(setWorkspace: (state: LocalWorkspaceState) => void): () => void {
@@ -131,7 +131,7 @@ function SetupScreen(props: {
 }) {
   const provisioning = props.state.kind === 'provisioning';
   return (
-    <main className="shell setup-shell">
+    <div className="shell setup-shell">
       <header className="hero">
         <p className="eyebrow">Seams Wallet · local SDK playground</p>
         <h1>Set up a local Wallet project</h1>
@@ -175,16 +175,18 @@ function SetupScreen(props: {
           {provisioning ? 'Starting local Wallet system…' : 'Create local project'}
         </button>
       </form>
-    </main>
+    </div>
   );
 }
 
 function ConfiguredWalletPlayground({
   workspace,
   children,
+  page,
 }: {
   workspace: ReadyLocalWorkspace;
   children?: ReactNode;
+  page: PlaygroundPage;
 }) {
   const config = useMemo(() => createWalletConfig(workspace), [workspace]);
   const [shape, setShape] = useState<WalletShapeId>('square');
@@ -205,7 +207,7 @@ function ConfiguredWalletPlayground({
     <SeamsWebProvider eager config={config} theme={theme}>
       <TransactionReviewHost>
         {children ?? (
-          <WalletPlayground workspace={workspace} shape={shape} onShapeChange={handleShapeChange} />
+          <WalletPlayground workspace={workspace} page={page} shape={shape} onShapeChange={handleShapeChange} />
         )}
       </TransactionReviewHost>
     </SeamsWebProvider>
@@ -289,10 +291,12 @@ function assertNever(value: never): never {
 
 function WalletPlayground({
   workspace,
+  page,
   shape,
   onShapeChange,
 }: {
   workspace: ReadyLocalWorkspace;
+  page: PlaygroundPage;
   shape: WalletShapeId;
   onShapeChange: (event: ChangeEvent<HTMLSelectElement>) => void;
 }) {
@@ -301,7 +305,6 @@ function WalletPlayground({
   const wallet = useWallet();
   const [signingCheck, setSigningCheck] = useState<SigningCheckState>({ kind: 'idle' });
   const [exportingKey, setExportingKey] = useState<PlaygroundExportChain | null>(null);
-  const [page, setPage] = useState<PlaygroundPage>('wallet');
   const [authMenu, setAuthMenu] = useState<AuthMenuState>({ kind: 'closed' });
 
   const refreshSession = useCallback(async () => {
@@ -402,11 +405,8 @@ function WalletPlayground({
     await runKeyExport('evm');
   }, [runKeyExport]);
 
-  const showWallet = useCallback(() => setPage('wallet'), []);
-  const showRecovery = useCallback(() => setPage('recovery'), []);
-
   return (
-    <main className="shell playground-shell">
+    <div className="shell playground-shell">
       <header className="workspace-header">
         <div>
           <p className="eyebrow">Local Wallet project</p>
@@ -422,19 +422,6 @@ function WalletPlayground({
         </label>
         <span className="environment-badge">dev</span>
       </header>
-
-      <nav className="page-tabs" aria-label="Wallet Console Lite pages">
-        <button type="button" className={page === 'wallet' ? 'active' : ''} onClick={showWallet}>
-          Wallet
-        </button>
-        <button
-          type="button"
-          className={page === 'recovery' ? 'active' : ''}
-          onClick={showRecovery}
-        >
-          Server share recovery
-        </button>
-      </nav>
 
       {page === 'wallet' ? (
         <>
@@ -507,7 +494,7 @@ function WalletPlayground({
       ) : (
         <ServerShareRecovery environmentId={workspace.identity.environmentId} />
       )}
-    </main>
+    </div>
   );
 }
 

@@ -10,9 +10,12 @@ export function TransactionPreviews() {
   const [authentication, setAuthentication] = useState<'passkey' | 'email'>('passkey');
   const frame = useRef<HTMLIFrameElement>(null);
   return (
-    <section className="panel" aria-labelledby="transaction-previews-title">
-      <h2 id="transaction-previews-title">Transaction previews</h2>
-      <p>Explore ETH transfers, EVM calls, and NEAR calls with simulated data. No signing or network transactions.</p>
+    <section className="transaction-previews-page" aria-labelledby="transaction-previews-title">
+      <header className="console-page-heading">
+        <p className="eyebrow">No wallet required</p>
+        <h1 id="transaction-previews-title">Transaction previews</h1>
+        <p>Explore ETH transfers, EVM calls, and NEAR calls with simulated data. No signing or network transactions.</p>
+      </header>
       <div className="transaction-preview-settings">
         <div className="transaction-preview-toggle" role="group" aria-label="Review presentation">
           <label>
@@ -43,7 +46,7 @@ export function TransactionPreviews() {
         height={850}
         title="Interactive transaction review and receipt examples"
         src={`/transaction-preview.html?variant=${variant}&auth=${authentication}`}
-        style={{ width: '100%', border: 0, borderRadius: '12px', marginTop: '16px' }}
+        className="transaction-preview-frame"
       />
     </section>
   );
