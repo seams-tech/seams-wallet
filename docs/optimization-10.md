@@ -1987,3 +1987,30 @@ path must attach one confirmed operation immutably, publish directly as reserved
 and preserve live authorization and failure recovery across the client, gateway,
 DO, and D1 boundaries. The local storage result is a prerequisite, not evidence
 that those integration requirements have been met.
+
+The private SigningWorker pool now supports a `PutReserved` command for the
+owner-handoff integration. Its first durable lifecycle is Reserved at revision1,
+identical to the existing available-then-reserve transition. An existing pair in
+any lifecycle rejects direct admission, including an exact repeated command;
+this command does not implement response replay. The browser/gateway completion
+path is not wired to it yet. Nine native pool tests pass, covering transition
+equivalence, immutable existing identities, single-use, expiry, contribution
+validation, and available-admission collision behavior.
+
+New available and directly reserved admissions use `INSERT OR IGNORE` first.
+A successful new admission takes one D1 statement instead of SELECT plus INSERT.
+An insertion collision still reads and validates the existing encrypted record
+through the canonical reducer, preserving exact available-put idempotency and
+rejecting substituted or terminal material. Existing mutations retain their
+versioned compare-and-swap writes. No schema or public protocol change is needed
+for the available-admission optimization.
+
+An isolated development SigningWorker build and the existing real-workerd D1
+six-exchange presign test passed, including replay after DO eviction and immutable
+expiry. The first harness startup attempts had an external-output module-root
+configuration error; setting the isolated generated entrypoint and its module
+root fixed the harness without product changes. This integration exercises the
+existing available path; direct-reservation handoff still needs end-to-end
+integration and validation. Logs: `/tmp/presign-put-reserved-native.log`,
+`/tmp/presign-pool-worker-build.log`, `/tmp/presign-pool-private-d1.log`.
+No hosted gain, publication, or deployment is claimed.

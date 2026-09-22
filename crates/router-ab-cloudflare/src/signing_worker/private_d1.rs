@@ -1478,6 +1478,32 @@ async fn round1_cleanup_v1(
     )
 }
 
+async fn insert_ecdsa_pool_record_v1(
+    db: &D1DatabaseSession,
+    cipher: &SigningWorkerPrivateD1CipherV1,
+    key: &str,
+    record: &CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1,
+) -> RouterAbProtocolResult<bool> {
+    let record_json = cipher.seal("ecdsa_pool", key, record)?;
+    let cleanup_deadline = record
+        .cleanup_deadline_ms()
+        .map(|value| js_u64("SigningWorker ECDSA pool cleanup deadline", value))
+        .transpose()?
+        .unwrap_or(JsValue::NULL);
+    let write = db
+        .prepare(
+            "INSERT OR IGNORE INTO signing_worker_ecdsa_pool
+             (record_key, record_json, version, cleanup_deadline_ms)
+             VALUES (?1, ?2, 1, ?3)",
+        )
+        .bind(&[js_string(key), js_string(&record_json), cleanup_deadline])
+        .map_err(|error| map_d1_error("SigningWorker ECDSA pool insert bind failed", error))?
+        .run()
+        .await
+        .map_err(|error| map_d1_error("SigningWorker ECDSA pool insert failed", error))?;
+    Ok(d1_changes(&write)? == 1)
+}
+
 async fn ecdsa_pool_mutate_v1(
     db: &D1DatabaseSession,
     cipher: &SigningWorkerPrivateD1CipherV1,
@@ -1486,6 +1512,17 @@ async fn ecdsa_pool_mutate_v1(
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerPrivateD1ResponseV1> {
     command.validate()?;
     let key = request.storage_key();
+    // New pairs need no read. A collision still goes through the canonical reducer.
+    if matches!(
+        command,
+        CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable { .. }
+            | CloudflareSigningWorkerEcdsaPoolCommandV1::PutReserved { .. }
+    ) {
+        let outcome = apply_cloudflare_signing_worker_ecdsa_pool_command_v1(None, command.clone())?;
+        if insert_ecdsa_pool_record_v1(db, cipher, &key, outcome.record()).await? {
+            return Ok(CloudflareSigningWorkerPrivateD1ResponseV1::EcdsaPoolMutated { outcome });
+        }
+    }
     for _ in 0..3 {
         let current = db
             .prepare(
@@ -1510,39 +1547,40 @@ async fn ecdsa_pool_mutate_v1(
             .transpose()?;
         let outcome =
             apply_cloudflare_signing_worker_ecdsa_pool_command_v1(current_record, command.clone())?;
-        let record_json = cipher.seal("ecdsa_pool", &key, outcome.record())?;
-        let cleanup_deadline = outcome
-            .record()
-            .cleanup_deadline_ms()
-            .map(|value| js_u64("SigningWorker ECDSA pool cleanup deadline", value))
-            .transpose()?
-            .unwrap_or(JsValue::NULL);
-        let write = match current {
-            None => db
-                .prepare(
-                    "INSERT OR IGNORE INTO signing_worker_ecdsa_pool
-                     (record_key, record_json, version, cleanup_deadline_ms)
-                     VALUES (?1, ?2, 1, ?3)",
-                )
-                .bind(&[js_string(&key), js_string(&record_json), cleanup_deadline]),
-            Some(row) => db
-                .prepare(
-                    "UPDATE signing_worker_ecdsa_pool
+        let stored = match current {
+            None => insert_ecdsa_pool_record_v1(db, cipher, &key, outcome.record()).await?,
+            Some(row) => {
+                let record_json = cipher.seal("ecdsa_pool", &key, outcome.record())?;
+                let cleanup_deadline = outcome
+                    .record()
+                    .cleanup_deadline_ms()
+                    .map(|value| js_u64("SigningWorker ECDSA pool cleanup deadline", value))
+                    .transpose()?
+                    .unwrap_or(JsValue::NULL);
+                let write = db
+                    .prepare(
+                        "UPDATE signing_worker_ecdsa_pool
                      SET record_json = ?1, version = version + 1, cleanup_deadline_ms = ?2
                      WHERE record_key = ?3 AND version = ?4",
-                )
-                .bind(&[
-                    js_string(&record_json),
-                    cleanup_deadline,
-                    js_string(&key),
-                    JsValue::from_f64(row.version as f64),
-                ]),
-        }
-        .map_err(|error| map_d1_error("SigningWorker ECDSA pool write bind failed", error))?
-        .run()
-        .await
-        .map_err(|error| map_d1_error("SigningWorker ECDSA pool write failed", error))?;
-        if d1_changes(&write)? == 1 {
+                    )
+                    .bind(&[
+                        js_string(&record_json),
+                        cleanup_deadline,
+                        js_string(&key),
+                        JsValue::from_f64(row.version as f64),
+                    ])
+                    .map_err(|error| {
+                        map_d1_error("SigningWorker ECDSA pool write bind failed", error)
+                    })?
+                    .run()
+                    .await
+                    .map_err(|error| {
+                        map_d1_error("SigningWorker ECDSA pool write failed", error)
+                    })?;
+                d1_changes(&write)? == 1
+            }
+        };
+        if stored {
             return Ok(CloudflareSigningWorkerPrivateD1ResponseV1::EcdsaPoolMutated { outcome });
         }
     }
