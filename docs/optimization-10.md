@@ -1826,3 +1826,78 @@ failed HTTP request. The preparation outlier remains a separate investigation;
 the recovery correction does not establish a solution to that delay. Sanitized
 gateway, outer Worker, and Durable Object tails include unrelated background
 traffic and cannot be attributed to individual ceremonies without correlation.
+
+### Hosted 0.5.33 stall localization (22 September 2026)
+
+Two sequential eight-signature batches used one preserved Tempo testnet wallet.
+The first batch followed reload and passkey unlock. All 16 signatures succeeded;
+four waited for refill as the batches consumed the pool. Preparation ranged from
+0.553s to 3.081s, with a 1.150s median. Complete commit timing ranged from 2.410s
+to 13.945s; the slowest included 6.832s waiting for refill. These are diagnostic
+samples on one wallet, not independent registrations or a population percentile.
+The earlier 8.919s and 10.658s preparation outliers were not reproduced.
+
+One presign step took 6.076s to response headers. Its own propagated timings
+localize the delay more precisely:
+
+| Nested span | Duration |
+| --- | ---: |
+| Gateway proxy | 5.905s |
+| Signing-worker handler total | 4.939s |
+| Worker call to the session Durable Object | 0.022s |
+| Worker time before the session call, by subtraction | 4.917s |
+
+The timer boundaries were checked against deployed source
+`79170a72e457bc01f734368cdab3776997192193`. Before the session timer, this handler
+reads the request JSON and validates it; it performs no D1 call. A temporally
+matching Worker tail reports 4.947s wall time and 8ms CPU. The candidate object
+invocation begins 4.932s after the Worker invocation and takes 11ms wall time,
+10ms CPU. Together these observations localize the delay to request-body
+acquisition or scheduling around that await, before the object call. They do
+not identify packet loss, placement, a runtime scheduling mechanism, or the
+cause of the earlier timed-out request.
+
+Signing preparation follows a different path: gateway admission and owner-lane
+resolution, MPC Router, then signing-worker material reads and atomic D1 pool
+reservation. It does not call the presign session Durable Object. The existing
+gateway `ecdsa_sign_proxy` includes lane resolution, downstream processing, and
+reading the upstream response body, so it cannot be interpreted as network time
+alone. Two slower preparation samples had these candidate nested tail spans:
+
+| Span | Sample A | Sample B |
+| --- | ---: | ---: |
+| Client preparation stage | 2.440s | 3.081s |
+| Gateway proxy | 2.210s | 2.307s |
+| MPC Router wall time | 2.130s | 2.240s |
+| MPC Router CPU | 9ms | 5ms |
+| Signing-worker wall time, including material reads and reservation | 129ms | 286ms |
+| Signing-worker CPU | 14ms | 15ms |
+
+These samples support investigating request/response delivery and scheduling
+around the Router-to-worker service call. They provide no evidence that the
+signing-worker database or cryptographic computation caused their multi-second
+delay. Across the 16 captured preparation invocations, signing-worker wall time
+was 91–356ms. The original 9–10s outliers still need an equivalent capture.
+
+Tail associations use timestamps and route classes rather than exported request
+identifiers. Early gateway/Router coverage is incomplete and unrelated traffic
+may be present, so temporal associations remain provisional. Browser response
+timings were recorded at headers, with `responseEnd` unavailable; these artifacts
+cannot separate response-body delivery from the later client stage. Application
+clocks also advance around I/O and must not be used as CPU profiles (see
+[Cloudflare performance and timers](https://developers.cloudflare.com/workers/runtime-apis/performance/)).
+
+The next capture must include completed and failed response-body timings and
+separate Router request-body, service-call, and response-body spans. A transport
+experiment must cover these internal service hops while retaining live
+authorization, exact operation binding, expiry, cancellation, and single-use.
+The browser-only WebSocket prototype leaves these waits intact. No placement,
+transport, authorization, publication, or deployment change was made for this
+diagnostic. New releases remain held for the combined optimization work.
+
+Allowlisted artifacts in the private repository's ignored `output/playwright/`:
+`signing-prepare-diagnostic-0.5.33-summary.json`,
+`signing-prepare-diagnostic-warm-0.5.33-summary.json`,
+`signing-prepare-tail-0.5.33.jsonl`, and
+`signing-prepare-attribution-0.5.33.json`. The tail collectors have been stopped;
+the registered browser credential remains preserved.
