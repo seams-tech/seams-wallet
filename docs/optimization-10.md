@@ -1492,6 +1492,10 @@ or **3.017 seconds**, respectively, from an undelayed **0.681–0.700 seconds**.
 These are single-run injected-latency diagnostics, not a fitted network model.
 They confirm that the dependent step exchanges materially amplify per-request
 latency. The benchmark-only request interception was removed after measurement.
+The existing native Rust `local_lifecycle_timing` example, run in release mode
+for 25 iterations on the same machine, reported **34.202 ms** median for both
+presign roles together (including **33.603 ms** for triples). Native CPU timing
+is a useful floor; it does not represent deployed Worker/WASM CPU time.
 
 One fresh hosted-testnet virtual-passkey run from Japan measured registration
 ready at **9.437 seconds** with **zero** durable presignatures. Signing immediately
