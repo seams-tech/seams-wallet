@@ -1938,3 +1938,14 @@ and corrupted fingerprints/results. A local workerd D1 check confirms that
 `first()` returns the updated row and returns null when the claim is already
 completed. This is an unreleased query-count reduction, with no hosted latency
 gain claimed yet.
+
+Unreleased internal timing diagnostics now separate the Router request-body
+read, downstream response-header wait, downstream response-body read, and the
+signing-worker preparation body/material/reservation stages. The existing
+presign response header also reports `ecdsa_presign_sw_body` explicitly.
+Private logs use the `ecdsa_io_timing` event with static stage names and numeric
+durations only; they omit trace identities and protocol data. Successful-path
+spans supplement invocation wall/CPU measurements and do not cover every early
+error return. They are diagnostics only and do not alter admission, timeout,
+reservation, or signing behavior. Hosted attribution awaits the coordinated
+release; no deployment was performed to collect these new spans.

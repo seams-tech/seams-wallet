@@ -5096,6 +5096,7 @@ async fn parse_strict_router_normal_signing_request_v1(
     env: &Env,
     path: &str,
 ) -> worker::Result<Result<StrictRouterNormalSigningRequestV1, Response>> {
+    let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let request_body =
         match read_router_public_body_v1(request, env, "Router A/B strict normal-signing request")
             .await?
@@ -5103,6 +5104,15 @@ async fn parse_strict_router_normal_signing_request_v1(
             Ok(bytes) => bytes,
             Err(response) => return Ok(Err(response)),
         };
+    if matches!(
+        path,
+        CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PUBLIC_REQUEST_PATH
+            | CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PUBLIC_REQUEST_PATH
+    ) {
+        let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
+        timing.mark("router_request_body", started_at_ms);
+        timing.emit_io_diagnostic();
+    }
     let parsed = match path {
         CLOUDFLARE_ROUTER_NORMAL_SIGNING_ROUND1_PREPARE_PUBLIC_REQUEST_PATH => {
             parse_router_public_body_v1(

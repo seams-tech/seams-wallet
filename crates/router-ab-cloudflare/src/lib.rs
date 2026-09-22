@@ -5097,6 +5097,14 @@ impl CloudflareEcdsaBoundaryTimingV1 {
         self.entries.push((name.to_owned(), duration_ms));
     }
 
+    fn emit_io_diagnostic(&self) {
+        // Keep trace identities and protocol data out of timing diagnostics.
+        worker::console_log!(
+            "{}",
+            serde_json::json!({ "event": "ecdsa_io_timing", "durationsMs": &self.entries })
+        );
+    }
+
     /// Folds one role worker's own `Server-Timing` into this header, renaming
     /// each metric with the role prefix so the role that produced it stays
     /// visible after the merge. Entries without a finite non-negative `dur`
@@ -11689,6 +11697,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
             );
         }
     };
+    timing.mark("ecdsa_presign_sw_body", started_at_ms);
     if let Err(error) = parsed.validate_at(now_unix_ms) {
         return cloudflare_signing_worker_presign_error_response_v1(error);
     }
@@ -12071,6 +12080,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
             );
         }
     };
+    timing.mark("ecdsa_presign_sw_body", started_at_ms);
     if let Err(error) = parsed.validate_at(now_unix_ms) {
         return cloudflare_signing_worker_presign_error_response_v1(error);
     }
@@ -12495,6 +12505,8 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
     runtime: &CloudflareSigningWorkerRuntimeV1,
     now_unix_ms: u64,
 ) -> worker::Result<worker::Response> {
+    let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
+    let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     if request.method() != worker::Method::Post {
         return worker::Response::error(
             "Router A/B ECDSA derivation prepare route requires POST",
@@ -12522,6 +12534,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             );
         }
     };
+    timing.mark("worker_prepare_request_body", started_at_ms);
     if let Err(err) = parsed.validate() {
         return worker::Response::error(
             format!("{:?}: {}", err.code(), err.message()),
@@ -12529,6 +12542,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
         );
     }
     let client_presignature_id = parsed.request.client_presignature_id.clone();
+    let material_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let (active_signing_worker, material) =
         match load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1(
             env,
@@ -12547,6 +12561,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 );
             }
         };
+    timing.mark("worker_prepare_material", material_started_at_ms);
     let materialized =
         match CloudflareSigningWorkerMaterializedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
             parsed,
@@ -12608,6 +12623,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             );
         }
     };
+    let reserve_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let reserve_response =
         match execute_cloudflare_signing_worker_private_d1_request_v1(env, &reserve_call).await {
             Ok(response) => response,
@@ -12618,6 +12634,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 );
             }
         };
+    timing.mark("worker_prepare_reserve", reserve_started_at_ms);
     let reserve_outcome =
         match require_signing_worker_ecdsa_pool_mutate_response_v1(&reserve_call, reserve_response)
         {
@@ -12693,6 +12710,8 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             .await;
         }
     };
+    timing.mark("worker_prepare_total", started_at_ms);
+    timing.emit_io_diagnostic();
     match worker::Response::from_json(&prepared.response) {
         Ok(response) => Ok(response),
         Err(err) => {
@@ -13559,6 +13578,8 @@ where
             format!("{label} service request construction failed: {err}"),
         )
     })?;
+    let mut io_timing = CloudflareEcdsaBoundaryTimingV1::new();
+    let headers_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let mut response = fetcher
         .fetch_request(request_for_fetch)
         .await
@@ -13568,6 +13589,7 @@ where
                 format!("{label} service request failed: {err}"),
             )
         })?;
+    io_timing.mark("service_response_headers", headers_started_at_ms);
     let status = response.status_code();
     if !(200..=299).contains(&status) {
         let response_body = response.text().await.map_err(|err| {
@@ -13586,12 +13608,20 @@ where
     }
     // Read before the body is consumed; a missing header is the normal case.
     let server_timing = response.headers().get("Server-Timing").ok().flatten();
+    let body_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let parsed = response.json::<TResp>().await.map_err(|err| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::MalformedWirePayload,
             format!("{label} response JSON parse failed: {err}"),
         )
     })?;
+    io_timing.mark("service_response_body", body_started_at_ms);
+    if matches!(
+        label,
+        "Router A/B ECDSA derivation prepare" | "Router A/B ECDSA derivation finalize"
+    ) {
+        io_timing.emit_io_diagnostic();
+    }
     Ok((parsed, server_timing))
 }
 
