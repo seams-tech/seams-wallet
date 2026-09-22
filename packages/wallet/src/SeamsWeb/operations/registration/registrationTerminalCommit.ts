@@ -361,6 +361,7 @@ type PendingRegistrationCommitBuilderInput = PendingRegistrationCommitBuilderCom
       }
     | {
         operation: 'near_provisioning';
+        completion: import('@/core/indexedDB/pendingWalletRegistrationCommit').NearRegistrationCompletion;
         signerPlanKind: 'near_ed25519' | 'near_ed25519_and_evm_family_ecdsa';
         localMaterial: PendingRegistrationEd25519LocalMaterialInput;
       }
@@ -426,6 +427,8 @@ export function buildPendingRegistrationCommit(
   return buildValidatedPendingRegistrationCommit({
     ...common,
     operation: args.operation,
+    phase: 'joined',
+    completion: args.completion,
     signerPlanKind: args.signerPlanKind,
     localMaterial: args.localMaterial,
   });

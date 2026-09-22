@@ -242,18 +242,21 @@ type EmailOtpUnlockActiveRuntimeState = {
   inventory: WalletRuntimeInventory;
 };
 
-function googleEmailOtpUnlockExecution(
+async function googleEmailOtpUnlockExecution(
   provenance: WalletAuthorityProvenanceV1,
-): 'ordinary' | 'linked' {
-  switch (provenance.kind) {
-    case 'wallet_registration':
-    case 'wallet_recovery':
-      return 'ordinary';
-    case 'device_link':
-      return 'linked';
+  walletAuthMethodId: WalletAuthMethodId,
+): Promise<'ordinary' | 'authority'> {
+  if (provenance.kind === 'device_link') return 'authority';
+  const pendingRows = await IndexedDBManager.listPendingWalletRegistrationCommits();
+  for (const pending of pendingRows) {
+    if (
+      pending.operation === 'near_provisioning' &&
+      pending.signerPlanKind === 'near_ed25519_and_evm_family_ecdsa' &&
+      pending.walletAuthMethodId === walletAuthMethodId
+    )
+      return 'authority';
   }
-  provenance satisfies never;
-  throw new Error('Email OTP authority provenance is invalid');
+  return 'ordinary';
 }
 
 function requireWalletAuthMethodId(value: string): WalletAuthMethodId {
@@ -2345,7 +2348,10 @@ export class SeamsWeb {
         return {
           kind: 'selected',
           walletAuthMethodId: String(foundingMethod.walletAuthMethodId),
-          execution: googleEmailOtpUnlockExecution(authority.provenance),
+          execution: await googleEmailOtpUnlockExecution(
+            authority.provenance,
+            foundingMethod.walletAuthMethodId,
+          ),
           keyFamilies: authority.signerActivations.keyFamilies,
         };
       }
@@ -2353,7 +2359,10 @@ export class SeamsWeb {
         return {
           kind: 'selected',
           walletAuthMethodId: String(resolution.selection.authMethod.walletAuthMethodId),
-          execution: googleEmailOtpUnlockExecution(resolution.selection.authority.provenance),
+          execution: await googleEmailOtpUnlockExecution(
+            resolution.selection.authority.provenance,
+            resolution.selection.authMethod.walletAuthMethodId,
+          ),
           keyFamilies: resolution.selection.authority.signerActivations.keyFamilies,
         };
       case 'rejected':

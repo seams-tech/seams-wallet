@@ -522,6 +522,30 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
         value: { kind: EXECUTION_RECORD_KIND, lifecycleId, value: execution },
         expectedVersion: input.baseline.executionVersion,
       });
+    } else if (execution !== null) {
+      const key = routerAbEd25519YaoRegistrationExecutionRecordKeyV1(lifecycleId);
+      const current = readManyEntry(await this.readMany([key]), key);
+      if (current.kind === 'missing' || current.version !== input.baseline.executionVersion) {
+        return { kind: 'version_mismatch', key: 'execution' };
+      }
+      if (current.value.kind !== EXECUTION_RECORD_KIND) {
+        throw new Error('Yao registration execution record has an invalid kind');
+      }
+      const retained = current.value.value;
+      if (
+        retained.credentialDigestSha256Hex !== execution.credentialDigestSha256Hex ||
+        retained.expiresAtMs !== execution.expiresAtMs
+      ) {
+        mutations.push({
+          key,
+          value: {
+            kind: EXECUTION_RECORD_KIND,
+            lifecycleId,
+            value: executionWithCurrentAuthority(retained, execution),
+          },
+          expectedVersion: current.version,
+        });
+      }
     }
     const result = await this.putMany(mutations);
     if (result.kind === 'version_mismatch') {
@@ -540,13 +564,12 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
         ? findStoredVersion(result.versions, ROUTER_AB_ED25519_YAO_SHARED_STATE_RECORD_KEY_V1)
         : input.baseline.sharedVersion;
     const ceremonyVersion = findStoredVersion(result.versions, lifecycleId);
-    const executionVersion =
-      execution !== null && input.baseline.executionVersion === null
-        ? findStoredVersion(
-            result.versions,
-            routerAbEd25519YaoRegistrationExecutionRecordKeyV1(lifecycleId),
-          )
-        : input.baseline.executionVersion;
+    const executionVersion = mutations.some(isRegistrationExecutionMutation)
+      ? findStoredVersion(
+          result.versions,
+          routerAbEd25519YaoRegistrationExecutionRecordKeyV1(lifecycleId),
+        )
+      : input.baseline.executionVersion;
     return { kind: 'stored', sharedVersion, ceremonyVersion, executionVersion };
   }
 
@@ -883,6 +906,64 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
       throw new Error('Yao registration execution record does not match its lifecycle');
     }
     return entry.value.value;
+  }
+}
+
+function isRegistrationExecutionMutation(mutation: DomainPartitionMutation): boolean {
+  return mutation.value.kind === EXECUTION_RECORD_KIND;
+}
+
+function executionWithCurrentAuthority(
+  retained: RouterAbEd25519YaoRegistrationExecutionRecordV1,
+  authority: RouterAbEd25519YaoRegistrationExecutionRecordV1,
+): RouterAbEd25519YaoRegistrationExecutionRecordV1 {
+  if (
+    retained.lifecycleId !== authority.lifecycleId ||
+    retained.admissionBindingJson !== authority.admissionBindingJson
+  ) {
+    throw new Error('NEAR continuation changed its execution identity');
+  }
+  const common = {
+    lifecycleId: retained.lifecycleId,
+    admissionRequest: retained.admissionRequest,
+    admissionReceipt: retained.admissionReceipt,
+    admissionBindingJson: retained.admissionBindingJson,
+    credentialDigestSha256Hex: authority.credentialDigestSha256Hex,
+    expiresAtMs: authority.expiresAtMs,
+  };
+  switch (retained.kind) {
+    case 'ready':
+      return { kind: 'ready', ...common };
+    case 'claimed':
+      return {
+        kind: 'claimed',
+        ...common,
+        requestDigestSha256Hex: retained.requestDigestSha256Hex,
+        request: retained.request,
+        claimedAtMs: retained.claimedAtMs,
+        reconcileAfterMs: retained.reconcileAfterMs,
+      };
+    case 'completed':
+      return {
+        kind: 'completed',
+        ...common,
+        requestDigestSha256Hex: retained.requestDigestSha256Hex,
+        request: retained.request,
+        claimedAtMs: retained.claimedAtMs,
+        reconcileAfterMs: retained.reconcileAfterMs,
+        result: retained.result,
+        consumerBinding: retained.consumerBinding,
+      };
+    case 'failed':
+      return {
+        kind: 'failed',
+        ...common,
+        requestDigestSha256Hex: retained.requestDigestSha256Hex,
+        request: retained.request,
+        claimedAtMs: retained.claimedAtMs,
+        reconcileAfterMs: retained.reconcileAfterMs,
+        failure: retained.failure,
+      };
   }
 }
 

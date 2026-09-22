@@ -50,7 +50,8 @@ async function fetch(
   const token = parseLocalIntendedYaoFaultTokenV1(rawToken);
   const url = new URL(request.url);
   if (
-    url.origin !== 'http://127.0.0.1:4100' ||
+    url.protocol !== 'http:' ||
+    url.hostname !== '127.0.0.1' ||
     url.pathname !== ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1 ||
     request.method !== 'POST' ||
     !mode ||

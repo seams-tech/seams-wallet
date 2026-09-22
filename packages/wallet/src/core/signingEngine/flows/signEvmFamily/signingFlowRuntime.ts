@@ -1,3 +1,5 @@
+import { isEd25519ExtensionOfEcdsaWalletAuthority } from '@shared/authorization/walletAuthority';
+import { walletSessionPreservesCapabilities } from '@shared/device-linking/activeWalletSession';
 import type {
   SigningSessionPlan,
   SigningOperationContext,
@@ -356,7 +358,14 @@ export function ecdsaSigningAuthorizationSupersession(args: {
     prepared.session.authMethodId === current.session.authMethodId &&
     prepared.session.authorizationId === current.session.authorizationId &&
     prepared.session.quotaId === current.session.quotaId &&
-    prepared.session.authorityDigestB64u === current.session.authorityDigestB64u &&
+    (prepared.session.authorityDigestB64u === current.session.authorityDigestB64u ||
+      (isEd25519ExtensionOfEcdsaWalletAuthority(
+        prepared.selectedAuthority,
+        current.selectedAuthority,
+      ) &&
+        walletSessionPreservesCapabilities(prepared.session, current.session))) &&
+    prepared.session.issuedAtMs === current.session.issuedAtMs &&
+    prepared.session.expiresAtMs === current.session.expiresAtMs &&
     prepared.session.authorityRevocationEpoch === current.session.authorityRevocationEpoch &&
     prepared.operationCredential.walletSessionId === current.operationCredential.walletSessionId &&
     prepared.operationCredential.token === current.operationCredential.token &&

@@ -426,7 +426,9 @@ export interface WalletCustodyCeremonySurface {
   }): Promise<EstablishedWalletCustodyNearEd25519KeySetV1>;
 
   joinWalletCustodyNearEd25519KeySet(args: {
-    preparation: { readonly kind: 'fresh' } | { readonly kind: 'checkpoint'; readonly checkpointJson: string };
+    preparation:
+      | { readonly kind: 'fresh' }
+      | { readonly kind: 'checkpoint'; readonly checkpointJson: string };
     beforeRouterRound?: (checkpointJson: string) => Promise<void>;
     custodyJson: string;
     factorSecret: ArrayBuffer;
@@ -653,7 +655,20 @@ export type WalletSessionReadSurface = RuntimeStartupSurface &
   Pick<WalletAuthenticationSurface, 'readWalletAuthenticationState' | 'setWalletAuthenticated'> &
   Pick<SigningSessionSurface, 'readPersistedAvailableSigningLanes' | 'readOwnerScopedSigningLanes'>;
 
+export type NearRegistrationContinuationSigningSurface = EcdsaLoginSessionSurface &
+  Ed25519YaoCapabilityActivationSurface &
+  Pick<WalletCustodyCeremonySurface, 'joinWalletCustodyNearEd25519KeySet'> &
+  Pick<SigningSessionSurface, 'hydrateSigningSession'> &
+  Pick<
+    RegistrationAccountSurface,
+    | 'activateAuthenticatedWalletState'
+    | 'upsertEd25519YaoPublicCapabilityLaneReference'
+    | 'setWalletNearProvisioningState'
+  > &
+  Pick<WalletCustodyCeremonySurface, 'activateEmailOtpEd25519RegistrationMaterialInternal'>;
+
 export type LoginUnlockSigningSurface = WalletSessionReadSurface &
+  NearRegistrationContinuationSigningSurface &
   Pick<WalletLockGenerationSurface, 'markWalletSelectionUnlocked'> &
   UserAccountLookupSurface &
   UnlockedEd25519ExportRootCapabilitySurface &

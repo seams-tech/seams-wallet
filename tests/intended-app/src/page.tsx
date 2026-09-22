@@ -329,11 +329,13 @@ type PasskeySyncResultSummary = {
 type EmailOtpUnlockCoreSummary = {
   kind: 'email_otp_unlock_success';
   walletId: string;
-  nearAccountId: string;
-  operationalPublicKey: string;
   sessionWalletAuthMethodId: string;
   authenticationKind: 'authenticated';
-} & IntendedEcdsaSessionSummary;
+} & IntendedEcdsaSessionSummary &
+  (
+    | { nearIdentity: 'ready'; nearAccountId: string; operationalPublicKey: string }
+    | { nearIdentity: 'absent'; nearAccountId?: never; operationalPublicKey?: never }
+  );
 
 type EmailOtpUnlockResultSummary = EmailOtpUnlockCoreSummary & IntendedEcdsaSummary;
 
@@ -1776,10 +1778,15 @@ class IntendedPageController {
       const summary: EmailOtpUnlockResultSummary = {
         kind: unlock.kind,
         walletId: unlock.walletId,
-        nearAccountId: unlock.nearAccountId,
-        operationalPublicKey: unlock.operationalPublicKey,
         sessionWalletAuthMethodId: unlock.sessionWalletAuthMethodId,
         authenticationKind: unlock.authenticationKind,
+        ...(unlock.nearIdentity === 'ready'
+          ? {
+              nearIdentity: 'ready' as const,
+              nearAccountId: unlock.nearAccountId,
+              operationalPublicKey: unlock.operationalPublicKey,
+            }
+          : { nearIdentity: 'absent' as const }),
         ...ecdsa,
       };
       this.dispatch({ kind: 'action_succeeded', action, result: summary });
@@ -3107,12 +3114,9 @@ function assertEmailOtpUnlockSucceeded(args: {
     throw new Error(`Email OTP unlock session wallet mismatch: ${sessionWalletId}`);
   }
   const nearAccountId = String(appIdentity.nearAccountId || '').trim();
-  if (!nearAccountId) {
-    throw new Error('Email OTP unlock did not return a NEAR account id');
-  }
   const operationalPublicKey = String(appIdentity.nearOperationalPublicKey || '').trim();
-  if (!operationalPublicKey) {
-    throw new Error('Email OTP unlock did not return an operational public key');
+  if (Boolean(nearAccountId) !== Boolean(operationalPublicKey)) {
+    throw new Error('Email OTP unlock returned an incomplete NEAR identity');
   }
   const ecdsa = assertEcdsaSessionSummary({
     ecdsaTargetProfile: args.ecdsaTargetProfile,
@@ -3123,8 +3127,9 @@ function assertEmailOtpUnlockSucceeded(args: {
   return {
     kind: 'email_otp_unlock_success',
     walletId,
-    nearAccountId,
-    operationalPublicKey,
+    ...(nearAccountId && operationalPublicKey
+      ? { nearIdentity: 'ready' as const, nearAccountId, operationalPublicKey }
+      : { nearIdentity: 'absent' as const }),
     sessionWalletAuthMethodId: exactWalletAuthMethodIdFromSession(result.session),
     authenticationKind,
     ...ecdsa,

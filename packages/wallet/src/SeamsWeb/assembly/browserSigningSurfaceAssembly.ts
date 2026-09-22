@@ -749,6 +749,19 @@ async function resolveBrowserEcdsaPreprocessingCapability(
   if (status.status !== 'active' && status.status !== 'exhausted') {
     return { kind: 'inactive', reason: `Exact Wallet Session is ${status.status}` };
   }
+  if (
+    walletSessionImmutableIdentityMatches(status.authorization, exactAuthorization.record) &&
+    !walletSessionMatchesSelectedAuthority(status.authorization, selected)
+  ) {
+    try {
+      await IndexedDBManager.reconcilePendingNearRegistrationAuthority({
+        walletSession: status.authorization,
+        operationCredential: exactAuthorization.operationCredential,
+      });
+    } catch {
+      return { kind: 'inactive', reason: 'NEAR authority reconciliation was superseded' };
+    }
+  }
   const currentSelectedResult = await IndexedDBManager.resolveSelectedWalletAuthority(
     String(walletId),
   );

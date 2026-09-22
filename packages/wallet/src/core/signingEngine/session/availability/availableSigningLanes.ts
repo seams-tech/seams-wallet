@@ -1943,7 +1943,9 @@ export async function readAvailableSigningLanes(
   }
   for (const reference of publicCapabilityReferences) {
     if (String(reference.walletId) !== String(walletId)) continue;
-    if (!ports.isPublicCapabilityActive?.(reference)) continue;
+    const requiresStepUp =
+      activeAuthorizationRead.kind === 'exhausted' || activeAuthorizationRead.kind === 'expired';
+    if (!ports.isPublicCapabilityActive?.(reference) && !requiresStepUp) continue;
     const lane = publicCapabilityReferenceToEd25519Lane(
       reference,
       activeAuthorization,

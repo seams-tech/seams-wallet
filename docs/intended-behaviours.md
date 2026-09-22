@@ -176,7 +176,19 @@ Expected behaviour:
 - NEAR admission and Yao execution cannot delay EVM registration or EVM signing.
   EVM activation and the NEAR continuation are saved atomically as separate records.
   Yao execution starts only after its encrypted completion checkpoint is durable.
-- NEAR signing becomes available at `near_ready` without a second passkey prompt.
+- Reload and uncertain responses retain the exact NEAR attempt. Normal unlock
+  with the founding method resumes its saved phase, using fresh session authority
+  when the registration grant has expired. No replacement key is generated.
+- NEAR completion extends the current Wallet Session while preserving its identity,
+  expiry, remaining quota, revocation epoch, and existing ECDSA capabilities.
+  Concurrent ECDSA signing continues through this NEAR-only authority extension.
+  An exhausted session can finish provisioning with zero uses; its next signature
+  requires normal same-method step-up without renewing the session or quota.
+- A lock in either tab prevents late NEAR readiness publication. Readiness and
+  removal of its repair journal commit atomically; an aborted transaction retains
+  the journal for the next authorized unlock.
+- With remaining signing quota, NEAR signing becomes available at `near_ready`
+  without a second passkey prompt.
   A retryable provisioning failure remains visible to the caller.
 - ECDSA key export remains available while NEAR is pending and requires fresh
   export authorization.
@@ -214,7 +226,18 @@ Expected behaviour:
 - NEAR admission and Yao execution cannot delay EVM registration or EVM signing.
   EVM activation and the NEAR continuation are saved atomically as separate records.
   Yao execution starts only after its encrypted completion checkpoint is durable.
-- NEAR signing becomes available at `near_ready` without a second OTP
+- Reload and uncertain responses retain the exact NEAR attempt. Normal unlock
+  with the founding method resumes its saved phase, using fresh session authority
+  when the registration grant has expired. No replacement key is generated.
+- NEAR completion extends the current Wallet Session while preserving its identity,
+  expiry, remaining quota, revocation epoch, and existing ECDSA capabilities.
+  Concurrent ECDSA signing continues through this NEAR-only authority extension.
+  An exhausted session can finish provisioning with zero uses; its next signature
+  requires normal same-method step-up without renewing the session or quota.
+- A lock in either tab prevents late NEAR readiness publication. Readiness and
+  removal of its repair journal commit atomically; an aborted transaction retains
+  the journal for the next authorized unlock.
+- With remaining signing quota, NEAR signing becomes available at `near_ready` without a second OTP
   verification. A retryable provisioning failure remains visible to the caller.
 - ECDSA key export remains available while NEAR is pending and requires fresh
   export authorization.

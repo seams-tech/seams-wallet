@@ -37,3 +37,34 @@ const invalidNearCommit: Extract<
   localMaterial: ecdsaLocalMaterial,
 };
 void invalidNearCommit;
+
+type PreparedNearCommit = Extract<
+  PendingWalletRegistrationCommitV1,
+  { readonly phase: 'execution_prepared' }
+>;
+declare const preparedNearCommit: PreparedNearCommit;
+
+const preparedWithJoinedMaterial: PreparedNearCommit = {
+  ...preparedNearCommit,
+  // @ts-expect-error Prepared execution cannot acquire joined material through a broad spread.
+  localMaterial: nearLocalMaterial,
+};
+void preparedWithJoinedMaterial;
+
+// @ts-expect-error A joined record must retain its explicit completion source.
+const missingCompletion: typeof nearCommit = { ...nearCommit, completion: undefined };
+void missingCompletion;
+
+const checkpointWithSealedCompletion: typeof nearCommit = {
+  ...nearCommit,
+  // @ts-expect-error Sealed-material completion cannot also carry an execution checkpoint.
+  completion: { kind: 'sealed_material', prepared: preparedNearCommit },
+};
+void checkpointWithSealedCompletion;
+
+const joinedAsCheckpoint: typeof nearCommit = {
+  ...nearCommit,
+  // @ts-expect-error A retained checkpoint must be an execution-prepared record, never joined.
+  completion: { kind: 'encrypted_checkpoint', prepared: nearCommit },
+};
+void joinedAsCheckpoint;

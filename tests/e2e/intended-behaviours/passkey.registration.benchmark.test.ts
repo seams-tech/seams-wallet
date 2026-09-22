@@ -1,8 +1,66 @@
-import { expect, type ConsoleMessage, type Page, type TestInfo } from '@playwright/test';
+import {
+  expect,
+  type ConsoleMessage,
+  type Page,
+  type TestInfo,
+  type BrowserContext,
+  type Route,
+} from '@playwright/test';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 
-test('passkey registration through NEAR readiness benchmark', benchmarkNearRegistration);
+const cohorts = [
+  { name: 'independent', run: benchmarkNearRegistration },
+  { name: 'serialized', run: benchmarkSerializedNearRegistration },
+] as const;
+
+// Keep both cohorts in one warmed worker and balance their ordering across pairs.
+for (let pair = 1; pair <= 20; pair += 1) {
+  const ordered = pair % 2 === 1 ? cohorts : [...cohorts].reverse();
+  for (const cohort of ordered) {
+    test(
+      `${cohort.name} pair ${pair}: passkey registration through NEAR readiness benchmark`,
+      cohort.run,
+    );
+  }
+}
+
+class SerializedNearRegistrationGate {
+  private release: () => void = ignoreRelease;
+  private readonly joined = new Promise<void>(this.saveRelease.bind(this));
+
+  private saveRelease(resolve: () => void): void {
+    this.release = resolve;
+  }
+
+  observe(message: ConsoleMessage): void {
+    const timings = new Map<string, number>();
+    collectRegistrationTimings(timings, message);
+    if (timings.has('custody_join')) this.release();
+  }
+
+  async holdActivation(route: Route): Promise<void> {
+    await this.joined;
+    await route.continue();
+  }
+}
+
+function ignoreRelease(): void {}
+
+async function benchmarkSerializedNearRegistration(
+  {
+    harness,
+    page,
+    context,
+  }: { harness: IntendedBehaviourHarness; page: Page; context: BrowserContext },
+  testInfo: TestInfo,
+): Promise<void> {
+  // Restore the former dependency using the same build and backend as the independent cohort.
+  const gate = new SerializedNearRegistrationGate();
+  page.on('console', gate.observe.bind(gate));
+  await context.route('**/wallets/register/activate', gate.holdActivation.bind(gate));
+  await benchmarkNearRegistration({ harness, page }, testInfo);
+}
 
 async function benchmarkNearRegistration(
   { harness, page }: { harness: IntendedBehaviourHarness; page: Page },
@@ -15,6 +73,7 @@ async function benchmarkNearRegistration(
   expect(timings.get('registration_total')).toBeGreaterThan(0);
   expect(timings.get('provisioning_total')).toBeGreaterThan(0);
   expect(timings.get('registration_return')).toBeGreaterThan(0);
+  expect(timings.get('authentication')).toBeGreaterThan(0);
   await testInfo.attach('near-registration-timings', {
     body: JSON.stringify(Object.fromEntries(timings), null, 2),
     contentType: 'application/json',
@@ -50,5 +109,8 @@ function collectRegistrationTimings(timings: Map<string, number>, message: Conso
     Number.isFinite(value.totalMs)
   ) {
     timings.set('registration_return', value.totalMs);
+    if (isPlainObject(value.timings) && typeof value.timings.authProofMs === 'number') {
+      timings.set('authentication', value.timings.authProofMs);
+    }
   }
 }

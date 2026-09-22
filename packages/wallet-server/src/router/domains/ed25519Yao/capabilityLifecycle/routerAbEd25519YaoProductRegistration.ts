@@ -70,9 +70,7 @@ import {
   type RouterAbEd25519YaoExportService,
 } from '../export/routerAbEd25519YaoExport';
 import { isPlainObject } from '@shared/utils/validation';
-import {
-  DEFAULT_WALLET_SESSION_REMAINING_USES,
-} from '@shared/threshold/sessionPolicy';
+import { DEFAULT_WALLET_SESSION_REMAINING_USES } from '@shared/threshold/sessionPolicy';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 
 /**
@@ -467,7 +465,7 @@ class RouterAbEd25519YaoProductRegistrationRuntime implements RouterAbEd25519Yao
   ): Promise<RouterAbEd25519YaoVerifiedRegistrationAdmissionResultV1> {
     const bound = await this.input.authorization.bindVerifiedIntent(input);
     if (!bound.ok) return bound;
-    return await this.input.registrationService.admit(input.admissionRequest);
+    return await this.input.registrationService.admit(bound.admissionRequest);
   }
 
   async consumeActivated(

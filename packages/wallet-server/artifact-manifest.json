@@ -2,22 +2,22 @@
   "schemaVersion": "seams_wallet_server_artifact_manifest_v1",
   "package": {
     "name": "@seams/wallet-server",
-    "version": "0.5.30"
+    "version": "0.5.34"
   },
   "workers": {
     "router": {
       "entry": "cloudflare-router-ab/build/router/worker/shim.mjs",
-      "fingerprint": "67796eacdb4a10f3c079bf63271d29e6c22237607e7b4f990e604a7273495e63",
+      "fingerprint": "5ff2082b77eb948521fe9871ca16b26ac45342efc632c85b1a9292f73509fbd4",
       "files": [
         {
           "path": "cloudflare-router-ab/build/router/index.js",
-          "bytes": 30469,
-          "sha256": "c437ec7b6897bfc238929a26134656061780c5ed5af25211036c458bcf1bf2bc"
+          "bytes": 31074,
+          "sha256": "f2c0494c583e8365e7f37c051b76340f99bdfcdd1bf906b120c84ca8086f5a19"
         },
         {
           "path": "cloudflare-router-ab/build/router/index_bg.wasm",
-          "bytes": 6678740,
-          "sha256": "774a4fad7f7343150ed94b629a7d267f5180965826a2b040a921c9ea2bcb61b0"
+          "bytes": 6723951,
+          "sha256": "93486a7639fa4eaafc2e83c7e1ae51899bc1c79ab857ae465b1b855284445dba"
         },
         {
           "path": "cloudflare-router-ab/build/router/package.json",
@@ -33,17 +33,17 @@
     },
     "deriver-a": {
       "entry": "cloudflare-router-ab/build/deriver-a/worker/shim.mjs",
-      "fingerprint": "10dedb7619139056f5fabf05395a26710bc0ae7a56e4dcdf77ac745b1a794cfe",
+      "fingerprint": "a2da873b1db23b9e6223ca1c367d730d6ba592d44d846732b9a53e1e7c0d3777",
       "files": [
         {
           "path": "cloudflare-router-ab/build/deriver-a/index.js",
-          "bytes": 36395,
-          "sha256": "52417fcde0d437533187347ccbb888575474e0d25cfbfa862a43e89a68ca318e"
+          "bytes": 36941,
+          "sha256": "ecc657896ec9d9b5c3c598e584e0360bdce6de4985eed484c4b9807602d98574"
         },
         {
           "path": "cloudflare-router-ab/build/deriver-a/index_bg.wasm",
-          "bytes": 13237892,
-          "sha256": "8dadb69ee87cdc2e219124c65b462a5b773ddf9ff4b95f2efc8c9dbbc8f59c64"
+          "bytes": 13265996,
+          "sha256": "788ff52205b75a17735183855d529a564173bf490e3ad69016222af92fd89cd1"
         },
         {
           "path": "cloudflare-router-ab/build/deriver-a/package.json",
@@ -59,17 +59,17 @@
     },
     "deriver-b": {
       "entry": "cloudflare-router-ab/build/deriver-b/worker/shim.mjs",
-      "fingerprint": "6086b5181213999cd6dafc0fc094aab490af9b281671f33ac47da72dda8799cc",
+      "fingerprint": "b585659be50a3aa747e81271c0f72ab737209204170f5be8d61986fbf4e5cd68",
       "files": [
         {
           "path": "cloudflare-router-ab/build/deriver-b/index.js",
-          "bytes": 36688,
-          "sha256": "4eb8dd8e7d36e2979607097d5e8ca1fda5cb65e6d159f8dc6e56a07be2762237"
+          "bytes": 37234,
+          "sha256": "f046977276b296fb253d0bcb8c895e03256e94d93b950b9d31d27410f3025be7"
         },
         {
           "path": "cloudflare-router-ab/build/deriver-b/index_bg.wasm",
-          "bytes": 13062726,
-          "sha256": "4188cbbfb9376d8f4a03cd15fa0d40b89af7011d689e9682232e85c4b2384f1e"
+          "bytes": 13090838,
+          "sha256": "0f880359fd67c63302b0e69148dc048c3a859e74bc15f99b2e1a7abe343e3796"
         },
         {
           "path": "cloudflare-router-ab/build/deriver-b/package.json",
@@ -85,17 +85,17 @@
     },
     "signing-worker": {
       "entry": "cloudflare-router-ab/build/signing-worker/worker/shim.mjs",
-      "fingerprint": "d3f365167fbd11df3f8a4d81555612262b9d07e66726e2796f949625586c45e8",
+      "fingerprint": "2d3ed09e920a0df0284c3508ccb1c377414a1e3ac178aa77d730dc539ff604c3",
       "files": [
         {
           "path": "cloudflare-router-ab/build/signing-worker/index.js",
-          "bytes": 30571,
-          "sha256": "b42c3412e3a75c7a100b8b9897e823a4b4e7470dd4931bf39b6d8f66e78623e0"
+          "bytes": 31172,
+          "sha256": "39537a24c74ca51dd7be43911de442705fe1f15fca4fd34fc839d6958b6b9994"
         },
         {
           "path": "cloudflare-router-ab/build/signing-worker/index_bg.wasm",
-          "bytes": 6676182,
-          "sha256": "375c6f5a6a5a13a5ca8e35d971aeb06b8699b3c3f0729f7ecb2fc185d6c53213"
+          "bytes": 6718446,
+          "sha256": "71fce04fd7e827ea22f579934e07c0c8f67b27cca7864661e7e2681bc43d32b9"
         },
         {
           "path": "cloudflare-router-ab/build/signing-worker/package.json",
@@ -111,17 +111,17 @@
     },
     "tenant-root-control-plane": {
       "entry": "cloudflare-router-ab/build/tenant-root-control-plane/worker/shim.mjs",
-      "fingerprint": "68f81b33627a61ff1f970e012463302a4083c899c9bbdcd852a8792662e78df9",
+      "fingerprint": "6aecafb656ed69cf7558843a729d1c0741cd46b5a1f3e69d5f3230e4d6690683",
       "files": [
         {
           "path": "cloudflare-router-ab/build/tenant-root-control-plane/index.js",
-          "bytes": 29897,
-          "sha256": "3e3ef2038a59a421bfa40a8accacfb3da70893bc45fb3ad1dcd6462ef857c5fb"
+          "bytes": 30443,
+          "sha256": "d3e26edb802ba010e76cb09053fa288fd3d494ef22246f927817ee14b7b5036d"
         },
         {
           "path": "cloudflare-router-ab/build/tenant-root-control-plane/index_bg.wasm",
-          "bytes": 4477007,
-          "sha256": "170ab07766dbf82d4f6e7a70bb30495ad7d22b9181bc4e974793973a43f0a4fe"
+          "bytes": 4497284,
+          "sha256": "0d4b90afc1b2a2a1c311941b32caf8aca6b5eea096cfc511bfb043cd84e24280"
         },
         {
           "path": "cloudflare-router-ab/build/tenant-root-control-plane/package.json",

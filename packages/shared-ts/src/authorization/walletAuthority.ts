@@ -159,14 +159,8 @@ export type PendingWalletAuthorityV1 = Extract<
   { readonly state: 'pending_local_install' }
 >;
 export type ActiveWalletAuthorityV1 = Extract<WalletAuthorityV1, { readonly state: 'active' }>;
-export type ActiveRecoveredWalletAuthorityV1 = Omit<
-  ActiveWalletAuthorityV1,
-  'provenance'
-> & {
-  readonly provenance: Extract<
-    WalletAuthorityProvenanceV1,
-    { readonly kind: 'wallet_recovery' }
-  >;
+export type ActiveRecoveredWalletAuthorityV1 = Omit<ActiveWalletAuthorityV1, 'provenance'> & {
+  readonly provenance: Extract<WalletAuthorityProvenanceV1, { readonly kind: 'wallet_recovery' }>;
 };
 export type RevokedWalletAuthorityV1 = Extract<WalletAuthorityV1, { readonly state: 'revoked' }>;
 
@@ -1297,4 +1291,87 @@ function errorMessage(error: unknown, fallback: string): string {
 
 function assertNever(value: never, label: string): never {
   throw new Error(`${label} branch is unsupported: ${String(value)}`);
+}
+
+export async function extendEcdsaWalletAuthorityWithEd25519(input: {
+  readonly authority: ActiveEcdsaWalletAuthorityV1;
+  readonly ed25519: WalletEd25519SignerActivationV1;
+  readonly now: number;
+}): Promise<ActiveCombinedWalletAuthorityV1> {
+  if (input.ed25519.signer.walletId !== input.authority.walletId) {
+    throw new Error('NEAR signer belongs to a different wallet authority');
+  }
+  const existingEcdsa = input.authority.signerActivations.ecdsa;
+  const ed25519Signer = input.ed25519.signer;
+  const signerActivationsCandidate = buildWalletSignerActivationSetV1({
+    manifest: buildExactAdministeredSignerManifestV1([ed25519Signer, existingEcdsa.signer]),
+    materialActivations: {
+      keyFamilies: ['ed25519', 'ecdsa_secp256k1'],
+      ed25519: input.ed25519.materialActivation,
+      ecdsa: existingEcdsa.materialActivation,
+    },
+  });
+  if (!isCombinedWalletSignerActivationSetV1(signerActivationsCandidate)) {
+    throw new Error('Deferred Ed25519 activation did not produce a combined signer activation set');
+  }
+  const signerActivations = signerActivationsCandidate;
+  const signerActivationSetDigestB64u =
+    await computeWalletSignerActivationSetDigestB64u(signerActivations);
+  const draft: ActiveCombinedWalletAuthorityV1 = {
+    kind: 'wallet_authority_v1',
+    authorityId: input.authority.authorityId,
+    walletId: input.authority.walletId,
+    principal: input.authority.principal,
+    provenance: input.authority.provenance,
+    permissions: input.authority.permissions,
+    signerActivations,
+    signerActivationSetDigestB64u,
+    authorityDigestB64u: input.authority.authorityDigestB64u,
+    revocationEpoch: input.authority.revocationEpoch,
+    createdAtMs: input.authority.createdAtMs,
+    updatedAtMs: Math.max(input.authority.updatedAtMs, input.now),
+    state: 'active',
+    activatedAtMs: input.authority.activatedAtMs,
+  };
+  return buildActiveCombinedWalletAuthorityV1({
+    kind: draft.kind,
+    authorityId: draft.authorityId,
+    walletId: draft.walletId,
+    principal: draft.principal,
+    provenance: draft.provenance,
+    permissions: draft.permissions,
+    signerActivations: draft.signerActivations,
+    signerActivationSetDigestB64u: draft.signerActivationSetDigestB64u,
+    authorityDigestB64u: await computeWalletAuthorityDigestB64u(draft),
+    revocationEpoch: draft.revocationEpoch,
+    createdAtMs: draft.createdAtMs,
+    updatedAtMs: draft.updatedAtMs,
+    state: draft.state,
+    activatedAtMs: draft.activatedAtMs,
+  });
+}
+
+/** Both projections have already passed digest validation at their boundaries. */
+export function isEd25519ExtensionOfEcdsaWalletAuthority(
+  previous: ActiveWalletAuthorityV1,
+  next: ActiveWalletAuthorityV1,
+): boolean {
+  return (
+    isActiveEcdsaWalletAuthorityV1(previous) &&
+    isCombinedWalletSignerActivationSetV1(next.signerActivations) &&
+    previous.provenance.kind === 'wallet_registration' &&
+    previous.authorityId === next.authorityId &&
+    previous.walletId === next.walletId &&
+    previous.revocationEpoch === next.revocationEpoch &&
+    previous.createdAtMs === next.createdAtMs &&
+    previous.activatedAtMs === next.activatedAtMs &&
+    base64UrlEncode(encodePrincipal(previous.principal)) ===
+      base64UrlEncode(encodePrincipal(next.principal)) &&
+    base64UrlEncode(encodeProvenance(previous.provenance)) ===
+      base64UrlEncode(encodeProvenance(next.provenance)) &&
+    base64UrlEncode(encodePermissions(previous.permissions)) ===
+      base64UrlEncode(encodePermissions(next.permissions)) &&
+    base64UrlEncode(encodeEcdsaActivation(previous.signerActivations.ecdsa)) ===
+      base64UrlEncode(encodeEcdsaActivation(next.signerActivations.ecdsa))
+  );
 }

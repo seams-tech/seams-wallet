@@ -29,6 +29,7 @@ import type {
   AuthorizedOperation,
   AuthorizedOperationInput,
   IssuedWalletSessionAuthorizationV2,
+  LiveWalletSessionAuthorizationProjectionV2,
   WalletSessionAuthorizationV2,
   ActiveWalletSessionQuota,
   PersistedActiveWalletSessionAuthorizationV2,
@@ -120,9 +121,7 @@ export type D1AuthorizationStoreOptions = {
   readonly getLinkedDeviceAuthorityReader?: () => D1AuthorizationLinkedAuthorityMaterialReader | null;
 };
 
-type DirectV2CommitMode =
-  | { readonly kind: 'strict' }
-  | { readonly kind: 'replayable' };
+type DirectV2CommitMode = { readonly kind: 'strict' } | { readonly kind: 'replayable' };
 
 const ECDSA_SIGNER_MATCH = `
   EXISTS (
@@ -1528,7 +1527,7 @@ export class CloudflareD1AuthorizationStore
 
   async replaceWalletSessionAuthorizationV2AuthorityProjection(input: {
     readonly session: WalletSessionAuthorizationV2;
-    readonly quota: ActiveWalletSessionQuota;
+    readonly quota: ActiveWalletSessionQuota | ExactWalletSessionQuotaProjectionV1;
   }): Promise<void> {
     requireExactWalletSessionAuthorizationV2Quota(input);
     const statements = this.prepareWalletSessionAuthorizationV2AuthorityProjectionStatements({
@@ -1545,11 +1544,11 @@ export class CloudflareD1AuthorizationStore
     if (!result || d1ChangedRows(result) === 0) {
       throw new Error('V2 Wallet Session authority projection was not replaced');
     }
-    const persisted = await this.readWalletSessionAuthorizationV2ByAuthorizationId({
+    const persisted = await this.readLiveWalletSessionAuthorizationProjectionV2({
       expected: input.session,
       nowMs: input.session.createdAtMs,
     });
-    if (!persisted || persisted.quota.remainingUses !== input.quota.remainingUses) {
+    if (!persisted || persisted.quota.remainingUses > input.quota.remainingUses) {
       throw new Error('V2 Wallet Session authority projection was not replaced');
     }
   }
@@ -1720,6 +1719,20 @@ export class CloudflareD1AuthorizationStore
       primaryOperationCredentialDigestB64u,
       retiredAtMs,
     };
+  }
+
+  async readLiveWalletSessionAuthorizationProjectionV2(input: {
+    readonly expected: WalletSessionAuthorizationV2;
+    readonly nowMs: number;
+  }): Promise<LiveWalletSessionAuthorizationProjectionV2 | null> {
+    const row = await this.readJoinedWalletSessionAuthorizationV2Row({
+      lookupColumn: 'authorization_id',
+      tenantId: input.expected.tenantId,
+      lookupValue: input.expected.authorizationId,
+    });
+    if (!row) return null;
+    const session = parseLiveWalletSessionAuthorizationV2Row(row, input);
+    return { session, quota: parseExactWalletSessionQuotaProjectionRow(row, session) };
   }
 
   async readWalletSessionAuthorizationV2ByAuthorizationId(input: {
@@ -1965,9 +1978,13 @@ export class CloudflareD1AuthorizationStore
       switch (subject.kind) {
         case 'sign':
         case 'export_keys': {
-          const alreadyRead = materials.some((material) =>
-            material.keyFamily === subject.keyFamily &&
-            mpcMaterialActivationRefsEqual(material.materialActivation, subject.materialActivation),
+          const alreadyRead = materials.some(
+            (material) =>
+              material.keyFamily === subject.keyFamily &&
+              mpcMaterialActivationRefsEqual(
+                material.materialActivation,
+                subject.materialActivation,
+              ),
           );
           if (!alreadyRead) {
             materials.push({
@@ -1998,9 +2015,16 @@ export class CloudflareD1AuthorizationStore
     },
   ): Promise<boolean> {
     const materialActivation = routerAbMpcMaterialActivationRefToWire(subject.materialActivation);
-    const signer = subject.keyFamily === 'ed25519'
-      ? await this.walletStore.getEd25519SignerByMaterialActivation({ walletId, materialActivation })
-      : await this.walletStore.getEcdsaSignerByMaterialActivation({ walletId, materialActivation });
+    const signer =
+      subject.keyFamily === 'ed25519'
+        ? await this.walletStore.getEd25519SignerByMaterialActivation({
+            walletId,
+            materialActivation,
+          })
+        : await this.walletStore.getEcdsaSignerByMaterialActivation({
+            walletId,
+            materialActivation,
+          });
     if (!signer) {
       // Linked-device material lives on its installed authority projection.
       return (await this.readLinkedAuthorityMaterial(walletId, subject)) !== null;
@@ -2917,7 +2941,7 @@ function requireOneChangedRow(
 
 function requireExactWalletSessionAuthorizationV2Quota(input: {
   readonly session: WalletSessionAuthorizationV2;
-  readonly quota: ActiveWalletSessionQuota;
+  readonly quota: ActiveWalletSessionQuota | ExactWalletSessionQuotaProjectionV1;
 }): void {
   if (
     input.session.tenantId !== input.quota.tenantId ||

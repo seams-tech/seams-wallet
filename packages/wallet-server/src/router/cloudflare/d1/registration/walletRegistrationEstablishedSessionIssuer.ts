@@ -13,6 +13,7 @@ import type { AuthorizationService } from '../../../../authorization/service';
 import type {
   DirectV2IssueResult,
   IssuedWalletSessionAuthorizationV2,
+  LiveWalletSessionAuthorizationProjectionV2,
 } from '../../../../authorization/domain';
 import type { EcdsaDerivationServerBootstrapResponse } from '../../../../core/types';
 import type { WalletRegistrationSessionCommitReceiptV2 } from '../../../../core/threeRouteRegistrationContracts';
@@ -242,7 +243,7 @@ function assertNeverRegistrationCapabilitySubject(value: never): never {
 }
 
 function activeWalletSessionFromAuthorization(
-  issued: IssuedWalletSessionAuthorizationV2,
+  issued: IssuedWalletSessionAuthorizationV2 | LiveWalletSessionAuthorizationProjectionV2,
 ): ActiveWalletSessionV1 {
   const authorization = issued.session;
   const subjects = authorization.capabilitySubjects.map(walletSessionSubjectForClient);
@@ -319,7 +320,7 @@ function directRegistrationSession(
 }
 
 function projectDirectRegistrationSession(
-  authorization: IssuedWalletSessionAuthorizationV2,
+  authorization: IssuedWalletSessionAuthorizationV2 | LiveWalletSessionAuthorizationProjectionV2,
   tokens: RegistrationEstablishedSessionProjectionTokensV2,
 ): RegistrationEstablishedSessionProjectionV2 {
   const walletSession = activeWalletSessionFromAuthorization(authorization);
@@ -403,8 +404,11 @@ export type Ed25519RegistrationSessionPredecessor =
   | { readonly kind: 'ed25519_only' }
   | {
       readonly kind: 'resumed_mixed';
-      readonly authorization: IssuedWalletSessionAuthorizationV2;
-      readonly ecdsa: Extract<RegistrationEstablishedSessionProjectionTokensV2, { readonly kind: 'evm_family_ecdsa' }>['ecdsa'];
+      readonly authorization: LiveWalletSessionAuthorizationProjectionV2;
+      readonly ecdsa: Extract<
+        RegistrationEstablishedSessionProjectionTokensV2,
+        { readonly kind: 'evm_family_ecdsa' }
+      >['ecdsa'];
     }
   | {
       readonly kind: 'mixed';
@@ -615,13 +619,17 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
     nowMs: issuedAtMs,
   });
   if (input.predecessor.kind === 'resumed_mixed') {
-    const authorization = await input.authorizationService.refreshWalletSessionAuthorizationV2AuthorityProjection({
-      existing: input.predecessor.authorization,
-      authority: activeRegistration.authority,
-      walletAuthMethodId: activeRegistration.walletAuthMethodId,
-    });
+    const authorization =
+      await input.authorizationService.refreshWalletSessionAuthorizationV2AuthorityProjection({
+        existing: input.predecessor.authorization,
+        authority: activeRegistration.authority,
+        walletAuthMethodId: activeRegistration.walletAuthMethodId,
+      });
     const tokens = completeEd25519RegistrationSessionTokens({
-      ed25519: ed25519RegistrationSessionTokens({ authorization: authorization.session, publicResult: input.publicResult }).ed25519,
+      ed25519: ed25519RegistrationSessionTokens({
+        authorization: authorization.session,
+        publicResult: input.publicResult,
+      }).ed25519,
       predecessor: input.predecessor,
     });
     return {
@@ -681,6 +689,28 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
     predecessor: input.predecessor,
   });
   return directRegistrationResultFromIssue({ directIssue, authorization, tokens });
+}
+
+export function projectCurrentNearRegistrationSession(
+  authorization: LiveWalletSessionAuthorizationProjectionV2,
+  tokens: Extract<
+    RegistrationEstablishedSessionProjectionTokensV2,
+    { readonly kind: 'near_ed25519_and_evm_family_ecdsa' }
+  >,
+): RegistrationEstablishedSessionProjectionV2 {
+  if (
+    !mpcMaterialActivationRefsEqual(
+      registrationSignMaterialActivation(authorization.session, 'ed25519'),
+      tokens.ed25519.materialActivation,
+    ) ||
+    !mpcMaterialActivationRefsEqual(
+      registrationSignMaterialActivation(authorization.session, 'ecdsa_secp256k1'),
+      tokens.ecdsa.materialActivation,
+    )
+  ) {
+    throw new Error('NEAR continuation material was replaced');
+  }
+  return projectDirectRegistrationSession(authorization, tokens);
 }
 
 export function replayDirectRegistrationEstablishedEcdsaSession(

@@ -1,55 +1,87 @@
 # Independent NEAR provisioning during mixed registration
 
-Status: implementation in progress on shared `dev`.
-Implementation checkpoint: EVM activation no longer awaits NEAR admission or Yao.
-Cold-resume integration and the remaining acceptance/release work are in progress.
-The implementation checkpoint is consolidated onto shared `dev`.
+Status: implementation and local acceptance complete on shared `dev`.
+Release, deployment, and private Console adoption remain on hold.
 
-## Implementation progress — 2026-09-22
+## Implementation progress — 2026-09-23
 
-Completed the encrypted completion-state primitive and custody-worker operations.
-The checkpoint uses a separate HKDF/ChaCha20-Poly1305 purpose, authenticates the
-wallet/application context and canonical exact execution request, and retains the
-recipient key only inside Rust/WASM. Restoration requires reopening the existing
-custody envelope. It restores no server execution authority.
+The initial checkpoint was developed on `codex/independent-near-registration`
+and integrated into `dev` as `e214e94`. Follow-up implementation is on `dev`.
 
-Verification passed:
+Implemented:
 
-- 37 custody Rust tests plus the existing wire-fixture test.
-- 10 real-circuit Yao client registration tests.
-- A Chromium contract against the managed local gateway and real Yao backend:
-  terminate the original custody worker, restore its checkpoint in a fresh worker,
-  complete the captured result, and compare the public key and manifest.
-- Tamper checks for ciphertext, custody seed, request identity, changed encrypted
-  request inputs under the same lifecycle, and application context.
-- SDK build, custody WASM build, SDK type-check, intended-test type-check, and
-  state type fixtures rejecting plaintext seed/recipient-key substitution.
-- `cargo yao-fv constant-time-qualification` qualified the pinned analyzer against
-  its arm64 fixtures at O0/O3. This is analyzer qualification, not a constant-time
-  proof of the new checkpoint. Manual review found fixed-width secret copies and
-  existing AEAD/HKDF primitives; branches inspect public metadata or authentication
-  success.
+- Mixed registration persists ECDSA activation and planned NEAR continuation in
+  one transaction. EVM activation and signing proceed independently of NEAR
+  admission and Yao execution, for both passkey and Email OTP.
+- The shared continuation handles planned admission, an exact encrypted execution
+  checkpoint, joined material, and final publication. Normal founding-method
+  unlock resumes every durable phase, including old joined-material records.
+- Checkpoints use a separate HKDF/ChaCha20-Poly1305 purpose and bind the wallet,
+  application context, and exact request. Recipient keys remain in Rust/WASM.
+  Restoring a checkpoint requires opening the existing custody envelope and grants
+  no server authority.
+- Fresh exact Wallet Session authorization resumes the original admitted request
+  after grant expiry and Route 3 cleanup. Authorization refresh updates ceremony
+  and execution records atomically, retaining claimed/completed/failed outcomes.
+  A retried respond operation keeps its first material activation identity.
+- NEAR finalization preserves session identity, quota, expiry, revocation epoch,
+  and all existing capabilities. Concurrent EVM signing accepts only the exact
+  NEAR-only authority extension. A lost finalization response is reconciled from
+  the retained journal and the authenticated session-status digest.
+- Exhausted Wallet Sessions finish NEAR provisioning without renewing their quota.
+  Finalization uses the exact current Wallet Session even in the initial background
+  run. Durable receipts preserve a zero balance. Passkey step-up reads the existing
+  sealed signing material independently of a warm-session seal, including after
+  refresh; Email OTP uses its existing exact-operation installation path.
+- Local publication preserves the selected method and lock generation. Final
+  readiness and journal removal share one transaction. Late responses cannot
+  undo a lock; failed persistence leaves an unlock-repairable journal.
+- Email OTP unlock leaves unfinished NEAR installation with the retained
+  continuation, including after a readiness transaction rollback.
+- Benchmark testing exposed a passkey session-restore encoding defect: integer
+  serialization drops leading zero bytes. Both factors now use the existing
+  fixed-width normalization at the session-seal boundary. A deterministic browser
+  contract covers a passkey factor with three leading zeroes.
 
-Implemented since the initial checkpoint:
+Verification already completed:
 
-- Request-only deferred NEAR authorization; admission moved out of respond.
-- Atomic ECDSA activation plus planned NEAR rows; encrypted checkpoint saved
-  before execution; joined material saved before finalization.
-- Transactional migration of persisted mixed activation rows into separate rows.
-- ECDSA replay returns independently of NEAR finalization.
-- Worker/driver restoration accepts the saved exact execution checkpoint.
-- Fresh founding-method Wallet Session authorization for the original Yao attempt
-  and server finalization is implemented but still needs cold-resume integration
-  and negative/replay tests.
-- Two real-browser passkey contracts passed: hold admission or execution, return
-  registration and complete Tempo/Arc signatures, then release and sign NEAR.
-- The local full registration/readiness/sign/refresh benchmark passed once on an
-  isolated gateway. A matched 20-run comparison is still outstanding.
+- 37 custody Rust tests, the wire-fixture test, and 10 real-circuit Yao tests.
+- Fresh-worker checkpoint restoration against the local real Yao backend, with
+  public-key/manifest continuity and ciphertext/context/request tamper checks.
+- State type fixtures reject incompatible phases and plaintext secret substitution.
+- Both factors' gated admission/execution, exact replay, lost responses, normal
+  unlock, old joined-material migration, lock, and persistence rollback contracts.
+- Single-curve registrations, recovery from the original recovery codes, signing,
+  both key exports, and step-up after recovery.
+- Focused expiry, retained activation identity, capability-extension, revoked-epoch,
+  replacement-material, and fixed-width session-secret tests.
+- Both factors complete provisioning after spending every EVM signing use, then
+  sign through normal step-up while preserving session, quota, and expiry. The
+  passkey case refreshes before step-up. Existing passkey unlock/export and refresh
+  step-up contracts also pass.
+- A terminal Yao execution remains failed under fresh unlock authority while
+  EVM remains usable.
+- Full Rust/WASM/local-worker/SDK/server build, refreshed runtime packaging, and
+  intended/state type checks.
 
-Remaining: shared initial/cold-resume continuation through normal unlock, complete
-session/logout/cross-tab monotonicity and expiry handling, focused journal/type
-fixtures, fault/restart contracts for both factors, matched latency cohorts, and
-coordinated release/adoption. Do not publish this implementation checkpoint.
+The balanced 20-pair benchmark passed all 40 runs. Median registration return
+improved from 848.5 to 601.0 ms (29%), and durable NEAR readiness improved from
+1059.3 to 1007.0 ms (5%). Authentication medians were 211 / 214 ms. The test-only
+serialized gate uses the same build/backend; no production flag is added.
+See [the latency report](./independent-near-registration-latency.md) for p95s,
+first-pair and warmed results, stage timings, reproducibility, and limitations.
+These local measurements use automated authentication and stubbed public chain
+RPC; deployed acceptance remains release work.
+
+`cargo yao-fv constant-time-qualification` previously qualified the pinned analyzer
+against arm64 fixtures at O0/O3. It does not prove the checkpoint constant-time.
+Manual review found fixed-width secret copies and existing AEAD/HKDF primitives;
+branches inspect public metadata or authentication success. Session-secret
+normalization restores the width of the already-decoded integer representation.
+
+Remaining release work: publish coordinated Wallet/Wallet-server versions, deploy
+the backend, adopt exact versions in Console, and run deployed acceptance and
+representative network/device measurements. These actions remain explicitly held.
 
 ## Outcome and scope
 
