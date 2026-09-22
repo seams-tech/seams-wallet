@@ -461,7 +461,7 @@ test('drawer close filters callbacks and disposes after its transition', async (
   const id = await page.evaluate(() => window.__confirmationMount.mount('drawer', 'standalone'));
   await expect(page.locator(`#${id} .is-open`)).toBeVisible();
   await page.evaluate(() => {
-    const cancel = document.querySelector<HTMLButtonElement>('button[aria-label="Cancel"]')!;
+    const cancel = document.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!;
     window.__confirmationMount.close(0);
     cancel.click();
     window.__confirmationMount.close(0);

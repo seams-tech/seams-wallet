@@ -2521,6 +2521,7 @@ export class IntendedBehaviourHarness {
     this.recordService(
       `concurrent Tempo/Arc signatures verified wallet=${this.walletId} remainingUses=0`,
     );
+    await waitForWalletIframeConfirmationSettlement(this.page);
   }
 
   async exhaustSigningBudget(): Promise<void> {
@@ -2809,7 +2810,9 @@ export class IntendedBehaviourHarness {
         },
       );
       this.latestPageSnapshot = snapshot;
-      await waitForWalletIframeConfirmationSettlement(this.page, action);
+      if (intendedActionRequiresConfirmationSettlement(action)) {
+        await waitForWalletIframeConfirmationSettlement(this.page);
+      }
       return snapshot;
     } catch (error) {
       this.latestWalletIframeAutoConfirmDiagnostics = diagnostics;
@@ -6241,11 +6244,7 @@ async function dispatchWalletIframeConfirmation(input: {
   });
 }
 
-async function waitForWalletIframeConfirmationSettlement(
-  page: Page,
-  action: string,
-): Promise<void> {
-  if (!intendedActionRequiresConfirmationSettlement(action)) return;
+async function waitForWalletIframeConfirmationSettlement(page: Page): Promise<void> {
   const iframe = page.locator('iframe[allow*="publickey-credentials-get"]').last();
   if ((await iframe.count()) === 0) return;
   await walletIframeSecureConfirmationControl(iframe.contentFrame()).waitFor({
@@ -6253,6 +6252,13 @@ async function waitForWalletIframeConfirmationSettlement(
     timeout: 5_000,
   });
   await page.waitForTimeout(100);
+  const closeReceipt = iframe.contentFrame().getByRole('button', {
+    name: 'Close receipt',
+    exact: true,
+  });
+  if (await closeReceipt.isVisible()) {
+    await closeReceipt.click({ timeout: 5_000 });
+  }
 }
 
 async function resolveWalletIframeConfirmControl(input: {
