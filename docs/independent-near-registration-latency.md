@@ -84,7 +84,8 @@ refresh recovery, and atomic readiness when changing their ordering.
   above is the acceptance comparison.
 
 The [benchmark](../tests/e2e/intended-behaviours/passkey.registration.benchmark.test.ts)
-contains 40 tests; run it once with
+now contains two comparisons. Select the original 40-test architecture comparison
+with `--grep '(independent|serialized) pair'` and run once with
 `playwright.wallet-intended.benchmark.ci.config.ts`, without `--repeat-each`.
 The [measurements](./independent-near-registration-latency.json) contain the full
 safe timing samples, first pair, and aggregate statistics. Each sample records

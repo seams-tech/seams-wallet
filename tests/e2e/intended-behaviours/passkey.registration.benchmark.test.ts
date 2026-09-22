@@ -12,6 +12,8 @@ import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation'
 const cohorts = [
   { name: 'independent', run: benchmarkNearRegistration },
   { name: 'serialized', run: benchmarkSerializedNearRegistration },
+  { name: 'prepared', run: benchmarkNearRegistration },
+  { name: 'serial_preparation', run: benchmarkSerialPreparation },
 ] as const;
 
 // Keep both cohorts in one warmed worker and balance their ordering across pairs.
@@ -43,6 +45,41 @@ class SerializedNearRegistrationGate {
     await this.joined;
     await route.continue();
   }
+}
+
+class SerializedPreparationGate {
+  private release: () => void = ignoreRelease;
+  private readonly prepared = new Promise<void>(this.saveRelease.bind(this));
+
+  private saveRelease(resolve: () => void): void {
+    this.release = resolve;
+  }
+
+  observe(message: ConsoleMessage): void {
+    const timings = new Map<string, number>();
+    collectRegistrationTimings(timings, message);
+    if (timings.has('session_seal_preparation')) this.release();
+  }
+
+  async holdFinalization(route: Route): Promise<void> {
+    await this.prepared;
+    await route.continue();
+  }
+}
+
+async function benchmarkSerialPreparation(
+  {
+    harness,
+    page,
+    context,
+  }: { harness: IntendedBehaviourHarness; page: Page; context: BrowserContext },
+  testInfo: TestInfo,
+): Promise<void> {
+  // Both cohorts perform identical work; this control serializes preparation before finalization.
+  const gate = new SerializedPreparationGate();
+  page.on('console', gate.observe.bind(gate));
+  await context.route('**/wallets/register/near-provisioning', gate.holdFinalization.bind(gate));
+  await benchmarkNearRegistration({ harness, page }, testInfo);
 }
 
 function ignoreRelease(): void {}
