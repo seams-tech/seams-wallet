@@ -24,6 +24,8 @@ export type ThresholdEcdsaRouteParseResult<T> =
   | { ok: false; body: ThresholdEcdsaRouteErrorBody };
 
 const POOL_FILL_INIT_KEYS = [
+  'presignSessionId',
+  'firstMessageB64u',
   'keyHandle',
   'ecdsaThresholdKeyId',
   'count',
@@ -65,11 +67,11 @@ export type RouterAbEcdsaPoolFillAuthorization =
       readonly operation: RouterAbEcdsaOperationStepUpPreparationV1Wire;
     };
 
-export type RouterAbEcdsaPoolFillInitRouteRequest =
-  RouterAbEcdsaDerivationPoolFillInitRequest & RouterAbEcdsaPoolFillAuthorization;
+export type RouterAbEcdsaPoolFillInitRouteRequest = RouterAbEcdsaDerivationPoolFillInitRequest &
+  RouterAbEcdsaPoolFillAuthorization;
 
-export type RouterAbEcdsaPoolFillStepRouteRequest =
-  RouterAbEcdsaDerivationPoolFillStepRequest & RouterAbEcdsaPoolFillAuthorization;
+export type RouterAbEcdsaPoolFillStepRouteRequest = RouterAbEcdsaDerivationPoolFillStepRequest &
+  RouterAbEcdsaPoolFillAuthorization;
 
 function parsePoolFillAuthorization(
   raw: Record<string, unknown>,
@@ -129,7 +131,9 @@ export function parseRouterAbEcdsaDerivationPoolFillInitRouteRequest(
   }
   const unexpectedKey = unexpectedThresholdEcdsaKey(raw, POOL_FILL_INIT_KEYS);
   if (unexpectedKey) {
-    return invalidThresholdEcdsaBody(`Unsupported threshold-ecdsa pool-fill init field: ${unexpectedKey}`);
+    return invalidThresholdEcdsaBody(
+      `Unsupported threshold-ecdsa pool-fill init field: ${unexpectedKey}`,
+    );
   }
   if (!isPlainObject(raw.poolFill)) {
     return invalidThresholdEcdsaBody('poolFill is required');
@@ -165,6 +169,13 @@ export function parseRouterAbEcdsaDerivationPoolFillInitRouteRequest(
     return invalidThresholdEcdsaBody('count must be a number');
   }
   const count = typeof raw.count === 'number' ? raw.count : undefined;
+  if (
+    typeof raw.presignSessionId !== 'string' ||
+    typeof raw.firstMessageB64u !== 'string' ||
+    !raw.firstMessageB64u
+  ) {
+    return invalidThresholdEcdsaBody('presignSessionId and firstMessageB64u are required');
+  }
   let routeAuthorization: RouterAbEcdsaPoolFillAuthorization;
   try {
     routeAuthorization = parsePoolFillAuthorization(raw);
@@ -176,12 +187,18 @@ export function parseRouterAbEcdsaDerivationPoolFillInitRouteRequest(
   return {
     ok: true,
     request: {
-      ...(optionalStringField(raw, 'keyHandle') ? { keyHandle: optionalStringField(raw, 'keyHandle') } : {}),
+      ...(optionalStringField(raw, 'keyHandle')
+        ? { keyHandle: optionalStringField(raw, 'keyHandle') }
+        : {}),
       ...(optionalStringField(raw, 'ecdsaThresholdKeyId')
         ? { ecdsaThresholdKeyId: optionalStringField(raw, 'ecdsaThresholdKeyId') }
         : {}),
       ...(count !== undefined ? { count } : {}),
-      ...(optionalStringField(raw, 'requestTag') ? { requestTag: optionalStringField(raw, 'requestTag') } : {}),
+      ...(optionalStringField(raw, 'requestTag')
+        ? { requestTag: optionalStringField(raw, 'requestTag') }
+        : {}),
+      presignSessionId: raw.presignSessionId,
+      firstMessageB64u: raw.firstMessageB64u,
       poolFill: {
         kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
         scope,
@@ -201,22 +218,18 @@ export function parseRouterAbEcdsaDerivationPoolFillStepRouteRequest(
   }
   const unexpectedKey = unexpectedThresholdEcdsaKey(raw, POOL_FILL_STEP_KEYS);
   if (unexpectedKey) {
-    return invalidThresholdEcdsaBody(`Unsupported threshold-ecdsa pool-fill step field: ${unexpectedKey}`);
+    return invalidThresholdEcdsaBody(
+      `Unsupported threshold-ecdsa pool-fill step field: ${unexpectedKey}`,
+    );
   }
   const presignSessionId = optionalStringField(raw, 'presignSessionId');
   if (!presignSessionId) {
     return invalidThresholdEcdsaBody('presignSessionId is required');
   }
-  if (
-    typeof raw.ceremonyExpiresAtMs !== 'number' ||
-    !Number.isFinite(raw.ceremonyExpiresAtMs)
-  ) {
+  if (typeof raw.ceremonyExpiresAtMs !== 'number' || !Number.isFinite(raw.ceremonyExpiresAtMs)) {
     return invalidThresholdEcdsaBody('ceremonyExpiresAtMs is required');
   }
-  if (
-    typeof raw.materialExpiresAtMs !== 'number' ||
-    !Number.isFinite(raw.materialExpiresAtMs)
-  ) {
+  if (typeof raw.materialExpiresAtMs !== 'number' || !Number.isFinite(raw.materialExpiresAtMs)) {
     return invalidThresholdEcdsaBody('materialExpiresAtMs is required');
   }
   if (raw.stage !== 'triples' && raw.stage !== 'presign') {
@@ -224,8 +237,7 @@ export function parseRouterAbEcdsaDerivationPoolFillStepRouteRequest(
   }
   if (
     raw.outgoingMessagesB64u !== undefined &&
-    (!Array.isArray(raw.outgoingMessagesB64u) ||
-      hasNonStringValue(raw.outgoingMessagesB64u))
+    (!Array.isArray(raw.outgoingMessagesB64u) || hasNonStringValue(raw.outgoingMessagesB64u))
   ) {
     return invalidThresholdEcdsaBody('outgoingMessagesB64u must be an array of strings');
   }
@@ -248,7 +260,9 @@ export function parseRouterAbEcdsaDerivationPoolFillStepRouteRequest(
       materialExpiresAtMs: raw.materialExpiresAtMs,
       stage: raw.stage,
       ...(outgoingMessagesB64u ? { outgoingMessagesB64u } : {}),
-      ...(optionalStringField(raw, 'requestTag') ? { requestTag: optionalStringField(raw, 'requestTag') } : {}),
+      ...(optionalStringField(raw, 'requestTag')
+        ? { requestTag: optionalStringField(raw, 'requestTag') }
+        : {}),
       ...routeAuthorization,
     },
   };

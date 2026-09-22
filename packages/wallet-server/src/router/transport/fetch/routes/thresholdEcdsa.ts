@@ -1827,6 +1827,8 @@ function ecdsaPoolFillInitRuntimeRequest(
       : { ecdsaThresholdKeyId: request.ecdsaThresholdKeyId }),
     ...(request.count === undefined ? {} : { count: request.count }),
     ...(request.requestTag === undefined ? {} : { requestTag: request.requestTag }),
+    presignSessionId: request.presignSessionId,
+    firstMessageB64u: request.firstMessageB64u,
     poolFill: request.poolFill,
   };
 }

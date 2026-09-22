@@ -127,6 +127,8 @@ function resolveRouterAbEcdsaDerivationPoolFillInitKeySelector(args: {
 }
 
 export type RouterAbEcdsaDerivationPoolFillInitBaseArgs = {
+  presignSessionId: string;
+  firstMessageB64u: string;
   relayerUrl: string;
   count?: number;
   credential: RouterAbOwnerNormalSigningCredential;
@@ -190,6 +192,8 @@ async function postEcdsaPresignInit(
           count: Number.isFinite(args.count) ? Math.max(1, Math.floor(Number(args.count))) : 1,
           ...(requestTag ? { requestTag } : {}),
           poolFill: args.poolFill,
+          presignSessionId: args.presignSessionId,
+          firstMessageB64u: args.firstMessageB64u,
           ...poolFillAuthorizationBody(args),
         }),
       },

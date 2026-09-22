@@ -209,6 +209,8 @@ function parseRouterAbEcdsaDerivationPoolFillRequest(
 function parseRouterAbEcdsaDerivationPoolFillInitRequest(
   request: RouterAbEcdsaDerivationPoolFillInitRequest,
 ): ParseResult<{
+  presignSessionId: string;
+  firstMessageB64u: string;
   keySelector: ThresholdEcdsaRoleLocalKeyRecordSelector;
   count: number;
   poolFill: RouterAbEcdsaDerivationSigningWorkerPoolFillDestination;
@@ -242,9 +244,25 @@ function parseRouterAbEcdsaDerivationPoolFillInitRequest(
     (request as { poolFill?: unknown }).poolFill,
   );
   if (!poolFill.ok) return poolFill;
+  const presignSessionId = request.presignSessionId;
+  if (
+    typeof presignSessionId !== 'string' ||
+    !/^ecdsa-presign-v2:[1-9][0-9]*:[A-Za-z0-9_-]{43}$/.test(presignSessionId) ||
+    presignSessionExpiresAtMs(presignSessionId) !== poolFill.value.ceremonyExpiresAtMs ||
+    typeof request.firstMessageB64u !== 'string' ||
+    !request.firstMessageB64u
+  ) {
+    return {
+      ok: false,
+      code: 'invalid_body',
+      message: 'Invalid presign initialization identity or first message',
+    };
+  }
   return {
     ok: true,
     value: {
+      presignSessionId,
+      firstMessageB64u: request.firstMessageB64u,
       keySelector: { kind: 'key_handle', keyHandle },
       count,
       poolFill: poolFill.value,
@@ -316,24 +334,23 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
   private readonly nodeRole: ThresholdNodeRole;
   private readonly participantIds2p: number[];
   private readonly ensureReady: () => Promise<void>;
-  private readonly createPoolFillSessionId: (expiresAtMs: number) => string;
   private readonly signingWorkerTransport: RouterAbEcdsaPresignSigningWorkerTransport;
 
   constructor(input: {
     readonly nodeRole: ThresholdNodeRole;
     readonly participantIds2p: number[];
     readonly ensureReady: () => Promise<void>;
-    readonly createPoolFillSessionId: (expiresAtMs: number) => string;
     readonly signingWorkerTransport: RouterAbEcdsaPresignSigningWorkerTransport;
   }) {
     this.nodeRole = input.nodeRole;
     this.participantIds2p = input.participantIds2p;
     this.ensureReady = input.ensureReady;
-    this.createPoolFillSessionId = input.createPoolFillSessionId;
     this.signingWorkerTransport = input.signingWorkerTransport;
   }
 
   private async startStrictPresignSession(input: {
+    presignSessionId: string;
+    firstMessageB64u: string;
     onServerTiming?: (header: string | null) => void;
     binding: RouterAbEcdsaDerivationPoolFillBinding;
     keySelector: ThresholdEcdsaRoleLocalKeyRecordSelector;
@@ -395,11 +412,22 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
         message: 'Wallet Session participantIds do not match the ECDSA signer set',
       };
     }
-    const presignSessionId = this.createPoolFillSessionId(ceremonyExpiresAtMs);
+    if (
+      ceremonyExpiresAtMs !== input.poolFill.ceremonyExpiresAtMs ||
+      materialExpiresAtMs !== input.poolFill.materialExpiresAtMs
+    ) {
+      return {
+        ok: false,
+        code: 'invalid_pool_fill_expiry',
+        message: 'Presign initialization deadlines exceed live authorization',
+      };
+    }
+    const presignSessionId = input.presignSessionId;
     const started = await startRouterAbEcdsaPresignSession({
       signingWorkerBaseUrl: transport.signingWorkerBaseUrl,
       scope,
       presignSessionId,
+      firstMessageB64u: input.firstMessageB64u,
       ceremonyExpiresAtMs,
       materialExpiresAtMs,
       auth: transport.auth,
@@ -468,7 +496,7 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
         ok: true,
         stage: 'done',
         event: 'presign_done',
-        outgoingMessagesB64u: [],
+        outgoingMessagesB64u: stepped.value.outgoingMessagesB64u,
         presignatureId: stepped.value.serverPresignatureId,
         bigRB64u: stepped.value.serverBigR33B64u,
       };
@@ -499,7 +527,7 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
 
     const parsedRequest = parseRouterAbEcdsaDerivationPoolFillInitRequest(input.request);
     if (!parsedRequest.ok) return parsedRequest;
-    const { keySelector, poolFill } = parsedRequest.value;
+    const { keySelector, poolFill, presignSessionId, firstMessageB64u } = parsedRequest.value;
 
     const binding = input.binding;
     const walletId = toOptionalTrimmedString(binding?.walletId);
@@ -536,6 +564,8 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
       };
     }
     return this.startStrictPresignSession({
+      presignSessionId,
+      firstMessageB64u,
       binding,
       keySelector,
       poolFill,

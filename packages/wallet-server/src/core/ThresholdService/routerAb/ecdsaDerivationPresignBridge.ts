@@ -118,6 +118,7 @@ export type RouterAbEcdsaPresignSessionProgress =
     }
   | {
       kind: 'complete';
+      outgoingMessagesB64u: string[];
       presignSessionId: string;
       serverPresignatureId: string;
       serverBigR33B64u: string;
@@ -206,6 +207,14 @@ function parseStrictPresignProgress(input: unknown): RouterAbEcdsaPresignSession
   if (!presignSessionId) {
     throw new Error('SigningWorker ECDSA presign response is missing presign_session_id');
   }
+  if (!Array.isArray(record.outgoing_messages_b64u)) {
+    throw new Error('SigningWorker ECDSA presign response messages must be an array');
+  }
+  const outgoingMessagesB64u = record.outgoing_messages_b64u.map((value) => {
+    const message = String(value || '').trim();
+    if (!message) throw new Error('SigningWorker ECDSA presign response contains an empty message');
+    return message;
+  });
   if (kind === 'complete') {
     const serverPresignatureId = String(record.server_presignature_id || '').trim();
     const serverBigR33B64u = String(record.server_big_r33_b64u || '').trim();
@@ -226,6 +235,7 @@ function parseStrictPresignProgress(input: unknown): RouterAbEcdsaPresignSession
       presignSessionId,
       serverPresignatureId,
       serverBigR33B64u,
+      outgoingMessagesB64u,
       ...(contribution ? { signingWorkerRerandomizationContribution32B64u: contribution } : {}),
       ...(preparedResponse ? { linkedPrepareResponse: preparedResponse } : {}),
     };
@@ -241,14 +251,6 @@ function parseStrictPresignProgress(input: unknown): RouterAbEcdsaPresignSession
   if (event !== 'none' && event !== 'triples_done') {
     throw new Error('SigningWorker ECDSA presign response event is invalid');
   }
-  if (!Array.isArray(record.outgoing_messages_b64u)) {
-    throw new Error('SigningWorker ECDSA presign response messages must be an array');
-  }
-  const outgoingMessagesB64u = record.outgoing_messages_b64u.map((value) => {
-    const message = String(value || '').trim();
-    if (!message) throw new Error('SigningWorker ECDSA presign response contains an empty message');
-    return message;
-  });
   return { kind, presignSessionId, stage, event, outgoingMessagesB64u };
 }
 
@@ -291,6 +293,7 @@ export async function startRouterAbEcdsaPresignSession(input: {
   signingWorkerBaseUrl: string;
   scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
   presignSessionId: string;
+  firstMessageB64u: string;
   ceremonyExpiresAtMs: number;
   materialExpiresAtMs: number;
   auth: RouterAbEcdsaDerivationPresignaturePoolFillAuth;
@@ -303,6 +306,7 @@ export async function startRouterAbEcdsaPresignSession(input: {
     body: {
       scope: parseRouterAbEcdsaDerivationNormalSigningScopeV1(input.scope),
       presign_session_id: input.presignSessionId,
+      first_message_b64u: input.firstMessageB64u,
       ceremony_expires_at_ms: input.ceremonyExpiresAtMs,
       material_expires_at_ms: input.materialExpiresAtMs,
     },

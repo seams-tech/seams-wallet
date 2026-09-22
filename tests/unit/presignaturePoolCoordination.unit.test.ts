@@ -44,6 +44,10 @@ async function unexpectedMaterialOperation(): Promise<never> {
   throw new Error('The rejected pool-fill init must not create or consume material');
 }
 
+async function initialPresignProgress() {
+  return { stage: 'triples' as const, outgoingMessages: [new Uint8Array([1])] };
+}
+
 async function emptyAvailablePresignatures(): Promise<[]> {
   return [];
 }
@@ -51,9 +55,9 @@ async function emptyAvailablePresignatures(): Promise<[]> {
 function emptyPresignatureMaterialSource(): RouterAbEcdsaDerivationClientSigningMaterialSource {
   return {
     kind: 'router_ab_ecdsa_derivation_client_signing_material_source_v1',
-    initClientPresignSession: unexpectedMaterialOperation,
+    initClientPresignSession: initialPresignProgress,
     stepClientPresignSession: unexpectedMaterialOperation,
-    abortClientPresignSession: unexpectedMaterialOperation,
+    abortClientPresignSession: async () => {},
     admitClientPresignature: unexpectedMaterialOperation,
     destroyClientPresignature: unexpectedMaterialOperation,
     reserveClientPresignature: unexpectedMaterialOperation,
@@ -235,7 +239,9 @@ class WaitingSignerRefill {
   readonly requests: unknown[] = [];
   private listCount = 0;
 
-  async initClientPresignSession() {
+  readonly initClientPresignSession = initialPresignProgress;
+
+  async stepClientPresignSession() {
     this.initStarted.resolve();
     await this.releaseInit.promise;
     return {
@@ -262,21 +268,21 @@ class WaitingSignerRefill {
 
   async abortClientPresignSession(): Promise<void> {}
   async destroyClientPresignature(): Promise<void> {}
-  readonly stepClientPresignSession = unexpectedMaterialOperation;
   readonly commitClientPresignature = unexpectedMaterialOperation;
   readonly computeSignatureShareFromPresignatureHandle = unexpectedMaterialOperation;
 
   async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    this.requests.push(JSON.parse(String(init?.body)));
+    const body = JSON.parse(String(init?.body));
+    this.requests.push(body);
     const url = String(input);
     if (url.endsWith('/presignature-pool/fill/init')) {
       return Response.json({
         ok: true,
-        presignSessionId: 'promoted-session',
-        ceremonyExpiresAtMs: Date.now() + 20_000,
-        materialExpiresAtMs: Date.now() + 20_000,
+        presignSessionId: body.presignSessionId,
+        ceremonyExpiresAtMs: body.poolFill.ceremonyExpiresAtMs,
+        materialExpiresAtMs: body.poolFill.materialExpiresAtMs,
         stage: 'triples',
-        outgoingMessagesB64u: [],
+        outgoingMessagesB64u: ['Ag'],
       });
     }
     if (url.endsWith('/presignature-pool/fill/step')) {
@@ -356,7 +362,7 @@ test('a signer waiting on background generation promotes its remaining rounds wi
     expect(source.requests[1]).toMatchObject({
       requestTag: 'foreground_presign_pool_refill',
       authorization,
-      presignSessionId: 'promoted-session',
+      presignSessionId: expect.stringMatching(/^ecdsa-presign-v2:/),
     });
   } finally {
     source.releaseInit.resolve();
@@ -920,7 +926,8 @@ test('pool readiness waits for the first scheduled presignature', async () => {
 
   const clientSigningMaterial: RouterAbEcdsaDerivationClientSigningMaterialSource = {
     kind: 'router_ab_ecdsa_derivation_client_signing_material_source_v1',
-    initClientPresignSession: async () => {
+    initClientPresignSession: initialPresignProgress,
+    stepClientPresignSession: async () => {
       await releasePresignature.promise;
       return {
         stage: 'presign',
@@ -928,9 +935,6 @@ test('pool readiness waits for the first scheduled presignature', async () => {
         presignatureHandle: 'worker-material-ready',
         presignatureBigR33: Uint8Array.from(Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
       };
-    },
-    stepClientPresignSession: async () => {
-      throw new Error('completed local presignature must not be stepped');
     },
     abortClientPresignSession: async () => {},
     admitClientPresignature: async () => {
@@ -946,17 +950,18 @@ test('pool readiness waits for the first scheduled presignature', async () => {
     computeSignatureShareFromPresignatureHandle: async () => new Uint8Array(32),
   };
   const workerCtx = buildWorkerContext();
-  globalThis.fetch = async (input) => {
+  globalThis.fetch = async (input, init) => {
+    const body = JSON.parse(String(init?.body));
     const url = String(input);
     if (url.endsWith('/router-ab/ecdsa-derivation/presignature-pool/fill/init')) {
       return new Response(
         JSON.stringify({
           ok: true,
-          presignSessionId: 'presign-session-ready',
-          ceremonyExpiresAtMs: Date.now() + 20_000,
-          materialExpiresAtMs: Date.now() + 20_000,
+          presignSessionId: body.presignSessionId,
+          ceremonyExpiresAtMs: body.poolFill.ceremonyExpiresAtMs,
+          materialExpiresAtMs: body.poolFill.materialExpiresAtMs,
           stage: 'triples',
-          outgoingMessagesB64u: [],
+          outgoingMessagesB64u: ['Ag'],
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       );
@@ -1036,7 +1041,7 @@ class MaintainingPresignatureSource extends WaitingSignerRefill {
     super();
   }
 
-  async initClientPresignSession() {
+  override async stepClientPresignSession() {
     if (this.successfulInitializations <= 2 && this.delayFirstTwoInitializationsMs > 0) {
       await delay(this.delayFirstTwoInitializationsMs);
     }
@@ -1068,11 +1073,11 @@ class MaintainingPresignatureSource extends WaitingSignerRefill {
       this.requestedCeremonyLifetimeMs.push(body.poolFill.ceremonyExpiresAtMs - Date.now());
       return Response.json({
         ok: true,
-        presignSessionId: `maintained-session-${this.successfulInitializations}`,
+        presignSessionId: body.presignSessionId,
         ceremonyExpiresAtMs: body.poolFill.ceremonyExpiresAtMs,
         materialExpiresAtMs: body.poolFill.materialExpiresAtMs,
         stage: 'triples',
-        outgoingMessagesB64u: [],
+        outgoingMessagesB64u: ['Ag'],
       });
     }
     if (url.endsWith('/presignature-pool/fill/step')) {

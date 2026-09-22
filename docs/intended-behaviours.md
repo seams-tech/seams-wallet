@@ -51,6 +51,15 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 
 ## Durable ECDSA preprocessing
 
+- An owner pool-fill ceremony uses six dependent HTTP exchanges: initialization
+  carries the client's first protocol message, followed by five step requests.
+  Both participants advance from triples to presigning within a message batch.
+  Every exchange retains live authorization and exact scope/deadline binding.
+  The client creates a fresh 256-bit ceremony nonce; the server durably burns the
+  expiry-bound identity before returning its first message, including on failure.
+  Reinitialization is rejected after completion and worker restart. Requests that
+  exceed authorized deadlines fail rather than changing an initialized binding.
+
 - Retain unused reusable ECDSA presignatures encrypted on both participants for
   up to 90 days, subject to material retirement and revocation. Session expiry
   alone does not invalidate the retained material. Operation-scoped preparation

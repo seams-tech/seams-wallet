@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import {
   createHash,
+  randomBytes,
   createPrivateKey,
   generateKeyPairSync,
   sign as signEd25519,
@@ -984,8 +985,8 @@ async function runEcdsaPresignSession(topology, ecdsa) {
     'base64url',
   );
   assert.equal(groupPublicKey.length, 33, 'ECDSA aggregate public key must be compressed secp256k1');
-  const presignSessionId = `ecdsa-live-presign-${Date.now()}`;
   const expiresAtMs = Date.now() + 120_000;
+  const presignSessionId = `ecdsa-presign-v2:${expiresAtMs}:${randomBytes(32).toString("base64url")}`;
   const client = new EcdsaRoleLocalPresignSessionV1(
     ecdsa.finalized.stateBlob.stateBlobB64u,
     groupPublicKey,
@@ -995,125 +996,66 @@ async function runEcdsaPresignSession(topology, ecdsa) {
     let clientProgress = client.poll();
     assert.equal(clientProgress.stage, 'triples');
     assert.equal(clientProgress.outgoing.length, 1, 'ECDSA client triples must start with one message');
-    const initResponse = await postWorkerJson(signingWorker, ecdsaPresignSessionInitPath, {
+    const initRequest = {
       scope,
       presign_session_id: presignSessionId,
-      expires_at_ms: expiresAtMs,
-    });
-    const initBytes = await expectOk(initResponse, 'SigningWorker ECDSA presign session init');
-    const init = parseEcdsaPresignProgress(
-      initBytes,
+      first_message_b64u: base64urlBytes(clientProgress.outgoing[0]),
+      ceremony_expires_at_ms: expiresAtMs,
+      material_expires_at_ms: expiresAtMs,
+    };
+    const initResponse = await postWorkerJson(signingWorker, ecdsaPresignSessionInitPath, initRequest);
+    let progress = parseEcdsaPresignProgress(
+      await expectOk(initResponse, 'SigningWorker ECDSA presign session init'),
       presignSessionId,
       'ECDSA presign session init',
     );
-    assert.equal(init.kind, 'continue');
-    assert.equal(init.stage, 'triples');
-    assert.equal(init.event, 'none');
-    assert.equal(
-      init.outgoing_messages_b64u.length,
-      1,
-      'ECDSA SigningWorker triples must start with one message',
-    );
-    let workerOutgoing = init.outgoing_messages_b64u.map((message) =>
-      Buffer.from(message, 'base64url'),
-    );
-
-    for (let round = 0; round < 9; round += 1) {
-      assert.equal(
-        clientProgress.outgoing.length,
-        1,
-        `ECDSA client triples round ${round + 1} must emit one message`,
-      );
+    assert.equal(progress.outgoing_messages_b64u.length, 2);
+    let exchanges = 1;
+    while (progress.kind !== 'complete' && exchanges < 8) {
+      for (const message of progress.outgoing_messages_b64u) {
+        client.message(Buffer.from(message, 'base64url'));
+        if (client.stage() === 'triples_done') client.start_presign();
+      }
+      clientProgress = client.poll();
       const stepResponse = await postWorkerJson(signingWorker, ecdsaPresignSessionStepPath, {
         scope,
         presign_session_id: presignSessionId,
-        requested_stage: 'triples',
+        requested_stage: progress.stage,
         outgoing_messages_b64u: clientProgress.outgoing.map(base64urlBytes),
-        expires_at_ms: expiresAtMs,
+        ceremony_expires_at_ms: expiresAtMs,
+        material_expires_at_ms: expiresAtMs,
       });
-      const stepBytes = await expectOk(
-        stepResponse,
-        `SigningWorker ECDSA presign triples round ${round + 1}`,
-      );
-      const step = parseEcdsaPresignProgress(
-        stepBytes,
+      exchanges += 1;
+      progress = parseEcdsaPresignProgress(
+        await expectOk(stepResponse, 'SigningWorker ECDSA presign step'),
         presignSessionId,
-        `ECDSA presign triples round ${round + 1}`,
+        'ECDSA presign step',
       );
-      assert.equal(step.kind, 'continue');
-      for (const message of workerOutgoing) {
-        client.message(message);
-      }
-      clientProgress = client.poll();
-      if (round === 8) {
-        assert.equal(step.stage, 'triples_done');
-        assert.equal(step.event, 'triples_done');
-        assert.equal(step.outgoing_messages_b64u.length, 0);
-        assert.equal(clientProgress.stage, 'triples_done');
-        assert.equal(clientProgress.event, 'triples_done');
-        assert.equal(clientProgress.outgoing.length, 0);
-      } else {
-        assert.equal(step.stage, 'triples');
-        assert.equal(step.event, 'none');
-        assert.equal(step.outgoing_messages_b64u.length, 1);
-        workerOutgoing = step.outgoing_messages_b64u.map((message) =>
-          Buffer.from(message, 'base64url'),
-        );
-      }
     }
-
-    client.start_presign();
-    clientProgress = client.poll();
-    assert.equal(clientProgress.stage, 'presign');
-    assert.equal(clientProgress.outgoing.length, 1);
-    const firstPresignResponse = await postWorkerJson(signingWorker, ecdsaPresignSessionStepPath, {
-      scope,
-      presign_session_id: presignSessionId,
-      requested_stage: 'presign',
-      outgoing_messages_b64u: clientProgress.outgoing.map(base64urlBytes),
-      expires_at_ms: expiresAtMs,
-    });
-    const firstPresignBytes = await expectOk(
-      firstPresignResponse,
-      'SigningWorker ECDSA presign first presign round',
-    );
-    const firstPresign = parseEcdsaPresignProgress(
-      firstPresignBytes,
-      presignSessionId,
-      'ECDSA presign first presign round',
-    );
-    assert.equal(firstPresign.kind, 'continue');
-    assert.equal(firstPresign.stage, 'presign');
-    assert.equal(firstPresign.event, 'none');
-    assert.equal(
-      firstPresign.outgoing_messages_b64u.length,
-      2,
-      'ECDSA presign first round must release both worker protocol messages',
-    );
-    for (const message of firstPresign.outgoing_messages_b64u) {
-      client.message(Buffer.from(message, 'base64url'));
-    }
-    clientProgress = client.poll();
-    assert.equal(clientProgress.stage, 'done');
-    assert.equal(clientProgress.outgoing.length, 1);
-
-    const completeResponse = await postWorkerJson(signingWorker, ecdsaPresignSessionStepPath, {
-      scope,
-      presign_session_id: presignSessionId,
-      requested_stage: 'presign',
-      outgoing_messages_b64u: clientProgress.outgoing.map(base64urlBytes),
-      expires_at_ms: expiresAtMs,
-    });
-    const completeBytes = await expectOk(
-      completeResponse,
-      'SigningWorker ECDSA presign completion',
-    );
-    const complete = parseEcdsaPresignProgress(
-      completeBytes,
-      presignSessionId,
-      'ECDSA presign completion',
-    );
+    const complete = progress;
+    assert.equal(exchanges, 6, 'Owner presigning must use one init plus five steps');
     assert.equal(complete.kind, 'complete');
+    for (const message of complete.outgoing_messages_b64u) client.message(Buffer.from(message, 'base64url'));
+    assert.equal(client.stage(), 'done');
+    const objectIds = await topology.listDurableObjectIds(
+      'SIGNING_WORKER_PRESIGN_SESSION_DO', 'fixture-signing-worker',
+    );
+    assert.ok(objectIds.length > 0);
+    for (const id of objectIds) {
+      await topology.unsafeEvictDurableObject(
+        'fixture-signing-worker', 'RouterAbSigningWorkerPresignSessionDurableObject', { id },
+      );
+    }
+    const replay = await postWorkerJson(signingWorker, ecdsaPresignSessionInitPath, initRequest);
+    assert.equal(replay.ok, false, 'Completed identities must remain burned');
+    assert.match(await replay.text(), /ReplayedLocalRequest/);
+    const changedExpiry = await postWorkerJson(signingWorker, ecdsaPresignSessionInitPath, {
+      ...initRequest,
+      ceremony_expires_at_ms: expiresAtMs + 1,
+      material_expires_at_ms: expiresAtMs + 1,
+    });
+    assert.equal(changedExpiry.ok, false, 'A burned identity cannot be revived by extending its deadline');
+    assert.match(await changedExpiry.text(), /Invalid presign session identity or bound expiry/);
     const clientBigR = Buffer.from(client.presignature_big_r_33());
     assert.equal(clientBigR.length, 33, 'ECDSA client presignature must expose a compressed R point');
     assert.equal(
@@ -1710,6 +1652,12 @@ async function main() {
       signingWorkerMigrationsPath,
     );
     const ecdsa = await testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot, jwtSigner);
+    if (process.argv.includes('--ecdsa-presign')) {
+      const presign = await runEcdsaPresignSession(topology, ecdsa);
+      presign.client.free();
+      console.log('six-exchange presigning, Durable Object eviction replay rejection, and immutable expiry passed');
+      return;
+    }
     const edBeforeRefresh = await captureValidActivationDelivery(topology, fixture, tenantRoot);
     const edSecondTenant = await captureValidActivationDelivery(
       topology,

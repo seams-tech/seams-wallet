@@ -158,15 +158,15 @@ export class OpaqueEcdsaPresignAuthorityV1 {
       const generation = this.generation;
       const entry = this.requireSession(input.presignSessionId);
       try {
-        if (input.stage === 'presign') {
-          const currentStage = entry.session.stage();
-          this.requireCurrentGeneration(generation);
-          if (currentStage === 'triples_done') entry.session.start_presign();
-          this.requireCurrentGeneration(generation);
+        if (entry.session.stage() !== input.stage) {
+          throw new Error('Opaque ECDSA presign stage mismatch');
         }
+        this.requireCurrentGeneration(generation);
         for (const incoming of input.incomingMessages) {
           this.requireCurrentGeneration(generation);
           entry.session.message(new Uint8Array(incoming));
+          this.requireCurrentGeneration(generation);
+          if (entry.session.stage() === 'triples_done') entry.session.start_presign();
           this.requireCurrentGeneration(generation);
         }
         return this.poll(input.presignSessionId, generation);

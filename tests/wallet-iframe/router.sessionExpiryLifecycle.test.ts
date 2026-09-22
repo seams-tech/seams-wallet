@@ -188,7 +188,7 @@ test.describe('WalletIframeRouter signing-session expiry lifecycle', () => {
     page,
   }) => {
     const result = await page.evaluate(
-      async ({ routerPath, walletOrigin, walletId, activeSessionId, expiresAtMs }) => {
+      async ({ routerPath, walletOrigin, walletId, activeSessionId, expiresAtMs, nearAccount }) => {
         const module = await import(routerPath);
         const { WalletIframeRouter } =
           module as typeof import('@/SeamsWeb/walletIframe/client/router');

@@ -73,7 +73,7 @@ pub(crate) use worker_storage::{
 
 /// SigningWorker ECDSA presign rendezvous with durable terminal records.
 #[cfg(feature = "workers-rs")]
-#[worker::durable_object(fetch)]
+#[worker::durable_object(alarm)]
 pub struct RouterAbSigningWorkerPresignSessionDurableObject {
     storage: worker::Storage,
     ecdsa_presign_sessions: CloudflareSigningWorkerEcdsaPresignLiveSessionsV1,
@@ -93,6 +93,13 @@ impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject 
         }
     }
 
+    async fn alarm(&self) -> worker::Result<worker::Response> {
+        // Owner identities include their immutable expiry, so expired claims can be removed safely.
+        self.ecdsa_presign_sessions.borrow_mut().clear();
+        self.storage.delete("owner-presign-initialized").await?;
+        worker::Response::ok("expired")
+    }
+
     async fn fetch(&self, request: worker::Request) -> worker::Result<worker::Response> {
         let path = request.path();
         if path.starts_with("/router-ab/internal/signing-worker/linked-ecdsa-presign-session/")
@@ -109,6 +116,7 @@ impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject 
         handle_cloudflare_signing_worker_ecdsa_presign_session_do_fetch_v1(
             request,
             &self.ecdsa_presign_sessions,
+            &self.storage,
         )
         .await
     }

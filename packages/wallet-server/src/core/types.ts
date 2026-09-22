@@ -807,6 +807,8 @@ export type ThresholdEcdsaBootstrapSessionPolicy = {
 // =====================================
 
 export type RouterAbEcdsaDerivationPoolFillInitRequest = {
+  presignSessionId: string;
+  firstMessageB64u: string;
   keyHandle?: string;
   ecdsaThresholdKeyId?: EcdsaThresholdKeyId;
   /**
