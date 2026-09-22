@@ -39,6 +39,7 @@ test('reveals and cancels the recovery summary without a child animation frame o
       const routerModule = await import('/_test-sdk/esm/SeamsWeb/walletIframe/client/router.js');
       const router = new routerModule.WalletIframeRouter({
         walletOrigin,
+        appearance: { theme: { id: 'default', mode: 'dark', colors: {} } },
         servicePath: '/wallet-service',
         sdkBasePath: '/_test-sdk/esm/sdk',
         relayer: { url: window.location.origin },
@@ -83,6 +84,7 @@ test('reveals and cancels the recovery summary without a child animation frame o
     .frameLocator('iframe[data-seams-owner="recovery-code-host-test"]')
     .locator('[data-seams-wallet-recovery-backup-dialog]');
   await expect(childDialog).toBeVisible();
+  await expect(childDialog).toHaveCSS('background-color', 'oklch(0.2 0.01 240)');
 
   await page.evaluate(async () => {
     const testWindow = window as typeof window & {
