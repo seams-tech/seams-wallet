@@ -54,6 +54,7 @@ fn run(schedule: Schedule, iteration: u64) -> Run {
     let mut client_messages = Vec::new();
     let mut worker_messages = worker_pending.clone();
     let mut requests = 1;
+    let mut candidate_big_r = None;
 
     if matches!(schedule, Schedule::ClientMessageInInit) {
         for message in client_pending.drain(..) {
@@ -68,6 +69,10 @@ fn run(schedule: Schedule, iteration: u64) -> Run {
     for _ in 0..32 {
         for message in worker_pending.drain(..) {
             client.message(&message, &mut client_rng).unwrap();
+            if let Ok(candidate) = client.candidate_big_r() {
+                candidate_big_r = Some(candidate);
+                assert!(client.take_presignature_97().is_err());
+            }
             if continuous && client.stage() == PresignSessionStage::TriplesDone {
                 client.start_presign().unwrap();
             }
@@ -108,6 +113,8 @@ fn run(schedule: Schedule, iteration: u64) -> Run {
     assert_eq!(worker.stage(), PresignSessionStage::Done);
     let client_output = client.take_presignature_97().unwrap();
     let worker_output = worker.take_presignature_97().unwrap();
+    assert_eq!(candidate_big_r.unwrap().as_bytes(), &client_output[..33]);
+    assert!(client.candidate_big_r().is_err());
     assert!(client.take_presignature_97().is_err());
     assert!(worker.take_presignature_97().is_err());
     Run {

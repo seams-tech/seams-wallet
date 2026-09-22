@@ -1058,6 +1058,7 @@ mod tests {
             1,
         )
         .unwrap();
+        let mut candidate_big_r = None;
         let mut exchanges = 1;
         loop {
             match progress {
@@ -1066,6 +1067,10 @@ mod tests {
                     outgoing_messages_b64u,
                 } => {
                     assert_eq!(exchanges, 6);
+                    assert_eq!(
+                        candidate_big_r,
+                        Some(pool_put_request.server_big_r33_b64u.clone()),
+                    );
                     assert_eq!(outgoing_messages_b64u.len(), 1);
                     for message in outgoing_messages_b64u {
                         client
@@ -1117,7 +1122,12 @@ mod tests {
                     );
                     if client_progress.event == PresignSessionEvent::FinalBatchReady {
                         assert_eq!(client_progress.outgoing.len(), 2);
+                        candidate_big_r = Some(encode_base64url_bytes_v1(
+                            client.candidate_big_r().unwrap().as_bytes(),
+                        ));
                         assert!(client.take_presignature_97().is_err());
+                    } else {
+                        assert!(client.candidate_big_r().is_err());
                     }
                     progress = step_presign_session(
                         CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 {

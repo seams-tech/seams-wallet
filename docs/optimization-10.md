@@ -2075,3 +2075,34 @@ eviction-safe replay rejection, and immutable expiry. Logs:
 artifacts were overwritten. Owner signing-intent fusion remains unfinished;
 this refactor adds no route, custody store, or authorization bypass, and no
 hosted latency gain is claimed.
+
+### Public identity before the final response
+
+Further protocol inspection corrects an earlier assumption: completed client
+material is unavailable before the final response, but its public identity can
+be derived beforehand. After the peer E share passes its commitment check, the
+client has the same public inputs used by the existing final `R` calculation.
+The native client now exposes this candidate only while awaiting the final
+alpha/beta message, and WASM exposes the 33-byte public point separately from
+completed material. The calculation is shared with finalization; arithmetic
+and protocol messages are unchanged. Secret material and signing remain gated
+by the original final commitment checks.
+
+This enables a simpler handoff design: construct the ordinary complete prepare
+request using the candidate ID and send it with the final batch through existing
+live admission. The SigningWorker must compare that ID against its completed
+output before direct reserved publication. No pending secret-material store or
+partial signing-intent authorization is needed. This integration remains to be
+implemented; the candidate API by itself removes no request. Once integrated,
+remove the superseded partial-intent schema.
+
+The native six-exchange adapter verifies candidate/server output equality and
+that usable client material remains unavailable before the response. A tampered
+final alpha still fails commitment validation after candidate access. The
+existing 25-seed scheduling contract also checks candidate/final output equality
+across eight-, seven-, and six-exchange schedules. The first added assertion
+missed an intermediate state in older batched schedules; moving observation
+between incoming messages corrected the test without changing protocol behavior.
+The accessor uses the existing k256 field inversion and point multiplication on
+opened E and public triple commitments; it introduces no secret-dependent
+branch or integer division. This review is not an assembly-level timing proof.

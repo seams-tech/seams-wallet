@@ -852,6 +852,20 @@ impl EcdsaRoleLocalPresignSessionV1 {
         }
     }
 
+    /// Public identity candidate; completion still validates the peer's final commitments.
+    pub fn candidate_big_r_33(&self) -> Result<Vec<u8>, JsValue> {
+        match &self.state {
+            EcdsaRoleLocalPresignSessionStateV1::Protocol(session) => session
+                .candidate_big_r()
+                .map(|point| point.as_bytes().to_vec())
+                .map_err(js_presign_error),
+            EcdsaRoleLocalPresignSessionStateV1::Completed(_)
+            | EcdsaRoleLocalPresignSessionStateV1::Consumed => {
+                Err(JsValue::from_str("presign candidate identity is unavailable"))
+            }
+        }
+    }
+
     pub fn presignature_big_r_33(&mut self) -> Result<Vec<u8>, JsValue> {
         self.ensure_completed()?;
         match &self.state {
