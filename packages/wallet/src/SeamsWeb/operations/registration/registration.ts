@@ -180,6 +180,7 @@ import type { WalletCustodyCacheEnvelopeV1 } from '@/core/signingEngine/walletCu
 import { nearEd25519YaoMaterialActivationFromMetadata } from '@/core/signingEngine/session/material/nearEd25519YaoMaterialActivation';
 import { buildPasskeyEd25519RestoreMetadata } from '@/core/signingEngine/session/passkey/ed25519YaoSealedSession';
 import { persistPasskeyEd25519YaoSignerMaterialV1 } from '@/core/signingEngine/session/passkey/ed25519YaoLocalMaterial';
+import { RouterAbEd25519YaoClientV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import type { StoreWalletSignerFinalizeRollbackReceipt } from '@/core/indexedDB/seamsWalletDB/repositories';
 import { toAccountId } from '@/core/types/accountIds';
 import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
@@ -218,6 +219,7 @@ import {
   emitRegistrationTimingSpan,
   emitRegistrationTimingSummary,
   emitNearRegistrationTiming,
+  recordNearRegistrationSessionTiming,
   recordStrictEcdsaServerTimingBuckets,
   registrationTimingSignerSetFromPlan,
   roundDurationMs,
@@ -2610,14 +2612,27 @@ async function activatePasskeyRegistrationEd25519Material(args: {
   }
 }
 
+async function prewarmDeferredPasskeyEd25519Client(
+  auth: RegistrationAuthMethodInput,
+): Promise<void> {
+  if (auth.kind !== 'passkey') return;
+  try {
+    await RouterAbEd25519YaoClientV1.initializeBundled();
+  } catch {
+    // Material activation retries initialization and owns any terminal failure.
+  }
+}
+
 /**
- * Commit #2. Runs after registration has already returned an ECDSA-ready
- * wallet, so every failure here is reported as a retryable NEAR-provisioning
+ * Registration does not await Commit #2. The ECDSA wallet is already durable,
+ * so every failure here is reported as a retryable NEAR-provisioning
  * state rather than raised: the ECDSA wallet is durable and must survive a
  * terminal Yao failure untouched.
  */
 async function commitDeferredEd25519Registration(args: {
   context: RegistrationWebContext;
+  registrationStartedAt: number;
+  clientPrewarm: Promise<void>;
   relayerUrl: string;
   registrationCeremonyId: string;
   /* Route 4 verifies the same payload the earlier legs carried. */
@@ -2772,6 +2787,12 @@ async function commitDeferredEd25519Registration(args: {
       const registrationEd25519Session = registrationEstablishedEd25519Session(registrationSession);
       await args.context.signingEngine.hydrateSigningSession({
         thresholdSessionId: String(registrationEd25519Session.thresholdSessionId),
+        diagnostics: {
+          recordDuration: recordNearRegistrationSessionTiming.bind(
+            undefined,
+            args.registrationCeremonyId,
+          ),
+        },
         prfFirstB64u: args.authMaterial.prfFirstB64u,
         expiresAtMs: registrationSession.expiresAtMs,
         remainingUses: registrationSession.remainingUses,
@@ -2794,6 +2815,12 @@ async function commitDeferredEd25519Registration(args: {
             materialActivation,
           }),
         },
+      });
+      emitNearRegistrationTiming({
+        ceremonyId: args.registrationCeremonyId,
+        stage: 'session_hydration',
+        startedAt: sessionStartedAt,
+        outcome: 'success',
       });
     }
     await args.context.signingEngine.activateAuthenticatedWalletState({
@@ -2865,6 +2892,7 @@ async function commitDeferredEd25519Registration(args: {
       if (!retainedFactorSecret32) {
         throw new Error('Deferred passkey registration has no custody factor secret');
       }
+      await args.clientPrewarm;
       await activatePasskeyRegistrationEd25519Material({
         signingEngine: args.context.signingEngine,
         metadata,
@@ -2944,6 +2972,12 @@ async function commitDeferredEd25519Registration(args: {
       ceremonyId: args.registrationCeremonyId,
       stage: 'provisioning_total',
       startedAt,
+      outcome,
+    });
+    emitNearRegistrationTiming({
+      ceremonyId: args.registrationCeremonyId,
+      stage: 'registration_total',
+      startedAt: args.registrationStartedAt,
       outcome,
     });
   }
@@ -3057,6 +3091,11 @@ async function registerEcdsaOrMixedWallet(
   const { onEvent, onError, afterCall } = options;
   const startedAt = performance.now();
   const registrationTiming = new RegistrationTimingRecorder(startedAt);
+  // The main-thread signer WASM is separate from the ceremony worker's instance.
+  const clientPrewarm =
+    args.kind === 'near_ed25519_and_evm_family_ecdsa'
+      ? prewarmDeferredPasskeyEd25519Client(args.authMethod)
+      : Promise.resolve();
   const traceContext = createRouterAbTraceContextV1();
   let postTouchIdCompletedAt: number | null = null;
   let emailOtpCustodyCapabilityFactorSecret32: Uint8Array | null = null;
@@ -3434,10 +3473,9 @@ async function registerEcdsaOrMixedWallet(
       });
     }
     const primaryEcdsaKey = persistencePlan.ecdsa.walletKeys[0];
-    /* Commit #2 is deliberately not awaited: registration returns as soon as
-       the ECDSA wallet is durable, which is what takes the Yao wait off the
-       critical path. It reports failure as a retryable provisioning state
-       instead of rejecting, so it can never fault this returned wallet. */
+    /* Commit #2 defers NEAR finalization and local signer installation. Both
+       custody branches were joined and journaled before Route 3. A failure
+       here remains retryable while the ECDSA wallet stays usable. */
     if (args.authMethod.kind === 'passkey') {
       if (!passkeyAuthority) {
         throw new Error('Passkey registration authority was not collected');
@@ -3488,6 +3526,8 @@ async function registerEcdsaOrMixedWallet(
           walletId: deferredWalletId,
           commit: {
             context,
+            registrationStartedAt: startedAt,
+            clientPrewarm,
             relayerUrl,
             registrationCeremonyId: setup.registrationCeremonyId,
             signedSetup: setup.signedSetup,

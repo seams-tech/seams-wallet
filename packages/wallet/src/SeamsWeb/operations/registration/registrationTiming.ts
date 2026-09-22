@@ -15,6 +15,7 @@ import type {
   RegistrationTimingSpanV1,
 } from '@/core/types/sdkSentEvents';
 import type { WorkerResourceWarmupDiagnostics } from '@/core/signingEngine/assembly/warmup';
+import type { WarmSessionMaterialWriteDiagnosticBucket } from '@/core/signingEngine/session/passkey/warmSessionMaterialWriter';
 import type { EmailOtpYaoPrewarmOutcome } from '@/core/signingEngine/workerManager/workerTypes';
 import type {
   RegistrationAuthMethodInput,
@@ -173,10 +174,41 @@ export function emitNearRegistrationTiming(input: {
     | 'server_finalize'
     | 'local_publication'
     | 'session_install'
+    | 'session_hydration'
     | 'signer_activation'
     | 'durable_ready'
-    | 'provisioning_total';
+    | 'provisioning_total'
+    | 'registration_total';
   startedAt: number;
+  outcome: 'success' | 'failure';
+}): void {
+  emitNearRegistrationDuration({
+    ceremonyId: input.ceremonyId,
+    stage: input.stage,
+    durationMs: Math.max(0, performance.now() - input.startedAt),
+    outcome: input.outcome,
+  });
+}
+
+export function recordNearRegistrationSessionTiming(
+  ceremonyId: string,
+  bucket: WarmSessionMaterialWriteDiagnosticBucket,
+  durationMs: number,
+): void {
+  emitNearRegistrationDuration({
+    ceremonyId,
+    stage: `session_hydration.${bucket}`,
+    durationMs,
+    outcome: 'success',
+  });
+}
+
+function emitNearRegistrationDuration(input: {
+  ceremonyId: string;
+  stage:
+    | Parameters<typeof emitNearRegistrationTiming>[0]['stage']
+    | `session_hydration.${WarmSessionMaterialWriteDiagnosticBucket}`;
+  durationMs: number;
   outcome: 'success' | 'failure';
 }): void {
   if (!isRegistrationBenchmarkDiagnosticsEnabled()) return;
@@ -187,7 +219,7 @@ export function emitNearRegistrationTiming(input: {
         event: 'near_registration_timing',
         ceremonyId: input.ceremonyId,
         stage: input.stage,
-        durationMs: Math.max(0, performance.now() - input.startedAt),
+        durationMs: input.durationMs,
         outcome: input.outcome,
       }),
     );
