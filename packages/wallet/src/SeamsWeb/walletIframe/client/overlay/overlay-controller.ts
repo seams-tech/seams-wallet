@@ -49,6 +49,16 @@ type OverlayControllerOptions = {
   onDismiss?: (event: OverlayDismissEvent) => void | Promise<void>;
 };
 
+type ReviewHandoff =
+  | { readonly kind: 'idle' }
+  | {
+      readonly kind: 'animating';
+      readonly outgoing: Animation;
+      readonly incoming: Animation;
+      readonly timer: ReturnType<typeof setTimeout>;
+      onReady: (() => void) | null;
+    };
+
 type SurfaceRect = {
   top: number;
   left: number;
@@ -197,6 +207,7 @@ export class OverlayController {
   private lastAppliedAuthMenuVisualScale = 1;
   private dialogDisplayMode: 'modal' | 'nonmodal' | null = null;
   private pendingRevealFrame: number | null = null;
+  private reviewHandoff: ReviewHandoff = { kind: 'idle' };
   private surfaceResizeAnimation: Animation | null = null;
   private surfaceResizeTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -282,6 +293,10 @@ export class OverlayController {
   private applyVisible(mode: Exclude<OverlayRenderMode, { kind: 'hidden' }>): void {
     const { dialog, iframe } = this.ensureDialog();
     const identityChanged = !sameIdentity(this.mode, mode);
+    const handoffFromReview =
+      !identityChanged &&
+      this.mode.kind === 'compact_transaction_review' &&
+      mode.kind === 'compact_request_modal';
     const authMenu = mode.kind === 'compact_auth_menu';
     const previousGeometryKind = this.lastAppliedGeometry
       ? geometryKind(this.lastAppliedGeometry)
@@ -312,6 +327,7 @@ export class OverlayController {
         ? finiteSurfaceRect(dialog.getBoundingClientRect())
         : null;
     if (identityChanged) {
+      this.cancelReviewHandoff();
       this.cancelPendingReveal();
       this.cancelSurfaceResize();
       this.generation += 1;
@@ -353,13 +369,15 @@ export class OverlayController {
     if (reviewing) dialog.setAttribute('data-transaction-review', '');
     else if (!this.mode || !('identity' in this.mode) || identityChanged)
       dialog.removeAttribute('data-transaction-review');
-    iframe.inert = reviewing;
+    if (handoffFromReview) this.startReviewHandoff();
+    const handingOff = this.reviewHandoff.kind === 'animating';
+    iframe.inert = reviewing || handingOff;
     iframe.classList.toggle('seams-review-wallet-inactive', reviewing);
-    iframe.setAttribute('aria-hidden', String(reviewing));
+    iframe.setAttribute('aria-hidden', String(reviewing || handingOff));
     if (reviewing) iframe.setAttribute('tabindex', '-1');
     else iframe.removeAttribute('tabindex');
     const slot = this.getTransactionReviewSlot();
-    slot.hidden = !reviewing;
+    slot.hidden = !reviewing && !handingOff;
     slot.inert = !reviewing;
     slot.setAttribute('aria-hidden', String(!reviewing));
     iframe.setAttribute('title', mode.presentation.title);
@@ -377,6 +395,66 @@ export class OverlayController {
     if (revealMeasuredRequestModal) {
       this.scheduleMeasuredReveal();
     }
+  }
+
+  activateAfterReviewHandoff(onReady: () => void): void {
+    if (this.reviewHandoff.kind === 'animating') {
+      this.reviewHandoff.onReady = onReady;
+    } else {
+      onReady();
+    }
+  }
+
+  private startReviewHandoff(): void {
+    this.cancelReviewHandoff();
+    if (!this.iframe || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const options = {
+      duration: SURFACE_RESIZE_DURATION_MS,
+      easing: 'linear',
+      fill: 'both',
+    } as const;
+    const outgoing = this.getTransactionReviewSlot().animate(
+      [{ opacity: 1 }, { opacity: 0 }],
+      options,
+    );
+    const incoming = this.iframe.animate([{ opacity: 0 }, { opacity: 1 }], options);
+    this.reviewHandoff = {
+      kind: 'animating',
+      outgoing,
+      incoming,
+      timer: setTimeout(this.finishReviewHandoff.bind(this), SURFACE_RESIZE_DURATION_MS),
+      onReady: null,
+    };
+    incoming.addEventListener('finish', this.handleReviewHandoffFinished, { once: true });
+  }
+
+  private readonly handleReviewHandoffFinished = (event: Event): void => {
+    if (
+      this.reviewHandoff.kind !== 'animating' ||
+      event.currentTarget !== this.reviewHandoff.incoming
+    )
+      return;
+    this.finishReviewHandoff();
+  };
+
+  private finishReviewHandoff(): void {
+    if (this.reviewHandoff.kind !== 'animating') return;
+    const onReady = this.reviewHandoff.onReady;
+    this.cancelReviewHandoff();
+    if (this.reviewSlot) this.reviewSlot.hidden = true;
+    if (this.iframe) {
+      this.iframe.inert = false;
+      this.iframe.setAttribute('aria-hidden', 'false');
+    }
+    onReady?.();
+  }
+
+  private cancelReviewHandoff(): void {
+    if (this.reviewHandoff.kind !== 'animating') return;
+    clearTimeout(this.reviewHandoff.timer);
+    this.reviewHandoff.outgoing.cancel();
+    this.reviewHandoff.incoming.cancel();
+    this.reviewHandoff = { kind: 'idle' };
   }
 
   private scheduleMeasuredReveal(): void {
@@ -455,6 +533,7 @@ export class OverlayController {
 
   private hideOverlay(): void {
     const wasVisible = this.visible;
+    this.cancelReviewHandoff();
     this.cancelPendingReveal();
     this.cancelSurfaceResize();
     this.generation += 1;
@@ -584,6 +663,7 @@ export class OverlayController {
   }
 
   dispose(): void {
+    this.cancelReviewHandoff();
     this.cancelPendingReveal();
     this.cancelSurfaceResize();
     this.generation += 1;

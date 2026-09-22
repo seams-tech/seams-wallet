@@ -1976,6 +1976,18 @@ export class WalletIframeRouter {
       identity: reservation.identity,
       presentation: { kind: 'modal', title: 'Confirm transaction' },
     });
+    this.overlayState.controller.activateAfterReviewHandoff(
+      this.activateReview.bind(this, reservation),
+    );
+  }
+
+  private activateReview(reservation: TransactionReviewReservation): void {
+    if (
+      reservation.state.kind !== 'activating' ||
+      this.state.connectionId !== reservation.connectionId ||
+      this.reviewCancellationTimers.has(reservation.identity.requestId)
+    )
+      return;
     this.state.port?.postMessage({
       type: 'PM_ACTIVATE_TRANSACTION_REVIEW',
       payload: {

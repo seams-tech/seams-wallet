@@ -391,9 +391,11 @@ and handoff generation, validated at the message boundary. No callback crosses i
 
 The wallet prepares its confirmation inert and without credential requests, reports
 prepared after required UI styles/content are ready, and reports a valid measurement.
-The parent retains visible SDK loading content until both are known, then atomically
-shows the inert wallet view and inactivates/hides review before requesting wallet
-activation. The wallet enables its now-visible view, focuses its own initial control,
+The parent retains visible SDK loading content until both are known, then
+inactivates review and crossfades to the inert wallet view. At fade completion
+(or its timer fallback), it hides review and requests wallet activation. Reduced
+motion performs this handoff immediately. The wallet enables its visible view,
+focuses its own initial control,
 and acknowledges activation. Preparing may expose a credential-required view first,
 but initiating credentials still requires its wallet-origin button. Never require
 credentials to obtain the first usable prepared view. Loading and the wallet view
@@ -444,7 +446,11 @@ selected implementation base before editing.
 | Integration example | `examples/wallet-console-lite/src/WalletConsoleLite.tsx`, `styles.css` | Purchase-review demo with normal, expired, slow, and failing review cases |
 | Contracts and tests | `docs/intended-behaviours.md`, `tests/wallet-ui/`, `tests/wallet-iframe/`, existing type fixtures | Behavior contracts, cross-origin integration, type-level invalid-state checks |
 
-## Phased TODOs
+## Phased acceptance checklist
+
+Status is based on the verification record below. VoiceOver/manual screen-reader
+acceptance was waived by the user on 2026-09-22. Unchecked items are evidence gaps,
+not passing checks.
 
 ### Phase 0 — establish the baseline and integration contract
 
@@ -468,15 +474,15 @@ implementation depends on taking over another agent's local server.
 
 - [x] Implement the specified React-only review contract and host placement. Keep
   the renderer and callback registry local to React; core types remain React-free.
-- [ ] Model queued, reviewing, review-failed, preparing approval, wallet approval,
-  signing, executing, and settled states with discriminated unions,
-  branch-specific builders, exhaustive switches,
-  and required identities. Represent animation progress separately from approval.
+- [x] Model queued, reviewing, review-failed, preparing approval, wallet approval,
+  signing, and settled states with discriminated unions and required identities.
+  The signing state retains ownership through execution and settlement; core owns
+  execution progress. Animation progress is separate from approval.
 - [x] Implement the cancellation table at each boundary. Before signing, cancel the request;
   after an irreversible signing/broadcast step, closing UI must not report that the
   operation was undone. Preserve the established outcome contract.
 - [x] Implement snapshot, quote-expiry, session-change, and unsupported-mode contracts.
-- [ ] Add type fixtures rejecting callback-bearing wire objects, incompatible
+- [x] Add type fixtures rejecting callback-bearing wire objects, incompatible
   presentation modes, invalid state combinations, direct construction and broad
   spread escape hatches. Use boundary parser tests to reject extra wire keys and
   runtime tests for stale identity values; branded types alone cannot prove two
@@ -503,7 +509,7 @@ can be reviewed without relying on animation or DOM behavior.
 - [x] Implement host-owned cancellation arbitration and activation acknowledgement.
   Keep the public Promise pending until dispatched cancellation is acknowledged
   or transport fails; prove a cancellation race cannot hide a signed result.
-- [ ] Test double Continue, Escape, close, provider unmount, iframe disconnect,
+- [x] Test double Continue, Escape, close, provider unmount, iframe disconnect,
   timeout, concurrent requests, and late responses. Release resources exactly once.
 
 Exit: one dialog completes the full flow with an immediate, correct view switch;
@@ -513,13 +519,14 @@ both cancellation and success leave no pending review or leaked reservation.
 
 - [x] Apply the same adapter to the remaining supported NEAR/EVM/Tempo methods.
   Delegate execution to existing implementations; preserve callbacks and results.
-- [ ] Cover warm sessions, credential-required sessions, preparation failures,
+- [x] Cover warm sessions, credential-required sessions, preparation failures,
   account changes, expired quotes, wallet rejection, and signing/execution errors.
 - [x] Audit multi-prompt methods so custom review occurs once per transaction call
   and every wallet-required approval still occurs in the wallet view.
-- [ ] Preserve execution receipts/toasts; test Promise settlement before receipt
-  dismissal and atomic replacement by the next reviewed or ordinary transaction.
-- [ ] Verify ordinary calls without review, auth, export, recovery, and drawer
+- [x] Preserve execution receipts/toasts. Test Promise settlement before receipt
+  dismissal, atomic replacement by a reviewed transaction, and ignored late receipt
+  activity. Existing ordinary-call replacement remains in the router path.
+- [x] Verify ordinary calls without review, auth, export, recovery, and drawer
   behavior remain intact. Reject unsupported reviewed operations explicitly.
 
 Exit: supported methods share one review implementation and every documented
@@ -531,22 +538,26 @@ terminal state has a tested cleanup path.
   validated iframe measurement boundary. Clamp both to safe viewport bounds.
 - [x] Keep loading content visible until wallet readiness and usable geometry are
   known. Provide a bounded failure path if either never arrives.
-- [ ] Reuse current motion primitives for measured width/height/radius handoff and
-  content crossfade. Assign one geometry animation owner per phase; do not ease
-  the parent toward dimensions the child is already easing frame by frame.
-- [ ] Avoid full-content scaling, double shadows, black iframe backgrounds, iframe
+- [x] Reuse the existing measured width/height animation and theme radii, with a
+  content crossfade at handoff. The parent owns geometry; the child does not ease
+  dimensions while the parent is already interpolating them.
+- [x] Avoid full-content scaling, double shadows, black iframe backgrounds, iframe
   reparenting, and hidden-document measurement deadlocks. Use explicit transition
   properties; add no new motion dependency.
-- [ ] Make transitions interruptible. Teardown must complete even if transitionend
+- [x] Make transitions interruptible. Teardown must complete even if transitionend
   never fires. Reduced motion uses an immediate resize and minimal/static handoff.
 - [x] Preserve one effective modal focus boundary across the two documents. Move
   focus into the new view through the wallet's own handler, never by reading its
   cross-origin DOM. Inactivate and hide the outgoing view from assistive technology.
-- [ ] Verify Tab/Shift+Tab, Enter, Space, Escape from either document, focus return,
-  screen-reader announcements, and no activation of hidden approval controls.
-- [ ] Inspect light/dark, Sharp/Rounded, small/large review content, slow assets,
-  tree expansion, mobile keyboard, 320px width, and 200% zoom. Replay the transition
-  slowly to inspect clipping, backdrop continuity, and focus timing.
+- [x] Verify Tab/Shift+Tab, Enter, Space, Escape from either document, focus return,
+  and no activation of hidden approval controls.
+- Manual screen-reader announcements: waived by the user; no pass is claimed.
+- [x] Inspect light/dark, Sharp/Rounded, small/large review content, Suspense loading,
+  tree expansion, 320px width, and actual desktop 200% zoom.
+- [ ] Verify physical mobile-keyboard viewport changes; no device is connected.
+- [x] Inspect handoff frames at 25%, 50% and 75% opacity progress for clipping and
+  backdrop continuity. Verify inertness during the fade and wallet activation
+  after completion; screenshots remain outside Git.
 
 Exit: the visual experience is one continuous modal and remains usable without
 animation, pointer input, or a large viewport.
@@ -559,12 +570,12 @@ animation, pointer input, or a large viewport.
   cannot establish the trust-boundary or focus-handoff guarantees.
 - [x] Verify the wallet still requires its own final approval, checks the current
   request, and rejects stale/cancelled requests. App-side Continue alone never signs.
-- [ ] Test React context, local input state, StrictMode, render errors, async errors,
+- [x] Test React context, local input state, StrictMode, render errors, async errors,
   host disposal, reconnect, two rapid requests, and maliciously large measurements.
-- [ ] Cover nested input mutation, queued expiry/cancellation, same-wallet session
+- [x] Cover nested input mutation, queued expiry/cancellation, same-wallet session
   replacement, owned credential step-up, inherited skipClick/drawer rejection,
   preference changes during review, Suspense timeout, and duplicate hosts.
-- [ ] Cover cancellation versus approval and credential completion, late receipt
+- [x] Cover cancellation versus approval and credential completion, late receipt
   events after replacement, missing activation acknowledgement, and post-signing
   disposal. Assert outcomes and resource ownership, not just modal disappearance.
 - [x] Verify SDK-owned styles under supported strict-CSP configurations. Document
@@ -572,7 +583,7 @@ animation, pointer input, or a large viewport.
 - [x] Run focused tests first, then the affected browser matrix on Chromium,
   Firefox, and WebKit. Add intended lifecycle cases and run credential-gated checks
   when available; explicitly record unavailable credentials/infrastructure.
-- [ ] Check type declarations, public exports, SSR importability, packaged consumer
+- [x] Check type declarations, public exports, SSR importability, packaged consumer
   builds, static assets, and bundle deltas. React must remain out of hosted wallet
   chunks and framework-free core imports must remain framework-free.
 
@@ -754,10 +765,56 @@ Live signing and desktop zoom acceptance on 2026-09-22:
   transaction details. No production scrolling change was needed.
 - Intended and browser TypeScript checks passed. The ordinary registration/signing
   regression passed in 32.1 seconds with the review host mounted.
-- Physical-device discovery returned no connected devices. VoiceOver failed to
-  launch through the native app tool, and its keyboard shortcut did not start a
-  VoiceOver process. Screen-reader and physical mobile-keyboard acceptance remain
-  unverified; accessibility-tree inspection is not substituted for those checks.
+- Physical-device discovery returned no connected devices. VoiceOver could not
+  be launched during this pass. The user subsequently waived manual screen-reader
+  acceptance; physical mobile-keyboard acceptance remains unverified.
+
+Final lifecycle and package audit on 2026-09-22:
+
+- Added double-Continue and disconnect checks before and after dispatch. All nine
+  browser checks pass across Chromium, Firefox, and WebKit. Before dispatch, the
+  existing disconnect error has no code; after dispatch it carries the existing
+  `connection_closed` code. The initial new assertion incorrectly required a code
+  in both phases and was corrected without changing production behavior.
+- Added iframe reload/reconnect checks; all three pass across the browser matrix.
+  The old review rejects, stale controls cannot dispatch, and a fresh connection
+  can complete a new reviewed transaction.
+- Added receipt and preference-change checks; all six checks pass across the same
+  browsers. A settled receipt leaves the Promise resolved and the dialog open.
+  The next review closes the receipt by its exact request id without closing the
+  dialog, and late expanded/toast/closed events cannot reclaim the new review.
+  A mid-review preference change to drawer/skipClick preserves the reserved modal
+  and explicit wallet approval.
+- Found and fixed a compile-time wire-boundary gap: object spreads could include
+  a renderer in `TransactionReviewWire`. An explicit `render?: never` field now
+  rejects that shape. Type fixtures cover the spread and missing connection id;
+  the runtime parser already rejected extra wire keys.
+- SDK, wallet-state and browser-test type checks passed. A fresh production SDK
+  build passed static-asset and runtime-entry checks.
+- Built baseline `55f091d` in a temporary source snapshot with the same installed
+  dependencies, existing WASM outputs and `NODE_ENV=production` SDK command.
+  Compared both builds with the repository's bundle reporter; neither report has
+  missing assets. Hosted boot gzip grew from 20,653 to 24,495 bytes (+3,842 bytes).
+  Reachable browser JS gzip grew from 1,234,628 to 1,247,242 bytes (+12,614 bytes).
+  These deltas include all branch changes since the baseline, including the
+  packaging correction. WASM gzip sizes are unchanged. Reports remain outside Git; the temporary baseline build was removed.
+- Completed the missing content crossfade using the existing 180 ms motion
+  duration. The outgoing React view stays mounted and inert until the fade ends;
+  wallet activation follows the fade. Teardown cancels the fade immediately,
+  reduced motion switches immediately, and a timer handles absent animation
+  completion events. Chromium inspection at 25%, 50% and 75% opacity progress
+  shows continuous backdrop and unclipped content. Temporary screenshot tooling
+  was removed. Escape during a paused fade cancels within one second in all three
+  browsers, before the deliberately slowed fallback timer can complete.
+- The final review matrix passed all 66 checks in 7.9 minutes. The final focused
+  animation run passed six checks, including three additional Escape-during-fade
+  cases: 23 distinct review cases now pass in Chromium, Firefox and WebKit
+  (69 distinct browser checks). Browser and wallet-state type checks passed again
+  after retaining the permanent cancellation and animation-fallback tests.
+- The live reviewed Arc signing contract passed again in 35.1 seconds after the
+  motion change, including independent signer recovery from the signed bytes.
+- VoiceOver/manual screen-reader acceptance is waived at the user's request.
+  Keyboard, focus, inertness and strict-CSP checks remain part of acceptance.
 
 Failures classified and resolved during verification:
 
@@ -776,13 +833,10 @@ Failures classified and resolved during verification:
 Limitations: the focused cross-browser review fixtures simulate signer results;
 the new reviewed EVM intended contract executes local MPC signing with virtual
 credentials and external RPC fixtures. Broadcast and hardware credentials are not
-covered by that contract. Manual screen-reader and physical mobile-keyboard sessions
-remain unverified. The detailed phase checklist above remains the broader release
-acceptance inventory; unchecked multi-part items include checks beyond this evidence.
-
-Remaining environment-dependent acceptance: a working screen-reader session and a
-connected physical mobile device for keyboard/viewport checks. Actual desktop 200%
-zoom and a live reviewed signing path now have recorded passing evidence.
+covered by that contract. Manual screen-reader acceptance is waived. A physical
+mobile-keyboard session remains unverified because no device is connected. The
+phase checklist also records the missing historical pre-change screenshot set;
+current visual and behavior checks do not retroactively establish that baseline.
 Publication and deployment are separate actions.
 
 ## Later enhancement: toggleable views

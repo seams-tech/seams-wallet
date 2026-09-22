@@ -115,3 +115,18 @@ const prepared = { kind: 'preparing', prepared: true } as const;
 const signingPreparation: TransactionReviewReservationState = { ...prepared, kind: 'signing' };
 void settledReservation;
 void signingPreparation;
+
+import type { TransactionReviewWire } from '@/SeamsWeb/walletIframe/shared/transactionReview';
+declare const wire: TransactionReviewWire;
+// @ts-expect-error A renderer cannot enter the serialized request through a spread.
+const wireWithRenderer: TransactionReviewWire = { ...wire, ...unbounded };
+// @ts-expect-error A wire request requires its connection identity.
+const wireWithoutConnection: TransactionReviewWire = {
+  kind: 'transaction_review_v1',
+  requestId: 'request',
+  surfaceId: 'surface',
+  generation: 1,
+  validity: { kind: 'unbounded' },
+};
+void wireWithRenderer;
+void wireWithoutConnection;

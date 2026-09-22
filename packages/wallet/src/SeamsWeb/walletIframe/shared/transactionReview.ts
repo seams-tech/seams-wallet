@@ -36,6 +36,7 @@ export type TransactionReviewIdentity = {
 export type TransactionReviewWire = TransactionReviewIdentity & {
   readonly kind: 'transaction_review_v1';
   readonly validity: TransactionReviewValidity;
+  readonly render?: never;
 };
 
 export type TransactionReviewPhase = 'prepared' | 'activated' | 'signing' | 'cancelled';
