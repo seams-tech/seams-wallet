@@ -104,52 +104,9 @@
   font-size: clamp(2rem, 4vw, 3rem);
   line-height: 1.1;
 }
-.console-page-heading > p:last-child,
-.console-footnote {
+.console-page-heading > p:last-child {
   color: #59645d;
   line-height: 1.65;
-}
-.console-destinations {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.25rem;
-}
-.console-destination {
-  display: flex;
-  flex-direction: column;
-  align-items: start;
-  padding: 1.75rem;
-  color: #18201c;
-  background: #fff;
-  border-radius: 1rem;
-  text-decoration: none;
-  box-shadow:
-    0 0 0 1px #d9dfda,
-    0 4px 12px #24362b06;
-}
-.console-destination:hover {
-  box-shadow: 0 0 0 2px #397055;
-}
-.console-destination p {
-  margin-block: 0.8rem 1.5rem;
-  color: #59645d;
-  line-height: 1.6;
-}
-.console-destination-action {
-  display: flex;
-  width: 100%;
-  justify-content: space-between;
-  margin-block-start: auto;
-  color: #24593f;
-  font-weight: 650;
-  font-size: 0.875rem;
-}
-.console-destination--featured {
-  background: #eaf1e8;
-}
-.console-footnote {
-  margin-block-start: 1.5rem;
-  font-size: 0.8rem;
 }
 .console-content .shell {
   width: 100%;
@@ -187,9 +144,6 @@
   .console-app {
     grid-template-columns: 12rem minmax(0, 1fr);
   }
-  .console-destinations {
-    grid-template-columns: 1fr;
-  }
 }
 @media (max-width: 44rem) {
   .console-app {
@@ -218,8 +172,5 @@
   }
   .console-breadcrumb {
     margin-block-end: 1.5rem;
-  }
-  .console-destination {
-    padding: 1.25rem;
   }
 }

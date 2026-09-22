@@ -4,68 +4,14 @@ import { TransactionPreviews } from './TransactionPreviews';
 import './console-shell.css';
 
 const pages = [
-  { path: '/', title: 'Overview' },
   { path: '/wallet', title: 'Wallet' },
   { path: '/transaction-previews', title: 'Transaction previews' },
   { path: '/recovery', title: 'Server share recovery' },
   { path: '/wallet-settings', title: 'Wallet settings' },
 ];
 
-function Overview() {
-  return (
-    <>
-      <header className="console-page-heading">
-        <h1>Explore your Wallet integration</h1>
-        <p>Preview the experience or connect a wallet to try the live flows.</p>
-      </header>
-      <div className="console-destinations">
-        <a
-          className="console-destination console-destination--featured"
-          href="/transaction-previews"
-        >
-          <h2>Transaction previews</h2>
-          <p>
-            Try transfers and contract calls. Switch between modal and drawer reviews, passkeys and
-            email codes.
-          </p>
-          <span className="console-destination-action">
-            Explore previews <span aria-hidden="true">↗</span>
-          </span>
-        </a>
-        <a className="console-destination" href="/wallet">
-          <h2>Wallet playground</h2>
-          <p>Create or unlock a wallet, inspect your session, and try signing with the real SDK.</p>
-          <span className="console-destination-action">
-            Open wallet <span aria-hidden="true">↗</span>
-          </span>
-        </a>
-        <a className="console-destination" href="/recovery">
-          <h2>Server share recovery</h2>
-          <p>Walk through recovery operations for your local project environment.</p>
-          <span className="console-destination-action">
-            Open recovery <span aria-hidden="true">↗</span>
-          </span>
-        </a>
-        <a className="console-destination" href="/wallet-settings">
-          <h2>Wallet settings</h2>
-          <p>Review wallet settings and manage authentication from one place.</p>
-          <span className="console-destination-action">
-            Open settings <span aria-hidden="true">↗</span>
-          </span>
-        </a>
-      </div>
-      <p className="console-footnote">
-        Previews use simulated data. Wallet and recovery tools connect to your configured local
-        project.
-      </p>
-    </>
-  );
-}
-
 function PageContent({ path }: { path: string }) {
   switch (path) {
-    case '/':
-      return <Overview />;
     case '/transaction-previews':
       return <TransactionPreviews />;
     case '/wallet':
@@ -82,14 +28,14 @@ function PageContent({ path }: { path: string }) {
       return (
         <div className="console-page-heading">
           <h1>Page not found</h1>
-          <a href="/">Return to overview</a>
+          <a href="/wallet">Return to wallet</a>
         </div>
       );
   }
 }
 
 export function ConsoleApp() {
-  const path = window.location.pathname.replace(/\/$/, '') || '/';
+  const path = window.location.pathname.replace(/\/$/, '') || '/wallet';
   const current = pages.find((page) => page.path === path);
   document.title = `${current?.title ?? 'Page not found'} · Seams Wallet`;
   return (
