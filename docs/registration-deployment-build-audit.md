@@ -54,8 +54,7 @@ for all modules. Shamir3Pass is used by client session seal/unseal, so this is a
 plausible contributor to the remaining hydration latency. No speedup is claimed
 without measuring it.
 
-Next implementation: set the existing production mode explicitly in the package
-release workflow; build Shamir3Pass release artifacts in isolation; compare seal,
-unseal, and full registration on fixed inputs; rerun preparation ownership and
-registration lifecycle contracts. Publish and deployed regional/cold-start
+The follow-up [production-profile fix and benchmark](./shamir-release-profile.md)
+now explicitly selects production mode in the release workflow and measures an
+isolated Shamir3Pass release build. Publishing and deployed regional/cold-start
 profiling remain subject to the existing release hold.
