@@ -1927,3 +1927,14 @@ These six samples also did not reproduce the original 9–10s preparation delay.
 Further identical cohorts without finer internal spans are unlikely to resolve
 the remaining attribution gap; prioritize internal transport timing and the
 measured completion path before another hosted comparison.
+
+The successful authorized-operation completion path now uses the conditional
+`UPDATE ... RETURNING *` result directly, eliminating its separate read-back.
+The canonical parser still verifies the operation fingerprint and replay-result
+digest. A duplicate completion keeps the existing read path and returns the
+first durable result; it cannot overwrite it. Focused tests cover the one-query
+success path, durable read-back equality, duplicate completion, missing claims,
+and corrupted fingerprints/results. A local workerd D1 check confirms that
+`first()` returns the updated row and returns null when the claim is already
+completed. This is an unreleased query-count reduction, with no hosted latency
+gain claimed yet.

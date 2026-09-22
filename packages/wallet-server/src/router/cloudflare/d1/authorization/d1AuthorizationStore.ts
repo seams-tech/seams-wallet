@@ -2488,7 +2488,7 @@ export class CloudflareD1AuthorizationStore
     const operation = input.operation;
     const response = parseAuthorizedOperationReplayResponse(input.response);
     const resultDigest = await computeAuthorizedOperationResultDigest(response);
-    const update = await this.database
+    const completed = await this.database
       .prepare(
         `UPDATE authorized_operations
             SET lifecycle_kind = 'completed', result_kind = ?, result_digest = ?,
@@ -2496,7 +2496,8 @@ export class CloudflareD1AuthorizationStore
                 completed_at_ms = ?
           WHERE namespace = ? AND tenant_id = ?
             AND authorized_operation_id = ? AND operation_fingerprint_digest = ?
-            AND lifecycle_kind = 'claimed'`,
+            AND lifecycle_kind = 'claimed'
+          RETURNING *`,
       )
       .bind(
         input.result,
@@ -2510,21 +2511,14 @@ export class CloudflareD1AuthorizationStore
         operation.authorizedOperationId,
         operation.operationFingerprintDigest,
       )
-      .run();
-    if (d1ChangedRows(update) === 0) {
-      const existing = await this.readAuthorizedOperation({
-        tenantId: operation.tenantId,
-        operationFingerprintDigest: operation.operationFingerprintDigest,
-      });
-      if (!existing) throw new Error('authorized operation completion claim is missing');
-      return existing;
-    }
-    const completed = await this.readAuthorizedOperation({
+      .first<D1Row>();
+    if (completed) return await parseAuthorizedOperationRow(completed);
+    const existing = await this.readAuthorizedOperation({
       tenantId: operation.tenantId,
       operationFingerprintDigest: operation.operationFingerprintDigest,
     });
-    if (!completed) throw new Error('authorized operation completion could not be read back');
-    return completed;
+    if (!existing) throw new Error('authorized operation completion claim is missing');
+    return existing;
   }
 
   private async readHostedWalletExchangeV2(
