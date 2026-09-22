@@ -238,7 +238,7 @@ export class OverlayController {
   }
 
   setReviewAppearance(appearance: AppearanceConfigInput | undefined): void {
-    setTransactionReviewAppearance(this.getTransactionReviewSlot(), appearance);
+    setTransactionReviewAppearance(this.ensureDialog().dialog, appearance);
   }
 
   setAuthMenuVisualScale(scale: number): void {
@@ -413,10 +413,11 @@ export class OverlayController {
       easing: 'linear',
       fill: 'both',
     } as const;
-    const outgoing = this.getTransactionReviewSlot().animate(
+    const outgoing = this.getTransactionReviewSlot().firstElementChild?.animate(
       [{ opacity: 1 }, { opacity: 0 }],
       options,
     );
+    if (!outgoing) return;
     const incoming = this.iframe.animate([{ opacity: 0 }, { opacity: 1 }], options);
     this.reviewHandoff = {
       kind: 'animating',
@@ -690,7 +691,7 @@ export class OverlayController {
       dialog.close();
     }
     clearDialogGeometry(dialog);
-    if (this.reviewSlot) clearTransactionReviewAppearance(this.reviewSlot);
+    clearTransactionReviewAppearance(dialog);
     dialog.remove();
     this.dialog = null;
     this.iframe = null;

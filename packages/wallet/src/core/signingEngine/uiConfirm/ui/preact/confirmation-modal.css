@@ -55,6 +55,14 @@
   box-shadow: none;
 }
 
+/* The parent overlay paints the persistent shell for an R140 review handoff. */
+.seams-wallet-ui[data-seams-review-frame] .seams-confirmation-modal--hosted .modal-container-root {
+  background: transparent;
+  border-color: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 :where(.seams-wallet-ui) .seams-confirmation-modal .seams-confirmation-content {
   display: grid;
   gap: 0.5rem;

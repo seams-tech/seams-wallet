@@ -58,7 +58,7 @@ class PreviewSession {
     this.phase = 'review';
     this.resize();
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      this.slot.animate([{ opacity: 0 }, { opacity: 1 }], {
+      this.slot.parentElement?.animate([{ opacity: 0 }, { opacity: 1 }], {
         duration: 180,
         easing: 'ease-out',
       });

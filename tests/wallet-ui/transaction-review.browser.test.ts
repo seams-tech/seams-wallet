@@ -404,7 +404,13 @@ test('handoff keeps both views inert and activates through the animation timer f
   const iframe = page.locator('iframe.seams-wallet-overlay-iframe');
   const review = page.locator('.seams-transaction-review-slot');
   await expect(iframe).toHaveCSS('opacity', '0.5');
-  await expect(review).toHaveCSS('opacity', '0.5');
+  await expect(review.locator('.seams-transaction-review-content')).toHaveCSS('opacity', '0.5');
+  await expect(page.locator('dialog[open]')).toHaveCSS('opacity', '1');
+  await expect(page.locator('dialog[open]')).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(review).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(
+    page.frameLocator('iframe.seams-wallet-overlay-iframe').locator('.modal-container-root'),
+  ).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(iframe).toHaveAttribute('inert', '');
   await expect(review).toHaveAttribute('inert', '');
   await expect(review).toHaveAttribute('aria-hidden', 'true');

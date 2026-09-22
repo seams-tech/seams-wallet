@@ -38,16 +38,11 @@ const BASE_CSS = `
     overflow: auto;
     overscroll-behavior: contain;
     box-sizing: border-box;
-    border: 1px solid var(--seams-colors-borderPrimary);
-    background: var(--seams-colors-colorBackground);
     color: var(--seams-colors-textPrimary);
-    border-radius: min(var(--seams-shape-card, 16px), 2rem);
-    box-shadow: 0 12px 24px rgb(0 0 0 / 0.22), 0 2px 8px rgb(0 0 0 / 0.12);
   }
   .seams-transaction-review-slot[hidden] { display: none; }
   .seams-review-wallet-inactive { opacity: 0; pointer-events: none; }
   .seams-transaction-review-content { padding: 0.75rem; box-sizing: border-box; overflow-wrap: anywhere; }
-  .seams-transaction-review-slot[data-theme='light'] { border-color: var(--seams-colors-surface); }
   .seams-transaction-review-content button { font: inherit; }
   dialog.${CLASS_DIALOG}[data-transaction-review]::backdrop { background: rgb(0 0 0 / 0.26); }
   .seams-transaction-review-content h2 { margin-top: 0; }
@@ -124,10 +119,21 @@ const BASE_CSS = `
   dialog.${CLASS_DIALOG}.${CLASS_MODAL} {
     transform-origin: top left;
   }
+  /* Reviewed transactions keep one opaque shell while their interiors cross-fade. */
+  dialog.${CLASS_DIALOG}.${CLASS_MODAL}[data-transaction-review] {
+    overflow: hidden;
+    background: var(--seams-colors-colorBackground);
+    border-radius: min(var(--seams-shape-card, 16px), 2rem);
+    box-shadow: 0 12px 24px rgb(0 0 0 / 0.22), 0 2px 8px rgb(0 0 0 / 0.12),
+      inset 0 0 0 1px var(--seams-colors-borderPrimary);
+  }
+  dialog.${CLASS_DIALOG}.${CLASS_MODAL}[data-transaction-review] iframe.${CLASS_IFRAME} {
+    filter: none;
+  }
   /* The iframe clips the child's box shadow at its layout edge. Paint the
      compact modal elevation in the host compositor so it can extend beyond
      that edge without changing the measured hit region. */
-  dialog.${CLASS_DIALOG}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_AUTH_MENU})
+  dialog.${CLASS_DIALOG}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_AUTH_MENU}):not([data-transaction-review])
     iframe.${CLASS_IFRAME} {
     filter:
       drop-shadow(0 12px 24px rgb(0 0 0 / 0.22))
@@ -479,7 +485,7 @@ export function setTransactionReviewAppearance(
   });
   slot.dataset.theme = theme.mode;
   getStyleManager().setDynamicRule(
-    slot.id,
+    `transaction-review-appearance-${slot.id}`,
     appearanceTokenCssRule(slot.id, {
       palette: 'default',
       theme: {
@@ -493,5 +499,5 @@ export function setTransactionReviewAppearance(
 }
 
 export function clearTransactionReviewAppearance(slot: HTMLElement): void {
-  getStyleManager().deleteDynamicRule(slot.id);
+  getStyleManager().deleteDynamicRule(`transaction-review-appearance-${slot.id}`);
 }

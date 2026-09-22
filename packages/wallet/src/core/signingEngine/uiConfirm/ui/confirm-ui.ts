@@ -303,6 +303,7 @@ function applyConfirmSurfaceMode(
 ): void {
   element.setAttribute(CONFIRM_SURFACE_MODE_ATTR, confirmationSurfaceContext(binding, variant));
   element.setAttribute('data-seams-confirm-variant', variant);
+  element.toggleAttribute('data-seams-review-frame', !!reviewAdmissionForBinding(binding));
 }
 
 function bindConfirmSurfaceMeasurementReporter(

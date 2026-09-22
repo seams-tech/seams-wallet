@@ -43,6 +43,7 @@ async function showConfirmation(): Promise<void> {
     theme: 'light',
     uiMode: 'modal',
   });
+  handle.element.setAttribute('data-seams-review-frame', '');
   const decision = await handle.takeDecision();
   handle.close(decision.kind === 'confirmed');
   window.parent.postMessage(

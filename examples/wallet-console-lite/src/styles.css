@@ -462,7 +462,7 @@ summary {
   border-radius: 4px;
 }
 
-.prediction-preview-slot {
+dialog:not([open]) .prediction-preview-slot {
   inline-size: min(480px, calc(100vw - 32px));
 }
 
