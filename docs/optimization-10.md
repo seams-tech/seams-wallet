@@ -1413,3 +1413,52 @@ temporarily making the repository public, attempt 2 of the same workflow applied
 the migration and deployed every backend role. Gateway smoke checks and ephemeral
 cache cleanup passed. The repository returned to private after completion. Mainnet
 backend rollout remains separately billing-blocked.
+
+## Deployed 0.5.29–0.5.30 registration refill check (2026-09-22)
+
+Wallet 0.5.29 exposed a registration refill failure on the production-hosted
+testnet service: a fresh wallet retained only three of its intended five ECDSA
+presignatures. The three successful ceremonies took **9.772, 11.033, and 6.933
+seconds**. The 30-second `refillAttemptTimeoutMs` covered the entire sequential
+batch, leaving the fourth ceremony with an almost-expired deadline. The
+[0.5.30 correction](https://github.com/seams-tech/seams-wallet/pull/20) gives
+each entry a fresh, bounded attempt window capped by authenticated session
+expiry. It does not change the five-entry target, authorization, or one-use
+consumption policy.
+
+Both Wallet packages were published as 0.5.30 from
+`4362356dffcd2ed5b2683e757ff679f514cddb29` in
+[release run 35625446070](https://github.com/seams-tech/seams-wallet/actions/runs/35625446070).
+Monorepo PR #34 merged as `c84397813bf1458195984ae4cf443321e28ee1d3`.
+[Frontend deployment](https://github.com/seams-tech/seams-monorepo/actions/runs/35681750563)
+and the [coordinated testnet backend deployment](https://github.com/seams-tech/seams-monorepo/actions/runs/35681756231)
+passed, including frontend and gateway smoke checks. Both hosted wallet asset
+manifests report 0.5.30. Mainnet backend deployment remains a separate billing
+blocker; this check uses testnet services hosted in production.
+
+One fresh Chromium virtual-passkey wallet was registered from Japan without
+request or response interception. The registration UI was ready **10.49 seconds**
+after starting; the first durable entry appeared at **16.36 seconds**, so pool
+completion did not hold registration success. All five ceremonies succeeded,
+with durations **6.009, 5.538, 5.827, 5.800, and 5.406 seconds** (median **5.800
+seconds**), and the durable pool reached **5/5**. All 40 observed fill requests
+returned HTTP 200. Across those requests, median `ecdsa_presign_sw_do_total`
+was **0 ms**, `ecdsa_presign_sw_session` was **23 ms**, and
+`ecdsa_presign_proxy` was **184 ms**. The dependent protocol requests and transit
+remain the larger generation costs in this single hosted run.
+
+All five hashed record fingerprints remained unchanged after reload, with stored
+expiry metadata approximately 90 days away. The first post-reload Tempo funding
+signature consumed one saved presignature, made **zero foreground fill requests**,
+and completed `commit_total` in **2.192 seconds**. The consumed entry was absent
+after signing and background refill restored the pool to five with a new entry.
+This checks hosted persistence, one-use consumption, and refill for one browser
+profile. It does not prove 90 days of wall-clock survival, population p95, Arc
+signing, or the 1–3-second target for empty-pool foreground generation.
+
+Allowlisted local measurements are retained under the private monorepo's ignored
+`output/playwright/presign-registration-attribution-0.5.30.*` and
+`output/playwright/durable-reload-acceptance-0.5.30.*` artifacts. The remaining
+performance task is to measure representative first-use and empty-pool cohorts,
+then benchmark a lower-round-trip presign transport against the current eight
+dependent requests per entry without changing custody or authorization.
