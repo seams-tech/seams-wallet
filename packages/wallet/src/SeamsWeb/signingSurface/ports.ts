@@ -597,6 +597,15 @@ export interface Ed25519MaterialOwnerQueueSurface {
 }
 
 export interface SigningSessionSurface {
+  prepareSigningSessionHydration(input: {
+    preparationId: string;
+    thresholdSessionId: string;
+    prfFirstB64u: string;
+  }): Promise<void>;
+  discardSigningSessionHydration(input: {
+    preparationId: string;
+    thresholdSessionId: string;
+  }): Promise<void>;
   hydrateSigningSession(input: HydrateWarmSigningSessionInput): Promise<void>;
   persistSigningSessionSealForThresholdSession(input: {
     thresholdSessionId: string;
@@ -658,7 +667,10 @@ export type WalletSessionReadSurface = RuntimeStartupSurface &
 export type NearRegistrationContinuationSigningSurface = EcdsaLoginSessionSurface &
   Ed25519YaoCapabilityActivationSurface &
   Pick<WalletCustodyCeremonySurface, 'joinWalletCustodyNearEd25519KeySet'> &
-  Pick<SigningSessionSurface, 'hydrateSigningSession'> &
+  Pick<
+    SigningSessionSurface,
+    'hydrateSigningSession' | 'prepareSigningSessionHydration' | 'discardSigningSessionHydration'
+  > &
   Pick<
     RegistrationAccountSurface,
     | 'activateAuthenticatedWalletState'
@@ -903,7 +915,10 @@ export type RegistrationSigningSurface = RpIdSurface &
   RegistrationResourceWarmupSurface &
   Pick<
     SigningSessionSurface,
-    'hydrateSigningSession' | 'persistSigningSessionSealForThresholdSession'
+    | 'hydrateSigningSession'
+    | 'prepareSigningSessionHydration'
+    | 'discardSigningSessionHydration'
+    | 'persistSigningSessionSealForThresholdSession'
   > &
   Pick<
     EmailOtpRegistrationEnrollmentSurface,

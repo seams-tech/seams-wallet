@@ -60,6 +60,8 @@ export type UserConfirmWorkerMessageType = UserConfirmWorkerMessage['type'];
 export type PasskeyMpcSessionWorkerMessageType =
   | 'PING'
   | 'PREWARM_SHAMIR3PASS'
+  | 'PREPARE_SESSION_CLIENT_SEAL'
+  | 'DISCARD_SESSION_CLIENT_SEAL'
   | 'WARM_SESSION_MATERIAL_PUT'
   | 'WARM_SESSION_STATUS_READ'
   | 'WARM_SESSION_STATUS_BATCH_READ'

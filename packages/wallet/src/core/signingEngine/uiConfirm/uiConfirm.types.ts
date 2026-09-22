@@ -273,6 +273,15 @@ export type UiConfirmRuntimeBridgePort = PromptCapableBootstrapPort & UiConfirmW
 export interface PasskeyMpcSessionWorkerLifecyclePort {
   setWorkerBaseOrigin(origin: string | undefined): void;
   prewarmShamir3Pass(): Promise<void>;
+  prepareSigningSessionHydration(input: {
+    preparationId: string;
+    thresholdSessionId: string;
+    prfFirstB64u: string;
+  }): Promise<void>;
+  discardSigningSessionHydration(input: {
+    preparationId: string;
+    thresholdSessionId: string;
+  }): Promise<void>;
 }
 
 export type PasskeyMpcSessionPort = WarmSessionMaterialWriter &

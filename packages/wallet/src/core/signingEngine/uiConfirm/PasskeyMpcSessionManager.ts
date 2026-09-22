@@ -466,6 +466,31 @@ class PasskeyMpcSessionManagerImpl implements PasskeyMpcSessionPort {
     }
   }
 
+  async prepareSigningSessionHydration(input: {
+    preparationId: string;
+    thresholdSessionId: string;
+    prfFirstB64u: string;
+  }): Promise<void> {
+    const response = await this.sendMessage({
+      type: 'PREPARE_SESSION_CLIENT_SEAL',
+      id: this.generateMessageId(),
+      payload: input,
+    });
+    if (!response.success) throw new Error(response.error || 'Client seal preparation failed');
+  }
+
+  async discardSigningSessionHydration(input: {
+    preparationId: string;
+    thresholdSessionId: string;
+  }): Promise<void> {
+    const response = await this.sendMessage({
+      type: 'DISCARD_SESSION_CLIENT_SEAL',
+      id: this.generateMessageId(),
+      payload: input,
+    });
+    if (!response.success) throw new Error(response.error || 'Client seal cleanup failed');
+  }
+
   putWarmSessionMaterial = async (
     args: Parameters<PasskeyMpcSessionPort['putWarmSessionMaterial']>[0],
   ): Promise<void> => {

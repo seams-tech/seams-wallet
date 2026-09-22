@@ -6205,6 +6205,21 @@ export class BrowserSigningSurface {
   }): Promise<SignerWorkerOperationResult<K, T>> =>
     this.signerWorkerManager.getContext().requestWorkerOperation(args);
 
+  prepareSigningSessionHydration(input: {
+    preparationId: string;
+    thresholdSessionId: string;
+    prfFirstB64u: string;
+  }): Promise<void> {
+    return this.passkeyMpcSession.prepareSigningSessionHydration(input);
+  }
+
+  discardSigningSessionHydration(input: {
+    preparationId: string;
+    thresholdSessionId: string;
+  }): Promise<void> {
+    return this.passkeyMpcSession.discardSigningSessionHydration(input);
+  }
+
   hydrateSigningSession(
     input: Parameters<typeof warmCapabilitiesPublic.hydrateSigningSession>[1],
   ): ReturnType<typeof warmCapabilitiesPublic.hydrateSigningSession> {
