@@ -366,3 +366,91 @@
     grid-template-columns: minmax(0, 1fr) 20px;
   }
 }
+
+.seams-transaction-page {
+  display: grid;
+  gap: 36px;
+}
+.seams-transaction-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.seams-transaction-group legend {
+  padding: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+.seams-transaction-group > p {
+  margin: 8px 0 20px;
+  color: var(--seams-colors-textSecondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.seams-transaction-choices {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.seams-transaction-choices--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.seams-transaction-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 188px;
+  padding: 24px;
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: 16px;
+  background: var(--seams-colors-colorBackground);
+  color: var(--seams-colors-textPrimary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.seams-transaction-choice strong {
+  font-size: 16px;
+}
+.seams-transaction-choice > span:last-child {
+  color: var(--seams-colors-textSecondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.seams-transaction-choice-indicator {
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: 50%;
+}
+.seams-transaction-choice[aria-pressed='true'] {
+  border-color: var(--seams-colors-primary);
+  box-shadow: inset 0 0 0 1px var(--seams-colors-primary);
+  background: var(--seams-colors-surface2);
+}
+.seams-transaction-choice[aria-pressed='true'] .seams-transaction-choice-indicator {
+  border: 6px solid var(--seams-colors-primary);
+}
+.seams-transaction-choice:hover:not(:disabled) {
+  background: var(--seams-colors-surface2);
+}
+.seams-transaction-choice:focus-visible {
+  outline: 2px solid var(--seams-colors-primary);
+  outline-offset: 4px;
+}
+.seams-transaction-choice:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+@media (max-width: 600px) {
+  .seams-transaction-choices {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .seams-transaction-choice {
+    min-height: 0;
+    padding: 20px;
+  }
+}
