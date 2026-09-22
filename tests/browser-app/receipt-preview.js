@@ -9,6 +9,7 @@ let theme = 'light';
 let state = { kind: 'signing' };
 let view = 'expanded';
 let example = 'transfer';
+let authentication = { kind: 'passkey' };
 const variant = new URLSearchParams(location.search).get('variant') === 'drawer' ? 'drawer' : 'modal';
 
 function displayModel() {
@@ -58,7 +59,76 @@ function displayModel() {
 }
 
 function confirm() {
+  if (authentication.kind === 'email-review') {
+    requestAnimationFrame(showEmailStep);
+    return;
+  }
   showStage('signing');
+}
+function showEmailStep() {
+  if (authentication.kind !== 'email-review' || !handle?.element.isConnected) return;
+  authentication = { kind: 'email-code', verification: { kind: 'ready' } };
+  handle.update(model());
+  status.textContent = 'Simulated email verification — use 123456. No email was sent.';
+  requestAnimationFrame(focusEmailCode);
+}
+function focusEmailCode() {
+  parent.querySelector('input[autocomplete="one-time-code"]')?.focus({ preventScroll: true });
+}
+function submitEmailCode(code) {
+  if (authentication.kind !== 'email-code') return;
+  authentication = { kind: 'email-code', verification: { kind: 'pending' } };
+  handle.update(model());
+  setTimeout(completeEmailVerification.bind(null, code, authentication), 300);
+}
+function completeEmailVerification(code, attempt) {
+  if (authentication !== attempt || !handle?.element.isConnected) return;
+  if (code !== '123456') {
+    status.textContent = 'Demo code rejected — use 123456.';
+    authentication = {
+      kind: 'email-code',
+      verification: { kind: 'rejected', message: 'Incorrect demo code. Use 123456.' },
+    };
+    handle.update(model());
+    requestAnimationFrame(focusEmailCode);
+    return;
+  }
+  authentication = { kind: 'email-review' };
+  handle.update(model());
+  showStage('signing');
+}
+function resendEmailCode() {
+  status.textContent = 'Demo code resent — use 123456. No email was sent.';
+  return { challengeId: 'preview-email-challenge', emailHint: 'a••••@example.com' };
+}
+function selectAuthentication(event) {
+  authentication = { kind: event.currentTarget.dataset.auth };
+  for (const button of document.querySelectorAll('[data-auth]')) {
+    button.setAttribute('aria-pressed', String(button === event.currentTarget));
+  }
+  review();
+}
+function promptModel() {
+  switch (authentication.kind) {
+    case 'passkey':
+      return { kind: 'passkey' };
+    case 'email-review':
+      return { kind: 'session' };
+    case 'email-code':
+      return {
+        kind: 'email',
+        email: {
+          prompt: {
+            challengeId: 'preview-email-challenge',
+            emailHint: 'a••••@example.com',
+            helperText: 'Demo email: a••••@example.com. Enter 123456. No email was sent.',
+            onResend: resendEmailCode,
+          },
+          verification: authentication.verification,
+          onSubmit: submitEmailCode,
+        },
+      };
+  }
 }
 function dismiss() {
   handle?.dispose();
@@ -77,6 +147,10 @@ function explorerUrls() {
 }
 function model() {
   const display = displayModel();
+  const emailStep = authentication.kind === 'email-code';
+  let confirmText = 'Confirm with passkey';
+  if (authentication.kind === 'email-review') confirmText = 'Continue with email';
+  if (emailStep) confirmText = 'Verify and sign';
   return {
     appearance: {
       palette: 'default',
@@ -113,31 +187,35 @@ function model() {
     content: {
       kind: 'transaction',
       review: {
-        model: display,
-        tree: buildDisplayTreeFromModel(display),
+        model: emailStep ? null : display,
+        tree: emailStep ? null : buildDisplayTreeFromModel(display),
         detailsInitiallyOpen: new URLSearchParams(location.search).get('details') === 'open'
           || (variant !== 'drawer' && new URLSearchParams(location.search).get('details') !== 'closed'),
       },
       header: {
-        heading: example === 'transfer' ? 'Review your transfer' : 'Review contract call',
+        heading: emailStep ? 'Verify your email' : example === 'transfer' ? 'Review your transfer' : 'Review contract call',
         website: { kind: 'ready', text: 'preview.local' },
         chainDetails: { kind: 'ready', text: example === 'near' ? 'NEAR' : 'Base' },
       },
-      body: { kind: 'empty' },
-      prompt: { kind: 'passkey' },
+      body: emailStep
+        ? { kind: 'text', text: 'Enter your one-time code to authorize this transaction.' }
+        : { kind: 'empty' },
+      prompt: promptModel(),
       transaction: {
         tree: null,
         theme,
         explorers: explorerUrls(),
         decision: { kind: 'ready', onConfirm: confirm },
-        confirmText: 'Confirm with passkey',
+        confirmText,
         cancelText: 'Cancel',
         onCancel: dismiss,
+        onBack: emailStep ? review : undefined,
       },
     },
   };
 }
 function review() {
+  if (authentication.kind === 'email-code') authentication = { kind: 'email-review' };
   handle?.dispose();
   view = 'expanded';
   handle = mountConfirmationSurface({
@@ -193,4 +271,5 @@ for (const button of document.querySelectorAll('[data-stage]'))
 document.querySelector('#minimize').addEventListener('click', minimize);
 document.querySelector('#theme').addEventListener('click', toggleTheme);
 for (const button of document.querySelectorAll('[data-example]')) button.addEventListener('click', selectExample);
+for (const button of document.querySelectorAll('[data-auth]')) button.addEventListener('click', selectAuthentication);
 review();
