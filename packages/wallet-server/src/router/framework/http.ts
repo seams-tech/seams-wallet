@@ -5,6 +5,7 @@ import { ROUTER_AB_ED25519_YAO_RECOVERY_CHALLENGE_ID_HEADER_V1 } from '@shared/u
 import { ROUTER_AB_TRACE_ID_HEADER_V1 } from '@shared/utils/routerAbTraceContext';
 
 const CORS_ALLOW_METHODS = 'GET,POST,PUT,PATCH,DELETE,OPTIONS';
+const CORS_PREFLIGHT_MAX_AGE_SECONDS = 600;
 const CORS_ALLOW_HEADERS = [
   'Content-Type',
   'Authorization',
@@ -50,6 +51,9 @@ export function withCors(headers: Headers, opts?: RouterApiOptions, request?: Re
     headers.delete('Access-Control-Allow-Credentials');
     headers.set('Access-Control-Allow-Methods', CORS_ALLOW_METHODS);
     headers.set('Access-Control-Allow-Headers', CORS_ALLOW_HEADERS);
+    if (request?.method === 'OPTIONS') {
+      headers.set('Access-Control-Max-Age', String(CORS_PREFLIGHT_MAX_AGE_SECONDS));
+    }
     return;
   }
 
@@ -70,6 +74,9 @@ export function withCors(headers: Headers, opts?: RouterApiOptions, request?: Re
   }
   headers.set('Access-Control-Allow-Methods', CORS_ALLOW_METHODS);
   headers.set('Access-Control-Allow-Headers', CORS_ALLOW_HEADERS);
+  if (allowedOrigin && request?.method === 'OPTIONS') {
+    headers.set('Access-Control-Max-Age', String(CORS_PREFLIGHT_MAX_AGE_SECONDS));
+  }
   if (headers.has('Server-Timing')) {
     headers.set('Access-Control-Expose-Headers', 'Server-Timing');
   }

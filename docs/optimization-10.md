@@ -1529,3 +1529,32 @@ eight-request baseline. Keep every message bound to the live authorization and
 the same one-use presign session. The 1–3-second immediate-sign target is not
 met by the current hosted empty-pool path; record a before/after cohort before
 claiming an optimization.
+
+### Hosted presign transit and preflight follow-up
+
+A second fresh 0.5.30 testnet registration reached five durable entries. Its
+five generation ceremonies took **6.612, 5.402, 4.855, 4.967, and 5.213
+seconds**. Read-only signing-worker tail telemetry counted eight session-object
+calls per ceremony, with **154–214 ms** of Durable Object CPU per ceremony.
+Browser spans totaled **4.355–5.433 seconds** per ceremony. Gateway
+authentication totaled **0.794–1.057 seconds**, and its signing-worker proxy
+totaled **1.855–2.283 seconds**. These nested spans and one browser profile
+cannot establish a population percentile. The earlier `do_total` wall timer
+read 0–1 ms because Cloudflare application clocks can pause during CPU work;
+the runtime CPU telemetry is the relevant measurement.
+
+The hosted API's CORS preflight response omitted `Access-Control-Max-Age`.
+In a browser probe against the same testnet route with an invalid credential,
+the first request to a fresh URL incurred an OPTIONS request and took **614
+ms**; a repeated request to that URL, with preflight cached, took **149 ms**.
+Another fresh URL took **619 ms**. After six seconds, the browser sent another
+OPTIONS request for the same URL. These probes isolate preflight behavior;
+their timings do not measure an authorized MPC ceremony.
+
+The router now advertises a **600-second** preflight cache lifetime for an
+allowed origin. It continues checking the current allowed-origin list on each
+actual response, and each presign message still receives fresh authorization.
+Measure the deployed change before attributing any reduction in full
+generation time. The remaining larger costs are the dependent browser,
+authorization, and worker/object exchanges, followed by signing prepare and
+finalize when the pool is empty.
