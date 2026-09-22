@@ -1901,3 +1901,29 @@ Allowlisted artifacts in the private repository's ignored `output/playwright/`:
 `signing-prepare-tail-0.5.33.jsonl`, and
 `signing-prepare-attribution-0.5.33.json`. The tail collectors have been stopped;
 the registered browser credential remains preserved.
+
+An extended six-signature capture on the same preserved wallet recorded
+`requestfinished` and `requestfailed` alongside response headers. All six
+signatures succeeded and all 36 captured requests completed, with no failures.
+Preparation ranged from 0.676s to 1.950s. Response-header-to-body-completion
+timing ranged from 0.361ms to 1.175s (median 2.654ms). The 1.175s body interval
+was a presign step whose gateway total was only 367ms. Response delivery or
+browser scheduling therefore adds a separate delay beyond the server spans;
+the capture does not distinguish those mechanisms.
+
+Finalization also exhibited a distinct completion-stage outlier: gateway
+`ecdsa_sign_complete` took 1.575s, compared with 19–43ms in four later samples
+and 841ms in the first sample. This stage awaits durable authorized-operation
+completion after the signing-worker response, including its result digest,
+conditional D1 update, and read-back. It must remain durable before replying;
+moving it into background work would weaken the completion/replay contract.
+Investigate reducing redundant database round trips while retaining that
+contract. This outlier is separate from preparation and body delivery.
+
+The completed-body capture is saved as
+`signing-body-diagnostic-0.5.33-summary.json`, with
+`signing-body-tail-0.5.33.jsonl` and `signing-body-attribution-0.5.33.json`.
+These six samples also did not reproduce the original 9–10s preparation delay.
+Further identical cohorts without finer internal spans are unlikely to resolve
+the remaining attribution gap; prioritize internal transport timing and the
+measured completion path before another hosted comparison.
