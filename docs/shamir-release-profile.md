@@ -66,9 +66,9 @@ Client-seal timings recorded under hydration describe the earlier preparation;
 they are not an additional sequential hydration stage.
 
 EVM return was effectively unchanged in this sample, and its p95 rose slightly.
-Twenty samples per cohort do not establish production tail latency. Further
-improvements now depend more on the roughly 47-ms authorized server request,
-which follows finalization, and deployed network behavior.
+Twenty samples per cohort do not establish production tail latency. The
+[server-seal investigation](./server-seal-release-profile.md) subsequently
+confirmed that the same release-profile fix also reduces the server request.
 
 [Timing samples and artifact hashes](./shamir-release-profile-latency.json)
 
