@@ -2058,3 +2058,20 @@ tests, the real six-exchange owner adapter, both opaque-worker behavioral tests,
 focused TypeScript checking, and client WASM compilation. The existing opaque
 fixture needed its current identity and lifetime fields restored; no production
 behavior was changed for that stale fixture. No hosted gain is claimed.
+
+Owner completion now calls typed presignature admission directly inside the
+SigningWorker. Previously it serialized the secret pool-put request into a local
+`worker::Request`, immediately reparsed it in the pool-put handler, and encoded
+an unused success receipt. The HTTP pool-put boundary and completed owner flow
+now share one admission function. Both retain expiry validation, fresh active
+material lookup, canonical record construction, and the existing atomic D1
+mutation. The obsolete internal HTTP-request helper was deleted. This removes
+local serialization and response construction, not a network round trip.
+
+The isolated SigningWorker WASM check/build and real workerd/private-D1
+six-exchange integration passed, including matching client/server output,
+eviction-safe replay rejection, and immutable expiry. Logs:
+`/tmp/presign-typed-admission-{check,build,integration}.log`. No shared build
+artifacts were overwritten. Owner signing-intent fusion remains unfinished;
+this refactor adds no route, custody store, or authorization bypass, and no
+hosted latency gain is claimed.
