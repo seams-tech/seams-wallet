@@ -1,3 +1,4 @@
+import type { WalletIframeSurfaceMeasurement } from '../../walletIframe/shared/messages';
 import type {
   WalletRecoveryCodeBackupAcknowledgementV1,
   WalletRecoveryCodeBackupRequestV1,
@@ -107,7 +108,7 @@ async function showRecoveryCodeExperience(
             kind: 'request_scroll_surface',
             requestId: measurementBinding.requestId,
             element: dialog,
-            postMeasurement: measurementBinding.postMeasurement,
+            postMeasurement: postRecoveryMeasurement.bind(null, dialog, measurementBinding.postMeasurement),
           });
         },
       });
@@ -134,4 +135,21 @@ export async function showWalletRecoveryCodesUi(
     measurementBinding,
     options,
   );
+}
+
+function postRecoveryMeasurement(
+  dialog: HTMLDialogElement,
+  postMeasurement: (measurement: WalletIframeSurfaceMeasurement) => void,
+  measurement: WalletIframeSurfaceMeasurement,
+): void {
+  if (measurement.kind !== 'measured_v1') {
+    throw new Error('Recovery codes require a request surface measurement');
+  }
+  postMeasurement({
+    kind: 'measured_v1',
+    requestId: measurement.requestId,
+    sequence: measurement.sequence,
+    widthCssPx: dialog.dataset.seamsRecoveryStage === 'recovery_codes' ? 688 : 480,
+    heightCssPx: measurement.heightCssPx,
+  });
 }

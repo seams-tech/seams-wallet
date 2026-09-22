@@ -143,6 +143,10 @@ class SurfaceMeasurementReporter implements WalletIframeSurfaceMeasurementReport
     if (typeof ResizeObserver === 'function') {
       this.observer = new ResizeObserver(this.onResize);
       this.observer.observe(options.element);
+      // Scroll content can grow while its viewport-constrained outer box stays fixed.
+      if (options.kind === 'request_scroll_surface' && options.element.firstElementChild) {
+        this.observer.observe(options.element.firstElementChild);
+      }
       this.reportLatestSize();
       return;
     }

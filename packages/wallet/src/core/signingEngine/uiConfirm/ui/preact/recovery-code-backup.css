@@ -20,6 +20,7 @@ dialog[data-seams-wallet-recovery-backup-dialog] {
   position: relative;
   box-sizing: border-box;
   overflow: auto;
+  scrollbar-width: none;
   /* Suppress rubber-band bounce: the card can measure fractionally taller
      than the frame's whole-px height, leaving a sub-pixel scroll range. */
   overscroll-behavior: none;
@@ -52,7 +53,7 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='st
 }
 
 dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='standalone'][data-seams-recovery-stage='recovery_codes'] {
-  width: min(46rem, calc(100vw - 1.5rem));
+  width: min(43rem, calc(100vw - 1.5rem));
 }
 
 dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='standalone']::backdrop {
@@ -74,12 +75,12 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wa
 
 dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wallet-iframe'][data-seams-recovery-stage='summary'],
 dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wallet-iframe'][data-seams-recovery-stage='opening'] {
-  width: 46rem;
+  width: 30rem;
   max-width: 100vw;
 }
 
 dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wallet-iframe'][data-seams-recovery-stage='recovery_codes'] {
-  width: 46rem;
+  width: 43rem;
   max-width: 100vw;
 }
 
@@ -464,4 +465,8 @@ dialog[data-seams-wallet-recovery-backup-dialog][data-seams-recovery-surface='wa
   margin-top: 0.125rem;
   font-size: 0.75rem;
   color: var(--seams-colors-textSecondary);
+}
+
+dialog[data-seams-wallet-recovery-backup-dialog]::-webkit-scrollbar {
+  display: none;
 }

@@ -23,6 +23,7 @@ type RecoveryTestState = {
 declare global {
   interface Window {
     __recoveryTest: RecoveryTestState;
+    __recoveryHeights: number[];
   }
 }
 
@@ -380,20 +381,36 @@ test('recovery codes fit the wallet iframe at desktop and mobile widths', async 
   await dialog.evaluate(element => {
     element.setAttribute('data-seams-recovery-surface', 'wallet-iframe');
   });
+  await page.setViewportSize({ width: 480, height: 320 });
+  await dialog.evaluate(async element => {
+    const { createWalletIframeSurfaceMeasurementReporter } = await import(
+      '/_test-sdk/esm/SeamsWeb/walletIframe/host/surface-measurement-reporter.js'
+    );
+    window.__recoveryHeights = [];
+    createWalletIframeSurfaceMeasurementReporter({
+      kind: 'request_scroll_surface',
+      element,
+      requestId: 'recovery-sizing',
+      postMeasurement: measurement => window.__recoveryHeights.push(measurement.heightCssPx),
+    });
+  });
+  const summaryHeight = await page.evaluate(() => window.__recoveryHeights[0]);
   await page.getByRole('button', { name: 'View recovery codes' }).click();
   await expect(page.locator('.recovery-code-value')).toHaveCount(10);
+  await expect.poll(() => page.evaluate(() => window.__recoveryHeights.at(-1))).toBeGreaterThan(summaryHeight);
+
   await page.locator('.recovery-code-value').evaluateAll(elements => {
     for (const element of elements) {
       element.textContent = 'DEMO-0000-ABCD-1234-DEMO-0000-ABCD-1234';
     }
   });
-  for (const width of [736, 375]) {
+  for (const width of [688, 375]) {
     await page.setViewportSize({ width, height: 640 });
     const bounds = await dialog.boundingBox();
     expect(bounds).not.toBeNull();
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
     expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-    if (width === 736) {
+    if (width === 688) {
       expect(await dialog.evaluate(element => element.scrollHeight <= element.clientHeight)).toBe(true);
       const first = await page.locator('.recovery-code-item').nth(0).boundingBox();
       const second = await page.locator('.recovery-code-item').nth(1).boundingBox();

@@ -2229,17 +2229,13 @@ export class WalletIframeRouter {
       this.transactionReceipt?.requestId === surface.identity.requestId
         ? this.transactionReceipt.view
         : null;
-    // Recovery codes need room for two columns, including after the summary is measured.
-    if (surface.kind === 'modal_recovery_codes' && measurement?.kind === 'measured') {
-      measurement = { kind: 'measured', widthCssPx: 736, heightCssPx: measurement.heightCssPx };
-    }
     const resolvedGeometry = resolveWalletIframeSurfaceGeometry({
       presentation: receiptView
         ? { kind: 'modal', title: 'Transaction receipt' }
         : surface.presentation,
       viewport,
       measurement,
-      maxModalWidthCssPx: surface.kind === 'modal_recovery_codes' ? 736 : undefined,
+      maxModalWidthCssPx: surface.kind === 'modal_recovery_codes' ? 688 : undefined,
     });
     const anchor =
       surface.kind === 'modal_auth_menu'

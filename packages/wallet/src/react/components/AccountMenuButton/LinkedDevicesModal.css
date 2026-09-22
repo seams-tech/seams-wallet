@@ -125,6 +125,7 @@
   min-height: 0;
   gap: var(--seams-spacing-sm, 0.5rem);
   overflow-y: auto;
+  scrollbar-width: none;
   overscroll-behavior: none;
 }
 
@@ -604,4 +605,8 @@
 .seams-linked-devices-modal-content *::before,
 .seams-linked-devices-modal-content *::after {
   box-sizing: border-box;
+}
+
+.seams-linked-devices-modal-body::-webkit-scrollbar {
+  display: none;
 }
