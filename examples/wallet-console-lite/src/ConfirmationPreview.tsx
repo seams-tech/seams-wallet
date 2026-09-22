@@ -213,7 +213,10 @@ export function ConfirmationPreview({ render, onFinish }: PreviewProps) {
       className="seams-transaction-review-content prediction-preview-content"
       ref={session.observe.bind(session)}
     >
-      <p className="prediction-caption">Interactive preview · nothing will be signed or sent</p>
+      <div className="prediction-review-heading">
+        <span>01 / Review order</span>
+        <span className="prediction-demo-badge">Testnet preview</span>
+      </div>
       <h2>Review purchase</h2>
       {render({
         continueToWallet: session.continueToWallet,

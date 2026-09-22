@@ -20,39 +20,62 @@ function PurchaseSummary({ quote, controls }: PurchaseSummaryProps) {
   useEffect(startQuoteClock.bind(null, quote.expiresAtMs, setSeconds), [quote.expiresAtMs]);
   return (
     <div className="prediction-review">
-      <p className="prediction-caption">Testnet · fixture quote</p>
-      <p className="prediction-market">Lot 542 · Otsuka Lotec No.7.5</p>
+      <div className="prediction-market">
+        <span className="prediction-lot">LOT 542 · OTSUKA LOTEC NO.7.5</span>
+        <h3>Will it sell above its estimate?</h3>
+      </div>
       <div className="prediction-summary">
-        <strong>Buy {quote.outcome}</strong>
-        <span className="prediction-amount">
-          {quote.amount} <small>test units</small>
-        </span>
+        <div className="prediction-summary-top">
+          <span className="prediction-outcome">
+            Buy {quote.outcome} <span aria-hidden="true">↗</span>
+          </span>
+          <span className="prediction-summary-label">Prediction market</span>
+        </div>
+        <div className="prediction-summary-values">
+          <div>
+            <span className="prediction-summary-label">You pay</span>
+            <strong className="prediction-amount">{quote.amount}</strong>
+            <span className="prediction-summary-label">test units</span>
+          </div>
+          <div>
+            <span className="prediction-summary-label">You receive</span>
+            <strong className="prediction-position-count">{quote.positions}</strong>
+            <span className="prediction-summary-label">YES positions</span>
+          </div>
+        </div>
       </div>
       <dl className="prediction-details">
-        <dt>Positions quoted</dt>
-        <dd>{quote.positions}</dd>
-        <dt>Trading fee · included</dt>
-        <dd>{quote.fee} test units</dd>
         <dt>Minimum positions</dt>
         <dd>{quote.minimumPositions}</dd>
+        <dt>
+          Trading fee <span className="prediction-included">Included</span>
+        </dt>
+        <dd>{quote.fee} test units</dd>
         <dt>Network fee</dt>
-        <dd>No fee · preview only</dd>
+        <dd>
+          No fee <span className="prediction-detail-note">· preview</span>
+        </dd>
       </dl>
-      <p className="prediction-caption">Quote expires in {seconds}s</p>
-      <p className="prediction-disclosure">
-        Preview only: continue to inspect the wallet approval screen. Nothing will be signed or sent.
-      </p>
+      <div className="prediction-expiry">
+        <div>
+          <span>{seconds === 0 ? 'Quote expired' : 'Quote expires in'}</span>
+          <strong>{seconds}s</strong>
+        </div>
+        <progress aria-label="Quote time remaining" max={90} value={seconds} />
+      </div>
       <button
         className="prediction-confirm"
         type="button"
         disabled={seconds === 0}
         onClick={controls.continueToWallet}
       >
-        Confirm in wallet
+        <span>Confirm in wallet</span>
+        <span aria-hidden="true">→</span>
       </button>
       <button className="prediction-cancel" type="button" onClick={controls.cancel}>
         Back to trade
       </button>
+      <p className="prediction-disclosure">Demo only. Nothing will be signed or sent.</p>
     </div>
   );
 }
