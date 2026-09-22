@@ -731,6 +731,34 @@ Release verification follow-up on 2026-09-22:
   These viewport checks do not establish desktop browser zoom or physical keyboard
   behavior.
 
+Live signing and desktop zoom acceptance on 2026-09-22:
+
+- Added a permanent intended contract using the public React-bound EVM signer
+  under `TransactionReviewHost`. The test registers a real local MPC wallet,
+  enters a review note, verifies that Continue exposes a separate wallet approval,
+  and signs an Arc testnet EIP-1559 transaction. It independently decodes the
+  signed bytes and recovers the registered signer address, checking the chain,
+  recipient, and zero value. It passed in 34.1 seconds. No transaction is broadcast;
+  the existing intended harness still supplies external RPC fixtures and virtual
+  WebAuthn credentials. This adds a 24th passing intended contract.
+- Corrected two assertions in that new test against existing contracts:
+  `txHashHex` is the unsigned signing digest, and viem omits the decoded zero-value
+  field. These were test errors; production signing behavior was unchanged.
+- Verified actual Chromium desktop zoom at 200% through the native browser
+  controls, with a matching doubled device-pixel ratio. The review and wallet
+  handoff, expanded transaction details, full visibility of the focused Confirm
+  button, and Enter approval passed. Screenshots are outside Git. The final check
+  passed in 39.0 seconds; temporary acceptance tooling was removed afterward.
+- Added a permanent short-viewport keyboard/scroll regression case. It passed in
+  Chromium, Firefox, and WebKit, including full Confirm visibility after expanding
+  transaction details. No production scrolling change was needed.
+- Intended and browser TypeScript checks passed. The ordinary registration/signing
+  regression passed in 32.1 seconds with the review host mounted.
+- Physical-device discovery returned no connected devices. VoiceOver failed to
+  launch through the native app tool, and its keyboard shortcut did not start a
+  VoiceOver process. Screen-reader and physical mobile-keyboard acceptance remain
+  unverified; accessibility-tree inspection is not substituted for those checks.
+
 Failures classified and resolved during verification:
 
 - Test fixture corrections: startup prefetch response, enabled signing capability,
@@ -745,16 +773,17 @@ Failures classified and resolved during verification:
 - Bare Node import of the broad React entry encounters existing CSS imports;
   Vite SSR import passed with the exported review host present.
 
-Limitations: browser fixtures do not execute live MPC/broadcast or hardware
-credentials. Manual screen-reader and mobile-keyboard sessions have not run.
-The detailed phase checklist above remains the release acceptance inventory;
-unchecked multi-part items include checks beyond the automated evidence here.
+Limitations: the focused cross-browser review fixtures simulate signer results;
+the new reviewed EVM intended contract executes local MPC signing with virtual
+credentials and external RPC fixtures. Broadcast and hardware credentials are not
+covered by that contract. Manual screen-reader and physical mobile-keyboard sessions
+remain unverified. The detailed phase checklist above remains the broader release
+acceptance inventory; unchecked multi-part items include checks beyond this evidence.
 
-Remaining release work: complete manual screen-reader/mobile-keyboard checks and
-actual desktop 200% zoom acceptance, including transition inspection with expanded
-transaction details and slow assets. The custom-review browser suite
-uses simulated signer results; the intended contracts exercise the existing live
-signing paths. Publication and deployment are separate actions.
+Remaining environment-dependent acceptance: a working screen-reader session and a
+connected physical mobile device for keyboard/viewport checks. Actual desktop 200%
+zoom and a live reviewed signing path now have recorded passing evidence.
+Publication and deployment are separate actions.
 
 ## Later enhancement: toggleable views
 

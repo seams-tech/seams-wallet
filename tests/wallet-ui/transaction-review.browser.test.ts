@@ -379,6 +379,22 @@ test('review geometry fits narrow screens and large content with reduced motion'
   await page.getByRole('button', { name: 'Cancel purchase' }).click();
 });
 
+test('expanded wallet approval scrolls keyboard focus into a short viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 360 });
+  await page.getByRole('button', { name: 'Buy', exact: true }).click();
+  await page.getByRole('button', { name: 'Continue to wallet', exact: true }).click();
+  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  const details = wallet.getByText('Transaction details', { exact: true });
+  await details.click();
+  const confirm = wallet.locator('button.confirm');
+  await confirm.focus();
+  await expect(confirm).toBeInViewport({ ratio: 1 });
+  await confirm.press('Enter');
+  await expect
+    .poll(() => page.evaluate(() => (window as any).reviewResults[0]?.kind))
+    .toBe('result');
+});
+
 test('wallet admission arbitrates credential cancellation and preserves a started signature', async ({
   page,
 }) => {

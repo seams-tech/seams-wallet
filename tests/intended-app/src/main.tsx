@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { SeamsWebProvider, defineSeamsConfig } from '@seams/wallet/react';
+import { SeamsWebProvider, TransactionReviewHost, defineSeamsConfig } from '@seams/wallet/react';
 import '@seams/wallet/react/styles';
 import { IntendedBehaviourE2EPage } from './page';
 
@@ -55,7 +55,9 @@ if (!root) throw new Error('Missing #root');
 createRoot(root).render(
   <React.StrictMode>
     <SeamsWebProvider eager config={config}>
-      <IntendedBehaviourE2EPage />
+      <TransactionReviewHost>
+        <IntendedBehaviourE2EPage />
+      </TransactionReviewHost>
     </SeamsWebProvider>
   </React.StrictMode>,
 );
