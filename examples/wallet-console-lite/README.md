@@ -24,11 +24,17 @@ If a run is interrupted, stop any remaining `wrangler dev` processes before rest
 
 ## Prediction-market transaction review
 
-Choose **Preview review component** to inspect the actual React trade summary
-without signing in. This inline preview reuses the component passed to
-`review.render`; its buttons report a preview result or close the preview, and
-never sign or send a transaction. Select a new amount and open the preview again
+Choose **Preview review → wallet modal** to open the React trade summary inside
+the production SDK review overlay without signing in. **Confirm in wallet**
+transitions that same overlay to the production transaction confirmer, where you
+can expand transaction details, approve the preview, or cancel. Approval is
+simulated: nothing is signed or sent. Select a new amount and reopen the preview
 to refresh its fixture quote.
+
+This repository-only UI showcase imports SDK internals through the
+`@wallet-preview` Vite alias and uses a separate fixture iframe. It demonstrates
+rendering and interaction; the authenticated example below demonstrates the
+public `review` API and real signing flow.
 
 After local project setup, create or unlock a NEAR testnet wallet. In the
 **Prediction market · R140 demo** panel, choose YES or NO and a fixture amount,

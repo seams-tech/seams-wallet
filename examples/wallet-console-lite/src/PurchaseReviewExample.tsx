@@ -1,5 +1,6 @@
-import { lazy, useEffect, useState, type ComponentType } from 'react';
+import { lazy, useCallback, useEffect, useState, type ComponentType } from 'react';
 import { transfer, useWallet, type TransactionReviewControls } from '@seams/wallet/react';
+import { ConfirmationPreview } from './ConfirmationPreview';
 
 type PurchaseState = { kind: 'idle' } | { kind: 'pending' } | { kind: 'complete'; message: string };
 
@@ -13,9 +14,13 @@ type FixtureQuote = {
   expiresAtMs: number;
 };
 type ReviewScenario = 'normal' | 'expired' | 'slow' | 'failing';
-type PurchaseSummaryProps = { quote: FixtureQuote; controls: TransactionReviewControls };
+type PurchaseSummaryProps = {
+  quote: FixtureQuote;
+  controls: TransactionReviewControls;
+  preview?: boolean;
+};
 
-function PurchaseSummary({ quote, controls }: PurchaseSummaryProps) {
+function PurchaseSummary({ quote, controls, preview = false }: PurchaseSummaryProps) {
   const [seconds, setSeconds] = useState(remainingSeconds(quote.expiresAtMs));
   useEffect(startQuoteClock.bind(null, quote.expiresAtMs, setSeconds), [quote.expiresAtMs]);
   return (
@@ -36,12 +41,13 @@ function PurchaseSummary({ quote, controls }: PurchaseSummaryProps) {
         <dt>Minimum positions</dt>
         <dd>{quote.minimumPositions}</dd>
         <dt>Network fee</dt>
-        <dd>Shown in wallet</dd>
+        <dd>{preview ? 'No fee · preview only' : 'Shown in wallet'}</dd>
       </dl>
       <p className="prediction-caption">Quote expires in {seconds}s</p>
       <p className="prediction-disclosure">
-        Demo only: the wallet will request a zero-value NEAR self-transfer. Testnet gas applies. No
-        market position is purchased.
+        {preview
+          ? 'Preview only: continue to inspect the wallet approval screen. Nothing will be signed or sent.'
+          : 'Demo only: the wallet will request a zero-value NEAR self-transfer. Testnet gas applies. No market position is purchased.'}
       </p>
       <button
         className="prediction-confirm"
@@ -73,6 +79,10 @@ function startQuoteClock(expiresAtMs: number, setSeconds: (seconds: number) => v
 
 function renderPurchase(quote: FixtureQuote, controls: TransactionReviewControls) {
   return <PurchaseSummary quote={quote} controls={controls} />;
+}
+
+function renderPreviewPurchase(quote: FixtureQuote, controls: TransactionReviewControls) {
+  return <PurchaseSummary quote={quote} controls={controls} preview />;
 }
 
 function loadSlowPurchase(): Promise<{ default: typeof PurchaseSummary }> {
@@ -129,19 +139,13 @@ function openPreview(
   setPreview(fixtureQuote(outcome, amount, false));
 }
 
-function previewContinued(setMessage: (message: string) => void) {
-  setMessage(
-    'Component preview complete. Sign in and choose Review prediction trade to use the real wallet approval flow. Nothing was signed or sent.',
-  );
-}
-
-function showPreview(quote: FixtureQuote | null) {
-  if (quote)
-    document.getElementById('prediction-review-preview')?.scrollIntoView({ block: 'center' });
-}
-
-function previewFailed(setMessage: (message: string) => void, error: unknown) {
-  setMessage(error instanceof Error ? error.message : 'Preview failed.');
+function finishPreview(
+  setPreview: (quote: FixtureQuote | null) => void,
+  setMessage: (message: string) => void,
+  message: string,
+) {
+  setPreview(null);
+  setMessage(message);
 }
 
 async function startPurchase(
@@ -197,7 +201,10 @@ export function PurchaseReviewExample({ onRequestSignIn }: { onRequestSignIn: ()
   const [amount, setAmount] = useState(0.1);
   const [preview, setPreview] = useState<FixtureQuote | null>(null);
   const [previewMessage, setPreviewMessage] = useState('');
-  useEffect(showPreview.bind(null, preview), [preview]);
+  const onPreviewFinished = useCallback(
+    finishPreview.bind(null, setPreview, setPreviewMessage),
+    [],
+  );
   return (
     <section className="panel prediction-demo" id="prediction-market">
       <p className="eyebrow">Prediction market · R140 demo</p>
@@ -242,8 +249,11 @@ export function PurchaseReviewExample({ onRequestSignIn }: { onRequestSignIn: ()
         type="button"
         onClick={openPreview.bind(null, outcome, amount, setPreview, setPreviewMessage)}
       >
-        Preview review component
+        Preview review → wallet modal
       </button>
+      <p className="prediction-caption">
+        Open the full modal preview without signing in. Approval is simulated.
+      </p>
       {wallet.status === 'signed_out' ? (
         <p>Sign in to open the review. You can choose your position and amount first.</p>
       ) : null}
@@ -315,27 +325,12 @@ export function PurchaseReviewExample({ onRequestSignIn }: { onRequestSignIn: ()
         Try failing review
       </button>
       <p role="status">{state.kind === 'complete' ? state.message : ''}</p>
+      <p role="status">{previewMessage}</p>
       {preview ? (
-        <section
-          id="prediction-review-preview"
-          className="prediction-preview"
-          aria-label="Review component preview"
-        >
-          <p className="prediction-caption">Component preview · no wallet or transaction</p>
-          <h3>Review purchase</h3>
-          <PurchaseSummary
-            key={preview.expiresAtMs}
-            quote={preview}
-            controls={{
-              continueToWallet: previewContinued.bind(null, setPreviewMessage),
-              cancel: setPreview.bind(null, null),
-              fail: previewFailed.bind(null, setPreviewMessage),
-            }}
-          />
-          <p role="status" className="prediction-caption">
-            {previewMessage}
-          </p>
-        </section>
+        <ConfirmationPreview
+          render={renderPreviewPurchase.bind(null, preview)}
+          onFinish={onPreviewFinished}
+        />
       ) : null}
     </section>
   );

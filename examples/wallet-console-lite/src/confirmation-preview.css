@@ -1,0 +1,11 @@
+html,
+body {
+  margin: 0;
+  background: transparent;
+}
+
+/* Let the parent measure the card rather than the fixture iframe's viewport. */
+.seams-confirmation-surface {
+  inline-size: fit-content;
+  max-inline-size: 100%;
+}
