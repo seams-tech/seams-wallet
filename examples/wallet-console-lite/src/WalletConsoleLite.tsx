@@ -1,4 +1,11 @@
-import { useCallback, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import {
   AccountMenuButton,
   SeamsWebProvider,
@@ -49,7 +56,7 @@ async function exportWalletKey(
   }
 }
 
-export function WalletConsoleLite() {
+export function WalletConsoleLite({ children }: { children?: ReactNode }) {
   const [workspace, setWorkspace] = useState<LocalWorkspaceState>({ kind: 'empty' });
   const handleSetup = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -64,7 +71,9 @@ export function WalletConsoleLite() {
   if (workspace.kind !== 'ready') {
     return <SetupScreen state={workspace} onSubmit={handleSetup} />;
   }
-  return <ConfiguredWalletPlayground workspace={workspace} />;
+  return (
+    <ConfiguredWalletPlayground workspace={workspace}>{children}</ConfiguredWalletPlayground>
+  );
 }
 
 function SetupScreen(props: {
@@ -121,7 +130,13 @@ function SetupScreen(props: {
   );
 }
 
-function ConfiguredWalletPlayground({ workspace }: { workspace: ReadyLocalWorkspace }) {
+function ConfiguredWalletPlayground({
+  workspace,
+  children,
+}: {
+  workspace: ReadyLocalWorkspace;
+  children?: ReactNode;
+}) {
   const config = useMemo(() => createWalletConfig(workspace), [workspace]);
   const [shape, setShape] = useState<WalletShapeId>('square');
   const theme = useMemo(
@@ -140,7 +155,9 @@ function ConfiguredWalletPlayground({ workspace }: { workspace: ReadyLocalWorksp
   return (
     <SeamsWebProvider eager config={config} theme={theme}>
       <TransactionReviewHost>
-        <WalletPlayground workspace={workspace} shape={shape} onShapeChange={handleShapeChange} />
+        {children ?? (
+          <WalletPlayground workspace={workspace} shape={shape} onShapeChange={handleShapeChange} />
+        )}
       </TransactionReviewHost>
     </SeamsWebProvider>
   );
