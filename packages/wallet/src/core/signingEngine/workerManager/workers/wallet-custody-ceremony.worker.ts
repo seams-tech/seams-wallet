@@ -185,6 +185,8 @@ type CompleteEd25519YaoLaneRequest = WorkerRequest<'completeEd25519YaoLane'>;
 type DiscardEd25519YaoLaneSourceRequest = WorkerRequest<'discardEd25519YaoLaneSource'>;
 
 type WalletCustodyCeremonyWorkerRequest =
+  | WorkerRequest<'checkpointNearRegistration'>
+  | WorkerRequest<'restoreNearRegistration'>
   | BeginRequest
   | CompleteRequest
   | FinishRequest
@@ -570,14 +572,40 @@ function takeCeremony<TStep extends CeremonyState['step']>(
   return state as Extract<CeremonyState, { step: TStep }>;
 }
 
-/**
- * Starts a run: takes hold of the wallet's seed, then derives this key set's
- * root straight into its protocol.
- *
- * Establishing generates the seed here; joining opens the envelope custody
- * already has. The open is what authorises a joining run — its AAD binds the
- * seed to the wallet, so a successful open proves the seed is that wallet's own.
- */
+function checkpointNearRegistration(
+  request: WorkerRequest<'checkpointNearRegistration'>,
+): WalletCustodyCeremonyWorkerOperationMap['checkpointNearRegistration']['result'] {
+  const ceremonyId = requireCeremonyId(request.payload.ceremonyId);
+  const state = ceremonies.get(ceremonyId);
+  if (state?.step !== 'near_prepared') {
+    throw new Error('NEAR checkpoint requires a prepared ceremony');
+  }
+  return { checkpointJson: state.handle.checkpoint_near_registration() };
+}
+
+function restoreNearRegistration(
+  request: WorkerRequest<'restoreNearRegistration'>,
+): WalletCustodyCeremonyWorkerOperationMap['restoreNearRegistration']['result'] {
+  const ceremonyId = requireCeremonyId(request.payload.ceremonyId);
+  if (ceremonies.has(ceremonyId) || ceremonies.size >= MAX_CONCURRENT_CEREMONIES) {
+    throw new Error('NEAR restoration requires an available ceremony slot');
+  }
+  const seedHeld = takeSeed({
+    origin: 'join',
+    custodyJson: request.payload.custodyJson,
+    factorSecret: request.payload.factorSecret,
+  });
+  const prepared = seedHeld.restore_near_registration(request.payload.checkpointJson);
+  const yaoExecuteRequestJson = prepared.yao_execute_request_json();
+  if (!yaoExecuteRequestJson) {
+    prepared.free();
+    throw new Error('NEAR restoration returned no execution request');
+  }
+  ceremonies.set(ceremonyId, { step: 'near_prepared', handle: prepared });
+  return { ceremonyId, yaoExecuteRequestJson };
+}
+
+/** Opens or establishes custody and derives this key set's protocol inputs. */
 function beginKeySetRun(request: BeginRequest): unknown {
   const ceremonyId = requireCeremonyId(request.payload.ceremonyId);
   if (ceremonies.has(ceremonyId)) {
@@ -1179,6 +1207,12 @@ async function handleRequest(request: WalletCustodyCeremonyWorkerRequest): Promi
       return;
     case 'discardEd25519YaoLaneSource':
       postSucceeded(request.id, discardEd25519YaoLaneSource(request));
+      return;
+    case 'checkpointNearRegistration':
+      postSucceeded(request.id, checkpointNearRegistration(request));
+      return;
+    case 'restoreNearRegistration':
+      postSucceeded(request.id, restoreNearRegistration(request));
       return;
     case 'beginWalletCustodyKeySetRun':
       postSucceeded(request.id, beginKeySetRun(request));

@@ -7,9 +7,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const appOrigin = 'http://localhost:4201';
-const walletOrigin = 'http://localhost:4202';
-const gatewayUrl = 'http://127.0.0.1:4100';
+const appOrigin = process.env.SEAMS_INTENDED_APP_URL || 'http://localhost:4201';
+const walletOrigin = process.env.SEAMS_INTENDED_WALLET_ORIGIN || 'http://localhost:4202';
+const gatewayUrl = process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100';
 const runtimeRoot =
   process.env.SEAMS_INTENDED_ROUTER_AB_ROOT ||
   path.join(tmpdir(), `${path.basename(repoRoot)}-wallet-intended`);

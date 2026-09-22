@@ -1103,6 +1103,18 @@ function yaoDirectOperationForRequest(request: Request): RouterApiYaoDirectOpera
   }
 }
 
+async function authorizeStagingNearRegistrationContinuation(
+  env: CloudflareD1GatewayBaseEnv,
+  tenantRootCustodyLineage: CloudflareD1RouterApiAuthServiceOptions['tenantRootCustodyLineage'],
+  dependencies: HostedWalletGatewayDependenciesV1,
+  input: { readonly lifecycleId: string; readonly credential: string },
+) {
+  const scope = stagingTenantScope(env);
+  const yaoRuntime = createStagingYaoRequestScopedRuntime(env, createStagingRegistrationTenantRootResolver(scope, tenantRootCustodyLineage));
+  const { service } = await createStagingRouterApiAuthComposition(env, scope, yaoRuntime, tenantRootCustodyLineage, dependencies);
+  return await service.walletRegistration.authorizeNearRegistrationContinuation(input);
+}
+
 async function handlePartitionedD1Operation(
   env: CloudflareD1GatewayBaseEnv,
   request: Request,
@@ -1115,6 +1127,7 @@ async function handlePartitionedD1Operation(
     case 'registration_execute':
       return await handleRouterAbEd25519YaoRegistrationRequestScopedCloudflareV1({
         request,
+        authorizeContinuation: authorizeStagingNearRegistrationContinuation.bind(undefined, env, tenantRootCustodyLineage, dependencies),
         store: createStagingYaoPartitionedStateStore(env),
         backend: createStagingEd25519YaoBackend(
           env,

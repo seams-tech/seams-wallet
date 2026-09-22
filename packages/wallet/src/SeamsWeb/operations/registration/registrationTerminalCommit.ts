@@ -342,25 +342,6 @@ type PendingRegistrationEd25519LocalMaterialInput = Omit<
   readonly custodyCommit: WalletCustodyCeremonyCommitPayload;
 };
 
-type PendingRegistrationMixedLocalMaterialInput = Omit<
-  Extract<
-    PendingWalletRegistrationLocalMaterialV1,
-    { readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1'] }
-  >,
-  'custodyCommit' | 'ed25519'
-> & {
-  readonly custodyCommit: WalletCustodyCeremonyCommitPayload;
-  readonly ed25519: Omit<
-    Extract<
-      PendingWalletRegistrationLocalMaterialV1,
-      { readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1'] }
-    >['ed25519'],
-    'custodyCommit'
-  > & {
-    readonly custodyCommit: WalletCustodyCeremonyCommitPayload;
-  };
-};
-
 type PendingRegistrationCommitBuilderInput = PendingRegistrationCommitBuilderCommonInput &
   (
     | {
@@ -376,7 +357,7 @@ type PendingRegistrationCommitBuilderInput = PendingRegistrationCommitBuilderCom
     | {
         operation: 'registration_activate';
         signerPlanKind: 'near_ed25519_and_evm_family_ecdsa';
-        localMaterial: PendingRegistrationMixedLocalMaterialInput;
+        localMaterial: PendingRegistrationEcdsaLocalMaterialInput;
       }
     | {
         operation: 'near_provisioning';

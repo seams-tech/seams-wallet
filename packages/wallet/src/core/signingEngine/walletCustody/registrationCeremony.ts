@@ -691,6 +691,8 @@ export type JoinNearEd25519CustodyInput = Omit<
   EstablishNearEd25519CustodyInput,
   'walletId' | 'factorJson' | 'continuityRegisteredPublicKeyB64u'
 > & {
+  readonly preparation: { readonly kind: 'fresh' } | { readonly kind: 'checkpoint'; readonly checkpointJson: string };
+  readonly beforeRouterRound?: (checkpointJson: string) => Promise<void>;
   /** `JoinCustodyWireV1`: the envelope established by another key set. */
   readonly custodyJson: string;
 };
@@ -807,7 +809,7 @@ export async function rejoinNearEd25519CustodyV1(
   let activationResultJson: string | null = null;
   let activationReceipt: RouterAbEd25519YaoRecoveryActivationReceiptV1 | null = null;
   const rejoined = await runJoiningNearEd25519Custody(
-    input,
+    { ...input, preparation: { kind: 'fresh' } },
     input.recoveryLifecycleId,
     registeredPublicKeyB64u,
     'cold unlock',
@@ -839,13 +841,18 @@ async function runJoiningNearEd25519Custody(
     },
     keySetRun: {
       keySet: 'near_ed25519_v1',
-      protocolInputsJson: JSON.stringify({
+      ...(input.preparation.kind === 'checkpoint'
+        ? { checkpointJson: input.preparation.checkpointJson }
+        : {
+          protocolInputsJson: JSON.stringify({
         yaoAdmission: input.yaoAdmission,
         yaoApplication: input.yaoApplication,
         clientParticipantId: input.participantIds[0],
         signingWorkerParticipantId: input.participantIds[1],
         ...(continuityRegisteredPublicKeyB64u ? { continuityRegisteredPublicKeyB64u } : {}),
       }),
+          beforeRouterRound: input.beforeRouterRound,
+        }),
       nearEd25519SigningKeyId: input.nearEd25519SigningKeyId,
       runRouterRound: async (yaoExecuteRequestJson: string) => {
         const resultJson = await input.runRouterRound(yaoExecuteRequestJson);

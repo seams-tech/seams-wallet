@@ -2892,6 +2892,8 @@ export class BrowserSigningSurface {
   }
 
   async joinWalletCustodyNearEd25519KeySet(args: {
+    preparation: { readonly kind: 'fresh' } | { readonly kind: 'checkpoint'; readonly checkpointJson: string };
+    beforeRouterRound?: (checkpointJson: string) => Promise<void>;
     custodyJson: string;
     factorSecret: ArrayBuffer;
     nearEd25519SigningKeyId: string;
@@ -2913,6 +2915,8 @@ export class BrowserSigningSurface {
     let activationResultJson: string | null = null;
     const joined = await joinNearEd25519CustodyV1({
       runStep: walletCustodyCeremonyStepRunner(this.walletCustodyCeremonyTransportV1()),
+      preparation: args.preparation,
+      beforeRouterRound: args.beforeRouterRound,
       custodyJson: args.custodyJson,
       factorSecret: args.factorSecret,
       nearEd25519SigningKeyId: args.nearEd25519SigningKeyId,

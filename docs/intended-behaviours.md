@@ -173,6 +173,9 @@ Expected behaviour:
 - For a mixed signer set, Ed25519/NEAR provisioning continues under the same
   authenticated ceremony and publishes one of `near_pending`,
   `near_provisioning`, `near_ready`, or `near_failed_retryable`.
+- NEAR admission and Yao execution cannot delay EVM registration or EVM signing.
+  EVM activation and the NEAR continuation are saved atomically as separate records.
+  Yao execution starts only after its encrypted completion checkpoint is durable.
 - NEAR signing becomes available at `near_ready` without a second passkey prompt.
   A retryable provisioning failure remains visible to the caller.
 - ECDSA key export remains available while NEAR is pending and requires fresh
@@ -208,6 +211,9 @@ Expected behaviour:
 - For a mixed signer set, Ed25519/NEAR provisioning continues with the live
   registration factor and publishes one of `near_pending`,
   `near_provisioning`, `near_ready`, or `near_failed_retryable`.
+- NEAR admission and Yao execution cannot delay EVM registration or EVM signing.
+  EVM activation and the NEAR continuation are saved atomically as separate records.
+  Yao execution starts only after its encrypted completion checkpoint is durable.
 - NEAR signing becomes available at `near_ready` without a second OTP
   verification. A retryable provisioning failure remains visible to the caller.
 - ECDSA key export remains available while NEAR is pending and requires fresh

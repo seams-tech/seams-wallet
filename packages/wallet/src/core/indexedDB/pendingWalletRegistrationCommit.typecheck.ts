@@ -16,12 +16,12 @@ declare const nearLocalMaterial: NearLocalMaterial;
 declare const ecdsaLocalMaterial: EcdsaLocalMaterial;
 declare const nearCommit: Extract<
   PendingWalletRegistrationCommitV1,
-  { readonly operation: 'near_provisioning' }
+  { readonly operation: 'near_provisioning'; readonly phase: 'joined' }
 >;
 
 const validNearCommit: Extract<
   PendingWalletRegistrationCommitV1,
-  { readonly operation: 'near_provisioning' }
+  { readonly operation: 'near_provisioning'; readonly phase: 'joined' }
 > = {
   ...nearCommit,
   localMaterial: nearLocalMaterial,
@@ -30,7 +30,7 @@ void validNearCommit;
 
 const invalidNearCommit: Extract<
   PendingWalletRegistrationCommitV1,
-  { readonly operation: 'near_provisioning' }
+  { readonly operation: 'near_provisioning'; readonly phase: 'joined' }
 > = {
   ...nearCommit,
   // @ts-expect-error Deferred NEAR records cannot carry an ECDSA-only local branch.

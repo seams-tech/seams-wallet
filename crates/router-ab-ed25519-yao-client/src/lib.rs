@@ -35,6 +35,7 @@ use signer_core::wallet_seed_derivation::derive_ed25519_yao_client_root_from_see
 use subtle::ConstantTimeEq;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
+mod activation_checkpoint;
 mod lane;
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 mod lane_holder;
@@ -95,6 +96,8 @@ pub enum ClientActivationError {
     PublicRelationMismatch,
     /// Recovery or export produced a public key different from the registered identity.
     PublicKeyContinuityMismatch,
+    /// The completion checkpoint failed authentication or version validation.
+    InvalidCheckpoint,
 }
 
 impl fmt::Display for ClientActivationError {
@@ -109,6 +112,7 @@ impl fmt::Display for ClientActivationError {
             Self::InvalidRecipientPackage => "Ed25519 Yao Client package is invalid",
             Self::PublicRelationMismatch => "Ed25519 Yao activation public relation is invalid",
             Self::PublicKeyContinuityMismatch => "Ed25519 Yao public-key continuity check failed",
+            Self::InvalidCheckpoint => "Ed25519 Yao activation checkpoint is invalid",
         };
         formatter.write_str(message)
     }

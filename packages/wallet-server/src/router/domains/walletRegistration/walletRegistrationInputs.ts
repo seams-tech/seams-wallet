@@ -80,6 +80,7 @@ export type WalletRegistrationActivateInput = {
 };
 
 export type WalletRegistrationNearProvisioningInput = {
+  readonly authorization: { readonly kind: 'registration_grant' } | { readonly kind: 'wallet_session'; readonly credential: string };
   readonly registrationCeremonyId: string;
   readonly signedSetup: unknown;
   readonly idempotencyKey: string;

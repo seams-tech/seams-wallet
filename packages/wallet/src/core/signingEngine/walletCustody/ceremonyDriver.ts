@@ -87,8 +87,19 @@ export type WalletCustodyCeremonyCustodyInput =
 export type WalletCustodyCeremonyKeySetInput =
   | {
       readonly keySet: 'near_ed25519_v1';
+      readonly checkpointJson: string;
+      readonly protocolInputsJson?: never;
+      readonly nearEd25519SigningKeyId: string;
+      readonly runRouterRound: (yaoExecuteRequestJson: string) => Promise<string>;
+      readonly beforeRouterRound?: never;
+      readonly afterRouterRoundCompleted?: (protocolResultJson: string) => Promise<void>;
+    }
+  | {
+      readonly keySet: 'near_ed25519_v1';
       /** `NearEd25519ProtocolInputsWireV1`; no Ed25519 binding digest field. */
       readonly protocolInputsJson: string;
+      readonly checkpointJson?: never;
+      readonly beforeRouterRound?: (checkpointJson: string) => Promise<void>;
       readonly nearEd25519SigningKeyId: string;
       /** Takes the Router execution request, returns the activation result. */
       readonly runRouterRound: (yaoExecuteRequestJson: string) => Promise<string>;
@@ -256,15 +267,31 @@ export async function runWalletCustodyKeySetCeremony(
 
   try {
     if (keySetRun.keySet === 'near_ed25519_v1') {
-      const begunResult = await input.runStep('beginWalletCustodyKeySetRun', {
-        ceremonyId,
-        keySet: 'near_ed25519_v1',
-        custody: buildNearBeginCustody(custody),
-        protocolInputsJson: keySetRun.protocolInputsJson,
-      });
+      let executeRequestJson: string;
+      if (keySetRun.checkpointJson !== undefined) {
+        if (custody.origin !== 'join') throw new Error('Checkpoint restoration requires existing custody');
+        const restored = await input.runStep('restoreNearRegistration', {
+          ceremonyId,
+          custodyJson: custody.custodyJson,
+          factorSecret: custody.factorSecret,
+          checkpointJson: keySetRun.checkpointJson,
+        });
+        executeRequestJson = restored.yaoExecuteRequestJson;
+      } else {
+        const begunResult = await input.runStep('beginWalletCustodyKeySetRun', {
+          ceremonyId,
+          keySet: 'near_ed25519_v1',
+          custody: buildNearBeginCustody(custody),
+          protocolInputsJson: keySetRun.protocolInputsJson,
+        });
+        executeRequestJson = requireNearBegunRun(begunResult).yaoExecuteRequestJson;
+      }
       workerAcceptedBegin = true;
-      const begun = requireNearBegunRun(begunResult);
-      const protocolResultJson = await keySetRun.runRouterRound(begun.yaoExecuteRequestJson);
+      if (keySetRun.beforeRouterRound) {
+        const checkpoint = await input.runStep('checkpointNearRegistration', { ceremonyId });
+        await keySetRun.beforeRouterRound(checkpoint.checkpointJson);
+      }
+      const protocolResultJson = await keySetRun.runRouterRound(executeRequestJson);
       await input.runStep('completeWalletCustodyKeySetRun', {
         ceremonyId,
         keySet: 'near_ed25519_v1',

@@ -1,3 +1,5 @@
+import { assertIndependentNearRegistration } from './registration-near-gate';
+import { ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1, ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1 } from '@shared/utils/routerAbEd25519Yao';
 import {
   expect,
   type APIRequestContext,
@@ -504,4 +506,12 @@ test('sustained Tempo and Arc signing uses fresh presignatures beyond pool capac
     context.off('request', collect);
     context.off('response', collectResponses);
   }
+});
+
+test('EVM registration and signatures complete while NEAR admission is held', async ({ harness, context }) => {
+  await assertIndependentNearRegistration({ harness, context, factor: 'passkey', path: ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1 });
+});
+
+test('EVM registration and signatures complete while NEAR execution is held', async ({ harness, context }) => {
+  await assertIndependentNearRegistration({ harness, context, factor: 'passkey', path: ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1 });
 });

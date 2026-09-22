@@ -86,6 +86,12 @@ export type RouterAbEd25519YaoRegistrationIntentBindingResult =
       readonly message: string;
     };
 
+export type VerifiedNearRegistrationContinuationV1 = {
+  readonly credential: string;
+  readonly admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
+  readonly expiresAtMs: number;
+};
+
 type BearerExtractionResult =
   | { readonly ok: true; readonly credential: string }
   | {
@@ -466,6 +472,26 @@ export class InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter im
       admissionFingerprint,
       expiresAtMs: verified.expiresAtMs,
     });
+    return { ok: true };
+  }
+
+  async bindVerifiedContinuation(
+    verified: VerifiedNearRegistrationContinuationV1,
+  ): Promise<RouterAbEd25519YaoRegistrationIntentBindingResult> {
+    const existing = findAuthorityByLifecycleId(this.authorities, verified.admissionRequest.scope.lifecycle_id);
+    if (!existing || existing.authority.purpose !== 'wallet_registration' ||
+        existing.authority.admissionFingerprint !== canonicalAdmissionRequest(verified.admissionRequest) ||
+        verified.expiresAtMs <= Date.now() || !verified.credential.startsWith('wst_')) {
+      return { ok: false, code: 'registration_intent_conflict', message: 'NEAR continuation does not match its original authorization' };
+    }
+    this.authorities[existing.index] = {
+      kind: existing.authority.kind,
+      purpose: existing.authority.purpose,
+      admissionRequest: existing.authority.admissionRequest,
+      admissionFingerprint: existing.authority.admissionFingerprint,
+      credentialDigestSha256: await credentialDigestSha256(verified.credential),
+      expiresAtMs: verified.expiresAtMs,
+    };
     return { ok: true };
   }
 

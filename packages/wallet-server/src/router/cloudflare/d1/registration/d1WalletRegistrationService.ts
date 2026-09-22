@@ -1,3 +1,5 @@
+import { parseWalletRegistrationSetupClaims } from '../../../domains/walletRegistration/walletRegistrationSetupPayload';
+import type { VerifiedNearRegistrationContinuationV1 } from '../../../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization';
 import type {
   WalletRegistrationAuthorityInput,
   WalletRegistrationFinalizeAuthMethod,
@@ -3629,7 +3631,7 @@ export class CloudflareD1WalletRegistrationService {
         };
       }
 
-      /* Both Router calls are authority-bound and independent of each other. */
+      /* Bind the NEAR continuation locally; admission runs from the client continuation. */
       const routerStartedAtMs = Date.now();
       const nearEd25519Branch = registrationSignerBranchesFromPlan(ceremony.signerPlan).nearEd25519;
       const [strictResult, ed25519Admission] = await Promise.all([
@@ -3646,7 +3648,7 @@ export class CloudflareD1WalletRegistrationService {
           onHeaderPresence: (presence) =>
             serverTiming.push([`ecdsa_role_timing_${presence.serverTiming}`, 1]),
         }),
-        this.admitRespondEd25519Branch({
+        this.authorizeRespondEd25519Branch({
           ceremony,
           branch: nearEd25519Branch,
           authority,
@@ -3808,6 +3810,40 @@ export class CloudflareD1WalletRegistrationService {
       expectedOrigin: context.expectedOrigin,
       expiresAtMs: Math.min(context.expiresAtMs, Date.now() + DEFAULT_WALLET_SESSION_TTL_MS),
     });
+  }
+
+  async authorizeNearRegistrationContinuation(input: {
+    readonly lifecycleId: string;
+    readonly credential: string;
+  }): Promise<VerifiedNearRegistrationContinuationV1 | null> {
+    const installation = await this.readCommittedRegistrationInstallation(input.lifecycleId);
+    if (!installation || !isRegistrationEcdsaReadyReceipt(installation.receipt)) return null;
+    const nowMs = Date.now();
+    const issued = await this.authorizationService.readWalletSessionAuthorizationV2ByOperationCredential({
+      tenantId: this.authorizationTenantId,
+      token: input.credential,
+      nowMs,
+    });
+    if (!issued) return null;
+    const active = await this.walletAuthMethods.readActiveRegistrationAuthority(installation.projection.registrationAuthority);
+    if (!active || issued.session.walletId !== installation.projection.walletId ||
+        issued.session.authorityId !== installation.receipt.foundingAuthority.authorityId ||
+        issued.session.walletAuthMethodId !== installation.receipt.walletAuthMethodId ||
+        active.walletAuthMethodId !== issued.session.walletAuthMethodId ||
+        active.authority.authorityId !== issued.session.authorityId ||
+        active.authority.authorityDigestB64u !== issued.session.authorityDigestB64u ||
+        active.authority.revocationEpoch !== issued.session.authorityRevocationEpoch ||
+        active.authority.revocationEpoch !== installation.receipt.foundingAuthority.revocationEpoch ||
+        issued.session.expiresAtMs <= nowMs) return null;
+    const originalSubjects = installation.receipt.committed.session.walletSession.capabilitySubjects;
+    for (const subject of originalSubjects) {
+      if (!issued.session.capabilitySubjects.some(sameRegistrationContinuationSubject.bind(undefined, subject))) return null;
+    }
+    return {
+      credential: input.credential,
+      admissionRequest: installation.projection.nearEd25519.admissionRequest,
+      expiresAtMs: Math.min(issued.session.expiresAtMs, nowMs + 60_000),
+    };
   }
 
   private async readCommittedRegistrationInstallation(registrationCeremonyId: string): Promise<{
@@ -4021,10 +4057,22 @@ export class CloudflareD1WalletRegistrationService {
       if (activationReceipt.committed.session.tokens.kind !== 'evm_family_ecdsa') {
         throw new Error('Committed mixed registration is missing its ECDSA session projection');
       }
-      sessionPredecessor = {
-        kind: 'mixed',
-        ecdsa: activationReceipt.committed.session.tokens.ecdsa,
-      };
+      if (args.input.authorization.kind === 'wallet_session') {
+        const verified = await this.authorizeNearRegistrationContinuation({
+          lifecycleId: args.input.registrationCeremonyId,
+          credential: args.input.authorization.credential,
+        });
+        const authorization = verified ? await this.authorizationService.readWalletSessionAuthorizationV2ByOperationCredential({
+          tenantId: this.authorizationTenantId,
+          token: args.input.authorization.credential,
+          nowMs: Date.now(),
+        }) : null;
+        if (!authorization) throw new Error('NEAR continuation Wallet Session is no longer active');
+        sessionPredecessor = { kind: 'resumed_mixed', authorization, ecdsa: activationReceipt.committed.session.tokens.ecdsa };
+      } else {
+        sessionPredecessor = { kind: 'mixed', ecdsa: activationReceipt.committed.session.tokens.ecdsa };
+      }
+
     }
     const effectivePrepared = await this.prepareNearProvisioningOperation(
       args.input.registrationCeremonyId,
@@ -4054,7 +4102,7 @@ export class CloudflareD1WalletRegistrationService {
       authority: finalized.authority,
       tenantId: this.authorizationTenantId,
       expectedOrigin: ownerProofContext.expectedOrigin,
-      expiresAtMs: ownerProofContext.expiresAtMs,
+      expiresAtMs: args.input.authorization.kind === 'wallet_session' ? args.setupClaims.expiresAtMs : ownerProofContext.expiresAtMs,
     });
     const issuedRegistrationSession = await issueDirectRegistrationEstablishedEd25519Session({
       authorizationService: this.authorizationService,
@@ -4249,18 +4297,32 @@ export class CloudflareD1WalletRegistrationService {
    * A retryable failure leaves the pending wallet intact: the wallet must not
    * be destroyed because its signer ceremony needs another attempt.
    */
+  private async verifyNearProvisioningAuthority(input: WalletRegistrationNearProvisioningInput) {
+    if (input.authorization.kind === 'registration_grant') {
+      return await verifyWalletRegistrationSetupClaims(input.verifier, input.signedSetup, {
+        registrationCeremonyId: input.registrationCeremonyId, nowMs: Date.now(),
+      });
+    }
+    const authorized = await this.authorizeNearRegistrationContinuation({
+      lifecycleId: input.registrationCeremonyId, credential: input.authorization.credential,
+    });
+    const installation = await this.readCommittedRegistrationInstallation(input.registrationCeremonyId);
+    if (!authorized || !installation || typeof input.signedSetup !== 'string') {
+      return { ok: false as const, code: 'invalid_grant', message: 'NEAR continuation authority is unavailable' };
+    }
+    // The fresh Wallet Session grants authority. The old payload supplies immutable request metadata only.
+    const payload = input.signedSetup.split('.')[1];
+    const claims = payload ? parseWalletRegistrationSetupClaims(JSON.parse(new TextDecoder().decode(base64UrlDecode(payload)))) : null;
+    if (!claims) return { ok: false as const, code: 'invalid_grant', message: 'NEAR continuation metadata is invalid' };
+    registrationFinalizeRecoveryFromCommittedInstallation({ setupClaims: claims, projection: installation.projection });
+    return { ok: true as const, claims: { ...claims, expiresAtMs: authorized.expiresAtMs } };
+  }
+
   async completeWalletRegistrationNearProvisioning(
     input: WalletRegistrationNearProvisioningInput,
   ): Promise<WalletRegistrationNearProvisioningResponseV2> {
     try {
-      const verified = await verifyWalletRegistrationSetupClaims(
-        input.verifier,
-        input.signedSetup,
-        {
-          registrationCeremonyId: input.registrationCeremonyId,
-          nowMs: Date.now(),
-        },
-      );
+      const verified = await this.verifyNearProvisioningAuthority(input);
       if (!verified.ok) {
         return { ok: false, code: verified.code, message: verified.message };
       }
@@ -4587,7 +4649,7 @@ export class CloudflareD1WalletRegistrationService {
         message: 'registration authority walletId does not match the ceremony',
       };
     }
-    const admitted = await this.admitRespondEd25519Branch({
+    const admitted = await this.authorizeRespondEd25519Branch({
       ceremony,
       branch: input.branch,
       authority,
@@ -4621,7 +4683,7 @@ export class CloudflareD1WalletRegistrationService {
    * authority, so Email OTP's `providerUserId` is established rather than
    * assumed.
    */
-  private async admitRespondEd25519Branch(input: {
+  private async authorizeRespondEd25519Branch(input: {
     readonly ceremony: StoredWalletRegistrationCeremony;
     readonly branch: RegistrationNearEd25519SignerPlan | null;
     readonly authority: StoredRegistrationAuthority;
@@ -4656,7 +4718,7 @@ export class CloudflareD1WalletRegistrationService {
         signingWorkerId: yaoRuntime.signingWorkerId,
       }),
     });
-    const admitted = await yaoRuntime.bindAndAdmitVerifiedRegistration({
+    const admitted = await yaoRuntime.bindVerifiedIntent({
       kind: 'verified_registration_intent',
       registrationIntentGrant: registrationIntentGrantFromString(input.registrationBearerToken),
       intent: input.ceremony.intent,
@@ -4669,9 +4731,8 @@ export class CloudflareD1WalletRegistrationService {
       branch: buildStoredWalletRegistrationNearEd25519YaoAuthorizedBranch({
         branchKey: input.branch.branchKey,
         admissionRequest,
-        admissionReceipt: admitted.value,
       }),
-      deferred: { status: 'deferred', admissionRequest, admissionReceipt: admitted.value },
+      deferred: { status: 'deferred', admissionRequest },
     };
   }
 
@@ -6241,4 +6302,11 @@ export class CloudflareD1WalletRegistrationService {
       };
     }
   }
+}
+
+function sameRegistrationContinuationSubject(
+  expected: import('@shared/device-linking/contracts').WalletCapabilitySubjectV1,
+  actual: import('@shared/device-linking/contracts').WalletCapabilitySubjectV1,
+): boolean {
+  return JSON.stringify(expected) === JSON.stringify(actual);
 }

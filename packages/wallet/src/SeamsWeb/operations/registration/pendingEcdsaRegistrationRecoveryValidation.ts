@@ -35,17 +35,11 @@ import type {
 import { assertSharedRegistrationEvmFamilyWalletKeyMaterial } from './registrationStrictEcdsa';
 
 export type PendingEcdsaRegistrationKeyFamilies =
-  | readonly ['ecdsa_secp256k1']
-  | readonly ['ed25519', 'ecdsa_secp256k1'];
+  readonly ['ecdsa_secp256k1'];
 
 type PendingEcdsaOnlyLocalMaterial = Extract<
   PendingWalletRegistrationLocalMaterialV1,
   { readonly keyFamilies: readonly ['ecdsa_secp256k1'] }
->;
-
-type PendingMixedLocalMaterial = Extract<
-  PendingWalletRegistrationLocalMaterialV1,
-  { readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1'] }
 >;
 
 export type PendingEcdsaOnlyRegistrationCommit = Extract<
@@ -61,7 +55,7 @@ export type PendingMixedEcdsaRegistrationCommit = Extract<
   { readonly operation: 'registration_activate' }
 > & {
   readonly signerPlanKind: 'near_ed25519_and_evm_family_ecdsa';
-  readonly localMaterial: PendingMixedLocalMaterial;
+  readonly localMaterial: PendingEcdsaOnlyLocalMaterial;
 };
 
 export type PendingEcdsaRegistrationCommit =
@@ -143,7 +137,7 @@ export function isMixedEcdsaRegistrationCommit(
     return false;
   }
   const families = pending.localMaterial.keyFamilies;
-  return families.length === 2 && families[0] === 'ed25519' && families[1] === 'ecdsa_secp256k1';
+  return families.length === 1 && families[0] === 'ecdsa_secp256k1';
 }
 
 export function requireEcdsaProjection(

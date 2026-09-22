@@ -183,6 +183,17 @@ export class UnifiedIndexedDBManager {
     return this.seamsWalletRepositories.setAppState(key, value);
   }
 
+  async putPendingWalletRegistrationCommits(records: readonly PendingWalletRegistrationCommitV1[]): Promise<void> {
+    return this.seamsWalletRepositories.putPendingWalletRegistrationCommits(records);
+  }
+
+  async advancePendingNearRegistration(input: {
+    readonly expected: Extract<PendingWalletRegistrationCommitV1, { readonly operation: 'near_provisioning' }>;
+    readonly next: Extract<PendingWalletRegistrationCommitV1, { readonly operation: 'near_provisioning' }>;
+  }): Promise<void> {
+    return this.seamsWalletRepositories.advancePendingNearRegistration(input);
+  }
+
   async putPendingWalletRegistrationCommit(
     record: PendingWalletRegistrationCommitV1,
   ): Promise<void> {

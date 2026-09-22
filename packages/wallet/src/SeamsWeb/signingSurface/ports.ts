@@ -426,6 +426,8 @@ export interface WalletCustodyCeremonySurface {
   }): Promise<EstablishedWalletCustodyNearEd25519KeySetV1>;
 
   joinWalletCustodyNearEd25519KeySet(args: {
+    preparation: { readonly kind: 'fresh' } | { readonly kind: 'checkpoint'; readonly checkpointJson: string };
+    beforeRouterRound?: (checkpointJson: string) => Promise<void>;
     custodyJson: string;
     factorSecret: ArrayBuffer;
     nearEd25519SigningKeyId: string;

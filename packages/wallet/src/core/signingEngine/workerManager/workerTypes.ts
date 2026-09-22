@@ -1996,6 +1996,22 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
     payload: { sourceHandle: string };
     result: { discarded: boolean };
   };
+  checkpointNearRegistration: {
+    payload: { ceremonyId: string };
+    result: { checkpointJson: string };
+  };
+  restoreNearRegistration: {
+    payload: {
+      ceremonyId: string;
+      custodyJson: string;
+      factorSecret: ArrayBuffer;
+      checkpointJson: string;
+      walletCustodySeed?: never;
+      recipientPrivateKey?: never;
+      protocolInputsJson?: never;
+    };
+    result: { ceremonyId: string; yaoExecuteRequestJson: string };
+  };
   beginWalletCustodyKeySetRun: {
     payload:
       | {

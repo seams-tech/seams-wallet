@@ -402,6 +402,11 @@ function ed25519RegistrationSessionTokens(input: {
 export type Ed25519RegistrationSessionPredecessor =
   | { readonly kind: 'ed25519_only' }
   | {
+      readonly kind: 'resumed_mixed';
+      readonly authorization: IssuedWalletSessionAuthorizationV2;
+      readonly ecdsa: Extract<RegistrationEstablishedSessionProjectionTokensV2, { readonly kind: 'evm_family_ecdsa' }>['ecdsa'];
+    }
+  | {
       readonly kind: 'mixed';
       readonly ecdsa: Extract<
         RegistrationEstablishedSessionProjectionTokensV2,
@@ -419,6 +424,7 @@ function completeEd25519RegistrationSessionTokens(input: {
   switch (input.predecessor.kind) {
     case 'ed25519_only':
       return { kind: 'near_ed25519', ed25519: input.ed25519 };
+    case 'resumed_mixed':
     case 'mixed':
       return {
         kind: 'near_ed25519_and_evm_family_ecdsa',
@@ -608,6 +614,23 @@ export async function issueDirectRegistrationEstablishedEd25519Session(
     walletAuthMethodId: activeRegistration.walletAuthMethodId,
     nowMs: issuedAtMs,
   });
+  if (input.predecessor.kind === 'resumed_mixed') {
+    const authorization = await input.authorizationService.refreshWalletSessionAuthorizationV2AuthorityProjection({
+      existing: input.predecessor.authorization,
+      authority: activeRegistration.authority,
+      walletAuthMethodId: activeRegistration.walletAuthMethodId,
+    });
+    const tokens = completeEd25519RegistrationSessionTokens({
+      ed25519: ed25519RegistrationSessionTokens({ authorization: authorization.session, publicResult: input.publicResult }).ed25519,
+      predecessor: input.predecessor,
+    });
+    return {
+      kind: 'already_committed',
+      session: projectDirectRegistrationSession(authorization, tokens),
+      next: 'unlock_exact_method',
+      issuedAtMs: authorization.session.createdAtMs,
+    };
+  }
   const policy = registrationSessionPolicy({
     issuedAtMs,
     expiresAtMs: input.expiresAtMs,

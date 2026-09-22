@@ -11,7 +11,8 @@ import { fileURLToPath } from 'node:url';
 import { prepareLocalHostedWalletGatewayConfig } from './prepare-local-runtime-config.mjs';
 
 const repoRoot = process.cwd();
-const gatewayUrl = 'http://127.0.0.1:4100';
+const gatewayUrl = process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100';
+const routerUrl = `http://127.0.0.1:${4102 + Number(process.env.SEAMS_LOCAL_PORT_OFFSET || 0)}`;
 const options = parseArguments(process.argv.slice(2));
 const localRoot = path.resolve(
   options.root || path.join(tmpdir(), `${path.basename(repoRoot)}-wallet-system`),
@@ -44,7 +45,7 @@ async function main() {
   installSignalHandlers();
   mkdirSync(localRoot, { recursive: true });
   startRoleWorkers();
-  await waitForHttp('http://127.0.0.1:4102/.well-known/router-ab/keyset', 120_000, true);
+  await waitForHttp(`${routerUrl}/.well-known/router-ab/keyset`, 120_000, true);
   await waitForFile(ceremonyPrivateJwkPath, 10_000);
   const tenantRoot = bootstrapTenantRoot();
   const deployment = localDeployment(tenantRoot);
@@ -189,7 +190,7 @@ function bootstrapTenantRoot() {
     '--signing-root-version',
     identity.signingRootVersion,
     '--router-url',
-    'http://127.0.0.1:4102',
+    routerUrl,
   ]);
   const result = JSON.parse(output);
   if (result.kind !== 'wallet_local_tenant_root_ready_v1') {
@@ -262,7 +263,7 @@ function startGateway(runtime) {
       '--port',
       port,
       '--inspector-port',
-      '4200',
+      String(Number(port) + 100),
       '--persist-to',
       gatewayStateRoot,
       '--env-file',

@@ -118,6 +118,7 @@ import {
   assertPendingWalletRegistrationIdentity,
   buildPendingWalletRegistrationCommitV1,
   parsePendingWalletRegistrationCommitAppStateRow,
+  splitPersistedMixedRegistrationRow,
   pendingWalletRegistrationCommitAppStateKey,
   toPendingWalletRegistrationCommitAppStateRow,
   type PendingWalletRegistrationCommitV1,
@@ -816,7 +817,7 @@ function shouldDeletePublishedPendingWalletRegistrationCommit(
     case 'near_provisioning':
       return true;
     case 'registration_activate':
-      return pending.signerPlanKind === 'evm_family_ecdsa';
+      return pending.signerPlanKind !== 'near_ed25519';
   }
 }
 
@@ -831,7 +832,9 @@ function assertCredentialFreeRegistrationSessionProjectionMatchesExisting(input:
     input.incoming.authorizationId !== input.existing.authorizationId ||
     input.incoming.quotaId !== input.existing.quotaId ||
     input.incoming.issuedAtMs !== input.existing.issuedAtMs ||
-    input.incoming.expiresAtMs !== input.existing.expiresAtMs
+    input.incoming.expiresAtMs !== input.existing.expiresAtMs ||
+    input.incoming.expiresAtMs <= Date.now() ||
+    input.incoming.authorityRevocationEpoch !== input.existing.authorityRevocationEpoch
   ) {
     throw new Error('Credential-free registration projection changed immutable session identity');
   }
@@ -1311,14 +1314,15 @@ function profileRow(input: UpsertProfileInput, existing?: ProfileRecord): Wallet
   const passkeyCredential = input.passkeyCredential?.rawId
     ? input.passkeyCredential
     : existing?.passkeyCredential;
+  const nearProvisioning = existing?.nearProvisioning?.status === 'near_ready'
+    ? existing.nearProvisioning
+    : input.nearProvisioning ?? existing?.nearProvisioning;
   const record: ProfileRecord = {
     profileId,
     defaultSignerSlot: input.defaultSignerSlot ?? existing?.defaultSignerSlot ?? 1,
     ...(passkeyCredential ? { passkeyCredential } : {}),
     preferences: input.preferences ?? existing?.preferences,
-    ...((input.nearProvisioning ?? existing?.nearProvisioning)
-      ? { nearProvisioning: input.nearProvisioning ?? existing?.nearProvisioning }
-      : {}),
+    ...(nearProvisioning ? { nearProvisioning } : {}),
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
@@ -6007,6 +6011,41 @@ export class SeamsWalletRepositories {
   /* Keep pending commits in the existing private app-state store: opening a
      new schema version currently rebuilds every object store. The namespaced
      rows never participate in profile discovery. */
+  async putPendingWalletRegistrationCommits(records: readonly PendingWalletRegistrationCommitV1[]): Promise<void> {
+    const rows = records.map(toPendingWalletRegistrationCommitAppStateRow);
+    await this.manager.runTransaction([SEAMS_WALLET_STORES.appState], 'readwrite', async (ctx) => {
+      const store = ctx.store(SEAMS_WALLET_STORES.appState);
+      for (const row of rows) {
+        if (await store.get(row.key)) throw new Error('Registration checkpoint already exists');
+        await store.put(row);
+      }
+    });
+  }
+
+  async advancePendingNearRegistration(input: {
+    readonly expected: Extract<PendingWalletRegistrationCommitV1, { readonly operation: 'near_provisioning' }>;
+    readonly next: Extract<PendingWalletRegistrationCommitV1, { readonly operation: 'near_provisioning' }>;
+  }): Promise<void> {
+    const current = input.expected;
+    const next = input.next;
+    if (current.registrationCeremonyId !== next.registrationCeremonyId || current.walletId !== next.walletId ||
+        current.walletAuthMethodId !== next.walletAuthMethodId || current.signedSetup !== next.signedSetup ||
+        !((current.phase === 'planned' && next.phase === 'execution_prepared') ||
+          (current.phase === 'execution_prepared' && next.phase === 'joined'))) {
+      throw new Error('Invalid NEAR registration checkpoint transition');
+    }
+    const row = toPendingWalletRegistrationCommitAppStateRow(current);
+    const nextRow = toPendingWalletRegistrationCommitAppStateRow(next);
+    await this.manager.runTransaction([SEAMS_WALLET_STORES.appState], 'readwrite', async (ctx) => {
+      const store = ctx.store(SEAMS_WALLET_STORES.appState);
+      const saved = parsePendingWalletRegistrationCommitAppStateRow(await store.get(row.key));
+      if (!saved || JSON.stringify(saved.record) !== JSON.stringify(current)) {
+        throw new Error('NEAR registration checkpoint changed concurrently');
+      }
+      await store.put(nextRow);
+    });
+  }
+
   async putPendingWalletRegistrationCommit(
     record: PendingWalletRegistrationCommitV1,
   ): Promise<void> {
@@ -6016,10 +6055,32 @@ export class SeamsWalletRepositories {
     });
   }
 
+  private async migratePendingMixedRegistrationRows(): Promise<void> {
+    const db = await this.manager.getDB();
+    const rows: unknown[] = await db.getAll(SEAMS_WALLET_STORES.appState);
+    const candidates = await Promise.all(rows.map(splitPersistedMixedRegistrationRow));
+    await this.manager.runTransaction([SEAMS_WALLET_STORES.appState], 'readwrite', async (ctx) => {
+      const store = ctx.store(SEAMS_WALLET_STORES.appState);
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        const activation = toPendingWalletRegistrationCommitAppStateRow(candidate.activation);
+        if (JSON.stringify(await store.get(activation.key)) !== JSON.stringify(candidate.original)) continue;
+        const near = toPendingWalletRegistrationCommitAppStateRow(candidate.near);
+        const savedNear = await store.get(near.key);
+        if (savedNear && JSON.stringify(savedNear) !== JSON.stringify(near)) {
+          throw new Error('Conflicting NEAR continuation during registration migration');
+        }
+        await store.put(near);
+        await store.put(activation);
+      }
+    });
+  }
+
   async getPendingWalletRegistrationCommit(input: {
     registrationCeremonyId: string;
     operation: PendingWalletRegistrationCommitV1['operation'];
   }): Promise<PendingWalletRegistrationCommitV1 | null> {
+    await this.migratePendingMixedRegistrationRows();
     const registrationCeremonyId = toTrimmedString(input.registrationCeremonyId || '');
     if (!registrationCeremonyId) return null;
     const db = await this.manager.getDB();
@@ -6034,6 +6095,7 @@ export class SeamsWalletRepositories {
   }
 
   async listPendingWalletRegistrationCommits(): Promise<PendingWalletRegistrationCommitV1[]> {
+    await this.migratePendingMixedRegistrationRows();
     const db = await this.manager.getDB();
     const rawRows = (await db.getAll(SEAMS_WALLET_STORES.appState)) as unknown[];
     return rawRows.flatMap((raw) => {

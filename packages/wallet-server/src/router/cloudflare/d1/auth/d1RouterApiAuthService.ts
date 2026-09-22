@@ -1871,6 +1871,7 @@ function createD1WalletRegistrationRouteService(
     assembly.walletStore,
   );
   return {
+    authorizeNearRegistrationContinuation: assembly.walletRegistrations.authorizeNearRegistrationContinuation.bind(assembly.walletRegistrations),
     resolveActiveOwnerWalletExecutionLane: resolveD1ActiveOwnerWalletExecutionLane.bind(
       undefined,
       laneProjectionSource,

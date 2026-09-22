@@ -33,8 +33,8 @@ use crate::ceremony::{
     CeremonyError, CeremonyEvmActivationPendingV1, CeremonyManifestEstablishedV1,
     CeremonyProtocolCompletedV1, CeremonyProtocolPreparedV1, CeremonySeedHeldV1,
     EvmFamilyActivationCompletionV1, FactorSealInputsV1, KeySetIdentityInputsV1,
-    KeySetProtocolInputsV1, RecoveryCodeInputV1, RecoveryCustodyOpenInputsV1,
-    WalletCustodyCommitPayloadV1,
+    KeySetProtocolInputsV1, NearRegistrationCheckpointV1, RecoveryCodeInputV1,
+    RecoveryCustodyOpenInputsV1, WalletCustodyCommitPayloadV1,
 };
 
 fn js_error(message: impl core::fmt::Display) -> JsValue {
@@ -326,6 +326,21 @@ pub fn wallet_custody_ceremony_recover_v1(
 
 #[wasm_bindgen]
 impl WasmCeremonySeedHeldV1 {
+    /// Restores encrypted completion state after this handle opened existing custody.
+    pub fn restore_near_registration(
+        self,
+        checkpoint_json: &str,
+    ) -> Result<WasmCeremonyProtocolPreparedV1, JsValue> {
+        let checkpoint = serde_json::from_str::<NearRegistrationCheckpointV1>(checkpoint_json)
+            .map_err(js_error)?;
+        Ok(WasmCeremonyProtocolPreparedV1 {
+            inner: self
+                .inner
+                .restore_near_registration(checkpoint)
+                .map_err(ceremony_error)?,
+        })
+    }
+
     /// Reseals the existing wallet seed under a fresh manifest KEK and ten
     /// replacement recovery codes. The return value is opaque ciphertext
     /// records; no seed or KEK crosses the wasm boundary.
@@ -399,6 +414,15 @@ impl WasmCeremonySeedHeldV1 {
 
 #[wasm_bindgen]
 impl WasmCeremonyProtocolPreparedV1 {
+    /// Returns public request metadata and ciphertext to persist before dispatch.
+    pub fn checkpoint_near_registration(&self) -> Result<String, JsValue> {
+        let checkpoint = self
+            .inner
+            .checkpoint_near_registration()
+            .map_err(ceremony_error)?;
+        serde_json::to_string(&checkpoint).map_err(js_error)
+    }
+
     /// The opaque Router execution request, for a NEAR Ed25519 run.
     pub fn yao_execute_request_json(&self) -> Option<String> {
         self.inner.yao_execute_request_json().map(String::from)

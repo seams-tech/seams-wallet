@@ -1,6 +1,55 @@
 # Independent NEAR provisioning during mixed registration
 
-Status: implementation plan. The architectural change is not implemented.
+Status: implementation in progress on shared `dev`.
+Implementation checkpoint: EVM activation no longer awaits NEAR admission or Yao.
+Cold-resume integration and the remaining acceptance/release work are in progress.
+The implementation checkpoint is consolidated onto shared `dev`.
+
+## Implementation progress — 2026-09-22
+
+Completed the encrypted completion-state primitive and custody-worker operations.
+The checkpoint uses a separate HKDF/ChaCha20-Poly1305 purpose, authenticates the
+wallet/application context and canonical exact execution request, and retains the
+recipient key only inside Rust/WASM. Restoration requires reopening the existing
+custody envelope. It restores no server execution authority.
+
+Verification passed:
+
+- 37 custody Rust tests plus the existing wire-fixture test.
+- 10 real-circuit Yao client registration tests.
+- A Chromium contract against the managed local gateway and real Yao backend:
+  terminate the original custody worker, restore its checkpoint in a fresh worker,
+  complete the captured result, and compare the public key and manifest.
+- Tamper checks for ciphertext, custody seed, request identity, changed encrypted
+  request inputs under the same lifecycle, and application context.
+- SDK build, custody WASM build, SDK type-check, intended-test type-check, and
+  state type fixtures rejecting plaintext seed/recipient-key substitution.
+- `cargo yao-fv constant-time-qualification` qualified the pinned analyzer against
+  its arm64 fixtures at O0/O3. This is analyzer qualification, not a constant-time
+  proof of the new checkpoint. Manual review found fixed-width secret copies and
+  existing AEAD/HKDF primitives; branches inspect public metadata or authentication
+  success.
+
+Implemented since the initial checkpoint:
+
+- Request-only deferred NEAR authorization; admission moved out of respond.
+- Atomic ECDSA activation plus planned NEAR rows; encrypted checkpoint saved
+  before execution; joined material saved before finalization.
+- Transactional migration of persisted mixed activation rows into separate rows.
+- ECDSA replay returns independently of NEAR finalization.
+- Worker/driver restoration accepts the saved exact execution checkpoint.
+- Fresh founding-method Wallet Session authorization for the original Yao attempt
+  and server finalization is implemented but still needs cold-resume integration
+  and negative/replay tests.
+- Two real-browser passkey contracts passed: hold admission or execution, return
+  registration and complete Tempo/Arc signatures, then release and sign NEAR.
+- The local full registration/readiness/sign/refresh benchmark passed once on an
+  isolated gateway. A matched 20-run comparison is still outstanding.
+
+Remaining: shared initial/cold-resume continuation through normal unlock, complete
+session/logout/cross-tab monotonicity and expiry handling, focused journal/type
+fixtures, fault/restart contracts for both factors, matched latency cohorts, and
+coordinated release/adoption. Do not publish this implementation checkpoint.
 
 ## Outcome and scope
 
