@@ -1672,10 +1672,11 @@ presignature and rerandomization commitment and cannot precede them.
 A separate immediate-sign capture remains inconclusive. Its first attempt stopped
 at registration before any fill requests, with HTTP 503 diagnostics. A fresh
 retry completed registration and all five six-request fills, but the demo sign
-request timed out before emitting any signing timing or presignature-selection
+request failed when Tempo RPC `eth_getTransactionCount` exceeded its 15-second
+request timeout, before emitting any signing timing or presignature-selection
 event. That wallet had not been funded. Neither attempt supplies a first-sign
-latency sample or establishes a presignature regression. Diagnose the demo's
-pre-sign request path before retrying or changing production signing behavior;
+latency sample or establishes a presignature regression. Classify this sample as an RPC infrastructure failure and capture the demo's
+transaction-preparation RPC timings on the next measurement;
 the original 1–3s empty-pool target remains unverified on 0.5.32. Sanitized
 artifacts are `presign-immediate-first-sign-0.5.32-summary.json` and
 `presign-immediate-first-sign-0.5.32-retry-summary.json`.
