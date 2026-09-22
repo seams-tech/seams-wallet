@@ -1467,3 +1467,54 @@ Allowlisted local measurements are retained under the private monorepo's ignored
 performance task is to measure representative first-use and empty-pool cohorts,
 then benchmark a lower-round-trip presign transport against the current eight
 dependent requests per entry without changing custody or authorization.
+
+### Immediate registration-to-sign comparison on 0.5.30
+
+The public intended-behavior harness completed three local, fresh-passkey Tempo
+registration-to-sign runs. Registration took **2.746–2.761 seconds**; the first
+signature took **0.673–0.687 seconds** afterward. Two further local runs inspected
+the durable pool at registration return: both already had **one** presignature,
+and the first signature took **0.682–0.683 seconds**. These local runs exercise the
+real Wallet SDK and managed local workers, but stub external chain edges. They
+measure the cached path; they do not measure local foreground generation.
+
+To isolate the miss path, the harness held the background presign-init request
+until registration returned, verified pool depth **0**, then released it and
+signed immediately. Two local runs took **0.681** and **0.700 seconds** from
+registration return to completed Tempo signature (registration **2.707** and
+**2.748 seconds**). This includes local presign generation and signing, and
+passes the signature contract. The hold is a benchmark control, not product
+behavior.
+
+One fresh hosted-testnet virtual-passkey run from Japan measured registration
+ready at **9.437 seconds** with **zero** durable presignatures. Signing immediately
+after registration completed **10.205 seconds** later. The signing trace reported
+**5.301 seconds** waiting for a presignature, **2.284 seconds** in prepare, and
+**0.983 seconds** in finalize (`commit_total`: **9.084 seconds**). The first
+presignature completed roughly **6.6 seconds** after background generation began.
+The ceremony made eight successful dependent HTTP requests whose browser spans
+totaled **5.506 seconds**; one preceding request returned HTTP 401 and took
+**0.331 seconds**. The eight successful responses reported **0.846 seconds** of
+authentication and **2.222 seconds** of proxy timing in aggregate. Those server
+spans overlap with downstream work and must not be added to the browser spans.
+The cryptographic signature completed; this fresh test wallet's chain funding
+was not established by this sample.
+
+The local and hosted product environments differ, so these are diagnostic
+samples rather than an equivalent-cohort latency claim. They do establish why
+local development missed the immediate-sign delay: local foreground generation
+and signing also finish in about **0.7 seconds** with an empty pool, whereas the
+hosted first signature waited **5.3 seconds** for its first entry. Registration
+prefill was already running before the hosted UI reported success; it had only
+about **0.7 seconds** of overlap by then. The registration path schedules
+prefill immediately after the exact ECDSA session and capability become
+durable. Further movement before that boundary would require a different
+authority design.
+
+Next, benchmark the same empty-pool path locally and hosted, including per-round
+browser spans, server CPU telemetry, and prepare/finalize timings. Compare a
+persistent authenticated transport or fewer protocol exchanges against the
+eight-request baseline. Keep every message bound to the live authorization and
+the same one-use presign session. The 1–3-second immediate-sign target is not
+met by the current hosted empty-pool path; record a before/after cohort before
+claiming an optimization.
