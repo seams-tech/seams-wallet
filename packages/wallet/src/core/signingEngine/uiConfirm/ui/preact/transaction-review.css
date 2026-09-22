@@ -301,7 +301,7 @@
   font-size: 0.6875rem;
 }
 :where(.seams-wallet-ui) .seams-receipt-footer .seams-receipt-wordmark {
-  width: 4.75rem;
+  width: 5.5rem;
   height: auto;
   flex: none;
   color: var(--seams-colors-textPrimary);
