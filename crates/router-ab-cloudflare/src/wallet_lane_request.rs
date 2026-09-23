@@ -62,6 +62,26 @@ impl ActiveWalletLaneAuthorityV1 {
             self.directory_revision,
         )
     }
+
+    /// Wallet governed by this authority record.
+    pub fn wallet_id(&self) -> &str {
+        &self.wallet_id
+    }
+
+    /// Regional lane currently authorized for the wallet.
+    pub fn lane_id(&self) -> &str {
+        &self.lane_id
+    }
+
+    /// Current wallet lane epoch.
+    pub const fn lane_epoch(&self) -> u64 {
+        self.lane_epoch
+    }
+
+    /// Directory revision that installed this authority.
+    pub const fn directory_revision(&self) -> u64 {
+        self.directory_revision
+    }
 }
 
 /// Expected request facts supplied by the receiving Worker boundary.
@@ -149,7 +169,44 @@ impl WalletLaneInternalRequestVerifierV1 {
     }
 }
 
-/// Process-local proof that the signed request and active lane authority agree.
+/// Process-local proof that a signed token matches the exact receiving request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuthenticatedWalletLaneInternalRequestV1 {
+    wallet_id: String,
+    lane_id: String,
+    lane_epoch: u64,
+    directory_revision: u64,
+    service_role: WalletLaneInternalServiceRoleV1,
+}
+
+impl AuthenticatedWalletLaneInternalRequestV1 {
+    /// Wallet named by the authenticated request.
+    pub fn wallet_id(&self) -> &str {
+        &self.wallet_id
+    }
+
+    /// Regional lane named by the authenticated request.
+    pub fn lane_id(&self) -> &str {
+        &self.lane_id
+    }
+
+    /// Lane epoch named by the authenticated request.
+    pub const fn lane_epoch(&self) -> u64 {
+        self.lane_epoch
+    }
+
+    /// Directory revision named by the authenticated request.
+    pub const fn directory_revision(&self) -> u64 {
+        self.directory_revision
+    }
+
+    /// Receiving Worker role authenticated by the token.
+    pub const fn service_role(&self) -> WalletLaneInternalServiceRoleV1 {
+        self.service_role
+    }
+}
+
+/// Process-local proof that the authenticated request and active lane authority agree.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedWalletLaneInternalRequestV1 {
     wallet_id: String,
@@ -255,9 +312,20 @@ pub fn verify_wallet_lane_internal_request_v1(
     authority: &ActiveWalletLaneAuthorityV1,
     now_unix_ms: u64,
 ) -> RouterAbProtocolResult<VerifiedWalletLaneInternalRequestV1> {
+    let authenticated =
+        authenticate_wallet_lane_internal_request_v1(token, verifier, expectation, now_unix_ms)?;
+    admit_wallet_lane_internal_request_authority_v1(authenticated, authority)
+}
+
+/// Authenticates the token and exact Worker request before its wallet authority is loaded.
+pub fn authenticate_wallet_lane_internal_request_v1(
+    token: &str,
+    verifier: &WalletLaneInternalRequestVerifierV1,
+    expectation: &WalletLaneInternalRequestExpectationV1,
+    now_unix_ms: u64,
+) -> RouterAbProtocolResult<AuthenticatedWalletLaneInternalRequestV1> {
     verifier.validate()?;
     expectation.validate()?;
-    authority.validate()?;
     require_positive("wallet lane request verification time", now_unix_ms)?;
 
     let token = WalletLaneCompactTokenV1::parse(token)?;
@@ -272,16 +340,41 @@ pub fn verify_wallet_lane_internal_request_v1(
         &token.signature,
         key,
     )?;
-    validate_claims(token.claims, verifier, expectation, authority, now_unix_ms)
+    authenticate_claims(token.claims, verifier, expectation, now_unix_ms)
 }
 
-fn validate_claims(
+/// Admits an authenticated request against the exact active lane authority loaded from D1.
+pub fn admit_wallet_lane_internal_request_authority_v1(
+    authenticated: AuthenticatedWalletLaneInternalRequestV1,
+    authority: &ActiveWalletLaneAuthorityV1,
+) -> RouterAbProtocolResult<VerifiedWalletLaneInternalRequestV1> {
+    authority.validate()?;
+    if authenticated.wallet_id != authority.wallet_id
+        || authenticated.lane_id != authority.lane_id
+        || authenticated.lane_epoch != authority.lane_epoch
+        || authenticated.directory_revision != authority.directory_revision
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+            "wallet lane request does not match the active lane authority",
+        ));
+    }
+
+    Ok(VerifiedWalletLaneInternalRequestV1 {
+        wallet_id: authenticated.wallet_id,
+        lane_id: authenticated.lane_id,
+        lane_epoch: authenticated.lane_epoch,
+        directory_revision: authenticated.directory_revision,
+        service_role: authenticated.service_role,
+    })
+}
+
+fn authenticate_claims(
     claims: WalletLaneInternalRequestClaimsV1,
     verifier: &WalletLaneInternalRequestVerifierV1,
     expectation: &WalletLaneInternalRequestExpectationV1,
-    authority: &ActiveWalletLaneAuthorityV1,
     now_unix_ms: u64,
-) -> RouterAbProtocolResult<VerifiedWalletLaneInternalRequestV1> {
+) -> RouterAbProtocolResult<AuthenticatedWalletLaneInternalRequestV1> {
     if claims.iss != verifier.issuer || claims.aud != verifier.audience {
         return Err(malformed(
             "wallet lane request issuer or audience is invalid",
@@ -339,18 +432,7 @@ fn validate_claims(
             "wallet lane request does not match the receiving Worker request",
         ));
     }
-    if context.wallet_id != authority.wallet_id
-        || context.lane_id != authority.lane_id
-        || context.lane_epoch != authority.lane_epoch
-        || context.directory_revision != authority.directory_revision
-    {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
-            "wallet lane request does not match the active lane authority",
-        ));
-    }
-
-    Ok(VerifiedWalletLaneInternalRequestV1 {
+    Ok(AuthenticatedWalletLaneInternalRequestV1 {
         wallet_id: context.wallet_id,
         lane_id: context.lane_id,
         lane_epoch: context.lane_epoch,
@@ -537,6 +619,29 @@ mod tests {
             25_000,
         )
         .expect("TypeScript-issued token");
+    }
+
+    #[test]
+    fn authenticates_request_before_loading_its_wallet_authority() {
+        let authenticated = authenticate_wallet_lane_internal_request_v1(
+            &token(|_| {}),
+            &verifier(),
+            &expectation(br#"{"command":"prepare"}"#),
+            25_000,
+        )
+        .expect("authenticated request");
+
+        assert_eq!(authenticated.wallet_id(), "wallet:region-fixture");
+        assert_eq!(authenticated.lane_id(), "managed-na-v1");
+        assert_eq!(authenticated.lane_epoch(), 1);
+        assert_eq!(authenticated.directory_revision(), 3);
+        assert_eq!(
+            authenticated.service_role(),
+            WalletLaneInternalServiceRoleV1::Router
+        );
+
+        admit_wallet_lane_internal_request_authority_v1(authenticated, &authority())
+            .expect("admitted request");
     }
 
     #[test]

@@ -455,6 +455,70 @@ async function testTenantRootRoleSchema(database, expectedRole) {
   );
 }
 
+async function testWalletLaneAuthoritySchema(database, databaseLabel) {
+  const tableInfo = await database.prepare('PRAGMA table_info(wallet_lane_authorities)').all();
+  assert.deepEqual(
+    tableInfo.results.map((column) => column.name),
+    [
+      'wallet_id',
+      'lane_id',
+      'lane_epoch',
+      'directory_revision',
+      'lifecycle',
+      'migration_id',
+      'updated_at_ms',
+    ],
+    `${databaseLabel} must persist exact wallet lane authority state`,
+  );
+
+  await database
+    .prepare(
+      `INSERT INTO wallet_lane_authorities (
+         wallet_id, lane_id, lane_epoch, directory_revision, lifecycle, updated_at_ms
+       ) VALUES (?, ?, 1, 3, 'active', 10)`,
+    )
+    .bind('wallet:lane-authority-fixture', 'managed-apac-v1')
+    .run();
+  const active = await database
+    .prepare(
+      `SELECT lane_id, lane_epoch, directory_revision, lifecycle, migration_id
+       FROM wallet_lane_authorities WHERE wallet_id = ?`,
+    )
+    .bind('wallet:lane-authority-fixture')
+    .first();
+  assert.deepEqual(active, {
+    lane_id: 'managed-apac-v1',
+    lane_epoch: 1,
+    directory_revision: 3,
+    lifecycle: 'active',
+    migration_id: null,
+  });
+
+  await assert.rejects(
+    database
+      .prepare(
+        `INSERT INTO wallet_lane_authorities (
+           wallet_id, lane_id, lane_epoch, directory_revision, lifecycle,
+           migration_id, updated_at_ms
+         ) VALUES (?, ?, 2, 4, 'active', ?, 11)`,
+      )
+      .bind('wallet:invalid-active-migration', 'managed-apac-v1', 'migration-invalid')
+      .run(),
+    `${databaseLabel} must reject active authority with migration state`,
+  );
+  await assert.rejects(
+    database
+      .prepare(
+        `INSERT INTO wallet_lane_authorities (
+           wallet_id, lane_id, lane_epoch, directory_revision, lifecycle, updated_at_ms
+         ) VALUES (?, ?, 2, 4, 'source_frozen', 11)`,
+      )
+      .bind('wallet:invalid-frozen-authority', 'managed-apac-v1')
+      .run(),
+    `${databaseLabel} must require a migration id for non-active authority`,
+  );
+}
+
 async function testTenantRootCommandReplayCasGuard(database, expectedRole) {
   const replayKeyDigestHex = 'a'.repeat(64);
   await assert.rejects(
@@ -1698,21 +1762,33 @@ async function main() {
     };
     await testTenantRootRoleSchema(databases.deriverA, 'deriver_a');
     await testTenantRootRoleSchema(databases.deriverB, 'deriver_b');
+    await testWalletLaneAuthoritySchema(databases.deriverA, 'Deriver A D1');
+    await testWalletLaneAuthoritySchema(databases.deriverB, 'Deriver B D1');
     await testTenantRootCommandReplayCasGuard(databases.deriverA, 'deriver_a');
     await testTenantRootCommandReplayCasGuard(databases.deriverB, 'deriver_b');
     const tenantRoots = await testTenantRootCreationOperatingPath(topology, fixture, databases);
     const tenantRoot = tenantRoots.tenantRoot;
-    await applyMigrations(
-      topology,
-      signingWorkerD1Binding,
-      'fixture-signing-worker',
-      signingWorkerMigrationsPath,
+    const signingWorkerDatabases = {
+      beforeRefresh: await applyMigrations(
+        topology,
+        signingWorkerD1Binding,
+        'fixture-signing-worker',
+        signingWorkerMigrationsPath,
+      ),
+      afterRefresh: await applyMigrations(
+        topology,
+        signingWorkerD1Binding,
+        'fixture-signing-worker-after-refresh',
+        signingWorkerMigrationsPath,
+      ),
+    };
+    await testWalletLaneAuthoritySchema(
+      signingWorkerDatabases.beforeRefresh,
+      'SigningWorker D1',
     );
-    await applyMigrations(
-      topology,
-      signingWorkerD1Binding,
-      'fixture-signing-worker-after-refresh',
-      signingWorkerMigrationsPath,
+    await testWalletLaneAuthoritySchema(
+      signingWorkerDatabases.afterRefresh,
+      'SigningWorker after-refresh D1',
     );
     const ecdsa = await testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot, jwtSigner);
     if (process.argv.includes('--ecdsa-presign-handoff-benchmark')) {

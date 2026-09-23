@@ -338,8 +338,8 @@
     },
     "deriver_a": {
       "directory": "cloudflare-router-ab/migrations/deriver-a",
-      "head": "0011_tenant_root_source_retirement.sql",
-      "fingerprint": "5ffac3a379c8d4452961a8eb4c7d73273357b189da84b5ab9478a1dab91ab3cf",
+      "head": "0012_wallet_lane_authorities.sql",
+      "fingerprint": "d39bad7fbb7aa83bcb7f2c79d24f7802e4461a2c610c7ccbc86648644088af1f",
       "files": [
         {
           "path": "cloudflare-router-ab/migrations/deriver-a/0001_role_private_storage.sql",
@@ -395,13 +395,18 @@
           "path": "cloudflare-router-ab/migrations/deriver-a/0011_tenant_root_source_retirement.sql",
           "bytes": 4516,
           "sha256": "3e664c3ac316cb9392d3c4335109c8d14c45f1fc871acc2238997e7b9942cf44"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-a/0012_wallet_lane_authorities.sql",
+          "bytes": 707,
+          "sha256": "db762a9ea61ac98eef335d37049f85eecbcfc50815e5d4d8808e80a5a33c4452"
         }
       ]
     },
     "deriver_b": {
       "directory": "cloudflare-router-ab/migrations/deriver-b",
-      "head": "0011_tenant_root_source_retirement.sql",
-      "fingerprint": "7d58734ad39cff2ffdcd6573879a0c187886a509a31dc172082de0ef49dd03c6",
+      "head": "0012_wallet_lane_authorities.sql",
+      "fingerprint": "fc9feff3a080bd64ffcda0c00ae7beefa4d8fc43a0913296a3d9bbbd2fc46bb6",
       "files": [
         {
           "path": "cloudflare-router-ab/migrations/deriver-b/0001_role_private_storage.sql",
@@ -457,13 +462,18 @@
           "path": "cloudflare-router-ab/migrations/deriver-b/0011_tenant_root_source_retirement.sql",
           "bytes": 4516,
           "sha256": "6229926eb3c0084de81f06d0e72cfe69685ac972cf24c426ab3b693ecdc05d74"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/deriver-b/0012_wallet_lane_authorities.sql",
+          "bytes": 707,
+          "sha256": "db762a9ea61ac98eef335d37049f85eecbcfc50815e5d4d8808e80a5a33c4452"
         }
       ]
     },
     "signing_worker": {
       "directory": "cloudflare-router-ab/migrations/signing-worker",
-      "head": "0002_activation_revocation_fences.sql",
-      "fingerprint": "56b17315149c5db3785b334e8cae42a8b0b303982da8b817c77e2402b16053d7",
+      "head": "0003_wallet_lane_authorities.sql",
+      "fingerprint": "a14ef86a982a9144ae6b960dc3c11eb53eb27607964929ead079bb924236e5c4",
       "files": [
         {
           "path": "cloudflare-router-ab/migrations/signing-worker/0001_private_storage.sql",
@@ -474,6 +484,11 @@
           "path": "cloudflare-router-ab/migrations/signing-worker/0002_activation_revocation_fences.sql",
           "bytes": 108,
           "sha256": "980292e50c0d5e911cb2275a6c19ba146d37901c2b342948ded883b145669fe3"
+        },
+        {
+          "path": "cloudflare-router-ab/migrations/signing-worker/0003_wallet_lane_authorities.sql",
+          "bytes": 707,
+          "sha256": "db762a9ea61ac98eef335d37049f85eecbcfc50815e5d4d8808e80a5a33c4452"
         }
       ]
     }

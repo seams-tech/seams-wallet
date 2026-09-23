@@ -226,6 +226,8 @@ use encoding::{
 mod paths;
 pub use paths::*;
 mod trace_context;
+#[cfg(feature = "workers-rs")]
+mod wallet_lane_authority_d1;
 mod wallet_lane_request;
 #[cfg(feature = "workers-rs")]
 use paths::{
@@ -259,8 +261,16 @@ pub use trace_context::{
     parse_cloudflare_trace_id_from_request_v1, set_cloudflare_trace_id_header_v1,
     CLOUDFLARE_TRACE_ID_HEADER_V1,
 };
+#[cfg(feature = "workers-rs")]
+pub use wallet_lane_authority_d1::{
+    load_cloudflare_active_wallet_lane_authority_v1,
+    load_cloudflare_deriver_active_wallet_lane_authority_v1,
+    load_cloudflare_signing_worker_active_wallet_lane_authority_v1,
+};
 pub use wallet_lane_request::{
-    verify_wallet_lane_internal_request_v1, ActiveWalletLaneAuthorityV1,
+    admit_wallet_lane_internal_request_authority_v1,
+    authenticate_wallet_lane_internal_request_v1, verify_wallet_lane_internal_request_v1,
+    ActiveWalletLaneAuthorityV1, AuthenticatedWalletLaneInternalRequestV1,
     VerifiedWalletLaneInternalRequestV1, WalletLaneInternalRequestExpectationV1,
     WalletLaneInternalRequestVerifierV1, WalletLaneInternalServiceRoleV1,
     WALLET_LANE_INTERNAL_REQUEST_HEADER_V1,
