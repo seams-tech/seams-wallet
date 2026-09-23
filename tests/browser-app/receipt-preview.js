@@ -160,6 +160,7 @@ function promptModel() {
 }
 function dismiss() {
   handle?.dispose();
+  updatePreviewSelection(null);
   status.textContent = 'Closed — select Review to restart.';
 }
 function closed() {}
@@ -242,6 +243,14 @@ function model() {
     },
   };
 }
+function updatePreviewSelection(stage) {
+  for (const button of document.querySelectorAll('[data-example]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.example === example));
+  }
+  for (const button of document.querySelectorAll('[data-stage]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.stage === stage));
+  }
+}
 function review() {
   if (authentication.kind === 'email-code') authentication = { kind: 'email-review' };
   handle?.dispose();
@@ -252,9 +261,11 @@ function review() {
     model: model(),
     onClosed: closed,
   });
+  updatePreviewSelection('review');
   status.textContent = 'Review — simulated transfer';
 }
 function renderReceipt() {
+  updatePreviewSelection(state.kind);
   handle.showReceipt({ state, view, onView: changeView, onDismiss: dismiss });
 }
 function showStage(stage) {

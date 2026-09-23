@@ -295,6 +295,8 @@ export class OverlayController {
 
   private applyVisible(mode: Exclude<OverlayRenderMode, { kind: 'hidden' }>): void {
     const { dialog, iframe } = this.ensureDialog();
+    const iframeSize = { widthCssPx: iframe.clientWidth, heightCssPx: iframe.clientHeight };
+    let requestResizeDestination: SurfaceRect | null = null;
     const identityChanged = !sameIdentity(this.mode, mode);
     const handoffFromReview =
       !identityChanged &&
@@ -364,7 +366,7 @@ export class OverlayController {
       setDialogGeometry(dialog, mode.geometry, authMenu ? this.authMenuVisualScale : 1);
       this.lastAppliedGeometry = mode.geometry;
       this.lastAppliedAuthMenuVisualScale = authMenu ? this.authMenuVisualScale : 1;
-      const requestResizeDestination = requestResizeOrigin
+      requestResizeDestination = requestResizeOrigin
         ? finiteSurfaceRect(dialog.getBoundingClientRect())
         : null;
       if (requestResizeOrigin && requestResizeDestination) {
@@ -383,6 +385,13 @@ export class OverlayController {
     if (handoffFromReview) this.startReviewHandoff('wallet');
     if (returnToReview) this.startReviewHandoff('review');
     const handingOff = this.reviewHandoff.kind === 'animating';
+    if (handingOff && requestResizeDestination) {
+      // Keep responsive content at rest while the surrounding shell changes size.
+      pinDialogIframe(dialog, reviewing ? iframeSize : {
+        widthCssPx: requestResizeDestination.width,
+        heightCssPx: requestResizeDestination.height,
+      });
+    }
     iframe.inert = reviewing || handingOff;
     iframe.classList.toggle('seams-review-wallet-inactive', reviewing);
     iframe.setAttribute('aria-hidden', String(reviewing || handingOff));
@@ -507,6 +516,7 @@ export class OverlayController {
     this.reviewHandoff.outgoing.cancel();
     this.reviewHandoff.incoming.cancel();
     for (const animation of this.reviewHandoff.sections) animation.cancel();
+    if (this.dialog) releaseDialogIframe(this.dialog);
     this.reviewHandoff = { kind: 'idle' };
   }
 

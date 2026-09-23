@@ -161,14 +161,14 @@
   height: var(--seams-review-disclosure-height);
   overflow: hidden;
 }
-:where(.seams-wallet-ui) .seams-transaction-review > .seams-review-technical > div {
+:where(.seams-wallet-ui) :is(.seams-transaction-review, .seams-transaction-receipt) > .seams-review-technical > div {
   margin-inline: calc(-1 * var(--seams-review-inset));
   background: var(--seams-colors-surface2);
   box-shadow: inset 0 1px 0 var(--seams-colors-borderPrimary),
     inset 0 -1px 0 var(--seams-colors-borderPrimary),
     inset 0 5px 8px -7px rgb(0 0 0 / 0.16);
 }
-:where(.seams-wallet-ui) .seams-transaction-review > .seams-review-technical > div > .seams-review-detail {
+:where(.seams-wallet-ui) :is(.seams-transaction-review, .seams-transaction-receipt) > .seams-review-technical > div > :is(.seams-review-detail, .seams-review-fields) {
   margin: 0;
   padding: 0.75rem var(--seams-review-inset);
 }
@@ -624,12 +624,6 @@
   background: var(--seams-colors-surface2);
   box-shadow: 0 0 6px 3px var(--seams-colors-surface2);
 }
-:where(.seams-wallet-ui) .seams-receipt-box {
-  background: var(--seams-colors-surface2);
-  padding: 0.25rem 0.875rem;
-  border-radius: var(--seams-shape-box, 12px);
-  margin-block: 0.75rem;
-}
 :where(.seams-wallet-ui) .seams-receipt-morph-shell {
   position: fixed;
   pointer-events: none;
@@ -678,18 +672,11 @@
 :where(.seams-wallet-ui) .seams-drawer-controls:has(.seams-drawer-origin) .seams-drawer-close {
   top: 0.5rem;
 }
-:where(.seams-wallet-ui) .seams-receipt-box .seams-review-technical {
-  border-top: 0;
-  margin: 0;
-}
-:where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields {
-  margin-bottom: 6px;
-}
-:where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields dd .seams-review-copy:not(.seams-review-copy-address) > .copy-icon {
+:where(.seams-wallet-ui) .seams-transaction-receipt > .seams-review-technical .seams-review-fields dd .seams-review-copy:not(.seams-review-copy-address) > .copy-icon {
   opacity: 0;
 }
-:where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields dd:is(:hover, :focus-within) .seams-review-copy:not(.seams-review-copy-address) > .copy-icon,
-:where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields .seams-review-copy.copied > .copy-icon {
+:where(.seams-wallet-ui) .seams-transaction-receipt > .seams-review-technical .seams-review-fields dd:is(:hover, :focus-within) .seams-review-copy:not(.seams-review-copy-address) > .copy-icon,
+:where(.seams-wallet-ui) .seams-transaction-receipt > .seams-review-technical .seams-review-fields .seams-review-copy.copied > .copy-icon {
   opacity: 1;
 }
 :where(.seams-wallet-ui) .seams-receipt-step[data-state='complete'] {

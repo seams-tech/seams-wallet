@@ -68,6 +68,22 @@
         font-size: 12px;
         color: #59645d;
       }
+      nav button[data-example]::before,
+      nav button[data-stage]::before {
+        content: '✓';
+        display: inline-block;
+        width: 1em;
+        margin-inline-end: 6px;
+        visibility: hidden;
+      }
+      nav button[aria-pressed='true'] {
+        background: #24593f;
+        border-color: #24593f;
+        color: white;
+      }
+      nav button[aria-pressed='true']::before {
+        visibility: visible;
+      }
       main {
         width: min(420px, calc(100vw - 32px));
         margin: 24px auto;
