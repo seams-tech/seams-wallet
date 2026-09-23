@@ -34,6 +34,10 @@ declare global {
   }
 }
 
+function getRootScrollbarWidth(): string {
+  return getComputedStyle(document.documentElement).scrollbarWidth;
+}
+
 test.beforeEach(async ({ page }) => {
   await injectImportMap(page);
   await routePreactModules(page);
@@ -194,6 +198,7 @@ test.beforeEach(async ({ page }) => {
 for (const context of ['standalone', 'wallet-iframe'] as const) {
   test(`modal hides its scrollbar and remains scrollable in ${context}`, async ({ page }) => {
     await page.setViewportSize({ width: 600, height: 120 });
+    const originalRootScrollbarWidth = await page.evaluate(getRootScrollbarWidth);
     await page.evaluate((context) => window.__confirmationMount.mount('modal', context), context);
     const scrollContainer = context === 'standalone'
       ? page.locator('.seams-confirmation-modal')
@@ -206,7 +211,10 @@ for (const context of ['standalone', 'wallet-iframe'] as const) {
     expect(scrollTop).toBeGreaterThan(0);
     await page.evaluate(() => window.__confirmationMount.dispose(0));
     if (context === 'wallet-iframe') {
-      await expect(page.locator('html')).toHaveCSS('scrollbar-width', 'auto');
+      await expect(page.locator('html')).toHaveCSS(
+        'scrollbar-width',
+        originalRootScrollbarWidth,
+      );
     }
   });
 }
