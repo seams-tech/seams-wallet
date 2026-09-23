@@ -211,7 +211,7 @@ for (const context of ['standalone', 'wallet-iframe'] as const) {
   });
 }
 
-test('toast sweeps across one continuous track while pending and retains settled progress', async ({
+test('toast grows from signing to broadcasting to complete and sweeps its current length', async ({
   page,
 }) => {
   await page.evaluate(() => {
@@ -223,9 +223,9 @@ test('toast sweeps across one continuous track while pending and retains settled
   const active = progress.locator('.seams-toast-progress-active');
   const spinner = page.locator('.seams-transaction-toast .seams-receipt-symbol svg');
   const stages: { state: TransactionReceiptState; fraction: number; pending: boolean }[] = [
-    { state: { kind: 'signing' }, fraction: 0, pending: true },
+    { state: { kind: 'signing' }, fraction: 1 / 3, pending: true },
     { state: { kind: 'signed' }, fraction: 1 / 3, pending: false },
-    { state: { kind: 'broadcasting' }, fraction: 1 / 3, pending: true },
+    { state: { kind: 'broadcasting' }, fraction: 2 / 3, pending: true },
     { state: { kind: 'submitted', hash: '0x123' }, fraction: 2 / 3, pending: true },
     { state: { kind: 'confirmed', hash: '0x123' }, fraction: 1, pending: false },
   ];
@@ -241,10 +241,10 @@ test('toast sweeps across one continuous track while pending and retains settled
     await expect(spinner).toHaveCSS('animation-name', pending ? 'seams-receipt-spin' : 'none');
     await expect(active).toHaveCount(pending ? 1 : 0);
     if (pending) {
-      const trackBounds = await progress.boundingBox();
+      const fillBounds = await fill.boundingBox();
       const activeBounds = await active.boundingBox();
-      expect(activeBounds!.x).toBeCloseTo(trackBounds!.x, 1);
-      expect(activeBounds!.width).toBeCloseTo(trackBounds!.width, 1);
+      expect(activeBounds!.x).toBeCloseTo(fillBounds!.x, 1);
+      expect(activeBounds!.width).toBeCloseTo(fillBounds!.width, 1);
       expect(await active.evaluate((element) => getComputedStyle(element, '::after').animationName))
         .toBe('seams-receipt-sweep');
     }

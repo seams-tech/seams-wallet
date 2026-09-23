@@ -50,11 +50,13 @@ export class TransactionReceipt extends Component<{
         <div
           class="seams-transaction-toast"
           data-completed-stages={completedStages}
+          data-stage={receipt.state.kind}
           data-pending={pending}
         >
           <div class="seams-toast-progress" aria-hidden="true">
-            <span class="seams-toast-progress-fill" />
-            {pending && <span class="seams-toast-progress-active" />}
+            <span class="seams-toast-progress-fill">
+              {pending && <span class="seams-toast-progress-active" />}
+            </span>
           </div>
           <span class="seams-receipt-symbol" data-pending={pending}>
             <ReviewIcon kind={pending ? 'loader' : complete ? 'check' : 'alert'} />

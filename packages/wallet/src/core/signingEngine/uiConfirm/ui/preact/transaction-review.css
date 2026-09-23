@@ -434,6 +434,7 @@
   pointer-events: none;
 }
 :where(.seams-wallet-ui) .seams-toast-progress-fill {
+  position: relative;
   display: block;
   height: 2px;
   width: 0;
@@ -441,10 +442,12 @@
   transform-origin: left;
   transition: width 300ms ease-out;
 }
-:where(.seams-wallet-ui) [data-completed-stages='1'] .seams-toast-progress-fill {
+:where(.seams-wallet-ui) [data-completed-stages='1'] .seams-toast-progress-fill,
+:where(.seams-wallet-ui) [data-stage='signing'] .seams-toast-progress-fill {
   width: calc(100% / 3);
 }
-:where(.seams-wallet-ui) [data-completed-stages='2'] .seams-toast-progress-fill {
+:where(.seams-wallet-ui) [data-completed-stages='2'] .seams-toast-progress-fill,
+:where(.seams-wallet-ui) [data-stage='broadcasting'] .seams-toast-progress-fill {
   width: calc(200% / 3);
 }
 :where(.seams-wallet-ui) [data-completed-stages='3'] .seams-toast-progress-fill {
