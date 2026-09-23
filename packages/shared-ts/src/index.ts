@@ -7,3 +7,4 @@ export * as deviceLinking from './device-linking/index';
 export * as utils from './utils/index';
 export * as walletRecovery from './wallet-recovery/index';
 export * as tenantRoot from './tenant-root/index';
+export * as walletRegion from './wallet-region/index';

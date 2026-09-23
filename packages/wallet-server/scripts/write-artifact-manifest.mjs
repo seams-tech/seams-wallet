@@ -16,6 +16,7 @@ const workerRoles = [
 ];
 const migrationSets = {
   signer: 'migrations/d1-signer',
+  wallet_directory: 'migrations/d1-wallet-directory',
   deriver_a: 'cloudflare-router-ab/migrations/deriver-a',
   deriver_b: 'cloudflare-router-ab/migrations/deriver-b',
   signing_worker: 'cloudflare-router-ab/migrations/signing-worker',
