@@ -6,6 +6,11 @@ at `https://wallet.seams.sh/`, using the production-testnet Wallet service at
 and the existing opt-in registration diagnostics. The browser ran from Tokyo.
 These are diagnostic samples, not a latency distribution.
 
+Evidence status: the four samples below remain valid as small-sample diagnostics.
+A separate 20-attempt sequential-context cohort is invalidated and excluded from
+hosted latency conclusions. Its machine-readable evidence record is
+[`registration-latency-evidence.json`](./registration-latency-evidence.json).
+
 | Milliseconds | Sample 1 | Sample 2 | Sample 3 | Sample 4 |
 | --- | ---: | ---: | ---: | ---: |
 | Mixed registration return / EVM availability | 5,407 | 4,600 | 5,375 | 6,006 |
@@ -56,3 +61,55 @@ After the instrumentation is released and deployed, collect a larger set of
 fresh registrations and compare Gateway, Router, role-worker, and custody stage
 durations. That breakdown will locate the next safe latency reduction. This
 change itself does not claim an end-to-end speedup.
+
+## Invalidated sequential-context cohort
+
+A separate 0.6.0 experiment ran 20 sequential registrations and initially
+reported 17 successes with a 15,590 ms median, a 29,629 ms maximum, and three
+45-second timeouts. This cohort is invalid. Do not use it as evidence for hosted
+latency, tail latency, capacity, queueing, throttling, percentiles, or an SLA.
+
+The benchmark retained every completed browser context. Each successful
+registration started a five-entry MPC presign refill. Those independent browser
+contexts each had their own refill single-flight, so background refills
+accumulated and saturated the local browser and worker process. The measured
+tail therefore includes benchmark-client contention.
+
+Two controls located the delay:
+
+- With presign refill blocked, alternating registrations stayed between 6,380
+  and 6,470 ms.
+- With refill enabled, a later attempt spent more than 60 seconds in the client
+  before sending the hosted registration respond request. Cloudflare had not
+  received the request during that delay.
+
+Five isolated registrations with one active browser context took 6,247 to
+9,782 ms, with a 7,785 ms median. Cold ECDSA client creation took 1,384 to
+4,103 ms, with a 2,697 ms median. A prewarmed control reached registration
+readiness in 5,944 ms; client creation took 6 ms, the Gateway respond request
+took 1,794 ms, and activation took 1,929 ms. These controls diagnose components
+of the delay. Their sample size is too small for population percentiles or an
+SLA claim.
+
+## Registration measurement protocol
+
+Future hosted registration measurements must meet these conditions before they
+are added to latency evidence:
+
+1. Keep one active registration per benchmark client unless the experiment is
+   explicitly measuring client-side contention.
+2. Close each browser context immediately after its attempt. Never retain
+   completed contexts while collecting a registration latency cohort.
+3. Record the time to the first hosted registration respond request. Classify
+   time before that request as client initialization, browser scheduling, or
+   local contention.
+4. Keep the presign-refill policy identical across compared cohorts. Record
+   refill start, completion, and foreground overlap separately.
+5. Record Gateway, Router, role-worker, custody, and D1 spans together with the
+   observed Worker and D1 placement.
+6. Report bounded failures separately. Do not fold timeouts into successful
+   latency percentiles or silently retry them.
+7. State the sample size, concurrency, browser lifecycle, warm or cold state,
+   region, release SHA, and percentile method with every result.
+8. Claim population tail latency only from an independently valid cohort sized
+   for that percentile.

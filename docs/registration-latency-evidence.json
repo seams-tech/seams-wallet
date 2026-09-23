@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "evidenceId": "wallet-0.6.0-retained-context-registration-tail",
+  "release": "0.6.0",
+  "status": "invalidated",
+  "classification": "environment_or_infrastructure_failure",
+  "observedCohort": {
+    "attempts": 20,
+    "successes": 17,
+    "boundedFailures": 3,
+    "timeoutMs": 45000,
+    "successfulSummaryMs": {
+      "min": 3432,
+      "median": 15590,
+      "p90": 19568,
+      "sampleP95": 29629,
+      "max": 29629,
+      "mean": 15112
+    }
+  },
+  "mustNotBeUsedFor": [
+    "hosted_latency_distribution",
+    "tail_latency",
+    "capacity_or_queueing",
+    "throttling",
+    "population_percentiles",
+    "sla"
+  ],
+  "invalidation": {
+    "cause": "The benchmark retained every completed browser context. Each successful registration started a five-entry MPC presign refill. Independent contexts bypassed the per-context refill single-flight and saturated the local browser and worker process.",
+    "decisiveEvidence": [
+      "With presign refill blocked, alternating registrations stayed between 6380 and 6470 ms.",
+      "With refill enabled, a later registration exceeded 60000 ms before sending the hosted registration respond request. The delay occurred in the client harness before hosted service work."
+    ],
+    "rawArtifact": "output/playwright/wallet-060-hosted-optimization-profile.json",
+    "rawArtifactPolicy": "Retained locally for incident reproduction and intentionally ignored by Git."
+  },
+  "validDiagnosticControls": {
+    "isolatedOneContextRegistrationMs": {
+      "samples": [6247, 7258, 7785, 8786, 9782],
+      "min": 6247,
+      "median": 7785,
+      "max": 9782,
+      "mean": 7972
+    },
+    "coldEcdsaClientCreateMs": {
+      "samples": [1384, 2697, 4056, 4103, 1660],
+      "min": 1384,
+      "median": 2697,
+      "max": 4103,
+      "mean": 2780
+    },
+    "prewarmedControlMs": {
+      "registrationReady": 5944,
+      "registrationSummaryTotal": 5105,
+      "ecdsaTotal": 4338,
+      "ecdsaClientCreate": 6,
+      "gatewayRespond": 1794,
+      "gatewayActivate": 1929
+    }
+  },
+  "limitations": "The valid controls are small diagnostic samples. They do not establish population percentiles or an SLA.",
+  "measurementRequirements": [
+    "One active registration per benchmark client unless client contention is the experiment.",
+    "Close each browser context immediately after its attempt.",
+    "Record time to the first hosted registration respond request and classify pre-request delay separately.",
+    "Keep presign-refill policy identical across compared cohorts and record refill overlap.",
+    "Record Gateway, Router, role-worker, custody, D1, Worker placement, and D1 placement evidence.",
+    "Report bounded failures separately from successful latency percentiles.",
+    "Record sample size, concurrency, browser lifecycle, warm state, region, release SHA, and percentile method.",
+    "Claim tail latency only from an independently valid cohort sized for the claimed percentile."
+  ]
+}
