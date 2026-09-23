@@ -309,8 +309,8 @@ test('receipt hashes stay on one line and reveal their end on hover and keyboard
   await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
-test('clicking the receipt address copies the full value and animates the export-style check', async ({ page }) => {
-  const recipient = '0x2F0100000000000000000000000000000000004EC9';
+test('the receipt keeps the address on one line and copies the full value', async ({ page }) => {
+  const recipient = '0xBB442B54c85efBa2D7B81eA52990ad638cDba483';
   await page.evaluate((value) => {
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
       async writeText(text: string) { window.__confirmationMount.calls.push(text); },
@@ -321,8 +321,21 @@ test('clicking the receipt address copies the full value and animates the export
   }, recipient);
   const destination = page.locator('.seams-receipt-destination');
   const button = destination.getByRole('button', { name: `Copy recipient address ${recipient}`, exact: true });
+  await expect(page.locator('.seams-confirmation-modal')).toHaveCSS('width', '448px');
   await expect(button.locator('.copy-icon')).toHaveCSS('opacity', '0');
   await expect(button.locator('.seams-review-full-address')).toHaveText(recipient);
+  await page.getByText('Receipt details', { exact: true }).click();
+  const detailedAddress = page.locator('.seams-review-technical .seams-review-full-address');
+  await expect(detailedAddress).toBeVisible();
+  await expect
+    .poll(() =>
+      detailedAddress.evaluate((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        return range.getClientRects().length;
+      }),
+    )
+    .toBe(1);
   await button.hover();
   await expect(button.locator('.copy-icon')).toHaveCSS('opacity', '1');
   await expect(button.locator('.seams-review-address')).toHaveCount(0);

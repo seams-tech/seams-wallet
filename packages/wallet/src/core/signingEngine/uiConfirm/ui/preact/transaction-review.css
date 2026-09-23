@@ -503,7 +503,7 @@
   border-radius: min(calc(var(--seams-shape-card, 16px) * 1.625), 26px);
 }
 :where(.seams-wallet-ui[data-confirmation-kind='transaction']) .seams-confirmation-modal {
-  inline-size: min(100%, 26.25rem);
+  inline-size: min(100%, 28rem);
 }
 :where(.seams-wallet-ui[data-receipt-view='toast'])
   .seams-confirmation-modal
