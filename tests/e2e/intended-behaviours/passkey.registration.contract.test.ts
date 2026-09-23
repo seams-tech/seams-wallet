@@ -12,7 +12,46 @@ import { intendedTest as test, type IntendedSigningStage } from './harness';
 import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '../../../packages/wallet/src/core/signingEngine/workerManager/ecdsaPresignLifecycle';
+import { parseYaoServerTimingBuckets } from '../../../packages/wallet/src/SeamsWeb/operations/registration/registrationTiming';
 import { isHex, parseTransaction, recoverTransactionAddress } from 'viem';
+
+test('mixed registration exposes gateway timings without changing the response body', async ({
+  harness,
+  page,
+}) => {
+  const respond = page.waitForResponse((response) =>
+    new URL(response.url()).pathname.endsWith('/wallets/register/respond'),
+  );
+  const activate = page.waitForResponse((response) =>
+    new URL(response.url()).pathname.endsWith('/wallets/register/activate'),
+  );
+
+  await harness.registerPasskeyWallet();
+
+  const [respondResponse, activateResponse] = await Promise.all([respond, activate]);
+  const respondTiming = await respondResponse.headerValue('Server-Timing');
+  const activateTiming = await activateResponse.headerValue('Server-Timing');
+  expect(respondTiming).toContain('ecdsa_respond_total;dur=');
+  expect(respondTiming).toContain('ecdsa_respond_router;dur=');
+  expect(activateTiming).toContain('ecdsa_activate_total;dur=');
+  expect(activateTiming).toContain('ecdsa_activate_router;dur=');
+  expect(parseYaoServerTimingBuckets(respondTiming)).toContainEqual([
+    'ecdsaRespondTotalMs',
+    expect.any(Number),
+  ]);
+  expect(parseYaoServerTimingBuckets(activateTiming)).toContainEqual([
+    'ecdsaActivateTotalMs',
+    expect.any(Number),
+  ]);
+  expect(await respondResponse.headerValue('Access-Control-Expose-Headers')).toContain(
+    'Server-Timing',
+  );
+  expect(await activateResponse.headerValue('Access-Control-Expose-Headers')).toContain(
+    'Server-Timing',
+  );
+  expect(await respondResponse.json()).not.toHaveProperty('gatewayServerTiming');
+  expect(await activateResponse.json()).not.toHaveProperty('gatewayServerTiming');
+});
 
 test('custom review requires wallet approval before a live Arc signature', async ({
   harness,

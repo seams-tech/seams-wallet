@@ -2307,6 +2307,7 @@ export async function handleRouterApiWalletRegistrationRespond(
   }
   const parsed = parseWalletRegistrationRespondRequest(input.body);
   if (!parsed.ok) return routeError(400, parsed.code, parsed.message);
+  const serverTiming: Array<readonly [string, number]> = [];
   const result = await input.services.walletRegistration.respondWalletRegistration(
     {
       ...parsed.value,
@@ -2316,8 +2317,11 @@ export async function handleRouterApiWalletRegistrationRespond(
         : {}),
     },
     traceContext.value ?? undefined,
+    serverTiming,
   );
-  return routeJson(result.ok ? 200 : 400, result);
+  return routeJson(result.ok ? 200 : 400, result, {
+    headers: ecdsaGatewayServerTimingHeaders(serverTiming),
+  });
 }
 
 /**
@@ -2558,6 +2562,7 @@ export async function handleRouterApiWalletRegistrationActivate(
       return routeError(400, 'invalid_body', 'ECDSA activation facts are invalid');
     }
   }
+  const serverTiming: Array<readonly [string, number]> = [];
   const result = await input.services.walletRegistration.activateWalletRegistration(
     {
       registrationCeremonyId,
@@ -2575,6 +2580,7 @@ export async function handleRouterApiWalletRegistrationActivate(
       verifier: session,
     },
     traceContext.value ?? undefined,
+    serverTiming,
   );
   if (!result.ok) return routeJson(400, result);
   if (
@@ -2599,7 +2605,9 @@ export async function handleRouterApiWalletRegistrationActivate(
       `Wallet was created but its Console projection failed: ${projectionError}`,
     );
   }
-  return routeJson(200, result);
+  return routeJson(200, result, {
+    headers: ecdsaGatewayServerTimingHeaders(serverTiming),
+  });
 }
 
 /**
@@ -2648,24 +2656,14 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
   return routeJson(200, result);
 }
 
-/**
- * Formats Gateway boundary timings as a `Server-Timing` header value and
- * removes them from the response body. The wire body must stay byte-identical
- * to the uninstrumented response; only the header carries timing. Fixed metric
- * names and numeric durations only.
- */
-function takeEcdsaGatewayServerTiming<
-  T extends { ok: boolean; gatewayServerTiming?: readonly (readonly [string, number])[] },
->(result: T): { body: T; headers?: Record<string, string> } {
-  if (!result.ok || !result.gatewayServerTiming?.length) {
-    const { gatewayServerTiming: _dropped, ...body } = result;
-    return { body: body as T };
-  }
-  const header = result.gatewayServerTiming
+function ecdsaGatewayServerTimingHeaders(
+  serverTiming: readonly (readonly [string, number])[],
+): Record<string, string> | undefined {
+  if (serverTiming.length === 0) return undefined;
+  const header = serverTiming
     .map(([name, durationMs]) => `${name};dur=${Math.max(0, durationMs).toFixed(1)}`)
     .join(', ');
-  const { gatewayServerTiming: _stripped, ...body } = result;
-  return { body: body as T, headers: { 'Server-Timing': header } };
+  return { 'Server-Timing': header };
 }
 
 export async function handleRouterApiWalletAddSignerStart(

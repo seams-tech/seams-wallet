@@ -3416,8 +3416,9 @@ export class CloudflareD1WalletRegistrationService {
   async respondWalletRegistration(
     input: WalletRegistrationRespondInput,
     traceContext?: RouterAbTraceContextV1,
+    timingSink?: Array<readonly [string, number]>,
   ): Promise<WalletRegistrationRespondResponseV2> {
-    const serverTiming: Array<readonly [string, number]> = [];
+    const serverTiming = timingSink ?? [];
     const totalStartedAtMs = Date.now();
     const mark = (name: string, startedAtMs: number): void => {
       serverTiming.push([name, Math.max(0, Date.now() - startedAtMs)]);
@@ -3426,7 +3427,7 @@ export class CloudflareD1WalletRegistrationService {
       const store = this.getRegistrationCeremonyIntentStore();
       const loadStartedAtMs = Date.now();
       const snapshot = await store.getCeremonySnapshot(input.registrationCeremonyId);
-      mark('respond_d1_load', loadStartedAtMs);
+      mark('ecdsa_respond_d1_load', loadStartedAtMs);
       if (!snapshot) {
         return { ok: false, code: 'not_found', message: 'registration ceremony not found' };
       }
@@ -3616,7 +3617,7 @@ export class CloudflareD1WalletRegistrationService {
           registrationBearerToken,
         }),
       ]);
-      mark('respond_router', routerStartedAtMs);
+      mark('ecdsa_respond_router', routerStartedAtMs);
       if (!strictResult.ok) {
         if (!strictResult.retryable) {
           await store.cancelTerminalCeremony({
@@ -3680,16 +3681,16 @@ export class CloudflareD1WalletRegistrationService {
         ) {
           throw error;
         }
-        mark('respond_d1_commit', commitStartedAtMs);
-        mark('respond_total', totalStartedAtMs);
+        mark('ecdsa_respond_d1_commit', commitStartedAtMs);
+        mark('ecdsa_respond_total', totalStartedAtMs);
         return walletRegistrationRespondResult({
           ceremony: reconciled,
           strictResult: reconciledBranch.publicResponse,
           ed25519: storedRespondEd25519DeferredWork(reconciled.signerState),
         });
       }
-      mark('respond_d1_commit', commitStartedAtMs);
-      mark('respond_total', totalStartedAtMs);
+      mark('ecdsa_respond_d1_commit', commitStartedAtMs);
+      mark('ecdsa_respond_total', totalStartedAtMs);
       return walletRegistrationRespondResult({
         ceremony: next,
         strictResult: strictResult.value.publicResponse,
@@ -4786,6 +4787,7 @@ export class CloudflareD1WalletRegistrationService {
   async activateWalletRegistration(
     input: WalletRegistrationActivateInput,
     traceContext?: RouterAbTraceContextV1,
+    serverTiming?: Array<readonly [string, number]>,
   ): Promise<WalletRegistrationActivateResponseV2> {
     try {
       /* No ceremony read here, deliberately. A successful activation deletes
@@ -4844,6 +4846,7 @@ export class CloudflareD1WalletRegistrationService {
           idempotencyKey,
           input,
           traceContext,
+          serverTiming,
         }),
         projectReceipt: (execution) =>
           projectWalletRegistrationSessionCommitReceiptV2({
@@ -4911,6 +4914,7 @@ export class CloudflareD1WalletRegistrationService {
       readonly idempotencyKey: string;
       readonly input: WalletRegistrationActivateInput;
       readonly traceContext?: RouterAbTraceContextV1;
+      readonly serverTiming: Array<readonly [string, number]> | undefined;
     },
     prepared: D1WalletRegistrationOperationPreparedV1,
   ): Promise<RegistrationCommitExecution<WalletRegistrationActivateResponseV2>> {
@@ -4985,6 +4989,9 @@ export class CloudflareD1WalletRegistrationService {
       context.traceContext,
       context.idempotencyKey,
     );
+    if (activated.ok && activated.gatewayServerTiming) {
+      context.serverTiming?.push(...activated.gatewayServerTiming);
+    }
     if (!activated.ok) {
       /* Pre-effect failures stay retryable; the boundary re-raises them so the
          claim is released rather than recorded as a terminal outcome. */

@@ -1211,10 +1211,12 @@ export interface RouterApiWalletRegistrationService {
   respondWalletRegistration(
     input: WalletRegistrationRespondInput,
     traceContext?: RouterAbTraceContextV1,
+    serverTiming?: Array<readonly [string, number]>,
   ): Promise<WalletRegistrationRespondResponseV2>;
   activateWalletRegistration(
     input: WalletRegistrationActivateInput,
     traceContext?: RouterAbTraceContextV1,
+    serverTiming?: Array<readonly [string, number]>,
   ): Promise<WalletRegistrationActivateResponseV2>;
   completeWalletRegistrationNearProvisioning(
     input: WalletRegistrationNearProvisioningInput,

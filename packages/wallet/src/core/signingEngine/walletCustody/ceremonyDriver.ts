@@ -275,7 +275,7 @@ export function recordWalletCustodyTiming(
 ): void {
   if (!isRegistrationBenchmarkDiagnosticsEnabled()) return;
   try {
-    console.debug(
+    console.info(
       '[WalletCustody] timing ' +
         JSON.stringify({
           event: 'wallet_custody_timing',
