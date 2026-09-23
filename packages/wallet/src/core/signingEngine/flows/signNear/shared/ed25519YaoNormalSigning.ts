@@ -86,6 +86,7 @@ import type {
   NearEd25519OperationStepUpAuthorization,
   NearEd25519YaoOperationMaterialFacts,
 } from '@/core/signingEngine/interfaces/near';
+import { emitEd25519SigningTiming } from '@/core/signingEngine/session/operationState/trace';
 
 const ROUTER_AB_NORMAL_SIGNING_REQUEST_TTL_MS = 120_000;
 
@@ -615,6 +616,22 @@ type RouterAbEd25519NormalSigningSignatureArgs = RouterAbEd25519NormalSigningSig
 async function tryFinalizeRouterAbEd25519NormalSigningSignature(
   args: RouterAbEd25519NormalSigningSignatureArgs,
 ): Promise<RouterAbEd25519NormalSigningFinalized> {
+  const operationId = args.prepare.request.intent.operation_id;
+  const signatureStartedAt = performance.now();
+  let outcome: 'succeeded' | 'failed' = 'failed';
+  try {
+    const finalized = await finalizeRouterAbEd25519NormalSigningSignature(args, operationId);
+    outcome = 'succeeded';
+    return finalized;
+  } finally {
+    emitEd25519SigningTiming(operationId, 'signature_total', signatureStartedAt, outcome);
+  }
+}
+
+async function finalizeRouterAbEd25519NormalSigningSignature(
+  args: RouterAbEd25519NormalSigningSignatureArgs,
+  operationId: string,
+): Promise<RouterAbEd25519NormalSigningFinalized> {
   const signingPayload = base64UrlDecode(args.signingDigestB64u);
   if (signingPayload.length !== 32) {
     throw new Error(`Router A/B normal-signing ${args.signingPayloadLabel} must be 32 bytes`);
@@ -647,11 +664,13 @@ async function tryFinalizeRouterAbEd25519NormalSigningSignature(
           relayerUrl: args.walletSessionState.relayerUrl,
         }
       : args.materialFacts;
+  const prepareStartedAt = performance.now();
   const prepareResponse = await prepareRouterAbNormalSigningV2({
     relayServerUrl: materialFacts.relayerUrl,
     credential: args.credential,
     request: args.prepare.request,
   });
+  emitEd25519SigningTiming(operationId, 'prepare', prepareStartedAt);
   requireRouterAbNormalSigningPrepareMatchesRequest({
     request: args.prepare.request,
     signingPayloadDigest: args.prepare.admissionMaterial.signingPayloadDigest,
@@ -678,15 +697,18 @@ async function tryFinalizeRouterAbEd25519NormalSigningSignature(
     signingWorkerId: prepareResponse.signing_worker.server_id,
     signingWorkerVerifyingShare,
   });
+  const clientShareStartedAt = performance.now();
   const clientShare = await args.activeClient.createSigningShare({
     admittedDigest,
     signingWorkerCommitments: prepareResponse.server_commitments,
     signingWorkerVerifyingShare,
   });
+  emitEd25519SigningTiming(operationId, 'client_share', clientShareStartedAt);
   if (clientShare.clientVerifyingShare.length !== 32) {
     throw new Error('Router A/B normal-signing Client verifying share must be 32 bytes');
   }
 
+  const finalizeStartedAt = performance.now();
   const signingResponse = await finalizeRouterAbNormalSigningV2({
     relayServerUrl: materialFacts.relayerUrl,
     credential: args.credential,
@@ -700,6 +722,7 @@ async function tryFinalizeRouterAbEd25519NormalSigningSignature(
       clientSignatureShareB64u: clientShare.clientSignatureShareB64u,
     }),
   });
+  emitEd25519SigningTiming(operationId, 'finalize', finalizeStartedAt);
   requireRouterAbNormalSigningResponseMatchesRequest({
     request: args.prepare.request,
     signingPayloadDigest: args.prepare.admissionMaterial.signingPayloadDigest,

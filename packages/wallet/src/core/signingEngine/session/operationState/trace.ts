@@ -73,6 +73,28 @@ export function emitEcdsaSigningTiming(
   });
 }
 
+export type Ed25519SigningTimingStage =
+  | 'confirmed_to_signed'
+  | 'prepare'
+  | 'client_share'
+  | 'finalize'
+  | 'signature_total';
+
+export function emitEd25519SigningTiming(
+  operationId: string,
+  stage: Ed25519SigningTimingStage,
+  startedAt: number,
+  outcome: 'succeeded' | 'failed' = 'succeeded',
+): void {
+  emitSigningSessionFlowTrace('near', {
+    event: 'ed25519_signing_timing',
+    operationId,
+    stage,
+    durationMs: Math.max(0, performance.now() - startedAt),
+    outcome,
+  });
+}
+
 export type SigningLaneResolutionTraceEvent = {
   event: 'signing_lane_resolved';
   lane: SigningLaneSummary;

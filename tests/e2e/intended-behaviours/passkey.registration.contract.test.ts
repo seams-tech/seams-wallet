@@ -80,30 +80,56 @@ test('mixed registration exposes gateway and finalization timings', async ({ har
   expect(await activateResponse.json()).not.toHaveProperty('gatewayServerTiming');
 });
 
-test('mixed registration starts NEAR admission while ECDSA respond is in flight', async ({
+test('mixed registration starts one NEAR admission while ECDSA activate is in flight', async ({
   harness,
   context,
   page,
 }) => {
-  const respondGate = new RegistrationPresignGate();
-  const respondPath = '**/wallets/register/respond';
-  const holdRespond = respondGate.hold.bind(respondGate);
-  const nearAdmission = page.waitForRequest((request) =>
-    new URL(request.url()).pathname.endsWith('/wallets/register/near-admission'),
+  const activateGate = new RegistrationPresignGate();
+  const activatePath = '**/wallets/register/activate';
+  const holdActivate = activateGate.hold.bind(activateGate);
+  const nearRequests: NearRegistrationRequests = { authorization: [], admission: [] };
+  const collectNearRequests = collectNearRegistrationRequests.bind(
+    undefined,
+    nearRequests,
   );
-  await context.route(respondPath, holdRespond);
+  const nearAdmission = page.waitForRequest((request) =>
+    new URL(request.url()).pathname.endsWith(
+      ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1,
+    ),
+  );
+  context.on('request', collectNearRequests);
+  await context.route(activatePath, holdActivate);
   try {
     const registration = harness.registerPasskeyWallet();
-    await expect.poll(respondGate.requestCount.bind(respondGate)).toBeGreaterThan(0);
+    await expect.poll(activateGate.requestCount.bind(activateGate)).toBeGreaterThan(0);
     await nearAdmission;
-    respondGate.release();
+    expect(nearRequests.authorization).toHaveLength(0);
+    activateGate.release();
     await registration;
     await harness.awaitNearReady();
+    expect(nearRequests.admission).toHaveLength(1);
   } finally {
-    respondGate.release();
-    await context.unroute(respondPath, holdRespond);
+    activateGate.release();
+    context.off('request', collectNearRequests);
+    await context.unroute(activatePath, holdActivate);
   }
 });
+
+type NearRegistrationRequests = {
+  authorization: Request[];
+  admission: Request[];
+};
+
+function collectNearRegistrationRequests(requests: NearRegistrationRequests, request: Request): void {
+  const path = new URL(request.url()).pathname;
+  if (path.endsWith('/wallets/register/near-admission')) {
+    requests.authorization.push(request);
+  }
+  if (path.endsWith(ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1)) {
+    requests.admission.push(request);
+  }
+}
 
 test('custom review requires wallet approval before a live Arc signature', async ({
   harness,

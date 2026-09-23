@@ -6354,12 +6354,12 @@ async function waitForWalletIframeConfirmationSettlement(page: Page): Promise<vo
     timeout: 5_000,
   });
   await page.waitForTimeout(100);
-  const closeReceipt = iframe.contentFrame().getByRole('button', {
-    name: 'Close receipt',
+  const minimizeReceipt = iframe.contentFrame().getByRole('button', {
+    name: 'Minimize transaction',
     exact: true,
   });
-  if (await closeReceipt.isVisible()) {
-    await closeReceipt.click({ timeout: 5_000 });
+  if (await minimizeReceipt.isVisible()) {
+    await minimizeReceipt.click({ timeout: 5_000 });
   }
 }
 

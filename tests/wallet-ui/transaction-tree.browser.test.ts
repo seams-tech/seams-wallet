@@ -215,6 +215,64 @@ test('review renders receiver and action labels from the NEAR transaction payloa
   await expect(review).toContainText('Transfer 0 NEAR');
 });
 
+test('review aligns a block content copy action with its label', async ({ page }) => {
+  await page.evaluate(renderBlockContentReview);
+  const row = page.locator('.seams-review-detail-row--block');
+  const positions = await row.evaluate(blockContentPositions);
+  expect(positions.copyTop).toBeCloseTo(positions.labelTop, 0);
+  expect(positions.copyRight).toBeCloseTo(positions.rowRight, 0);
+  expect(positions.contentTop).toBeGreaterThan(positions.labelBottom);
+});
+
+async function renderBlockContentReview() {
+  const runtime = '/_test-preact/preact.module.js';
+  const { h, render } = await import(runtime);
+  const reviewUrl = '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/preact/TransactionReview.js';
+  const { TransactionReview } = await import(reviewUrl);
+  window.__treeTest.dispose();
+  render(
+    h(TransactionReview, {
+      data: {
+        model: null,
+        detailsInitiallyOpen: true,
+        tree: {
+          id: 'root',
+          type: 'folder',
+          label: 'Transaction details',
+          open: true,
+          children: [
+            {
+              id: 'data',
+              type: 'file',
+              label: 'Data: decoded payload',
+              fieldLabel: 'Data:',
+              open: false,
+              content: '{\n  "token": "0x20c0"\n}',
+              copyValue: '0x20c0',
+            },
+          ],
+        },
+      },
+    }),
+    document.querySelector('main')!,
+  );
+}
+
+function blockContentPositions(element: Element) {
+  const label = element.querySelector(':scope > span')!.getBoundingClientRect();
+  const copy = element.querySelector(':scope > .seams-review-copy')!.getBoundingClientRect();
+  const content = element.querySelector(':scope > pre')!.getBoundingClientRect();
+  const bounds = element.getBoundingClientRect();
+  return {
+    labelTop: label.top,
+    copyTop: copy.top,
+    copyRight: copy.right,
+    contentTop: content.top,
+    labelBottom: label.bottom,
+    rowRight: bounds.right,
+  };
+}
+
 test.beforeEach(async ({ page, baseURL }) => {
   if (!baseURL) throw new Error('Browser origin required');
   await injectImportMap(page, { frontendUrl: baseURL });

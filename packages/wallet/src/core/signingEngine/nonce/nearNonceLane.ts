@@ -15,6 +15,8 @@ import {
 import { nonceLaneKey } from './nonceLaneKeys';
 import { maxBigint, normalizeBigint, normalizeSessionStatusRequiredString } from './nonceUtils';
 
+type NearFreshDataClient = Pick<NearClient, 'viewAccessKey' | 'viewBlock'>;
+
 export type NearAccessKeySubject = {
   walletId: string;
   nearAccountId: string;
@@ -692,29 +694,6 @@ export class NearImplicitAccountFundingRequiredError extends Error {
   }
 }
 
-async function readImplicitNearAccountFundingState(input: {
-  nearClient: NearClient;
-  subject: NearAccessKeySubject;
-}): Promise<
-  { kind: 'funded' } | { kind: 'needs_funding'; error: NearImplicitAccountFundingRequiredError }
-> {
-  try {
-    await input.nearClient.viewAccount(input.subject.nearAccountId);
-    return { kind: 'funded' };
-  } catch (error: unknown) {
-    const message = errorMessage(error);
-    if (!isMissingNearAccessKeyError(message)) throw error;
-  }
-  return {
-    kind: 'needs_funding',
-    error: new NearImplicitAccountFundingRequiredError({
-      walletId: input.subject.walletId,
-      nearAccountId: input.subject.nearAccountId,
-      nearPublicKeyStr: input.subject.publicKey,
-    }),
-  };
-}
-
 export class NearAccountLookupFailedError extends Error {
   readonly code = 'near_account_lookup_failed';
   readonly nearAccountId: string;
@@ -741,7 +720,7 @@ export class NearAccountLookupFailedError extends Error {
 
 export async function fetchNearFreshDataForState(input: {
   state: NearNonceLaneState;
-  nearClient: NearClient;
+  nearClient: NearFreshDataClient;
   force?: boolean;
   now: () => number;
   nonceFreshnessThresholdMs: number;
@@ -774,21 +753,11 @@ export async function fetchNearFreshDataForState(input: {
       let txBlockHash = previousTransactionContext?.txBlockHash;
       const fetchAccessKey = isNonceStale || !accessKeyInfo;
       const fetchBlock = isBlockStale || !txBlockHeight || !txBlockHash;
-      const fetchImplicitAccountFunding =
-        isImplicitNearAccountId(capturedSubject.nearAccountId) &&
-        (input.force || fetchAccessKey || !readyContext);
-
       let maybeAccessKey: unknown = accessKeyInfo ?? null;
       let maybeBlock: unknown = null;
       let accessKeyError: unknown = null;
       let blockError: unknown = null;
       const tasks: Promise<void>[] = [];
-      const implicitFundingPromise = fetchImplicitAccountFunding
-        ? readImplicitNearAccountFundingState({
-            nearClient: input.nearClient,
-            subject: capturedSubject,
-          })
-        : null;
 
       if (fetchAccessKey) {
         tasks.push(
@@ -837,11 +806,6 @@ export async function fetchNearFreshDataForState(input: {
 
       if (tasks.length > 0) {
         await Promise.all(tasks);
-      }
-      const implicitFunding = implicitFundingPromise ? await implicitFundingPromise : null;
-      if (implicitFunding?.kind === 'needs_funding') {
-        setNearImplicitUnfunded({ state, subject: capturedSubject });
-        throw implicitFunding.error;
       }
       if (accessKeyError) {
         if (accessKeyError instanceof NearImplicitAccountFundingRequiredError) {
