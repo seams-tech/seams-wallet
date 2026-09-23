@@ -124,11 +124,20 @@ pub(crate) fn verify_router_ed25519_jwt_signature_v1(
     signature: &[u8; 64],
     key: &CloudflareRouterEd25519JwkV1,
 ) -> RouterAbProtocolResult<()> {
+    verify_ed25519_signature_v1("Router JWT", signing_input, signature, key)
+}
+
+pub(crate) fn verify_ed25519_signature_v1(
+    label: &str,
+    signing_input: &str,
+    signature: &[u8; 64],
+    key: &CloudflareRouterEd25519JwkV1,
+) -> RouterAbProtocolResult<()> {
     key.validate()?;
     let verifying_key = Ed25519VerifyingKey::from_bytes(&key.public_key).map_err(|_| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "Router JWT Ed25519 JWK public key bytes are invalid",
+            format!("{label} Ed25519 JWK public key bytes are invalid"),
         )
     })?;
     let signature = Ed25519Signature::from_bytes(signature);
@@ -137,7 +146,7 @@ pub(crate) fn verify_router_ed25519_jwt_signature_v1(
         .map_err(|_| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::MalformedWirePayload,
-                "Router JWT Ed25519 signature verification failed",
+                format!("{label} Ed25519 signature verification failed"),
             )
         })
 }
