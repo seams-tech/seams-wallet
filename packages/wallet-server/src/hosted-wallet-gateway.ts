@@ -95,10 +95,19 @@ import {
   ROUTER_AB_ED25519_YAO_WARM_RECOVERY_BOOTSTRAP_PATH_V1,
 } from './cloud-host';
 import { buildTenantRootIdentityFromAuthenticatedDeploymentV1 } from './cloud-host';
+import {
+  assignHomeLaneDuringWalletRegistration,
+  CloudflareD1WalletRegionStore,
+  parseManagedWalletHomeLaneId,
+  requireWalletRegionBoundary,
+  WalletHomeLaneAssignmentService,
+} from './cloud-host';
 
 export interface CloudflareD1GatewayBaseEnv
   extends Readonly<Record<string, unknown>>, RouterAbServiceBindingEnv {
   readonly SIGNER_DB: D1DatabaseLike;
+  readonly WALLET_DIRECTORY_DB: D1DatabaseLike;
+  readonly WALLET_DEFAULT_HOME_LANE_ID: string;
   readonly SEAMS_TENANT_STORAGE_NAMESPACE?: string;
   readonly SEAMS_STAGING_ORG_ID?: string;
   readonly SEAMS_STAGING_PROJECT_ID?: string;
@@ -216,6 +225,15 @@ const RELAY_SIGNER_READY_TABLES = Object.freeze([
   'linked_device_target_commit_reservations',
   'linked_device_email_otp_grants',
   'linked_device_ed25519_export_root_transfers',
+]);
+
+const WALLET_DIRECTORY_READY_TABLES = Object.freeze([
+  'managed_wallet_lanes',
+  'active_managed_wallet_lanes',
+  'wallet_home_lanes',
+  'wallet_region_migration_grants',
+  'wallet_region_migrations',
+  'wallet_region_cutovers',
 ]);
 
 const ROUTER_AB_CEREMONY_JWKS_PATH = '/.well-known/router-ab-ceremony-jwks.json';
@@ -481,7 +499,7 @@ async function createStagingRouterApiAuthComposition(
     tokenScope,
     topology,
   });
-  const service = createCloudflareD1RouterApiAuthService({
+  const baseService = createCloudflareD1RouterApiAuthService({
     database: env.SIGNER_DB,
     namespace: scope.namespace,
     orgId: scope.orgId,
@@ -532,6 +550,25 @@ async function createStagingRouterApiAuthComposition(
     tenantRootCustodyLineage,
     linkedDevice: stagingLinkedDeviceSessionComposition(env, scope, tenantRootCustodyLineage),
   });
+  const walletRegionStore = new CloudflareD1WalletRegionStore({
+    database: env.WALLET_DIRECTORY_DB,
+    ensureSchema: false,
+  });
+  const assignments = new WalletHomeLaneAssignmentService({
+    directory: walletRegionStore,
+    laneCatalog: walletRegionStore,
+    defaultHomeLaneId: requireWalletRegionBoundary(
+      parseManagedWalletHomeLaneId(env.WALLET_DEFAULT_HOME_LANE_ID),
+      'WALLET_DEFAULT_HOME_LANE_ID',
+    ),
+  });
+  const service = {
+    ...baseService,
+    walletRegistration: assignHomeLaneDuringWalletRegistration(
+      baseService.walletRegistration,
+      assignments,
+    ),
+  };
   return { service, ecdsaStrictPostRegistration };
 }
 
@@ -721,6 +758,11 @@ export async function createHostedWalletGatewayCompositionV1(
           database: env.SIGNER_DB,
           label: 'SIGNER_DB',
           tables: RELAY_SIGNER_READY_TABLES,
+        });
+        await assertD1Tables({
+          database: env.WALLET_DIRECTORY_DB,
+          label: 'WALLET_DIRECTORY_DB',
+          tables: WALLET_DIRECTORY_READY_TABLES,
         });
       },
       signingSessionSeal: stagingSigningSessionSealOptions(env),

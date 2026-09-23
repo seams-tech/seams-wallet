@@ -8,6 +8,7 @@ import {
 } from '../../packages/shared-ts/src/wallet-region';
 import {
   buildVerifiedManagedWalletLaneConfiguration,
+  WalletHomeLaneAssignmentService,
   walletLaneServiceBindingNameFromString,
 } from '../../packages/wallet-server/src/core/walletRegion';
 import { createCloudflareD1WalletRegionStore } from '../../packages/wallet-server/src/router/cloudflare/d1/walletRegion';
@@ -28,6 +29,61 @@ test.afterEach(() => {
 });
 
 test.describe('Cloudflare D1 wallet region store', () => {
+  test('assigns an available default lane once and replays the durable assignment', async () => {
+    const temporary = createTemporaryD1Database();
+    temporaryDirectories.push(temporary.tempDir);
+    const store = createCloudflareD1WalletRegionStore({
+      database: temporary.database,
+      now: () => 1_000,
+    });
+    const fixture = await buildGrantedAuthorizedWalletRegionMigrationFixture();
+    const asiaPacific = buildVerifiedManagedWalletLaneConfiguration({
+      laneId: MANAGED_WALLET_LANES.asia_pacific.laneId,
+      productRegion: 'asia_pacific',
+      status: 'available',
+      placementEvidence: {
+        kind: 'verified',
+        recordedAtMs: 900,
+        observedD1Location: 'APAC',
+        maximumWriteLatencyMs: 35,
+      },
+      bindings: {
+        routerBinding: walletLaneServiceBindingNameFromString('MANAGED_APAC_ROUTER'),
+        deriverABinding: walletLaneServiceBindingNameFromString('MANAGED_APAC_DERIVER_A'),
+        deriverBBinding: walletLaneServiceBindingNameFromString('MANAGED_APAC_DERIVER_B'),
+        signingWorkerBinding: walletLaneServiceBindingNameFromString('MANAGED_APAC_SIGNING_WORKER'),
+      },
+      configurationVersion: 1,
+    });
+    await store.putConfiguration(asiaPacific);
+    await store.activateConfiguration({
+      laneId: asiaPacific.laneId,
+      configurationVersion: asiaPacific.configurationVersion,
+      expectedConfigurationVersion: null,
+    });
+    const assignments = new WalletHomeLaneAssignmentService({
+      directory: store,
+      laneCatalog: store,
+      defaultHomeLaneId: asiaPacific.laneId,
+      now: () => 2_000,
+    });
+
+    const first = await assignments.ensureAssigned(fixture.migration.walletId);
+    const replay = await assignments.ensureAssigned(fixture.migration.walletId);
+
+    expect(first).toMatchObject({
+      homeLane: {
+        walletId: fixture.migration.walletId,
+        laneId: 'managed-apac-v1',
+        laneEpoch: 1,
+      },
+      directoryRevision: 1,
+      migrationId: null,
+      createdAtMs: 2_000,
+    });
+    expect(replay).toEqual(first);
+  });
+
   test('activates only immutable, placement-verified lane configurations', async () => {
     const temporary = createTemporaryD1Database();
     temporaryDirectories.push(temporary.tempDir);

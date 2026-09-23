@@ -82,7 +82,7 @@ async function main() {
     googleOidcClientId: process.env.GOOGLE_OIDC_CLIENT_ID,
     deployment,
   });
-  applySignerMigrations(runtime);
+  applyGatewayMigrations(runtime);
   console.log('Starting local Wallet Gateway...');
   startGateway(runtime);
   await waitForHttp(`${runtime.gatewayUrl}/readyz`, 120_000, true);
@@ -264,10 +264,20 @@ function localDeployment(tenantRoot) {
   });
 }
 
-function applySignerMigrations(runtime) {
+function applyGatewayMigrations(runtime) {
   mkdirSync(gatewayStateRoot, { recursive: true });
+  applyGatewayDatabaseMigrations(runtime, runtime.signerDatabaseName, 'Wallet signer');
+  applyGatewayDatabaseMigrations(
+    runtime,
+    runtime.walletDirectoryDatabaseName,
+    'Wallet directory',
+  );
+  console.log('Local database ready: wallet-gateway');
+}
+
+function applyGatewayDatabaseMigrations(runtime, databaseName, label) {
   runRequired(
-    'Wallet signer D1 migrations',
+    `${label} D1 migrations`,
     'pnpm',
     [
       'exec',
@@ -275,7 +285,7 @@ function applySignerMigrations(runtime) {
       'd1',
       'migrations',
       'apply',
-      runtime.signerDatabaseName,
+      databaseName,
       '--local',
       '--persist-to',
       gatewayStateRoot,
@@ -284,7 +294,6 @@ function applySignerMigrations(runtime) {
     ],
     { ...workerEnv, CI: 'true' },
   );
-  console.log('Local database ready: wallet-gateway');
 }
 
 function startGateway(runtime) {

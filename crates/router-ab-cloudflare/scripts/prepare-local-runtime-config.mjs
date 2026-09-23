@@ -84,12 +84,20 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
       require.resolve('@seams/wallet-server/local-hosted-wallet-gateway-worker'),
     ),
   );
-  config = replaceTomlAssignment(
+  config = replaceD1MigrationsDirectory(
     config,
-    'migrations_dir',
+    'SIGNER_DB',
     relativePosixPath(
       outputRoot,
       path.join(walletServerRoot, 'migrations', 'd1-signer'),
+    ),
+  );
+  config = replaceD1MigrationsDirectory(
+    config,
+    'WALLET_DIRECTORY_DB',
+    relativePosixPath(
+      outputRoot,
+      path.join(walletServerRoot, 'migrations', 'd1-wallet-directory'),
     ),
   );
   writeFileSync(outputConfigPath, config);
@@ -138,6 +146,7 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
     secretPath,
     gatewayUrl,
     signerDatabaseName: 'seams-wallet-signer-local',
+    walletDirectoryDatabaseName: 'seams-wallet-directory-local',
   });
 }
 
@@ -961,6 +970,21 @@ function replaceTomlAssignment(source, key, value) {
   const matches = source.match(assignment) ?? [];
   if (matches.length === 0) throw new Error(`strict local Wrangler config must define ${key}`);
   return source.replace(assignment, `${key} = ${JSON.stringify(value)}`);
+}
+
+function replaceD1MigrationsDirectory(source, binding, migrationsDirectory) {
+  const blocks = source.split(/(?=\[\[d1_databases\]\])/u);
+  let replaced = false;
+  const result = blocks.map((block) => {
+    if (!new RegExp(`^binding\\s*=\\s*"${escapeRegExp(binding)}"$`, 'mu').test(block)) {
+      return block;
+    }
+    if (replaced) throw new Error(`strict local Wrangler config defines ${binding} more than once`);
+    replaced = true;
+    return replaceTomlAssignment(block, 'migrations_dir', migrationsDirectory);
+  });
+  if (!replaced) throw new Error(`strict local Wrangler config must define ${binding}`);
+  return result.join('');
 }
 
 function setTomlSectionAssignment(source, section, key, value) {
