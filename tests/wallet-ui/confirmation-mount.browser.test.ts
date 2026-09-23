@@ -211,7 +211,7 @@ for (const context of ['standalone', 'wallet-iframe'] as const) {
   });
 }
 
-test('toast progress advances in thirds only after completed transaction stages', async ({
+test('toast sweeps across one continuous track while pending and retains settled progress', async ({
   page,
 }) => {
   await page.evaluate(() => {
@@ -241,6 +241,10 @@ test('toast progress advances in thirds only after completed transaction stages'
     await expect(spinner).toHaveCSS('animation-name', pending ? 'seams-receipt-spin' : 'none');
     await expect(active).toHaveCount(pending ? 1 : 0);
     if (pending) {
+      const trackBounds = await progress.boundingBox();
+      const activeBounds = await active.boundingBox();
+      expect(activeBounds!.x).toBeCloseTo(trackBounds!.x, 1);
+      expect(activeBounds!.width).toBeCloseTo(trackBounds!.width, 1);
       expect(await active.evaluate((element) => getComputedStyle(element, '::after').animationName))
         .toBe('seams-receipt-sweep');
     }
