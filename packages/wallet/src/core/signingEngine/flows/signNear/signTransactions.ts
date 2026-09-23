@@ -43,6 +43,7 @@ import { nearEd25519SignerBindingFromBoundaryFields } from '../../session/identi
 import type { NonceLeaseRef } from '../../interfaces/nonceLease';
 import {
   createSigningBoundaryTraceEvent,
+  emitEd25519SigningTiming,
   emitSigningBoundaryTrace,
 } from '../../session/operationState/trace';
 import type { SigningSessionCoordinator } from '../../session/SigningSessionCoordinator';
@@ -149,6 +150,31 @@ function disposeOwnedNearOperationStepUpMaterialAndRethrow(
 ): never {
   disposeOwnedNearOperationStepUpMaterial(args);
   throw error;
+}
+
+type WarmNearSigningMaterial = {
+  material: NearEd25519YaoOperationMaterial;
+  walletSessionState: ResolvedRouterAbEd25519WalletSessionState;
+};
+
+async function resolveWarmNearSigningMaterial(args: {
+  preparation: NearTransactionWithActionsPayload['yaoSigningPreparation'];
+  executor: NearTransactionWithActionsPayload['yaoMaterialExecutor'];
+}): Promise<WarmNearSigningMaterial> {
+  const material = await resolvePreparedNearEd25519YaoMaterial(args.preparation, args.executor);
+  return {
+    material,
+    walletSessionState: await args.executor.resolveWalletSessionState(),
+  };
+}
+
+function requireWarmNearSigningMaterialTask(
+  task: Promise<WarmNearSigningMaterial> | null,
+): Promise<WarmNearSigningMaterial> {
+  if (!task) {
+    throw new Error('[SigningEngine][near] warm signing material was not prepared');
+  }
+  return task;
 }
 
 async function resolveNearTransactionOperationStepUpMaterial(args: {
@@ -651,6 +677,10 @@ async function runAuthorizedNearTransactionWithActionsSigning({
   const nearAccountId = toAccountId(nearAccount.accountId);
   const relayerUrl = ctx.relayerUrl;
   const warnings: string[] = [];
+  const durableLeaseRecovery = ctx.nonceCoordinator.recoverDurableLeases({
+    walletId: String(commandSubject.walletSession.walletId),
+  });
+  durableLeaseRecovery.catch(() => {});
   emitNearSigningEvent(onEvent, nearAccountId, {
     phase: SigningEventPhase.STEP_02_REQUEST_PREPARED,
     status: 'running',
@@ -792,6 +822,14 @@ async function runAuthorizedNearTransactionWithActionsSigning({
     ...(passkeyEd25519OperationStepUp ? { passkeyEd25519OperationStepUp } : {}),
     ...(emailOtpEd25519StepUp ? { emailOtpEd25519StepUp } : {}),
   });
+  const warmSigningMaterialTask =
+    preparedStepUp.kind === 'warm_session'
+      ? resolveWarmNearSigningMaterial({
+          preparation: yaoSigningPreparation,
+          executor: yaoMaterialExecutor,
+        })
+      : null;
+  warmSigningMaterialTask?.catch(() => {});
   const confirmationAuthPayload = preparedStepUp.confirmationAuthPayload;
   if (isWarmSessionSigningAuthPlan(confirmationAuthPayload.signingAuthPlan)) {
     emitNearSigningEvent(onEvent, nearAccountId, {
@@ -895,6 +933,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
       readiness: operationStepUpReadiness,
     });
   }
+  const confirmationCompletedAt = performance.now();
   const operationStepUpMaterial = operationStepUpReadiness ? await operationStepUpReadiness : null;
   if (transactionReviewRequired) {
     emitNearSigningEvent(onEvent, nearAccountId, {
@@ -937,9 +976,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
     operationStepUpMaterial?.kind === 'passkey_sealed' ||
     operationStepUpMaterial?.kind === 'email_otp_sealed';
   try {
-    await ctx.nonceCoordinator.recoverDurableLeases({
-      walletId: String(signingLane.identity.signer.account.wallet.walletId),
-    });
+    await durableLeaseRecovery;
   } catch (error) {
     disposeOwnedNearOperationStepUpMaterial({
       resolved: resolvedOperationStepUpMaterial,
@@ -962,10 +999,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
         stepUpAuthorization.kind === 'warm_session'
           ? {
               kind: 'warm_session' as const,
-              material: await resolvePreparedNearEd25519YaoMaterial(
-                yaoSigningPreparation,
-                yaoMaterialExecutor,
-              ),
+              resolved: await requireWarmNearSigningMaterialTask(warmSigningMaterialTask),
             }
           : {
               kind: 'operation_step_up' as const,
@@ -973,15 +1007,15 @@ async function runAuthorizedNearTransactionWithActionsSigning({
             };
       const canonicalThresholdSessionId =
         resolvedMaterial.kind === 'warm_session'
-          ? resolvedMaterial.material.facts.thresholdSessionId
+          ? resolvedMaterial.resolved.material.facts.thresholdSessionId
           : resolvedMaterial.resolved.material.facts.thresholdSessionId;
       const activeYaoClient =
         resolvedMaterial.kind === 'warm_session'
-          ? resolvedMaterial.material.activeClient
+          ? resolvedMaterial.resolved.material.activeClient
           : resolvedMaterial.resolved.material.activeClient;
       const activeWalletSessionState =
         resolvedMaterial.kind === 'warm_session'
-          ? await yaoMaterialExecutor.resolveWalletSessionState()
+          ? resolvedMaterial.resolved.walletSessionState
           : null;
       const confirmedNearContext =
         resolvedMaterial.kind === 'warm_session'
@@ -1146,6 +1180,11 @@ async function runAuthorizedNearTransactionWithActionsSigning({
           warnings,
           nonceLeases: nonceLeaseRefs,
         });
+        emitEd25519SigningTiming(
+          String(signingOperation.operationId),
+          'confirmed_to_signed',
+          confirmationCompletedAt,
+        );
         emitNearSigningEvent(onEvent, nearAccountId, {
           phase: SigningEventPhase.STEP_11_TRANSACTION_SIGNED,
           status: 'succeeded',
