@@ -39,12 +39,12 @@ async function main() {
     waitForHttp(`${controllerOrigin}/healthz`, 60_000),
     waitForHttp(appOrigin, 60_000),
     waitForHttp(`${walletOrigin}/wallet-service`, 60_000),
-    waitForHttp('http://docs.localhost:4003/docs/', 60_000),
+    waitForHttp('http://localhost:4003/docs/', 60_000),
   ]);
   printLocalServiceTable('Local Wallet site services ready', [
     { name: 'wallet-console-lite', url: appOrigin },
     { name: 'hosted-wallet', url: walletOrigin },
-    { name: 'wallet-docs', url: 'http://docs.localhost:4003/docs/' },
+    { name: 'wallet-docs', url: 'http://localhost:4003/docs/' },
     { name: 'workspace-controller', url: controllerOrigin },
   ]);
   console.log(`Wallet Gateway proxy: ${gatewayUrl}`);
@@ -198,7 +198,7 @@ function startDocs() {
     env: {
       ...process.env,
       VITE_SITE_ORIGIN: appOrigin,
-      VITE_DOCS_ORIGIN: 'http://docs.localhost:4003/docs',
+      VITE_DOCS_ORIGIN: 'http://localhost:4003/docs',
       VITE_DOCS_BASE_PATH: '/docs/',
       VITE_WALLET_SITE_ORIGIN: appOrigin,
     },

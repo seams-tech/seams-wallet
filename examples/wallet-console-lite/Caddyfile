@@ -19,7 +19,7 @@ http://localhost:4001 {
 	}
 }
 
-http://docs.localhost:4003 {
+http://localhost:4003 {
 	encode gzip
 	reverse_proxy localhost:4006
 }

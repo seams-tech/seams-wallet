@@ -46,7 +46,7 @@ in `src/styles.css`. `TransactionReviewHost` is mounted in `WalletConsoleLite.ts
 ## Local ports
 
 - `http://localhost:4001` — Wallet Console Lite
-- `http://docs.localhost:4003/docs/` — Wallet documentation
+- `http://localhost:4003/docs/` — Wallet documentation
 - `http://localhost:4002` — hosted Wallet iframe and SDK assets
 - `http://localhost:4101` — Caddy proxy to the Wallet Gateway
 - `http://127.0.0.1:4100` — Wallet Gateway
