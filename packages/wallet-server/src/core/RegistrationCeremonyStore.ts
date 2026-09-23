@@ -109,6 +109,11 @@ import {
   parseWalletAuthAuthorityRef,
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
+import {
+  parseWalletLaneContext,
+  walletLaneContextsEqual,
+  type WalletLaneContext,
+} from '@shared/wallet-region';
 
 export type StoredAddSignerIntent = {
   kind: 'add_signer_intent_allocated';
@@ -188,6 +193,7 @@ export type StoredWalletRegistrationEcdsaPreparedContext =
 
 export type StoredWalletRegistrationPreparedContext = {
   kind: 'wallet_registration_prepared_context_v1';
+  laneContext: WalletLaneContext;
   signingRootId: string;
   signingRootVersion: string;
   runtimePolicy: StoredWalletRegistrationRuntimePolicyContext;
@@ -195,6 +201,7 @@ export type StoredWalletRegistrationPreparedContext = {
 };
 
 export function buildStoredWalletRegistrationPreparedContext(input: {
+  laneContext: WalletLaneContext;
   signingRootId: string;
   signingRootVersion: string;
   runtimePolicyScope: RuntimePolicyScope | null;
@@ -207,6 +214,7 @@ export function buildStoredWalletRegistrationPreparedContext(input: {
   }
   return {
     kind: 'wallet_registration_prepared_context_v1',
+    laneContext: input.laneContext,
     signingRootId,
     signingRootVersion,
     runtimePolicy: input.runtimePolicyScope
@@ -236,6 +244,7 @@ export function storedWalletRegistrationPreparedContextsMatch(
 ): boolean {
   if (
     left.kind !== right.kind ||
+    !walletLaneContextsEqual(left.laneContext, right.laneContext) ||
     left.signingRootId !== right.signingRootId ||
     left.signingRootVersion !== right.signingRootVersion ||
     left.runtimePolicy.kind !== right.runtimePolicy.kind ||
@@ -1568,6 +1577,7 @@ type StoredRegistrationSignerPlanBranchRecord = {
 
 type StoredWalletRegistrationPreparedContextRecord = {
   readonly kind?: unknown;
+  readonly laneContext?: unknown;
   readonly signingRootId?: unknown;
   readonly signingRootVersion?: unknown;
   readonly runtimePolicy?: unknown;
@@ -1715,8 +1725,15 @@ export function parseStoredWalletRegistrationPreparedContext(
   const runtimePolicy = parseStoredWalletRegistrationRuntimePolicyContext(record.runtimePolicy);
   const ecdsa = parseStoredWalletRegistrationEcdsaPreparedContext(record.ecdsa);
   if (!runtimePolicy || !ecdsa) return null;
+  let laneContext: WalletLaneContext;
+  try {
+    laneContext = parseWalletLaneContext(record.laneContext);
+  } catch {
+    return null;
+  }
   return {
     kind: 'wallet_registration_prepared_context_v1',
+    laneContext,
     signingRootId,
     signingRootVersion,
     runtimePolicy,

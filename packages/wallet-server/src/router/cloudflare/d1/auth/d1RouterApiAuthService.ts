@@ -1679,6 +1679,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     walletCustodyCommitStore,
     walletAuthMethods,
     getLinkedDeviceEd25519AuthorityReader,
+    resolveWalletLaneContext: options.resolveWalletLaneContext,
   });
   const walletAddSigners = new CloudflareD1WalletAddSignerService({
     getRegistrationCeremonyIntentStore,
