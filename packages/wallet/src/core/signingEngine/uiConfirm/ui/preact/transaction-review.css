@@ -261,7 +261,13 @@
 }
 :where(.seams-wallet-ui) .seams-review-detail-row--block > pre {
   grid-column: 1 / -1;
+  grid-row: 2;
   text-align: start;
+}
+:where(.seams-wallet-ui) .seams-review-detail-row--block > .seams-review-copy {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
 }
 :where(.seams-wallet-ui) .seams-review-detail-row--block > pre,
 :where(.seams-wallet-ui) .seams-review-raw > pre {
