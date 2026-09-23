@@ -513,7 +513,7 @@ export function parseWalletRegistrationSessionCommitReceiptV2(
     'session' in committed &&
     (committed.session.walletId !== walletId.value ||
       committed.session.expiresAtMs !== expiresAtMs ||
-      committed.session.remainingUses <= 0)
+      committed.session.remainingUses < 0)
   ) {
     return null;
   }
@@ -574,7 +574,7 @@ function assertRegistrationCommitSessionTiming(
     !Number.isSafeInteger(session.expiresAtMs) ||
     session.expiresAtMs <= issuedAtMs ||
     !Number.isSafeInteger(session.remainingUses) ||
-    session.remainingUses <= 0
+    session.remainingUses < 0
   ) {
     throw new Error('Registration commit receipt has invalid session timing');
   }

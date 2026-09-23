@@ -83,12 +83,20 @@ async function handleControllerRequest(request, response) {
       sendJson(response, 200, { ok: true });
       return;
     }
-    if (request.method !== 'POST' || pathname !== '/__local-workspace') {
+    if (!['GET', 'POST'].includes(request.method) || pathname !== '/__local-workspace') {
       sendJson(response, 404, { kind: 'failed', message: 'Route not found' });
       return;
     }
-    if (request.headers.origin !== appOrigin) {
+    if (
+      (request.method === 'POST' || request.headers.origin) &&
+      request.headers.origin !== appOrigin
+    ) {
       sendJson(response, 403, { kind: 'failed', message: 'Request origin is not allowed' });
+      return;
+    }
+    if (request.method === 'GET') {
+      const current = provisioningPromise ? await provisioningPromise : workspaceState;
+      sendJson(response, 200, current);
       return;
     }
     const input = parseWorkspaceInput(await readJsonBody(request));
@@ -97,7 +105,6 @@ async function handleControllerRequest(request, response) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Local workspace setup failed';
     const failure = { kind: 'failed', message };
-    if (workspaceState.kind === 'provisioning') workspaceState = failure;
     sendJson(response, 400, failure);
   }
 }
@@ -126,7 +133,6 @@ function normalizeDisplayName(value, label) {
 
 async function provisionWorkspace(identity) {
   if (workspaceState.kind === 'ready') {
-    requireSameWorkspace(workspaceState.identity, identity);
     return workspaceState;
   }
   if (workspaceState.kind === 'provisioning' && provisioningPromise) {
@@ -137,17 +143,14 @@ async function provisionWorkspace(identity) {
   try {
     workspaceState = await provisioningPromise;
     return workspaceState;
+  } catch (error) {
+    workspaceState = {
+      kind: 'failed',
+      message: error instanceof Error ? error.message : 'Local workspace setup failed',
+    };
+    throw error;
   } finally {
     provisioningPromise = null;
-  }
-}
-
-function requireSameWorkspace(existing, requested) {
-  if (
-    existing.organizationName !== requested.organizationName ||
-    existing.projectName !== requested.projectName
-  ) {
-    throw new Error('This process already owns one local workspace. Restart it to create another.');
   }
 }
 

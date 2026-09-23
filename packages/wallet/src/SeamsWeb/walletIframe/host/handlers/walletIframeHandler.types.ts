@@ -35,7 +35,6 @@ export interface HandlerDeps {
   getSeamsWeb(): SeamsWeb;
   post(msg: ChildToParentEnvelope): void;
   postProgress(requestId: string | undefined, payload: ProgressPayload): void;
-  postToParent?(msg: unknown): void;
   isCancelled(requestId: string | undefined): boolean;
   respondIfCancelled(requestId: string | undefined): boolean;
 }

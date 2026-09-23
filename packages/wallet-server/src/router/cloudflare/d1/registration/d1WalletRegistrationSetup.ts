@@ -208,7 +208,6 @@ export function storedRespondEd25519DeferredWork(
   return {
     status: 'deferred',
     admissionRequest: branch.admissionRequest,
-    admissionReceipt: branch.admissionReceipt,
   };
 }
 

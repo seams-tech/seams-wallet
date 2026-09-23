@@ -353,7 +353,6 @@ export type RespondEcdsaProofBundles = {
 export type RespondEd25519DeferredWorkV2 = {
   status: 'deferred';
   admissionRequest: SetupEd25519Work extends { admissionRequest: infer T } ? T : never;
-  admissionReceipt: SetupEd25519Work extends { admissionReceipt: infer T } ? T : never;
 };
 
 export type WalletRegistrationRespondResponseV2 =

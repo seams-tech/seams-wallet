@@ -49,7 +49,6 @@ import type {
   UiConfirmRuntimeBridgePort,
   WarmSessionStatusResult,
 } from '../../uiConfirm/uiConfirm.types';
-import { prewarmTxConfirmerUi } from '../../uiConfirm/ui/confirm-ui';
 import {
   loadSecp256k1EngineCtor,
   loadSignEvmFamilyWithUiConfirmForTempo,
@@ -215,7 +214,6 @@ export function createWorkerResourceWarmupDepsFactory(
       await Promise.all([
         args.touchConfirm.initialize(),
         args.passkeyMpcSession.prewarmShamir3Pass(),
-        prewarmTxConfirmerUi(),
         /* Also warm the lazily-imported EVM-family signing flow chunks: the
            first sign after a page load otherwise pays these dynamic imports
            before the confirmation modal can open. */

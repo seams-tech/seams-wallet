@@ -87,8 +87,9 @@ const PLUGIN_README_REQUIRED_PATTERNS = [
     message: 'plugin README must state that app origins do not serve wallet routes',
   },
   {
-    pattern: /no hosted `\/export-viewer` page is part of the runtime contract\./,
-    message: 'plugin README must document the srcdoc-only export viewer contract',
+    pattern:
+      /export surface is mounted by the wallet host from its Preact runtime; no hosted `\/export-viewer` page is part of the runtime contract\./,
+    message: 'plugin README must document the wallet-hosted Preact export surface contract',
   },
   {
     pattern: /Seams wallet hosting publishes that tree from the wallet origin/,

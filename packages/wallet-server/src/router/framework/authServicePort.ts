@@ -1116,6 +1116,11 @@ export interface RouterApiEmailOtpChallengeService {
 }
 
 export interface RouterApiWalletRegistrationService {
+  authorizeNearRegistrationContinuation(input: {
+    readonly lifecycleId: string;
+    readonly credential: string;
+  }): Promise<import('../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationIntentAuthorization').VerifiedNearRegistrationContinuationV1 | null>;
+
   resolveActiveOwnerWalletExecutionLane(input: {
     readonly walletId: WalletId;
     readonly expectedMaterialActivation: MpcMaterialActivationRef;

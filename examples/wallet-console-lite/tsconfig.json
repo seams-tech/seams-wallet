@@ -6,7 +6,10 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022",
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "paths": {
+      "@wallet-preview/*": ["../../packages/wallet/dist/types/wallet/src/*"]
+    }
   },
   "include": ["src"]
 }

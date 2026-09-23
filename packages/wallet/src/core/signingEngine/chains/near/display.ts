@@ -4,6 +4,7 @@ import type {
   TxDisplayModel,
   TxDisplayOperation,
   NearActionOperation,
+  NearMessageOperation,
   GenericContractCallOperation,
 } from '@/core/signingEngine/interfaces/display';
 
@@ -11,6 +12,15 @@ export type BuildNearDisplayModelArgs = {
   txSigningRequests: TransactionInputWasm[];
   intentDigest?: string;
   signerAccount?: string;
+  title?: string;
+  subtitle?: string;
+};
+
+export type BuildNearMessageDisplayModelArgs = {
+  signerAccount: string;
+  recipient: string;
+  message: string;
+  intentDigest: string;
   title?: string;
   subtitle?: string;
 };
@@ -313,5 +323,35 @@ export function buildNearDisplayModel(args: BuildNearDisplayModelArgs): TxDispla
           },
         }
       : {}),
+  };
+}
+
+export function buildNearMessageDisplayModel(
+  args: BuildNearMessageDisplayModelArgs,
+): TxDisplayModel {
+  const operation: NearMessageOperation = {
+    id: 'near.message',
+    kind: 'near.message',
+    label: 'Message signature',
+    fields: [
+      makeField('Signer', args.signerAccount, args.signerAccount),
+      makeField('Recipient', args.recipient, args.recipient),
+      {
+        label: 'Message',
+        value: args.message,
+        copyValue: args.message,
+        renderAs: 'file-content',
+        hideChevron: true,
+      },
+    ].filter(Boolean) as TxDisplayField[],
+  };
+
+  return {
+    chain: 'near',
+    intentDigest: args.intentDigest,
+    signerAccount: args.signerAccount,
+    title: args.title || 'NEP-413 message',
+    subtitle: args.subtitle,
+    operations: [operation],
   };
 }

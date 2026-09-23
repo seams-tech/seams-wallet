@@ -26,6 +26,7 @@ SOURCE_WASM_WALLET_CUSTODY_CEREMONY="../../wasm/wallet_custody_ceremony"
 
 # Critical directories for build freshness checking
 CRITICAL_DIRS=(
+    "src/SeamsWeb"
     "src/core"
     "src/react"
     "src/static"

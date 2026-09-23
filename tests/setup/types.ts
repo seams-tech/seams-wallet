@@ -25,7 +25,7 @@ export type PasskeyTestConfigOverrides = Partial<PasskeyTestConfig>;
 export type PasskeyTestSetupOptions = PasskeyTestConfigOverrides & {
   /**
    * When true, skip dynamic loading of SeamsWeb + global fallback injection.
-   * Useful for lightweight lit-component tests that only need the import map.
+   * Useful for lightweight wallet UI tests that only need the import map.
    */
   skipSeamsWebInit?: boolean;
   /**

@@ -2,7 +2,7 @@
  * SDK Base (wallet origin)
  *
  * The wallet iframe host announces the absolute SDK base URL so that all
- * embedded assets (host script, Lit bundles) and module workers resolve from
+ * embedded assets (host script, wallet UI bundles) and module workers resolve from
  * the wallet origin in production. This keeps sensitive execution isolated
  * under the wallet site while allowing cross‑origin embedding.
  *
@@ -12,7 +12,7 @@
  *
  * Readers:
  *  - WebAuthnManager (to set worker base origin for managers)
- *  - Lit wrappers (to resolve embedded script/css URLs)
+ *  - wallet UI hosts (to resolve embedded script/css URLs)
  */
 export const SEAMS_WALLET_SDK_BASE_KEY = '__SEAMS_WALLET_SDK_BASE__';
 export const SEAMS_WALLET_SDK_BASE_EVENT = 'SEAMS_WALLET_SDK_BASE_CHANGED';

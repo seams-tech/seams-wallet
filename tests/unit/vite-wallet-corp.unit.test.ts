@@ -105,13 +105,11 @@ test.describe('plugins/vite hosted wallet helper headers', () => {
     const html = buildWalletServiceHtml('/sdk', 'test-version');
 
     expect(html).toContain(
-      '<link rel="stylesheet" href="/sdk/seams-components.css?v=test-version" data-seams-components-css />',
+      '<link rel="stylesheet" href="/sdk/wallet-ui.css?v=test-version" />',
     );
-    expect(html).toContain(
-      '<link rel="stylesheet" href="/sdk/recovery-code-backup.css?v=test-version" data-seams-recovery-code-backup-css />',
-    );
-    expect(html).toContain(
-      '<link rel="stylesheet" href="/sdk/copy-icon.css?v=test-version" data-seams-copy-icon-css />',
+    expect(html.match(/<link rel="stylesheet"/g)).toHaveLength(1);
+    expect(html).not.toMatch(
+      /(?:drawer|tx-tree|tx-confirmer|halo-border|passkey-halo-loading|padlock-icon)\.css/,
     );
   });
 

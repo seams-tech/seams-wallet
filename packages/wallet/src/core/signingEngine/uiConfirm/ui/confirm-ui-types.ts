@@ -1,5 +1,5 @@
 import type { UserConfirmSecurityContext } from '@/core/types';
-import type { AppearanceConfig, ThemeMode } from '@/core/types/seams';
+import type { AppearanceConfig } from '@/core/types/seams';
 import type { TxDisplayModel } from '@/core/signingEngine/interfaces/display';
 import type {
   EmailOtpConfirmPrompt,
@@ -8,23 +8,13 @@ import type {
 
 export type { ThemeMode } from '@/core/types/seams';
 
-export interface ConfirmUIElement {
-  /** When true, host controls element removal (two-phase close). */
-  deferClose?: boolean;
-  /** Optional close API for programmatic removal with a final decision state. */
-  close?(confirmed: boolean): void;
-}
-
 export type ConfirmationUIMode = 'none' | 'modal' | 'drawer';
 
 // Public handle returned by mount/await helpers
 
 export type ConfirmUIUpdate = {
-  nearAccountId?: string;
   model?: TxDisplayModel;
-  intentDigest?: string;
   securityContext?: Partial<UserConfirmSecurityContext>;
-  theme?: ThemeMode;
   appearance?: AppearanceConfig;
   nearExplorerUrl?: string;
   tempoExplorerUrl?: string;
@@ -33,6 +23,7 @@ export type ConfirmUIUpdate = {
   errorMessage?: string;
   confirmText?: string;
   cancelText?: string;
+  onBack?: () => void;
   title?: string;
   body?: string;
   signingAuthMode?: SigningAuthMode;

@@ -111,29 +111,6 @@ export function getSignIntentDigestSubject(request: UserConfirmRequest): SignInt
   return request.payload.signingSubject;
 }
 
-export function getSubjectLabel(request: UserConfirmRequest): string {
-  if (
-    request.type === UserConfirmationType.AUTHORIZE_KEY_EXPORT ||
-    request.type === UserConfirmationType.SHOW_SECURE_PRIVATE_KEY_UI
-  ) {
-    return getLocalOnlyExportSubjectId(request);
-  }
-  if (request.type === UserConfirmationType.SIGN_INTENT_DIGEST) {
-    const subject = getSignIntentDigestSubject(request);
-    switch (subject.kind) {
-      case 'near_wallet':
-        return subject.nearAccountId;
-      case 'evm_wallet':
-        return subject.walletId;
-      default: {
-        const exhaustive: never = subject;
-        throw new Error(`Unsupported signing subject: ${String(exhaustive)}`);
-      }
-    }
-  }
-  return getNearAccountId(request);
-}
-
 export function getWalletId(request: UserConfirmRequest): string {
   switch (request.type) {
     case UserConfirmationType.SIGN_TRANSACTION:

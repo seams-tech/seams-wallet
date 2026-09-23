@@ -152,9 +152,7 @@ export function parseRegistrationEstablishedSessionResultV2(
       }
       if (result.next !== 'unlock_exact_method') return null;
       const session = parseRegistrationEstablishedSessionProjectionV2(result.session);
-      return session === null
-        ? null
-        : { kind: 'already_committed', session, next: result.next };
+      return session === null ? null : { kind: 'already_committed', session, next: result.next };
     }
     default:
       return null;
@@ -344,7 +342,6 @@ export function parseRegistrationEstablishedSessionProjectionV2(
       expiresAtMs === null ||
       expiresAtMs <= 0 ||
       remainingUses === null ||
-      remainingUses <= 0 ||
       tokens === null ||
       walletSession.walletId !== walletId.value ||
       walletSession.authorizationId !== authorizationId.value ||

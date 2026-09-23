@@ -2,7 +2,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import http from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -11,7 +11,8 @@ import { fileURLToPath } from 'node:url';
 import { prepareLocalHostedWalletGatewayConfig } from './prepare-local-runtime-config.mjs';
 
 const repoRoot = process.cwd();
-const gatewayUrl = 'http://127.0.0.1:4100';
+const gatewayUrl = process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100';
+const routerUrl = `http://127.0.0.1:${4102 + Number(process.env.SEAMS_LOCAL_PORT_OFFSET || 0)}`;
 const options = parseArguments(process.argv.slice(2));
 const localRoot = path.resolve(
   options.root || path.join(tmpdir(), `${path.basename(repoRoot)}-wallet-system`),
@@ -23,6 +24,7 @@ const ceremonyPrivateJwkPath = path.join(
   'wallet-gateway',
   'ceremony-private.jwk.json',
 );
+const workersReadyPath = path.join(localRoot, '.runtime', 'role-workers.ready');
 const identity = Object.freeze({
   orgId: options.orgId,
   projectId: options.projectId,
@@ -31,6 +33,11 @@ const identity = Object.freeze({
   signingRootId: options.signingRootId,
   signingRootVersion: 'default',
 });
+// Separate local stacks reuse Worker names, so each needs its own discovery registry.
+const workerEnv = {
+  ...process.env,
+  WRANGLER_REGISTRY_PATH: path.join(localRoot, '.local', 'worker-registry'),
+};
 const children = [];
 let stopping = false;
 
@@ -43,8 +50,10 @@ async function main() {
   }
   installSignalHandlers();
   mkdirSync(localRoot, { recursive: true });
+  rmSync(workersReadyPath, { force: true });
   startRoleWorkers();
-  await waitForHttp('http://127.0.0.1:4102/.well-known/router-ab/keyset', 120_000, true);
+  await waitForHttp(`${routerUrl}/.well-known/router-ab/keyset`, 120_000, true);
+  await waitForFile(workersReadyPath, 120_000);
   await waitForFile(ceremonyPrivateJwkPath, 10_000);
   const tenantRoot = bootstrapTenantRoot();
   const deployment = localDeployment(tenantRoot);
@@ -189,7 +198,7 @@ function bootstrapTenantRoot() {
     '--signing-root-version',
     identity.signingRootVersion,
     '--router-url',
-    'http://127.0.0.1:4102',
+    routerUrl,
   ]);
   const result = JSON.parse(output);
   if (result.kind !== 'wallet_local_tenant_root_ready_v1') {
@@ -262,7 +271,7 @@ function startGateway(runtime) {
       '--port',
       port,
       '--inspector-port',
-      '4200',
+      String(Number(port) + 100),
       '--persist-to',
       gatewayStateRoot,
       '--env-file',
@@ -278,7 +287,7 @@ function startGateway(runtime) {
 function childOptions() {
   return {
     cwd: repoRoot,
-    env: process.env,
+    env: workerEnv,
     stdio: 'inherit',
     detached: process.platform !== 'win32',
   };
@@ -298,7 +307,7 @@ function runRequired(label, command, args, env = process.env) {
 function runRequiredCapture(label, command, args) {
   const result = spawnSync(command, args, {
     cwd: repoRoot,
-    env: process.env,
+    env: workerEnv,
     encoding: 'utf8',
   });
   if (result.stderr) process.stderr.write(result.stderr);
@@ -400,7 +409,8 @@ function shutdown(exitCode) {
   if (stopping) return;
   stopping = true;
   for (const child of children) stopChild(child);
-  setTimeout(forceStopChildren, 2_000).unref();
+  // The role supervisor has two seconds to stop its detached Workers first.
+  setTimeout(forceStopChildren.bind(undefined, exitCode), 4_000);
   process.exitCode = exitCode;
 }
 
@@ -414,9 +424,9 @@ function stopChild(child) {
   }
 }
 
-function forceStopChildren() {
+function forceStopChildren(exitCode) {
   for (const child of children) {
-    if (!child.pid || child.exitCode !== null) continue;
+    if (!child.pid) continue;
     try {
       if (process.platform === 'win32') child.kill('SIGKILL');
       else process.kill(-child.pid, 'SIGKILL');
@@ -424,4 +434,5 @@ function forceStopChildren() {
       child.kill('SIGKILL');
     }
   }
+  process.exit(exitCode);
 }

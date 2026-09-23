@@ -1264,22 +1264,19 @@ function parseD1StoredSignerSetRegistrationBranch(
 export function parseD1StoredNearEd25519YaoAuthorizedBranch(
   record: Record<string, unknown>,
 ): StoredWalletRegistrationNearEd25519YaoAuthorizedBranch | null {
-  if (!hasExactKeys(record, ['kind', 'branchKey', 'admissionRequest', 'admissionReceipt'])) {
+  if (!hasExactKeys(record, ['kind', 'branchKey', 'admissionRequest']) &&
+      !hasExactKeys(record, ['kind', 'branchKey', 'admissionRequest', 'admissionReceipt'])) {
     return null;
   }
   const branchKey = parseD1RegistrationSignerBranchKey(record.branchKey);
   const admissionRequest = parseRouterAbEd25519YaoRegistrationAdmissionRequestV1(
     record.admissionRequest,
   );
-  const admissionReceipt = parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1(
-    record.admissionReceipt,
-  );
-  if (!branchKey || !admissionRequest.ok || !admissionReceipt.ok) return null;
+  if (!branchKey || !admissionRequest.ok) return null;
   return {
     kind: 'near_ed25519_yao_authorized',
     branchKey,
     admissionRequest: admissionRequest.value,
-    admissionReceipt: admissionReceipt.value,
   };
 }
 
@@ -1318,8 +1315,7 @@ export function parseD1WalletRegistrationCommittedInstallationProjection(
   const preparedContext = parseStoredWalletRegistrationPreparedContext(record.preparedContext);
   const nearEd25519Record = toRecordValue(record.nearEd25519);
   if (
-    !nearEd25519Record ||
-    !hasExactKeys(nearEd25519Record, ['kind', 'branchKey', 'admissionRequest', 'admissionReceipt'])
+    !nearEd25519Record
   ) {
     return null;
   }

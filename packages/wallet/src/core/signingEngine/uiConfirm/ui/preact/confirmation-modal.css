@@ -1,0 +1,93 @@
+:where(.seams-wallet-ui) .seams-confirmation-modal {
+  box-sizing: border-box;
+  inline-size: min(var(--seams-modal__container-max-width, 26rem), calc(100vw - 2rem));
+  max-inline-size: calc(100vw - 2rem);
+  max-block-size: calc(100dvh - 2rem);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  overflow: auto;
+  overscroll-behavior: none;
+  scrollbar-width: none;
+}
+
+:where(.seams-wallet-ui) .seams-confirmation-modal::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hosted modals can overflow the iframe viewport independently of the card. */
+html:has([data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal']) {
+  scrollbar-width: none;
+}
+
+html:has([data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal'])::-webkit-scrollbar {
+  display: none;
+}
+
+:where(.seams-wallet-ui) .seams-confirmation-modal::backdrop {
+  background: oklch(0.2 0.01 240 / 0.4);
+}
+
+:where(.seams-wallet-ui) .seams-confirmation-modal--hosted {
+  inline-size: var(--seams-modal__container-max-width, 26rem);
+  max-inline-size: 100%;
+  max-block-size: none;
+}
+
+:where(.seams-wallet-ui) .seams-confirmation-modal .modal-container-root {
+  box-sizing: border-box;
+  display: grid;
+  gap: 0.5rem;
+  inline-size: 100%;
+  position: relative;
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: min(var(--seams-shape-card, 16px), 2rem);
+  margin: 0;
+  padding: 0.75rem;
+  padding-top: max(0.75rem, calc(var(--seams-shape-card, 16px) * 0.5));
+  overflow: hidden;
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.22),
+    0 2px 8px rgba(0, 0, 0, 0.12);
+  background: var(--seams-colors-colorBackground);
+}
+
+:where(.seams-wallet-ui) .seams-confirmation-modal .modal-container-root.seams-surface-height-driven {
+  block-size: var(--seams-surface-height-driven-target, auto);
+  overflow: hidden;
+}
+
+:where(.seams-wallet-ui[data-theme='light']) .seams-confirmation-modal .modal-container-root {
+  border-color: var(--seams-colors-surface);
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.14),
+    0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+:where(.seams-wallet-ui) .seams-confirmation-modal--hosted .modal-container-root {
+  box-shadow: none;
+}
+
+/* The parent overlay paints the persistent shell for an R140 review handoff. */
+.seams-wallet-ui[data-seams-review-frame] .seams-confirmation-modal--hosted .modal-container-root {
+  background: transparent;
+  border-color: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:where(.seams-wallet-ui) .seams-confirmation-modal .seams-confirmation-content {
+  display: grid;
+  gap: 0.5rem;
+  min-inline-size: 0;
+}
+
+:where(.seams-wallet-ui) .seams-confirmation-modal .responsive-card {
+  position: relative;
+  inline-size: 100%;
+  min-inline-size: 0;
+  border-radius: 1rem;
+  padding: 0;
+  margin: 0;
+}

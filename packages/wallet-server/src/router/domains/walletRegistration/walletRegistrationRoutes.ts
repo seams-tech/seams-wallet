@@ -2632,6 +2632,7 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
   if (!ed25519.ok) return routeError(400, ed25519.code, ed25519.message);
   const result = await input.services.walletRegistration.completeWalletRegistrationNearProvisioning(
     {
+      authorization: registrationContinuationAuthorization(input.headers),
       registrationCeremonyId,
       signedSetup,
       idempotencyKey,
@@ -3209,4 +3210,11 @@ export async function handleRouterApiWalletNearImplicitAccountFund(
   return routeJson(result.ok ? 200 : 400, result, {
     usage: result.ok ? { walletId: result.walletId } : undefined,
   });
+}
+
+function registrationContinuationAuthorization(headers: HeaderRecord): import('./walletRegistrationInputs').WalletRegistrationNearProvisioningInput['authorization'] {
+  const credential = extractBearerCredential(headers);
+  return credential?.startsWith('wst_')
+    ? { kind: 'wallet_session', credential }
+    : { kind: 'registration_grant' };
 }

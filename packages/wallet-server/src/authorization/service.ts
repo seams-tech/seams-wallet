@@ -19,6 +19,8 @@ import type {
   SessionOrigin,
   VerifiedAuthorizationEvidenceSet,
   IssuedWalletSessionAuthorizationV2,
+  LiveWalletSessionAuthorizationProjectionV2,
+  ExactWalletSessionQuotaProjectionV1,
   DirectV2CommitResult,
   DirectV2IssueResult,
   PersistedActiveWalletSessionAuthorizationV2,
@@ -106,8 +108,12 @@ export interface AuthorizationGrantPort {
   }): Promise<void>;
   replaceWalletSessionAuthorizationV2AuthorityProjection(input: {
     readonly session: WalletSessionAuthorizationV2;
-    readonly quota: ActiveWalletSessionQuota;
+    readonly quota: ActiveWalletSessionQuota | ExactWalletSessionQuotaProjectionV1;
   }): Promise<void>;
+  readLiveWalletSessionAuthorizationProjectionV2(input: {
+    readonly expected: WalletSessionAuthorizationV2;
+    readonly nowMs: number;
+  }): Promise<LiveWalletSessionAuthorizationProjectionV2 | null>;
   readWalletSessionAuthorizationV2ByMint(
     input: WalletSessionAuthorizationV2MintLookup,
   ): Promise<WalletSessionAuthorizationV2MintRead | null>;
@@ -452,7 +458,19 @@ export class AuthorizationService {
     readonly existing: IssuedWalletSessionAuthorizationV2;
     readonly authority: ActiveWalletAuthorityV1;
     readonly walletAuthMethodId: WalletAuthMethodId;
-  }): Promise<IssuedWalletSessionAuthorizationV2> {
+  }): Promise<IssuedWalletSessionAuthorizationV2>;
+  async refreshWalletSessionAuthorizationV2AuthorityProjection(input: {
+    readonly existing: LiveWalletSessionAuthorizationProjectionV2;
+    readonly authority: ActiveWalletAuthorityV1;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+  }): Promise<LiveWalletSessionAuthorizationProjectionV2>;
+  async refreshWalletSessionAuthorizationV2AuthorityProjection(input: {
+    readonly existing:
+      | IssuedWalletSessionAuthorizationV2
+      | LiveWalletSessionAuthorizationProjectionV2;
+    readonly authority: ActiveWalletAuthorityV1;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+  }): Promise<IssuedWalletSessionAuthorizationV2 | LiveWalletSessionAuthorizationProjectionV2> {
     const current = input.existing.session;
     if (
       current.walletId !== input.authority.walletId ||
@@ -481,10 +499,16 @@ export class AuthorizationService {
       session,
       quota: input.existing.quota,
     });
-    const refreshed = await this.ports.grants.readWalletSessionAuthorizationV2ByAuthorizationId({
-      expected: session,
-      nowMs: Date.now(),
-    });
+    const refreshed =
+      input.existing.quota.kind === 'active_wallet_session_quota'
+        ? await this.ports.grants.readWalletSessionAuthorizationV2ByAuthorizationId({
+            expected: session,
+            nowMs: Date.now(),
+          })
+        : await this.ports.grants.readLiveWalletSessionAuthorizationProjectionV2({
+            expected: session,
+            nowMs: Date.now(),
+          });
     if (!refreshed) {
       throw new Error('Direct V2 Wallet Session authority projection was not refreshed');
     }
@@ -569,6 +593,16 @@ export class AuthorizationService {
       tokenHash: await digestOpaqueValue(input.token),
       nowMs: input.nowMs,
     });
+  }
+
+  async readLiveWalletSessionAuthorizationProjectionByCredential(input: {
+    readonly tenantId: TenantId;
+    readonly token: string;
+    readonly nowMs: number;
+  }): Promise<LiveWalletSessionAuthorizationProjectionV2 | null> {
+    const status = await this.readExactWalletSessionStatusByOperationCredential(input);
+    if (status.kind !== 'active' && status.kind !== 'exhausted') return null;
+    return { session: status.session, quota: status.quota };
   }
 
   async readWalletSessionExactOperationContextByCredential(input: {

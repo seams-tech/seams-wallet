@@ -93,7 +93,7 @@ export type GoogleEmailOtpLinkedUnlockSelection =
   | {
       readonly kind: 'selected';
       readonly walletAuthMethodId: string;
-      readonly execution: 'ordinary' | 'linked';
+      readonly execution: 'ordinary' | 'authority';
       /** Exact signer families on the selected authority; absent for legacy
           local factors that predate the V2 authority record. */
       readonly keyFamilies?: WalletSignerActivationSetV1['keyFamilies'];
@@ -918,7 +918,7 @@ function createGoogleEmailOtpWalletLoginFlow(
            path even when the app configures ECDSA chains. */
         const requiredTargets =
           args.challenge.signerSelection.kind === 'ed25519_only' ? [] : configuredTargets;
-        if (args.state.linkedEmailOtpSelection?.execution === 'linked') {
+        if (args.state.linkedEmailOtpSelection?.execution === 'authority') {
           if (!deps.loginWithLinkedEmailOtpWallet) {
             throw new Error('Exact linked Email OTP wallet unlock is unavailable');
           }

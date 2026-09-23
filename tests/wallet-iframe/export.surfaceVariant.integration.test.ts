@@ -14,21 +14,9 @@ import {
   toEvmFamilyEcdsaKeyHandle,
   toRpId,
 } from '@/core/signingEngine/session/identity/evmFamilyEcdsaIdentity';
-import { deriveEvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 import { buildMpcMaterialActivationRefFixture } from '../unit/helpers/ecdsaMaterialRef.fixtures';
 
-/**
- * Key export ALWAYS presents as a bottom drawer. It deliberately does not
- * follow the Confirmer UI (modal|drawer|none) preference that the tx confirmer
- * uses — so these drive every setting and require the drawer regardless.
- *
- * Both halves are asserted together: the variant the parent stamps into the
- * outgoing payload (what the iframe reads back) AND the presentation the parent
- * dressed the dialog with. The two resolving independently is what once painted
- * a drawer into a compact modal box and lost the viewer entirely, so checking
- * only one would miss exactly that bug.
- */
-
+// Parent geometry and the child viewer must use the same user-selected variant.
 const WALLET_ORIGIN = 'https://wallet.example.localhost';
 const WALLET_SERVICE_ROUTE = '**://wallet.example.localhost/wallet-service*';
 const WAIT_FOR_SOURCE = `(${waitFor.toString()})`;
@@ -40,11 +28,6 @@ const EVM_TARGET = thresholdEcdsaChainTargetFromChainFamily({
 });
 const ECDSA_KEY = buildEvmFamilyEcdsaKeyIdentity({
   walletId: SUBJECT_ID,
-  evmFamilySigningKeySlotId: deriveEvmFamilySigningKeySlotId({
-    walletId: SUBJECT_ID,
-    signingRootId: 'signing-root-export-variant',
-    signingRootVersion: 'root-v1',
-  }),
   ecdsaThresholdKeyId: 'ecdsa-threshold-export-variant',
   signingRootId: 'signing-root-export-variant',
   signingRootVersion: 'root-v1',
@@ -64,7 +47,6 @@ const EXPORT_LANE = exactEcdsaSigningLaneIdentity({
     rpId: toRpId('example.localhost'),
     credentialIdB64u: 'credential-export-variant',
   },
-  thresholdSessionId: 'threshold-ecdsa-export-variant',
 });
 
 /**
@@ -156,8 +138,8 @@ test.describe('wallet iframe export surface variant', () => {
 
   // The Confirmer UI setting must NOT reach the export surface.
   for (const uiMode of ['drawer', 'modal', 'none'] as UiMode[]) {
-    const expected = 'drawer' as const;
-    test(`export is a drawer regardless of Confirmer UI '${uiMode}'`, async ({ page }) => {
+    const expected = uiMode === 'drawer' ? 'drawer' : 'modal';
+    test(`export follows Confirmer UI '${uiMode}'`, async ({ page }) => {
       await registerWalletServiceRoute(
         page,
         buildWalletServiceHtml({ extraScript: RECORDING_STUB }),

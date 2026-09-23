@@ -1,0 +1,726 @@
+:where(.seams-wallet-ui) .seams-review-content,
+:where(.seams-wallet-ui) .seams-transaction-receipt {
+  --seams-review-inset: 1.5rem;
+  padding: 1.375rem 1.5rem 0;
+  box-sizing: border-box;
+  min-inline-size: 0;
+  color: var(--seams-colors-textPrimary);
+}
+:where(.seams-wallet-ui) .seams-review-origin,
+:where(.seams-wallet-ui) .seams-review-toolbar,
+:where(.seams-wallet-ui) .seams-review-toolbar > div,
+:where(.seams-wallet-ui) .seams-receipt-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--seams-colors-textSecondary);
+  font-size: 0.75rem;
+}
+:where(.seams-wallet-ui) .seams-review-toolbar {
+  justify-content: space-between;
+}
+:where(.seams-wallet-ui) .seams-review-title {
+  margin: 0;
+  font-size: 1.625rem;
+  font-weight: 550;
+  letter-spacing: -0.04em;
+  line-height: 1.2;
+}
+:where(.seams-wallet-ui) .seams-review-origin svg,
+:where(.seams-wallet-ui) .seams-receipt-footer svg,
+:where(.seams-wallet-ui) .seams-review-copy svg,
+:where(.seams-wallet-ui) .seams-review-toolbar svg,
+:where(.seams-wallet-ui) .seams-receipt-open svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+:where(.seams-wallet-ui) .seams-review-origin .padlock-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+:where(.seams-wallet-ui) .seams-review-amount {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.125rem 0 0.875rem;
+  font-size: 2.125rem;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+:where(.seams-wallet-ui) .seams-review-amount small {
+  color: var(--seams-colors-textSecondary);
+  font-size: 1.0625rem;
+  letter-spacing: -0.01em;
+}
+:where(.seams-wallet-ui) .seams-review-fields {
+  margin: 0;
+  padding: 0;
+  font-size: 0.8125rem;
+}
+:where(.seams-wallet-ui) .seams-review-fields > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-block: 2px;
+}
+:where(.seams-wallet-ui) .seams-review-fields dt {
+  color: var(--seams-colors-textSecondary);
+}
+:where(.seams-wallet-ui) .seams-transaction-review > .seams-review-fields > div {
+  box-sizing: border-box;
+  min-height: 1.875rem;
+}
+:where(.seams-wallet-ui) .seams-review-fields dd {
+  margin: 0;
+  min-width: 0;
+  max-width: 65%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+:where(.seams-wallet-ui) .seams-review-fields dt {
+  flex-shrink: 0;
+}
+:where(.seams-wallet-ui) .seams-review-fields .seams-review-recipient {
+  flex: 1;
+  max-width: none;
+}
+:where(.seams-wallet-ui) .seams-review-address {
+  display: block;
+  font:
+    0.75rem/1.5 ui-monospace,
+    SFMono-Regular,
+    monospace;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: start;
+}
+:where(.seams-wallet-ui) .seams-review-address[data-overflowing='true'] {
+  mask-image: linear-gradient(to right, black calc(100% - 6px), transparent);
+}
+:where(.seams-wallet-ui) .seams-review-address > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:where(.seams-wallet-ui) .seams-review-address[data-revealing] > span {
+  width: max-content;
+  overflow: visible;
+  text-overflow: clip;
+}
+:where(.seams-wallet-ui) .seams-review-address[data-revealing] {
+  text-overflow: clip;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 8px,
+    black calc(100% - 8px),
+    transparent
+  );
+}
+:where(.seams-wallet-ui) .seams-review-address[data-reveal-end] {
+  mask-image: linear-gradient(to right, transparent, black 8px);
+}
+:where(.seams-wallet-ui) .seams-review-address:focus-visible {
+  outline: 2px solid var(--seams-colors-focus);
+  outline-offset: 2px;
+  mask-image: none;
+}
+:where(.seams-wallet-ui) .seams-review-copy,
+:where(.seams-wallet-ui) .seams-review-toolbar button {
+  border: 0;
+  background: transparent;
+  color: var(--seams-colors-textSecondary);
+  display: grid;
+  place-items: center;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  padding: 0.25rem;
+  cursor: pointer;
+  flex: none;
+}
+:where(.seams-wallet-ui) .seams-review-toolbar button {
+  min-width: 2rem;
+  min-height: 2rem;
+}
+:where(.seams-wallet-ui) .seams-review-technical {
+  border-top: 1px solid var(--seams-colors-borderPrimary);
+  margin-block: 0.75rem;
+}
+:where(.seams-wallet-ui) .seams-review-disclosure-driven {
+  height: var(--seams-review-disclosure-height);
+  overflow: hidden;
+}
+:where(.seams-wallet-ui) .seams-transaction-review > .seams-review-technical > div {
+  margin-inline: calc(-1 * var(--seams-review-inset));
+  background: var(--seams-colors-surface2);
+  box-shadow: inset 0 1px 0 var(--seams-colors-borderPrimary),
+    inset 0 -1px 0 var(--seams-colors-borderPrimary),
+    inset 0 5px 8px -7px rgb(0 0 0 / 0.16);
+}
+:where(.seams-wallet-ui) .seams-transaction-review > .seams-review-technical > div > .seams-review-detail {
+  margin: 0;
+  padding: 0.75rem var(--seams-review-inset);
+}
+:where(.seams-wallet-ui) .seams-transaction-review .seams-review-detail-row--block > pre,
+:where(.seams-wallet-ui) .seams-transaction-review .seams-review-raw > pre {
+  background: var(--seams-colors-colorBackground);
+}
+:where(.seams-wallet-ui) .seams-review-technical summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 8px;
+  min-height: 2rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  list-style: none;
+}
+:where(.seams-wallet-ui) .seams-review-technical summary::-webkit-details-marker {
+  display: none;
+}
+:where(.seams-wallet-ui) .seams-review-caret {
+  flex: 0 0 auto;
+  transform-origin: center;
+  transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+:where(.seams-wallet-ui) .seams-review-technical[open]:not([data-closing]) > summary > .seams-review-caret {
+  transform: rotate(180deg);
+}
+:where(.seams-wallet-ui) .seams-review-detail {
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+  margin-block: 0.25rem;
+}
+:where(.seams-wallet-ui) .seams-review-detail-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+:where(.seams-wallet-ui) .seams-review-detail-children {
+  --seams-review-tree-line: color-mix(in srgb, var(--seams-colors-borderPrimary), var(--seams-colors-textSecondary) 25%);
+  margin-inline-start: 0.25rem;
+  padding-inline-start: 0.75rem;
+}
+:where(.seams-wallet-ui) .seams-review-detail-children > .seams-review-detail {
+  position: relative;
+}
+:where(.seams-wallet-ui) .seams-review-detail-children > .seams-review-detail::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: -0.75rem;
+  inset-block-start: 0.7em;
+  inline-size: 0.5rem;
+  border-block-start: 1px solid var(--seams-review-tree-line);
+  pointer-events: none;
+}
+:where(.seams-wallet-ui) .seams-review-detail-children > .seams-review-detail::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: -0.75rem;
+  inset-block-start: -0.25rem;
+  inset-block-end: -0.25rem;
+  border-inline-start: 1px solid var(--seams-review-tree-line);
+  pointer-events: none;
+}
+:where(.seams-wallet-ui) .seams-review-detail-children > .seams-review-detail:last-child::after {
+  inset-block-end: auto;
+  block-size: calc(0.7em + 0.25rem);
+}
+:where(.seams-wallet-ui) .seams-review-detail pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-block: 0.25rem;
+}
+:where(.seams-wallet-ui) .seams-review-function {
+  color: var(--seams-colors-buttonBackground);
+}
+:where(.seams-wallet-ui) .seams-review-detail-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+  align-items: start;
+  gap: 0.5rem;
+  padding-block: 2px;
+}
+:where(.seams-wallet-ui) .seams-review-detail-row > pre {
+  margin: 0;
+  text-align: end;
+  font-size: inherit;
+}
+:where(.seams-wallet-ui) .seams-review-detail-row--block > pre {
+  grid-column: 1 / -1;
+  text-align: start;
+}
+:where(.seams-wallet-ui) .seams-review-detail-row--block > pre,
+:where(.seams-wallet-ui) .seams-review-raw > pre {
+  padding: 0.625rem;
+  border-radius: var(--seams-shape-box, 12px);
+  background: var(--seams-colors-surface2);
+}
+:where(.seams-wallet-ui) .seams-review-account {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  border-radius: var(--seams-shape-box, 12px);
+  padding: 0.5rem 0.75rem;
+  margin-block: 0.125rem 1rem;
+  background: var(--seams-colors-surface2);
+  font-size: 0.75rem;
+}
+:where(.seams-wallet-ui) .seams-review-account > div {
+  flex: 1;
+  min-width: 0;
+}
+:where(.seams-wallet-ui) .seams-review-account small {
+  display: block;
+  color: var(--seams-colors-textSecondary);
+}
+:where(.seams-wallet-ui) .seams-review-context:empty {
+  display: none;
+}
+:where(.seams-wallet-ui) .seams-review-warning {
+  margin-block: 0.5rem;
+  padding: 0.5rem;
+  background: var(--seams-colors-surface2);
+  border-radius: var(--seams-shape-box, 12px);
+  font-size: 0.8125rem;
+}
+:where(.seams-wallet-ui) .seams-receipt-footer {
+  justify-content: center;
+  margin: 1rem -1.5rem 0;
+  padding: 0.9375rem;
+  border-top: 1px solid var(--seams-colors-borderPrimary);
+  font-size: 0.6875rem;
+}
+:where(.seams-wallet-ui) .seams-receipt-footer > svg:first-child {
+  margin-inline-end: -2px;
+}
+:where(.seams-wallet-ui) .seams-receipt-footer .seams-receipt-wordmark {
+  width: 4.25rem;
+  height: auto;
+  flex: none;
+  color: var(--seams-colors-textPrimary);
+}
+:where(.seams-wallet-ui) .seams-receipt-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+:where(.seams-wallet-ui) .seams-receipt-heading h2 {
+  margin: 0;
+  font-size: 1.4375rem;
+  font-weight: 550;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+:where(.seams-wallet-ui) .seams-receipt-heading p {
+  margin: 0.375rem 0;
+  font-size: 0.8125rem;
+  color: var(--seams-colors-textSecondary);
+}
+:where(.seams-wallet-ui) .seams-receipt-symbol {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--seams-shape-control, 10px);
+  background: var(--seams-colors-surface2);
+  color: var(--seams-colors-buttonBackground);
+}
+:where(.seams-wallet-ui) .seams-receipt-symbol svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+:where(.seams-wallet-ui) .seams-receipt-primary {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  min-height: 3rem;
+  background: var(--seams-colors-buttonBackground);
+  color: var(--seams-colors-textButton);
+  border: 0;
+  border-radius: var(--seams-shape-control, 12px);
+  font: inherit;
+  cursor: pointer;
+}
+:where(.seams-wallet-ui) .seams-receipt-explorer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  width: fit-content;
+  margin: -0.25rem auto 0.75rem;
+  color: var(--seams-colors-textSecondary);
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+:where(.seams-wallet-ui) .seams-receipt-explorer:is(:hover, :focus-visible) {
+  color: var(--seams-colors-buttonBackground);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+:where(.seams-wallet-ui) .seams-receipt-explorer svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+:where(.seams-wallet-ui) .seams-receipt-steps {
+  display: flex;
+  gap: 0.5rem;
+  margin-block: 1.0625rem 0.5rem;
+}
+:where(.seams-wallet-ui) .seams-receipt-step {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.6875rem;
+  color: var(--seams-colors-textSecondary);
+}
+:where(.seams-wallet-ui) .seams-receipt-track {
+  display: block;
+  position: relative;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 3px;
+  margin-bottom: 7px;
+  background: var(--seams-colors-borderPrimary);
+}
+:where(.seams-wallet-ui) .seams-receipt-track::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--seams-colors-buttonBackground);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 300ms ease-out;
+}
+:where(.seams-wallet-ui) .seams-receipt-step[data-state='complete'] .seams-receipt-track::after {
+  transform: scaleX(1);
+}
+:where(.seams-wallet-ui) .seams-receipt-step[data-state='active'] .seams-receipt-track::after {
+  transform: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--seams-colors-buttonBackground),
+    transparent
+  );
+}
+:where(.seams-wallet-ui) .seams-transaction-toast {
+  position: relative;
+  background: var(--seams-colors-colorBackground);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.0625rem 1.125rem;
+}
+:where(.seams-wallet-ui) .seams-toast-progress {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: var(--seams-colors-colorBackground);
+  overflow: hidden;
+}
+:where(.seams-wallet-ui) .seams-toast-progress > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--seams-colors-buttonBackground);
+  transition: width 300ms ease-out;
+}
+:where(.seams-wallet-ui) [data-completed-stages='1'] .seams-toast-progress > span {
+  width: calc(100% / 3);
+}
+:where(.seams-wallet-ui) [data-completed-stages='2'] .seams-toast-progress > span {
+  width: calc(200% / 3);
+}
+:where(.seams-wallet-ui) [data-completed-stages='3'] .seams-toast-progress > span {
+  width: 100%;
+}
+:where(.seams-wallet-ui) .seams-transaction-toast-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8125rem;
+}
+:where(.seams-wallet-ui) .seams-transaction-toast-text > span {
+  color: var(--seams-colors-textSecondary);
+  font-size: 0.6875rem;
+}
+:where(.seams-wallet-ui) .seams-receipt-open {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  min-height: 2rem;
+  background: var(--seams-colors-surface2);
+  color: var(--seams-colors-textPrimary);
+  border: 0;
+  border-radius: var(--seams-shape-control, 8px);
+  cursor: pointer;
+}
+:where(.seams-wallet-ui[data-receipt-view='toast']) .seams-confirmation-modal--hosted {
+  inline-size: 22.5rem;
+}
+:where(.seams-wallet-ui[data-confirmation-kind='transaction'])
+  .seams-confirmation-modal
+  .modal-container-root {
+  padding: 0;
+  gap: 0;
+  grid-template-columns: minmax(0, 1fr);
+  border: 0;
+  border-radius: min(calc(var(--seams-shape-card, 16px) * 1.625), 26px);
+}
+:where(.seams-wallet-ui[data-confirmation-kind='transaction']) .seams-confirmation-modal {
+  inline-size: min(100%, 26.25rem);
+}
+:where(.seams-wallet-ui[data-receipt-view='toast'])
+  .seams-confirmation-modal
+  .modal-container-root {
+  border-radius: min(var(--seams-shape-card, 16px), 16px);
+}
+:where(.seams-wallet-ui) .seams-review-eyebrow {
+  margin: 1rem 0 0.375rem;
+  color: var(--seams-colors-textSecondary);
+  font-size: 0.75rem;
+  letter-spacing: 0.015em;
+}
+:where(.seams-wallet-ui) .seams-review-token {
+  width: 2.625rem;
+  height: 2.625rem;
+  flex: none;
+  border-radius: 50%;
+}
+:where(.seams-wallet-ui) .seams-review-token-fallback {
+  display: grid;
+  place-items: center;
+  background: var(--seams-colors-surface2);
+  color: var(--seams-colors-textPrimary);
+  font-size: 1.25rem;
+}
+:where(.seams-wallet-ui) .seams-review-network-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--seams-colors-buttonBackground);
+  flex: none;
+}
+:where(.seams-wallet-ui) .seams-review-avatar {
+  display: grid;
+  place-items: center;
+  width: 1.875rem;
+  height: 1.875rem;
+  flex: none;
+  border-radius: 9px;
+  background: var(--seams-colors-surface3, var(--seams-colors-borderPrimary));
+  color: var(--seams-colors-buttonBackground);
+}
+:where(.seams-wallet-ui) .seams-review-content .seams-tx-confirm-content .actions {
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+}
+:where(.seams-wallet-ui) .seams-review-content .seams-tx-confirm-content .confirm {
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+:where(.seams-wallet-ui) .seams-review-content .confirm svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+:where(.seams-wallet-ui) .seams-review-toolbar button {
+  border-radius: 50%;
+}
+:where(.seams-wallet-ui) .seams-review-toolbar button:hover {
+  background: var(--seams-colors-surface2);
+}
+:where(.seams-wallet-ui) .seams-review-amount--compact {
+  padding: 1.125rem 0 0.1875rem;
+  font-size: 1.625rem;
+}
+:where(.seams-wallet-ui) .seams-review-amount--compact small {
+  font-size: 0.9375rem;
+}
+:where(.seams-wallet-ui) .seams-receipt-destination {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--seams-colors-textSecondary);
+  font-size: 0.75rem;
+}
+:where(.seams-wallet-ui) .seams-review-copy.seams-review-copy-address {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: 0.5rem;
+  padding-inline: 0;
+  justify-content: flex-end;
+  text-align: end;
+}
+:where(.seams-wallet-ui) .seams-review-full-address {
+  font: 0.75rem/1.5 ui-monospace, SFMono-Regular, monospace;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+:where(.seams-wallet-ui) .seams-review-copy.seams-review-copy-address > .copy-icon {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: 50%;
+  margin-block-start: -12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--seams-colors-colorBackground);
+  box-shadow: 0 0 6px 3px var(--seams-colors-colorBackground);
+  opacity: 0;
+  pointer-events: none;
+}
+:where(.seams-wallet-ui) .seams-review-copy-address:is(:hover, :focus-visible, .copied) > .copy-icon {
+  opacity: 1;
+}
+:where(.seams-wallet-ui) .seams-review-account .seams-review-copy-address {
+  width: 100%;
+  padding-block: 0.125rem;
+  justify-content: flex-start;
+  text-align: start;
+}
+:where(.seams-wallet-ui) .seams-review-account .seams-review-copy-address > .copy-icon {
+  background: var(--seams-colors-surface2);
+  box-shadow: 0 0 6px 3px var(--seams-colors-surface2);
+}
+:where(.seams-wallet-ui) .seams-receipt-box {
+  background: var(--seams-colors-surface2);
+  padding: 0.25rem 0.875rem;
+  border-radius: var(--seams-shape-box, 12px);
+  margin-block: 0.75rem;
+}
+:where(.seams-wallet-ui) .seams-receipt-morph-shell {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1;
+  box-sizing: border-box;
+  background: var(--seams-colors-colorBackground);
+  border: 1px solid var(--seams-colors-borderPrimary);
+  box-shadow: 0 16px 32px -16px rgb(0 0 0 / 0.22);
+}
+:where(.seams-wallet-ui[data-confirmation-kind='transaction']) .seams-confirmation-drawer {
+  --seams-drawer__max-width: 390px;
+}
+:where(.seams-wallet-ui[data-confirmation-kind='transaction']) .seams-drawer-content {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+:where(.seams-wallet-ui) .seams-confirmation-drawer .seams-review-content {
+  --seams-review-inset: 0.75rem;
+  padding-inline: var(--seams-review-inset);
+}
+:where(.seams-wallet-ui) .seams-confirmation-drawer .seams-review-account {
+  padding: 0.375rem 0.5rem;
+}
+:where(.seams-wallet-ui) .seams-drawer-origin {
+  position: absolute;
+  inset-inline-start: 1.25rem;
+  top: 0.5rem;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--seams-colors-textSecondary);
+}
+:where(.seams-wallet-ui) .seams-drawer-origin .padlock-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--seams-colors-buttonBackground);
+}
+:where(.seams-wallet-ui) .seams-drawer-controls:has(.seams-drawer-origin) .seams-drawer-handle {
+  inline-size: 48px;
+  block-size: 40px;
+}
+:where(.seams-wallet-ui) .seams-drawer-controls:has(.seams-drawer-origin) {
+  padding-top: 0.5rem;
+}
+:where(.seams-wallet-ui) .seams-drawer-controls:has(.seams-drawer-origin) .seams-drawer-close {
+  top: 0.5rem;
+}
+:where(.seams-wallet-ui) .seams-receipt-box .seams-review-technical {
+  border-top: 0;
+  margin: 0;
+}
+:where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields {
+  margin-bottom: 6px;
+}
+:where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields dd .seams-review-copy:not(.seams-review-copy-address) > .copy-icon {
+  opacity: 0;
+}
+:where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields dd:is(:hover, :focus-within) .seams-review-copy:not(.seams-review-copy-address) > .copy-icon,
+:where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields .seams-review-copy.copied > .copy-icon {
+  opacity: 1;
+}
+:where(.seams-wallet-ui) .seams-receipt-step[data-state='complete'] {
+  color: var(--seams-colors-buttonBackground);
+}
+@media (max-width: 420px) {
+  :where(.seams-wallet-ui) .seams-review-content,
+  :where(.seams-wallet-ui) .seams-transaction-receipt {
+    --seams-review-inset: 1.125rem;
+    padding-inline: 1.125rem;
+  }
+  :where(.seams-wallet-ui) .seams-receipt-footer {
+    margin-inline: -1.125rem;
+  }
+  :where(.seams-wallet-ui) .seams-review-amount {
+    font-size: 1.875rem;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :where(.seams-wallet-ui) .seams-receipt-step[data-state='active'] .seams-receipt-track::after {
+    animation: seams-receipt-sweep 1.2s ease-in-out infinite;
+  }
+  :where(.seams-wallet-ui)
+    .seams-receipt-step[data-stage='confirming'][data-state='active']
+    .seams-receipt-track::after {
+    animation-duration: 1.8s;
+  }
+  :where(.seams-wallet-ui) .seams-receipt-symbol[data-pending='true'] svg {
+    animation: seams-receipt-spin 1.2s linear infinite;
+  }
+}
+@keyframes seams-receipt-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes seams-receipt-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(.seams-wallet-ui) .seams-review-caret,
+  :where(.seams-wallet-ui) .seams-toast-progress > span,
+  :where(.seams-wallet-ui) .seams-receipt-track::after {
+    transition: none;
+  }
+}
+@media (pointer: coarse) {
+  :where(.seams-wallet-ui) .seams-review-copy {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}

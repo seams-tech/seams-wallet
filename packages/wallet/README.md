@@ -93,6 +93,32 @@ function SignInButton() {
 }
 ```
 
+### Full-page wallet settings
+
+`WalletSettingsPage` provides sidebar navigation for accounts, key export,
+recovery codes, authentication methods, device linking, linked devices, and
+transaction preferences. It uses the existing wallet operations and capability
+checks. Signed-out users see the hosted authentication menu.
+
+```tsx
+import { SeamsWebProvider, WalletSettingsPage, type SeamsConfigsInput } from '@seams/wallet/react';
+import '@seams/wallet/react/styles';
+
+function WalletSettingsApp({ config }: { config: SeamsConfigsInput }) {
+  return (
+    <SeamsWebProvider config={config}>
+      <WalletSettingsPage />
+    </SeamsWebProvider>
+  );
+}
+```
+
+Use the deployment's existing SDK configuration. For hosting on the wallet
+origin, keep its configured `/wallet-service` endpoint available for embedded
+wallet operations. The bare service document still requires a top-level app
+bootstrap and deployment configuration before it can serve this settings page.
+Pass `externalAuthBroker` when the deployment supports Google authentication.
+
 ### Google SSO + Email OTP Wallet Auth
 
 For the standard Google SSO plus Email OTP wallet flow, the app owns Google

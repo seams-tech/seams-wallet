@@ -1,0 +1,363 @@
+{
+  "development_signing_worker": {
+    "runs": [
+      {
+        "status": "passed",
+        "timings": {
+          "custody.admission": 10.3,
+          "custody.begin": 4.4,
+          "custody.checkpoint": 1.3,
+          "custody.journal_prepared": 1.5,
+          "registration_return": 875,
+          "authentication": 322,
+          "custody.router_round": 833.4,
+          "custody.complete": 2.9,
+          "custody.finish": 0.3,
+          "custody.journal_joined": 3.7,
+          "custody_join": 861.6,
+          "server_finalize": 39.2,
+          "local_publication": 4.8,
+          "session_seal_preparation": 59.2,
+          "session_seal_preparation_wait": 14.9,
+          "session_hydration.worker_ready": 0,
+          "session_hydration.worker_put": 0,
+          "session_hydration.sealed_record_existing_read": 0,
+          "session_install": 2.7,
+          "signer_activation": 5.1,
+          "session_hydration.sealed_record_apply_server_seal": 111,
+          "session_hydration.sealed_record_apply_runtime_setup": 10,
+          "session_hydration.sealed_record_apply_client_seal": 48,
+          "session_hydration.sealed_record_apply_server_route": 64,
+          "session_hydration.sealed_record_apply_client_unseal": 45,
+          "session_hydration.sealed_record_apply_policy_update": 0,
+          "session_hydration.sealed_record_register": 1,
+          "session_hydration.sealed_record_verify_read": 1,
+          "session_hydration.sealed_record_persist": 113,
+          "session_hydration": 114.1,
+          "session_hydration_wait": 106.1,
+          "durable_ready": 1.5,
+          "provisioning_total": 795.3,
+          "registration_total": 1675
+        }
+      },
+      {
+        "status": "passed",
+        "timings": {
+          "custody.admission": 9.4,
+          "custody.begin": 4.4,
+          "custody.checkpoint": 1.3,
+          "custody.journal_prepared": 1.9,
+          "registration_return": 642,
+          "authentication": 204,
+          "custody.router_round": 664.6,
+          "custody.complete": 2.9,
+          "custody.finish": 0.1,
+          "custody.journal_joined": 3.3,
+          "custody_join": 690.2,
+          "server_finalize": 35.9,
+          "local_publication": 5.3,
+          "session_seal_preparation": 63.6,
+          "session_seal_preparation_wait": 22.1,
+          "session_hydration.worker_ready": 0,
+          "session_hydration.worker_put": 0,
+          "session_hydration.sealed_record_existing_read": 1,
+          "session_install": 2.7,
+          "signer_activation": 5.8,
+          "session_hydration.sealed_record_apply_server_seal": 102,
+          "session_hydration.sealed_record_apply_runtime_setup": 10,
+          "session_hydration.sealed_record_apply_client_seal": 52,
+          "session_hydration.sealed_record_apply_server_route": 51,
+          "session_hydration.sealed_record_apply_client_unseal": 50,
+          "session_hydration.sealed_record_apply_policy_update": 0,
+          "session_hydration.sealed_record_register": 1,
+          "session_hydration.sealed_record_verify_read": 0,
+          "session_hydration.sealed_record_persist": 104,
+          "session_hydration": 105.3,
+          "session_hydration_wait": 96.5,
+          "durable_ready": 1.8,
+          "provisioning_total": 724.8,
+          "registration_total": 1372.3
+        }
+      },
+      {
+        "status": "passed",
+        "timings": {
+          "custody.admission": 7.9,
+          "custody.begin": 4.6,
+          "custody.checkpoint": 1.1,
+          "custody.journal_prepared": 2.3,
+          "registration_return": 634,
+          "authentication": 189,
+          "custody.router_round": 683.8,
+          "custody.complete": 3,
+          "custody.finish": 0.4,
+          "custody.journal_joined": 3.4,
+          "custody_join": 708.8,
+          "server_finalize": 43.8,
+          "local_publication": 6.7,
+          "session_seal_preparation": 58.8,
+          "session_seal_preparation_wait": 7.8,
+          "session_hydration.worker_ready": 0,
+          "session_hydration.worker_put": 1,
+          "session_hydration.sealed_record_existing_read": 0,
+          "session_install": 2.7,
+          "signer_activation": 7.6,
+          "session_hydration.sealed_record_apply_server_seal": 105,
+          "session_hydration.sealed_record_apply_runtime_setup": 11,
+          "session_hydration.sealed_record_apply_client_seal": 46,
+          "session_hydration.sealed_record_apply_server_route": 57,
+          "session_hydration.sealed_record_apply_client_unseal": 48,
+          "session_hydration.sealed_record_apply_policy_update": 0,
+          "session_hydration.sealed_record_register": 1,
+          "session_hydration.sealed_record_verify_read": 0,
+          "session_hydration.sealed_record_persist": 108,
+          "session_hydration": 108.5,
+          "session_hydration_wait": 97.6,
+          "durable_ready": 1.7,
+          "provisioning_total": 739.4,
+          "registration_total": 1377.8
+        }
+      }
+    ],
+    "backend_spans_ms": {
+      "gateway.pre_yao": [
+        0,
+        0,
+        0
+      ],
+      "router.parse_and_authorize": [
+        61,
+        50,
+        51
+      ],
+      "router.prepare_pair.deriver_a": [
+        46,
+        30,
+        30
+      ],
+      "router.prepare_pair.deriver_b": [
+        45,
+        29,
+        30
+      ],
+      "router.prepare_pair": [
+        47,
+        30,
+        30
+      ],
+      "router.verify_readiness_receipts": [
+        2,
+        2,
+        3
+      ],
+      "router.deriver_a_execute.http": [
+        264,
+        195,
+        210
+      ],
+      "router.deriver_a_execute": [
+        264,
+        195,
+        210
+      ],
+      "router.signing_worker_delivery": [
+        428,
+        369,
+        373
+      ],
+      "router.yao_execute": [
+        804,
+        651,
+        673
+      ],
+      "gateway.yao_execute": [
+        820,
+        658,
+        677
+      ]
+    }
+  },
+  "release_signing_worker": {
+    "runs": [
+      {
+        "status": "passed",
+        "timings": {
+          "custody.admission": 9.7,
+          "custody.begin": 4.4,
+          "custody.checkpoint": 1.3,
+          "custody.journal_prepared": 1.5,
+          "registration_return": 737,
+          "authentication": 268,
+          "custody.router_round": 400.5,
+          "custody.complete": 3,
+          "custody.finish": 0.2,
+          "custody.journal_joined": 3.3,
+          "custody_join": 427.1,
+          "server_finalize": 44.9,
+          "local_publication": 4.9,
+          "session_seal_preparation": 55.3,
+          "session_seal_preparation_wait": 5.2,
+          "session_hydration.worker_ready": 0,
+          "session_hydration.worker_put": 1,
+          "session_hydration.sealed_record_existing_read": 0,
+          "session_install": 2.1,
+          "signer_activation": 6.2,
+          "session_hydration.sealed_record_apply_server_seal": 107,
+          "session_hydration.sealed_record_apply_runtime_setup": 9,
+          "session_hydration.sealed_record_apply_client_seal": 44,
+          "session_hydration.sealed_record_apply_server_route": 65,
+          "session_hydration.sealed_record_apply_client_unseal": 42,
+          "session_hydration.sealed_record_apply_policy_update": 0,
+          "session_hydration.sealed_record_register": 1,
+          "session_hydration.sealed_record_verify_read": 1,
+          "session_hydration.sealed_record_persist": 110,
+          "session_hydration": 110.9,
+          "session_hydration_wait": 102,
+          "durable_ready": 1.9,
+          "provisioning_total": 430.8,
+          "registration_total": 1172.9
+        }
+      },
+      {
+        "status": "passed",
+        "timings": {
+          "custody.admission": 14.6,
+          "custody.begin": 4.8,
+          "custody.checkpoint": 1.3,
+          "custody.journal_prepared": 1.6,
+          "registration_return": 765,
+          "authentication": 264,
+          "custody.router_round": 332,
+          "custody.complete": 3,
+          "custody.finish": 0.2,
+          "custody.journal_joined": 4.4,
+          "custody_join": 364.6,
+          "server_finalize": 48.5,
+          "local_publication": 5.2,
+          "session_seal_preparation": 56.5,
+          "session_seal_preparation_wait": 2.2,
+          "session_hydration.worker_ready": 0,
+          "session_hydration.worker_put": 1,
+          "session_hydration.sealed_record_existing_read": 0,
+          "session_install": 2.9,
+          "signer_activation": 5.5,
+          "session_hydration.sealed_record_apply_server_seal": 93,
+          "session_hydration.sealed_record_apply_runtime_setup": 11,
+          "session_hydration.sealed_record_apply_client_seal": 43,
+          "session_hydration.sealed_record_apply_server_route": 51,
+          "session_hydration.sealed_record_apply_client_unseal": 40,
+          "session_hydration.sealed_record_apply_policy_update": 0,
+          "session_hydration.sealed_record_register": 1,
+          "session_hydration.sealed_record_verify_read": 0,
+          "session_hydration.sealed_record_persist": 95,
+          "session_hydration": 96.4,
+          "session_hydration_wait": 87.9,
+          "durable_ready": 1.6,
+          "provisioning_total": 363.2,
+          "registration_total": 1133.3
+        }
+      },
+      {
+        "status": "passed",
+        "timings": {
+          "custody.admission": 8,
+          "custody.begin": 4.8,
+          "custody.checkpoint": 1.2,
+          "custody.journal_prepared": 1.6,
+          "registration_return": 612,
+          "authentication": 173,
+          "custody.router_round": 311.6,
+          "custody.complete": 2.9,
+          "custody.finish": 0.3,
+          "custody.journal_joined": 3.6,
+          "custody_join": 337.2,
+          "server_finalize": 28.9,
+          "local_publication": 4.6,
+          "session_seal_preparation": 55.6,
+          "session_seal_preparation_wait": 21.5,
+          "session_hydration.worker_ready": 0,
+          "session_hydration.worker_put": 1,
+          "session_hydration.sealed_record_existing_read": 0,
+          "session_install": 2.8,
+          "signer_activation": 5.3,
+          "session_hydration.sealed_record_apply_server_seal": 89,
+          "session_hydration.sealed_record_apply_runtime_setup": 10,
+          "session_hydration.sealed_record_apply_client_seal": 44,
+          "session_hydration.sealed_record_apply_server_route": 46,
+          "session_hydration.sealed_record_apply_client_unseal": 42,
+          "session_hydration.sealed_record_apply_policy_update": 0,
+          "session_hydration.sealed_record_register": 1,
+          "session_hydration.sealed_record_verify_read": 0,
+          "session_hydration.sealed_record_persist": 91,
+          "session_hydration": 91.9,
+          "session_hydration_wait": 83.3,
+          "durable_ready": 1.5,
+          "provisioning_total": 346.9,
+          "registration_total": 963.6
+        }
+      }
+    ],
+    "backend_spans_ms": {
+      "gateway.pre_yao": [
+        0,
+        1,
+        0
+      ],
+      "router.parse_and_authorize": [
+        58,
+        51,
+        50
+      ],
+      "router.prepare_pair.deriver_b": [
+        42,
+        34,
+        30
+      ],
+      "router.prepare_pair.deriver_a": [
+        43,
+        34,
+        31
+      ],
+      "router.prepare_pair": [
+        44,
+        34,
+        31
+      ],
+      "router.verify_readiness_receipts": [
+        3,
+        2,
+        2
+      ],
+      "router.deriver_a_execute.http": [
+        255,
+        215,
+        204
+      ],
+      "router.deriver_a_execute": [
+        255,
+        215,
+        204
+      ],
+      "router.signing_worker_delivery": [
+        12,
+        7,
+        6
+      ],
+      "router.yao_execute": [
+        374,
+        316,
+        299
+      ],
+      "gateway.yao_execute": [
+        388,
+        321,
+        304
+      ]
+    },
+    "wasm": {
+      "bytes": 6797038,
+      "sha256": "b5b63b3177de575078b12b6b8c695a1bf9a7a35c1412cdecb81483c1d9309225"
+    }
+  },
+  "method": "Three consecutive runs per profile; frozen SDK before custody-overlap change; only signing-worker WASM build changed. Local Workers and virtual passkeys; public-chain RPCs stubbed. Browser and backend timing samples only."
+}

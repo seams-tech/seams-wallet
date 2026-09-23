@@ -1,3 +1,9 @@
+import {
+  ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1,
+  parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1,
+} from '@shared/utils/routerAbEd25519Yao';
+import { RouterAbEd25519YaoHttpActivationTransportV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
+import type { RouterAbEd25519YaoHttpTransportConfigV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import { parseThresholdEd25519SessionId, type WebAuthnRpId } from '@shared/utils/domainIds';
 import type { ThresholdEd25519SessionId } from '@/core/signingEngine/session/operationState/types';
 import type {
@@ -302,4 +308,20 @@ export function requireEmailOtpEd25519YaoRegistrationPublicResultMatches(args: {
   ) {
     throw new Error('Ed25519 Yao finalize returned mismatched signer identity');
   }
+}
+
+export async function admitDeferredNearRegistration(
+  work: WalletRegistrationRespondEd25519DeferredWork,
+  transportConfig: RouterAbEd25519YaoHttpTransportConfigV1,
+) {
+  const transport = new RouterAbEd25519YaoHttpActivationTransportV1(transportConfig);
+  const response = await transport.send({
+    kind: 'admit',
+    path: ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1,
+    body: work.admissionRequest,
+  });
+  if (!response.ok) throw new Error(response.message);
+  const receipt = parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1(response.value);
+  if (!receipt.ok) throw new Error(receipt.message);
+  return receipt.value;
 }

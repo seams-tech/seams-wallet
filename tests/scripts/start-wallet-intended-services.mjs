@@ -7,9 +7,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const appOrigin = 'http://localhost:4201';
-const walletOrigin = 'http://localhost:4202';
-const gatewayUrl = 'http://127.0.0.1:4100';
+const appOrigin = process.env.SEAMS_INTENDED_APP_URL || 'http://localhost:4201';
+const walletOrigin = process.env.SEAMS_INTENDED_WALLET_ORIGIN || 'http://localhost:4202';
+const gatewayUrl = process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100';
 const runtimeRoot =
   process.env.SEAMS_INTENDED_ROUTER_AB_ROOT ||
   path.join(tmpdir(), `${path.basename(repoRoot)}-wallet-intended`);
@@ -54,13 +54,9 @@ function buildWalletRuntime() {
 
 function startWalletSystem() {
   const child = spawn(
-    'pnpm',
+    process.execPath,
     [
-      '-C',
-      'crates/router-ab-cloudflare',
-      'run',
-      'dev:local-wallet-system',
-      '--',
+      path.join(repoRoot, 'crates/router-ab-cloudflare/scripts/start-local-wallet-system.mjs'),
       '--root',
       runtimeRoot,
       '--app-origin',
@@ -68,7 +64,10 @@ function startWalletSystem() {
       '--wallet-origin',
       walletOrigin,
     ],
-    childOptions(process.env),
+    {
+      ...childOptions(process.env),
+      cwd: path.join(repoRoot, 'crates/router-ab-cloudflare'),
+    },
   );
   trackChild('Wallet system', child);
 }
@@ -213,7 +212,8 @@ function shutdown(exitCode) {
   if (stopping) return;
   stopping = true;
   for (const child of children) stopChild(child);
-  setTimeout(forceStopChildren, 2_000).unref();
+  // Allow the Wallet system's four-second cleanup deadline to finish first.
+  setTimeout(forceStopChildren.bind(undefined, exitCode), 6_000);
   process.exitCode = exitCode;
 }
 
@@ -227,9 +227,9 @@ function stopChild(child) {
   }
 }
 
-function forceStopChildren() {
+function forceStopChildren(exitCode) {
   for (const child of children) {
-    if (!child.pid || child.exitCode !== null) continue;
+    if (!child.pid) continue;
     try {
       if (process.platform === 'win32') child.kill('SIGKILL');
       else process.kill(-child.pid, 'SIGKILL');
@@ -237,4 +237,5 @@ function forceStopChildren() {
       child.kill('SIGKILL');
     }
   }
+  process.exit(exitCode);
 }

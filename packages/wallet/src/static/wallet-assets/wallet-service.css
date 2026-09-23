@@ -1,5 +1,6 @@
 html,
 body {
+  overscroll-behavior: none;
   background: transparent !important;
   margin: 0;
   padding: 0;
@@ -32,14 +33,6 @@ body.seams-transparent {
   top: 0;
   opacity: 0;
   pointer-events: none;
-}
-
-/* Hosted drawer integration: preserve the drag transform over the open rest position. */
-seams-tx-confirmer[data-seams-confirm-surface='standalone'][data-seams-confirm-variant='drawer']
-  seams-drawer[open]
-  .drawer.dragging,
-seams-drawer[data-seams-export-surface='standalone'][open] .drawer.dragging {
-  transform: translateY(var(--seams-drawer__drag-translate, 0px));
 }
 
 :root:not([data-seams-theme]) {

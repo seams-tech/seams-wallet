@@ -35,7 +35,9 @@ const HIDE_SIGNING_SURFACE_SCRIPT = String.raw`
           const data = event.data || {};
           if (!data || typeof data !== 'object') return;
           if (data.type !== 'PM_EXECUTE_ACTION' || typeof data.requestId !== 'string') return;
-          setTimeout(() => {
+          window.addEventListener('message', function releaseSigningSurface(event) {
+            if (event.data?.type !== 'TEST_RELEASE_SIGNING_SURFACE') return;
+            window.removeEventListener('message', releaseSigningSurface);
             adoptedPort.postMessage({
               type: 'PROGRESS',
               requestId: data.requestId,
@@ -51,7 +53,7 @@ const HIDE_SIGNING_SURFACE_SCRIPT = String.raw`
                 interaction: { kind: 'transaction_confirmation', overlay: 'hide' },
               },
             });
-          }, 20);
+          });
         };
       };
 `;
@@ -455,6 +457,11 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
           const state = capture();
           return !!(state.exists && state.visible);
         }, 3000);
+        const iframe = document.querySelector(
+          'iframe.seams-wallet-overlay-iframe',
+        ) as HTMLIFrameElement | null;
+        if (!iframe?.contentWindow) throw new Error('Wallet iframe missing');
+        iframe.contentWindow.postMessage({ type: 'TEST_RELEASE_SIGNING_SURFACE' }, walletOrigin);
         const hidden = await waitFor(() => {
           const state = capture();
           return !state.exists || !state.visible;
@@ -605,7 +612,13 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
                 chain: 'evm',
                 kind: 'eip1559',
                 senderSignatureAlgorithm: 'secp256k1',
-                tx: {},
+                tx: {
+                  chainId: 11155111,
+                  maxPriorityFeePerGas: 1n,
+                  maxFeePerGas: 2n,
+                  gasLimit: 21000n,
+                  value: 0n,
+                },
               },
             })
             .then(
@@ -679,7 +692,13 @@ test.describe('WalletIframeRouter – overlay + timeout behavior', () => {
                 chain: 'evm',
                 kind: 'eip1559',
                 senderSignatureAlgorithm: 'secp256k1',
-                tx: {},
+                tx: {
+                  chainId: 11155111,
+                  maxPriorityFeePerGas: 1n,
+                  maxFeePerGas: 2n,
+                  gasLimit: 21000n,
+                  value: 0n,
+                },
               },
             })
             .then(

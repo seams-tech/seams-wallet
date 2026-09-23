@@ -9,12 +9,15 @@
  * a timing branch — it is a timing helper, not a general utility.
  */
 
+import { isRegistrationBenchmarkDiagnosticsEnabled } from '@/core/signingEngine/walletCustody/ceremonyDriver';
+export { isRegistrationBenchmarkDiagnosticsEnabled } from '@/core/signingEngine/walletCustody/ceremonyDriver';
 import { isObject } from '@shared/utils/validation';
 import type {
   RegistrationHooksOptions,
   RegistrationTimingSpanV1,
 } from '@/core/types/sdkSentEvents';
 import type { WorkerResourceWarmupDiagnostics } from '@/core/signingEngine/assembly/warmup';
+import type { WarmSessionMaterialWriteDiagnosticBucket } from '@/core/signingEngine/session/passkey/warmSessionMaterialWriter';
 import type { EmailOtpYaoPrewarmOutcome } from '@/core/signingEngine/workerManager/workerTypes';
 import type {
   RegistrationAuthMethodInput,
@@ -157,15 +160,6 @@ export function parseYaoServerTimingBuckets(
 export const WALLET_IFRAME_TRANSPORT_TIMING_LABEL =
   '[Registration] wallet iframe transport timing summary';
 
-export function isRegistrationBenchmarkDiagnosticsEnabled(): boolean {
-  const globalFlag = (
-    globalThis as {
-      __SEAMS_REGISTRATION_BENCHMARK_DIAGNOSTICS?: unknown;
-    }
-  ).__SEAMS_REGISTRATION_BENCHMARK_DIAGNOSTICS;
-  return globalFlag === true;
-}
-
 export function emitNearRegistrationTiming(input: {
   ceremonyId: string;
   stage:
@@ -173,10 +167,44 @@ export function emitNearRegistrationTiming(input: {
     | 'server_finalize'
     | 'local_publication'
     | 'session_install'
+    | 'session_seal_preparation'
+    | 'session_seal_preparation_wait'
+    | 'session_hydration_wait'
+    | 'session_hydration'
     | 'signer_activation'
     | 'durable_ready'
-    | 'provisioning_total';
+    | 'provisioning_total'
+    | 'registration_total';
   startedAt: number;
+  outcome: 'success' | 'failure';
+}): void {
+  emitNearRegistrationDuration({
+    ceremonyId: input.ceremonyId,
+    stage: input.stage,
+    durationMs: Math.max(0, performance.now() - input.startedAt),
+    outcome: input.outcome,
+  });
+}
+
+export function recordNearRegistrationSessionTiming(
+  ceremonyId: string,
+  bucket: WarmSessionMaterialWriteDiagnosticBucket,
+  durationMs: number,
+): void {
+  emitNearRegistrationDuration({
+    ceremonyId,
+    stage: `session_hydration.${bucket}`,
+    durationMs,
+    outcome: 'success',
+  });
+}
+
+function emitNearRegistrationDuration(input: {
+  ceremonyId: string;
+  stage:
+    | Parameters<typeof emitNearRegistrationTiming>[0]['stage']
+    | `session_hydration.${WarmSessionMaterialWriteDiagnosticBucket}`;
+  durationMs: number;
   outcome: 'success' | 'failure';
 }): void {
   if (!isRegistrationBenchmarkDiagnosticsEnabled()) return;
@@ -187,7 +215,7 @@ export function emitNearRegistrationTiming(input: {
         event: 'near_registration_timing',
         ceremonyId: input.ceremonyId,
         stage: input.stage,
-        durationMs: Math.max(0, performance.now() - input.startedAt),
+        durationMs: input.durationMs,
         outcome: input.outcome,
       }),
     );

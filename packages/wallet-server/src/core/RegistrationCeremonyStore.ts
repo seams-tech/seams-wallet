@@ -381,7 +381,6 @@ export type StoredWalletRegistrationNearEd25519YaoAuthorizedBranch = {
   kind: 'near_ed25519_yao_authorized';
   branchKey: RegistrationSignerBranchKey;
   admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
-  admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
 };
 
 export type StoredWalletRegistrationSignerBranch =
@@ -440,13 +439,11 @@ export function buildStoredWalletRegistrationEvmFamilyEcdsaPreparedBranch(input:
 export function buildStoredWalletRegistrationNearEd25519YaoAuthorizedBranch(input: {
   readonly branchKey: RegistrationSignerBranchKey;
   readonly admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
-  readonly admissionReceipt: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
 }): StoredWalletRegistrationNearEd25519YaoAuthorizedBranch {
   return {
     kind: 'near_ed25519_yao_authorized',
     branchKey: input.branchKey,
     admissionRequest: input.admissionRequest,
-    admissionReceipt: input.admissionReceipt,
   };
 }
 
@@ -2770,15 +2767,11 @@ function parseStoredWalletRegistrationSignerBranch(
       const admissionRequest = parseRouterAbEd25519YaoRegistrationAdmissionRequestV1(
         record.admissionRequest,
       );
-      const admissionReceipt = parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1(
-        record.admissionReceipt,
-      );
-      return branchKey && admissionRequest.ok && admissionReceipt.ok
+      return branchKey && admissionRequest.ok
         ? {
             kind: 'near_ed25519_yao_authorized',
             branchKey,
             admissionRequest: admissionRequest.value,
-            admissionReceipt: admissionReceipt.value,
           }
         : null;
     }

@@ -53,6 +53,7 @@ impl PresignSessionStage {
 pub enum PresignSessionEvent {
     None,
     TriplesDone,
+    FinalBatchReady,
     PresignDone,
 }
 
@@ -61,6 +62,7 @@ impl PresignSessionEvent {
         match self {
             Self::None => "none",
             Self::TriplesDone => "triples_done",
+            Self::FinalBatchReady => "final_batch_ready",
             Self::PresignDone => "presign_done",
         }
     }
@@ -237,6 +239,14 @@ impl ClientPresignSession {
         }
     }
 
+    /// Candidate public identity for the final batch, never a usable presignature.
+    pub fn candidate_big_r(&self) -> Result<CompressedPointBytes, PresignSessionError> {
+        match &self.state {
+            ClientState::Round11(state) => state.candidate_big_r().map_err(Into::into),
+            _ => Err(PresignSessionError::InvalidState),
+        }
+    }
+
     pub fn take_presignature_97(&mut self) -> Result<Vec<u8>, PresignSessionError> {
         self.take_presignature().map(output_bytes)
     }
@@ -338,7 +348,7 @@ fn advance_client(
             Ok((
                 ClientState::Round11(Box::new(next)),
                 Some(message.encode_presign_message()?),
-                unchanged,
+                PresignSessionEvent::FinalBatchReady,
             ))
         }
         ClientState::Round11(state) => {

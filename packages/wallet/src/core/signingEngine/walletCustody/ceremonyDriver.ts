@@ -87,8 +87,19 @@ export type WalletCustodyCeremonyCustodyInput =
 export type WalletCustodyCeremonyKeySetInput =
   | {
       readonly keySet: 'near_ed25519_v1';
+      readonly checkpointJson: string;
+      readonly protocolInputsJson?: never;
+      readonly nearEd25519SigningKeyId: string;
+      readonly runRouterRound: (yaoExecuteRequestJson: string) => Promise<string>;
+      readonly beforeRouterRound?: never;
+      readonly afterRouterRoundCompleted?: (protocolResultJson: string) => Promise<void>;
+    }
+  | {
+      readonly keySet: 'near_ed25519_v1';
       /** `NearEd25519ProtocolInputsWireV1`; no Ed25519 binding digest field. */
       readonly protocolInputsJson: string;
+      readonly checkpointJson?: never;
+      readonly beforeRouterRound?: (checkpointJson: string) => Promise<void>;
       readonly nearEd25519SigningKeyId: string;
       /** Takes the Router execution request, returns the activation result. */
       readonly runRouterRound: (yaoExecuteRequestJson: string) => Promise<string>;
@@ -245,6 +256,40 @@ function assertEvmCompletionMatchesCommit(
   }
 }
 
+export function isRegistrationBenchmarkDiagnosticsEnabled(): boolean {
+  return Reflect.get(globalThis, '__SEAMS_REGISTRATION_BENCHMARK_DIAGNOSTICS') === true;
+}
+
+export function recordWalletCustodyTiming(
+  ceremonyId: string,
+  stage:
+    | 'admission'
+    | 'journal_prepared'
+    | 'journal_joined'
+    | 'begin'
+    | 'checkpoint'
+    | 'router_round'
+    | 'complete'
+    | 'finish',
+  startedAt: number,
+): void {
+  if (!isRegistrationBenchmarkDiagnosticsEnabled()) return;
+  try {
+    console.debug(
+      '[WalletCustody] timing ' +
+        JSON.stringify({
+          event: 'wallet_custody_timing',
+          ceremonyId,
+          stage: `custody.${stage}`,
+          durationMs: Math.round((performance.now() - startedAt) * 10) / 10,
+          outcome: 'success',
+        }),
+    );
+  } catch {
+    // Diagnostics cannot change custody behavior.
+  }
+}
+
 export async function runWalletCustodyKeySetCeremony(
   input: WalletCustodyKeySetCeremonyInput,
 ): Promise<WalletCustodyCeremonyCommitPayload> {
@@ -256,15 +301,39 @@ export async function runWalletCustodyKeySetCeremony(
 
   try {
     if (keySetRun.keySet === 'near_ed25519_v1') {
-      const begunResult = await input.runStep('beginWalletCustodyKeySetRun', {
-        ceremonyId,
-        keySet: 'near_ed25519_v1',
-        custody: buildNearBeginCustody(custody),
-        protocolInputsJson: keySetRun.protocolInputsJson,
-      });
+      let stageStartedAt = performance.now();
+      let executeRequestJson: string;
+      if (keySetRun.checkpointJson !== undefined) {
+        if (custody.origin !== 'join')
+          throw new Error('Checkpoint restoration requires existing custody');
+        const restored = await input.runStep('restoreNearRegistration', {
+          ceremonyId,
+          custodyJson: custody.custodyJson,
+          factorSecret: custody.factorSecret,
+          checkpointJson: keySetRun.checkpointJson,
+        });
+        executeRequestJson = restored.yaoExecuteRequestJson;
+      } else {
+        const begunResult = await input.runStep('beginWalletCustodyKeySetRun', {
+          ceremonyId,
+          keySet: 'near_ed25519_v1',
+          custody: buildNearBeginCustody(custody),
+          protocolInputsJson: keySetRun.protocolInputsJson,
+        });
+        executeRequestJson = requireNearBegunRun(begunResult).yaoExecuteRequestJson;
+      }
+      recordWalletCustodyTiming(ceremonyId, 'begin', stageStartedAt);
       workerAcceptedBegin = true;
-      const begun = requireNearBegunRun(begunResult);
-      const protocolResultJson = await keySetRun.runRouterRound(begun.yaoExecuteRequestJson);
+      if (keySetRun.beforeRouterRound) {
+        stageStartedAt = performance.now();
+        const checkpoint = await input.runStep('checkpointNearRegistration', { ceremonyId });
+        recordWalletCustodyTiming(ceremonyId, 'checkpoint', stageStartedAt);
+        await keySetRun.beforeRouterRound(checkpoint.checkpointJson);
+      }
+      stageStartedAt = performance.now();
+      const protocolResultJson = await keySetRun.runRouterRound(executeRequestJson);
+      recordWalletCustodyTiming(ceremonyId, 'router_round', stageStartedAt);
+      stageStartedAt = performance.now();
       await input.runStep('completeWalletCustodyKeySetRun', {
         ceremonyId,
         keySet: 'near_ed25519_v1',
@@ -272,11 +341,15 @@ export async function runWalletCustodyKeySetCeremony(
         nearEd25519SigningKeyId: keySetRun.nearEd25519SigningKeyId,
         recordedKeyManifestDigestB64u: input.recordedKeyManifestDigestB64u,
       });
+      recordWalletCustodyTiming(ceremonyId, 'complete', stageStartedAt);
       await keySetRun.afterRouterRoundCompleted?.(protocolResultJson);
-      return await input.runStep('finishWalletCustodyKeySetRun', {
+      stageStartedAt = performance.now();
+      const finished = await input.runStep('finishWalletCustodyKeySetRun', {
         ceremonyId,
         finish: buildFinishCustody(custody),
       });
+      recordWalletCustodyTiming(ceremonyId, 'finish', stageStartedAt);
+      return finished;
     }
 
     const begunResult = await input.runStep('beginWalletCustodyKeySetRun', {

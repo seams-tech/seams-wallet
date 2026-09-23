@@ -380,15 +380,34 @@ export type WorkerControlMessageType =
   (typeof WorkerControlMessage)[keyof typeof WorkerControlMessage];
 
 export type ThresholdEcdsaPresignStage = 'triples' | 'triples_done' | 'presign' | 'done';
-export type ThresholdEcdsaPresignEvent = 'none' | 'triples_done' | 'presign_done';
+export type ThresholdEcdsaPresignEvent =
+  'none' | 'triples_done' | 'final_batch_ready' | 'presign_done';
 
-export type ThresholdEcdsaPresignProgressResult = {
-  stage: ThresholdEcdsaPresignStage;
-  event: ThresholdEcdsaPresignEvent;
-  outgoingMessages: ArrayBuffer[];
-  presignatureHandle?: string;
-  presignatureBigR33?: ArrayBuffer;
-};
+export type ThresholdEcdsaPresignProgressResult<Bytes = ArrayBuffer> = {
+  outgoingMessages: Bytes[];
+} & (
+  | {
+      stage: ThresholdEcdsaPresignStage;
+      event: 'none' | 'triples_done';
+      candidateBigR33?: never;
+      presignatureHandle?: never;
+      presignatureBigR33?: never;
+    }
+  | {
+      stage: 'presign';
+      event: 'final_batch_ready';
+      candidateBigR33: Bytes;
+      presignatureHandle?: never;
+      presignatureBigR33?: never;
+    }
+  | {
+      stage: 'done';
+      event: 'presign_done';
+      candidateBigR33?: never;
+      presignatureHandle: string;
+      presignatureBigR33: Bytes;
+    }
+);
 
 export type ThresholdEcdsaPresignAbortResult = {
   kind: 'threshold_ecdsa_presign_session_aborted';
@@ -473,10 +492,7 @@ export type EmailOtpWorkerProgressEvent = {
 };
 
 export type EmailOtpWorkerSessionHandleOperation =
-  | 'registration'
-  | 'wallet_unlock'
-  | 'sign'
-  | 'export';
+  'registration' | 'wallet_unlock' | 'sign' | 'export';
 
 type EmailOtpEcdsaSessionBootstrapHandlePayloadBase = {
   kind: 'email_otp_worker_session_handle_v1';
@@ -493,7 +509,9 @@ type EmailOtpEcdsaRuntimeHandleOperation = Exclude<
 >;
 
 type EmailOtpEcdsaRuntimeSessionBootstrapHandlePayload = {
-  [Operation in EmailOtpEcdsaRuntimeHandleOperation]: EmailOtpEcdsaSessionBootstrapHandlePayloadBase & {
+  [
+    Operation in EmailOtpEcdsaRuntimeHandleOperation
+  ]: EmailOtpEcdsaSessionBootstrapHandlePayloadBase & {
     operation: Operation;
     keyHandle: string;
     evmFamilySigningKeySlotId?: never;
@@ -516,8 +534,7 @@ export type EmailOtpWalletRegistrationEcdsaPrepareHandlePayload = {
 };
 
 export type EmailOtpWorkerIssuedSessionHandlePayload =
-  | EmailOtpEcdsaSessionBootstrapHandlePayload
-  | EmailOtpWalletRegistrationEcdsaPrepareHandlePayload;
+  EmailOtpEcdsaSessionBootstrapHandlePayload | EmailOtpWalletRegistrationEcdsaPrepareHandlePayload;
 
 type EmailOtpEcdsaSessionBootstrapHandleBindingBase = {
   authSubjectId: string;
@@ -526,7 +543,9 @@ type EmailOtpEcdsaSessionBootstrapHandleBindingBase = {
 };
 
 type EmailOtpEcdsaRuntimeSessionBootstrapHandleBinding = {
-  [Operation in EmailOtpEcdsaRuntimeHandleOperation]: EmailOtpEcdsaSessionBootstrapHandleBindingBase & {
+  [
+    Operation in EmailOtpEcdsaRuntimeHandleOperation
+  ]: EmailOtpEcdsaSessionBootstrapHandleBindingBase & {
     operation: Operation;
     keyHandle: string;
     evmFamilySigningKeySlotId?: never;
@@ -578,8 +597,7 @@ export type EmailOtpWalletRegistrationEcdsaPrepareHandleResult =
     };
 
 export type EmailOtpEcdsaSessionHandleBinding =
-  | EmailOtpEcdsaSessionBootstrapHandleBinding
-  | EmailOtpWalletRegistrationEcdsaPrepareHandleBinding;
+  EmailOtpEcdsaSessionBootstrapHandleBinding | EmailOtpWalletRegistrationEcdsaPrepareHandleBinding;
 
 export type EmailOtpYaoPrewarmFailureStage = 'worker_ready' | 'yao_wasm_init';
 
@@ -1156,8 +1174,7 @@ export type MultichainWorkerOperationResult<
 > = MultichainWorkerOperationEntry<K, T>['result'];
 
 export type EvmCryptoTransactionOperationType =
-  | 'computeEip1559TxHash'
-  | 'encodeEip1559SignedTxFromSignature65';
+  'computeEip1559TxHash' | 'encodeEip1559SignedTxFromSignature65';
 export type EvmCryptoLocalSecp256k1OperationType =
   | 'signSecp256k1Recoverable'
   | 'verifySecp256k1RecoverableSignatureAgainstPublicKey33'
@@ -1167,8 +1184,7 @@ export type EvmCryptoLocalSecp256k1OperationType =
   | 'buildWebauthnP256Signature'
   | 'decodeCoseP256PublicKey';
 export type EvmCryptoDomainOperationType =
-  | EvmCryptoTransactionOperationType
-  | EvmCryptoLocalSecp256k1OperationType;
+  EvmCryptoTransactionOperationType | EvmCryptoLocalSecp256k1OperationType;
 
 export type EvmCryptoTransactionOperationRequest<T extends EvmCryptoTransactionOperationType> =
   MultichainWorkerOperationRequest<'evmCrypto', T>;
@@ -1181,8 +1197,7 @@ export type TempoSignerTransactionOperationRequest<T extends TempoSignerTransact
   MultichainWorkerOperationRequest<'tempoSigner', T>;
 
 export type EmailOtpChallengeOperationType =
-  | 'requestEmailOtpChallenge'
-  | 'requestEmailOtpEnrollmentChallenge';
+  'requestEmailOtpChallenge' | 'requestEmailOtpEnrollmentChallenge';
 export type EmailOtpEnrollmentOperationType =
   | 'enrollEmailOtpWallet'
   | 'prepareEmailOtpRegistrationEnrollmentMaterial'
@@ -1995,6 +2010,22 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
   discardEd25519YaoLaneSource: {
     payload: { sourceHandle: string };
     result: { discarded: boolean };
+  };
+  checkpointNearRegistration: {
+    payload: { ceremonyId: string };
+    result: { checkpointJson: string };
+  };
+  restoreNearRegistration: {
+    payload: {
+      ceremonyId: string;
+      custodyJson: string;
+      factorSecret: ArrayBuffer;
+      checkpointJson: string;
+      walletCustodySeed?: never;
+      recipientPrivateKey?: never;
+      protocolInputsJson?: never;
+    };
+    result: { ceremonyId: string; yaoExecuteRequestJson: string };
   };
   beginWalletCustodyKeySetRun: {
     payload:

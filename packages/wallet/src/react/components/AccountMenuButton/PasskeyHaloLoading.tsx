@@ -1,5 +1,5 @@
 import TouchIcon from './icons/TouchIcon';
-import LitHaloBorder from '../LitHaloBorder';
+import { HaloBorder } from './HaloBorder';
 import { useTheme } from '../theme';
 
 interface PasskeyHaloLoadingProps {
@@ -20,7 +20,7 @@ export const PasskeyHaloLoading: React.FC<PasskeyHaloLoadingProps> = ({
   const { theme } = useTheme();
   return (
     <div className={`seams-passkey-loading-root ${theme} ${className}`} style={style}>
-      <LitHaloBorder
+      <HaloBorder
         theme={theme}
         animated={true}
         ringGap={4}
@@ -55,7 +55,7 @@ export const PasskeyHaloLoading: React.FC<PasskeyHaloLoadingProps> = ({
             }}
           />
         </div>
-      </LitHaloBorder>
+      </HaloBorder>
     </div>
   );
 };

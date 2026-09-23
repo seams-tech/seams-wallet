@@ -46,6 +46,7 @@ const guidesSection: DefaultTheme.SidebarItem = {
       text: 'Recovery, export, and rotation',
       link: '/guides/recovery-export-and-rotation',
     },
+    { text: 'Custom transaction review', link: '/guides/transaction-review' },
     { text: 'Theming', link: '/guides/theming' },
     {
       text: 'Examples',

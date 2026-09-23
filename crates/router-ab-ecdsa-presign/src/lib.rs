@@ -468,6 +468,11 @@ impl SigningWorkerAwaitingPeerE {
 }
 
 impl ClientAwaitingPeerAlphaBeta {
+    /// Public candidate identity only; peer commitment checks still gate usable output.
+    pub fn candidate_big_r(&self) -> Result<CompressedPointBytes, PresignError> {
+        candidate_big_r(&self.0).map(point_bytes)
+    }
+
     pub fn receive(
         self,
         message: SigningWorkerAlphaBetaMessage,
@@ -554,6 +559,12 @@ impl AwaitingPeerE {
     }
 }
 
+fn candidate_big_r(state: &AwaitingPeerAlphaBeta) -> Result<AffinePoint, PresignError> {
+    let e_inverse: Option<Scalar> = state.e.invert().into();
+    let e_inverse = e_inverse.ok_or(PresignError::NonInvertibleE)?;
+    Ok((ProjectivePoint::from(state.triple0_public.big_b) * e_inverse).to_affine())
+}
+
 fn finish(
     state: AwaitingPeerAlphaBeta,
     message: (PresignPairContext, [u8; 32], [u8; 32]),
@@ -577,9 +588,7 @@ fn finish(
         return Err(PresignError::AdditiveCommitmentMismatch);
     }
 
-    let e_inverse: Option<Scalar> = state.e.invert().into();
-    let e_inverse = e_inverse.ok_or(PresignError::NonInvertibleE)?;
-    let big_r = (ProjectivePoint::from(state.triple0_public.big_b) * e_inverse).to_affine();
+    let big_r = candidate_big_r(&state)?;
     let sigma = alpha * state.private_share - beta * state.triple1_share.a + state.triple1_share.c;
 
     Ok(PresignOutput {
@@ -891,6 +900,8 @@ mod tests {
             start_signing_worker(fixture.signing_worker_input()).expect("worker start");
         let (client_alpha_state, _) = client_e_state.receive(worker_e).expect("client round two");
         let (_, worker_alpha) = worker_e_state.receive(client_e).expect("worker round two");
+        let candidate = client_alpha_state.candidate_big_r().expect("candidate identity");
+        assert_eq!(candidate.as_bytes().len(), 33);
         let (context, alpha_bytes, beta_bytes) = worker_alpha.into_parts();
         let tampered_alpha = parse_scalar(alpha_bytes).expect("canonical alpha") + Scalar::ONE;
         let tampered_message = SigningWorkerAlphaBetaMessage::new(

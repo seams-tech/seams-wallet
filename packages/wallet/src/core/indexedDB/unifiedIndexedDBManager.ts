@@ -183,6 +183,25 @@ export class UnifiedIndexedDBManager {
     return this.seamsWalletRepositories.setAppState(key, value);
   }
 
+  async putPendingWalletRegistrationCommits(
+    records: readonly PendingWalletRegistrationCommitV1[],
+  ): Promise<void> {
+    return this.seamsWalletRepositories.putPendingWalletRegistrationCommits(records);
+  }
+
+  async advancePendingNearRegistration(input: {
+    readonly expected: Extract<
+      PendingWalletRegistrationCommitV1,
+      { readonly operation: 'near_provisioning' }
+    >;
+    readonly next: Extract<
+      PendingWalletRegistrationCommitV1,
+      { readonly operation: 'near_provisioning' }
+    >;
+  }): Promise<void> {
+    return this.seamsWalletRepositories.advancePendingNearRegistration(input);
+  }
+
   async putPendingWalletRegistrationCommit(
     record: PendingWalletRegistrationCommitV1,
   ): Promise<void> {
@@ -592,6 +611,18 @@ export class UnifiedIndexedDBManager {
     input: PublishPendingWalletRegistrationCommitInputV1,
   ): Promise<StoreWalletRegistrationFinalizeBatchResult> {
     return this.seamsWalletRepositories.publishPendingWalletRegistrationCommitAndRetain(input);
+  }
+
+  async reconcilePendingNearRegistrationAuthority(
+    input: Parameters<SeamsWalletRepositories['reconcilePendingNearRegistrationAuthority']>[0],
+  ): Promise<void> {
+    await this.seamsWalletRepositories.reconcilePendingNearRegistrationAuthority(input);
+  }
+
+  async completePendingNearRegistration(
+    input: Parameters<SeamsWalletRepositories['completePendingNearRegistration']>[0],
+  ): Promise<void> {
+    await this.seamsWalletRepositories.completePendingNearRegistration(input);
   }
 
   async publishPendingWalletRecoveryCommit(

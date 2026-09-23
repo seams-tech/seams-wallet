@@ -1,3 +1,8 @@
+import { parseExactWalletSessionStatusResponse } from '../../../packages/wallet/src/core/rpcClients/relayer/walletSessionAuthorizationStatus';
+import {
+  parseWalletSessionId,
+  parseMpcWalletSigningQuotaId,
+} from '@shared/authorization/capabilityKinds';
 import {
   expect,
   test as base,
@@ -167,7 +172,7 @@ const ROUTER_AB_ED25519_YAO_REGISTRATION_PATHS = [
 const LOCAL_INTENDED_YAO_FAULT_HEADER_V1 = 'x-seams-intended-yao-fault-v1';
 const LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1 = 'x-seams-intended-yao-fault-token-v1';
 const LOCAL_INTENDED_YAO_FAULT_PROOF_HEADER_V1 = 'x-seams-intended-yao-fault-proof-v1';
-const LOCAL_INTENDED_YAO_ROUTER_ORIGIN_V1 = 'https://localhost:4101';
+const LOCAL_INTENDED_YAO_ROUTER_ORIGIN_V1 = 'http://127.0.0.1:4100';
 
 type IntendedYaoFaultModeV1 = 'drop_router_response_once' | 'return_terminal_burned_once';
 
@@ -526,11 +531,12 @@ type GoogleEmailOtpRecoveryResultSnapshot = {
 type EmailOtpUnlockCoreSnapshot = {
   kind: 'email_otp_unlock_success';
   walletId: string;
-  nearAccountId: string;
-  operationalPublicKey: string;
   sessionWalletAuthMethodId: string;
   authenticationKind: 'authenticated';
-};
+} & (
+  | { nearIdentity: 'ready'; nearAccountId: string; operationalPublicKey: string }
+  | { nearIdentity: 'absent'; nearAccountId?: never; operationalPublicKey?: never }
+);
 
 type EmailOtpUnlockResultSnapshot = EmailOtpUnlockCoreSnapshot & EcdsaEnabledSnapshot;
 
@@ -1183,6 +1189,23 @@ export class IntendedBehaviourHarness {
     }
   }
 
+  async assertMixedNearTerminalFailureSurvivesUnlock(): Promise<void> {
+    const proofStartIndex = this.intendedYaoFaultProofs.length;
+    const faultToken = this.armIntendedYaoFault('return_terminal_burned_once');
+    const failed = this.page.waitForResponse(isNearRegistrationExecutionResponse);
+    await this.registerPasskeyWallet();
+    const initial = await failed;
+    expect(await initial.json()).toMatchObject({ ok: false, code: 'execution_failed' });
+    this.assertIntendedYaoFaultProof(proofStartIndex, faultToken, 'terminal_failure_not_retried');
+    await this.signTempoTransaction('post_registration');
+    const replay = this.page.waitForResponse(isNearRegistrationExecutionResponse);
+    await this.unlockPasskeyWithPendingNear();
+    const retained = await replay;
+    expect(await retained.json()).toMatchObject({ ok: false, code: 'execution_failed' });
+    expect(retained.request().postData()).toBe(initial.request().postData());
+    await this.signArcEvmTransaction('post_unlock');
+  }
+
   async assertPasskeyEd25519YaoTerminalFailureWithoutRetry(): Promise<void> {
     this.recordStage('assert_passkey_ed25519_yao_terminal_failure_without_retry');
     const proofStartIndex = this.intendedYaoFaultProofs.length;
@@ -1694,6 +1717,33 @@ export class IntendedBehaviourHarness {
     this.emailOtpVerificationCount += 1;
     this.operatingAuthFamily = 'email_otp';
     this.recordService(`added email code unlocked wallet=${String(registration.walletId)}`);
+  }
+
+  async unlockPasskeyWithPendingNear(): Promise<void> {
+    this.recordStage('unlock_passkey_with_pending_near');
+    await this.resetRuntimeOnlyState();
+    const snapshot = await this.runIntendedPageAction(
+      'unlockPasskeyWallet',
+      'intended-unlock-passkey',
+    );
+    if (snapshot.action?.status !== 'success')
+      throw new Error('Pending NEAR Passkey unlock failed');
+    this.currentWarmSigningStage = 'post_unlock';
+    this.passkeyPromptCount += 1;
+  }
+
+  async unlockEmailOtpWithPendingNear(): Promise<void> {
+    this.recordStage('unlock_email_otp_with_pending_near');
+    await this.resetRuntimeOnlyState();
+    const snapshot = await this.runIntendedPageAction(
+      'unlockEmailOtpWallet',
+      'intended-unlock-email-otp',
+    );
+    if (snapshot.action?.status !== 'success') {
+      throw new Error('Pending NEAR Email OTP unlock failed');
+    }
+    this.currentWarmSigningStage = 'post_unlock';
+    this.emailOtpVerificationCount += 1;
   }
 
   async unlockPasskeyWallet(): Promise<void> {
@@ -2349,6 +2399,23 @@ export class IntendedBehaviourHarness {
     this.recordService('page refreshed preserving wallet storage');
   }
 
+  async lockWallet(): Promise<void> {
+    await this.page.evaluate(async () => {
+      const lock = window.__seamsIntendedE2ELockWallet;
+      if (!lock) throw new Error('Wallet lock helper is unavailable');
+      await lock();
+    });
+  }
+
+  async assertWalletLocked(): Promise<void> {
+    const state = await this.page.evaluate(async () => {
+      const read = window.__seamsIntendedE2EReadWalletLockState;
+      if (!read) throw new Error('Wallet lock-state helper is unavailable');
+      return await read();
+    });
+    expect(state.authenticationKind).not.toBe('authenticated');
+  }
+
   async assertLockedPageReloadStaysLocked(): Promise<void> {
     this.recordStage('locked_page_reload_stays_locked');
     await this.ensureIntendedPageOpen();
@@ -2521,6 +2588,7 @@ export class IntendedBehaviourHarness {
     this.recordService(
       `concurrent Tempo/Arc signatures verified wallet=${this.walletId} remainingUses=0`,
     );
+    await waitForWalletIframeConfirmationSettlement(this.page);
   }
 
   async exhaustSigningBudget(): Promise<void> {
@@ -2809,7 +2877,9 @@ export class IntendedBehaviourHarness {
         },
       );
       this.latestPageSnapshot = snapshot;
-      await waitForWalletIframeConfirmationSettlement(this.page, action);
+      if (intendedActionRequiresConfirmationSettlement(action)) {
+        await waitForWalletIframeConfirmationSettlement(this.page);
+      }
       return snapshot;
     } catch (error) {
       this.latestWalletIframeAutoConfirmDiagnostics = diagnostics;
@@ -2998,6 +3068,27 @@ export class IntendedBehaviourHarness {
     this.recordService(
       `authoritative wallet budget exhausted walletSessionId=${replay.walletSessionId} quotaId=${replay.quotaId}`,
     );
+  }
+
+  async readCurrentWalletSessionStatus() {
+    const captured = this.latestWalletBudgetStatusRequest;
+    if (!captured) throw new Error('Signing has not read Wallet Session status');
+    const walletSessionId = parseWalletSessionId(captured.walletSessionId);
+    const quotaId = parseMpcWalletSigningQuotaId(captured.quotaId);
+    if (!walletSessionId.ok || !quotaId.ok) throw new Error('Invalid captured session identity');
+    const response = await this.request.post(captured.url, {
+      headers: { Authorization: captured.authorization, 'Content-Type': captured.contentType },
+      data: captured.body,
+    });
+    if (!response.ok()) throw new Error(`Wallet Session status failed: ${response.status()}`);
+    const status = parseExactWalletSessionStatusResponse(await response.json(), {
+      walletSessionId: walletSessionId.value,
+      quotaId: quotaId.value,
+    });
+    if (!status || (status.status !== 'active' && status.status !== 'exhausted')) {
+      throw new Error('Expected a current Wallet Session');
+    }
+    return status;
   }
 
   private async replayLatestWalletBudgetStatus(): Promise<AuthoritativeWalletBudgetReplay> {
@@ -3462,10 +3553,13 @@ function requireUsableIntendedGoogleIdToken(
 
 export function requireLocalIntendedYaoFaultRouterOrigin(routerUrl: string): void {
   const origin = new URL(routerUrl).origin;
-  if (origin === LOCAL_INTENDED_YAO_ROUTER_ORIGIN_V1) return;
-  throw new Error(
-    `Intended Yao fault injection requires ${LOCAL_INTENDED_YAO_ROUTER_ORIGIN_V1}; received ${origin}`,
-  );
+  const offset = Number(process.env.SEAMS_LOCAL_PORT_OFFSET || 0);
+  const expected =
+    Number.isSafeInteger(offset) && offset >= 0 && offset <= 61435
+      ? `http://127.0.0.1:${4100 + offset}`
+      : LOCAL_INTENDED_YAO_ROUTER_ORIGIN_V1;
+  if (origin === expected) return;
+  throw new Error(`Intended Yao fault injection requires ${expected}; received ${origin}`);
 }
 
 function emailOtpEcdsaTargetProfileFromEnv(raw: string | undefined): EcdsaTargetProfileName {
@@ -3498,6 +3592,9 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
   const normalized = filePath.replaceAll('\\', '/');
   if (
     normalized.endsWith('passkey.registration.contract.test.ts') ||
+    normalized.endsWith('passkey.presign-handoff.contract.test.ts') ||
+    normalized.endsWith('passkey.registration.checkpoint.contract.test.ts') ||
+    normalized.endsWith('passkey.registration.resume.contract.test.ts') ||
     normalized.endsWith('passkey.ed25519-yao-local.contract.test.ts') ||
     normalized.endsWith('passkey.add-email-otp.contract.test.ts') ||
     normalized.endsWith('auth-method-addition.matrix.contract.test.ts') ||
@@ -3514,6 +3611,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
   }
   if (
     normalized.endsWith('email-otp.registration.contract.test.ts') ||
+    normalized.endsWith('email-otp.registration.resume.contract.test.ts') ||
     normalized.endsWith('email-otp.add-passkey.contract.test.ts') ||
     normalized.endsWith('email-otp.registration.benchmark.test.ts')
   ) {
@@ -4285,6 +4383,9 @@ function requireEmailOtpUnlockResult(
   if (result.kind !== 'email_otp_unlock_success') {
     throw new Error(`Email OTP unlock returned unexpected result kind: ${result.kind}`);
   }
+  if (result.nearIdentity !== 'ready') {
+    throw new Error('Completed Email OTP wallet unlock omitted its NEAR identity');
+  }
   if (result.walletId !== expected.walletId) {
     throw new Error(`Email OTP unlock wallet mismatch: ${result.walletId}`);
   }
@@ -4946,6 +5047,31 @@ function parseIntendedPageActionSnapshot(raw: unknown): IntendedPageActionSnapsh
   }
 }
 
+function parseEmailOtpUnlockNearIdentity(
+  record: Record<string, unknown>,
+):
+  | { nearIdentity: 'ready'; nearAccountId: string; operationalPublicKey: string }
+  | { nearIdentity: 'absent'; nearAccountId?: never; operationalPublicKey?: never } {
+  switch (record.nearIdentity) {
+    case 'ready':
+      return {
+        nearIdentity: 'ready',
+        nearAccountId: requireString(record.nearAccountId, 'Email OTP unlock nearAccountId'),
+        operationalPublicKey: requireString(
+          record.operationalPublicKey,
+          'Email OTP unlock operationalPublicKey',
+        ),
+      };
+    case 'absent':
+      if (record.nearAccountId !== undefined || record.operationalPublicKey !== undefined) {
+        throw new Error('Email OTP unlock has contradictory NEAR identity fields');
+      }
+      return { nearIdentity: 'absent' };
+    default:
+      throw new Error('Email OTP unlock returned an invalid NEAR identity state');
+  }
+}
+
 function parsePasskeyUnlockResultSnapshot(
   record: Record<string, unknown>,
 ): PasskeyUnlockResultSnapshot {
@@ -5141,11 +5267,7 @@ function parseIntendedActionResultSnapshot(raw: unknown): IntendedActionResultSn
       return {
         kind,
         walletId: requireString(record.walletId, 'Email OTP unlock walletId'),
-        nearAccountId: requireString(record.nearAccountId, 'Email OTP unlock nearAccountId'),
-        operationalPublicKey: requireString(
-          record.operationalPublicKey,
-          'Email OTP unlock operationalPublicKey',
-        ),
+        ...parseEmailOtpUnlockNearIdentity(record),
         sessionWalletAuthMethodId: requireString(
           record.sessionWalletAuthMethodId,
           'Email OTP unlock sessionWalletAuthMethodId',
@@ -6010,7 +6132,7 @@ async function fillWalletIframeEmailOtpIfAvailable(
   const timeoutMs = Math.max(50, Math.floor(opts?.timeoutMs ?? 500));
   const input = frame
     .locator(
-      '#email-otp-confirm-code, #drawer-email-otp-confirm-code, #seams-auth-menu-google-otp, #seams-recovery-google-otp',
+      'input[name="email-code"][autocomplete="one-time-code"], #seams-auth-menu-google-otp, #seams-recovery-google-otp',
     )
     .first();
   const visible = await input
@@ -6224,28 +6346,7 @@ function walletIframeSecureConfirmationControl(frame: FrameLocator): Locator {
     .last();
 }
 
-async function dispatchWalletIframeConfirmation(input: {
-  readonly control: Locator;
-  readonly intendedAction: string | null;
-  readonly timeoutMs: number;
-}): Promise<void> {
-  if (!intendedActionRequiresSecureConfirmation(input.intendedAction)) {
-    await input.control.click({ timeout: input.timeoutMs });
-    return;
-  }
-  await input.control.evaluate((element) => {
-    if (!(element instanceof HTMLButtonElement) || element.disabled) {
-      throw new Error('Secure confirmation control is not enabled');
-    }
-    element.click();
-  });
-}
-
-async function waitForWalletIframeConfirmationSettlement(
-  page: Page,
-  action: string,
-): Promise<void> {
-  if (!intendedActionRequiresConfirmationSettlement(action)) return;
+async function waitForWalletIframeConfirmationSettlement(page: Page): Promise<void> {
   const iframe = page.locator('iframe[allow*="publickey-credentials-get"]').last();
   if ((await iframe.count()) === 0) return;
   await walletIframeSecureConfirmationControl(iframe.contentFrame()).waitFor({
@@ -6253,6 +6354,13 @@ async function waitForWalletIframeConfirmationSettlement(
     timeout: 5_000,
   });
   await page.waitForTimeout(100);
+  const closeReceipt = iframe.contentFrame().getByRole('button', {
+    name: 'Close receipt',
+    exact: true,
+  });
+  if (await closeReceipt.isVisible()) {
+    await closeReceipt.click({ timeout: 5_000 });
+  }
 }
 
 async function resolveWalletIframeConfirmControl(input: {
@@ -6319,7 +6427,11 @@ async function clickWalletIframeConfirm(
         googleVisible = false;
       }
       if (googleVisible) {
-        const fingerprint = await readWalletIframeConfirmationFingerprint(google, intendedAction, timeoutMs);
+        const fingerprint = await readWalletIframeConfirmationFingerprint(
+          google,
+          intendedAction,
+          timeoutMs,
+        );
         if (walletIframeConfirmationAlreadyDispatched(dispatchedConfirmations, fingerprint)) {
           return false;
         }
@@ -6375,16 +6487,16 @@ async function clickWalletIframeConfirm(
     });
     await confirmBtn.waitFor({ state: 'visible', timeout: timeoutMs });
     recordAutoConfirmMark(opts?.diagnostics, opts?.diagnosticsStartedAtMs, 'firstButtonVisibleMs');
-    const fingerprint = await readWalletIframeConfirmationFingerprint(confirmBtn, intendedAction, timeoutMs);
+    const fingerprint = await readWalletIframeConfirmationFingerprint(
+      confirmBtn,
+      intendedAction,
+      timeoutMs,
+    );
     if (walletIframeConfirmationAlreadyDispatched(dispatchedConfirmations, fingerprint)) {
       return false;
     }
     const clickStartedAtMs = Date.now();
-    await dispatchWalletIframeConfirmation({
-      control: confirmBtn,
-      intendedAction,
-      timeoutMs,
-    });
+    await confirmBtn.click({ timeout: timeoutMs });
     dispatchedConfirmations.push(fingerprint);
     if (opts?.diagnostics) {
       opts.diagnostics.clicked = true;
@@ -6569,4 +6681,8 @@ async function readWalletIframeAuthMenuError(page: Page): Promise<string | null>
       return error || null;
     })
     .catch(() => null);
+}
+
+function isNearRegistrationExecutionResponse(response: Response): boolean {
+  return new URL(response.url()).pathname === ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1;
 }

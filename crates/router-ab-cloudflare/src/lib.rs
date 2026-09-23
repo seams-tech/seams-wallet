@@ -5097,6 +5097,14 @@ impl CloudflareEcdsaBoundaryTimingV1 {
         self.entries.push((name.to_owned(), duration_ms));
     }
 
+    fn emit_io_diagnostic(&self) {
+        // Keep trace identities and protocol data out of timing diagnostics.
+        worker::console_log!(
+            "{}",
+            serde_json::json!({ "event": "ecdsa_io_timing", "durationsMs": &self.entries })
+        );
+    }
+
     /// Folds one role worker's own `Server-Timing` into this header, renaming
     /// each metric with the role prefix so the role that produced it stays
     /// visible after the merge. Entries without a finite non-negative `dur`
@@ -7098,6 +7106,7 @@ pub fn parse_cloudflare_router_authorized_router_ab_ecdsa_derivation_prepare_req
 ) -> RouterAbProtocolResult<(
     RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
     CloudflareRouterEcdsaAcceptedAuthorizedOperationV1,
+    CloudflareEcdsaPrepareSourceV1,
 )> {
     let value = serde_json::from_slice::<serde_json::Value>(bytes).map_err(|err| {
         RouterAbProtocolError::new(
@@ -7113,6 +7122,13 @@ pub fn parse_cloudflare_router_authorized_router_ab_ecdsa_derivation_prepare_req
                 "Router A/B ECDSA derivation prepare request must be a JSON object",
             ));
         }
+    };
+    let presign_source = match object.remove("presign_source") {
+        Some(value) => serde_json::from_value::<CloudflareEcdsaPrepareSourceV1>(value)
+            .map_err(|error| RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload, error.to_string(),
+            ))?,
+        None => CloudflareEcdsaPrepareSourceV1::AvailablePool,
     };
     let authorized_operation_value = object.remove("authorized_operation").ok_or_else(|| {
         RouterAbProtocolError::new(
@@ -7143,7 +7159,8 @@ pub fn parse_cloudflare_router_authorized_router_ab_ecdsa_derivation_prepare_req
     authorized_operation
         .authorized_operation
         .validate_for_prepare_request(&request)?;
-    Ok((request, authorized_operation))
+    presign_source.validate_for_request(&request)?;
+    Ok((request, authorized_operation, presign_source))
 }
 
 #[cfg(feature = "workers-rs")]
@@ -8106,8 +8123,9 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_evm_digest_signing_pre
     now_unix_ms: u64,
     request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
     authorized_operation: CloudflareRouterEcdsaAcceptedAuthorizedOperationV1,
+    presign_source: CloudflareEcdsaPrepareSourceV1,
     trusted_source_digest: PublicDigest32,
-) -> RouterAbProtocolResult<RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1> {
+) -> RouterAbProtocolResult<CloudflareEcdsaPrepareResponseV1> {
     request.validate_at(now_unix_ms)?;
     let trusted_admission = cloudflare_router_ab_ecdsa_step_up_prepare_admission_v1(
         &request,
@@ -8124,11 +8142,13 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_evm_digest_signing_pre
             "Router A/B ECDSA derivation prepare Router admission did not allow SigningWorker forwarding",
         ));
     }
-    let admitted =
+    let mut admitted =
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
             request,
             trusted_admission,
         )?;
+    admitted.presign_source = presign_source;
+    admitted.validate()?;
     execute_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_service_call_v1(
         env,
         runtime.signing_worker_peer(),
@@ -8192,10 +8212,11 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_evm_digest_signing_pre
     now_unix_ms: u64,
     request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
     authorized_operation: CloudflareRouterEcdsaAcceptedAuthorizedOperationV1,
+    presign_source: CloudflareEcdsaPrepareSourceV1,
     credential: CloudflareRouterWalletSessionCredentialV1,
     trusted_source_digest: PublicDigest32,
     mut verifier: Verifier,
-) -> RouterAbProtocolResult<RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1>
+) -> RouterAbProtocolResult<CloudflareEcdsaPrepareResponseV1>
 where
     Verifier: CloudflareRouterWalletSessionVerifierV1,
 {
@@ -8232,11 +8253,13 @@ where
             "Router A/B ECDSA derivation prepare Router admission did not allow SigningWorker forwarding",
         ));
     }
-    let admitted =
+    let mut admitted =
         CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
             request,
             trusted_admission,
         )?;
+    admitted.presign_source = presign_source;
+    admitted.validate()?;
     execute_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_service_call_v1(
         env,
         runtime.signing_worker_peer(),
@@ -11636,29 +11659,6 @@ fn cloudflare_signing_worker_presign_error_response_v1(
     )
 }
 
-#[cfg(feature = "workers-rs")]
-fn cloudflare_signing_worker_internal_json_request_v1<T: Serialize>(
-    path: &str,
-    value: &T,
-) -> RouterAbProtocolResult<worker::Request> {
-    let body = serde_json::to_string(value).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            format!("SigningWorker internal request JSON encoding failed: {error}"),
-        )
-    })?;
-    let mut init = worker::RequestInit::new();
-    init.with_method(worker::Method::Post)
-        .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&body)));
-    worker::Request::new_with_init(&format!("https://signing-worker.internal{path}"), &init)
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("SigningWorker internal request construction failed: {error}"),
-            )
-        })
-}
-
 /// Handles SigningWorker's private ECDSA presign-session init route.
 #[cfg(feature = "workers-rs")]
 pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private_fetch_v1(
@@ -11689,6 +11689,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
             );
         }
     };
+    timing.mark("ecdsa_presign_sw_body", started_at_ms);
     if let Err(error) = parsed.validate_at(now_unix_ms) {
         return cloudflare_signing_worker_presign_error_response_v1(error);
     }
@@ -12071,6 +12072,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
             );
         }
     };
+    timing.mark("ecdsa_presign_sw_body", started_at_ms);
     if let Err(error) = parsed.validate_at(now_unix_ms) {
         return cloudflare_signing_worker_presign_error_response_v1(error);
     }
@@ -12112,27 +12114,18 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
             let presign_session_id = parsed.presign_session_id;
             let server_presignature_id = pool_put_request.server_presignature_id.clone();
             let server_big_r33_b64u = pool_put_request.server_big_r33_b64u.clone();
-            let internal_request = match cloudflare_signing_worker_internal_json_request_v1(
-                CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_PUT_PATH,
-                &pool_put_request,
-            ) {
-                Ok(value) => value,
-                Err(error) => {
-                    return cloudflare_signing_worker_presign_error_response_v1(error);
-                }
-            };
             let admission_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-            let admission = handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_presignature_pool_put_private_fetch_v1(
-                internal_request,
+            if let Err(error) = admit_cloudflare_signing_worker_ecdsa_presignature_v1(
+                pool_put_request,
                 env,
                 runtime,
                 now_unix_ms,
             )
-            .await?;
-            timing.mark("ecdsa_presign_sw_admit", admission_started_at_ms);
-            if !(200..=299).contains(&admission.status_code()) {
-                return Ok(admission);
+            .await
+            {
+                return cloudflare_signing_worker_presign_error_response_v1(error);
             }
+            timing.mark("ecdsa_presign_sw_admit", admission_started_at_ms);
             worker::Response::from_json(
                 &CloudflareSigningWorkerEcdsaPresignSessionProgressV1::Complete {
                     outgoing_messages_b64u,
@@ -12401,90 +12394,49 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_presign
             );
         }
     };
-    if let Err(err) = parsed.validate_at(now_unix_ms) {
-        return worker::Response::error(
-            format!("{:?}: {}", err.code(), err.message()),
-            cloudflare_router_error_status(err.code()),
-        );
+    match admit_cloudflare_signing_worker_ecdsa_presignature_v1(parsed, env, runtime, now_unix_ms)
+        .await
+    {
+        Ok(receipt) => worker::Response::from_json(&receipt),
+        Err(error) => cloudflare_signing_worker_presign_error_response_v1(error),
     }
+}
+
+#[cfg(feature = "workers-rs")]
+async fn admit_cloudflare_signing_worker_ecdsa_presignature_v1(
+    request: CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1,
+    env: &worker::Env,
+    runtime: &CloudflareSigningWorkerRuntimeV1,
+    now_unix_ms: u64,
+) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPoolAdmissionReceiptV1> {
+    request.validate_at(now_unix_ms)?;
     let (active_signing_worker, active_material) =
-        match load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1(
+        load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1(
             env,
             runtime,
-            &parsed.scope,
-            &parsed.material_source,
+            &request.scope,
+            &request.material_source,
             now_unix_ms,
         )
-        .await
-        {
-            Ok(value) => value,
-            Err(err) => {
-                return worker::Response::error(
-                    format!("{:?}: {}", err.code(), err.message()),
-                    cloudflare_router_error_status(err.code()),
-                );
-            }
-        };
-    let record = match parsed.to_pool_record(active_signing_worker, &active_material, now_unix_ms) {
-        Ok(record) => record,
-        Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
-        }
-    };
-    let mutate_call = match runtime.signing_worker_ecdsa_pool_mutate_request(
+        .await?;
+    let record = request.to_pool_record(active_signing_worker, &active_material, now_unix_ms)?;
+    let mutate_call = runtime.signing_worker_ecdsa_pool_mutate_request(
         CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable {
             material: record.clone(),
         },
-    ) {
-        Ok(call) => call,
-        Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
-        }
-    };
+    )?;
     let mutate_response =
-        match execute_cloudflare_signing_worker_private_d1_request_v1(env, &mutate_call).await {
-            Ok(response) => response,
-            Err(err) => {
-                return worker::Response::error(
-                    format!("{:?}: {}", err.code(), err.message()),
-                    cloudflare_router_error_status(err.code()),
-                );
-            }
-        };
+        execute_cloudflare_signing_worker_private_d1_request_v1(env, &mutate_call).await?;
     let outcome =
-        match require_signing_worker_ecdsa_pool_mutate_response_v1(&mutate_call, mutate_response) {
-            Ok(outcome) => outcome,
-            Err(err) => {
-                return worker::Response::error(
-                    format!("{:?}: {}", err.code(), err.message()),
-                    cloudflare_router_error_status(err.code()),
-                );
-            }
-        };
+        require_signing_worker_ecdsa_pool_mutate_response_v1(&mutate_call, mutate_response)?;
     let CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Available { stored, .. } = outcome
     else {
-        return worker::Response::error(
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             "SigningWorker ECDSA pool admission returned the wrong lifecycle outcome",
-            cloudflare_router_error_status(RouterAbProtocolErrorCode::InvalidLocalServiceConfig),
-        );
+        ));
     };
-    let receipt =
-        match CloudflareSigningWorkerEcdsaPoolAdmissionReceiptV1::from_record(&record, stored) {
-            Ok(receipt) => receipt,
-            Err(err) => {
-                return worker::Response::error(
-                    format!("{:?}: {}", err.code(), err.message()),
-                    cloudflare_router_error_status(err.code()),
-                );
-            }
-        };
-    worker::Response::from_json(&receipt)
+    CloudflareSigningWorkerEcdsaPoolAdmissionReceiptV1::from_record(&record, stored)
 }
 
 /// Handles SigningWorker's production Router A/B ECDSA derivation prepare route using the presignature pool.
@@ -12495,6 +12447,8 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
     runtime: &CloudflareSigningWorkerRuntimeV1,
     now_unix_ms: u64,
 ) -> worker::Result<worker::Response> {
+    let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
+    let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     if request.method() != worker::Method::Post {
         return worker::Response::error(
             "Router A/B ECDSA derivation prepare route requires POST",
@@ -12522,6 +12476,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             );
         }
     };
+    timing.mark("worker_prepare_request_body", started_at_ms);
     if let Err(err) = parsed.validate() {
         return worker::Response::error(
             format!("{:?}: {}", err.code(), err.message()),
@@ -12529,6 +12484,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
         );
     }
     let client_presignature_id = parsed.request.client_presignature_id.clone();
+    let material_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let (active_signing_worker, material) =
         match load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1(
             env,
@@ -12547,6 +12503,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 );
             }
         };
+    timing.mark("worker_prepare_material", material_started_at_ms);
     let materialized =
         match CloudflareSigningWorkerMaterializedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
             parsed,
@@ -12589,15 +12546,65 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             );
         }
     };
-    let reserve_command = CloudflareSigningWorkerEcdsaPoolCommandV1::Reserve {
-        scope: materialized.request.request.scope.clone(),
-        server_presignature_id: client_presignature_id.clone(),
-        expected_revision: 0,
-        request_digest: prepare_request_digest,
-        admitted_signing_digest: signing_digest,
-        signing_worker_rerandomization_contribution32_b64u,
-        reserved_at_ms: now_unix_ms,
-        request_expires_at_ms: materialized.request.request.expires_at_ms,
+    let (reserve_command, final_messages, reserved_at_ms) = match &materialized.request.presign_source {
+        CloudflareEcdsaPrepareSourceV1::AvailablePool => {
+            let command = CloudflareSigningWorkerEcdsaPoolCommandV1::Reserve {
+                scope: materialized.request.request.scope.clone(),
+                server_presignature_id: client_presignature_id.clone(),
+                expected_revision: 0,
+                request_digest: prepare_request_digest,
+                admitted_signing_digest: signing_digest,
+                signing_worker_rerandomization_contribution32_b64u,
+                reserved_at_ms: now_unix_ms,
+                request_expires_at_ms: materialized.request.request.expires_at_ms,
+            };
+            (command, None, now_unix_ms)
+        }
+        CloudflareEcdsaPrepareSourceV1::FinalPresignBatch { batch } => {
+            if let Err(error) = batch.validate_at(now_unix_ms) {
+                return cloudflare_signing_worker_presign_error_response_v1(error);
+            }
+            let progress = match durable_object::execute_cloudflare_durable_object_custom_json_call_v1(
+                env,
+                &runtime.bindings().presign_session,
+                CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
+                &batch.presign_session_id,
+                batch,
+            ).await {
+                Ok(progress) => progress,
+                Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
+            };
+            let durable_object::CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1::Complete {
+                pool_put_request, outgoing_messages_b64u,
+            } = progress else {
+                return worker::Response::error("Signing prepare requires the final presign batch", 409);
+            };
+            if pool_put_request.scope != materialized.request.request.scope
+                || pool_put_request.server_presignature_id != client_presignature_id
+            {
+                return worker::Response::error("Completed presign identity does not match admitted prepare", 409);
+            }
+            let reserved_at_ms = match cloudflare_now_unix_ms_v1() {
+                Ok(now) => now,
+                Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
+            };
+            let record = match pool_put_request.to_pool_record(
+                active_signing_worker,
+                &materialized.material,
+                reserved_at_ms,
+            ) {
+                Ok(record) => record,
+                Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
+            };
+            (CloudflareSigningWorkerEcdsaPoolCommandV1::PutReserved {
+                material: record,
+                request_digest: prepare_request_digest,
+                admitted_signing_digest: signing_digest,
+                signing_worker_rerandomization_contribution32_b64u,
+                reserved_at_ms,
+                request_expires_at_ms: materialized.request.request.expires_at_ms,
+            }, Some(outgoing_messages_b64u), reserved_at_ms)
+        }
     };
     let reserve_call = match runtime.signing_worker_ecdsa_pool_mutate_request(reserve_command) {
         Ok(call) => call,
@@ -12608,6 +12615,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             );
         }
     };
+    let reserve_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let reserve_response =
         match execute_cloudflare_signing_worker_private_d1_request_v1(env, &reserve_call).await {
             Ok(response) => response,
@@ -12618,6 +12626,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 );
             }
         };
+    timing.mark("worker_prepare_reserve", reserve_started_at_ms);
     let reserve_outcome =
         match require_signing_worker_ecdsa_pool_mutate_response_v1(&reserve_call, reserve_response)
         {
@@ -12645,7 +12654,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 materialized.request.request.scope.clone(),
                 client_presignature_id.clone(),
                 prepare_request_digest,
-                now_unix_ms,
+                reserved_at_ms,
                 err,
             )
             .await;
@@ -12658,7 +12667,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
         reserved_material
             .signing_worker_rerandomization_contribution32_b64u
             .clone(),
-        now_unix_ms,
+        reserved_at_ms,
     ) {
         Ok(response) => response,
         Err(err) => {
@@ -12668,7 +12677,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 materialized.request.request.scope.clone(),
                 client_presignature_id.clone(),
                 prepare_request_digest,
-                now_unix_ms,
+                reserved_at_ms,
                 err,
             )
             .await;
@@ -12687,13 +12696,22 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 materialized.request.request.scope.clone(),
                 client_presignature_id.clone(),
                 prepare_request_digest,
-                now_unix_ms,
+                reserved_at_ms,
                 err,
             )
             .await;
         }
     };
-    match worker::Response::from_json(&prepared.response) {
+    timing.mark("worker_prepare_total", started_at_ms);
+    timing.emit_io_diagnostic();
+    let response = match final_messages {
+        Some(outgoing_messages_b64u) => CloudflareEcdsaPrepareResponseV1::FinalPresignBatch {
+            prepared_response: prepared.response,
+            outgoing_messages_b64u,
+        },
+        None => CloudflareEcdsaPrepareResponseV1::AvailablePool(prepared.response),
+    };
+    match worker::Response::from_json(&response) {
         Ok(response) => Ok(response),
         Err(err) => {
             burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1(
@@ -12702,7 +12720,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 materialized.request.request.scope,
                 client_presignature_id,
                 prepare_request_digest,
-                now_unix_ms,
+                reserved_at_ms,
                 RouterAbProtocolError::new(
                     RouterAbProtocolErrorCode::MalformedWirePayload,
                     format!("SigningWorker ECDSA prepare response encoding failed: {err}"),
@@ -13559,6 +13577,8 @@ where
             format!("{label} service request construction failed: {err}"),
         )
     })?;
+    let mut io_timing = CloudflareEcdsaBoundaryTimingV1::new();
+    let headers_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let mut response = fetcher
         .fetch_request(request_for_fetch)
         .await
@@ -13568,6 +13588,7 @@ where
                 format!("{label} service request failed: {err}"),
             )
         })?;
+    io_timing.mark("service_response_headers", headers_started_at_ms);
     let status = response.status_code();
     if !(200..=299).contains(&status) {
         let response_body = response.text().await.map_err(|err| {
@@ -13586,12 +13607,20 @@ where
     }
     // Read before the body is consumed; a missing header is the normal case.
     let server_timing = response.headers().get("Server-Timing").ok().flatten();
+    let body_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let parsed = response.json::<TResp>().await.map_err(|err| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::MalformedWirePayload,
             format!("{label} response JSON parse failed: {err}"),
         )
     })?;
+    io_timing.mark("service_response_body", body_started_at_ms);
+    if matches!(
+        label,
+        "Router A/B ECDSA derivation prepare" | "Router A/B ECDSA derivation finalize"
+    ) {
+        io_timing.emit_io_diagnostic();
+    }
     Ok((parsed, server_timing))
 }
 
@@ -13946,7 +13975,7 @@ pub async fn execute_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_di
     env: &worker::Env,
     peer: &CloudflarePeerBindingV1,
     request: CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1,
-) -> RouterAbProtocolResult<RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1> {
+) -> RouterAbProtocolResult<CloudflareEcdsaPrepareResponseV1> {
     let mut transport =
         ecdsa_normal_signing_transport::CloudflareWorkerEcdsaNormalSigningServiceTransportV1::new(
             env,

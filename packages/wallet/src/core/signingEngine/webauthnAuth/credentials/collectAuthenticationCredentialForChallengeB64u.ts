@@ -1,3 +1,4 @@
+import type { WebAuthnPromptCancellation } from '../../stepUpConfirmation/passkeyPrompt/webauthnPromptCoordinator';
 import { toAccountId, type AccountId } from '@/core/types/accountIds';
 import type { AccountSignerStatus, ProfileAuthenticatorRecord } from '@/core/indexedDB';
 import { buildNearAccountRefs } from '@/core/accountData/near/accountRefs';
@@ -74,6 +75,7 @@ export type WebAuthnPromptPort = {
     subjectId: string;
     challengeB64u: string;
     allowCredentials?: WebAuthnAllowCredential[];
+    cancellation?: WebAuthnPromptCancellation;
     includeSecondPrfOutput?: boolean;
   }) => Promise<WebAuthnAuthenticationCredential>;
 };
@@ -144,6 +146,7 @@ async function collectFromAuthenticators<
     authenticatorsForPrompt: TAuth[];
     challengeB64u: string;
   }) => void;
+  cancellation?: WebAuthnPromptCancellation;
   includeSecondPrfOutput?: boolean;
 }): Promise<WebAuthnAuthenticationCredential> {
   if (args.authenticators.length === 0) {
@@ -174,6 +177,7 @@ async function collectFromAuthenticators<
       subjectId: String(args.accountLabel),
       challengeB64u: args.challengeB64u,
       allowCredentials,
+      cancellation: args.cancellation,
       includeSecondPrfOutput: args.includeSecondPrfOutput,
     });
 
@@ -195,6 +199,7 @@ async function collectFromExactAuthenticator(args: {
   accountLabel: AccountId | string;
   challengeB64u: string;
   credentialIdB64u: string;
+  cancellation?: WebAuthnPromptCancellation;
   includeSecondPrfOutput: boolean;
 }): Promise<WebAuthnAuthenticationCredential> {
   const credentialIdB64u = String(args.credentialIdB64u || '').trim();
@@ -206,6 +211,7 @@ async function collectFromExactAuthenticator(args: {
       subjectId: String(args.accountLabel),
       challengeB64u: args.challengeB64u,
       allowCredentials: [{ id: credentialIdB64u, type: 'public-key', transports: [] }],
+      cancellation: args.cancellation,
       includeSecondPrfOutput: args.includeSecondPrfOutput,
     });
   if (credential.rawId !== credentialIdB64u) {
@@ -219,6 +225,7 @@ export async function collectAuthenticationCredentialForExactNearChallengeB64u(a
   nearAccountId: AccountId | string;
   credentialIdB64u: string;
   challengeB64u: string;
+  cancellation?: WebAuthnPromptCancellation;
   includeSecondPrfOutput: boolean;
 }): Promise<WebAuthnAuthenticationCredential> {
   const nearAccountId = toAccountId(args.nearAccountId);
@@ -227,6 +234,7 @@ export async function collectAuthenticationCredentialForExactNearChallengeB64u(a
     accountLabel: nearAccountId,
     challengeB64u: args.challengeB64u,
     credentialIdB64u: args.credentialIdB64u,
+    cancellation: args.cancellation,
     includeSecondPrfOutput: args.includeSecondPrfOutput,
   });
 }
@@ -236,6 +244,7 @@ export async function collectAuthenticationCredentialForExactWalletChallengeB64u
   walletId: WalletId | string;
   credentialIdB64u: string;
   challengeB64u: string;
+  cancellation?: WebAuthnPromptCancellation;
   includeSecondPrfOutput: boolean;
 }): Promise<WebAuthnAuthenticationCredential> {
   const walletId = String(args.walletId || '').trim();
@@ -244,6 +253,7 @@ export async function collectAuthenticationCredentialForExactWalletChallengeB64u
     accountLabel: walletId,
     challengeB64u: args.challengeB64u,
     credentialIdB64u: args.credentialIdB64u,
+    cancellation: args.cancellation,
     includeSecondPrfOutput: args.includeSecondPrfOutput,
   });
 }
@@ -260,6 +270,7 @@ export async function collectAuthenticationCredentialForChallengeB64u<
     authenticatorsForPrompt: TAuth[];
     challengeB64u: string;
   }) => void;
+  cancellation?: WebAuthnPromptCancellation;
   includeSecondPrfOutput?: boolean;
 }): Promise<WebAuthnAuthenticationCredential> {
   const nearAccountId = toAccountId(args.nearAccountId);
@@ -284,6 +295,7 @@ export async function collectAuthenticationCredentialForChallengeB64u<
     accountLabel: nearAccountId,
     authenticators: passkeyContext.authenticators,
     challengeB64u: args.challengeB64u,
+    cancellation: args.cancellation,
     ...(args.onBeforePrompt ? { onBeforePrompt: args.onBeforePrompt } : {}),
     ...(typeof args.includeSecondPrfOutput === 'boolean'
       ? { includeSecondPrfOutput: args.includeSecondPrfOutput }
@@ -303,6 +315,7 @@ export async function collectAuthenticationCredentialForWalletChallengeB64u<
     authenticatorsForPrompt: TAuth[];
     challengeB64u: string;
   }) => void;
+  cancellation?: WebAuthnPromptCancellation;
   includeSecondPrfOutput?: boolean;
 }): Promise<WebAuthnAuthenticationCredential> {
   const walletId = String(args.walletId || '').trim();
@@ -317,6 +330,7 @@ export async function collectAuthenticationCredentialForWalletChallengeB64u<
     accountLabel: walletId,
     authenticators,
     challengeB64u: args.challengeB64u,
+    cancellation: args.cancellation,
     ...(args.onBeforePrompt ? { onBeforePrompt: args.onBeforePrompt } : {}),
     ...(typeof args.includeSecondPrfOutput === 'boolean'
       ? { includeSecondPrfOutput: args.includeSecondPrfOutput }

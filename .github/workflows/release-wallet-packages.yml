@@ -78,7 +78,10 @@ jobs:
           merge-multiple: true
           path: crates/router-ab-cloudflare/build/local-tools
       - run: chmod +x crates/router-ab-cloudflare/build/local-tools/*/router_ab_local_init
-      - run: pnpm build
+      - name: Build production Wallet artifacts
+        env:
+          WASM_SDK_BUILD_MODE: prod
+        run: pnpm build
       - run: pnpm check:packed-wallet
       - name: Build versioned Wallet documentation
         run: pnpm build:docs

@@ -159,6 +159,7 @@ export interface ProfileRelayerToggleSectionProps {
 }
 
 export interface TransactionSettingsSectionProps {
+  presentation?: 'menu' | 'page';
   currentConfirmConfig: ConfirmationConfig;
   onSetUiMode?: (mode: 'none' | 'modal' | 'drawer') => void;
   onToggleShowDetails?: () => void;

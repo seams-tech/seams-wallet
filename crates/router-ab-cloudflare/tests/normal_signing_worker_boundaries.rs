@@ -119,10 +119,9 @@ fn signing_worker_normal_signing_loads_active_material_before_handler() {
 }
 
 #[test]
-fn ecdsa_lane_material_is_loaded_before_pool_or_signature_consumption() {
+fn ecdsa_lane_material_is_loaded_before_signature_preparation_or_consumption() {
     let lib_rs = read_src_file("lib.rs");
     for function_name in [
-        "handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_presignature_pool_put_private_fetch_v1",
         "handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_private_fetch_from_pool_v1",
         "handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_private_fetch_v1",
     ] {

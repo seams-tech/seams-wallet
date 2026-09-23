@@ -3330,7 +3330,8 @@ export async function createWalletAddAuthMethodIntent(args: {
  */
 export type WalletRegistrationRespondEd25519DeferredWork = {
   status: 'deferred';
-} & WalletRegistrationEd25519YaoStart;
+  admissionRequest: WalletRegistrationEd25519YaoStart['admissionRequest'];
+};
 
 type WalletRegistrationRespondEcdsaBundles = {
   kind: 'router_ab_ecdsa_registration_forwarded_v1';
@@ -3470,7 +3471,7 @@ function parseWalletRegistrationRespondEd25519DeferredWork(
   const record = requireWalletRegistrationResponseObject({ responseName, field: 'ed25519', value });
   assertWalletRegistrationResponseKeys(
     record,
-    ['status', 'admissionRequest', 'admissionReceipt'],
+    ['status', 'admissionRequest'],
     responseName,
   );
   /* `deferred` is the only legal status. Anything else would mean the server
@@ -3485,16 +3486,9 @@ function parseWalletRegistrationRespondEd25519DeferredWork(
   if (!admissionRequest.ok) {
     throw new Error(`${responseName} admissionRequest is invalid`);
   }
-  const admissionReceipt = parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1(
-    readWalletRegistrationResponseField(record, 'admissionReceipt', responseName),
-  );
-  if (!admissionReceipt.ok) {
-    throw new Error(`${responseName} admissionReceipt is invalid`);
-  }
   return {
     status: 'deferred',
     admissionRequest: admissionRequest.value,
-    admissionReceipt: admissionReceipt.value,
   };
 }
 

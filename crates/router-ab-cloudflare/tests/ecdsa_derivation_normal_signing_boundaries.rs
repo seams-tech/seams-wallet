@@ -229,7 +229,7 @@ fn router_ab_ecdsa_derivation_prepare_persists_exact_reservation_before_response
         "signing_worker_ecdsa_pool_mutate_request",
         "record.reserved_material()",
         "burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1",
-        "worker::Response::from_json(&prepared.response)",
+        "worker::Response::from_json(&response)",
     ] {
         assert!(
             body.contains(required),
@@ -281,19 +281,31 @@ fn router_ab_ecdsa_derivation_presignature_pool_put_private_fetch_derives_active
     for required in [
         "CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_PUT_PATH",
         "CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1",
-        "parsed.validate_at(now_unix_ms)",
-        "load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1",
-        "parsed.material_source",
-        "parsed.to_pool_record(",
-        "&active_material",
-        "CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable",
-        "signing_worker_ecdsa_pool_mutate_request",
-        "require_signing_worker_ecdsa_pool_mutate_response_v1",
+        "admit_cloudflare_signing_worker_ecdsa_presignature_v1",
         "worker::Response::from_json(&receipt)",
     ] {
         assert!(
             body.contains(required),
             "Router A/B ECDSA derivation pool-fill private fetch must include `{required}`"
+        );
+    }
+    let admission = extract_function_body(
+        &lib_rs,
+        "admit_cloudflare_signing_worker_ecdsa_presignature_v1",
+    );
+    for required in [
+        "request.validate_at(now_unix_ms)",
+        "load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1",
+        "request.material_source",
+        "request.to_pool_record(",
+        "&active_material",
+        "CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable",
+        "signing_worker_ecdsa_pool_mutate_request",
+        "require_signing_worker_ecdsa_pool_mutate_response_v1",
+    ] {
+        assert!(
+            admission.contains(required),
+            "Router A/B ECDSA derivation material admission must include `{required}`"
         );
     }
     assert!(

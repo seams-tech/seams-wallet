@@ -6,6 +6,9 @@ import {
   parseRouterAbEcdsaDerivationNormalSigningScopeV1,
   routerAbEcdsaRerandomizationClientCommitmentV1,
   routerAbEcdsaDerivationNormalSigningScopeCanonicalBytesV1,
+  type RouterAbEcdsaPrepareSourceV1,
+  type RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire,
+  type RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1Wire,
   type RouterAbEcdsaDerivationOperationDigestsV1Wire,
   type RouterAbEcdsaDerivationNormalSigningScopeV1,
   type RouterAbEcdsaOperationStepUpPreparationV1Wire,
@@ -50,6 +53,7 @@ import type { RouterAbEcdsaDerivationPoolFillInitKeySelector } from './poolFillR
 import {
   finalizeRouterAbEcdsaDerivationEvmDigestSigningV1,
   prepareRouterAbEcdsaDerivationEvmDigestSigningV1,
+  prepareRouterAbEcdsaFinalPresignBatchV1,
   RouterAbSigningRequestError,
   type RouterAbOwnerNormalSigningCredential,
 } from '../../../rpcClients/relayer/routerAbNormalSigning';
@@ -257,12 +261,10 @@ type RouterAbEcdsaDerivationCoordinatorOk = {
 };
 
 export type RouterAbEcdsaDerivationCoordinatorResult =
-  | RouterAbEcdsaDerivationCoordinatorOk
-  | RouterAbEcdsaDerivationCoordinatorError;
+  RouterAbEcdsaDerivationCoordinatorOk | RouterAbEcdsaDerivationCoordinatorError;
 
 type RouterAbEcdsaDerivationSigningPreparationState =
-  | { readonly kind: 'before_prepare' }
-  | { readonly kind: 'prepare_submitted' };
+  { readonly kind: 'before_prepare' } | { readonly kind: 'prepare_submitted' };
 
 type ClientPresignatureCleanupState =
   | { readonly kind: 'unclaimed' }
@@ -784,17 +786,9 @@ function rememberPresignatureMaintenance(
 ): void {
   if (input.authorization.kind !== 'reusable_wallet_session') return;
   const previous = presignatureMaintenance.get(poolKey);
-  if (
-    previous?.input.authorization.kind === 'reusable_wallet_session' &&
-    previous.input.authorization.wallet_session_id === input.authorization.wallet_session_id &&
-    previous.input.credential.kind === 'wallet_session_opaque' &&
-    input.credential.kind === 'wallet_session_opaque' &&
-    previous.input.credential.walletSessionToken === input.credential.walletSessionToken &&
-    previous.input.routerAbEcdsaDerivationPoolFill.ceremonyExpiresAtMs >=
-      input.routerAbEcdsaDerivationPoolFill.ceremonyExpiresAtMs
-  ) {
-    return;
-  }
+  // Maintenance reuses this input. Lifecycle reconciliation supplies a fresh one,
+  // including when authority publication retains the same session credential.
+  if (previous?.input === input) return;
   stopPresignatureMaintenance(poolKey);
   if (presignatureMaintenance.size === 0 && typeof window !== 'undefined') {
     window.addEventListener('online', resumePresignatureMaintenance);
@@ -809,9 +803,13 @@ function rememberPresignatureMaintenance(
   armPresignatureMaintenance(poolKey, 30_000);
 }
 
-function recordPresignatureRefillFailure(poolKey: string, code: string): void {
+function recordPresignatureRefillFailure(
+  poolKey: string,
+  attemptMaintenance: PresignatureMaintenance | null,
+  code: string,
+): void {
   const maintenance = presignatureMaintenance.get(poolKey);
-  if (!maintenance) return;
+  if (!maintenance || maintenance !== attemptMaintenance) return;
   switch (code) {
     case 'network_error':
     case 'internal':
@@ -846,6 +844,7 @@ async function runBackgroundPresignatureRefill(input: {
     refillAttemptTimeoutMs,
     progress,
   } = input;
+  const attemptMaintenance = presignatureMaintenance.get(poolKey) ?? null;
   try {
     await hydrateClientPresignaturePool({
       poolKey,
@@ -860,6 +859,7 @@ async function runBackgroundPresignatureRefill(input: {
     }
     while (Date.now() < args.routerAbEcdsaDerivationPoolFill.ceremonyExpiresAtMs) {
       if (getClientPresignaturePoolGeneration(poolKey) !== scheduledGeneration) return;
+      if ((presignatureMaintenance.get(poolKey) ?? null) !== attemptMaintenance) return;
       if (getClientPresignaturePoolDepth(poolKey) >= targetDepth) return;
       if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
       const attemptDeadlineAtMs = Math.min(
@@ -885,16 +885,16 @@ async function runBackgroundPresignatureRefill(input: {
         targetDepth,
       });
       if (!refill.ok) {
-        recordPresignatureRefillFailure(poolKey, refill.code);
+        recordPresignatureRefillFailure(poolKey, attemptMaintenance, refill.code);
         return;
       }
       const maintenance = presignatureMaintenance.get(poolKey);
-      if (maintenance) maintenance.failures = 0;
+      if (maintenance && maintenance === attemptMaintenance) maintenance.failures = 0;
       progress.publishAvailable();
       if (getForegroundSignInFlightCount(poolKey) > 0) return;
     }
   } catch {
-    recordPresignatureRefillFailure(poolKey, 'internal');
+    recordPresignatureRefillFailure(poolKey, attemptMaintenance, 'internal');
   } finally {
     progress.settle();
     if (clientPresignatureRefillInFlightByPoolKey.get(poolKey) === progress) {
@@ -902,11 +902,11 @@ async function runBackgroundPresignatureRefill(input: {
     }
     const maintenance = presignatureMaintenance.get(poolKey);
     if (maintenance) {
-      const delayMs = maintenance.failures > 0 ? 2_000 * 2 ** maintenance.failures : 1_000;
-      armPresignatureMaintenance(
-        poolKey,
-        getClientPresignaturePoolDepth(poolKey) >= targetDepth ? 30_000 : delayMs,
-      );
+      // A reconciled session can start as soon as the superseded attempt settles.
+      let delayMs = maintenance.failures > 0 ? 2_000 * 2 ** maintenance.failures : 1_000;
+      if (getClientPresignaturePoolDepth(poolKey) >= targetDepth) delayMs = 30_000;
+      if (maintenance !== attemptMaintenance) delayMs = 0;
+      armPresignatureMaintenance(poolKey, delayMs);
     }
   }
 }
@@ -1090,7 +1090,8 @@ function presignHandshakeRequestTag(
 async function runPresignHandshake(
   args: RouterAbEcdsaPresignHandshakeArgs,
 ): Promise<
-  | { ok: true; presignature: RouterAbEcdsaDerivationClientPresignatureRef }
+  | { ok: true; kind: 'available'; presignature: RouterAbEcdsaDerivationClientPresignatureRef }
+  | { ok: true; kind: 'handed_off'; presignatureId: string }
   | RouterAbEcdsaDerivationCoordinatorError
 > {
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -1107,7 +1108,8 @@ async function runPresignHandshake(
 async function runPresignHandshakeAttempt(
   args: RouterAbEcdsaPresignHandshakeArgs,
 ): Promise<
-  | { ok: true; presignature: RouterAbEcdsaDerivationClientPresignatureRef }
+  | { ok: true; kind: 'available'; presignature: RouterAbEcdsaDerivationClientPresignatureRef }
+  | { ok: true; kind: 'handed_off'; presignatureId: string }
   | RouterAbEcdsaDerivationCoordinatorError
 > {
   assertRouterAbEcdsaDerivationClientSigningMaterialSource(args.clientSigningMaterial);
@@ -1123,6 +1125,8 @@ async function runPresignHandshakeAttempt(
     materialActivation: args.materialActivation,
   });
 
+  let terminalCandidate: Uint8Array | null = null;
+  let handoff: EcdsaFinalBatchHandoff | null = null;
   let localPresignatureHandle: string | null = null;
   let localBigR33: Uint8Array | null = null;
   let serverPresignatureId: string | null = null;
@@ -1191,6 +1195,9 @@ async function runPresignHandshakeAttempt(
           incomingMessages: pendingServerOutgoing,
           workerCtx: args.workerCtx,
         });
+        if (localStepped.event === 'final_batch_ready') {
+          terminalCandidate = localStepped.candidateBigR33;
+        }
         clientStage = localStepped.stage;
         pendingServerOutgoing = [];
         pendingClientOutgoing.push(...localStepped.outgoingMessages);
@@ -1198,6 +1205,37 @@ async function runPresignHandshakeAttempt(
           localPresignatureHandle = localStepped.presignatureHandle;
           localBigR33 = localStepped.presignatureBigR33;
         }
+      }
+
+      if (terminalCandidate && !serverDone) {
+        const waiting = finalBatchHandoffs.get(args.poolKey);
+        if (waiting?.state.kind === 'waiting') {
+          handoff = waiting;
+          finalBatchHandoffs.delete(args.poolKey);
+          if (pendingClientOutgoing.length !== 2)
+            throw new Error('Final batch must contain two messages');
+          const prepared = await handoff.prepare(terminalCandidate, {
+            kind: 'final_presign_batch',
+            batch: {
+              scope: args.routerAbEcdsaDerivationPoolFill.scope,
+              presign_session_id: presignSessionId,
+              requested_stage: 'presign',
+              outgoing_messages_b64u: [
+                base64UrlEncode(pendingClientOutgoing[0]),
+                base64UrlEncode(pendingClientOutgoing[1]),
+              ],
+              ceremony_expires_at_ms: ceremonyExpiresAtMs,
+              material_expires_at_ms: materialExpiresAtMs,
+            },
+          });
+          pendingClientOutgoing = [];
+          pendingServerOutgoing = fromB64uMessages(prepared.outgoingMessagesB64u);
+          serverStage = 'presign';
+          serverPresignatureId = prepared.preparedResponse.server_presignature_id;
+          serverBigRB64u = prepared.preparedResponse.server_big_r33_b64u;
+          serverDone = true;
+        }
+        terminalCandidate = null;
       }
 
       if (!serverDone) {
@@ -1280,6 +1318,19 @@ async function runPresignHandshakeAttempt(
         };
       }
 
+      if (handoff) {
+        handoff.complete({
+          presignatureId: serverPresignatureId,
+          bigRB64u: localBigRB64u,
+          materialHandle: localPresignatureHandle,
+          createdAtMs,
+          expiresAtMs: materialExpiresAtMs,
+        });
+        keepLocalMaterial = true;
+        shouldAbortLocalSession = false;
+        return { ok: true, kind: 'handed_off', presignatureId: serverPresignatureId };
+      }
+
       const admission = await args.clientSigningMaterial.admitClientPresignature({
         materialHandle: localPresignatureHandle,
         expectedPresignatureId: serverPresignatureId,
@@ -1306,6 +1357,7 @@ async function runPresignHandshakeAttempt(
       shouldAbortLocalSession = false;
       return {
         ok: true,
+        kind: 'available',
         presignature: {
           presignatureId: serverPresignatureId,
           bigRB64u: localBigRB64u,
@@ -1318,6 +1370,7 @@ async function runPresignHandshakeAttempt(
       zeroizeBytes(localBigR33);
     }
   } catch (e: unknown) {
+    if (handoff) handoff.state = { kind: 'failed', error: e };
     const msg = String(
       e && typeof e === 'object' && 'message' in e
         ? (e as { message?: unknown }).message
@@ -1392,38 +1445,126 @@ function resolveSigningRequestExpiresAtMs(input: {
   return Number.isSafeInteger(expiresAtMs) && expiresAtMs > input.nowMs ? expiresAtMs : null;
 }
 
+type EcdsaPoolSigningInput = {
+  relayerUrl: string;
+  scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
+  operationId: string;
+  operationDigests: RouterAbEcdsaDerivationOperationDigestsV1Wire;
+  materialActivation: RouterAbMpcMaterialActivationRefWire;
+  credential: RouterAbOwnerNormalSigningCredential;
+  signingDigest32: Uint8Array;
+  clientSigningMaterial: RouterAbEcdsaDerivationClientSigningMaterialSource;
+  expiresAtMs?: number;
+  workerCtx: WorkerOperationContext;
+} & RouterAbEcdsaDerivationSigningAuthorization;
+
+type EcdsaSigningMaterialSupply =
+  | { kind: 'existing_pool' }
+  | { kind: 'on_demand'; refill: RouterAbEcdsaDerivationClientPresignatureRefillInput };
+
+type EcdsaHandoffPrepared = {
+  request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire;
+  response: RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1Wire;
+};
+
+type EcdsaHandoffState =
+  | { kind: 'waiting' }
+  | { kind: 'submitted' }
+  | { kind: 'prepared'; prepared: EcdsaHandoffPrepared }
+  | {
+      kind: 'ready';
+      prepared: EcdsaHandoffPrepared;
+      presignature: RouterAbEcdsaDerivationClientPresignatureRef;
+    }
+  | { kind: 'failed'; error: unknown }
+  | { kind: 'cancelled' };
+
+class EcdsaFinalBatchHandoff {
+  state: EcdsaHandoffState = { kind: 'waiting' };
+  readonly contribution = secureRerandomizationContribution32();
+
+  constructor(
+    readonly input: EcdsaPoolSigningInput,
+    readonly poolKey: string,
+    readonly generation: number,
+  ) {}
+
+  async prepare(
+    candidateBigR33: Uint8Array,
+    source: Extract<RouterAbEcdsaPrepareSourceV1, { kind: 'final_presign_batch' }>,
+  ) {
+    if (
+      this.state.kind !== 'waiting' ||
+      getClientPresignaturePoolGeneration(this.poolKey) !== this.generation
+    ) {
+      throw new Error('Signing handoff was cancelled before prepare');
+    }
+    this.state = { kind: 'submitted' };
+    const idDigest = await crypto.subtle.digest('SHA-256', new Uint8Array(candidateBigR33));
+    const expiresAtMs = resolveSigningRequestExpiresAtMs({
+      authorizationExpiresAtMs: this.input.expiresAtMs,
+      materialExpiresAtMs: source.batch.material_expires_at_ms,
+      nowMs: Date.now(),
+    });
+    if (!expiresAtMs) throw new Error('Signing handoff expired before prepare');
+    const commitment = await routerAbEcdsaRerandomizationClientCommitmentV1(this.contribution);
+    const request = buildRouterAbEcdsaDerivationEvmDigestSigningRequestV1({
+      scope: this.input.scope,
+      requestId: secureRandomId('router-ab-ecdsa-sign', 32, 'ECDSA signing request'),
+      operationId: this.input.operationId,
+      operationDigests: this.input.operationDigests,
+      authorization: this.input.authorization,
+      materialActivation: this.input.materialActivation,
+      clientPresignatureId: `presig-${base64UrlEncode(new Uint8Array(idDigest))}`,
+      expiresAtMs,
+      signingDigest32: this.input.signingDigest32,
+      clientRerandomizationCommitment32: commitment,
+    });
+    zeroizeBytes(commitment);
+    if (getClientPresignaturePoolGeneration(this.poolKey) !== this.generation) {
+      throw new Error('Signing handoff was cancelled before submission');
+    }
+    const result = await prepareRouterAbEcdsaFinalPresignBatchV1({
+      relayServerUrl: this.input.relayerUrl,
+      credential: this.input.credential,
+      request,
+      source,
+    });
+    if (getClientPresignaturePoolGeneration(this.poolKey) !== this.generation) {
+      throw new Error('Signing handoff was cancelled during prepare');
+    }
+    this.state = { kind: 'prepared', prepared: { request, response: result.preparedResponse } };
+    return result;
+  }
+
+  complete(presignature: RouterAbEcdsaDerivationClientPresignatureRef): void {
+    if (
+      this.state.kind !== 'prepared' ||
+      getClientPresignaturePoolGeneration(this.poolKey) !== this.generation
+    ) {
+      throw new Error('Signing handoff cannot claim completed material');
+    }
+    this.state = { kind: 'ready', prepared: this.state.prepared, presignature };
+  }
+}
+
+const finalBatchHandoffs = new Map<string, EcdsaFinalBatchHandoff>();
+
 export async function signRouterAbEcdsaDerivationDigestWithPoolHit(
-  args: {
-    relayerUrl: string;
-    scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
-    operationId: string;
-    operationDigests: RouterAbEcdsaDerivationOperationDigestsV1Wire;
-    materialActivation: RouterAbMpcMaterialActivationRefWire;
-    credential: RouterAbOwnerNormalSigningCredential;
-    signingDigest32: Uint8Array;
-    clientSigningMaterial: RouterAbEcdsaDerivationClientSigningMaterialSource;
-    expiresAtMs?: number;
-    workerCtx: WorkerOperationContext;
-  } & RouterAbEcdsaDerivationSigningAuthorization,
+  args: EcdsaPoolSigningInput,
 ): Promise<RouterAbEcdsaDerivationCoordinatorResult> {
-  return await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(args, 0);
+  return await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(args, 0, {
+    kind: 'existing_pool',
+  });
 }
 
 async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
-  args: {
-    relayerUrl: string;
-    scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
-    operationId: string;
-    operationDigests: RouterAbEcdsaDerivationOperationDigestsV1Wire;
-    materialActivation: RouterAbMpcMaterialActivationRefWire;
-    credential: RouterAbOwnerNormalSigningCredential;
-    signingDigest32: Uint8Array;
-    clientSigningMaterial: RouterAbEcdsaDerivationClientSigningMaterialSource;
-    expiresAtMs?: number;
-    workerCtx: WorkerOperationContext;
-  } & RouterAbEcdsaDerivationSigningAuthorization,
+  args: EcdsaPoolSigningInput,
   retryCount: number,
+  supply: EcdsaSigningMaterialSupply,
 ): Promise<RouterAbEcdsaDerivationCoordinatorResult> {
+  let handoff: EcdsaFinalBatchHandoff | null = null;
+  let handedOffPrepare: EcdsaHandoffPrepared | null = null;
   let poolKey: string | null = null;
   let poolIdentity: EcdsaClientPresignPoolIdentity | null = null;
   let foregroundStarted = false;
@@ -1517,6 +1658,10 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
       });
     }
     if (!presignature) {
+      if (!finalBatchHandoffs.has(poolKey)) {
+        handoff = new EcdsaFinalBatchHandoff(args, poolKey, poolGeneration);
+        finalBatchHandoffs.set(poolKey, handoff);
+      }
       const refillWaitStartedAt = performance.now();
       await waitForAvailablePresignatureFromInFlightRefill(poolKey, 'foreground');
       emitEcdsaSigningTiming(args.operationId, 'refill_wait', refillWaitStartedAt);
@@ -1527,6 +1672,48 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
         clientSigningMaterial: args.clientSigningMaterial,
         workerCtx: args.workerCtx,
       });
+    }
+    if (!presignature && handoff?.state.kind === 'waiting' && supply.kind === 'on_demand') {
+      let refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
+        ...supply.refill,
+        trafficClass: 'foreground',
+      });
+      if (!refill.ok && refill.code === 'invalidated' && handoff.state.kind === 'waiting') {
+        refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
+          ...supply.refill,
+          trafficClass: 'foreground',
+        });
+      }
+      if (!refill.ok && handoff.state.kind === 'waiting' && refill.code !== 'pool_full')
+        return refill;
+      if (!refill.ok && refill.code === 'pool_full') {
+        await hydrateClientPresignaturePool({
+          poolKey,
+          poolIdentity,
+          clientSigningMaterial: args.clientSigningMaterial,
+          workerCtx: args.workerCtx,
+          generation: getClientPresignaturePoolGeneration(poolKey),
+        });
+      }
+      poolGeneration = getClientPresignaturePoolGeneration(poolKey);
+      presignature = await takeClientPresignature({
+        poolKey,
+        poolIdentity,
+        clientSigningMaterial: args.clientSigningMaterial,
+        workerCtx: args.workerCtx,
+      });
+    }
+    if (handoff && handoff.state.kind !== 'waiting') {
+      if (handoff.state.kind !== 'ready') {
+        throw new Error(
+          'Terminal signing prepare did not complete; automatic replacement is prohibited',
+        );
+      }
+      if (presignature) pushClientPresignature(poolKey, poolIdentity, presignature);
+      presignature = handoff.state.presignature;
+      handedOffPrepare = handoff.state.prepared;
+      preparationState = { kind: 'prepare_submitted' };
+      clientPresignatureCleanupState = { kind: 'destroy' };
     }
     emitSigningSessionFlowTrace('evm-family', {
       event: 'ecdsa_presignature_selection',
@@ -1565,26 +1752,29 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
           'Router A/B ECDSA derivation client presignature pool was invalidated before prepare',
       };
     }
-    clientRerandomizationContribution32 = secureRerandomizationContribution32();
+    clientRerandomizationContribution32 =
+      handedOffPrepare && handoff ? handoff.contribution : secureRerandomizationContribution32();
     const clientRerandomizationCommitment32 = await routerAbEcdsaRerandomizationClientCommitmentV1(
       clientRerandomizationContribution32,
     );
-    const prepareRequest = buildRouterAbEcdsaDerivationEvmDigestSigningRequestV1({
-      scope: args.scope,
-      requestId: secureRandomId(
-        'router-ab-ecdsa-sign',
-        32,
-        'Router A/B ECDSA derivation sign request',
-      ),
-      operationId: args.operationId,
-      operationDigests: args.operationDigests,
-      authorization: args.authorization,
-      materialActivation: args.materialActivation,
-      clientPresignatureId: presignature.presignatureId,
-      expiresAtMs,
-      signingDigest32: args.signingDigest32,
-      clientRerandomizationCommitment32,
-    });
+    const prepareRequest =
+      handedOffPrepare?.request ??
+      buildRouterAbEcdsaDerivationEvmDigestSigningRequestV1({
+        scope: args.scope,
+        requestId: secureRandomId(
+          'router-ab-ecdsa-sign',
+          32,
+          'Router A/B ECDSA derivation sign request',
+        ),
+        operationId: args.operationId,
+        operationDigests: args.operationDigests,
+        authorization: args.authorization,
+        materialActivation: args.materialActivation,
+        clientPresignatureId: presignature.presignatureId,
+        expiresAtMs,
+        signingDigest32: args.signingDigest32,
+        clientRerandomizationCommitment32,
+      });
     zeroizeBytes(clientRerandomizationCommitment32);
     const reservationId = secureRandomId(
       'router-ab-ecdsa-reservation',
@@ -1607,8 +1797,12 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
       if (reservation.reason === 'claimed_elsewhere') {
         clientPresignatureCleanupState = { kind: 'owned_elsewhere' };
       }
-      if (retryCount < MAX_CLIENT_PRESIGNATURE_CLAIM_RETRIES) {
-        return await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(args, retryCount + 1);
+      if (!handedOffPrepare && retryCount < MAX_CLIENT_PRESIGNATURE_CLAIM_RETRIES) {
+        return await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
+          args,
+          retryCount + 1,
+          supply,
+        );
       }
       return {
         ok: false,
@@ -1626,12 +1820,14 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
     }
     preparationState = { kind: 'prepare_submitted' };
     const prepareStartedAt = performance.now();
-    const prepareResponse = await prepareRouterAbEcdsaDerivationEvmDigestSigningV1({
-      relayServerUrl: relayerUrl,
-      credential: args.credential,
-      request: prepareRequest,
-      onServerTiming: emitEcdsaServerTiming.bind(undefined, args.operationId, 'prepare'),
-    });
+    const prepareResponse =
+      handedOffPrepare?.response ??
+      (await prepareRouterAbEcdsaDerivationEvmDigestSigningV1({
+        relayServerUrl: relayerUrl,
+        credential: args.credential,
+        request: prepareRequest,
+        onServerTiming: emitEcdsaServerTiming.bind(undefined, args.operationId, 'prepare'),
+      }));
     emitEcdsaSigningTiming(args.operationId, 'prepare', prepareStartedAt);
     if (prepareResponse.server_big_r33_b64u !== presignature.bigRB64u) {
       return {
@@ -1760,6 +1956,9 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
         ? (e as { message?: unknown }).message
         : e || 'Router A/B ECDSA derivation signing failed',
     );
+    if (handoff && handoff.state.kind !== 'waiting' && handoff.state.kind !== 'cancelled') {
+      return { ok: false, code: 'router_ab_sign_failed', message: msg };
+    }
     if (e instanceof RouterAbSigningRequestError && e.code === 'expired_local_request') {
       return { ok: false, code: 'pool_entry_expired', message: msg };
     }
@@ -1785,6 +1984,12 @@ async function signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(
     }
     return { ok: false, code: 'router_ab_sign_failed', message: msg };
   } finally {
+    if (handoff) {
+      if (finalBatchHandoffs.get(handoff.poolKey) === handoff)
+        finalBatchHandoffs.delete(handoff.poolKey);
+      zeroizeBytes(handoff.contribution);
+      if (handoff.state.kind === 'waiting') handoff.state = { kind: 'cancelled' };
+    }
     zeroizeBytes(clientSignatureShare32);
     zeroizeBytes(clientRerandomizationContribution32);
     if (
@@ -1841,87 +2046,48 @@ export async function signRouterAbEcdsaDerivationDigestWithPool(
       message: 'Router A/B ECDSA derivation pool fill expiry is unavailable or expired',
     };
   }
-  const firstAttempt = await signRouterAbEcdsaDerivationDigestWithPoolHit({
+  const poolIdentity = makeClientPresignPoolIdentity({
     relayerUrl: args.relayerUrl,
     scope: args.scope,
-    operationId: args.operationId,
-    operationDigests: args.operationDigests,
     materialActivation: args.materialActivation,
-    credential: args.credential,
-    signingDigest32: args.signingDigest32,
-    clientSigningMaterial: args.clientSigningMaterial,
-    expiresAtMs,
-    workerCtx: args.workerCtx,
-    ...ecdsaPoolFillAuthorization(args),
   });
-  if (
-    firstAttempt.ok ||
-    (firstAttempt.code !== 'pool_empty' &&
-      firstAttempt.code !== 'pool_entry_expired' &&
-      firstAttempt.code !== 'pool_entry_unavailable')
-  ) {
-    return firstAttempt;
+  const poolKey = ecdsaClientPresignPoolKey(poolIdentity);
+  // Keep maintenance paused across cache lookup, recovery generation, and signing.
+  startForegroundSign(poolKey);
+  try {
+    const refillInput: RouterAbEcdsaDerivationClientPresignatureRefillInput = {
+      relayerUrl: args.relayerUrl,
+      keyHandle: args.keyHandle,
+      ecdsaThresholdKeyId: signingIdentity.ecdsaThresholdKeyId,
+      clientVerifyingShareB64u: signingIdentity.clientVerifyingShareB64u,
+      clientSigningMaterial: args.clientSigningMaterial,
+      thresholdEcdsaPublicKeyB64u: signingIdentity.thresholdEcdsaPublicKeyB64u,
+      credential: args.credential,
+      materialActivation: args.materialActivation,
+      routerAbEcdsaDerivationPoolFill: {
+        kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
+        scope: args.scope,
+        ceremonyExpiresAtMs: expiresAtMs,
+        materialExpiresAtMs:
+          args.authorization.kind === 'operation_step_up'
+            ? expiresAtMs
+            : Date.now() + MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS,
+      },
+      workerCtx: args.workerCtx,
+      ...ecdsaPoolFillAuthorization(args),
+    };
+    const supply: EcdsaSigningMaterialSupply = { kind: 'on_demand', refill: refillInput };
+    const result = await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(args, 0, supply);
+    if (
+      !result.ok &&
+      (result.code === 'pool_entry_expired' || result.code === 'pool_entry_unavailable')
+    ) {
+      return await signRouterAbEcdsaDerivationDigestWithPoolHitAttempt(args, 0, supply);
+    }
+    return result;
+  } finally {
+    finishForegroundSign(poolKey);
   }
-
-  const refillInput: RouterAbEcdsaDerivationClientPresignatureRefillInput = {
-    relayerUrl: args.relayerUrl,
-    keyHandle: args.keyHandle,
-    ecdsaThresholdKeyId: signingIdentity.ecdsaThresholdKeyId,
-    clientVerifyingShareB64u: signingIdentity.clientVerifyingShareB64u,
-    clientSigningMaterial: args.clientSigningMaterial,
-    thresholdEcdsaPublicKeyB64u: signingIdentity.thresholdEcdsaPublicKeyB64u,
-    credential: args.credential,
-    materialActivation: args.materialActivation,
-    routerAbEcdsaDerivationPoolFill: {
-      kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
-      scope: args.scope,
-      ceremonyExpiresAtMs: expiresAtMs,
-      materialExpiresAtMs:
-        args.authorization.kind === 'operation_step_up'
-          ? expiresAtMs
-          : Date.now() + MAX_DURABLE_CLIENT_PRESIGNATURE_LIFETIME_MS,
-    },
-    workerCtx: args.workerCtx,
-    ...ecdsaPoolFillAuthorization(args),
-  };
-  emitSigningSessionFlowTrace('evm-family', {
-    event: 'ecdsa_foreground_refill',
-    operationId: args.operationId,
-    authorization: args.authorization.kind,
-    reason: firstAttempt.code,
-  });
-  const refillStartedAt = performance.now();
-  let refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
-    ...refillInput,
-    trafficClass: 'foreground',
-  });
-  if (!refill.ok && refill.code === 'invalidated') {
-    refill = await refillRouterAbEcdsaDerivationClientPresignaturePool({
-      ...refillInput,
-      trafficClass: 'foreground',
-    });
-  }
-  emitEcdsaSigningTiming(
-    args.operationId,
-    'foreground_refill',
-    refillStartedAt,
-    refill.ok ? 'succeeded' : 'failed',
-  );
-  if (!refill.ok) return refill;
-
-  return await signRouterAbEcdsaDerivationDigestWithPoolHit({
-    relayerUrl: args.relayerUrl,
-    scope: args.scope,
-    operationId: args.operationId,
-    operationDigests: args.operationDigests,
-    materialActivation: args.materialActivation,
-    credential: args.credential,
-    signingDigest32: args.signingDigest32,
-    clientSigningMaterial: args.clientSigningMaterial,
-    expiresAtMs,
-    workerCtx: args.workerCtx,
-    ...ecdsaPoolFillAuthorization(args),
-  });
 }
 
 export async function refillRouterAbEcdsaDerivationClientPresignaturePool(
@@ -1963,6 +2129,8 @@ export async function refillRouterAbEcdsaDerivationClientPresignaturePool(
       ...ecdsaPoolFillAuthorization(args),
     });
     if (!generated.ok) return generated;
+    if (generated.kind === 'handed_off')
+      return { ok: true, presignatureId: generated.presignatureId };
 
     if (getClientPresignaturePoolGeneration(poolKey) !== startedGeneration) {
       await args.clientSigningMaterial

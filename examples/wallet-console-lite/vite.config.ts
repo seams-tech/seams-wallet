@@ -13,6 +13,24 @@ export default defineConfig(({ mode }) => {
     clearScreen: false,
     publicDir: walletAssetHost ? `${walletDistRoot}/public` : false,
     plugins: [walletOriginPlugin(walletAssetHost), react()],
+    // This repository-only showcase renders the SDK's actual internal UI.
+    resolve: {
+      alias: {
+        '@wallet-preview/SeamsWeb/walletIframe/client/overlay/overlay-controller': `${walletDistRoot}/../src/SeamsWeb/walletIframe/client/overlay/overlay-controller.ts`,
+        '@wallet-preview': `${walletDistRoot}/esm`,
+        '@': `${walletDistRoot}/../src`,
+        '@shared': `${walletDistRoot}/../../shared-ts/src`,
+      },
+    },
+    build: {
+      rollupOptions: {
+        input: {
+          main: `${exampleRoot}/index.html`,
+          confirmationPreview: `${exampleRoot}/confirmation-preview.html`,
+          transactionPreview: `${exampleRoot}/transaction-preview.html`,
+        },
+      },
+    },
     server: {
       host: 'localhost',
       port: walletAssetHost ? 4202 : 4201,

@@ -21,16 +21,15 @@
  * shorter than its content is invisible. The pin goes through a constructable
  * stylesheet because the wallet origin ships `style-src-attr 'none'`.
  *
- * Refactor 116 owns the rules this module enforces; see
- * `docs/refactor-116-lit-component-consolidation.md`.
+ * The module owns the rules for iframe-hosted confirmation reflow.
  */
 
 import {
-  addLitSurfaceResizeBeginListener,
-  dispatchLitSurfaceResizeBegin,
-  type LitSurfaceResizeBeginDetail,
-  type LitSurfaceResizeDriver,
-} from './lit-events';
+  addSurfaceResizeBeginListener,
+  dispatchSurfaceResizeBegin,
+  type SurfaceResizeBeginDetail,
+  type SurfaceResizeDriver,
+} from './surface-resize-events';
 export const CONFIRM_SURFACE_MODE_ATTR = 'data-seams-confirm-surface';
 export const CONFIRM_SURFACE_MODE_WALLET_IFRAME = 'wallet-iframe';
 export const CONFIRM_SURFACE_MODE_STANDALONE = 'standalone';
@@ -116,7 +115,7 @@ export function announceSurfaceResize(
 
   const lowerCssPx = Math.min(fromCssPx, toCssPx);
   const upperCssPx = Math.max(fromCssPx, toCssPx);
-  let driver: LitSurfaceResizeDriver | null = null;
+  let driver: SurfaceResizeDriver | null = null;
   let finished = false;
   let safety: number | null = null;
 
@@ -132,7 +131,7 @@ export function announceSurfaceResize(
     if (safety !== null) window.clearTimeout(safety);
     announcement.finish();
   };
-  const claim = (): LitSurfaceResizeDriver | null => {
+  const claim = (): SurfaceResizeDriver | null => {
     if (driver || finished) return null;
     announcement.onClaimed?.();
     setProgress(0);
@@ -144,7 +143,7 @@ export function announceSurfaceResize(
     return driver;
   };
 
-  dispatchLitSurfaceResizeBegin(target, {
+  dispatchSurfaceResizeBegin(target, {
     ...(announcement.reason ? { reason: announcement.reason } : {}),
     deltaCssPx,
     claim,
@@ -157,14 +156,14 @@ export function announceSurfaceResize(
  *
  * A component renders new content and then finds out what it cost: capture the
  * height before the DOM is written, commit after it is written and before the
- * frame is painted. Lit's `willUpdate` and `updated` are exactly those two
- * points and run in one task, so a change that grows the card never reaches
- * the screen — or the surface reporter — at its natural height.
+ * frame is painted. The Preact surface calls these methods around its render
+ * commit, so a change that grows the card never reaches the screen — or the
+ * surface reporter — at its natural height.
  */
 export type SurfaceHeightReflow = {
-  /** Record the current height. Call from `willUpdate`. */
+  /** Record the current height before rendering. */
   capture(): void;
-  /** Measure the new height and announce the change. Call from `updated`. */
+  /** Measure the new height and announce the change after rendering. */
   commit(): void;
   /** Release any clamp this reflow still holds. */
   dispose(): void;
@@ -368,7 +367,7 @@ export type ConfirmSurfaceResizeChoreographerOptions = {
 };
 
 type ActiveResize = {
-  readonly driver: LitSurfaceResizeDriver;
+  readonly driver: SurfaceResizeDriver;
   /** Host height with the announcing element still at its pre-change height. */
   readonly originHostPx: number;
   /** Signed change the host was pinned to make. */
@@ -508,7 +507,7 @@ export function attachConfirmSurfaceResizeChoreographer(
     current.frame = requestAnimationFrame(step);
   };
 
-  const onSurfaceResizeBegin = (event: CustomEvent<LitSurfaceResizeBeginDetail>): void => {
+  const onSurfaceResizeBegin = (event: CustomEvent<SurfaceResizeBeginDetail>): void => {
     const detail = event.detail;
     if (!pin || !detail || !isWalletIframeConfirmSurface(element)) return;
     const deltaCssPx = detail.deltaCssPx;
@@ -552,7 +551,7 @@ export function attachConfirmSurfaceResizeChoreographer(
     active.frame = requestAnimationFrame(step);
   };
 
-  const removeListener = addLitSurfaceResizeBeginListener(element, onSurfaceResizeBegin);
+  const removeListener = addSurfaceResizeBeginListener(element, onSurfaceResizeBegin);
   return {
     dispose() {
       removeListener();

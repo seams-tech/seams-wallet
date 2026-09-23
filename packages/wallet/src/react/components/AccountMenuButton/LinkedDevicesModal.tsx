@@ -21,6 +21,7 @@ export interface LinkedDevicesModalProps {
   walletId: string | null;
   isOpen: boolean;
   onClose: () => void;
+  presentation?: 'modal' | 'page';
 }
 
 type LinkedDevicesLoadState =
@@ -367,6 +368,7 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
   walletId,
   isOpen,
   onClose,
+  presentation = 'modal',
 }) => {
   const { seams, loginState } = useSeams();
   const [loadState, setLoadState] = React.useState<LinkedDevicesLoadState>({ kind: 'idle' });
@@ -438,7 +440,7 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
   );
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || presentation === 'page') return;
     previousFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialogRef.current?.focus({ preventScroll: true });
@@ -448,7 +450,7 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
       previousFocusRef.current?.focus();
       previousFocusRef.current = null;
     };
-  }, [handleDialogKeyDown, isOpen]);
+  }, [handleDialogKeyDown, isOpen, presentation]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -588,27 +590,30 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
     <Theme theme={theme} tokens={scopedTokens}>
       <div
         className={`seams-linked-devices-modal-backdrop theme-${theme}`}
+        data-presentation={presentation}
         role="presentation"
         onMouseDown={(event) => {
-          if (event.target === event.currentTarget) onClose();
+          if (presentation === 'modal' && event.target === event.currentTarget) onClose();
         }}
       >
         <div
           ref={dialogRef}
           className="seams-linked-devices-modal-content seams-linked-devices-inventory-content"
-          role="dialog"
-          aria-modal="true"
+          role={presentation === 'modal' ? 'dialog' : 'region'}
+          aria-modal={presentation === 'modal' ? true : undefined}
           aria-labelledby="seams-linked-devices-modal-title"
           tabIndex={-1}
         >
-          <button
-            type="button"
-            className="seams-linked-devices-modal-close"
-            onClick={onClose}
-            aria-label="Close linked devices"
-          >
-            ✕
-          </button>
+          {presentation === 'modal' ? (
+            <button
+              type="button"
+              className="seams-linked-devices-modal-close"
+              onClick={onClose}
+              aria-label="Close linked devices"
+            >
+              ✕
+            </button>
+          ) : null}
           <h2 id="seams-linked-devices-modal-title" className="seams-linked-devices-modal-title">
             Your devices
           </h2>
@@ -683,7 +688,9 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
                         <div className="seams-linked-devices-modal-item-main">
                           <span className="seams-linked-devices-modal-item-name">{title}</span>
                           {chip ? (
-                            <span className={`seams-linked-devices-modal-standing tone-${chip.tone}`}>
+                            <span
+                              className={`seams-linked-devices-modal-standing tone-${chip.tone}`}
+                            >
                               {chip.label}
                             </span>
                           ) : null}

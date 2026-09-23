@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
  * Assert that all colors from packages/wallet/src/theme/palette.json exist as CSS variables
- * in the generated seams-components.css.
+ * in the generated wallet-ui.css.
  *
  * Usage:
- *   node packages/wallet/scripts/checks/assert-palette-css.mjs [path/to/seams-components.css]
- * Default cssPath: packages/wallet/dist/esm/sdk/seams-components.css
+ *   node packages/wallet/scripts/checks/assert-palette-css.mjs [path/to/wallet-ui.css]
+ * Default cssPath: packages/wallet/dist/esm/sdk/wallet-ui.css
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -24,7 +24,7 @@ function resolveSdkRoot() {
 
 const sdkRoot = resolveSdkRoot();
 const palettePath = path.join(sdkRoot, 'src', 'theme', 'palette.json');
-const defaultCssPath = path.join(sdkRoot, 'dist', 'esm', 'sdk', 'seams-components.css');
+const defaultCssPath = path.join(sdkRoot, 'dist', 'esm', 'sdk', 'wallet-ui.css');
 
 const cssPath = process.argv[2] ? path.resolve(process.argv[2]) : defaultCssPath;
 
@@ -94,7 +94,7 @@ const missing = Array.from(expected)
   .sort();
 
 if (missing.length) {
-  console.error('[assert-palette-css] Missing CSS variables from generated seams-components.css:');
+  console.error('[assert-palette-css] Missing CSS variables from generated wallet-ui.css:');
   for (const v of missing) console.error(`  ${v}`);
   process.exit(1);
 }

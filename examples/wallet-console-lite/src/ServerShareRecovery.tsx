@@ -21,7 +21,6 @@ export function ServerShareRecovery({ environmentId }: { environmentId: string }
   return (
     <section className="panel recovery-panel">
       <div className="section-heading">
-        <p className="eyebrow">Server threshold shares</p>
         <h2>Recovery</h2>
         <p className="section-description">
           Keep wrapper keys and operator credentials in Terminal. This page generates the public

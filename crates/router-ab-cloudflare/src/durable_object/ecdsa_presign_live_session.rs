@@ -1058,6 +1058,7 @@ mod tests {
             1,
         )
         .unwrap();
+        let mut candidate_big_r = None;
         let mut exchanges = 1;
         loop {
             match progress {
@@ -1066,6 +1067,10 @@ mod tests {
                     outgoing_messages_b64u,
                 } => {
                     assert_eq!(exchanges, 6);
+                    assert_eq!(
+                        candidate_big_r,
+                        Some(pool_put_request.server_big_r33_b64u.clone()),
+                    );
                     assert_eq!(outgoing_messages_b64u.len(), 1);
                     for message in outgoing_messages_b64u {
                         client
@@ -1109,13 +1114,27 @@ mod tests {
                         "presign" => CloudflareSigningWorkerEcdsaPresignRequestedStageV1::Presign,
                         _ => panic!("Unexpected server stage"),
                     };
+                    let client_progress = client.poll();
+                    assert_eq!(
+                        client_progress.event == PresignSessionEvent::FinalBatchReady,
+                        exchanges == 5,
+                        "Only the terminal client batch may attach a signing intent",
+                    );
+                    if client_progress.event == PresignSessionEvent::FinalBatchReady {
+                        assert_eq!(client_progress.outgoing.len(), 2);
+                        candidate_big_r = Some(encode_base64url_bytes_v1(
+                            client.candidate_big_r().unwrap().as_bytes(),
+                        ));
+                        assert!(client.take_presignature_97().is_err());
+                    } else {
+                        assert!(client.candidate_big_r().is_err());
+                    }
                     progress = step_presign_session(
                         CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 {
                             scope: scope.clone(),
                             presign_session_id: session_id.clone(),
                             requested_stage,
-                            outgoing_messages_b64u: client
-                                .poll()
+                            outgoing_messages_b64u: client_progress
                                 .outgoing
                                 .iter()
                                 .map(|message| encode_base64url_bytes_v1(message))

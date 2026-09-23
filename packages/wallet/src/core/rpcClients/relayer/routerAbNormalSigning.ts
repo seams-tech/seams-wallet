@@ -6,6 +6,7 @@ import {
   parseRouterAbEcdsaDerivationEvmDigestSigningPrepareResponseForRequestV1,
   parseRouterAbEcdsaDerivationEvmDigestSigningResponseForCoreRequestV1,
   parseRouterAbEcdsaOperationStepUpPreparationV1,
+  type RouterAbEcdsaPrepareSourceV1,
   type RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1Wire,
   type RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1Wire,
   type RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire,
@@ -118,8 +119,7 @@ export type RouterAbEd25519NormalSigningCredential =
     };
 
 export type RouterAbOwnerNormalSigningCredential =
-  | RouterAbOpaqueWalletSessionCredential
-  | { kind: 'operation_step_up' };
+  RouterAbOpaqueWalletSessionCredential | { kind: 'operation_step_up' };
 
 export type RouterAbPublicDigest32Wire = {
   bytes: readonly number[];
@@ -242,9 +242,7 @@ export type RouterAbReusableWalletSessionAuthorizedOperationV1Wire = {
   operation_id: string;
   capability_kind: 'near_ed25519_mpc_signing';
   operation_kind:
-    | 'near.sign_transaction'
-    | 'near.sign_delegate_action'
-    | 'near.sign_nep413_message';
+    'near.sign_transaction' | 'near.sign_delegate_action' | 'near.sign_nep413_message';
   lane_digest_b64u: string;
   intent_digest_b64u: string;
   display_digest_b64u: string;
@@ -259,9 +257,7 @@ export type RouterAbVerifiedStepUpAuthorizedOperationV1Wire = {
   operation_id: string;
   capability_kind: 'near_ed25519_mpc_signing';
   operation_kind:
-    | 'near.sign_transaction'
-    | 'near.sign_delegate_action'
-    | 'near.sign_nep413_message';
+    'near.sign_transaction' | 'near.sign_delegate_action' | 'near.sign_nep413_message';
   lane_digest_b64u: string;
   intent_digest_b64u: string;
   display_digest_b64u: string;
@@ -1335,6 +1331,7 @@ async function postRouterAbNormalSigningJson<T>(args: {
   body: unknown;
   parse: (value: unknown) => T | Promise<T>;
   onServerTiming?: (header: string | null) => void;
+  signal?: AbortSignal;
 }): Promise<T> {
   if (typeof fetch !== 'function') {
     throw new Error('fetch is not available for Router A/B normal-signing request');
@@ -1342,10 +1339,10 @@ async function postRouterAbNormalSigningJson<T>(args: {
   const base = normalizeRelayerBaseUrl(
     requireNonEmptyString(args.relayServerUrl, 'relayServerUrl'),
   );
-  const response = await fetch(
-    `${base}${args.path}`,
-    buildRouterAbRequestInit({ credential: args.credential, body: args.body }),
-  );
+  const response = await fetch(`${base}${args.path}`, {
+    ...buildRouterAbRequestInit({ credential: args.credential, body: args.body }),
+    signal: args.signal,
+  });
   try {
     args.onServerTiming?.(response.headers.get('Server-Timing'));
   } catch {
@@ -1391,6 +1388,60 @@ export async function prepareRouterAbEcdsaDerivationEvmDigestSigningV1(args: {
     body: args.request,
     parse: (value) =>
       parseRouterAbEcdsaDerivationEvmDigestSigningPrepareResponseForRequestV1(args.request, value),
+  });
+}
+
+export type RouterAbEcdsaFinalBatchPrepareResponse = {
+  preparedResponse: RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1Wire;
+  outgoingMessagesB64u: [string];
+};
+
+async function parseFinalBatchPrepareResponse(
+  request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire,
+  value: unknown,
+): Promise<RouterAbEcdsaFinalBatchPrepareResponse> {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    !('prepared_response' in value) ||
+    !('outgoing_messages_b64u' in value)
+  ) {
+    throw new Error('Invalid terminal prepare response');
+  }
+  const messages = value.outgoing_messages_b64u;
+  if (
+    !Array.isArray(messages) ||
+    messages.length !== 1 ||
+    typeof messages[0] !== 'string' ||
+    !/^[A-Za-z0-9_-]+$/.test(messages[0])
+  ) {
+    throw new Error('Terminal prepare response must contain one protocol message');
+  }
+  return {
+    preparedResponse: await parseRouterAbEcdsaDerivationEvmDigestSigningPrepareResponseForRequestV1(
+      request,
+      value.prepared_response,
+    ),
+    outgoingMessagesB64u: [messages[0]],
+  };
+}
+
+export async function prepareRouterAbEcdsaFinalPresignBatchV1(args: {
+  relayServerUrl: string;
+  credential: RouterAbOwnerNormalSigningCredential;
+  request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire;
+  source: Extract<RouterAbEcdsaPrepareSourceV1, { kind: 'final_presign_batch' }>;
+}): Promise<RouterAbEcdsaFinalBatchPrepareResponse> {
+  await routerAbEcdsaDerivationEvmDigestSigningRequestDigestV1(args.request);
+  const timeoutMs = Math.min(5_000, args.source.batch.ceremony_expires_at_ms - Date.now());
+  if (timeoutMs <= 0) throw new Error('Terminal presign ceremony expired before prepare');
+  return postRouterAbNormalSigningJson({
+    signal: AbortSignal.timeout(Math.floor(timeoutMs)),
+    relayServerUrl: args.relayServerUrl,
+    path: '/router-ab/ecdsa-derivation/sign/prepare',
+    credential: args.credential,
+    body: { ...args.request, presign_source: args.source },
+    parse: parseFinalBatchPrepareResponse.bind(undefined, args.request),
   });
 }
 

@@ -1721,3 +1721,439 @@ loading and starts intent preparation before confirmation. The demo also reads
 fee-token configuration and balance concurrently. Further overlap must preserve
 exact nonce reservation and cancellation behavior. Persistent transport still
 requires an equivalent local/remote benchmark with live per-message admission.
+
+
+### First-use refill reconciliation and remaining transport work
+
+Two startup races now have focused reproductions. An older in-flight refill
+could reject after a new lifecycle reconciliation installed maintenance and
+then cancel that newer maintenance. Separately, an initial registration refill
+rejection was not reconciled when deferred NEAR provisioning published the
+committed authority. Both are classified as `production_regression`.
+
+The local correction associates attempt completion with the maintenance instance
+that started it. A superseded attempt cannot cancel the replacement; that
+replacement runs after the old attempt settles. Successful deferred authority
+publication schedules fresh ECDSA reconciliation without blocking registration
+or waiting for the pool. An authorization failure without a new lifecycle
+reconciliation still stops maintenance, preserving bounded admission behavior.
+
+The coordination regression verifies recovery to five entries with the same
+credential. A real-D1 registration contract rejects the first fill, holds deferred
+NEAR publication, then proves publication restarts refill and enables signing.
+That fixture intentionally targets one initial entry; the original reload/refill
+contract and the focused coordination test retain their five-entry assertions.
+All 231 unit tests, workspace types, SDK build, and all three representative
+lifecycle contracts passed. This correction is local and has no hosted latency
+claim yet.
+
+A further unchanged-0.5.32 immediate-sign sample reproduced `wallet_session_invalid`
+on the initial background init. The successful foreground ceremony took 9.106s;
+registration-ready to observed signature took 15.742s. Its six successful HTTP
+requests reused connections according to browser timing (no new DNS/connect/TLS
+phase was reported). One response took about 1.212s from first byte to response
+completion. Worker/gateway timing and response delivery must therefore be
+measured separately; a persistent transport cannot be justified by an assumed
+new TLS handshake on every step.
+
+A separate diagnostic held deferred NEAR provisioning until the first ECDSA
+signature completed. One request was held, no initial fill rejection occurred,
+and registration-ready to signature still took 12.339s. This single, ordered
+sample does not justify delaying NEAR publication in production. The experiment
+is excluded from the implementation.
+
+Read-only inspection confirms the deployed gateway is targeted near Singapore
+and the signing Worker near Osaka, each following an earlier database-placement
+optimization. The gateway already uses a private service binding to the Worker.
+The actual session Durable Object location remains unverified. Measure the
+combined database and gateway/Worker/object cost before changing placement;
+co-locating two Workers can worsen their database access.
+
+The browser-only local WebSocket prototype retained live HTTP admission on its
+internal path. Four equivalent empty-pool cases with a modeled 100ms exchange
+delay measured first-sign flows of 1.449/1.448s over HTTP and 1.441/1.446s over
+WebSocket. This tiny ordered cohort demonstrates no multi-second saving. A
+persistent transport across the internal hops remains experimental work and
+must retain live admission, exact ceremony scope, ordering, expiry, cancellation,
+and single-use before a remote comparison.
+
+Further work remains on an atomic presign-completion/signing-preparation handoff,
+placement and full-path transport benchmarks, and protocol preprocessing review.
+The current triples transcript is bound to the wallet public key and fresh
+ceremony identity; generic material generated before those bindings exist
+cannot simply be assigned to a newly registered wallet. No cryptographic
+arithmetic, transcript, or custody change is included in the startup correction.
+
+The actual owner adapter also confirms that the client remains in the presign
+stage with output unavailable until it consumes the sixth response's final
+server message. An experimental assertion passed without changing protocol
+messages. Fusing preparation therefore needs an explicit, atomically claimed
+confirmed-operation handoff into completion; the current pool-entry reservation
+API cannot be invoked before that response. This remains a design and validation
+task, with no fused production route implemented yet.
+
+### Stalled-exchange recovery diagnosis
+
+An unchanged hosted 0.5.32 sample took 40.822s from registration readiness to
+the first signature. Its failed background ceremony took 26.345s: initialization
+took 4.005s, two successful steps took 1.562s and 0.676s, and the next step
+failed at the client's 20.002s HTTP timeout. That step already carried foreground
+priority. The trace establishes a stalled exchange; it does not identify the
+underlying network or Worker scheduling cause.
+
+Recovery then started foreground and background initializations 18ms apart.
+A focused regression reproduced the cause: the cache-hit attempt released its
+foreground hold before the enclosing operation started replacement generation.
+Maintenance could therefore compete with the first signature. The correction
+holds foreground priority across cache lookup, replacement generation, and
+signing. Failed ceremonies are abandoned and recovery uses a fresh identity.
+
+Presign exchanges now have a five-second response budget capped by the remaining
+ceremony lifetime. The budget includes response-body delivery, and body-read
+aborts retain the timeout error classification. This bounds an individual stall;
+it does not guarantee a five-second complete signing operation. Focused checks
+cover stalled headers, stalled bodies, shorter ceremony expiry, and background
+exclusion during recovery. All 235 unit tests, workspace types, SDK/server builds,
+and four lifecycle contracts passed locally. The real-D1 injected-stall contract
+verifies abort, fresh-identity recovery, a successful Tempo signature, and no
+competing background generation. Normal registration/reload, deferred-authority
+reconciliation, and sustained Tempo/Arc signing also passed. Version 0.5.34
+includes these corrections; hosted acceptance remains pending.
+
+A separate unchanged-0.5.32 sample took 19.611s from readiness to signature,
+including 6.646s waiting for refill and 8.919s in signing preparation. It had no
+failed HTTP request. The preparation outlier remains a separate investigation;
+the recovery correction does not establish a solution to that delay. Sanitized
+gateway, outer Worker, and Durable Object tails include unrelated background
+traffic and cannot be attributed to individual ceremonies without correlation.
+
+### Hosted 0.5.33 stall localization (22 September 2026)
+
+Two sequential eight-signature batches used one preserved Tempo testnet wallet.
+The first batch followed reload and passkey unlock. All 16 signatures succeeded;
+four waited for refill as the batches consumed the pool. Preparation ranged from
+0.553s to 3.081s, with a 1.150s median. Complete commit timing ranged from 2.410s
+to 13.945s; the slowest included 6.832s waiting for refill. These are diagnostic
+samples on one wallet, not independent registrations or a population percentile.
+The earlier 8.919s and 10.658s preparation outliers were not reproduced.
+
+One presign step took 6.076s to response headers. Its own propagated timings
+localize the delay more precisely:
+
+| Nested span | Duration |
+| --- | ---: |
+| Gateway proxy | 5.905s |
+| Signing-worker handler total | 4.939s |
+| Worker call to the session Durable Object | 0.022s |
+| Worker time before the session call, by subtraction | 4.917s |
+
+The timer boundaries were checked against deployed source
+`79170a72e457bc01f734368cdab3776997192193`. Before the session timer, this handler
+reads the request JSON and validates it; it performs no D1 call. A temporally
+matching Worker tail reports 4.947s wall time and 8ms CPU. The candidate object
+invocation begins 4.932s after the Worker invocation and takes 11ms wall time,
+10ms CPU. Together these observations localize the delay to request-body
+acquisition or scheduling around that await, before the object call. They do
+not identify packet loss, placement, a runtime scheduling mechanism, or the
+cause of the earlier timed-out request.
+
+Signing preparation follows a different path: gateway admission and owner-lane
+resolution, MPC Router, then signing-worker material reads and atomic D1 pool
+reservation. It does not call the presign session Durable Object. The existing
+gateway `ecdsa_sign_proxy` includes lane resolution, downstream processing, and
+reading the upstream response body, so it cannot be interpreted as network time
+alone. Two slower preparation samples had these candidate nested tail spans:
+
+| Span | Sample A | Sample B |
+| --- | ---: | ---: |
+| Client preparation stage | 2.440s | 3.081s |
+| Gateway proxy | 2.210s | 2.307s |
+| MPC Router wall time | 2.130s | 2.240s |
+| MPC Router CPU | 9ms | 5ms |
+| Signing-worker wall time, including material reads and reservation | 129ms | 286ms |
+| Signing-worker CPU | 14ms | 15ms |
+
+These samples support investigating request/response delivery and scheduling
+around the Router-to-worker service call. They provide no evidence that the
+signing-worker database or cryptographic computation caused their multi-second
+delay. Across the 16 captured preparation invocations, signing-worker wall time
+was 91–356ms. The original 9–10s outliers still need an equivalent capture.
+
+Tail associations use timestamps and route classes rather than exported request
+identifiers. Early gateway/Router coverage is incomplete and unrelated traffic
+may be present, so temporal associations remain provisional. Browser response
+timings were recorded at headers, with `responseEnd` unavailable; these artifacts
+cannot separate response-body delivery from the later client stage. Application
+clocks also advance around I/O and must not be used as CPU profiles (see
+[Cloudflare performance and timers](https://developers.cloudflare.com/workers/runtime-apis/performance/)).
+
+The next capture must include completed and failed response-body timings and
+separate Router request-body, service-call, and response-body spans. A transport
+experiment must cover these internal service hops while retaining live
+authorization, exact operation binding, expiry, cancellation, and single-use.
+The browser-only WebSocket prototype leaves these waits intact. No placement,
+transport, authorization, publication, or deployment change was made for this
+diagnostic. New releases remain held for the combined optimization work.
+
+Allowlisted artifacts in the private repository's ignored `output/playwright/`:
+`signing-prepare-diagnostic-0.5.33-summary.json`,
+`signing-prepare-diagnostic-warm-0.5.33-summary.json`,
+`signing-prepare-tail-0.5.33.jsonl`, and
+`signing-prepare-attribution-0.5.33.json`. The tail collectors have been stopped;
+the registered browser credential remains preserved.
+
+An extended six-signature capture on the same preserved wallet recorded
+`requestfinished` and `requestfailed` alongside response headers. All six
+signatures succeeded and all 36 captured requests completed, with no failures.
+Preparation ranged from 0.676s to 1.950s. Response-header-to-body-completion
+timing ranged from 0.361ms to 1.175s (median 2.654ms). The 1.175s body interval
+was a presign step whose gateway total was only 367ms. Response delivery or
+browser scheduling therefore adds a separate delay beyond the server spans;
+the capture does not distinguish those mechanisms.
+
+Finalization also exhibited a distinct completion-stage outlier: gateway
+`ecdsa_sign_complete` took 1.575s, compared with 19–43ms in four later samples
+and 841ms in the first sample. This stage awaits durable authorized-operation
+completion after the signing-worker response, including its result digest,
+conditional D1 update, and read-back. It must remain durable before replying;
+moving it into background work would weaken the completion/replay contract.
+Investigate reducing redundant database round trips while retaining that
+contract. This outlier is separate from preparation and body delivery.
+
+The completed-body capture is saved as
+`signing-body-diagnostic-0.5.33-summary.json`, with
+`signing-body-tail-0.5.33.jsonl` and `signing-body-attribution-0.5.33.json`.
+These six samples also did not reproduce the original 9–10s preparation delay.
+Further identical cohorts without finer internal spans are unlikely to resolve
+the remaining attribution gap; prioritize internal transport timing and the
+measured completion path before another hosted comparison.
+
+The successful authorized-operation completion path now uses the conditional
+`UPDATE ... RETURNING *` result directly, eliminating its separate read-back.
+The canonical parser still verifies the operation fingerprint and replay-result
+digest. A duplicate completion keeps the existing read path and returns the
+first durable result; it cannot overwrite it. Focused tests cover the one-query
+success path, durable read-back equality, duplicate completion, missing claims,
+and corrupted fingerprints/results. A local workerd D1 check confirms that
+`first()` returns the updated row and returns null when the claim is already
+completed. This is an unreleased query-count reduction, with no hosted latency
+gain claimed yet.
+
+Unreleased internal timing diagnostics now separate the Router request-body
+read, downstream response-header wait, downstream response-body read, and the
+signing-worker preparation body/material/reservation stages. The existing
+presign response header also reports `ecdsa_presign_sw_body` explicitly.
+Private logs use the `ecdsa_io_timing` event with static stage names and numeric
+durations only; they omit trace identities and protocol data. Successful-path
+spans supplement invocation wall/CPU measurements and do not cover every early
+error return. They are diagnostics only and do not alter admission, timeout,
+reservation, or signing behavior. Hosted attribution awaits the coordinated
+release; no deployment was performed to collect these new spans.
+
+The historical 9–10s preparation outlier is no longer an active investigation,
+per the user's direction after it failed to recur in these captures. Network
+variability remains a possible explanation, not an established cause. This
+changes the investigation priority; it does not establish that the outlier has
+been fixed. Continue work on the demonstrated recovery race, database round
+trips, and registration-to-first-sign latency.
+
+A local workerd transport experiment covered ingress → gateway → Router →
+SigningWorker → Durable Object with six sequential messages and a fresh modeled
+D1 authorization read per message. Across five samples per transport and body
+size, HTTP versus direct service-binding RPC medians were 14.47ms versus 11.71ms
+for 4KiB and 13.89ms versus 11.85ms for 32KiB. The model checked ordering,
+duplicate messages, immutable expiry, revocation, cancellation, and terminal
+single-use. It uses synthetic messages and admission, not production MPC or its
+full authorization contract. The roughly 2–3ms local difference does not justify
+a production transport rewrite or establish a hosted latency benefit. Results:
+private ignored `output/playwright/presign-internal-transport-local.json`;
+experiment source: `/tmp/presign-internal-transport.mjs`. No remote deployment
+was made for this experiment.
+
+The atomic presign-to-prepare storage prototype reuses the production
+`router-ab-ecdsa-pool` transitions and local SQLite transactions. Six tests pass:
+first durable state is reserved and single-use; a pre-commit crash publishes
+nothing; duplicate completion cannot replace or rebind the reservation; a wrong
+request burns material; expiry burns material; and stale revisions cannot
+restore consumed material. Source and results are `/tmp/presign-atomic-handoff`
+and `/tmp/presign-atomic-handoff.log`. This validates a storage transition only,
+not the production gateway admission, DO-to-D1 delivery, browser recovery, or
+cryptographic signing flow, and provides no latency measurement.
+
+Owner-flow fusion remains unimplemented. Unlike the linked-device path, owner
+preparation currently binds the presignature ID obtained from completion, while
+background generation can start before an operation is confirmed. A fused owner
+path must attach one confirmed operation immutably, publish directly as reserved,
+and preserve live authorization and failure recovery across the client, gateway,
+DO, and D1 boundaries. The local storage result is a prerequisite, not evidence
+that those integration requirements have been met.
+
+The private SigningWorker pool now supports a `PutReserved` command for the
+owner-handoff integration. Its first durable lifecycle is Reserved at revision1,
+identical to the existing available-then-reserve transition. An existing pair in
+any lifecycle rejects direct admission, including an exact repeated command;
+this command does not implement response replay. The browser/gateway completion
+path is not wired to it yet. Nine native pool tests pass, covering transition
+equivalence, immutable existing identities, single-use, expiry, contribution
+validation, and available-admission collision behavior.
+
+New available and directly reserved admissions use `INSERT OR IGNORE` first.
+A successful new admission takes one D1 statement instead of SELECT plus INSERT.
+An insertion collision still reads and validates the existing encrypted record
+through the canonical reducer, preserving exact available-put idempotency and
+rejecting substituted or terminal material. Existing mutations retain their
+versioned compare-and-swap writes. No schema or public protocol change is needed
+for the available-admission optimization.
+
+An isolated development SigningWorker build and the existing real-workerd D1
+six-exchange presign test passed, including replay after DO eviction and immutable
+expiry. The first harness startup attempts had an external-output module-root
+configuration error; setting the isolated generated entrypoint and its module
+root fixed the harness without product changes. This integration exercises the
+existing available path; direct-reservation handoff still needs end-to-end
+integration and validation. Logs: `/tmp/presign-put-reserved-native.log`,
+`/tmp/presign-pool-worker-build.log`, `/tmp/presign-pool-private-d1.log`.
+No hosted gain, publication, or deployment is claimed.
+
+The gateway now forwards successful signing-prepare response bodies immediately.
+Previously it awaited `upstream.clone().text()` before returning, even though
+prepare leaves the operation pending and the gateway does not inspect its
+successful body. Finalization and errors still await body capture and durable
+operation completion; an in-progress effect remains pending. A controlled open
+response stream reproduced the previous wait, and three focused behavioral tests
+now pass, including replay-body preservation and failure of durable completion.
+Successful prepare `ecdsa_sign_proxy`/`ecdsa_sign_total` timings now end when the
+response is forwarded, excluding subsequent body delivery. Use completed client
+request timings for end-to-end comparisons. This removes a gateway buffering
+barrier; it does not remove an HTTP exchange or establish a hosted latency gain.
+Owner completion-to-prepare fusion remains unfinished.
+
+The owner-handoff boundary now has a typed pending signing intent carrying the
+ceremony identity and the existing required operation, authorization, scope,
+digest, expiry, and rerandomization commitment fields. It excludes a preselected
+presignature ID. Its parser shares field validation with the existing prepare
+request parser. Completion binds the derived material ID only when the ceremony
+and complete scope match and the original request deadline is still valid within
+the material lifetime; it never extends or rewrites that deadline. The resulting
+prepare request retains the existing canonical transcript.
+
+Three focused tests and a type rejection fixture cover transcript preservation,
+preselected-ID injection, digest mismatch, cross-ceremony/scope binding, and
+expiry. This is the boundary/schema portion of the handoff, not an authorization
+claim. No live route accepts the new intent yet. Immutable attachment inside the
+ceremony, gateway admission, direct reserved publication, and ambiguous-response
+recovery still require integration and end-to-end validation before release.
+
+The native client now emits `final_batch_ready` when its last outgoing protocol
+batch is ready. The worker forwards this signal while keeping material opaque.
+The real owner adapter test verifies that it appears only on the sixth exchange,
+that this batch contains two protocol messages, and that client material remains
+unavailable until the final response. This gives the pending handoff an explicit
+protocol boundary instead of relying on a browser loop index. It does not attach
+a signing intent or remove a request yet.
+
+Validation passed: all 46 native presign unit tests, the 25-seed byte-identical
+eight/seven/six-exchange scheduling contract, seven compile-fail documentation
+tests, the real six-exchange owner adapter, both opaque-worker behavioral tests,
+focused TypeScript checking, and client WASM compilation. The existing opaque
+fixture needed its current identity and lifetime fields restored; no production
+behavior was changed for that stale fixture. No hosted gain is claimed.
+
+Owner completion now calls typed presignature admission directly inside the
+SigningWorker. Previously it serialized the secret pool-put request into a local
+`worker::Request`, immediately reparsed it in the pool-put handler, and encoded
+an unused success receipt. The HTTP pool-put boundary and completed owner flow
+now share one admission function. Both retain expiry validation, fresh active
+material lookup, canonical record construction, and the existing atomic D1
+mutation. The obsolete internal HTTP-request helper was deleted. This removes
+local serialization and response construction, not a network round trip.
+
+The isolated SigningWorker WASM check/build and real workerd/private-D1
+six-exchange integration passed, including matching client/server output,
+eviction-safe replay rejection, and immutable expiry. Logs:
+`/tmp/presign-typed-admission-{check,build,integration}.log`. No shared build
+artifacts were overwritten. Owner signing-intent fusion remains unfinished;
+this refactor adds no route, custody store, or authorization bypass, and no
+hosted latency gain is claimed.
+
+### Public identity before the final response
+
+Further protocol inspection corrects an earlier assumption: completed client
+material is unavailable before the final response, but its public identity can
+be derived beforehand. After the peer E share passes its commitment check, the
+client has the same public inputs used by the existing final `R` calculation.
+The native client now exposes this candidate only while awaiting the final
+alpha/beta message, and WASM exposes the 33-byte public point separately from
+completed material. The calculation is shared with finalization; arithmetic
+and protocol messages are unchanged. Secret material and signing remain gated
+by the original final commitment checks.
+
+This enables a simpler handoff design: construct the ordinary complete prepare
+request using the candidate ID and send it with the final batch through existing
+live admission. The SigningWorker must compare that ID against its completed
+output before direct reserved publication. No pending secret-material store or
+partial signing-intent authorization is needed. This integration remains to be
+implemented; the candidate API by itself removes no request. Once integrated,
+remove the superseded partial-intent schema.
+
+The native six-exchange adapter verifies candidate/server output equality and
+that usable client material remains unavailable before the response. A tampered
+final alpha still fails commitment validation after candidate access. The
+existing 25-seed scheduling contract also checks candidate/final output equality
+across eight-, seven-, and six-exchange schedules. The first added assertion
+missed an intermediate state in older batched schedules; moving observation
+between incoming messages corrected the test without changing protocol behavior.
+The accessor uses the existing k256 field inversion and point multiplication on
+opened E and public triple commitments; it introduces no secret-dependent
+branch or integer division. This review is not an assembly-level timing proof.
+
+The superseded partial signing-intent type, parser, completion binder, and its
+intent-only tests have now been removed. The full prepare parser is again one
+linear boundary requiring the material ID. Its focused test preserves canonical
+request equality and rejects a missing material ID or mismatched signing digest.
+The shared full-request fixture remains for the upcoming terminal-batch path.
+This cleanup does not expose a combined route or complete the handoff.
+
+
+### Authenticated terminal-batch reservation
+
+The prepare transport now accepts the complete canonical signing request with
+its final presign batch as separate transport metadata. Gateway live admission
+and Router authorization run before the SigningWorker executes that batch. The
+SigningWorker compares completed scope and material identity against the admitted
+request, then persists the material directly as Reserved. Ordinary pool fills
+continue to publish Available material. No secret material passes through the
+Gateway and no additional pending-material store is introduced.
+
+The isolated real workerd/D1 test (`--ecdsa-presign-handoff`) completes actual
+MPC, rejects a substituted scope and repeated terminal batch, and verifies the
+resulting ECDSA signature. It exercises the Router and SigningWorker; full browser
+and Gateway authorization acceptance remains outstanding. The integration exposed
+a timestamp assumption: preparation can now occur after material loading. The
+response and reserved record share the reservation timestamp, which must be at
+or after materialization. No hosted latency improvement is claimed yet.
+
+
+The owner client now claims the terminal batch for a waiting confirmed operation,
+including promotion of background refill. Its worker exposes only the public
+candidate point at `final_batch_ready`; completed material remains gated by the
+last protocol checks. Claimed material moves directly from pending admission to
+an exclusive local reservation. It never enters the available pool. Prepare
+submission ambiguity and cancellation prohibit automatic replacement. The final
+combined exchange retains the five-second response/body budget capped by ceremony
+expiry.
+
+The browser/Gateway/Router/SigningWorker/D1 registration contract passed and
+verified a Tempo signature with one terminal prepare and no ordinary prepare.
+Focused client tests cover lost response, cancellation, and exclusive reservation;
+the existing 15 coordination cases pass, including durable capacity-race recovery.
+Actual D1 finalization replay returns the durable first result and rejects altered
+input without reusing consumed material.
+
+Five alternating local real-MPC/workerd/D1 samples per path measured full generation
+through verified signature: ordinary 4942.8/2027.6/1952.9/1971.3/1931.2ms; combined
+4152.0/2046.5/1933.8/1922.9/1928.6ms. Medians were 1971.3ms and 1933.8ms (37.6ms,
+1.9% lower). This harness uses fixture Gateway admission and an in-process WASM
+client; it is not a hosted browser latency comparison. Samples alternate with the
+ordinary path first, include warm-up effects, and support only a small local
+observation. Production first-sign latency and the 1–3s objective remain unproven.

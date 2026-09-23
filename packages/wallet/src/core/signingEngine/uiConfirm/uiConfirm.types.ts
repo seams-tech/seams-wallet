@@ -1,3 +1,4 @@
+import type { TransactionReviewAdmission } from './transactionReviewAdmission';
 import type { WarmSessionMaterialOperationTarget } from '../session/emailOtp/sealedRuntimePurpose';
 /**
  * UiConfirm specs (types + interfaces).
@@ -68,9 +69,11 @@ export type ExportPrivateKeysWithUiOptions = {
 export type UiConfirmSurfaceMeasurementBinding =
   | {
       kind: 'disabled';
+      transactionReview?: never;
     }
   | {
       kind: 'wallet_iframe';
+      transactionReview?: TransactionReviewAdmission;
       requestId: WalletIframeRequestId;
       postMeasurement: (measurement: WalletIframeSurfaceMeasurement) => void;
       /**
@@ -270,6 +273,15 @@ export type UiConfirmRuntimeBridgePort = PromptCapableBootstrapPort & UiConfirmW
 export interface PasskeyMpcSessionWorkerLifecyclePort {
   setWorkerBaseOrigin(origin: string | undefined): void;
   prewarmShamir3Pass(): Promise<void>;
+  prepareSigningSessionHydration(input: {
+    preparationId: string;
+    thresholdSessionId: string;
+    prfFirstB64u: string;
+  }): Promise<void>;
+  discardSigningSessionHydration(input: {
+    preparationId: string;
+    thresholdSessionId: string;
+  }): Promise<void>;
 }
 
 export type PasskeyMpcSessionPort = WarmSessionMaterialWriter &

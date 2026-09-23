@@ -1,3 +1,4 @@
+import type { TransactionDispatch } from '../walletIframe/client/transactionReviewReservation';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import {
   resolveConfiguredChainTarget,
@@ -63,14 +64,17 @@ function requireEvmFamilySigningCapability(
   });
 }
 
-export function createTempoSignerCapability(deps: {
-  signingEngine: TempoSigningSurface;
-  nearClient: NearClient;
-  configs: SeamsConfigsReadonly;
-  getTheme: () => ThemeMode;
-  getWalletIframe: () => WalletIframeCoordinator;
-  currentWallet: CurrentWalletResolver;
-}): TempoSignerCapability {
+export function createTempoSignerCapability(
+  deps: {
+    signingEngine: TempoSigningSurface;
+    nearClient: NearClient;
+    configs: SeamsConfigsReadonly;
+    getTheme: () => ThemeMode;
+    getWalletIframe: () => WalletIframeCoordinator;
+    currentWallet: CurrentWalletResolver;
+  },
+  transactionDispatch: TransactionDispatch = { kind: 'ordinary' },
+): TempoSignerCapability {
   // Capability-level entry: `walletSession` may be omitted here and resolves to
   // the authenticated wallet. The lifecycle below always receives a resolved one.
   type CapabilitySignEvmFamilyArgs = Omit<EvmFamilyTransactionSignArgs, 'walletSession'> & {
@@ -95,15 +99,18 @@ export function createTempoSignerCapability(deps: {
     }
     try {
       const router = await walletIframe.requireRouter(walletId);
-      const result = await router.signTempo({
-        walletSession,
-        request: args.request,
-        chainTarget,
-        options: {
-          confirmationConfig: args.options?.confirmationConfig,
-          onEvent: args.options?.onEvent,
+      const result = await router.signTempo(
+        {
+          walletSession,
+          request: args.request,
+          chainTarget,
+          options: {
+            confirmationConfig: args.options?.confirmationConfig,
+            onEvent: args.options?.onEvent,
+          },
         },
-      });
+        transactionDispatch,
+      );
       return result;
     } catch (error: unknown) {
       throw toError(error);

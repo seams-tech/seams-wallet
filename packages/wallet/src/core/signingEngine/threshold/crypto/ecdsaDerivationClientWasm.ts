@@ -121,13 +121,8 @@ function parseListedClientPresignature(ref: {
   };
 }
 
-export type EcdsaDerivationClientThresholdEcdsaPresignProgress = Omit<
-  ThresholdEcdsaPresignProgressResult,
-  'outgoingMessages' | 'presignatureBigR33'
-> & {
-  outgoingMessages: Uint8Array[];
-  presignatureBigR33?: Uint8Array;
-};
+export type EcdsaDerivationClientThresholdEcdsaPresignProgress =
+  ThresholdEcdsaPresignProgressResult<Uint8Array>;
 
 async function requestEcdsaDerivationRoleLocalMaterialOperation<
   T extends EcdsaDerivationRoleLocalMaterialOperationType,
@@ -627,17 +622,26 @@ function asEcdsaDerivationPresignProgress(
   const outgoingMessages = Array.isArray(raw.outgoingMessages)
     ? raw.outgoingMessages.map((entry) => new Uint8Array(entry))
     : [];
-  const presignatureHandle = String(raw.presignatureHandle || '').trim();
-  const presignatureBigR33 = raw.presignatureBigR33
-    ? new Uint8Array(raw.presignatureBigR33)
-    : undefined;
-  return {
-    stage: raw.stage,
-    event: raw.event,
-    outgoingMessages,
-    ...(presignatureHandle ? { presignatureHandle } : {}),
-    ...(presignatureBigR33 ? { presignatureBigR33 } : {}),
-  };
+  switch (raw.event) {
+    case 'final_batch_ready':
+      return {
+        stage: 'presign',
+        event: raw.event,
+        outgoingMessages,
+        candidateBigR33: new Uint8Array(raw.candidateBigR33),
+      };
+    case 'presign_done':
+      return {
+        stage: 'done',
+        event: raw.event,
+        outgoingMessages,
+        presignatureHandle: raw.presignatureHandle,
+        presignatureBigR33: new Uint8Array(raw.presignatureBigR33),
+      };
+    case 'none':
+    case 'triples_done':
+      return { stage: raw.stage, event: raw.event, outgoingMessages };
+  }
 }
 
 export async function thresholdEcdsaRoleLocalPresignSessionInitFromMaterialHandleWasm(input: {

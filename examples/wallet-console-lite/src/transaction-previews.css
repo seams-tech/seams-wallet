@@ -1,0 +1,61 @@
+.transaction-preview-settings {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin-block-start: 20px;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #d9dfda;
+  border-radius: 1rem;
+}
+
+.transaction-preview-frame {
+  display: block;
+  width: 100%;
+  border: 1px solid #d9dfda;
+  border-radius: 1rem;
+  margin-block-start: 1.5rem;
+}
+
+.transaction-preview-settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.transaction-preview-toggle {
+  display: inline-flex;
+  padding: 4px;
+  border: 1px solid #c5cec8;
+  border-radius: 12px;
+  background: #eef1ee;
+}
+
+.transaction-preview-toggle label {
+  position: relative;
+  cursor: pointer;
+}
+
+.transaction-preview-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.transaction-preview-toggle span {
+  display: block;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.transaction-preview-toggle input:checked + span {
+  background: #173d2d;
+  color: white;
+}
+
+.transaction-preview-toggle input:focus-visible + span {
+  outline: 2px solid #173d2d;
+  outline-offset: 2px;
+}

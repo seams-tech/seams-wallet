@@ -216,6 +216,28 @@ pub struct CeremonyProtocolPreparedV1 {
     protocol: PreparedProtocolV1,
 }
 
+/// Public request and encrypted completion state persisted before Yao dispatch.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NearRegistrationCheckpointV1 {
+    pub execute_request_json: String,
+    pub application_binding_digest_b64u: String,
+    pub nonce_b64u: String,
+    pub ciphertext_b64u: String,
+}
+
+fn near_checkpoint_context(
+    wallet_id: &str,
+    application_digest: &[u8; 32],
+) -> CeremonyResult<Vec<u8>> {
+    serde_json::to_vec(&(
+        "near_registration_checkpoint_v1",
+        wallet_id,
+        application_digest,
+    ))
+    .map_err(|error| CeremonyError::new(format!("checkpoint context: {error}")))
+}
+
 /// EVM activation state after the custody commit is ready for the registration request.
 ///
 /// The seed and recovery codes are already gone. Only the opaque ECDSA pending
@@ -445,6 +467,57 @@ pub struct EvmFamilyActivationCompletionV1 {
 }
 
 impl CeremonySeedHeldV1 {
+    /// Restores an exact exchange after the caller reopened the existing custody envelope.
+    pub fn restore_near_registration(
+        self,
+        checkpoint: NearRegistrationCheckpointV1,
+    ) -> CeremonyResult<CeremonyProtocolPreparedV1> {
+        if !matches!(self.origin, CustodyOriginV1::Join) {
+            return Err(CeremonyError::new(
+                "NEAR registration resume requires existing custody",
+            ));
+        }
+        let application_binding_digest: [u8; 32] =
+            Base64UrlUnpadded::decode_vec(&checkpoint.application_binding_digest_b64u)
+                .map_err(CeremonyError::new)?
+                .try_into()
+                .map_err(|_| CeremonyError::new("checkpoint application digest length"))?;
+        let nonce: [u8; 12] = Base64UrlUnpadded::decode_vec(&checkpoint.nonce_b64u)
+            .map_err(CeremonyError::new)?
+            .try_into()
+            .map_err(|_| CeremonyError::new("checkpoint nonce length"))?;
+        let ciphertext = Base64UrlUnpadded::decode_vec(&checkpoint.ciphertext_b64u)
+            .map_err(CeremonyError::new)?;
+        let request =
+            serde_json::from_str(&checkpoint.execute_request_json).map_err(CeremonyError::new)?;
+        let wrapping_key = derive_ed25519_local_material_cache_key_from_seed_v1(
+            &self.seed[..],
+            &application_binding_digest,
+        )
+        .map_err(CeremonyError::new)?;
+        let context = near_checkpoint_context(&self.wallet_id, &application_binding_digest)?;
+        let yao_state = ClientActivationStateV1::open_checkpoint(
+            &request,
+            &wrapping_key,
+            &context,
+            &nonce,
+            &ciphertext,
+        )
+        .map_err(CeremonyError::new)?;
+        let participant_ids = yao_state.participant_ids();
+        Ok(CeremonyProtocolPreparedV1 {
+            wallet_id: self.wallet_id,
+            seed: self.seed,
+            origin: self.origin,
+            protocol: PreparedProtocolV1::NearEd25519 {
+                yao_state,
+                yao_execute_request_json: checkpoint.execute_request_json,
+                application_binding_digest,
+                participant_ids,
+            },
+        })
+    }
+
     /// Establishes custody: generates the wallet custody seed inside this
     /// module. JavaScript cannot supply custody material, so a caller cannot
     /// register a seed it chose or observed.
@@ -780,6 +853,42 @@ fn ecdsa_public_facts_record(
 }
 
 impl CeremonyProtocolPreparedV1 {
+    /// Seals the completion state without exposing the recipient key or custody seed.
+    pub fn checkpoint_near_registration(&self) -> CeremonyResult<NearRegistrationCheckpointV1> {
+        if !matches!(self.origin, CustodyOriginV1::Join) {
+            return Err(CeremonyError::new(
+                "NEAR registration checkpoint requires existing custody",
+            ));
+        }
+        let PreparedProtocolV1::NearEd25519 {
+            yao_state,
+            yao_execute_request_json,
+            application_binding_digest,
+            ..
+        } = &self.protocol
+        else {
+            return Err(CeremonyError::new("checkpoint requires a NEAR protocol"));
+        };
+        let request = serde_json::from_str(yao_execute_request_json).map_err(CeremonyError::new)?;
+        let wrapping_key = derive_ed25519_local_material_cache_key_from_seed_v1(
+            &self.seed[..],
+            application_binding_digest,
+        )
+        .map_err(CeremonyError::new)?;
+        let context = near_checkpoint_context(&self.wallet_id, application_binding_digest)?;
+        let mut nonce = [0; 12];
+        random_bytes(&mut nonce)?;
+        let ciphertext = yao_state
+            .seal_checkpoint(&request, &wrapping_key, &context, &nonce)
+            .map_err(CeremonyError::new)?;
+        Ok(NearRegistrationCheckpointV1 {
+            execute_request_json: yao_execute_request_json.clone(),
+            application_binding_digest_b64u: b64u(application_binding_digest),
+            nonce_b64u: b64u(&nonce),
+            ciphertext_b64u: b64u(&ciphertext),
+        })
+    }
+
     /// The opaque Router execution request, for a NEAR Ed25519 run.
     pub fn yao_execute_request_json(&self) -> Option<&str> {
         match &self.protocol {

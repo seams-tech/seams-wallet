@@ -25,6 +25,7 @@ import {
   walletSessionRefFromSession,
 } from '@seams/wallet/advanced';
 import { resolveEmailOtpRegistrationSession } from './registrationSession';
+import { ReviewedSigning } from './ReviewedSigning';
 
 type IntendedActionName =
   | 'registerPasskeyWallet'
@@ -328,11 +329,13 @@ type PasskeySyncResultSummary = {
 type EmailOtpUnlockCoreSummary = {
   kind: 'email_otp_unlock_success';
   walletId: string;
-  nearAccountId: string;
-  operationalPublicKey: string;
   sessionWalletAuthMethodId: string;
   authenticationKind: 'authenticated';
-} & IntendedEcdsaSessionSummary;
+} & IntendedEcdsaSessionSummary &
+  (
+    | { nearIdentity: 'ready'; nearAccountId: string; operationalPublicKey: string }
+    | { nearIdentity: 'absent'; nearAccountId?: never; operationalPublicKey?: never }
+  );
 
 type EmailOtpUnlockResultSummary = EmailOtpUnlockCoreSummary & IntendedEcdsaSummary;
 
@@ -631,10 +634,17 @@ export const IntendedBehaviourE2EPage: React.FC = () => {
       data-wallet-id={state.walletId}
       data-login-state={seamsContext.loginState.isLoggedIn ? 'logged_in' : 'logged_out'}
       data-login-wallet-id={seamsContext.loginState.walletId || ''}
+      data-login-near-ready={seamsContext.loginState.nearAccountId ? 'ready' : 'pending'}
       style={pageStyle}
     >
       <section style={panelStyle}>
         <h1 style={headingStyle}>Intended Behaviour E2E</h1>
+        <ReviewedSigning
+          input={{
+            chainTarget: INTENDED_ARC_EVM_CHAIN_TARGET,
+            request: buildIntendedArcEvmSigningRequest(),
+          }}
+        />
         <dl style={definitionListStyle}>
           <dt>Flow</dt>
           <dd>{query.flow}</dd>
@@ -1769,10 +1779,15 @@ class IntendedPageController {
       const summary: EmailOtpUnlockResultSummary = {
         kind: unlock.kind,
         walletId: unlock.walletId,
-        nearAccountId: unlock.nearAccountId,
-        operationalPublicKey: unlock.operationalPublicKey,
         sessionWalletAuthMethodId: unlock.sessionWalletAuthMethodId,
         authenticationKind: unlock.authenticationKind,
+        ...(unlock.nearIdentity === 'ready'
+          ? {
+              nearIdentity: 'ready' as const,
+              nearAccountId: unlock.nearAccountId,
+              operationalPublicKey: unlock.operationalPublicKey,
+            }
+          : { nearIdentity: 'absent' as const }),
         ...ecdsa,
       };
       this.dispatch({ kind: 'action_succeeded', action, result: summary });
@@ -3100,12 +3115,9 @@ function assertEmailOtpUnlockSucceeded(args: {
     throw new Error(`Email OTP unlock session wallet mismatch: ${sessionWalletId}`);
   }
   const nearAccountId = String(appIdentity.nearAccountId || '').trim();
-  if (!nearAccountId) {
-    throw new Error('Email OTP unlock did not return a NEAR account id');
-  }
   const operationalPublicKey = String(appIdentity.nearOperationalPublicKey || '').trim();
-  if (!operationalPublicKey) {
-    throw new Error('Email OTP unlock did not return an operational public key');
+  if (Boolean(nearAccountId) !== Boolean(operationalPublicKey)) {
+    throw new Error('Email OTP unlock returned an incomplete NEAR identity');
   }
   const ecdsa = assertEcdsaSessionSummary({
     ecdsaTargetProfile: args.ecdsaTargetProfile,
@@ -3116,8 +3128,9 @@ function assertEmailOtpUnlockSucceeded(args: {
   return {
     kind: 'email_otp_unlock_success',
     walletId,
-    nearAccountId,
-    operationalPublicKey,
+    ...(nearAccountId && operationalPublicKey
+      ? { nearIdentity: 'ready' as const, nearAccountId, operationalPublicKey }
+      : { nearIdentity: 'absent' as const }),
     sessionWalletAuthMethodId: exactWalletAuthMethodIdFromSession(result.session),
     authenticationKind,
     ...ecdsa,

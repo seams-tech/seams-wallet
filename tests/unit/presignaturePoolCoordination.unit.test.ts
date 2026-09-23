@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import {
   routerAbEcdsaDerivationContextBindingB64uV1,
+  parseRouterAbEcdsaDerivationEvmDigestSigningRequestV1,
+  routerAbEcdsaDerivationEvmDigestSigningRequestDigestV1,
   type RouterAbEcdsaDerivationNormalSigningScopeV1,
 } from '@shared/utils/routerAbEcdsaDerivation';
 import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerAbNormalSigningIdentity';
@@ -112,6 +114,103 @@ test('a signing cache miss receives foreground pool-fill priority', async () => 
     });
     expect(result).toMatchObject({ ok: false, code: 'test_stop' });
     expect(tags).toEqual(['foreground_presign_pool_refill']);
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearAllRouterAbEcdsaDerivationClientPresignatures();
+  }
+});
+
+test('a foreground capacity race rehydrates the durable presignature pool', async () => {
+  clearAllRouterAbEcdsaDerivationClientPresignatures();
+  const originalFetch = globalThis.fetch;
+  const scope = await buildScope();
+  let listCount = 0;
+  let selectedDurablePresignature = false;
+  const clientSigningMaterial: RouterAbEcdsaDerivationClientSigningMaterialSource = {
+    kind: 'router_ab_ecdsa_derivation_client_signing_material_source_v1',
+    initClientPresignSession: initialPresignProgress,
+    stepClientPresignSession: async () => ({
+      stage: 'done',
+      outgoingMessages: [],
+      presignatureHandle: 'generated-material',
+      presignatureBigR33: Uint8Array.from(Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
+    }),
+    abortClientPresignSession: async () => {},
+    admitClientPresignature: async () => ({ kind: 'discarded_capacity' }),
+    destroyClientPresignature: async () => {},
+    reserveClientPresignature: async () => {
+      selectedDurablePresignature = true;
+      throw new Error('durable capacity entry selected');
+    },
+    commitClientPresignature: async () => {},
+    listAvailableClientPresignatures: async () => {
+      listCount += 1;
+      if (listCount === 1) return [];
+      return [
+        {
+          presignatureId: 'durable-presignature',
+          materialHandle: 'durable-material',
+          bigR33: Uint8Array.from(Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
+          createdAtMs: Date.now(),
+          expiresAtMs: Date.now() + 30_000,
+        },
+      ];
+    },
+    computeSignatureShareFromPresignatureHandle: async () => new Uint8Array(32),
+  };
+  globalThis.fetch = async (input, init) => {
+    const body = JSON.parse(String(init?.body));
+    const url = String(input);
+    if (url.endsWith('/router-ab/ecdsa-derivation/presignature-pool/fill/init')) {
+      return Response.json({
+        ok: true,
+        presignSessionId: body.presignSessionId,
+        ceremonyExpiresAtMs: body.poolFill.ceremonyExpiresAtMs,
+        materialExpiresAtMs: body.poolFill.materialExpiresAtMs,
+        stage: 'triples',
+        outgoingMessagesB64u: ['Ag'],
+      });
+    }
+    if (url.endsWith('/router-ab/ecdsa-derivation/presignature-pool/fill/step')) {
+      return Response.json({
+        ok: true,
+        stage: 'done',
+        event: 'presign_done',
+        outgoingMessagesB64u: [],
+        presignatureId: 'generated-presignature',
+        bigRB64u: PRESIGNATURE_BIG_R_B64U,
+      });
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  try {
+    const result = await signRouterAbEcdsaDerivationDigestWithPool({
+      relayerUrl: 'https://router.example',
+      scope,
+      operationId: 'operation-capacity-race',
+      operationDigests: {
+        lane_digest_b64u: 'CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo',
+        intent_digest_b64u: 'CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCws',
+        display_digest_b64u: 'DAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAw',
+      },
+      materialActivation,
+      credential: { kind: 'wallet_session_opaque', walletSessionToken: 'wallet-session-token' },
+      keyHandle: parseEcdsaKeyHandle('key-handle-1'),
+      signingDigest32: new Uint8Array(32).fill(11),
+      clientSigningMaterial,
+      expiresAtMs: Date.now() + 30_000,
+      workerCtx: buildWorkerContext(),
+      authorization,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: 'router_ab_sign_failed',
+      message: 'durable capacity entry selected',
+    });
+    expect(selectedDurablePresignature).toBe(true);
+    expect(listCount).toBe(2);
   } finally {
     globalThis.fetch = originalFetch;
     clearAllRouterAbEcdsaDerivationClientPresignatures();
@@ -1109,9 +1208,7 @@ test('each entry in a refill batch receives a fresh attempt deadline', async () 
     await expect.poll(maintainedDepth.bind(null, input), { timeout: 12_000 }).toBe(5);
     expect(source.initRequests).toBe(5);
     expect(source.requestedCeremonyLifetimeMs).toHaveLength(5);
-    expect(source.requestedCeremonyLifetimeMs.every((lifetimeMs) => lifetimeMs > 4_000)).toBe(
-      true,
-    );
+    expect(source.requestedCeremonyLifetimeMs.every((lifetimeMs) => lifetimeMs > 4_000)).toBe(true);
   } finally {
     clearAllRouterAbEcdsaDerivationClientPresignatures();
     globalThis.fetch = originalFetch;
@@ -1134,3 +1231,266 @@ test('authorization rejection stops refill without a retry loop', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+class RecoveringPresignatureSource extends MaintainingPresignatureSource {
+  readonly firstAdmissionStarted = createDeferred();
+  readonly releaseFailedAdmission = createDeferred();
+  readonly recoveryStarted = createDeferred();
+  readonly releaseRecovery = createDeferred();
+  competingBackgroundRequests = 0;
+  private firstAdmission = true;
+
+  constructor() {
+    super('');
+  }
+
+  override async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    expect(String(input)).toContain('/presignature-pool/fill/init');
+    const body = JSON.parse(String(init?.body));
+    if (this.firstAdmission) {
+      this.firstAdmission = false;
+      this.firstAdmissionStarted.resolve();
+      await this.releaseFailedAdmission.promise;
+      return Response.json({ ok: false, code: 'network_error', message: 'stalled request' });
+    }
+    if (body.requestTag === 'foreground_presign_pool_refill') {
+      this.recoveryStarted.resolve();
+      await this.releaseRecovery.promise;
+    } else {
+      this.competingBackgroundRequests += 1;
+    }
+    return Response.json({ ok: false, code: 'test_stop', message: 'recovery observed' });
+  }
+}
+
+test('foreground recovery keeps background maintenance paused after a failed refill', async () => {
+  clearAllRouterAbEcdsaDerivationClientPresignatures();
+  const originalFetch = globalThis.fetch;
+  const source = new RecoveringPresignatureSource();
+  const input = await maintenanceInput(source, 60_000);
+  globalThis.fetch = source.fetch.bind(source);
+  let signing: ReturnType<typeof signRouterAbEcdsaDerivationDigestWithPool> | null = null;
+  try {
+    expect(scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(input).scheduled).toBe(true);
+    await source.firstAdmissionStarted.promise;
+    signing = signRouterAbEcdsaDerivationDigestWithPool({
+      relayerUrl: input.relayerUrl,
+      scope: input.routerAbEcdsaDerivationPoolFill.scope,
+      operationId: 'operation-recovery',
+      operationDigests: {
+        lane_digest_b64u: 'CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo',
+        intent_digest_b64u: 'CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCws',
+        display_digest_b64u: 'DAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMA',
+      },
+      materialActivation,
+      credential: input.credential,
+      keyHandle: input.keyHandle,
+      signingDigest32: new Uint8Array(32).fill(11),
+      clientSigningMaterial: source,
+      expiresAtMs: Date.now() + 30_000,
+      workerCtx: input.workerCtx,
+      authorization,
+    });
+    await new Promise<void>(setImmediate);
+    source.releaseFailedAdmission.resolve();
+    await source.recoveryStarted.promise;
+    await delay(100);
+    expect(source.competingBackgroundRequests).toBe(0);
+    source.releaseRecovery.resolve();
+    await expect(signing).resolves.toMatchObject({ ok: false, code: 'test_stop' });
+  } finally {
+    source.releaseFailedAdmission.resolve();
+    source.releaseRecovery.resolve();
+    if (signing) await signing;
+    clearAllRouterAbEcdsaDerivationClientPresignatures();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+class ReconciledSessionPresignatureSource extends MaintainingPresignatureSource {
+  readonly oldAdmissionStarted = createDeferred();
+  readonly releaseOldAdmission = createDeferred();
+  readonly oldAdmissionFinished = createDeferred();
+  private oldAdmissionPending = true;
+
+  constructor() {
+    super('');
+  }
+
+  override async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const credential = new Headers(init?.headers).get('Authorization');
+    expect(credential).toBe('Bearer test-token');
+    if (this.oldAdmissionPending) {
+      this.oldAdmissionPending = false;
+      this.oldAdmissionStarted.resolve();
+      await this.releaseOldAdmission.promise;
+      this.oldAdmissionFinished.resolve();
+      return Response.json({
+        ok: false,
+        code: 'wallet_session_invalid',
+        message: 'The previous session has been superseded',
+      });
+    }
+    return super.fetch(input, init);
+  }
+}
+
+test('authority reconciliation retains its refill when the old attempt rejects the same credential', async () => {
+  clearAllRouterAbEcdsaDerivationClientPresignatures();
+  const originalFetch = globalThis.fetch;
+  const source = new ReconciledSessionPresignatureSource();
+  globalThis.fetch = source.fetch.bind(source);
+  const input = await maintenanceInput(source, 60_000);
+  try {
+    expect(scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(input).scheduled).toBe(true);
+    await source.oldAdmissionStarted.promise;
+    const reconciledInput = await maintenanceInput(source, 60_000);
+    expect(
+      scheduleRouterAbEcdsaDerivationClientPresignaturePoolRefill(reconciledInput),
+    ).toMatchObject({
+      scheduled: false,
+      reason: 'in_flight_for_pool_key',
+    });
+    source.releaseOldAdmission.resolve();
+    await source.oldAdmissionFinished.promise;
+    await expect.poll(maintainedDepth.bind(null, reconciledInput), { timeout: 3_000 }).toBe(5);
+    expect(source.initRequests).toBe(5);
+  } finally {
+    source.releaseOldAdmission.resolve();
+    clearAllRouterAbEcdsaDerivationClientPresignatures();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+class TerminalSigningRefill implements RouterAbEcdsaDerivationClientSigningMaterialSource {
+  readonly kind = 'router_ab_ecdsa_derivation_client_signing_material_source_v1';
+  readonly calls = { init: 0, prepare: 0, reserve: 0, commit: 0, destroy: 0 };
+  private stepped = false;
+
+  constructor(readonly mode: 'ready' | 'lost_response' | 'cancelled') {}
+
+  readonly initClientPresignSession = initialPresignProgress;
+  readonly listAvailableClientPresignatures = emptyAvailablePresignatures;
+  readonly admitClientPresignature = unexpectedMaterialOperation;
+  readonly computeSignatureShareFromPresignatureHandle = unexpectedMaterialOperation;
+
+  async stepClientPresignSession() {
+    if (!this.stepped) {
+      this.stepped = true;
+      return {
+        stage: 'presign' as const,
+        event: 'final_batch_ready' as const,
+        outgoingMessages: [new Uint8Array([1]), new Uint8Array([2])],
+        candidateBigR33: Uint8Array.from(Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
+      };
+    }
+    return {
+      stage: 'done' as const,
+      event: 'presign_done' as const,
+      outgoingMessages: [],
+      presignatureHandle: 'terminal-material',
+      presignatureBigR33: Uint8Array.from(Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
+    };
+  }
+
+  async abortClientPresignSession(): Promise<void> {}
+  async destroyClientPresignature(): Promise<void> {
+    this.calls.destroy += 1;
+  }
+  async reserveClientPresignature() {
+    this.calls.reserve += 1;
+    return { kind: 'reserved' as const };
+  }
+  async commitClientPresignature(): Promise<void> {
+    this.calls.commit += 1;
+    throw new Error('terminal material exclusively reserved');
+  }
+
+  async fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const body = JSON.parse(String(init?.body));
+    if (String(input).endsWith('/presignature-pool/fill/init')) {
+      this.calls.init += 1;
+      return Response.json({
+        ok: true,
+        presignSessionId: body.presignSessionId,
+        ceremonyExpiresAtMs: body.poolFill.ceremonyExpiresAtMs,
+        materialExpiresAtMs: body.poolFill.materialExpiresAtMs,
+        stage: 'presign',
+        outgoingMessagesB64u: ['Aw'],
+      });
+    }
+    expect(String(input)).toContain('/ecdsa-derivation/sign/prepare');
+    this.calls.prepare += 1;
+    expect(body.presign_source.kind).toBe('final_presign_batch');
+    expect(body.presign_source.batch.outgoing_messages_b64u).toHaveLength(2);
+    const { presign_source: source, ...rawRequest } = body;
+    const request = parseRouterAbEcdsaDerivationEvmDigestSigningRequestV1(rawRequest);
+    expect(source.batch.scope).toEqual(request.scope);
+    const expectedId = Buffer.from(
+      await crypto.subtle.digest('SHA-256', Buffer.from(PRESIGNATURE_BIG_R_B64U, 'base64url')),
+    ).toString('base64url');
+    expect(request.client_presignature_id).toBe(`presig-${expectedId}`);
+    if (this.mode === 'lost_response') throw new Error('response lost after admission');
+    if (this.mode === 'cancelled') clearAllRouterAbEcdsaDerivationClientPresignatures();
+    return Response.json({
+      prepared_response: {
+        scope: request.scope,
+        request_id: request.request_id,
+        request_digest: await routerAbEcdsaDerivationEvmDigestSigningRequestDigestV1(request),
+        signing_digest: {
+          bytes: Array.from(Buffer.from(request.signing_digest_b64u, 'base64url')),
+        },
+        server_presignature_id: request.client_presignature_id,
+        server_big_r33_b64u: PRESIGNATURE_BIG_R_B64U,
+        signing_worker_rerandomization_contribution32_b64u: Buffer.alloc(32, 7).toString(
+          'base64url',
+        ),
+        signature_scheme: 'ecdsa_secp256k1_recoverable_v1',
+        prepared_at_ms: Date.now(),
+        expires_at_ms: request.expires_at_ms,
+      },
+      outgoing_messages_b64u: ['BA'],
+    });
+  }
+}
+
+for (const mode of ['ready', 'lost_response', 'cancelled'] as const) {
+  test(`terminal handoff ${mode} never publishes available material or repeats prepare`, async () => {
+    clearAllRouterAbEcdsaDerivationClientPresignatures();
+    const originalFetch = globalThis.fetch;
+    const source = new TerminalSigningRefill(mode);
+    globalThis.fetch = source.fetch.bind(source);
+    try {
+      const result = await signRouterAbEcdsaDerivationDigestWithPool({
+        relayerUrl: 'https://router.example',
+        scope: await buildScope(),
+        operationId: 'operation-terminal-sign',
+        operationDigests: {
+          lane_digest_b64u: 'CgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgo',
+          intent_digest_b64u: 'CwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCws',
+          display_digest_b64u: 'DAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAw',
+        },
+        materialActivation,
+        credential: { kind: 'wallet_session_opaque', walletSessionToken: 'test-token' },
+        keyHandle: parseEcdsaKeyHandle('key-handle-1'),
+        signingDigest32: new Uint8Array(32).fill(11),
+        clientSigningMaterial: source,
+        expiresAtMs: Date.now() + 30_000,
+        workerCtx: buildWorkerContext(),
+        authorization,
+      });
+      expect(result).toMatchObject({ ok: false, code: 'router_ab_sign_failed' });
+      expect(source.calls.init).toBe(1);
+      expect(source.calls.prepare).toBe(1);
+      expect(source.calls.reserve).toBe(mode === 'ready' ? 1 : 0);
+      expect(source.calls.commit).toBe(mode === 'ready' ? 1 : 0);
+      if (mode === 'ready') {
+        expect(result).toMatchObject({ message: 'terminal material exclusively reserved' });
+        expect(source.calls.destroy).toBe(1);
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+      clearAllRouterAbEcdsaDerivationClientPresignatures();
+    }
+  });
+}

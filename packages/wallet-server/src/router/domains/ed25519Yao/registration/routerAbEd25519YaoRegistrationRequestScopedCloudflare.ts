@@ -1,3 +1,4 @@
+import type { VerifiedNearRegistrationContinuationV1 } from './routerAbEd25519YaoRegistrationIntentAuthorization';
 import {
   parseRouterAbEd25519YaoRegistrationActivationExecuteRequestV1,
   parseRouterAbEd25519YaoRegistrationAdmissionRequestV1,
@@ -42,6 +43,7 @@ import type {
 
 export type RouterAbEd25519YaoRegistrationRequestScopedCloudflareInputV1 = {
   readonly request: Request;
+  readonly authorizeContinuation?: (input: { readonly lifecycleId: string; readonly credential: string }) => Promise<VerifiedNearRegistrationContinuationV1 | null>;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
   readonly backend: RouterAbEd25519YaoRegistrationBackend;
 };
@@ -115,6 +117,8 @@ export async function handleRouterAbEd25519YaoRegistrationRequestScopedCloudflar
     );
   }
   try {
+    const continuationFailure = await refreshContinuationAuthority(input, lifecycleId);
+    if (continuationFailure) return registrationResultResponse(continuationFailure);
     if (parsed.kind === 'admit') {
       return registrationResultResponse(
         await runAdmissionRequest(input, parsed.value, trace.value),
@@ -132,6 +136,27 @@ export async function handleRouterAbEd25519YaoRegistrationRequestScopedCloudflar
       { status: 503 },
     );
   }
+}
+
+async function refreshContinuationAuthority(
+  input: RouterAbEd25519YaoRegistrationRequestScopedCloudflareInputV1,
+  lifecycleId: string,
+): Promise<AuthorizationFailure | null> {
+  const match = /^Bearer (wst_[A-Za-z0-9_-]+)$/.exec(input.request.headers.get('authorization') || '');
+  if (!match) return null;
+  const credential = match[1];
+  const verified = credential && input.authorizeContinuation
+    ? await input.authorizeContinuation({ lifecycleId, credential })
+    : null;
+  if (!verified) return { ok: false, status: 403, code: 'registration_continuation_rejected', message: 'NEAR registration requires the active founding authentication method' };
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const loaded = await input.store.load(lifecycleId);
+    const result = await new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(loaded.state.authorization).bindVerifiedContinuation(verified);
+    if (!result.ok) return { ok: false, status: 403, code: result.code, message: result.message };
+    const committed = await input.store.commit({ lifecycleId, state: loaded.state, baseline: loaded.baseline });
+    if (committed.kind === 'stored') return null;
+  }
+  return { ok: false, status: 409, code: 'registration_continuation_contended', message: 'NEAR registration continuation changed concurrently' };
 }
 
 async function runAdmissionRequest(

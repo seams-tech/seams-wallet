@@ -18,6 +18,12 @@ const localRoot = path.resolve(
 const stateRoot = path.join(localRoot, '.local', 'cloudflare-state', 'router-ab');
 const gatewayRuntimeRoot = path.join(localRoot, '.runtime', 'wallet-gateway');
 const ceremonyPrivateJwkPath = path.join(gatewayRuntimeRoot, 'ceremony-private.jwk.json');
+const workersReadyPath = path.join(localRoot, '.runtime', 'role-workers.ready');
+// Separate local stacks reuse Worker names, so each needs its own discovery registry.
+const workerEnv = {
+  ...process.env,
+  WRANGLER_REGISTRY_PATH: path.join(localRoot, '.local', 'worker-registry'),
+};
 const children = [];
 let stopping = false;
 
@@ -39,6 +45,7 @@ async function main() {
   applyPrivateD1Migrations(runtime);
   startWorkers(runtime);
   await waitForWorkers(runtime);
+  writeFileSync(workersReadyPath, 'ready\n');
   console.log(
     JSON.stringify({
       kind: 'wallet_role_workers_ready_v1',
@@ -206,7 +213,7 @@ function startWorker(config) {
     ],
     {
       cwd: repoRoot,
-      env: process.env,
+      env: workerEnv,
       stdio: 'inherit',
       detached: process.platform !== 'win32',
     },
@@ -310,7 +317,7 @@ function shutdown(exitCode) {
   if (stopping) return;
   stopping = true;
   for (const child of children) stopChild(child);
-  setTimeout(forceStopChildren, 2_000).unref();
+  setTimeout(forceStopChildren.bind(undefined, exitCode), 2_000);
   process.exitCode = exitCode;
 }
 
@@ -322,12 +329,14 @@ function stopChild(child) {
   } catch {}
 }
 
-function forceStopChildren() {
+function forceStopChildren(exitCode) {
   for (const child of children) {
-    if (child.exitCode !== null || child.signalCode !== null) continue;
+    // Detached workers can outlive the package-manager process that launched them.
+    if (!child.pid) continue;
     try {
       if (process.platform !== 'win32' && child.pid) process.kill(-child.pid, 'SIGKILL');
       else child.kill('SIGKILL');
     } catch {}
   }
+  process.exit(exitCode);
 }

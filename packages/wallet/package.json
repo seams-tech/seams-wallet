@@ -1,6 +1,6 @@
 {
   "name": "@seams/wallet",
-  "version": "0.5.33",
+  "version": "0.6.0",
   "type": "module",
   "description": "Seams web and runtime TypeScript SDK for NEAR and EVM-family wallets",
   "main": "./dist/esm/index.js",
@@ -119,14 +119,12 @@
     "test:inline": "pnpm -C ../../tests test:inline",
     "test:e2e": "pnpm -C ../../tests test:e2e",
     "test:unit": "pnpm -C ../../tests test:unit",
-    "test:source-guards": "pnpm -C ../../tests test:source-guards",
     "test:integration:signing": "pnpm -C ../../tests test:integration:signing",
     "test:threshold-core": "pnpm -C ../../tests test:threshold-core",
     "smoke:evm-crypto:node-runtime": "node ./scripts/smoke/smoke-evm-crypto-node-runtime.mjs",
     "smoke:evm-crypto:workers-runtime": "node ./scripts/smoke/smoke-evm-crypto-workers-runtime.mjs",
     "smoke:evm-crypto:runtimes": "pnpm smoke:evm-crypto:node-runtime && pnpm smoke:evm-crypto:workers-runtime",
     "test:wallet-iframe": "pnpm -C ../../tests test:wallet-iframe",
-    "test:lit-components": "pnpm -C ../../tests test:lit-components",
     "test:relayer": "pnpm -C ../../tests test:relayer",
     "build:check:fresh": "./scripts/build/check-build-freshness.sh",
     "check:bundle-size": "node ./scripts/checks/report-wallet-iframe-bundle-size.mjs",
@@ -186,12 +184,11 @@
     }
   },
   "dependencies": {
-    "@lit/react": "^1.0.8",
     "@near-js/types": "^2.4.0",
     "@noble/hashes": "^2.0.1",
     "bs58": "^6.0.0",
     "idb": "^8.0.3",
-    "lit": "^3.3.1",
+    "preact": "10.29.8",
     "tslib": "^2.8.1",
     "viem": "^2.38.6"
   },

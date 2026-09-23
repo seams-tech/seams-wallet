@@ -1,0 +1,139 @@
+:where(.seams-wallet-ui) {
+  display: block;
+  box-sizing: border-box;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--seams-colors-textPrimary);
+  background-color: var(--seams-colors-colorBackground);
+  scrollbar-width: thin;
+}
+
+:where(.seams-wallet-ui).seams-confirmation-surface {
+  --seams-modal__passkey-halo-loading-touch-icon__stroke-width: 3.5;
+  background-color: transparent;
+}
+
+:where(.seams-wallet-ui) .seams-halo-border {
+  display: inline-block;
+  background: transparent;
+  border-radius: 2rem;
+  padding: 0;
+  max-width: 860px;
+  box-sizing: border-box;
+  width: fit-content;
+  height: fit-content;
+  box-shadow: var(--halo-box-shadow, none);
+  --ring-gap: 4px;
+  --ring-width: 4px;
+  --ring-border-radius: 2rem;
+  --inner-padding: 2rem;
+  --inner-background: var(--seams-grey650, transparent);
+  --ring-stops:
+    transparent 0%,
+    var(
+        --seams-colors-highlightHalo,
+        var(--seams-colors-highlightPrimary, var(--seams-colors-info, #4daffe))
+      )
+      10%,
+    var(
+        --seams-colors-highlightHalo,
+        var(--seams-colors-highlightPrimary, var(--seams-colors-info, #4daffe))
+      )
+      25%,
+    transparent 35%;
+}
+
+:where(.seams-wallet-ui .seams-halo-border) .halo-root {
+  position: relative;
+}
+
+:where(.seams-wallet-ui .seams-halo-border) .halo-outer {
+  position: relative;
+  border-radius: 2rem;
+  overflow: visible;
+}
+
+:where(.seams-wallet-ui .seams-halo-border) .halo-inner {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2rem;
+  padding: calc(var(--ring-gap) + var(--ring-width));
+  position: relative;
+}
+
+:where(.seams-wallet-ui .seams-halo-border) .halo-ring {
+  position: absolute;
+  inset: calc(-1 * (var(--ring-gap) + var(--ring-width)));
+  border-radius: calc(var(--ring-border-radius) + var(--ring-gap) + var(--ring-width));
+  pointer-events: none;
+  z-index: 3;
+  background: conic-gradient(from var(--halo-angle, 0deg), var(--ring-stops));
+  padding: var(--ring-width);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+:where(.seams-wallet-ui .seams-halo-border) .halo-content {
+  background: var(--inner-background);
+  border-radius: var(--ring-border-radius);
+  padding: var(--inner-padding);
+  position: relative;
+  z-index: 2;
+}
+
+:where(.seams-wallet-ui) .seams-passkey-halo-loading {
+  display: inline-block;
+}
+
+:where(.seams-wallet-ui) .seams-padlock-icon {
+  display: block;
+}
+
+:where(.seams-wallet-ui .seams-passkey-halo-loading) .seams-halo-border {
+  --ring-border-radius: 1.125rem;
+  --inner-padding: 0px;
+  --inner-background: var(--seams-modal__passkey-halo-loading__inner-background, transparent);
+  --ring-stops: var(
+    --seams-modal__passkey-halo-loading__ring-background,
+    transparent 0%,
+    var(--seams-colors-highlightHalo, var(--seams-colors-info, #4daffe)) 10%,
+    var(--seams-colors-highlightHalo, var(--seams-colors-info, #4daffe)) 25%,
+    transparent 35%
+  );
+}
+
+:where(.seams-wallet-ui .seams-passkey-halo-loading) .seams-passkey-loading-root {
+  display: inline-grid;
+}
+
+:where(.seams-wallet-ui .seams-passkey-halo-loading) .seams-passkey-loading-touch-icon-container {
+  display: grid;
+  place-items: center;
+  background-color: var(
+    --seams-modal__passkey-halo-loading-icon-container__background-color,
+    var(--seams-colors-passkeyHaloBackground, var(--seams-colors-surface, oklch(0.3 0.02 240)))
+  );
+  border-radius: var(--seams-modal__passkey-halo-loading-icon-container__border-radius, 1.125rem);
+  width: fit-content;
+  height: fit-content;
+}
+
+:where(.seams-wallet-ui .seams-passkey-halo-loading) .seams-passkey-loading-touch-icon {
+  color: var(
+    --seams-modal__passkey-halo-loading-touch-icon__color,
+    var(--seams-colors-textMuted, oklch(0.35 0.018 240))
+  );
+  margin: var(--seams-modal__passkey-halo-loading-touch-icon__margin, 0.75rem);
+}
+
+:where(.seams-wallet-ui[data-theme='dark'] .seams-passkey-halo-loading) .seams-passkey-loading-touch-icon[data-icon='fingerprint'] {
+  color: var(
+    --seams-modal__passkey-halo-loading-touch-icon__color,
+    color-mix(in oklab, var(--seams-colors-textMuted, oklch(0.35 0.018 240)) 88%, white)
+  );
+}

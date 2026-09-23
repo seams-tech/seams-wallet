@@ -67,6 +67,10 @@ export async function fetchRouterAbEcdsaDerivationJson<TData = unknown>(args: {
     }
 
     const data = (await response.json().catch(() => ({}))) as TData;
+    // A body-read abort must retain its timeout classification after headers arrive.
+    if (didTimeout) {
+      throw createRouterAbEcdsaDerivationTimeoutError({ operation: args.operation, timeoutMs });
+    }
     return { response, data };
   } catch (error: unknown) {
     if (didTimeout) {

@@ -1,3 +1,5 @@
+import { assertIndependentNearRegistration } from './registration-near-gate';
+import { ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1, ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1 } from '@shared/utils/routerAbEd25519Yao';
 import {
   expect,
   type APIRequestContext,
@@ -10,6 +12,66 @@ import { intendedTest as test, type IntendedSigningStage } from './harness';
 import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '../../../packages/wallet/src/core/signingEngine/workerManager/ecdsaPresignLifecycle';
+import { isHex, parseTransaction, recoverTransactionAddress } from 'viem';
+
+test('custom review requires wallet approval before a live Arc signature', async ({
+  harness,
+  context,
+  page,
+}) => {
+  const nearGate = new RegistrationPresignGate();
+  const nearProvisioning = '**/wallets/register/near-provisioning';
+  const holdNear = nearGate.hold.bind(nearGate);
+  await context.route(nearProvisioning, holdNear);
+  try {
+    await harness.registerPasskeyWallet();
+    await expect.poll(nearGate.requestCount.bind(nearGate)).toBeGreaterThan(0);
+    const pageRoot = page.getByTestId('intended-e2e-page');
+    await expect(pageRoot).toHaveAttribute('data-login-near-ready', 'pending');
+    const registration = JSON.parse(await page.getByTestId('intended-result-json').innerText());
+    const expectedAddress =
+      registration.action.result.ecdsaTargetKeys.arcEvm.thresholdOwnerAddress;
+    expect(typeof expectedAddress).toBe('string');
+    const result = page.getByTestId('reviewed-signing-result');
+    await page.getByRole('button', { name: 'Review Arc testnet signature', exact: true }).click();
+    const heading = page.getByRole('heading', { name: 'Review testnet signature', exact: true });
+    await expect(heading).toBeVisible();
+    nearGate.release();
+    await expect(pageRoot).toHaveAttribute('data-login-near-ready', 'ready', { timeout: 30_000 });
+    await expect(heading).toBeVisible();
+    await page.getByRole('textbox', { name: 'Review note' }).fill('Live MPC acceptance');
+    await expect(result).toHaveAttribute('data-state', 'pending');
+    const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+    const confirm = wallet
+      .locator('#seams-confirm-portal button.btn-confirm, #seams-confirm-portal button.confirm')
+      .last();
+    await expect(confirm).toBeHidden();
+    await page.getByRole('button', { name: 'Continue to wallet', exact: true }).click();
+    await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute(
+      'inert',
+      '',
+    );
+    await expect(confirm).toBeVisible({ timeout: 30_000 });
+    await expect(result).toHaveAttribute('data-state', 'pending');
+    await confirm.click();
+    await expect(result).toHaveAttribute('data-state', 'signed', { timeout: 60_000 });
+    const signed = JSON.parse(await result.innerText());
+    if (!isHex(signed.rawTxHex)) throw new Error('Expected a serialized signed transaction');
+    const transaction = parseTransaction(signed.rawTxHex);
+    expect(transaction.value ?? 0n).toBe(0n);
+    expect(transaction).toMatchObject({
+      type: 'eip1559',
+      chainId: 5_042_002,
+      to: '0x1111111111111111111111111111111111111111',
+    });
+    expect(
+      (await recoverTransactionAddress({ serializedTransaction: signed.rawTxHex })).toLowerCase(),
+    ).toBe(expectedAddress.toLowerCase());
+  } finally {
+    nearGate.release();
+    await context.unroute(nearProvisioning, holdNear);
+  }
+});
 
 type SigningRequests = {
   foregroundFills: number;
@@ -272,6 +334,142 @@ test('passkey registration establishes an immediately usable owner session witho
   }
 });
 
+async function rejectInitialPresignAdmission(counter: { requests: number }, route: Route): Promise<void> {
+  counter.requests += 1;
+  await route.fulfill({
+    status: 401,
+    json: { ok: false, code: 'wallet_session_invalid', message: 'Authority publication pending' },
+  });
+}
+
+function readRequestCount(counter: { requests: number }): number {
+  return counter.requests;
+}
+
+test('mixed registration reconciles rejected ECDSA refill after deferred authority publication', async ({
+  harness,
+  context,
+  page,
+}) => {
+  const nearGate = new RegistrationPresignGate();
+  const nearProvisioning = '**/wallets/register/near-provisioning';
+  const holdNear = nearGate.hold.bind(nearGate);
+  const presignInit = '**/router-ab/ecdsa-derivation/presignature-pool/fill/init';
+  const rejected = { requests: 0 };
+  const rejectInitial = rejectInitialPresignAdmission.bind(undefined, rejected);
+  await context.route(nearProvisioning, holdNear);
+  await context.route(presignInit, rejectInitial);
+  try {
+    await harness.registerPasskeyWallet();
+    await expect.poll(readRequestCount.bind(undefined, rejected)).toBeGreaterThan(0);
+    expect(await readDurablePresignatureCount(page)).toBe(0);
+    await context.unroute(presignInit, rejectInitial);
+    nearGate.release();
+    await harness.awaitNearReady();
+    await expect.poll(readDurablePresignatureCount.bind(undefined, page), { timeout: 15_000 })
+      .toBe(1);
+    await harness.signTempoTransaction('post_registration');
+  } finally {
+    nearGate.release();
+    await context.unroute(nearProvisioning, holdNear);
+    await context.unroute(presignInit, rejectInitial);
+  }
+});
+
+class StalledPresignExchange {
+  private steps = 0;
+  private held: { request: Request; startedAt: number } | null = null;
+  private releaseHeld: () => void = () => {};
+  private readonly released = new Promise<void>(this.captureRelease.bind(this));
+  private foregroundStarted = false;
+  private signingComplete = false;
+  private readonly identities = new Set<string>();
+  private initializations = 0;
+  competingBackgroundInitializations = 0;
+  failedAfterMs: number | null = null;
+
+  private captureRelease(resolve: () => void): void {
+    this.releaseHeld = resolve;
+  }
+
+  async route(route: Route): Promise<void> {
+    const request = route.request();
+    const body: unknown = request.postDataJSON();
+    if (!isPlainObject(body)) throw new Error('Expected a presign request');
+    if (new URL(request.url()).pathname.endsWith('/init')) {
+      if (typeof body.presignSessionId !== 'string') throw new Error('Missing ceremony identity');
+      this.identities.add(body.presignSessionId);
+      this.initializations += 1;
+      if (body.requestTag === 'foreground_presign_pool_refill') this.foregroundStarted = true;
+      else if (this.foregroundStarted && !this.signingComplete) {
+        this.competingBackgroundInitializations += 1;
+      }
+    } else {
+      this.steps += 1;
+      if (this.steps === 3) {
+        this.held = { request, startedAt: Date.now() };
+        await this.released;
+        await route.abort('aborted');
+        return;
+      }
+    }
+    await route.continue();
+  }
+
+  requestFailed(request: Request): void {
+    if (this.held?.request !== request) return;
+    this.failedAfterMs = Date.now() - this.held.startedAt;
+    this.release();
+  }
+
+  response(response: Response): void {
+    if (response.ok() && new URL(response.url()).pathname === '/router-ab/ecdsa-derivation/sign') {
+      this.signingComplete = true;
+    }
+  }
+
+  isHeld(): boolean {
+    return this.held !== null;
+  }
+
+  usesFreshRecoveryIdentity(): boolean {
+    return this.foregroundStarted && this.initializations >= 2 &&
+      this.identities.size === this.initializations;
+  }
+
+  release(): void {
+    this.releaseHeld();
+  }
+}
+
+test('immediate signing aborts a stalled refill and recovers without competing background generation', async ({
+  harness,
+  context,
+}) => {
+  const stalled = new StalledPresignExchange();
+  const route = stalled.route.bind(stalled);
+  const requestFailed = stalled.requestFailed.bind(stalled);
+  const response = stalled.response.bind(stalled);
+  const fill = '**/router-ab/ecdsa-derivation/presignature-pool/fill/*';
+  context.on('requestfailed', requestFailed);
+  context.on('response', response);
+  await context.route(fill, route);
+  try {
+    await harness.registerPasskeyWallet();
+    await expect.poll(stalled.isHeld.bind(stalled), { timeout: 15_000 }).toBe(true);
+    await harness.signTempoTransaction('post_registration');
+    expect(stalled.failedAfterMs).not.toBeNull();
+    expect(stalled.failedAfterMs).toBeLessThan(7_500);
+    expect(stalled.usesFreshRecoveryIdentity()).toBe(true);
+    expect(stalled.competingBackgroundInitializations).toBe(0);
+  } finally {
+    stalled.release();
+    context.off('requestfailed', requestFailed);
+    context.off('response', response);
+    await context.unroute(fill, route);
+  }
+});
+
 test('sustained Tempo and Arc signing uses fresh presignatures beyond pool capacity', async ({
   harness,
   context,
@@ -328,4 +526,12 @@ test('sustained Tempo and Arc signing uses fresh presignatures beyond pool capac
     context.off('request', collect);
     context.off('response', collectResponses);
   }
+});
+
+test('EVM registration and signatures complete while NEAR admission is held', async ({ harness, context }) => {
+  await assertIndependentNearRegistration({ harness, context, factor: 'passkey', path: ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1 });
+});
+
+test('EVM registration and signatures complete while NEAR execution is held', async ({ harness, context }) => {
+  await assertIndependentNearRegistration({ harness, context, factor: 'passkey', path: ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1 });
 });

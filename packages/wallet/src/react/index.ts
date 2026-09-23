@@ -26,10 +26,7 @@
 
 export { SeamsContextProvider, useSeams } from './context';
 export * from '../externalEvm';
-export {
-  ExternalEvmWalletPicker,
-  useExternalEvm,
-} from './externalEvm';
+export { ExternalEvmWalletPicker, useExternalEvm } from './externalEvm';
 export { SeamsWebProvider } from './context/SeamsWebProvider';
 
 // === RE-EXPORT CORE TYPES ===
@@ -167,7 +164,11 @@ export { TxExecutionStatus } from '../core/types/actions';
 // === REACT COMPONENTS ===
 ////////////////////////////
 
-export { AccountMenuButton, ProfileSettingsButton } from './components/AccountMenuButton';
+export {
+  AccountMenuButton,
+  ProfileSettingsButton,
+  WalletSettingsPage,
+} from './components/AccountMenuButton';
 export { QRCodeScanner } from './components/QRCodeScanner';
 export type { QRCodeScannerProps } from './components/QRCodeScanner';
 export { ShowQRCode } from './components/ShowQRCode';
@@ -284,3 +285,13 @@ export type {
   ProfileSettingsMenuItemId,
   HighlightedProfileMenuItem,
 } from './components/AccountMenuButton/types';
+
+export { TransactionReviewHost } from './transactionReview/TransactionReviewHost';
+export { TransactionReviewError } from './transactionReview/contract';
+export type {
+  TransactionReview,
+  TransactionReviewControls,
+  TransactionReviewValidity,
+  TransactionReviewErrorCode,
+  ReviewedTransactionInput,
+} from './transactionReview/contract';

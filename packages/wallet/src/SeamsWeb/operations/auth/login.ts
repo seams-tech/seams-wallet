@@ -3366,7 +3366,11 @@ async function emailOtpAuthorityUnlockEd25519Request(input: {
       remainingUses: DEFAULT_UNLOCK_REMAINING_USES,
     };
   }
-  if (!source.selection.authority.signerActivations.ed25519) return { kind: 'no_ed25519' };
+  if (
+    !source.selection.authority.signerActivations.ed25519 ||
+    (await hasPendingJoinedNearRegistration(source.selection))
+  )
+    return { kind: 'no_ed25519' };
   const request =
     await input.context.signingEngine.resolveOwnerAuthorityEd25519UnlockRequestInternal({
       walletSession: {
@@ -3378,6 +3382,35 @@ async function emailOtpAuthorityUnlockEd25519Request(input: {
       remainingUses: DEFAULT_UNLOCK_REMAINING_USES,
     });
   return request ?? { kind: 'no_ed25519' };
+}
+
+async function hasPendingJoinedNearRegistration(
+  selection: LinkedDeviceEmailOtpAuthoritySelection,
+): Promise<boolean> {
+  const activation = selection.authority.signerActivations.ed25519?.materialActivation;
+  if (!activation) return false;
+  const pendingRows = await IndexedDBManager.listPendingWalletRegistrationCommits();
+  return pendingRows.some(
+    pendingNearRegistrationMatchesAuthority.bind(undefined, selection, activation),
+  );
+}
+
+function pendingNearRegistrationMatchesAuthority(
+  selection: LinkedDeviceEmailOtpAuthoritySelection,
+  activation: MpcMaterialActivationRef,
+  pending: import('@/core/indexedDB').PendingWalletRegistrationCommitV1,
+): boolean {
+  return (
+    pending.operation === 'near_provisioning' &&
+    pending.phase === 'joined' &&
+    pending.signerPlanKind === 'near_ed25519_and_evm_family_ecdsa' &&
+    pending.walletId === selection.walletId &&
+    pending.walletAuthMethodId === selection.authMethod.walletAuthMethodId &&
+    mpcMaterialActivationRefsEqual(
+      pending.localMaterial.ed25519.metadata.materialActivation,
+      activation,
+    )
+  );
 }
 
 /**
@@ -3409,6 +3442,7 @@ async function unlockOwnerAuthorityEmailOtpEd25519(input: {
   const activation = selection.authority.signerActivations.ed25519?.materialActivation;
   if (!activation) return;
   if (unlocked.ed25519Activation.kind !== 'ed25519_activation_ready') {
+    if (await hasPendingJoinedNearRegistration(selection)) return;
     throw new Error('[login] owner Email OTP unlock built no Ed25519 runtime to install');
   }
   const ready = unlocked.ed25519Activation;
@@ -3558,6 +3592,21 @@ export async function unlockLinkedDeviceEmailOtpWallet(args: {
         kind: 'authenticated',
         walletId: selection.walletId,
         authMethod: SIGNER_AUTH_METHODS.emailOtp,
+      });
+      void resumeNearAfterSuccessfulUnlock({
+        context: args.context,
+        sessionAuthority: {
+          record: unlocked.walletSession,
+          operationCredential: unlocked.operationCredential,
+        },
+        factor: {
+          kind: 'email_otp',
+          provider: providerIdentity.provider,
+          providerSubject: providerIdentity.providerSubjectId,
+          emailHashHex: args.emailHashHex,
+        },
+        ownedFactorSecret: factorSecret32.slice().buffer,
+        custodyEnvelope: ownerAuthorityWalletCustodySeedEnvelope(unlocked),
       });
       return;
     }
@@ -4415,7 +4464,12 @@ async function unlockInternal(
       completedPasskeyExchangeEcdsaActivation = completedUnlock.activation;
       completedPasskeyEd25519Session = completedUnlock.result.ed25519Session;
       completedPasskeyWalletSessionAuthorization =
-        completedUnlock.result.walletSessionAuthorization ?? null;
+        completedUnlock.result.walletSessionAuthorization ??
+        (completedUnlock.activation
+          ? exactAuthorizationFromPasskeyEcdsaActivation(
+              completedUnlock.activation.sessionActivation,
+            )
+          : null);
       completedPasskeySessionCustody = completedUnlock.custody;
       await rememberPasskeySessionCustodyForExport({
         walletId: String(walletIdentity.walletId),
@@ -4480,6 +4534,27 @@ async function unlockInternal(
     }
     await persistSuccessfulLoginState(baseSignerSlot);
     void recoverNonceLanesAfterUnlock();
+    if (
+      completedPasskeyWalletSessionAuthorization &&
+      loginCredential &&
+      completedPasskeySessionCustody
+    ) {
+      const prfFirstB64u = passkeyPrfFirstB64uFromCredential(loginCredential);
+      if (prfFirstB64u) {
+        void resumeNearAfterSuccessfulUnlock({
+          context,
+          sessionAuthority: completedPasskeyWalletSessionAuthorization,
+          factor: {
+            kind: 'passkey',
+            rpId: signingEngine.getRpId(),
+            credentialIdB64u: passkeyCredentialIdB64uFromAuthentication(loginCredential),
+            prfFirstB64u,
+          },
+          ownedFactorSecret: base64UrlDecode(prfFirstB64u).slice().buffer,
+          custodyEnvelope: completedPasskeySessionCustody.envelope,
+        });
+      }
+    }
 
     // Return the same public result shape as the server-session branch.
     const baseLoginResult = buildSuccessfulLoginResult({
@@ -7575,8 +7650,9 @@ async function resolveCanonicalThresholdEcdsaWarmSessionContext(
   for (const capability of capabilities) {
     const manifest = capability.manifest;
     for (const { chainTarget: target } of configuredTargets) {
-      const includesTarget = manifest.signer.scope.targetMemberships.some((membership) =>
-        thresholdEcdsaChainTargetKey(membership) === thresholdEcdsaChainTargetKey(target),
+      const includesTarget = manifest.signer.scope.targetMemberships.some(
+        (membership) =>
+          thresholdEcdsaChainTargetKey(membership) === thresholdEcdsaChainTargetKey(target),
       );
       if (!includesTarget) continue;
       const publicFacts = manifest.durableMaterial.roleLocalPublicFacts;
@@ -7588,10 +7664,8 @@ async function resolveCanonicalThresholdEcdsaWarmSessionContext(
         runtimePolicyScope: laneRuntimePolicyScope,
       });
       if (
-        String(signingRootBinding.signingRootId) !==
-          String(manifest.signer.signingRootId) ||
-        String(signingRootBinding.signingRootVersion) !==
-          String(manifest.signer.signingRootVersion)
+        String(signingRootBinding.signingRootId) !== String(manifest.signer.signingRootId) ||
+        String(signingRootBinding.signingRootVersion) !== String(manifest.signer.signingRootVersion)
       ) {
         throw new Error(
           `[login] threshold ECDSA canonical runtime policy scope mismatch for ${thresholdEcdsaChainTargetKey(target)}`,
@@ -8217,10 +8291,8 @@ async function migrateLegacyEmailOtpLocalPresentation(
   walletId: WalletId,
   projections: readonly LocalWalletAuthMethodProjectionV2[],
 ): Promise<LocalWalletAuthMethodProjectionV2[]> {
-  const candidates: Extract<
-    LocalWalletAuthMethodProjectionV2,
-    { readonly kind: 'email_otp' }
-  >[] = [];
+  const candidates: Extract<LocalWalletAuthMethodProjectionV2, { readonly kind: 'email_otp' }>[] =
+    [];
   for (const projection of projections) {
     if (needsLegacyEmailOtpPresentationMigration(projection)) candidates.push(projection);
   }
@@ -8228,10 +8300,7 @@ async function migrateLegacyEmailOtpLocalPresentation(
 
   // Older installations retained this verified identity only on the local
   // Ed25519 lane. The repository accepts it only when it hashes to the V2 method.
-  const providerSubject = await readEmailOtpProviderSubjectForWalletV1(
-    IndexedDBManager,
-    walletId,
-  );
+  const providerSubject = await readEmailOtpProviderSubjectForWalletV1(IndexedDBManager, walletId);
   const emailAddress = parseVerifiedEmailAddress(providerSubject);
   if (!emailAddress.ok) return [...projections];
 
@@ -8357,4 +8426,22 @@ export async function logout(context: LogoutOperationContext): Promise<void> {
     }
   }
   if (failed) throw failure;
+}
+
+async function resumeNearAfterSuccessfulUnlock(
+  args: Parameters<
+    typeof import('../registration/registration').resumeNearRegistrationAfterUnlock
+  >[0],
+): Promise<void> {
+  try {
+    const registration = await import('../registration/registration');
+    await registration.resumeNearRegistrationAfterUnlock(args);
+  } catch (error) {
+    console.warn(
+      '[login] NEAR continuation could not start',
+      error instanceof Error ? error.message : 'module unavailable',
+    );
+  } finally {
+    new Uint8Array(args.ownedFactorSecret).fill(0);
+  }
 }

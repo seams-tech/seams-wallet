@@ -31,7 +31,9 @@ export async function preloadWalletHostRecoveryCodeSurface(): Promise<void> {
   recoveryCodeRuntimePromise ??= import('./runtime-recovery-codes');
   recoveryCodeSurfacePromise ??= Promise.all([
     recoveryCodeRuntimePromise,
-    import('../../../core/signingEngine/uiConfirm/ui/lit-components/RecoveryCodeBackup/host'),
+    import(
+      '../../../core/signingEngine/uiConfirm/ui/preact/mountRecoveryCodeBackupSurface'
+    ),
   ]).then(() => undefined);
   await recoveryCodeSurfacePromise;
 }

@@ -8,9 +8,11 @@ import { parseClearVolatileWarmMaterialCommand } from '@/core/signingEngine/sess
 import { bytesToHex } from '../../chains/evm/bytes';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import {
+  decodeSigningSessionSecret32,
   SIGNING_SESSION_SEAL_GROUP_ID,
   WALLET_SESSION_SEAL_BASE_PATH,
 } from '@shared/utils/signingSessionSeal';
+import { base64UrlEncode } from '@shared/utils/base64';
 import {
   joinNormalizedUrl,
   normalizeNonNegativeInteger,
@@ -19,6 +21,9 @@ import {
   normalizePositiveInteger,
 } from '@shared/utils/normalize';
 import { getShamir3PassRuntime, warmupShamir3PassRuntime } from './shamir3pass/runtime';
+
+import { ClientSealPreparations } from './shamir3pass/clientSealPreparation';
+const clientSealPreparations = new ClientSealPreparations(getShamir3PassRuntime);
 
 type WarmSessionMaterialEntry = {
   prfFirstHandle: string;
@@ -133,6 +138,16 @@ function abortSigningSessionSealRoute(controller: AbortController): void {
 type PasskeyMpcSessionWorkerIncomingMessage =
   | { kind: 'ping'; id?: string }
   | { kind: 'prewarm'; id?: string }
+  | {
+      kind: 'prepare_client_seal';
+      id?: string;
+      payload: { preparationId: string; thresholdSessionId: string; prfFirstB64u: string } | null;
+    }
+  | {
+      kind: 'discard_client_seal';
+      id?: string;
+      payload: { preparationId: string; thresholdSessionId: string } | null;
+    }
   | { kind: 'material_put'; id?: string; payload: WarmSessionMaterialPutPayload | null }
   | { kind: 'status_read'; id?: string; payload: WarmSessionStatusReadPayload | null }
   | { kind: 'status_batch_read'; id?: string; payload: WarmSessionStatusBatchReadPayload | null }
@@ -168,6 +183,42 @@ function parseSessionStringArray(value: unknown): string[] | null {
     output.push(parsed);
   }
   return output;
+}
+
+function parseClientSealPreparation(
+  value: unknown,
+): { preparationId: string; thresholdSessionId: string; prfFirstB64u: string } | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const fields = Object.keys(value);
+  if (
+    fields.length !== 3 ||
+    !fields.includes('preparationId') ||
+    !fields.includes('thresholdSessionId') ||
+    !fields.includes('prfFirstB64u')
+  )
+    return null;
+  const preparationId = parseSessionString(Reflect.get(value, 'preparationId'));
+  const thresholdSessionId = parseSessionString(Reflect.get(value, 'thresholdSessionId'));
+  const prfFirstB64u = parseSessionString(Reflect.get(value, 'prfFirstB64u'));
+  return preparationId && thresholdSessionId && prfFirstB64u
+    ? { preparationId, thresholdSessionId, prfFirstB64u }
+    : null;
+}
+
+function parseClientSealDiscard(
+  value: unknown,
+): { preparationId: string; thresholdSessionId: string } | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const fields = Object.keys(value);
+  if (
+    fields.length !== 2 ||
+    !fields.includes('preparationId') ||
+    !fields.includes('thresholdSessionId')
+  )
+    return null;
+  const preparationId = parseSessionString(Reflect.get(value, 'preparationId'));
+  const thresholdSessionId = parseSessionString(Reflect.get(value, 'thresholdSessionId'));
+  return preparationId && thresholdSessionId ? { preparationId, thresholdSessionId } : null;
 }
 
 function parseWarmSessionMaterialPutPayload(value: unknown): WarmSessionMaterialPutPayload | null {
@@ -398,6 +449,10 @@ function parsePasskeyMpcSessionWorkerMessage(
       }
       if (Object.keys(payload).length !== 0) return { kind: 'unknown', id, type };
       return { kind: 'prewarm', ...(id ? { id } : {}) };
+    case 'PREPARE_SESSION_CLIENT_SEAL':
+      return { kind: 'prepare_client_seal', id, payload: parseClientSealPreparation(payload) };
+    case 'DISCARD_SESSION_CLIENT_SEAL':
+      return { kind: 'discard_client_seal', id, payload: parseClientSealDiscard(payload) };
     case 'WARM_SESSION_MATERIAL_PUT':
       return {
         kind: 'material_put',
@@ -578,6 +633,7 @@ function deleteWarmSessionPrfHandle(thresholdSessionId: string): void {
 }
 
 function clearWarmSessionPrfHandles(): void {
+  clientSealPreparations.clear();
   warmSessionPrfHandleCache.clear();
   passkeyPrfFirstHandleStore.clear();
   passkeyServerSealedSecretCache.clear();
@@ -1025,28 +1081,14 @@ async function runSigningSessionSealAndPersist(args: {
   const task = (async (): Promise<OkSealResult | ErrResult> => {
     const diagnostics = createWarmSessionSealAndPersistDiagnostics();
     try {
-      const runtimeSetupStartedAt = performance.now();
-      const runtime = await getShamir3PassRuntime();
-      const clientKeyHandle = await runtime.createClientKeyHandle({
-        groupId: SIGNING_SESSION_SEAL_GROUP_ID,
-      });
-      recordWarmSessionSealAndPersistDiagnosticDuration({
-        diagnostics,
-        bucket: 'runtimeSetupMs',
-        startedAt: runtimeSetupStartedAt,
-      });
+      const prepared = await clientSealPreparations.take(
+        thresholdSessionId,
+        activeEntry.secret.prfFirstB64u,
+      );
+      const { runtime, keyHandle, ciphertext: clientEncryptedCiphertext } = prepared;
+      diagnostics.runtimeSetupMs = prepared.runtimeSetupMs;
+      diagnostics.clientSealMs = prepared.clientSealMs;
       try {
-        const clientSealStartedAt = performance.now();
-        const clientEncryptedCiphertext = await runtime.addClientSealWithKeyHandle({
-          ciphertextB64u: activeEntry.secret.prfFirstB64u,
-          keyHandle: clientKeyHandle.keyHandle,
-        });
-        recordWarmSessionSealAndPersistDiagnosticDuration({
-          diagnostics,
-          bucket: 'clientSealMs',
-          startedAt: clientSealStartedAt,
-        });
-
         const serverSealRouteStartedAt = performance.now();
         const applied = await callSigningSessionSealRoute({
           operation: 'apply-server-seal',
@@ -1095,7 +1137,7 @@ async function runSigningSessionSealAndPersist(args: {
           const clientUnsealStartedAt = performance.now();
           sealedSecretB64u = await runtime.removeClientSealWithKeyHandle({
             ciphertextB64u: applied.ciphertext,
-            keyHandle: clientKeyHandle.keyHandle,
+            keyHandle: keyHandle,
           });
           recordWarmSessionSealAndPersistDiagnosticDuration({
             diagnostics,
@@ -1117,9 +1159,7 @@ async function runSigningSessionSealAndPersist(args: {
           diagnostics,
         };
       } finally {
-        await runtime
-          .destroyClientKeyHandle({ keyHandle: clientKeyHandle.keyHandle })
-          .catch(() => undefined);
+        await runtime.destroyClientKeyHandle({ keyHandle: keyHandle }).catch(() => undefined);
       }
     } catch (error: unknown) {
       return {
@@ -1200,10 +1240,15 @@ async function runSigningSessionRehydrate(args: {
         });
         if (!removed.ok) return removed;
 
-        const prfFirstB64u = await runtime.removeClientSealWithKeyHandle({
+        const plaintext = await runtime.removeClientSealWithKeyHandleToBytes({
           ciphertextB64u: removed.ciphertext,
           keyHandle: clientKeyHandle.keyHandle,
         });
+        const secret32 = decodeSigningSessionSecret32(plaintext);
+        plaintext.fill(0);
+        if (!secret32) throw new Error('Restored passkey PRF has invalid length');
+        const prfFirstB64u = base64UrlEncode(secret32);
+        secret32.fill(0);
         const policy = resolvePolicyFromServerAndLocal({
           localRemainingUses,
           localExpiresAtMs,
@@ -1260,9 +1305,41 @@ function postPasskeyMpcSessionWorkerResponse(
   } catch {}
 }
 
+async function handleClientSealPreparation(
+  incoming: Extract<
+    PasskeyMpcSessionWorkerIncomingMessage,
+    { kind: 'prepare_client_seal' | 'discard_client_seal' }
+  >,
+): Promise<void> {
+  try {
+    if (!incoming.payload) throw new Error('Invalid client seal preparation request');
+    if (incoming.kind === 'prepare_client_seal')
+      await clientSealPreparations.prepare(
+        incoming.payload.thresholdSessionId,
+        incoming.payload.preparationId,
+        incoming.payload.prfFirstB64u,
+      );
+    else
+      await clientSealPreparations.discard(
+        incoming.payload.thresholdSessionId,
+        incoming.payload.preparationId,
+      );
+    postPasskeyMpcSessionWorkerResponse(incoming.id, { success: true, data: { ok: true } });
+  } catch (error: unknown) {
+    postPasskeyMpcSessionWorkerResponse(incoming.id, {
+      success: false,
+      error: error instanceof Error ? error.message : 'Client seal preparation failed',
+    });
+  }
+}
+
 self.onmessage = (event: MessageEvent) => {
   const incoming = parsePasskeyMpcSessionWorkerMessage(event.data);
   switch (incoming.kind) {
+    case 'prepare_client_seal':
+    case 'discard_client_seal':
+      void handleClientSealPreparation(incoming);
+      return;
     case 'ping':
       postPasskeyMpcSessionWorkerResponse(incoming.id, { success: true, data: { ok: true } });
       return;
@@ -1379,6 +1456,7 @@ self.onmessage = (event: MessageEvent) => {
     case 'volatile_clear': {
       const command = parseClearVolatileWarmMaterialCommand(incoming.payload);
       if (command?.scope.kind === 'session') {
+        clientSealPreparations.clearSession(String(command.scope.thresholdSessionId));
         deleteWarmSessionPrfHandle(String(command.scope.thresholdSessionId));
       }
       postPasskeyMpcSessionWorkerResponse(incoming.id, { success: true, data: { ok: true } });

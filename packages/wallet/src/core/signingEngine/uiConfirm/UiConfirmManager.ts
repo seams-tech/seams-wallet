@@ -61,6 +61,7 @@ type PendingWorkerRequest = {
 type PendingConfirmState =
   | {
       kind: 'awaiting_decision';
+      context: UiConfirmContext;
       request: UserConfirmRequest;
       requestToken: string;
       onSigningOperationInteractionEvent?:
@@ -209,6 +210,7 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
     const requestToken = this.generateMessageId();
     this.pendingConfirmRequests.set(requestId, {
       kind: 'awaiting_decision',
+      context: { ...this.context },
       request,
       requestToken,
       ...(options?.onSigningOperationInteractionEvent
@@ -313,7 +315,6 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
       loading: false,
       theme: this.context.getTheme?.() ?? 'dark',
       uiMode: confirmationConfig.uiMode,
-      nearAccountIdOverride: walletLabel,
     });
     const state = this.transactionPreparationModalState;
     if (state.kind !== 'opening' || state.generation !== generation) {
@@ -460,7 +461,6 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
       loading: true,
       theme: this.context.getTheme?.() ?? 'dark',
       uiMode: 'modal',
-      nearAccountIdOverride: walletLabel,
     });
     const state = this.registrationPreparationModalState;
     if (state.kind !== 'opening' || state.generation !== generation) {
@@ -698,7 +698,7 @@ class UiConfirmWorkerManagerImpl implements UiConfirmManager {
     if (promptEnv) {
       const pending = this.pendingConfirmRequests.get(promptEnv.requestId);
       if (!pending || pending.kind !== 'awaiting_decision') return;
-      const ctx = this.getContext();
+      const ctx = pending.context;
       const sourceWorker = event.currentTarget;
       const signingSurface =
         promptEnv.data.type === UserConfirmationType.SIGN_TRANSACTION ||

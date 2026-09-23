@@ -11,11 +11,12 @@ export { localPeerVerifyingKeyHex } from './local-key-material.mjs';
 
 import { localPeerSigningKeyBase64Url, localPeerVerifyingKeyHex } from './local-key-material.mjs';
 
+const localPortOffset = Number(process.env.SEAMS_LOCAL_PORT_OFFSET || 0);
 const STRICT_WORKER_ROLES = Object.freeze([
-  { role: 'router', port: 4102 },
+  { role: 'router', port: 4102 + localPortOffset },
   {
     role: 'deriver-a',
-    port: 4103,
+    port: 4103 + localPortOffset,
     privateD1: {
       databaseName: 'router-ab-deriver-a-private',
       migrationsDirectory: 'deriver-a',
@@ -24,7 +25,7 @@ const STRICT_WORKER_ROLES = Object.freeze([
   },
   {
     role: 'deriver-b',
-    port: 4104,
+    port: 4104 + localPortOffset,
     privateD1: {
       databaseName: 'router-ab-deriver-b-private',
       migrationsDirectory: 'deriver-b',
@@ -33,14 +34,14 @@ const STRICT_WORKER_ROLES = Object.freeze([
   },
   {
     role: 'signing-worker',
-    port: 4105,
+    port: 4105 + localPortOffset,
     privateD1: {
       databaseName: 'router-ab-signing-worker-private',
       migrationsDirectory: 'signing-worker',
       localDatabaseId: '00000000-0000-0000-0000-0000000094c1',
     },
   },
-  { role: 'tenant-root-control-plane', port: 4106 },
+  { role: 'tenant-root-control-plane', port: 4106 + localPortOffset },
 ]);
 const X25519_PKCS8_PREFIX = Buffer.from('302e020100300506032b656e04220420', 'hex');
 const X25519_SPKI_PREFIX = Buffer.from('302a300506032b656e032100', 'hex');
@@ -314,7 +315,7 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
     ),
   });
   const ceremonyJwksJson = requireNonEmptyInput(input.ceremonyJwksJson, 'ceremonyJwksJson');
-  const sdkRouterUrl = requiredEnv(routerEnv, 'GATEWAY_PUBLIC_URL');
+  const sdkRouterUrl = process.env.SEAMS_INTENDED_ROUTER_URL || requiredEnv(routerEnv, 'GATEWAY_PUBLIC_URL');
   const mpcRouterUrl = `http://127.0.0.1:${STRICT_WORKER_ROLES[0].port}`;
 
   mkdirSync(outputRoot, { recursive: true });

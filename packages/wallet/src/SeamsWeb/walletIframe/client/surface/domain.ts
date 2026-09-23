@@ -121,6 +121,13 @@ export type ModalRegistrationConfirmSurface = OwnedWalletIframeSurface & {
   userActivation: 'wallet_confirm_button_required';
 };
 
+export type ModalTransactionReviewSurface = {
+  readonly kind: 'modal_transaction_review';
+  readonly connectionId: WalletIframeConnectionId;
+  readonly identity: RequestSurfaceIdentity;
+  readonly presentation: WalletIframeModalPresentation;
+};
+
 export type ModalTransactionConfirmSurface = OwnedWalletIframeSurface & {
   kind: 'modal_transaction_confirm';
   identity: RequestSurfaceIdentity;
@@ -165,6 +172,7 @@ export type WalletIframeSurface =
   | HiddenWalletIframeSurface
   | ModalRegistrationConfirmSurface
   | ModalTransactionConfirmSurface
+  | ModalTransactionReviewSurface
   | ModalKeyExportConfirmSurface
   | ModalUnlockConfirmSurface
   | ModalRecoveryCodesSurface
@@ -195,6 +203,18 @@ type RequestPresentationEvent = RequestOwnedEvent & {
 };
 
 export type WalletIframeSurfaceEvent =
+  | (RequestOwnedEvent & {
+      kind: 'transaction_review_started';
+      presentation: WalletIframeModalPresentation;
+    })
+  | (RequestOwnedEvent & {
+      kind: 'transaction_review_handoff';
+      presentation: WalletIframeModalPresentation;
+    })
+  | (RequestOwnedEvent & {
+      kind: 'transaction_review_returned';
+      presentation: WalletIframeModalPresentation;
+    })
   | (RequestPresentationEvent & {
       kind: 'registration_modal_request_started';
       preparation: PasskeyRegistrationPreparationReceipt;
@@ -511,6 +531,41 @@ export function reduceWalletIframeSurface(
   event: WalletIframeSurfaceEvent,
 ): ReduceWalletIframeSurfaceResult {
   switch (event.kind) {
+    case 'transaction_review_started':
+      return reduceStartResult(
+        current,
+        beginForegroundWalletIframeSurface(current, {
+          kind: 'modal_transaction_review',
+          connectionId: event.connectionId,
+          identity: event.identity,
+          presentation: event.presentation,
+        }),
+      );
+    case 'transaction_review_handoff':
+      if (current.kind !== 'modal_transaction_review' || !requestEventOwnsSurface(current, event)) {
+        return { kind: 'ignored', surface: current };
+      }
+      return {
+        kind: 'applied',
+        surface: modalTransactionConfirmSurface({
+          connectionId: event.connectionId,
+          identity: event.identity,
+          presentation: event.presentation,
+        }),
+      };
+    case 'transaction_review_returned':
+      if (current.kind !== 'modal_transaction_confirm' || !requestEventOwnsSurface(current, event)) {
+        return { kind: 'ignored', surface: current };
+      }
+      return {
+        kind: 'applied',
+        surface: {
+          kind: 'modal_transaction_review',
+          connectionId: event.connectionId,
+          identity: event.identity,
+          presentation: event.presentation,
+        },
+      };
     case 'registration_modal_request_started':
       return reduceStartResult(
         current,

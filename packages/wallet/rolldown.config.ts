@@ -14,31 +14,51 @@ const CLIENT_REACT_ROOT_ABS = path.resolve(SDK_ROOT_ABS, 'src/react');
 const CLIENT_PLUGINS_ROOT_ABS = path.resolve(SDK_ROOT_ABS, 'src/plugins');
 const WALLET_STATIC_ASSETS_ROOT_ABS = path.resolve(SDK_ROOT_ABS, 'src/static/wallet-assets');
 const WALLET_STATIC_ASSET_FILES = ['wallet-shims.js', 'wallet-service.css'] as const;
-const WALLET_HOST_STATIC_ASSETS = [
-  {
-    source: path.resolve(
-      SDK_ROOT_ABS,
-      'src/SeamsWeb/walletIframe/host/lit-ui/auth-menu/auth-menu.css',
-    ),
-    fileName: 'auth-menu.css',
-  },
+const PREACT_CONFIRMATION_CSS_FILES = [
+  'confirmation-primitives.css',
+  'confirm-header.css',
+  'confirmation-body.css',
+  'passkey-registration.css',
+  'email-otp.css',
+  'confirm-content.css',
+  'transaction-tree.css',
+  'confirmation-modal.css',
+  'confirmation-drawer.css',
+  'export-private-key.css',
+  'transaction-review.css',
 ] as const;
 const NEAR_SIGNER_WASM_JS_ABS = path.resolve(
   SDK_ROOT_ABS,
   '../../wasm/near_signer/pkg/wasm_signer_worker.js',
 );
+const NEAR_SIGNER_WASM_DTS_ABS = path.resolve(
+  SDK_ROOT_ABS,
+  '../../wasm/near_signer/pkg/wasm_signer_worker.d.ts',
+);
 const NEAR_SIGNER_WASM_JS_OUT = 'wasm/near_signer/pkg/wasm_signer_worker.js';
+const NEAR_SIGNER_WASM_DTS_OUT = 'wasm/near_signer/pkg/wasm_signer_worker.d.ts';
 const ED25519_YAO_CLIENT_WASM_JS_ABS = path.resolve(
   SDK_ROOT_ABS,
   '../../crates/router-ab-ed25519-yao-client/pkg/router_ab_ed25519_yao_client.js',
 );
+const ED25519_YAO_CLIENT_WASM_DTS_ABS = path.resolve(
+  SDK_ROOT_ABS,
+  '../../crates/router-ab-ed25519-yao-client/pkg/router_ab_ed25519_yao_client.d.ts',
+);
 const ED25519_YAO_CLIENT_WASM_JS_OUT =
   'wasm/router_ab_ed25519_yao_client/pkg/router_ab_ed25519_yao_client.js';
+const ED25519_YAO_CLIENT_WASM_DTS_OUT =
+  'wasm/router_ab_ed25519_yao_client/pkg/router_ab_ed25519_yao_client.d.ts';
 const ECDSA_CLIENT_WASM_JS_ABS = path.resolve(
   SDK_ROOT_ABS,
   '../../wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client.js',
 );
+const ECDSA_CLIENT_WASM_DTS_ABS = path.resolve(
+  SDK_ROOT_ABS,
+  '../../wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client.d.ts',
+);
 const ECDSA_CLIENT_WASM_JS_OUT = 'wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client.js';
+const ECDSA_CLIENT_WASM_DTS_OUT = 'wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client.d.ts';
 const NEAR_SIGNER_WORKER_ENUM_EXPORTS = [
   'ConfirmationBehavior',
   'ConfirmationUIMode',
@@ -123,17 +143,10 @@ const external = [
   'react',
   'react-dom',
   'react/jsx-runtime',
+  /^preact(?:\/.*)?$/,
 
   // All @near-js packages
   /@near-js\/.*/,
-
-  // Exclude Lit SSR shim (not needed for client-side only)
-  '@lit-labs/ssr-dom-shim',
-  // Externalize Lit for library builds so host bundler resolves a single copy
-  'lit',
-  /lit\/directives\/.*/,
-  'lit-html',
-  /lit-html\/.*/,
 
   // Node.js native modules used by package tooling helpers
   'fs',
@@ -150,10 +163,10 @@ const external = [
   'qrcode',
   'jsqr',
   '@noble/hashes',
-  /@noble\/hashes\/.*/,
+  // Keep viem's extensionless v1 hash imports bundled with its own dependency.
+  /^@noble\/hashes\/.*\.js$/,
   'idb',
   'near-api-js',
-  'viem',
 
   // Other common packages
   'tslib',
@@ -164,11 +177,8 @@ const external = [
   /\.css$/,
 ];
 
-// External dependencies for embedded components.
-// IMPORTANT: Externalize Lit so the host app's bundler (e.g., Vite) serves a consistent copy.
-// Bundling Lit directly into SDK bundles caused internal node_modules paths and ESM export mismatches.
 // Embedded bundles are loaded directly in the browser (no bundler/import maps),
-// so do NOT externalize dependencies. Bundle everything needed.
+// so do not externalize dependencies. Bundle everything needed.
 const embeddedExternal: (string | RegExp)[] = [];
 
 const aliasConfig = {
@@ -192,21 +202,9 @@ const copyWalletStaticAssets = (sdkDir: string): void => {
   for (const fileName of WALLET_STATIC_ASSET_FILES) {
     copyWalletStaticAsset(sdkDir, fileName);
   }
-  for (const asset of WALLET_HOST_STATIC_ASSETS) {
-    fs.copyFileSync(asset.source, path.join(sdkDir, asset.fileName));
-  }
 };
 
-const SEAMS_COMPONENT_HOSTS = [
-  'seams-tx-tree',
-  'seams-drawer',
-  'seams-modal-tx-confirmer',
-  'seams-drawer-tx-confirmer',
-  'seams-tx-confirm-content',
-  'seams-halo-border',
-  'seams-passkey-halo-loading',
-  'seams-recovery-code-backup-viewer',
-] as const;
+const SEAMS_UI_SURFACE_SELECTORS = ['.seams-wallet-ui'] as const;
 
 const emitSeamsThemeAliases = (vars: any, indent = '  '): string[] => [
   `${indent}--seams-colors-textPrimary: ${vars.textPrimary};`,
@@ -216,6 +214,7 @@ const emitSeamsThemeAliases = (vars: any, indent = '  '): string[] => [
   `${indent}--seams-colors-colorBackground: ${vars.colorBackground};`,
   `${indent}--seams-colors-surface: ${vars.surface};`,
   `${indent}--seams-colors-surface2: ${vars.surface2};`,
+  `${indent}--seams-colors-txDetailsBackground: ${vars.txDetailsBackground};`,
   `${indent}--seams-colors-surface3: ${vars.surface3};`,
   `${indent}--seams-colors-surface4: ${vars.surface4};`,
   `${indent}--seams-colors-primary: ${vars.primary};`,
@@ -243,7 +242,7 @@ const emitSeamsThemeAliases = (vars: any, indent = '  '): string[] => [
   `${indent}--seams-colors-highlightAmount: ${vars.highlightAmount};`,
 ];
 
-const buildSeamsComponentsCss = async (sdkRoot: string): Promise<string> => {
+const buildWalletThemeCss = async (sdkRoot: string): Promise<string> => {
   const palettePath = path.join(sdkRoot, 'src/theme/palette.json');
   const paletteRaw = fs.readFileSync(palettePath, 'utf-8');
   const palette = JSON.parse(paletteRaw) as any;
@@ -253,16 +252,20 @@ const buildSeamsComponentsCss = async (sdkRoot: string): Promise<string> => {
   const { createThemeTokens } = base as any;
   const { DARK_THEME: darkVars, LIGHT_THEME: lightVars } = createThemeTokens(palette);
 
-  const hostSelector = SEAMS_COMPONENT_HOSTS.join(',\n');
+  const surfaceSelector = SEAMS_UI_SURFACE_SELECTORS.join(',\n');
   const lines: string[] = [];
 
   lines.push(
     '/* Generated from src/theme/palette.json + src/theme/base-styles.js. Do not edit by hand. */',
   );
-  lines.push(`${hostSelector} {`);
+  lines.push(`${surfaceSelector} {`);
   lines.push(`  --seams-modal__btn__focus-outline-color: ${darkVars?.focus || '#3b82f6'};`);
-  lines.push('  --seams-tree__file-content__scrollbar-track__background: rgba(255, 255, 255, 0.06);');
-  lines.push('  --seams-tree__file-content__scrollbar-thumb__background: rgba(255, 255, 255, 0.22);');
+  lines.push(
+    '  --seams-tree__file-content__scrollbar-track__background: rgba(255, 255, 255, 0.06);',
+  );
+  lines.push(
+    '  --seams-tree__file-content__scrollbar-thumb__background: rgba(255, 255, 255, 0.22);',
+  );
 
   const pushScale = (name: string, scale: Record<string, string>) => {
     Object.keys(scale || {}).forEach((k) => {
@@ -285,7 +288,7 @@ const buildSeamsComponentsCss = async (sdkRoot: string): Promise<string> => {
   });
 
   lines.push('');
-  lines.push('  /* Default token aliases (dark) for hosts */');
+  lines.push('  /* Default token aliases (dark) for UI surfaces */');
   lines.push(...emitSeamsThemeAliases(darkVars));
   lines.push('}');
 
@@ -298,9 +301,12 @@ const buildSeamsComponentsCss = async (sdkRoot: string): Promise<string> => {
   lines.push(...emitSeamsThemeAliases(lightVars, '  '));
   lines.push('}');
 
-  const themedSelLight = SEAMS_COMPONENT_HOSTS.map((s) => `:root[data-seams-theme="light"] ${s}`).join(
-    ',\n',
-  );
+  const themedSelLight = SEAMS_UI_SURFACE_SELECTORS.map((s) => {
+    if (s === '.seams-wallet-ui') {
+      return `${s}[data-theme="light"],\n:root[data-seams-theme="light"] ${s}:not([data-theme="dark"])`;
+    }
+    return `:root[data-seams-theme="light"] ${s}`;
+  }).join(',\n');
 
   lines.push('');
   lines.push(`${themedSelLight} {`);
@@ -310,86 +316,46 @@ const buildSeamsComponentsCss = async (sdkRoot: string): Promise<string> => {
   return `${lines.join('\n')}\n`;
 };
 
+const buildPreactConfirmationCss = (sdkRoot: string): string => {
+  const preactRoot = path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/preact');
+  return `${PREACT_CONFIRMATION_CSS_FILES.map((fileName) => {
+    const source = path.join(preactRoot, fileName);
+    return `/* ${fileName} */\n${fs.readFileSync(source, 'utf-8')}`;
+  }).join('\n')}\n`;
+};
+
+const buildWalletUiCss = async (sdkRoot: string): Promise<string> => {
+  const read = (relativePath: string): string =>
+    fs.readFileSync(path.join(sdkRoot, relativePath), 'utf-8');
+  const walletThemeCss = await buildWalletThemeCss(sdkRoot);
+  const confirmationCss = buildPreactConfirmationCss(sdkRoot);
+  const sections = [
+    ['wallet-service.css', read('src/static/wallet-assets/wallet-service.css')],
+    ['wallet-theme-tokens', walletThemeCss],
+    ['auth-menu-surface', read('src/SeamsWeb/walletIframe/host/ui/auth-menu/auth-menu.css')],
+    ['confirmation-surfaces', confirmationCss],
+    [
+      'recovery-backup-surface',
+      read('src/core/signingEngine/uiConfirm/ui/preact/recovery-code-backup.css'),
+    ],
+    ['copy-controls', read('src/core/signingEngine/uiConfirm/ui/preact/copy-icon.css')],
+  ];
+  return `${sections.map(([name, css]) => `/* ${name} */\n${css}`).join('\n')}\n`;
+};
+
 const emitWalletServiceStaticAssets = async (sdkRoot = process.cwd()): Promise<void> => {
   const sdkDir = path.join(sdkRoot, `${BUILD_PATHS.BUILD.ESM}/sdk`);
   fs.mkdirSync(sdkDir, { recursive: true });
 
-  const copyIfMissing = (src: string, dest: string) => {
-    if (fs.existsSync(src) && !fs.existsSync(dest)) fs.copyFileSync(src, dest);
-  };
-
   copyWalletStaticAssets(sdkDir);
-
-  try {
-    const seamsComponentsCss = await buildSeamsComponentsCss(sdkRoot);
-    fs.writeFileSync(path.join(sdkDir, 'seams-components.css'), seamsComponentsCss, 'utf-8');
-  } catch (e) {
-    console.warn('⚠️  Failed to generate seams-components.css from palette:', e);
-    const src = path.join(
-      sdkRoot,
-      'src/core/signingEngine/uiConfirm/ui/lit-components/css/seams-components.css',
-    );
-    const dest = path.join(sdkDir, 'seams-components.css');
-    if (fs.existsSync(src)) fs.copyFileSync(src, dest);
-  }
-
-  copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/tx-tree.css'),
-    path.join(sdkDir, 'tx-tree.css'),
-  );
-  copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/tx-confirmer.css'),
-    path.join(sdkDir, 'tx-confirmer.css'),
-  );
-  copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/drawer.css'),
-    path.join(sdkDir, 'drawer.css'),
-  );
-  copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/halo-border.css'),
-    path.join(sdkDir, 'halo-border.css'),
-  );
-  copyIfMissing(
-    path.join(
-      sdkRoot,
-      'src/core/signingEngine/uiConfirm/ui/lit-components/css/passkey-halo-loading.css',
-    ),
-    path.join(sdkDir, 'passkey-halo-loading.css'),
-  );
-  copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/padlock-icon.css'),
-    path.join(sdkDir, 'padlock-icon.css'),
-  );
-  copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/export-viewer.css'),
-    path.join(sdkDir, 'export-viewer.css'),
-  );
-  copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/export-iframe.css'),
-    path.join(sdkDir, 'export-iframe.css'),
-  );
-  copyIfMissing(
-    path.join(sdkRoot, 'src/core/signingEngine/uiConfirm/ui/lit-components/css/copy-icon.css'),
-    path.join(sdkDir, 'copy-icon.css'),
-  );
-  copyIfMissing(
-    path.join(
-      sdkRoot,
-      'src/core/signingEngine/uiConfirm/ui/lit-components/css/recovery-code-backup.css',
-    ),
-    path.join(sdkDir, 'recovery-code-backup.css'),
-  );
-  console.log('✅ Emitted /sdk wallet-shims.js, wallet-service.css, and auth-menu.css');
+  fs.writeFileSync(path.join(sdkDir, 'wallet-ui.css'), await buildWalletUiCss(sdkRoot), 'utf-8');
+  console.log('✅ Emitted /sdk wallet-shims.js, wallet-service.css, and wallet-ui.css');
 };
 
 const emitWalletServiceStaticPlugin = {
   name: 'emit-wallet-service-static',
   async generateBundle() {
-    try {
-      await emitWalletServiceStaticAssets();
-    } catch (err) {
-      console.warn('⚠️  Unable to emit wallet static assets:', err);
-    }
+    await emitWalletServiceStaticAssets();
   },
 };
 
@@ -489,8 +455,18 @@ const configs = [
       'src/core/signingEngine/chains/evm/evmCryptoWasm.ts',
       // Keep compact wallet-iframe surface modules stable for deep imports used by tests/tools.
       'src/SeamsWeb/walletIframe/client/surface/geometry.ts',
-      'src/SeamsWeb/walletIframe/host/lit-ui/surface-measurement-reporter.ts',
-      'src/SeamsWeb/walletIframe/host/lit-ui/auth-menu/seams-auth-menu-surface.ts',
+      'src/SeamsWeb/walletIframe/host/surface-measurement-reporter.ts',
+      'src/SeamsWeb/walletIframe/host/ui/auth-menu/mountAuthMenuSurface.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/PasskeyHaloLoading.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/TransactionTree.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/ConfirmContent.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/ConfirmHeader.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/PasskeyRegistrationContent.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/EmailOtpContent.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationContent.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationModal.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationDrawer.tsx',
+      'src/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface.tsx',
     ],
     output: {
       dir: BUILD_PATHS.BUILD.ESM,
@@ -626,6 +602,12 @@ const configs = [
               source,
             });
             console.log('✅ Emitted dist/esm/wasm/near_signer/pkg/wasm_signer_worker_bg.wasm');
+            (this as any).emitFile({
+              type: 'asset',
+              fileName: NEAR_SIGNER_WASM_DTS_OUT,
+              source: fs.readFileSync(NEAR_SIGNER_WASM_DTS_ABS),
+            });
+            console.log('✅ Emitted dist/esm/wasm/near_signer/pkg/wasm_signer_worker.d.ts');
           } catch (error) {
             console.error('❌ Failed to copy signer WASM asset:', error);
             throw error;
@@ -662,7 +644,13 @@ const configs = [
             fileName: 'wasm/router_ab_ed25519_yao_client/pkg/router_ab_ed25519_yao_client_bg.wasm',
             source,
           });
+          (this as any).emitFile({
+            type: 'asset',
+            fileName: ED25519_YAO_CLIENT_WASM_DTS_OUT,
+            source: fs.readFileSync(ED25519_YAO_CLIENT_WASM_DTS_ABS),
+          });
           console.log('✅ Emitted Ed25519 Yao Client WASM asset');
+          console.log('✅ Emitted Ed25519 Yao Client declaration');
         },
       },
     ],
@@ -695,9 +683,15 @@ const configs = [
               fileName: 'wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client_bg.wasm',
               source,
             });
+            (this as any).emitFile({
+              type: 'asset',
+              fileName: ECDSA_CLIENT_WASM_DTS_OUT,
+              source: fs.readFileSync(ECDSA_CLIENT_WASM_DTS_ABS),
+            });
             console.log(
               '✅ Emitted dist/esm/wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client_bg.wasm',
             );
+            console.log('✅ Emitted ECDSA client declaration');
           } catch (error) {
             console.error('❌ Failed to copy ECDSA client signer WASM asset:', error);
             throw error;
@@ -723,13 +717,9 @@ const configs = [
     // Minification is controlled via CLI flags; no config option in current Rolldown types
     plugins: prodPlugins,
   },
-  // Wallet iframe host + confirmer bundles
+  // Wallet iframe host bundles
   {
     input: {
-      // Tx Confirmer component
-      'seams-tx-confirmer':
-        'src/core/signingEngine/uiConfirm/ui/lit-components/IframeTxConfirmer/tx-confirmer-wrapper.ts',
-      // Wallet service host (headless)
       'wallet-iframe-host-runtime': 'src/SeamsWeb/walletIframe/host/index.ts',
       'wallet-iframe-host-near': 'src/SeamsWeb/walletIframe/host/entry-near.ts',
       'wallet-iframe-host-ecdsa': 'src/SeamsWeb/walletIframe/host/entry-ecdsa.ts',
@@ -747,42 +737,6 @@ const configs = [
     },
     // Minification is controlled via CLI flags; no config option in current Rolldown types
     plugins: [...prodPlugins, emitWalletServiceStaticPlugin],
-  },
-  // Export Private Key viewer bundle (Lit element rendered inside iframe)
-  {
-    input: 'src/core/signingEngine/uiConfirm/ui/lit-components/ExportPrivateKey/viewer.ts',
-    output: {
-      dir: BUILD_PATHS.BUILD.ESM,
-      format: 'esm',
-      entryFileNames: 'sdk/export-private-key-viewer.js',
-      chunkFileNames: 'sdk/[name]-[hash].js',
-    },
-    external: embeddedExternal,
-    resolve: {
-      alias: aliasConfig,
-    },
-    // Minification is controlled via CLI flags; no config option in current Rolldown types
-    plugins: prodPlugins,
-  },
-  // Standalone bundles for HaloBorder + PasskeyHaloLoading (for iframe/embedded usage)
-  {
-    input: {
-      'halo-border': 'src/core/signingEngine/uiConfirm/ui/lit-components/HaloBorder/index.ts',
-      'passkey-halo-loading':
-        'src/core/signingEngine/uiConfirm/ui/lit-components/PasskeyHaloLoading/index.ts',
-    },
-    output: {
-      dir: BUILD_PATHS.BUILD.ESM,
-      format: 'esm',
-      entryFileNames: 'sdk/[name].js',
-      chunkFileNames: 'sdk/[name]-[hash].js',
-    },
-    external: embeddedExternal,
-    resolve: {
-      alias: aliasConfig,
-    },
-    // Minification is controlled via CLI flags; no config option in current Rolldown types
-    plugins: prodPlugins,
   },
   // Vite plugin ESM build (source moved to src/plugins)
   {

@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.wallet-intended.json",
   "include": [
+    "typecheck/registration-checkpoint.typecheck.ts",
     "typecheck/ecdsa-preprocessing.typecheck.ts",
     "typecheck/exact-operation-session.typecheck.ts",
     "typecheck/committed-signer-packages.typecheck.ts",
@@ -11,7 +12,8 @@
     "typecheck/tenant-root-identity-resolution.typecheck.ts",
     "typecheck/tenant-root-restore-operation.typecheck.ts",
     "typecheck/wallet-signing-lifecycle.typecheck.ts",
-    "typecheck/external-evm-state.typecheck.ts"
+    "typecheck/external-evm-state.typecheck.ts",
+    "typecheck/transaction-review.typecheck.ts"
   ],
   "exclude": ["node_modules"]
 }

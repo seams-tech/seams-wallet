@@ -77,6 +77,7 @@ export type RouterAbEd25519YaoVerifiedActivationIntentV1 =
 export type RouterAbEd25519YaoRegistrationIntentBindingResult =
   | {
       readonly ok: true;
+      readonly admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
       readonly code?: never;
       readonly message?: never;
     }
@@ -85,6 +86,12 @@ export type RouterAbEd25519YaoRegistrationIntentBindingResult =
       readonly code: 'invalid_registration_intent' | 'registration_intent_conflict';
       readonly message: string;
     };
+
+export type VerifiedNearRegistrationContinuationV1 = {
+  readonly credential: string;
+  readonly admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1;
+  readonly expiresAtMs: number;
+};
 
 type BearerExtractionResult =
   | { readonly ok: true; readonly credential: string }
@@ -207,6 +214,29 @@ function canonicalAdmissionRequest(
     },
     participant_ids: [request.participant_ids[0], request.participant_ids[1]],
   });
+}
+
+function sameAdmissionSubject(
+  retained: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+  candidate: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+): boolean {
+  return (
+    retained.scope.lifecycle_id === candidate.scope.lifecycle_id &&
+    retained.scope.root_share_epoch === candidate.scope.root_share_epoch &&
+    retained.scope.account_id === candidate.scope.account_id &&
+    retained.scope.threshold_session_id === candidate.scope.threshold_session_id &&
+    retained.scope.signer_set_id === candidate.scope.signer_set_id &&
+    retained.scope.signing_worker_id === candidate.scope.signing_worker_id &&
+    retained.application_binding.wallet_id === candidate.application_binding.wallet_id &&
+    retained.application_binding.near_ed25519_signing_key_id ===
+      candidate.application_binding.near_ed25519_signing_key_id &&
+    retained.application_binding.signing_root_id ===
+      candidate.application_binding.signing_root_id &&
+    retained.application_binding.key_creation_signer_slot ===
+      candidate.application_binding.key_creation_signer_slot &&
+    retained.participant_ids[0] === candidate.participant_ids[0] &&
+    retained.participant_ids[1] === candidate.participant_ids[1]
+  );
 }
 
 function copyAdmissionRequest(
@@ -446,11 +476,13 @@ export class InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter im
         existing !== undefined &&
         existing.purpose === purpose &&
         credentialDigestsEqual(existing.credentialDigestSha256, credentialDigest) &&
-        existing.admissionFingerprint === admissionFingerprint &&
+        (existing.admissionFingerprint === admissionFingerprint ||
+          (purpose === 'wallet_registration' &&
+            sameAdmissionSubject(existing.admissionRequest, copiedAdmissionRequest))) &&
         existing.expiresAtMs === verified.expiresAtMs;
       credentialDigest.fill(0);
       return exactRetry
-        ? { ok: true }
+        ? { ok: true, admissionRequest: copyAdmissionRequest(existing.admissionRequest) }
         : {
             ok: false,
             code: 'registration_intent_conflict',
@@ -466,7 +498,44 @@ export class InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter im
       admissionFingerprint,
       expiresAtMs: verified.expiresAtMs,
     });
-    return { ok: true };
+    return { ok: true, admissionRequest: copiedAdmissionRequest };
+  }
+
+  async bindVerifiedContinuation(
+    verified: VerifiedNearRegistrationContinuationV1,
+  ): Promise<RouterAbEd25519YaoRegistrationIntentBindingResult> {
+    const existing = findAuthorityByLifecycleId(
+      this.authorities,
+      verified.admissionRequest.scope.lifecycle_id,
+    );
+    if (
+      !existing ||
+      existing.authority.purpose !== 'wallet_registration' ||
+      existing.authority.admissionFingerprint !==
+        canonicalAdmissionRequest(verified.admissionRequest) ||
+      !Number.isSafeInteger(verified.expiresAtMs) ||
+      verified.expiresAtMs <= Date.now() ||
+      !verified.credential.startsWith('wst_') ||
+      !VERIFIED_INTENT_CREDENTIAL.test(verified.credential)
+    ) {
+      return {
+        ok: false,
+        code: 'registration_intent_conflict',
+        message: 'NEAR continuation does not match its original authorization',
+      };
+    }
+    this.authorities[existing.index] = {
+      kind: existing.authority.kind,
+      purpose: existing.authority.purpose,
+      admissionRequest: existing.authority.admissionRequest,
+      admissionFingerprint: existing.authority.admissionFingerprint,
+      credentialDigestSha256: await credentialDigestSha256(verified.credential),
+      expiresAtMs: verified.expiresAtMs,
+    };
+    return {
+      ok: true,
+      admissionRequest: copyAdmissionRequest(existing.authority.admissionRequest),
+    };
   }
 
   async authorize(

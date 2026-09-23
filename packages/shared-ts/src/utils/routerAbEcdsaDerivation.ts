@@ -662,6 +662,62 @@ export type RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire =
     authorization: RouterAbNormalSigningAuthorizationWire;
   };
 
+export type RouterAbEcdsaPrepareSourceV1 =
+  | { readonly kind: 'available_pool'; readonly batch?: never }
+  | {
+      readonly kind: 'final_presign_batch';
+      readonly batch: {
+        readonly scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
+        readonly presign_session_id: string;
+        readonly requested_stage: 'presign';
+        readonly outgoing_messages_b64u: readonly [string, string];
+        readonly ceremony_expires_at_ms: number;
+        readonly material_expires_at_ms: number;
+      };
+    };
+
+export function parseRouterAbEcdsaPrepareSourceV1(
+  value: unknown,
+  request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire,
+): RouterAbEcdsaPrepareSourceV1 {
+  if (value === undefined) return { kind: 'available_pool' };
+  const source = requireRecord(value, 'presign_source');
+  if (source.kind === 'available_pool') {
+    requireExactKeys(source, 'presign_source', ['kind']);
+    return { kind: 'available_pool' };
+  }
+  requireExactKeys(source, 'presign_source', ['kind', 'batch']);
+  if (source.kind !== 'final_presign_batch') throw new Error('Invalid prepare source');
+  const batch = requireRecord(source.batch, 'presign_source.batch');
+  requireExactKeys(batch, 'presign_source.batch', [
+    'scope', 'presign_session_id', 'requested_stage', 'outgoing_messages_b64u',
+    'ceremony_expires_at_ms', 'material_expires_at_ms',
+  ]);
+  const scope = parseRouterAbEcdsaDerivationNormalSigningScopeV1(batch.scope);
+  const ceremonyExpiry = requirePositiveUnixMs(batch.ceremony_expires_at_ms, 'ceremony_expires_at_ms');
+  const materialExpiry = requirePositiveUnixMs(batch.material_expires_at_ms, 'material_expires_at_ms');
+  const messages = batch.outgoing_messages_b64u;
+  if (batch.requested_stage !== 'presign' || !Array.isArray(messages) || messages.length !== 2
+      || !sameRouterAbEcdsaDerivationNormalSigningScopeV1(scope, request.scope)
+      || request.expires_at_ms > materialExpiry || ceremonyExpiry > materialExpiry) {
+    throw new Error('Final presign batch does not match signing request');
+  }
+  return {
+    kind: 'final_presign_batch',
+    batch: {
+      scope,
+      presign_session_id: requireAsciiNonEmptyString(batch.presign_session_id, 'presign_session_id'),
+      requested_stage: 'presign',
+      outgoing_messages_b64u: [
+        requireBase64UrlNonEmpty(messages[0], 'terminal message 1'),
+        requireBase64UrlNonEmpty(messages[1], 'terminal message 2'),
+      ],
+      ceremony_expires_at_ms: ceremonyExpiry,
+      material_expires_at_ms: materialExpiry,
+    },
+  };
+}
+
 export type RouterAbEcdsaOperationStepUpWebAuthnCredentialV1Wire = {
   readonly id: string;
   readonly rawId: string;

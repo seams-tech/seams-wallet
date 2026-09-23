@@ -89,6 +89,21 @@ pub enum CloudflareSigningWorkerEcdsaPoolCommandV1 {
         /// Authenticated material whose scope defines the full pool identity.
         material: CloudflareSigningWorkerEcdsaPresignaturePoolRecordV1,
     },
+    /// Admit newly generated material already bound to one confirmed request.
+    PutReserved {
+        /// Fresh material whose identity has not previously been persisted.
+        material: CloudflareSigningWorkerEcdsaPresignaturePoolRecordV1,
+        /// Canonical prepare request digest.
+        request_digest: PublicDigest32,
+        /// Router-admitted signing digest.
+        admitted_signing_digest: PublicDigest32,
+        /// SigningWorker contribution retained for finalization.
+        signing_worker_rerandomization_contribution32_b64u: String,
+        /// Reservation timestamp.
+        reserved_at_ms: u64,
+        /// Exclusive request expiry.
+        request_expires_at_ms: u64,
+    },
     /// Reserve available material for one exact online request.
     Reserve {
         /// Exact authenticated pool scope.
@@ -178,6 +193,24 @@ impl CloudflareSigningWorkerEcdsaPoolCommandV1 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         match self {
             Self::PutAvailable { material } => material.validate(),
+            Self::PutReserved {
+                material,
+                request_digest,
+                admitted_signing_digest,
+                signing_worker_rerandomization_contribution32_b64u,
+                reserved_at_ms,
+                request_expires_at_ms,
+            } => {
+                CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1::new_available(material.clone())?
+                    .reserve(
+                        *request_digest,
+                        *admitted_signing_digest,
+                        signing_worker_rerandomization_contribution32_b64u,
+                        *reserved_at_ms,
+                        *request_expires_at_ms,
+                    )
+                    .map(|_| ())
+            }
             Self::Reserve {
                 scope,
                 server_presignature_id,
@@ -249,7 +282,7 @@ impl CloudflareSigningWorkerEcdsaPoolCommandV1 {
     /// Returns the complete scope used to derive the private-D1 record key.
     pub const fn scope(&self) -> &RouterAbEcdsaDerivationNormalSigningScopeV1 {
         match self {
-            Self::PutAvailable { material } => &material.scope,
+            Self::PutAvailable { material } | Self::PutReserved { material, .. } => &material.scope,
             Self::Reserve { scope, .. }
             | Self::Consume { scope, .. }
             | Self::DestroyReserved { scope, .. }
@@ -262,7 +295,9 @@ impl CloudflareSigningWorkerEcdsaPoolCommandV1 {
     /// Returns the pair identifier used to derive the private-D1 record key.
     pub fn server_presignature_id(&self) -> &str {
         match self {
-            Self::PutAvailable { material } => &material.server_presignature_id,
+            Self::PutAvailable { material } | Self::PutReserved { material, .. } => {
+                &material.server_presignature_id
+            }
             Self::Reserve {
                 server_presignature_id,
                 ..
@@ -398,6 +433,30 @@ pub fn apply_cloudflare_signing_worker_ecdsa_pool_command_v1(
                     "SigningWorker ECDSA pair identity is already persisted",
                 )),
             }
+        }
+        CloudflareSigningWorkerEcdsaPoolCommandV1::PutReserved {
+            material,
+            request_digest,
+            admitted_signing_digest,
+            signing_worker_rerandomization_contribution32_b64u,
+            reserved_at_ms,
+            request_expires_at_ms,
+        } => {
+            if current.is_some() {
+                return Err(pool_replay_error(
+                    "SigningWorker ECDSA pair identity is already persisted",
+                ));
+            }
+            let record =
+                CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1::new_available(material)?
+                    .reserve(
+                        request_digest,
+                        admitted_signing_digest,
+                        signing_worker_rerandomization_contribution32_b64u,
+                        reserved_at_ms,
+                        request_expires_at_ms,
+                    )?;
+            Ok(CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Reserved { record })
         }
         CloudflareSigningWorkerEcdsaPoolCommandV1::Reserve {
             scope,

@@ -67,6 +67,7 @@ export function publishNearProvisioningState(
   state: NearProvisioningState,
 ): void {
   const entry = entryFor(walletId, state.updatedAtMs);
+  if (entry.state.status === 'near_ready' && state.status !== 'near_ready') return;
   entry.state = state;
   notify(walletId, state);
 }

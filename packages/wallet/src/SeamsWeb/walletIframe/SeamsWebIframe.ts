@@ -75,7 +75,6 @@ import {
 } from '@/core/types/signer-worker';
 import type { SignNEP413MessageParams, SignNEP413MessageResult } from '@/SeamsWeb/operations/near';
 import { toError } from '@shared/utils/errors';
-import type { WalletUIRegistry } from './host/lit-ui/iframe-lit-element-registry';
 import type { DelegateActionInput, SignedDelegate } from '@/core/types/delegate';
 import { buildConfigsFromEnv } from '@/core/config/defaultConfigs';
 import { resolveAppearanceTheme, resolveThemePalette } from '@/core/config/configHelpers';
@@ -721,25 +720,6 @@ export class SeamsWebIframe {
     return this.router.onSdkLifecycleEvent(listener);
   }
 
-  // === Generic Wallet UI registration/mounting ===
-  registerWalletUI(types: WalletUIRegistry): void {
-    this.router.registerUiTypes(types);
-  }
-  mountWalletUI(params: {
-    key: string;
-    props?: Record<string, unknown>;
-    targetSelector?: string;
-    id?: string;
-  }): void {
-    this.router.mountUiComponent(params);
-  }
-  updateWalletUI(id: string, props?: Record<string, unknown>): void {
-    this.router.updateUiComponent({ id, props });
-  }
-  unmountWalletUI(id: string): void {
-    this.router.unmountUiComponent(id);
-  }
-
   private async registerPasskeyDomain(
     options: Parameters<RegistrationCapability['registerPasskey']>[0] = {},
   ): Promise<RegistrationResult> {
@@ -1211,6 +1191,7 @@ export class SeamsWebIframe {
   ): Promise<ExecuteEvmFamilyTransactionResult> {
     return await executeEvmFamilyTransactionLifecycle({
       lifecycle: {
+        onBroadcastStarted: this.router.notifyTransactionBroadcastStarted.bind(this.router),
         signEvmFamily: async (innerArgs) => {
           if (innerArgs.request.chain === 'tempo') {
             if (innerArgs.chainTarget.kind !== 'tempo') {

@@ -56,9 +56,8 @@ GET https://sign.seams.sh/wallet-service -> dist/public/wallet-service/index.htm
 ```
 
 App origins should return 404 for `/sdk/*` and `/wallet-service`. Wallet workers,
-WASM, and export-viewer bundles execute from the wallet origin. The private-key
-export viewer is a wallet-origin `srcdoc` iframe that loads its JS and CSS from
-`/sdk/*`; no hosted `/export-viewer` page is part of the runtime contract.
+WASM, and browser UI bundles execute from the wallet origin. The private-key
+export surface is mounted by the wallet host from its Preact runtime; no hosted `/export-viewer` page is part of the runtime contract.
 
 ## Headers And Embedding
 

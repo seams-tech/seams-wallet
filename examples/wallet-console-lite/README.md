@@ -15,12 +15,31 @@ pnpm site
 ```
 
 Run the commands in separate terminals. Open `http://localhost:4001`, enter an organisation
-and project name, then create or unlock a Wallet. No `.env` file, private Console
+and project name once, then create or unlock a Wallet. Reloads reconnect to the
+existing project automatically. The browser remembers only these display names so
+it can reconnect after a site-controller restart; public runtime configuration is
+always fetched from the controller. No `.env` file, private Console
 service, or `seams-monorepo` checkout is required.
 
 Use `pnpm router -- --root ./path/to/runtime` to select the backend runtime directory.
 Use `pnpm site -- --skip-build` after the public Wallet artifacts have already been built.
 If a run is interrupted, stop any remaining `wrangler dev` processes before restarting.
+
+## Prediction-market transaction review
+
+Choose **Preview component** for a sample YES purchase of 0.1 test units.
+The React review and wallet approval share one modal that resizes between screens.
+**Confirm in wallet** opens the transaction confirmer; its Back arrow returns to
+the review. Approval is simulated, with no sign-in, signing, or transaction submission.
+Reopening the preview refreshes its 90-second fixture quote.
+
+This repository-only UI showcase imports SDK internals through the
+`@wallet-preview` Vite alias and uses a separate fixture iframe. See
+[`docs/transaction-review.md`](../../docs/transaction-review.md) for the public
+`review` API used with real transactions.
+
+The component and renderer live in `src/PurchaseReviewExample.tsx`; styling lives
+in `src/styles.css`. `TransactionReviewHost` is mounted in `WalletConsoleLite.tsx`.
 
 ## Local ports
 

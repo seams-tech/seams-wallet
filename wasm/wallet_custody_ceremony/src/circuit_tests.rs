@@ -630,6 +630,91 @@ fn a_near_run_joins_that_custody_and_writes_only_its_manifest() {
 }
 
 #[test]
+fn near_registration_checkpoint_finishes_the_exact_exchange_after_restart() {
+    let evm = establish_custody_with_evm_key_set();
+    let records = custody_records(&evm);
+    let run = prepare_near_ed25519(join_custody(records), 0x53, None);
+    let checkpoint = run
+        .prepared
+        .checkpoint_near_registration()
+        .expect("checkpoint");
+    let persisted = serde_json::to_string(&checkpoint).expect("persist ciphertext");
+    let result = run.run_circuit();
+    let expected = run
+        .prepared
+        .complete_near_ed25519(&result)
+        .expect("original completion")
+        .establish_manifest(near_identity(), None)
+        .expect("manifest")
+        .finish(None)
+        .expect("commit");
+
+    // Reopen custody with no prepared handle or recipient private key retained.
+    let restored = join_custody(records)
+        .restore_near_registration(serde_json::from_str(&persisted).expect("read checkpoint"))
+        .expect("restore exact exchange");
+    assert_eq!(
+        restored.yao_execute_request_json(),
+        Some(checkpoint.execute_request_json.as_str())
+    );
+    let resumed = restored
+        .complete_near_ed25519(&result)
+        .expect("replayed result")
+        .establish_manifest(near_identity(), None)
+        .expect("resumed manifest")
+        .finish(None)
+        .expect("commit");
+    assert_eq!(
+        expected.registered_public_key_b64u,
+        resumed.registered_public_key_b64u
+    );
+    assert_eq!(
+        expected.key_manifest_digest_b64u,
+        resumed.key_manifest_digest_b64u
+    );
+    assert!(resumed.established_custody.is_none());
+
+    let other_wallet = establish_custody_with_evm_key_set();
+    assert!(join_custody(custody_records(&other_wallet))
+        .restore_near_registration(serde_json::from_str(&persisted).expect("checkpoint"),)
+        .is_err());
+    let mut tampered: NearRegistrationCheckpointV1 = serde_json::from_str(&persisted).unwrap();
+    let mut ciphertext = decode(&tampered.ciphertext_b64u);
+    ciphertext[0] ^= 1;
+    tampered.ciphertext_b64u = Base64UrlUnpadded::encode_string(&ciphertext);
+    assert!(join_custody(records)
+        .restore_near_registration(tampered)
+        .is_err());
+    let mut wrong_attempt: NearRegistrationCheckpointV1 = serde_json::from_str(&persisted).unwrap();
+    wrong_attempt.execute_request_json = prepare_near_ed25519(join_custody(records), 0x54, None)
+        .prepared
+        .yao_execute_request_json()
+        .unwrap()
+        .to_string();
+    assert!(join_custody(records)
+        .restore_near_registration(wrong_attempt)
+        .is_err());
+
+    let mut changed_request: NearRegistrationCheckpointV1 =
+        serde_json::from_str(&persisted).unwrap();
+    changed_request.execute_request_json = prepare_near_ed25519(join_custody(records), 0x53, None)
+        .prepared
+        .yao_execute_request_json()
+        .unwrap()
+        .to_string();
+    assert!(join_custody(records)
+        .restore_near_registration(changed_request)
+        .is_err());
+
+    let mut changed_context: NearRegistrationCheckpointV1 =
+        serde_json::from_str(&persisted).unwrap();
+    changed_context.application_binding_digest_b64u = Base64UrlUnpadded::encode_string(&[0; 32]);
+    assert!(join_custody(records)
+        .restore_near_registration(changed_context)
+        .is_err());
+}
+
+#[test]
 fn both_key_sets_derive_from_the_one_wallet_custody_seed() {
     let evm = establish_custody_with_evm_key_set();
     let records = custody_records(&evm);

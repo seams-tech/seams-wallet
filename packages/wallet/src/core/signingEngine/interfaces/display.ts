@@ -78,6 +78,10 @@ export interface NearActionOperation extends BaseDisplayOperation {
     | 'signedDelegate';
 }
 
+export interface NearMessageOperation extends BaseDisplayOperation {
+  kind: 'near.message';
+}
+
 export interface TempoTypedOperation extends BaseDisplayOperation {
   kind: 'tempo.eip2718';
   txTypeHex?: string;
@@ -100,6 +104,7 @@ export interface RawFallbackOperation extends BaseDisplayOperation {
 
 export type TxDisplayOperation =
   | NearActionOperation
+  | NearMessageOperation
   | TempoTypedOperation
   | GenericContractCallOperation
   | RawFallbackOperation;

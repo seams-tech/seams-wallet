@@ -12,7 +12,10 @@ function bytesEq(a: Uint8Array, b: Uint8Array): boolean {
 export class WebAuthnP256Engine implements Signer {
   readonly algorithm = 'webauthnP256' as const;
 
-  constructor(private readonly workerCtx?: WorkerOperationContext) {}
+  constructor(
+    private readonly workerCtx?: WorkerOperationContext,
+    private readonly beforeSigning?: () => void,
+  ) {}
 
   private async buildWebauthnSignature(args: {
     challenge32: Uint8Array;
@@ -117,6 +120,7 @@ export class WebAuthnP256Engine implements Signer {
     const challenge = new Uint8Array(req.challenge32);
     const allowCredentialId = new Uint8Array(keyRef.credentialId);
 
+    this.beforeSigning?.();
     const assertion = (await navigator.credentials.get({
       publicKey: {
         challenge,

@@ -1,3 +1,22 @@
+import { recordWalletCustodyTiming } from '@/core/signingEngine/walletCustody/ceremonyDriver';
+import { walletSessionPreservesCapabilities } from '@shared/device-linking/activeWalletSession';
+import type { LoginWebContext } from '@/SeamsWeb/signingSurface/types';
+import { listConfiguredThresholdEcdsaPublicationTargets } from '@/SeamsWeb/operations/session/thresholdEcdsaProvisioning';
+import type {
+  ActiveWalletSessionV1,
+  WalletSessionOperationCredentialV1,
+} from '@shared/device-linking/contracts';
+import { walletSessionAuthorizations } from '@/core/indexedDB';
+import {
+  registrationProjectionFromPending,
+  restorePendingNearRegistrationMaterial,
+} from './pendingRegistrationRecovery';
+import {
+  planPendingNearRegistration,
+  preparePendingNearRegistration,
+  pendingRegistrationIdentity,
+  type PendingNearRegistrationContinuationV1,
+} from '@/core/indexedDB/pendingWalletRegistrationCommit';
 import { isObject } from '@shared/utils/validation';
 import { scheduleEcdsaSessionPresignaturePrefill } from '../auth/scheduleEcdsaSessionPresignaturePrefill';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
@@ -39,7 +58,10 @@ import {
 } from '@/core/types/authenticatorOptions';
 import { createRegistrationFlowEvent, RegistrationEventPhase } from '@/core/types/sdkSentEvents';
 import type { RegistrationWebContext } from '@/SeamsWeb/signingSurface/types';
-import type { JoinedWalletCustodyNearEd25519KeySetV1 } from '@/SeamsWeb/signingSurface/ports';
+import type {
+  NearRegistrationContinuationSigningSurface,
+  JoinedWalletCustodyNearEd25519KeySetV1,
+} from '@/SeamsWeb/signingSurface/ports';
 import type { WorkerResourceWarmupDiagnostics } from '@/core/signingEngine/assembly/warmup';
 import type {
   EmailOtpEd25519YaoRecoveryBootstrapV1,
@@ -103,6 +125,7 @@ import {
 } from '@/core/signingEngine/walletCustody/registrationCeremony';
 import {
   openWalletCustodyEd25519ActiveClientV1,
+  walletCustodyCacheEnvelopeFromRecordV1,
   type WalletCustodyActivationFactsV1,
 } from '@/core/signingEngine/walletCustody/openCustodyCache';
 import { buildRecoveredCustodyEnvelopeRecord } from '@/core/signingEngine/walletCustody/recoveryReplacementEnvelope';
@@ -162,6 +185,7 @@ import { collectEmailOtpRegistrationAuthority } from '@/SeamsWeb/operations/auth
 import type { PrepareEmailOtpRegistrationEnrollmentMaterialInternalResult as EmailOtpRegistrationEnrollmentMaterial } from '@/core/signingEngine/flows/signEvmFamily/emailOtpPublic';
 import { requirePasskeyPrfFirstB64u } from '@/SeamsWeb/operations/authMethods/passkey/ecdsaBootstrap';
 import {
+  buildEmailOtpAuthContext,
   emailOtpAuthContextEmailHashHex,
   emailOtpAuthContextProvider,
   emailOtpAuthContextProviderUserId,
@@ -169,6 +193,7 @@ import {
 } from '@/core/signingEngine/session/identity/laneIdentity';
 import {
   buildEmailOtpWalletAuthAuthority,
+  parseEmailOtpWalletAuthAuthority,
   walletAuthAuthorityRef,
   type EmailOtpProvider,
   type WalletAuthAuthorityRef,
@@ -180,6 +205,7 @@ import type { WalletCustodyCacheEnvelopeV1 } from '@/core/signingEngine/walletCu
 import { nearEd25519YaoMaterialActivationFromMetadata } from '@/core/signingEngine/session/material/nearEd25519YaoMaterialActivation';
 import { buildPasskeyEd25519RestoreMetadata } from '@/core/signingEngine/session/passkey/ed25519YaoSealedSession';
 import { persistPasskeyEd25519YaoSignerMaterialV1 } from '@/core/signingEngine/session/passkey/ed25519YaoLocalMaterial';
+import { RouterAbEd25519YaoClientV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import type { StoreWalletSignerFinalizeRollbackReceipt } from '@/core/indexedDB/seamsWalletDB/repositories';
 import { toAccountId } from '@/core/types/accountIds';
 import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
@@ -193,7 +219,6 @@ import {
   prepareWalletEcdsaRegistrationPublication,
   prepareWalletEd25519RegistrationPublication,
   prepareWalletEmailOtpEd25519RegistrationPublication,
-  prepareWalletMixedRegistrationPublication,
 } from '@/core/signingEngine/flows/registration/accountLifecycle';
 import {
   establishUnlockedWalletEd25519ExportRootCapabilityV1,
@@ -218,6 +243,7 @@ import {
   emitRegistrationTimingSpan,
   emitRegistrationTimingSummary,
   emitNearRegistrationTiming,
+  recordNearRegistrationSessionTiming,
   recordStrictEcdsaServerTimingBuckets,
   registrationTimingSignerSetFromPlan,
   roundDurationMs,
@@ -235,6 +261,7 @@ import {
   sameRuntimePolicyScope,
 } from './registrationStrictEcdsa';
 import {
+  admitDeferredNearRegistration,
   buildRegistrationEmailOtpEd25519SessionState,
   RegistrationPasskeyAuthority,
   passkeyWalletAuthAuthorityFromCredential,
@@ -493,6 +520,7 @@ function buildRegistrationEmailOtpEd25519RecoveryBootstrap(args: {
   sessionState: Awaited<ReturnType<typeof buildRegistrationEmailOtpEd25519SessionState>>;
   joined: JoinedWalletCustodyNearEd25519KeySetV1;
   deferredNear: WalletRegistrationRespondEd25519DeferredWork;
+  admissionReceipt: Awaited<ReturnType<typeof admitDeferredNearRegistration>>;
   authContext: ThresholdEcdsaEmailOtpAuthContext;
 }): EmailOtpEd25519YaoRecoveryBootstrapV1 {
   const metadata = args.joined.metadata;
@@ -544,7 +572,7 @@ function buildRegistrationEmailOtpEd25519RecoveryBootstrap(args: {
       registrationContinuity: {
         kind: 'registration',
         admissionRequest: args.deferredNear.admissionRequest,
-        admissionReceipt: args.deferredNear.admissionReceipt,
+        admissionReceipt: args.admissionReceipt,
         activationTranscript: [...metadata.transcript],
       },
     },
@@ -1426,7 +1454,7 @@ function registrationThreeRouteAuthorityPayload(authority: RegistrationThreeRout
 }
 
 function registrationEd25519LaneAuthorization(
-  auth: RegistrationPersistenceAuth,
+  auth: DeferredRegistrationFinalizeAuthMaterial,
   passkeyCredentialIdB64u: string,
   session: { remainingUses: number; expiresAtMs: number },
 ) {
@@ -1768,13 +1796,6 @@ export async function runEcdsaEnabledThreeRouteRegistrationCeremony(args: {
       applicationBindingDigestB64u: verified.applicationBindingDigestB64u,
       confirmRecoveryCodesBackedUp: args.confirmRecoveryCodesBackedUp,
       runRelayerRound: async (bootstrap) => {
-        const joinedNearCustody = deferredNear
-          ? await args.startDeferredNearCustody({
-              deferredNear,
-              establishedEvmCustodyCommit: bootstrap.preActivationCommitPayload,
-            })
-          : null;
-        if (joinedNearCustody) deferredNearCustodyWork = Promise.resolve(joinedNearCustody);
         const clientActivation = parseRouterAbEcdsaVerifiedClientActivationFactsV1({
           registrationRequestDigestB64u: verified.registrationRequestDigestB64u,
           proofTranscriptDigestB64u: verified.proofTranscriptDigestB64u,
@@ -1798,26 +1819,22 @@ export async function runEcdsaEnabledThreeRouteRegistrationCeremony(args: {
           activationRequestDigestB64u: activationCommand.requestDigest,
         } as const;
         if (args.signerPlanKind === 'near_ed25519_and_evm_family_ecdsa') {
-          if (!joinedNearCustody) {
-            throw new Error('Mixed ECDSA registration did not join its NEAR custody');
-          }
+          if (!deferredNear) throw new Error('Mixed registration has no NEAR continuation');
           await args.persistPendingCommit({
             signerPlanKind: args.signerPlanKind,
             localMaterial: {
-              keyFamilies: ['ed25519', 'ecdsa_secp256k1'],
+              keyFamilies: ['ecdsa_secp256k1'],
               custodyCommit: ecdsaCustodyCommit,
-              ed25519: {
-                custodyCommit: walletCustodyCommitPayloadForWire(
-                  joinedNearCustody.joined.commitPayload,
-                ),
-                activationReference: joinedNearCustody.joined.activationReference,
-                localMaterial: joinedNearCustody.joined.localMaterial,
-                metadata: pendingRegistrationEd25519MetadataFromJoined(joinedNearCustody.joined),
-              },
               ecdsa: ecdsaReplay,
             },
             emailOtpEnrollment: activateEmailOtp.enrollment,
+            deferredNear,
           });
+          deferredNearCustodyWork = args.startDeferredNearCustody({
+            deferredNear,
+            establishedEvmCustodyCommit: bootstrap.preActivationCommitPayload,
+          });
+          void deferredNearCustodyWork.catch(ignoreNearCustodyFailure);
         } else {
           await args.persistPendingCommit({
             signerPlanKind: args.signerPlanKind,
@@ -2052,12 +2069,14 @@ type DeferredRegistrationFinalizeAuthMaterial =
   | {
       kind: 'email_otp';
       enrollment: WalletRegistrationEmailOtpEnrollmentMaterial;
+      emailOtpAuthContext: ThresholdEcdsaEmailOtpAuthContext;
     };
 
 type DeferredNearCustodyWork = {
+  readonly admissionRequest: WalletRegistrationRespondEd25519DeferredWork['admissionRequest'];
+  readonly admissionReceipt: Awaited<ReturnType<typeof admitDeferredNearRegistration>>;
   readonly joined: JoinedWalletCustodyNearEd25519KeySetV1;
-  readonly envelope: WalletCustodyCacheEnvelopeV1;
-  readonly commitPayload: WalletCustodyCeremonyCommitPayload;
+  readonly envelope: PasskeyCustodyEnvelopeRecord;
   readonly factorSecret32: ArrayBuffer;
 };
 
@@ -2158,6 +2177,7 @@ type PendingRegistrationActivationPersistenceInput =
       >,
       'signerPlanKind' | 'localMaterial'
     > & {
+      readonly deferredNear: WalletRegistrationRespondEd25519DeferredWork;
       readonly emailOtpEnrollment: WalletRegistrationEmailOtpEnrollmentMaterial | null;
     });
 
@@ -2230,68 +2250,6 @@ async function prepareRegistrationEcdsaPublication(args: {
   });
 }
 
-type RegistrationEcdsaLocalWalletKeys = Awaited<
-  ReturnType<RegistrationWebContext['signingEngine']['finalizeWalletRegistrationEcdsaSessions']>
->;
-
-function requireMixedEcdsaWalletKeys(
-  walletKeys: RegistrationEcdsaLocalWalletKeys | null,
-): RegistrationEcdsaLocalWalletKeys {
-  if (!walletKeys) {
-    throw new Error('Mixed registration ECDSA publication did not return wallet keys');
-  }
-  return walletKeys;
-}
-
-async function prepareMixedRegistrationPublication(args: {
-  auth: RegistrationPersistenceAuth;
-  walletId: WalletId;
-  nearAccountId: ReturnType<typeof toAccountId>;
-  nearEd25519SigningKeyId: string;
-  signerSlot: number;
-  operationalPublicKey: string;
-  relayerKeyId: string;
-  keyVersion: string;
-  participantIds: readonly [number, number];
-  custodyMaterial: LoadedWalletCustodyEd25519MaterialV1;
-  walletKeys: RegistrationEcdsaLocalWalletKeys;
-}): Promise<Awaited<ReturnType<typeof prepareWalletMixedRegistrationPublication>>> {
-  if (args.auth.kind === 'passkey') {
-    return await prepareWalletMixedRegistrationPublication({
-      kind: 'passkey',
-      walletId: args.walletId,
-      nearAccountId: args.nearAccountId,
-      nearEd25519SigningKeyId: args.nearEd25519SigningKeyId,
-      rpId: requireWebAuthnRpId(args.auth.rpId),
-      credential: args.auth.credential,
-      credentialPublicKeyB64u: args.auth.credentialPublicKeyB64u,
-      signerSlot: args.signerSlot,
-      operationalPublicKey: args.operationalPublicKey,
-      relayerKeyId: args.relayerKeyId,
-      keyVersion: args.keyVersion,
-      participantIds: args.participantIds,
-      custodyMaterial: args.custodyMaterial,
-      walletKeys: args.walletKeys,
-    });
-  }
-  return await prepareWalletMixedRegistrationPublication({
-    kind: 'email_otp',
-    walletId: args.walletId,
-    nearAccountId: args.nearAccountId,
-    nearEd25519SigningKeyId: args.nearEd25519SigningKeyId,
-    email: args.auth.email,
-    registrationAuthorityId: args.auth.registrationAuthorityId,
-    authority: args.auth.authority,
-    signerSlot: args.signerSlot,
-    operationalPublicKey: args.operationalPublicKey,
-    relayerKeyId: args.relayerKeyId,
-    keyVersion: args.keyVersion,
-    participantIds: args.participantIds,
-    custodyMaterial: args.custodyMaterial,
-    walletKeys: args.walletKeys,
-  });
-}
-
 async function publishMixedEcdsaRegistrationCommit(args: {
   context: RegistrationWebContext;
   relayerUrl: string;
@@ -2299,7 +2257,7 @@ async function publishMixedEcdsaRegistrationCommit(args: {
   pending: MixedRegistrationActivatePendingCommit;
   plan: RegistrationPersistencePlan;
   activated: Extract<WalletRegistrationActivateResponseV2, { ok: true; kind: 'evm_family_ecdsa' }>;
-}): Promise<RegistrationEcdsaLocalWalletKeys> {
+}): Promise<void> {
   const walletKeys = await finalizeRegistrationEcdsaSessions({
     context: args.context,
     relayerUrl: args.relayerUrl,
@@ -2334,7 +2292,6 @@ async function publishMixedEcdsaRegistrationCommit(args: {
     ecdsaContinuity: [],
     registration,
   });
-  return walletKeys;
 }
 
 async function discardDeferredNearCustodyWork(
@@ -2380,11 +2337,27 @@ function buildDeferredRegistrationFinalizeAuthMaterial(args: {
       return {
         kind: 'email_otp',
         enrollment: args.emailOtpEnrollment,
+        emailOtpAuthContext: args.auth.emailOtpAuthContext,
       };
     default:
       return assertNever(args.auth);
   }
 }
+
+async function persistPreparedNearRegistration(
+  pending: Extract<PendingNearRegistrationContinuationV1, { readonly phase: 'planned' }>,
+  receipt: DeferredNearCustodyWork['admissionReceipt'],
+  checkpointJson: string,
+): Promise<void> {
+  const startedAt = performance.now();
+  await IndexedDBManager.advancePendingNearRegistration({
+    expected: pending,
+    next: preparePendingNearRegistration(pending, receipt, checkpointJson),
+  });
+  recordWalletCustodyTiming(pending.registrationCeremonyId, 'journal_prepared', startedAt);
+}
+
+function ignoreNearCustodyFailure(): void {}
 
 async function startDeferredNearWalletCustody(
   base: {
@@ -2407,27 +2380,34 @@ async function startDeferredNearWalletCustody(
     throw new Error('Mixed registration has no NEAR custody factor secret');
   }
   base.factorSecretOwner.value = null;
-  const admission = input.deferredNear.admissionRequest;
   const startedAt = performance.now();
   let outcome: 'success' | 'failure' = 'failure';
   try {
-    const joined = await base.context.signingEngine.joinWalletCustodyNearEd25519KeySet({
-      custodyJson: joinCustodyJsonFromEstablishedCommitPayload(input.establishedEvmCustodyCommit),
-      factorSecret,
-      nearEd25519SigningKeyId: admission.application_binding.near_ed25519_signing_key_id,
+    const pending = await IndexedDBManager.getPendingWalletRegistrationCommit({
       registrationCeremonyId: base.registrationCeremonyId,
-      admissionRequest: admission,
-      admissionReceipt: input.deferredNear.admissionReceipt,
-      participantIds: admission.participant_ids,
-      routerOrigin: new URL(base.relayerUrl).origin,
-      authorization: `Bearer ${base.signedSetup}`,
+      operation: 'near_provisioning',
+    });
+    if (!pending || pending.operation !== 'near_provisioning' || pending.phase !== 'planned') {
+      throw new Error('NEAR registration has no planned continuation');
+    }
+    const { joined, admissionReceipt } = await continueNearRegistrationCustody({
+      pending,
+      signingEngine: base.context.signingEngine,
+      relayerUrl: base.relayerUrl,
+      credential: base.signedSetup,
       traceContext: base.traceContext,
+      factorSecret,
     });
     outcome = 'success';
     return {
+      admissionReceipt,
       joined,
-      envelope: walletCustodyCacheEnvelopeFromRegistrationCommit(input.establishedEvmCustodyCommit),
-      commitPayload: input.establishedEvmCustodyCommit,
+      admissionRequest: pending.admissionRequest,
+      envelope: custodyEnvelopeFromRegistrationCommit({
+        commit: input.establishedEvmCustodyCommit,
+        walletId: pending.walletId,
+        activatedAtMs: Date.now(),
+      }),
       factorSecret32: factorSecret,
     };
   } catch (error) {
@@ -2443,6 +2423,301 @@ async function startDeferredNearWalletCustody(
   }
 }
 
+export async function continueNearRegistrationCustody(args: {
+  readonly pending:
+    | PendingNearRegistrationContinuationV1
+    | Extract<PendingWalletRegistrationCommitV1, { readonly phase: 'joined' }>;
+  readonly signingEngine: Pick<
+    RegistrationWebContext['signingEngine'],
+    'joinWalletCustodyNearEd25519KeySet'
+  >;
+  readonly relayerUrl: string;
+  readonly credential: string;
+  readonly traceContext: RouterAbTraceContextV1;
+  readonly factorSecret: ArrayBuffer;
+}) {
+  const journal = args.pending;
+  if (journal.phase === 'joined' && journal.completion.kind !== 'encrypted_checkpoint') {
+    throw new Error('Joined material has no encrypted execution checkpoint');
+  }
+  const pending =
+    journal.phase === 'joined' && journal.completion.kind === 'encrypted_checkpoint'
+      ? journal.completion.prepared
+      : journal;
+  if (pending.phase === 'joined') throw new Error('Invalid NEAR continuation phase');
+  const admission = pending.admissionRequest;
+  const admissionStartedAt = performance.now();
+  const admissionReceipt =
+    pending.phase === 'execution_prepared'
+      ? pending.admissionReceipt
+      : await admitDeferredNearRegistration(
+          { status: 'deferred', admissionRequest: pending.admissionRequest },
+          {
+            routerOrigin: new URL(args.relayerUrl).origin,
+            authorization: { kind: 'bearer', value: `Bearer ${args.credential}` },
+            fetch: globalThis.fetch,
+            traceContext: args.traceContext,
+          },
+        );
+  recordWalletCustodyTiming(pending.registrationCeremonyId, 'admission', admissionStartedAt);
+  const joined = await args.signingEngine.joinWalletCustodyNearEd25519KeySet({
+    ...(pending.phase === 'planned'
+      ? {
+          preparation: { kind: 'fresh' as const },
+          beforeRouterRound: persistPreparedNearRegistration.bind(
+            undefined,
+            pending,
+            admissionReceipt,
+          ),
+        }
+      : { preparation: { kind: 'checkpoint' as const, checkpointJson: pending.checkpointJson } }),
+    custodyJson: joinCustodyJsonFromEstablishedCommitPayload(pending.baseCustodyCommit),
+    factorSecret: args.factorSecret,
+    nearEd25519SigningKeyId: admission.application_binding.near_ed25519_signing_key_id,
+    registrationCeremonyId: pending.registrationCeremonyId,
+    admissionRequest: admission,
+    admissionReceipt,
+    participantIds: admission.participant_ids,
+    routerOrigin: new URL(args.relayerUrl).origin,
+    authorization: `Bearer ${args.credential}`,
+    traceContext: args.traceContext,
+  });
+  if (journal.phase === 'joined') {
+    if (
+      base64UrlEncode(joined.metadata.registeredPublicKey) !==
+        journal.localMaterial.ed25519.metadata.registeredPublicKeyB64u ||
+      JSON.stringify(joined.activationReference) !==
+        JSON.stringify(journal.localMaterial.ed25519.activationReference)
+    ) {
+      throw new Error('Restored NEAR checkpoint changed the joined key');
+    }
+    return { joined, admissionReceipt };
+  }
+  const journalStartedAt = performance.now();
+  const prepared = await IndexedDBManager.getPendingWalletRegistrationCommit({
+    registrationCeremonyId: pending.registrationCeremonyId,
+    operation: 'near_provisioning',
+  });
+  if (
+    !prepared ||
+    prepared.operation !== 'near_provisioning' ||
+    prepared.phase !== 'execution_prepared'
+  ) {
+    throw new Error('NEAR execution checkpoint was not persisted');
+  }
+  const joinedPending = buildPendingRegistrationCommit({
+    operation: 'near_provisioning',
+    signerPlanKind: 'near_ed25519_and_evm_family_ecdsa',
+    completion: { kind: 'encrypted_checkpoint', prepared },
+    registrationCeremonyId: prepared.registrationCeremonyId,
+    idempotencyKey: await deriveNearProvisioningIdempotencyKey({
+      registrationCeremonyId: prepared.registrationCeremonyId,
+      activationReference: joined.activationReference,
+    }),
+    walletId: prepared.walletId,
+    walletAuthMethodId: prepared.walletAuthMethodId,
+    signedSetup: prepared.signedSetup,
+    auth: prepared.auth,
+    createdAtMs: prepared.createdAtMs,
+    updatedAtMs: Date.now(),
+    localMaterial: {
+      keyFamilies: ['ed25519'],
+      custodyCommit: joined.commitPayload,
+      ed25519: {
+        activationReference: joined.activationReference,
+        localMaterial: joined.localMaterial,
+        metadata: pendingRegistrationEd25519MetadataFromJoined(joined),
+      },
+    },
+  });
+  if (joinedPending.operation !== 'near_provisioning' || joinedPending.phase !== 'joined') {
+    throw new Error('Invalid joined NEAR continuation');
+  }
+  await IndexedDBManager.advancePendingNearRegistration({
+    expected: prepared,
+    next: joinedPending,
+  });
+  recordWalletCustodyTiming(pending.registrationCeremonyId, 'journal_joined', journalStartedAt);
+  return { joined, admissionReceipt };
+}
+
+function nearRegistrationChainTarget(target: {
+  readonly chainTarget: ThresholdEcdsaChainTarget;
+}): ThresholdEcdsaChainTarget {
+  return target.chainTarget;
+}
+
+export type UnlockedNearRegistrationFactor =
+  | {
+      readonly kind: 'passkey';
+      readonly rpId: string;
+      readonly credentialIdB64u: string;
+      readonly prfFirstB64u: string;
+    }
+  | {
+      readonly kind: 'email_otp';
+      readonly provider: EmailOtpProvider;
+      readonly providerSubject: string;
+      readonly emailHashHex: string;
+    };
+
+function resumedNearRegistrationAuth(
+  pending: PendingWalletRegistrationCommitV1,
+  factor: UnlockedNearRegistrationFactor,
+): DeferredRegistrationFinalizeAuthMaterial {
+  if (
+    pending.auth.kind === 'passkey' &&
+    factor.kind === 'passkey' &&
+    pending.auth.rpId === factor.rpId &&
+    pending.auth.credentialIdB64u === factor.credentialIdB64u
+  ) {
+    return {
+      kind: 'passkey',
+      rpId: factor.rpId,
+      credentialIdB64u: factor.credentialIdB64u,
+      prfFirstB64u: factor.prfFirstB64u,
+    };
+  }
+  if (
+    pending.auth.kind === 'email_otp' &&
+    factor.kind === 'email_otp' &&
+    pending.auth.providerSubject === factor.providerSubject
+  ) {
+    const authority = parseEmailOtpWalletAuthAuthority({
+      walletId: pending.walletId,
+      bindingId: pending.walletAuthMethodId,
+      factor: {
+        kind: 'email_otp',
+        provider: factor.provider,
+        providerUserId: factor.providerSubject,
+      },
+      verifier: { kind: 'email_otp_wallet_auth_method', emailHashHex: factor.emailHashHex },
+    });
+    if (!authority) throw new Error('NEAR continuation requires its founding Email OTP method');
+    return {
+      kind: 'email_otp',
+      enrollment: pending.auth.enrollment,
+      emailOtpAuthContext: buildEmailOtpAuthContext({
+        policy: 'session',
+        retention: 'session',
+        reason: 'login',
+        authority,
+      }),
+    };
+  }
+  throw new Error('NEAR continuation requires its founding authentication method');
+}
+
+async function resumeNearRegistrationCustodyWork(args: {
+  readonly context: NearRegistrationContext;
+  readonly pending:
+    | PendingNearRegistrationContinuationV1
+    | Extract<PendingWalletRegistrationCommitV1, { readonly phase: 'joined' }>;
+  readonly relayerUrl: string;
+  readonly sessionAuthority: NearRegistrationSessionAuthority;
+  readonly factorSecret: ArrayBuffer;
+  readonly envelope: PasskeyCustodyEnvelopeRecord;
+}): Promise<DeferredNearCustodyWork> {
+  await requireCurrentNearRegistrationSession(args.sessionAuthority);
+  if (args.pending.phase === 'joined' && args.pending.completion.kind === 'sealed_material') {
+    const restored = await restorePendingNearRegistrationMaterial({
+      pending: args.pending,
+      relayerUrl: args.relayerUrl,
+      operationCredential: args.sessionAuthority.operationCredential,
+    });
+    return {
+      joined: restored.joined,
+      admissionRequest: restored.admissionRequest,
+      admissionReceipt: restored.admissionReceipt,
+      envelope: args.envelope,
+      factorSecret32: args.factorSecret,
+    };
+  }
+  const prepared =
+    args.pending.phase === 'joined' ? args.pending.completion.prepared : args.pending;
+  if (!prepared) throw new Error('NEAR continuation has no encrypted checkpoint');
+  const result = await continueNearRegistrationCustody({
+    pending: args.pending,
+    signingEngine: args.context.signingEngine,
+    relayerUrl: args.relayerUrl,
+    credential: args.sessionAuthority.operationCredential.token,
+    traceContext: createRouterAbTraceContextV1(),
+    factorSecret: args.factorSecret,
+  });
+  return {
+    joined: result.joined,
+    admissionReceipt: result.admissionReceipt,
+    admissionRequest: prepared.admissionRequest,
+    envelope: args.envelope,
+    factorSecret32: args.factorSecret,
+  };
+}
+
+/** Owns the factor copy; ordinary unlock is already complete when this starts. */
+export async function resumeNearRegistrationAfterUnlock(args: {
+  readonly context: LoginWebContext;
+  readonly sessionAuthority: NearRegistrationSessionAuthority;
+  readonly factor: UnlockedNearRegistrationFactor;
+  readonly ownedFactorSecret: ArrayBuffer;
+  readonly custodyEnvelope: PasskeyCustodyEnvelopeRecord;
+}): Promise<void> {
+  const startedAt = performance.now();
+  try {
+    const rows = await IndexedDBManager.listPendingWalletRegistrationCommits();
+    for (const pending of rows) {
+      if (
+        pending.operation !== 'near_provisioning' ||
+        pending.walletId !== args.sessionAuthority.record.walletId ||
+        pending.walletAuthMethodId !== args.sessionAuthority.record.authMethodId ||
+        pending.signerPlanKind !== 'near_ed25519_and_evm_family_ecdsa'
+      )
+        continue;
+      const activation = await IndexedDBManager.getPendingWalletRegistrationCommit({
+        registrationCeremonyId: pending.registrationCeremonyId,
+        operation: 'registration_activate',
+      });
+      if (activation) continue;
+      const relayerUrl = args.context.configs.network.relayer.url;
+      const authMaterial = resumedNearRegistrationAuth(pending, args.factor);
+      const work = resumeNearRegistrationCustodyWork.bind(undefined, {
+        context: args.context,
+        pending,
+        envelope: args.custodyEnvelope,
+        relayerUrl,
+        sessionAuthority: args.sessionAuthority,
+        factorSecret: args.ownedFactorSecret,
+      });
+      await runDeferredEd25519Provisioning({
+        context: args.context,
+        walletId: pending.walletId,
+        commit: {
+          context: args.context,
+          registrationStartedAt: startedAt,
+          clientPrewarm: Promise.resolve(),
+          relayerUrl,
+          registrationCeremonyId: pending.registrationCeremonyId,
+          signedSetup: pending.signedSetup,
+          headers: registrationRouteHeaders(),
+          nearCustodyWork: work,
+          sessionAuthority: args.sessionAuthority,
+          expectedChainTargets: listConfiguredThresholdEcdsaPublicationTargets(
+            args.context.configs.network.chains,
+          ).map(nearRegistrationChainTarget),
+          walletId: pending.walletId,
+          authMaterial,
+        },
+      });
+    }
+  } catch (error) {
+    console.warn(
+      '[registration] NEAR continuation remains pending',
+      error instanceof Error ? error.message : 'continuation failed',
+    );
+  } finally {
+    zeroizeArrayBuffer(args.ownedFactorSecret);
+  }
+}
+
 function requireDeferredNearCustodyWork(
   work: Promise<DeferredNearCustodyWork> | null,
 ): Promise<DeferredNearCustodyWork> {
@@ -2450,88 +2725,110 @@ function requireDeferredNearCustodyWork(
   return work;
 }
 
+type NearRegistrationContext = {
+  readonly signingEngine: NearRegistrationContinuationSigningSurface;
+  readonly nearClient: RegistrationWebContext['nearClient'];
+};
+
+type NearRegistrationSessionAuthority = {
+  readonly record: ActiveWalletSessionV1;
+  readonly operationCredential: WalletSessionOperationCredentialV1;
+};
+
 function mixedRegistrationSessionFromDeferredResult(
-  ecdsaSession: RegistrationEstablishedSessionV2,
+  existing: NearRegistrationSessionAuthority,
   result: RegistrationEstablishedSessionResultV2,
   finalAuthority: ActiveWalletAuthorityV1,
   finalAuthMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>,
 ): RegistrationEstablishedSessionV2 {
-  switch (result.kind) {
-    case 'issued':
-      throw new Error('Mixed registration deferred completion issued a second Wallet Session');
-    case 'already_committed': {
-      const projection = result.session;
-      if (
-        ecdsaSession.tokens.kind !== 'evm_family_ecdsa' ||
-        projection.tokens.kind !== 'near_ed25519_and_evm_family_ecdsa' ||
-        !sameRegistrationEstablishedEcdsaSessionProjection(
-          projection.tokens.ecdsa,
-          ecdsaSession.tokens.ecdsa,
-        ) ||
-        projection.walletId !== ecdsaSession.walletId ||
-        projection.authorizationId !== ecdsaSession.authorizationId ||
-        projection.walletSessionId !== ecdsaSession.walletSessionId ||
-        projection.quotaId !== ecdsaSession.quotaId ||
-        projection.expiresAtMs !== ecdsaSession.expiresAtMs ||
-        projection.remainingUses !== ecdsaSession.remainingUses
-      ) {
-        throw new Error('Mixed registration deferred completion changed the committed session');
-      }
-      const walletSession = projection.walletSession;
-      if (
-        walletSession.walletId !== ecdsaSession.walletSession.walletId ||
-        walletSession.authorityId !== ecdsaSession.walletSession.authorityId ||
-        walletSession.authMethodId !== ecdsaSession.walletSession.authMethodId ||
-        walletSession.authorizationId !== ecdsaSession.walletSession.authorizationId ||
-        walletSession.quotaId !== ecdsaSession.walletSession.quotaId ||
-        walletSession.issuedAtMs !== ecdsaSession.walletSession.issuedAtMs ||
-        walletSession.expiresAtMs !== ecdsaSession.walletSession.expiresAtMs ||
-        finalAuthority.walletId !== walletSession.walletId ||
-        finalAuthority.authorityId !== walletSession.authorityId ||
-        finalAuthority.authorityDigestB64u !== walletSession.authorityDigestB64u ||
-        finalAuthority.revocationEpoch !== walletSession.authorityRevocationEpoch ||
-        finalAuthMethod.walletId !== walletSession.walletId ||
-        finalAuthMethod.walletAuthorityId !== walletSession.authorityId ||
-        finalAuthMethod.walletAuthMethodId !== walletSession.authMethodId
-      ) {
-        throw new Error('Mixed registration canonical Wallet Session authority is inconsistent');
-      }
-      return {
-        kind: 'registration_established_wallet_session_v2',
-        walletId: ecdsaSession.walletId,
-        authorizationId: ecdsaSession.authorizationId,
-        walletSessionId: ecdsaSession.walletSessionId,
-        quotaId: ecdsaSession.quotaId,
-        expiresAtMs: ecdsaSession.expiresAtMs,
-        remainingUses: ecdsaSession.remainingUses,
-        walletSession,
-        operationCredential: ecdsaSession.operationCredential,
-        tokens: projection.tokens,
-      };
-    }
-    default:
-      return assertNever(result);
+  if (
+    result.kind !== 'already_committed' ||
+    result.session.tokens.kind !== 'near_ed25519_and_evm_family_ecdsa'
+  ) {
+    throw new Error('NEAR completion must extend the current Wallet Session');
+  }
+  const projection = result.session;
+  const current = existing.record;
+  const next = projection.walletSession;
+  if (
+    projection.walletId !== current.walletId ||
+    projection.authorizationId !== current.authorizationId ||
+    projection.quotaId !== current.quotaId ||
+    projection.walletSessionId !== existing.operationCredential.walletSessionId ||
+    next.authorityId !== current.authorityId ||
+    next.authMethodId !== current.authMethodId ||
+    next.issuedAtMs !== current.issuedAtMs ||
+    next.expiresAtMs !== current.expiresAtMs ||
+    next.authorityRevocationEpoch !== current.authorityRevocationEpoch ||
+    next.expiresAtMs <= Date.now() ||
+    !walletSessionPreservesCapabilities(current, next) ||
+    finalAuthority.authorityId !== next.authorityId ||
+    finalAuthority.walletId !== next.walletId ||
+    finalAuthority.authorityDigestB64u !== next.authorityDigestB64u ||
+    finalAuthority.revocationEpoch !== next.authorityRevocationEpoch ||
+    finalAuthMethod.walletAuthMethodId !== next.authMethodId ||
+    finalAuthMethod.walletId !== next.walletId ||
+    finalAuthMethod.walletAuthorityId !== next.authorityId
+  ) {
+    throw new Error('NEAR completion changed the current Wallet Session authority');
+  }
+  return {
+    kind: 'registration_established_wallet_session_v2',
+    walletId: projection.walletId,
+    authorizationId: projection.authorizationId,
+    walletSessionId: projection.walletSessionId,
+    quotaId: projection.quotaId,
+    expiresAtMs: projection.expiresAtMs,
+    remainingUses: projection.remainingUses,
+    walletSession: next,
+    operationCredential: existing.operationCredential,
+    tokens: projection.tokens,
+  };
+}
+
+async function requireCurrentNearRegistrationSession(
+  expected: NearRegistrationSessionAuthority,
+): Promise<void> {
+  const current = await walletSessionAuthorizations.readExactWithOperationCredential({
+    walletId: expected.record.walletId,
+    authorityId: expected.record.authorityId,
+    authMethodId: expected.record.authMethodId,
+  });
+  if (
+    current.kind !== 'found' ||
+    current.record.expiresAtMs <= Date.now() ||
+    current.record.authorizationId !== expected.record.authorizationId ||
+    current.record.authorityRevocationEpoch !== expected.record.authorityRevocationEpoch ||
+    current.operationCredential.token !== expected.operationCredential.token
+  ) {
+    throw new Error('NEAR continuation requires the current unlocked Wallet Session');
   }
 }
 
-async function readMixedRegistrationActivatePendingCommit(args: {
+async function readJoinedNearRegistrationCommit(args: {
   registrationCeremonyId: string;
   walletId: WalletId;
   walletAuthMethodId: string;
-}): Promise<MixedRegistrationActivatePendingCommit> {
-  await IndexedDBManager.initialize();
-  const pending = (await IndexedDBManager.listPendingWalletRegistrationCommits()).find(
-    (candidate) =>
-      candidate.operation === 'registration_activate' &&
-      candidate.registrationCeremonyId === args.registrationCeremonyId &&
-      String(candidate.walletId) === String(args.walletId) &&
-      String(candidate.walletAuthMethodId) === String(args.walletAuthMethodId),
-  );
-  return requireMixedRegistrationActivatePendingCommit(pending ?? null);
+}) {
+  const pending = await IndexedDBManager.getPendingWalletRegistrationCommit({
+    registrationCeremonyId: args.registrationCeremonyId,
+    operation: 'near_provisioning',
+  });
+  if (
+    !pending ||
+    pending.operation !== 'near_provisioning' ||
+    pending.phase !== 'joined' ||
+    pending.walletId !== args.walletId ||
+    pending.walletAuthMethodId !== args.walletAuthMethodId
+  ) {
+    throw new Error('NEAR joined checkpoint was not persisted');
+  }
+  return pending;
 }
 
 async function activatePasskeyRegistrationEd25519Material(args: {
-  signingEngine: RegistrationWebContext['signingEngine'];
+  signingEngine: NearRegistrationContinuationSigningSurface;
+  sessionAuthority: NearRegistrationSessionAuthority;
   metadata: JoinedWalletCustodyNearEd25519KeySetV1['metadata'];
   material: LoadedWalletCustodyEd25519MaterialV1;
   materialFacts: ReturnType<typeof registrationEd25519MaterialFacts>;
@@ -2582,6 +2879,7 @@ async function activatePasskeyRegistrationEd25519Material(args: {
       stableServerScope: materialFacts.stableServerScope,
       passkeyPrfFirstB64u: args.passkeyPrfFirstB64u,
     });
+    await requireCurrentNearRegistrationSession(args.sessionAuthority);
     await args.signingEngine.activateVerifiedNearEd25519YaoMaterial({
       activeClient,
       facts: {
@@ -2601,6 +2899,7 @@ async function activatePasskeyRegistrationEd25519Material(args: {
         relayerUrl: args.relayerUrl,
       },
     });
+    await requireCurrentNearRegistrationSession(args.sessionAuthority);
     activeClient = null;
   } catch (error) {
     activeClient?.dispose();
@@ -2610,32 +2909,170 @@ async function activatePasskeyRegistrationEd25519Material(args: {
   }
 }
 
-/**
- * Commit #2. Runs after registration has already returned an ECDSA-ready
- * wallet, so every failure here is reported as a retryable NEAR-provisioning
- * state rather than raised: the ECDSA wallet is durable and must survive a
- * terminal Yao failure untouched.
- */
+async function prewarmDeferredPasskeyEd25519Client(
+  auth: RegistrationAuthMethodInput,
+): Promise<void> {
+  if (auth.kind !== 'passkey') return;
+  try {
+    await RouterAbEd25519YaoClientV1.initializeBundled();
+  } catch {
+    // Material activation retries initialization and owns any terminal failure.
+  }
+}
+
+type NearRegistrationHydrationResult =
+  | { readonly kind: 'completed' }
+  | { readonly kind: 'failed'; readonly error: unknown };
+
+async function hydrateDeferredNearRegistrationSession(args: {
+  signingEngine: Pick<NearRegistrationContinuationSigningSurface, 'hydrateSigningSession'>;
+  ceremonyId: string;
+  input: Parameters<NearRegistrationContinuationSigningSurface['hydrateSigningSession']>[0];
+}): Promise<NearRegistrationHydrationResult> {
+  const startedAt = performance.now();
+  let outcome: 'success' | 'failure' = 'failure';
+  try {
+    await args.signingEngine.hydrateSigningSession(args.input);
+    outcome = 'success';
+    return { kind: 'completed' };
+  } catch (error: unknown) {
+    return { kind: 'failed', error };
+  } finally {
+    emitNearRegistrationTiming({
+      ceremonyId: args.ceremonyId,
+      stage: 'session_hydration',
+      startedAt,
+      outcome,
+    });
+  }
+}
+
+async function prepareDeferredNearSessionHydration(args: {
+  signingEngine: NearRegistrationContinuationSigningSurface;
+  ceremonyId: string;
+  input: Parameters<
+    NearRegistrationContinuationSigningSurface['prepareSigningSessionHydration']
+  >[0];
+}): Promise<NearRegistrationHydrationResult> {
+  const startedAt = performance.now();
+  let outcome: 'success' | 'failure' = 'failure';
+  try {
+    await args.signingEngine.prepareSigningSessionHydration(args.input);
+    outcome = 'success';
+    return { kind: 'completed' };
+  } catch (error: unknown) {
+    return { kind: 'failed', error };
+  } finally {
+    emitNearRegistrationTiming({
+      ceremonyId: args.ceremonyId,
+      stage: 'session_seal_preparation',
+      startedAt,
+      outcome,
+    });
+  }
+}
+
+type NearRegistrationSealPreparation =
+  | { readonly kind: 'none' }
+  | {
+      readonly kind: 'preparing';
+      readonly thresholdSessionId: string;
+      readonly preparationId: string;
+      readonly result: Promise<NearRegistrationHydrationResult>;
+    };
+
+function startNearRegistrationSealPreparation(args: {
+  signingEngine: NearRegistrationContinuationSigningSurface;
+  ceremonyId: string;
+  thresholdSessionId: string;
+  prfFirstB64u: string;
+}): NearRegistrationSealPreparation {
+  const sessionId = parseThresholdEd25519SessionId(args.thresholdSessionId);
+  if (!sessionId.ok) throw new Error('Invalid admitted NEAR session identity');
+  const preparationId = createRegistrationOperationIdempotencyKey('near-session-client-seal');
+  return {
+    kind: 'preparing',
+    thresholdSessionId: String(sessionId.value),
+    preparationId,
+    result: prepareDeferredNearSessionHydration({
+      signingEngine: args.signingEngine,
+      ceremonyId: args.ceremonyId,
+      input: {
+        preparationId,
+        thresholdSessionId: String(sessionId.value),
+        prfFirstB64u: args.prfFirstB64u,
+      },
+    }),
+  };
+}
+
+async function prepareNearSessionSealWhileCustodyRuns(args: {
+  signingEngine: NearRegistrationContinuationSigningSurface;
+  ceremonyId: string;
+  sessionAuthority: NearRegistrationSessionAuthority;
+  prfFirstB64u: string;
+}): Promise<NearRegistrationSealPreparation> {
+  try {
+    await requireCurrentNearRegistrationSession(args.sessionAuthority);
+    const pending = await IndexedDBManager.getPendingWalletRegistrationCommit({
+      registrationCeremonyId: args.ceremonyId,
+      operation: 'near_provisioning',
+    });
+    if (!pending || pending.operation !== 'near_provisioning' || pending.phase === 'joined')
+      return { kind: 'none' };
+    if (
+      pending.walletId !== args.sessionAuthority.record.walletId ||
+      pending.walletAuthMethodId !== args.sessionAuthority.record.authMethodId
+    )
+      return { kind: 'none' };
+    return startNearRegistrationSealPreparation({
+      signingEngine: args.signingEngine,
+      ceremonyId: args.ceremonyId,
+      thresholdSessionId: pending.admissionRequest.scope.threshold_session_id,
+      prfFirstB64u: args.prfFirstB64u,
+    });
+  } catch {
+    // The normal continuation still validates the joined journal and current authority.
+    return { kind: 'none' };
+  }
+}
+
+function nearRegistrationProfileUnavailable(): null {
+  return null;
+}
+
+/** NEAR failures retain their repair journal while the committed ECDSA wallet stays usable. */
 async function commitDeferredEd25519Registration(args: {
-  context: RegistrationWebContext;
+  context: NearRegistrationContext;
+  registrationStartedAt: number;
+  clientPrewarm: Promise<void>;
   relayerUrl: string;
   registrationCeremonyId: string;
   /* Route 4 verifies the same payload the earlier legs carried. */
   signedSetup: string;
   headers: Record<string, string> | undefined;
-  nearCustodyWork: Promise<DeferredNearCustodyWork>;
-  deferredNear: WalletRegistrationRespondEd25519DeferredWork;
-  plan: RegistrationPersistencePlan;
-  ecdsaWalletKeys: RegistrationEcdsaLocalWalletKeys;
+  nearCustodyWork: () => Promise<DeferredNearCustodyWork>;
+  sessionAuthority: NearRegistrationSessionAuthority;
+  expectedChainTargets: readonly ThresholdEcdsaChainTarget[];
   walletId: WalletId;
   authMaterial: DeferredRegistrationFinalizeAuthMaterial;
 }): Promise<NearProvisioningState> {
-  const auth = args.plan.auth;
+  const auth = args.authMaterial;
   const startedAt = performance.now();
   let outcome: 'success' | 'failure' = 'failure';
   let retainedFactorSecret32: ArrayBuffer | null = null;
+  let hydration: Promise<NearRegistrationHydrationResult> = Promise.resolve({ kind: 'completed' });
+  let preparation: NearRegistrationSealPreparation = { kind: 'none' };
   try {
-    const nearCustody = await args.nearCustodyWork;
+    if (auth.kind === 'passkey') {
+      preparation = await prepareNearSessionSealWhileCustodyRuns({
+        signingEngine: args.context.signingEngine,
+        ceremonyId: args.registrationCeremonyId,
+        sessionAuthority: args.sessionAuthority,
+        prfFirstB64u: auth.prfFirstB64u,
+      });
+    }
+    const nearCustody = await args.nearCustodyWork();
     retainedFactorSecret32 = nearCustody.factorSecret32;
     const joined = nearCustody.joined;
     const clientPublicKey = `ed25519:${base58Encode(joined.metadata.registeredPublicKey)}`;
@@ -2644,19 +3081,31 @@ async function commitDeferredEd25519Registration(args: {
       registrationCeremonyId: args.registrationCeremonyId,
       activationReference,
     });
-    const pending = await readMixedRegistrationActivatePendingCommit({
+    const pending = await readJoinedNearRegistrationCommit({
       registrationCeremonyId: args.registrationCeremonyId,
       walletId: args.walletId,
-      walletAuthMethodId: String(args.plan.foundingAuthMethod.walletAuthMethodId),
+      walletAuthMethodId: String(args.sessionAuthority.record.authMethodId),
     });
     /* Route 4 uses its own deterministic server idempotency key, while local
        publication remains bound to the retained activation row. */
+    await requireCurrentNearRegistrationSession(args.sessionAuthority);
+    if (auth.kind === 'passkey' && preparation.kind === 'none') {
+      preparation = startNearRegistrationSealPreparation({
+        signingEngine: args.context.signingEngine,
+        ceremonyId: args.registrationCeremonyId,
+        thresholdSessionId: joined.metadata.scope.threshold_session_id,
+        prfFirstB64u: auth.prfFirstB64u,
+      });
+    }
     const finalizationStartedAt = performance.now();
     const completed = await completeWalletRegistrationNearProvisioning({
       relayerUrl: args.relayerUrl,
       registrationCeremonyId: args.registrationCeremonyId,
       signedSetup: args.signedSetup,
-      headers: args.headers,
+      headers: {
+        ...args.headers,
+        Authorization: `Bearer ${args.sessionAuthority.operationCredential.token}`,
+      },
       /* Deterministic, and distinct from activate's key: the server derives
          its side-effect key from {ceremonyId, idempotencyKey}, so sharing
          activate's key would replay activate's commit, while a random key
@@ -2684,7 +3133,7 @@ async function commitDeferredEd25519Registration(args: {
       outcome: 'success',
     });
     const registrationSession = mixedRegistrationSessionFromDeferredResult(
-      args.plan.ecdsa.session.registrationEstablishedSession,
+      args.sessionAuthority,
       finalized.registrationEstablishedSession,
       finalized.foundingAuthority,
       finalized.foundingAuthMethod,
@@ -2703,15 +3152,16 @@ async function commitDeferredEd25519Registration(args: {
       requireEmailOtpEd25519YaoRegistrationPublicResultMatches({
         clientPublicKey,
         finalized,
-        expectedRegistrationAuthorityId: auth.registrationAuthorityId,
+        expectedRegistrationAuthorityId:
+          pending.auth.kind === 'email_otp' ? pending.auth.registrationAuthorityId : '',
         expectedWalletId: args.walletId,
       });
     }
     const materialFacts = registrationEd25519MaterialFacts({
-      deferredNear: args.deferredNear,
+      deferredNear: { status: 'deferred', admissionRequest: nearCustody.admissionRequest },
       finalized: finalized.ed25519,
       walletId: args.walletId,
-      expectedRuntimePolicyScope: args.plan.ecdsa.session.clientBootstrap.runtimePolicyScope,
+      expectedRuntimePolicyScope: normalizeRuntimePolicyScope(finalized.ed25519.runtimePolicyScope),
     });
     const metadata = joined.metadata;
     const materialActivation = nearEd25519YaoMaterialActivationFromMetadata(metadata);
@@ -2723,19 +3173,8 @@ async function commitDeferredEd25519Registration(args: {
       signerSlot: finalized.ed25519.signerSlot,
     });
     const publicationStartedAt = performance.now();
-    const registration = await prepareMixedRegistrationPublication({
-      auth,
-      walletId: args.walletId,
-      nearAccountId,
-      nearEd25519SigningKeyId: finalized.ed25519.nearEd25519SigningKeyId,
-      signerSlot: finalized.ed25519.signerSlot,
-      operationalPublicKey: clientPublicKey,
-      relayerKeyId: finalized.ed25519.relayerKeyId,
-      keyVersion: finalized.ed25519.keyVersion,
-      participantIds: [...finalized.ed25519.participantIds],
-      custodyMaterial,
-      walletKeys: args.ecdsaWalletKeys,
-    });
+    const registration = await registrationProjectionFromPending(pending, finalized);
+    await requireCurrentNearRegistrationSession(args.sessionAuthority);
     const stored = await IndexedDBManager.publishPendingWalletRegistrationCommitAndRetain({
       pending,
       ecdsaContinuity: [],
@@ -2757,9 +3196,21 @@ async function commitDeferredEd25519Registration(args: {
       },
       registration,
     });
-    const storedNearActivation = stored.signerActivations[1];
+    const storedNearActivation = stored.signerActivations[0];
     if (!storedNearActivation || storedNearActivation.signerSlot !== finalized.ed25519.signerSlot) {
       throw new Error('Deferred Ed25519 registration persisted a different signer slot');
+    }
+    // Publication can supersede the authority used by the first ECDSA prefill.
+    // Resolve the newly committed context even when its credential is unchanged.
+    const prefillStatusReads = new WalletSessionStatusReadScope();
+    for (const chainTarget of args.expectedChainTargets) {
+      void scheduleEcdsaSessionPresignaturePrefill({
+        signingEngine: args.context.signingEngine,
+        walletId: args.walletId,
+        chainTarget,
+        trigger: 'registration',
+        statusReads: prefillStatusReads,
+      });
     }
     emitNearRegistrationTiming({
       ceremonyId: args.registrationCeremonyId,
@@ -2767,35 +3218,60 @@ async function commitDeferredEd25519Registration(args: {
       startedAt: publicationStartedAt,
       outcome: 'success',
     });
-    const sessionStartedAt = performance.now();
-    if (args.authMaterial.kind === 'passkey') {
+    await requireCurrentNearRegistrationSession(args.sessionAuthority);
+    // Hydration owns refresh persistence; signer installation uses the joined custody material.
+    if (args.authMaterial.kind === 'passkey' && registrationSession.remainingUses > 0) {
+      if (preparation.kind === 'preparing') {
+        const preparationWaitStartedAt = performance.now();
+        const prepared = await preparation.result;
+        emitNearRegistrationTiming({
+          ceremonyId: args.registrationCeremonyId,
+          stage: 'session_seal_preparation_wait',
+          startedAt: preparationWaitStartedAt,
+          outcome: prepared.kind === 'completed' ? 'success' : 'failure',
+        });
+        if (prepared.kind === 'failed') throw prepared.error;
+        await requireCurrentNearRegistrationSession(args.sessionAuthority);
+      }
+
       const registrationEd25519Session = registrationEstablishedEd25519Session(registrationSession);
-      await args.context.signingEngine.hydrateSigningSession({
-        thresholdSessionId: String(registrationEd25519Session.thresholdSessionId),
-        prfFirstB64u: args.authMaterial.prfFirstB64u,
-        expiresAtMs: registrationSession.expiresAtMs,
-        remainingUses: registrationSession.remainingUses,
-        transport: {
-          curve: 'ed25519',
-          authMethod: 'passkey',
-          walletId: String(args.walletId),
-          relayerUrl: args.relayerUrl,
-          walletSessionToken: registrationSession.operationCredential.token,
-          ed25519Restore: buildPasskeyEd25519RestoreMetadata({
-            rpId: args.authMaterial.rpId,
-            nearAccountId: String(nearAccountId),
-            nearEd25519SigningKeyId: finalized.ed25519.nearEd25519SigningKeyId,
-            relayerKeyId: finalized.ed25519.relayerKeyId,
-            participantIds: [...finalized.ed25519.participantIds],
-            runtimePolicyScope: registrationEd25519Session.runtimePolicyScope,
-            signerSlot: finalized.ed25519.signerSlot,
-            routerAbNormalSigning: registrationEd25519Session.routerAbNormalSigning,
-            credentialIdB64u: args.authMaterial.credentialIdB64u,
-            materialActivation,
-          }),
+      hydration = hydrateDeferredNearRegistrationSession({
+        signingEngine: args.context.signingEngine,
+        ceremonyId: args.registrationCeremonyId,
+        input: {
+          thresholdSessionId: String(registrationEd25519Session.thresholdSessionId),
+          diagnostics: {
+            recordDuration: recordNearRegistrationSessionTiming.bind(
+              undefined,
+              args.registrationCeremonyId,
+            ),
+          },
+          prfFirstB64u: args.authMaterial.prfFirstB64u,
+          expiresAtMs: registrationSession.expiresAtMs,
+          remainingUses: registrationSession.remainingUses,
+          transport: {
+            curve: 'ed25519',
+            authMethod: 'passkey',
+            walletId: String(args.walletId),
+            relayerUrl: args.relayerUrl,
+            walletSessionToken: registrationSession.operationCredential.token,
+            ed25519Restore: buildPasskeyEd25519RestoreMetadata({
+              rpId: args.authMaterial.rpId,
+              nearAccountId: String(nearAccountId),
+              nearEd25519SigningKeyId: finalized.ed25519.nearEd25519SigningKeyId,
+              relayerKeyId: finalized.ed25519.relayerKeyId,
+              participantIds: [...finalized.ed25519.participantIds],
+              runtimePolicyScope: registrationEd25519Session.runtimePolicyScope,
+              signerSlot: finalized.ed25519.signerSlot,
+              routerAbNormalSigning: registrationEd25519Session.routerAbNormalSigning,
+              credentialIdB64u: args.authMaterial.credentialIdB64u,
+              materialActivation,
+            }),
+          },
         },
       });
     }
+    const sessionStartedAt = performance.now();
     await args.context.signingEngine.activateAuthenticatedWalletState({
       walletId: args.walletId,
       nearAccountId,
@@ -2821,7 +3297,8 @@ async function commitDeferredEd25519Registration(args: {
       outcome: 'success',
     });
     const activationStartedAt = performance.now();
-    if (auth.kind === 'email_otp') {
+    // An exhausted Email OTP session installs its signer during exact-operation step-up.
+    if (auth.kind === 'email_otp' && registrationSession.remainingUses > 0) {
       const walletSessionState = await buildRegistrationEmailOtpEd25519SessionState({
         registrationEstablishedSession: registrationSession,
         walletId: args.walletId,
@@ -2839,7 +3316,8 @@ async function commitDeferredEd25519Registration(args: {
         nearEd25519SigningKeyId: finalized.ed25519.nearEd25519SigningKeyId,
         sessionState: walletSessionState,
         joined,
-        deferredNear: args.deferredNear,
+        deferredNear: { status: 'deferred', admissionRequest: nearCustody.admissionRequest },
+        admissionReceipt: nearCustody.admissionReceipt,
         authContext: auth.emailOtpAuthContext,
       });
       await args.context.signingEngine.activateEmailOtpEd25519RegistrationMaterialInternal({
@@ -2854,23 +3332,25 @@ async function commitDeferredEd25519Registration(args: {
         expectedThresholdSessionId: materialFacts.identity.thresholdSessionId,
         bootstrap,
         material: custodyMaterial,
-        envelope: nearCustody.envelope,
+        envelope: walletCustodyCacheEnvelopeFromRecordV1(nearCustody.envelope),
         factorSecret32: retainedFactorSecret32,
       });
       retainedFactorSecret32 = null;
-    } else {
+    } else if (auth.kind === 'passkey') {
       if (args.authMaterial.kind !== 'passkey') {
         throw new Error('Deferred passkey registration has no Passkey authorization material');
       }
       if (!retainedFactorSecret32) {
         throw new Error('Deferred passkey registration has no custody factor secret');
       }
+      await args.clientPrewarm;
       await activatePasskeyRegistrationEd25519Material({
         signingEngine: args.context.signingEngine,
+        sessionAuthority: args.sessionAuthority,
         metadata,
         material: custodyMaterial,
         materialFacts,
-        envelope: nearCustody.envelope,
+        envelope: walletCustodyCacheEnvelopeFromRecordV1(nearCustody.envelope),
         ownedFactorSecret: new Uint8Array(retainedFactorSecret32),
         rpId: args.authMaterial.rpId,
         credentialIdB64u: args.authMaterial.credentialIdB64u,
@@ -2880,10 +3360,10 @@ async function commitDeferredEd25519Registration(args: {
       retainedFactorSecret32 = null;
     }
     if (args.authMaterial.kind === 'passkey') {
-      await rememberPasskeyRegistrationCustodyEnvelope({
-        commit: nearCustody.commitPayload,
+      await rememberPasskeyCustodySessionEnvelope({
         walletId: String(args.walletId),
-        activatedAtMs: Date.now(),
+        credentialIdB64u: args.authMaterial.credentialIdB64u,
+        envelope: nearCustody.envelope,
       });
     }
     emitNearRegistrationTiming({
@@ -2892,19 +3372,23 @@ async function commitDeferredEd25519Registration(args: {
       startedAt: activationStartedAt,
       outcome: 'success',
     });
-    const readyStartedAt = performance.now();
-    /* Durable first: finalize, capability persistence, and the Yao seal have
-       all succeeded by here, and the record is authoritative. If this write
-       throws, the catch below records a retryable failure — near_ready is
-       never published on an unpersisted success. */
-    await args.context.signingEngine.setWalletNearProvisioningState({
-      walletId: String(args.walletId),
-      status: 'near_ready',
-      nearAccountId: String(nearAccountId),
+    await requireCurrentNearRegistrationSession(args.sessionAuthority);
+    const hydrationWaitStartedAt = performance.now();
+    const hydrated = await hydration;
+    emitNearRegistrationTiming({
+      ceremonyId: args.registrationCeremonyId,
+      stage: 'session_hydration_wait',
+      startedAt: hydrationWaitStartedAt,
+      outcome: hydrated.kind === 'completed' ? 'success' : 'failure',
     });
-    await IndexedDBManager.deletePendingWalletRegistrationCommit({
-      registrationCeremonyId: pending.registrationCeremonyId,
-      operation: pending.operation,
+    if (hydrated.kind === 'failed') throw hydrated.error;
+    await requireCurrentNearRegistrationSession(args.sessionAuthority);
+    const readyStartedAt = performance.now();
+    await IndexedDBManager.completePendingNearRegistration({
+      pending,
+      walletSession: registrationSession.walletSession,
+      operationCredential: registrationSession.operationCredential,
+      nearAccountId: String(nearAccountId),
     });
     emitNearRegistrationTiming({
       ceremonyId: args.registrationCeremonyId,
@@ -2919,6 +3403,10 @@ async function commitDeferredEd25519Registration(args: {
       nearAccountId: String(nearAccountId),
     };
   } catch (error: unknown) {
+    const profile = await IndexedDBManager.getProfile(String(args.walletId)).catch(
+      nearRegistrationProfileUnavailable,
+    );
+    if (profile?.nearProvisioning?.status === 'near_ready') return profile.nearProvisioning;
     /* The ECDSA wallet is already durable, so this is reported as a retryable
        provisioning state rather than raised. */
     const errorCode = nearProvisioningErrorCode(error);
@@ -2939,11 +3427,28 @@ async function commitDeferredEd25519Registration(args: {
       errorCode,
     };
   } finally {
+    // A failed or locked installation must settle its sibling before the continuation exits.
+    await hydration;
+    if (preparation.kind === 'preparing') {
+      await preparation.result;
+      await args.context.signingEngine
+        .discardSigningSessionHydration({
+          thresholdSessionId: preparation.thresholdSessionId,
+          preparationId: preparation.preparationId,
+        })
+        .catch(ignoreNearCustodyFailure);
+    }
     if (retainedFactorSecret32) zeroizeArrayBuffer(retainedFactorSecret32);
     emitNearRegistrationTiming({
       ceremonyId: args.registrationCeremonyId,
       stage: 'provisioning_total',
       startedAt,
+      outcome,
+    });
+    emitNearRegistrationTiming({
+      ceremonyId: args.registrationCeremonyId,
+      stage: 'registration_total',
+      startedAt: args.registrationStartedAt,
       outcome,
     });
   }
@@ -2952,7 +3457,7 @@ async function commitDeferredEd25519Registration(args: {
 /* Exported for tests: the persist-before-publish ordering below is the
    lifecycle's core guarantee and is only observable by driving this runner. */
 export async function runDeferredEd25519Provisioning(args: {
-  context: RegistrationWebContext;
+  context: NearRegistrationContext;
   walletId: WalletId;
   commit: Parameters<typeof commitDeferredEd25519Registration>[0];
 }): Promise<void> {
@@ -3057,6 +3562,11 @@ async function registerEcdsaOrMixedWallet(
   const { onEvent, onError, afterCall } = options;
   const startedAt = performance.now();
   const registrationTiming = new RegistrationTimingRecorder(startedAt);
+  // The main-thread signer WASM is separate from the ceremony worker's instance.
+  const clientPrewarm =
+    args.kind === 'near_ed25519_and_evm_family_ecdsa'
+      ? prewarmDeferredPasskeyEd25519Client(args.authMethod)
+      : Promise.resolve();
   const traceContext = createRouterAbTraceContextV1();
   let postTouchIdCompletedAt: number | null = null;
   let emailOtpCustodyCapabilityFactorSecret32: Uint8Array | null = null;
@@ -3307,11 +3817,25 @@ async function registerEcdsaOrMixedWallet(
               }),
             };
             if (input.signerPlanKind === 'near_ed25519_and_evm_family_ecdsa') {
-              persistedPendingCommit = await persistPendingRegistrationCommit({
-                ...common,
-                signerPlanKind: input.signerPlanKind,
-                localMaterial: input.localMaterial,
-              });
+              const nowMs = Date.now();
+              const activation = requireMixedRegistrationActivatePendingCommit(
+                buildPendingRegistrationCommit({
+                  ...common,
+                  signerPlanKind: input.signerPlanKind,
+                  localMaterial: input.localMaterial,
+                  createdAtMs: nowMs,
+                  updatedAtMs: nowMs,
+                }),
+              );
+              const continuation = planPendingNearRegistration(
+                activation,
+                input.deferredNear.admissionRequest,
+              );
+              await IndexedDBManager.putPendingWalletRegistrationCommits([
+                activation,
+                continuation,
+              ]);
+              persistedPendingCommit = activation;
               return;
             }
             persistedPendingCommit = await persistPendingRegistrationCommit({
@@ -3393,13 +3917,12 @@ async function registerEcdsaOrMixedWallet(
       phase: RegistrationEventPhase.STEP_08_STORAGE_PERSIST_STARTED,
       status: 'running',
     });
-    let mixedEcdsaWalletKeys: RegistrationEcdsaLocalWalletKeys | null = null;
     const deferredWalletId = toWalletId(finalized.walletId);
     let registrationNearProvisioning: RegistrationNearProvisioningState = { status: 'pending' };
     /* Commit #1 makes the ECDSA branch usable immediately. Mixed registration
-       keeps its single pending row for the deferred NEAR publication. */
+       retains the separate NEAR continuation for deferred publication. */
     if (args.kind === 'near_ed25519_and_evm_family_ecdsa') {
-      mixedEcdsaWalletKeys = await publishMixedEcdsaRegistrationCommit({
+      await publishMixedEcdsaRegistrationCommit({
         context,
         relayerUrl,
         registrationTiming,
@@ -3434,10 +3957,9 @@ async function registerEcdsaOrMixedWallet(
       });
     }
     const primaryEcdsaKey = persistencePlan.ecdsa.walletKeys[0];
-    /* Commit #2 is deliberately not awaited: registration returns as soon as
-       the ECDSA wallet is durable, which is what takes the Yao wait off the
-       critical path. It reports failure as a retryable provisioning state
-       instead of rejecting, so it can never fault this returned wallet. */
+    /* Commit #2 defers NEAR finalization and local signer installation. Both
+       custody branches were joined and journaled before Route 3. A failure
+       here remains retryable while the ECDSA wallet stays usable. */
     if (args.authMethod.kind === 'passkey') {
       if (!passkeyAuthority) {
         throw new Error('Passkey registration authority was not collected');
@@ -3488,14 +4010,22 @@ async function registerEcdsaOrMixedWallet(
           walletId: deferredWalletId,
           commit: {
             context,
+            registrationStartedAt: startedAt,
+            clientPrewarm,
             relayerUrl,
             registrationCeremonyId: setup.registrationCeremonyId,
             signedSetup: setup.signedSetup,
             headers: registrationRouteHeaders(traceContext),
-            nearCustodyWork: requireDeferredNearCustodyWork(ceremony.deferredNearCustodyWork),
-            deferredNear: requireDeferredNearWork(ceremony.deferredNear),
-            plan: persistencePlan,
-            ecdsaWalletKeys: requireMixedEcdsaWalletKeys(mixedEcdsaWalletKeys),
+            nearCustodyWork: requireDeferredNearCustodyWork.bind(
+              undefined,
+              ceremony.deferredNearCustodyWork,
+            ),
+            sessionAuthority: {
+              record: persistencePlan.ecdsa.session.registrationEstablishedSession.walletSession,
+              operationCredential:
+                persistencePlan.ecdsa.session.registrationEstablishedSession.operationCredential,
+            },
+            expectedChainTargets: persistencePlan.ecdsa.expectedChainTargets,
             walletId: deferredWalletId,
             authMaterial: deferredAuthMaterial,
           },
@@ -3748,7 +4278,11 @@ async function registerEmailOtpEd25519YaoWalletOnly(
           responded.ed25519.admissionRequest.application_binding.near_ed25519_signing_key_id,
         registrationCeremonyId: setup.registrationCeremonyId,
         admissionRequest: responded.ed25519.admissionRequest,
-        admissionReceipt: responded.ed25519.admissionReceipt,
+        admissionReceipt: await admitDeferredNearRegistration(responded.ed25519, {
+          routerOrigin: new URL(relayerUrl).origin,
+          authorization: { kind: 'bearer', value: `Bearer ${String(setup.signedSetup)}` },
+          fetch: globalThis.fetch,
+        }),
         participantIds: responded.ed25519.admissionRequest.participant_ids,
         routerOrigin: new URL(relayerUrl).origin,
         authorization: `Bearer ${String(setup.signedSetup)}`,
@@ -3817,6 +4351,7 @@ async function registerEmailOtpEd25519YaoWalletOnly(
     });
     const nearProvisioningPending = await persistPendingRegistrationCommit({
       operation: 'near_provisioning',
+      completion: { kind: 'sealed_material' },
       signerPlanKind: 'near_ed25519',
       registrationCeremonyId: setup.registrationCeremonyId,
       idempotencyKey: nearProvisioningIdempotencyKey,
@@ -4187,7 +4722,11 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
           responded.ed25519.admissionRequest.application_binding.near_ed25519_signing_key_id,
         registrationCeremonyId: setup.registrationCeremonyId,
         admissionRequest: responded.ed25519.admissionRequest,
-        admissionReceipt: responded.ed25519.admissionReceipt,
+        admissionReceipt: await admitDeferredNearRegistration(responded.ed25519, {
+          routerOrigin: new URL(relayerUrl).origin,
+          authorization: { kind: 'bearer', value: `Bearer ${String(setup.signedSetup)}` },
+          fetch: globalThis.fetch,
+        }),
         participantIds: responded.ed25519.admissionRequest.participant_ids,
         routerOrigin: new URL(relayerUrl).origin,
         authorization: `Bearer ${String(setup.signedSetup)}`,
@@ -4255,6 +4794,7 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
     });
     const nearProvisioningPending = await persistPendingRegistrationCommit({
       operation: 'near_provisioning',
+      completion: { kind: 'sealed_material' },
       signerPlanKind: 'near_ed25519',
       registrationCeremonyId: setup.registrationCeremonyId,
       idempotencyKey: nearProvisioningIdempotencyKey,
@@ -4405,6 +4945,10 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
     }
     await activatePasskeyRegistrationEd25519Material({
       signingEngine: context.signingEngine,
+      sessionAuthority: {
+        record: registrationSession.walletSession,
+        operationCredential: registrationSession.operationCredential,
+      },
       metadata,
       material: custodyMaterial,
       materialFacts,
@@ -4833,6 +5377,7 @@ async function addPasskeyEd25519YaoWalletSigner(
     if (!custodyWire.ok) throw new Error(custodyWire.reason);
     factorSecret = Uint8Array.from(base64UrlDecode(input.passkeyPrfFirstB64u)).buffer;
     const joined = await input.context.signingEngine.joinWalletCustodyNearEd25519KeySet({
+      preparation: { kind: 'fresh' },
       custodyJson: custodyWire.custodyJson,
       factorSecret,
       nearEd25519SigningKeyId: admitted.request.application_binding.near_ed25519_signing_key_id,

@@ -184,7 +184,7 @@ async function bindAndAdmitVerifiedRegistration(input: {
       input.backend,
       loaded.state.registration,
     );
-    const preparation = service.prepareAdmit(input.input.admissionRequest);
+    const preparation = service.prepareAdmit(bound.admissionRequest);
     if (preparation.kind === 'completed') {
       return { ok: true, status: 200, value: preparation.value };
     }
@@ -192,7 +192,7 @@ async function bindAndAdmitVerifiedRegistration(input: {
 
     if (backendResult === null) {
       try {
-        backendResult = await input.backend.admit(input.input.admissionRequest);
+        backendResult = await input.backend.admit(bound.admissionRequest);
       } catch (error: unknown) {
         return {
           ok: false,
@@ -203,7 +203,7 @@ async function bindAndAdmitVerifiedRegistration(input: {
       }
     }
     const admitted = service.commitAdmit({
-      request: input.input.admissionRequest,
+      request: bound.admissionRequest,
       claim: preparation.claim,
       outcome: { kind: 'backend_response', result: backendResult },
     });

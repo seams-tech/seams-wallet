@@ -577,6 +577,28 @@ async function reservePresignature(
     await destroyOpaqueMaterial(entry);
     return { kind: 'unavailable', reason: 'binding_rejected' };
   }
+  if (entry.state.kind === 'pending_admission') {
+    if (leaseExpiresAtMs > entry.expiresAtMs) return { kind: 'unavailable', reason: 'expired' };
+    const reserved = {
+      kind: 'reserved' as const,
+      requestBinding,
+      reservationId,
+      leaseExpiresAtMs,
+      authorityMaterialHandle: entry.state.authorityMaterialHandle,
+    };
+    // Claim before hashing yields, so completed handoff material is never discoverable as Available.
+    entry.state = reserved;
+    const actualId = await presignatureId(entry.bigR33);
+    if (opaqueMaterials.get(materialHandle) !== entry || entry.state !== reserved) {
+      return { kind: 'unavailable', reason: 'claimed_elsewhere' };
+    }
+    if (actualId !== expectedPresignatureId || Date.now() >= leaseExpiresAtMs) {
+      opaqueMaterials.delete(materialHandle);
+      await destroyOpaqueMaterial(entry);
+      return { kind: 'unavailable', reason: 'binding_rejected' };
+    }
+    return { kind: 'reserved' };
+  }
   if (entry.state.kind !== 'available') {
     return { kind: 'unavailable', reason: 'claimed_elsewhere' };
   }

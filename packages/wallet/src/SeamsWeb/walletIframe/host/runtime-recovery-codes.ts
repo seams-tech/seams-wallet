@@ -1,3 +1,4 @@
+import { resolveAppearanceTheme } from '@/core/config/configHelpers';
 import { showWalletRecoveryCodesUi } from '@/SeamsWeb/operations/recovery/walletRecoveryCodeBackup';
 import { pendingWalletRecoveryCodeBackupRepository } from '@/core/indexedDB/seamsWalletDB/pendingWalletRecoveryCodeBackup';
 import {
@@ -88,6 +89,16 @@ export async function handleWalletHostRuntimeRequest(
       kind: 'wallet_iframe',
       requestId,
       postMeasurement: postSurfaceMeasurement.bind(null, input),
+    },
+    {
+      appearance: {
+        palette: 'default',
+        theme: resolveAppearanceTheme({
+          value: input.state.walletConfigs?.appearance?.theme,
+          fallback: { id: 'default', mode: 'dark', colors: {} },
+        }),
+      },
+      shouldCancel: () => input.isCancelled(requestId),
     },
   );
   if (acknowledgement.kind !== 'wallet_recovery_codes_backed_up_v1') {

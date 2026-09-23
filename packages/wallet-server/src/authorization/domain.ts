@@ -289,6 +289,11 @@ export type IssuedWalletSessionAuthorizationV2 = {
   readonly quota: ActiveWalletSessionQuota;
 };
 
+export type LiveWalletSessionAuthorizationProjectionV2 = {
+  readonly session: WalletSessionAuthorizationV2;
+  readonly quota: ExactWalletSessionQuotaProjectionV1;
+};
+
 /**
  * Quota lifecycle as persistence observes it. `ActiveWalletSessionQuota` cannot
  * carry an exhausted quota because it requires a positive remaining count, yet

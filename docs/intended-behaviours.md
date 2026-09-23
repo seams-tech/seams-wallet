@@ -49,6 +49,18 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 | tenant derivation root            | Server-side tenant secret derivation origin used for operational holder material. It is distinct from every wallet custody seed and owner signing root.                                                   |
 | `deviceId`                        | Installation identity for one Wallet authority on one browser or device. It is not a hardware fingerprint.                                                                                                |
 
+## Wallet settings presentation
+
+- `WalletSettingsPage`, inside `SeamsWebProvider`, presents the account menu as a
+  full-page sidebar and a selected settings panel. Signed-out users authenticate
+  through the hosted authentication menu before accessing wallet settings.
+- Page presentation retains the account menu's capability restrictions and uses
+  the same export, recovery, authentication-method, device-linking, and preference
+  operations. Authentication methods and linked devices render inline without
+  modal focus trapping; sensitive-operation confirmations retain their existing UI.
+- Narrow viewports expose the sidebar through an explicit settings disclosure.
+  Selecting a section moves focus to its heading. Locking returns to authentication.
+
 ## Durable ECDSA preprocessing
 
 - An owner pool-fill ceremony uses six dependent HTTP exchanges: initialization
@@ -59,6 +71,19 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
   expiry-bound identity before returning its first message, including on failure.
   Reinitialization is rejected after completion and worker restart. Requests that
   exceed authorized deadlines fail rather than changing an initialized binding.
+
+- A confirmed foreground signing operation may claim an in-flight ceremony's final
+  batch. Its complete request uses the verified public candidate R-derived
+  material identity. The ordinary live signing authorization and quota admission
+  precede terminal protocol execution; the server first persists this material as
+  Reserved for that exact request. The client claims completed material directly
+  without publishing it in the available pool. If the final batch has already
+  been sent, signing uses ordinary completed-pool preparation.
+- An ambiguous terminal prepare response does not trigger a replacement signing
+  operation. Cancellation or invalidation destroys client material; server
+  reservations remain single-use and expire under the existing lease. Exact
+  completed finalization replay returns the durable first result, while altered
+  finalization input is rejected.
 
 - Retain unused reusable ECDSA presignatures encrypted on both participants for
   up to 90 days, subject to material retirement and revocation. Session expiry
@@ -161,10 +186,41 @@ Expected behaviour:
 - Registration schedules bounded ECDSA presignature refill under the established
   session. Registration success does not await pool readiness. Immediate signing
   may use the first completed entry while background refill continues.
+- A presign HTTP exchange has a five-second response budget capped by the
+  ceremony's remaining lifetime, including response-body delivery. A stalled
+  exchange is aborted; recovery starts a fresh ceremony identity. Foreground
+  signing retains priority through failed-refill recovery so maintenance cannot
+  launch competing generation before that signing operation finishes.
+- Deferred mixed-authority publication reconciles ECDSA refill against the newly
+  committed authority, including when the session credential is retained. A late
+  failure from an older attempt cannot cancel the reconciled refill. Rejection
+  without fresh lifecycle reconciliation stops refill without a retry loop.
 - For a mixed signer set, Ed25519/NEAR provisioning continues under the same
   authenticated ceremony and publishes one of `near_pending`,
   `near_provisioning`, `near_ready`, or `near_failed_retryable`.
-- NEAR signing becomes available at `near_ready` without a second passkey prompt.
+- NEAR admission and Yao execution cannot delay EVM registration or EVM signing.
+  EVM activation and the NEAR continuation are saved atomically as separate records.
+  Yao execution starts only after its encrypted completion checkpoint is durable.
+- Reload and uncertain responses retain the exact NEAR attempt. Normal unlock
+  with the founding method resumes its saved phase, using fresh session authority
+  when the registration grant has expired. No replacement key is generated.
+- NEAR completion extends the current Wallet Session while preserving its identity,
+  expiry, remaining quota, revocation epoch, and existing ECDSA capabilities.
+  Concurrent ECDSA signing continues through this NEAR-only authority extension.
+  An exhausted session can finish provisioning with zero uses; its next signature
+  requires normal same-method step-up without renewing the session or quota.
+- A lock in either tab prevents late NEAR readiness publication. Readiness and
+  removal of its repair journal commit atomically; an aborted transaction retains
+  the journal for the next authorized unlock.
+- After EVM activation, the retained NEAR journal supplies the exact session identity.
+  Passkey client-seal preparation may overlap custody execution and server finalization.
+  Preparation creates no signing authority and performs no server sealing. Temporary keys are consumed once for the matching
+  session and factor, or discarded on failure, lock, expiry, or abandonment.
+- After NEAR authority publication, passkey session hydration and local signer
+  installation may overlap. Durable readiness waits for both; a failed hydration
+  retains the repair journal for normal unlock.
+- With remaining signing quota, NEAR signing becomes available at `near_ready`
+  without a second passkey prompt.
   A retryable provisioning failure remains visible to the caller.
 - ECDSA key export remains available while NEAR is pending and requires fresh
   export authorization.
@@ -199,7 +255,21 @@ Expected behaviour:
 - For a mixed signer set, Ed25519/NEAR provisioning continues with the live
   registration factor and publishes one of `near_pending`,
   `near_provisioning`, `near_ready`, or `near_failed_retryable`.
-- NEAR signing becomes available at `near_ready` without a second OTP
+- NEAR admission and Yao execution cannot delay EVM registration or EVM signing.
+  EVM activation and the NEAR continuation are saved atomically as separate records.
+  Yao execution starts only after its encrypted completion checkpoint is durable.
+- Reload and uncertain responses retain the exact NEAR attempt. Normal unlock
+  with the founding method resumes its saved phase, using fresh session authority
+  when the registration grant has expired. No replacement key is generated.
+- NEAR completion extends the current Wallet Session while preserving its identity,
+  expiry, remaining quota, revocation epoch, and existing ECDSA capabilities.
+  Concurrent ECDSA signing continues through this NEAR-only authority extension.
+  An exhausted session can finish provisioning with zero uses; its next signature
+  requires normal same-method step-up without renewing the session or quota.
+- A lock in either tab prevents late NEAR readiness publication. Readiness and
+  removal of its repair journal commit atomically; an aborted transaction retains
+  the journal for the next authorized unlock.
+- With remaining signing quota, NEAR signing becomes available at `near_ready` without a second OTP
   verification. A retryable provisioning failure remains visible to the caller.
 - ECDSA key export remains available while NEAR is pending and requires fresh
   export authorization.
@@ -707,3 +777,39 @@ restore, lane selection, or budget handling.
   failures, and connection alone does not imply transaction support.
 - Local disconnect removes browser listeners and connection state. Revoking the
   site's permission remains an explicit action in the external wallet.
+
+## Application transaction review
+
+Hosted React transactions may supply an application review through an explicit
+`TransactionReviewHost`. The six reviewed `useWallet()` transaction methods retain
+their existing core results and callbacks. Ordinary calls need no review host.
+
+- The application review and wallet approval share the existing transaction queue
+  and outer modal. React stays in the application document; authorization stays
+  inside the wallet iframe. Continue alone never signs.
+- A same-wallet NEAR readiness update preserves an in-flight EVM review and
+  wallet approval. Review ownership follows the wallet identity.
+- Before wallet approval is submitted, Back returns to the same review and preserves
+  component state and the original expiry. Continue resumes the pending approval
+  without dispatching again. Both screens retain the same modal container.
+- Transaction inputs are privately copied at invocation. Effective configuration
+  is pinned before display and requires modal presentation and explicit approval.
+- Queued cancellation, expiry, owner/host disposal, wallet changes and unrelated
+  session replacement invalidate the request before signing. Old controls cannot
+  act on a subsequent request. Request-owned credential work retains its lease.
+- Wallet admission checks expiry after authentication and before each signature.
+  Once a signature starts, cancellation and expiry preserve its actual outcome.
+- Adapter failures before dispatch reject without invoking core callbacks. Wallet
+  failures after dispatch retain the method's existing outcome conventions.
+
+Consumer setup and styling: [Custom React transaction review](transaction-review.md).
+Behavioral coverage: `tests/wallet-ui/transaction-review.browser.test.ts`,
+`tests/unit/transactionReview.snapshot.test.ts`, and
+`tests/typecheck/transaction-review.typecheck.ts`.
+
+### Export viewer presentation
+
+Key export follows the user's confirmation UI preference: modal or drawer. The
+`none` preference displays exported keys in a modal. An explicit export variant
+overrides the preference. Parent iframe geometry and the key viewer use the same
+resolved variant; closing either presentation disposes the displayed key material.

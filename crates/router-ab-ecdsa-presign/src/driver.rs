@@ -849,6 +849,10 @@ impl SigningWorkerRound10State {
 }
 
 impl ClientRound11State {
+    pub fn candidate_big_r(&self) -> Result<CompressedPointBytes, PresignDriverError> {
+        self.0.candidate_big_r().map_err(Into::into)
+    }
+
     pub fn receive(
         self,
         message: SigningWorkerAlphaBetaMessage,

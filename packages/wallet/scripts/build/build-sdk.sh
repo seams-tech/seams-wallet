@@ -82,9 +82,6 @@ print_success "SDK build directory cleaned"
 print_step "Building TypeScript..."
 if pnpm run build:types; then print_success "TypeScript compilation and declaration rewrite completed"; else print_error "TypeScript compilation or declaration rewrite failed"; exit 1; fi
 
-print_step "Generating CSS variables from palette.json (seams-components.css)..."
-if node "$SDK_ROOT/scripts/codegen/generate-seams-components-css.mjs"; then print_success "seams-components.css generated"; else print_error "Failed to generate seams-components.css"; exit 1; fi
-
 print_step "Bundling with Rolldown (dev)..."
 if npx rolldown -c rolldown.config.ts; then print_success "Rolldown bundling completed"; else print_error "Rolldown bundling failed"; exit 1; fi
 
@@ -101,12 +98,8 @@ mkdir -p "$BUILD_ESM/sdk"
 
 # These bundles are loaded directly by browsers from /sdk/* (no bundler/import maps),
 # so they must not contain bare module specifiers like `import "idb"`. Keep the
-# dev build readable while selecting Lit's production condition for browser assets.
-if NODE_ENV=production "$BUN_BIN" build "$SDK_ROOT/src/core/signingEngine/uiConfirm/ui/confirm-ui.ts" --outfile "$BUILD_ESM/sdk/tx-confirm-ui.js" --format esm --target browser --root "$REPO_ROOT" \
-  && NODE_ENV=production "$BUN_BIN" build "$SDK_ROOT/src/core/signingEngine/uiConfirm/ui/lit-components/IframeTxConfirmer/tx-confirmer-wrapper.ts" --outfile "$BUILD_ESM/sdk/seams-tx-confirmer.js" --format esm --target browser --root "$REPO_ROOT" \
-  && NODE_ENV=production "$BUN_BIN" build "$SDK_ROOT/src/core/signingEngine/uiConfirm/ui/lit-components/ExportPrivateKey/viewer.ts" --outfile "$BUILD_ESM/sdk/export-private-key-viewer.js" --format esm --target browser --root "$REPO_ROOT" \
-  && NODE_ENV=production "$BUN_BIN" build "$SDK_ROOT/src/core/signingEngine/uiConfirm/ui/lit-components/HaloBorder/index.ts" --outfile "$BUILD_ESM/sdk/halo-border.js" --format esm --target browser --root "$REPO_ROOT" \
-  && NODE_ENV=production "$BUN_BIN" build "$SDK_ROOT/src/core/signingEngine/uiConfirm/ui/lit-components/PasskeyHaloLoading/index.ts" --outfile "$BUILD_ESM/sdk/passkey-halo-loading.js" --format esm --target browser --root "$REPO_ROOT"; then
+# dev build readable while selecting production conditions for browser assets.
+if NODE_ENV=production "$BUN_BIN" build "$SDK_ROOT/src/core/signingEngine/uiConfirm/ui/confirm-ui.ts" --outfile "$BUILD_ESM/sdk/tx-confirm-ui.js" --format esm --target browser --root "$REPO_ROOT"; then
   print_success "Bun embedded-asset bundling completed"
 else
   print_error "Bun embedded-asset bundling failed"; exit 1
