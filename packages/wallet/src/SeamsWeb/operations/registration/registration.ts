@@ -652,7 +652,36 @@ type HostedPasskeyRegistrationPreparationState = {
   lifecycle: 'ready' | 'consuming' | 'consumed' | 'cancelled' | 'finished';
   authority: Promise<RegistrationPasskeyAuthority> | null;
   registrationStarted: boolean;
+  ecdsaClientCeremony: HostedPreparedEcdsaClientCeremony;
 };
+
+type HostedPreparedEcdsaClientCeremony =
+  | {
+      kind: 'not_required';
+    }
+  | {
+      kind: 'started';
+      ceremonyId: string;
+      operation: ReturnType<
+        RegistrationWebContext['signingEngine']['createRouterAbEcdsaRegistrationCeremony']
+      >;
+    };
+
+type EcdsaRegistrationClientCeremony =
+  | {
+      kind: 'create_after_authority';
+    }
+  | {
+      kind: 'use_hosted_preparation';
+      ceremonyId: string;
+      operation: ReturnType<
+        RegistrationWebContext['signingEngine']['createRouterAbEcdsaRegistrationCeremony']
+      >;
+    };
+
+type EcdsaRegistrationClientCeremonyResult = Awaited<
+  ReturnType<RegistrationWebContext['signingEngine']['createRouterAbEcdsaRegistrationCeremony']>
+>;
 
 const hostedPasskeyRegistrationStates = new WeakMap<
   HostedPasskeyRegistrationPrepared,
@@ -1030,6 +1059,45 @@ function awaitHostedPasskeyRegistrationStage<T>(args: {
   });
 }
 
+function startHostedPreparedEcdsaClientCeremony(args: {
+  context: RegistrationWebContext;
+  setup: Extract<WalletRegistrationSetupResponseV2, { ok: true }>;
+}): HostedPreparedEcdsaClientCeremony {
+  switch (args.setup.kind) {
+    case 'near_ed25519':
+      return { kind: 'not_required' };
+    case 'evm_family_ecdsa':
+    case 'near_ed25519_and_evm_family_ecdsa': {
+      const ceremonyId = args.setup.registrationCeremonyId;
+      const ecdsaPrepare = materializeWalletRegistrationSetupEcdsaPrepare(args.setup.ecdsa);
+      const operation = args.context.signingEngine.createRouterAbEcdsaRegistrationCeremony({
+        kind: 'create_router_ab_ecdsa_registration_ceremony_v1',
+        ceremonyId,
+        registration: ecdsaPrepare.strictRegistration,
+      });
+      void operation.catch(() => undefined);
+      return {
+        kind: 'started',
+        ceremonyId,
+        operation,
+      };
+    }
+    default:
+      return assertNever(args.setup);
+  }
+}
+
+function closeHostedPreparedEcdsaClientCeremony(args: {
+  context: RegistrationWebContext;
+  ceremony: HostedPreparedEcdsaClientCeremony;
+}): void {
+  if (args.ceremony.kind === 'not_required') return;
+  void closeStrictEcdsaRegistrationCeremony({
+    context: args.context,
+    ceremonyId: args.ceremony.ceremonyId,
+  });
+}
+
 export async function prepareHostedPasskeyRegistration(
   args: HostedPasskeyRegistrationPreparationInput,
 ): Promise<HostedPasskeyRegistrationPrepared> {
@@ -1054,6 +1122,7 @@ export async function prepareHostedPasskeyRegistration(
   let prepared: HostedPasskeyRegistrationPrepared | null = null;
   let reservation: ReservedRegistrationWebAuthnPrompt<HostedAuthMenuRegistrationWebAuthnPromptOwner> | null =
     null;
+  let ecdsaClientCeremony: HostedPreparedEcdsaClientCeremony = { kind: 'not_required' };
   const onHostCancellation = (): void => {
     controller.abort();
     if (prepared) cancelHostedPasskeyRegistration(prepared);
@@ -1089,6 +1158,10 @@ export async function prepareHostedPasskeyRegistration(
     if (signerSlot !== expectedSignerSlot) {
       throw new Error('Hosted passkey registration signer slot changed during preparation');
     }
+    ecdsaClientCeremony = startHostedPreparedEcdsaClientCeremony({
+      context: args.context,
+      setup: setup.setup,
+    });
     observeRegistrationWarmup({
       recorder,
       warmup: setup.registrationWarmup,
@@ -1144,12 +1217,17 @@ export async function prepareHostedPasskeyRegistration(
       lifecycle: 'ready',
       authority: null,
       registrationStarted: false,
+      ecdsaClientCeremony,
     });
     prepared = preparedValue;
     return preparedValue;
   } catch (error) {
     controller.abort();
     removeExternalCancellationListener();
+    closeHostedPreparedEcdsaClientCeremony({
+      context: args.context,
+      ceremony: ecdsaClientCeremony,
+    });
     if (prepared) cancelHostedPasskeyRegistration(prepared);
     else if (reservation) webAuthnPromptCoordinator.releaseReservation(reservation);
     throw error;
@@ -1163,6 +1241,10 @@ export function cancelHostedPasskeyRegistration(prepared: HostedPasskeyRegistrat
   state.controller.abort();
   state.removeExternalCancellationListener?.();
   state.removeExternalCancellationListener = null;
+  closeHostedPreparedEcdsaClientCeremony({
+    context: state.context,
+    ceremony: state.ecdsaClientCeremony,
+  });
   webAuthnPromptCoordinator.releaseReservation(prepared.reservation);
 }
 
@@ -1230,6 +1312,10 @@ export async function registerPreparedHostedPasskeyRegistration(args: {
     });
   } finally {
     state.lifecycle = 'finished';
+    closeHostedPreparedEcdsaClientCeremony({
+      context: state.context,
+      ceremony: state.ecdsaClientCeremony,
+    });
     state.controller.abort();
     state.removeExternalCancellationListener?.();
     state.removeExternalCancellationListener = null;
@@ -1719,6 +1805,59 @@ async function setupRegistrationForPasskeyExecution(args: {
   return setup;
 }
 
+function ecdsaRegistrationClientCeremonyForExecution(args: {
+  passkeyExecution: RegisterWalletPasskeyExecution;
+  ceremonyId: string;
+}): EcdsaRegistrationClientCeremony {
+  if (args.passkeyExecution.kind === 'collect_during_registration') {
+    return { kind: 'create_after_authority' };
+  }
+  const state = hostedPasskeyRegistrationState(args.passkeyExecution.prepared);
+  if (
+    state.ecdsaClientCeremony.kind !== 'started' ||
+    state.ecdsaClientCeremony.ceremonyId !== args.ceremonyId
+  ) {
+    throw new Error('Hosted passkey registration has no matching ECDSA client ceremony');
+  }
+  return {
+    kind: 'use_hosted_preparation',
+    ceremonyId: state.ecdsaClientCeremony.ceremonyId,
+    operation: state.ecdsaClientCeremony.operation,
+  };
+}
+
+async function awaitHostedPreparedEcdsaClientCeremony(
+  operation: Promise<EcdsaRegistrationClientCeremonyResult>,
+): Promise<EcdsaRegistrationClientCeremonyResult> {
+  return await operation;
+}
+
+function ecdsaRegistrationClientCeremonyOperation(args: {
+  context: RegistrationWebContext;
+  ceremonyId: string;
+  registration: WalletRegistrationEcdsaPreparePayload['strictRegistration'];
+  clientCeremony: EcdsaRegistrationClientCeremony;
+}): () => Promise<EcdsaRegistrationClientCeremonyResult> {
+  switch (args.clientCeremony.kind) {
+    case 'create_after_authority':
+      return args.context.signingEngine.createRouterAbEcdsaRegistrationCeremony.bind(
+        args.context.signingEngine,
+        {
+          kind: 'create_router_ab_ecdsa_registration_ceremony_v1',
+          ceremonyId: args.ceremonyId,
+          registration: args.registration,
+        },
+      );
+    case 'use_hosted_preparation':
+      if (args.clientCeremony.ceremonyId !== args.ceremonyId) {
+        throw new Error('Prepared ECDSA client ceremony identity changed');
+      }
+      return awaitHostedPreparedEcdsaClientCeremony.bind(undefined, args.clientCeremony.operation);
+    default:
+      return assertNever(args.clientCeremony);
+  }
+}
+
 /* Exported for tests: mixed registration joins and journals both custody
    branches before Route 3, while user-facing NEAR provisioning remains
    deferred after the ECDSA branch is committed. */
@@ -1729,6 +1868,7 @@ export async function runEcdsaEnabledThreeRouteRegistrationCeremony(args: {
   signerPlanKind: 'evm_family_ecdsa' | 'near_ed25519_and_evm_family_ecdsa';
   signedSetup: string;
   ecdsaPrepare: WalletRegistrationEcdsaPreparePayload;
+  clientCeremony: EcdsaRegistrationClientCeremony;
   authority: RegistrationThreeRouteAuthority;
   materialAuthority: WalletAuthAuthorityRef;
   idempotencyKey: string;
@@ -1777,14 +1917,12 @@ export async function runEcdsaEnabledThreeRouteRegistrationCeremony(args: {
     const created = await measureStrictEcdsaCeremonyStep({
       registrationTiming: args.registrationTiming,
       bucket: 'ecdsaRegistrationClientCreateMs',
-      operation: args.context.signingEngine.createRouterAbEcdsaRegistrationCeremony.bind(
-        args.context.signingEngine,
-        {
-          kind: 'create_router_ab_ecdsa_registration_ceremony_v1',
-          ceremonyId,
-          registration: args.ecdsaPrepare.strictRegistration,
-        },
-      ),
+      operation: ecdsaRegistrationClientCeremonyOperation({
+        context: args.context,
+        ceremonyId,
+        registration: args.ecdsaPrepare.strictRegistration,
+        clientCeremony: args.clientCeremony,
+      }),
     });
 
     const earlyNearAdmission =
@@ -3760,6 +3898,11 @@ async function registerEcdsaOrMixedWallet(
     }
     const { relayerUrl, setup } = prepared;
     const ecdsaSetup = requireEcdsaRegistrationSetup(setup, args.kind);
+    const ecdsaPrepare = materializeWalletRegistrationSetupEcdsaPrepare(ecdsaSetup.ecdsa);
+    const ecdsaClientCeremony = ecdsaRegistrationClientCeremonyForExecution({
+      passkeyExecution: args.passkeyExecution,
+      ceremonyId: setup.registrationCeremonyId,
+    });
     const intentResponse = {
       intent: setup.intent,
       registrationIntentDigestB64u: setup.registrationIntentDigestB64u,
@@ -3924,7 +4067,8 @@ async function registerEcdsaOrMixedWallet(
           registrationCeremonyId: setup.registrationCeremonyId,
           signerPlanKind: args.kind,
           signedSetup: setup.signedSetup,
-          ecdsaPrepare: materializeWalletRegistrationSetupEcdsaPrepare(ecdsaSetup.ecdsa),
+          ecdsaPrepare,
+          clientCeremony: ecdsaClientCeremony,
           authority: startAuthority,
           materialAuthority,
           idempotencyKey: finalizeIdempotencyKey,
