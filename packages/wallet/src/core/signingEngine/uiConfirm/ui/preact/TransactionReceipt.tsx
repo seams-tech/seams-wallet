@@ -75,20 +75,9 @@ export class TransactionReceipt extends Component<{
       <div class="seams-transaction-receipt">
         <div class="seams-review-toolbar">
           <span>Transaction receipt</span>
-          <div>
-            <button type="button" aria-label="Minimize transaction" onClick={this.minimize}>
-              <ReviewIcon kind="minimize" />
-            </button>
-            <button
-              type="button"
-              aria-label={
-                receiptIsPending(receipt.state) ? 'Minimize transaction' : 'Close receipt'
-              }
-              onClick={this.close}
-            >
-              <ReviewIcon kind="close" />
-            </button>
-          </div>
+          <button type="button" aria-label="Minimize transaction" onClick={this.minimize}>
+            <ReviewIcon kind="minimize" />
+          </button>
         </div>
         <div class="seams-receipt-heading">
           <span class="seams-receipt-symbol" data-pending={pending}>
