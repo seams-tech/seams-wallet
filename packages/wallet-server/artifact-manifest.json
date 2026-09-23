@@ -319,6 +319,18 @@
         }
       ]
     },
+    "wallet_directory": {
+      "directory": "migrations/d1-wallet-directory",
+      "head": "0001_regional_wallet_home_lanes.sql",
+      "fingerprint": "fc442abae03d3ab1f1a8549d480f9e5a3e2c434575fedf685335d216e700708a",
+      "files": [
+        {
+          "path": "migrations/d1-wallet-directory/0001_regional_wallet_home_lanes.sql",
+          "bytes": 8166,
+          "sha256": "12f8e79c050980994d5b0ab31a21e08703954b4724921f58308546d01d3a79e1"
+        }
+      ]
+    },
     "deriver_a": {
       "directory": "cloudflare-router-ab/migrations/deriver-a",
       "head": "0011_tenant_root_source_retirement.sql",

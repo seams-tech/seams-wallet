@@ -66,6 +66,7 @@
     },
     "./artifact-manifest.json": "./artifact-manifest.json",
     "./migrations/d1-signer/*": "./migrations/d1-signer/*",
+    "./migrations/d1-wallet-directory/*": "./migrations/d1-wallet-directory/*",
     "./tenant-root": {
       "types": "./dist/types/wallet-server/src/tenant-root.d.ts",
       "import": "./dist/esm/tenant-root.js",
@@ -82,6 +83,7 @@
     "dist/",
     "!dist/**/*.map",
     "migrations/d1-signer/",
+    "migrations/d1-wallet-directory/",
     "scripts/d1-local-migrate-signer.mjs",
     "src/README.md",
     "wrangler.local-hosted-wallet-gateway.toml"
