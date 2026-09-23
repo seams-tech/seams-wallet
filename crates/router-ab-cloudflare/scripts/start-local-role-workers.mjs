@@ -18,6 +18,7 @@ const localRoot = path.resolve(
 const stateRoot = path.join(localRoot, '.local', 'cloudflare-state', 'router-ab');
 const gatewayRuntimeRoot = path.join(localRoot, '.runtime', 'wallet-gateway');
 const ceremonyPrivateJwkPath = path.join(gatewayRuntimeRoot, 'ceremony-private.jwk.json');
+const workersReadyPath = path.join(localRoot, '.runtime', 'role-workers.ready');
 // Separate local stacks reuse Worker names, so each needs its own discovery registry.
 const workerEnv = {
   ...process.env,
@@ -44,6 +45,7 @@ async function main() {
   applyPrivateD1Migrations(runtime);
   startWorkers(runtime);
   await waitForWorkers(runtime);
+  writeFileSync(workersReadyPath, 'ready\n');
   console.log(
     JSON.stringify({
       kind: 'wallet_role_workers_ready_v1',

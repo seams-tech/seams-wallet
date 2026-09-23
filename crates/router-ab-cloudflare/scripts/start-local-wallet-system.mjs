@@ -2,7 +2,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import http from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -24,6 +24,7 @@ const ceremonyPrivateJwkPath = path.join(
   'wallet-gateway',
   'ceremony-private.jwk.json',
 );
+const workersReadyPath = path.join(localRoot, '.runtime', 'role-workers.ready');
 const identity = Object.freeze({
   orgId: options.orgId,
   projectId: options.projectId,
@@ -49,8 +50,10 @@ async function main() {
   }
   installSignalHandlers();
   mkdirSync(localRoot, { recursive: true });
+  rmSync(workersReadyPath, { force: true });
   startRoleWorkers();
   await waitForHttp(`${routerUrl}/.well-known/router-ab/keyset`, 120_000, true);
+  await waitForFile(workersReadyPath, 120_000);
   await waitForFile(ceremonyPrivateJwkPath, 10_000);
   const tenantRoot = bootstrapTenantRoot();
   const deployment = localDeployment(tenantRoot);
