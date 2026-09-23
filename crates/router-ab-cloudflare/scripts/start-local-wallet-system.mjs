@@ -15,7 +15,11 @@ const gatewayUrl = process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:41
 const routerUrl = `http://127.0.0.1:${4102 + Number(process.env.SEAMS_LOCAL_PORT_OFFSET || 0)}`;
 const options = parseArguments(process.argv.slice(2));
 const localRoot = path.resolve(
-  options.root || path.join(tmpdir(), `${path.basename(repoRoot)}-wallet-system`),
+  options.root ||
+    path.join(
+      tmpdir(),
+      `${path.basename(repoRoot)}-wallet-system-${randomBytes(8).toString('hex')}`,
+    ),
 );
 const gatewayStateRoot = path.join(localRoot, '.local', 'cloudflare-state', 'wallet-gateway');
 const ceremonyPrivateJwkPath = path.join(

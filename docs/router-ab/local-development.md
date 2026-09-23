@@ -35,7 +35,8 @@ pnpm router
 The command builds missing Worker artifacts, creates local role identities and
 Secrets, applies role-private D1 migrations, starts all five role Workers,
 creates and activates a local tenant root, renders the Gateway configuration,
-applies the Gateway signer migration, and starts Gateway.
+applies the Gateway signer migration, and starts Gateway. Each default run uses
+a fresh temporary runtime root; the ready line prints its path.
 
 Start the browser example in another terminal:
 
@@ -96,8 +97,8 @@ pnpm -C crates/router-ab-cloudflare dev:local-wallet-system
 The root `pnpm router` command is the preferred wrapper because it checks for
 missing artifacts first.
 
-Both scripts accept `--root <runtime-directory>` after `--`. Use an explicit
-runtime directory when a test needs isolated state:
+Both scripts accept `--root <runtime-directory>` after `--`. Use an explicit,
+new runtime directory when a test needs a known path:
 
 ```sh
 pnpm router -- --root .runtime/router-ab-manual
@@ -172,6 +173,14 @@ Check for an occupied port or an earlier Wrangler process.
 
 Wait for the `wallet_local_system_ready_v1` line from `pnpm router`. Confirm
 that `http://127.0.0.1:4100/readyz` responds, then submit the setup form again.
+
+### The site reports that a port is already in use
+
+Stop an earlier `pnpm site` process with Ctrl-C. If it has already exited,
+identify any remaining local listeners with
+`lsof -nP -iTCP:4201 -iTCP:4202 -sTCP:LISTEN`, inspect their commands with
+`ps -p <PID> -o pid,ppid,command`, and stop only stale Wallet site processes.
+Then run `pnpm site` again.
 
 ### Local state conflicts with a changed schema
 
