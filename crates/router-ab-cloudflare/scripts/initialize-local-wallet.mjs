@@ -12,6 +12,14 @@ if (!existsSync(binary)) {
 }
 // Package managers can normalize executable bits on bundled native assets.
 if ((statSync(binary).mode & 0o111) === 0) chmodSync(binary, 0o755);
-const result = spawnSync(binary, process.argv.slice(2), { stdio: 'inherit' });
+const result = spawnSync(binary, process.argv.slice(2), {
+  stdio: ['inherit', 'pipe', 'inherit'],
+  encoding: 'utf8',
+});
 if (result.error) throw result.error;
+if (result.status === 0 && process.stdout.isTTY) {
+  console.log('Local role identity ready.');
+} else if (result.stdout) {
+  process.stdout.write(result.stdout);
+}
 process.exitCode = result.status ?? 1;

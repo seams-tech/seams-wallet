@@ -3,6 +3,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
+import { printLocalServiceTable } from '../../../scripts/print-local-service-table.mjs';
 
 const exampleRoot = fileURLToPath(new URL('..', import.meta.url));
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
@@ -36,13 +37,16 @@ async function main() {
   startCaddy();
   await Promise.all([
     waitForHttp(`${controllerOrigin}/healthz`, 60_000),
-    waitForHttp('http://localhost:4201', 60_000),
-    waitForHttp('http://localhost:4202/wallet-service', 60_000),
-    waitForHttp('http://localhost:4006/docs/', 60_000),
+    waitForHttp(appOrigin, 60_000),
+    waitForHttp(`${walletOrigin}/wallet-service`, 60_000),
+    waitForHttp('http://docs.localhost:4003/docs/', 60_000),
   ]);
-  console.log(`Wallet site and Console Lite: ${appOrigin}`);
-  console.log('Wallet docs: http://docs.localhost:4003/docs/');
-  console.log(`Hosted Wallet origin: ${walletOrigin}`);
+  printLocalServiceTable('Local Wallet site services ready', [
+    { name: 'wallet-console-lite', url: appOrigin },
+    { name: 'hosted-wallet', url: walletOrigin },
+    { name: 'wallet-docs', url: 'http://docs.localhost:4003/docs/' },
+    { name: 'workspace-controller', url: controllerOrigin },
+  ]);
   console.log(`Wallet Gateway proxy: ${gatewayUrl}`);
   await waitUntilStopped();
 }

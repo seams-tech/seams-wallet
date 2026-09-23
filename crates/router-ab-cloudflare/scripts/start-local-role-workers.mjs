@@ -47,14 +47,18 @@ async function main() {
   startWorkers(runtime);
   await waitForWorkers(runtime);
   writeFileSync(workersReadyPath, 'ready\n');
-  console.log(
-    JSON.stringify({
-      kind: 'wallet_role_workers_ready_v1',
-      mpcRouterUrl: runtime.mpcRouterUrl,
-      ceremonyPrivateJwkPath,
-      workers: runtime.configs.map(describeWorker),
-    }),
-  );
+  if (process.stdout.isTTY) {
+    console.log('Local Wallet role Workers ready.');
+  } else {
+    console.log(
+      JSON.stringify({
+        kind: 'wallet_role_workers_ready_v1',
+        mpcRouterUrl: runtime.mpcRouterUrl,
+        ceremonyPrivateJwkPath,
+        workers: runtime.configs.map(describeWorker),
+      }),
+    );
+  }
   await waitUntilStopped();
 }
 
