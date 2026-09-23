@@ -149,7 +149,6 @@ function promptModel() {
           prompt: {
             challengeId: 'preview-email-challenge',
             emailHint: 'a••••@example.com',
-            helperText: 'Demo email: a••••@example.com. Enter 123456. No email was sent.',
             onResend: resendEmailCode,
           },
           verification: authentication.verification,
