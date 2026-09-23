@@ -278,6 +278,10 @@ export interface PasskeyMpcSessionWorkerLifecyclePort {
     thresholdSessionId: string;
     prfFirstB64u: string;
   }): Promise<void>;
+  readPreparedSigningSessionHydration(input: {
+    preparationId: string;
+    thresholdSessionId: string;
+  }): Promise<{ readonly ciphertext: string }>;
   discardSigningSessionHydration(input: {
     preparationId: string;
     thresholdSessionId: string;

@@ -602,6 +602,10 @@ export interface SigningSessionSurface {
     thresholdSessionId: string;
     prfFirstB64u: string;
   }): Promise<void>;
+  readPreparedSigningSessionHydration(input: {
+    preparationId: string;
+    thresholdSessionId: string;
+  }): Promise<{ readonly ciphertext: string }>;
   discardSigningSessionHydration(input: {
     preparationId: string;
     thresholdSessionId: string;
@@ -669,7 +673,10 @@ export type NearRegistrationContinuationSigningSurface = EcdsaLoginSessionSurfac
   Pick<WalletCustodyCeremonySurface, 'joinWalletCustodyNearEd25519KeySet'> &
   Pick<
     SigningSessionSurface,
-    'hydrateSigningSession' | 'prepareSigningSessionHydration' | 'discardSigningSessionHydration'
+    | 'hydrateSigningSession'
+    | 'prepareSigningSessionHydration'
+    | 'readPreparedSigningSessionHydration'
+    | 'discardSigningSessionHydration'
   > &
   Pick<
     RegistrationAccountSurface,
@@ -917,6 +924,7 @@ export type RegistrationSigningSurface = RpIdSurface &
     SigningSessionSurface,
     | 'hydrateSigningSession'
     | 'prepareSigningSessionHydration'
+    | 'readPreparedSigningSessionHydration'
     | 'discardSigningSessionHydration'
     | 'persistSigningSessionSealForThresholdSession'
   > &

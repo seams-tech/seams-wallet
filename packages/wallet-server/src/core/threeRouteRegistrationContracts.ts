@@ -359,6 +359,14 @@ export type WalletRegistrationRespondResponseV2 =
   | ({ ok: true; registrationCeremonyId: string } & WalletRegistrationRespondSignerPlanV2)
   | WalletRegistrationRouteErrorV2;
 
+export type WalletRegistrationNearAdmissionResponseV2 =
+  | {
+      readonly ok: true;
+      readonly registrationCeremonyId: string;
+      readonly ed25519: RespondEd25519DeferredWorkV2;
+    }
+  | WalletRegistrationRouteErrorV2;
+
 /**
  * Route 3 — activate-and-finalize; the operation row is the replay record.
  *
@@ -504,15 +512,43 @@ export type WalletRegistrationNearProvisioningRequestV2 = {
   idempotencyKey: ActivateIdempotencyKey;
   ed25519: Extract<WalletRegistrationFinalizeRequest, { kind: 'near_ed25519' }>['ed25519'];
   emailOtpEnrollment?: NonNullable<WalletRegistrationFinalizeRequest['emailOtpEnrollment']>;
+  sessionSeal?: {
+    readonly thresholdSessionId: string;
+    readonly ciphertext: string;
+    readonly keyVersion?: string;
+  };
 };
 
-type WalletRegistrationNearProvisioningSuccessV2 = Extract<
+type WalletRegistrationNearProvisioningFinalizeSuccessV2 = Extract<
   WalletRegistrationFinalizeResponse,
   { ok: true; kind: 'near_ed25519' }
-> & {
+>;
+
+type WalletRegistrationNearProvisioningSuccessBaseV2 = {
   registrationEstablishedSession: RegistrationEstablishedSessionResultV2;
   nearProvisioning: { status: 'near_ready' };
 };
+
+type WalletRegistrationNearProvisioningSuccessV2 =
+  | (Extract<
+      WalletRegistrationNearProvisioningFinalizeSuccessV2,
+      { authMethod: { kind: 'passkey' } }
+    > &
+      WalletRegistrationNearProvisioningSuccessBaseV2 & {
+        sessionSeal?: {
+          readonly ciphertext: string;
+          readonly keyVersion: string;
+          readonly expiresAtMs: number;
+          readonly remainingUses: number;
+        };
+      })
+  | (Extract<
+      WalletRegistrationNearProvisioningFinalizeSuccessV2,
+      { authMethod: { kind: 'email_otp' } }
+    > &
+      WalletRegistrationNearProvisioningSuccessBaseV2 & {
+        sessionSeal?: never;
+      });
 
 export type WalletRegistrationNearProvisioningResponseV2 =
   | WalletRegistrationNearProvisioningSuccessV2

@@ -1,4 +1,4 @@
-import type { WarmSessionSealTransportInput } from '@/core/types/secure-confirm-worker';
+import type { WarmSessionSealTransportState } from '@/core/types/secure-confirm-worker';
 import type {
   WarmSessionMaterialWriter,
   WarmSessionMaterialWriteDiagnostics,
@@ -6,13 +6,12 @@ import type {
 import { cacheCredentialBoundarySetupExportPrfFirst } from '@/core/signingEngine/session/passkey/prfCache';
 
 export type HydrateWarmSigningSessionInput = {
-  thresholdSessionId: string;
-  prfFirstB64u: string;
-  expiresAtMs: number;
-  remainingUses: number;
-  transport?: WarmSessionSealTransportInput;
-  diagnostics?: WarmSessionMaterialWriteDiagnostics;
-};
+  readonly thresholdSessionId: string;
+  readonly prfFirstB64u: string;
+  readonly expiresAtMs: number;
+  readonly remainingUses: number;
+  readonly diagnostics?: WarmSessionMaterialWriteDiagnostics;
+} & WarmSessionSealTransportState;
 
 export type WarmSessionHydrationService = {
   hydrateSigningSession(input: HydrateWarmSigningSessionInput): Promise<void>;

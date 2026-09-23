@@ -35,7 +35,10 @@ import {
   type ExactAdministeredSignerManifestV1,
 } from '@shared/device-linking/delegatedActivationPlan';
 import type { VerifiedOwnerProof } from '../../../../authorization/factorEvidence';
-import type { DirectV2IssueResult } from '../../../../authorization/domain';
+import type {
+  DirectV2IssueResult,
+  LiveWalletSessionAuthorizationProjectionV2,
+} from '../../../../authorization/domain';
 import type { AuthorizationService } from '../../../../authorization/service';
 import { projectRouterAbEd25519YaoExactWalletSession } from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoProductRegistration';
 import {
@@ -187,6 +190,7 @@ import {
 } from '../../../../core/RegistrationCeremonyStore';
 import type {
   WalletRegistrationNearProvisioningResponseV2,
+  WalletRegistrationNearAdmissionResponseV2,
   RespondEd25519DeferredWorkV2,
   WalletRegistrationActivateEd25519PendingV2,
   WalletRegistrationActivateResponseV2,
@@ -211,6 +215,7 @@ import type {
   WalletRegistrationRespondInput,
   WalletRegistrationActivateInput,
   WalletRegistrationNearProvisioningInput,
+  WalletRegistrationNearAdmissionInput,
 } from '../../../domains/walletRegistration/walletRegistrationInputs';
 import { walletCustodyCeremonyCommitPayloadFromWire } from '@shared/passkey-custody';
 import { commitRegistrationCustody } from '../../../domains/passkeyCustody/registrationCustodyOutcome';
@@ -1202,6 +1207,32 @@ type RegistrationOwnerProofContext = {
   readonly expiresAtMs: number;
 };
 
+type CommittedRegistrationInstallation = {
+  readonly receipt: Extract<
+    WalletRegistrationSessionCommitReceiptV2,
+    { readonly committed: { readonly kind: 'ecdsa_ready' } }
+  >;
+  readonly projection: WalletRegistrationCommittedInstallationProjectionV1;
+  readonly prepared: D1WalletRegistrationOperationPreparedV1;
+};
+
+type VerifiedNearProvisioningAuthority =
+  | {
+      readonly ok: true;
+      readonly claims: WalletRegistrationSetupClaimsV1;
+      readonly source: { readonly kind: 'registration_grant' };
+    }
+  | {
+      readonly ok: true;
+      readonly claims: WalletRegistrationSetupClaimsV1;
+      readonly source: {
+        readonly kind: 'committed_mixed';
+        readonly installation: CommittedRegistrationInstallation;
+        readonly authorization: LiveWalletSessionAuthorizationProjectionV2;
+      };
+    }
+  | { readonly ok: false; readonly code: string; readonly message: string };
+
 type D1WalletRegistrationFinalizeCeremony = {
   readonly registrationCeremonyId: string;
   readonly intent: Pick<RegistrationIntentV1, 'walletId'>;
@@ -2144,6 +2175,27 @@ export function mergeRouterServerTiming(
       merged += 1;
       break;
     }
+  }
+}
+
+function recordRegistrationServerTiming(
+  sink: Array<readonly [string, number]>,
+  name: string,
+  startedAtMs: number,
+): void {
+  sink.push([name, Math.max(0, Date.now() - startedAtMs)]);
+}
+
+async function recordRegistrationPromiseTiming<T>(args: {
+  readonly sink: Array<readonly [string, number]>;
+  readonly name: string;
+  readonly startedAtMs: number;
+  readonly promise: Promise<T>;
+}): Promise<T> {
+  try {
+    return await args.promise;
+  } finally {
+    recordRegistrationServerTiming(args.sink, args.name, args.startedAtMs);
   }
 }
 
@@ -3413,6 +3465,103 @@ export class CloudflareD1WalletRegistrationService {
     }
   }
 
+  async authorizeWalletRegistrationNearAdmission(
+    input: WalletRegistrationNearAdmissionInput,
+  ): Promise<WalletRegistrationNearAdmissionResponseV2> {
+    try {
+      const snapshot = await this.getRegistrationCeremonyIntentStore().getCeremonySnapshot(
+        input.registrationCeremonyId,
+      );
+      if (!snapshot) {
+        return { ok: false, code: 'not_found', message: 'registration ceremony not found' };
+      }
+      const ceremony = snapshot.ceremony;
+      if (ceremony.signerState.kind !== 'signer_set_registration') {
+        return {
+          ok: false,
+          code: 'invalid_state',
+          message: 'signer-set registration state is required',
+        };
+      }
+      const branches = registrationSignerBranchesFromPlan(ceremony.signerPlan);
+      const ecdsaBranch = findStoredWalletRegistrationEvmFamilyEcdsaBranch(ceremony.signerState);
+      if (!ecdsaBranch || !branches.nearEd25519) {
+        return {
+          ok: false,
+          code: 'invalid_state',
+          message: 'mixed registration state is required',
+        };
+      }
+      const expectedOrigin = toOptionalTrimmedString(ceremony.expectedOrigin) || '';
+      const setupDigestB64u = await computeWalletRegistrationSetupDigestB64u({
+        registrationCeremonyId: ceremony.registrationCeremonyId,
+        intent: ceremony.intent,
+        intentDigestB64u: ceremony.digestB64u,
+        orgId: ceremony.orgId,
+        signingRootId: toOptionalTrimmedString(ceremony.signingRootId) || '',
+        signingRootVersion: toOptionalTrimmedString(ceremony.signingRootVersion) || '',
+        expectedOrigin,
+      });
+      const verifiedSetup = await verifySignedWalletRegistrationSetup(
+        input.verifier,
+        input.signedSetup,
+        {
+          registrationCeremonyId: ceremony.registrationCeremonyId,
+          setupDigestB64u,
+          nowMs: Date.now(),
+        },
+      );
+      if (!verifiedSetup.ok) {
+        return { ok: false, code: verifiedSetup.code, message: verifiedSetup.message };
+      }
+      const registrationBearerToken = toOptionalTrimmedString(input.signedSetup);
+      if (!registrationBearerToken) {
+        return { ok: false, code: 'invalid_body', message: 'signedSetup is required' };
+      }
+      const verifiedAuthority = await this.walletAuthMethods.verifyRegistrationAuthorityForIntent({
+        orgId: ceremony.orgId,
+        authority: input.authority,
+        expectedDigestB64u: ceremony.digestB64u,
+        expectedOrigin,
+        intent: ceremony.intent,
+        verificationOperationId: ceremony.registrationCeremonyId,
+        verificationReceiptExpiresAtMs: ceremony.expiresAtMs,
+        ...(input.userAgent ? { userAgent: input.userAgent } : {}),
+      });
+      if (!verifiedAuthority.ok) {
+        return { ok: false, code: verifiedAuthority.code, message: verifiedAuthority.message };
+      }
+      if (verifiedAuthority.authority.walletId !== ceremony.intent.walletId) {
+        return {
+          ok: false,
+          code: 'scope_mismatch',
+          message: 'registration authority walletId does not match the ceremony',
+        };
+      }
+      const admitted = await this.authorizeRespondEd25519Branch({
+        ceremony,
+        branch: branches.nearEd25519,
+        authority: verifiedAuthority.authority,
+        registrationBearerToken,
+      });
+      if (!admitted.ok) return admitted;
+      if (!admitted.deferred) {
+        return { ok: false, code: 'internal', message: 'NEAR admission produced no work' };
+      }
+      return {
+        ok: true,
+        registrationCeremonyId: ceremony.registrationCeremonyId,
+        ed25519: admitted.deferred,
+      };
+    } catch (error: unknown) {
+      return {
+        ok: false,
+        code: 'internal',
+        message: errorMessage(error) || 'Failed to authorize NEAR registration admission',
+      };
+    }
+  }
+
   async respondWalletRegistration(
     input: WalletRegistrationRespondInput,
     traceContext?: RouterAbTraceContextV1,
@@ -3778,7 +3927,23 @@ export class CloudflareD1WalletRegistrationService {
     readonly lifecycleId: string;
     readonly credential: string;
   }): Promise<VerifiedNearRegistrationContinuationV1 | null> {
-    const installation = await this.readCommittedRegistrationInstallation(input.lifecycleId);
+    const context = await this.readNearRegistrationContinuationContext(input);
+    return context?.verified ?? null;
+  }
+
+  private async readNearRegistrationContinuationContext(
+    input: {
+      readonly lifecycleId: string;
+      readonly credential: string;
+    },
+    installed?: CommittedRegistrationInstallation,
+  ): Promise<{
+    readonly verified: VerifiedNearRegistrationContinuationV1;
+    readonly installation: CommittedRegistrationInstallation;
+    readonly authorization: LiveWalletSessionAuthorizationProjectionV2;
+  } | null> {
+    const installation =
+      installed ?? (await this.readCommittedRegistrationInstallation(input.lifecycleId));
     if (!installation || !isRegistrationEcdsaReadyReceipt(installation.receipt)) return null;
     const nowMs = Date.now();
     const issued =
@@ -3815,17 +3980,19 @@ export class CloudflareD1WalletRegistrationService {
         return null;
     }
     return {
-      credential: input.credential,
-      admissionRequest: installation.projection.nearEd25519.admissionRequest,
-      expiresAtMs: Math.min(issued.session.expiresAtMs, nowMs + 60_000),
+      verified: {
+        credential: input.credential,
+        admissionRequest: installation.projection.nearEd25519.admissionRequest,
+        expiresAtMs: Math.min(issued.session.expiresAtMs, nowMs + 60_000),
+      },
+      installation,
+      authorization: issued,
     };
   }
 
-  private async readCommittedRegistrationInstallation(registrationCeremonyId: string): Promise<{
-    readonly receipt: WalletRegistrationSessionCommitReceiptV2;
-    readonly projection: WalletRegistrationCommittedInstallationProjectionV1;
-    readonly prepared: D1WalletRegistrationOperationPreparedV1;
-  } | null> {
+  private async readCommittedRegistrationInstallation(
+    registrationCeremonyId: string,
+  ): Promise<CommittedRegistrationInstallation | null> {
     const entries = await this.activateSideEffects.listByKeyPrefix(
       `registration-activate:${registrationCeremonyId}:`,
       { limit: 2 },
@@ -3945,11 +4112,14 @@ export class CloudflareD1WalletRegistrationService {
   private async prepareNearProvisioningOperation(
     registrationCeremonyId: string,
     allocated?: D1WalletRegistrationOperationPreparedV1,
+    installed?: CommittedRegistrationInstallation,
   ): Promise<D1WalletRegistrationOperationPreparedV1> {
-    const ceremony =
-      await this.getRegistrationCeremonyIntentStore().getCeremony(registrationCeremonyId);
+    const ceremony = installed
+      ? null
+      : await this.getRegistrationCeremonyIntentStore().getCeremony(registrationCeremonyId);
     if (!ceremony) {
-      const committed = await this.readCommittedRegistrationInstallation(registrationCeremonyId);
+      const committed =
+        installed ?? (await this.readCommittedRegistrationInstallation(registrationCeremonyId));
       if (!committed) {
         throw new Error('Registration ceremony is unavailable for identity preparation');
       }
@@ -3984,21 +4154,41 @@ export class CloudflareD1WalletRegistrationService {
     args: {
       readonly input: WalletRegistrationNearProvisioningInput;
       readonly setupClaims: WalletRegistrationSetupClaimsV1;
+      readonly authoritySource: Extract<
+        VerifiedNearProvisioningAuthority,
+        { readonly ok: true }
+      >['source'];
     },
     prepared: D1WalletRegistrationOperationPreparedV1,
   ): Promise<RegistrationCommitExecution<WalletRegistrationNearProvisioningFinalizeResponse>> {
     /* The ceremony is still present for a fresh side-effect execution. Keep
        this read inside the operation callback so an exact replay can return
        its stored response after finalize has tombstoned the ceremony. */
-    const ownerProofContext = await this.readRegistrationOwnerProofContext(
-      args.input.registrationCeremonyId,
-    );
+    const committedInstallation =
+      args.authoritySource.kind === 'committed_mixed' ? args.authoritySource.installation : null;
+    if (committedInstallation && !isRegistrationEcdsaReadyReceipt(committedInstallation.receipt)) {
+      throw new Error('Committed mixed registration receipt is not ECDSA-ready');
+    }
+    const ownerProofContext = committedInstallation
+      ? {
+          expectedOrigin: committedInstallation.receipt.expectedOrigin,
+          runtimePolicyScope: registrationPreparedContextRuntimePolicyScope(
+            committedInstallation.projection.preparedContext,
+          ),
+          expiresAtMs: committedInstallation.receipt.expiresAtMs,
+        }
+      : await this.readRegistrationOwnerProofContext(args.input.registrationCeremonyId);
     if (!ownerProofContext) {
       throw new Error('Registration owner proof context is unavailable');
     }
-    const ceremony = await this.getRegistrationCeremonyIntentStore().getCeremony(
-      args.input.registrationCeremonyId,
-    );
+    if (!ownerProofContext.runtimePolicyScope) {
+      throw new Error('Committed registration is missing its runtime policy scope');
+    }
+    const ceremony = committedInstallation
+      ? null
+      : await this.getRegistrationCeremonyIntentStore().getCeremony(
+          args.input.registrationCeremonyId,
+        );
     let recovery: D1WalletRegistrationFinalizeRecovery | null = null;
     let registrationAuthority: StoredRegistrationAuthority;
     let sessionPredecessor: Ed25519RegistrationSessionPredecessor;
@@ -4010,9 +4200,9 @@ export class CloudflareD1WalletRegistrationService {
       registrationAuthority = authority;
       sessionPredecessor = { kind: 'ed25519_only' };
     } else {
-      const committed = await this.readCommittedRegistrationInstallation(
-        args.input.registrationCeremonyId,
-      );
+      const committed =
+        committedInstallation ??
+        (await this.readCommittedRegistrationInstallation(args.input.registrationCeremonyId));
       if (!committed) {
         throw new Error('Committed registration installation is unavailable');
       }
@@ -4033,19 +4223,10 @@ export class CloudflareD1WalletRegistrationService {
         throw new Error('Committed mixed registration is missing its ECDSA session projection');
       }
       if (args.input.authorization.kind === 'wallet_session') {
-        const verified = await this.authorizeNearRegistrationContinuation({
-          lifecycleId: args.input.registrationCeremonyId,
-          credential: args.input.authorization.credential,
-        });
-        const authorization = verified
-          ? await this.authorizationService.readLiveWalletSessionAuthorizationProjectionByCredential(
-              {
-                tenantId: this.authorizationTenantId,
-                token: args.input.authorization.credential,
-                nowMs: Date.now(),
-              },
-            )
-          : null;
+        const authorization =
+          args.authoritySource.kind === 'committed_mixed'
+            ? args.authoritySource.authorization
+            : null;
         if (!authorization) throw new Error('NEAR continuation Wallet Session is no longer active');
         sessionPredecessor = {
           kind: 'resumed_mixed',
@@ -4062,6 +4243,7 @@ export class CloudflareD1WalletRegistrationService {
     const effectivePrepared = await this.prepareNearProvisioningOperation(
       args.input.registrationCeremonyId,
       prepared,
+      committedInstallation ?? undefined,
     );
     const committed = await this.executeWalletRegistrationFinalize(
       {
@@ -4285,21 +4467,33 @@ export class CloudflareD1WalletRegistrationService {
    * A retryable failure leaves the pending wallet intact: the wallet must not
    * be destroyed because its signer ceremony needs another attempt.
    */
-  private async verifyNearProvisioningAuthority(input: WalletRegistrationNearProvisioningInput) {
+  private async verifyNearProvisioningAuthority(
+    input: WalletRegistrationNearProvisioningInput,
+  ): Promise<VerifiedNearProvisioningAuthority> {
     if (input.authorization.kind === 'registration_grant') {
-      return await verifyWalletRegistrationSetupClaims(input.verifier, input.signedSetup, {
-        registrationCeremonyId: input.registrationCeremonyId,
-        nowMs: Date.now(),
-      });
+      const verified = await verifyWalletRegistrationSetupClaims(
+        input.verifier,
+        input.signedSetup,
+        {
+          registrationCeremonyId: input.registrationCeremonyId,
+          nowMs: Date.now(),
+        },
+      );
+      return verified.ok ? { ...verified, source: { kind: 'registration_grant' } } : verified;
     }
-    const authorized = await this.authorizeNearRegistrationContinuation({
-      lifecycleId: input.registrationCeremonyId,
-      credential: input.authorization.credential,
-    });
     const installation = await this.readCommittedRegistrationInstallation(
       input.registrationCeremonyId,
     );
-    if (!authorized || !installation || typeof input.signedSetup !== 'string') {
+    const continuation = installation
+      ? await this.readNearRegistrationContinuationContext(
+          {
+            lifecycleId: input.registrationCeremonyId,
+            credential: input.authorization.credential,
+          },
+          installation,
+        )
+      : null;
+    if (!continuation || typeof input.signedSetup !== 'string') {
       return {
         ok: false as const,
         code: 'invalid_grant',
@@ -4321,16 +4515,29 @@ export class CloudflareD1WalletRegistrationService {
       };
     registrationFinalizeRecoveryFromCommittedInstallation({
       setupClaims: claims,
-      projection: installation.projection,
+      projection: continuation.installation.projection,
     });
-    return { ok: true as const, claims: { ...claims, expiresAtMs: authorized.expiresAtMs } };
+    return {
+      ok: true,
+      claims: { ...claims, expiresAtMs: continuation.verified.expiresAtMs },
+      source: {
+        kind: 'committed_mixed',
+        installation: continuation.installation,
+        authorization: continuation.authorization,
+      },
+    };
   }
 
   async completeWalletRegistrationNearProvisioning(
     input: WalletRegistrationNearProvisioningInput,
+    timingSink?: Array<readonly [string, number]>,
   ): Promise<WalletRegistrationNearProvisioningResponseV2> {
+    const serverTiming = timingSink ?? [];
+    const totalStartedAtMs = Date.now();
     try {
+      const authorityStartedAtMs = Date.now();
       const verified = await this.verifyNearProvisioningAuthority(input);
+      recordRegistrationServerTiming(serverTiming, 'near_finalize_authority', authorityStartedAtMs);
       if (!verified.ok) {
         return { ok: false, code: verified.code, message: verified.message };
       }
@@ -4338,6 +4545,7 @@ export class CloudflareD1WalletRegistrationService {
          its own idempotency key, so it claims, records uncertainty, and
          replays through one record of its own rather than borrowing the
          legacy finalize journal and replay cache. */
+      const fingerprintStartedAtMs = Date.now();
       const requestFingerprint = base64UrlEncode(
         await sha256BytesUtf8(
           alphabetizeStringify({
@@ -4350,6 +4558,12 @@ export class CloudflareD1WalletRegistrationService {
           }),
         ),
       );
+      recordRegistrationServerTiming(
+        serverTiming,
+        'near_finalize_fingerprint',
+        fingerprintStartedAtMs,
+      );
+      const sideEffectStartedAtMs = Date.now();
       const run = await runRouterAbEd25519YaoRegistrationSideEffectV2<
         RegistrationCommitExecution<WalletRegistrationNearProvisioningFinalizeResponse>,
         WalletRegistrationSessionCommitReceiptV2,
@@ -4362,12 +4576,17 @@ export class CloudflareD1WalletRegistrationService {
         resumeAfterMs: D1_WALLET_REGISTRATION_OPERATION_RESUME_AFTER_MS,
         nowMs: Date.now,
         prepare: async () =>
-          await this.prepareNearProvisioningOperation(input.registrationCeremonyId),
+          await this.prepareNearProvisioningOperation(
+            input.registrationCeremonyId,
+            undefined,
+            verified.source.kind === 'committed_mixed' ? verified.source.installation : undefined,
+          ),
         derivePreparedArtifactFingerprint: async (prepared) =>
           base64UrlEncode(await sha256BytesUtf8(alphabetizeStringify(prepared))),
         execute: this.commitDeferredEd25519Signer.bind(this, {
           input,
           setupClaims: verified.claims,
+          authoritySource: verified.source,
         }),
         projectReceipt: (execution) =>
           projectWalletRegistrationSessionCommitReceiptV2({
@@ -4378,6 +4597,11 @@ export class CloudflareD1WalletRegistrationService {
           }),
         replay: this.replayWalletRegistrationNearProvisioningCommit.bind(this),
       });
+      recordRegistrationServerTiming(
+        serverTiming,
+        'near_finalize_side_effect',
+        sideEffectStartedAtMs,
+      );
       switch (run.kind) {
         case 'executed':
         case 'exact_replay':
@@ -4428,21 +4652,37 @@ export class CloudflareD1WalletRegistrationService {
           nearProvisioning: { status: 'near_failed_retryable' },
         };
       }
-      await cleanupFinalizedRegistrationCeremony({
-        store: this.getRegistrationCeremonyIntentStore(),
-        registrationCeremonyId: input.registrationCeremonyId,
+      const cleanupStartedAtMs = Date.now();
+      const cleanup = recordRegistrationPromiseTiming({
+        sink: serverTiming,
+        name: 'near_finalize_cleanup',
+        startedAtMs: cleanupStartedAtMs,
+        promise: cleanupFinalizedRegistrationCeremony({
+          store: this.getRegistrationCeremonyIntentStore(),
+          registrationCeremonyId: input.registrationCeremonyId,
+        }),
       });
       if (input.authorization.kind === 'wallet_session') {
-        const current =
-          await this.authorizationService.readLiveWalletSessionAuthorizationProjectionByCredential({
-            tenantId: this.authorizationTenantId,
-            token: input.authorization.credential,
-            nowMs: Date.now(),
-          });
+        const projectionStartedAtMs = Date.now();
+        const [current] = await Promise.all([
+          recordRegistrationPromiseTiming({
+            sink: serverTiming,
+            name: 'near_finalize_session_projection',
+            startedAtMs: projectionStartedAtMs,
+            promise:
+              this.authorizationService.readLiveWalletSessionAuthorizationProjectionByCredential({
+                tenantId: this.authorizationTenantId,
+                token: input.authorization.credential,
+                nowMs: Date.now(),
+              }),
+          }),
+          cleanup,
+        ]);
         const tokens = committed.registrationEstablishedSession.session.tokens;
         if (!current || tokens.kind !== 'near_ed25519_and_evm_family_ecdsa') {
           throw new Error('NEAR continuation Wallet Session is no longer active');
         }
+        recordRegistrationServerTiming(serverTiming, 'near_finalize_total', totalStartedAtMs);
         return {
           ...committed,
           registrationEstablishedSession: {
@@ -4453,11 +4693,14 @@ export class CloudflareD1WalletRegistrationService {
           nearProvisioning: { status: 'near_ready' },
         };
       }
+      await cleanup;
+      recordRegistrationServerTiming(serverTiming, 'near_finalize_total', totalStartedAtMs);
       return {
         ...committed,
         nearProvisioning: { status: 'near_ready' },
       };
     } catch (error: unknown) {
+      recordRegistrationServerTiming(serverTiming, 'near_finalize_total', totalStartedAtMs);
       return {
         ok: false,
         code: 'internal',

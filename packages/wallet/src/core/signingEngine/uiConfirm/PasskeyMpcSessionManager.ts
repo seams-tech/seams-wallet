@@ -491,10 +491,38 @@ class PasskeyMpcSessionManagerImpl implements PasskeyMpcSessionPort {
     if (!response.success) throw new Error(response.error || 'Client seal cleanup failed');
   }
 
+  async readPreparedSigningSessionHydration(input: {
+    preparationId: string;
+    thresholdSessionId: string;
+  }): Promise<{ readonly ciphertext: string }> {
+    const response = await this.sendMessage({
+      type: 'READ_SESSION_CLIENT_SEAL',
+      id: this.generateMessageId(),
+      payload: input,
+    });
+    if (
+      !response.success ||
+      !isObjectRecord(response.data) ||
+      response.data.ok !== true ||
+      typeof response.data.ciphertext !== 'string' ||
+      !response.data.ciphertext.trim()
+    ) {
+      throw new Error(
+        response.success
+          ? 'Prepared client seal is invalid'
+          : response.error || 'Client seal read failed',
+      );
+    }
+    return { ciphertext: response.data.ciphertext };
+  }
+
   putWarmSessionMaterial = async (
     args: Parameters<PasskeyMpcSessionPort['putWarmSessionMaterial']>[0],
   ): Promise<void> => {
-    const { diagnostics, ...workerPayload } = args;
+    const { diagnostics, preparedServerSeal, ...workerPayload } = args;
+    if (preparedServerSeal && !args.transport) {
+      throw new Error('Prepared server seal requires exact persistence transport');
+    }
     const workerReadyStartedAt = performance.now();
     await this.ensureWorkerReady();
     recordDiagnosticDuration({
@@ -523,12 +551,45 @@ class PasskeyMpcSessionManagerImpl implements PasskeyMpcSessionPort {
       bucket: 'worker_put',
       startedAt: workerPutStartedAt,
     });
+    let completedSeal: Extract<WarmSessionSealAndPersistResult, { readonly ok: true }> | undefined;
+    if (preparedServerSeal && args.transport) {
+      const completed = await this.sendMessage({
+        type: 'COMPLETE_SESSION_CLIENT_SEAL',
+        id: this.generateMessageId(),
+        payload: {
+          preparationId: preparedServerSeal.preparationId,
+          thresholdSessionId: args.thresholdSessionId,
+          transport: requirePasskeySealTransport(args.transport),
+          serverSeal: {
+            ok: true,
+            ciphertext: preparedServerSeal.ciphertext,
+            keyVersion: preparedServerSeal.keyVersion,
+            expiresAtMs: preparedServerSeal.expiresAtMs,
+            remainingUses: preparedServerSeal.remainingUses,
+          },
+        },
+      });
+      const parsed = completed.success
+        ? parseWarmSessionSealAndPersistResult(completed.data)
+        : null;
+      if (!parsed) {
+        const message = completed.success
+          ? 'Prepared signing-session seal returned an invalid response'
+          : completed.error || 'Prepared signing-session seal failed';
+        throw new Error(message);
+      }
+      if (!parsed.ok) {
+        throw new Error(`Prepared signing-session seal failed (${parsed.code}): ${parsed.message}`);
+      }
+      completedSeal = parsed;
+    }
     const persistStartedAt = performance.now();
     const persistenceResult = args.transport
-      ? await this.persistSigningSessionSealForThresholdSession({
+      ? await this.durableState.persistSigningSessionSealForThresholdSession({
           thresholdSessionId: args.thresholdSessionId,
           transport: requirePasskeySealTransport(args.transport),
           ...(diagnostics ? { diagnostics } : {}),
+          ...(completedSeal ? { completedSeal } : {}),
         })
       : null;
     const persisted = persistenceResult;

@@ -2,20 +2,16 @@ import type {
   WarmSessionMaterialWriter,
   WarmSessionMaterialWriteDiagnostics,
 } from './warmSessionMaterialWriter';
+import type { WarmSessionSealTransportState } from '@/core/types/secure-confirm-worker';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 
-type SigningSessionCacheTransport = Parameters<
-  WarmSessionMaterialWriter['putWarmSessionMaterial']
->[0]['transport'];
-
 export type SigningSessionCacheEntry = {
-  thresholdSessionId: string;
-  prfFirstB64u: string;
-  expiresAtMs: number;
-  remainingUses: number;
-  transport?: SigningSessionCacheTransport;
-  diagnostics?: WarmSessionMaterialWriteDiagnostics;
-};
+  readonly thresholdSessionId: string;
+  readonly prfFirstB64u: string;
+  readonly expiresAtMs: number;
+  readonly remainingUses: number;
+  readonly diagnostics?: WarmSessionMaterialWriteDiagnostics;
+} & WarmSessionSealTransportState;
 
 function toNonNegativeInt(value: unknown): number | undefined {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return undefined;
@@ -42,11 +38,22 @@ function normalizeSigningSessionCacheEntry(
   if (remainingUses == null) {
     throw new Error('Invalid remainingUses for signing session hydration');
   }
-  return {
+  const normalized = {
     thresholdSessionId,
     prfFirstB64u,
     expiresAtMs: Math.floor(expiresAtMsRaw),
     remainingUses,
+    ...(args.diagnostics ? { diagnostics: args.diagnostics } : {}),
+  };
+  if (args.preparedServerSeal) {
+    return {
+      ...normalized,
+      transport: args.transport,
+      preparedServerSeal: args.preparedServerSeal,
+    };
+  }
+  return {
+    ...normalized,
     ...(args.transport ? { transport: args.transport } : {}),
   };
 }
@@ -56,12 +63,23 @@ export async function cacheCredentialBoundarySetupExportPrfFirst(
   args: SigningSessionCacheEntry,
 ): Promise<void> {
   const normalized = normalizeSigningSessionCacheEntry(args);
-  await writer.putWarmSessionMaterial({
+  const material = {
     thresholdSessionId: normalized.thresholdSessionId,
     prfFirstB64u: normalized.prfFirstB64u,
     expiresAtMs: normalized.expiresAtMs,
     remainingUses: normalized.remainingUses,
-    ...(args.transport ? { transport: args.transport } : {}),
-    ...(args.diagnostics ? { diagnostics: args.diagnostics } : {}),
+    ...(normalized.diagnostics ? { diagnostics: normalized.diagnostics } : {}),
+  };
+  if (normalized.preparedServerSeal) {
+    await writer.putWarmSessionMaterial({
+      ...material,
+      transport: normalized.transport,
+      preparedServerSeal: normalized.preparedServerSeal,
+    });
+    return;
+  }
+  await writer.putWarmSessionMaterial({
+    ...material,
+    ...(normalized.transport ? { transport: normalized.transport } : {}),
   });
 }

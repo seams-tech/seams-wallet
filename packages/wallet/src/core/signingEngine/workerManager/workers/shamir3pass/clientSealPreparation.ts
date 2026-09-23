@@ -132,6 +132,31 @@ export class ClientSealPreparations {
     return result.seal;
   }
 
+  async readCiphertext(sessionId: string, preparationId: string): Promise<string> {
+    const entry = this.entries.get(sessionId);
+    if (!entry || entry.id !== preparationId) {
+      throw new Error('Client seal preparation is unavailable');
+    }
+    const result = await entry.result;
+    if (this.entries.get(sessionId) !== entry) {
+      throw new Error('Client seal preparation was discarded');
+    }
+    if (result.kind === 'failed') throw result.error;
+    return result.seal.ciphertext;
+  }
+
+  async takeExact(
+    sessionId: string,
+    preparationId: string,
+    secret: string,
+  ): Promise<PreparedClientSeal> {
+    const entry = this.entries.get(sessionId);
+    if (!entry || entry.id !== preparationId) {
+      throw new Error('Client seal preparation is unavailable');
+    }
+    return await this.take(sessionId, secret);
+  }
+
   async discard(sessionId: string, preparationId: string): Promise<void> {
     const entry = this.entries.get(sessionId);
     if (!entry || entry.id !== preparationId) return;

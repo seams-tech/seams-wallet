@@ -200,7 +200,8 @@ Expected behaviour:
   `near_provisioning`, `near_ready`, or `near_failed_retryable`.
 - NEAR admission and Yao execution cannot delay EVM registration or EVM signing.
   EVM activation and the NEAR continuation are saved atomically as separate records.
-  Yao execution starts only after its encrypted completion checkpoint is durable.
+  Authorized NEAR admission overlaps ECDSA respond. Yao execution starts only
+  after its encrypted completion checkpoint is durable.
 - Reload and uncertain responses retain the exact NEAR attempt. Normal unlock
   with the founding method resumes its saved phase, using fresh session authority
   when the registration grant has expired. No replacement key is generated.
@@ -214,8 +215,9 @@ Expected behaviour:
   the journal for the next authorized unlock.
 - After EVM activation, the retained NEAR journal supplies the exact session identity.
   Passkey client-seal preparation may overlap custody execution and server finalization.
-  Preparation creates no signing authority and performs no server sealing. Temporary keys are consumed once for the matching
-  session and factor, or discarded on failure, lock, expiry, or abandonment.
+  Finalization applies the prepared server seal and returns it in the same response.
+  Preparation creates no signing authority. Temporary keys are consumed once for
+  the matching session and factor, or discarded on failure, lock, expiry, or abandonment.
 - After NEAR authority publication, passkey session hydration and local signer
   installation may overlap. Durable readiness waits for both; a failed hydration
   retains the repair journal for normal unlock.
@@ -257,7 +259,8 @@ Expected behaviour:
   `near_provisioning`, `near_ready`, or `near_failed_retryable`.
 - NEAR admission and Yao execution cannot delay EVM registration or EVM signing.
   EVM activation and the NEAR continuation are saved atomically as separate records.
-  Yao execution starts only after its encrypted completion checkpoint is durable.
+  Authorized NEAR admission overlaps ECDSA respond. Yao execution starts only
+  after its encrypted completion checkpoint is durable.
 - Reload and uncertain responses retain the exact NEAR attempt. Normal unlock
   with the founding method resumes its saved phase, using fresh session authority
   when the registration grant has expired. No replacement key is generated.

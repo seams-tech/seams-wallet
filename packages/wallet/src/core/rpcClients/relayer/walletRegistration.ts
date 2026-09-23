@@ -137,6 +137,7 @@ const ROUTE_PAYLOAD_BREAKDOWN_MAX_DEPTH = 2;
 const ROUTE_PAYLOAD_BREAKDOWN_MAX_FIELDS = 64;
 const WALLET_REGISTRATION_SETUP_PATH = '/wallets/register/setup';
 const WALLET_REGISTRATION_RESPOND_PATH = '/wallets/register/respond';
+const WALLET_REGISTRATION_NEAR_ADMISSION_PATH = '/wallets/register/near-admission';
 const WALLET_REGISTRATION_ACTIVATE_PATH = '/wallets/register/activate';
 const WALLET_REGISTRATION_NEAR_PROVISIONING_PATH = '/wallets/register/near-provisioning';
 /** Managed environment id header for Router API `api_credentials` auth. */
@@ -3364,6 +3365,12 @@ export type WalletRegistrationRespondResponseV2 =
       ed25519: WalletRegistrationRespondEd25519DeferredWork;
     };
 
+export type WalletRegistrationNearAdmissionResponseV2 = {
+  ok: true;
+  registrationCeremonyId: string;
+  ed25519: WalletRegistrationRespondEd25519DeferredWork;
+};
+
 /**
  * Strict boundary parser for route 2.
  *
@@ -3469,11 +3476,7 @@ function parseWalletRegistrationRespondEd25519DeferredWork(
 ): WalletRegistrationRespondEd25519DeferredWork {
   const responseName = 'Wallet registration respond ed25519';
   const record = requireWalletRegistrationResponseObject({ responseName, field: 'ed25519', value });
-  assertWalletRegistrationResponseKeys(
-    record,
-    ['status', 'admissionRequest'],
-    responseName,
-  );
+  assertWalletRegistrationResponseKeys(record, ['status', 'admissionRequest'], responseName);
   /* `deferred` is the only legal status. Anything else would mean the server
      believes this work is already running or complete, which no client is
      entitled to assume about NEAR provisioning. */
@@ -3550,6 +3553,54 @@ export async function respondWalletRegistration(
     onServerTiming: args.onServerTiming,
   });
   return parseWalletRegistrationRespondResponseV2(response);
+}
+
+export async function authorizeWalletRegistrationNearAdmission(
+  args: RespondWalletRegistrationArgsBase,
+): Promise<WalletRegistrationNearAdmissionResponseV2> {
+  const body: Record<string, unknown> = {
+    registrationCeremonyId: args.registrationCeremonyId,
+    signedSetup: args.signedSetup,
+  };
+  switch (args.kind) {
+    case 'passkey':
+      body.webauthn_registration = args.webauthnRegistration;
+      break;
+    case 'email_otp':
+      body.emailOtpRegistrationProof = args.emailOtpRegistrationProof;
+      break;
+  }
+  const response = await postJson({
+    relayerUrl: args.relayerUrl,
+    path: WALLET_REGISTRATION_NEAR_ADMISSION_PATH,
+    headers: args.headers,
+    body,
+  });
+  const responseName = 'Wallet registration NEAR admission';
+  const record = requireWalletRegistrationResponseObject({
+    responseName,
+    field: 'body',
+    value: response,
+  });
+  assertWalletRegistrationResponseKeys(
+    record,
+    ['ok', 'registrationCeremonyId', 'ed25519'],
+    responseName,
+  );
+  if (readWalletRegistrationResponseField(record, 'ok', responseName) !== true) {
+    throw new Error(`${responseName} response is not successful`);
+  }
+  return {
+    ok: true,
+    registrationCeremonyId: requireResponseString({
+      responseName,
+      field: 'registrationCeremonyId',
+      value: readWalletRegistrationResponseField(record, 'registrationCeremonyId', responseName),
+    }),
+    ed25519: parseWalletRegistrationRespondEd25519DeferredWork(
+      readWalletRegistrationResponseField(record, 'ed25519', responseName),
+    ),
+  };
 }
 
 /**
@@ -4034,17 +4085,75 @@ export async function activateWalletRegistration(
  * repeatable, so the caller reports provisioning state rather than unwinding
  * a wallet that already exists.
  */
+type WalletRegistrationNearProvisioningFinalizeSuccessV2 = Extract<
+  WalletRegistrationFinalizeResponse,
+  { ok: true; kind: 'near_ed25519' }
+>;
+
+type WalletRegistrationNearProvisioningSuccessBaseV2 = {
+  registrationEstablishedSession: RegistrationEstablishedSessionResultV2;
+  nearProvisioning: { status: 'near_ready' };
+};
+
 export type WalletRegistrationNearProvisioningResponseV2 =
-  | (Extract<WalletRegistrationFinalizeResponse, { ok: true; kind: 'near_ed25519' }> & {
-      registrationEstablishedSession: RegistrationEstablishedSessionResultV2;
-      nearProvisioning: { status: 'near_ready' };
-    })
+  | (Extract<
+      WalletRegistrationNearProvisioningFinalizeSuccessV2,
+      { authMethod: { kind: 'passkey' } }
+    > &
+      WalletRegistrationNearProvisioningSuccessBaseV2 & {
+        sessionSeal?: WalletRegistrationSessionSealResponse;
+      })
+  | (Extract<
+      WalletRegistrationNearProvisioningFinalizeSuccessV2,
+      { authMethod: { kind: 'email_otp' } }
+    > &
+      WalletRegistrationNearProvisioningSuccessBaseV2 & {
+        sessionSeal?: never;
+      })
   | {
       ok: false;
       code: string;
       message: string;
       nearProvisioning?: { status: 'near_failed_retryable' };
     };
+
+export type WalletRegistrationSessionSealResponse = {
+  readonly ciphertext: string;
+  readonly keyVersion: string;
+  readonly expiresAtMs: number;
+  readonly remainingUses: number;
+};
+
+function parseWalletRegistrationSessionSealResponse(
+  value: unknown,
+): WalletRegistrationSessionSealResponse {
+  const responseName = 'Wallet registration session seal';
+  const record = requireWalletRegistrationResponseObject({ responseName, field: 'body', value });
+  assertWalletRegistrationResponseKeys(
+    record,
+    ['ciphertext', 'keyVersion', 'expiresAtMs', 'remainingUses'],
+    responseName,
+  );
+  const ciphertext = readWalletRegistrationResponseField(record, 'ciphertext', responseName);
+  const keyVersion = readWalletRegistrationResponseField(record, 'keyVersion', responseName);
+  const expiresAtMs = readWalletRegistrationResponseField(record, 'expiresAtMs', responseName);
+  const remainingUses = readWalletRegistrationResponseField(record, 'remainingUses', responseName);
+  if (
+    typeof ciphertext !== 'string' ||
+    !ciphertext.trim() ||
+    typeof keyVersion !== 'string' ||
+    !keyVersion.trim() ||
+    typeof expiresAtMs !== 'number' ||
+    !Number.isSafeInteger(expiresAtMs) ||
+    expiresAtMs <= 0 ||
+    typeof remainingUses !== 'number' ||
+    !Number.isSafeInteger(remainingUses) ||
+    remainingUses < 0
+  ) {
+    throw new Error(`${responseName} is invalid`);
+  }
+  return { ciphertext, keyVersion, expiresAtMs, remainingUses };
+}
 
 function parseWalletRegistrationNearProvisioningResponseV2(
   value: unknown,
@@ -4109,6 +4218,7 @@ function parseWalletRegistrationNearProvisioningResponseV2(
       'authorityScope',
       'nearProvisioning',
       'registrationEstablishedSession',
+      'sessionSeal',
     ],
     responseName,
   );
@@ -4138,17 +4248,35 @@ function parseWalletRegistrationNearProvisioningResponseV2(
   if (!finalized.ok || finalized.kind !== 'near_ed25519') {
     throw new Error(`${responseName} did not return a finalized Ed25519 wallet`);
   }
-  return {
+  const sessionSeal = readOptionalWalletRegistrationResponseField(
+    record,
+    'sessionSeal',
+    responseName,
+  );
+  const registrationEstablishedSession = parseRegistrationEstablishedSessionResult(
+    readWalletRegistrationResponseField(record, 'registrationEstablishedSession', responseName),
+    finalized.walletId,
+  );
+  if (isEmailOtpWalletRegistrationFinalizeResponse(finalized)) {
+    if (sessionSeal !== undefined) {
+      throw new Error(`${responseName} returned a session seal for an Email OTP authority`);
+    }
+    return {
+      ...finalized,
+      nearProvisioning: { status: 'near_ready' },
+      registrationEstablishedSession,
+    };
+  }
+  const success = {
     ...finalized,
-    nearProvisioning: { status: 'near_ready' },
-    registrationEstablishedSession: parseRegistrationEstablishedSessionResult(
-      readWalletRegistrationResponseField(record, 'registrationEstablishedSession', responseName),
-      finalized.walletId,
-    ),
+    nearProvisioning: { status: 'near_ready' } as const,
+    registrationEstablishedSession,
   };
+  if (sessionSeal === undefined) return success;
+  return { ...success, sessionSeal: parseWalletRegistrationSessionSealResponse(sessionSeal) };
 }
 
-export async function completeWalletRegistrationNearProvisioning(args: {
+type CompleteWalletRegistrationNearProvisioningBaseArgs = {
   relayerUrl: string;
   headers?: Record<string, string>;
   registrationCeremonyId: string;
@@ -4156,19 +4284,39 @@ export async function completeWalletRegistrationNearProvisioning(args: {
   /** Distinct from activate's: a separate effect needs a separate key. */
   idempotencyKey: string;
   ed25519: { activationReference: WalletRegistrationEd25519YaoActivationReference };
-  auth:
-    | { kind: 'passkey' }
-    | {
-        kind: 'email_otp';
-        enrollment: WalletRegistrationEmailOtpEnrollmentMaterial;
-      };
   /**
    * The custody ceremony's sealed output. For an Ed25519-only wallet this is
    * the call that establishes custody: activate had no key set to seal against.
    */
   walletCustodyCommit?: WalletCustodyCeremonyCommitPayload;
   onServerTiming?: (header: string | null) => void;
-}): Promise<WalletRegistrationNearProvisioningResponseV2> {
+};
+
+type CompleteWalletRegistrationNearProvisioningArgs =
+  CompleteWalletRegistrationNearProvisioningBaseArgs &
+    (
+      | {
+          auth:
+            | { kind: 'passkey' }
+            | {
+                kind: 'email_otp';
+                enrollment: WalletRegistrationEmailOtpEnrollmentMaterial;
+              };
+          sessionSeal?: never;
+        }
+      | {
+          auth: { kind: 'passkey' };
+          sessionSeal: {
+            readonly thresholdSessionId: string;
+            readonly ciphertext: string;
+            readonly keyVersion?: string;
+          };
+        }
+    );
+
+export async function completeWalletRegistrationNearProvisioning(
+  args: CompleteWalletRegistrationNearProvisioningArgs,
+): Promise<WalletRegistrationNearProvisioningResponseV2> {
   const body: Record<string, unknown> = {
     registrationCeremonyId: args.registrationCeremonyId,
     signedSetup: args.signedSetup,
@@ -4180,6 +4328,7 @@ export async function completeWalletRegistrationNearProvisioning(args: {
     body.emailOtpEnrollment = args.auth.enrollment;
   }
   if (args.walletCustodyCommit) body.walletCustodyCommit = args.walletCustodyCommit;
+  if (args.sessionSeal) body.sessionSeal = args.sessionSeal;
   const response = await postJson({
     relayerUrl: args.relayerUrl,
     path: WALLET_REGISTRATION_NEAR_PROVISIONING_PATH,

@@ -1,5 +1,6 @@
 import type {
   WalletRegistrationNearProvisioningResponseV2,
+  WalletRegistrationNearAdmissionResponseV2,
   WalletRegistrationActivateRouteResponseV2,
   WalletRegistrationActivateResponseV2,
   WalletRegistrationRespondResponseV2,
@@ -77,6 +78,7 @@ import type {
   RouteServices,
 } from '../../framework/routeExecutionContext';
 import type { RouteDefinition } from '../../framework/routeDefinitions';
+import type { SigningSessionSealRoutesOptions } from '../../../threshold/session/signingSessionSeal/signingSessionSeal.types';
 import type { RouteErrorBody } from '../../framework/routeResponses';
 import { routeError, routeJson } from '../../framework/routeResponses';
 import { isPlainObject } from '@shared/utils/validation';
@@ -175,6 +177,7 @@ type RouterApiWalletRegistrationInput = {
   route: RouteDefinition;
   services: RouterApiWalletRegistrationServices;
   sourceIp?: string;
+  signingSessionSeal?: SigningSessionSealRoutesOptions | null;
 };
 
 type ParseResult<T> = { ok: true; value: T } | { ok: false; code: 'invalid_body'; message: string };
@@ -261,6 +264,11 @@ type PasskeyWalletRegistrationActivateSuccessV2 = Extract<
   { authMethod: PasskeyWalletRegistrationFinalizeAuthMethod }
 >;
 
+type PasskeyWalletRegistrationNearProvisioningSuccessV2 = Extract<
+  WalletRegistrationNearProvisioningResponseV2,
+  { ok: true; authMethod: PasskeyWalletRegistrationFinalizeAuthMethod }
+>;
+
 function assertNeverWalletRegistrationFinalizeKind(value: never): never {
   throw new Error(`Unsupported wallet registration finalize kind: ${String(value)}`);
 }
@@ -290,6 +298,12 @@ function isEmailOtpWalletRegistrationActivateSuccessV2(
 function isPasskeyWalletRegistrationActivateSuccessV2(
   result: WalletRegistrationActivateSuccessV2,
 ): result is PasskeyWalletRegistrationActivateSuccessV2 {
+  return result.authMethod.kind === 'passkey';
+}
+
+function isPasskeyWalletRegistrationNearProvisioningSuccessV2(
+  result: Extract<WalletRegistrationNearProvisioningResponseV2, { ok: true }>,
+): result is PasskeyWalletRegistrationNearProvisioningSuccessV2 {
   return result.authMethod.kind === 'passkey';
 }
 
@@ -2324,6 +2338,62 @@ export async function handleRouterApiWalletRegistrationRespond(
   });
 }
 
+export async function handleRouterApiWalletRegistrationNearAdmission(
+  input: RouterApiWalletRegistrationInput,
+): Promise<RouteResponse<WalletRegistrationNearAdmissionResponseV2 | RouteErrorBody>> {
+  const traceContext = parseRegistrationTraceContext(input.headers);
+  if (!traceContext.ok) return routeError(400, 'invalid_trace_id', traceContext.message);
+  if (!isPlainObject(input.body)) {
+    return routeError(400, 'invalid_body', 'JSON body required');
+  }
+  const session = input.services.session;
+  if (!session) {
+    return routeError(500, 'internal', 'NEAR admission requires setup verification');
+  }
+  const body = input.body as Record<string, unknown>;
+  const registrationCeremonyId = String(body.registrationCeremonyId || '').trim();
+  const signedSetup = String(body.signedSetup || '').trim();
+  if (!registrationCeremonyId || !signedSetup) {
+    return routeError(400, 'invalid_body', 'registrationCeremonyId and signedSetup are required');
+  }
+  const authority = parseWalletRegistrationAuthorityProof(body);
+  if (!authority.ok) return routeError(400, authority.code, authority.message);
+  const result = await input.services.walletRegistration.authorizeWalletRegistrationNearAdmission({
+    registrationCeremonyId,
+    signedSetup,
+    authority: authority.value,
+    verifier: session,
+    ...(registrationUserAgentFromHeaders(input.headers)
+      ? { userAgent: registrationUserAgentFromHeaders(input.headers) }
+      : {}),
+  });
+  return routeJson(result.ok ? 200 : 400, result);
+}
+
+function parseWalletRegistrationAuthorityProof(
+  body: Record<string, unknown>,
+): ParseResult<WalletRegistrationAuthorityInput> {
+  const hasWebAuthn = Object.prototype.hasOwnProperty.call(body, 'webauthn_registration');
+  const hasEmailOtp = Object.prototype.hasOwnProperty.call(body, 'emailOtpRegistrationProof');
+  if (hasWebAuthn === hasEmailOtp) {
+    return {
+      ok: false,
+      code: 'invalid_body',
+      message: 'exactly one registration authority proof is required',
+    };
+  }
+  if (hasWebAuthn) {
+    return {
+      ok: true,
+      value: { kind: 'passkey', webauthnRegistration: body.webauthn_registration },
+    };
+  }
+  const proof = normalizeEmailOtpRegistrationProof(body.emailOtpRegistrationProof);
+  return proof
+    ? { ok: true, value: { kind: 'email_otp', emailOtpRegistrationProof: proof } }
+    : { ok: false, code: 'invalid_body', message: 'emailOtpRegistrationProof is invalid' };
+}
+
 /**
  * Parses respond's public body. `signedSetup` stays an opaque string here —
  * the service verifies it; parsing its contents at the boundary would invite
@@ -2371,25 +2441,9 @@ function parseWalletRegistrationRespondRequest(body: unknown): ParseResult<{
   }
   /* Exactly one proof branch; the auth method the ceremony recorded decides
      which one is admissible, and the service rejects a mismatch. */
-  const hasWebAuthn = Object.prototype.hasOwnProperty.call(body, 'webauthn_registration');
-  const hasEmailOtp = Object.prototype.hasOwnProperty.call(body, 'emailOtpRegistrationProof');
-  if (hasWebAuthn === hasEmailOtp) {
-    return {
-      ok: false,
-      code: 'invalid_body',
-      message: 'exactly one registration authority proof is required',
-    };
-  }
-  let authority: WalletRegistrationAuthorityInput;
-  if (hasWebAuthn) {
-    authority = { kind: 'passkey', webauthnRegistration: body.webauthn_registration };
-  } else {
-    const proof = normalizeEmailOtpRegistrationProof(body.emailOtpRegistrationProof);
-    if (!proof) {
-      return { ok: false, code: 'invalid_body', message: 'emailOtpRegistrationProof is invalid' };
-    }
-    authority = { kind: 'email_otp', emailOtpRegistrationProof: proof };
-  }
+  const parsedAuthority = parseWalletRegistrationAuthorityProof(body);
+  if (!parsedAuthority.ok) return parsedAuthority;
+  const authority = parsedAuthority.value;
   if (planKind === 'near_ed25519') {
     return {
       ok: true,
@@ -2638,6 +2692,9 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
   }
   const ed25519 = parseWalletRegistrationEd25519Finalize(body.ed25519);
   if (!ed25519.ok) return routeError(400, ed25519.code, ed25519.message);
+  const sessionSeal = parseRegistrationPreparedSessionSeal(body.sessionSeal);
+  if (!sessionSeal.ok) return routeError(400, sessionSeal.code, sessionSeal.message);
+  const serverTiming: Array<readonly [string, number]> = [];
   const result = await input.services.walletRegistration.completeWalletRegistrationNearProvisioning(
     {
       authorization: registrationContinuationAuthorization(input.headers),
@@ -2651,9 +2708,149 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
         : {}),
       verifier: session,
     },
+    serverTiming,
   );
   if (!result.ok) return routeJson(400, result);
-  return routeJson(200, result);
+  if (sessionSeal.value) {
+    if (!isPasskeyWalletRegistrationNearProvisioningSuccessV2(result)) {
+      return routeError(
+        400,
+        'invalid_body',
+        'Registration session sealing requires a passkey authority',
+      );
+    }
+    const sealStartedAt = Date.now();
+    const sealed = await applyRegistrationPreparedSessionSeal({
+      options: input.signingSessionSeal,
+      request: sessionSeal.value,
+      response: result,
+    });
+    serverTiming.push(['near_finalize_session_seal', Math.max(0, Date.now() - sealStartedAt)]);
+    if (!sealed.ok) {
+      return routeJson(
+        503,
+        { ok: false, code: sealed.code, message: sealed.message },
+        {
+          headers: ecdsaGatewayServerTimingHeaders(serverTiming),
+        },
+      );
+    }
+    return routeJson(
+      200,
+      { ...result, sessionSeal: sealed.value },
+      {
+        headers: ecdsaGatewayServerTimingHeaders(serverTiming),
+      },
+    );
+  }
+  return routeJson(200, result, {
+    headers: ecdsaGatewayServerTimingHeaders(serverTiming),
+  });
+}
+
+function parseRegistrationPreparedSessionSeal(raw: unknown): ParseResult<
+  | {
+      readonly thresholdSessionId: string;
+      readonly ciphertext: string;
+      readonly keyVersion?: string;
+    }
+  | undefined
+> {
+  if (raw === undefined) return { ok: true, value: undefined };
+  if (!isPlainObject(raw)) {
+    return { ok: false, code: 'invalid_body', message: 'sessionSeal must be an object' };
+  }
+  const fields = Object.keys(raw);
+  if (fields.some((field) => !['thresholdSessionId', 'ciphertext', 'keyVersion'].includes(field))) {
+    return { ok: false, code: 'invalid_body', message: 'sessionSeal has unknown fields' };
+  }
+  const thresholdSessionId = String(raw.thresholdSessionId || '').trim();
+  const ciphertext = String(raw.ciphertext || '').trim();
+  const keyVersion = String(raw.keyVersion || '').trim();
+  if (!thresholdSessionId || !ciphertext) {
+    return {
+      ok: false,
+      code: 'invalid_body',
+      message: 'sessionSeal thresholdSessionId and ciphertext are required',
+    };
+  }
+  return {
+    ok: true,
+    value: { thresholdSessionId, ciphertext, ...(keyVersion ? { keyVersion } : {}) },
+  };
+}
+
+async function applyRegistrationPreparedSessionSeal(args: {
+  readonly options: SigningSessionSealRoutesOptions | null | undefined;
+  readonly request: {
+    readonly thresholdSessionId: string;
+    readonly ciphertext: string;
+    readonly keyVersion?: string;
+  };
+  readonly response: Extract<
+    WalletRegistrationNearProvisioningResponseV2,
+    { readonly ok: true; readonly authMethod: { readonly kind: 'passkey' } }
+  >;
+}): Promise<
+  | {
+      readonly ok: true;
+      readonly value: {
+        readonly ciphertext: string;
+        readonly keyVersion: string;
+        readonly expiresAtMs: number;
+        readonly remainingUses: number;
+      };
+    }
+  | { readonly ok: false; readonly code: string; readonly message: string }
+> {
+  if (!args.options) {
+    return {
+      ok: false,
+      code: 'signing_session_seal_unavailable',
+      message: 'Signing-session sealing is unavailable',
+    };
+  }
+  const session = args.response.registrationEstablishedSession.session;
+  const tokens = session.tokens;
+  const ed25519 =
+    tokens.kind === 'near_ed25519' || tokens.kind === 'near_ed25519_and_evm_family_ecdsa'
+      ? tokens.ed25519
+      : null;
+  if (!ed25519 || String(ed25519.thresholdSessionId) !== args.request.thresholdSessionId) {
+    return {
+      ok: false,
+      code: 'invalid_session_seal',
+      message: 'Prepared seal does not match the established Ed25519 session',
+    };
+  }
+  const sealed = await args.options.service.applyServerSeal(args.request, {
+    userId: String(session.walletId),
+    session: {
+      kind: 'exact_wallet_session_operation_credential',
+      curve: 'ed25519',
+      thresholdSessionId: args.request.thresholdSessionId,
+      userId: String(session.walletId),
+      expiresAtMs: session.expiresAtMs,
+    },
+  });
+  if (!sealed.ok) return sealed;
+  const keyVersion = String(sealed.keyVersion || '').trim();
+  if (!keyVersion) {
+    return {
+      ok: false,
+      code: 'invalid_session_seal',
+      message: 'Signing-session seal response is missing its key version',
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      ciphertext: sealed.ciphertext,
+      keyVersion,
+      expiresAtMs: Math.min(sealed.expiresAtMs ?? session.expiresAtMs, session.expiresAtMs),
+      remainingUses: session.remainingUses,
+    },
+  };
 }
 
 function ecdsaGatewayServerTimingHeaders(
@@ -3210,7 +3407,9 @@ export async function handleRouterApiWalletNearImplicitAccountFund(
   });
 }
 
-function registrationContinuationAuthorization(headers: HeaderRecord): import('./walletRegistrationInputs').WalletRegistrationNearProvisioningInput['authorization'] {
+function registrationContinuationAuthorization(
+  headers: HeaderRecord,
+): import('./walletRegistrationInputs').WalletRegistrationNearProvisioningInput['authorization'] {
   const credential = extractBearerCredential(headers);
   return credential?.startsWith('wst_')
     ? { kind: 'wallet_session', credential }
