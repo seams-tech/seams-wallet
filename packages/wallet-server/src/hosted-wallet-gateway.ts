@@ -481,6 +481,18 @@ async function createStagingRouterApiAuthComposition(
   tenantRootCustodyLineage: CloudflareD1RouterApiAuthServiceOptions['tenantRootCustodyLineage'],
   dependencies: HostedWalletGatewayDependenciesV1,
 ) {
+  const walletRegionStore = new CloudflareD1WalletRegionStore({
+    database: env.WALLET_DIRECTORY_DB,
+    ensureSchema: false,
+  });
+  const assignments = new WalletHomeLaneAssignmentService({
+    directory: walletRegionStore,
+    laneCatalog: walletRegionStore,
+    defaultHomeLaneId: requireWalletRegionBoundary(
+      parseManagedWalletHomeLaneId(env.WALLET_DEFAULT_HOME_LANE_ID),
+      'WALLET_DEFAULT_HOME_LANE_ID',
+    ),
+  });
   const ecdsaCeremonyTokenIssuer = createStagingEcdsaCeremonyTokenIssuer(env);
   const topology = requireStagingEcdsaRegistrationTopology(env);
   const tokenScope = {
@@ -506,6 +518,7 @@ async function createStagingRouterApiAuthComposition(
     orgId: scope.orgId,
     projectId: scope.projectId,
     envId: scope.envId,
+    resolveWalletLaneContext: assignments.resolveContext.bind(assignments),
     relayerAccount: readEnvString(env, 'RELAYER_ACCOUNT_ID'),
     relayerPublicKey: readEnvString(env, 'RELAYER_PUBLIC_KEY'),
     relayerPrivateKey: readEnvString(env, 'RELAYER_PRIVATE_KEY'),
@@ -550,18 +563,6 @@ async function createStagingRouterApiAuthComposition(
     ecdsaStrictRegistration,
     tenantRootCustodyLineage,
     linkedDevice: stagingLinkedDeviceSessionComposition(env, scope, tenantRootCustodyLineage),
-  });
-  const walletRegionStore = new CloudflareD1WalletRegionStore({
-    database: env.WALLET_DIRECTORY_DB,
-    ensureSchema: false,
-  });
-  const assignments = new WalletHomeLaneAssignmentService({
-    directory: walletRegionStore,
-    laneCatalog: walletRegionStore,
-    defaultHomeLaneId: requireWalletRegionBoundary(
-      parseManagedWalletHomeLaneId(env.WALLET_DEFAULT_HOME_LANE_ID),
-      'WALLET_DEFAULT_HOME_LANE_ID',
-    ),
   });
   const service = {
     ...baseService,

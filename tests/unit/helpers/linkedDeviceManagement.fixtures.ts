@@ -31,6 +31,14 @@ import {
 import { base64UrlEncode } from '../../../packages/shared-ts/src/utils/base64';
 import { parseDigestB64u } from '../../../packages/shared-ts/src/utils/canonicalPrimitives';
 import {
+  MANAGED_WALLET_LANES,
+  buildWalletHomeLane,
+  buildWalletLaneContext,
+  parseWalletDirectoryRevision,
+  parseWalletLaneEpoch,
+  requireWalletRegionBoundary,
+} from '../../../packages/shared-ts/src/wallet-region';
+import {
   buildWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
 } from '../../../packages/shared-ts/src/utils/registrationIntent';
@@ -365,6 +373,17 @@ export async function buildLinkedDeviceManagementAuthorityFixture(input: {
     tenantId,
     principalId,
     walletId,
+    laneContext: buildWalletLaneContext({
+      homeLane: buildWalletHomeLane({
+        walletId,
+        laneId: MANAGED_WALLET_LANES.asia_pacific.laneId,
+        laneEpoch: requireWalletRegionBoundary(parseWalletLaneEpoch(1), 'fixture lane epoch'),
+      }),
+      directoryRevision: requireWalletRegionBoundary(
+        parseWalletDirectoryRevision(1),
+        'fixture directory revision',
+      ),
+    }),
     authorityId,
     walletAuthMethodId: authMethodId,
     authorityDigestB64u: authority.authorityDigestB64u,

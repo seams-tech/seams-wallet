@@ -1,9 +1,11 @@
 import {
   buildWalletHomeLane,
+  buildWalletLaneContext,
   parseWalletLaneEpoch,
   requireWalletId,
   requireWalletRegionBoundary,
   type ManagedWalletHomeLaneId,
+  type WalletLaneContext,
 } from '@shared/wallet-region';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { RouterApiWalletRegistrationService } from '../../router/framework/authServicePort';
@@ -57,6 +59,14 @@ export class WalletHomeLaneAssignmentService {
     }
     if (result.currentHomeLane) return result.currentHomeLane;
     throw new Error('initial wallet Home region assignment conflicted');
+  }
+
+  async resolveContext(walletId: WalletId): Promise<WalletLaneContext> {
+    const record = await this.ensureAssigned(walletId);
+    return buildWalletLaneContext({
+      homeLane: record.homeLane,
+      directoryRevision: record.directoryRevision,
+    });
   }
 }
 

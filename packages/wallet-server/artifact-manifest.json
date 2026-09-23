@@ -139,8 +139,8 @@
   "migrations": {
     "signer": {
       "directory": "migrations/d1-signer",
-      "head": "0035_r103f_linked_delivery_acknowledgement_cleanup_window.sql",
-      "fingerprint": "eff54622b56a6160051b483aac755b757cc9d5a0be9e293001051171464bd97f",
+      "head": "0036_r150_wallet_session_lane_context.sql",
+      "fingerprint": "b22f938083a4cee88874c5d9115908c2cf157ca93b8b8357b01450721fe4d9e2",
       "files": [
         {
           "path": "migrations/d1-signer/0001_signer_d1_initial.sql",
@@ -316,6 +316,11 @@
           "path": "migrations/d1-signer/0035_r103f_linked_delivery_acknowledgement_cleanup_window.sql",
           "bytes": 17935,
           "sha256": "0a7aa8c499b38d314d38029d564b85541a0958bc14a682ff10a0cfe4d517e272"
+        },
+        {
+          "path": "migrations/d1-signer/0036_r150_wallet_session_lane_context.sql",
+          "bytes": 725,
+          "sha256": "283066c0b7b6020638147398caf0079d281aa0833ae27ea017b8d1927134c9d9"
         }
       ]
     },

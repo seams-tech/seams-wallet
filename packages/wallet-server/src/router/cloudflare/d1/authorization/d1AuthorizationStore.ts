@@ -1693,6 +1693,7 @@ export class CloudflareD1AuthorizationStore
         session_issued_at_ms: row.issued_at_ms,
         session_expires_at_ms: row.expires_at_ms,
       },
+      session.laneContext,
       parseD1JsonColumn(row.capability_subjects_json),
     );
     if (!walletSessionAuthorizationV2RecordsEqual(subjectsRecord, session)) {
@@ -1888,6 +1889,7 @@ export class CloudflareD1AuthorizationStore
     }
     const subjectsRecord = parseWalletSessionAuthorizationV2WithSubjects(
       row,
+      session.laneContext,
       parseD1JsonColumn(row.session_capability_subjects_json),
     );
     if (!walletSessionAuthorizationV2RecordsEqual(subjectsRecord, session)) {
@@ -3052,6 +3054,7 @@ function walletSessionAuthorizationV2RowMatches(
 
 function parseWalletSessionAuthorizationV2WithSubjects(
   row: D1Row,
+  laneContext: WalletSessionAuthorizationV2['laneContext'],
   capabilitySubjects: unknown,
 ): WalletSessionAuthorizationV2 {
   return parseWalletSessionAuthorizationV2({
@@ -3059,6 +3062,7 @@ function parseWalletSessionAuthorizationV2WithSubjects(
     tenantId: row.session_tenant_id,
     principalId: row.session_principal_id,
     walletId: row.session_wallet_id,
+    laneContext,
     authorityId: row.session_authority_id,
     walletAuthMethodId: row.session_wallet_auth_method_id,
     authorityDigestB64u: row.session_authority_digest_b64u,
@@ -3086,6 +3090,7 @@ function parseLiveWalletSessionAuthorizationV2Row(
   }
   const subjectsRecord = parseWalletSessionAuthorizationV2WithSubjects(
     row,
+    session.laneContext,
     parseD1JsonColumn(row.session_capability_subjects_json),
   );
   if (!walletSessionAuthorizationV2RecordsEqual(subjectsRecord, session)) {

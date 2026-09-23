@@ -1512,6 +1512,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     grants: authorizationStore,
     authorizedOperations: authorizationStore,
     audit: authorizationStore,
+    resolveWalletLaneContext: options.resolveWalletLaneContext,
   });
   const googleEmailOtpRegistrationAttempts = new CloudflareD1GoogleEmailOtpRegistrationAttemptStore(
     {

@@ -65,6 +65,11 @@ import {
   type ActiveWalletSessionV1,
   type WalletSessionOperationCredentialV1,
 } from '@shared/device-linking';
+import {
+  parseWalletLaneContext,
+  walletLaneContextsEqual,
+  type WalletLaneContext,
+} from '@shared/wallet-region';
 
 /** A server-only identity for one consumed owner authentication result. */
 export type VerifiedOwnerProofId = DomainId<'VerifiedOwnerProofId'>;
@@ -271,6 +276,7 @@ export type WalletSessionAuthorizationV2 = {
   readonly tenantId: TenantId;
   readonly principalId: PrincipalId;
   readonly walletId: WalletId;
+  readonly laneContext: WalletLaneContext;
   readonly authorityId: WalletAuthorityId;
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly authorityDigestB64u: DigestB64u;
@@ -335,7 +341,8 @@ export type ExactWalletSessionStatusV2 =
         | 'expired'
         | 'authority_unavailable'
         | 'method_unavailable'
-        | 'capability_unavailable';
+        | 'capability_unavailable'
+        | 'lane_retired';
       readonly session: WalletSessionAuthorizationV2;
       readonly quota: ExactWalletSessionQuotaProjectionV1;
       readonly retiredAtMs?: never;
@@ -612,6 +619,9 @@ export function buildWalletSessionCapabilitySubjectsV1(
 export function buildWalletSessionAuthorizationV2(
   fields: Omit<WalletSessionAuthorizationV2, 'kind'>,
 ): WalletSessionAuthorizationV2 {
+  if (fields.laneContext.walletId !== fields.walletId) {
+    throw new Error('Wallet Session lane context must name the authorized wallet');
+  }
   requireNonnegativeInteger(
     fields.authorityRevocationEpoch,
     'Wallet Session authority revocation epoch',
@@ -634,6 +644,7 @@ export function buildWalletSessionAuthorizationV2(
     tenantId: fields.tenantId,
     principalId: fields.principalId,
     walletId: fields.walletId,
+    laneContext: fields.laneContext,
     authorityId: fields.authorityId,
     walletAuthMethodId: fields.walletAuthMethodId,
     authorityDigestB64u: fields.authorityDigestB64u,
@@ -696,6 +707,7 @@ export function walletSessionAuthorizationV2RecordsEqual(
     left.tenantId === right.tenantId &&
     left.principalId === right.principalId &&
     left.walletId === right.walletId &&
+    walletLaneContextsEqual(left.laneContext, right.laneContext) &&
     left.authorityId === right.authorityId &&
     left.walletAuthMethodId === right.walletAuthMethodId &&
     left.authorityDigestB64u === right.authorityDigestB64u &&
@@ -809,6 +821,7 @@ export function parseWalletSessionAuthorizationV2(value: unknown): WalletSession
     tenantId,
     principalId,
     walletId,
+    laneContext: parseWalletLaneContext(value.laneContext),
     authorityId,
     walletAuthMethodId,
     authorityDigestB64u,
@@ -836,7 +849,7 @@ function isWalletSessionAuthorizationRecordV2(
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
   return (
     Object.keys(value).sort().join('|') ===
-    'authorityDigestB64u|authorityId|authorityRevocationEpoch|authorizationId|capabilitySubjects|createdAtMs|expiresAtMs|kind|mintId|principalId|quotaId|tenantId|walletAuthMethodId|walletId|walletSessionId'
+    'authorityDigestB64u|authorityId|authorityRevocationEpoch|authorizationId|capabilitySubjects|createdAtMs|expiresAtMs|kind|laneContext|mintId|principalId|quotaId|tenantId|walletAuthMethodId|walletId|walletSessionId'
   );
 }
 

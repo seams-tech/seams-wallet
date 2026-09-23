@@ -840,6 +840,7 @@ function exactWalletSessionStatusResponseBody(
     case 'capability_unavailable':
       return { ok: true, status: status.kind, ...observed };
     case 'retired':
+    case 'lane_retired':
       return { ok: true, status: 'superseded', ...observed };
   }
 }

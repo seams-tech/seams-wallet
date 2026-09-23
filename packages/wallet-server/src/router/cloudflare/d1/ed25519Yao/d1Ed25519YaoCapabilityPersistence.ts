@@ -490,6 +490,7 @@ export class CloudflareD1RouterAbEd25519YaoCapabilityPersistence implements Rout
       tenantId: input.previous.tenantId,
       principalId: input.previous.principalId,
       walletId: input.previous.walletId,
+      laneContext: input.previous.laneContext,
       authorityId: input.previous.authorityId,
       walletAuthMethodId: input.previous.walletAuthMethodId,
       authorityDigestB64u: input.authority.authorityDigestB64u,

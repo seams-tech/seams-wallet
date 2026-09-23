@@ -218,3 +218,15 @@ export function walletHomeLanesEqual(left: WalletHomeLane, right: WalletHomeLane
     left.laneEpoch === right.laneEpoch
   );
 }
+
+export function walletLaneContextsEqual(
+  left: WalletLaneContext,
+  right: WalletLaneContext,
+): boolean {
+  return (
+    left.walletId === right.walletId &&
+    left.laneId === right.laneId &&
+    left.laneEpoch === right.laneEpoch &&
+    left.directoryRevision === right.directoryRevision
+  );
+}
