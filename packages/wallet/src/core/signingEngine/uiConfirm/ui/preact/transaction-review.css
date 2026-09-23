@@ -491,7 +491,7 @@
   cursor: pointer;
 }
 :where(.seams-wallet-ui[data-receipt-view='toast']) .seams-confirmation-modal--hosted {
-  inline-size: 22.5rem;
+  inline-size: 20rem;
 }
 :where(.seams-wallet-ui[data-confirmation-kind='transaction'])
   .seams-confirmation-modal
