@@ -90,6 +90,13 @@ const YAO_SERVER_TIMING_BUCKET_BY_METRIC = new Map<string, RegistrationTimingBuc
     ecdsa_sw_parse: 'ecdsaSigningWorkerParseMs',
     ecdsa_sw_activate: 'ecdsaSigningWorkerActivateMs',
     ecdsa_sw_total: 'ecdsaSigningWorkerTotalMs',
+    near_finalize_authority: 'nearFinalizeAuthorityMs',
+    near_finalize_fingerprint: 'nearFinalizeFingerprintMs',
+    near_finalize_side_effect: 'nearFinalizeSideEffectMs',
+    near_finalize_cleanup: 'nearFinalizeCleanupMs',
+    near_finalize_session_projection: 'nearFinalizeSessionProjectionMs',
+    near_finalize_session_seal: 'nearFinalizeSessionSealMs',
+    near_finalize_total: 'nearFinalizeTotalMs',
   } as const satisfies Record<string, RegistrationTimingBucketName>),
 );
 
@@ -132,6 +139,15 @@ export function recordStrictEcdsaServerTimingBuckets(
   recordServerTimingBuckets(recorder, header);
 }
 
+export function recordRegistrationServerTimingBuckets(
+  recorder: {
+    record: (bucket: RegistrationTimingBucketName, durationMs: number) => void;
+  } | null,
+  header: string | null,
+): void {
+  recordServerTimingBuckets(recorder, header);
+}
+
 export function parseYaoServerTimingBuckets(
   header: string | null | undefined,
 ): ReadonlyArray<readonly [RegistrationTimingBucketName, number]> {
@@ -163,6 +179,7 @@ export const WALLET_IFRAME_TRANSPORT_TIMING_LABEL =
 export function emitNearRegistrationTiming(input: {
   ceremonyId: string;
   stage:
+    | 'early_admission'
     | 'custody_join'
     | 'server_finalize'
     | 'local_publication'
@@ -329,6 +346,13 @@ type RegistrationTimingBucketValues = {
   ecdsaSigningWorkerParseMs: number;
   ecdsaSigningWorkerActivateMs: number;
   ecdsaSigningWorkerTotalMs: number;
+  nearFinalizeAuthorityMs: number;
+  nearFinalizeFingerprintMs: number;
+  nearFinalizeSideEffectMs: number;
+  nearFinalizeCleanupMs: number;
+  nearFinalizeSessionProjectionMs: number;
+  nearFinalizeSessionSealMs: number;
+  nearFinalizeTotalMs: number;
   walletRegisterStartMs: number;
   ecdsaClientBootstrapMs: number;
   ecdsaRegistrationTotalMs: number;
@@ -772,6 +796,13 @@ function createZeroRegistrationTimingBucketValues(): RegistrationTimingBucketVal
     ecdsaSigningWorkerParseMs: 0,
     ecdsaSigningWorkerActivateMs: 0,
     ecdsaSigningWorkerTotalMs: 0,
+    nearFinalizeAuthorityMs: 0,
+    nearFinalizeFingerprintMs: 0,
+    nearFinalizeSideEffectMs: 0,
+    nearFinalizeCleanupMs: 0,
+    nearFinalizeSessionProjectionMs: 0,
+    nearFinalizeSessionSealMs: 0,
+    nearFinalizeTotalMs: 0,
     walletRegisterStartMs: 0,
     ecdsaClientBootstrapMs: 0,
     ecdsaRegistrationTotalMs: 0,
@@ -900,6 +931,13 @@ function copyRegistrationTimingBucketValues(
     ecdsaSigningWorkerParseMs: buckets.ecdsaSigningWorkerParseMs,
     ecdsaSigningWorkerActivateMs: buckets.ecdsaSigningWorkerActivateMs,
     ecdsaSigningWorkerTotalMs: buckets.ecdsaSigningWorkerTotalMs,
+    nearFinalizeAuthorityMs: buckets.nearFinalizeAuthorityMs,
+    nearFinalizeFingerprintMs: buckets.nearFinalizeFingerprintMs,
+    nearFinalizeSideEffectMs: buckets.nearFinalizeSideEffectMs,
+    nearFinalizeCleanupMs: buckets.nearFinalizeCleanupMs,
+    nearFinalizeSessionProjectionMs: buckets.nearFinalizeSessionProjectionMs,
+    nearFinalizeSessionSealMs: buckets.nearFinalizeSessionSealMs,
+    nearFinalizeTotalMs: buckets.nearFinalizeTotalMs,
     walletRegisterStartMs: buckets.walletRegisterStartMs,
     ecdsaClientBootstrapMs: buckets.ecdsaClientBootstrapMs,
     ecdsaRegistrationTotalMs: buckets.ecdsaRegistrationTotalMs,
@@ -1328,6 +1366,13 @@ function buildRegistrationTimingBuckets(input: {
     ecdsaSigningWorkerParseMs: buckets.ecdsaSigningWorkerParseMs,
     ecdsaSigningWorkerActivateMs: buckets.ecdsaSigningWorkerActivateMs,
     ecdsaSigningWorkerTotalMs: buckets.ecdsaSigningWorkerTotalMs,
+    nearFinalizeAuthorityMs: buckets.nearFinalizeAuthorityMs,
+    nearFinalizeFingerprintMs: buckets.nearFinalizeFingerprintMs,
+    nearFinalizeSideEffectMs: buckets.nearFinalizeSideEffectMs,
+    nearFinalizeCleanupMs: buckets.nearFinalizeCleanupMs,
+    nearFinalizeSessionProjectionMs: buckets.nearFinalizeSessionProjectionMs,
+    nearFinalizeSessionSealMs: buckets.nearFinalizeSessionSealMs,
+    nearFinalizeTotalMs: buckets.nearFinalizeTotalMs,
     walletRegisterStartMs: buckets.walletRegisterStartMs,
     ecdsaClientBootstrapMs: buckets.ecdsaClientBootstrapMs,
     ecdsaRegistrationTotalMs: buckets.ecdsaRegistrationTotalMs,

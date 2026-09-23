@@ -5,12 +5,14 @@ import type {
 } from '@shared/utils/registrationIntent';
 import type {
   WalletRegistrationNearProvisioningResponseV2,
+  WalletRegistrationNearAdmissionResponseV2,
   WalletRegistrationActivateResponseV2,
   WalletRegistrationRespondResponseV2,
   WalletRegistrationSetupResponseV2,
 } from '../../core/threeRouteRegistrationContracts';
 import type {
   WalletRegistrationNearProvisioningInput,
+  WalletRegistrationNearAdmissionInput,
   WalletRegistrationActivateInput,
   WalletRegistrationRespondInput,
   WalletRegistrationSetupInput,
@@ -1211,13 +1213,19 @@ export interface RouterApiWalletRegistrationService {
   respondWalletRegistration(
     input: WalletRegistrationRespondInput,
     traceContext?: RouterAbTraceContextV1,
+    serverTiming?: Array<readonly [string, number]>,
   ): Promise<WalletRegistrationRespondResponseV2>;
+  authorizeWalletRegistrationNearAdmission(
+    input: WalletRegistrationNearAdmissionInput,
+  ): Promise<WalletRegistrationNearAdmissionResponseV2>;
   activateWalletRegistration(
     input: WalletRegistrationActivateInput,
     traceContext?: RouterAbTraceContextV1,
+    serverTiming?: Array<readonly [string, number]>,
   ): Promise<WalletRegistrationActivateResponseV2>;
   completeWalletRegistrationNearProvisioning(
     input: WalletRegistrationNearProvisioningInput,
+    serverTiming?: Array<readonly [string, number]>,
   ): Promise<WalletRegistrationNearProvisioningResponseV2>;
   refreshEd25519YaoWalletSession(
     input: RouterAbEd25519YaoBudgetRefreshRequestV1,

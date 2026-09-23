@@ -296,6 +296,7 @@ test('context, immutable intent, continuous iframe handoff and explicit wallet a
       { payload: { transaction: { receiverId: 'receiver.testnet', actions: [{ amount: '1' }] } } },
     ],
   });
+  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
   await wallet.locator('button.confirm').click();
   await expect
     .poll(() => page.evaluate(() => (window as any).reviewResults))
@@ -327,6 +328,7 @@ test('Back preserves review state and resumes the same pending wallet approval',
     expect(await page.evaluate(() => (window as any).reviewSigned)).toBe(0);
   }
   await page.getByRole('button', { name: 'Continue to wallet' }).click();
+  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
   await wallet.locator('button.confirm').click();
   await expect.poll(() => page.evaluate(() => (window as any).reviewResults.length)).toBe(1);
   expect(await page.evaluate(() => (window as any).reviewDispatches.length)).toBe(1);
@@ -397,6 +399,7 @@ test('double Continue dispatches once and releases the lease after approval', as
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
   await expect(wallet.locator('button.confirm')).toBeVisible();
   expect(await page.evaluate(() => (window as any).reviewDispatches.length)).toBe(1);
+  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
   await wallet.locator('button.confirm').click();
   await expect.poll(() => page.evaluate(() => (window as any).reviewResults.length)).toBe(1);
   expect(await page.evaluate(() => (window as any).reviewSigned)).toBe(1);
@@ -470,6 +473,7 @@ test('iframe reload cancels its review and a fresh connection can review again',
   });
   expect(await page.evaluate(() => (window as any).reviewDispatches)).toEqual([]);
   await page.getByRole('button', { name: 'Continue to wallet' }).click();
+  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
   await page.frameLocator('iframe.seams-wallet-overlay-iframe').locator('button.confirm').click();
   await expect
     .poll(() => page.evaluate(() => (window as any).reviewResults[1]?.kind))
@@ -485,8 +489,13 @@ test('handoff keeps both views inert and activates through the animation timer f
   await page.getByRole('button', { name: 'Continue to wallet' }).click();
   const iframe = page.locator('iframe.seams-wallet-overlay-iframe');
   const review = page.locator('.seams-transaction-review-slot');
-  await expect(iframe).toHaveCSS('opacity', '0.5');
-  await expect(review.locator('.seams-transaction-review-content')).toHaveCSS('opacity', '0.5');
+  await expect.poll(() => iframe.evaluate((element) => Number(getComputedStyle(element).opacity)))
+    .toBeGreaterThan(0);
+  const incomingOpacity = await iframe.evaluate((element) => Number(getComputedStyle(element).opacity));
+  const outgoingOpacity = await review.locator('.seams-transaction-review-content')
+    .evaluate((element) => Number(getComputedStyle(element).opacity));
+  expect(incomingOpacity).toBeLessThan(1);
+  expect(outgoingOpacity).toBeLessThan(incomingOpacity);
   await expect(page.locator('dialog[open]')).toHaveCSS('opacity', '1');
   await expect(page.locator('dialog[open]')).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await expect(review).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
@@ -501,6 +510,7 @@ test('handoff keeps both views inert and activates through the animation timer f
   await expect(iframe).not.toHaveAttribute('inert', '');
   await expect(review).toBeHidden();
   await expect(wallet.locator('button.confirm')).toBeEnabled();
+  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
   await wallet.locator('button.confirm').click();
   await expect
     .poll(() => page.evaluate(() => (window as any).reviewResults[0]?.kind))
@@ -534,6 +544,7 @@ test('preference changes during review cannot bypass the reserved wallet approva
     () => (window as any).reviewDispatches[0].payload.options.confirmationConfig,
   );
   expect(config).toMatchObject({ uiMode: 'modal', behavior: 'requireClick' });
+  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
   await wallet.locator('button.confirm').click();
   await expect.poll(() => page.evaluate(() => (window as any).reviewSigned)).toBe(1);
 });
@@ -547,6 +558,7 @@ test('settled receipt is replaced atomically and late activity cannot reclaim th
   });
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await page.getByRole('button', { name: 'Continue to wallet' }).click();
+  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
   await page.frameLocator('iframe.seams-wallet-overlay-iframe').locator('button.confirm').click();
   await expect.poll(() => page.evaluate(() => (window as any).reviewResults.length)).toBe(1);
   await expect(page.locator('dialog[open]')).toHaveCount(1);
@@ -680,6 +692,7 @@ test('expanded wallet approval scrolls keyboard focus into a short viewport', as
   await page.getByRole('button', { name: 'Continue to wallet', exact: true }).click();
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
   const details = wallet.getByText('Transaction details', { exact: true });
+  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
   await details.click();
   const confirm = wallet.locator('button.confirm');
   await confirm.focus();
@@ -1113,6 +1126,7 @@ test('host disposal after signing preserves the eventual wallet result', async (
   });
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await page.getByRole('button', { name: 'Continue to wallet' }).click();
+  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
   await page.frameLocator('iframe.seams-wallet-overlay-iframe').locator('button.confirm').click();
   await expect.poll(() => page.evaluate(() => (window as any).reviewSigned)).toBe(1);
   await page.evaluate(() => (window as any).reviewRoot.unmount());
@@ -1166,7 +1180,9 @@ test('Escape during a paused handoff cancels without waiting for animation compl
   await expect(page.getByText('Purchase context preserved')).toBeVisible();
   await pauseReviewHandoff(page);
   await page.getByRole('button', { name: 'Continue to wallet' }).click();
-  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).toHaveCSS('opacity', '0.5');
+  await expect.poll(() => page.locator('iframe.seams-wallet-overlay-iframe')
+    .evaluate((element) => Number(getComputedStyle(element).opacity))).toBeGreaterThan(0);
+  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).toHaveAttribute('inert', '');
   await page.keyboard.press('Escape');
   await expect(page.locator('dialog[open]')).toHaveCount(0, { timeout: 1000 });
   await expect
@@ -1193,7 +1209,7 @@ async function pauseReviewHandoff(page: Page): Promise<void> {
       return animation;
     }
     function slowFallback(handler: TimerHandler, timeout?: number, ...args: unknown[]): number {
-      return schedule(handler, timeout === 180 ? 1800 : timeout, ...args);
+      return schedule(handler, timeout === 320 ? 1800 : timeout, ...args);
     }
     Element.prototype.animate = pauseHandoff;
     browserWindow.setTimeout = slowFallback;
@@ -1226,6 +1242,7 @@ test('cancelAll preserves a signing review until its real result settles', async
   });
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await page.getByRole('button', { name: 'Continue to wallet' }).click();
+  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
   await page.frameLocator('iframe.seams-wallet-overlay-iframe').locator('button.confirm').click();
   await expect.poll(() => page.evaluate(() => (window as any).reviewSigned)).toBe(1);
   await page.evaluate(async () => {

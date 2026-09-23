@@ -561,6 +561,19 @@ export function createRouterApiRouteDefinitions(
       ROUTER_API_WALLET_REGISTRATION_SESSION_SERVICES,
     ),
     publicRoute(
+      'wallet_registration_near_admission',
+      'POST',
+      '/wallets/register/near-admission',
+      'Authorize deferred NEAR registration while ECDSA respond runs',
+      {
+        plane: 'public',
+        proof: 'webauthn',
+        rationale:
+          'NEAR admission is authorized by the signed setup payload and the registration authority proof.',
+      },
+      ROUTER_API_WALLET_REGISTRATION_SESSION_SERVICES,
+    ),
+    publicRoute(
       'wallet_registration_activate',
       'POST',
       '/wallets/register/activate',

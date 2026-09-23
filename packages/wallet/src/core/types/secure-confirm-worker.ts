@@ -61,6 +61,8 @@ export type PasskeyMpcSessionWorkerMessageType =
   | 'PING'
   | 'PREWARM_SHAMIR3PASS'
   | 'PREPARE_SESSION_CLIENT_SEAL'
+  | 'READ_SESSION_CLIENT_SEAL'
+  | 'COMPLETE_SESSION_CLIENT_SEAL'
   | 'DISCARD_SESSION_CLIENT_SEAL'
   | 'WARM_SESSION_MATERIAL_PUT'
   | 'WARM_SESSION_STATUS_READ'
@@ -137,6 +139,24 @@ export interface WarmSessionSealAndPersistPayload {
   thresholdSessionId: string;
   transport: WarmSessionSealTransportInput;
 }
+
+export type PreparedWarmSessionServerSeal = {
+  readonly preparationId: string;
+  readonly ciphertext: string;
+  readonly keyVersion: string;
+  readonly expiresAtMs: number;
+  readonly remainingUses: number;
+};
+
+export type WarmSessionSealTransportState =
+  | {
+      readonly transport?: WarmSessionSealTransportInput;
+      readonly preparedServerSeal?: never;
+    }
+  | {
+      readonly transport: WarmSessionSealTransportInput;
+      readonly preparedServerSeal: PreparedWarmSessionServerSeal;
+    };
 
 export interface WarmSessionRehydratePayload {
   thresholdSessionId: string;

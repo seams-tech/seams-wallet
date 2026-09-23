@@ -59,6 +59,18 @@ test('prepared seal transfers one owned key to the exact session and factor', as
   expect(runtime.destroyed).toEqual(['key-1']);
 });
 
+test('prepared ciphertext can be read without consuming its exact preparation', async () => {
+  const runtime = new SealRuntime();
+  const preparations = new ClientSealPreparations(runtime.get.bind(runtime));
+  await preparations.prepare('near', 'first', secret);
+  expect(await preparations.readCiphertext('near', 'first')).toBe('ciphertext');
+  await expect(preparations.takeExact('near', 'other', secret)).rejects.toThrow('unavailable');
+  expect(runtime.destroyed).toEqual([]);
+  const seal = await preparations.takeExact('near', 'first', secret);
+  await seal.runtime.destroyClientKeyHandle({ keyHandle: seal.keyHandle });
+  expect(runtime.destroyed).toEqual(['key-1']);
+});
+
 test('factor mismatch destroys the prepared key', async () => {
   const runtime = new SealRuntime();
   const preparations = new ClientSealPreparations(runtime.get.bind(runtime));

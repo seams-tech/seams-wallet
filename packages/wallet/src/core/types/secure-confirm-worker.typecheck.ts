@@ -4,6 +4,7 @@ import type {
   PasskeyEd25519SealRestoreMetadata,
   UserConfirmWorkerResponse,
   WarmSessionSealTransportInput,
+  WarmSessionSealTransportState,
 } from './secure-confirm-worker';
 import type { SealedSigningSessionEcdsaRestoreMetadata } from '@shared/utils/signingSessionSeal';
 import { parseSigningSessionSealKeyVersion } from '@/core/signingEngine/session/keyMaterialBrands';
@@ -136,6 +137,24 @@ const invalidWarmSessionSealTransportWithGenericKeyVersion = {
   keyVersion: 'signing-session-seal-kek-test-r1',
 } satisfies WarmSessionSealTransportInput;
 void invalidWarmSessionSealTransportWithGenericKeyVersion;
+
+const validPreparedServerSealTransportState = {
+  transport: validWarmSessionSealTransportWithWalletSessionToken,
+  preparedServerSeal: {
+    preparationId: 'preparation-1',
+    ciphertext: 'ciphertext',
+    keyVersion: 'key-version',
+    expiresAtMs: Date.now() + 60_000,
+    remainingUses: 10,
+  },
+} satisfies WarmSessionSealTransportState;
+void validPreparedServerSealTransportState;
+
+// @ts-expect-error A prepared server seal requires the exact transport used to authorize it.
+const invalidPreparedServerSealWithoutTransport: WarmSessionSealTransportState = {
+  preparedServerSeal: validPreparedServerSealTransportState.preparedServerSeal,
+};
+void invalidPreparedServerSealWithoutTransport;
 
 const completedUserConfirmWorkerResponse: UserConfirmWorkerResponse<{ ok: true }> = {
   id: 'request-1',

@@ -1,17 +1,20 @@
-import type { WarmSessionSealTransportInput } from '@/core/types/secure-confirm-worker';
+import type {
+  WarmSessionSealTransportState,
+} from '@/core/types/secure-confirm-worker';
 import type { WarmSessionMaterialWriteDiagnostics } from '../warmCapabilities/types';
 export type {
   WarmSessionMaterialWriteDiagnosticBucket,
   WarmSessionMaterialWriteDiagnostics,
 } from '../warmCapabilities/types';
 
+export type WarmSessionMaterialWriteInput = {
+  readonly thresholdSessionId: string;
+  readonly prfFirstB64u: string;
+  readonly expiresAtMs: number;
+  readonly remainingUses: number;
+  readonly diagnostics?: WarmSessionMaterialWriteDiagnostics;
+} & WarmSessionSealTransportState;
+
 export interface WarmSessionMaterialWriter {
-  putWarmSessionMaterial(args: {
-    thresholdSessionId: string;
-    prfFirstB64u: string;
-    expiresAtMs: number;
-    remainingUses: number;
-    transport?: WarmSessionSealTransportInput;
-    diagnostics?: WarmSessionMaterialWriteDiagnostics;
-  }): Promise<void>;
+  putWarmSessionMaterial(args: WarmSessionMaterialWriteInput): Promise<void>;
 }

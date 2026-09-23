@@ -275,6 +275,7 @@ type PersistExactRecordArgs = {
   purpose: SigningSessionSealedRecordFilter;
   relayerUrl: string;
   diagnostics?: WarmSessionMaterialWriteDiagnostics;
+  completedSeal?: Extract<WarmSessionSealAndPersistResult, { readonly ok: true }>;
 } & (
   | {
       transport: Extract<PasskeyWarmSessionSealTransportInput, { curve: 'ed25519' }>;
@@ -416,6 +417,7 @@ export class PasskeyMpcSessionDurableState {
     thresholdSessionId: string;
     transport: PasskeyWarmSessionSealTransportInput;
     diagnostics?: WarmSessionMaterialWriteDiagnostics;
+    completedSeal?: Extract<WarmSessionSealAndPersistResult, { readonly ok: true }>;
   }): Promise<WarmSessionSealAndPersistResult> {
     if (this.deps.signingSessionPersistenceMode !== 'sealed_refresh_v1') {
       return {
@@ -464,6 +466,7 @@ export class PasskeyMpcSessionDurableState {
         purpose,
         relayerUrl,
         diagnostics: args.diagnostics,
+        completedSeal: args.completedSeal,
       });
     } else {
       persistTask = this.persistExactRecord({
@@ -473,6 +476,7 @@ export class PasskeyMpcSessionDurableState {
         purpose,
         relayerUrl,
         diagnostics: args.diagnostics,
+        completedSeal: args.completedSeal,
       });
     }
     const task = persistTask.finally(() => {
@@ -683,10 +687,12 @@ export class PasskeyMpcSessionDurableState {
     }
     const groupId = SIGNING_SESSION_SEAL_GROUP_ID;
     const sealStartedAt = performance.now();
-    const sealed = await this.deps.sealAndPersistWarmSessionMaterial({
-      thresholdSessionId: args.thresholdSessionId,
-      transport: normalizedPasskeyTransport(args.transport, groupId),
-    });
+    const sealed =
+      args.completedSeal ??
+      (await this.deps.sealAndPersistWarmSessionMaterial({
+        thresholdSessionId: args.thresholdSessionId,
+        transport: normalizedPasskeyTransport(args.transport, groupId),
+      }));
     recordDiagnosticDuration({
       diagnostics: args.diagnostics,
       bucket: 'sealed_record_apply_server_seal',

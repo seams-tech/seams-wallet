@@ -148,6 +148,21 @@ type PasskeyMpcSessionWorkerIncomingMessage =
       id?: string;
       payload: { preparationId: string; thresholdSessionId: string } | null;
     }
+  | {
+      kind: 'read_client_seal';
+      id?: string;
+      payload: { preparationId: string; thresholdSessionId: string } | null;
+    }
+  | {
+      kind: 'complete_client_seal';
+      id?: string;
+      payload: {
+        preparationId: string;
+        thresholdSessionId: string;
+        transport: SigningSessionSealTransport;
+        serverSeal: Extract<SigningSessionSealRouteResult, { ok: true }>;
+      } | null;
+    }
   | { kind: 'material_put'; id?: string; payload: WarmSessionMaterialPutPayload | null }
   | { kind: 'status_read'; id?: string; payload: WarmSessionStatusReadPayload | null }
   | { kind: 'status_batch_read'; id?: string; payload: WarmSessionStatusBatchReadPayload | null }
@@ -219,6 +234,28 @@ function parseClientSealDiscard(
   const preparationId = parseSessionString(Reflect.get(value, 'preparationId'));
   const thresholdSessionId = parseSessionString(Reflect.get(value, 'thresholdSessionId'));
   return preparationId && thresholdSessionId ? { preparationId, thresholdSessionId } : null;
+}
+
+function parseClientSealCompletion(
+  value: unknown,
+): Extract<PasskeyMpcSessionWorkerIncomingMessage, { kind: 'complete_client_seal' }>['payload'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const fields = Object.keys(value);
+  if (
+    fields.length !== 4 ||
+    !fields.includes('preparationId') ||
+    !fields.includes('thresholdSessionId') ||
+    !fields.includes('transport') ||
+    !fields.includes('serverSeal')
+  ) {
+    return null;
+  }
+  const preparationId = parseSessionString(Reflect.get(value, 'preparationId'));
+  const thresholdSessionId = parseSessionString(Reflect.get(value, 'thresholdSessionId'));
+  const transport = parseSigningSessionSealTransport(Reflect.get(value, 'transport'));
+  const serverSeal = parseSigningSessionSealRouteResult(Reflect.get(value, 'serverSeal'));
+  if (!preparationId || !thresholdSessionId || !transport || !serverSeal.ok) return null;
+  return { preparationId, thresholdSessionId, transport, serverSeal };
 }
 
 function parseWarmSessionMaterialPutPayload(value: unknown): WarmSessionMaterialPutPayload | null {
@@ -451,6 +488,10 @@ function parsePasskeyMpcSessionWorkerMessage(
       return { kind: 'prewarm', ...(id ? { id } : {}) };
     case 'PREPARE_SESSION_CLIENT_SEAL':
       return { kind: 'prepare_client_seal', id, payload: parseClientSealPreparation(payload) };
+    case 'READ_SESSION_CLIENT_SEAL':
+      return { kind: 'read_client_seal', id, payload: parseClientSealDiscard(payload) };
+    case 'COMPLETE_SESSION_CLIENT_SEAL':
+      return { kind: 'complete_client_seal', id, payload: parseClientSealCompletion(payload) };
     case 'DISCARD_SESSION_CLIENT_SEAL':
       return { kind: 'discard_client_seal', id, payload: parseClientSealDiscard(payload) };
     case 'WARM_SESSION_MATERIAL_PUT':
@@ -1057,10 +1098,21 @@ function consumeWarmSessionMaterialEntry(
   };
 }
 
-async function runSigningSessionSealAndPersist(args: {
-  thresholdSessionId: string;
-  transport: SigningSessionSealTransport;
-}): Promise<OkSealResult | ErrResult> {
+type SigningSessionSealExecution = {
+  readonly thresholdSessionId: string;
+  readonly transport: SigningSessionSealTransport;
+} & (
+  | { readonly kind: 'server_route'; readonly preparationId?: never; readonly serverSeal?: never }
+  | {
+      readonly kind: 'prepared_response';
+      readonly preparationId: string;
+      readonly serverSeal: Extract<SigningSessionSealRouteResult, { readonly ok: true }>;
+    }
+);
+
+async function runSigningSessionSealAndPersist(
+  args: SigningSessionSealExecution,
+): Promise<OkSealResult | ErrResult> {
   const thresholdSessionId = normalizeOptionalTrimmedString(args.thresholdSessionId);
   if (!thresholdSessionId) {
     return { ok: false, code: 'invalid_args', message: 'Missing threshold sessionId' };
@@ -1081,27 +1133,36 @@ async function runSigningSessionSealAndPersist(args: {
   const task = (async (): Promise<OkSealResult | ErrResult> => {
     const diagnostics = createWarmSessionSealAndPersistDiagnostics();
     try {
-      const prepared = await clientSealPreparations.take(
-        thresholdSessionId,
-        activeEntry.secret.prfFirstB64u,
-      );
+      const prepared =
+        args.kind === 'prepared_response'
+          ? await clientSealPreparations.takeExact(
+              thresholdSessionId,
+              args.preparationId,
+              activeEntry.secret.prfFirstB64u,
+            )
+          : await clientSealPreparations.take(thresholdSessionId, activeEntry.secret.prfFirstB64u);
       const { runtime, keyHandle, ciphertext: clientEncryptedCiphertext } = prepared;
       diagnostics.runtimeSetupMs = prepared.runtimeSetupMs;
       diagnostics.clientSealMs = prepared.clientSealMs;
       try {
         const serverSealRouteStartedAt = performance.now();
-        const applied = await callSigningSessionSealRoute({
-          operation: 'apply-server-seal',
-          transport: args.transport,
-          thresholdSessionId,
-          ciphertext: clientEncryptedCiphertext,
-          keyVersion: args.transport.keyVersion,
-        });
-        recordWarmSessionSealAndPersistDiagnosticDuration({
-          diagnostics,
-          bucket: 'serverSealRouteMs',
-          startedAt: serverSealRouteStartedAt,
-        });
+        const applied =
+          args.kind === 'prepared_response'
+            ? args.serverSeal
+            : await callSigningSessionSealRoute({
+                operation: 'apply-server-seal',
+                transport: args.transport,
+                thresholdSessionId,
+                ciphertext: clientEncryptedCiphertext,
+                keyVersion: args.transport.keyVersion,
+              });
+        if (args.kind === 'server_route') {
+          recordWarmSessionSealAndPersistDiagnosticDuration({
+            diagnostics,
+            bucket: 'serverSealRouteMs',
+            startedAt: serverSealRouteStartedAt,
+          });
+        }
         if (!applied.ok) return applied;
         const policyUpdateStartedAt = performance.now();
         const policy = resolvePolicyFromServerAndLocal({
@@ -1333,12 +1394,60 @@ async function handleClientSealPreparation(
   }
 }
 
+async function handleClientSealRead(
+  incoming: Extract<PasskeyMpcSessionWorkerIncomingMessage, { kind: 'read_client_seal' }>,
+): Promise<void> {
+  try {
+    if (!incoming.payload) throw new Error('Invalid client seal read request');
+    const ciphertext = await clientSealPreparations.readCiphertext(
+      incoming.payload.thresholdSessionId,
+      incoming.payload.preparationId,
+    );
+    postPasskeyMpcSessionWorkerResponse(incoming.id, {
+      success: true,
+      data: { ok: true, ciphertext },
+    });
+  } catch (error: unknown) {
+    postPasskeyMpcSessionWorkerResponse(incoming.id, {
+      success: false,
+      error: error instanceof Error ? error.message : 'Client seal read failed',
+    });
+  }
+}
+
+async function handleClientSealCompletion(
+  incoming: Extract<PasskeyMpcSessionWorkerIncomingMessage, { kind: 'complete_client_seal' }>,
+): Promise<void> {
+  const payload = incoming.payload;
+  if (!payload) {
+    postPasskeyMpcSessionWorkerResponse(incoming.id, {
+      success: false,
+      error: 'Invalid client seal completion request',
+    });
+    return;
+  }
+  const result = await runSigningSessionSealAndPersist({
+    kind: 'prepared_response',
+    thresholdSessionId: payload.thresholdSessionId,
+    preparationId: payload.preparationId,
+    transport: payload.transport,
+    serverSeal: payload.serverSeal,
+  });
+  postPasskeyMpcSessionWorkerResponse(incoming.id, { success: true, data: result });
+}
+
 self.onmessage = (event: MessageEvent) => {
   const incoming = parsePasskeyMpcSessionWorkerMessage(event.data);
   switch (incoming.kind) {
     case 'prepare_client_seal':
     case 'discard_client_seal':
       void handleClientSealPreparation(incoming);
+      return;
+    case 'read_client_seal':
+      void handleClientSealRead(incoming);
+      return;
+    case 'complete_client_seal':
+      void handleClientSealCompletion(incoming);
       return;
     case 'ping':
       postPasskeyMpcSessionWorkerResponse(incoming.id, { success: true, data: { ok: true } });
@@ -1480,7 +1589,10 @@ self.onmessage = (event: MessageEvent) => {
           });
           return;
         }
-        const result = await runSigningSessionSealAndPersist(payload);
+        const result = await runSigningSessionSealAndPersist({
+          kind: 'server_route',
+          ...payload,
+        });
         postPasskeyMpcSessionWorkerResponse(incoming.id, { success: true, data: result });
       })();
       return;

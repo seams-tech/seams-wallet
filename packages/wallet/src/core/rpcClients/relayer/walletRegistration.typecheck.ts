@@ -1,12 +1,24 @@
-import { activateWalletRegistration, respondWalletRegistration } from './walletRegistration';
+import {
+  activateWalletRegistration,
+  completeWalletRegistrationNearProvisioning,
+  respondWalletRegistration,
+} from './walletRegistration';
 
 type RespondArgs = Parameters<typeof respondWalletRegistration>[0];
 type ActivateArgs = Parameters<typeof activateWalletRegistration>[0];
+type NearProvisioningArgs = Parameters<typeof completeWalletRegistrationNearProvisioning>[0];
 
 declare const validRespondEcdsa: RespondArgs & { signerPlanKind: 'evm_family_ecdsa' };
 declare const validRespondNear: RespondArgs & { signerPlanKind: 'near_ed25519' };
 declare const validActivateEcdsa: ActivateArgs & { signerPlanKind: 'evm_family_ecdsa' };
 declare const validActivateNear: ActivateArgs & { signerPlanKind: 'near_ed25519' };
+declare const validPasskeyNearProvisioningWithSeal: NearProvisioningArgs & {
+  auth: { kind: 'passkey' };
+  sessionSeal: {
+    thresholdSessionId: string;
+    ciphertext: string;
+  };
+};
 
 const validRespond: RespondArgs = validRespondEcdsa;
 const validNearRespond: RespondArgs = validRespondNear;
@@ -37,7 +49,22 @@ const missingActivateEcdsa: ActivateArgs = {
   signerPlanKind: 'evm_family_ecdsa',
 };
 
+const emailOtpProvisioningWithSessionSeal: NearProvisioningArgs = {
+  ...validPasskeyNearProvisioningWithSeal,
+  auth: {
+    kind: 'email_otp',
+    // @ts-expect-error Email OTP provisioning cannot carry a passkey session seal.
+    enrollment: {
+      enrollmentSealKeyVersion: 'seal-key-v1',
+      serverSealedFactorCiphertextB64u: 'server-sealed-factor',
+      clientUnlockPublicKeyB64u: 'client-unlock-key',
+      unlockKeyVersion: 'unlock-key-v1',
+    },
+  },
+};
+
 void mixedRespond;
 void missingRespondEcdsa;
 void mixedActivate;
 void missingActivateEcdsa;
+void emailOtpProvisioningWithSessionSeal;

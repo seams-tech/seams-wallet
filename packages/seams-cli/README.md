@@ -2,11 +2,11 @@
 
 The `seams-wallet` command runs on macOS (Apple Silicon or Intel) and Linux x86_64.
 The npm launcher requires Node.js 22 or later and verifies the signed native
-release before running it. Version 0.4.1 discovers the dashboard from the console
+release before running it. Version 0.6.0 discovers the dashboard from the console
 and uses explicit wrapper-key filenames.
 
 ```sh
-npm install --global @seams/wallet-cli@0.4.1
+npm install --global @seams/wallet-cli@0.6.0
 ```
 
 Use the commands shown in your Seams dashboard. They include your console URL,

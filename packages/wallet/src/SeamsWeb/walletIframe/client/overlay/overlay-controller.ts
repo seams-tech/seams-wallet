@@ -56,6 +56,7 @@ type ReviewHandoff =
       readonly destination: 'review' | 'wallet';
       readonly outgoing: Animation;
       readonly incoming: Animation;
+      readonly sections: Animation[];
       readonly timer: ReturnType<typeof setTimeout>;
       onReady: (() => void) | null;
     };
@@ -72,6 +73,7 @@ type SurfaceRect = {
 // ease has made (confirm-surface-resize.ts), so this is the duration a user
 // sees for a tree expand or a content swap.
 const SURFACE_RESIZE_DURATION_MS = 180;
+const REVIEW_HANDOFF_DURATION_MS = 320;
 
 function finiteSurfaceRect(rect: DOMRect): SurfaceRect | null {
   if (
@@ -293,6 +295,8 @@ export class OverlayController {
 
   private applyVisible(mode: Exclude<OverlayRenderMode, { kind: 'hidden' }>): void {
     const { dialog, iframe } = this.ensureDialog();
+    const iframeSize = { widthCssPx: iframe.clientWidth, heightCssPx: iframe.clientHeight };
+    let requestResizeDestination: SurfaceRect | null = null;
     const identityChanged = !sameIdentity(this.mode, mode);
     const handoffFromReview =
       !identityChanged &&
@@ -362,11 +366,15 @@ export class OverlayController {
       setDialogGeometry(dialog, mode.geometry, authMenu ? this.authMenuVisualScale : 1);
       this.lastAppliedGeometry = mode.geometry;
       this.lastAppliedAuthMenuVisualScale = authMenu ? this.authMenuVisualScale : 1;
-      const requestResizeDestination = requestResizeOrigin
+      requestResizeDestination = requestResizeOrigin
         ? finiteSurfaceRect(dialog.getBoundingClientRect())
         : null;
       if (requestResizeOrigin && requestResizeDestination) {
-        this.startSurfaceResize(requestResizeOrigin, requestResizeDestination);
+        this.startSurfaceResize(
+          requestResizeOrigin,
+          requestResizeDestination,
+          handoffFromReview || returnToReview ? REVIEW_HANDOFF_DURATION_MS : SURFACE_RESIZE_DURATION_MS,
+        );
       }
       if (requestResizeOrigin) releaseDialogIframe(dialog);
     }
@@ -377,6 +385,13 @@ export class OverlayController {
     if (handoffFromReview) this.startReviewHandoff('wallet');
     if (returnToReview) this.startReviewHandoff('review');
     const handingOff = this.reviewHandoff.kind === 'animating';
+    if (handingOff && requestResizeDestination) {
+      // Keep responsive content at rest while the surrounding shell changes size.
+      pinDialogIframe(dialog, reviewing ? iframeSize : {
+        widthCssPx: requestResizeDestination.width,
+        heightCssPx: requestResizeDestination.height,
+      });
+    }
     iframe.inert = reviewing || handingOff;
     iframe.classList.toggle('seams-review-wallet-inactive', reviewing);
     iframe.setAttribute('aria-hidden', String(reviewing || handingOff));
@@ -416,22 +431,47 @@ export class OverlayController {
     this.cancelReviewHandoff();
     if (!this.iframe || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const options = {
-      duration: SURFACE_RESIZE_DURATION_MS,
-      easing: 'linear',
+      duration: REVIEW_HANDOFF_DURATION_MS,
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
       fill: 'both',
     } as const;
     const review = this.getTransactionReviewSlot().firstElementChild;
     if (!review) return;
     const outgoingElement = destination === 'wallet' ? review : this.iframe;
     const incomingElement = destination === 'wallet' ? this.iframe : review;
-    const outgoing = outgoingElement.animate([{ opacity: 1 }, { opacity: 0 }], options);
-    const incoming = incomingElement.animate([{ opacity: 0 }, { opacity: 1 }], options);
+    const direction = destination === 'wallet' ? 1 : -1;
+    const outgoing = outgoingElement.animate([
+      { opacity: 1, transform: 'translateY(0)' },
+      { opacity: 0, transform: `translateY(${-8 * direction}px)`, offset: 0.55 },
+      { opacity: 0, transform: `translateY(${-8 * direction}px)` },
+    ], options);
+    const incoming = incomingElement.animate([
+      { opacity: 0, transform: `translateY(${12 * direction}px)` },
+      { opacity: 1, transform: 'translateY(0)' },
+    ], options);
+    const sections: Animation[] = [];
+    let order = 0;
+    for (const section of review.children) {
+      const entering = destination === 'review';
+      const delay = Math.min(order, 3) * 25;
+      sections.push(section.animate([
+        { opacity: entering ? 0 : 1, transform: entering ? 'translateY(8px)' : 'translateY(0)' },
+        { opacity: entering ? 1 : 0, transform: entering ? 'translateY(0)' : 'translateY(-6px)' },
+      ], {
+        duration: entering ? 220 : 140,
+        delay,
+        easing: 'ease-out',
+        fill: 'both',
+      }));
+      order += 1;
+    }
     this.reviewHandoff = {
       kind: 'animating',
       destination,
       outgoing,
       incoming,
-      timer: setTimeout(this.finishReviewHandoff.bind(this), SURFACE_RESIZE_DURATION_MS),
+      sections,
+      timer: setTimeout(this.finishReviewHandoff.bind(this), REVIEW_HANDOFF_DURATION_MS),
       onReady: null,
     };
     incoming.addEventListener('finish', this.handleReviewHandoffFinished, { once: true });
@@ -475,6 +515,8 @@ export class OverlayController {
     clearTimeout(this.reviewHandoff.timer);
     this.reviewHandoff.outgoing.cancel();
     this.reviewHandoff.incoming.cancel();
+    for (const animation of this.reviewHandoff.sections) animation.cancel();
+    if (this.dialog) releaseDialogIframe(this.dialog);
     this.reviewHandoff = { kind: 'idle' };
   }
 
@@ -497,18 +539,18 @@ export class OverlayController {
     dialog.classList.remove(OverlayStyleClasses.REVEAL_PENDING);
   };
 
-  private startSurfaceResize(origin: SurfaceRect, destination: SurfaceRect): void {
+  private startSurfaceResize(origin: SurfaceRect, destination: SurfaceRect, duration: number): void {
     const dialog = this.dialog;
     if (!dialog || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     this.cancelSurfaceResize();
     const animation = dialog.animate(surfaceResizeKeyframes(origin, destination), {
-      duration: SURFACE_RESIZE_DURATION_MS,
+      duration,
       easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)',
     });
     this.surfaceResizeAnimation = animation;
     this.surfaceResizeTimer = setTimeout(
       this.cancelSurfaceResize.bind(this),
-      SURFACE_RESIZE_DURATION_MS,
+      duration,
     );
     animation.addEventListener('finish', this.handleSurfaceResizeFinished, { once: true });
   }

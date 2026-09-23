@@ -36,6 +36,22 @@
         color: inherit;
         cursor: pointer;
       }
+      nav button[data-example]::before,
+      nav button[data-stage]::before {
+        content: '✓';
+        display: inline-block;
+        width: 1em;
+        margin-inline-end: 6px;
+        visibility: hidden;
+      }
+      nav button[aria-pressed='true'] {
+        background: #24593f;
+        border-color: #24593f;
+        color: white;
+      }
+      nav button[aria-pressed='true']::before {
+        visibility: visible;
+      }
       main {
         width: min(420px, calc(100vw - 32px));
         margin: 24px auto;
@@ -53,7 +69,7 @@
         position: fixed;
         right: 24px;
         bottom: 24px;
-        width: min(360px, calc(100vw - 48px));
+        width: min(320px, calc(100vw - 48px));
         margin: 0;
       }
     </style>

@@ -54,6 +54,14 @@ export type WalletRegistrationRespondInput = {
   readonly userAgent?: string;
 };
 
+export type WalletRegistrationNearAdmissionInput = {
+  readonly registrationCeremonyId: string;
+  readonly signedSetup: unknown;
+  readonly authority: WalletRegistrationAuthorityInput;
+  readonly verifier: WalletRegistrationSetupVerifier;
+  readonly userAgent?: string;
+};
+
 export type WalletRegistrationActivateInput = {
   readonly registrationCeremonyId: string;
   readonly signedSetup: unknown;
@@ -80,7 +88,9 @@ export type WalletRegistrationActivateInput = {
 };
 
 export type WalletRegistrationNearProvisioningInput = {
-  readonly authorization: { readonly kind: 'registration_grant' } | { readonly kind: 'wallet_session'; readonly credential: string };
+  readonly authorization:
+    | { readonly kind: 'registration_grant' }
+    | { readonly kind: 'wallet_session'; readonly credential: string };
   readonly registrationCeremonyId: string;
   readonly signedSetup: unknown;
   readonly idempotencyKey: string;

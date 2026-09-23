@@ -9,13 +9,26 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { prepareLocalHostedWalletGatewayConfig } from './prepare-local-runtime-config.mjs';
+import { printLocalServiceTable } from '../../../scripts/print-local-service-table.mjs';
 
 const repoRoot = process.cwd();
 const gatewayUrl = process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100';
-const routerUrl = `http://127.0.0.1:${4102 + Number(process.env.SEAMS_LOCAL_PORT_OFFSET || 0)}`;
+const localPortOffset = Number(process.env.SEAMS_LOCAL_PORT_OFFSET || 0);
+const routerUrl = `http://127.0.0.1:${4102 + localPortOffset}`;
+const roleServices = [
+  { name: 'mpc-router', port: 4102 },
+  { name: 'deriver-a', port: 4103 },
+  { name: 'deriver-b', port: 4104 },
+  { name: 'signing-worker', port: 4105 },
+  { name: 'tenant-root-control-plane', port: 4106 },
+];
 const options = parseArguments(process.argv.slice(2));
 const localRoot = path.resolve(
-  options.root || path.join(tmpdir(), `${path.basename(repoRoot)}-wallet-system`),
+  options.root ||
+    path.join(
+      tmpdir(),
+      `${path.basename(repoRoot)}-wallet-system-${randomBytes(8).toString('hex')}`,
+    ),
 );
 const gatewayStateRoot = path.join(localRoot, '.local', 'cloudflare-state', 'wallet-gateway');
 const ceremonyPrivateJwkPath = path.join(
@@ -36,6 +49,7 @@ const identity = Object.freeze({
 // Separate local stacks reuse Worker names, so each needs its own discovery registry.
 const workerEnv = {
   ...process.env,
+  WRANGLER_LOG: process.env.WRANGLER_LOG || 'warn',
   WRANGLER_REGISTRY_PATH: path.join(localRoot, '.local', 'worker-registry'),
 };
 const children = [];
@@ -51,10 +65,12 @@ async function main() {
   installSignalHandlers();
   mkdirSync(localRoot, { recursive: true });
   rmSync(workersReadyPath, { force: true });
+  console.log('Starting local Wallet role Workers...');
   startRoleWorkers();
   await waitForHttp(`${routerUrl}/.well-known/router-ab/keyset`, 120_000, true);
   await waitForFile(workersReadyPath, 120_000);
   await waitForFile(ceremonyPrivateJwkPath, 10_000);
+  console.log('Provisioning local tenant root...');
   const tenantRoot = bootstrapTenantRoot();
   const deployment = localDeployment(tenantRoot);
   const runtime = prepareLocalHostedWalletGatewayConfig({
@@ -67,21 +83,33 @@ async function main() {
     deployment,
   });
   applySignerMigrations(runtime);
+  console.log('Starting local Wallet Gateway...');
   startGateway(runtime);
   await waitForHttp(`${runtime.gatewayUrl}/readyz`, 120_000, true);
-  console.log(
-    JSON.stringify({
-      kind: 'wallet_local_system_ready_v1',
-      gatewayUrl: runtime.gatewayUrl,
-      appOrigin: options.appOrigin,
-      walletOrigin: options.walletOrigin,
-      projectEnvironmentId: identity.environmentId,
-      publishableKey: deployment.credential.publishableKey,
-      signingWorkerId: 'local-signing-worker',
-      root: localRoot,
-    }),
-  );
+  const ready = {
+    kind: 'wallet_local_system_ready_v1',
+    gatewayUrl: runtime.gatewayUrl,
+    appOrigin: options.appOrigin,
+    walletOrigin: options.walletOrigin,
+    projectEnvironmentId: identity.environmentId,
+    publishableKey: deployment.credential.publishableKey,
+    signingWorkerId: 'local-signing-worker',
+    root: localRoot,
+  };
+  if (process.stdout.isTTY) printServiceTable(ready);
+  else console.log(JSON.stringify(ready));
   await waitUntilStopped();
+}
+
+function printServiceTable(ready) {
+  const services = [];
+  for (const role of roleServices) {
+    services.push({ name: role.name, url: `http://127.0.0.1:${role.port + localPortOffset}` });
+  }
+  services.push({ name: 'wallet-gateway', url: ready.gatewayUrl });
+  printLocalServiceTable('Local Wallet services ready', services);
+  console.log(`Site: ${ready.appOrigin} (start pnpm site in another terminal)`);
+  console.log(`Runtime state: ${ready.root}`);
 }
 
 function parseArguments(args) {
@@ -254,8 +282,9 @@ function applySignerMigrations(runtime) {
       '--config',
       runtime.configPath,
     ],
-    { ...process.env, CI: 'true' },
+    { ...workerEnv, CI: 'true' },
   );
+  console.log('Local database ready: wallet-gateway');
 }
 
 function startGateway(runtime) {

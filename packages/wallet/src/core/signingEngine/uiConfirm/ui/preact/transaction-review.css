@@ -161,14 +161,14 @@
   height: var(--seams-review-disclosure-height);
   overflow: hidden;
 }
-:where(.seams-wallet-ui) .seams-transaction-review > .seams-review-technical > div {
+:where(.seams-wallet-ui) :is(.seams-transaction-review, .seams-transaction-receipt) > .seams-review-technical > div {
   margin-inline: calc(-1 * var(--seams-review-inset));
   background: var(--seams-colors-surface2);
   box-shadow: inset 0 1px 0 var(--seams-colors-borderPrimary),
     inset 0 -1px 0 var(--seams-colors-borderPrimary),
     inset 0 5px 8px -7px rgb(0 0 0 / 0.16);
 }
-:where(.seams-wallet-ui) .seams-transaction-review > .seams-review-technical > div > .seams-review-detail {
+:where(.seams-wallet-ui) :is(.seams-transaction-review, .seams-transaction-receipt) > .seams-review-technical > div > :is(.seams-review-detail, .seams-review-fields) {
   margin: 0;
   padding: 0.75rem var(--seams-review-inset);
 }
@@ -362,7 +362,7 @@
   justify-content: center;
   gap: 0.25rem;
   width: fit-content;
-  margin: -0.25rem auto 0.75rem;
+  margin: 0.75rem auto;
   color: var(--seams-colors-textSecondary);
   font-size: 0.75rem;
   text-decoration: none;
@@ -419,34 +419,54 @@
 }
 :where(.seams-wallet-ui) .seams-transaction-toast {
   position: relative;
+  border-radius: inherit;
   background: var(--seams-colors-colorBackground);
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 1.0625rem 1.125rem;
+  padding: 0.625rem 0.75rem;
 }
 :where(.seams-wallet-ui) .seams-toast-progress {
   position: absolute;
-  inset: 0 0 auto;
-  height: 2px;
-  background: var(--seams-colors-colorBackground);
+  inset: 0;
+  border-radius: inherit;
   overflow: hidden;
+  pointer-events: none;
 }
-:where(.seams-wallet-ui) .seams-toast-progress > span {
+:where(.seams-wallet-ui) .seams-toast-progress-fill {
+  position: relative;
   display: block;
-  height: 100%;
+  height: 2px;
   width: 0;
   background: var(--seams-colors-buttonBackground);
+  transform-origin: left;
   transition: width 300ms ease-out;
 }
-:where(.seams-wallet-ui) [data-completed-stages='1'] .seams-toast-progress > span {
+:where(.seams-wallet-ui) [data-completed-stages='1'] .seams-toast-progress-fill,
+:where(.seams-wallet-ui) [data-stage='signing'] .seams-toast-progress-fill {
   width: calc(100% / 3);
 }
-:where(.seams-wallet-ui) [data-completed-stages='2'] .seams-toast-progress > span {
+:where(.seams-wallet-ui) [data-completed-stages='2'] .seams-toast-progress-fill,
+:where(.seams-wallet-ui) [data-stage='broadcasting'] .seams-toast-progress-fill {
   width: calc(200% / 3);
 }
-:where(.seams-wallet-ui) [data-completed-stages='3'] .seams-toast-progress > span {
+:where(.seams-wallet-ui) [data-completed-stages='3'] .seams-toast-progress-fill {
   width: 100%;
+}
+:where(.seams-wallet-ui) .seams-toast-progress-active {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  overflow: hidden;
+  background: var(--seams-colors-borderPrimary);
+}
+:where(.seams-wallet-ui) .seams-toast-progress-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--seams-colors-buttonBackground), transparent);
 }
 :where(.seams-wallet-ui) .seams-transaction-toast-text {
   display: grid;
@@ -471,7 +491,7 @@
   cursor: pointer;
 }
 :where(.seams-wallet-ui[data-receipt-view='toast']) .seams-confirmation-modal--hosted {
-  inline-size: 22.5rem;
+  inline-size: 20rem;
 }
 :where(.seams-wallet-ui[data-confirmation-kind='transaction'])
   .seams-confirmation-modal
@@ -601,16 +621,10 @@
   background: var(--seams-colors-surface2);
   box-shadow: 0 0 6px 3px var(--seams-colors-surface2);
 }
-:where(.seams-wallet-ui) .seams-receipt-box {
-  background: var(--seams-colors-surface2);
-  padding: 0.25rem 0.875rem;
-  border-radius: var(--seams-shape-box, 12px);
-  margin-block: 0.75rem;
-}
 :where(.seams-wallet-ui) .seams-receipt-morph-shell {
   position: fixed;
   pointer-events: none;
-  z-index: 1;
+  z-index: 0;
   box-sizing: border-box;
   background: var(--seams-colors-colorBackground);
   border: 1px solid var(--seams-colors-borderPrimary);
@@ -655,18 +669,11 @@
 :where(.seams-wallet-ui) .seams-drawer-controls:has(.seams-drawer-origin) .seams-drawer-close {
   top: 0.5rem;
 }
-:where(.seams-wallet-ui) .seams-receipt-box .seams-review-technical {
-  border-top: 0;
-  margin: 0;
-}
-:where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields {
-  margin-bottom: 6px;
-}
-:where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields dd .seams-review-copy:not(.seams-review-copy-address) > .copy-icon {
+:where(.seams-wallet-ui) .seams-transaction-receipt > .seams-review-technical .seams-review-fields dd .seams-review-copy:not(.seams-review-copy-address) > .copy-icon {
   opacity: 0;
 }
-:where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields dd:is(:hover, :focus-within) .seams-review-copy:not(.seams-review-copy-address) > .copy-icon,
-:where(.seams-wallet-ui) .seams-receipt-box .seams-review-fields .seams-review-copy.copied > .copy-icon {
+:where(.seams-wallet-ui) .seams-transaction-receipt > .seams-review-technical .seams-review-fields dd:is(:hover, :focus-within) .seams-review-copy:not(.seams-review-copy-address) > .copy-icon,
+:where(.seams-wallet-ui) .seams-transaction-receipt > .seams-review-technical .seams-review-fields .seams-review-copy.copied > .copy-icon {
   opacity: 1;
 }
 :where(.seams-wallet-ui) .seams-receipt-step[data-state='complete'] {
@@ -686,9 +693,17 @@
   }
 }
 @media (prefers-reduced-motion: no-preference) {
+  :where(.seams-wallet-ui) .seams-toast-progress {
+    animation: seams-toast-progress-reveal 1ms step-end 200ms backwards;
+  }
+  :where(.seams-wallet-ui) .seams-toast-progress-fill {
+    animation: seams-toast-progress-draw 180ms ease-out 200ms backwards;
+  }
+  :where(.seams-wallet-ui) .seams-toast-progress-active::after,
   :where(.seams-wallet-ui) .seams-receipt-step[data-state='active'] .seams-receipt-track::after {
     animation: seams-receipt-sweep 1.2s ease-in-out infinite;
   }
+  :where(.seams-wallet-ui) [data-completed-stages='2'] .seams-toast-progress-active::after,
   :where(.seams-wallet-ui)
     .seams-receipt-step[data-stage='confirming'][data-state='active']
     .seams-receipt-track::after {
@@ -696,6 +711,22 @@
   }
   :where(.seams-wallet-ui) .seams-receipt-symbol[data-pending='true'] svg {
     animation: seams-receipt-spin 1.2s linear infinite;
+  }
+}
+@keyframes seams-toast-progress-reveal {
+  from {
+    visibility: hidden;
+  }
+  to {
+    visibility: visible;
+  }
+}
+@keyframes seams-toast-progress-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
   }
 }
 @keyframes seams-receipt-sweep {
@@ -712,8 +743,14 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  :where(.seams-wallet-ui) .seams-toast-progress,
+  :where(.seams-wallet-ui) .seams-toast-progress-fill {
+    animation: none;
+    visibility: visible;
+    transform: none;
+  }
   :where(.seams-wallet-ui) .seams-review-caret,
-  :where(.seams-wallet-ui) .seams-toast-progress > span,
+  :where(.seams-wallet-ui) .seams-toast-progress-fill,
   :where(.seams-wallet-ui) .seams-receipt-track::after {
     transition: none;
   }
@@ -723,4 +760,18 @@
     min-width: 2.75rem;
     min-height: 2.75rem;
   }
+}
+
+/* Shared receipt content stays visible above the moving surface. */
+.seams-wallet-ui[data-receipt-morphing] .seams-confirmation-modal,
+.seams-wallet-ui[data-receipt-morphing] .seams-confirmation-modal .modal-container-root {
+  overflow: visible;
+}
+.seams-wallet-ui[data-receipt-morphing] .seams-confirmation-modal .modal-container-root {
+  z-index: 1;
+  background: transparent;
+  box-shadow: none;
+}
+.seams-wallet-ui[data-receipt-morphing] .seams-transaction-toast {
+  background: transparent;
 }

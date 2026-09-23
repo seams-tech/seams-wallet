@@ -30,6 +30,7 @@ html:has([data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant
 }
 
 :where(.seams-wallet-ui) .seams-confirmation-modal--hosted {
+  outline: none;
   inline-size: var(--seams-modal__container-max-width, 26rem);
   max-inline-size: 100%;
   max-block-size: none;

@@ -211,7 +211,7 @@ for (const context of ['standalone', 'wallet-iframe'] as const) {
   });
 }
 
-test('toast progress advances in thirds only after completed transaction stages', async ({
+test('toast grows from signing to broadcasting to complete and sweeps its current length', async ({
   page,
 }) => {
   await page.evaluate(() => {
@@ -219,12 +219,13 @@ test('toast progress advances in thirds only after completed transaction stages'
     window.__confirmationMount.receipt(0, { kind: 'signing' });
   });
   const progress = page.locator('.seams-toast-progress');
-  const fill = progress.locator('span');
+  const fill = progress.locator('.seams-toast-progress-fill');
+  const active = progress.locator('.seams-toast-progress-active');
   const spinner = page.locator('.seams-transaction-toast .seams-receipt-symbol svg');
   const stages: { state: TransactionReceiptState; fraction: number; pending: boolean }[] = [
-    { state: { kind: 'signing' }, fraction: 0, pending: true },
+    { state: { kind: 'signing' }, fraction: 1 / 3, pending: true },
     { state: { kind: 'signed' }, fraction: 1 / 3, pending: false },
-    { state: { kind: 'broadcasting' }, fraction: 1 / 3, pending: true },
+    { state: { kind: 'broadcasting' }, fraction: 2 / 3, pending: true },
     { state: { kind: 'submitted', hash: '0x123' }, fraction: 2 / 3, pending: true },
     { state: { kind: 'confirmed', hash: '0x123' }, fraction: 1, pending: false },
   ];
@@ -238,6 +239,15 @@ test('toast progress advances in thirds only after completed transaction stages'
       })
       .toBeCloseTo(fraction, 2);
     await expect(spinner).toHaveCSS('animation-name', pending ? 'seams-receipt-spin' : 'none');
+    await expect(active).toHaveCount(pending ? 1 : 0);
+    if (pending) {
+      const fillBounds = await fill.boundingBox();
+      const activeBounds = await active.boundingBox();
+      expect(activeBounds!.x).toBeCloseTo(fillBounds!.x, 1);
+      expect(activeBounds!.width).toBeCloseTo(fillBounds!.width, 1);
+      expect(await active.evaluate((element) => getComputedStyle(element, '::after').animationName))
+        .toBe('seams-receipt-sweep');
+    }
   }
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.evaluate(() =>
@@ -245,6 +255,8 @@ test('toast progress advances in thirds only after completed transaction stages'
   );
   await expect(fill).toHaveCSS('transition-duration', '0s');
   await expect(spinner).toHaveCSS('animation-name', 'none');
+  expect(await active.evaluate((element) => getComputedStyle(element, '::after').animationName))
+    .toBe('none');
   await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
@@ -524,5 +536,63 @@ test('disposing one surface leaves the other mounted and styled', async ({ page 
   ).toBe('rgb(12, 34, 56)');
   await page.evaluate(() => window.__confirmationMount.dispose(1));
   expect(await page.evaluate(() => window.__confirmationMount.closed)).toBe(2);
+  expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
+});
+
+test('receipt morph keeps its status visible and reverses from its current position', async ({ page }) => {
+  await page.evaluate(() => {
+    window.__confirmationMount.mount('modal', 'wallet-iframe');
+    window.__confirmationMount.receipt(0, { kind: 'broadcasting' }, 'expanded');
+  });
+  const surface = page.locator('.seams-confirmation-surface');
+  await expect(surface).not.toHaveAttribute('data-receipt-morphing');
+  const symbol = page.locator('.seams-receipt-symbol');
+  const heading = page.locator('[role="status"]');
+  const origin = await symbol.boundingBox();
+  await page.evaluate(() => {
+    window.__confirmationMount.receipt(0, { kind: 'broadcasting' }, 'toast');
+    for (const animation of document.getAnimations()) {
+      if (animation.effect?.getTiming().iterations === Infinity) continue;
+      animation.pause();
+      animation.currentTime = 0;
+    }
+  });
+  expect((await symbol.boundingBox())?.x).toBeCloseTo(origin!.x, 0);
+  expect((await symbol.boundingBox())?.y).toBeCloseTo(origin!.y, 0);
+  await expect(symbol).toHaveCSS('opacity', '1');
+  await expect(heading).toHaveCSS('opacity', '1');
+  await expect(page.locator('.modal-container-root')).toHaveCSS('opacity', '1');
+  await page.evaluate(() => {
+    for (const animation of document.getAnimations()) {
+      if (animation.effect?.getTiming().iterations !== Infinity) animation.currentTime = 180;
+    }
+  });
+  await expect(page.locator('.seams-toast-progress')).toHaveCSS('visibility', 'hidden');
+  const midway = await symbol.boundingBox();
+  await page.evaluate(() => {
+    window.__confirmationMount.receipt(0, { kind: 'broadcasting' }, 'expanded');
+    for (const animation of document.getAnimations()) {
+      if (animation.effect?.getTiming().iterations === Infinity) continue;
+      animation.pause();
+      animation.currentTime = 0;
+    }
+  });
+  expect((await symbol.boundingBox())?.x).toBeCloseTo(midway!.x, 0);
+  expect((await symbol.boundingBox())?.y).toBeCloseTo(midway!.y, 0);
+  await expect(heading).toHaveText('Broadcasting transaction');
+  // Release test-paused CSS effects before changing the motion preference.
+  await page.evaluate(() => {
+    for (const animation of document.getAnimations()) {
+      if (animation instanceof CSSAnimation) animation.cancel();
+    }
+  });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate(() => window.__confirmationMount.receipt(0, { kind: 'broadcasting' }, 'toast'));
+  await expect(surface).not.toHaveAttribute('data-receipt-morphing');
+  await expect(page.locator('.seams-receipt-morph-shell')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Open', exact: true })).toBeVisible();
+  await expect(page.locator('.seams-toast-progress')).toHaveCSS('visibility', 'visible');
+  await page.evaluate(() => window.__confirmationMount.dispose(0));
+  await expect(surface).toHaveCount(0);
   expect(await page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });

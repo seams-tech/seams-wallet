@@ -22,6 +22,8 @@ always fetched from the controller. No `.env` file, private Console
 service, or `seams-monorepo` checkout is required.
 
 Use `pnpm router -- --root ./path/to/runtime` to select the backend runtime directory.
+Without `--root`, each router launch uses fresh temporary state, so wallets from an
+earlier local run are not available after restarting the backend.
 Use `pnpm site -- --skip-build` after the public Wallet artifacts have already been built.
 If a run is interrupted, stop any remaining `wrangler dev` processes before restarting.
 
@@ -44,7 +46,7 @@ in `src/styles.css`. `TransactionReviewHost` is mounted in `WalletConsoleLite.ts
 ## Local ports
 
 - `http://localhost:4001` — Wallet Console Lite
-- `http://docs.localhost:4003/docs/` — Wallet documentation
+- `http://localhost:4003/docs/` — Wallet documentation
 - `http://localhost:4002` — hosted Wallet iframe and SDK assets
 - `http://localhost:4101` — Caddy proxy to the Wallet Gateway
 - `http://127.0.0.1:4100` — Wallet Gateway

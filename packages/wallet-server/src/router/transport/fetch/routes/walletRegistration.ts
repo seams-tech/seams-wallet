@@ -12,6 +12,7 @@ import {
   handleRouterApiWalletAddSignerStart,
   handleRouterApiWalletRegistrationActivate,
   handleRouterApiWalletRegistrationNearProvisioning,
+  handleRouterApiWalletRegistrationNearAdmission,
   handleRouterApiWalletRegistrationRespond,
   handleRouterApiWalletRegistrationSetup,
   handleRouterApiWalletEcdsaKeyFactsInventory,
@@ -31,6 +32,7 @@ import { readJson } from '../../../framework/http';
 const ROUTE_IDS = [
   'wallet_registration_setup',
   'wallet_registration_respond',
+  'wallet_registration_near_admission',
   'wallet_registration_activate',
   'wallet_registration_near_provisioning',
   'wallet_add_signer_intent',
@@ -98,38 +100,61 @@ export async function handleWalletRegistration(
       walletProjection: ctx.opts.walletProjection,
     },
     sourceIp: resolveSourceIpFromFetchHeaders(ctx.request.headers) || undefined,
+    signingSessionSeal: ctx.opts.signingSessionSeal,
   };
-  const response: RouteResponse<unknown> =
-    route.id === 'wallet_registration_setup'
-      ? await handleRouterApiWalletRegistrationSetup(common)
-      : route.id === 'wallet_registration_respond'
-        ? await handleRouterApiWalletRegistrationRespond(common)
-        : route.id === 'wallet_registration_activate'
-          ? await handleRouterApiWalletRegistrationActivate(common)
-          : route.id === 'wallet_registration_near_provisioning'
-            ? await handleRouterApiWalletRegistrationNearProvisioning(common)
-            : route.id === 'wallet_add_signer_intent'
-              ? await handleRouterApiWalletAddSignerIntent(common)
-              : route.id === 'wallet_add_signer_start'
-                ? await handleRouterApiWalletAddSignerStart(common)
-                : route.id === 'wallet_add_signer_ecdsa_derivation_respond'
-                  ? await handleRouterApiWalletAddSignerEcdsaDerivationRespond(common)
-                  : route.id === 'wallet_add_signer_ecdsa_activation'
-                    ? await handleRouterApiWalletAddSignerEcdsaActivation(common)
-                    : route.id === 'wallet_add_signer_finalize'
-                      ? await handleRouterApiWalletAddSignerFinalize(common)
-                      : route.id === 'wallet_add_auth_method_intent'
-                        ? await handleRouterApiWalletAddAuthMethodIntent(common)
-                        : route.id === 'wallet_add_auth_method_email_otp_challenge'
-                          ? await handleRouterApiWalletAddAuthMethodEmailOtpChallenge(common)
-                          : route.id === 'wallet_add_auth_method_start'
-                            ? await handleRouterApiWalletAddAuthMethodStart(common)
-                            : route.id === 'wallet_add_auth_method_finalize'
-                              ? await handleRouterApiWalletAddAuthMethodFinalize(common)
-                              : route.id === 'wallet_revoke_auth_method'
-                                ? await handleRouterApiWalletRevokeAuthMethod(common)
-                                : route.id === 'wallet_ecdsa_key_facts_inventory'
-                                  ? await handleRouterApiWalletEcdsaKeyFactsInventory(common)
-                                  : await handleRouterApiWalletNearImplicitAccountFund(common);
+  let response: RouteResponse<unknown>;
+  switch (route.id) {
+    case 'wallet_registration_setup':
+      response = await handleRouterApiWalletRegistrationSetup(common);
+      break;
+    case 'wallet_registration_respond':
+      response = await handleRouterApiWalletRegistrationRespond(common);
+      break;
+    case 'wallet_registration_near_admission':
+      response = await handleRouterApiWalletRegistrationNearAdmission(common);
+      break;
+    case 'wallet_registration_activate':
+      response = await handleRouterApiWalletRegistrationActivate(common);
+      break;
+    case 'wallet_registration_near_provisioning':
+      response = await handleRouterApiWalletRegistrationNearProvisioning(common);
+      break;
+    case 'wallet_add_signer_intent':
+      response = await handleRouterApiWalletAddSignerIntent(common);
+      break;
+    case 'wallet_add_signer_start':
+      response = await handleRouterApiWalletAddSignerStart(common);
+      break;
+    case 'wallet_add_signer_ecdsa_derivation_respond':
+      response = await handleRouterApiWalletAddSignerEcdsaDerivationRespond(common);
+      break;
+    case 'wallet_add_signer_ecdsa_activation':
+      response = await handleRouterApiWalletAddSignerEcdsaActivation(common);
+      break;
+    case 'wallet_add_signer_finalize':
+      response = await handleRouterApiWalletAddSignerFinalize(common);
+      break;
+    case 'wallet_add_auth_method_intent':
+      response = await handleRouterApiWalletAddAuthMethodIntent(common);
+      break;
+    case 'wallet_add_auth_method_email_otp_challenge':
+      response = await handleRouterApiWalletAddAuthMethodEmailOtpChallenge(common);
+      break;
+    case 'wallet_add_auth_method_start':
+      response = await handleRouterApiWalletAddAuthMethodStart(common);
+      break;
+    case 'wallet_add_auth_method_finalize':
+      response = await handleRouterApiWalletAddAuthMethodFinalize(common);
+      break;
+    case 'wallet_revoke_auth_method':
+      response = await handleRouterApiWalletRevokeAuthMethod(common);
+      break;
+    case 'wallet_ecdsa_key_facts_inventory':
+      response = await handleRouterApiWalletEcdsaKeyFactsInventory(common);
+      break;
+    default:
+      response = await handleRouterApiWalletNearImplicitAccountFund(common);
+      break;
+  }
   return toFetchRouteResponse(response);
 }

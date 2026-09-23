@@ -1,5 +1,5 @@
 import type { SigningSessionStatus } from '@/core/types/seams';
-import type { WarmSessionSealTransportInput } from '@/core/types/secure-confirm-worker';
+import type { WarmSessionSealTransportState } from '@/core/types/secure-confirm-worker';
 import type { WarmSessionMaterialWriteDiagnostics } from './types';
 import type {
   ThresholdEcdsaChainTarget,
@@ -31,13 +31,12 @@ export type PersistThresholdEcdsaBootstrapForWalletTargetInput = {
 };
 
 export type HydrateSigningSessionInput = {
-  thresholdSessionId: string;
-  prfFirstB64u: string;
-  expiresAtMs: number;
-  remainingUses: number;
-  transport?: WarmSessionSealTransportInput;
-  diagnostics?: WarmSessionMaterialWriteDiagnostics;
-};
+  readonly thresholdSessionId: string;
+  readonly prfFirstB64u: string;
+  readonly expiresAtMs: number;
+  readonly remainingUses: number;
+  readonly diagnostics?: WarmSessionMaterialWriteDiagnostics;
+} & WarmSessionSealTransportState;
 
 export type WarmCapabilitiesPublicDeps = {
   statusReader: Pick<ThresholdWarmSessionStatusReader, 'getEd25519SigningSessionStatus'>;

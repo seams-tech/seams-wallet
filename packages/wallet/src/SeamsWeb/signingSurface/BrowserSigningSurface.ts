@@ -6213,6 +6213,13 @@ export class BrowserSigningSurface {
     return this.passkeyMpcSession.prepareSigningSessionHydration(input);
   }
 
+  readPreparedSigningSessionHydration(input: {
+    preparationId: string;
+    thresholdSessionId: string;
+  }): Promise<{ readonly ciphertext: string }> {
+    return this.passkeyMpcSession.readPreparedSigningSessionHydration(input);
+  }
+
   discardSigningSessionHydration(input: {
     preparationId: string;
     thresholdSessionId: string;

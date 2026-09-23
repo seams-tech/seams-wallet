@@ -22,6 +22,7 @@ const workersReadyPath = path.join(localRoot, '.runtime', 'role-workers.ready');
 // Separate local stacks reuse Worker names, so each needs its own discovery registry.
 const workerEnv = {
   ...process.env,
+  WRANGLER_LOG: process.env.WRANGLER_LOG || 'warn',
   WRANGLER_REGISTRY_PATH: path.join(localRoot, '.local', 'worker-registry'),
 };
 const children = [];
@@ -46,14 +47,18 @@ async function main() {
   startWorkers(runtime);
   await waitForWorkers(runtime);
   writeFileSync(workersReadyPath, 'ready\n');
-  console.log(
-    JSON.stringify({
-      kind: 'wallet_role_workers_ready_v1',
-      mpcRouterUrl: runtime.mpcRouterUrl,
-      ceremonyPrivateJwkPath,
-      workers: runtime.configs.map(describeWorker),
-    }),
-  );
+  if (process.stdout.isTTY) {
+    console.log('Local Wallet role Workers ready.');
+  } else {
+    console.log(
+      JSON.stringify({
+        kind: 'wallet_role_workers_ready_v1',
+        mpcRouterUrl: runtime.mpcRouterUrl,
+        ceremonyPrivateJwkPath,
+        workers: runtime.configs.map(describeWorker),
+      }),
+    );
+  }
   await waitUntilStopped();
 }
 
@@ -181,8 +186,9 @@ function applyPrivateD1Migrations(runtime) {
         config.configPath,
       ],
       repoRoot,
-      { ...process.env, CI: 'true' },
+      { ...workerEnv, CI: 'true' },
     );
+    console.log(`Local database ready: ${config.role}`);
   }
 }
 

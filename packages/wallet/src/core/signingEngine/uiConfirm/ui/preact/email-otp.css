@@ -103,6 +103,7 @@
 }
 
 :where(.seams-wallet-ui) .email-otp-confirm__error {
+  text-align: center;
   color: var(--seams-colors-error, var(--seams-red400));
   font-size: 0.8rem;
   font-weight: 600;
@@ -110,6 +111,7 @@
 
 :where(.seams-wallet-ui) .email-otp-confirm__resend {
   justify-self: center;
+  margin-bottom: 0.75rem;
   border: 0;
   background: transparent;
   color: var(--seams-colors-buttonBackground);

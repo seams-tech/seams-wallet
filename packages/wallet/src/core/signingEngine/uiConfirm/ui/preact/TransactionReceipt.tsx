@@ -50,10 +50,13 @@ export class TransactionReceipt extends Component<{
         <div
           class="seams-transaction-toast"
           data-completed-stages={completedStages}
+          data-stage={receipt.state.kind}
           data-pending={pending}
         >
           <div class="seams-toast-progress" aria-hidden="true">
-            <span />
+            <span class="seams-toast-progress-fill">
+              {pending && <span class="seams-toast-progress-active" />}
+            </span>
           </div>
           <span class="seams-receipt-symbol" data-pending={pending}>
             <ReviewIcon kind={pending ? 'loader' : complete ? 'check' : 'alert'} />
@@ -72,20 +75,9 @@ export class TransactionReceipt extends Component<{
       <div class="seams-transaction-receipt">
         <div class="seams-review-toolbar">
           <span>Transaction receipt</span>
-          <div>
-            <button type="button" aria-label="Minimize transaction" onClick={this.minimize}>
-              <ReviewIcon kind="minimize" />
-            </button>
-            <button
-              type="button"
-              aria-label={
-                receiptIsPending(receipt.state) ? 'Minimize transaction' : 'Close receipt'
-              }
-              onClick={this.close}
-            >
-              <ReviewIcon kind="close" />
-            </button>
-          </div>
+          <button type="button" aria-label="Minimize transaction" onClick={this.minimize}>
+            <ReviewIcon kind="minimize" />
+          </button>
         </div>
         <div class="seams-receipt-heading">
           <span class="seams-receipt-symbol" data-pending={pending}>
@@ -138,45 +130,43 @@ export class TransactionReceipt extends Component<{
             active={receipt.state.kind === 'submitted'}
           />
         </div>
-        <div class="seams-receipt-box">
-          <ReviewDisclosure label="Receipt details">
-            <dl class="seams-review-fields">
-              {data.model?.signerAccount && (
-                <div>
-                  <dt>From</dt>
-                  <dd class="seams-review-recipient">
-                    <CopyReviewValue
-                      value={data.model.signerAccount}
-                      address
-                      label={`Copy signer address ${data.model.signerAccount}`}
-                    />
-                  </dd>
-                </div>
-              )}
-              {recipient && (
-                <div>
-                  <dt>To</dt>
-                  <dd class="seams-review-recipient">
-                    <CopyReviewValue value={recipient} address label={`Copy recipient address ${recipient}`} />
-                  </dd>
-                </div>
-              )}
-              {receipt.state.hash && (
-                <div>
-                  <dt>Transaction</dt>
-                  <dd>
-                    <ReviewAddress value={receipt.state.hash} />
-                    <CopyReviewValue value={receipt.state.hash} />
-                  </dd>
-                </div>
-              )}
+        <ReviewDisclosure label="Receipt details">
+          <dl class="seams-review-fields">
+            {data.model?.signerAccount && (
               <div>
-                <dt>Status</dt>
-                <dd>{heading}</dd>
+                <dt>From</dt>
+                <dd class="seams-review-recipient">
+                  <CopyReviewValue
+                    value={data.model.signerAccount}
+                    address
+                    label={`Copy signer address ${data.model.signerAccount}`}
+                  />
+                </dd>
               </div>
-            </dl>
-          </ReviewDisclosure>
-        </div>
+            )}
+            {recipient && (
+              <div>
+                <dt>To</dt>
+                <dd class="seams-review-recipient">
+                  <CopyReviewValue value={recipient} address label={`Copy recipient address ${recipient}`} />
+                </dd>
+              </div>
+            )}
+            {receipt.state.hash && (
+              <div>
+                <dt>Transaction</dt>
+                <dd>
+                  <ReviewAddress value={receipt.state.hash} />
+                  <CopyReviewValue value={receipt.state.hash} />
+                </dd>
+              </div>
+            )}
+            <div>
+              <dt>Status</dt>
+              <dd>{heading}</dd>
+            </div>
+          </dl>
+        </ReviewDisclosure>
         <button type="button" class="seams-receipt-primary" onClick={this.close}>
           {receiptIsPending(receipt.state) ? 'Continue in background' : 'Done'}
         </button>

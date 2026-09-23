@@ -27,6 +27,53 @@ activation, and cutover state. Deriver shares remain in their role-private D1
 databases. SigningWorker's Durable Object serializes live ECDSA presign
 sessions; its durable lane and pool records remain in SigningWorker D1.
 
+## Deriver database placement
+
+Deriver A and Deriver B must keep separate D1 databases for share isolation,
+and those database primaries should be in the same Cloudflare metro. The Yao
+protocol has dependent A/B rounds, so placing the primaries in different metros
+adds cross-region latency throughout a ceremony.
+
+A D1 location such as `apac` is a broad placement hint. Cloudflare applies the
+hint when the database is created and does not guarantee a particular city or
+that two databases with the same hint will share a metro. Verify every new
+Deriver database with a remote query before activating the lane:
+
+```sh
+pnpm exec wrangler d1 execute <database-name> \
+  --remote \
+  --json \
+  --command "SELECT 1 AS ready"
+```
+
+Require `meta.served_by_primary` to be `true` and compare
+`meta.served_by_colo` for the two results. Both values should name the same
+metro. See Cloudflare's [D1 data location documentation](https://developers.cloudflare.com/d1/configuration/data-location/).
+
+After the D1 primaries are verified, configure both Deriver Workers for the
+corresponding region in the hosted deployment target. Worker placement controls
+where the Worker executes; it does not move an existing D1 primary. Cloudflare
+[Custom Regions](https://blog.cloudflare.com/custom-regions/) controls where
+eligible traffic is decrypted and processed, including Worker execution. It
+does not select a D1 primary location.
+
+If Cloudflare places the databases in different metros, keep the active
+databases available for rollback while replacing one or both:
+
+1. Create replacement databases and verify their actual metros before copying
+   data.
+2. Export each active database and import it into the verified replacement.
+3. Deploy the Deriver with the replacement D1 binding and matching Worker
+   placement.
+4. Re-export the old database after cutover and compare it with the pre-cutover
+   export to detect writes that arrived during migration.
+5. Validate the active Worker version, D1 binding, placement, health checks, and
+   a complete ceremony before retiring the old database.
+
+Use the exact migration and rollback procedure owned by the private deployment
+repository. D1 exports contain private protocol state and must stay in protected
+deployment storage.
+
 ## Binding ownership
 
 The committed Wrangler manifests are the binding source of truth:
