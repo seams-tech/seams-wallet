@@ -1,16 +1,19 @@
 use crate::{
     decode_base64url_fixed_32_v1, decode_base64url_fixed_64_v1, decode_base64url_json_v1,
-    require_no_ascii_whitespace, require_non_empty, verify_ed25519_signature_v1,
-    CloudflareRouterEd25519JwksJwtVerifierV1,
+    encode_base64url_bytes_v1, require_no_ascii_whitespace, require_non_empty,
+    verify_ed25519_signature_v1, CloudflareRouterEd25519JwksJwtVerifierV1,
 };
+use ed25519_dalek::{Signer, SigningKey};
 use router_ab_core::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
 use serde::{Deserialize, Serialize};
+use zeroize::Zeroize;
 
 /// Header carrying a Gateway-signed regional lane request.
 pub const WALLET_LANE_INTERNAL_REQUEST_HEADER_V1: &str = "x-seams-wallet-lane-request";
 
 const WALLET_LANE_INTERNAL_REQUEST_TOKEN_TYPE_V1: &str = "wallet-lane-request+jwt";
 const MAX_WALLET_LANE_INTERNAL_REQUEST_LIFETIME_MS_V1: u64 = 30_000;
+const DEFAULT_WALLET_LANE_INTERNAL_REQUEST_LIFETIME_MS_V1: u64 = 15_000;
 
 /// Regional private Worker role named by a signed lane request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -169,6 +172,157 @@ impl WalletLaneInternalRequestVerifierV1 {
     }
 }
 
+/// Trusted Router signer for one exact downstream regional lane request.
+pub struct WalletLaneInternalRequestSignerV1 {
+    issuer: String,
+    audience: String,
+    key_id: String,
+    signing_key: SigningKey,
+    lifetime_ms: u64,
+}
+
+impl WalletLaneInternalRequestSignerV1 {
+    /// Builds a signer using the default 15-second request lifetime.
+    pub fn new(
+        issuer: impl Into<String>,
+        audience: impl Into<String>,
+        key_id: impl Into<String>,
+        signing_seed: [u8; 32],
+    ) -> RouterAbProtocolResult<Self> {
+        Self::new_with_lifetime(
+            issuer,
+            audience,
+            key_id,
+            signing_seed,
+            DEFAULT_WALLET_LANE_INTERNAL_REQUEST_LIFETIME_MS_V1,
+        )
+    }
+
+    /// Builds a signer with an explicit lifetime bounded by the verification policy.
+    pub fn new_with_lifetime(
+        issuer: impl Into<String>,
+        audience: impl Into<String>,
+        key_id: impl Into<String>,
+        mut signing_seed: [u8; 32],
+        lifetime_ms: u64,
+    ) -> RouterAbProtocolResult<Self> {
+        let signing_key = SigningKey::from_bytes(&signing_seed);
+        signing_seed.zeroize();
+        let signer = Self {
+            issuer: issuer.into(),
+            audience: audience.into(),
+            key_id: key_id.into(),
+            signing_key,
+            lifetime_ms,
+        };
+        signer.validate()?;
+        Ok(signer)
+    }
+
+    /// Reissues an authenticated wallet context for one exact downstream request.
+    pub fn issue_for_authenticated_request(
+        &self,
+        authenticated: &AuthenticatedWalletLaneInternalRequestV1,
+        service_role: WalletLaneInternalServiceRoleV1,
+        request_method: impl Into<String>,
+        request_target: impl Into<String>,
+        request_body_sha256: [u8; 32],
+        now_unix_ms: u64,
+    ) -> RouterAbProtocolResult<String> {
+        self.validate()?;
+        require_positive("wallet lane request signing time", now_unix_ms)?;
+        let expires_at_ms = now_unix_ms.checked_add(self.lifetime_ms).ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidTimeRange,
+                "wallet lane request expiry exceeds the timestamp range",
+            )
+        })?;
+        let request_method = request_method.into();
+        let request_target = request_target.into();
+        require_uppercase_method(&request_method)?;
+        require_request_target(&request_target)?;
+        let header = WalletLaneInternalRequestHeaderV1 {
+            alg: "EdDSA".into(),
+            kid: self.key_id.clone(),
+            typ: WALLET_LANE_INTERNAL_REQUEST_TOKEN_TYPE_V1.into(),
+        };
+        let claims = WalletLaneInternalRequestClaimsV1 {
+            iss: self.issuer.clone(),
+            aud: self.audience.clone(),
+            iat_ms: now_unix_ms,
+            exp_ms: expires_at_ms,
+            wallet_lane_context: WalletLaneInternalRequestContextWireV1 {
+                wallet_id: authenticated.wallet_id.clone(),
+                lane_id: authenticated.lane_id.clone(),
+                lane_epoch: authenticated.lane_epoch,
+                directory_revision: authenticated.directory_revision,
+            },
+            service_role,
+            request_method,
+            request_target,
+            request_body_sha256_b64u: encode_base64url_bytes_v1(&request_body_sha256),
+        };
+        let header_json = serde_json::to_vec(&header).map_err(|error| {
+            malformed(format!(
+                "wallet lane request header serialization failed: {error}"
+            ))
+        })?;
+        let claims_json = serde_json::to_vec(&claims).map_err(|error| {
+            malformed(format!(
+                "wallet lane request claims serialization failed: {error}"
+            ))
+        })?;
+        let signing_input = format!(
+            "{}.{}",
+            encode_base64url_bytes_v1(&header_json),
+            encode_base64url_bytes_v1(&claims_json)
+        );
+        let signature = self.signing_key.sign(signing_input.as_bytes()).to_bytes();
+        Ok(format!(
+            "{signing_input}.{}",
+            encode_base64url_bytes_v1(&signature)
+        ))
+    }
+
+    /// Requires this signing identity to be present in the receiving trust bundle.
+    pub fn validate_against_verifier(
+        &self,
+        verifier: &WalletLaneInternalRequestVerifierV1,
+    ) -> RouterAbProtocolResult<()> {
+        self.validate()?;
+        verifier.validate()?;
+        if self.issuer != verifier.issuer || self.audience != verifier.audience {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "wallet lane request signer scope does not match its verifier",
+            ));
+        }
+        let trusted_key = verifier.key_for_id(&self.key_id)?;
+        if trusted_key.public_key != self.signing_key.verifying_key().to_bytes() {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "wallet lane request signing key is not present in its verifier",
+            ));
+        }
+        Ok(())
+    }
+
+    fn validate(&self) -> RouterAbProtocolResult<()> {
+        require_identifier("wallet lane request signer issuer", &self.issuer)?;
+        require_identifier("wallet lane request signer audience", &self.audience)?;
+        require_identifier("wallet lane request signer key id", &self.key_id)?;
+        if self.lifetime_ms == 0
+            || self.lifetime_ms > MAX_WALLET_LANE_INTERNAL_REQUEST_LIFETIME_MS_V1
+        {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidTimeRange,
+                "wallet lane request signer lifetime exceeds policy",
+            ));
+        }
+        Ok(())
+    }
+}
+
 /// Process-local proof that a signed token matches the exact receiving request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuthenticatedWalletLaneInternalRequestV1 {
@@ -243,7 +397,7 @@ impl VerifiedWalletLaneInternalRequestV1 {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct WalletLaneInternalRequestHeaderV1 {
     alg: String,
@@ -251,7 +405,7 @@ struct WalletLaneInternalRequestHeaderV1 {
     typ: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct WalletLaneInternalRequestContextWireV1 {
     wallet_id: String,
@@ -260,7 +414,7 @@ struct WalletLaneInternalRequestContextWireV1 {
     directory_revision: u64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct WalletLaneInternalRequestClaimsV1 {
     iss: String,
@@ -619,6 +773,74 @@ mod tests {
             25_000,
         )
         .expect("TypeScript-issued token");
+    }
+
+    #[test]
+    fn router_reissues_exact_downstream_request() {
+        let authenticated = authenticate_wallet_lane_internal_request_v1(
+            &token(|_| {}),
+            &verifier(),
+            &expectation(br#"{"command":"prepare"}"#),
+            25_000,
+        )
+        .expect("authenticated Router request");
+        let downstream_body = br#"{"command":"derive"}"#;
+        let downstream_expectation = WalletLaneInternalRequestExpectationV1::new(
+            WalletLaneInternalServiceRoleV1::DeriverA,
+            "POST",
+            "/derive?phase=one",
+            Sha256::digest(downstream_body).into(),
+        )
+        .expect("downstream expectation");
+        let downstream_token = WalletLaneInternalRequestSignerV1::new(
+            "https://wallet-gateway.test",
+            "wallet-lane-workers",
+            "wallet-lane-test-key",
+            TEST_SIGNING_KEY,
+        )
+        .expect("Router signer")
+        .issue_for_authenticated_request(
+            &authenticated,
+            WalletLaneInternalServiceRoleV1::DeriverA,
+            "POST",
+            "/derive?phase=one",
+            Sha256::digest(downstream_body).into(),
+            26_000,
+        )
+        .expect("downstream token");
+
+        let verified = verify_wallet_lane_internal_request_v1(
+            &downstream_token,
+            &verifier(),
+            &downstream_expectation,
+            &authority(),
+            27_000,
+        )
+        .expect("admitted downstream request");
+        assert_eq!(verified.wallet_id(), "wallet:region-fixture");
+        assert_eq!(
+            verified.service_role(),
+            WalletLaneInternalServiceRoleV1::DeriverA
+        );
+    }
+
+    #[test]
+    fn router_signer_must_match_the_receiver_trust_bundle() {
+        let foreign_signer = WalletLaneInternalRequestSignerV1::new(
+            "https://wallet-gateway.test",
+            "wallet-lane-workers",
+            "wallet-lane-test-key",
+            [8; 32],
+        )
+        .expect("foreign signer");
+
+        let error = foreign_signer
+            .validate_against_verifier(&verifier())
+            .expect_err("untrusted signing key");
+        assert_eq!(
+            error.code(),
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig
+        );
     }
 
     #[test]

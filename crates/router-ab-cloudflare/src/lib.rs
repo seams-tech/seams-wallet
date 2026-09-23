@@ -230,6 +230,8 @@ mod trace_context;
 mod wallet_lane_authority_d1;
 mod wallet_lane_request;
 #[cfg(feature = "workers-rs")]
+mod wallet_lane_worker;
+#[cfg(feature = "workers-rs")]
 use paths::{
     cloudflare_deriver_peer_service_url, cloudflare_deriver_tenant_root_cleanup_service_url,
     cloudflare_deriver_tenant_root_create_role_share_service_url,
@@ -272,8 +274,20 @@ pub use wallet_lane_request::{
     authenticate_wallet_lane_internal_request_v1, verify_wallet_lane_internal_request_v1,
     ActiveWalletLaneAuthorityV1, AuthenticatedWalletLaneInternalRequestV1,
     VerifiedWalletLaneInternalRequestV1, WalletLaneInternalRequestExpectationV1,
-    WalletLaneInternalRequestVerifierV1, WalletLaneInternalServiceRoleV1,
+    WalletLaneInternalRequestSignerV1, WalletLaneInternalRequestVerifierV1,
+    WalletLaneInternalServiceRoleV1,
     WALLET_LANE_INTERNAL_REQUEST_HEADER_V1,
+};
+#[cfg(feature = "workers-rs")]
+pub use wallet_lane_worker::{
+    admit_cloudflare_deriver_wallet_lane_request_v1,
+    admit_cloudflare_signing_worker_wallet_lane_request_v1,
+    authenticate_cloudflare_wallet_lane_request_v1,
+    parse_cloudflare_wallet_lane_request_signer_v1,
+    parse_cloudflare_wallet_lane_request_verifier_v1, WALLET_LANE_REQUEST_AUDIENCE_ENV_V1,
+    WALLET_LANE_REQUEST_ISSUER_ENV_V1, WALLET_LANE_REQUEST_JWKS_JSON_ENV_V1,
+    WALLET_LANE_REQUEST_SIGNING_KEY_BINDING_ENV_V1,
+    WALLET_LANE_REQUEST_SIGNING_KEY_ID_ENV_V1,
 };
 #[cfg(any(
     all(
