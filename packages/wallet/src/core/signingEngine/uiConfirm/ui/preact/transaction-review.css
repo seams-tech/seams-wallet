@@ -610,7 +610,7 @@
 :where(.seams-wallet-ui) .seams-receipt-morph-shell {
   position: fixed;
   pointer-events: none;
-  z-index: 1;
+  z-index: 0;
   box-sizing: border-box;
   background: var(--seams-colors-colorBackground);
   border: 1px solid var(--seams-colors-borderPrimary);
@@ -723,4 +723,21 @@
     min-width: 2.75rem;
     min-height: 2.75rem;
   }
+}
+
+/* Shared receipt content stays visible above the moving surface. */
+.seams-wallet-ui[data-receipt-morphing] .seams-confirmation-modal,
+.seams-wallet-ui[data-receipt-morphing] .seams-confirmation-modal .modal-container-root {
+  overflow: visible;
+}
+.seams-wallet-ui[data-receipt-morphing] .seams-confirmation-modal .modal-container-root {
+  z-index: 1;
+  background: transparent;
+  box-shadow: none;
+}
+.seams-wallet-ui[data-receipt-morphing] .seams-transaction-toast {
+  background: transparent;
+}
+.seams-wallet-ui[data-receipt-morphing] .seams-toast-progress {
+  visibility: hidden;
 }

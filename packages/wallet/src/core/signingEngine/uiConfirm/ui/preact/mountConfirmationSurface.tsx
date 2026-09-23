@@ -40,6 +40,32 @@ type SurfaceState =
   | { kind: 'mounted' | 'closing'; model: ConfirmSurfaceModel; onClosed: () => void }
   | { kind: 'disposed'; model?: never; onClosed?: never };
 
+const RECEIPT_MORPH_DURATION_MS = 360;
+const RECEIPT_MORPH_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
+const RECEIPT_ANCHORS = ['.seams-receipt-symbol', '[role="status"]', '.seams-review-amount'] as const;
+
+type ReceiptAnchor = {
+  selector: (typeof RECEIPT_ANCHORS)[number];
+  text: string | null;
+  bounds: DOMRect;
+  fontSize: string;
+};
+
+function captureReceiptAnchors(surface: HTMLElement): ReceiptAnchor[] {
+  const anchors: ReceiptAnchor[] = [];
+  for (const selector of RECEIPT_ANCHORS) {
+    const element = surface.querySelector<HTMLElement>(selector);
+    if (!element) continue;
+    anchors.push({
+      selector,
+      text: element.textContent,
+      bounds: element.getBoundingClientRect(),
+      fontSize: getComputedStyle(element).fontSize,
+    });
+  }
+  return anchors;
+}
+
 let nextSurfaceId = 0;
 
 class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
@@ -56,6 +82,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     this.receiptMotion = [];
     this.receiptShell?.remove();
     this.receiptShell = null;
+    this.element.removeAttribute('data-receipt-morphing');
   };
 
   constructor(input: MountConfirmationInput) {
@@ -108,6 +135,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     const viewChanged = this.receipt?.view !== model.view;
     const previousShell = this.receiptShell ?? this.element.querySelector('.modal-container-root');
     const previousBounds = previousShell?.getBoundingClientRect();
+    const anchors = viewChanged ? captureReceiptAnchors(this.element) : [];
     const previousRadius = previousShell ? getComputedStyle(previousShell).borderRadius : '26px';
     if (viewChanged) this.clearReceiptMotion();
     this.receipt = model;
@@ -118,21 +146,57 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     const target = this.element.querySelector<HTMLElement>('.modal-container-root');
     if (viewChanged && previousBounds && target && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       const bounds = target.getBoundingClientRect();
-      // Animate an empty surface so its contents never scale or reflow during the morph.
+      // The shell and shared content travel independently, keeping text undistorted.
       const shell = this.element.ownerDocument.createElement('div');
       shell.className = 'seams-receipt-morph-shell';
       shell.setAttribute('aria-hidden', 'true');
       this.element.appendChild(shell);
       this.receiptShell = shell;
+      this.element.setAttribute('data-receipt-morphing', '');
       const morph = shell.animate([
         { left: `${previousBounds.left}px`, top: `${previousBounds.top}px`, width: `${previousBounds.width}px`, height: `${previousBounds.height}px`, borderRadius: previousRadius },
         { left: `${bounds.left}px`, top: `${bounds.top}px`, width: `${bounds.width}px`, height: `${bounds.height}px`, borderRadius: getComputedStyle(target).borderRadius },
-      ], { duration: 360, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'both' });
-      const reveal = target.animate([{ opacity: 0 }, { opacity: 1 }], {
-        duration: 140, delay: 220, fill: 'backwards', easing: 'ease-out',
-      });
-      this.receiptMotion = [morph, reveal];
-      reveal.onfinish = this.clearReceiptMotion;
+      ], { duration: RECEIPT_MORPH_DURATION_MS, easing: RECEIPT_MORPH_EASING, fill: 'both' });
+      this.receiptMotion = [morph];
+      const shared = new Set<HTMLElement>();
+      for (const anchor of anchors) {
+        const element = target.querySelector<HTMLElement>(anchor.selector);
+        if (!element || element.textContent !== anchor.text) continue;
+        const destination = element.getBoundingClientRect();
+        shared.add(element);
+        const scale = parseFloat(anchor.fontSize) / parseFloat(getComputedStyle(element).fontSize);
+        this.receiptMotion.push(element.animate([
+          {
+            transform: `translate(${anchor.bounds.left - destination.left}px, ${anchor.bounds.top - destination.top}px) scale(${scale})`,
+            transformOrigin: 'top left',
+          },
+          {
+            transform: 'translate(0, 0) scale(1)',
+            transformOrigin: 'top left',
+          },
+        ], { duration: RECEIPT_MORPH_DURATION_MS, easing: RECEIPT_MORPH_EASING }));
+      }
+      const details = target.querySelectorAll<HTMLElement>(
+        '.seams-transaction-receipt > :not(.seams-receipt-heading), ' +
+        '.seams-receipt-heading > .seams-receipt-symbol, .seams-receipt-heading h2, ' +
+        '.seams-receipt-heading p, .seams-transaction-toast > :not(.seams-transaction-toast-text, .seams-toast-progress), ' +
+        '.seams-transaction-toast-text > *',
+      );
+      let order = 0;
+      for (const detail of details) {
+        if (shared.has(detail)) continue;
+        this.receiptMotion.push(detail.animate([
+          { opacity: 0, transform: 'translateY(8px)' },
+          { opacity: 1, transform: 'translateY(0)' },
+        ], {
+          duration: 120,
+          delay: model.view === 'toast' ? 240 : 180 + Math.min(order, 4) * 15,
+          fill: 'backwards',
+          easing: 'ease-out',
+        }));
+        order += 1;
+      }
+      morph.onfinish = this.clearReceiptMotion;
     }
   }
 
