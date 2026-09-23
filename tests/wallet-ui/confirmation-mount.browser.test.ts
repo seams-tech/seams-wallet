@@ -568,6 +568,12 @@ test('receipt morph keeps its status visible and reverses from its current posit
   expect((await symbol.boundingBox())?.x).toBeCloseTo(midway!.x, 0);
   expect((await symbol.boundingBox())?.y).toBeCloseTo(midway!.y, 0);
   await expect(heading).toHaveText('Broadcasting transaction');
+  // Release test-paused CSS effects before changing the motion preference.
+  await page.evaluate(() => {
+    for (const animation of document.getAnimations()) {
+      if (animation instanceof CSSAnimation) animation.cancel();
+    }
+  });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.evaluate(() => window.__confirmationMount.receipt(0, { kind: 'broadcasting' }, 'toast'));
   await expect(surface).not.toHaveAttribute('data-receipt-morphing');

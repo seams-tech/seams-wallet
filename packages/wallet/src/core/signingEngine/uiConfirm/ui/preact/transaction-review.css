@@ -419,6 +419,7 @@
 }
 :where(.seams-wallet-ui) .seams-transaction-toast {
   position: relative;
+  border-radius: inherit;
   background: var(--seams-colors-colorBackground);
   display: flex;
   align-items: center;
@@ -427,16 +428,17 @@
 }
 :where(.seams-wallet-ui) .seams-toast-progress {
   position: absolute;
-  inset: 0 0 auto;
-  height: 2px;
-  background: var(--seams-colors-colorBackground);
+  inset: 0;
+  border-radius: inherit;
   overflow: hidden;
+  pointer-events: none;
 }
 :where(.seams-wallet-ui) .seams-toast-progress > span {
   display: block;
-  height: 100%;
+  height: 2px;
   width: 0;
   background: var(--seams-colors-buttonBackground);
+  transform-origin: left;
   transition: width 300ms ease-out;
 }
 :where(.seams-wallet-ui) [data-completed-stages='1'] .seams-toast-progress > span {
@@ -686,6 +688,12 @@
   }
 }
 @media (prefers-reduced-motion: no-preference) {
+  :where(.seams-wallet-ui) .seams-toast-progress {
+    animation: seams-toast-progress-reveal 1ms step-end 200ms backwards;
+  }
+  :where(.seams-wallet-ui) .seams-toast-progress > span {
+    animation: seams-toast-progress-draw 180ms ease-out 200ms backwards;
+  }
   :where(.seams-wallet-ui) .seams-receipt-step[data-state='active'] .seams-receipt-track::after {
     animation: seams-receipt-sweep 1.2s ease-in-out infinite;
   }
@@ -696,6 +704,22 @@
   }
   :where(.seams-wallet-ui) .seams-receipt-symbol[data-pending='true'] svg {
     animation: seams-receipt-spin 1.2s linear infinite;
+  }
+}
+@keyframes seams-toast-progress-reveal {
+  from {
+    visibility: hidden;
+  }
+  to {
+    visibility: visible;
+  }
+}
+@keyframes seams-toast-progress-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
   }
 }
 @keyframes seams-receipt-sweep {
@@ -712,6 +736,12 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  :where(.seams-wallet-ui) .seams-toast-progress,
+  :where(.seams-wallet-ui) .seams-toast-progress > span {
+    animation: none;
+    visibility: visible;
+    transform: none;
+  }
   :where(.seams-wallet-ui) .seams-review-caret,
   :where(.seams-wallet-ui) .seams-toast-progress > span,
   :where(.seams-wallet-ui) .seams-receipt-track::after {
@@ -737,7 +767,4 @@
 }
 .seams-wallet-ui[data-receipt-morphing] .seams-transaction-toast {
   background: transparent;
-}
-.seams-wallet-ui[data-receipt-morphing] .seams-toast-progress {
-  visibility: hidden;
 }
