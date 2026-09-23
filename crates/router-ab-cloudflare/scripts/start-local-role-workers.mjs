@@ -22,6 +22,7 @@ const workersReadyPath = path.join(localRoot, '.runtime', 'role-workers.ready');
 // Separate local stacks reuse Worker names, so each needs its own discovery registry.
 const workerEnv = {
   ...process.env,
+  WRANGLER_LOG: process.env.WRANGLER_LOG || 'warn',
   WRANGLER_REGISTRY_PATH: path.join(localRoot, '.local', 'worker-registry'),
 };
 const children = [];
@@ -181,8 +182,9 @@ function applyPrivateD1Migrations(runtime) {
         config.configPath,
       ],
       repoRoot,
-      { ...process.env, CI: 'true' },
+      { ...workerEnv, CI: 'true' },
     );
+    console.log(`Local database ready: ${config.role}`);
   }
 }
 

@@ -37,6 +37,7 @@ Secrets, applies role-private D1 migrations, starts all five role Workers,
 creates and activates a local tenant root, renders the Gateway configuration,
 applies the Gateway signer migration, and starts Gateway. Each default run uses
 a fresh temporary runtime root; the ready line prints its path.
+Set `WRANGLER_LOG=log` before `pnpm router` when detailed Wrangler output is needed.
 
 Start the browser example in another terminal:
 

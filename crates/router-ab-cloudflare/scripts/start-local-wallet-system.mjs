@@ -40,6 +40,7 @@ const identity = Object.freeze({
 // Separate local stacks reuse Worker names, so each needs its own discovery registry.
 const workerEnv = {
   ...process.env,
+  WRANGLER_LOG: process.env.WRANGLER_LOG || 'warn',
   WRANGLER_REGISTRY_PATH: path.join(localRoot, '.local', 'worker-registry'),
 };
 const children = [];
@@ -55,10 +56,12 @@ async function main() {
   installSignalHandlers();
   mkdirSync(localRoot, { recursive: true });
   rmSync(workersReadyPath, { force: true });
+  console.log('Starting local Wallet role Workers...');
   startRoleWorkers();
   await waitForHttp(`${routerUrl}/.well-known/router-ab/keyset`, 120_000, true);
   await waitForFile(workersReadyPath, 120_000);
   await waitForFile(ceremonyPrivateJwkPath, 10_000);
+  console.log('Provisioning local tenant root...');
   const tenantRoot = bootstrapTenantRoot();
   const deployment = localDeployment(tenantRoot);
   const runtime = prepareLocalHostedWalletGatewayConfig({
@@ -71,6 +74,7 @@ async function main() {
     deployment,
   });
   applySignerMigrations(runtime);
+  console.log('Starting local Wallet Gateway...');
   startGateway(runtime);
   await waitForHttp(`${runtime.gatewayUrl}/readyz`, 120_000, true);
   console.log(
@@ -258,8 +262,9 @@ function applySignerMigrations(runtime) {
       '--config',
       runtime.configPath,
     ],
-    { ...process.env, CI: 'true' },
+    { ...workerEnv, CI: 'true' },
   );
+  console.log('Local database ready: wallet-gateway');
 }
 
 function startGateway(runtime) {
