@@ -22,6 +22,8 @@ always fetched from the controller. No `.env` file, private Console
 service, or `seams-monorepo` checkout is required.
 
 Use `pnpm router -- --root ./path/to/runtime` to select the backend runtime directory.
+Without `--root`, each router launch uses fresh temporary state, so wallets from an
+earlier local run are not available after restarting the backend.
 Use `pnpm site -- --skip-build` after the public Wallet artifacts have already been built.
 If a run is interrupted, stop any remaining `wrangler dev` processes before restarting.
 
