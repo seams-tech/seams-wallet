@@ -101,6 +101,7 @@ import {
   parseManagedWalletHomeLaneId,
   requireWalletRegionBoundary,
   WalletHomeLaneAssignmentService,
+  createWalletHomeRegionRouteExtension,
 } from './cloud-host';
 
 export interface CloudflareD1GatewayBaseEnv
@@ -569,7 +570,7 @@ async function createStagingRouterApiAuthComposition(
       assignments,
     ),
   };
-  return { service, ecdsaStrictPostRegistration };
+  return { service, ecdsaStrictPostRegistration, walletRegionStore, assignments };
 }
 
 async function loadStagingRouterApiAuthComposition(
@@ -728,18 +729,26 @@ export async function createHostedWalletGatewayCompositionV1(
     env,
     createStagingRegistrationTenantRootResolver(scope, tenantRootCustodyLineage),
   );
-  const { service, ecdsaStrictPostRegistration } = await createStagingRouterApiAuthComposition(
-    env,
-    scope,
-    yaoRuntime,
-    tenantRootCustodyLineage,
-    dependencies,
-  );
+  const { service, ecdsaStrictPostRegistration, walletRegionStore, assignments } =
+    await createStagingRouterApiAuthComposition(
+      env,
+      scope,
+      yaoRuntime,
+      tenantRootCustodyLineage,
+      dependencies,
+    );
   const handler = createCloudflareWalletGatewayRouterV1({
     service,
     walletConsole: env.WALLET_CONSOLE,
     signerDatabase: env.SIGNER_DB,
     signerStorageNamespace: scope.namespace,
+    routeExtensions: [
+      createWalletHomeRegionRouteExtension({
+        session,
+        assignments,
+        catalog: walletRegionStore,
+      }),
+    ],
     router: {
       healthz: true,
       readyz: true,

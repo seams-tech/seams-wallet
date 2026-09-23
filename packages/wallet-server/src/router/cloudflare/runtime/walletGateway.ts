@@ -161,6 +161,7 @@ export interface CloudflareWalletGatewayRouterOptionsV1 {
   readonly walletConsole: WalletConsoleServiceBinding;
   readonly signerDatabase: CloudflareD1RouterAbNormalSigningAdmissionStoreOptions['database'];
   readonly signerStorageNamespace: string;
+  readonly routeExtensions?: readonly RouterApiRouteExtension[];
   readonly router: Omit<RouterApiOptions, WalletGatewayManagedRouterOption>;
 }
 
@@ -179,6 +180,9 @@ export function createCloudflareWalletGatewayRouterV1(
     apiKeyUsageMeter: consoleOps.usageMeter,
     orgProjectEnv: consoleOps.projectEnvironments,
     routerAbNormalSigningAdmission: createRouterAbNormalSigningAdmissionAdapter(admissionStore),
-    routeExtensions: [createWalletConsoleRelayProxyExtensionV1(input.walletConsole)],
+    routeExtensions: [
+      createWalletConsoleRelayProxyExtensionV1(input.walletConsole),
+      ...(input.routeExtensions ?? []),
+    ],
   });
 }

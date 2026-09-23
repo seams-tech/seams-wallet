@@ -1,6 +1,7 @@
 import type { WalletId } from '../utils/domainIds';
 import type { ManagedWalletLaneStatus, ManagedWalletRegion, WalletHomeLane } from './homeLane';
 import {
+  type WalletDirectoryRevision,
   parseUnixTimestamp,
   requireWalletRegionBoundary,
   type UnixTimestamp,
@@ -8,6 +9,12 @@ import {
   type WalletRegionMigrationId,
   type WalletRegionPolicyVersion,
 } from './ids';
+
+export type WalletHomeRegionSnapshotV1 = {
+  readonly kind: 'wallet_home_region_snapshot_v1';
+  readonly directoryRevision: WalletDirectoryRevision;
+  readonly snapshot: HomeRegionSnapshot;
+};
 
 export type WalletHomeRegionPolicy =
   | {
