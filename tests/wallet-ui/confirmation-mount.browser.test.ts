@@ -219,7 +219,8 @@ test('toast progress advances in thirds only after completed transaction stages'
     window.__confirmationMount.receipt(0, { kind: 'signing' });
   });
   const progress = page.locator('.seams-toast-progress');
-  const fill = progress.locator('span');
+  const fill = progress.locator('.seams-toast-progress-fill');
+  const active = progress.locator('.seams-toast-progress-active');
   const spinner = page.locator('.seams-transaction-toast .seams-receipt-symbol svg');
   const stages: { state: TransactionReceiptState; fraction: number; pending: boolean }[] = [
     { state: { kind: 'signing' }, fraction: 0, pending: true },
@@ -238,6 +239,11 @@ test('toast progress advances in thirds only after completed transaction stages'
       })
       .toBeCloseTo(fraction, 2);
     await expect(spinner).toHaveCSS('animation-name', pending ? 'seams-receipt-spin' : 'none');
+    await expect(active).toHaveCount(pending ? 1 : 0);
+    if (pending) {
+      expect(await active.evaluate((element) => getComputedStyle(element, '::after').animationName))
+        .toBe('seams-receipt-sweep');
+    }
   }
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.evaluate(() =>
@@ -245,6 +251,8 @@ test('toast progress advances in thirds only after completed transaction stages'
   );
   await expect(fill).toHaveCSS('transition-duration', '0s');
   await expect(spinner).toHaveCSS('animation-name', 'none');
+  expect(await active.evaluate((element) => getComputedStyle(element, '::after').animationName))
+    .toBe('none');
   await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
