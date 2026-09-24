@@ -7267,6 +7267,13 @@ pub fn parse_cloudflare_router_authorized_router_ab_ecdsa_derivation_prepare_req
     };
     let presign_source = match object.remove("presign_source") {
         Some(value) => {
+            if value.get("kind").and_then(serde_json::Value::as_str) == Some("final_presign_batch")
+            {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidGateDecision,
+                    "Bundled final presign batch is gated until its producer authority is verified",
+                ));
+            }
             serde_json::from_value::<CloudflareEcdsaPrepareSourceV1>(value).map_err(|error| {
                 RouterAbProtocolError::new(
                     RouterAbProtocolErrorCode::MalformedWirePayload,

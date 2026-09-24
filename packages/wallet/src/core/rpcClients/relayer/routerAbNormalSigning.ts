@@ -6,7 +6,6 @@ import {
   parseRouterAbEcdsaDerivationEvmDigestSigningPrepareResponseForRequestV1,
   parseRouterAbEcdsaDerivationEvmDigestSigningResponseForCoreRequestV1,
   parseRouterAbEcdsaOperationStepUpPreparationV1,
-  type RouterAbEcdsaPrepareSourceV1,
   type RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1Wire,
   type RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1Wire,
   type RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire,
@@ -1388,60 +1387,6 @@ export async function prepareRouterAbEcdsaDerivationEvmDigestSigningV1(args: {
     body: args.request,
     parse: (value) =>
       parseRouterAbEcdsaDerivationEvmDigestSigningPrepareResponseForRequestV1(args.request, value),
-  });
-}
-
-export type RouterAbEcdsaFinalBatchPrepareResponse = {
-  preparedResponse: RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1Wire;
-  outgoingMessagesB64u: [string];
-};
-
-async function parseFinalBatchPrepareResponse(
-  request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire,
-  value: unknown,
-): Promise<RouterAbEcdsaFinalBatchPrepareResponse> {
-  if (
-    !value ||
-    typeof value !== 'object' ||
-    !('prepared_response' in value) ||
-    !('outgoing_messages_b64u' in value)
-  ) {
-    throw new Error('Invalid terminal prepare response');
-  }
-  const messages = value.outgoing_messages_b64u;
-  if (
-    !Array.isArray(messages) ||
-    messages.length !== 1 ||
-    typeof messages[0] !== 'string' ||
-    !/^[A-Za-z0-9_-]+$/.test(messages[0])
-  ) {
-    throw new Error('Terminal prepare response must contain one protocol message');
-  }
-  return {
-    preparedResponse: await parseRouterAbEcdsaDerivationEvmDigestSigningPrepareResponseForRequestV1(
-      request,
-      value.prepared_response,
-    ),
-    outgoingMessagesB64u: [messages[0]],
-  };
-}
-
-export async function prepareRouterAbEcdsaFinalPresignBatchV1(args: {
-  relayServerUrl: string;
-  credential: RouterAbOwnerNormalSigningCredential;
-  request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1Wire;
-  source: Extract<RouterAbEcdsaPrepareSourceV1, { kind: 'final_presign_batch' }>;
-}): Promise<RouterAbEcdsaFinalBatchPrepareResponse> {
-  await routerAbEcdsaDerivationEvmDigestSigningRequestDigestV1(args.request);
-  const timeoutMs = Math.min(5_000, args.source.batch.ceremony_expires_at_ms - Date.now());
-  if (timeoutMs <= 0) throw new Error('Terminal presign ceremony expired before prepare');
-  return postRouterAbNormalSigningJson({
-    signal: AbortSignal.timeout(Math.floor(timeoutMs)),
-    relayServerUrl: args.relayServerUrl,
-    path: '/router-ab/ecdsa-derivation/sign/prepare',
-    credential: args.credential,
-    body: { ...args.request, presign_source: args.source },
-    parse: parseFinalBatchPrepareResponse.bind(undefined, args.request),
   });
 }
 
