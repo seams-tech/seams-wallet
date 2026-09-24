@@ -61,6 +61,10 @@ const gatewayOnlyRouterPaths = new Set([
   '/router-ab/router/ed25519-yao/execute-source-preserving',
   '/router-ab/internal/ed25519-yao/lane/execute',
   '/router-ab/router/ed25519-yao/recovery/promote',
+  '/router-ab/ed25519/sign/prepare',
+  '/router-ab/ed25519/sign',
+  ecdsaSigningPreparePath,
+  ecdsaSigningPath,
 ]);
 const ed25519ActivationPackagesPath =
   '/router-ab/signing-worker/ed25519-yao/activation/packages';
@@ -1332,6 +1336,16 @@ async function testEcdsaNormalSigning(topology, ecdsa, mode = 'pool', checkRejec
       const rejected = await postWorkerJson(router, ecdsaSigningPreparePath, substituted);
       assert.equal(rejected.ok, false, 'Wrong-scope handoff must be rejected before MPC advances');
       }
+    }
+    if (checkRejections) {
+      const sharedBearer = await postWorkerJson(router, ecdsaSigningPreparePath, prepareRequest, {
+        [internalAuthHeader]: internalAuthSecret,
+      });
+      assert.equal(
+        sharedBearer.status,
+        403,
+        'Gateway-admitted signing must reject the role-shared bearer',
+      );
     }
     const prepareResponse = await postWorkerJson(
       router,
@@ -2798,8 +2812,23 @@ async function main() {
       return;
     }
     if (process.argv.includes('--ecdsa-presign-handoff')) {
-      await testEcdsaNormalSigning(topology, ecdsa, 'prepare');
-      console.log('authenticated terminal handoff, scope rejection, replay rejection, and ECDSA signature verification passed');
+      const signing = await testEcdsaNormalSigning(topology, ecdsa, 'prepare');
+      const artifact = {
+        kind: 'gateway_router_normal_signing_auth_e2e_v1',
+        reproduce:
+          'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --ecdsa-presign-handoff',
+        sharedRoleBearerRejected: true,
+        dedicatedGatewayBearerSigned: true,
+        wrongScopeRejected: true,
+        terminalReplayVerified: true,
+        signatureSha256Hex: createHash('sha256')
+          .update(Buffer.from(signing.response.signature65_b64u, 'base64url'))
+          .digest('hex'),
+      };
+      const artifactPath = join(repoRoot, '.artifacts/r150/gateway-router-normal-signing-auth.json');
+      await mkdir(dirname(artifactPath), { recursive: true });
+      await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
+      console.log(JSON.stringify({ ...artifact, artifactPath }));
       return;
     }
     if (process.argv.includes('--ecdsa-presign')) {

@@ -714,7 +714,7 @@ export async function createHostedWalletGatewayCompositionV1(
       sessionCookieName: readEnvString(env, 'SESSION_COOKIE_NAME'),
       routerAbPublicKeyset: requireStagingRouterAbPublicKeyset(env),
       routerAbNormalSigningRouterProxy: {
-        internalServiceAuthSecret: requireEnvString(env, 'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET'),
+        internalServiceAuthSecret: requireEnvString(env, 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET'),
         fetch: (request) => env.MPC_ROUTER.fetch(request),
       },
       routerAbEcdsaStrictPostRegistration: ecdsaStrictPostRegistration,

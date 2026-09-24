@@ -92,6 +92,7 @@ use crate::{
     handle_cloudflare_router_normal_signing_prepare_internal_step_up_request_v2,
     parse_cloudflare_router_authorized_ed25519_prepare_request_v2_json,
     parse_cloudflare_router_authorized_linked_device_ecdsa_finalize_request_v1_json,
+    require_cloudflare_gateway_to_router_auth_request_v1,
     CloudflareDeriverTenantRootCleanupRequestV1,
     CloudflareDeriverTenantRootCreateRoleShareRequestV1,
     CloudflareDeriverTenantRootCreateRoleShareResponseV1,
@@ -4711,7 +4712,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
         || path == CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PUBLIC_REQUEST_PATH
         || path == CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PUBLIC_REQUEST_PATH
     {
-        if let Err(err) = require_cloudflare_internal_service_auth_request_v1(&request, &env) {
+        if let Err(err) = require_cloudflare_gateway_to_router_auth_request_v1(&request, &env) {
             return cloudflare_private_service_auth_error_response_v1(err);
         }
     }
