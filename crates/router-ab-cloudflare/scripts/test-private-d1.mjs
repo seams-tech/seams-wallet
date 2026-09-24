@@ -33,6 +33,8 @@ const tenantRootCreationDoClass = 'RouterAbTenantRootCreationDurableObject';
 const deriverAWalletDoBinding = 'DERIVER_A_WALLET_DO';
 const deriverAWalletDoClass = 'RouterAbDeriverAWalletDurableObject';
 const deriverAWalletDoPath = '/router-ab/internal/deriver-a/wallet-pair';
+const deriverAWalletStatusPath = '/router-ab/deriver-a/ed25519-yao/read-pair-status';
+const deriverAWalletBurnPath = '/router-ab/deriver-a/ed25519-yao/burn-pair';
 const tenantRootCreationPath = '/router-ab/internal/tenant-root/creation/v1/create';
 const tenantRootRoleCreationPath =
   '/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share';
@@ -1716,6 +1718,58 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
     id: objectId.toString(),
   });
   const deriverA = await topology.getWorker('deriver-a');
+  const object = namespace.get(objectId);
+  const stored = await callDeriverAWalletDo(object, {
+    operation: 'read',
+    owner,
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
+  });
+  assert.equal(stored.body.record.status, 'completed');
+  const scopedLookup = {
+    root_identity: rootIdentity,
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
+  };
+  const scopedStatus = await postWorkerJson(deriverA, deriverAWalletStatusPath, scopedLookup);
+  const scopedStatusBytes = await expectOk(scopedStatus, 'scoped Deriver A wallet status');
+  assert.equal(JSON.parse(scopedStatusBytes.toString('utf8')).status, 'completed');
+  const wrongTenant = await postWorkerJson(deriverA, deriverAWalletStatusPath, {
+    ...scopedLookup,
+    root_identity: { ...rootIdentity, orgId: `${rootIdentity.orgId}-other` },
+  });
+  const wrongTenantBytes = await expectOk(wrongTenant, 'wrong-tenant wallet status');
+  assert.equal(JSON.parse(wrongTenantBytes.toString('utf8')).status, 'missing');
+  const changedRoot = await postWorkerJson(deriverA, deriverAWalletStatusPath, {
+    ...scopedLookup,
+    root_identity: {
+      ...rootIdentity,
+      signingRootVersion: `${rootIdentity.signingRootVersion}-changed`,
+    },
+  });
+  assert.notEqual(changedRoot.status, 200, 'another root version cannot read the admitted pair');
+  const wrongExecution = stored.body.record.execution_id.slice();
+  wrongExecution[0] ^= 1;
+  const wrongBurn = await postWorkerJson(deriverA, deriverAWalletBurnPath, {
+    ...scopedLookup,
+    execution_id: wrongExecution,
+  });
+  assert.notEqual(wrongBurn.status, 200, 'wrong execution cannot cancel A custody');
+  const wrongTenantBurn = await postWorkerJson(deriverA, deriverAWalletBurnPath, {
+    ...scopedLookup,
+    root_identity: { ...rootIdentity, orgId: `${rootIdentity.orgId}-other` },
+    execution_id: stored.body.record.execution_id,
+  });
+  const wrongTenantBurnBytes = await expectOk(wrongTenantBurn, 'wrong-tenant cancellation');
+  assert.equal(JSON.parse(wrongTenantBurnBytes.toString('utf8')).status, 'missing');
+  const completedBurn = await postWorkerJson(deriverA, deriverAWalletBurnPath, {
+    ...scopedLookup,
+    execution_id: stored.body.record.execution_id,
+  });
+  assert.notEqual(completedBurn.status, 200, 'completed A custody cannot be cancelled');
+  const routerReplay = await postWorkerJson(router, ed25519ExecutePath, envelope, {
+    'x-seams-yao-replay': '1',
+  });
+  const routerReplayBytes = await expectOk(routerReplay, 'Router scoped replay after lost reply');
+  parseEd25519ActivationResult(routerReplayBytes, 'Router scoped replay after lost reply');
   const replay = await postWorkerJson(
     deriverA,
     '/router-ab/deriver-a/ed25519-yao/execute-pair',
@@ -1730,6 +1784,12 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
     .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
     .first();
   assert.deepEqual(bAfter, bTerminal);
+  const afterReplay = await callDeriverAWalletDo(object, {
+    operation: 'read',
+    owner,
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
+  });
+  assert.equal(afterReplay.body.revision, stored.body.revision);
   const artifact = {
     kind: 'deriver_a_wallet_do_lost_reply_e2e_v1',
     reproduce: 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-lost-reply',
@@ -1739,6 +1799,8 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
     aD1PairRows: aRows.count,
     bPairLifecycle: bTerminal.lifecycle,
     bRevisionUnchangedOnReplay: true,
+    routerScopedReplayAfterLostReply: true,
+    wrongTenantRootAndExecutionCancellationLeftStateUnchanged: true,
     exactReplayAfterLostReplyAndEviction: true,
   };
   const artifactPath = join(repoRoot, '.artifacts/r150/deriver-a-wallet-do-lost-reply.json');

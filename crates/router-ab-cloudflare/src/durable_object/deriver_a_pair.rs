@@ -25,7 +25,9 @@ use crate::{
         execute_deriver_a_role, fail_deriver_b_pair_after_a_error_v1,
         prepare_deriver_a_pair_readiness_for_wallet_do_v1, DeriverAPairExecutionContextV1,
     },
+    CloudflareDeriverAWalletPairBurnRequestV1, CloudflareDeriverAWalletPairStatusRequestV1,
     CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairPrepareRequestV1,
+    CloudflareEd25519YaoPairStatusResponseV1,
 };
 
 const PAIR_DO_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair";
@@ -33,6 +35,10 @@ const PAIR_DO_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair";
 const PREPARE_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/prepare-work";
 #[cfg(feature = "wallet-do-harness")]
 const EXECUTE_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/execute-work";
+#[cfg(feature = "wallet-do-harness")]
+const STATUS_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/status-work";
+#[cfg(feature = "wallet-do-harness")]
+const BURN_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/burn-work";
 const PAIR_DO_BINDING: &str = "DERIVER_A_WALLET_DO";
 const OWNER_SCHEMA: &str = "
     CREATE TABLE IF NOT EXISTS wallet_owner (
@@ -44,6 +50,7 @@ const PAIR_SCHEMA: &str = "
     CREATE TABLE IF NOT EXISTS yao_pair_sessions (
         session_hex TEXT PRIMARY KEY,
         revision_text TEXT NOT NULL,
+        root_identity_digest_hex TEXT NOT NULL,
         ciphertext_json TEXT NOT NULL
     )
 ";
@@ -248,6 +255,28 @@ pub(crate) async fn call_deriver_a_wallet_do_work_v1<T: Serialize>(
 }
 
 #[cfg(feature = "wallet-do-harness")]
+pub(crate) async fn call_deriver_a_wallet_do_lookup_v1<T: Serialize>(
+    env: &Env,
+    path: &str,
+    root_identity: &TenantRootIdentityV1,
+    pair: &Ed25519YaoInputPairBindingV1,
+    body: &T,
+) -> worker::Result<Response> {
+    let owner = DeriverAWalletOwnerV1::from_root_identity(
+        root_identity,
+        &pair.binding().lifecycle.account_id,
+    )?;
+    let namespace = env.durable_object(PAIR_DO_BINDING)?;
+    let stub = namespace.get_by_name(&owner.object_name()?)?;
+    let body = serde_json::to_string(body).map_err(|error| pair_error(error.to_string()))?;
+    let mut init = worker::RequestInit::new();
+    init.with_method(worker::Method::Post)
+        .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&body)));
+    let request = Request::new_with_init(&format!("https://router-ab-do.internal{path}"), &init)?;
+    stub.fetch_with_request(request).await
+}
+
+#[cfg(feature = "wallet-do-harness")]
 pub(crate) const fn deriver_a_wallet_do_prepare_work_path_v1() -> &'static str {
     PREPARE_WORK_PATH
 }
@@ -255,6 +284,16 @@ pub(crate) const fn deriver_a_wallet_do_prepare_work_path_v1() -> &'static str {
 #[cfg(feature = "wallet-do-harness")]
 pub(crate) const fn deriver_a_wallet_do_execute_work_path_v1() -> &'static str {
     EXECUTE_WORK_PATH
+}
+
+#[cfg(feature = "wallet-do-harness")]
+pub(crate) const fn deriver_a_wallet_do_status_work_path_v1() -> &'static str {
+    STATUS_WORK_PATH
+}
+
+#[cfg(feature = "wallet-do-harness")]
+pub(crate) const fn deriver_a_wallet_do_burn_work_path_v1() -> &'static str {
+    BURN_WORK_PATH
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -268,6 +307,7 @@ pub(crate) enum DeriverAPairDoResponseV1 {
 #[derive(Deserialize)]
 struct PairRowV1 {
     revision_text: String,
+    root_identity_digest_hex: String,
     ciphertext_json: String,
 }
 
@@ -283,6 +323,7 @@ struct RevisionRowV1 {
 
 struct SelectedPairV1 {
     revision: u64,
+    root_identity_digest_hex: String,
     record: PairRecord,
     scope: RolePairRecordScopeV1,
 }
@@ -329,12 +370,98 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
                 let outcome = self.execute_work(work).await?;
                 Response::from_json(&outcome)
             }
+            #[cfg(feature = "wallet-do-harness")]
+            STATUS_WORK_PATH => {
+                let lookup: CloudflareDeriverAWalletPairStatusRequestV1 = request.json().await?;
+                Response::from_json(&self.status_work(lookup)?)
+            }
+            #[cfg(feature = "wallet-do-harness")]
+            BURN_WORK_PATH => {
+                let lookup: CloudflareDeriverAWalletPairBurnRequestV1 = request.json().await?;
+                Response::from_json(&self.burn_work(lookup)?)
+            }
             _ => Response::error("Unknown Deriver A wallet object request", 404),
         }
     }
 }
 
 impl RouterAbDeriverAWalletDurableObject {
+    #[cfg(feature = "wallet-do-harness")]
+    fn status_work(
+        &self,
+        request: CloudflareDeriverAWalletPairStatusRequestV1,
+    ) -> worker::Result<CloudflareEd25519YaoPairStatusResponseV1> {
+        let owner = DeriverAWalletOwnerV1::from_root_identity(
+            &request.root_identity,
+            &request.pair_binding.binding().lifecycle.account_id,
+        )?;
+        let cipher = RolePairCipherV1::from_env_for_wallet_do(&self.env)?;
+        let selected = self.read_scoped(
+            &owner,
+            &cipher,
+            &request.pair_binding,
+            &request.root_identity,
+        )?;
+        Ok(match selected {
+            Some(row) => pair_status(&row.record),
+            None => CloudflareEd25519YaoPairStatusResponseV1::Missing {
+                session: request.pair_binding.session(),
+                pair_digest: request.pair_binding.pair_digest().bytes,
+            },
+        })
+    }
+
+    #[cfg(feature = "wallet-do-harness")]
+    fn burn_work(
+        &self,
+        request: CloudflareDeriverAWalletPairBurnRequestV1,
+    ) -> worker::Result<CloudflareEd25519YaoPairStatusResponseV1> {
+        let expected_execution =
+            Ed25519YaoExecutionIdV1::new(request.pair_binding.pair_digest().bytes)
+                .map_err(|error| pair_error(error.to_string()))?;
+        if request.execution_id != expected_execution {
+            return Err(pair_error(
+                "Deriver A cancellation execution identity differs from pair",
+            ));
+        }
+        let owner = DeriverAWalletOwnerV1::from_root_identity(
+            &request.root_identity,
+            &request.pair_binding.binding().lifecycle.account_id,
+        )?;
+        let cipher = RolePairCipherV1::from_env_for_wallet_do(&self.env)?;
+        let selected = self.read_scoped(
+            &owner,
+            &cipher,
+            &request.pair_binding,
+            &request.root_identity,
+        )?;
+        let Some(selected) = selected else {
+            return Ok(CloudflareEd25519YaoPairStatusResponseV1::Missing {
+                session: request.pair_binding.session(),
+                pair_digest: request.pair_binding.pair_digest().bytes,
+            });
+        };
+        if !matches!(
+            selected.record,
+            PairRecord::Starting { .. } | PairRecord::Running { .. } | PairRecord::Burned { .. }
+        ) {
+            return Err(pair_error(
+                "Deriver A pair cannot be cancelled in its current state",
+            ));
+        }
+        let result = self.execute(DeriverAPairDoCommandV1::Burn {
+            owner,
+            pair_binding: request.pair_binding,
+            execution_id: request.execution_id,
+        })?;
+        match result {
+            DeriverAPairDoResponseV1::Mutation {
+                result: PairResult::Applied { record, .. } | PairResult::Duplicate { record, .. },
+            } if matches!(record, PairRecord::Burned { .. }) => Ok(pair_status(&record)),
+            _ => Err(pair_error("Deriver A pair cancellation was not committed")),
+        }
+    }
+
     #[cfg(feature = "wallet-do-harness")]
     async fn prepare_work(
         &self,
@@ -348,7 +475,9 @@ impl RouterAbDeriverAWalletDurableObject {
         let pair = &request.pair_binding;
         let owner = DeriverAWalletOwnerV1::from_context(&self.env, &request.tenant_root, pair)?;
         let cipher = RolePairCipherV1::from_env_for_wallet_do(&self.env)?;
-        if let Some(existing) = self.read(&owner, &cipher, pair)? {
+        if let Some(existing) =
+            self.read_scoped(&owner, &cipher, pair, &request.tenant_root.identity)?
+        {
             self.check_owner(&owner, false)?;
             return match existing.record {
                 PairRecord::Prepared {
@@ -410,7 +539,7 @@ impl RouterAbDeriverAWalletDurableObject {
         self.check_owner(&owner, false)?;
         let cipher = RolePairCipherV1::from_env_for_wallet_do(&self.env)?;
         let selected = self
-            .read(&owner, &cipher, pair)?
+            .read_scoped(&owner, &cipher, pair, &request.tenant_root.identity)?
             .ok_or_else(|| pair_error("Deriver A pair is not prepared"))?;
         match selected.record {
             PairRecord::Completed {
@@ -754,6 +883,11 @@ impl RouterAbDeriverAWalletDurableObject {
             .tenant_root
             .validate_for_pair(pair_binding)
             .map_err(|error| pair_error(error.to_string()))?;
+        if payload.tenant_root.identity != *root_identity {
+            return Err(pair_error(
+                "Deriver A pair root identity differs from preparation",
+            ));
+        }
         let receipt_bytes = payload
             .tenant_root
             .custody_binding
@@ -782,10 +916,14 @@ impl RouterAbDeriverAWalletDurableObject {
     ) -> worker::Result<Option<SelectedPairV1>> {
         owner.check_pair(pair)?;
         let session_hex = encode_hex(pair.session());
-        let rows = self.sql.exec(
-            "SELECT revision_text, ciphertext_json FROM yao_pair_sessions WHERE session_hex = ?",
-            vec![SqlStorageValue::String(session_hex.clone())],
-        )?.to_array::<PairRowV1>()?;
+        let rows = self
+            .sql
+            .exec(
+                "SELECT revision_text, root_identity_digest_hex, ciphertext_json \
+             FROM yao_pair_sessions WHERE session_hex = ?",
+                vec![SqlStorageValue::String(session_hex.clone())],
+            )?
+            .to_array::<PairRowV1>()?;
         let Some(row) = rows.into_iter().next() else {
             return Ok(None);
         };
@@ -809,9 +947,42 @@ impl RouterAbDeriverAWalletDurableObject {
         }
         Ok(Some(SelectedPairV1 {
             revision,
+            root_identity_digest_hex: row.root_identity_digest_hex,
             record,
             scope: opened.scope,
         }))
+    }
+
+    #[cfg(feature = "wallet-do-harness")]
+    fn read_scoped(
+        &self,
+        owner: &DeriverAWalletOwnerV1,
+        cipher: &RolePairCipherV1,
+        pair: &Ed25519YaoInputPairBindingV1,
+        root_identity: &TenantRootIdentityV1,
+    ) -> worker::Result<Option<SelectedPairV1>> {
+        let expected_owner = DeriverAWalletOwnerV1::from_root_identity(
+            root_identity,
+            &pair.binding().lifecycle.account_id,
+        )?;
+        if &expected_owner != owner {
+            return Err(pair_error(
+                "Deriver A wallet lookup owner differs from root identity",
+            ));
+        }
+        let selected = self.read(owner, cipher, pair)?;
+        if let Some(row) = &selected {
+            self.check_owner(owner, false)?;
+            let digest = root_identity
+                .digest()
+                .map_err(|error| pair_error(error.to_string()))?;
+            if row.root_identity_digest_hex != encode_hex(*digest.as_bytes()) {
+                return Err(pair_error(
+                    "Deriver A pair root identity differs from stored scope",
+                ));
+            }
+        }
+        Ok(selected)
     }
 
     fn mutate(
@@ -837,9 +1008,12 @@ impl RouterAbDeriverAWalletDurableObject {
                 })
             }
             Ed25519YaoPairTransitionV1::Persist(record) => {
-                let scope = match &selected {
-                    Some(row) => row.scope.clone(),
-                    None => initial_scope(&record)?,
+                let (scope, root_identity_digest_hex) = match &selected {
+                    Some(row) => (row.scope.clone(), row.root_identity_digest_hex.clone()),
+                    None => (
+                        initial_scope(&record)?,
+                        initial_root_identity_digest(&record)?,
+                    ),
                 };
                 let session_hex = encode_hex(pair.session());
                 let identity = format!("{}:{session_hex}", owner.object_name()?);
@@ -865,10 +1039,12 @@ impl RouterAbDeriverAWalletDurableObject {
                     )
                 } else {
                     self.sql.exec(
-                        "INSERT INTO yao_pair_sessions (session_hex, revision_text, ciphertext_json) \
-                         VALUES (?, '1', ?) ON CONFLICT DO NOTHING RETURNING revision_text",
+                        "INSERT INTO yao_pair_sessions \
+                         (session_hex, revision_text, root_identity_digest_hex, ciphertext_json) \
+                         VALUES (?, '1', ?, ?) ON CONFLICT DO NOTHING RETURNING revision_text",
                         vec![
                             SqlStorageValue::String(session_hex),
+                            SqlStorageValue::String(root_identity_digest_hex),
                             SqlStorageValue::String(ciphertext_json),
                         ],
                     )
@@ -915,6 +1091,49 @@ fn initial_scope(record: &PairRecord) -> worker::Result<RolePairRecordScopeV1> {
             .to_owned(),
         root_metadata_digest_hex: encode_hex(*root_metadata_digest),
     })
+}
+
+fn initial_root_identity_digest(record: &PairRecord) -> worker::Result<String> {
+    let PairRecord::Prepared { payload, .. } = record else {
+        return Err(pair_error("Initial Deriver A pair state must be Prepared"));
+    };
+    let digest = payload
+        .tenant_root
+        .identity
+        .digest()
+        .map_err(|error| pair_error(error.to_string()))?;
+    Ok(encode_hex(*digest.as_bytes()))
+}
+
+#[cfg(feature = "wallet-do-harness")]
+fn pair_status(record: &PairRecord) -> CloudflareEd25519YaoPairStatusResponseV1 {
+    let session = record.pair_binding().session();
+    let pair_digest = record.pair_binding().pair_digest().bytes;
+    match record {
+        PairRecord::Prepared { .. } => CloudflareEd25519YaoPairStatusResponseV1::Prepared {
+            session,
+            pair_digest,
+        },
+        PairRecord::Starting { .. } | PairRecord::Running { .. } => {
+            CloudflareEd25519YaoPairStatusResponseV1::Running {
+                session,
+                pair_digest,
+            }
+        }
+        PairRecord::Completed { outcome, .. } => {
+            CloudflareEd25519YaoPairStatusResponseV1::Completed {
+                execution: Box::new(outcome.deriver_a_execution.clone()),
+            }
+        }
+        PairRecord::Burned { .. } => CloudflareEd25519YaoPairStatusResponseV1::Burned {
+            session,
+            pair_digest,
+        },
+        PairRecord::Expired { .. } => CloudflareEd25519YaoPairStatusResponseV1::Expired {
+            session,
+            pair_digest,
+        },
+    }
 }
 
 fn record_root_digest(record: &PairRecord) -> Option<[u8; 32]> {

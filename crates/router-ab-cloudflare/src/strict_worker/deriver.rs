@@ -678,13 +678,41 @@ async fn handle_strict_deriver_fetch_v1(
     }
 
     #[cfg(feature = "wallet-do-harness")]
-    if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH
-        || path == CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH
-    {
-        return Response::error(
-            "Deriver A wallet DO lookup requires trusted wallet scope",
-            503,
-        );
+    if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH {
+        let lookup: crate::CloudflareDeriverAWalletPairStatusRequestV1 =
+            match parse_strict_deriver_json_v1(&mut request, "Deriver A wallet DO status".into())
+                .await?
+            {
+                Ok(parsed) => parsed,
+                Err(response) => return Ok(response),
+            };
+        return crate::durable_object::call_deriver_a_wallet_do_lookup_v1(
+            &env,
+            crate::durable_object::deriver_a_wallet_do_status_work_path_v1(),
+            &lookup.root_identity,
+            &lookup.pair_binding,
+            &lookup,
+        )
+        .await;
+    }
+
+    #[cfg(feature = "wallet-do-harness")]
+    if path == CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH {
+        let lookup: crate::CloudflareDeriverAWalletPairBurnRequestV1 =
+            match parse_strict_deriver_json_v1(&mut request, "Deriver A wallet DO burn".into())
+                .await?
+            {
+                Ok(parsed) => parsed,
+                Err(response) => return Ok(response),
+            };
+        return crate::durable_object::call_deriver_a_wallet_do_lookup_v1(
+            &env,
+            crate::durable_object::deriver_a_wallet_do_burn_work_path_v1(),
+            &lookup.root_identity,
+            &lookup.pair_binding,
+            &lookup,
+        )
+        .await;
     }
 
     #[cfg(all(

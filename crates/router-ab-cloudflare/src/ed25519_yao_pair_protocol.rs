@@ -617,6 +617,22 @@ pub struct CloudflareEd25519YaoPairLookupRequestV1 {
     pub pair_digest: [u8; 32],
 }
 
+/// Router-authenticated lookup for one Deriver A wallet-owned pair.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareDeriverAWalletPairStatusRequestV1 {
+    pub root_identity: TenantRootIdentityV1,
+    pub pair_binding: Ed25519YaoInputPairBindingV1,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareDeriverAWalletPairBurnRequestV1 {
+    pub root_identity: TenantRootIdentityV1,
+    pub pair_binding: Ed25519YaoInputPairBindingV1,
+    pub execution_id: Ed25519YaoExecutionIdV1,
+}
+
 /// Sanitized role-local state returned only to the MPC Router for exact replay.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]

@@ -30,8 +30,9 @@ pub(crate) use deriver_a_pair::{
 };
 #[cfg(all(feature = "workers-rs", feature = "wallet-do-harness"))]
 pub(crate) use deriver_a_pair::{
-    call_deriver_a_wallet_do_work_v1, deriver_a_wallet_do_execute_work_path_v1,
-    deriver_a_wallet_do_prepare_work_path_v1,
+    call_deriver_a_wallet_do_lookup_v1, call_deriver_a_wallet_do_work_v1,
+    deriver_a_wallet_do_burn_work_path_v1, deriver_a_wallet_do_execute_work_path_v1,
+    deriver_a_wallet_do_prepare_work_path_v1, deriver_a_wallet_do_status_work_path_v1,
 };
 #[cfg(any(feature = "workers-rs", test))]
 pub(crate) mod tenant_root_creation;
