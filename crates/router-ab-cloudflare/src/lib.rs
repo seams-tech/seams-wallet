@@ -216,8 +216,7 @@ pub use auth::{
     set_cloudflare_internal_service_auth_header_v1,
 };
 use auth::{
-    router_jwt_segment_error, unix_seconds_to_millis_v1, verify_ed25519_signature_v1,
-    verify_router_ed25519_jwt_signature_v1,
+    router_jwt_segment_error, unix_seconds_to_millis_v1, verify_router_ed25519_jwt_signature_v1,
 };
 use encoding::{
     decode_base64url_bytes_v1, decode_base64url_fixed_32_v1, decode_base64url_fixed_33_v1,
@@ -226,11 +225,6 @@ use encoding::{
 mod paths;
 pub use paths::*;
 mod trace_context;
-#[cfg(feature = "workers-rs")]
-mod wallet_lane_authority_d1;
-mod wallet_lane_request;
-#[cfg(feature = "workers-rs")]
-mod wallet_lane_worker;
 #[cfg(feature = "workers-rs")]
 use paths::{
     cloudflare_deriver_peer_service_url, cloudflare_deriver_tenant_root_cleanup_service_url,
@@ -262,32 +256,6 @@ pub use trace_context::CloudflareTraceIdV1;
 pub use trace_context::{
     parse_cloudflare_trace_id_from_request_v1, set_cloudflare_trace_id_header_v1,
     CLOUDFLARE_TRACE_ID_HEADER_V1,
-};
-#[cfg(feature = "workers-rs")]
-pub use wallet_lane_authority_d1::{
-    load_cloudflare_active_wallet_lane_authority_v1,
-    load_cloudflare_deriver_active_wallet_lane_authority_v1,
-    load_cloudflare_signing_worker_active_wallet_lane_authority_v1,
-};
-pub use wallet_lane_request::{
-    admit_wallet_lane_internal_request_authority_v1,
-    authenticate_wallet_lane_internal_request_v1, verify_wallet_lane_internal_request_v1,
-    ActiveWalletLaneAuthorityV1, AuthenticatedWalletLaneInternalRequestV1,
-    VerifiedWalletLaneInternalRequestV1, WalletLaneInternalRequestExpectationV1,
-    WalletLaneInternalRequestSignerV1, WalletLaneInternalRequestVerifierV1,
-    WalletLaneInternalServiceRoleV1,
-    WALLET_LANE_INTERNAL_REQUEST_HEADER_V1,
-};
-#[cfg(feature = "workers-rs")]
-pub use wallet_lane_worker::{
-    admit_cloudflare_deriver_wallet_lane_request_v1,
-    admit_cloudflare_signing_worker_wallet_lane_request_v1,
-    authenticate_cloudflare_wallet_lane_request_v1,
-    parse_cloudflare_wallet_lane_request_signer_v1,
-    parse_cloudflare_wallet_lane_request_verifier_v1, WALLET_LANE_REQUEST_AUDIENCE_ENV_V1,
-    WALLET_LANE_REQUEST_ISSUER_ENV_V1, WALLET_LANE_REQUEST_JWKS_JSON_ENV_V1,
-    WALLET_LANE_REQUEST_SIGNING_KEY_BINDING_ENV_V1,
-    WALLET_LANE_REQUEST_SIGNING_KEY_ID_ENV_V1,
 };
 #[cfg(any(
     all(
