@@ -24,6 +24,16 @@ pub enum Ed25519YaoPairRecordV1<P, O> {
         receipt: Ed25519YaoRoleReadinessReceiptV1,
         payload: P,
     },
+    Starting {
+        pair_binding: Ed25519YaoInputPairBindingV1,
+        root_metadata_digest: [u8; 32],
+        expires_at_ms: u64,
+        execution_id: Ed25519YaoExecutionIdV1,
+        started_at_ms: u64,
+        local_receipt: Ed25519YaoRoleReadinessReceiptV1,
+        peer_receipt: Ed25519YaoRoleReadinessReceiptV1,
+        payload: P,
+    },
     Running {
         pair_binding: Ed25519YaoInputPairBindingV1,
         root_metadata_digest: [u8; 32],
@@ -36,6 +46,7 @@ pub enum Ed25519YaoPairRecordV1<P, O> {
         pair_binding: Ed25519YaoInputPairBindingV1,
         execution_id: Ed25519YaoExecutionIdV1,
         claim_identity: Ed25519YaoPairClaimIdentityV1,
+        payload: P,
         outcome: O,
     },
     Burned {
@@ -51,6 +62,7 @@ impl<P, O> Ed25519YaoPairRecordV1<P, O> {
     pub fn pair_binding(&self) -> &Ed25519YaoInputPairBindingV1 {
         match self {
             Self::Prepared { pair_binding, .. }
+            | Self::Starting { pair_binding, .. }
             | Self::Running { pair_binding, .. }
             | Self::Completed { pair_binding, .. }
             | Self::Burned { pair_binding, .. }
@@ -153,16 +165,17 @@ pub fn prepare_ed25519_yao_pair_v1<P: PartialEq, O>(
         Some(Ed25519YaoPairRecordV1::Prepared { .. }) => {
             Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch)
         }
-        Some(Ed25519YaoPairRecordV1::Running { .. }) => {
+        Some(Ed25519YaoPairRecordV1::Starting { .. })
+        | Some(Ed25519YaoPairRecordV1::Running { .. }) => {
             Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
         }
         Some(_) => Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Terminal),
     }
 }
 
-pub fn claim_ed25519_yao_pair_v1<P: Clone, O>(
+pub fn reserve_ed25519_yao_pair_v1<P: Clone, O>(
     current: &Ed25519YaoPairRecordV1<P, O>,
-    claim: Ed25519YaoPairStartClaimV1<'_>,
+    reservation: Ed25519YaoPairReservationV1<'_>,
 ) -> Ed25519YaoPairTransitionV1<P, O> {
     match current {
         Ed25519YaoPairRecordV1::Prepared {
@@ -172,6 +185,87 @@ pub fn claim_ed25519_yao_pair_v1<P: Clone, O>(
             receipt,
             payload,
         } => {
+            if pair_binding != reservation.pair_binding {
+                return Ed25519YaoPairTransitionV1::Reject(
+                    Ed25519YaoPairRejectionV1::IdentityMismatch,
+                );
+            }
+            if reservation.now_ms >= *expires_at_ms {
+                return Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Expired);
+            }
+            if receipt != reservation.local_receipt
+                || reservation.peer_receipt.role() != Ed25519YaoDeriverRoleV1::DeriverB
+                || reservation
+                    .peer_receipt
+                    .validate_for_pair(reservation.pair_binding)
+                    .is_err()
+                || reservation
+                    .peer_receipt
+                    .validate_at(reservation.now_ms)
+                    .is_err()
+            {
+                return Ed25519YaoPairTransitionV1::Reject(
+                    Ed25519YaoPairRejectionV1::ReadinessMismatch,
+                );
+            }
+            Ed25519YaoPairTransitionV1::Persist(Ed25519YaoPairRecordV1::Starting {
+                pair_binding: pair_binding.clone(),
+                root_metadata_digest: *root_metadata_digest,
+                expires_at_ms: *expires_at_ms,
+                execution_id: reservation.execution_id,
+                started_at_ms: reservation.now_ms,
+                local_receipt: receipt.clone(),
+                peer_receipt: reservation.peer_receipt.clone(),
+                payload: payload.clone(),
+            })
+        }
+        Ed25519YaoPairRecordV1::Starting {
+            pair_binding,
+            execution_id,
+            local_receipt,
+            peer_receipt,
+            ..
+        } if pair_binding == reservation.pair_binding
+            && *execution_id == reservation.execution_id
+            && local_receipt == reservation.local_receipt
+            && peer_receipt == reservation.peer_receipt =>
+        {
+            Ed25519YaoPairTransitionV1::Duplicate
+        }
+        Ed25519YaoPairRecordV1::Starting { .. }
+        | Ed25519YaoPairRecordV1::Running { .. }
+        | Ed25519YaoPairRecordV1::Completed { .. } => {
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
+        }
+        Ed25519YaoPairRecordV1::Burned { .. } | Ed25519YaoPairRecordV1::Expired { .. } => {
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Terminal)
+        }
+    }
+}
+
+pub fn claim_ed25519_yao_pair_v1<P: Clone, O>(
+    current: &Ed25519YaoPairRecordV1<P, O>,
+    claim: Ed25519YaoPairStartClaimV1<'_>,
+) -> Ed25519YaoPairTransitionV1<P, O> {
+    match current {
+        Ed25519YaoPairRecordV1::Starting {
+            pair_binding,
+            root_metadata_digest,
+            expires_at_ms,
+            execution_id,
+            local_receipt,
+            peer_receipt,
+            payload,
+            ..
+        } => {
+            if *execution_id != claim.execution_id
+                || local_receipt != claim.local_receipt
+                || peer_receipt != claim.peer_receipt
+            {
+                return Ed25519YaoPairTransitionV1::Reject(
+                    Ed25519YaoPairRejectionV1::ConflictingExecution,
+                );
+            }
             let decision = admit_ed25519_yao_pair_start_v1(
                 Ed25519YaoPreparedPairStartV1 {
                     pair_digest: pair_binding.pair_digest().bytes,
@@ -179,7 +273,7 @@ pub fn claim_ed25519_yao_pair_v1<P: Clone, O>(
                     root_metadata_digest: *root_metadata_digest,
                     expires_at_ms: *expires_at_ms,
                     pair_binding,
-                    readiness_receipt: receipt,
+                    readiness_receipt: local_receipt,
                 },
                 claim,
             );
@@ -233,13 +327,16 @@ pub fn claim_ed25519_yao_pair_v1<P: Clone, O>(
         Ed25519YaoPairRecordV1::Running { .. } | Ed25519YaoPairRecordV1::Completed { .. } => {
             Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
         }
+        Ed25519YaoPairRecordV1::Prepared { .. } => {
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
+        }
         Ed25519YaoPairRecordV1::Burned { .. } | Ed25519YaoPairRecordV1::Expired { .. } => {
             Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Terminal)
         }
     }
 }
 
-pub fn complete_ed25519_yao_pair_v1<P, O: PartialEq>(
+pub fn complete_ed25519_yao_pair_v1<P: Clone, O: PartialEq>(
     current: &Ed25519YaoPairRecordV1<P, O>,
     execution_id: Ed25519YaoExecutionIdV1,
     outcome: O,
@@ -252,6 +349,7 @@ pub fn complete_ed25519_yao_pair_v1<P, O: PartialEq>(
             execution_id: stored_execution,
             started_at_ms,
             claim_identity,
+            payload,
             ..
         } if *stored_execution == execution_id => {
             if now_ms.saturating_sub(*started_at_ms) >= running_lifetime_ms {
@@ -264,6 +362,7 @@ pub fn complete_ed25519_yao_pair_v1<P, O: PartialEq>(
                 pair_binding: pair_binding.clone(),
                 execution_id,
                 claim_identity: claim_identity.clone(),
+                payload: payload.clone(),
                 outcome,
             })
         }
@@ -305,7 +404,12 @@ pub fn burn_ed25519_yao_pair_v1<P, O>(
     execution_id: Ed25519YaoExecutionIdV1,
 ) -> Ed25519YaoPairTransitionV1<P, O> {
     match current {
-        Ed25519YaoPairRecordV1::Running {
+        Ed25519YaoPairRecordV1::Starting {
+            pair_binding,
+            execution_id: stored_execution,
+            ..
+        }
+        | Ed25519YaoPairRecordV1::Running {
             pair_binding,
             execution_id: stored_execution,
             ..
@@ -319,11 +423,20 @@ pub fn burn_ed25519_yao_pair_v1<P, O>(
             execution_id: stored_execution,
             ..
         } if *stored_execution == execution_id => Ed25519YaoPairTransitionV1::Duplicate,
-        Ed25519YaoPairRecordV1::Running { .. } => {
+        Ed25519YaoPairRecordV1::Starting { .. } | Ed25519YaoPairRecordV1::Running { .. } => {
             Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
         }
         _ => Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Terminal),
     }
+}
+
+#[derive(Clone, Copy)]
+pub struct Ed25519YaoPairReservationV1<'a> {
+    pub pair_binding: &'a Ed25519YaoInputPairBindingV1,
+    pub local_receipt: &'a Ed25519YaoRoleReadinessReceiptV1,
+    pub peer_receipt: &'a Ed25519YaoRoleReadinessReceiptV1,
+    pub execution_id: Ed25519YaoExecutionIdV1,
+    pub now_ms: u64,
 }
 
 pub struct Ed25519YaoPreparedPairStartV1<'a> {
@@ -531,7 +644,22 @@ mod tests {
             execution_id: first_id,
             now_ms: 120,
         };
-        let running = match claim_ed25519_yao_pair_v1(&prepared, first_claim) {
+        let reservation = Ed25519YaoPairReservationV1 {
+            pair_binding: &pair,
+            local_receipt: &local,
+            peer_receipt: &peer,
+            execution_id: first_id,
+            now_ms: 119,
+        };
+        let starting = match reserve_ed25519_yao_pair_v1(&prepared, reservation) {
+            Ed25519YaoPairTransitionV1::Persist(record) => record,
+            other => panic!("expected starting record: {other:?}"),
+        };
+        assert_eq!(
+            reserve_ed25519_yao_pair_v1(&starting, reservation),
+            Ed25519YaoPairTransitionV1::Duplicate
+        );
+        let running = match claim_ed25519_yao_pair_v1(&starting, first_claim) {
             Ed25519YaoPairTransitionV1::Persist(record) => record,
             other => panic!("expected running record: {other:?}"),
         };
@@ -636,7 +764,20 @@ mod tests {
             execution_id,
             now_ms: 120,
         };
-        let running = match claim_ed25519_yao_pair_v1(&prepared, claim) {
+        let starting = match reserve_ed25519_yao_pair_v1(
+            &prepared,
+            Ed25519YaoPairReservationV1 {
+                pair_binding: &pair,
+                local_receipt: &local,
+                peer_receipt: &peer,
+                execution_id,
+                now_ms: 119,
+            },
+        ) {
+            Ed25519YaoPairTransitionV1::Persist(record) => record,
+            other => panic!("expected reservation: {other:?}"),
+        };
+        let running = match claim_ed25519_yao_pair_v1(&starting, claim) {
             Ed25519YaoPairTransitionV1::Persist(record) => record,
             other => panic!("expected claim: {other:?}"),
         };

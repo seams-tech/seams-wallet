@@ -3,6 +3,7 @@ use curve25519_dalek::scalar::Scalar;
 use ed25519_dalek::SigningKey;
 use rand_core::OsRng;
 use router_ab_cloudflare::{
+    CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairLookupRequestV1,
     CloudflareRouterEd25519YaoExecuteRequestV2, CloudflareRouterEd25519YaoTenantRootV1,
 };
 use router_ab_core::{
@@ -22,16 +23,21 @@ use router_ab_core::{
 };
 use router_ab_dev::{
     admit_local_ed25519_yao_registration_v1, generate_local_ed25519_yao_recipient_key_pair_v1,
-    local_env_materialization_plan_v1, run_example_local_router_ab_dev_http_ceremony_v1,
+    local_env_materialization_plan_v1, parse_local_env_file_contents_v1,
+    parse_local_worker_role_config_for_role_v1, run_example_local_router_ab_dev_http_ceremony_v1,
     seal_local_ed25519_yao_activation_deriver_a_input_v1,
-    seal_local_ed25519_yao_activation_deriver_b_input_v1, LocalDeriverPeerMessageReceiptV1,
-    LocalEd25519YaoActivationDeriverARequestV1, LocalEd25519YaoActivationDeriverBRequestV1,
-    LocalEd25519YaoActivationRecipientsV1, LocalEd25519YaoClientContributionV1,
-    LocalHttpServiceBindingClientV1, RouterAbEd25519YaoApplicationBindingFactsV1,
-    RouterAbEd25519YaoLifecycleScopeV1, RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+    seal_local_ed25519_yao_activation_deriver_b_input_v1, LocalDeriverAPairRecordV1,
+    LocalDeriverPeerMessageReceiptV1, LocalEd25519YaoActivationDeriverARequestV1,
+    LocalEd25519YaoActivationDeriverBRequestV1, LocalEd25519YaoActivationRecipientsV1,
+    LocalEd25519YaoClientContributionV1, LocalHttpServiceBindingClientV1, LocalWorkerRoleConfigV1,
+    RouterAbEd25519YaoApplicationBindingFactsV1, RouterAbEd25519YaoLifecycleScopeV1,
+    RouterAbEd25519YaoRegistrationAdmissionRequestV1,
+    LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
+    LOCAL_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
     LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
     LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
 };
+use rusqlite::Connection;
 use serde::Serialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -446,12 +452,94 @@ fn product_topology_completes_local_ed25519_yao_registration(
     assert_eq!(status, 200, "{body}");
     let result = serde_json::from_str::<RouterEd25519YaoExecuteResultV1>(&body)?;
     let RouterEd25519YaoExecuteResultV1::Succeeded { result } = result else {
-        return Err("product Yao registration did not succeed".into());
+        return Err(format!("product Yao registration did not succeed: {body}").into());
     };
     assert!(matches!(
         *result,
         RouterEd25519YaoExecuteSuccessV1::Registration { .. }
     ));
+    let a_env_path = temp.join(router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1);
+    let a_config = parse_local_worker_role_config_for_role_v1(
+        LocalServiceRoleV1::DeriverA,
+        parse_local_env_file_contents_v1(&fs::read_to_string(&a_env_path)?)?,
+    )?;
+    let LocalWorkerRoleConfigV1::DeriverA(a_config) = a_config else {
+        return Err("Deriver A env parsed as another role".into());
+    };
+    let connection = Connection::open(temp.join(a_config.role_private_storage_path))?;
+    let completed_json: String = connection.query_row(
+        "SELECT record_json FROM local_deriver_a_yao_pairs",
+        [],
+        |row| row.get(0),
+    )?;
+    let completed: LocalDeriverAPairRecordV1 = serde_json::from_str(&completed_json)?;
+    let LocalDeriverAPairRecordV1::Completed {
+        pair_binding,
+        claim_identity,
+        payload,
+        outcome,
+        ..
+    } = completed
+    else {
+        return Err("Deriver A did not durably complete its SQLite pair".into());
+    };
+    drop(connection);
+    drop(deriver_a);
+    drop(deriver_b);
+    let mut deriver_a = ChildGuard::spawn_in_root(binary, "deriver-a", a_env_path, &temp)?;
+    wait_for_health(&deriver_a_url, deriver_a.child_mut())?;
+    let lookup = CloudflareEd25519YaoPairLookupRequestV1 {
+        session: pair_binding.session(),
+        pair_digest: pair_binding.pair_digest().bytes,
+    };
+    let (status, body) = post_json_to_path_with_headers(
+        &deriver_a_url,
+        LOCAL_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
+        &lookup,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+        )],
+    )?;
+    assert_eq!(status, 200, "restart pair status: {body}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&body)?["status"],
+        "completed"
+    );
+    let retry = CloudflareEd25519YaoPairExecuteRequestV1 {
+        pair_binding,
+        tenant_root: payload.tenant_root,
+        work: payload.work,
+        input: payload.input,
+        local_receipt: claim_identity.local_receipt,
+        peer_receipt: claim_identity.peer_receipt,
+    };
+    let (status, body) = post_json_to_path_with_headers(
+        &deriver_a_url,
+        LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
+        &retry,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+        )],
+    )?;
+    assert_eq!(status, 200, "restart execution replay: {body}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&body)?,
+        serde_json::to_value(outcome)?
+    );
+    let mut changed_request = retry;
+    changed_request.tenant_root.custody_binding.issued_at_ms += 1;
+    let (status, _) = post_json_to_path_with_headers(
+        &deriver_a_url,
+        LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
+        &changed_request,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+        )],
+    )?;
+    assert_ne!(status, 200, "changed request identity must not replay A's outcome");
     println!(
         "YAOS_AB_LOCAL_SAMPLE {}",
         serde_json::to_string(&LocalEd25519YaoProductLatencySampleV1 {
@@ -463,7 +551,6 @@ fn product_topology_completes_local_ed25519_yao_registration(
 
     drop(router);
     drop(deriver_a);
-    drop(deriver_b);
     drop(signing_worker);
     let _ = fs::remove_dir_all(temp);
     Ok(())

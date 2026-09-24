@@ -1,11 +1,12 @@
 use router_ab_core::{
     burn_ed25519_yao_pair_v1, claim_ed25519_yao_pair_v1, complete_ed25519_yao_pair_v1,
-    expire_ed25519_yao_pair_v1, prepare_ed25519_yao_pair_v1, Ed25519YaoExecutionIdV1,
-    Ed25519YaoInputPairBindingV1, Ed25519YaoPairRecordV1, Ed25519YaoPairRejectionV1,
-    Ed25519YaoPairStartClaimV1, Ed25519YaoPairStoreResultV1, Ed25519YaoPairTransitionV1,
-    RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
+    expire_ed25519_yao_pair_v1, prepare_ed25519_yao_pair_v1, reserve_ed25519_yao_pair_v1,
+    Ed25519YaoExecutionIdV1, Ed25519YaoInputPairBindingV1, Ed25519YaoPairRecordV1,
+    Ed25519YaoPairRejectionV1, Ed25519YaoPairReservationV1, Ed25519YaoPairStartClaimV1,
+    Ed25519YaoPairStoreResultV1, Ed25519YaoPairTransitionV1, RouterAbProtocolError,
+    RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
-use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
+use rusqlite::{params, Connection, OptionalExtension, Transaction, TransactionBehavior};
 use serde::{de::DeserializeOwned, Serialize};
 
 const PAIR_SCHEMA: &str = "
@@ -18,6 +19,12 @@ const PAIR_SCHEMA: &str = "
         PRIMARY KEY (tenant_id, wallet_id, session_hex)
     );
 ";
+
+pub(crate) fn ensure_local_deriver_a_pair_schema_v1(
+    connection: &Connection,
+) -> RouterAbProtocolResult<()> {
+    connection.execute_batch(PAIR_SCHEMA).map_err(sqlite_error)
+}
 
 /// One Deriver A process's role-private database, scoped by its trusted route.
 pub struct LocalDeriverAPairSqliteV1<'connection> {
@@ -35,9 +42,7 @@ impl<'connection> LocalDeriverAPairSqliteV1<'connection> {
         if tenant_id.trim().is_empty() || wallet_id.trim().is_empty() {
             return Err(pair_store_error("Deriver A tenant and wallet are required"));
         }
-        connection
-            .execute_batch(PAIR_SCHEMA)
-            .map_err(sqlite_error)?;
+        ensure_local_deriver_a_pair_schema_v1(connection)?;
         Ok(Self {
             connection,
             tenant_id: tenant_id.to_owned(),
@@ -93,6 +98,20 @@ impl<'connection> LocalDeriverAPairSqliteV1<'connection> {
         })
     }
 
+    pub fn reserve<P, O>(
+        &mut self,
+        reservation: Ed25519YaoPairReservationV1<'_>,
+    ) -> RouterAbProtocolResult<Ed25519YaoPairStoreResultV1<P, O>>
+    where
+        P: Clone + Serialize + DeserializeOwned,
+        O: Clone + Serialize + DeserializeOwned,
+    {
+        self.transition(reservation.pair_binding, |current| match current {
+            Some(current) => reserve_ed25519_yao_pair_v1(current, reservation),
+            None => Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch),
+        })
+    }
+
     pub fn complete<P, O>(
         &mut self,
         pair_binding: &Ed25519YaoInputPairBindingV1,
@@ -105,16 +124,45 @@ impl<'connection> LocalDeriverAPairSqliteV1<'connection> {
         P: Clone + Serialize + DeserializeOwned,
         O: Clone + PartialEq + Serialize + DeserializeOwned,
     {
-        self.transition(pair_binding, |current| match current {
-            Some(current) => complete_ed25519_yao_pair_v1(
-                current,
-                execution_id,
-                outcome,
-                now_ms,
-                running_lifetime_ms,
-            ),
-            None => Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch),
-        })
+        self.complete_with(
+            pair_binding,
+            execution_id,
+            outcome,
+            now_ms,
+            running_lifetime_ms,
+            |_| Ok(()),
+        )
+    }
+
+    pub fn complete_with<P, O>(
+        &mut self,
+        pair_binding: &Ed25519YaoInputPairBindingV1,
+        execution_id: Ed25519YaoExecutionIdV1,
+        outcome: O,
+        now_ms: u64,
+        running_lifetime_ms: u64,
+        persist_role_state: impl FnOnce(&Transaction<'_>) -> RouterAbProtocolResult<()>,
+    ) -> RouterAbProtocolResult<Ed25519YaoPairStoreResultV1<P, O>>
+    where
+        P: Clone + Serialize + DeserializeOwned,
+        O: Clone + PartialEq + Serialize + DeserializeOwned,
+    {
+        self.transition_with(
+            pair_binding,
+            |current| match current {
+                Some(current) => complete_ed25519_yao_pair_v1(
+                    current,
+                    execution_id,
+                    outcome,
+                    now_ms,
+                    running_lifetime_ms,
+                ),
+                None => {
+                    Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch)
+                }
+            },
+            persist_role_state,
+        )
     }
 
     pub fn expire<P, O>(
@@ -151,6 +199,19 @@ impl<'connection> LocalDeriverAPairSqliteV1<'connection> {
         &mut self,
         pair_binding: &Ed25519YaoInputPairBindingV1,
         decide: impl FnOnce(Option<&Ed25519YaoPairRecordV1<P, O>>) -> Ed25519YaoPairTransitionV1<P, O>,
+    ) -> RouterAbProtocolResult<Ed25519YaoPairStoreResultV1<P, O>>
+    where
+        P: Clone + Serialize + DeserializeOwned,
+        O: Clone + Serialize + DeserializeOwned,
+    {
+        self.transition_with(pair_binding, decide, |_| Ok(()))
+    }
+
+    fn transition_with<P, O>(
+        &mut self,
+        pair_binding: &Ed25519YaoInputPairBindingV1,
+        decide: impl FnOnce(Option<&Ed25519YaoPairRecordV1<P, O>>) -> Ed25519YaoPairTransitionV1<P, O>,
+        persist_role_state: impl FnOnce(&Transaction<'_>) -> RouterAbProtocolResult<()>,
     ) -> RouterAbProtocolResult<Ed25519YaoPairStoreResultV1<P, O>>
     where
         P: Clone + Serialize + DeserializeOwned,
@@ -219,6 +280,7 @@ impl<'connection> LocalDeriverAPairSqliteV1<'connection> {
                 if changes != 1 {
                     return Ok(Ed25519YaoPairStoreResultV1::StaleVersion);
                 }
+                persist_role_state(&transaction)?;
                 if transaction.commit().is_err() {
                     return Ok(Ed25519YaoPairStoreResultV1::UncertainWrite);
                 }
@@ -395,7 +457,7 @@ mod tests {
         }
     }
 
-    fn claim_in_connection(
+    fn reserve_in_connection(
         path: &PathBuf,
         pair: &Ed25519YaoInputPairBindingV1,
         id: Ed25519YaoExecutionIdV1,
@@ -405,14 +467,12 @@ mod tests {
         let mut store = LocalDeriverAPairSqliteV1::new(&mut connection, "tenant-1", "wallet-1")?;
         let local = receipt(pair, Ed25519YaoDeriverRoleV1::DeriverA);
         let peer = receipt(pair, Ed25519YaoDeriverRoleV1::DeriverB);
-        let acceptance = acceptance(pair, id);
-        Ok(store.claim(Ed25519YaoPairStartClaimV1 {
+        Ok(store.reserve(Ed25519YaoPairReservationV1 {
             pair_binding: pair,
             local_receipt: &local,
             peer_receipt: &peer,
-            acceptance: &acceptance,
             execution_id: id,
-            now_ms: 120,
+            now_ms: 119,
         })?)
     }
 
@@ -439,7 +499,7 @@ mod tests {
             threads.push(thread::spawn(move || {
                 let id = Ed25519YaoExecutionIdV1::new([fill; 32]).expect("id");
                 barrier.wait();
-                claim_in_connection(&path, &pair, id)
+                reserve_in_connection(&path, &pair, id)
             }));
         }
         barrier.wait();
@@ -466,7 +526,7 @@ mod tests {
         );
         let (winning_id, outcome) = match results.into_iter().find_map(|result| match result {
             TestResult::Applied {
-                record: TestRecord::Running { execution_id, .. },
+                record: TestRecord::Starting { execution_id, .. },
                 ..
             } => Some((execution_id, "durable outcome".to_owned())),
             _ => None,
@@ -478,9 +538,23 @@ mod tests {
             let mut connection = Connection::open(&path)?;
             let mut store =
                 LocalDeriverAPairSqliteV1::new(&mut connection, "tenant-1", "wallet-1")?;
+            let local = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverA);
+            let peer = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverB);
+            let accepted = acceptance(&pair, winning_id);
+            assert!(matches!(
+                store.claim::<u8, String>(Ed25519YaoPairStartClaimV1 {
+                    pair_binding: &pair,
+                    local_receipt: &local,
+                    peer_receipt: &peer,
+                    acceptance: &accepted,
+                    execution_id: winning_id,
+                    now_ms: 120,
+                })?,
+                TestResult::Applied { revision: 3, .. }
+            ));
             assert!(matches!(
                 store.complete::<u8, String>(&pair, winning_id, outcome.clone(), 125, 60_000)?,
-                TestResult::Applied { revision: 3, .. }
+                TestResult::Applied { revision: 4, .. }
             ));
         }
         {
@@ -491,13 +565,191 @@ mod tests {
             assert_eq!(record.outcome(), Some(&outcome));
             assert!(matches!(
                 store.complete::<u8, String>(&pair, winning_id, outcome, 126, 60_000)?,
-                TestResult::Duplicate { revision: 3, .. }
+                TestResult::Duplicate { revision: 4, .. }
             ));
         }
-        assert!(matches!(
-            claim_in_connection(&path, &pair, winning_id)?,
-            TestResult::Duplicate { revision: 3, .. }
-        ));
+        {
+            let mut connection = Connection::open(&path)?;
+            let mut store =
+                LocalDeriverAPairSqliteV1::new(&mut connection, "tenant-1", "wallet-1")?;
+            let local = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverA);
+            let peer = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverB);
+            let accepted = acceptance(&pair, winning_id);
+            assert!(matches!(
+                store.claim::<u8, String>(Ed25519YaoPairStartClaimV1 {
+                    pair_binding: &pair,
+                    local_receipt: &local,
+                    peer_receipt: &peer,
+                    acceptance: &accepted,
+                    execution_id: winning_id,
+                    now_ms: 120,
+                })?,
+                TestResult::Duplicate { revision: 4, .. }
+            ));
+        }
+        fs::remove_file(path)?;
+        Ok(())
+    }
+
+    #[test]
+    fn identical_reservations_on_separate_connections_have_one_executor(
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let path = path("identical-reservation");
+        let pair = pair();
+        let id = Ed25519YaoExecutionIdV1::new([10; 32])?;
+        {
+            let mut connection = Connection::open(&path)?;
+            let mut store =
+                LocalDeriverAPairSqliteV1::new(&mut connection, "tenant-1", "wallet-1")?;
+            store.prepare(prepared(&pair), 110)?;
+        }
+        let barrier = Arc::new(Barrier::new(3));
+        let mut threads = Vec::new();
+        for _ in 0..2 {
+            let path = path.clone();
+            let pair = pair.clone();
+            let barrier = Arc::clone(&barrier);
+            threads.push(thread::spawn(move || {
+                barrier.wait();
+                reserve_in_connection(&path, &pair, id)
+            }));
+        }
+        barrier.wait();
+        let results = threads
+            .into_iter()
+            .map(|handle| handle.join().expect("reservation thread"))
+            .collect::<Result<Vec<_>, _>>()?;
+        assert_eq!(
+            results
+                .iter()
+                .filter(|result| matches!(result, TestResult::Applied { .. }))
+                .count(),
+            1
+        );
+        assert_eq!(
+            results
+                .iter()
+                .filter(|result| matches!(result, TestResult::Duplicate { .. }))
+                .count(),
+            1
+        );
+        fs::remove_file(path)?;
+        Ok(())
+    }
+
+    #[test]
+    fn restart_after_reservation_does_not_reopen_prepared_material(
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let path = path("reservation-restart");
+        let pair = pair();
+        let execution_id = Ed25519YaoExecutionIdV1::new([10; 32])?;
+        {
+            let mut connection = Connection::open(&path)?;
+            let mut store =
+                LocalDeriverAPairSqliteV1::new(&mut connection, "tenant-1", "wallet-1")?;
+            store.prepare(prepared(&pair), 110)?;
+            let local = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverA);
+            let peer = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverB);
+            assert!(matches!(
+                store.reserve::<u8, String>(Ed25519YaoPairReservationV1 {
+                    pair_binding: &pair,
+                    local_receipt: &local,
+                    peer_receipt: &peer,
+                    execution_id,
+                    now_ms: 119,
+                })?,
+                TestResult::Applied { revision: 2, .. }
+            ));
+        }
+        {
+            let mut connection = Connection::open(&path)?;
+            let mut store =
+                LocalDeriverAPairSqliteV1::new(&mut connection, "tenant-1", "wallet-1")?;
+            let (revision, record): (_, TestRecord) = store.read(&pair)?.expect("reserved pair");
+            assert_eq!(revision, 2);
+            assert!(matches!(record, TestRecord::Starting { .. }));
+            let local = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverA);
+            let peer = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverB);
+            assert!(matches!(
+                store.reserve::<u8, String>(Ed25519YaoPairReservationV1 {
+                    pair_binding: &pair,
+                    local_receipt: &local,
+                    peer_receipt: &peer,
+                    execution_id,
+                    now_ms: 120,
+                })?,
+                TestResult::Duplicate { revision: 2, .. }
+            ));
+            assert!(matches!(
+                store.prepare(prepared(&pair), 120)?,
+                TestResult::Rejected(Ed25519YaoPairRejectionV1::ConflictingExecution)
+            ));
+        }
+        fs::remove_file(path)?;
+        Ok(())
+    }
+
+    #[test]
+    fn terminal_outcome_and_role_state_commit_together(
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let path = path("terminal-atomicity");
+        let pair = pair();
+        let id = Ed25519YaoExecutionIdV1::new([10; 32])?;
+        let local = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverA);
+        let peer = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverB);
+        let accepted = acceptance(&pair, id);
+        let mut connection = Connection::open(&path)?;
+        {
+            let mut store =
+                LocalDeriverAPairSqliteV1::new(&mut connection, "tenant-1", "wallet-1")?;
+            store.prepare(prepared(&pair), 110)?;
+            store.reserve::<u8, String>(Ed25519YaoPairReservationV1 {
+                pair_binding: &pair,
+                local_receipt: &local,
+                peer_receipt: &peer,
+                execution_id: id,
+                now_ms: 119,
+            })?;
+            store.claim::<u8, String>(Ed25519YaoPairStartClaimV1 {
+                pair_binding: &pair,
+                local_receipt: &local,
+                peer_receipt: &peer,
+                acceptance: &accepted,
+                execution_id: id,
+                now_ms: 120,
+            })?;
+        }
+        connection.execute_batch(
+            "CREATE TABLE role_state (id INTEGER PRIMARY KEY, value TEXT NOT NULL); \
+             CREATE TRIGGER reject_role_state BEFORE INSERT ON role_state \
+             BEGIN SELECT RAISE(ABORT, 'role state write failed'); END;",
+        )?;
+        {
+            let mut store =
+                LocalDeriverAPairSqliteV1::new(&mut connection, "tenant-1", "wallet-1")?;
+            assert!(store
+                .complete_with::<u8, String>(
+                    &pair,
+                    id,
+                    "terminal output".to_owned(),
+                    125,
+                    60_000,
+                    |transaction| {
+                        transaction
+                            .execute(
+                                "INSERT INTO role_state (id, value) VALUES (1, 'active')",
+                                [],
+                            )
+                            .map_err(sqlite_error)?;
+                        Ok(())
+                    },
+                )
+                .is_err());
+            let (revision, record): (_, TestRecord) = store.read(&pair)?.expect("running pair");
+            assert_eq!(revision, 3);
+            assert!(matches!(record, TestRecord::Running { .. }));
+        }
+        drop(connection);
         fs::remove_file(path)?;
         Ok(())
     }
@@ -523,15 +775,13 @@ mod tests {
                 LocalDeriverAPairSqliteV1::new(&mut connection, "tenant-1", "wallet-1")?;
             let local = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverA);
             let peer = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverB);
-            let accepted = acceptance(&pair, id);
             assert!(store
-                .claim::<u8, String>(Ed25519YaoPairStartClaimV1 {
+                .reserve::<u8, String>(Ed25519YaoPairReservationV1 {
                     pair_binding: &pair,
                     local_receipt: &local,
                     peer_receipt: &peer,
-                    acceptance: &accepted,
                     execution_id: id,
-                    now_ms: 120,
+                    now_ms: 119,
                 })
                 .is_err());
             let (revision, record): (_, TestRecord) = store.read(&pair)?.expect("record");

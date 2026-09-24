@@ -184,6 +184,12 @@ pub(crate) struct LocalEd25519YaoDeriverAPairConnectionV2 {
     acceptance: Ed25519YaoRoleStartAcceptanceV1,
 }
 
+impl LocalEd25519YaoDeriverAPairConnectionV2 {
+    pub(crate) fn acceptance(&self) -> &Ed25519YaoRoleStartAcceptanceV1 {
+        &self.acceptance
+    }
+}
+
 pub fn run_local_activation_deriver_a_http_v1(
     address: impl ToSocketAddrs,
     session: [u8; 32],
@@ -1185,9 +1191,9 @@ mod tests {
     use std::io::Cursor;
 
     use super::{
-        read_http_chunk, read_request_head, read_response_head,
-        require_http_eof, LOCAL_DERIVER_B_ED25519_YAO_PEER_PATH,
-        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, SESSION_HEADER, STREAM_CONTENT_TYPE,
+        read_http_chunk, read_request_head, read_response_head, require_http_eof,
+        LOCAL_DERIVER_B_ED25519_YAO_PEER_PATH, LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+        SESSION_HEADER, STREAM_CONTENT_TYPE,
     };
 
     fn request_head(extra_header: &str) -> Vec<u8> {
@@ -1231,8 +1237,12 @@ mod tests {
 
         let mut transfer_encoding_and_content_length =
             Cursor::new(request_head("content-length: 0\r\n"));
-        assert!(read_request_head(&mut transfer_encoding_and_content_length, [7_u8; 32], "secret")
-            .is_err());
+        assert!(read_request_head(
+            &mut transfer_encoding_and_content_length,
+            [7_u8; 32],
+            "secret"
+        )
+        .is_err());
 
         let duplicate_session = format!("{SESSION_HEADER}: {}\r\n", hex::encode([7_u8; 32]));
         let mut duplicate_session = Cursor::new(request_head(&duplicate_session));

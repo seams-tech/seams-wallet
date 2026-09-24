@@ -5,10 +5,9 @@ use router_ab_dev::{
     parse_local_env_file_contents_v1, parse_local_service_role_label_v1,
     parse_local_worker_role_config_for_role_v1, read_local_dev_http_request_v1,
     write_local_dev_http_response_v1, LocalDevHttpTopologyV1, LocalEd25519YaoConnectionDispatchV1,
-    LocalEd25519YaoWorkerStateV1, LocalRolePrivateSqliteStorageV1,
-    LocalRouterEd25519YaoCoordinatorV1, LocalRouterRequestDispatcherV1, LocalWorkerRoleConfigV1,
+    LocalEd25519YaoSqliteHostV1, LocalEd25519YaoWorkerStateV1, LocalRouterEd25519YaoCoordinatorV1,
+    LocalRouterRequestDispatcherV1, LocalWorkerRoleConfigV1,
 };
-use rusqlite::Connection;
 use serde::Serialize;
 use std::{
     env, fs,
@@ -39,56 +38,6 @@ struct WorkerRequestErrorSummary {
     error: String,
 }
 
-const LOCAL_ED25519_YAO_ROLE_PRIVATE_STATE_KEY_V1: &str = "ed25519-yao/worker-state-v1";
-
-struct LocalEd25519YaoStateStoreV1 {
-    connection: Connection,
-}
-
-impl LocalEd25519YaoStateStoreV1 {
-    fn open(config: &LocalWorkerRoleConfigV1) -> Result<Self, Box<dyn std::error::Error>> {
-        let path = match config {
-            LocalWorkerRoleConfigV1::DeriverA(config) => config.role_private_storage_path.as_str(),
-            LocalWorkerRoleConfigV1::DeriverB(config) => config.role_private_storage_path.as_str(),
-            LocalWorkerRoleConfigV1::SigningWorker(config) => {
-                config.role_private_storage_path.as_str()
-            }
-            LocalWorkerRoleConfigV1::Router(_) => {
-                return Err("Router does not own local Ed25519 Yao secret state".into());
-            }
-        };
-        let path = PathBuf::from(path);
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let connection = Connection::open(path)?;
-        LocalRolePrivateSqliteStorageV1::new(&connection)?;
-        Ok(Self { connection })
-    }
-
-    fn load(
-        &self,
-        role: LocalServiceRoleV1,
-    ) -> Result<LocalEd25519YaoWorkerStateV1, Box<dyn std::error::Error>> {
-        let storage = LocalRolePrivateSqliteStorageV1::new(&self.connection)?;
-        let Some(bytes) = storage.get_bytes(LOCAL_ED25519_YAO_ROLE_PRIVATE_STATE_KEY_V1)? else {
-            return Ok(LocalEd25519YaoWorkerStateV1::default());
-        };
-        Ok(LocalEd25519YaoWorkerStateV1::decode_durable_state_for_role_v1(role, &bytes)?)
-    }
-
-    fn persist(
-        &self,
-        role: LocalServiceRoleV1,
-        state: &LocalEd25519YaoWorkerStateV1,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let bytes = state.encode_durable_state_for_role_v1(role)?;
-        let storage = LocalRolePrivateSqliteStorageV1::new(&self.connection)?;
-        storage.put_bytes(LOCAL_ED25519_YAO_ROLE_PRIVATE_STATE_KEY_V1, &bytes)?;
-        Ok(())
-    }
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let options = parse_args(env::args().skip(1))?;
     let env_contents = fs::read_to_string(&options.env_path)?;
@@ -101,7 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state_store = if config.role() == LocalServiceRoleV1::Router {
         None
     } else {
-        Some(LocalEd25519YaoStateStoreV1::open(&config)?)
+        Some(LocalEd25519YaoSqliteHostV1::open(&config)?)
     };
     let router_dispatcher = if config.role() == LocalServiceRoleV1::Router {
         Some(LocalRouterEd25519YaoCoordinatorV1::default())
@@ -119,7 +68,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut yao_state = state_store
         .as_ref()
-        .map(|store| store.load(config.role()))
+        .map(|store| store.load_state(config.role()))
         .transpose()?;
     for stream in listener.incoming() {
         match stream {
@@ -137,9 +86,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if let (Some(store), Some(state)) =
                             (state_store.as_ref(), yao_state.as_ref())
                         {
-                            store.persist(config.role(), state)?;
+                            store.persist_state(config.role(), state)?;
                         }
                     }
+                    Ok(LocalWorkerConnectionResultV1::YaoPairHandledBySqlite) => {}
                     Ok(LocalWorkerConnectionResultV1::OtherHandled) => {}
                     Err(error) => log_worker_request_error(&config, error.as_ref()),
                 }
@@ -152,6 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 enum LocalWorkerConnectionResultV1 {
     YaoHandled,
+    YaoPairHandledBySqlite,
     OtherHandled,
 }
 
@@ -159,24 +110,28 @@ fn handle_connection(
     stream: TcpStream,
     config: &LocalWorkerRoleConfigV1,
     yao_state: Option<&mut LocalEd25519YaoWorkerStateV1>,
-    state_store: Option<&LocalEd25519YaoStateStoreV1>,
+    state_store: Option<&LocalEd25519YaoSqliteHostV1>,
     router_dispatcher: Option<&dyn LocalRouterRequestDispatcherV1>,
 ) -> Result<LocalWorkerConnectionResultV1, Box<dyn std::error::Error>> {
     let mut stream = if let Some(yao_state) = yao_state {
+        let store = state_store.ok_or("custody worker SQLite host is missing")?;
         let mut persist_before_network = |state: &LocalEd25519YaoWorkerStateV1| {
-            let Some(store) = state_store else {
-                return Ok(());
-            };
-            store.persist(config.role(), state)
+            store
+                .persist_state(config.role(), state)
+                .map_err(Into::into)
         };
         match dispatch_local_ed25519_yao_connection_with_persistence_v1(
             stream,
             config,
             yao_state,
+            store,
             &mut persist_before_network,
         )? {
             LocalEd25519YaoConnectionDispatchV1::Handled => {
                 return Ok(LocalWorkerConnectionResultV1::YaoHandled);
+            }
+            LocalEd25519YaoConnectionDispatchV1::PairHandledBySqlite => {
+                return Ok(LocalWorkerConnectionResultV1::YaoPairHandledBySqlite);
             }
             LocalEd25519YaoConnectionDispatchV1::Unhandled(stream) => stream,
         }

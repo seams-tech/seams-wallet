@@ -1,0 +1,283 @@
+use crate::{
+    local_ed25519_yao_pair_sqlite::ensure_local_deriver_a_pair_schema_v1,
+    LocalDeriverAPairSqliteV1, LocalEd25519YaoWorkerStateV1, LocalRolePrivateSqliteStorageV1,
+    LocalWorkerRoleConfigV1,
+};
+use router_ab_cloudflare::{
+    CloudflareEd25519YaoPairExecuteResponseV1, CloudflareEd25519YaoPairWorkV1,
+    CloudflareEd25519YaoTenantRootContextV2,
+};
+use router_ab_core::{
+    Ed25519YaoExecutionIdV1, Ed25519YaoInputPairBindingV1, Ed25519YaoPairRecordV1,
+    Ed25519YaoPairReservationV1, Ed25519YaoPairStartClaimV1, Ed25519YaoPairStoreResultV1,
+    LocalServiceRoleV1, RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
+    TenantRootSignedActivationReceiptV1,
+};
+use rusqlite::{params, Connection};
+use serde::{Deserialize, Serialize};
+use std::{cell::RefCell, fs, path::PathBuf};
+
+const STATE_KEY: &str = "ed25519-yao/worker-state-v2";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LocalDeriverAPairPayloadV1 {
+    pub tenant_root: CloudflareEd25519YaoTenantRootContextV2,
+    pub work: CloudflareEd25519YaoPairWorkV1,
+    pub input: router_ab_core::Ed25519YaoEncryptedInputV1,
+}
+
+pub type LocalDeriverAPairRecordV1 =
+    Ed25519YaoPairRecordV1<LocalDeriverAPairPayloadV1, CloudflareEd25519YaoPairExecuteResponseV1>;
+pub type LocalDeriverAPairResultV1 = Ed25519YaoPairStoreResultV1<
+    LocalDeriverAPairPayloadV1,
+    CloudflareEd25519YaoPairExecuteResponseV1,
+>;
+
+#[derive(Debug, Clone)]
+pub struct LocalDeriverAPairScopeV1 {
+    tenant_identity_digest_hex: String,
+    wallet_id: String,
+}
+
+impl LocalDeriverAPairScopeV1 {
+    pub fn from_context(
+        root: &CloudflareEd25519YaoTenantRootContextV2,
+        pair: &Ed25519YaoInputPairBindingV1,
+    ) -> RouterAbProtocolResult<Self> {
+        root.validate_for_pair(pair)?;
+        let receipt_bytes = root.custody_binding.activation_receipt_bytes()?;
+        let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(&receipt_bytes)
+            .map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("Deriver A tenant-root receipt is invalid: {error}"),
+            )
+        })?;
+        Ok(Self {
+            tenant_identity_digest_hex: hex::encode(receipt.identity_digest().as_bytes()),
+            wallet_id: pair.binding().lifecycle.account_id.clone(),
+        })
+    }
+}
+
+pub struct LocalEd25519YaoSqliteHostV1 {
+    connection: RefCell<Connection>,
+}
+
+impl LocalEd25519YaoSqliteHostV1 {
+    pub fn open(config: &LocalWorkerRoleConfigV1) -> Result<Self, Box<dyn std::error::Error>> {
+        let path = match config {
+            LocalWorkerRoleConfigV1::DeriverA(config) => config.role_private_storage_path.as_str(),
+            LocalWorkerRoleConfigV1::DeriverB(config) => config.role_private_storage_path.as_str(),
+            LocalWorkerRoleConfigV1::SigningWorker(config) => {
+                config.role_private_storage_path.as_str()
+            }
+            LocalWorkerRoleConfigV1::Router(_) => {
+                return Err("Router does not own local Ed25519 Yao secret state".into());
+            }
+        };
+        let path = PathBuf::from(path);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let connection = Connection::open(path)?;
+        LocalRolePrivateSqliteStorageV1::new(&connection)?;
+        if config.role() == LocalServiceRoleV1::DeriverA {
+            ensure_local_deriver_a_pair_schema_v1(&connection)?;
+        }
+        Ok(Self {
+            connection: RefCell::new(connection),
+        })
+    }
+
+    pub fn load_state(
+        &self,
+        role: LocalServiceRoleV1,
+    ) -> RouterAbProtocolResult<LocalEd25519YaoWorkerStateV1> {
+        let connection = self.connection.borrow();
+        let storage = LocalRolePrivateSqliteStorageV1::new(&connection)?;
+        let Some(bytes) = storage.get_bytes(STATE_KEY)? else {
+            return Ok(LocalEd25519YaoWorkerStateV1::default());
+        };
+        LocalEd25519YaoWorkerStateV1::decode_durable_state_for_role_v1(role, &bytes)
+    }
+
+    pub fn persist_state(
+        &self,
+        role: LocalServiceRoleV1,
+        state: &LocalEd25519YaoWorkerStateV1,
+    ) -> RouterAbProtocolResult<()> {
+        let bytes = state.encode_durable_state_for_role_v1(role)?;
+        let connection = self.connection.borrow();
+        let storage = LocalRolePrivateSqliteStorageV1::new(&connection)?;
+        storage.put_bytes(STATE_KEY, &bytes)
+    }
+
+    pub fn read_a_pair(
+        &self,
+        scope: &LocalDeriverAPairScopeV1,
+        pair: &Ed25519YaoInputPairBindingV1,
+    ) -> RouterAbProtocolResult<Option<(u64, LocalDeriverAPairRecordV1)>> {
+        let mut connection = self.connection.borrow_mut();
+        LocalDeriverAPairSqliteV1::new(
+            &mut connection,
+            &scope.tenant_identity_digest_hex,
+            &scope.wallet_id,
+        )?
+        .read(pair)
+    }
+
+    pub fn read_a_pair_by_lookup(
+        &self,
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+    ) -> RouterAbProtocolResult<Option<(LocalDeriverAPairScopeV1, LocalDeriverAPairRecordV1)>> {
+        let candidates = {
+            let connection = self.connection.borrow();
+            let mut statement = connection
+                .prepare(
+                    "SELECT tenant_id, wallet_id, record_json FROM local_deriver_a_yao_pairs \
+                     WHERE session_hex = ?1",
+                )
+                .map_err(pair_lookup_error)?;
+            let rows = statement
+                .query_map(params![hex::encode(session)], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                })
+                .map_err(pair_lookup_error)?;
+            let mut candidates = Vec::new();
+            for row in rows {
+                let (tenant_id, wallet_id, record_json) = row.map_err(pair_lookup_error)?;
+                let record: LocalDeriverAPairRecordV1 = serde_json::from_str(&record_json)
+                    .map_err(|error| {
+                        RouterAbProtocolError::new(
+                            RouterAbProtocolErrorCode::InvalidLifecycleState,
+                            format!("Deriver A pair record is malformed: {error}"),
+                        )
+                    })?;
+                if record.pair_binding().pair_digest().bytes == pair_digest {
+                    candidates.push((tenant_id, wallet_id, record.pair_binding().clone()));
+                }
+            }
+            candidates
+        };
+        let [(tenant_identity_digest_hex, wallet_id, pair_binding)] = candidates.as_slice() else {
+            if candidates.is_empty() {
+                return Ok(None);
+            }
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLifecycleState,
+                "Deriver A pair lookup is ambiguous across tenant scopes",
+            ));
+        };
+        let scope = LocalDeriverAPairScopeV1 {
+            tenant_identity_digest_hex: tenant_identity_digest_hex.clone(),
+            wallet_id: wallet_id.clone(),
+        };
+        let (_, record) = self.read_a_pair(&scope, pair_binding)?.ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLifecycleState,
+                "Deriver A pair disappeared during lookup",
+            )
+        })?;
+        Ok(Some((scope, record)))
+    }
+
+    pub fn prepare_a_pair(
+        &self,
+        scope: &LocalDeriverAPairScopeV1,
+        record: LocalDeriverAPairRecordV1,
+        now_ms: u64,
+    ) -> RouterAbProtocolResult<LocalDeriverAPairResultV1> {
+        let mut connection = self.connection.borrow_mut();
+        self.a_store(&mut connection, scope)?
+            .prepare(record, now_ms)
+    }
+
+    pub fn reserve_a_pair(
+        &self,
+        scope: &LocalDeriverAPairScopeV1,
+        reservation: Ed25519YaoPairReservationV1<'_>,
+    ) -> RouterAbProtocolResult<LocalDeriverAPairResultV1> {
+        let mut connection = self.connection.borrow_mut();
+        self.a_store(&mut connection, scope)?.reserve(reservation)
+    }
+
+    pub fn claim_a_pair(
+        &self,
+        scope: &LocalDeriverAPairScopeV1,
+        claim: Ed25519YaoPairStartClaimV1<'_>,
+    ) -> RouterAbProtocolResult<LocalDeriverAPairResultV1> {
+        let mut connection = self.connection.borrow_mut();
+        self.a_store(&mut connection, scope)?.claim(claim)
+    }
+
+    pub fn complete_a_pair(
+        &self,
+        scope: &LocalDeriverAPairScopeV1,
+        pair: &Ed25519YaoInputPairBindingV1,
+        execution_id: Ed25519YaoExecutionIdV1,
+        outcome: CloudflareEd25519YaoPairExecuteResponseV1,
+        now_ms: u64,
+        state: &LocalEd25519YaoWorkerStateV1,
+    ) -> RouterAbProtocolResult<LocalDeriverAPairResultV1> {
+        let bytes = state.encode_durable_state_for_role_v1(LocalServiceRoleV1::DeriverA)?;
+        let mut connection = self.connection.borrow_mut();
+        self.a_store(&mut connection, scope)?.complete_with(
+            pair,
+            execution_id,
+            outcome,
+            now_ms,
+            60_000,
+            |transaction| {
+                let storage = LocalRolePrivateSqliteStorageV1::new(transaction)?;
+                storage.put_bytes(STATE_KEY, &bytes)
+            },
+        )
+    }
+
+    pub fn burn_a_pair(
+        &self,
+        scope: &LocalDeriverAPairScopeV1,
+        pair: &Ed25519YaoInputPairBindingV1,
+        execution_id: Ed25519YaoExecutionIdV1,
+    ) -> RouterAbProtocolResult<LocalDeriverAPairResultV1> {
+        let mut connection = self.connection.borrow_mut();
+        self.a_store(&mut connection, scope)?
+            .burn(pair, execution_id)
+    }
+
+    pub fn expire_a_pair(
+        &self,
+        scope: &LocalDeriverAPairScopeV1,
+        pair: &Ed25519YaoInputPairBindingV1,
+        now_ms: u64,
+    ) -> RouterAbProtocolResult<LocalDeriverAPairResultV1> {
+        let mut connection = self.connection.borrow_mut();
+        self.a_store(&mut connection, scope)?.expire(pair, now_ms)
+    }
+
+    fn a_store<'a>(
+        &self,
+        connection: &'a mut Connection,
+        scope: &LocalDeriverAPairScopeV1,
+    ) -> RouterAbProtocolResult<LocalDeriverAPairSqliteV1<'a>> {
+        LocalDeriverAPairSqliteV1::new(
+            connection,
+            &scope.tenant_identity_digest_hex,
+            &scope.wallet_id,
+        )
+    }
+}
+
+fn pair_lookup_error(error: rusqlite::Error) -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+        format!("Deriver A pair lookup failed: {error}"),
+    )
+}

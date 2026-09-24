@@ -61,6 +61,7 @@ mod local_ed25519_yao_profiles;
 mod local_ed25519_yao_refresh;
 mod local_ed25519_yao_router;
 mod local_ed25519_yao_signing_worker;
+mod local_ed25519_yao_sqlite_host;
 mod local_ed25519_yao_stream;
 mod local_ed25519_yao_worker;
 mod local_router_ab_ecdsa_derivation_pool_store;
@@ -151,6 +152,10 @@ pub use local_ed25519_yao_signing_worker::{
     LocalEd25519YaoSigningWorkerRefreshPackageDeliveryV1,
     LocalEd25519YaoSigningWorkerRefreshReceiptV1, LocalEd25519YaoSigningWorkerStateV1,
 };
+pub use local_ed25519_yao_sqlite_host::{
+    LocalDeriverAPairPayloadV1, LocalDeriverAPairRecordV1, LocalDeriverAPairResultV1,
+    LocalDeriverAPairScopeV1, LocalEd25519YaoSqliteHostV1,
+};
 pub use local_ed25519_yao_stream::{
     authenticate_local_ed25519_yao_deriver_b_peer_http_v1, run_local_activation_deriver_a_http_v1,
     run_local_activation_deriver_b_authenticated_http_v1, run_local_activation_deriver_b_http_v1,
@@ -159,7 +164,6 @@ pub use local_ed25519_yao_stream::{
     LocalEd25519YaoStreamErrorV1,
 };
 pub use local_ed25519_yao_worker::{
-    dispatch_local_ed25519_yao_connection_v1,
     dispatch_local_ed25519_yao_connection_with_persistence_v1, LocalEd25519YaoConnectionDispatchV1,
     LocalEd25519YaoPairRoleRecordV1, LocalEd25519YaoRefreshPromotionReceiptV1,
     LocalEd25519YaoRefreshPromotionRequestV1, LocalEd25519YaoRoleCompletionV1,

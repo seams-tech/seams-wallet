@@ -1,10 +1,11 @@
 use router_ab_core::{
     burn_ed25519_yao_pair_v1, claim_ed25519_yao_pair_v1, complete_ed25519_yao_pair_v1,
-    expire_ed25519_yao_pair_v1, prepare_ed25519_yao_pair_v1, Ed25519YaoEncryptedInputV1,
-    Ed25519YaoExecutionIdV1, Ed25519YaoInputPairBindingV1, Ed25519YaoPairRecordV1,
-    Ed25519YaoPairRejectionV1, Ed25519YaoPairStartClaimV1, Ed25519YaoPairStoreResultV1,
-    Ed25519YaoPairTransitionV1, Ed25519YaoRoleReadinessReceiptV1, Ed25519YaoRoleStartAcceptanceV1,
-    TenantRootIdentityV1, TenantRootSignedActivationReceiptV1,
+    expire_ed25519_yao_pair_v1, prepare_ed25519_yao_pair_v1, reserve_ed25519_yao_pair_v1,
+    Ed25519YaoEncryptedInputV1, Ed25519YaoExecutionIdV1, Ed25519YaoInputPairBindingV1,
+    Ed25519YaoPairRecordV1, Ed25519YaoPairRejectionV1, Ed25519YaoPairReservationV1,
+    Ed25519YaoPairStartClaimV1, Ed25519YaoPairStoreResultV1, Ed25519YaoPairTransitionV1,
+    Ed25519YaoRoleReadinessReceiptV1, Ed25519YaoRoleStartAcceptanceV1, TenantRootIdentityV1,
+    TenantRootSignedActivationReceiptV1,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -14,8 +15,9 @@ use crate::{
     ed25519_yao_lifecycle::role_d1::{
         encode_hex, encode_hex_slice, RolePairCipherV1, RolePairRecordScopeV1,
     },
-    CloudflareEd25519YaoPairExecuteResponseV1, CloudflareEd25519YaoPairWorkV1,
-    CloudflareEd25519YaoTenantRootContextV2,
+    ed25519_yao_lifecycle::{verify_role_readiness_receipt_v1, verify_role_start_acceptance_v1},
+    CloudflareDeriverAWorkerRuntimeV1, CloudflareEd25519YaoPairExecuteResponseV1,
+    CloudflareEd25519YaoPairWorkV1, CloudflareEd25519YaoTenantRootContextV2,
 };
 
 const PAIR_DO_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair";
@@ -104,6 +106,14 @@ pub(crate) enum DeriverAPairDoCommandV1 {
         record: PairRecord,
         now_ms: u64,
     },
+    Reserve {
+        owner: DeriverAWalletOwnerV1,
+        pair_binding: Ed25519YaoInputPairBindingV1,
+        local_receipt: Ed25519YaoRoleReadinessReceiptV1,
+        peer_receipt: Ed25519YaoRoleReadinessReceiptV1,
+        execution_id: Ed25519YaoExecutionIdV1,
+        now_ms: u64,
+    },
     Claim {
         owner: DeriverAWalletOwnerV1,
         pair_binding: Ed25519YaoInputPairBindingV1,
@@ -141,6 +151,7 @@ impl DeriverAPairDoCommandV1 {
     fn owner(&self) -> &DeriverAWalletOwnerV1 {
         match self {
             Self::Prepare { owner, .. }
+            | Self::Reserve { owner, .. }
             | Self::Claim { owner, .. }
             | Self::Complete { owner, .. }
             | Self::Expire { owner, .. }
@@ -246,6 +257,12 @@ impl RouterAbDeriverAWalletDurableObject {
         } = &command
         {
             self.validate_preparation(&owner, root_identity, record)?;
+            if let PairRecord::Prepared { receipt, .. } = record {
+                let runtime = CloudflareDeriverAWorkerRuntimeV1::from_worker_env(&self.env)
+                    .map_err(|error| pair_error(error.to_string()))?;
+                verify_role_readiness_receipt_v1(receipt, runtime.peer_verifying_keys())
+                    .map_err(|error| pair_error(error.to_string()))?;
+            }
         }
         let may_initialize = matches!(command, DeriverAPairDoCommandV1::Prepare { .. });
         self.check_owner(&owner, may_initialize)?;
@@ -257,6 +274,36 @@ impl RouterAbDeriverAWalletDurableObject {
                     prepare_ed25519_yao_pair_v1(current, record, now_ms)
                 })?
             }
+            DeriverAPairDoCommandV1::Reserve {
+                pair_binding,
+                local_receipt,
+                peer_receipt,
+                execution_id,
+                now_ms,
+                ..
+            } => {
+                let runtime = CloudflareDeriverAWorkerRuntimeV1::from_worker_env(&self.env)
+                    .map_err(|error| pair_error(error.to_string()))?;
+                for receipt in [&local_receipt, &peer_receipt] {
+                    verify_role_readiness_receipt_v1(receipt, runtime.peer_verifying_keys())
+                        .map_err(|error| pair_error(error.to_string()))?;
+                }
+                self.mutate(&owner, &cipher, &pair_binding, |current| match current {
+                    Some(record) => reserve_ed25519_yao_pair_v1(
+                        record,
+                        Ed25519YaoPairReservationV1 {
+                            pair_binding: &pair_binding,
+                            local_receipt: &local_receipt,
+                            peer_receipt: &peer_receipt,
+                            execution_id,
+                            now_ms,
+                        },
+                    ),
+                    None => Ed25519YaoPairTransitionV1::Reject(
+                        Ed25519YaoPairRejectionV1::IdentityMismatch,
+                    ),
+                })?
+            }
             DeriverAPairDoCommandV1::Claim {
                 pair_binding,
                 local_receipt,
@@ -265,22 +312,32 @@ impl RouterAbDeriverAWalletDurableObject {
                 execution_id,
                 now_ms,
                 ..
-            } => self.mutate(&owner, &cipher, &pair_binding, |current| match current {
-                Some(record) => claim_ed25519_yao_pair_v1(
-                    record,
-                    Ed25519YaoPairStartClaimV1 {
-                        pair_binding: &pair_binding,
-                        local_receipt: &local_receipt,
-                        peer_receipt: &peer_receipt,
-                        acceptance: &acceptance,
-                        execution_id,
-                        now_ms,
-                    },
-                ),
-                None => {
-                    Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch)
+            } => {
+                let runtime = CloudflareDeriverAWorkerRuntimeV1::from_worker_env(&self.env)
+                    .map_err(|error| pair_error(error.to_string()))?;
+                for receipt in [&local_receipt, &peer_receipt] {
+                    verify_role_readiness_receipt_v1(receipt, runtime.peer_verifying_keys())
+                        .map_err(|error| pair_error(error.to_string()))?;
                 }
-            })?,
+                verify_role_start_acceptance_v1(&acceptance, runtime.peer_verifying_keys())
+                    .map_err(|error| pair_error(error.to_string()))?;
+                self.mutate(&owner, &cipher, &pair_binding, |current| match current {
+                    Some(record) => claim_ed25519_yao_pair_v1(
+                        record,
+                        Ed25519YaoPairStartClaimV1 {
+                            pair_binding: &pair_binding,
+                            local_receipt: &local_receipt,
+                            peer_receipt: &peer_receipt,
+                            acceptance: &acceptance,
+                            execution_id,
+                            now_ms,
+                        },
+                    ),
+                    None => Ed25519YaoPairTransitionV1::Reject(
+                        Ed25519YaoPairRejectionV1::IdentityMismatch,
+                    ),
+                })?
+            }
             DeriverAPairDoCommandV1::Complete {
                 pair_binding,
                 execution_id,
@@ -559,6 +616,10 @@ fn initial_scope(record: &PairRecord) -> worker::Result<RolePairRecordScopeV1> {
 fn record_root_digest(record: &PairRecord) -> Option<[u8; 32]> {
     match record {
         PairRecord::Prepared {
+            root_metadata_digest,
+            ..
+        }
+        | PairRecord::Starting {
             root_metadata_digest,
             ..
         }
