@@ -10,7 +10,7 @@ use crate::local_ed25519_yao_stream::{
     run_local_activation_deriver_b_authenticated_http_open_v2,
     run_local_export_deriver_a_pair_connected_v2,
     run_local_export_deriver_b_authenticated_http_open_v2, seal_local_deriver_a_target_proof_v2,
-    seal_local_deriver_b_target_proof_v2,
+    seal_local_deriver_b_target_proof_v2, LocalEd25519YaoPairCompletionDeliveryV1,
 };
 use crate::{
     build_local_activation_deriver_a_with_server_v1,
@@ -50,6 +50,7 @@ use crate::{
     LOCAL_DERIVER_A_ED25519_YAO_REFRESH_SIGNING_WORKER_PACKAGE_PATH,
     LOCAL_DERIVER_A_ED25519_YAO_REFRESH_START_PATH, LOCAL_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH,
     LOCAL_DERIVER_B_ED25519_YAO_PEER_PATH, LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
+    LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_OUTCOME_PATH,
     LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH,
     LOCAL_DERIVER_B_ED25519_YAO_REFRESH_CLIENT_PACKAGE_PATH,
     LOCAL_DERIVER_B_ED25519_YAO_REFRESH_DELTA_PATH,
@@ -196,6 +197,7 @@ pub enum LocalEd25519YaoPairRoleRecordV1 {
         session: [u8; 32],
         pair_digest: [u8; 32],
         pair_binding: Box<router_ab_core::Ed25519YaoInputPairBindingV1>,
+        root_metadata_digest: [u8; 32],
         execution_id: [u8; 32],
         execution: Box<Ed25519YaoRoleExecutionV1>,
     },
@@ -229,6 +231,14 @@ impl LocalEd25519YaoPairRoleRecordV1 {
             | Self::Burned { pair_digest, .. } => *pair_digest,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LocalDeriverBPairOutcomeLookupV1 {
+    pair_binding: router_ab_core::Ed25519YaoInputPairBindingV1,
+    root_metadata_digest: [u8; 32],
+    execution_id: Ed25519YaoExecutionIdV1,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -523,11 +533,13 @@ pub(crate) fn validate_pair_role_record(
             session,
             pair_digest,
             pair_binding,
+            root_metadata_digest,
             execution_id,
             execution,
         } => {
             if session.iter().all(|byte| *byte == 0)
                 || pair_digest.iter().all(|byte| *byte == 0)
+                || root_metadata_digest.iter().all(|byte| *byte == 0)
                 || execution_id.iter().all(|byte| *byte == 0)
             {
                 return Err(invalid_worker_state(
@@ -767,6 +779,7 @@ pub fn dispatch_local_ed25519_yao_connection_with_persistence_v1(
         && matches!(
             request.path.as_str(),
             LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH
+                | LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_OUTCOME_PATH
                 | LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH
                 | LOCAL_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH
         );
@@ -854,6 +867,33 @@ fn handle_yao_control_request(
                 serde_json::from_slice::<CloudflareEd25519YaoPairLookupRequestV1>(&request.body)?;
             let status = read_local_a_pair_status_from_sqlite_v1(host, lookup)?;
             write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&status)?)
+        }
+        (
+            LocalWorkerRoleConfigV1::DeriverB(_),
+            LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_OUTCOME_PATH,
+        ) => {
+            let lookup = serde_json::from_slice::<LocalDeriverBPairOutcomeLookupV1>(&request.body)?;
+            lookup.pair_binding.validate()?;
+            let session = lookup.pair_binding.session();
+            let pair_digest = lookup.pair_binding.pair_digest().bytes;
+            let record = host.read_b_pair(session, pair_digest)?;
+            let Some(LocalEd25519YaoPairRoleRecordV1::Completed {
+                pair_binding,
+                root_metadata_digest,
+                execution_id,
+                execution,
+                ..
+            }) = record
+            else {
+                return Err(pair_conflict("Deriver B exact outcome is not completed").into());
+            };
+            if *pair_binding != lookup.pair_binding
+                || root_metadata_digest != lookup.root_metadata_digest
+                || execution_id != lookup.execution_id.into_bytes()
+            {
+                return Err(pair_conflict("Deriver B exact outcome scope changed").into());
+            }
+            write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&execution)?)
         }
         (
             LocalWorkerRoleConfigV1::DeriverB(_),
@@ -1485,6 +1525,11 @@ fn execute_local_pair_deriver_a_inner_v1(
             "Deriver A pair tenant-root context changed after preparation",
         ));
     }
+    if peer_root_metadata_digest != root_metadata_digest {
+        return Err(invalid_worker_state(
+            "Deriver B readiness belongs to a different tenant-root receipt",
+        ));
+    }
     let now_ms = crate::local_now_unix_ms_v1()?;
     if now_ms >= expires_at_ms {
         state.pair_roles.insert(
@@ -1585,7 +1630,7 @@ fn execute_local_pair_deriver_a_inner_v1(
         &incoming_plaintext,
         &tenant_root,
     )?;
-    let (execution, deriver_b_sealed_execution) = match input.kind() {
+    let (execution, deriver_b_completion) = match input.kind() {
         router_ab_core::Ed25519YaoInputKindV1::Activation => {
             let role_request =
                 open_local_ed25519_yao_activation_deriver_a_input_v1(&input, &private_key)?;
@@ -1601,7 +1646,7 @@ fn execute_local_pair_deriver_a_inner_v1(
                     role_request,
                     server_contribution,
                 )?;
-            let (completion, _, deriver_b_sealed_execution) =
+            let (completion, _, deriver_b_completion) =
                 run_local_activation_deriver_a_pair_connected_v2(connection, role)
                     .map_err(|_| pair_execution_error("Deriver A pair activation stream failed"))?;
             let packages = seal_activation_output_v1(
@@ -1634,7 +1679,7 @@ fn execute_local_pair_deriver_a_inner_v1(
                     packages.client,
                     packages.signing_worker,
                 )?),
-                deriver_b_sealed_execution,
+                deriver_b_completion,
             )
         }
         router_ab_core::Ed25519YaoInputKindV1::Export => {
@@ -1648,7 +1693,7 @@ fn execute_local_pair_deriver_a_inner_v1(
             let recipient = role_request.recipients;
             let (binding, role) =
                 build_local_export_deriver_a_with_server_v1(role_request, server_contribution)?;
-            let (completion, _, deriver_b_sealed_execution) =
+            let (completion, _, deriver_b_completion) =
                 run_local_export_deriver_a_pair_connected_v2(connection, role)
                     .map_err(|_| pair_execution_error("Deriver A pair export stream failed"))?;
             let client_package = seal_export_output_v1(
@@ -1665,7 +1710,7 @@ fn execute_local_pair_deriver_a_inner_v1(
                     completion.final_transcript(),
                     client_package,
                 )?),
-                deriver_b_sealed_execution,
+                deriver_b_completion,
             )
         }
         router_ab_core::Ed25519YaoInputKindV1::LaneMaterialization => {
@@ -1674,22 +1719,95 @@ fn execute_local_pair_deriver_a_inner_v1(
             ));
         }
     };
+    let deriver_b_sealed_execution_json = resolve_local_deriver_b_completion_v1(
+        config,
+        &pair_binding,
+        execution_id,
+        root_metadata_digest,
+        &execution,
+        deriver_b_completion,
+    )?;
     state.pair_roles.insert(
         pair_digest,
         LocalEd25519YaoPairRoleRecordV1::Completed {
             session,
             pair_digest,
             pair_binding: pair_binding.clone(),
+            root_metadata_digest,
             execution_id: execution_id.into_bytes(),
             execution: Box::new(execution.clone()),
         },
     );
-    let deriver_b_sealed_execution_json = String::from_utf8(deriver_b_sealed_execution)
-        .map_err(|_| invalid_worker_state("Deriver B sealed execution is not UTF-8 JSON"))?;
     Ok(CloudflareEd25519YaoPairExecuteResponseV1 {
         deriver_a_execution: execution,
         deriver_b_sealed_execution_json,
     })
+}
+
+fn resolve_local_deriver_b_completion_v1(
+    config: &crate::LocalDeriverAWorkerConfigV1,
+    pair_binding: &router_ab_core::Ed25519YaoInputPairBindingV1,
+    execution_id: Ed25519YaoExecutionIdV1,
+    root_metadata_digest: [u8; 32],
+    deriver_a_execution: &Ed25519YaoRoleExecutionV1,
+    delivery: LocalEd25519YaoPairCompletionDeliveryV1,
+) -> RouterAbProtocolResult<String> {
+    let deriver_b_execution = match delivery {
+        LocalEd25519YaoPairCompletionDeliveryV1::Received(bytes) => {
+            serde_json::from_slice::<Ed25519YaoRoleExecutionV1>(&bytes)
+                .map_err(|_| pair_execution_error("Deriver B sealed execution is malformed"))?
+        }
+        LocalEd25519YaoPairCompletionDeliveryV1::MissingAfterCleanEof => {
+            let lookup = LocalDeriverBPairOutcomeLookupV1 {
+                pair_binding: pair_binding.clone(),
+                root_metadata_digest,
+                execution_id,
+            };
+            post_internal_json_v1(
+                &config.deriver_b_url,
+                LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_OUTCOME_PATH,
+                &lookup,
+            )
+            .map_err(|_| pair_execution_error("Deriver B terminal outcome is unavailable"))?
+        }
+    };
+    validate_local_deriver_b_execution_v1(pair_binding, deriver_a_execution, &deriver_b_execution)?;
+    serde_json::to_string(&deriver_b_execution)
+        .map_err(|_| pair_execution_error("Deriver B terminal outcome cannot be encoded"))
+}
+
+fn validate_local_deriver_b_execution_v1(
+    pair_binding: &router_ab_core::Ed25519YaoInputPairBindingV1,
+    deriver_a_execution: &Ed25519YaoRoleExecutionV1,
+    deriver_b_execution: &Ed25519YaoRoleExecutionV1,
+) -> RouterAbProtocolResult<()> {
+    deriver_b_execution.validate()?;
+    if deriver_b_execution.deriver() != Ed25519YaoDeriverRoleV1::DeriverB
+        || deriver_b_execution.session() != pair_binding.session()
+    {
+        return Err(pair_execution_error(
+            "Deriver B terminal execution identity changed",
+        ));
+    }
+    match (deriver_a_execution, deriver_b_execution) {
+        (Ed25519YaoRoleExecutionV1::Activation(a), Ed25519YaoRoleExecutionV1::Activation(b))
+            if a.binding == *pair_binding.binding()
+                && b.binding == a.binding
+                && b.transcript == a.transcript =>
+        {
+            Ok(())
+        }
+        (Ed25519YaoRoleExecutionV1::Export(a), Ed25519YaoRoleExecutionV1::Export(b))
+            if a.binding == *pair_binding.binding()
+                && b.binding == a.binding
+                && b.transcript == a.transcript =>
+        {
+            Ok(())
+        }
+        _ => Err(pair_execution_error(
+            "Deriver B terminal execution differs from verified A completion",
+        )),
+    }
 }
 
 fn pair_execution_error(message: &'static str) -> RouterAbProtocolError {
@@ -2673,6 +2791,7 @@ fn execute_local_pair_deriver_b_inner_v1(
         session,
         pair_digest,
         pair_binding,
+        root_metadata_digest,
         execution_id: peer.execution_id.into_bytes(),
         execution: Box::new(execution_result),
     };
@@ -2719,6 +2838,7 @@ fn is_yao_control_path(path: &str) -> bool {
             | LOCAL_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH
             | LOCAL_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH
             | LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH
+            | LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_OUTCOME_PATH
             | LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH
             | LOCAL_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH
             | LOCAL_DERIVER_B_ED25519_YAO_REFRESH_STAGE_PATH

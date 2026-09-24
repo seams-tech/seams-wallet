@@ -126,9 +126,14 @@ duration, and stored bytes have not been measured for a matched comparison.
   effective-state delta commits in the same transaction as completion. The
   broader role-state blob excludes B pair authority and rejects a stale
   process snapshot. SigningWorker NEAR and ECDSA have separate one-use effect
-  journals. Router registration retry reconciliation, B peer-response-loss
-  recovery, and remaining lifecycle operations still require durable behavior
-  evidence before the VM reference path is complete.
+  journals. If B commits and its sealed completion reply is lost after a valid
+  protocol and HTTP end-of-stream, A reads B's exact completed outcome using
+  the original pair, root-receipt digest, and execution ID. A verifies that
+  outcome against its own completed transcript and commits its result before
+  replying. Malformed framing still fails closed. This only reconciles while
+  A's process survives; A crash after B completion remains unresolved. Router
+  registration retry reconciliation and remaining lifecycle operations still
+  require durable behavior evidence before the VM reference path is complete.
 
 Recovery, factor management, export, linked devices, and background jobs need
 their own inventory before full lifecycle coverage. Their current D1 records remain

@@ -51,11 +51,12 @@ use router_ab_dev::{
     RouterAbEd25519YaoApplicationBindingFactsV1, RouterAbEd25519YaoLifecycleScopeV1,
     RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
-    LOCAL_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
+    LOCAL_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH, LOCAL_DERIVER_B_ED25519_YAO_PEER_PATH,
     LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
     LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
     LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH, LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PREPARE_PATH,
 };
+use router_ab_ed25519_yao::Ed25519YaoRoleExecutionV1;
 use router_ab_ed25519_yao_client::complete_client_activation_packages_v1;
 use rusqlite::Connection;
 use serde::Serialize;
@@ -75,8 +76,8 @@ use signer_core::near_threshold_ed25519::{
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
-    io::{Read, Write},
-    net::{TcpListener, TcpStream},
+    io::{self, BufRead, BufReader, Read, Write},
+    net::{Shutdown, TcpListener, TcpStream},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{Barrier, Mutex, MutexGuard, OnceLock},
@@ -719,6 +720,376 @@ fn product_topology_completes_local_ed25519_yao_registration(
     drop(deriver_b_replica);
     let _ = fs::remove_dir_all(temp);
     Ok(())
+}
+
+#[derive(Clone, Copy)]
+enum PairReplyFault {
+    LostSealedCompletion,
+    TruncatedZeroChunk,
+}
+
+#[test]
+fn vm_pair_reply_loss_reconciles_only_after_clean_transport_eof(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
+    for fault in [
+        PairReplyFault::LostSealedCompletion,
+        PairReplyFault::TruncatedZeroChunk,
+    ] {
+        let temp = temp_dir("pair-reply-loss")?;
+        let router_url = format!("http://127.0.0.1:{}", free_port()?);
+        let deriver_a_url = format!("http://127.0.0.1:{}", free_port()?);
+        let deriver_b_url = format!("http://127.0.0.1:{}", free_port()?);
+        let signing_worker_url = format!("http://127.0.0.1:{}", free_port()?);
+        let proxy_listener = TcpListener::bind("127.0.0.1:0")?;
+        let proxy_url = format!("http://{}", proxy_listener.local_addr()?);
+        let tenant_root_fixture = product_tenant_root_fixture()?;
+        let router_env = write_product_worker_envs(
+            &temp,
+            &router_url,
+            &deriver_a_url,
+            &deriver_b_url,
+            &signing_worker_url,
+            &tenant_root_fixture,
+        )?;
+        let a_env_path = temp.join(router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1);
+        let a_env = fs::read_to_string(&a_env_path)?;
+        let proxied_a_env = a_env.replace(&deriver_b_url, &proxy_url);
+        assert_ne!(
+            proxied_a_env, a_env,
+            "A must route its B peer through the proxy"
+        );
+        fs::write(&a_env_path, proxied_a_env)?;
+
+        let mut router = ChildGuard::spawn_in_root(
+            binary,
+            "router",
+            temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1),
+            &temp,
+        )?;
+        let mut deriver_a = ChildGuard::spawn_in_root(binary, "deriver-a", a_env_path, &temp)?;
+        let mut deriver_b = ChildGuard::spawn_in_root(
+            binary,
+            "deriver-b",
+            temp.join(router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1),
+            &temp,
+        )?;
+        let mut signing_worker = ChildGuard::spawn_in_root(
+            binary,
+            "signing-worker",
+            temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1),
+            &temp,
+        )?;
+        wait_for_health(&router_url, router.child_mut())?;
+        wait_for_health(&deriver_a_url, deriver_a.child_mut())?;
+        wait_for_health(&deriver_b_url, deriver_b.child_mut())?;
+        wait_for_health(&signing_worker_url, signing_worker.child_mut())?;
+
+        let b_authority = deriver_b_url.strip_prefix("http://").unwrap().to_owned();
+        let proxy = thread::spawn(move || -> io::Result<(usize, usize)> {
+            proxy_listener.set_nonblocking(true)?;
+            let deadline = Instant::now() + Duration::from_secs(15);
+            let expected_connections = match fault {
+                PairReplyFault::LostSealedCompletion => 2,
+                PairReplyFault::TruncatedZeroChunk => 1,
+            };
+            let mut peer_connections = 0;
+            let mut dropped_completions = 0;
+            for _ in 0..expected_connections {
+                let client = loop {
+                    match proxy_listener.accept() {
+                        Ok((client, _)) => {
+                            client.set_nonblocking(false)?;
+                            break client;
+                        }
+                        Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                            if Instant::now() >= deadline {
+                                return Err(io::Error::new(
+                                    io::ErrorKind::TimedOut,
+                                    "pair reply proxy did not receive the expected request",
+                                ));
+                            }
+                            thread::sleep(Duration::from_millis(10));
+                        }
+                        Err(error) => return Err(error),
+                    }
+                };
+                let peer = proxy_pair_reply_connection(client, &b_authority, fault)?;
+                if peer {
+                    peer_connections += 1;
+                    dropped_completions += 1;
+                }
+            }
+            Ok((peer_connections, dropped_completions))
+        });
+
+        let (request, _) = product_registration_request(&router_env, &tenant_root_fixture)?;
+        let (status, body) = post_json_to_path_with_headers(
+            &router_url,
+            LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+            &request,
+            &[(
+                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            )],
+        )?;
+        let (peer_connections, dropped_completions) =
+            proxy.join().map_err(|_| "proxy panicked")??;
+        assert_eq!(peer_connections, 1);
+        assert_eq!(dropped_completions, 1);
+
+        let b_env = fs::read_to_string(temp.join(router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1))?;
+        let b_config = parse_local_worker_role_config_for_role_v1(
+            LocalServiceRoleV1::DeriverB,
+            parse_local_env_file_contents_v1(&b_env)?,
+        )?;
+        let LocalWorkerRoleConfigV1::DeriverB(b_config) = b_config else {
+            return Err("Deriver B env parsed as another role".into());
+        };
+        let b_connection = Connection::open(temp.join(b_config.role_private_storage_path))?;
+        let b_record_json: String = b_connection.query_row(
+            "SELECT record_json FROM local_deriver_b_yao_pairs",
+            [],
+            |row| row.get(0),
+        )?;
+        let b_record: serde_json::Value = serde_json::from_str(&b_record_json)?;
+        assert_eq!(
+            b_record["status"], "completed",
+            "B must commit before reply loss"
+        );
+        let lookup = json!({
+            "pair_binding": b_record["pair_binding"],
+            "root_metadata_digest": b_record["root_metadata_digest"],
+            "execution_id": b_record["execution_id"],
+        });
+        let (outcome_status, outcome_body) = post_json_to_path_with_headers(
+            &deriver_b_url,
+            router_ab_dev::LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_OUTCOME_PATH,
+            &lookup,
+            &[(
+                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            )],
+        )?;
+        assert_eq!(outcome_status, 200, "{outcome_body}");
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&outcome_body)?,
+            b_record["execution"]
+        );
+        let mut wrong_scope = lookup.clone();
+        wrong_scope["root_metadata_digest"][0] = json!(
+            wrong_scope["root_metadata_digest"][0]
+                .as_u64()
+                .ok_or("root digest byte is missing")?
+                ^ 1
+        );
+        let (wrong_scope_status, _) = post_json_to_path_with_headers(
+            &deriver_b_url,
+            router_ab_dev::LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_OUTCOME_PATH,
+            &wrong_scope,
+            &[(
+                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            )],
+        )?;
+        assert_ne!(wrong_scope_status, 200, "wrong root cannot read B outcome");
+        let mut wrong_execution = lookup;
+        wrong_execution["execution_id"][0] = json!(
+            wrong_execution["execution_id"][0]
+                .as_u64()
+                .ok_or("execution id byte is missing")?
+                ^ 1
+        );
+        let (wrong_execution_status, _) = post_json_to_path_with_headers(
+            &deriver_b_url,
+            router_ab_dev::LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_OUTCOME_PATH,
+            &wrong_execution,
+            &[(
+                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            )],
+        )?;
+        assert_ne!(
+            wrong_execution_status, 200,
+            "wrong execution cannot read B outcome"
+        );
+
+        let a_env = fs::read_to_string(temp.join(router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1))?;
+        let a_config = parse_local_worker_role_config_for_role_v1(
+            LocalServiceRoleV1::DeriverA,
+            parse_local_env_file_contents_v1(&a_env)?,
+        )?;
+        let LocalWorkerRoleConfigV1::DeriverA(a_config) = a_config else {
+            return Err("Deriver A env parsed as another role".into());
+        };
+        let a_connection = Connection::open(temp.join(a_config.role_private_storage_path))?;
+        let a_record_json: String = a_connection.query_row(
+            "SELECT record_json FROM local_deriver_a_yao_pairs",
+            [],
+            |row| row.get(0),
+        )?;
+        let a_record: serde_json::Value = serde_json::from_str(&a_record_json)?;
+        match fault {
+            PairReplyFault::LostSealedCompletion => {
+                assert_eq!(status, 200, "{body}");
+                assert!(matches!(
+                    serde_json::from_str::<RouterEd25519YaoExecuteResultV1>(&body)?,
+                    RouterEd25519YaoExecuteResultV1::Succeeded { .. }
+                ));
+                assert_eq!(a_record["status"], "completed");
+                let completed: LocalDeriverAPairRecordV1 = serde_json::from_str(&a_record_json)?;
+                let LocalDeriverAPairRecordV1::Completed {
+                    pair_binding,
+                    claim_identity,
+                    payload,
+                    outcome,
+                    ..
+                } = completed
+                else {
+                    return Err("A did not durably complete after reconciliation".into());
+                };
+                drop(deriver_a);
+                deriver_a = ChildGuard::spawn_in_root(
+                    binary,
+                    "deriver-a",
+                    temp.join(router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1),
+                    &temp,
+                )?;
+                wait_for_health(&deriver_a_url, deriver_a.child_mut())?;
+                let retry = CloudflareEd25519YaoPairExecuteRequestV1 {
+                    pair_binding,
+                    tenant_root: payload.tenant_root,
+                    work: payload.work,
+                    input: payload.input,
+                    local_receipt: claim_identity.local_receipt,
+                    peer_receipt: claim_identity.peer_receipt,
+                };
+                let (replay_status, replay_body) = post_json_to_path_with_headers(
+                    &deriver_a_url,
+                    LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
+                    &retry,
+                    &[(
+                        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+                        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+                    )],
+                )?;
+                assert_eq!(replay_status, 200, "{replay_body}");
+                assert_eq!(
+                    serde_json::from_str::<serde_json::Value>(&replay_body)?,
+                    serde_json::to_value(outcome)?
+                );
+            }
+            PairReplyFault::TruncatedZeroChunk => {
+                let result = serde_json::from_str::<RouterEd25519YaoExecuteResultV1>(&body)?;
+                assert!(
+                    !matches!(result, RouterEd25519YaoExecuteResultV1::Succeeded { .. }),
+                    "truncated framing must fail closed: {body}"
+                );
+                assert_ne!(a_record["status"], "completed");
+            }
+        }
+        println!(
+            "R150_VM_B_REPLY_LOSS_E2E {}",
+            json!({
+                "fault": match fault {
+                    PairReplyFault::LostSealedCompletion => "lost_sealed_completion",
+                    PairReplyFault::TruncatedZeroChunk => "truncated_zero_chunk",
+                },
+                "b_completed": true,
+                "a_completed": a_record["status"] == "completed",
+                "authenticated_reconciliation": matches!(fault, PairReplyFault::LostSealedCompletion),
+            })
+        );
+        drop(router);
+        drop(deriver_a);
+        drop(deriver_b);
+        drop(signing_worker);
+        drop(a_connection);
+        drop(b_connection);
+        fs::remove_dir_all(temp)?;
+    }
+    Ok(())
+}
+
+fn proxy_pair_reply_connection(
+    mut client: TcpStream,
+    b_authority: &str,
+    fault: PairReplyFault,
+) -> io::Result<bool> {
+    client.set_read_timeout(Some(Duration::from_secs(15)))?;
+    client.set_write_timeout(Some(Duration::from_secs(15)))?;
+    let mut client_reader = BufReader::new(client.try_clone()?);
+    let request_head = read_proxy_http_head(&mut client_reader)?;
+    let is_peer = request_head.starts_with(
+        format!("POST {LOCAL_DERIVER_B_ED25519_YAO_PEER_PATH} HTTP/1.1\r\n").as_bytes(),
+    );
+    let mut upstream = TcpStream::connect(b_authority)?;
+    upstream.set_read_timeout(Some(Duration::from_secs(15)))?;
+    upstream.set_write_timeout(Some(Duration::from_secs(15)))?;
+    upstream.write_all(&request_head)?;
+    let mut upstream_request = upstream.try_clone()?;
+    let request_copy = thread::spawn(move || -> io::Result<()> {
+        io::copy(&mut client_reader, &mut upstream_request)?;
+        upstream_request.shutdown(Shutdown::Write)
+    });
+
+    if is_peer {
+        let mut upstream_reader = BufReader::new(upstream);
+        let response_head = read_proxy_http_head(&mut upstream_reader)?;
+        client.write_all(&response_head)?;
+        let mut dropped_completion = false;
+        loop {
+            let mut size_line = Vec::new();
+            upstream_reader.read_until(b'\n', &mut size_line)?;
+            let size_text = std::str::from_utf8(
+                size_line
+                    .strip_suffix(b"\r\n")
+                    .ok_or_else(|| io::Error::other("proxy saw malformed chunk size"))?,
+            )
+            .map_err(io::Error::other)?;
+            let size = usize::from_str_radix(size_text, 16).map_err(io::Error::other)?;
+            let mut chunk = vec![0_u8; size + 2];
+            upstream_reader.read_exact(&mut chunk)?;
+            if size == 0 {
+                if !dropped_completion {
+                    return Err(io::Error::other("B did not send a sealed completion"));
+                }
+                match fault {
+                    PairReplyFault::LostSealedCompletion => client.write_all(b"0\r\n\r\n")?,
+                    PairReplyFault::TruncatedZeroChunk => client.write_all(b"0\r\n")?,
+                }
+                break;
+            }
+            if serde_json::from_slice::<Ed25519YaoRoleExecutionV1>(&chunk[..size]).is_ok() {
+                dropped_completion = true;
+                continue;
+            }
+            client.write_all(&size_line)?;
+            client.write_all(&chunk)?;
+        }
+    } else {
+        io::copy(&mut upstream, &mut client)?;
+    }
+    client.shutdown(Shutdown::Write)?;
+    request_copy
+        .join()
+        .map_err(|_| io::Error::other("proxy request-copy thread panicked"))??;
+    Ok(is_peer)
+}
+
+fn read_proxy_http_head(reader: &mut impl BufRead) -> io::Result<Vec<u8>> {
+    let mut head = Vec::new();
+    loop {
+        let mut line = Vec::new();
+        if reader.read_until(b'\n', &mut line)? == 0 {
+            return Err(io::Error::other("proxy HTTP head ended early"));
+        }
+        head.extend_from_slice(&line);
+        if line == b"\r\n" {
+            return Ok(head);
+        }
+    }
 }
 
 #[test]

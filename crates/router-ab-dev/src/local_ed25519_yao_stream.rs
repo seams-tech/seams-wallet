@@ -75,6 +75,11 @@ impl From<io::Error> for LocalEd25519YaoStreamErrorV1 {
 
 type StreamResult<T> = Result<T, LocalEd25519YaoStreamErrorV1>;
 
+pub(crate) enum LocalEd25519YaoPairCompletionDeliveryV1 {
+    Received(Vec<u8>),
+    MissingAfterCleanEof,
+}
+
 pub(crate) struct LocalEd25519YaoCompletedDeriverBResponseV1 {
     stream: TcpStream,
 }
@@ -237,7 +242,7 @@ pub(crate) fn run_local_activation_deriver_a_pair_connected_v2(
 ) -> StreamResult<(
     ActivationDeriverACompletion,
     Ed25519YaoRoleStartAcceptanceV1,
-    Vec<u8>,
+    LocalEd25519YaoPairCompletionDeliveryV1,
 )> {
     let acceptance = connection.acceptance.clone();
     let (completion, _, sealed_completion) = run_local_deriver_a_stream_v1(
@@ -268,7 +273,7 @@ pub(crate) fn run_local_export_deriver_a_pair_connected_v2(
 ) -> StreamResult<(
     ExportDeriverACompletion,
     Ed25519YaoRoleStartAcceptanceV1,
-    Vec<u8>,
+    LocalEd25519YaoPairCompletionDeliveryV1,
 )> {
     let acceptance = connection.acceptance.clone();
     let (completion, _, sealed_completion) = run_local_deriver_a_stream_v1(
@@ -314,7 +319,7 @@ fn run_local_deriver_a_stream_v1<R>(
 ) -> StreamResult<(
     R::Completion,
     Option<Ed25519YaoRoleStartAcceptanceV1>,
-    Option<Vec<u8>>,
+    Option<LocalEd25519YaoPairCompletionDeliveryV1>,
 )>
 where
     R: LocalStreamingRole,
@@ -372,14 +377,21 @@ where
     require_receive_instruction(&role, &returned)?;
     role = expect_continue(role.handle(RelayEvent::Inbound(returned))?)?;
     let sealed_completion = if pair {
-        Some(
-            read_http_chunk(&mut reader)?
-                .ok_or_else(|| protocol("pair response ended before sealed completion"))?,
-        )
+        let delivery = match read_http_chunk(&mut reader)? {
+            Some(bytes) => {
+                require_http_eof(&mut reader)?;
+                LocalEd25519YaoPairCompletionDeliveryV1::Received(bytes)
+            }
+            None if reader.fill_buf()?.is_empty() => {
+                LocalEd25519YaoPairCompletionDeliveryV1::MissingAfterCleanEof
+            }
+            None => return Err(invalid_http("bytes follow zero chunk")),
+        };
+        Some(delivery)
     } else {
+        require_http_eof(&mut reader)?;
         None
     };
-    require_http_eof(&mut reader)?;
     let peer_eof = b_to_a_decoder
         .finish_at_transport_eof()
         .map_err(|_| protocol("A response EOF evidence"))?;

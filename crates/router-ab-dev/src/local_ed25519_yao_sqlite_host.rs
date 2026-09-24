@@ -242,14 +242,17 @@ impl LocalEd25519YaoSqliteHostV1 {
             (
                 LocalEd25519YaoPairRoleRecordV1::Running {
                     execution_id: running_id,
+                    root_metadata_digest: running_root,
                     ..
                 },
                 LocalEd25519YaoPairRoleRecordV1::Completed {
                     execution_id: completed_id,
+                    root_metadata_digest: completed_root,
                     execution,
                     ..
                 },
             ) if running_id == completed_id
+                && running_root == completed_root
                 && execution.deriver() == router_ab_core::Ed25519YaoDeriverRoleV1::DeriverB =>
             {
                 execution
