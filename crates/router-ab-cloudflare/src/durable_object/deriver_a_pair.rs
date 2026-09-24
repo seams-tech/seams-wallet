@@ -26,9 +26,8 @@ use crate::{
         prepare_deriver_a_pair_readiness_for_wallet_do_v1, DeriverAPairExecutionContextV1,
     },
     CloudflareDeriverAWalletPairBurnRequestV1, CloudflareDeriverAWalletPairOutcomeResponseV1,
-    CloudflareDeriverAWalletPairStatusRequestV1,
-    CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairPrepareRequestV1,
-    CloudflareEd25519YaoPairStatusResponseV1,
+    CloudflareDeriverAWalletPairStatusRequestV1, CloudflareEd25519YaoPairExecuteRequestV1,
+    CloudflareEd25519YaoPairPrepareRequestV1, CloudflareEd25519YaoPairStatusResponseV1,
 };
 
 const PAIR_DO_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair";
@@ -1152,11 +1151,12 @@ fn pair_outcome_status(record: &PairRecord) -> CloudflareDeriverAWalletPairOutco
                 pair_digest,
             }
         }
-        PairRecord::Completed { outcome, .. } => {
-            CloudflareDeriverAWalletPairOutcomeResponseV1::Completed {
-                outcome: Box::new(outcome.clone()),
-            }
-        }
+        PairRecord::Completed {
+            outcome, payload, ..
+        } => CloudflareDeriverAWalletPairOutcomeResponseV1::Completed {
+            outcome: Box::new(outcome.clone()),
+            tenant_root: Box::new(payload.tenant_root.clone()),
+        },
         PairRecord::Burned { .. } => CloudflareDeriverAWalletPairOutcomeResponseV1::Burned {
             session,
             pair_digest,

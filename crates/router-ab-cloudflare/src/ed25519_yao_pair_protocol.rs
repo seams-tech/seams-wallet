@@ -680,6 +680,7 @@ pub enum CloudflareDeriverAWalletPairOutcomeResponseV1 {
     },
     Completed {
         outcome: Box<CloudflareEd25519YaoPairExecuteResponseV1>,
+        tenant_root: Box<CloudflareEd25519YaoTenantRootContextV2>,
     },
     Burned {
         session: [u8; 32],

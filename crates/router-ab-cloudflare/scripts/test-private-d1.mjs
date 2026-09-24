@@ -55,6 +55,8 @@ const tenantRootManagedRestoreChallengePath =
 const tenantRootManagedRestoreAuthorizePath =
   '/tenant-root-control-plane/restore/v1/authorize';
 const ed25519ExecutePath = '/router-ab/router/ed25519-yao/execute';
+const ed25519ActivationPackagesPath =
+  '/router-ab/signing-worker/ed25519-yao/activation/packages';
 const ed25519FinalizationLookupPath =
   '/router-ab/signing-worker/ed25519-yao/initial-registration/finalization';
 const managedRestoreAuthenticationDomain =
@@ -67,11 +69,16 @@ const ecdsaClientWasmPath = resolve(
 let capturedSigningWorkerDelivery;
 let capturedDeriverAPreparation;
 let capturedDeriverAExecution;
+let capturedDeriverAExecutionRequest;
 let competeDeriverAExecution = false;
 let dropDeriverAExecutionResponse = false;
+let holdDeriverAExecutionBeforeDispatch = false;
 let deriverBOffline = false;
 let blockedDeriverBCalls = 0;
 let signingWorkerDeliveryTarget = 'fixture-signing-worker';
+let signingWorkerActivationCalls = 0;
+let signingWorkerFinalizationLookups = 0;
+let historicalReplayActivationCalls = 0;
 let ecdsaClientWasmInitialized = false;
 
 function loadFixture() {
@@ -227,6 +234,20 @@ function routerWorker(fixture, capturePairPreparation = false, gateDeriverB = fa
   };
 }
 
+function historicalReplayRouterWorker(fixture, name, deriverAName = 'deriver-a') {
+  const worker = routerWorker(fixture, false, true);
+  return {
+    ...worker,
+    name,
+    durableObjects: {},
+    serviceBindings: {
+      ...worker.serviceBindings,
+      DERIVER_A: deriverAName,
+      SIGNING_WORKER: captureSigningWorkerForHistoricalReplay,
+    },
+  };
+}
+
 async function routeDeriverBWithOfflineGate(request, miniflare) {
   if (deriverBOffline) {
     blockedDeriverBCalls += 1;
@@ -254,9 +275,23 @@ function tenantRootControlPlaneWorker(fixture) {
 }
 
 async function captureSigningWorkerDelivery(request, miniflare) {
-  capturedSigningWorkerDelivery = await request.clone().text();
+  const path = new URL(request.url).pathname;
+  if (path === ed25519ActivationPackagesPath) {
+    signingWorkerActivationCalls += 1;
+    capturedSigningWorkerDelivery = await request.clone().text();
+  }
+  if (path === ed25519FinalizationLookupPath) {
+    signingWorkerFinalizationLookups += 1;
+  }
   const worker = await miniflare.getWorker(signingWorkerDeliveryTarget);
   return worker.fetch(request);
+}
+
+async function captureSigningWorkerForHistoricalReplay(request, miniflare) {
+  if (new URL(request.url).pathname === ed25519ActivationPackagesPath) {
+    historicalReplayActivationCalls += 1;
+  }
+  return captureSigningWorkerDelivery(request, miniflare);
 }
 
 async function captureDeriverAPreparation(request, miniflare) {
@@ -265,6 +300,12 @@ async function captureDeriverAPreparation(request, miniflare) {
   const isExecution = path.endsWith('/ed25519-yao/execute-pair');
   const preparation = isPreparation ? await request.clone().json() : null;
   const execution = isExecution ? await request.clone().json() : null;
+  if (execution) {
+    capturedDeriverAExecutionRequest = execution;
+    if (holdDeriverAExecutionBeforeDispatch) {
+      return new Response('simulated held Deriver A execution', { status: 503 });
+    }
+  }
   const worker = await miniflare.getWorker('deriver-a');
   let response;
   if (execution && competeDeriverAExecution) {
@@ -1696,6 +1737,246 @@ async function testDeriverAWalletDoExecution(
   console.log(JSON.stringify({ ...artifact, artifactPath }));
 }
 
+async function testHistoricalRegistrationReplay(topology, fixture, tenantRoot, databases) {
+  const activation = await captureValidActivationDelivery(topology, fixture, tenantRoot);
+  assert.ok(capturedDeriverAExecution, 'historical replay requires a completed A outcome');
+  const rootIdentity = fixture.tenant_root_creation.identity;
+  const pair = capturedDeriverAExecution.request.pair_binding;
+  const owner = {
+    org_id: rootIdentity.orgId,
+    project_id: rootIdentity.projectId,
+    env_id: rootIdentity.envId,
+    wallet_id: pair.ceremony.binding.lifecycle.account_id,
+  };
+  const namespace = await topology.getDurableObjectNamespace(deriverAWalletDoBinding, 'deriver-a');
+  const objectId = namespace.idFromName(deriverAWalletDoObjectName(owner));
+  await topology.unsafeEvictDurableObject('deriver-a', deriverAWalletDoClass, {
+    id: objectId.toString(),
+  });
+  const object = namespace.get(objectId);
+  const aBefore = await callDeriverAWalletDo(object, {
+    operation: 'read',
+    owner,
+    pair_binding: pair,
+  });
+  assert.equal(aBefore.body.record.status, 'completed');
+  const bBefore = await databases.deriverB
+    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
+    .first();
+  assert.equal(bBefore.lifecycle, 'completed');
+  const signingWorkerDatabase = await topology.getD1Database(
+    signingWorkerD1Binding,
+    'fixture-signing-worker',
+  );
+  const signingWorkerBefore = await signingWorkerFinalizationRows(signingWorkerDatabase);
+  assert.equal(signingWorkerBefore.activations, 1);
+  const activationCallsBefore = signingWorkerActivationCalls;
+  const lookupCallsBefore = signingWorkerFinalizationLookups;
+  deriverBOffline = true;
+  blockedDeriverBCalls = 0;
+
+  const replayRouter = await topology.getWorker('router-replay');
+  const ordinaryRequestWithoutRoot = await postWorkerJson(
+    replayRouter,
+    ed25519ExecutePath,
+    activation.envelope,
+  );
+  assert.notEqual(
+    ordinaryRequestWithoutRoot.status,
+    200,
+    'the replay Router must have no active-root read binding',
+  );
+  const replayBytes = await expectOk(
+    await postWorkerJson(replayRouter, ed25519ExecutePath, activation.envelope, {
+      'x-seams-yao-replay': '1',
+    }),
+    'historical registration replay',
+  );
+  assert.deepEqual(replayBytes, activation.responseBytes);
+  assert.equal(signingWorkerActivationCalls, activationCallsBefore);
+  assert.equal(historicalReplayActivationCalls, 0);
+  assert.equal(signingWorkerFinalizationLookups, lookupCallsBefore + 1);
+  assert.equal(blockedDeriverBCalls, 0);
+  assert.deepEqual(await signingWorkerFinalizationRows(signingWorkerDatabase), signingWorkerBefore);
+  const aAfter = await callDeriverAWalletDo(object, {
+    operation: 'read',
+    owner,
+    pair_binding: pair,
+  });
+  assert.equal(aAfter.body.revision, aBefore.body.revision);
+  assert.deepEqual(
+    await databases.deriverB.prepare('SELECT lifecycle, revision FROM yao_pair_sessions').first(),
+    bBefore,
+  );
+
+  const missingARouter = await topology.getWorker('router-replay-missing-a');
+  const missingABytes = await expectOk(
+    await postWorkerJson(missingARouter, ed25519ExecutePath, activation.envelope, {
+      'x-seams-yao-replay': '1',
+    }),
+    'historical replay with missing A and completed B',
+  );
+  assert.deepEqual(JSON.parse(missingABytes.toString('utf8')), {
+    status: 'recoverable_failure',
+    code: 'service_unavailable',
+    retry_after_ms: 1000,
+  });
+  assert.equal(signingWorkerFinalizationLookups, lookupCallsBefore + 1);
+
+  const wrongLineage = structuredClone(activation.envelope);
+  const lineageBytes = Buffer.from(wrongLineage.tenant_root.custody_lineage_b64u, 'base64url');
+  lineageBytes[0] ^= 1;
+  wrongLineage.tenant_root.custody_lineage_b64u = lineageBytes.toString('base64url');
+  const mismatched = await postWorkerJson(replayRouter, ed25519ExecutePath, wrongLineage, {
+    'x-seams-yao-replay': '1',
+  });
+  assert.notEqual(mismatched.status, 200, 'changed custody lineage cannot read committed result');
+  assert.equal(signingWorkerFinalizationLookups, lookupCallsBefore + 1);
+
+  const material = pair.ceremony.binding.material_activation;
+  const activeKey = [
+    'active-signing-worker',
+    material.material_owner,
+    material.activation_id,
+    material.signing_worker,
+  ].join('/');
+  await signingWorkerDatabase
+    .prepare('DELETE FROM signing_worker_activations WHERE active_key = ?1')
+    .bind(activeKey)
+    .run();
+  const conflictBytes = await expectOk(
+    await postWorkerJson(replayRouter, ed25519ExecutePath, activation.envelope, {
+      'x-seams-yao-replay': '1',
+    }),
+    'historical replay with inconsistent finalization',
+  );
+  assert.deepEqual(JSON.parse(conflictBytes.toString('utf8')), {
+    status: 'rejected',
+    code: 'conflicting_pair',
+  });
+  await signingWorkerDatabase
+    .prepare('INSERT INTO signing_worker_activation_revocation_fences (active_key) VALUES (?1)')
+    .bind(activeKey)
+    .run();
+  const revokedBytes = await expectOk(
+    await postWorkerJson(replayRouter, ed25519ExecutePath, activation.envelope, {
+      'x-seams-yao-replay': '1',
+    }),
+    'historical replay after output revocation',
+  );
+  assert.deepEqual(JSON.parse(revokedBytes.toString('utf8')), {
+    status: 'rejected',
+    code: 'authorization_rejected',
+  });
+  assert.equal(signingWorkerActivationCalls, activationCallsBefore);
+  assert.equal(historicalReplayActivationCalls, 0);
+  assert.equal(blockedDeriverBCalls, 0);
+  assert.deepEqual(await signingWorkerFinalizationRows(signingWorkerDatabase), {
+    lifecycles: signingWorkerBefore.lifecycles,
+    activations: 0,
+    fences: 1,
+  });
+
+  const artifact = {
+    kind: 'yao_historical_registration_replay_e2e_v1',
+    reproduce:
+      'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-historical-replay',
+    exactResponseSha256Hex: createHash('sha256').update(replayBytes).digest('hex'),
+    replayWithEvictedAAndUnavailableRoot: true,
+    bUnavailableAndUnchanged: true,
+    missingAWithCompletedBStayedPending: true,
+    changedCustodyLineageRejected: true,
+    missingOutputRejectedWithoutReactivation: true,
+    fencedOutputRejectedWithoutReactivation: true,
+  };
+  const artifactPath = join(repoRoot, '.artifacts/r150/yao-historical-registration-replay.json');
+  await mkdir(dirname(artifactPath), { recursive: true });
+  await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
+  console.log(JSON.stringify({ ...artifact, artifactPath }));
+}
+
+async function testHistoricalReplayAfterAStartClaim(topology, fixture, tenantRoot, databases) {
+  capturedDeriverAExecutionRequest = undefined;
+  holdDeriverAExecutionBeforeDispatch = true;
+  const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
+  const router = await topology.getWorker('router');
+  const initialResponse = await postWorkerJson(router, ed25519ExecutePath, envelope);
+  holdDeriverAExecutionBeforeDispatch = false;
+  const initialBody = (await responseBytes(initialResponse)).toString('utf8');
+  if (initialResponse.status === 200) {
+    assert.notEqual(JSON.parse(initialBody).status, 'succeeded');
+  }
+  assert.ok(capturedDeriverAExecutionRequest, 'Router must reach A execution after preparation');
+  const pair = capturedDeriverAExecutionRequest.pair_binding;
+  const rootIdentity = fixture.tenant_root_creation.identity;
+  const owner = {
+    org_id: rootIdentity.orgId,
+    project_id: rootIdentity.projectId,
+    env_id: rootIdentity.envId,
+    wallet_id: pair.ceremony.binding.lifecycle.account_id,
+  };
+  const namespace = await topology.getDurableObjectNamespace(deriverAWalletDoBinding, 'deriver-a');
+  const object = namespace.get(namespace.idFromName(deriverAWalletDoObjectName(owner)));
+  const prepared = await callDeriverAWalletDo(object, {
+    operation: 'read',
+    owner,
+    pair_binding: pair,
+  });
+  assert.equal(prepared.body.record.status, 'prepared');
+  const started = await callDeriverAWalletDo(object, {
+    operation: 'reserve',
+    owner,
+    pair_binding: pair,
+    local_receipt: capturedDeriverAExecutionRequest.local_receipt,
+    peer_receipt: capturedDeriverAExecutionRequest.peer_receipt,
+    execution_id: pair.pair_digest.bytes,
+    now_ms: Date.now(),
+  });
+  assert.equal(started.status, 200, `A start claim: ${JSON.stringify(started.body)}`);
+  assert.equal(started.body.result.kind, 'applied');
+  assert.equal(started.body.result.record.status, 'starting');
+  deriverBOffline = true;
+  blockedDeriverBCalls = 0;
+  const replayRouter = await topology.getWorker('router-replay');
+  const pendingBytes = await expectOk(
+    await postWorkerJson(replayRouter, ed25519ExecutePath, envelope, {
+      'x-seams-yao-replay': '1',
+    }),
+    'historical replay after A start claim',
+  );
+  assert.deepEqual(JSON.parse(pendingBytes.toString('utf8')), {
+    status: 'recoverable_failure',
+    code: 'service_unavailable',
+    retry_after_ms: 1000,
+  });
+  assert.equal(historicalReplayActivationCalls, 0);
+  assert.equal(blockedDeriverBCalls, 0);
+  const stillStarting = await callDeriverAWalletDo(object, {
+    operation: 'read',
+    owner,
+    pair_binding: pair,
+  });
+  assert.equal(stillStarting.body.record.status, 'starting');
+  assert.equal(stillStarting.body.revision, started.body.result.revision);
+  const bAfter = await databases.deriverB
+    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
+    .first();
+  assert.equal(bAfter.lifecycle, 'prepared');
+
+  const artifact = {
+    kind: 'yao_historical_replay_after_a_start_claim_e2e_v1',
+    reproduce:
+      'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-historical-starting-replay',
+    startingARevision: started.body.result.revision,
+    replayStayedPendingAfterAStartClaim: true,
+    noReplayActivationOrBCall: true,
+  };
+  const artifactPath = join(repoRoot, '.artifacts/r150/yao-historical-starting-replay.json');
+  await mkdir(dirname(artifactPath), { recursive: true });
+  await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
+  console.log(JSON.stringify({ ...artifact, artifactPath }));
+}
+
 async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, databases) {
   dropDeriverAExecutionResponse = true;
   capturedDeriverAExecution = undefined;
@@ -1790,8 +2071,14 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
     'x-seams-yao-replay': '1',
   });
   const routerReplayBytes = await expectOk(routerReplay, 'Router scoped replay after lost reply');
-  parseEd25519ActivationResult(routerReplayBytes, 'Router scoped replay after lost reply');
+  assert.deepEqual(JSON.parse(routerReplayBytes.toString('utf8')), {
+    status: 'recoverable_failure',
+    code: 'signing_worker_uncertain',
+    retry_after_ms: 1000,
+  });
   assert.equal(blockedDeriverBCalls, 0, 'completed A replay must not call unavailable B');
+  assert.equal(capturedSigningWorkerDelivery, undefined);
+  assert.equal(signingWorkerActivationCalls, 0);
   const replay = await postWorkerJson(
     deriverA,
     '/router-ab/deriver-a/ed25519-yao/execute-pair',
@@ -1822,7 +2109,7 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
     bPairLifecycle: bTerminal.lifecycle,
     bRevisionUnchangedOnReplay: true,
     bOfflineDuringRouterReplay: true,
-    routerScopedReplayAfterLostReply: true,
+    routerScopedReplayStayedPendingWithoutActivation: true,
     wrongTenantRootAndExecutionCancellationLeftStateUnchanged: true,
     exactReplayAfterLostReplyAndEviction: true,
   };
@@ -2321,12 +2608,15 @@ async function main() {
   const testWalletDo = process.argv.includes('--do-pair-store');
   const testWalletDoExecution = process.argv.includes('--do-pair-execution');
   const testWalletDoLostReply = process.argv.includes('--do-pair-lost-reply');
+  const testHistoricalReplay = process.argv.includes('--do-historical-replay');
+  const testHistoricalStartingReplay = process.argv.includes('--do-historical-starting-replay');
   const testDeriverBCompletionBurn = process.argv.includes('--do-pair-b-burn-before-complete');
   const topology = new Miniflare({
     workers: [
       routerWorker(
         fixture,
-        testWalletDo || testWalletDoExecution || testWalletDoLostReply || testDeriverBCompletionBurn,
+        testWalletDo || testWalletDoExecution || testWalletDoLostReply ||
+          testHistoricalReplay || testHistoricalStartingReplay || testDeriverBCompletionBurn,
         testWalletDoLostReply,
       ),
       deriverAWorker(fixture),
@@ -2338,6 +2628,17 @@ async function main() {
         'fixture-signing-worker-after-refresh-d1',
         fixture,
       ),
+      ...(testHistoricalReplay || testHistoricalStartingReplay
+        ? [
+            historicalReplayRouterWorker(fixture, 'router-replay'),
+            historicalReplayRouterWorker(fixture, 'router-replay-missing-a', 'deriver-a-empty'),
+            {
+              ...deriverAWorker(fixture),
+              name: 'deriver-a-empty',
+              d1Databases: { [roleD1Binding]: 'deriver-a-empty-private-d1' },
+            },
+          ]
+        : []),
     ],
   });
   try {
@@ -2385,6 +2686,14 @@ async function main() {
     }
     if (testWalletDoLostReply) {
       await testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, databases);
+      return;
+    }
+    if (testHistoricalReplay) {
+      await testHistoricalRegistrationReplay(topology, fixture, tenantRoot, databases);
+      return;
+    }
+    if (testHistoricalStartingReplay) {
+      await testHistoricalReplayAfterAStartClaim(topology, fixture, tenantRoot, databases);
       return;
     }
     if (testDeriverBCompletionBurn) {
