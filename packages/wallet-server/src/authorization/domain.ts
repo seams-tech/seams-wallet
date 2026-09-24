@@ -317,6 +317,12 @@ export type WalletSessionExactOperationContext = {
   readonly authority: ActiveWalletAuthorityV1;
   readonly authMethod: Extract<WalletAuthMethodRecordV2, { readonly status: 'active' }>;
   readonly retiredAtMs: null;
+  readonly ownerWalletScope: {
+    readonly orgId: string;
+    readonly projectId: string;
+    readonly projectEnvironmentId: string;
+    readonly walletId: WalletId;
+  };
 };
 
 /**

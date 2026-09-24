@@ -72,6 +72,7 @@ use ecdsa_presign_live_session::{
 };
 #[cfg(feature = "workers-rs")]
 pub(crate) use ecdsa_presign_live_session::{
+    CloudflareSigningWorkerEcdsaPresignSessionDoGatewayStepRequestV1,
     CloudflareSigningWorkerEcdsaPresignSessionDoInitRequestV1,
     CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1,
     CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoInitRequestV1,
@@ -134,7 +135,7 @@ impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject 
     async fn alarm(&self) -> worker::Result<worker::Response> {
         // Owner identities include their immutable expiry, so expired claims can be removed safely.
         self.ecdsa_presign_sessions.borrow_mut().clear();
-        self.storage.delete("owner-presign-initialized").await?;
+        self.storage.delete("owner-presign-authority").await?;
         worker::Response::ok("expired")
     }
 

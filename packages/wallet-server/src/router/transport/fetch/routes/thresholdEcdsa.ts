@@ -64,6 +64,7 @@ import type {
   RouterAbEcdsaDerivationPoolFillInitRequest,
   RouterAbEcdsaDerivationPoolFillStepRequest,
 } from '../../../../core/types';
+import type { RouterAbEcdsaDerivationPoolFillBinding } from '../../../../core/ThresholdService/routerAb/ecdsaDerivationPoolFillHandlers';
 import type {
   RouterAbEcdsaStrictPostRegistrationPort,
   RouterAbEcdsaStrictExportResult,
@@ -1448,30 +1449,10 @@ async function issueEcdsaOperationStepUpAuthorization(input: {
   );
 }
 
-type RouterAbEcdsaActiveMaterial = Extract<
-  Awaited<ReturnType<RouterApiWalletRegistrationService['resolveEcdsaMaterialActivation']>>,
-  { readonly ok: true }
->;
-
-type RouterAbEcdsaPoolFillBinding = Pick<
-  RouterAbEcdsaActiveMaterial,
-  | 'keyHandle'
-  | 'relayerKeyId'
-  | 'runtimePolicyScope'
-  | 'participantIds'
-  | 'routerAbEcdsaDerivationNormalSigning'
-> & {
-  readonly walletId: string;
-  readonly thresholdExpiresAtMs: number;
-  readonly authorization:
-    | { readonly kind: 'wallet_session' }
-    | { readonly kind: 'operation_step_up'; readonly materialExpiresAtMs: number };
-};
-
 type RouterAbEcdsaPoolFillAuthorizationResult =
   | {
       readonly ok: true;
-      readonly binding: RouterAbEcdsaPoolFillBinding;
+      readonly binding: RouterAbEcdsaDerivationPoolFillBinding;
     }
   | {
       readonly ok: false;
@@ -1844,6 +1825,7 @@ export async function authorizeEcdsaPoolFill(input: {
           participantIds: activeMaterial.participantIds,
           thresholdExpiresAtMs: session.expiresAtMs,
           authorization: { kind: 'wallet_session' },
+          ownerWalletScope: validated.ownerWalletScope,
           routerAbEcdsaDerivationNormalSigning: normalSigning,
         },
       };

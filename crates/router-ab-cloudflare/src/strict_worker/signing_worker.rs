@@ -5,10 +5,19 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
     request: Request,
     env: Env,
 ) -> worker::Result<Response> {
-    if let Err(err) = require_cloudflare_internal_service_auth_request_v1(&request, &env) {
+    let path = request.path();
+    let auth = if path
+        == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_INIT_PATH
+        || path
+            == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_STEP_PATH
+    {
+        require_cloudflare_gateway_to_signing_worker_presign_auth_request_v1(&request, &env)
+    } else {
+        require_cloudflare_internal_service_auth_request_v1(&request, &env)
+    };
+    if let Err(err) = auth {
         return cloudflare_private_service_auth_error_response_v1(err);
     }
-    let path = request.path();
     if path == CLOUDFLARE_INTERNAL_PREWARM_PATH {
         if request.method() != Method::Post {
             return cloudflare_prewarm_response_v1(&request);

@@ -288,6 +288,7 @@ export async function validateEcdsaPreprocessingSession(input: {
       readonly ok: true;
       readonly kind: 'ecdsa_preprocessing_session';
       readonly session: RouterApiWalletSessionExactOperationContext['session'];
+      readonly ownerWalletScope: RouterApiWalletSessionExactOperationContext['ownerWalletScope'];
       readonly signer: Extract<
         WalletSessionAuthorizationV2AdmissionResult,
         { readonly ok: true; readonly keyFamily: 'ecdsa_secp256k1' }
@@ -333,6 +334,7 @@ export async function validateEcdsaPreprocessingSession(input: {
       ok: true,
       kind: 'ecdsa_preprocessing_session',
       session,
+      ownerWalletScope: context.ownerWalletScope,
       signer: admission.signer,
       materialActivation: admission.materialActivation,
     };

@@ -26,6 +26,7 @@ const repoRoot = resolve(packageRoot, '../..');
 const internalAuthHeader = 'x-router-ab-internal-service-auth';
 const internalAuthSecret = 'private-d1-integration-auth';
 const gatewayToRouterAuthSecret = 'private-d1-gateway-router-auth';
+const gatewayToSigningWorkerPresignAuthSecret = 'private-d1-gateway-signing-worker-presign-auth';
 const roleD1Binding = 'DERIVER_ROLE_PRIVATE_DB';
 const managedBackupR2Binding = 'TENANT_ROOT_MANAGED_BACKUP_BUCKET';
 const signingWorkerD1Binding = 'SIGNING_WORKER_PRIVATE_DB';
@@ -45,6 +46,7 @@ const signingWorkerMigrationsPath = join(packageRoot, 'migrations/signing-worker
 const ecdsaRegistrationPath = '/router-ab/ecdsa-derivation/register';
 const ecdsaActivationPath = '/router-ab/ecdsa-derivation/activate';
 const ecdsaSigningPreparePath = '/router-ab/ecdsa-derivation/sign/prepare';
+const ecdsaSigningWorkerPreparePath = '/router-ab/signing-worker/ecdsa-derivation/sign/prepare';
 const ecdsaSigningPath = '/router-ab/ecdsa-derivation/sign';
 const ecdsaPresignSessionInitPath =
   '/router-ab/signing-worker/ecdsa-derivation/presignature-session/init';
@@ -66,6 +68,10 @@ const gatewayOnlyRouterPaths = new Set([
   ecdsaSigningPreparePath,
   ecdsaSigningPath,
 ]);
+const gatewayOnlyPresignPaths = new Set([
+  ecdsaPresignSessionInitPath,
+  ecdsaPresignSessionStepPath,
+]);
 const ed25519ActivationPackagesPath =
   '/router-ab/signing-worker/ed25519-yao/activation/packages';
 const ed25519FinalizationLookupPath =
@@ -78,6 +84,7 @@ const ecdsaClientWasmPath = resolve(
   'wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client_bg.wasm',
 );
 let capturedSigningWorkerDelivery;
+let capturedEcdsaSigningWorkerPrepare;
 let capturedDeriverAPreparation;
 let capturedDeriverAExecution;
 let capturedDeriverAExecutionRequest;
@@ -216,7 +223,11 @@ function deriverBWorker(fixture) {
 
 function signingWorker(name, databaseId, fixture) {
   return {
-    ...strictWorker(name, 'signing-worker', fixture.signing_worker_env),
+    ...strictWorker(name, 'signing-worker', {
+      ...fixture.signing_worker_env,
+      ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET:
+        gatewayToSigningWorkerPresignAuthSecret,
+    }),
     d1Databases: { [signingWorkerD1Binding]: databaseId },
     durableObjects: {
       SIGNING_WORKER_PRESIGN_SESSION_DO: {
@@ -305,6 +316,9 @@ function tenantRootControlPlaneWorker(fixture) {
 
 async function captureSigningWorkerDelivery(request, miniflare) {
   const path = new URL(request.url).pathname;
+  if (path === ecdsaSigningWorkerPreparePath) {
+    capturedEcdsaSigningWorkerPrepare = await request.clone().json();
+  }
   if (path === ed25519ActivationPackagesPath) {
     signingWorkerActivationCalls += 1;
     capturedSigningWorkerDelivery = await request.clone().text();
@@ -465,7 +479,9 @@ async function expectOk(response, label) {
 async function postWorkerJson(worker, path, body, additionalHeaders = {}) {
   const authHeaders = gatewayOnlyRouterPaths.has(path)
     ? { [internalAuthHeader]: gatewayToRouterAuthSecret }
-    : {};
+    : gatewayOnlyPresignPaths.has(path)
+      ? { [internalAuthHeader]: gatewayToSigningWorkerPresignAuthSecret }
+      : {};
   return worker.fetch(
     `https://private.test${path}`,
     authenticatedJsonRequest(body, { ...authHeaders, ...additionalHeaders }),
@@ -1130,6 +1146,15 @@ function parseEcdsaPresignProgress(bytes, sessionId, label) {
 async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejections = true) {
   const signingWorker = await topology.getWorker('fixture-signing-worker');
   const scope = buildEcdsaNormalSigningScope(ecdsa);
+  const authority = {
+    kind: 'owner_wallet_session',
+    wallet_scope: {
+      org_id: 'org-miniflare',
+      project_id: 'project-r120',
+      project_environment_id: 'project-environment-miniflare',
+      wallet_id: ecdsa.accountId,
+    },
+  };
   const groupPublicKey = Buffer.from(
     scope.public_identity.threshold_public_key33_b64u,
     'base64url',
@@ -1148,11 +1173,30 @@ async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejec
     assert.equal(clientProgress.outgoing.length, 1, 'ECDSA client triples must start with one message');
     const initRequest = {
       scope,
+      authority,
       presign_session_id: presignSessionId,
       first_message_b64u: base64urlBytes(clientProgress.outgoing[0]),
       ceremony_expires_at_ms: expiresAtMs,
       material_expires_at_ms: expiresAtMs,
     };
+    if (checkRejections) {
+      const wrongWallet = await postWorkerJson(signingWorker, ecdsaPresignSessionInitPath, {
+        ...initRequest,
+        authority: {
+          kind: 'owner_wallet_session',
+          wallet_scope: { ...authority.wallet_scope, wallet_id: 'another-wallet' },
+        },
+      });
+      assert.equal(wrongWallet.status, 400, 'Owner presign init must match the signing wallet');
+      const sharedBearer = await postWorkerJson(signingWorker, ecdsaPresignSessionInitPath, initRequest, {
+        [internalAuthHeader]: internalAuthSecret,
+      });
+      assert.equal(sharedBearer.status, 403, 'Peer-shared bearer must not admit owner presign init');
+      const routerBearer = await postWorkerJson(signingWorker, ecdsaPresignSessionInitPath, initRequest, {
+        [internalAuthHeader]: gatewayToRouterAuthSecret,
+      });
+      assert.equal(routerBearer.status, 403, 'Gateway-to-Router bearer must not admit owner presign init');
+    }
     const initResponse = await postWorkerJson(signingWorker, ecdsaPresignSessionInitPath, initRequest);
     let progress = parseEcdsaPresignProgress(
       await expectOk(initResponse, 'SigningWorker ECDSA presign session init'),
@@ -1177,21 +1221,44 @@ async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejec
           presignSource: {
             kind: 'final_presign_batch',
             batch: {
-              scope, presign_session_id: presignSessionId, requested_stage: 'presign',
+              scope, authority, presign_session_id: presignSessionId, requested_stage: 'presign',
               outgoing_messages_b64u: clientProgress.outgoing.map(base64urlBytes),
               ceremony_expires_at_ms: expiresAtMs, material_expires_at_ms: expiresAtMs,
             },
           },
         };
       }
-      const stepResponse = await postWorkerJson(signingWorker, ecdsaPresignSessionStepPath, {
+      const stepRequest = {
         scope,
+        authority,
         presign_session_id: presignSessionId,
         requested_stage: progress.stage,
         outgoing_messages_b64u: clientProgress.outgoing.map(base64urlBytes),
         ceremony_expires_at_ms: expiresAtMs,
         material_expires_at_ms: expiresAtMs,
-      });
+      };
+      if (checkRejections && exchanges === 1) {
+        const changedAuthority = await postWorkerJson(signingWorker, ecdsaPresignSessionStepPath, {
+          ...stepRequest,
+          authority: { kind: 'operation_step_up' },
+        });
+        assert.equal(changedAuthority.ok, false, 'A changed authority must not advance presigning');
+        assert.match(await changedAuthority.text(), /authority does not match initialized session/);
+        const changedTenant = await postWorkerJson(signingWorker, ecdsaPresignSessionStepPath, {
+          ...stepRequest,
+          authority: {
+            kind: 'owner_wallet_session',
+            wallet_scope: { ...authority.wallet_scope, org_id: 'another-org' },
+          },
+        });
+        assert.equal(changedTenant.ok, false, 'A changed tenant must not advance presigning');
+        assert.match(await changedTenant.text(), /authority does not match initialized session/);
+        const peerBearer = await postWorkerJson(signingWorker, ecdsaPresignSessionStepPath, stepRequest, {
+          [internalAuthHeader]: internalAuthSecret,
+        });
+        assert.equal(peerBearer.status, 403, 'Peer-shared bearer must not advance owner presigning');
+      }
+      const stepResponse = await postWorkerJson(signingWorker, ecdsaPresignSessionStepPath, stepRequest);
       exchanges += 1;
       progress = parseEcdsaPresignProgress(
         await expectOk(stepResponse, 'SigningWorker ECDSA presign step'),
@@ -1323,20 +1390,6 @@ async function testEcdsaNormalSigning(topology, ecdsa, mode = 'pool', checkRejec
     };
     if (mode === 'prepare') {
       prepareRequest.presign_source = presign.presignSource;
-      if (checkRejections) {
-      const substituted = {
-        ...prepareRequest,
-        presign_source: {
-          kind: 'final_presign_batch',
-          batch: {
-            ...presign.presignSource.batch,
-            scope: { ...presign.scope, wallet_id: 'another-wallet' },
-          },
-        },
-      };
-      const rejected = await postWorkerJson(router, ecdsaSigningPreparePath, substituted);
-      assert.equal(rejected.ok, false, 'Wrong-scope handoff must be rejected before MPC advances');
-      }
     }
     if (checkRejections) {
       const sharedBearer = await postWorkerJson(router, ecdsaSigningPreparePath, prepareRequest, {
@@ -1348,6 +1401,49 @@ async function testEcdsaNormalSigning(topology, ecdsa, mode = 'pool', checkRejec
         'Gateway-admitted signing must reject the role-shared bearer',
       );
     }
+    if (mode === 'prepare') {
+      const bundled = await postWorkerJson(router, ecdsaSigningPreparePath, prepareRequest);
+      assert.equal(bundled.ok, false, 'Bundled final batch must be gated before signing admission');
+      assert.match(await bundled.text(), /Bundled final presign batch is gated/);
+
+      const signingWorker = await topology.getWorker('fixture-signing-worker');
+      if (checkRejections) {
+        assert.ok(capturedEcdsaSigningWorkerPrepare, 'A prior Router admission must be available');
+        const forgedWorkerPrepare = await postWorkerJson(
+          signingWorker,
+          ecdsaSigningWorkerPreparePath,
+          {
+            ...capturedEcdsaSigningWorkerPrepare,
+            presign_source: presign.presignSource,
+          },
+          { [internalAuthHeader]: internalAuthSecret },
+        );
+        assert.equal(
+          forgedWorkerPrepare.ok,
+          false,
+          'The role-shared SigningWorker route must not advance a live owner presign session',
+        );
+        assert.match(await forgedWorkerPrepare.text(), /Bundled final presign batch is gated/);
+      }
+      const directStep = await postWorkerJson(
+        signingWorker,
+        ecdsaPresignSessionStepPath,
+        presign.presignSource.batch,
+      );
+      const completed = parseEcdsaPresignProgress(
+        await expectOk(directStep, 'dedicated owner presign final step'),
+        presign.presignSource.batch.presign_session_id,
+        'dedicated owner presign final step',
+      );
+      assert.equal(completed.kind, 'complete');
+      assert.equal(completed.server_presignature_id, presign.serverPresignatureId);
+      for (const message of completed.outgoing_messages_b64u) {
+        presign.client.message(Buffer.from(message, 'base64url'));
+      }
+      assert.equal(presign.client.stage(), 'done');
+      assert.deepEqual(Buffer.from(presign.client.presignature_big_r_33()), presign.clientBigR);
+      delete prepareRequest.presign_source;
+    }
     const prepareResponse = await postWorkerJson(
       router,
       ecdsaSigningPreparePath,
@@ -1355,19 +1451,7 @@ async function testEcdsaNormalSigning(topology, ecdsa, mode = 'pool', checkRejec
     );
     const prepareBytes = await expectOk(prepareResponse, 'live ECDSA normal-signing prepare');
     const response = JSON.parse(prepareBytes.toString('utf8'));
-    const prepared = mode === 'prepare' ? response.prepared_response : response;
-    if (mode === 'prepare') {
-      assert.equal(response.outgoing_messages_b64u.length, 1);
-      for (const message of response.outgoing_messages_b64u) {
-        presign.client.message(Buffer.from(message, 'base64url'));
-      }
-      assert.equal(presign.client.stage(), 'done');
-      assert.deepEqual(Buffer.from(presign.client.presignature_big_r_33()), presign.clientBigR);
-      if (checkRejections) {
-        const replay = await postWorkerJson(router, ecdsaSigningPreparePath, prepareRequest);
-        assert.equal(replay.ok, false, 'Terminal batch cannot execute twice');
-      }
-    }
+    const prepared = response;
     assert.equal(prepared.request_id, prepareRequest.request_id);
     assert.deepEqual(
       prepared.scope.public_identity,
@@ -2813,6 +2897,8 @@ async function main() {
       return;
     }
     if (process.argv.includes('--ecdsa-presign-handoff')) {
+      const priorSigning = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
+      assert.ok(priorSigning.response.signature65_b64u);
       const signing = await testEcdsaNormalSigning(topology, ecdsa, 'prepare');
       const artifact = {
         kind: 'gateway_router_normal_signing_auth_e2e_v1',
@@ -2821,6 +2907,9 @@ async function main() {
         sharedRoleBearerRejected: true,
         dedicatedGatewayBearerSigned: true,
         wrongScopeRejected: true,
+        changedTenantRejected: true,
+        bundledFinalBatchGated: true,
+        directCompletionBeforePoolPrepareSigned: true,
         terminalReplayVerified: true,
         signatureSha256Hex: createHash('sha256')
           .update(Buffer.from(signing.response.signature65_b64u, 'base64url'))

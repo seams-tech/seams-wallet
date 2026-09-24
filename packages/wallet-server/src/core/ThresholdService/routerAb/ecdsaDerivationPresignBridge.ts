@@ -50,6 +50,18 @@ export type RouterAbEcdsaDerivationPresignaturePoolFillAuth = {
   secret: string;
 };
 
+export type RouterAbEcdsaPresignAuthorityV1 =
+  | {
+      readonly kind: 'owner_wallet_session';
+      readonly wallet_scope: {
+        readonly org_id: string;
+        readonly project_id: string;
+        readonly project_environment_id: string;
+        readonly wallet_id: string;
+      };
+    }
+  | { readonly kind: 'operation_step_up' };
+
 export type RouterAbEcdsaDerivationPresignaturePoolFillHttpInput = {
   signingWorkerBaseUrl: string;
   request: CloudflareSigningWorkerEcdsaDerivationPresignaturePoolPutRequestV1Wire;
@@ -292,6 +304,7 @@ async function postStrictPresignSession(input: {
 export async function startRouterAbEcdsaPresignSession(input: {
   signingWorkerBaseUrl: string;
   scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
+  authority: RouterAbEcdsaPresignAuthorityV1;
   presignSessionId: string;
   firstMessageB64u: string;
   ceremonyExpiresAtMs: number;
@@ -305,6 +318,7 @@ export async function startRouterAbEcdsaPresignSession(input: {
     path: CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_INIT_PATH,
     body: {
       scope: parseRouterAbEcdsaDerivationNormalSigningScopeV1(input.scope),
+      authority: input.authority,
       presign_session_id: input.presignSessionId,
       first_message_b64u: input.firstMessageB64u,
       ceremony_expires_at_ms: input.ceremonyExpiresAtMs,
@@ -319,6 +333,7 @@ export async function startRouterAbEcdsaPresignSession(input: {
 export async function stepRouterAbEcdsaPresignSession(input: {
   signingWorkerBaseUrl: string;
   scope: RouterAbEcdsaDerivationNormalSigningScopeV1;
+  authority: RouterAbEcdsaPresignAuthorityV1;
   presignSessionId: string;
   requestedStage: 'triples' | 'presign';
   outgoingMessagesB64u: string[];
@@ -333,6 +348,7 @@ export async function stepRouterAbEcdsaPresignSession(input: {
     path: CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_STEP_PATH,
     body: {
       scope: parseRouterAbEcdsaDerivationNormalSigningScopeV1(input.scope),
+      authority: input.authority,
       presign_session_id: input.presignSessionId,
       requested_stage: input.requestedStage,
       outgoing_messages_b64u: input.outgoingMessagesB64u,

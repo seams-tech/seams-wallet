@@ -218,6 +218,7 @@ use auth::hash_optional_header_v1;
 pub use auth::{
     cloudflare_private_service_auth_error_response_v1,
     require_cloudflare_gateway_to_router_auth_request_v1,
+    require_cloudflare_gateway_to_signing_worker_presign_auth_request_v1,
     require_cloudflare_internal_service_auth_request_v1,
     set_cloudflare_internal_service_auth_header_v1,
 };
@@ -12193,13 +12194,16 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
         return cloudflare_signing_worker_presign_error_response_v1(error);
     }
     let session_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
+    let do_request = durable_object::CloudflareSigningWorkerEcdsaPresignSessionDoGatewayStepRequestV1 {
+        request: parsed,
+    };
     let do_response =
         match durable_object::execute_cloudflare_durable_object_custom_json_call_with_timing_v1(
             env,
             &runtime.bindings().presign_session,
             CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
-            &parsed.presign_session_id,
-            &parsed,
+            &do_request.request.presign_session_id,
+            &do_request,
         )
         .await
         {
@@ -12227,7 +12231,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
             pool_put_request,
             outgoing_messages_b64u,
         } => {
-            let presign_session_id = parsed.presign_session_id;
+            let presign_session_id = do_request.request.presign_session_id;
             let server_presignature_id = pool_put_request.server_presignature_id.clone();
             let server_big_r33_b64u = pool_put_request.server_big_r33_b64u.clone();
             let admission_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();

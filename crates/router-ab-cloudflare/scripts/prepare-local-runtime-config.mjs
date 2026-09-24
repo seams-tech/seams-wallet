@@ -99,6 +99,8 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
 
   const internalAuthSecret = requiredEnv(routerEnv, 'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET');
   const gatewayToRouterAuthSecret = readOrCreateLocalGatewayToRouterAuthSecret(localEnvRoot);
+  const gatewayToSigningWorkerPresignAuthSecret =
+    readOrCreateLocalGatewayToSigningWorkerPresignAuthSecret(localEnvRoot);
   const secretValues = {
     ACCOUNT_ID_DERIVATION_SECRET: localSecret(internalAuthSecret, 'account-id-derivation'),
     GOOGLE_OIDC_CLIENT_ID: optionalText(input.googleOidcClientId),
@@ -119,6 +121,8 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
     }),
     ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET: internalAuthSecret,
     ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET: gatewayToRouterAuthSecret,
+    ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET:
+      gatewayToSigningWorkerPresignAuthSecret,
     ROUTER_AB_NORMAL_SIGNING_WORKER_ID: requiredEnv(routerEnv, 'SIGNING_WORKER_ID'),
     ROUTER_AB_PUBLIC_KEYSET_JSON: localPublicKeysetJson({
       routerEnv,
@@ -268,18 +272,34 @@ function localSecret(seed, purpose) {
 }
 
 function readOrCreateLocalGatewayToRouterAuthSecret(localEnvRoot) {
+  return readOrCreateLocalGatewayAuthSecret(
+    localEnvRoot,
+    'gateway-router-auth.secret',
+    'Gateway-to-Router auth secret',
+  );
+}
+
+function readOrCreateLocalGatewayToSigningWorkerPresignAuthSecret(localEnvRoot) {
+  return readOrCreateLocalGatewayAuthSecret(
+    localEnvRoot,
+    'gateway-signing-worker-presign-auth.secret',
+    'Gateway-to-SigningWorker presign auth secret',
+  );
+}
+
+function readOrCreateLocalGatewayAuthSecret(localEnvRoot, fileName, label) {
   const secretPath = path.join(
     localEnvRoot,
     '.runtime',
     'wallet-gateway',
-    'gateway-router-auth.secret',
+    fileName,
   );
   mkdirSync(path.dirname(secretPath), { recursive: true, mode: 0o700 });
   if (!existsSync(secretPath)) {
     writeFileSync(secretPath, `${randomBytes(32).toString('base64url')}\n`, { mode: 0o600 });
   }
   chmodSync(secretPath, 0o600);
-  return requireNonEmptyInput(readFileSync(secretPath, 'utf8').trim(), 'Gateway-to-Router auth secret');
+  return requireNonEmptyInput(readFileSync(secretPath, 'utf8').trim(), label);
 }
 
 function renderDevVars(values) {
@@ -312,6 +332,8 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
   );
   const routerEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.router.local'));
   const gatewayToRouterAuthSecret = readOrCreateLocalGatewayToRouterAuthSecret(localEnvRoot);
+  const gatewayToSigningWorkerPresignAuthSecret =
+    readOrCreateLocalGatewayToSigningWorkerPresignAuthSecret(localEnvRoot);
   const deriverAEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-a.local'));
   const deriverBEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-b.local'));
   const signingWorkerEnv = readEnvMap(
@@ -411,6 +433,7 @@ new_sqlite_classes = ["RouterAbSigningWorkerWalletDurableObject"]
       strictRoleSecretFile(role, {
         routerEnv,
         gatewayToRouterAuthSecret,
+        gatewayToSigningWorkerPresignAuthSecret,
         deriverAEnv,
         deriverBEnv,
         signingWorkerEnv,
@@ -812,6 +835,7 @@ function strictRoleSecretFile(role, env) {
     case 'signing-worker':
       return [
         internalAuthSecret,
+        `ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET=${env.gatewayToSigningWorkerPresignAuthSecret}`,
         `SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY=${versionedHexSecret(
           requiredEnv(env.signingWorkerEnv, 'SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY'),
           'hpke-x25519-server-output-private-v1:',

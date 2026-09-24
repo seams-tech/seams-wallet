@@ -63,6 +63,9 @@ pub const ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING_ENV: &str =
 /// Router-only secret shared with the Gateway for admitted wallet operations.
 pub const ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET_BINDING: &str =
     "ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET";
+/// SigningWorker-only secret shared with Gateway for owner ECDSA presign admission.
+pub const ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET_BINDING: &str =
+    "ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET";
 /// Internal service-auth header required by strict private Workers.
 pub const ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1: &str = "x-router-ab-internal-service-auth";
 /// Deriver A signer-envelope HPKE private-key binding-name env key.

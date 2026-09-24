@@ -209,11 +209,40 @@ fn validate_presign_material_expiry(
     Ok(())
 }
 
+/// Authority verified by Gateway and pinned by the SigningWorker presign session.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum CloudflareSigningWorkerEcdsaPresignAuthorityV1 {
+    OwnerWalletSession {
+        wallet_scope: CloudflareSigningWorkerWalletScopeV1,
+    },
+    OperationStepUp,
+}
+
+impl CloudflareSigningWorkerEcdsaPresignAuthorityV1 {
+    fn validate_for_scope(
+        &self,
+        scope: &RouterAbEcdsaDerivationNormalSigningScopeV1,
+    ) -> RouterAbProtocolResult<()> {
+        if let Self::OwnerWalletSession { wallet_scope } = self {
+            wallet_scope.validate()?;
+            if wallet_scope.wallet_id != scope.wallet_id {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::MalformedWirePayload,
+                    "ECDSA presign owner wallet scope does not match signing scope",
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Private request to create a SigningWorker-owned ECDSA presign session.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
     pub scope: RouterAbEcdsaDerivationNormalSigningScopeV1,
+    pub authority: CloudflareSigningWorkerEcdsaPresignAuthorityV1,
     pub presign_session_id: String,
     pub first_message_b64u: String,
     pub ceremony_expires_at_ms: u64,
@@ -223,6 +252,7 @@ pub struct CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
 impl CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
     pub fn validate_at(&self, now_unix_ms: u64) -> RouterAbProtocolResult<()> {
         self.scope.validate()?;
+        self.authority.validate_for_scope(&self.scope)?;
         let parts: Vec<_> = self.presign_session_id.split(':').collect();
         if parts.len() != 3
             || parts[0] != "ecdsa-presign-v2"
@@ -256,6 +286,7 @@ impl CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
 #[serde(deny_unknown_fields)]
 pub struct CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 {
     pub scope: RouterAbEcdsaDerivationNormalSigningScopeV1,
+    pub authority: CloudflareSigningWorkerEcdsaPresignAuthorityV1,
     pub presign_session_id: String,
     pub requested_stage: CloudflareSigningWorkerEcdsaPresignRequestedStageV1,
     pub outgoing_messages_b64u: Vec<String>,
@@ -266,6 +297,7 @@ pub struct CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 {
 impl CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 {
     pub fn validate_at(&self, now_unix_ms: u64) -> RouterAbProtocolResult<()> {
         self.scope.validate()?;
+        self.authority.validate_for_scope(&self.scope)?;
         require_non_empty("presign_session_id", &self.presign_session_id)?;
         validate_presign_session_expiry(
             "ECDSA presign session ceremony_expires_at_ms",
@@ -1517,20 +1549,13 @@ pub enum CloudflareEcdsaPrepareSourceV1 {
 impl CloudflareEcdsaPrepareSourceV1 {
     pub fn validate_for_request(
         &self,
-        request: &RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
+        _request: &RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
     ) -> RouterAbProtocolResult<()> {
-        if let Self::FinalPresignBatch { batch } = self {
-            if batch.scope != request.scope
-                || batch.requested_stage
-                    != CloudflareSigningWorkerEcdsaPresignRequestedStageV1::Presign
-                || request.expires_at_ms > batch.material_expires_at_ms
-                || batch.outgoing_messages_b64u.len() != 2
-            {
-                return Err(RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::InvalidGateDecision,
-                    "Final presign batch does not match the admitted prepare request",
-                ));
-            }
+        if matches!(self, Self::FinalPresignBatch { .. }) {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidGateDecision,
+                "Bundled final presign batch is gated until its producer authority is verified",
+            ));
         }
         Ok(())
     }

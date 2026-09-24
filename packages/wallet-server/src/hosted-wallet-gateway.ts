@@ -125,6 +125,7 @@ export interface CloudflareD1GatewayBaseEnv
   readonly SIGNING_WORKER_ID?: string;
   readonly ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET?: string;
   readonly ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET?: string;
+  readonly ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET?: string;
   readonly ROUTER_AB_PREWARM_ENABLED: string;
   readonly ROUTER_AB_CEREMONY_JWT_PRIVATE_JWK?: string;
   readonly ROUTER_AB_CEREMONY_JWT_ISSUER?: string;
@@ -958,6 +959,16 @@ export function stagingSigningSessionSealOptions(
 function createStagingEcdsaPresignRuntime(
   env: CloudflareD1GatewayBaseEnv,
 ): RouterAbEcdsaPresignRuntime {
+  const presignAuthSecret = requireEnvString(
+    env,
+    'ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET',
+  );
+  if (
+    presignAuthSecret === requireEnvString(env, 'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET') ||
+    presignAuthSecret === requireEnvString(env, 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET')
+  ) {
+    throw new Error('Gateway-to-SigningWorker presign auth secret must be role-specific');
+  }
   return new RouterAbEcdsaPresignRuntime({
     config: {
       nodeRole: 'coordinator',
@@ -972,7 +983,7 @@ function createStagingEcdsaPresignRuntime(
       signingWorkerBaseUrl: ROUTER_AB_SIGNING_WORKER_ORIGIN,
       auth: {
         kind: 'internal_service_auth_secret',
-        secret: requireEnvString(env, 'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET'),
+        secret: presignAuthSecret,
       },
       fetchImpl: createRouterAbServiceBindingFetch(env),
     },

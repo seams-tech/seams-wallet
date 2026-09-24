@@ -3,6 +3,7 @@ use crate::CloudflareRouterEd25519JwkV1;
 use crate::{
     cloudflare_router_error_status, require_non_empty, worker_binding_error,
     worker_binding_error_code, ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET_BINDING,
+    ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET_BINDING,
     ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING_ENV,
 };
 use ed25519_dalek::{Signature as Ed25519Signature, VerifyingKey as Ed25519VerifyingKey};
@@ -109,6 +110,34 @@ pub fn require_cloudflare_gateway_to_router_auth_request_v1(
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             "Gateway-to-Router auth secret must differ from role-shared service auth",
+        ));
+    }
+    require_cloudflare_service_auth_request_v1(request, gateway)
+}
+
+#[cfg(feature = "workers-rs")]
+pub fn require_cloudflare_gateway_to_signing_worker_presign_auth_request_v1(
+    request: &worker::Request,
+    env: &worker::Env,
+) -> RouterAbProtocolResult<()> {
+    let mut shared = load_cloudflare_internal_service_auth_secret_v1(env)?;
+    let mut gateway = match load_cloudflare_service_auth_secret_v1(
+        env,
+        ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET_BINDING,
+    ) {
+        Ok(secret) => secret,
+        Err(error) => {
+            shared.zeroize();
+            return Err(error);
+        }
+    };
+    let same_credential = constant_time_text_eq_v1(&shared, &gateway);
+    shared.zeroize();
+    if same_credential {
+        gateway.zeroize();
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            "Gateway-to-SigningWorker presign auth secret must differ from role-shared service auth",
         ));
     }
     require_cloudflare_service_auth_request_v1(request, gateway)

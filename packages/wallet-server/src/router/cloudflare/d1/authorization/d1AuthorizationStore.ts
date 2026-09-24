@@ -1866,7 +1866,21 @@ export class CloudflareD1AuthorizationStore
     ) {
       return null;
     }
-    return { session, authority, authMethod, retiredAtMs: null };
+    return {
+      session,
+      authority,
+      authMethod,
+      retiredAtMs: null,
+      ownerWalletScope: {
+        orgId: requireString(row.session_org_id, 'session.ownerWalletScope.orgId'),
+        projectId: requireString(row.session_project_id, 'session.ownerWalletScope.projectId'),
+        projectEnvironmentId: requireString(
+          row.session_env_id,
+          'session.ownerWalletScope.projectEnvironmentId',
+        ),
+        walletId: session.walletId,
+      },
+    };
   }
 
   /**
@@ -2096,6 +2110,9 @@ export class CloudflareD1AuthorizationStore
            session.quota_id AS session_quota_id,
            session.principal_id AS session_principal_id,
            session.wallet_id AS session_wallet_id,
+           session.org_id AS session_org_id,
+           session.project_id AS session_project_id,
+           session.env_id AS session_env_id,
            session.authority_id AS session_authority_id,
            session.wallet_auth_method_id AS session_wallet_auth_method_id,
            session.authority_digest_b64u AS session_authority_digest_b64u,
