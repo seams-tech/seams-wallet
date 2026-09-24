@@ -2185,6 +2185,14 @@ receipt-confirmation latency. Earlier attempts that issued separate browser CLI
 commands lost their virtual authenticator between commands and supply no evidence
 about Wallet Session exhaustion or reauthentication.
 
+A second retained-authenticator probe reached application readiness 2.937 seconds
+after registration began. Its first NEAR signature used 0.734 seconds for prepare,
+0.007 seconds for the client share, and 1.940 seconds for finalize: 2.683 seconds
+for `signature_total` and 6.801 seconds for `confirmed_to_signed`. The receipt was
+dismissed successfully. The demo's sign control did not accept the second click
+within the probe timeout, so this run supplies no warm-signing or session-exhaustion
+measurement.
+
 The signing trace now separates the post-confirmation path into durable-lease
 recovery wait, material-resolution wait, transaction-context resolution, Wallet
 Session authorization, nonce-lease commit, and transaction assembly. Deploy and
