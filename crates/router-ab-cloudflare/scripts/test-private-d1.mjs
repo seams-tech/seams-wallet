@@ -170,11 +170,15 @@ function deriverAWorker(fixture) {
 }
 
 function deriverBWorker(fixture) {
+  const bindings = {
+    ...fixture.deriver_b_env,
+    ROUTER_AB_TENANT_ROOT_ROLE_D1_INTEGRATION: 'enabled',
+  };
+  if (process.argv.includes('--do-pair-b-burn-before-complete')) {
+    bindings.R150_TEST_B_BURN_BEFORE_COMPLETE = 'enabled';
+  }
   return {
-    ...strictWorker('deriver-b', 'deriver-b', {
-      ...fixture.deriver_b_env,
-      ROUTER_AB_TENANT_ROOT_ROLE_D1_INTEGRATION: 'enabled',
-    }),
+    ...strictWorker('deriver-b', 'deriver-b', bindings),
     d1Databases: { [roleD1Binding]: 'deriver-b-private-d1' },
     r2Buckets: { [managedBackupR2Binding]: 'deriver-b-managed-backup' },
     durableObjects: {
@@ -1809,6 +1813,72 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
   console.log(JSON.stringify({ ...artifact, artifactPath }));
 }
 
+async function testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, databases) {
+  capturedSigningWorkerDelivery = undefined;
+  capturedDeriverAPreparation = undefined;
+  const router = await topology.getWorker('router');
+  const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
+  const response = await postWorkerJson(router, ed25519ExecutePath, envelope);
+  const responseBody = (await responseBytes(response)).toString('utf8');
+  if (response.status === 200) {
+    assert.notEqual(JSON.parse(responseBody).status, 'succeeded');
+  }
+  assert.ok(capturedDeriverAPreparation, 'A pair preparation must reach the wallet DO');
+  assert.equal(capturedSigningWorkerDelivery, undefined);
+
+  const bTerminal = await databases.deriverB
+    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
+    .first();
+  assert.equal(bTerminal.lifecycle, 'burned', 'B must persist the injected burn');
+  const aRows = await databases.deriverA
+    .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
+    .first();
+  assert.equal(aRows.count, 0);
+  const pair = capturedDeriverAPreparation.request.pair_binding;
+  const rootIdentity = fixture.tenant_root_creation.identity;
+  const owner = {
+    org_id: rootIdentity.orgId,
+    project_id: rootIdentity.projectId,
+    env_id: rootIdentity.envId,
+    wallet_id: pair.ceremony.binding.lifecycle.account_id,
+  };
+  const namespace = await topology.getDurableObjectNamespace(deriverAWalletDoBinding, 'deriver-a');
+  const objectId = namespace.idFromName(deriverAWalletDoObjectName(owner));
+  const object = namespace.get(objectId);
+  const aTerminal = await callDeriverAWalletDo(object, {
+    operation: 'read',
+    owner,
+    pair_binding: pair,
+  });
+  assert.equal(aTerminal.status, 200);
+  assert.equal(aTerminal.body.record.status, 'burned', 'A cannot complete from B burn');
+  const replay = await postWorkerJson(router, ed25519ExecutePath, envelope, {
+    'x-seams-yao-replay': '1',
+  });
+  const replayBody = (await responseBytes(replay)).toString('utf8');
+  if (replay.status === 200) {
+    assert.notEqual(JSON.parse(replayBody).status, 'succeeded');
+  }
+  const bAfter = await databases.deriverB
+    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
+    .first();
+  assert.deepEqual(bAfter, bTerminal);
+  assert.equal(capturedSigningWorkerDelivery, undefined);
+  const artifact = {
+    kind: 'deriver_b_completion_burn_race_e2e_v1',
+    reproduce: 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-b-burn-before-complete',
+    bPairLifecycle: bTerminal.lifecycle,
+    aPairLifecycle: aTerminal.body.record.status,
+    aD1PairRows: aRows.count,
+    noSigningWorkerDelivery: true,
+    noFreshBExecutionOnReplay: true,
+  };
+  const artifactPath = join(repoRoot, '.artifacts/r150/deriver-b-completion-burn-race.json');
+  await mkdir(dirname(artifactPath), { recursive: true });
+  await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
+  console.log(JSON.stringify({ ...artifact, artifactPath }));
+}
+
 async function callDeriverAWalletDo(object, body) {
   try {
     const response = await object.fetch(`https://router-ab-do.internal${deriverAWalletDoPath}`, {
@@ -2130,9 +2200,13 @@ async function main() {
   const testWalletDo = process.argv.includes('--do-pair-store');
   const testWalletDoExecution = process.argv.includes('--do-pair-execution');
   const testWalletDoLostReply = process.argv.includes('--do-pair-lost-reply');
+  const testDeriverBCompletionBurn = process.argv.includes('--do-pair-b-burn-before-complete');
   const topology = new Miniflare({
     workers: [
-      routerWorker(fixture, testWalletDo || testWalletDoExecution || testWalletDoLostReply),
+      routerWorker(
+        fixture,
+        testWalletDo || testWalletDoExecution || testWalletDoLostReply || testDeriverBCompletionBurn,
+      ),
       deriverAWorker(fixture),
       deriverBWorker(fixture),
       tenantRootControlPlaneWorker(fixture),
@@ -2189,6 +2263,10 @@ async function main() {
     }
     if (testWalletDoLostReply) {
       await testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, databases);
+      return;
+    }
+    if (testDeriverBCompletionBurn) {
+      await testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, databases);
       return;
     }
     const ecdsa = await testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot, jwtSigner);

@@ -3569,7 +3569,30 @@ async fn execute_deriver_b_role(
         serialization_started_at_ms,
         "success",
     );
-    execute_deriver_b_session_command(
+    #[cfg(feature = "wallet-do-b-completion-harness")]
+    if let Ok(flag) = env.var("R150_TEST_B_BURN_BEFORE_COMPLETE") {
+        if flag.to_string() == "enabled" {
+            let burn_status = execute_deriver_b_session_command(
+                env,
+                DeriverBYaoSessionCommandV1::FailPair {
+                    session,
+                    pair_digest,
+                },
+                trace_id,
+            )
+            .await?;
+            if !matches!(
+                burn_status,
+                DeriverBYaoSessionResponseV1::PairBurned {
+                    session: stored_session,
+                    pair_digest: stored_pair,
+                } if stored_session == session && stored_pair == pair_digest
+            ) {
+                return Err(invalid_lifecycle("Deriver B race harness did not burn pair"));
+            }
+        }
+    }
+    let completion_status = execute_deriver_b_session_command(
         env,
         DeriverBYaoSessionCommandV1::CompletePair {
             pair_digest,
@@ -3578,6 +3601,17 @@ async fn execute_deriver_b_role(
         trace_id,
     )
     .await?;
+    if !matches!(
+        completion_status,
+        DeriverBYaoSessionResponseV1::PairCompleted {
+            session: stored_session,
+            pair_digest: stored_pair,
+        } if stored_session == session && stored_pair == pair_digest
+    ) {
+        return Err(invalid_lifecycle(
+            "Deriver B pair completion was not persisted",
+        ));
+    }
     transport
         .finish_with_local_sealed_completion(&serialized_execution)
         .await
