@@ -99,7 +99,7 @@ The following describes logical ownership, rather than a requirement to create
 four new classes. Reuse existing Router, signing-session, and store objects where
 their coordination boundaries fit.
 
-| Owner | Authoritative state to evaluate for local storage |
+| Owner | Authoritative wallet-local state owned by the role store |
 | --- | --- |
 | Router coordination | Wallet operation lifecycle, command admission, idempotency and coordination records |
 | Deriver A | A-private custody and protocol state, replay protection and role-local reservations |
@@ -164,6 +164,12 @@ and whether it is wallet-local, tenant-wide, shared, or derived.
 - Include Gateway authentication and shared-policy accesses in measurements;
   repeated remote writes there can dominate the remaining critical path.
 - Retain a single source of truth for each record. Avoid DO/D1 dual-write ownership.
+
+Every record classified as wallet-local must move to its owning role store before
+the managed DO path is complete. A DO handler must not use D1 as the authoritative
+store for such a record. Any D1 access remaining on that path must be classified as
+shared or cross-wallet state, name its authority, and document why it cannot be
+owned by one wallet role.
 
 Each object has local transactional storage. There is no transaction spanning
 Router, A, B, SigningWorker, or a blockchain submission. Persist claims before
@@ -334,6 +340,8 @@ Network waits can contribute to duration; idle objects eligible for hibernation
 avoid duration charges. Stored state still costs money. Consult current
 [DO pricing](https://developers.cloudflare.com/durable-objects/platform/pricing/)
 and [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/).
+The detailed assumptions, formulas, and account-level projections are recorded in
+[the R150 cost analysis](./refactor-150-cost-analysis.md).
 
 Before a full conversion, compare the current path and a representative DO-backed
 path using the same protocol, payload, user locations, and network conditions:
