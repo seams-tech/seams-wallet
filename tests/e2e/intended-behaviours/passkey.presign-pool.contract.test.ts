@@ -5,6 +5,17 @@ import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ec
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+type PresignRefillTag = 'background' | 'foreground' | 'unidentified';
+type PresignRefillRoute = 'init' | 'step';
+
+function presignRefillTag(request: Request): PresignRefillTag {
+  const body: unknown = request.postDataJSON();
+  if (!isPlainObject(body)) return 'unidentified';
+  if (body.requestTag === 'background_presign_pool_refill') return 'background';
+  if (body.requestTag === 'foreground_presign_pool_refill') return 'foreground';
+  return 'unidentified';
+}
+
 class FirstSigningPoolFlow {
   private releaseGate: () => void = () => {};
   private readonly released = new Promise<void>(this.captureRelease.bind(this));
@@ -12,6 +23,11 @@ class FirstSigningPoolFlow {
     process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100',
   ).origin;
   private readonly gatewayRequests: { readonly path: string; readonly atMs: number }[] = [];
+  private readonly presignRefillRequests: {
+    readonly route: PresignRefillRoute;
+    readonly tag: PresignRefillTag;
+    readonly atMs: number;
+  }[] = [];
   private readonly gatewayResponses: {
     readonly path: string;
     readonly atMs: number;
@@ -46,7 +62,13 @@ class FirstSigningPoolFlow {
     const url = new URL(request.url());
     const path = url.pathname;
     if (url.origin === this.gatewayOrigin) {
-      this.gatewayRequests.push({ path, atMs: performance.now() });
+      const atMs = performance.now();
+      this.gatewayRequests.push({ path, atMs });
+      if (path === '/router-ab/ecdsa-derivation/presignature-pool/fill/init') {
+        this.presignRefillRequests.push({ route: 'init', tag: presignRefillTag(request), atMs });
+      } else if (path === '/router-ab/ecdsa-derivation/presignature-pool/fill/step') {
+        this.presignRefillRequests.push({ route: 'step', tag: presignRefillTag(request), atMs });
+      }
     }
     if (path === '/router-ab/ecdsa-derivation/sign/prepare') {
       const body: unknown = request.postDataJSON();
@@ -96,6 +118,16 @@ class FirstSigningPoolFlow {
     for (const request of this.gatewayRequests) {
       if (request.atMs < startedAtMs || request.atMs > endedAtMs) continue;
       counts[request.path] = (counts[request.path] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  presignRefillRequestCounts(startedAtMs: number, endedAtMs: number): Record<string, number> {
+    const counts: Record<string, number> = {};
+    for (const request of this.presignRefillRequests) {
+      if (request.atMs < startedAtMs || request.atMs > endedAtMs) continue;
+      const key = `${request.tag}_${request.route}`;
+      counts[key] = (counts[key] ?? 0) + 1;
     }
     return counts;
   }
@@ -194,6 +226,12 @@ test('unforced ECDSA registration and repeated signing capture local Gateway tim
   harness,
   context,
 }, testInfo) => {
+  const walletDoRequested =
+    process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev' &&
+    process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled';
+  const requestedBackendProfile = walletDoRequested
+    ? 'local_wallet_do_harness_requested'
+    : 'local_default_d1';
   const flow = new FirstSigningPoolFlow();
   const record = flow.record.bind(flow);
   const recordResponse = flow.recordResponse.bind(flow);
@@ -216,13 +254,17 @@ test('unforced ECDSA registration and repeated signing capture local Gateway tim
       kind: 'gateway_ecdsa_unforced_local_timing_diagnostic_v1',
       reproduce:
         "node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.presign-pool.contract.test.ts --grep 'unforced ECDSA registration and repeated signing'",
-      backendProfile: 'local_default_d1',
+      requestedBackendProfile,
       sampleCountPerStage: 1,
       timingPurpose: 'local_diagnostic_not_release_gate',
       requestScope: 'all_gateway_requests_in_each_window_including_background_work',
       registrationReturn: {
         elapsedMs: registrationEndedAt - registrationStartedAt,
         gatewayRequestCounts: flow.gatewayRequestCounts(registrationStartedAt, registrationEndedAt),
+        presignRefillRequestCounts: flow.presignRefillRequestCounts(
+          registrationStartedAt,
+          registrationEndedAt,
+        ),
         gatewayServerTimings: await flow.gatewayServerTimings(
           registrationStartedAt,
           registrationEndedAt,
@@ -231,6 +273,10 @@ test('unforced ECDSA registration and repeated signing capture local Gateway tim
       firstSigning: {
         elapsedMs: firstSigningEndedAt - firstSigningStartedAt,
         gatewayRequestCounts: flow.gatewayRequestCounts(firstSigningStartedAt, firstSigningEndedAt),
+        presignRefillRequestCounts: flow.presignRefillRequestCounts(
+          firstSigningStartedAt,
+          firstSigningEndedAt,
+        ),
         gatewayServerTimings: await flow.gatewayServerTimings(
           firstSigningStartedAt,
           firstSigningEndedAt,
@@ -239,6 +285,10 @@ test('unforced ECDSA registration and repeated signing capture local Gateway tim
       subsequentSigning: {
         elapsedMs: subsequentSigningEndedAt - subsequentSigningStartedAt,
         gatewayRequestCounts: flow.gatewayRequestCounts(
+          subsequentSigningStartedAt,
+          subsequentSigningEndedAt,
+        ),
+        presignRefillRequestCounts: flow.presignRefillRequestCounts(
           subsequentSigningStartedAt,
           subsequentSigningEndedAt,
         ),
@@ -251,7 +301,7 @@ test('unforced ECDSA registration and repeated signing capture local Gateway tim
     };
     const artifactPath = path.resolve(
       testInfo.config.rootDir,
-      '../.artifacts/r150/gateway-ecdsa-unforced-local-timing.json',
+      `../.artifacts/r150/gateway-ecdsa-unforced-local-timing-${requestedBackendProfile}.json`,
     );
     await mkdir(path.dirname(artifactPath), { recursive: true });
     await writeFile(artifactPath, JSON.stringify(proof, null, 2), 'utf8');

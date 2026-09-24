@@ -101,11 +101,71 @@ the counts are a user-visible window, not a per-signature causal bill. Its elaps
 time includes a deliberate test hold and is diagnostic only. The
 same contract also records one unforced local registration return, first Tempo
 signature, and subsequent same-target signature as separate windows. Those
-signatures are verified; the single local samples cannot establish cold/warm
-p50/p95, role DO usage, regional network conditions, or production cost. Numeric
+signatures are verified; the initial single local sample could not establish
+cold/warm p50/p95, role DO usage, regional network conditions, or production cost. Numeric
 latency targets and a monthly cost ceiling remain unset pending product approval.
-The diagnostic records HTTP request counts; D1/DO row counts, object active
-duration, and stored bytes have not been measured for a matched comparison.
+The earlier diagnostic records HTTP request counts. Neither it nor the matched
+follow-up below measures per-request D1/DO operations, object active duration,
+or stored bytes for a cost comparison.
+
+### Matched local Gateway/browser diagnostic (2026-09-25)
+
+The existing unforced passkey registration → first Tempo signature → second
+Tempo signature test ran as a tagged set of three trials per profile on one
+machine. Each run used a fresh local Wrangler state root and browser context.
+All used the same client flow and dev Worker build profile, with no injected
+delay or fault. All six runs verified
+both ECDSA signatures. The DO profile selected the existing
+`ROUTER_AB_WALLET_DO_HARNESS=enabled` build and local bindings; the D1 profile
+used `disabled`. Reproduce with `ROUTER_AB_WORKER_BUILD_PROFILE=dev` and the
+selected `ROUTER_AB_WALLET_DO_HARNESS` value before running the command in the
+test artifact; give every trial a fresh local runtime root. These are
+user-visible elapsed milliseconds, one observation per fresh run, not
+geographic p50/p95 measurements.
+
+| Profile / run | Registration return ms | First sign ms | Subsequent sign ms | Background refill init/step (registration; first; next) | Foreground refill steps (first; next) |
+| --- | ---: | ---: | ---: | --- | --- |
+| Wallet DO 1 | 3638.117 | 1494.096 | 1484.912 | 1/1; 1/5; 2/8 | 1; 0 |
+| Wallet DO 2 | 3711.627 | 1495.198 | 1499.840 | 1/1; 1/7; 2/7 | 0; 0 |
+| Wallet DO 3 | 3640.549 | 735.988 | 1488.834 | 1/1; 1/4; 1/1 | 0; 4 |
+| D1 1 | 3640.309 | 1494.169 | 1484.241 | 1/1; 1/8; 2/6 | 0; 0 |
+| D1 2 | 3622.904 | 1477.721 | 1503.551 | 1/1; 1/5; 2/8 | 1; 0 |
+| D1 3 | 3600.424 | 1474.876 | 1486.011 | 1/1; 1/5; 2/8 | 1; 0 |
+
+Each run also observed seven `/wallet/session/status` requests during
+registration and four in each signing window. Each signing window sent one
+Gateway prepare and one finalize. All presign requests had an identified
+background or foreground tag; no foreground init occurred. Background requests
+ran inside the measured user-visible windows, and work after each window is
+excluded. Wallet DO run 3 reached a ready first entry sooner and observed fewer
+first-window refill steps, so its 736 ms first sign is not evidence of a backend
+speedup. The three-run medians were 3641/1494/1489 ms for DO and
+3623/1478/1486 ms for D1 (registration/first/subsequent, rounded to the nearest
+millisecond). The samples expose no clear local latency benefit from the
+current hybrid topology.
+
+SQLite inspection after every run confirmed the selected authority. The DO
+profile had one Yao pair record in each of the separate A and B wallet objects,
+zero Yao pair rows in their role D1 databases, and SigningWorker wallet-DO
+ECDSA activation and two effect records; its corresponding SigningWorker D1
+activation, pool, and effect tables stayed empty. The D1 profile had one Yao
+pair row in each role D1 database, a SigningWorker D1 ECDSA activation and two
+effect records, and no wallet-DO instances. In both profiles, A/B tenant-root
+shares remained in role-private D1 and the Gateway held the wallet, authority,
+and Wallet Session in D1. The DO profile is therefore a real wallet-DO path for
+Yao pair and SigningWorker ECDSA state, with retained Gateway and role-root D1
+dependencies. Router wallet-local ceremony/signing-operation ownership is not
+yet a wallet DO.
+
+The matched browser flow establishes local registration and two Tempo signs
+through each selected topology; it does not exercise NEAR signing or other
+lifecycle operations in this comparison. Remaining implementation includes
+Router wallet-local ownership, cross-owner registration finalization, and
+recovery/factor/export/retirement coverage. Consolidated concurrency, crash,
+security, lifecycle, and packaging verification is separate from that missing
+implementation. Root-retirement quiescence, numeric latency and cost limits,
+hosted regional experiments, production setup, and cutover require review
+before release. No hosted resources or production routing were changed.
 
 ## Reuse and missing contracts
 
