@@ -58,4 +58,5 @@ epoch-bound signature authenticates the earlier admission but does not revoke
 it. No production DO routing is allowed until an operation-level admission and
 retirement drain/reconciliation protocol is reviewed. The bounded DO/VM
 adapter tests must state this exclusion; their equivalence alone cannot prove
-retirement safety.
+retirement safety. The proposed admission, closing, and quiescence contract is
+in [the root-retirement review document](./refactor-150-root-retirement-admission.md).
