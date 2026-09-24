@@ -16,7 +16,103 @@ import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ec
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '../../../packages/wallet/src/core/signingEngine/workerManager/ecdsaPresignLifecycle';
 import { parseYaoServerTimingBuckets } from '../../../packages/wallet/src/SeamsWeb/operations/registration/registrationTiming';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { isHex, parseTransaction, recoverTransactionAddress } from 'viem';
+
+const ECDSA_RESPOND_FAULT_HEADER = 'x-seams-intended-ecdsa-respond-fault-v1';
+const ECDSA_RESPOND_FAULT_PROOF_HEADER = 'x-seams-intended-ecdsa-respond-proof-v1';
+
+class GatewayEcdsaRespondPinProbe {
+  retries = 0;
+  proof: {
+    readonly firstStatus: number;
+    readonly firstProof: string;
+    readonly retryStatus: number;
+    readonly retryProof: string;
+    readonly environmentKey: string;
+    readonly projectEnvironmentId: string;
+  } | null = null;
+
+  async handle(route: Route): Promise<void> {
+    try {
+      const headers = route.request().headers();
+      const first = await route.fetch({
+        headers: { ...headers, [ECDSA_RESPOND_FAULT_HEADER]: 'drop_router_reply' },
+      });
+      const firstBody = await first.text();
+      expect(first.status(), firstBody).toBe(400);
+      expect(firstBody).toContain(
+        'Local ECDSA fault dropped the completed Router registration reply',
+      );
+      expect(first.headers()[ECDSA_RESPOND_FAULT_PROOF_HEADER]).toBe('router_reply_dropped');
+
+      const second = await route.fetch({
+        headers: { ...headers, [ECDSA_RESPOND_FAULT_HEADER]: 'unavailable_lineage' },
+      });
+      expect(second.ok()).toBe(true);
+      expect(second.headers()[ECDSA_RESPOND_FAULT_PROOF_HEADER]).toBe('lineage_lookups:0');
+      const environmentKey = second.headers()['x-seams-intended-ecdsa-environment-key-v1'];
+      const projectEnvironmentId = second.headers()['x-seams-intended-ecdsa-environment-id-v1'];
+      expect(environmentKey).toBeTruthy();
+      expect(projectEnvironmentId).toBeTruthy();
+      expect(environmentKey).not.toBe(projectEnvironmentId);
+      this.proof = {
+        firstStatus: first.status(),
+        firstProof: first.headers()[ECDSA_RESPOND_FAULT_PROOF_HEADER],
+        retryStatus: second.status(),
+        retryProof: second.headers()[ECDSA_RESPOND_FAULT_PROOF_HEADER],
+        environmentKey,
+        projectEnvironmentId,
+      };
+      this.retries += 1;
+      await route.fulfill({ response: second });
+    } catch (error) {
+      await route.abort('failed');
+      throw error;
+    }
+  }
+}
+
+test('Gateway ECDSA respond retries its pinned root after Router reply loss', async (
+  { harness, context },
+  testInfo,
+) => {
+  const probe = new GatewayEcdsaRespondPinProbe();
+  const respondPath = '**/wallets/register/respond';
+  const handle = probe.handle.bind(probe);
+  await context.route(respondPath, handle);
+  try {
+    await harness.registerPasskeyEcdsaOnlyWallet();
+    expect(probe.retries).toBe(1);
+    expect(probe.proof).not.toBeNull();
+    const artifactPath = path.resolve(
+      testInfo.config.rootDir,
+      '../.artifacts/r150/gateway-ecdsa-respond-pin.json',
+    );
+    await mkdir(path.dirname(artifactPath), { recursive: true });
+    await writeFile(
+      artifactPath,
+      JSON.stringify(
+        {
+          kind: 'gateway_ecdsa_respond_pin_e2e_v1',
+          reproduce:
+            "node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.contract.test.ts --grep 'Gateway ECDSA respond retries its pinned root'",
+          ...probe.proof,
+        },
+        null,
+        2,
+      ),
+      'utf8',
+    );
+    await testInfo.attach('gateway-ecdsa-respond-pin.json', {
+      body: JSON.stringify(probe.proof, null, 2),
+      contentType: 'application/json',
+    });
+  } finally {
+    await context.unroute(respondPath, handle);
+  }
+});
 
 test('mixed registration exposes gateway and finalization timings', async ({ harness, page }) => {
   const respond = page.waitForResponse((response) =>
