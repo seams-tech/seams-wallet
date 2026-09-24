@@ -1,17 +1,19 @@
 use crate::{
     local_ed25519_yao_pair_sqlite::ensure_local_deriver_a_pair_schema_v1,
-    LocalDeriverAPairSqliteV1, LocalEd25519YaoWorkerStateV1, LocalRolePrivateSqliteStorageV1,
-    LocalWorkerRoleConfigV1,
+    local_signing_worker_near_sqlite, LocalDeriverAPairSqliteV1, LocalEd25519YaoWorkerStateV1,
+    LocalRolePrivateSqliteStorageV1, LocalWorkerRoleConfigV1,
 };
 use router_ab_cloudflare::{
     CloudflareEd25519YaoPairExecuteResponseV1, CloudflareEd25519YaoPairWorkV1,
-    CloudflareEd25519YaoTenantRootContextV2,
+    CloudflareEd25519YaoTenantRootContextV2, CloudflareServerOutputMaterialRecordV1,
+    CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
+    CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
 };
 use router_ab_core::{
-    Ed25519YaoExecutionIdV1, Ed25519YaoInputPairBindingV1, Ed25519YaoPairRecordV1,
-    Ed25519YaoPairReservationV1, Ed25519YaoPairStartClaimV1, Ed25519YaoPairStoreResultV1,
-    LocalServiceRoleV1, RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
-    TenantRootSignedActivationReceiptV1,
+    ActiveSigningWorkerStateV1, Ed25519YaoExecutionIdV1, Ed25519YaoInputPairBindingV1,
+    Ed25519YaoPairRecordV1, Ed25519YaoPairReservationV1, Ed25519YaoPairStartClaimV1,
+    Ed25519YaoPairStoreResultV1, LocalServiceRoleV1, RouterAbProtocolError,
+    RouterAbProtocolErrorCode, RouterAbProtocolResult, TenantRootSignedActivationReceiptV1,
 };
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
@@ -85,6 +87,8 @@ impl LocalEd25519YaoSqliteHostV1 {
         LocalRolePrivateSqliteStorageV1::new(&connection)?;
         if config.role() == LocalServiceRoleV1::DeriverA {
             ensure_local_deriver_a_pair_schema_v1(&connection)?;
+        } else if config.role() == LocalServiceRoleV1::SigningWorker {
+            local_signing_worker_near_sqlite::ensure_schema(&connection)?;
         }
         Ok(Self {
             connection: RefCell::new(connection),
@@ -112,6 +116,36 @@ impl LocalEd25519YaoSqliteHostV1 {
         let connection = self.connection.borrow();
         let storage = LocalRolePrivateSqliteStorageV1::new(&connection)?;
         storage.put_bytes(STATE_KEY, &bytes)
+    }
+
+    pub fn prepare_near(
+        &self,
+        request: CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
+        active: ActiveSigningWorkerStateV1,
+        material: CloudflareServerOutputMaterialRecordV1,
+        now_ms: u64,
+    ) -> RouterAbProtocolResult<String> {
+        let connection = self.connection.borrow();
+        local_signing_worker_near_sqlite::prepare(&connection, request, active, material, now_ms)
+    }
+
+    pub fn finalize_near(
+        &self,
+        request: CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
+        active: ActiveSigningWorkerStateV1,
+        material: CloudflareServerOutputMaterialRecordV1,
+        now_ms: u64,
+    ) -> RouterAbProtocolResult<String> {
+        let connection = self.connection.borrow();
+        local_signing_worker_near_sqlite::finalize(&connection, request, active, material, now_ms)
+    }
+
+    pub fn read_near_terminal(
+        &self,
+        request: &CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
+    ) -> RouterAbProtocolResult<Option<String>> {
+        let connection = self.connection.borrow();
+        local_signing_worker_near_sqlite::read_terminal(&connection, request)
     }
 
     pub fn read_a_pair(

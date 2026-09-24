@@ -1,6 +1,7 @@
 use crate::authenticate_local_ed25519_yao_deriver_b_peer_http_v1;
 use crate::local_ed25519_yao_pair::verify_local_pair_readiness_receipt_v1;
 use crate::local_ed25519_yao_refresh::LocalEd25519YaoEffectiveIdentityV1;
+use crate::local_ed25519_yao_signing_worker::now_unix_ms;
 use crate::local_ed25519_yao_signing_worker::LocalEd25519YaoSigningWorkerDurableStateV1;
 use crate::local_ed25519_yao_stream::{
     authenticate_local_ed25519_yao_deriver_b_peer_http_with_pair_v2,
@@ -99,6 +100,8 @@ use router_ab_cloudflare::{
     CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairExecuteResponseV1,
     CloudflareEd25519YaoPairLookupRequestV1, CloudflareEd25519YaoPairPrepareRequestV1,
     CloudflareEd25519YaoPairStatusResponseV1,
+    CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
+    CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
 };
 
 enum PendingDeriverBRoleV1 {
@@ -759,11 +762,15 @@ pub fn dispatch_local_ed25519_yao_connection_with_persistence_v1(
                 | LOCAL_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH
                 | LOCAL_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH
         );
+    let signing_worker_registration_route = config.role() == LocalServiceRoleV1::SigningWorker
+        && request.path == LOCAL_SIGNING_WORKER_ED25519_YAO_ACTIVATION_PACKAGES_PATH;
     let result = handle_yao_control_request(&mut stream, config, state, host, &request);
     request.body.fill(0);
     if let Err(error) = result {
         if deriver_a_pair_route {
             *state = host.load_state(LocalServiceRoleV1::DeriverA)?;
+        } else if signing_worker_registration_route {
+            *state = host.load_state(LocalServiceRoleV1::SigningWorker)?;
         }
         let (status, body) =
             local_dev_http_error_body_v1(config.role(), &request.path, 400, &error.to_string())?;
@@ -1065,6 +1072,7 @@ fn handle_yao_control_request(
                 LocalEd25519YaoSigningWorkerPackagePairDeliveryV1,
             >(&request.body)?;
             let receipt = state.signing_worker.accept_package_pair(config, delivery)?;
+            host.persist_state(LocalServiceRoleV1::SigningWorker, state)?;
             write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&receipt)?)
         }
         (
@@ -1105,18 +1113,29 @@ fn handle_yao_control_request(
             LocalWorkerRoleConfigV1::SigningWorker(config),
             LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PREPARE_PATH,
         ) => {
-            let response = state
+            let admitted: CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2 =
+                serde_json::from_slice(&request.body)?;
+            let now_ms = now_unix_ms()?;
+            let (active, material) = state
                 .signing_worker
-                .prepare_normal_signing(config, &request.body)?;
+                .normal_signing_material(config, &admitted.scope)?;
+            let response = host.prepare_near(admitted, active, material, now_ms)?;
             write_local_dev_http_response_v1(stream, 200, &response)
         }
         (
             LocalWorkerRoleConfigV1::SigningWorker(config),
             LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH,
         ) => {
-            let response = state
+            let admitted: CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2 =
+                serde_json::from_slice(&request.body)?;
+            if let Some(response) = host.read_near_terminal(&admitted)? {
+                return write_local_dev_http_response_v1(stream, 200, &response);
+            }
+            let now_ms = now_unix_ms()?;
+            let (active, material) = state
                 .signing_worker
-                .finalize_normal_signing(config, &request.body)?;
+                .normal_signing_material(config, &admitted.request.scope)?;
+            let response = host.finalize_near(admitted, active, material, now_ms)?;
             write_local_dev_http_response_v1(stream, 200, &response)
         }
         _ => Err(io::Error::other("Yao control path is not owned by this worker").into()),

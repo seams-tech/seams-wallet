@@ -68,6 +68,7 @@ mod local_router_ab_ecdsa_derivation_pool_store;
 mod local_router_coordinator;
 mod local_router_ed25519_yao_http;
 mod local_service_http;
+mod local_signing_worker_near_sqlite;
 mod local_worker_topology;
 
 pub use local_dev_http::{

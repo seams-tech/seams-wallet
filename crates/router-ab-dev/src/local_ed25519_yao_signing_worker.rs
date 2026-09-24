@@ -3,18 +3,12 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use base64::Engine;
-use router_ab_cloudflare::{
-    CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
-    CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
-};
+use router_ab_cloudflare::{CloudflareSecretMaterial32V1, CloudflareServerOutputMaterialRecordV1};
 use router_ab_core::{
-    ActiveSigningWorkerStateV1, CanonicalWireBytesV1, Ed25519YaoCeremonyBindingV1,
-    Ed25519YaoOperationV1, Ed25519YaoRefreshBindingV1, Ed25519YaoStateEpochV1,
-    NormalSigningEd25519TwoPartyFrostCommitmentsV1, NormalSigningResponseV1,
-    NormalSigningRound1PrepareResponseV1, NormalSigningScopeV1, NormalSigningSignatureSchemeV1,
-    PublicDigest32, RouterAbEd25519NormalSigningFinalizeProtocolV2, RouterAbProtocolError,
-    RouterAbProtocolErrorCode, RouterAbProtocolResult, ServerIdentityV1,
+    ActiveSigningWorkerStateV1, Ed25519YaoCeremonyBindingV1, Ed25519YaoOperationV1,
+    Ed25519YaoRefreshBindingV1, Ed25519YaoStateEpochV1, NormalSigningScopeV1, OpenedShareKind,
+    PublicDigest32, Role, RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
+    ServerIdentityV1,
 };
 use router_ab_ed25519_yao::recipient::signing_worker::{
     combine_signing_worker_activation_packages, SigningWorkerBaseScalar,
@@ -24,14 +18,7 @@ use router_ab_ed25519_yao::relay::{
     ActivationDeriverBSigningWorkerPackage, ActivationPublicCommitments,
 };
 use serde::{Deserialize, Serialize};
-use signer_core::near_threshold_ed25519::{
-    aggregate_signature, build_signing_package, client_round1_commit,
-    client_round2_signature_share, commitments_from_wire, key_package_from_signing_share_bytes,
-    signature_share_from_b64u, verifying_share_bytes_from_signing_share_bytes,
-    verifying_share_from_b64u, ClientRound1State, CommitmentsWire,
-};
-use signer_core::near_threshold_frost::compute_threshold_ed25519_group_public_key_2p_from_verifying_shares;
-use subtle::ConstantTimeEq;
+use signer_core::near_threshold_ed25519::verifying_share_bytes_from_signing_share_bytes;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use super::{
@@ -138,6 +125,8 @@ struct ActiveSigningShare {
     binding: Ed25519YaoCeremonyBindingV1,
     #[zeroize(skip)]
     state_epoch: Ed25519YaoStateEpochV1,
+    #[zeroize(skip)]
+    activated_at_ms: u64,
     transcript: [u8; 32],
     registered_public_key: [u8; 32],
 }
@@ -167,18 +156,6 @@ impl RecoveryPromotionState {
     }
 }
 
-struct PendingNormalSigningRound {
-    scope: NormalSigningScopeV1,
-    state_epoch: Ed25519YaoStateEpochV1,
-    registered_public_key: [u8; 32],
-    round1_binding_digest: PublicDigest32,
-    intent_digest: PublicDigest32,
-    signing_payload_digest: PublicDigest32,
-    admitted_signing_digest: PublicDigest32,
-    round1: ClientRound1State,
-    expires_at_ms: u64,
-}
-
 #[derive(Default)]
 pub struct LocalEd25519YaoSigningWorkerStateV1 {
     identities: BTreeMap<LocalEd25519YaoEffectiveIdentityV1, LocalEd25519YaoSigningIdentityStateV1>,
@@ -200,6 +177,8 @@ struct LocalEd25519YaoSigningWorkerDurableActiveStateV1 {
     binding: Ed25519YaoCeremonyBindingV1,
     #[zeroize(skip)]
     state_epoch: Ed25519YaoStateEpochV1,
+    #[zeroize(skip)]
+    activated_at_ms: u64,
     transcript: [u8; 32],
     registered_public_key: [u8; 32],
 }
@@ -210,7 +189,6 @@ struct LocalEd25519YaoSigningIdentityStateV1 {
     pending_refresh_b: Option<PendingRefreshDelivery>,
     active: Option<ActiveSigningShare>,
     recovery_promotion: Option<RecoveryPromotionState>,
-    pending_normal_signing: BTreeMap<String, PendingNormalSigningRound>,
 }
 
 impl LocalEd25519YaoSigningWorkerStateV1 {
@@ -225,6 +203,7 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
                     identity: identity.clone(),
                     binding: active.binding.clone(),
                     state_epoch: active.state_epoch,
+                    activated_at_ms: active.activated_at_ms,
                     transcript: active.transcript,
                     registered_public_key: active.registered_public_key,
                 })
@@ -242,6 +221,7 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
             active.identity.validate_persisted_v1()?;
             if active.identity != LocalEd25519YaoEffectiveIdentityV1::from_binding(&active.binding)
                 || active.scalar.iter().all(|byte| *byte == 0)
+                || active.activated_at_ms == 0
                 || active.transcript.iter().all(|byte| *byte == 0)
                 || active.registered_public_key.iter().all(|byte| *byte == 0)
             {
@@ -255,6 +235,7 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
                     scalar: Zeroizing::new(core::mem::take(&mut active.scalar)),
                     binding: active.binding.clone(),
                     state_epoch: active.state_epoch,
+                    activated_at_ms: active.activated_at_ms,
                     transcript: active.transcript,
                     registered_public_key: active.registered_public_key,
                 }),
@@ -327,40 +308,31 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
             .accept_refresh_deriver_b(config, request)
     }
 
-    pub fn prepare_normal_signing(
-        &mut self,
+    pub fn normal_signing_material(
+        &self,
         config: &LocalSigningWorkerConfigV1,
-        body: &[u8],
-    ) -> RouterAbProtocolResult<String> {
-        let request = serde_json::from_slice::<
-            CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
-        >(body)
-        .map_err(|_| invalid_normal_signing("SigningWorker prepare request is malformed"))?;
-        let identity = self.identity_for_scope(&request.scope)?;
-        self.identities
-            .get_mut(&identity)
-            .expect("normal-signing identity was selected from the same map")
-            .prepare_normal_signing(config, body)
-    }
-
-    pub fn finalize_normal_signing(
-        &mut self,
-        config: &LocalSigningWorkerConfigV1,
-        body: &[u8],
-    ) -> RouterAbProtocolResult<String> {
-        let request = serde_json::from_slice::<
-            CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
-        >(body)
-        .map_err(|error| {
-            invalid_normal_signing(format!(
-                "SigningWorker finalize request is malformed: {error}"
-            ))
+        scope: &NormalSigningScopeV1,
+    ) -> RouterAbProtocolResult<(
+        ActiveSigningWorkerStateV1,
+        CloudflareServerOutputMaterialRecordV1,
+    )> {
+        let identity = self.identity_for_scope(scope)?;
+        let state = self
+            .identities
+            .get(&identity)
+            .expect("normal-signing identity was selected from the same map");
+        let active_state = state.active_normal_signing_state(config, scope)?;
+        let active = state.active.as_ref().ok_or_else(|| {
+            invalid_normal_signing("SigningWorker has no active Yao signing share")
         })?;
-        let identity = self.identity_for_scope(&request.request.scope)?;
-        self.identities
-            .get_mut(&identity)
-            .expect("normal-signing identity was selected from the same map")
-            .finalize_normal_signing(config, body)
+        let material = CloudflareServerOutputMaterialRecordV1::new(
+            PublicDigest32::new(active.transcript),
+            OpenedShareKind::XServerBase,
+            Role::Server,
+            config.signing_worker_id.clone(),
+            CloudflareSecretMaterial32V1::new(*active.scalar),
+        )?;
+        Ok((active_state, material))
     }
 
     pub fn active_public_key(&self) -> Option<&[u8; 32]> {
@@ -560,245 +532,10 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
         self.active.as_ref().map(|active| active.state_epoch)
     }
 
-    pub fn prepare_normal_signing(
-        &mut self,
-        config: &LocalSigningWorkerConfigV1,
-        body: &[u8],
-    ) -> RouterAbProtocolResult<String> {
-        let private_request = serde_json::from_slice::<
-            CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
-        >(body)
-        .map_err(|_| invalid_normal_signing("SigningWorker prepare request is malformed"))?;
-        private_request.validate()?;
-        let request_scope = private_request.scope;
-        let request_expires_at_ms = private_request.expires_at_ms;
-        let admission = private_request.admission_candidate;
-        let round1_binding_digest = admission.round1_binding_digest.ok_or_else(|| {
-            invalid_normal_signing("SigningWorker prepare request lacks round-1 binding")
-        })?;
-        let prepared_at_ms = now_unix_ms()?;
-        if prepared_at_ms >= request_expires_at_ms {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ExpiredLocalRequest,
-                "SigningWorker prepare request expired",
-            ));
-        }
-        let active_state =
-            self.active_normal_signing_state(config, &request_scope, prepared_at_ms)?;
-        let active = self.active.as_ref().ok_or_else(|| {
-            invalid_normal_signing("SigningWorker has no active Yao signing share")
-        })?;
-        let signing_worker_identifier = frost_ed25519::Identifier::try_from(2_u16)
-            .map_err(|_| invalid_normal_signing("SigningWorker FROST identifier is invalid"))?;
-        let mut key_package = key_package_from_signing_share_bytes(
-            &active.scalar,
-            &active.registered_public_key,
-            signing_worker_identifier,
-        )
-        .map_err(map_signer_error)?;
-        let round1 = client_round1_commit(&key_package).map_err(map_signer_error)?;
-        key_package.zeroize();
-        let mut handle_random = [0_u8; 16];
-        rand_core::RngCore::fill_bytes(&mut rand_core::OsRng, &mut handle_random);
-        let server_round1_handle = format!(
-            "yao-server-round1/{}/{}",
-            request_scope.request_id,
-            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(handle_random)
-        );
-        let server_commitments = normal_signing_commitments(&round1.commitments_wire)?;
-        let server_verifying_share = verifying_share_bytes_from_signing_share_bytes(&active.scalar);
-        let record = PendingNormalSigningRound {
-            scope: request_scope.clone(),
-            state_epoch: active.state_epoch,
-            registered_public_key: active.registered_public_key,
-            round1_binding_digest,
-            intent_digest: admission.intent_digest,
-            signing_payload_digest: admission.signing_payload_digest,
-            admitted_signing_digest: admission.admitted_signing_digest,
-            round1,
-            expires_at_ms: request_expires_at_ms,
-        };
-        if self
-            .pending_normal_signing
-            .insert(server_round1_handle.clone(), record)
-            .is_some()
-        {
-            return Err(invalid_normal_signing(
-                "SigningWorker round-one handle collision",
-            ));
-        }
-        let response = NormalSigningRound1PrepareResponseV1::new(
-            request_scope,
-            admission.signing_payload_digest,
-            round1_binding_digest,
-            active_state.signing_worker,
-            server_round1_handle,
-            server_commitments,
-            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(server_verifying_share),
-            NormalSigningSignatureSchemeV1::Ed25519V1,
-            prepared_at_ms,
-            request_expires_at_ms,
-        )?;
-        serde_json::to_string(&response)
-            .map_err(|_| invalid_normal_signing("SigningWorker prepare response encoding failed"))
-    }
-
-    pub fn finalize_normal_signing(
-        &mut self,
-        config: &LocalSigningWorkerConfigV1,
-        body: &[u8],
-    ) -> RouterAbProtocolResult<String> {
-        let private_request = serde_json::from_slice::<
-            CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
-        >(body)
-        .map_err(|error| {
-            invalid_normal_signing(format!(
-                "SigningWorker finalize request is malformed: {error}"
-            ))
-        })?;
-        private_request.validate()?;
-        let request = private_request.request;
-        let signed_at_ms = now_unix_ms()?;
-        let active_state =
-            self.active_normal_signing_state(config, &request.scope, signed_at_ms)?;
-        let mut record = self
-            .pending_normal_signing
-            .remove(request.server_round1_handle())
-            .ok_or_else(|| {
-                invalid_normal_signing("SigningWorker round-one state is unavailable")
-            })?;
-        if signed_at_ms >= record.expires_at_ms {
-            record.round1.nonces.zeroize();
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ExpiredLocalRequest,
-                "SigningWorker round-one state expired",
-            ));
-        }
-        let active = self.active.as_ref().ok_or_else(|| {
-            invalid_normal_signing("SigningWorker has no active Yao signing share")
-        })?;
-        if record.scope != request.scope
-            || record.state_epoch != active.state_epoch
-            || record.registered_public_key != active.registered_public_key
-            || record.round1_binding_digest != request.round1_binding_digest()
-            || record.intent_digest != request.intent_digest()
-            || record.signing_payload_digest != request.signing_payload_digest()
-            || record.expires_at_ms != request.expires_at_ms
-        {
-            record.round1.nonces.zeroize();
-            return Err(invalid_normal_signing(
-                "SigningWorker finalize request does not match prepared state",
-            ));
-        }
-        let RouterAbEd25519NormalSigningFinalizeProtocolV2::Ed25519TwoPartyFrostFinalizeV1(
-            protocol,
-        ) = &request.protocol;
-        let server_commitments_wire = signer_commitments(&protocol.server_commitments);
-        if server_commitments_wire.hiding != record.round1.commitments_wire.hiding
-            || server_commitments_wire.binding != record.round1.commitments_wire.binding
-        {
-            record.round1.nonces.zeroize();
-            return Err(invalid_normal_signing(
-                "SigningWorker commitments do not match prepared state",
-            ));
-        }
-        let expected_server_verifying_share =
-            verifying_share_bytes_from_signing_share_bytes(&active.scalar);
-        let supplied_server_verifying_share = decode_b64u_32(
-            &protocol.server_verifying_share_b64u,
-            "SigningWorker verifying share",
-        )?;
-        let client_verifying_share = decode_b64u_32(
-            &protocol.client_verifying_share_b64u,
-            "Client verifying share",
-        )?;
-        let computed_public_key =
-            compute_threshold_ed25519_group_public_key_2p_from_verifying_shares(
-                &client_verifying_share,
-                &supplied_server_verifying_share,
-                1,
-                2,
-            )
-            .map_err(map_signer_error)?;
-        let public_relation_valid = supplied_server_verifying_share
-            .ct_eq(&expected_server_verifying_share)
-            & computed_public_key.ct_eq(&active.registered_public_key);
-        if !bool::from(public_relation_valid) {
-            record.round1.nonces.zeroize();
-            return Err(invalid_normal_signing(
-                "FROST verifying shares do not match the active Yao public key",
-            ));
-        }
-        let client_identifier = frost_ed25519::Identifier::try_from(1_u16)
-            .map_err(|_| invalid_normal_signing("Client FROST identifier is invalid"))?;
-        let signing_worker_identifier = frost_ed25519::Identifier::try_from(2_u16)
-            .map_err(|_| invalid_normal_signing("SigningWorker FROST identifier is invalid"))?;
-        let client_commitments =
-            commitments_from_wire(&signer_commitments(&protocol.client_commitments))
-                .map_err(map_signer_error)?;
-        let signing_package = build_signing_package(
-            record.admitted_signing_digest.as_bytes(),
-            BTreeMap::from([
-                (client_identifier, client_commitments),
-                (signing_worker_identifier, record.round1.commitments),
-            ]),
-        );
-        let mut key_package = key_package_from_signing_share_bytes(
-            &active.scalar,
-            &active.registered_public_key,
-            signing_worker_identifier,
-        )
-        .map_err(map_signer_error)?;
-        let signing_worker_signature_share =
-            client_round2_signature_share(&signing_package, &record.round1.nonces, &key_package)
-                .map_err(map_signer_error)?;
-        record.round1.nonces.zeroize();
-        key_package.zeroize();
-        let verifying_key = frost_ed25519::VerifyingKey::deserialize(&active.registered_public_key)
-            .map_err(|_| invalid_normal_signing("registered Ed25519 public key is invalid"))?;
-        let signature = aggregate_signature(
-            &signing_package,
-            verifying_key,
-            BTreeMap::from([
-                (
-                    client_identifier,
-                    verifying_share_from_b64u(&protocol.client_verifying_share_b64u)
-                        .map_err(map_signer_error)?,
-                ),
-                (
-                    signing_worker_identifier,
-                    verifying_share_from_b64u(&protocol.server_verifying_share_b64u)
-                        .map_err(map_signer_error)?,
-                ),
-            ]),
-            BTreeMap::from([
-                (
-                    client_identifier,
-                    signature_share_from_b64u(&protocol.client_signature_share_b64u)
-                        .map_err(map_signer_error)?,
-                ),
-                (signing_worker_identifier, signing_worker_signature_share),
-            ]),
-        )
-        .map_err(map_signer_error)?;
-        let response = NormalSigningResponseV1::new(
-            request.scope.clone(),
-            request.signing_payload_digest(),
-            active_state.signing_worker,
-            request.protocol.signature_scheme(),
-            CanonicalWireBytesV1::new(signature.to_vec())?,
-            signed_at_ms,
-        )?;
-        response.validate_for_v2_finalize_request(&request)?;
-        serde_json::to_string(&response)
-            .map_err(|_| invalid_normal_signing("SigningWorker response encoding failed"))
-    }
-
     fn active_normal_signing_state(
         &self,
         config: &LocalSigningWorkerConfigV1,
         scope: &NormalSigningScopeV1,
-        now_ms: u64,
     ) -> RouterAbProtocolResult<ActiveSigningWorkerStateV1> {
         let active = self.active.as_ref().ok_or_else(|| {
             invalid_normal_signing("SigningWorker has no active Yao signing share")
@@ -831,7 +568,7 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
                 active.binding.lifecycle.lifecycle_id,
                 active.state_epoch.get()
             ),
-            now_ms,
+            active.activated_at_ms,
         )?;
         state.validate_for_scope(scope)?;
         Ok(state)
@@ -1144,6 +881,7 @@ fn activate(
         scalar,
         binding: binding.clone(),
         state_epoch,
+        activated_at_ms: now_unix_ms()?,
         transcript,
         registered_public_key,
     };
@@ -1278,6 +1016,7 @@ fn activate_refresh(
         scalar,
         binding: a.binding.ceremony().clone(),
         state_epoch,
+        activated_at_ms: now_unix_ms()?,
         transcript,
         registered_public_key,
     };
@@ -1295,32 +1034,7 @@ fn signing_scalar(value: SigningWorkerBaseScalar) -> Zeroizing<[u8; 32]> {
     Zeroizing::new(value.into_bytes())
 }
 
-fn normal_signing_commitments(
-    commitments: &CommitmentsWire,
-) -> RouterAbProtocolResult<NormalSigningEd25519TwoPartyFrostCommitmentsV1> {
-    NormalSigningEd25519TwoPartyFrostCommitmentsV1::new(
-        commitments.hiding.clone(),
-        commitments.binding.clone(),
-    )
-}
-
-fn signer_commitments(
-    commitments: &NormalSigningEd25519TwoPartyFrostCommitmentsV1,
-) -> CommitmentsWire {
-    CommitmentsWire {
-        hiding: commitments.hiding.clone(),
-        binding: commitments.binding.clone(),
-    }
-}
-
-fn decode_b64u_32(value: &str, label: &'static str) -> RouterAbProtocolResult<[u8; 32]> {
-    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(value)
-        .map_err(|_| invalid_normal_signing(label))?;
-    bytes.try_into().map_err(|_| invalid_normal_signing(label))
-}
-
-fn now_unix_ms() -> RouterAbProtocolResult<u64> {
+pub(crate) fn now_unix_ms() -> RouterAbProtocolResult<u64> {
     let millis = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|_| invalid_normal_signing("system clock precedes Unix epoch"))?
@@ -1341,13 +1055,6 @@ fn parse_private_key(value: &str) -> RouterAbProtocolResult<LocalEd25519YaoRecip
 
 fn map_role_error(_: router_ab_ed25519_yao::relay::BenchmarkRoleError) -> RouterAbProtocolError {
     invalid_activation("SigningWorker recipient package validation failed")
-}
-
-fn map_signer_error(error: signer_core::error::SignerCoreError) -> RouterAbProtocolError {
-    RouterAbProtocolError::new(
-        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-        format!("SigningWorker FROST signing failed: {error}"),
-    )
 }
 
 fn invalid_activation(message: &'static str) -> RouterAbProtocolError {
@@ -1535,6 +1242,7 @@ mod tests {
                     scalar: Zeroizing::new([0x41; 32]),
                     binding: binding.clone(),
                     state_epoch: epoch(1),
+                    activated_at_ms: 1,
                     transcript: [0x42; 32],
                     registered_public_key: [0x43; 32],
                 }),
@@ -1636,6 +1344,7 @@ mod tests {
                 scalar: Zeroizing::new(scalar),
                 binding: ceremony_binding(Ed25519YaoOperationV1::Registration, 0x71),
                 state_epoch,
+                activated_at_ms: 1,
                 transcript: [0x72; 32],
                 registered_public_key: [0x73; 32],
             }),
@@ -1658,7 +1367,6 @@ mod tests {
         let restored_identity = restored.identities.get(&identity).expect("active identity");
         assert_eq!(restored_identity.active_state_epoch(), Some(epoch(4)));
         assert_eq!(restored_identity.active_signing_share(), Some(&[0x44; 32]));
-        assert!(restored_identity.pending_normal_signing.is_empty());
     }
 
     fn activation_candidate(
@@ -1675,6 +1383,7 @@ mod tests {
                 scalar: Zeroizing::new(scalar),
                 binding: binding.clone(),
                 state_epoch,
+                activated_at_ms: 1,
                 transcript,
                 registered_public_key,
             },

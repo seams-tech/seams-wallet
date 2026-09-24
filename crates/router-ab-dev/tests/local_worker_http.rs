@@ -5,19 +5,35 @@ use rand_core::OsRng;
 use router_ab_cloudflare::{
     CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairLookupRequestV1,
     CloudflareRouterEd25519YaoExecuteRequestV2, CloudflareRouterEd25519YaoTenantRootV1,
+    CloudflareRouterNormalSigningFinalizeAdmissionCandidateV2,
+    CloudflareRouterNormalSigningPrepareAdmissionCandidateV2,
+    CloudflareRouterNormalSigningTrustedAdmissionV1, CloudflareRouterVerifiedWalletSessionV1,
+    CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
+    CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
+    CloudflareSigningWorkerAuthorizedOperationIdentityV1,
+    CloudflareSigningWorkerNormalSigningEffectClaimV1,
+    CloudflareSigningWorkerReusableWalletSessionEffectClaimV1,
 };
 use router_ab_core::{
-    LocalHttpPathV1, LocalServiceRoleV1, MpcMaterialActivationRefV1, MpcPrfShareCommitmentWireV1,
-    RootShareEpoch, RouterEd25519YaoExecuteResultV1, RouterEd25519YaoExecuteSuccessV1,
-    RouterEd25519YaoGatewayExecuteTargetV2, TenantRootActivationReceiptTransitionV1,
-    TenantRootCanaryCurveFamilyV1, TenantRootCeremonyContextV1, TenantRootCeremonyEpochsV1,
-    TenantRootCeremonyNonceV1, TenantRootCeremonySessionIdV1, TenantRootControlPlaneAuthorityIdV1,
-    TenantRootCustodyLineageId, TenantRootEpochCommitmentsV1, TenantRootIdentityV1,
-    TenantRootManagedBackupBindingV1, TenantRootManagedBackupSealRequestV1,
-    TenantRootProviderCanaryReceiptBindingV1, TenantRootShareEpoch,
-    TenantRootShareInstallationEvidenceV1, TenantRootShareInstallationTranscriptV1,
-    TenantRootSignedActivationReceiptV1, TenantRootSignedManagedBackupV1,
-    TenantRootSignedProviderCanaryReceiptV1, TenantRootSignedShareInstallationEvidenceV1,
+    ExpensiveWorkGateDecisionV1, LocalHttpPathV1, LocalServiceRoleV1, MpcMaterialActivationRefV1,
+    MpcPrfShareCommitmentWireV1, NormalSigningAuthorizationV1,
+    NormalSigningEd25519TwoPartyFrostCommitmentsV1, NormalSigningResponseV1,
+    NormalSigningRound1PrepareResponseV1, NormalSigningScopeV1, PublicDigest32, RootShareEpoch,
+    RouterAbEd25519NormalSigningFinalizeProtocolV2, RouterAbEd25519NormalSigningFinalizeRequestV2,
+    RouterAbEd25519NormalSigningIntentV2, RouterAbEd25519NormalSigningPrepareBindingV2,
+    RouterAbEd25519NormalSigningPrepareRequestV2, RouterAbEd25519SigningPayloadV2,
+    RouterAbEd25519TwoPartyFrostFinalizeProtocolV2, RouterAbEd25519YaoActivationResultV1,
+    RouterAbNearNetworkIdV2, RouterAbNearTransactionIntentV1, RouterEd25519YaoExecuteResultV1,
+    RouterEd25519YaoExecuteSuccessV1, RouterEd25519YaoGatewayExecuteTargetV2,
+    TenantRootActivationReceiptTransitionV1, TenantRootCanaryCurveFamilyV1,
+    TenantRootCeremonyContextV1, TenantRootCeremonyEpochsV1, TenantRootCeremonyNonceV1,
+    TenantRootCeremonySessionIdV1, TenantRootControlPlaneAuthorityIdV1, TenantRootCustodyLineageId,
+    TenantRootEpochCommitmentsV1, TenantRootIdentityV1, TenantRootManagedBackupBindingV1,
+    TenantRootManagedBackupSealRequestV1, TenantRootProviderCanaryReceiptBindingV1,
+    TenantRootShareEpoch, TenantRootShareInstallationEvidenceV1,
+    TenantRootShareInstallationTranscriptV1, TenantRootSignedActivationReceiptV1,
+    TenantRootSignedManagedBackupV1, TenantRootSignedProviderCanaryReceiptV1,
+    TenantRootSignedShareInstallationEvidenceV1,
     VerifiedTenantRootInitialCreationActivationEvidenceBundleV1,
     VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
 };
@@ -29,14 +45,17 @@ use router_ab_dev::{
     seal_local_ed25519_yao_activation_deriver_b_input_v1, LocalDeriverAPairRecordV1,
     LocalDeriverPeerMessageReceiptV1, LocalEd25519YaoActivationDeriverARequestV1,
     LocalEd25519YaoActivationDeriverBRequestV1, LocalEd25519YaoActivationRecipientsV1,
-    LocalEd25519YaoClientContributionV1, LocalHttpServiceBindingClientV1, LocalWorkerRoleConfigV1,
+    LocalEd25519YaoClientContributionV1, LocalEd25519YaoRecipientPrivateKeyV1,
+    LocalHttpServiceBindingClientV1, LocalWorkerRoleConfigV1,
     RouterAbEd25519YaoApplicationBindingFactsV1, RouterAbEd25519YaoLifecycleScopeV1,
     RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
     LOCAL_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
     LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
     LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+    LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH, LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PREPARE_PATH,
 };
+use router_ab_ed25519_yao_client::complete_client_activation_packages_v1;
 use rusqlite::Connection;
 use serde::Serialize;
 use serde_json::json;
@@ -47,6 +66,10 @@ use signer_core::ed25519_yao_derivation::{
     Ed25519YaoApplicationBindingSigningKeyIdV1, Ed25519YaoApplicationBindingSigningRootIdV1,
     Ed25519YaoApplicationBindingWalletIdV1, Ed25519YaoClientRootV1,
     Ed25519YaoStableKeyDerivationContextV1,
+};
+use signer_core::near_threshold_ed25519::{
+    build_signing_package, client_round1_commit, client_round2_signature_share,
+    key_package_from_signing_share_bytes, signature_share_to_b64u,
 };
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -436,7 +459,8 @@ fn product_topology_completes_local_ed25519_yao_registration(
     wait_for_health(&deriver_b_url, deriver_b.child_mut())?;
     wait_for_health(&signing_worker_url, signing_worker.child_mut())?;
 
-    let request = product_registration_request(&router_env, &tenant_root_fixture)?;
+    let (request, client_recipient_key) =
+        product_registration_request(&router_env, &tenant_root_fixture)?;
     let started = Instant::now();
     let (status, body) = post_json_to_path_with_headers(
         &router_url,
@@ -454,10 +478,25 @@ fn product_topology_completes_local_ed25519_yao_registration(
     let RouterEd25519YaoExecuteResultV1::Succeeded { result } = result else {
         return Err(format!("product Yao registration did not succeed: {body}").into());
     };
-    assert!(matches!(
-        *result,
-        RouterEd25519YaoExecuteSuccessV1::Registration { .. }
-    ));
+    let RouterEd25519YaoExecuteSuccessV1::Registration { result: activation } = *result else {
+        return Err("product Yao result was not registration".into());
+    };
+    let (client_share, _) = complete_client_activation_packages_v1(
+        activation.binding(),
+        [1, 2],
+        activation.public_receipt(),
+        client_recipient_key.as_bytes(),
+        activation.deriver_a_client_package(),
+        activation.deriver_b_client_package(),
+    )?;
+    signing_worker = product_near_signing_process_flow(
+        binary,
+        &temp,
+        &signing_worker_url,
+        signing_worker,
+        &activation,
+        &client_share,
+    )?;
     let a_env_path = temp.join(router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1);
     let a_config = parse_local_worker_role_config_for_role_v1(
         LocalServiceRoleV1::DeriverA,
@@ -539,7 +578,10 @@ fn product_topology_completes_local_ed25519_yao_registration(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
         )],
     )?;
-    assert_ne!(status, 200, "changed request identity must not replay A's outcome");
+    assert_ne!(
+        status, 200,
+        "changed request identity must not replay A's outcome"
+    );
     println!(
         "YAOS_AB_LOCAL_SAMPLE {}",
         serde_json::to_string(&LocalEd25519YaoProductLatencySampleV1 {
@@ -556,10 +598,369 @@ fn product_topology_completes_local_ed25519_yao_registration(
     Ok(())
 }
 
+fn product_near_signing_process_flow(
+    binary: &str,
+    temp: &Path,
+    signing_worker_url: &str,
+    signing_worker: ChildGuard,
+    activation: &RouterAbEd25519YaoActivationResultV1,
+    client_share: &[u8; 32],
+) -> Result<ChildGuard, Box<dyn std::error::Error>> {
+    let now_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
+    let expires_at_ms = now_ms + 120_000;
+    let (prepare_request, wallet_session) =
+        product_near_prepare_request(activation, now_ms, expires_at_ms)?;
+    let (status, body) = post_json_to_path_with_headers(
+        signing_worker_url,
+        LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PREPARE_PATH,
+        &prepare_request,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+        )],
+    )?;
+    assert_eq!(status, 200, "VM SigningWorker prepare: {body}");
+    let prepared: NormalSigningRound1PrepareResponseV1 = serde_json::from_str(&body)?;
+
+    drop(signing_worker);
+    let mut signing_worker = ChildGuard::spawn_in_root(
+        binary,
+        "signing-worker",
+        temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1),
+        temp,
+    )?;
+    wait_for_health(signing_worker_url, signing_worker.child_mut())?;
+    let (retry_status, retry_body) = post_json_to_path_with_headers(
+        signing_worker_url,
+        LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PREPARE_PATH,
+        &prepare_request,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+        )],
+    )?;
+    assert_eq!(
+        retry_status, 200,
+        "VM SigningWorker prepare replay: {retry_body}"
+    );
+    assert_eq!(
+        body, retry_body,
+        "restart must preserve the original nonce handle"
+    );
+
+    let finalize_request = product_near_finalize_request(
+        activation,
+        client_share,
+        &prepare_request,
+        &wallet_session,
+        &prepared,
+        now_ms,
+        expires_at_ms,
+    )?;
+    let (status, body) = post_json_to_path_with_headers(
+        signing_worker_url,
+        LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH,
+        &finalize_request,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+        )],
+    )?;
+    assert_eq!(status, 200, "VM SigningWorker finalize: {body}");
+    let signed: NormalSigningResponseV1 = serde_json::from_str(&body)?;
+    let signature_bytes: [u8; 64] = signed.signature.as_bytes().try_into()?;
+    let signature = ed25519_dalek::Signature::from_bytes(&signature_bytes);
+    let verifying_key = ed25519_dalek::VerifyingKey::from_bytes(
+        &activation.public_receipt().registered_public_key(),
+    )?;
+    use ed25519_dalek::Verifier;
+    verifying_key.verify(
+        prepare_request
+            .admission_candidate
+            .admitted_signing_digest
+            .as_bytes(),
+        &signature,
+    )?;
+
+    drop(signing_worker);
+    let mut signing_worker = ChildGuard::spawn_in_root(
+        binary,
+        "signing-worker",
+        temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1),
+        temp,
+    )?;
+    wait_for_health(signing_worker_url, signing_worker.child_mut())?;
+    let (retry_status, retry_body) = post_json_to_path_with_headers(
+        signing_worker_url,
+        LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH,
+        &finalize_request,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+        )],
+    )?;
+    assert_eq!(
+        retry_status, 200,
+        "VM SigningWorker terminal replay: {retry_body}"
+    );
+    assert_eq!(
+        body, retry_body,
+        "restart must preserve the signed terminal result"
+    );
+    let signing_worker_env_path = temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1);
+    let config = parse_local_worker_role_config_for_role_v1(
+        LocalServiceRoleV1::SigningWorker,
+        parse_local_env_file_contents_v1(&fs::read_to_string(&signing_worker_env_path)?)?,
+    )?;
+    let LocalWorkerRoleConfigV1::SigningWorker(config) = config else {
+        return Err("SigningWorker env parsed as another role".into());
+    };
+    let connection = Connection::open(temp.join(config.role_private_storage_path))?;
+    let completed_count: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM local_signing_worker_near_round1 WHERE state = 'completed'",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(
+        completed_count, 1,
+        "one-use material must have one terminal row"
+    );
+    println!(
+        "R150_VM_NEAR_E2E {}",
+        json!({
+            "wallet_id": activation.binding().lifecycle.account_id,
+            "signature_digest_hex": hex::encode(Sha256::digest(signature_bytes)),
+            "completed_round1_rows": completed_count,
+            "worker_restarts": 2,
+        })
+    );
+    Ok(signing_worker)
+}
+
+fn product_near_prepare_request(
+    activation: &RouterAbEd25519YaoActivationResultV1,
+    now_ms: u64,
+    expires_at_ms: u64,
+) -> Result<
+    (
+        CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
+        CloudflareRouterVerifiedWalletSessionV1,
+    ),
+    Box<dyn std::error::Error>,
+> {
+    let binding = activation.binding();
+    let account_id = &binding.lifecycle.account_id;
+    let scope = NormalSigningScopeV1::new(
+        "product-near-sign-1",
+        account_id,
+        NormalSigningAuthorizationV1::reusable_wallet_session("wallet-session-product-benchmark")?,
+        binding.material_activation.clone(),
+        "local-signing-worker",
+    )?;
+    let unsigned = product_near_unsigned_transaction(
+        account_id,
+        &activation.public_receipt().registered_public_key(),
+    );
+    let unsigned_b64u = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&unsigned);
+    let action_fingerprint = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(
+        Sha256::digest(
+            r#"[{"action_type":"FunctionCall","args":"{\"amount\":\"1\"}","deposit":"0","gas":"30000000000000","method_name":"transfer"}]"#
+                .as_bytes(),
+        ),
+    );
+    let intent = RouterAbEd25519NormalSigningIntentV2::NearTransactionV1 {
+        operation_id: "product-near-operation-1".to_owned(),
+        operation_fingerprint: "product-near-fingerprint-1".to_owned(),
+        near_account_id: account_id.clone(),
+        near_network_id: RouterAbNearNetworkIdV2::Testnet,
+        transactions: vec![RouterAbNearTransactionIntentV1::new(
+            "receiver.near",
+            action_fingerprint,
+        )?],
+        unsigned_transaction_borsh_b64u: unsigned_b64u.clone(),
+    };
+    let signing_payload = RouterAbEd25519SigningPayloadV2::NearUnsignedTransactionBorshV1 {
+        unsigned_transaction_borsh_b64u: unsigned_b64u,
+        expected_signing_digest_b64u: base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(Sha256::digest(&unsigned)),
+    };
+    let request = RouterAbEd25519NormalSigningPrepareRequestV2::new(
+        scope.clone(),
+        expires_at_ms,
+        PublicDigest32::new([0x91; 32]),
+        intent,
+        signing_payload,
+    )?;
+    let session = CloudflareRouterVerifiedWalletSessionV1::new(
+        "product-user-1",
+        account_id,
+        "authorization-product-1",
+        "wallet-session-product-benchmark",
+        "quota-product-1",
+        "threshold-session-product-1",
+        "org-product-1",
+        "project-product-1",
+        "dev",
+        "near-ed25519",
+        "local-signing-worker",
+        PublicDigest32::new([0x90; 32]),
+        expires_at_ms,
+    )?;
+    let admission = CloudflareRouterNormalSigningPrepareAdmissionCandidateV2::from_prepare_request(
+        &session, &request, now_ms,
+    )?;
+    let trusted = CloudflareRouterNormalSigningTrustedAdmissionV1::new(
+        admission.to_v1_trusted_metadata()?,
+        ExpensiveWorkGateDecisionV1::accepted("product-near-gate-1")?,
+    )?;
+    Ok((
+        CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new(
+            scope,
+            expires_at_ms,
+            admission,
+            trusted,
+        )?,
+        session,
+    ))
+}
+
+fn product_near_unsigned_transaction(account_id: &str, public_key: &[u8; 32]) -> Vec<u8> {
+    let mut out = Vec::new();
+    push_borsh_string(&mut out, account_id);
+    out.push(0);
+    out.extend_from_slice(public_key);
+    out.extend_from_slice(&7_u64.to_le_bytes());
+    push_borsh_string(&mut out, "receiver.near");
+    out.extend_from_slice(&[0x44; 32]);
+    out.extend_from_slice(&1_u32.to_le_bytes());
+    out.push(2);
+    push_borsh_string(&mut out, "transfer");
+    push_borsh_bytes(&mut out, br#"{"amount":"1"}"#);
+    out.extend_from_slice(&30_000_000_000_000_u64.to_le_bytes());
+    out.extend_from_slice(&0_u128.to_le_bytes());
+    out
+}
+
+fn push_borsh_string(out: &mut Vec<u8>, value: &str) {
+    push_borsh_bytes(out, value.as_bytes());
+}
+
+fn push_borsh_bytes(out: &mut Vec<u8>, value: &[u8]) {
+    out.extend_from_slice(&(value.len() as u32).to_le_bytes());
+    out.extend_from_slice(value);
+}
+
+fn product_near_finalize_request(
+    activation: &RouterAbEd25519YaoActivationResultV1,
+    client_share: &[u8; 32],
+    prepare: &CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
+    wallet_session: &CloudflareRouterVerifiedWalletSessionV1,
+    response: &NormalSigningRound1PrepareResponseV1,
+    now_ms: u64,
+    expires_at_ms: u64,
+) -> Result<CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2, Box<dyn std::error::Error>>
+{
+    let client_id = frost_ed25519::Identifier::try_from(1_u16)?;
+    let server_id = frost_ed25519::Identifier::try_from(2_u16)?;
+    let public_key = activation.public_receipt().registered_public_key();
+    let key_package = key_package_from_signing_share_bytes(client_share, &public_key, client_id)?;
+    let client_round1 = client_round1_commit(&key_package)?;
+    let server_hiding = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(&response.server_commitments.hiding)?;
+    let server_binding = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(&response.server_commitments.binding)?;
+    let server_commitments = frost_ed25519::round1::SigningCommitments::new(
+        frost_ed25519::round1::NonceCommitment::deserialize(&server_hiding)?,
+        frost_ed25519::round1::NonceCommitment::deserialize(&server_binding)?,
+    );
+    let signing_package = build_signing_package(
+        prepare
+            .admission_candidate
+            .admitted_signing_digest
+            .as_bytes(),
+        BTreeMap::from([
+            (client_id, client_round1.commitments),
+            (server_id, server_commitments),
+        ]),
+    );
+    let client_signature_share =
+        client_round2_signature_share(&signing_package, &client_round1.nonces, &key_package)?;
+    let client_verifying_share =
+        signer_core::near_threshold_ed25519::verifying_share_bytes_from_signing_share_bytes(
+            client_share,
+        );
+    let protocol = RouterAbEd25519NormalSigningFinalizeProtocolV2::Ed25519TwoPartyFrostFinalizeV1(
+        RouterAbEd25519TwoPartyFrostFinalizeProtocolV2::new(
+            NormalSigningEd25519TwoPartyFrostCommitmentsV1::new(
+                client_round1.commitments_wire.hiding,
+                client_round1.commitments_wire.binding,
+            )?,
+            response.server_commitments.clone(),
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(client_verifying_share),
+            response.server_verifying_share_b64u.clone(),
+            signature_share_to_b64u(&client_signature_share)?,
+        )?,
+    );
+    let binding = RouterAbEd25519NormalSigningPrepareBindingV2::new(
+        response.server_round1_handle.clone(),
+        response.round1_binding_digest,
+        prepare.admission_candidate.intent_digest,
+        prepare.admission_candidate.signing_payload_digest,
+    )?;
+    let request = RouterAbEd25519NormalSigningFinalizeRequestV2::new(
+        prepare.scope.clone(),
+        expires_at_ms,
+        binding,
+        protocol,
+    )?;
+    let admission =
+        CloudflareRouterNormalSigningFinalizeAdmissionCandidateV2::from_finalize_request(
+            wallet_session,
+            &request,
+            now_ms,
+        )?;
+    let trusted = CloudflareRouterNormalSigningTrustedAdmissionV1::new(
+        admission.to_v1_trusted_metadata()?,
+        ExpensiveWorkGateDecisionV1::accepted("product-near-gate-1")?,
+    )?;
+    let authorized_identity =
+        CloudflareSigningWorkerAuthorizedOperationIdentityV1::ReusableWalletSession {
+            authorization_id: "authorization-product-1".to_owned(),
+            wallet_session_id: "wallet-session-product-benchmark".to_owned(),
+            authorized_operation_id: "authorized-operation-product-1".to_owned(),
+            operation_id: "product-near-operation-1".to_owned(),
+            operation_fingerprint_digest: "product-near-fingerprint-digest-1".to_owned(),
+        };
+    let effect_claim = CloudflareSigningWorkerNormalSigningEffectClaimV1::ReusableWalletSession {
+        claim: CloudflareSigningWorkerReusableWalletSessionEffectClaimV1::new(
+            "authorization-product-1",
+            "wallet-session-product-benchmark",
+            "authorized-operation-product-1",
+            "product-near-operation-1",
+            "product-near-fingerprint-digest-1",
+        )?,
+    };
+    Ok(
+        CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
+            request,
+            admission,
+            trusted,
+            authorized_identity,
+            effect_claim,
+        )?,
+    )
+}
+
 fn product_registration_request(
     router_env: &str,
     tenant_root_fixture: &ProductTenantRootFixture,
-) -> Result<CloudflareRouterEd25519YaoExecuteRequestV2, Box<dyn std::error::Error>> {
+) -> Result<
+    (
+        CloudflareRouterEd25519YaoExecuteRequestV2,
+        LocalEd25519YaoRecipientPrivateKeyV1,
+    ),
+    Box<dyn std::error::Error>,
+> {
     let application = Ed25519YaoApplicationBindingFactsV1::new(
         Ed25519YaoApplicationBindingWalletIdV1::parse("account-product-benchmark")?,
         Ed25519YaoApplicationBindingSigningKeyIdV1::parse("ed25519ks_product_benchmark")?,
@@ -584,22 +985,23 @@ fn product_registration_request(
                 "account-product-benchmark",
                 "wallet-session-product-benchmark",
                 "signer-set-product-benchmark",
-                "signing-worker-local",
+                "local-signing-worker",
                 MpcMaterialActivationRefV1::new(
                     "activation-product-benchmark",
                     "capability-product-benchmark",
                     "account-product-benchmark",
                     "key-product-benchmark",
                     "product-benchmark-registration",
-                    "signing-worker-local",
+                    "local-signing-worker",
                 )?,
             )?,
             application_binding.clone(),
             [1, 2],
         )?,
     )?;
+    let client_recipient = generate_local_ed25519_yao_recipient_key_pair_v1()?;
     let recipients = LocalEd25519YaoActivationRecipientsV1 {
-        client_public_key: generate_local_ed25519_yao_recipient_key_pair_v1()?.public_key,
+        client_public_key: client_recipient.public_key,
         signing_worker_public_key: x25519_public_key_from_env(
             router_env,
             "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY",
@@ -635,16 +1037,19 @@ fn product_registration_request(
         &request_b,
         x25519_public_key_from_env(router_env, "DERIVER_B_ED25519_YAO_INPUT_PUBLIC_KEY")?,
     )?;
-    Ok(CloudflareRouterEd25519YaoExecuteRequestV2 {
-        tenant_root: tenant_root_fixture.tenant_root.clone(),
-        application: tenant_root_fixture.application.clone(),
-        participant_ids: tenant_root_fixture.participant_ids,
-        target: RouterEd25519YaoGatewayExecuteTargetV2::registration(
-            admission.binding,
-            input_a,
-            input_b,
-        )?,
-    })
+    Ok((
+        CloudflareRouterEd25519YaoExecuteRequestV2 {
+            tenant_root: tenant_root_fixture.tenant_root.clone(),
+            application: tenant_root_fixture.application.clone(),
+            participant_ids: tenant_root_fixture.participant_ids,
+            target: RouterEd25519YaoGatewayExecuteTargetV2::registration(
+                admission.binding,
+                input_a,
+                input_b,
+            )?,
+        },
+        client_recipient.private_key,
+    ))
 }
 
 fn x25519_public_key_from_env(
