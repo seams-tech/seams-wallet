@@ -13,13 +13,6 @@ database_id = "00000000-0000-0000-0000-000000000201"
 preview_database_id = "00000000-0000-0000-0000-000000000202"
 migrations_dir = "migrations/d1-signer"
 
-[[d1_databases]]
-binding = "WALLET_DIRECTORY_DB"
-database_name = "seams-wallet-directory-local"
-database_id = "00000000-0000-0000-0000-000000000203"
-preview_database_id = "00000000-0000-0000-0000-000000000204"
-migrations_dir = "migrations/d1-wallet-directory"
-
 [[services]]
 binding = "MPC_ROUTER"
 service = "router-ab-mpc-router"
@@ -30,7 +23,6 @@ service = "router-ab-signing-worker"
 
 [vars]
 ROUTER_AB_PREWARM_ENABLED = "true"
-WALLET_DEFAULT_HOME_LANE_ID = "managed-apac-v1"
 SEAMS_TENANT_STORAGE_NAMESPACE = "seams-local"
 RELAYER_ACCOUNT_ID = "w3a-relayer.testnet"
 RELAYER_PUBLIC_KEY = "ed25519:local-relay-public-key"

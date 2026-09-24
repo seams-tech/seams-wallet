@@ -28,7 +28,6 @@ import {
   type RuntimePolicyScope,
 } from '@shared/threshold/signingRootScope';
 import type { SignedSetupPayloadB64u } from '../../../core/threeRouteRegistrationContracts';
-import { parseWalletLaneContext, type WalletLaneContext } from '@shared/wallet-region';
 
 /* Minting and verification are separate capabilities on purpose: setup only
    mints, and routes 2 and 3 only verify. Neither needs the other's power. */
@@ -51,7 +50,6 @@ export type WalletRegistrationSetupClaimsV1 = {
   readonly kind: typeof WALLET_REGISTRATION_SETUP_CLAIM_KIND;
   readonly registrationCeremonyId: string;
   readonly walletId: string;
-  readonly laneContext: WalletLaneContext;
   readonly orgId: string;
   readonly signingRootId: string;
   readonly signingRootVersion: string;
@@ -81,7 +79,6 @@ export async function computeWalletRegistrationSetupDigestB64u(input: {
   readonly registrationCeremonyId: string;
   readonly intent: RegistrationIntentV1;
   readonly intentDigestB64u: string;
-  readonly laneContext: WalletLaneContext;
   readonly orgId: string;
   readonly signingRootId: string;
   readonly signingRootVersion: string;
@@ -94,7 +91,6 @@ export async function computeWalletRegistrationSetupDigestB64u(input: {
         registrationCeremonyId: input.registrationCeremonyId,
         intent: input.intent,
         intentDigestB64u: input.intentDigestB64u,
-        laneContext: input.laneContext,
         orgId: input.orgId,
         signingRootId: input.signingRootId,
         signingRootVersion: input.signingRootVersion,
@@ -192,12 +188,6 @@ export function parseWalletRegistrationSetupClaims(
   if (record.kind !== WALLET_REGISTRATION_SETUP_CLAIM_KIND) return null;
   const registrationCeremonyId = toOptionalTrimmedString(record.registrationCeremonyId);
   const walletId = toOptionalTrimmedString(record.walletId);
-  let laneContext: WalletLaneContext;
-  try {
-    laneContext = parseWalletLaneContext(record.laneContext);
-  } catch {
-    return null;
-  }
   const orgId = toOptionalTrimmedString(record.orgId);
   const signingRootId = toOptionalTrimmedString(record.signingRootId);
   const signingRootVersion = toOptionalTrimmedString(record.signingRootVersion);
@@ -207,7 +197,6 @@ export function parseWalletRegistrationSetupClaims(
   if (
     !registrationCeremonyId ||
     !walletId ||
-    laneContext.walletId !== walletId ||
     !orgId ||
     !signingRootId ||
     !signingRootVersion ||
@@ -221,7 +210,6 @@ export function parseWalletRegistrationSetupClaims(
     kind: WALLET_REGISTRATION_SETUP_CLAIM_KIND,
     registrationCeremonyId,
     walletId,
-    laneContext,
     orgId,
     signingRootId,
     signingRootVersion,

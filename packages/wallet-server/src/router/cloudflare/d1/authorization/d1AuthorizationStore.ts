@@ -93,6 +93,7 @@ import {
   routerAbMpcMaterialActivationRefToWire,
   sameRouterAbMpcMaterialActivationRef,
 } from '@shared/utils/routerAbNormalSigningIdentity';
+import { parsePersistedWalletSessionAuthorizationV2 } from './persistedWalletSessionAuthorization';
 /**
  * Linked-device lane material is installed on the linked authority projection
  * rather than the wallet signer rows, so the exact-status material check needs
@@ -1069,7 +1070,9 @@ export class CloudflareD1AuthorizationStore
     ) {
       return null;
     }
-    const expected = parseWalletSessionAuthorizationV2(parseD1JsonColumn(row.session_record_json));
+    const expected = parsePersistedWalletSessionAuthorizationV2(
+      parseD1JsonColumn(row.session_record_json),
+    );
     let authorization: IssuedWalletSessionAuthorizationV2 | null;
     try {
       authorization = await this.readWalletSessionAuthorizationV2ByAuthorizationId({
@@ -1654,7 +1657,9 @@ export class CloudflareD1AuthorizationStore
       )
       .first<D1Row>();
     if (!row) return null;
-    const session = parseWalletSessionAuthorizationV2(parseD1JsonColumn(row.record_json));
+    const session = parsePersistedWalletSessionAuthorizationV2(
+      parseD1JsonColumn(row.record_json),
+    );
     if (
       !walletSessionAuthorizationV2RowMatches(
         {
@@ -1693,7 +1698,6 @@ export class CloudflareD1AuthorizationStore
         session_issued_at_ms: row.issued_at_ms,
         session_expires_at_ms: row.expires_at_ms,
       },
-      session.laneContext,
       parseD1JsonColumn(row.capability_subjects_json),
     );
     if (!walletSessionAuthorizationV2RecordsEqual(subjectsRecord, session)) {
@@ -1798,7 +1802,9 @@ export class CloudflareD1AuthorizationStore
       .first<D1Row>();
     if (!row) return null;
     if (row.retired_at_ms !== null && row.retired_at_ms !== undefined) return null;
-    const session = parseWalletSessionAuthorizationV2(parseD1JsonColumn(row.record_json));
+    const session = parsePersistedWalletSessionAuthorizationV2(
+      parseD1JsonColumn(row.record_json),
+    );
     if (
       session.tenantId !== input.tenantId ||
       session.walletId !== input.walletId ||
@@ -1883,13 +1889,14 @@ export class CloudflareD1AuthorizationStore
     });
     if (!row) return { kind: 'missing' };
 
-    const session = parseWalletSessionAuthorizationV2(parseD1JsonColumn(row.session_record_json));
+    const session = parsePersistedWalletSessionAuthorizationV2(
+      parseD1JsonColumn(row.session_record_json),
+    );
     if (!walletSessionAuthorizationV2RowMatches(row, session)) {
       throw new Error('Stored V2 Wallet Session authorization columns disagree with record');
     }
     const subjectsRecord = parseWalletSessionAuthorizationV2WithSubjects(
       row,
-      session.laneContext,
       parseD1JsonColumn(row.session_capability_subjects_json),
     );
     if (!walletSessionAuthorizationV2RecordsEqual(subjectsRecord, session)) {
@@ -3054,7 +3061,6 @@ function walletSessionAuthorizationV2RowMatches(
 
 function parseWalletSessionAuthorizationV2WithSubjects(
   row: D1Row,
-  laneContext: WalletSessionAuthorizationV2['laneContext'],
   capabilitySubjects: unknown,
 ): WalletSessionAuthorizationV2 {
   return parseWalletSessionAuthorizationV2({
@@ -3062,7 +3068,6 @@ function parseWalletSessionAuthorizationV2WithSubjects(
     tenantId: row.session_tenant_id,
     principalId: row.session_principal_id,
     walletId: row.session_wallet_id,
-    laneContext,
     authorityId: row.session_authority_id,
     walletAuthMethodId: row.session_wallet_auth_method_id,
     authorityDigestB64u: row.session_authority_digest_b64u,
@@ -3084,13 +3089,14 @@ function parseLiveWalletSessionAuthorizationV2Row(
   if (row.session_retired_at_ms !== null && row.session_retired_at_ms !== undefined) {
     throw new Error('Stored V2 Wallet Session authorization is retired');
   }
-  const session = parseWalletSessionAuthorizationV2(parseD1JsonColumn(row.session_record_json));
+  const session = parsePersistedWalletSessionAuthorizationV2(
+    parseD1JsonColumn(row.session_record_json),
+  );
   if (!walletSessionAuthorizationV2RowMatches(row, session)) {
     throw new Error('Stored V2 Wallet Session authorization columns disagree with record');
   }
   const subjectsRecord = parseWalletSessionAuthorizationV2WithSubjects(
     row,
-    session.laneContext,
     parseD1JsonColumn(row.session_capability_subjects_json),
   );
   if (!walletSessionAuthorizationV2RecordsEqual(subjectsRecord, session)) {

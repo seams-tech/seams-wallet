@@ -7,7 +7,6 @@ import {
 import {
   buildWalletSessionAuthorizationV2,
   buildWalletSessionCapabilitySubjectsV1,
-  parseWalletSessionAuthorizationV2,
   type WalletSessionAuthorizationV2,
 } from '../../../../authorization/domain';
 import type { WalletEd25519YaoActiveCapabilityRecord } from '../../../../core/WalletStore';
@@ -27,6 +26,7 @@ import {
   replaceYaoEd25519WalletSignerActiveCapability,
 } from './d1Ed25519YaoWalletSigner';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
+import { parsePersistedWalletSessionAuthorizationV2 } from '../authorization/persistedWalletSessionAuthorization';
 
 export const ROUTER_AB_ED25519_YAO_CAPABILITY_REPLACEMENT_TABLE_V1 =
   'router_ab_yao_capability_replacements';
@@ -439,7 +439,7 @@ export class CloudflareD1RouterAbEd25519YaoCapabilityPersistence implements Rout
         .all<RecordJsonRow>();
       const sessions: WalletSessionAuthorizationV2[] = [];
       for (const row of sessionRows.results ?? []) {
-        sessions.push(parseWalletSessionAuthorizationV2(parseRecordJson(row.record_json)));
+        sessions.push(parsePersistedWalletSessionAuthorizationV2(parseRecordJson(row.record_json)));
       }
       replacements.push({ previous: previousAuthority, next: nextAuthority, sessions });
     }
@@ -490,7 +490,6 @@ export class CloudflareD1RouterAbEd25519YaoCapabilityPersistence implements Rout
       tenantId: input.previous.tenantId,
       principalId: input.previous.principalId,
       walletId: input.previous.walletId,
-      laneContext: input.previous.laneContext,
       authorityId: input.previous.authorityId,
       walletAuthMethodId: input.previous.walletAuthMethodId,
       authorityDigestB64u: input.authority.authorityDigestB64u,

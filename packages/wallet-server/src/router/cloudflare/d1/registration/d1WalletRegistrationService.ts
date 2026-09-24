@@ -112,10 +112,6 @@ import { parseImplicitNearAccountId, parseNamedNearAccountId } from '@shared/uti
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { type EcdsaDerivationServerBootstrapResponse } from '../../../../core/types';
 import {
-  walletLaneContextsEqual,
-  type WalletLaneContext,
-} from '@shared/wallet-region';
-import {
   buildRouterAbEcdsaDerivationActiveStateIdV1,
   buildRouterAbEcdsaDerivationPublicCapabilityV1,
   parseRouterAbEcdsaDerivationNormalSigningStateV1,
@@ -1311,10 +1307,6 @@ function registrationFinalizeRecoveryFromCommittedInstallation(input: {
     input.setupClaims.registrationCeremonyId !== input.projection.registrationCeremonyId ||
     input.setupClaims.walletId !== String(input.projection.walletId) ||
     walletId !== input.projection.walletId ||
-    !walletLaneContextsEqual(
-      input.setupClaims.laneContext,
-      input.projection.preparedContext.laneContext,
-    ) ||
     input.setupClaims.orgId !== input.projection.orgId ||
     input.setupClaims.signingRootId !== input.projection.preparedContext.signingRootId ||
     input.setupClaims.signingRootVersion !== input.projection.preparedContext.signingRootVersion ||
@@ -1698,7 +1690,6 @@ type RegistrationPreparedContextResolution =
 
 function resolveRegistrationPreparedContextFromPlan(input: {
   readonly signerPlan: RegistrationSignerPlan;
-  readonly laneContext: WalletLaneContext;
   readonly runtimePolicyScope: RuntimePolicyScope | undefined;
   readonly signingRootId: string;
   readonly signingRootVersion: string;
@@ -1718,7 +1709,6 @@ function resolveRegistrationPreparedContextFromPlan(input: {
     return {
       ok: true,
       preparedContext: buildStoredWalletRegistrationPreparedContext({
-        laneContext: input.laneContext,
         signingRootId: input.signingRootId,
         signingRootVersion: input.signingRootVersion,
         runtimePolicyScope: input.runtimePolicyScope || null,
@@ -2228,7 +2218,6 @@ export class CloudflareD1WalletRegistrationService {
   private readonly walletCustodyCommitStore: CloudflareD1WalletCustodyCommitStore;
   private readonly walletAuthMethods: CloudflareD1WalletAuthMethodService;
   private readonly getLinkedDeviceEd25519AuthorityReader: () => D1LinkedDeviceEd25519AuthorityReaderV1 | null;
-  private readonly resolveWalletLaneContext: (walletId: WalletId) => Promise<WalletLaneContext>;
 
   constructor(input: {
     readonly authorizationService: AuthorizationService;
@@ -2246,7 +2235,6 @@ export class CloudflareD1WalletRegistrationService {
     readonly walletCustodyCommitStore: CloudflareD1WalletCustodyCommitStore;
     readonly walletAuthMethods: CloudflareD1WalletAuthMethodService;
     readonly getLinkedDeviceEd25519AuthorityReader: () => D1LinkedDeviceEd25519AuthorityReaderV1 | null;
-    readonly resolveWalletLaneContext: (walletId: WalletId) => Promise<WalletLaneContext>;
   }) {
     this.authorizationService = input.authorizationService;
     this.authorizationTenantId = input.authorizationTenantId;
@@ -2263,7 +2251,6 @@ export class CloudflareD1WalletRegistrationService {
     this.walletCustodyCommitStore = input.walletCustodyCommitStore;
     this.walletAuthMethods = input.walletAuthMethods;
     this.getLinkedDeviceEd25519AuthorityReader = input.getLinkedDeviceEd25519AuthorityReader;
-    this.resolveWalletLaneContext = input.resolveWalletLaneContext;
   }
 
   async getWalletRegistrationRuntimePolicyScope(
@@ -2273,20 +2260,6 @@ export class CloudflareD1WalletRegistrationService {
     const ceremony = await store.getCeremony(registrationCeremonyId);
     if (!ceremony) return undefined;
     return registrationPreparedContextRuntimePolicyScope(ceremony.preparedContext);
-  }
-
-  private async registrationLaneContextIsCurrent(
-    claims: WalletRegistrationSetupClaimsV1,
-    ceremony?: Pick<StoredWalletRegistrationCeremony, 'preparedContext'>,
-  ): Promise<boolean> {
-    if (
-      ceremony &&
-      !walletLaneContextsEqual(claims.laneContext, ceremony.preparedContext.laneContext)
-    ) {
-      return false;
-    }
-    const current = await this.resolveWalletLaneContext(walletIdFromString(claims.walletId));
-    return walletLaneContextsEqual(claims.laneContext, current);
   }
 
   async resolveEd25519MaterialActivation(input: {
@@ -3359,25 +3332,23 @@ export class CloudflareD1WalletRegistrationService {
           'registration signer branch is required',
         );
       }
-      if (ecdsaBranch && !runtimePolicyScope) {
-        return walletRegistrationSetupError(
-          'invalid_body',
-          'ECDSA registration requires an exact runtime policy scope',
-        );
-      }
-      const laneContext = await this.resolveWalletLaneContext(wallet.walletId);
       /* A mixed plan is stored whole — the plan is what the ceremony agreed
          to — but only its ECDSA branch is prepared here. Respond adds the
          Ed25519 branch once the verified authority determines its scope. */
       const preparedContext = resolveRegistrationPreparedContextFromPlan({
         signerPlan: branches.value.plan,
-        laneContext,
         runtimePolicyScope,
         signingRootId,
         signingRootVersion,
       });
       if (!preparedContext.ok) {
         return walletRegistrationSetupError(preparedContext.code, preparedContext.message);
+      }
+      if (ecdsaBranch && !runtimePolicyScope) {
+        return walletRegistrationSetupError(
+          'invalid_body',
+          'ECDSA registration requires an exact runtime policy scope',
+        );
       }
       const chainTargets = ecdsaBranch
         ? registrationPreparedContextEcdsaChainTargets(preparedContext.preparedContext)
@@ -3526,7 +3497,6 @@ export class CloudflareD1WalletRegistrationService {
         registrationCeremonyId: ceremony.registrationCeremonyId,
         intent: ceremony.intent,
         intentDigestB64u: ceremony.digestB64u,
-        laneContext: ceremony.preparedContext.laneContext,
         orgId: ceremony.orgId,
         signingRootId: toOptionalTrimmedString(ceremony.signingRootId) || '',
         signingRootVersion: toOptionalTrimmedString(ceremony.signingRootVersion) || '',
@@ -3543,13 +3513,6 @@ export class CloudflareD1WalletRegistrationService {
       );
       if (!verifiedSetup.ok) {
         return { ok: false, code: verifiedSetup.code, message: verifiedSetup.message };
-      }
-      if (!(await this.registrationLaneContextIsCurrent(verifiedSetup.claims, ceremony))) {
-        return {
-          ok: false,
-          code: 'invalid_grant',
-          message: 'registration Home lane changed after setup',
-        };
       }
       const registrationBearerToken = toOptionalTrimmedString(input.signedSetup);
       if (!registrationBearerToken) {
@@ -3630,7 +3593,6 @@ export class CloudflareD1WalletRegistrationService {
         registrationCeremonyId: ceremony.registrationCeremonyId,
         intent: ceremony.intent,
         intentDigestB64u: ceremony.digestB64u,
-        laneContext: ceremony.preparedContext.laneContext,
         orgId: ceremony.orgId,
         signingRootId: toOptionalTrimmedString(ceremony.signingRootId) || '',
         signingRootVersion: toOptionalTrimmedString(ceremony.signingRootVersion) || '',
@@ -3647,13 +3609,6 @@ export class CloudflareD1WalletRegistrationService {
       );
       if (!verifiedSetup.ok) {
         return { ok: false, code: verifiedSetup.code, message: verifiedSetup.message };
-      }
-      if (!(await this.registrationLaneContextIsCurrent(verifiedSetup.claims, ceremony))) {
-        return {
-          ok: false,
-          code: 'invalid_grant',
-          message: 'registration Home lane changed after setup',
-        };
       }
       const registrationBearerToken = toOptionalTrimmedString(input.signedSetup);
       if (!registrationBearerToken) {
@@ -4524,15 +4479,7 @@ export class CloudflareD1WalletRegistrationService {
           nowMs: Date.now(),
         },
       );
-      if (!verified.ok) return verified;
-      if (!(await this.registrationLaneContextIsCurrent(verified.claims))) {
-        return {
-          ok: false,
-          code: 'invalid_grant',
-          message: 'registration Home lane changed after setup',
-        };
-      }
-      return { ...verified, source: { kind: 'registration_grant' } };
+      return verified.ok ? { ...verified, source: { kind: 'registration_grant' } } : verified;
     }
     const installation = await this.readCommittedRegistrationInstallation(
       input.registrationCeremonyId,
@@ -4566,13 +4513,6 @@ export class CloudflareD1WalletRegistrationService {
         code: 'invalid_grant',
         message: 'NEAR continuation metadata is invalid',
       };
-    if (!(await this.registrationLaneContextIsCurrent(claims))) {
-      return {
-        ok: false,
-        code: 'invalid_grant',
-        message: 'registration Home lane changed after setup',
-      };
-    }
     registrationFinalizeRecoveryFromCommittedInstallation({
       setupClaims: claims,
       projection: continuation.installation.projection,
@@ -5107,13 +5047,6 @@ export class CloudflareD1WalletRegistrationService {
         return { ok: false, code: verifiedSetup.code, message: verifiedSetup.message };
       }
       const claims = verifiedSetup.claims;
-      if (!(await this.registrationLaneContextIsCurrent(claims))) {
-        return {
-          ok: false,
-          code: 'invalid_grant',
-          message: 'registration Home lane changed after setup',
-        };
-      }
       const idempotencyKey = toOptionalTrimmedString(input.idempotencyKey);
       if (!idempotencyKey) {
         return {

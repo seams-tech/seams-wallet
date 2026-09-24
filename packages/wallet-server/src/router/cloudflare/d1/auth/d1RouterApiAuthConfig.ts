@@ -30,8 +30,6 @@ import type {
   CloudflareOrdinaryInactiveSignerMaterialDeactivationEndpointV1,
   CloudflareOrdinaryInactiveSignerMaterialReservationEndpointV1,
 } from '../../signingLanes/cloudflareOrdinaryInactiveSignerMaterialReservation';
-import type { WalletLaneContext } from '@shared/wallet-region';
-import type { WalletId } from '@shared/utils/domainIds';
 
 export type CloudflareD1LinkedDeviceAuthorityInstallationOptionsV1 = {
   readonly reservationEndpoint: CloudflareOrdinaryInactiveSignerMaterialReservationEndpointV1;
@@ -151,7 +149,6 @@ export interface CloudflareD1RouterApiAuthServiceOptions {
   readonly orgId: string;
   readonly projectId: string;
   readonly envId: string;
-  readonly resolveWalletLaneContext: (walletId: WalletId) => Promise<WalletLaneContext>;
   readonly relayerAccount?: string;
   readonly relayerPublicKey?: string;
   readonly relayerPrivateKey?: string;
@@ -335,7 +332,6 @@ export function normalizeD1RouterApiAuthOptions(
     orgId: requireD1RouterApiAuthScopeString(input.orgId, 'orgId'),
     projectId: requireD1RouterApiAuthScopeString(input.projectId, 'projectId'),
     envId: requireD1RouterApiAuthScopeString(input.envId, 'envId'),
-    resolveWalletLaneContext: input.resolveWalletLaneContext,
     relayerAccount: toOptionalTrimmedString(input.relayerAccount),
     relayerPublicKey: toOptionalTrimmedString(input.relayerPublicKey),
     relayerPrivateKey: toOptionalTrimmedString(input.relayerPrivateKey),

@@ -20,8 +20,6 @@
     "./utils/*": "./src/utils/*.ts",
     "./wallet-recovery": "./src/wallet-recovery/index.ts",
     "./wallet-recovery/*": "./src/wallet-recovery/*.ts",
-    "./wallet-region": "./src/wallet-region/index.ts",
-    "./wallet-region/*": "./src/wallet-region/*.ts",
     "./tenant-root": "./src/tenant-root/index.ts",
     "./tenant-root/*": "./src/tenant-root/*.ts"
   },

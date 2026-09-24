@@ -904,7 +904,6 @@ function hasStrictStoredWalletRegistrationPreparedContext(raw: unknown): boolean
     !record ||
     !hasExactKeys(record, [
       'kind',
-      'laneContext',
       'signingRootId',
       'signingRootVersion',
       'runtimePolicy',

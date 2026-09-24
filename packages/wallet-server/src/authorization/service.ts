@@ -74,7 +74,6 @@ import type { RouterAbMpcMaterialActivationRefWire } from '@shared/utils/routerA
 import type { RuntimePolicyScope } from '@shared/threshold/signingRootScope';
 import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/parsers';
 import type { CapabilityOperationFingerprintDigest } from '@shared/authorization/operationFingerprint';
-import { walletLaneContextsEqual, type WalletLaneContext } from '@shared/wallet-region';
 
 export interface AuthorizationSessionPort {
   putIssuedHostedWalletSeamsSessionExchange(
@@ -203,7 +202,6 @@ export type AuthorizationServicePorts = {
   readonly grants: AuthorizationGrantPort;
   readonly authorizedOperations: AuthorizedOperationPort;
   readonly audit: object;
-  readonly resolveWalletLaneContext: (walletId: WalletId) => Promise<WalletLaneContext>;
 };
 
 type IssueWalletSessionAuthorizationV2InputBase = {
@@ -485,7 +483,6 @@ export class AuthorizationService {
       tenantId: current.tenantId,
       principalId: current.principalId,
       walletId: current.walletId,
-      laneContext: current.laneContext,
       authorityId: current.authorityId,
       walletAuthMethodId: current.walletAuthMethodId,
       authorityDigestB64u: input.authority.authorityDigestB64u,
@@ -536,12 +533,10 @@ export class AuthorizationService {
       await deriveWalletSessionAuthorizationV2Id(input, 'quota'),
       parseMpcWalletSigningQuotaId,
     );
-    const laneContext = await this.ports.resolveWalletLaneContext(input.walletId);
     const session = buildWalletSessionAuthorizationV2({
       tenantId: input.tenantId,
       principalId: input.principalId,
       walletId: input.walletId,
-      laneContext,
       authorityId: input.authority.authorityId,
       walletAuthMethodId: input.walletAuthMethodId,
       authorityDigestB64u: input.authority.authorityDigestB64u,
@@ -593,13 +588,11 @@ export class AuthorizationService {
     readonly token: string;
     readonly nowMs: number;
   }): Promise<IssuedWalletSessionAuthorizationV2 | null> {
-    const authorization = await this.ports.grants.readWalletSessionAuthorizationV2ByOperationCredential({
+    return await this.ports.grants.readWalletSessionAuthorizationV2ByOperationCredential({
       tenantId: input.tenantId,
       tokenHash: await digestOpaqueValue(input.token),
       nowMs: input.nowMs,
     });
-    if (!authorization || !(await this.isCurrentWalletLane(authorization.session))) return null;
-    return authorization;
   }
 
   async readLiveWalletSessionAuthorizationProjectionByCredential(input: {
@@ -623,13 +616,11 @@ export class AuthorizationService {
     } catch {
       return null;
     }
-    const context = await this.ports.grants.readWalletSessionExactOperationContextByCredential({
+    return await this.ports.grants.readWalletSessionExactOperationContextByCredential({
       tenantId: input.tenantId,
       tokenHash: await digestOpaqueValue(token),
       nowMs: input.nowMs,
     });
-    if (!context || !(await this.isCurrentWalletLane(context.session))) return null;
-    return context;
   }
 
   /**
@@ -648,19 +639,11 @@ export class AuthorizationService {
     } catch {
       return { kind: 'missing' };
     }
-    const status = await this.ports.grants.readExactWalletSessionStatusByOperationCredential({
+    return await this.ports.grants.readExactWalletSessionStatusByOperationCredential({
       tenantId: input.tenantId,
       tokenHash: await digestOpaqueValue(token),
       nowMs: input.nowMs,
     });
-    if (
-      status.kind !== 'missing' &&
-      status.kind !== 'retired' &&
-      !(await this.isCurrentWalletLane(status.session))
-    ) {
-      return { kind: 'lane_retired', session: status.session, quota: status.quota };
-    }
-    return status;
   }
 
   async readHostedWalletSessionOperationCredentialV2(input: {
@@ -670,19 +653,12 @@ export class AuthorizationService {
     readonly nowMs: number;
   }): Promise<ResolvedHostedWalletSessionOperationCredentialV2 | null> {
     if (!/^wsh_[A-Za-z0-9_-]{43}$/.test(input.token)) return null;
-    const resolved = await this.ports.sessions.readHostedWalletSessionOperationCredentialV2({
+    return await this.ports.sessions.readHostedWalletSessionOperationCredentialV2({
       tenantId: input.tenantId,
       tokenHash: await digestOpaqueValue(input.token),
       requestOrigin: input.requestOrigin,
       nowMs: input.nowMs,
     });
-    if (!resolved || !(await this.isCurrentWalletLane(resolved.authorization.session))) return null;
-    return resolved;
-  }
-
-  private async isCurrentWalletLane(session: WalletSessionAuthorizationV2): Promise<boolean> {
-    const current = await this.ports.resolveWalletLaneContext(session.walletId);
-    return walletLaneContextsEqual(session.laneContext, current);
   }
 
   parseEvidenceRequirement(value: unknown): ParseAuthorizationEvidenceRequirementResult {
