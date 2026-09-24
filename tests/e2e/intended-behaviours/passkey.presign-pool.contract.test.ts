@@ -1,12 +1,22 @@
 import { expect, type Request, type Response, type Route } from '@playwright/test';
 import { intendedTest as test } from './harness';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
+import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 class FirstSigningPoolFlow {
   private releaseGate: () => void = () => {};
   private readonly released = new Promise<void>(this.captureRelease.bind(this));
+  private readonly gatewayOrigin = new URL(
+    process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100',
+  ).origin;
+  private readonly gatewayRequests: { readonly path: string; readonly atMs: number }[] = [];
+  private readonly gatewayResponses: {
+    readonly path: string;
+    readonly atMs: number;
+    readonly response: Response;
+  }[] = [];
   initializations = 0;
   terminalPrepares = 0;
   ordinaryPrepares = 0;
@@ -33,7 +43,11 @@ class FirstSigningPoolFlow {
   }
 
   record(request: Request): void {
-    const path = new URL(request.url()).pathname;
+    const url = new URL(request.url());
+    const path = url.pathname;
+    if (url.origin === this.gatewayOrigin) {
+      this.gatewayRequests.push({ path, atMs: performance.now() });
+    }
     if (path === '/router-ab/ecdsa-derivation/sign/prepare') {
       const body: unknown = request.postDataJSON();
       if (!isPlainObject(body)) throw new Error('Expected an ECDSA prepare body');
@@ -52,10 +66,13 @@ class FirstSigningPoolFlow {
   }
 
   recordResponse(response: Response): void {
+    const url = new URL(response.url());
+    if (url.origin === this.gatewayOrigin) {
+      this.gatewayResponses.push({ path: url.pathname, atMs: performance.now(), response });
+    }
     if (
       response.ok() &&
-      new URL(response.url()).pathname ===
-        '/router-ab/ecdsa-derivation/presignature-pool/fill/step'
+      url.pathname === '/router-ab/ecdsa-derivation/presignature-pool/fill/step'
     ) {
       this.stepResponses.push(response);
     }
@@ -72,6 +89,34 @@ class FirstSigningPoolFlow {
       }
     }
     return null;
+  }
+
+  gatewayRequestCounts(startedAtMs: number, endedAtMs: number): Record<string, number> {
+    const counts: Record<string, number> = {};
+    for (const request of this.gatewayRequests) {
+      if (request.atMs < startedAtMs || request.atMs > endedAtMs) continue;
+      counts[request.path] = (counts[request.path] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  async gatewayServerTimings(startedAtMs: number, endedAtMs: number): Promise<{
+    path: string;
+    status: number;
+    stagesMs: Record<string, number>;
+  }[]> {
+    const timings = [];
+    for (const entry of this.gatewayResponses) {
+      if (entry.atMs < startedAtMs || entry.atMs > endedAtMs) continue;
+      const stages = parseEcdsaServerTiming(await entry.response.headerValue('Server-Timing'));
+      if (stages.size === 0) continue;
+      timings.push({
+        path: entry.path,
+        status: entry.response.status(),
+        stagesMs: Object.fromEntries(stages),
+      });
+    }
+    return timings;
   }
 }
 
@@ -97,13 +142,19 @@ test('first ECDSA signing completes Gateway pool fill before available-pool prep
     await page.waitForTimeout(150);
     flow.release();
     await signing;
-    const signingElapsedMs = performance.now() - signingStartedAt;
+    const signingEndedAt = performance.now();
+    const signingElapsedMs = signingEndedAt - signingStartedAt;
     expect(flow.terminalPrepares).toBe(0);
     expect(flow.ordinaryPrepares).toBe(1);
     expect(flow.finalizations).toBe(1);
     expect(flow.completedStepsBeforePrepare).toBeGreaterThan(0);
     const completedPresignatureId = await flow.completedPresignatureId();
     expect(completedPresignatureId).toBe(flow.preparePresignatureId);
+    const gatewayRequestCounts = flow.gatewayRequestCounts(signingStartedAt, signingEndedAt);
+    const gatewayServerTimings = await flow.gatewayServerTimings(signingStartedAt, signingEndedAt);
+    expect(
+      gatewayRequestCounts['/router-ab/ecdsa-derivation/presignature-pool/fill/step'],
+    ).toBeGreaterThan(0);
     await harness.assertRegistrationOwnerSessionIsActive();
     const proof = {
       kind: 'gateway_ecdsa_pool_completion_before_signing_e2e_v1',
@@ -112,6 +163,10 @@ test('first ECDSA signing completes Gateway pool fill before available-pool prep
       completedPresignatureId,
       completedStepsBeforePrepare: flow.completedStepsBeforePrepare,
       signingElapsedMs,
+      timingPurpose: 'correctness_diagnostic_with_forced_150_ms_gate',
+      gatewayRequestScope: 'all_requests_during_signing_including_background_work',
+      gatewayRequestCounts,
+      gatewayServerTimings,
       ordinaryPrepares: flow.ordinaryPrepares,
       terminalPrepares: flow.terminalPrepares,
       finalizations: flow.finalizations,
@@ -132,6 +187,81 @@ test('first ECDSA signing completes Gateway pool fill before available-pool prep
     context.off('request', record);
     context.off('response', recordResponse);
     await context.unroute(initPath, hold);
+  }
+});
+
+test('unforced ECDSA registration and repeated signing capture local Gateway timing', async ({
+  harness,
+  context,
+}, testInfo) => {
+  const flow = new FirstSigningPoolFlow();
+  const record = flow.record.bind(flow);
+  const recordResponse = flow.recordResponse.bind(flow);
+  context.on('request', record);
+  context.on('response', recordResponse);
+  try {
+    const registrationStartedAt = performance.now();
+    await harness.registerPasskeyWallet();
+    const registrationEndedAt = performance.now();
+
+    const firstSigningStartedAt = performance.now();
+    await harness.signTempoTransaction('post_registration');
+    const firstSigningEndedAt = performance.now();
+
+    const subsequentSigningStartedAt = performance.now();
+    await harness.signTempoTransaction('post_registration');
+    const subsequentSigningEndedAt = performance.now();
+
+    const proof = {
+      kind: 'gateway_ecdsa_unforced_local_timing_diagnostic_v1',
+      reproduce:
+        "node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.presign-pool.contract.test.ts --grep 'unforced ECDSA registration and repeated signing'",
+      backendProfile: 'local_default_d1',
+      sampleCountPerStage: 1,
+      timingPurpose: 'local_diagnostic_not_release_gate',
+      requestScope: 'all_gateway_requests_in_each_window_including_background_work',
+      registrationReturn: {
+        elapsedMs: registrationEndedAt - registrationStartedAt,
+        gatewayRequestCounts: flow.gatewayRequestCounts(registrationStartedAt, registrationEndedAt),
+        gatewayServerTimings: await flow.gatewayServerTimings(
+          registrationStartedAt,
+          registrationEndedAt,
+        ),
+      },
+      firstSigning: {
+        elapsedMs: firstSigningEndedAt - firstSigningStartedAt,
+        gatewayRequestCounts: flow.gatewayRequestCounts(firstSigningStartedAt, firstSigningEndedAt),
+        gatewayServerTimings: await flow.gatewayServerTimings(
+          firstSigningStartedAt,
+          firstSigningEndedAt,
+        ),
+      },
+      subsequentSigning: {
+        elapsedMs: subsequentSigningEndedAt - subsequentSigningStartedAt,
+        gatewayRequestCounts: flow.gatewayRequestCounts(
+          subsequentSigningStartedAt,
+          subsequentSigningEndedAt,
+        ),
+        gatewayServerTimings: await flow.gatewayServerTimings(
+          subsequentSigningStartedAt,
+          subsequentSigningEndedAt,
+        ),
+      },
+      signaturesVerified: 2,
+    };
+    const artifactPath = path.resolve(
+      testInfo.config.rootDir,
+      '../.artifacts/r150/gateway-ecdsa-unforced-local-timing.json',
+    );
+    await mkdir(path.dirname(artifactPath), { recursive: true });
+    await writeFile(artifactPath, JSON.stringify(proof, null, 2), 'utf8');
+    await testInfo.attach('gateway-ecdsa-unforced-local-timing.json', {
+      body: JSON.stringify(proof, null, 2),
+      contentType: 'application/json',
+    });
+  } finally {
+    context.off('request', record);
+    context.off('response', recordResponse);
   }
 });
 

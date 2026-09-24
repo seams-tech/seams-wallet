@@ -80,6 +80,33 @@ D1 dependencies in the first prototype. Measure their serial calls. Moving
 them later requires a new atomicity design for cross-wallet credential indexes
 and exact grant/quota consumption.
 
+## Retained Gateway D1 calls on the representative ECDSA path
+
+The successful reusable-Wallet-Session branch still calls these Gateway-owned
+services before or after role-local work. This is a method-level inventory, not
+a count of SQL statements or a latency result.
+
+| Request phase | Gateway D1 authority used | Existing timing bucket |
+| --- | --- | --- |
+| Client Wallet Session status refresh | Read the exact live session, quota, and authorization projection by operation credential. Background refill may request this repeatedly while a signature is in progress. | Captured as `/wallet/session/status` request fan-out; no ECDSA stage bucket |
+| Presign pool-fill init and each of five steps | Read the live exact Wallet Session context, then resolve the active ECDSA material. Each of the six HTTP exchanges repeats both service calls. | `ecdsa_presign_authenticate`, `ecdsa_presign_material` |
+| Signing prepare | Validate the Wallet Session and active material; resolve fresh material for the claim; atomically claim the authorized operation with its grant and quota; read the original pinned owner scope before Router dispatch. | `ecdsa_sign_authorize`, `ecdsa_sign_admit`, `ecdsa_sign_proxy` |
+| Signing finalize | Revalidate the Wallet Session and material, reconcile the operation claim, then persist the terminal authorized-operation response after Router returns. | `ecdsa_sign_authorize`, `ecdsa_sign_admit`, `ecdsa_sign_proxy`, `ecdsa_sign_complete` |
+| Registration response and activation | Maintain Gateway ceremony, identity, session, and side-effect journals around Router and SigningWorker receipts. | `ecdsa_respond_*`, `ecdsa_activate_*` |
+
+The browser contract in `tests/e2e/intended-behaviours/passkey.presign-pool.contract.test.ts`
+captures Gateway request counts and `Server-Timing` for a forced in-flight refill.
+The capture includes concurrent background refill and NEAR provisioning traffic;
+the counts are a user-visible window, not a per-signature causal bill. Its elapsed
+time includes a deliberate test hold and is diagnostic only. The
+same contract also records one unforced local registration return, first Tempo
+signature, and subsequent same-target signature as separate windows. Those
+signatures are verified; the single local samples cannot establish cold/warm
+p50/p95, role DO usage, regional network conditions, or production cost. Numeric
+latency targets and a monthly cost ceiling remain unset pending product approval.
+The diagnostic records HTTP request counts; D1/DO row counts, object active
+duration, and stored bytes have not been measured for a matched comparison.
+
 ## Reuse and missing contracts
 
 - Reuse the pure Rust protocol transitions in `router-ab-core`, including its
