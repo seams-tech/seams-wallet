@@ -1,4 +1,5 @@
 use crate::*;
+use router_ab_core::TenantRootIdentityV1;
 use router_ab_core::{
     RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningFinalizeRequestV1,
     RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningPrepareResponseV1,
@@ -36,6 +37,57 @@ mod ed25519_lane_retirement;
 pub use ed25519_lane_retirement::*;
 mod lane_private_d1;
 pub use lane_private_d1::*;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareSigningWorkerWalletScopeV1 {
+    pub org_id: String,
+    pub project_id: String,
+    pub project_environment_id: String,
+    pub wallet_id: String,
+}
+
+impl CloudflareSigningWorkerWalletScopeV1 {
+    pub fn new(
+        org_id: impl Into<String>,
+        project_id: impl Into<String>,
+        project_environment_id: impl Into<String>,
+        wallet_id: impl Into<String>,
+    ) -> RouterAbProtocolResult<Self> {
+        let scope = Self {
+            org_id: org_id.into(),
+            project_id: project_id.into(),
+            project_environment_id: project_environment_id.into(),
+            wallet_id: wallet_id.into(),
+        };
+        scope.validate()?;
+        Ok(scope)
+    }
+
+    pub fn from_tenant_root(
+        identity: &TenantRootIdentityV1,
+        wallet_id: &str,
+    ) -> RouterAbProtocolResult<Self> {
+        let scope = Self {
+            org_id: identity.org_id().to_owned(),
+            project_id: identity.project_id().to_owned(),
+            project_environment_id: identity.env_id().to_owned(),
+            wallet_id: wallet_id.to_owned(),
+        };
+        scope.validate()?;
+        Ok(scope)
+    }
+
+    pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        require_non_empty("SigningWorker wallet org_id", &self.org_id)?;
+        require_non_empty("SigningWorker wallet project_id", &self.project_id)?;
+        require_non_empty(
+            "SigningWorker wallet project_environment_id",
+            &self.project_environment_id,
+        )?;
+        require_non_empty("SigningWorker wallet wallet_id", &self.wallet_id)
+    }
+}
 
 /// Platform-neutral signer logic behind the Cloudflare transport wrapper.
 pub trait CloudflareSignerWireHandlerV1 {
@@ -621,6 +673,8 @@ pub struct CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2 {
     pub trusted_admission: CloudflareRouterNormalSigningTrustedAdmissionV1,
     /// Exact active material source selected by the Gateway.
     pub material_source: CloudflareSigningWorkerNormalSigningMaterialSourceV1,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wallet_scope: Option<CloudflareSigningWorkerWalletScopeV1>,
 }
 
 impl CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2 {
@@ -639,6 +693,7 @@ impl CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2 {
             admission_candidate,
             trusted_admission,
             material_source,
+            wallet_scope: None,
         };
         request.validate()?;
         Ok(request)
@@ -658,6 +713,7 @@ impl CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2 {
             admission_candidate,
             trusted_admission,
             material_source,
+            wallet_scope: None,
         };
         request.validate()?;
         Ok(request)
@@ -665,6 +721,18 @@ impl CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2 {
 
     /// Validates Router admission accepted this exact v2 prepare request.
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        if let Some(wallet_scope) = &self.wallet_scope {
+            wallet_scope.validate()?;
+            if wallet_scope.org_id != self.admission_candidate.org_id
+                || wallet_scope.project_id != self.admission_candidate.project_id
+                || wallet_scope.wallet_id != self.scope.account_id
+            {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidGateDecision,
+                    "normal-signing wallet scope differs from Router admission",
+                ));
+            }
+        }
         self.scope.validate()?;
         self.material_source
             .validate_for_normal_scope(&self.scope)?;
@@ -735,6 +803,8 @@ pub struct CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2 {
     pub effect_claim: CloudflareSigningWorkerNormalSigningEffectClaimV1,
     /// Exact active material source selected by the Gateway.
     pub material_source: CloudflareSigningWorkerNormalSigningMaterialSourceV1,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wallet_scope: Option<CloudflareSigningWorkerWalletScopeV1>,
 }
 
 /// Authorization-specific effect claim committed by SigningWorker private D1.
@@ -948,6 +1018,28 @@ impl CloudflareSigningWorkerNormalSigningTerminalV1 {
 }
 
 impl CloudflareSigningWorkerNormalSigningEffectClaimV1 {
+    pub(crate) fn near_authorization_key(&self) -> String {
+        match self {
+            Self::ReusableWalletSession { claim } => format!(
+                "reusable-wallet-session/{}/{}/{}/{}/{}",
+                claim.authorization_id,
+                claim.wallet_session_id,
+                claim.authorized_operation_id,
+                claim.operation_id,
+                claim.operation_fingerprint_digest,
+            ),
+            Self::OperationStepUp {
+                authorization_session_id,
+                authorized_operation_id,
+                operation_id,
+                operation_fingerprint_digest,
+                ..
+            } => format!(
+                "operation-step-up/{authorization_session_id}/{authorized_operation_id}/{operation_id}/{operation_fingerprint_digest}"
+            ),
+        }
+    }
+
     /// Validates every operation identity field against the accepted Router record.
     pub fn validate_for_authorized_operation_identity(
         &self,
@@ -1186,6 +1278,7 @@ impl CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2 {
             authorized_operation_identity,
             effect_claim,
             material_source,
+            wallet_scope: None,
         };
         request.validate()?;
         Ok(request)
@@ -1207,6 +1300,7 @@ impl CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2 {
             authorized_operation_identity,
             effect_claim,
             material_source,
+            wallet_scope: None,
         };
         request.validate()?;
         Ok(request)
@@ -1214,6 +1308,18 @@ impl CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2 {
 
     /// Validates Router admission accepted this exact v2 finalize request.
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        if let Some(wallet_scope) = &self.wallet_scope {
+            wallet_scope.validate()?;
+            if wallet_scope.org_id != self.admission_candidate.org_id
+                || wallet_scope.project_id != self.admission_candidate.project_id
+                || wallet_scope.wallet_id != self.request.scope.account_id
+            {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidGateDecision,
+                    "normal-signing wallet scope differs from Router admission",
+                ));
+            }
+        }
         self.request.validate()?;
         self.material_source
             .validate_for_normal_scope(&self.request.scope)?;
@@ -1403,7 +1509,9 @@ impl CloudflareSigningWorkerMaterializedNormalSigningFinalizeRequestV2 {
 pub enum CloudflareEcdsaPrepareSourceV1 {
     #[default]
     AvailablePool,
-    FinalPresignBatch { batch: CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 },
+    FinalPresignBatch {
+        batch: CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1,
+    },
 }
 
 impl CloudflareEcdsaPrepareSourceV1 {
@@ -1413,7 +1521,8 @@ impl CloudflareEcdsaPrepareSourceV1 {
     ) -> RouterAbProtocolResult<()> {
         if let Self::FinalPresignBatch { batch } = self {
             if batch.scope != request.scope
-                || batch.requested_stage != CloudflareSigningWorkerEcdsaPresignRequestedStageV1::Presign
+                || batch.requested_stage
+                    != CloudflareSigningWorkerEcdsaPresignRequestedStageV1::Presign
                 || request.expires_at_ms > batch.material_expires_at_ms
                 || batch.outgoing_messages_b64u.len() != 2
             {
@@ -1445,10 +1554,16 @@ impl CloudflareEcdsaPrepareResponseV1 {
         source: &CloudflareEcdsaPrepareSourceV1,
     ) -> RouterAbProtocolResult<()> {
         match (self, source) {
-            (Self::AvailablePool(response), CloudflareEcdsaPrepareSourceV1::AvailablePool) =>
-                response.validate_for_request(request),
-            (Self::FinalPresignBatch { prepared_response, outgoing_messages_b64u },
-             CloudflareEcdsaPrepareSourceV1::FinalPresignBatch { .. }) => {
+            (Self::AvailablePool(response), CloudflareEcdsaPrepareSourceV1::AvailablePool) => {
+                response.validate_for_request(request)
+            }
+            (
+                Self::FinalPresignBatch {
+                    prepared_response,
+                    outgoing_messages_b64u,
+                },
+                CloudflareEcdsaPrepareSourceV1::FinalPresignBatch { .. },
+            ) => {
                 if outgoing_messages_b64u.len() != 1 {
                     return Err(RouterAbProtocolError::new(
                         RouterAbProtocolErrorCode::MalformedWirePayload,

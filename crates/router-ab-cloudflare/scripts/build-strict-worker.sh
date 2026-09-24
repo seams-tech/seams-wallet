@@ -51,6 +51,9 @@ fi
 if [[ "$role" == "deriver-b" && "$worker_build_profile" == "dev" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
   worker_features+=",wallet-do-b-harness,wallet-do-b-completion-harness"
 fi
+if [[ "$role" == "signing-worker" && "$worker_build_profile" == "dev" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
+  worker_features+=",wallet-do-signing-worker-harness"
+fi
 
 run_worker_build \
   "${worker_build_flags[@]}" \

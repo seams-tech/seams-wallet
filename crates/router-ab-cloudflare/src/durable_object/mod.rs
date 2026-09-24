@@ -26,6 +26,8 @@ mod deriver_a_pair;
 mod deriver_b_pair;
 #[cfg(feature = "workers-rs")]
 mod ecdsa_presign_live_session;
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
+mod signing_worker_wallet;
 #[cfg(all(
     feature = "workers-rs",
     any(feature = "strict-worker-deriver-a-entrypoint", test)
@@ -49,6 +51,12 @@ pub(crate) use deriver_a_pair::{
 pub use deriver_b_pair::RouterAbDeriverBWalletDurableObject;
 #[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
 pub(crate) use deriver_b_pair::{call_deriver_b_wallet_do_v1, DeriverBWalletDoRequestV1};
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
+pub use signing_worker_wallet::RouterAbSigningWorkerWalletDurableObject;
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
+pub(crate) use signing_worker_wallet::{
+    call_signing_worker_wallet_do_v1, SigningWorkerWalletDoRequestV1,
+};
 #[cfg(any(feature = "workers-rs", test))]
 pub(crate) mod tenant_root_creation;
 #[cfg(any(feature = "workers-rs", test))]

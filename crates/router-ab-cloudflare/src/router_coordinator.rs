@@ -16,7 +16,8 @@ use crate::{
     CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
     CloudflareEd25519YaoTenantRootContextV2, CloudflareRouterEd25519YaoExecuteRequestV2,
     CloudflareRouterEd25519YaoTenantRootV1, CloudflareRouterProjectPolicyV1,
-    CloudflareRouterWorkerRuntimeV1, CloudflareWorkerEnvReaderV1,
+    CloudflareRouterWorkerRuntimeV1, CloudflareScopedEd25519YaoPackagePairDeliveryV1,
+    CloudflareSigningWorkerWalletScopeV1, CloudflareWorkerEnvReaderV1,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
@@ -800,6 +801,7 @@ async fn execute_router_ceremony_with_finalization_v1(
     let operation = request.operation();
     let pair_binding = request.pair_binding().clone();
     let work = pair_work(&request);
+    let root_identity = tenant_root.identity.clone();
 
     if replay {
         if let Some(result) = reconcile_router_replay_v1(
@@ -985,6 +987,7 @@ async fn execute_router_ceremony_with_finalization_v1(
         runtime,
         &request,
         &binding,
+        &root_identity,
         execution.deriver_a_execution,
         completed_b,
         trace_id,
@@ -1086,6 +1089,10 @@ async fn execute_historical_registration_replay_v1(
     let activation_a = activation_execution(&outcome.deriver_a_execution)?;
     let activation_b = activation_execution(&execution_b)?;
     let lookup = CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
+        scope: CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
+            &root.identity,
+            &pair_binding.binding().lifecycle.account_id,
+        )?,
         delivery: CloudflareEd25519YaoPackagePairDeliveryV1 {
             deriver_a: signing_worker_delivery(activation_a),
             deriver_b: signing_worker_delivery(activation_b),
@@ -1221,6 +1228,7 @@ async fn reconcile_router_replay_v1(
             runtime,
             request,
             binding,
+            root_identity,
             outcome.deriver_a_execution.clone(),
             completed_b,
             trace_id,
@@ -1310,6 +1318,7 @@ async fn reconcile_router_replay_v1(
             runtime,
             request,
             binding,
+            root_identity,
             execution_a,
             execution_b,
             trace_id,
@@ -1530,6 +1539,7 @@ async fn finalize_router_result_v1(
     runtime: &CloudflareRouterWorkerRuntimeV1,
     request: &RouterEd25519YaoExecuteRequestV1,
     binding: &router_ab_core::Ed25519YaoCeremonyBindingV1,
+    root_identity: &TenantRootIdentityV1,
     execution: Ed25519YaoRoleExecutionV1,
     completed_b: Ed25519YaoRoleExecutionV1,
     trace_id: Option<crate::CloudflareTraceIdV1>,
@@ -1548,13 +1558,20 @@ async fn finalize_router_result_v1(
             match finalization {
                 RouterCeremonyFinalizationV1::Standard => {
                     let delivery_started_at_ms = cloudflare_now_unix_ms_v1()?;
+                    let scoped_delivery = CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
+                        scope: CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
+                            root_identity,
+                            &binding.lifecycle.account_id,
+                        )?,
+                        delivery,
+                    };
                     let worker_response = post_role_json::<_, SigningWorkerReceiptV1>(
                         env,
                         runtime.signing_worker_peer().binding_name.as_str(),
                         SIGNING_WORKER_SERVICE_URL,
                         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_PACKAGES_PATH,
                         "SigningWorker Yao package delivery",
-                        &delivery,
+                        &scoped_delivery,
                         trace_id,
                     )
                     .await;

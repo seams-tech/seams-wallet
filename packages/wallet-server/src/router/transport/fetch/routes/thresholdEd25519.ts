@@ -185,6 +185,7 @@ function ed25519ReusableWalletSessionIdentity(
 
 function buildEd25519GatewayOwnerWalletSessionBinding(
   authorization: AcceptedEd25519WalletSessionAuthorization,
+  projectEnvironmentId: string,
 ) {
   const session = ed25519ReusableWalletSession(authorization);
   const runtimePolicyScope = authorization.activeMaterial.runtimePolicyScope;
@@ -199,9 +200,33 @@ function buildEd25519GatewayOwnerWalletSessionBinding(
     orgId: runtimePolicyScope.orgId,
     projectId: runtimePolicyScope.projectId,
     environment: runtimePolicyScope.envId,
+    projectEnvironmentId,
     signingWorkerId: authorization.activeMaterial.signingWorkerId,
     expiresAtMs: session.expiresAtMs,
   };
+}
+
+async function resolveEd25519WalletProjectEnvironmentId(
+  ctx: FetchRouterApiContext,
+  authorization: AcceptedEd25519WalletSessionAuthorization,
+): Promise<string> {
+  const scope = authorization.activeMaterial.runtimePolicyScope;
+  const resolver = ctx.opts.orgProjectEnv;
+  if (!resolver) throw new Error('Project environment resolver is unavailable');
+  const environments = await resolver.listEnvironments({
+    orgId: scope.orgId,
+    actorUserId: 'normal-signing-admission',
+    roles: ['system'],
+    projectId: scope.projectId,
+  });
+  const matches = environments.filter(
+    (environment) =>
+      environment.projectId === scope.projectId && environment.key === scope.envId,
+  );
+  if (matches.length !== 1 || !matches[0]?.id) {
+    throw new Error('Active signing project environment is unavailable');
+  }
+  return matches[0].id;
 }
 
 type RouterAbEd25519AuthorizedOperationWire = {
@@ -223,6 +248,7 @@ type RouterAbEd25519AuthorizedOperationWire = {
         readonly org_id: string;
         readonly project_id: string;
         readonly environment: string;
+        readonly project_environment_id: string;
         readonly signing_worker_id: string;
         readonly expires_at_ms: number;
       }
@@ -263,6 +289,7 @@ type RouterAbEd25519AuthorizedOperationWireInput =
         readonly orgId: string;
         readonly projectId: string;
         readonly environment: string;
+        readonly projectEnvironmentId: string;
         readonly signingWorkerId: string;
         readonly expiresAtMs: number;
       };
@@ -337,6 +364,7 @@ function buildRouterAbEd25519AuthorizedOperationWire(
           org_id: input.binding.orgId,
           project_id: input.binding.projectId,
           environment: input.binding.environment,
+          project_environment_id: input.binding.projectEnvironmentId,
           signing_worker_id: input.binding.signingWorkerId,
           expires_at_ms: input.binding.expiresAtMs,
         },
@@ -1848,7 +1876,10 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
         authorized_operation: buildRouterAbEd25519AuthorizedOperationWire({
           operation: execution.operation,
           binding: {
-            ...buildEd25519GatewayOwnerWalletSessionBinding(authorization),
+            ...buildEd25519GatewayOwnerWalletSessionBinding(
+              authorization,
+              await resolveEd25519WalletProjectEnvironmentId(input.ctx, authorization),
+            ),
           },
         }),
       },
@@ -1909,7 +1940,10 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
       authorized_operation: buildRouterAbEd25519AuthorizedOperationWire({
         operation: validatedAuthorization.operation,
         binding: {
-          ...buildEd25519GatewayOwnerWalletSessionBinding(authorization),
+          ...buildEd25519GatewayOwnerWalletSessionBinding(
+            authorization,
+            await resolveEd25519WalletProjectEnvironmentId(input.ctx, authorization),
+          ),
         },
       }),
     },

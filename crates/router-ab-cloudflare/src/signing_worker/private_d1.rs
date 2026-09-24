@@ -18,6 +18,7 @@ pub const SIGNING_WORKER_PRIVATE_D1_ENVIRONMENT_ENV_V1: &str =
     "SIGNING_WORKER_PRIVATE_D1_ENVIRONMENT";
 const SIGNING_WORKER_PRIVATE_D1_HPKE_INFO_V1: &[u8] = b"seams/signing-worker/private-d1/hpke/v1";
 const SIGNING_WORKER_PRIVATE_D1_SCHEMA_LABEL_V1: &str = "signing-worker-private-d1/v1";
+const SIGNING_WORKER_WALLET_DO_SCHEMA_LABEL_V1: &str = "signing-worker-wallet-do/v1";
 
 pub const SIGNING_WORKER_PRIVATE_D1_SCHEMA_V1: &str = r#"
 CREATE TABLE IF NOT EXISTS signing_worker_activations (
@@ -157,8 +158,9 @@ struct SigningWorkerPrivateD1CiphertextV1 {
     ciphertext_b64u: String,
 }
 
-struct SigningWorkerPrivateD1CipherV1 {
+pub(crate) struct SigningWorkerPrivateD1CipherV1 {
     environment: String,
+    schema: &'static str,
     key_version: String,
     public_key: <CloudflareHpkeKemV1 as Kem>::PublicKey,
     private_key: <CloudflareHpkeKemV1 as Kem>::PrivateKey,
@@ -186,13 +188,20 @@ impl SigningWorkerPrivateD1CipherV1 {
         let private_key = private_key_result?;
         Ok(Self {
             environment,
+            schema: SIGNING_WORKER_PRIVATE_D1_SCHEMA_LABEL_V1,
             key_version,
             public_key,
             private_key,
         })
     }
 
-    fn seal<T: Serialize>(
+    pub(crate) fn from_env_for_wallet_do(env: &Env) -> RouterAbProtocolResult<Self> {
+        let mut cipher = Self::from_env(env)?;
+        cipher.schema = SIGNING_WORKER_WALLET_DO_SCHEMA_LABEL_V1;
+        Ok(cipher)
+    }
+
+    pub(crate) fn seal<T: Serialize>(
         &self,
         purpose: &'static str,
         identity: &str,
@@ -226,7 +235,7 @@ impl SigningWorkerPrivateD1CipherV1 {
         )
     }
 
-    fn open<T: DeserializeOwned>(
+    pub(crate) fn open<T: DeserializeOwned>(
         &self,
         purpose: &'static str,
         identity: &str,
@@ -277,7 +286,7 @@ impl SigningWorkerPrivateD1CipherV1 {
     fn aad(&self, purpose: &'static str, identity: &str) -> String {
         format!(
             "environment={};purpose={};schema={};identity={}",
-            self.environment, purpose, SIGNING_WORKER_PRIVATE_D1_SCHEMA_LABEL_V1, identity
+            self.environment, purpose, self.schema, identity
         )
     }
 }
@@ -529,52 +538,18 @@ pub async fn claim_cloudflare_signing_worker_near_effect_v1(
         });
     }
     request.request.validate_at(claimed_at_ms)?;
-    match &request.effect_claim {
-        CloudflareSigningWorkerNormalSigningEffectClaimV1::ReusableWalletSession { claim } => {
-            let authorization_json =
-                encode_json("SigningWorker effect authorization", &request.effect_claim)?;
-            let authorization_key = format!(
-                "reusable-wallet-session/{}/{}/{}/{}/{}",
-                claim.authorization_id,
-                claim.wallet_session_id,
-                claim.authorized_operation_id,
-                claim.operation_id,
-                claim.operation_fingerprint_digest
-            );
-            claim_cloudflare_signing_worker_authorization_effect_v1(
-                &session,
-                &operation_key,
-                &authorization_key,
-                &request_digest_hex,
-                &authorization_json,
-                claimed_at_ms,
-            )
-            .await
-        }
-        CloudflareSigningWorkerNormalSigningEffectClaimV1::OperationStepUp {
-            authorization_session_id,
-            authorized_operation_id,
-            operation_id,
-            operation_fingerprint_digest,
-            ..
-        } => {
-            let authorization_json =
-                encode_json("SigningWorker effect authorization", &request.effect_claim)?;
-            let authorization_key =
-                format!(
-                    "operation-step-up/{authorization_session_id}/{authorized_operation_id}/{operation_id}/{operation_fingerprint_digest}"
-                );
-            claim_cloudflare_signing_worker_authorization_effect_v1(
-                &session,
-                &operation_key,
-                &authorization_key,
-                &request_digest_hex,
-                &authorization_json,
-                claimed_at_ms,
-            )
-            .await
-        }
-    }
+    let authorization_json =
+        encode_json("SigningWorker effect authorization", &request.effect_claim)?;
+    let authorization_key = request.effect_claim.near_authorization_key();
+    claim_cloudflare_signing_worker_authorization_effect_v1(
+        &session,
+        &operation_key,
+        &authorization_key,
+        &request_digest_hex,
+        &authorization_json,
+        claimed_at_ms,
+    )
+    .await
 }
 
 /// Reads an exact ECDSA terminal result before applying fresh-request checks.

@@ -23,6 +23,7 @@ use crate::{
     read_cloudflare_signing_worker_initial_registration_finalization_v1,
     CloudflareSecretMaterial32V1, CloudflareServerOutputMaterialRecordV1,
     CloudflareSigningWorkerOutputActivationRecordV1, CloudflareSigningWorkerRuntimeV1,
+    CloudflareSigningWorkerWalletScopeV1,
 };
 
 pub const CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_PACKAGES_PATH: &str =
@@ -92,6 +93,26 @@ pub struct CloudflareEd25519YaoPackagePairDeliveryV1 {
     pub deriver_b: Ed25519YaoSigningWorkerPackageDeliveryV1,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
+    pub scope: CloudflareSigningWorkerWalletScopeV1,
+    pub delivery: CloudflareEd25519YaoPackagePairDeliveryV1,
+}
+
+impl CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        self.scope.validate()?;
+        self.delivery.validate()?;
+        if self.scope.wallet_id != self.delivery.deriver_a.binding.lifecycle.account_id {
+            return Err(invalid_lifecycle(
+                "SigningWorker package pair differs from its wallet scope",
+            ));
+        }
+        Ok(())
+    }
+}
+
 impl CloudflareEd25519YaoPackagePairDeliveryV1 {
     fn validate(&self) -> RouterAbProtocolResult<()> {
         self.deriver_a
@@ -110,15 +131,22 @@ impl CloudflareEd25519YaoPackagePairDeliveryV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
+    pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub delivery: CloudflareEd25519YaoPackagePairDeliveryV1,
     pub deriver_a_client_package: Ed25519YaoEncryptedPackageV1,
     pub deriver_b_client_package: Ed25519YaoEncryptedPackageV1,
 }
 
 impl CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
-    fn validate(&self) -> RouterAbProtocolResult<()> {
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        self.scope.validate()?;
         self.delivery.validate()?;
         let binding = &self.delivery.deriver_a.binding;
+        if self.scope.wallet_id != binding.lifecycle.account_id {
+            return Err(invalid_lifecycle(
+                "initial-registration lookup differs from its wallet scope",
+            ));
+        }
         require_operation(binding, Ed25519YaoOperationV1::Registration)?;
         validate_client_package_v1(
             &self.deriver_a_client_package,
@@ -278,7 +306,7 @@ impl SigningWorkerYaoCommandV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
-enum SigningWorkerYaoDurableStateV1 {
+pub(crate) enum SigningWorkerYaoDurableStateV1 {
     RegistrationStaged {
         deriver_a: Ed25519YaoSigningWorkerPackageDeliveryV1,
         deriver_b: Ed25519YaoSigningWorkerPackageDeliveryV1,
@@ -313,7 +341,7 @@ impl SigningWorkerYaoDurableStateV1 {
         }
     }
 
-    fn validate(&self) -> RouterAbProtocolResult<()> {
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
         match self {
             Self::RegistrationStaged {
                 deriver_a,
@@ -536,11 +564,22 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_packages_v1(
     mut request: Request,
     env: &Env,
 ) -> RouterAbProtocolResult<Response> {
-    let delivery = parse_request::<CloudflareEd25519YaoPackagePairDeliveryV1>(&mut request).await?;
-    delivery.validate()?;
+    let scoped =
+        parse_request::<CloudflareScopedEd25519YaoPackagePairDeliveryV1>(&mut request).await?;
+    scoped.validate()?;
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    if scoped.delivery.deriver_a.binding.operation == Ed25519YaoOperationV1::Registration {
+        return crate::durable_object::call_signing_worker_wallet_do_v1(
+            env,
+            crate::durable_object::SigningWorkerWalletDoRequestV1::DeliverRegistration(scoped),
+        )
+        .await;
+    }
     let response = execute_signing_worker_yao_command(
         env,
-        SigningWorkerYaoCommandV1::DeliverPackages { delivery },
+        SigningWorkerYaoCommandV1::DeliverPackages {
+            delivery: scoped.delivery,
+        },
     )
     .await?;
     json_response(&http_response_from_command(response)?)
@@ -556,7 +595,15 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_initial_registration_f
         )
         .await?;
     lookup.validate()?;
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    return crate::durable_object::call_signing_worker_wallet_do_v1(
+        env,
+        crate::durable_object::SigningWorkerWalletDoRequestV1::LookupRegistration(lookup),
+    )
+    .await;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     let response = read_initial_registration_finalization_v1(env, &lookup).await?;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     json_response(&response)
 }
 
@@ -571,6 +618,16 @@ async fn read_initial_registration_finalization_v1(
         SigningWorkerYaoDurableStateV1,
     >(env, &record_key, &active_key)
     .await?;
+    evaluate_initial_registration_finalization_v1(request, snapshot)
+}
+
+pub(crate) fn evaluate_initial_registration_finalization_v1(
+    request: &CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1,
+    snapshot: crate::CloudflareSigningWorkerInitialRegistrationFinalizationSnapshotV1<
+        SigningWorkerYaoDurableStateV1,
+    >,
+) -> RouterAbProtocolResult<CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1> {
+    let binding = &request.delivery.deriver_a.binding;
     let Some(lifecycle) = snapshot.lifecycle else {
         return Ok(if snapshot.fenced {
             CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1::Revoked
@@ -1545,7 +1602,7 @@ fn require_non_empty_reservation_id(value: &str) -> RouterAbProtocolResult<()> {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
-enum CloudflareEd25519YaoSigningWorkerHttpResponseV1 {
+pub(crate) enum CloudflareEd25519YaoSigningWorkerHttpResponseV1 {
     Active {
         session: [u8; 32],
         transcript: [u8; 32],
@@ -1575,7 +1632,7 @@ fn http_response_from_command(
     }
 }
 
-fn http_active_receipt(
+pub(crate) fn http_active_receipt(
     receipt: Ed25519YaoSigningWorkerActivationReceiptV1,
 ) -> CloudflareEd25519YaoSigningWorkerHttpResponseV1 {
     CloudflareEd25519YaoSigningWorkerHttpResponseV1::Active {
@@ -1834,7 +1891,7 @@ async fn execute_signing_worker_yao_promotion_d1_transition_v1(
     Ok(SigningWorkerYaoCommandResponseV1::Active { receipt })
 }
 
-fn combine_signing_worker_yao_packages_v1(
+pub(crate) fn combine_signing_worker_yao_packages_v1(
     env: &Env,
     delivery: &CloudflareEd25519YaoPackagePairDeliveryV1,
     active: Option<&Ed25519YaoActiveSigningMaterialV1>,
@@ -1912,7 +1969,7 @@ async fn persist_cloudflare_ed25519_yao_output_activation_v1(
     Ok(())
 }
 
-fn build_output_activation_record(
+pub(crate) fn build_output_activation_record(
     runtime: &CloudflareSigningWorkerRuntimeV1,
     yao_material: &Ed25519YaoActiveSigningMaterialV1,
     receipt: &Ed25519YaoSigningWorkerActivationReceiptV1,

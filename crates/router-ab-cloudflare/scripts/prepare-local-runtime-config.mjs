@@ -371,6 +371,25 @@ new_sqlite_classes = ["RouterAbDeriverBWalletDurableObject"]
 [[services]]`,
       );
     }
+    if (role === 'signing-worker' && process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled') {
+      const presignBinding = '  { name = "SIGNING_WORKER_PRESIGN_SESSION_DO", class_name = "RouterAbSigningWorkerPresignSessionDurableObject" },';
+      if (!config.includes(presignBinding)) {
+        throw new Error('SigningWorker presign object binding is missing');
+      }
+      config = config.replace(
+        presignBinding,
+        `${presignBinding}
+  { name = "SIGNING_WORKER_WALLET_DO", class_name = "RouterAbSigningWorkerWalletDurableObject" },`,
+      );
+      config = config.replace(
+        '[vars]',
+        `[[migrations]]
+tag = "r150-signing-worker-wallet-sqlite-v1"
+new_sqlite_classes = ["RouterAbSigningWorkerWalletDurableObject"]
+
+[vars]`,
+      );
+    }
     config = applyRoleVars(config, role, {
       sdkRouterUrl,
       routerEnv,

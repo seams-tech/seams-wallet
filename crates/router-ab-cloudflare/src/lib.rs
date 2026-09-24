@@ -44,6 +44,7 @@ pub use ed25519_yao_signing_worker::{
     CloudflareEd25519YaoReservationActivationResponseV1,
     CloudflareEd25519YaoReservationDeactivationResponseV1,
     CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
+    CloudflareScopedEd25519YaoPackagePairDeliveryV1,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_ACTIVATE_RESERVATION_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_DEACTIVATE_RESERVATION_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_LOOKUP_PATH,
@@ -315,12 +316,14 @@ compile_error!("enable exactly one strict Worker entrypoint feature");
 ))]
 mod strict_worker;
 
-#[cfg(feature = "workers-rs")]
-pub use durable_object::RouterAbSigningWorkerPresignSessionDurableObject;
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub use durable_object::RouterAbDeriverAWalletDurableObject;
 #[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
 pub use durable_object::RouterAbDeriverBWalletDurableObject;
+#[cfg(feature = "workers-rs")]
+pub use durable_object::RouterAbSigningWorkerPresignSessionDurableObject;
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
+pub use durable_object::RouterAbSigningWorkerWalletDurableObject;
 pub use durable_object::{
     CloudflareActiveSigningWorkerStateLookupV1, CloudflareEd25519Round1StateV1,
     CloudflareExpiredStateCleanupReportV1, CloudflareExpiredStateCleanupRequestV1,
@@ -5727,6 +5730,7 @@ pub enum CloudflareRouterEd25519AcceptedCapabilityBindingV1 {
         org_id: String,
         project_id: String,
         environment: String,
+        project_environment_id: String,
         signing_worker_id: String,
         expires_at_ms: u64,
     },
@@ -5763,6 +5767,30 @@ pub struct CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
 
 #[cfg(feature = "workers-rs")]
 impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
+    fn gateway_owner_wallet_scope(
+        &self,
+    ) -> RouterAbProtocolResult<CloudflareSigningWorkerWalletScopeV1> {
+        let CloudflareRouterEd25519AcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
+            org_id,
+            project_id,
+            project_environment_id,
+            account_id,
+            ..
+        } = &self.binding
+        else {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidGateDecision,
+                "Gateway owner Wallet Session binding is required",
+            ));
+        };
+        CloudflareSigningWorkerWalletScopeV1::new(
+            org_id,
+            project_id,
+            project_environment_id,
+            account_id,
+        )
+    }
+
     #[cfg(feature = "workers-rs")]
     fn into_signing_worker_authorized_operation_identity(
         &self,
@@ -5912,6 +5940,7 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
                     org_id,
                     project_id,
                     environment,
+                    project_environment_id,
                     signing_worker_id,
                     expires_at_ms,
                 },
@@ -5931,6 +5960,10 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
                 require_non_empty("accepted Ed25519 Gateway org_id", org_id)?;
                 require_non_empty("accepted Ed25519 Gateway project_id", project_id)?;
                 require_non_empty("accepted Ed25519 Gateway environment", environment)?;
+                require_non_empty(
+                    "accepted Ed25519 Gateway project_environment_id",
+                    project_environment_id,
+                )?;
                 require_non_empty("accepted Ed25519 Gateway signing_worker_id", signing_worker_id)?;
                 require_positive_ms("accepted Ed25519 Gateway expires_at_ms", *expires_at_ms)?;
                 if authorization_id == wallet_session_id
@@ -6094,6 +6127,7 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
             org_id,
             project_id,
             environment,
+            project_environment_id: _,
             signing_worker_id,
             expires_at_ms,
         } = &self.binding
@@ -7509,12 +7543,15 @@ where
             "normal-signing v2 prepare Router admission did not allow SigningWorker forwarding",
         ));
     }
-    let admitted = CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new(
+    let wallet_scope = authorized_operation.gateway_owner_wallet_scope()?;
+    let mut admitted = CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new(
         request.scope.clone(),
         request.expires_at_ms,
         admission,
         trusted_admission,
     )?;
+    admitted.wallet_scope = Some(wallet_scope);
+    admitted.validate()?;
     execute_cloudflare_signing_worker_normal_signing_prepare_service_call_v2(
         env,
         runtime.signing_worker_peer(),
@@ -8400,19 +8437,22 @@ where
     let authorized_operation_identity =
         authorized_operation.into_signing_worker_authorized_operation_identity()?;
     let authorization_id = authorized_operation.reusable_authorization_id()?.to_owned();
+    let wallet_scope = authorized_operation.gateway_owner_wallet_scope()?;
     let effect_claim = authorized_operation
         .authorized_operation
         .into_signing_worker_effect_claim(
             wallet_session.wallet_session_id.clone(),
             authorization_id,
         )?;
-    let admitted = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
+    let mut admitted = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
         request,
         admission,
         trusted_admission,
         authorized_operation_identity,
         effect_claim,
     )?;
+    admitted.wallet_scope = Some(wallet_scope);
+    admitted.validate()?;
     execute_cloudflare_signing_worker_normal_signing_finalize_service_call_v2(
         env,
         runtime.signing_worker_peer(),
@@ -11252,6 +11292,25 @@ where
             cloudflare_router_error_status(err.code()),
         );
     }
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    if matches!(
+        &parsed.material_source,
+        CloudflareSigningWorkerNormalSigningMaterialSourceV1::RegistrationActivation { .. }
+    ) {
+        let scope = parsed.wallet_scope.clone().ok_or_else(|| {
+            worker::Error::RustError("SigningWorker wallet scope is required".to_owned())
+        })?;
+        return crate::durable_object::call_signing_worker_wallet_do_v1(
+            env,
+            crate::durable_object::SigningWorkerWalletDoRequestV1::PrepareNear {
+                scope,
+                request: parsed,
+                now_unix_ms,
+            },
+        )
+        .await
+        .map_err(|error| worker::Error::RustError(error.to_string()));
+    }
     let (active_signing_worker, material) =
         match load_cloudflare_signing_worker_normal_signing_material_v1(
             env,
@@ -13105,6 +13164,25 @@ where
             format!("{:?}: {}", err.code(), err.message()),
             cloudflare_router_error_status(err.code()),
         );
+    }
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    if matches!(
+        &parsed.material_source,
+        CloudflareSigningWorkerNormalSigningMaterialSourceV1::RegistrationActivation { .. }
+    ) {
+        let scope = parsed.wallet_scope.clone().ok_or_else(|| {
+            worker::Error::RustError("SigningWorker wallet scope is required".to_owned())
+        })?;
+        return crate::durable_object::call_signing_worker_wallet_do_v1(
+            env,
+            crate::durable_object::SigningWorkerWalletDoRequestV1::FinalizeNear {
+                scope,
+                request: parsed,
+                now_unix_ms,
+            },
+        )
+        .await
+        .map_err(|error| worker::Error::RustError(error.to_string()));
     }
     let effect_operation_key = match parsed.effect_operation_key() {
         Ok(value) => value,

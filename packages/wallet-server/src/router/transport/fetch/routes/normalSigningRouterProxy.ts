@@ -96,6 +96,7 @@ type NormalSigningGatewayOwnerBindingRecord = {
   readonly org_id: unknown;
   readonly project_id: unknown;
   readonly environment: unknown;
+  readonly project_environment_id: unknown;
   readonly signing_worker_id: unknown;
   readonly expires_at_ms: unknown;
 };
@@ -144,7 +145,7 @@ function isNormalSigningGatewayOwnerBindingRecord(
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
   return (
     Object.keys(value).sort().join('|') ===
-    'account_id|authorization_id|environment|expires_at_ms|kind|org_id|project_id|quota_id|signing_worker_id|subject_id|threshold_session_id|wallet_session_id'
+    'account_id|authorization_id|environment|expires_at_ms|kind|org_id|project_environment_id|project_id|quota_id|signing_worker_id|subject_id|threshold_session_id|wallet_session_id'
   );
 }
 
@@ -187,6 +188,8 @@ function isNormalSigningGatewayOwnerBindingValues(
     record.project_id.trim().length > 0 &&
     typeof record.environment === 'string' &&
     record.environment.trim().length > 0 &&
+    typeof record.project_environment_id === 'string' &&
+    record.project_environment_id.trim().length > 0 &&
     typeof record.signing_worker_id === 'string' &&
     record.signing_worker_id.trim().length > 0 &&
     typeof record.expires_at_ms === 'number' &&
