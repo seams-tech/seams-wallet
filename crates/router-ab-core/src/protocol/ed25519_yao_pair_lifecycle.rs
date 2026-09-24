@@ -122,6 +122,7 @@ pub fn prepare_ed25519_yao_pair_v1<P: PartialEq, O>(
     }
     if receipt.role() != Ed25519YaoDeriverRoleV1::DeriverA
         || receipt.root_metadata_digest().bytes != root_metadata_digest
+        || receipt.expires_at_ms() != expires_at_ms
         || receipt.validate_for_pair(&pair_binding).is_err()
         || receipt.validate_at(now_ms).is_err()
     {
@@ -473,7 +474,7 @@ mod tests {
             input_digest,
             PublicDigest32::new(root_digest),
             100,
-            200,
+            150,
             Ed25519YaoRoleSignatureV1::new(Ed25519YaoRoleSignatureSchemeV1::Ed25519V1, [9; 64])
                 .expect("signature"),
         )
@@ -650,6 +651,22 @@ mod tests {
         assert_eq!(
             prepare_ed25519_yao_pair_v1(Some(&burned), prepared, 120),
             Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Terminal)
+        );
+    }
+
+    #[test]
+    fn prepared_expiry_must_match_signed_receipt() {
+        let pair = pair_binding();
+        let proposed = Ed25519YaoPairRecordV1::<u8, String>::Prepared {
+            pair_binding: pair.clone(),
+            root_metadata_digest: [7; 32],
+            expires_at_ms: 151,
+            receipt: receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverA),
+            payload: 42,
+        };
+        assert_eq!(
+            prepare_ed25519_yao_pair_v1(None, proposed, 110),
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ReadinessMismatch)
         );
     }
 }

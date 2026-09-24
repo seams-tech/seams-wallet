@@ -362,7 +362,7 @@ mod tests {
             input,
             PublicDigest32::new(root),
             100,
-            200,
+            150,
             signature(),
         )
         .expect("receipt")
