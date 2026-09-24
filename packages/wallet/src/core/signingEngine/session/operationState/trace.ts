@@ -75,10 +75,16 @@ export function emitEcdsaSigningTiming(
 
 export type Ed25519SigningTimingStage =
   | 'confirmed_to_signed'
+  | 'durable_lease_recovery_wait'
+  | 'material_resolution_wait'
+  | 'transaction_context'
+  | 'wallet_session_authorization'
   | 'prepare'
   | 'client_share'
   | 'finalize'
-  | 'signature_total';
+  | 'signature_total'
+  | 'nonce_lease_commit'
+  | 'transaction_assembly';
 
 export function emitEd25519SigningTiming(
   operationId: string,

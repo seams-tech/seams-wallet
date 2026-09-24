@@ -2157,3 +2157,38 @@ through verified signature: ordinary 4942.8/2027.6/1952.9/1971.3/1931.2ms; combi
 client; it is not a hosted browser latency comparison. Samples alternate with the
 ordinary path first, include warm-up effects, and support only a small local
 observation. Production first-sign latency and the 1–3s objective remain unproven.
+
+### Hosted Wallet 0.6.2 NEAR signing boundary
+
+Wallet 0.6.2 was published from `9f9cc2259180a705db9ade068158e2e9cfe90799`
+and deployed through the private Console at
+`b60f25f4eb51a77fcda55da33f50bb6481e06c88`. The frontend and complete testnet
+backend deployment workflows passed, including their hosted smoke checks. Both
+hosted wallet manifests reported `@seams/wallet` 0.6.2.
+
+Three completed hosted NEAR signatures measured the cryptographic signing section
+at 1.379, 1.415, and 2.046 seconds. Their post-confirmation `confirmed_to_signed`
+measurements were 5.237, 5.789, and 6.792 seconds. A later fresh-wallet sample
+measured 0.592 seconds for prepare, 0.006 seconds for the client share, 0.636
+seconds for finalize, 1.234 seconds for the complete signature, and 8.710 seconds
+from confirmation completion to the signed result.
+
+`signature_total` covers the Router prepare request, local FROST share, and Router
+finalize request. `confirmed_to_signed` begins after the confirmation command
+returns and ends after nonce-lease persistence and signed-result assembly. It
+excludes transaction broadcast and chain confirmation. The remaining difference
+therefore cannot be attributed to the FROST core without another stage breakdown.
+
+One continuous-session probe completed the signature and then timed out locating
+the receipt UI. That timeout is a harness failure after signing and supplies no
+receipt-confirmation latency. Earlier attempts that issued separate browser CLI
+commands lost their virtual authenticator between commands and supply no evidence
+about Wallet Session exhaustion or reauthentication.
+
+The signing trace now separates the post-confirmation path into durable-lease
+recovery wait, material-resolution wait, transaction-context resolution, Wallet
+Session authorization, nonce-lease commit, and transaction assembly. Deploy and
+collect these stages before changing the signing path. Optimize the largest
+observed stage, then repeat first-sign and warm-sign measurements in one retained
+authenticator session. These samples do not support a two-second end-to-end claim
+or a population tail-latency claim.

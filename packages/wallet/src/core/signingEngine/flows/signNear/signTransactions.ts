@@ -237,19 +237,27 @@ function emitNearSigningEvent(
 async function requireActiveAuthorizedWalletSessionState(args: {
   state: ResolvedRouterAbEd25519WalletSessionState | null;
   coordinator: SigningSessionCoordinator;
+  operationId: string;
 }): Promise<AuthorizedRouterAbEd25519WalletSessionState> {
-  if (!args.state) {
-    throw new Error('[SigningEngine][near] reusable Wallet Session state is unavailable');
+  const startedAt = performance.now();
+  let outcome: 'succeeded' | 'failed' = 'failed';
+  try {
+    if (!args.state) {
+      throw new Error('[SigningEngine][near] reusable Wallet Session state is unavailable');
+    }
+    const authorized =
+      await args.coordinator.resolveActiveAuthorizedRouterAbEd25519WalletSessionState({
+        state: args.state,
+        nowMs: Date.now(),
+      });
+    if (!authorized) {
+      throw new Error('[SigningEngine][near] reusable Wallet Session authorization is unavailable');
+    }
+    outcome = 'succeeded';
+    return authorized;
+  } finally {
+    emitEd25519SigningTiming(args.operationId, 'wallet_session_authorization', startedAt, outcome);
   }
-  const authorized =
-    await args.coordinator.resolveActiveAuthorizedRouterAbEd25519WalletSessionState({
-      state: args.state,
-      nowMs: Date.now(),
-    });
-  if (!authorized) {
-    throw new Error('[SigningEngine][near] reusable Wallet Session authorization is unavailable');
-  }
-  return authorized;
 }
 
 type NearTransactionStepUpMethod = 'passkey' | 'email_otp';
@@ -975,9 +983,21 @@ async function runAuthorizedNearTransactionWithActionsSigning({
   const ownsResolvedOperationStepUpMaterial =
     operationStepUpMaterial?.kind === 'passkey_sealed' ||
     operationStepUpMaterial?.kind === 'email_otp_sealed';
+  const durableLeaseRecoveryWaitStartedAt = performance.now();
   try {
     await durableLeaseRecovery;
+    emitEd25519SigningTiming(
+      String(signingOperation.operationId),
+      'durable_lease_recovery_wait',
+      durableLeaseRecoveryWaitStartedAt,
+    );
   } catch (error) {
+    emitEd25519SigningTiming(
+      String(signingOperation.operationId),
+      'durable_lease_recovery_wait',
+      durableLeaseRecoveryWaitStartedAt,
+      'failed',
+    );
     disposeOwnedNearOperationStepUpMaterial({
       resolved: resolvedOperationStepUpMaterial,
       owned: ownsResolvedOperationStepUpMaterial,
@@ -995,6 +1015,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
         message: 'Preparing NEAR signer',
         interaction: { kind: 'none', overlay: 'none' },
       });
+      const materialResolutionStartedAt = performance.now();
       const resolvedMaterial =
         stepUpAuthorization.kind === 'warm_session'
           ? {
@@ -1005,6 +1026,11 @@ async function runAuthorizedNearTransactionWithActionsSigning({
               kind: 'operation_step_up' as const,
               resolved: resolvedOperationStepUpMaterial!,
             };
+      emitEd25519SigningTiming(
+        String(signingOperation.operationId),
+        'material_resolution_wait',
+        materialResolutionStartedAt,
+      );
       const canonicalThresholdSessionId =
         resolvedMaterial.kind === 'warm_session'
           ? resolvedMaterial.resolved.material.facts.thresholdSessionId
@@ -1017,6 +1043,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
         resolvedMaterial.kind === 'warm_session'
           ? resolvedMaterial.resolved.walletSessionState
           : null;
+      const transactionContextStartedAt = performance.now();
       const confirmedNearContext =
         resolvedMaterial.kind === 'warm_session'
           ? await resolveConfirmedNearTransactionContext({
@@ -1038,6 +1065,11 @@ async function runAuthorizedNearTransactionWithActionsSigning({
                   '[SigningEngine][near] operation step-up confirmation did not resolve a transaction context',
                 );
               })();
+      emitEd25519SigningTiming(
+        String(signingOperation.operationId),
+        'transaction_context',
+        transactionContextStartedAt,
+      );
       emitNearSigningEvent(onEvent, nearAccountId, {
         phase: SigningEventPhase.STEP_07_AUTHENTICATION_COMPLETE,
         status: 'succeeded',
@@ -1150,6 +1182,7 @@ async function runAuthorizedNearTransactionWithActionsSigning({
             walletSessionState: await requireActiveAuthorizedWalletSessionState({
               state: walletSessionState,
               coordinator: sessionCoordinator,
+              operationId: String(signingOperation.operationId),
             }),
             thresholdKeyMaterial: signingContext.threshold.thresholdKeyMaterial,
             walletId: commandSubject.walletSession.walletId,
@@ -1173,13 +1206,25 @@ async function runAuthorizedNearTransactionWithActionsSigning({
       try {
         const okResponse = await executeSignRequest(preparedActiveClient);
         thresholdSignatureCreated = true;
+        const nonceLeaseCommitStartedAt = performance.now();
         await markNearNonceLeasesSigned(ctx, nonceLeaseRefs);
+        emitEd25519SigningTiming(
+          String(signingOperation.operationId),
+          'nonce_lease_commit',
+          nonceLeaseCommitStartedAt,
+        );
+        const transactionAssemblyStartedAt = performance.now();
         const signedResult = toSignedTransactionResult({
           okResponse,
           nearAccountId,
           warnings,
           nonceLeases: nonceLeaseRefs,
         });
+        emitEd25519SigningTiming(
+          String(signingOperation.operationId),
+          'transaction_assembly',
+          transactionAssemblyStartedAt,
+        );
         emitEd25519SigningTiming(
           String(signingOperation.operationId),
           'confirmed_to_signed',
