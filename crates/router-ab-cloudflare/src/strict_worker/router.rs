@@ -4243,6 +4243,23 @@ pub(super) async fn handle_strict_router_fetch_v1(
     if path == CLOUDFLARE_INTERNAL_PREWARM_PATH {
         return handle_router_prewarm_v1(&request, &env).await;
     }
+    #[cfg(feature = "strict-worker-regional-router-entrypoint")]
+    {
+        let now_unix_ms = match cloudflare_now_unix_ms_v1() {
+            Ok(now_unix_ms) => now_unix_ms,
+            Err(err) => return cloudflare_protocol_error_response_v1(err),
+        };
+        if let Err(err) = crate::authenticate_cloudflare_wallet_lane_request_v1(
+            &request,
+            &env,
+            crate::WalletLaneInternalServiceRoleV1::Router,
+            now_unix_ms,
+        )
+        .await
+        {
+            return cloudflare_protocol_error_response_v1(err);
+        }
+    }
     if path == CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_PRIVATE_REQUEST_PATH {
         if let Err(err) = require_cloudflare_internal_service_auth_request_v1(&request, &env) {
             return cloudflare_private_service_auth_error_response_v1(err);
@@ -5421,6 +5438,10 @@ async fn handle_router_prewarm_v1(request: &Request, env: &Env) -> worker::Resul
         return cloudflare_prewarm_response_v1(request);
     }
     if let Err(err) = CloudflareRouterWorkerRuntimeV1::from_worker_env(env) {
+        return cloudflare_protocol_error_response_v1(err);
+    }
+    #[cfg(feature = "strict-worker-regional-router-entrypoint")]
+    if let Err(err) = crate::parse_cloudflare_wallet_lane_request_signer_v1(env) {
         return cloudflare_protocol_error_response_v1(err);
     }
     let result = await_prewarm_fanout_v1(

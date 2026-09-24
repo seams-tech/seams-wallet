@@ -18,6 +18,22 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         }
         return cloudflare_prewarm_response_v1(&request);
     }
+    #[cfg(feature = "strict-worker-regional-signing-worker-entrypoint")]
+    {
+        let now_unix_ms = match cloudflare_now_unix_ms_v1() {
+            Ok(now_unix_ms) => now_unix_ms,
+            Err(err) => return cloudflare_protocol_error_response_v1(err),
+        };
+        if let Err(err) = crate::admit_cloudflare_signing_worker_wallet_lane_request_v1(
+            &request,
+            &env,
+            now_unix_ms,
+        )
+        .await
+        {
+            return cloudflare_protocol_error_response_v1(err);
+        }
+    }
     let runtime = match CloudflareSigningWorkerRuntimeV1::from_worker_env(&env) {
         Ok(runtime) => runtime,
         Err(err) => return cloudflare_protocol_error_response_v1(err),

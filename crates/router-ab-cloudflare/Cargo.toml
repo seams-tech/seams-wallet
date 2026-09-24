@@ -29,6 +29,10 @@ strict-worker-deriver-a-entrypoint = ["workers-rs"]
 strict-worker-deriver-b-entrypoint = ["workers-rs"]
 strict-worker-signing-worker-entrypoint = ["workers-rs"]
 strict-worker-tenant-root-control-plane-entrypoint = ["workers-rs"]
+strict-worker-regional-router-entrypoint = ["strict-worker-router-entrypoint"]
+strict-worker-regional-deriver-a-entrypoint = ["strict-worker-deriver-a-entrypoint"]
+strict-worker-regional-deriver-b-entrypoint = ["strict-worker-deriver-b-entrypoint"]
+strict-worker-regional-signing-worker-entrypoint = ["strict-worker-signing-worker-entrypoint"]
 workers-rs = [
     "dep:wasm-bindgen",
     "dep:web-sys",

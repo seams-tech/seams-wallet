@@ -52,6 +52,23 @@ pub(super) async fn handle_strict_deriver_a_fetch_v1(
         }
         return cloudflare_prewarm_response_v1(&request);
     }
+    #[cfg(feature = "strict-worker-regional-deriver-a-entrypoint")]
+    {
+        let now_unix_ms = match cloudflare_now_unix_ms_v1() {
+            Ok(now_unix_ms) => now_unix_ms,
+            Err(err) => return cloudflare_protocol_error_response_v1(err),
+        };
+        if let Err(err) = crate::admit_cloudflare_deriver_wallet_lane_request_v1(
+            &request,
+            &env,
+            crate::WalletLaneInternalServiceRoleV1::DeriverA,
+            now_unix_ms,
+        )
+        .await
+        {
+            return cloudflare_protocol_error_response_v1(err);
+        }
+    }
     let runtime = match CloudflareDeriverAWorkerRuntimeV1::from_worker_env(&env) {
         Ok(runtime) => StrictDeriverRuntimeV1::DeriverA(runtime),
         Err(err) => return cloudflare_protocol_error_response_v1(err),
@@ -1004,6 +1021,23 @@ pub(super) async fn handle_strict_deriver_b_fetch_v1(
             return cloudflare_protocol_error_response_v1(err);
         }
         return cloudflare_prewarm_response_v1(&request);
+    }
+    #[cfg(feature = "strict-worker-regional-deriver-b-entrypoint")]
+    {
+        let now_unix_ms = match cloudflare_now_unix_ms_v1() {
+            Ok(now_unix_ms) => now_unix_ms,
+            Err(err) => return cloudflare_protocol_error_response_v1(err),
+        };
+        if let Err(err) = crate::admit_cloudflare_deriver_wallet_lane_request_v1(
+            &request,
+            &env,
+            crate::WalletLaneInternalServiceRoleV1::DeriverB,
+            now_unix_ms,
+        )
+        .await
+        {
+            return cloudflare_protocol_error_response_v1(err);
+        }
     }
     let runtime = match CloudflareDeriverBWorkerRuntimeV1::from_worker_env(&env) {
         Ok(runtime) => StrictDeriverRuntimeV1::DeriverB(runtime),

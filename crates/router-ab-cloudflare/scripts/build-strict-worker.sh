@@ -4,9 +4,14 @@ set -euo pipefail
 
 role="${1:-}"
 case "$role" in
-  router|deriver-a|deriver-b|signing-worker|tenant-root-control-plane) ;;
+  router|deriver-a|deriver-b|signing-worker|tenant-root-control-plane)
+    worker_feature="strict-worker-$role-entrypoint"
+    ;;
+  regional-router|regional-deriver-a|regional-deriver-b|regional-signing-worker)
+    worker_feature="strict-worker-$role-entrypoint"
+    ;;
   *)
-    echo "usage: build-strict-worker.sh <router|deriver-a|deriver-b|signing-worker|tenant-root-control-plane>" >&2
+    echo "usage: build-strict-worker.sh <router|deriver-a|deriver-b|signing-worker|tenant-root-control-plane|regional-router|regional-deriver-a|regional-deriver-b|regional-signing-worker>" >&2
     exit 2
     ;;
 esac
@@ -44,4 +49,4 @@ run_worker_build() {
 run_worker_build \
   "${worker_build_flags[@]}" \
   --out-dir "$worker_output" \
-  --features "strict-worker-$role-entrypoint"
+  --features "$worker_feature"
