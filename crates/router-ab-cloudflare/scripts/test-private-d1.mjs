@@ -1432,14 +1432,14 @@ async function captureValidActivationDelivery(
   };
 }
 
-async function testDeriverAWalletDoPreparation(topology, rootIdentity, tenantRoot) {
+async function testDeriverAWalletDoPreparation(topology, rootIdentity) {
   assert.ok(capturedDeriverAPreparation, 'Deriver A preparation fixture is required');
   const { request, receipt } = capturedDeriverAPreparation;
   const walletId = request.pair_binding.ceremony.binding.lifecycle.account_id;
   const owner = {
-    tenant_identity_digest_hex: Buffer.from(tenantRoot.identity_digest_b64u, 'base64url').toString(
-      'hex',
-    ),
+    org_id: rootIdentity.orgId,
+    project_id: rootIdentity.projectId,
+    env_id: rootIdentity.envId,
     wallet_id: walletId,
   };
   const objectName = deriverAWalletDoObjectName(owner);
@@ -1499,7 +1499,7 @@ async function testDeriverAWalletDoPreparation(topology, rootIdentity, tenantRoo
   assert.equal(late.body.result.kind, 'rejected');
   const wrongOwner = await callDeriverAWalletDo(object, {
     ...lookup,
-    owner: { ...owner, tenant_identity_digest_hex: '00'.repeat(32) },
+    owner: { ...owner, org_id: `${owner.org_id}-other` },
   });
   assert.notEqual(wrongOwner.status, 200);
   const wrongWallet = await callDeriverAWalletDo(object, {
@@ -1521,7 +1521,13 @@ function deriverAWalletDoObjectName(owner) {
     .digest('hex')}`;
 }
 
-async function testDeriverAWalletDoExecution(topology, fixture, tenantRoot, databases) {
+async function testDeriverAWalletDoExecution(
+  topology,
+  fixture,
+  tenantRoot,
+  secondTenantRoot,
+  databases,
+) {
   competeDeriverAExecution = true;
   const activation = await captureValidActivationDelivery(topology, fixture, tenantRoot);
   competeDeriverAExecution = false;
@@ -1536,15 +1542,31 @@ async function testDeriverAWalletDoExecution(topology, fixture, tenantRoot, data
   assert.equal(bBefore.lifecycle, 'completed', 'B must finish before A replay');
 
   const firstResponse = capturedDeriverAExecution.response;
+  const rootIdentity = fixture.tenant_root_creation.identity;
+  assert.deepEqual(capturedDeriverAExecution.request.tenant_root.identity, rootIdentity);
   const owner = {
-    tenant_identity_digest_hex: Buffer.from(tenantRoot.identity_digest_b64u, 'base64url').toString(
-      'hex',
-    ),
+    org_id: rootIdentity.orgId,
+    project_id: rootIdentity.projectId,
+    env_id: rootIdentity.envId,
     wallet_id:
       capturedDeriverAExecution.request.pair_binding.ceremony.binding.lifecycle.account_id,
   };
   const namespace = await topology.getDurableObjectNamespace(deriverAWalletDoBinding, 'deriver-a');
   const objectId = namespace.idFromName(deriverAWalletDoObjectName(owner));
+  const rotatedIdentity = {
+    ...rootIdentity,
+    signingRootVersion: `${rootIdentity.signingRootVersion}-rotated`,
+  };
+  assert.equal(
+    deriverAWalletDoObjectName(owner),
+    deriverAWalletDoObjectName({
+      org_id: rotatedIdentity.orgId,
+      project_id: rotatedIdentity.projectId,
+      env_id: rotatedIdentity.envId,
+      wallet_id: owner.wallet_id,
+    }),
+    'wallet DO owner must be stable across signing-root versions',
+  );
   await topology.unsafeEvictDurableObject('deriver-a', deriverAWalletDoClass, {
     id: objectId.toString(),
   });
@@ -1559,6 +1581,18 @@ async function testDeriverAWalletDoExecution(topology, fixture, tenantRoot, data
   assert.equal(recovered.body.revision, 4, 'one A execution must make four lifecycle writes');
   assert.equal(recovered.body.record.status, 'completed');
   assert.deepEqual(recovered.body.record.outcome, firstResponse);
+  const wrongTenant = await callDeriverAWalletDo(object, {
+    operation: 'read',
+    owner: { ...owner, org_id: `${owner.org_id}-other` },
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
+  });
+  assert.notEqual(wrongTenant.status, 200, 'another tenant cannot read this wallet DO');
+  const wrongWallet = await callDeriverAWalletDo(object, {
+    operation: 'read',
+    owner: { ...owner, wallet_id: `${owner.wallet_id}-other` },
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
+  });
+  assert.notEqual(wrongWallet.status, 200, 'another wallet cannot read this wallet DO');
   const deriverA = await topology.getWorker('deriver-a');
   const replay = await postWorkerJson(
     deriverA,
@@ -1579,16 +1613,63 @@ async function testDeriverAWalletDoExecution(topology, fixture, tenantRoot, data
     changedRequest,
   );
   assert.notEqual(changed.status, 200, 'changed request identity must not replay the outcome');
+  const mismatchedRoot = structuredClone(capturedDeriverAExecution.request);
+  mismatchedRoot.tenant_root.identity = rotatedIdentity;
+  const mismatched = await postWorkerJson(
+    deriverA,
+    '/router-ab/deriver-a/ed25519-yao/execute-pair',
+    mismatchedRoot,
+  );
+  assert.notEqual(mismatched.status, 200, 'root identity must match its signed receipt');
+  const afterMismatch = await callDeriverAWalletDo(object, {
+    operation: 'read',
+    owner,
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
+  });
+  assert.equal(afterMismatch.body.revision, recovered.body.revision);
+  const secondActivation = await captureValidActivationDelivery(
+    topology,
+    fixture,
+    secondTenantRoot,
+    'second_tenant_activation',
+  );
+  assert.ok(secondActivation.publicReceipt);
+  const secondIdentity = fixture.tenant_root_creation.second_tenant_identity;
+  const secondOwner = {
+    org_id: secondIdentity.orgId,
+    project_id: secondIdentity.projectId,
+    env_id: secondIdentity.envId,
+    wallet_id:
+      capturedDeriverAExecution.request.pair_binding.ceremony.binding.lifecycle.account_id,
+  };
+  const secondObjectId = namespace.idFromName(deriverAWalletDoObjectName(secondOwner));
+  assert.notEqual(secondObjectId.toString(), objectId.toString());
+  const secondRecord = await callDeriverAWalletDo(namespace.get(secondObjectId), {
+    operation: 'read',
+    owner: secondOwner,
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
+  });
+  assert.equal(secondRecord.body.record.status, 'completed');
+  const aRowsAfterSecondTenant = await databases.deriverA
+    .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
+    .first();
+  assert.equal(aRowsAfterSecondTenant.count, 0);
   assert.ok(activation.publicReceipt, 'Router registration must complete through A wallet DO');
   const artifact = {
     kind: 'deriver_a_wallet_do_execution_e2e_v1',
+    reproduce: 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-execution',
     registeredPublicKey: activation.publicReceipt.registered_public_key,
+    outcomeSha256Hex: createHash('sha256').update(JSON.stringify(firstResponse)).digest('hex'),
     aD1PairRows: aRows.count,
     bPairLifecycle: bBefore.lifecycle,
     bRevisionUnchangedOnReplay: true,
     aPairRevisionAfterConcurrentCalls: recovered.body.revision,
     replayAfterObjectEviction: true,
     exactReplayAfterBCompleted: true,
+    stableOwnerDerivationAcrossRootVersions: true,
+    crossTenantAndWalletReadsRejected: true,
+    secondTenantRegistrationUsedSeparateWalletObject: true,
+    mismatchedRootReceiptRejectedWithoutWrite: true,
   };
   const artifactPath = join(repoRoot, '.artifacts/r150/deriver-a-wallet-do-execution.json');
   await mkdir(dirname(artifactPath), { recursive: true });
@@ -1621,10 +1702,11 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
     .first();
   assert.equal(bTerminal.lifecycle, 'completed');
 
+  const rootIdentity = fixture.tenant_root_creation.identity;
   const owner = {
-    tenant_identity_digest_hex: Buffer.from(tenantRoot.identity_digest_b64u, 'base64url').toString(
-      'hex',
-    ),
+    org_id: rootIdentity.orgId,
+    project_id: rootIdentity.projectId,
+    env_id: rootIdentity.envId,
     wallet_id:
       capturedDeriverAExecution.request.pair_binding.ceremony.binding.lifecycle.account_id,
   };
@@ -1650,6 +1732,10 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
   assert.deepEqual(bAfter, bTerminal);
   const artifact = {
     kind: 'deriver_a_wallet_do_lost_reply_e2e_v1',
+    reproduce: 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-lost-reply',
+    outcomeSha256Hex: createHash('sha256')
+      .update(JSON.stringify(capturedDeriverAExecution.response))
+      .digest('hex'),
     aD1PairRows: aRows.count,
     bPairLifecycle: bTerminal.lifecycle,
     bRevisionUnchangedOnReplay: true,
@@ -2025,13 +2111,18 @@ async function main() {
       await testDeriverAWalletDoPreparation(
         topology,
         fixture.tenant_root_creation.identity,
-        tenantRoot,
       );
       console.log('Deriver A wallet DO preparation, exact retry, restart, and expiry passed');
       return;
     }
     if (testWalletDoExecution) {
-      await testDeriverAWalletDoExecution(topology, fixture, tenantRoot, databases);
+      await testDeriverAWalletDoExecution(
+        topology,
+        fixture,
+        tenantRoot,
+        tenantRoots.secondTenantRoot,
+        databases,
+      );
       return;
     }
     if (testWalletDoLostReply) {

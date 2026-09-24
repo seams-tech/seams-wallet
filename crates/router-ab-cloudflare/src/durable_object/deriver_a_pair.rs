@@ -51,7 +51,9 @@ const PAIR_SCHEMA: &str = "
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct DeriverAWalletOwnerV1 {
-    tenant_identity_digest_hex: String,
+    org_id: String,
+    project_id: String,
+    env_id: String,
     wallet_id: String,
 }
 
@@ -64,12 +66,9 @@ impl DeriverAWalletOwnerV1 {
             return Err(pair_error("Deriver A wallet identity is empty"));
         }
         Ok(Self {
-            tenant_identity_digest_hex: encode_hex(
-                *root
-                    .digest()
-                    .map_err(|error| pair_error(error.to_string()))?
-                    .as_bytes(),
-            ),
+            org_id: root.org_id().to_owned(),
+            project_id: root.project_id().to_owned(),
+            env_id: root.env_id().to_owned(),
             wallet_id: wallet_id.to_owned(),
         })
     }
@@ -92,10 +91,17 @@ impl DeriverAWalletOwnerV1 {
             .custody_binding
             .verify_activation_receipt(&issuer_keys)
             .map_err(|error| pair_error(error.to_string()))?;
-        Ok(Self {
-            tenant_identity_digest_hex: encode_hex(*receipt.identity_digest().as_bytes()),
-            wallet_id: pair.binding().lifecycle.account_id.clone(),
-        })
+        if tenant_root
+            .identity
+            .digest()
+            .map_err(|error| pair_error(error.to_string()))?
+            != receipt.identity_digest()
+        {
+            return Err(pair_error(
+                "Deriver A root identity differs from activation receipt",
+            ));
+        }
+        Self::from_root_identity(&tenant_root.identity, &pair.binding().lifecycle.account_id)
     }
 
     fn object_name(&self) -> worker::Result<String> {
@@ -334,6 +340,11 @@ impl RouterAbDeriverAWalletDurableObject {
         &self,
         request: CloudflareEd25519YaoPairPrepareRequestV1,
     ) -> worker::Result<Ed25519YaoRoleReadinessReceiptV1> {
+        if !matches!(request.work, CloudflareEd25519YaoPairWorkV1::Ceremony) {
+            return Err(pair_error(
+                "Deriver A wallet DO lane execution is unavailable",
+            ));
+        }
         let pair = &request.pair_binding;
         let owner = DeriverAWalletOwnerV1::from_context(&self.env, &request.tenant_root, pair)?;
         let cipher = RolePairCipherV1::from_env_for_wallet_do(&self.env)?;
@@ -386,6 +397,11 @@ impl RouterAbDeriverAWalletDurableObject {
         &self,
         request: CloudflareEd25519YaoPairExecuteRequestV1,
     ) -> worker::Result<CloudflareEd25519YaoPairExecuteResponseV1> {
+        if !matches!(request.work, CloudflareEd25519YaoPairWorkV1::Ceremony) {
+            return Err(pair_error(
+                "Deriver A wallet DO lane execution is unavailable",
+            ));
+        }
         request
             .validate()
             .map_err(|error| pair_error(error.to_string()))?;
@@ -749,7 +765,7 @@ impl RouterAbDeriverAWalletDurableObject {
             .digest()
             .map_err(|error| pair_error(error.to_string()))?;
         if receipt.identity_digest() != expected_digest
-            || encode_hex(*expected_digest.as_bytes()) != owner.tenant_identity_digest_hex
+            || DeriverAWalletOwnerV1::from_root_identity(root_identity, &owner.wallet_id)? != *owner
         {
             return Err(pair_error(
                 "Deriver A root receipt differs from trusted tenant scope",

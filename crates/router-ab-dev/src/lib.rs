@@ -602,6 +602,7 @@ struct RawLocalTenantRootRoleShareV1 {
 impl LocalTenantRootResolverConfigV1 {
     pub(crate) fn resolve_context(
         &self,
+        identity: &router_ab_core::TenantRootIdentityV1,
         coordinates: &CloudflareTenantRootCoordinatesV1,
         application: &RouterAbEd25519YaoApplicationBindingFactsV1,
         participant_ids: [u16; 2],
@@ -639,7 +640,14 @@ impl LocalTenantRootResolverConfigV1 {
                     format!("local tenant-root activation receipt is not authenticated: {error}"),
                 )
             })?;
-        if verified.identity_digest().into_bytes() != coordinates.resolve()?.0.into_bytes()
+        if verified.identity_digest()
+            != identity.digest().map_err(|error| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::MalformedWirePayload,
+                    format!("local tenant-root identity is invalid: {error}"),
+                )
+            })?
+            || verified.identity_digest().into_bytes() != coordinates.resolve()?.0.into_bytes()
             || verified.custody_lineage() != coordinates.resolve()?.1
         {
             return Err(RouterAbProtocolError::new(
@@ -663,6 +671,7 @@ impl LocalTenantRootResolverConfigV1 {
         )
         .map_err(map_local_tenant_root_derivation_error)?;
         cloudflare_ed25519_yao_tenant_root_context_v2(
+            identity.clone(),
             &verified,
             derivers,
             application.clone(),

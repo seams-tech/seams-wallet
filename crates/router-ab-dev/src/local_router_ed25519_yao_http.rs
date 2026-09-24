@@ -191,6 +191,7 @@ pub fn decode_local_router_ed25519_yao_execute_request_v1(
             .into_execute_request(recipient_set_digest, issued_at_ms, expires_at_ms)?;
     let coordinates = envelope.tenant_root.coordinates()?;
     let tenant_root = resolver.resolve_context(
+        &envelope.tenant_root.identity,
         &coordinates,
         &envelope.application,
         envelope.participant_ids,

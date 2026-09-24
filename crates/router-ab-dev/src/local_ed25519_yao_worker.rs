@@ -2942,6 +2942,14 @@ mod tests {
         )
         .expect("outer binding");
         router_ab_cloudflare::CloudflareEd25519YaoTenantRootContextV2 {
+            identity: router_ab_core::TenantRootIdentityV1::new(
+                "org",
+                "project",
+                "env",
+                "local-root",
+                "v1",
+            )
+            .expect("root identity"),
             custody_binding: router_ab_cloudflare::CloudflareTenantRootCustodyBindingWireV1 {
                 activation_receipt_b64u: "AQ".to_owned(),
                 operation_id: router_ab_core::TenantRootDerivationOperationIdV1::from_bytes(

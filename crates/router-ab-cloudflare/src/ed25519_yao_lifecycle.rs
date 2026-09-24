@@ -4007,6 +4007,16 @@ async fn load_ed25519_yao_tenant_root_role_share_v2(
         tenant_root.participant_ids,
         now_unix_ms,
     )?;
+    if tenant_root
+        .identity
+        .digest()
+        .map_err(super::map_root_share_to_protocol)?
+        != custody_binding.identity_digest()
+    {
+        return Err(invalid_lifecycle(
+            "Yao root identity differs from authenticated custody",
+        ));
+    }
     let role_share =
         load_cloudflare_active_tenant_root_role_share_v1(env, worker_role, &custody_binding)
             .await?;
@@ -4412,6 +4422,10 @@ mod tests {
         pair: &Ed25519YaoInputPairBindingV1,
     ) -> crate::CloudflareEd25519YaoTenantRootContextV2 {
         crate::CloudflareEd25519YaoTenantRootContextV2 {
+            identity: router_ab_core::TenantRootIdentityV1::new(
+                "org", "project", "env", "root", "v1",
+            )
+            .expect("root identity"),
             custody_binding: crate::CloudflareTenantRootCustodyBindingWireV1 {
                 activation_receipt_b64u: "AQ".to_owned(),
                 operation_id: router_ab_core::TenantRootDerivationOperationIdV1::from_bytes(

@@ -213,6 +213,7 @@ pub fn cloudflare_ed25519_yao_tenant_root_bindings_v2(
 /// Builds the exact V2 context after the local or Worker boundary has
 /// authenticated the active receipt and selected server-owned application facts.
 pub fn cloudflare_ed25519_yao_tenant_root_context_v2(
+    identity: TenantRootIdentityV1,
     activation_receipt: &VerifiedTenantRootSignedActivationReceiptV1,
     derivers: TenantRootDeriverIdentitiesV1,
     application: RouterAbEd25519YaoApplicationBindingFactsV1,
@@ -221,6 +222,18 @@ pub fn cloudflare_ed25519_yao_tenant_root_context_v2(
     issued_at_ms: u64,
     expires_at_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareEd25519YaoTenantRootContextV2> {
+    let identity_digest = identity.digest().map_err(|error| {
+        RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MalformedWirePayload,
+            format!("Yao root identity is invalid: {error}"),
+        )
+    })?;
+    if identity_digest != activation_receipt.identity_digest() {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "Yao root identity differs from active activation receipt",
+        ));
+    }
     let (custody_binding, outer_binding) = cloudflare_ed25519_yao_tenant_root_bindings_v2(
         activation_receipt,
         derivers,
@@ -229,6 +242,7 @@ pub fn cloudflare_ed25519_yao_tenant_root_context_v2(
         expires_at_ms,
     )?;
     let context = CloudflareEd25519YaoTenantRootContextV2 {
+        identity,
         custody_binding,
         outer_binding,
         application,
@@ -493,6 +507,7 @@ fn invalid_target_preface(message: impl Into<String>) -> RouterAbProtocolError {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoTenantRootContextV2 {
+    pub identity: TenantRootIdentityV1,
     pub custody_binding: CloudflareTenantRootCustodyBindingWireV1,
     pub outer_binding: Ed25519YaoOuterBindingV2,
     pub application: RouterAbEd25519YaoApplicationBindingFactsV1,
@@ -509,6 +524,7 @@ impl CloudflareEd25519YaoTenantRootContextV2 {
         pair_binding.validate()?;
         if self.participant_ids[0] == 0
             || self.participant_ids[0] >= self.participant_ids[1]
+            || self.identity.signing_root_id() != self.application.signing_root_id()
             || self.outer_binding.pair_session().as_bytes() != &pair_binding.session()
             || self.outer_binding.stable_context_binding()
                 != pair_binding.binding().stable_key_context_binding

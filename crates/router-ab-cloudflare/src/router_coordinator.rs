@@ -14,9 +14,9 @@ use crate::{
     CloudflareEd25519YaoPairStatusResponseV1, CloudflareEd25519YaoRoleFailureResponseV1,
     CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
     CloudflareEd25519YaoTenantRootContextV2, CloudflareRouterEd25519YaoExecuteRequestV2,
-    CloudflareRouterProjectPolicyV1,
-    CloudflareRouterWorkerRuntimeV1, CloudflareTenantRootCoordinatesV1,
-    CloudflareWorkerEnvReaderV1, CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
+    CloudflareRouterEd25519YaoTenantRootV1, CloudflareRouterProjectPolicyV1,
+    CloudflareRouterWorkerRuntimeV1, CloudflareWorkerEnvReaderV1,
+    CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
@@ -58,7 +58,7 @@ const ROUTER_AUTHORITY_TTL_MS: u64 = 60_000;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareRouterEd25519YaoLaneExecuteRequestV2 {
-    pub tenant_root: CloudflareTenantRootCoordinatesV1,
+    pub tenant_root: CloudflareRouterEd25519YaoTenantRootV1,
     pub application: RouterAbEd25519YaoApplicationBindingFactsV1,
     pub participant_ids: [u16; 2],
     pub target: RouterAbEd25519YaoLaneDispatchRequestV1,
@@ -261,13 +261,9 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
         Ok(request) => request,
         Err(error) => return protocol_error_response(error),
     };
-    let coordinates = match tenant_root.coordinates() {
-        Ok(coordinates) => coordinates,
-        Err(error) => return protocol_error_response(error),
-    };
     let tenant_root = match resolve_ed25519_yao_tenant_root_context_v2(
         env,
-        coordinates,
+        tenant_root,
         application,
         participant_ids,
         execute_request.pair_binding(),
@@ -382,13 +378,9 @@ pub async fn handle_cloudflare_router_ed25519_yao_source_preserving_execute_priv
         Ok(request) => request,
         Err(error) => return protocol_error_response(error),
     };
-    let coordinates = match tenant_root.coordinates() {
-        Ok(coordinates) => coordinates,
-        Err(error) => return protocol_error_response(error),
-    };
     let tenant_root = match resolve_ed25519_yao_tenant_root_context_v2(
         env,
-        coordinates,
+        tenant_root,
         application,
         participant_ids,
         execute_request.pair_binding(),
@@ -643,13 +635,13 @@ pub async fn handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch
 
 async fn resolve_ed25519_yao_tenant_root_context_v2(
     env: &Env,
-    coordinates: CloudflareTenantRootCoordinatesV1,
+    root: CloudflareRouterEd25519YaoTenantRootV1,
     application: RouterAbEd25519YaoApplicationBindingFactsV1,
     participant_ids: [u16; 2],
     pair_binding: &Ed25519YaoInputPairBindingV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareEd25519YaoTenantRootContextV2> {
-    let (identity_digest, custody_lineage) = coordinates.resolve()?;
+    let (identity_digest, custody_lineage) = root.resolve()?;
     let activation_receipt =
         execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1(
             env,
@@ -657,6 +649,11 @@ async fn resolve_ed25519_yao_tenant_root_context_v2(
             custody_lineage,
         )
         .await?;
+    if activation_receipt.identity_digest() != identity_digest {
+        return Err(invalid_coordinator(
+            "Router Yao root identity differs from active activation receipt",
+        ));
+    }
     let (custody_binding, outer_binding) = cloudflare_tenant_root_ed25519_yao_binding_v2(
         env,
         pair_binding,
@@ -665,6 +662,7 @@ async fn resolve_ed25519_yao_tenant_root_context_v2(
         now_ms.saturating_add(ROUTER_AUTHORITY_TTL_MS),
     )?;
     let context = CloudflareEd25519YaoTenantRootContextV2 {
+        identity: root.identity,
         custody_binding,
         outer_binding,
         application,
