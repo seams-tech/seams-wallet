@@ -10,6 +10,7 @@ import {
 } from '@shared/utils/routerAbEd25519Yao';
 import { sameRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
 import { routerAbEd25519YaoExecutionMatchesAdmissionV1 } from '../registration/routerAbEd25519YaoRegistration';
+import type { RouterAbEd25519YaoTenantRootWireV1 } from '../routerAbEd25519YaoGatewayEnvelope';
 import type {
   RouterAbEd25519YaoActivationConsumptionRequestV1,
   RouterAbEd25519YaoActivationConsumptionResultV1,
@@ -145,6 +146,10 @@ type ExecuteRequest = Extract<
   RouterAbEd25519YaoRegistrationExecutionRecordV1,
   { readonly kind: 'claimed' }
 >['request'];
+type AdmissionRequest = Extract<
+  RouterAbEd25519YaoRegistrationExecutionRecordV1,
+  { readonly kind: 'ready' }
+>['admissionRequest'];
 type ActivationResult = Extract<
   RouterAbEd25519YaoRegistrationExecutionRecordV1,
   { readonly kind: 'completed' }
@@ -158,6 +163,7 @@ export type RouterAbEd25519YaoRegistrationExecutionClaimResultV1 =
         { readonly kind: 'claimed' }
       >;
       readonly version: string;
+      readonly dispatch: 'first' | 'replay';
     }
   | { readonly kind: 'completed'; readonly value: ActivationResult }
   | { readonly kind: 'failed'; readonly value: RouterAbEd25519YaoRegistrationFailure }
@@ -190,6 +196,9 @@ export interface RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1 {
     readonly requestDigestSha256Hex: string;
     readonly credentialDigestSha256Hex: string;
     readonly nowMs: number;
+    readonly resolveDispatchRoot: (
+      admissionRequest: AdmissionRequest,
+    ) => Promise<RouterAbEd25519YaoTenantRootWireV1>;
   }): Promise<RouterAbEd25519YaoRegistrationExecutionClaimResultV1>;
   commitRegistrationExecution(input: {
     readonly claimed: Extract<
@@ -579,46 +588,11 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
     readonly requestDigestSha256Hex: string;
     readonly credentialDigestSha256Hex: string;
     readonly nowMs: number;
+    readonly resolveDispatchRoot: (
+      admissionRequest: AdmissionRequest,
+    ) => Promise<RouterAbEd25519YaoTenantRootWireV1>;
   }): Promise<RouterAbEd25519YaoRegistrationExecutionClaimResultV1> {
     const lifecycleId = requireLifecycleId(input.lifecycleId);
-    const key = routerAbEd25519YaoRegistrationExecutionRecordKeyV1(lifecycleId);
-    const admissionBindingJson = JSON.stringify(input.request.binding);
-    if (this.atomicPatch) {
-      const patch = await this.atomicPatch({
-        key,
-        expectedVersion: '1',
-        exactStringPredicates: [
-          { jsonPath: '$.recordKind', value: EXECUTION_RECORD_KIND },
-          { jsonPath: '$.lifecycleId', value: lifecycleId },
-          { jsonPath: '$.execution.kind', value: 'ready' },
-          {
-            jsonPath: '$.execution.admissionBindingJson',
-            value: admissionBindingJson,
-          },
-          {
-            jsonPath: '$.execution.credentialDigestSha256Hex',
-            value: input.credentialDigestSha256Hex,
-          },
-        ],
-        unexpired: { jsonPath: '$.execution.expiresAtMs', nowMs: input.nowMs },
-        patch: {
-          execution: {
-            kind: 'claimed',
-            requestDigestSha256Hex: input.requestDigestSha256Hex,
-            request: versionedJsonObject(input.request),
-            claimedAtMs: input.nowMs,
-            reconcileAfterMs: input.nowMs + EXECUTION_RECONCILIATION_LEASE_MS,
-          },
-        },
-      });
-      if (patch.kind === 'stored') {
-        const stored = decodeAtomicPatchValue(patch.value);
-        if (stored?.kind !== EXECUTION_RECORD_KIND || stored.value.kind !== 'claimed') {
-          throw new Error('Yao registration atomic claim returned an invalid execution record');
-        }
-        return { kind: 'claimed', value: stored.value, version: patch.version };
-      }
-    }
     return await this.reconcileRegistrationExecutionClaim(input);
   }
 
@@ -762,6 +736,9 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
     readonly requestDigestSha256Hex: string;
     readonly credentialDigestSha256Hex: string;
     readonly nowMs: number;
+    readonly resolveDispatchRoot: (
+      admissionRequest: AdmissionRequest,
+    ) => Promise<RouterAbEd25519YaoTenantRootWireV1>;
   }): Promise<RouterAbEd25519YaoRegistrationExecutionClaimResultV1> {
     const lifecycleId = requireLifecycleId(input.lifecycleId);
     const key = routerAbEd25519YaoRegistrationExecutionRecordKeyV1(lifecycleId);
@@ -832,14 +809,64 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
         }
         return await this.renewRegistrationExecutionClaim(execution, entry.version, input.nowMs);
       case 'ready': {
+        const dispatchRoot = await input.resolveDispatchRoot(execution.admissionRequest);
         const claimed: RouterAbEd25519YaoRegistrationExecutionRecordV1 = {
-          ...execution,
           kind: 'claimed',
+          lifecycleId: execution.lifecycleId,
+          admissionRequest: execution.admissionRequest,
+          admissionReceipt: execution.admissionReceipt,
+          admissionBindingJson: execution.admissionBindingJson,
+          credentialDigestSha256Hex: execution.credentialDigestSha256Hex,
+          expiresAtMs: execution.expiresAtMs,
           requestDigestSha256Hex: input.requestDigestSha256Hex,
           request: input.request,
+          dispatchRoot,
           claimedAtMs: input.nowMs,
           reconcileAfterMs: input.nowMs + EXECUTION_RECONCILIATION_LEASE_MS,
         };
+        if (this.atomicPatch) {
+          const patch = await this.atomicPatch({
+            key,
+            expectedVersion: entry.version,
+            exactStringPredicates: [
+              { jsonPath: '$.recordKind', value: EXECUTION_RECORD_KIND },
+              { jsonPath: '$.lifecycleId', value: lifecycleId },
+              { jsonPath: '$.execution.kind', value: 'ready' },
+              {
+                jsonPath: '$.execution.admissionBindingJson',
+                value: execution.admissionBindingJson,
+              },
+              {
+                jsonPath: '$.execution.credentialDigestSha256Hex',
+                value: input.credentialDigestSha256Hex,
+              },
+            ],
+            unexpired: { jsonPath: '$.execution.expiresAtMs', nowMs: input.nowMs },
+            patch: {
+              execution: {
+                kind: 'claimed',
+                requestDigestSha256Hex: input.requestDigestSha256Hex,
+                request: versionedJsonObject(input.request),
+                dispatchRoot: versionedJsonObject(dispatchRoot),
+                claimedAtMs: input.nowMs,
+                reconcileAfterMs: input.nowMs + EXECUTION_RECONCILIATION_LEASE_MS,
+              },
+            },
+          });
+          if (patch.kind === 'stored') {
+            const stored = decodeAtomicPatchValue(patch.value);
+            if (stored?.kind !== EXECUTION_RECORD_KIND || stored.value.kind !== 'claimed') {
+              throw new Error('Yao registration atomic claim returned an invalid execution record');
+            }
+            return {
+              kind: 'claimed',
+              value: stored.value,
+              version: patch.version,
+              dispatch: 'first',
+            };
+          }
+          return await this.reconcileRegistrationExecutionClaim(input);
+        }
         const result = await this.putMany([
           {
             key,
@@ -852,6 +879,7 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
               kind: 'claimed',
               value: claimed,
               version: findStoredVersion(result.versions, key),
+              dispatch: 'first',
             }
           : await this.reconcileRegistrationExecutionClaim(input);
       }
@@ -866,8 +894,20 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
     expectedVersion: string,
     nowMs: number,
   ): Promise<RouterAbEd25519YaoRegistrationExecutionClaimResultV1> {
-    const renewed = {
-      ...execution,
+    const renewed: Extract<
+      RouterAbEd25519YaoRegistrationExecutionRecordV1,
+      { readonly kind: 'claimed' }
+    > = {
+      kind: 'claimed',
+      lifecycleId: execution.lifecycleId,
+      admissionRequest: execution.admissionRequest,
+      admissionReceipt: execution.admissionReceipt,
+      admissionBindingJson: execution.admissionBindingJson,
+      credentialDigestSha256Hex: execution.credentialDigestSha256Hex,
+      expiresAtMs: execution.expiresAtMs,
+      requestDigestSha256Hex: execution.requestDigestSha256Hex,
+      request: execution.request,
+      dispatchRoot: execution.dispatchRoot,
       claimedAtMs: nowMs,
       reconcileAfterMs: nowMs + EXECUTION_RECONCILIATION_LEASE_MS,
     };
@@ -888,6 +928,7 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
           kind: 'claimed',
           value: renewed,
           version: findStoredVersion(result.versions, key),
+          dispatch: 'replay',
         }
       : {
           kind: 'rejected',
@@ -940,6 +981,7 @@ function executionWithCurrentAuthority(
         ...common,
         requestDigestSha256Hex: retained.requestDigestSha256Hex,
         request: retained.request,
+        dispatchRoot: retained.dispatchRoot,
         claimedAtMs: retained.claimedAtMs,
         reconcileAfterMs: retained.reconcileAfterMs,
       };
@@ -949,6 +991,7 @@ function executionWithCurrentAuthority(
         ...common,
         requestDigestSha256Hex: retained.requestDigestSha256Hex,
         request: retained.request,
+        dispatchRoot: retained.dispatchRoot,
         claimedAtMs: retained.claimedAtMs,
         reconcileAfterMs: retained.reconcileAfterMs,
         result: retained.result,
@@ -960,6 +1003,7 @@ function executionWithCurrentAuthority(
         ...common,
         requestDigestSha256Hex: retained.requestDigestSha256Hex,
         request: retained.request,
+        dispatchRoot: retained.dispatchRoot,
         claimedAtMs: retained.claimedAtMs,
         reconcileAfterMs: retained.reconcileAfterMs,
         failure: retained.failure,

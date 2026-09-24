@@ -20,6 +20,10 @@ import { encodeRouterAbEd25519YaoRegistrationAdmissionFingerprintV1 } from './ro
 import type { InMemoryRouterAbEd25519YaoRegistrationStateV1 } from './routerAbEd25519YaoRegistration';
 import type { InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationStateV1 } from './routerAbEd25519YaoRegistrationIntentAuthorization';
 import { routerAbEd25519YaoCredentialDigestHexV1 } from './routerAbEd25519YaoRegistrationIntentAuthorization';
+import {
+  parseRouterAbEd25519YaoTenantRootWireV1,
+  type RouterAbEd25519YaoTenantRootWireV1,
+} from '../routerAbEd25519YaoGatewayEnvelope';
 
 export const ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTION_RECORD_KIND_V1 =
   'router_ab_ed25519_yao_registration_execution_record_v1';
@@ -47,6 +51,7 @@ const CLAIMED_FIELDS = [
   'kind',
   'requestDigestSha256Hex',
   'request',
+  'dispatchRoot',
   'claimedAtMs',
   'reconcileAfterMs',
 ] as const;
@@ -68,6 +73,7 @@ export type RouterAbEd25519YaoRegistrationExecutionRecordV1 =
       readonly kind: 'ready';
       readonly requestDigestSha256Hex?: never;
       readonly request?: never;
+      readonly dispatchRoot?: never;
       readonly result?: never;
       readonly failure?: never;
       readonly consumerBinding?: never;
@@ -76,6 +82,7 @@ export type RouterAbEd25519YaoRegistrationExecutionRecordV1 =
       readonly kind: 'claimed';
       readonly requestDigestSha256Hex: string;
       readonly request: ExecuteRequest;
+      readonly dispatchRoot: RouterAbEd25519YaoTenantRootWireV1;
       readonly claimedAtMs: number;
       readonly reconcileAfterMs: number;
       readonly result?: never;
@@ -86,6 +93,7 @@ export type RouterAbEd25519YaoRegistrationExecutionRecordV1 =
       readonly kind: 'completed';
       readonly requestDigestSha256Hex: string;
       readonly request: ExecuteRequest;
+      readonly dispatchRoot: RouterAbEd25519YaoTenantRootWireV1;
       readonly claimedAtMs: number;
       readonly reconcileAfterMs: number;
       readonly result: ActivationResult;
@@ -96,6 +104,7 @@ export type RouterAbEd25519YaoRegistrationExecutionRecordV1 =
       readonly kind: 'failed';
       readonly requestDigestSha256Hex: string;
       readonly request: ExecuteRequest;
+      readonly dispatchRoot: RouterAbEd25519YaoTenantRootWireV1;
       readonly claimedAtMs: number;
       readonly reconcileAfterMs: number;
       readonly failure: RouterAbEd25519YaoRegistrationFailure;
@@ -225,6 +234,7 @@ function parseRouterAbEd25519YaoRegistrationExecutionClaimedRecordV1(
     expiresAtMs: authority.expiresAtMs,
     requestDigestSha256Hex: progress.requestDigestSha256Hex,
     request: progress.request,
+    dispatchRoot: progress.dispatchRoot,
     claimedAtMs: progress.claimedAtMs,
     reconcileAfterMs: progress.reconcileAfterMs,
   };
@@ -257,6 +267,7 @@ function parseRouterAbEd25519YaoRegistrationExecutionCompletedRecordV1(
     expiresAtMs: authority.expiresAtMs,
     requestDigestSha256Hex: progress.requestDigestSha256Hex,
     request: progress.request,
+    dispatchRoot: progress.dispatchRoot,
     claimedAtMs: progress.claimedAtMs,
     reconcileAfterMs: progress.reconcileAfterMs,
     result: result.value,
@@ -289,6 +300,7 @@ function parseRouterAbEd25519YaoRegistrationExecutionFailedRecordV1(
     expiresAtMs: authority.expiresAtMs,
     requestDigestSha256Hex: progress.requestDigestSha256Hex,
     request: progress.request,
+    dispatchRoot: progress.dispatchRoot,
     claimedAtMs: progress.claimedAtMs,
     reconcileAfterMs: progress.reconcileAfterMs,
     failure,
@@ -365,6 +377,7 @@ function parseRouterAbEd25519YaoRegistrationExecutionAuthorityV1(
 type ParsedRouterAbEd25519YaoRegistrationExecutionProgressV1 = {
   readonly requestDigestSha256Hex: string;
   readonly request: ExecuteRequest;
+  readonly dispatchRoot: RouterAbEd25519YaoTenantRootWireV1;
   readonly claimedAtMs: number;
   readonly reconcileAfterMs: number;
 };
@@ -375,11 +388,13 @@ function parseRouterAbEd25519YaoRegistrationExecutionProgressV1(
 ): ParsedRouterAbEd25519YaoRegistrationExecutionProgressV1 | null {
   const requestDigestSha256Hex = readSha256Hex(input.requestDigestSha256Hex);
   const request = parseRouterAbEd25519YaoRegistrationActivationExecuteRequestV1(input.request);
+  const dispatchRoot = parseRouterAbEd25519YaoTenantRootWireV1(input.dispatchRoot);
   const claimedAtMs = readPositiveSafeInteger(input.claimedAtMs);
   const reconcileAfterMs = readPositiveSafeInteger(input.reconcileAfterMs);
   if (
     requestDigestSha256Hex === null ||
     !request.ok ||
+    dispatchRoot === null ||
     claimedAtMs === null ||
     reconcileAfterMs === null ||
     reconcileAfterMs <= claimedAtMs ||
@@ -387,7 +402,13 @@ function parseRouterAbEd25519YaoRegistrationExecutionProgressV1(
   ) {
     return null;
   }
-  return { requestDigestSha256Hex, request: request.value, claimedAtMs, reconcileAfterMs };
+  return {
+    requestDigestSha256Hex,
+    request: request.value,
+    dispatchRoot,
+    claimedAtMs,
+    reconcileAfterMs,
+  };
 }
 
 async function sha256Hex(value: string): Promise<string> {

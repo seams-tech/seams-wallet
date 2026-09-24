@@ -32,6 +32,7 @@ import {
   routerAbEd25519YaoBearerCredentialDigestV1,
 } from './routerAbEd25519YaoRegistrationIntentAuthorization';
 import { routerAbEd25519YaoRegistrationExecutionRequestDigestV1 } from './routerAbEd25519YaoRegistrationExecutionRecord';
+import type { RouterAbEd25519YaoPinnedRegistrationBackend } from './routerAbEd25519YaoHttpRegistrationBackend';
 import {
   runRouterAbEd25519YaoRegistrationTwoPhaseV1,
   type RouterAbEd25519YaoRegistrationTwoPhaseRunResultV1,
@@ -45,7 +46,7 @@ export type RouterAbEd25519YaoRegistrationRequestScopedCloudflareInputV1 = {
   readonly request: Request;
   readonly authorizeContinuation?: (input: { readonly lifecycleId: string; readonly credential: string }) => Promise<VerifiedNearRegistrationContinuationV1 | null>;
   readonly store: RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1;
-  readonly backend: RouterAbEd25519YaoRegistrationBackend;
+  readonly backend: RouterAbEd25519YaoPinnedRegistrationBackend;
 };
 
 type RouterAbEd25519YaoRegistrationAdmissionReceiptV1 =
@@ -260,6 +261,7 @@ async function runExecutionRequest(
     requestDigestSha256Hex,
     credentialDigestSha256Hex: credential.digestSha256Hex,
     nowMs: Date.now(),
+    resolveDispatchRoot: input.backend.resolveRegistrationDispatchRoot.bind(input.backend),
   });
   const d1ClaimMs = elapsedMs(d1ClaimStartedAt);
   const timingBeforeRouter = {
@@ -287,7 +289,13 @@ async function runExecutionRequest(
   let backend: RouterAbEd25519YaoRegistrationBackendResult;
   const routerExecutionStartedAt = performance.now();
   try {
-    backend = await input.backend.execute(request, claim.value.admissionRequest, trace);
+    backend = await input.backend.executePinnedRegistration(
+      request,
+      claim.value.admissionRequest,
+      claim.value.dispatchRoot,
+      claim.dispatch,
+      trace,
+    );
   } catch (error: unknown) {
     return timedExecutionResult(
       {
