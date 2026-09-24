@@ -8,15 +8,16 @@ use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use futures::future::{select, Either};
 use hpke_ng::Kem;
 use router_ab_core::{
-    ed25519_yao_encrypted_input_digest_v1, Ed25519YaoCircuitFamilyV1,
-    Ed25519YaoDeriverAPrefaceInFlightV2, Ed25519YaoDeriverAToBTargetProofPayloadV2,
-    Ed25519YaoDeriverBPrefaceInFlightV2, Ed25519YaoDeriverBToATargetProofPayloadV2,
-    Ed25519YaoDeriverRoleV1, Ed25519YaoEncryptedInputV1, Ed25519YaoExecutionIdV1,
-    Ed25519YaoInputKindV1, Ed25519YaoInputPairBindingV1, Ed25519YaoOperationV1,
-    Ed25519YaoOuterBindingV2, Ed25519YaoRoleReadinessReceiptV1, Ed25519YaoRoleSignatureSchemeV1,
-    Ed25519YaoRoleStartAcceptanceV1, Ed25519YaoSessionIdV1, PublicDigest32, RouterAbProtocolError,
-    RouterAbProtocolErrorCode, RouterAbProtocolResult, TenantRootCustodyBindingV1,
-    TwoPartyDeriverRole, VerifiedTenantRootOnlineRoleShareV1,
+    admit_ed25519_yao_pair_start_v1, ed25519_yao_encrypted_input_digest_v1,
+    Ed25519YaoCircuitFamilyV1, Ed25519YaoDeriverAPrefaceInFlightV2,
+    Ed25519YaoDeriverAToBTargetProofPayloadV2, Ed25519YaoDeriverBPrefaceInFlightV2,
+    Ed25519YaoDeriverBToATargetProofPayloadV2, Ed25519YaoDeriverRoleV1, Ed25519YaoEncryptedInputV1,
+    Ed25519YaoExecutionIdV1, Ed25519YaoInputKindV1, Ed25519YaoInputPairBindingV1,
+    Ed25519YaoOperationV1, Ed25519YaoOuterBindingV2, Ed25519YaoPairStartClaimV1,
+    Ed25519YaoPairStartDecisionV1, Ed25519YaoPreparedPairStartV1, Ed25519YaoRoleReadinessReceiptV1,
+    Ed25519YaoRoleSignatureSchemeV1, Ed25519YaoRoleStartAcceptanceV1, Ed25519YaoSessionIdV1,
+    PublicDigest32, RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
+    TenantRootCustodyBindingV1, TwoPartyDeriverRole, VerifiedTenantRootOnlineRoleShareV1,
 };
 use router_ab_ed25519_yao::{
     build_product_activation_deriver_a_with_server_v1,
@@ -292,6 +293,45 @@ impl PairYaoSessionRecordV1 {
             | Self::Expired { input_digest, .. } => *input_digest,
         }
     }
+}
+
+fn deriver_a_pair_start_decision(
+    record: &PairYaoSessionRecordV1,
+    request: &CloudflareEd25519YaoPairStartRequestV1,
+    local_receipt: &Ed25519YaoRoleReadinessReceiptV1,
+    peer_receipt: &Ed25519YaoRoleReadinessReceiptV1,
+    now_ms: u64,
+) -> Option<Ed25519YaoPairStartDecisionV1> {
+    let PairYaoSessionRecordV1::Prepared {
+        pair_digest,
+        input_digest,
+        root_metadata_digest,
+        expires_at_ms,
+        pair_binding,
+        receipt,
+        ..
+    } = record
+    else {
+        return None;
+    };
+    Some(admit_ed25519_yao_pair_start_v1(
+        Ed25519YaoPreparedPairStartV1 {
+            pair_digest: *pair_digest,
+            input_digest: *input_digest,
+            root_metadata_digest: *root_metadata_digest,
+            expires_at_ms: *expires_at_ms,
+            pair_binding,
+            readiness_receipt: receipt,
+        },
+        Ed25519YaoPairStartClaimV1 {
+            pair_binding: &request.pair_binding,
+            local_receipt,
+            peer_receipt,
+            acceptance: &request.acceptance,
+            execution_id: request.execution_id,
+            now_ms,
+        },
+    ))
 }
 
 enum PairCompletionExpectation {
@@ -1529,58 +1569,37 @@ impl DeriverAYaoSessionD1V1 {
         let input_digest = request.pair_binding.deriver_a_input_digest().bytes;
         let storage =
             role_d1::RolePairD1StorageV1::from_env(&self.env, request.pair_binding.session())?;
-        let Some(PairYaoSessionRecordV1::Prepared {
-            pair_digest: stored_pair,
-            input_digest: stored_input,
-            root_metadata_digest,
-            expires_at_ms,
-            pair_binding: stored_pair_binding,
-            tenant_root,
-            input,
-            work,
-            receipt: stored_receipt,
-        }) = storage
+        let Some(prepared) = storage
             .get::<PairYaoSessionRecordV1>(PAIR_SESSION_RECORD_STORAGE_KEY)
             .await?
         else {
             return Response::error("Deriver A pair is not prepared", 409);
         };
-        if stored_pair != pair_digest
-            || stored_input != input_digest
-            || *stored_pair_binding != request.pair_binding
-        {
-            return Response::error("Deriver A pair identity mismatch", 409);
-        }
-        if now_ms >= expires_at_ms {
-            if !expire_prepared_pair_if_current(&storage, pair_digest, input_digest, now_ms).await?
-            {
-                return Response::error("Deriver A pair expiry state changed", 409);
+        match deriver_a_pair_start_decision(
+            &prepared,
+            &request,
+            &local_receipt,
+            &peer_receipt,
+            now_ms,
+        ) {
+            None => return Response::error("Deriver A pair is not prepared", 409),
+            Some(Ed25519YaoPairStartDecisionV1::IdentityMismatch) => {
+                return Response::error("Deriver A pair identity mismatch", 409)
             }
-            return Response::error("Deriver A pair preparation expired", 409);
+            Some(Ed25519YaoPairStartDecisionV1::Expired) => {
+                if !expire_prepared_pair_if_current(&storage, pair_digest, input_digest, now_ms)
+                    .await?
+                {
+                    return Response::error("Deriver A pair expiry state changed", 409);
+                }
+                return Response::error("Deriver A pair preparation expired", 409);
+            }
+            Some(Ed25519YaoPairStartDecisionV1::ReadinessMismatch) => {
+                return Response::error("Deriver A readiness pair changed before start", 409)
+            }
+            Some(Ed25519YaoPairStartDecisionV1::Start { .. }) => {}
         }
-        if stored_receipt.as_ref() != &local_receipt
-            || local_receipt.root_metadata_digest().bytes != root_metadata_digest
-            || peer_receipt.root_metadata_digest().bytes
-                != request.acceptance.root_metadata_digest().bytes
-        {
-            return Response::error("Deriver A readiness pair changed before start", 409);
-        }
-        // The prepared record carries Deriver A's root metadata. The signed
-        // acceptance carries Deriver B's role-local metadata, which is
-        // validated by B before it emits the acceptance. A validates its own
-        // metadata again before opening the stream above.
-        let started_at_ms = now_ms;
-        let running_record = PairYaoSessionRecordV1::Running {
-            pair_digest,
-            input_digest,
-            root_metadata_digest,
-            execution_id: request.execution_id.into_bytes(),
-            started_at_ms,
-            pair_binding: stored_pair_binding,
-            tenant_root,
-            input,
-            work,
-        };
+        let request_for_claim = request.clone();
         storage
             .transaction(move |transaction| async move {
                 let current = match transaction
@@ -1595,19 +1614,45 @@ impl DeriverAYaoSessionD1V1 {
                     }
                     Err(error) => return Err(error),
                 };
-                if matches!(
-                    current,
-                    PairYaoSessionRecordV1::Prepared {
-                        pair_digest: stored_pair,
-                        input_digest: stored_input,
-                        expires_at_ms,
-                        ..
-                    } if stored_pair == pair_digest
-                        && stored_input == input_digest
-                        && started_at_ms < expires_at_ms
-                ) {
+                let Some(Ed25519YaoPairStartDecisionV1::Start {
+                    pair_digest,
+                    input_digest,
+                    root_metadata_digest,
+                    execution_id,
+                    started_at_ms,
+                }) = deriver_a_pair_start_decision(
+                    &current,
+                    &request_for_claim,
+                    &local_receipt,
+                    &peer_receipt,
+                    now_ms,
+                )
+                else {
+                    return Ok(());
+                };
+                if let PairYaoSessionRecordV1::Prepared {
+                    pair_binding,
+                    tenant_root,
+                    input,
+                    work,
+                    ..
+                } = current
+                {
                     transaction
-                        .put(PAIR_SESSION_RECORD_STORAGE_KEY, running_record)
+                        .put(
+                            PAIR_SESSION_RECORD_STORAGE_KEY,
+                            PairYaoSessionRecordV1::Running {
+                                pair_digest,
+                                input_digest,
+                                root_metadata_digest,
+                                execution_id: execution_id.into_bytes(),
+                                started_at_ms,
+                                pair_binding,
+                                tenant_root,
+                                input,
+                                work,
+                            },
+                        )
                         .await?;
                 }
                 Ok(())
@@ -4533,6 +4578,98 @@ mod tests {
             101,
         )
         .is_none());
+    }
+
+    #[test]
+    fn deriver_a_start_claim_checks_prepared_identity_and_deadline() {
+        let (pair, input) = pair_for_completion();
+        let pair_digest = pair.pair_digest().bytes;
+        let input_digest = pair.deriver_a_input_digest().bytes;
+        let session = Ed25519YaoSessionIdV1::new(pair.session()).expect("session");
+        let signature =
+            Ed25519YaoRoleSignatureV1::new(Ed25519YaoRoleSignatureSchemeV1::Ed25519V1, [5; 64])
+                .expect("signature");
+        let local_receipt = Ed25519YaoRoleReadinessReceiptV1::new(
+            Ed25519YaoDeriverRoleV1::DeriverA,
+            session,
+            pair.pair_digest(),
+            pair.deriver_a_input_digest(),
+            PublicDigest32::new([15; 32]),
+            100,
+            200,
+            signature.clone(),
+        )
+        .expect("local receipt");
+        let peer_receipt = Ed25519YaoRoleReadinessReceiptV1::new(
+            Ed25519YaoDeriverRoleV1::DeriverB,
+            session,
+            pair.pair_digest(),
+            pair.deriver_b_input_digest(),
+            PublicDigest32::new([16; 32]),
+            100,
+            200,
+            signature.clone(),
+        )
+        .expect("peer receipt");
+        let execution_id = Ed25519YaoExecutionIdV1::new([10; 32]).expect("execution id");
+        let request = CloudflareEd25519YaoPairStartRequestV1 {
+            pair_binding: pair.clone(),
+            execution_id,
+            acceptance: Ed25519YaoRoleStartAcceptanceV1::new(
+                Ed25519YaoDeriverRoleV1::DeriverB,
+                session,
+                pair.pair_digest(),
+                execution_id,
+                PublicDigest32::new([16; 32]),
+                100,
+                200,
+                signature,
+            )
+            .expect("acceptance"),
+        };
+        let prepared = PairYaoSessionRecordV1::Prepared {
+            pair_digest,
+            input_digest,
+            root_metadata_digest: [15; 32],
+            expires_at_ms: 150,
+            pair_binding: Box::new(pair.clone()),
+            tenant_root: Box::new(tenant_root_context_for_pair(&pair)),
+            input: Box::new(input),
+            work: crate::CloudflareEd25519YaoPairWorkV1::Ceremony,
+            receipt: Box::new(local_receipt.clone()),
+        };
+        assert_eq!(
+            deriver_a_pair_start_decision(&prepared, &request, &local_receipt, &peer_receipt, 149),
+            Some(Ed25519YaoPairStartDecisionV1::Start {
+                pair_digest,
+                input_digest,
+                root_metadata_digest: [15; 32],
+                execution_id,
+                started_at_ms: 149,
+            })
+        );
+        assert_eq!(
+            deriver_a_pair_start_decision(&prepared, &request, &local_receipt, &peer_receipt, 150),
+            Some(Ed25519YaoPairStartDecisionV1::Expired)
+        );
+        assert_eq!(
+            deriver_a_pair_start_decision(&prepared, &request, &peer_receipt, &local_receipt, 149,),
+            Some(Ed25519YaoPairStartDecisionV1::ReadinessMismatch)
+        );
+        assert_eq!(
+            deriver_a_pair_start_decision(
+                &PairYaoSessionRecordV1::Burned {
+                    pair_digest,
+                    input_digest,
+                    execution_id: execution_id.into_bytes(),
+                },
+                &request,
+                &local_receipt,
+                &peer_receipt,
+                149,
+            ),
+            None
+        );
     }
 
     #[test]

@@ -10,6 +10,7 @@ mod ed25519_yao;
 mod ed25519_yao_lane;
 mod ed25519_yao_lane_dispatch;
 mod ed25519_yao_outer;
+mod ed25519_yao_pair_lifecycle;
 mod ed25519_yao_router;
 mod engine;
 mod envelope;
@@ -73,6 +74,10 @@ pub use self::ed25519_yao_outer::{
     ED25519_YAO_OUTER_MAX_CLOCK_SKEW_MS_V2, ED25519_YAO_OUTER_MAX_LIFETIME_MS_V2,
     ED25519_YAO_OUTER_NONCE_LEN_V2, ED25519_YAO_OUTER_TARGET_PROOF_MAX_BYTES_V2,
     ROUTER_AB_ED25519_YAO_OUTER_PROTOCOL_ID_V2,
+};
+pub use self::ed25519_yao_pair_lifecycle::{
+    admit_ed25519_yao_pair_start_v1, Ed25519YaoPairStartClaimV1, Ed25519YaoPairStartDecisionV1,
+    Ed25519YaoPreparedPairStartV1,
 };
 pub use self::ed25519_yao_router::{
     ed25519_yao_encrypted_input_digest_v1, ed25519_yao_input_pair_digest_v1,
