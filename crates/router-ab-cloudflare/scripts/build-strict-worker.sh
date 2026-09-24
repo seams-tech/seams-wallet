@@ -41,7 +41,12 @@ run_worker_build() {
   fi
 }
 
+worker_features="strict-worker-$role-entrypoint"
+if [[ "$role" == "deriver-a" && "$worker_build_profile" == "dev" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
+  worker_features+=",wallet-do-harness"
+fi
+
 run_worker_build \
   "${worker_build_flags[@]}" \
   --out-dir "$worker_output" \
-  --features "strict-worker-$role-entrypoint"
+  --features "$worker_features"

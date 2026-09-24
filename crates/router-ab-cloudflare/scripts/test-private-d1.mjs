@@ -8,7 +8,7 @@ import {
   sign as signEd25519,
 } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { readFile, readdir } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Miniflare } from 'miniflare';
@@ -62,6 +62,9 @@ const ecdsaClientWasmPath = resolve(
 );
 let capturedSigningWorkerDelivery;
 let capturedDeriverAPreparation;
+let capturedDeriverAExecution;
+let competeDeriverAExecution = false;
+let dropDeriverAExecutionResponse = false;
 let signingWorkerDeliveryTarget = 'fixture-signing-worker';
 let ecdsaClientWasmInitialized = false;
 
@@ -238,15 +241,43 @@ async function captureSigningWorkerDelivery(request, miniflare) {
 }
 
 async function captureDeriverAPreparation(request, miniflare) {
-  const isPreparation = new URL(request.url).pathname.endsWith('/ed25519-yao/prepare-pair');
+  const path = new URL(request.url).pathname;
+  const isPreparation = path.endsWith('/ed25519-yao/prepare-pair');
+  const isExecution = path.endsWith('/ed25519-yao/execute-pair');
   const preparation = isPreparation ? await request.clone().json() : null;
+  const execution = isExecution ? await request.clone().json() : null;
   const worker = await miniflare.getWorker('deriver-a');
-  const response = await worker.fetch(request);
+  let response;
+  if (execution && competeDeriverAExecution) {
+    const attempts = await Promise.all([worker.fetch(request.clone()), worker.fetch(request)]);
+    const outcomes = await Promise.all(attempts.map(async (attempt) => ({
+      status: attempt.status,
+      body: await attempt.clone().text(),
+    })));
+    assert.deepEqual(
+      outcomes.map((outcome) => outcome.status),
+      [200, 200],
+      `identical concurrent A calls must replay the one outcome: ${JSON.stringify(outcomes)}`,
+    );
+    assert.deepEqual(JSON.parse(outcomes[0].body), JSON.parse(outcomes[1].body));
+    response = attempts[0];
+  } else {
+    response = await worker.fetch(request);
+  }
   if (preparation && response.ok) {
     capturedDeriverAPreparation = {
       request: preparation,
       receipt: await response.clone().json(),
     };
+  }
+  if (execution && response.ok) {
+    capturedDeriverAExecution = {
+      request: execution,
+      response: await response.clone().json(),
+    };
+    if (dropDeriverAExecutionResponse) {
+      return new Response('simulated lost Deriver A response', { status: 503 });
+    }
   }
   return response;
 }
@@ -1401,20 +1432,17 @@ async function captureValidActivationDelivery(
   };
 }
 
-async function testDeriverAWalletDoPreparation(topology, rootIdentity) {
+async function testDeriverAWalletDoPreparation(topology, rootIdentity, tenantRoot) {
   assert.ok(capturedDeriverAPreparation, 'Deriver A preparation fixture is required');
   const { request, receipt } = capturedDeriverAPreparation;
   const walletId = request.pair_binding.ceremony.binding.lifecycle.account_id;
   const owner = {
-    org_id: rootIdentity.orgId,
-    project_id: rootIdentity.projectId,
-    env_id: rootIdentity.envId,
+    tenant_identity_digest_hex: Buffer.from(tenantRoot.identity_digest_b64u, 'base64url').toString(
+      'hex',
+    ),
     wallet_id: walletId,
   };
-  const objectName = `deriver-a-wallet-${createHash('sha256')
-    .update('seams/deriver-a/wallet-do/v1')
-    .update(JSON.stringify(owner))
-    .digest('hex')}`;
+  const objectName = deriverAWalletDoObjectName(owner);
   const namespace = await topology.getDurableObjectNamespace(deriverAWalletDoBinding, 'deriver-a');
   const objectId = namespace.idFromName(objectName);
   const object = namespace.get(objectId);
@@ -1471,7 +1499,7 @@ async function testDeriverAWalletDoPreparation(topology, rootIdentity) {
   assert.equal(late.body.result.kind, 'rejected');
   const wrongOwner = await callDeriverAWalletDo(object, {
     ...lookup,
-    owner: { ...owner, org_id: `${owner.org_id}-other` },
+    owner: { ...owner, tenant_identity_digest_hex: '00'.repeat(32) },
   });
   assert.notEqual(wrongOwner.status, 200);
   const wrongWallet = await callDeriverAWalletDo(object, {
@@ -1484,6 +1512,153 @@ async function testDeriverAWalletDoPreparation(topology, rootIdentity) {
     owner: { ...owner, role: 'deriver_b' },
   });
   assert.notEqual(wrongRole.status, 200);
+}
+
+function deriverAWalletDoObjectName(owner) {
+  return `deriver-a-wallet-${createHash('sha256')
+    .update('seams/deriver-a/wallet-do/v1')
+    .update(JSON.stringify(owner))
+    .digest('hex')}`;
+}
+
+async function testDeriverAWalletDoExecution(topology, fixture, tenantRoot, databases) {
+  competeDeriverAExecution = true;
+  const activation = await captureValidActivationDelivery(topology, fixture, tenantRoot);
+  competeDeriverAExecution = false;
+  assert.ok(capturedDeriverAExecution, 'Deriver A execute request must be captured');
+  const aRows = await databases.deriverA
+    .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
+    .first();
+  assert.equal(aRows.count, 0, 'A pair execution must leave the legacy D1 pair table empty');
+  const bBefore = await databases.deriverB
+    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
+    .first();
+  assert.equal(bBefore.lifecycle, 'completed', 'B must finish before A replay');
+
+  const firstResponse = capturedDeriverAExecution.response;
+  const owner = {
+    tenant_identity_digest_hex: Buffer.from(tenantRoot.identity_digest_b64u, 'base64url').toString(
+      'hex',
+    ),
+    wallet_id:
+      capturedDeriverAExecution.request.pair_binding.ceremony.binding.lifecycle.account_id,
+  };
+  const namespace = await topology.getDurableObjectNamespace(deriverAWalletDoBinding, 'deriver-a');
+  const objectId = namespace.idFromName(deriverAWalletDoObjectName(owner));
+  await topology.unsafeEvictDurableObject('deriver-a', deriverAWalletDoClass, {
+    id: objectId.toString(),
+  });
+  const object = namespace.get(objectId);
+  const recovered = await callDeriverAWalletDo(object, {
+    operation: 'read',
+    owner,
+    pair_binding: capturedDeriverAExecution.request.pair_binding,
+  });
+  assert.equal(recovered.status, 200);
+  assert.equal(recovered.body.kind, 'read');
+  assert.equal(recovered.body.revision, 4, 'one A execution must make four lifecycle writes');
+  assert.equal(recovered.body.record.status, 'completed');
+  assert.deepEqual(recovered.body.record.outcome, firstResponse);
+  const deriverA = await topology.getWorker('deriver-a');
+  const replay = await postWorkerJson(
+    deriverA,
+    '/router-ab/deriver-a/ed25519-yao/execute-pair',
+    capturedDeriverAExecution.request,
+  );
+  const replayBytes = await expectOk(replay, 'Deriver A wallet DO replay after B completed');
+  assert.deepEqual(JSON.parse(replayBytes.toString('utf8')), firstResponse);
+  const bAfter = await databases.deriverB
+    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
+    .first();
+  assert.deepEqual(bAfter, bBefore, 'A replay must not request a new B execution');
+  const changedRequest = structuredClone(capturedDeriverAExecution.request);
+  changedRequest.tenant_root.custody_binding.issued_at_ms += 1;
+  const changed = await postWorkerJson(
+    deriverA,
+    '/router-ab/deriver-a/ed25519-yao/execute-pair',
+    changedRequest,
+  );
+  assert.notEqual(changed.status, 200, 'changed request identity must not replay the outcome');
+  assert.ok(activation.publicReceipt, 'Router registration must complete through A wallet DO');
+  const artifact = {
+    kind: 'deriver_a_wallet_do_execution_e2e_v1',
+    registeredPublicKey: activation.publicReceipt.registered_public_key,
+    aD1PairRows: aRows.count,
+    bPairLifecycle: bBefore.lifecycle,
+    bRevisionUnchangedOnReplay: true,
+    aPairRevisionAfterConcurrentCalls: recovered.body.revision,
+    replayAfterObjectEviction: true,
+    exactReplayAfterBCompleted: true,
+  };
+  const artifactPath = join(repoRoot, '.artifacts/r150/deriver-a-wallet-do-execution.json');
+  await mkdir(dirname(artifactPath), { recursive: true });
+  await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
+  console.log(JSON.stringify({ ...artifact, artifactPath }));
+}
+
+async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, databases) {
+  dropDeriverAExecutionResponse = true;
+  capturedDeriverAExecution = undefined;
+  const router = await topology.getWorker('router');
+  const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
+  const routerResponse = await postWorkerJson(router, ed25519ExecutePath, envelope);
+  const routerBody = (await responseBytes(routerResponse)).toString('utf8');
+  if (routerResponse.status === 200) {
+    assert.notEqual(
+      JSON.parse(routerBody).status,
+      'succeeded',
+      'Router must observe the simulated lost A response',
+    );
+  }
+  dropDeriverAExecutionResponse = false;
+  assert.ok(capturedDeriverAExecution, 'A must commit before the harness drops its response');
+  const aRows = await databases.deriverA
+    .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
+    .first();
+  assert.equal(aRows.count, 0);
+  const bTerminal = await databases.deriverB
+    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
+    .first();
+  assert.equal(bTerminal.lifecycle, 'completed');
+
+  const owner = {
+    tenant_identity_digest_hex: Buffer.from(tenantRoot.identity_digest_b64u, 'base64url').toString(
+      'hex',
+    ),
+    wallet_id:
+      capturedDeriverAExecution.request.pair_binding.ceremony.binding.lifecycle.account_id,
+  };
+  const namespace = await topology.getDurableObjectNamespace(deriverAWalletDoBinding, 'deriver-a');
+  const objectId = namespace.idFromName(deriverAWalletDoObjectName(owner));
+  await topology.unsafeEvictDurableObject('deriver-a', deriverAWalletDoClass, {
+    id: objectId.toString(),
+  });
+  const deriverA = await topology.getWorker('deriver-a');
+  const replay = await postWorkerJson(
+    deriverA,
+    '/router-ab/deriver-a/ed25519-yao/execute-pair',
+    capturedDeriverAExecution.request,
+  );
+  const replayBytes = await expectOk(replay, 'Deriver A replay after lost reply and eviction');
+  assert.deepEqual(
+    JSON.parse(replayBytes.toString('utf8')),
+    capturedDeriverAExecution.response,
+  );
+  const bAfter = await databases.deriverB
+    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
+    .first();
+  assert.deepEqual(bAfter, bTerminal);
+  const artifact = {
+    kind: 'deriver_a_wallet_do_lost_reply_e2e_v1',
+    aD1PairRows: aRows.count,
+    bPairLifecycle: bTerminal.lifecycle,
+    bRevisionUnchangedOnReplay: true,
+    exactReplayAfterLostReplyAndEviction: true,
+  };
+  const artifactPath = join(repoRoot, '.artifacts/r150/deriver-a-wallet-do-lost-reply.json');
+  await mkdir(dirname(artifactPath), { recursive: true });
+  await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
+  console.log(JSON.stringify({ ...artifact, artifactPath }));
 }
 
 async function callDeriverAWalletDo(object, body) {
@@ -1805,9 +1980,11 @@ async function main() {
   const fixture = loadFixture();
   const jwtSigner = configureRouterJwt(fixture);
   const testWalletDo = process.argv.includes('--do-pair-store');
+  const testWalletDoExecution = process.argv.includes('--do-pair-execution');
+  const testWalletDoLostReply = process.argv.includes('--do-pair-lost-reply');
   const topology = new Miniflare({
     workers: [
-      routerWorker(fixture, testWalletDo),
+      routerWorker(fixture, testWalletDo || testWalletDoExecution || testWalletDoLostReply),
       deriverAWorker(fixture),
       deriverBWorker(fixture),
       tenantRootControlPlaneWorker(fixture),
@@ -1845,8 +2022,20 @@ async function main() {
     );
     if (testWalletDo) {
       await captureValidActivationDelivery(topology, fixture, tenantRoot);
-      await testDeriverAWalletDoPreparation(topology, fixture.tenant_root_creation.identity);
+      await testDeriverAWalletDoPreparation(
+        topology,
+        fixture.tenant_root_creation.identity,
+        tenantRoot,
+      );
       console.log('Deriver A wallet DO preparation, exact retry, restart, and expiry passed');
+      return;
+    }
+    if (testWalletDoExecution) {
+      await testDeriverAWalletDoExecution(topology, fixture, tenantRoot, databases);
+      return;
+    }
+    if (testWalletDoLostReply) {
+      await testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, databases);
       return;
     }
     const ecdsa = await testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot, jwtSigner);
