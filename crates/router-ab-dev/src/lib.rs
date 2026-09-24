@@ -147,6 +147,7 @@ pub use local_ed25519_yao_router::{
     LocalEd25519YaoRouterRegistrationAdmissionV1,
 };
 pub use local_ed25519_yao_signing_worker::{
+    LocalEd25519YaoInitialRegistrationFinalizationV1,
     LocalEd25519YaoSigningWorkerActivationReceiptV1, LocalEd25519YaoSigningWorkerPackageDeliveryV1,
     LocalEd25519YaoSigningWorkerPackagePairDeliveryV1,
     LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
@@ -373,6 +374,8 @@ pub const LOCAL_DERIVER_B_PEER_PATH: &str = "/router-ab/deriver-b/peer";
 /// SigningWorker atomic activation package-pair delivery path.
 pub const LOCAL_SIGNING_WORKER_ED25519_YAO_ACTIVATION_PACKAGES_PATH: &str =
     "/router-ab/signing-worker/ed25519-yao/activation/packages";
+pub const LOCAL_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_PATH: &str =
+    "/router-ab/signing-worker/ed25519-yao/initial-registration/finalization";
 /// SigningWorker recovery-candidate promotion path owned by the Router.
 pub const LOCAL_SIGNING_WORKER_ED25519_YAO_RECOVERY_PROMOTE_PATH: &str =
     "/router-ab/signing-worker/ed25519-yao/recovery/promote";

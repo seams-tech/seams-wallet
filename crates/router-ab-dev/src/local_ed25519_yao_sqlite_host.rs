@@ -72,7 +72,7 @@ impl LocalDeriverAPairScopeV1 {
 
 pub struct LocalEd25519YaoSqliteHostV1 {
     connection: RefCell<Connection>,
-    deriver_b_state_snapshot: RefCell<Option<Vec<u8>>>,
+    role_state_snapshot: RefCell<Option<Vec<u8>>>,
 }
 
 impl LocalEd25519YaoSqliteHostV1 {
@@ -104,7 +104,7 @@ impl LocalEd25519YaoSqliteHostV1 {
         }
         Ok(Self {
             connection: RefCell::new(connection),
-            deriver_b_state_snapshot: RefCell::new(None),
+            role_state_snapshot: RefCell::new(None),
         })
     }
 
@@ -115,8 +115,11 @@ impl LocalEd25519YaoSqliteHostV1 {
         let connection = self.connection.borrow();
         let storage = LocalRolePrivateSqliteStorageV1::new(&connection)?;
         let bytes = storage.get_bytes(STATE_KEY)?;
-        if role == LocalServiceRoleV1::DeriverB {
-            *self.deriver_b_state_snapshot.borrow_mut() = bytes.clone();
+        if matches!(
+            role,
+            LocalServiceRoleV1::DeriverB | LocalServiceRoleV1::SigningWorker
+        ) {
+            *self.role_state_snapshot.borrow_mut() = bytes.clone();
         }
         let Some(bytes) = bytes else {
             return Ok(LocalEd25519YaoWorkerStateV1::default());
@@ -130,20 +133,23 @@ impl LocalEd25519YaoSqliteHostV1 {
         state: &LocalEd25519YaoWorkerStateV1,
     ) -> RouterAbProtocolResult<()> {
         let bytes = state.encode_durable_state_for_role_v1(role)?;
-        if role == LocalServiceRoleV1::DeriverB {
+        if matches!(
+            role,
+            LocalServiceRoleV1::DeriverB | LocalServiceRoleV1::SigningWorker
+        ) {
             let mut connection = self.connection.borrow_mut();
             let transaction = connection
                 .transaction_with_behavior(TransactionBehavior::Immediate)
                 .map_err(pair_lookup_error)?;
             let storage = LocalRolePrivateSqliteStorageV1::new(&transaction)?;
-            if storage.get_bytes(STATE_KEY)? != *self.deriver_b_state_snapshot.borrow() {
+            if storage.get_bytes(STATE_KEY)? != *self.role_state_snapshot.borrow() {
                 return Err(pair_lookup_conflict(
-                    "Deriver B role state changed in another process",
+                    "role state changed in another process",
                 ));
             }
             storage.put_bytes(STATE_KEY, &bytes)?;
             transaction.commit().map_err(pair_lookup_error)?;
-            *self.deriver_b_state_snapshot.borrow_mut() = Some(bytes);
+            *self.role_state_snapshot.borrow_mut() = Some(bytes);
             return Ok(());
         }
         let connection = self.connection.borrow();
@@ -286,7 +292,7 @@ impl LocalEd25519YaoSqliteHostV1 {
             Some(completed),
         )?;
         transaction.commit().map_err(pair_lookup_error)?;
-        *self.deriver_b_state_snapshot.borrow_mut() = Some(updated);
+        *self.role_state_snapshot.borrow_mut() = Some(updated);
         Ok(())
     }
 

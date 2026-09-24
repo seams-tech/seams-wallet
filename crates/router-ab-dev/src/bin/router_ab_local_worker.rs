@@ -89,7 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             store.persist_state(config.role(), state)?;
                         }
                     }
-                    Ok(LocalWorkerConnectionResultV1::YaoPairHandledBySqlite) => {}
+                    Ok(LocalWorkerConnectionResultV1::YaoNoSnapshotWrite) => {}
                     Ok(LocalWorkerConnectionResultV1::OtherHandled) => {}
                     Err(error) => log_worker_request_error(&config, error.as_ref()),
                 }
@@ -102,7 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 enum LocalWorkerConnectionResultV1 {
     YaoHandled,
-    YaoPairHandledBySqlite,
+    YaoNoSnapshotWrite,
     OtherHandled,
 }
 
@@ -130,8 +130,8 @@ fn handle_connection(
             LocalEd25519YaoConnectionDispatchV1::Handled => {
                 return Ok(LocalWorkerConnectionResultV1::YaoHandled);
             }
-            LocalEd25519YaoConnectionDispatchV1::PairHandledBySqlite => {
-                return Ok(LocalWorkerConnectionResultV1::YaoPairHandledBySqlite);
+            LocalEd25519YaoConnectionDispatchV1::NoSnapshotWrite => {
+                return Ok(LocalWorkerConnectionResultV1::YaoNoSnapshotWrite);
             }
             LocalEd25519YaoConnectionDispatchV1::Unhandled(stream) => stream,
         }

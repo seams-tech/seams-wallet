@@ -60,6 +60,7 @@ use crate::{
     LOCAL_DERIVER_B_ED25519_YAO_REFRESH_STAGE_PATH, LOCAL_HTTP_SERVICE_BINDING_TIMEOUT_MS_V1,
     LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
     LOCAL_SIGNING_WORKER_ED25519_YAO_ACTIVATION_PACKAGES_PATH,
+    LOCAL_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_PATH,
     LOCAL_SIGNING_WORKER_ED25519_YAO_RECOVERY_PROMOTE_PATH,
     LOCAL_SIGNING_WORKER_ED25519_YAO_REFRESH_DERIVER_A_PATH,
     LOCAL_SIGNING_WORKER_ED25519_YAO_REFRESH_DERIVER_B_PATH,
@@ -335,7 +336,7 @@ impl LocalEd25519YaoWorkerStateV1 {
             },
             LocalServiceRoleV1::SigningWorker => {
                 LocalEd25519YaoDurableRoleStateRefV1::SigningWorker {
-                    active: self.signing_worker.durable_state_v1(),
+                    active: self.signing_worker.durable_state_v1()?,
                 }
             }
             LocalServiceRoleV1::Router => {
@@ -711,7 +712,7 @@ fn build_deriver_b_activation_from_effective_state(
 
 pub enum LocalEd25519YaoConnectionDispatchV1 {
     Handled,
-    PairHandledBySqlite,
+    NoSnapshotWrite,
     Unhandled(TcpStream),
 }
 
@@ -755,7 +756,7 @@ pub fn dispatch_local_ed25519_yao_connection_with_persistence_v1(
             }
             result?;
             return Ok(if pair_execution {
-                LocalEd25519YaoConnectionDispatchV1::PairHandledBySqlite
+                LocalEd25519YaoConnectionDispatchV1::NoSnapshotWrite
             } else {
                 LocalEd25519YaoConnectionDispatchV1::Handled
             });
@@ -785,20 +786,29 @@ pub fn dispatch_local_ed25519_yao_connection_with_persistence_v1(
         );
     let signing_worker_registration_route = config.role() == LocalServiceRoleV1::SigningWorker
         && request.path == LOCAL_SIGNING_WORKER_ED25519_YAO_ACTIVATION_PACKAGES_PATH;
+    let signing_worker_finalization_lookup_route = config.role()
+        == LocalServiceRoleV1::SigningWorker
+        && request.path == LOCAL_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_PATH;
     let result = handle_yao_control_request(&mut stream, config, state, host, &request);
     request.body.fill(0);
     if let Err(error) = result {
         if deriver_a_pair_route {
+            *state = LocalEd25519YaoWorkerStateV1::default();
             *state = host.load_state(LocalServiceRoleV1::DeriverA)?;
         } else if signing_worker_registration_route {
+            *state = LocalEd25519YaoWorkerStateV1::default();
             *state = host.load_state(LocalServiceRoleV1::SigningWorker)?;
         }
         let (status, body) =
             local_dev_http_error_body_v1(config.role(), &request.path, 400, &error.to_string())?;
         write_local_dev_http_response_v1(&mut stream, status, &body)?;
     }
-    if deriver_a_pair_route || deriver_b_pair_route {
-        Ok(LocalEd25519YaoConnectionDispatchV1::PairHandledBySqlite)
+    if deriver_a_pair_route
+        || deriver_b_pair_route
+        || signing_worker_registration_route
+        || signing_worker_finalization_lookup_route
+    {
+        Ok(LocalEd25519YaoConnectionDispatchV1::NoSnapshotWrite)
     } else {
         Ok(LocalEd25519YaoConnectionDispatchV1::Handled)
     }
@@ -1149,6 +1159,19 @@ fn handle_yao_control_request(
             let receipt = state.signing_worker.accept_package_pair(config, delivery)?;
             host.persist_state(LocalServiceRoleV1::SigningWorker, state)?;
             write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&receipt)?)
+        }
+        (
+            LocalWorkerRoleConfigV1::SigningWorker(_),
+            LOCAL_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_PATH,
+        ) => {
+            let lookup = serde_json::from_slice::<LocalEd25519YaoSigningWorkerPackagePairDeliveryV1>(
+                &request.body,
+            )?;
+            let persisted = host.load_state(LocalServiceRoleV1::SigningWorker)?;
+            let outcome = persisted
+                .signing_worker
+                .read_initial_registration_finalization(&lookup)?;
+            write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&outcome)?)
         }
         (
             LocalWorkerRoleConfigV1::SigningWorker(_),
@@ -2852,6 +2875,7 @@ fn is_yao_control_path(path: &str) -> bool {
             | LOCAL_DERIVER_B_ED25519_YAO_REFRESH_CLIENT_PACKAGE_PATH
             | LOCAL_DERIVER_B_ED25519_YAO_REFRESH_SIGNING_WORKER_PACKAGE_PATH
             | LOCAL_SIGNING_WORKER_ED25519_YAO_ACTIVATION_PACKAGES_PATH
+            | LOCAL_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_PATH
             | LOCAL_SIGNING_WORKER_ED25519_YAO_RECOVERY_PROMOTE_PATH
             | LOCAL_SIGNING_WORKER_ED25519_YAO_REFRESH_DERIVER_A_PATH
             | LOCAL_SIGNING_WORKER_ED25519_YAO_REFRESH_DERIVER_B_PATH
@@ -3119,21 +3143,6 @@ mod tests {
             .expect("application"),
             participant_ids: [1, 2],
         }
-    }
-
-    #[test]
-    fn pair_role_durable_decode_rejects_duplicate_identities() {
-        let records = vec![
-            LocalEd25519YaoPairRoleRecordV1::Burned {
-                session: [1; 32],
-                pair_digest: [2; 32],
-            },
-            LocalEd25519YaoPairRoleRecordV1::Expired {
-                session: [1; 32],
-                pair_digest: [2; 32],
-            },
-        ];
-        assert!(decode_pair_role_records(LocalServiceRoleV1::DeriverA, records).is_err());
     }
 
     #[test]

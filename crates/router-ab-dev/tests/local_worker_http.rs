@@ -58,7 +58,7 @@ use router_ab_dev::{
 };
 use router_ab_ed25519_yao::Ed25519YaoRoleExecutionV1;
 use router_ab_ed25519_yao_client::complete_client_activation_packages_v1;
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 use serde::Serialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -503,7 +503,7 @@ fn product_topology_completes_local_ed25519_yao_registration(
     let LocalWorkerRoleConfigV1::DeriverB(b_config) = b_config else {
         return Err("Deriver B env parsed as another role".into());
     };
-    let b_connection = Connection::open(temp.join(b_config.role_private_storage_path))?;
+    let b_connection = Connection::open(temp.join(&b_config.role_private_storage_path))?;
     let (session_hex, pair_digest_hex, completed_pair_json): (String, String, String) =
         b_connection.query_row(
             "SELECT session_hex, pair_digest_hex, record_json FROM local_deriver_b_yao_pairs",
@@ -604,6 +604,132 @@ fn product_topology_completes_local_ed25519_yao_registration(
         })
     );
     drop(b_connection);
+    let a_env_path = temp.join(router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1);
+    let a_config = parse_local_worker_role_config_for_role_v1(
+        LocalServiceRoleV1::DeriverA,
+        parse_local_env_file_contents_v1(&fs::read_to_string(&a_env_path)?)?,
+    )?;
+    let LocalWorkerRoleConfigV1::DeriverA(a_config) = a_config else {
+        return Err("Deriver A env parsed as another role".into());
+    };
+    let a_connection = Connection::open(temp.join(&a_config.role_private_storage_path))?;
+    let a_pair_before: String = a_connection.query_row(
+        "SELECT record_json FROM local_deriver_a_yao_pairs",
+        [],
+        |row| row.get(0),
+    )?;
+    let b_connection = Connection::open(temp.join(&b_config.role_private_storage_path))?;
+    let b_pair_before: String = b_connection.query_row(
+        "SELECT record_json FROM local_deriver_b_yao_pairs",
+        [],
+        |row| row.get(0),
+    )?;
+    let signing_worker_env_path = temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1);
+    let sw_config = parse_local_worker_role_config_for_role_v1(
+        LocalServiceRoleV1::SigningWorker,
+        parse_local_env_file_contents_v1(&fs::read_to_string(&signing_worker_env_path)?)?,
+    )?;
+    let LocalWorkerRoleConfigV1::SigningWorker(sw_config) = sw_config else {
+        return Err("SigningWorker env parsed as another role".into());
+    };
+    let sw_connection = Connection::open(temp.join(&sw_config.role_private_storage_path))?;
+    let sw_state_before: Vec<u8> = sw_connection.query_row(
+        "SELECT value FROM local_role_private_state WHERE key = 'ed25519-yao/worker-state-v2'",
+        [],
+        |row| row.get(0),
+    )?;
+    drop(router);
+    drop(signing_worker);
+    router = ChildGuard::spawn_in_root(
+        binary,
+        "router",
+        temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1),
+        &temp,
+    )?;
+    signing_worker =
+        ChildGuard::spawn_in_root(binary, "signing-worker", signing_worker_env_path, &temp)?;
+    wait_for_health(&router_url, router.child_mut())?;
+    wait_for_health(&signing_worker_url, signing_worker.child_mut())?;
+    let stored_sw_state: serde_json::Value = serde_json::from_slice(&sw_state_before)?;
+    let finalization_lookup = stored_sw_state["state"]["active"]["active_identities"][0]
+        ["initial_registration"]["request"]
+        .clone();
+    assert!(!finalization_lookup.is_null());
+    let (lookup_status, lookup_body) = post_json_to_path_with_headers(
+        &signing_worker_url,
+        router_ab_dev::LOCAL_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_PATH,
+        &finalization_lookup,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+        )],
+    )?;
+    assert_eq!(lookup_status, 200, "{lookup_body}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&lookup_body)?["status"],
+        "committed"
+    );
+    let mut wrong_scope_lookup = finalization_lookup;
+    wrong_scope_lookup["scope"]["org_id"] = json!("another-org");
+    let (wrong_scope_status, wrong_scope_body) = post_json_to_path_with_headers(
+        &signing_worker_url,
+        router_ab_dev::LOCAL_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_PATH,
+        &wrong_scope_lookup,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+        )],
+    )?;
+    assert_eq!(wrong_scope_status, 200, "{wrong_scope_body}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&wrong_scope_body)?["status"],
+        "conflict"
+    );
+    let (router_replay_status, router_replay_body) = post_json_to_path_with_headers(
+        &router_url,
+        LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+        &request,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+        )],
+    )?;
+    assert_eq!(router_replay_status, 200, "{router_replay_body}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&router_replay_body)?,
+        serde_json::from_str::<serde_json::Value>(&body)?,
+        "Router restart must reconstruct the original result"
+    );
+    let a_pair_after: String = a_connection.query_row(
+        "SELECT record_json FROM local_deriver_a_yao_pairs",
+        [],
+        |row| row.get(0),
+    )?;
+    let b_pair_after: String = b_connection.query_row(
+        "SELECT record_json FROM local_deriver_b_yao_pairs",
+        [],
+        |row| row.get(0),
+    )?;
+    let sw_state_after: Vec<u8> = sw_connection.query_row(
+        "SELECT value FROM local_role_private_state WHERE key = 'ed25519-yao/worker-state-v2'",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(a_pair_before, a_pair_after);
+    assert_eq!(b_pair_before, b_pair_after);
+    assert_eq!(sw_state_before, sw_state_after);
+    println!(
+        "R150_VM_ROUTER_REPLAY_E2E {}",
+        json!({
+            "router_restart": true,
+            "signing_worker_restart": true,
+            "original_response_replayed": true,
+            "a_b_and_signing_worker_records_unchanged": true,
+        })
+    );
+    drop(a_connection);
+    drop(b_connection);
+    drop(sw_connection);
     let (client_share, _) = complete_client_activation_packages_v1(
         activation.binding(),
         [1, 2],
@@ -788,7 +914,6 @@ fn vm_pair_reply_loss_reconciles_only_after_clean_transport_eof(
 
         let b_authority = deriver_b_url.strip_prefix("http://").unwrap().to_owned();
         let proxy = thread::spawn(move || -> io::Result<(usize, usize)> {
-            proxy_listener.set_nonblocking(true)?;
             let deadline = Instant::now() + Duration::from_secs(15);
             let expected_connections = match fault {
                 PairReplyFault::LostSealedCompletion => 2,
@@ -797,24 +922,7 @@ fn vm_pair_reply_loss_reconciles_only_after_clean_transport_eof(
             let mut peer_connections = 0;
             let mut dropped_completions = 0;
             for _ in 0..expected_connections {
-                let client = loop {
-                    match proxy_listener.accept() {
-                        Ok((client, _)) => {
-                            client.set_nonblocking(false)?;
-                            break client;
-                        }
-                        Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
-                            if Instant::now() >= deadline {
-                                return Err(io::Error::new(
-                                    io::ErrorKind::TimedOut,
-                                    "pair reply proxy did not receive the expected request",
-                                ));
-                            }
-                            thread::sleep(Duration::from_millis(10));
-                        }
-                        Err(error) => return Err(error),
-                    }
-                };
+                let client = accept_proxy_client_until(&proxy_listener, deadline)?;
                 let peer = proxy_pair_reply_connection(client, &b_authority, fault)?;
                 if peer {
                     peer_connections += 1;
@@ -1090,6 +1198,263 @@ fn read_proxy_http_head(reader: &mut impl BufRead) -> io::Result<Vec<u8>> {
             return Ok(head);
         }
     }
+}
+
+fn accept_proxy_client_until(listener: &TcpListener, deadline: Instant) -> io::Result<TcpStream> {
+    listener.set_nonblocking(true)?;
+    loop {
+        match listener.accept() {
+            Ok((client, _)) => {
+                client.set_nonblocking(false)?;
+                return Ok(client);
+            }
+            Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                if Instant::now() >= deadline {
+                    return Err(io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        "fault proxy did not receive the expected request",
+                    ));
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum SigningWorkerFinalizationFault {
+    LostReplyAfterCommit,
+    MissingActivation,
+}
+
+#[test]
+fn vm_router_reconciles_signing_worker_reply_loss_without_activating_missing_material(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
+    for fault in [
+        SigningWorkerFinalizationFault::LostReplyAfterCommit,
+        SigningWorkerFinalizationFault::MissingActivation,
+    ] {
+        let temp = temp_dir("signing-worker-finalization-loss")?;
+        let router_url = format!("http://127.0.0.1:{}", free_port()?);
+        let deriver_a_url = format!("http://127.0.0.1:{}", free_port()?);
+        let deriver_b_url = format!("http://127.0.0.1:{}", free_port()?);
+        let signing_worker_url = format!("http://127.0.0.1:{}", free_port()?);
+        let proxy_listener = TcpListener::bind("127.0.0.1:0")?;
+        let proxy_url = format!("http://{}", proxy_listener.local_addr()?);
+        let tenant_root_fixture = product_tenant_root_fixture()?;
+        let router_env = write_product_worker_envs(
+            &temp,
+            &router_url,
+            &deriver_a_url,
+            &deriver_b_url,
+            &signing_worker_url,
+            &tenant_root_fixture,
+        )?;
+        let proxied_router_env = router_env.replace(&signing_worker_url, &proxy_url);
+        assert_ne!(proxied_router_env, router_env);
+        fs::write(
+            temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1),
+            proxied_router_env,
+        )?;
+        let mut router = ChildGuard::spawn_in_root(
+            binary,
+            "router",
+            temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1),
+            &temp,
+        )?;
+        let mut deriver_a = ChildGuard::spawn_in_root(
+            binary,
+            "deriver-a",
+            temp.join(router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1),
+            &temp,
+        )?;
+        let mut deriver_b = ChildGuard::spawn_in_root(
+            binary,
+            "deriver-b",
+            temp.join(router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1),
+            &temp,
+        )?;
+        let mut signing_worker = ChildGuard::spawn_in_root(
+            binary,
+            "signing-worker",
+            temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1),
+            &temp,
+        )?;
+        wait_for_health(&router_url, router.child_mut())?;
+        wait_for_health(&deriver_a_url, deriver_a.child_mut())?;
+        wait_for_health(&deriver_b_url, deriver_b.child_mut())?;
+        wait_for_health(&signing_worker_url, signing_worker.child_mut())?;
+        let sw_authority = signing_worker_url
+            .strip_prefix("http://")
+            .unwrap()
+            .to_owned();
+        let proxy = thread::spawn(move || -> io::Result<(usize, usize)> {
+            let deadline = Instant::now() + Duration::from_secs(15);
+            let mut activation_requests = 0;
+            let mut finalization_lookups = 0;
+            for _ in 0..2 {
+                let client = accept_proxy_client_until(&proxy_listener, deadline)?;
+                match proxy_signing_worker_finalization(client, &sw_authority, fault)? {
+                    true => activation_requests += 1,
+                    false => finalization_lookups += 1,
+                }
+            }
+            Ok((activation_requests, finalization_lookups))
+        });
+        let (request, _) = product_registration_request(&router_env, &tenant_root_fixture)?;
+        let (status, body) = post_json_to_path_with_headers(
+            &router_url,
+            LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+            &request,
+            &[(
+                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            )],
+        )?;
+        assert_eq!(status, 200, "{body}");
+        let (activations, lookups) = proxy.join().map_err(|_| "proxy panicked")??;
+        assert_eq!((activations, lookups), (1, 1));
+        let result = serde_json::from_str::<RouterEd25519YaoExecuteResultV1>(&body)?;
+        match fault {
+            SigningWorkerFinalizationFault::LostReplyAfterCommit => {
+                assert!(matches!(
+                    result,
+                    RouterEd25519YaoExecuteResultV1::Succeeded { .. }
+                ));
+            }
+            SigningWorkerFinalizationFault::MissingActivation => {
+                assert!(matches!(
+                    result,
+                    RouterEd25519YaoExecuteResultV1::RecoverableFailure { .. }
+                ));
+                drop(router);
+                let router_env_path = temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1);
+                fs::write(&router_env_path, &router_env)?;
+                router = ChildGuard::spawn_in_root(binary, "router", router_env_path, &temp)?;
+                wait_for_health(&router_url, router.child_mut())?;
+                let (retry_status, retry_body) = post_json_to_path_with_headers(
+                    &router_url,
+                    LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+                    &request,
+                    &[(
+                        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+                        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+                    )],
+                )?;
+                assert_eq!(retry_status, 200, "{retry_body}");
+                assert!(matches!(
+                    serde_json::from_str::<RouterEd25519YaoExecuteResultV1>(&retry_body)?,
+                    RouterEd25519YaoExecuteResultV1::RecoverableFailure { .. }
+                ));
+            }
+        }
+        let sw_env =
+            fs::read_to_string(temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1))?;
+        let sw_config = parse_local_worker_role_config_for_role_v1(
+            LocalServiceRoleV1::SigningWorker,
+            parse_local_env_file_contents_v1(&sw_env)?,
+        )?;
+        let LocalWorkerRoleConfigV1::SigningWorker(sw_config) = sw_config else {
+            return Err("SigningWorker env parsed as another role".into());
+        };
+        let sw_connection = Connection::open(temp.join(sw_config.role_private_storage_path))?;
+        let sw_state: Option<Vec<u8>> = sw_connection
+            .query_row(
+                "SELECT value FROM local_role_private_state WHERE key = 'ed25519-yao/worker-state-v2'",
+                [],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let has_activation = sw_state
+            .as_deref()
+            .map(serde_json::from_slice::<serde_json::Value>)
+            .transpose()?
+            .and_then(|state| {
+                state["state"]["active"]["active_identities"]
+                    .as_array()
+                    .map(|identities| !identities.is_empty())
+            })
+            .unwrap_or(false);
+        assert_eq!(
+            has_activation,
+            matches!(fault, SigningWorkerFinalizationFault::LostReplyAfterCommit)
+        );
+        println!(
+            "R150_VM_SIGNING_WORKER_REPLY_LOSS_E2E {}",
+            json!({
+                "fault": match fault {
+                    SigningWorkerFinalizationFault::LostReplyAfterCommit => "lost_reply_after_commit",
+                    SigningWorkerFinalizationFault::MissingActivation => "missing_activation",
+                },
+                "router_succeeded": matches!(fault, SigningWorkerFinalizationFault::LostReplyAfterCommit),
+                "signing_worker_active": has_activation,
+                "activation_requests": activations,
+                "read_only_lookups": lookups,
+            })
+        );
+        drop(router);
+        drop(deriver_a);
+        drop(deriver_b);
+        drop(signing_worker);
+        drop(sw_connection);
+        fs::remove_dir_all(temp)?;
+    }
+    Ok(())
+}
+
+fn proxy_signing_worker_finalization(
+    mut client: TcpStream,
+    sw_authority: &str,
+    fault: SigningWorkerFinalizationFault,
+) -> io::Result<bool> {
+    client.set_read_timeout(Some(Duration::from_secs(15)))?;
+    client.set_write_timeout(Some(Duration::from_secs(15)))?;
+    let mut reader = BufReader::new(client.try_clone()?);
+    let head = read_proxy_http_head(&mut reader)?;
+    let is_activation = head.starts_with(
+        format!(
+            "POST {} HTTP/1.1\r\n",
+            router_ab_dev::LOCAL_SIGNING_WORKER_ED25519_YAO_ACTIVATION_PACKAGES_PATH
+        )
+        .as_bytes(),
+    );
+    let is_lookup = head.starts_with(
+        format!(
+            "POST {} HTTP/1.1\r\n",
+            router_ab_dev::LOCAL_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_PATH
+        )
+        .as_bytes(),
+    );
+    if !is_activation && !is_lookup {
+        return Err(io::Error::other(
+            "proxy received an unexpected SigningWorker route",
+        ));
+    }
+    if is_activation && matches!(fault, SigningWorkerFinalizationFault::MissingActivation) {
+        io::copy(&mut reader, &mut io::sink())?;
+        client.shutdown(Shutdown::Write)?;
+        return Ok(true);
+    }
+    let mut upstream = TcpStream::connect(sw_authority)?;
+    upstream.set_read_timeout(Some(Duration::from_secs(15)))?;
+    upstream.set_write_timeout(Some(Duration::from_secs(15)))?;
+    upstream.write_all(&head)?;
+    io::copy(&mut reader, &mut upstream)?;
+    upstream.shutdown(Shutdown::Write)?;
+    if is_activation {
+        let mut committed_response = Vec::new();
+        upstream.read_to_end(&mut committed_response)?;
+        if !committed_response.starts_with(b"HTTP/1.1 200 ") {
+            return Err(io::Error::other("SigningWorker did not commit activation"));
+        }
+    } else {
+        io::copy(&mut upstream, &mut client)?;
+    }
+    client.shutdown(Shutdown::Write)?;
+    Ok(is_activation)
 }
 
 #[test]

@@ -132,8 +132,13 @@ duration, and stored bytes have not been measured for a matched comparison.
   outcome against its own completed transcript and commits its result before
   replying. Malformed framing still fails closed. This only reconciles while
   A's process survives; A crash after B completion remains unresolved. Router
-  registration retry reconciliation and remaining lifecycle operations still
-  require durable behavior evidence before the VM reference path is complete.
+  registration replay now reads completed A/B records and an exact,
+  read-only SigningWorker finalization record before any pair preparation.
+  The initial SigningWorker receipt and active material commit in one
+  compare-and-set SQLite state write. Missing finalization remains pending;
+  a lost reply after commit can be reconstructed after process restart without
+  another role execution or activation. The VM reference still lacks a
+  tenant-root retirement fence and complete remaining lifecycle coverage.
 
 Recovery, factor management, export, linked devices, and background jobs need
 their own inventory before full lifecycle coverage. Their current D1 records remain

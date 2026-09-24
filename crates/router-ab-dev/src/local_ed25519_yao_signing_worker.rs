@@ -3,7 +3,10 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use router_ab_cloudflare::{CloudflareSecretMaterial32V1, CloudflareServerOutputMaterialRecordV1};
+use router_ab_cloudflare::{
+    CloudflareSecretMaterial32V1, CloudflareServerOutputMaterialRecordV1,
+    CloudflareSigningWorkerWalletScopeV1,
+};
 use router_ab_core::{
     ActiveSigningWorkerStateV1, Ed25519YaoCeremonyBindingV1, Ed25519YaoOperationV1,
     Ed25519YaoRefreshBindingV1, Ed25519YaoStateEpochV1, NormalSigningScopeV1, OpenedShareKind,
@@ -28,7 +31,7 @@ use super::{
     LocalSigningWorkerConfigV1,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LocalEd25519YaoSigningWorkerPackageDeliveryV1 {
     pub binding: Ed25519YaoCeremonyBindingV1,
@@ -37,11 +40,33 @@ pub struct LocalEd25519YaoSigningWorkerPackageDeliveryV1 {
     pub package: Ed25519YaoEncryptedPackageV1,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LocalEd25519YaoSigningWorkerPackagePairDeliveryV1 {
+    pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub deriver_a: LocalEd25519YaoSigningWorkerPackageDeliveryV1,
     pub deriver_b: LocalEd25519YaoSigningWorkerPackageDeliveryV1,
+    pub deriver_a_client_package: Ed25519YaoEncryptedPackageV1,
+    pub deriver_b_client_package: Ed25519YaoEncryptedPackageV1,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum LocalEd25519YaoInitialRegistrationFinalizationV1 {
+    Missing,
+    Pending,
+    Committed {
+        receipt: LocalEd25519YaoSigningWorkerActivationReceiptV1,
+    },
+    Revoked,
+    Conflict,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LocalEd25519YaoCommittedInitialRegistrationV1 {
+    request: LocalEd25519YaoSigningWorkerPackagePairDeliveryV1,
+    receipt: LocalEd25519YaoSigningWorkerActivationReceiptV1,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -181,6 +206,8 @@ struct LocalEd25519YaoSigningWorkerDurableActiveStateV1 {
     activated_at_ms: u64,
     transcript: [u8; 32],
     registered_public_key: [u8; 32],
+    #[zeroize(skip)]
+    initial_registration: LocalEd25519YaoCommittedInitialRegistrationV1,
 }
 
 #[derive(Default)]
@@ -188,17 +215,21 @@ struct LocalEd25519YaoSigningIdentityStateV1 {
     pending_refresh_a: Option<PendingRefreshDelivery>,
     pending_refresh_b: Option<PendingRefreshDelivery>,
     active: Option<ActiveSigningShare>,
+    initial_registration: Option<LocalEd25519YaoCommittedInitialRegistrationV1>,
     recovery_promotion: Option<RecoveryPromotionState>,
 }
 
 impl LocalEd25519YaoSigningWorkerStateV1 {
-    pub(crate) fn durable_state_v1(&self) -> LocalEd25519YaoSigningWorkerDurableStateV1 {
-        let active_identities = self
-            .identities
-            .iter()
-            .filter_map(|(identity, state)| {
-                let active = state.active.as_ref()?;
-                Some(LocalEd25519YaoSigningWorkerDurableActiveStateV1 {
+    pub(crate) fn durable_state_v1(
+        &self,
+    ) -> RouterAbProtocolResult<LocalEd25519YaoSigningWorkerDurableStateV1> {
+        let mut active_identities = Vec::new();
+        for (identity, state) in &self.identities {
+            if let Some(active) = state.active.as_ref() {
+                let initial_registration = state.initial_registration.clone().ok_or_else(|| {
+                    invalid_activation("active SigningWorker state has no initial registration")
+                })?;
+                active_identities.push(LocalEd25519YaoSigningWorkerDurableActiveStateV1 {
                     scalar: *active.scalar,
                     identity: identity.clone(),
                     binding: active.binding.clone(),
@@ -206,10 +237,11 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
                     activated_at_ms: active.activated_at_ms,
                     transcript: active.transcript,
                     registered_public_key: active.registered_public_key,
-                })
-            })
-            .collect();
-        LocalEd25519YaoSigningWorkerDurableStateV1 { active_identities }
+                    initial_registration,
+                });
+            }
+        }
+        Ok(LocalEd25519YaoSigningWorkerDurableStateV1 { active_identities })
     }
 
     pub(crate) fn from_durable_state_v1(
@@ -219,7 +251,16 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         for mut active in core::mem::take(&mut state.active_identities) {
             active.binding.validate()?;
             active.identity.validate_persisted_v1()?;
+            validate_committed_initial_registration(&active.initial_registration)?;
             if active.identity != LocalEd25519YaoEffectiveIdentityV1::from_binding(&active.binding)
+                || active.identity
+                    != LocalEd25519YaoEffectiveIdentityV1::from_binding(
+                        &active.initial_registration.request.deriver_a.binding,
+                    )
+                || !same_signing_identity(
+                    &active.initial_registration.request.deriver_a.binding,
+                    &active.binding,
+                )
                 || active.scalar.iter().all(|byte| *byte == 0)
                 || active.activated_at_ms == 0
                 || active.transcript.iter().all(|byte| *byte == 0)
@@ -239,6 +280,7 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
                     transcript: active.transcript,
                     registered_public_key: active.registered_public_key,
                 }),
+                initial_registration: Some(active.initial_registration.clone()),
                 ..Default::default()
             };
             if identities.insert(identity, identity_state).is_some() {
@@ -255,16 +297,76 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         config: &LocalSigningWorkerConfigV1,
         request: LocalEd25519YaoSigningWorkerPackagePairDeliveryV1,
     ) -> RouterAbProtocolResult<LocalEd25519YaoSigningWorkerActivationReceiptV1> {
-        let deriver_a = validate_delivery(Ed25519YaoDeriverRoleV1::DeriverA, request.deriver_a)?;
-        let deriver_b = validate_delivery(Ed25519YaoDeriverRoleV1::DeriverB, request.deriver_b)?;
+        validate_activation_request(&request)?;
+        let deriver_a =
+            validate_delivery(Ed25519YaoDeriverRoleV1::DeriverA, request.deriver_a.clone())?;
+        let deriver_b =
+            validate_delivery(Ed25519YaoDeriverRoleV1::DeriverB, request.deriver_b.clone())?;
         if deriver_a.binding != deriver_b.binding {
             return Err(invalid_activation(
                 "SigningWorker activation package pair must share one binding",
             ));
         }
         let identity = LocalEd25519YaoEffectiveIdentityV1::from_binding(&deriver_a.binding);
-        self.activation_identity_state_mut(identity, deriver_a.binding.operation)?
-            .accept_package_pair(config, deriver_a, deriver_b)
+        let state = self.activation_identity_state_mut(identity, deriver_a.binding.operation)?;
+        if deriver_a.binding.operation == Ed25519YaoOperationV1::Registration
+            && state.initial_registration.is_some()
+        {
+            return Err(invalid_activation(
+                "initial registration finalization already exists",
+            ));
+        }
+        let receipt = state.accept_package_pair(config, deriver_a, deriver_b)?;
+        if request.deriver_a.binding.operation == Ed25519YaoOperationV1::Registration {
+            state.initial_registration = Some(LocalEd25519YaoCommittedInitialRegistrationV1 {
+                request,
+                receipt: receipt.clone(),
+            });
+        }
+        Ok(receipt)
+    }
+
+    pub fn read_initial_registration_finalization(
+        &self,
+        request: &LocalEd25519YaoSigningWorkerPackagePairDeliveryV1,
+    ) -> RouterAbProtocolResult<LocalEd25519YaoInitialRegistrationFinalizationV1> {
+        validate_initial_registration_request(request)?;
+        let identity = LocalEd25519YaoEffectiveIdentityV1::from_binding(&request.deriver_a.binding);
+        let Some(state) = self.identities.get(&identity) else {
+            return Ok(LocalEd25519YaoInitialRegistrationFinalizationV1::Missing);
+        };
+        let Some(record) = state.initial_registration.as_ref() else {
+            return Ok(if state.active.is_some() {
+                LocalEd25519YaoInitialRegistrationFinalizationV1::Conflict
+            } else {
+                LocalEd25519YaoInitialRegistrationFinalizationV1::Pending
+            });
+        };
+        if record.request != *request {
+            return Ok(LocalEd25519YaoInitialRegistrationFinalizationV1::Conflict);
+        }
+        let Some(active) = state.active.as_ref() else {
+            return Ok(LocalEd25519YaoInitialRegistrationFinalizationV1::Pending);
+        };
+        let LocalEd25519YaoSigningWorkerActivationReceiptV1::Active {
+            registered_public_key,
+            ..
+        } = &record.receipt
+        else {
+            return Ok(LocalEd25519YaoInitialRegistrationFinalizationV1::Conflict);
+        };
+        if active.binding != request.deriver_a.binding
+            || active.state_epoch != Ed25519YaoStateEpochV1::new(1)?
+            || active.transcript != request.deriver_a.package.transcript()
+            || active.registered_public_key != *registered_public_key
+        {
+            return Ok(LocalEd25519YaoInitialRegistrationFinalizationV1::Conflict);
+        }
+        Ok(
+            LocalEd25519YaoInitialRegistrationFinalizationV1::Committed {
+                receipt: record.receipt.clone(),
+            },
+        )
     }
 
     pub fn promote_recovery_candidate(
@@ -766,6 +868,110 @@ fn same_signing_identity(
         && active.lifecycle.account_id == recovery.lifecycle.account_id
         && active.lifecycle.signer_set_id == recovery.lifecycle.signer_set_id
         && active.lifecycle.selected_server_id == recovery.lifecycle.selected_server_id
+}
+
+fn validate_activation_request(
+    request: &LocalEd25519YaoSigningWorkerPackagePairDeliveryV1,
+) -> RouterAbProtocolResult<()> {
+    request.scope.validate()?;
+    let a = &request.deriver_a;
+    let b = &request.deriver_b;
+    a.binding.validate()?;
+    if !matches!(
+        a.binding.operation,
+        Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery
+    ) || a.binding != b.binding
+        || request.scope.wallet_id != a.binding.lifecycle.account_id
+    {
+        return Err(invalid_activation(
+            "activation scope or binding differs from its package pair",
+        ));
+    }
+    for (delivery, client, role) in [
+        (
+            a,
+            &request.deriver_a_client_package,
+            Ed25519YaoDeriverRoleV1::DeriverA,
+        ),
+        (
+            b,
+            &request.deriver_b_client_package,
+            Ed25519YaoDeriverRoleV1::DeriverB,
+        ),
+    ] {
+        delivery.package.validate()?;
+        client.validate()?;
+        if delivery.package.kind() != Ed25519YaoPackageKindV1::ActivationSigningWorker
+            || delivery.package.deriver() != role
+            || client.kind() != Ed25519YaoPackageKindV1::ActivationClient
+            || client.deriver() != role
+            || delivery.package.session() != a.binding.session_id.into_bytes()
+            || client.session() != a.binding.session_id.into_bytes()
+            || delivery.package.transcript() != client.transcript()
+        {
+            return Err(invalid_activation(
+                "activation package role or transcript is invalid",
+            ));
+        }
+    }
+    if a.package.transcript() != b.package.transcript() {
+        return Err(invalid_activation("activation package transcripts differ"));
+    }
+    Ok(())
+}
+
+fn validate_initial_registration_request(
+    request: &LocalEd25519YaoSigningWorkerPackagePairDeliveryV1,
+) -> RouterAbProtocolResult<()> {
+    validate_activation_request(request)?;
+    if request.deriver_a.binding.operation != Ed25519YaoOperationV1::Registration {
+        return Err(invalid_activation(
+            "finalization lookup requires initial registration",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_committed_initial_registration(
+    record: &LocalEd25519YaoCommittedInitialRegistrationV1,
+) -> RouterAbProtocolResult<()> {
+    validate_initial_registration_request(&record.request)?;
+    let LocalEd25519YaoSigningWorkerActivationReceiptV1::Active {
+        session,
+        transcript,
+        registered_public_key,
+        joined_client_commitment,
+        joined_signing_worker_commitment,
+        signing_worker_verifying_share,
+        state_epoch,
+    } = &record.receipt
+    else {
+        return Err(invalid_activation(
+            "initial registration finalization is not active",
+        ));
+    };
+    let a = &record.request.deriver_a;
+    let b = &record.request.deriver_b;
+    let expected = derive_registration_receipt(ActivationPublicCommitments::new(
+        a.client_commitment,
+        b.client_commitment,
+        a.signing_worker_commitment,
+        b.signing_worker_commitment,
+    ))
+    .map_err(map_role_error)?;
+    if *session != a.binding.session_id.into_bytes()
+        || *transcript != a.package.transcript()
+        || registered_public_key != expected.registered_public_key()
+        || joined_client_commitment != expected.joined_client_commitment()
+        || joined_signing_worker_commitment != expected.joined_signing_worker_commitment()
+        || signing_worker_verifying_share != joined_signing_worker_commitment
+        || *state_epoch != Ed25519YaoStateEpochV1::new(1)?
+    {
+        return Err(invalid_activation(
+            "initial registration finalization differs from its packages",
+        ));
+    }
+    Ok(())
 }
 
 fn validate_delivery(
@@ -1350,23 +1556,6 @@ mod tests {
             }),
             ..Default::default()
         }
-    }
-
-    #[test]
-    fn signing_worker_durable_state_restores_only_active_identity_state() {
-        let binding = ceremony_binding(Ed25519YaoOperationV1::Registration, 0x71);
-        let identity = LocalEd25519YaoEffectiveIdentityV1::from_binding(&binding);
-        let mut worker = LocalEd25519YaoSigningWorkerStateV1::default();
-        worker
-            .identities
-            .insert(identity.clone(), active_state(epoch(4), [0x44; 32]));
-
-        let restored =
-            LocalEd25519YaoSigningWorkerStateV1::from_durable_state_v1(worker.durable_state_v1())
-                .expect("restore SigningWorker state");
-        let restored_identity = restored.identities.get(&identity).expect("active identity");
-        assert_eq!(restored_identity.active_state_epoch(), Some(epoch(4)));
-        assert_eq!(restored_identity.active_signing_share(), Some(&[0x44; 32]));
     }
 
     fn activation_candidate(
