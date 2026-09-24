@@ -220,7 +220,9 @@ pub use auth::{
     require_cloudflare_gateway_to_router_auth_request_v1,
     require_cloudflare_gateway_to_signing_worker_presign_auth_request_v1,
     require_cloudflare_internal_service_auth_request_v1,
+    require_cloudflare_router_to_signing_worker_ecdsa_auth_request_v1,
     set_cloudflare_internal_service_auth_header_v1,
+    set_cloudflare_router_to_signing_worker_ecdsa_auth_header_v1,
 };
 use auth::{
     router_jwt_segment_error, unix_seconds_to_millis_v1, verify_router_ed25519_jwt_signature_v1,
@@ -13663,9 +13665,48 @@ where
     TReq: Serialize,
     TResp: serde::de::DeserializeOwned,
 {
-    let (response, _server_timing) =
-        post_service_json_with_server_timing(env, binding_name, url, label, request, None).await?;
+    let (response, _server_timing) = post_service_json_with_server_timing(
+        env,
+        binding_name,
+        url,
+        label,
+        request,
+        None,
+        CloudflareServiceAuthModeV1::Shared,
+    )
+    .await?;
     Ok(response)
+}
+
+#[cfg(feature = "workers-rs")]
+async fn post_service_json_with_router_to_signing_worker_ecdsa_auth<TReq, TResp>(
+    env: &worker::Env,
+    binding_name: &str,
+    url: &str,
+    label: &str,
+    request: &TReq,
+) -> RouterAbProtocolResult<TResp>
+where
+    TReq: Serialize,
+    TResp: serde::de::DeserializeOwned,
+{
+    let (response, _server_timing) = post_service_json_with_server_timing(
+        env,
+        binding_name,
+        url,
+        label,
+        request,
+        None,
+        CloudflareServiceAuthModeV1::RouterToSigningWorkerEcdsa,
+    )
+    .await?;
+    Ok(response)
+}
+
+#[cfg(feature = "workers-rs")]
+enum CloudflareServiceAuthModeV1 {
+    Shared,
+    RouterToSigningWorkerEcdsa,
 }
 
 /// As `post_service_json`, but also returns the peer's own `Server-Timing`
@@ -13679,6 +13720,7 @@ async fn post_service_json_with_server_timing<TReq, TResp>(
     label: &str,
     request: &TReq,
     trace_id: Option<CloudflareTraceIdV1>,
+    auth_mode: CloudflareServiceAuthModeV1,
 ) -> RouterAbProtocolResult<(TResp, Option<String>)>
 where
     TReq: Serialize,
@@ -13702,7 +13744,14 @@ where
                 format!("{label} header construction failed: {err}"),
             )
         })?;
-    set_cloudflare_internal_service_auth_header_v1(env, &headers, label)?;
+    match auth_mode {
+        CloudflareServiceAuthModeV1::Shared => {
+            set_cloudflare_internal_service_auth_header_v1(env, &headers, label)?;
+        }
+        CloudflareServiceAuthModeV1::RouterToSigningWorkerEcdsa => {
+            set_cloudflare_router_to_signing_worker_ecdsa_auth_header_v1(env, &headers, label)?;
+        }
+    }
     if let Some(trace_id) = trace_id {
         set_cloudflare_trace_id_header_v1(&headers, trace_id)?;
     }
@@ -13802,6 +13851,7 @@ async fn execute_cloudflare_router_ab_ecdsa_derivation_deriver_registration_serv
             &label,
             &private_request,
             trace_id,
+            CloudflareServiceAuthModeV1::Shared,
         )
         .await?;
     validate_cloudflare_signer_recipient_proof_bundle_private_response_v1(
@@ -13925,6 +13975,7 @@ async fn execute_cloudflare_router_ab_ecdsa_derivation_signing_worker_activation
         "Router A/B ECDSA derivation SigningWorker activation request",
         request,
         trace_id,
+        CloudflareServiceAuthModeV1::Shared,
     )
     .await?;
     receipt.validate()?;

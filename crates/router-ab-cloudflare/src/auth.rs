@@ -4,6 +4,7 @@ use crate::{
     cloudflare_router_error_status, require_non_empty, worker_binding_error,
     worker_binding_error_code, ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET_BINDING,
     ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET_BINDING,
+    ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET_BINDING,
     ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING_ENV,
 };
 use ed25519_dalek::{Signature as Ed25519Signature, VerifyingKey as Ed25519VerifyingKey};
@@ -64,6 +65,29 @@ pub fn set_cloudflare_internal_service_auth_header_v1(
 ) -> RouterAbProtocolResult<()> {
     require_non_empty("Cloudflare service-auth request kind", request_kind)?;
     let mut secret = load_cloudflare_internal_service_auth_secret_v1(env)?;
+    let result = headers
+        .set(ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, &secret)
+        .map_err(|err| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                format!("{request_kind} service-auth header construction failed: {err}"),
+            )
+        });
+    secret.zeroize();
+    result
+}
+
+#[cfg(feature = "workers-rs")]
+pub fn set_cloudflare_router_to_signing_worker_ecdsa_auth_header_v1(
+    env: &worker::Env,
+    headers: &worker::Headers,
+    request_kind: &str,
+) -> RouterAbProtocolResult<()> {
+    require_non_empty("Cloudflare service-auth request kind", request_kind)?;
+    let mut secret = load_cloudflare_service_auth_secret_v1(
+        env,
+        ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET_BINDING,
+    )?;
     let result = headers
         .set(ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, &secret)
         .map_err(|err| {
@@ -141,6 +165,47 @@ pub fn require_cloudflare_gateway_to_signing_worker_presign_auth_request_v1(
         ));
     }
     require_cloudflare_service_auth_request_v1(request, gateway)
+}
+
+#[cfg(feature = "workers-rs")]
+pub fn require_cloudflare_router_to_signing_worker_ecdsa_auth_request_v1(
+    request: &worker::Request,
+    env: &worker::Env,
+) -> RouterAbProtocolResult<()> {
+    let mut shared = load_cloudflare_internal_service_auth_secret_v1(env)?;
+    let mut gateway_presign = match load_cloudflare_service_auth_secret_v1(
+        env,
+        ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET_BINDING,
+    ) {
+        Ok(secret) => secret,
+        Err(error) => {
+            shared.zeroize();
+            return Err(error);
+        }
+    };
+    let mut router = match load_cloudflare_service_auth_secret_v1(
+        env,
+        ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET_BINDING,
+    ) {
+        Ok(secret) => secret,
+        Err(error) => {
+            shared.zeroize();
+            gateway_presign.zeroize();
+            return Err(error);
+        }
+    };
+    let reused = constant_time_text_eq_v1(&shared, &router)
+        || constant_time_text_eq_v1(&gateway_presign, &router);
+    shared.zeroize();
+    gateway_presign.zeroize();
+    if reused {
+        router.zeroize();
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            "Router-to-SigningWorker ECDSA auth secret must be distinct",
+        ));
+    }
+    require_cloudflare_service_auth_request_v1(request, router)
 }
 
 #[cfg(feature = "workers-rs")]

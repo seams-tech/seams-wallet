@@ -12,6 +12,10 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_STEP_PATH
     {
         require_cloudflare_gateway_to_signing_worker_presign_auth_request_v1(&request, &env)
+    } else if path == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH
+        || path == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH
+    {
+        require_cloudflare_router_to_signing_worker_ecdsa_auth_request_v1(&request, &env)
     } else {
         require_cloudflare_internal_service_auth_request_v1(&request, &env)
     };

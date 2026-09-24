@@ -27,6 +27,7 @@ const internalAuthHeader = 'x-router-ab-internal-service-auth';
 const internalAuthSecret = 'private-d1-integration-auth';
 const gatewayToRouterAuthSecret = 'private-d1-gateway-router-auth';
 const gatewayToSigningWorkerPresignAuthSecret = 'private-d1-gateway-signing-worker-presign-auth';
+const routerToSigningWorkerEcdsaAuthSecret = 'private-d1-router-signing-worker-ecdsa-auth';
 const roleD1Binding = 'DERIVER_ROLE_PRIVATE_DB';
 const managedBackupR2Binding = 'TENANT_ROOT_MANAGED_BACKUP_BUCKET';
 const signingWorkerD1Binding = 'SIGNING_WORKER_PRIVATE_DB';
@@ -71,6 +72,10 @@ const gatewayOnlyRouterPaths = new Set([
 const gatewayOnlyPresignPaths = new Set([
   ecdsaPresignSessionInitPath,
   ecdsaPresignSessionStepPath,
+]);
+const routerOnlySigningWorkerEcdsaPaths = new Set([
+  ecdsaSigningWorkerPreparePath,
+  '/router-ab/signing-worker/ecdsa-derivation/sign/finalize',
 ]);
 const ed25519ActivationPackagesPath =
   '/router-ab/signing-worker/ed25519-yao/activation/packages';
@@ -227,6 +232,8 @@ function signingWorker(name, databaseId, fixture) {
       ...fixture.signing_worker_env,
       ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET:
         gatewayToSigningWorkerPresignAuthSecret,
+      ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET:
+        routerToSigningWorkerEcdsaAuthSecret,
     }),
     d1Databases: { [signingWorkerD1Binding]: databaseId },
     durableObjects: {
@@ -240,7 +247,11 @@ function signingWorker(name, databaseId, fixture) {
 
 function routerWorker(fixture, capturePairPreparation = false, gateDeriverB = false) {
   return {
-    ...strictWorker('router', 'router', fixture.router_env),
+    ...strictWorker('router', 'router', {
+      ...fixture.router_env,
+      ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET:
+        routerToSigningWorkerEcdsaAuthSecret,
+    }),
     durableObjects: {
       [tenantRootCreationDoBinding]: {
         className: tenantRootCreationDoClass,
@@ -481,6 +492,8 @@ async function postWorkerJson(worker, path, body, additionalHeaders = {}) {
     ? { [internalAuthHeader]: gatewayToRouterAuthSecret }
     : gatewayOnlyPresignPaths.has(path)
       ? { [internalAuthHeader]: gatewayToSigningWorkerPresignAuthSecret }
+      : routerOnlySigningWorkerEcdsaPaths.has(path)
+        ? { [internalAuthHeader]: routerToSigningWorkerEcdsaAuthSecret }
       : {};
   return worker.fetch(
     `https://private.test${path}`,
@@ -1423,7 +1436,17 @@ async function testEcdsaNormalSigning(topology, ecdsa, mode = 'pool', checkRejec
           false,
           'The role-shared SigningWorker route must not advance a live owner presign session',
         );
-        assert.match(await forgedWorkerPrepare.text(), /Bundled final presign batch is gated/);
+        assert.equal(forgedWorkerPrepare.status, 403);
+        const admittedForgedWorkerPrepare = await postWorkerJson(
+          signingWorker,
+          ecdsaSigningWorkerPreparePath,
+          {
+            ...capturedEcdsaSigningWorkerPrepare,
+            presign_source: presign.presignSource,
+          },
+        );
+        assert.equal(admittedForgedWorkerPrepare.ok, false);
+        assert.match(await admittedForgedWorkerPrepare.text(), /Bundled final presign batch is gated/);
       }
       const directStep = await postWorkerJson(
         signingWorker,

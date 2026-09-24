@@ -139,7 +139,9 @@ use crate::{
 use crate::{
     cloudflare_private_service_auth_error_response_v1,
     require_cloudflare_gateway_to_signing_worker_presign_auth_request_v1,
-    require_cloudflare_internal_service_auth_request_v1, CLOUDFLARE_INTERNAL_PREWARM_PATH,
+    require_cloudflare_internal_service_auth_request_v1,
+    require_cloudflare_router_to_signing_worker_ecdsa_auth_request_v1,
+    CLOUDFLARE_INTERNAL_PREWARM_PATH,
 };
 #[cfg(all(
     debug_assertions,

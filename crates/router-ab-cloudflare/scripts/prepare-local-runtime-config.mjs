@@ -287,6 +287,14 @@ function readOrCreateLocalGatewayToSigningWorkerPresignAuthSecret(localEnvRoot) 
   );
 }
 
+function readOrCreateLocalRouterToSigningWorkerEcdsaAuthSecret(localEnvRoot) {
+  return readOrCreateLocalGatewayAuthSecret(
+    localEnvRoot,
+    'router-signing-worker-ecdsa-auth.secret',
+    'Router-to-SigningWorker ECDSA auth secret',
+  );
+}
+
 function readOrCreateLocalGatewayAuthSecret(localEnvRoot, fileName, label) {
   const secretPath = path.join(
     localEnvRoot,
@@ -334,6 +342,8 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
   const gatewayToRouterAuthSecret = readOrCreateLocalGatewayToRouterAuthSecret(localEnvRoot);
   const gatewayToSigningWorkerPresignAuthSecret =
     readOrCreateLocalGatewayToSigningWorkerPresignAuthSecret(localEnvRoot);
+  const routerToSigningWorkerEcdsaAuthSecret =
+    readOrCreateLocalRouterToSigningWorkerEcdsaAuthSecret(localEnvRoot);
   const deriverAEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-a.local'));
   const deriverBEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-b.local'));
   const signingWorkerEnv = readEnvMap(
@@ -434,6 +444,7 @@ new_sqlite_classes = ["RouterAbSigningWorkerWalletDurableObject"]
         routerEnv,
         gatewayToRouterAuthSecret,
         gatewayToSigningWorkerPresignAuthSecret,
+        routerToSigningWorkerEcdsaAuthSecret,
         deriverAEnv,
         deriverBEnv,
         signingWorkerEnv,
@@ -786,6 +797,7 @@ function strictRoleSecretFile(role, env) {
       return [
         internalAuthSecret,
         `ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET=${env.gatewayToRouterAuthSecret}`,
+        `ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET=${env.routerToSigningWorkerEcdsaAuthSecret}`,
         '',
       ].join('\n');
     case 'deriver-a':
@@ -836,6 +848,7 @@ function strictRoleSecretFile(role, env) {
       return [
         internalAuthSecret,
         `ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET=${env.gatewayToSigningWorkerPresignAuthSecret}`,
+        `ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET=${env.routerToSigningWorkerEcdsaAuthSecret}`,
         `SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY=${versionedHexSecret(
           requiredEnv(env.signingWorkerEnv, 'SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY'),
           'hpke-x25519-server-output-private-v1:',
