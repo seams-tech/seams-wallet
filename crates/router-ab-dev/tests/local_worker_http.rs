@@ -46,7 +46,8 @@ use router_ab_dev::{
     LocalDeriverPeerMessageReceiptV1, LocalEd25519YaoActivationDeriverARequestV1,
     LocalEd25519YaoActivationDeriverBRequestV1, LocalEd25519YaoActivationRecipientsV1,
     LocalEd25519YaoClientContributionV1, LocalEd25519YaoRecipientPrivateKeyV1,
-    LocalHttpServiceBindingClientV1, LocalWorkerRoleConfigV1,
+    LocalHttpServiceBindingClientV1,
+    LocalSigningWorkerAdmittedRouterAbEcdsaDerivationFinalizeRequestV1, LocalWorkerRoleConfigV1,
     RouterAbEd25519YaoApplicationBindingFactsV1, RouterAbEd25519YaoLifecycleScopeV1,
     RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
@@ -598,6 +599,214 @@ fn product_topology_completes_local_ed25519_yao_registration(
     Ok(())
 }
 
+#[test]
+fn local_ecdsa_effect_claim_and_consume_survive_terminal_failure(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let worker_binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
+    let smoke_binary = env!("CARGO_BIN_EXE_router_ab_local_smoke");
+    let temp = temp_dir("ecdsa-atomic-claim")?;
+    let router_url = format!("http://127.0.0.1:{}", free_port()?);
+    let deriver_a_url = format!("http://127.0.0.1:{}", free_port()?);
+    let deriver_b_url = format!("http://127.0.0.1:{}", free_port()?);
+    let signing_worker_url = format!("http://127.0.0.1:{}", free_port()?);
+    write_product_worker_envs(
+        &temp,
+        &router_url,
+        &deriver_a_url,
+        &deriver_b_url,
+        &signing_worker_url,
+        &product_tenant_root_fixture()?,
+    )?;
+    let mut router = ChildGuard::spawn_in_root(
+        worker_binary,
+        "router",
+        temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1),
+        &temp,
+    )?;
+    let mut deriver_a = ChildGuard::spawn_in_root(
+        worker_binary,
+        "deriver-a",
+        temp.join(router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1),
+        &temp,
+    )?;
+    let mut deriver_b = ChildGuard::spawn_in_root(
+        worker_binary,
+        "deriver-b",
+        temp.join(router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1),
+        &temp,
+    )?;
+    let signing_worker_env_path = temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1);
+    let mut signing_worker = ChildGuard::spawn_in_root(
+        worker_binary,
+        "signing-worker",
+        signing_worker_env_path.clone(),
+        &temp,
+    )?;
+    for (url, worker) in [
+        (&router_url, &mut router),
+        (&deriver_a_url, &mut deriver_a),
+        (&deriver_b_url, &mut deriver_b),
+        (&signing_worker_url, &mut signing_worker),
+    ] {
+        wait_for_health(url, worker.child_mut())?;
+    }
+
+    let completed_fixture = temp.join("ecdsa-completed-finalize.json");
+    let completed = Command::new(smoke_binary)
+        .arg("--root")
+        .arg(&temp)
+        .arg("--save-finalize")
+        .arg(&completed_fixture)
+        .output()?;
+    assert!(
+        completed.status.success(),
+        "VM ECDSA signing failed: {}",
+        String::from_utf8_lossy(&completed.stderr)
+    );
+    drop(signing_worker);
+    let mut signing_worker = ChildGuard::spawn_in_root(
+        worker_binary,
+        "signing-worker",
+        signing_worker_env_path.clone(),
+        &temp,
+    )?;
+    wait_for_health(&signing_worker_url, signing_worker.child_mut())?;
+    let replay = Command::new(smoke_binary)
+        .arg("--root")
+        .arg(&temp)
+        .arg("--verify-finalize-replay")
+        .arg(&completed_fixture)
+        .output()?;
+    assert!(
+        replay.status.success(),
+        "VM ECDSA terminal replay failed: {}",
+        String::from_utf8_lossy(&replay.stderr)
+    );
+
+    let config = parse_local_worker_role_config_for_role_v1(
+        LocalServiceRoleV1::SigningWorker,
+        parse_local_env_file_contents_v1(&fs::read_to_string(&signing_worker_env_path)?)?,
+    )?;
+    let LocalWorkerRoleConfigV1::SigningWorker(config) = config else {
+        return Err("SigningWorker env parsed as another role".into());
+    };
+    let connection = Connection::open(temp.join(config.role_private_storage_path))?;
+    connection.execute_batch(
+        "CREATE TRIGGER reject_ecdsa_terminal BEFORE UPDATE OF terminal_json
+         ON local_signing_worker_ecdsa_effect
+         BEGIN SELECT RAISE(ABORT, 'injected terminal failure'); END;",
+    )?;
+    let pending_fixture = temp.join("ecdsa-pending-finalize.json");
+    let interrupted = Command::new(smoke_binary)
+        .arg("--root")
+        .arg(&temp)
+        .arg("--save-finalize")
+        .arg(&pending_fixture)
+        .output()?;
+    let interrupted_error = String::from_utf8_lossy(&interrupted.stderr);
+    assert!(
+        !interrupted.status.success(),
+        "terminal failure was not observed"
+    );
+    assert!(
+        interrupted_error.contains("injected terminal failure"),
+        "unexpected VM ECDSA failure: {interrupted_error}"
+    );
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&fs::read(&pending_fixture)?)?["state"],
+        "pending"
+    );
+    let (effect_state, terminal_json, pool_json): (String, Option<String>, String) = connection
+        .query_row(
+            "SELECT effect.state, effect.terminal_json, pool.record_json
+             FROM local_signing_worker_ecdsa_effect AS effect
+             JOIN local_signing_worker_ecdsa_pool AS pool
+               ON pool.record_key = effect.presignature_key
+             WHERE effect.state = 'claimed'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+    assert_eq!(effect_state, "claimed");
+    assert!(
+        terminal_json.is_none(),
+        "failed terminal write must not commit"
+    );
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&pool_json)?["material_state"]["state"],
+        "consumed",
+        "claimed presignature must stay consumed"
+    );
+    connection.execute_batch("DROP TRIGGER reject_ecdsa_terminal")?;
+    drop(signing_worker);
+    let mut signing_worker = ChildGuard::spawn_in_root(
+        worker_binary,
+        "signing-worker",
+        signing_worker_env_path,
+        &temp,
+    )?;
+    wait_for_health(&signing_worker_url, signing_worker.child_mut())?;
+    let pending_replay = Command::new(smoke_binary)
+        .arg("--root")
+        .arg(&temp)
+        .arg("--verify-finalize-replay")
+        .arg(&pending_fixture)
+        .output()?;
+    assert!(
+        pending_replay.status.success(),
+        "interrupted ECDSA effect must remain pending: {}",
+        String::from_utf8_lossy(&pending_replay.stderr)
+    );
+    let pending: serde_json::Value = serde_json::from_slice(&fs::read(&pending_fixture)?)?;
+    let mut competing_request = serde_json::from_value::<
+        LocalSigningWorkerAdmittedRouterAbEcdsaDerivationFinalizeRequestV1,
+    >(pending["admitted"].clone())?;
+    competing_request
+        .request
+        .operation_id
+        .push_str("-contender");
+    competing_request.trusted_admission.request_digest =
+        competing_request.request.request_digest()?;
+    let (competing_status, competing_body) = post_json_to_path_with_headers(
+        &signing_worker_url,
+        router_ab_dev::LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
+        &competing_request,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+        )],
+    )?;
+    assert_eq!(competing_status, 400, "{competing_body}");
+    assert!(competing_body.contains("ReplayedLocalRequest"));
+    let claimed_count: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM local_signing_worker_ecdsa_effect WHERE state = 'claimed'",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(
+        claimed_count, 1,
+        "no second effect may claim spent material"
+    );
+    println!(
+        "R150_VM_ECDSA_E2E {}",
+        json!({
+            "completed_replay": true,
+            "failed_terminal_write": true,
+            "interrupted_effect_state": effect_state,
+            "interrupted_pool_material_state": "consumed",
+            "restart_replay": "pending",
+            "changed_operation_rejected": true,
+        })
+    );
+    drop(connection);
+    drop(signing_worker);
+    drop(deriver_b);
+    drop(deriver_a);
+    drop(router);
+    let _ = fs::remove_dir_all(temp);
+    Ok(())
+}
+
 fn product_near_signing_process_flow(
     binary: &str,
     temp: &Path,
@@ -734,7 +943,10 @@ fn product_near_signing_process_flow(
             )],
         )?;
         assert_eq!(status, 200, "VM SigningWorker replay: {retry_body}");
-        assert_eq!(retry_body, body, "both processes must replay one terminal result");
+        assert_eq!(
+            retry_body, body,
+            "both processes must replay one terminal result"
+        );
     }
     drop(replica);
     let signed: NormalSigningResponseV1 = serde_json::from_str(&body)?;

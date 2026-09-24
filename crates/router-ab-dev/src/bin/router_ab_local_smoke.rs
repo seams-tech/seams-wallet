@@ -98,9 +98,15 @@ struct RouterAbEcdsaDerivationSmokeResult {
 }
 
 #[derive(Serialize, Deserialize)]
-struct FinalizeReplayFixture {
-    admitted: LocalSigningWorkerAdmittedRouterAbEcdsaDerivationFinalizeRequestV1,
-    response: RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
+#[serde(tag = "state", rename_all = "snake_case")]
+enum FinalizeReplayFixture {
+    Pending {
+        admitted: LocalSigningWorkerAdmittedRouterAbEcdsaDerivationFinalizeRequestV1,
+    },
+    Completed {
+        admitted: LocalSigningWorkerAdmittedRouterAbEcdsaDerivationFinalizeRequestV1,
+        response: RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -400,6 +406,14 @@ fn run_router_ab_ecdsa_derivation_live_http_smoke(
         )?,
         request: finalize_request.clone(),
     };
+    if let Some(path) = save_finalize_path {
+        write_finalize_fixture(
+            path,
+            &FinalizeReplayFixture::Pending {
+                admitted: admitted_finalize.clone(),
+            },
+        )?;
+    }
     let (finalize_status, finalize_body) = post_json_to_path_with_headers(
         &urls.signing_worker,
         LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
@@ -433,15 +447,12 @@ fn run_router_ab_ecdsa_derivation_live_http_smoke(
         &fixture.threshold_public_key33,
     )?;
     if let Some(path) = save_finalize_path {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(
+        write_finalize_fixture(
             path,
-            serde_json::to_vec(&FinalizeReplayFixture {
+            &FinalizeReplayFixture::Completed {
                 admitted: admitted_finalize.clone(),
                 response: signing_response.clone(),
-            })?,
+            },
         )?;
     }
 
@@ -491,28 +502,57 @@ fn run_router_ab_ecdsa_derivation_live_http_smoke(
     })
 }
 
+fn write_finalize_fixture(
+    path: &Path,
+    fixture: &FinalizeReplayFixture,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, serde_json::to_vec(fixture)?)?;
+    Ok(())
+}
+
 fn verify_persisted_finalize_replay(
     urls: &LocalWorkerUrls,
     path: &Path,
 ) -> Result<ReplaySummary, Box<dyn std::error::Error>> {
     let fixture: FinalizeReplayFixture = serde_json::from_slice(&fs::read(path)?)?;
+    let (admitted, expected_response) = match fixture {
+        FinalizeReplayFixture::Pending { admitted } => (admitted, None),
+        FinalizeReplayFixture::Completed { admitted, response } => (admitted, Some(response)),
+    };
     let internal_service_auth = local_router_ab_internal_service_auth_secret_v1();
     let (status, body) = post_json_to_path_with_headers(
         &urls.signing_worker,
         LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
-        &fixture.admitted,
+        &admitted,
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
             internal_service_auth.as_str(),
         )],
     )?;
-    if status != 200 || body != serde_json::to_string(&fixture.response)? {
-        return Err(format!(
-            "SigningWorker restart replay expected the committed response, received {status}: {body}"
-        )
-        .into());
-    }
-    let mut changed_admission = fixture.admitted.clone();
+    let replay_status = match expected_response {
+        Some(response) => {
+            if status != 200 || body != serde_json::to_string(&response)? {
+                return Err(format!(
+                    "SigningWorker restart replay expected the committed response, received {status}: {body}"
+                )
+                .into());
+            }
+            "http_200_original_response"
+        }
+        None => {
+            if status != 400 || !body.contains("still pending") {
+                return Err(format!(
+                    "SigningWorker interrupted effect must remain pending, received {status}: {body}"
+                )
+                .into());
+            }
+            "http_400_pending"
+        }
+    };
+    let mut changed_admission = admitted.clone();
     changed_admission.trusted_admission.admitted_at_ms += 1;
     let (changed_status, changed_body) = post_json_to_path_with_headers(
         &urls.signing_worker,
@@ -531,9 +571,9 @@ fn verify_persisted_finalize_replay(
     }
     Ok(ReplaySummary {
         evidence_kind: "signing_worker_private_http_restart_replay",
-        status: "http_200_original_response",
+        status: replay_status,
         changed_admission_status: "http_400_replayed_local_request",
-        request_digest_b64u: b64u(fixture.admitted.request.request_digest()?.as_bytes()),
+        request_digest_b64u: b64u(admitted.request.request_digest()?.as_bytes()),
     })
 }
 

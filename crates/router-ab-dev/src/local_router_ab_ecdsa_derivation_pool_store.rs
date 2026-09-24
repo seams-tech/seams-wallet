@@ -2,12 +2,13 @@ use router_ab_cloudflare::{
     apply_cloudflare_signing_worker_ecdsa_pool_command_v1,
     CloudflareSigningWorkerEcdsaPoolCommandV1, CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1,
     CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1,
+    CloudflareSigningWorkerEcdsaPresignatureRecordV1,
 };
 use router_ab_core::{
     RouterAbEcdsaDerivationEvmDigestSigningResponseV1, RouterAbEcdsaDerivationNormalSigningScopeV1,
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
-use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
+use rusqlite::{params, Connection, OptionalExtension, Transaction, TransactionBehavior};
 use sha2::{Digest, Sha256};
 use std::{path::Path, time::Duration};
 
@@ -62,11 +63,20 @@ pub(crate) fn local_signing_worker_ecdsa_pool_mutate_v1(
     config: &LocalSigningWorkerConfigV1,
     command: CloudflareSigningWorkerEcdsaPoolCommandV1,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1> {
-    let key = local_signing_worker_ecdsa_pool_store_key_v1(&command)?;
     let mut connection = open_connection(config)?;
     let transaction = connection
         .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(sqlite_error)?;
+    let outcome = mutate_ecdsa_pool_in_transaction(&transaction, command)?;
+    transaction.commit().map_err(sqlite_error)?;
+    Ok(outcome)
+}
+
+fn mutate_ecdsa_pool_in_transaction(
+    transaction: &Transaction<'_>,
+    command: CloudflareSigningWorkerEcdsaPoolCommandV1,
+) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1> {
+    let key = local_signing_worker_ecdsa_pool_store_key_v1(&command)?;
     let selected = transaction
         .query_row(
             "SELECT record_json, version FROM local_signing_worker_ecdsa_pool WHERE record_key = ?1",
@@ -109,15 +119,20 @@ pub(crate) fn local_signing_worker_ecdsa_pool_mutate_v1(
     if written != 1 {
         return Err(store_error("ECDSA pool conditional write is uncertain"));
     }
-    transaction.commit().map_err(sqlite_error)?;
     Ok(outcome)
 }
 
-pub(crate) fn local_signing_worker_ecdsa_effect_claim_v1(
+pub(crate) enum LocalEcdsaEffectClaimV1 {
+    Replay(String),
+    Material(CloudflareSigningWorkerEcdsaPresignatureRecordV1),
+    Burned,
+}
+
+pub(crate) fn local_signing_worker_ecdsa_effect_claim_and_consume_v1(
     config: &LocalSigningWorkerConfigV1,
     admitted: &LocalSigningWorkerAdmittedRouterAbEcdsaDerivationFinalizeRequestV1,
     now_unix_ms: u64,
-) -> RouterAbProtocolResult<Option<String>> {
+) -> RouterAbProtocolResult<LocalEcdsaEffectClaimV1> {
     admitted.validate()?;
     let operation_key = ecdsa_effect_operation_key(admitted)?;
     let presignature_key = ecdsa_presignature_key(
@@ -153,7 +168,7 @@ pub(crate) fn local_signing_worker_ecdsa_effect_claim_v1(
                         ))
                     })?;
                 response.validate_for_request(&admitted.request)?;
-                Ok(Some(json))
+                Ok(LocalEcdsaEffectClaimV1::Replay(json))
             }
             _ => Err(store_error("stored ECDSA effect has an invalid lifecycle")),
         };
@@ -172,6 +187,28 @@ pub(crate) fn local_signing_worker_ecdsa_effect_claim_v1(
             "SigningWorker ECDSA presignature belongs to another effect",
         ));
     }
+    let consume_outcome = mutate_ecdsa_pool_in_transaction(
+        &transaction,
+        CloudflareSigningWorkerEcdsaPoolCommandV1::Consume {
+            scope: admitted.request.scope.clone(),
+            server_presignature_id: admitted.request.server_presignature_id.clone(),
+            expected_revision: 1,
+            request_digest: admitted.request.prepare_request_digest()?,
+            now_unix_ms,
+        },
+    )?;
+    let material = match consume_outcome {
+        CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Consumed { material, .. } => material,
+        CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Burned { .. } => {
+            transaction.commit().map_err(sqlite_error)?;
+            return Ok(LocalEcdsaEffectClaimV1::Burned);
+        }
+        _ => {
+            return Err(store_error(
+                "ECDSA consume returned the wrong lifecycle outcome",
+            ))
+        }
+    };
     let inserted = transaction
         .execute(
             "INSERT INTO local_signing_worker_ecdsa_effect (operation_key, presignature_key, request_digest_hex, state) VALUES (?1, ?2, ?3, 'claimed')",
@@ -182,7 +219,7 @@ pub(crate) fn local_signing_worker_ecdsa_effect_claim_v1(
         return Err(store_error("ECDSA effect claim write is uncertain"));
     }
     transaction.commit().map_err(sqlite_error)?;
-    Ok(None)
+    Ok(LocalEcdsaEffectClaimV1::Material(material))
 }
 
 pub(crate) fn local_signing_worker_ecdsa_effect_complete_v1(

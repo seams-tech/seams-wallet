@@ -171,9 +171,9 @@ pub use local_ed25519_yao_worker::{
     LocalEd25519YaoWorkerStateV1,
 };
 use local_router_ab_ecdsa_derivation_pool_store::{
-    local_signing_worker_ecdsa_effect_claim_v1,
-    local_signing_worker_ecdsa_effect_complete_v1,
-    local_signing_worker_ecdsa_pool_mutate_v1,
+    local_signing_worker_ecdsa_effect_claim_and_consume_v1,
+    local_signing_worker_ecdsa_effect_complete_v1, local_signing_worker_ecdsa_pool_mutate_v1,
+    LocalEcdsaEffectClaimV1,
 };
 pub use local_router_coordinator::LocalRouterEd25519YaoCoordinatorV1;
 pub use local_router_ed25519_yao_http::{
@@ -2171,37 +2171,17 @@ pub fn handle_local_signing_worker_router_ab_ecdsa_derivation_finalize_json_v1(
     let request = &admitted.request;
     let active_signing_worker_state =
         local_active_router_ab_ecdsa_derivation_signing_worker_state_v1(config, &request.scope)?;
-    if let Some(response_json) =
-        local_signing_worker_ecdsa_effect_claim_v1(config, &admitted, now_unix_ms)?
-    {
-        return Ok(response_json);
-    }
-    let prepare_request_digest = request.prepare_request_digest()?;
-    let consume_outcome = local_signing_worker_ecdsa_pool_mutate_v1(
+    let server_presignature = match local_signing_worker_ecdsa_effect_claim_and_consume_v1(
         config,
-        CloudflareSigningWorkerEcdsaPoolCommandV1::Consume {
-            scope: request.scope.clone(),
-            server_presignature_id: request.server_presignature_id.clone(),
-            expected_revision: 1,
-            request_digest: prepare_request_digest,
-            now_unix_ms,
-        },
-    )?;
-    let server_presignature = match consume_outcome {
-        CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Consumed {
-            record: _,
-            material,
-        } => material,
-        CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Burned { .. } => {
+        &admitted,
+        now_unix_ms,
+    )? {
+        LocalEcdsaEffectClaimV1::Replay(response_json) => return Ok(response_json),
+        LocalEcdsaEffectClaimV1::Material(material) => material,
+        LocalEcdsaEffectClaimV1::Burned => {
             return Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::ReplayedLocalRequest,
                 "local SigningWorker ECDSA reservation was terminally burned",
-            ));
-        }
-        _ => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLifecycleState,
-                "local SigningWorker ECDSA consume returned the wrong lifecycle outcome",
             ));
         }
     };
