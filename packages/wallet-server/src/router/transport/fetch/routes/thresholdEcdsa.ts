@@ -200,6 +200,7 @@ type RouterAbEcdsaAuthorizedOperationWire = {
         readonly org_id: string;
         readonly project_id: string;
         readonly environment: string;
+        readonly project_environment_id: string;
         readonly signing_worker_id: string;
         readonly expires_at_ms: number;
       }
@@ -260,6 +261,7 @@ type RouterAbEcdsaAuthorizedOperationWireInput =
         readonly orgId: string;
         readonly projectId: string;
         readonly environment: string;
+        readonly projectEnvironmentId: string;
         readonly signingWorkerId: string;
         readonly expiresAtMs: number;
       };
@@ -336,6 +338,7 @@ function buildRouterAbEcdsaAuthorizedOperationWire(
           org_id: input.binding.orgId,
           project_id: input.binding.projectId,
           environment: input.binding.environment,
+          project_environment_id: input.binding.projectEnvironmentId,
           signing_worker_id: input.binding.signingWorkerId,
           expires_at_ms: input.binding.expiresAtMs,
         },
@@ -625,6 +628,16 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
         ? authorization.validated.admission.context.authorization.session
         : authorization.candidate.status.session;
     const runtimePolicyScope = authorization.activeMaterial.runtimePolicyScope;
+    const pinnedOwnerScope = await input.ctx.service.authorizedOperations.readPinnedOwnerWalletScope({
+      operation: authorizedOperation,
+      walletId: session.walletId,
+    });
+    if (
+      pinnedOwnerScope.orgId !== runtimePolicyScope.orgId ||
+      pinnedOwnerScope.projectId !== runtimePolicyScope.projectId
+    ) {
+      throw new Error('Pinned ECDSA owner Wallet Session scope differs from active material');
+    }
     authorizedOperationWire = buildRouterAbEcdsaAuthorizedOperationWire({
       operation: authorizedOperation,
       binding: {
@@ -638,6 +651,7 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
         orgId: runtimePolicyScope.orgId,
         projectId: runtimePolicyScope.projectId,
         environment: runtimePolicyScope.envId,
+        projectEnvironmentId: pinnedOwnerScope.projectEnvironmentId,
         signingWorkerId: authorization.activeMaterial.materialActivation.signing_worker,
         expiresAtMs: session.expiresAtMs,
       },

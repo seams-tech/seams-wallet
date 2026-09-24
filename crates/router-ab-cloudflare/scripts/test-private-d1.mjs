@@ -1295,6 +1295,7 @@ async function testEcdsaNormalSigning(topology, ecdsa, mode = 'pool', checkRejec
       org_id: 'org-miniflare',
       project_id: 'project-r120',
       environment: 'test',
+      project_environment_id: 'project-environment-miniflare',
       signing_worker_id: ecdsa.selectedServerId,
       expires_at_ms: expiresAtMs,
     };

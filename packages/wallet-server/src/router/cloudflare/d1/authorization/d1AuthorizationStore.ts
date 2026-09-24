@@ -2223,9 +2223,10 @@ export class CloudflareD1AuthorizationStore
     const { operation, walletId } = input;
     if (
       operation.authorization.kind !== 'authorization_grant' ||
-      operation.operation.operation.capabilityKind !== CAPABILITY_KINDS.nearEd25519MpcSigning
+      (operation.operation.operation.capabilityKind !== CAPABILITY_KINDS.nearEd25519MpcSigning &&
+        operation.operation.operation.capabilityKind !== CAPABILITY_KINDS.evmEcdsaMpcSigning)
     ) {
-      throw new Error('Pinned owner Wallet Session scope requires a NEAR authorization grant');
+      throw new Error('Pinned owner Wallet Session scope requires a signing authorization grant');
     }
     const row = await this.database
       .prepare(

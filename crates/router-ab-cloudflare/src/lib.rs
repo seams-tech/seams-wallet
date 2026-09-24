@@ -6450,6 +6450,7 @@ pub enum CloudflareRouterEcdsaAcceptedCapabilityBindingV1 {
         org_id: String,
         project_id: String,
         environment: String,
+        project_environment_id: String,
         signing_worker_id: String,
         expires_at_ms: u64,
     },
@@ -6471,6 +6472,30 @@ pub struct CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
 
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
 impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
+    fn gateway_owner_wallet_scope(
+        &self,
+    ) -> RouterAbProtocolResult<CloudflareSigningWorkerWalletScopeV1> {
+        let CloudflareRouterEcdsaAcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
+            org_id,
+            project_id,
+            project_environment_id,
+            account_id,
+            ..
+        } = &self.binding
+        else {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidGateDecision,
+                "ECDSA Gateway owner Wallet Session binding is required",
+            ));
+        };
+        CloudflareSigningWorkerWalletScopeV1::new(
+            org_id,
+            project_id,
+            project_environment_id,
+            account_id,
+        )
+    }
+
     fn validate_for_linked_device_ecdsa_finalize_request(
         &self,
         request: &router_ab_core::RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningFinalizeRequestV1,
@@ -6663,6 +6688,7 @@ impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
                     org_id,
                     project_id,
                     environment,
+                    project_environment_id,
                     signing_worker_id,
                     expires_at_ms,
                 },
@@ -6682,6 +6708,10 @@ impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
                 require_non_empty("accepted ECDSA Gateway org_id", org_id)?;
                 require_non_empty("accepted ECDSA Gateway project_id", project_id)?;
                 require_non_empty("accepted ECDSA Gateway environment", environment)?;
+                require_non_empty(
+                    "accepted ECDSA Gateway project_environment_id",
+                    project_environment_id,
+                )?;
                 require_non_empty("accepted ECDSA Gateway signing_worker_id", signing_worker_id)?;
                 require_positive_ms("accepted ECDSA Gateway expires_at_ms", *expires_at_ms)?;
                 if authorization_id == wallet_session_id
@@ -6747,14 +6777,30 @@ impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
                 }
             }
             CloudflareRouterEcdsaAcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
+                subject_id,
+                account_id,
                 authorization_id,
                 wallet_session_id,
                 quota_id,
+                threshold_session_id,
+                org_id,
+                project_id,
+                environment,
+                signing_worker_id,
+                expires_at_ms,
                 ..
             } => {
-                if wallet_session.authorization_id != *authorization_id
+                if wallet_session.subject_id != *subject_id
+                    || wallet_session.account_id != *account_id
+                    || wallet_session.authorization_id != *authorization_id
                     || wallet_session.wallet_session_id != *wallet_session_id
                     || wallet_session.quota_id != *quota_id
+                    || wallet_session.threshold_session_id != *threshold_session_id
+                    || wallet_session.org_id != *org_id
+                    || wallet_session.project_id != *project_id
+                    || wallet_session.environment != *environment
+                    || wallet_session.signing_worker_id != *signing_worker_id
+                    || wallet_session.expires_at_ms != *expires_at_ms
                 {
                     return Err(RouterAbProtocolError::new(
                         RouterAbProtocolErrorCode::InvalidGateDecision,
@@ -6778,6 +6824,7 @@ impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
         trusted_source_digest: PublicDigest32,
     ) -> RouterAbProtocolResult<CloudflareRouterWalletSessionCredentialV1> {
         self.validate()?;
+        self.gateway_owner_wallet_scope()?;
         let CloudflareRouterEcdsaAcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
             subject_id,
             account_id,
@@ -6788,6 +6835,7 @@ impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
             org_id,
             project_id,
             environment,
+            project_environment_id: _,
             signing_worker_id,
             expires_at_ms,
         } = &self.binding
