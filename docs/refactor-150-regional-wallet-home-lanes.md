@@ -5,8 +5,9 @@ Date revised: September 24, 2026
 
 Status: revised implementation plan. Managed Cloudflare hosting targets
 role-separated, SQLite-backed Durable Objects for wallet-local authoritative
-state. Regional lanes remain an alternative deployment design. Geographic
-relocation is deferred. This document does not claim that the revised architecture
+state. Shared wallet logic must also run through a conventional VM host adapter.
+Regional lanes remain an alternative deployment design. Geographic relocation is
+deferred. This document does not claim that the revised architecture
 is implemented, verified, or deployed.
 
 The filename is retained for existing links. This revision supersedes the original
@@ -20,11 +21,12 @@ Place wallet-local state and its mutation logic near the user at registration,
 without asking the user to manage infrastructure regions. Keep that placement
 stable afterward. Preserve custody isolation, public keys, and signing safety.
 
-There are three separate concerns:
+The architecture separates these concerns:
 
 | Concern | Decision |
 | --- | --- |
 | Managed Cloudflare hosting | Role-separated SQLite-backed DOs, subject to a real signing-path verification gate |
+| Conventional VM hosting, including AWS and Google Cloud | The same wallet logic through ordinary server processes and role-private SQL storage |
 | Deployments with independent regional databases | Regional lanes as a reference design with automatic initial assignment |
 | Moving a wallet between independent authorities | Retain safe-cutover requirements; defer geographic relocation and its product policy |
 
@@ -52,6 +54,10 @@ Initial managed release:
   profiles or a user-movement detector.
 - Provide runbooks for object failure, schema upgrades, recovery, and staged
   backend conversion.
+- Keep shared wallet behavior independent of Cloudflare APIs and verify it through
+  a concrete VM reference path as well as the managed Cloudflare adapter.
+- Deliver a setup guide and reference configuration for each adapter, with thin
+  role-scoped setup tooling, read-only deployment checks, and explicit smoke tests.
 
 Excluded from initial scope:
 
@@ -61,7 +67,8 @@ Excluded from initial scope:
 - Three pre-provisioned managed regional D1 deployments.
 - Active-active custody writers or transactions spanning separate role stores.
 - Guaranteed placement in a named city or data center.
-- A new universal storage/provider framework or an AWS implementation.
+- A universal storage/provider framework or provider-specific AWS/GCP provisioning
+  automation. The portable VM adapter and its setup path are in scope.
 
 Organization residency requirements remain explicit deployment policy. Location
 hints never establish residency compliance or authorize a wallet operation. If
@@ -190,6 +197,134 @@ Typed internal routing must reject cross-wallet, cross-tenant, wrong-role, and
 unauthorized backend targets. Raw client URLs, binding names, namespace selections,
 and location fields never choose a custody authority.
 
+## VM portability and host adapters
+
+DO and D1 are Cloudflare hosting choices. The portable ownership model separates
+wallet-local authoritative state from shared application state; it does not
+require two database technologies or one database per wallet on other hosts.
+DO storage is persistent authority, with no D1 write-through cache arrangement.
+Wallet-local metadata such as replay counters and signing generations stays with
+the material it protects. Each service receives only the storage and peer access
+needed by its role; every service need not access both kinds of store.
+
+| Responsibility | Cloudflare adapter | Conventional VM adapter |
+| --- | --- | --- |
+| Execute wallet role logic | DO handlers calling shared wallet logic | Ordinary server processes calling the same logic |
+| Wallet-local persistence | Role-private DO SQLite storage | Role-private SQLite for a single-host-per-role reference deployment; PostgreSQL is a possible later multi-replica adapter |
+| Shared configuration and indexes | D1 where appropriate | Conventional SQL storage with the same ownership boundaries |
+| Peer communication | Authenticated service calls | Authenticated HTTP/RPC |
+| Durable retries and scheduled work | DO alarms where used | Persisted jobs processed by a restart-safe worker |
+
+Cloudflare environment bindings, object identities, storage APIs, and alarm APIs
+stay in the host adapter. Shared protocol and lifecycle code depends on narrow
+domain operations and existing host interfaces. Deployment wiring chooses the
+adapter; the public SDK and core state machines do not branch on cloud provider.
+The VM path must run without access to Cloudflare services or a DO emulator.
+
+### Atomic domain operations
+
+Reuse operations such as claiming a signing reservation, consuming a capability
+once, and committing an operation result. Their contracts must state transaction
+boundaries, version checks, retry outcomes, and durability requirements. A generic
+get/set interface cannot by itself preserve these guarantees across concurrent
+VM processes.
+
+Use short storage transactions and conditional transitions to persist claims
+before external effects. Retain durable operation identity and recovery state
+across the subsequent MPC exchange. In-memory mutexes, process affinity, and DO
+single-threaded scheduling cannot substitute for durable claims. Do not hold SQL
+transactions open throughout peer calls. A lost reply or process crash must never
+make consumed material available again.
+
+The reference VM path should build on existing role-private SQLite support, with
+explicit persistent-volume, transaction, restart, backup/restore, and contention
+handling. SQLite serializes writers; deployments must respect its concurrency
+model. A later PostgreSQL adapter can use conditional updates, transactions, and
+row locks for multiple service replicas, with tested isolation and retry behavior.
+See [SQLite isolation](https://www.sqlite.org/isolation.html) and
+[PostgreSQL locking](https://www.postgresql.org/docs/current/explicit-locking.html).
+Neither adapter supplies a transaction spanning custody roles or chain submission.
+
+Start from the existing [Rust host interfaces](../crates/router-ab-core/src/protocol/engine/host.rs),
+[session claim contracts](../packages/wallet-server/src/core/ThresholdService/stores/SessionStore.ts),
+and [role-private SQLite tests](../crates/router-ab-dev/tests/local_role_private_sqlite.rs).
+These are reuse candidates and development evidence; they do not establish a
+production-ready VM backend. Extract missing boundaries where platform code owns
+domain transitions, and keep one implementation of those transitions. Do not add
+a universal cloud framework, duplicate signing engine, or mandatory PostgreSQL
+implementation.
+
+### VM placement and custody isolation
+
+A single-region VM deployment serves wallets from its configured region. It has
+no automatic per-wallet geographic placement or relocation. Deploy compute near
+its role-private database; if an operator later needs multiple regions, use the
+regional-lane reference design or separately evaluate a distributed database.
+
+Production A/B isolation must extend to hosts, administrators, service identities,
+encryption keys, databases, and backups. Separate processes, containers, files,
+schemas, or database users on infrastructure administered by one identity with
+access to both roles do not establish independent custody boundaries. A same-VM
+development fixture must not be represented as that production security topology.
+
+### Shared contract verification
+
+Run the same supported lifecycle, wire, and storage-behavior contracts through
+both adapters. Include competing claims from independent connections/processes,
+duplicate commands, stale versions, expiry, lost responses after commit,
+crash/restart, durable-job retries, and wrong-role access. Assert equivalent domain
+outcomes rather than matching provider-specific SQL or scheduling behavior.
+Test each adapter's recovery from contention and verify that restored data cannot
+revive one-use material. Document the supported VM topology and its recovery
+limitations before declaring it production-ready.
+
+## Reference setup paths and deployment tooling
+
+Deliver two concrete hosting adapters and two reference setup paths: Cloudflare
+and conventional VMs, including AWS or Google Cloud VMs. Both execute the shared
+wallet logic and pass the shared contracts above. This is a target deliverable;
+the current examples do not establish complete production support on either host.
+
+Each setup guide and reference configuration must cover:
+
+- Exact package/artifact versions and the supported wallet/protocol matrix.
+- Gateway, Router, Deriver A/B, and SigningWorker topology, with role-scoped
+  bindings or endpoints, service authentication, and storage ownership.
+- Secret references and provisioning steps performed by each role's operator.
+- Explicit schema initialization and upgrade commands that are safe to retry and
+  refuse incompatible versions; no implicit migration during a readiness check.
+- Persistent storage, durable scheduling, process/object restart behavior, backups,
+  and recovery procedures that preserve replay and one-use-material safety.
+- Health/readiness checks and an explicitly invoked registration/signing smoke
+  test using a disposable test wallet and test network.
+
+Reuse existing deployment scripts, configuration, and examples. The existing
+[Cloudflare signing-worker example](../examples/self-host-cloudflare-worker/README.md)
+covers a signing surface only. Keep that scope clear and document the additional
+services needed for the complete wallet setup. Reuse the VM reference runtime
+after its required hardening; a same-machine development fixture is not the
+production custody topology. Avoid a second CLI, generic manifest generator, or
+parallel setup workflow where existing tooling can express the required steps.
+
+Add a read-only deployment check for missing configuration, inaccessible peers,
+artifact/schema incompatibility, durable-job readiness, and observable storage or
+role-binding mistakes. Report checks that cannot be established with the caller's
+permissions as unverified. This check does not generate keys, migrate schemas,
+create wallets, sign transactions, or repair deployment state. The explicit
+smoke test is a separate mutating operation.
+
+Setup and diagnostics remain role-scoped. No convenience installer or diagnostic
+process may collect both A and B custody secrets or privileged credentials. Do not
+print secrets in configuration output, logs, or error reports. Deployment checks
+cannot certify administrative independence; document the operator review required
+for host, account, key, storage, and backup isolation.
+
+A single-region VM setup requires no wallet-region directory. Multi-region VM
+hosting is an optional extension with an eligible-region catalog, automatic initial
+assignment, and persistent wallet routing. Cloudflare DO placement stays in its
+adapter. Extensive AWS/GCP infrastructure automation, PostgreSQL support, and a
+universal cloud abstraction are deferred until a concrete deployment needs them.
+
 ## Cost and performance gate
 
 Comparable cost to D1 is a hypothesis for users signing 10-20 transactions per
@@ -253,9 +388,10 @@ The database topology determines whether this design is needed:
   before treating it as sufficient for signing invariants. See
   [Aurora DSQL multi-region clusters](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/multi-region-aws-cli.html).
 
-Do not implement AWS adapters, generic multi-cloud manifests, or a runtime provider
-switch solely to preserve this reference design. Add a concrete deployment only
-when an operator actually needs it.
+Use the portable VM adapter for AWS-hosted role services. Do not add AWS-specific
+service adapters, generic multi-cloud manifests, or multi-region provisioning
+solely to preserve this reference design. Add those extensions only when an
+operator actually needs them.
 
 ## Deferred relocation: portable safety requirements
 
@@ -349,9 +485,12 @@ deliverables. Publishing a new adapter cannot silently create a second writer.
 1. Map writable and registration-critical state across Gateway, Router, both
    Derivers, SigningWorker, current DOs, and D1.
 2. Identify wallet-local transactions, shared constraints, custody boundaries,
-   replay/command guards, and all serial network dependencies.
+   replay/command guards, and all serial network dependencies. Map reusable host
+   interfaces and the VM reference adapter, including domain logic currently tied
+   to Cloudflare handlers.
 3. Audit the prior R150 implementation, including user-facing region surfaces and
-   their dependencies, and record reuse/removal decisions.
+   their dependencies, and record reuse/removal decisions. Inventory existing setup
+   scripts and examples before defining the two reference setup paths.
 4. Record supported wallet/protocol configurations, regional baseline latency,
    traffic assumptions, acceptance targets, and cost ceiling.
 
@@ -360,7 +499,8 @@ deliverables. Publishing a new adapter cannot silently create a second writer.
 1. Implement a narrowly scoped registration and complete signing path with the
    necessary role-private state and mutations local to their owning objects.
 2. Reuse existing cryptographic logic and protocol contracts; do not introduce a
-   second signing implementation.
+   second signing implementation. Exercise that same path through the VM host
+   adapter and role-private SQLite with no Cloudflare dependencies.
 3. Verify registration retry identity, role isolation, concurrency, object restart,
    external-await interleaving, response loss, and durable one-use claims.
 4. Run hosted cold/warm measurements from North America, Europe, and Asia Pacific
@@ -377,8 +517,14 @@ deliverables. Publishing a new adapter cannot silently create a second writer.
    use behavioral tests for single consumption and durable recovery.
 4. Run lifecycle contracts, targeted store tests, relevant crypto/wire vectors, and
    deployed role-boundary acceptance tests. Update normative behavior and its
-   contract tests together where behavior intentionally changes.
-5. Release a small new-wallet cohort with latency/error/cost monitoring, schema
+   contract tests together where behavior intentionally changes. Run shared
+   behavioral contracts against both hosting adapters, including VM process
+   concurrency and crash/restart; document the VM topology and operational limits.
+5. Deliver both setup guides, reference configurations, role-scoped setup tooling,
+   and read-only deployment checks. Exercise documented initialization, upgrade,
+   restart, and explicit test-wallet smoke-test flows for each adapter. Test
+   diagnostic failures and secret redaction; record operator isolation checks.
+6. Release a small new-wallet cohort with latency/error/cost monitoring, schema
    upgrade and incident runbooks, and explicit supported configurations.
 
 Stopping new registrations is a valid rollout rollback. Existing DO wallets retain
@@ -401,8 +547,9 @@ Cloudflare rollout.
 
 ## Repository ownership and completion
 
-The seams-wallet repository owns protocol/domain behavior, server storage adapters,
-SDK contracts, custody verification, lifecycle/type/vector tests, and normative
+The seams-wallet repository owns protocol/domain behavior, Cloudflare and VM host
+adapters, reference setup paths and public tooling, SDK contracts, custody
+verification, shared adapter/lifecycle/type/vector tests, and normative
 specifications. The seams-monorepo repository owns managed deployment resources,
 bindings, secrets and operator boundaries, Console policy composition, hosted
 measurements, monitoring, and runbooks. Coordinate exact package releases and
@@ -414,6 +561,12 @@ The initial managed DO milestone is complete when:
 - Wallet-local state and mutations execute in their owning role stores, with no
   hidden dual writer or required global geographic directory.
 - Every enabled lifecycle and signing protocol passes its current contracts.
+- The same domain logic passes the supported contracts through a runnable VM
+  reference adapter without Cloudflare dependencies; host-specific APIs remain
+  confined to adapters, and supported VM topology/recovery limits are documented.
+- Both reference setup paths are documented and exercised, with role-scoped
+  tooling, read-only deployment checks, separately invoked test-wallet smoke tests,
+  and an explicit operator review of production custody isolation.
 - Role isolation, restart/retry safety, and one-use-material invariants pass review.
 - Measured p50/p95 latency and modeled costs meet the recorded acceptance targets.
 - Travel works through the existing authority without region settings or relocation.
@@ -424,4 +577,7 @@ The initial managed DO milestone is complete when:
 
 The backend replacement is complete only after existing-wallet conversion and
 obsolete-path cleanup are also complete. Future relocation UI, movement telemetry,
-AWS support, and regional-lane deployment are excluded from both completion claims.
+provider-specific AWS/GCP deployment automation, a PostgreSQL adapter, and
+regional-lane deployment are excluded from both completion claims. The portable
+VM reference path and its shared correctness tests are required.
+Both reference setup paths and their thin setup/diagnostic tooling are also required.
