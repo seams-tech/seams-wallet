@@ -1605,6 +1605,14 @@ export interface RouterApiServiceBag {
 
 export interface RouterApiAuthorizedOperationService {
   readonly tenantId: TenantId;
+  readPinnedOwnerWalletScope(input: {
+    readonly operation: AuthorizedOperation;
+    readonly walletId: WalletId;
+  }): Promise<{
+    readonly orgId: string;
+    readonly projectId: string;
+    readonly projectEnvironmentId: string;
+  }>;
   buildVerifiedOwnerProof(input: VerifiedOwnerProofInput): Promise<VerifiedOwnerProof>;
   recordVerifiedWalletOperationFactorEvidenceSet(
     input: VerifiedWalletOperationFactorEvidenceSetInput,

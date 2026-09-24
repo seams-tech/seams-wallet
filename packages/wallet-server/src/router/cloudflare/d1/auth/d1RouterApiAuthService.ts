@@ -242,6 +242,7 @@ type CloudflareD1RouterApiAuthAssembly = {
   readonly identityService: CloudflareD1IdentityService;
   readonly oidcVerification: CloudflareD1OidcVerificationService;
   readonly authorizationService: AuthorizationService;
+  readonly authorizationStore: CloudflareD1AuthorizationStore;
   readonly googleEmailOtpSessions: CloudflareD1GoogleEmailOtpSessionResolver;
   readonly nearPublicKeys: CloudflareD1NearPublicKeyStore;
   readonly webAuthnAuthService: CloudflareD1WebAuthnAuthService;
@@ -313,6 +314,11 @@ type D1IdentityRouteServiceAssembly = Pick<
 type D1AuthorizationSessionRouteServiceAssembly = Pick<
   CloudflareD1RouterApiAuthAssembly,
   'authorizationService' | 'options' | 'walletAuthMethodStore' | 'walletAuthorityStore'
+>;
+
+type D1AuthorizedOperationRouteServiceAssembly = Pick<
+  CloudflareD1RouterApiAuthAssembly,
+  'authorizationService' | 'authorizationStore' | 'options'
 >;
 
 type D1ThresholdRuntimeRouteServiceAssembly = Pick<CloudflareD1RouterApiAuthAssembly, 'options'>;
@@ -1791,6 +1797,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     identityService,
     oidcVerification,
     authorizationService,
+    authorizationStore,
     googleEmailOtpSessions,
     nearPublicKeys,
     webAuthnAuthService,
@@ -2508,7 +2515,7 @@ function createD1AuthorizationSessionRouteService(
 }
 
 function createD1AuthorizedOperationRouteService(
-  assembly: D1AuthorizationSessionRouteServiceAssembly,
+  assembly: D1AuthorizedOperationRouteServiceAssembly,
 ): RouterApiServiceBag['authorizedOperations'] {
   const tenantId = parseTenantId(assembly.options.orgId);
   if (!tenantId.ok) {
@@ -2516,6 +2523,9 @@ function createD1AuthorizedOperationRouteService(
   }
   return {
     tenantId: tenantId.value,
+    readPinnedOwnerWalletScope: assembly.authorizationStore.readPinnedOwnerWalletScope.bind(
+      assembly.authorizationStore,
+    ),
     buildVerifiedOwnerProof: assembly.authorizationService.buildVerifiedOwnerProof.bind(
       assembly.authorizationService,
     ),

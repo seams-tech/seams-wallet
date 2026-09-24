@@ -206,27 +206,21 @@ function buildEd25519GatewayOwnerWalletSessionBinding(
   };
 }
 
-async function resolveEd25519WalletProjectEnvironmentId(
+async function readPinnedEd25519WalletProjectEnvironmentId(
   ctx: FetchRouterApiContext,
   authorization: AcceptedEd25519WalletSessionAuthorization,
+  operation: AuthorizedOperation,
 ): Promise<string> {
+  const session = ed25519ReusableWalletSession(authorization);
   const scope = authorization.activeMaterial.runtimePolicyScope;
-  const resolver = ctx.opts.orgProjectEnv;
-  if (!resolver) throw new Error('Project environment resolver is unavailable');
-  const environments = await resolver.listEnvironments({
-    orgId: scope.orgId,
-    actorUserId: 'normal-signing-admission',
-    roles: ['system'],
-    projectId: scope.projectId,
+  const pinned = await ctx.service.authorizedOperations.readPinnedOwnerWalletScope({
+    operation,
+    walletId: session.walletId,
   });
-  const matches = environments.filter(
-    (environment) =>
-      environment.projectId === scope.projectId && environment.key === scope.envId,
-  );
-  if (matches.length !== 1 || !matches[0]?.id) {
-    throw new Error('Active signing project environment is unavailable');
+  if (pinned.orgId !== scope.orgId || pinned.projectId !== scope.projectId) {
+    throw new Error('Pinned owner Wallet Session scope differs from active material');
   }
-  return matches[0].id;
+  return pinned.projectEnvironmentId;
 }
 
 type RouterAbEd25519AuthorizedOperationWire = {
@@ -1878,7 +1872,11 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
           binding: {
             ...buildEd25519GatewayOwnerWalletSessionBinding(
               authorization,
-              await resolveEd25519WalletProjectEnvironmentId(input.ctx, authorization),
+              await readPinnedEd25519WalletProjectEnvironmentId(
+                input.ctx,
+                authorization,
+                execution.operation,
+              ),
             ),
           },
         }),
@@ -1942,7 +1940,11 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
         binding: {
           ...buildEd25519GatewayOwnerWalletSessionBinding(
             authorization,
-            await resolveEd25519WalletProjectEnvironmentId(input.ctx, authorization),
+            await readPinnedEd25519WalletProjectEnvironmentId(
+              input.ctx,
+              authorization,
+              validatedAuthorization.operation,
+            ),
           ),
         },
       }),

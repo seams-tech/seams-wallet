@@ -2212,6 +2212,61 @@ export class CloudflareD1AuthorizationStore
     return row ? await parseAuthorizedOperationRow(row) : null;
   }
 
+  async readPinnedOwnerWalletScope(input: {
+    readonly operation: AuthorizedOperation;
+    readonly walletId: WalletId;
+  }): Promise<{
+    readonly orgId: string;
+    readonly projectId: string;
+    readonly projectEnvironmentId: string;
+  }> {
+    const { operation, walletId } = input;
+    if (
+      operation.authorization.kind !== 'authorization_grant' ||
+      operation.operation.operation.capabilityKind !== CAPABILITY_KINDS.nearEd25519MpcSigning
+    ) {
+      throw new Error('Pinned owner Wallet Session scope requires a NEAR authorization grant');
+    }
+    const row = await this.database
+      .prepare(
+        `SELECT operation.linked_scope_org_id, operation.linked_scope_project_id,
+                operation.linked_scope_env_id
+           FROM authorized_operations AS operation
+           JOIN wallet_session_authorizations_v2 AS session
+             ON session.namespace = operation.namespace
+            AND session.tenant_id = operation.tenant_id
+            AND session.authorization_id = operation.authorization_id
+            AND session.org_id = operation.linked_scope_org_id
+            AND session.project_id = operation.linked_scope_project_id
+            AND session.env_id = operation.linked_scope_env_id
+          WHERE operation.namespace = ? AND operation.tenant_id = ?
+            AND operation.authorized_operation_id = ?
+            AND operation.operation_fingerprint_digest = ?
+            AND operation.authorization_id = ?
+            AND operation.authorization_source_kind = 'authorization_grant'
+            AND session.wallet_id = ?
+          LIMIT 1`,
+      )
+      .bind(
+        this.namespace,
+        operation.tenantId,
+        operation.authorizedOperationId,
+        operation.operationFingerprintDigest,
+        operation.authorization.authorizationGrantRef.authorizationId,
+        walletId,
+      )
+      .first<D1Row>();
+    if (!row) throw new Error('Pinned owner Wallet Session scope is unavailable');
+    return {
+      orgId: requireString(row.linked_scope_org_id, 'operation.ownerScope.orgId'),
+      projectId: requireString(row.linked_scope_project_id, 'operation.ownerScope.projectId'),
+      projectEnvironmentId: requireString(
+        row.linked_scope_env_id,
+        'operation.ownerScope.projectEnvironmentId',
+      ),
+    };
+  }
+
   private async readAuthorizedOperationRecord(input: {
     readonly tenantId: TenantId;
     readonly operationFingerprintDigest: CapabilityOperationFingerprintDigest;
