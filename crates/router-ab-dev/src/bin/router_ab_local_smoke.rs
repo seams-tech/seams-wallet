@@ -42,7 +42,7 @@ use router_ab_ecdsa_presign::session::{
 };
 use router_ab_ecdsa_presign::AdditiveKeyShare;
 use router_ab_ecdsa_wire::{CompressedPointBytes, ScalarBytes};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use signer_core::secp256k1::{
     secp256k1_private_key_32_to_public_key_33, secp256k1_public_key_33_to_ethereum_address_20,
@@ -76,7 +76,8 @@ struct SmokeSummary {
     router_ab_ecdsa_derivation_pool_fill_status: String,
     router_ab_ecdsa_derivation_prepare_status: String,
     router_ab_ecdsa_derivation_finalize_status: String,
-    router_ab_ecdsa_derivation_replay_rejection_status: String,
+    router_ab_ecdsa_derivation_terminal_replay_status: String,
+    router_ab_ecdsa_derivation_changed_admission_status: String,
     router_ab_ecdsa_derivation_signature_scheme: String,
     router_ab_ecdsa_derivation_evidence_kind: String,
     setup_elapsed_ms: u64,
@@ -91,14 +92,22 @@ struct RouterAbEcdsaDerivationSmokeResult {
     pool_fill_status: String,
     prepare_status: String,
     finalize_status: String,
-    replay_rejection_status: String,
+    terminal_replay_status: String,
+    changed_admission_status: String,
     signature_scheme: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct FinalizeReplayFixture {
+    admitted: LocalSigningWorkerAdmittedRouterAbEcdsaDerivationFinalizeRequestV1,
+    response: RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
 }
 
 #[derive(Debug, Serialize)]
 struct ReplaySummary {
     evidence_kind: &'static str,
     status: &'static str,
+    changed_admission_status: &'static str,
     request_digest_b64u: String,
 }
 
@@ -238,7 +247,8 @@ fn run_smoke(
         router_ab_ecdsa_derivation_pool_fill_status: ecdsa_result.pool_fill_status,
         router_ab_ecdsa_derivation_prepare_status: ecdsa_result.prepare_status,
         router_ab_ecdsa_derivation_finalize_status: ecdsa_result.finalize_status,
-        router_ab_ecdsa_derivation_replay_rejection_status: ecdsa_result.replay_rejection_status,
+        router_ab_ecdsa_derivation_terminal_replay_status: ecdsa_result.terminal_replay_status,
+        router_ab_ecdsa_derivation_changed_admission_status: ecdsa_result.changed_admission_status,
         router_ab_ecdsa_derivation_signature_scheme: ecdsa_result.signature_scheme,
         router_ab_ecdsa_derivation_evidence_kind: "signing_worker_private_http_route".to_owned(),
         setup_elapsed_ms,
@@ -426,7 +436,13 @@ fn run_router_ab_ecdsa_derivation_live_http_smoke(
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
-        fs::write(path, serde_json::to_vec(&admitted_finalize)?)?;
+        fs::write(
+            path,
+            serde_json::to_vec(&FinalizeReplayFixture {
+                admitted: admitted_finalize.clone(),
+                response: signing_response.clone(),
+            })?,
+        )?;
     }
 
     let (replay_status, replay_body) = post_json_to_path_with_headers(
@@ -438,9 +454,26 @@ fn run_router_ab_ecdsa_derivation_live_http_smoke(
             internal_service_auth.as_str(),
         )],
     )?;
-    if replay_status != 400 {
+    if replay_status != 200 || replay_body != finalize_body {
         return Err(format!(
-            "SigningWorker Router A/B ECDSA derivation one-use replay expected HTTP 400, received {replay_status}: {replay_body}"
+            "SigningWorker ECDSA terminal replay differed from committed response: {replay_status}: {replay_body}"
+        )
+        .into());
+    }
+    let mut changed_admission = admitted_finalize.clone();
+    changed_admission.trusted_admission.admitted_at_ms += 1;
+    let (changed_status, changed_body) = post_json_to_path_with_headers(
+        &urls.signing_worker,
+        LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
+        &changed_admission,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            internal_service_auth.as_str(),
+        )],
+    )?;
+    if changed_status != 400 || !changed_body.contains("ReplayedLocalRequest") {
+        return Err(format!(
+            "SigningWorker ECDSA changed admission expected replay rejection, received {changed_status}: {changed_body}"
         )
         .into());
     }
@@ -449,7 +482,8 @@ fn run_router_ab_ecdsa_derivation_live_http_smoke(
         pool_fill_status: "http_200_stored".to_owned(),
         prepare_status: "http_200_bound".to_owned(),
         finalize_status: "http_200_signature".to_owned(),
-        replay_rejection_status: "http_400_one_use_replay_rejected".to_owned(),
+        terminal_replay_status: "http_200_original_response".to_owned(),
+        changed_admission_status: "http_400_replayed_local_request".to_owned(),
         signature_scheme: router_ab_ecdsa_derivation_signature_scheme_label(
             signing_response.signature_scheme,
         )
@@ -461,28 +495,45 @@ fn verify_persisted_finalize_replay(
     urls: &LocalWorkerUrls,
     path: &Path,
 ) -> Result<ReplaySummary, Box<dyn std::error::Error>> {
-    let admitted: LocalSigningWorkerAdmittedRouterAbEcdsaDerivationFinalizeRequestV1 =
-        serde_json::from_slice(&fs::read(path)?)?;
+    let fixture: FinalizeReplayFixture = serde_json::from_slice(&fs::read(path)?)?;
     let internal_service_auth = local_router_ab_internal_service_auth_secret_v1();
     let (status, body) = post_json_to_path_with_headers(
         &urls.signing_worker,
         LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
-        &admitted,
+        &fixture.admitted,
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
             internal_service_auth.as_str(),
         )],
     )?;
-    if status != 400 || !body.contains("ReplayedLocalRequest") {
+    if status != 200 || body != serde_json::to_string(&fixture.response)? {
         return Err(format!(
-            "SigningWorker restart replay expected a one-use rejection, received {status}: {body}"
+            "SigningWorker restart replay expected the committed response, received {status}: {body}"
+        )
+        .into());
+    }
+    let mut changed_admission = fixture.admitted.clone();
+    changed_admission.trusted_admission.admitted_at_ms += 1;
+    let (changed_status, changed_body) = post_json_to_path_with_headers(
+        &urls.signing_worker,
+        LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
+        &changed_admission,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            internal_service_auth.as_str(),
+        )],
+    )?;
+    if changed_status != 400 || !changed_body.contains("ReplayedLocalRequest") {
+        return Err(format!(
+            "SigningWorker restart changed admission expected rejection, received {changed_status}: {changed_body}"
         )
         .into());
     }
     Ok(ReplaySummary {
         evidence_kind: "signing_worker_private_http_restart_replay",
-        status: "http_400_one_use_replay_rejected",
-        request_digest_b64u: b64u(admitted.request.request_digest()?.as_bytes()),
+        status: "http_200_original_response",
+        changed_admission_status: "http_400_replayed_local_request",
+        request_digest_b64u: b64u(fixture.admitted.request.request_digest()?.as_bytes()),
     })
 }
 

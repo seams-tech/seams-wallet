@@ -170,7 +170,11 @@ pub use local_ed25519_yao_worker::{
     LocalEd25519YaoRefreshPromotionRequestV1, LocalEd25519YaoRoleCompletionV1,
     LocalEd25519YaoWorkerStateV1,
 };
-use local_router_ab_ecdsa_derivation_pool_store::local_signing_worker_ecdsa_pool_mutate_v1;
+use local_router_ab_ecdsa_derivation_pool_store::{
+    local_signing_worker_ecdsa_effect_claim_v1,
+    local_signing_worker_ecdsa_effect_complete_v1,
+    local_signing_worker_ecdsa_pool_mutate_v1,
+};
 pub use local_router_coordinator::LocalRouterEd25519YaoCoordinatorV1;
 pub use local_router_ed25519_yao_http::{
     decode_local_router_ed25519_yao_execute_request_v1, LocalRouterEd25519YaoPairDispatchV1,
@@ -2164,8 +2168,14 @@ pub fn handle_local_signing_worker_router_ab_ecdsa_derivation_finalize_json_v1(
         body,
     )?;
     admitted.validate()?;
-    let request = admitted.request;
-    request.validate_at(now_unix_ms)?;
+    let request = &admitted.request;
+    let active_signing_worker_state =
+        local_active_router_ab_ecdsa_derivation_signing_worker_state_v1(config, &request.scope)?;
+    if let Some(response_json) =
+        local_signing_worker_ecdsa_effect_claim_v1(config, &admitted, now_unix_ms)?
+    {
+        return Ok(response_json);
+    }
     let prepare_request_digest = request.prepare_request_digest()?;
     let consume_outcome = local_signing_worker_ecdsa_pool_mutate_v1(
         config,
@@ -2195,22 +2205,13 @@ pub fn handle_local_signing_worker_router_ab_ecdsa_derivation_finalize_json_v1(
             ));
         }
     };
-    let active_signing_worker_state =
-        local_active_router_ab_ecdsa_derivation_signing_worker_state_v1(config, &request.scope)?;
     let response = finalize_consumed_local_signing_worker_ecdsa_v1(
         &server_presignature,
         &active_signing_worker_state,
-        &request,
+        request,
         now_unix_ms,
     )?;
-    serde_json::to_string(&response).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            format!(
-                "local SigningWorker Router A/B ECDSA derivation finalize response JSON serialization failed: {error}"
-            ),
-        )
-    })
+    local_signing_worker_ecdsa_effect_complete_v1(config, &admitted, &response)
 }
 
 fn finalize_consumed_local_signing_worker_ecdsa_v1(
