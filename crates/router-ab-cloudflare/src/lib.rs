@@ -13051,6 +13051,12 @@ where
             );
         }
     };
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    if let Ok(flag) = env.var("R150_TEST_ECDSA_INTERRUPT_AFTER_CLAIM") {
+        if flag.to_string() == "enabled" {
+            return worker::Response::error("R150 test interrupted after ECDSA claim", 503);
+        }
+    }
     let expected_request = parsed.request.clone();
     let admitted_for_terminal = parsed.clone();
     let signing_result =

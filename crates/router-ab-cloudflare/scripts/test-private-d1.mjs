@@ -232,6 +232,10 @@ function signingWorker(name, databaseId, fixture) {
   return {
     ...strictWorker(name, 'signing-worker', {
       ...fixture.signing_worker_env,
+      ...(name === 'fixture-signing-worker' &&
+      process.argv.includes('--ecdsa-wallet-do-interruption')
+        ? { R150_TEST_ECDSA_INTERRUPT_AFTER_CLAIM: 'enabled' }
+        : {}),
       ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET:
         gatewayToSigningWorkerPresignAuthSecret,
       ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET:
@@ -1362,7 +1366,13 @@ function buildEcdsaAuthorizedOperation(operationId, operationDigests) {
   };
 }
 
-async function testEcdsaNormalSigning(topology, ecdsa, mode = 'pool', checkRejections = true) {
+async function testEcdsaNormalSigning(
+  topology,
+  ecdsa,
+  mode = 'pool',
+  checkRejections = true,
+  interruptAfterClaim = false,
+) {
   const router = await topology.getWorker('router');
   const presign = await runEcdsaPresignSession(topology, ecdsa, mode, checkRejections);
   try {
@@ -1538,6 +1548,35 @@ async function testEcdsaNormalSigning(topology, ecdsa, mode = 'pool', checkRejec
         authorized_operation: authorizedOperation,
       },
     };
+    if (interruptAfterClaim) {
+      const interrupted = await postWorkerJson(router, ecdsaSigningPath, finalizeRequest);
+      const interruptedBody = await interrupted.text();
+      assert.equal(interrupted.status, 500, `interrupted signing response: ${interruptedBody}`);
+      assert.match(interruptedBody, /R150 test interrupted after ECDSA claim/);
+      const objectIds = await topology.listDurableObjectIds(
+        'RouterAbSigningWorkerWalletDurableObject',
+        'fixture-signing-worker',
+      );
+      assert.equal(objectIds.length, 1);
+      await topology.unsafeEvictDurableObject(
+        'fixture-signing-worker',
+        'RouterAbSigningWorkerWalletDurableObject',
+        { id: objectIds[0] },
+      );
+      const retry = await postWorkerJson(router, ecdsaSigningPath, finalizeRequest);
+      const retryBody = await retry.text();
+      assert.equal(retry.status, 500, `interrupted retry response: ${retryBody}`);
+      assert.match(retryBody, /returned HTTP status 409/);
+      assert.match(retryBody, /effect is already in progress/);
+      const signingWorker = await topology.getWorker('fixture-signing-worker');
+      const consumedPrepare = await postWorkerJson(
+        signingWorker,
+        ecdsaSigningWorkerPreparePath,
+        capturedEcdsaSigningWorkerPrepare,
+      );
+      assert.equal(consumedPrepare.ok, false, 'interrupted presignature must stay consumed');
+      return { finalizeRequest, pendingAfterEviction: true, materialConsumed: true };
+    }
     if (mode === 'prepare' && process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled') {
       loseNextEcdsaSigningWorkerFinalizeReply = true;
       const lostReply = await postWorkerJson(router, ecdsaSigningPath, finalizeRequest);
@@ -2953,6 +2992,40 @@ async function main() {
         }
       }
       console.log(JSON.stringify({ kind: 'presign_handoff_local_benchmark', timingsMs: timings }));
+      return;
+    }
+    if (process.argv.includes('--ecdsa-wallet-do-interruption')) {
+      assert.equal(process.env.ROUTER_AB_WALLET_DO_HARNESS, 'enabled');
+      const interrupted = await testEcdsaNormalSigning(topology, ecdsa, 'prepare', false, true);
+      const poolRows = await signingWorkerDatabase
+        .prepare('SELECT COUNT(*) AS count FROM signing_worker_ecdsa_pool')
+        .first();
+      const effectRows = await signingWorkerDatabase
+        .prepare("SELECT COUNT(*) AS count FROM signing_worker_effect_claims WHERE operation_key LIKE 'evm-ecdsa/%'")
+        .first();
+      const terminalRows = await signingWorkerDatabase
+        .prepare("SELECT COUNT(*) AS count FROM signing_worker_terminal_responses WHERE operation_key LIKE 'evm-ecdsa/%'")
+        .first();
+      assert.equal(poolRows.count, 0);
+      assert.equal(effectRows.count, 0);
+      assert.equal(terminalRows.count, 0);
+      const artifact = {
+        kind: 'signing_worker_wallet_do_ecdsa_interruption_e2e_v1',
+        reproduce:
+          'ROUTER_AB_WALLET_DO_HARNESS=enabled ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --ecdsa-wallet-do-interruption',
+        operationId: interrupted.finalizeRequest.operation_id,
+        noSignatureReply: true,
+        pendingAfterEviction: interrupted.pendingAfterEviction,
+        materialConsumed: interrupted.materialConsumed,
+        noD1PoolEffectOrTerminal: true,
+      };
+      const artifactPath = join(
+        repoRoot,
+        '.artifacts/r150/signing-worker-wallet-do-ecdsa-interruption.json',
+      );
+      await mkdir(dirname(artifactPath), { recursive: true });
+      await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
+      console.log(JSON.stringify({ ...artifact, artifactPath }));
       return;
     }
     if (
