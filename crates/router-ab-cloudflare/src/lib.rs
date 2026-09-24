@@ -216,6 +216,7 @@ use auth::hash_optional_header_v1;
 #[cfg(feature = "workers-rs")]
 pub use auth::{
     cloudflare_private_service_auth_error_response_v1,
+    require_cloudflare_gateway_to_router_auth_request_v1,
     require_cloudflare_internal_service_auth_request_v1,
     set_cloudflare_internal_service_auth_header_v1,
 };

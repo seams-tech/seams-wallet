@@ -124,6 +124,7 @@ export interface CloudflareD1GatewayBaseEnv
   readonly ROUTER_AB_NORMAL_SIGNING_WORKER_ID?: string;
   readonly SIGNING_WORKER_ID?: string;
   readonly ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET?: string;
+  readonly ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET?: string;
   readonly ROUTER_AB_PREWARM_ENABLED: string;
   readonly ROUTER_AB_CEREMONY_JWT_PRIVATE_JWK?: string;
   readonly ROUTER_AB_CEREMONY_JWT_ISSUER?: string;
@@ -233,9 +234,9 @@ export function createStagingEd25519YaoBackend(
     env: {
       MPC_ROUTER_URL: ROUTER_AB_MPC_ROUTER_ORIGIN,
       SIGNING_WORKER_ID: requireEnvString(env, 'SIGNING_WORKER_ID'),
-      ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET: requireEnvString(
+      ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET: requireEnvString(
         env,
-        'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET',
+        'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET',
       ),
       DERIVER_A_ED25519_YAO_INPUT_PUBLIC_KEY: keyEnvironment.DERIVER_A_ED25519_YAO_INPUT_PUBLIC_KEY,
       DERIVER_B_ED25519_YAO_INPUT_PUBLIC_KEY: keyEnvironment.DERIVER_B_ED25519_YAO_INPUT_PUBLIC_KEY,
@@ -660,7 +661,7 @@ function stagingLinkedDeviceSessionComposition(
       sourceContributionRouter: createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpointV1(
         {
           fetch: serviceFetch,
-          internalServiceAuthSecret,
+          internalServiceAuthSecret: requireEnvString(env, 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET'),
           resolveTenantRoot: createStagingLinkedDeviceTenantRootResolver(
             scope,
             tenantRootCustodyLineage,

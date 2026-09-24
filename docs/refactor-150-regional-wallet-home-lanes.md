@@ -333,6 +333,16 @@ print secrets in configuration output, logs, or error reports. Deployment checks
 cannot certify administrative independence; document the operator review required
 for host, account, key, storage, and backup isolation.
 
+Gateway-origin Yao execute, source-preserving execute, lane execute, and recovery
+promotion require `ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET` in Gateway and Router
+only. The role-shared service credential is rejected on these routes. Managed
+deployment must provision and rotate this dedicated binding in both services as
+one coordinated change, verify that A, B, and SigningWorker cannot read or rebind
+it, and keep DO production routing disabled until the Gateway-through-Router
+retry and retirement gates pass. Missing bindings fail closed.
+The local setup creates an independent persisted secret; it is never derived
+from the role-shared bearer.
+
 A single-region VM setup requires no wallet-region directory. Multi-region VM
 hosting is an optional extension with an eligible-region catalog, automatic initial
 assignment, and persistent wallet routing. Cloudflare DO placement stays in its

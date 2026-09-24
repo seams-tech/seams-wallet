@@ -25,6 +25,7 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = resolve(packageRoot, '../..');
 const internalAuthHeader = 'x-router-ab-internal-service-auth';
 const internalAuthSecret = 'private-d1-integration-auth';
+const gatewayToRouterAuthSecret = 'private-d1-gateway-router-auth';
 const roleD1Binding = 'DERIVER_ROLE_PRIVATE_DB';
 const managedBackupR2Binding = 'TENANT_ROOT_MANAGED_BACKUP_BUCKET';
 const signingWorkerD1Binding = 'SIGNING_WORKER_PRIVATE_DB';
@@ -55,6 +56,12 @@ const tenantRootManagedRestoreChallengePath =
 const tenantRootManagedRestoreAuthorizePath =
   '/tenant-root-control-plane/restore/v1/authorize';
 const ed25519ExecutePath = '/router-ab/router/ed25519-yao/execute';
+const gatewayOnlyRouterPaths = new Set([
+  ed25519ExecutePath,
+  '/router-ab/router/ed25519-yao/execute-source-preserving',
+  '/router-ab/internal/ed25519-yao/lane/execute',
+  '/router-ab/router/ed25519-yao/recovery/promote',
+]);
 const ed25519ActivationPackagesPath =
   '/router-ab/signing-worker/ed25519-yao/activation/packages';
 const ed25519FinalizationLookupPath =
@@ -248,6 +255,24 @@ function historicalReplayRouterWorker(fixture, name, deriverAName = 'deriver-a')
   };
 }
 
+function routerWithoutGatewayAuthWorker(fixture) {
+  const worker = historicalReplayRouterWorker(fixture, 'router-missing-gateway-auth');
+  const bindings = { ...worker.bindings };
+  delete bindings.ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET;
+  return { ...worker, bindings };
+}
+
+function routerWithSharedGatewayAuthWorker(fixture) {
+  const worker = historicalReplayRouterWorker(fixture, 'router-shared-gateway-auth');
+  return {
+    ...worker,
+    bindings: {
+      ...worker.bindings,
+      ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET: internalAuthSecret,
+    },
+  };
+}
+
 async function routeDeriverBWithOfflineGate(request, miniflare) {
   if (deriverBOffline) {
     blockedDeriverBCalls += 1;
@@ -434,9 +459,12 @@ async function expectOk(response, label) {
 }
 
 async function postWorkerJson(worker, path, body, additionalHeaders = {}) {
+  const authHeaders = gatewayOnlyRouterPaths.has(path)
+    ? { [internalAuthHeader]: gatewayToRouterAuthSecret }
+    : {};
   return worker.fetch(
     `https://private.test${path}`,
-    authenticatedJsonRequest(body, additionalHeaders),
+    authenticatedJsonRequest(body, { ...authHeaders, ...additionalHeaders }),
   );
 }
 
@@ -1738,6 +1766,7 @@ async function testDeriverAWalletDoExecution(
 }
 
 async function testHistoricalRegistrationReplay(topology, fixture, tenantRoot, databases) {
+  await assertGatewayOnlyRouterAuth(topology, fixture, tenantRoot, databases);
   const activation = await captureValidActivationDelivery(topology, fixture, tenantRoot);
   assert.ok(capturedDeriverAExecution, 'historical replay requires a completed A outcome');
   const rootIdentity = fixture.tenant_root_creation.identity;
@@ -1888,11 +1917,60 @@ async function testHistoricalRegistrationReplay(topology, fixture, tenantRoot, d
     changedCustodyLineageRejected: true,
     missingOutputRejectedWithoutReactivation: true,
     fencedOutputRejectedWithoutReactivation: true,
+    sharedRoleBearerRejectedBeforePairEffects: true,
+    missingGatewayBindingFailedClosed: true,
+    sharedGatewayBindingFailedClosed: true,
   };
   const artifactPath = join(repoRoot, '.artifacts/r150/yao-historical-registration-replay.json');
   await mkdir(dirname(artifactPath), { recursive: true });
   await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
   console.log(JSON.stringify({ ...artifact, artifactPath }));
+}
+
+async function assertGatewayOnlyRouterAuth(topology, fixture, tenantRoot, databases) {
+  const router = await topology.getWorker('router');
+  const envelope = buildEd25519ExecuteRequest(fixture, 'activation', tenantRoot);
+  for (const roleEnv of [
+    fixture.deriver_a_env,
+    fixture.deriver_b_env,
+    fixture.signing_worker_env,
+  ]) {
+    assert.equal(roleEnv.ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET, internalAuthSecret);
+    assert.equal(roleEnv.ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET, undefined);
+  }
+  for (const path of gatewayOnlyRouterPaths) {
+    const body = path === ed25519ExecutePath ? envelope : {};
+    const sharedBearer = await postWorkerJson(router, path, body, {
+      [internalAuthHeader]: internalAuthSecret,
+    });
+    assert.equal(sharedBearer.status, 403, `${path} must reject the role-shared bearer`);
+    const missingBearer = await postWorkerJson(router, path, body, {
+      [internalAuthHeader]: '',
+    });
+    assert.equal(missingBearer.status, 403, `${path} must reject a missing bearer`);
+  }
+  assert.equal(capturedDeriverAPreparation, undefined);
+  const bRows = await databases.deriverB
+    .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
+    .first();
+  assert.equal(bRows.count, 0, 'rejected requests cannot prepare B');
+  const dedicatedBearer = await postWorkerJson(router, ed25519ExecutePath, {});
+  assert.notEqual(dedicatedBearer.status, 403, 'the dedicated bearer must reach request parsing');
+  const unconfiguredRouter = await topology.getWorker('router-missing-gateway-auth');
+  const unconfiguredResponse = await postWorkerJson(
+    unconfiguredRouter,
+    ed25519ExecutePath,
+    envelope,
+  );
+  assert.ok(unconfiguredResponse.status >= 500, 'missing Router credential must fail closed');
+  const collidingRouter = await topology.getWorker('router-shared-gateway-auth');
+  const collidingResponse = await postWorkerJson(
+    collidingRouter,
+    ed25519ExecutePath,
+    envelope,
+    { [internalAuthHeader]: internalAuthSecret },
+  );
+  assert.ok(collidingResponse.status >= 500, 'shared Gateway credential must fail closed');
 }
 
 async function testHistoricalReplayAfterAStartClaim(topology, fixture, tenantRoot, databases) {
@@ -2632,6 +2710,8 @@ async function main() {
         ? [
             historicalReplayRouterWorker(fixture, 'router-replay'),
             historicalReplayRouterWorker(fixture, 'router-replay-missing-a', 'deriver-a-empty'),
+            routerWithoutGatewayAuthWorker(fixture),
+            routerWithSharedGatewayAuthWorker(fixture),
             {
               ...deriverAWorker(fixture),
               name: 'deriver-a-empty',

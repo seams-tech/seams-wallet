@@ -60,6 +60,9 @@ pub const SIGNING_WORKER_PEER_BINDING_ENV: &str = "SIGNING_WORKER_PEER_BINDING";
 /// Internal service-auth secret binding-name env key shared by strict private Workers.
 pub const ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING_ENV: &str =
     "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING";
+/// Router-only secret shared with the Gateway for admitted wallet operations.
+pub const ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET_BINDING: &str =
+    "ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET";
 /// Internal service-auth header required by strict private Workers.
 pub const ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1: &str = "x-router-ab-internal-service-auth";
 /// Deriver A signer-envelope HPKE private-key binding-name env key.

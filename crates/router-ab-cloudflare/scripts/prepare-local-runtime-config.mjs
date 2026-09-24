@@ -1,5 +1,5 @@
-import { createHash, createPrivateKey, createPublicKey, sign } from 'node:crypto';
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash, createPrivateKey, createPublicKey, randomBytes, sign } from 'node:crypto';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -95,6 +95,7 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
   writeFileSync(outputConfigPath, config);
 
   const internalAuthSecret = requiredEnv(routerEnv, 'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET');
+  const gatewayToRouterAuthSecret = readOrCreateLocalGatewayToRouterAuthSecret(localEnvRoot);
   const secretValues = {
     ACCOUNT_ID_DERIVATION_SECRET: localSecret(internalAuthSecret, 'account-id-derivation'),
     GOOGLE_OIDC_CLIENT_ID: optionalText(input.googleOidcClientId),
@@ -114,6 +115,7 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
       signingWorkerEnv,
     }),
     ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET: internalAuthSecret,
+    ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET: gatewayToRouterAuthSecret,
     ROUTER_AB_NORMAL_SIGNING_WORKER_ID: requiredEnv(routerEnv, 'SIGNING_WORKER_ID'),
     ROUTER_AB_PUBLIC_KEYSET_JSON: localPublicKeysetJson({
       routerEnv,
@@ -262,6 +264,21 @@ function localSecret(seed, purpose) {
     .digest('base64url');
 }
 
+function readOrCreateLocalGatewayToRouterAuthSecret(localEnvRoot) {
+  const secretPath = path.join(
+    localEnvRoot,
+    '.runtime',
+    'wallet-gateway',
+    'gateway-router-auth.secret',
+  );
+  mkdirSync(path.dirname(secretPath), { recursive: true, mode: 0o700 });
+  if (!existsSync(secretPath)) {
+    writeFileSync(secretPath, `${randomBytes(32).toString('base64url')}\n`, { mode: 0o600 });
+  }
+  chmodSync(secretPath, 0o600);
+  return requireNonEmptyInput(readFileSync(secretPath, 'utf8').trim(), 'Gateway-to-Router auth secret');
+}
+
 function renderDevVars(values) {
   return `${Object.entries(values)
     .filter(([, value]) => value)
@@ -291,6 +308,7 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
     input.outputRoot ?? path.join(localEnvRoot, '.runtime', 'router-ab-strict'),
   );
   const routerEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.router.local'));
+  const gatewayToRouterAuthSecret = readOrCreateLocalGatewayToRouterAuthSecret(localEnvRoot);
   const deriverAEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-a.local'));
   const deriverBEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-b.local'));
   const signingWorkerEnv = readEnvMap(
@@ -356,6 +374,7 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
       secretPath,
       strictRoleSecretFile(role, {
         routerEnv,
+        gatewayToRouterAuthSecret,
         deriverAEnv,
         deriverBEnv,
         signingWorkerEnv,
@@ -705,7 +724,11 @@ function strictRoleSecretFile(role, env) {
   )}`;
   switch (role) {
     case 'router':
-      return `${internalAuthSecret}\n`;
+      return [
+        internalAuthSecret,
+        `ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET=${env.gatewayToRouterAuthSecret}`,
+        '',
+      ].join('\n');
     case 'deriver-a':
       return [
         internalAuthSecret,

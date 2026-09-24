@@ -6,7 +6,7 @@ use crate::{
     cloudflare_router_error_status, cloudflare_service_json_request_body_v1,
     cloudflare_tenant_root_ed25519_yao_binding_v2, encode_base64url_bytes_v1,
     parse_cloudflare_deriver_peer_verifying_key_set_v1, parse_cloudflare_trace_id_from_request_v1,
-    require_cloudflare_internal_service_auth_request_v1,
+    require_cloudflare_gateway_to_router_auth_request_v1,
     set_cloudflare_internal_service_auth_header_v1, set_cloudflare_trace_id_header_v1,
     CloudflareEd25519YaoInactiveReservationResponseV1, CloudflareEd25519YaoPackagePairDeliveryV1,
     CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairExecuteResponseV1,
@@ -220,7 +220,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     if request.method() != Method::Post {
         return Response::error("Router Yao execute route requires POST", 405);
     }
-    if let Err(error) = require_cloudflare_internal_service_auth_request_v1(&request, env) {
+    if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
     }
     let parse_started_at_ms = cloudflare_now_unix_ms_v1().unwrap_or_default();
@@ -353,7 +353,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_source_preserving_execute_priv
             405,
         );
     }
-    if let Err(error) = require_cloudflare_internal_service_auth_request_v1(&request, env) {
+    if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
     }
     let parse_started_at_ms = cloudflare_now_unix_ms_v1().unwrap_or_default();
@@ -468,7 +468,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_lane_execute_private_fetch_v1(
     if request.method() != Method::Post {
         return Response::error("Router Ed25519 lane execute route requires POST", 405);
     }
-    if let Err(error) = require_cloudflare_internal_service_auth_request_v1(&request, env) {
+    if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
     }
     let trace_id = match parse_cloudflare_trace_id_from_request_v1(&request) {
@@ -618,7 +618,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch
     if request.method() != Method::Post {
         return Response::error("Router recovery promotion route requires POST", 405);
     }
-    if let Err(error) = require_cloudflare_internal_service_auth_request_v1(&request, env) {
+    if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
     }
     let trace_id = match parse_cloudflare_trace_id_from_request_v1(&request) {

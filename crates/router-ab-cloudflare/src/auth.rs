@@ -2,8 +2,8 @@ use crate::CloudflareRouterEd25519JwkV1;
 #[cfg(feature = "workers-rs")]
 use crate::{
     cloudflare_router_error_status, require_non_empty, worker_binding_error,
-    worker_binding_error_code, ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-    ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING_ENV,
+    worker_binding_error_code, ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET_BINDING,
+    ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING_ENV,
 };
 use ed25519_dalek::{Signature as Ed25519Signature, VerifyingKey as Ed25519VerifyingKey};
 use router_ab_core::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
@@ -32,10 +32,18 @@ fn load_cloudflare_internal_service_auth_secret_v1(
         ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING_ENV,
         &binding_name,
     )?;
-    let secret = env.secret(&binding_name).map_err(|err| {
+    load_cloudflare_service_auth_secret_v1(env, &binding_name)
+}
+
+#[cfg(feature = "workers-rs")]
+fn load_cloudflare_service_auth_secret_v1(
+    env: &worker::Env,
+    binding_name: &str,
+) -> RouterAbProtocolResult<String> {
+    let secret = env.secret(binding_name).map_err(|err| {
         worker_binding_error(
-            worker_binding_error_code(&err, &binding_name),
-            &binding_name,
+            worker_binding_error_code(&err, binding_name),
+            binding_name,
             "secret",
             err,
         )
@@ -43,7 +51,7 @@ fn load_cloudflare_internal_service_auth_secret_v1(
     let mut secret_value = secret.to_string();
     let secret = secret_value.trim().to_owned();
     secret_value.zeroize();
-    require_non_empty("Router A/B internal service-auth secret", &secret)?;
+    require_non_empty(binding_name, &secret)?;
     Ok(secret)
 }
 
@@ -72,7 +80,45 @@ pub fn require_cloudflare_internal_service_auth_request_v1(
     request: &worker::Request,
     env: &worker::Env,
 ) -> RouterAbProtocolResult<()> {
-    let mut expected = load_cloudflare_internal_service_auth_secret_v1(env)?;
+    require_cloudflare_service_auth_request_v1(
+        request,
+        load_cloudflare_internal_service_auth_secret_v1(env)?,
+    )
+}
+
+#[cfg(feature = "workers-rs")]
+pub fn require_cloudflare_gateway_to_router_auth_request_v1(
+    request: &worker::Request,
+    env: &worker::Env,
+) -> RouterAbProtocolResult<()> {
+    let mut shared = load_cloudflare_internal_service_auth_secret_v1(env)?;
+    let mut gateway = match load_cloudflare_service_auth_secret_v1(
+        env,
+        ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET_BINDING,
+    ) {
+        Ok(secret) => secret,
+        Err(error) => {
+            shared.zeroize();
+            return Err(error);
+        }
+    };
+    let same_credential = constant_time_text_eq_v1(&shared, &gateway);
+    shared.zeroize();
+    if same_credential {
+        gateway.zeroize();
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            "Gateway-to-Router auth secret must differ from role-shared service auth",
+        ));
+    }
+    require_cloudflare_service_auth_request_v1(request, gateway)
+}
+
+#[cfg(feature = "workers-rs")]
+fn require_cloudflare_service_auth_request_v1(
+    request: &worker::Request,
+    mut expected: String,
+) -> RouterAbProtocolResult<()> {
     let presented = request
         .headers()
         .get(ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1)

@@ -42,7 +42,7 @@ const ROUTER_RECOVERY_PROMOTE_PATH = '/router-ab/router/ed25519-yao/recovery/pro
 const ROUTER_AB_ENV_KEYS = {
   routerUrl: 'MPC_ROUTER_URL',
   signingWorkerId: 'SIGNING_WORKER_ID',
-  internalServiceAuth: 'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET',
+  internalServiceAuth: 'ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET',
   deriverAInputPublicKey: 'DERIVER_A_ED25519_YAO_INPUT_PUBLIC_KEY',
   deriverBInputPublicKey: 'DERIVER_B_ED25519_YAO_INPUT_PUBLIC_KEY',
   signingWorkerRecipientPublicKey: 'SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY',

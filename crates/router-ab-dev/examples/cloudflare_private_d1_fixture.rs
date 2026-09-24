@@ -26,6 +26,7 @@ use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const INTERNAL_AUTH_SECRET: &str = "private-d1-integration-auth";
+const GATEWAY_TO_ROUTER_AUTH_SECRET: &str = "private-d1-gateway-router-auth";
 const TENANT_ROOT_ISSUER_KEY_ID: &str = "miniflare-tenant-root-control-plane-issuer-v1";
 const TENANT_ROOT_ISSUER_SEED: [u8; 32] = [0xc1; 32];
 const TENANT_ROOT_GRANT_KEY_ID: &str = "miniflare-tenant-root-grant-authority-v1";
@@ -336,6 +337,7 @@ fn cloudflare_router_env(
     let mut env = BTreeMap::from([
         ("ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING".into(), "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET".into()),
         ("ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET".into(), INTERNAL_AUTH_SECRET.into()),
+        ("ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET".into(), GATEWAY_TO_ROUTER_AUTH_SECRET.into()),
         ("ROUTER_JWT_ISSUER".into(), "https://issuer.example".into()),
         ("ROUTER_JWT_AUDIENCE".into(), "router-ab".into()),
         ("ROUTER_JWT_JWKS_JSON".into(), "{\"keys\":[{\"alg\":\"EdDSA\",\"crv\":\"Ed25519\",\"kid\":\"test\",\"kty\":\"OKP\",\"use\":\"sig\",\"x\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"}]}".into()),
