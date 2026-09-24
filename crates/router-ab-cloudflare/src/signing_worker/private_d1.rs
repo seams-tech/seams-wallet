@@ -104,6 +104,15 @@ struct VersionedSecretJsonRowV1 {
 }
 
 #[derive(Debug, Deserialize)]
+struct InitialRegistrationFinalizationRowV1 {
+    lifecycle_json: Option<String>,
+    activation_material_key: Option<String>,
+    activation_json: Option<String>,
+    activation_active_state_json: Option<String>,
+    fenced: i64,
+}
+
+#[derive(Debug, Deserialize)]
 struct TerminalResponseRowV1 {
     request_digest_hex: String,
     response_json: String,
@@ -133,6 +142,12 @@ pub(crate) struct CloudflareSigningWorkerPrivateD1VersionedSecretV1<T> {
     pub(crate) value: T,
     pub(crate) version: i64,
     pub(crate) updated_at_ms: u64,
+}
+
+pub(crate) struct CloudflareSigningWorkerInitialRegistrationFinalizationSnapshotV1<T> {
+    pub(crate) lifecycle: Option<T>,
+    pub(crate) activation: Option<CloudflareSigningWorkerOutputActivationRecordV1>,
+    pub(crate) fenced: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -823,6 +838,99 @@ where
         version: row.version,
         updated_at_ms: row.updated_at_ms,
     }))
+}
+
+pub(crate) async fn read_cloudflare_signing_worker_initial_registration_finalization_v1<T>(
+    env: &Env,
+    lifecycle_key: &str,
+    active_key: &str,
+) -> RouterAbProtocolResult<CloudflareSigningWorkerInitialRegistrationFinalizationSnapshotV1<T>>
+where
+    T: DeserializeOwned,
+{
+    require_non_empty("SigningWorker Yao lifecycle key", lifecycle_key)?;
+    require_non_empty("SigningWorker Yao active key", active_key)?;
+    let database = signing_worker_private_d1_from_env_v1(env)?;
+    let session = database
+        .with_session_constraint(D1SessionConstraint::FirstPrimary)
+        .map_err(|error| map_d1_error("SigningWorker private D1 primary session failed", error))?;
+    // One SQL statement observes lifecycle, output, and fence at one D1 snapshot.
+    let row = session
+        .prepare(
+            "SELECT lifecycle.ciphertext_json AS lifecycle_json,
+                    activation.material_key AS activation_material_key,
+                    activation.record_json AS activation_json,
+                    activation.active_state_json AS activation_active_state_json,
+                    CASE WHEN fence.active_key IS NULL THEN 0 ELSE 1 END AS fenced
+             FROM (SELECT 1) AS anchor
+             LEFT JOIN signing_worker_secret_states AS lifecycle
+               ON lifecycle.purpose = 'ed25519_yao_lifecycle' AND lifecycle.record_key = ?1
+             LEFT JOIN signing_worker_activations AS activation
+               ON activation.active_key = ?2
+             LEFT JOIN signing_worker_activation_revocation_fences AS fence
+               ON fence.active_key = ?2",
+        )
+        .bind(&[js_string(lifecycle_key), js_string(active_key)])
+        .map_err(|error| map_d1_error("SigningWorker finalization lookup bind failed", error))?
+        .first::<InitialRegistrationFinalizationRowV1>(None)
+        .await
+        .map_err(|error| map_d1_error("SigningWorker finalization lookup failed", error))?
+        .ok_or_else(|| d1_error("SigningWorker finalization lookup returned no snapshot"))?;
+    if row.fenced != 0 && row.fenced != 1 {
+        return Err(d1_error("SigningWorker finalization fence is invalid"));
+    }
+    let cipher = SigningWorkerPrivateD1CipherV1::from_env(env)?;
+    let lifecycle = match row.lifecycle_json {
+        Some(json) => Some(cipher.open("ed25519_yao_lifecycle", lifecycle_key, &json)?),
+        None => None,
+    };
+    let activation = if row.fenced == 1 {
+        None
+    } else {
+        match (
+            row.activation_material_key,
+            row.activation_json,
+            row.activation_active_state_json,
+        ) {
+            (None, None, None) => None,
+            (Some(material_key), Some(json), Some(active_state_json)) => {
+                let record: CloudflareSigningWorkerOutputActivationRecordV1 =
+                    cipher.open("activation", &material_key, &json)?;
+                record.validate()?;
+                if record
+                    .active_signing_worker_state()
+                    .signing_worker_material_handle
+                    != material_key
+                {
+                    return Err(d1_error(
+                        "SigningWorker finalization activation material key conflicts with its record",
+                    ));
+                }
+                if encode_json(
+                    "SigningWorker finalization active state",
+                    record.active_signing_worker_state(),
+                )? != active_state_json
+                {
+                    return Err(d1_error(
+                        "SigningWorker finalization activation index conflicts with its record",
+                    ));
+                }
+                Some(record)
+            }
+            _ => {
+                return Err(d1_error(
+                    "SigningWorker finalization activation row is incomplete",
+                ))
+            }
+        }
+    };
+    Ok(
+        CloudflareSigningWorkerInitialRegistrationFinalizationSnapshotV1 {
+            lifecycle,
+            activation,
+            fenced: row.fenced == 1,
+        },
+    )
 }
 
 pub(crate) async fn compare_and_set_cloudflare_signing_worker_private_d1_secret_v1<T>(

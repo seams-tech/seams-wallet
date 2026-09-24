@@ -55,6 +55,8 @@ const tenantRootManagedRestoreChallengePath =
 const tenantRootManagedRestoreAuthorizePath =
   '/tenant-root-control-plane/restore/v1/authorize';
 const ed25519ExecutePath = '/router-ab/router/ed25519-yao/execute';
+const ed25519FinalizationLookupPath =
+  '/router-ab/signing-worker/ed25519-yao/initial-registration/finalization';
 const managedRestoreAuthenticationDomain =
   'tenant_root_managed_restore_incident_authorization_authentication_v1';
 const ed25519Pkcs8SeedPrefix = Buffer.from('302e020100300506032b657004220420', 'hex');
@@ -2168,6 +2170,108 @@ async function postSigningWorkerDelivery(worker, delivery) {
   );
 }
 
+async function readSigningWorkerFinalization(worker, lookup) {
+  const response = await postWorkerJson(worker, ed25519FinalizationLookupPath, lookup);
+  const bytes = await expectOk(response, 'SigningWorker finalization lookup');
+  return JSON.parse(bytes.toString('utf8'));
+}
+
+async function signingWorkerFinalizationRows(database) {
+  return database
+    .prepare(
+      `SELECT
+         (SELECT COUNT(*) FROM signing_worker_secret_states
+          WHERE purpose = 'ed25519_yao_lifecycle') AS lifecycles,
+         (SELECT COUNT(*) FROM signing_worker_activations) AS activations,
+         (SELECT COUNT(*) FROM signing_worker_activation_revocation_fences) AS fences`,
+    )
+    .first();
+}
+
+async function testSigningWorkerFinalizationLookup(topology, fixture, tenantRoot) {
+  const activation = await captureValidActivationDelivery(topology, fixture, tenantRoot);
+  const delivery = JSON.parse(activation.delivery);
+  const clientResult = activation.result.result.result;
+  const lookup = {
+    delivery,
+    deriver_a_client_package: clientResult.deriver_a_client_package,
+    deriver_b_client_package: clientResult.deriver_b_client_package,
+  };
+  const committedWorker = await topology.getWorker('fixture-signing-worker');
+  const missingWorker = await topology.getWorker('fixture-signing-worker-after-refresh');
+  const committedDatabase = await topology.getD1Database(
+    signingWorkerD1Binding,
+    'fixture-signing-worker',
+  );
+  const missingDatabase = await topology.getD1Database(
+    signingWorkerD1Binding,
+    'fixture-signing-worker-after-refresh',
+  );
+
+  const before = await signingWorkerFinalizationRows(committedDatabase);
+  assert.equal(before.lifecycles, 1);
+  assert.equal(before.activations, 1);
+  assert.deepEqual(await readSigningWorkerFinalization(missingWorker, lookup), {
+    status: 'missing',
+  });
+  assert.deepEqual(await signingWorkerFinalizationRows(missingDatabase), {
+    lifecycles: 0,
+    activations: 0,
+    fences: 0,
+  });
+  const committed = await readSigningWorkerFinalization(committedWorker, lookup);
+  assert.equal(committed.status, 'committed');
+  assert.deepEqual(
+    committed.receipt.registered_public_key,
+    activation.publicReceipt.registered_public_key,
+  );
+  assert.deepEqual(await signingWorkerFinalizationRows(committedDatabase), before);
+
+  const activeKey = [
+    'active-signing-worker',
+    delivery.deriver_a.binding.material_activation.material_owner,
+    delivery.deriver_a.binding.material_activation.activation_id,
+    delivery.deriver_a.binding.material_activation.signing_worker,
+  ].join('/');
+  await committedDatabase
+    .prepare('DELETE FROM signing_worker_activations WHERE active_key = ?1')
+    .bind(activeKey)
+    .run();
+  assert.deepEqual(await readSigningWorkerFinalization(committedWorker, lookup), {
+    status: 'conflict',
+  });
+  const beforeFence = await signingWorkerFinalizationRows(committedDatabase);
+  assert.equal(beforeFence.activations, 0, 'lookup must not restore missing active material');
+
+  await committedDatabase
+    .prepare('INSERT INTO signing_worker_activation_revocation_fences (active_key) VALUES (?1)')
+    .bind(activeKey)
+    .run();
+  assert.deepEqual(await readSigningWorkerFinalization(committedWorker, lookup), {
+    status: 'revoked',
+  });
+  assert.deepEqual(await signingWorkerFinalizationRows(committedDatabase), {
+    lifecycles: beforeFence.lifecycles,
+    activations: 0,
+    fences: 1,
+  });
+
+  const artifact = {
+    kind: 'signing_worker_initial_registration_finalization_lookup_e2e_v1',
+    reproduce:
+      'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --signing-worker-finalization-lookup',
+    committedReceiptMatchesRouter: true,
+    missingAuthorityStayedEmpty: true,
+    committedLookupLeftRowsUnchanged: true,
+    missingOutputWasConflictWithoutReactivation: true,
+    fencedOutputWasRevokedWithoutReactivation: true,
+  };
+  const artifactPath = join(repoRoot, '.artifacts/r150/signing-worker-finalization-lookup.json');
+  await mkdir(dirname(artifactPath), { recursive: true });
+  await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
+  console.log(JSON.stringify({ ...artifact, artifactPath }));
+}
+
 async function testConcurrentActivationAndLostResponse(fixture, delivery) {
   const miniflare = new Miniflare({
     workers: [signingWorker('concurrent-signing-worker', 'concurrent-signing-worker-d1', fixture)],
@@ -2285,6 +2389,10 @@ async function main() {
     }
     if (testDeriverBCompletionBurn) {
       await testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, databases);
+      return;
+    }
+    if (process.argv.includes('--signing-worker-finalization-lookup')) {
+      await testSigningWorkerFinalizationLookup(topology, fixture, tenantRoot);
       return;
     }
     const ecdsa = await testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot, jwtSigner);

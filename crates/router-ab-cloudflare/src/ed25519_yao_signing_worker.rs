@@ -19,9 +19,10 @@ use crate::{
     delete_cloudflare_signing_worker_output_activation_by_active_key_v1,
     load_cloudflare_server_output_hpke_private_key_bytes_v1,
     load_cloudflare_signing_worker_private_d1_secret_v1,
-    put_cloudflare_signing_worker_output_activation_record_v1, CloudflareSecretMaterial32V1,
-    CloudflareServerOutputMaterialRecordV1, CloudflareSigningWorkerOutputActivationRecordV1,
-    CloudflareSigningWorkerRuntimeV1,
+    put_cloudflare_signing_worker_output_activation_record_v1,
+    read_cloudflare_signing_worker_initial_registration_finalization_v1,
+    CloudflareSecretMaterial32V1, CloudflareServerOutputMaterialRecordV1,
+    CloudflareSigningWorkerOutputActivationRecordV1, CloudflareSigningWorkerRuntimeV1,
 };
 
 pub const CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_PACKAGES_PATH: &str =
@@ -36,6 +37,8 @@ pub const CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_ACTIVATE_RESERVATION_PATH: &str 
     "/router-ab/signing-worker/ed25519-yao/activate-reservation";
 pub const CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_DEACTIVATE_RESERVATION_PATH: &str =
     "/router-ab/signing-worker/ed25519-yao/deactivate-reservation";
+pub const CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_LOOKUP_PATH:
+    &str = "/router-ab/signing-worker/ed25519-yao/initial-registration/finalization";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -102,6 +105,54 @@ impl CloudflareEd25519YaoPackagePairDeliveryV1 {
         }
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
+    pub delivery: CloudflareEd25519YaoPackagePairDeliveryV1,
+    pub deriver_a_client_package: Ed25519YaoEncryptedPackageV1,
+    pub deriver_b_client_package: Ed25519YaoEncryptedPackageV1,
+}
+
+impl CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
+    fn validate(&self) -> RouterAbProtocolResult<()> {
+        self.delivery.validate()?;
+        let binding = &self.delivery.deriver_a.binding;
+        require_operation(binding, Ed25519YaoOperationV1::Registration)?;
+        validate_client_package_v1(
+            &self.deriver_a_client_package,
+            binding,
+            Ed25519YaoDeriverRoleV1::DeriverA,
+        )?;
+        validate_client_package_v1(
+            &self.deriver_b_client_package,
+            binding,
+            Ed25519YaoDeriverRoleV1::DeriverB,
+        )?;
+        let transcript = self.deriver_a_client_package.transcript();
+        if transcript != self.deriver_b_client_package.transcript()
+            || transcript != self.delivery.deriver_a.package.transcript()
+            || transcript != self.delivery.deriver_b.package.transcript()
+        {
+            return Err(invalid_lifecycle(
+                "initial-registration lookup packages have different transcripts",
+            ));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1 {
+    Missing,
+    Pending,
+    Committed {
+        receipt: Ed25519YaoSigningWorkerActivationReceiptV1,
+    },
+    Revoked,
+    Conflict,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -493,6 +544,97 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_packages_v1(
     )
     .await?;
     json_response(&http_response_from_command(response)?)
+}
+
+pub async fn handle_cloudflare_signing_worker_ed25519_yao_initial_registration_finalization_lookup_v1(
+    mut request: Request,
+    env: &Env,
+) -> RouterAbProtocolResult<Response> {
+    let lookup =
+        parse_request::<CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1>(
+            &mut request,
+        )
+        .await?;
+    lookup.validate()?;
+    let response = read_initial_registration_finalization_v1(env, &lookup).await?;
+    json_response(&response)
+}
+
+async fn read_initial_registration_finalization_v1(
+    env: &Env,
+    request: &CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1,
+) -> RouterAbProtocolResult<CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1> {
+    let binding = &request.delivery.deriver_a.binding;
+    let record_key = encode_hex(binding.stable_key_context_binding.into_bytes());
+    let active_key = active_output_key_v1(binding.material_activation());
+    let snapshot = read_cloudflare_signing_worker_initial_registration_finalization_v1::<
+        SigningWorkerYaoDurableStateV1,
+    >(env, &record_key, &active_key)
+    .await?;
+    let Some(lifecycle) = snapshot.lifecycle else {
+        return Ok(if snapshot.fenced {
+            CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1::Revoked
+        } else if snapshot.activation.is_some() {
+            CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1::Conflict
+        } else {
+            CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1::Missing
+        });
+    };
+    lifecycle.validate()?;
+    let (deriver_a, deriver_b, receipt, active) = match lifecycle {
+        SigningWorkerYaoDurableStateV1::RegistrationStaged {
+            deriver_a,
+            deriver_b,
+            receipt,
+            ..
+        } => (deriver_a, deriver_b, receipt, false),
+        SigningWorkerYaoDurableStateV1::Active {
+            deriver_a,
+            deriver_b,
+            material,
+            receipt,
+        } if material.binding().operation == Ed25519YaoOperationV1::Registration => {
+            (deriver_a, deriver_b, receipt, true)
+        }
+        SigningWorkerYaoDurableStateV1::Active { .. }
+        | SigningWorkerYaoDurableStateV1::RecoveryStaged { .. } => {
+            return Ok(
+                CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1::Conflict,
+            )
+        }
+    };
+    if deriver_a != request.delivery.deriver_a
+        || deriver_b != request.delivery.deriver_b
+        || receipt.transcript != request.deriver_a_client_package.transcript()
+    {
+        return Ok(CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1::Conflict);
+    }
+    if snapshot.fenced {
+        return Ok(CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1::Revoked);
+    }
+    if !active {
+        return Ok(CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1::Pending);
+    }
+    match snapshot.activation {
+        Some(CloudflareSigningWorkerOutputActivationRecordV1::Ed25519Yao {
+            binding: output_binding,
+            receipt: output_receipt,
+            active_signing_worker_state,
+            ..
+        }) if output_binding == *binding
+            && output_receipt == receipt
+            && active_signing_worker_state.account_id == binding.lifecycle.account_id
+            && active_signing_worker_state.material_activation
+                == *binding.material_activation() =>
+        {
+            Ok(
+                CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1::Committed {
+                    receipt,
+                },
+            )
+        }
+        _ => Ok(CloudflareEd25519YaoInitialRegistrationFinalizationLookupResponseV1::Conflict),
+    }
 }
 
 pub async fn handle_cloudflare_signing_worker_ed25519_yao_recovery_promote_v1(

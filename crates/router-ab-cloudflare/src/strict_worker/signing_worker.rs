@@ -29,6 +29,22 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 Err(err) => cloudflare_protocol_error_response_v1(err),
             }
         }
+        CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_LOOKUP_PATH => {
+            if request.method() != Method::Post {
+                return Response::error(
+                    "initial-registration finalization lookup requires POST",
+                    405,
+                );
+            }
+            match handle_cloudflare_signing_worker_ed25519_yao_initial_registration_finalization_lookup_v1(
+                request, &env,
+            )
+            .await
+            {
+                Ok(response) => Ok(response),
+                Err(err) => cloudflare_protocol_error_response_v1(err),
+            }
+        }
         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_PATH => {
             match handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_v1(request, &env)
                 .await
