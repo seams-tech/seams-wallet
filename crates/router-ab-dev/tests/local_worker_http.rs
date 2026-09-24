@@ -78,7 +78,7 @@ use std::{
     net::{TcpListener, TcpStream},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
-    sync::{Mutex, MutexGuard, OnceLock},
+    sync::{Barrier, Mutex, MutexGuard, OnceLock},
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -657,16 +657,86 @@ fn product_near_signing_process_flow(
         now_ms,
         expires_at_ms,
     )?;
-    let (status, body) = post_json_to_path_with_headers(
-        signing_worker_url,
-        LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH,
-        &finalize_request,
-        &[(
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
-        )],
-    )?;
-    assert_eq!(status, 200, "VM SigningWorker finalize: {body}");
+    let signing_worker_env_path = temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1);
+    let replica_url = format!("http://127.0.0.1:{}", free_port()?);
+    let primary_env = fs::read_to_string(&signing_worker_env_path)?;
+    let replica_env = primary_env.replace(signing_worker_url, &replica_url);
+    if replica_env == primary_env {
+        return Err("SigningWorker replica URL is missing from its environment".into());
+    }
+    let replica_env_path = temp.join(".env.router-ab.signing-worker-contender.local");
+    fs::write(&replica_env_path, replica_env)?;
+    let mut replica = ChildGuard::spawn_in_root(binary, "signing-worker", replica_env_path, temp)?;
+    wait_for_health(&replica_url, replica.child_mut())?;
+    let barrier = Barrier::new(3);
+    let (primary_attempt, replica_attempt) = thread::scope(|scope| {
+        let primary = scope.spawn(|| {
+            barrier.wait();
+            post_json_to_path_with_headers(
+                signing_worker_url,
+                LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH,
+                &finalize_request,
+                &[(
+                    LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+                    LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+                )],
+            )
+            .map_err(|error| error.to_string())
+        });
+        let contender = scope.spawn(|| {
+            barrier.wait();
+            post_json_to_path_with_headers(
+                &replica_url,
+                LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH,
+                &finalize_request,
+                &[(
+                    LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+                    LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+                )],
+            )
+            .map_err(|error| error.to_string())
+        });
+        barrier.wait();
+        (primary.join(), contender.join())
+    });
+    let primary_attempt = primary_attempt
+        .map_err(|_| "primary SigningWorker request thread panicked")?
+        .map_err(std::io::Error::other)?;
+    let replica_attempt = replica_attempt
+        .map_err(|_| "contending SigningWorker request thread panicked")?
+        .map_err(std::io::Error::other)?;
+    for (status, body) in [&primary_attempt, &replica_attempt] {
+        assert!(
+            *status == 200 || (*status == 400 && body.contains("ReplayedLocalRequest")),
+            "concurrent SigningWorker claim returned {status}: {body}"
+        );
+    }
+    let body = match (&primary_attempt, &replica_attempt) {
+        ((200, first), (200, second)) => {
+            assert_eq!(
+                first, second,
+                "concurrent replay must return one terminal response"
+            );
+            first.clone()
+        }
+        ((200, first), _) => first.clone(),
+        (_, (200, second)) => second.clone(),
+        _ => return Err("no SigningWorker process completed the signing claim".into()),
+    };
+    for url in [signing_worker_url, replica_url.as_str()] {
+        let (status, retry_body) = post_json_to_path_with_headers(
+            url,
+            LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH,
+            &finalize_request,
+            &[(
+                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            )],
+        )?;
+        assert_eq!(status, 200, "VM SigningWorker replay: {retry_body}");
+        assert_eq!(retry_body, body, "both processes must replay one terminal result");
+    }
+    drop(replica);
     let signed: NormalSigningResponseV1 = serde_json::from_str(&body)?;
     let signature_bytes: [u8; 64] = signed.signature.as_bytes().try_into()?;
     let signature = ed25519_dalek::Signature::from_bytes(&signature_bytes);
@@ -707,7 +777,6 @@ fn product_near_signing_process_flow(
         body, retry_body,
         "restart must preserve the signed terminal result"
     );
-    let signing_worker_env_path = temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1);
     let config = parse_local_worker_role_config_for_role_v1(
         LocalServiceRoleV1::SigningWorker,
         parse_local_env_file_contents_v1(&fs::read_to_string(&signing_worker_env_path)?)?,
@@ -732,6 +801,8 @@ fn product_near_signing_process_flow(
             "signature_digest_hex": hex::encode(Sha256::digest(signature_bytes)),
             "completed_round1_rows": completed_count,
             "worker_restarts": 2,
+            "independent_signing_worker_processes": 2,
+            "concurrent_claims": true,
         })
     );
     Ok(signing_worker)
