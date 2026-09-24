@@ -1,8 +1,54 @@
 # Optimization 10: registration readiness and MPC signing latency
 
-Status: 0.5.25 released and measured on production testnet. Cached Tempo signing
-meets the target in four diagnostic samples; immediate and sustained signing
-still exceed it. Production p95 and Arc acceptance remain unverified.
+Status: Wallet 0.6.2 is released and deployed to the production-hosted testnet.
+Hosted diagnostics verify durable ECDSA cache restoration, one-use consumption,
+post-consumption refill, and sustained Tempo signing for the tested browser
+profiles. Hosted NEAR samples place the FROST signing core at 1.234–2.683 seconds,
+while post-confirmation completion remains 5.237–8.710 seconds. The granular NEAR
+stage trace is committed on `dev` and remains undeployed. Population p95, hosted
+Arc acceptance, warm NEAR signing, and expired-session recovery remain open.
+
+## Current completion checklist
+
+### Released and verified
+
+- [x] Release Wallet and Wallet Server 0.6.2 and deploy the exact private consumer
+  through all frontend surfaces and the complete production-testnet backend.
+- [x] Verify both hosted manifests report 0.6.2 and pass frontend, Gateway, Router,
+  signing-worker, Deriver, tenant-root, wallet-runtime, migration, and smoke checks.
+- [x] Verify hosted durable ECDSA entries survive reload, are consumed once, and
+  refill back to the five-entry target for the tested browser profiles.
+- [x] Exercise sustained hosted Tempo signing beyond the initial pool and reusable
+  allowance, including refill waits and exact-operation step-up authorization.
+- [x] Separate hosted NEAR FROST prepare, client-share, finalize, and signature-total
+  timing from post-confirmation application completion.
+- [x] Add granular NEAR timings for durable-lease recovery, material resolution,
+  transaction context, Wallet Session authorization, nonce-lease commit, and
+  transaction assembly.
+- [x] Revise R150 around automatic, stable wallet placement and role-separated
+  Durable Objects; retain regional lanes as an optional reference design.
+- [x] Remove the superseded Wallet region controls, recommendations, settings,
+  routes, tests, and public exports.
+
+### Remaining acceptance and optimization work
+
+- [ ] Deploy the granular NEAR stage trace and capture equivalent first-sign and
+  warm-sign samples in one retained-authenticator session.
+- [ ] Diagnose the demo's repeated-transaction control lifecycle, then measure
+  valid-session reuse, final-use exhaustion, expired-session rejection, and
+  supported reauthentication recovery.
+- [ ] Collect comparable hosted registration, first-sign, cached-sign, refill,
+  and recovery cohorts at useful scale, with failures and tail latency.
+- [ ] Optimize the largest measured post-confirmation NEAR stage and rerun the
+  same cohort before claiming a consistent end-to-end improvement.
+- [ ] Complete hosted Arc acceptance and geographically representative p50/p95
+  measurements without treating small diagnostic samples as population results.
+- [ ] Reconcile existing regional-lane implementation work with revised R150,
+  then implement and verify the role-separated DO and conventional VM paths.
+- [ ] Pass R150's latency, cost, concurrency, restart, isolation, and one-use
+  safety gates before converting new-wallet hosting.
+- [ ] Design and review existing-wallet conversion separately; retain the current
+  D1 authority until that conversion passes its own safety and rollback review.
 
 Execution constraint: keep mixed registration's ECDSA-ready success asynchronous
 while NEAR provisioning is slow. Reduce and measure the underlying NEAR work
@@ -999,8 +1045,12 @@ Implementation checkpoints:
 - [x] Align capacity, login policy, and post-consumption refill at five entries.
 - [x] Reconcile on startup/resume and consumption; continue bounded partial fills
   and transient retries while eligible, without blocking registration or unlock.
-- [ ] Verify persisted cache hits and sustained production signing, including
-  refill after the final signing use and rejection after session expiry.
+- [x] Verify hosted persisted cache hits across reload, atomic one-use consumption,
+  and post-consumption refill to five entries for the tested browser profiles.
+- [x] Verify sustained production-hosted Tempo signing beyond the initial pool,
+  including successful refill waits and exact-operation step-up authorization.
+- [ ] Verify refill after the final signing use, explicit expired-session rejection,
+  and the supported reauthentication recovery path.
 
 Completed material survives ordinary session expiry under its own retention
 policy. Explicit logout/reset and material-retirement cleanup retain their
