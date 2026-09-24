@@ -969,6 +969,7 @@ async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot,
       org_id: 'org-miniflare',
       project_id: 'project-r120',
       environment: 'test',
+      project_environment_id: 'project-environment-miniflare',
       account_id: accountId,
       routerAbRequestPolicy: {
         policyVersion: 'router-ab-ecdsa-registration-v1',
@@ -1027,6 +1028,19 @@ async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot,
       'live Router ECDSA activation',
     );
     const activation = JSON.parse(activationBytes.toString('utf8'));
+    if (process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled') {
+      const changedOwner = JSON.parse(JSON.stringify(activationBody));
+      changedOwner.pending.wallet_scope.project_environment_id = 'another-project-environment';
+      const rejected = await postWorkerJson(router, ecdsaActivationPath, changedOwner, {
+        authorization: `Bearer ${token}`,
+      });
+      const rejectedBody = Buffer.from(await rejected.arrayBuffer()).toString('utf8');
+      assert.equal(rejected.status, 500, rejectedBody);
+      assert.match(
+        rejectedBody,
+        /ECDSA activation owner differs from the verified ceremony session/,
+      );
+    }
     assert.equal(activation.activated, true);
     assert.equal(
       activation.lifecycle_id,
@@ -3040,6 +3054,10 @@ async function main() {
       assert.ok(priorSigning.response.signature65_b64u);
       const signing = await testEcdsaNormalSigning(topology, ecdsa, 'prepare');
       if (walletDoPool) {
+        const activationRows = await signingWorkerDatabase
+          .prepare('SELECT COUNT(*) AS count FROM signing_worker_activations')
+          .first();
+        assert.equal(activationRows.count, 0, 'Wallet-DO ECDSA activation must not write D1 material');
         const objectIds = await topology.listDurableObjectIds(
           'RouterAbSigningWorkerWalletDurableObject',
           'fixture-signing-worker',
@@ -3089,6 +3107,7 @@ async function main() {
         ...(walletDoPool
           ? {
               walletDoPoolWithoutD1Writes: true,
+              walletDoActivationWithoutD1Writes: true,
               walletDoEffectAndTerminalWithoutD1Writes: true,
               consumedWalletDoMaterialRejected: true,
               terminalReplayAfterWalletDoEviction: true,

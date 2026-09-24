@@ -1404,7 +1404,18 @@ function parseD1StoredEvmFamilyEcdsaResponseClaimedBranch(
 ): StoredWalletRegistrationEvmFamilyEcdsaResponseClaimedBranch | null {
   const branchKey = parseD1RegistrationSignerBranchKey(record.branchKey);
   const prepared = parseD1StoredEcdsaRegistrationBranchBase(record);
-  if (!branchKey || !prepared) return null;
+  const projectEnvironmentId = toOptionalTrimmedString(record.projectEnvironmentId);
+  const tenantRootIdentityDigestB64u = toOptionalTrimmedString(record.tenantRootIdentityDigestB64u);
+  const tenantRootCustodyLineageB64u = toOptionalTrimmedString(record.tenantRootCustodyLineageB64u);
+  if (
+    !branchKey ||
+    !prepared ||
+    !projectEnvironmentId ||
+    !tenantRootIdentityDigestB64u ||
+    !tenantRootCustodyLineageB64u
+  ) {
+    return null;
+  }
   try {
     return {
       kind: 'evm_family_ecdsa_response_claimed',
@@ -1415,6 +1426,9 @@ function parseD1StoredEvmFamilyEcdsaResponseClaimedBranch(
       strictRegistration: prepared.strictRegistration,
       strictRegistrationBindingJson: prepared.strictRegistrationBindingJson,
       registrationRequest: parseRouterAbEcdsaRegistrationRequestV1(record.registrationRequest),
+      projectEnvironmentId,
+      tenantRootIdentityDigestB64u,
+      tenantRootCustodyLineageB64u,
     };
   } catch {
     return null;

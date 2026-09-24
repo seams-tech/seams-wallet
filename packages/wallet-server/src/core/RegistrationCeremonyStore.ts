@@ -326,6 +326,9 @@ export type StoredWalletRegistrationEvmFamilyEcdsaResponseClaimedBranch =
     kind: 'evm_family_ecdsa_response_claimed';
     branchKey: RegistrationSignerBranchKey;
     registrationRequest: RouterAbEcdsaRegistrationRequestV1;
+    projectEnvironmentId: string;
+    tenantRootIdentityDigestB64u: string;
+    tenantRootCustodyLineageB64u: string;
   };
 
 export type StoredWalletRegistrationEvmFamilyEcdsaActivationClaimedBranch =
@@ -2305,6 +2308,9 @@ type StoredRegistrationSignerBranchRecord = {
   readonly strictRegistration?: unknown;
   readonly strictRegistrationBindingJson?: unknown;
   readonly registrationRequest?: unknown;
+  readonly projectEnvironmentId?: unknown;
+  readonly tenantRootIdentityDigestB64u?: unknown;
+  readonly tenantRootCustodyLineageB64u?: unknown;
   readonly pendingActivation?: unknown;
   readonly publicResponse?: unknown;
   readonly publicFacts?: unknown;
@@ -2796,6 +2802,16 @@ function parseStoredWalletRegistrationSignerBranch(
         const registrationRequest = parseRouterAbEcdsaRegistrationRequestV1(
           record.registrationRequest,
         );
+        const projectEnvironmentId = trimString(record.projectEnvironmentId);
+        const tenantRootIdentityDigestB64u = trimString(record.tenantRootIdentityDigestB64u);
+        const tenantRootCustodyLineageB64u = trimString(record.tenantRootCustodyLineageB64u);
+        if (
+          !projectEnvironmentId ||
+          !tenantRootIdentityDigestB64u ||
+          !tenantRootCustodyLineageB64u
+        ) {
+          return null;
+        }
         return registrationRequest.registration_purpose === 'wallet_registration'
           ? {
               kind: 'evm_family_ecdsa_response_claimed',
@@ -2806,6 +2822,9 @@ function parseStoredWalletRegistrationSignerBranch(
               strictRegistration: base.strictRegistration,
               strictRegistrationBindingJson: base.strictRegistrationBindingJson,
               registrationRequest,
+              projectEnvironmentId,
+              tenantRootIdentityDigestB64u,
+              tenantRootCustodyLineageB64u,
             }
           : null;
       } catch {

@@ -123,7 +123,8 @@ use router_ab_cloudflare::{
     CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestFinalizeHandlerV1,
     CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestPreparedV1,
     CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1,
-    CloudflareSigningWorkerRuntimeV1, CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1,
+    CloudflareSigningWorkerRuntimeV1, CloudflareSigningWorkerWalletScopeV1,
+    CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1,
     CloudflareTenantRootCustodyBindingWireV1, CloudflareWorkerBindingsV1, CloudflareWorkerRoleV1,
     EcdsaVerifiedClientActivationFactsV1, PoolRecord, TombstoneReason,
     CLOUDFLARE_SERVER_OUTPUT_HPKE_PRIVATE_KEY_SECRET_PREFIX_V1,
@@ -1382,8 +1383,16 @@ fn router_ab_ecdsa_derivation_activation_request(
     )
     .expect("Router A/B ECDSA derivation SigningWorker proof-bundle activation");
     let pending = CloudflareRouterAbEcdsaDerivationPendingSigningWorkerActivationV1::new(
-        registration,
+        registration.clone(),
         TenantRootProtocolDigestV1::from_bytes([0x55; 32]).expect("custody binding digest"),
+        CloudflareSigningWorkerWalletScopeV1::new(
+            "org-fixture",
+            "project-fixture",
+            "environment-fixture",
+            &registration.lifecycle.account_id,
+        )
+        .expect("wallet scope"),
+        "test".to_owned(),
         router_payload,
         activation,
     )

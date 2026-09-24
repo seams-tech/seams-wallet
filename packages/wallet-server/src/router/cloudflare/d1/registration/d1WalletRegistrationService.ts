@@ -2579,6 +2579,7 @@ export class CloudflareD1WalletRegistrationService {
         readonly ok: true;
         readonly identityDigestB64u: string;
         readonly custodyLineageB64u: string;
+        readonly projectEnvironmentId: string;
       }
     | {
         readonly ok: false;
@@ -3685,7 +3686,10 @@ export class CloudflareD1WalletRegistrationService {
           ed25519: storedRespondEd25519DeferredWork(ceremony.signerState),
         });
       }
-      if (ecdsaBranch.kind !== 'evm_family_ecdsa_prepared') {
+      if (
+        ecdsaBranch.kind !== 'evm_family_ecdsa_prepared' &&
+        ecdsaBranch.kind !== 'evm_family_ecdsa_response_claimed'
+      ) {
         return {
           ok: false,
           code: 'invalid_state',
@@ -3725,23 +3729,59 @@ export class CloudflareD1WalletRegistrationService {
         };
       }
 
-      const tenantRootIdentity = registrationTenantRootIdentity(ceremony.preparedContext);
-      if (!tenantRootIdentity) {
-        return {
-          ok: false,
-          code: 'invalid_state',
-          message: 'ECDSA registration has no authoritative tenant-root identity',
-        };
+      let activeSnapshot = snapshot;
+      if (ecdsaBranch.kind === 'evm_family_ecdsa_prepared') {
+        const tenantRootIdentity = registrationTenantRootIdentity(ceremony.preparedContext);
+        if (!tenantRootIdentity) {
+          return {
+            ok: false,
+            code: 'invalid_state',
+            message: 'ECDSA registration has no authoritative tenant-root identity',
+          };
+        }
+        const resolved = await this.tenantRootCustodyLineage.resolveActiveLineageForRuntimeScope(
+          tenantRootIdentity,
+        );
+        if (!resolved) {
+          return {
+            ok: false,
+            code: 'invalid_state',
+            message: 'ECDSA registration tenant root is not active',
+          };
+        }
+        const claimed = await store.claimEcdsaRespond({
+          registrationCeremonyId: ceremony.registrationCeremonyId,
+          strictRegistrationBindingJson,
+          registrationRequest: strictRegistration,
+          projectEnvironmentId: resolved.projectEnvironmentId,
+          tenantRootIdentityDigestB64u: resolved.identityDigestB64u,
+          tenantRootCustodyLineageB64u: resolved.custodyLineageB64u,
+        });
+        if (!claimed) {
+          return {
+            ok: false,
+            code: 'conflict',
+            message: 'ECDSA registration owner claim changed; retry the ceremony',
+          };
+        }
+        activeSnapshot = claimed;
       }
-      const tenantRoot =
-        await this.tenantRootCustodyLineage.resolveActiveLineageForRuntimeScope(tenantRootIdentity);
-      if (!tenantRoot) {
-        return {
-          ok: false,
-          code: 'invalid_state',
-          message: 'ECDSA registration tenant root is not active',
-        };
+      const claimedSignerState = activeSnapshot.ceremony.signerState;
+      if (claimedSignerState.kind !== 'signer_set_registration') {
+        return { ok: false, code: 'invalid_state', message: 'ECDSA response owner is missing' };
       }
+      const claimedBranch = findStoredWalletRegistrationEvmFamilyEcdsaBranch(claimedSignerState);
+      if (
+        claimedBranch?.kind !== 'evm_family_ecdsa_response_claimed' ||
+        !sameRouterAbEcdsaRegistrationRequest(claimedBranch.registrationRequest, strictRegistration)
+      ) {
+        return { ok: false, code: 'invalid_state', message: 'ECDSA response claim is invalid' };
+      }
+      const tenantRoot = {
+        projectEnvironmentId: claimedBranch.projectEnvironmentId,
+        identityDigestB64u: claimedBranch.tenantRootIdentityDigestB64u,
+        custodyLineageB64u: claimedBranch.tenantRootCustodyLineageB64u,
+      };
 
       /* Bind the NEAR continuation locally; admission runs from the client continuation. */
       const routerStartedAtMs = Date.now();
@@ -3782,7 +3822,7 @@ export class CloudflareD1WalletRegistrationService {
       }
 
       let nextSignerState = replaceStoredWalletRegistrationSignerBranch({
-        state: ceremony.signerState,
+        state: claimedSignerState,
         replacement: {
           kind: 'evm_family_ecdsa_pending_activation',
           branchKey: ecdsaBranch.branchKey,
@@ -3806,13 +3846,13 @@ export class CloudflareD1WalletRegistrationService {
          together, so a ceremony can never be verified without its result or
          hold a result without a verified authority. */
       const next: StoredWalletRegistrationCeremony = {
-        ...ceremony,
+        ...activeSnapshot.ceremony,
         authorityState: { kind: 'verified', authority },
         signerState: nextSignerState,
       };
       const commitStartedAtMs = Date.now();
       try {
-        await store.commitEcdsaClaim({ expected: snapshot, next });
+        await store.commitEcdsaClaim({ expected: activeSnapshot, next });
       } catch (error: unknown) {
         /* Lost the CAS to a concurrent duplicate. Converge on the stored
            terminal state when it is the same request, otherwise surface. */

@@ -121,6 +121,7 @@ export type RouterAbEcdsaRegistrationRequestPolicyV1 = {
 export type RouterAbEcdsaRegistrationTenantRootV1 = {
   readonly identityDigestB64u: string;
   readonly custodyLineageB64u: string;
+  readonly projectEnvironmentId: string;
 };
 
 type RouterAbRequestPolicyClaimsInputV1 = {
@@ -214,6 +215,7 @@ export type RouterAbEcdsaCeremonyTokenClaims = {
   readonly orgId: string;
   readonly projectId: string;
   readonly environment: string;
+  readonly projectEnvironmentId: string;
   readonly accountId: string;
   readonly expiresAtMs: number;
 };
@@ -290,6 +292,7 @@ class StrictRegistrationForwarder implements RouterAbEcdsaStrictRegistrationPort
       requestPolicy: input.requestPolicy,
       request: input.request,
       tenantRoot: input.tenantRoot,
+      projectEnvironmentId: input.tenantRoot.projectEnvironmentId,
       traceContext: input.traceContext,
       onServerTiming: input.onServerTiming,
       onHeaderPresence: input.onHeaderPresence,
@@ -316,6 +319,7 @@ class StrictRegistrationForwarder implements RouterAbEcdsaStrictRegistrationPort
       activationCorrelationId: input.activationCorrelationId,
       requestPolicy: input.requestPolicy,
       pendingActivation: input.pendingActivation,
+      projectEnvironmentId: pendingProjectEnvironmentId(input.pendingActivation),
       clientActivation: input.clientActivation,
       traceContext: input.traceContext,
       onServerTiming: input.onServerTiming,
@@ -373,6 +377,7 @@ class StrictRegistrationForwarder implements RouterAbEcdsaStrictRegistrationPort
       readonly traceContext?: RouterAbTraceContextV1;
       readonly onServerTiming?: RouterAbEcdsaStrictServerTimingSink;
       readonly onHeaderPresence?: RouterAbEcdsaStrictHeaderPresenceSink;
+      readonly projectEnvironmentId: string;
     } & (
       | {
           readonly kind: 'tenant_root_registration';
@@ -397,7 +402,11 @@ class StrictRegistrationForwarder implements RouterAbEcdsaStrictRegistrationPort
       };
     }
     const token = await this.config.tokenIssuer.issueRequest(
-      ceremonyTokenClaimsForAuthority(input.authority, this.config.tokenScope),
+      ceremonyTokenClaimsForAuthority(
+        input.authority,
+        this.config.tokenScope,
+        input.projectEnvironmentId,
+      ),
       requestPolicy,
     );
     const headers: Record<string, string> = {
@@ -547,7 +556,11 @@ class StrictPostRegistrationForwarder implements RouterAbEcdsaStrictPostRegistra
        digest from the forwarded request and rejects a policy that does not
        match it, so refresh carries its own policy exactly as export does. */
     const token = await this.config.tokenIssuer.issueRequest(
-      ceremonyTokenClaimsForAuthority(input.authority, this.config.tokenScope),
+      ceremonyTokenClaimsForAuthority(
+        input.authority,
+        this.config.tokenScope,
+        input.tenantRoot.projectEnvironmentId,
+      ),
       postRegistrationRequestPolicy(
         input.kind === 'explicit_export'
           ? { workKind: 'key_export', requestDigestB64u: input.requestDigestB64u }
@@ -740,6 +753,8 @@ function canonicalPendingActivationJson(value: unknown): RouterAbEcdsaPendingAct
   const record = exactObject(value, [
     'registration',
     'tenant_root_custody_binding_digest',
+    'wallet_scope',
+    'environment_key',
     'activation_context',
     'activation',
   ]);
@@ -747,6 +762,17 @@ function canonicalPendingActivationJson(value: unknown): RouterAbEcdsaPendingAct
     throw new Error('MPCRouter pending activation has an invalid envelope');
   }
   return canonicalJson(value) as RouterAbEcdsaPendingActivationJsonV1;
+}
+
+function pendingProjectEnvironmentId(pending: RouterAbEcdsaPendingActivationV1): string {
+  const raw = JSON.parse(pending.canonicalPayloadJson) as unknown;
+  const record = objectValue(raw);
+  const scope = objectValue(record?.wallet_scope);
+  const projectEnvironmentId = nonEmptyString(scope?.project_environment_id);
+  if (!projectEnvironmentId) {
+    throw new Error('Stored ECDSA pending activation has no canonical project environment');
+  }
+  return projectEnvironmentId;
 }
 
 export function parseStoredRouterAbEcdsaPendingActivationV1(
@@ -842,6 +868,7 @@ function parseStrictRegistrationForwardingResult(
 function ceremonyTokenClaimsForAuthority(
   authority: RouterAbEcdsaStrictRegistrationAuthority,
   scope: StrictRegistrationForwarderConfig['tokenScope'],
+  projectEnvironmentId: string,
 ): RouterAbEcdsaCeremonyTokenClaims {
   return {
     subjectId: authority.subjectId,
@@ -849,6 +876,7 @@ function ceremonyTokenClaimsForAuthority(
     orgId: scope.orgId,
     projectId: scope.projectId,
     environment: scope.environment,
+    projectEnvironmentId,
     accountId: authority.accountId,
     expiresAtMs: authority.expiresAtMs,
   };
@@ -909,7 +937,8 @@ function validateRegistrationTenantRoot(
 ): RouterAbEcdsaStrictFailure | null {
   if (
     !base64UrlString(tenantRoot.identityDigestB64u, 32) ||
-    !base64UrlString(tenantRoot.custodyLineageB64u, 16)
+    !base64UrlString(tenantRoot.custodyLineageB64u, 16) ||
+    !nonEmptyString(tenantRoot.projectEnvironmentId)
   ) {
     return {
       ok: false,
@@ -1028,6 +1057,7 @@ class Ed25519CeremonyTokenIssuer implements RouterAbEcdsaCeremonyTokenIssuer {
       org_id: claims.orgId,
       project_id: claims.projectId,
       environment: claims.environment,
+      project_environment_id: claims.projectEnvironmentId,
       account_id: claims.accountId,
       ...(requestPolicy ? { routerAbRequestPolicy: requestPolicy } : {}),
     });
@@ -1242,6 +1272,7 @@ function validateCeremonyTokenClaims(claims: RouterAbEcdsaCeremonyTokenClaims): 
     !nonEmptyString(claims.orgId) ||
     !nonEmptyString(claims.projectId) ||
     !nonEmptyString(claims.environment) ||
+    !nonEmptyString(claims.projectEnvironmentId) ||
     !nonEmptyString(claims.accountId) ||
     !Number.isSafeInteger(claims.expiresAtMs) ||
     claims.expiresAtMs <= Date.now()

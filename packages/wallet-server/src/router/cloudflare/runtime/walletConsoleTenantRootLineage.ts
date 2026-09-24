@@ -1,6 +1,10 @@
 import type { RouterApiProjectEnvironmentResolver } from '../../framework/apiCredentialPorts';
 import { deriveSigningRootId, type RuntimePolicyScope } from '@shared/threshold/signingRootScope';
-import { buildTenantRootIdentityFromAuthenticatedDeploymentV1 } from '@shared/tenant-root';
+import {
+  buildTenantRootIdentityFromAuthenticatedDeploymentV1,
+  encodeTenantRootIdentityV1,
+} from '@shared/tenant-root';
+import { base64UrlEncode } from '@shared/utils/base64';
 import type { WalletConsoleTenantRootActiveLineageResolverV1 } from './walletConsoleOps';
 
 export async function resolveRuntimeTenantRootLineage(
@@ -27,7 +31,13 @@ export async function resolveRuntimeTenantRootLineage(
     signingRootVersion: scope.signingRootVersion,
   });
   if (!identity.ok) throw new Error('Resolved tenant-root environment identity is invalid');
-  return roots.resolveActiveLineage(identity.value);
+  const lineage = await roots.resolveActiveLineage(identity.value);
+  if (!lineage) return null;
+  const digest = await crypto.subtle.digest('SHA-256', encodeTenantRootIdentityV1(identity.value));
+  if (lineage.identityDigestB64u !== base64UrlEncode(digest)) {
+    throw new Error('Active tenant-root lineage differs from the resolved Console environment');
+  }
+  return { ...lineage, projectEnvironmentId: environment.id };
 }
 
 function matchesRuntimeEnvironment(

@@ -2921,6 +2921,10 @@ pub struct CloudflareRouterAbEcdsaDerivationPendingSigningWorkerActivationV1 {
     pub registration: RouterAbEcdsaDerivationRegistrationBootstrapRequestV1,
     /// Digest of the Router-authenticated tenant-root custody binding.
     pub tenant_root_custody_binding_digest: TenantRootProtocolDigestV1,
+    /// Gateway ceremony owner, pinned at first-phase admission.
+    pub wallet_scope: CloudflareSigningWorkerWalletScopeV1,
+    /// Gateway runtime environment key used for the original ceremony policy.
+    pub environment_key: String,
     /// Public context needed to verify and open SigningWorker proof bundles.
     pub activation_context: SigningWorkerActivationContextV1,
     /// Opaque SigningWorker proof bundles from Deriver A and Deriver B.
@@ -2932,6 +2936,8 @@ impl CloudflareRouterAbEcdsaDerivationPendingSigningWorkerActivationV1 {
     pub fn new(
         registration: RouterAbEcdsaDerivationRegistrationBootstrapRequestV1,
         tenant_root_custody_binding_digest: TenantRootProtocolDigestV1,
+        wallet_scope: CloudflareSigningWorkerWalletScopeV1,
+        environment_key: String,
         router_payload: RouterToSignerPayloadV1,
         activation: CloudflareSigningWorkerRecipientProofBundleActivationV1,
     ) -> RouterAbProtocolResult<Self> {
@@ -2942,6 +2948,8 @@ impl CloudflareRouterAbEcdsaDerivationPendingSigningWorkerActivationV1 {
         let request = Self {
             registration,
             tenant_root_custody_binding_digest,
+            wallet_scope,
+            environment_key,
             activation_context,
             activation,
         };
@@ -2952,6 +2960,14 @@ impl CloudflareRouterAbEcdsaDerivationPendingSigningWorkerActivationV1 {
     /// Validates registration metadata against the generic Router A/B activation context.
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         self.registration.validate()?;
+        self.wallet_scope.validate()?;
+        require_non_empty("ECDSA pending environment key", &self.environment_key)?;
+        if self.wallet_scope.wallet_id != self.registration.lifecycle.account_id {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLifecycleState,
+                "ECDSA pending owner differs from registration wallet",
+            ));
+        }
         self.activation_context.validate()?;
         self.activation
             .validate_for_activation_context(&self.activation_context)?;
@@ -5207,14 +5223,25 @@ where
         .digest()
         .map_err(map_root_share_to_protocol)?;
     let public_request = request.to_threshold_prf_request()?;
-    let trusted_admission = derive_cloudflare_router_trusted_admission_from_worker_jwt_v1(
-        runtime,
-        now_unix_ms,
-        &public_request,
-        request.request_digest()?,
+    let mut session = CloudflareRouterJwtSessionProviderV1::new(
+        runtime.admission_bindings().jwt.clone(),
         authorization,
+        now_unix_ms,
         trusted_source_digest,
+        request.request_digest()?,
         verifier,
+    )?;
+    let (verified_metadata, project_environment_id) =
+        session.verify_ecdsa_ceremony_session(&public_request)?;
+    let trusted_admission = derive_cloudflare_router_trusted_admission_from_signed_policy_v1(
+        &public_request,
+        verified_metadata.clone(),
+    )?;
+    let wallet_scope = CloudflareSigningWorkerWalletScopeV1::new(
+        &verified_metadata.org_id,
+        &verified_metadata.project_id,
+        project_environment_id,
+        &verified_metadata.account_id,
     )?;
     timing.mark("ecdsa_rt_authorize", total_started_at_ms);
     let plan =
@@ -5298,6 +5325,8 @@ where
                 CloudflareRouterAbEcdsaDerivationPendingSigningWorkerActivationV1::new(
                     request.clone(),
                     tenant_root_custody_binding_digest,
+                    wallet_scope,
+                    verified_metadata.environment.clone(),
                     router_payload,
                     CloudflareSigningWorkerRecipientProofBundleActivationV1::new(
                         deriver_a_response.server_bundle,
@@ -5349,7 +5378,26 @@ where
         command.pending.registration.request_digest()?,
         verifier,
     )?;
-    session.verify_public_request_session(&public_request)?;
+    let (verified_metadata, project_environment_id) =
+        session.verify_ecdsa_ceremony_session(&public_request)?;
+    let verified_scope = CloudflareSigningWorkerWalletScopeV1::new(
+        &verified_metadata.org_id,
+        &verified_metadata.project_id,
+        project_environment_id,
+        &verified_metadata.account_id,
+    )?;
+    if command.pending.wallet_scope != verified_scope {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "ECDSA activation owner differs from the verified ceremony session",
+        ));
+    }
+    if command.pending.environment_key != verified_metadata.environment {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "ECDSA activation environment key differs from the original ceremony",
+        ));
+    }
     timing.mark("ecdsa_rt_act_session", total_started_at_ms);
     let request = command.into_signing_worker_request()?;
     let worker_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
@@ -7218,10 +7266,14 @@ pub fn parse_cloudflare_router_authorized_router_ab_ecdsa_derivation_prepare_req
         }
     };
     let presign_source = match object.remove("presign_source") {
-        Some(value) => serde_json::from_value::<CloudflareEcdsaPrepareSourceV1>(value)
-            .map_err(|error| RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload, error.to_string(),
-            ))?,
+        Some(value) => {
+            serde_json::from_value::<CloudflareEcdsaPrepareSourceV1>(value).map_err(|error| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::MalformedWirePayload,
+                    error.to_string(),
+                )
+            })?
+        }
         None => CloudflareEcdsaPrepareSourceV1::AvailablePool,
     };
     let authorized_operation_value = object.remove("authorized_operation").ok_or_else(|| {
@@ -8561,7 +8613,7 @@ pub async fn activate_cloudflare_signing_worker_server_output_v1(
     require_signing_worker_output_activate_response_v1(&call, response)
 }
 
-/// Activates Router A/B ECDSA derivation SigningWorker material through SigningWorker-private D1.
+/// Activates Router A/B ECDSA derivation SigningWorker material.
 #[cfg(feature = "workers-rs")]
 pub async fn activate_cloudflare_router_ab_ecdsa_derivation_signing_worker_output_v1(
     env: &worker::Env,
@@ -8590,14 +8642,34 @@ pub async fn activate_cloudflare_router_ab_ecdsa_derivation_signing_worker_outpu
     );
     private_key_bytes.zeroize();
     let material = material?;
-    let call = runtime.signing_worker_output_activate_request(
-        generic_activation,
-        material.clone(),
-        activated_at_ms,
-    )?;
-    let response = execute_cloudflare_signing_worker_private_d1_request_v1(env, &call).await?;
-    let signing_worker_output =
-        require_signing_worker_output_activate_response_v1(&call, response)?;
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    let signing_worker_output: CloudflareSigningWorkerOutputActivationReceiptV1 = {
+        let response = durable_object::call_signing_worker_wallet_do_v1(
+            env,
+            durable_object::SigningWorkerWalletDoRequestV1::ActivateEcdsa {
+                scope: activation.pending.wallet_scope.clone(),
+                activation: generic_activation,
+                material: material.clone(),
+                activated_at_ms,
+            },
+        )
+        .await?;
+        parse_cloudflare_signing_worker_wallet_do_json_response_v1(
+            response,
+            "SigningWorker wallet-DO ECDSA activation",
+        )
+        .await?
+    };
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    let signing_worker_output = {
+        let call = runtime.signing_worker_output_activate_request(
+            generic_activation,
+            material.clone(),
+            activated_at_ms,
+        )?;
+        let response = execute_cloudflare_signing_worker_private_d1_request_v1(env, &call).await?;
+        require_signing_worker_output_activate_response_v1(&call, response)?
+    };
     let ecdsa_receipt = cloudflare_router_ab_ecdsa_derivation_activation_receipt_from_material_v1(
         &activation,
         &material,
@@ -11452,10 +11524,42 @@ async fn load_cloudflare_signing_worker_active_ecdsa_derivation_material_v1(
     env: &worker::Env,
     runtime: &CloudflareSigningWorkerRuntimeV1,
     scope: &RouterAbEcdsaDerivationNormalSigningScopeV1,
+    wallet_scope: Option<&CloudflareSigningWorkerWalletScopeV1>,
 ) -> RouterAbProtocolResult<(
     ActiveSigningWorkerStateV1,
     CloudflareServerOutputMaterialRecordV1,
 )> {
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    if let Some(wallet_scope) = wallet_scope {
+        if wallet_scope.wallet_id != scope.wallet_id {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidGateDecision,
+                "ECDSA activation wallet scope differs from signing scope",
+            ));
+        }
+        let lookup = CloudflareActiveSigningWorkerStateLookupV1::from_router_ab_ecdsa_derivation_normal_signing_scope(scope)?;
+        let response = durable_object::call_signing_worker_wallet_do_v1(
+            env,
+            durable_object::SigningWorkerWalletDoRequestV1::LoadEcdsaActivation {
+                scope: wallet_scope.clone(),
+                lookup,
+            },
+        )
+        .await?;
+        let loaded: durable_object::SigningWorkerWalletEcdsaActivationMaterialV1 =
+            parse_cloudflare_signing_worker_wallet_do_json_response_v1(
+                response,
+                "SigningWorker wallet-DO ECDSA material",
+            )
+            .await?;
+        validate_cloudflare_router_ab_ecdsa_derivation_normal_signing_active_material_v1(
+            scope,
+            &loaded.active,
+            &loaded.material,
+        )?;
+        return Ok((loaded.active, loaded.material));
+    }
+    let _ = wallet_scope;
     match ordinary_inactive_signer_material::load_source_preserving_ecdsa_material_v1(
         env,
         runtime,
@@ -11738,6 +11842,7 @@ async fn load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1(
     runtime: &CloudflareSigningWorkerRuntimeV1,
     scope: &RouterAbEcdsaDerivationNormalSigningScopeV1,
     source: &CloudflareSigningWorkerNormalSigningMaterialSourceV1,
+    wallet_scope: Option<&CloudflareSigningWorkerWalletScopeV1>,
     _now_unix_ms: u64,
 ) -> RouterAbProtocolResult<(
     ActiveSigningWorkerStateV1,
@@ -11746,8 +11851,13 @@ async fn load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1(
     source.validate_for_ecdsa_scope(scope)?;
     match source {
         CloudflareSigningWorkerNormalSigningMaterialSourceV1::RegistrationActivation { .. } => {
-            load_cloudflare_signing_worker_active_ecdsa_derivation_material_v1(env, runtime, scope)
-                .await
+            load_cloudflare_signing_worker_active_ecdsa_derivation_material_v1(
+                env,
+                runtime,
+                scope,
+                wallet_scope,
+            )
+            .await
         }
         CloudflareSigningWorkerNormalSigningMaterialSourceV1::RotatableLane { lookup, .. } => {
             let (artifact, activated_at_ms) =
@@ -11828,11 +11938,18 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
         return cloudflare_signing_worker_presign_error_response_v1(error);
     }
     let material_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
+    let wallet_scope = match &parsed.authority {
+        CloudflareSigningWorkerEcdsaPresignAuthorityV1::OwnerWalletSession { wallet_scope } => {
+            Some(wallet_scope)
+        }
+        CloudflareSigningWorkerEcdsaPresignAuthorityV1::OperationStepUp => None,
+    };
     let (active_signing_worker, material) =
         match load_cloudflare_signing_worker_active_ecdsa_derivation_material_v1(
             env,
             runtime,
             &parsed.scope,
+            wallet_scope,
         )
         .await
         {
@@ -12024,6 +12141,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_export_preflight_private_fet
         runtime,
         &parsed.export_authority.normal_signing_scope,
         &parsed.material_source,
+        None,
         now_unix_ms,
     )
     .await
@@ -12070,6 +12188,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_export_share_private_fetch_v
             runtime,
             &parsed.export_authority.normal_signing_scope,
             &parsed.material_source,
+            None,
             now_unix_ms,
         )
         .await
@@ -12211,9 +12330,10 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
         return cloudflare_signing_worker_presign_error_response_v1(error);
     }
     let session_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-    let do_request = durable_object::CloudflareSigningWorkerEcdsaPresignSessionDoGatewayStepRequestV1 {
-        request: parsed,
-    };
+    let do_request =
+        durable_object::CloudflareSigningWorkerEcdsaPresignSessionDoGatewayStepRequestV1 {
+            request: parsed,
+        };
     let do_response =
         match durable_object::execute_cloudflare_durable_object_custom_json_call_with_timing_v1(
             env,
@@ -12575,6 +12695,7 @@ async fn admit_cloudflare_signing_worker_ecdsa_presignature_v1(
             runtime,
             &request.scope,
             &request.material_source,
+            wallet_scope.as_ref(),
             now_unix_ms,
         )
         .await?;
@@ -12662,6 +12783,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             runtime,
             &parsed.request.scope,
             &parsed.material_source,
+            parsed.wallet_scope.as_ref(),
             now_unix_ms,
         )
         .await
@@ -12717,7 +12839,10 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             );
         }
     };
-    let (reserve_command, final_messages, reserved_at_ms) = match &materialized.request.presign_source {
+    let (reserve_command, final_messages, reserved_at_ms) = match &materialized
+        .request
+        .presign_source
+    {
         CloudflareEcdsaPrepareSourceV1::AvailablePool => {
             let command = CloudflareSigningWorkerEcdsaPoolCommandV1::Reserve {
                 scope: materialized.request.request.scope.clone(),
@@ -12735,27 +12860,39 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             if let Err(error) = batch.validate_at(now_unix_ms) {
                 return cloudflare_signing_worker_presign_error_response_v1(error);
             }
-            let progress = match durable_object::execute_cloudflare_durable_object_custom_json_call_v1(
-                env,
-                &runtime.bindings().presign_session,
-                CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
-                &batch.presign_session_id,
-                batch,
-            ).await {
-                Ok(progress) => progress,
-                Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
-            };
+            let progress =
+                match durable_object::execute_cloudflare_durable_object_custom_json_call_v1(
+                    env,
+                    &runtime.bindings().presign_session,
+                    CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
+                    &batch.presign_session_id,
+                    batch,
+                )
+                .await
+                {
+                    Ok(progress) => progress,
+                    Err(error) => {
+                        return cloudflare_signing_worker_presign_error_response_v1(error)
+                    }
+                };
             let durable_object::CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1::Complete {
                 authority: _,
                 pool_put_request,
                 outgoing_messages_b64u,
-            } = progress else {
-                return worker::Response::error("Signing prepare requires the final presign batch", 409);
+            } = progress
+            else {
+                return worker::Response::error(
+                    "Signing prepare requires the final presign batch",
+                    409,
+                );
             };
             if pool_put_request.scope != materialized.request.request.scope
                 || pool_put_request.server_presignature_id != client_presignature_id
             {
-                return worker::Response::error("Completed presign identity does not match admitted prepare", 409);
+                return worker::Response::error(
+                    "Completed presign identity does not match admitted prepare",
+                    409,
+                );
             }
             let reserved_at_ms = match cloudflare_now_unix_ms_v1() {
                 Ok(now) => now,
@@ -12769,14 +12906,18 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
                 Ok(record) => record,
                 Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
             };
-            (CloudflareSigningWorkerEcdsaPoolCommandV1::PutReserved {
-                material: record,
-                request_digest: prepare_request_digest,
-                admitted_signing_digest: signing_digest,
-                signing_worker_rerandomization_contribution32_b64u,
+            (
+                CloudflareSigningWorkerEcdsaPoolCommandV1::PutReserved {
+                    material: record,
+                    request_digest: prepare_request_digest,
+                    admitted_signing_digest: signing_digest,
+                    signing_worker_rerandomization_contribution32_b64u,
+                    reserved_at_ms,
+                    request_expires_at_ms: materialized.request.request.expires_at_ms,
+                },
+                Some(outgoing_messages_b64u),
                 reserved_at_ms,
-                request_expires_at_ms: materialized.request.request.expires_at_ms,
-            }, Some(outgoing_messages_b64u), reserved_at_ms)
+            )
         }
     };
     let reserve_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
@@ -12986,6 +13127,7 @@ where
             runtime,
             &parsed.request.scope,
             &parsed.material_source,
+            parsed.wallet_scope.as_ref(),
             now_unix_ms,
         )
         .await
@@ -13728,10 +13870,10 @@ async fn claim_and_consume_cloudflare_signing_worker_ecdsa_for_wallet_v1(
         )
         .await?;
         return parse_cloudflare_signing_worker_wallet_do_json_response_v1(
-                response,
-                "SigningWorker wallet-DO ECDSA claim and consume",
-            )
-            .await;
+            response,
+            "SigningWorker wallet-DO ECDSA claim and consume",
+        )
+        .await;
     }
     #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     {
@@ -14189,7 +14331,7 @@ async fn execute_cloudflare_router_ab_ecdsa_derivation_signing_worker_activation
         "Router A/B ECDSA derivation SigningWorker activation request",
         request,
         trace_id,
-        CloudflareServiceAuthModeV1::Shared,
+        CloudflareServiceAuthModeV1::RouterToSigningWorkerEcdsa,
     )
     .await?;
     receipt.validate()?;

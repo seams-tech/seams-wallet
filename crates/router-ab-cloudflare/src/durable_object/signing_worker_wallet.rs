@@ -18,20 +18,25 @@ use crate::{
     handle_cloudflare_signing_worker_normal_signing_finalize_private_request_v2,
     handle_cloudflare_signing_worker_normal_signing_prepare_private_request_v2,
     signing_worker::SigningWorkerPrivateD1CipherV1,
+    CloudflareActiveSigningWorkerStateLookupV1,
     CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1,
     CloudflareEd25519YaoNormalSigningHandlerV1, CloudflareScopedEd25519YaoPackagePairDeliveryV1,
+    CloudflareServerOutputMaterialRecordV1,
     CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
     CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
     CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
-    CloudflareSigningWorkerEcdsaPoolCommandV1, CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1,
+    CloudflareSigningWorkerEcdsaClaimAndConsumeV1, CloudflareSigningWorkerEcdsaPoolCommandV1,
+    CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1,
     CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1,
     CloudflareSigningWorkerInitialRegistrationFinalizationSnapshotV1,
     CloudflareSigningWorkerNormalSigningMaterialSourceV1,
     CloudflareSigningWorkerNormalSigningTerminalV1,
+    CloudflareSigningWorkerOutputActivationReceiptV1,
     CloudflareSigningWorkerOutputActivationRecordV1, CloudflareSigningWorkerPrivateD1RequestV1,
+    CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
     CloudflareSigningWorkerRound1LookupV1, CloudflareSigningWorkerRound1RecordV1,
     CloudflareSigningWorkerRuntimeV1, CloudflareSigningWorkerTerminalResponseCommitV1,
-    CloudflareSigningWorkerWalletScopeV1, CloudflareSigningWorkerEcdsaClaimAndConsumeV1,
+    CloudflareSigningWorkerWalletScopeV1,
 };
 
 const BINDING: &str = "SIGNING_WORKER_WALLET_DO";
@@ -66,12 +71,27 @@ const ECDSA_EFFECT_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_ecdsa_effec
     claimed_at_ms INTEGER NOT NULL,
     terminal_json TEXT,
     committed_at_ms INTEGER)";
+const ECDSA_ACTIVATION_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_ecdsa_activations (
+    material_key TEXT PRIMARY KEY,
+    active_key TEXT NOT NULL UNIQUE,
+    owner_json TEXT NOT NULL,
+    ciphertext_json TEXT NOT NULL)";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum SigningWorkerWalletDoRequestV1 {
     DeliverRegistration(CloudflareScopedEd25519YaoPackagePairDeliveryV1),
     LookupRegistration(CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1),
+    ActivateEcdsa {
+        scope: CloudflareSigningWorkerWalletScopeV1,
+        activation: CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
+        material: CloudflareServerOutputMaterialRecordV1,
+        activated_at_ms: u64,
+    },
+    LoadEcdsaActivation {
+        scope: CloudflareSigningWorkerWalletScopeV1,
+        lookup: CloudflareActiveSigningWorkerStateLookupV1,
+    },
     PrepareNear {
         scope: CloudflareSigningWorkerWalletScopeV1,
         request: CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
@@ -199,6 +219,7 @@ impl SigningWorkerWalletDoRequestV1 {
         match self {
             Self::DeliverRegistration(request) => &request.scope,
             Self::LookupRegistration(request) => &request.scope,
+            Self::ActivateEcdsa { scope, .. } | Self::LoadEcdsaActivation { scope, .. } => scope,
             Self::PrepareNear { scope, .. } | Self::FinalizeNear { scope, .. } => scope,
             Self::EcdsaPoolMutate { scope, .. } => scope,
             Self::ClaimAndConsumeEcdsaEffect { scope, .. }
@@ -210,6 +231,28 @@ impl SigningWorkerWalletDoRequestV1 {
         match self {
             Self::DeliverRegistration(request) => request.validate(),
             Self::LookupRegistration(request) => request.validate(),
+            Self::ActivateEcdsa {
+                scope,
+                activation,
+                material,
+                activated_at_ms,
+            } => {
+                scope.validate()?;
+                activation.validate()?;
+                material.validate()?;
+                if activation.activation_context.lifecycle.account_id != scope.wallet_id {
+                    return Err(wallet_error("ECDSA activation wallet owner changed"));
+                }
+                crate::require_positive_ms("ECDSA activation time", *activated_at_ms)
+            }
+            Self::LoadEcdsaActivation { scope, lookup } => {
+                scope.validate()?;
+                lookup.validate()?;
+                if lookup.account_id != scope.wallet_id {
+                    return Err(wallet_error("ECDSA activation lookup wallet owner changed"));
+                }
+                Ok(())
+            }
             Self::PrepareNear {
                 scope,
                 request,
@@ -382,6 +425,25 @@ struct EcdsaEffectRowV1 {
     request_digest_hex: String,
     authorization_json: String,
     terminal_json: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct EcdsaActivationRowV1 {
+    material_key: String,
+    owner_json: String,
+    ciphertext_json: String,
+}
+
+#[derive(Deserialize)]
+struct EcdsaActivationKeyV1 {
+    material_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SigningWorkerWalletEcdsaActivationMaterialV1 {
+    pub active: router_ab_core::ActiveSigningWorkerStateV1,
+    pub material: CloudflareServerOutputMaterialRecordV1,
 }
 
 #[derive(Deserialize)]
@@ -596,6 +658,7 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
         self.sql.exec(ROUND1_SCHEMA, None)?;
         self.sql.exec(ECDSA_POOL_SCHEMA, None)?;
         self.sql.exec(ECDSA_EFFECT_SCHEMA, None)?;
+        self.sql.exec(ECDSA_ACTIVATION_SCHEMA, None)?;
         match self.execute(command).await {
             Ok(response) => Ok(response),
             Err(error) => Response::error(
@@ -617,6 +680,15 @@ impl RouterAbSigningWorkerWalletDurableObject {
             }
             SigningWorkerWalletDoRequestV1::LookupRegistration(request) => {
                 self.lookup_registration(request)
+            }
+            SigningWorkerWalletDoRequestV1::ActivateEcdsa {
+                scope,
+                activation,
+                material,
+                activated_at_ms,
+            } => self.activate_ecdsa(scope, activation, material, activated_at_ms),
+            SigningWorkerWalletDoRequestV1::LoadEcdsaActivation { scope, lookup } => {
+                self.load_ecdsa_activation(scope, lookup)
             }
             SigningWorkerWalletDoRequestV1::PrepareNear {
                 scope,
@@ -646,6 +718,142 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 now_unix_ms,
             } => self.commit_ecdsa_terminal(scope, request, response, now_unix_ms),
         }
+    }
+
+    fn activate_ecdsa(
+        &self,
+        scope: CloudflareSigningWorkerWalletScopeV1,
+        activation: CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
+        material: CloudflareServerOutputMaterialRecordV1,
+        activated_at_ms: u64,
+    ) -> Result<Response, RouterAbProtocolError> {
+        let call = CloudflareSigningWorkerPrivateD1RequestV1::OutputActivate {
+            activation: activation.clone(),
+            material: material.clone(),
+            activated_at_ms,
+        };
+        call.validate()?;
+        let material_key = call.storage_key();
+        let active_key = call.active_state_index_key()?;
+        let active = crate::cloudflare_active_signing_worker_state_from_activation_request_v1(
+            &activation,
+            activation.material_activation.clone(),
+            material_key.clone(),
+            activated_at_ms,
+        )?;
+        let candidate = CloudflareSigningWorkerOutputActivationRecordV1::new(
+            activation.clone(),
+            active,
+            material,
+        )?;
+        let owner_json = serde_json::to_string(&scope)
+            .map_err(|error| wallet_error(format!("ECDSA activation owner is invalid: {error}")))?;
+        let cipher = SigningWorkerPrivateD1CipherV1::from_env_for_wallet_do(&self.env)?;
+        let ciphertext = cipher.seal(
+            "ecdsa_activation",
+            &registration_identity(&scope, &material_key)?,
+            &candidate,
+        )?;
+        let written = self
+            .sql
+            .exec(
+                "INSERT INTO wallet_ecdsa_activations
+             (material_key, active_key, owner_json, ciphertext_json)
+             VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING RETURNING material_key",
+                vec![
+                    SqlStorageValue::String(material_key.clone()),
+                    SqlStorageValue::String(active_key),
+                    SqlStorageValue::String(owner_json),
+                    SqlStorageValue::String(ciphertext),
+                ],
+            )
+            .map_err(sql_error)?
+            .to_array::<EcdsaActivationKeyV1>()
+            .map_err(sql_error)?;
+        let stored = if written.len() == 1 && written[0].material_key == material_key {
+            candidate
+        } else {
+            let stored = self
+                .read_ecdsa_activation(&scope, "material_key", &material_key)?
+                .ok_or_else(|| wallet_error("ECDSA activation write is uncertain"))?;
+            if !stored.matches_activation_and_material(&candidate) {
+                return Err(replay_error(
+                    "ECDSA activation conflicts with stored material",
+                ));
+            }
+            stored
+        };
+        let context = &activation.activation_context;
+        let receipt = CloudflareSigningWorkerOutputActivationReceiptV1::new(
+            context.lifecycle().lifecycle_id.clone(),
+            context.signer_set().selected_server.server_id.clone(),
+            context.transcript_digest(),
+            stored.active_signing_worker_state().clone(),
+            true,
+        )?;
+        Response::from_json(&receipt).map_err(sql_error)
+    }
+
+    fn load_ecdsa_activation(
+        &self,
+        scope: CloudflareSigningWorkerWalletScopeV1,
+        lookup: CloudflareActiveSigningWorkerStateLookupV1,
+    ) -> Result<Response, RouterAbProtocolError> {
+        let key = format!(
+            "active-signing-worker/{}/{}/{}",
+            lookup.account_id, lookup.material_activation_id, lookup.signing_worker_id,
+        );
+        let stored = self
+            .read_ecdsa_activation(&scope, "active_key", &key)?
+            .ok_or_else(|| missing_error("ECDSA wallet activation material is missing"))?;
+        lookup.validate_active_state(stored.active_signing_worker_state())?;
+        Response::from_json(&SigningWorkerWalletEcdsaActivationMaterialV1 {
+            active: stored.active_signing_worker_state().clone(),
+            material: stored.material().clone(),
+        })
+        .map_err(sql_error)
+    }
+
+    fn read_ecdsa_activation(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+        column: &str,
+        key: &str,
+    ) -> Result<Option<CloudflareSigningWorkerOutputActivationRecordV1>, RouterAbProtocolError>
+    {
+        let query = match column {
+            "material_key" => "SELECT material_key, owner_json, ciphertext_json FROM wallet_ecdsa_activations WHERE material_key = ?",
+            "active_key" => "SELECT material_key, owner_json, ciphertext_json FROM wallet_ecdsa_activations WHERE active_key = ?",
+            _ => return Err(wallet_error("ECDSA activation lookup column is invalid")),
+        };
+        let rows = self
+            .sql
+            .exec(query, vec![SqlStorageValue::String(key.to_owned())])
+            .map_err(sql_error)?
+            .to_array::<EcdsaActivationRowV1>()
+            .map_err(sql_error)?;
+        let [row] = rows.as_slice() else {
+            return if rows.is_empty() {
+                Ok(None)
+            } else {
+                Err(wallet_error(
+                    "ECDSA activation lookup returned duplicate rows",
+                ))
+            };
+        };
+        let owner_json = serde_json::to_string(scope)
+            .map_err(|error| wallet_error(format!("ECDSA activation owner is invalid: {error}")))?;
+        if row.owner_json != owner_json {
+            return Err(wallet_error("ECDSA activation owner conflict"));
+        }
+        let cipher = SigningWorkerPrivateD1CipherV1::from_env_for_wallet_do(&self.env)?;
+        let record: CloudflareSigningWorkerOutputActivationRecordV1 = cipher.open(
+            "ecdsa_activation",
+            &registration_identity(scope, &row.material_key)?,
+            &row.ciphertext_json,
+        )?;
+        record.validate()?;
+        Ok(Some(record))
     }
 
     async fn claim_and_consume_ecdsa_effect(

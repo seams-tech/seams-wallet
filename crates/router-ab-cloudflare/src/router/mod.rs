@@ -622,6 +622,8 @@ pub struct CloudflareRouterVerifiedJwtClaimsV1 {
     pub project_id: String,
     /// Deployment environment label authorized by the session.
     pub environment: String,
+    /// Canonical Console environment ID when signed by a ceremony issuer.
+    pub project_environment: CloudflareRouterProjectEnvironmentClaimV1,
     /// Account, wallet, or root resource id authorized by the session.
     pub account_id: String,
     /// Digest of trusted source metadata, such as edge client address.
@@ -646,6 +648,7 @@ impl CloudflareRouterVerifiedJwtClaimsV1 {
             org_id: org_id.into(),
             project_id: project_id.into(),
             environment: environment.into(),
+            project_environment: CloudflareRouterProjectEnvironmentClaimV1::Unspecified,
             account_id: account_id.into(),
             trusted_source_digest,
         };
@@ -660,7 +663,30 @@ impl CloudflareRouterVerifiedJwtClaimsV1 {
         require_non_empty("org_id", &self.org_id)?;
         require_non_empty("project_id", &self.project_id)?;
         require_non_empty("environment", &self.environment)?;
+        if let CloudflareRouterProjectEnvironmentClaimV1::CanonicalId { id } =
+            &self.project_environment
+        {
+            require_non_empty("project_environment_id", id)?;
+        }
         require_non_empty("account_id", &self.account_id)
+    }
+
+    pub fn with_project_environment_id(mut self, id: String) -> RouterAbProtocolResult<Self> {
+        require_non_empty("project_environment_id", &id)?;
+        self.project_environment = CloudflareRouterProjectEnvironmentClaimV1::CanonicalId { id };
+        Ok(self)
+    }
+
+    pub fn require_project_environment_id(&self) -> RouterAbProtocolResult<&str> {
+        match &self.project_environment {
+            CloudflareRouterProjectEnvironmentClaimV1::CanonicalId { id } => Ok(id),
+            CloudflareRouterProjectEnvironmentClaimV1::Unspecified => {
+                Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+                    "ECDSA ceremony JWT has no signed project environment ID",
+                ))
+            }
+        }
     }
 
     /// Converts verified claims into trusted Router metadata for this request.
@@ -683,6 +709,13 @@ impl CloudflareRouterVerifiedJwtClaimsV1 {
             self.trusted_source_digest,
         )
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum CloudflareRouterProjectEnvironmentClaimV1 {
+    Unspecified,
+    CanonicalId { id: String },
 }
 
 /// Wallet Session credential accepted at the Router auth boundary.
@@ -1518,6 +1551,8 @@ struct CloudflareRouterJwtClaimsPayloadV1 {
     org_id: String,
     project_id: String,
     environment: String,
+    #[serde(default)]
+    project_environment_id: Option<String>,
     account_id: String,
     #[serde(rename = "routerAbRequestPolicy", default)]
     router_ab_request_policy: Option<RouterRequestPolicyClaimsV1>,
@@ -1618,7 +1653,7 @@ impl CloudflareRouterJwtClaimsPayloadV1 {
         }
         require_non_empty("jwt sid", &self.sid)?;
         let session_id = self.sid;
-        let claims = CloudflareRouterVerifiedJwtClaimsV1::new(
+        let mut claims = CloudflareRouterVerifiedJwtClaimsV1::new(
             self.sub,
             session_id,
             self.org_id,
@@ -1627,6 +1662,9 @@ impl CloudflareRouterJwtClaimsPayloadV1 {
             self.account_id,
             trusted_source_digest,
         )?;
+        if let Some(project_environment_id) = self.project_environment_id {
+            claims = claims.with_project_environment_id(project_environment_id)?;
+        }
         Ok(claims)
     }
 }
@@ -1699,6 +1737,28 @@ impl<Verifier> CloudflareRouterJwtSessionProviderV1<Verifier> {
         self.verifier_binding.validate()?;
         self.authorization.validate()?;
         require_positive_ms("jwt session now_unix_ms", self.now_unix_ms)
+    }
+
+    pub fn verify_ecdsa_ceremony_session(
+        &mut self,
+        request: &EcdsaThresholdPrfRequestV1,
+    ) -> RouterAbProtocolResult<(CloudflareRouterTrustedRequestMetadataV1, String)>
+    where
+        Verifier: CloudflareRouterJwtVerifierV1,
+    {
+        request.validate()?;
+        let claims = self.verifier.verify_public_request_jwt(
+            &self.verifier_binding,
+            &self.authorization,
+            request,
+            self.request_policy_digest,
+            self.now_unix_ms,
+            self.trusted_source_digest,
+        )?;
+        let project_environment_id = claims.require_project_environment_id()?.to_owned();
+        let metadata = claims.to_trusted_metadata(request)?;
+        metadata.validate_for_request(request)?;
+        Ok((metadata, project_environment_id))
     }
 }
 

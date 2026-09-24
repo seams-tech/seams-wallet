@@ -1196,6 +1196,7 @@ export interface RouterApiWalletRegistrationService {
         readonly ok: true;
         readonly identityDigestB64u: string;
         readonly custodyLineageB64u: string;
+        readonly projectEnvironmentId: string;
       }
     | {
         readonly ok: false;
