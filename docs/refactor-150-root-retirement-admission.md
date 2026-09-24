@@ -34,13 +34,20 @@ Preparation has no execution ID yet. It creates the exact admission and DO
 pair preparation under that identity. Role D1 is the sole start-binding
 authority: a compare-and-swap changes `admitted/unbound` to `bound` with one
 execution ID and exact start digest. It issues or reissues an authenticated
-start grant only for that persisted winner. The wallet DO claims only that
-grant after matching its stored pair scope and any terminal tombstone. D1
-success followed by DO failure leaves the same bound obligation for retry or
-cancellation; it never allocates another execution ID or returns to unbound.
+start grant only for that persisted winner while the lineage is open. The
+wallet DO claims only that grant after matching its stored pair scope and any
+terminal tombstone. D1 success followed by DO failure leaves the same bound
+obligation for retry or cancellation; it never allocates another execution ID
+or returns to unbound.
 Lost D1 and DO replies reconcile against the persisted winner. A root-share
 read for an existing admission authorizes only that exact draining operation;
 it never reopens general root access.
+
+The D1 binding commit is the grant's durable linearization point. Signing or
+delivery may finish after closing if binding committed before it. A closing
+lineage permits no new binding or grant issuance, and a later exact read
+returns status without issuing another grant. An already committed grant is a
+drain obligation even when its first delivery is delayed or its reply is lost.
 
 ## Closing and quiescence
 
@@ -61,21 +68,26 @@ cancelled through the same durable tombstone procedure.
 An admission that has not started may be cancelled only after its wallet DO
 durably installs a terminal tombstone for the exact pair. The tombstone must
 reject a delayed preparation or start, including when no pair row previously
-existed. Missing DO state alone is not cancellation proof.
+existed. Cancellation also needs proof that any already-running preparation,
+root read, readiness emission, or peer effect has stopped or settled behind
+durable consumer fences. A no-start tombstone alone does not prove that an
+in-flight preparer has stopped. Missing DO state alone is not cancellation
+proof.
 
 For a running execution, `Burned`, expiry, a timeout, process silence, or a
 storage-only terminal state does not prove quiescence. The role-D1 obligation
-remains until the executor and relevant peer-effect owners acknowledge that
-they have stopped, or durable effect fences prove every later effect from that
-execution will be rejected. A completed response can discharge the obligation
+remains until durable executor and peer-effect fences prove that all accepted
+effects have settled and every later effect from that execution will be
+rejected. A completed response can discharge the obligation
 only if all applicable effects are settled and no executor can emit more work.
 An ordinary response replay remains allowed and must never re-execute an
 effect. If proof is unavailable, retirement stays pending without a timeout
 shortcut.
 
 Receipts have distinct branches. `CancelledBeforeStart` binds the exact
-admission and the wallet DO's durable no-start tombstone; it has no execution
-ID. `ExecutionQuiescent` binds those admission fields plus the persisted
+admission, the wallet DO's durable no-start tombstone, and preparation/effect
+quiescence proof; it has no execution ID. `ExecutionQuiescent` binds those
+admission fields plus the persisted
 execution ID, start digest, executor fence, and settled peer-effect receipts.
 Both branches authenticate role, identity, lineage, epoch/revision, wallet,
 pair/session, request digest, and backend owner. The role reconciles an exact
@@ -86,18 +98,24 @@ root replacement cannot pass that conditional check. A lost finalization
 reply replays the same terminal receipt.
 
 Quiescence mechanism remains a release blocker. The effect inventory must
-cover Router retries, the Deriver A executor, the Deriver B peer executor,
+cover Router retries, Deriver A/B preparers and root-share readers, the
+Deriver A executor, the Deriver B peer executor, readiness emissions,
 their WebSocket/target-proof and Yao round messages, sealed completion
 delivery, and any queued or restarted worker instance that can resend them.
 SigningWorker package activation and Gateway wallet activation have separate
 durable owners and must be accounted for by the whole-custody cutover. A
 Yao-specific durable effect journal/fence is a candidate: each effect gets
-one exact execution-bound identity before send; its recipient durably accepts
-and deduplicates or rejects it; closing prevents new effect permits; and
+one exact operation- or execution-bound identity before send; its recipient
+durably accepts and deduplicates or rejects it; closing prevents new effect
+permits; and
 restarts only reconcile recorded effects. A process acknowledgement alone is
-insufficient. An effect is settled only after its authority durably accepts
-or rejects it. The current A handler, B peer handler, and wallet DO store do
-not yet implement this mechanism.
+insufficient. An effect is settled only when its authority has durably
+completed/quiesced its downstream work or durably rejected/fenced it against
+future execution. Accepted-but-queued work remains an obligation. Deduplication
+alone cannot prevent its first execution after retirement. The candidate also
+needs an abort/drain path for active multi-round work; otherwise retirement
+can remain pending indefinitely. The current A handler, B peer handler, and
+wallet DO store do not yet implement this mechanism.
 
 ## Deterministic review tests
 
@@ -109,10 +127,12 @@ Run each schedule against DO SQLite and role-private VM SQLite:
    Race one session with different request and pair digests; both conflict
    against the immutable winner.
 3. Delay preparation until after cancellation; the wallet tombstone rejects it,
-   including when the DO was initially empty.
+   including when the DO was initially empty. Pause another preparer after a
+   root read but before readiness emission; cancellation waits for its durable
+   effect/quiescence proof.
 4. Pause a running executor after loading material and before peer send; burn
-   its pair; retirement remains pending until a real effect fence or executor
-   acknowledgement proves quiescence.
+   its pair; retirement remains pending until a durable execution/effect-fence
+   proof covers duplicate and restarted executors and queued messages.
 5. Let a peer commit an effect and drop its reply; retry preserves the single
    execution and retirement stays pending until reconciliation.
 6. Lose the first execution-binding reply, then race two execution IDs before
