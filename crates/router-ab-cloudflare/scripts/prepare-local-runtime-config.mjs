@@ -50,6 +50,9 @@ const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 const LOCAL_CEREMONY_JWT_AUDIENCE = 'router-ab';
 const LOCAL_CEREMONY_JWT_KEY_ID = 'local-router-ab-r1';
 const LOCAL_KEY_EPOCH = 'epoch-1';
+const workerBuildDirectory = process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev'
+  ? 'build/dev'
+  : 'build';
 
 export function prepareLocalHostedWalletGatewayConfig(input) {
   const repoRoot = path.resolve(input.repoRoot);
@@ -348,7 +351,7 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
     const mainPath = path
       .relative(
         outputRoot,
-        path.join(runtimeRoot, 'build', role, 'worker', 'shim.mjs'),
+        path.join(runtimeRoot, workerBuildDirectory, role, 'worker', 'shim.mjs'),
       )
       .split(path.sep)
       .join('/');

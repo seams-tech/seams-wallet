@@ -2762,15 +2762,11 @@ export class IntendedBehaviourHarness {
 
   private async resetBrowserStorage(): Promise<void> {
     await this.context.clearCookies();
-    await this.page.goto(this.config.appUrl, { waitUntil: 'domcontentloaded' });
-    try {
-      await this.page.evaluate(clearBrowserStorage);
-    } catch {
-      /* The app can still be settling a late navigation right after
-         domcontentloaded, which destroys the evaluation context. */
-      await this.page.waitForLoadState('load');
-      await this.page.evaluate(clearBrowserStorage);
-    }
+    await this.page.goto(`${new URL(this.config.appUrl).origin}/__storage-reset`, {
+      waitUntil: 'commit',
+    });
+    await this.page.evaluate(clearBrowserStorage);
+    await this.page.waitForFunction(browserStorageDatabasesEmpty, undefined, { timeout: 5_000 });
     if (this.config.signingSessionDebug) {
       await this.page.evaluate(() => {
         localStorage.setItem('seams:debug:signing-session', '1');
@@ -2826,8 +2822,8 @@ export class IntendedBehaviourHarness {
   private async clearBrowserStorageForColdSync(): Promise<void> {
     await this.context.clearCookies();
     const resetTargets = [
-      `${new URL(this.page.url()).origin}/robots.txt`,
-      `${new URL(this.config.walletOrigin).origin}/healthz`,
+      `${new URL(this.page.url()).origin}/__storage-reset`,
+      `${new URL(this.config.walletOrigin).origin}/__storage-reset`,
     ];
     for (const target of resetTargets) {
       await this.page.goto(target, { waitUntil: 'commit' });

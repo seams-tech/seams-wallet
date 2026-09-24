@@ -33,10 +33,11 @@ async function verifyExactTransportRetry({
   harness: IntendedBehaviourHarness;
 }): Promise<void> {
   await harness.registerPasskeyEd25519YaoWalletWithExactTransportRetry();
+  await harness.signNearTransaction('post_registration');
 }
 
 test(
-  'uncertain Router transport replays the exact admitted request and completes',
+  'uncertain Router transport replays the registration and signs with the ready wallet',
   verifyExactTransportRetry,
 );
 
