@@ -30,6 +30,9 @@ const managedBackupR2Binding = 'TENANT_ROOT_MANAGED_BACKUP_BUCKET';
 const signingWorkerD1Binding = 'SIGNING_WORKER_PRIVATE_DB';
 const tenantRootCreationDoBinding = 'ROUTER_TENANT_ROOT_CREATION_DO';
 const tenantRootCreationDoClass = 'RouterAbTenantRootCreationDurableObject';
+const deriverAWalletDoBinding = 'DERIVER_A_WALLET_DO';
+const deriverAWalletDoClass = 'RouterAbDeriverAWalletDurableObject';
+const deriverAWalletDoPath = '/router-ab/internal/deriver-a/wallet-pair';
 const tenantRootCreationPath = '/router-ab/internal/tenant-root/creation/v1/create';
 const tenantRootRoleCreationPath =
   '/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share';
@@ -58,6 +61,7 @@ const ecdsaClientWasmPath = resolve(
   'wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client_bg.wasm',
 );
 let capturedSigningWorkerDelivery;
+let capturedDeriverAPreparation;
 let signingWorkerDeliveryTarget = 'fixture-signing-worker';
 let ecdsaClientWasmInitialized = false;
 
@@ -146,6 +150,10 @@ function deriverAWorker(fixture) {
     d1Databases: { [roleD1Binding]: 'deriver-a-private-d1' },
     r2Buckets: { [managedBackupR2Binding]: 'deriver-a-managed-backup' },
     durableObjects: {
+      [deriverAWalletDoBinding]: {
+        className: deriverAWalletDoClass,
+        useSQLite: true,
+      },
       [tenantRootCreationDoBinding]: {
         className: tenantRootCreationDoClass,
         scriptName: 'router',
@@ -188,7 +196,7 @@ function signingWorker(name, databaseId, fixture) {
   };
 }
 
-function routerWorker(fixture) {
+function routerWorker(fixture, capturePairPreparation = false) {
   return {
     ...strictWorker('router', 'router', fixture.router_env),
     durableObjects: {
@@ -198,7 +206,7 @@ function routerWorker(fixture) {
       },
     },
     serviceBindings: {
-      DERIVER_A: 'deriver-a',
+      DERIVER_A: capturePairPreparation ? captureDeriverAPreparation : 'deriver-a',
       DERIVER_B: 'deriver-b',
       SIGNING_WORKER: captureSigningWorkerDelivery,
       TENANT_ROOT_CONTROL_PLANE: 'tenant-root-control-plane',
@@ -227,6 +235,20 @@ async function captureSigningWorkerDelivery(request, miniflare) {
   capturedSigningWorkerDelivery = await request.clone().text();
   const worker = await miniflare.getWorker(signingWorkerDeliveryTarget);
   return worker.fetch(request);
+}
+
+async function captureDeriverAPreparation(request, miniflare) {
+  const isPreparation = new URL(request.url).pathname.endsWith('/ed25519-yao/prepare-pair');
+  const preparation = isPreparation ? await request.clone().json() : null;
+  const worker = await miniflare.getWorker('deriver-a');
+  const response = await worker.fetch(request);
+  if (preparation && response.ok) {
+    capturedDeriverAPreparation = {
+      request: preparation,
+      receipt: await response.clone().json(),
+    };
+  }
+  return response;
 }
 
 async function applyMigrations(miniflare, binding, workerName, migrationsPath) {
@@ -1379,6 +1401,106 @@ async function captureValidActivationDelivery(
   };
 }
 
+async function testDeriverAWalletDoPreparation(topology, rootIdentity) {
+  assert.ok(capturedDeriverAPreparation, 'Deriver A preparation fixture is required');
+  const { request, receipt } = capturedDeriverAPreparation;
+  const walletId = request.pair_binding.ceremony.binding.lifecycle.account_id;
+  const owner = {
+    org_id: rootIdentity.orgId,
+    project_id: rootIdentity.projectId,
+    env_id: rootIdentity.envId,
+    wallet_id: walletId,
+  };
+  const objectName = `deriver-a-wallet-${createHash('sha256')
+    .update('seams/deriver-a/wallet-do/v1')
+    .update(JSON.stringify(owner))
+    .digest('hex')}`;
+  const namespace = await topology.getDurableObjectNamespace(deriverAWalletDoBinding, 'deriver-a');
+  const objectId = namespace.idFromName(objectName);
+  const object = namespace.get(objectId);
+  const record = {
+    status: 'prepared',
+    pair_binding: request.pair_binding,
+    root_metadata_digest: receipt.root_metadata_digest.bytes,
+    expires_at_ms: receipt.expires_at_ms,
+    receipt,
+    payload: {
+      tenant_root: request.tenant_root,
+      work: request.work,
+      input: request.input,
+    },
+  };
+  const prepare = {
+    operation: 'prepare',
+    owner,
+    root_identity: rootIdentity,
+    record,
+    now_ms: receipt.prepared_at_ms,
+  };
+  const first = await callDeriverAWalletDo(object, prepare);
+  assert.equal(first.status, 200, `Deriver A wallet DO prepare: ${JSON.stringify(first.body)}`);
+  assert.equal(first.body.result.kind, 'applied');
+  assert.equal(first.body.result.revision, 1);
+  const duplicate = await callDeriverAWalletDo(object, prepare);
+  assert.equal(duplicate.body.result.kind, 'duplicate');
+  assert.equal(duplicate.body.result.revision, 1);
+  const changedExpiry = await callDeriverAWalletDo(object, {
+    ...prepare,
+    record: { ...record, expires_at_ms: receipt.expires_at_ms + 1 },
+  });
+  assert.equal(changedExpiry.body.result.kind, 'rejected');
+
+  await topology.unsafeEvictDurableObject('deriver-a', deriverAWalletDoClass, {
+    id: objectId.toString(),
+  });
+  const lookup = { operation: 'read', owner, pair_binding: request.pair_binding };
+  const recovered = await callDeriverAWalletDo(object, lookup);
+  assert.equal(recovered.body.kind, 'read');
+  assert.equal(recovered.body.revision, 1);
+  assert.deepEqual(recovered.body.record, record);
+
+  const expired = await callDeriverAWalletDo(object, {
+    operation: 'expire',
+    owner,
+    pair_binding: request.pair_binding,
+    now_ms: receipt.expires_at_ms + 1,
+  });
+  assert.equal(expired.body.result.kind, 'applied');
+  assert.equal(expired.body.result.record.status, 'expired');
+  const late = await callDeriverAWalletDo(object, { ...prepare, now_ms: receipt.expires_at_ms + 1 });
+  assert.equal(late.body.result.kind, 'rejected');
+  const wrongOwner = await callDeriverAWalletDo(object, {
+    ...lookup,
+    owner: { ...owner, org_id: `${owner.org_id}-other` },
+  });
+  assert.notEqual(wrongOwner.status, 200);
+  const wrongWallet = await callDeriverAWalletDo(object, {
+    ...lookup,
+    owner: { ...owner, wallet_id: `${owner.wallet_id}-other` },
+  });
+  assert.notEqual(wrongWallet.status, 200);
+  const wrongRole = await callDeriverAWalletDo(object, {
+    ...lookup,
+    owner: { ...owner, role: 'deriver_b' },
+  });
+  assert.notEqual(wrongRole.status, 200);
+}
+
+async function callDeriverAWalletDo(object, body) {
+  try {
+    const response = await object.fetch(`https://router-ab-do.internal${deriverAWalletDoPath}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const responseBody = await response.text();
+    if (!response.ok) return { status: response.status, body: responseBody };
+    return { status: response.status, body: JSON.parse(responseBody) };
+  } catch (error) {
+    return { status: 500, body: String(error) };
+  }
+}
+
 async function testTenantRootManagedRestoreOperatingPath(
   topology,
   fixture,
@@ -1682,9 +1804,10 @@ async function testConcurrentActivationAndLostResponse(fixture, delivery) {
 async function main() {
   const fixture = loadFixture();
   const jwtSigner = configureRouterJwt(fixture);
+  const testWalletDo = process.argv.includes('--do-pair-store');
   const topology = new Miniflare({
     workers: [
-      routerWorker(fixture),
+      routerWorker(fixture, testWalletDo),
       deriverAWorker(fixture),
       deriverBWorker(fixture),
       tenantRootControlPlaneWorker(fixture),
@@ -1720,6 +1843,12 @@ async function main() {
       'fixture-signing-worker-after-refresh',
       signingWorkerMigrationsPath,
     );
+    if (testWalletDo) {
+      await captureValidActivationDelivery(topology, fixture, tenantRoot);
+      await testDeriverAWalletDoPreparation(topology, fixture.tenant_root_creation.identity);
+      console.log('Deriver A wallet DO preparation, exact retry, restart, and expiry passed');
+      return;
+    }
     const ecdsa = await testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot, jwtSigner);
     if (process.argv.includes('--ecdsa-presign-handoff-benchmark')) {
       const timings = { pool: [], prepare: [] };
