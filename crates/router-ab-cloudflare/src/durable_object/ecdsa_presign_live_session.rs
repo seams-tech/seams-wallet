@@ -74,6 +74,7 @@ pub(crate) enum CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1 {
         outgoing_messages_b64u: Vec<String>,
     },
     Complete {
+        authority: CloudflareSigningWorkerEcdsaPresignAuthorityV1,
         outgoing_messages_b64u: Vec<String>,
         pool_put_request:
             CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1,
@@ -444,6 +445,7 @@ fn step_presign_session(
             )?;
         return Ok(
             CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1::Complete {
+                authority: entry.authority,
                 pool_put_request,
                 outgoing_messages_b64u: progress
                     .outgoing
@@ -1113,6 +1115,7 @@ mod tests {
         loop {
             match progress {
                 CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1::Complete {
+                    authority: _,
                     pool_put_request,
                     outgoing_messages_b64u,
                 } => {

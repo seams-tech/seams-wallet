@@ -241,6 +241,14 @@ function signingWorker(name, databaseId, fixture) {
         className: 'RouterAbSigningWorkerPresignSessionDurableObject',
         useSQLite: true,
       },
+      ...(process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled'
+        ? {
+            SIGNING_WORKER_WALLET_DO: {
+              className: 'RouterAbSigningWorkerWalletDurableObject',
+              useSQLite: true,
+            },
+          }
+        : {}),
     },
   };
 }
@@ -1549,6 +1557,19 @@ async function testEcdsaNormalSigning(topology, ecdsa, mode = 'pool', checkRejec
         ...finalizeRequest, client_signature_share32_b64u: base64urlBytes(Buffer.alloc(32, 0x66)),
       });
       assert.equal(substituted.ok, false, 'Consumed material cannot be rebound to different finalization input');
+      if (process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled') {
+        const signingWorker = await topology.getWorker('fixture-signing-worker');
+        const consumedPrepare = await postWorkerJson(
+          signingWorker,
+          ecdsaSigningWorkerPreparePath,
+          capturedEcdsaSigningWorkerPrepare,
+        );
+        assert.equal(
+          consumedPrepare.ok,
+          false,
+          'Consumed wallet-DO material cannot be prepared again',
+        );
+      }
     }
     return { prepare: prepared, response: signed };
   } finally {
@@ -2855,7 +2876,7 @@ async function main() {
     await testTenantRootCommandReplayCasGuard(databases.deriverB, 'deriver_b');
     const tenantRoots = await testTenantRootCreationOperatingPath(topology, fixture, databases);
     const tenantRoot = tenantRoots.tenantRoot;
-    await applyMigrations(
+    const signingWorkerDatabase = await applyMigrations(
       topology,
       signingWorkerD1Binding,
       'fixture-signing-worker',
@@ -2919,14 +2940,30 @@ async function main() {
       console.log(JSON.stringify({ kind: 'presign_handoff_local_benchmark', timingsMs: timings }));
       return;
     }
-    if (process.argv.includes('--ecdsa-presign-handoff')) {
+    if (
+      process.argv.includes('--ecdsa-presign-handoff') ||
+      process.argv.includes('--ecdsa-wallet-do-pool')
+    ) {
+      const walletDoPool = process.argv.includes('--ecdsa-wallet-do-pool');
+      if (walletDoPool) {
+        assert.equal(process.env.ROUTER_AB_WALLET_DO_HARNESS, 'enabled');
+      }
       const priorSigning = await testEcdsaNormalSigning(topology, ecdsa, 'pool', false);
       assert.ok(priorSigning.response.signature65_b64u);
       const signing = await testEcdsaNormalSigning(topology, ecdsa, 'prepare');
+      if (walletDoPool) {
+        const poolRows = await signingWorkerDatabase
+          .prepare('SELECT COUNT(*) AS count FROM signing_worker_ecdsa_pool')
+          .first();
+        assert.equal(poolRows.count, 0, 'Wallet-DO ECDSA signing must not write D1 pool rows');
+      }
       const artifact = {
-        kind: 'gateway_router_normal_signing_auth_e2e_v1',
-        reproduce:
-          'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --ecdsa-presign-handoff',
+        kind: walletDoPool
+          ? 'signing_worker_wallet_do_ecdsa_pool_e2e_v1'
+          : 'gateway_router_normal_signing_auth_e2e_v1',
+        reproduce: walletDoPool
+          ? 'ROUTER_AB_WALLET_DO_HARNESS=enabled ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --ecdsa-wallet-do-pool'
+          : 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --ecdsa-presign-handoff',
         sharedRoleBearerRejected: true,
         dedicatedGatewayBearerSigned: true,
         wrongScopeRejected: true,
@@ -2934,11 +2971,22 @@ async function main() {
         bundledFinalBatchGated: true,
         directCompletionBeforePoolPrepareSigned: true,
         terminalReplayVerified: true,
+        ...(walletDoPool
+          ? {
+              walletDoPoolWithoutD1Writes: true,
+              consumedWalletDoMaterialRejected: true,
+            }
+          : {}),
         signatureSha256Hex: createHash('sha256')
           .update(Buffer.from(signing.response.signature65_b64u, 'base64url'))
           .digest('hex'),
       };
-      const artifactPath = join(repoRoot, '.artifacts/r150/gateway-router-normal-signing-auth.json');
+      const artifactPath = join(
+        repoRoot,
+        walletDoPool
+          ? '.artifacts/r150/signing-worker-wallet-do-ecdsa-pool.json'
+          : '.artifacts/r150/gateway-router-normal-signing-auth.json',
+      );
       await mkdir(dirname(artifactPath), { recursive: true });
       await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
       console.log(JSON.stringify({ ...artifact, artifactPath }));

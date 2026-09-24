@@ -15,12 +15,17 @@ use crate::{
     handle_cloudflare_signing_worker_normal_signing_finalize_private_request_v2,
     handle_cloudflare_signing_worker_normal_signing_prepare_private_request_v2,
     signing_worker::SigningWorkerPrivateD1CipherV1,
+    apply_cloudflare_signing_worker_ecdsa_pool_command_v1,
     CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1,
     CloudflareEd25519YaoNormalSigningHandlerV1, CloudflareScopedEd25519YaoPackagePairDeliveryV1,
     CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
     CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
     CloudflareSigningWorkerInitialRegistrationFinalizationSnapshotV1,
     CloudflareSigningWorkerNormalSigningMaterialSourceV1,
+    CloudflareSigningWorkerEcdsaPoolCommandV1,
+    CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1,
+    CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1,
+    CloudflareSigningWorkerPrivateD1RequestV1,
     CloudflareSigningWorkerNormalSigningTerminalV1,
     CloudflareSigningWorkerOutputActivationRecordV1, CloudflareSigningWorkerRound1LookupV1,
     CloudflareSigningWorkerRound1RecordV1, CloudflareSigningWorkerRuntimeV1,
@@ -45,6 +50,11 @@ const ROUND1_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_round1 (
     authorization_json TEXT,
     effect_request_digest_hex TEXT,
     terminal_json TEXT)";
+const ECDSA_POOL_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_ecdsa_pool (
+    pool_key TEXT PRIMARY KEY,
+    owner_json TEXT NOT NULL,
+    ciphertext_json TEXT NOT NULL,
+    version INTEGER NOT NULL)";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
@@ -60,6 +70,10 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
         scope: CloudflareSigningWorkerWalletScopeV1,
         request: CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
         now_unix_ms: u64,
+    },
+    EcdsaPoolMutate {
+        scope: CloudflareSigningWorkerWalletScopeV1,
+        mutation: CloudflareSigningWorkerEcdsaPoolCommandV1,
     },
 }
 
@@ -164,6 +178,7 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::DeliverRegistration(request) => &request.scope,
             Self::LookupRegistration(request) => &request.scope,
             Self::PrepareNear { scope, .. } | Self::FinalizeNear { scope, .. } => scope,
+            Self::EcdsaPoolMutate { scope, .. } => scope,
         }
     }
 
@@ -202,6 +217,14 @@ impl SigningWorkerWalletDoRequestV1 {
                     &request.request.scope.account_id,
                 )?;
                 crate::require_positive_ms("SigningWorker finalize time", *now_unix_ms)
+            }
+            Self::EcdsaPoolMutate { scope, mutation } => {
+                scope.validate()?;
+                mutation.validate()?;
+                if scope.wallet_id != mutation.scope().wallet_id {
+                    return Err(wallet_error("SigningWorker ECDSA pool wallet scope changed"));
+                }
+                Ok(())
             }
         }
     }
@@ -282,6 +305,18 @@ struct InsertedRowV1 {
     registration_key: String,
 }
 
+#[derive(Deserialize)]
+struct EcdsaPoolRowV1 {
+    owner_json: String,
+    ciphertext_json: String,
+    version: i64,
+}
+
+#[derive(Deserialize)]
+struct WrittenEcdsaPoolRowV1 {
+    pool_key: String,
+}
+
 pub(crate) async fn call_signing_worker_wallet_do_v1(
     env: &Env,
     command: SigningWorkerWalletDoRequestV1,
@@ -332,6 +367,7 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
         }
         self.sql.exec(REGISTRATION_SCHEMA, None)?;
         self.sql.exec(ROUND1_SCHEMA, None)?;
+        self.sql.exec(ECDSA_POOL_SCHEMA, None)?;
         match self.execute(command) {
             Ok(response) => Ok(response),
             Err(error) => Response::error(
@@ -364,7 +400,92 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 request,
                 now_unix_ms,
             } => self.finalize_near(scope, request, now_unix_ms),
+            SigningWorkerWalletDoRequestV1::EcdsaPoolMutate { scope, mutation } => {
+                self.mutate_ecdsa_pool(scope, mutation)
+            }
         }
+    }
+
+    fn mutate_ecdsa_pool(
+        &self,
+        scope: CloudflareSigningWorkerWalletScopeV1,
+        command: CloudflareSigningWorkerEcdsaPoolCommandV1,
+    ) -> Result<Response, RouterAbProtocolError> {
+        let key = CloudflareSigningWorkerPrivateD1RequestV1::EcdsaPoolMutate {
+            command: command.clone(),
+        }
+        .storage_key();
+        let owner_json = serde_json::to_string(&scope)
+            .map_err(|error| wallet_error(format!("ECDSA pool owner is invalid: {error}")))?;
+        let rows = self
+            .sql
+            .exec(
+                "SELECT owner_json, ciphertext_json, version FROM wallet_ecdsa_pool WHERE pool_key = ?",
+                vec![SqlStorageValue::String(key.clone())],
+            )
+            .map_err(sql_error)?
+            .to_array::<EcdsaPoolRowV1>()
+            .map_err(sql_error)?;
+        let current = match rows.as_slice() {
+            [] => None,
+            [row] => {
+                if row.owner_json != owner_json {
+                    return Err(wallet_error("ECDSA pool owner conflict"));
+                }
+                let cipher = SigningWorkerPrivateD1CipherV1::from_env_for_wallet_do(&self.env)?;
+                let record: CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1 = cipher.open(
+                    "ecdsa_pool",
+                    &registration_identity(&scope, &key)?,
+                    &row.ciphertext_json,
+                )?;
+                record.validate()?;
+                Some(record)
+            }
+            _ => return Err(wallet_error("ECDSA pool lookup returned duplicate rows")),
+        };
+        let outcome = apply_cloudflare_signing_worker_ecdsa_pool_command_v1(current, command)?;
+        outcome.validate()?;
+        if matches!(
+            outcome,
+            CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Available { stored: false, .. }
+        ) {
+            return Response::from_json(&outcome).map_err(sql_error);
+        }
+        let cipher = SigningWorkerPrivateD1CipherV1::from_env_for_wallet_do(&self.env)?;
+        let ciphertext = cipher.seal(
+            "ecdsa_pool",
+            &registration_identity(&scope, &key)?,
+            outcome.record(),
+        )?;
+        let written = match rows.as_slice() {
+            [] => self.sql.exec(
+                "INSERT INTO wallet_ecdsa_pool (pool_key, owner_json, ciphertext_json, version)
+                 VALUES (?, ?, ?, 0) ON CONFLICT DO NOTHING RETURNING pool_key",
+                vec![
+                    SqlStorageValue::String(key.clone()),
+                    SqlStorageValue::String(owner_json),
+                    SqlStorageValue::String(ciphertext),
+                ],
+            ),
+            [row] => self.sql.exec(
+                "UPDATE wallet_ecdsa_pool SET ciphertext_json = ?, version = version + 1
+                 WHERE pool_key = ? AND owner_json = ? AND version = ? RETURNING pool_key",
+                vec![
+                    SqlStorageValue::String(ciphertext),
+                    SqlStorageValue::String(key.clone()),
+                    SqlStorageValue::String(owner_json),
+                    SqlStorageValue::Integer(row.version),
+                ],
+            ),
+            _ => unreachable!(),
+        }
+        .map_err(sql_error)?
+        .to_array::<WrittenEcdsaPoolRowV1>()
+        .map_err(sql_error)?;
+        if written.len() != 1 || written[0].pool_key != key {
+            return Err(wallet_error("ECDSA pool write is uncertain"));
+        }
+        Response::from_json(&outcome).map_err(sql_error)
     }
 
     fn deliver_registration(

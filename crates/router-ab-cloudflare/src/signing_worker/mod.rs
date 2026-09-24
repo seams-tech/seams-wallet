@@ -1605,6 +1605,26 @@ impl CloudflareEcdsaPrepareResponseV1 {
     }
 }
 
+/// Binds the full wallet owner to the Router's accepted ECDSA admission.
+fn validate_ecdsa_wallet_scope(
+    wallet_scope: &CloudflareSigningWorkerWalletScopeV1,
+    metadata: &CloudflareRouterNormalSigningTrustedMetadataV1,
+    wallet_id: &str,
+) -> RouterAbProtocolResult<()> {
+    wallet_scope.validate()?;
+    metadata.validate()?;
+    if wallet_scope.org_id != metadata.org_id
+        || wallet_scope.project_id != metadata.project_id
+        || wallet_scope.wallet_id != wallet_id
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidGateDecision,
+            "ECDSA wallet scope differs from trusted Router admission",
+        ));
+    }
+    Ok(())
+}
+
 /// Router-admitted Router A/B ECDSA derivation normal-signing request sent to SigningWorker.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1 {
@@ -1616,6 +1636,8 @@ pub struct CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSignin
     pub material_source: CloudflareSigningWorkerNormalSigningMaterialSourceV1,
     #[serde(default)]
     pub presign_source: CloudflareEcdsaPrepareSourceV1,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wallet_scope: Option<CloudflareSigningWorkerWalletScopeV1>,
 }
 
 impl CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1 {
@@ -1633,6 +1655,7 @@ impl CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningReque
             trusted_admission,
             material_source,
             presign_source: CloudflareEcdsaPrepareSourceV1::AvailablePool,
+            wallet_scope: None,
         };
         request.validate()?;
         Ok(request)
@@ -1648,6 +1671,7 @@ impl CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningReque
             trusted_admission,
             material_source,
             presign_source: CloudflareEcdsaPrepareSourceV1::AvailablePool,
+            wallet_scope: None,
         };
         request.validate()?;
         Ok(request)
@@ -1655,6 +1679,13 @@ impl CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningReque
 
     /// Validates Router-admitted Router A/B ECDSA derivation normal-signing material.
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        if let Some(wallet_scope) = &self.wallet_scope {
+            validate_ecdsa_wallet_scope(
+                wallet_scope,
+                &self.trusted_admission.metadata,
+                &self.request.scope.wallet_id,
+            )?;
+        }
         self.request.validate()?;
         self.presign_source.validate_for_request(&self.request)?;
         self.material_source
@@ -1723,6 +1754,8 @@ pub struct CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinali
     pub effect_claim: CloudflareSigningWorkerNormalSigningEffectClaimV1,
     /// Exact active material source selected by the Gateway.
     pub material_source: CloudflareSigningWorkerNormalSigningMaterialSourceV1,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wallet_scope: Option<CloudflareSigningWorkerWalletScopeV1>,
 }
 
 impl CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1 {
@@ -1743,6 +1776,7 @@ impl CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequ
             authorized_operation_identity,
             effect_claim,
             material_source,
+            wallet_scope: None,
         };
         request.validate()?;
         Ok(request)
@@ -1761,6 +1795,7 @@ impl CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequ
             authorized_operation_identity,
             effect_claim,
             material_source,
+            wallet_scope: None,
         };
         request.validate()?;
         Ok(request)
@@ -1768,6 +1803,13 @@ impl CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequ
 
     /// Validates Router admission accepted this exact Router A/B ECDSA derivation finalize body.
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        if let Some(wallet_scope) = &self.wallet_scope {
+            validate_ecdsa_wallet_scope(
+                wallet_scope,
+                &self.trusted_admission.metadata,
+                &self.request.scope.wallet_id,
+            )?;
+        }
         self.request.validate()?;
         self.material_source
             .validate_for_ecdsa_scope(&self.request.scope)?;
