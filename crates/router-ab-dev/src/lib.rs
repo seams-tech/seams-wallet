@@ -56,6 +56,7 @@ mod local_ed25519_yao_delivery;
 
 mod local_ed25519_yao_input;
 mod local_ed25519_yao_pair;
+mod local_ed25519_yao_pair_sqlite;
 mod local_ed25519_yao_profiles;
 mod local_ed25519_yao_refresh;
 mod local_ed25519_yao_router;
@@ -116,6 +117,7 @@ pub use local_ed25519_yao_pair::{
     LocalEd25519YaoPairLifecycleV1, LocalEd25519YaoPairSigningKeysV1,
     LocalEd25519YaoRoleReadinessReceiptV1,
 };
+pub use local_ed25519_yao_pair_sqlite::LocalDeriverAPairSqliteV1;
 pub use local_ed25519_yao_profiles::{
     build_local_ed25519_yao_one_account_plan_v1, build_local_ed25519_yao_two_administrator_plan_v1,
     local_ed25519_yao_worker_artifact_digest_v1, LocalEd25519YaoArtifactIdentityV1,

@@ -84,10 +84,18 @@ pub enum Ed25519YaoPairTransitionV1<P, O> {
     Reject(Ed25519YaoPairRejectionV1),
 }
 
-/// Result of one conditional store write against the selected revision.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Ed25519YaoPairWriteV1 {
-    Applied { revision: u64 },
+/// A scoped store result after the transition and its conditional write.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Ed25519YaoPairStoreResultV1<P, O> {
+    Applied {
+        revision: u64,
+        record: Ed25519YaoPairRecordV1<P, O>,
+    },
+    Duplicate {
+        revision: u64,
+        record: Ed25519YaoPairRecordV1<P, O>,
+    },
+    Rejected(Ed25519YaoPairRejectionV1),
     StaleVersion,
     UncertainWrite,
 }
@@ -109,6 +117,13 @@ pub fn prepare_ed25519_yao_pair_v1<P: PartialEq, O>(
     };
     if now_ms >= expires_at_ms {
         return Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Expired);
+    }
+    if receipt.role() != Ed25519YaoDeriverRoleV1::DeriverA
+        || receipt.root_metadata_digest().bytes != root_metadata_digest
+        || receipt.validate_for_pair(&pair_binding).is_err()
+        || receipt.validate_at(now_ms).is_err()
+    {
+        return Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ReadinessMismatch);
     }
     match current {
         None => Ed25519YaoPairTransitionV1::Persist(Ed25519YaoPairRecordV1::Prepared {
@@ -132,12 +147,12 @@ pub fn prepare_ed25519_yao_pair_v1<P: PartialEq, O>(
         {
             Ed25519YaoPairTransitionV1::Duplicate
         }
-        Some(Ed25519YaoPairRecordV1::Prepared { .. }) => Ed25519YaoPairTransitionV1::Reject(
-            Ed25519YaoPairRejectionV1::IdentityMismatch,
-        ),
-        Some(Ed25519YaoPairRecordV1::Running { .. }) => Ed25519YaoPairTransitionV1::Reject(
-            Ed25519YaoPairRejectionV1::ConflictingExecution,
-        ),
+        Some(Ed25519YaoPairRecordV1::Prepared { .. }) => {
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::IdentityMismatch)
+        }
+        Some(Ed25519YaoPairRecordV1::Running { .. }) => {
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
+        }
         Some(_) => Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Terminal),
     }
 }
@@ -188,9 +203,9 @@ pub fn claim_ed25519_yao_pair_v1<P: Clone, O>(
                 Ed25519YaoPairStartDecisionV1::Expired => {
                     Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Expired)
                 }
-                Ed25519YaoPairStartDecisionV1::ReadinessMismatch => Ed25519YaoPairTransitionV1::Reject(
-                    Ed25519YaoPairRejectionV1::ReadinessMismatch,
-                ),
+                Ed25519YaoPairStartDecisionV1::ReadinessMismatch => {
+                    Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ReadinessMismatch)
+                }
             }
         }
         Ed25519YaoPairRecordV1::Running {
@@ -212,10 +227,9 @@ pub fn claim_ed25519_yao_pair_v1<P: Clone, O>(
         {
             Ed25519YaoPairTransitionV1::Duplicate
         }
-        Ed25519YaoPairRecordV1::Running { .. }
-        | Ed25519YaoPairRecordV1::Completed { .. } => Ed25519YaoPairTransitionV1::Reject(
-            Ed25519YaoPairRejectionV1::ConflictingExecution,
-        ),
+        Ed25519YaoPairRecordV1::Running { .. } | Ed25519YaoPairRecordV1::Completed { .. } => {
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
+        }
         Ed25519YaoPairRecordV1::Burned { .. } | Ed25519YaoPairRecordV1::Expired { .. } => {
             Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Terminal)
         }
@@ -257,10 +271,9 @@ pub fn complete_ed25519_yao_pair_v1<P, O: PartialEq>(
         } if *stored_execution == execution_id && *stored_outcome == outcome => {
             Ed25519YaoPairTransitionV1::Duplicate
         }
-        Ed25519YaoPairRecordV1::Running { .. }
-        | Ed25519YaoPairRecordV1::Completed { .. } => Ed25519YaoPairTransitionV1::Reject(
-            Ed25519YaoPairRejectionV1::ConflictingExecution,
-        ),
+        Ed25519YaoPairRecordV1::Running { .. } | Ed25519YaoPairRecordV1::Completed { .. } => {
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
+        }
         _ => Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Terminal),
     }
 }
@@ -303,9 +316,9 @@ pub fn burn_ed25519_yao_pair_v1<P, O>(
             execution_id: stored_execution,
             ..
         } if *stored_execution == execution_id => Ed25519YaoPairTransitionV1::Duplicate,
-        Ed25519YaoPairRecordV1::Running { .. } => Ed25519YaoPairTransitionV1::Reject(
-            Ed25519YaoPairRejectionV1::ConflictingExecution,
-        ),
+        Ed25519YaoPairRecordV1::Running { .. } => {
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
+        }
         _ => Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::Terminal),
     }
 }
@@ -368,9 +381,18 @@ pub fn admit_ed25519_yao_pair_start_v1(
         || claim.peer_receipt.role() != Ed25519YaoDeriverRoleV1::DeriverB
         || claim.acceptance.role() != Ed25519YaoDeriverRoleV1::DeriverB
         || claim.acceptance.execution_id() != claim.execution_id
-        || claim.local_receipt.validate_for_pair(claim.pair_binding).is_err()
-        || claim.peer_receipt.validate_for_pair(claim.pair_binding).is_err()
-        || claim.acceptance.validate_for_pair(claim.pair_binding).is_err()
+        || claim
+            .local_receipt
+            .validate_for_pair(claim.pair_binding)
+            .is_err()
+        || claim
+            .peer_receipt
+            .validate_for_pair(claim.pair_binding)
+            .is_err()
+        || claim
+            .acceptance
+            .validate_for_pair(claim.pair_binding)
+            .is_err()
         || claim.local_receipt.validate_at(claim.now_ms).is_err()
         || claim.peer_receipt.validate_at(claim.now_ms).is_err()
         || claim.acceptance.validate_at(claim.now_ms).is_err()
@@ -450,11 +472,8 @@ mod tests {
             PublicDigest32::new(root_digest),
             100,
             200,
-            Ed25519YaoRoleSignatureV1::new(
-                Ed25519YaoRoleSignatureSchemeV1::Ed25519V1,
-                [9; 64],
-            )
-            .expect("signature"),
+            Ed25519YaoRoleSignatureV1::new(Ed25519YaoRoleSignatureSchemeV1::Ed25519V1, [9; 64])
+                .expect("signature"),
         )
         .expect("receipt")
     }
@@ -471,11 +490,8 @@ mod tests {
             PublicDigest32::new([8; 32]),
             100,
             200,
-            Ed25519YaoRoleSignatureV1::new(
-                Ed25519YaoRoleSignatureSchemeV1::Ed25519V1,
-                [9; 64],
-            )
-            .expect("signature"),
+            Ed25519YaoRoleSignatureV1::new(Ed25519YaoRoleSignatureSchemeV1::Ed25519V1, [9; 64])
+                .expect("signature"),
         )
         .expect("acceptance")
     }
@@ -520,6 +536,28 @@ mod tests {
             claim_ed25519_yao_pair_v1(&running, first_claim),
             Ed25519YaoPairTransitionV1::Duplicate
         );
+        let changed_acceptance = Ed25519YaoRoleStartAcceptanceV1::new(
+            Ed25519YaoDeriverRoleV1::DeriverB,
+            pair.ceremony().binding().session_id,
+            pair.pair_digest(),
+            first_id,
+            PublicDigest32::new([8; 32]),
+            101,
+            200,
+            Ed25519YaoRoleSignatureV1::new(Ed25519YaoRoleSignatureSchemeV1::Ed25519V1, [9; 64])
+                .expect("signature"),
+        )
+        .expect("changed acceptance");
+        assert_eq!(
+            claim_ed25519_yao_pair_v1(
+                &running,
+                Ed25519YaoPairStartClaimV1 {
+                    acceptance: &changed_acceptance,
+                    ..first_claim
+                }
+            ),
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
+        );
         assert_eq!(
             claim_ed25519_yao_pair_v1(
                 &running,
@@ -529,9 +567,7 @@ mod tests {
                     ..first_claim
                 }
             ),
-            Ed25519YaoPairTransitionV1::Reject(
-                Ed25519YaoPairRejectionV1::ConflictingExecution
-            )
+            Ed25519YaoPairTransitionV1::Reject(Ed25519YaoPairRejectionV1::ConflictingExecution)
         );
         let completed = match complete_ed25519_yao_pair_v1(
             &running,
@@ -543,7 +579,10 @@ mod tests {
             Ed25519YaoPairTransitionV1::Persist(record) => record,
             other => panic!("expected completion: {other:?}"),
         };
-        assert_eq!(completed.outcome().map(String::as_str), Some("sealed outcome"));
+        assert_eq!(
+            completed.outcome().map(String::as_str),
+            Some("sealed outcome")
+        );
         assert_eq!(
             complete_ed25519_yao_pair_v1(
                 &completed,
