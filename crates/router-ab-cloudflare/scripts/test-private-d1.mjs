@@ -1295,6 +1295,9 @@ async function testEcdsaNormalSigning(topology, ecdsa, mode = 'pool', checkRejec
 
 function buildEd25519ExecuteRequest(fixture, fixtureKey, tenantRoot) {
   const source = fixture[fixtureKey];
+  const identity = fixtureKey.startsWith('second_tenant')
+    ? fixture.tenant_root_creation.second_tenant_identity
+    : fixture.tenant_root_creation.identity;
   assert.ok(source && typeof source === 'object', `${fixtureKey} fixture is required`);
   assert.ok(source.gateway_request, `${fixtureKey} gateway request is required`);
   assert.ok(
@@ -1311,7 +1314,10 @@ function buildEd25519ExecuteRequest(fixture, fixtureKey, tenantRoot) {
     `${fixtureKey} must resolve exactly two Ed25519 participants`,
   );
   return {
-    tenant_root: tenantRoot,
+    tenant_root: {
+      identity,
+      custody_lineage_b64u: tenantRoot.custody_lineage_b64u,
+    },
     application: source.application,
     participant_ids: source.participant_ids,
     target: source.gateway_request,
@@ -1593,7 +1599,7 @@ async function testTenantRootSelectorIsolation(
   );
 
   const alternateTenantRoot = {
-    identity_digest_b64u: tenantRoot.identity_digest_b64u,
+    identity: fixture.tenant_root_creation.identity,
     custody_lineage_b64u: Buffer.alloc(16, 0x9c).toString('base64url'),
   };
   capturedSigningWorkerDelivery = undefined;

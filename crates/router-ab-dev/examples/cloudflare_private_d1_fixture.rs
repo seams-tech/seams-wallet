@@ -75,6 +75,8 @@ struct ManagedRestoreSignerFixture {
 
 #[derive(Serialize)]
 struct TenantRootCreationFixture {
+    identity: TenantRootIdentityV1,
+    second_tenant_identity: TenantRootIdentityV1,
     interrupted: TenantRootCreationRequestFixture,
     fresh: TenantRootCreationRequestFixture,
     second_tenant: TenantRootCreationRequestFixture,
@@ -170,15 +172,17 @@ fn managed_restore_signer_fixture(signing_seed: [u8; 32]) -> ManagedRestoreSigne
 fn tenant_root_creation_fixture() -> Result<TenantRootCreationFixture, Box<dyn std::error::Error>> {
     let now_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
     let identity =
-        TenantRootIdentityV1::new("org-miniflare", "project-r120", "test", "root-main", "v1")?;
+        TenantRootIdentityV1::new("org-miniflare", "project-r120", "test", "project:local", "v1")?;
     let second_tenant_identity = TenantRootIdentityV1::new(
         "org-miniflare-second",
         "project-r120-second",
         "test",
-        "root-main",
+        "project:local",
         "v1",
     )?;
     Ok(TenantRootCreationFixture {
+        identity: identity.clone(),
+        second_tenant_identity: second_tenant_identity.clone(),
         interrupted: tenant_root_creation_request(&identity, [0x22; 16], [0x33; 32], now_ms)?,
         fresh: tenant_root_creation_request(&identity, [0x23; 16], [0x34; 32], now_ms)?,
         second_tenant: tenant_root_creation_request(

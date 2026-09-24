@@ -14,7 +14,7 @@ use crate::{
     CloudflareEd25519YaoPairStatusResponseV1, CloudflareEd25519YaoRoleFailureResponseV1,
     CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
     CloudflareEd25519YaoTenantRootContextV2, CloudflareRouterEd25519YaoExecuteRequestV2,
-    CloudflareRouterEd25519YaoTenantRootV1, CloudflareRouterProjectPolicyV1,
+    CloudflareRouterProjectPolicyV1,
     CloudflareRouterWorkerRuntimeV1, CloudflareTenantRootCoordinatesV1,
     CloudflareWorkerEnvReaderV1, CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
@@ -2268,7 +2268,7 @@ mod tests {
         participant_ids: [u16; 2],
     ) -> CloudflareRouterEd25519YaoExecuteRequestV2 {
         CloudflareRouterEd25519YaoExecuteRequestV2 {
-            tenant_root: CloudflareRouterEd25519YaoTenantRootV1 {
+            tenant_root: crate::CloudflareRouterEd25519YaoTenantRootV1 {
                 identity: router_ab_core::TenantRootIdentityV1::new(
                     "org-1",
                     "project-1",
