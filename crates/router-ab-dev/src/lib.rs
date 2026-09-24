@@ -2034,6 +2034,7 @@ pub fn handle_local_signing_worker_router_ab_ecdsa_derivation_presignature_pool_
         local_active_router_ab_ecdsa_derivation_signing_worker_state_v1(config, &request.scope)?;
     let record = request.to_pool_record(active_signing_worker_state, now_unix_ms)?;
     let outcome = local_signing_worker_ecdsa_pool_mutate_v1(
+        config,
         CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable {
             material: record.clone(),
         },
@@ -2095,6 +2096,7 @@ pub fn handle_local_signing_worker_router_ab_ecdsa_derivation_prepare_json_v1(
     let signing_worker_rerandomization_contribution32_b64u =
         encode_base64url_bytes_v1(&signing_worker_rerandomization_contribution32);
     let outcome = local_signing_worker_ecdsa_pool_mutate_v1(
+        config,
         CloudflareSigningWorkerEcdsaPoolCommandV1::Reserve {
             scope: request.scope.clone(),
             server_presignature_id: request.client_presignature_id.clone(),
@@ -2166,6 +2168,7 @@ pub fn handle_local_signing_worker_router_ab_ecdsa_derivation_finalize_json_v1(
     request.validate_at(now_unix_ms)?;
     let prepare_request_digest = request.prepare_request_digest()?;
     let consume_outcome = local_signing_worker_ecdsa_pool_mutate_v1(
+        config,
         CloudflareSigningWorkerEcdsaPoolCommandV1::Consume {
             scope: request.scope.clone(),
             server_presignature_id: request.server_presignature_id.clone(),

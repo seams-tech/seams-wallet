@@ -5,30 +5,33 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;
 use local_dev_process::{
     normalize_root, post_json_to_path, post_json_to_path_with_headers, read_worker_config,
-    wait_for_existing_health,
-    worker_process_spec_for_role_v1, LocalWorkerSpawnReceipt, LocalWorkerUrls,
+    wait_for_existing_health, worker_process_spec_for_role_v1, LocalWorkerSpawnReceipt,
+    LocalWorkerUrls,
 };
 use router_ab_cloudflare::CloudflareSigningWorkerEcdsaPoolAdmissionReceiptV1;
 use router_ab_core::{
     router_ab_ecdsa_rerandomization_client_commitment_v1, LocalServiceRoleV1,
-    MpcMaterialActivationRefV1, NormalSigningAuthorizationV1, Role,
+    MpcMaterialActivationRefV1, NormalSigningAuthorizationV1, PublicDigest32, Role,
     RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1,
     RouterAbEcdsaDerivationEvmDigestSigningPrepareResponseV1,
     RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
     RouterAbEcdsaDerivationEvmDigestSigningResponseV1, RouterAbEcdsaDerivationNormalSigningScopeV1,
     RouterAbEcdsaDerivationOperationDigestsV1, RouterAbEcdsaDerivationPublicIdentityV1,
-    RouterAbEcdsaDerivationSignatureSchemeV1,
-    RouterAbEcdsaDerivationStableKeyContextV1, ServerIdentityV1,
+    RouterAbEcdsaDerivationSignatureSchemeV1, RouterAbEcdsaDerivationStableKeyContextV1,
+    ServerIdentityV1,
 };
 use router_ab_dev::{
     local_router_ab_internal_service_auth_secret_v1,
     run_example_local_router_ab_dev_http_ceremony_v1, LocalDeriverPeerMessageReceiptV1,
+    LocalRouterAbEcdsaDerivationTrustedAdmissionV1,
+    LocalSigningWorkerAdmittedRouterAbEcdsaDerivationFinalizeRequestV1,
+    LocalSigningWorkerAdmittedRouterAbEcdsaDerivationPrepareRequestV1,
     LocalSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1, LocalWorkerRoleConfigV1,
     LOCAL_DERIVER_A_PEER_PATH, LOCAL_DERIVER_B_PEER_PATH,
-    LOCAL_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
-    LOCAL_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH,
     LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
     LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_PUT_PATH,
+    LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
+    LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH,
 };
 use router_ab_ecdsa_online::{
     combine_rerandomization_contributions, compute_client_signature_share, ClientPresignMaterial,
@@ -43,6 +46,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use signer_core::secp256k1::{
     secp256k1_private_key_32_to_public_key_33, secp256k1_public_key_33_to_ethereum_address_20,
+    verify_secp256k1_recoverable_signature_against_public_key_33,
 };
 use std::{
     env, fs,
@@ -54,6 +58,8 @@ use std::{
 struct SmokeOptions {
     root: PathBuf,
     report_path: Option<PathBuf>,
+    save_finalize_path: Option<PathBuf>,
+    verify_finalize_replay_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -66,7 +72,7 @@ struct SmokeSummary {
     setup_status: String,
     deriver_b_peer_status: String,
     deriver_a_peer_status: String,
-    router_ab_ecdsa_derivation_live_http_route_dispatch_status: String,
+    router_ab_ecdsa_derivation_private_http_route_status: String,
     router_ab_ecdsa_derivation_pool_fill_status: String,
     router_ab_ecdsa_derivation_prepare_status: String,
     router_ab_ecdsa_derivation_finalize_status: String,
@@ -76,7 +82,7 @@ struct SmokeSummary {
     setup_elapsed_ms: u64,
     deriver_b_peer_elapsed_ms: u64,
     deriver_a_peer_elapsed_ms: u64,
-    router_ab_ecdsa_derivation_live_http_elapsed_ms: u64,
+    router_ab_ecdsa_derivation_private_http_elapsed_ms: u64,
     total_elapsed_ms: u64,
 }
 
@@ -87,6 +93,13 @@ struct RouterAbEcdsaDerivationSmokeResult {
     finalize_status: String,
     replay_rejection_status: String,
     signature_scheme: String,
+}
+
+#[derive(Debug, Serialize)]
+struct ReplaySummary {
+    evidence_kind: &'static str,
+    status: &'static str,
+    request_digest_b64u: String,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -101,7 +114,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let root = normalize_root(options.root)?;
     let urls = existing_urls(&root)?;
     wait_for_topology_health(&urls)?;
-    let summary = run_smoke(&root, "existing", urls, Vec::new())?;
+    if let Some(path) = options.verify_finalize_replay_path.as_deref() {
+        let summary = verify_persisted_finalize_replay(&urls, path)?;
+        emit_summary(&summary, options.report_path.as_deref())?;
+        return Ok(());
+    }
+    let summary = run_smoke(
+        &root,
+        "existing",
+        urls,
+        Vec::new(),
+        options.save_finalize_path.as_deref(),
+    )?;
     emit_summary(&summary, options.report_path.as_deref())?;
     Ok(())
 }
@@ -127,6 +151,7 @@ fn run_smoke(
     mode: &str,
     urls: LocalWorkerUrls,
     spawned_processes: Vec<LocalWorkerSpawnReceipt>,
+    save_finalize_path: Option<&Path>,
 ) -> Result<SmokeSummary, Box<dyn std::error::Error>> {
     let total_start = Instant::now();
     let setup_start = Instant::now();
@@ -192,29 +217,34 @@ fn run_smoke(
 
     let smoke_run_id = local_smoke_run_id()?;
     let ecdsa_start = Instant::now();
-    let ecdsa_result = run_router_ab_ecdsa_derivation_live_http_smoke(root, &urls, &smoke_run_id)?;
-    let router_ab_ecdsa_derivation_live_http_elapsed_ms = elapsed_ms(ecdsa_start);
+    let ecdsa_result = run_router_ab_ecdsa_derivation_live_http_smoke(
+        root,
+        &urls,
+        &smoke_run_id,
+        save_finalize_path,
+    )?;
+    let router_ab_ecdsa_derivation_private_http_elapsed_ms = elapsed_ms(ecdsa_start);
 
     Ok(SmokeSummary {
         root: root.display().to_string(),
         mode: mode.to_owned(),
-        topology: "main-router",
+        topology: "local_role_processes",
         urls,
         spawned_processes,
         setup_status: "accepted".to_owned(),
         deriver_b_peer_status: deriver_b_receipt.status,
         deriver_a_peer_status: deriver_a_receipt.status,
-        router_ab_ecdsa_derivation_live_http_route_dispatch_status: "accepted".to_owned(),
+        router_ab_ecdsa_derivation_private_http_route_status: "accepted".to_owned(),
         router_ab_ecdsa_derivation_pool_fill_status: ecdsa_result.pool_fill_status,
         router_ab_ecdsa_derivation_prepare_status: ecdsa_result.prepare_status,
         router_ab_ecdsa_derivation_finalize_status: ecdsa_result.finalize_status,
         router_ab_ecdsa_derivation_replay_rejection_status: ecdsa_result.replay_rejection_status,
         router_ab_ecdsa_derivation_signature_scheme: ecdsa_result.signature_scheme,
-        router_ab_ecdsa_derivation_evidence_kind: "live_http_route_dispatch".to_owned(),
+        router_ab_ecdsa_derivation_evidence_kind: "signing_worker_private_http_route".to_owned(),
         setup_elapsed_ms,
         deriver_b_peer_elapsed_ms,
         deriver_a_peer_elapsed_ms,
-        router_ab_ecdsa_derivation_live_http_elapsed_ms,
+        router_ab_ecdsa_derivation_private_http_elapsed_ms,
         total_elapsed_ms: elapsed_ms(total_start),
     })
 }
@@ -223,6 +253,7 @@ fn run_router_ab_ecdsa_derivation_live_http_smoke(
     root: &Path,
     urls: &LocalWorkerUrls,
     smoke_run_id: &str,
+    save_finalize_path: Option<&Path>,
 ) -> Result<RouterAbEcdsaDerivationSmokeResult, Box<dyn std::error::Error>> {
     let signing_worker_identity = signing_worker_identity_from_root(root)?;
     let fixture = local_router_ab_ecdsa_derivation_fixture(signing_worker_identity)?;
@@ -283,14 +314,27 @@ fn run_router_ab_ecdsa_derivation_live_http_smoke(
             client_rerandomization_contribution32,
         )),
     )?;
-    let (prepare_status, prepare_body) = post_json_to_path(
-        &urls.router,
-        LOCAL_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH,
-        &prepare_request,
+    let admitted_prepare = LocalSigningWorkerAdmittedRouterAbEcdsaDerivationPrepareRequestV1 {
+        trusted_admission: trusted_ecdsa_admission(
+            &prepare_request.scope,
+            prepare_request.request_digest()?,
+            prepare_request.signing_digest()?,
+            prepare_request.expires_at_ms,
+        )?,
+        request: prepare_request.clone(),
+    };
+    let (prepare_status, prepare_body) = post_json_to_path_with_headers(
+        &urls.signing_worker,
+        LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH,
+        &admitted_prepare,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            internal_service_auth.as_str(),
+        )],
     )?;
     if prepare_status != 200 {
         return Err(format!(
-            "Router Router A/B ECDSA derivation prepare expected HTTP 200, received {prepare_status}: {prepare_body}"
+            "SigningWorker Router A/B ECDSA derivation prepare expected HTTP 200, received {prepare_status}: {prepare_body}"
         )
         .into());
     }
@@ -337,14 +381,27 @@ fn run_router_ab_ecdsa_derivation_live_http_smoke(
         b64u(&client_signature_share32),
         b64u(&client_rerandomization_contribution32),
     )?;
-    let (finalize_status, finalize_body) = post_json_to_path(
-        &urls.router,
-        LOCAL_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
-        &finalize_request,
+    let admitted_finalize = LocalSigningWorkerAdmittedRouterAbEcdsaDerivationFinalizeRequestV1 {
+        trusted_admission: trusted_ecdsa_admission(
+            &finalize_request.scope,
+            finalize_request.request_digest()?,
+            finalize_request.signing_digest()?,
+            finalize_request.expires_at_ms,
+        )?,
+        request: finalize_request.clone(),
+    };
+    let (finalize_status, finalize_body) = post_json_to_path_with_headers(
+        &urls.signing_worker,
+        LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
+        &admitted_finalize,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            internal_service_auth.as_str(),
+        )],
     )?;
     if finalize_status != 200 {
         return Err(format!(
-            "Router Router A/B ECDSA derivation finalize expected HTTP 200, received {finalize_status}: {finalize_body}"
+            "SigningWorker Router A/B ECDSA derivation finalize expected HTTP 200, received {finalize_status}: {finalize_body}"
         )
         .into());
     }
@@ -355,18 +412,35 @@ fn run_router_ab_ecdsa_derivation_live_http_smoke(
         || signing_response.signature65_b64u.as_bytes().len() != 87
     {
         return Err(
-            "Router Router A/B ECDSA derivation finalize response did not bind request".into(),
+            "SigningWorker Router A/B ECDSA derivation finalize response did not bind request"
+                .into(),
         );
     }
-
-    let (replay_status, replay_body) = post_json_to_path(
-        &urls.router,
-        LOCAL_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
-        &finalize_request,
+    let signature65 = URL_SAFE_NO_PAD.decode(&signing_response.signature65_b64u)?;
+    verify_secp256k1_recoverable_signature_against_public_key_33(
+        &fixture.signing_digest32,
+        &signature65,
+        &fixture.threshold_public_key33,
     )?;
-    if replay_status != 400 || !replay_body.contains("prepared presignature is not available") {
+    if let Some(path) = save_finalize_path {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(path, serde_json::to_vec(&admitted_finalize)?)?;
+    }
+
+    let (replay_status, replay_body) = post_json_to_path_with_headers(
+        &urls.signing_worker,
+        LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
+        &admitted_finalize,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            internal_service_auth.as_str(),
+        )],
+    )?;
+    if replay_status != 400 {
         return Err(format!(
-            "Router Router A/B ECDSA derivation one-use replay expected HTTP 400 prepared-presignature rejection, received {replay_status}: {replay_body}"
+            "SigningWorker Router A/B ECDSA derivation one-use replay expected HTTP 400, received {replay_status}: {replay_body}"
         )
         .into());
     }
@@ -380,6 +454,52 @@ fn run_router_ab_ecdsa_derivation_live_http_smoke(
             signing_response.signature_scheme,
         )
         .to_owned(),
+    })
+}
+
+fn verify_persisted_finalize_replay(
+    urls: &LocalWorkerUrls,
+    path: &Path,
+) -> Result<ReplaySummary, Box<dyn std::error::Error>> {
+    let admitted: LocalSigningWorkerAdmittedRouterAbEcdsaDerivationFinalizeRequestV1 =
+        serde_json::from_slice(&fs::read(path)?)?;
+    let internal_service_auth = local_router_ab_internal_service_auth_secret_v1();
+    let (status, body) = post_json_to_path_with_headers(
+        &urls.signing_worker,
+        LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
+        &admitted,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            internal_service_auth.as_str(),
+        )],
+    )?;
+    if status != 400 || !body.contains("ReplayedLocalRequest") {
+        return Err(format!(
+            "SigningWorker restart replay expected a one-use rejection, received {status}: {body}"
+        )
+        .into());
+    }
+    Ok(ReplaySummary {
+        evidence_kind: "signing_worker_private_http_restart_replay",
+        status: "http_400_one_use_replay_rejected",
+        request_digest_b64u: b64u(admitted.request.request_digest()?.as_bytes()),
+    })
+}
+
+fn trusted_ecdsa_admission(
+    scope: &RouterAbEcdsaDerivationNormalSigningScopeV1,
+    request_digest: PublicDigest32,
+    signing_digest: PublicDigest32,
+    expires_at_ms: u64,
+) -> Result<LocalRouterAbEcdsaDerivationTrustedAdmissionV1, Box<dyn std::error::Error>> {
+    let admitted_at_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
+    Ok(LocalRouterAbEcdsaDerivationTrustedAdmissionV1 {
+        account_id: scope.wallet_id.clone(),
+        session_id: scope.material_activation.activation_id.clone(),
+        request_digest,
+        signing_digest,
+        admitted_at_ms,
+        expires_at_ms,
     })
 }
 
@@ -470,7 +590,7 @@ fn local_router_ab_ecdsa_derivation_fixture(
         LOCAL_SMOKE_ROUTER_AB_ECDSA_DERIVATION_WALLET_ID,
         public_identity.context_binding_b64u.clone(),
         "ecdsa-material-lifecycle-local",
-        "signing-worker-1",
+        signing_worker.server_id.clone(),
     )?;
     let scope = RouterAbEcdsaDerivationNormalSigningScopeV1::new(
         LOCAL_SMOKE_ROUTER_AB_ECDSA_DERIVATION_WALLET_ID,
@@ -620,7 +740,7 @@ fn elapsed_ms(start: Instant) -> u64 {
 }
 
 fn emit_summary(
-    summary: &SmokeSummary,
+    summary: &impl Serialize,
     report_path: Option<&Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let json = serde_json::to_string_pretty(summary)?;
@@ -637,6 +757,8 @@ fn emit_summary(
 fn parse_args(args: impl IntoIterator<Item = String>) -> Result<SmokeOptions, String> {
     let mut root = PathBuf::from(".");
     let mut report_path = None;
+    let mut save_finalize_path = None;
+    let mut verify_finalize_replay_path = None;
     let mut iter = args.into_iter();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
@@ -653,6 +775,18 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<SmokeOptions, St
                 };
                 report_path = Some(PathBuf::from(value));
             }
+            "--save-finalize" => {
+                let Some(value) = iter.next() else {
+                    return Err("--save-finalize requires a path".to_owned());
+                };
+                save_finalize_path = Some(PathBuf::from(value));
+            }
+            "--verify-finalize-replay" => {
+                let Some(value) = iter.next() else {
+                    return Err("--verify-finalize-replay requires a path".to_owned());
+                };
+                verify_finalize_replay_path = Some(PathBuf::from(value));
+            }
             "--help" | "-h" => {
                 return Err(usage());
             }
@@ -661,9 +795,17 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<SmokeOptions, St
             }
         }
     }
-    Ok(SmokeOptions { root, report_path })
+    if save_finalize_path.is_some() && verify_finalize_replay_path.is_some() {
+        return Err("--save-finalize and --verify-finalize-replay are exclusive".to_owned());
+    }
+    Ok(SmokeOptions {
+        root,
+        report_path,
+        save_finalize_path,
+        verify_finalize_replay_path,
+    })
 }
 
 fn usage() -> String {
-    "usage: router_ab_local_smoke [--root <path>] [--out <path>]".to_owned()
+    "usage: router_ab_local_smoke [--root <path>] [--out <path>] [--save-finalize <path> | --verify-finalize-replay <path>]".to_owned()
 }
