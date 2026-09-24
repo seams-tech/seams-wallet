@@ -1,5 +1,8 @@
 # Optimization 10: registration readiness and MPC signing latency
 
+The consolidated cross-release measurements are in
+[the Optimization 10 progress appendix](./optimization-10-appendix.md).
+
 Status: Wallet 0.6.2 is released and deployed to the production-hosted testnet.
 Hosted diagnostics verify durable ECDSA cache restoration, one-use consumption,
 post-consumption refill, and sustained Tempo signing for the tested browser
