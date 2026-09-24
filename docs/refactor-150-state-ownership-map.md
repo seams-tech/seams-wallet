@@ -28,7 +28,7 @@ SQL for the retained shared Gateway and tenant-wide groups.
 | `router_ab_yao_versioned_json_records` with `passkey-envelope:` and `passkey-credential-activity:` keys in `SIGNER_DB` | Gateway | Gateway D1: recoverable factor ciphertext and cross-device credential lifecycle | CAS the envelope revision and credential activity with the factor or authority transition |
 | `router_ab_yao_versioned_json_records` with `gateway-registration:`, `wallet-registration-activate:`, `wallet-registration-near-provisioning:`, `router-ab-yao-sponsored-account:`, and `wallet-add-signer-*:` keys in `SIGNER_DB` | Gateway | Gateway D1: durable registration and chain side-effect journals | Persist the exact effect claim and signed transaction identity before dispatch; retry the same effect |
 | `router_ab_yao_versioned_json_records` with the `router-ab-ed25519-yao:shared` key in `SIGNER_DB` | Router | Shared D1: tenant-wide recovery capability/identity indexes and export nonce replay state | Keep cross-wallet identity and nonce claims atomic in the shared store |
-| `router_ab_yao_versioned_json_records` with lifecycle-keyed Yao ceremony and execution partitions in `SIGNER_DB` | Router | Router wallet DO SQLite, after binding the lifecycle to one trusted wallet identity | Claim and advance each ceremony/execution partition with one version check; persist outcome before calling a peer |
+| `router_ab_yao_versioned_json_records` with lifecycle-keyed Yao ceremony and execution partitions in `SIGNER_DB` | Router | Router D1 until registration finalization has a reviewed cross-owner protocol; target Router wallet DO SQLite | Claim and advance each ceremony/execution partition with one version check; persist outcome before calling a peer |
 | `lane_enrollments`, `lane_protocol_operations`, `lane_product_epochs`, `lane_receipts`, `lane_locks`, `lane_effect_journal`, `lane_cas_guard` in `SIGNER_DB` | Router | Router wallet DO SQLite; these are cryptographic signing lanes | Claim one lane operation, transition its generation/lock, and record its receipt or effect identity atomically |
 | `wallet_ecdsa_pending_session_activations` in `SIGNER_DB` | Router | Router wallet DO SQLite | Claim paired activation once, with a durable terminal outcome |
 | `router_ab_normal_signing_admission_records` in `SIGNER_DB` | Gateway | Gateway D1: tenant project policy and abuse decisions | Keep project-wide policy and abuse decisions with their shared scope |
@@ -46,13 +46,16 @@ The `router_ab_yao_versioned_json_records` table contains several unrelated
 record families. Conversion selects records by their validated domain key and
 owner; copying that table wholesale would duplicate authority. The Yao
 `shared` record is tenant-wide, while ceremony and execution records are
-lifecycle-keyed. The current D1 batch operation can update both at once.
-Before splitting them, prove that registration never needs such a cross-owner
-commit; any recovery/export transition that does must be redesigned around its
-actual shared invariant. The same D1 CAS guard currently protects multiple
-families; each target owner gets its own local transaction rather than a copy
-of the shared guard. Historical bridge tables in migration SQL are not
-additional current authorities.
+lifecycle-keyed. Registration finalization installs a capability into the
+shared record, and the current D1 batch operation can update that record with
+the lifecycle record. Preserve this D1 atomic unit during the first Deriver
+execution-boundary slice. A later DO path must establish the failure and
+visibility protocol for splitting finalization, including lost-reply
+reconciliation, before it moves these records. Recovery/export transitions
+need the same explicit review of their shared invariants. The same D1 CAS guard
+currently protects multiple families; each target owner gets its own local
+transaction rather than a copy of the shared guard. Historical bridge tables
+in migration SQL are not additional current authorities.
 
 ## Operations crossing owners
 
@@ -94,5 +97,5 @@ and exact grant/quota consumption.
   representative path demonstrates each missing operation.
 
 Recovery, factor management, export, linked devices, and background jobs need
-their own inventory before phase-six coverage. Their current D1 records remain
+their own inventory before full lifecycle coverage. Their current D1 records remain
 authoritative until that work is implemented and tested.
