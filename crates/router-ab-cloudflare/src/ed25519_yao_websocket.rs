@@ -10,6 +10,7 @@ use worker::{Env, EventStream, Method, Request, WebSocket, WebsocketEvent};
 use zeroize::Zeroizing;
 
 use crate::set_cloudflare_internal_service_auth_header_v1;
+use crate::CloudflareDeriverBWalletPairScopeV1;
 use router_ab_core::{
     Ed25519YaoDeriverAToBTargetProofPayloadV2, Ed25519YaoDeriverBToATargetProofPayloadV2,
     Ed25519YaoExecutionIdV1, Ed25519YaoRoleReadinessReceiptV1, Ed25519YaoRoleStartAcceptanceV1,
@@ -23,6 +24,7 @@ const PAIR_WEBSOCKET_PROTOCOL_PREFIX: &str = "seams-ed25519-yao-p1-v1";
 pub(crate) const READINESS_RECEIPT_HEADER: &str = "x-seams-yao-readiness-receipt";
 pub(crate) const EXECUTION_ID_HEADER: &str = "x-seams-yao-execution-id";
 pub(crate) const START_ACCEPTANCE_HEADER: &str = "x-seams-yao-start-acceptance";
+pub(crate) const WALLET_PAIR_SCOPE_HEADER: &str = "x-seams-yao-wallet-pair-scope";
 const DIRECTIONAL_EOF: &[u8] = b"seams-ed25519-yao-directional-eof-v1";
 const SEALED_COMPLETION_PREFIX: &[u8] = b"seams-ed25519-yao-sealed-completion-v1:";
 const MAX_SEALED_COMPLETION_BYTES: usize = 1_048_576;
@@ -169,6 +171,7 @@ pub async fn connect_cloudflare_ed25519_yao_deriver_b_with_start_acceptance_v1(
     trace_id: Option<crate::CloudflareTraceIdV1>,
     readiness_receipt: &Ed25519YaoRoleReadinessReceiptV1,
     execution_id: Ed25519YaoExecutionIdV1,
+    scope: &CloudflareDeriverBWalletPairScopeV1,
 ) -> Result<CloudflareEd25519YaoPairStartConnectionV1, CloudflareEd25519YaoWebSocketErrorV1> {
     let (socket, acceptance) = connect_cloudflare_ed25519_yao_deriver_b_inner_v1(
         env,
@@ -176,6 +179,7 @@ pub async fn connect_cloudflare_ed25519_yao_deriver_b_with_start_acceptance_v1(
         trace_id,
         readiness_receipt,
         execution_id,
+        scope,
     )
     .await?;
     Ok(CloudflareEd25519YaoPairStartConnectionV1 { socket, acceptance })
@@ -187,8 +191,13 @@ async fn connect_cloudflare_ed25519_yao_deriver_b_inner_v1(
     trace_id: Option<crate::CloudflareTraceIdV1>,
     readiness_receipt: &Ed25519YaoRoleReadinessReceiptV1,
     execution_id: Ed25519YaoExecutionIdV1,
+    scope: &CloudflareDeriverBWalletPairScopeV1,
 ) -> Result<(WebSocket, Ed25519YaoRoleStartAcceptanceV1), CloudflareEd25519YaoWebSocketErrorV1> {
-    if binding.pair_digest.iter().all(|byte| *byte == 0) {
+    if binding.pair_digest.iter().all(|byte| *byte == 0)
+        || scope.validate().is_err()
+        || scope.pair_binding.session() != binding.session
+        || scope.pair_binding.pair_digest().bytes != binding.pair_digest
+    {
         return Err(CloudflareEd25519YaoWebSocketErrorV1::InvalidProtocol);
     }
     let protocol = binding.protocol();
@@ -210,6 +219,11 @@ async fn connect_cloudflare_ed25519_yao_deriver_b_inner_v1(
         .map_err(|_| CloudflareEd25519YaoWebSocketErrorV1::ServiceBinding)?;
     headers
         .set(EXECUTION_ID_HEADER, &encode_hex(execution_id.into_bytes()))
+        .map_err(|_| CloudflareEd25519YaoWebSocketErrorV1::ServiceBinding)?;
+    let scope_json = serde_json::to_string(scope)
+        .map_err(|_| CloudflareEd25519YaoWebSocketErrorV1::InvalidProtocol)?;
+    headers
+        .set(WALLET_PAIR_SCOPE_HEADER, &scope_json)
         .map_err(|_| CloudflareEd25519YaoWebSocketErrorV1::ServiceBinding)?;
     set_cloudflare_internal_service_auth_header_v1(
         env,

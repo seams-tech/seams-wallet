@@ -648,8 +648,10 @@ impl RouterAbDeriverAWalletDurableObject {
                 });
                 fail_deriver_b_pair_after_a_error_v1(
                     &self.env,
-                    pair.session(),
-                    pair.pair_digest().bytes,
+                    &crate::CloudflareDeriverBWalletPairScopeV1 {
+                        root_identity: request.tenant_root.identity.clone(),
+                        pair_binding: pair.clone(),
+                    },
                 )
                 .await;
                 return Err(pair_error(error.to_string()));

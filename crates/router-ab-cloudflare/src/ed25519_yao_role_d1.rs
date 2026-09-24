@@ -2,7 +2,7 @@ use std::{cell::RefCell, future::Future, rc::Rc};
 
 use hpke_ng::Kem;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use worker::{D1DatabaseSession, D1SessionConstraint, D1Type, Env};
+use worker::{D1DatabaseSession, D1SessionConstraint, D1Type, Env, SqlStorage, SqlStorageValue};
 use zeroize::Zeroize;
 
 use super::{PairYaoSessionRecordV1, YAO_RUNNING_LIFETIME_MS};
@@ -23,21 +23,45 @@ const ROLE_PRIVATE_D1_ROLE_ENV: &str = "DERIVER_ROLE_PRIVATE_D1_ROLE";
 const ROLE_PRIVATE_D1_KEK_SECRET_PREFIX: &str = "hpke-x25519-role-private-d1-private-v1:";
 const ROLE_PRIVATE_D1_HPKE_INFO: &[u8] = b"seams/deriver/role-private-d1/hpke/v1";
 const ROLE_PRIVATE_D1_SCHEMA: &str = "deriver-role-private-d1/v1";
-const ROLE_PRIVATE_WALLET_DO_SCHEMA: &str = "deriver-a-wallet-do/v1";
+const DERIVER_A_WALLET_DO_SCHEMA: &str = "deriver-a-wallet-do/v1";
+const DERIVER_B_WALLET_DO_SCHEMA: &str = "deriver-b-wallet-do/v1";
 const ROLE_PRIVATE_D1_PURPOSE: &str = "yao-pair-lifecycle";
 const LOAD_PAIR_SQL: &str =
     "SELECT ciphertext_json, revision FROM yao_pair_sessions WHERE session_hex = ?1";
+const LOAD_WALLET_PAIR_SQL: &str = "SELECT ciphertext_json, revision, root_identity_digest_hex \
+    FROM yao_pair_sessions WHERE session_hex = ?1";
 const INSERT_PAIR_SQL: &str = "INSERT INTO yao_pair_sessions \
     (session_hex, pair_digest_hex, lifecycle, ciphertext_json, revision, expires_at_ms, updated_at_ms) \
     VALUES (?1, ?2, ?3, ?4, 1, ?5, ?6) ON CONFLICT(session_hex) DO NOTHING";
 const UPDATE_PAIR_SQL: &str = "UPDATE yao_pair_sessions SET pair_digest_hex = ?2, \
     lifecycle = ?3, ciphertext_json = ?4, revision = revision + 1, expires_at_ms = ?5, \
     updated_at_ms = ?6 WHERE session_hex = ?1 AND revision = ?7";
+const INSERT_WALLET_PAIR_SQL: &str = "INSERT INTO yao_pair_sessions \
+    (session_hex, pair_digest_hex, lifecycle, ciphertext_json, revision, expires_at_ms, updated_at_ms, root_identity_digest_hex) \
+    VALUES (?1, ?2, ?3, ?4, 1, ?5, ?6, ?7) ON CONFLICT(session_hex) DO NOTHING \
+    RETURNING session_hex";
+const UPDATE_WALLET_PAIR_SQL: &str = "UPDATE yao_pair_sessions SET pair_digest_hex = ?2, \
+    lifecycle = ?3, ciphertext_json = ?4, revision = revision + 1, expires_at_ms = ?5, \
+    updated_at_ms = ?6 WHERE session_hex = ?1 AND revision = ?7 AND root_identity_digest_hex = ?8 \
+    RETURNING session_hex";
 
 #[derive(Deserialize)]
 struct PairRowV1 {
     ciphertext_json: String,
     revision: i64,
+}
+
+#[derive(Deserialize)]
+struct WalletPairRowV1 {
+    ciphertext_json: String,
+    revision: i64,
+    root_identity_digest_hex: String,
+}
+
+#[derive(Deserialize)]
+struct ChangedWalletPairRowV1 {
+    #[serde(rename = "session_hex")]
+    _session_hex: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -126,10 +150,20 @@ impl RolePairCipherV1 {
     }
 
     pub(crate) fn from_env_for_wallet_do(env: &Env) -> worker::Result<Self> {
-        let cipher = Self::from_env_with_schema(env, ROLE_PRIVATE_WALLET_DO_SCHEMA)?;
+        let cipher = Self::from_env_with_schema(env, DERIVER_A_WALLET_DO_SCHEMA)?;
         if cipher.role != RolePairRoleV1::DeriverA {
             return Err(role_d1_error(
                 "Deriver A wallet DO requires the Deriver A role key",
+            ));
+        }
+        Ok(cipher)
+    }
+
+    pub(crate) fn from_env_for_deriver_b_wallet_do(env: &Env) -> worker::Result<Self> {
+        let cipher = Self::from_env_with_schema(env, DERIVER_B_WALLET_DO_SCHEMA)?;
+        if cipher.role != RolePairRoleV1::DeriverB {
+            return Err(role_d1_error(
+                "Deriver B wallet DO requires the Deriver B role key",
             ));
         }
         Ok(cipher)
@@ -332,11 +366,18 @@ fn role_d1_error(message: impl Into<String>) -> worker::Error {
 
 /// One request-scoped, primary-anchored view of a role-private Yao session row.
 pub(super) struct RolePairD1StorageV1 {
-    session: D1DatabaseSession,
+    backend: RolePairStorageBackendV1,
     session_hex: String,
+    record_identity: String,
+    root_identity_digest_hex: Option<String>,
     cipher: RolePairCipherV1,
     creation_scope: RefCell<Option<RolePairRecordScopeV1>>,
     cached: RefCell<Option<Option<CachedPairV1>>>,
+}
+
+enum RolePairStorageBackendV1 {
+    D1(D1DatabaseSession),
+    WalletDo(SqlStorage),
 }
 
 impl RolePairD1StorageV1 {
@@ -353,10 +394,32 @@ impl RolePairD1StorageV1 {
                     "role-private D1 primary session could not be created: {error}"
                 ))
             })?;
+        let session_hex = encode_hex(session_id);
         Ok(Self {
-            session,
-            session_hex: encode_hex(session_id),
+            backend: RolePairStorageBackendV1::D1(session),
+            record_identity: session_hex.clone(),
+            session_hex,
+            root_identity_digest_hex: None,
             cipher: RolePairCipherV1::from_env(env)?,
+            creation_scope: RefCell::new(None),
+            cached: RefCell::new(None),
+        })
+    }
+
+    pub(super) fn from_deriver_b_wallet_do(
+        env: &Env,
+        sql: SqlStorage,
+        session_id: [u8; 32],
+        object_name: &str,
+        root_identity_digest_hex: &str,
+    ) -> worker::Result<Self> {
+        let session_hex = encode_hex(session_id);
+        Ok(Self {
+            backend: RolePairStorageBackendV1::WalletDo(sql),
+            record_identity: format!("{object_name}:{root_identity_digest_hex}:{session_hex}"),
+            session_hex,
+            root_identity_digest_hex: Some(root_identity_digest_hex.to_owned()),
+            cipher: RolePairCipherV1::from_env_for_deriver_b_wallet_do(env)?,
             creation_scope: RefCell::new(None),
             cached: RefCell::new(None),
         })
@@ -413,15 +476,47 @@ impl RolePairD1StorageV1 {
         if let Some(cached) = self.cached.borrow().clone() {
             return Ok(cached);
         }
-        let statement = self
-            .session
-            .prepare(LOAD_PAIR_SQL)
-            .bind_refs([D1Type::Text(self.session_hex.as_str())].iter())?;
-        let row = statement.first::<PairRowV1>(None).await?;
+        let row = match &self.backend {
+            RolePairStorageBackendV1::D1(session) => {
+                let statement = session
+                    .prepare(LOAD_PAIR_SQL)
+                    .bind_refs([D1Type::Text(self.session_hex.as_str())].iter())?;
+                statement.first::<PairRowV1>(None).await?
+            }
+            RolePairStorageBackendV1::WalletDo(sql) => {
+                let rows = sql
+                    .exec(
+                        LOAD_WALLET_PAIR_SQL,
+                        vec![SqlStorageValue::String(self.session_hex.clone())],
+                    )?
+                    .to_array::<WalletPairRowV1>()?;
+                if rows.len() > 1 {
+                    return Err(role_d1_error(
+                        "Deriver B wallet pair selection is ambiguous",
+                    ));
+                }
+                rows.into_iter()
+                    .next()
+                    .map(|row| {
+                        if self.root_identity_digest_hex.as_deref()
+                            != Some(row.root_identity_digest_hex.as_str())
+                        {
+                            return Err(role_d1_error(
+                                "Deriver B wallet pair root identity changed",
+                            ));
+                        }
+                        Ok(PairRowV1 {
+                            ciphertext_json: row.ciphertext_json,
+                            revision: row.revision,
+                        })
+                    })
+                    .transpose()?
+            }
+        };
         let row = row
             .map(|row| {
                 self.cipher
-                    .open(&self.session_hex, &row.ciphertext_json)
+                    .open(&self.record_identity, &row.ciphertext_json)
                     .map(|opened| CachedPairV1 {
                         record_json: opened.record_json,
                         revision: row.revision,
@@ -446,32 +541,33 @@ impl RolePairD1StorageV1 {
                 role_d1_error("role-private D1 initial lifecycle scope is unavailable")
             })?;
         validate_pending_scope(&pending.record_json, &scope)?;
-        let ciphertext_json = self
-            .cipher
-            .seal(&self.session_hex, &scope, &pending.record_json)?;
+        let ciphertext_json =
+            self.cipher
+                .seal(&self.record_identity, &scope, &pending.record_json)?;
         let expires_at_ms = pending.expires_at_ms.to_string();
         let updated_at_ms = pending.updated_at_ms.to_string();
-        let result = match initial {
-            None => {
-                self.session
-                    .prepare(INSERT_PAIR_SQL)
-                    .bind_refs(
-                        [
-                            D1Type::Text(self.session_hex.as_str()),
-                            D1Type::Text(pending.pair_digest_hex.as_str()),
-                            D1Type::Text(pending.lifecycle),
-                            D1Type::Text(ciphertext_json.as_str()),
-                            D1Type::Text(expires_at_ms.as_str()),
-                            D1Type::Text(updated_at_ms.as_str()),
-                        ]
-                        .iter(),
-                    )?
-                    .run()
-                    .await?
-            }
-            Some(ref current) => {
-                let revision = current.revision.to_string();
-                self.session
+        let changes = match (&self.backend, &initial) {
+            (RolePairStorageBackendV1::D1(session), None) => session
+                .prepare(INSERT_PAIR_SQL)
+                .bind_refs(
+                    [
+                        D1Type::Text(self.session_hex.as_str()),
+                        D1Type::Text(pending.pair_digest_hex.as_str()),
+                        D1Type::Text(pending.lifecycle),
+                        D1Type::Text(ciphertext_json.as_str()),
+                        D1Type::Text(expires_at_ms.as_str()),
+                        D1Type::Text(updated_at_ms.as_str()),
+                    ]
+                    .iter(),
+                )?
+                .run()
+                .await?
+                .meta()?
+                .and_then(|meta| meta.changes)
+                .unwrap_or_default(),
+            (RolePairStorageBackendV1::D1(session), Some(current)) => {
+                let revision_text = current.revision.to_string();
+                session
                     .prepare(UPDATE_PAIR_SQL)
                     .bind_refs(
                         [
@@ -481,22 +577,65 @@ impl RolePairD1StorageV1 {
                             D1Type::Text(ciphertext_json.as_str()),
                             D1Type::Text(expires_at_ms.as_str()),
                             D1Type::Text(updated_at_ms.as_str()),
-                            D1Type::Text(revision.as_str()),
+                            D1Type::Text(revision_text.as_str()),
                         ]
                         .iter(),
                     )?
                     .run()
                     .await?
+                    .meta()?
+                    .and_then(|meta| meta.changes)
+                    .unwrap_or_default()
             }
+            (RolePairStorageBackendV1::WalletDo(sql), None) => sql
+                .exec(
+                    INSERT_WALLET_PAIR_SQL,
+                    vec![
+                        SqlStorageValue::String(self.session_hex.clone()),
+                        SqlStorageValue::String(pending.pair_digest_hex.clone()),
+                        SqlStorageValue::String(pending.lifecycle.to_owned()),
+                        SqlStorageValue::String(ciphertext_json.clone()),
+                        SqlStorageValue::String(expires_at_ms.clone()),
+                        SqlStorageValue::String(updated_at_ms.clone()),
+                        SqlStorageValue::String(
+                            self.root_identity_digest_hex
+                                .clone()
+                                .ok_or_else(|| role_d1_error("wallet pair root is unavailable"))?,
+                        ),
+                    ],
+                )?
+                .to_array::<ChangedWalletPairRowV1>()?
+                .len(),
+            (RolePairStorageBackendV1::WalletDo(sql), Some(current)) => sql
+                .exec(
+                    UPDATE_WALLET_PAIR_SQL,
+                    vec![
+                        SqlStorageValue::String(self.session_hex.clone()),
+                        SqlStorageValue::String(pending.pair_digest_hex.clone()),
+                        SqlStorageValue::String(pending.lifecycle.to_owned()),
+                        SqlStorageValue::String(ciphertext_json.clone()),
+                        SqlStorageValue::String(expires_at_ms.clone()),
+                        SqlStorageValue::String(updated_at_ms.clone()),
+                        SqlStorageValue::String(current.revision.to_string()),
+                        SqlStorageValue::String(
+                            self.root_identity_digest_hex
+                                .clone()
+                                .ok_or_else(|| role_d1_error("wallet pair root is unavailable"))?,
+                        ),
+                    ],
+                )?
+                .to_array::<ChangedWalletPairRowV1>()?
+                .len(),
         };
-        let changes = result
-            .meta()?
-            .and_then(|meta| meta.changes)
-            .unwrap_or_default();
         if changes != 1 {
-            return Err(worker::Error::RustError(
-                "role-private D1 Yao lifecycle conflict".to_owned(),
-            ));
+            let phase = if initial.is_some() {
+                "update"
+            } else {
+                "insert"
+            };
+            return Err(role_d1_error(format!(
+                "role-private Yao lifecycle {phase} conflict (rows written: {changes})"
+            )));
         }
         let next_revision = initial
             .as_ref()
@@ -567,10 +706,7 @@ fn pending_pair(value: PairYaoSessionRecordV1) -> worker::Result<PendingPairV1> 
     })
 }
 
-fn validate_pending_scope(
-    record_json: &str,
-    scope: &RolePairRecordScopeV1,
-) -> worker::Result<()> {
+fn validate_pending_scope(record_json: &str, scope: &RolePairRecordScopeV1) -> worker::Result<()> {
     let record: PairYaoSessionRecordV1 = serde_json::from_str(record_json).map_err(|error| {
         role_d1_error(format!(
             "role-private D1 Yao record scope validation failed: {error}"
@@ -658,7 +794,7 @@ mod tests {
         assert!(wrong_key.open("session-1", &ciphertext).is_err());
 
         let do_cipher = RolePairCipherV1 {
-            schema: ROLE_PRIVATE_WALLET_DO_SCHEMA,
+            schema: DERIVER_A_WALLET_DO_SCHEMA,
             ..test_cipher(RolePairRoleV1::DeriverA, 0x41)
         };
         assert!(do_cipher.open("session-1", &ciphertext).is_err());

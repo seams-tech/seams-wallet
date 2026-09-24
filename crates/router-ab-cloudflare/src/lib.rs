@@ -319,6 +319,8 @@ mod strict_worker;
 pub use durable_object::RouterAbSigningWorkerPresignSessionDurableObject;
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub use durable_object::RouterAbDeriverAWalletDurableObject;
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
+pub use durable_object::RouterAbDeriverBWalletDurableObject;
 pub use durable_object::{
     CloudflareActiveSigningWorkerStateLookupV1, CloudflareEd25519Round1StateV1,
     CloudflareExpiredStateCleanupReportV1, CloudflareExpiredStateCleanupRequestV1,

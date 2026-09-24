@@ -357,6 +357,20 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
       .join('/');
     let config = stripBuildSection(readFileSync(sourcePath, 'utf8'));
     config = replaceTomlAssignment(config, 'main', mainPath);
+    if (role === 'deriver-b' && process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled') {
+      config = config.replace(
+        '[[services]]',
+        `[[durable_objects.bindings]]
+name = "DERIVER_B_WALLET_DO"
+class_name = "RouterAbDeriverBWalletDurableObject"
+
+[[migrations]]
+tag = "r150-deriver-b-wallet-sqlite-v1"
+new_sqlite_classes = ["RouterAbDeriverBWalletDurableObject"]
+
+[[services]]`,
+      );
+    }
     config = applyRoleVars(config, role, {
       sdkRouterUrl,
       routerEnv,

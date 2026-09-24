@@ -17,13 +17,24 @@ use crate::{
     CloudflareSigningWorkerEcdsaPoolCommandV1, CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1,
     CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
 };
+#[cfg(all(
+    feature = "workers-rs",
+    any(feature = "strict-worker-deriver-a-entrypoint", test)
+))]
+mod deriver_a_pair;
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
+mod deriver_b_pair;
 #[cfg(feature = "workers-rs")]
 mod ecdsa_presign_live_session;
-#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-deriver-a-entrypoint", test)))]
-mod deriver_a_pair;
-#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-deriver-a-entrypoint", test)))]
+#[cfg(all(
+    feature = "workers-rs",
+    any(feature = "strict-worker-deriver-a-entrypoint", test)
+))]
 pub use deriver_a_pair::RouterAbDeriverAWalletDurableObject;
-#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-deriver-a-entrypoint", test)))]
+#[cfg(all(
+    feature = "workers-rs",
+    any(feature = "strict-worker-deriver-a-entrypoint", test)
+))]
 pub(crate) use deriver_a_pair::{
     call_deriver_a_pair_do_v1, DeriverAPairDoCommandV1, DeriverAPairDoResponseV1,
     DeriverAPairPayloadV1, DeriverAWalletOwnerV1,
@@ -34,6 +45,10 @@ pub(crate) use deriver_a_pair::{
     deriver_a_wallet_do_burn_work_path_v1, deriver_a_wallet_do_execute_work_path_v1,
     deriver_a_wallet_do_prepare_work_path_v1, deriver_a_wallet_do_status_work_path_v1,
 };
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
+pub use deriver_b_pair::RouterAbDeriverBWalletDurableObject;
+#[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
+pub(crate) use deriver_b_pair::{call_deriver_b_wallet_do_v1, DeriverBWalletDoRequestV1};
 #[cfg(any(feature = "workers-rs", test))]
 pub(crate) mod tenant_root_creation;
 #[cfg(any(feature = "workers-rs", test))]

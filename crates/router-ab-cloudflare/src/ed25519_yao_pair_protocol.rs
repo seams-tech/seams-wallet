@@ -617,6 +617,27 @@ pub struct CloudflareEd25519YaoPairLookupRequestV1 {
     pub pair_digest: [u8; 32],
 }
 
+/// Stable wallet placement plus the original root and pair authorization for B.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareDeriverBWalletPairScopeV1 {
+    pub root_identity: TenantRootIdentityV1,
+    pub pair_binding: Ed25519YaoInputPairBindingV1,
+}
+
+impl CloudflareDeriverBWalletPairScopeV1 {
+    pub fn validate(&self) -> RouterAbProtocolResult<()> {
+        self.root_identity.digest().map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLifecycleState,
+                format!("Deriver B wallet root identity is invalid: {error}"),
+            )
+        })?;
+        self.pair_binding.validate()?;
+        Ok(())
+    }
+}
+
 /// Router-authenticated lookup for one Deriver A wallet-owned pair.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

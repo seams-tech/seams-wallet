@@ -8,10 +8,11 @@ use crate::{
     parse_cloudflare_deriver_peer_verifying_key_set_v1, parse_cloudflare_trace_id_from_request_v1,
     require_cloudflare_gateway_to_router_auth_request_v1,
     set_cloudflare_internal_service_auth_header_v1, set_cloudflare_trace_id_header_v1,
-    CloudflareEd25519YaoInactiveReservationResponseV1, CloudflareEd25519YaoPackagePairDeliveryV1,
-    CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairExecuteResponseV1,
-    CloudflareEd25519YaoPairLookupRequestV1, CloudflareEd25519YaoPairPrepareRequestV1,
-    CloudflareEd25519YaoPairStatusResponseV1, CloudflareEd25519YaoRoleFailureResponseV1,
+    CloudflareDeriverBWalletPairScopeV1, CloudflareEd25519YaoInactiveReservationResponseV1,
+    CloudflareEd25519YaoPackagePairDeliveryV1, CloudflareEd25519YaoPairExecuteRequestV1,
+    CloudflareEd25519YaoPairExecuteResponseV1, CloudflareEd25519YaoPairLookupRequestV1,
+    CloudflareEd25519YaoPairPrepareRequestV1, CloudflareEd25519YaoPairStatusResponseV1,
+    CloudflareEd25519YaoRoleFailureResponseV1,
     CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
     CloudflareEd25519YaoTenantRootContextV2, CloudflareRouterEd25519YaoExecuteRequestV2,
     CloudflareRouterEd25519YaoTenantRootV1, CloudflareRouterProjectPolicyV1,
@@ -1232,13 +1233,22 @@ async fn reconcile_router_replay_v1(
     #[cfg(feature = "wallet-do-router-harness")]
     let status_a = async { wallet_pair_outcome_status(outcome_a) };
     #[cfg(not(feature = "wallet-do-router-harness"))]
+    let a_lookup = CloudflareEd25519YaoPairLookupRequestV1 {
+        session: pair_binding.session(),
+        pair_digest: pair_binding.pair_digest().bytes,
+    };
+    let b_scope = CloudflareDeriverBWalletPairScopeV1 {
+        root_identity: root_identity.clone(),
+        pair_binding: pair_binding.clone(),
+    };
+    #[cfg(not(feature = "wallet-do-router-harness"))]
     let status_a = read_pair_status_v1(
         env,
         runtime.deriver_a_peer().binding_name.as_str(),
         DERIVER_A_SERVICE_URL,
         CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
         "Deriver A pair status",
-        pair_binding,
+        &a_lookup,
         trace_id,
     );
     #[cfg(not(feature = "wallet-do-router-harness"))]
@@ -1251,7 +1261,7 @@ async fn reconcile_router_replay_v1(
             DERIVER_B_SERVICE_URL,
             CLOUDFLARE_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH,
             "Deriver B pair status",
-            pair_binding,
+            &b_scope,
             trace_id,
         )
     );
@@ -1330,7 +1340,10 @@ async fn reconcile_router_replay_v1(
                 DERIVER_A_SERVICE_URL,
                 CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
                 "Deriver A pair burn",
-                pair_binding,
+                &CloudflareEd25519YaoPairLookupRequestV1 {
+                    session: pair_binding.session(),
+                    pair_digest: pair_binding.pair_digest().bytes,
+                },
                 trace_id,
             )
             .await;
@@ -1340,7 +1353,10 @@ async fn reconcile_router_replay_v1(
                 DERIVER_B_SERVICE_URL,
                 CLOUDFLARE_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH,
                 "Deriver B pair burn",
-                pair_binding,
+                &CloudflareDeriverBWalletPairScopeV1 {
+                    root_identity: root_identity.clone(),
+                    pair_binding: pair_binding.clone(),
+                },
                 trace_id,
             )
             .await;
@@ -1466,13 +1482,13 @@ fn router_execution_id(
     router_ab_core::Ed25519YaoExecutionIdV1::new(pair_binding.pair_digest().bytes)
 }
 
-async fn read_pair_status_v1(
+async fn read_pair_status_v1<TRequest: Serialize>(
     env: &Env,
     binding_name: &str,
     service_origin: &str,
     path: &str,
     label: &str,
-    pair_binding: &Ed25519YaoInputPairBindingV1,
+    request: &TRequest,
     trace_id: Option<crate::CloudflareTraceIdV1>,
 ) -> RouterAbProtocolResult<CloudflareEd25519YaoPairStatusResponseV1> {
     post_role_json::<_, CloudflareEd25519YaoPairStatusResponseV1>(
@@ -1481,23 +1497,20 @@ async fn read_pair_status_v1(
         service_origin,
         path,
         label,
-        &CloudflareEd25519YaoPairLookupRequestV1 {
-            session: pair_binding.session(),
-            pair_digest: pair_binding.pair_digest().bytes,
-        },
+        request,
         trace_id,
     )
     .await
 }
 
 #[cfg(not(feature = "wallet-do-router-harness"))]
-async fn burn_pair_v1(
+async fn burn_pair_v1<TRequest: Serialize>(
     env: &Env,
     binding_name: &str,
     service_origin: &str,
     path: &str,
     label: &str,
-    pair_binding: &Ed25519YaoInputPairBindingV1,
+    request: &TRequest,
     trace_id: Option<crate::CloudflareTraceIdV1>,
 ) -> RouterAbProtocolResult<CloudflareEd25519YaoPairStatusResponseV1> {
     post_role_json::<_, CloudflareEd25519YaoPairStatusResponseV1>(
@@ -1506,10 +1519,7 @@ async fn burn_pair_v1(
         service_origin,
         path,
         label,
-        &CloudflareEd25519YaoPairLookupRequestV1 {
-            session: pair_binding.session(),
-            pair_digest: pair_binding.pair_digest().bytes,
-        },
+        request,
         trace_id,
     )
     .await
@@ -2367,7 +2377,7 @@ where
     })
 }
 
-async fn post_role_request<TRequest>(
+pub(crate) async fn post_role_request<TRequest>(
     env: &Env,
     binding_name: &str,
     service_origin: &str,
