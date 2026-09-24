@@ -18,8 +18,11 @@ import type {
 } from './routerAbEd25519YaoRegistration';
 import type { RouterAbEd25519YaoExportBackend } from '../export/routerAbEd25519YaoExport';
 import type { RouterAbEd25519YaoRecoveryBackend } from '../recovery/routerAbEd25519YaoRecovery';
-import type { RouterAbEd25519YaoTenantRootResolverV1 } from '../routerAbEd25519YaoGatewayEnvelope';
-import type { TenantRootActiveLineageV1 } from '../../tenantRoot/tenantRootCustodyLineage';
+import {
+  routerAbEd25519YaoTenantRootWireV1,
+  type RouterAbEd25519YaoTenantRootResolverV1,
+  type RouterAbEd25519YaoTenantRootWireV1,
+} from '../routerAbEd25519YaoGatewayEnvelope';
 import {
   createRouterAbTraceContextV1,
   type RouterAbTraceContextV1,
@@ -412,15 +415,10 @@ type RouterExecuteTargetBoundary =
     };
 
 type RouterExecuteBoundary = {
-  tenant_root: TenantRootBoundary;
+  tenant_root: RouterAbEd25519YaoTenantRootWireV1;
   application: RouterAbEd25519YaoRegistrationAdmissionRequestV1['application_binding'];
   participant_ids: RouterAbEd25519YaoRegistrationAdmissionRequestV1['participant_ids'];
   target: RouterExecuteTargetBoundary;
-};
-
-type TenantRootBoundary = {
-  identity_digest_b64u: TenantRootActiveLineageV1['identityDigestB64u'];
-  custody_lineage_b64u: TenantRootActiveLineageV1['custodyLineageB64u'];
 };
 
 type RouterExecuteInput =
@@ -440,20 +438,13 @@ type RouterExecuteInput =
       readonly admissionRequest: RouterAbEd25519YaoExportAdmissionRequestV1;
     };
 
-function tenantRootBoundary(root: TenantRootActiveLineageV1): TenantRootBoundary {
-  return {
-    identity_digest_b64u: root.identityDigestB64u,
-    custody_lineage_b64u: root.custodyLineageB64u,
-  };
-}
-
 async function routerExecuteRequest(
   input: RouterExecuteInput,
   resolveTenantRoot: RouterAbEd25519YaoTenantRootResolverV1,
 ): Promise<RouterExecuteBoundary> {
   switch (input.operation) {
     case 'registration': {
-      const tenantRoot = tenantRootBoundary(
+      const tenantRoot = await routerAbEd25519YaoTenantRootWireV1(
         await resolveTenantRoot({
           operation: 'registration',
           admissionRequest: input.admissionRequest,
@@ -472,7 +463,7 @@ async function routerExecuteRequest(
       };
     }
     case 'recovery': {
-      const tenantRoot = tenantRootBoundary(
+      const tenantRoot = await routerAbEd25519YaoTenantRootWireV1(
         await resolveTenantRoot({
           operation: 'recovery',
           admissionRequest: input.admissionRequest,
@@ -491,7 +482,7 @@ async function routerExecuteRequest(
       };
     }
     case 'export': {
-      const tenantRoot = tenantRootBoundary(
+      const tenantRoot = await routerAbEd25519YaoTenantRootWireV1(
         await resolveTenantRoot({ operation: 'export', admissionRequest: input.admissionRequest }),
       );
       return {

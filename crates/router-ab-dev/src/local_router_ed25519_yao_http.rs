@@ -189,8 +189,9 @@ pub fn decode_local_router_ed25519_yao_execute_request_v1(
         envelope
             .target
             .into_execute_request(recipient_set_digest, issued_at_ms, expires_at_ms)?;
+    let coordinates = envelope.tenant_root.coordinates()?;
     let tenant_root = resolver.resolve_context(
-        &envelope.tenant_root,
+        &coordinates,
         &envelope.application,
         envelope.participant_ids,
         request.pair_binding(),
@@ -215,8 +216,7 @@ mod tests {
         Ed25519YaoCeremonyBindingV1, Ed25519YaoDeriverRoleV1, Ed25519YaoEncryptedInputV1,
         Ed25519YaoInputKindV1, Ed25519YaoOperationV1, Ed25519YaoSessionIdV1,
         Ed25519YaoStableKeyContextBindingV1, ExpensiveWorkKindV1, LifecycleScopeV1,
-        MpcMaterialActivationRefV1, RootShareEpoch,
-        RouterEd25519YaoGatewayExecuteTargetV2,
+        MpcMaterialActivationRefV1, RootShareEpoch, RouterEd25519YaoGatewayExecuteTargetV2,
     };
 
     fn request_fixture() -> RouterEd25519YaoGatewayExecuteTargetV2 {
@@ -284,7 +284,10 @@ mod tests {
             &LocalTenantRootResolverConfigV1::default(),
         )
         .expect_err("direct client target must not reach dispatch");
-        assert_eq!(error.code(), RouterAbProtocolErrorCode::MalformedWirePayload);
+        assert_eq!(
+            error.code(),
+            RouterAbProtocolErrorCode::MalformedWirePayload
+        );
     }
 
     #[test]

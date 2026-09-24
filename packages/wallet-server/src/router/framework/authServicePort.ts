@@ -1,4 +1,5 @@
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
+import type { TenantRootIdentityV1 } from '@shared/tenant-root/tenantRootIdentity';
 import type {
   AddAuthMethodIntentCallerV1,
   AddAuthMethodIntentGrant,
@@ -1162,6 +1163,7 @@ export interface RouterApiWalletRegistrationService {
   }): Promise<
     | {
         readonly ok: true;
+        readonly identity: TenantRootIdentityV1;
         readonly identityDigestB64u: string;
         readonly custodyLineageB64u: string;
       }

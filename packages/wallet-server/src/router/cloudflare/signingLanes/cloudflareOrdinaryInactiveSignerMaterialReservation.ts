@@ -36,7 +36,10 @@ import type { RouterAbEcdsaDerivationNormalSigningStateV1 } from '@shared/utils/
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import type { DeviceLinkingEd25519SourcePreservingRouterPortV1 } from '../../transport/fetch/routes/deviceLinking';
 import type { OrdinaryInactiveSignerMaterialActivationPortV1 } from '../d1/deviceLinking/d1LinkedDeviceAuthorityInstallService';
-import type { TenantRootActiveLineageV1 } from '../../domains/tenantRoot/tenantRootCustodyLineage';
+import {
+  routerAbEd25519YaoTenantRootWireV1,
+  type RouterAbEd25519YaoResolvedTenantRootV1,
+} from '../../domains/ed25519Yao/routerAbEd25519YaoGatewayEnvelope';
 import type {
   OrdinaryEcdsaSignerMaterialReservationPreparationV1,
   OrdinaryEd25519SignerMaterialReservationPreparationV1,
@@ -83,21 +86,19 @@ export function createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpoin
       LinkedDeviceEd25519SourceContributionPreparationV1,
       'applicationBinding' | 'targetAdmission' | 'participantIds'
     >,
-  ) => Promise<TenantRootActiveLineageV1>;
+  ) => Promise<RouterAbEd25519YaoResolvedTenantRootV1>;
 }): CloudflareLinkedDeviceEd25519SourcePreservingRouterEndpointV1 {
   return {
     executeEd25519SourcePreservingV1: async (request) => {
       const tenantRoot = await input.resolveTenantRoot(request);
+      const tenantRootWire = await routerAbEd25519YaoTenantRootWireV1(tenantRoot);
       return await postRouterJsonRequestV1(
         input,
         CLOUDFLARE_ROUTER_ED25519_YAO_SOURCE_PRESERVING_EXECUTE_PATH_V1,
         {
           source_binding: request.sourceBinding,
           target: {
-            tenant_root: {
-              identity_digest_b64u: tenantRoot.identityDigestB64u,
-              custody_lineage_b64u: tenantRoot.custodyLineageB64u,
-            },
+            tenant_root: tenantRootWire,
             application: request.applicationBinding,
             participant_ids: request.participantIds,
             target: {

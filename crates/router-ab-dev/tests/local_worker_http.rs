@@ -3,21 +3,20 @@ use curve25519_dalek::scalar::Scalar;
 use ed25519_dalek::SigningKey;
 use rand_core::OsRng;
 use router_ab_cloudflare::{
-    CloudflareRouterEd25519YaoExecuteRequestV2, CloudflareTenantRootCoordinatesV1,
+    CloudflareRouterEd25519YaoExecuteRequestV2, CloudflareRouterEd25519YaoTenantRootV1,
 };
 use router_ab_core::{
     LocalHttpPathV1, LocalServiceRoleV1, MpcMaterialActivationRefV1, MpcPrfShareCommitmentWireV1,
     RootShareEpoch, RouterEd25519YaoExecuteResultV1, RouterEd25519YaoExecuteSuccessV1,
     RouterEd25519YaoGatewayExecuteTargetV2, TenantRootActivationReceiptTransitionV1,
-    TenantRootCanaryCurveFamilyV1, TenantRootCeremonyContextV1,
-    TenantRootCeremonyEpochsV1, TenantRootCeremonyNonceV1, TenantRootCeremonySessionIdV1,
-    TenantRootControlPlaneAuthorityIdV1, TenantRootCustodyLineageId, TenantRootEpochCommitmentsV1,
-    TenantRootIdentityDigestV1, TenantRootManagedBackupBindingV1,
-    TenantRootManagedBackupSealRequestV1, TenantRootProviderCanaryReceiptBindingV1,
-    TenantRootShareEpoch, TenantRootShareInstallationEvidenceV1,
-    TenantRootShareInstallationTranscriptV1, TenantRootSignedActivationReceiptV1,
-    TenantRootSignedManagedBackupV1, TenantRootSignedProviderCanaryReceiptV1,
-    TenantRootSignedShareInstallationEvidenceV1,
+    TenantRootCanaryCurveFamilyV1, TenantRootCeremonyContextV1, TenantRootCeremonyEpochsV1,
+    TenantRootCeremonyNonceV1, TenantRootCeremonySessionIdV1, TenantRootControlPlaneAuthorityIdV1,
+    TenantRootCustodyLineageId, TenantRootEpochCommitmentsV1, TenantRootIdentityV1,
+    TenantRootManagedBackupBindingV1, TenantRootManagedBackupSealRequestV1,
+    TenantRootProviderCanaryReceiptBindingV1, TenantRootShareEpoch,
+    TenantRootShareInstallationEvidenceV1, TenantRootShareInstallationTranscriptV1,
+    TenantRootSignedActivationReceiptV1, TenantRootSignedManagedBackupV1,
+    TenantRootSignedProviderCanaryReceiptV1, TenantRootSignedShareInstallationEvidenceV1,
     VerifiedTenantRootInitialCreationActivationEvidenceBundleV1,
     VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
 };
@@ -550,7 +549,7 @@ fn product_registration_request(
         x25519_public_key_from_env(router_env, "DERIVER_B_ED25519_YAO_INPUT_PUBLIC_KEY")?,
     )?;
     Ok(CloudflareRouterEd25519YaoExecuteRequestV2 {
-        tenant_root: tenant_root_fixture.coordinates.clone(),
+        tenant_root: tenant_root_fixture.tenant_root.clone(),
         application: tenant_root_fixture.application.clone(),
         participant_ids: tenant_root_fixture.participant_ids,
         target: RouterEd25519YaoGatewayExecuteTargetV2::registration(
@@ -713,7 +712,7 @@ fn write_product_worker_envs(
 }
 
 struct ProductTenantRootFixture {
-    coordinates: CloudflareTenantRootCoordinatesV1,
+    tenant_root: CloudflareRouterEd25519YaoTenantRootV1,
     application: RouterAbEd25519YaoApplicationBindingFactsV1,
     participant_ids: [u16; 2],
     router_bindings_json: String,
@@ -731,7 +730,14 @@ fn product_tenant_root_fixture() -> Result<ProductTenantRootFixture, Box<dyn std
         "project:local",
         1,
     )?;
-    let identity = TenantRootIdentityDigestV1::from_bytes([0x71; 32]);
+    let root_identity = TenantRootIdentityV1::new(
+        "local-org",
+        "local-project",
+        "local-environment",
+        "project:local",
+        "root-version-1",
+    )?;
+    let identity = root_identity.digest()?;
     let lineage = TenantRootCustodyLineageId::from_bytes([0x72; 16])?;
     let issued_at_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
     let expires_at_ms = issued_at_ms
@@ -806,8 +812,8 @@ fn product_tenant_root_fixture() -> Result<ProductTenantRootFixture, Box<dyn std
     let receipt_digest: [u8; 32] = Sha256::digest(&receipt_bytes).into();
     let identity_b64u = encode_product_base64url(identity.as_bytes());
     let lineage_b64u = lineage.to_base64url();
-    let coordinates = CloudflareTenantRootCoordinatesV1 {
-        identity_digest_b64u: identity_b64u.clone(),
+    let tenant_root = CloudflareRouterEd25519YaoTenantRootV1 {
+        identity: root_identity,
         custody_lineage_b64u: lineage_b64u.clone(),
     };
     let coordinate_key = format!("{identity_b64u}|{lineage_b64u}");
@@ -847,7 +853,7 @@ fn product_tenant_root_fixture() -> Result<ProductTenantRootFixture, Box<dyn std
         &receipt_digest,
     )?;
     Ok(ProductTenantRootFixture {
-        coordinates,
+        tenant_root,
         application,
         participant_ids,
         router_bindings_json,

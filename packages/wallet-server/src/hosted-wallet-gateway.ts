@@ -355,7 +355,7 @@ async function resolveStagingDeploymentTenantRoot(
   const identity = stagingTenantRootIdentity(scope, applicationBinding, signingRootVersion);
   const tenantRoot = await tenantRootCustodyLineage.resolveActiveLineage(identity);
   if (!tenantRoot) throw new Error('Ed25519 tenant root is not active');
-  return tenantRoot;
+  return { identity, ...tenantRoot };
 }
 
 async function resolveStagingRegistrationTenantRoot(

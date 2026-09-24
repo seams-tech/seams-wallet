@@ -14,9 +14,9 @@ use crate::{
     CloudflareEd25519YaoPairStatusResponseV1, CloudflareEd25519YaoRoleFailureResponseV1,
     CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
     CloudflareEd25519YaoTenantRootContextV2, CloudflareRouterEd25519YaoExecuteRequestV2,
-    CloudflareRouterProjectPolicyV1, CloudflareRouterWorkerRuntimeV1,
-    CloudflareTenantRootCoordinatesV1, CloudflareWorkerEnvReaderV1,
-    CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
+    CloudflareRouterEd25519YaoTenantRootV1, CloudflareRouterProjectPolicyV1,
+    CloudflareRouterWorkerRuntimeV1, CloudflareTenantRootCoordinatesV1,
+    CloudflareWorkerEnvReaderV1, CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
@@ -261,9 +261,13 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
         Ok(request) => request,
         Err(error) => return protocol_error_response(error),
     };
+    let coordinates = match tenant_root.coordinates() {
+        Ok(coordinates) => coordinates,
+        Err(error) => return protocol_error_response(error),
+    };
     let tenant_root = match resolve_ed25519_yao_tenant_root_context_v2(
         env,
-        tenant_root,
+        coordinates,
         application,
         participant_ids,
         execute_request.pair_binding(),
@@ -378,9 +382,13 @@ pub async fn handle_cloudflare_router_ed25519_yao_source_preserving_execute_priv
         Ok(request) => request,
         Err(error) => return protocol_error_response(error),
     };
+    let coordinates = match tenant_root.coordinates() {
+        Ok(coordinates) => coordinates,
+        Err(error) => return protocol_error_response(error),
+    };
     let tenant_root = match resolve_ed25519_yao_tenant_root_context_v2(
         env,
-        tenant_root,
+        coordinates,
         application,
         participant_ids,
         execute_request.pair_binding(),
@@ -2260,8 +2268,15 @@ mod tests {
         participant_ids: [u16; 2],
     ) -> CloudflareRouterEd25519YaoExecuteRequestV2 {
         CloudflareRouterEd25519YaoExecuteRequestV2 {
-            tenant_root: CloudflareTenantRootCoordinatesV1 {
-                identity_digest_b64u: crate::encode_base64url_bytes_v1(&[7; 32]),
+            tenant_root: CloudflareRouterEd25519YaoTenantRootV1 {
+                identity: router_ab_core::TenantRootIdentityV1::new(
+                    "org-1",
+                    "project-1",
+                    "env-1",
+                    "signing-root-1",
+                    "root-version-1",
+                )
+                .expect("tenant root identity"),
                 custody_lineage_b64u: TenantRootCustodyLineageId::from_bytes([8; 16])
                     .expect("lineage")
                     .to_base64url(),
@@ -2369,5 +2384,75 @@ mod tests {
             ),
         };
         assert!(request.validate().is_err());
+    }
+
+    #[test]
+    fn yao_gateway_scope_uses_canonical_root_identity() {
+        let target = gateway_registration(binding("target-activation", 2));
+        let request = server_envelope(target, [1, 2]);
+        request.validate().expect("canonical request");
+        let coordinates = request.tenant_root.coordinates().expect("coordinates");
+        let (digest, _) = coordinates.resolve().expect("resolved coordinates");
+        assert_eq!(
+            digest,
+            request
+                .tenant_root
+                .identity
+                .digest()
+                .expect("identity digest")
+        );
+
+        for changed in [
+            router_ab_core::TenantRootIdentityV1::new(
+                "other-org",
+                "project-1",
+                "env-1",
+                "signing-root-1",
+                "root-version-1",
+            ),
+            router_ab_core::TenantRootIdentityV1::new(
+                "org-1",
+                "other-project",
+                "env-1",
+                "signing-root-1",
+                "root-version-1",
+            ),
+            router_ab_core::TenantRootIdentityV1::new(
+                "org-1",
+                "project-1",
+                "other-env",
+                "signing-root-1",
+                "root-version-1",
+            ),
+            router_ab_core::TenantRootIdentityV1::new(
+                "org-1",
+                "project-1",
+                "env-1",
+                "signing-root-1",
+                "other-version",
+            ),
+        ] {
+            let mut changed_request = request.clone();
+            changed_request.tenant_root.identity = changed.expect("changed identity");
+            let changed_coordinates = changed_request
+                .tenant_root
+                .coordinates()
+                .expect("changed coordinates");
+            assert_ne!(
+                changed_coordinates.identity_digest_b64u,
+                coordinates.identity_digest_b64u
+            );
+        }
+
+        let mut wrong_root = request;
+        wrong_root.tenant_root.identity = router_ab_core::TenantRootIdentityV1::new(
+            "org-1",
+            "project-1",
+            "env-1",
+            "other-root",
+            "root-version-1",
+        )
+        .expect("other root");
+        assert!(wrong_root.validate().is_err());
     }
 }

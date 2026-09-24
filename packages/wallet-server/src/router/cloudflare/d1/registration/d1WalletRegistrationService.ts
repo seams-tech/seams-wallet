@@ -2525,6 +2525,7 @@ export class CloudflareD1WalletRegistrationService {
   }): Promise<
     | {
         readonly ok: true;
+        readonly identity: TenantRootIdentityV1;
         readonly identityDigestB64u: string;
         readonly custodyLineageB64u: string;
       }
@@ -2560,7 +2561,7 @@ export class CloudflareD1WalletRegistrationService {
           message: 'Ed25519 tenant root is not active',
         };
       }
-      return { ok: true, ...tenantRoot };
+      return { ok: true, identity: identity.identity, ...tenantRoot };
     } catch (error: unknown) {
       return {
         ok: false,

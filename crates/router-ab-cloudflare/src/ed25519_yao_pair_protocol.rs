@@ -10,7 +10,7 @@ use router_ab_core::{
     RouterAbProtocolResult, RouterEd25519YaoBurnReasonV1, RouterEd25519YaoExecuteFailureCodeV1,
     RouterEd25519YaoGatewayExecuteTargetV2, TenantRootActivationReceiptBindingV1,
     TenantRootCustodyBindingV1, TenantRootDerivationNonceV1, TenantRootDerivationOperationIdV1,
-    TenantRootDerivationSessionIdV1, TenantRootDeriverIdentitiesV1,
+    TenantRootDerivationSessionIdV1, TenantRootDeriverIdentitiesV1, TenantRootIdentityV1,
     TenantRootOnlineRoleShareBindingV1, TenantRootProtocolDigestV1,
     TenantRootSignedActivationReceiptV1, TwoPartyDeriverRole,
     VerifiedTenantRootSignedActivationReceiptV1,
@@ -29,14 +29,52 @@ use threshold_prf::{
     SigningRootShareCommitment, SigningRootShareWire,
 };
 
-use crate::{CloudflareTenantRootCoordinatesV1, CloudflareTenantRootCustodyBindingWireV1};
+use crate::{
+    encode_base64url_bytes_v1, CloudflareTenantRootCoordinatesV1,
+    CloudflareTenantRootCustodyBindingWireV1,
+};
+
+/// Authenticated Gateway scope for Yao routing. The root version authorizes
+/// the operation; wallet placement uses only the stable tenant fields.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareRouterEd25519YaoTenantRootV1 {
+    pub identity: TenantRootIdentityV1,
+    pub custody_lineage_b64u: String,
+}
+
+impl CloudflareRouterEd25519YaoTenantRootV1 {
+    pub fn coordinates(&self) -> RouterAbProtocolResult<CloudflareTenantRootCoordinatesV1> {
+        let identity_digest = self.identity.digest().map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("Yao tenant-root identity is invalid: {error}"),
+            )
+        })?;
+        let coordinates = CloudflareTenantRootCoordinatesV1 {
+            identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+            custody_lineage_b64u: self.custody_lineage_b64u.clone(),
+        };
+        coordinates.resolve()?;
+        Ok(coordinates)
+    }
+
+    pub fn resolve(
+        &self,
+    ) -> RouterAbProtocolResult<(
+        router_ab_core::TenantRootIdentityDigestV1,
+        router_ab_core::TenantRootCustodyLineageId,
+    )> {
+        self.coordinates()?.resolve()
+    }
+}
 
 /// Server-admitted execution envelope. Tenant-root selectors and stable-context
 /// facts are supplied by the authenticated wallet server, never by the browser.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareRouterEd25519YaoExecuteRequestV2 {
-    pub tenant_root: CloudflareTenantRootCoordinatesV1,
+    pub tenant_root: CloudflareRouterEd25519YaoTenantRootV1,
     pub application: RouterAbEd25519YaoApplicationBindingFactsV1,
     pub participant_ids: [u16; 2],
     pub target: RouterEd25519YaoGatewayExecuteTargetV2,
@@ -46,6 +84,12 @@ impl CloudflareRouterEd25519YaoExecuteRequestV2 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         self.tenant_root.resolve()?;
         validate_participant_ids(self.participant_ids)?;
+        if self.tenant_root.identity.signing_root_id() != self.application.signing_root_id() {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLifecycleState,
+                "server-resolved Yao signing root does not match the application",
+            ));
+        }
         if self.application.wallet_id() != self.target.ceremony_binding().lifecycle.account_id {
             return Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLifecycleState,
