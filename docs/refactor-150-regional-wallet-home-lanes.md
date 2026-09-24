@@ -68,6 +68,24 @@ hints never establish residency compliance or authorize a wallet operation. If
 the deployment cannot enforce a required policy, registration fails with a clear
 unsupported-policy result rather than silently relaxing that policy.
 
+### Remove user-facing region controls
+
+Remove any existing registration region picker, Home region settings, latency-based
+move recommendation, move button, migration progress screen, and cooldown message.
+Audit both Wallet SDK surfaces and hosted Console composition. Delete supporting
+controllers, public UI exports, probes, mocks, and tests used solely by these retired
+surfaces. Do not retain hidden controls or feature flags for the previous design.
+
+This product decision applies to both managed DO hosting and the regional-lane
+reference design: initial placement is automatic in either topology. Organization
+residency restrictions remain administrator/deployment policy, with clear errors
+when enforcement is unavailable. Region and latency diagnostics remain internal
+operational tools; they do not become user move recommendations.
+
+Retain protocol or operational components that have independent supported uses.
+Any future relocation UI requires a new explicit product decision based on a
+demonstrated need; it is not a scheduled follow-up to this release.
+
 ## Cloudflare managed topology
 
 The following describes logical ownership, rather than a requirement to create
@@ -332,7 +350,8 @@ deliverables. Publishing a new adapter cannot silently create a second writer.
    Derivers, SigningWorker, current DOs, and D1.
 2. Identify wallet-local transactions, shared constraints, custody boundaries,
    replay/command guards, and all serial network dependencies.
-3. Audit the prior R150 implementation and record reuse/removal decisions.
+3. Audit the prior R150 implementation, including user-facing region surfaces and
+   their dependencies, and record reuse/removal decisions.
 4. Record supported wallet/protocol configurations, regional baseline latency,
    traffic assumptions, acceptance targets, and cost ceiling.
 
@@ -352,7 +371,8 @@ deliverables. Publishing a new adapter cannot silently create a second writer.
 1. Complete the ownership changes for all enabled lifecycle operations and supported
    protocols, including NEAR and EVM signing.
 2. Add automatic registration placement and stable trusted routing. Verify policy
-   changes, VPN use, travel, and retries cannot create another authority.
+   changes, VPN use, travel, and retries cannot create another authority. Remove
+   user-facing region controls and their exclusively supporting code and tests.
 3. Add boundary/type fixtures rejecting invalid lifecycle and authority combinations;
    use behavioral tests for single consumption and durable recovery.
 4. Run lifecycle contracts, targeted store tests, relevant crypto/wire vectors, and
@@ -397,8 +417,11 @@ The initial managed DO milestone is complete when:
 - Role isolation, restart/retry safety, and one-use-material invariants pass review.
 - Measured p50/p95 latency and modeled costs meet the recorded acceptance targets.
 - Travel works through the existing authority without region settings or relocation.
+- Registration and settings expose no region selection or move controls; retired
+  region UI and its exclusive dependencies have been removed from SDK and hosted
+  composition, without hidden or feature-flagged remnants.
 - Existing-wallet status and conversion blockers are explicitly documented.
 
 The backend replacement is complete only after existing-wallet conversion and
-obsolete-path cleanup are also complete. Optional migration UI, movement telemetry,
+obsolete-path cleanup are also complete. Future relocation UI, movement telemetry,
 AWS support, and regional-lane deployment are excluded from both completion claims.
