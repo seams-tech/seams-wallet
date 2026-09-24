@@ -5,7 +5,8 @@ use router_ab_core::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use worker::{DurableObject, Env, Request, Response, SqlStorage, SqlStorageValue, State};
+use std::{cell::RefCell, rc::Rc};
+use worker::{DurableObject, Env, Request, Response, SqlStorage, SqlStorageValue, State, Storage};
 
 use crate::{
     apply_cloudflare_signing_worker_ecdsa_pool_command_v1,
@@ -25,12 +26,12 @@ use crate::{
     CloudflareSigningWorkerEcdsaPoolCommandV1, CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1,
     CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1,
     CloudflareSigningWorkerInitialRegistrationFinalizationSnapshotV1,
-    CloudflareSigningWorkerNearEffectClaimV1, CloudflareSigningWorkerNormalSigningMaterialSourceV1,
+    CloudflareSigningWorkerNormalSigningMaterialSourceV1,
     CloudflareSigningWorkerNormalSigningTerminalV1,
     CloudflareSigningWorkerOutputActivationRecordV1, CloudflareSigningWorkerPrivateD1RequestV1,
     CloudflareSigningWorkerRound1LookupV1, CloudflareSigningWorkerRound1RecordV1,
     CloudflareSigningWorkerRuntimeV1, CloudflareSigningWorkerTerminalResponseCommitV1,
-    CloudflareSigningWorkerWalletScopeV1,
+    CloudflareSigningWorkerWalletScopeV1, CloudflareSigningWorkerEcdsaClaimAndConsumeV1,
 };
 
 const BINDING: &str = "SIGNING_WORKER_WALLET_DO";
@@ -85,7 +86,7 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
         scope: CloudflareSigningWorkerWalletScopeV1,
         mutation: CloudflareSigningWorkerEcdsaPoolCommandV1,
     },
-    ClaimEcdsaEffect {
+    ClaimAndConsumeEcdsaEffect {
         scope: CloudflareSigningWorkerWalletScopeV1,
         request: CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
         now_unix_ms: u64,
@@ -200,7 +201,8 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::LookupRegistration(request) => &request.scope,
             Self::PrepareNear { scope, .. } | Self::FinalizeNear { scope, .. } => scope,
             Self::EcdsaPoolMutate { scope, .. } => scope,
-            Self::ClaimEcdsaEffect { scope, .. } | Self::CommitEcdsaTerminal { scope, .. } => scope,
+            Self::ClaimAndConsumeEcdsaEffect { scope, .. }
+            | Self::CommitEcdsaTerminal { scope, .. } => scope,
         }
     }
 
@@ -250,7 +252,7 @@ impl SigningWorkerWalletDoRequestV1 {
                 }
                 Ok(())
             }
-            Self::ClaimEcdsaEffect {
+            Self::ClaimAndConsumeEcdsaEffect {
                 scope,
                 request,
                 now_unix_ms,
@@ -408,14 +410,14 @@ fn validate_ecdsa_effect_row(
     ))
 }
 
-fn ecdsa_effect_claim_response(
+fn ecdsa_effect_claim_outcome(
     row: &EcdsaEffectRowV1,
     operation_key: &str,
     authorization_key: &str,
     owner_json: &str,
     request_digest_hex: &str,
     authorization_json: &str,
-) -> Result<Response, RouterAbProtocolError> {
+) -> Result<CloudflareSigningWorkerEcdsaClaimAndConsumeV1, RouterAbProtocolError> {
     validate_ecdsa_effect_row(
         row,
         operation_key,
@@ -425,12 +427,118 @@ fn ecdsa_effect_claim_response(
         authorization_json,
     )?;
     let result = match &row.terminal_json {
-        Some(terminal_json) => CloudflareSigningWorkerNearEffectClaimV1::Replay {
+        Some(terminal_json) => CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Replay {
             terminal_json: terminal_json.clone(),
         },
-        None => CloudflareSigningWorkerNearEffectClaimV1::InProgress,
+        None => CloudflareSigningWorkerEcdsaClaimAndConsumeV1::InProgress,
     };
-    Response::from_json(&result).map_err(sql_error)
+    Ok(result)
+}
+
+fn read_ecdsa_effects(
+    sql: &SqlStorage,
+    operation_key: &str,
+    authorization_key: Option<&str>,
+) -> Result<Vec<EcdsaEffectRowV1>, RouterAbProtocolError> {
+    let (query, values) = match authorization_key {
+        Some(authorization_key) => (
+            "SELECT operation_key, authorization_key, owner_json, request_digest_hex,
+                    authorization_json, terminal_json FROM wallet_ecdsa_effects
+             WHERE operation_key = ? OR authorization_key = ?",
+            vec![
+                SqlStorageValue::String(operation_key.to_owned()),
+                SqlStorageValue::String(authorization_key.to_owned()),
+            ],
+        ),
+        None => (
+            "SELECT operation_key, authorization_key, owner_json, request_digest_hex,
+                    authorization_json, terminal_json FROM wallet_ecdsa_effects
+             WHERE operation_key = ?",
+            vec![SqlStorageValue::String(operation_key.to_owned())],
+        ),
+    };
+    sql.exec(query, values)
+        .map_err(sql_error)?
+        .to_array::<EcdsaEffectRowV1>()
+        .map_err(sql_error)
+}
+
+fn claim_and_consume_ecdsa_in_storage(
+    sql: &SqlStorage,
+    env: &Env,
+    scope: CloudflareSigningWorkerWalletScopeV1,
+    request: CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
+    now_unix_ms: u64,
+) -> Result<CloudflareSigningWorkerEcdsaClaimAndConsumeV1, RouterAbProtocolError> {
+    let operation_key = request.effect_operation_key()?;
+    let authorization_key = request.effect_authorization_key()?;
+    let request_digest_hex = digest_hex(request.effect_request_digest()?);
+    let owner_json = serde_json::to_string(&scope)
+        .map_err(|error| wallet_error(format!("ECDSA effect owner is invalid: {error}")))?;
+    let authorization_json = serde_json::to_string(&request.effect_claim)
+        .map_err(|error| wallet_error(format!("ECDSA effect authorization is invalid: {error}")))?;
+    let existing = read_ecdsa_effects(sql, &operation_key, Some(&authorization_key))?;
+    if let [row] = existing.as_slice() {
+        return ecdsa_effect_claim_outcome(
+            row,
+            &operation_key,
+            &authorization_key,
+            &owner_json,
+            &request_digest_hex,
+            &authorization_json,
+        );
+    }
+    if !existing.is_empty() {
+        return Err(wallet_error("ECDSA effect lookup returned duplicate rows"));
+    }
+    request.request.validate_at(now_unix_ms)?;
+    let outcome = RouterAbSigningWorkerWalletDurableObject::mutate_ecdsa_pool_in_storage(
+        sql,
+        env,
+        scope,
+        CloudflareSigningWorkerEcdsaPoolCommandV1::Consume {
+            scope: request.request.scope.clone(),
+            server_presignature_id: request.request.server_presignature_id.clone(),
+            expected_revision: 1,
+            request_digest: request.request.prepare_request_digest()?,
+            now_unix_ms,
+        },
+    )?;
+    let material = match outcome {
+        CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Consumed { material, .. } => material,
+        CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Burned { .. } => {
+            return Ok(CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Burned)
+        }
+        _ => {
+            return Err(wallet_error(
+                "ECDSA consume returned the wrong lifecycle outcome",
+            ))
+        }
+    };
+    let inserted = sql
+        .exec(
+            "INSERT INTO wallet_ecdsa_effects
+             (operation_key, authorization_key, owner_json, request_digest_hex,
+              authorization_json, claimed_at_ms)
+             VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING RETURNING operation_key",
+            vec![
+                SqlStorageValue::String(operation_key.clone()),
+                SqlStorageValue::String(authorization_key),
+                SqlStorageValue::String(owner_json),
+                SqlStorageValue::String(request_digest_hex),
+                SqlStorageValue::String(authorization_json),
+                SqlStorageValue::Integer(now_unix_ms.try_into().map_err(|_| {
+                    wallet_error("ECDSA effect timestamp exceeds SQLite integer range")
+                })?),
+            ],
+        )
+        .map_err(sql_error)?
+        .to_array::<WrittenEcdsaEffectRowV1>()
+        .map_err(sql_error)?;
+    if inserted.len() != 1 || inserted[0].operation_key != operation_key {
+        return Err(wallet_error("ECDSA effect claim is uncertain"));
+    }
+    Ok(CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Claimed { material })
 }
 
 pub(crate) async fn call_signing_worker_wallet_do_v1(
@@ -462,13 +570,16 @@ pub(crate) async fn call_signing_worker_wallet_do_v1(
 #[worker::durable_object]
 pub struct RouterAbSigningWorkerWalletDurableObject {
     sql: SqlStorage,
+    storage: Storage,
     env: Env,
 }
 
 impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
     fn new(state: State, env: Env) -> Self {
+        let storage = state.storage();
         Self {
-            sql: state.storage().sql(),
+            sql: storage.sql(),
+            storage,
             env,
         }
     }
@@ -485,7 +596,7 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
         self.sql.exec(ROUND1_SCHEMA, None)?;
         self.sql.exec(ECDSA_POOL_SCHEMA, None)?;
         self.sql.exec(ECDSA_EFFECT_SCHEMA, None)?;
-        match self.execute(command) {
+        match self.execute(command).await {
             Ok(response) => Ok(response),
             Err(error) => Response::error(
                 format!("{:?}: {}", error.code(), error.message()),
@@ -496,7 +607,7 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
 }
 
 impl RouterAbSigningWorkerWalletDurableObject {
-    fn execute(
+    async fn execute(
         &self,
         command: SigningWorkerWalletDoRequestV1,
     ) -> Result<Response, RouterAbProtocolError> {
@@ -520,11 +631,14 @@ impl RouterAbSigningWorkerWalletDurableObject {
             SigningWorkerWalletDoRequestV1::EcdsaPoolMutate { scope, mutation } => {
                 self.mutate_ecdsa_pool(scope, mutation)
             }
-            SigningWorkerWalletDoRequestV1::ClaimEcdsaEffect {
+            SigningWorkerWalletDoRequestV1::ClaimAndConsumeEcdsaEffect {
                 scope,
                 request,
                 now_unix_ms,
-            } => self.claim_ecdsa_effect(scope, request, now_unix_ms),
+            } => {
+                self.claim_and_consume_ecdsa_effect(scope, request, now_unix_ms)
+                    .await
+            }
             SigningWorkerWalletDoRequestV1::CommitEcdsaTerminal {
                 scope,
                 request,
@@ -534,101 +648,41 @@ impl RouterAbSigningWorkerWalletDurableObject {
         }
     }
 
-    fn read_ecdsa_effects(
-        &self,
-        operation_key: &str,
-        authorization_key: Option<&str>,
-    ) -> Result<Vec<EcdsaEffectRowV1>, RouterAbProtocolError> {
-        let (query, values) = match authorization_key {
-            Some(authorization_key) => (
-                "SELECT operation_key, authorization_key, owner_json, request_digest_hex,
-                        authorization_json, terminal_json FROM wallet_ecdsa_effects
-                 WHERE operation_key = ? OR authorization_key = ?",
-                vec![
-                    SqlStorageValue::String(operation_key.to_owned()),
-                    SqlStorageValue::String(authorization_key.to_owned()),
-                ],
-            ),
-            None => (
-                "SELECT operation_key, authorization_key, owner_json, request_digest_hex,
-                        authorization_json, terminal_json FROM wallet_ecdsa_effects
-                 WHERE operation_key = ?",
-                vec![SqlStorageValue::String(operation_key.to_owned())],
-            ),
-        };
-        self.sql
-            .exec(query, values)
-            .map_err(sql_error)?
-            .to_array::<EcdsaEffectRowV1>()
-            .map_err(sql_error)
-    }
-
-    fn claim_ecdsa_effect(
+    async fn claim_and_consume_ecdsa_effect(
         &self,
         scope: CloudflareSigningWorkerWalletScopeV1,
         request: CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
         now_unix_ms: u64,
     ) -> Result<Response, RouterAbProtocolError> {
-        let operation_key = request.effect_operation_key()?;
-        let authorization_key = request.effect_authorization_key()?;
-        let request_digest_hex = digest_hex(request.effect_request_digest()?);
-        let owner_json = serde_json::to_string(&scope)
-            .map_err(|error| wallet_error(format!("ECDSA effect owner is invalid: {error}")))?;
-        let authorization_json = serde_json::to_string(&request.effect_claim).map_err(|error| {
-            wallet_error(format!("ECDSA effect authorization is invalid: {error}"))
-        })?;
-        let existing = self.read_ecdsa_effects(&operation_key, None)?;
-        if let [row] = existing.as_slice() {
-            return ecdsa_effect_claim_response(
-                row,
-                &operation_key,
-                &authorization_key,
-                &owner_json,
-                &request_digest_hex,
-                &authorization_json,
-            );
+        let sql = self.sql.clone();
+        let env = self.env.clone();
+        let result = Rc::new(RefCell::new(None));
+        let transaction_result = Rc::clone(&result);
+        let committed = self
+            .storage
+            .transaction(move |_| async move {
+                let attempt =
+                    claim_and_consume_ecdsa_in_storage(&sql, &env, scope, request, now_unix_ms);
+                match attempt {
+                    Ok(outcome) => {
+                        *transaction_result.borrow_mut() = Some(Ok(outcome));
+                        Ok(())
+                    }
+                    Err(error) => {
+                        let message = error.to_string();
+                        *transaction_result.borrow_mut() = Some(Err(error));
+                        Err(worker::Error::RustError(message))
+                    }
+                }
+            })
+            .await;
+        let outcome = result.borrow_mut().take();
+        match (committed, outcome) {
+            (Ok(()), Some(Ok(outcome))) => Response::from_json(&outcome).map_err(sql_error),
+            (Err(_), Some(Err(error))) => Err(error),
+            (Err(error), _) => Err(sql_error(error)),
+            (Ok(()), _) => Err(wallet_error("ECDSA claim transaction returned no outcome")),
         }
-        if !existing.is_empty() {
-            return Err(wallet_error("ECDSA effect lookup returned duplicate rows"));
-        }
-        request.request.validate_at(now_unix_ms)?;
-        let inserted = self
-            .sql
-            .exec(
-                "INSERT INTO wallet_ecdsa_effects
-             (operation_key, authorization_key, owner_json, request_digest_hex,
-              authorization_json, claimed_at_ms)
-             VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING RETURNING operation_key",
-                vec![
-                    SqlStorageValue::String(operation_key.clone()),
-                    SqlStorageValue::String(authorization_key.clone()),
-                    SqlStorageValue::String(owner_json.clone()),
-                    SqlStorageValue::String(request_digest_hex.clone()),
-                    SqlStorageValue::String(authorization_json.clone()),
-                    SqlStorageValue::Integer(now_unix_ms.try_into().map_err(|_| {
-                        wallet_error("ECDSA effect timestamp exceeds SQLite integer range")
-                    })?),
-                ],
-            )
-            .map_err(sql_error)?
-            .to_array::<WrittenEcdsaEffectRowV1>()
-            .map_err(sql_error)?;
-        if inserted.len() == 1 && inserted[0].operation_key == operation_key {
-            return Response::from_json(&CloudflareSigningWorkerNearEffectClaimV1::Claimed)
-                .map_err(sql_error);
-        }
-        let conflicting = self.read_ecdsa_effects(&operation_key, Some(&authorization_key))?;
-        let [row] = conflicting.as_slice() else {
-            return Err(wallet_error("ECDSA effect claim is uncertain"));
-        };
-        ecdsa_effect_claim_response(
-            row,
-            &operation_key,
-            &authorization_key,
-            &owner_json,
-            &request_digest_hex,
-            &authorization_json,
-        )
     }
 
     fn commit_ecdsa_terminal(
@@ -646,7 +700,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
         let authorization_json = serde_json::to_string(&request.effect_claim).map_err(|error| {
             wallet_error(format!("ECDSA effect authorization is invalid: {error}"))
         })?;
-        let existing = self.read_ecdsa_effects(&operation_key, None)?;
+        let existing = read_ecdsa_effects(&self.sql, &operation_key, None)?;
         let [row] = existing.as_slice() else {
             return Err(wallet_error("ECDSA terminal requires one claimed effect"));
         };
@@ -702,14 +756,23 @@ impl RouterAbSigningWorkerWalletDurableObject {
         scope: CloudflareSigningWorkerWalletScopeV1,
         command: CloudflareSigningWorkerEcdsaPoolCommandV1,
     ) -> Result<Response, RouterAbProtocolError> {
+        let outcome = Self::mutate_ecdsa_pool_in_storage(&self.sql, &self.env, scope, command)?;
+        Response::from_json(&outcome).map_err(sql_error)
+    }
+
+    fn mutate_ecdsa_pool_in_storage(
+        sql: &SqlStorage,
+        env: &Env,
+        scope: CloudflareSigningWorkerWalletScopeV1,
+        command: CloudflareSigningWorkerEcdsaPoolCommandV1,
+    ) -> Result<CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1, RouterAbProtocolError> {
         let key = CloudflareSigningWorkerPrivateD1RequestV1::EcdsaPoolMutate {
             command: command.clone(),
         }
         .storage_key();
         let owner_json = serde_json::to_string(&scope)
             .map_err(|error| wallet_error(format!("ECDSA pool owner is invalid: {error}")))?;
-        let rows = self
-            .sql
+        let rows = sql
             .exec(
                 "SELECT owner_json, ciphertext_json, version FROM wallet_ecdsa_pool WHERE pool_key = ?",
                 vec![SqlStorageValue::String(key.clone())],
@@ -723,7 +786,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 if row.owner_json != owner_json {
                     return Err(wallet_error("ECDSA pool owner conflict"));
                 }
-                let cipher = SigningWorkerPrivateD1CipherV1::from_env_for_wallet_do(&self.env)?;
+                let cipher = SigningWorkerPrivateD1CipherV1::from_env_for_wallet_do(env)?;
                 let record: CloudflareSigningWorkerEcdsaPoolLifecycleRecordV1 = cipher.open(
                     "ecdsa_pool",
                     &registration_identity(&scope, &key)?,
@@ -740,16 +803,16 @@ impl RouterAbSigningWorkerWalletDurableObject {
             outcome,
             CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Available { stored: false, .. }
         ) {
-            return Response::from_json(&outcome).map_err(sql_error);
+            return Ok(outcome);
         }
-        let cipher = SigningWorkerPrivateD1CipherV1::from_env_for_wallet_do(&self.env)?;
+        let cipher = SigningWorkerPrivateD1CipherV1::from_env_for_wallet_do(env)?;
         let ciphertext = cipher.seal(
             "ecdsa_pool",
             &registration_identity(&scope, &key)?,
             outcome.record(),
         )?;
         let written = match rows.as_slice() {
-            [] => self.sql.exec(
+            [] => sql.exec(
                 "INSERT INTO wallet_ecdsa_pool (pool_key, owner_json, ciphertext_json, version)
                  VALUES (?, ?, ?, 0) ON CONFLICT DO NOTHING RETURNING pool_key",
                 vec![
@@ -758,7 +821,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
                     SqlStorageValue::String(ciphertext),
                 ],
             ),
-            [row] => self.sql.exec(
+            [row] => sql.exec(
                 "UPDATE wallet_ecdsa_pool SET ciphertext_json = ?, version = version + 1
                  WHERE pool_key = ? AND owner_json = ? AND version = ? RETURNING pool_key",
                 vec![
@@ -776,7 +839,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
         if written.len() != 1 || written[0].pool_key != key {
             return Err(wallet_error("ECDSA pool write is uncertain"));
         }
-        Response::from_json(&outcome).map_err(sql_error)
+        Ok(outcome)
     }
 
     fn deliver_registration(

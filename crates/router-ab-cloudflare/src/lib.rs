@@ -12979,11 +12979,35 @@ where
             );
         }
     }
-    match claim_cloudflare_signing_worker_ecdsa_effect_for_wallet_v1(env, &parsed, now_unix_ms)
+    // Revoked or stale lane admissions fail before the owner touches one-use pool state.
+    let (active_signing_worker, material) =
+        match load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1(
+            env,
+            runtime,
+            &parsed.request.scope,
+            &parsed.material_source,
+            now_unix_ms,
+        )
         .await
+        {
+            Ok(value) => value,
+            Err(err) => {
+                return worker::Response::error(
+                    format!("{:?}: {}", err.code(), err.message()),
+                    cloudflare_router_error_status(err.code()),
+                );
+            }
+        };
+    let server_presignature = match claim_and_consume_cloudflare_signing_worker_ecdsa_for_wallet_v1(
+        env,
+        runtime,
+        &parsed,
+        now_unix_ms,
+    )
+    .await
     {
-        Ok(CloudflareSigningWorkerNearEffectClaimV1::Claimed) => {}
-        Ok(CloudflareSigningWorkerNearEffectClaimV1::Replay { terminal_json }) => {
+        Ok(CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Claimed { material }) => material,
+        Ok(CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Replay { terminal_json }) => {
             let response = match serde_json::from_str::<
                 RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
             >(&terminal_json)
@@ -13004,7 +13028,7 @@ where
             }
             return worker::Response::from_json(&response);
         }
-        Ok(CloudflareSigningWorkerNearEffectClaimV1::InProgress) => {
+        Ok(CloudflareSigningWorkerEcdsaClaimAndConsumeV1::InProgress) => {
             let error = RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::ReplayedLocalRequest,
                 "SigningWorker ECDSA effect is already in progress",
@@ -13014,81 +13038,16 @@ where
                 cloudflare_router_error_status(error.code()),
             );
         }
-        Err(error) => {
-            return worker::Response::error(
-                format!("{:?}: {}", error.code(), error.message()),
-                cloudflare_router_error_status(error.code()),
-            );
-        }
-    }
-    // Resolve the exact active lane material before touching one-use pool state.
-    // Revoked or stale lane admissions fail before any private pool mutation.
-    let (active_signing_worker, material) =
-        match load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1(
-            env,
-            runtime,
-            &parsed.request.scope,
-            &parsed.material_source,
-            now_unix_ms,
-        )
-        .await
-        {
-            Ok(value) => value,
-            Err(err) => {
-                return worker::Response::error(
-                    format!("{:?}: {}", err.code(), err.message()),
-                    cloudflare_router_error_status(err.code()),
-                );
-            }
-        };
-    let prepare_request_digest = match parsed.request.prepare_request_digest() {
-        Ok(digest) => digest,
-        Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
-        }
-    };
-    let consume_outcome = match execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
-        env,
-        runtime,
-        parsed.wallet_scope.as_ref(),
-        CloudflareSigningWorkerEcdsaPoolCommandV1::Consume {
-            scope: parsed.request.scope.clone(),
-            server_presignature_id: parsed.request.server_presignature_id.clone(),
-            expected_revision: 1,
-            request_digest: prepare_request_digest,
-            now_unix_ms,
-        },
-    )
-    .await
-    {
-        Ok(outcome) => outcome,
-        Err(err) => {
-            return worker::Response::error(
-                format!("{:?}: {}", err.code(), err.message()),
-                cloudflare_router_error_status(err.code()),
-            );
-        }
-    };
-    let server_presignature = match consume_outcome {
-        CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Consumed {
-            record: _,
-            material,
-        } => material,
-        CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Burned { .. } => {
+        Ok(CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Burned) => {
             return worker::Response::error(
                 "SigningWorker ECDSA reservation was terminally burned before finalization",
                 cloudflare_router_error_status(RouterAbProtocolErrorCode::ReplayedLocalRequest),
             );
         }
-        _ => {
+        Err(error) => {
             return worker::Response::error(
-                "SigningWorker ECDSA consume returned the wrong lifecycle outcome",
-                cloudflare_router_error_status(
-                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                ),
+                format!("{:?}: {}", error.code(), error.message()),
+                cloudflare_router_error_status(error.code()),
             );
         }
     };
@@ -13724,13 +13683,29 @@ async fn execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
 }
 
 #[cfg(feature = "workers-rs")]
-async fn claim_cloudflare_signing_worker_ecdsa_effect_for_wallet_v1(
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
+pub(crate) enum CloudflareSigningWorkerEcdsaClaimAndConsumeV1 {
+    Claimed {
+        material: CloudflareSigningWorkerEcdsaPresignatureRecordV1,
+    },
+    Replay {
+        terminal_json: String,
+    },
+    InProgress,
+    Burned,
+}
+
+#[cfg(feature = "workers-rs")]
+async fn claim_and_consume_cloudflare_signing_worker_ecdsa_for_wallet_v1(
     env: &worker::Env,
+    runtime: &CloudflareSigningWorkerRuntimeV1,
     request: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
     now_unix_ms: u64,
-) -> RouterAbProtocolResult<CloudflareSigningWorkerNearEffectClaimV1> {
+) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaClaimAndConsumeV1> {
     #[cfg(feature = "wallet-do-signing-worker-harness")]
     {
+        let _ = runtime;
         let scope = request.wallet_scope.as_ref().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidGateDecision,
@@ -13739,7 +13714,7 @@ async fn claim_cloudflare_signing_worker_ecdsa_effect_for_wallet_v1(
         })?;
         let response = durable_object::call_signing_worker_wallet_do_v1(
             env,
-            durable_object::SigningWorkerWalletDoRequestV1::ClaimEcdsaEffect {
+            durable_object::SigningWorkerWalletDoRequestV1::ClaimAndConsumeEcdsaEffect {
                 scope: scope.clone(),
                 request: request.clone(),
                 now_unix_ms,
@@ -13747,14 +13722,47 @@ async fn claim_cloudflare_signing_worker_ecdsa_effect_for_wallet_v1(
         )
         .await?;
         return parse_cloudflare_signing_worker_wallet_do_json_response_v1(
-            response,
-            "SigningWorker wallet-DO ECDSA effect claim",
-        )
-        .await;
+                response,
+                "SigningWorker wallet-DO ECDSA claim and consume",
+            )
+            .await;
     }
     #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     {
-        claim_cloudflare_signing_worker_ecdsa_effect_v1(env, request, now_unix_ms).await
+        match claim_cloudflare_signing_worker_ecdsa_effect_v1(env, request, now_unix_ms).await? {
+            CloudflareSigningWorkerNearEffectClaimV1::Replay { terminal_json } => {
+                return Ok(CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Replay { terminal_json });
+            }
+            CloudflareSigningWorkerNearEffectClaimV1::InProgress => {
+                return Ok(CloudflareSigningWorkerEcdsaClaimAndConsumeV1::InProgress);
+            }
+            CloudflareSigningWorkerNearEffectClaimV1::Claimed => {}
+        }
+        let outcome = execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
+            env,
+            runtime,
+            request.wallet_scope.as_ref(),
+            CloudflareSigningWorkerEcdsaPoolCommandV1::Consume {
+                scope: request.request.scope.clone(),
+                server_presignature_id: request.request.server_presignature_id.clone(),
+                expected_revision: 1,
+                request_digest: request.request.prepare_request_digest()?,
+                now_unix_ms,
+            },
+        )
+        .await?;
+        match outcome {
+            CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Consumed { material, .. } => {
+                Ok(CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Claimed { material })
+            }
+            CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1::Burned { .. } => {
+                Ok(CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Burned)
+            }
+            _ => Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "SigningWorker ECDSA consume returned the wrong lifecycle outcome",
+            )),
+        }
     }
 }
 
