@@ -48,7 +48,6 @@ export * from './router/cloudflare/d1/auth/d1RouterApiAuthConfig';
 export * from './router/cloudflare/d1/auth/d1RouterApiAuthService';
 export * from './router/cloudflare/d1/signingLanes';
 export * from './router/cloudflare/d1/walletRegion';
-export * from './router/cloudflare/runtime/walletHomeRegion';
 export * from './router/cloudflare/d1/deviceLinking';
 export * from './router/cloudflare/signingLanes/cloudflareLaneCurveExecution';
 export * from './router/cloudflare/signingLanes/cloudflareLaneProtocolCommitter';

@@ -3,7 +3,6 @@ export * from './core/types';
 export * from '@shared/wallet-region';
 export * from './core/walletRegion';
 export * from './router/cloudflare/d1/walletRegion';
-export * from './router/cloudflare/runtime/walletHomeRegion';
 export * from './core/config';
 export * from './core/defaultConfigsServer';
 export {
