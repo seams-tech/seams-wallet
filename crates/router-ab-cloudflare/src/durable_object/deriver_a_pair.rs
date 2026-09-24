@@ -25,7 +25,8 @@ use crate::{
         execute_deriver_a_role, fail_deriver_b_pair_after_a_error_v1,
         prepare_deriver_a_pair_readiness_for_wallet_do_v1, DeriverAPairExecutionContextV1,
     },
-    CloudflareDeriverAWalletPairBurnRequestV1, CloudflareDeriverAWalletPairStatusRequestV1,
+    CloudflareDeriverAWalletPairBurnRequestV1, CloudflareDeriverAWalletPairOutcomeResponseV1,
+    CloudflareDeriverAWalletPairStatusRequestV1,
     CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairPrepareRequestV1,
     CloudflareEd25519YaoPairStatusResponseV1,
 };
@@ -390,7 +391,7 @@ impl RouterAbDeriverAWalletDurableObject {
     fn status_work(
         &self,
         request: CloudflareDeriverAWalletPairStatusRequestV1,
-    ) -> worker::Result<CloudflareEd25519YaoPairStatusResponseV1> {
+    ) -> worker::Result<CloudflareDeriverAWalletPairOutcomeResponseV1> {
         let owner = DeriverAWalletOwnerV1::from_root_identity(
             &request.root_identity,
             &request.pair_binding.binding().lifecycle.account_id,
@@ -403,8 +404,8 @@ impl RouterAbDeriverAWalletDurableObject {
             &request.root_identity,
         )?;
         Ok(match selected {
-            Some(row) => pair_status(&row.record),
-            None => CloudflareEd25519YaoPairStatusResponseV1::Missing {
+            Some(row) => pair_outcome_status(&row.record),
+            None => CloudflareDeriverAWalletPairOutcomeResponseV1::Missing {
                 session: request.pair_binding.session(),
                 pair_digest: request.pair_binding.pair_digest().bytes,
             },
@@ -1130,6 +1131,37 @@ fn pair_status(record: &PairRecord) -> CloudflareEd25519YaoPairStatusResponseV1 
             pair_digest,
         },
         PairRecord::Expired { .. } => CloudflareEd25519YaoPairStatusResponseV1::Expired {
+            session,
+            pair_digest,
+        },
+    }
+}
+
+#[cfg(feature = "wallet-do-harness")]
+fn pair_outcome_status(record: &PairRecord) -> CloudflareDeriverAWalletPairOutcomeResponseV1 {
+    let session = record.pair_binding().session();
+    let pair_digest = record.pair_binding().pair_digest().bytes;
+    match record {
+        PairRecord::Prepared { .. } => CloudflareDeriverAWalletPairOutcomeResponseV1::Prepared {
+            session,
+            pair_digest,
+        },
+        PairRecord::Starting { .. } | PairRecord::Running { .. } => {
+            CloudflareDeriverAWalletPairOutcomeResponseV1::Running {
+                session,
+                pair_digest,
+            }
+        }
+        PairRecord::Completed { outcome, .. } => {
+            CloudflareDeriverAWalletPairOutcomeResponseV1::Completed {
+                outcome: Box::new(outcome.clone()),
+            }
+        }
+        PairRecord::Burned { .. } => CloudflareDeriverAWalletPairOutcomeResponseV1::Burned {
+            session,
+            pair_digest,
+        },
+        PairRecord::Expired { .. } => CloudflareDeriverAWalletPairOutcomeResponseV1::Expired {
             session,
             pair_digest,
         },

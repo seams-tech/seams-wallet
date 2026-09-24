@@ -2,7 +2,9 @@
 
 use crate::durable_object::tenant_root_creation::execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1;
 #[cfg(feature = "wallet-do-router-harness")]
-use crate::CloudflareDeriverAWalletPairStatusRequestV1;
+use crate::{
+    CloudflareDeriverAWalletPairOutcomeResponseV1, CloudflareDeriverAWalletPairStatusRequestV1,
+};
 use crate::{
     build_cloudflare_router_public_keyset_v2, cloudflare_now_unix_ms_v1,
     cloudflare_router_error_status, cloudflare_service_json_request_body_v1,
@@ -981,13 +983,70 @@ async fn reconcile_router_replay_v1(
 ) -> RouterAbProtocolResult<Option<RouterCeremonyOutcomeV1>> {
     let reconciliation_started_at_ms = cloudflare_now_unix_ms_v1()?;
     #[cfg(feature = "wallet-do-router-harness")]
-    let status_a = read_deriver_a_wallet_pair_status_v1(
+    let outcome_a = match read_deriver_a_wallet_pair_outcome_v1(
         env,
         runtime.deriver_a_peer().binding_name.as_str(),
         pair_binding,
         root_identity,
         trace_id,
-    );
+    )
+    .await
+    {
+        Ok(outcome) => outcome,
+        Err(error) => {
+            emit_span(
+                trace_id,
+                "router.role_status_reconciliation",
+                operation_label(request.operation()),
+                reconciliation_started_at_ms,
+                "failure",
+            );
+            return Err(error);
+        }
+    };
+    #[cfg(feature = "wallet-do-router-harness")]
+    if let CloudflareDeriverAWalletPairOutcomeResponseV1::Completed { outcome } = &outcome_a {
+        outcome.deriver_a_execution.validate()?;
+        validate_execution(
+            &outcome.deriver_a_execution,
+            Ed25519YaoDeriverRoleV1::DeriverA,
+            binding,
+            None,
+        )?;
+        let completed_b = serde_json::from_str::<Ed25519YaoRoleExecutionV1>(
+            &outcome.deriver_b_sealed_execution_json,
+        )
+        .map_err(|_| invalid_coordinator("Deriver B saved execution is malformed"))?;
+        completed_b.validate()?;
+        validate_execution(
+            &completed_b,
+            Ed25519YaoDeriverRoleV1::DeriverB,
+            binding,
+            Some(execution_transcript(&outcome.deriver_a_execution)),
+        )?;
+        emit_span(
+            trace_id,
+            "router.role_status_reconciliation",
+            operation_label(request.operation()),
+            reconciliation_started_at_ms,
+            "success",
+        );
+        return finalize_router_result_v1(
+            env,
+            runtime,
+            request,
+            binding,
+            outcome.deriver_a_execution.clone(),
+            completed_b,
+            trace_id,
+            finalization,
+            timing,
+        )
+        .await
+        .map(Some);
+    }
+    #[cfg(feature = "wallet-do-router-harness")]
+    let status_a = async { wallet_pair_outcome_status(outcome_a) };
     #[cfg(not(feature = "wallet-do-router-harness"))]
     let status_a = read_pair_status_v1(
         env,
@@ -1134,14 +1193,14 @@ async fn reconcile_router_replay_v1(
 }
 
 #[cfg(feature = "wallet-do-router-harness")]
-async fn read_deriver_a_wallet_pair_status_v1(
+async fn read_deriver_a_wallet_pair_outcome_v1(
     env: &Env,
     binding_name: &str,
     pair_binding: &Ed25519YaoInputPairBindingV1,
     root_identity: &TenantRootIdentityV1,
     trace_id: Option<crate::CloudflareTraceIdV1>,
-) -> RouterAbProtocolResult<CloudflareEd25519YaoPairStatusResponseV1> {
-    post_role_json::<_, CloudflareEd25519YaoPairStatusResponseV1>(
+) -> RouterAbProtocolResult<CloudflareDeriverAWalletPairOutcomeResponseV1> {
+    post_role_json::<_, CloudflareDeriverAWalletPairOutcomeResponseV1>(
         env,
         binding_name,
         DERIVER_A_SERVICE_URL,
@@ -1154,6 +1213,52 @@ async fn read_deriver_a_wallet_pair_status_v1(
         trace_id,
     )
     .await
+}
+
+#[cfg(feature = "wallet-do-router-harness")]
+fn wallet_pair_outcome_status(
+    outcome: CloudflareDeriverAWalletPairOutcomeResponseV1,
+) -> RouterAbProtocolResult<CloudflareEd25519YaoPairStatusResponseV1> {
+    Ok(match outcome {
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Missing {
+            session,
+            pair_digest,
+        } => CloudflareEd25519YaoPairStatusResponseV1::Missing {
+            session,
+            pair_digest,
+        },
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Prepared {
+            session,
+            pair_digest,
+        } => CloudflareEd25519YaoPairStatusResponseV1::Prepared {
+            session,
+            pair_digest,
+        },
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Running {
+            session,
+            pair_digest,
+        } => CloudflareEd25519YaoPairStatusResponseV1::Running {
+            session,
+            pair_digest,
+        },
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Burned {
+            session,
+            pair_digest,
+        } => CloudflareEd25519YaoPairStatusResponseV1::Burned {
+            session,
+            pair_digest,
+        },
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Expired {
+            session,
+            pair_digest,
+        } => CloudflareEd25519YaoPairStatusResponseV1::Expired {
+            session,
+            pair_digest,
+        },
+        CloudflareDeriverAWalletPairOutcomeResponseV1::Completed { .. } => {
+            return Err(invalid_coordinator("completed A outcome must finalize before status"));
+        }
+    })
 }
 
 fn completed_execution(

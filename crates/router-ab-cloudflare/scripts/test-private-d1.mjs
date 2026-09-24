@@ -67,6 +67,8 @@ let capturedDeriverAPreparation;
 let capturedDeriverAExecution;
 let competeDeriverAExecution = false;
 let dropDeriverAExecutionResponse = false;
+let deriverBOffline = false;
+let blockedDeriverBCalls = 0;
 let signingWorkerDeliveryTarget = 'fixture-signing-worker';
 let ecdsaClientWasmInitialized = false;
 
@@ -205,7 +207,7 @@ function signingWorker(name, databaseId, fixture) {
   };
 }
 
-function routerWorker(fixture, capturePairPreparation = false) {
+function routerWorker(fixture, capturePairPreparation = false, gateDeriverB = false) {
   return {
     ...strictWorker('router', 'router', fixture.router_env),
     durableObjects: {
@@ -216,11 +218,20 @@ function routerWorker(fixture, capturePairPreparation = false) {
     },
     serviceBindings: {
       DERIVER_A: capturePairPreparation ? captureDeriverAPreparation : 'deriver-a',
-      DERIVER_B: 'deriver-b',
+      DERIVER_B: gateDeriverB ? routeDeriverBWithOfflineGate : 'deriver-b',
       SIGNING_WORKER: captureSigningWorkerDelivery,
       TENANT_ROOT_CONTROL_PLANE: 'tenant-root-control-plane',
     },
   };
+}
+
+async function routeDeriverBWithOfflineGate(request, miniflare) {
+  if (deriverBOffline) {
+    blockedDeriverBCalls += 1;
+    return new Response('simulated Deriver B outage', { status: 503 });
+  }
+  const worker = await miniflare.getWorker('deriver-b');
+  return worker.fetch(request);
 }
 
 function tenantRootControlPlaneWorker(fixture) {
@@ -1735,7 +1746,9 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
   };
   const scopedStatus = await postWorkerJson(deriverA, deriverAWalletStatusPath, scopedLookup);
   const scopedStatusBytes = await expectOk(scopedStatus, 'scoped Deriver A wallet status');
-  assert.equal(JSON.parse(scopedStatusBytes.toString('utf8')).status, 'completed');
+  const scopedOutcome = JSON.parse(scopedStatusBytes.toString('utf8'));
+  assert.equal(scopedOutcome.status, 'completed');
+  assert.deepEqual(scopedOutcome.outcome, capturedDeriverAExecution.response);
   const wrongTenant = await postWorkerJson(deriverA, deriverAWalletStatusPath, {
     ...scopedLookup,
     root_identity: { ...rootIdentity, orgId: `${rootIdentity.orgId}-other` },
@@ -1769,11 +1782,14 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
     execution_id: stored.body.record.execution_id,
   });
   assert.notEqual(completedBurn.status, 200, 'completed A custody cannot be cancelled');
+  deriverBOffline = true;
+  blockedDeriverBCalls = 0;
   const routerReplay = await postWorkerJson(router, ed25519ExecutePath, envelope, {
     'x-seams-yao-replay': '1',
   });
   const routerReplayBytes = await expectOk(routerReplay, 'Router scoped replay after lost reply');
   parseEd25519ActivationResult(routerReplayBytes, 'Router scoped replay after lost reply');
+  assert.equal(blockedDeriverBCalls, 0, 'completed A replay must not call unavailable B');
   const replay = await postWorkerJson(
     deriverA,
     '/router-ab/deriver-a/ed25519-yao/execute-pair',
@@ -1803,6 +1819,7 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
     aD1PairRows: aRows.count,
     bPairLifecycle: bTerminal.lifecycle,
     bRevisionUnchangedOnReplay: true,
+    bOfflineDuringRouterReplay: true,
     routerScopedReplayAfterLostReply: true,
     wrongTenantRootAndExecutionCancellationLeftStateUnchanged: true,
     exactReplayAfterLostReplyAndEviction: true,
@@ -2206,6 +2223,7 @@ async function main() {
       routerWorker(
         fixture,
         testWalletDo || testWalletDoExecution || testWalletDoLostReply || testDeriverBCompletionBurn,
+        testWalletDoLostReply,
       ),
       deriverAWorker(fixture),
       deriverBWorker(fixture),

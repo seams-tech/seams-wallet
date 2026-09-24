@@ -662,6 +662,35 @@ pub enum CloudflareEd25519YaoPairStatusResponseV1 {
     },
 }
 
+/// A's scoped, durable execution outcome for Router replay.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
+pub enum CloudflareDeriverAWalletPairOutcomeResponseV1 {
+    Missing {
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+    },
+    Prepared {
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+    },
+    Running {
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+    },
+    Completed {
+        outcome: Box<CloudflareEd25519YaoPairExecuteResponseV1>,
+    },
+    Burned {
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+    },
+    Expired {
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+    },
+}
+
 /// Sanitized role failure returned by a private pair route.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
