@@ -1891,6 +1891,32 @@ impl CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequ
         })?);
         Ok(PublicDigest32::new(hasher.finalize().into()))
     }
+
+    pub(crate) fn effect_authorization_key(&self) -> RouterAbProtocolResult<String> {
+        self.validate()?;
+        let key = match &self.effect_claim {
+            CloudflareSigningWorkerNormalSigningEffectClaimV1::ReusableWalletSession { claim } => {
+                format!(
+                    "ecdsa-reusable-wallet-session/{}/{}/{}/{}/{}",
+                    claim.authorization_id,
+                    claim.wallet_session_id,
+                    claim.authorized_operation_id,
+                    claim.operation_id,
+                    claim.operation_fingerprint_digest
+                )
+            }
+            CloudflareSigningWorkerNormalSigningEffectClaimV1::OperationStepUp {
+                authorization_session_id,
+                authorized_operation_id,
+                operation_id,
+                operation_fingerprint_digest,
+                ..
+            } => format!(
+                "ecdsa-operation-step-up/{authorization_session_id}/{authorized_operation_id}/{operation_id}/{operation_fingerprint_digest}"
+            ),
+        };
+        Ok(key)
+    }
 }
 
 /// Router-admitted linked-device ECDSA prepare request.

@@ -12948,6 +12948,7 @@ where
             403,
         );
     }
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     match replay_cloudflare_signing_worker_ecdsa_terminal_v1(env, &parsed).await {
         Ok(Some(response_json)) => {
             let response = match serde_json::from_str::<
@@ -12978,7 +12979,9 @@ where
             );
         }
     }
-    match claim_cloudflare_signing_worker_ecdsa_effect_v1(env, &parsed, now_unix_ms).await {
+    match claim_cloudflare_signing_worker_ecdsa_effect_for_wallet_v1(env, &parsed, now_unix_ms)
+        .await
+    {
         Ok(CloudflareSigningWorkerNearEffectClaimV1::Claimed) => {}
         Ok(CloudflareSigningWorkerNearEffectClaimV1::Replay { terminal_json }) => {
             let response = match serde_json::from_str::<
@@ -12993,6 +12996,12 @@ where
                     );
                 }
             };
+            if let Err(error) = response.validate_for_request(&parsed.request) {
+                return worker::Response::error(
+                    format!("{:?}: {}", error.code(), error.message()),
+                    cloudflare_router_error_status(error.code()),
+                );
+            }
             return worker::Response::from_json(&response);
         }
         Ok(CloudflareSigningWorkerNearEffectClaimV1::InProgress) => {
@@ -13083,25 +13092,8 @@ where
             );
         }
     };
-    let effect_operation_key = match parsed.effect_operation_key() {
-        Ok(value) => value,
-        Err(error) => {
-            return worker::Response::error(
-                format!("{:?}: {}", error.code(), error.message()),
-                cloudflare_router_error_status(error.code()),
-            );
-        }
-    };
-    let effect_request_digest = match parsed.effect_request_digest() {
-        Ok(value) => value,
-        Err(error) => {
-            return worker::Response::error(
-                format!("{:?}: {}", error.code(), error.message()),
-                cloudflare_router_error_status(error.code()),
-            );
-        }
-    };
     let expected_request = parsed.request.clone();
+    let admitted_for_terminal = parsed.clone();
     let signing_result =
         handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_private_request_v1(
             handler,
@@ -13119,29 +13111,33 @@ where
                     cloudflare_router_error_status(error.code()),
                 );
             }
-            let response_json = match serde_json::to_string(&response) {
-                Ok(value) => value,
-                Err(error) => {
-                    return worker::Response::error(
-                        format!(
-                            "SigningWorker ECDSA terminal response serialization failed: {error}"
-                        ),
-                        500,
-                    );
-                }
-            };
-            match commit_cloudflare_signing_worker_terminal_response_v1(
+            match commit_cloudflare_signing_worker_ecdsa_terminal_for_wallet_v1(
                 env,
-                &effect_operation_key,
-                effect_request_digest,
-                &response_json,
+                &admitted_for_terminal,
+                &response,
                 now_unix_ms,
             )
             .await
             {
-                Ok(CloudflareSigningWorkerTerminalResponseCommitV1::Committed)
-                | Ok(CloudflareSigningWorkerTerminalResponseCommitV1::Replay { .. }) => {
+                Ok(CloudflareSigningWorkerTerminalResponseCommitV1::Committed) => {
                     worker::Response::from_json(&response)
+                }
+                Ok(CloudflareSigningWorkerTerminalResponseCommitV1::Replay { response_json }) => {
+                    let stored = serde_json::from_str::<
+                        RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
+                    >(&response_json)
+                    .map_err(|error| {
+                        worker::Error::RustError(format!(
+                            "SigningWorker ECDSA replay response is invalid: {error}"
+                        ))
+                    })?;
+                    if let Err(error) = stored.validate_for_request(&expected_request) {
+                        return worker::Response::error(
+                            format!("{:?}: {}", error.code(), error.message()),
+                            cloudflare_router_error_status(error.code()),
+                        );
+                    }
+                    worker::Response::from_json(&stored)
                 }
                 Err(error) => worker::Response::error(
                     format!("{:?}: {}", error.code(), error.message()),
@@ -13659,6 +13655,34 @@ async fn execute_cloudflare_signing_worker_ecdsa_pool_mutation_v1(
     require_signing_worker_ecdsa_pool_mutate_response_v1(&call, response)
 }
 
+#[cfg(feature = "wallet-do-signing-worker-harness")]
+async fn parse_cloudflare_signing_worker_wallet_do_json_response_v1<
+    T: serde::de::DeserializeOwned,
+>(
+    mut response: worker::Response,
+    label: &str,
+) -> RouterAbProtocolResult<T> {
+    if response.status_code() != 200 {
+        let status = response.status_code();
+        let message = response.text().await.map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("{label} error is unreadable: {error}"),
+            )
+        })?;
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            format!("{label} returned {status}: {message}"),
+        ));
+    }
+    response.json::<T>().await.map_err(|error| {
+        RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MalformedWirePayload,
+            format!("{label} outcome is invalid: {error}"),
+        )
+    })
+}
+
 #[cfg(feature = "workers-rs")]
 async fn execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
     env: &worker::Env,
@@ -13675,7 +13699,7 @@ async fn execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
                 "Wallet-DO ECDSA pool requires owner Wallet Session authority",
             )
         })?;
-        let mut response = durable_object::call_signing_worker_wallet_do_v1(
+        let response = durable_object::call_signing_worker_wallet_do_v1(
             env,
             durable_object::SigningWorkerWalletDoRequestV1::EcdsaPoolMutate {
                 scope: wallet_scope.clone(),
@@ -13683,28 +13707,12 @@ async fn execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
             },
         )
         .await?;
-        if response.status_code() != 200 {
-            let status = response.status_code();
-            let message = response.text().await.map_err(|error| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MalformedWirePayload,
-                    format!("SigningWorker wallet-DO ECDSA error is unreadable: {error}"),
-                )
-            })?;
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("SigningWorker wallet-DO ECDSA returned {status}: {message}"),
-            ));
-        }
-        let outcome = response
-            .json::<CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1>()
-            .await
-            .map_err(|error| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MalformedWirePayload,
-                    format!("SigningWorker wallet-DO ECDSA outcome is invalid: {error}"),
-                )
-            })?;
+        let outcome: CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1 =
+            parse_cloudflare_signing_worker_wallet_do_json_response_v1(
+                response,
+                "SigningWorker wallet-DO ECDSA pool",
+            )
+            .await?;
         outcome.validate()?;
         return Ok(outcome);
     }
@@ -13712,6 +13720,91 @@ async fn execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
     {
         let _ = wallet_scope;
         execute_cloudflare_signing_worker_ecdsa_pool_mutation_v1(env, runtime, command).await
+    }
+}
+
+#[cfg(feature = "workers-rs")]
+async fn claim_cloudflare_signing_worker_ecdsa_effect_for_wallet_v1(
+    env: &worker::Env,
+    request: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
+    now_unix_ms: u64,
+) -> RouterAbProtocolResult<CloudflareSigningWorkerNearEffectClaimV1> {
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    {
+        let scope = request.wallet_scope.as_ref().ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidGateDecision,
+                "Wallet-DO ECDSA effect requires owner Wallet Session authority",
+            )
+        })?;
+        let response = durable_object::call_signing_worker_wallet_do_v1(
+            env,
+            durable_object::SigningWorkerWalletDoRequestV1::ClaimEcdsaEffect {
+                scope: scope.clone(),
+                request: request.clone(),
+                now_unix_ms,
+            },
+        )
+        .await?;
+        return parse_cloudflare_signing_worker_wallet_do_json_response_v1(
+            response,
+            "SigningWorker wallet-DO ECDSA effect claim",
+        )
+        .await;
+    }
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    {
+        claim_cloudflare_signing_worker_ecdsa_effect_v1(env, request, now_unix_ms).await
+    }
+}
+
+#[cfg(feature = "workers-rs")]
+async fn commit_cloudflare_signing_worker_ecdsa_terminal_for_wallet_v1(
+    env: &worker::Env,
+    request: &CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
+    response: &RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
+    now_unix_ms: u64,
+) -> RouterAbProtocolResult<CloudflareSigningWorkerTerminalResponseCommitV1> {
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    {
+        let scope = request.wallet_scope.as_ref().ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidGateDecision,
+                "Wallet-DO ECDSA terminal requires owner Wallet Session authority",
+            )
+        })?;
+        let do_response = durable_object::call_signing_worker_wallet_do_v1(
+            env,
+            durable_object::SigningWorkerWalletDoRequestV1::CommitEcdsaTerminal {
+                scope: scope.clone(),
+                request: request.clone(),
+                response: response.clone(),
+                now_unix_ms,
+            },
+        )
+        .await?;
+        return parse_cloudflare_signing_worker_wallet_do_json_response_v1(
+            do_response,
+            "SigningWorker wallet-DO ECDSA terminal",
+        )
+        .await;
+    }
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
+    {
+        let response_json = serde_json::to_string(response).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("SigningWorker ECDSA terminal is invalid: {error}"),
+            )
+        })?;
+        commit_cloudflare_signing_worker_terminal_response_v1(
+            env,
+            &request.effect_operation_key()?,
+            request.effect_request_digest()?,
+            &response_json,
+            now_unix_ms,
+        )
+        .await
     }
 }
 

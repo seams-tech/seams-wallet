@@ -48,6 +48,7 @@ const ecdsaRegistrationPath = '/router-ab/ecdsa-derivation/register';
 const ecdsaActivationPath = '/router-ab/ecdsa-derivation/activate';
 const ecdsaSigningPreparePath = '/router-ab/ecdsa-derivation/sign/prepare';
 const ecdsaSigningWorkerPreparePath = '/router-ab/signing-worker/ecdsa-derivation/sign/prepare';
+const ecdsaSigningWorkerFinalizePath = '/router-ab/signing-worker/ecdsa-derivation/sign';
 const ecdsaSigningPath = '/router-ab/ecdsa-derivation/sign';
 const ecdsaPresignSessionInitPath =
   '/router-ab/signing-worker/ecdsa-derivation/presignature-session/init';
@@ -75,7 +76,7 @@ const gatewayOnlyPresignPaths = new Set([
 ]);
 const routerOnlySigningWorkerEcdsaPaths = new Set([
   ecdsaSigningWorkerPreparePath,
-  '/router-ab/signing-worker/ecdsa-derivation/sign/finalize',
+  ecdsaSigningWorkerFinalizePath,
 ]);
 const ed25519ActivationPackagesPath =
   '/router-ab/signing-worker/ed25519-yao/activation/packages';
@@ -90,6 +91,7 @@ const ecdsaClientWasmPath = resolve(
 );
 let capturedSigningWorkerDelivery;
 let capturedEcdsaSigningWorkerPrepare;
+let loseNextEcdsaSigningWorkerFinalizeReply = false;
 let capturedDeriverAPreparation;
 let capturedDeriverAExecution;
 let capturedDeriverAExecutionRequest;
@@ -346,7 +348,14 @@ async function captureSigningWorkerDelivery(request, miniflare) {
     signingWorkerFinalizationLookups += 1;
   }
   const worker = await miniflare.getWorker(signingWorkerDeliveryTarget);
-  return worker.fetch(request);
+  const response = await worker.fetch(request);
+  if (path === ecdsaSigningWorkerFinalizePath && loseNextEcdsaSigningWorkerFinalizeReply) {
+    loseNextEcdsaSigningWorkerFinalizeReply = false;
+    assert.equal(response.ok, true, 'Simulated lost reply requires a committed signature');
+    await response.arrayBuffer();
+    return new Response('simulated lost SigningWorker finalize reply', { status: 503 });
+  }
+  return response;
 }
 
 async function captureSigningWorkerForHistoricalReplay(request, miniflare) {
@@ -1529,6 +1538,12 @@ async function testEcdsaNormalSigning(topology, ecdsa, mode = 'pool', checkRejec
         authorized_operation: authorizedOperation,
       },
     };
+    if (mode === 'prepare' && process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled') {
+      loseNextEcdsaSigningWorkerFinalizeReply = true;
+      const lostReply = await postWorkerJson(router, ecdsaSigningPath, finalizeRequest);
+      assert.equal(lostReply.ok, false, 'Simulated lost SigningWorker reply must reach Router');
+      assert.equal(loseNextEcdsaSigningWorkerFinalizeReply, false);
+    }
     const finalizeResponse = await postWorkerJson(router, ecdsaSigningPath, finalizeRequest);
     const finalizeBytes = await expectOk(finalizeResponse, 'live ECDSA normal-signing finalize');
     const signed = JSON.parse(finalizeBytes.toString('utf8'));
@@ -1571,7 +1586,7 @@ async function testEcdsaNormalSigning(topology, ecdsa, mode = 'pool', checkRejec
         );
       }
     }
-    return { prepare: prepared, response: signed };
+    return { prepare: prepared, response: signed, finalizeRequest };
   } finally {
     presign.client.free();
   }
@@ -2952,10 +2967,37 @@ async function main() {
       assert.ok(priorSigning.response.signature65_b64u);
       const signing = await testEcdsaNormalSigning(topology, ecdsa, 'prepare');
       if (walletDoPool) {
+        const objectIds = await topology.listDurableObjectIds(
+          'RouterAbSigningWorkerWalletDurableObject',
+          'fixture-signing-worker',
+        );
+        assert.equal(objectIds.length, 1, 'ECDSA owner material must live in one wallet object');
+        await topology.unsafeEvictDurableObject(
+          'fixture-signing-worker',
+          'RouterAbSigningWorkerWalletDurableObject',
+          { id: objectIds[0] },
+        );
+        const replayAfterEviction = await postWorkerJson(
+          await topology.getWorker('router'),
+          ecdsaSigningPath,
+          signing.finalizeRequest,
+        );
+        assert.deepEqual(
+          JSON.parse((await expectOk(replayAfterEviction, 'ECDSA wallet-DO replay after eviction')).toString('utf8')),
+          signing.response,
+        );
         const poolRows = await signingWorkerDatabase
           .prepare('SELECT COUNT(*) AS count FROM signing_worker_ecdsa_pool')
           .first();
         assert.equal(poolRows.count, 0, 'Wallet-DO ECDSA signing must not write D1 pool rows');
+        const effectRows = await signingWorkerDatabase
+          .prepare("SELECT COUNT(*) AS count FROM signing_worker_effect_claims WHERE operation_key LIKE 'evm-ecdsa/%'")
+          .first();
+        assert.equal(effectRows.count, 0, 'Wallet-DO ECDSA signing must not claim D1 effects');
+        const terminalRows = await signingWorkerDatabase
+          .prepare("SELECT COUNT(*) AS count FROM signing_worker_terminal_responses WHERE operation_key LIKE 'evm-ecdsa/%'")
+          .first();
+        assert.equal(terminalRows.count, 0, 'Wallet-DO ECDSA signing must not commit D1 terminals');
       }
       const artifact = {
         kind: walletDoPool
@@ -2974,7 +3016,10 @@ async function main() {
         ...(walletDoPool
           ? {
               walletDoPoolWithoutD1Writes: true,
+              walletDoEffectAndTerminalWithoutD1Writes: true,
               consumedWalletDoMaterialRejected: true,
+              terminalReplayAfterWalletDoEviction: true,
+              lostReplyAfterCommitReplayed: true,
             }
           : {}),
         signatureSha256Hex: createHash('sha256')

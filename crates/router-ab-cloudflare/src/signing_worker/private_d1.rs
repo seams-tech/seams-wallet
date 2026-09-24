@@ -126,13 +126,13 @@ struct EffectClaimRowV1 {
     authorization_json: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CloudflareSigningWorkerTerminalResponseCommitV1 {
     Committed,
     Replay { response_json: String },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CloudflareSigningWorkerNearEffectClaimV1 {
     Claimed,
     InProgress,
@@ -604,27 +604,7 @@ pub async fn claim_cloudflare_signing_worker_ecdsa_effect_v1(
         "SigningWorker ECDSA effect authorization",
         &request.effect_claim,
     )?;
-    let authorization_key = match &request.effect_claim {
-        CloudflareSigningWorkerNormalSigningEffectClaimV1::ReusableWalletSession { claim } => {
-            format!(
-                "ecdsa-reusable-wallet-session/{}/{}/{}/{}/{}",
-                claim.authorization_id,
-                claim.wallet_session_id,
-                claim.authorized_operation_id,
-                claim.operation_id,
-                claim.operation_fingerprint_digest
-            )
-        }
-        CloudflareSigningWorkerNormalSigningEffectClaimV1::OperationStepUp {
-            authorization_session_id,
-            authorized_operation_id,
-            operation_id,
-            operation_fingerprint_digest,
-            ..
-        } => format!(
-            "ecdsa-operation-step-up/{authorization_session_id}/{authorized_operation_id}/{operation_id}/{operation_fingerprint_digest}"
-        ),
-    };
+    let authorization_key = request.effect_authorization_key()?;
     claim_cloudflare_signing_worker_authorization_effect_v1(
         &session,
         &operation_key,
