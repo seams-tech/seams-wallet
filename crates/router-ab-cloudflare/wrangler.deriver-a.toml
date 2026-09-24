@@ -26,6 +26,14 @@ name = "ROUTER_TENANT_ROOT_CREATION_DO"
 class_name = "RouterAbTenantRootCreationDurableObject"
 script_name = "router-ab-mpc-router"
 
+[[durable_objects.bindings]]
+name = "DERIVER_A_WALLET_DO"
+class_name = "RouterAbDeriverAWalletDurableObject"
+
+[[migrations]]
+tag = "r150-deriver-a-wallet-sqlite-v1"
+new_sqlite_classes = ["RouterAbDeriverAWalletDurableObject"]
+
 [[services]]
 binding = "DERIVER_B"
 service = "router-ab-deriver-b"
@@ -60,6 +68,14 @@ bucket_name = "router-ab-deriver-a-staging-tenant-root-managed-backup"
 name = "ROUTER_TENANT_ROOT_CREATION_DO"
 class_name = "RouterAbTenantRootCreationDurableObject"
 script_name = "router-ab-mpc-router-staging"
+
+[[env.staging.durable_objects.bindings]]
+name = "DERIVER_A_WALLET_DO"
+class_name = "RouterAbDeriverAWalletDurableObject"
+
+[[env.staging.migrations]]
+tag = "r150-deriver-a-wallet-sqlite-v1"
+new_sqlite_classes = ["RouterAbDeriverAWalletDurableObject"]
 
 [[env.staging.services]]
 binding = "DERIVER_B"
@@ -98,6 +114,14 @@ bucket_name = "router-ab-deriver-a-testnet-tenant-root-managed-backup"
 name = "ROUTER_TENANT_ROOT_CREATION_DO"
 class_name = "RouterAbTenantRootCreationDurableObject"
 script_name = "router-ab-mpc-router-testnet"
+
+[[env.production-testnet.durable_objects.bindings]]
+name = "DERIVER_A_WALLET_DO"
+class_name = "RouterAbDeriverAWalletDurableObject"
+
+[[env.production-testnet.migrations]]
+tag = "r150-deriver-a-wallet-sqlite-v1"
+new_sqlite_classes = ["RouterAbDeriverAWalletDurableObject"]
 
 [[env.production-testnet.services]]
 binding = "DERIVER_B"

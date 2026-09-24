@@ -23,6 +23,7 @@ const ROLE_PRIVATE_D1_ROLE_ENV: &str = "DERIVER_ROLE_PRIVATE_D1_ROLE";
 const ROLE_PRIVATE_D1_KEK_SECRET_PREFIX: &str = "hpke-x25519-role-private-d1-private-v1:";
 const ROLE_PRIVATE_D1_HPKE_INFO: &[u8] = b"seams/deriver/role-private-d1/hpke/v1";
 const ROLE_PRIVATE_D1_SCHEMA: &str = "deriver-role-private-d1/v1";
+const ROLE_PRIVATE_WALLET_DO_SCHEMA: &str = "deriver-a-wallet-do/v1";
 const ROLE_PRIVATE_D1_PURPOSE: &str = "yao-pair-lifecycle";
 const LOAD_PAIR_SQL: &str =
     "SELECT ciphertext_json, revision FROM yao_pair_sessions WHERE session_hex = ?1";
@@ -41,17 +42,17 @@ struct PairRowV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct RolePairD1RecordScopeV1 {
-    signer_set_id: String,
-    root_share_epoch: String,
-    root_metadata_digest_hex: String,
+pub(crate) struct RolePairRecordScopeV1 {
+    pub(crate) signer_set_id: String,
+    pub(crate) root_share_epoch: String,
+    pub(crate) root_metadata_digest_hex: String,
 }
 
 #[derive(Clone)]
 struct CachedPairV1 {
     record_json: String,
     revision: i64,
-    scope: RolePairD1RecordScopeV1,
+    scope: RolePairRecordScopeV1,
 }
 
 #[derive(Clone)]
@@ -65,12 +66,12 @@ struct PendingPairV1 {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
-enum RolePairD1RoleV1 {
+enum RolePairRoleV1 {
     DeriverA,
     DeriverB,
 }
 
-impl RolePairD1RoleV1 {
+impl RolePairRoleV1 {
     fn parse(value: &str) -> worker::Result<Self> {
         match value {
             "deriver_a" => Ok(Self::DeriverA),
@@ -84,9 +85,9 @@ impl RolePairD1RoleV1 {
 
 #[derive(Debug, Serialize)]
 #[serde(deny_unknown_fields)]
-struct RolePairD1AadV1<'a> {
+struct RolePairAadV1<'a> {
     environment: &'a str,
-    role: RolePairD1RoleV1,
+    role: RolePairRoleV1,
     signer_set_id: &'a str,
     root_share_epoch: &'a str,
     root_metadata_digest_hex: &'a str,
@@ -97,7 +98,7 @@ struct RolePairD1AadV1<'a> {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct RolePairD1CiphertextV1 {
+struct RolePairCiphertextV1 {
     key_version: String,
     signer_set_id: String,
     root_share_epoch: String,
@@ -105,23 +106,38 @@ struct RolePairD1CiphertextV1 {
     ciphertext_b64u: String,
 }
 
-struct RolePairD1CipherV1 {
+pub(crate) struct RolePairCipherV1 {
     environment: String,
-    role: RolePairD1RoleV1,
+    role: RolePairRoleV1,
     key_version: String,
     public_key: <CloudflareHpkeKemV1 as Kem>::PublicKey,
     private_key: <CloudflareHpkeKemV1 as Kem>::PrivateKey,
+    schema: &'static str,
 }
 
-struct OpenedRolePairD1RecordV1 {
-    record_json: String,
-    scope: RolePairD1RecordScopeV1,
+pub(crate) struct OpenedRolePairRecordV1 {
+    pub(crate) record_json: String,
+    pub(crate) scope: RolePairRecordScopeV1,
 }
 
-impl RolePairD1CipherV1 {
+impl RolePairCipherV1 {
     fn from_env(env: &Env) -> worker::Result<Self> {
+        Self::from_env_with_schema(env, ROLE_PRIVATE_D1_SCHEMA)
+    }
+
+    pub(crate) fn from_env_for_wallet_do(env: &Env) -> worker::Result<Self> {
+        let cipher = Self::from_env_with_schema(env, ROLE_PRIVATE_WALLET_DO_SCHEMA)?;
+        if cipher.role != RolePairRoleV1::DeriverA {
+            return Err(role_d1_error(
+                "Deriver A wallet DO requires the Deriver A role key",
+            ));
+        }
+        Ok(cipher)
+    }
+
+    fn from_env_with_schema(env: &Env, schema: &'static str) -> worker::Result<Self> {
         let environment = required_env_var(env, ROLE_PRIVATE_D1_ENVIRONMENT_ENV)?;
-        let role = RolePairD1RoleV1::parse(&required_env_var(env, ROLE_PRIVATE_D1_ROLE_ENV)?)?;
+        let role = RolePairRoleV1::parse(&required_env_var(env, ROLE_PRIVATE_D1_ROLE_ENV)?)?;
         let key_version = required_env_var(env, ROLE_PRIVATE_D1_KEK_VERSION_ENV)?;
         let public_key = parse_cloudflare_hpke_x25519_public_key_v1(&required_env_var(
             env,
@@ -146,13 +162,14 @@ impl RolePairD1CipherV1 {
             key_version,
             public_key,
             private_key,
+            schema,
         })
     }
 
-    fn seal(
+    pub(crate) fn seal(
         &self,
         identity: &str,
-        scope: &RolePairD1RecordScopeV1,
+        scope: &RolePairRecordScopeV1,
         record_json: &str,
     ) -> worker::Result<String> {
         validate_scope(scope)?;
@@ -173,7 +190,7 @@ impl RolePairD1CipherV1 {
         let mut payload = Vec::with_capacity(encapped_key.as_ref().len() + ciphertext.len());
         payload.extend_from_slice(encapped_key.as_ref());
         payload.extend_from_slice(&ciphertext);
-        serde_json::to_string(&RolePairD1CiphertextV1 {
+        serde_json::to_string(&RolePairCiphertextV1 {
             key_version: self.key_version.clone(),
             signer_set_id: scope.signer_set_id.clone(),
             root_share_epoch: scope.root_share_epoch.clone(),
@@ -187,8 +204,12 @@ impl RolePairD1CipherV1 {
         })
     }
 
-    fn open(&self, identity: &str, encoded: &str) -> worker::Result<OpenedRolePairD1RecordV1> {
-        let envelope: RolePairD1CiphertextV1 = serde_json::from_str(encoded).map_err(|error| {
+    pub(crate) fn open(
+        &self,
+        identity: &str,
+        encoded: &str,
+    ) -> worker::Result<OpenedRolePairRecordV1> {
+        let envelope: RolePairCiphertextV1 = serde_json::from_str(encoded).map_err(|error| {
             role_d1_error(format!(
                 "role-private D1 ciphertext decoding failed: {error}"
             ))
@@ -198,7 +219,7 @@ impl RolePairD1CipherV1 {
                 "role-private D1 ciphertext key version is unavailable",
             ));
         }
-        let scope = RolePairD1RecordScopeV1 {
+        let scope = RolePairRecordScopeV1 {
             signer_set_id: envelope.signer_set_id,
             root_share_epoch: envelope.root_share_epoch,
             root_metadata_digest_hex: envelope.root_metadata_digest_hex,
@@ -231,18 +252,18 @@ impl RolePairD1CipherV1 {
         })?;
         let record_json = String::from_utf8(plaintext)
             .map_err(|_| role_d1_error("role-private D1 plaintext is not UTF-8"))?;
-        Ok(OpenedRolePairD1RecordV1 { record_json, scope })
+        Ok(OpenedRolePairRecordV1 { record_json, scope })
     }
 
-    fn aad(&self, identity: &str, scope: &RolePairD1RecordScopeV1) -> worker::Result<Vec<u8>> {
-        serde_json::to_vec(&RolePairD1AadV1 {
+    fn aad(&self, identity: &str, scope: &RolePairRecordScopeV1) -> worker::Result<Vec<u8>> {
+        serde_json::to_vec(&RolePairAadV1 {
             environment: &self.environment,
             role: self.role,
             signer_set_id: &scope.signer_set_id,
             root_share_epoch: &scope.root_share_epoch,
             root_metadata_digest_hex: &scope.root_metadata_digest_hex,
             purpose: ROLE_PRIVATE_D1_PURPOSE,
-            schema: ROLE_PRIVATE_D1_SCHEMA,
+            schema: self.schema,
             identity,
         })
         .map_err(|error| role_d1_error(format!("role-private D1 AAD encoding failed: {error}")))
@@ -260,7 +281,7 @@ fn required_env_var(env: &Env, name: &'static str) -> worker::Result<String> {
     Ok(value)
 }
 
-fn validate_scope(scope: &RolePairD1RecordScopeV1) -> worker::Result<()> {
+fn validate_scope(scope: &RolePairRecordScopeV1) -> worker::Result<()> {
     if scope.signer_set_id.trim().is_empty()
         || scope.root_share_epoch.trim().is_empty()
         || scope.root_metadata_digest_hex.len() != 64
@@ -313,8 +334,8 @@ fn role_d1_error(message: impl Into<String>) -> worker::Error {
 pub(super) struct RolePairD1StorageV1 {
     session: D1DatabaseSession,
     session_hex: String,
-    cipher: RolePairD1CipherV1,
-    creation_scope: RefCell<Option<RolePairD1RecordScopeV1>>,
+    cipher: RolePairCipherV1,
+    creation_scope: RefCell<Option<RolePairRecordScopeV1>>,
     cached: RefCell<Option<Option<CachedPairV1>>>,
 }
 
@@ -335,7 +356,7 @@ impl RolePairD1StorageV1 {
         Ok(Self {
             session,
             session_hex: encode_hex(session_id),
-            cipher: RolePairD1CipherV1::from_env(env)?,
+            cipher: RolePairCipherV1::from_env(env)?,
             creation_scope: RefCell::new(None),
             cached: RefCell::new(None),
         })
@@ -347,7 +368,7 @@ impl RolePairD1StorageV1 {
         root_share_epoch: &str,
         root_metadata_digest: [u8; 32],
     ) -> worker::Result<()> {
-        let scope = RolePairD1RecordScopeV1 {
+        let scope = RolePairRecordScopeV1 {
             signer_set_id: signer_set_id.to_owned(),
             root_share_epoch: root_share_epoch.to_owned(),
             root_metadata_digest_hex: encode_hex(root_metadata_digest),
@@ -548,7 +569,7 @@ fn pending_pair(value: PairYaoSessionRecordV1) -> worker::Result<PendingPairV1> 
 
 fn validate_pending_scope(
     record_json: &str,
-    scope: &RolePairD1RecordScopeV1,
+    scope: &RolePairRecordScopeV1,
 ) -> worker::Result<()> {
     let record: PairYaoSessionRecordV1 = serde_json::from_str(record_json).map_err(|error| {
         role_d1_error(format!(
@@ -581,11 +602,11 @@ fn validate_pending_scope(
     Ok(())
 }
 
-fn encode_hex(value: [u8; 32]) -> String {
+pub(crate) fn encode_hex(value: [u8; 32]) -> String {
     encode_hex_slice(&value)
 }
 
-fn encode_hex_slice(value: &[u8]) -> String {
+pub(crate) fn encode_hex_slice(value: &[u8]) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut encoded = String::with_capacity(value.len() * 2);
     for byte in value {
@@ -599,26 +620,27 @@ fn encode_hex_slice(value: &[u8]) -> String {
 mod tests {
     use super::*;
 
-    fn test_cipher(role: RolePairD1RoleV1, seed: u8) -> RolePairD1CipherV1 {
+    fn test_cipher(role: RolePairRoleV1, seed: u8) -> RolePairCipherV1 {
         let (private_key, public_key) = CloudflareHpkeKemV1::derive_key_pair(&[seed; 32])
             .expect("test role-private D1 keypair derives");
-        RolePairD1CipherV1 {
+        RolePairCipherV1 {
             environment: "test".to_owned(),
             role,
             key_version: "epoch-1".to_owned(),
             public_key,
             private_key,
+            schema: ROLE_PRIVATE_D1_SCHEMA,
         }
     }
 
     #[test]
     fn role_private_d1_cipher_binds_role_key_and_scope() {
-        let scope = RolePairD1RecordScopeV1 {
+        let scope = RolePairRecordScopeV1 {
             signer_set_id: "signer-set-1".to_owned(),
             root_share_epoch: "root-epoch-1".to_owned(),
             root_metadata_digest_hex: encode_hex([0x33; 32]),
         };
-        let cipher = test_cipher(RolePairD1RoleV1::DeriverA, 0x41);
+        let cipher = test_cipher(RolePairRoleV1::DeriverA, 0x41);
         let ciphertext = cipher
             .seal("session-1", &scope, "{\"status\":\"prepared\"}")
             .expect("record encrypts");
@@ -629,13 +651,23 @@ mod tests {
         assert_eq!(opened.scope, scope);
         assert!(cipher.open("session-2", &ciphertext).is_err());
 
-        let wrong_role = test_cipher(RolePairD1RoleV1::DeriverB, 0x41);
+        let wrong_role = test_cipher(RolePairRoleV1::DeriverB, 0x41);
         assert!(wrong_role.open("session-1", &ciphertext).is_err());
 
-        let wrong_key = test_cipher(RolePairD1RoleV1::DeriverA, 0x42);
+        let wrong_key = test_cipher(RolePairRoleV1::DeriverA, 0x42);
         assert!(wrong_key.open("session-1", &ciphertext).is_err());
 
-        let mut envelope: RolePairD1CiphertextV1 =
+        let do_cipher = RolePairCipherV1 {
+            schema: ROLE_PRIVATE_WALLET_DO_SCHEMA,
+            ..test_cipher(RolePairRoleV1::DeriverA, 0x41)
+        };
+        assert!(do_cipher.open("session-1", &ciphertext).is_err());
+        let do_ciphertext = do_cipher
+            .seal("session-1", &scope, "{\"status\":\"prepared\"}")
+            .expect("DO record encrypts");
+        assert!(cipher.open("session-1", &do_ciphertext).is_err());
+
+        let mut envelope: RolePairCiphertextV1 =
             serde_json::from_str(&ciphertext).expect("ciphertext envelope decodes");
         envelope.root_share_epoch = "root-epoch-2".to_owned();
         let tampered = serde_json::to_string(&envelope).expect("tampered envelope encodes");

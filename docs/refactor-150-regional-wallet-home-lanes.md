@@ -15,6 +15,13 @@ mandatory Home region setting, three managed D1 lanes, and migration-first rollo
 Existing lane implementation work must be reconciled with this plan before further
 integration; its presence does not make it a requirement of the DO architecture.
 
+The managed rollout is a clean reset: the current production wallets are
+test-only and may be erased. This removes the D1-to-DO existing-wallet conversion
+phase and compatibility routing. It does not authorize a wipe during adapter
+development. An operator must inventory exact wallet-owned resources, retained
+tenant/config/root resources, dependencies, and recovery copies before an
+explicitly coordinated reset.
+
 ## Decision and objective
 
 Place wallet-local state and its mutation logic near the user at registration,
@@ -38,7 +45,7 @@ whose ownership and latency requirements justify it.
 
 The expected benefits are automatic per-wallet routing, local transactional state
 access, and fewer serial network calls. The size of the latency benefit and total
-cost must be measured before the full conversion proceeds.
+cost must be measured before the managed rollout proceeds.
 
 ## Product behavior and scope
 
@@ -52,8 +59,8 @@ Initial managed release:
   for each configuration enabled in the release.
 - Collect operational latency and cost measurements without building travel
   profiles or a user-movement detector.
-- Provide runbooks for object failure, schema upgrades, recovery, and staged
-  backend conversion.
+- Provide runbooks for object failure, schema upgrades, recovery, and the
+  clean-reset rollout.
 - Keep shared wallet behavior independent of Cloudflare APIs and verify it through
   a concrete VM reference path as well as the managed Cloudflare adapter.
 - Deliver a setup guide and reference configuration for each adapter, with thin
@@ -147,8 +154,9 @@ an accidental cross-region signing chain.
 Use supported jurisdiction controls when policy requires them; a latency hint is
 insufficient. Namespace and jurisdiction selection are identity-bearing decisions.
 A changed policy or hint must never silently create a second writable wallet.
-The stable DO path needs no geographic directory. Trusted policy/identity metadata
-and temporary backend-conversion routing remain necessary where applicable.
+The stable DO path needs no geographic directory. Trusted policy and identity
+metadata determine one wallet authority; the clean reset needs no temporary
+backend discriminator.
 
 ### Storage and execution boundary
 
@@ -343,7 +351,7 @@ and [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/).
 The detailed assumptions, formulas, and account-level projections are recorded in
 [the R150 cost analysis](./refactor-150-cost-analysis.md).
 
-Before a full conversion, compare the current path and a representative DO-backed
+Before the clean-reset rollout, compare the current path and a representative DO-backed
 path using the same protocol, payload, user locations, and network conditions:
 
 - End-to-end registration and signing p50/p95, including cold and warm objects.
@@ -471,20 +479,14 @@ deliverables. Publishing a new adapter cannot silently create a second writer.
 - Classify prior lane code as required by a supported deployment, reusable for an
   actual ownership transition, or superseded. Remove superseded paths, exports,
   settings helpers, and tests in the implementation change that replaces them.
-- Inspect deployed schema/version usage before retiring any persistence artifact.
-  The new design does not authorize deleting live records or blindly dropping
-  previously applied migrations.
-- Existing wallets remain on their proven authority until a separate conversion
-  procedure establishes authorization, source fencing, target verification,
-  replay continuity, and safe activation. Do not assume SQL export or dual writes
-  is an acceptable custody transfer.
-- A new-wallet cohort may precede existing-wallet conversion. Any temporary backend
-  discriminator belongs at the trusted routing/persistence boundary, with one
-  selected authority per wallet and an explicit removal milestone after conversion.
-  There is no automatic fallback that creates fresh custody on a failed lookup.
-- If conversion cannot preserve a wallet configuration's invariants, leave it on
-  its current backend and report the blocker. A cohort rollout is not evidence
-  that existing-wallet conversion is complete.
+- Inspect deployed schema/version usage before retiring persistence artifacts.
+  Previously applied migrations remain historical facts even after a reset.
+- Inventory exact test-wallet rows, objects, jobs, and external effects separately
+  from tenant configuration and root authority. Review dependencies and recovery
+  copies before an explicit clean reset; do not delete production state as an
+  incidental implementation step.
+- Bring up the new backend with one authority per new wallet and no silent D1
+  fallback. Remove obsolete wallet-local D1 paths after replacement is verified.
 
 ## Implementation sequence and verification
 
@@ -538,16 +540,15 @@ deliverables. Publishing a new adapter cannot silently create a second writer.
 Stopping new registrations is a valid rollout rollback. Existing DO wallets retain
 their committed authority; rollback never routes them to stale D1 state.
 
-### Phase 3: existing-wallet conversion and cleanup
+### Phase 3: clean reset and replaced-path retirement
 
-1. Specify and separately review the D1-to-DO conversion procedure and retention
-   policy. Apply authority-transfer safety requirements even if the reason is
-   a backend upgrade rather than geographic relocation.
-2. Exercise failure injection and supported-protocol manifest verification before
-   moving a production wallet.
-3. Convert eligible cohorts, resolve unsupported configurations explicitly, and
-   remove obsolete routing, stores, and temporary compatibility boundaries once
-   their last dependent wallet has safely converted.
+1. Inventory and review the exact production test-wallet resources to erase,
+   retained tenant/config/root authorities, external effects, backups, and
+   reset order. Execute the reset only as a separately coordinated operation.
+2. Verify the DO-only new-wallet path and its VM reference with failure injection
+   and supported-protocol manifest checks before enabling registrations.
+3. Remove superseded wallet-local D1 routing, stores, and compatibility code.
+   Keep intentionally shared D1 authority and applied migration history.
 
 Regional-lane deployments and optional geographic relocation have independent
 approval and acceptance gates. They are not later mandatory phases of this managed
@@ -581,10 +582,10 @@ The initial managed DO milestone is complete when:
 - Registration and settings expose no region selection or move controls; retired
   region UI and its exclusive dependencies have been removed from SDK and hosted
   composition, without hidden or feature-flagged remnants.
-- Existing-wallet status and conversion blockers are explicitly documented.
+- The clean-reset resource inventory and execution evidence are documented.
 
-The backend replacement is complete only after existing-wallet conversion and
-obsolete-path cleanup are also complete. Future relocation UI, movement telemetry,
+The backend replacement is complete only after the clean reset, DO-only rollout,
+and obsolete-path cleanup are complete. Future relocation UI, movement telemetry,
 provider-specific AWS/GCP deployment automation, a PostgreSQL adapter, and
 regional-lane deployment are excluded from both completion claims. The portable
 VM reference path and its shared correctness tests are required.

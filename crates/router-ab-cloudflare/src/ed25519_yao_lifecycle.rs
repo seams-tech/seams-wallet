@@ -2,7 +2,7 @@ use core::{fmt, future::Future, pin::Pin};
 use std::time::Duration;
 
 #[path = "ed25519_yao_role_d1.rs"]
-mod role_d1;
+pub(crate) mod role_d1;
 
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use futures::future::{select, Either};

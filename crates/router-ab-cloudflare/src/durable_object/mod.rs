@@ -19,6 +19,15 @@ use crate::{
 };
 #[cfg(feature = "workers-rs")]
 mod ecdsa_presign_live_session;
+#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-deriver-a-entrypoint", test)))]
+mod deriver_a_pair;
+#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-deriver-a-entrypoint", test)))]
+pub use deriver_a_pair::RouterAbDeriverAWalletDurableObject;
+#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-deriver-a-entrypoint", test)))]
+pub(crate) use deriver_a_pair::{
+    call_deriver_a_pair_do_v1, DeriverAPairDoCommandV1, DeriverAPairDoResponseV1,
+    DeriverAPairPayloadV1, DeriverAWalletOwnerV1,
+};
 #[cfg(any(feature = "workers-rs", test))]
 pub(crate) mod tenant_root_creation;
 #[cfg(any(feature = "workers-rs", test))]

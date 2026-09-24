@@ -66,7 +66,8 @@ impl<P, O> Ed25519YaoPairRecordV1<P, O> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Ed25519YaoPairRejectionV1 {
     IdentityMismatch,
     ReadinessMismatch,
@@ -85,7 +86,8 @@ pub enum Ed25519YaoPairTransitionV1<P, O> {
 }
 
 /// A scoped store result after the transition and its conditional write.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Ed25519YaoPairStoreResultV1<P, O> {
     Applied {
         revision: u64,

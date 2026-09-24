@@ -1,21 +1,23 @@
 # R150 state ownership map
 
-Status: design decision for the first new-wallet DO path. Existing wallets keep
-their D1 authority until a separate, fenced conversion. The first complete path
+Status: design decision for the first new-wallet DO path. Current production
+wallets are test-only and may be erased in a separately coordinated clean reset;
+there is no existing-wallet conversion or compatibility route. The first complete path
 is Ed25519 Yao registration and NEAR signing; ECDSA uses the same ownership
 rules when lifecycle coverage expands.
 
 An owner names the service allowed to decide and mutate a fact. A public key in
 Gateway storage and a private share in a role store are different facts. A
 reporting copy cannot authorize a wallet operation. The routing key for each
-new wallet is a trusted tenant and wallet identity plus the fixed role; a client
-location, request URL, or placement hint cannot select an authority.
+new wallet is the server-resolved org/project/environment scope and wallet
+identity plus the fixed role; a client location, request URL, placement hint,
+or root-version-dependent digest cannot select an authority.
 
 ## Record decisions
 
 `SIGNER_DB` is the current Gateway D1 database. The target column describes
-the new-wallet path; the existing-wallet D1 records stay authoritative until
-conversion. Rows with tenant-wide or cross-wallet constraints stay in D1.
+the DO-only new-wallet path after the clean reset. Rows with tenant-wide or
+cross-wallet constraints stay in D1.
 The VM adapter uses role-private SQLite for every target DO group and ordinary
 SQL for the retained shared Gateway and tenant-wide groups.
 
@@ -43,8 +45,8 @@ SQL for the retained shared Gateway and tenant-wide groups.
 | Router tenant-root-creation DO journal/checkpoints | Router | Existing tenant-root-creation DO | Keep tenant-wide creation idempotency and installation checkpoints together |
 
 The `router_ab_yao_versioned_json_records` table contains several unrelated
-record families. Conversion selects records by their validated domain key and
-owner; copying that table wholesale would duplicate authority. The Yao
+record families. The replacement selects records by their validated domain key
+and owner; copying that table wholesale would duplicate authority. The Yao
 `shared` record is tenant-wide, while ceremony and execution records are
 lifecycle-keyed. Registration finalization installs a capability into the
 shared record, and the current D1 batch operation can update that record with
@@ -85,8 +87,9 @@ and exact grant/quota consumption.
   adapters still need domain-specific atomic claim/commit operations.
 - Reuse the existing TS registration ceremony and signing-lane store interfaces
   where their compare-and-swap semantics match the target. Their D1 adapters
-  remain for existing wallets. New DO and VM adapters implement the same
-  behavioral contracts without sharing a writable backing record.
+  remain only during development comparison and are retired when the DO-only
+  path is verified. New DO and VM adapters implement the same behavioral
+  contracts without sharing a writable backing record.
 - Reuse the tenant-root-creation DO and SigningWorker presign-session DO for
   their current coordination units. The generic threshold and versioned-JSON
   DO stores demonstrate atomic operations; neither is a substitute for a
