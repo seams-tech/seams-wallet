@@ -121,10 +121,14 @@ duration, and stored bytes have not been measured for a matched comparison.
   their current coordination units. The generic threshold and versioned-JSON
   DO stores demonstrate atomic operations; neither is a substitute for a
   role-specific claim spanning several protocol records.
-- `LocalRolePrivateSqliteStorageV1` proves VM persistence and role separation.
-  Its byte get/put API does not implement competing claims, version checks, or
-  crash-safe effect journals. Extend the narrow role store contract when the
-  representative path demonstrates each missing operation.
+- VM Deriver A and B pair records use role-private SQLite claims. B's pair
+  claim and terminal result have one wallet/session row; its registration
+  effective-state delta commits in the same transaction as completion. The
+  broader role-state blob excludes B pair authority and rejects a stale
+  process snapshot. SigningWorker NEAR and ECDSA have separate one-use effect
+  journals. Router registration retry reconciliation, B peer-response-loss
+  recovery, and remaining lifecycle operations still require durable behavior
+  evidence before the VM reference path is complete.
 
 Recovery, factor management, export, linked devices, and background jobs need
 their own inventory before full lifecycle coverage. Their current D1 records remain

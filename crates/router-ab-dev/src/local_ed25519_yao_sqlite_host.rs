@@ -1,7 +1,8 @@
 use crate::{
     local_ed25519_yao_pair_sqlite::ensure_local_deriver_a_pair_schema_v1,
-    local_signing_worker_near_sqlite, LocalDeriverAPairSqliteV1, LocalEd25519YaoWorkerStateV1,
-    LocalRolePrivateSqliteStorageV1, LocalWorkerRoleConfigV1,
+    local_signing_worker_near_sqlite, LocalDeriverAPairSqliteV1,
+    LocalEd25519YaoDeriverBEffectiveStateV1, LocalEd25519YaoPairRoleRecordV1,
+    LocalEd25519YaoWorkerStateV1, LocalRolePrivateSqliteStorageV1, LocalWorkerRoleConfigV1,
 };
 use router_ab_cloudflare::{
     CloudflareEd25519YaoPairExecuteResponseV1, CloudflareEd25519YaoPairWorkV1,
@@ -15,11 +16,17 @@ use router_ab_core::{
     Ed25519YaoPairStoreResultV1, LocalServiceRoleV1, RouterAbProtocolError,
     RouterAbProtocolErrorCode, RouterAbProtocolResult, TenantRootSignedActivationReceiptV1,
 };
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, fs, path::PathBuf};
 
 const STATE_KEY: &str = "ed25519-yao/worker-state-v2";
+const DERIVER_B_PAIR_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS local_deriver_b_yao_pairs (
+    session_hex TEXT PRIMARY KEY,
+    pair_digest_hex TEXT NOT NULL,
+    revision INTEGER NOT NULL CHECK (revision > 0),
+    record_json TEXT NOT NULL
+)";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -65,6 +72,7 @@ impl LocalDeriverAPairScopeV1 {
 
 pub struct LocalEd25519YaoSqliteHostV1 {
     connection: RefCell<Connection>,
+    deriver_b_state_snapshot: RefCell<Option<Vec<u8>>>,
 }
 
 impl LocalEd25519YaoSqliteHostV1 {
@@ -87,11 +95,16 @@ impl LocalEd25519YaoSqliteHostV1 {
         LocalRolePrivateSqliteStorageV1::new(&connection)?;
         if config.role() == LocalServiceRoleV1::DeriverA {
             ensure_local_deriver_a_pair_schema_v1(&connection)?;
+        } else if config.role() == LocalServiceRoleV1::DeriverB {
+            connection
+                .execute_batch(DERIVER_B_PAIR_SCHEMA)
+                .map_err(pair_lookup_error)?;
         } else if config.role() == LocalServiceRoleV1::SigningWorker {
             local_signing_worker_near_sqlite::ensure_schema(&connection)?;
         }
         Ok(Self {
             connection: RefCell::new(connection),
+            deriver_b_state_snapshot: RefCell::new(None),
         })
     }
 
@@ -101,7 +114,11 @@ impl LocalEd25519YaoSqliteHostV1 {
     ) -> RouterAbProtocolResult<LocalEd25519YaoWorkerStateV1> {
         let connection = self.connection.borrow();
         let storage = LocalRolePrivateSqliteStorageV1::new(&connection)?;
-        let Some(bytes) = storage.get_bytes(STATE_KEY)? else {
+        let bytes = storage.get_bytes(STATE_KEY)?;
+        if role == LocalServiceRoleV1::DeriverB {
+            *self.deriver_b_state_snapshot.borrow_mut() = bytes.clone();
+        }
+        let Some(bytes) = bytes else {
             return Ok(LocalEd25519YaoWorkerStateV1::default());
         };
         LocalEd25519YaoWorkerStateV1::decode_durable_state_for_role_v1(role, &bytes)
@@ -113,9 +130,24 @@ impl LocalEd25519YaoSqliteHostV1 {
         state: &LocalEd25519YaoWorkerStateV1,
     ) -> RouterAbProtocolResult<()> {
         let bytes = state.encode_durable_state_for_role_v1(role)?;
+        if role == LocalServiceRoleV1::DeriverB {
+            let mut connection = self.connection.borrow_mut();
+            let transaction = connection
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .map_err(pair_lookup_error)?;
+            let storage = LocalRolePrivateSqliteStorageV1::new(&transaction)?;
+            if storage.get_bytes(STATE_KEY)? != *self.deriver_b_state_snapshot.borrow() {
+                return Err(pair_lookup_conflict(
+                    "Deriver B role state changed in another process",
+                ));
+            }
+            storage.put_bytes(STATE_KEY, &bytes)?;
+            transaction.commit().map_err(pair_lookup_error)?;
+            *self.deriver_b_state_snapshot.borrow_mut() = Some(bytes);
+            return Ok(());
+        }
         let connection = self.connection.borrow();
-        let storage = LocalRolePrivateSqliteStorageV1::new(&connection)?;
-        storage.put_bytes(STATE_KEY, &bytes)
+        LocalRolePrivateSqliteStorageV1::new(&connection)?.put_bytes(STATE_KEY, &bytes)
     }
 
     pub fn prepare_near(
@@ -146,6 +178,113 @@ impl LocalEd25519YaoSqliteHostV1 {
     ) -> RouterAbProtocolResult<Option<String>> {
         let connection = self.connection.borrow();
         local_signing_worker_near_sqlite::read_terminal(&connection, request)
+    }
+
+    pub fn read_b_pair(
+        &self,
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+    ) -> RouterAbProtocolResult<Option<LocalEd25519YaoPairRoleRecordV1>> {
+        let connection = self.connection.borrow();
+        read_b_pair_row(&connection, session, pair_digest).map(|row| row.map(|(_, record)| record))
+    }
+
+    pub fn transition_b_pair<T>(
+        &self,
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+        decide: impl FnOnce(
+            Option<&LocalEd25519YaoPairRoleRecordV1>,
+        )
+            -> RouterAbProtocolResult<(Option<LocalEd25519YaoPairRoleRecordV1>, T)>,
+    ) -> RouterAbProtocolResult<T> {
+        let mut connection = self.connection.borrow_mut();
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(pair_lookup_error)?;
+        let current = read_b_pair_row(&transaction, session, pair_digest)?;
+        let (next, result) = decide(current.as_ref().map(|(_, record)| record))?;
+        write_b_pair_row(
+            &transaction,
+            session,
+            pair_digest,
+            current.as_ref(),
+            next.as_ref(),
+        )?;
+        transaction.commit().map_err(pair_lookup_error)?;
+        Ok(result)
+    }
+
+    pub fn complete_b_pair(
+        &self,
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+        running: &LocalEd25519YaoPairRoleRecordV1,
+        completed: &LocalEd25519YaoPairRoleRecordV1,
+        effective_delta: Option<LocalEd25519YaoDeriverBEffectiveStateV1>,
+    ) -> RouterAbProtocolResult<()> {
+        let mut connection = self.connection.borrow_mut();
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(pair_lookup_error)?;
+        let current = read_b_pair_row(&transaction, session, pair_digest)?;
+        let Some((_, selected)) = &current else {
+            return Err(pair_lookup_conflict(
+                "Deriver B pair disappeared before completion",
+            ));
+        };
+        if selected != running {
+            return Err(pair_lookup_conflict(
+                "Deriver B pair execution changed before completion",
+            ));
+        }
+        match (running, completed) {
+            (
+                LocalEd25519YaoPairRoleRecordV1::Running {
+                    execution_id: running_id,
+                    ..
+                },
+                LocalEd25519YaoPairRoleRecordV1::Completed {
+                    execution_id: completed_id,
+                    execution,
+                    ..
+                },
+            ) if running_id == completed_id
+                && execution.deriver() == router_ab_core::Ed25519YaoDeriverRoleV1::DeriverB =>
+            {
+                execution
+                    .validate()
+                    .map_err(|_| pair_lookup_conflict("Deriver B completion is invalid"))?;
+            }
+            _ => {
+                return Err(pair_lookup_conflict(
+                    "Deriver B completion does not own its execution",
+                ))
+            }
+        }
+        let storage = LocalRolePrivateSqliteStorageV1::new(&transaction)?;
+        let bytes = storage.get_bytes(STATE_KEY)?;
+        let mut durable_state = match bytes {
+            Some(bytes) => LocalEd25519YaoWorkerStateV1::decode_durable_state_for_role_v1(
+                LocalServiceRoleV1::DeriverB,
+                &bytes,
+            )?,
+            None => LocalEd25519YaoWorkerStateV1::default(),
+        };
+        durable_state.apply_deriver_b_effective_delta(effective_delta)?;
+        let updated =
+            durable_state.encode_durable_state_for_role_v1(LocalServiceRoleV1::DeriverB)?;
+        storage.put_bytes(STATE_KEY, &updated)?;
+        write_b_pair_row(
+            &transaction,
+            session,
+            pair_digest,
+            current.as_ref(),
+            Some(completed),
+        )?;
+        transaction.commit().map_err(pair_lookup_error)?;
+        *self.deriver_b_state_snapshot.borrow_mut() = Some(updated);
+        Ok(())
     }
 
     pub fn read_a_pair(
@@ -314,4 +453,83 @@ fn pair_lookup_error(error: rusqlite::Error) -> RouterAbProtocolError {
         RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
         format!("Deriver A pair lookup failed: {error}"),
     )
+}
+
+fn pair_lookup_conflict(message: &'static str) -> RouterAbProtocolError {
+    RouterAbProtocolError::new(RouterAbProtocolErrorCode::InvalidLifecycleState, message)
+}
+
+fn read_b_pair_row(
+    connection: &Connection,
+    session: [u8; 32],
+    pair_digest: [u8; 32],
+) -> RouterAbProtocolResult<Option<(i64, LocalEd25519YaoPairRoleRecordV1)>> {
+    let row = connection
+        .query_row(
+            "SELECT pair_digest_hex, revision, record_json FROM local_deriver_b_yao_pairs WHERE session_hex = ?1",
+            params![hex::encode(session)],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, String>(2)?)),
+        )
+        .optional()
+        .map_err(pair_lookup_error)?;
+    row.map(|(stored_digest, revision, json)| {
+        if stored_digest != hex::encode(pair_digest) || revision <= 0 {
+            return Err(pair_lookup_conflict(
+                "Deriver B pair scope conflicts with its session",
+            ));
+        }
+        let record: LocalEd25519YaoPairRoleRecordV1 = serde_json::from_str(&json)
+            .map_err(|_| pair_lookup_conflict("Deriver B pair record is malformed"))?;
+        if record.session() != session || record.pair_digest() != pair_digest {
+            return Err(pair_lookup_conflict(
+                "Deriver B pair record identity changed",
+            ));
+        }
+        crate::local_ed25519_yao_worker::validate_pair_role_record(
+            LocalServiceRoleV1::DeriverB,
+            &record,
+        )?;
+        Ok((revision, record))
+    })
+    .transpose()
+}
+
+fn write_b_pair_row(
+    transaction: &rusqlite::Transaction<'_>,
+    session: [u8; 32],
+    pair_digest: [u8; 32],
+    current: Option<&(i64, LocalEd25519YaoPairRoleRecordV1)>,
+    next: Option<&LocalEd25519YaoPairRoleRecordV1>,
+) -> RouterAbProtocolResult<()> {
+    let Some(next) = next else {
+        return Ok(());
+    };
+    if current.is_some_and(|(_, record)| record == next) {
+        return Ok(());
+    }
+    if next.session() != session || next.pair_digest() != pair_digest {
+        return Err(pair_lookup_conflict(
+            "Deriver B pair transition changed identity",
+        ));
+    }
+    crate::local_ed25519_yao_worker::validate_pair_role_record(LocalServiceRoleV1::DeriverB, next)?;
+    let json = serde_json::to_string(next)
+        .map_err(|_| pair_lookup_conflict("Deriver B pair record cannot be encoded"))?;
+    let written = match current {
+        None => transaction.execute(
+            "INSERT INTO local_deriver_b_yao_pairs (session_hex, pair_digest_hex, revision, record_json) VALUES (?1, ?2, 1, ?3) ON CONFLICT DO NOTHING",
+            params![hex::encode(session), hex::encode(pair_digest), json],
+        ),
+        Some((revision, _)) => transaction.execute(
+            "UPDATE local_deriver_b_yao_pairs SET revision = revision + 1, record_json = ?1 WHERE session_hex = ?2 AND pair_digest_hex = ?3 AND revision = ?4",
+            params![json, hex::encode(session), hex::encode(pair_digest), revision],
+        ),
+    }
+    .map_err(pair_lookup_error)?;
+    if written != 1 {
+        return Err(pair_lookup_conflict(
+            "Deriver B pair conditional write is uncertain",
+        ));
+    }
+    Ok(())
 }

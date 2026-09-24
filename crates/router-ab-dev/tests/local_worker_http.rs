@@ -460,6 +460,19 @@ fn product_topology_completes_local_ed25519_yao_registration(
     wait_for_health(&deriver_b_url, deriver_b.child_mut())?;
     wait_for_health(&signing_worker_url, signing_worker.child_mut())?;
 
+    let deriver_b_env_path = temp.join(router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1);
+    let replica_url = format!("http://127.0.0.1:{}", free_port()?);
+    let primary_env = fs::read_to_string(&deriver_b_env_path)?;
+    let replica_env = primary_env.replace(&deriver_b_url, &replica_url);
+    if replica_env == primary_env {
+        return Err("Deriver B replica URL is missing from its environment".into());
+    }
+    let replica_env_path = temp.join(".env.router-ab.deriver-b-replica.local");
+    fs::write(&replica_env_path, replica_env)?;
+    let mut deriver_b_replica =
+        ChildGuard::spawn_in_root(binary, "deriver-b", replica_env_path, &temp)?;
+    wait_for_health(&replica_url, deriver_b_replica.child_mut())?;
+
     let (request, client_recipient_key) =
         product_registration_request(&router_env, &tenant_root_fixture)?;
     let started = Instant::now();
@@ -482,6 +495,114 @@ fn product_topology_completes_local_ed25519_yao_registration(
     let RouterEd25519YaoExecuteSuccessV1::Registration { result: activation } = *result else {
         return Err("product Yao result was not registration".into());
     };
+    let b_config = parse_local_worker_role_config_for_role_v1(
+        LocalServiceRoleV1::DeriverB,
+        parse_local_env_file_contents_v1(&primary_env)?,
+    )?;
+    let LocalWorkerRoleConfigV1::DeriverB(b_config) = b_config else {
+        return Err("Deriver B env parsed as another role".into());
+    };
+    let b_connection = Connection::open(temp.join(b_config.role_private_storage_path))?;
+    let (session_hex, pair_digest_hex, completed_pair_json): (String, String, String) =
+        b_connection.query_row(
+            "SELECT session_hex, pair_digest_hex, record_json FROM local_deriver_b_yao_pairs",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+    let session_bytes = hex::decode(session_hex)?;
+    let pair_digest_bytes = hex::decode(pair_digest_hex)?;
+    let pair_lookup = CloudflareEd25519YaoPairLookupRequestV1 {
+        session: session_bytes.as_slice().try_into()?,
+        pair_digest: pair_digest_bytes.as_slice().try_into()?,
+    };
+    let (replica_status, replica_body) = post_json_to_path_with_headers(
+        &replica_url,
+        router_ab_dev::LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH,
+        &pair_lookup,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+        )],
+    )?;
+    assert_eq!(replica_status, 200, "replica B pair status: {replica_body}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&replica_body)?["status"],
+        "completed"
+    );
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&completed_pair_json)?["status"],
+        "completed"
+    );
+    let terminal_pair_rows: i64 = b_connection.query_row(
+        "SELECT COUNT(*) FROM local_deriver_b_yao_pairs",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(terminal_pair_rows, 1);
+    let effective_before: Vec<u8> = b_connection.query_row(
+        "SELECT value FROM local_role_private_state WHERE key = 'ed25519-yao/worker-state-v2'",
+        [],
+        |row| row.get(0),
+    )?;
+    let role_state: serde_json::Value = serde_json::from_slice(&effective_before)?;
+    assert!(
+        role_state["state"]["pair_roles"].is_null(),
+        "B pair authority must live only in the pair row"
+    );
+    assert_eq!(
+        role_state["state"]["effective"].as_array().map(Vec::len),
+        Some(1),
+        "registration must retain B effective material"
+    );
+    let (stale_status, _) = post_json_to_path_with_headers(
+        &replica_url,
+        router_ab_dev::LOCAL_DERIVER_B_ED25519_YAO_REFRESH_RESULT_PATH,
+        &json!({}),
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+        )],
+    )?;
+    assert_ne!(stale_status, 200, "stale replica cannot complete a refresh");
+    let effective_after: Vec<u8> = b_connection.query_row(
+        "SELECT value FROM local_role_private_state WHERE key = 'ed25519-yao/worker-state-v2'",
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(
+        effective_before, effective_after,
+        "stale B state must not overwrite custody"
+    );
+    drop(deriver_b);
+    let mut deriver_b = ChildGuard::spawn_in_root(binary, "deriver-b", deriver_b_env_path, &temp)?;
+    wait_for_health(&deriver_b_url, deriver_b.child_mut())?;
+    let (restarted_status, restarted_body) = post_json_to_path_with_headers(
+        &deriver_b_url,
+        router_ab_dev::LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH,
+        &pair_lookup,
+        &[(
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+        )],
+    )?;
+    assert_eq!(
+        restarted_status, 200,
+        "restarted B pair status: {restarted_body}"
+    );
+    assert_eq!(
+        replica_body, restarted_body,
+        "B restart must replay one terminal outcome"
+    );
+    println!(
+        "R150_VM_B_PAIR_E2E {}",
+        json!({
+            "shared_sqlite_processes": 2,
+            "terminal_pair_rows": terminal_pair_rows,
+            "stale_role_snapshot_rejected": true,
+            "restart_terminal_replay": true,
+        })
+    );
+    drop(b_connection);
     let (client_share, _) = complete_client_activation_packages_v1(
         activation.binding(),
         [1, 2],
@@ -595,6 +716,7 @@ fn product_topology_completes_local_ed25519_yao_registration(
     drop(router);
     drop(deriver_a);
     drop(signing_worker);
+    drop(deriver_b_replica);
     let _ = fs::remove_dir_all(temp);
     Ok(())
 }
