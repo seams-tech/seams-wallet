@@ -9,6 +9,7 @@ import {
 } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import http from 'node:http';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Miniflare } from 'miniflare';
@@ -20,6 +21,21 @@ import {
   RouterAbEcdsaClientCeremonyV1,
   prepare_ecdsa_client_bootstrap_v1,
 } from '../../../wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client.js';
+
+// Miniflare serves the harness's Node-function service bindings (the Router's
+// SIGNING_WORKER interceptor among them) from a loopback HTTP server with
+// Node's default 5 s keep-alive timeout. workerd pools those connections and
+// notices a server-side idle close only when its event loop runs. The
+// Derivers' Yao work in the same workerd process can hold that loop for
+// seconds, so a delivery sent right after it could reuse a socket Node had
+// just closed and fail with "Network connection lost". The harness's servers
+// keep idle connections open instead; workerd closes them when it is done.
+const createHttpServer = http.createServer;
+http.createServer = (...args) => {
+  const server = createHttpServer(...args);
+  server.keepAliveTimeout = 0;
+  return server;
+};
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = resolve(packageRoot, '../..');
