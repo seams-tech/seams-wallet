@@ -80,6 +80,11 @@ for (const role of roles) {
   const rendered = replacePlaceholders(config, replacements);
   writeIfAbsentOrEqual(path.join(outputRoot, relativePath), `${JSON.stringify(rendered, null, 2)}\n`);
   if (role !== 'ingress' && role !== 'gateway') {
+    const firstPass = firstPassRoleConfig(rendered);
+    writeIfAbsentOrEqual(
+      path.join(outputRoot, 'first-pass', relativePath),
+      `${JSON.stringify(firstPass, null, 2)}\n`,
+    );
     for (const arm of ['d1', 'do']) {
       writeRoleSecrets(role, arm, rendered.env[arm].secrets.required);
     }
@@ -207,6 +212,32 @@ function replacePlaceholders(value, replacements) {
     return result;
   }
   return value;
+}
+
+function firstPassRoleConfig(finalConfig) {
+  const config = structuredClone(finalConfig);
+  if (config.workers_dev !== false || config.preview_urls !== false || config.triggers) {
+    throw new Error('First-pass role may not expose a public route or event trigger');
+  }
+  for (const arm of ['d1', 'do']) {
+    const environment = config.env[arm];
+    if (
+      environment.workers_dev !== false ||
+      environment.preview_urls !== false ||
+      environment.triggers
+    ) {
+      throw new Error(`First-pass ${arm} role must remain private`);
+    }
+    environment.services = [];
+    const localObjects = [];
+    for (const binding of environment.durable_objects?.bindings ?? []) {
+      if (!binding.script_name) localObjects.push(binding);
+    }
+    if (environment.durable_objects) {
+      environment.durable_objects.bindings = localObjects;
+    }
+  }
+  return config;
 }
 
 function writeRoleSecrets(role, arm, requiredNames) {

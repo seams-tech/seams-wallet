@@ -193,6 +193,19 @@ outside the rendered-manifest directory so Wrangler's bundles stay separate
 from the private deployment inputs. Gateway and ingress secrets
 remain separate setup inputs; their presence and expiry require live checks.
 
+Cloudflare requires a service-binding target to exist before its caller is
+deployed. The A/B and Router/control-plane graph has cycles. The renderer also
+emits `first-pass/roles/` configurations for the same optimized private role
+binaries, with only cross-Worker service and DO bindings removed. Deploy the
+five roles in each arm from those first-pass configurations only after a
+read-only Worker inventory proves those exact names are new and empty. Install
+their separate role secrets, then deploy the complete role manifests without
+deleting or recreating the Workers or their DO namespaces. Retire the local
+first-pass config copies after final-binding verification. Keep the
+Gateway and public ingress undeployed until every final binding and private
+role is verified. The first pass has no wallet traffic and is a temporary
+deployment step, not an alternate backend.
+
 After the private role Workers are deployed, bootstrap each synthetic tenant
 root through the local-only Worker in `tests/r150-hosted/bootstrap/`. Start
 Wrangler development with its `d1` or `do` environment bound to
