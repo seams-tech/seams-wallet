@@ -1460,18 +1460,56 @@ pub async fn control_plane_create_tenant_root_v1<Host: TenantRootControlPlaneHos
     let current = host
         .read_creation_state(verified.identity_digest(), verified.custody_lineage())
         .await?;
+    create_tenant_root_response_v1(
+        verified.identity_digest(),
+        verified.custody_lineage(),
+        persisted,
+        &current,
+    )
+}
+
+/// Projects persisted creation state onto the create-tenant-root response.
+/// The control plane and the Router's committed-creation replay share it, so
+/// an exact retry returns the same response from either.
+pub(crate) fn create_tenant_root_response_v1(
+    identity_digest: router_ab_core::TenantRootIdentityDigestV1,
+    custody_lineage: router_ab_core::TenantRootCustodyLineageId,
+    persisted: crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationJournalResponseV1,
+    current: &CloudflareTenantRootCreationJournalReadResponseV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCreateTenantRootResponseV1> {
     Ok(CloudflareTenantRootControlPlaneCreateTenantRootResponseV1 {
-        identity_digest_b64u: crate::encode_base64url_bytes_v1(verified.identity_digest().as_bytes()),
-        custody_lineage_b64u: crate::encode_base64url_bytes_v1(verified.custody_lineage().as_bytes()),
+        identity_digest_b64u: crate::encode_base64url_bytes_v1(identity_digest.as_bytes()),
+        custody_lineage_b64u: crate::encode_base64url_bytes_v1(custody_lineage.as_bytes()),
         revision: persisted.revision,
         journal_digest_b64u: persisted.journal_digest_b64u,
         capability_digest_b64u: persisted.capability_digest_b64u,
-        status: creation_status(&current)?,
+        status: creation_status(current)?,
         replayed: matches!(
             persisted.outcome,
             crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationJournalOutcomeV1::Replay
         ),
     })
+}
+
+/// Whether these exact grant bytes opened the ceremony a journal records. The
+/// session id and nonce are drawn from the grant bytes, and the journal that
+/// carries them is issuer-signed, so a caller without the grant authority's
+/// key can still bind a grant to its creation.
+pub(crate) fn tenant_root_creation_grant_opened_ceremony_v1(
+    grant_canonical_bytes: &[u8],
+    context: &TenantRootCeremonyContextV1,
+) -> RouterAbProtocolResult<bool> {
+    let session_id = TenantRootCeremonySessionIdV1::from_bytes(derive_ceremony_bytes_v1::<16>(
+        TENANT_ROOT_CEREMONY_SESSION_DOMAIN_V1,
+        grant_canonical_bytes,
+    ))
+    .map_err(derivation)?;
+    let nonce = TenantRootCeremonyNonceV1::from_bytes(derive_ceremony_bytes_v1::<32>(
+        TENANT_ROOT_CEREMONY_NONCE_DOMAIN_V1,
+        grant_canonical_bytes,
+    ))
+    .map_err(derivation)?;
+    Ok(context.session_id() == session_id && context.nonce() == nonce)
 }
 
 /// Mints one role creation command from the re-validated creation state.

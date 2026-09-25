@@ -1,10 +1,9 @@
 # R150 tenant-root creation resume
 
-Status: proposed 2026-09-25, awaiting review. Not implemented. Refresh,
-managed restore and retirement stay gated and are not affected. The
-behaviour after the activation commit is measured by an E2E (see below);
-both recovery policies here need approval before creation can be called
-resumable.
+Status: direction approved 2026-09-25. After the commit: implemented and
+verified (below). Before the commit: resume and abandonment are being
+implemented. Refresh, managed restore and retirement stay gated and are not
+affected.
 
 ## The commit point decides the direction
 
@@ -14,7 +13,7 @@ creation. Recovery depends on which side of it a failure falls:
 | Failure | Before the ceremony expires | After it expires |
 | --- | --- | --- |
 | Before the commit, both roles installed | resume from durable evidence (this proposal) | abandon both roles (needs approval) |
-| After the commit, zero or one Deriver active | re-deliver the committed receipt (works today) | roll forward only (needs approval; today it stays split) |
+| After the commit, zero or one Deriver active | re-deliver the committed receipt | re-deliver the committed receipt (implemented) |
 
 Abandoning is never available after the commit: the committed receipt is the
 authoritative decision, and one Deriver may already be active.
@@ -94,65 +93,63 @@ ceremony, by extending the existing cleanup to two roles. That is a
 fresh-attempt recovery and needs its own approval; it is not part of this
 fix. No role is active in this state, so abandoning contradicts nothing.
 
-## After the commit
+## After the commit (implemented)
 
 The Router can commit the receipt and then stop before either Deriver
-activates, or between the two activations. This gap exists today,
-independently of the resume above.
+activates, or between the two activations. Before this change a retry
+finished only inside the ceremony window. After it, two checks refused the
+retry and left the creation split, with the Router committed and zero or one
+Deriver active:
 
-### Measured today
+- the only coordinator entry was the grant, and
+  `control_plane_create_tenant_root_v1` rechecks grant freshness;
+- a pending Deriver checked the receipt with `require_fresh(now_ms)`.
 
-`vm_tenant_root_committed_activation_is_redelivered_until_the_ceremony_expires`
-(`R150_VM_TENANT_ROOT_POST_COMMIT_E2E`) drops one delivery after the Router
-commits:
+The same grant check made an exact replay of a completed creation fail once
+its grant expired, instead of returning the durable outcome.
 
-- Delivery to A lost, zero Derivers active: a retry inside the window
-  re-delivers the committed receipt and both Derivers activate.
-- Delivery to B lost, A active: a retry inside the window finishes, A
-  replays its activation, and B activates.
-- The same loss, retried after the window closes: the retry fails closed
-  and the creation stays split, with the Router committed, A active and B
-  pending. Two independent checks refuse it:
-  1. The only coordinator entry is the grant, and
-     `control_plane_create_tenant_root_v1` rechecks grant freshness
-     (`authorize_tenant_root_creation_v1`). The retry never reaches the
-     committed receipt.
-  2. Delivering the committed receipt directly, the pending Deriver refuses
-     it: `prepare_initial_activation_v1` runs `require_fresh(now_ms)` when it
-     has no activation replay record. The active Deriver replays it.
-
-The same grant check means an exact replay of a fully completed creation
-also fails once the grant expires, instead of returning the durable
-outcome.
-
-### Proposed policy: delivery of a committed receipt is not a new authorization
+### Policy: delivering a committed receipt is not a new authorization
 
 Freshness keeps gating every decision: grant admission, receipt issuance and
-the Router's commit. Only delivering an already-committed decision is exempt,
-and only by matching the commit exactly.
+the Router's commit. Only delivery of an already-committed decision is
+exempt, and only by matching the commit exactly.
 
-1. **The coordinator reads its own commit first.** Before calling the
-   control plane, the Router looks up the creation state for the grant's
-   identity and lineage. If an initial activation is committed, it
-   re-delivers that receipt and returns the durable outcome, without a
-   control-plane call. The Router cannot verify the grant's signature (it
-   does not hold the grant authority keys). It binds the grant to the
-   committed creation another way: the ceremony session id and nonce are
-   SHA-256 of the exact grant bytes (`derive_tenant_root_creation_ceremony_v1`)
-   and are carried by the issuer-signed journal. A grant that does not
-   reproduce them is refused. Re-delivery only ever sends the committed
-   receipt, so it opens no new decision.
-2. **A pending Deriver accepts a late receipt only if it is the committed
-   one.** Past the receipt window, and with no replay record, the Deriver
-   reads the Router's committed active state (it already calls the Router's
-   creation state during creation). It accepts only a byte-identical
-   receipt, and evaluates the window at the receipt's `activated_at_ms`. The
-   managed-restore branch of the same function already does this for a
-   durable decision. Any receipt the Router did not commit stays refused
-   after expiry.
+1. **The coordinator reads its own commit first**
+   (`committed_creation_for_grant_v1`). A typed Router progress read
+   (`CLOUDFLARE_TENANT_ROOT_CREATION_PROGRESS_READ_PATH`) reports whether a
+   creation has started and returns any committed activation receipt. When a
+   receipt is committed, the Router re-delivers it to both Derivers and
+   answers with the same response the control plane would, built by the
+   shared `create_tenant_root_response_v1`, without a control-plane call. The
+   Router cannot verify the grant's signature, so it binds the grant to the
+   creation another way (`tenant_root_creation_grant_opened_ceremony_v1`):
+   the ceremony session id and nonce are SHA-256 of the exact grant bytes and
+   are carried by the issuer-signed journal. A grant that does not reproduce
+   them goes to the control plane as before.
+2. **A Deriver activates only on the Router's committed receipt**
+   (`require_router_committed_initial_activation_v1`). Before activating, it
+   reads the Router's committed active state and requires a byte-identical
+   receipt. It then judges freshness at the receipt's `activated_at_ms`, as
+   the managed-restore branch already did. The commit check applies at every
+   time, not only late: a correctly signed receipt the Router did not commit
+   activates nothing.
 
-The resulting invariant: once the Router commits, the creation reaches both
-Derivers active on some later retry, however late, and never abandons.
+Invariant: once the Router commits, the creation reaches both Derivers active
+on some later retry, however late, and is never abandoned.
+
+### Evidence
+
+`vm_tenant_root_committed_activation_is_delivered_after_the_ceremony_expires`
+(`R150_VM_TENANT_ROOT_POST_COMMIT_E2E`) routes the Router to each Deriver and
+to the control plane through proxies:
+
+- It drops the delivery to A (zero Derivers active) or to B (one active). The
+  retry finishes both inside the window and after it expires. Each time it
+  delivers the same committed receipt, and an exact replay after expiry
+  returns the same response.
+- It records the control plane's activation request and replays it, getting
+  a second correctly signed receipt that the Router never committed. The
+  pending Deriver refuses it, both inside the window and after expiry.
 
 ## Related finding, not fixed here
 
@@ -173,21 +170,8 @@ as unreferenced sealed material that only A can discover.
 
 ## Verification plan
 
-After the commit (policy above):
-
-- The post-commit E2E already exercises the crash after the Router's commit
-  and between the two Deriver activations. When the policy lands, its
-  expired-retry assertions change: the retry returns ready with the same
-  committed receipt and both Derivers active. It also gains the zero-active
-  case retried after expiry.
-- The same E2E adds a negative case: after expiry, a pending Deriver refuses
-  a correctly signed receipt that the Router never committed. The receipt
-  can be obtained by capturing the initial-activation request to the control
-  plane and replaying it inside the window.
-- An exact replay of a completed creation after its grant expires returns
-  the durable outcome.
-- workerd harness: the same crash points, injected with the harness-build
-  flag pattern.
+After the commit: covered by the E2E above; the workerd harness runs the
+changed Deriver activation on every creation.
 
 Before the commit (resume):
 

@@ -6,19 +6,28 @@
 //! receipt, the Router-owned creation state's activation, and finally each
 //! Deriver's own activation. Every step is an exact, idempotent call, so a
 //! retry of the same grant resumes rather than repeats.
+//!
+//! The Router's persisted activation receipt is the commit point. Once it
+//! exists, a retry of the grant that opened the ceremony only finishes
+//! delivering that receipt, however late: it does not re-authorize, so the
+//! grant's freshness no longer gates it.
 
 use std::collections::BTreeMap;
 
 use router_ab_core::{
-    TenantRootActivationReceiptTransitionV1, TenantRootRoleCleanupCommandV1, TwoPartyDeriverRole,
+    TenantRootActivationReceiptTransitionV1, TenantRootCreationGrantV1,
+    TenantRootRoleCleanupCommandV1, TenantRootSignedActivationReceiptV1, TwoPartyDeriverRole,
 };
 
 use crate::durable_object::tenant_root_creation::{
     tenant_root_creation_active_state_with_revision_read_call_v1,
     tenant_root_creation_cleanup_call_v1, tenant_root_creation_initial_activation_call_v1,
-    TenantRootCreationStateTransportV1,
+    tenant_root_creation_progress_read_call_v1, validate_creation_record,
+    CloudflareTenantRootCreationJournalOutcomeV1, CloudflareTenantRootCreationJournalRecordV1,
+    CloudflareTenantRootCreationProgressV1, TenantRootCreationStateTransportV1,
 };
 use crate::tenant_root_control_plane::{
+    create_tenant_root_response_v1, tenant_root_creation_grant_opened_ceremony_v1,
     CloudflareTenantRootControlPlaneCleanupCommandRequestV1,
     CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
     CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
@@ -60,6 +69,9 @@ pub async fn tenant_root_router_coordinate_creation_v1<Host: TenantRootRouterCre
     host: &Host,
     request: CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCreateTenantRootResponseV1> {
+    if let Some(committed) = committed_creation_for_grant_v1(host, &request).await? {
+        return Ok(committed);
+    }
     let genesis = tenant_root_control_plane_create_tenant_root_call_v1(host, &request).await?;
     match &genesis.status {
         CloudflareTenantRootCreationStatusV1::Ready { .. } => {
@@ -168,6 +180,95 @@ pub async fn tenant_root_router_coordinate_creation_v1<Host: TenantRootRouterCre
         ));
     }
     Ok(completed_state)
+}
+
+/// Serves a retry from the Router's own commit. When the Router has persisted
+/// an activation for the ceremony these exact grant bytes opened, it
+/// re-delivers that receipt to both Derivers and returns the durable response,
+/// without asking the control plane to authorize the grant again. Anything
+/// else returns `None` and the grant goes to the control plane as usual.
+async fn committed_creation_for_grant_v1<Host: TenantRootRouterCreationHostV1>(
+    host: &Host,
+    request: &CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
+) -> RouterAbProtocolResult<Option<CloudflareTenantRootControlPlaneCreateTenantRootResponseV1>> {
+    let grant_bytes =
+        decode_base64url_bytes_v1("tenant-root creation grant", &request.creation_grant_b64u)?;
+    let grant = TenantRootCreationGrantV1::decode_canonical_bytes(&grant_bytes).map_err(|error| {
+        RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MalformedWirePayload,
+            format!("tenant-root creation grant is malformed: {error}"),
+        )
+    })?;
+    let (identity_digest, custody_lineage) = grant.claimed_scope().map_err(|error| {
+        RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MalformedWirePayload,
+            format!("tenant-root creation grant identity is malformed: {error}"),
+        )
+    })?;
+    let CloudflareTenantRootCreationProgressV1::Started {
+        state,
+        committed_activation_receipt_b64u: Some(receipt_b64u),
+    } = tenant_root_creation_progress_read_call_v1(host, identity_digest, custody_lineage).await?
+    else {
+        return Ok(None);
+    };
+    let journal = validate_creation_record(
+        CloudflareTenantRootCreationJournalRecordV1 {
+            journal_b64u: state.journal_b64u.clone(),
+            creation_capability_b64u: state.creation_capability_b64u.clone(),
+        },
+        host.creation_authority_id(identity_digest, custody_lineage)?,
+        &host.trusted_issuer_keys()?,
+    )?;
+    if !tenant_root_creation_grant_opened_ceremony_v1(&grant_bytes, &journal.ceremony_context)? {
+        return Ok(None);
+    }
+    deliver_committed_initial_activation_v1(host, &receipt_b64u).await?;
+    create_tenant_root_response_v1(
+        identity_digest,
+        custody_lineage,
+        journal.response(CloudflareTenantRootCreationJournalOutcomeV1::Replay),
+        &state,
+    )
+    .map(Some)
+}
+
+/// Delivers the Router's committed receipt to both Derivers. An active Deriver
+/// replays its activation; a pending one activates. After a refresh the
+/// committed receipt is no longer an initial creation and there is nothing
+/// left to deliver.
+async fn deliver_committed_initial_activation_v1<Host: TenantRootRouterCreationHostV1>(
+    host: &Host,
+    receipt_b64u: &str,
+) -> RouterAbProtocolResult<()> {
+    let receipt_bytes =
+        decode_base64url_bytes_v1("tenant-root committed activation receipt", receipt_b64u)?;
+    let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(&receipt_bytes)
+        .map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("tenant-root committed activation receipt is malformed: {error}"),
+            )
+        })?;
+    if receipt.transition() != TenantRootActivationReceiptTransitionV1::InitialCreation {
+        return Ok(());
+    }
+    let role_activation = CloudflareDeriverTenantRootInitialActivationRequestV1 {
+        activation_receipt_b64u: receipt_b64u.to_owned(),
+    };
+    tenant_root_deriver_initial_activation_call_v1(
+        host,
+        TwoPartyDeriverRole::DeriverA,
+        &role_activation,
+    )
+    .await?;
+    tenant_root_deriver_initial_activation_call_v1(
+        host,
+        TwoPartyDeriverRole::DeriverB,
+        &role_activation,
+    )
+    .await?;
+    Ok(())
 }
 
 /// Cleans a creation in which exactly one role installed its share, so a
@@ -280,23 +381,6 @@ async fn finish_tenant_root_initial_activation_v1<Host: TenantRootRouterCreation
     )
     .await?
     .activation_receipt;
-    if active.transition() != TenantRootActivationReceiptTransitionV1::InitialCreation {
-        return Ok(());
-    }
-    let role_activation = CloudflareDeriverTenantRootInitialActivationRequestV1 {
-        activation_receipt_b64u: encode_base64url_bytes_v1(active.canonical_bytes()),
-    };
-    tenant_root_deriver_initial_activation_call_v1(
-        host,
-        TwoPartyDeriverRole::DeriverA,
-        &role_activation,
-    )
-    .await?;
-    tenant_root_deriver_initial_activation_call_v1(
-        host,
-        TwoPartyDeriverRole::DeriverB,
-        &role_activation,
-    )
-    .await?;
-    Ok(())
+    deliver_committed_initial_activation_v1(host, &encode_base64url_bytes_v1(active.canonical_bytes()))
+        .await
 }

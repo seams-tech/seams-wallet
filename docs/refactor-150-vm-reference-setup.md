@@ -101,11 +101,10 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
   `R150_VM_TENANT_ROOT_E2E` with the creation evidence;
   `vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant` prints
   `R150_VM_TENANT_ROOT_PARTIAL_CLEANUP_E2E`.
-- `vm_tenant_root_committed_activation_is_redelivered_until_the_ceremony_expires`
+- `vm_tenant_root_committed_activation_is_delivered_after_the_ceremony_expires`
   prints `R150_VM_TENANT_ROOT_POST_COMMIT_E2E`: a delivery lost after the
-  Router commits is finished by a retry inside the ceremony window, and past
-  it the creation stays split (open; see
-  `refactor-150-tenant-root-creation-resume.md`).
+  Router commits is finished by a retry, inside the ceremony window or after
+  it, and a signed receipt the Router did not commit activates nothing.
 - A creation left with one role installed is cleaned on the next retry of its
   grant, which then reports that a fresh grant is required.
 

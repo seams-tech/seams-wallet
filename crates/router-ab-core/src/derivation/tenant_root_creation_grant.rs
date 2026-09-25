@@ -201,6 +201,17 @@ impl TenantRootCreationGrantV1 {
         &self.data.grant_key_id
     }
 
+    /// Returns the identity digest and custody lineage this grant claims,
+    /// without verifying it. Only a caller that binds the grant to an
+    /// issuer-verified record by other means may act on these values.
+    pub fn claimed_scope(
+        &self,
+    ) -> RouterAbDerivationResult<(TenantRootIdentityDigestV1, TenantRootCustodyLineageId)> {
+        let identity =
+            TenantRootIdentityV1::decode_canonical_bytes(&self.data.identity_canonical_bytes)?;
+        Ok((identity.digest()?, self.data.custody_lineage))
+    }
+
     /// Returns the exact canonical signed grant bytes.
     pub fn canonical_bytes(&self) -> RouterAbDerivationResult<Vec<u8>> {
         let unsigned = unsigned_canonical_bytes(&self.data)?;

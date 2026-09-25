@@ -2613,19 +2613,28 @@ async fn prepare_initial_activation_v1<S: RoleSqlSessionV1>(
     Ok(scope)
 }
 
+/// Activates the role's pending initial share. `decided_at_ms` is the time at
+/// which the receipt's freshness is judged: the Router's committed decision.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn persist_tenant_root_initial_activation_v1<S: RoleSqlSessionV1>(
     store: &TenantRootRoleShareStoreV1<S>,
     stored: CloudflareStoredTenantRootRoleShareV1,
     managed_backup: &VerifiedTenantRootManagedBackupV1,
     activation_receipt: VerifiedTenantRootSignedActivationReceiptV1,
     role_signer: &CloudflareTenantRootCreationRoleSignerV1,
+    decided_at_ms: u64,
     now_ms: u64,
 ) -> RouterAbProtocolResult<Vec<u8>> {
     let (active_retry, pending, updated_at_ms) =
         initial_activation_pending_v1(stored, &activation_receipt, now_ms)?;
-    let scope =
-        prepare_initial_activation_v1(store, &activation_receipt, &pending, active_retry, now_ms)
-            .await?;
+    let scope = prepare_initial_activation_v1(
+        store,
+        &activation_receipt,
+        &pending,
+        active_retry,
+        decided_at_ms,
+    )
+    .await?;
     let activation = CloudflareTenantRootActivationV1::with_current_role_backup(
         pending.record(),
         managed_backup,
@@ -2820,6 +2829,13 @@ pub async fn tenant_root_deriver_initial_activation_v1<Host: TenantRootDeriverHo
         });
     }
 
+    // The Router's persisted receipt is this creation's commit point. The
+    // Deriver activates only on that exact receipt and judges its freshness at
+    // the decision's own activation time, so a committed decision is still
+    // delivered after its window closes. A signed receipt the Router did not
+    // commit is refused at any time.
+    require_router_committed_initial_activation_v1(host, issuer_keys.keys(), &verified).await?;
+    let decided_at_ms = verified.activated_at_ms();
     let managed_backup = host
         .get_managed_backup(
             crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1::new(
@@ -2837,6 +2853,7 @@ pub async fn tenant_root_deriver_initial_activation_v1<Host: TenantRootDeriverHo
         &managed_backup,
         verified,
         &role_signer,
+        decided_at_ms,
         now_ms,
     )
     .await?;
@@ -2845,6 +2862,29 @@ pub async fn tenant_root_deriver_initial_activation_v1<Host: TenantRootDeriverHo
         activation_terminal_receipt_b64u: crate::encode_base64url_bytes_v1(&terminal_receipt),
         restore_cleanup_receipt_b64u: None,
     })
+}
+
+/// Requires `receipt` to be byte-identical to the activation the Router has
+/// committed for its creation.
+async fn require_router_committed_initial_activation_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
+    issuer_keys: &std::collections::BTreeMap<String, [u8; 32]>,
+    receipt: &VerifiedTenantRootSignedActivationReceiptV1,
+) -> RouterAbProtocolResult<()> {
+    let committed = crate::durable_object::tenant_root_creation::tenant_root_creation_active_state_with_revision_read_call_v1(
+        host,
+        issuer_keys,
+        receipt.identity_digest(),
+        receipt.custody_lineage(),
+    )
+    .await?;
+    if committed.activation_receipt.canonical_bytes() != receipt.canonical_bytes() {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root activation receipt is not the activation the Router committed",
+        ));
+    }
+    Ok(())
 }
 
 /// Verifies and applies one control-plane initial-activation receipt at its

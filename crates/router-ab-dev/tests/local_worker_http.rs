@@ -1177,16 +1177,13 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
 }
 
 /// The Router's persisted initial-activation receipt is the commit point of a
-/// creation. A delivery lost after it leaves zero or one Deriver active. Inside
-/// the ceremony window a retry re-delivers the committed receipt: the active
-/// Deriver replays and the pending one activates. Past the window the retry
-/// fails closed at two barriers, the control plane's grant check and the
-/// pending Deriver's receipt freshness check, and leaves the committed Router
-/// with one active Deriver. That last state is the open gap in
-/// `docs/refactor-150-tenant-root-creation-resume.md`; its assertions change
-/// when a recovery policy is approved.
+/// creation. A delivery lost after it leaves zero or one Deriver active, and
+/// the creation only rolls forward: a retry of the grant, inside the ceremony
+/// window or after it, re-delivers the committed receipt, the active Deriver
+/// replays and the pending one activates. A correctly signed receipt that the
+/// Router did not commit activates nothing, at any time.
 #[test]
-fn vm_tenant_root_committed_activation_is_redelivered_until_the_ceremony_expires(
+fn vm_tenant_root_committed_activation_is_delivered_after_the_ceremony_expires(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let _process_guard = local_worker_process_test_guard();
     let binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
@@ -1202,28 +1199,44 @@ fn vm_tenant_root_committed_activation_is_redelivered_until_the_ceremony_expires
         &deriver_b_url,
         &signing_worker_url,
     )?;
+    let control_plane_url = env_value(
+        &temp.join(router_ab_dev::LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_FILE_V1),
+        router_ab_dev::LOCAL_TENANT_ROOT_CONTROL_PLANE_URL_ENV_V1,
+    )?;
     // The Router reaches each Deriver through a proxy that can drop one
-    // initial-activation delivery. The Derivers reach each other directly.
-    let proxy_a = ActivationDropProxyV1::start(&deriver_a_url)?;
-    let proxy_b = ActivationDropProxyV1::start(&deriver_b_url)?;
+    // initial-activation delivery, and the control plane through one that
+    // records its activation request. The Derivers reach each other directly.
+    let deriver_activation =
+        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH;
+    let control_plane_activation =
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH;
+    let proxy_a = FaultProxyV1::start(&deriver_a_url, deriver_activation)?;
+    let proxy_b = FaultProxyV1::start(&deriver_b_url, deriver_activation)?;
+    let proxy_control_plane = FaultProxyV1::start(&control_plane_url, control_plane_activation)?;
     let router_env_path = temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1);
+    let routes = [
+        ("DERIVER_A_URL", proxy_a.url.as_str()),
+        ("DERIVER_B_URL", proxy_b.url.as_str()),
+        (
+            router_ab_dev::LOCAL_TENANT_ROOT_CONTROL_PLANE_URL_ENV_V1,
+            proxy_control_plane.url.as_str(),
+        ),
+    ];
     let mut routed = 0;
     let router_env = fs::read_to_string(&router_env_path)?
         .lines()
         .map(|line| {
-            if line.starts_with("DERIVER_A_URL=") {
-                routed += 1;
-                format!("DERIVER_A_URL={}", proxy_a.url)
-            } else if line.starts_with("DERIVER_B_URL=") {
-                routed += 1;
-                format!("DERIVER_B_URL={}", proxy_b.url)
-            } else {
-                line.to_owned()
+            for (key, url) in routes {
+                if line.split_once('=').map(|(name, _)| name) == Some(key) {
+                    routed += 1;
+                    return format!("{key}={url}");
+                }
             }
+            line.to_owned()
         })
         .collect::<Vec<_>>()
         .join("\n");
-    assert_eq!(routed, 2, "the Router must reach both Derivers through the proxies");
+    assert_eq!(routed, routes.len(), "the Router must reach every peer through a proxy");
     fs::write(&router_env_path, router_env + "\n")?;
 
     let start = |role: &str, env_file: &str| {
@@ -1232,7 +1245,7 @@ fn vm_tenant_root_committed_activation_is_redelivered_until_the_ceremony_expires
     let mut router = start("router", router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1)?;
     let mut deriver_a = start("deriver-a", router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1)?;
     let mut deriver_b = start("deriver-b", router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1)?;
-    let (mut control_plane, control_plane_url) = spawn_control_plane(&temp)?;
+    let (mut control_plane, _) = spawn_control_plane(&temp)?;
     wait_for_health(&router_url, router.child_mut())?;
     wait_for_health(&deriver_a_url, deriver_a.child_mut())?;
     wait_for_health(&deriver_b_url, deriver_b.child_mut())?;
@@ -1290,128 +1303,155 @@ fn vm_tenant_root_committed_activation_is_redelivered_until_the_ceremony_expires
         Ok((identity, lineage, lineage_b64u))
     };
     let create = |grant: &str| create_tenant_root(&router_url, grant, TEST_ROLE_SHARED_SERVICE_AUTH);
-    let mut evidence = BTreeMap::new();
-
-    // 1. Router committed, no Deriver active: the delivery to A is lost.
-    let (identity, lineage, lineage_b64u) = ceremony("post-commit-none-active")?;
-    let grant = product_creation_grant_b64u(&temp, &identity, lineage, None)?;
-    proxy_a.drop_next_activation();
-    let (lost_status, lost_body) = create(&grant)?;
-    assert_ne!(lost_status, 200, "{lost_body}");
-    assert!(proxy_a.dropped(), "the proxy must have dropped A's activation");
-    let receipt = committed_receipt(&lineage_b64u)?.ok_or("the Router must have committed")?;
-    assert_eq!(lifecycles(&lineage_b64u)?, (pending(), pending()));
-    let (retry_status, retry_body) = create(&grant)?;
-    assert_eq!(retry_status, 200, "{retry_body}");
-    assert_eq!(lifecycles(&lineage_b64u)?, (active(), active()));
-    assert_eq!(
-        committed_receipt(&lineage_b64u)?.as_deref(),
-        Some(receipt.as_str()),
-        "the retry re-delivers the committed receipt"
-    );
-    evidence.insert("router_committed_zero_active_retry_in_window", retry_status);
-
-    // 2. Router committed, one Deriver active: the delivery to B is lost.
-    let (identity, lineage, lineage_b64u) = ceremony("post-commit-one-active")?;
-    let grant = product_creation_grant_b64u(&temp, &identity, lineage, None)?;
-    proxy_b.drop_next_activation();
-    let (lost_status, lost_body) = create(&grant)?;
-    assert_ne!(lost_status, 200, "{lost_body}");
-    assert!(proxy_b.dropped(), "the proxy must have dropped B's activation");
-    let receipt = committed_receipt(&lineage_b64u)?.ok_or("the Router must have committed")?;
-    assert_eq!(lifecycles(&lineage_b64u)?, (active(), pending()));
-    let (retry_status, retry_body) = create(&grant)?;
-    assert_eq!(retry_status, 200, "{retry_body}");
-    assert_eq!(lifecycles(&lineage_b64u)?, (active(), active()));
-    assert_eq!(committed_receipt(&lineage_b64u)?.as_deref(), Some(receipt.as_str()));
-    evidence.insert("router_committed_one_active_retry_in_window", retry_status);
-
-    // 3. The same loss, retried after the ceremony window closes.
-    let (identity, lineage, lineage_b64u) = ceremony("post-commit-expired")?;
-    let lifetime_ms = 6_000;
-    let grant = product_creation_grant_with_lifetime_b64u(
-        &temp,
-        &identity,
-        lineage,
-        None,
-        lifetime_ms,
-    )?;
-    let signed_at = Instant::now();
-    proxy_b.drop_next_activation();
-    let (lost_status, lost_body) = create(&grant)?;
-    assert_ne!(lost_status, 200, "{lost_body}");
-    assert!(proxy_b.dropped(), "the proxy must have dropped B's activation");
-    let receipt = committed_receipt(&lineage_b64u)?.ok_or("the Router must have committed")?;
-    assert_eq!(lifecycles(&lineage_b64u)?, (active(), pending()));
-    // The grant was issued a second before signing, so its window closes
-    // `lifetime_ms - 1_000` after it; wait a second beyond that.
-    let expires_in = Duration::from_millis(lifetime_ms);
-    if let Some(remaining) = expires_in.checked_sub(signed_at.elapsed()) {
-        thread::sleep(remaining);
-    }
-    let (expired_status, expired_body) = create(&grant)?;
-    assert_ne!(expired_status, 200, "{expired_body}");
-    assert!(
-        expired_body.contains("tenant-root creation grant is outside its authorized window"),
-        "the coordinator's first barrier is the grant check: {expired_body}"
-    );
-    // Delivering the committed receipt directly meets the second barrier at
-    // the pending Deriver; the active Deriver replays its activation.
-    let deliver = |base_url: &str| {
+    let role_shared = [(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)];
+    let deliver = |base_url: &str, receipt: &str| {
         post_json_to_path_with_headers(
             base_url,
-            router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
+            deriver_activation,
             &json!({ "activation_receipt_b64u": receipt }),
-            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+            &role_shared,
         )
     };
-    let (pending_status, pending_body) = deliver(&deriver_b_url)?;
-    assert_ne!(pending_status, 200, "{pending_body}");
+    // Loses the delivery to one Deriver after the Router commits, and returns
+    // the committed receipt.
+    let lose_delivery = |proxy: &FaultProxyV1,
+                         grant: &str,
+                         lineage: &str,
+                         expected: (Option<String>, Option<String>)|
+     -> Result<String, Box<dyn std::error::Error>> {
+        proxy.drop_next();
+        let (status, body) = create(grant)?;
+        assert_ne!(status, 200, "{body}");
+        assert!(proxy.dropped(), "the proxy must have dropped the delivery");
+        let receipt = committed_receipt(lineage)?.ok_or("the Router must have committed")?;
+        assert_eq!(lifecycles(lineage)?, expected);
+        Ok(receipt)
+    };
+    let mut evidence = BTreeMap::new();
+
+    // Inside the window: zero, then one, Deriver active.
+    for (label, proxy, expected) in [
+        ("zero_active_retry_in_window", &proxy_a, (pending(), pending())),
+        ("one_active_retry_in_window", &proxy_b, (active(), pending())),
+    ] {
+        let (identity, lineage, lineage_b64u) = ceremony(&format!("post-commit-{label}"))?;
+        let grant = product_creation_grant_b64u(&temp, &identity, lineage, None)?;
+        let receipt = lose_delivery(proxy, &grant, &lineage_b64u, expected)?;
+        let (status, body) = create(&grant)?;
+        assert_eq!(status, 200, "{body}");
+        assert_eq!(lifecycles(&lineage_b64u)?, (active(), active()));
+        assert_eq!(committed_receipt(&lineage_b64u)?.as_deref(), Some(receipt.as_str()));
+        evidence.insert(label.to_owned(), json!(status));
+    }
+
+    // After the window: the same two losses on short-lived grants.
+    let lifetime_ms = 6_000;
+    let signed_at = Instant::now();
+    let (identity, lineage, none_lineage) = ceremony("post-commit-zero-active-expired")?;
+    let none_grant =
+        product_creation_grant_with_lifetime_b64u(&temp, &identity, lineage, None, lifetime_ms)?;
+    let none_receipt = lose_delivery(&proxy_a, &none_grant, &none_lineage, (pending(), pending()))?;
+    let (identity, lineage, one_lineage) = ceremony("post-commit-one-active-expired")?;
+    let one_grant =
+        product_creation_grant_with_lifetime_b64u(&temp, &identity, lineage, None, lifetime_ms)?;
+    proxy_control_plane.clear_captured();
+    let one_receipt = lose_delivery(&proxy_b, &one_grant, &one_lineage, (active(), pending()))?;
+
+    // A second, correctly signed receipt for the same evidence, which the
+    // Router never committed: the control plane issues again on replay.
+    let activation_request = proxy_control_plane
+        .captured()
+        .ok_or("the control-plane activation request must have been recorded")?;
+    thread::sleep(Duration::from_millis(20));
+    let (reissued_status, reissued_body) = post_bytes_to_path_with_headers(
+        &control_plane_url,
+        control_plane_activation,
+        &activation_request,
+        &role_shared,
+    )?;
+    assert_eq!(reissued_status, 200, "{reissued_body}");
+    let uncommitted_receipt = serde_json::from_str::<serde_json::Value>(&reissued_body)?
+        ["activation_receipt_b64u"]
+        .as_str()
+        .ok_or("the control plane must return an activation receipt")?
+        .to_owned();
+    assert_ne!(uncommitted_receipt, one_receipt, "the reissued receipt must differ");
+    let (uncommitted_status, uncommitted_body) = deliver(&deriver_b_url, &uncommitted_receipt)?;
+    assert_ne!(uncommitted_status, 200, "{uncommitted_body}");
     assert!(
-        pending_body.contains("activation receipt is outside its freshness window"),
-        "the pending Deriver's barrier is receipt freshness: {pending_body}"
+        uncommitted_body.contains("is not the activation the Router committed"),
+        "a fresh, signed but uncommitted receipt is refused: {uncommitted_body}"
     );
-    let (active_status, active_body) = deliver(&deriver_a_url)?;
-    assert_eq!(active_status, 200, "the active Deriver replays: {active_body}");
-    assert_eq!(
-        lifecycles(&lineage_b64u)?,
-        (active(), pending()),
-        "past the window the committed creation stays split"
+    evidence.insert(
+        "uncommitted_receipt_in_window".to_owned(),
+        json!(uncommitted_status),
     );
-    assert_eq!(committed_receipt(&lineage_b64u)?.as_deref(), Some(receipt.as_str()));
-    evidence.insert("router_committed_one_active_retry_after_expiry", expired_status);
-    evidence.insert("pending_deriver_direct_delivery_after_expiry", pending_status);
-    evidence.insert("active_deriver_direct_delivery_after_expiry", active_status);
+
+    // The grants were issued a second before signing, so their windows close
+    // `lifetime_ms - 1_000` after it; wait a second beyond that.
+    if let Some(remaining) = Duration::from_millis(lifetime_ms).checked_sub(signed_at.elapsed()) {
+        thread::sleep(remaining);
+    }
+    let (uncommitted_status, uncommitted_body) = deliver(&deriver_b_url, &uncommitted_receipt)?;
+    assert_ne!(uncommitted_status, 200, "{uncommitted_body}");
+    assert!(
+        uncommitted_body.contains("is not the activation the Router committed"),
+        "{uncommitted_body}"
+    );
+    evidence.insert(
+        "uncommitted_receipt_after_expiry".to_owned(),
+        json!(uncommitted_status),
+    );
+    assert_eq!(lifecycles(&one_lineage)?, (active(), pending()));
+
+    for (label, grant, lineage, receipt) in [
+        ("zero_active_retry_after_expiry", &none_grant, &none_lineage, &none_receipt),
+        ("one_active_retry_after_expiry", &one_grant, &one_lineage, &one_receipt),
+    ] {
+        let (status, body) = create(grant)?;
+        assert_eq!(status, 200, "{label}: {body}");
+        let response: serde_json::Value = serde_json::from_str(&body)?;
+        assert_eq!(response["status"]["kind"], "ready", "{body}");
+        assert_eq!(lifecycles(lineage)?, (active(), active()), "{label}");
+        assert_eq!(committed_receipt(lineage)?.as_deref(), Some(receipt.as_str()));
+        let (replay_status, replay_body) = create(grant)?;
+        assert_eq!(replay_status, 200, "{replay_body}");
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&replay_body)?,
+            response,
+            "an exact replay after expiry returns the durable outcome"
+        );
+        evidence.insert(label.to_owned(), json!(status));
+    }
 
     println!(
         "R150_VM_TENANT_ROOT_POST_COMMIT_E2E {}",
         json!({
             "fault": "initial_activation_delivery_lost_after_router_commit",
             "statuses": evidence,
-            "in_window_retries_finish_with_the_committed_receipt": true,
-            "after_expiry": {
-                "barriers": ["control_plane_grant_freshness", "pending_deriver_receipt_freshness"],
-                "deriver_a": "active",
-                "deriver_b": "pending",
-                "router": "committed",
-            },
+            "retries_deliver_the_committed_receipt": true,
+            "exact_replay_after_expiry_is_durable": true,
+            "uncommitted_signed_receipt_refused": true,
         })
     );
     Ok(())
 }
 
-/// Forwards Router-to-Deriver traffic. When armed, it drops the next
-/// initial-activation delivery before the Deriver reads it, so the Router has
-/// committed the activation and the Deriver is still pending.
-struct ActivationDropProxyV1 {
+/// Forwards one peer's traffic. On `fault_path` it records the latest request
+/// body and, when armed, drops the next request before the peer reads it.
+struct FaultProxyV1 {
     url: String,
     armed: Arc<AtomicBool>,
+    captured: Arc<Mutex<Option<Vec<u8>>>>,
     stop: Arc<AtomicBool>,
     accept: Option<thread::JoinHandle<()>>,
 }
 
-impl ActivationDropProxyV1 {
-    fn start(upstream_url: &str) -> Result<Self, Box<dyn std::error::Error>> {
+impl FaultProxyV1 {
+    fn start(
+        upstream_url: &str,
+        fault_path: &'static str,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let listener = TcpListener::bind("127.0.0.1:0")?;
         listener.set_nonblocking(true)?;
         let url = format!("http://{}", listener.local_addr()?);
@@ -1420,16 +1460,21 @@ impl ActivationDropProxyV1 {
             .ok_or("proxy upstream must be an http URL")?
             .to_owned();
         let armed = Arc::new(AtomicBool::new(false));
+        let captured = Arc::new(Mutex::new(None));
         let stop = Arc::new(AtomicBool::new(false));
         let accept = {
-            let (armed, stop) = (Arc::clone(&armed), Arc::clone(&stop));
+            let (armed, captured, stop) =
+                (Arc::clone(&armed), Arc::clone(&captured), Arc::clone(&stop));
             thread::spawn(move || {
                 while !stop.load(Ordering::SeqCst) {
                     match listener.accept() {
                         Ok((client, _)) => {
-                            let (upstream, armed) = (upstream.clone(), Arc::clone(&armed));
+                            let upstream = upstream.clone();
+                            let (armed, captured) = (Arc::clone(&armed), Arc::clone(&captured));
                             thread::spawn(move || {
-                                let _ = forward_or_drop_activation(client, &upstream, &armed);
+                                let _ = proxy_fault_connection(
+                                    client, &upstream, fault_path, &armed, &captured,
+                                );
                             });
                         }
                         Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
@@ -1443,12 +1488,13 @@ impl ActivationDropProxyV1 {
         Ok(Self {
             url,
             armed,
+            captured,
             stop,
             accept: Some(accept),
         })
     }
 
-    fn drop_next_activation(&self) {
+    fn drop_next(&self) {
         self.armed.store(true, Ordering::SeqCst);
     }
 
@@ -1456,9 +1502,20 @@ impl ActivationDropProxyV1 {
     fn dropped(&self) -> bool {
         !self.armed.load(Ordering::SeqCst)
     }
+
+    fn clear_captured(&self) {
+        *self.captured.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+    }
+
+    fn captured(&self) -> Option<Vec<u8>> {
+        self.captured
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
+    }
 }
 
-impl Drop for ActivationDropProxyV1 {
+impl Drop for FaultProxyV1 {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::SeqCst);
         if let Some(accept) = self.accept.take() {
@@ -1467,41 +1524,45 @@ impl Drop for ActivationDropProxyV1 {
     }
 }
 
-fn forward_or_drop_activation(
+fn proxy_fault_connection(
     client: TcpStream,
     upstream: &str,
+    fault_path: &str,
     armed: &AtomicBool,
+    captured: &Mutex<Option<Vec<u8>>>,
 ) -> io::Result<()> {
     client.set_nonblocking(false)?;
     client.set_read_timeout(Some(Duration::from_secs(15)))?;
     client.set_write_timeout(Some(Duration::from_secs(15)))?;
     let mut client_reader = BufReader::new(client.try_clone()?);
     let request_head = read_proxy_http_head(&mut client_reader)?;
-    let is_activation = request_head.starts_with(
-        format!(
-            "POST {} HTTP/1.1\r\n",
-            router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH
-        )
-        .as_bytes(),
-    );
-    if is_activation && armed.swap(false, Ordering::SeqCst) {
-        return client.shutdown(Shutdown::Both);
+    let head_text = String::from_utf8_lossy(&request_head);
+    let content_length = head_text
+        .lines()
+        .find_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.eq_ignore_ascii_case("content-length")
+                .then(|| value.trim().parse::<usize>().ok())
+                .flatten()
+        })
+        .unwrap_or(0);
+    let mut body = vec![0_u8; content_length];
+    client_reader.read_exact(&mut body)?;
+    if head_text.starts_with(&format!("POST {fault_path} HTTP/1.1\r\n")) {
+        if armed.swap(false, Ordering::SeqCst) {
+            return client.shutdown(Shutdown::Both);
+        }
+        *captured.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(body.clone());
     }
     let mut upstream = TcpStream::connect(upstream)?;
     upstream.set_read_timeout(Some(Duration::from_secs(15)))?;
     upstream.set_write_timeout(Some(Duration::from_secs(15)))?;
     upstream.write_all(&request_head)?;
-    let mut upstream_request = upstream.try_clone()?;
-    let request_copy = thread::spawn(move || -> io::Result<()> {
-        io::copy(&mut client_reader, &mut upstream_request)?;
-        upstream_request.shutdown(Shutdown::Write)
-    });
+    upstream.write_all(&body)?;
+    upstream.shutdown(Shutdown::Write)?;
     let mut client_writer = client;
     io::copy(&mut upstream, &mut client_writer)?;
-    client_writer.shutdown(Shutdown::Write)?;
-    request_copy
-        .join()
-        .map_err(|_| io::Error::other("proxy request-copy thread panicked"))?
+    client_writer.shutdown(Shutdown::Write)
 }
 
 #[test]
@@ -3259,10 +3320,18 @@ fn post_json_to_path_with_headers<T: Serialize>(
     body: &T,
     headers: &[(&str, &str)],
 ) -> Result<(u16, String), Box<dyn std::error::Error>> {
+    post_bytes_to_path_with_headers(base_url, path, &serde_json::to_vec(body)?, headers)
+}
+
+fn post_bytes_to_path_with_headers(
+    base_url: &str,
+    path: &str,
+    body: &[u8],
+    headers: &[(&str, &str)],
+) -> Result<(u16, String), Box<dyn std::error::Error>> {
     let authority = base_url
         .strip_prefix("http://")
         .ok_or("post URL must use http://")?;
-    let body = serde_json::to_vec(body)?;
     let mut stream = TcpStream::connect(authority)?;
     write!(
         stream,

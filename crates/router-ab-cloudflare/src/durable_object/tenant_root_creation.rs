@@ -73,6 +73,9 @@ pub const CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_PATH: &str =
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
 pub const CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_READ_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/journal/read";
+/// The Router coordinator's read of its own creation progress.
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_PROGRESS_READ_PATH: &str =
+    "/router-ab/internal/tenant-root/creation/v1/progress/read";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
 pub const CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/initial-activation";
@@ -804,6 +807,9 @@ const ROUTER_TENANT_ROOT_CREATION_DO_BINDING_V1: &str = "ROUTER_TENANT_ROOT_CREA
 const TENANT_ROOT_CUTOVER_OBJECT_NAME_V1: &str = "tenant-root-cutover-v1";
 const TENANT_ROOT_CREATION_JOURNAL_RESPONSE_MAX_BYTES_V1: usize = 4 * 1024;
 const TENANT_ROOT_CREATION_JOURNAL_READ_RESPONSE_MAX_BYTES_V1: usize = 256 * 1024;
+const TENANT_ROOT_CREATION_PROGRESS_READ_RESPONSE_MAX_BYTES_V1: usize =
+    TENANT_ROOT_CREATION_JOURNAL_READ_RESPONSE_MAX_BYTES_V1
+        + TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1;
 const TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_CREATION_JOURNAL_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_CREATION_CAPABILITY_MAX_BASE64URL_BYTES_V1
@@ -1251,7 +1257,7 @@ pub(crate) struct ValidatedTenantRootCreationJournalV1 {
 }
 
 impl ValidatedTenantRootCreationJournalV1 {
-    fn response(
+    pub(crate) fn response(
         &self,
         outcome: CloudflareTenantRootCreationJournalOutcomeV1,
     ) -> CloudflareTenantRootCreationJournalResponseV1 {
@@ -1500,6 +1506,20 @@ pub struct CloudflareTenantRootCreationJournalReadResponseV1 {
         CloudflareTenantRootCreationInstallationCheckpointReadStateV1,
     /// Whether the sole installed role was removed and this ceremony was abandoned.
     pub cleanup_checkpointed: bool,
+}
+
+/// The Router coordinator's view of one creation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum CloudflareTenantRootCreationProgressV1 {
+    /// No Started journal exists for this identity and lineage.
+    NotStarted,
+    /// The persisted creation state, and the Router's committed activation
+    /// receipt once one exists.
+    Started {
+        state: CloudflareTenantRootCreationJournalReadResponseV1,
+        committed_activation_receipt_b64u: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -2238,6 +2258,31 @@ pub async fn tenant_root_creation_journal_read_call_v1(
             },
             TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
             TENANT_ROOT_CREATION_JOURNAL_READ_RESPONSE_MAX_BYTES_V1,
+        )
+        .await
+}
+
+/// Reads the Router's own progress for one creation, on any host. Unlike the
+/// journal read, a creation that has not started is an outcome, not an error.
+pub async fn tenant_root_creation_progress_read_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationProgressV1> {
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
+    state
+        .creation_state_call(
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            CLOUDFLARE_TENANT_ROOT_CREATION_PROGRESS_READ_PATH,
+            "tenant-root creation progress read",
+            &CloudflareTenantRootCreationJournalReadRequestV1 {
+                identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+                custody_lineage_b64u: encode_base64url_bytes_v1(custody_lineage.as_bytes()),
+            },
+            TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_CREATION_PROGRESS_READ_RESPONSE_MAX_BYTES_V1,
         )
         .await
 }
@@ -6718,6 +6763,28 @@ impl worker::DurableObject for RouterAbTenantRootCreationDurableObject {
                     Err(error) => tenant_root_creation_do_error_response(error),
                 }
             }
+            CLOUDFLARE_TENANT_ROOT_CREATION_PROGRESS_READ_PATH => {
+                if !request_has_json_content_type(&request)? {
+                    return worker::Response::error(
+                        "tenant-root creation progress request requires JSON",
+                        415,
+                    );
+                }
+                let parsed = match decode_bounded_json_request::<
+                    CloudflareTenantRootCreationJournalReadRequestV1,
+                >(
+                    &mut request, TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1
+                )
+                .await
+                {
+                    Ok(value) => value,
+                    Err(error) => return tenant_root_creation_do_error_response(error),
+                };
+                match self.read_creation_progress(parsed).await {
+                    Ok(response) => worker::Response::from_json(&response),
+                    Err(error) => tenant_root_creation_do_error_response(error),
+                }
+            }
             CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH => {
                 if !request_has_json_content_type(&request)? {
                     return worker::Response::error(
@@ -7513,6 +7580,42 @@ impl RouterAbTenantRootCreationDurableObject {
             authority_id,
             now_ms,
         )
+    }
+
+    async fn read_creation_progress(
+        &self,
+        request: CloudflareTenantRootCreationJournalReadRequestV1,
+    ) -> RouterAbProtocolResult<CloudflareTenantRootCreationProgressV1> {
+        let issuer_keys = self.issuer_verifying_keys()?;
+        let env = self.env.clone();
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
+        let outcome_for_transaction = Rc::clone(&outcome);
+        self.storage
+            .transaction(move |transaction| async move {
+                let store = store.bind(transaction);
+                let result = tenant_root_creation_read_progress_v1(
+                    &store,
+                    &issuer_keys,
+                    move || read_tenant_root_creation_role_verifying_keys(&env),
+                    request,
+                )
+                .await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
+                }
+                outcome_for_transaction.replace(Some(result));
+                Ok(())
+            })
+            .await
+            .map_err(durable_storage_protocol_error)?;
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root creation progress transaction did not produce an outcome",
+            )
+        })?;
+        result
     }
 
     pub(crate) async fn read_creation_journal(
@@ -14377,6 +14480,52 @@ pub async fn tenant_root_creation_read_active_state_without_refresh_v1<
     Ok(active_state_read_response_from_record(active.record))
 }
 
+/// Reads one creation's progress for the Router coordinator: whether it has
+/// started, its persisted state, and the committed activation receipt.
+pub async fn tenant_root_creation_read_progress_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
+    request: CloudflareTenantRootCreationJournalReadRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationProgressV1> {
+    let identity_digest = TenantRootIdentityDigestV1::from_bytes(decode_fixed_base64url_32(
+        "tenant-root creation progress identity digest",
+        &request.identity_digest_b64u,
+    )?);
+    let custody_lineage = decode_lineage_b64u(
+        "tenant-root creation progress custody lineage",
+        &request.custody_lineage_b64u,
+    )?;
+    store.require_scope(identity_digest, custody_lineage)?;
+    if store
+        .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
+            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
+        )
+        .await?
+        .is_none()
+    {
+        return Ok(CloudflareTenantRootCreationProgressV1::NotStarted);
+    }
+    let state = tenant_root_creation_read_journal_v1(store, issuer_keys, role_keys, request).await?;
+    let committed_activation_receipt_b64u = match store
+        .get_json::<CloudflareTenantRootRefreshActiveStateRecordV1>(
+            TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
+        )
+        .await?
+    {
+        None => None,
+        Some(record) => Some(
+            validate_refresh_active_state_record(record, store.authority_id(), issuer_keys)
+                .map_err(stored_refresh_record_error)?
+                .record
+                .activation_receipt_b64u,
+        ),
+    };
+    Ok(CloudflareTenantRootCreationProgressV1::Started {
+        state,
+        committed_activation_receipt_b64u,
+    })
+}
 
 /// Serves one creation-state operation, addressed by its route path, on a
 /// host that runs initial creation but not the refresh, managed-restore or
@@ -14432,6 +14581,19 @@ pub async fn tenant_root_creation_serve_without_refresh_v1<Store: TenantRootCrea
                 &role_keys,
                 decode(
                     "tenant-root creation read request",
+                    request_body,
+                    TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+                )?,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_CREATION_PROGRESS_READ_PATH => encode(
+            &tenant_root_creation_read_progress_v1(
+                store,
+                issuer_keys,
+                &role_keys,
+                decode(
+                    "tenant-root creation progress request",
                     request_body,
                     TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
                 )?,
