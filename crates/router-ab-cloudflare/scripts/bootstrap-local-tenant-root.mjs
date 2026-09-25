@@ -25,6 +25,7 @@ async function main() {
   const localKeys = resolveLocalTenantRootKeyMaterial({
     repoRoot: options.repoRoot,
     localEnvRoot: options.localRoot,
+    issuerEnvPath: options.issuerEnvPath,
   });
   const routerEnv = readEnvMap(path.join(options.localRoot, '.env.router-ab.router.local'));
   const issuedAtMs = Math.max(1, Date.now() - 1);
@@ -70,6 +71,7 @@ function parseArguments(args) {
   return {
     repoRoot,
     localRoot: path.resolve(requiredOption(values, '--root')),
+    issuerEnvPath: values.get('--issuer-env-path'),
     routerUrl: requiredUrl(values.get('--router-url') ?? 'http://127.0.0.1:4102'),
     identity: {
       orgId: requiredOption(values, '--org-id'),
@@ -85,6 +87,7 @@ function usage() {
   return [
     'Usage: bootstrap-local-tenant-root.mjs',
     '  --root <local-runtime-directory>',
+    '  [--issuer-env-path <private-issuer-env-file>]',
     '  --org-id <organization-id>',
     '  --project-id <project-id>',
     '  --env-id <environment-id>',

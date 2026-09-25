@@ -151,6 +151,20 @@ role-identity primitives with an explicit per-arm tenant-root issuer input.
 It does not fill D1 IDs, create tenant roots, deploy secrets, or touch hosted
 resources. Keep the generated files off shared logs and artifacts.
 
+After the private role Workers are deployed, bootstrap each synthetic tenant
+root through the local-only Worker in `tests/r150-hosted/bootstrap/`. Start
+Wrangler development with its `d1` or `do` environment bound to
+`127.0.0.1`; the selected service binding targets that arm's deployed private
+Router. The adapter forwards only the exact tenant-root creation POST and
+preserves the Router's internal authentication. Invoke the existing
+`bootstrap-local-tenant-root.mjs` with the matching identity root,
+`--issuer-env-path` pointing at that arm's private issuer file, and
+`--router-url` pointing at the loopback adapter. Record and verify the returned
+ready receipt before installing that arm's static Console deployment secret.
+Cloudflare documents remote service bindings for local Workers; this repo path
+still requires a live isolated smoke test before use. Never deploy the local
+bootstrap adapter as a public Worker.
+
 Before deploying, confirm the account, probe provider/hosts, spend cap,
 prospective latency and monthly cost criteria, exact resource inventory,
 ingress authentication, and that the selected build exposes no unauthenticated

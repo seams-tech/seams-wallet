@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../node_modules/wrangler/config-schema.json",
+  "main": "./worker.mjs",
+  "compatibility_date": "2026-09-25",
+  "workers_dev": false,
+  "preview_urls": false,
+  "env": {
+    "d1": {
+      "name": "r150-bench-20260925-d1-bootstrap-local",
+      "workers_dev": false,
+      "preview_urls": false,
+      "services": [
+        {
+          "binding": "ROUTER",
+          "service": "r150-bench-20260925-d1-router",
+          "remote": true
+        }
+      ]
+    },
+    "do": {
+      "name": "r150-bench-20260925-do-bootstrap-local",
+      "workers_dev": false,
+      "preview_urls": false,
+      "services": [
+        {
+          "binding": "ROUTER",
+          "service": "r150-bench-20260925-do-router",
+          "remote": true
+        }
+      ]
+    }
+  }
+}
