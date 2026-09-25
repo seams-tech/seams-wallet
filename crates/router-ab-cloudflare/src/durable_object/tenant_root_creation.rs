@@ -1236,9 +1236,9 @@ fn require_tenant_root_creation_authority_object_v1(
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootCreationJournalRequestV1 {
-    pub(crate) journal_b64u: String,
-    pub(crate) creation_capability_b64u: String,
+pub struct CloudflareTenantRootCreationJournalRequestV1 {
+    pub journal_b64u: String,
+    pub creation_capability_b64u: String,
 }
 
 impl CloudflareTenantRootCreationJournalRequestV1 {
@@ -1253,9 +1253,9 @@ impl CloudflareTenantRootCreationJournalRequestV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootCreationJournalRecordV1 {
-    pub(crate) journal_b64u: String,
-    pub(crate) creation_capability_b64u: String,
+pub struct CloudflareTenantRootCreationJournalRecordV1 {
+    pub journal_b64u: String,
+    pub creation_capability_b64u: String,
 }
 
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
@@ -1286,18 +1286,18 @@ impl ValidatedTenantRootCreationJournalV1 {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum CloudflareTenantRootCreationJournalOutcomeV1 {
+pub enum CloudflareTenantRootCreationJournalOutcomeV1 {
     Committed,
     Replay,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootCreationJournalResponseV1 {
-    pub(crate) outcome: CloudflareTenantRootCreationJournalOutcomeV1,
-    pub(crate) revision: u64,
-    pub(crate) journal_digest_b64u: String,
-    pub(crate) capability_digest_b64u: String,
+pub struct CloudflareTenantRootCreationJournalResponseV1 {
+    pub outcome: CloudflareTenantRootCreationJournalOutcomeV1,
+    pub revision: u64,
+    pub journal_digest_b64u: String,
+    pub capability_digest_b64u: String,
 }
 
 /// Asks the Durable Object for its persisted creation state.
@@ -1306,9 +1306,9 @@ pub(crate) struct CloudflareTenantRootCreationJournalResponseV1 {
 /// reached the wrong object: the stored journal must name exactly this pair.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootCreationJournalReadRequestV1 {
-    pub(crate) identity_digest_b64u: String,
-    pub(crate) custody_lineage_b64u: String,
+pub struct CloudflareTenantRootCreationJournalReadRequestV1 {
+    pub identity_digest_b64u: String,
+    pub custody_lineage_b64u: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1492,7 +1492,7 @@ enum CloudflareTenantRootRefreshJobPhaseV1 {
 /// Public installation progress from one fully validated checkpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) enum CloudflareTenantRootCreationInstallationCheckpointReadStateV1 {
+pub enum CloudflareTenantRootCreationInstallationCheckpointReadStateV1 {
     None,
     OneRoleReady {
         role: CloudflareTenantRootCreationInstallationRoleV1,
@@ -1506,20 +1506,20 @@ pub(crate) enum CloudflareTenantRootCreationInstallationCheckpointReadStateV1 {
 /// Persisted creation state, public evidence only.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootCreationJournalReadResponseV1 {
+pub struct CloudflareTenantRootCreationJournalReadResponseV1 {
     /// Exact canonical Started journal bytes as persisted.
-    pub(crate) journal_b64u: String,
+    pub journal_b64u: String,
     /// Exact canonical issuer capability bytes as persisted.
-    pub(crate) creation_capability_b64u: String,
+    pub creation_capability_b64u: String,
     /// Control-plane revision the Started journal authenticates.
-    pub(crate) revision: u64,
+    pub revision: u64,
     /// Roles whose signed public commitment has already reached this object.
-    pub(crate) committed_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
+    pub committed_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
     /// Validated public installation checkpoint, when one exists.
-    pub(crate) installation_checkpoint:
+    pub installation_checkpoint:
         CloudflareTenantRootCreationInstallationCheckpointReadStateV1,
     /// Whether the sole installed role was removed and this ceremony was abandoned.
-    pub(crate) cleanup_checkpointed: bool,
+    pub cleanup_checkpointed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -3704,7 +3704,7 @@ fn evaluate_creation_record(
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum CloudflareTenantRootCreationInstallationRoleV1 {
+pub enum CloudflareTenantRootCreationInstallationRoleV1 {
     DeriverA,
     DeriverB,
 }

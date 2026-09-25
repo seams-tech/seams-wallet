@@ -58,7 +58,6 @@ pub(crate) use signing_worker_wallet::{
     call_signing_worker_wallet_do_v1, SigningWorkerWalletDoRequestV1,
     SigningWorkerWalletEcdsaActivationMaterialV1,
 };
-#[cfg(any(feature = "workers-rs", test))]
 pub(crate) mod tenant_root_creation;
 #[cfg(any(feature = "workers-rs", test))]
 #[cfg(feature = "workers-rs")]

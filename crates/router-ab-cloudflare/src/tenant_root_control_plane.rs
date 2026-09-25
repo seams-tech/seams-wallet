@@ -1164,6 +1164,466 @@ pub(crate) use live::{
     handle_cloudflare_tenant_root_control_plane_restore_initial_activation_v1,
 };
 
+
+use crate::durable_object::tenant_root_creation::decode_canonical_base64url;
+
+const TENANT_ROOT_SIGNED_MANAGED_BACKUP_MAX_BYTES_V1: usize = 72 * 1024;
+
+/// Host services the tenant-root issuer needs. The Cloudflare adapter
+/// implements them with Worker secrets and the Router-owned creation Durable
+/// Object; a VM control-plane process implements them with its own secret
+/// and the VM Router's creation-state endpoints. The issuer logic below is
+/// the same on both hosts.
+#[allow(async_fn_in_trait)]
+pub trait TenantRootControlPlaneHostV1 {
+    /// Parsed control-plane bindings (issuer key, trusted keys, role keys).
+    fn bindings(&self) -> &crate::CloudflareTenantRootControlPlaneBindingsV1;
+    /// Current host time in Unix milliseconds.
+    fn now_ms(&self) -> RouterAbProtocolResult<u64>;
+    /// The issuer signing seed, loaded for one operation.
+    fn issuer_seed(&self) -> RouterAbProtocolResult<Zeroizing<[u8; 32]>>;
+    /// The creation authority id bound into every creation artifact.
+    fn creation_authority_id(
+        &self,
+        identity_digest: router_ab_core::TenantRootIdentityDigestV1,
+        custody_lineage: router_ab_core::TenantRootCustodyLineageId,
+    ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1>;
+    /// Reads the authoritative creation state for one tenant root.
+    async fn read_creation_state(
+        &self,
+        identity_digest: router_ab_core::TenantRootIdentityDigestV1,
+        custody_lineage: router_ab_core::TenantRootCustodyLineageId,
+    ) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalReadResponseV1>;
+    /// Persists the started journal and its creation capability.
+    async fn persist_creation_journal(
+        &self,
+        journal: &router_ab_core::TenantRootCreationJournalV1,
+        capability: &router_ab_core::TenantRootCreationCapabilityV1,
+    ) -> RouterAbProtocolResult<crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationJournalResponseV1>;
+}
+
+fn creation_status(
+    state: &CloudflareTenantRootCreationJournalReadResponseV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationStatusV1> {
+    match (&state.installation_checkpoint, state.cleanup_checkpointed) {
+        (CloudflareTenantRootCreationInstallationCheckpointReadStateV1::None, false) => {
+            Ok(CloudflareTenantRootCreationStatusV1::Pending)
+        }
+        (
+            CloudflareTenantRootCreationInstallationCheckpointReadStateV1::OneRoleReady {
+                role,
+                ..
+            },
+            false,
+        ) => Ok(CloudflareTenantRootCreationStatusV1::OneRoleInstalled {
+            role: CloudflareTenantRootControlPlaneRoleV1::from_protocol(role.to_protocol()),
+        }),
+        (
+            CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
+                root_commitment_b64u,
+            },
+            false,
+        ) => Ok(CloudflareTenantRootCreationStatusV1::Ready {
+            root_commitment_b64u: root_commitment_b64u.clone(),
+        }),
+        (
+            CloudflareTenantRootCreationInstallationCheckpointReadStateV1::OneRoleReady {
+                role,
+                ..
+            },
+            true,
+        ) => Ok(CloudflareTenantRootCreationStatusV1::Abandoned {
+            role: CloudflareTenantRootControlPlaneRoleV1::from_protocol(role.to_protocol()),
+        }),
+        _ => Err(refused(
+            "tenant-root creation Durable Object returned an invalid cleanup state",
+        )),
+    }
+}
+
+fn decode_verified_installation_evidence_v1(
+    field: &'static str,
+    encoded: &str,
+    expected_role: TwoPartyDeriverRole,
+    expected_signing_key_id: &str,
+    verifying_key: &[u8; 32],
+) -> RouterAbProtocolResult<
+    router_ab_core::VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
+> {
+    let bytes = decode_canonical_base64url(
+        field,
+        encoded,
+        router_ab_core::TENANT_ROOT_SIGNED_SHARE_INSTALLATION_EVIDENCE_MAX_BYTES_V1,
+        router_ab_core::TENANT_ROOT_SIGNED_SHARE_INSTALLATION_EVIDENCE_MAX_BYTES_V1 * 2,
+    )?;
+    let signed = TenantRootSignedShareInstallationEvidenceV1::decode_canonical_bytes(&bytes)
+        .map_err(derivation)?;
+    if signed.role() != expected_role || signed.signing_key_id() != expected_signing_key_id {
+        return Err(refused(
+            "tenant-root installation evidence names the wrong role signing key",
+        ));
+    }
+    TenantRootSignedShareInstallationEvidenceV1::decode_and_verify_canonical_bytes(
+        &bytes,
+        verifying_key,
+    )
+    .map_err(derivation)
+}
+
+fn decode_verified_managed_backup_v1(
+    field: &'static str,
+    encoded: &str,
+    expected_role: TenantRootManagedRestoreRoleV1,
+    expected_signing_key_id: &str,
+    verifying_key: &[u8; 32],
+) -> RouterAbProtocolResult<router_ab_core::VerifiedTenantRootManagedBackupV1> {
+    let bytes = decode_canonical_base64url(
+        field,
+        encoded,
+        TENANT_ROOT_SIGNED_MANAGED_BACKUP_MAX_BYTES_V1,
+        TENANT_ROOT_SIGNED_MANAGED_BACKUP_MAX_BYTES_V1 * 2,
+    )?;
+    let signed =
+        TenantRootSignedManagedBackupV1::decode_canonical_bytes(&bytes).map_err(derivation)?;
+    if signed.binding().role() != expected_role
+        || signed.binding().role_signing_key_id() != expected_signing_key_id
+    {
+        return Err(refused(
+            "tenant-root managed backup names the wrong role signing key",
+        ));
+    }
+    signed
+        .verify(signed.binding(), verifying_key)
+        .map_err(derivation)
+}
+
+fn decode_verified_provider_canary_v1(
+    field: &'static str,
+    encoded: &str,
+    expected_family: TenantRootCanaryCurveFamilyV1,
+    expected_signing_key_id: &str,
+    verifying_key: &[u8; 32],
+) -> RouterAbProtocolResult<router_ab_core::VerifiedTenantRootProviderCanaryReceiptV1> {
+    let bytes = decode_canonical_base64url(
+        field,
+        encoded,
+        TENANT_ROOT_PROVIDER_CANARY_RECEIPT_MAX_BYTES_V1,
+        TENANT_ROOT_PROVIDER_CANARY_RECEIPT_MAX_BYTES_V1 * 2,
+    )?;
+    let signed = TenantRootSignedProviderCanaryReceiptV1::decode_canonical_bytes(&bytes)
+        .map_err(derivation)?;
+    if signed.curve_family() != expected_family
+        || signed.signing_key_id() != expected_signing_key_id
+    {
+        return Err(refused(
+            "tenant-root provider canary names the wrong role signing key",
+        ));
+    }
+    signed
+        .verify(signed.binding(), verifying_key)
+        .map_err(derivation)
+}
+
+fn require_persisted_initial_activation_state_v1(
+    read: &CloudflareTenantRootCreationJournalReadResponseV1,
+    bundle: &VerifiedTenantRootInitialCreationActivationEvidenceBundleV1,
+) -> RouterAbProtocolResult<()> {
+    if read.cleanup_checkpointed {
+        return Err(refused(
+            "tenant-root initial activation cannot issue after creation cleanup",
+        ));
+    }
+    if read.committed_roles.len() != 2
+        || !read
+            .committed_roles
+            .contains(&CloudflareTenantRootCreationInstallationRoleV1::DeriverA)
+        || !read
+            .committed_roles
+            .contains(&CloudflareTenantRootCreationInstallationRoleV1::DeriverB)
+    {
+        return Err(refused(
+            "tenant-root initial activation requires both persisted role commitments",
+        ));
+    }
+    let CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
+        root_commitment_b64u,
+    } = &read.installation_checkpoint
+    else {
+        return Err(refused(
+            "tenant-root initial activation requires both persisted role installations",
+        ));
+    };
+    let root_commitment = decode_canonical_base64url(
+        "tenant-root persisted installation root commitment",
+        root_commitment_b64u,
+        32,
+        48,
+    )?;
+    if root_commitment.as_slice() != bundle.root_commitment() {
+        return Err(refused(
+            "tenant-root persisted installation root does not match the activation evidence",
+        ));
+    }
+    Ok(())
+}
+
+
+fn decode_control_plane_identity_and_lineage_v1(
+    identity_digest_b64u: &str,
+    custody_lineage_b64u: &str,
+) -> RouterAbProtocolResult<(
+    router_ab_core::TenantRootIdentityDigestV1,
+    router_ab_core::TenantRootCustodyLineageId,
+)> {
+    let identity_digest = router_ab_core::TenantRootIdentityDigestV1::from_bytes(
+        decode_canonical_base64url(
+            "tenant-root control-plane identity digest",
+            identity_digest_b64u,
+            32,
+            48,
+        )?
+        .as_slice()
+        .try_into()
+        .map_err(|_| refused("tenant-root control-plane identity digest length is invalid"))?,
+    );
+    let custody_lineage = router_ab_core::TenantRootCustodyLineageId::from_bytes(
+        decode_canonical_base64url(
+            "tenant-root control-plane custody lineage",
+            custody_lineage_b64u,
+            16,
+            24,
+        )?
+        .as_slice()
+        .try_into()
+        .map_err(|_| refused("tenant-root control-plane custody lineage length is invalid"))?,
+    )
+    .map_err(|error| {
+        RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            format!("tenant-root control-plane custody lineage is invalid: {error}"),
+        )
+    })?;
+    Ok((identity_digest, custody_lineage))
+}
+
+/// Genesis: verify the creation grant against this issuer's trusted grant
+/// authorities, authorize the ceremony, and persist its started journal.
+pub async fn control_plane_create_tenant_root_v1<Host: TenantRootControlPlaneHostV1>(
+    host: &Host,
+    request: CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCreateTenantRootResponseV1> {
+    let grant_bytes = decode_canonical_base64url(
+        "tenant-root creation grant",
+        &request.creation_grant_b64u,
+        router_ab_core::TENANT_ROOT_CREATION_GRANT_MAX_BYTES_V1,
+        router_ab_core::TENANT_ROOT_CREATION_GRANT_MAX_BYTES_V1 * 2,
+    )?;
+    let grant = router_ab_core::TenantRootCreationGrantV1::decode_canonical_bytes(&grant_bytes)
+        .map_err(derivation)?;
+    // The trusted key is selected by the grant's key id but supplied by the
+    // issuer's own configuration: an unlisted authority has no key here.
+    let grant_key_id = grant.grant_key_id().to_owned();
+    let Some(trusted_key) = host
+        .bindings()
+        .grant_authority_verifying_keys
+        .for_grant_key_id(&grant_key_id)
+    else {
+        return Err(refused(
+            "tenant-root creation grant authority is not trusted by this control plane",
+        ));
+    };
+    let verified = grant
+        .verify(&grant_key_id, trusted_key)
+        .map_err(derivation)?;
+
+    let now_ms = host.now_ms()?;
+    let draw = derive_tenant_root_creation_ceremony_v1(
+        &grant_bytes,
+        host.bindings().deriver_a_signing_key_id.clone(),
+        host.bindings().deriver_b_signing_key_id.clone(),
+    )?;
+    let authority_id =
+        host.creation_authority_id(verified.identity_digest(), verified.custody_lineage())?;
+    let seed = host.issuer_seed()?;
+    let authorized = authorize_tenant_root_creation_v1(
+        &verified,
+        &draw,
+        now_ms,
+        authority_id,
+        host.bindings().issuer_signing_key.signing_key_id(),
+        &seed,
+    )?;
+
+    let persisted = host
+        .persist_creation_journal(&authorized.journal, &authorized.capability)
+        .await?;
+    let current = host
+        .read_creation_state(verified.identity_digest(), verified.custody_lineage())
+        .await?;
+    Ok(CloudflareTenantRootControlPlaneCreateTenantRootResponseV1 {
+        identity_digest_b64u: crate::encode_base64url_bytes_v1(verified.identity_digest().as_bytes()),
+        custody_lineage_b64u: crate::encode_base64url_bytes_v1(verified.custody_lineage().as_bytes()),
+        revision: persisted.revision,
+        journal_digest_b64u: persisted.journal_digest_b64u,
+        capability_digest_b64u: persisted.capability_digest_b64u,
+        status: creation_status(&current)?,
+        replayed: matches!(
+            persisted.outcome,
+            crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationJournalOutcomeV1::Replay
+        ),
+    })
+}
+
+/// Mints one role creation command from the re-validated creation state.
+pub async fn control_plane_role_creation_command_v1<Host: TenantRootControlPlaneHostV1>(
+    host: &Host,
+    request: CloudflareTenantRootControlPlaneRoleCreationCommandRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRoleCreationCommandResponseV1> {
+    let (identity_digest, custody_lineage) = decode_control_plane_identity_and_lineage_v1(
+        &request.identity_digest_b64u,
+        &request.custody_lineage_b64u,
+    )?;
+    let authority_id = host.creation_authority_id(identity_digest, custody_lineage)?;
+    let read = host.read_creation_state(identity_digest, custody_lineage).await?;
+    // Re-validate the returned bytes against OUR published keys and OUR derived
+    // authority id: the store is authoritative, but the issuer trusts nothing
+    // it did not verify itself.
+    let record = crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationJournalRecordV1 {
+        journal_b64u: read.journal_b64u.clone(),
+        creation_capability_b64u: read.creation_capability_b64u.clone(),
+    };
+    let journal = crate::durable_object::tenant_root_creation::validate_creation_record(
+        record,
+        authority_id,
+        host.bindings().issuer_verifying_keys.keys(),
+    )?;
+    if journal.identity_digest != identity_digest || journal.custody_lineage != custody_lineage {
+        return Err(refused(
+            "tenant-root creation state does not name the requested identity and lineage",
+        ));
+    }
+    let progress = TenantRootCreationProgressV1::from_read_response(&read);
+    let now_ms = host.now_ms()?;
+    let seed = host.issuer_seed()?;
+    let binding = &host.bindings().issuer_signing_key;
+    let issued = issue_tenant_root_role_creation_command_v1(
+        TenantRootRoleCreationCommandIssuanceV1 {
+            journal: &journal,
+            progress: &progress,
+            role: request.role.to_protocol(),
+            authority_id,
+            now_ms,
+        },
+        binding.signing_key_id(),
+        &seed,
+    )?;
+    Ok(CloudflareTenantRootControlPlaneRoleCreationCommandResponseV1 {
+        role: request.role,
+        issuer_key_id: binding.signing_key_id().to_owned(),
+        role_creation_command_b64u: crate::encode_base64url_bytes_v1(
+            &issued.command.canonical_bytes().map_err(derivation)?,
+        ),
+        role_creation_command_package_b64u: crate::encode_base64url_bytes_v1(
+            &issued.package.canonical_bytes().map_err(derivation)?,
+        ),
+    })
+}
+
+/// Verifies the six public activation artifacts against the persisted
+/// creation state and issues the exact initial activation receipt.
+pub async fn control_plane_initial_activation_v1<Host: TenantRootControlPlaneHostV1>(
+    host: &Host,
+    request: CloudflareTenantRootControlPlaneInitialActivationRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1> {
+    let bindings = host.bindings();
+    let deriver_a_installation = decode_verified_installation_evidence_v1(
+        "tenant-root Deriver A installation evidence",
+        &request.deriver_a_signed_installation_evidence_b64u,
+        TwoPartyDeriverRole::DeriverA,
+        &bindings.deriver_a_signing_key_id,
+        &bindings.deriver_a_verifying_key,
+    )?;
+    let deriver_b_installation = decode_verified_installation_evidence_v1(
+        "tenant-root Deriver B installation evidence",
+        &request.deriver_b_signed_installation_evidence_b64u,
+        TwoPartyDeriverRole::DeriverB,
+        &bindings.deriver_b_signing_key_id,
+        &bindings.deriver_b_verifying_key,
+    )?;
+    let deriver_a_backup = decode_verified_managed_backup_v1(
+        "tenant-root Deriver A managed backup",
+        &request.deriver_a_signed_managed_backup_b64u,
+        TenantRootManagedRestoreRoleV1::DeriverA,
+        &bindings.deriver_a_signing_key_id,
+        &bindings.deriver_a_verifying_key,
+    )?;
+    let deriver_b_backup = decode_verified_managed_backup_v1(
+        "tenant-root Deriver B managed backup",
+        &request.deriver_b_signed_managed_backup_b64u,
+        TenantRootManagedRestoreRoleV1::DeriverB,
+        &bindings.deriver_b_signing_key_id,
+        &bindings.deriver_b_verifying_key,
+    )?;
+    let ecdsa_canary = decode_verified_provider_canary_v1(
+        "tenant-root ECDSA provider canary",
+        &request.ecdsa_provider_canary_receipt_b64u,
+        TenantRootCanaryCurveFamilyV1::Ecdsa,
+        &bindings.deriver_a_signing_key_id,
+        &bindings.deriver_a_verifying_key,
+    )?;
+    let ed25519_canary = decode_verified_provider_canary_v1(
+        "tenant-root Ed25519 provider canary",
+        &request.ed25519_provider_canary_receipt_b64u,
+        TenantRootCanaryCurveFamilyV1::Ed25519,
+        &bindings.deriver_b_signing_key_id,
+        &bindings.deriver_b_verifying_key,
+    )?;
+    let bundle = VerifiedTenantRootInitialCreationActivationEvidenceBundleV1::from_verified_managed_backups(
+        deriver_a_installation,
+        deriver_b_installation,
+        deriver_a_backup,
+        deriver_b_backup,
+        ecdsa_canary,
+        ed25519_canary,
+        2,
+        3,
+    )
+    .map_err(derivation)?;
+    let activated_at_ms = host.now_ms()?;
+    let authority_id =
+        host.creation_authority_id(bundle.identity_digest(), bundle.custody_lineage())?;
+    let read = host
+        .read_creation_state(bundle.identity_digest(), bundle.custody_lineage())
+        .await?;
+    let record = crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationJournalRecordV1 {
+        journal_b64u: read.journal_b64u.clone(),
+        creation_capability_b64u: read.creation_capability_b64u.clone(),
+    };
+    let journal = crate::durable_object::tenant_root_creation::validate_creation_record(
+        record,
+        authority_id,
+        bindings.issuer_verifying_keys.keys(),
+    )?;
+    if journal.identity_digest != bundle.identity_digest()
+        || journal.custody_lineage != bundle.custody_lineage()
+        || journal.ceremony_context.digest().map_err(derivation)? != bundle.context_digest()
+    {
+        return Err(refused(
+            "tenant-root persisted creation state does not match the activation evidence",
+        ));
+    }
+    require_persisted_initial_activation_state_v1(&read, &bundle)?;
+    let issuer_seed = host.issuer_seed()?;
+    let receipt = issue_tenant_root_initial_activation_receipt_v1(
+        &bundle,
+        activated_at_ms,
+        authority_id,
+        bindings.issuer_signing_key.signing_key_id(),
+        &issuer_seed,
+    )?;
+    initial_activation_receipt_response_v1(receipt)
+}
+
 #[cfg(feature = "workers-rs")]
 mod live {
     use super::*;
@@ -1924,44 +2384,6 @@ mod live {
         Ok((authority_id, parsed))
     }
 
-    fn creation_status(
-        state: &CloudflareTenantRootCreationJournalReadResponseV1,
-    ) -> RouterAbProtocolResult<CloudflareTenantRootCreationStatusV1> {
-        match (&state.installation_checkpoint, state.cleanup_checkpointed) {
-            (CloudflareTenantRootCreationInstallationCheckpointReadStateV1::None, false) => {
-                Ok(CloudflareTenantRootCreationStatusV1::Pending)
-            }
-            (
-                CloudflareTenantRootCreationInstallationCheckpointReadStateV1::OneRoleReady {
-                    role,
-                    ..
-                },
-                false,
-            ) => Ok(CloudflareTenantRootCreationStatusV1::OneRoleInstalled {
-                role: CloudflareTenantRootControlPlaneRoleV1::from_protocol(role.to_protocol()),
-            }),
-            (
-                CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
-                    root_commitment_b64u,
-                },
-                false,
-            ) => Ok(CloudflareTenantRootCreationStatusV1::Ready {
-                root_commitment_b64u: root_commitment_b64u.clone(),
-            }),
-            (
-                CloudflareTenantRootCreationInstallationCheckpointReadStateV1::OneRoleReady {
-                    role,
-                    ..
-                },
-                true,
-            ) => Ok(CloudflareTenantRootCreationStatusV1::Abandoned {
-                role: CloudflareTenantRootControlPlaneRoleV1::from_protocol(role.to_protocol()),
-            }),
-            _ => Err(refused(
-                "tenant-root creation Durable Object returned an invalid cleanup state",
-            )),
-        }
-    }
 
     /// The typed issuer operation: mint one role creation command.
     pub async fn handle_cloudflare_tenant_root_control_plane_role_creation_command_v1(
@@ -1969,95 +2391,11 @@ mod live {
         env: &worker::Env,
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRoleCreationCommandResponseV1> {
-        let identity_digest = TenantRootIdentityDigestV1::from_bytes(
-            decode_canonical_base64url(
-                "tenant-root control-plane identity digest",
-                &request.identity_digest_b64u,
-                32,
-                48,
-            )?
-            .as_slice()
-            .try_into()
-            .map_err(|_| refused("tenant-root control-plane identity digest length is invalid"))?,
-        );
-        let custody_lineage = TenantRootCustodyLineageId::from_bytes(
-            decode_canonical_base64url(
-                "tenant-root control-plane custody lineage",
-                &request.custody_lineage_b64u,
-                16,
-                24,
-            )?
-            .as_slice()
-            .try_into()
-            .map_err(|_| refused("tenant-root control-plane custody lineage length is invalid"))?,
+        super::control_plane_role_creation_command_v1(
+            &CloudflareControlPlaneHostV1 { env, runtime },
+            request,
         )
-        .map_err(|error| {
-            refused_owned(format!(
-                "tenant-root control-plane custody lineage is invalid: {error}"
-            ))
-        })?;
-
-        let (authority_id, read) =
-            read_creation_state(env, identity_digest, custody_lineage).await?;
-        // Re-validate the returned bytes against OUR published keys and OUR derived
-        // authority id: the object is authoritative, but the issuer trusts nothing
-        // it did not verify itself.
-        let record = CloudflareTenantRootCreationJournalRecordV1 {
-            journal_b64u: read.journal_b64u.clone(),
-            creation_capability_b64u: read.creation_capability_b64u.clone(),
-        };
-        let journal = validate_creation_record(
-            record,
-            authority_id,
-            runtime.bindings().issuer_verifying_keys.keys(),
-        )?;
-        if journal.identity_digest != identity_digest || journal.custody_lineage != custody_lineage
-        {
-            return Err(refused(
-                "tenant-root creation state does not name the requested identity and lineage",
-            ));
-        }
-        let progress = TenantRootCreationProgressV1::from_read_response(&read);
-        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-
-        let binding = &runtime.bindings().issuer_signing_key;
-        let secret = env.secret(binding.binding_name()).map_err(|error| {
-            crate::worker_binding_error(
-                crate::worker_binding_error_code(&error, binding.binding_name()),
-                binding.binding_name(),
-                "secret",
-                error,
-            )
-        })?;
-        let mut secret_value = secret.to_string();
-        let seed =
-            decode_cloudflare_tenant_root_control_plane_issuer_signing_secret_v1(&secret_value);
-        secret_value.zeroize();
-        let seed = seed?;
-
-        let issued = issue_tenant_root_role_creation_command_v1(
-            TenantRootRoleCreationCommandIssuanceV1 {
-                journal: &journal,
-                progress: &progress,
-                role: request.role.to_protocol(),
-                authority_id,
-                now_ms,
-            },
-            binding.signing_key_id(),
-            &seed,
-        )?;
-        Ok(
-            CloudflareTenantRootControlPlaneRoleCreationCommandResponseV1 {
-                role: request.role,
-                issuer_key_id: binding.signing_key_id().to_owned(),
-                role_creation_command_b64u: encode_base64url_bytes_v1(
-                    &issued.command.canonical_bytes().map_err(derivation)?,
-                ),
-                role_creation_command_package_b64u: encode_base64url_bytes_v1(
-                    &issued.package.canonical_bytes().map_err(derivation)?,
-                ),
-            },
-        )
+        .await
     }
 
     /// Mints one fresh A/B refresh command pair from authoritative active state.
@@ -2727,90 +3065,9 @@ mod live {
         seed
     }
 
-    const TENANT_ROOT_SIGNED_MANAGED_BACKUP_MAX_BYTES_V1: usize = 72 * 1024;
 
-    fn decode_verified_installation_evidence_v1(
-        field: &'static str,
-        encoded: &str,
-        expected_role: TwoPartyDeriverRole,
-        expected_signing_key_id: &str,
-        verifying_key: &[u8; 32],
-    ) -> RouterAbProtocolResult<
-        router_ab_core::VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-    > {
-        let bytes = decode_canonical_base64url(
-            field,
-            encoded,
-            router_ab_core::TENANT_ROOT_SIGNED_SHARE_INSTALLATION_EVIDENCE_MAX_BYTES_V1,
-            router_ab_core::TENANT_ROOT_SIGNED_SHARE_INSTALLATION_EVIDENCE_MAX_BYTES_V1 * 2,
-        )?;
-        let signed = TenantRootSignedShareInstallationEvidenceV1::decode_canonical_bytes(&bytes)
-            .map_err(derivation)?;
-        if signed.role() != expected_role || signed.signing_key_id() != expected_signing_key_id {
-            return Err(refused(
-                "tenant-root installation evidence names the wrong role signing key",
-            ));
-        }
-        TenantRootSignedShareInstallationEvidenceV1::decode_and_verify_canonical_bytes(
-            &bytes,
-            verifying_key,
-        )
-        .map_err(derivation)
-    }
 
-    fn decode_verified_managed_backup_v1(
-        field: &'static str,
-        encoded: &str,
-        expected_role: TenantRootManagedRestoreRoleV1,
-        expected_signing_key_id: &str,
-        verifying_key: &[u8; 32],
-    ) -> RouterAbProtocolResult<router_ab_core::VerifiedTenantRootManagedBackupV1> {
-        let bytes = decode_canonical_base64url(
-            field,
-            encoded,
-            TENANT_ROOT_SIGNED_MANAGED_BACKUP_MAX_BYTES_V1,
-            TENANT_ROOT_SIGNED_MANAGED_BACKUP_MAX_BYTES_V1 * 2,
-        )?;
-        let signed =
-            TenantRootSignedManagedBackupV1::decode_canonical_bytes(&bytes).map_err(derivation)?;
-        if signed.binding().role() != expected_role
-            || signed.binding().role_signing_key_id() != expected_signing_key_id
-        {
-            return Err(refused(
-                "tenant-root managed backup names the wrong role signing key",
-            ));
-        }
-        signed
-            .verify(signed.binding(), verifying_key)
-            .map_err(derivation)
-    }
 
-    fn decode_verified_provider_canary_v1(
-        field: &'static str,
-        encoded: &str,
-        expected_family: TenantRootCanaryCurveFamilyV1,
-        expected_signing_key_id: &str,
-        verifying_key: &[u8; 32],
-    ) -> RouterAbProtocolResult<router_ab_core::VerifiedTenantRootProviderCanaryReceiptV1> {
-        let bytes = decode_canonical_base64url(
-            field,
-            encoded,
-            TENANT_ROOT_PROVIDER_CANARY_RECEIPT_MAX_BYTES_V1,
-            TENANT_ROOT_PROVIDER_CANARY_RECEIPT_MAX_BYTES_V1 * 2,
-        )?;
-        let signed = TenantRootSignedProviderCanaryReceiptV1::decode_canonical_bytes(&bytes)
-            .map_err(derivation)?;
-        if signed.curve_family() != expected_family
-            || signed.signing_key_id() != expected_signing_key_id
-        {
-            return Err(refused(
-                "tenant-root provider canary names the wrong role signing key",
-            ));
-        }
-        signed
-            .verify(signed.binding(), verifying_key)
-            .map_err(derivation)
-    }
 
     struct VerifiedTenantRootRestoreRefreshPromotionV1 {
         command: VerifiedTenantRootRestoreRefreshRoleCommandV1,
@@ -3113,48 +3370,6 @@ mod live {
         }
     }
 
-    pub(super) fn require_persisted_initial_activation_state_v1(
-        read: &CloudflareTenantRootCreationJournalReadResponseV1,
-        bundle: &VerifiedTenantRootInitialCreationActivationEvidenceBundleV1,
-    ) -> RouterAbProtocolResult<()> {
-        if read.cleanup_checkpointed {
-            return Err(refused(
-                "tenant-root initial activation cannot issue after creation cleanup",
-            ));
-        }
-        if read.committed_roles.len() != 2
-            || !read
-                .committed_roles
-                .contains(&CloudflareTenantRootCreationInstallationRoleV1::DeriverA)
-            || !read
-                .committed_roles
-                .contains(&CloudflareTenantRootCreationInstallationRoleV1::DeriverB)
-        {
-            return Err(refused(
-                "tenant-root initial activation requires both persisted role commitments",
-            ));
-        }
-        let CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
-            root_commitment_b64u,
-        } = &read.installation_checkpoint
-        else {
-            return Err(refused(
-                "tenant-root initial activation requires both persisted role installations",
-            ));
-        };
-        let root_commitment = decode_canonical_base64url(
-            "tenant-root persisted installation root commitment",
-            root_commitment_b64u,
-            32,
-            48,
-        )?;
-        if root_commitment.as_slice() != bundle.root_commitment() {
-            return Err(refused(
-                "tenant-root persisted installation root does not match the activation evidence",
-            ));
-        }
-        Ok(())
-    }
 
     /// Verifies the six public activation artifacts and issues the exact receipt.
     pub(crate) async fn handle_cloudflare_tenant_root_control_plane_initial_activation_v1(
@@ -3163,91 +3378,54 @@ mod live {
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1>
     {
-        let bindings = runtime.bindings();
-        let deriver_a_installation = decode_verified_installation_evidence_v1(
-            "tenant-root Deriver A installation evidence",
-            &request.deriver_a_signed_installation_evidence_b64u,
-            TwoPartyDeriverRole::DeriverA,
-            &bindings.deriver_a_signing_key_id,
-            &bindings.deriver_a_verifying_key,
-        )?;
-        let deriver_b_installation = decode_verified_installation_evidence_v1(
-            "tenant-root Deriver B installation evidence",
-            &request.deriver_b_signed_installation_evidence_b64u,
-            TwoPartyDeriverRole::DeriverB,
-            &bindings.deriver_b_signing_key_id,
-            &bindings.deriver_b_verifying_key,
-        )?;
-        let deriver_a_backup = decode_verified_managed_backup_v1(
-            "tenant-root Deriver A managed backup",
-            &request.deriver_a_signed_managed_backup_b64u,
-            TenantRootManagedRestoreRoleV1::DeriverA,
-            &bindings.deriver_a_signing_key_id,
-            &bindings.deriver_a_verifying_key,
-        )?;
-        let deriver_b_backup = decode_verified_managed_backup_v1(
-            "tenant-root Deriver B managed backup",
-            &request.deriver_b_signed_managed_backup_b64u,
-            TenantRootManagedRestoreRoleV1::DeriverB,
-            &bindings.deriver_b_signing_key_id,
-            &bindings.deriver_b_verifying_key,
-        )?;
-        let ecdsa_canary = decode_verified_provider_canary_v1(
-            "tenant-root ECDSA provider canary",
-            &request.ecdsa_provider_canary_receipt_b64u,
-            TenantRootCanaryCurveFamilyV1::Ecdsa,
-            &bindings.deriver_a_signing_key_id,
-            &bindings.deriver_a_verifying_key,
-        )?;
-        let ed25519_canary = decode_verified_provider_canary_v1(
-            "tenant-root Ed25519 provider canary",
-            &request.ed25519_provider_canary_receipt_b64u,
-            TenantRootCanaryCurveFamilyV1::Ed25519,
-            &bindings.deriver_b_signing_key_id,
-            &bindings.deriver_b_verifying_key,
-        )?;
-        let bundle = VerifiedTenantRootInitialCreationActivationEvidenceBundleV1::from_verified_managed_backups(
-            deriver_a_installation,
-            deriver_b_installation,
-            deriver_a_backup,
-            deriver_b_backup,
-            ecdsa_canary,
-            ed25519_canary,
-            2,
-            3,
-        )
-        .map_err(derivation)?;
-        let activated_at_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let (authority_id, read) =
-            read_creation_state(env, bundle.identity_digest(), bundle.custody_lineage()).await?;
-        let record = CloudflareTenantRootCreationJournalRecordV1 {
-            journal_b64u: read.journal_b64u.clone(),
-            creation_capability_b64u: read.creation_capability_b64u.clone(),
-        };
-        let journal = validate_creation_record(
-            record,
-            authority_id,
-            runtime.bindings().issuer_verifying_keys.keys(),
-        )?;
-        if journal.identity_digest != bundle.identity_digest()
-            || journal.custody_lineage != bundle.custody_lineage()
-            || journal.ceremony_context.digest().map_err(derivation)? != bundle.context_digest()
-        {
-            return Err(refused(
-                "tenant-root persisted creation state does not match the activation evidence",
-            ));
+        super::control_plane_initial_activation_v1(&CloudflareControlPlaneHostV1 { env, runtime }, request)
+            .await
+    }
+
+    /// The Cloudflare issuer host: Worker secrets and the creation DO.
+    struct CloudflareControlPlaneHostV1<'a> {
+        env: &'a worker::Env,
+        runtime: &'a CloudflareTenantRootControlPlaneRuntimeV1,
+    }
+
+    impl super::TenantRootControlPlaneHostV1 for CloudflareControlPlaneHostV1<'_> {
+        fn bindings(&self) -> &crate::CloudflareTenantRootControlPlaneBindingsV1 {
+            self.runtime.bindings()
         }
-        require_persisted_initial_activation_state_v1(&read, &bundle)?;
-        let issuer_binding = &bindings.issuer_signing_key;
-        let issuer_seed = load_issuer_seed(env, runtime)?;
-        let receipt = super::issue_tenant_root_initial_activation_receipt_v1(
-            &bundle,
-            activated_at_ms,
-            authority_id,
-            issuer_binding.signing_key_id(),
-            &issuer_seed,
-        )?;
-        super::initial_activation_receipt_response_v1(receipt)
+
+        fn now_ms(&self) -> RouterAbProtocolResult<u64> {
+            crate::cloudflare_now_unix_ms_v1()
+        }
+
+        fn issuer_seed(&self) -> RouterAbProtocolResult<Zeroizing<[u8; 32]>> {
+            load_issuer_seed(self.env, self.runtime)
+        }
+
+        fn creation_authority_id(
+            &self,
+            identity_digest: TenantRootIdentityDigestV1,
+            custody_lineage: TenantRootCustodyLineageId,
+        ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1> {
+            Ok(read_creation_object_binding(self.env, identity_digest, custody_lineage)?.0)
+        }
+
+        async fn read_creation_state(
+            &self,
+            identity_digest: TenantRootIdentityDigestV1,
+            custody_lineage: TenantRootCustodyLineageId,
+        ) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalReadResponseV1> {
+            Ok(read_creation_state(self.env, identity_digest, custody_lineage).await?.1)
+        }
+
+        async fn persist_creation_journal(
+            &self,
+            journal: &router_ab_core::TenantRootCreationJournalV1,
+            capability: &router_ab_core::TenantRootCreationCapabilityV1,
+        ) -> RouterAbProtocolResult<crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationJournalResponseV1>
+        {
+            execute_cloudflare_router_tenant_root_creation_journal_call_v1(self.env, journal, capability)
+                .await
+        }
     }
 
     /// Reads the durable promoted restore-refresh checkpoint, verifies its
@@ -3744,84 +3922,15 @@ mod live {
         Ok(parsed)
     }
 
-    /// The genesis operation: open a tenant root under a signed grant.
-    ///
-    /// The grant is verified against the issuer's own configured authorities,
-    /// never against anything the request names. The authority id is derived
-    /// from the Durable Object binding, and the Durable Object independently
-    /// re-verifies the capability before persisting, so reaching this route
-    /// grants no ability to write state.
+    /// Genesis on Cloudflare: the shared issuer operation over Worker secrets
+    /// and the Router-owned creation Durable Object.
     pub async fn handle_cloudflare_tenant_root_control_plane_create_tenant_root_v1(
         request: CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
         env: &worker::Env,
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCreateTenantRootResponseV1> {
-        let grant_bytes = decode_canonical_base64url(
-            "tenant-root creation grant",
-            &request.creation_grant_b64u,
-            TENANT_ROOT_CREATION_GRANT_MAX_BYTES_V1,
-            TENANT_ROOT_CREATION_GRANT_MAX_BYTES_V1 * 2,
-        )?;
-        let grant =
-            TenantRootCreationGrantV1::decode_canonical_bytes(&grant_bytes).map_err(derivation)?;
-        // The trusted key is selected by the grant's key id but supplied by the
-        // issuer's own configuration: an unlisted authority has no key here.
-        let grant_key_id = grant.grant_key_id().to_owned();
-        let Some(trusted_key) = runtime
-            .bindings()
-            .grant_authority_verifying_keys
-            .for_grant_key_id(&grant_key_id)
-        else {
-            return Err(refused(
-                "tenant-root creation grant authority is not trusted by this control plane",
-            ));
-        };
-        let verified = grant
-            .verify(&grant_key_id, trusted_key)
-            .map_err(derivation)?;
-
-        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let draw = derive_tenant_root_creation_ceremony_v1(
-            &grant_bytes,
-            runtime.bindings().deriver_a_signing_key_id.clone(),
-            runtime.bindings().deriver_b_signing_key_id.clone(),
-        )?;
-        let (authority_id, _) = read_creation_object_binding(
-            env,
-            verified.identity_digest(),
-            verified.custody_lineage(),
-        )?;
-        let seed = load_issuer_seed(env, runtime)?;
-        let authorized = authorize_tenant_root_creation_v1(
-            &verified,
-            &draw,
-            now_ms,
-            authority_id,
-            runtime.bindings().issuer_signing_key.signing_key_id(),
-            &seed,
-        )?;
-
-        let persisted = execute_cloudflare_router_tenant_root_creation_journal_call_v1(
-            env,
-            &authorized.journal,
-            &authorized.capability,
-        )
-        .await?;
-        let (_, current) =
-            read_creation_state(env, verified.identity_digest(), verified.custody_lineage())
-                .await?;
-        Ok(CloudflareTenantRootControlPlaneCreateTenantRootResponseV1 {
-            identity_digest_b64u: encode_base64url_bytes_v1(verified.identity_digest().as_bytes()),
-            custody_lineage_b64u: encode_base64url_bytes_v1(verified.custody_lineage().as_bytes()),
-            revision: persisted.revision,
-            journal_digest_b64u: persisted.journal_digest_b64u,
-            capability_digest_b64u: persisted.capability_digest_b64u,
-            status: creation_status(&current)?,
-            replayed: matches!(
-                persisted.outcome,
-                CloudflareTenantRootCreationJournalOutcomeV1::Replay
-            ),
-        })
+        super::control_plane_create_tenant_root_v1(&CloudflareControlPlaneHostV1 { env, runtime }, request)
+            .await
     }
 
     #[cfg(test)]
@@ -5902,7 +6011,7 @@ mod tests {
                 },
             cleanup_checkpointed: false,
         };
-        live::require_persisted_initial_activation_state_v1(&read, &bundle)
+        require_persisted_initial_activation_state_v1(&read, &bundle)
             .expect("exact persisted installation state");
 
         read.installation_checkpoint =
@@ -5910,7 +6019,7 @@ mod tests {
                 root_commitment_b64u: crate::encode_base64url_bytes_v1(&[0x55; 32]),
             };
         assert_eq!(
-            live::require_persisted_initial_activation_state_v1(&read, &bundle)
+            require_persisted_initial_activation_state_v1(&read, &bundle)
                 .expect_err("foreign persisted root")
                 .code(),
             RouterAbProtocolErrorCode::ForbiddenLocalBinding
@@ -5922,7 +6031,7 @@ mod tests {
             };
         read.cleanup_checkpointed = true;
         assert_eq!(
-            live::require_persisted_initial_activation_state_v1(&read, &bundle)
+            require_persisted_initial_activation_state_v1(&read, &bundle)
                 .expect_err("cleaned creation")
                 .code(),
             RouterAbProtocolErrorCode::ForbiddenLocalBinding

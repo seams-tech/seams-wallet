@@ -80,9 +80,8 @@ pub use ordinary_inactive_signer_material::{
 mod tenant_root_role_d1;
 #[cfg(feature = "workers-rs")]
 pub use tenant_root_role_d1::*;
-// The issuer reads and re-validates Durable Object state, so it is compiled
-// exactly where the Durable Object module is.
-#[cfg(any(feature = "workers-rs", test))]
+// The issuer's pure authorization and validation logic is host-neutral; its
+// Worker handlers live in the gated `live` submodule.
 mod tenant_root_control_plane;
 mod tenant_root_cutover_lifecycle;
 mod tenant_root_managed_backup_r2;
