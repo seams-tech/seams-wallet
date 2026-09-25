@@ -11,12 +11,20 @@ const sourceRoot = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(sourceRoot, '../..');
 const identityRoot = path.join(repoRoot, '.runtime', 'r150-hosted', 'identities');
 const renderedRoot = path.resolve(
-  process.argv[3] ?? path.join(repoRoot, '.runtime', 'r150-hosted', 'rendered'),
+  process.argv[4] ?? path.join(repoRoot, '.runtime', 'r150-hosted', 'rendered'),
 );
 const receiptPath = process.argv[2];
+const ingressExpiresAtMs = Number(process.argv[3]);
 
-if ((process.argv.length !== 3 && process.argv.length !== 4) || !receiptPath) {
-  throw new Error('Usage: node tests/r150-hosted/render-gateway-secrets.mjs <private-tenant-root-receipts.json> [ignored-rendered-directory]');
+if ((process.argv.length !== 4 && process.argv.length !== 5) || !receiptPath) {
+  throw new Error('Usage: node tests/r150-hosted/render-gateway-secrets.mjs <private-tenant-root-receipts.json> <ingress-expiry-unix-ms> [ignored-rendered-directory]');
+}
+if (
+  !Number.isSafeInteger(ingressExpiresAtMs) ||
+  ingressExpiresAtMs <= Date.now() + 300_000 ||
+  ingressExpiresAtMs > Date.now() + 48 * 60 * 60 * 1000
+) {
+  throw new Error('Ingress expiry must be between five minutes and 48 hours from now');
 }
 process.umask(0o077);
 requireIgnoredRuntime();
@@ -65,6 +73,17 @@ for (const arm of ['d1', 'do']) {
     path.join(renderedRoot, 'gateway-secrets', `${arm}.json`),
     `${JSON.stringify(secrets)}\n`,
   );
+  const ingressTokenPath = path.join(armRoot, 'ingress-token.secret');
+  if ((statSync(ingressTokenPath).mode & 0o077) !== 0) {
+    throw new Error(`${arm} ingress token file is exposed`);
+  }
+  writeIfAbsentOrEqual(
+    path.join(renderedRoot, 'ingress-secrets', `${arm}.json`),
+    `${JSON.stringify({
+      BENCHMARK_ACCESS_TOKEN: requiredText(readFileSync(ingressTokenPath, 'utf8'), `${arm} ingress token`),
+      BENCHMARK_EXPIRES_AT_MS: String(ingressExpiresAtMs),
+    })}\n`,
+  );
   writeIfAbsentOrEqual(
     path.join(renderedRoot, 'probe-values', `${arm}.json`),
     `${JSON.stringify({
@@ -76,7 +95,7 @@ for (const arm of ['d1', 'do']) {
     }, null, 2)}\n`,
   );
 }
-console.log(`Rendered R150 Gateway secret bundles and probe values under ${renderedRoot}`);
+console.log(`Rendered R150 Gateway, ingress, and probe inputs under ${renderedRoot}`);
 
 function requireIgnoredRuntime() {
   const result = spawnSync('git', ['check-ignore', '-q', '--', renderedRoot], {

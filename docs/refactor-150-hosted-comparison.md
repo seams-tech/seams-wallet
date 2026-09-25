@@ -218,10 +218,12 @@ same signed grant and writes a private, non-secret result artifact under
 Wrap the two successful bootstrap script JSON responses in a private receipts
 file shaped as `{ "arms": { "d1": <D1 response>, "do": <DO response> } }`.
 After checking each ready receipt against the intended arm, run
-`node tests/r150-hosted/render-gateway-secrets.mjs <private-receipts.json>`.
+`node tests/r150-hosted/render-gateway-secrets.mjs <private-receipts.json> <ingress-expiry-unix-ms>`.
 It requires private file permissions, verifies the persisted identities and
 Router/Gateway public keys, and writes stable Gateway secret bundles plus
-per-arm probe values under the rendered directory. Synthetic or missing
+bounded ingress secret bundles and per-arm probe values under the rendered
+directory. The expiry must be 5 minutes to 48 hours ahead; the renderer
+refuses changed output on rerun. Synthetic or missing
 receipts are never an authority check; the live bootstrap response and its
 Router state must be verified before use. Gateway and ingress Workers should
 remain undeployed until their own secrets and expiry are installed.
