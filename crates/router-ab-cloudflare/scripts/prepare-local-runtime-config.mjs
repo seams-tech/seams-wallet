@@ -352,6 +352,7 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
   const tenantRootKeys = resolveLocalTenantRootKeyMaterial({
     repoRoot,
     localEnvRoot,
+    issuerEnvPath: input.tenantRootIssuerEnvPath,
   });
   const privateD1Keys = Object.freeze({
     deriverA: deriveLocalPrivateD1KeyPair(
@@ -939,11 +940,7 @@ export function resolveLocalTenantRootKeyMaterial(input) {
   const repoRoot = path.resolve(input.repoRoot);
   const localEnvRoot = path.resolve(input.localEnvRoot ?? repoRoot);
   const controlPlaneEnv = readEnvMap(
-    path.join(
-      runtimeRoot,
-      'env',
-      'tenant-root-control-plane.local.example',
-    ),
+    input.issuerEnvPath ?? path.join(runtimeRoot, 'env', 'tenant-root-control-plane.local.example'),
   );
   const deriverAEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-a.local'));
   const deriverBEnv = readEnvMap(path.join(localEnvRoot, '.env.router-ab.deriver-b.local'));

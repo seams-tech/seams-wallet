@@ -141,6 +141,16 @@ fresh benchmark bootstrap values before deployment; no staging key or database
 identity is a valid replacement. Optimized D1 and wallet-DO binaries are built
 to separate directories so one arm cannot overwrite the other's artifact.
 
+Run `node tests/r150-hosted/prepare-identities.mjs` once before rendering
+manifests. It creates fresh D1 and DO role, issuer, ceremony, ingress-token,
+and service-auth material under the Git-ignored
+`.runtime/r150-hosted/identities/` directory with private file permissions.
+Reruns verify the recorded identity fingerprints and reuse the same material;
+an incomplete identity directory fails closed. The generator reuses the local
+role-identity primitives with an explicit per-arm tenant-root issuer input.
+It does not fill D1 IDs, create tenant roots, deploy secrets, or touch hosted
+resources. Keep the generated files off shared logs and artifacts.
+
 Before deploying, confirm the account, probe provider/hosts, spend cap,
 prospective latency and monthly cost criteria, exact resource inventory,
 ingress authentication, and that the selected build exposes no unauthenticated
