@@ -1,6 +1,7 @@
 # R150 isolated hosted comparison
 
-Status: approved preparation. No hosted benchmark resources have been created or changed.
+Status: isolated Cloudflare preparation is underway. The exact benchmark
+resource inventory is kept privately under `.runtime/r150-hosted/`.
 This is a pilot to decide whether the measured regional benefit warrants finishing
 the DO conversion. It is not the R150 release gate.
 
@@ -42,10 +43,11 @@ resources must remain untouched.
   benchmark ingress. Disable implicit NEAR account test funding in both
   Gateways. No funded wallet, relayer transfer, or chain submission is part of
   the workload.
-- Set each new D1 primary's location hint to `apac`. Probe from Tokyo (`nrt`),
-  Frankfurt (`fra`), and US East (`iad`) using separately verified Fly.io hosts.
-  Create fresh wallet objects from their probe region; record actual routing
-  evidence. Cloudflare treats D1 and DO location hints as best-effort.
+- Set each new D1 primary's location hint to `apac`. The regional comparison
+  requires verified hosts in Tokyo (`nrt`), Frankfurt (`fra`), and US East
+  (`iad`) from an existing provider selected by the owner. Create fresh wallet
+  objects from their probe region and record actual routing evidence.
+  Cloudflare treats D1 and DO location hints as best-effort.
 
 The proposed initial pilot limit is 20 fresh-wallet registrations and 40
 ECDSA/Tempo signatures **per arm per region**, at concurrency one, alternating
@@ -90,21 +92,16 @@ Playwright traces, screenshots, and videos are disabled to keep request credenti
 and wallet material out of diagnostic artifacts. Each repeated
 run writes a distinct timing artifact. Local mode remains the default.
 
-Build the Wallet SDK with `pnpm -C packages/wallet run build:sdk-full` from
-the committed comparison revision, then run
-`node tests/r150-hosted/probe/prepare-image-context.mjs`. It requires a fresh
-Wallet distribution and a clean worktree. The command archives only committed
-files, adds the built Wallet distribution, and writes the source/build
-fingerprints plus three private Fly app configurations under a new ignored
-`.runtime/r150-hosted/probe-image-*` directory. Build or deploy from that
-returned directory only. It excludes uncommitted identity material, ingress
-tokens, and other ignored runtime state from the image context. The pinned
-Playwright image matches the repository's browser-test version. Each Fly app
-has one 2-GB, two-shared-CPU Machine, no public service, and restart-persistent
-rootfs; review the provider's current regional price before creating it.
-Do not redeploy while results remain only on the Machine.
+Regional probe deployment is paused until the owner selects an existing
+provider and its runtime identity check is implemented. The current Fly-specific
+image-prep and runner assumptions are not approved for this pilot. Cloudflare
+deployment and one local hosted smoke may proceed; label that smoke
+non-regional, use separate synthetic wallet identities, and count its work
+against the pilot ledger and spend cap. Do not use the Mac smoke to populate
+the regional cohorts.
 
-On each private Fly.io probe Machine, place a mode-0600 input at
+After provider-specific runner validation, place a mode-0600 input on each
+private regional probe host at
 `.runtime/r150-hosted/probe/<region>/input.json`. Populate each arm from its
 rendered `probe-values/<arm>.json` and `ingress-secrets/<arm>.json`; copy the
 secret token into `accessToken` without printing it. The `deploymentFingerprint`
@@ -115,12 +112,12 @@ is already in the rendered probe values. The input shape is:
   "kind": "r150_hosted_probe_input_v1",
   "region": "nrt",
   "probe": {
-    "provider": "fly",
+    "provider": "<verified provider>",
     "region": "nrt",
-    "instanceId": "<FLY_MACHINE_ID>",
-    "appName": "<FLY_APP_NAME>",
+    "instanceId": "<verified runtime identity>",
+    "appName": "<isolated probe application>",
     "observedAt": "<UTC timestamp>",
-    "evidenceRef": "<private Fly machine status evidence file>"
+    "evidenceRef": "<private control-plane and runtime evidence file>"
   },
   "arms": {
     "d1": {
@@ -143,11 +140,10 @@ is already in the rendered probe values. The input shape is:
 }
 ```
 
-Capture the Fly machine's control-plane status and runtime `FLY_MACHINE_ID`,
-`FLY_APP_NAME`, and `FLY_REGION` in the private evidence file. The runner checks
-the runtime values against the inventory before each attempt. The environment
-region label alone does not prove physical location. Keep probe and billing
-evidence available for review.
+Capture control-plane and runtime identity in the private evidence file. The
+runner must verify the runtime values against the inventory before each
+attempt. A region label alone does not prove physical location. Keep probe
+and billing evidence available for review.
 
 For case 1, run:
 
@@ -267,13 +263,26 @@ outside the rendered-manifest directory so Wrangler's bundles stay separate
 from the private deployment inputs. Gateway and ingress secrets
 remain separate setup inputs; their presence and expiry require live checks.
 
+Cloudflare's remote `d1 migrations apply` currently rejects the checked-in
+trigger-bearing signer SQL with `incomplete input`, although local apply and
+remote atomic file import succeed. For these exact isolated databases, use
+`node tests/r150-hosted/apply-remote-migrations.mjs <d1|do> <store>` with each
+of `signer`, `deriver-a`, `deriver-b`, and `signing-worker`. The helper checks
+the account and inventoried database ID, imports each unchanged SQL migration
+together with its ledger row, and verifies the ledger after each commit. An
+ambiguous attempt requires remote reconciliation before retry. Compare the
+resulting remote schema and triggers with the locally applied chain before
+serving requests. Never run this helper against shared stores.
+
 Cloudflare requires a service-binding target to exist before its caller is
 deployed. The A/B and Router/control-plane graph has cycles. The renderer also
 emits `first-pass/roles/` configurations for the same optimized private role
 binaries, with only cross-Worker service and DO bindings removed. Deploy the
 five roles in each arm from those first-pass configurations only after a
-read-only Worker inventory proves those exact names are new and empty. Install
-their separate role secrets, then deploy the complete role manifests without
+read-only Worker inventory proves those exact names are new and empty. Supply
+each arm's generated `role-secrets/<arm>/<role>.json` with Wrangler's
+`--secrets-file` on the initial upload; `secrets.required` prevents creating
+the Worker before those secrets exist. Then deploy the complete role manifests without
 deleting or recreating the Workers or their DO namespaces. Retire the local
 first-pass config copies after final-binding verification. Keep the
 Gateway and public ingress undeployed until every final binding and private
@@ -315,8 +324,8 @@ receipts are never an authority check; the live bootstrap response and its
 Router state must be verified before use. Gateway and ingress Workers should
 remain undeployed until their own secrets and expiry are installed.
 
-Before deploying, verify the account plan and Fly.io access, provision probe
-hosts with recorded region/instance evidence, estimate the $25 cap from
+Before the regional pilot, verify the account plan and selected provider's
+access, provision probe hosts with recorded region/instance evidence, estimate the $25 cap from
 current rates, and check the exact resource inventory,
 ingress authentication, and that the selected build exposes no unauthenticated
 dev fault, debug, or material-export endpoint. Verify a smoke registration and
