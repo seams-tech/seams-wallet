@@ -150,3 +150,13 @@ signature in both arms, then run the bounded matched pilot. Cloudflare's current
 [D1](https://developers.cloudflare.com/d1/platform/pricing/), and
 [Workers](https://developers.cloudflare.com/workers/platform/pricing/) rates
 must be applied to measured usage and the account's actual billing plan.
+
+Run `node tests/r150-hosted/preflight.mjs` before provisioning to check the
+checked-in arm isolation and public/private routing. Render a separate copy of
+the manifests with fresh benchmark IDs and public keys, then run
+`node tests/r150-hosted/preflight.mjs --root <rendered-manifest-directory> --ready`.
+The ready check rejects unresolved placeholders, malformed or reused D1 IDs,
+and cross-arm bindings. It reads manifests only.
+It does not verify deployed Cloudflare state, installed secrets, the ingress
+expiry value, the actual account, or the spend cap. Confirm those separately
+before the first hosted request.
