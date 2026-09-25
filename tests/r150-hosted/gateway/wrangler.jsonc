@@ -1,0 +1,113 @@
+{
+  "$schema": "../../../node_modules/wrangler/config-schema.json",
+  "main": "./worker.ts",
+  "compatibility_date": "2026-04-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "env": {
+    "d1": {
+      "name": "r150-bench-20260925-d1-gateway",
+      "workers_dev": false,
+      "d1_databases": [
+        {
+          "binding": "SIGNER_DB",
+          "database_name": "r150-bench-20260925-d1-signer-db",
+          "database_id": "__R150_BENCH_D1_SIGNER_DB_ID__",
+          "migrations_dir": "../../../packages/wallet-server/migrations/d1-signer"
+        }
+      ],
+      "services": [
+        { "binding": "MPC_ROUTER", "service": "r150-bench-20260925-d1-router" },
+        { "binding": "SIGNING_WORKER", "service": "r150-bench-20260925-d1-signing-worker" }
+      ],
+      "vars": {
+        "SEAMS_TENANT_STORAGE_NAMESPACE": "r150-bench-20260925-d1",
+        "SEAMS_STAGING_ORG_ID": "r150-bench-20260925-d1-org",
+        "SEAMS_STAGING_PROJECT_ID": "r150-bench-20260925-d1-project",
+        "SEAMS_STAGING_ENV_ID": "r150-bench-20260925-d1-env",
+        "ROUTER_AB_NORMAL_SIGNING_WORKER_ID": "r150-bench-20260925-d1-signing-worker",
+        "SIGNING_WORKER_ID": "r150-bench-20260925-d1-signing-worker",
+        "ROUTER_AB_PREWARM_ENABLED": "false",
+        "ENABLE_IMPLICIT_NEAR_ACCOUNT_TEST_FUNDING": "false",
+        "LINKED_DEVICE_WEBAUTHN_RP_ID": "localhost",
+        "RELAY_CORS_ORIGINS": "http://localhost:4201,http://localhost:4202",
+        "HOSTED_WALLET_ORIGINS": "http://localhost:4201,http://localhost:4202",
+        "SESSION_COOKIE_NAME": "r150-bench-d1-session",
+        "RELAY_SESSION_ISSUER": "r150-bench-d1-gateway",
+        "RELAY_SESSION_AUDIENCE": "r150-bench-wallet-session",
+        "SIGNING_SESSION_SEAL_CURRENT_KEY_VERSION": "r150-bench-r1",
+        "SIGNING_SESSION_SEAL_ACCEPTED_WARM_KEY_VERSIONS": "r150-bench-r1"
+      },
+      "secrets": {
+        "required": [
+          "BENCHMARK_WALLET_DEPLOYMENT_JSON",
+          "ACCOUNT_ID_DERIVATION_SECRET",
+          "LINKED_DEVICE_TARGET_DESCRIPTOR_HMAC_SECRET",
+          "RELAY_SESSION_HMAC_SECRET",
+          "ROUTER_AB_CEREMONY_JWT_PRIVATE_JWK",
+          "ROUTER_AB_CEREMONY_JWT_ISSUER",
+          "ROUTER_AB_CEREMONY_JWT_AUDIENCE",
+          "ROUTER_AB_CEREMONY_JWT_KEY_ID",
+          "ROUTER_AB_ECDSA_REGISTRATION_TOPOLOGY_JSON",
+          "ROUTER_AB_PUBLIC_KEYSET_JSON",
+          "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+          "ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET",
+          "ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET",
+          "SIGNING_SESSION_SEAL_ROOT_SECRET_B64U"
+        ]
+      }
+    },
+    "do": {
+      "name": "r150-bench-20260925-do-gateway",
+      "workers_dev": false,
+      "d1_databases": [
+        {
+          "binding": "SIGNER_DB",
+          "database_name": "r150-bench-20260925-do-signer-db",
+          "database_id": "__R150_BENCH_DO_SIGNER_DB_ID__",
+          "migrations_dir": "../../../packages/wallet-server/migrations/d1-signer"
+        }
+      ],
+      "services": [
+        { "binding": "MPC_ROUTER", "service": "r150-bench-20260925-do-router" },
+        { "binding": "SIGNING_WORKER", "service": "r150-bench-20260925-do-signing-worker" }
+      ],
+      "vars": {
+        "SEAMS_TENANT_STORAGE_NAMESPACE": "r150-bench-20260925-do",
+        "SEAMS_STAGING_ORG_ID": "r150-bench-20260925-do-org",
+        "SEAMS_STAGING_PROJECT_ID": "r150-bench-20260925-do-project",
+        "SEAMS_STAGING_ENV_ID": "r150-bench-20260925-do-env",
+        "ROUTER_AB_NORMAL_SIGNING_WORKER_ID": "r150-bench-20260925-do-signing-worker",
+        "SIGNING_WORKER_ID": "r150-bench-20260925-do-signing-worker",
+        "ROUTER_AB_PREWARM_ENABLED": "false",
+        "ENABLE_IMPLICIT_NEAR_ACCOUNT_TEST_FUNDING": "false",
+        "LINKED_DEVICE_WEBAUTHN_RP_ID": "localhost",
+        "RELAY_CORS_ORIGINS": "http://localhost:4201,http://localhost:4202",
+        "HOSTED_WALLET_ORIGINS": "http://localhost:4201,http://localhost:4202",
+        "SESSION_COOKIE_NAME": "r150-bench-do-session",
+        "RELAY_SESSION_ISSUER": "r150-bench-do-gateway",
+        "RELAY_SESSION_AUDIENCE": "r150-bench-wallet-session",
+        "SIGNING_SESSION_SEAL_CURRENT_KEY_VERSION": "r150-bench-r1",
+        "SIGNING_SESSION_SEAL_ACCEPTED_WARM_KEY_VERSIONS": "r150-bench-r1"
+      },
+      "secrets": {
+        "required": [
+          "BENCHMARK_WALLET_DEPLOYMENT_JSON",
+          "ACCOUNT_ID_DERIVATION_SECRET",
+          "LINKED_DEVICE_TARGET_DESCRIPTOR_HMAC_SECRET",
+          "RELAY_SESSION_HMAC_SECRET",
+          "ROUTER_AB_CEREMONY_JWT_PRIVATE_JWK",
+          "ROUTER_AB_CEREMONY_JWT_ISSUER",
+          "ROUTER_AB_CEREMONY_JWT_AUDIENCE",
+          "ROUTER_AB_CEREMONY_JWT_KEY_ID",
+          "ROUTER_AB_ECDSA_REGISTRATION_TOPOLOGY_JSON",
+          "ROUTER_AB_PUBLIC_KEYSET_JSON",
+          "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+          "ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET",
+          "ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET",
+          "SIGNING_SESSION_SEAL_ROOT_SECRET_B64U"
+        ]
+      }
+    }
+  }
+}

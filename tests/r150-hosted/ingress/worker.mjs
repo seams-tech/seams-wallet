@@ -29,6 +29,15 @@ function isConfigured(env) {
   );
 }
 
+function hasIntendedFaultHeader(request) {
+  for (const name of request.headers.keys()) {
+    if (name.startsWith('x-seams-intended-')) {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function hasAccess(request, env) {
   const supplied = request.headers.get(ACCESS_HEADER) ?? '';
   const encoder = new TextEncoder();
@@ -77,6 +86,9 @@ export default {
       return withCors(new Response(null, { status: 204 }), origin);
     }
     if (!(await hasAccess(request, env))) {
+      return withCors(new Response(null, { status: 403 }), origin);
+    }
+    if (hasIntendedFaultHeader(request)) {
       return withCors(new Response(null, { status: 403 }), origin);
     }
 

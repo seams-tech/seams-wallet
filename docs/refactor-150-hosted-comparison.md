@@ -119,7 +119,18 @@ forwards no token to the Gateway. Set `BENCHMARK_ACCESS_TOKEN` and
 `BENCHMARK_EXPIRES_AT_MS` separately in each ingress environment. The latter is
 a Unix timestamp in milliseconds and should bound the pilot window. Readiness
 responses disclose only success or failure; readiness and custody paths require
-the token.
+the token. The ingress rejects local intended-test fault headers. The benchmark
+Gateway entrypoint uses the shared production request handler and a static
+Wallet Console binding for the isolated test tenant, without local fault
+injection or a scheduled handler. Its static control-plane responses are part
+of the benchmark setup and do not represent a deployed Console backend.
+Both Gateway arm configurations are in
+[`tests/r150-hosted/gateway/wrangler.jsonc`](../tests/r150-hosted/gateway/wrangler.jsonc).
+Their D1 IDs are intentionally invalid placeholders until newly created
+benchmark databases are inventoried. The deployment JSON secret must use the
+same arm-specific organization, project, and environment IDs as its Gateway
+configuration; the entrypoint rejects a mismatch. The Gateway is private and
+keeps shared Wallet Session state in its own D1 database in both arms.
 
 Before deploying, confirm the account, probe provider/hosts, spend cap,
 prospective latency and monthly cost criteria, exact resource inventory,

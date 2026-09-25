@@ -45,6 +45,7 @@
   },
   "include": [
     "e2e/intended-behaviours/**/*.ts",
+    "r150-hosted/gateway/**/*.ts",
     "intended-app/src/**/*.ts",
     "intended-app/src/**/*.tsx"
   ],
