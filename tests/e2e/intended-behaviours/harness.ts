@@ -3495,7 +3495,7 @@ export const intendedTest = base.extend<{
     const harness = new IntendedBehaviourHarness({
       context,
       flow,
-      networkMode: 'managed_local',
+      networkMode: intendedNetworkModeFromEnv(),
       page,
       request,
     });
@@ -3506,6 +3506,32 @@ export const intendedTest = base.extend<{
     harness.assertNoWrongAuthPath();
   },
 });
+
+function intendedNetworkModeFromEnv(): 'managed_local' | 'external_staging' {
+  switch (process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY) {
+    case undefined:
+    case '0':
+      return 'managed_local';
+    case '1': {
+      const arm = process.env.SEAMS_INTENDED_BENCHMARK_ARM;
+      const gatewayUrl = process.env.SEAMS_INTENDED_ROUTER_URL;
+      if (arm !== 'd1' && arm !== 'do') {
+        throw new Error('Hosted benchmark backend arm must be d1 or do');
+      }
+      if (!gatewayUrl) throw new Error('Hosted benchmark Gateway URL is required');
+      const gateway = new URL(gatewayUrl);
+      if (
+        gateway.protocol !== 'https:' ||
+        gateway.hostname.split('.')[0] !== `r150-bench-20260925-${arm}-ingress`
+      ) {
+        throw new Error('Hosted benchmark Gateway must name the selected arm ingress');
+      }
+      return 'external_staging';
+    }
+    default:
+      throw new Error('SEAMS_INTENDED_EXTERNAL_GATEWAY must be 0 or 1');
+  }
+}
 
 function intendedHarnessConfigFromEnv(): IntendedHarnessConfig {
   const googleClientId = resolveGoogleClientId({ processEnv: process.env });

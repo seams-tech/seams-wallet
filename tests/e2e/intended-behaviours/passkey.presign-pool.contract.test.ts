@@ -222,16 +222,22 @@ test('first ECDSA signing completes Gateway pool fill before available-pool prep
   }
 });
 
-test('unforced ECDSA registration and repeated signing capture local Gateway timing', async ({
+test('unforced ECDSA registration and repeated signing capture Gateway timing', async ({
   harness,
   context,
 }, testInfo) => {
-  const walletDoRequested =
-    process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev' &&
-    process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled';
-  const requestedBackendProfile = walletDoRequested
-    ? 'local_wallet_do_harness_requested'
-    : 'local_default_d1';
+  const requestedBackendProfile = requestedEcdsaBackendProfile();
+  const hostedBenchmark = process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY === '1';
+  const probeRegion = hostedBenchmark
+    ? process.env.SEAMS_INTENDED_PROBE_REGION
+    : 'local';
+  if (!probeRegion || !/^[a-z0-9-]+$/u.test(probeRegion)) {
+    throw new Error('Hosted benchmark probe region is missing or invalid');
+  }
+  const runId = hostedBenchmark ? process.env.SEAMS_INTENDED_BENCHMARK_RUN_ID : 'local';
+  if (!runId || !/^[a-z0-9-]+$/u.test(runId)) {
+    throw new Error('Hosted benchmark run id is missing or invalid');
+  }
   const flow = new FirstSigningPoolFlow();
   const record = flow.record.bind(flow);
   const recordResponse = flow.recordResponse.bind(flow);
@@ -251,12 +257,22 @@ test('unforced ECDSA registration and repeated signing capture local Gateway tim
     const subsequentSigningEndedAt = performance.now();
 
     const proof = {
-      kind: 'gateway_ecdsa_unforced_local_timing_diagnostic_v1',
-      reproduce:
-        "node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.presign-pool.contract.test.ts --grep 'unforced ECDSA registration and repeated signing'",
+      kind: hostedBenchmark
+        ? 'gateway_ecdsa_unforced_hosted_timing_pilot_v1'
+        : 'gateway_ecdsa_unforced_local_timing_diagnostic_v1',
+      reproduce: hostedBenchmark
+        ? "pnpm -C tests exec playwright test -c playwright.wallet-intended.ci.config.ts e2e/intended-behaviours/passkey.presign-pool.contract.test.ts --grep 'unforced ECDSA registration and repeated signing'"
+        : "node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.presign-pool.contract.test.ts --grep 'unforced ECDSA registration and repeated signing'",
       requestedBackendProfile,
+      probeRegion,
+      runId,
+      repeatEachIndex: testInfo.repeatEachIndex,
+      gatewayOrigin: new URL(process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100')
+        .origin,
       sampleCountPerStage: 1,
-      timingPurpose: 'local_diagnostic_not_release_gate',
+      timingPurpose: hostedBenchmark
+        ? 'hosted_pilot_not_release_gate'
+        : 'local_diagnostic_not_release_gate',
       requestScope: 'all_gateway_requests_in_each_window_including_background_work',
       registrationReturn: {
         elapsedMs: registrationEndedAt - registrationStartedAt,
@@ -299,13 +315,13 @@ test('unforced ECDSA registration and repeated signing capture local Gateway tim
       },
       signaturesVerified: 2,
     };
-    const artifactPath = path.resolve(
-      testInfo.config.rootDir,
-      `../.artifacts/r150/gateway-ecdsa-unforced-local-timing-${requestedBackendProfile}.json`,
-    );
+    const artifactName = hostedBenchmark
+      ? `gateway-ecdsa-unforced-timing-${requestedBackendProfile}-${probeRegion}-${runId}-${testInfo.repeatEachIndex}.json`
+      : `gateway-ecdsa-unforced-local-timing-${requestedBackendProfile}.json`;
+    const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
     await mkdir(path.dirname(artifactPath), { recursive: true });
     await writeFile(artifactPath, JSON.stringify(proof, null, 2), 'utf8');
-    await testInfo.attach('gateway-ecdsa-unforced-local-timing.json', {
+    await testInfo.attach(artifactName, {
       body: JSON.stringify(proof, null, 2),
       contentType: 'application/json',
     });
@@ -314,6 +330,20 @@ test('unforced ECDSA registration and repeated signing capture local Gateway tim
     context.off('response', recordResponse);
   }
 });
+
+function requestedEcdsaBackendProfile(): string {
+  if (process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY === '1') {
+    const arm = process.env.SEAMS_INTENDED_BENCHMARK_ARM;
+    if (arm !== 'd1' && arm !== 'do') {
+      throw new Error('Hosted benchmark backend arm must be d1 or do');
+    }
+    return `hosted_${arm}`;
+  }
+  const walletDoRequested =
+    process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev' &&
+    process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled';
+  return walletDoRequested ? 'local_wallet_do_harness_requested' : 'local_default_d1';
+}
 
 async function interruptAdmittedPrepare(
   harness: import('./harness').IntendedBehaviourHarness,
