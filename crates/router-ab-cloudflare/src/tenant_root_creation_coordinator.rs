@@ -218,20 +218,51 @@ async fn recover_creation_from_router_state_v1<Host: TenantRootRouterCreationHos
     if !tenant_root_creation_grant_opened_ceremony_v1(&grant_bytes, &journal.ceremony_context)? {
         return Ok(None);
     }
-    let Some(receipt_b64u) = committed_activation_receipt_b64u else {
-        let already_abandoned = state.abandonment.is_some();
-        if !already_abandoned && ceremony_open {
-            return Ok(None);
+    let (state, receipt_b64u) = match committed_activation_receipt_b64u {
+        Some(receipt_b64u) => (state, receipt_b64u),
+        None => {
+            let already_abandoned = state.abandonment.is_some();
+            if !already_abandoned && ceremony_open {
+                return Ok(None);
+            }
+            if let Err(error) =
+                abandon_tenant_root_creation_v1(host, identity_digest, custody_lineage).await
+            {
+                // A concurrent retry may have committed the activation after
+                // this read; the fence then refuses, and the commit wins.
+                return match tenant_root_creation_progress_read_call_v1(
+                    host,
+                    identity_digest,
+                    custody_lineage,
+                )
+                .await?
+                {
+                    CloudflareTenantRootCreationProgressV1::Started {
+                        state,
+                        committed_activation_receipt_b64u: Some(receipt_b64u),
+                        ..
+                    } => {
+                        deliver_committed_initial_activation_v1(host, &receipt_b64u).await?;
+                        create_tenant_root_response_v1(
+                            identity_digest,
+                            custody_lineage,
+                            journal.response(CloudflareTenantRootCreationJournalOutcomeV1::Replay),
+                            &state,
+                        )
+                        .map(Some)
+                    }
+                    _ => Err(error),
+                };
+            }
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLifecycleState,
+                if already_abandoned {
+                    "tenant-root creation was abandoned; a fresh grant is required"
+                } else {
+                    "tenant-root creation expired before activation and was abandoned; a fresh grant is required"
+                },
+            ));
         }
-        abandon_tenant_root_creation_v1(host, identity_digest, custody_lineage).await?;
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLifecycleState,
-            if already_abandoned {
-                "tenant-root creation was abandoned; a fresh grant is required"
-            } else {
-                "tenant-root creation expired before activation and was abandoned; a fresh grant is required"
-            },
-        ));
     };
     deliver_committed_initial_activation_v1(host, &receipt_b64u).await?;
     create_tenant_root_response_v1(

@@ -141,7 +141,30 @@ can neither be committed at the Router nor activate a Deriver. A replay
 cleans nothing twice. A committed creation cannot be fenced, and a fresh
 grant for the abandoned identity reaches ready.
 
-## After the commit (implemented)
+### Fencing review (2026-09-26)
+
+- **Every first activation is fenced.** Two writers can create a creation
+  object's first active state: the initial-creation commit and the gated
+  managed-restore activation. Both go through
+  `tenant_root_creation_persist_active_state_v1`, which now refuses once the
+  fence exists. Restore was already indirectly protected, because a
+  destination bootstrap is only provisioned for an object without creation
+  progress; the check no longer relies on that.
+- **A concurrent commit wins over abandonment.** If a retry commits between
+  another retry's progress read and its fence request, the fence is refused.
+  That retry now re-reads the progress and delivers the commit instead of
+  failing.
+- **Open: a concurrent retry can abandon an in-flight creation.** Inside the
+  window, a creation with one role installed is abandoned on retry, as it
+  was before the fence. If the first coordinator is still running, the retry
+  fences the creation, safety holds (no activation passes the fence), but the
+  in-flight ceremony fails and its second role's row may be written after the
+  fence, unrecorded. Recommendation: abandon one-role creations only after
+  the window too. After expiry no Deriver accepts a role command, so the
+  fence records every installed role. The retry would instead report that
+  the ceremony is still open. Awaiting decision.
+
+
 
 The Router can commit the receipt and then stop before either Deriver
 activates, or between the two activations. Before this change a retry

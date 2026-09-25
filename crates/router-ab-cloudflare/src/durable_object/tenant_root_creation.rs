@@ -14581,7 +14581,6 @@ pub async fn tenant_root_creation_persist_initial_activation_v1<Store: TenantRoo
     let installation =
         validate_installation_checkpoint(installation_record, &journal, role_keys, &commitments)
             .map_err(stored_record_error)?;
-    require_creation_not_abandoned_v1(store, "tenant-root initial activation").await?;
     validate_initial_activation_receipt_against_creation_state(
         &activation_receipt,
         &journal,
@@ -14597,11 +14596,15 @@ pub async fn tenant_root_creation_persist_initial_activation_v1<Store: TenantRoo
 }
 
 /// Installs the authoritative active state, or accepts an exact replay.
+/// Writes the authoritative active state once. Every first activation of a
+/// creation object, initial creation and managed restore alike, passes
+/// through here, so this is where the abandonment fence is enforced.
 async fn tenant_root_creation_persist_active_state_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     candidate: CloudflareTenantRootRefreshActiveStateRecordV1,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
 ) -> RouterAbProtocolResult<()> {
+    require_creation_not_abandoned_v1(store, "tenant-root activation").await?;
     let existing = store
         .get_json::<CloudflareTenantRootRefreshActiveStateRecordV1>(
             TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
