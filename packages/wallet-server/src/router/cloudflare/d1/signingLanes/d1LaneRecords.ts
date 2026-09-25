@@ -26,29 +26,19 @@ import type {
 } from '@shared/signing-lanes';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { sha256BytesUtf8 } from '@shared/utils/digests';
-import type { D1DatabaseLike, D1ResultLike } from '../../../storage/tenantRoute';
-import { isD1DatabaseLike, parseD1JsonColumn } from '../../../storage/d1Sql';
-import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
+import type { D1DatabaseLike, D1ResultLike } from '../../../../storage/tenantRoute';
+import { isD1DatabaseLike, parseD1JsonColumn } from '../../../../storage/d1Sql';
 
-export type WalletLaneScopeV1 = {
+export type CloudflareD1LaneScopeV1 = {
   readonly namespace: string;
   readonly orgId: string;
   readonly projectId: string;
   readonly envId: string;
 };
 
-/**
- * The single authenticated owner of one wallet's Router lane aggregate. Each
- * owner has its own SQLite database (a Router wallet DO, or one VM file), so
- * every lane row, uniqueness constraint and transaction is wallet-local.
- */
-export type WalletLaneOwnerV1 = WalletLaneScopeV1 & {
-  readonly walletId: WalletId;
-};
-
-export type WalletLaneSqlStoreOptions = {
+export type CloudflareD1LaneStoreOptions = {
   readonly database: D1DatabaseLike;
-  readonly owner: WalletLaneOwnerV1;
+  readonly scope: CloudflareD1LaneScopeV1;
   readonly now?: () => number;
 };
 
@@ -97,69 +87,20 @@ export type LaneReceiptRow = {
   readonly created_at_ms?: unknown;
 };
 
-export function requireWalletLaneSqlStoreOptions(input: WalletLaneSqlStoreOptions): {
+export function requireD1LaneStoreOptions(input: CloudflareD1LaneStoreOptions): {
   readonly database: D1DatabaseLike;
-  readonly scope: WalletLaneScopeV1;
-  readonly owner: WalletLaneOwnerV1;
+  readonly scope: CloudflareD1LaneScopeV1;
   readonly now: () => number;
 } {
-  if (!isD1DatabaseLike(input.database)) throw new Error('wallet lane SQL database is required');
-  const owner = parseWalletLaneOwnerV1(input.owner);
+  if (!isD1DatabaseLike(input.database)) throw new Error('R102 lane D1 database is required');
   return {
     database: input.database,
-    scope: normalizeScope(owner),
-    owner,
+    scope: normalizeScope(input.scope),
     now: input.now ?? Date.now,
   };
 }
 
-export function parseWalletLaneOwnerV1(value: unknown): WalletLaneOwnerV1 {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('wallet lane owner is required');
-  }
-  const input = value as Record<string, unknown>;
-  const allowed = new Set(['namespace', 'orgId', 'projectId', 'envId', 'walletId']);
-  for (const key of Object.keys(input)) {
-    if (!allowed.has(key)) throw new Error(`wallet lane owner has unexpected field ${key}`);
-  }
-  const scope = normalizeScope({
-    namespace: requireOwnerString(input.namespace, 'namespace'),
-    orgId: requireOwnerString(input.orgId, 'orgId'),
-    projectId: requireOwnerString(input.projectId, 'projectId'),
-    envId: requireOwnerString(input.envId, 'envId'),
-  });
-  const walletId = parseWalletId(input.walletId);
-  if (!walletId.ok) throw new Error(`wallet lane owner ${walletId.error.message}`);
-  return { ...scope, walletId: walletId.value };
-}
-
-/** Rejects any lane record that names a wallet other than the store owner. */
-export function assertWalletLaneOwnerWallet(
-  owner: WalletLaneOwnerV1,
-  walletId: WalletId | string,
-  label: string,
-): void {
-  if (String(walletId) !== String(owner.walletId)) {
-    throw new Error(`${label} belongs to another wallet`);
-  }
-}
-
-export function walletLaneOwnersEqual(left: WalletLaneOwnerV1, right: WalletLaneOwnerV1): boolean {
-  return (
-    left.namespace === right.namespace &&
-    left.orgId === right.orgId &&
-    left.projectId === right.projectId &&
-    left.envId === right.envId &&
-    String(left.walletId) === String(right.walletId)
-  );
-}
-
-function requireOwnerString(value: unknown, label: string): string {
-  if (typeof value !== 'string') throw new Error(`wallet lane owner ${label} is required`);
-  return value;
-}
-
-export function normalizeScope(scope: WalletLaneScopeV1): WalletLaneScopeV1 {
+export function normalizeScope(scope: CloudflareD1LaneScopeV1): CloudflareD1LaneScopeV1 {
   const namespace = requiredScopeString(scope.namespace, 'namespace');
   const orgId = requiredScopeString(scope.orgId, 'orgId');
   const projectId = requiredScopeString(scope.projectId, 'projectId');
@@ -169,9 +110,9 @@ export function normalizeScope(scope: WalletLaneScopeV1): WalletLaneScopeV1 {
 
 function requiredScopeString(value: string, label: string): string {
   const normalized = value.trim();
-  if (!normalized) throw new Error(`wallet lane ${label} is required`);
+  if (!normalized) throw new Error(`R102 lane ${label} is required`);
   if (hasControlCharacter(normalized)) {
-    throw new Error(`wallet lane ${label} contains control characters`);
+    throw new Error(`R102 lane ${label} contains control characters`);
   }
   return normalized;
 }
@@ -399,14 +340,14 @@ export async function digestLaneEnrollmentRevocationCommand(
   return base64UrlEncode(await sha256BytesUtf8(encoded));
 }
 
-export function scopeValues(scope: WalletLaneScopeV1): readonly string[] {
+export function scopeValues(scope: CloudflareD1LaneScopeV1): readonly string[] {
   return [scope.namespace, scope.orgId, scope.projectId, scope.envId];
 }
 
 export function firstBatchResult(results: readonly unknown[], index: number): D1ResultLike {
   const result = results[index];
   if (!result || typeof result !== 'object')
-    throw new Error(`wallet lane SQL batch result ${index} is invalid`);
+    throw new Error(`R102 lane D1 batch result ${index} is invalid`);
   return result as D1ResultLike;
 }
 

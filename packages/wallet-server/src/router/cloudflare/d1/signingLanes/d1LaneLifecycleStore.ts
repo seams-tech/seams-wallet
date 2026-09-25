@@ -12,7 +12,6 @@ import {
   parseLaneRefreshPredecessorRetirementV1,
   parseRevokeSigningLaneV1,
   parseLaneProductEpochRecordV1,
-  parseLaneProtocolRecordV1,
 } from '@shared/signing-lanes/rotationParsers';
 import {
   activateLaneProductEpochV1,
@@ -58,8 +57,8 @@ import type {
   SigningLaneId,
   WalletKeyId,
 } from '@shared/signing-lanes';
-import { mpcMaterialActivationRefsEqual, type WalletId } from '@shared/utils/domainIds';
-import type { D1PreparedStatementLike } from '../../../storage/tenantRoute';
+import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
+import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import type {
   LaneAdmissionMutationResult,
   LaneEnrollmentAdmissionInput,
@@ -77,8 +76,8 @@ import type {
   LaneSigningLaneRevocationCommitInput,
   LaneSigningLaneRevocationFenceMutationResult,
   LaneSigningLaneRevocationMutationResult,
-} from '../LaneLifecycleStore';
-import { d1ChangedRows } from '../../../storage/d1Sql';
+} from '../../../../core/signingLanes/LaneLifecycleStore';
+import { d1ChangedRows } from '../../../../storage/d1Sql';
 import {
   assertD1Success,
   digestLaneEnrollmentRevocationCommand,
@@ -91,16 +90,14 @@ import {
   parseProtocolRow,
   parseRequiredString,
   parseVersion,
-  requireWalletLaneSqlStoreOptions,
+  requireD1LaneStoreOptions,
   scopeValues,
-  assertWalletLaneOwnerWallet,
-  type WalletLaneOwnerV1,
-  type WalletLaneScopeV1,
-  type WalletLaneSqlStoreOptions,
+  type CloudflareD1LaneScopeV1,
+  type CloudflareD1LaneStoreOptions,
   type LaneEnrollmentRow,
   type LaneProductEpochRow,
   type LaneProtocolRow,
-} from './walletLaneRecords';
+} from './d1LaneRecords';
 
 const ENROLLMENT_TABLE = 'lane_enrollments';
 const OPERATION_TABLE = 'lane_protocol_operations';
@@ -109,24 +106,18 @@ const RECEIPT_TABLE = 'lane_receipts';
 
 type D1LaneLifecycleRow = LaneEnrollmentRow & { readonly manifest_json?: unknown };
 
-export type WalletLaneLifecycleSqlStoreOptions = WalletLaneSqlStoreOptions;
+export type CloudflareD1LaneLifecycleStoreOptions = CloudflareD1LaneStoreOptions;
 
-export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
-  private readonly database: WalletLaneSqlStoreOptions['database'];
-  private readonly scope: WalletLaneScopeV1;
-  private readonly owner: WalletLaneOwnerV1;
+export class CloudflareD1LaneLifecycleStore implements LaneLifecycleStore {
+  private readonly database: CloudflareD1LaneStoreOptions['database'];
+  private readonly scope: CloudflareD1LaneScopeV1;
   private readonly now: () => number;
 
-  constructor(options: WalletLaneLifecycleSqlStoreOptions) {
-    const normalized = requireWalletLaneSqlStoreOptions(options);
+  constructor(options: CloudflareD1LaneLifecycleStoreOptions) {
+    const normalized = requireD1LaneStoreOptions(options);
     this.database = normalized.database;
     this.scope = normalized.scope;
-    this.owner = normalized.owner;
     this.now = normalized.now;
-  }
-
-  private assertOwned(walletId: WalletId | string, label: string): void {
-    assertWalletLaneOwnerWallet(this.owner, walletId, label);
   }
 
   async getEnrollment(
@@ -223,16 +214,11 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
   async putEnrollmentAdmission(
     input: LaneEnrollmentAdmissionInput,
   ): Promise<LaneAdmissionMutationResult<LaneEnrollmentAdmissionRecord['value']>> {
-    this.assertOwned(input.manifest.walletId, 'lane enrollment manifest');
-    // Children are persisted as-is and re-parsed on every read, so an invalid
-    // job must be refused here rather than stored as an unreadable row.
-    const children = input.children.map((child) => parseLaneProtocolRecordV1(child));
-    for (const child of children) this.assertOwned(child.job.walletId, 'lane protocol job');
     const manifest = parseLaneEnrollmentManifestV1(input.manifest);
-    if (manifest.orderedChildren.length !== children.length) {
+    if (manifest.orderedChildren.length !== input.children.length) {
       throw new Error('lane enrollment manifest and protocol child count differ');
     }
-    validateChildrenAgainstManifest(manifest, children);
+    validateChildrenAgainstManifest(manifest, input.children);
 
     const existing = await this.getEnrollment(manifest.enrollmentId);
     if (existing) {
@@ -240,7 +226,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
         existing.commandDigestB64u === input.commandDigestB64u &&
         equalLaneRecords(existing.value.manifest, manifest) &&
         equalLaneRecords(existing.value.lifecycle, input.lifecycle) &&
-        (await admissionChildrenMatch(this, children))
+        (await admissionChildrenMatch(this, input.children))
       ) {
         return {
           outcome: 'replayed',
@@ -283,7 +269,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
         ),
       this.database.prepare(LANE_CAS_GUARD_SQL),
     ];
-    for (const child of children) {
+    for (const child of input.children) {
       statements.push(this.protocolInsertStatement(child, input.commandDigestB64u, now));
       statements.push(this.database.prepare(LANE_CAS_GUARD_SQL));
     }
@@ -318,7 +304,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
           storedCommandDigestB64u: raced.commandDigestB64u,
         };
       }
-      for (const child of children) {
+      for (const child of input.children) {
         const racedChild = await this.getProtocol(child.job.operationId);
         if (racedChild) {
           return {
@@ -343,8 +329,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
   async putProtocolAdmission(
     input: LaneProtocolAdmissionInput,
   ): Promise<LaneAdmissionMutationResult<LaneProtocolRecordV1>> {
-    const record = parseLaneProtocolRecordV1(input.record);
-    this.assertOwned(record.job.walletId, 'lane protocol job');
+    const record = input.record;
     const existing = await this.getProtocol(record.job.operationId);
     if (existing) {
       if (
@@ -541,7 +526,6 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
     receipt: LaneProtocolCommitReceiptV1,
     commandDigestB64u: string,
   ): Promise<LaneAdmissionMutationResult<LaneProtocolCommitReceiptV1>> {
-    this.assertOwned(receipt.walletId, 'lane protocol commit receipt');
     const protocol = await this.getProtocol(receipt.operationId);
     if (!protocol) throw new Error('protocol commit receipt names an unknown operation');
     assertProtocolCommitReceiptIdentity(protocol.value, receipt);
@@ -636,7 +620,6 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
     productEpoch: Extract<LaneProductEpochRecordV1, { state: 'pending_visibility' }>,
     commandDigestB64u: string,
   ): Promise<LaneAdmissionMutationResult<LaneProductEpochRecordV1>> {
-    this.assertOwned(productEpoch.walletId, 'lane product epoch');
     const existing = await this.getProductEpoch({
       walletId: productEpoch.walletId,
       walletKeyId: productEpoch.walletKeyId,
@@ -746,7 +729,6 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
   }
 
   async getProductEpoch(lookup: LaneProductEpochLookup): Promise<LaneProductEpochRecordV1 | null> {
-    this.assertOwned(lookup.walletId, 'lane product epoch lookup');
     const stored = await this.getProductEpochStored(lookup);
     return stored?.product ?? null;
   }
@@ -811,7 +793,6 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
   async commitEnrollmentVisibility(
     input: CommitLaneEnrollmentActivationV1,
   ): Promise<LaneEnrollmentVisibilityCommitResult> {
-    this.assertOwned(input.walletId, 'lane enrollment activation');
     const parent = await this.getEnrollment(input.enrollmentId);
     const manifestDigest = parent
       ? await computeLaneEnrollmentManifestDigestV1(parent.value.manifest)
@@ -979,7 +960,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
     statements.push(
       this.database
         .prepare(
-          `UPDATE ${ENROLLMENT_TABLE} SET lifecycle_json = ?5, version = version + 1, command_digest_b64u = ?6, updated_at_ms = MAX(updated_at_ms, ?7) WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND enrollment_id = ?8 AND version = ?9 AND lifecycle_json = ?10`,
+          `UPDATE ${ENROLLMENT_TABLE} SET lifecycle_json = ?5, version = version + 1, command_digest_b64u = ?6, updated_at_ms = ?7 WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND enrollment_id = ?8 AND version = ?9 AND lifecycle_json = ?10`,
         )
         .bind(
           ...values,
@@ -1008,7 +989,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
       statements.push(
         this.database
           .prepare(
-            `UPDATE ${OPERATION_TABLE} SET lifecycle_json = ?5, version = version + 1, command_digest_b64u = ?6, updated_at_ms = MAX(updated_at_ms, ?7) WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND operation_id = ?8 AND version = ?9`,
+            `UPDATE ${OPERATION_TABLE} SET lifecycle_json = ?5, version = version + 1, command_digest_b64u = ?6, updated_at_ms = ?7 WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND operation_id = ?8 AND version = ?9`,
           )
           .bind(
             ...values,
@@ -1029,7 +1010,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
       statements.push(
         this.database
           .prepare(
-            `UPDATE ${PRODUCT_TABLE} SET state = 'retired', product_json = ?5, version = version + 1, command_digest_b64u = ?6, updated_at_ms = MAX(updated_at_ms, ?7) WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_key_id = ?8 AND lane_id = ?9 AND target_material_activation_id = ?10 AND version = ?11 AND state = 'revocation_pending'`,
+            `UPDATE ${PRODUCT_TABLE} SET state = 'retired', product_json = ?5, version = version + 1, command_digest_b64u = ?6, updated_at_ms = ?7 WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_key_id = ?8 AND lane_id = ?9 AND target_material_activation_id = ?10 AND version = ?11 AND state = 'revocation_pending'`,
           )
           .bind(
             ...values,
@@ -1073,7 +1054,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
       statements.push(
         this.database
           .prepare(
-            `UPDATE ${PRODUCT_TABLE} SET state = 'active', product_json = ?5, version = version + 1, command_digest_b64u = ?6, updated_at_ms = MAX(updated_at_ms, ?7) WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND operation_id = ?8 AND state = 'pending_visibility'`,
+            `UPDATE ${PRODUCT_TABLE} SET state = 'active', product_json = ?5, version = version + 1, command_digest_b64u = ?6, updated_at_ms = ?7 WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND operation_id = ?8 AND state = 'pending_visibility'`,
           )
           .bind(...values, JSON.stringify(active), aggregateDigest, now, String(child.operationId)),
       );
@@ -1135,7 +1116,6 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
     input: RevokeSigningLaneV1,
   ): Promise<LaneSigningLaneRevocationFenceMutationResult> {
     const command = parseRevokeSigningLaneV1(input);
-    this.assertOwned(command.walletId, 'signing lane revocation');
     const commandDigestB64u = await computeRevokeSigningLaneDigestV1(command);
     const row = await this.database
       .prepare(
@@ -1225,7 +1205,6 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
   async fenceEnrollmentRevocation(
     input: RevokeLaneEnrollmentV1,
   ): Promise<LaneAdmissionMutationResult<LaneEnrollmentAdmissionRecord['value']>> {
-    this.assertOwned(input.walletId, 'lane enrollment revocation');
     const commandDigestB64u = await digestLaneEnrollmentRevocationCommand(input);
     const parent = await this.getEnrollment(input.enrollmentId);
     if (!parent)
@@ -1467,7 +1446,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
     });
     const result = await this.database
       .prepare(
-        `UPDATE ${PRODUCT_TABLE} SET state = 'revocation_pending', revocation_epoch = ?5, product_json = ?6, version = version + 1, command_digest_b64u = ?7, updated_at_ms = MAX(updated_at_ms, ?8) WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_key_id = ?9 AND lane_id = ?10 AND lane_share_epoch = ?11 AND version = ?12 AND state IN ('active', 'pending_visibility')`,
+        `UPDATE ${PRODUCT_TABLE} SET state = 'revocation_pending', revocation_epoch = ?5, product_json = ?6, version = version + 1, command_digest_b64u = ?7, updated_at_ms = ?8 WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_key_id = ?9 AND lane_id = ?10 AND lane_share_epoch = ?11 AND version = ?12 AND state IN ('active', 'pending_visibility')`,
       )
       .bind(
         ...scopeValues(this.scope),
@@ -1528,7 +1507,6 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
   ): Promise<LaneSigningLaneRevocationMutationResult> {
     const completion = parseCompleteSigningLaneRevocationV1(input.completion);
     const command = parseRevokeSigningLaneV1(completion.command);
-    this.assertOwned(command.walletId, 'signing lane revocation completion');
     const computedCommandDigest = await computeRevokeSigningLaneDigestV1(command);
     if (computedCommandDigest !== completion.commandDigestB64u)
       throw new Error('lane revocation completion command digest is invalid');
@@ -1629,7 +1607,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
     if (revoked.state !== 'revoked') throw new Error('lane revocation completion state changed');
     const update = this.database
       .prepare(
-        `UPDATE ${PRODUCT_TABLE} SET state = 'revoked', product_json = ?5, version = version + 1, updated_at_ms = MAX(updated_at_ms, ?6) WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_key_id = ?7 AND lane_id = ?8 AND lane_share_epoch = ?9 AND version = ?10 AND state = 'revocation_pending' AND command_digest_b64u = ?11`,
+        `UPDATE ${PRODUCT_TABLE} SET state = 'revoked', product_json = ?5, version = version + 1, updated_at_ms = ?6 WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_key_id = ?7 AND lane_id = ?8 AND lane_share_epoch = ?9 AND version = ?10 AND state = 'revocation_pending' AND command_digest_b64u = ?11`,
       )
       .bind(
         ...scopeValues(this.scope),
@@ -1713,7 +1691,6 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
   async commitEnrollmentRevocation(
     input: LaneEnrollmentRevocationCommitInput,
   ): Promise<LaneEnrollmentRevocationCommitResult> {
-    this.assertOwned(input.command.walletId, 'lane enrollment revocation commit');
     const parent = await this.getEnrollment(input.command.enrollmentId);
     if (!parent)
       return {
@@ -1839,7 +1816,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
     const statements: D1PreparedStatementLike[] = [
       this.database
         .prepare(
-          `UPDATE ${ENROLLMENT_TABLE} SET lifecycle_json = ?5, version = version + 1, command_digest_b64u = ?6, updated_at_ms = MAX(updated_at_ms, ?7) WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND enrollment_id = ?8 AND version = ?9`,
+          `UPDATE ${ENROLLMENT_TABLE} SET lifecycle_json = ?5, version = version + 1, command_digest_b64u = ?6, updated_at_ms = ?7 WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND enrollment_id = ?8 AND version = ?9`,
         )
         .bind(
           ...values,
@@ -1861,7 +1838,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
       statements.push(
         this.database
           .prepare(
-            `UPDATE ${PRODUCT_TABLE} SET state = 'revoked', revocation_epoch = ?5, product_json = ?6, version = version + 1, command_digest_b64u = ?7, updated_at_ms = MAX(updated_at_ms, ?8) WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_key_id = ?9 AND lane_id = ?10 AND lane_share_epoch = ?11 AND state IN ('active', 'pending_visibility')`,
+            `UPDATE ${PRODUCT_TABLE} SET state = 'revoked', revocation_epoch = ?5, product_json = ?6, version = version + 1, command_digest_b64u = ?7, updated_at_ms = ?8 WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND wallet_key_id = ?9 AND lane_id = ?10 AND lane_share_epoch = ?11 AND state IN ('active', 'pending_visibility')`,
           )
           .bind(
             ...values,
@@ -1989,7 +1966,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
   private async updateProtocolLifecycle(input: LaneProtocolLifecycleCasInput): Promise<boolean> {
     const result = await this.database
       .prepare(
-        `UPDATE ${OPERATION_TABLE} SET lifecycle_json = ?5, version = version + 1, command_digest_b64u = ?6, updated_at_ms = MAX(updated_at_ms, ?7) WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND operation_id = ?8 AND version = ?9`,
+        `UPDATE ${OPERATION_TABLE} SET lifecycle_json = ?5, version = version + 1, command_digest_b64u = ?6, updated_at_ms = ?7 WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND operation_id = ?8 AND version = ?9`,
       )
       .bind(
         ...scopeValues(this.scope),
@@ -2008,7 +1985,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
   ): Promise<boolean> {
     const result = await this.database
       .prepare(
-        `UPDATE ${ENROLLMENT_TABLE} SET lifecycle_json = ?5, version = version + 1, command_digest_b64u = ?6, updated_at_ms = MAX(updated_at_ms, ?7) WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND enrollment_id = ?8 AND version = ?9`,
+        `UPDATE ${ENROLLMENT_TABLE} SET lifecycle_json = ?5, version = version + 1, command_digest_b64u = ?6, updated_at_ms = ?7 WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4 AND enrollment_id = ?8 AND version = ?9`,
       )
       .bind(
         ...scopeValues(this.scope),
@@ -2057,7 +2034,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
                     version = version + 1,
                     command_digest_b64u = ?6,
                     revocation_fence_command_digest_b64u = ?7,
-                    updated_at_ms = MAX(updated_at_ms, ?8)
+                    updated_at_ms = ?8
               WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
                 AND enrollment_id = ?9 AND version = ?10`,
           )
@@ -2293,7 +2270,7 @@ export class WalletLaneLifecycleSqlStore implements LaneLifecycleStore {
 }
 
 async function verifyServerRetirementReceiptV1(input: {
-  readonly store: Pick<WalletLaneLifecycleSqlStore, 'getProtocol'>;
+  readonly store: Pick<CloudflareD1LaneLifecycleStore, 'getProtocol'>;
   readonly product: Extract<LaneProductEpochRecordV1, { state: 'revocation_pending' | 'revoked' }>;
   readonly command: RevokeSigningLaneV1;
   readonly receipt: LaneServerRetirementReceiptV1;
@@ -2843,7 +2820,7 @@ async function buildPendingProductEpoch(input: {
 }
 
 async function activeProductEpochs(
-  store: WalletLaneLifecycleSqlStore,
+  store: CloudflareD1LaneLifecycleStore,
   enrollmentId: LaneEnrollmentId,
 ): Promise<
   readonly [
@@ -2863,7 +2840,7 @@ async function activeProductEpochs(
 }
 
 async function revokedProductEpochs(
-  store: WalletLaneLifecycleSqlStore,
+  store: CloudflareD1LaneLifecycleStore,
   enrollmentId: LaneEnrollmentId,
 ): Promise<
   readonly [

@@ -31,7 +31,7 @@ SQL for the retained shared Gateway and tenant-wide groups.
 | `router_ab_yao_versioned_json_records` with `gateway-registration:`, `wallet-registration-activate:`, `wallet-registration-near-provisioning:`, `router-ab-yao-sponsored-account:`, and `wallet-add-signer-*:` keys in `SIGNER_DB` | Gateway | Gateway D1: durable registration and chain side-effect journals | Persist the exact effect claim and signed transaction identity before dispatch; retry the same effect |
 | `router_ab_yao_versioned_json_records` with the `router-ab-ed25519-yao:shared` key in `SIGNER_DB` | Router | Shared D1: tenant-wide recovery capability/identity indexes and export nonce replay state | Keep cross-wallet identity and nonce claims atomic in the shared store |
 | `router_ab_yao_versioned_json_records` with lifecycle-keyed Yao ceremony and execution partitions in `SIGNER_DB` | Router | Router D1 until registration finalization has a reviewed cross-owner protocol; target Router wallet DO SQLite | Claim and advance each ceremony/execution partition with one version check; persist outcome before calling a peer |
-| `lane_enrollments`, `lane_protocol_operations`, `lane_product_epochs`, `lane_receipts`, `lane_locks`, `lane_effect_journal`, `lane_cas_guard` (formerly in `SIGNER_DB`) | Router | **Implemented:** one SQLite database per wallet owner — the `RouterWalletLaneDurableObject` on Cloudflare, one role-private file per wallet in the VM lane service. The D1 lane store is removed; the applied D1 migrations remain as history | Claim one lane operation, transition its generation/lock, and record its receipt or effect identity atomically; the enrollment, child operations, product visibility, predecessor retirement and receipts commit in one wallet-local transaction |
+| `lane_enrollments`, `lane_protocol_operations`, `lane_product_epochs`, `lane_receipts`, `lane_locks`, `lane_effect_journal`, `lane_cas_guard` in `SIGNER_DB` | Router | **Unfinished infrastructure, not migrated.** No supported product flow reaches these tables (see below). If rotatable lanes ship, the target is a Router wallet store that executes whole lifecycle transitions locally | Claim one lane operation, transition its generation/lock, and record its receipt or effect identity atomically |
 | `wallet_ecdsa_pending_session_activations` in `SIGNER_DB` | Router | Router wallet DO SQLite | Claim paired activation once, with a durable terminal outcome |
 | `router_ab_normal_signing_admission_records` in `SIGNER_DB` | Gateway | Gateway D1: tenant project policy and abuse decisions | Keep project-wide policy and abuse decisions with their shared scope |
 | `wallet_session_authorizations_v2`, `wallet_session_hosted_credentials_v2`, `wallet_session_hosted_exchange_codes_v2`, `hosted_wallet_session_exchange_codes`, `reusable_wallet_sessions`, `authorization_sessions`, `authorization_wallet_session_quotas` in `SIGNER_DB` | Gateway | Gateway D1: session and credential authority | Issue, retire, or exchange a credential with its session and quota in one D1 transaction |
@@ -204,44 +204,48 @@ before release. No hosted resources or production routing were changed.
   another role execution or activation. The VM reference still lacks a
   tenant-root retirement fence and complete remaining lifecycle coverage.
 
+## Router signing lanes: no product consumer (2026-09-25)
+
+The rotatable signing-lane lifecycle was traced across both repositories
+before any move.
+
+- **Here:** the lane stores and their application-service factories are
+  exported through `cloud-host.ts` and constructed nowhere. The client-side
+  lane operation coordinators (`packages/wallet/src/core/signingEngine/session/lanes/operations/`)
+  are not imported by any SDK surface. The Router's
+  `/router-ab/internal/ed25519-yao/lane/execute` route has no caller.
+- **In seams-monorepo (at `e7e1643`):** nothing calls the lane factories.
+  The only reference is a local readiness check that lists the lane tables.
+
+So no registration, signing, rotation or linked-device request reaches these
+tables. They are unfinished infrastructure. A relocation was implemented
+and then reverted: commit `0b40f43`, reverted by the next commit. It moved the
+store into a per-wallet Router DO and a VM service, and its history keeps the
+two-host E2E. It was reverted because it relocated unused tables, and because
+its client made one remote call per store read or write rather than running
+each lifecycle transition beside storage.
+
+If lanes become a supported flow, these conditions apply first:
+
+- Run each `LaneEnrollmentGatewayV1` transition as one call inside the
+  owning store.
+- Bind the store to the authenticated canonical tenant, environment and
+  wallet of the operation, not to a caller-chosen owner.
+- Review each tenant-wide constraint before partitioning: manifest digest,
+  `target_material_activation_id`, operation and effect identity.
+
+That run also found two defects in the D1 store. Neither is reachable today.
+
+1. Product-epoch updates stamp `updated_at_ms` with request times, against
+   a host-clock `created_at_ms`. A lagging caller clock therefore fails the
+   `updated_at_ms >= created_at_ms` check during revocation.
+2. `putEnrollmentAdmission` stores child jobs without parsing them, and an
+   invalid job makes the enrollment unreadable.
+
+Also noted: exact retries of prepare, effect recording and visibility commit
+that arrive after later stages return conflict or rejection, not the
+recorded outcome.
+
 Recovery, factor management, export, linked devices, and background jobs need
 their own inventory before full lifecycle coverage. Their current D1 records remain
 authoritative until that work is implemented and tested.
-
-## Router lane aggregate (implemented 2026-09-25)
-
-The whole wallet-local signing-lane aggregate moved as one unit. The former
-`CloudflareD1LaneLifecycleStore` transaction semantics are preserved, because
-the store code, its guarded batches and its table definitions are unchanged.
-It now runs over one wallet's own SQLite database.
-
-- `core/signingLanes/walletLanes/` contains the store, the owner pin
-  (`wallet_lane_store_meta`), the schema, and a host-neutral request handler
-  and client.
-  - Each store is bound to one `WalletLaneOwnerV1`: tenant scope plus wallet
-    id.
-  - Any record naming another wallet is rejected before SQL runs.
-  - A database created for one owner refuses every other owner.
-- **Cloudflare:** `RouterWalletLaneDurableObject`.
-  - It is addressed by `walletLaneStorageNameV1(owner)`, which depends on
-    neither root version nor placement.
-  - It also checks its own object name.
-- **VM:** `seams-router-wallet-lane-service`
-  (`router/node/walletLaneServiceMain.ts`), an ordinary Node process using
-  `node:sqlite`.
-  - It keeps one file per wallet in a role-private directory.
-  - Callers need a dedicated `ROUTER_WALLET_LANE_SERVICE_AUTH_SECRET_FILE`
-    credential.
-  - `check` is a read-only schema and owner diagnostic.
-- The uniqueness constraints that used to be tenant-wide are now
-  wallet-local on both hosts: manifest digest, activation id, operation and
-  effect identity. No lane query ever spanned wallets.
-- `wallet_ecdsa_pending_session_activations` did not move. It is written by
-  the Gateway registration service as a separate statement after the Router
-  refresh effect, and read by recovery-manifest checks. It has no
-  claim-once path today, so it needs its own commit-boundary design before
-  it moves.
-- Evidence: `tests/r150-router-wallet-lanes/run.ts` drives the lane
-  lifecycle domain logic through the DO in workerd and through two VM
-  processes, including restarts. Its artifacts are written to
-  `test-results/r150-router-wallet-lanes/`.

@@ -44,6 +44,7 @@ export * from './router/cloudflare/d1/ed25519Yao/d1Ed25519YaoCapabilityPersisten
 export * from './router/cloudflare/d1/oidc/d1OidcBoundary';
 export * from './router/cloudflare/d1/auth/d1RouterApiAuthConfig';
 export * from './router/cloudflare/d1/auth/d1RouterApiAuthService';
+export * from './router/cloudflare/d1/signingLanes';
 export * from './router/cloudflare/d1/deviceLinking';
 export * from './router/cloudflare/signingLanes/cloudflareLaneCurveExecution';
 export * from './router/cloudflare/signingLanes/cloudflareLaneProtocolCommitter';
@@ -52,9 +53,6 @@ export * from './router/cloudflare/signingLanes/cloudflareOrdinaryInactiveSigner
 export * from './router/cloudflare/d1/webauthn/d1WebAuthnAuthService';
 export * from './router/cloudflare/d1/webauthn/d1WebAuthnStore';
 export * from './router/cloudflare/durableObjects/thresholdStore';
-export * from './router/cloudflare/durableObjects/routerWalletLaneDurableObject';
-export * from './router/cloudflare/signingLanes/walletLaneComposition';
-export * from './core/signingLanes/walletLanes';
 export * from './router/cloudflare/runtime/cloudflareSignerWasm';
 export * from './router/cloudflare/runtime/ed25519SessionAdapter';
 export * from './router/cloudflare/runtime/routerAbServiceBindings';

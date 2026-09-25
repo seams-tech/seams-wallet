@@ -10,8 +10,7 @@
     "seams-wallet-server-d1-migrate": "./scripts/d1-local-migrate-signer.mjs",
     "seams-wallet-server-local-init": "./cloudflare-router-ab/scripts/initialize-local-wallet.mjs",
     "seams-wallet-server-local-roles": "./cloudflare-router-ab/scripts/start-local-role-workers.mjs",
-    "seams-wallet-server-local": "./cloudflare-router-ab/scripts/start-local-wallet-system.mjs",
-    "seams-router-wallet-lane-service": "./scripts/router-wallet-lane-service.mjs"
+    "seams-wallet-server-local": "./cloudflare-router-ab/scripts/start-local-wallet-system.mjs"
   },
   "exports": {
     "./package.json": "./package.json",
@@ -50,11 +49,6 @@
       "import": "./dist/esm/cloud-host.js",
       "default": "./dist/esm/cloud-host.js"
     },
-    "./router/node/wallet-lanes": {
-      "types": "./dist/types/wallet-server/src/router/node/walletLaneService.d.ts",
-      "import": "./dist/esm/router/node/walletLaneService.js",
-      "default": "./dist/esm/router/node/walletLaneService.js"
-    },
     "./hosted-wallet-gateway": {
       "types": "./dist/types/wallet-server/src/hosted-wallet-gateway.d.ts",
       "import": "./dist/esm/hosted-wallet-gateway.js",
@@ -89,7 +83,6 @@
     "!dist/**/*.map",
     "migrations/d1-signer/",
     "scripts/d1-local-migrate-signer.mjs",
-    "scripts/router-wallet-lane-service.mjs",
     "src/README.md",
     "wrangler.local-hosted-wallet-gateway.toml"
   ],
