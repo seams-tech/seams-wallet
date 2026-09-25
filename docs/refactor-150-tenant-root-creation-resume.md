@@ -122,12 +122,22 @@ and nothing it abandons is active.
   re-authorize the expired grant. The retry is refused with "expired before
   activation and was abandoned; a fresh grant is required". Replays report
   the abandonment and clean nothing twice.
-- **Bounded limitation.** Each cleanup command's window starts at the fence
-  (`abandoned_at_ms`), so every retry issues the identical command. If the
-  coordinator stops between the fence and the end of cleanup and is not
-  retried within five minutes, the Deriver refuses the stale command and
-  that role's pending row stays behind. No activation can pass the fence, and
-  a fresh grant is unaffected.
+- **Cleanup finishes after any outage.** Each cleanup command's window
+  starts at the fence (`abandoned_at_ms`), so every retry issues the
+  identical command. Executing the fence is not a new decision, so neither
+  side judges the command against the current time.
+  - The Deriver reads the Router's creation state and requires a fence that
+    names its role and was written at the command's issue time. It then
+    reserves the cleanup at the first instant after the fence
+    (`tenant_root_abandonment_decided_at_ms_v1`).
+  - The Router's checkpoint requires the same issue time and judges the
+    command at the same instant.
+  - A command for any other decision is still refused, at any time.
+  - `vm_tenant_root_abandonment_finishes_after_a_long_outage`
+    (`R150_VM_TENANT_ROOT_ABANDONMENT_OUTAGE_E2E`, ignored by default because
+    it waits more than five minutes) loses the first cleanup command right
+    after the fence, waits past the window and retries: both rows, backups
+    and canaries are removed.
 
 ### Evidence: abandonment
 
@@ -226,9 +236,21 @@ to the control plane through proxies:
 
 If Deriver A persists its pending row but stops before its commitment and
 installation calls, while B's installation is recorded, abandonment cleans
-B only. A's pending row, backup and (after step 1) canary remain. They do not
-block a fresh grant, since rows are keyed by lineage, but they stay behind
-as unreferenced sealed material that only A can discover.
+B only. A's pending row, backup and canary remain. They do not block a fresh
+grant, since rows are keyed by lineage, and can never activate, since
+activation requires the Router's commit and the fence excludes it. They stay
+behind as unreferenced sealed material that only A can discover.
+
+Cleanup commands today are bound to a role's recorded installation evidence,
+so they cannot name such a row. Proposal, awaiting review: a second pending
+cleanup target bound to the ceremony (session id, nonce, role, initial
+epoch) instead of installation evidence. The control plane would issue it
+only for a fenced creation and only for a role the fence does not list, and
+the Deriver would apply it only to a pending row of that ceremony, after
+confirming the fence as it does now. This needs a new target kind in
+`router-ab-core`. With abandonment deferred to the end of the window (see
+the fencing review), this row can only come from a crash in that narrow
+step.
 
 ## Alternatives rejected
 
@@ -241,10 +263,16 @@ as unreferenced sealed material that only A can discover.
 
 ## Verification plan
 
-After the commit: covered by the E2E above; the workerd harness runs the
-changed Deriver activation on every creation.
+After the commit: covered by the E2E above.
 
-Before the commit: resume and abandonment are covered by the E2Es above, and
-the workerd harness writes and reads the canary on every creation. The
-harness does not yet inject these faults on Workers; the shared code paths
-are the same, and only storage (DO and R2 versus SQLite) differs.
+On Workers, `testTenantRootCreationRecoveryPaths` in
+`crates/router-ab-cloudflare/scripts/test-private-d1.mjs`
+(`tenant_root_creation_recovery_workers_e2e_v1`) injects the same faults
+through a `router-recovery` Worker whose Deriver and control-plane bindings
+can each lose one initial-activation request. It covers resume, delivery of
+a committed receipt after expiry, refusal of a signed uncommitted receipt,
+and abandonment, after which the creation object refuses that receipt with
+409.
+
+Before the commit: resume and abandonment are covered by the VM E2Es above
+and by the Workers recovery test.

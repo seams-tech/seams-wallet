@@ -1508,6 +1508,72 @@ fn vm_tenant_root_uncommitted_creation_is_abandoned_after_the_ceremony_expires(
     Ok(())
 }
 
+/// An abandonment interrupted after its fence, and retried only once the
+/// cleanup commands' window has closed, still finishes. Each Deriver confirms
+/// the Router's fence names it and judges the command at the fence, as does
+/// the Router's checkpoint, so no pending row is left behind by the outage.
+/// It waits past the five-minute cleanup window, so it runs only on request.
+#[test]
+#[ignore = "waits past the five-minute cleanup window; run with --ignored"]
+fn vm_tenant_root_abandonment_finishes_after_a_long_outage(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start("vm-tenant-root-abandon-outage")?;
+    let pending = || Some("pending".to_owned());
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("abandon-after-outage")?;
+    let lifetime_ms = 6_000;
+    let signed_at = Instant::now();
+    let grant =
+        product_creation_grant_with_lifetime_b64u(&stack.temp, &identity, lineage, None, lifetime_ms)?;
+    stack.proxy_control_plane.drop_next();
+    let (lost_status, lost_body) = stack.create(&grant)?;
+    assert_ne!(lost_status, 200, "{lost_body}");
+    assert_eq!(stack.lifecycles(&lineage_b64u)?, (pending(), pending()));
+    if let Some(remaining) = Duration::from_millis(lifetime_ms).checked_sub(signed_at.elapsed()) {
+        thread::sleep(remaining);
+    }
+
+    // The retry fences the creation, then loses the first cleanup command:
+    // the outage begins right after the fence.
+    stack.proxy_control_plane.drop_next_on(
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH,
+    );
+    let (interrupted_status, interrupted_body) = stack.create(&grant)?;
+    let fenced_at = Instant::now();
+    assert_ne!(interrupted_status, 200, "{interrupted_body}");
+    assert!(stack.proxy_control_plane.dropped_on(), "the cleanup command must have been lost");
+    assert_eq!(stack.abandonment_records(&lineage_b64u)?, (1, 0), "fenced, nothing cleaned");
+    assert_eq!(stack.lifecycles(&lineage_b64u)?, (pending(), pending()));
+
+    // Past the cleanup commands' window, measured from the fence.
+    let window = Duration::from_millis(router_ab_core::TENANT_ROOT_MAX_LIFETIME_MS_V1 + 5_000);
+    if let Some(remaining) = window.checked_sub(fenced_at.elapsed()) {
+        thread::sleep(remaining);
+    }
+    let (finished_status, finished_body) = stack.create(&grant)?;
+    assert_ne!(finished_status, 200, "{finished_body}");
+    assert!(
+        finished_body.contains("abandoned; a fresh grant is required"),
+        "{finished_body}"
+    );
+    assert_eq!(stack.lifecycles(&lineage_b64u)?, (None, None), "both pending rows are removed");
+    assert_eq!(stack.backup_objects(&lineage_b64u)?, ((0, 0), (0, 0)));
+    assert_eq!(stack.abandonment_records(&lineage_b64u)?, (1, 2));
+
+    println!(
+        "R150_VM_TENANT_ROOT_ABANDONMENT_OUTAGE_E2E {}",
+        json!({
+            "fault": "cleanup_command_lost_right_after_the_fence",
+            "outage_ms": u64::try_from(fenced_at.elapsed().as_millis())?,
+            "cleanup_window_ms": router_ab_core::TENANT_ROOT_MAX_LIFETIME_MS_V1,
+            "interrupted_status": interrupted_status,
+            "finished_after_outage": true,
+            "router_fences_and_cleanups": [1, 2],
+        })
+    );
+    Ok(())
+}
+
 /// A fresh identity and lineage for one recovery ceremony, so ceremonies in
 /// one stack never share an active role share.
 fn recovery_ceremony(
@@ -1814,6 +1880,7 @@ fn backup_object_counts(db: &Connection) -> rusqlite::Result<(i64, i64)> {
 struct FaultProxyV1 {
     url: String,
     armed: Arc<AtomicBool>,
+    drop_path: Arc<Mutex<Option<&'static str>>>,
     captured: Arc<Mutex<Option<Vec<u8>>>>,
     stop: Arc<AtomicBool>,
     accept: Option<thread::JoinHandle<()>>,
@@ -1832,20 +1899,26 @@ impl FaultProxyV1 {
             .ok_or("proxy upstream must be an http URL")?
             .to_owned();
         let armed = Arc::new(AtomicBool::new(false));
+        let drop_path = Arc::new(Mutex::new(None));
         let captured = Arc::new(Mutex::new(None));
         let stop = Arc::new(AtomicBool::new(false));
         let accept = {
-            let (armed, captured, stop) =
-                (Arc::clone(&armed), Arc::clone(&captured), Arc::clone(&stop));
+            let (armed, drop_path, captured, stop) = (
+                Arc::clone(&armed),
+                Arc::clone(&drop_path),
+                Arc::clone(&captured),
+                Arc::clone(&stop),
+            );
             thread::spawn(move || {
                 while !stop.load(Ordering::SeqCst) {
                     match listener.accept() {
                         Ok((client, _)) => {
                             let upstream = upstream.clone();
-                            let (armed, captured) = (Arc::clone(&armed), Arc::clone(&captured));
+                            let (armed, drop_path, captured) =
+                                (Arc::clone(&armed), Arc::clone(&drop_path), Arc::clone(&captured));
                             thread::spawn(move || {
                                 let _ = proxy_fault_connection(
-                                    client, &upstream, fault_path, &armed, &captured,
+                                    client, &upstream, fault_path, &armed, &drop_path, &captured,
                                 );
                             });
                         }
@@ -1860,6 +1933,7 @@ impl FaultProxyV1 {
         Ok(Self {
             url,
             armed,
+            drop_path,
             captured,
             stop,
             accept: Some(accept),
@@ -1868,6 +1942,19 @@ impl FaultProxyV1 {
 
     fn drop_next(&self) {
         self.armed.store(true, Ordering::SeqCst);
+    }
+
+    /// Drops the next request to `path`, which need not be the recorded path.
+    fn drop_next_on(&self, path: &'static str) {
+        *self.drop_path.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(path);
+    }
+
+    /// Whether the drop armed by `drop_next_on` has happened.
+    fn dropped_on(&self) -> bool {
+        self.drop_path
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .is_none()
     }
 
     /// Whether the armed drop has happened.
@@ -1901,6 +1988,7 @@ fn proxy_fault_connection(
     upstream: &str,
     fault_path: &str,
     armed: &AtomicBool,
+    drop_path: &Mutex<Option<&'static str>>,
     captured: &Mutex<Option<Vec<u8>>>,
 ) -> io::Result<()> {
     client.set_nonblocking(false)?;
@@ -1923,6 +2011,13 @@ fn proxy_fault_connection(
     if head_text.starts_with(&format!("POST {fault_path} HTTP/1.1\r\n")) {
         *captured.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(body.clone());
         if armed.swap(false, Ordering::SeqCst) {
+            return client.shutdown(Shutdown::Both);
+        }
+    }
+    {
+        let mut drop_path = drop_path.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if drop_path.is_some_and(|path| head_text.starts_with(&format!("POST {path} HTTP/1.1\r\n"))) {
+            *drop_path = None;
             return client.shutdown(Shutdown::Both);
         }
     }

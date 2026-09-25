@@ -6092,6 +6092,53 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_create_role_share_v1(
     .await
 }
 
+/// Requires the Router's creation state to hold an abandonment fence that names
+/// `role` and was written at `issued_at_ms`, and returns the instant at which
+/// the fence's cleanup commands are judged.
+async fn require_router_abandonment_of_role_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    role: TwoPartyDeriverRole,
+    issued_at_ms: u64,
+) -> RouterAbProtocolResult<u64> {
+    let progress = crate::durable_object::tenant_root_creation::tenant_root_creation_progress_read_call_v1(
+        host,
+        identity_digest,
+        custody_lineage,
+    )
+    .await?;
+    let crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationProgressV1::Started {
+        state,
+        ..
+    } = progress
+    else {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root pending cleanup names a creation the Router never started",
+        ));
+    };
+    match state.abandonment {
+        Some(abandonment)
+            if abandonment.abandoned_at_ms == issued_at_ms
+                && abandonment
+                    .installed_roles
+                    .iter()
+                    .any(|installed| installed.to_protocol() == role) =>
+        {
+            Ok(
+                crate::durable_object::tenant_root_creation::tenant_root_abandonment_decided_at_ms_v1(
+                    abandonment.abandoned_at_ms,
+                ),
+            )
+        }
+        _ => Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root pending cleanup is not the Router's abandonment of this role",
+        )),
+    }
+}
+
 /// Reads back this role's stored activation evidence for its pending initial
 /// share: the signed managed backup and provider canary receipt it wrote
 /// before its installation checkpoint. It writes nothing and refuses a share
@@ -6220,13 +6267,30 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
             trusted_issuer_key,
         )
         .map_err(candidate_derivation_error)?;
+    // A pending creation's cleanup executes the Router's abandonment. The
+    // Deriver confirms the Router's fence names this role and that the command
+    // was issued for that fence, then judges the command's freshness at the
+    // fence, so an interrupted abandonment finishes however late it is
+    // retried. A command for any other decision is refused.
+    let reserved_at_ms = if is_retired {
+        now_ms
+    } else {
+        require_router_abandonment_of_role_v1(
+            host,
+            claimed_identity_digest,
+            claimed_custody_lineage,
+            role,
+            authorization.issued_at_ms(),
+        )
+        .await?
+    };
     let (_, role_signer) =
         crate::env::load_tenant_root_creation_role_signing_key_v1(worker_role, reader)?;
     let store = host
         .role_store()
         .map_err(|error| tenant_root_store_error_v1("tenant-root role store lookup", error))?;
     let receipt_bytes = store
-        .persist_authorized_cleanup(authorization, &role_signer, now_ms, now_ms, now_ms)
+        .persist_authorized_cleanup(authorization, &role_signer, reserved_at_ms, now_ms, now_ms)
         .await
         .map_err(|error| tenant_root_store_error_v1("tenant-root pending cleanup", error))?;
     let r2_deletion = host

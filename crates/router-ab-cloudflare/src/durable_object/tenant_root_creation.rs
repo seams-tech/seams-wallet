@@ -108,6 +108,14 @@ pub(crate) const TENANT_ROOT_CREATION_ABANDONMENT_STORAGE_KEY_V1: &str = "creati
 pub const CLOUDFLARE_TENANT_ROOT_CREATION_ABANDONMENT_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/abandon";
 
+/// When an abandonment's cleanup commands are judged: the first instant after
+/// the fence, since a command is fresh only strictly after its issue time and
+/// each is issued at the fence. Judging there, rather than at the current
+/// time, lets an interrupted abandonment finish however late it is retried.
+pub(crate) const fn tenant_root_abandonment_decided_at_ms_v1(abandoned_at_ms: u64) -> u64 {
+    abandoned_at_ms.saturating_add(1)
+}
+
 /// Where the Router checkpoints one abandoned role's cleanup.
 fn tenant_root_creation_cleanup_checkpoint_storage_key_v1(
     role: CloudflareTenantRootCreationInstallationRoleV1,
@@ -9103,14 +9111,13 @@ impl RouterAbTenantRootCreationDurableObject {
     ) -> RouterAbProtocolResult<CloudflareTenantRootCreationCleanupResponseV1> {
         let issuer_keys = self.issuer_verifying_keys()?;
         let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
-        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
         let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
         let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
         self.storage
             .transaction(move |transaction| async move {
                 let store = store.bind(transaction);
-                let result = tenant_root_creation_persist_cleanup_v1(&store, &issuer_keys, &role_keys, request, now_ms).await;
+                let result = tenant_root_creation_persist_cleanup_v1(&store, &issuer_keys, &role_keys, request).await;
                 if let Some(error) = store.take_storage_error() {
                     return Err(error);
                 }
@@ -14173,7 +14180,6 @@ pub async fn tenant_root_creation_persist_cleanup_v1<Store: TenantRootCreationSt
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
     request: CloudflareTenantRootCreationCleanupRequestV1,
-    now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationCleanupResponseV1> {
     let authority_id = store.authority_id();
     let journal_record = store
@@ -14252,6 +14258,15 @@ pub async fn tenant_root_creation_persist_cleanup_v1<Store: TenantRootCreationSt
         issuer_keys,
         role_keys,
     )?;
+    // The command executes this fence: it must have been issued at it, and its
+    // freshness is judged there, so a cleanup interrupted by an outage can
+    // still be checkpointed when it finishes.
+    if candidate.authorization.issued_at_ms() != abandonment.abandoned_at_ms {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root creation cleanup command was not issued for this abandonment",
+        ));
+    }
     let checkpoint_key = tenant_root_creation_cleanup_checkpoint_storage_key_v1(role);
     let existing = store
         .get_json::<CloudflareTenantRootCreationCleanupCheckpointV1>(checkpoint_key)
@@ -14264,7 +14279,7 @@ pub async fn tenant_root_creation_persist_cleanup_v1<Store: TenantRootCreationSt
         authority_id,
         issuer_keys,
         role_keys,
-        now_ms,
+        tenant_root_abandonment_decided_at_ms_v1(abandonment.abandoned_at_ms),
     )? {
         TenantRootCreationCleanupEvaluationV1::Commit {
             checkpoint,
@@ -15036,7 +15051,6 @@ pub async fn tenant_root_creation_serve_without_refresh_v1<Store: TenantRootCrea
                     request_body,
                     TENANT_ROOT_CREATION_CLEANUP_REQUEST_MAX_BYTES_V1,
                 )?,
-                now_ms,
             )
             .await?,
         ),
