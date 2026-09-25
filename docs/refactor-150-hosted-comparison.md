@@ -201,11 +201,30 @@ Router. The adapter forwards only the exact tenant-root creation POST and
 preserves the Router's internal authentication. Invoke the existing
 `bootstrap-local-tenant-root.mjs` with the matching identity root,
 `--issuer-env-path` pointing at that arm's private issuer file, and
-`--router-url` pointing at the loopback adapter. Record and verify the returned
-ready receipt before installing that arm's static Console deployment secret.
+`--router-url` pointing at the loopback adapter. Set `--grant-file` to a
+private path inside that identity root: the signed grant is persisted before
+dispatch and reused after a lost reply. An expired grant requires Router-state
+reconciliation before any new attempt. Record and verify the returned ready
+receipt before installing that arm's static Console deployment secret.
 Cloudflare documents remote service bindings for local Workers; this repo path
 still requires a live isolated smoke test before use. Never deploy the local
 bootstrap adapter as a public Worker.
+
+`node tests/r150-hosted/bootstrap/reply-loss.e2e.mjs` exercises a dropped
+response followed by a fresh bootstrap process. It verifies replay of the
+same signed grant and writes a private, non-secret result artifact under
+`.runtime/r150-hosted/`.
+
+Wrap the two successful bootstrap script JSON responses in a private receipts
+file shaped as `{ "arms": { "d1": <D1 response>, "do": <DO response> } }`.
+After checking each ready receipt against the intended arm, run
+`node tests/r150-hosted/render-gateway-secrets.mjs <private-receipts.json>`.
+It requires private file permissions, verifies the persisted identities and
+Router/Gateway public keys, and writes stable Gateway secret bundles plus
+per-arm probe values under the rendered directory. Synthetic or missing
+receipts are never an authority check; the live bootstrap response and its
+Router state must be verified before use. Gateway and ingress Workers should
+remain undeployed until their own secrets and expiry are installed.
 
 Before deploying, confirm the account, probe provider/hosts, spend cap,
 prospective latency and monthly cost criteria, exact resource inventory,
