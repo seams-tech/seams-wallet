@@ -2,6 +2,8 @@
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 
+const MAX_REQUEST_BODY_BYTES = 1024 * 1024;
+
 export function listenNodeFetchHandler(input: {
   readonly host: string;
   readonly port: number;
@@ -22,8 +24,21 @@ async function forward(
   handle: (request: Request) => Promise<Response>,
 ): Promise<void> {
   try {
+    if (Number(incoming.headers['content-length']) > MAX_REQUEST_BODY_BYTES) {
+      rejectOversizedBody(incoming, outgoing);
+      return;
+    }
     const chunks: Buffer[] = [];
-    for await (const chunk of incoming) chunks.push(chunk as Buffer);
+    let bodyBytes = 0;
+    // Preserve the socket on early exit so the client receives the 413 response.
+    for await (const chunk of incoming.iterator({ destroyOnReturn: false })) {
+      bodyBytes += chunk.length;
+      if (bodyBytes > MAX_REQUEST_BODY_BYTES) {
+        rejectOversizedBody(incoming, outgoing);
+        return;
+      }
+      chunks.push(chunk as Buffer);
+    }
     const headers = new Headers();
     for (const [name, value] of Object.entries(incoming.headers)) {
       if (typeof value === 'string') headers.set(name, value);
@@ -43,4 +58,10 @@ async function forward(
     outgoing.statusCode = 500;
     outgoing.end('internal error');
   }
+}
+
+function rejectOversizedBody(incoming: IncomingMessage, outgoing: ServerResponse): void {
+  incoming.pause();
+  outgoing.writeHead(413, { connection: 'close', 'content-type': 'text/plain; charset=utf-8' });
+  outgoing.end('request body too large');
 }
