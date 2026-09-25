@@ -108,6 +108,10 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
 - `vm_tenant_root_ready_creation_resumes_from_durable_evidence` prints
   `R150_VM_TENANT_ROOT_RESUME_E2E`: a creation that stops after both roles
   install and before the Router commits resumes from stored evidence.
+- `vm_tenant_root_uncommitted_creation_is_abandoned_after_the_ceremony_expires`
+  prints `R150_VM_TENANT_ROOT_ABANDONMENT_E2E`: past its window an uncommitted
+  creation is fenced and cleaned, and the fence and an activation commit
+  exclude each other.
 - A creation left with one role installed is cleaned on the next retry of its
   grant, which then reports that a fresh grant is required.
 

@@ -265,6 +265,7 @@ pub fn local_tenant_root_control_plane_route_v1(
                 CloudflareTenantRootControlPlaneCleanupCommandRequestV1::PendingCreation {
                     identity_digest_b64u,
                     custody_lineage_b64u,
+                    role,
                 } => {
                     let (identity_digest, custody_lineage) = decode_tenant_root_cleanup_scope_v1(
                         &identity_digest_b64u,
@@ -275,6 +276,7 @@ pub fn local_tenant_root_control_plane_route_v1(
                             &host,
                             identity_digest,
                             custody_lineage,
+                            role,
                         ),
                     )?)
                 }

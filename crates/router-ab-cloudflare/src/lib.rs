@@ -96,6 +96,7 @@ pub use durable_object::tenant_root_creation::{
     tenant_root_creation_serve_without_refresh_v1, CloudflareTenantRootCreationJournalReadResponseV1,
     CloudflareTenantRootCreationJournalResponseV1, CloudflareVerifiedTenantRootActiveStateV1,
     TenantRootCreationStateTransportV1, TenantRootCreationStoreV1,
+    CLOUDFLARE_TENANT_ROOT_CREATION_ABANDONMENT_PATH,
     CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
     CLOUDFLARE_TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_PATH,
     CLOUDFLARE_TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_PATH,

@@ -1,9 +1,8 @@
 # R150 tenant-root creation resume
 
-Status: direction approved 2026-09-25. After the commit and resume before
-it: implemented and verified (below). Abandonment after expiry: being
-implemented. Refresh, managed restore and retirement stay gated and are not
-affected.
+Status: direction approved 2026-09-25; all three recovery paths implemented
+and verified on the VM (below). Refresh, managed restore and retirement stay
+gated and are not affected. This does not make R150 release-ready.
 
 ## The commit point decides the direction
 
@@ -12,7 +11,7 @@ creation. Recovery depends on which side of it a failure falls:
 
 | Failure | Before the ceremony expires | After it expires |
 | --- | --- | --- |
-| Before the commit, both roles installed | resume from durable evidence (implemented) | abandon both roles (being implemented) |
+| Before the commit, both roles installed | resume from durable evidence (implemented) | abandon both roles (implemented) |
 | After the commit, zero or one Deriver active | re-deliver the committed receipt | re-deliver the committed receipt (implemented) |
 
 Abandoning is never available after the commit: the committed receipt is the
@@ -82,16 +81,65 @@ stateless, so issuing again is safe: a Deriver receives a receipt only after
 the Router has persisted it, and a receipt the Router never persisted is
 never delivered.
 
-### Before the commit, after expiry
+### Evidence: resume
+
+`vm_tenant_root_ready_creation_resumes_from_durable_evidence`
+(`R150_VM_TENANT_ROOT_RESUME_E2E`) drops the Router's activation request to the
+control plane, so the Router stops after both roles are installed with
+nothing committed. Both rows are pending and each role holds its backup and
+canary. The retry resumes to ready from that evidence, an exact replay
+returns the same response, and the evidence read refuses a share that is
+already active. The partial-cleanup E2E now also sees B's canary removed.
+
+### Before the commit, after expiry: abandonment (implemented)
 
 An initial activation must fall inside the ceremony window
 (`validate_receipt_window`; at most `TENANT_ROOT_MAX_LIFETIME_MS_V1`, five
-minutes). After that the control plane cannot issue, and the resume returns
-an explicit "ceremony expired before activation" error without changing
-state. Recovery then means abandoning both installed roles and fencing the
-ceremony, by extending the existing cleanup to two roles. That is a
-fresh-attempt recovery and needs its own approval; it is not part of this
-fix. No role is active in this state, so abandoning contradicts nothing.
+minutes), so after it an uncommitted creation cannot finish. It is abandoned,
+and nothing it abandons is active.
+
+- **The fence decides.** `tenant_root_creation_persist_abandonment_v1` writes
+  `creation/v1/abandonment` in the Router's creation state, recording the
+  installed roles. It refuses a committed creation. It also refuses, while
+  the window is open, a creation with no role or both roles installed, which
+  can still finish or resume. Once the fence exists, the initial-activation
+  commit, the commitment rendezvous and the installation checkpoint all
+  refuse (`require_creation_not_abandoned_v1`). The fence and those writes
+  live in one creation object, each in one storage transaction, so
+  abandonment and activation exclude each other whichever arrives first.
+- **Cleanup follows the fence.** The coordinator fences first, then cleans
+  each installed role that is not yet cleaned: the control plane issues that
+  role's cleanup command only for a fenced creation, the Deriver removes its
+  pending row, managed backup and canary, and the Router checkpoints the
+  Deriver's receipt under a per-role key. The one-role cleanup inside the
+  window now runs behind the same fence. That closes a race in the previous
+  order, where a role's row could be deleted before the checkpoint while the
+  other role's installation landed.
+- **Entry without the control plane.** The coordinator reads its own
+  progress first. When the creation is uncommitted and either already fenced
+  or past its window (the progress read reports `ceremony_open` by the
+  creation state's clock), it abandons without asking the control plane to
+  re-authorize the expired grant. The retry is refused with "expired before
+  activation and was abandoned; a fresh grant is required". Replays report
+  the abandonment and clean nothing twice.
+- **Bounded limitation.** Each cleanup command's window starts at the fence
+  (`abandoned_at_ms`), so every retry issues the identical command. If the
+  coordinator stops between the fence and the end of cleanup and is not
+  retried within five minutes, the Deriver refuses the stale command and
+  that role's pending row stays behind. No activation can pass the fence, and
+  a fresh grant is unaffected.
+
+### Evidence: abandonment
+
+`vm_tenant_root_uncommitted_creation_is_abandoned_after_the_ceremony_expires`
+(`R150_VM_TENANT_ROOT_ABANDONMENT_E2E`) installs both roles, drops the
+activation request, and has the control plane sign a receipt the Router
+never commits. Inside the window, fencing is refused. After it, the retry
+abandons: both rows, backups and canaries are removed, and the Router holds
+one fence and two cleanup checkpoints. After the fence, the signed receipt
+can neither be committed at the Router nor activate a Deriver. A replay
+cleans nothing twice. A committed creation cannot be fenced, and a fresh
+grant for the abandoned identity reaches ready.
 
 ## After the commit (implemented)
 
@@ -151,21 +199,11 @@ to the control plane through proxies:
   a second correctly signed receipt that the Router never committed. The
   pending Deriver refuses it, both inside the window and after expiry.
 
-### Evidence
-
-`vm_tenant_root_ready_creation_resumes_from_durable_evidence`
-(`R150_VM_TENANT_ROOT_RESUME_E2E`) drops the Router's activation request to the
-control plane, so the Router stops after both roles are installed with
-nothing committed. Both rows are pending and each role holds its backup and
-canary. The retry resumes to ready from that evidence, an exact replay
-returns the same response, and the evidence read refuses a share that is
-already active. The partial-cleanup E2E now also sees B's canary removed.
-
 ## Related finding, not fixed here
 
 If Deriver A persists its pending row but stops before its commitment and
-installation calls, while B's installation is recorded, the retry cleans B
-only. A's pending row, backup and (after step 1) canary remain. They do not
+installation calls, while B's installation is recorded, abandonment cleans
+B only. A's pending row, backup and (after step 1) canary remain. They do not
 block a fresh grant, since rows are keyed by lineage, but they stay behind
 as unreferenced sealed material that only A can discover.
 
@@ -183,7 +221,7 @@ as unreferenced sealed material that only A can discover.
 After the commit: covered by the E2E above; the workerd harness runs the
 changed Deriver activation on every creation.
 
-Before the commit: resume is covered by the E2E above, and the workerd
-harness writes and reads the canary on every creation. Abandonment after
-expiry: an E2E that fails activation on a short-window grant, waits past
-expiry and retries.
+Before the commit: resume and abandonment are covered by the E2Es above, and
+the workerd harness writes and reads the canary on every creation. The
+harness does not yet inject these faults on Workers; the shared code paths
+are the same, and only storage (DO and R2 versus SQLite) differs.

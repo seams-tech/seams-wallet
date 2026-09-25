@@ -10,7 +10,10 @@
 //! The Router's persisted activation receipt is the commit point. Once it
 //! exists, a retry of the grant that opened the ceremony only finishes
 //! delivering that receipt, however late: it does not re-authorize, so the
-//! grant's freshness no longer gates it.
+//! grant's freshness no longer gates it. Before the commit, a creation with
+//! both roles installed resumes inside its ceremony window; a creation that
+//! cannot finish is abandoned behind a fence in the Router's creation state,
+//! which no activation can pass, and its installed roles are cleaned.
 
 use std::collections::BTreeMap;
 
@@ -20,8 +23,10 @@ use router_ab_core::{
 };
 
 use crate::durable_object::tenant_root_creation::{
-    tenant_root_creation_cleanup_call_v1, tenant_root_creation_initial_activation_call_v1,
+    tenant_root_creation_abandonment_call_v1, tenant_root_creation_cleanup_call_v1,
+    tenant_root_creation_initial_activation_call_v1,
     tenant_root_creation_progress_read_call_v1, validate_creation_record,
+    CloudflareTenantRootCreationInstallationCheckpointReadStateV1,
     CloudflareTenantRootCreationJournalOutcomeV1, CloudflareTenantRootCreationJournalRecordV1,
     CloudflareTenantRootCreationProgressV1, TenantRootCreationStateTransportV1,
 };
@@ -50,7 +55,7 @@ use crate::tenant_root_transport::{
     tenant_root_deriver_initial_activation_call_v1, TenantRootServiceTransportV1,
 };
 use crate::{
-    decode_base64url_bytes_v1, RouterAbProtocolError,
+    decode_base64url_bytes_v1, encode_base64url_bytes_v1, RouterAbProtocolError,
     RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
 
@@ -70,7 +75,7 @@ pub async fn tenant_root_router_coordinate_creation_v1<Host: TenantRootRouterCre
     host: &Host,
     request: CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCreateTenantRootResponseV1> {
-    if let Some(committed) = committed_creation_for_grant_v1(host, &request).await? {
+    if let Some(committed) = recover_creation_from_router_state_v1(host, &request).await? {
         return Ok(committed);
     }
     let genesis = tenant_root_control_plane_create_tenant_root_call_v1(host, &request).await?;
@@ -85,8 +90,9 @@ pub async fn tenant_root_router_coordinate_creation_v1<Host: TenantRootRouterCre
                 "tenant-root creation was abandoned; a fresh grant is required",
             ));
         }
-        CloudflareTenantRootCreationStatusV1::OneRoleInstalled { role } => {
-            clean_partial_tenant_root_creation_v1(host, &genesis, *role).await?;
+        CloudflareTenantRootCreationStatusV1::OneRoleInstalled { .. } => {
+            let (identity_digest, custody_lineage) = genesis_scope_v1(&genesis)?;
+            abandon_tenant_root_creation_v1(host, identity_digest, custody_lineage).await?;
             return Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLifecycleState,
                 "tenant-root partial creation was cleaned; a fresh grant is required",
@@ -164,12 +170,18 @@ pub async fn tenant_root_router_coordinate_creation_v1<Host: TenantRootRouterCre
     Ok(completed_state)
 }
 
-/// Serves a retry from the Router's own commit. When the Router has persisted
-/// an activation for the ceremony these exact grant bytes opened, it
-/// re-delivers that receipt to both Derivers and returns the durable response,
-/// without asking the control plane to authorize the grant again. Anything
-/// else returns `None` and the grant goes to the control plane as usual.
-async fn committed_creation_for_grant_v1<Host: TenantRootRouterCreationHostV1>(
+/// Serves a retry from the Router's own creation state, for the ceremony these
+/// exact grant bytes opened, without asking the control plane to authorize the
+/// grant again:
+///
+/// - a committed activation is re-delivered to both Derivers and the durable
+///   response returned;
+/// - an uncommitted creation that is already abandoned, or whose ceremony
+///   window has closed, is abandoned and cleaned, and the retry is refused
+///   with the reason.
+///
+/// Anything else returns `None` and the grant goes to the control plane.
+async fn recover_creation_from_router_state_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     request: &CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
 ) -> RouterAbProtocolResult<Option<CloudflareTenantRootControlPlaneCreateTenantRootResponseV1>> {
@@ -189,8 +201,8 @@ async fn committed_creation_for_grant_v1<Host: TenantRootRouterCreationHostV1>(
     })?;
     let CloudflareTenantRootCreationProgressV1::Started {
         state,
-        committed_activation_receipt_b64u: Some(receipt_b64u),
-        ..
+        committed_activation_receipt_b64u,
+        ceremony_open,
     } = tenant_root_creation_progress_read_call_v1(host, identity_digest, custody_lineage).await?
     else {
         return Ok(None);
@@ -206,6 +218,21 @@ async fn committed_creation_for_grant_v1<Host: TenantRootRouterCreationHostV1>(
     if !tenant_root_creation_grant_opened_ceremony_v1(&grant_bytes, &journal.ceremony_context)? {
         return Ok(None);
     }
+    let Some(receipt_b64u) = committed_activation_receipt_b64u else {
+        let already_abandoned = state.abandonment.is_some();
+        if !already_abandoned && ceremony_open {
+            return Ok(None);
+        }
+        abandon_tenant_root_creation_v1(host, identity_digest, custody_lineage).await?;
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLifecycleState,
+            if already_abandoned {
+                "tenant-root creation was abandoned; a fresh grant is required"
+            } else {
+                "tenant-root creation expired before activation and was abandoned; a fresh grant is required"
+            },
+        ));
+    };
     deliver_committed_initial_activation_v1(host, &receipt_b64u).await?;
     create_tenant_root_response_v1(
         identity_digest,
@@ -254,20 +281,61 @@ async fn deliver_committed_initial_activation_v1<Host: TenantRootRouterCreationH
     Ok(())
 }
 
-/// Cleans a creation in which exactly one role installed its share, so a
-/// fresh grant can start again. The control plane issues a cleanup command
-/// naming that role's pending row; the Router verifies it before the Deriver
-/// removes the row, and checkpoints the Deriver's terminal receipt.
-async fn clean_partial_tenant_root_creation_v1<Host: TenantRootRouterCreationHostV1>(
+/// Abandons an uncommitted creation so a fresh grant can start again. The
+/// Router's creation state writes the fence first, refusing it if an
+/// activation is already committed; from then on no activation, commitment or
+/// installation lands. Each installed role not yet cleaned is then cleaned.
+/// Every step is idempotent, so a retry finishes an interrupted abandonment.
+async fn abandon_tenant_root_creation_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
-    genesis: &CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
+    identity_digest: router_ab_core::TenantRootIdentityDigestV1,
+    custody_lineage: router_ab_core::TenantRootCustodyLineageId,
+) -> RouterAbProtocolResult<()> {
+    let fenced =
+        tenant_root_creation_abandonment_call_v1(host, identity_digest, custody_lineage).await?;
+    let cleaned = match tenant_root_creation_progress_read_call_v1(
+        host,
+        identity_digest,
+        custody_lineage,
+    )
+    .await?
+    {
+        CloudflareTenantRootCreationProgressV1::Started { state, .. } => state
+            .abandonment
+            .map(|abandonment| abandonment.cleaned_roles)
+            .unwrap_or_default(),
+        CloudflareTenantRootCreationProgressV1::NotStarted => Vec::new(),
+    };
+    for role in fenced.installed_roles {
+        if !cleaned.contains(&role) {
+            clean_abandoned_role_v1(
+                host,
+                identity_digest,
+                custody_lineage,
+                CloudflareTenantRootControlPlaneRoleV1::from_protocol(role.to_protocol()),
+            )
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Cleans one role an abandoned creation installed. The control plane issues
+/// a cleanup command naming that role's pending row; the Router verifies it
+/// before the Deriver removes the row, and checkpoints the Deriver's terminal
+/// receipt.
+async fn clean_abandoned_role_v1<Host: TenantRootRouterCreationHostV1>(
+    host: &Host,
+    identity_digest: router_ab_core::TenantRootIdentityDigestV1,
+    custody_lineage: router_ab_core::TenantRootCustodyLineageId,
     installed_role: CloudflareTenantRootControlPlaneRoleV1,
 ) -> RouterAbProtocolResult<()> {
     let cleanup = tenant_root_control_plane_cleanup_command_call_v1(
         host,
         &CloudflareTenantRootControlPlaneCleanupCommandRequestV1::PendingCreation {
-            identity_digest_b64u: genesis.identity_digest_b64u.clone(),
-            custody_lineage_b64u: genesis.custody_lineage_b64u.clone(),
+            identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+            custody_lineage_b64u: encode_base64url_bytes_v1(custody_lineage.as_bytes()),
+            role: installed_role,
         },
     )
     .await?;
@@ -342,7 +410,7 @@ async fn resume_tenant_root_initial_activation_v1<Host: TenantRootRouterCreation
 ) -> RouterAbProtocolResult<()> {
     let (identity_digest, custody_lineage) = genesis_scope_v1(genesis)?;
     let CloudflareTenantRootCreationProgressV1::Started {
-        installed,
+        state,
         committed_activation_receipt_b64u,
         ..
     } = tenant_root_creation_progress_read_call_v1(host, identity_digest, custody_lineage).await?
@@ -355,12 +423,17 @@ async fn resume_tenant_root_initial_activation_v1<Host: TenantRootRouterCreation
     if let Some(receipt_b64u) = committed_activation_receipt_b64u {
         return deliver_committed_initial_activation_v1(host, &receipt_b64u).await;
     }
-    let installed = installed.ok_or_else(|| {
-        RouterAbProtocolError::new(
+    let CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
+        deriver_a_signed_evidence_b64u,
+        deriver_b_signed_evidence_b64u,
+        ..
+    } = state.installation_checkpoint
+    else {
+        return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLifecycleState,
             "tenant-root creation reads ready but has no installation evidence",
-        )
-    })?;
+        ));
+    };
     let evidence_request = CloudflareDeriverTenantRootCreationEvidenceRequestV1 {
         identity_digest_b64u: genesis.identity_digest_b64u.clone(),
         custody_lineage_b64u: genesis.custody_lineage_b64u.clone(),
@@ -381,10 +454,8 @@ async fn resume_tenant_root_initial_activation_v1<Host: TenantRootRouterCreation
         host,
         genesis,
         CloudflareTenantRootControlPlaneInitialActivationRequestV1 {
-            deriver_a_signed_installation_evidence_b64u: installed
-                .deriver_a_signed_installation_evidence_b64u,
-            deriver_b_signed_installation_evidence_b64u: installed
-                .deriver_b_signed_installation_evidence_b64u,
+            deriver_a_signed_installation_evidence_b64u: deriver_a_signed_evidence_b64u,
+            deriver_b_signed_installation_evidence_b64u: deriver_b_signed_evidence_b64u,
             deriver_a_signed_managed_backup_b64u: deriver_a.signed_managed_backup_b64u,
             deriver_b_signed_managed_backup_b64u: deriver_b.signed_managed_backup_b64u,
             ecdsa_provider_canary_receipt_b64u: deriver_a.provider_canary_receipt_b64u,

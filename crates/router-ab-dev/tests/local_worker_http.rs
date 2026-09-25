@@ -1068,8 +1068,17 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
     let backup_rows = |db: &Connection| backup_object_counts(db);
     let cleanup_checkpoints = || -> rusqlite::Result<i64> {
         router_db.query_row(
-            "SELECT count(*) FROM local_tenant_root_creation_state WHERE storage_key = ?1",
-            ["creation/v1/cleanup-checkpoint"],
+            "SELECT count(*) FROM local_tenant_root_creation_state
+             WHERE storage_key LIKE 'creation/v1/cleanup-checkpoint/%'",
+            [],
+            |row| row.get(0),
+        )
+    };
+    let abandonment_fences = || -> rusqlite::Result<i64> {
+        router_db.query_row(
+            "SELECT count(*) FROM local_tenant_root_creation_state
+             WHERE storage_key = 'creation/v1/abandonment'",
+            [],
             |row| row.get(0),
         )
     };
@@ -1118,6 +1127,7 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
         (0, 0),
         "B's managed backup and provider canary are removed"
     );
+    assert_eq!(abandonment_fences()?, 1, "the Router fences the creation before cleaning");
     assert_eq!(cleanup_checkpoints()?, 1, "the Router checkpoints the cleanup");
 
     // The cleaned grant stays spent, including after every role restarts.
@@ -1367,6 +1377,137 @@ fn vm_tenant_root_ready_creation_resumes_from_durable_evidence(
     Ok(())
 }
 
+/// Before the Router commits, a creation that cannot finish inside its
+/// ceremony window is abandoned. A retry after the window fences it in the
+/// Router's creation state and cleans both installed roles. The fence and the
+/// activation commit exclude each other, whichever lands first: after the
+/// fence a correctly signed receipt cannot be committed, and a committed
+/// creation cannot be fenced.
+#[test]
+fn vm_tenant_root_uncommitted_creation_is_abandoned_after_the_ceremony_expires(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start("vm-tenant-root-abandon")?;
+    let pending = || Some("pending".to_owned());
+    let active = || Some("active".to_owned());
+    let abandonment_path = router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CREATION_ABANDONMENT_PATH;
+    let scope = |lineage: &str, identity: &TenantRootIdentityV1| -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+        Ok(json!({
+            "identity_digest_b64u":
+                base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(identity.digest()?.as_bytes()),
+            "custody_lineage_b64u": lineage,
+        }))
+    };
+
+    // Both roles install, the activation request never reaches the control
+    // plane, and nothing is committed.
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("abandon-after-expiry")?;
+    let lifetime_ms = 6_000;
+    let signed_at = Instant::now();
+    let grant =
+        product_creation_grant_with_lifetime_b64u(&stack.temp, &identity, lineage, None, lifetime_ms)?;
+    stack.proxy_control_plane.clear_captured();
+    stack.proxy_control_plane.drop_next();
+    let (lost_status, lost_body) = stack.create(&grant)?;
+    assert_ne!(lost_status, 200, "{lost_body}");
+    assert!(stack.proxy_control_plane.dropped(), "the proxy must have dropped the request");
+    assert_eq!(stack.lifecycles(&lineage_b64u)?, (pending(), pending()));
+    assert_eq!(stack.committed_receipt(&lineage_b64u)?, None);
+    // A correctly signed receipt for this ceremony, issued inside the window
+    // and never committed.
+    let uncommitted_receipt = stack.reissue_captured_activation()?;
+
+    // Inside the window the creation resumes rather than being abandoned.
+    let (open_status, open_body) =
+        stack.creation_state(&identity, lineage, abandonment_path, &scope(&lineage_b64u, &identity)?)?;
+    assert_ne!(open_status, 200, "{open_body}");
+    assert!(open_body.contains("ceremony is still open"), "{open_body}");
+
+    // The grant was issued a second before signing, so its window closes
+    // `lifetime_ms - 1_000` after it; wait a second beyond that.
+    if let Some(remaining) = Duration::from_millis(lifetime_ms).checked_sub(signed_at.elapsed()) {
+        thread::sleep(remaining);
+    }
+    let (abandoned_status, abandoned_body) = stack.create(&grant)?;
+    assert_ne!(abandoned_status, 200, "{abandoned_body}");
+    assert!(
+        abandoned_body.contains("expired before activation and was abandoned; a fresh grant is required"),
+        "{abandoned_body}"
+    );
+    assert_eq!(stack.lifecycles(&lineage_b64u)?, (None, None), "both pending rows are removed");
+    assert_eq!(
+        stack.backup_objects(&lineage_b64u)?,
+        ((0, 0), (0, 0)),
+        "both roles' backups and canaries are removed"
+    );
+    assert_eq!(stack.abandonment_records(&lineage_b64u)?, (1, 2), "one fence, two cleanups");
+
+    // Abandonment won: the signed receipt can no longer be committed, and no
+    // Deriver activates on it.
+    let (commit_status, commit_body) = stack.creation_state(
+        &identity,
+        lineage,
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH,
+        &json!({ "activation_receipt_b64u": uncommitted_receipt }),
+    )?;
+    assert_ne!(commit_status, 200, "{commit_body}");
+    assert!(commit_body.contains("cannot follow abandonment"), "{commit_body}");
+    assert_eq!(stack.committed_receipt(&lineage_b64u)?, None);
+    let (deliver_status, deliver_body) = stack.deliver(&stack.deriver_a_url, &uncommitted_receipt)?;
+    assert_ne!(deliver_status, 200, "{deliver_body}");
+
+    // A replay reports the abandonment and cleans nothing twice.
+    let (replay_status, replay_body) = stack.create(&grant)?;
+    assert_eq!(replay_status, abandoned_status, "{replay_body}");
+    assert!(replay_body.contains("abandoned; a fresh grant is required"), "{replay_body}");
+    assert_eq!(stack.abandonment_records(&lineage_b64u)?, (1, 2));
+
+    // Commit won: a committed creation cannot be abandoned.
+    let (committed_identity, committed_lineage, committed_lineage_b64u) =
+        recovery_ceremony("abandon-refused-after-commit")?;
+    let committed_grant =
+        product_creation_grant_b64u(&stack.temp, &committed_identity, committed_lineage, None)?;
+    let (committed_status, committed_body) = stack.create(&committed_grant)?;
+    assert_eq!(committed_status, 200, "{committed_body}");
+    let (refused_status, refused_body) = stack.creation_state(
+        &committed_identity,
+        committed_lineage,
+        abandonment_path,
+        &scope(&committed_lineage_b64u, &committed_identity)?,
+    )?;
+    assert_ne!(refused_status, 200, "{refused_body}");
+    assert!(
+        refused_body.contains("a committed tenant-root creation cannot be abandoned"),
+        "{refused_body}"
+    );
+    assert_eq!(stack.lifecycles(&committed_lineage_b64u)?, (active(), active()));
+
+    // A fresh grant for the abandoned identity creates the root.
+    let fresh_lineage = TenantRootCustodyLineageId::from_bytes(fresh_nonzero_bytes_16()?)?;
+    let fresh_lineage_b64u =
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(fresh_lineage.as_bytes());
+    let fresh_grant = product_creation_grant_b64u(&stack.temp, &identity, fresh_lineage, None)?;
+    let (fresh_status, fresh_body) = stack.create(&fresh_grant)?;
+    assert_eq!(fresh_status, 200, "{fresh_body}");
+    assert_eq!(stack.lifecycles(&fresh_lineage_b64u)?, (active(), active()));
+
+    println!(
+        "R150_VM_TENANT_ROOT_ABANDONMENT_E2E {}",
+        json!({
+            "fault": "control_plane_activation_request_lost_then_ceremony_expired",
+            "fence_refused_inside_window": open_status,
+            "retry_after_expiry_status": abandoned_status,
+            "rows_backups_canaries_after_abandonment": 0,
+            "router_fences_and_cleanups": [1, 2],
+            "signed_uncommitted_receipt_commit_after_fence": commit_status,
+            "signed_uncommitted_receipt_delivery_after_fence": deliver_status,
+            "fence_refused_after_commit": refused_status,
+            "fresh_grant_status": fresh_status,
+        })
+    );
+    Ok(())
+}
+
 /// A fresh identity and lineage for one recovery ceremony, so ceremonies in
 /// one stack never share an active role share.
 fn recovery_ceremony(
@@ -1586,6 +1727,51 @@ impl RecoveryStackV1 {
         Ok(receipt)
     }
 
+    /// Calls one operation on the Router's creation state directly, as a role
+    /// holding the role-shared credential would.
+    fn creation_state<T: Serialize>(
+        &self,
+        identity: &TenantRootIdentityV1,
+        lineage: TenantRootCustodyLineageId,
+        path: &str,
+        request: &T,
+    ) -> Result<(u16, String), Box<dyn std::error::Error>> {
+        let deployment = env_value(
+            &self.temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1),
+            "LOCAL_TENANT_ROOT_DEPLOYMENT_AUTHORITY_ID",
+        )?;
+        let identity_digest = identity.digest()?;
+        let authority_id =
+            router_ab_dev::local_tenant_root_creation_authority_id_v1(&deployment, identity_digest, lineage)?;
+        let b64u = |bytes: &[u8]| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
+        post_json_to_path_with_headers(
+            &self.router_url,
+            router_ab_dev::LOCAL_ROUTER_TENANT_ROOT_CREATION_STATE_PATH_V1,
+            &json!({
+                "authority_id_b64u": b64u(authority_id.as_bytes()),
+                "identity_digest_b64u": b64u(identity_digest.as_bytes()),
+                "custody_lineage_b64u": lineage.to_base64url(),
+                "path": path,
+                "request_json": serde_json::to_string(request)?,
+            }),
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+        )
+    }
+
+    /// Counts the Router's abandonment fences and cleanup checkpoints for one
+    /// lineage.
+    fn abandonment_records(&self, lineage: &str) -> rusqlite::Result<(i64, i64)> {
+        self.router_db.query_row(
+            "SELECT
+                 count(*) FILTER (WHERE storage_key = 'creation/v1/abandonment'),
+                 count(*) FILTER (WHERE storage_key LIKE 'creation/v1/cleanup-checkpoint/%')
+             FROM local_tenant_root_creation_state
+             WHERE json_extract(value_json, '$.custody_lineage_b64u') = ?1",
+            [lineage],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+    }
+
     /// Replays the last recorded control-plane activation request, which has
     /// the control plane sign a second receipt for the same evidence.
     fn reissue_captured_activation(&self) -> Result<String, Box<dyn std::error::Error>> {
@@ -1623,7 +1809,8 @@ fn backup_object_counts(db: &Connection) -> rusqlite::Result<(i64, i64)> {
 }
 
 /// Forwards one peer's traffic. On `fault_path` it records the latest request
-/// body and, when armed, drops the next request before the peer reads it.
+/// body, including one it drops, and, when armed, drops the next request
+/// before the peer reads it.
 struct FaultProxyV1 {
     url: String,
     armed: Arc<AtomicBool>,
@@ -1734,10 +1921,10 @@ fn proxy_fault_connection(
     let mut body = vec![0_u8; content_length];
     client_reader.read_exact(&mut body)?;
     if head_text.starts_with(&format!("POST {fault_path} HTTP/1.1\r\n")) {
+        *captured.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(body.clone());
         if armed.swap(false, Ordering::SeqCst) {
             return client.shutdown(Shutdown::Both);
         }
-        *captured.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(body.clone());
     }
     let mut upstream = TcpStream::connect(upstream)?;
     upstream.set_read_timeout(Some(Duration::from_secs(15)))?;

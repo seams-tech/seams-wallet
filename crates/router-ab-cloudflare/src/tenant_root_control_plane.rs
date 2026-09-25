@@ -244,9 +244,11 @@ pub struct CloudflareTenantRootControlPlaneRefreshCommandsResponseV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CloudflareTenantRootControlPlaneCleanupCommandRequestV1 {
+    /// Cleans one role an abandoned creation installed.
     PendingCreation {
         identity_digest_b64u: String,
         custody_lineage_b64u: String,
+        role: CloudflareTenantRootControlPlaneRoleV1,
     },
     RetiredAfterRefresh {
         identity_digest_b64u: String,
@@ -419,8 +421,10 @@ pub enum CloudflareTenantRootCreationStatusV1 {
     Ready {
         root_commitment_b64u: String,
     },
+    /// The creation was abandoned before its activation was committed.
     Abandoned {
-        role: CloudflareTenantRootControlPlaneRoleV1,
+        installed_roles: Vec<CloudflareTenantRootControlPlaneRoleV1>,
+        cleaned_roles: Vec<CloudflareTenantRootControlPlaneRoleV1>,
     },
 }
 
@@ -430,7 +434,7 @@ pub(crate) struct TenantRootCreationProgressV1 {
     pub(crate) committed_roles: Vec<TwoPartyDeriverRole>,
     pub(crate) installation_checkpoint:
         CloudflareTenantRootCreationInstallationCheckpointReadStateV1,
-    pub(crate) cleanup_checkpointed: bool,
+    pub(crate) abandoned: bool,
 }
 
 impl TenantRootCreationProgressV1 {
@@ -444,7 +448,7 @@ impl TenantRootCreationProgressV1 {
                 .map(|role: &CloudflareTenantRootCreationInstallationRoleV1| role.to_protocol())
                 .collect(),
             installation_checkpoint: response.installation_checkpoint.clone(),
-            cleanup_checkpointed: response.cleanup_checkpointed,
+            abandoned: response.abandonment.is_some(),
         }
     }
 }
@@ -668,9 +672,9 @@ pub(crate) fn issue_tenant_root_role_creation_command_v1(
     active_issuer_key_id: &str,
     issuer_seed: &Zeroizing<[u8; 32]>,
 ) -> RouterAbProtocolResult<IssuedTenantRootRoleCreationCommandV1> {
-    if issuance.progress.cleanup_checkpointed {
+    if issuance.progress.abandoned {
         return Err(refused(
-            "tenant-root creation was abandoned and cleaned; no further role command may be issued",
+            "tenant-root creation was abandoned; no further role command may be issued",
         ));
     }
     if !matches!(
@@ -1205,40 +1209,32 @@ pub trait TenantRootControlPlaneHostV1 {
 fn creation_status(
     state: &CloudflareTenantRootCreationJournalReadResponseV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationStatusV1> {
-    match (&state.installation_checkpoint, state.cleanup_checkpointed) {
-        (CloudflareTenantRootCreationInstallationCheckpointReadStateV1::None, false) => {
-            Ok(CloudflareTenantRootCreationStatusV1::Pending)
-        }
-        (
-            CloudflareTenantRootCreationInstallationCheckpointReadStateV1::OneRoleReady {
-                role,
-                ..
-            },
-            false,
-        ) => Ok(CloudflareTenantRootCreationStatusV1::OneRoleInstalled {
-            role: CloudflareTenantRootControlPlaneRoleV1::from_protocol(role.to_protocol()),
-        }),
-        (
-            CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
-                root_commitment_b64u,
-            },
-            false,
-        ) => Ok(CloudflareTenantRootCreationStatusV1::Ready {
-            root_commitment_b64u: root_commitment_b64u.clone(),
-        }),
-        (
-            CloudflareTenantRootCreationInstallationCheckpointReadStateV1::OneRoleReady {
-                role,
-                ..
-            },
-            true,
-        ) => Ok(CloudflareTenantRootCreationStatusV1::Abandoned {
-            role: CloudflareTenantRootControlPlaneRoleV1::from_protocol(role.to_protocol()),
-        }),
-        _ => Err(refused(
-            "tenant-root creation Durable Object returned an invalid cleanup state",
-        )),
+    let control_plane_role =
+        |role: &CloudflareTenantRootCreationInstallationRoleV1| {
+            CloudflareTenantRootControlPlaneRoleV1::from_protocol(role.to_protocol())
+        };
+    if let Some(abandonment) = &state.abandonment {
+        return Ok(CloudflareTenantRootCreationStatusV1::Abandoned {
+            installed_roles: abandonment.installed_roles.iter().map(control_plane_role).collect(),
+            cleaned_roles: abandonment.cleaned_roles.iter().map(control_plane_role).collect(),
+        });
     }
+    Ok(match &state.installation_checkpoint {
+        CloudflareTenantRootCreationInstallationCheckpointReadStateV1::None => {
+            CloudflareTenantRootCreationStatusV1::Pending
+        }
+        CloudflareTenantRootCreationInstallationCheckpointReadStateV1::OneRoleReady {
+            role, ..
+        } => CloudflareTenantRootCreationStatusV1::OneRoleInstalled {
+            role: control_plane_role(role),
+        },
+        CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
+            root_commitment_b64u,
+            ..
+        } => CloudflareTenantRootCreationStatusV1::Ready {
+            root_commitment_b64u: root_commitment_b64u.clone(),
+        },
+    })
 }
 
 fn decode_verified_installation_evidence_v1(
@@ -1328,9 +1324,9 @@ fn require_persisted_initial_activation_state_v1(
     read: &CloudflareTenantRootCreationJournalReadResponseV1,
     bundle: &VerifiedTenantRootInitialCreationActivationEvidenceBundleV1,
 ) -> RouterAbProtocolResult<()> {
-    if read.cleanup_checkpointed {
+    if read.abandonment.is_some() {
         return Err(refused(
-            "tenant-root initial activation cannot issue after creation cleanup",
+            "tenant-root initial activation cannot issue after the creation was abandoned",
         ));
     }
     if read.committed_roles.len() != 2
@@ -1347,6 +1343,7 @@ fn require_persisted_initial_activation_state_v1(
     }
     let CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
         root_commitment_b64u,
+        ..
     } = &read.installation_checkpoint
     else {
         return Err(refused(
@@ -1688,19 +1685,32 @@ pub fn decode_tenant_root_cleanup_scope_v1(
     Ok((identity_digest, custody_lineage))
 }
 
-/// Issues the cleanup command for a creation in which exactly one role
-/// installed its share. The command names that role's pending row, bound to
-/// its installation evidence, so only that row can be removed.
+/// Issues the cleanup command for one role an abandoned creation installed.
+/// The command names that role's pending row, bound to its installation
+/// evidence, so only that row can be removed. It is issued only once the
+/// Router has fenced the creation, and its window starts at the fence, so the
+/// same command is issued on every retry of the abandonment.
 pub async fn control_plane_pending_creation_cleanup_command_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     identity_digest: router_ab_core::TenantRootIdentityDigestV1,
     custody_lineage: router_ab_core::TenantRootCustodyLineageId,
+    cleaned_role: CloudflareTenantRootControlPlaneRoleV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCleanupCommandResponseV1> {
     let authority_id = host.creation_authority_id(identity_digest, custody_lineage)?;
     let read = host.read_creation_state(identity_digest, custody_lineage).await?;
-    if read.cleanup_checkpointed {
+    let Some(abandonment) = &read.abandonment else {
         return Err(refused(
-            "tenant-root creation is already abandoned and cleaned",
+            "tenant-root creation cleanup requires the creation to be abandoned first",
+        ));
+    };
+    let role = cleaned_role.to_protocol();
+    if !abandonment
+        .installed_roles
+        .iter()
+        .any(|installed| installed.to_protocol() == role)
+    {
+        return Err(refused(
+            "tenant-root cleanup names a role the abandoned creation did not install",
         ));
     }
     let record = crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationJournalRecordV1 {
@@ -1718,16 +1728,25 @@ pub async fn control_plane_pending_creation_cleanup_command_v1<Host: TenantRootC
             "tenant-root cleanup state does not name the requested identity and lineage",
         ));
     }
-    let CloudflareTenantRootCreationInstallationCheckpointReadStateV1::OneRoleReady {
-        role,
-        signed_evidence_b64u,
-    } = read.installation_checkpoint
-    else {
-        return Err(refused(
-            "tenant-root cleanup requires exactly one installed role",
-        ));
+    let signed_evidence_b64u = match &read.installation_checkpoint {
+        CloudflareTenantRootCreationInstallationCheckpointReadStateV1::OneRoleReady {
+            role: installed,
+            signed_evidence_b64u,
+        } if installed.to_protocol() == role => signed_evidence_b64u,
+        CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
+            deriver_a_signed_evidence_b64u,
+            ..
+        } if role == TwoPartyDeriverRole::DeriverA => deriver_a_signed_evidence_b64u,
+        CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
+            deriver_b_signed_evidence_b64u,
+            ..
+        } if role == TwoPartyDeriverRole::DeriverB => deriver_b_signed_evidence_b64u,
+        _ => {
+            return Err(refused(
+                "tenant-root cleanup names a role with no recorded installation",
+            ))
+        }
     };
-    let role = role.to_protocol();
     let evidence_bytes = crate::durable_object::tenant_root_creation::decode_canonical_base64url(
         "tenant-root cleanup installation evidence",
         &signed_evidence_b64u,
@@ -1782,12 +1801,13 @@ pub async fn control_plane_pending_creation_cleanup_command_v1<Host: TenantRootC
     let cleanup_nonce = TenantRootCeremonyNonceV1::from_bytes(nonce_hasher.finalize().into())
         .map_err(derivation)?;
     let seed = host.issuer_seed()?;
+    let issued_at_ms = abandonment.abandoned_at_ms;
     let command = TenantRootRoleCleanupCommandV1::sign(
         &target,
         authority_id,
         cleanup_nonce,
-        journal.ceremony_context.issued_at_ms(),
-        journal.ceremony_context.expires_at_ms(),
+        issued_at_ms,
+        issued_at_ms.saturating_add(router_ab_core::TENANT_ROOT_MAX_LIFETIME_MS_V1),
         host.bindings().issuer_signing_key.signing_key_id(),
         &seed,
     )
@@ -2938,11 +2958,12 @@ mod live {
         env: &worker::Env,
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCleanupCommandResponseV1> {
-        let (identity_digest_b64u, custody_lineage_b64u, retired_request) = match request {
+        let (identity_digest_b64u, custody_lineage_b64u, pending_role, retired_request) = match request {
             CloudflareTenantRootControlPlaneCleanupCommandRequestV1::PendingCreation {
                 identity_digest_b64u,
                 custody_lineage_b64u,
-            } => (identity_digest_b64u, custody_lineage_b64u, None),
+                role,
+            } => (identity_digest_b64u, custody_lineage_b64u, Some(role), None),
             CloudflareTenantRootControlPlaneCleanupCommandRequestV1::RetiredAfterRefresh {
                 identity_digest_b64u,
                 custody_lineage_b64u,
@@ -2952,6 +2973,7 @@ mod live {
             } => (
                 identity_digest_b64u,
                 custody_lineage_b64u,
+                None,
                 Some((role, expected_retired_revision, expected_active_revision)),
             ),
         };
@@ -2969,20 +2991,13 @@ mod live {
             )
             .await;
         }
-        live_pending_creation_cleanup_command_v1(env, runtime, identity_digest, custody_lineage)
-            .await
-    }
-
-    async fn live_pending_creation_cleanup_command_v1(
-        env: &worker::Env,
-        runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
-        identity_digest: TenantRootIdentityDigestV1,
-        custody_lineage: TenantRootCustodyLineageId,
-    ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCleanupCommandResponseV1> {
+        let role = pending_role
+            .ok_or_else(|| refused("tenant-root pending cleanup request names no role"))?;
         super::control_plane_pending_creation_cleanup_command_v1(
             &CloudflareControlPlaneHostV1 { env, runtime },
             identity_digest,
             custody_lineage,
+            role,
         )
         .await
     }
@@ -4646,7 +4661,7 @@ mod tests {
             committed_roles: Vec::new(),
             installation_checkpoint:
                 CloudflareTenantRootCreationInstallationCheckpointReadStateV1::None,
-            cleanup_checkpointed: false,
+            abandoned: false,
         }
     }
 
@@ -5130,7 +5145,7 @@ mod tests {
                     role: CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
                     signed_evidence_b64u: "evidence".to_owned(),
                 },
-            cleanup_checkpointed: true,
+            abandoned: true,
         };
         assert_eq!(
             issue(
@@ -5149,9 +5164,11 @@ mod tests {
             committed_roles: Vec::new(),
             installation_checkpoint:
                 CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
+                    deriver_a_signed_evidence_b64u: String::new(),
+                    deriver_b_signed_evidence_b64u: String::new(),
                     root_commitment_b64u: "root".to_owned(),
                 },
-            cleanup_checkpointed: false,
+            abandoned: false,
         };
         assert_eq!(
             issue(
@@ -5170,7 +5187,7 @@ mod tests {
             committed_roles: vec![TwoPartyDeriverRole::DeriverA],
             installation_checkpoint:
                 CloudflareTenantRootCreationInstallationCheckpointReadStateV1::None,
-            cleanup_checkpointed: false,
+            abandoned: false,
         };
         assert!(issue(
             &journal,
@@ -6017,17 +6034,21 @@ mod tests {
             ],
             installation_checkpoint:
                 CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
+                    deriver_a_signed_evidence_b64u: String::new(),
+                    deriver_b_signed_evidence_b64u: String::new(),
                     root_commitment_b64u: crate::encode_base64url_bytes_v1(
                         bundle.root_commitment(),
                     ),
                 },
-            cleanup_checkpointed: false,
+            abandonment: None,
         };
         require_persisted_initial_activation_state_v1(&read, &bundle)
             .expect("exact persisted installation state");
 
         read.installation_checkpoint =
             CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
+                deriver_a_signed_evidence_b64u: String::new(),
+                deriver_b_signed_evidence_b64u: String::new(),
                 root_commitment_b64u: crate::encode_base64url_bytes_v1(&[0x55; 32]),
             };
         assert_eq!(
@@ -6039,12 +6060,20 @@ mod tests {
 
         read.installation_checkpoint =
             CloudflareTenantRootCreationInstallationCheckpointReadStateV1::BothRolesReady {
+                deriver_a_signed_evidence_b64u: String::new(),
+                deriver_b_signed_evidence_b64u: String::new(),
                 root_commitment_b64u: crate::encode_base64url_bytes_v1(bundle.root_commitment()),
             };
-        read.cleanup_checkpointed = true;
+        read.abandonment = Some(
+            crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationAbandonmentReadV1 {
+                abandoned_at_ms: 1,
+                installed_roles: read.committed_roles.clone(),
+                cleaned_roles: Vec::new(),
+            },
+        );
         assert_eq!(
             require_persisted_initial_activation_state_v1(&read, &bundle)
-                .expect_err("cleaned creation")
+                .expect_err("abandoned creation")
                 .code(),
             RouterAbProtocolErrorCode::ForbiddenLocalBinding
         );

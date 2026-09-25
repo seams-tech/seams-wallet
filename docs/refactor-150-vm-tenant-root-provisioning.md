@@ -75,7 +75,10 @@ Open, and not silently worked around:
   the activation request from the Router's checkpoint and each Deriver's
   store. Verified by `vm_tenant_root_ready_creation_resumes_from_durable_evidence`;
   design in `refactor-150-tenant-root-creation-resume.md`. Past the window
-  the creation must be abandoned instead; that is being implemented.
+  an uncommitted creation is abandoned behind a fence in the Router's
+  creation state, which no activation can pass, and its installed roles are
+  cleaned. Verified by
+  `vm_tenant_root_uncommitted_creation_is_abandoned_after_the_ceremony_expires`.
 - **Expiry after the activation commit (fixed on both hosts).** A delivery
   lost after the Router commits used to strand the creation split once the
   ceremony expired. A retry now re-delivers the committed receipt at any
