@@ -105,6 +105,9 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
   prints `R150_VM_TENANT_ROOT_POST_COMMIT_E2E`: a delivery lost after the
   Router commits is finished by a retry, inside the ceremony window or after
   it, and a signed receipt the Router did not commit activates nothing.
+- `vm_tenant_root_ready_creation_resumes_from_durable_evidence` prints
+  `R150_VM_TENANT_ROOT_RESUME_E2E`: a creation that stops after both roles
+  install and before the Router commits resumes from stored evidence.
 - A creation left with one role installed is cleaned on the next retry of its
   grant, which then reports that a fresh grant is required.
 

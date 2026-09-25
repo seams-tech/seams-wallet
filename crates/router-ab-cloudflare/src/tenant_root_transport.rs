@@ -24,6 +24,8 @@ use crate::tenant_root_control_plane::{
 };
 use crate::tenant_root_role_runtime::{
     CloudflareDeriverTenantRootCleanupRequestV1, CloudflareDeriverTenantRootCleanupResponseV1,
+    CloudflareDeriverTenantRootCreationEvidenceRequestV1,
+    CloudflareDeriverTenantRootCreationEvidenceResponseV1,
     CloudflareDeriverTenantRootCreateRoleShareRequestV1,
     CloudflareDeriverTenantRootCreateRoleShareResponseV1,
     CloudflareDeriverTenantRootInitialActivationRequestV1,
@@ -32,6 +34,7 @@ use crate::tenant_root_role_runtime::{
 use crate::{
     decode_base64url_bytes_v1, RouterAbProtocolError, RouterAbProtocolErrorCode,
     RouterAbProtocolResult, CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_DERIVER_TENANT_ROOT_CREATION_EVIDENCE_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_DERIVER_TENANT_ROOT_CREATE_ROLE_SHARE_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH,
@@ -166,6 +169,31 @@ pub async fn tenant_root_deriver_cleanup_call_v1(
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             "tenant-root cleanup response names the wrong role",
+        ));
+    }
+    Ok(response)
+}
+
+/// Reads back one Deriver's stored activation evidence for its pending initial
+/// share.
+pub async fn tenant_root_deriver_creation_evidence_call_v1(
+    transport: &impl TenantRootServiceTransportV1,
+    role: TwoPartyDeriverRole,
+    request: &CloudflareDeriverTenantRootCreationEvidenceRequestV1,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootCreationEvidenceResponseV1> {
+    let response: CloudflareDeriverTenantRootCreationEvidenceResponseV1 = transport
+        .post_private_json(
+            TenantRootServiceTargetV1::Deriver(role),
+            CLOUDFLARE_DERIVER_TENANT_ROOT_CREATION_EVIDENCE_PRIVATE_REQUEST_PATH,
+            "tenant-root creation evidence read",
+            request,
+            None,
+        )
+        .await?;
+    if response.role != CloudflareTenantRootCreateRoleV1::from_protocol(role) {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            "tenant-root creation evidence response names the wrong role",
         ));
     }
     Ok(response)

@@ -8,7 +8,9 @@ use router_ab_cloudflare::{
     cloudflare_router_error_status, control_plane_create_tenant_root_v1,
     control_plane_initial_activation_v1, control_plane_pending_creation_cleanup_command_v1,
     control_plane_role_creation_command_v1, decode_tenant_root_cleanup_scope_v1,
-    tenant_root_deriver_cleanup_v1, CloudflareDeriverTenantRootCleanupRequestV1,
+    tenant_root_deriver_cleanup_v1, tenant_root_deriver_creation_evidence_v1,
+    CloudflareDeriverTenantRootCleanupRequestV1, CloudflareDeriverTenantRootCreationEvidenceRequestV1,
+    CLOUDFLARE_DERIVER_TENANT_ROOT_CREATION_EVIDENCE_PRIVATE_REQUEST_PATH,
     CloudflareTenantRootControlPlaneCleanupCommandRequestV1,
     CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH,
@@ -122,6 +124,16 @@ fn deriver_route(
                 },
             ))
         }
+        CLOUDFLARE_DERIVER_TENANT_ROOT_CREATION_EVIDENCE_PRIVATE_REQUEST_PATH => Some(authorized(
+            credential,
+            request,
+            |evidence: CloudflareDeriverTenantRootCreationEvidenceRequestV1| {
+                json(&futures::executor::block_on(tenant_root_deriver_creation_evidence_v1(
+                    &LocalTenantRootDeriverHostV1::new(tenant_root),
+                    evidence,
+                ))?)
+            },
+        )),
         CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH => Some(authorized(
             credential,
             request,

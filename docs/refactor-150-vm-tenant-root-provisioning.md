@@ -67,15 +67,15 @@ fresh grant for a new lineage then reaches ready with both shares active.
 
 Open, and not silently worked around:
 
-- **Resume gap, both hosts.** `Ready` means both installation checkpoints are
-  written, and they are written before the control plane issues the
-  activation receipt. If the coordinator stops after the initiator returns and
-  before the creation state persists the activation, a retry reads `Ready`,
-  finds no active state, and cannot continue: the evidence the control plane
-  needs (installation evidence, signed backups, canary receipts) came back in
-  the initiator's response and was not kept. Fixing this needs a decision on
-  where that evidence is durably held; it is not patched here. Proposed fix,
-  awaiting review: `refactor-150-tenant-root-creation-resume.md`.
+- **Resume gap (fixed on both hosts, inside the ceremony window).** A
+  coordinator that stopped after both roles installed and before the Router
+  committed could not continue: the provider canary receipts came back only
+  in the initiator's response. Each Deriver now stores its canary beside its
+  managed backup before its installation checkpoint, and a retry rebuilds
+  the activation request from the Router's checkpoint and each Deriver's
+  store. Verified by `vm_tenant_root_ready_creation_resumes_from_durable_evidence`;
+  design in `refactor-150-tenant-root-creation-resume.md`. Past the window
+  the creation must be abandoned instead; that is being implemented.
 - **Expiry after the activation commit (fixed on both hosts).** A delivery
   lost after the Router commits used to strand the creation split once the
   ceremony expired. A retry now re-delivers the committed receipt at any

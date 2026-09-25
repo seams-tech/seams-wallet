@@ -9,11 +9,9 @@ use router_ab_core::{
     TenantRootManagedRestoreRoleV1, TenantRootOperationalErasureClaimV1, TenantRootShareEpoch,
 };
 use router_ab_core::{TenantRootSignedManagedBackupV1, VerifiedTenantRootManagedBackupV1};
+use router_ab_core::{TenantRootSignedProviderCanaryReceiptV1, VerifiedTenantRootProviderCanaryReceiptV1};
 #[cfg(feature = "workers-rs")]
-use router_ab_core::{
-    TenantRootProviderCanaryReceiptBindingV1, TenantRootSignedProviderCanaryReceiptV1,
-    VerifiedTenantRootProviderCanaryReceiptV1,
-};
+use router_ab_core::TenantRootProviderCanaryReceiptBindingV1;
 
 #[cfg(feature = "workers-rs")]
 use worker::{Bucket, Conditional, Env};
@@ -273,6 +271,32 @@ pub fn verify_tenant_root_managed_backup_object_v1(
         .map_err(|error| error.message().to_owned())
 }
 
+/// Decodes stored provider-canary bytes and verifies them against their
+/// coordinates and the role's trusted verifying key, under the receipt's own
+/// signed binding. The control plane checks that binding against the rest of
+/// the activation evidence.
+pub fn verify_tenant_root_provider_canary_object_v1(
+    bytes: &[u8],
+    coordinates: TenantRootManagedBackupObjectCoordinatesV1,
+    trusted_role_verifying_key: &[u8; 32],
+) -> Result<VerifiedTenantRootProviderCanaryReceiptV1, String> {
+    let signed = TenantRootSignedProviderCanaryReceiptV1::decode_canonical_bytes(bytes)
+        .map_err(|error| error.message().to_owned())?;
+    if signed.identity_digest() != coordinates.identity_digest
+        || signed.custody_lineage() != coordinates.custody_lineage
+        || signed.target_epoch() != coordinates.epoch
+    {
+        return Err("provider canary artifact does not match its object coordinates".to_owned());
+    }
+    let verified = signed
+        .verify(signed.binding(), trusted_role_verifying_key)
+        .map_err(|error| error.message().to_owned())?;
+    if verified.canonical_bytes() != bytes {
+        return Err("provider canary artifact bytes are not canonical".to_owned());
+    }
+    Ok(verified)
+}
+
 #[cfg(feature = "workers-rs")]
 #[derive(Clone)]
 pub(crate) struct CloudflareTenantRootManagedBackupStoreV1 {
@@ -515,6 +539,24 @@ impl CloudflareTenantRootManagedBackupStoreV1 {
             verified.provider_key_version_ref(),
         )?;
         Ok((verified, metadata))
+    }
+
+    /// Reads the raw provider-canary object at these coordinates.
+    pub(crate) async fn get_provider_canary_bytes(
+        &self,
+        coordinates: TenantRootManagedBackupObjectCoordinatesV1,
+    ) -> worker::Result<Vec<u8>> {
+        self.require_role(coordinates.role)?;
+        let object = self
+            .bucket
+            .get(coordinates.provider_canary_object_key())
+            .execute()
+            .await?
+            .ok_or_else(|| backup_store_error("provider canary object does not exist"))?;
+        match object.body() {
+            Some(body) => body.bytes().await,
+            None => Err(backup_store_error("provider canary object has no body")),
+        }
     }
 
     /// Deletes one role-local backup object and verifies both R2 keys are absent.

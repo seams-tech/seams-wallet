@@ -112,13 +112,15 @@ pub use tenant_root_control_plane::{
     TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
 };
 pub use tenant_root_managed_backup_r2::{
-    verify_tenant_root_managed_backup_object_v1,
+    verify_tenant_root_managed_backup_object_v1, verify_tenant_root_provider_canary_object_v1,
     CloudflareTenantRootManagedBackupDeletionReceiptV1,
     CloudflareTenantRootManagedBackupObjectDeletionStatusV1,
     TenantRootManagedBackupObjectCoordinatesV1,
 };
 pub use tenant_root_role_runtime::{
     tenant_root_deriver_cleanup_v1, tenant_root_deriver_create_role_share_v1,
+    tenant_root_deriver_creation_evidence_v1, CloudflareDeriverTenantRootCreationEvidenceRequestV1,
+    CloudflareDeriverTenantRootCreationEvidenceResponseV1,
     tenant_root_deriver_initial_activation_v1,
     tenant_root_deriver_load_active_role_share_v1, CloudflareDeriverTenantRootCreateRoleShareRequestV1,
     CloudflareDeriverTenantRootCreateRoleShareResponseV1,
@@ -137,6 +139,7 @@ pub use tenant_root_transport::{
     tenant_root_control_plane_initial_activation_call_v1,
     tenant_root_control_plane_cleanup_command_call_v1,
     tenant_root_control_plane_role_creation_command_call_v1, tenant_root_deriver_cleanup_call_v1,
+    tenant_root_deriver_creation_evidence_call_v1,
     tenant_root_deriver_create_role_share_call_v1, tenant_root_deriver_initial_activation_call_v1,
     TenantRootCallBoundsV1, TenantRootServiceTargetV1, TenantRootServiceTransportV1,
 };

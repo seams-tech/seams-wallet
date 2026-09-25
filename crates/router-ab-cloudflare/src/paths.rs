@@ -63,6 +63,10 @@ pub const CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH: &str =
     "/router-ab/internal/deriver/tenant-root/cleanup/v1/execute";
 pub const CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH: &str =
     "/router-ab/internal/deriver/tenant-root/creation/v1/activate";
+/// Private Deriver endpoint that reads back one pending initial share's stored
+/// activation evidence, so the Router can resume a creation.
+pub const CLOUDFLARE_DERIVER_TENANT_ROOT_CREATION_EVIDENCE_PRIVATE_REQUEST_PATH: &str =
+    "/router-ab/internal/deriver/tenant-root/creation/v1/activation-evidence";
 pub const CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH: &str =
     "/router-ab/internal/deriver/tenant-root/refresh/v1/activate";
 pub const CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_PRIVATE_REQUEST_PATH: &str =

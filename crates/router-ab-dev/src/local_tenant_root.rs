@@ -27,7 +27,8 @@ use router_ab_cloudflare::{
     decode_issuer_verifying_keys, parse_cloudflare_tenant_root_creation_role_verifying_keys_v1,
     tenant_root_creation_journal_call_v1, tenant_root_creation_journal_read_call_v1,
     tenant_root_creation_object_name_v1, tenant_root_creation_serve_without_refresh_v1,
-    verify_tenant_root_managed_backup_object_v1, CloudflareEnvMapV1, CloudflareEnvReaderV1,
+    verify_tenant_root_managed_backup_object_v1, verify_tenant_root_provider_canary_object_v1,
+    CloudflareEnvMapV1, CloudflareEnvReaderV1,
     CloudflareSecretReaderV1, CloudflareTenantRootControlPlaneBindingsV1,
     CloudflareTenantRootManagedBackupDeletionReceiptV1, CloudflareWorkerRoleV1,
     TenantRootCallBoundsV1,
@@ -935,6 +936,81 @@ impl TenantRootDeriverHostV1 for LocalTenantRootDeriverHostV1<'_> {
             managed_backup_was_present,
             provider_canary_was_present,
         ))
+    }
+
+    async fn put_provider_canary(
+        &self,
+        coordinates: TenantRootManagedBackupObjectCoordinatesV1,
+        canary_bytes: &[u8],
+        trusted_role_verifying_key: &[u8; 32],
+    ) -> RouterAbProtocolResult<()> {
+        if coordinates.role() != self.backup_role()? {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+                "provider canary belongs to the other Deriver",
+            ));
+        }
+        verify_tenant_root_provider_canary_object_v1(
+            canary_bytes,
+            coordinates,
+            trusted_role_verifying_key,
+        )
+        .map_err(|error| {
+            RouterAbProtocolError::new(RouterAbProtocolErrorCode::ForbiddenLocalBinding, error)
+        })?;
+        let object_key = coordinates.provider_canary_object_key();
+        let connection = open_sqlite(&self.config.managed_backup_path)?;
+        let inserted = connection
+            .execute(
+                "INSERT INTO local_tenant_root_managed_backups (object_key, canonical_bytes)
+                 VALUES (?1, ?2) ON CONFLICT (object_key) DO NOTHING",
+                rusqlite::params![object_key, canary_bytes],
+            )
+            .map_err(sqlite_error)?;
+        if inserted == 1 {
+            return Ok(());
+        }
+        let existing: Vec<u8> = connection
+            .query_row(
+                "SELECT canonical_bytes FROM local_tenant_root_managed_backups WHERE object_key = ?1",
+                rusqlite::params![object_key],
+                |row| row.get(0),
+            )
+            .map_err(sqlite_error)?;
+        if existing != canary_bytes {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+                "provider canary object key already contains different canonical bytes",
+            ));
+        }
+        Ok(())
+    }
+
+    async fn get_provider_canary(
+        &self,
+        coordinates: TenantRootManagedBackupObjectCoordinatesV1,
+        trusted_role_verifying_key: &[u8; 32],
+    ) -> RouterAbProtocolResult<Vec<u8>> {
+        let connection = open_sqlite(&self.config.managed_backup_path)?;
+        let bytes: Vec<u8> = connection
+            .query_row(
+                "SELECT canonical_bytes FROM local_tenant_root_managed_backups WHERE object_key = ?1",
+                rusqlite::params![coordinates.provider_canary_object_key()],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(sqlite_error)?
+            .ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLifecycleState,
+                    "provider canary object does not exist",
+                )
+            })?;
+        verify_tenant_root_provider_canary_object_v1(&bytes, coordinates, trusted_role_verifying_key)
+            .map_err(|error| {
+                RouterAbProtocolError::new(RouterAbProtocolErrorCode::ForbiddenLocalBinding, error)
+            })?;
+        Ok(bytes)
     }
 }
 

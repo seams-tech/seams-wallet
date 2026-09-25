@@ -783,19 +783,27 @@ async function testTenantRootCreationOperatingPath(topology, fixture, databases)
     'the same signed grant must replay the exact completed response bytes',
   );
 
+  // Each role keeps its managed backup and, beside it, the provider canary
+  // receipt a resumed creation needs; both live under its own prefix.
   const [backupsA, backupsB] = await Promise.all([backupBucketA.list(), backupBucketB.list()]);
-  assert.equal(backupsA.objects.length, 1, 'Deriver A must persist one managed backup');
-  assert.equal(backupsB.objects.length, 1, 'Deriver B must persist one managed backup');
-  assert.match(
-    backupsA.objects[0].key,
-    /^tenant-root-managed-backup\/v1\/deriver-a\//u,
-    'Deriver A must write only under its role-private prefix',
-  );
-  assert.match(
-    backupsB.objects[0].key,
-    /^tenant-root-managed-backup\/v1\/deriver-b\//u,
-    'Deriver B must write only under its role-private prefix',
-  );
+  for (const [role, objects] of [
+    ['deriver-a', backupsA.objects],
+    ['deriver-b', backupsB.objects],
+  ]) {
+    const keys = objects.map((object) => object.key).sort();
+    assert.equal(keys.length, 2, `${role} must persist one managed backup and one provider canary`);
+    for (const key of keys) {
+      assert.ok(
+        key.startsWith(`tenant-root-managed-backup/v1/${role}/`),
+        `${role} must write only under its role-private prefix: ${key}`,
+      );
+    }
+    assert.ok(keys[0].endsWith('/1.bin'), `${role} must persist its epoch-1 managed backup`);
+    assert.ok(
+      keys[1].endsWith('/1.provider-canary.bin'),
+      `${role} must persist its epoch-1 provider canary`,
+    );
+  }
 
   const secondBytes = await expectOk(
     await postWorkerJson(

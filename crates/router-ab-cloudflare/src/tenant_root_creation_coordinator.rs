@@ -20,7 +20,6 @@ use router_ab_core::{
 };
 
 use crate::durable_object::tenant_root_creation::{
-    tenant_root_creation_active_state_with_revision_read_call_v1,
     tenant_root_creation_cleanup_call_v1, tenant_root_creation_initial_activation_call_v1,
     tenant_root_creation_progress_read_call_v1, validate_creation_record,
     CloudflareTenantRootCreationJournalOutcomeV1, CloudflareTenantRootCreationJournalRecordV1,
@@ -37,6 +36,7 @@ use crate::tenant_root_control_plane::{
 };
 use crate::tenant_root_role_runtime::{
     CloudflareDeriverTenantRootCleanupRequestV1, CloudflareDeriverTenantRootCreateRoleShareRequestV1,
+    CloudflareDeriverTenantRootCreationEvidenceRequestV1,
     CloudflareDeriverTenantRootCreateRoleShareResponseV1,
     CloudflareDeriverTenantRootInitialActivationRequestV1, CloudflareTenantRootCreateRoleV1,
 };
@@ -46,10 +46,11 @@ use crate::tenant_root_transport::{
     tenant_root_control_plane_initial_activation_call_v1,
     tenant_root_control_plane_role_creation_command_call_v1,
     tenant_root_deriver_cleanup_call_v1, tenant_root_deriver_create_role_share_call_v1,
+    tenant_root_deriver_creation_evidence_call_v1,
     tenant_root_deriver_initial_activation_call_v1, TenantRootServiceTransportV1,
 };
 use crate::{
-    decode_base64url_bytes_v1, encode_base64url_bytes_v1, RouterAbProtocolError,
+    decode_base64url_bytes_v1, RouterAbProtocolError,
     RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
 
@@ -75,7 +76,7 @@ pub async fn tenant_root_router_coordinate_creation_v1<Host: TenantRootRouterCre
     let genesis = tenant_root_control_plane_create_tenant_root_call_v1(host, &request).await?;
     match &genesis.status {
         CloudflareTenantRootCreationStatusV1::Ready { .. } => {
-            finish_tenant_root_initial_activation_v1(host, &genesis).await?;
+            resume_tenant_root_initial_activation_v1(host, &genesis).await?;
             return Ok(genesis);
         }
         CloudflareTenantRootCreationStatusV1::Abandoned { .. } => {
@@ -136,9 +137,10 @@ pub async fn tenant_root_router_coordinate_creation_v1<Host: TenantRootRouterCre
         ));
     };
 
-    let issued_activation = tenant_root_control_plane_initial_activation_call_v1(
+    commit_and_deliver_initial_activation_v1(
         host,
-        &CloudflareTenantRootControlPlaneInitialActivationRequestV1 {
+        &genesis,
+        CloudflareTenantRootControlPlaneInitialActivationRequestV1 {
             deriver_a_signed_installation_evidence_b64u,
             deriver_b_signed_installation_evidence_b64u,
             deriver_a_signed_managed_backup_b64u,
@@ -146,26 +148,6 @@ pub async fn tenant_root_router_coordinate_creation_v1<Host: TenantRootRouterCre
             ecdsa_provider_canary_receipt_b64u,
             ed25519_provider_canary_receipt_b64u,
         },
-    )
-    .await?;
-    let activation_receipt_bytes = decode_base64url_bytes_v1(
-        "tenant-root initial activation receipt",
-        &issued_activation.activation_receipt_b64u,
-    )?;
-    tenant_root_creation_initial_activation_call_v1(host, &activation_receipt_bytes).await?;
-    let role_activation = CloudflareDeriverTenantRootInitialActivationRequestV1 {
-        activation_receipt_b64u: issued_activation.activation_receipt_b64u,
-    };
-    tenant_root_deriver_initial_activation_call_v1(
-        host,
-        TwoPartyDeriverRole::DeriverA,
-        &role_activation,
-    )
-    .await?;
-    tenant_root_deriver_initial_activation_call_v1(
-        host,
-        TwoPartyDeriverRole::DeriverB,
-        &role_activation,
     )
     .await?;
 
@@ -208,6 +190,7 @@ async fn committed_creation_for_grant_v1<Host: TenantRootRouterCreationHostV1>(
     let CloudflareTenantRootCreationProgressV1::Started {
         state,
         committed_activation_receipt_b64u: Some(receipt_b64u),
+        ..
     } = tenant_root_creation_progress_read_call_v1(host, identity_digest, custody_lineage).await?
     else {
         return Ok(None);
@@ -347,12 +330,111 @@ async fn clean_partial_tenant_root_creation_v1<Host: TenantRootRouterCreationHos
     Ok(())
 }
 
-/// Re-delivers the persisted initial activation to both Derivers for a
-/// creation that is already installed.
-async fn finish_tenant_root_initial_activation_v1<Host: TenantRootRouterCreationHostV1>(
+/// Resumes a creation whose roles are both installed but whose activation the
+/// Router has not committed. Every artifact the control plane needs is already
+/// durable at its owner: both installation evidences in the Router's
+/// checkpoint, each role's signed managed backup and provider canary in that
+/// Deriver's own store. If a concurrent retry committed meanwhile, that
+/// receipt is delivered instead.
+async fn resume_tenant_root_initial_activation_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     genesis: &CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
 ) -> RouterAbProtocolResult<()> {
+    let (identity_digest, custody_lineage) = genesis_scope_v1(genesis)?;
+    let CloudflareTenantRootCreationProgressV1::Started {
+        installed,
+        committed_activation_receipt_b64u,
+        ..
+    } = tenant_root_creation_progress_read_call_v1(host, identity_digest, custody_lineage).await?
+    else {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLifecycleState,
+            "tenant-root creation reads ready but has no started state",
+        ));
+    };
+    if let Some(receipt_b64u) = committed_activation_receipt_b64u {
+        return deliver_committed_initial_activation_v1(host, &receipt_b64u).await;
+    }
+    let installed = installed.ok_or_else(|| {
+        RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLifecycleState,
+            "tenant-root creation reads ready but has no installation evidence",
+        )
+    })?;
+    let evidence_request = CloudflareDeriverTenantRootCreationEvidenceRequestV1 {
+        identity_digest_b64u: genesis.identity_digest_b64u.clone(),
+        custody_lineage_b64u: genesis.custody_lineage_b64u.clone(),
+    };
+    let deriver_a = tenant_root_deriver_creation_evidence_call_v1(
+        host,
+        TwoPartyDeriverRole::DeriverA,
+        &evidence_request,
+    )
+    .await?;
+    let deriver_b = tenant_root_deriver_creation_evidence_call_v1(
+        host,
+        TwoPartyDeriverRole::DeriverB,
+        &evidence_request,
+    )
+    .await?;
+    commit_and_deliver_initial_activation_v1(
+        host,
+        genesis,
+        CloudflareTenantRootControlPlaneInitialActivationRequestV1 {
+            deriver_a_signed_installation_evidence_b64u: installed
+                .deriver_a_signed_installation_evidence_b64u,
+            deriver_b_signed_installation_evidence_b64u: installed
+                .deriver_b_signed_installation_evidence_b64u,
+            deriver_a_signed_managed_backup_b64u: deriver_a.signed_managed_backup_b64u,
+            deriver_b_signed_managed_backup_b64u: deriver_b.signed_managed_backup_b64u,
+            ecdsa_provider_canary_receipt_b64u: deriver_a.provider_canary_receipt_b64u,
+            ed25519_provider_canary_receipt_b64u: deriver_b.provider_canary_receipt_b64u,
+        },
+    )
+    .await
+}
+
+/// Has the control plane issue the activation receipt over the six artifacts,
+/// commits it in the Router's creation state and delivers it. The Router's
+/// commit decides: if a concurrent retry committed a different receipt first,
+/// this commit is refused and the committed receipt is delivered instead.
+async fn commit_and_deliver_initial_activation_v1<Host: TenantRootRouterCreationHostV1>(
+    host: &Host,
+    genesis: &CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
+    activation: CloudflareTenantRootControlPlaneInitialActivationRequestV1,
+) -> RouterAbProtocolResult<()> {
+    let issued = tenant_root_control_plane_initial_activation_call_v1(host, &activation).await?;
+    let receipt_bytes = decode_base64url_bytes_v1(
+        "tenant-root initial activation receipt",
+        &issued.activation_receipt_b64u,
+    )?;
+    if let Err(error) = tenant_root_creation_initial_activation_call_v1(host, &receipt_bytes).await {
+        let (identity_digest, custody_lineage) = genesis_scope_v1(genesis)?;
+        return match tenant_root_creation_progress_read_call_v1(
+            host,
+            identity_digest,
+            custody_lineage,
+        )
+        .await?
+        {
+            CloudflareTenantRootCreationProgressV1::Started {
+                committed_activation_receipt_b64u: Some(committed),
+                ..
+            } => deliver_committed_initial_activation_v1(host, &committed).await,
+            _ => Err(error),
+        };
+    }
+    deliver_committed_initial_activation_v1(host, &issued.activation_receipt_b64u).await
+}
+
+/// The identity digest and custody lineage a control-plane genesis response
+/// names.
+fn genesis_scope_v1(
+    genesis: &CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
+) -> RouterAbProtocolResult<(
+    router_ab_core::TenantRootIdentityDigestV1,
+    router_ab_core::TenantRootCustodyLineageId,
+)> {
     let identity_digest_bytes = decode_base64url_bytes_v1(
         "tenant-root creation identity digest",
         &genesis.identity_digest_b64u,
@@ -373,14 +455,5 @@ async fn finish_tenant_root_initial_activation_v1<Host: TenantRootRouterCreation
                 format!("tenant-root creation custody lineage is invalid: {error}"),
             )
         })?;
-    let active = tenant_root_creation_active_state_with_revision_read_call_v1(
-        host,
-        &host.trusted_issuer_keys()?,
-        identity_digest,
-        custody_lineage,
-    )
-    .await?
-    .activation_receipt;
-    deliver_committed_initial_activation_v1(host, &encode_base64url_bytes_v1(active.canonical_bytes()))
-        .await
+    Ok((identity_digest, custody_lineage))
 }

@@ -1,7 +1,7 @@
 # R150 tenant-root creation resume
 
-Status: direction approved 2026-09-25. After the commit: implemented and
-verified (below). Before the commit: resume and abandonment are being
+Status: direction approved 2026-09-25. After the commit and resume before
+it: implemented and verified (below). Abandonment after expiry: being
 implemented. Refresh, managed restore and retirement stay gated and are not
 affected.
 
@@ -12,7 +12,7 @@ creation. Recovery depends on which side of it a failure falls:
 
 | Failure | Before the ceremony expires | After it expires |
 | --- | --- | --- |
-| Before the commit, both roles installed | resume from durable evidence (this proposal) | abandon both roles (needs approval) |
+| Before the commit, both roles installed | resume from durable evidence (implemented) | abandon both roles (being implemented) |
 | After the commit, zero or one Deriver active | re-deliver the committed receipt | re-deliver the committed receipt (implemented) |
 
 Abandoning is never available after the commit: the committed receipt is the
@@ -52,7 +52,7 @@ The canary slot is not new. Refresh writes it (`put_verified_provider_canary`)
 at the backup's coordinates, and partial-creation cleanup already deletes it
 (today it reports the slot already absent).
 
-## Proposed fix before the commit
+## Fix before the commit (implemented)
 
 1. **Persist the canary with its backup.** In
    `persist_tenant_root_creation_progress_v1`, write the role's canary
@@ -151,6 +151,16 @@ to the control plane through proxies:
   a second correctly signed receipt that the Router never committed. The
   pending Deriver refuses it, both inside the window and after expiry.
 
+### Evidence
+
+`vm_tenant_root_ready_creation_resumes_from_durable_evidence`
+(`R150_VM_TENANT_ROOT_RESUME_E2E`) drops the Router's activation request to the
+control plane, so the Router stops after both roles are installed with
+nothing committed. Both rows are pending and each role holds its backup and
+canary. The retry resumes to ready from that evidence, an exact replay
+returns the same response, and the evidence read refuses a share that is
+already active. The partial-cleanup E2E now also sees B's canary removed.
+
 ## Related finding, not fixed here
 
 If Deriver A persists its pending row but stops before its commitment and
@@ -173,14 +183,7 @@ as unreferenced sealed material that only A can discover.
 After the commit: covered by the E2E above; the workerd harness runs the
 changed Deriver activation on every creation.
 
-Before the commit (resume):
-
-- VM E2E: a proxy in front of the control plane drops the initial-activation
-  exchange once. The retry resumes to ready, with one active state at the
-  Router, both rows active, and a canary in each backup store. A replay
-  after restarting every role is unchanged.
-- VM E2E for expiry: sign a short-window grant, fail activation, wait past
-  expiry. The retry refuses explicitly and changes nothing.
-- workerd harness: the same fault, injected with the harness-build flag
-  pattern already used for `R150_TEST_ECDSA_INTERRUPT_AFTER_CLAIM`.
-- The partial-cleanup E2E also asserts B's canary is removed.
+Before the commit: resume is covered by the E2E above, and the workerd
+harness writes and reads the canary on every creation. Abandonment after
+expiry: an E2E that fails activation on a short-window grant, waits past
+expiry and retries.

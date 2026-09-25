@@ -1514,12 +1514,23 @@ pub struct CloudflareTenantRootCreationJournalReadResponseV1 {
 pub enum CloudflareTenantRootCreationProgressV1 {
     /// No Started journal exists for this identity and lineage.
     NotStarted,
-    /// The persisted creation state, and the Router's committed activation
-    /// receipt once one exists.
+    /// The persisted creation state, both roles' signed installation evidence
+    /// once both are installed, and the Router's committed activation receipt
+    /// once one exists.
     Started {
         state: CloudflareTenantRootCreationJournalReadResponseV1,
+        installed: Option<CloudflareTenantRootCreationInstalledEvidenceV1>,
         committed_activation_receipt_b64u: Option<String>,
     },
+}
+
+/// Both roles' signed installation evidence, as the Router's installation
+/// checkpoint recorded it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareTenantRootCreationInstalledEvidenceV1 {
+    pub deriver_a_signed_installation_evidence_b64u: String,
+    pub deriver_b_signed_installation_evidence_b64u: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -14121,6 +14132,22 @@ pub async fn tenant_root_creation_read_journal_v1<Store: TenantRootCreationStore
     role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
     request: CloudflareTenantRootCreationJournalReadRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalReadResponseV1> {
+    Ok(read_creation_journal_state_v1(store, issuer_keys, role_keys, request)
+        .await?
+        .0)
+}
+
+/// Reads and validates the persisted creation state, returning its public
+/// projection and the validated installation checkpoint behind it.
+async fn read_creation_journal_state_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
+    request: CloudflareTenantRootCreationJournalReadRequestV1,
+) -> RouterAbProtocolResult<(
+    CloudflareTenantRootCreationJournalReadResponseV1,
+    Option<ValidatedTenantRootCreationInstallationCheckpointV1>,
+)> {
     let journal_record = store
         .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
             TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
@@ -14181,13 +14208,14 @@ pub async fn tenant_root_creation_read_journal_v1<Store: TenantRootCreationStore
         )
         .await?
         .is_some();
-    build_creation_journal_read_response(
+    let response = build_creation_journal_read_response(
         &request,
         &journal,
         rendezvous.as_ref(),
         installation_checkpoint.as_ref(),
         cleanup_checkpointed,
-    )
+    )?;
+    Ok((response, installation_checkpoint))
 }
 
 struct LoadedTenantRootRoleCreationCommandV1 {
@@ -14506,7 +14534,23 @@ pub async fn tenant_root_creation_read_progress_v1<Store: TenantRootCreationStor
     {
         return Ok(CloudflareTenantRootCreationProgressV1::NotStarted);
     }
-    let state = tenant_root_creation_read_journal_v1(store, issuer_keys, role_keys, request).await?;
+    let (state, installation) =
+        read_creation_journal_state_v1(store, issuer_keys, role_keys, request).await?;
+    let installed = match installation.map(|checkpoint| checkpoint.state) {
+        Some(ValidatedTenantRootCreationInstallationStateV1::BothRolesReady {
+            deriver_a,
+            deriver_b,
+            ..
+        }) => Some(CloudflareTenantRootCreationInstalledEvidenceV1 {
+            deriver_a_signed_installation_evidence_b64u: encode_base64url_bytes_v1(
+                deriver_a.canonical_bytes(),
+            ),
+            deriver_b_signed_installation_evidence_b64u: encode_base64url_bytes_v1(
+                deriver_b.canonical_bytes(),
+            ),
+        }),
+        _ => None,
+    };
     let committed_activation_receipt_b64u = match store
         .get_json::<CloudflareTenantRootRefreshActiveStateRecordV1>(
             TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
@@ -14523,6 +14567,7 @@ pub async fn tenant_root_creation_read_progress_v1<Store: TenantRootCreationStor
     };
     Ok(CloudflareTenantRootCreationProgressV1::Started {
         state,
+        installed,
         committed_activation_receipt_b64u,
     })
 }

@@ -970,12 +970,15 @@ fn vm_tenant_root_creation_is_authorized_replayable_and_role_isolated(
             vec![(label.to_owned(), "active".to_owned())],
             "{label} holds exactly its own active role share"
         );
-        let backups: i64 = Connection::open(temp.join(format!(
+        let backups = backup_object_counts(&Connection::open(temp.join(format!(
             ".router-ab-local/{}/managed-backups.sqlite",
             label.replace('_', "-")
-        )))?
-        .query_row("SELECT count(*) FROM local_tenant_root_managed_backups", [], |row| row.get(0))?;
-        assert_eq!(backups, 1, "{label} stores its own managed backup");
+        )))?)?;
+        assert_eq!(
+            backups,
+            (1, 1),
+            "{label} stores its own managed backup and provider canary"
+        );
         role_rows.insert(label, rows.len());
     }
     let record_keys: BTreeSet<String> = [
@@ -1062,11 +1065,7 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
             .collect()
     };
-    let backup_rows = |db: &Connection| -> rusqlite::Result<i64> {
-        db.query_row("SELECT count(*) FROM local_tenant_root_managed_backups", [], |row| {
-            row.get(0)
-        })
-    };
+    let backup_rows = |db: &Connection| backup_object_counts(db);
     let cleanup_checkpoints = || -> rusqlite::Result<i64> {
         router_db.query_row(
             "SELECT count(*) FROM local_tenant_root_creation_state WHERE storage_key = ?1",
@@ -1096,7 +1095,11 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
         vec![("deriver_b".to_owned(), "pending".to_owned())],
         "B holds its installed, unactivated share"
     );
-    assert_eq!(backup_rows(&b_backups)?, 1, "B stored its managed backup");
+    assert_eq!(
+        backup_rows(&b_backups)?,
+        (1, 1),
+        "B stored its managed backup and provider canary"
+    );
     a_backups.execute_batch(
         "ALTER TABLE held_aside_managed_backups RENAME TO local_tenant_root_managed_backups",
     )?;
@@ -1110,7 +1113,11 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
         "{cleaned_body}"
     );
     assert_eq!(share_rows(&b_store)?, Vec::new(), "B's pending share is removed");
-    assert_eq!(backup_rows(&b_backups)?, 0, "B's managed backup is removed");
+    assert_eq!(
+        backup_rows(&b_backups)?,
+        (0, 0),
+        "B's managed backup and provider canary are removed"
+    );
     assert_eq!(cleanup_checkpoints()?, 1, "the Router checkpoints the cleanup");
 
     // The cleaned grant stays spent, including after every role restarts.
@@ -1155,8 +1162,8 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
         share_rows(&b_store)?,
         vec![("deriver_b".to_owned(), "active".to_owned())]
     );
-    assert_eq!(backup_rows(&a_backups)?, 1);
-    assert_eq!(backup_rows(&b_backups)?, 1);
+    assert_eq!(backup_rows(&a_backups)?, (1, 1));
+    assert_eq!(backup_rows(&b_backups)?, (1, 1));
 
     println!(
         "R150_VM_TENANT_ROOT_PARTIAL_CLEANUP_E2E {}",
@@ -1186,197 +1193,47 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
 fn vm_tenant_root_committed_activation_is_delivered_after_the_ceremony_expires(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let _process_guard = local_worker_process_test_guard();
-    let binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
-    let temp = temp_dir("vm-tenant-root-post-commit")?;
-    let router_url = format!("http://127.0.0.1:{}", free_port()?);
-    let deriver_a_url = format!("http://127.0.0.1:{}", free_port()?);
-    let deriver_b_url = format!("http://127.0.0.1:{}", free_port()?);
-    let signing_worker_url = format!("http://127.0.0.1:{}", free_port()?);
-    write_product_worker_envs(
-        &temp,
-        &router_url,
-        &deriver_a_url,
-        &deriver_b_url,
-        &signing_worker_url,
-    )?;
-    let control_plane_url = env_value(
-        &temp.join(router_ab_dev::LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_FILE_V1),
-        router_ab_dev::LOCAL_TENANT_ROOT_CONTROL_PLANE_URL_ENV_V1,
-    )?;
-    // The Router reaches each Deriver through a proxy that can drop one
-    // initial-activation delivery, and the control plane through one that
-    // records its activation request. The Derivers reach each other directly.
-    let deriver_activation =
-        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH;
-    let control_plane_activation =
-        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH;
-    let proxy_a = FaultProxyV1::start(&deriver_a_url, deriver_activation)?;
-    let proxy_b = FaultProxyV1::start(&deriver_b_url, deriver_activation)?;
-    let proxy_control_plane = FaultProxyV1::start(&control_plane_url, control_plane_activation)?;
-    let router_env_path = temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1);
-    let routes = [
-        ("DERIVER_A_URL", proxy_a.url.as_str()),
-        ("DERIVER_B_URL", proxy_b.url.as_str()),
-        (
-            router_ab_dev::LOCAL_TENANT_ROOT_CONTROL_PLANE_URL_ENV_V1,
-            proxy_control_plane.url.as_str(),
-        ),
-    ];
-    let mut routed = 0;
-    let router_env = fs::read_to_string(&router_env_path)?
-        .lines()
-        .map(|line| {
-            for (key, url) in routes {
-                if line.split_once('=').map(|(name, _)| name) == Some(key) {
-                    routed += 1;
-                    return format!("{key}={url}");
-                }
-            }
-            line.to_owned()
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    assert_eq!(routed, routes.len(), "the Router must reach every peer through a proxy");
-    fs::write(&router_env_path, router_env + "\n")?;
-
-    let start = |role: &str, env_file: &str| {
-        ChildGuard::spawn_in_root(binary, role, temp.join(env_file), &temp)
-    };
-    let mut router = start("router", router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1)?;
-    let mut deriver_a = start("deriver-a", router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1)?;
-    let mut deriver_b = start("deriver-b", router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1)?;
-    let (mut control_plane, _) = spawn_control_plane(&temp)?;
-    wait_for_health(&router_url, router.child_mut())?;
-    wait_for_health(&deriver_a_url, deriver_a.child_mut())?;
-    wait_for_health(&deriver_b_url, deriver_b.child_mut())?;
-    wait_for_health(&control_plane_url, control_plane.child_mut())?;
-
-    let role_store = |env_file: &str, key: &str| -> Result<Connection, Box<dyn std::error::Error>> {
-        Ok(Connection::open(temp.join(env_value(&temp.join(env_file), key)?))?)
-    };
-    let a_store = role_store(
-        router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1,
-        "DERIVER_A_ROLE_PRIVATE_STORAGE_PATH",
-    )?;
-    let b_store = role_store(
-        router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1,
-        "DERIVER_B_ROLE_PRIVATE_STORAGE_PATH",
-    )?;
-    let router_db =
-        Connection::open(temp.join(".router-ab-local/router/tenant-root-creation.sqlite"))?;
-    let lifecycle = |db: &Connection, lineage: &str| -> rusqlite::Result<Option<String>> {
-        db.query_row(
-            "SELECT lifecycle FROM tenant_root_role_shares WHERE custody_lineage_b64u = ?1",
-            [lineage],
-            |row| row.get(0),
-        )
-        .optional()
-    };
-    let lifecycles = |lineage: &str| -> rusqlite::Result<(Option<String>, Option<String>)> {
-        Ok((lifecycle(&a_store, lineage)?, lifecycle(&b_store, lineage)?))
-    };
-    let committed_receipt = |lineage: &str| -> rusqlite::Result<Option<String>> {
-        router_db
-            .query_row(
-                "SELECT json_extract(value_json, '$.activation_receipt_b64u')
-                 FROM local_tenant_root_creation_state
-                 WHERE storage_key = 'refresh/v1/active-state'
-                   AND json_extract(value_json, '$.custody_lineage_b64u') = ?1",
-                [lineage],
-                |row| row.get(0),
-            )
-            .optional()
-    };
+    let stack = RecoveryStackV1::start("vm-tenant-root-post-commit")?;
     let active = || Some("active".to_owned());
     let pending = || Some("pending".to_owned());
-    let ceremony = |environment: &str| -> Result<(TenantRootIdentityV1, TenantRootCustodyLineageId, String), Box<dyn std::error::Error>> {
-        let identity = TenantRootIdentityV1::new(
-            "local-org",
-            "local-project",
-            environment,
-            "project:local",
-            "root-version-1",
-        )?;
-        let lineage = TenantRootCustodyLineageId::from_bytes(fresh_nonzero_bytes_16()?)?;
-        let lineage_b64u =
-            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(lineage.as_bytes());
-        Ok((identity, lineage, lineage_b64u))
-    };
-    let create = |grant: &str| create_tenant_root(&router_url, grant, TEST_ROLE_SHARED_SERVICE_AUTH);
-    let role_shared = [(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)];
-    let deliver = |base_url: &str, receipt: &str| {
-        post_json_to_path_with_headers(
-            base_url,
-            deriver_activation,
-            &json!({ "activation_receipt_b64u": receipt }),
-            &role_shared,
-        )
-    };
-    // Loses the delivery to one Deriver after the Router commits, and returns
-    // the committed receipt.
-    let lose_delivery = |proxy: &FaultProxyV1,
-                         grant: &str,
-                         lineage: &str,
-                         expected: (Option<String>, Option<String>)|
-     -> Result<String, Box<dyn std::error::Error>> {
-        proxy.drop_next();
-        let (status, body) = create(grant)?;
-        assert_ne!(status, 200, "{body}");
-        assert!(proxy.dropped(), "the proxy must have dropped the delivery");
-        let receipt = committed_receipt(lineage)?.ok_or("the Router must have committed")?;
-        assert_eq!(lifecycles(lineage)?, expected);
-        Ok(receipt)
-    };
     let mut evidence = BTreeMap::new();
 
     // Inside the window: zero, then one, Deriver active.
     for (label, proxy, expected) in [
-        ("zero_active_retry_in_window", &proxy_a, (pending(), pending())),
-        ("one_active_retry_in_window", &proxy_b, (active(), pending())),
+        ("zero_active_retry_in_window", &stack.proxy_a, (pending(), pending())),
+        ("one_active_retry_in_window", &stack.proxy_b, (active(), pending())),
     ] {
-        let (identity, lineage, lineage_b64u) = ceremony(&format!("post-commit-{label}"))?;
-        let grant = product_creation_grant_b64u(&temp, &identity, lineage, None)?;
-        let receipt = lose_delivery(proxy, &grant, &lineage_b64u, expected)?;
-        let (status, body) = create(&grant)?;
+        let (identity, lineage, lineage_b64u) = recovery_ceremony(&format!("post-commit-{label}"))?;
+        let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+        let receipt = stack.lose_delivery(proxy, &grant, &lineage_b64u, expected)?;
+        let (status, body) = stack.create(&grant)?;
         assert_eq!(status, 200, "{body}");
-        assert_eq!(lifecycles(&lineage_b64u)?, (active(), active()));
-        assert_eq!(committed_receipt(&lineage_b64u)?.as_deref(), Some(receipt.as_str()));
+        assert_eq!(stack.lifecycles(&lineage_b64u)?, (active(), active()));
+        assert_eq!(stack.committed_receipt(&lineage_b64u)?.as_deref(), Some(receipt.as_str()));
         evidence.insert(label.to_owned(), json!(status));
     }
 
     // After the window: the same two losses on short-lived grants.
     let lifetime_ms = 6_000;
     let signed_at = Instant::now();
-    let (identity, lineage, none_lineage) = ceremony("post-commit-zero-active-expired")?;
+    let (identity, lineage, none_lineage) = recovery_ceremony("post-commit-zero-active-expired")?;
     let none_grant =
-        product_creation_grant_with_lifetime_b64u(&temp, &identity, lineage, None, lifetime_ms)?;
-    let none_receipt = lose_delivery(&proxy_a, &none_grant, &none_lineage, (pending(), pending()))?;
-    let (identity, lineage, one_lineage) = ceremony("post-commit-one-active-expired")?;
+        product_creation_grant_with_lifetime_b64u(&stack.temp, &identity, lineage, None, lifetime_ms)?;
+    let none_receipt =
+        stack.lose_delivery(&stack.proxy_a, &none_grant, &none_lineage, (pending(), pending()))?;
+    let (identity, lineage, one_lineage) = recovery_ceremony("post-commit-one-active-expired")?;
     let one_grant =
-        product_creation_grant_with_lifetime_b64u(&temp, &identity, lineage, None, lifetime_ms)?;
-    proxy_control_plane.clear_captured();
-    let one_receipt = lose_delivery(&proxy_b, &one_grant, &one_lineage, (active(), pending()))?;
+        product_creation_grant_with_lifetime_b64u(&stack.temp, &identity, lineage, None, lifetime_ms)?;
+    stack.proxy_control_plane.clear_captured();
+    let one_receipt =
+        stack.lose_delivery(&stack.proxy_b, &one_grant, &one_lineage, (active(), pending()))?;
 
     // A second, correctly signed receipt for the same evidence, which the
     // Router never committed: the control plane issues again on replay.
-    let activation_request = proxy_control_plane
-        .captured()
-        .ok_or("the control-plane activation request must have been recorded")?;
-    thread::sleep(Duration::from_millis(20));
-    let (reissued_status, reissued_body) = post_bytes_to_path_with_headers(
-        &control_plane_url,
-        control_plane_activation,
-        &activation_request,
-        &role_shared,
-    )?;
-    assert_eq!(reissued_status, 200, "{reissued_body}");
-    let uncommitted_receipt = serde_json::from_str::<serde_json::Value>(&reissued_body)?
-        ["activation_receipt_b64u"]
-        .as_str()
-        .ok_or("the control plane must return an activation receipt")?
-        .to_owned();
+    let uncommitted_receipt = stack.reissue_captured_activation()?;
     assert_ne!(uncommitted_receipt, one_receipt, "the reissued receipt must differ");
-    let (uncommitted_status, uncommitted_body) = deliver(&deriver_b_url, &uncommitted_receipt)?;
+    let (uncommitted_status, uncommitted_body) =
+        stack.deliver(&stack.deriver_b_url, &uncommitted_receipt)?;
     assert_ne!(uncommitted_status, 200, "{uncommitted_body}");
     assert!(
         uncommitted_body.contains("is not the activation the Router committed"),
@@ -1392,7 +1249,8 @@ fn vm_tenant_root_committed_activation_is_delivered_after_the_ceremony_expires(
     if let Some(remaining) = Duration::from_millis(lifetime_ms).checked_sub(signed_at.elapsed()) {
         thread::sleep(remaining);
     }
-    let (uncommitted_status, uncommitted_body) = deliver(&deriver_b_url, &uncommitted_receipt)?;
+    let (uncommitted_status, uncommitted_body) =
+        stack.deliver(&stack.deriver_b_url, &uncommitted_receipt)?;
     assert_ne!(uncommitted_status, 200, "{uncommitted_body}");
     assert!(
         uncommitted_body.contains("is not the activation the Router committed"),
@@ -1402,19 +1260,19 @@ fn vm_tenant_root_committed_activation_is_delivered_after_the_ceremony_expires(
         "uncommitted_receipt_after_expiry".to_owned(),
         json!(uncommitted_status),
     );
-    assert_eq!(lifecycles(&one_lineage)?, (active(), pending()));
+    assert_eq!(stack.lifecycles(&one_lineage)?, (active(), pending()));
 
     for (label, grant, lineage, receipt) in [
         ("zero_active_retry_after_expiry", &none_grant, &none_lineage, &none_receipt),
         ("one_active_retry_after_expiry", &one_grant, &one_lineage, &one_receipt),
     ] {
-        let (status, body) = create(grant)?;
+        let (status, body) = stack.create(grant)?;
         assert_eq!(status, 200, "{label}: {body}");
         let response: serde_json::Value = serde_json::from_str(&body)?;
         assert_eq!(response["status"]["kind"], "ready", "{body}");
-        assert_eq!(lifecycles(lineage)?, (active(), active()), "{label}");
-        assert_eq!(committed_receipt(lineage)?.as_deref(), Some(receipt.as_str()));
-        let (replay_status, replay_body) = create(grant)?;
+        assert_eq!(stack.lifecycles(lineage)?, (active(), active()), "{label}");
+        assert_eq!(stack.committed_receipt(lineage)?.as_deref(), Some(receipt.as_str()));
+        let (replay_status, replay_body) = stack.create(grant)?;
         assert_eq!(replay_status, 200, "{replay_body}");
         assert_eq!(
             serde_json::from_str::<serde_json::Value>(&replay_body)?,
@@ -1435,6 +1293,333 @@ fn vm_tenant_root_committed_activation_is_delivered_after_the_ceremony_expires(
         })
     );
     Ok(())
+}
+
+/// Before the Router commits, a creation whose roles are both installed resumes
+/// from durable evidence: both installation evidences from the Router's
+/// checkpoint, and each role's signed managed backup and provider canary from
+/// that Deriver's own store.
+#[test]
+fn vm_tenant_root_ready_creation_resumes_from_durable_evidence(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start("vm-tenant-root-resume")?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("resume-before-commit")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+
+    // The activation request never reaches the control plane: the Router stops
+    // after the initiator returns, with nothing to commit.
+    stack.proxy_control_plane.drop_next();
+    let (lost_status, lost_body) = stack.create(&grant)?;
+    assert_ne!(lost_status, 200, "{lost_body}");
+    assert!(stack.proxy_control_plane.dropped(), "the proxy must have dropped the request");
+    let pending = || Some("pending".to_owned());
+    let active = || Some("active".to_owned());
+    assert_eq!(stack.committed_receipt(&lineage_b64u)?, None, "nothing is committed");
+    assert_eq!(stack.lifecycles(&lineage_b64u)?, (pending(), pending()));
+    assert_eq!(
+        stack.backup_objects(&lineage_b64u)?,
+        ((1, 1), (1, 1)),
+        "each role holds its backup and canary before any commit"
+    );
+
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let response: serde_json::Value = serde_json::from_str(&body)?;
+    assert_eq!(response["status"]["kind"], "ready", "{body}");
+    assert_eq!(stack.lifecycles(&lineage_b64u)?, (active(), active()));
+    let receipt = stack
+        .committed_receipt(&lineage_b64u)?
+        .ok_or("the resume must commit an activation")?;
+    let (replay_status, replay_body) = stack.create(&grant)?;
+    assert_eq!(replay_status, 200, "{replay_body}");
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&replay_body)?, response);
+    assert_eq!(stack.committed_receipt(&lineage_b64u)?.as_deref(), Some(receipt.as_str()));
+
+    // The evidence read is for pending shares only.
+    let (evidence_status, evidence_body) = post_json_to_path_with_headers(
+        &stack.deriver_a_url,
+        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_CREATION_EVIDENCE_PRIVATE_REQUEST_PATH,
+        &json!({
+            "identity_digest_b64u": response["identity_digest_b64u"],
+            "custody_lineage_b64u": response["custody_lineage_b64u"],
+        }),
+        &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+    )?;
+    assert_ne!(evidence_status, 200, "{evidence_body}");
+    assert!(evidence_body.contains("already active"), "{evidence_body}");
+
+    println!(
+        "R150_VM_TENANT_ROOT_RESUME_E2E {}",
+        json!({
+            "fault": "control_plane_activation_request_lost_before_commit",
+            "failed_attempt_status": lost_status,
+            "durable_before_resume": {
+                "router_committed": false,
+                "deriver_rows": "pending",
+                "backup_and_canary_per_role": [1, 1],
+            },
+            "resume_status": status,
+            "replay_is_durable": true,
+            "evidence_read_refuses_active_share": evidence_status,
+        })
+    );
+    Ok(())
+}
+
+/// A fresh identity and lineage for one recovery ceremony, so ceremonies in
+/// one stack never share an active role share.
+fn recovery_ceremony(
+    environment: &str,
+) -> Result<(TenantRootIdentityV1, TenantRootCustodyLineageId, String), Box<dyn std::error::Error>> {
+    let identity = TenantRootIdentityV1::new(
+        "local-org",
+        "local-project",
+        environment,
+        "project:local",
+        "root-version-1",
+    )?;
+    let lineage = TenantRootCustodyLineageId::from_bytes(fresh_nonzero_bytes_16()?)?;
+    let lineage_b64u = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(lineage.as_bytes());
+    Ok((identity, lineage, lineage_b64u))
+}
+
+/// The Router, both Derivers and the control plane, with the Router reaching
+/// each peer through a fault proxy: the Deriver proxies can drop one
+/// initial-activation delivery, and the control-plane proxy can drop or record
+/// its activation request. The Derivers reach each other directly.
+struct RecoveryStackV1 {
+    temp: PathBuf,
+    router_url: String,
+    deriver_a_url: String,
+    deriver_b_url: String,
+    control_plane_url: String,
+    proxy_a: FaultProxyV1,
+    proxy_b: FaultProxyV1,
+    proxy_control_plane: FaultProxyV1,
+    a_store: Connection,
+    b_store: Connection,
+    a_backups: Connection,
+    b_backups: Connection,
+    router_db: Connection,
+    _roles: Vec<ChildGuard>,
+}
+
+impl RecoveryStackV1 {
+    fn start(label: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        let binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
+        let temp = temp_dir(label)?;
+        let router_url = format!("http://127.0.0.1:{}", free_port()?);
+        let deriver_a_url = format!("http://127.0.0.1:{}", free_port()?);
+        let deriver_b_url = format!("http://127.0.0.1:{}", free_port()?);
+        let signing_worker_url = format!("http://127.0.0.1:{}", free_port()?);
+        write_product_worker_envs(
+            &temp,
+            &router_url,
+            &deriver_a_url,
+            &deriver_b_url,
+            &signing_worker_url,
+        )?;
+        let control_plane_url = env_value(
+            &temp.join(router_ab_dev::LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_FILE_V1),
+            router_ab_dev::LOCAL_TENANT_ROOT_CONTROL_PLANE_URL_ENV_V1,
+        )?;
+        let deriver_activation =
+            router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH;
+        let proxy_a = FaultProxyV1::start(&deriver_a_url, deriver_activation)?;
+        let proxy_b = FaultProxyV1::start(&deriver_b_url, deriver_activation)?;
+        let proxy_control_plane = FaultProxyV1::start(
+            &control_plane_url,
+            router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
+        )?;
+        let router_env_path = temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1);
+        let routes = [
+            ("DERIVER_A_URL", proxy_a.url.as_str()),
+            ("DERIVER_B_URL", proxy_b.url.as_str()),
+            (
+                router_ab_dev::LOCAL_TENANT_ROOT_CONTROL_PLANE_URL_ENV_V1,
+                proxy_control_plane.url.as_str(),
+            ),
+        ];
+        let mut routed = 0;
+        let router_env = fs::read_to_string(&router_env_path)?
+            .lines()
+            .map(|line| {
+                for (key, url) in routes {
+                    if line.split_once('=').map(|(name, _)| name) == Some(key) {
+                        routed += 1;
+                        return format!("{key}={url}");
+                    }
+                }
+                line.to_owned()
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        if routed != routes.len() {
+            return Err("the Router must reach every peer through a proxy".into());
+        }
+        fs::write(&router_env_path, router_env + "\n")?;
+
+        let start = |role: &str, env_file: &str| {
+            ChildGuard::spawn_in_root(binary, role, temp.join(env_file), &temp)
+        };
+        let mut router = start("router", router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1)?;
+        let mut deriver_a = start("deriver-a", router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1)?;
+        let mut deriver_b = start("deriver-b", router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1)?;
+        let (mut control_plane, _) = spawn_control_plane(&temp)?;
+        wait_for_health(&router_url, router.child_mut())?;
+        wait_for_health(&deriver_a_url, deriver_a.child_mut())?;
+        wait_for_health(&deriver_b_url, deriver_b.child_mut())?;
+        wait_for_health(&control_plane_url, control_plane.child_mut())?;
+
+        let role_store = |env_file: &str, key: &str| -> Result<Connection, Box<dyn std::error::Error>> {
+            Ok(Connection::open(temp.join(env_value(&temp.join(env_file), key)?))?)
+        };
+        Ok(Self {
+            a_store: role_store(
+                router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1,
+                "DERIVER_A_ROLE_PRIVATE_STORAGE_PATH",
+            )?,
+            b_store: role_store(
+                router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1,
+                "DERIVER_B_ROLE_PRIVATE_STORAGE_PATH",
+            )?,
+            a_backups: Connection::open(
+                temp.join(".router-ab-local/deriver-a/managed-backups.sqlite"),
+            )?,
+            b_backups: Connection::open(
+                temp.join(".router-ab-local/deriver-b/managed-backups.sqlite"),
+            )?,
+            router_db: Connection::open(
+                temp.join(".router-ab-local/router/tenant-root-creation.sqlite"),
+            )?,
+            _roles: vec![router, deriver_a, deriver_b, control_plane],
+            temp,
+            router_url,
+            deriver_a_url,
+            deriver_b_url,
+            control_plane_url,
+            proxy_a,
+            proxy_b,
+            proxy_control_plane,
+        })
+    }
+
+    fn create(&self, grant: &str) -> Result<(u16, String), Box<dyn std::error::Error>> {
+        create_tenant_root(&self.router_url, grant, TEST_ROLE_SHARED_SERVICE_AUTH)
+    }
+
+    /// Each Deriver's role-share lifecycle for one lineage.
+    fn lifecycles(&self, lineage: &str) -> rusqlite::Result<(Option<String>, Option<String>)> {
+        let lifecycle = |db: &Connection| {
+            db.query_row(
+                "SELECT lifecycle FROM tenant_root_role_shares WHERE custody_lineage_b64u = ?1",
+                [lineage],
+                |row| row.get(0),
+            )
+            .optional()
+        };
+        Ok((lifecycle(&self.a_store)?, lifecycle(&self.b_store)?))
+    }
+
+    /// Each Deriver's stored (managed backups, provider canaries) for one lineage.
+    fn backup_objects(&self, lineage: &str) -> rusqlite::Result<((i64, i64), (i64, i64))> {
+        let counts = |db: &Connection| {
+            db.query_row(
+                "SELECT
+                     count(*) FILTER (WHERE object_key NOT LIKE '%.provider-canary.bin'),
+                     count(*) FILTER (WHERE object_key LIKE '%.provider-canary.bin')
+                 FROM local_tenant_root_managed_backups
+                 WHERE instr(object_key, '/' || ?1 || '/') > 0",
+                [lineage],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+        };
+        Ok((counts(&self.a_backups)?, counts(&self.b_backups)?))
+    }
+
+    /// The activation receipt the Router committed for one lineage.
+    fn committed_receipt(&self, lineage: &str) -> rusqlite::Result<Option<String>> {
+        self.router_db
+            .query_row(
+                "SELECT json_extract(value_json, '$.activation_receipt_b64u')
+                 FROM local_tenant_root_creation_state
+                 WHERE storage_key = 'refresh/v1/active-state'
+                   AND json_extract(value_json, '$.custody_lineage_b64u') = ?1",
+                [lineage],
+                |row| row.get(0),
+            )
+            .optional()
+    }
+
+    /// Delivers an activation receipt directly to one Deriver.
+    fn deliver(
+        &self,
+        deriver_url: &str,
+        receipt: &str,
+    ) -> Result<(u16, String), Box<dyn std::error::Error>> {
+        post_json_to_path_with_headers(
+            deriver_url,
+            router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
+            &json!({ "activation_receipt_b64u": receipt }),
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+        )
+    }
+
+    /// Loses the delivery to one Deriver after the Router commits, and returns
+    /// the committed receipt.
+    fn lose_delivery(
+        &self,
+        proxy: &FaultProxyV1,
+        grant: &str,
+        lineage: &str,
+        expected: (Option<String>, Option<String>),
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        proxy.drop_next();
+        let (status, body) = self.create(grant)?;
+        assert_ne!(status, 200, "{body}");
+        assert!(proxy.dropped(), "the proxy must have dropped the delivery");
+        let receipt = self
+            .committed_receipt(lineage)?
+            .ok_or("the Router must have committed")?;
+        assert_eq!(self.lifecycles(lineage)?, expected);
+        Ok(receipt)
+    }
+
+    /// Replays the last recorded control-plane activation request, which has
+    /// the control plane sign a second receipt for the same evidence.
+    fn reissue_captured_activation(&self) -> Result<String, Box<dyn std::error::Error>> {
+        let activation_request = self
+            .proxy_control_plane
+            .captured()
+            .ok_or("the control-plane activation request must have been recorded")?;
+        thread::sleep(Duration::from_millis(20));
+        let (status, body) = post_bytes_to_path_with_headers(
+            &self.control_plane_url,
+            router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
+            &activation_request,
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+        )?;
+        if status != 200 {
+            return Err(format!("control-plane reissue failed with {status}: {body}").into());
+        }
+        Ok(serde_json::from_str::<serde_json::Value>(&body)?["activation_receipt_b64u"]
+            .as_str()
+            .ok_or("the control plane must return an activation receipt")?
+            .to_owned())
+    }
+}
+
+/// Counts a Deriver's stored managed backups and provider canaries.
+fn backup_object_counts(db: &Connection) -> rusqlite::Result<(i64, i64)> {
+    db.query_row(
+        "SELECT
+             count(*) FILTER (WHERE object_key NOT LIKE '%.provider-canary.bin'),
+             count(*) FILTER (WHERE object_key LIKE '%.provider-canary.bin')
+         FROM local_tenant_root_managed_backups",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )
 }
 
 /// Forwards one peer's traffic. On `fault_path` it records the latest request
