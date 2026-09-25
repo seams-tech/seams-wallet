@@ -93,7 +93,8 @@ pub use durable_object::tenant_root_creation::{
     tenant_root_creation_active_state_with_revision_read_call_v1,
     tenant_root_creation_journal_call_v1,
     tenant_root_creation_journal_read_call_v1, tenant_root_creation_object_name_v1,
-    tenant_root_creation_serve_without_refresh_v1, CloudflareVerifiedTenantRootActiveStateV1,
+    tenant_root_creation_serve_without_refresh_v1, CloudflareTenantRootCreationJournalReadResponseV1,
+    CloudflareTenantRootCreationJournalResponseV1, CloudflareVerifiedTenantRootActiveStateV1,
     TenantRootCreationStateTransportV1, TenantRootCreationStoreV1,
     CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
     CLOUDFLARE_TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_PATH,
@@ -212,9 +213,8 @@ pub use env::*;
 use env::{
     parse_cloudflare_custody_authority_verifiers_v1,
     parse_cloudflare_operations_incident_verifier_v1,
-    parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1,
     parse_cloudflare_tenant_root_creation_grant_authority_verifying_keys_v1,
-    parse_cloudflare_tenant_root_creation_role_verifying_keys_v1, DERIVER_A_FORBIDDEN_ENV_KEYS,
+    DERIVER_A_FORBIDDEN_ENV_KEYS,
     DERIVER_B_FORBIDDEN_ENV_KEYS, ROUTER_FORBIDDEN_ENV_KEYS, SIGNING_WORKER_FORBIDDEN_ENV_KEYS,
 };
 mod validation;
@@ -432,7 +432,6 @@ use router_ab_core::{
     WireMessageKindV1, WireMessageV1, TENANT_ROOT_ACTIVATION_RECEIPT_MAX_BYTES_V1,
     TENANT_ROOT_MAX_LIFETIME_MS_V1,
 };
-#[cfg(feature = "workers-rs")]
 use router_ab_core::{
     evaluate_mpc_prf_stable_signer_partial_with_threshold_backend_v2,
     resolve_authoritative_active_tenant_root_pair_binding_v1, Ed25519YaoInputPairBindingV1,
@@ -9483,7 +9482,6 @@ impl CloudflareTenantRootCustodyBindingWireV1 {
         Ok(bytes)
     }
 
-    #[cfg(feature = "workers-rs")]
     fn verify_activation_receipt(
         &self,
         trusted_issuer_keys: &CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1,
@@ -9562,10 +9560,11 @@ impl CloudflareTenantRootCustodyBindingWireV1 {
         )
     }
 
-    #[cfg(feature = "workers-rs")]
-    fn authenticate_for_ed25519_yao(
+    /// Authenticates this custody binding for one Ed25519 Yao pair against
+    /// the trusted issuer keys and Deriver identities in `env`.
+    pub fn authenticate_for_ed25519_yao_v1(
         &self,
-        env: &worker::Env,
+        env: &impl CloudflareEnvReaderV1,
         pair_binding: &router_ab_core::Ed25519YaoInputPairBindingV1,
         application: &router_ab_core::RouterAbEd25519YaoApplicationBindingFactsV1,
         participant_ids: [u16; 2],
@@ -9592,9 +9591,7 @@ impl CloudflareTenantRootCustodyBindingWireV1 {
                 "Ed25519 Yao stable context does not match the admitted pair",
             ));
         }
-        let reader = CloudflareWorkerEnvReaderV1::new(env);
-        let issuer_keys =
-            parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(&reader)?;
+        let issuer_keys = parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(env)?;
         let activation_receipt = self.verify_activation_receipt(&issuer_keys)?;
         let stable_context_digest =
             TenantRootProtocolDigestV1::from_bytes(stable_context.binding_digest())
@@ -9605,7 +9602,8 @@ impl CloudflareTenantRootCustodyBindingWireV1 {
         let binding =
             TenantRootCustodyBindingV1::from_verified_activation_receipt_with_stable_context_digest(
                 &activation_receipt,
-                cloudflare_tenant_root_deriver_identities_v1(env)?,
+                parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(env)?
+                    .deriver_identities()?,
                 self.operation_id,
                 self.session_id,
                 self.nonce,
@@ -16089,8 +16087,8 @@ fn worker_binding_is_missing(err: &worker::Error, binding_name: &str) -> bool {
     }
 }
 
-#[cfg(feature = "workers-rs")]
-fn cloudflare_router_error_status(code: RouterAbProtocolErrorCode) -> u16 {
+/// The HTTP status a Router A/B role returns for one protocol error code.
+pub fn cloudflare_router_error_status(code: RouterAbProtocolErrorCode) -> u16 {
     match code {
         RouterAbProtocolErrorCode::EmptyField
         | RouterAbProtocolErrorCode::InvalidTimeRange

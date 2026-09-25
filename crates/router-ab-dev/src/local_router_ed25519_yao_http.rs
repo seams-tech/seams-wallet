@@ -175,7 +175,7 @@ pub fn decode_local_router_ed25519_yao_execute_request_v1(
     recipient_set_digest: PublicDigest32,
     issued_at_ms: u64,
     expires_at_ms: u64,
-    resolver: &super::LocalTenantRootResolverConfigV1,
+    tenant_root_config: &super::LocalRouterTenantRootConfigV1,
 ) -> RouterAbProtocolResult<LocalRouterEd25519YaoPairDispatchV1> {
     let envelope = serde_json::from_slice::<CloudflareRouterEd25519YaoExecuteRequestV2>(body)
         .map_err(|error| {
@@ -190,7 +190,8 @@ pub fn decode_local_router_ed25519_yao_execute_request_v1(
             .target
             .into_execute_request(recipient_set_digest, issued_at_ms, expires_at_ms)?;
     let coordinates = envelope.tenant_root.coordinates()?;
-    let tenant_root = resolver.resolve_context(
+    let tenant_root = crate::local_tenant_root::resolve_local_router_tenant_root_context_v1(
+        tenant_root_config,
         &envelope.tenant_root.identity,
         &coordinates,
         &envelope.application,
@@ -210,7 +211,7 @@ fn pair_http_error(message: &'static str) -> RouterAbProtocolError {
 
 #[cfg(test)]
 mod tests {
-    use crate::LocalTenantRootResolverConfigV1;
+    use crate::LocalRouterTenantRootConfigV1;
 
     use super::*;
     use router_ab_core::{
@@ -282,7 +283,7 @@ mod tests {
             PublicDigest32::new([0xa1; 32]),
             1,
             100,
-            &LocalTenantRootResolverConfigV1::default(),
+            &LocalRouterTenantRootConfigV1::default(),
         )
         .expect_err("direct client target must not reach dispatch");
         assert_eq!(
@@ -298,7 +299,7 @@ mod tests {
             PublicDigest32::new([0xa1; 32]),
             1,
             100,
-            &LocalTenantRootResolverConfigV1::default(),
+            &LocalRouterTenantRootConfigV1::default(),
         )
         .expect_err("unknown fields must be rejected");
         assert_eq!(

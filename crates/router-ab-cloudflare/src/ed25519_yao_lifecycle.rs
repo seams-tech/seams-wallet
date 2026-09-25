@@ -4186,8 +4186,8 @@ async fn load_ed25519_yao_tenant_root_role_share_v2(
     tenant_root.validate_for_pair(pair_binding)?;
     let now_unix_ms =
         cloudflare_yao_now_unix_ms().map_err(|_| invalid_lifecycle("Yao clock is unavailable"))?;
-    let custody_binding = tenant_root.custody_binding.authenticate_for_ed25519_yao(
-        env,
+    let custody_binding = tenant_root.custody_binding.authenticate_for_ed25519_yao_v1(
+        &CloudflareWorkerEnvReaderV1::new(env),
         pair_binding,
         &tenant_root.application,
         tenant_root.participant_ids,

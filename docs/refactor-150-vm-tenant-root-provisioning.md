@@ -1,17 +1,68 @@
 # R150 VM tenant-root provisioning
 
-Status: implementation plan, in progress. The VM role processes today load a
-fabricated tenant root:
+Status: first slice implemented (2026-09-25). The VM roles now create a
+tenant root with the same ceremony the Cloudflare deployment runs, executed by
+ordinary processes with role-private SQLite and no Cloudflare service. The
+fabricated fixture (`product_tenant_root_fixture`, the
+`LOCAL_TENANT_ROOT_BINDINGS_JSON` and `LOCAL_TENANT_ROOT_ROLE_SHARES_JSON` env
+maps) is deleted; every VM E2E that registers or signs now provisions its
+root through the ceremony first.
 
-- an issuer-signed activation receipt from a fixed test key;
-- plaintext A/B shares injected through env JSON;
-- a fake control-plane authority and canary key.
+What exists:
 
-Those come from `product_tenant_root_fixture` in
-`crates/router-ab-dev/tests/local_worker_http.rs`. A real control plane would
-reject that receipt. This plan replaces the fixture with the same creation
-ceremony the Cloudflare deployment runs, executed by ordinary processes with
-role-private SQLite and no Cloudflare service.
+- Shared host traits in `router-ab-cloudflare`: `TenantRootServiceTransportV1`,
+  `TenantRootCreationStateTransportV1`, `TenantRootDeriverHostV1`,
+  `TenantRootRouterCreationHostV1`, and the existing
+  `TenantRootControlPlaneHostV1`. The Workers implement them with Service
+  Bindings, the creation Durable Object, D1 and R2; the VM implements them in
+  `router-ab-dev/src/local_tenant_root.rs`.
+- A fifth VM process, `router_ab_local_tenant_root_control_plane`, the only
+  holder of the issuer signing Secret. It proves at startup that the Secret
+  derives the published active key, and the shared parser refuses every key
+  it must not hold.
+- The VM Router serves the creation state from its own SQLite
+  (`local_tenant_root_creation_state`, one row per creation-object storage
+  key) through `tenant_root_creation_serve_without_refresh_v1`, one
+  `BEGIN IMMEDIATE` transaction per operation. It serves connections on
+  threads, because the control plane and both Derivers call back into its
+  creation state while its coordinator waits on them.
+- VM Derivers run the shared role-share store over their role-private SQLite
+  (the same deriver-a/deriver-b migrations D1 runs) and keep signed managed
+  backups in a separate SQLite file keyed by the R2 object key.
+- Yao-time loads read the ceremony's state: the Router reads its verified
+  active receipt; a Deriver authenticates the custody binding and opens its
+  active share with its online provider.
+- Each role's SQLite schema is applied by an explicit `--migrate` step and a
+  role refuses to serve with a pending or unknown migration.
+- `local_env_materialization_plan_v1` generates per-deployment tenant-root
+  key material under the Cloudflare env names, a control-plane env file and an
+  operator file (grant and recovery authorities) that no role loads.
+
+Verified by `vm_tenant_root_creation_is_authorized_replayable_and_role_isolated`
+(`R150_VM_TENANT_ROOT_E2E`) and the product E2Es in
+`crates/router-ab-dev/tests/local_worker_http.rs`: the Gateway credential and
+an untrusted grant are refused; an operator grant reaches ready; exact
+replays, including after every role restarts, return the same durable
+outcome; each Deriver holds exactly its own active share and managed backup;
+the Router holds creation state and no shares; registration and NEAR signing
+then run on the created root.
+
+Open, and not silently worked around:
+
+- **Resume gap, both hosts.** `Ready` means both installation checkpoints are
+  written, and they are written before the control plane issues the
+  activation receipt. If the coordinator stops after the initiator returns and
+  before the creation state persists the activation, a retry reads `Ready`,
+  finds no active state, and cannot continue: the evidence the control plane
+  needs (installation evidence, signed backups, canary receipts) came back in
+  the initiator's response and was not kept. Fixing this needs a decision on
+  where that evidence is durably held; it is not patched here.
+- A creation left with one role installed fails closed on the VM with an
+  explicit error; cleanup stays Cloudflare-only.
+- Refresh, managed restore, source retirement and cutover remain
+  Cloudflare-only.
+
+The original plan follows.
 
 ## Cloudflare flow, and what each step needs from its host
 

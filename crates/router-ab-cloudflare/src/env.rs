@@ -2379,7 +2379,8 @@ pub struct TenantRootCreationRoleVerifyingKeysV1 {
 }
 
 impl TenantRootCreationRoleVerifyingKeysV1 {
-    pub(crate) fn deriver_identities(
+    /// The active Deriver A and Deriver B signing identities.
+    pub fn deriver_identities(
         &self,
     ) -> RouterAbProtocolResult<TenantRootDeriverIdentitiesV1> {
         TenantRootDeriverIdentitiesV1::new(

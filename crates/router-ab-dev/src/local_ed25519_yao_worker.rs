@@ -21,7 +21,6 @@ use crate::{
     generate_local_ed25519_yao_deriver_a_refresh_delta_v1,
     generate_local_ed25519_yao_deriver_b_refresh_delta_v1, local_dev_http_error_body_v1,
     local_ed25519_yao_refresh_binding_digest_v1,
-    local_tenant_root_coordinates_for_context_v1,
     open_local_ed25519_yao_activation_deriver_a_input_v1,
     open_local_ed25519_yao_activation_deriver_b_input_v1,
     open_local_ed25519_yao_export_deriver_a_input_v1,
@@ -1602,11 +1601,10 @@ fn execute_local_pair_deriver_a_inner_v1(
     state.pair_roles.insert(pair_digest, running);
     let private_key = deriver_input_private_key(&config.envelope_hpke_private_key)
         .map_err(|_| invalid_worker_state("Deriver A pair input key is malformed"))?;
-    let coordinates = local_tenant_root_coordinates_for_context_v1(&tenant_root)?;
-    let role_share = config.tenant_root_role_shares.resolve_for_context(
-        &coordinates,
+    let role_share = crate::local_tenant_root::load_local_deriver_tenant_root_role_share_v1(
+        &config.tenant_root,
         &tenant_root,
-        router_ab_core::TwoPartyDeriverRole::DeriverA,
+        &pair_binding,
     )?;
     let preface = prepare_local_deriver_a_target_v2(&tenant_root, &pair_binding, &role_share)?;
     let target_proof_peer_public_key =
@@ -2686,11 +2684,10 @@ fn execute_local_pair_deriver_b_inner_v1(
     )?;
     authenticated.set_start_acceptance(acceptance)?;
     let private_key = deriver_input_private_key(&config.envelope_hpke_private_key)?;
-    let coordinates = local_tenant_root_coordinates_for_context_v1(&tenant_root)?;
-    let role_share = config.tenant_root_role_shares.resolve_for_context(
-        &coordinates,
+    let role_share = crate::local_tenant_root::load_local_deriver_tenant_root_role_share_v1(
+        &config.tenant_root,
         &tenant_root,
-        router_ab_core::TwoPartyDeriverRole::DeriverB,
+        &pair_binding,
     )?;
     let preface = prepare_local_deriver_b_target_v2(&tenant_root, &pair_binding, &role_share)?;
     let incoming_target_proof = authenticated

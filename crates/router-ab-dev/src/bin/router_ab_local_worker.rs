@@ -1,6 +1,9 @@
 use router_ab_core::LocalServiceRoleV1;
 use router_ab_dev::{
-    dispatch_local_ed25519_yao_connection_with_persistence_v1,
+    apply_local_sqlite_migrations_v1, dispatch_local_ed25519_yao_connection_with_persistence_v1,
+    local_sqlite_migration_status_v1, local_tenant_root_route_v1, LocalSqliteMigrationV1,
+    LOCAL_DERIVER_A_ROLE_PRIVATE_MIGRATIONS_V1, LOCAL_DERIVER_B_ROLE_PRIVATE_MIGRATIONS_V1,
+    LOCAL_MANAGED_BACKUP_MIGRATIONS_V1, LOCAL_ROUTER_CREATION_STATE_MIGRATIONS_V1,
     local_dev_http_handle_request_with_dispatcher_v1, local_worker_bind_addr_v1,
     parse_local_env_file_contents_v1, parse_local_service_role_label_v1,
     parse_local_worker_role_config_for_role_v1, read_local_dev_http_request_v1,
@@ -12,14 +15,16 @@ use serde::Serialize;
 use std::{
     env, fs,
     net::{TcpListener, TcpStream},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Arc,
+    thread,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct WorkerOptions {
     role: LocalServiceRoleV1,
     env_path: PathBuf,
+    migrate: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -45,17 +50,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         options.role,
         parse_local_env_file_contents_v1(&env_contents)?,
     )?);
+    let schemas = role_sqlite_schemas(&config);
+    if options.migrate {
+        for (path, chain) in &schemas {
+            let applied = apply_local_sqlite_migrations_v1(path, chain)?;
+            eprintln!(
+                "{}",
+                serde_json::json!({
+                    "event": "migrated",
+                    "role": config.role().as_str(),
+                    "path": path.display().to_string(),
+                    "applied": applied,
+                })
+            );
+        }
+        return Ok(());
+    }
+    for (path, chain) in &schemas {
+        let status = local_sqlite_migration_status_v1(path, chain)?;
+        if !status.is_current() {
+            return Err(format!(
+                "{} schema is not current (pending {:?}, unknown {:?}); run with --migrate first",
+                path.display(),
+                status.pending,
+                status.unknown
+            )
+            .into());
+        }
+    }
     let bind_addr = local_worker_bind_addr_v1(&config)?;
     let listener = TcpListener::bind(&bind_addr)?;
     let state_store = if config.role() == LocalServiceRoleV1::Router {
         None
     } else {
         Some(LocalEd25519YaoSqliteHostV1::open(&config)?)
-    };
-    let router_dispatcher = if config.role() == LocalServiceRoleV1::Router {
-        Some(LocalRouterEd25519YaoCoordinatorV1::default())
-    } else {
-        None
     };
 
     let summary = WorkerStartupSummary {
@@ -65,6 +93,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         env_path: options.env_path.display().to_string(),
     };
     eprintln!("{}", serde_json::to_string(&summary)?);
+
+    if config.role() == LocalServiceRoleV1::Router {
+        // The Router serves creation-state calls from the control plane and
+        // both Derivers while its own creation coordinator is waiting on
+        // them, so each connection gets its own thread. The Router keeps no
+        // in-memory state; its durable state is in SQLite.
+        let dispatcher = Arc::new(LocalRouterEd25519YaoCoordinatorV1::default());
+        for stream in listener.incoming() {
+            match stream {
+                Ok(stream) => {
+                    let config = Arc::clone(&config);
+                    let dispatcher = Arc::clone(&dispatcher);
+                    thread::spawn(move || {
+                        if let Err(error) = handle_connection(
+                            stream,
+                            &config,
+                            None,
+                            None,
+                            Some(dispatcher.as_ref() as &dyn LocalRouterRequestDispatcherV1),
+                        ) {
+                            log_worker_request_error(&config, error.as_ref());
+                        }
+                    });
+                }
+                Err(error) => log_worker_request_error(&config, &error),
+            }
+        }
+        return Ok(());
+    }
 
     let mut yao_state = state_store
         .as_ref()
@@ -78,9 +135,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &config,
                     yao_state.as_mut(),
                     state_store.as_ref(),
-                    router_dispatcher
-                        .as_ref()
-                        .map(|dispatcher| dispatcher as &dyn LocalRouterRequestDispatcherV1),
+                    None,
                 ) {
                     Ok(LocalWorkerConnectionResultV1::YaoHandled) => {
                         if let (Some(store), Some(state)) =
@@ -139,6 +194,10 @@ fn handle_connection(
         stream
     };
     let request = read_local_dev_http_request_v1(&mut stream)?;
+    if let Some((status, body)) = local_tenant_root_route_v1(config, &request) {
+        write_local_dev_http_response_v1(&mut stream, status, &body)?;
+        return Ok(LocalWorkerConnectionResultV1::OtherHandled);
+    }
     let (status, body) = local_dev_http_handle_request_with_dispatcher_v1(
         if config.role() == LocalServiceRoleV1::Router {
             let LocalWorkerRoleConfigV1::Router(router_config) = config else {
@@ -153,6 +212,39 @@ fn handle_connection(
     )?;
     write_local_dev_http_response_v1(&mut stream, status, &body)?;
     Ok(LocalWorkerConnectionResultV1::OtherHandled)
+}
+
+/// The SQLite files this role owns and the schema each must carry.
+fn role_sqlite_schemas(
+    config: &LocalWorkerRoleConfigV1,
+) -> Vec<(PathBuf, &'static [LocalSqliteMigrationV1])> {
+    match config {
+        LocalWorkerRoleConfigV1::Router(router) => vec![(
+            router.tenant_root.creation_storage_path.clone(),
+            LOCAL_ROUTER_CREATION_STATE_MIGRATIONS_V1,
+        )],
+        LocalWorkerRoleConfigV1::DeriverA(deriver) => vec![
+            (
+                Path::new(&deriver.role_private_storage_path).to_path_buf(),
+                LOCAL_DERIVER_A_ROLE_PRIVATE_MIGRATIONS_V1,
+            ),
+            (
+                deriver.tenant_root.managed_backup_path.clone(),
+                LOCAL_MANAGED_BACKUP_MIGRATIONS_V1,
+            ),
+        ],
+        LocalWorkerRoleConfigV1::DeriverB(deriver) => vec![
+            (
+                Path::new(&deriver.role_private_storage_path).to_path_buf(),
+                LOCAL_DERIVER_B_ROLE_PRIVATE_MIGRATIONS_V1,
+            ),
+            (
+                deriver.tenant_root.managed_backup_path.clone(),
+                LOCAL_MANAGED_BACKUP_MIGRATIONS_V1,
+            ),
+        ],
+        LocalWorkerRoleConfigV1::SigningWorker(_) => Vec::new(),
+    }
 }
 
 fn log_worker_request_error(config: &LocalWorkerRoleConfigV1, error: &dyn std::error::Error) {
@@ -171,6 +263,7 @@ fn log_worker_request_error(config: &LocalWorkerRoleConfigV1, error: &dyn std::e
 fn parse_args(args: impl IntoIterator<Item = String>) -> Result<WorkerOptions, String> {
     let mut role = None;
     let mut env_path = None;
+    let mut migrate = false;
     let mut iter = args.into_iter();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
@@ -188,6 +281,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<WorkerOptions, S
                 };
                 env_path = Some(PathBuf::from(value));
             }
+            "--migrate" => migrate = true,
             "--help" | "-h" => return Err(usage()),
             _ => return Err(format!("unknown argument {arg}\n{}", usage())),
         }
@@ -198,10 +292,14 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<WorkerOptions, S
     let Some(env_path) = env_path else {
         return Err(format!("missing --env\n{}", usage()));
     };
-    Ok(WorkerOptions { role, env_path })
+    Ok(WorkerOptions {
+        role,
+        env_path,
+        migrate,
+    })
 }
 
 fn usage() -> String {
-    "usage: router_ab_local_worker --role <router|deriver-a|deriver-b|signing-worker> --env <path>"
+    "usage: router_ab_local_worker --role <router|deriver-a|deriver-b|signing-worker> --env <path> [--migrate]"
         .to_owned()
 }

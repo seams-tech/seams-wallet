@@ -1,7 +1,4 @@
 use base64::Engine;
-use curve25519_dalek::scalar::Scalar;
-use ed25519_dalek::SigningKey;
-use rand_core::OsRng;
 use router_ab_cloudflare::{
     CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairLookupRequestV1,
     CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
@@ -11,7 +8,7 @@ use router_ab_cloudflare::{
 };
 use router_ab_core::{
     LocalHttpPathV1, LocalServiceRoleV1, MpcMaterialActivationRefV1,
-    MpcPrfShareCommitmentWireV1, NormalSigningAuthorizationV1,
+    NormalSigningAuthorizationV1,
     NormalSigningEd25519TwoPartyFrostCommitmentsV1, NormalSigningResponseV1,
     NormalSigningRound1PrepareResponseV1, NormalSigningScopeV1, PublicDigest32, RootShareEpoch,
     RouterAbEd25519NormalSigningFinalizeProtocolV2, RouterAbEd25519NormalSigningFinalizeRequestV2,
@@ -20,18 +17,8 @@ use router_ab_core::{
     RouterAbEd25519TwoPartyFrostFinalizeProtocolV2, RouterAbEd25519YaoActivationResultV1,
     RouterAbNearNetworkIdV2, RouterAbNearTransactionIntentV1, RouterEd25519YaoExecuteResultV1,
     RouterEd25519YaoExecuteSuccessV1, RouterEd25519YaoGatewayExecuteTargetV2,
-    TenantRootActivationReceiptTransitionV1, TenantRootCanaryCurveFamilyV1,
-    TenantRootCeremonyContextV1, TenantRootCeremonyEpochsV1, TenantRootCeremonyNonceV1,
-    TenantRootCeremonySessionIdV1, TenantRootControlPlaneAuthorityIdV1, TenantRootCustodyLineageId,
-    TenantRootEpochCommitmentsV1, TenantRootIdentityV1, TenantRootManagedBackupBindingV1,
-    TenantRootManagedBackupSealRequestV1, TenantRootProviderCanaryReceiptBindingV1,
-    TenantRootShareEpoch, TenantRootShareInstallationEvidenceV1,
-    TenantRootShareInstallationTranscriptV1, TenantRootSignedActivationReceiptV1,
-    TenantRootSignedManagedBackupV1, TenantRootSignedProviderCanaryReceiptV1,
-    TenantRootSignedShareInstallationEvidenceV1,
-    VerifiedTenantRootInitialCreationActivationEvidenceBundleV1,
-    VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-};
+    TenantRootCreationGrantNonceV1, TenantRootCreationGrantV1, TenantRootCustodyLineageId,
+    TenantRootIdentityV1, };
 use router_ab_dev::{
     admit_local_ed25519_yao_registration_v1, generate_local_ed25519_yao_recipient_key_pair_v1,
     local_env_materialization_plan_v1, parse_local_env_file_contents_v1,
@@ -77,10 +64,6 @@ use std::{
     sync::{Barrier, Mutex, MutexGuard, OnceLock},
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
-};
-use threshold_prf::{
-    prove_root_share_knowledge, SigningRootShare, SigningRootShareCommitment, SigningRootShareWire,
-    TwoPartyDeriverRole,
 };
 
 fn router_ab_dev_source() -> String {
@@ -416,14 +399,19 @@ fn product_topology_completes_local_ed25519_yao_registration(
     let deriver_a_url = format!("http://127.0.0.1:{}", free_port()?);
     let deriver_b_url = format!("http://127.0.0.1:{}", free_port()?);
     let signing_worker_url = format!("http://127.0.0.1:{}", free_port()?);
-    let tenant_root_fixture = product_tenant_root_fixture()?;
     let router_env = write_product_worker_envs(
         &temp,
         &router_url,
         &deriver_a_url,
         &deriver_b_url,
         &signing_worker_url,
-        &tenant_root_fixture,
+    )?;
+    let tenant_root_fixture = provision_product_tenant_root(
+        env!("CARGO_BIN_EXE_router_ab_local_worker"),
+        &temp,
+        &router_url,
+        &deriver_a_url,
+        &deriver_b_url,
     )?;
 
     let mut router = ChildGuard::spawn_in_root(
@@ -853,6 +841,167 @@ enum PairReplyFault {
     TruncatedZeroChunk,
 }
 
+/// A tenant root is created on VM processes by the same ceremony Cloudflare
+/// runs, and the creation route enforces the operator's authority.
+///
+/// Refused: the Gateway credential, and a grant from an authority the
+/// control plane does not trust. Accepted: an operator grant, which reaches
+/// ready; replaying it, before and after every role restarts, returns the
+/// same ready state. Each role's SQLite holds only its own state.
+#[test]
+fn vm_tenant_root_creation_is_authorized_replayable_and_role_isolated(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
+    let temp = temp_dir("vm-tenant-root-creation")?;
+    let router_url = format!("http://127.0.0.1:{}", free_port()?);
+    let deriver_a_url = format!("http://127.0.0.1:{}", free_port()?);
+    let deriver_b_url = format!("http://127.0.0.1:{}", free_port()?);
+    let signing_worker_url = format!("http://127.0.0.1:{}", free_port()?);
+    write_product_worker_envs(
+        &temp,
+        &router_url,
+        &deriver_a_url,
+        &deriver_b_url,
+        &signing_worker_url,
+    )?;
+    let start = |role: &str, env_file: &str| {
+        ChildGuard::spawn_in_root(binary, role, temp.join(env_file), &temp)
+    };
+    let mut router = start("router", router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1)?;
+    let mut deriver_a = start("deriver-a", router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1)?;
+    let mut deriver_b = start("deriver-b", router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1)?;
+    let (mut control_plane, control_plane_url) = spawn_control_plane(&temp)?;
+    wait_for_health(&router_url, router.child_mut())?;
+    wait_for_health(&deriver_a_url, deriver_a.child_mut())?;
+    wait_for_health(&deriver_b_url, deriver_b.child_mut())?;
+    wait_for_health(&control_plane_url, control_plane.child_mut())?;
+
+    let identity = product_tenant_root_identity()?;
+    let lineage = TenantRootCustodyLineageId::from_bytes(fresh_nonzero_bytes_16()?)?;
+    let grant = product_creation_grant_b64u(&temp, &identity, lineage, None)?;
+
+    let (gateway_status, _) = create_tenant_root(&router_url, &grant, TEST_GATEWAY_TO_ROUTER_AUTH)?;
+    assert_eq!(gateway_status, 401, "the Gateway credential cannot create a tenant root");
+
+    let untrusted = product_creation_grant_b64u(&temp, &identity, lineage, Some([0x5a; 32]))?;
+    let (untrusted_status, untrusted_body) =
+        create_tenant_root(&router_url, &untrusted, TEST_ROLE_SHARED_SERVICE_AUTH)?;
+    assert_ne!(untrusted_status, 200, "{untrusted_body}");
+    assert!(
+        untrusted_body.contains("not trusted") || untrusted_body.contains("signature"),
+        "untrusted grant must be refused by the control plane: {untrusted_body}"
+    );
+
+    let started = Instant::now();
+    let (status, created_body) = create_tenant_root(&router_url, &grant, TEST_ROLE_SHARED_SERVICE_AUTH)?;
+    let creation_ms = u64::try_from(started.elapsed().as_millis())?;
+    assert_eq!(status, 200, "{created_body}");
+    let created: serde_json::Value = serde_json::from_str(&created_body)?;
+    assert_eq!(created["status"]["kind"], "ready", "{created_body}");
+
+    let (replay_status, replay_body) =
+        create_tenant_root(&router_url, &grant, TEST_ROLE_SHARED_SERVICE_AUTH)?;
+    assert_eq!(replay_status, 200, "{replay_body}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&replay_body)?,
+        created,
+        "an exact replay returns the durable outcome"
+    );
+
+    drop(router);
+    drop(deriver_a);
+    drop(deriver_b);
+    drop(control_plane);
+    let mut router = start("router", router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1)?;
+    let mut deriver_a = start("deriver-a", router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1)?;
+    let mut deriver_b = start("deriver-b", router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1)?;
+    let (mut control_plane, _) = spawn_control_plane(&temp)?;
+    wait_for_health(&router_url, router.child_mut())?;
+    wait_for_health(&deriver_a_url, deriver_a.child_mut())?;
+    wait_for_health(&deriver_b_url, deriver_b.child_mut())?;
+    wait_for_health(&control_plane_url, control_plane.child_mut())?;
+    let (restart_status, restart_body) =
+        create_tenant_root(&router_url, &grant, TEST_ROLE_SHARED_SERVICE_AUTH)?;
+    assert_eq!(restart_status, 200, "{restart_body}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&restart_body)?,
+        created,
+        "a replay after every role restarts returns the same durable outcome"
+    );
+
+    let router_db = Connection::open(temp.join(".router-ab-local/router/tenant-root-creation.sqlite"))?;
+    let creation_rows: i64 = router_db.query_row(
+        "SELECT count(*) FROM local_tenant_root_creation_state",
+        [],
+        |row| row.get(0),
+    )?;
+    let router_share_tables: i64 = router_db.query_row(
+        "SELECT count(*) FROM sqlite_master WHERE name = 'tenant_root_role_shares'",
+        [],
+        |row| row.get(0),
+    )?;
+    assert!(creation_rows > 0);
+    assert_eq!(router_share_tables, 0, "the Router holds no role shares");
+    let mut role_rows = BTreeMap::new();
+    for (label, env_file) in [
+        ("deriver_a", router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1),
+        ("deriver_b", router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1),
+    ] {
+        let storage = env_value(
+            &temp.join(env_file),
+            if label == "deriver_a" {
+                "DERIVER_A_ROLE_PRIVATE_STORAGE_PATH"
+            } else {
+                "DERIVER_B_ROLE_PRIVATE_STORAGE_PATH"
+            },
+        )?;
+        let db = Connection::open(temp.join(storage))?;
+        let rows: Vec<(String, String)> = db
+            .prepare("SELECT role, lifecycle FROM tenant_root_role_shares")?
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<Result<_, _>>()?;
+        assert_eq!(
+            rows,
+            vec![(label.to_owned(), "active".to_owned())],
+            "{label} holds exactly its own active role share"
+        );
+        let backups: i64 = Connection::open(temp.join(format!(
+            ".router-ab-local/{}/managed-backups.sqlite",
+            label.replace('_', "-")
+        )))?
+        .query_row("SELECT count(*) FROM local_tenant_root_managed_backups", [], |row| row.get(0))?;
+        assert_eq!(backups, 1, "{label} stores its own managed backup");
+        role_rows.insert(label, rows.len());
+    }
+    let record_keys: BTreeSet<String> = [
+        router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1,
+        router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1,
+    ]
+    .into_iter()
+    .map(|file| env_value(&temp.join(file), "DERIVER_ROLE_PRIVATE_D1_KEK_PUBLIC_KEY"))
+    .collect::<Result<_, _>>()?;
+    assert_eq!(record_keys.len(), 2, "each Deriver seals its store with its own record key");
+
+    println!(
+        "R150_VM_TENANT_ROOT_E2E {}",
+        json!({
+            "processes": ["router", "deriver_a", "deriver_b", "tenant_root_control_plane"],
+            "creation_ms": creation_ms,
+            "status": created["status"]["kind"],
+            "gateway_credential_refused_status": gateway_status,
+            "untrusted_grant_refused_status": untrusted_status,
+            "replay_returns_durable_outcome": true,
+            "replay_after_full_restart_returns_durable_outcome": true,
+            "router_creation_state_rows": creation_rows,
+            "router_role_share_tables": router_share_tables,
+            "deriver_active_role_share_rows": role_rows,
+            "distinct_role_store_record_keys": record_keys.len(),
+        })
+    );
+    Ok(())
+}
+
 #[test]
 fn vm_pair_reply_loss_reconciles_only_after_clean_transport_eof(
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -869,14 +1018,19 @@ fn vm_pair_reply_loss_reconciles_only_after_clean_transport_eof(
         let signing_worker_url = format!("http://127.0.0.1:{}", free_port()?);
         let proxy_listener = TcpListener::bind("127.0.0.1:0")?;
         let proxy_url = format!("http://{}", proxy_listener.local_addr()?);
-        let tenant_root_fixture = product_tenant_root_fixture()?;
         let router_env = write_product_worker_envs(
             &temp,
             &router_url,
             &deriver_a_url,
             &deriver_b_url,
             &signing_worker_url,
-            &tenant_root_fixture,
+        )?;
+        let tenant_root_fixture = provision_product_tenant_root(
+            env!("CARGO_BIN_EXE_router_ab_local_worker"),
+            &temp,
+            &router_url,
+            &deriver_a_url,
+            &deriver_b_url,
         )?;
         let a_env_path = temp.join(router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1);
         let a_env = fs::read_to_string(&a_env_path)?;
@@ -1243,14 +1397,19 @@ fn vm_router_reconciles_signing_worker_reply_loss_without_activating_missing_mat
         let signing_worker_url = format!("http://127.0.0.1:{}", free_port()?);
         let proxy_listener = TcpListener::bind("127.0.0.1:0")?;
         let proxy_url = format!("http://{}", proxy_listener.local_addr()?);
-        let tenant_root_fixture = product_tenant_root_fixture()?;
         let router_env = write_product_worker_envs(
             &temp,
             &router_url,
             &deriver_a_url,
             &deriver_b_url,
             &signing_worker_url,
-            &tenant_root_fixture,
+        )?;
+        let tenant_root_fixture = provision_product_tenant_root(
+            env!("CARGO_BIN_EXE_router_ab_local_worker"),
+            &temp,
+            &router_url,
+            &deriver_a_url,
+            &deriver_b_url,
         )?;
         let proxied_router_env = router_env.replace(&signing_worker_url, &proxy_url);
         assert_ne!(proxied_router_env, router_env);
@@ -1476,7 +1635,6 @@ fn local_ecdsa_effect_claim_and_consume_survive_terminal_failure(
         &deriver_a_url,
         &deriver_b_url,
         &signing_worker_url,
-        &product_tenant_root_fixture()?,
     )?;
     let mut router = ChildGuard::spawn_in_root(
         worker_binary,
@@ -2092,7 +2250,7 @@ fn product_near_finalize_request(
 
 fn product_registration_request(
     router_env: &str,
-    tenant_root_fixture: &ProductTenantRootFixture,
+    tenant_root_fixture: &ProductTenantRoot,
 ) -> Result<
     (
         CloudflareRouterEd25519YaoExecuteRequestV2,
@@ -2215,6 +2373,7 @@ impl ChildGuard {
         role: &str,
         env_path: PathBuf,
     ) -> Result<Self, Box<dyn std::error::Error>> {
+        migrate_role(binary, role, &env_path, None)?;
         let child = Command::new(binary)
             .arg("--role")
             .arg(role)
@@ -2232,6 +2391,7 @@ impl ChildGuard {
         env_path: PathBuf,
         root: &Path,
     ) -> Result<Self, Box<dyn std::error::Error>> {
+        migrate_role(binary, role, &env_path, Some(root))?;
         let child = Command::new(binary)
             .arg("--role")
             .arg(role)
@@ -2239,7 +2399,7 @@ impl ChildGuard {
             .arg(env_path)
             .current_dir(root)
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(role_log(root, role)?)
             .spawn()?;
         Ok(Self { child })
     }
@@ -2247,6 +2407,47 @@ impl ChildGuard {
     fn child_mut(&mut self) -> &mut Child {
         &mut self.child
     }
+}
+
+/// Appends a role's stderr to `<root>/logs/<role>.log`, kept as evidence.
+fn role_log(root: &Path, role: &str) -> Result<Stdio, Box<dyn std::error::Error>> {
+    fs::create_dir_all(root.join("logs"))?;
+    Ok(Stdio::from(
+        fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(root.join("logs").join(format!("{role}.log")))?,
+    ))
+}
+
+/// Applies a role's shipped SQLite schema, as an operator does before
+/// starting the role.
+fn migrate_role(
+    binary: &str,
+    role: &str,
+    env_path: &Path,
+    root: Option<&Path>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut command = Command::new(binary);
+    command
+        .arg("--role")
+        .arg(role)
+        .arg("--env")
+        .arg(env_path)
+        .arg("--migrate")
+        .stdout(Stdio::null());
+    if let Some(root) = root {
+        command.current_dir(root);
+    }
+    let output = command.output()?;
+    if !output.status.success() {
+        return Err(format!(
+            "{role} migration failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+        .into());
+    }
+    Ok(())
 }
 
 impl Drop for ChildGuard {
@@ -2320,365 +2521,187 @@ fn write_product_worker_envs(
     deriver_a_url: &str,
     deriver_b_url: &str,
     signing_worker_url: &str,
-    tenant_root_fixture: &ProductTenantRootFixture,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let seed = fresh_nonzero_bytes_32()?;
+    let control_plane_url = format!("http://127.0.0.1:{}", free_port()?);
     let plan = local_env_materialization_plan_v1(&seed)?;
-    for directory in plan.directories {
+    for directory in &plan.directories {
         fs::create_dir_all(root.join(directory))?;
     }
+    let replace = |contents: &str| {
+        pin_test_service_credentials(
+            &contents
+                .replace("http://127.0.0.1:4100", router_url)
+                .replace("http://127.0.0.1:4103", deriver_a_url)
+                .replace("http://127.0.0.1:4104", deriver_b_url)
+                .replace("http://127.0.0.1:4105", signing_worker_url)
+                .replace("http://127.0.0.1:4106", &control_plane_url),
+        )
+    };
     let mut router_env = None;
     for file in plan.files {
-        let contents = file
-            .contents
-            .replace("http://127.0.0.1:4100", router_url)
-            .replace("http://127.0.0.1:4103", deriver_a_url)
-            .replace("http://127.0.0.1:4104", deriver_b_url)
-            .replace("http://127.0.0.1:4105", signing_worker_url);
-        let contents = pin_test_service_credentials(&contents);
-        let contents = match file.role {
-            LocalServiceRoleV1::Router => contents.replace(
-                "LOCAL_TENANT_ROOT_BINDINGS_JSON={}",
-                &format!(
-                    "LOCAL_TENANT_ROOT_BINDINGS_JSON={}",
-                    tenant_root_fixture.router_bindings_json
-                ),
-            ),
-            LocalServiceRoleV1::DeriverA => contents.replace(
-                "LOCAL_TENANT_ROOT_ROLE_SHARES_JSON={}",
-                &format!(
-                    "LOCAL_TENANT_ROOT_ROLE_SHARES_JSON={}",
-                    tenant_root_fixture.role_shares_a_json
-                ),
-            ),
-            LocalServiceRoleV1::DeriverB => contents.replace(
-                "LOCAL_TENANT_ROOT_ROLE_SHARES_JSON={}",
-                &format!(
-                    "LOCAL_TENANT_ROOT_ROLE_SHARES_JSON={}",
-                    tenant_root_fixture.role_shares_b_json
-                ),
-            ),
-            LocalServiceRoleV1::SigningWorker => contents,
-        };
+        let contents = replace(&file.contents);
         if file.role == LocalServiceRoleV1::Router {
             router_env = Some(contents.clone());
         }
         fs::write(root.join(file.path), contents)?;
     }
+    for file in plan.tenant_root_files {
+        fs::write(root.join(file.path), replace(&file.contents))?;
+    }
     router_env.ok_or_else(|| "local env plan is missing Router file".into())
 }
 
-struct ProductTenantRootFixture {
+/// A tenant root created through the VM ceremony, and the application facts
+/// the product flows register under it.
+struct ProductTenantRoot {
     tenant_root: CloudflareRouterEd25519YaoTenantRootV1,
     application: RouterAbEd25519YaoApplicationBindingFactsV1,
     participant_ids: [u16; 2],
-    router_bindings_json: String,
-    role_shares_a_json: String,
-    role_shares_b_json: String,
 }
 
-fn product_tenant_root_fixture() -> Result<ProductTenantRootFixture, Box<dyn std::error::Error>> {
-    const ISSUER_SIGNING_KEY_BYTES: [u8; 32] = [0x31; 32];
-    const CANARY_SIGNING_KEY_BYTES: [u8; 32] = [0x41; 32];
-    let participant_ids = [1, 2];
-    let application = RouterAbEd25519YaoApplicationBindingFactsV1::new(
-        "account-product-benchmark",
-        "ed25519ks_product_benchmark",
-        "project:local",
-        1,
-    )?;
-    let root_identity = TenantRootIdentityV1::new(
+fn product_tenant_root_identity() -> Result<TenantRootIdentityV1, Box<dyn std::error::Error>> {
+    Ok(TenantRootIdentityV1::new(
         "local-org",
         "local-project",
         "local-environment",
         "project:local",
         "root-version-1",
+    )?)
+}
+
+/// Creates the product tenant root the way an operator does. The Router,
+/// both Derivers and the control plane are started from the written envs, the
+/// operator signs a creation grant, the Router drives the ceremony, and every
+/// process is stopped again: what later steps use is only what the ceremony
+/// left in each role's own SQLite.
+fn provision_product_tenant_root(
+    worker_binary: &str,
+    root: &Path,
+    router_url: &str,
+    deriver_a_url: &str,
+    deriver_b_url: &str,
+) -> Result<ProductTenantRoot, Box<dyn std::error::Error>> {
+    let identity = product_tenant_root_identity()?;
+    let lineage = TenantRootCustodyLineageId::from_bytes(fresh_nonzero_bytes_16()?)?;
+    let grant = product_creation_grant_b64u(root, &identity, lineage, None)?;
+    let mut router = ChildGuard::spawn_in_root(
+        worker_binary,
+        "router",
+        root.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1),
+        root,
     )?;
-    let identity = root_identity.digest()?;
-    let lineage = TenantRootCustodyLineageId::from_bytes([0x72; 16])?;
-    let issued_at_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
-    let expires_at_ms = issued_at_ms
-        .checked_add(300_000)
-        .ok_or("tenant-root fixture expiry overflow")?;
-    let context = TenantRootCeremonyContextV1::new(
-        identity,
-        lineage,
-        TenantRootCeremonyEpochsV1::create(),
-        TenantRootCeremonySessionIdV1::from_bytes([0x73; 16])?,
-        TenantRootCeremonyNonceV1::from_bytes([0x74; 32])?,
-        issued_at_ms,
-        expires_at_ms,
-        "local-deriver-a-signing-key",
-        "local-deriver-b-signing-key",
+    let mut deriver_a = ChildGuard::spawn_in_root(
+        worker_binary,
+        "deriver-a",
+        root.join(router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1),
+        root,
     )?;
-    let share_a = product_share(TwoPartyDeriverRole::DeriverA, 7)?;
-    let share_b = product_share(TwoPartyDeriverRole::DeriverB, 11)?;
-    let commitments = TenantRootEpochCommitmentsV1::new(
-        product_share_commitment(&share_a)?,
-        product_share_commitment(&share_b)?,
+    let mut deriver_b = ChildGuard::spawn_in_root(
+        worker_binary,
+        "deriver-b",
+        root.join(router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1),
+        root,
     )?;
-    let installation_a = product_installation(
-        context.clone(),
-        TwoPartyDeriverRole::DeriverA,
-        &share_a,
-        &share_b,
-    )?;
-    let installation_b = product_installation(
-        context.clone(),
-        TwoPartyDeriverRole::DeriverB,
-        &share_b,
-        &share_a,
-    )?;
-    let backup_a =
-        product_managed_backup(&installation_a, &share_a, TwoPartyDeriverRole::DeriverA)?;
-    let backup_b =
-        product_managed_backup(&installation_b, &share_b, TwoPartyDeriverRole::DeriverB)?;
-    let canary_a = product_provider_canary(
-        &context,
-        &commitments,
-        TenantRootCanaryCurveFamilyV1::Ecdsa,
-        "local-canary-ecdsa",
-        &CANARY_SIGNING_KEY_BYTES,
-    )?;
-    let canary_b = product_provider_canary(
-        &context,
-        &commitments,
-        TenantRootCanaryCurveFamilyV1::Ed25519,
-        "local-canary-ed25519",
-        &CANARY_SIGNING_KEY_BYTES,
-    )?;
-    let bundle =
-        VerifiedTenantRootInitialCreationActivationEvidenceBundleV1::from_verified_managed_backups(
-            installation_a,
-            installation_b,
-            backup_a,
-            backup_b,
-            canary_a,
-            canary_b,
-            2,
-            3,
-        )?;
-    let signed_receipt = TenantRootSignedActivationReceiptV1::sign_initial_creation(
-        &bundle,
-        issued_at_ms,
-        TenantRootControlPlaneAuthorityIdV1::from_bytes([0x44; 32]),
-        "local-tenant-root-issuer",
-        &ISSUER_SIGNING_KEY_BYTES,
-    )?;
-    let receipt_bytes = signed_receipt.canonical_bytes()?;
-    let receipt_digest: [u8; 32] = Sha256::digest(&receipt_bytes).into();
-    let identity_b64u = encode_product_base64url(identity.as_bytes());
-    let lineage_b64u = lineage.to_base64url();
-    let tenant_root = CloudflareRouterEd25519YaoTenantRootV1 {
-        identity: root_identity,
-        custody_lineage_b64u: lineage_b64u.clone(),
-    };
-    let coordinate_key = format!("{identity_b64u}|{lineage_b64u}");
-    let mut router_bindings = BTreeMap::new();
-    router_bindings.insert(
-        coordinate_key.clone(),
-        json!({
-            "activation_receipt_b64u": encode_product_base64url(&receipt_bytes),
-            "issuer_verifying_key_hex": hex::encode(
-                SigningKey::from_bytes(&ISSUER_SIGNING_KEY_BYTES)
-                    .verifying_key()
-                    .to_bytes(),
-            ),
-            "application": application,
-            "participant_ids": participant_ids,
-            "deriver_a_identity": "local-deriver-a",
-            "deriver_b_identity": "local-deriver-b",
-        }),
-    );
-    let router_bindings_json = serde_json::to_string(&router_bindings)?;
-    let role_shares_a_json = product_role_share_json(
-        &coordinate_key,
-        identity_b64u.as_str(),
-        lineage_b64u.as_str(),
-        TwoPartyDeriverRole::DeriverA,
-        &share_a,
-        &context,
-        &receipt_digest,
-    )?;
-    let role_shares_b_json = product_role_share_json(
-        &coordinate_key,
-        identity_b64u.as_str(),
-        lineage_b64u.as_str(),
-        TwoPartyDeriverRole::DeriverB,
-        &share_b,
-        &context,
-        &receipt_digest,
-    )?;
-    Ok(ProductTenantRootFixture {
-        tenant_root,
-        application,
-        participant_ids,
-        router_bindings_json,
-        role_shares_a_json,
-        role_shares_b_json,
+    let (mut control_plane, control_plane_url) = spawn_control_plane(root)?;
+    wait_for_health(router_url, router.child_mut())?;
+    wait_for_health(deriver_a_url, deriver_a.child_mut())?;
+    wait_for_health(deriver_b_url, deriver_b.child_mut())?;
+    wait_for_health(&control_plane_url, control_plane.child_mut())?;
+    let (status, body) = create_tenant_root(router_url, &grant, TEST_ROLE_SHARED_SERVICE_AUTH)?;
+    if status != 200 {
+        return Err(format!("tenant-root creation failed ({status}): {body}").into());
+    }
+    let created: serde_json::Value = serde_json::from_str(&body)?;
+    if created["status"]["kind"] != "ready" {
+        return Err(format!("tenant-root creation did not reach ready: {body}").into());
+    }
+    Ok(ProductTenantRoot {
+        tenant_root: CloudflareRouterEd25519YaoTenantRootV1 {
+            identity,
+            custody_lineage_b64u: lineage.to_base64url(),
+        },
+        application: RouterAbEd25519YaoApplicationBindingFactsV1::new(
+            "account-product-benchmark",
+            "ed25519ks_product_benchmark",
+            "project:local",
+            1,
+        )?,
+        participant_ids: [1, 2],
     })
 }
 
-fn encode_product_base64url(bytes: &[u8]) -> String {
-    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
+fn spawn_control_plane(root: &Path) -> Result<(ChildGuard, String), Box<dyn std::error::Error>> {
+    let env_path = root.join(router_ab_dev::LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_FILE_V1);
+    let url = env_value(&env_path, router_ab_dev::LOCAL_TENANT_ROOT_CONTROL_PLANE_URL_ENV_V1)?;
+    let child = Command::new(env!("CARGO_BIN_EXE_router_ab_local_tenant_root_control_plane"))
+        .arg("--env")
+        .arg(env_path)
+        .current_dir(root)
+        .stdout(Stdio::null())
+        .stderr(role_log(root, "tenant-root-control-plane")?)
+        .spawn()?;
+    Ok((ChildGuard { child }, url))
 }
 
-fn product_share(
-    role: TwoPartyDeriverRole,
-    scalar: u64,
-) -> Result<SigningRootShare, Box<dyn std::error::Error>> {
-    Ok(SigningRootShare::from_canonical_bytes(
-        role.share_id(),
-        Scalar::from(scalar).to_bytes(),
-    )?)
-}
-
-fn product_share_commitment(
-    share: &SigningRootShare,
-) -> Result<MpcPrfShareCommitmentWireV1, Box<dyn std::error::Error>> {
-    Ok(MpcPrfShareCommitmentWireV1::new(
-        SigningRootShareCommitment::from_share(share)
-            .to_bytes()
-            .to_vec(),
-    )?)
-}
-
-fn product_installation(
-    context: TenantRootCeremonyContextV1,
-    role: TwoPartyDeriverRole,
-    share: &SigningRootShare,
-    peer: &SigningRootShare,
-) -> Result<VerifiedTenantRootSignedShareInstallationEvidenceWireV1, Box<dyn std::error::Error>> {
-    let transcript = TenantRootShareInstallationTranscriptV1::new(
-        context,
-        role,
-        SigningRootShareCommitment::from_share(share),
-        SigningRootShareCommitment::from_share(peer),
-    )?;
-    let mut rng = OsRng;
-    let proof = prove_root_share_knowledge(share, &transcript.canonical_bytes()?, &mut rng)?;
-    let evidence = TenantRootShareInstallationEvidenceV1::new(transcript, proof)?;
-    let signing_key = product_role_signing_key(role);
-    let signed =
-        TenantRootSignedShareInstallationEvidenceV1::sign(evidence, signing_key.as_bytes())?;
-    let bytes = signed.canonical_bytes()?;
-    Ok(
-        TenantRootSignedShareInstallationEvidenceV1::decode_and_verify_canonical_bytes(
-            &bytes,
-            signing_key.verifying_key().as_bytes(),
-        )?,
-    )
-}
-
-fn product_role_signing_key(role: TwoPartyDeriverRole) -> SigningKey {
-    let byte = match role {
-        TwoPartyDeriverRole::DeriverA => 0x51,
-        TwoPartyDeriverRole::DeriverB => 0x61,
-    };
-    SigningKey::from_bytes(&[byte; 32])
-}
-
-fn product_managed_backup(
-    installation: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-    share: &SigningRootShare,
-    role: TwoPartyDeriverRole,
-) -> Result<router_ab_core::VerifiedTenantRootManagedBackupV1, Box<dyn std::error::Error>> {
-    let context = installation.evidence().transcript().context();
-    let share_wire = router_ab_core::MpcPrfSigningRootShareWireV1::new(
-        SigningRootShareWire::from_share(share).to_bytes().to_vec(),
-    )?;
-    let binding = TenantRootManagedBackupBindingV1::from_verified_installation_evidence(
-        installation,
-        format!("local-backup-provider-{}", role.as_str()),
-        format!("local-backup-key-{}", role.as_str()),
-        context.signing_key_id(role),
-        context.issued_at_ms(),
-    )?;
-    let request = TenantRootManagedBackupSealRequestV1::new(binding.clone(), share_wire)?;
-    let signing_key = product_role_signing_key(role);
-    let signed = TenantRootSignedManagedBackupV1::sign(
-        request,
-        vec![
-            match role {
-                TwoPartyDeriverRole::DeriverA => 0xa5,
-                TwoPartyDeriverRole::DeriverB => 0xb5,
-            };
-            96
-        ],
-        signing_key.as_bytes(),
-    )?;
-    let bytes = signed.canonical_bytes()?;
-    Ok(
-        TenantRootSignedManagedBackupV1::decode_and_verify_canonical_bytes(
-            &bytes,
-            &binding,
-            signing_key.verifying_key().as_bytes(),
-        )?,
-    )
-}
-
-fn product_provider_canary(
-    context: &TenantRootCeremonyContextV1,
-    commitments: &TenantRootEpochCommitmentsV1,
-    family: TenantRootCanaryCurveFamilyV1,
-    provider_key_version_ref: &str,
-    signing_key_bytes: &[u8; 32],
-) -> Result<router_ab_core::VerifiedTenantRootProviderCanaryReceiptV1, Box<dyn std::error::Error>> {
-    let binding = TenantRootProviderCanaryReceiptBindingV1::new(
-        context.identity_digest(),
-        context.custody_lineage(),
-        TenantRootActivationReceiptTransitionV1::InitialCreation,
-        TenantRootShareEpoch::INITIAL,
-        commitments.clone(),
-        family,
-        provider_key_version_ref,
-        context.issued_at_ms(),
-        TenantRootControlPlaneAuthorityIdV1::from_bytes([0x44; 32]),
-        "local-canary-signing-key",
-        context.issued_at_ms(),
-        context.expires_at_ms(),
-    )?;
-    let signed = TenantRootSignedProviderCanaryReceiptV1::sign(binding.clone(), signing_key_bytes)?;
-    Ok(signed.verify(
-        &binding,
-        SigningKey::from_bytes(signing_key_bytes)
-            .verifying_key()
-            .as_bytes(),
-    )?)
-}
-
-fn product_role_share_json(
-    coordinate_key: &str,
-    identity_b64u: &str,
-    lineage_b64u: &str,
-    role: TwoPartyDeriverRole,
-    share: &SigningRootShare,
-    context: &TenantRootCeremonyContextV1,
-    receipt_digest: &[u8; 32],
+/// Signs a creation grant with the operator's grant authority, or with
+/// `untrusted_seed` to model a grant from an authority the control plane
+/// does not trust.
+fn product_creation_grant_b64u(
+    root: &Path,
+    identity: &TenantRootIdentityV1,
+    lineage: TenantRootCustodyLineageId,
+    untrusted_seed: Option<[u8; 32]>,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let installation_evidence_digest = context.digest()?;
-    let mut shares = BTreeMap::new();
-    shares.insert(
-        format!("{coordinate_key}|1"),
-        json!({
-            "identity_digest_b64u": identity_b64u,
-            "custody_lineage_b64u": lineage_b64u,
-            "role": role.as_str(),
-            "epoch": 1,
-            "share_commitment_b64u": encode_product_base64url(
-                SigningRootShareCommitment::from_share(share).to_bytes().as_ref(),
-            ),
-            "epoch_wrapping_key_ref": format!("local-epoch-wrap-{}", role.as_str()),
-            "installation_evidence_digest_b64u": encode_product_base64url(
-                installation_evidence_digest.as_bytes(),
-            ),
-            "share_wire_b64u": encode_product_base64url(
-                SigningRootShareWire::from_share(share).to_bytes().as_ref(),
-            ),
-            "activation_receipt_digest_b64u": encode_product_base64url(receipt_digest),
-        }),
-    );
-    Ok(serde_json::to_string(&shares)?)
+    let operator = root.join(router_ab_dev::LOCAL_TENANT_ROOT_OPERATOR_ENV_FILE_V1);
+    let key_id = env_value(&operator, router_ab_dev::LOCAL_TENANT_ROOT_GRANT_KEY_ID_ENV_V1)?;
+    let seed: [u8; 32] = match untrusted_seed {
+        Some(seed) => seed,
+        None => base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .decode(env_value(
+                &operator,
+                router_ab_dev::LOCAL_TENANT_ROOT_GRANT_SIGNING_KEY_ENV_V1,
+            )?)?
+            .try_into()
+            .map_err(|_| "operator grant key must be 32 bytes")?,
+    };
+    let now_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
+    let grant = TenantRootCreationGrantV1::sign(
+        identity,
+        lineage,
+        TenantRootCreationGrantNonceV1::from_bytes(fresh_nonzero_bytes_32()?)?,
+        now_ms,
+        now_ms + 300_000,
+        &key_id,
+        &seed,
+    )?;
+    Ok(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(grant.canonical_bytes()?))
+}
+
+fn create_tenant_root(
+    router_url: &str,
+    grant_b64u: &str,
+    credential: &str,
+) -> Result<(u16, String), Box<dyn std::error::Error>> {
+    post_json_to_path_with_headers(
+        router_url,
+        router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_CREATION_PRIVATE_REQUEST_PATH,
+        &json!({ "creation_grant_b64u": grant_b64u }),
+        &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, credential)],
+    )
+}
+
+fn env_value(path: &Path, key: &str) -> Result<String, Box<dyn std::error::Error>> {
+    parse_local_env_file_contents_v1(&fs::read_to_string(path)?)?
+        .into_iter()
+        .find(|(name, _)| name == key)
+        .map(|(_, value)| value)
+        .ok_or_else(|| format!("{} does not set {key}", path.display()).into())
+}
+
+fn fresh_nonzero_bytes_16() -> Result<[u8; 16], Box<dyn std::error::Error>> {
+    let bytes = fresh_nonzero_bytes_32()?;
+    Ok(bytes[..16].try_into()?)
 }
 
 fn write_deriver_envs_to_roots(

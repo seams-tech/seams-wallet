@@ -13,7 +13,7 @@ use rusqlite::{types::ValueRef, Connection};
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
 
-const MIGRATION_LEDGER_TABLE: &str = "local_role_private_migrations";
+const MIGRATION_LEDGER_TABLE: &str = "local_sqlite_migrations";
 
 /// One executed statement: success, changed rows and named-column rows.
 #[derive(Debug, Clone)]
@@ -141,59 +141,126 @@ impl RoleSqlSessionV1 for LocalRoleSqlSessionV1 {
     }
 }
 
-/// Applies the shipped role-private migrations in order, each with its
-/// ledger row in one transaction. Refuses a database carrying migrations
-/// this build does not know.
-pub fn apply_local_role_private_migrations_v1(
+/// One shipped schema migration: its file name and SQL.
+pub type LocalSqliteMigrationV1 = (&'static str, &'static str);
+
+/// Deriver A's role-private schema: the same migrations its Cloudflare D1
+/// database runs.
+pub const LOCAL_DERIVER_A_ROLE_PRIVATE_MIGRATIONS_V1: &[LocalSqliteMigrationV1] = &[
+    ("0001_role_private_storage.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0001_role_private_storage.sql")),
+    ("0002_tenant_root_role_shares.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0002_tenant_root_role_shares.sql")),
+    ("0003_tenant_root_command_replays.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0003_tenant_root_command_replays.sql")),
+    ("0004_tenant_root_creation_admission.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0004_tenant_root_creation_admission.sql")),
+    ("0005_tenant_root_refresh_state.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0005_tenant_root_refresh_state.sql")),
+    ("0006_tenant_root_restore_import_keys.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0006_tenant_root_restore_import_keys.sql")),
+    ("0007_tenant_root_restore_refresh_attempts.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0007_tenant_root_restore_refresh_attempts.sql")),
+    ("0008_tenant_root_restore_promotion.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0008_tenant_root_restore_promotion.sql")),
+    ("0009_tenant_root_restore_preactivation_cleanup.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0009_tenant_root_restore_preactivation_cleanup.sql")),
+    ("0010_tenant_root_recovery_attempts.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0010_tenant_root_recovery_attempts.sql")),
+    ("0011_tenant_root_source_retirement.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0011_tenant_root_source_retirement.sql")),
+];
+/// Deriver B's role-private schema: the same migrations its Cloudflare D1
+/// database runs.
+pub const LOCAL_DERIVER_B_ROLE_PRIVATE_MIGRATIONS_V1: &[LocalSqliteMigrationV1] = &[
+    ("0001_role_private_storage.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0001_role_private_storage.sql")),
+    ("0002_tenant_root_role_shares.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0002_tenant_root_role_shares.sql")),
+    ("0003_tenant_root_command_replays.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0003_tenant_root_command_replays.sql")),
+    ("0004_tenant_root_creation_admission.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0004_tenant_root_creation_admission.sql")),
+    ("0005_tenant_root_refresh_state.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0005_tenant_root_refresh_state.sql")),
+    ("0006_tenant_root_restore_import_keys.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0006_tenant_root_restore_import_keys.sql")),
+    ("0007_tenant_root_restore_refresh_attempts.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0007_tenant_root_restore_refresh_attempts.sql")),
+    ("0008_tenant_root_restore_promotion.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0008_tenant_root_restore_promotion.sql")),
+    ("0009_tenant_root_restore_preactivation_cleanup.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0009_tenant_root_restore_preactivation_cleanup.sql")),
+    ("0010_tenant_root_recovery_attempts.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0010_tenant_root_recovery_attempts.sql")),
+    ("0011_tenant_root_source_retirement.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0011_tenant_root_source_retirement.sql")),
+];
+/// The VM Router's tenant-root creation-state schema.
+pub const LOCAL_ROUTER_CREATION_STATE_MIGRATIONS_V1: &[LocalSqliteMigrationV1] = &[
+    ("0001_creation_state.sql", include_str!("../migrations/local-router-creation-state/0001_creation_state.sql")),
+];
+/// A VM Deriver's managed-backup schema.
+pub const LOCAL_MANAGED_BACKUP_MIGRATIONS_V1: &[LocalSqliteMigrationV1] = &[
+    ("0001_managed_backups.sql", include_str!("../migrations/local-managed-backups/0001_managed_backups.sql")),
+];
+
+/// Applied, pending and unknown migrations for one SQLite file.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct LocalSqliteMigrationStatusV1 {
+    pub applied: Vec<String>,
+    pub pending: Vec<String>,
+    pub unknown: Vec<String>,
+}
+
+impl LocalSqliteMigrationStatusV1 {
+    pub fn is_current(&self) -> bool {
+        self.pending.is_empty() && self.unknown.is_empty()
+    }
+}
+
+/// Reads which of a shipped chain's migrations a file has applied. A missing
+/// file has applied none.
+pub fn local_sqlite_migration_status_v1(
     path: &Path,
-    migrations_dir: &Path,
+    chain: &[LocalSqliteMigrationV1],
+) -> RoleStoreResult<LocalSqliteMigrationStatusV1> {
+    let applied = if path.exists() {
+        let connection = Connection::open(path).map_err(sql_error)?;
+        read_applied_migrations(&connection)?
+    } else {
+        Vec::new()
+    };
+    let shipped: Vec<&str> = chain.iter().map(|(name, _)| *name).collect();
+    Ok(LocalSqliteMigrationStatusV1 {
+        unknown: applied
+            .iter()
+            .filter(|name| !shipped.contains(&name.as_str()))
+            .cloned()
+            .collect(),
+        pending: shipped
+            .iter()
+            .filter(|name| !applied.iter().any(|applied| applied == *name))
+            .map(|name| (*name).to_owned())
+            .collect(),
+        applied,
+    })
+}
+
+/// Applies a shipped chain in order, each migration with its ledger row in
+/// one transaction. Refuses a file carrying migrations the chain does not
+/// ship, or applied out of order.
+pub fn apply_local_sqlite_migrations_v1(
+    path: &Path,
+    chain: &[LocalSqliteMigrationV1],
 ) -> RoleStoreResult<Vec<String>> {
+    if let Some(parent) = path.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+        std::fs::create_dir_all(parent).map_err(|error| RoleStoreError::message(error.to_string()))?;
+    }
     let mut connection = Connection::open(path).map_err(sql_error)?;
     connection
-        .execute_batch(&format!(
-            "PRAGMA foreign_keys = ON; CREATE TABLE IF NOT EXISTS {MIGRATION_LEDGER_TABLE} (name TEXT PRIMARY KEY, applied_at_ms INTEGER NOT NULL);"
-        ))
+        .execute_batch("PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL;")
         .map_err(sql_error)?;
-    let mut shipped: Vec<String> = std::fs::read_dir(migrations_dir)
-        .map_err(|error| RoleStoreError::message(error.to_string()))?
-        .filter_map(|entry| entry.ok())
-        .map(|entry| entry.file_name().to_string_lossy().into_owned())
-        .filter(|name| name.ends_with(".sql"))
-        .collect();
-    shipped.sort();
-    let applied: Vec<String> = {
-        let mut statement = connection
-            .prepare(&format!("SELECT name FROM {MIGRATION_LEDGER_TABLE} ORDER BY name"))
-            .map_err(sql_error)?;
-        let names = statement
-            .query_map([], |row| row.get::<_, String>(0))
-            .map_err(sql_error)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(sql_error)?;
-        names
-    };
-    if let Some(unknown) = applied.iter().find(|name| !shipped.contains(name)) {
+    let applied = read_applied_migrations(&connection)?;
+    let shipped: Vec<&str> = chain.iter().map(|(name, _)| *name).collect();
+    if let Some(unknown) = applied.iter().find(|name| !shipped.contains(&name.as_str())) {
         return Err(RoleStoreError::message(format!(
-            "role-private database has migration {unknown} this build does not ship"
+            "SQLite file has migration {unknown} this build does not ship"
         )));
     }
     if applied.iter().zip(shipped.iter()).any(|(left, right)| left != right) {
         return Err(RoleStoreError::message(
-            "applied role-private migrations are not a prefix of the shipped chain",
+            "applied migrations are not a prefix of the shipped chain",
         ));
     }
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_millis() as i64)
+        .map(|duration| i64::try_from(duration.as_millis()).unwrap_or(i64::MAX))
         .unwrap_or_default();
     let mut newly_applied = Vec::new();
-    for name in shipped.iter().skip(applied.len()) {
-        let sql = std::fs::read_to_string(migrations_dir.join(name))
-            .map_err(|error| RoleStoreError::message(error.to_string()))?;
+    for (name, sql) in chain.iter().skip(applied.len()) {
         let transaction = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(sql_error)?;
-        transaction.execute_batch(&sql).map_err(sql_error)?;
+        transaction.execute_batch(sql).map_err(sql_error)?;
         transaction
             .execute(
                 &format!("INSERT INTO {MIGRATION_LEDGER_TABLE} (name, applied_at_ms) VALUES (?1, ?2)"),
@@ -201,9 +268,26 @@ pub fn apply_local_role_private_migrations_v1(
             )
             .map_err(sql_error)?;
         transaction.commit().map_err(sql_error)?;
-        newly_applied.push(name.clone());
+        newly_applied.push((*name).to_owned());
     }
     Ok(newly_applied)
+}
+
+fn read_applied_migrations(connection: &Connection) -> RoleStoreResult<Vec<String>> {
+    connection
+        .execute_batch(&format!(
+            "CREATE TABLE IF NOT EXISTS {MIGRATION_LEDGER_TABLE} (name TEXT PRIMARY KEY, applied_at_ms INTEGER NOT NULL);"
+        ))
+        .map_err(sql_error)?;
+    let mut statement = connection
+        .prepare(&format!("SELECT name FROM {MIGRATION_LEDGER_TABLE} ORDER BY name"))
+        .map_err(sql_error)?;
+    let names = statement
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(sql_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(sql_error)?;
+    Ok(names)
 }
 
 fn json_value(value: ValueRef<'_>) -> RoleStoreResult<Value> {

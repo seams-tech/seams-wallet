@@ -382,6 +382,7 @@ fn local_env_materialization_plan_generates_parseable_role_env_files() {
     assert_eq!(
         plan.directories,
         vec![
+            router_ab_dev::LOCAL_ROUTER_STATE_DIR_V1.to_owned(),
             LOCAL_DERIVER_A_STATE_DIR_V1.to_owned(),
             LOCAL_DERIVER_B_STATE_DIR_V1.to_owned(),
             LOCAL_SIGNING_WORKER_STATE_DIR_V1.to_owned(),

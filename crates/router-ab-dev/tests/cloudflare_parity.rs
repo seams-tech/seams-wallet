@@ -237,7 +237,16 @@ fn local_env_templates_match_wrangler_startup_manifests() {
     router.assert_local("DERIVER_A_URL=http://127.0.0.1:4103");
     router.assert_local("DERIVER_B_URL=http://127.0.0.1:4104");
     router.assert_local("SIGNING_WORKER_URL=http://127.0.0.1:4105");
-    router.assert_local_absent("STORAGE_PATH");
+    // The Router owns the tenant-root creation state, as it owns the creation
+    // Durable Object on Cloudflare, and no other storage: no role shares.
+    router.assert_local(
+        "ROUTER_TENANT_ROOT_CREATION_STORAGE_PATH=.router-ab-local/router/tenant-root-creation.sqlite",
+    );
+    assert_eq!(
+        router.local.matches("STORAGE_PATH").count(),
+        1,
+        "the Router owns no storage besides its tenant-root creation state"
+    );
 
     let deriver_a = ManifestPair {
         local: include_str!("../env/deriver-a.local.example"),

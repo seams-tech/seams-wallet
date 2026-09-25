@@ -72,7 +72,7 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
             local_recipient_set_digest_v1(config)?,
             now_ms,
             now_ms.saturating_add(ROUTER_AUTHORITY_TTL_MS),
-            &config.tenant_root_resolver,
+            &config.tenant_root,
         )?;
         request.authority.validate_at(now_ms)?;
         // Only an explicit Gateway replay reconciles a prior run before
@@ -803,7 +803,7 @@ fn execution_id_for_pair(
     router_ab_core::Ed25519YaoExecutionIdV1::new(pair.pair_digest().bytes)
 }
 
-fn local_now_ms_v1() -> RouterAbProtocolResult<u64> {
+pub(crate) fn local_now_ms_v1() -> RouterAbProtocolResult<u64> {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis().try_into().unwrap_or(u64::MAX))
@@ -816,7 +816,7 @@ fn coordinator_error(message: &'static str) -> RouterAbProtocolError {
 
 #[cfg(test)]
 mod tests {
-    use crate::LocalTenantRootResolverConfigV1;
+    use crate::LocalRouterTenantRootConfigV1;
 
     use super::*;
 
@@ -929,7 +929,7 @@ mod tests {
             router_ab_core::PublicDigest32::new([0xa1; 32]),
             1,
             100,
-            &LocalTenantRootResolverConfigV1::default(),
+            &LocalRouterTenantRootConfigV1::default(),
         )
         .expect_err("malformed request must not reach a role");
         assert_eq!(
@@ -1044,7 +1044,7 @@ mod tests {
             gateway_to_router_auth: "local-test-gateway-auth".to_owned(),
             peer_verifying_keys: fixture_peer_verifying_keys(),
             admission_bindings: fixture_admission_bindings(),
-            tenant_root_resolver: LocalTenantRootResolverConfigV1::default(),
+            tenant_root: LocalRouterTenantRootConfigV1::default(),
         };
         let body = serde_json::to_vec(&request).expect("promotion JSON");
         let promoted = LocalRouterEd25519YaoCoordinatorV1::default()

@@ -554,7 +554,7 @@ mod tests {
             gateway_to_router_auth: "local-test-gateway-auth".to_owned(),
             peer_verifying_keys: fixture_peer_verifying_keys(),
             admission_bindings: fixture_admission_bindings(),
-            tenant_root_resolver: Default::default(),
+            tenant_root: Default::default(),
         }
     }
 
