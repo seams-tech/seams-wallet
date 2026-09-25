@@ -127,7 +127,7 @@ pub fn require_cloudflare_gateway_to_router_auth_request_v1(
             return Err(error);
         }
     };
-    let same_credential = constant_time_text_eq_v1(&shared, &gateway);
+    let same_credential = router_ab_service_credential_matches_v1(&shared, &gateway);
     shared.zeroize();
     if same_credential {
         gateway.zeroize();
@@ -155,7 +155,7 @@ pub fn require_cloudflare_gateway_to_signing_worker_presign_auth_request_v1(
             return Err(error);
         }
     };
-    let same_credential = constant_time_text_eq_v1(&shared, &gateway);
+    let same_credential = router_ab_service_credential_matches_v1(&shared, &gateway);
     shared.zeroize();
     if same_credential {
         gateway.zeroize();
@@ -194,8 +194,8 @@ pub fn require_cloudflare_router_to_signing_worker_ecdsa_auth_request_v1(
             return Err(error);
         }
     };
-    let reused = constant_time_text_eq_v1(&shared, &router)
-        || constant_time_text_eq_v1(&gateway_presign, &router);
+    let reused = router_ab_service_credential_matches_v1(&shared, &router)
+        || router_ab_service_credential_matches_v1(&gateway_presign, &router);
     shared.zeroize();
     gateway_presign.zeroize();
     if reused {
@@ -223,7 +223,7 @@ fn require_cloudflare_service_auth_request_v1(
             )
         })?
         .unwrap_or_default();
-    let authorized = constant_time_text_eq_v1(&expected, &presented);
+    let authorized = router_ab_service_credential_matches_v1(&expected, &presented);
     expected.zeroize();
     if authorized {
         return Ok(());
@@ -245,10 +245,11 @@ pub fn cloudflare_private_service_auth_error_response_v1(
     worker::Response::error(format!("{:?}: {}", err.code(), err.message()), status)
 }
 
-#[cfg(feature = "workers-rs")]
-fn constant_time_text_eq_v1(a: &str, b: &str) -> bool {
-    let a = a.as_bytes();
-    let b = b.as_bytes();
+/// Constant-time comparison of a presented service credential against the
+/// expected one. Both the Cloudflare adapter and the VM role processes use it.
+pub fn router_ab_service_credential_matches_v1(expected: &str, presented: &str) -> bool {
+    let a = expected.as_bytes();
+    let b = presented.as_bytes();
     let mut diff = a.len() ^ b.len();
     let max_len = core::cmp::max(a.len(), b.len());
     for index in 0..max_len {
@@ -256,7 +257,28 @@ fn constant_time_text_eq_v1(a: &str, b: &str) -> bool {
         let right = b.get(index).copied().unwrap_or_default();
         diff |= (left ^ right) as usize;
     }
-    diff == 0
+    diff == 0 && !a.is_empty()
+}
+
+/// Rejects a deployment that reuses one credential for two service boundaries.
+pub fn require_distinct_router_ab_service_credentials_v1(
+    boundary: &str,
+    dedicated: &str,
+    shared: &str,
+) -> RouterAbProtocolResult<()> {
+    if dedicated.trim().is_empty() {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            format!("{boundary} auth secret is required"),
+        ));
+    }
+    if router_ab_service_credential_matches_v1(dedicated, shared) {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            format!("{boundary} auth secret must differ from role-shared service auth"),
+        ));
+    }
+    Ok(())
 }
 
 pub(crate) fn verify_router_ed25519_jwt_signature_v1(

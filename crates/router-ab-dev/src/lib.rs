@@ -357,9 +357,9 @@ pub const LOCAL_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH: &str = "/router-ab/ecds
 /// Local private service-auth secret env key shared with the TypeScript relay.
 pub const LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1: &str =
     "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET";
-/// Local default private service-auth secret used when the env key is unset.
-pub const LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1: &str =
-    "dev-router-ab-internal-service-auth";
+/// Dedicated Gateway-to-Router credential env key; never the role-shared secret.
+pub const LOCAL_ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET_ENV_V1: &str =
+    "ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET";
 /// Local private service-auth header mirrored from strict Cloudflare.
 pub const LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1: &str =
     "x-router-ab-internal-service-auth";
@@ -406,22 +406,11 @@ pub const LOCAL_HTTP_JSON_CONTENT_TYPE_V1: &str = "application/json";
 /// Default local HTTP service-binding timeout.
 pub const LOCAL_HTTP_SERVICE_BINDING_TIMEOUT_MS_V1: u64 = 10_000;
 
-/// Returns the local private service-auth secret used between Router and workers.
-pub fn local_router_ab_internal_service_auth_secret_v1() -> String {
-    std::env::var(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1)
-        .ok()
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1.to_owned())
-}
-
 pub(crate) fn local_router_ab_internal_service_auth_matches_v1(
     actual: &str,
     expected: &str,
 ) -> bool {
-    use subtle::ConstantTimeEq;
-
-    actual.len() == expected.len() && bool::from(actual.as_bytes().ct_eq(expected.as_bytes()))
+    router_ab_cloudflare::router_ab_service_credential_matches_v1(expected, actual)
 }
 
 const LOCAL_ROUTER_FORBIDDEN_ENV_KEYS_V1: &[&str] = &[
@@ -459,6 +448,19 @@ const LOCAL_SIGNING_WORKER_FORBIDDEN_ENV_KEYS_V1: &[&str] = &[
     LOCAL_DERIVER_A_ROLE_PRIVATE_STORAGE_PATH_ENV_V1,
     LOCAL_DERIVER_B_ROLE_PRIVATE_STORAGE_PATH_ENV_V1,
 ];
+
+fn required_gateway_to_router_auth_v1(
+    env: &BTreeMap<String, String>,
+) -> RouterAbProtocolResult<String> {
+    let gateway = required_env_v1(env, LOCAL_ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET_ENV_V1)?;
+    let shared = required_env_v1(env, LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1)?;
+    router_ab_cloudflare::require_distinct_router_ab_service_credentials_v1(
+        "Gateway-to-Router",
+        &gateway,
+        &shared,
+    )?;
+    Ok(gateway)
+}
 
 /// One Router-owned authenticated tenant-root record parsed from the local map.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1201,8 +1203,12 @@ pub struct LocalRouterWorkerConfigV1 {
     pub signing_worker_ed25519_yao_recipient_public_key: String,
     /// SigningWorker selected for local Ed25519 Yao registration.
     pub signing_worker_id: String,
-    /// Local private service authentication value.
+    /// Role-shared credential for Router-to-role calls.
+    #[serde(skip_serializing)]
     pub internal_service_auth: String,
+    /// Dedicated credential the Gateway presents to the Router.
+    #[serde(skip_serializing)]
+    pub gateway_to_router_auth: String,
     /// Authenticated server-owned tenant-root resolver.
     pub tenant_root_resolver: LocalTenantRootResolverConfigV1,
 }
@@ -1228,6 +1234,9 @@ pub struct LocalDeriverAWorkerConfigV1 {
     pub deriver_b_peer_verifying_key: String,
     /// Deriver A role-private SQLite path.
     pub role_private_storage_path: String,
+    /// Role-shared credential for Router and peer calls.
+    #[serde(skip_serializing)]
+    pub internal_service_auth: String,
 }
 
 /// Deriver B local worker config after raw env parsing.
@@ -1251,6 +1260,9 @@ pub struct LocalDeriverBWorkerConfigV1 {
     pub deriver_b_peer_verifying_key: String,
     /// Deriver B role-private SQLite path.
     pub role_private_storage_path: String,
+    /// Role-shared credential for Router and peer calls.
+    #[serde(skip_serializing)]
+    pub internal_service_auth: String,
 }
 
 /// SigningWorker local worker config after raw env parsing.
@@ -1268,6 +1280,9 @@ pub struct LocalSigningWorkerConfigV1 {
     pub server_output_hpke_private_key: String,
     /// SigningWorker role-private SQLite path.
     pub role_private_storage_path: String,
+    /// Role-shared credential for Router and peer calls.
+    #[serde(skip_serializing)]
+    pub internal_service_auth: String,
 }
 
 /// Role-specific local worker config.
@@ -1285,6 +1300,16 @@ pub enum LocalWorkerRoleConfigV1 {
 }
 
 impl LocalWorkerRoleConfigV1 {
+    /// Role-shared credential this process presents to and expects from peers.
+    pub fn internal_service_auth(&self) -> &str {
+        match self {
+            Self::Router(config) => &config.internal_service_auth,
+            Self::DeriverA(config) => &config.internal_service_auth,
+            Self::DeriverB(config) => &config.internal_service_auth,
+            Self::SigningWorker(config) => &config.internal_service_auth,
+        }
+    }
+
     /// Returns this config's local service role.
     pub fn role(&self) -> LocalServiceRoleV1 {
         match self {
@@ -1545,6 +1570,7 @@ pub fn parse_local_worker_role_config_for_role_v1(
                     &env,
                     LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1,
                 )?,
+                gateway_to_router_auth: required_gateway_to_router_auth_v1(&env)?,
                 tenant_root_resolver: parse_local_tenant_root_bindings_json_v1(&required_env_v1(
                     &env,
                     LOCAL_TENANT_ROOT_BINDINGS_JSON_ENV_V1,
@@ -1584,6 +1610,10 @@ pub fn parse_local_worker_role_config_for_role_v1(
                         &env,
                         LOCAL_DERIVER_A_ROLE_PRIVATE_STORAGE_PATH_ENV_V1,
                     )?,
+                    internal_service_auth: required_env_v1(
+                        &env,
+                        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1,
+                    )?,
                 },
             ))
         }
@@ -1620,6 +1650,10 @@ pub fn parse_local_worker_role_config_for_role_v1(
                         &env,
                         LOCAL_DERIVER_B_ROLE_PRIVATE_STORAGE_PATH_ENV_V1,
                     )?,
+                    internal_service_auth: required_env_v1(
+                        &env,
+                        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1,
+                    )?,
                 },
             ))
         }
@@ -1644,6 +1678,10 @@ pub fn parse_local_worker_role_config_for_role_v1(
                     role_private_storage_path: required_env_v1(
                         &env,
                         LOCAL_SIGNING_WORKER_PRIVATE_STORAGE_PATH_ENV_V1,
+                    )?,
+                    internal_service_auth: required_env_v1(
+                        &env,
+                        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1,
                     )?,
                 },
             ))
@@ -3002,6 +3040,14 @@ fn materialize_template_v1(template: &str, seed: &[u8]) -> RouterAbProtocolResul
     require_non_empty("local env materialization template", template)?;
     let mut contents = template.to_owned();
     for (placeholder, label) in [
+        (
+            "dev-only-role-shared-service-auth",
+            "role-shared-service-auth",
+        ),
+        (
+            "dev-only-gateway-to-router-auth",
+            "gateway-to-router-auth",
+        ),
         (
             "dev-only-deriver-a-peer-signing-key",
             "deriver-a-peer-signing-key",

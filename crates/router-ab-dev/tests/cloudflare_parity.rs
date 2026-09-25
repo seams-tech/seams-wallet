@@ -15,7 +15,7 @@ use router_ab_dev::{
     LOCAL_DERIVER_A_PRIVATE_PATH, LOCAL_DERIVER_B_ED25519_YAO_BURN_PAIR_PATH,
     LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
     LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_STATUS_PATH, LOCAL_DERIVER_B_PEER_PATH,
-    LOCAL_DERIVER_B_PRIVATE_PATH, LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+    LOCAL_DERIVER_B_PRIVATE_PATH,
     LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH, LOCAL_ROUTER_ED25519_YAO_RECOVERY_PROMOTE_PATH,
     LOCAL_ROUTER_NORMAL_SIGNING_PATH, LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH,
 };
@@ -139,9 +139,7 @@ fn local_router_boundary_requires_an_installed_native_dispatcher() {
             method: "POST".to_owned(),
             path: path.to_owned(),
             authorization: None,
-            internal_service_auth: Some(
-                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1.to_owned(),
-            ),
+            internal_service_auth: Some(router.gateway_to_router_auth.clone()),
             body: Vec::new(),
         };
         let (status, body) =
@@ -322,17 +320,19 @@ fn local_env_templates_match_wrangler_startup_manifests() {
 
     // R120: each Deriver reads authoritative creation state through its own
     // external binding to the Router-owned Durable Object. The Router keeps the
-    // class and migrations; the Derivers name the matching Router script per env
-    // and declare no migrations of their own.
+    // class and its migration; the Derivers name the matching Router script per
+    // env and never declare that class. R150 gives Deriver A its own wallet
+    // object class, which it alone migrates.
     for deriver in [&deriver_a, &deriver_b] {
         deriver.assert_wrangler("name = \"ROUTER_TENANT_ROOT_CREATION_DO\"");
         deriver.assert_wrangler("class_name = \"RouterAbTenantRootCreationDurableObject\"");
         deriver.assert_wrangler("script_name = \"router-ab-mpc-router\"");
         deriver.assert_wrangler("script_name = \"router-ab-mpc-router-staging\"");
         deriver.assert_wrangler("script_name = \"router-ab-mpc-router-testnet\"");
-        deriver.assert_wrangler_absent("[[migrations]]");
-        deriver.assert_wrangler_absent("new_sqlite_classes");
+        deriver.assert_wrangler_absent("new_sqlite_classes = [\"RouterAbTenantRootCreationDurableObject\"]");
     }
+    deriver_a.assert_wrangler("new_sqlite_classes = [\"RouterAbDeriverAWalletDurableObject\"]");
+    deriver_b.assert_wrangler_absent("new_sqlite_classes");
     // The Router owns the class: it declares the migration and no script_name.
     router.assert_wrangler("[[migrations]]");
     router.assert_wrangler("new_sqlite_classes = [\"RouterAbTenantRootCreationDurableObject\"]");

@@ -21,7 +21,6 @@ use router_ab_core::{
     ServerIdentityV1,
 };
 use router_ab_dev::{
-    local_router_ab_internal_service_auth_secret_v1,
     run_example_local_router_ab_dev_http_ceremony_v1, LocalDeriverPeerMessageReceiptV1,
     LocalRouterAbEcdsaDerivationTrustedAdmissionV1,
     LocalSigningWorkerAdmittedRouterAbEcdsaDerivationFinalizeRequestV1,
@@ -130,7 +129,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let urls = existing_urls(&root)?;
     wait_for_topology_health(&urls)?;
     if let Some(path) = options.verify_finalize_replay_path.as_deref() {
-        let summary = verify_persisted_finalize_replay(&urls, path)?;
+        let summary = verify_persisted_finalize_replay(&root, &urls, path)?;
         emit_summary(&summary, options.report_path.as_deref())?;
         return Ok(());
     }
@@ -281,7 +280,7 @@ fn run_router_ab_ecdsa_derivation_live_http_smoke(
         server_sigma_share32_b64u: b64u(&fixture.server_sigma_share32),
         expires_at_ms: fixture.expires_at_ms,
     };
-    let internal_service_auth = local_router_ab_internal_service_auth_secret_v1();
+    let internal_service_auth = signing_worker_service_auth_from_root(root)?;
     let (pool_status, pool_body) = post_json_to_path_with_headers(
         &urls.signing_worker,
         LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_PUT_PATH,
@@ -514,6 +513,7 @@ fn write_finalize_fixture(
 }
 
 fn verify_persisted_finalize_replay(
+    root: &Path,
     urls: &LocalWorkerUrls,
     path: &Path,
 ) -> Result<ReplaySummary, Box<dyn std::error::Error>> {
@@ -522,7 +522,7 @@ fn verify_persisted_finalize_replay(
         FinalizeReplayFixture::Pending { admitted } => (admitted, None),
         FinalizeReplayFixture::Completed { admitted, response } => (admitted, Some(response)),
     };
-    let internal_service_auth = local_router_ab_internal_service_auth_secret_v1();
+    let internal_service_auth = signing_worker_service_auth_from_root(root)?;
     let (status, body) = post_json_to_path_with_headers(
         &urls.signing_worker,
         LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
@@ -592,6 +592,16 @@ fn trusted_ecdsa_admission(
         admitted_at_ms,
         expires_at_ms,
     })
+}
+
+/// The smoke caller acts as the Router toward the SigningWorker, so it uses
+/// the role-shared credential from the SigningWorker's own env file.
+fn signing_worker_service_auth_from_root(root: &Path) -> Result<String, Box<dyn std::error::Error>> {
+    let config = read_worker_config(
+        root,
+        worker_process_spec_for_role_v1(LocalServiceRoleV1::SigningWorker)?,
+    )?;
+    Ok(config.internal_service_auth().to_owned())
 }
 
 fn signing_worker_identity_from_root(

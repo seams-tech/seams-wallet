@@ -52,7 +52,6 @@ use router_ab_dev::{
     RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
     LOCAL_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH, LOCAL_DERIVER_B_ED25519_YAO_PEER_PATH,
-    LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
     LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
     LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH, LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PREPARE_PATH,
 };
@@ -359,7 +358,7 @@ fn local_router_worker_exposes_health_and_rejects_malformed_pair_routes(
             &serde_json::json!({}),
             &[(
                 router_ab_dev::LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-                router_ab_dev::LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+                TEST_GATEWAY_TO_ROUTER_AUTH,
             )],
         )?;
         if path == router_ab_dev::LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH {
@@ -483,7 +482,7 @@ fn product_topology_completes_local_ed25519_yao_registration(
         &request,
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            TEST_GATEWAY_TO_ROUTER_AUTH,
         )],
     )?;
     let registration_microseconds =
@@ -522,7 +521,7 @@ fn product_topology_completes_local_ed25519_yao_registration(
         &pair_lookup,
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            TEST_ROLE_SHARED_SERVICE_AUTH,
         )],
     )?;
     assert_eq!(replica_status, 200, "replica B pair status: {replica_body}");
@@ -561,7 +560,7 @@ fn product_topology_completes_local_ed25519_yao_registration(
         &json!({}),
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            TEST_ROLE_SHARED_SERVICE_AUTH,
         )],
     )?;
     assert_ne!(stale_status, 200, "stale replica cannot complete a refresh");
@@ -583,7 +582,7 @@ fn product_topology_completes_local_ed25519_yao_registration(
         &pair_lookup,
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            TEST_ROLE_SHARED_SERVICE_AUTH,
         )],
     )?;
     assert_eq!(
@@ -661,7 +660,7 @@ fn product_topology_completes_local_ed25519_yao_registration(
         &finalization_lookup,
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            TEST_ROLE_SHARED_SERVICE_AUTH,
         )],
     )?;
     assert_eq!(lookup_status, 200, "{lookup_body}");
@@ -677,7 +676,7 @@ fn product_topology_completes_local_ed25519_yao_registration(
         &wrong_scope_lookup,
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            TEST_ROLE_SHARED_SERVICE_AUTH,
         )],
     )?;
     assert_eq!(wrong_scope_status, 200, "{wrong_scope_body}");
@@ -691,7 +690,7 @@ fn product_topology_completes_local_ed25519_yao_registration(
         &request,
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            TEST_GATEWAY_TO_ROUTER_AUTH,
         )],
     )?;
     assert_eq!(router_replay_status, 200, "{router_replay_body}");
@@ -786,7 +785,7 @@ fn product_topology_completes_local_ed25519_yao_registration(
         &lookup,
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            TEST_ROLE_SHARED_SERVICE_AUTH,
         )],
     )?;
     assert_eq!(status, 200, "restart pair status: {body}");
@@ -808,7 +807,7 @@ fn product_topology_completes_local_ed25519_yao_registration(
         &retry,
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            TEST_ROLE_SHARED_SERVICE_AUTH,
         )],
     )?;
     assert_eq!(status, 200, "restart execution replay: {body}");
@@ -824,7 +823,7 @@ fn product_topology_completes_local_ed25519_yao_registration(
         &changed_request,
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            TEST_ROLE_SHARED_SERVICE_AUTH,
         )],
     )?;
     assert_ne!(
@@ -939,7 +938,7 @@ fn vm_pair_reply_loss_reconciles_only_after_clean_transport_eof(
             &request,
             &[(
                 LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+                TEST_GATEWAY_TO_ROUTER_AUTH,
             )],
         )?;
         let (peer_connections, dropped_completions) =
@@ -977,7 +976,7 @@ fn vm_pair_reply_loss_reconciles_only_after_clean_transport_eof(
             &lookup,
             &[(
                 LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+                TEST_ROLE_SHARED_SERVICE_AUTH,
             )],
         )?;
         assert_eq!(outcome_status, 200, "{outcome_body}");
@@ -998,7 +997,7 @@ fn vm_pair_reply_loss_reconciles_only_after_clean_transport_eof(
             &wrong_scope,
             &[(
                 LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+                TEST_ROLE_SHARED_SERVICE_AUTH,
             )],
         )?;
         assert_ne!(wrong_scope_status, 200, "wrong root cannot read B outcome");
@@ -1015,7 +1014,7 @@ fn vm_pair_reply_loss_reconciles_only_after_clean_transport_eof(
             &wrong_execution,
             &[(
                 LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+                TEST_ROLE_SHARED_SERVICE_AUTH,
             )],
         )?;
         assert_ne!(
@@ -1079,7 +1078,7 @@ fn vm_pair_reply_loss_reconciles_only_after_clean_transport_eof(
                     &retry,
                     &[(
                         LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-                        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+                        TEST_ROLE_SHARED_SERVICE_AUTH,
                     )],
                 )?;
                 assert_eq!(replay_status, 200, "{replay_body}");
@@ -1311,7 +1310,7 @@ fn vm_router_reconciles_signing_worker_reply_loss_without_activating_missing_mat
             &request,
             &[(
                 LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+                TEST_GATEWAY_TO_ROUTER_AUTH,
             )],
         )?;
         assert_eq!(status, 200, "{body}");
@@ -1341,7 +1340,7 @@ fn vm_router_reconciles_signing_worker_reply_loss_without_activating_missing_mat
                     &request,
                     &[(
                         LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-                        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+                        TEST_GATEWAY_TO_ROUTER_AUTH,
                     )],
                 )?;
                 assert_eq!(retry_status, 200, "{retry_body}");
@@ -1631,7 +1630,7 @@ fn local_ecdsa_effect_claim_and_consume_survive_terminal_failure(
         &competing_request,
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            TEST_ROLE_SHARED_SERVICE_AUTH,
         )],
     )?;
     assert_eq!(competing_status, 400, "{competing_body}");
@@ -1683,7 +1682,7 @@ fn product_near_signing_process_flow(
         &prepare_request,
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            TEST_ROLE_SHARED_SERVICE_AUTH,
         )],
     )?;
     assert_eq!(status, 200, "VM SigningWorker prepare: {body}");
@@ -1703,7 +1702,7 @@ fn product_near_signing_process_flow(
         &prepare_request,
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            TEST_ROLE_SHARED_SERVICE_AUTH,
         )],
     )?;
     assert_eq!(
@@ -1745,7 +1744,7 @@ fn product_near_signing_process_flow(
                 &finalize_request,
                 &[(
                     LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-                    LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+                    TEST_ROLE_SHARED_SERVICE_AUTH,
                 )],
             )
             .map_err(|error| error.to_string())
@@ -1758,7 +1757,7 @@ fn product_near_signing_process_flow(
                 &finalize_request,
                 &[(
                     LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-                    LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+                    TEST_ROLE_SHARED_SERVICE_AUTH,
                 )],
             )
             .map_err(|error| error.to_string())
@@ -1797,7 +1796,7 @@ fn product_near_signing_process_flow(
             &finalize_request,
             &[(
                 LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+                TEST_ROLE_SHARED_SERVICE_AUTH,
             )],
         )?;
         assert_eq!(status, 200, "VM SigningWorker replay: {retry_body}");
@@ -1836,7 +1835,7 @@ fn product_near_signing_process_flow(
         &finalize_request,
         &[(
             LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_DEFAULT_SECRET_V1,
+            TEST_ROLE_SHARED_SERVICE_AUTH,
         )],
     )?;
     assert_eq!(
@@ -2258,6 +2257,30 @@ impl Drop for ChildGuard {
     }
 }
 
+/// The role-shared credential every test role process is started with.
+const TEST_ROLE_SHARED_SERVICE_AUTH: &str = "vm-test-role-shared-service-auth-0123456789abcdef";
+/// The dedicated credential the test acts with when it plays the Gateway.
+const TEST_GATEWAY_TO_ROUTER_AUTH: &str = "vm-test-gateway-to-router-auth-0123456789abcdef";
+
+/// Replaces generated credentials with fixed test values so the test can call
+/// each role as its authorized caller would.
+fn pin_test_service_credentials(contents: &str) -> String {
+    contents
+        .lines()
+        .map(|line| {
+            if line.starts_with("ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET=") {
+                format!("ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET={TEST_ROLE_SHARED_SERVICE_AUTH}")
+            } else if line.starts_with("ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET=") {
+                format!("ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET={TEST_GATEWAY_TO_ROUTER_AUTH}")
+            } else {
+                line.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n"
+}
+
 fn write_deriver_envs(
     root: &Path,
     deriver_a_url: &str,
@@ -2286,6 +2309,7 @@ fn write_router_env(
         .replace("http://127.0.0.1:4103", deriver_a_url)
         .replace("http://127.0.0.1:4104", deriver_b_url)
         .replace("http://127.0.0.1:4105", signing_worker_url);
+    let contents = pin_test_service_credentials(&contents);
     fs::create_dir_all(root)?;
     fs::write(root.join(file.path), contents)?;
     Ok(())
@@ -2312,6 +2336,7 @@ fn write_product_worker_envs(
             .replace("http://127.0.0.1:4103", deriver_a_url)
             .replace("http://127.0.0.1:4104", deriver_b_url)
             .replace("http://127.0.0.1:4105", signing_worker_url);
+        let contents = pin_test_service_credentials(&contents);
         let contents = match file.role {
             LocalServiceRoleV1::Router => contents.replace(
                 "LOCAL_TENANT_ROOT_BINDINGS_JSON={}",
@@ -2677,6 +2702,7 @@ fn write_deriver_envs_to_roots(
             .contents
             .replace("http://127.0.0.1:4103", deriver_a_url)
             .replace("http://127.0.0.1:4104", deriver_b_url);
+        let contents = pin_test_service_credentials(&contents);
         fs::write(root.join(file.path), contents)?;
     }
     Ok(())

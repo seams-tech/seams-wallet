@@ -216,7 +216,7 @@ fn require_local_dev_router_internal_service_auth_v1(
         Some(actual)
             if super::local_router_ab_internal_service_auth_matches_v1(
                 actual,
-                &config.internal_service_auth,
+                &config.gateway_to_router_auth,
             ) =>
         {
             Ok(())
@@ -288,7 +288,9 @@ fn local_dev_signing_worker_private_route_v1(
             "path is not owned by this worker",
         );
     };
-    if let Err(message) = require_local_dev_internal_service_auth_v1(request) {
+    if let Err(message) =
+        require_local_dev_internal_service_auth_v1(request, &signing_worker.internal_service_auth)
+    {
         return local_dev_http_error_body_v1(LocalServiceRoleV1::SigningWorker, path, 401, message);
     }
     local_dev_protocol_response_v1(
@@ -377,11 +379,11 @@ pub fn read_local_dev_http_request_v1(
 
 pub fn require_local_dev_internal_service_auth_v1(
     request: &LocalDevHttpRequestPartsV1,
+    expected: &str,
 ) -> Result<(), &'static str> {
-    let expected = super::local_router_ab_internal_service_auth_secret_v1();
     match request.internal_service_auth.as_deref() {
         Some(actual)
-            if super::local_router_ab_internal_service_auth_matches_v1(actual, &expected) =>
+            if super::local_router_ab_internal_service_auth_matches_v1(actual, expected) =>
         {
             Ok(())
         }
@@ -510,6 +512,7 @@ mod tests {
             signing_worker_ed25519_yao_recipient_public_key: "x25519:c".to_owned(),
             signing_worker_id: "local-signing-worker".to_owned(),
             internal_service_auth: "local-test-auth".to_owned(),
+            gateway_to_router_auth: "local-test-gateway-auth".to_owned(),
             tenant_root_resolver: Default::default(),
         }
     }
@@ -519,7 +522,7 @@ mod tests {
             method: "POST".to_owned(),
             path: LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH.to_owned(),
             authorization: None,
-            internal_service_auth: Some(config.internal_service_auth.clone()),
+            internal_service_auth: Some(config.gateway_to_router_auth.clone()),
             body: Vec::new(),
         }
     }
@@ -534,6 +537,17 @@ mod tests {
         let response = local_dev_router_request_with_dispatcher_v1(&config, &request, &dispatcher)
             .expect("authenticated request should dispatch");
         assert_eq!(response, (200, "{\"status\":\"handled\"}".to_owned()));
+        assert_eq!(dispatcher.calls.get(), 1);
+
+        // The role-shared credential cannot stand in for the Gateway's.
+        let role_shared = LocalDevHttpRequestPartsV1 {
+            internal_service_auth: Some(config.internal_service_auth.clone()),
+            ..request.clone()
+        };
+        let (status, _) =
+            local_dev_router_request_with_dispatcher_v1(&config, &role_shared, &dispatcher)
+                .expect("role-shared credential should return a typed HTTP error");
+        assert_eq!(status, 401);
         assert_eq!(dispatcher.calls.get(), 1);
 
         let unauthorized = LocalDevHttpRequestPartsV1 {

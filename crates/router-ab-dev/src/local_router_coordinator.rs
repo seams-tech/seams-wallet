@@ -1045,6 +1045,7 @@ mod tests {
             signing_worker_ed25519_yao_recipient_public_key: "x25519:c".to_owned(),
             signing_worker_id: "local-signing-worker".to_owned(),
             internal_service_auth: "local-test-auth".to_owned(),
+            gateway_to_router_auth: "local-test-gateway-auth".to_owned(),
             tenant_root_resolver: LocalTenantRootResolverConfigV1::default(),
         };
         let body = serde_json::to_vec(&request).expect("promotion JSON");

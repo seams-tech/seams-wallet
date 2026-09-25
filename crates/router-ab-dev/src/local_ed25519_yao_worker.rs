@@ -20,7 +20,7 @@ use crate::{
     complete_local_deriver_b_target_v2, derive_local_ed25519_yao_joint_refresh_delta_v1,
     generate_local_ed25519_yao_deriver_a_refresh_delta_v1,
     generate_local_ed25519_yao_deriver_b_refresh_delta_v1, local_dev_http_error_body_v1,
-    local_ed25519_yao_refresh_binding_digest_v1, local_router_ab_internal_service_auth_secret_v1,
+    local_ed25519_yao_refresh_binding_digest_v1,
     local_tenant_root_coordinates_for_context_v1,
     open_local_ed25519_yao_activation_deriver_a_input_v1,
     open_local_ed25519_yao_activation_deriver_b_input_v1,
@@ -821,7 +821,8 @@ fn handle_yao_control_request(
     host: &LocalEd25519YaoSqliteHostV1,
     request: &crate::LocalDevHttpRequestPartsV1,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    require_local_dev_internal_service_auth_v1(request).map_err(io::Error::other)?;
+    require_local_dev_internal_service_auth_v1(request, config.internal_service_auth())
+        .map_err(io::Error::other)?;
     match (config, request.path.as_str()) {
         (
             LocalWorkerRoleConfigV1::DeriverA(config),
@@ -1062,6 +1063,7 @@ fn handle_yao_control_request(
             let delta_b = post_internal_json_v1::<_, LocalEd25519YaoDeriverBRefreshDeltaWireV1>(
                 &config.deriver_b_url,
                 LOCAL_DERIVER_B_ED25519_YAO_REFRESH_DELTA_PATH,
+                &config.internal_service_auth,
                 &exchange,
             )?;
             let joint = derive_local_ed25519_yao_joint_refresh_delta_v1(
@@ -1086,7 +1088,7 @@ fn handle_yao_control_request(
             let completion = run_local_activation_deriver_a_http_v1(
                 http_authority(&config.deriver_b_url)?,
                 session,
-                &local_router_ab_internal_service_auth_secret_v1(),
+                &config.internal_service_auth,
                 role,
             )?;
             let packages = seal_activation_output_v1(
@@ -1619,7 +1621,7 @@ fn execute_local_pair_deriver_a_inner_v1(
             http_authority(&config.deriver_b_url)
                 .map_err(|_| pair_execution_error("Deriver B URL is malformed"))?,
             session,
-            &local_router_ab_internal_service_auth_secret_v1(),
+            &config.internal_service_auth,
             &pair_context,
             &outbound_target_proof,
             private_key.as_bytes(),
@@ -1789,6 +1791,7 @@ fn resolve_local_deriver_b_completion_v1(
             post_internal_json_v1(
                 &config.deriver_b_url,
                 LOCAL_DERIVER_B_ED25519_YAO_READ_PAIR_OUTCOME_PATH,
+                &config.internal_service_auth,
                 &lookup,
             )
             .map_err(|_| pair_execution_error("Deriver B terminal outcome is unavailable"))?
@@ -2354,6 +2357,7 @@ fn promote_deriver_b_refresh(
 fn post_internal_json_v1<Request, Response>(
     base_url: &str,
     path: &str,
+    auth: &str,
     request: &Request,
 ) -> Result<Response, Box<dyn std::error::Error>>
 where
@@ -2366,7 +2370,6 @@ where
     let timeout = Duration::from_millis(LOCAL_HTTP_SERVICE_BINDING_TIMEOUT_MS_V1);
     stream.set_read_timeout(Some(timeout))?;
     stream.set_write_timeout(Some(timeout))?;
-    let auth = local_router_ab_internal_service_auth_secret_v1();
     write!(
         stream,
         "POST {path} HTTP/1.1\r\nhost: {authority}\r\ncontent-type: application/json\r\n{LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1}: {auth}\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
@@ -2477,7 +2480,7 @@ fn handle_deriver_b_peer_stream(
     state: &mut LocalEd25519YaoWorkerStateV1,
     host: &LocalEd25519YaoSqliteHostV1,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let auth = local_router_ab_internal_service_auth_secret_v1();
+    let auth = config.internal_service_auth().to_owned();
     if state.pending_deriver_b.is_none() {
         let expected_session = peek_local_peer_session_v1(&stream)?;
         let authenticated = authenticate_local_ed25519_yao_deriver_b_peer_http_with_pair_v2(
