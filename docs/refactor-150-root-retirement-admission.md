@@ -155,3 +155,122 @@ Run each schedule against DO SQLite and role-private VM SQLite:
 
 The current pair-store adapter tests establish local claims and replay only.
 They do not satisfy these cross-owner schedules.
+
+## Proposed bounded mechanism (for review, 2026-09-25)
+
+Status: proposal. This section does not approve the contract above. It gives a
+concrete candidate that bounds retirement time without treating silence as
+proof. No refresh, retirement, restore or cutover path is disabled or changed
+by it.
+
+### Current code facts this must replace
+
+- Refresh erases the retired share immediately. The Router activates both
+  roles and then issues `RetiredAfterRefresh` cleanup straight away, without
+  waiting for in-flight work (`strict_worker/router.rs:3620-3697`).
+- Source retirement deletes the lineage in one batch and moves recovery
+  attempts to `destroying`. There is no closing state or drain
+  (`tenant_root_role_d1/source_retirement.rs:14-86`), and no test covers it.
+- The cutover `Drained` stage accepts a drain receipt supplied by the caller.
+  Nothing consumes `derivation_gate()`
+  (`tenant_root_cutover_lifecycle.rs:1042`, `:1180-1193`).
+- Root reads go through `load_active` with an exact epoch match. Work bound to
+  a swapped epoch therefore fails closed at its next root read. An effect that
+  has already read the root is not fenced.
+- No root-use admission table or drain exists on Cloudflare or the VM.
+
+### Mechanism: deadline-fenced root-use admissions, enforced by recipients
+
+The fence is tenant-root-wide. It is keyed by (tenant-root identity digest,
+lineage, epoch, role) and covers every wallet of that root.
+
+1. **Gate.** Each role D1 gets one gate row per (identity, lineage, epoch):
+   `open → closing → closed`. The gate lives in the same database as the
+   share and changes in the same transactions as epoch swap, restore
+   promotion and source retirement.
+2. **Admission before any root read.** Every root-using operation must first
+   commit an admission in the role D1 while the gate is `open` for the exact
+   epoch. This covers Yao pair preparation and execution, ECDSA derivation and
+   presign root use, lane provisioning and refresh, recovery and export.
+   - The key follows the contract above.
+   - Each admission carries an immutable `effect_deadline_ms`, set to
+     `now + W`, where `W` is a protocol constant no longer than the pair
+     readiness expiry.
+   - A lost reply leaves one obligation, found by exact read.
+3. **The deadline travels with every effect.** The deadline and the
+   admission id are bound into every root-derived effect:
+   - readiness receipts and start grants;
+   - Yao round and target-proof messages;
+   - sealed completions;
+   - SigningWorker activation packages;
+   - ECDSA derivation results.
+
+   The sending role signs them.
+4. **Recipients enforce the deadline at acceptance.** Each receiving role
+   (the peer Deriver, SigningWorker, the Router coordinator) rejects any
+   effect whose deadline has passed, using its own clock plus a bounded skew
+   `S`.
+   - Acceptance is judged when the effect is executed, not when it is
+     received or queued, so queued and redelivered work is covered.
+   - A recipient also rejects any admission id it holds a `closing` or
+     `closed` gate receipt for.
+5. **Retirement.**
+   1. CAS the gate `open → closing`. New admissions for that epoch now fail.
+   2. Wait until `now > max(effect_deadline_ms) + S` over that epoch's
+      admissions.
+   3. In one conditional transaction:
+      - move the gate `closing → closed`;
+      - retire or erase the share;
+      - record a signed gate-closed receipt.
+
+      The transaction fails if any admission's deadline plus `S` is still in
+      the future, so a racing admission or replacement cannot pass. The wait
+      is bounded by `W + S`.
+6. **Early settlement is optional.** An admission whose operation reached a
+   durable terminal outcome may be marked `settled` so reporting can ignore
+   it. Retirement correctness does not depend on this: the deadline alone
+   bounds when any effect can still be accepted.
+
+### Why this satisfies the contract
+
+- **Admitted, delayed, running and queued effects are covered.** Each carries
+  a deadline that every recipient enforces when it acts on it. A running
+  executor past its deadline cannot get any recipient to accept an effect.
+  This is a recipient-side fence, not an executor timeout. `Burned`, missing
+  DO records and process silence play no part.
+- **No indefinite wait.** Retirement never waits on proof of executor
+  quiescence, so it cannot stall. It waits at most `W + S`.
+- **Historical records.** Admission and gate records survive closing for
+  exact reconciliation. A historical receipt reads its outcome but can never
+  authorize a new root read.
+
+### Coverage of each transition
+
+| Transition | Application |
+| --- | --- |
+| Manual and scheduled refresh | Close the old epoch's gate before `RetiredAfterRefresh` cleanup. The new epoch opens when it activates. |
+| A/B epoch swap | Each role closes its own old-epoch gate. The Router issues cleanup only after both roles' gate-closed receipts exist. |
+| Source retirement | Replace the immediate delete with closing, wait and a closed-plus-delete batch. The existing fence triggers stay. |
+| Managed restore replacing live authority | Close the live epoch's gate before the restored epoch is promoted. The restored epoch stays pending until then. |
+| Custody cutover | `Drained` requires both roles' signed gate-closed receipts instead of a caller-supplied receipt. `derivation_gate()` becomes the check that SigningWorker and the Router consume before activating the destination. |
+
+### What it does not cover
+
+- It does not retract a signature already released, or revoke independent
+  lane material, SigningWorker activations or Gateway sessions. Those keep
+  their own fences; cutover orders them separately.
+- It depends on each role's clock. `S` must be an operator-reviewed bound,
+  and a role whose clock is outside `S` must be treated as a custody incident.
+- A single deadline per admission bounds multi-round Yao work to `W`. Long
+  operations must either fit inside `W` or re-admit per round. Re-admission
+  is refused once the gate is closing.
+
+### Open review questions
+
+1. The value of `W` for Yao registration, recovery and export on both hosts,
+   and the acceptable `S`.
+2. Whether SigningWorker should also reject activation packages for an epoch
+   whose gate-closed receipt it holds, even inside the deadline. This is
+   stricter and needs a push path for receipts.
+3. Whether the Router should persist a per-epoch admission count so that
+   retirement can finish early once every admission has settled.

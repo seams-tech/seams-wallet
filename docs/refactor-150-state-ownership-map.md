@@ -54,7 +54,10 @@ the lifecycle record. Preserve this D1 atomic unit during the first Deriver
 execution-boundary slice. A later DO path must establish the failure and
 visibility protocol for splitting finalization, including lost-reply
 reconciliation, before it moves these records. Recovery/export transitions
-need the same explicit review of their shared invariants. The same D1 CAS guard
+need the same explicit review of their shared invariants. The proposed
+protocol, awaiting review, is
+[cross-owner finalization](./refactor-150-cross-owner-finalization.md); until
+it is approved these records stay in D1. The same D1 CAS guard
 currently protects multiple families; each target owner gets its own local
 transaction rather than a copy of the shared guard. Historical bridge tables
 in migration SQL are not additional current authorities.
@@ -191,7 +194,8 @@ before release. No hosted resources or production routing were changed.
   the original pair, root-receipt digest, and execution ID. A verifies that
   outcome against its own completed transcript and commits its result before
   replying. Malformed framing still fails closed. This only reconciles while
-  A's process survives; A crash after B completion remains unresolved. Router
+  A's process survives; A crash after B completion remains unresolved (fails
+  closed; proposal: [fenced fresh attempt](./refactor-150-deriver-a-fresh-attempt.md)). Router
   registration replay now reads completed A/B records and an exact,
   read-only SigningWorker finalization record before any pair preparation.
   The initial SigningWorker receipt and active material commit in one
