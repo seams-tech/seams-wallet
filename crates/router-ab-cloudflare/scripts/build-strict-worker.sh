@@ -42,16 +42,16 @@ run_worker_build() {
 }
 
 worker_features="strict-worker-$role-entrypoint"
-if [[ "$role" == "deriver-a" && "$worker_build_profile" == "dev" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
+if [[ "$role" == "deriver-a" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
   worker_features+=",wallet-do-harness"
 fi
-if [[ "$role" == "router" && "$worker_build_profile" == "dev" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
+if [[ "$role" == "router" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
   worker_features+=",wallet-do-router-harness"
 fi
-if [[ "$role" == "deriver-b" && "$worker_build_profile" == "dev" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
+if [[ "$role" == "deriver-b" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
   worker_features+=",wallet-do-b-harness,wallet-do-b-completion-harness"
 fi
-if [[ "$role" == "signing-worker" && "$worker_build_profile" == "dev" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
+if [[ "$role" == "signing-worker" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" ]]; then
   worker_features+=",wallet-do-signing-worker-harness"
 fi
 
