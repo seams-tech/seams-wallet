@@ -10,7 +10,6 @@ use crate::durable_object::tenant_root_creation::{
     destination_bootstrap_request_scope_from_wire_v1,
     execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1,
     execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1,
-    execute_cloudflare_router_tenant_root_creation_cleanup_call_v1,
     execute_cloudflare_router_tenant_root_destination_bootstrap_call_v1,
     execute_cloudflare_router_tenant_root_refresh_activation_call_v1,
     execute_cloudflare_router_tenant_root_refresh_admission_call_v1,
@@ -951,100 +950,6 @@ impl crate::TenantRootRouterCreationHostV1 for CloudflareRouterTenantRootCreatio
                 )
             })?;
         crate::env::decode_issuer_verifying_keys(&keys)
-    }
-
-    async fn clean_partial_creation(
-        &self,
-        genesis: &CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
-        installed_role: CloudflareTenantRootControlPlaneRoleV1,
-    ) -> RouterAbProtocolResult<()> {
-    let cleanup =
-        execute_cloudflare_tenant_root_control_plane_cleanup_command_service_call_v1(
-            self.env,
-            &CloudflareTenantRootControlPlaneCleanupCommandRequestV1::PendingCreation {
-                identity_digest_b64u: genesis.identity_digest_b64u.clone(),
-                custody_lineage_b64u: genesis.custody_lineage_b64u.clone(),
-            },
-        )
-        .await?;
-    if cleanup.role != installed_role {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-            "tenant-root cleanup command names a different installed role",
-        ));
-    }
-    let cleanup_command_bytes = crate::decode_base64url_bytes_v1(
-        "tenant-root cleanup command",
-        &cleanup.cleanup_command_b64u,
-    )?;
-    let cleanup_command =
-        router_ab_core::TenantRootRoleCleanupCommandV1::decode_canonical_bytes(
-            &cleanup_command_bytes,
-        )
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                format!("tenant-root cleanup command was malformed: {error}"),
-            )
-        })?;
-    let claimed_target = cleanup_command.claimed_target();
-    let expected_role = installed_role.to_protocol();
-    let (authority_id, _) = derive_tenant_root_creation_authority_object_v1(
-        self.env,
-        claimed_target.identity_digest(),
-        claimed_target.custody_lineage(),
-    )?;
-    let reader = crate::CloudflareWorkerEnvReaderV1::new(self.env);
-    let issuer_keys =
-        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(
-            &reader,
-        )?;
-    let issuer_key_id = cleanup_command.issuer_key_id().to_owned();
-    let issuer_key = issuer_keys
-        .for_issuer_key_id(&issuer_key_id)
-        .ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "tenant-root cleanup command issuer is not trusted by the Router",
-            )
-        })?;
-    let verified_cleanup = cleanup_command
-        .verify(
-            &claimed_target,
-            expected_role,
-            authority_id,
-            &issuer_key_id,
-            issuer_key,
-        )
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                format!("tenant-root cleanup command verification failed: {error}"),
-            )
-        })?;
-    let deriver = match installed_role {
-        CloudflareTenantRootControlPlaneRoleV1::DeriverA => &self.runtime.bindings().deriver_a,
-        CloudflareTenantRootControlPlaneRoleV1::DeriverB => &self.runtime.bindings().deriver_b,
-    };
-    let cleaned = execute_cloudflare_deriver_tenant_root_cleanup_service_call_v1(
-        self.env,
-        deriver,
-        &CloudflareDeriverTenantRootCleanupRequestV1 {
-            cleanup_command_b64u: cleanup.cleanup_command_b64u,
-        },
-    )
-    .await?;
-    let cleanup_receipt = crate::decode_base64url_bytes_v1(
-        "tenant-root cleanup terminal receipt",
-        cleaned.cleanup_receipt_b64u(),
-    )?;
-    execute_cloudflare_router_tenant_root_creation_cleanup_call_v1(
-        self.env,
-        &verified_cleanup,
-        &cleanup_receipt,
-    )
-    .await?;
-        Ok(())
     }
 }
 

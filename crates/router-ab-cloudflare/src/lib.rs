@@ -91,12 +91,13 @@ pub use tenant_root_role_d1::*;
 // same host traits with ordinary processes and role-private SQLite.
 pub use durable_object::tenant_root_creation::{
     tenant_root_creation_active_state_with_revision_read_call_v1,
-    tenant_root_creation_journal_call_v1,
+    tenant_root_creation_cleanup_call_v1, tenant_root_creation_journal_call_v1,
     tenant_root_creation_journal_read_call_v1, tenant_root_creation_object_name_v1,
     tenant_root_creation_serve_without_refresh_v1, CloudflareTenantRootCreationJournalReadResponseV1,
     CloudflareTenantRootCreationJournalResponseV1, CloudflareVerifiedTenantRootActiveStateV1,
     TenantRootCreationStateTransportV1, TenantRootCreationStoreV1,
     CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
+    CLOUDFLARE_TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_PATH,
     CLOUDFLARE_TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_PATH,
     CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH,
     CLOUDFLARE_TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_PATH,
@@ -104,19 +105,25 @@ pub use durable_object::tenant_root_creation::{
 };
 pub use tenant_root_control_plane::{
     control_plane_create_tenant_root_v1, control_plane_initial_activation_v1,
-    control_plane_role_creation_command_v1, CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1,
+    control_plane_pending_creation_cleanup_command_v1, control_plane_role_creation_command_v1,
+    decode_tenant_root_cleanup_scope_v1, CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1,
     CloudflareTenantRootControlPlaneInitialActivationRequestV1, TenantRootControlPlaneHostV1,
     TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
 };
 pub use tenant_root_managed_backup_r2::{
-    verify_tenant_root_managed_backup_object_v1, TenantRootManagedBackupObjectCoordinatesV1,
+    verify_tenant_root_managed_backup_object_v1,
+    CloudflareTenantRootManagedBackupDeletionReceiptV1,
+    CloudflareTenantRootManagedBackupObjectDeletionStatusV1,
+    TenantRootManagedBackupObjectCoordinatesV1,
 };
 pub use tenant_root_role_runtime::{
-    tenant_root_deriver_create_role_share_v1, tenant_root_deriver_initial_activation_v1,
+    tenant_root_deriver_cleanup_v1, tenant_root_deriver_create_role_share_v1,
+    tenant_root_deriver_initial_activation_v1,
     tenant_root_deriver_load_active_role_share_v1, CloudflareDeriverTenantRootCreateRoleShareRequestV1,
     CloudflareDeriverTenantRootCreateRoleShareResponseV1,
     CloudflareDeriverTenantRootInitialActivationRequestV1,
     CloudflareDeriverTenantRootInitialActivationResponseV1, CloudflareTenantRootCreateRoleV1,
+    CloudflareDeriverTenantRootCleanupRequestV1, CloudflareDeriverTenantRootCleanupResponseV1,
     TenantRootDeriverHostV1,
 };
 mod tenant_root_creation_coordinator;
@@ -127,7 +134,8 @@ mod tenant_root_transport;
 pub use tenant_root_transport::{
     tenant_root_control_plane_create_tenant_root_call_v1,
     tenant_root_control_plane_initial_activation_call_v1,
-    tenant_root_control_plane_role_creation_command_call_v1,
+    tenant_root_control_plane_cleanup_command_call_v1,
+    tenant_root_control_plane_role_creation_command_call_v1, tenant_root_deriver_cleanup_call_v1,
     tenant_root_deriver_create_role_share_call_v1, tenant_root_deriver_initial_activation_call_v1,
     TenantRootCallBoundsV1, TenantRootServiceTargetV1, TenantRootServiceTransportV1,
 };
@@ -185,7 +193,6 @@ mod tenant_root_role_runtime;
 pub use tenant_root_cutover_lifecycle::*;
 #[cfg(feature = "workers-rs")]
 use tenant_root_role_runtime::{
-    CloudflareDeriverTenantRootCleanupRequestV1, CloudflareDeriverTenantRootCleanupResponseV1,
     CloudflareDeriverTenantRootRefreshActivationRequestV1,
     CloudflareDeriverTenantRootRefreshActivationResponseV1,
     CloudflareDeriverTenantRootRefreshRequestV1, CloudflareDeriverTenantRootRefreshResponseV1,
@@ -286,7 +293,7 @@ pub use paths::*;
 mod trace_context;
 #[cfg(feature = "workers-rs")]
 use paths::{
-    cloudflare_deriver_peer_service_url, cloudflare_deriver_tenant_root_cleanup_service_url,
+    cloudflare_deriver_peer_service_url,
     cloudflare_deriver_tenant_root_refresh_activation_service_url,
     cloudflare_deriver_tenant_root_refresh_service_url,
     cloudflare_router_ab_ecdsa_derivation_deriver_export_service_url,
@@ -301,7 +308,6 @@ use paths::{
     cloudflare_signing_worker_normal_signing_service_url,
     cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_service_url,
     cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_service_url,
-    cloudflare_tenant_root_control_plane_cleanup_command_service_url,
     cloudflare_tenant_root_control_plane_refresh_activation_service_url,
     cloudflare_tenant_root_control_plane_restore_initial_activation_service_url,
     cloudflare_tenant_root_control_plane_restore_refresh_commands_service_url,
@@ -14788,11 +14794,8 @@ pub(crate) async fn execute_cloudflare_tenant_root_control_plane_cleanup_command
     env: &worker::Env,
     request: &CloudflareTenantRootControlPlaneCleanupCommandRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCleanupCommandResponseV1> {
-    post_service_json(
-        env,
-        TENANT_ROOT_CONTROL_PLANE_SERVICE_BINDING_V1,
-        cloudflare_tenant_root_control_plane_cleanup_command_service_url(),
-        "tenant-root control-plane cleanup-command request",
+    tenant_root_transport::tenant_root_control_plane_cleanup_command_call_v1(
+        &tenant_root_transport::CloudflareTenantRootServiceTransportV1::new(env, None, None),
         request,
     )
     .await
@@ -14860,36 +14863,12 @@ pub(crate) async fn execute_cloudflare_deriver_tenant_root_cleanup_service_call_
     peer: &CloudflarePeerBindingV1,
     request: &CloudflareDeriverTenantRootCleanupRequestV1,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootCleanupResponseV1> {
-    peer.validate()?;
-    let response: CloudflareDeriverTenantRootCleanupResponseV1 = post_service_json(
-        env,
-        &peer.binding_name,
-        cloudflare_deriver_tenant_root_cleanup_service_url(peer)?,
-        "tenant-root cleanup request",
+    tenant_root_transport::tenant_root_deriver_cleanup_call_v1(
+        &tenant_root_transport::CloudflareTenantRootServiceTransportV1::peer(env, peer),
+        cloudflare_tenant_root_peer_deriver_role_v1(peer, "tenant-root cleanup")?,
         request,
     )
-    .await?;
-    let expected_role = match peer.peer_role {
-        CloudflareWorkerRoleV1::DeriverA => {
-            tenant_root_role_runtime::CloudflareTenantRootCreateRoleV1::DeriverA
-        }
-        CloudflareWorkerRoleV1::DeriverB => {
-            tenant_root_role_runtime::CloudflareTenantRootCreateRoleV1::DeriverB
-        }
-        _ => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root cleanup can target only a Deriver",
-            ));
-        }
-    };
-    if response.role() != expected_role {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "tenant-root cleanup response names the wrong role",
-        ));
-    }
-    Ok(response)
+    .await
 }
 
 /// Sends one exact control-plane activation receipt to its owning Deriver.

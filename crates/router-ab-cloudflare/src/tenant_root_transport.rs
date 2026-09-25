@@ -11,6 +11,8 @@ use router_ab_core::{TenantRootCommandTerminalReceiptV1, TwoPartyDeriverRole};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::tenant_root_control_plane::{
+    CloudflareTenantRootControlPlaneCleanupCommandRequestV1,
+    CloudflareTenantRootControlPlaneCleanupCommandResponseV1,
     CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
     CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
     CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1,
@@ -21,6 +23,7 @@ use crate::tenant_root_control_plane::{
     TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_RESPONSE_MAX_BYTES_V1,
 };
 use crate::tenant_root_role_runtime::{
+    CloudflareDeriverTenantRootCleanupRequestV1, CloudflareDeriverTenantRootCleanupResponseV1,
     CloudflareDeriverTenantRootCreateRoleShareRequestV1,
     CloudflareDeriverTenantRootCreateRoleShareResponseV1,
     CloudflareDeriverTenantRootInitialActivationRequestV1,
@@ -28,8 +31,10 @@ use crate::tenant_root_role_runtime::{
 };
 use crate::{
     decode_base64url_bytes_v1, RouterAbProtocolError, RouterAbProtocolErrorCode,
-    RouterAbProtocolResult, CLOUDFLARE_DERIVER_TENANT_ROOT_CREATE_ROLE_SHARE_PRIVATE_REQUEST_PATH,
+    RouterAbProtocolResult, CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_DERIVER_TENANT_ROOT_CREATE_ROLE_SHARE_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_ROLE_CREATION_COMMAND_PRIVATE_REQUEST_PATH,
@@ -122,6 +127,47 @@ pub async fn tenant_root_control_plane_initial_activation_call_v1(
         )
         .await?;
     crate::tenant_root_control_plane::require_initial_activation_receipt_response_v1(&response)?;
+    Ok(response)
+}
+
+/// Requests one issuer-signed role cleanup command from the control plane.
+pub async fn tenant_root_control_plane_cleanup_command_call_v1(
+    transport: &impl TenantRootServiceTransportV1,
+    request: &CloudflareTenantRootControlPlaneCleanupCommandRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCleanupCommandResponseV1> {
+    transport
+        .post_private_json(
+            TenantRootServiceTargetV1::ControlPlane,
+            CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH,
+            "tenant-root control-plane cleanup-command request",
+            request,
+            None,
+        )
+        .await
+}
+
+/// Sends one authorized role-share cleanup to its owning Deriver and checks
+/// the Deriver's role.
+pub async fn tenant_root_deriver_cleanup_call_v1(
+    transport: &impl TenantRootServiceTransportV1,
+    role: TwoPartyDeriverRole,
+    request: &CloudflareDeriverTenantRootCleanupRequestV1,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootCleanupResponseV1> {
+    let response: CloudflareDeriverTenantRootCleanupResponseV1 = transport
+        .post_private_json(
+            TenantRootServiceTargetV1::Deriver(role),
+            CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH,
+            "tenant-root cleanup request",
+            request,
+            None,
+        )
+        .await?;
+    if response.role() != CloudflareTenantRootCreateRoleV1::from_protocol(role) {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            "tenant-root cleanup response names the wrong role",
+        ));
+    }
     Ok(response)
 }
 

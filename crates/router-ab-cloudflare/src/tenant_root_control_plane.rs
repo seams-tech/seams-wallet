@@ -1624,6 +1624,144 @@ pub async fn control_plane_initial_activation_v1<Host: TenantRootControlPlaneHos
     initial_activation_receipt_response_v1(receipt)
 }
 
+/// Decodes the identity digest and custody lineage a cleanup-command request
+/// names.
+pub fn decode_tenant_root_cleanup_scope_v1(
+    identity_digest_b64u: &str,
+    custody_lineage_b64u: &str,
+) -> RouterAbProtocolResult<(
+    router_ab_core::TenantRootIdentityDigestV1,
+    router_ab_core::TenantRootCustodyLineageId,
+)> {
+    let decode = crate::durable_object::tenant_root_creation::decode_canonical_base64url;
+    let identity_digest = router_ab_core::TenantRootIdentityDigestV1::from_bytes(
+        decode("tenant-root cleanup identity digest", identity_digest_b64u, 32, 48)?
+            .as_slice()
+            .try_into()
+            .map_err(|_| refused("tenant-root cleanup identity digest length is invalid"))?,
+    );
+    let custody_lineage = router_ab_core::TenantRootCustodyLineageId::from_bytes(
+        decode("tenant-root cleanup custody lineage", custody_lineage_b64u, 16, 24)?
+            .as_slice()
+            .try_into()
+            .map_err(|_| refused("tenant-root cleanup custody lineage length is invalid"))?,
+    )
+    .map_err(derivation)?;
+    Ok((identity_digest, custody_lineage))
+}
+
+/// Issues the cleanup command for a creation in which exactly one role
+/// installed its share. The command names that role's pending row, bound to
+/// its installation evidence, so only that row can be removed.
+pub async fn control_plane_pending_creation_cleanup_command_v1<Host: TenantRootControlPlaneHostV1>(
+    host: &Host,
+    identity_digest: router_ab_core::TenantRootIdentityDigestV1,
+    custody_lineage: router_ab_core::TenantRootCustodyLineageId,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCleanupCommandResponseV1> {
+    let authority_id = host.creation_authority_id(identity_digest, custody_lineage)?;
+    let read = host.read_creation_state(identity_digest, custody_lineage).await?;
+    if read.cleanup_checkpointed {
+        return Err(refused(
+            "tenant-root creation is already abandoned and cleaned",
+        ));
+    }
+    let record = crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationJournalRecordV1 {
+        journal_b64u: read.journal_b64u.clone(),
+        creation_capability_b64u: read.creation_capability_b64u.clone(),
+    };
+    let journal = crate::durable_object::tenant_root_creation::validate_creation_record(
+        record,
+        authority_id,
+        host.bindings().issuer_verifying_keys.keys(),
+    )?;
+    if journal.identity_digest != identity_digest || journal.custody_lineage != custody_lineage
+    {
+        return Err(refused(
+            "tenant-root cleanup state does not name the requested identity and lineage",
+        ));
+    }
+    let CloudflareTenantRootCreationInstallationCheckpointReadStateV1::OneRoleReady {
+        role,
+        signed_evidence_b64u,
+    } = read.installation_checkpoint
+    else {
+        return Err(refused(
+            "tenant-root cleanup requires exactly one installed role",
+        ));
+    };
+    let role = role.to_protocol();
+    let evidence_bytes = crate::durable_object::tenant_root_creation::decode_canonical_base64url(
+        "tenant-root cleanup installation evidence",
+        &signed_evidence_b64u,
+        router_ab_core::TENANT_ROOT_SIGNED_SHARE_INSTALLATION_EVIDENCE_MAX_BYTES_V1,
+        router_ab_core::TENANT_ROOT_SIGNED_SHARE_INSTALLATION_EVIDENCE_MAX_BYTES_V1 * 2,
+    )?;
+    let (expected_key_id, verifying_key) = match role {
+        TwoPartyDeriverRole::DeriverA => (
+            host.bindings().deriver_a_signing_key_id.as_str(),
+            &host.bindings().deriver_a_verifying_key,
+        ),
+        TwoPartyDeriverRole::DeriverB => (
+            host.bindings().deriver_b_signing_key_id.as_str(),
+            &host.bindings().deriver_b_verifying_key,
+        ),
+    };
+    if journal.ceremony_context.signing_key_id(role) != expected_key_id {
+        return Err(refused(
+            "tenant-root cleanup evidence names a retired role signing key",
+        ));
+    }
+    let evidence =
+        TenantRootSignedShareInstallationEvidenceV1::decode_and_verify_canonical_bytes(
+            &evidence_bytes,
+            verifying_key,
+        )
+        .map_err(derivation)?;
+    if evidence.evidence().transcript().context() != &journal.ceremony_context
+        || evidence.evidence().transcript().role() != role
+    {
+        return Err(refused(
+            "tenant-root cleanup evidence belongs to a different ceremony or role",
+        ));
+    }
+    let installation_evidence_digest =
+        TenantRootProtocolDigestV1::from_bytes(Sha256::digest(&evidence_bytes).into())
+            .map_err(derivation)?;
+    let target = TenantRootRoleCleanupTargetV1::Pending {
+        identity_digest,
+        custody_lineage,
+        role,
+        epoch: TenantRootShareEpoch::INITIAL,
+        expected_row_revision: 1,
+        session_id: journal.ceremony_context.session_id(),
+        ceremony_nonce: journal.ceremony_context.nonce(),
+        installation_evidence_digest,
+    };
+    let mut nonce_hasher = Sha256::new();
+    nonce_hasher.update(b"seams/tenant-root/creation-cleanup-nonce/v1");
+    nonce_hasher.update(journal.journal_digest.as_bytes());
+    nonce_hasher.update(installation_evidence_digest.as_bytes());
+    let cleanup_nonce = TenantRootCeremonyNonceV1::from_bytes(nonce_hasher.finalize().into())
+        .map_err(derivation)?;
+    let seed = host.issuer_seed()?;
+    let command = TenantRootRoleCleanupCommandV1::sign(
+        &target,
+        authority_id,
+        cleanup_nonce,
+        journal.ceremony_context.issued_at_ms(),
+        journal.ceremony_context.expires_at_ms(),
+        host.bindings().issuer_signing_key.signing_key_id(),
+        &seed,
+    )
+    .map_err(derivation)?;
+    Ok(CloudflareTenantRootControlPlaneCleanupCommandResponseV1 {
+        role: CloudflareTenantRootControlPlaneRoleV1::from_protocol(role),
+        cleanup_command_b64u: crate::encode_base64url_bytes_v1(
+            &command.canonical_bytes().map_err(derivation)?,
+        ),
+    })
+}
+
 /// Checks that a control-plane initial-activation response carries a
 /// canonical initial-creation receipt.
 pub(crate) fn require_initial_activation_receipt_response_v1(
@@ -1655,23 +1793,16 @@ mod live {
         execute_cloudflare_router_tenant_root_managed_restore_authorization_challenge_call_v1,
         execute_cloudflare_router_tenant_root_managed_restore_authorization_checkpoint_call_v1,
         execute_cloudflare_router_tenant_root_restore_refresh_checkpoint_call_v1,
-        validate_creation_record, CloudflareTenantRootCreationJournalOutcomeV1,
-        CloudflareTenantRootCreationJournalReadRequestV1,
-        CloudflareTenantRootCreationJournalRecordV1,
         CloudflareTenantRootRestoreRefreshCheckpointRequestV1,
         CloudflareTenantRootRestoreRefreshCheckpointResponseV1,
         CloudflareTenantRootRestoreRefreshRolePromotionV1,
-        CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_READ_PATH,
     };
     use crate::env::decode_cloudflare_tenant_root_control_plane_issuer_signing_secret_v1;
     use crate::{
         encode_base64url_bytes_v1, CloudflareTenantRootControlPlaneRuntimeV1,
         CloudflareWorkerEnvReaderV1,
     };
-    use router_ab_core::{
-        TenantRootCreationGrantV1, TenantRootCustodyLineageId, TenantRootIdentityDigestV1,
-        TENANT_ROOT_CREATION_GRANT_MAX_BYTES_V1,
-    };
+    use router_ab_core::{TenantRootCustodyLineageId, TenantRootIdentityDigestV1};
     use zeroize::Zeroize;
 
     const ROUTER_TENANT_ROOT_CREATION_DO_BINDING_V1: &str = "ROUTER_TENANT_ROOT_CREATION_DO";
@@ -2786,29 +2917,8 @@ mod live {
                 Some((role, expected_retired_revision, expected_active_revision)),
             ),
         };
-        let identity_digest = TenantRootIdentityDigestV1::from_bytes(
-            decode_canonical_base64url(
-                "tenant-root cleanup identity digest",
-                &identity_digest_b64u,
-                32,
-                48,
-            )?
-            .as_slice()
-            .try_into()
-            .map_err(|_| refused("tenant-root cleanup identity digest length is invalid"))?,
-        );
-        let custody_lineage = TenantRootCustodyLineageId::from_bytes(
-            decode_canonical_base64url(
-                "tenant-root cleanup custody lineage",
-                &custody_lineage_b64u,
-                16,
-                24,
-            )?
-            .as_slice()
-            .try_into()
-            .map_err(|_| refused("tenant-root cleanup custody lineage length is invalid"))?,
-        )
-        .map_err(derivation)?;
+        let (identity_digest, custody_lineage) =
+            super::decode_tenant_root_cleanup_scope_v1(&identity_digest_b64u, &custody_lineage_b64u)?;
         if let Some((role, expected_retired_revision, expected_active_revision)) = retired_request {
             return issue_retired_tenant_root_cleanup_command_v1(
                 env,
@@ -2821,108 +2931,22 @@ mod live {
             )
             .await;
         }
-        let (authority_id, read) =
-            read_creation_state(env, identity_digest, custody_lineage).await?;
-        if read.cleanup_checkpointed {
-            return Err(refused(
-                "tenant-root creation is already abandoned and cleaned",
-            ));
-        }
-        let record = CloudflareTenantRootCreationJournalRecordV1 {
-            journal_b64u: read.journal_b64u.clone(),
-            creation_capability_b64u: read.creation_capability_b64u.clone(),
-        };
-        let journal = validate_creation_record(
-            record,
-            authority_id,
-            runtime.bindings().issuer_verifying_keys.keys(),
-        )?;
-        if journal.identity_digest != identity_digest || journal.custody_lineage != custody_lineage
-        {
-            return Err(refused(
-                "tenant-root cleanup state does not name the requested identity and lineage",
-            ));
-        }
-        let CloudflareTenantRootCreationInstallationCheckpointReadStateV1::OneRoleReady {
-            role,
-            signed_evidence_b64u,
-        } = read.installation_checkpoint
-        else {
-            return Err(refused(
-                "tenant-root cleanup requires exactly one installed role",
-            ));
-        };
-        let role = role.to_protocol();
-        let evidence_bytes = decode_canonical_base64url(
-            "tenant-root cleanup installation evidence",
-            &signed_evidence_b64u,
-            router_ab_core::TENANT_ROOT_SIGNED_SHARE_INSTALLATION_EVIDENCE_MAX_BYTES_V1,
-            router_ab_core::TENANT_ROOT_SIGNED_SHARE_INSTALLATION_EVIDENCE_MAX_BYTES_V1 * 2,
-        )?;
-        let (expected_key_id, verifying_key) = match role {
-            TwoPartyDeriverRole::DeriverA => (
-                runtime.bindings().deriver_a_signing_key_id.as_str(),
-                &runtime.bindings().deriver_a_verifying_key,
-            ),
-            TwoPartyDeriverRole::DeriverB => (
-                runtime.bindings().deriver_b_signing_key_id.as_str(),
-                &runtime.bindings().deriver_b_verifying_key,
-            ),
-        };
-        if journal.ceremony_context.signing_key_id(role) != expected_key_id {
-            return Err(refused(
-                "tenant-root cleanup evidence names a retired role signing key",
-            ));
-        }
-        let evidence =
-            TenantRootSignedShareInstallationEvidenceV1::decode_and_verify_canonical_bytes(
-                &evidence_bytes,
-                verifying_key,
-            )
-            .map_err(derivation)?;
-        if evidence.evidence().transcript().context() != &journal.ceremony_context
-            || evidence.evidence().transcript().role() != role
-        {
-            return Err(refused(
-                "tenant-root cleanup evidence belongs to a different ceremony or role",
-            ));
-        }
-        let installation_evidence_digest =
-            TenantRootProtocolDigestV1::from_bytes(Sha256::digest(&evidence_bytes).into())
-                .map_err(derivation)?;
-        let target = TenantRootRoleCleanupTargetV1::Pending {
+        live_pending_creation_cleanup_command_v1(env, runtime, identity_digest, custody_lineage)
+            .await
+    }
+
+    async fn live_pending_creation_cleanup_command_v1(
+        env: &worker::Env,
+        runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+    ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCleanupCommandResponseV1> {
+        super::control_plane_pending_creation_cleanup_command_v1(
+            &CloudflareControlPlaneHostV1 { env, runtime },
             identity_digest,
             custody_lineage,
-            role,
-            epoch: TenantRootShareEpoch::INITIAL,
-            expected_row_revision: 1,
-            session_id: journal.ceremony_context.session_id(),
-            ceremony_nonce: journal.ceremony_context.nonce(),
-            installation_evidence_digest,
-        };
-        let mut nonce_hasher = Sha256::new();
-        nonce_hasher.update(b"seams/tenant-root/creation-cleanup-nonce/v1");
-        nonce_hasher.update(journal.journal_digest.as_bytes());
-        nonce_hasher.update(installation_evidence_digest.as_bytes());
-        let cleanup_nonce = TenantRootCeremonyNonceV1::from_bytes(nonce_hasher.finalize().into())
-            .map_err(derivation)?;
-        let seed = load_issuer_seed(env, runtime)?;
-        let command = TenantRootRoleCleanupCommandV1::sign(
-            &target,
-            authority_id,
-            cleanup_nonce,
-            journal.ceremony_context.issued_at_ms(),
-            journal.ceremony_context.expires_at_ms(),
-            runtime.bindings().issuer_signing_key.signing_key_id(),
-            &seed,
         )
-        .map_err(derivation)?;
-        Ok(CloudflareTenantRootControlPlaneCleanupCommandResponseV1 {
-            role: CloudflareTenantRootControlPlaneRoleV1::from_protocol(role),
-            cleanup_command_b64u: encode_base64url_bytes_v1(
-                &command.canonical_bytes().map_err(derivation)?,
-            ),
-        })
+        .await
     }
 
     #[allow(clippy::too_many_arguments)]

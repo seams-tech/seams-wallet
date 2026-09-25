@@ -9,13 +9,17 @@
 
 use std::collections::BTreeMap;
 
-use router_ab_core::{TenantRootActivationReceiptTransitionV1, TwoPartyDeriverRole};
+use router_ab_core::{
+    TenantRootActivationReceiptTransitionV1, TenantRootRoleCleanupCommandV1, TwoPartyDeriverRole,
+};
 
 use crate::durable_object::tenant_root_creation::{
     tenant_root_creation_active_state_with_revision_read_call_v1,
-    tenant_root_creation_initial_activation_call_v1, TenantRootCreationStateTransportV1,
+    tenant_root_creation_cleanup_call_v1, tenant_root_creation_initial_activation_call_v1,
+    TenantRootCreationStateTransportV1,
 };
 use crate::tenant_root_control_plane::{
+    CloudflareTenantRootControlPlaneCleanupCommandRequestV1,
     CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
     CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
     CloudflareTenantRootControlPlaneInitialActivationRequestV1,
@@ -23,38 +27,31 @@ use crate::tenant_root_control_plane::{
     CloudflareTenantRootControlPlaneRoleV1, CloudflareTenantRootCreationStatusV1,
 };
 use crate::tenant_root_role_runtime::{
-    CloudflareDeriverTenantRootCreateRoleShareRequestV1,
+    CloudflareDeriverTenantRootCleanupRequestV1, CloudflareDeriverTenantRootCreateRoleShareRequestV1,
     CloudflareDeriverTenantRootCreateRoleShareResponseV1,
     CloudflareDeriverTenantRootInitialActivationRequestV1, CloudflareTenantRootCreateRoleV1,
 };
 use crate::tenant_root_transport::{
+    tenant_root_control_plane_cleanup_command_call_v1,
     tenant_root_control_plane_create_tenant_root_call_v1,
     tenant_root_control_plane_initial_activation_call_v1,
     tenant_root_control_plane_role_creation_command_call_v1,
-    tenant_root_deriver_create_role_share_call_v1, tenant_root_deriver_initial_activation_call_v1,
-    TenantRootServiceTransportV1,
+    tenant_root_deriver_cleanup_call_v1, tenant_root_deriver_create_role_share_call_v1,
+    tenant_root_deriver_initial_activation_call_v1, TenantRootServiceTransportV1,
 };
 use crate::{
     decode_base64url_bytes_v1, encode_base64url_bytes_v1, RouterAbProtocolError,
     RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
 
-/// What the Router's creation coordinator needs from its host.
+/// What the Router's creation coordinator needs from its host. The ceremony,
+/// its partial-creation cleanup included, is the same code on every host.
 #[allow(async_fn_in_trait)]
 pub trait TenantRootRouterCreationHostV1:
     TenantRootServiceTransportV1 + TenantRootCreationStateTransportV1
 {
     /// The control-plane issuer keys the Router trusts.
     fn trusted_issuer_keys(&self) -> RouterAbProtocolResult<BTreeMap<String, [u8; 32]>>;
-
-    /// Cleans a creation in which exactly one role installed its share, so a
-    /// fresh grant can start again. A host that cannot clean returns an error
-    /// and leaves the partial creation untouched.
-    async fn clean_partial_creation(
-        &self,
-        genesis: &CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
-        installed_role: CloudflareTenantRootControlPlaneRoleV1,
-    ) -> RouterAbProtocolResult<()>;
 }
 
 /// Drives one tenant-root creation to an active root, or reports why it
@@ -76,7 +73,7 @@ pub async fn tenant_root_router_coordinate_creation_v1<Host: TenantRootRouterCre
             ));
         }
         CloudflareTenantRootCreationStatusV1::OneRoleInstalled { role } => {
-            host.clean_partial_creation(&genesis, *role).await?;
+            clean_partial_tenant_root_creation_v1(host, &genesis, *role).await?;
             return Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLifecycleState,
                 "tenant-root partial creation was cleaned; a fresh grant is required",
@@ -171,6 +168,82 @@ pub async fn tenant_root_router_coordinate_creation_v1<Host: TenantRootRouterCre
         ));
     }
     Ok(completed_state)
+}
+
+/// Cleans a creation in which exactly one role installed its share, so a
+/// fresh grant can start again. The control plane issues a cleanup command
+/// naming that role's pending row; the Router verifies it before the Deriver
+/// removes the row, and checkpoints the Deriver's terminal receipt.
+async fn clean_partial_tenant_root_creation_v1<Host: TenantRootRouterCreationHostV1>(
+    host: &Host,
+    genesis: &CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
+    installed_role: CloudflareTenantRootControlPlaneRoleV1,
+) -> RouterAbProtocolResult<()> {
+    let cleanup = tenant_root_control_plane_cleanup_command_call_v1(
+        host,
+        &CloudflareTenantRootControlPlaneCleanupCommandRequestV1::PendingCreation {
+            identity_digest_b64u: genesis.identity_digest_b64u.clone(),
+            custody_lineage_b64u: genesis.custody_lineage_b64u.clone(),
+        },
+    )
+    .await?;
+    if cleanup.role != installed_role {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root cleanup command names a different installed role",
+        ));
+    }
+    let command_bytes =
+        decode_base64url_bytes_v1("tenant-root cleanup command", &cleanup.cleanup_command_b64u)?;
+    let command = TenantRootRoleCleanupCommandV1::decode_canonical_bytes(&command_bytes)
+        .map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("tenant-root cleanup command was malformed: {error}"),
+            )
+        })?;
+    let claimed_target = command.claimed_target();
+    let expected_role = installed_role.to_protocol();
+    let authority_id = host.creation_authority_id(
+        claimed_target.identity_digest(),
+        claimed_target.custody_lineage(),
+    )?;
+    let issuer_keys = host.trusted_issuer_keys()?;
+    let issuer_key_id = command.issuer_key_id().to_owned();
+    let issuer_key = issuer_keys.get(&issuer_key_id).ok_or_else(|| {
+        RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root cleanup command issuer is not trusted by the Router",
+        )
+    })?;
+    let verified_cleanup = command
+        .verify(
+            &claimed_target,
+            expected_role,
+            authority_id,
+            &issuer_key_id,
+            issuer_key,
+        )
+        .map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+                format!("tenant-root cleanup command verification failed: {error}"),
+            )
+        })?;
+    let cleaned = tenant_root_deriver_cleanup_call_v1(
+        host,
+        expected_role,
+        &CloudflareDeriverTenantRootCleanupRequestV1 {
+            cleanup_command_b64u: cleanup.cleanup_command_b64u,
+        },
+    )
+    .await?;
+    let cleanup_receipt = decode_base64url_bytes_v1(
+        "tenant-root cleanup terminal receipt",
+        cleaned.cleanup_receipt_b64u(),
+    )?;
+    tenant_root_creation_cleanup_call_v1(host, &verified_cleanup, &cleanup_receipt).await?;
+    Ok(())
 }
 
 /// Re-delivers the persisted initial activation to both Derivers for a

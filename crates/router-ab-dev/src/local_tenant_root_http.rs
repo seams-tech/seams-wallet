@@ -6,7 +6,12 @@
 
 use router_ab_cloudflare::{
     cloudflare_router_error_status, control_plane_create_tenant_root_v1,
-    control_plane_initial_activation_v1, control_plane_role_creation_command_v1,
+    control_plane_initial_activation_v1, control_plane_pending_creation_cleanup_command_v1,
+    control_plane_role_creation_command_v1, decode_tenant_root_cleanup_scope_v1,
+    tenant_root_deriver_cleanup_v1, CloudflareDeriverTenantRootCleanupRequestV1,
+    CloudflareTenantRootControlPlaneCleanupCommandRequestV1,
+    CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH,
     parse_cloudflare_tenant_root_control_plane_bindings_v1, router_ab_service_credential_matches_v1,
     validate_cloudflare_tenant_root_control_plane_issuer_key_provenance_v1, CloudflareEnvMapV1,
     CloudflareEnvReaderV1, CloudflareSecretReaderV1,
@@ -117,6 +122,17 @@ fn deriver_route(
                 },
             ))
         }
+        CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH => Some(authorized(
+            credential,
+            request,
+            |cleanup: CloudflareDeriverTenantRootCleanupRequestV1| {
+                json(&futures::executor::block_on(tenant_root_deriver_cleanup_v1(
+                    &LocalTenantRootDeriverHostV1::new(tenant_root),
+                    cleanup,
+                    crate::local_router_coordinator::local_now_ms_v1()?,
+                ))?)
+            },
+        )),
         _ => None,
     }
 }
@@ -228,6 +244,36 @@ pub fn local_tenant_root_control_plane_route_v1(
                 json(&futures::executor::block_on(control_plane_initial_activation_v1(
                     &host, activation,
                 ))?)
+            },
+        ),
+        CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH => authorized(
+            credential,
+            request,
+            |cleanup: CloudflareTenantRootControlPlaneCleanupCommandRequestV1| match cleanup {
+                CloudflareTenantRootControlPlaneCleanupCommandRequestV1::PendingCreation {
+                    identity_digest_b64u,
+                    custody_lineage_b64u,
+                } => {
+                    let (identity_digest, custody_lineage) = decode_tenant_root_cleanup_scope_v1(
+                        &identity_digest_b64u,
+                        &custody_lineage_b64u,
+                    )?;
+                    json(&futures::executor::block_on(
+                        control_plane_pending_creation_cleanup_command_v1(
+                            &host,
+                            identity_digest,
+                            custody_lineage,
+                        ),
+                    )?)
+                }
+                // Retiring a refreshed-out source waits on the reviewed
+                // retirement design; the VM refuses it rather than skip it.
+                CloudflareTenantRootControlPlaneCleanupCommandRequestV1::RetiredAfterRefresh {
+                    ..
+                } => Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLifecycleState,
+                    "the VM reference does not retire a refreshed-out tenant-root source",
+                )),
             },
         ),
         _ => Ok((404, "the tenant-root control plane does not serve this path".to_owned())),

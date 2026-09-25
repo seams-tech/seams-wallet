@@ -29,12 +29,13 @@ use router_ab_cloudflare::{
     tenant_root_creation_object_name_v1, tenant_root_creation_serve_without_refresh_v1,
     verify_tenant_root_managed_backup_object_v1, CloudflareEnvMapV1, CloudflareEnvReaderV1,
     CloudflareSecretReaderV1, CloudflareTenantRootControlPlaneBindingsV1,
-    CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
-    CloudflareTenantRootControlPlaneRoleV1, CloudflareWorkerRoleV1, TenantRootCallBoundsV1,
+    CloudflareTenantRootManagedBackupDeletionReceiptV1, CloudflareWorkerRoleV1,
+    TenantRootCallBoundsV1,
     TenantRootCreationStateTransportV1, TenantRootCreationStoreV1, TenantRootDeriverHostV1,
     TenantRootManagedBackupObjectCoordinatesV1, TenantRootRoleShareStoreV1,
     TenantRootRouterCreationHostV1, TenantRootServiceTargetV1, TenantRootServiceTransportV1,
     CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
+    CLOUDFLARE_TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_PATH,
     CLOUDFLARE_TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_PATH,
     CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH,
     CLOUDFLARE_TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_PATH,
@@ -539,6 +540,7 @@ fn creation_state_route_v1(path: &str) -> RouterAbProtocolResult<&'static str> {
         CLOUDFLARE_TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_PATH,
         CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH,
         CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
+        CLOUDFLARE_TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_PATH,
     ]
     .into_iter()
     .find(|known| *known == path)
@@ -700,20 +702,6 @@ impl TenantRootRouterCreationHostV1 for LocalRouterTenantRootCreationHostV1<'_> 
             &self.config.env,
             router_ab_cloudflare::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
         )?)
-    }
-
-    async fn clean_partial_creation(
-        &self,
-        _genesis: &CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
-        installed_role: CloudflareTenantRootControlPlaneRoleV1,
-    ) -> RouterAbProtocolResult<()> {
-        Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLifecycleState,
-            format!(
-                "tenant-root creation stopped with only {installed_role:?} installed; the VM \
-                 reference does not clean a partial creation, so it needs operator cleanup"
-            ),
-        ))
     }
 }
 
@@ -896,6 +884,55 @@ impl TenantRootDeriverHostV1 for LocalTenantRootDeriverHostV1<'_> {
             .map_err(|error| {
                 RouterAbProtocolError::new(RouterAbProtocolErrorCode::ForbiddenLocalBinding, error)
             })
+    }
+
+    async fn delete_managed_backup(
+        &self,
+        coordinates: TenantRootManagedBackupObjectCoordinatesV1,
+    ) -> RouterAbProtocolResult<CloudflareTenantRootManagedBackupDeletionReceiptV1> {
+        if coordinates.role() != self.backup_role()? {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+                "managed-backup object belongs to the other Deriver",
+            ));
+        }
+        let managed_backup_key = coordinates.object_key();
+        let provider_canary_key = coordinates.provider_canary_object_key();
+        let mut connection = open_sqlite(&self.config.managed_backup_path)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(sqlite_error)?;
+        let delete = |key: &str| -> RouterAbProtocolResult<bool> {
+            let removed = transaction
+                .execute(
+                    "DELETE FROM local_tenant_root_managed_backups WHERE object_key = ?1",
+                    rusqlite::params![key],
+                )
+                .map_err(sqlite_error)?;
+            let remaining: i64 = transaction
+                .query_row(
+                    "SELECT COUNT(*) FROM local_tenant_root_managed_backups WHERE object_key = ?1",
+                    rusqlite::params![key],
+                    |row| row.get(0),
+                )
+                .map_err(sqlite_error)?;
+            if remaining != 0 {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLifecycleState,
+                    "managed-backup object is still present after deletion",
+                ));
+            }
+            Ok(removed == 1)
+        };
+        // The VM writes no provider canary; its receipt records it absent.
+        let provider_canary_was_present = delete(&provider_canary_key)?;
+        let managed_backup_was_present = delete(&managed_backup_key)?;
+        transaction.commit().map_err(sqlite_error)?;
+        Ok(CloudflareTenantRootManagedBackupDeletionReceiptV1::from_presence(
+            coordinates,
+            managed_backup_was_present,
+            provider_canary_was_present,
+        ))
     }
 }
 

@@ -345,16 +345,6 @@ const CLOUDFLARE_DERIVER_B_TENANT_ROOT_STATUS_PRIVATE_REQUEST_URL: &str = concat
     "/router-ab/internal/deriver/tenant-root/status/v1/read"
 );
 #[cfg(feature = "workers-rs")]
-const CLOUDFLARE_DERIVER_A_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-deriver-a.internal",
-    "/router-ab/internal/deriver/tenant-root/cleanup/v1/execute"
-);
-#[cfg(feature = "workers-rs")]
-const CLOUDFLARE_DERIVER_B_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-deriver-b.internal",
-    "/router-ab/internal/deriver/tenant-root/cleanup/v1/execute"
-);
-#[cfg(feature = "workers-rs")]
 const CLOUDFLARE_DERIVER_A_TENANT_ROOT_REFRESH_ACTIVATION_PRIVATE_REQUEST_URL: &str = concat!(
     "https://router-ab-deriver-a.internal",
     "/router-ab/internal/deriver/tenant-root/refresh/v1/activate"
@@ -383,11 +373,6 @@ const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_COMMANDS_PRIVATE_REQUEST_URL:
 const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_PRIVATE_REQUEST_URL: &str = concat!(
     "https://router-ab-tenant-root-control-plane.internal",
     "/tenant-root-control-plane/refresh/v1/activate"
-);
-#[cfg(feature = "workers-rs")]
-const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-tenant-root-control-plane.internal",
-    "/tenant-root-control-plane/creation/v1/cleanup-command"
 );
 #[cfg(feature = "workers-rs")]
 const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_INITIAL_ACTIVATION_PRIVATE_REQUEST_URL: &str = concat!(
@@ -563,18 +548,6 @@ pub(crate) fn cloudflare_deriver_tenant_root_status_service_url(
 }
 
 #[cfg(feature = "workers-rs")]
-pub(crate) fn cloudflare_deriver_tenant_root_cleanup_service_url(
-    peer: &CloudflarePeerBindingV1,
-) -> RouterAbProtocolResult<&'static str> {
-    cloudflare_deriver_peer_url(
-        peer,
-        CLOUDFLARE_DERIVER_A_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_URL,
-        CLOUDFLARE_DERIVER_B_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_URL,
-        "tenant-root cleanup can target only Deriver A or Deriver B",
-    )
-}
-
-#[cfg(feature = "workers-rs")]
 pub(crate) fn cloudflare_deriver_tenant_root_refresh_activation_service_url(
     peer: &CloudflarePeerBindingV1,
 ) -> RouterAbProtocolResult<&'static str> {
@@ -608,12 +581,6 @@ pub(crate) const fn cloudflare_tenant_root_control_plane_refresh_commands_servic
 pub(crate) const fn cloudflare_tenant_root_control_plane_refresh_activation_service_url(
 ) -> &'static str {
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_PRIVATE_REQUEST_URL
-}
-
-#[cfg(feature = "workers-rs")]
-pub(crate) const fn cloudflare_tenant_root_control_plane_cleanup_command_service_url(
-) -> &'static str {
-    CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_URL
 }
 
 #[cfg(feature = "workers-rs")]

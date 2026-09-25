@@ -1342,6 +1342,12 @@ pub trait TenantRootDeriverHostV1:
         coordinates: crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1,
         trusted_role_verifying_key: &[u8; 32],
     ) -> RouterAbProtocolResult<VerifiedTenantRootManagedBackupV1>;
+    /// Deletes the managed backup and provider canary at these coordinates and
+    /// proves both are absent afterwards.
+    async fn delete_managed_backup(
+        &self,
+        coordinates: crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1,
+    ) -> RouterAbProtocolResult<CloudflareTenantRootManagedBackupDeletionReceiptV1>;
 }
 
 /// Loads the authenticated Deriver's active tenant-root role share.
@@ -1545,6 +1551,16 @@ impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
             .get_verified(coordinates, trusted_role_verifying_key)
             .await
             .map_err(|error| tenant_root_store_error_v1("tenant-root backup lookup", error))
+    }
+
+    async fn delete_managed_backup(
+        &self,
+        coordinates: crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1,
+    ) -> RouterAbProtocolResult<CloudflareTenantRootManagedBackupDeletionReceiptV1> {
+        self.backup_store()?
+            .delete_coordinates(coordinates)
+            .await
+            .map_err(|error| tenant_root_store_error_v1("tenant-root backup cleanup", error))
     }
 }
 
@@ -5940,14 +5956,14 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_create_role_share_v1(
     .await
 }
 
-/// Removes the exact pending row authorized by the control-plane issuer.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn handle_cloudflare_deriver_tenant_root_cleanup_v1(
-    env: &worker::Env,
-    worker_role: crate::CloudflareWorkerRoleV1,
+/// Removes the exact role-share row an issuer-signed cleanup command
+/// authorizes, and that row's managed backup.
+pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
     request: CloudflareDeriverTenantRootCleanupRequestV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootCleanupResponseV1> {
+    let worker_role = host.worker_role();
     let role = tenant_root_creation_protocol_role_v1(worker_role)?;
     let command_bytes = crate::decode_base64url_bytes_v1(
         "tenant-root cleanup command",
@@ -5971,15 +5987,11 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_cleanup_v1(
                 ..
             } => (*identity_digest, *custody_lineage, *retired_epoch, true),
         };
-    let (authority_id, _) =
-        crate::durable_object::tenant_root_creation::derive_tenant_root_creation_authority_object_v1(
-            env,
-            claimed_identity_digest,
-            claimed_custody_lineage,
-        )?;
-    let reader = crate::CloudflareWorkerEnvReaderV1::new(env);
+    let authority_id =
+        host.creation_authority_id(claimed_identity_digest, claimed_custody_lineage)?;
+    let reader = host.env();
     let trusted_issuer_keys =
-        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(&reader)?;
+        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(reader)?;
     let issuer_key_id = command.issuer_key_id().to_owned();
     let trusted_issuer_key = trusted_issuer_keys
         .for_issuer_key_id(&issuer_key_id)
@@ -5999,31 +6011,24 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_cleanup_v1(
         )
         .map_err(candidate_derivation_error)?;
     let (_, role_signer) =
-        crate::env::load_cloudflare_tenant_root_creation_role_signing_key_v1(env, worker_role)?;
-    let store = CloudflareTenantRootRoleShareStoreV1::from_env(env)
+        crate::env::load_tenant_root_creation_role_signing_key_v1(worker_role, reader)?;
+    let store = host
+        .role_store()
         .map_err(|error| tenant_root_store_error_v1("tenant-root role store lookup", error))?;
     let receipt_bytes = store
         .persist_authorized_cleanup(authorization, &role_signer, now_ms, now_ms, now_ms)
         .await
         .map_err(|error| tenant_root_store_error_v1("tenant-root pending cleanup", error))?;
-    let backup_role = tenant_root_managed_restore_role_v1(role);
-    let backup_store =
-        crate::tenant_root_managed_backup_r2::CloudflareTenantRootManagedBackupStoreV1::from_env(
-            env,
-            backup_role,
-        )
-        .map_err(|error| tenant_root_store_error_v1("tenant-root backup store lookup", error))?;
-    let r2_deletion = backup_store
-        .delete_coordinates(
+    let r2_deletion = host
+        .delete_managed_backup(
             crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1::new(
                 claimed_identity_digest,
                 claimed_custody_lineage,
-                backup_role,
+                tenant_root_managed_restore_role_v1(role),
                 claimed_epoch,
             ),
         )
-        .await
-        .map_err(|error| tenant_root_store_error_v1("tenant-root backup cleanup", error))?;
+        .await?;
     let role = CloudflareTenantRootCreateRoleV1::from_protocol(role);
     let cleanup_receipt_b64u = crate::encode_base64url_bytes_v1(&receipt_bytes);
     if is_retired {
@@ -6044,6 +6049,22 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_cleanup_v1(
             },
         )
     }
+}
+
+/// Removes the exact pending row authorized by the control-plane issuer.
+#[cfg(feature = "workers-rs")]
+pub(crate) async fn handle_cloudflare_deriver_tenant_root_cleanup_v1(
+    env: &worker::Env,
+    worker_role: crate::CloudflareWorkerRoleV1,
+    request: CloudflareDeriverTenantRootCleanupRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootCleanupResponseV1> {
+    tenant_root_deriver_cleanup_v1(
+        &CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
+        request,
+        now_ms,
+    )
+    .await
 }
 
 /// Verifies and stages one managed restore at its owning Deriver.

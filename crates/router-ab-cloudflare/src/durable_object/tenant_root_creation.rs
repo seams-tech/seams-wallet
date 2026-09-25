@@ -89,7 +89,7 @@ pub const CLOUDFLARE_TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_PATH: &str =
 pub const CLOUDFLARE_TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/installation-checkpoint";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/cleanup-checkpoint";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
 pub(crate) const TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1: &str = "creation/v1/journal";
@@ -838,12 +838,10 @@ const TENANT_ROOT_CREATION_INSTALLATION_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_CREATION_INSTALLATION_EVIDENCE_MAX_BASE64URL_BYTES_V1
         + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_CLEANUP_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_ROLE_CLEANUP_COMMAND_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_COMMAND_TERMINAL_RECEIPT_MAX_BASE64URL_BYTES_V1
         + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_CLEANUP_RESPONSE_MAX_BYTES_V1: usize = 1024;
 const TENANT_ROOT_CREATION_COMMITMENT_RESPONSE_MAX_BYTES_V1: usize =
     TENANT_ROOT_CREATION_COMMITMENT_MAX_BASE64URL_BYTES_V1 * 2 + 512;
@@ -1534,7 +1532,7 @@ pub(crate) enum CloudflareTenantRootCreationCleanupOutcomeV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootCreationCleanupResponseV1 {
+pub struct CloudflareTenantRootCreationCleanupResponseV1 {
     pub(crate) outcome: CloudflareTenantRootCreationCleanupOutcomeV1,
     pub(crate) role: CloudflareTenantRootCreationInstallationRoleV1,
     pub(crate) cleanup_receipt_digest_b64u: String,
@@ -3021,10 +3019,9 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_installation_
 }
 
 /// Sends one verified cleanup command and its exact successful terminal receipt
-/// to the Router-owned creation object.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_cleanup_call_v1(
-    env: &worker::Env,
+/// to the Router-owned creation state, on any host.
+pub async fn tenant_root_creation_cleanup_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     command: &VerifiedTenantRootRoleCleanupCommandV1,
     receipt_bytes: &[u8],
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationCleanupResponseV1> {
@@ -3040,18 +3037,14 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_cleanup_call_
     let command_bytes = command
         .canonical_bytes()
         .map_err(candidate_derivation_error)?;
-    let (authority_id, _) = derive_tenant_root_creation_authority_object_v1(
-        env,
-        command.identity_digest(),
-        command.custody_lineage(),
-    )?;
+    let authority_id =
+        state.creation_authority_id(command.identity_digest(), command.custody_lineage())?;
     let request = CloudflareTenantRootCreationCleanupRequestV1 {
         cleanup_command_b64u: encode_base64url_bytes_v1(&command_bytes),
         cleanup_receipt_b64u: encode_base64url_bytes_v1(receipt_bytes),
     };
     let response: CloudflareTenantRootCreationCleanupResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+        state.creation_state_call(
             authority_id,
             command.identity_digest(),
             command.custody_lineage(),
@@ -8843,172 +8836,31 @@ impl RouterAbTenantRootCreationDurableObject {
         &self,
         request: CloudflareTenantRootCreationCleanupRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootCreationCleanupResponseV1> {
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
+        let issuer_keys = self.issuer_verifying_keys()?;
         let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
-        let authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        let journal_record = storage_get_optional::<CloudflareTenantRootCreationJournalRecordV1>(
-            &self.storage,
-            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?
-        .ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root creation cleanup has no Started journal",
-            )
-        })?;
-        let journal = validate_creation_record(journal_record, authority_id, &issuer_keys)
-            .map_err(stored_record_error)?;
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            journal.identity_digest,
-            journal.custody_lineage,
-        )?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let outcome: Rc<
-            RefCell<Option<RouterAbProtocolResult<CloudflareTenantRootCreationCleanupResponseV1>>>,
-        > = Rc::new(RefCell::new(None));
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
         self.storage
             .transaction(move |transaction| async move {
-                let commitment_record = match transaction_get_optional::<
-                    CloudflareTenantRootCreationCommitmentRendezvousRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(record) => record,
-                    Err(error) => return Err(error),
-                };
-                let commitments = match require_complete_creation_commitment_rendezvous(
-                    commitment_record,
-                    &journal,
-                    &role_keys,
-                ) {
-                    Ok(commitments) => commitments,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let installation_record = match transaction_get_optional::<
-                    CloudflareTenantRootCreationInstallationCheckpointV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(Some(record)) => record,
-                    Ok(None) => {
-                        outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                            "tenant-root creation cleanup has no installation checkpoint",
-                        ))));
-                        return Ok(());
-                    }
-                    Err(error) => return Err(error),
-                };
-                let installation = match validate_installation_checkpoint(
-                    installation_record,
-                    &journal,
-                    &role_keys,
-                    &commitments,
-                ) {
-                    Ok(installation) => installation,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(stored_record_error(error))));
-                        return Ok(());
-                    }
-                };
-                let (_, role) = match creation_cleanup_target(&journal, &installation) {
-                    Ok(target) => target,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let candidate_record =
-                    match creation_cleanup_checkpoint_record(request, &journal, role) {
-                        Ok(record) => record,
-                        Err(error) => {
-                            outcome_for_transaction.replace(Some(Err(error)));
-                            return Ok(());
-                        }
-                    };
-                let candidate = match validate_creation_cleanup_checkpoint(
-                    candidate_record,
-                    &journal,
-                    &installation,
-                    authority_id,
-                    &issuer_keys,
-                    &role_keys,
-                ) {
-                    Ok(candidate) => candidate,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                let existing = match transaction_get_optional::<
-                    CloudflareTenantRootCreationCleanupCheckpointV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(existing) => existing,
-                    Err(error) => return Err(error),
-                };
-                match evaluate_creation_cleanup_checkpoint(
-                    existing,
-                    candidate,
-                    &journal,
-                    &installation,
-                    authority_id,
-                    &issuer_keys,
-                    &role_keys,
-                    now_ms,
-                ) {
-                    Ok(TenantRootCreationCleanupEvaluationV1::Commit {
-                        checkpoint,
-                        response,
-                    }) => {
-                        transaction
-                            .put(
-                                TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_STORAGE_KEY_V1,
-                                &checkpoint,
-                            )
-                            .await?;
-                        outcome_for_transaction.replace(Some(Ok(response)));
-                    }
-                    Ok(TenantRootCreationCleanupEvaluationV1::Replay(response)) => {
-                        outcome_for_transaction.replace(Some(Ok(response)));
-                    }
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                    }
+                let store = store.bind(transaction);
+                let result = tenant_root_creation_persist_cleanup_v1(&store, &issuer_keys, &role_keys, request, now_ms).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
+                outcome_for_transaction.replace(Some(result));
                 Ok(())
             })
             .await
             .map_err(durable_storage_protocol_error)?;
-        let outcome = outcome.borrow_mut().take().ok_or_else(|| {
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 "tenant-root creation cleanup transaction did not produce an outcome",
             )
         })?;
-        outcome
+        result
     }
 
     pub(crate) async fn persist_initial_activation(
@@ -14048,6 +13900,90 @@ pub trait TenantRootCreationStoreV1 {
     async fn put_json<T: Serialize>(&self, key: &str, value: &T) -> RouterAbProtocolResult<()>;
 }
 
+/// Checkpoints the cleanup of a creation in which exactly one role installed
+/// its share: an issuer-signed cleanup command and that role's successful
+/// terminal receipt. An exact replay returns the recorded response.
+pub async fn tenant_root_creation_persist_cleanup_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: &TenantRootCreationRoleVerifyingKeysV1,
+    request: CloudflareTenantRootCreationCleanupRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationCleanupResponseV1> {
+    let authority_id = store.authority_id();
+    let journal_record = store
+        .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
+            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
+        )
+        .await?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root creation cleanup has no Started journal",
+            )
+        })?;
+    let journal = validate_creation_record(journal_record, authority_id, issuer_keys)
+        .map_err(stored_record_error)?;
+    store.require_scope(journal.identity_digest, journal.custody_lineage)?;
+    let commitment_record = store
+        .get_json::<CloudflareTenantRootCreationCommitmentRendezvousRecordV1>(
+            TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
+        )
+        .await?;
+    let commitments =
+        require_complete_creation_commitment_rendezvous(commitment_record, &journal, role_keys)?;
+    let installation_record = store
+        .get_json::<CloudflareTenantRootCreationInstallationCheckpointV1>(
+            TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
+        )
+        .await?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root creation cleanup has no installation checkpoint",
+            )
+        })?;
+    let installation =
+        validate_installation_checkpoint(installation_record, &journal, role_keys, &commitments)
+            .map_err(stored_record_error)?;
+    let (_, role) = creation_cleanup_target(&journal, &installation)?;
+    let candidate_record = creation_cleanup_checkpoint_record(request, &journal, role)?;
+    let candidate = validate_creation_cleanup_checkpoint(
+        candidate_record,
+        &journal,
+        &installation,
+        authority_id,
+        issuer_keys,
+        role_keys,
+    )?;
+    let existing = store
+        .get_json::<CloudflareTenantRootCreationCleanupCheckpointV1>(
+            TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_STORAGE_KEY_V1,
+        )
+        .await?;
+    match evaluate_creation_cleanup_checkpoint(
+        existing,
+        candidate,
+        &journal,
+        &installation,
+        authority_id,
+        issuer_keys,
+        role_keys,
+        now_ms,
+    )? {
+        TenantRootCreationCleanupEvaluationV1::Commit {
+            checkpoint,
+            response,
+        } => {
+            store
+                .put_json(TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_STORAGE_KEY_V1, &checkpoint)
+                .await?;
+            Ok(response)
+        }
+        TenantRootCreationCleanupEvaluationV1::Replay(response) => Ok(response),
+    }
+}
+
 /// Persists the started journal and its creation capability once.
 pub async fn tenant_root_creation_persist_journal_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
@@ -14525,6 +14461,20 @@ pub async fn tenant_root_creation_serve_without_refresh_v1<Store: TenantRootCrea
                     "tenant-root installation request",
                     request_body,
                     TENANT_ROOT_CREATION_INSTALLATION_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_PATH => encode(
+            &tenant_root_creation_persist_cleanup_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root creation cleanup request",
+                    request_body,
+                    TENANT_ROOT_CREATION_CLEANUP_REQUEST_MAX_BYTES_V1,
                 )?,
                 now_ms,
             )

@@ -61,6 +61,11 @@ impl TenantRootManagedBackupObjectCoordinatesV1 {
         )
     }
 
+    /// The Deriver whose backup these coordinates name.
+    pub const fn role(self) -> TenantRootManagedRestoreRoleV1 {
+        self.role
+    }
+
     /// The storage key for these coordinates, the same on every host.
     pub fn object_key(self) -> String {
         format!(
@@ -72,7 +77,8 @@ impl TenantRootManagedBackupObjectCoordinatesV1 {
         )
     }
 
-    pub(crate) fn provider_canary_object_key(self) -> String {
+    /// The storage key of these coordinates' provider canary object.
+    pub fn provider_canary_object_key(self) -> String {
         format!(
             "{TENANT_ROOT_MANAGED_BACKUP_OBJECT_PREFIX_V1}/{}/{}/{}/{}{}",
             role_name(self.role),
@@ -158,7 +164,7 @@ impl CloudflareTenantRootManagedBackupPutOutcomeV1 {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum CloudflareTenantRootManagedBackupObjectDeletionStatusV1 {
+pub enum CloudflareTenantRootManagedBackupObjectDeletionStatusV1 {
     /// The object was present before deletion and absent in the verified read after it.
     Removed,
     /// The object was already absent before deletion and absent in the verified read after it.
@@ -168,7 +174,7 @@ pub(crate) enum CloudflareTenantRootManagedBackupObjectDeletionStatusV1 {
 /// R2 object-removal evidence with the required limitation on key erasure.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootManagedBackupDeletionReceiptV1 {
+pub struct CloudflareTenantRootManagedBackupDeletionReceiptV1 {
     managed_backup_object_key: String,
     provider_canary_object_key: String,
     managed_backup: CloudflareTenantRootManagedBackupObjectDeletionStatusV1,
@@ -178,6 +184,20 @@ pub(crate) struct CloudflareTenantRootManagedBackupDeletionReceiptV1 {
 }
 
 impl CloudflareTenantRootManagedBackupDeletionReceiptV1 {
+    /// Evidence that both objects at these coordinates are absent after a
+    /// delete, recording whether each was present before it.
+    pub fn from_presence(
+        coordinates: TenantRootManagedBackupObjectCoordinatesV1,
+        managed_backup_was_present: bool,
+        provider_canary_was_present: bool,
+    ) -> Self {
+        Self::new(
+            coordinates,
+            object_deletion_status(managed_backup_was_present),
+            object_deletion_status(provider_canary_was_present),
+        )
+    }
+
     fn new(
         coordinates: TenantRootManagedBackupObjectCoordinatesV1,
         managed_backup: CloudflareTenantRootManagedBackupObjectDeletionStatusV1,
@@ -521,10 +541,10 @@ impl CloudflareTenantRootManagedBackupStoreV1 {
         require_r2_object_absent(&self.bucket, &provider_canary_key, "provider canary").await?;
         require_r2_object_absent(&self.bucket, &managed_backup_key, "managed-backup").await?;
 
-        Ok(CloudflareTenantRootManagedBackupDeletionReceiptV1::new(
+        Ok(CloudflareTenantRootManagedBackupDeletionReceiptV1::from_presence(
             coordinates,
-            object_deletion_status(managed_backup_was_present),
-            object_deletion_status(provider_canary_was_present),
+            managed_backup_was_present,
+            provider_canary_was_present,
         ))
     }
 
@@ -538,7 +558,6 @@ impl CloudflareTenantRootManagedBackupStoreV1 {
     }
 }
 
-#[cfg(feature = "workers-rs")]
 fn object_deletion_status(
     was_present: bool,
 ) -> CloudflareTenantRootManagedBackupObjectDeletionStatusV1 {

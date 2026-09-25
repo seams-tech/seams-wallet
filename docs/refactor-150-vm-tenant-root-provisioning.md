@@ -34,6 +34,16 @@ What exists:
   active share with its online provider.
 - Each role's SQLite schema is applied by an explicit `--migrate` step and a
   role refuses to serve with a pending or unknown migration.
+- Partial-creation cleanup is shared. When a retry finds exactly one role
+  installed, the coordinator (`clean_partial_tenant_root_creation_v1`) asks
+  the control plane for a cleanup command naming that role's pending row,
+  verifies it with the Router's issuer keys, has the Deriver remove the row
+  and its managed backup (`tenant_root_deriver_cleanup_v1`), and checkpoints
+  the Deriver's terminal receipt in the creation state
+  (`tenant_root_creation_persist_cleanup_v1`). The grant is then spent: a
+  replay reports it abandoned and a fresh grant is required. Workers and VM
+  run the same functions; only the backup deletion (R2 or SQLite) is
+  host-specific.
 - `local_env_materialization_plan_v1` generates per-deployment tenant-root
   key material under the Cloudflare env names, a control-plane env file and an
   operator file (grant and recovery authorities) that no role loads.
@@ -47,6 +57,14 @@ outcome; each Deriver holds exactly its own active share and managed backup;
 the Router holds creation state and no shares; registration and NEAR signing
 then run on the created root.
 
+Partial-creation cleanup is verified by
+`vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant`
+(`R150_VM_TENANT_ROOT_PARTIAL_CLEANUP_E2E`). Deriver A's backup table is held
+aside, so A fails after B has installed. The retry removes B's pending row
+and backup and writes one cleanup checkpoint. Replays, including after every
+role restarts, report the grant abandoned and add no second checkpoint. A
+fresh grant for a new lineage then reaches ready with both shares active.
+
 Open, and not silently worked around:
 
 - **Resume gap, both hosts.** `Ready` means both installation checkpoints are
@@ -57,10 +75,9 @@ Open, and not silently worked around:
   needs (installation evidence, signed backups, canary receipts) came back in
   the initiator's response and was not kept. Fixing this needs a decision on
   where that evidence is durably held; it is not patched here.
-- A creation left with one role installed fails closed on the VM with an
-  explicit error; cleanup stays Cloudflare-only.
 - Refresh, managed restore, source retirement and cutover remain
-  Cloudflare-only.
+  Cloudflare-only. The VM control plane refuses a retired-source cleanup
+  command rather than skip it.
 
 The original plan follows.
 
@@ -128,8 +145,8 @@ Do not copy the logic into the VM crate.
 
 The first slice covers initial creation, activation and the Yao-time loads.
 
-- **Fails closed:** the one-role-installed cleanup branch. The Router
-  returns an explicit error and does not attempt cleanup.
+- **Fails closed (first slice; since served, see above):** the
+  one-role-installed cleanup branch.
 - **Out of scope for this slice:** refresh, managed restore, source
   retirement and cutover. They stay gated to Cloudflare and remain governed
   by the unapproved retirement design.

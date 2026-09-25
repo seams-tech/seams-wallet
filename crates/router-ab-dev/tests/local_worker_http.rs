@@ -1002,6 +1002,176 @@ fn vm_tenant_root_creation_is_authorized_replayable_and_role_isolated(
     Ok(())
 }
 
+/// A creation that stops with only Deriver B installed is cleaned through the
+/// shared ceremony: the control plane names B's pending row, the Router
+/// verifies that command, B removes its row and managed backup, and the Router
+/// checkpoints B's terminal receipt. The grant is then spent; a fresh grant
+/// creates the root.
+#[test]
+fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
+    let temp = temp_dir("vm-tenant-root-partial-creation")?;
+    let router_url = format!("http://127.0.0.1:{}", free_port()?);
+    let deriver_a_url = format!("http://127.0.0.1:{}", free_port()?);
+    let deriver_b_url = format!("http://127.0.0.1:{}", free_port()?);
+    let signing_worker_url = format!("http://127.0.0.1:{}", free_port()?);
+    write_product_worker_envs(
+        &temp,
+        &router_url,
+        &deriver_a_url,
+        &deriver_b_url,
+        &signing_worker_url,
+    )?;
+    let start = |role: &str, env_file: &str| {
+        ChildGuard::spawn_in_root(binary, role, temp.join(env_file), &temp)
+    };
+    let mut router = start("router", router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1)?;
+    let mut deriver_a = start("deriver-a", router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1)?;
+    let mut deriver_b = start("deriver-b", router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1)?;
+    let (mut control_plane, control_plane_url) = spawn_control_plane(&temp)?;
+    wait_for_health(&router_url, router.child_mut())?;
+    wait_for_health(&deriver_a_url, deriver_a.child_mut())?;
+    wait_for_health(&deriver_b_url, deriver_b.child_mut())?;
+    wait_for_health(&control_plane_url, control_plane.child_mut())?;
+
+    let role_store = |env_file: &str, key: &str| -> Result<Connection, Box<dyn std::error::Error>> {
+        Ok(Connection::open(temp.join(env_value(&temp.join(env_file), key)?))?)
+    };
+    let a_store = role_store(
+        router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1,
+        "DERIVER_A_ROLE_PRIVATE_STORAGE_PATH",
+    )?;
+    let b_store = role_store(
+        router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1,
+        "DERIVER_B_ROLE_PRIVATE_STORAGE_PATH",
+    )?;
+    let a_backups =
+        Connection::open(temp.join(".router-ab-local/deriver-a/managed-backups.sqlite"))?;
+    let b_backups =
+        Connection::open(temp.join(".router-ab-local/deriver-b/managed-backups.sqlite"))?;
+    let router_db =
+        Connection::open(temp.join(".router-ab-local/router/tenant-root-creation.sqlite"))?;
+    let share_rows = |db: &Connection| -> rusqlite::Result<Vec<(String, String)>> {
+        db.prepare("SELECT role, lifecycle FROM tenant_root_role_shares ORDER BY role")?
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect()
+    };
+    let backup_rows = |db: &Connection| -> rusqlite::Result<i64> {
+        db.query_row("SELECT count(*) FROM local_tenant_root_managed_backups", [], |row| {
+            row.get(0)
+        })
+    };
+    let cleanup_checkpoints = || -> rusqlite::Result<i64> {
+        router_db.query_row(
+            "SELECT count(*) FROM local_tenant_root_creation_state WHERE storage_key = ?1",
+            ["creation/v1/cleanup-checkpoint"],
+            |row| row.get(0),
+        )
+    };
+
+    // Deriver A's managed-backup store is unavailable, so the initiator fails
+    // after its peer B has installed and checkpointed its share.
+    a_backups.execute_batch(
+        "ALTER TABLE local_tenant_root_managed_backups RENAME TO held_aside_managed_backups",
+    )?;
+    let identity = product_tenant_root_identity()?;
+    let lineage = TenantRootCustodyLineageId::from_bytes(fresh_nonzero_bytes_16()?)?;
+    let grant = product_creation_grant_b64u(&temp, &identity, lineage, None)?;
+    let (failed_status, failed_body) =
+        create_tenant_root(&router_url, &grant, TEST_ROLE_SHARED_SERVICE_AUTH)?;
+    assert_ne!(failed_status, 200, "{failed_body}");
+    assert!(
+        failed_body.contains("no such table"),
+        "the initiator fails on its unavailable backup store: {failed_body}"
+    );
+    assert_eq!(share_rows(&a_store)?, Vec::new(), "A installed nothing");
+    assert_eq!(
+        share_rows(&b_store)?,
+        vec![("deriver_b".to_owned(), "pending".to_owned())],
+        "B holds its installed, unactivated share"
+    );
+    assert_eq!(backup_rows(&b_backups)?, 1, "B stored its managed backup");
+    a_backups.execute_batch(
+        "ALTER TABLE held_aside_managed_backups RENAME TO local_tenant_root_managed_backups",
+    )?;
+
+    // Retrying the grant cleans the partial creation instead of resuming it.
+    let (cleaned_status, cleaned_body) =
+        create_tenant_root(&router_url, &grant, TEST_ROLE_SHARED_SERVICE_AUTH)?;
+    assert_ne!(cleaned_status, 200, "{cleaned_body}");
+    assert!(
+        cleaned_body.contains("partial creation was cleaned; a fresh grant is required"),
+        "{cleaned_body}"
+    );
+    assert_eq!(share_rows(&b_store)?, Vec::new(), "B's pending share is removed");
+    assert_eq!(backup_rows(&b_backups)?, 0, "B's managed backup is removed");
+    assert_eq!(cleanup_checkpoints()?, 1, "the Router checkpoints the cleanup");
+
+    // The cleaned grant stays spent, including after every role restarts.
+    let (abandoned_status, abandoned_body) =
+        create_tenant_root(&router_url, &grant, TEST_ROLE_SHARED_SERVICE_AUTH)?;
+    assert_eq!(abandoned_status, cleaned_status, "{abandoned_body}");
+    assert!(
+        abandoned_body.contains("abandoned; a fresh grant is required"),
+        "{abandoned_body}"
+    );
+    drop(router);
+    drop(deriver_a);
+    drop(deriver_b);
+    drop(control_plane);
+    let mut router = start("router", router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1)?;
+    let mut deriver_a = start("deriver-a", router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1)?;
+    let mut deriver_b = start("deriver-b", router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1)?;
+    let (mut control_plane, _) = spawn_control_plane(&temp)?;
+    wait_for_health(&router_url, router.child_mut())?;
+    wait_for_health(&deriver_a_url, deriver_a.child_mut())?;
+    wait_for_health(&deriver_b_url, deriver_b.child_mut())?;
+    wait_for_health(&control_plane_url, control_plane.child_mut())?;
+    let (restart_status, restart_body) =
+        create_tenant_root(&router_url, &grant, TEST_ROLE_SHARED_SERVICE_AUTH)?;
+    assert_eq!(restart_status, cleaned_status, "{restart_body}");
+    assert!(restart_body.contains("abandoned"), "{restart_body}");
+    assert_eq!(cleanup_checkpoints()?, 1, "replays add no second cleanup");
+
+    // A fresh grant for a new custody lineage creates the root.
+    let fresh_lineage = TenantRootCustodyLineageId::from_bytes(fresh_nonzero_bytes_16()?)?;
+    let fresh_grant = product_creation_grant_b64u(&temp, &identity, fresh_lineage, None)?;
+    let (fresh_status, fresh_body) =
+        create_tenant_root(&router_url, &fresh_grant, TEST_ROLE_SHARED_SERVICE_AUTH)?;
+    assert_eq!(fresh_status, 200, "{fresh_body}");
+    let fresh: serde_json::Value = serde_json::from_str(&fresh_body)?;
+    assert_eq!(fresh["status"]["kind"], "ready", "{fresh_body}");
+    assert_eq!(
+        share_rows(&a_store)?,
+        vec![("deriver_a".to_owned(), "active".to_owned())]
+    );
+    assert_eq!(
+        share_rows(&b_store)?,
+        vec![("deriver_b".to_owned(), "active".to_owned())]
+    );
+    assert_eq!(backup_rows(&a_backups)?, 1);
+    assert_eq!(backup_rows(&b_backups)?, 1);
+
+    println!(
+        "R150_VM_TENANT_ROOT_PARTIAL_CLEANUP_E2E {}",
+        json!({
+            "fault": "deriver_a_managed_backup_store_unavailable",
+            "failed_attempt_status": failed_status,
+            "installed_before_cleanup": ["deriver_b"],
+            "cleanup_retry_status": cleaned_status,
+            "deriver_b_rows_after_cleanup": 0,
+            "deriver_b_backups_after_cleanup": 0,
+            "router_cleanup_checkpoints": cleanup_checkpoints()?,
+            "replay_reports_abandoned": true,
+            "replay_after_full_restart_reports_abandoned": true,
+            "fresh_grant_status": fresh["status"]["kind"],
+        })
+    );
+    Ok(())
+}
+
 #[test]
 fn vm_pair_reply_loss_reconciles_only_after_clean_transport_eof(
 ) -> Result<(), Box<dyn std::error::Error>> {

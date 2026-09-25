@@ -98,12 +98,15 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
 - Every role serves `GET /healthz`.
 - `vm_tenant_root_creation_is_authorized_replayable_and_role_isolated` in
   `crates/router-ab-dev/tests/local_worker_http.rs` prints
-  `R150_VM_TENANT_ROOT_E2E` with the creation evidence.
+  `R150_VM_TENANT_ROOT_E2E` with the creation evidence;
+  `vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant` prints
+  `R150_VM_TENANT_ROOT_PARTIAL_CLEANUP_E2E`.
+- A creation left with one role installed is cleaned on the next retry of its
+  grant, which then reports that a fresh grant is required.
 
 ## Not served on the VM
 
 - Tenant-root refresh, managed restore, source retirement and cutover.
-- Cleanup of a creation left with one role installed (fails closed).
 - Linked-device and step-up signing.
 - Google Cloud KMS managed backup (HPKE only).
 - Router and SigningWorker prewarm, which keeps Worker isolates warm and has no
