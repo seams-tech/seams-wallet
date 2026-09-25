@@ -48,8 +48,8 @@ export function nodeSqliteConnection(database: NodeDatabaseSyncLike): SyncSqlite
     executeScript: (sql) => database.exec(sql),
     transaction: (body) => {
       if (inTransaction) throw new Error('nested SQLite transactions are not supported');
-      inTransaction = true;
       database.exec('BEGIN IMMEDIATE');
+      inTransaction = true;
       try {
         const result = body();
         database.exec('COMMIT');
