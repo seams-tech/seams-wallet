@@ -11,6 +11,7 @@ const sourceDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(sourceDirectory, '../..');
 const sampleRoot = mkdtempSync(path.join(os.tmpdir(), 'r150-hosted-analysis-'));
 const revision = 'a'.repeat(40);
+const walletBuildInputHash = 'd'.repeat(64);
 const fingerprint = { d1: 'b'.repeat(64), do: 'c'.repeat(64) };
 const regionDirectories = [];
 
@@ -36,6 +37,7 @@ for (const region of ['nrt', 'fra', 'iad']) {
       arm,
       runId,
       revision,
+      walletBuildInputHash,
       deploymentFingerprint: fingerprint[arm],
       probe: {
         provider: 'fly',

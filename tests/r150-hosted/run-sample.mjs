@@ -41,6 +41,15 @@ if (process.env.FLY_REGION !== input.region ||
   throw new Error('Fly runtime region, machine, or app differs from the inventoried probe');
 }
 const caseIndex = Number(caseText);
+const source = JSON.parse(readFileSync(
+  path.join(repoRoot, '.runtime', 'r150-hosted', 'probe-source.json'),
+  'utf8',
+));
+if (source.kind !== 'r150_hosted_probe_source_v1' ||
+    !/^[0-9a-f]{40}$/u.test(source.revision) ||
+    !/^[0-9a-f]{64}$/u.test(source.walletBuildInputHash)) {
+  throw new Error('Probe image has no valid committed source and wallet build fingerprint');
+}
 const lock = openSync(lockPath, 'wx', 0o600);
 let dispatched = false;
 let completed = false;
@@ -56,10 +65,7 @@ try {
     }
   }
 
-  const revision = gitOutput(['rev-parse', '--verify', 'HEAD']).trim();
-  if (gitOutput(['status', '--porcelain']).trim() !== '') {
-    throw new Error('Probe worktree has tracked or untracked changes; use a clean committed revision');
-  }
+  const revision = source.revision;
   const runId = `${input.region}-case-${String(caseIndex).padStart(2, '0')}-${arm}`;
   const artifactName = `gateway-ecdsa-unforced-timing-hosted_${arm}-${input.region}-${runId}-0.json`;
   const sourceArtifact = path.join(repoRoot, '.artifacts', 'r150', artifactName);
@@ -76,6 +82,7 @@ try {
     arm,
     runId,
     revision,
+    walletBuildInputHash: source.walletBuildInputHash,
     deploymentFingerprint: input.arms[arm].deploymentFingerprint,
     probe: input.probe,
     startedAt: new Date().toISOString(),
@@ -145,8 +152,6 @@ function requirePrivateInput(filePath) {
   if ((statSync(filePath).mode & 0o077) !== 0) {
     throw new Error('Probe input contains an access token and must have mode 0600');
   }
-  const ignored = spawnSync('git', ['check-ignore', '-q', '--', filePath], { cwd: repoRoot });
-  if (ignored.status !== 0) throw new Error('Probe input must be Git-ignored');
 }
 
 function validateInput(input) {
@@ -231,10 +236,4 @@ function expectedArm(sequence) {
   const firstArm = caseIndex % 2 === 1 ? 'd1' : 'do';
   if (sequence % 2 === 1) return firstArm;
   return firstArm === 'd1' ? 'do' : 'd1';
-}
-
-function gitOutput(args) {
-  const result = spawnSync('git', args, { cwd: repoRoot, encoding: 'utf8' });
-  if (result.status !== 0) throw new Error(`git ${args[0]} failed`);
-  return result.stdout;
 }

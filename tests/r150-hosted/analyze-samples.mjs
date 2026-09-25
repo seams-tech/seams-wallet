@@ -19,12 +19,14 @@ if (directoryNames.length === 0 || directoryNames.length > 3 ||
 
 const reports = {};
 const revisions = new Set();
+const walletBuilds = new Set();
 const fingerprints = { d1: new Set(), do: new Set() };
 for (const directoryName of directoryNames) {
   const report = analyzeRegion(path.resolve(directoryName));
   if (reports[report.region]) throw new Error(`Duplicate region ${report.region}`);
   reports[report.region] = report;
   if (report.revision) revisions.add(report.revision);
+  if (report.walletBuildInputHash) walletBuilds.add(report.walletBuildInputHash);
   for (const arm of ['d1', 'do']) {
     if (report.deploymentFingerprints[arm]) {
       fingerprints[arm].add(report.deploymentFingerprints[arm]);
@@ -33,14 +35,15 @@ for (const directoryName of directoryNames) {
 }
 const allRegions = ['nrt', 'fra', 'iad'].every((region) => reports[region]?.complete === true);
 const sameRevision = revisions.size === 1;
+const sameWalletBuild = walletBuilds.size === 1;
 const sameDeployments = fingerprints.d1.size === 1 && fingerprints.do.size === 1 &&
   [...fingerprints.d1][0] !== [...fingerprints.do][0];
 const report = {
   kind: 'r150_hosted_comparison_report_v1',
   purpose: 'isolated_pilot_not_release_gate',
   percentileConvention: 'nearest_rank: sorted[ceil(p*n)-1]; 20 samples per arm and phase required',
-  complete: allRegions && sameRevision && sameDeployments,
-  consistency: { sameRevision, sameDeployments },
+  complete: allRegions && sameRevision && sameWalletBuild && sameDeployments,
+  consistency: { sameRevision, sameWalletBuild, sameDeployments },
   regions: reports,
   cost: { status: 'pending_measured_cloudflare_and_probe_usage' },
   doPlacement: { status: 'unknown_without_direct_role_execution_evidence' },
@@ -82,8 +85,11 @@ function analyzeRegion(runDirectory) {
   const region = starts[0].region;
   if (!['nrt', 'fra', 'iad'].includes(region)) throw new Error(`Invalid region ${region}`);
   const revision = starts[0].revision;
+  const walletBuildInputHash = starts[0].walletBuildInputHash;
   const probe = starts[0].probe;
-  if (!/^[0-9a-f]{40}$/u.test(revision) || probe?.provider !== 'fly' ||
+  if (!/^[0-9a-f]{40}$/u.test(revision) ||
+      !/^[0-9a-f]{64}$/u.test(walletBuildInputHash) ||
+      probe?.provider !== 'fly' ||
       probe.region !== region || !probe.instanceId || !probe.appName ||
       !probe.evidenceRef || !Number.isFinite(Date.parse(probe.observedAt))) {
     throw new Error(`Invalid revision or probe identity in ${region} ledger`);
@@ -102,7 +108,9 @@ function analyzeRegion(runDirectory) {
     if (start.kind !== 'r150_hosted_attempt_v1' || start.region !== region ||
         start.sequence !== sequence || start.caseIndex !== caseIndex ||
         start.arm !== arm || start.runId !== expectedRunId ||
-        start.revision !== revision || JSON.stringify(start.probe) !== JSON.stringify(probe) ||
+        start.revision !== revision ||
+        start.walletBuildInputHash !== walletBuildInputHash ||
+        JSON.stringify(start.probe) !== JSON.stringify(probe) ||
         seenRunIds.has(start.runId)) {
       throw new Error(`Invalid pairing, provenance, or execution order at attempt ${sequence}`);
     }
@@ -151,6 +159,7 @@ function analyzeRegion(runDirectory) {
     region,
     complete,
     revision,
+    walletBuildInputHash,
     deploymentFingerprints,
     probe: {
       status: 'declared_by_probe_input_requires_provider_evidence_review',

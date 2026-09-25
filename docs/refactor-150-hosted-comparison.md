@@ -90,8 +90,21 @@ Playwright traces, screenshots, and videos are disabled to keep request credenti
 and wallet material out of diagnostic artifacts. Each repeated
 run writes a distinct timing artifact. Local mode remains the default.
 
-On each Fly.io probe host with the clean Wallet revision and browser
-dependencies installed, place a mode-0600 private input at
+Build the Wallet SDK with `pnpm -C packages/wallet run build:sdk-full` from
+the committed comparison revision, then run
+`node tests/r150-hosted/probe/prepare-image-context.mjs`. It requires a fresh
+Wallet distribution and a clean worktree. The command archives only committed
+files, adds the built Wallet distribution, and writes the source/build
+fingerprints plus three private Fly app configurations under a new ignored
+`.runtime/r150-hosted/probe-image-*` directory. Build or deploy from that
+returned directory only. It excludes uncommitted identity material, ingress
+tokens, and other ignored runtime state from the image context. The pinned
+Playwright image matches the repository's browser-test version. Each Fly app
+has one 2-GB, two-shared-CPU Machine, no public service, and restart-persistent
+rootfs; review the provider's current regional price before creating it.
+Do not redeploy while results remain only on the Machine.
+
+On each private Fly.io probe Machine, place a mode-0600 input at
 `.runtime/r150-hosted/probe/<region>/input.json`. Populate each arm from its
 rendered `probe-values/<arm>.json` and `ingress-secrets/<arm>.json`; copy the
 secret token into `accessToken` without printing it. The `deploymentFingerprint`
