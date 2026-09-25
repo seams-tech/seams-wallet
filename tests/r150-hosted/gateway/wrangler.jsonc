@@ -4,10 +4,12 @@
   "compatibility_date": "2026-04-17",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
+  "preview_urls": false,
   "env": {
     "d1": {
       "name": "r150-bench-20260925-d1-gateway",
       "workers_dev": false,
+      "preview_urls": false,
       "d1_databases": [
         {
           "binding": "SIGNER_DB",
@@ -60,6 +62,7 @@
     "do": {
       "name": "r150-bench-20260925-do-gateway",
       "workers_dev": false,
+      "preview_urls": false,
       "d1_databases": [
         {
           "binding": "SIGNER_DB",

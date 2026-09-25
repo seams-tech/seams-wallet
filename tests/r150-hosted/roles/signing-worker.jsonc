@@ -1,0 +1,114 @@
+{
+  "$schema": "../../../node_modules/wrangler/config-schema.json",
+  "main": "../../../crates/router-ab-cloudflare/build/signing-worker/worker/shim.mjs",
+  "compatibility_date": "2026-06-12",
+  "workers_dev": false,
+  "preview_urls": false,
+  "env": {
+    "d1": {
+      "name": "r150-bench-20260925-d1-signing-worker",
+      "workers_dev": false,
+      "preview_urls": false,
+      "d1_databases": [
+        {
+          "binding": "SIGNING_WORKER_PRIVATE_DB",
+          "database_name": "r150-bench-20260925-d1-signing-worker-db",
+          "database_id": "__R150_BENCH_D1_SIGNING_WORKER_DB_ID__",
+          "migrations_dir": "../../../crates/router-ab-cloudflare/migrations/signing-worker"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "SIGNING_WORKER_PRESIGN_SESSION_DO",
+            "class_name": "RouterAbSigningWorkerPresignSessionDurableObject"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "router_ab_signing_worker_v4",
+          "new_sqlite_classes": ["RouterAbSigningWorkerPresignSessionDurableObject"]
+        }
+      ],
+      "vars": {
+        "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING": "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+        "SIGNING_WORKER_PRESIGN_SESSION_DO_BINDING": "SIGNING_WORKER_PRESIGN_SESSION_DO",
+        "SIGNING_WORKER_PRESIGN_SESSION_DO_OBJECT": "r150-bench-20260925-d1-presign-session",
+        "SIGNING_WORKER_PRESIGN_SESSION_DO_KEY_PREFIX": "r150-bench-20260925-d1-presign-session/",
+        "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY_BINDING": "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY",
+        "SIGNING_WORKER_SERVER_OUTPUT_HPKE_KEY_EPOCH": "epoch-1",
+        "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY": "__R150_BENCH_D1_SIGNING_WORKER_HPKE_PUBLIC_KEY__",
+        "SIGNING_WORKER_PRIVATE_D1_KEK_PUBLIC_KEY": "__R150_BENCH_D1_SIGNING_WORKER_D1_KEK_PUBLIC_KEY__",
+        "SIGNING_WORKER_PRIVATE_D1_KEK_VERSION": "r150-bench-r1",
+        "SIGNING_WORKER_PRIVATE_D1_ENVIRONMENT": "r150-bench-20260925-d1"
+      },
+      "secrets": {
+        "required": [
+          "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+          "ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET",
+          "ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET",
+          "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY",
+          "SIGNING_WORKER_PRIVATE_D1_KEK"
+        ]
+      }
+    },
+    "do": {
+      "name": "r150-bench-20260925-do-signing-worker",
+      "main": "../../../crates/router-ab-cloudflare/build/wallet-do/signing-worker/worker/shim.mjs",
+      "workers_dev": false,
+      "preview_urls": false,
+      "d1_databases": [
+        {
+          "binding": "SIGNING_WORKER_PRIVATE_DB",
+          "database_name": "r150-bench-20260925-do-signing-worker-db",
+          "database_id": "__R150_BENCH_DO_SIGNING_WORKER_DB_ID__",
+          "migrations_dir": "../../../crates/router-ab-cloudflare/migrations/signing-worker"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "SIGNING_WORKER_PRESIGN_SESSION_DO",
+            "class_name": "RouterAbSigningWorkerPresignSessionDurableObject"
+          },
+          {
+            "name": "SIGNING_WORKER_WALLET_DO",
+            "class_name": "RouterAbSigningWorkerWalletDurableObject"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "router_ab_signing_worker_v4",
+          "new_sqlite_classes": ["RouterAbSigningWorkerPresignSessionDurableObject"]
+        },
+        {
+          "tag": "r150-signing-worker-wallet-sqlite-v1",
+          "new_sqlite_classes": ["RouterAbSigningWorkerWalletDurableObject"]
+        }
+      ],
+      "vars": {
+        "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING": "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+        "SIGNING_WORKER_PRESIGN_SESSION_DO_BINDING": "SIGNING_WORKER_PRESIGN_SESSION_DO",
+        "SIGNING_WORKER_PRESIGN_SESSION_DO_OBJECT": "r150-bench-20260925-do-presign-session",
+        "SIGNING_WORKER_PRESIGN_SESSION_DO_KEY_PREFIX": "r150-bench-20260925-do-presign-session/",
+        "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY_BINDING": "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY",
+        "SIGNING_WORKER_SERVER_OUTPUT_HPKE_KEY_EPOCH": "epoch-1",
+        "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY": "__R150_BENCH_DO_SIGNING_WORKER_HPKE_PUBLIC_KEY__",
+        "SIGNING_WORKER_PRIVATE_D1_KEK_PUBLIC_KEY": "__R150_BENCH_DO_SIGNING_WORKER_D1_KEK_PUBLIC_KEY__",
+        "SIGNING_WORKER_PRIVATE_D1_KEK_VERSION": "r150-bench-r1",
+        "SIGNING_WORKER_PRIVATE_D1_ENVIRONMENT": "r150-bench-20260925-do"
+      },
+      "secrets": {
+        "required": [
+          "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET",
+          "ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET",
+          "ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET",
+          "SIGNING_WORKER_SERVER_OUTPUT_HPKE_PRIVATE_KEY",
+          "SIGNING_WORKER_PRIVATE_D1_KEK"
+        ]
+      }
+    }
+  }
+}

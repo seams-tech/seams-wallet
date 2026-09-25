@@ -131,6 +131,15 @@ benchmark databases are inventoried. The deployment JSON secret must use the
 same arm-specific organization, project, and environment IDs as its Gateway
 configuration; the entrypoint rejects a mismatch. The Gateway is private and
 keeps shared Wallet Session state in its own D1 database in both arms.
+The Router, A, B, SigningWorker, and tenant-root control-plane configurations
+are in [`tests/r150-hosted/roles`](../tests/r150-hosted/roles). They keep all
+role Workers private, disable preview URLs, and bind only to arm-specific
+services, stores, and namespaces. The DO arm alone adds A/B/SigningWorker
+wallet objects. Both arms retain the Router tenant-root and SigningWorker
+presign-session objects. All public-key and database-ID placeholders require
+fresh benchmark bootstrap values before deployment; no staging key or database
+identity is a valid replacement. Optimized D1 and wallet-DO binaries are built
+to separate directories so one arm cannot overwrite the other's artifact.
 
 Before deploying, confirm the account, probe provider/hosts, spend cap,
 prospective latency and monthly cost criteria, exact resource inventory,
