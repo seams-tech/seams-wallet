@@ -2703,6 +2703,7 @@ export class IntendedBehaviourHarness {
   }
 
   async attachTrace(testInfo: TestInfo): Promise<void> {
+    if (this.networkMode === 'external_staging') return;
     const payload: IntendedLifecycleTracePayload = {
       flow: this.flow,
       walletId: this.walletId,
@@ -3492,10 +3493,14 @@ export const intendedTest = base.extend<{
 }>({
   harness: async ({ context, page, request }, use, testInfo) => {
     const flow = lifecycleFlowFromTestFile(testInfo.file);
+    const networkMode = intendedNetworkModeFromEnv();
+    if (networkMode === 'external_staging') {
+      await installHostedBenchmarkAccess(context);
+    }
     const harness = new IntendedBehaviourHarness({
       context,
       flow,
-      networkMode: intendedNetworkModeFromEnv(),
+      networkMode,
       page,
       request,
     });
@@ -3506,6 +3511,29 @@ export const intendedTest = base.extend<{
     harness.assertNoWrongAuthPath();
   },
 });
+
+async function installHostedBenchmarkAccess(context: BrowserContext): Promise<void> {
+  const accessToken = process.env.SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN;
+  if (!accessToken || accessToken.length < 32) {
+    throw new Error('Hosted benchmark access token must contain at least 32 characters');
+  }
+  const gatewayUrl = process.env.SEAMS_INTENDED_ROUTER_URL;
+  if (!gatewayUrl) throw new Error('Hosted benchmark Gateway URL is required');
+  const gatewayOrigin = new URL(gatewayUrl).origin;
+  await context.route(
+    `${gatewayOrigin}/**`,
+    forwardHostedBenchmarkRequest.bind(undefined, accessToken),
+  );
+}
+
+async function forwardHostedBenchmarkRequest(accessToken: string, route: Route): Promise<void> {
+  await route.continue({
+    headers: {
+      ...route.request().headers(),
+      'x-r150-benchmark-access': accessToken,
+    },
+  });
+}
 
 function intendedNetworkModeFromEnv(): 'managed_local' | 'external_staging' {
   switch (process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY) {

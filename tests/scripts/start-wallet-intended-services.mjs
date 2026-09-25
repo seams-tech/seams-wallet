@@ -26,7 +26,11 @@ async function main() {
   if (externalGateway) assertHostedBenchmarkTarget();
   if (process.env.SEAMS_INTENDED_SKIP_BUILD !== '1') buildWalletRuntime();
   if (!externalGateway) startWalletSystem();
-  await waitForHttp(`${gatewayUrl}/readyz`, 180_000);
+  await waitForHttp(
+    `${gatewayUrl}/readyz`,
+    180_000,
+    externalGateway ? requiredBenchmarkEnvironment('SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN') : null,
+  );
   startIntendedApp('app', appOrigin, 'app');
   startIntendedApp('wallet-host', walletOrigin, 'wallet-host');
   await waitForHttp(`${appOrigin}/__intended-e2e`, 120_000);
@@ -145,24 +149,25 @@ function runRequired(label, command, args) {
   }
 }
 
-async function waitForHttp(url, timeoutMs) {
+async function waitForHttp(url, timeoutMs, accessToken = null) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (stopping) throw new Error('Wallet intended services stopped during startup');
-    const status = await requestStatus(url);
+    const status = await requestStatus(url, accessToken);
     if (status !== null && status >= 200 && status < 400) return;
     await delay(250);
   }
   throw new Error(`${url} did not become ready`);
 }
 
-function requestStatus(url) {
-  return new Promise(requestStatusExecutor.bind(undefined, url));
+function requestStatus(url, accessToken) {
+  return new Promise(requestStatusExecutor.bind(undefined, url, accessToken));
 }
 
-function requestStatusExecutor(url, resolve) {
+function requestStatusExecutor(url, accessToken, resolve) {
   const transport = new URL(url).protocol === 'https:' ? https : http;
-  const request = transport.get(url, handleStatusResponse.bind(undefined, resolve));
+  const headers = accessToken ? { 'x-r150-benchmark-access': accessToken } : {};
+  const request = transport.get(url, { headers }, handleStatusResponse.bind(undefined, resolve));
   request.setTimeout(externalGateway ? 5_000 : 750, handleRequestTimeout.bind(undefined, request));
   request.once('error', resolve.bind(undefined, null));
 }
@@ -208,6 +213,9 @@ function assertHostedBenchmarkTarget() {
     throw new Error('Hosted benchmark project and SigningWorker must be isolated R150 resources');
   }
   requiredBenchmarkEnvironment('SEAMS_INTENDED_PUBLISHABLE_KEY');
+  if (requiredBenchmarkEnvironment('SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN').length < 32) {
+    throw new Error('Hosted benchmark access token must contain at least 32 characters');
+  }
 }
 
 function requiredBenchmarkEnvironment(name) {

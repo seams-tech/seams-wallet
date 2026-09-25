@@ -79,14 +79,19 @@ only those explicitly inventoried benchmark resources.
 The existing E2E scenario now accepts `SEAMS_INTENDED_EXTERNAL_GATEWAY=1` and
 targets a benchmark-prefixed HTTPS Gateway while keeping its test app and wallet
 iframe local to the probe host. It requires explicit arm, region, run ID,
-project environment, publishable key, and SigningWorker identity. Each repeated
+project environment, publishable key, SigningWorker identity, and a benchmark
+access token. The browser attaches the token only to the selected ingress
+origin; the ingress strips it before forwarding to the private Gateway. Hosted
+Playwright traces, screenshots, and videos are disabled to keep request credentials
+and wallet material out of diagnostic artifacts. Each repeated
 run writes a distinct timing artifact. Local mode remains the default.
 
 On a probe host with the Wallet worktree and browser dependencies installed,
 set `SEAMS_INTENDED_ROUTER_URL` to the selected arm's HTTPS ingress and set
 `SEAMS_INTENDED_BENCHMARK_ARM`, `SEAMS_INTENDED_PROBE_REGION`,
 `SEAMS_INTENDED_BENCHMARK_RUN_ID`, `SEAMS_INTENDED_PROJECT_ENVIRONMENT_ID`,
-`SEAMS_INTENDED_PUBLISHABLE_KEY`, and `SEAMS_INTENDED_SIGNING_WORKER_ID` to that
+`SEAMS_INTENDED_PUBLISHABLE_KEY`, `SEAMS_INTENDED_SIGNING_WORKER_ID`, and
+`SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN` to that
 arm's isolated values. Then run:
 
 ```sh
@@ -105,6 +110,16 @@ The local app ports can be moved with `SEAMS_INTENDED_APP_URL` and
 `SEAMS_INTENDED_WALLET_ORIGIN`. The hosted ingress must remain the only public
 custody endpoint, and its access gate must be configured before this command
 is used against live resources.
+
+The isolated ingress configuration is in
+[`tests/r150-hosted/ingress/wrangler.jsonc`](../tests/r150-hosted/ingress/wrangler.jsonc).
+It binds to an arm-specific private Gateway, allows only the two local probe
+origins, requires separate arm tokens and an expiry timestamp secret, and
+forwards no token to the Gateway. Set `BENCHMARK_ACCESS_TOKEN` and
+`BENCHMARK_EXPIRES_AT_MS` separately in each ingress environment. The latter is
+a Unix timestamp in milliseconds and should bound the pilot window. Readiness
+responses disclose only success or failure; readiness and custody paths require
+the token.
 
 Before deploying, confirm the account, probe provider/hosts, spend cap,
 prospective latency and monthly cost criteria, exact resource inventory,

@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const hostedBenchmark = process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY === '1';
+
 export default defineConfig({
   tsconfig: './tsconfig.wallet-intended.json',
   testDir: '.',
@@ -17,9 +19,9 @@ export default defineConfig({
   reporter: 'line',
   use: {
     baseURL: process.env.SEAMS_INTENDED_APP_URL || 'http://localhost:4201',
-    trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    trace: hostedBenchmark ? 'off' : 'retain-on-failure',
+    screenshot: hostedBenchmark ? 'off' : 'only-on-failure',
+    video: hostedBenchmark ? 'off' : 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 });
