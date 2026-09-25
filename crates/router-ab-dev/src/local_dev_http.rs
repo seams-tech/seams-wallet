@@ -317,6 +317,8 @@ pub struct LocalDevHttpRequestPartsV1 {
     pub path: String,
     pub authorization: Option<String>,
     pub internal_service_auth: Option<String>,
+    /// Raw Gateway replay header (`x-seams-yao-replay`), when present.
+    pub yao_replay: Option<String>,
     pub body: Vec<u8>,
 }
 
@@ -356,6 +358,10 @@ pub fn read_local_dev_http_request_v1(
         headers,
         super::LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
     );
+    let yao_replay = local_dev_http_named_header_v1(
+        headers,
+        router_ab_cloudflare::ROUTER_ED25519_YAO_REPLAY_HEADER_V1,
+    );
     let content_length = local_dev_http_content_length_v1(headers)?;
     let body_start = header_end + 4;
     while request.len() < body_start + content_length {
@@ -373,6 +379,7 @@ pub fn read_local_dev_http_request_v1(
         path,
         authorization,
         internal_service_auth,
+        yao_replay,
         body: request[body_start..body_start + content_length].to_vec(),
     })
 }
@@ -472,6 +479,24 @@ fn local_dev_http_content_length_v1(headers: &str) -> Result<usize, Box<dyn std:
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Deterministic peer verifying keys for in-module Router fixtures.
+    fn fixture_peer_verifying_keys() -> router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1 {
+        let key = |seed: u8, role: router_ab_core::Role| {
+            router_ab_cloudflare::CloudflareSignerPeerVerifyingKeyBytesV1::new(
+                role,
+                ed25519_dalek::SigningKey::from_bytes(&[seed; 32])
+                    .verifying_key()
+                    .to_bytes(),
+            )
+            .expect("fixture verifying key")
+        };
+        router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1::new(
+            key(1, router_ab_core::Role::SignerA),
+            key(2, router_ab_core::Role::SignerB),
+        )
+        .expect("fixture verifying key set")
+    }
     use std::cell::Cell;
 
     struct RecordingDispatcher {
@@ -513,6 +538,7 @@ mod tests {
             signing_worker_id: "local-signing-worker".to_owned(),
             internal_service_auth: "local-test-auth".to_owned(),
             gateway_to_router_auth: "local-test-gateway-auth".to_owned(),
+            peer_verifying_keys: fixture_peer_verifying_keys(),
             tenant_root_resolver: Default::default(),
         }
     }
@@ -523,6 +549,7 @@ mod tests {
             path: LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH.to_owned(),
             authorization: None,
             internal_service_auth: Some(config.gateway_to_router_auth.clone()),
+            yao_replay: None,
             body: Vec::new(),
         }
     }

@@ -688,10 +688,13 @@ fn product_topology_completes_local_ed25519_yao_registration(
         &router_url,
         LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
         &request,
-        &[(
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            TEST_GATEWAY_TO_ROUTER_AUTH,
-        )],
+        &[
+            (
+                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+                TEST_GATEWAY_TO_ROUTER_AUTH,
+            ),
+            (router_ab_cloudflare::ROUTER_ED25519_YAO_REPLAY_HEADER_V1, "1"),
+        ],
     )?;
     assert_eq!(router_replay_status, 200, "{router_replay_body}");
     assert_eq!(
@@ -1338,10 +1341,13 @@ fn vm_router_reconciles_signing_worker_reply_loss_without_activating_missing_mat
                     &router_url,
                     LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
                     &request,
-                    &[(
-                        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-                        TEST_GATEWAY_TO_ROUTER_AUTH,
-                    )],
+                    &[
+                        (
+                            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+                            TEST_GATEWAY_TO_ROUTER_AUTH,
+                        ),
+                        (router_ab_cloudflare::ROUTER_ED25519_YAO_REPLAY_HEADER_V1, "1"),
+                    ],
                 )?;
                 assert_eq!(retry_status, 200, "{retry_body}");
                 assert!(matches!(

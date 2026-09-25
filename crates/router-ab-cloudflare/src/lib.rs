@@ -15,6 +15,8 @@ mod ecdsa_pool_lifecycle;
 pub use ecdsa_pool_lifecycle::*;
 mod ed25519_yao_pair_protocol;
 pub use ed25519_yao_pair_protocol::*;
+mod ed25519_yao_router_checks;
+pub use ed25519_yao_router_checks::*;
 #[cfg(feature = "workers-rs")]
 mod ed25519_yao_websocket;
 #[cfg(feature = "workers-rs")]

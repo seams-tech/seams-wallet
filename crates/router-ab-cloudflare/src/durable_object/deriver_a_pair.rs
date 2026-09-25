@@ -15,7 +15,8 @@ use crate::{
     ed25519_yao_lifecycle::role_d1::{
         encode_hex, encode_hex_slice, RolePairCipherV1, RolePairRecordScopeV1,
     },
-    ed25519_yao_lifecycle::{verify_role_readiness_receipt_v1, verify_role_start_acceptance_v1},
+    ed25519_yao_lifecycle::verify_role_start_acceptance_v1,
+    ed25519_yao_router_checks::verify_role_readiness_receipt_v1,
     CloudflareDeriverAWorkerRuntimeV1, CloudflareEd25519YaoPairExecuteResponseV1,
     CloudflareEd25519YaoPairWorkV1, CloudflareEd25519YaoTenantRootContextV2,
 };

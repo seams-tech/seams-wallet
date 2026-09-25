@@ -55,7 +55,7 @@ use router_ab_core::{
 use router_ab_ed25519_yao::{
     commit_ed25519_yao_lane_result_v1, lane_protocol_commit_receipt_v1,
     stable_key_derivation_context_v1, Ed25519YaoActivationRoleExecutionV1,
-    Ed25519YaoExportRoleExecutionV1, Ed25519YaoLaneRoleExecutionV1, Ed25519YaoRoleExecutionV1,
+    Ed25519YaoRoleExecutionV1,
     Ed25519YaoSigningWorkerPackageDeliveryV1,
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -65,7 +65,7 @@ const DERIVER_A_SERVICE_URL: &str = "https://router-ab-deriver-a.internal";
 const DERIVER_B_SERVICE_URL: &str = "https://router-ab-deriver-b.internal";
 const SIGNING_WORKER_SERVICE_URL: &str = "https://router-ab-signing-worker.internal";
 const ROUTER_SPAN_EVENT: &str = "router_ab_yao_coordinator_span_v1";
-const ROUTER_REPLAY_HEADER: &str = "x-seams-yao-replay";
+const ROUTER_REPLAY_HEADER: &str = crate::ROUTER_ED25519_YAO_REPLAY_HEADER_V1;
 const ROUTER_AUTHORITY_TTL_MS: u64 = 60_000;
 
 /// Server-admitted lane envelope with the same tenant-root binding as ceremonies.
@@ -880,7 +880,7 @@ async fn execute_router_ceremony_with_finalization_v1(
     timing.prepare_pair_ms = cloudflare_now_unix_ms_v1()?.saturating_sub(prepare_started_at_ms);
     let readiness_now_ms = cloudflare_now_unix_ms_v1()?;
     let readiness_started_at_ms = cloudflare_now_unix_ms_v1()?;
-    let readiness_result = validate_readiness(
+    let readiness_result = crate::validate_router_ed25519_yao_readiness_v1(
         &receipt_a,
         &pair_binding,
         readiness_now_ms,
@@ -888,7 +888,7 @@ async fn execute_router_ceremony_with_finalization_v1(
         &verifying_keys,
     )
     .and_then(|()| {
-        validate_readiness(
+        crate::validate_router_ed25519_yao_readiness_v1(
             &receipt_b,
             &pair_binding,
             readiness_now_ms,
@@ -948,7 +948,7 @@ async fn execute_router_ceremony_with_finalization_v1(
         }
     };
     let execution_validation = match execution.deriver_a_execution.validate() {
-        Ok(()) => validate_execution(
+        Ok(()) => crate::validate_router_ed25519_yao_role_execution_v1(
             &execution.deriver_a_execution,
             Ed25519YaoDeriverRoleV1::DeriverA,
             &binding,
@@ -970,12 +970,12 @@ async fn execute_router_ceremony_with_finalization_v1(
     timing.role_execution_ms = cloudflare_now_unix_ms_v1()?.saturating_sub(execute_started_at_ms);
     execution_validation?;
 
-    let transcript = execution_transcript(&execution.deriver_a_execution);
+    let transcript = crate::ed25519_yao_role_execution_transcript_v1(&execution.deriver_a_execution);
     let completed_b = serde_json::from_str::<Ed25519YaoRoleExecutionV1>(
         &execution.deriver_b_sealed_execution_json,
     )
     .map_err(|_| invalid_coordinator("Deriver B sealed execution is malformed"))?;
-    validate_execution(
+    crate::validate_router_ed25519_yao_role_execution_v1(
         &completed_b,
         Ed25519YaoDeriverRoleV1::DeriverB,
         &binding,
@@ -1070,7 +1070,7 @@ async fn execute_historical_registration_replay_v1(
         ));
     }
     outcome.deriver_a_execution.validate()?;
-    validate_execution(
+    crate::validate_router_ed25519_yao_role_execution_v1(
         &outcome.deriver_a_execution,
         Ed25519YaoDeriverRoleV1::DeriverA,
         pair_binding.binding(),
@@ -1080,14 +1080,14 @@ async fn execute_historical_registration_replay_v1(
         serde_json::from_str::<Ed25519YaoRoleExecutionV1>(&outcome.deriver_b_sealed_execution_json)
             .map_err(|_| invalid_coordinator("saved B execution is malformed"))?;
     execution_b.validate()?;
-    validate_execution(
+    crate::validate_router_ed25519_yao_role_execution_v1(
         &execution_b,
         Ed25519YaoDeriverRoleV1::DeriverB,
         pair_binding.binding(),
-        Some(execution_transcript(&outcome.deriver_a_execution)),
+        Some(crate::ed25519_yao_role_execution_transcript_v1(&outcome.deriver_a_execution)),
     )?;
-    let activation_a = activation_execution(&outcome.deriver_a_execution)?;
-    let activation_b = activation_execution(&execution_b)?;
+    let activation_a = crate::ed25519_yao_activation_role_execution_v1(&outcome.deriver_a_execution)?;
+    let activation_b = crate::ed25519_yao_activation_role_execution_v1(&execution_b)?;
     let lookup = CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1 {
         scope: CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
             &root.identity,
@@ -1117,7 +1117,7 @@ async fn execute_historical_registration_replay_v1(
         } => {
             let binding = pair_binding.binding();
             if receipt.session != binding.session_id.into_bytes()
-                || receipt.transcript != execution_transcript(&outcome.deriver_a_execution)
+                || receipt.transcript != crate::ed25519_yao_role_execution_transcript_v1(&outcome.deriver_a_execution)
             {
                 return Err(invalid_coordinator(
                     "SigningWorker committed receipt differs from saved pair execution",
@@ -1199,7 +1199,7 @@ async fn reconcile_router_replay_v1(
     #[cfg(feature = "wallet-do-router-harness")]
     if let CloudflareDeriverAWalletPairOutcomeResponseV1::Completed { outcome, .. } = &outcome_a {
         outcome.deriver_a_execution.validate()?;
-        validate_execution(
+        crate::validate_router_ed25519_yao_role_execution_v1(
             &outcome.deriver_a_execution,
             Ed25519YaoDeriverRoleV1::DeriverA,
             binding,
@@ -1210,11 +1210,11 @@ async fn reconcile_router_replay_v1(
         )
         .map_err(|_| invalid_coordinator("Deriver B saved execution is malformed"))?;
         completed_b.validate()?;
-        validate_execution(
+        crate::validate_router_ed25519_yao_role_execution_v1(
             &completed_b,
             Ed25519YaoDeriverRoleV1::DeriverB,
             binding,
-            Some(execution_transcript(&outcome.deriver_a_execution)),
+            Some(crate::ed25519_yao_role_execution_transcript_v1(&outcome.deriver_a_execution)),
         )?;
         emit_span(
             trace_id,
@@ -1300,14 +1300,14 @@ async fn reconcile_router_replay_v1(
         let execution_b = completed_execution(&status_b)?;
         execution_a.validate()?;
         execution_b.validate()?;
-        validate_execution(
+        crate::validate_router_ed25519_yao_role_execution_v1(
             &execution_a,
             Ed25519YaoDeriverRoleV1::DeriverA,
             binding,
             None,
         )?;
-        let transcript = execution_transcript(&execution_a);
-        validate_execution(
+        let transcript = crate::ed25519_yao_role_execution_transcript_v1(&execution_a);
+        crate::validate_router_ed25519_yao_role_execution_v1(
             &execution_b,
             Ed25519YaoDeriverRoleV1::DeriverB,
             binding,
@@ -1549,8 +1549,8 @@ async fn finalize_router_result_v1(
     let operation = request.operation();
     let success = match operation {
         Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery => {
-            let activation_a = activation_execution(&execution)?;
-            let activation_b = activation_execution(&completed_b)?;
+            let activation_a = crate::ed25519_yao_activation_role_execution_v1(&execution)?;
+            let activation_b = crate::ed25519_yao_activation_role_execution_v1(&completed_b)?;
             let delivery = CloudflareEd25519YaoPackagePairDeliveryV1 {
                 deriver_a: signing_worker_delivery(activation_a),
                 deriver_b: signing_worker_delivery(activation_b),
@@ -1699,11 +1699,11 @@ async fn finalize_router_result_v1(
                 RouterEd25519YaoExecuteRequestV1::Export { binding, .. } => binding.clone(),
                 _ => unreachable!("export operation must carry export binding"),
             };
-            let export_a = export_execution(&execution)?;
-            let export_b = export_execution(&completed_b)?;
+            let export_a = crate::ed25519_yao_export_role_execution_v1(&execution)?;
+            let export_b = crate::ed25519_yao_export_role_execution_v1(&completed_b)?;
             let result = RouterAbEd25519YaoExportResultV1::new(
                 export_binding,
-                execution_transcript(&execution),
+                crate::ed25519_yao_role_execution_transcript_v1(&execution),
                 export_a.client_package.clone(),
                 export_b.client_package.clone(),
             )?;
@@ -1727,8 +1727,8 @@ async fn finalize_router_result_v1(
                 }
             };
             let result = commit_ed25519_yao_lane_result_v1(
-                lane_execution(&execution)?.clone(),
-                lane_execution(&completed_b)?.clone(),
+                crate::ed25519_yao_lane_role_execution_v1(&execution)?.clone(),
+                crate::ed25519_yao_lane_role_execution_v1(&completed_b)?.clone(),
                 cloudflare_now_unix_ms_v1()?,
             )?;
             if &result.job != expected_job {
@@ -2055,101 +2055,6 @@ fn pair_work(request: &RouterEd25519YaoExecuteRequestV1) -> crate::CloudflareEd2
         | RouterEd25519YaoExecuteRequestV1::LaneRefresh { job, .. } => {
             crate::CloudflareEd25519YaoPairWorkV1::Lane { job: job.clone() }
         }
-    }
-}
-
-fn validate_readiness(
-    receipt: &Ed25519YaoRoleReadinessReceiptV1,
-    pair_binding: &Ed25519YaoInputPairBindingV1,
-    now_ms: u64,
-    role: Ed25519YaoDeriverRoleV1,
-    verifying_keys: &crate::CloudflareSignerPeerVerifyingKeySetV1,
-) -> RouterAbProtocolResult<()> {
-    if receipt.role() != role {
-        return Err(invalid_coordinator("readiness receipt role mismatch"));
-    }
-    receipt.validate_for_pair(pair_binding)?;
-    crate::ed25519_yao_lifecycle::validate_cloudflare_role_readiness_receipt_v1(receipt, now_ms)?;
-    crate::verify_role_readiness_receipt_v1(receipt, verifying_keys)
-}
-
-fn validate_execution(
-    execution: &Ed25519YaoRoleExecutionV1,
-    role: Ed25519YaoDeriverRoleV1,
-    binding: &router_ab_core::Ed25519YaoCeremonyBindingV1,
-    transcript: Option<[u8; 32]>,
-) -> RouterAbProtocolResult<()> {
-    let binding_matches = match execution {
-        Ed25519YaoRoleExecutionV1::Activation(value) => &value.binding == binding,
-        Ed25519YaoRoleExecutionV1::Export(value) => &value.binding == binding,
-        Ed25519YaoRoleExecutionV1::Lane(value) => {
-            value.job.yao_request_kind.operation() == binding.operation
-                && value.session == binding.session_id.into_bytes()
-                && value
-                    .job
-                    .stable_context_binding_v1()
-                    .is_ok_and(|stable| stable == binding.stable_key_context_binding.into_bytes())
-                && value.job.source.material_activation == *binding.material_activation()
-        }
-    };
-    if execution.deriver() != role || !binding_matches {
-        return Err(invalid_coordinator("role execution binding mismatch"));
-    }
-    if let Some(transcript) = transcript {
-        if execution_transcript(execution) != transcript {
-            return Err(invalid_coordinator("role execution transcript mismatch"));
-        }
-    }
-    Ok(())
-}
-
-fn execution_transcript(execution: &Ed25519YaoRoleExecutionV1) -> [u8; 32] {
-    match execution {
-        Ed25519YaoRoleExecutionV1::Activation(value) => value.transcript,
-        Ed25519YaoRoleExecutionV1::Export(value) => value.transcript,
-        Ed25519YaoRoleExecutionV1::Lane(value) => value.transcript,
-    }
-}
-
-fn activation_execution(
-    execution: &Ed25519YaoRoleExecutionV1,
-) -> RouterAbProtocolResult<&Ed25519YaoActivationRoleExecutionV1> {
-    match execution {
-        Ed25519YaoRoleExecutionV1::Activation(value) => Ok(value),
-        Ed25519YaoRoleExecutionV1::Export(_) => Err(invalid_coordinator(
-            "activation operation returned an export role execution",
-        )),
-        Ed25519YaoRoleExecutionV1::Lane(_) => Err(invalid_coordinator(
-            "activation operation returned a lane role execution",
-        )),
-    }
-}
-
-fn export_execution(
-    execution: &Ed25519YaoRoleExecutionV1,
-) -> RouterAbProtocolResult<&Ed25519YaoExportRoleExecutionV1> {
-    match execution {
-        Ed25519YaoRoleExecutionV1::Export(value) => Ok(value),
-        Ed25519YaoRoleExecutionV1::Activation(_) => Err(invalid_coordinator(
-            "export operation returned an activation role execution",
-        )),
-        Ed25519YaoRoleExecutionV1::Lane(_) => Err(invalid_coordinator(
-            "export operation returned a lane role execution",
-        )),
-    }
-}
-
-fn lane_execution(
-    execution: &Ed25519YaoRoleExecutionV1,
-) -> RouterAbProtocolResult<&Ed25519YaoLaneRoleExecutionV1> {
-    match execution {
-        Ed25519YaoRoleExecutionV1::Lane(value) => Ok(value),
-        Ed25519YaoRoleExecutionV1::Activation(_) => Err(invalid_coordinator(
-            "lane operation returned an activation role execution",
-        )),
-        Ed25519YaoRoleExecutionV1::Export(_) => Err(invalid_coordinator(
-            "lane operation returned an export role execution",
-        )),
     }
 }
 
@@ -2521,15 +2426,7 @@ fn parse_router_replay_header(request: &Request) -> RouterAbProtocolResult<bool>
                 format!("Router replay header read failed: {error}"),
             )
         })?;
-    match value.as_deref() {
-        None => Ok(false),
-        Some("1") => Ok(true),
-        Some("0") => Ok(false),
-        Some(_) => Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
-            "Router replay header must be 0 or 1",
-        )),
-    }
+    crate::parse_router_ed25519_yao_replay_header_v1(value.as_deref())
 }
 
 fn operation_label(operation: Ed25519YaoOperationV1) -> &'static str {

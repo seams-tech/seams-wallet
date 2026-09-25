@@ -41,6 +41,10 @@ use router_ab_ed25519_yao::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+
+use crate::ed25519_yao_router_checks::{
+    validate_cloudflare_role_readiness_receipt_v1, verify_role_readiness_receipt_v1,
+};
 use signer_core::ed25519_yao_derivation::{
     derive_ed25519_yao_deriver_a_server_contribution_v1,
     derive_ed25519_yao_deriver_b_server_contribution_v1, Ed25519YaoDeriverADerivationRootV1,
@@ -96,7 +100,6 @@ const YAO_CEREMONY_TIMEOUT: Duration = Duration::from_secs(15);
 const YAO_PREPARED_INPUT_LIFETIME_MS: u64 = 60_000;
 const YAO_RUNNING_LIFETIME_MS: u64 = 20_000;
 // Worker clocks expose the last I/O time, so a nested peer handoff can arrive slightly "future".
-const YAO_READINESS_RECEIPT_MAX_FUTURE_SKEW_MS: u64 = 1_000;
 const YAO_START_ACCEPTANCE_MAX_FUTURE_SKEW_MS: u64 = 1_000;
 const ROLE_SPAN_EVENT_V1: &str = "router_ab_yao_role_span_v1";
 const ED25519_YAO_TARGET_PROOF_HPKE_INFO_V2: &[u8] = b"seams/ed25519-yao/target-proof/hpke/v2";
@@ -988,22 +991,6 @@ fn sign_role_readiness_receipt_v1(
     )
 }
 
-pub(crate) fn verify_role_readiness_receipt_v1(
-    receipt: &Ed25519YaoRoleReadinessReceiptV1,
-    verifying_keys: &CloudflareSignerPeerVerifyingKeySetV1,
-) -> RouterAbProtocolResult<()> {
-    let verifying_key_bytes = match receipt.role() {
-        Ed25519YaoDeriverRoleV1::DeriverA => verifying_keys.deriver_a.verifying_key_bytes,
-        Ed25519YaoDeriverRoleV1::DeriverB => verifying_keys.deriver_b.verifying_key_bytes,
-    };
-    let verifying_key = VerifyingKey::from_bytes(&verifying_key_bytes)
-        .map_err(|_| invalid_lifecycle("readiness receipt verifying key is malformed"))?;
-    let signature = Signature::from_slice(receipt.signature().bytes())
-        .map_err(|_| invalid_lifecycle("readiness receipt signature is malformed"))?;
-    verifying_key
-        .verify_strict(receipt.signed_message_digest().as_bytes(), &signature)
-        .map_err(|_| invalid_lifecycle("readiness receipt signature is invalid"))
-}
 
 #[allow(clippy::too_many_arguments)]
 fn sign_role_start_acceptance_v1(
@@ -4459,13 +4446,6 @@ fn validate_cloudflare_start_acceptance_v1(
 ) -> RouterAbProtocolResult<()> {
     acceptance
         .validate_at_with_max_future_skew(now_unix_ms, YAO_START_ACCEPTANCE_MAX_FUTURE_SKEW_MS)
-}
-
-pub(crate) fn validate_cloudflare_role_readiness_receipt_v1(
-    receipt: &Ed25519YaoRoleReadinessReceiptV1,
-    now_unix_ms: u64,
-) -> RouterAbProtocolResult<()> {
-    receipt.validate_at_with_max_future_skew(now_unix_ms, YAO_READINESS_RECEIPT_MAX_FUTURE_SKEW_MS)
 }
 
 fn yao_input_digest(input: &Ed25519YaoEncryptedInputV1) -> [u8; 32] {

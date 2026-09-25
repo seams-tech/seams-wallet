@@ -449,6 +449,27 @@ const LOCAL_SIGNING_WORKER_FORBIDDEN_ENV_KEYS_V1: &[&str] = &[
     LOCAL_DERIVER_B_ROLE_PRIVATE_STORAGE_PATH_ENV_V1,
 ];
 
+fn required_peer_verifying_keys_v1(
+    env: &BTreeMap<String, String>,
+) -> RouterAbProtocolResult<router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1> {
+    let key = |name: &'static str, role: Role| {
+        let bytes: [u8; 32] = hex::decode(required_env_v1(env, name)?)
+            .ok()
+            .and_then(|bytes| bytes.try_into().ok())
+            .ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                    format!("{name} must be a 32-byte hex Ed25519 verifying key"),
+                )
+            })?;
+        router_ab_cloudflare::CloudflareSignerPeerVerifyingKeyBytesV1::new(role, bytes)
+    };
+    router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1::new(
+        key(LOCAL_DERIVER_A_PEER_VERIFYING_KEY_ENV_V1, Role::SignerA)?,
+        key(LOCAL_DERIVER_B_PEER_VERIFYING_KEY_ENV_V1, Role::SignerB)?,
+    )
+}
+
 fn required_gateway_to_router_auth_v1(
     env: &BTreeMap<String, String>,
 ) -> RouterAbProtocolResult<String> {
@@ -1209,6 +1230,8 @@ pub struct LocalRouterWorkerConfigV1 {
     /// Dedicated credential the Gateway presents to the Router.
     #[serde(skip_serializing)]
     pub gateway_to_router_auth: String,
+    /// Deriver A/B verifying keys for their signed readiness receipts.
+    pub peer_verifying_keys: router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1,
     /// Authenticated server-owned tenant-root resolver.
     pub tenant_root_resolver: LocalTenantRootResolverConfigV1,
 }
@@ -1571,6 +1594,7 @@ pub fn parse_local_worker_role_config_for_role_v1(
                     LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_ENV_V1,
                 )?,
                 gateway_to_router_auth: required_gateway_to_router_auth_v1(&env)?,
+                peer_verifying_keys: required_peer_verifying_keys_v1(&env)?,
                 tenant_root_resolver: parse_local_tenant_root_bindings_json_v1(&required_env_v1(
                     &env,
                     LOCAL_TENANT_ROOT_BINDINGS_JSON_ENV_V1,
@@ -3061,6 +3085,8 @@ fn materialize_template_v1(template: &str, seed: &[u8]) -> RouterAbProtocolResul
         let material = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(seed_bytes);
         contents = contents.replace(placeholder, &material);
     }
+    // The Router template carries parseable placeholder verifying keys (it
+    // validates them at startup); the Derivers carry named placeholders.
     for (placeholder, label) in [
         (
             "dev-only-deriver-a-peer-verifying-key",
@@ -3068,6 +3094,14 @@ fn materialize_template_v1(template: &str, seed: &[u8]) -> RouterAbProtocolResul
         ),
         (
             "dev-only-deriver-b-peer-verifying-key",
+            "deriver-b-peer-signing-key",
+        ),
+        (
+            "c050c5637a44fa8629fff3cccce2300cb362a63d99d95fc54145266f4332445a",
+            "deriver-a-peer-signing-key",
+        ),
+        (
+            "2012cb90ca60e8e5d8daf66e2272d2233e0486d557e8c66141ed8920177d7eb7",
             "deriver-b-peer-signing-key",
         ),
     ] {

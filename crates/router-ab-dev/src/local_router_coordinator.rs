@@ -64,6 +64,7 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
         &self,
         config: &LocalRouterWorkerConfigV1,
         body: &[u8],
+        replay: bool,
     ) -> RouterAbProtocolResult<RouterEd25519YaoExecuteResultV1> {
         let now_ms = local_now_ms_v1()?;
         let request = decode_local_router_ed25519_yao_execute_request_v1(
@@ -74,13 +75,17 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
             &config.tenant_root_resolver,
         )?;
         request.authority.validate_at(now_ms)?;
-        if let Some(replayed) = self.reconcile_completed_registration(
-            config,
-            &request.binding,
-            &request.pair_binding,
-            &request.tenant_root.identity,
-        )? {
-            return Ok(replayed);
+        // Only an explicit Gateway replay reconciles a prior run before
+        // preparing; a first dispatch goes straight to pair preparation.
+        if replay {
+            if let Some(replayed) = self.reconcile_completed_registration(
+                config,
+                &request.binding,
+                &request.pair_binding,
+                &request.tenant_root.identity,
+            )? {
+                return Ok(replayed);
+            }
         }
         let pair = request.pair_binding.clone();
         let prepare_a = CloudflareEd25519YaoPairPrepareRequestV1 {
@@ -113,17 +118,23 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                 );
             }
         };
-        if receipt_a.validate_for_pair(&pair).is_err()
-            || receipt_b.validate_for_pair(&pair).is_err()
-        {
-            self.burn_pair(config, &pair);
-            return Ok(RouterEd25519YaoExecuteResultV1::burned(
-                execution_id_for_pair(&pair)?,
-                router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
-            ));
-        }
-        if receipt_a.role() != Ed25519YaoDeriverRoleV1::DeriverA
-            || receipt_b.role() != Ed25519YaoDeriverRoleV1::DeriverB
+        let readiness_now_ms = local_now_ms_v1()?;
+        if router_ab_cloudflare::validate_router_ed25519_yao_readiness_v1(
+            &receipt_a,
+            &pair,
+            readiness_now_ms,
+            Ed25519YaoDeriverRoleV1::DeriverA,
+            &config.peer_verifying_keys,
+        )
+        .is_err()
+            || router_ab_cloudflare::validate_router_ed25519_yao_readiness_v1(
+                &receipt_b,
+                &pair,
+                readiness_now_ms,
+                Ed25519YaoDeriverRoleV1::DeriverB,
+                &config.peer_verifying_keys,
+            )
+            .is_err()
         {
             self.burn_pair(config, &pair);
             return Ok(RouterEd25519YaoExecuteResultV1::burned(
@@ -164,11 +175,11 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                 ));
             }
         };
-        if validate_execution(
+        if router_ab_cloudflare::validate_router_ed25519_yao_role_execution_v1(
             &execution.deriver_a_execution,
             Ed25519YaoDeriverRoleV1::DeriverA,
             &request.binding,
-            &request.pair_binding,
+            None,
         )
         .is_err()
         {
@@ -190,21 +201,15 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                 ));
             }
         };
-        if validate_execution(
+        if router_ab_cloudflare::validate_router_ed25519_yao_role_execution_v1(
             &completed,
             Ed25519YaoDeriverRoleV1::DeriverB,
             &request.binding,
-            &request.pair_binding,
+            Some(router_ab_cloudflare::ed25519_yao_role_execution_transcript_v1(
+                &execution.deriver_a_execution,
+            )),
         )
         .is_err()
-        {
-            self.burn_pair(config, &pair);
-            return Ok(RouterEd25519YaoExecuteResultV1::burned(
-                execution_id_for_pair(&pair)?,
-                router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
-            ));
-        }
-        if execution_transcript(&execution.deriver_a_execution) != execution_transcript(&completed)
         {
             self.burn_pair(config, &pair);
             return Ok(RouterEd25519YaoExecuteResultV1::burned(
@@ -372,25 +377,22 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                     execution: execution_b,
                 },
             ) => {
-                validate_execution(
+                router_ab_cloudflare::validate_router_ed25519_yao_role_execution_v1(
                     &execution_a,
                     Ed25519YaoDeriverRoleV1::DeriverA,
                     binding,
-                    pair_binding,
+                    None,
                 )?;
-                validate_execution(
+                router_ab_cloudflare::validate_router_ed25519_yao_role_execution_v1(
                     &execution_b,
                     Ed25519YaoDeriverRoleV1::DeriverB,
                     binding,
-                    pair_binding,
+                    Some(router_ab_cloudflare::ed25519_yao_role_execution_transcript_v1(
+                        &execution_a,
+                    )),
                 )?;
-                if execution_transcript(&execution_a) != execution_transcript(&execution_b) {
-                    return Err(coordinator_error(
-                        "completed role transcripts disagree during Router replay",
-                    ));
-                }
-                let a = activation_execution(&execution_a)?;
-                let b = activation_execution(&execution_b)?;
+                let a = router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_a)?;
+                let b = router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_b)?;
                 let delivery = activation_delivery(root_identity, binding, a, b)?;
                 let finalization = self.client.post_json_authenticated_v1::<_, LocalEd25519YaoInitialRegistrationFinalizationV1>(
                     &config.signing_worker_url,
@@ -509,8 +511,8 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
     ) -> RouterAbProtocolResult<RouterEd25519YaoExecuteResultV1> {
         match request.operation {
             Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery => {
-                let a = activation_execution(&execution_a)?;
-                let b = activation_execution(&execution_b)?;
+                let a = router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_a)?;
+                let b = router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_b)?;
                 let delivery =
                     activation_delivery(&request.tenant_root.identity, &request.binding, a, b)?;
                 let receipt = self.client.post_json_authenticated_v1::<_, LocalEd25519YaoSigningWorkerActivationReceiptV1>(
@@ -552,8 +554,8 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                     .export_binding
                     .clone()
                     .ok_or_else(|| coordinator_error("export binding is missing"))?;
-                let a = export_execution(&execution_a)?;
-                let b = export_execution(&execution_b)?;
+                let a = router_ab_cloudflare::ed25519_yao_export_role_execution_v1(&execution_a)?;
+                let b = router_ab_cloudflare::ed25519_yao_export_role_execution_v1(&execution_b)?;
                 let result = RouterAbEd25519YaoExportResultV1::new(
                     export_binding,
                     a.transcript,
@@ -636,7 +638,19 @@ impl LocalRouterRequestDispatcherV1 for LocalRouterEd25519YaoCoordinatorV1 {
                 )?)),
             };
         }
-        match self.execute(config, &request.body) {
+        let replay = match router_ab_cloudflare::parse_router_ed25519_yao_replay_header_v1(
+            request.yao_replay.as_deref(),
+        ) {
+            Ok(replay) => replay,
+            Err(error) => {
+                return Ok(Some(local_dev_http_route_error_v1(
+                    LocalServiceRoleV1::Router,
+                    &request.path,
+                    error,
+                )?))
+            }
+        };
+        match self.execute(config, &request.body, replay) {
             Ok(result) => Ok(Some((200, serde_json::to_string(&result)?))),
             Err(error) => Ok(Some(local_dev_http_route_error_v1(
                 LocalServiceRoleV1::Router,
@@ -680,63 +694,6 @@ fn validate_recovery_promotion_receipt(
         ));
     }
     Ok(())
-}
-
-fn validate_execution(
-    execution: &Ed25519YaoRoleExecutionV1,
-    role: Ed25519YaoDeriverRoleV1,
-    binding: &Ed25519YaoCeremonyBindingV1,
-    pair_binding: &Ed25519YaoInputPairBindingV1,
-) -> RouterAbProtocolResult<()> {
-    execution.validate()?;
-    if execution.deriver() != role || execution.session() != pair_binding.session() {
-        return Err(coordinator_error(
-            "role execution identity does not match the admitted pair",
-        ));
-    }
-    let binding_matches = match execution {
-        Ed25519YaoRoleExecutionV1::Activation(value) => value.binding == *binding,
-        Ed25519YaoRoleExecutionV1::Export(value) => value.binding == *binding,
-        Ed25519YaoRoleExecutionV1::Lane(value) => {
-            value.job.yao_request_kind.operation() == binding.operation
-                && value.session == binding.session_id.into_bytes()
-                && value.job.source.material_activation == *binding.material_activation()
-        }
-    };
-    if !binding_matches {
-        return Err(coordinator_error(
-            "role execution binding does not match the admitted ceremony",
-        ));
-    }
-    Ok(())
-}
-
-fn activation_execution(
-    execution: &Ed25519YaoRoleExecutionV1,
-) -> RouterAbProtocolResult<&Ed25519YaoActivationRoleExecutionV1> {
-    match execution {
-        Ed25519YaoRoleExecutionV1::Activation(value) => Ok(value),
-        Ed25519YaoRoleExecutionV1::Export(_) => {
-            Err(coordinator_error("activation execution was not returned"))
-        }
-        Ed25519YaoRoleExecutionV1::Lane(_) => {
-            Err(coordinator_error("activation execution was not returned"))
-        }
-    }
-}
-
-fn export_execution(
-    execution: &Ed25519YaoRoleExecutionV1,
-) -> RouterAbProtocolResult<&Ed25519YaoExportRoleExecutionV1> {
-    match execution {
-        Ed25519YaoRoleExecutionV1::Export(value) => Ok(value),
-        Ed25519YaoRoleExecutionV1::Activation(_) => {
-            Err(coordinator_error("export execution was not returned"))
-        }
-        Ed25519YaoRoleExecutionV1::Lane(_) => {
-            Err(coordinator_error("export execution was not returned"))
-        }
-    }
 }
 
 fn package_delivery(
@@ -825,14 +782,6 @@ fn activation_public_receipt(
     )
 }
 
-fn execution_transcript(execution: &Ed25519YaoRoleExecutionV1) -> [u8; 32] {
-    match execution {
-        Ed25519YaoRoleExecutionV1::Activation(value) => value.transcript,
-        Ed25519YaoRoleExecutionV1::Export(value) => value.transcript,
-        Ed25519YaoRoleExecutionV1::Lane(value) => value.transcript,
-    }
-}
-
 fn execution_id_for_pair(
     pair: &router_ab_core::Ed25519YaoInputPairBindingV1,
 ) -> RouterAbProtocolResult<router_ab_core::Ed25519YaoExecutionIdV1> {
@@ -855,6 +804,24 @@ mod tests {
     use crate::LocalTenantRootResolverConfigV1;
 
     use super::*;
+
+    /// Deterministic peer verifying keys for in-module Router fixtures.
+    fn fixture_peer_verifying_keys() -> router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1 {
+        let key = |seed: u8, role: router_ab_core::Role| {
+            router_ab_cloudflare::CloudflareSignerPeerVerifyingKeyBytesV1::new(
+                role,
+                ed25519_dalek::SigningKey::from_bytes(&[seed; 32])
+                    .verifying_key()
+                    .to_bytes(),
+            )
+            .expect("fixture verifying key")
+        };
+        router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1::new(
+            key(1, router_ab_core::Role::SignerA),
+            key(2, router_ab_core::Role::SignerB),
+        )
+        .expect("fixture verifying key set")
+    }
     use crate::LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1;
     use router_ab_core::{
         Ed25519YaoSessionIdV1, Ed25519YaoStableKeyContextBindingV1, ExpensiveWorkKindV1,
@@ -1046,6 +1013,7 @@ mod tests {
             signing_worker_id: "local-signing-worker".to_owned(),
             internal_service_auth: "local-test-auth".to_owned(),
             gateway_to_router_auth: "local-test-gateway-auth".to_owned(),
+            peer_verifying_keys: fixture_peer_verifying_keys(),
             tenant_root_resolver: LocalTenantRootResolverConfigV1::default(),
         };
         let body = serde_json::to_vec(&request).expect("promotion JSON");
