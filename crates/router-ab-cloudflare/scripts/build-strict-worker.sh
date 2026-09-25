@@ -25,6 +25,9 @@ case "$worker_build_profile" in
     ;;
   release)
     worker_output="build/$role"
+    if [[ "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" && "$role" != "tenant-root-control-plane" ]]; then
+      worker_output="build/wallet-do/$role"
+    fi
     worker_build_flags=(--release)
     ;;
   *)
