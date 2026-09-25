@@ -18,7 +18,8 @@ use router_ab_core::{
     RouterAbNearNetworkIdV2, RouterAbNearTransactionIntentV1, RouterEd25519YaoExecuteResultV1,
     RouterEd25519YaoExecuteSuccessV1, RouterEd25519YaoGatewayExecuteTargetV2,
     TenantRootCreationGrantNonceV1, TenantRootCreationGrantV1, TenantRootCustodyLineageId,
-    TenantRootIdentityV1, };
+    TenantRootIdentityV1, TENANT_ROOT_MAX_LIFETIME_MS_V1,
+};
 use router_ab_dev::{
     admit_local_ed25519_yao_registration_v1, generate_local_ed25519_yao_recipient_key_pair_v1,
     local_env_materialization_plan_v1, parse_local_env_file_contents_v1,
@@ -61,7 +62,10 @@ use std::{
     net::{Shutdown, TcpListener, TcpStream},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
-    sync::{Barrier, Mutex, MutexGuard, OnceLock},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Barrier, Mutex, MutexGuard, OnceLock,
+    },
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -1170,6 +1174,334 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
         })
     );
     Ok(())
+}
+
+/// The Router's persisted initial-activation receipt is the commit point of a
+/// creation. A delivery lost after it leaves zero or one Deriver active. Inside
+/// the ceremony window a retry re-delivers the committed receipt: the active
+/// Deriver replays and the pending one activates. Past the window the retry
+/// fails closed at two barriers, the control plane's grant check and the
+/// pending Deriver's receipt freshness check, and leaves the committed Router
+/// with one active Deriver. That last state is the open gap in
+/// `docs/refactor-150-tenant-root-creation-resume.md`; its assertions change
+/// when a recovery policy is approved.
+#[test]
+fn vm_tenant_root_committed_activation_is_redelivered_until_the_ceremony_expires(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
+    let temp = temp_dir("vm-tenant-root-post-commit")?;
+    let router_url = format!("http://127.0.0.1:{}", free_port()?);
+    let deriver_a_url = format!("http://127.0.0.1:{}", free_port()?);
+    let deriver_b_url = format!("http://127.0.0.1:{}", free_port()?);
+    let signing_worker_url = format!("http://127.0.0.1:{}", free_port()?);
+    write_product_worker_envs(
+        &temp,
+        &router_url,
+        &deriver_a_url,
+        &deriver_b_url,
+        &signing_worker_url,
+    )?;
+    // The Router reaches each Deriver through a proxy that can drop one
+    // initial-activation delivery. The Derivers reach each other directly.
+    let proxy_a = ActivationDropProxyV1::start(&deriver_a_url)?;
+    let proxy_b = ActivationDropProxyV1::start(&deriver_b_url)?;
+    let router_env_path = temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1);
+    let mut routed = 0;
+    let router_env = fs::read_to_string(&router_env_path)?
+        .lines()
+        .map(|line| {
+            if line.starts_with("DERIVER_A_URL=") {
+                routed += 1;
+                format!("DERIVER_A_URL={}", proxy_a.url)
+            } else if line.starts_with("DERIVER_B_URL=") {
+                routed += 1;
+                format!("DERIVER_B_URL={}", proxy_b.url)
+            } else {
+                line.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert_eq!(routed, 2, "the Router must reach both Derivers through the proxies");
+    fs::write(&router_env_path, router_env + "\n")?;
+
+    let start = |role: &str, env_file: &str| {
+        ChildGuard::spawn_in_root(binary, role, temp.join(env_file), &temp)
+    };
+    let mut router = start("router", router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1)?;
+    let mut deriver_a = start("deriver-a", router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1)?;
+    let mut deriver_b = start("deriver-b", router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1)?;
+    let (mut control_plane, control_plane_url) = spawn_control_plane(&temp)?;
+    wait_for_health(&router_url, router.child_mut())?;
+    wait_for_health(&deriver_a_url, deriver_a.child_mut())?;
+    wait_for_health(&deriver_b_url, deriver_b.child_mut())?;
+    wait_for_health(&control_plane_url, control_plane.child_mut())?;
+
+    let role_store = |env_file: &str, key: &str| -> Result<Connection, Box<dyn std::error::Error>> {
+        Ok(Connection::open(temp.join(env_value(&temp.join(env_file), key)?))?)
+    };
+    let a_store = role_store(
+        router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1,
+        "DERIVER_A_ROLE_PRIVATE_STORAGE_PATH",
+    )?;
+    let b_store = role_store(
+        router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1,
+        "DERIVER_B_ROLE_PRIVATE_STORAGE_PATH",
+    )?;
+    let router_db =
+        Connection::open(temp.join(".router-ab-local/router/tenant-root-creation.sqlite"))?;
+    let lifecycle = |db: &Connection, lineage: &str| -> rusqlite::Result<Option<String>> {
+        db.query_row(
+            "SELECT lifecycle FROM tenant_root_role_shares WHERE custody_lineage_b64u = ?1",
+            [lineage],
+            |row| row.get(0),
+        )
+        .optional()
+    };
+    let lifecycles = |lineage: &str| -> rusqlite::Result<(Option<String>, Option<String>)> {
+        Ok((lifecycle(&a_store, lineage)?, lifecycle(&b_store, lineage)?))
+    };
+    let committed_receipt = |lineage: &str| -> rusqlite::Result<Option<String>> {
+        router_db
+            .query_row(
+                "SELECT json_extract(value_json, '$.activation_receipt_b64u')
+                 FROM local_tenant_root_creation_state
+                 WHERE storage_key = 'refresh/v1/active-state'
+                   AND json_extract(value_json, '$.custody_lineage_b64u') = ?1",
+                [lineage],
+                |row| row.get(0),
+            )
+            .optional()
+    };
+    let active = || Some("active".to_owned());
+    let pending = || Some("pending".to_owned());
+    let ceremony = |environment: &str| -> Result<(TenantRootIdentityV1, TenantRootCustodyLineageId, String), Box<dyn std::error::Error>> {
+        let identity = TenantRootIdentityV1::new(
+            "local-org",
+            "local-project",
+            environment,
+            "project:local",
+            "root-version-1",
+        )?;
+        let lineage = TenantRootCustodyLineageId::from_bytes(fresh_nonzero_bytes_16()?)?;
+        let lineage_b64u =
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(lineage.as_bytes());
+        Ok((identity, lineage, lineage_b64u))
+    };
+    let create = |grant: &str| create_tenant_root(&router_url, grant, TEST_ROLE_SHARED_SERVICE_AUTH);
+    let mut evidence = BTreeMap::new();
+
+    // 1. Router committed, no Deriver active: the delivery to A is lost.
+    let (identity, lineage, lineage_b64u) = ceremony("post-commit-none-active")?;
+    let grant = product_creation_grant_b64u(&temp, &identity, lineage, None)?;
+    proxy_a.drop_next_activation();
+    let (lost_status, lost_body) = create(&grant)?;
+    assert_ne!(lost_status, 200, "{lost_body}");
+    assert!(proxy_a.dropped(), "the proxy must have dropped A's activation");
+    let receipt = committed_receipt(&lineage_b64u)?.ok_or("the Router must have committed")?;
+    assert_eq!(lifecycles(&lineage_b64u)?, (pending(), pending()));
+    let (retry_status, retry_body) = create(&grant)?;
+    assert_eq!(retry_status, 200, "{retry_body}");
+    assert_eq!(lifecycles(&lineage_b64u)?, (active(), active()));
+    assert_eq!(
+        committed_receipt(&lineage_b64u)?.as_deref(),
+        Some(receipt.as_str()),
+        "the retry re-delivers the committed receipt"
+    );
+    evidence.insert("router_committed_zero_active_retry_in_window", retry_status);
+
+    // 2. Router committed, one Deriver active: the delivery to B is lost.
+    let (identity, lineage, lineage_b64u) = ceremony("post-commit-one-active")?;
+    let grant = product_creation_grant_b64u(&temp, &identity, lineage, None)?;
+    proxy_b.drop_next_activation();
+    let (lost_status, lost_body) = create(&grant)?;
+    assert_ne!(lost_status, 200, "{lost_body}");
+    assert!(proxy_b.dropped(), "the proxy must have dropped B's activation");
+    let receipt = committed_receipt(&lineage_b64u)?.ok_or("the Router must have committed")?;
+    assert_eq!(lifecycles(&lineage_b64u)?, (active(), pending()));
+    let (retry_status, retry_body) = create(&grant)?;
+    assert_eq!(retry_status, 200, "{retry_body}");
+    assert_eq!(lifecycles(&lineage_b64u)?, (active(), active()));
+    assert_eq!(committed_receipt(&lineage_b64u)?.as_deref(), Some(receipt.as_str()));
+    evidence.insert("router_committed_one_active_retry_in_window", retry_status);
+
+    // 3. The same loss, retried after the ceremony window closes.
+    let (identity, lineage, lineage_b64u) = ceremony("post-commit-expired")?;
+    let lifetime_ms = 6_000;
+    let grant = product_creation_grant_with_lifetime_b64u(
+        &temp,
+        &identity,
+        lineage,
+        None,
+        lifetime_ms,
+    )?;
+    let signed_at = Instant::now();
+    proxy_b.drop_next_activation();
+    let (lost_status, lost_body) = create(&grant)?;
+    assert_ne!(lost_status, 200, "{lost_body}");
+    assert!(proxy_b.dropped(), "the proxy must have dropped B's activation");
+    let receipt = committed_receipt(&lineage_b64u)?.ok_or("the Router must have committed")?;
+    assert_eq!(lifecycles(&lineage_b64u)?, (active(), pending()));
+    // The grant was issued a second before signing, so its window closes
+    // `lifetime_ms - 1_000` after it; wait a second beyond that.
+    let expires_in = Duration::from_millis(lifetime_ms);
+    if let Some(remaining) = expires_in.checked_sub(signed_at.elapsed()) {
+        thread::sleep(remaining);
+    }
+    let (expired_status, expired_body) = create(&grant)?;
+    assert_ne!(expired_status, 200, "{expired_body}");
+    assert!(
+        expired_body.contains("tenant-root creation grant is outside its authorized window"),
+        "the coordinator's first barrier is the grant check: {expired_body}"
+    );
+    // Delivering the committed receipt directly meets the second barrier at
+    // the pending Deriver; the active Deriver replays its activation.
+    let deliver = |base_url: &str| {
+        post_json_to_path_with_headers(
+            base_url,
+            router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
+            &json!({ "activation_receipt_b64u": receipt }),
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+        )
+    };
+    let (pending_status, pending_body) = deliver(&deriver_b_url)?;
+    assert_ne!(pending_status, 200, "{pending_body}");
+    assert!(
+        pending_body.contains("activation receipt is outside its freshness window"),
+        "the pending Deriver's barrier is receipt freshness: {pending_body}"
+    );
+    let (active_status, active_body) = deliver(&deriver_a_url)?;
+    assert_eq!(active_status, 200, "the active Deriver replays: {active_body}");
+    assert_eq!(
+        lifecycles(&lineage_b64u)?,
+        (active(), pending()),
+        "past the window the committed creation stays split"
+    );
+    assert_eq!(committed_receipt(&lineage_b64u)?.as_deref(), Some(receipt.as_str()));
+    evidence.insert("router_committed_one_active_retry_after_expiry", expired_status);
+    evidence.insert("pending_deriver_direct_delivery_after_expiry", pending_status);
+    evidence.insert("active_deriver_direct_delivery_after_expiry", active_status);
+
+    println!(
+        "R150_VM_TENANT_ROOT_POST_COMMIT_E2E {}",
+        json!({
+            "fault": "initial_activation_delivery_lost_after_router_commit",
+            "statuses": evidence,
+            "in_window_retries_finish_with_the_committed_receipt": true,
+            "after_expiry": {
+                "barriers": ["control_plane_grant_freshness", "pending_deriver_receipt_freshness"],
+                "deriver_a": "active",
+                "deriver_b": "pending",
+                "router": "committed",
+            },
+        })
+    );
+    Ok(())
+}
+
+/// Forwards Router-to-Deriver traffic. When armed, it drops the next
+/// initial-activation delivery before the Deriver reads it, so the Router has
+/// committed the activation and the Deriver is still pending.
+struct ActivationDropProxyV1 {
+    url: String,
+    armed: Arc<AtomicBool>,
+    stop: Arc<AtomicBool>,
+    accept: Option<thread::JoinHandle<()>>,
+}
+
+impl ActivationDropProxyV1 {
+    fn start(upstream_url: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        let listener = TcpListener::bind("127.0.0.1:0")?;
+        listener.set_nonblocking(true)?;
+        let url = format!("http://{}", listener.local_addr()?);
+        let upstream = upstream_url
+            .strip_prefix("http://")
+            .ok_or("proxy upstream must be an http URL")?
+            .to_owned();
+        let armed = Arc::new(AtomicBool::new(false));
+        let stop = Arc::new(AtomicBool::new(false));
+        let accept = {
+            let (armed, stop) = (Arc::clone(&armed), Arc::clone(&stop));
+            thread::spawn(move || {
+                while !stop.load(Ordering::SeqCst) {
+                    match listener.accept() {
+                        Ok((client, _)) => {
+                            let (upstream, armed) = (upstream.clone(), Arc::clone(&armed));
+                            thread::spawn(move || {
+                                let _ = forward_or_drop_activation(client, &upstream, &armed);
+                            });
+                        }
+                        Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                            thread::sleep(Duration::from_millis(5));
+                        }
+                        Err(_) => return,
+                    }
+                }
+            })
+        };
+        Ok(Self {
+            url,
+            armed,
+            stop,
+            accept: Some(accept),
+        })
+    }
+
+    fn drop_next_activation(&self) {
+        self.armed.store(true, Ordering::SeqCst);
+    }
+
+    /// Whether the armed drop has happened.
+    fn dropped(&self) -> bool {
+        !self.armed.load(Ordering::SeqCst)
+    }
+}
+
+impl Drop for ActivationDropProxyV1 {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::SeqCst);
+        if let Some(accept) = self.accept.take() {
+            let _ = accept.join();
+        }
+    }
+}
+
+fn forward_or_drop_activation(
+    client: TcpStream,
+    upstream: &str,
+    armed: &AtomicBool,
+) -> io::Result<()> {
+    client.set_nonblocking(false)?;
+    client.set_read_timeout(Some(Duration::from_secs(15)))?;
+    client.set_write_timeout(Some(Duration::from_secs(15)))?;
+    let mut client_reader = BufReader::new(client.try_clone()?);
+    let request_head = read_proxy_http_head(&mut client_reader)?;
+    let is_activation = request_head.starts_with(
+        format!(
+            "POST {} HTTP/1.1\r\n",
+            router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH
+        )
+        .as_bytes(),
+    );
+    if is_activation && armed.swap(false, Ordering::SeqCst) {
+        return client.shutdown(Shutdown::Both);
+    }
+    let mut upstream = TcpStream::connect(upstream)?;
+    upstream.set_read_timeout(Some(Duration::from_secs(15)))?;
+    upstream.set_write_timeout(Some(Duration::from_secs(15)))?;
+    upstream.write_all(&request_head)?;
+    let mut upstream_request = upstream.try_clone()?;
+    let request_copy = thread::spawn(move || -> io::Result<()> {
+        io::copy(&mut client_reader, &mut upstream_request)?;
+        upstream_request.shutdown(Shutdown::Write)
+    });
+    let mut client_writer = client;
+    io::copy(&mut upstream, &mut client_writer)?;
+    client_writer.shutdown(Shutdown::Write)?;
+    request_copy
+        .join()
+        .map_err(|_| io::Error::other("proxy request-copy thread panicked"))?
 }
 
 #[test]
@@ -2823,6 +3155,23 @@ fn product_creation_grant_b64u(
     lineage: TenantRootCustodyLineageId,
     untrusted_seed: Option<[u8; 32]>,
 ) -> Result<String, Box<dyn std::error::Error>> {
+    product_creation_grant_with_lifetime_b64u(
+        root,
+        identity,
+        lineage,
+        untrusted_seed,
+        TENANT_ROOT_MAX_LIFETIME_MS_V1,
+    )
+}
+
+/// Signs a creation grant whose window is `lifetime_ms` long.
+fn product_creation_grant_with_lifetime_b64u(
+    root: &Path,
+    identity: &TenantRootIdentityV1,
+    lineage: TenantRootCustodyLineageId,
+    untrusted_seed: Option<[u8; 32]>,
+    lifetime_ms: u64,
+) -> Result<String, Box<dyn std::error::Error>> {
     let operator = root.join(router_ab_dev::LOCAL_TENANT_ROOT_OPERATOR_ENV_FILE_V1);
     let key_id = env_value(&operator, router_ab_dev::LOCAL_TENANT_ROOT_GRANT_KEY_ID_ENV_V1)?;
     let seed: [u8; 32] = match untrusted_seed {
@@ -2836,12 +3185,16 @@ fn product_creation_grant_b64u(
             .map_err(|_| "operator grant key must be 32 bytes")?,
     };
     let now_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
+    // A grant is fresh only strictly after its issue time, so issuing at the
+    // current millisecond races the control plane's check. Issue it a second
+    // earlier; the window keeps its full length.
+    let issued_at_ms = now_ms - 1_000;
     let grant = TenantRootCreationGrantV1::sign(
         identity,
         lineage,
         TenantRootCreationGrantNonceV1::from_bytes(fresh_nonzero_bytes_32()?)?,
-        now_ms,
-        now_ms + 300_000,
+        issued_at_ms,
+        issued_at_ms + lifetime_ms,
         &key_id,
         &seed,
     )?;

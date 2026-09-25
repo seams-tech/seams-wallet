@@ -76,6 +76,13 @@ Open, and not silently worked around:
   the initiator's response and was not kept. Fixing this needs a decision on
   where that evidence is durably held; it is not patched here. Proposed fix,
   awaiting review: `refactor-150-tenant-root-creation-resume.md`.
+- **Expiry after the activation commit, both hosts.** If the Router commits
+  the activation and a delivery is lost, a retry inside the ceremony window
+  finishes. After the window, the grant check and the pending Deriver's
+  receipt freshness check both refuse it, leaving the Router committed with
+  zero or one Deriver active. Measured by
+  `vm_tenant_root_committed_activation_is_redelivered_until_the_ceremony_expires`;
+  the proposed roll-forward policy is in the same design note.
 - Refresh, managed restore, source retirement and cutover remain
   Cloudflare-only. The VM control plane refuses a retired-source cleanup
   command rather than skip it.
