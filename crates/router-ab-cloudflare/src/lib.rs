@@ -214,7 +214,6 @@ pub use router_ab_ecdsa_client_protocol::{
     EcdsaVerifiedClientActivationFactsV1,
 };
 mod encoding;
-#[cfg(feature = "workers-rs")]
 use auth::hash_optional_header_v1;
 #[cfg(feature = "workers-rs")]
 pub use auth::{
@@ -1677,6 +1676,19 @@ impl CloudflareRouterAdmissionBindingsV1 {
     }
 
     /// Validates Router admission-provider bindings.
+    /// Applies the deployment project policy to a trusted normal-signing admission.
+    pub fn apply_project_policy_to_normal_signing_admission_v1(
+        &self,
+        request_id: &str,
+        admission: CloudflareRouterNormalSigningTrustedAdmissionV1,
+    ) -> RouterAbProtocolResult<CloudflareRouterNormalSigningTrustedAdmissionV1> {
+        admission.validate()?;
+        let decision = self
+            .project_policy
+            .normal_signing_policy_for_metadata(&admission.metadata, request_id)?;
+        CloudflareRouterNormalSigningTrustedAdmissionV1::new(admission.metadata, decision)
+    }
+
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         self.jwt.validate()?;
         self.project_policy.validate()
@@ -4520,13 +4532,9 @@ impl CloudflareRouterWorkerRuntimeV1 {
         request_id: &str,
         admission: CloudflareRouterNormalSigningTrustedAdmissionV1,
     ) -> RouterAbProtocolResult<CloudflareRouterNormalSigningTrustedAdmissionV1> {
-        admission.validate()?;
-        let decision = self
-            .bindings
+        self.bindings
             .admission
-            .project_policy
-            .normal_signing_policy_for_metadata(&admission.metadata, request_id)?;
-        CloudflareRouterNormalSigningTrustedAdmissionV1::new(admission.metadata, decision)
+            .apply_project_policy_to_normal_signing_admission_v1(request_id, admission)
     }
 
     /// Evaluates the deployment project policy for a validated Yao ceremony.
@@ -4880,7 +4888,6 @@ pub(crate) async fn load_cloudflare_active_tenant_root_role_share_v1(
     Ok(opened)
 }
 
-#[cfg(feature = "workers-rs")]
 fn cloudflare_router_allowed_admission_checks_v1(
     request_id: impl Into<String>,
 ) -> RouterAbProtocolResult<CloudflareRouterAdmissionChecksV1> {
@@ -4905,7 +4912,6 @@ pub fn derive_cloudflare_router_trusted_admission_from_signed_policy_v1(
 }
 
 /// Derives trusted normal-signing v2 prepare admission from the verified Wallet Session.
-#[cfg(feature = "workers-rs")]
 pub fn derive_cloudflare_router_normal_signing_prepare_trusted_admission_v2(
     request: &RouterAbEd25519NormalSigningPrepareRequestV2,
     admission: &CloudflareRouterNormalSigningPrepareAdmissionCandidateV2,
@@ -4919,7 +4925,6 @@ pub fn derive_cloudflare_router_normal_signing_prepare_trusted_admission_v2(
 }
 
 /// Derives trusted normal-signing v2 finalize admission from the verified Wallet Session.
-#[cfg(feature = "workers-rs")]
 pub fn derive_cloudflare_router_normal_signing_finalize_trusted_admission_v2(
     request: &RouterAbEd25519NormalSigningFinalizeRequestV2,
     admission: &CloudflareRouterNormalSigningFinalizeAdmissionCandidateV2,
@@ -4987,7 +4992,6 @@ where
 }
 
 /// Builds the Ed25519 JWT verifier from the deployment-bound JWKS document.
-#[cfg(feature = "workers-rs")]
 pub fn build_cloudflare_router_ed25519_jwks_jwt_verifier_v1(
     binding: &CloudflareRouterJwtVerifierBindingV1,
 ) -> RouterAbProtocolResult<CloudflareRouterEd25519JwksJwtVerifierV1> {
@@ -5036,14 +5040,26 @@ pub fn cloudflare_trusted_source_digest_v1(
             format!("cf-ray header read failed: {err}"),
         )
     })?;
+    Ok(router_trusted_source_digest_v1(
+        connecting_ip.as_deref(),
+        ray_id.as_deref(),
+    ))
+}
+
+/// Digest of the trusted edge source metadata a Router binds into Wallet
+/// Session admission. A VM Router has no edge metadata and passes `None`s.
+pub fn router_trusted_source_digest_v1(
+    connecting_ip: Option<&str>,
+    ray_id: Option<&str>,
+) -> PublicDigest32 {
     let mut hasher = Sha256::new();
     hasher.update(b"router-ab-cloudflare-trusted-source/v1");
-    hash_optional_header_v1(&mut hasher, b"cf-connecting-ip", connecting_ip.as_deref());
-    hash_optional_header_v1(&mut hasher, b"cf-ray", ray_id.as_deref());
+    hash_optional_header_v1(&mut hasher, b"cf-connecting-ip", connecting_ip);
+    hash_optional_header_v1(&mut hasher, b"cf-ray", ray_id);
     let digest = hasher.finalize();
     let mut bytes = [0u8; 32];
     bytes.copy_from_slice(&digest);
-    Ok(PublicDigest32::new(bytes))
+    PublicDigest32::new(bytes)
 }
 
 #[cfg(feature = "workers-rs")]
@@ -5737,7 +5753,6 @@ where
 }
 
 /// Durable authorized operation attached by the authorization service to Ed25519 finalize.
-#[cfg(feature = "workers-rs")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CloudflareRouterEd25519AuthorizedOperationV1 {
@@ -5767,7 +5782,6 @@ pub enum CloudflareRouterEd25519AuthorizedOperationV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-#[cfg(feature = "workers-rs")]
 pub enum CloudflareRouterEd25519AcceptedCapabilityBindingV1 {
     ReusableWalletSession {
         /// Exact Wallet Session authorization record used for this operation.
@@ -5815,13 +5829,11 @@ pub enum CloudflareRouterEd25519AcceptedCapabilityBindingV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[cfg(feature = "workers-rs")]
 pub struct CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
     pub binding: CloudflareRouterEd25519AcceptedCapabilityBindingV1,
     pub authorized_operation: CloudflareRouterEd25519AuthorizedOperationV1,
 }
 
-#[cfg(feature = "workers-rs")]
 impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
     fn gateway_owner_wallet_scope(
         &self,
@@ -5847,7 +5859,6 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
         )
     }
 
-    #[cfg(feature = "workers-rs")]
     fn into_signing_worker_authorized_operation_identity(
         &self,
     ) -> RouterAbProtocolResult<CloudflareSigningWorkerAuthorizedOperationIdentityV1> {
@@ -5934,7 +5945,6 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
         }
     }
 
-    #[cfg(feature = "workers-rs")]
     fn reusable_authorization_id(&self) -> RouterAbProtocolResult<&str> {
         match &self.binding {
             CloudflareRouterEd25519AcceptedCapabilityBindingV1::ReusableWalletSession {
@@ -6110,7 +6120,6 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
         }
     }
 
-    #[cfg(feature = "workers-rs")]
     fn validate_for_wallet_session(
         &self,
         wallet_session: &CloudflareRouterVerifiedWalletSessionV1,
@@ -6166,9 +6175,9 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
         Ok(())
     }
 
-    #[cfg(feature = "workers-rs")]
-    #[cfg_attr(not(feature = "strict-worker-router-entrypoint"), allow(dead_code))]
-    fn gateway_owner_wallet_session_credential(
+    /// The Wallet Session credential the Gateway's owner projection implies.
+    /// Only a Gateway-owner binding has one.
+    pub fn gateway_owner_wallet_session_credential(
         &self,
         trusted_source_digest: PublicDigest32,
     ) -> RouterAbProtocolResult<CloudflareRouterWalletSessionCredentialV1> {
@@ -6213,7 +6222,6 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
 }
 
 /// Capability domain admitted by the Ed25519 reusable-session route.
-#[cfg(feature = "workers-rs")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CloudflareRouterEd25519CapabilityKindV1 {
     #[serde(rename = "near_ed25519_mpc_signing")]
@@ -6221,7 +6229,6 @@ pub enum CloudflareRouterEd25519CapabilityKindV1 {
 }
 
 /// Supported NEAR operation admitted by the Ed25519 reusable-session route.
-#[cfg(feature = "workers-rs")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CloudflareRouterEd25519OperationKindV1 {
     #[serde(rename = "near.sign_transaction")]
@@ -6232,7 +6239,6 @@ pub enum CloudflareRouterEd25519OperationKindV1 {
     SignNep413Message,
 }
 
-#[cfg(feature = "workers-rs")]
 impl CloudflareRouterEd25519AuthorizedOperationV1 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         let (
@@ -6389,7 +6395,6 @@ impl CloudflareRouterEd25519AuthorizedOperationV1 {
         Ok(())
     }
 
-    #[cfg(feature = "workers-rs")]
     fn into_signing_worker_effect_claim(
         self,
         wallet_session_id: String,
@@ -7321,7 +7326,6 @@ pub fn parse_cloudflare_router_authorized_router_ab_ecdsa_derivation_prepare_req
     Ok((request, authorized_operation, presign_source))
 }
 
-#[cfg(feature = "workers-rs")]
 pub fn parse_cloudflare_router_authorized_ed25519_prepare_request_v2_json(
     bytes: &[u8],
 ) -> RouterAbProtocolResult<(
@@ -7375,7 +7379,6 @@ pub fn parse_cloudflare_router_authorized_ed25519_prepare_request_v2_json(
     Ok((request, authorized_operation))
 }
 
-#[cfg(feature = "workers-rs")]
 pub fn parse_cloudflare_router_authorized_ed25519_finalize_request_v2_json(
     bytes: &[u8],
 ) -> RouterAbProtocolResult<(
@@ -7614,26 +7617,24 @@ fn decode_public_digest_b64u_v1(
     Ok(PublicDigest32::new(digest))
 }
 
-/// Handles an authenticated public Router normal-signing v2 prepare request.
-#[cfg(feature = "workers-rs")]
-pub async fn handle_cloudflare_router_normal_signing_prepare_authenticated_public_request_v2<
-    Verifier,
->(
-    env: &worker::Env,
-    runtime: &CloudflareRouterWorkerRuntimeV1,
+/// Router admission for a Gateway Wallet Session NEAR prepare. Returns the
+/// exact SigningWorker request; both the Cloudflare Router and the VM Router
+/// send only what this admits.
+pub fn admit_cloudflare_router_normal_signing_prepare_v2<Verifier>(
+    admission_bindings: &CloudflareRouterAdmissionBindingsV1,
     now_unix_ms: u64,
     request: RouterAbEd25519NormalSigningPrepareRequestV2,
     authorized_operation: CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
     credential: CloudflareRouterWalletSessionCredentialV1,
     trusted_source_digest: PublicDigest32,
     mut verifier: Verifier,
-) -> RouterAbProtocolResult<NormalSigningRound1PrepareResponseV1>
+) -> RouterAbProtocolResult<CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2>
 where
     Verifier: CloudflareRouterWalletSessionVerifierV1,
 {
     request.validate_at(now_unix_ms)?;
     let wallet_session = verifier.verify_wallet_session(
-        &runtime.admission_bindings().jwt,
+        &admission_bindings.jwt,
         &credential,
         trusted_source_digest,
         now_unix_ms,
@@ -7648,7 +7649,7 @@ where
         &request,
         now_unix_ms,
     )?;
-    let trusted_admission = runtime.apply_project_policy_to_normal_signing_admission_v1(
+    let trusted_admission = admission_bindings.apply_project_policy_to_normal_signing_admission_v1(
         &request.scope.request_id,
         derive_cloudflare_router_normal_signing_prepare_trusted_admission_v2(&request, &admission)?,
     )?;
@@ -7667,6 +7668,35 @@ where
     )?;
     admitted.wallet_scope = Some(wallet_scope);
     admitted.validate()?;
+    Ok(admitted)
+}
+
+/// Handles an authenticated public Router normal-signing v2 prepare request.
+#[cfg(feature = "workers-rs")]
+pub async fn handle_cloudflare_router_normal_signing_prepare_authenticated_public_request_v2<
+    Verifier,
+>(
+    env: &worker::Env,
+    runtime: &CloudflareRouterWorkerRuntimeV1,
+    now_unix_ms: u64,
+    request: RouterAbEd25519NormalSigningPrepareRequestV2,
+    authorized_operation: CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
+    credential: CloudflareRouterWalletSessionCredentialV1,
+    trusted_source_digest: PublicDigest32,
+    verifier: Verifier,
+) -> RouterAbProtocolResult<NormalSigningRound1PrepareResponseV1>
+where
+    Verifier: CloudflareRouterWalletSessionVerifierV1,
+{
+    let admitted = admit_cloudflare_router_normal_signing_prepare_v2(
+        runtime.admission_bindings(),
+        now_unix_ms,
+        request,
+        authorized_operation,
+        credential,
+        trusted_source_digest,
+        verifier,
+    )?;
     execute_cloudflare_signing_worker_normal_signing_prepare_service_call_v2(
         env,
         runtime.signing_worker_peer(),
@@ -8517,26 +8547,24 @@ where
     .await
 }
 
-/// Handles an authenticated public Router normal-signing v2 finalize request.
-#[cfg(feature = "workers-rs")]
-pub async fn handle_cloudflare_router_normal_signing_finalize_authenticated_public_request_v2<
-    Verifier,
->(
-    env: &worker::Env,
-    runtime: &CloudflareRouterWorkerRuntimeV1,
+/// Router admission for a Gateway Wallet Session NEAR finalize, including the
+/// exact authorized-operation identity and one-use effect claim SigningWorker
+/// must record. Shared by the Cloudflare and VM Routers.
+pub fn admit_cloudflare_router_normal_signing_finalize_v2<Verifier>(
+    admission_bindings: &CloudflareRouterAdmissionBindingsV1,
     now_unix_ms: u64,
     request: RouterAbEd25519NormalSigningFinalizeRequestV2,
     authorized_operation: CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
     credential: CloudflareRouterWalletSessionCredentialV1,
     trusted_source_digest: PublicDigest32,
     mut verifier: Verifier,
-) -> RouterAbProtocolResult<NormalSigningResponseV1>
+) -> RouterAbProtocolResult<CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2>
 where
     Verifier: CloudflareRouterWalletSessionVerifierV1,
 {
     request.validate_at(now_unix_ms)?;
     let wallet_session = verifier.verify_wallet_session(
-        &runtime.admission_bindings().jwt,
+        &admission_bindings.jwt,
         &credential,
         trusted_source_digest,
         now_unix_ms,
@@ -8548,7 +8576,7 @@ where
             &request,
             now_unix_ms,
         )?;
-    let trusted_admission = runtime.apply_project_policy_to_normal_signing_admission_v1(
+    let trusted_admission = admission_bindings.apply_project_policy_to_normal_signing_admission_v1(
         &request.scope.request_id,
         derive_cloudflare_router_normal_signing_finalize_trusted_admission_v2(
             &request, &admission,
@@ -8583,6 +8611,35 @@ where
     )?;
     admitted.wallet_scope = Some(wallet_scope);
     admitted.validate()?;
+    Ok(admitted)
+}
+
+/// Handles an authenticated public Router normal-signing v2 finalize request.
+#[cfg(feature = "workers-rs")]
+pub async fn handle_cloudflare_router_normal_signing_finalize_authenticated_public_request_v2<
+    Verifier,
+>(
+    env: &worker::Env,
+    runtime: &CloudflareRouterWorkerRuntimeV1,
+    now_unix_ms: u64,
+    request: RouterAbEd25519NormalSigningFinalizeRequestV2,
+    authorized_operation: CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
+    credential: CloudflareRouterWalletSessionCredentialV1,
+    trusted_source_digest: PublicDigest32,
+    verifier: Verifier,
+) -> RouterAbProtocolResult<NormalSigningResponseV1>
+where
+    Verifier: CloudflareRouterWalletSessionVerifierV1,
+{
+    let admitted = admit_cloudflare_router_normal_signing_finalize_v2(
+        runtime.admission_bindings(),
+        now_unix_ms,
+        request,
+        authorized_operation,
+        credential,
+        trusted_source_digest,
+        verifier,
+    )?;
     execute_cloudflare_signing_worker_normal_signing_finalize_service_call_v2(
         env,
         runtime.signing_worker_peer(),
@@ -14466,9 +14523,6 @@ pub async fn execute_cloudflare_signing_worker_normal_signing_finalize_service_c
         ));
     }
     request.validate()?;
-    let expected_scope = request.request.scope.clone();
-    let expected_signing_payload_digest = request.request.signing_payload_digest();
-    let expected_signature_scheme = request.request.protocol.signature_scheme();
     let response: NormalSigningResponseV1 = post_service_json(
         env,
         &peer.binding_name,
@@ -14477,10 +14531,18 @@ pub async fn execute_cloudflare_signing_worker_normal_signing_finalize_service_c
         &request,
     )
     .await?;
+    require_signing_worker_normal_signing_finalize_response_v2(&request, response)
+}
+
+/// Accepts a SigningWorker finalize response only for the admitted request.
+pub fn require_signing_worker_normal_signing_finalize_response_v2(
+    request: &CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
+    response: NormalSigningResponseV1,
+) -> RouterAbProtocolResult<NormalSigningResponseV1> {
     response.validate()?;
-    if response.scope == expected_scope
-        && response.signing_payload_digest == expected_signing_payload_digest
-        && response.signature_scheme == expected_signature_scheme
+    if response.scope == request.request.scope
+        && response.signing_payload_digest == request.request.signing_payload_digest()
+        && response.signature_scheme == request.request.protocol.signature_scheme()
     {
         return Ok(response);
     }
@@ -14513,6 +14575,43 @@ pub async fn execute_cloudflare_signing_worker_normal_signing_prepare_service_ca
         &request,
     )
     .await?;
+    require_signing_worker_normal_signing_prepare_response_v2(&request, response)
+}
+
+/// SigningWorker's owner check for NEAR signing: the Router-pinned wallet
+/// scope must be the scope the wallet was registered under, and must agree
+/// with the trusted admission for the signing wallet.
+pub fn require_signing_worker_normal_signing_wallet_scope_v1(
+    registered: &CloudflareSigningWorkerWalletScopeV1,
+    pinned: Option<&CloudflareSigningWorkerWalletScopeV1>,
+    metadata: &CloudflareRouterNormalSigningTrustedMetadataV1,
+    wallet_id: &str,
+) -> RouterAbProtocolResult<()> {
+    registered.validate()?;
+    metadata.validate()?;
+    if pinned != Some(registered) {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidGateDecision,
+            "SigningWorker normal-signing wallet scope differs from the registered wallet",
+        ));
+    }
+    if registered.org_id != metadata.org_id
+        || registered.project_id != metadata.project_id
+        || registered.wallet_id != wallet_id
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidGateDecision,
+            "SigningWorker wallet scope differs from trusted admission",
+        ));
+    }
+    Ok(())
+}
+
+/// Accepts a SigningWorker prepare response only for the admitted request.
+pub fn require_signing_worker_normal_signing_prepare_response_v2(
+    request: &CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
+    response: NormalSigningRound1PrepareResponseV1,
+) -> RouterAbProtocolResult<NormalSigningRound1PrepareResponseV1> {
     response.validate()?;
     if response.scope == request.scope
         && response.signing_payload_digest == request.admission_candidate.signing_payload_digest

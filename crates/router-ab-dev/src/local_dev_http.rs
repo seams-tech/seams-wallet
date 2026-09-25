@@ -480,6 +480,20 @@ fn local_dev_http_content_length_v1(headers: &str) -> Result<usize, Box<dyn std:
 mod tests {
     use super::*;
 
+    /// Router admission bindings for in-module fixtures.
+    fn fixture_admission_bindings() -> router_ab_cloudflare::CloudflareRouterAdmissionBindingsV1 {
+        router_ab_cloudflare::CloudflareRouterAdmissionBindingsV1::new(
+            router_ab_cloudflare::CloudflareRouterJwtVerifierBindingV1::new(
+                "http://127.0.0.1:4100",
+                "router-ab",
+                r#"{"keys":[{"alg":"EdDSA","crv":"Ed25519","kid":"local-router-ab-r1","kty":"OKP","use":"sig","x":"-AzM3OSuHAeuIIoq35mjEK5CB-Awb6AjYRCwaCe7uNA"}]}"#,
+            )
+            .expect("fixture JWT binding"),
+            router_ab_cloudflare::CloudflareRouterProjectPolicyBindingV1::AllowAll,
+        )
+        .expect("fixture admission bindings")
+    }
+
     /// Deterministic peer verifying keys for in-module Router fixtures.
     fn fixture_peer_verifying_keys() -> router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1 {
         let key = |seed: u8, role: router_ab_core::Role| {
@@ -539,6 +553,7 @@ mod tests {
             internal_service_auth: "local-test-auth".to_owned(),
             gateway_to_router_auth: "local-test-gateway-auth".to_owned(),
             peer_verifying_keys: fixture_peer_verifying_keys(),
+            admission_bindings: fixture_admission_bindings(),
             tenant_root_resolver: Default::default(),
         }
     }

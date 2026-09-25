@@ -119,24 +119,6 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
     },
 }
 
-fn validate_normal_signing_scope(
-    scope: &CloudflareSigningWorkerWalletScopeV1,
-    metadata: &crate::CloudflareRouterNormalSigningTrustedMetadataV1,
-    wallet_id: &str,
-) -> Result<(), RouterAbProtocolError> {
-    scope.validate()?;
-    metadata.validate()?;
-    if scope.org_id != metadata.org_id
-        || scope.project_id != metadata.project_id
-        || scope.wallet_id != wallet_id
-    {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidGateDecision,
-            "SigningWorker wallet scope differs from trusted admission",
-        ));
-    }
-    Ok(())
-}
 
 fn digest_hex(digest: PublicDigest32) -> String {
     crate::ed25519_yao_lifecycle::role_d1::encode_hex_slice(digest.as_bytes())
@@ -259,11 +241,9 @@ impl SigningWorkerWalletDoRequestV1 {
                 now_unix_ms,
             } => {
                 request.validate()?;
-                if request.wallet_scope.as_ref() != Some(scope) {
-                    return Err(wallet_error("SigningWorker prepare wallet scope changed"));
-                }
-                validate_normal_signing_scope(
+                crate::require_signing_worker_normal_signing_wallet_scope_v1(
                     scope,
+                    request.wallet_scope.as_ref(),
                     &request.trusted_admission.metadata,
                     &request.scope.account_id,
                 )?;
@@ -275,11 +255,9 @@ impl SigningWorkerWalletDoRequestV1 {
                 now_unix_ms,
             } => {
                 request.validate()?;
-                if request.wallet_scope.as_ref() != Some(scope) {
-                    return Err(wallet_error("SigningWorker finalize wallet scope changed"));
-                }
-                validate_normal_signing_scope(
+                crate::require_signing_worker_normal_signing_wallet_scope_v1(
                     scope,
+                    request.wallet_scope.as_ref(),
                     &request.trusted_admission.metadata,
                     &request.request.scope.account_id,
                 )?;

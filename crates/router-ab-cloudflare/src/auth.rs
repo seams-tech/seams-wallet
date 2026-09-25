@@ -9,7 +9,6 @@ use crate::{
 };
 use ed25519_dalek::{Signature as Ed25519Signature, VerifyingKey as Ed25519VerifyingKey};
 use router_ab_core::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
-#[cfg(feature = "workers-rs")]
 use sha2::{Digest as Sha2Digest, Sha256};
 #[cfg(feature = "workers-rs")]
 use zeroize::Zeroize;
@@ -320,7 +319,6 @@ pub(crate) fn router_jwt_segment_error() -> RouterAbProtocolError {
     )
 }
 
-#[cfg(feature = "workers-rs")]
 pub(crate) fn hash_optional_header_v1(hasher: &mut Sha256, name: &[u8], value: Option<&str>) {
     hasher.update((name.len() as u64).to_be_bytes());
     hasher.update(name);

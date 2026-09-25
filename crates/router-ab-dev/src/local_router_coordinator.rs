@@ -12,7 +12,7 @@ use router_ab_core::{
     RouterEd25519YaoExecuteSuccessV1, TenantRootIdentityV1,
 };
 use router_ab_ed25519_yao::{
-    Ed25519YaoActivationRoleExecutionV1, Ed25519YaoExportRoleExecutionV1, Ed25519YaoRoleExecutionV1,
+    Ed25519YaoActivationRoleExecutionV1, Ed25519YaoRoleExecutionV1,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -625,6 +625,21 @@ impl LocalRouterRequestDispatcherV1 for LocalRouterEd25519YaoCoordinatorV1 {
         config: &LocalRouterWorkerConfigV1,
         request: &LocalDevHttpRequestPartsV1,
     ) -> Result<Option<(u16, String)>, Box<dyn std::error::Error>> {
+        if crate::local_router_normal_signing::is_local_router_normal_signing_path_v1(&request.path)
+        {
+            return match crate::local_router_normal_signing::serve_local_router_normal_signing_v1(
+                &self.client,
+                config,
+                request,
+            ) {
+                Ok(body) => Ok(Some((200, body))),
+                Err(error) => Ok(Some(local_dev_http_route_error_v1(
+                    LocalServiceRoleV1::Router,
+                    &request.path,
+                    error,
+                )?)),
+            };
+        }
         if request.path != LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH {
             if request.path != LOCAL_ROUTER_ED25519_YAO_RECOVERY_PROMOTE_PATH {
                 return Ok(None);
@@ -804,6 +819,20 @@ mod tests {
     use crate::LocalTenantRootResolverConfigV1;
 
     use super::*;
+
+    /// Router admission bindings for in-module fixtures.
+    fn fixture_admission_bindings() -> router_ab_cloudflare::CloudflareRouterAdmissionBindingsV1 {
+        router_ab_cloudflare::CloudflareRouterAdmissionBindingsV1::new(
+            router_ab_cloudflare::CloudflareRouterJwtVerifierBindingV1::new(
+                "http://127.0.0.1:4100",
+                "router-ab",
+                r#"{"keys":[{"alg":"EdDSA","crv":"Ed25519","kid":"local-router-ab-r1","kty":"OKP","use":"sig","x":"-AzM3OSuHAeuIIoq35mjEK5CB-Awb6AjYRCwaCe7uNA"}]}"#,
+            )
+            .expect("fixture JWT binding"),
+            router_ab_cloudflare::CloudflareRouterProjectPolicyBindingV1::AllowAll,
+        )
+        .expect("fixture admission bindings")
+    }
 
     /// Deterministic peer verifying keys for in-module Router fixtures.
     fn fixture_peer_verifying_keys() -> router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1 {
@@ -1014,6 +1043,7 @@ mod tests {
             internal_service_auth: "local-test-auth".to_owned(),
             gateway_to_router_auth: "local-test-gateway-auth".to_owned(),
             peer_verifying_keys: fixture_peer_verifying_keys(),
+            admission_bindings: fixture_admission_bindings(),
             tenant_root_resolver: LocalTenantRootResolverConfigV1::default(),
         };
         let body = serde_json::to_vec(&request).expect("promotion JSON");

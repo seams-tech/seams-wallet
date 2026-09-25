@@ -4,18 +4,13 @@ use ed25519_dalek::SigningKey;
 use rand_core::OsRng;
 use router_ab_cloudflare::{
     CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairLookupRequestV1,
+    CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
+    CloudflareRouterEd25519AcceptedCapabilityBindingV1, CloudflareRouterEd25519AuthorizedOperationV1,
+    CloudflareRouterEd25519CapabilityKindV1, CloudflareRouterEd25519OperationKindV1,
     CloudflareRouterEd25519YaoExecuteRequestV2, CloudflareRouterEd25519YaoTenantRootV1,
-    CloudflareRouterNormalSigningFinalizeAdmissionCandidateV2,
-    CloudflareRouterNormalSigningPrepareAdmissionCandidateV2,
-    CloudflareRouterNormalSigningTrustedAdmissionV1, CloudflareRouterVerifiedWalletSessionV1,
-    CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
-    CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
-    CloudflareSigningWorkerAuthorizedOperationIdentityV1,
-    CloudflareSigningWorkerNormalSigningEffectClaimV1,
-    CloudflareSigningWorkerReusableWalletSessionEffectClaimV1,
 };
 use router_ab_core::{
-    ExpensiveWorkGateDecisionV1, LocalHttpPathV1, LocalServiceRoleV1, MpcMaterialActivationRefV1,
+    LocalHttpPathV1, LocalServiceRoleV1, MpcMaterialActivationRefV1,
     MpcPrfShareCommitmentWireV1, NormalSigningAuthorizationV1,
     NormalSigningEd25519TwoPartyFrostCommitmentsV1, NormalSigningResponseV1,
     NormalSigningRound1PrepareResponseV1, NormalSigningScopeV1, PublicDigest32, RootShareEpoch,
@@ -53,7 +48,7 @@ use router_ab_dev::{
     LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
     LOCAL_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH, LOCAL_DERIVER_B_ED25519_YAO_PEER_PATH,
     LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
-    LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH, LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PREPARE_PATH,
+    LOCAL_ROUTER_NORMAL_SIGNING_PATH, LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH,
 };
 use router_ab_ed25519_yao::Ed25519YaoRoleExecutionV1;
 use router_ab_ed25519_yao_client::complete_client_activation_packages_v1;
@@ -743,10 +738,12 @@ fn product_topology_completes_local_ed25519_yao_registration(
     signing_worker = product_near_signing_process_flow(
         binary,
         &temp,
+        &router_url,
         &signing_worker_url,
         signing_worker,
         &activation,
         &client_share,
+        &tenant_root_fixture.tenant_root.identity,
     )?;
     let a_env_path = temp.join(router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1);
     let a_config = parse_local_worker_role_config_for_role_v1(
@@ -1670,28 +1667,76 @@ fn local_ecdsa_effect_claim_and_consume_survive_terminal_failure(
     Ok(())
 }
 
+/// The NEAR owner-lane path as the Gateway drives it: a Gateway-shaped body
+/// (signing request plus the Gateway's authorized operation) sent to the VM
+/// Router with the dedicated Gateway credential. The Router admits it with
+/// the Cloudflare Router's own admission and forwards to SigningWorker.
 fn product_near_signing_process_flow(
     binary: &str,
     temp: &Path,
+    router_url: &str,
     signing_worker_url: &str,
     signing_worker: ChildGuard,
     activation: &RouterAbEd25519YaoActivationResultV1,
     client_share: &[u8; 32],
+    root_identity: &TenantRootIdentityV1,
 ) -> Result<ChildGuard, Box<dyn std::error::Error>> {
     let now_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
     let expires_at_ms = now_ms + 120_000;
-    let (prepare_request, wallet_session) =
-        product_near_prepare_request(activation, now_ms, expires_at_ms)?;
-    let (status, body) = post_json_to_path_with_headers(
-        signing_worker_url,
-        LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PREPARE_PATH,
-        &prepare_request,
-        &[(
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            TEST_ROLE_SHARED_SERVICE_AUTH,
-        )],
+    let (prepare_request, unsigned) = product_near_prepare_request(activation, expires_at_ms)?;
+    let authorized_operation =
+        product_near_gateway_authorized_operation(activation, root_identity, &prepare_request, expires_at_ms)?;
+    let prepare_body = gateway_signing_body(&prepare_request, &authorized_operation)?;
+    let gateway_headers = [(
+        LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
+        TEST_GATEWAY_TO_ROUTER_AUTH,
+    )];
+
+    // Boundary checks the Router enforces before any SigningWorker work.
+    let (role_shared_status, _) = post_json_to_path_with_headers(
+        router_url,
+        LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH,
+        &prepare_body,
+        &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
     )?;
-    assert_eq!(status, 200, "VM SigningWorker prepare: {body}");
+    assert_eq!(role_shared_status, 401, "the role-shared credential cannot sign through the Router");
+    let (bearer_status, bearer_body) = post_json_to_path_with_headers(
+        router_url,
+        LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH,
+        &prepare_body,
+        &[
+            gateway_headers[0],
+            ("authorization", "Bearer not-stripped-by-the-gateway"),
+        ],
+    )?;
+    assert_ne!(bearer_status, 200, "a request still carrying Authorization is refused: {bearer_body}");
+    let foreign_org = product_near_gateway_authorized_operation(
+        activation,
+        &TenantRootIdentityV1::new(
+            "another-org",
+            root_identity.project_id(),
+            root_identity.env_id(),
+            root_identity.signing_root_id(),
+            root_identity.signing_root_version(),
+        )?,
+        &prepare_request,
+        expires_at_ms,
+    )?;
+    let (foreign_status, foreign_body) = post_json_to_path_with_headers(
+        router_url,
+        LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH,
+        &gateway_signing_body(&prepare_request, &foreign_org)?,
+        &gateway_headers,
+    )?;
+    assert_ne!(foreign_status, 200, "another org's authority cannot use this wallet: {foreign_body}");
+
+    let (status, body) = post_json_to_path_with_headers(
+        router_url,
+        LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH,
+        &prepare_body,
+        &gateway_headers,
+    )?;
+    assert_eq!(status, 200, "VM Router NEAR prepare: {body}");
     let prepared: NormalSigningRound1PrepareResponseV1 = serde_json::from_str(&body)?;
 
     drop(signing_worker);
@@ -1703,32 +1748,25 @@ fn product_near_signing_process_flow(
     )?;
     wait_for_health(signing_worker_url, signing_worker.child_mut())?;
     let (retry_status, retry_body) = post_json_to_path_with_headers(
-        signing_worker_url,
-        LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PREPARE_PATH,
-        &prepare_request,
-        &[(
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            TEST_ROLE_SHARED_SERVICE_AUTH,
-        )],
+        router_url,
+        LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH,
+        &prepare_body,
+        &gateway_headers,
     )?;
-    assert_eq!(
-        retry_status, 200,
-        "VM SigningWorker prepare replay: {retry_body}"
-    );
-    assert_eq!(
-        body, retry_body,
-        "restart must preserve the original nonce handle"
-    );
+    assert_eq!(retry_status, 200, "VM Router NEAR prepare replay: {retry_body}");
+    assert_eq!(body, retry_body, "restart must preserve the original nonce handle");
 
     let finalize_request = product_near_finalize_request(
         activation,
         client_share,
         &prepare_request,
-        &wallet_session,
         &prepared,
-        now_ms,
         expires_at_ms,
     )?;
+    let finalize_body = gateway_signing_body(&finalize_request, &authorized_operation)?;
+
+    // A second SigningWorker process on the same role store, fronted by a
+    // second Router process: the same finalize races through both paths.
     let signing_worker_env_path = temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1);
     let replica_url = format!("http://127.0.0.1:{}", free_port()?);
     let primary_env = fs::read_to_string(&signing_worker_env_path)?;
@@ -1740,31 +1778,34 @@ fn product_near_signing_process_flow(
     fs::write(&replica_env_path, replica_env)?;
     let mut replica = ChildGuard::spawn_in_root(binary, "signing-worker", replica_env_path, temp)?;
     wait_for_health(&replica_url, replica.child_mut())?;
+    let second_router_url = format!("http://127.0.0.1:{}", free_port()?);
+    let router_env = fs::read_to_string(temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1))?;
+    let second_router_env = router_env
+        .replace(router_url, &second_router_url)
+        .replace(signing_worker_url, &replica_url);
+    let second_router_env_path = temp.join(".env.router-ab.router-contender.local");
+    fs::write(&second_router_env_path, second_router_env)?;
+    let mut second_router = ChildGuard::spawn_in_root(binary, "router", second_router_env_path, temp)?;
+    wait_for_health(&second_router_url, second_router.child_mut())?;
     let barrier = Barrier::new(3);
-    let (primary_attempt, replica_attempt) = thread::scope(|scope| {
+    let (primary_attempt, contender_attempt) = thread::scope(|scope| {
         let primary = scope.spawn(|| {
             barrier.wait();
             post_json_to_path_with_headers(
-                signing_worker_url,
-                LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH,
-                &finalize_request,
-                &[(
-                    LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-                    TEST_ROLE_SHARED_SERVICE_AUTH,
-                )],
+                router_url,
+                LOCAL_ROUTER_NORMAL_SIGNING_PATH,
+                &finalize_body,
+                &gateway_headers,
             )
             .map_err(|error| error.to_string())
         });
         let contender = scope.spawn(|| {
             barrier.wait();
             post_json_to_path_with_headers(
-                &replica_url,
-                LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH,
-                &finalize_request,
-                &[(
-                    LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-                    TEST_ROLE_SHARED_SERVICE_AUTH,
-                )],
+                &second_router_url,
+                LOCAL_ROUTER_NORMAL_SIGNING_PATH,
+                &finalize_body,
+                &gateway_headers,
             )
             .map_err(|error| error.to_string())
         });
@@ -1772,45 +1813,37 @@ fn product_near_signing_process_flow(
         (primary.join(), contender.join())
     });
     let primary_attempt = primary_attempt
-        .map_err(|_| "primary SigningWorker request thread panicked")?
+        .map_err(|_| "primary Router request thread panicked")?
         .map_err(std::io::Error::other)?;
-    let replica_attempt = replica_attempt
-        .map_err(|_| "contending SigningWorker request thread panicked")?
+    let contender_attempt = contender_attempt
+        .map_err(|_| "contending Router request thread panicked")?
         .map_err(std::io::Error::other)?;
-    for (status, body) in [&primary_attempt, &replica_attempt] {
+    for (status, body) in [&primary_attempt, &contender_attempt] {
         assert!(
-            *status == 200 || (*status == 400 && body.contains("ReplayedLocalRequest")),
-            "concurrent SigningWorker claim returned {status}: {body}"
+            *status == 200 || body.contains("ReplayedLocalRequest"),
+            "concurrent Router finalize returned {status}: {body}"
         );
     }
-    let body = match (&primary_attempt, &replica_attempt) {
+    let body = match (&primary_attempt, &contender_attempt) {
         ((200, first), (200, second)) => {
-            assert_eq!(
-                first, second,
-                "concurrent replay must return one terminal response"
-            );
+            assert_eq!(first, second, "concurrent replay must return one terminal response");
             first.clone()
         }
         ((200, first), _) => first.clone(),
         (_, (200, second)) => second.clone(),
-        _ => return Err("no SigningWorker process completed the signing claim".into()),
+        _ => return Err("no Router path completed the signing claim".into()),
     };
-    for url in [signing_worker_url, replica_url.as_str()] {
+    for url in [router_url, second_router_url.as_str()] {
         let (status, retry_body) = post_json_to_path_with_headers(
             url,
-            LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH,
-            &finalize_request,
-            &[(
-                LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-                TEST_ROLE_SHARED_SERVICE_AUTH,
-            )],
+            LOCAL_ROUTER_NORMAL_SIGNING_PATH,
+            &finalize_body,
+            &gateway_headers,
         )?;
-        assert_eq!(status, 200, "VM SigningWorker replay: {retry_body}");
-        assert_eq!(
-            retry_body, body,
-            "both processes must replay one terminal result"
-        );
+        assert_eq!(status, 200, "VM Router finalize replay: {retry_body}");
+        assert_eq!(retry_body, body, "both paths must replay one terminal result");
     }
+    drop(second_router);
     drop(replica);
     let signed: NormalSigningResponseV1 = serde_json::from_str(&body)?;
     let signature_bytes: [u8; 64] = signed.signature.as_bytes().try_into()?;
@@ -1819,13 +1852,7 @@ fn product_near_signing_process_flow(
         &activation.public_receipt().registered_public_key(),
     )?;
     use ed25519_dalek::Verifier;
-    verifying_key.verify(
-        prepare_request
-            .admission_candidate
-            .admitted_signing_digest
-            .as_bytes(),
-        &signature,
-    )?;
+    verifying_key.verify(&Sha256::digest(&unsigned), &signature)?;
 
     drop(signing_worker);
     let mut signing_worker = ChildGuard::spawn_in_root(
@@ -1836,22 +1863,13 @@ fn product_near_signing_process_flow(
     )?;
     wait_for_health(signing_worker_url, signing_worker.child_mut())?;
     let (retry_status, retry_body) = post_json_to_path_with_headers(
-        signing_worker_url,
-        LOCAL_SIGNING_WORKER_NORMAL_SIGNING_PATH,
-        &finalize_request,
-        &[(
-            LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1,
-            TEST_ROLE_SHARED_SERVICE_AUTH,
-        )],
+        router_url,
+        LOCAL_ROUTER_NORMAL_SIGNING_PATH,
+        &finalize_body,
+        &gateway_headers,
     )?;
-    assert_eq!(
-        retry_status, 200,
-        "VM SigningWorker terminal replay: {retry_body}"
-    );
-    assert_eq!(
-        body, retry_body,
-        "restart must preserve the signed terminal result"
-    );
+    assert_eq!(retry_status, 200, "VM Router terminal replay: {retry_body}");
+    assert_eq!(body, retry_body, "restart must preserve the signed terminal result");
     let config = parse_local_worker_role_config_for_role_v1(
         LocalServiceRoleV1::SigningWorker,
         parse_local_env_file_contents_v1(&fs::read_to_string(&signing_worker_env_path)?)?,
@@ -1865,35 +1883,41 @@ fn product_near_signing_process_flow(
         [],
         |row| row.get(0),
     )?;
-    assert_eq!(
-        completed_count, 1,
-        "one-use material must have one terminal row"
-    );
+    assert_eq!(completed_count, 1, "one-use material must have one terminal row");
     println!(
         "R150_VM_NEAR_E2E {}",
         json!({
             "wallet_id": activation.binding().lifecycle.account_id,
             "signature_digest_hex": hex::encode(Sha256::digest(signature_bytes)),
             "completed_round1_rows": completed_count,
+            "router_admitted": true,
             "worker_restarts": 2,
-            "independent_signing_worker_processes": 2,
+            "independent_router_signing_worker_paths": 2,
             "concurrent_claims": true,
+            "role_shared_credential_rejected": true,
+            "authorization_header_rejected": true,
+            "foreign_org_authority_rejected": true,
         })
     );
     Ok(signing_worker)
 }
 
+/// A Gateway-forwarded body: the signing request with the Gateway's
+/// authorized operation attached, as the TS Gateway proxy sends it.
+fn gateway_signing_body<T: Serialize>(
+    request: &T,
+    authorized_operation: &CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
+) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    let mut body = serde_json::to_value(request)?;
+    let object = body.as_object_mut().ok_or("signing request must be a JSON object")?;
+    object.insert("authorized_operation".to_owned(), serde_json::to_value(authorized_operation)?);
+    Ok(body)
+}
+
 fn product_near_prepare_request(
     activation: &RouterAbEd25519YaoActivationResultV1,
-    now_ms: u64,
     expires_at_ms: u64,
-) -> Result<
-    (
-        CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
-        CloudflareRouterVerifiedWalletSessionV1,
-    ),
-    Box<dyn std::error::Error>,
-> {
+) -> Result<(RouterAbEd25519NormalSigningPrepareRequestV2, Vec<u8>), Box<dyn std::error::Error>> {
     let binding = activation.binding();
     let account_id = &binding.lifecycle.account_id;
     let scope = NormalSigningScopeV1::new(
@@ -1931,43 +1955,53 @@ fn product_near_prepare_request(
             .encode(Sha256::digest(&unsigned)),
     };
     let request = RouterAbEd25519NormalSigningPrepareRequestV2::new(
-        scope.clone(),
+        scope,
         expires_at_ms,
         PublicDigest32::new([0x91; 32]),
         intent,
         signing_payload,
     )?;
-    let session = CloudflareRouterVerifiedWalletSessionV1::new(
-        "product-user-1",
-        account_id,
-        "authorization-product-1",
-        "wallet-session-product-benchmark",
-        "quota-product-1",
-        "threshold-session-product-1",
-        "org-product-1",
-        "project-product-1",
-        "dev",
-        "near-ed25519",
-        "local-signing-worker",
-        PublicDigest32::new([0x90; 32]),
-        expires_at_ms,
-    )?;
-    let admission = CloudflareRouterNormalSigningPrepareAdmissionCandidateV2::from_prepare_request(
-        &session, &request, now_ms,
-    )?;
-    let trusted = CloudflareRouterNormalSigningTrustedAdmissionV1::new(
-        admission.to_v1_trusted_metadata()?,
-        ExpensiveWorkGateDecisionV1::accepted("product-near-gate-1")?,
-    )?;
-    Ok((
-        CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new(
-            scope,
+    Ok((request, unsigned))
+}
+
+/// The authorized operation the Gateway attaches after consuming the owner's
+/// grant and quota. In the full VM product path the Node Gateway produces it;
+/// here the test acts as that Gateway with its dedicated credential.
+fn product_near_gateway_authorized_operation(
+    activation: &RouterAbEd25519YaoActivationResultV1,
+    root_identity: &TenantRootIdentityV1,
+    request: &RouterAbEd25519NormalSigningPrepareRequestV2,
+    expires_at_ms: u64,
+) -> Result<CloudflareRouterEd25519AcceptedAuthorizedOperationV1, Box<dyn std::error::Error>> {
+    let b64u = |bytes: &[u8]| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
+    let material = request.admission_material()?;
+    Ok(CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
+        binding: CloudflareRouterEd25519AcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
+            subject_id: "product-user-1".to_owned(),
+            account_id: activation.binding().lifecycle.account_id.clone(),
+            authorization_id: "authorization-product-1".to_owned(),
+            wallet_session_id: "wallet-session-product-benchmark".to_owned(),
+            quota_id: "quota-product-1".to_owned(),
+            threshold_session_id: "threshold-session-product-1".to_owned(),
+            org_id: root_identity.org_id().to_owned(),
+            project_id: root_identity.project_id().to_owned(),
+            environment: "dev".to_owned(),
+            project_environment_id: root_identity.env_id().to_owned(),
+            signing_worker_id: "local-signing-worker".to_owned(),
             expires_at_ms,
-            admission,
-            trusted,
-        )?,
-        session,
-    ))
+        },
+        authorized_operation:
+            CloudflareRouterEd25519AuthorizedOperationV1::ReusableWalletSessionAuthorizedOperationV1 {
+                authorized_operation_id: "authorized-operation-product-1".to_owned(),
+                operation_id: "product-near-operation-1".to_owned(),
+                capability_kind: CloudflareRouterEd25519CapabilityKindV1::NearEd25519MpcSigning,
+                operation_kind: CloudflareRouterEd25519OperationKindV1::SignTransaction,
+                lane_digest_b64u: b64u(&Sha256::digest(b"product-near-owner-lane")),
+                intent_digest_b64u: b64u(material.intent_digest.as_bytes()),
+                display_digest_b64u: b64u(request.display_digest.as_bytes()),
+                operation_fingerprint_digest: b64u(&Sha256::digest(b"product-near-fingerprint-1")),
+            },
+    })
 }
 
 fn product_near_unsigned_transaction(account_id: &str, public_key: &[u8; 32]) -> Vec<u8> {
@@ -1999,13 +2033,11 @@ fn push_borsh_bytes(out: &mut Vec<u8>, value: &[u8]) {
 fn product_near_finalize_request(
     activation: &RouterAbEd25519YaoActivationResultV1,
     client_share: &[u8; 32],
-    prepare: &CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
-    wallet_session: &CloudflareRouterVerifiedWalletSessionV1,
+    prepare: &RouterAbEd25519NormalSigningPrepareRequestV2,
     response: &NormalSigningRound1PrepareResponseV1,
-    now_ms: u64,
     expires_at_ms: u64,
-) -> Result<CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2, Box<dyn std::error::Error>>
-{
+) -> Result<RouterAbEd25519NormalSigningFinalizeRequestV2, Box<dyn std::error::Error>> {
+    let material = prepare.admission_material()?;
     let client_id = frost_ed25519::Identifier::try_from(1_u16)?;
     let server_id = frost_ed25519::Identifier::try_from(2_u16)?;
     let public_key = activation.public_receipt().registered_public_key();
@@ -2020,10 +2052,7 @@ fn product_near_finalize_request(
         frost_ed25519::round1::NonceCommitment::deserialize(&server_binding)?,
     );
     let signing_package = build_signing_package(
-        prepare
-            .admission_candidate
-            .admitted_signing_digest
-            .as_bytes(),
+        material.admitted_signing_digest.as_bytes(),
         BTreeMap::from([
             (client_id, client_round1.commitments),
             (server_id, server_commitments),
@@ -2050,51 +2079,15 @@ fn product_near_finalize_request(
     let binding = RouterAbEd25519NormalSigningPrepareBindingV2::new(
         response.server_round1_handle.clone(),
         response.round1_binding_digest,
-        prepare.admission_candidate.intent_digest,
-        prepare.admission_candidate.signing_payload_digest,
+        material.intent_digest,
+        material.signing_payload_digest,
     )?;
-    let request = RouterAbEd25519NormalSigningFinalizeRequestV2::new(
+    Ok(RouterAbEd25519NormalSigningFinalizeRequestV2::new(
         prepare.scope.clone(),
         expires_at_ms,
         binding,
         protocol,
-    )?;
-    let admission =
-        CloudflareRouterNormalSigningFinalizeAdmissionCandidateV2::from_finalize_request(
-            wallet_session,
-            &request,
-            now_ms,
-        )?;
-    let trusted = CloudflareRouterNormalSigningTrustedAdmissionV1::new(
-        admission.to_v1_trusted_metadata()?,
-        ExpensiveWorkGateDecisionV1::accepted("product-near-gate-1")?,
-    )?;
-    let authorized_identity =
-        CloudflareSigningWorkerAuthorizedOperationIdentityV1::ReusableWalletSession {
-            authorization_id: "authorization-product-1".to_owned(),
-            wallet_session_id: "wallet-session-product-benchmark".to_owned(),
-            authorized_operation_id: "authorized-operation-product-1".to_owned(),
-            operation_id: "product-near-operation-1".to_owned(),
-            operation_fingerprint_digest: "product-near-fingerprint-digest-1".to_owned(),
-        };
-    let effect_claim = CloudflareSigningWorkerNormalSigningEffectClaimV1::ReusableWalletSession {
-        claim: CloudflareSigningWorkerReusableWalletSessionEffectClaimV1::new(
-            "authorization-product-1",
-            "wallet-session-product-benchmark",
-            "authorized-operation-product-1",
-            "product-near-operation-1",
-            "product-near-fingerprint-digest-1",
-        )?,
-    };
-    Ok(
-        CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
-            request,
-            admission,
-            trusted,
-            authorized_identity,
-            effect_claim,
-        )?,
-    )
+    )?)
 }
 
 fn product_registration_request(

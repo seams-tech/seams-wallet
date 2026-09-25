@@ -67,6 +67,7 @@ mod local_ed25519_yao_worker;
 mod local_router_ab_ecdsa_derivation_pool_store;
 mod local_router_coordinator;
 mod local_router_ed25519_yao_http;
+mod local_router_normal_signing;
 mod local_service_http;
 mod local_signing_worker_near_sqlite;
 mod local_worker_topology;
@@ -1232,6 +1233,9 @@ pub struct LocalRouterWorkerConfigV1 {
     pub gateway_to_router_auth: String,
     /// Deriver A/B verifying keys for their signed readiness receipts.
     pub peer_verifying_keys: router_ab_cloudflare::CloudflareSignerPeerVerifyingKeySetV1,
+    /// Wallet Session JWT verifier and project policy, parsed exactly as the
+    /// Cloudflare Router parses them.
+    pub admission_bindings: router_ab_cloudflare::CloudflareRouterAdmissionBindingsV1,
     /// Authenticated server-owned tenant-root resolver.
     pub tenant_root_resolver: LocalTenantRootResolverConfigV1,
 }
@@ -1595,6 +1599,13 @@ pub fn parse_local_worker_role_config_for_role_v1(
                 )?,
                 gateway_to_router_auth: required_gateway_to_router_auth_v1(&env)?,
                 peer_verifying_keys: required_peer_verifying_keys_v1(&env)?,
+                admission_bindings: router_ab_cloudflare::parse_cloudflare_router_admission_bindings_v1(
+                    &router_ab_cloudflare::CloudflareEnvMapV1::new(
+                        env.iter()
+                            .map(|(key, value)| (key.clone(), value.clone()))
+                            .collect(),
+                    ),
+                )?,
                 tenant_root_resolver: parse_local_tenant_root_bindings_json_v1(&required_env_v1(
                     &env,
                     LOCAL_TENANT_ROOT_BINDINGS_JSON_ENV_V1,
@@ -3134,6 +3145,14 @@ fn materialize_template_v1(template: &str, seed: &[u8]) -> RouterAbProtocolResul
             &hex::encode(key_pair.private_key.as_bytes()),
         );
     }
+    let gateway_ceremony_seed = local_generated_secret_bytes_v1("gateway-ceremony-jwt-signing-key", seed)?;
+    let gateway_ceremony_public = ed25519_dalek::SigningKey::from_bytes(&gateway_ceremony_seed)
+        .verifying_key()
+        .to_bytes();
+    contents = contents.replace(
+        "-AzM3OSuHAeuIIoq35mjEK5CB-Awb6AjYRCwaCe7uNA",
+        &base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(gateway_ceremony_public),
+    );
     let signing_worker_hpke_ikm =
         local_generated_secret_bytes_v1("signing-worker-server-output-hpke-key-pair", seed)?;
     let signing_worker_hpke =

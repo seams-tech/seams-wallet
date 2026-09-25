@@ -414,6 +414,8 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         &self,
         config: &LocalSigningWorkerConfigV1,
         scope: &NormalSigningScopeV1,
+        pinned_wallet_scope: Option<&CloudflareSigningWorkerWalletScopeV1>,
+        metadata: &router_ab_cloudflare::CloudflareRouterNormalSigningTrustedMetadataV1,
     ) -> RouterAbProtocolResult<(
         ActiveSigningWorkerStateV1,
         CloudflareServerOutputMaterialRecordV1,
@@ -424,6 +426,18 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
             .get(&identity)
             .expect("normal-signing identity was selected from the same map");
         let active_state = state.active_normal_signing_state(config, scope)?;
+        let registered_scope = &state
+            .initial_registration
+            .as_ref()
+            .ok_or_else(|| invalid_normal_signing("SigningWorker has no registered wallet scope"))?
+            .request
+            .scope;
+        router_ab_cloudflare::require_signing_worker_normal_signing_wallet_scope_v1(
+            registered_scope,
+            pinned_wallet_scope,
+            metadata,
+            &scope.account_id,
+        )?;
         let active = state.active.as_ref().ok_or_else(|| {
             invalid_normal_signing("SigningWorker has no active Yao signing share")
         })?;

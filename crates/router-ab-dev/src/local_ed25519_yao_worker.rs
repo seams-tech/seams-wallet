@@ -1216,9 +1216,12 @@ fn handle_yao_control_request(
             let admitted: CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2 =
                 serde_json::from_slice(&request.body)?;
             let now_ms = now_unix_ms()?;
-            let (active, material) = state
-                .signing_worker
-                .normal_signing_material(config, &admitted.scope)?;
+            let (active, material) = state.signing_worker.normal_signing_material(
+                config,
+                &admitted.scope,
+                admitted.wallet_scope.as_ref(),
+                &admitted.trusted_admission.metadata,
+            )?;
             let response = host.prepare_near(admitted, active, material, now_ms)?;
             write_local_dev_http_response_v1(stream, 200, &response)
         }
@@ -1232,9 +1235,12 @@ fn handle_yao_control_request(
                 return write_local_dev_http_response_v1(stream, 200, &response);
             }
             let now_ms = now_unix_ms()?;
-            let (active, material) = state
-                .signing_worker
-                .normal_signing_material(config, &admitted.request.scope)?;
+            let (active, material) = state.signing_worker.normal_signing_material(
+                config,
+                &admitted.request.scope,
+                admitted.wallet_scope.as_ref(),
+                &admitted.trusted_admission.metadata,
+            )?;
             let response = host.finalize_near(admitted, active, material, now_ms)?;
             write_local_dev_http_response_v1(stream, 200, &response)
         }

@@ -175,9 +175,15 @@ impl LocalHttpServiceBindingClientV1 {
             .map_err(super::map_local_http_io_error_v1)?;
         let (status, response_body) = super::split_local_http_response_v1(&response)?;
         if !(200..=299).contains(&status) {
+            // Carry the peer's typed error text, as the Cloudflare adapter
+            // does, so a caller can tell a replay rejection from a fault.
+            let detail = String::from_utf8_lossy(&response_body);
             return Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
-                format!("local HTTP service-binding request failed with status {status}"),
+                format!(
+                    "local HTTP service-binding request failed with status {status}: {}",
+                    detail.trim()
+                ),
             ));
         }
         Ok(response_body)
