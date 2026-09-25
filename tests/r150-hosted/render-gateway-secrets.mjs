@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -92,10 +92,29 @@ for (const arm of ['d1', 'do']) {
       environmentId: gatewayConfig.vars.SEAMS_STAGING_ENV_ID,
       publishableKey: deployment.credential.publishableKey,
       signingWorkerId: gatewayConfig.vars.SIGNING_WORKER_ID,
+      deploymentFingerprint: fingerprintDeployment(arm, receipt),
     }, null, 2)}\n`,
   );
 }
 console.log(`Rendered R150 Gateway, ingress, and probe inputs under ${renderedRoot}`);
+
+function fingerprintDeployment(arm, receipt) {
+  const digest = createHash('sha256');
+  digest.update(JSON.stringify({ arm, receipt }));
+  for (const fileName of [
+    'gateway/wrangler.jsonc',
+    'ingress/wrangler.jsonc',
+    'roles/router.jsonc',
+    'roles/deriver-a.jsonc',
+    'roles/deriver-b.jsonc',
+    'roles/signing-worker.jsonc',
+    'roles/tenant-root-control-plane.jsonc',
+  ]) {
+    const config = JSON.parse(readFileSync(path.join(renderedRoot, fileName), 'utf8'));
+    digest.update(JSON.stringify(config.env[arm]));
+  }
+  return digest.digest('hex');
+}
 
 function requireIgnoredRuntime() {
   const result = spawnSync('git', ['check-ignore', '-q', '--', renderedRoot], {

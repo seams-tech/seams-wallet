@@ -1,6 +1,6 @@
 # R150 isolated hosted comparison
 
-Status: preparation. No hosted benchmark resources have been created or changed.
+Status: approved preparation. No hosted benchmark resources have been created or changed.
 This is a pilot to decide whether the measured regional benefit warrants finishing
 the DO conversion. It is not the R150 release gate.
 
@@ -14,10 +14,11 @@ adds Deriver B and SigningWorker wallet-DO bindings and SQLite migrations that
 the checked-in staging manifests do not have. Existing staging and production
 resources must remain untouched.
 
-## Proposed isolated scope
+## Approved isolated scope
 
 - Use the currently authenticated Cloudflare account, subject to confirming its
-  plan and a numeric incremental spend cap. The account was inventoried on
+  plan. The incremental experiment spend cap is **$25 USD total across Cloudflare
+  and probe hosts**. The account was inventoried on
   2026-09-25; its existing D1 databases include shared staging and production
   stores. None is a benchmark store.
 - Reserve `r150-bench-20260925-{d1,do}-` for new resources. The exact suffixes
@@ -41,8 +42,8 @@ resources must remain untouched.
   benchmark ingress. Disable implicit NEAR account test funding in both
   Gateways. No funded wallet, relayer transfer, or chain submission is part of
   the workload.
-- Set each new D1 primary's location hint to `apac`. Probe from Tokyo,
-  Frankfurt, and US East using hosts whose execution locations can be verified.
+- Set each new D1 primary's location hint to `apac`. Probe from Tokyo (`nrt`),
+  Frankfurt (`fra`), and US East (`iad`) using separately verified Fly.io hosts.
   Create fresh wallet objects from their probe region; record actual routing
   evidence. Cloudflare treats D1 and DO location hints as best-effort.
 
@@ -65,11 +66,14 @@ authority-correctness failures. Each arm and region yields 20 observations for
 registration, 20 for first signing, and 20 for subsequent signing. Report
 their p50/p95 descriptively because these cohorts are too small for a robust
 tail-latency gate. Model cost at 10 and 20 signatures per wallet per week,
-including dormant storage and refill. The monthly product cost ceiling and
-incremental experiment spend cap still require confirmation before hosted
-execution.
+including dormant storage and refill. The monthly product cost ceiling still
+requires confirmation before a release decision. The $25 pilot cap is an operational stop condition, not a monthly
+product-cost acceptance threshold.
 
-Stop at the pilot limit or earlier on unexpected usage, errors, or scope drift.
+Stop at the pilot limit, before the $25 incremental cap, or earlier on
+unexpected usage, errors, or scope drift. Do not upgrade a billing plan to
+run this pilot. Record baseline and final Cloudflare usage and the probe-host
+charges, leaving a margin for delayed metering.
 No production route or existing wallet authority changes. Keep the isolated
 resources until the raw artifacts and cost report are reviewed, then remove
 only those explicitly inventoried benchmark resources.
@@ -86,25 +90,79 @@ Playwright traces, screenshots, and videos are disabled to keep request credenti
 and wallet material out of diagnostic artifacts. Each repeated
 run writes a distinct timing artifact. Local mode remains the default.
 
-On a probe host with the Wallet worktree and browser dependencies installed,
-set `SEAMS_INTENDED_ROUTER_URL` to the selected arm's HTTPS ingress and set
-`SEAMS_INTENDED_BENCHMARK_ARM`, `SEAMS_INTENDED_PROBE_REGION`,
-`SEAMS_INTENDED_BENCHMARK_RUN_ID`, `SEAMS_INTENDED_PROJECT_ENVIRONMENT_ID`,
-`SEAMS_INTENDED_PUBLISHABLE_KEY`, `SEAMS_INTENDED_SIGNING_WORKER_ID`, and
-`SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN` to that
-arm's isolated values. Then run:
+On each Fly.io probe host with the clean Wallet revision and browser
+dependencies installed, place a mode-0600 private input at
+`.runtime/r150-hosted/probe/<region>/input.json`. Populate each arm from its
+rendered `probe-values/<arm>.json` and `ingress-secrets/<arm>.json`; copy the
+secret token into `accessToken` without printing it. The `deploymentFingerprint`
+is already in the rendered probe values. The input shape is:
 
-```sh
-SEAMS_INTENDED_EXTERNAL_GATEWAY=1 pnpm -C tests exec playwright test \
-  -c playwright.wallet-intended.ci.config.ts \
-  e2e/intended-behaviours/passkey.presign-pool.contract.test.ts \
-  --grep 'unforced ECDSA registration and repeated signing'
+```json
+{
+  "kind": "r150_hosted_probe_input_v1",
+  "region": "nrt",
+  "probe": {
+    "provider": "fly",
+    "region": "nrt",
+    "instanceId": "<FLY_MACHINE_ID>",
+    "appName": "<FLY_APP_NAME>",
+    "observedAt": "<UTC timestamp>",
+    "evidenceRef": "<private Fly machine status evidence file>"
+  },
+  "arms": {
+    "d1": {
+      "ingressUrl": "<D1 ingress HTTPS origin>",
+      "environmentId": "<D1 environment ID>",
+      "publishableKey": "<D1 publishable key>",
+      "signingWorkerId": "<D1 SigningWorker ID>",
+      "deploymentFingerprint": "<D1 SHA-256 fingerprint>",
+      "accessToken": "<D1 ingress token>"
+    },
+    "do": {
+      "ingressUrl": "<DO ingress HTTPS origin>",
+      "environmentId": "<DO environment ID>",
+      "publishableKey": "<DO publishable key>",
+      "signingWorkerId": "<DO SigningWorker ID>",
+      "deploymentFingerprint": "<DO SHA-256 fingerprint>",
+      "accessToken": "<DO ingress token>"
+    }
+  }
+}
 ```
 
-This command runs one registration and two signatures. Alternate D1 and DO
-invocations for 20 matched pairs per region, assigning a unique run ID to each
-invocation. Stop once the cap is reached; retain failed attempts in the raw
-sample set.
+Capture the Fly machine's control-plane status and runtime `FLY_MACHINE_ID`,
+`FLY_APP_NAME`, and `FLY_REGION` in the private evidence file. The runner checks
+the runtime values against the inventory before each attempt. The environment
+region label alone does not prove physical location. Keep probe and billing
+evidence available for review.
+
+For case 1, run:
+
+```sh
+node tests/r150-hosted/run-sample.mjs .runtime/r150-hosted/probe/nrt/input.json 1 d1
+node tests/r150-hosted/run-sample.mjs .runtime/r150-hosted/probe/nrt/input.json 1 do
+```
+
+For case 2, run `2 do` then `2 d1`; alternate that order through case
+20. Repeat in `fra` and `iad`. Each invocation runs one registration and two
+signatures. The runner records an attempt before any wallet work, caps each
+region at 40 invocations, and refuses an automatic retry or continuation after
+a failure. Reconcile any failed or unfinished attempt explicitly; do not
+replace it silently to obtain 20 successes. Preserve each probe directory's
+`attempts.jsonl` and `artifacts/` when collecting results.
+
+Analyze all three collected probe directories with:
+
+```sh
+node tests/r150-hosted/analyze-samples.mjs <nrt-dir> <fra-dir> <iad-dir> --complete --output <private-report.json>
+```
+
+A partial report omits `--complete`. The complete
+gate requires 20 successful observations per arm and phase in every region,
+the same source revision and each arm's unchanged intended-deployment fingerprint.
+It reports nearest-rank p50/p95, paired case deltas, Gateway request and refill
+counts, and available Server-Timing coverage. It leaves cost and actual DO
+placement unverified until independent usage and execution evidence is added.
 
 The local app ports can be moved with `SEAMS_INTENDED_APP_URL` and
 `SEAMS_INTENDED_WALLET_ORIGIN`. The hosted ingress must remain the only public
@@ -241,8 +299,9 @@ receipts are never an authority check; the live bootstrap response and its
 Router state must be verified before use. Gateway and ingress Workers should
 remain undeployed until their own secrets and expiry are installed.
 
-Before deploying, confirm the account, probe provider/hosts, spend cap,
-prospective latency and monthly cost criteria, exact resource inventory,
+Before deploying, verify the account plan and Fly.io access, provision probe
+hosts with recorded region/instance evidence, estimate the $25 cap from
+current rates, and check the exact resource inventory,
 ingress authentication, and that the selected build exposes no unauthenticated
 dev fault, debug, or material-export endpoint. Verify a smoke registration and
 signature in both arms, then run the bounded matched pilot. Cloudflare's current
