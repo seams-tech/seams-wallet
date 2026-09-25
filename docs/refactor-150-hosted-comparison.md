@@ -160,8 +160,11 @@ For case 2, run `2 do` then `2 d1`; alternate that order through case
 20. Repeat in `fra` and `iad`. Each invocation runs one registration and two
 signatures. The runner records an attempt before any wallet work, caps each
 region at 40 invocations, and refuses an automatic retry or continuation after
-a failure. Reconcile any failed or unfinished attempt explicitly; do not
-replace it silently to obtain 20 successes. Preserve each probe directory's
+a failure. Each start and end event is flushed before the next action.
+Continuation requires the same source, build, probe, deployment fingerprints,
+and collected artifacts as every completed attempt. Reconcile any failed or
+unfinished attempt explicitly; do not replace it silently to obtain 20
+successes. Preserve each probe directory's
 `attempts.jsonl` and `artifacts/` when collecting results.
 
 Analyze all three collected probe directories with:

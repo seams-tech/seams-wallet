@@ -1,18 +1,20 @@
 #!/usr/bin/env node
 import {
-  appendFileSync,
   chmodSync,
   closeSync,
   copyFileSync,
   existsSync,
+  fsyncSync,
   mkdirSync,
   openSync,
   readFileSync,
   statSync,
   unlinkSync,
+  writeSync,
 } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -54,15 +56,9 @@ const lock = openSync(lockPath, 'wx', 0o600);
 let dispatched = false;
 let completed = false;
 try {
-  const starts = readStarts(ledgerPath);
-  const sequence = starts.length + 1;
+  const sequence = completedAttemptCount(ledgerPath, input, source) + 1;
   if (sequence > 40 || caseIndex !== Math.ceil(sequence / 2) || arm !== expectedArm(sequence)) {
     throw new Error(`Expected case ${Math.ceil(sequence / 2)} ${expectedArm(sequence)}; pilot is capped at 40 attempts per region`);
-  }
-  for (const start of starts) {
-    if (!hasSuccessfulEnd(ledgerPath, start.runId)) {
-      throw new Error(`Previous attempt ${start.runId} is unfinished or failed; reconcile before further wallet work`);
-    }
   }
 
   const revision = source.revision;
@@ -87,7 +83,7 @@ try {
     probe: input.probe,
     startedAt: new Date().toISOString(),
   };
-  appendFileSync(ledgerPath, `${JSON.stringify(start)}\n`, { mode: 0o600 });
+  appendDurableEvent(ledgerPath, start);
   dispatched = true;
 
   const selected = input.arms[arm];
@@ -120,6 +116,8 @@ try {
     }
     copyFileSync(sourceArtifact, artifactCopy);
     chmodSync(artifactCopy, 0o600);
+    syncFile(artifactCopy);
+    syncFile(artifactDirectory);
   }
   const end = {
     event: 'end',
@@ -130,7 +128,7 @@ try {
     artifact: successful ? artifactName : null,
     finishedAt: new Date().toISOString(),
   };
-  appendFileSync(ledgerPath, `${JSON.stringify(end)}\n`, { mode: 0o600 });
+  appendDurableEvent(ledgerPath, end);
   if (!successful) {
     throw new Error(`Benchmark attempt ${runId} failed; it remains in the ledger and must not be silently retried`);
   }
@@ -193,27 +191,65 @@ function validateInput(input) {
   }
 }
 
-function readStarts(filePath) {
-  if (!existsSync(filePath)) return [];
-  const starts = [];
-  for (const line of readFileSync(filePath, 'utf8').trim().split('\n')) {
-    if (line === '') continue;
-    const entry = JSON.parse(line);
-    if (entry.event === 'start') starts.push(entry);
+function completedAttemptCount(filePath, input, source) {
+  if (!existsSync(filePath)) return 0;
+  const ledger = readFileSync(filePath, 'utf8');
+  if (!ledger.endsWith('\n')) {
+    throw new Error('Attempt ledger has a truncated event; reconcile before further wallet work');
   }
-  return starts;
-}
-
-function hasSuccessfulEnd(filePath, runId) {
-  if (!existsSync(filePath)) return false;
-  for (const line of readFileSync(filePath, 'utf8').trim().split('\n')) {
-    if (line === '') continue;
-    const entry = JSON.parse(line);
-    if (entry.event === 'end' && entry.runId === runId && entry.status === 'succeeded') {
-      return true;
+  const lines = ledger.slice(0, -1).split('\n');
+  if (lines.length > 80 || lines.length % 2 !== 0) {
+    throw new Error('Attempt ledger has an unfinished or excess event; reconcile before further wallet work');
+  }
+  for (let index = 0; index < lines.length; index += 2) {
+    const start = JSON.parse(lines[index]);
+    const end = JSON.parse(lines[index + 1]);
+    const sequence = index / 2 + 1;
+    const previousCase = Math.ceil(sequence / 2);
+    const previousArm = expectedArm(sequence);
+    const runId = `${input.region}-case-${String(previousCase).padStart(2, '0')}-${previousArm}`;
+    const artifactName = `gateway-ecdsa-unforced-timing-hosted_${previousArm}-${input.region}-${runId}-0.json`;
+    const artifactPath = path.join(path.dirname(filePath), 'artifacts', artifactName);
+    if (start.event !== 'start' || start.kind !== 'r150_hosted_attempt_v1' ||
+        start.region !== input.region || start.caseIndex !== previousCase ||
+        start.sequence !== sequence || start.arm !== previousArm || start.runId !== runId ||
+        start.revision !== source.revision ||
+        start.walletBuildInputHash !== source.walletBuildInputHash ||
+        start.deploymentFingerprint !== input.arms[previousArm].deploymentFingerprint ||
+        !isDeepStrictEqual(start.probe, input.probe) ||
+        end.event !== 'end' || end.runId !== runId || end.status !== 'succeeded' ||
+        end.exitCode !== 0 || end.signal !== null || end.artifact !== artifactName ||
+        !existsSync(artifactPath) || !validArtifact(artifactPath, previousArm, input.region, runId)) {
+      throw new Error(`Previous attempt ${runId} is inconsistent, unfinished, or failed; reconcile before further wallet work`);
     }
   }
-  return false;
+  return lines.length / 2;
+}
+
+function appendDurableEvent(filePath, event) {
+  const file = openSync(filePath, 'a', 0o600);
+  try {
+    const payload = Buffer.from(`${JSON.stringify(event)}\n`);
+    let written = 0;
+    while (written < payload.length) {
+      const count = writeSync(file, payload, written, payload.length - written);
+      if (count === 0) throw new Error('Attempt ledger write made no progress');
+      written += count;
+    }
+    fsyncSync(file);
+  } finally {
+    closeSync(file);
+  }
+  syncFile(path.dirname(filePath));
+}
+
+function syncFile(filePath) {
+  const file = openSync(filePath, 'r');
+  try {
+    fsyncSync(file);
+  } finally {
+    closeSync(file);
+  }
 }
 
 function validArtifact(filePath, arm, region, runId) {
