@@ -151,6 +151,48 @@ role-identity primitives with an explicit per-arm tenant-root issuer input.
 It does not fill D1 IDs, create tenant roots, deploy secrets, or touch hosted
 resources. Keep the generated files off shared logs and artifacts.
 
+After creating the eight benchmark D1 databases and determining the two
+benchmark ingress HTTPS origins, record their IDs and origins in a private
+JSON file:
+
+```json
+{
+  "accountId": "ba924da36f2ffc3839e8d323000b66b4",
+  "arms": {
+    "d1": {
+      "ingressUrl": "https://r150-bench-20260925-d1-ingress.<account-subdomain>.workers.dev",
+      "databases": {
+        "signer": "<new-D1-UUID>",
+        "deriverA": "<new-D1-UUID>",
+        "deriverB": "<new-D1-UUID>",
+        "signingWorker": "<new-D1-UUID>"
+      }
+    },
+    "do": {
+      "ingressUrl": "https://r150-bench-20260925-do-ingress.<account-subdomain>.workers.dev",
+      "databases": {
+        "signer": "<new-D1-UUID>",
+        "deriverA": "<new-D1-UUID>",
+        "deriverB": "<new-D1-UUID>",
+        "signingWorker": "<new-D1-UUID>"
+      }
+    }
+  }
+}
+```
+
+Use `node tests/r150-hosted/render-manifests.mjs <private-inventory.json>`
+to render the two arm configurations and role secret bundles under ignored
+`.runtime/r150-hosted/rendered/`. The renderer checks the exact Cloudflare
+account, stable identity fingerprints, required public keys, database IDs,
+same-arm ingress origins, and existing output before writing. It never prints
+secret values and refuses to overwrite changed output. Run the manifest
+preflight with `--root .runtime/r150-hosted/rendered --ready` and a Wrangler
+dry-run for every arm and role before deploying. Pass an absolute `--outdir`
+outside the rendered-manifest directory so Wrangler's bundles stay separate
+from the private deployment inputs. Gateway and ingress secrets
+remain separate setup inputs; their presence and expiry require live checks.
+
 After the private role Workers are deployed, bootstrap each synthetic tenant
 root through the local-only Worker in `tests/r150-hosted/bootstrap/`. Start
 Wrangler development with its `d1` or `do` environment bound to
