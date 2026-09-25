@@ -74,7 +74,8 @@ Open, and not silently worked around:
   finds no active state, and cannot continue: the evidence the control plane
   needs (installation evidence, signed backups, canary receipts) came back in
   the initiator's response and was not kept. Fixing this needs a decision on
-  where that evidence is durably held; it is not patched here.
+  where that evidence is durably held; it is not patched here. Proposed fix,
+  awaiting review: `refactor-150-tenant-root-creation-resume.md`.
 - Refresh, managed restore, source retirement and cutover remain
   Cloudflare-only. The VM control plane refuses a retired-source cleanup
   command rather than skip it.
