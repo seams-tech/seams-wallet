@@ -3,6 +3,9 @@
 //   migrate   Apply pending shared-store migrations (explicit; safe to retry).
 //   check     Read-only: report migration status and store accessibility.
 //   serve     Serve the Gateway. Refuses a store with pending migrations.
+//   serve-local
+//             Serve the local Gateway: the same, plus the intended-suite
+//             transport faults the local Worker entry serves. Local only.
 //
 // Configuration (environment):
 //   WALLET_GATEWAY_VARS_FILE             Gateway vars and secrets (KEY='value' lines)
@@ -14,6 +17,7 @@
 //   WALLET_GATEWAY_MIGRATIONS_DIR        d1-signer migration directory
 
 import { existsSync, readFileSync } from 'node:fs';
+import { handleLocalHostedWalletGatewayRequestV1 } from '../../localHostedWalletGatewayHandler';
 import { createNodeHostedWalletGatewayV1 } from './nodeHostedWalletGateway';
 import { listenNodeFetchHandler } from './nodeHttp';
 import { loadNodeDatabaseSync, nodeSqliteConnection, openNodeSqliteFile } from './nodeSqlite';
@@ -47,7 +51,7 @@ async function main(argv: readonly string[]): Promise<number> {
     database.close();
     return 0;
   }
-  if (command === 'serve') {
+  if (command === 'serve' || command === 'serve-local') {
     const status = inspectSignerSqlMigrationsV1(connection, migrationsDir);
     if (status.pending.length > 0 || status.unknown.length > 0) {
       throw new Error('shared store schema is not current; run `migrate` first');
@@ -59,6 +63,7 @@ async function main(argv: readonly string[]): Promise<number> {
       routerUrl: requireEnv('WALLET_GATEWAY_ROUTER_URL'),
       signingWorkerUrl: requireEnv('WALLET_GATEWAY_SIGNING_WORKER_URL'),
       signerWasmPath: requireEnv('WALLET_GATEWAY_SIGNER_WASM_PATH'),
+      ...(command === 'serve-local' ? { handler: handleLocalHostedWalletGatewayRequestV1 } : {}),
       onBackgroundError: (error) =>
         process.stderr.write(`gateway background task failed: ${describe(error)}\n`),
     });
@@ -75,7 +80,7 @@ async function main(argv: readonly string[]): Promise<number> {
     process.once('SIGINT', stop);
     return await new Promise<number>(() => undefined);
   }
-  process.stderr.write('usage: wallet-gateway <migrate|check|serve>\n');
+  process.stderr.write('usage: wallet-gateway <migrate|check|serve|serve-local>\n');
   return 2;
 }
 

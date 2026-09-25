@@ -10,6 +10,27 @@ Regional lanes remain an alternative deployment design. Geographic relocation is
 deferred. This document does not claim that the revised architecture
 is implemented, verified, or deployed.
 
+Checkpoint (2026-09-25, branch `codex/r150-do-backend`). This records evidence,
+not completion; none of the completion criteria below is claimed.
+
+- Tenant-root creation runs as one implementation over host traits; the
+  Workers and a Cloudflare-free VM reference both run it
+  ([VM provisioning](refactor-150-vm-tenant-root-provisioning.md)).
+- The VM reference serves registration, admission and NEAR normal signing
+  through the real Wallet Gateway on Node: the passkey Ed25519 Yao browser
+  contract (`passkey.ed25519-yao-local.contract.test.ts`) passes against it
+  with `SEAMS_INTENDED_WALLET_HOST=vm`
+  ([VM setup](refactor-150-vm-reference-setup.md)).
+- Router wallet-local lanes are classified as unfinished infrastructure with
+  no product consumer ([state ownership](refactor-150-state-ownership-map.md)).
+- Awaiting design approval: [cross-owner Yao finalization](refactor-150-cross-owner-finalization.md),
+  [Deriver A fresh attempt](refactor-150-deriver-a-fresh-attempt.md) and
+  [bounded retirement](refactor-150-root-retirement-admission.md).
+- Open: the creation resume gap after the initiator returns (both hosts), VM
+  refresh/restore/retirement/cutover, linked-device and step-up signing on
+  the VM, measured latency and cost, the clean reset, and production custody
+  isolation review.
+
 The filename is retained for existing links. This revision supersedes the original
 mandatory Home region setting, three managed D1 lanes, and migration-first rollout.
 Existing lane implementation work must be reconciled with this plan before further

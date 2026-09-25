@@ -4,6 +4,24 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 
 const MAX_REQUEST_BODY_BYTES = 1024 * 1024;
 
+/**
+ * Headers that describe one connection or one message's framing. A Worker's
+ * runtime sets them for the bytes it actually sends; on Node they are never
+ * copied from a Request or Response that another hop produced.
+ */
+export const NODE_HOP_BY_HOP_HEADERS_V1: readonly string[] = [
+  'connection',
+  'content-length',
+  'expect',
+  'host',
+  'keep-alive',
+  'proxy-connection',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+];
+
 export function listenNodeFetchHandler(input: {
   readonly host: string;
   readonly port: number;
@@ -52,7 +70,14 @@ async function forward(
     });
     const response = await handle(request);
     outgoing.statusCode = response.status;
-    response.headers.forEach((value, name) => outgoing.setHeader(name, value));
+    response.headers.forEach((value, name) => {
+      if (name === 'set-cookie' || NODE_HOP_BY_HOP_HEADERS_V1.includes(name)) return;
+      outgoing.setHeader(name, value);
+    });
+    const cookies = response.headers.getSetCookie();
+    if (cookies.length > 0) outgoing.setHeader('set-cookie', cookies);
+    // Node frames the body it sends; the handler's framing headers may
+    // describe a body that has since been rewritten.
     outgoing.end(Buffer.from(await response.arrayBuffer()));
   } catch {
     outgoing.statusCode = 500;

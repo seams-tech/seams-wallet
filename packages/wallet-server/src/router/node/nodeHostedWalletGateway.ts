@@ -15,6 +15,15 @@ import {
   parseStaticWalletConsoleBindingConfigV1,
 } from '../cloudflare/runtime/staticWalletConsoleBinding';
 import { createSyncSqliteDatabase, type SyncSqliteConnectionV1 } from '../../storage/syncSqlite';
+import { NODE_HOP_BY_HOP_HEADERS_V1 } from './nodeHttp';
+
+/** One Gateway request handler: the hosted Gateway or the local Gateway. */
+export type NodeWalletGatewayRequestHandlerV1 = (
+  request: Request,
+  env: CloudflareD1GatewayEnv & { readonly WALLET_LOCAL_DEPLOYMENT_JSON: string },
+  ctx: CfExecutionContext,
+  dependencies: HostedWalletGatewayDependenciesV1,
+) => Promise<Response>;
 
 export type NodeHostedWalletGatewayOptionsV1 = {
   /** Gateway configuration and secrets, as the Worker receives them as vars. */
@@ -28,6 +37,12 @@ export type NodeHostedWalletGatewayOptionsV1 = {
   /** Path to wasm_signer_worker_bg.wasm. */
   readonly signerWasmPath: string;
   readonly onBackgroundError?: (error: unknown) => void;
+  /**
+   * The handler that serves requests. The hosted Gateway by default; local
+   * development passes the local Gateway, which adds the intended-suite
+   * transport faults exactly as the local Worker entry does.
+   */
+  readonly handler?: NodeWalletGatewayRequestHandlerV1;
 };
 
 export type NodeHostedWalletGatewayV1 = {
@@ -41,8 +56,9 @@ export function createNodeHostedWalletGatewayV1(
 ): NodeHostedWalletGatewayV1 {
   const deploymentJson = options.vars.WALLET_LOCAL_DEPLOYMENT_JSON;
   if (!deploymentJson) throw new Error('WALLET_LOCAL_DEPLOYMENT_JSON is required');
-  const env: CloudflareD1GatewayEnv = {
+  const env: CloudflareD1GatewayEnv & { readonly WALLET_LOCAL_DEPLOYMENT_JSON: string } = {
     ...options.vars,
+    WALLET_LOCAL_DEPLOYMENT_JSON: deploymentJson,
     ROUTER_AB_PREWARM_ENABLED: options.vars.ROUTER_AB_PREWARM_ENABLED ?? 'false',
     SIGNER_DB: createSyncSqliteDatabase(options.connection),
     MPC_ROUTER: httpServiceBinding(options.routerUrl),
@@ -55,6 +71,7 @@ export function createNodeHostedWalletGatewayV1(
   const dependencies: HostedWalletGatewayDependenciesV1 = {
     signerWasm: async () => await WebAssembly.compile(signerWasmBytes),
   };
+  const handler = options.handler ?? handleSplitGatewayRequest;
   const pending = new Set<Promise<unknown>>();
   const ctx: CfExecutionContext = {
     waitUntil(promise: Promise<unknown>) {
@@ -65,7 +82,7 @@ export function createNodeHostedWalletGatewayV1(
     passThroughOnException() {},
   };
   return {
-    handle: async (request) => await handleSplitGatewayRequest(request, env, ctx, dependencies),
+    handle: async (request) => await handler(request, env, ctx, dependencies),
     drain: async () => {
       await Promise.all([...pending]);
     },
@@ -78,6 +95,7 @@ export function createNodeHostedWalletGatewayV1(
  * forwarded public requests through them. On a VM each binding forwards the
  * path and query to its one configured base URL, and nowhere else.
  */
+
 function httpServiceBinding(baseUrl: string): CloudflareServiceBindingFetcher {
   const base = new URL(baseUrl);
   return {
@@ -85,7 +103,23 @@ function httpServiceBinding(baseUrl: string): CloudflareServiceBindingFetcher {
       const request = new Request(input, init);
       const url = new URL(request.url);
       const target = new URL(`${url.pathname}${url.search}`, base);
-      return await fetch(new Request(target, request));
+      // The VM roles read a Content-Length body, so an internal call is sent
+      // buffered rather than as a chunked stream.
+      const body =
+        request.method === 'GET' || request.method === 'HEAD'
+          ? undefined
+          : await request.arrayBuffer();
+      // Hop-by-hop and framing headers belong to the inbound connection, not
+      // to this call; fetch sets them for the buffered body it sends, as a
+      // service binding does.
+      const headers = new Headers(request.headers);
+      for (const name of NODE_HOP_BY_HOP_HEADERS_V1) headers.delete(name);
+      return await fetch(target, {
+        method: request.method,
+        headers,
+        body,
+        redirect: 'manual',
+      });
     },
   };
 }

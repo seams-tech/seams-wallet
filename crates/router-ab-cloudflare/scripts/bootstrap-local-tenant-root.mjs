@@ -22,11 +22,16 @@ async function main() {
   if (!identityResult.ok) {
     throw new Error('Local tenant-root bootstrap identity is invalid');
   }
-  const localKeys = resolveLocalTenantRootKeyMaterial({
-    repoRoot: options.repoRoot,
-    localEnvRoot: options.localRoot,
-    issuerEnvPath: options.issuerEnvPath,
-  });
+  // A VM deployment keeps its grant authority in the operator env file the
+  // Rust materializer writes; the local Worker stack derives it from its issuer
+  // key material.
+  const localKeys = options.grantAuthorityEnvPath
+    ? { grantAuthority: grantAuthorityFromOperatorEnv(options.grantAuthorityEnvPath) }
+    : resolveLocalTenantRootKeyMaterial({
+        repoRoot: options.repoRoot,
+        localEnvRoot: options.localRoot,
+        issuerEnvPath: options.issuerEnvPath,
+      });
   const routerEnv = readEnvMap(path.join(options.localRoot, '.env.router-ab.router.local'));
   const grantB64u = await resolveCreationGrant(options, identityResult.value, localKeys);
   const response = await fetch(new URL(TENANT_ROOT_CREATION_PATH, options.routerUrl), {
@@ -63,6 +68,7 @@ function parseArguments(args) {
     repoRoot,
     localRoot: path.resolve(requiredOption(values, '--root')),
     issuerEnvPath: values.get('--issuer-env-path'),
+    grantAuthorityEnvPath: values.get('--grant-authority-env'),
     grantFile: values.get('--grant-file'),
     routerUrl: requiredUrl(values.get('--router-url') ?? 'http://127.0.0.1:4102'),
     identity: {
@@ -80,6 +86,7 @@ function usage() {
     'Usage: bootstrap-local-tenant-root.mjs',
     '  --root <local-runtime-directory>',
     '  [--issuer-env-path <private-issuer-env-file>]',
+    '  [--grant-authority-env <operator-env-file>]',
     '  [--grant-file <private-grant-file-inside-root>]',
     '  --org-id <organization-id>',
     '  --project-id <project-id>',
@@ -140,6 +147,16 @@ async function signNewGrant(identity, localKeys) {
     signingSeedB64u: localKeys.grantAuthority.signingSeedB64u,
   });
   return { grantB64u: grant.grantB64u, expiresAtMs };
+}
+
+function grantAuthorityFromOperatorEnv(filePath) {
+  const operatorEnv = readEnvMap(path.resolve(filePath));
+  const keyId = operatorEnv.get('LOCAL_TENANT_ROOT_GRANT_KEY_ID');
+  const signingSeedB64u = operatorEnv.get('LOCAL_TENANT_ROOT_GRANT_SIGNING_KEY');
+  if (!keyId || !signingSeedB64u) {
+    throw new Error('Operator env file does not carry the tenant-root grant authority');
+  }
+  return Object.freeze({ keyId, signingSeedB64u });
 }
 
 function requiredOption(values, name) {
