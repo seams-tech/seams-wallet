@@ -1,6 +1,8 @@
 mod support;
 
-use support::{extract_function_body, read_src_file};
+use support::{
+    assert_ecdsa_pool_mutation_reaches_owner_storage, extract_function_body, read_src_file,
+};
 
 struct LifecycleRouteExpectation {
     name: &'static str,
@@ -118,10 +120,13 @@ fn strict_router_ab_ecdsa_derivation_lifecycle_matrix_has_exact_owners() {
             name: "presignature material admission",
             handler: "admit_cloudflare_signing_worker_ecdsa_presignature_v1",
             required: &[
-                "signing_worker_ecdsa_pool_mutate_request",
-                "execute_cloudflare_signing_worker_private_d1_request_v1",
+                "CloudflareSigningWorkerEcdsaPoolCommandV1::PutAvailable",
+                "execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1",
             ],
             forbidden: &[
+                // The owner router chooses the wallet DO or private D1; a
+                // direct private-D1 call would bypass the wallet owner.
+                "execute_cloudflare_signing_worker_ecdsa_pool_mutation_v1",
                 "execute_cloudflare_router_ab_ecdsa_derivation_deriver_registration_service_call_v1",
                 "execute_cloudflare_router_ab_ecdsa_derivation_deriver_export_service_call_v1",
                 "execute_cloudflare_router_ab_ecdsa_derivation_deriver_activation_refresh_service_call_v1",
@@ -132,6 +137,7 @@ fn strict_router_ab_ecdsa_derivation_lifecycle_matrix_has_exact_owners() {
     for expectation in &expectations {
         assert_lifecycle_route(&lib_rs, expectation);
     }
+    assert_ecdsa_pool_mutation_reaches_owner_storage(&lib_rs);
 }
 
 #[test]

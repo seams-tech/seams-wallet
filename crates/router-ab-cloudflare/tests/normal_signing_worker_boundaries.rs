@@ -143,7 +143,7 @@ fn ecdsa_lane_material_is_loaded_before_signature_preparation_or_consumption() {
         .find("load_cloudflare_signing_worker_ecdsa_normal_signing_material_v1")
         .expect("ECDSA finalize must load lane material");
     let pool_consume = finalize
-        .find("execute_cloudflare_signing_worker_ecdsa_pool_mutation_v1")
+        .find("claim_and_consume_cloudflare_signing_worker_ecdsa_for_wallet_v1")
         .expect("ECDSA finalize must consume one-use pool material");
     assert!(
         loader < pool_consume,
