@@ -335,18 +335,6 @@ const CLOUDFLARE_DERIVER_B_PEER_REQUEST_URL: &str = concat!(
     "/router-ab/deriver-b/peer"
 );
 #[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-const CLOUDFLARE_DERIVER_A_TENANT_ROOT_CREATE_ROLE_SHARE_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-deriver-a.internal",
-    "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share"
-);
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-const CLOUDFLARE_DERIVER_B_TENANT_ROOT_CREATE_ROLE_SHARE_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-deriver-b.internal",
-    "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share"
-);
-#[cfg(feature = "workers-rs")]
 const CLOUDFLARE_DERIVER_A_TENANT_ROOT_STATUS_PRIVATE_REQUEST_URL: &str = concat!(
     "https://router-ab-deriver-a.internal",
     "/router-ab/internal/deriver/tenant-root/status/v1/read"
@@ -365,16 +353,6 @@ const CLOUDFLARE_DERIVER_A_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_URL: &str = conca
 const CLOUDFLARE_DERIVER_B_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_URL: &str = concat!(
     "https://router-ab-deriver-b.internal",
     "/router-ab/internal/deriver/tenant-root/cleanup/v1/execute"
-);
-#[cfg(feature = "workers-rs")]
-const CLOUDFLARE_DERIVER_A_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-deriver-a.internal",
-    "/router-ab/internal/deriver/tenant-root/creation/v1/activate"
-);
-#[cfg(feature = "workers-rs")]
-const CLOUDFLARE_DERIVER_B_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-deriver-b.internal",
-    "/router-ab/internal/deriver/tenant-root/creation/v1/activate"
 );
 #[cfg(feature = "workers-rs")]
 const CLOUDFLARE_DERIVER_A_TENANT_ROOT_REFRESH_ACTIVATION_PRIVATE_REQUEST_URL: &str = concat!(
@@ -397,16 +375,6 @@ const CLOUDFLARE_DERIVER_B_TENANT_ROOT_REFRESH_PRIVATE_REQUEST_URL: &str = conca
     "/router-ab/internal/deriver/tenant-root/refresh/v1/execute"
 );
 #[cfg(feature = "workers-rs")]
-const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-tenant-root-control-plane.internal",
-    "/tenant-root-control-plane/creation/v1/create"
-);
-#[cfg(feature = "workers-rs")]
-const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_ROLE_CREATION_COMMAND_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-tenant-root-control-plane.internal",
-    "/tenant-root-control-plane/creation/v1/role-command"
-);
-#[cfg(feature = "workers-rs")]
 const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_COMMANDS_PRIVATE_REQUEST_URL: &str = concat!(
     "https://router-ab-tenant-root-control-plane.internal",
     "/tenant-root-control-plane/refresh/v1/commands"
@@ -420,11 +388,6 @@ const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_PRIVATE_REQUEST_UR
 const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_URL: &str = concat!(
     "https://router-ab-tenant-root-control-plane.internal",
     "/tenant-root-control-plane/creation/v1/cleanup-command"
-);
-#[cfg(feature = "workers-rs")]
-const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-tenant-root-control-plane.internal",
-    "/tenant-root-control-plane/creation/v1/activate"
 );
 #[cfg(feature = "workers-rs")]
 const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_INITIAL_ACTIVATION_PRIVATE_REQUEST_URL: &str = concat!(
@@ -588,18 +551,6 @@ pub(crate) fn cloudflare_deriver_peer_service_url(
 }
 
 #[cfg(feature = "workers-rs")]
-pub(crate) fn cloudflare_deriver_tenant_root_create_role_share_service_url(
-    peer: &CloudflarePeerBindingV1,
-) -> RouterAbProtocolResult<&'static str> {
-    cloudflare_deriver_peer_url(
-        peer,
-        CLOUDFLARE_DERIVER_A_TENANT_ROOT_CREATE_ROLE_SHARE_PRIVATE_REQUEST_URL,
-        CLOUDFLARE_DERIVER_B_TENANT_ROOT_CREATE_ROLE_SHARE_PRIVATE_REQUEST_URL,
-        "tenant-root role creation can target only Deriver A or Deriver B",
-    )
-}
-
-#[cfg(feature = "workers-rs")]
 pub(crate) fn cloudflare_deriver_tenant_root_status_service_url(
     peer: &CloudflarePeerBindingV1,
 ) -> RouterAbProtocolResult<&'static str> {
@@ -620,18 +571,6 @@ pub(crate) fn cloudflare_deriver_tenant_root_cleanup_service_url(
         CLOUDFLARE_DERIVER_A_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_URL,
         CLOUDFLARE_DERIVER_B_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_URL,
         "tenant-root cleanup can target only Deriver A or Deriver B",
-    )
-}
-
-#[cfg(feature = "workers-rs")]
-pub(crate) fn cloudflare_deriver_tenant_root_initial_activation_service_url(
-    peer: &CloudflarePeerBindingV1,
-) -> RouterAbProtocolResult<&'static str> {
-    cloudflare_deriver_peer_url(
-        peer,
-        CLOUDFLARE_DERIVER_A_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_URL,
-        CLOUDFLARE_DERIVER_B_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_URL,
-        "tenant-root initial activation can target only Deriver A or Deriver B",
     )
 }
 
@@ -660,18 +599,6 @@ pub(crate) fn cloudflare_deriver_tenant_root_refresh_service_url(
 }
 
 #[cfg(feature = "workers-rs")]
-pub(crate) const fn cloudflare_tenant_root_control_plane_create_tenant_root_service_url(
-) -> &'static str {
-    CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_PRIVATE_REQUEST_URL
-}
-
-#[cfg(feature = "workers-rs")]
-pub(crate) const fn cloudflare_tenant_root_control_plane_role_creation_command_service_url(
-) -> &'static str {
-    CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_ROLE_CREATION_COMMAND_PRIVATE_REQUEST_URL
-}
-
-#[cfg(feature = "workers-rs")]
 pub(crate) const fn cloudflare_tenant_root_control_plane_refresh_commands_service_url(
 ) -> &'static str {
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_COMMANDS_PRIVATE_REQUEST_URL
@@ -687,12 +614,6 @@ pub(crate) const fn cloudflare_tenant_root_control_plane_refresh_activation_serv
 pub(crate) const fn cloudflare_tenant_root_control_plane_cleanup_command_service_url(
 ) -> &'static str {
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_URL
-}
-
-#[cfg(feature = "workers-rs")]
-pub(crate) const fn cloudflare_tenant_root_control_plane_initial_activation_service_url(
-) -> &'static str {
-    CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_PRIVATE_REQUEST_URL
 }
 
 #[cfg(feature = "workers-rs")]

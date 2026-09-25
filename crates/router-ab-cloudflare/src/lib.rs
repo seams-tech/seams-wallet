@@ -86,6 +86,50 @@ pub use tenant_root_role_sql::{
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code, unused_imports))]
 mod tenant_root_role_d1;
 pub use tenant_root_role_d1::*;
+// Tenant-root creation, shared by every host. The Cloudflare Workers wrap
+// these with Worker bindings; the VM reference (router-ab-dev) implements the
+// same host traits with ordinary processes and role-private SQLite.
+pub use durable_object::tenant_root_creation::{
+    tenant_root_creation_active_state_with_revision_read_call_v1,
+    tenant_root_creation_journal_call_v1,
+    tenant_root_creation_journal_read_call_v1, tenant_root_creation_object_name_v1,
+    tenant_root_creation_serve_without_refresh_v1, CloudflareVerifiedTenantRootActiveStateV1,
+    TenantRootCreationStateTransportV1, TenantRootCreationStoreV1,
+    CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
+    CLOUDFLARE_TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_PATH,
+    CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH,
+    CLOUDFLARE_TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_PATH,
+    CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_PATH, CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_READ_PATH,
+};
+pub use tenant_root_control_plane::{
+    control_plane_create_tenant_root_v1, control_plane_initial_activation_v1,
+    control_plane_role_creation_command_v1, CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1,
+    CloudflareTenantRootControlPlaneInitialActivationRequestV1, TenantRootControlPlaneHostV1,
+    TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
+};
+pub use tenant_root_managed_backup_r2::{
+    verify_tenant_root_managed_backup_object_v1, TenantRootManagedBackupObjectCoordinatesV1,
+};
+pub use tenant_root_role_runtime::{
+    tenant_root_deriver_create_role_share_v1, tenant_root_deriver_initial_activation_v1,
+    tenant_root_deriver_load_active_role_share_v1, CloudflareDeriverTenantRootCreateRoleShareRequestV1,
+    CloudflareDeriverTenantRootCreateRoleShareResponseV1,
+    CloudflareDeriverTenantRootInitialActivationRequestV1,
+    CloudflareDeriverTenantRootInitialActivationResponseV1, CloudflareTenantRootCreateRoleV1,
+    TenantRootDeriverHostV1,
+};
+mod tenant_root_creation_coordinator;
+pub use tenant_root_creation_coordinator::{
+    tenant_root_router_coordinate_creation_v1, TenantRootRouterCreationHostV1,
+};
+mod tenant_root_transport;
+pub use tenant_root_transport::{
+    tenant_root_control_plane_create_tenant_root_call_v1,
+    tenant_root_control_plane_initial_activation_call_v1,
+    tenant_root_control_plane_role_creation_command_call_v1,
+    tenant_root_deriver_create_role_share_call_v1, tenant_root_deriver_initial_activation_call_v1,
+    TenantRootCallBoundsV1, TenantRootServiceTargetV1, TenantRootServiceTransportV1,
+};
 // The issuer's pure authorization and validation logic is host-neutral; its
 // Worker handlers live in the gated `live` submodule.
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code, unused_imports))]
@@ -102,7 +146,6 @@ pub use tenant_root_control_plane::{
     handle_cloudflare_tenant_root_control_plane_restore_role_import_key_v1,
     handle_cloudflare_tenant_root_control_plane_role_creation_command_v1,
 };
-#[cfg(any(feature = "workers-rs", test))]
 pub use tenant_root_control_plane::{
     CloudflareTenantRootControlPlaneCleanupCommandRequestV1,
     CloudflareTenantRootControlPlaneCleanupCommandResponseV1,
@@ -136,15 +179,12 @@ mod tenant_root_recovery_runtime;
 #[cfg(feature = "workers-rs")]
 mod tenant_root_restore_refresh_runtime;
 #[allow(dead_code)]
+#[cfg_attr(not(feature = "workers-rs"), allow(unused_imports))]
 mod tenant_root_role_runtime;
 pub use tenant_root_cutover_lifecycle::*;
 #[cfg(feature = "workers-rs")]
 use tenant_root_role_runtime::{
     CloudflareDeriverTenantRootCleanupRequestV1, CloudflareDeriverTenantRootCleanupResponseV1,
-    CloudflareDeriverTenantRootCreateRoleShareRequestV1,
-    CloudflareDeriverTenantRootCreateRoleShareResponseV1,
-    CloudflareDeriverTenantRootInitialActivationRequestV1,
-    CloudflareDeriverTenantRootInitialActivationResponseV1,
     CloudflareDeriverTenantRootRefreshActivationRequestV1,
     CloudflareDeriverTenantRootRefreshActivationResponseV1,
     CloudflareDeriverTenantRootRefreshRequestV1, CloudflareDeriverTenantRootRefreshResponseV1,
@@ -247,8 +287,6 @@ mod trace_context;
 #[cfg(feature = "workers-rs")]
 use paths::{
     cloudflare_deriver_peer_service_url, cloudflare_deriver_tenant_root_cleanup_service_url,
-    cloudflare_deriver_tenant_root_create_role_share_service_url,
-    cloudflare_deriver_tenant_root_initial_activation_service_url,
     cloudflare_deriver_tenant_root_refresh_activation_service_url,
     cloudflare_deriver_tenant_root_refresh_service_url,
     cloudflare_router_ab_ecdsa_derivation_deriver_export_service_url,
@@ -264,11 +302,9 @@ use paths::{
     cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_service_url,
     cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_service_url,
     cloudflare_tenant_root_control_plane_cleanup_command_service_url,
-    cloudflare_tenant_root_control_plane_create_tenant_root_service_url,
     cloudflare_tenant_root_control_plane_refresh_activation_service_url,
     cloudflare_tenant_root_control_plane_restore_initial_activation_service_url,
     cloudflare_tenant_root_control_plane_restore_refresh_commands_service_url,
-    cloudflare_tenant_root_control_plane_role_creation_command_service_url,
 };
 pub use trace_context::CloudflareTraceIdV1;
 #[cfg(feature = "workers-rs")]
@@ -494,6 +530,29 @@ impl CloudflareEnvMapV1 {
 impl CloudflareEnvReaderV1 for CloudflareEnvMapV1 {
     fn get_text(&self, key: &str) -> RouterAbProtocolResult<Option<String>> {
         Ok(self.entries.get(key).cloned())
+    }
+}
+
+/// Secret-reader boundary: resolves a named Secret binding for one operation.
+///
+/// On Cloudflare this is a Worker Secret binding. A VM role holds its Secrets
+/// in its own role-private env file, so the same binding names resolve there.
+pub trait CloudflareSecretReaderV1 {
+    /// Returns the Secret's text, or an error naming the missing binding.
+    fn secret_text(&self, binding_name: &str) -> RouterAbProtocolResult<zeroize::Zeroizing<String>>;
+}
+
+impl CloudflareSecretReaderV1 for CloudflareEnvMapV1 {
+    fn secret_text(&self, binding_name: &str) -> RouterAbProtocolResult<zeroize::Zeroizing<String>> {
+        self.entries
+            .get(binding_name)
+            .map(|value| zeroize::Zeroizing::new(value.clone()))
+            .ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::MissingLocalBinding,
+                    format!("secret binding {binding_name} is not configured"),
+                )
+            })
     }
 }
 
@@ -4831,67 +4890,17 @@ impl CloudflareDeriverBWorkerRuntimeV1 {
 }
 
 /// Loads the authenticated Deriver's active tenant-root role share.
-///
-/// The custody binding is resolved by the authenticated request boundary. D1
-/// loads the matching active row, while the Worker role chooses the local
-/// role; no selector is accepted from the request body.
 #[cfg(feature = "workers-rs")]
 pub(crate) async fn load_cloudflare_active_tenant_root_role_share_v1(
     env: &worker::Env,
     worker_role: CloudflareWorkerRoleV1,
     authenticated_custody_binding: &TenantRootCustodyBindingV1,
 ) -> RouterAbProtocolResult<VerifiedTenantRootOnlineRoleShareV1> {
-    let expected_role = match worker_role {
-        CloudflareWorkerRoleV1::DeriverA => TwoPartyDeriverRole::DeriverA,
-        CloudflareWorkerRoleV1::DeriverB => TwoPartyDeriverRole::DeriverB,
-        _ => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidRole,
-                "this Worker has no tenant-root role share",
-            ));
-        }
-    };
-    authenticated_custody_binding
-        .validate()
-        .map_err(map_root_share_to_protocol)?;
-
-    let store = CloudflareTenantRootRoleShareStoreV1::from_env(env).map_err(|error| {
-        map_cloudflare_tenant_root_role_store_error_v1("tenant-root role store lookup", error)
-    })?;
-    let stored = store
-        .load_active(authenticated_custody_binding)
-        .await
-        .map_err(|error| {
-            map_cloudflare_tenant_root_role_store_error_v1(
-                "tenant-root active role-share lookup",
-                error,
-            )
-        })?;
-    let sealed = stored.into_online_role_share_artifact().map_err(|error| {
-        map_cloudflare_tenant_root_role_store_error_v1(
-            "tenant-root online role-share reconstruction",
-            error,
-        )
-    })?;
-    if sealed.binding().role() != expected_role {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidRole,
-            "tenant-root active role-share row does not belong to this Deriver",
-        ));
-    }
-
-    let mut provider =
-        crate::env::load_cloudflare_tenant_root_operational_rotation_provider_v1(env, worker_role)?;
-    let opened =
-        tenant_root_role_runtime::open_tenant_root_online_role_share_v1(sealed, &mut provider)
-            .map_err(map_root_share_to_protocol)?;
-    if opened.role() != expected_role {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidRole,
-            "tenant-root online role-share provider returned the wrong Deriver role",
-        ));
-    }
-    Ok(opened)
+    tenant_root_role_runtime::tenant_root_deriver_load_active_role_share_v1(
+        &tenant_root_role_runtime::CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
+        authenticated_custody_binding,
+    )
+    .await
 }
 
 fn cloudflare_router_allowed_admission_checks_v1(
@@ -14085,7 +14094,7 @@ async fn burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_
 }
 
 #[cfg(feature = "workers-rs")]
-async fn post_service_json<TReq, TResp>(
+pub(crate) async fn post_service_json<TReq, TResp>(
     env: &worker::Env,
     binding_name: &str,
     url: &str,
@@ -14721,47 +14730,7 @@ pub async fn execute_cloudflare_deriver_peer_service_call_v1(
 }
 
 #[cfg(feature = "workers-rs")]
-const TENANT_ROOT_CONTROL_PLANE_SERVICE_BINDING_V1: &str = "TENANT_ROOT_CONTROL_PLANE";
-
-/// Sends one tenant-root genesis request to the control-plane Worker.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_tenant_root_control_plane_create_tenant_root_service_call_v1(
-    env: &worker::Env,
-    request: &CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
-) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCreateTenantRootResponseV1> {
-    post_service_json(
-        env,
-        TENANT_ROOT_CONTROL_PLANE_SERVICE_BINDING_V1,
-        cloudflare_tenant_root_control_plane_create_tenant_root_service_url(),
-        "tenant-root control-plane genesis request",
-        request,
-    )
-    .await
-}
-
-/// Sends one tenant-root role-command request to the control-plane Worker.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_tenant_root_control_plane_role_creation_command_service_call_v1(
-    env: &worker::Env,
-    request: &CloudflareTenantRootControlPlaneRoleCreationCommandRequestV1,
-) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRoleCreationCommandResponseV1> {
-    let response: CloudflareTenantRootControlPlaneRoleCreationCommandResponseV1 =
-        post_service_json(
-            env,
-            TENANT_ROOT_CONTROL_PLANE_SERVICE_BINDING_V1,
-            cloudflare_tenant_root_control_plane_role_creation_command_service_url(),
-            "tenant-root control-plane role-command request",
-            request,
-        )
-        .await?;
-    if response.role != request.role {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "tenant-root control-plane role-command response names the wrong role",
-        ));
-    }
-    Ok(response)
-}
+pub(crate) const TENANT_ROOT_CONTROL_PLANE_SERVICE_BINDING_V1: &str = "TENANT_ROOT_CONTROL_PLANE";
 
 /// Requests both issuer-signed role commands for one tenant-root refresh.
 #[cfg(feature = "workers-rs")]
@@ -14831,23 +14800,20 @@ pub(crate) async fn execute_cloudflare_tenant_root_control_plane_cleanup_command
     .await
 }
 
-/// Sends one tenant-root role-creation request to the peer Deriver over a
-/// Cloudflare Service Binding.
+/// The Deriver role a tenant-root peer binding addresses.
 #[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_deriver_tenant_root_create_role_share_service_call_v1(
-    env: &worker::Env,
+fn cloudflare_tenant_root_peer_deriver_role_v1(
     peer: &CloudflarePeerBindingV1,
-    request: &CloudflareDeriverTenantRootCreateRoleShareRequestV1,
-) -> RouterAbProtocolResult<CloudflareDeriverTenantRootCreateRoleShareResponseV1> {
-    peer.validate()?;
-    post_service_json(
-        env,
-        &peer.binding_name,
-        cloudflare_deriver_tenant_root_create_role_share_service_url(peer)?,
-        "tenant-root role creation peer request",
-        request,
-    )
-    .await
+    operation: &str,
+) -> RouterAbProtocolResult<TwoPartyDeriverRole> {
+    match peer.peer_role {
+        CloudflareWorkerRoleV1::DeriverA => Ok(TwoPartyDeriverRole::DeriverA),
+        CloudflareWorkerRoleV1::DeriverB => Ok(TwoPartyDeriverRole::DeriverB),
+        _ => Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            format!("{operation} can target only Deriver A or Deriver B"),
+        )),
+    }
 }
 
 /// Executes one role-local tenant-root refresh over a Deriver service binding.
@@ -14935,42 +14901,12 @@ pub(crate) async fn execute_cloudflare_deriver_tenant_root_initial_activation_se
     peer: &CloudflarePeerBindingV1,
     request: &CloudflareDeriverTenantRootInitialActivationRequestV1,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootInitialActivationResponseV1> {
-    peer.validate()?;
-    let response: CloudflareDeriverTenantRootInitialActivationResponseV1 = post_service_json(
-        env,
-        &peer.binding_name,
-        cloudflare_deriver_tenant_root_initial_activation_service_url(peer)?,
-        "tenant-root initial activation request",
+    tenant_root_deriver_initial_activation_call_v1(
+        &tenant_root_transport::CloudflareTenantRootServiceTransportV1::peer(env, peer),
+        cloudflare_tenant_root_peer_deriver_role_v1(peer, "tenant-root initial activation")?,
         request,
     )
-    .await?;
-    let expected_role = match peer.peer_role {
-        CloudflareWorkerRoleV1::DeriverA => {
-            tenant_root_role_runtime::CloudflareTenantRootCreateRoleV1::DeriverA
-        }
-        CloudflareWorkerRoleV1::DeriverB => {
-            tenant_root_role_runtime::CloudflareTenantRootCreateRoleV1::DeriverB
-        }
-        _ => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root initial activation can target only a Deriver",
-            ));
-        }
-    };
-    if response.role != expected_role {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "tenant-root initial-activation response names the wrong role",
-        ));
-    }
-    let receipt_bytes = decode_base64url_bytes_v1(
-        "tenant-root initial-activation terminal receipt",
-        &response.activation_terminal_receipt_b64u,
-    )?;
-    router_ab_core::TenantRootCommandTerminalReceiptV1::decode_canonical_bytes(&receipt_bytes)
-        .map_err(map_root_share_to_protocol)?;
-    Ok(response)
+    .await
 }
 
 /// Sends one exact control-plane refresh-swap receipt to its owning Deriver.
@@ -15395,6 +15331,21 @@ impl CloudflareEnvReaderV1 for CloudflareWorkerEnvReaderV1<'_> {
                 err,
             )),
         }
+    }
+}
+
+#[cfg(feature = "workers-rs")]
+impl CloudflareSecretReaderV1 for CloudflareWorkerEnvReaderV1<'_> {
+    fn secret_text(&self, binding_name: &str) -> RouterAbProtocolResult<zeroize::Zeroizing<String>> {
+        let secret = self.env.secret(binding_name).map_err(|err| {
+            worker_binding_error(
+                worker_binding_error_code(&err, binding_name),
+                binding_name,
+                "secret",
+                err,
+            )
+        })?;
+        Ok(zeroize::Zeroizing::new(secret.to_string()))
     }
 }
 
@@ -16218,7 +16169,6 @@ fn map_root_share_to_protocol(error: RouterAbDerivationError) -> RouterAbProtoco
     )
 }
 
-#[cfg(feature = "workers-rs")]
 fn map_cloudflare_tenant_root_role_store_error_v1(
     operation: &'static str,
     error: impl core::fmt::Display,

@@ -1,7 +1,5 @@
 use rand_core_06::SeedableRng;
-#[cfg(any(feature = "workers-rs", test))]
 use router_ab_core::MpcPrfSigningRootShareWireV1;
-#[cfg(feature = "workers-rs")]
 use router_ab_core::{
     resolve_active_tenant_root_pair_binding_v1, ExpectedTenantRootRestoreImportV1,
     MpcPrfShareCommitmentWireV1, TenantRootActivationReceiptBindingV1,
@@ -40,18 +38,14 @@ use router_ab_core::{
     VerifiedTenantRootRoleRefreshCommandV1,
     VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
 };
-#[cfg(feature = "workers-rs")]
 use router_ab_core::{
     VerifiedTenantRootRefreshCommitmentPairV1, VerifiedTenantRootRefreshRoleAttemptV1,
 };
-#[cfg(any(feature = "workers-rs", test))]
 use zeroize::{Zeroize, Zeroizing};
 
 use threshold_prf::SigningRootShare;
-#[cfg(feature = "workers-rs")]
 use threshold_prf::{RootShareRefreshContributionWire, SigningRootShareWire};
 
-#[cfg(feature = "workers-rs")]
 use sha2::{Digest, Sha256};
 
 #[cfg(feature = "workers-rs")]
@@ -62,17 +56,15 @@ use crate::durable_object::tenant_root_creation::{
     CloudflareTenantRootRefreshCommitmentResponseOutcomeV1,
     CloudflareTenantRootRefreshContributionResponseOutcomeV1,
 };
-#[cfg(feature = "workers-rs")]
-use crate::durable_object::{
-    execute_cloudflare_router_tenant_root_creation_commitment_call_v1,
-    execute_cloudflare_router_tenant_root_creation_installation_call_v1,
+use crate::durable_object::tenant_root_creation::{
+    tenant_root_creation_commitment_call_v1, tenant_root_creation_installation_call_v1,
+    TenantRootCreationStateTransportV1,
 };
 use crate::env::{
     CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1,
     CloudflareTenantRootCreationRoleSignerV1, TenantRootCreationRoleVerifyingKeysV1,
 };
 use crate::tenant_root_managed_backup_r2::CloudflareTenantRootManagedBackupDeletionReceiptV1;
-#[cfg(feature = "workers-rs")]
 use crate::tenant_root_role_d1::{
     CloudflareStoredTenantRootRoleShareV1, CloudflareTenantRootActivateInitialPendingDecisionV1,
     CloudflareTenantRootActivationV1, CloudflareTenantRootCommandReplayDecisionV1,
@@ -96,8 +88,11 @@ use crate::tenant_root_role_d1::{
     CloudflareTenantRootRestoreRefreshPromotionCompletionV1,
     CloudflareTenantRootRestoreRefreshPromotionReservationDecisionV1,
     CloudflareTenantRootRetirementV1, CloudflareTenantRootRoleShareLifecycleV1,
-    CloudflareTenantRootRoleShareStoreV1,
+    TenantRootRoleShareStoreV1,
 };
+#[cfg(feature = "workers-rs")]
+use crate::tenant_root_role_d1::CloudflareTenantRootRoleShareStoreV1;
+use crate::tenant_root_role_sql::{RoleSqlSessionV1, RoleStoreResult};
 use crate::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
 
 /// Admits one issuer-signed role creation package at a Deriver's own boundary.
@@ -243,7 +238,6 @@ where
         .map_err(candidate_derivation_error)
 }
 
-#[cfg(feature = "workers-rs")]
 /// Seals a finalized role attempt and builds its role-local persistence input.
 ///
 /// This is the last step before anything durable exists for this role. The
@@ -254,7 +248,6 @@ where
 /// The returned input is not yet persisted. Reservation and insertion are
 /// separate, one-use, and exactly retryable, so a lost response after sealing
 /// re-reserves the same command rather than creating a second share.
-#[cfg(feature = "workers-rs")]
 pub(crate) async fn seal_initial_role_creation_for_persistence_v1<Online, Backup>(
     finalized: VerifiedTenantRootInitialRoleAttemptV1,
     signer: &crate::CloudflareTenantRootCreationRoleSignerV1,
@@ -755,7 +748,6 @@ pub(crate) enum TenantRootRoleCreationProgressV1 {
     Committed {
         pending: PendingTenantRootInitialRoleAttemptV1,
     },
-    #[cfg(feature = "workers-rs")]
     Sealed {
         signed_commitment: Vec<u8>,
         signed_installation_evidence: Vec<u8>,
@@ -769,7 +761,6 @@ pub(crate) enum TenantRootRoleCreationProgressV1 {
 
 /// Distinguishes a role-only completion from an initiator completion that also
 /// retains the peer's exact public artifacts for the Router activation call.
-#[cfg(feature = "workers-rs")]
 #[derive(Debug)]
 pub(crate) enum TenantRootRoleCreationCompletionV1 {
     RoleOnly {
@@ -890,7 +881,6 @@ where
 /// commits, and its commitment goes back so the peer can be driven. With the
 /// peer's commitment it finalizes and seals in the same call, so the scalar
 /// never has to survive across a request boundary.
-#[cfg(feature = "workers-rs")]
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn execute_tenant_root_role_creation_v1<Online, Backup, R>(
     package_bytes: &[u8],
@@ -974,7 +964,6 @@ where
 }
 
 /// Recovers the committed point from a signed commitment wire.
-#[cfg(feature = "workers-rs")]
 fn decode_signed_commitment_point(
     signed_commitment: &[u8],
     context: &TenantRootCeremonyContextV1,
@@ -1021,7 +1010,6 @@ fn decode_verified_creation_commitment_v1(
 ///
 /// Deliberately neither cloneable nor serializable: it is a conclusion reached
 /// locally from verified bytes, not a value to forward.
-#[cfg(feature = "workers-rs")]
 pub(crate) struct VerifiedTenantRootPeerPersistenceAttestationV1 {
     peer_role: TwoPartyDeriverRole,
 }
@@ -1049,7 +1037,6 @@ impl VerifiedTenantRootPeerPersistenceAttestationV1 {
 ///
 /// The payload binding is what constrains the receipt: it must attest exactly
 /// this installation, not another operation by the same role in the ceremony.
-#[cfg(feature = "workers-rs")]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn verify_tenant_root_peer_persistence_v1(
     terminal_receipt_bytes: &[u8],
@@ -1129,7 +1116,6 @@ pub(crate) fn verify_tenant_root_peer_persistence_v1(
 /// Async because the real call is a Worker-to-Worker service binding and must
 /// be awaited. Modelled as a trait so the initiating role's orchestration is
 /// testable without a Worker, and so only bytes ever cross to the peer.
-#[cfg(feature = "workers-rs")]
 pub(crate) trait TenantRootPeerRoleDriverV1 {
     /// Hands the peer everything it needs and receives its public result.
     ///
@@ -1149,7 +1135,6 @@ pub(crate) trait TenantRootPeerRoleDriverV1 {
 /// Deliberately not a "persisted" boolean. A boolean is the peer's own claim and
 /// admits states that never happened; these are artifacts the initiator can
 /// check against the ceremony it is already party to.
-#[cfg(feature = "workers-rs")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TenantRootPeerRoleOutcomeV1 {
     /// The peer's signed public commitment.
@@ -1180,7 +1165,6 @@ pub(crate) struct TenantRootPeerRoleOutcomeV1 {
 /// If the peer call fails, or the peer's commitment does not complete the
 /// pair, this returns an error and the share is dropped. Nothing durable was
 /// written for the initiating role, so the attempt is abandoned by returning.
-#[cfg(feature = "workers-rs")]
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn drive_tenant_root_role_creation_as_initiator_v1<Online, Backup, Peer, R>(
     package_bytes: &[u8],
@@ -1321,18 +1305,259 @@ where
     })
 }
 
+/// What a Deriver's tenant-root creation needs from its host.
+///
+/// Cloudflare implements it with the Worker's Env and Secret bindings, the
+/// role-private D1 database, the managed-backup R2 bucket, the peer Deriver's
+/// Service Binding and the creation Durable Object. A VM Deriver implements it
+/// with its role-private env file and SQLite, and HTTP to its peers. The
+/// ceremony itself (admission, finalization, sealing, persistence and every
+/// check) is the same code on both.
+#[allow(async_fn_in_trait)]
+pub trait TenantRootDeriverHostV1:
+    crate::TenantRootServiceTransportV1 + TenantRootCreationStateTransportV1
+{
+    /// The role-private SQL session the role store runs on.
+    type Sql: RoleSqlSessionV1;
+    /// The role's Env and Secret bindings.
+    type Env: crate::CloudflareEnvReaderV1 + crate::CloudflareSecretReaderV1;
+
+    /// The Deriver role this host serves.
+    fn worker_role(&self) -> crate::CloudflareWorkerRoleV1;
+    /// The role's Env and Secret bindings.
+    fn env(&self) -> &Self::Env;
+    /// Opens the role's private role-share store for one operation.
+    fn role_store(&self) -> RoleStoreResult<TenantRootRoleShareStoreV1<Self::Sql>>;
+    /// Stores one verified managed backup at its coordinates. A replay of the
+    /// identical artifact succeeds; different bytes at the same coordinates
+    /// are refused.
+    async fn put_managed_backup(
+        &self,
+        backup: &VerifiedTenantRootManagedBackupV1,
+    ) -> RouterAbProtocolResult<()>;
+    /// Loads the managed backup at its coordinates and verifies it against the
+    /// role's trusted verifying key.
+    async fn get_managed_backup(
+        &self,
+        coordinates: crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1,
+        trusted_role_verifying_key: &[u8; 32],
+    ) -> RouterAbProtocolResult<VerifiedTenantRootManagedBackupV1>;
+}
+
+/// Loads the authenticated Deriver's active tenant-root role share.
+///
+/// The custody binding is resolved by the authenticated request boundary. D1
+/// loads the matching active row, while the Worker role chooses the local
+/// role; no selector is accepted from the request body.
+pub async fn tenant_root_deriver_load_active_role_share_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
+    authenticated_custody_binding: &router_ab_core::TenantRootCustodyBindingV1,
+) -> RouterAbProtocolResult<VerifiedTenantRootOnlineRoleShareV1> {
+    let worker_role = host.worker_role();
+    let expected_role = match worker_role {
+        crate::CloudflareWorkerRoleV1::DeriverA => TwoPartyDeriverRole::DeriverA,
+        crate::CloudflareWorkerRoleV1::DeriverB => TwoPartyDeriverRole::DeriverB,
+        _ => {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidRole,
+                "this Worker has no tenant-root role share",
+            ));
+        }
+    };
+    authenticated_custody_binding
+        .validate()
+        .map_err(crate::map_root_share_to_protocol)?;
+
+    let store = host.role_store().map_err(|error| {
+        crate::map_cloudflare_tenant_root_role_store_error_v1("tenant-root role store lookup", error)
+    })?;
+    let stored = store
+        .load_active(authenticated_custody_binding)
+        .await
+        .map_err(|error| {
+            crate::map_cloudflare_tenant_root_role_store_error_v1(
+                "tenant-root active role-share lookup",
+                error,
+            )
+        })?;
+    let sealed = stored.into_online_role_share_artifact().map_err(|error| {
+        crate::map_cloudflare_tenant_root_role_store_error_v1(
+            "tenant-root online role-share reconstruction",
+            error,
+        )
+    })?;
+    if sealed.binding().role() != expected_role {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidRole,
+            "tenant-root active role-share row does not belong to this Deriver",
+        ));
+    }
+
+    let mut provider =
+        crate::env::load_tenant_root_operational_rotation_provider_v1(worker_role, host.env())?;
+    let opened = open_tenant_root_online_role_share_v1(sealed, &mut provider)
+        .map_err(crate::map_root_share_to_protocol)?;
+    if opened.role() != expected_role {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidRole,
+            "tenant-root online role-share provider returned the wrong Deriver role",
+        ));
+    }
+    Ok(opened)
+}
+
+/// The Cloudflare Deriver host.
 #[cfg(feature = "workers-rs")]
-struct CloudflareTenantRootCreationPeerV1<'a> {
+pub(crate) struct CloudflareTenantRootDeriverHostV1<'a> {
     env: &'a worker::Env,
-    binding: &'a crate::CloudflarePeerBindingV1,
+    reader: crate::CloudflareWorkerEnvReaderV1<'a>,
+    worker_role: crate::CloudflareWorkerRoleV1,
+    transport: crate::tenant_root_transport::CloudflareTenantRootServiceTransportV1<'a>,
+    creation_state:
+        crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationStateTransportV1<'a>,
+}
+
+#[cfg(feature = "workers-rs")]
+impl<'a> CloudflareTenantRootDeriverHostV1<'a> {
+    pub(crate) fn new(
+        env: &'a worker::Env,
+        worker_role: crate::CloudflareWorkerRoleV1,
+        peer_binding: Option<&'a crate::CloudflarePeerBindingV1>,
+    ) -> Self {
+        let transport = match peer_binding {
+            Some(peer) => crate::tenant_root_transport::CloudflareTenantRootServiceTransportV1::peer(
+                env, peer,
+            ),
+            None => crate::tenant_root_transport::CloudflareTenantRootServiceTransportV1::new(
+                env, None, None,
+            ),
+        };
+        Self {
+            env,
+            reader: crate::CloudflareWorkerEnvReaderV1::new(env),
+            worker_role,
+            transport,
+            creation_state:
+                crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationStateTransportV1::new(env),
+        }
+    }
+
+    fn backup_store(
+        &self,
+    ) -> RouterAbProtocolResult<crate::tenant_root_managed_backup_r2::CloudflareTenantRootManagedBackupStoreV1>
+    {
+        let role = tenant_root_creation_protocol_role_v1(self.worker_role)?;
+        crate::tenant_root_managed_backup_r2::CloudflareTenantRootManagedBackupStoreV1::from_env(
+            self.env,
+            tenant_root_managed_restore_role_v1(role),
+        )
+        .map_err(|error| tenant_root_store_error_v1("tenant-root backup store lookup", error))
+    }
+}
+
+#[cfg(feature = "workers-rs")]
+impl crate::TenantRootServiceTransportV1 for CloudflareTenantRootDeriverHostV1<'_> {
+    async fn post_private_json<TRequest: serde::Serialize, TResponse: serde::de::DeserializeOwned>(
+        &self,
+        target: crate::TenantRootServiceTargetV1,
+        path: &'static str,
+        label: &'static str,
+        request: &TRequest,
+        bounds: Option<crate::TenantRootCallBoundsV1>,
+    ) -> RouterAbProtocolResult<TResponse> {
+        self.transport
+            .post_private_json(target, path, label, request, bounds)
+            .await
+    }
+}
+
+#[cfg(feature = "workers-rs")]
+impl TenantRootCreationStateTransportV1 for CloudflareTenantRootDeriverHostV1<'_> {
+    fn creation_authority_id(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+    ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1> {
+        self.creation_state
+            .creation_authority_id(identity_digest, custody_lineage)
+    }
+
+    async fn creation_state_call<TRequest: serde::Serialize, TResponse: serde::de::DeserializeOwned>(
+        &self,
+        authority_id: TenantRootControlPlaneAuthorityIdV1,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        path: &'static str,
+        label: &'static str,
+        request: &TRequest,
+        request_max_bytes: usize,
+        response_max_bytes: usize,
+    ) -> RouterAbProtocolResult<TResponse> {
+        self.creation_state
+            .creation_state_call(
+                authority_id,
+                identity_digest,
+                custody_lineage,
+                path,
+                label,
+                request,
+                request_max_bytes,
+                response_max_bytes,
+            )
+            .await
+    }
+}
+
+#[cfg(feature = "workers-rs")]
+impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
+    type Sql = crate::tenant_root_role_sql::D1RoleSqlSessionV1;
+    type Env = crate::CloudflareWorkerEnvReaderV1<'a>;
+
+    fn worker_role(&self) -> crate::CloudflareWorkerRoleV1 {
+        self.worker_role
+    }
+
+    fn env(&self) -> &Self::Env {
+        &self.reader
+    }
+
+    fn role_store(&self) -> RoleStoreResult<TenantRootRoleShareStoreV1<Self::Sql>> {
+        CloudflareTenantRootRoleShareStoreV1::from_env(self.env)
+    }
+
+    async fn put_managed_backup(
+        &self,
+        backup: &VerifiedTenantRootManagedBackupV1,
+    ) -> RouterAbProtocolResult<()> {
+        self.backup_store()?
+            .put_verified(backup)
+            .await
+            .map(|_| ())
+            .map_err(|error| tenant_root_store_error_v1("tenant-root backup persistence", error))
+    }
+
+    async fn get_managed_backup(
+        &self,
+        coordinates: crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1,
+        trusted_role_verifying_key: &[u8; 32],
+    ) -> RouterAbProtocolResult<VerifiedTenantRootManagedBackupV1> {
+        self.backup_store()?
+            .get_verified(coordinates, trusted_role_verifying_key)
+            .await
+            .map_err(|error| tenant_root_store_error_v1("tenant-root backup lookup", error))
+    }
+}
+
+/// Drives the peer Deriver through this Deriver's host.
+struct TenantRootCreationPeerV1<'a, Host: TenantRootDeriverHostV1> {
+    host: &'a Host,
     expected_role: TwoPartyDeriverRole,
     initiator_command: VerifiedTenantRootRoleCreationCommandV1,
     initiator_context: TenantRootCeremonyContextV1,
     role_keys: &'a TenantRootCreationRoleVerifyingKeysV1,
 }
 
-#[cfg(feature = "workers-rs")]
-impl TenantRootPeerRoleDriverV1 for CloudflareTenantRootCreationPeerV1<'_> {
+impl<Host: TenantRootDeriverHostV1> TenantRootPeerRoleDriverV1 for TenantRootCreationPeerV1<'_, Host> {
     async fn drive_peer(
         &mut self,
         peer_package_bytes: &[u8],
@@ -1344,8 +1569,9 @@ impl TenantRootPeerRoleDriverV1 for CloudflareTenantRootCreationPeerV1<'_> {
             self.initiator_command.role(),
             self.role_keys,
         )?;
-        execute_cloudflare_router_tenant_root_creation_commitment_call_v1(
-            self.env,
+        tenant_root_creation_commitment_call_v1(
+            self.host,
+            self.role_keys,
             &self.initiator_command,
             &commitment,
         )
@@ -1358,13 +1584,12 @@ impl TenantRootPeerRoleDriverV1 for CloudflareTenantRootCreationPeerV1<'_> {
                 initiator_signed_commitment,
             ),
         };
-        let response =
-            crate::execute_cloudflare_deriver_tenant_root_create_role_share_service_call_v1(
-                self.env,
-                self.binding,
-                &request,
-            )
-            .await?;
+        let response = crate::tenant_root_transport::tenant_root_deriver_create_role_share_call_v1(
+            self.host,
+            self.expected_role,
+            &request,
+        )
+        .await?;
         let CloudflareDeriverTenantRootCreateRoleShareResponseV1::PeerCompleted {
             role,
             signed_commitment_b64u,
@@ -1413,7 +1638,6 @@ impl TenantRootPeerRoleDriverV1 for CloudflareTenantRootCreationPeerV1<'_> {
     }
 }
 
-#[cfg(feature = "workers-rs")]
 fn tenant_root_creation_protocol_role_v1(
     worker_role: crate::CloudflareWorkerRoleV1,
 ) -> RouterAbProtocolResult<TwoPartyDeriverRole> {
@@ -1429,7 +1653,6 @@ fn tenant_root_creation_protocol_role_v1(
     }
 }
 
-#[cfg(feature = "workers-rs")]
 fn tenant_root_managed_restore_role_v1(
     role: TwoPartyDeriverRole,
 ) -> TenantRootManagedRestoreRoleV1 {
@@ -1498,9 +1721,8 @@ fn tenant_root_managed_restore_staging_scope_v1(
         .map_err(candidate_derivation_error)
 }
 
-#[cfg(feature = "workers-rs")]
 fn tenant_root_creation_package_authority_v1(
-    env: &worker::Env,
+    creation_state: &impl TenantRootCreationStateTransportV1,
     package_bytes: &[u8],
 ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1> {
     let package = TenantRootRoleCreationCommandPackageV1::decode_canonical_bytes(package_bytes)
@@ -1508,13 +1730,7 @@ fn tenant_root_creation_package_authority_v1(
     let context = package
         .creation_context()
         .map_err(candidate_derivation_error)?;
-    let (authority_id, _) =
-        crate::durable_object::tenant_root_creation::derive_tenant_root_creation_authority_object_v1(
-            env,
-            context.identity_digest(),
-            context.custody_lineage(),
-        )?;
-    Ok(authority_id)
+    creation_state.creation_authority_id(context.identity_digest(), context.custody_lineage())
 }
 
 #[cfg(feature = "workers-rs")]
@@ -1522,10 +1738,19 @@ fn tenant_root_role_runtime_provider_config_from_env_v1(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
 ) -> RouterAbProtocolResult<TenantRootRoleRuntimeProviderConfigV1> {
-    let reader = crate::CloudflareWorkerEnvReaderV1::new(env);
+    tenant_root_role_runtime_provider_config_v1(
+        worker_role,
+        &crate::CloudflareWorkerEnvReaderV1::new(env),
+    )
+}
+
+fn tenant_root_role_runtime_provider_config_v1(
+    worker_role: crate::CloudflareWorkerRoleV1,
+    reader: &impl crate::CloudflareEnvReaderV1,
+) -> RouterAbProtocolResult<TenantRootRoleRuntimeProviderConfigV1> {
     let config = crate::env::parse_cloudflare_tenant_root_operational_rotation_provider_config_v1(
         worker_role,
-        &reader,
+        reader,
     )?;
     TenantRootRoleRuntimeProviderConfigV1::new(
         config.online_epoch_wrapping_key_ref(),
@@ -1535,7 +1760,6 @@ fn tenant_root_role_runtime_provider_config_from_env_v1(
     .map_err(candidate_derivation_error)
 }
 
-#[cfg(feature = "workers-rs")]
 fn tenant_root_store_error_v1(
     operation: &'static str,
     error: impl core::fmt::Display,
@@ -2228,7 +2452,6 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_status_v1(
     })
 }
 
-#[cfg(feature = "workers-rs")]
 fn tenant_root_initial_activation_scope_v1(
     activation_receipt: &VerifiedTenantRootSignedActivationReceiptV1,
     pending: &CloudflareStoredTenantRootRoleShareV1,
@@ -2309,7 +2532,6 @@ fn tenant_root_initial_activation_scope_v1(
 
 /// Activates one exact role-local epoch-one pending share from verified
 /// control-plane evidence and the role's managed backup.
-#[cfg(feature = "workers-rs")]
 fn initial_activation_pending_v1(
     stored: CloudflareStoredTenantRootRoleShareV1,
     activation_receipt: &VerifiedTenantRootSignedActivationReceiptV1,
@@ -2347,9 +2569,8 @@ fn initial_activation_pending_v1(
     Ok((active_retry, pending, updated_at_ms))
 }
 
-#[cfg(feature = "workers-rs")]
-async fn prepare_initial_activation_v1(
-    store: &CloudflareTenantRootRoleShareStoreV1,
+async fn prepare_initial_activation_v1<S: RoleSqlSessionV1>(
+    store: &TenantRootRoleShareStoreV1<S>,
     activation_receipt: &VerifiedTenantRootSignedActivationReceiptV1,
     pending: &CloudflareStoredTenantRootRoleShareV1,
     active_retry: bool,
@@ -2376,9 +2597,8 @@ async fn prepare_initial_activation_v1(
     Ok(scope)
 }
 
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn persist_tenant_root_initial_activation_v1(
-    store: &CloudflareTenantRootRoleShareStoreV1,
+pub(crate) async fn persist_tenant_root_initial_activation_v1<S: RoleSqlSessionV1>(
+    store: &TenantRootRoleShareStoreV1<S>,
     stored: CloudflareStoredTenantRootRoleShareV1,
     managed_backup: &VerifiedTenantRootManagedBackupV1,
     activation_receipt: VerifiedTenantRootSignedActivationReceiptV1,
@@ -2408,9 +2628,8 @@ pub(crate) async fn persist_tenant_root_initial_activation_v1(
     .await
 }
 
-#[cfg(feature = "workers-rs")]
-async fn persist_tenant_root_initial_activation_after_validation_v1(
-    store: &CloudflareTenantRootRoleShareStoreV1,
+async fn persist_tenant_root_initial_activation_after_validation_v1<S: RoleSqlSessionV1>(
+    store: &TenantRootRoleShareStoreV1<S>,
     pending: CloudflareStoredTenantRootRoleShareV1,
     updated_at_ms: u64,
     scope: TenantRootCommandScopeV1,
@@ -2476,13 +2695,12 @@ async fn persist_tenant_root_initial_activation_after_validation_v1(
 
 /// Verifies and applies one control-plane initial-activation receipt at its
 /// owning Deriver. The request contains no caller-selected storage selector.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn handle_cloudflare_deriver_tenant_root_initial_activation_v1(
-    env: &worker::Env,
-    worker_role: crate::CloudflareWorkerRoleV1,
+pub async fn tenant_root_deriver_initial_activation_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
     request: CloudflareDeriverTenantRootInitialActivationRequestV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootInitialActivationResponseV1> {
+    let worker_role = host.worker_role();
     let role = tenant_root_creation_protocol_role_v1(worker_role)?;
     let receipt_bytes = crate::decode_base64url_bytes_v1(
         "tenant-root initial activation receipt",
@@ -2496,9 +2714,9 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_initial_activation_v1(
             "tenant-root role activation requires an initial-creation receipt",
         ));
     }
-    let reader = crate::CloudflareWorkerEnvReaderV1::new(env);
+    let reader = host.env();
     let issuer_keys =
-        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(&reader)?;
+        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(reader)?;
     let issuer_key = issuer_keys
         .for_issuer_key_id(receipt.issuer_key_id())
         .ok_or_else(|| {
@@ -2510,12 +2728,8 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_initial_activation_v1(
     let verified = receipt
         .verify_issuer_signature(issuer_key)
         .map_err(candidate_derivation_error)?;
-    let (authority_id, _) =
-        crate::durable_object::tenant_root_creation::derive_tenant_root_creation_authority_object_v1(
-            env,
-            verified.identity_digest(),
-            verified.custody_lineage(),
-        )?;
+    let authority_id =
+        host.creation_authority_id(verified.identity_digest(), verified.custody_lineage())?;
     if verified.binding().authority_id() != authority_id {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ForbiddenLocalBinding,
@@ -2523,7 +2737,8 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_initial_activation_v1(
         ));
     }
 
-    let store = CloudflareTenantRootRoleShareStoreV1::from_env(env)
+    let store = host
+        .role_store()
         .map_err(|error| tenant_root_store_error_v1("tenant-root role store lookup", error))?;
     let pending = store
         .load_initial_pending_for_activation(verified.identity_digest(), verified.custody_lineage())
@@ -2541,7 +2756,7 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_initial_activation_v1(
     }
 
     let (_, role_signer) =
-        crate::env::load_cloudflare_tenant_root_creation_role_signing_key_v1(env, worker_role)?;
+        crate::env::load_tenant_root_creation_role_signing_key_v1(worker_role, reader)?;
     if verified
         .availability()
         .tenant_held_external_provenance()
@@ -2589,25 +2804,17 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_initial_activation_v1(
         });
     }
 
-    let backup_role = tenant_root_managed_restore_role_v1(role);
-    let backup_store =
-        crate::tenant_root_managed_backup_r2::CloudflareTenantRootManagedBackupStoreV1::from_env(
-            env,
-            backup_role,
-        )
-        .map_err(|error| tenant_root_store_error_v1("tenant-root backup store lookup", error))?;
-    let managed_backup = backup_store
-        .get_verified(
+    let managed_backup = host
+        .get_managed_backup(
             crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1::new(
                 verified.identity_digest(),
                 verified.custody_lineage(),
-                backup_role,
+                tenant_root_managed_restore_role_v1(role),
                 TenantRootShareEpoch::INITIAL,
             ),
             &role_signer.verifying_key_bytes(),
         )
-        .await
-        .map_err(|error| tenant_root_store_error_v1("tenant-root backup lookup", error))?;
+        .await?;
     let terminal_receipt = persist_tenant_root_initial_activation_v1(
         &store,
         pending,
@@ -2622,6 +2829,23 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_initial_activation_v1(
         activation_terminal_receipt_b64u: crate::encode_base64url_bytes_v1(&terminal_receipt),
         restore_cleanup_receipt_b64u: None,
     })
+}
+
+/// Verifies and applies one control-plane initial-activation receipt at its
+/// owning Deriver.
+#[cfg(feature = "workers-rs")]
+pub(crate) async fn handle_cloudflare_deriver_tenant_root_initial_activation_v1(
+    env: &worker::Env,
+    worker_role: crate::CloudflareWorkerRoleV1,
+    request: CloudflareDeriverTenantRootInitialActivationRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootInitialActivationResponseV1> {
+    tenant_root_deriver_initial_activation_v1(
+        &CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
+        request,
+        now_ms,
+    )
+    .await
 }
 
 /// Closes one tenant-held restore import session after its initial activation.
@@ -5339,9 +5563,8 @@ fn validate_replayed_refresh_evidence_v1(
     Ok(())
 }
 
-#[cfg(feature = "workers-rs")]
-async fn require_fresh_tenant_root_creation_v1(
-    store: &CloudflareTenantRootRoleShareStoreV1,
+async fn require_fresh_tenant_root_creation_v1<S: RoleSqlSessionV1>(
+    store: &TenantRootRoleShareStoreV1<S>,
     package_bytes: &[u8],
     role: TwoPartyDeriverRole,
     authority_id: TenantRootControlPlaneAuthorityIdV1,
@@ -5383,16 +5606,16 @@ async fn require_fresh_tenant_root_creation_v1(
     }
 }
 
-#[cfg(feature = "workers-rs")]
-async fn persist_tenant_root_creation_progress_v1(
-    env: &worker::Env,
+#[allow(clippy::too_many_arguments)]
+async fn persist_tenant_root_creation_progress_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
     role: TwoPartyDeriverRole,
     package_bytes: &[u8],
     authority_id: TenantRootControlPlaneAuthorityIdV1,
     trusted_issuer_keys: &CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
     role_signer: &CloudflareTenantRootCreationRoleSignerV1,
-    store: &CloudflareTenantRootRoleShareStoreV1,
+    store: &TenantRootRoleShareStoreV1<Host::Sql>,
     progress: TenantRootRoleCreationProgressV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootCreateRoleShareResponseV1> {
@@ -5409,17 +5632,8 @@ async fn persist_tenant_root_creation_progress_v1(
             "tenant-root creation did not complete its commitment pair",
         ));
     };
-    let backup_store =
-        crate::tenant_root_managed_backup_r2::CloudflareTenantRootManagedBackupStoreV1::from_env(
-            env,
-            tenant_root_managed_restore_role_v1(role),
-        )
-        .map_err(|error| tenant_root_store_error_v1("tenant-root backup store lookup", error))?;
     let signed_managed_backup = managed_backup.canonical_bytes().to_vec();
-    backup_store
-        .put_verified(&managed_backup)
-        .await
-        .map_err(|error| tenant_root_store_error_v1("tenant-root backup persistence", error))?;
+    host.put_managed_backup(&managed_backup).await?;
     let persisted = store
         .persist_initial_creation(*input, role_signer, now_ms, now_ms, now_ms)
         .await
@@ -5471,10 +5685,8 @@ async fn persist_tenant_root_creation_progress_v1(
         evidence_key,
     )
     .map_err(candidate_derivation_error)?;
-    execute_cloudflare_router_tenant_root_creation_commitment_call_v1(env, command, &commitment)
-        .await?;
-    execute_cloudflare_router_tenant_root_creation_installation_call_v1(env, command, &evidence)
-        .await?;
+    tenant_root_creation_commitment_call_v1(host, role_keys, command, &commitment).await?;
+    tenant_root_creation_installation_call_v1(host, command, &evidence).await?;
     let local_role = CloudflareTenantRootCreateRoleV1::from_protocol(role);
     Ok(match completion {
         TenantRootRoleCreationCompletionV1::RoleOnly {
@@ -5569,29 +5781,34 @@ async fn persist_tenant_root_creation_progress_v1(
     })
 }
 
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn handle_cloudflare_deriver_tenant_root_create_role_share_v1(
-    env: &worker::Env,
-    worker_role: crate::CloudflareWorkerRoleV1,
-    peer_binding: &crate::CloudflarePeerBindingV1,
+/// Creates, or completes, this Deriver's tenant-root role share.
+///
+/// The initiator commits, drives its peer and finalizes within one call; the
+/// peer completes against the initiator's signed commitment. Each role then
+/// seals its share, stores its managed backup, persists its pending row and
+/// checkpoints its commitment and installation at the creation state.
+pub async fn tenant_root_deriver_create_role_share_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
     request: CloudflareDeriverTenantRootCreateRoleShareRequestV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootCreateRoleShareResponseV1> {
+    let worker_role = host.worker_role();
     let role = tenant_root_creation_protocol_role_v1(worker_role)?;
-    let reader = crate::CloudflareWorkerEnvReaderV1::new(env);
+    let reader = host.env();
     let trusted_issuer_keys =
-        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(&reader)?;
+        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(reader)?;
     let role_keys =
-        crate::env::parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(&reader)?;
+        crate::env::parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(reader)?;
     let (_, role_signer) =
-        crate::env::load_cloudflare_tenant_root_creation_role_signing_key_v1(env, worker_role)?;
-    let provider_config = tenant_root_role_runtime_provider_config_from_env_v1(env, worker_role)?;
-    let store = CloudflareTenantRootRoleShareStoreV1::from_env(env)
+        crate::env::load_tenant_root_creation_role_signing_key_v1(worker_role, reader)?;
+    let provider_config = tenant_root_role_runtime_provider_config_v1(worker_role, reader)?;
+    let store = host
+        .role_store()
         .map_err(|error| tenant_root_store_error_v1("tenant-root role store lookup", error))?;
     let mut online_provider =
-        crate::env::load_cloudflare_tenant_root_operational_rotation_provider_v1(env, worker_role)?;
+        crate::env::load_tenant_root_operational_rotation_provider_v1(worker_role, reader)?;
     let mut backup_provider =
-        crate::env::load_cloudflare_tenant_root_operational_rotation_provider_v1(env, worker_role)?;
+        crate::env::load_tenant_root_operational_rotation_provider_v1(worker_role, reader)?;
     let mut rng = crate::CloudflareSignerProofGetrandomRngV1;
 
     let (progress, package_bytes, authority_id) = match request {
@@ -5607,7 +5824,7 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_create_role_share_v1(
                 "tenant-root peer role creation package",
                 &peer_role_creation_command_package_b64u,
             )?;
-            let authority_id = tenant_root_creation_package_authority_v1(env, &package_bytes)?;
+            let authority_id = tenant_root_creation_package_authority_v1(host, &package_bytes)?;
             require_fresh_tenant_root_creation_v1(
                 &store,
                 &package_bytes,
@@ -5626,9 +5843,8 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_create_role_share_v1(
                 &role_signer,
             )?;
             let initiator_context = initiator_package.creation_context().clone();
-            let mut peer = CloudflareTenantRootCreationPeerV1 {
-                env,
-                binding: peer_binding,
+            let mut peer = TenantRootCreationPeerV1 {
+                host,
                 expected_role: role.peer(),
                 initiator_command: initiator_package.into_command(),
                 initiator_context,
@@ -5664,7 +5880,7 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_create_role_share_v1(
                 "tenant-root initiator signed commitment",
                 &initiator_signed_commitment_b64u,
             )?;
-            let authority_id = tenant_root_creation_package_authority_v1(env, &package_bytes)?;
+            let authority_id = tenant_root_creation_package_authority_v1(host, &package_bytes)?;
             require_fresh_tenant_root_creation_v1(
                 &store,
                 &package_bytes,
@@ -5694,7 +5910,7 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_create_role_share_v1(
         }
     };
     persist_tenant_root_creation_progress_v1(
-        env,
+        host,
         role,
         &package_bytes,
         authority_id,
@@ -5703,6 +5919,22 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_create_role_share_v1(
         &role_signer,
         &store,
         progress,
+        now_ms,
+    )
+    .await
+}
+
+#[cfg(feature = "workers-rs")]
+pub(crate) async fn handle_cloudflare_deriver_tenant_root_create_role_share_v1(
+    env: &worker::Env,
+    worker_role: crate::CloudflareWorkerRoleV1,
+    peer_binding: &crate::CloudflarePeerBindingV1,
+    request: CloudflareDeriverTenantRootCreateRoleShareRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootCreateRoleShareResponseV1> {
+    tenant_root_deriver_create_role_share_v1(
+        &CloudflareTenantRootDeriverHostV1::new(env, worker_role, Some(peer_binding)),
+        request,
         now_ms,
     )
     .await
@@ -6703,7 +6935,6 @@ impl TenantRootRoleRuntimeArtifactsV1 {
 }
 
 /// Composes one verified initial role attempt through online and managed sealing.
-#[cfg(feature = "workers-rs")]
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn compose_initial_tenant_root_role_runtime_v1<Online, Backup>(
     attempt: VerifiedTenantRootInitialRoleAttemptV1,
@@ -7054,7 +7285,6 @@ where
 /// Reopens a freshly signed managed backup before it can cross into D1.
 /// Re-parsing gives the provider the exact canonical artifact that will be
 /// persisted and avoids retaining a second in-memory verified token.
-#[cfg(feature = "workers-rs")]
 async fn verify_managed_backup_roundtrip_v1<Provider>(
     signed_backup: &TenantRootSignedManagedBackupV1,
     expected_binding: &TenantRootManagedBackupBindingV1,
@@ -7127,7 +7357,6 @@ fn installation_epoch(epochs: TenantRootCeremonyEpochsV1) -> TenantRootShareEpoc
     }
 }
 
-#[cfg(feature = "workers-rs")]
 fn tenant_root_epoch_commitments_v1(
     evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
 ) -> RouterAbDerivationResult<TenantRootEpochCommitmentsV1> {
@@ -7142,7 +7371,6 @@ fn tenant_root_epoch_commitments_v1(
     )
 }
 
-#[cfg(feature = "workers-rs")]
 const fn tenant_root_provider_canary_curve_family_v1(
     role: TwoPartyDeriverRole,
 ) -> TenantRootCanaryCurveFamilyV1 {

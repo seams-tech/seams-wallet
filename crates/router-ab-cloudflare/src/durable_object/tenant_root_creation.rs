@@ -48,7 +48,6 @@ use router_ab_core::{
     TENANT_ROOT_SIGNED_SHARE_INSTALLATION_EVIDENCE_MAX_BYTES_V1,
 };
 use router_ab_core::TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BYTES_V1;
-#[cfg(feature = "workers-rs")]
 use router_ab_core::TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BYTES_V1;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -66,28 +65,28 @@ use crate::{
 };
 
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/journal";
 /// Reads the persisted Started journal, its issuer capability, and public
 /// creation progress. Public evidence only: no scalar, share, or sealed
 /// material is ever stored here, so nothing private can be returned.
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_READ_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_READ_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/journal/read";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/initial-activation";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
 pub(crate) const CLOUDFLARE_TENANT_ROOT_REFRESH_ACTIVATION_PATH: &str =
     "/router-ab/internal/tenant-root/refresh/v1/activation";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/active-state";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/commitment-rendezvous";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/installation-checkpoint";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
 pub(crate) const CLOUDFLARE_TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_PATH: &str =
@@ -737,7 +736,6 @@ const TENANT_ROOT_REFRESH_CHECKPOINT_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_MAX_BYTES_V1);
 const TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BYTES_V1);
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BYTES_V1);
 const TENANT_ROOT_ROLE_CLEANUP_COMMAND_MAX_BASE64URL_BYTES_V1: usize =
@@ -764,16 +762,13 @@ const TENANT_ROOT_MANAGED_RESTORE_NONCE_BYTES_V1: usize = 32;
 const TENANT_ROOT_MANAGED_RESTORE_INCIDENT_AUTHORIZATION_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_MANAGED_RESTORE_INCIDENT_AUTHORIZATION_MAX_BYTES_V1);
 const TENANT_ROOT_MANAGED_RESTORE_IDENTITY_MAX_BYTES_V1: usize = 8 * 1024;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_MANAGED_RESTORE_IDENTITY_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_MANAGED_RESTORE_IDENTITY_MAX_BYTES_V1);
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_MANAGED_RESTORE_ARTIFACT_MAX_BYTES_V1: usize = 48 * 1024;
 const TENANT_ROOT_MANAGED_RESTORE_CAPABILITY_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_MANAGED_RESTORE_CAPABILITY_MAX_BYTES_V1);
 const TENANT_ROOT_MANAGED_RESTORE_PUBLIC_STATE_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_MANAGED_RESTORE_PUBLIC_STATE_MAX_BYTES);
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_MANAGED_RESTORE_ARTIFACT_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_MANAGED_RESTORE_ARTIFACT_MAX_BYTES_V1);
 const TENANT_ROOT_MANAGED_RESTORE_CHALLENGE_DOMAIN_V1: &[u8] =
@@ -807,22 +802,19 @@ pub(crate) fn tenant_root_scheduled_refresh_next_at_ms_v1(
 const ROUTER_TENANT_ROOT_CREATION_DO_BINDING_V1: &str = "ROUTER_TENANT_ROOT_CREATION_DO";
 #[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CUTOVER_OBJECT_NAME_V1: &str = "tenant-root-cutover-v1";
-#[cfg(feature = "workers-rs")]
+const TENANT_ROOT_CREATION_JOURNAL_RESPONSE_MAX_BYTES_V1: usize = 4 * 1024;
+const TENANT_ROOT_CREATION_JOURNAL_READ_RESPONSE_MAX_BYTES_V1: usize = 256 * 1024;
 const TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_CREATION_JOURNAL_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_CREATION_CAPABILITY_MAX_BASE64URL_BYTES_V1
         + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_REFRESH_ACTIVE_RECEIPT_MAX_BASE64URL_BYTES_V1 + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_INITIAL_ACTIVATION_RESPONSE_MAX_BYTES_V1: usize = 1024;
 #[cfg(feature = "workers-rs")]
 const TENANT_ROOT_REFRESH_ACTIVATION_RESPONSE_MAX_BYTES_V1: usize = 1024;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_MANAGED_RESTORE_ACTIVE_STATE_REQUEST_MAX_BYTES_V1;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1: usize =
     TENANT_ROOT_REFRESH_ACTIVE_RECEIPT_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BASE64URL_BYTES_V1 * 2
@@ -832,19 +824,16 @@ const TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1: usize =
         + TENANT_ROOT_MANAGED_RESTORE_IDENTITY_MAX_BASE64URL_BYTES_V1
         + 16 * 1024
         + 1024;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_MANAGED_RESTORE_ACTIVE_STATE_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_MANAGED_RESTORE_ARTIFACT_MAX_BASE64URL_BYTES_V1 * 2
         + TENANT_ROOT_MANAGED_RESTORE_INCIDENT_AUTHORIZATION_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_MANAGED_RESTORE_IDENTITY_MAX_BASE64URL_BYTES_V1 * 2
         + TENANT_ROOT_REFRESH_ACTIVE_RECEIPT_MAX_BASE64URL_BYTES_V1 * 2
         + 16 * 1024;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_COMMITMENT_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_CREATION_COMMITMENT_MAX_BASE64URL_BYTES_V1
         + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_INSTALLATION_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_ROLE_CREATION_COMMAND_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_CREATION_INSTALLATION_EVIDENCE_MAX_BASE64URL_BYTES_V1
@@ -856,12 +845,8 @@ const TENANT_ROOT_CREATION_CLEANUP_REQUEST_MAX_BYTES_V1: usize =
         + 128;
 #[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_CLEANUP_RESPONSE_MAX_BYTES_V1: usize = 1024;
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
 const TENANT_ROOT_CREATION_COMMITMENT_RESPONSE_MAX_BYTES_V1: usize =
     TENANT_ROOT_CREATION_COMMITMENT_MAX_BASE64URL_BYTES_V1 * 2 + 512;
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
 const TENANT_ROOT_CREATION_INSTALLATION_RESPONSE_MAX_BYTES_V1: usize =
     TENANT_ROOT_CREATION_INSTALLATION_EVIDENCE_MAX_BASE64URL_BYTES_V1 * 2 + 512;
 #[cfg(feature = "workers-rs")]
@@ -890,7 +875,7 @@ const TENANT_ROOT_REFRESH_CONTRIBUTION_RESPONSE_MAX_BYTES_V1: usize =
     TENANT_ROOT_REFRESH_CONTRIBUTION_MAX_BASE64URL_BYTES_V1 * 2 + 2048;
 
 #[allow(dead_code)]
-pub(crate) fn tenant_root_creation_object_name_v1(
+pub fn tenant_root_creation_object_name_v1(
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
 ) -> String {
@@ -2178,10 +2163,10 @@ fn validate_response_digest(
     Ok(())
 }
 
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_journal_call_v1(
-    env: &worker::Env,
+/// Persists a started creation journal and its capability at the creation
+/// state and validates the recorded outcome, on any host.
+pub async fn tenant_root_creation_journal_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     journal: &TenantRootCreationJournalV1,
     capability: &TenantRootCreationCapabilityV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalResponseV1> {
@@ -2203,7 +2188,6 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_journal_call_
             "tenant-root creation capability does not match the submitted journal",
         ));
     }
-
     let journal_bytes = journal
         .canonical_bytes()
         .map_err(candidate_derivation_error)?;
@@ -2211,97 +2195,22 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_journal_call_
         .canonical_bytes()
         .map_err(candidate_derivation_error)?;
     let capability_digest = capability.digest().map_err(candidate_derivation_error)?;
-    let object_name = tenant_root_creation_object_name_v1(identity_digest, custody_lineage);
-    let namespace = env
-        .durable_object(ROUTER_TENANT_ROOT_CREATION_DO_BINDING_V1)
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MissingLocalBinding,
-                format!("tenant-root creation Durable Object namespace lookup failed: {error}"),
-            )
-        })?;
-    let object_id = namespace.id_from_name(&object_name).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("tenant-root creation Durable Object id derivation failed: {error}"),
-        )
-    })?;
-    let object_id = object_id.to_string();
-    validate_tenant_root_creation_object_binding_v1(&object_id, capability.authority_id())?;
-    let stub = namespace.get_by_name(&object_name).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("tenant-root creation Durable Object stub lookup failed: {error}"),
-        )
-    })?;
     let request = CloudflareTenantRootCreationJournalRequestV1 {
         journal_b64u: encode_base64url_bytes_v1(&journal_bytes),
         creation_capability_b64u: encode_base64url_bytes_v1(&capability_bytes),
     };
-    let request_body = serde_json::to_string(&request).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            format!("tenant-root creation journal request JSON encoding failed: {error}"),
+    let response: CloudflareTenantRootCreationJournalResponseV1 = state
+        .creation_state_call(
+            capability.authority_id(),
+            identity_digest,
+            custody_lineage,
+            CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_PATH,
+            "tenant-root creation journal",
+            &request,
+            TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_CREATION_JOURNAL_RESPONSE_MAX_BYTES_V1,
         )
-    })?;
-    if request_body.len() > TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1 {
-        return Err(malformed_input(
-            "tenant-root creation journal request exceeds its maximum size",
-        ));
-    }
-    let headers = worker::Headers::new();
-    headers
-        .set("content-type", "application/json")
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("tenant-root creation journal request headers failed: {error}"),
-            )
-        })?;
-    crate::set_cloudflare_internal_service_auth_header_v1(
-        env,
-        &headers,
-        "tenant-root creation journal",
-    )?;
-    let mut init = worker::RequestInit::new();
-    init.with_method(worker::Method::Post)
-        .with_headers(headers)
-        .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&request_body)));
-    let request = worker::Request::new_with_init(
-        &format!(
-            "https://router-ab-do.internal{}",
-            CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_PATH
-        ),
-        &init,
-    )
-    .map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("tenant-root creation journal request construction failed: {error}"),
-        )
-    })?;
-    let mut response = stub.fetch_with_request(request).await.map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("tenant-root creation journal request failed: {error}"),
-        )
-    })?;
-    let status = response.status_code();
-    if !(200..=299).contains(&status) {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("tenant-root creation journal returned HTTP {status}"),
-        ));
-    }
-    let response = response
-        .json::<CloudflareTenantRootCreationJournalResponseV1>()
-        .await
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                format!("tenant-root creation journal response JSON parse failed: {error}"),
-            )
-        })?;
+        .await?;
     validate_cloudflare_tenant_root_creation_journal_response_v1(
         &response,
         revision,
@@ -2309,6 +2218,128 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_journal_call_
         capability_digest,
     )?;
     Ok(response)
+}
+
+/// Reads one tenant root's creation state, on any host.
+pub async fn tenant_root_creation_journal_read_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalReadResponseV1> {
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
+    state
+        .creation_state_call(
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_READ_PATH,
+            "tenant-root creation read",
+            &CloudflareTenantRootCreationJournalReadRequestV1 {
+                identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+                custody_lineage_b64u: encode_base64url_bytes_v1(custody_lineage.as_bytes()),
+            },
+            TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_CREATION_JOURNAL_READ_RESPONSE_MAX_BYTES_V1,
+        )
+        .await
+}
+
+#[cfg(feature = "workers-rs")]
+#[allow(dead_code)]
+pub(crate) async fn execute_cloudflare_router_tenant_root_creation_journal_call_v1(
+    env: &worker::Env,
+    journal: &TenantRootCreationJournalV1,
+    capability: &TenantRootCreationCapabilityV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalResponseV1> {
+    tenant_root_creation_journal_call_v1(
+        &CloudflareTenantRootCreationStateTransportV1::new(env),
+        journal,
+        capability,
+    )
+    .await
+}
+
+/// Reaches the Router-owned creation state for one tenant root.
+///
+/// On Cloudflare this is the creation Durable Object, addressed by name and
+/// checked against its authority id. A VM Router serves the same operations
+/// from its own SQLite store; other VM roles reach it over HTTP.
+#[allow(async_fn_in_trait)]
+pub trait TenantRootCreationStateTransportV1 {
+    /// The creation authority id for one tenant root's creation state.
+    fn creation_authority_id(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+    ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1>;
+
+    /// Executes one creation-state operation and returns its JSON response.
+    #[allow(clippy::too_many_arguments)]
+    async fn creation_state_call<TRequest: Serialize, TResponse: DeserializeOwned>(
+        &self,
+        authority_id: TenantRootControlPlaneAuthorityIdV1,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        path: &'static str,
+        label: &'static str,
+        request: &TRequest,
+        request_max_bytes: usize,
+        response_max_bytes: usize,
+    ) -> RouterAbProtocolResult<TResponse>;
+}
+
+/// The Cloudflare creation-state transport: the creation Durable Object.
+#[cfg(feature = "workers-rs")]
+pub(crate) struct CloudflareTenantRootCreationStateTransportV1<'a> {
+    env: &'a worker::Env,
+}
+
+#[cfg(feature = "workers-rs")]
+impl<'a> CloudflareTenantRootCreationStateTransportV1<'a> {
+    pub(crate) const fn new(env: &'a worker::Env) -> Self {
+        Self { env }
+    }
+}
+
+#[cfg(feature = "workers-rs")]
+impl TenantRootCreationStateTransportV1 for CloudflareTenantRootCreationStateTransportV1<'_> {
+    fn creation_authority_id(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+    ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1> {
+        Ok(derive_tenant_root_creation_authority_object_v1(
+            self.env,
+            identity_digest,
+            custody_lineage,
+        )?
+        .0)
+    }
+
+    async fn creation_state_call<TRequest: Serialize, TResponse: DeserializeOwned>(
+        &self,
+        authority_id: TenantRootControlPlaneAuthorityIdV1,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        path: &'static str,
+        label: &'static str,
+        request: &TRequest,
+        request_max_bytes: usize,
+        response_max_bytes: usize,
+    ) -> RouterAbProtocolResult<TResponse> {
+        execute_cloudflare_router_tenant_root_creation_private_call_v1(
+            self.env,
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            path,
+            label,
+            request,
+            request_max_bytes,
+            response_max_bytes,
+        )
+        .await
+    }
 }
 
 #[cfg(feature = "workers-rs")]
@@ -2813,28 +2844,27 @@ fn validate_response_lineage(
     Ok(())
 }
 
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_commitment_call_v1(
-    env: &worker::Env,
+/// Submits one role's verified creation commitment to the creation state and
+/// validates the rendezvous outcome, on any host.
+pub async fn tenant_root_creation_commitment_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    role_keys: &TenantRootCreationRoleVerifyingKeysV1,
     command: &VerifiedTenantRootRoleCreationCommandV1,
     commitment: &VerifiedTenantRootCreationCommitmentV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationCommitmentOutcomeV1> {
     let command_bytes = command.canonical_bytes().to_vec();
     let commitment_bytes = commitment.canonical_bytes().to_vec();
-    let role_keys = read_tenant_root_creation_role_verifying_keys(env)?;
     validate_commitment_wire_for_role_command(
         &commitment_bytes,
         command,
         command.role(),
-        &role_keys,
+        role_keys,
     )?;
     let request = CloudflareTenantRootCreationCommitmentRequestV1 {
         role_creation_command_b64u: encode_base64url_bytes_v1(&command_bytes),
         signed_commitment_b64u: encode_base64url_bytes_v1(&commitment_bytes),
     };
-    let response = execute_cloudflare_router_tenant_root_creation_private_call_v1(
-        env,
+    let response = state.creation_state_call(
         command.authority_id(),
         command.identity_digest(),
         command.custody_lineage(),
@@ -2845,7 +2875,23 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_commitment_ca
         TENANT_ROOT_CREATION_COMMITMENT_RESPONSE_MAX_BYTES_V1,
     )
     .await?;
-    validate_creation_commitment_response_v1(&response, command, &commitment_bytes, &role_keys)
+    validate_creation_commitment_response_v1(&response, command, &commitment_bytes, role_keys)
+}
+
+#[cfg(feature = "workers-rs")]
+#[allow(dead_code)]
+pub(crate) async fn execute_cloudflare_router_tenant_root_creation_commitment_call_v1(
+    env: &worker::Env,
+    command: &VerifiedTenantRootRoleCreationCommandV1,
+    commitment: &VerifiedTenantRootCreationCommitmentV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationCommitmentOutcomeV1> {
+    tenant_root_creation_commitment_call_v1(
+        &CloudflareTenantRootCreationStateTransportV1::new(env),
+        &read_tenant_root_creation_role_verifying_keys(env)?,
+        command,
+        commitment,
+    )
+    .await
 }
 
 #[allow(dead_code)]
@@ -2919,10 +2965,10 @@ fn validate_installation_response_v1(
     }
 }
 
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_installation_call_v1(
-    env: &worker::Env,
+/// Submits one role's verified installation evidence to the creation state
+/// and validates the checkpoint outcome, on any host.
+pub async fn tenant_root_creation_installation_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     command: &VerifiedTenantRootRoleCreationCommandV1,
     evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationInstallationOutcomeV1> {
@@ -2945,8 +2991,7 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_installation_
         role_creation_command_b64u: encode_base64url_bytes_v1(&command_bytes),
         signed_evidence_b64u: encode_base64url_bytes_v1(evidence_bytes),
     };
-    let response = execute_cloudflare_router_tenant_root_creation_private_call_v1(
-        env,
+    let response = state.creation_state_call(
         command.authority_id(),
         command.identity_digest(),
         command.custody_lineage(),
@@ -2958,6 +3003,21 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_installation_
     )
     .await?;
     validate_installation_response_v1(&response, command, evidence)
+}
+
+#[cfg(feature = "workers-rs")]
+#[allow(dead_code)]
+pub(crate) async fn execute_cloudflare_router_tenant_root_creation_installation_call_v1(
+    env: &worker::Env,
+    command: &VerifiedTenantRootRoleCreationCommandV1,
+    evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationInstallationOutcomeV1> {
+    tenant_root_creation_installation_call_v1(
+        &CloudflareTenantRootCreationStateTransportV1::new(env),
+        command,
+        evidence,
+    )
+    .await
 }
 
 /// Sends one verified cleanup command and its exact successful terminal receipt
@@ -3017,10 +3077,9 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_cleanup_call_
 }
 
 /// Sends a control-plane initial-activation receipt to the Router-owned
-/// creation object for authoritative persistence.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_initial_activation_call_v1(
-    env: &worker::Env,
+/// creation state for authoritative persistence, on any host.
+pub async fn tenant_root_creation_initial_activation_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     receipt_bytes: &[u8],
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationInitialActivationResponseV1> {
     let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(receipt_bytes)
@@ -3032,17 +3091,13 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_initial_activ
         ));
     }
     let receipt_digest = receipt.digest().map_err(candidate_derivation_error)?;
-    let (authority_id, _) = derive_tenant_root_creation_authority_object_v1(
-        env,
-        receipt.identity_digest(),
-        receipt.custody_lineage(),
-    )?;
+    let authority_id =
+        state.creation_authority_id(receipt.identity_digest(), receipt.custody_lineage())?;
     let request = CloudflareTenantRootCreationInitialActivationRequestV1 {
         activation_receipt_b64u: encode_base64url_bytes_v1(receipt_bytes),
     };
     let response: CloudflareTenantRootCreationInitialActivationResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+        state.creation_state_call(
             authority_id,
             receipt.identity_digest(),
             receipt.custody_lineage(),
@@ -3180,8 +3235,7 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_activation_cal
 }
 
 /// Issuer-verified active public state read from the Router-owned object.
-#[cfg(feature = "workers-rs")]
-pub(crate) struct CloudflareVerifiedTenantRootActiveStateV1 {
+pub struct CloudflareVerifiedTenantRootActiveStateV1 {
     pub(crate) activation_receipt: router_ab_core::VerifiedTenantRootSignedActivationReceiptV1,
     pub(crate) lifecycle_revision: u64,
     pub(crate) refresh_fence: CloudflareTenantRootRefreshFenceV1,
@@ -3189,6 +3243,18 @@ pub(crate) struct CloudflareVerifiedTenantRootActiveStateV1 {
     pub(crate) job: Option<CloudflareTenantRootRefreshJobReadV1>,
     pub(crate) last_manual_refresh_completed_at_ms: Option<u64>,
     pub(crate) last_refresh_completed_at_ms: Option<u64>,
+}
+
+impl CloudflareVerifiedTenantRootActiveStateV1 {
+    /// The issuer-verified active activation receipt.
+    pub fn activation_receipt(&self) -> &router_ab_core::VerifiedTenantRootSignedActivationReceiptV1 {
+        &self.activation_receipt
+    }
+
+    /// The creation state's lifecycle revision for this active receipt.
+    pub const fn lifecycle_revision(&self) -> u64 {
+        self.lifecycle_revision
+    }
 }
 
 /// Reads the Router-owned active state and returns its issuer-verified receipt.
@@ -3209,22 +3275,21 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_active_state_
     )
 }
 
-/// Reads the authoritative active receipt together with its current lifecycle revision.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1(
-    env: &worker::Env,
+/// Reads the authoritative active receipt together with its current lifecycle
+/// revision, verified against the trusted issuer keys, on any host.
+pub async fn tenant_root_creation_active_state_with_revision_read_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
 ) -> RouterAbProtocolResult<CloudflareVerifiedTenantRootActiveStateV1> {
-    let (authority_id, _) =
-        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
     let request = CloudflareTenantRootCreationActiveStateReadRequestV1::Read {
         identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
         custody_lineage_b64u: custody_lineage.to_base64url(),
     };
     let response: CloudflareTenantRootCreationActiveStateReadResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+        state.creation_state_call(
             authority_id,
             identity_digest,
             custody_lineage,
@@ -3262,11 +3327,6 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_active_state_
     )?;
     let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(&receipt_bytes)
         .map_err(candidate_derivation_error)?;
-    let issuer_keys_json = read_required_worker_var(
-        env,
-        crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-    )?;
-    let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
     let issuer_verifying_key = issuer_keys.get(receipt.issuer_key_id()).ok_or_else(|| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ForbiddenLocalBinding,
@@ -3312,6 +3372,26 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_active_state_
         refresh_fence: response.fence,
         managed_restore_fence: response.managed_restore_fence,
     })
+}
+
+/// Reads the authoritative active receipt together with its current lifecycle revision.
+#[cfg(feature = "workers-rs")]
+pub(crate) async fn execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1(
+    env: &worker::Env,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+) -> RouterAbProtocolResult<CloudflareVerifiedTenantRootActiveStateV1> {
+    let issuer_keys = crate::env::decode_issuer_verifying_keys(&read_required_worker_var(
+        env,
+        crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
+    )?)?;
+    tenant_root_creation_active_state_with_revision_read_call_v1(
+        &CloudflareTenantRootCreationStateTransportV1::new(env),
+        &issuer_keys,
+        identity_digest,
+        custody_lineage,
+    )
+    .await
 }
 
 /// Reserves one managed-restore authorization at the Router-owned Durable
@@ -10678,7 +10758,6 @@ pub(crate) fn validate_refresh_operation_id_v1(operation_id: &str) -> RouterAbPr
     Ok(())
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_refresh_job_read_v1(
     job: Option<&CloudflareTenantRootRefreshJobReadV1>,
 ) -> RouterAbProtocolResult<()> {
@@ -14362,6 +14441,148 @@ pub async fn tenant_root_creation_read_active_state_without_refresh_v1<
     Ok(active_state_read_response_from_record(active.record))
 }
 
+
+/// Serves one creation-state operation, addressed by its route path, on a
+/// host that runs initial creation but not the refresh, managed-restore or
+/// cutover protocols. Those operations are refused rather than accepted.
+///
+/// The caller runs this inside one storage transaction over `store`, so each
+/// operation's read, evaluation and write stay atomic.
+pub async fn tenant_root_creation_serve_without_refresh_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: impl Fn() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
+    path: &str,
+    request_body: &[u8],
+    now_ms: u64,
+) -> RouterAbProtocolResult<Vec<u8>> {
+    fn decode<T: DeserializeOwned>(
+        label: &str,
+        body: &[u8],
+        max_bytes: usize,
+    ) -> RouterAbProtocolResult<T> {
+        if body.len() > max_bytes {
+            return Err(malformed_input(format!("{label} exceeds its maximum size")));
+        }
+        serde_json::from_slice(body)
+            .map_err(|error| malformed_input(format!("{label} JSON is invalid: {error}")))
+    }
+    fn encode<T: Serialize>(value: &T) -> RouterAbProtocolResult<Vec<u8>> {
+        serde_json::to_vec(value).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("tenant-root creation-state response encoding failed: {error}"),
+            )
+        })
+    }
+    match path {
+        CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_PATH => encode(
+            &tenant_root_creation_persist_journal_v1(
+                store,
+                issuer_keys,
+                decode(
+                    "tenant-root creation journal request",
+                    request_body,
+                    TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_READ_PATH => encode(
+            &tenant_root_creation_read_journal_v1(
+                store,
+                issuer_keys,
+                &role_keys,
+                decode(
+                    "tenant-root creation read request",
+                    request_body,
+                    TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1,
+                )?,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_PATH => encode(
+            &tenant_root_creation_persist_commitment_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root creation commitment request",
+                    request_body,
+                    TENANT_ROOT_CREATION_COMMITMENT_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_PATH => encode(
+            &tenant_root_creation_persist_installation_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root installation request",
+                    request_body,
+                    TENANT_ROOT_CREATION_INSTALLATION_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH => encode(
+            &tenant_root_creation_persist_initial_activation_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root initial activation request",
+                    request_body,
+                    TENANT_ROOT_CREATION_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
+                )?,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH => {
+            let request: CloudflareTenantRootCreationActiveStateReadRequestV1 = decode(
+                "tenant-root active-state read request",
+                request_body,
+                TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
+            )?;
+            let CloudflareTenantRootCreationActiveStateReadRequestV1::Read {
+                identity_digest_b64u,
+                custody_lineage_b64u,
+            } = request
+            else {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+                    "this host does not run tenant-root refresh or managed restore",
+                ));
+            };
+            let identity_digest = TenantRootIdentityDigestV1::from_bytes(decode_fixed_base64url_32(
+                "tenant-root active-state read identity digest",
+                &identity_digest_b64u,
+            )?);
+            let custody_lineage = decode_lineage_b64u(
+                "tenant-root active-state read custody lineage",
+                &custody_lineage_b64u,
+            )?;
+            encode(
+                &tenant_root_creation_read_active_state_without_refresh_v1(
+                    store,
+                    issuer_keys,
+                    identity_digest,
+                    custody_lineage,
+                )
+                .await?,
+            )
+        }
+        _ => Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "this host does not serve the requested tenant-root creation-state operation",
+        )),
+    }
+}
 
 /// The creation Durable Object's storage as the shared creation store,
 /// before it is bound to one storage transaction.

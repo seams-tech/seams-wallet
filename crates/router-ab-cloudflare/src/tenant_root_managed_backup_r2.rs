@@ -8,10 +8,10 @@ use router_ab_core::{
     TenantRootCustodyLineageId, TenantRootIdentityDigestV1, TenantRootManagedBackupBindingV1,
     TenantRootManagedRestoreRoleV1, TenantRootOperationalErasureClaimV1, TenantRootShareEpoch,
 };
+use router_ab_core::{TenantRootSignedManagedBackupV1, VerifiedTenantRootManagedBackupV1};
 #[cfg(feature = "workers-rs")]
 use router_ab_core::{
-    TenantRootProviderCanaryReceiptBindingV1, TenantRootSignedManagedBackupV1,
-    TenantRootSignedProviderCanaryReceiptV1, VerifiedTenantRootManagedBackupV1,
+    TenantRootProviderCanaryReceiptBindingV1, TenantRootSignedProviderCanaryReceiptV1,
     VerifiedTenantRootProviderCanaryReceiptV1,
 };
 
@@ -28,8 +28,9 @@ const TENANT_ROOT_MANAGED_BACKUP_CANONICAL_DIGEST_METADATA_V1: &str =
 const TENANT_ROOT_MANAGED_BACKUP_WRAPPING_KEY_GENERATION_METADATA_V1: &str =
     "tenant-root-wrapping-key-generation-v1";
 
+/// Where one role's managed backup for one epoch is stored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct TenantRootManagedBackupObjectCoordinatesV1 {
+pub struct TenantRootManagedBackupObjectCoordinatesV1 {
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
     role: TenantRootManagedRestoreRoleV1,
@@ -37,7 +38,7 @@ pub(crate) struct TenantRootManagedBackupObjectCoordinatesV1 {
 }
 
 impl TenantRootManagedBackupObjectCoordinatesV1 {
-    pub(crate) const fn new(
+    pub const fn new(
         identity_digest: TenantRootIdentityDigestV1,
         custody_lineage: TenantRootCustodyLineageId,
         role: TenantRootManagedRestoreRoleV1,
@@ -51,7 +52,7 @@ impl TenantRootManagedBackupObjectCoordinatesV1 {
         }
     }
 
-    pub(crate) const fn from_binding(binding: &TenantRootManagedBackupBindingV1) -> Self {
+    pub const fn from_binding(binding: &TenantRootManagedBackupBindingV1) -> Self {
         Self::new(
             binding.identity_digest(),
             binding.custody_lineage(),
@@ -60,7 +61,8 @@ impl TenantRootManagedBackupObjectCoordinatesV1 {
         )
     }
 
-    pub(crate) fn object_key(self) -> String {
+    /// The storage key for these coordinates, the same on every host.
+    pub fn object_key(self) -> String {
         format!(
             "{TENANT_ROOT_MANAGED_BACKUP_OBJECT_PREFIX_V1}/{}/{}/{}/{}.bin",
             role_name(self.role),
@@ -233,6 +235,24 @@ where
     }
 }
 
+/// Decodes stored managed-backup bytes and verifies them against their
+/// coordinates and the role's trusted verifying key. Every host reads a
+/// managed backup through this check.
+pub fn verify_tenant_root_managed_backup_object_v1(
+    bytes: &[u8],
+    coordinates: TenantRootManagedBackupObjectCoordinatesV1,
+    trusted_role_verifying_key: &[u8; 32],
+) -> Result<VerifiedTenantRootManagedBackupV1, String> {
+    let signed = TenantRootSignedManagedBackupV1::decode_canonical_bytes(bytes)
+        .map_err(|error| error.message().to_owned())?;
+    if TenantRootManagedBackupObjectCoordinatesV1::from_binding(signed.binding()) != coordinates {
+        return Err("managed-backup artifact does not match its object coordinates".to_owned());
+    }
+    signed
+        .verify(signed.binding(), trusted_role_verifying_key)
+        .map_err(|error| error.message().to_owned())
+}
+
 #[cfg(feature = "workers-rs")]
 #[derive(Clone)]
 pub(crate) struct CloudflareTenantRootManagedBackupStoreV1 {
@@ -343,17 +363,9 @@ impl CloudflareTenantRootManagedBackupStoreV1 {
             .ok_or_else(|| backup_store_error("managed-backup object has no body"))?
             .bytes()
             .await?;
-        let signed = TenantRootSignedManagedBackupV1::decode_canonical_bytes(&bytes)
-            .map_err(|error| backup_store_error(error.message()))?;
-        if TenantRootManagedBackupObjectCoordinatesV1::from_binding(signed.binding()) != coordinates
-        {
-            return Err(backup_store_error(
-                "managed-backup artifact does not match its object coordinates",
-            ));
-        }
-        let verified = signed
-            .verify(signed.binding(), trusted_role_verifying_key)
-            .map_err(|error| backup_store_error(error.message()))?;
+        let verified =
+            verify_tenant_root_managed_backup_object_v1(&bytes, coordinates, trusted_role_verifying_key)
+                .map_err(backup_store_error)?;
         let canonical_digest: [u8; 32] = Sha256::digest(&bytes).into();
         let metadata = metadata_from_object(
             &object,

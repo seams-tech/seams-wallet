@@ -1,0 +1,229 @@
+//! The Router's tenant-root creation ceremony, independent of its host.
+//!
+//! The Router drives one creation from a verified grant to an active root:
+//! control-plane genesis, both issuer-signed role commands, Deriver A as the
+//! initiating role (it drives Deriver B), the control plane's activation
+//! receipt, the Router-owned creation state's activation, and finally each
+//! Deriver's own activation. Every step is an exact, idempotent call, so a
+//! retry of the same grant resumes rather than repeats.
+
+use std::collections::BTreeMap;
+
+use router_ab_core::{TenantRootActivationReceiptTransitionV1, TwoPartyDeriverRole};
+
+use crate::durable_object::tenant_root_creation::{
+    tenant_root_creation_active_state_with_revision_read_call_v1,
+    tenant_root_creation_initial_activation_call_v1, TenantRootCreationStateTransportV1,
+};
+use crate::tenant_root_control_plane::{
+    CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
+    CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
+    CloudflareTenantRootControlPlaneInitialActivationRequestV1,
+    CloudflareTenantRootControlPlaneRoleCreationCommandRequestV1,
+    CloudflareTenantRootControlPlaneRoleV1, CloudflareTenantRootCreationStatusV1,
+};
+use crate::tenant_root_role_runtime::{
+    CloudflareDeriverTenantRootCreateRoleShareRequestV1,
+    CloudflareDeriverTenantRootCreateRoleShareResponseV1,
+    CloudflareDeriverTenantRootInitialActivationRequestV1, CloudflareTenantRootCreateRoleV1,
+};
+use crate::tenant_root_transport::{
+    tenant_root_control_plane_create_tenant_root_call_v1,
+    tenant_root_control_plane_initial_activation_call_v1,
+    tenant_root_control_plane_role_creation_command_call_v1,
+    tenant_root_deriver_create_role_share_call_v1, tenant_root_deriver_initial_activation_call_v1,
+    TenantRootServiceTransportV1,
+};
+use crate::{
+    decode_base64url_bytes_v1, encode_base64url_bytes_v1, RouterAbProtocolError,
+    RouterAbProtocolErrorCode, RouterAbProtocolResult,
+};
+
+/// What the Router's creation coordinator needs from its host.
+#[allow(async_fn_in_trait)]
+pub trait TenantRootRouterCreationHostV1:
+    TenantRootServiceTransportV1 + TenantRootCreationStateTransportV1
+{
+    /// The control-plane issuer keys the Router trusts.
+    fn trusted_issuer_keys(&self) -> RouterAbProtocolResult<BTreeMap<String, [u8; 32]>>;
+
+    /// Cleans a creation in which exactly one role installed its share, so a
+    /// fresh grant can start again. A host that cannot clean returns an error
+    /// and leaves the partial creation untouched.
+    async fn clean_partial_creation(
+        &self,
+        genesis: &CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
+        installed_role: CloudflareTenantRootControlPlaneRoleV1,
+    ) -> RouterAbProtocolResult<()>;
+}
+
+/// Drives one tenant-root creation to an active root, or reports why it
+/// cannot proceed.
+pub async fn tenant_root_router_coordinate_creation_v1<Host: TenantRootRouterCreationHostV1>(
+    host: &Host,
+    request: CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCreateTenantRootResponseV1> {
+    let genesis = tenant_root_control_plane_create_tenant_root_call_v1(host, &request).await?;
+    match &genesis.status {
+        CloudflareTenantRootCreationStatusV1::Ready { .. } => {
+            finish_tenant_root_initial_activation_v1(host, &genesis).await?;
+            return Ok(genesis);
+        }
+        CloudflareTenantRootCreationStatusV1::Abandoned { .. } => {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLifecycleState,
+                "tenant-root creation was abandoned; a fresh grant is required",
+            ));
+        }
+        CloudflareTenantRootCreationStatusV1::OneRoleInstalled { role } => {
+            host.clean_partial_creation(&genesis, *role).await?;
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLifecycleState,
+                "tenant-root partial creation was cleaned; a fresh grant is required",
+            ));
+        }
+        CloudflareTenantRootCreationStatusV1::Pending => {}
+    }
+
+    let command_request = |role| CloudflareTenantRootControlPlaneRoleCreationCommandRequestV1 {
+        identity_digest_b64u: genesis.identity_digest_b64u.clone(),
+        custody_lineage_b64u: genesis.custody_lineage_b64u.clone(),
+        role,
+    };
+    let deriver_a = tenant_root_control_plane_role_creation_command_call_v1(
+        host,
+        &command_request(CloudflareTenantRootControlPlaneRoleV1::DeriverA),
+    )
+    .await?;
+    let deriver_b = tenant_root_control_plane_role_creation_command_call_v1(
+        host,
+        &command_request(CloudflareTenantRootControlPlaneRoleV1::DeriverB),
+    )
+    .await?;
+
+    let completed = tenant_root_deriver_create_role_share_call_v1(
+        host,
+        TwoPartyDeriverRole::DeriverA,
+        &CloudflareDeriverTenantRootCreateRoleShareRequestV1::Initiator {
+            role_creation_command_package_b64u: deriver_a.role_creation_command_package_b64u,
+            peer_role_creation_command_package_b64u: deriver_b.role_creation_command_package_b64u,
+        },
+    )
+    .await?;
+    let CloudflareDeriverTenantRootCreateRoleShareResponseV1::Completed {
+        role: CloudflareTenantRootCreateRoleV1::DeriverA,
+        deriver_a_signed_installation_evidence_b64u,
+        deriver_b_signed_installation_evidence_b64u,
+        deriver_a_signed_managed_backup_b64u,
+        deriver_b_signed_managed_backup_b64u,
+        ecdsa_provider_canary_receipt_b64u,
+        ed25519_provider_canary_receipt_b64u,
+        ..
+    } = completed
+    else {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            "tenant-root creation initiator response names the wrong role",
+        ));
+    };
+
+    let issued_activation = tenant_root_control_plane_initial_activation_call_v1(
+        host,
+        &CloudflareTenantRootControlPlaneInitialActivationRequestV1 {
+            deriver_a_signed_installation_evidence_b64u,
+            deriver_b_signed_installation_evidence_b64u,
+            deriver_a_signed_managed_backup_b64u,
+            deriver_b_signed_managed_backup_b64u,
+            ecdsa_provider_canary_receipt_b64u,
+            ed25519_provider_canary_receipt_b64u,
+        },
+    )
+    .await?;
+    let activation_receipt_bytes = decode_base64url_bytes_v1(
+        "tenant-root initial activation receipt",
+        &issued_activation.activation_receipt_b64u,
+    )?;
+    tenant_root_creation_initial_activation_call_v1(host, &activation_receipt_bytes).await?;
+    let role_activation = CloudflareDeriverTenantRootInitialActivationRequestV1 {
+        activation_receipt_b64u: issued_activation.activation_receipt_b64u,
+    };
+    tenant_root_deriver_initial_activation_call_v1(
+        host,
+        TwoPartyDeriverRole::DeriverA,
+        &role_activation,
+    )
+    .await?;
+    tenant_root_deriver_initial_activation_call_v1(
+        host,
+        TwoPartyDeriverRole::DeriverB,
+        &role_activation,
+    )
+    .await?;
+
+    let completed_state = tenant_root_control_plane_create_tenant_root_call_v1(host, &request).await?;
+    if !matches!(
+        completed_state.status,
+        CloudflareTenantRootCreationStatusV1::Ready { .. }
+    ) {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLifecycleState,
+            "tenant-root creation returned before both role installations were checkpointed",
+        ));
+    }
+    Ok(completed_state)
+}
+
+/// Re-delivers the persisted initial activation to both Derivers for a
+/// creation that is already installed.
+async fn finish_tenant_root_initial_activation_v1<Host: TenantRootRouterCreationHostV1>(
+    host: &Host,
+    genesis: &CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
+) -> RouterAbProtocolResult<()> {
+    let identity_digest_bytes = decode_base64url_bytes_v1(
+        "tenant-root creation identity digest",
+        &genesis.identity_digest_b64u,
+    )?;
+    let identity_digest = router_ab_core::TenantRootIdentityDigestV1::from_bytes(
+        identity_digest_bytes.try_into().map_err(|_| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                "tenant-root creation identity digest must contain exactly 32 bytes",
+            )
+        })?,
+    );
+    let custody_lineage =
+        router_ab_core::TenantRootCustodyLineageId::from_base64url(&genesis.custody_lineage_b64u)
+            .map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("tenant-root creation custody lineage is invalid: {error}"),
+            )
+        })?;
+    let active = tenant_root_creation_active_state_with_revision_read_call_v1(
+        host,
+        &host.trusted_issuer_keys()?,
+        identity_digest,
+        custody_lineage,
+    )
+    .await?
+    .activation_receipt;
+    if active.transition() != TenantRootActivationReceiptTransitionV1::InitialCreation {
+        return Ok(());
+    }
+    let role_activation = CloudflareDeriverTenantRootInitialActivationRequestV1 {
+        activation_receipt_b64u: encode_base64url_bytes_v1(active.canonical_bytes()),
+    };
+    tenant_root_deriver_initial_activation_call_v1(
+        host,
+        TwoPartyDeriverRole::DeriverA,
+        &role_activation,
+    )
+    .await?;
+    tenant_root_deriver_initial_activation_call_v1(
+        host,
+        TwoPartyDeriverRole::DeriverB,
+        &role_activation,
+    )
+    .await?;
+    Ok(())
+}

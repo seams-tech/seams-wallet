@@ -318,9 +318,9 @@ pub(crate) struct CloudflareTenantRootControlPlaneManagedRestoreAuthorizeRespons
 pub const TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_REQUEST_MAX_BYTES_V1: usize = 32 * 1024;
 
 /// Maximum accepted request size for initial activation evidence.
-pub(crate) const TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1: usize =
+pub const TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1: usize =
     256 * 1024;
-const TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_RESPONSE_MAX_BYTES_V1: usize = 32 * 1024;
+pub(crate) const TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_RESPONSE_MAX_BYTES_V1: usize = 32 * 1024;
 /// Maximum accepted request size for restore initial activation evidence.
 pub(crate) const TENANT_ROOT_CONTROL_PLANE_RESTORE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1: usize =
     256 * 1024;
@@ -332,7 +332,7 @@ pub(crate) const TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_REQUEST_MAX_BYTES_
 /// exact public installation, managed-backup, and provider-canary wires.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootControlPlaneInitialActivationRequestV1 {
+pub struct CloudflareTenantRootControlPlaneInitialActivationRequestV1 {
     pub(crate) deriver_a_signed_installation_evidence_b64u: String,
     pub(crate) deriver_b_signed_installation_evidence_b64u: String,
     pub(crate) deriver_a_signed_managed_backup_b64u: String,
@@ -1155,7 +1155,7 @@ pub use live::{
 #[cfg(feature = "workers-rs")]
 #[allow(unused_imports)]
 pub(crate) use live::{
-    execute_cloudflare_tenant_root_control_plane_initial_activation_service_call_v1,
+    post_bounded_service_json_v1,
     execute_cloudflare_tenant_root_control_plane_restore_initial_activation_service_call_v1,
     handle_cloudflare_tenant_root_control_plane_initial_activation_v1,
     handle_cloudflare_tenant_root_control_plane_managed_restore_authorize_v1,
@@ -1622,6 +1622,27 @@ pub async fn control_plane_initial_activation_v1<Host: TenantRootControlPlaneHos
         &issuer_seed,
     )?;
     initial_activation_receipt_response_v1(receipt)
+}
+
+/// Checks that a control-plane initial-activation response carries a
+/// canonical initial-creation receipt.
+pub(crate) fn require_initial_activation_receipt_response_v1(
+    response: &CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1,
+) -> RouterAbProtocolResult<()> {
+    let receipt_bytes = crate::durable_object::tenant_root_creation::decode_canonical_base64url(
+        "tenant-root initial activation receipt",
+        &response.activation_receipt_b64u,
+        TENANT_ROOT_ACTIVATION_RECEIPT_MAX_BYTES_V1,
+        TENANT_ROOT_ACTIVATION_RECEIPT_MAX_BYTES_V1 * 2,
+    )?;
+    let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(&receipt_bytes)
+        .map_err(derivation)?;
+    if receipt.transition() != TenantRootActivationReceiptTransitionV1::InitialCreation {
+        return Err(refused(
+            "tenant-root control-plane returned a non-initial activation receipt",
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(feature = "workers-rs")]
@@ -2318,70 +2339,15 @@ mod live {
         TenantRootControlPlaneAuthorityIdV1,
         CloudflareTenantRootCreationJournalReadResponseV1,
     )> {
-        let namespace = env
-            .durable_object(ROUTER_TENANT_ROOT_CREATION_DO_BINDING_V1)
-            .map_err(|error| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MissingLocalBinding,
-                    format!("tenant-root creation Durable Object binding is unavailable: {error}"),
-                )
-            })?;
-        let (authority_id, object_name) =
+        let (authority_id, _) =
             read_creation_object_binding(env, identity_digest, custody_lineage)?;
-        let stub = namespace.get_by_name(&object_name).map_err(|error| {
-            local(format!(
-                "tenant-root creation Durable Object stub lookup failed: {error}"
-            ))
-        })?;
-        let body = serde_json::to_string(&CloudflareTenantRootCreationJournalReadRequestV1 {
-            identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
-            custody_lineage_b64u: encode_base64url_bytes_v1(custody_lineage.as_bytes()),
-        })
-        .map_err(|error| {
-            local(format!(
-                "tenant-root creation read request encoding failed: {error}"
-            ))
-        })?;
-        let headers = worker::Headers::new();
-        headers
-            .set("content-type", "application/json")
-            .map_err(|error| local(format!("tenant-root creation read headers failed: {error}")))?;
-        crate::set_cloudflare_internal_service_auth_header_v1(
-            env,
-            &headers,
-            "tenant-root creation read",
-        )?;
-        let mut init = worker::RequestInit::new();
-        init.with_method(worker::Method::Post)
-            .with_headers(headers)
-            .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&body)));
-        let request = worker::Request::new_with_init(
-            &format!(
-                "https://router-ab-do.internal{CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_READ_PATH}"
-            ),
-            &init,
+        let state = crate::durable_object::tenant_root_creation::tenant_root_creation_journal_read_call_v1(
+            &crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationStateTransportV1::new(env),
+            identity_digest,
+            custody_lineage,
         )
-        .map_err(|error| {
-            local(format!(
-                "tenant-root creation read request construction failed: {error}"
-            ))
-        })?;
-        let mut response = stub
-            .fetch_with_request(request)
-            .await
-            .map_err(|error| local(format!("tenant-root creation read request failed: {error}")))?;
-        if response.status_code() != 200 {
-            return Err(refused(
-                "tenant-root creation Durable Object refused the read",
-            ));
-        }
-        let parsed: CloudflareTenantRootCreationJournalReadResponseV1 =
-            response.json().await.map_err(|error| {
-                local(format!(
-                    "tenant-root creation read response decoding failed: {error}"
-                ))
-            })?;
-        Ok((authority_id, parsed))
+        .await?;
+        Ok((authority_id, state))
     }
 
 
@@ -3719,33 +3685,35 @@ mod live {
         Ok(body)
     }
 
-    /// Sends the typed activation request over the private control-plane binding.
-    pub(crate) async fn execute_cloudflare_tenant_root_control_plane_initial_activation_service_call_v1(
+    /// Posts one JSON request over a Service Binding with explicit request and
+    /// response size bounds.
+    pub(crate) async fn post_bounded_service_json_v1<TRequest, TResponse>(
         env: &worker::Env,
-        request: &CloudflareTenantRootControlPlaneInitialActivationRequestV1,
-    ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1>
+        binding_name: &str,
+        url: &str,
+        label: &str,
+        request: &TRequest,
+        bounds: crate::tenant_root_transport::TenantRootCallBoundsV1,
+    ) -> RouterAbProtocolResult<TResponse>
+    where
+        TRequest: serde::Serialize,
+        TResponse: serde::de::DeserializeOwned,
     {
-        let label = "tenant-root control-plane initial activation request";
         let request_body = crate::cloudflare_service_json_request_body_v1(label, request)?;
-        if request_body.len() > TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1 {
+        if request_body.len() > bounds.request_max_bytes {
             return Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::MalformedWirePayload,
                 format!("{label} exceeds its maximum size"),
             ));
         }
-        let fetcher = env
-            .service(crate::TENANT_ROOT_CONTROL_PLANE_SERVICE_BINDING_V1)
-            .map_err(|error| {
-                crate::worker_binding_error(
-                    crate::worker_binding_error_code(
-                        &error,
-                        crate::TENANT_ROOT_CONTROL_PLANE_SERVICE_BINDING_V1,
-                    ),
-                    crate::TENANT_ROOT_CONTROL_PLANE_SERVICE_BINDING_V1,
-                    "service",
-                    error,
-                )
-            })?;
+        let fetcher = env.service(binding_name).map_err(|error| {
+            crate::worker_binding_error(
+                crate::worker_binding_error_code(&error, binding_name),
+                binding_name,
+                "service",
+                error,
+            )
+        })?;
         let headers = worker::Headers::new();
         headers
             .set("content-type", "application/json")
@@ -3760,10 +3728,7 @@ mod live {
         init.with_method(worker::Method::Post)
             .with_headers(headers)
             .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&request_body)));
-        let request_for_fetch = worker::Request::new_with_init(
-            crate::cloudflare_tenant_root_control_plane_initial_activation_service_url(),
-            &init,
-        )
+        let request_for_fetch = worker::Request::new_with_init(url, &init)
         .map_err(|error| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
@@ -3782,7 +3747,7 @@ mod live {
         let status = response.status_code();
         let response_body = read_bounded_initial_activation_response_body_v1(
             &mut response,
-            TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_RESPONSE_MAX_BYTES_V1,
+            bounds.response_max_bytes,
             label,
         )
         .await?;
@@ -3796,27 +3761,12 @@ mod live {
                 ),
             ));
         }
-        let parsed: CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1 =
-            serde_json::from_slice(&response_body).map_err(|error| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MalformedWirePayload,
-                    format!("{label} response JSON parse failed: {error}"),
-                )
-            })?;
-        let receipt_bytes = decode_canonical_base64url(
-            "tenant-root initial activation receipt",
-            &parsed.activation_receipt_b64u,
-            TENANT_ROOT_ACTIVATION_RECEIPT_MAX_BYTES_V1,
-            TENANT_ROOT_ACTIVATION_RECEIPT_MAX_BYTES_V1 * 2,
-        )?;
-        let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(&receipt_bytes)
-            .map_err(derivation)?;
-        if receipt.transition() != TenantRootActivationReceiptTransitionV1::InitialCreation {
-            return Err(refused(
-                "tenant-root control-plane returned a non-initial activation receipt",
-            ));
-        }
-        Ok(parsed)
+        serde_json::from_slice(&response_body).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("{label} response JSON parse failed: {error}"),
+            )
+        })
     }
 
     /// Sends the restore initial-activation request over the private

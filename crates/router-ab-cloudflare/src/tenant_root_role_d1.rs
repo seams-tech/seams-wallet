@@ -1987,26 +1987,25 @@ struct TenantRootRoleD1CipherV1 {
 }
 
 impl TenantRootRoleD1CipherV1 {
-    #[cfg(feature = "workers-rs")]
-    fn from_env(env: &Env) -> RoleStoreResult<Self> {
-        let secret_binding = required_env_var(env, ROLE_PRIVATE_D1_KEK_BINDING_ENV)?;
-        let secret = env.secret(&secret_binding).map_err(|error| {
+    fn from_env_reader(
+        env: &(impl crate::CloudflareEnvReaderV1 + crate::CloudflareSecretReaderV1),
+    ) -> RoleStoreResult<Self> {
+        let secret_binding = required_reader_var(env, ROLE_PRIVATE_D1_KEK_BINDING_ENV)?;
+        let encoded_private_key = env.secret_text(&secret_binding).map_err(|error| {
             store_error(format!(
-                "role-private D1 KEK Secret binding {secret_binding} is unavailable: {error}"
+                "role-private D1 KEK Secret binding {secret_binding} is unavailable: {}",
+                error.message()
             ))
         })?;
-        let mut encoded_private_key = secret.to_string();
-        let cipher = Self::from_config(
+        Self::from_config(
             TenantRootRoleStoreKeyConfigV1 {
-                environment: required_env_var(env, ROLE_PRIVATE_D1_ENVIRONMENT_ENV)?,
-                role: required_env_var(env, ROLE_PRIVATE_D1_ROLE_ENV)?,
-                key_version: required_env_var(env, ROLE_PRIVATE_D1_KEK_VERSION_ENV)?,
-                public_key: required_env_var(env, ROLE_PRIVATE_D1_KEK_PUBLIC_KEY_ENV)?,
+                environment: required_reader_var(env, ROLE_PRIVATE_D1_ENVIRONMENT_ENV)?,
+                role: required_reader_var(env, ROLE_PRIVATE_D1_ROLE_ENV)?,
+                key_version: required_reader_var(env, ROLE_PRIVATE_D1_KEK_VERSION_ENV)?,
+                public_key: required_reader_var(env, ROLE_PRIVATE_D1_KEK_PUBLIC_KEY_ENV)?,
             },
             &encoded_private_key,
-        );
-        encoded_private_key.zeroize();
-        cipher
+        )
     }
 
     fn from_config(
@@ -7128,6 +7127,18 @@ pub struct TenantRootRoleStoreKeyConfigV1 {
 }
 
 impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
+    /// A store over any role-private SQL session whose record key is read
+    /// from the role's Env and Secret bindings, as a Cloudflare Deriver reads it.
+    pub fn from_env_reader(
+        session: S,
+        env: &(impl crate::CloudflareEnvReaderV1 + crate::CloudflareSecretReaderV1),
+    ) -> RoleStoreResult<Self> {
+        Ok(Self {
+            session,
+            cipher: TenantRootRoleD1CipherV1::from_env_reader(env)?,
+        })
+    }
+
     /// A store over any role-private SQL session, sealing with this role's
     /// record key.
     pub fn new(
@@ -7160,7 +7171,9 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             })?;
         Ok(Self {
             session: D1RoleSqlSessionV1::new(session),
-            cipher: TenantRootRoleD1CipherV1::from_env(env)?,
+            cipher: TenantRootRoleD1CipherV1::from_env_reader(&crate::CloudflareWorkerEnvReaderV1::new(
+                env,
+            ))?,
         })
     }
 }
@@ -16104,12 +16117,14 @@ fn active_binding_from_stored(
     .map_err(|error| store_error(error.message()))
 }
 
-#[cfg(feature = "workers-rs")]
-fn required_env_var(env: &Env, name: &'static str) -> RoleStoreResult<String> {
+fn required_reader_var(
+    env: &impl crate::CloudflareEnvReaderV1,
+    name: &'static str,
+) -> RoleStoreResult<String> {
     let value = env
-        .var(name)
-        .map_err(|error| store_error(format!("required env {name} is unavailable: {error}")))?
-        .to_string();
+        .get_text(name)
+        .map_err(|error| store_error(format!("required env {name} is unavailable: {}", error.message())))?
+        .ok_or_else(|| store_error(format!("required env {name} is unavailable")))?;
     require_identifier(name, &value)?;
     Ok(value)
 }
