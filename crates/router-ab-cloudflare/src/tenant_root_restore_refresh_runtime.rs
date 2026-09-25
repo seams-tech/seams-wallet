@@ -166,7 +166,7 @@ fn derivation_error(error: RouterAbDerivationError) -> RouterAbProtocolError {
     feature = "strict-worker-deriver-b-entrypoint",
     all(test, feature = "workers-rs")
 ))]
-fn storage_error(error: worker::Error) -> RouterAbProtocolError {
+fn storage_error(error: impl core::fmt::Display) -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::InvalidLifecycleState,
         error.to_string(),

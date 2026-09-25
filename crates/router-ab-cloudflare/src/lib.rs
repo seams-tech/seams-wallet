@@ -76,12 +76,19 @@ pub use ordinary_inactive_signer_material::{
     CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_PATH,
     CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH,
 };
-#[cfg(feature = "workers-rs")]
+mod tenant_root_role_sql;
+pub use tenant_root_role_sql::{
+    RoleSqlOutcomeV1, RoleSqlOwnedValueV1, RoleSqlReadV1, RoleSqlSessionV1, RoleSqlStatement,
+    RoleSqlValue, RoleStoreError, RoleStoreResult,
+};
+// Shared by every host. Its refresh, restore, retirement and cutover paths
+// still have only Cloudflare callers, so a Cloudflare-free build leaves them unused.
+#[cfg_attr(not(feature = "workers-rs"), allow(dead_code, unused_imports))]
 mod tenant_root_role_d1;
-#[cfg(feature = "workers-rs")]
 pub use tenant_root_role_d1::*;
 // The issuer's pure authorization and validation logic is host-neutral; its
 // Worker handlers live in the gated `live` submodule.
+#[cfg_attr(not(feature = "workers-rs"), allow(dead_code, unused_imports))]
 mod tenant_root_control_plane;
 mod tenant_root_cutover_lifecycle;
 mod tenant_root_managed_backup_r2;
@@ -16214,7 +16221,7 @@ fn map_root_share_to_protocol(error: RouterAbDerivationError) -> RouterAbProtoco
 #[cfg(feature = "workers-rs")]
 fn map_cloudflare_tenant_root_role_store_error_v1(
     operation: &'static str,
-    error: worker::Error,
+    error: impl core::fmt::Display,
 ) -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::InvalidLocalServiceConfig,

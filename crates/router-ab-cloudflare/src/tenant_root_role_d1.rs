@@ -8,6 +8,7 @@ pub(crate) mod recovery;
 use core::{fmt, future::Future, pin::Pin};
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 use ed25519_dalek::SigningKey;
 use hpke_ng::Kem;
 use router_ab_core::{
@@ -49,7 +50,15 @@ use router_ab_core::{
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sha2::{Digest, Sha256};
 use threshold_prf::{SigningRootShare, SigningRootShareCommitment, SigningRootShareWire};
-use worker::{D1DatabaseSession, D1SessionConstraint, D1Type, Env};
+#[cfg(feature = "workers-rs")]
+use worker::{D1SessionConstraint, Env};
+
+#[cfg(feature = "workers-rs")]
+use crate::tenant_root_role_sql::D1RoleSqlSessionV1;
+use crate::tenant_root_role_sql::{
+    RoleSqlOutcomeV1, RoleSqlSessionV1, RoleSqlStatement, RoleSqlValue, RoleStoreError,
+    RoleStoreResult,
+};
 use zeroize::Zeroize;
 
 use crate::{
@@ -402,7 +411,7 @@ pub enum CloudflareTenantRootDeriverRoleV1 {
 }
 
 impl CloudflareTenantRootDeriverRoleV1 {
-    fn parse(value: &str) -> worker::Result<Self> {
+    fn parse(value: &str) -> RoleStoreResult<Self> {
         match value {
             "deriver_a" => Ok(Self::DeriverA),
             "deriver_b" => Ok(Self::DeriverB),
@@ -444,7 +453,7 @@ pub struct CloudflareTenantRootSealedRoleShareV1 {
 
 impl CloudflareTenantRootSealedRoleShareV1 {
     /// Normalizes one non-empty bounded ciphertext and commits its exact bytes.
-    pub fn new(ciphertext: &[u8]) -> worker::Result<Self> {
+    pub fn new(ciphertext: &[u8]) -> RoleStoreResult<Self> {
         if ciphertext.is_empty() || ciphertext.len() > MAX_SEALED_ROLE_SHARE_BYTES {
             return Err(store_error(
                 "tenant-root sealed role share has an invalid ciphertext length",
@@ -466,7 +475,7 @@ impl CloudflareTenantRootSealedRoleShareV1 {
         &self.ciphertext_digest_hex
     }
 
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         let ciphertext =
             decode_base64url_bytes_v1("tenant-root sealed role share", &self.ciphertext_b64u)
                 .map_err(|error| store_error(error.message()))?;
@@ -526,7 +535,7 @@ impl CloudflareTenantRootPendingShareV1 {
     pub fn from_verified_installation_evidence(
         evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
         staged_at_ms: u64,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let installation_evidence_digest = evidence
             .lifecycle_receipt_digest()
             .map_err(|error| store_error(error.message()))?;
@@ -537,7 +546,7 @@ impl CloudflareTenantRootPendingShareV1 {
         evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
         staged_at_ms: u64,
         replay_key_digest: TenantRootProtocolDigestV1,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let installation_evidence_digest = evidence
             .lifecycle_receipt_digest()
             .map_err(|error| store_error(error.message()))?;
@@ -551,7 +560,7 @@ impl CloudflareTenantRootPendingShareV1 {
     fn from_stored_digest(
         installation_evidence_digest: TenantRootLifecycleReceiptDigestV1,
         staged_at_ms: u64,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         Self::from_stored_digest_with_origin(
             installation_evidence_digest,
             staged_at_ms,
@@ -564,7 +573,7 @@ impl CloudflareTenantRootPendingShareV1 {
         capability_digest: TenantRootLifecycleReceiptDigestV1,
         backup_receipt_digest: TenantRootLifecycleReceiptDigestV1,
         staged_at_ms: u64,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         Self::from_stored_digest_with_origin(
             installation_evidence_digest,
             staged_at_ms,
@@ -579,7 +588,7 @@ impl CloudflareTenantRootPendingShareV1 {
         installation_evidence_digest: TenantRootLifecycleReceiptDigestV1,
         staged_at_ms: u64,
         origin: CloudflareTenantRootPendingShareOriginV1,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let pending = Self {
             installation_evidence_digest,
             staged_at_ms,
@@ -589,7 +598,7 @@ impl CloudflareTenantRootPendingShareV1 {
         Ok(pending)
     }
 
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         require_timestamp("tenant-root staged timestamp", self.staged_at_ms)
     }
 
@@ -633,7 +642,7 @@ impl CloudflareTenantRootPendingShareV1 {
 
 fn require_pending_activation_source(
     pending: &CloudflareTenantRootPendingShareV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     if pending.is_managed_restore() {
         return Err(store_error(
             "managed-restore material must pass through the mandatory forward refresh before activation",
@@ -778,7 +787,7 @@ impl Serialize for CloudflareTenantRootAvailabilityEvidenceV1 {
 }
 
 impl CloudflareTenantRootAvailabilityEvidenceV1 {
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         match self {
             Self::CurrentRoleBackup { .. } => Ok(()),
             Self::AcceptedPermanentDerivationLoss {
@@ -823,7 +832,7 @@ impl CloudflareTenantRootActivationV1 {
         record: &CloudflareTenantRootRoleShareRecordV1,
         verified_backup: &VerifiedTenantRootManagedBackupV1,
         activation_receipt: VerifiedTenantRootSignedActivationReceiptV1,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         record.validate()?;
         let CloudflareTenantRootRoleShareLifecycleV1::Pending(pending) = record.lifecycle() else {
             return Err(store_error(
@@ -853,7 +862,7 @@ impl CloudflareTenantRootActivationV1 {
     pub fn with_tenant_held_external(
         record: &CloudflareTenantRootRoleShareRecordV1,
         activation_receipt: &VerifiedTenantRootSignedActivationReceiptV1,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         record.validate()?;
         let CloudflareTenantRootRoleShareLifecycleV1::Pending(pending) = record.lifecycle() else {
             return Err(store_error(
@@ -888,7 +897,7 @@ impl CloudflareTenantRootActivationV1 {
     pub fn with_accepted_permanent_derivation_loss(
         record: &CloudflareTenantRootRoleShareRecordV1,
         activation_receipt: VerifiedTenantRootSignedActivationReceiptV1,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         record.validate()?;
         let CloudflareTenantRootRoleShareLifecycleV1::Pending(pending) = record.lifecycle() else {
             return Err(store_error(
@@ -911,7 +920,7 @@ impl CloudflareTenantRootActivationV1 {
     fn from_verified_receipt(
         availability: CloudflareTenantRootAvailabilityEvidenceV1,
         activation_receipt: VerifiedTenantRootSignedActivationReceiptV1,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let activation_receipt_digest = activation_receipt.digest();
         let activated_at_ms = activation_receipt.activated_at_ms();
         let activation_receipt_bytes = activation_receipt.into_canonical_bytes();
@@ -928,7 +937,7 @@ impl CloudflareTenantRootActivationV1 {
     fn from_stored_receipt_bytes(
         availability: CloudflareTenantRootAvailabilityEvidenceV1,
         activation_receipt_bytes: Vec<u8>,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let receipt = decode_activation_receipt_bytes(&activation_receipt_bytes)?;
         let activation_receipt_digest = receipt
             .digest()
@@ -959,7 +968,7 @@ impl CloudflareTenantRootActivationV1 {
         self.activated_at_ms
     }
 
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         self.availability.validate()?;
         let receipt = decode_activation_receipt_bytes(&self.activation_receipt_bytes)?;
         let digest = receipt
@@ -978,7 +987,7 @@ impl CloudflareTenantRootActivationV1 {
     fn validate_for_record(
         &self,
         record: &CloudflareTenantRootRoleShareRecordV1,
-    ) -> worker::Result<()> {
+    ) -> RoleStoreResult<()> {
         self.validate()?;
         let record_identity = record
             .identity
@@ -1054,7 +1063,7 @@ impl CloudflareTenantRootActiveShareV1 {
     fn from_pending(
         pending: CloudflareTenantRootPendingShareV1,
         activation: CloudflareTenantRootActivationV1,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         require_pending_activation_source(&pending)?;
         let active = Self {
             pending,
@@ -1064,7 +1073,7 @@ impl CloudflareTenantRootActiveShareV1 {
         Ok(active)
     }
 
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         self.pending.validate()?;
         require_pending_activation_source(&self.pending)?;
         self.activation.validate()?;
@@ -1090,7 +1099,7 @@ impl CloudflareTenantRootRetirementV1 {
     pub fn new(
         retirement_receipt_digest: TenantRootLifecycleReceiptDigestV1,
         retired_at_ms: u64,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let retirement = Self {
             retirement_receipt_digest,
             retired_at_ms,
@@ -1099,7 +1108,7 @@ impl CloudflareTenantRootRetirementV1 {
         Ok(retirement)
     }
 
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         require_timestamp("tenant-root retirement timestamp", self.retired_at_ms)
     }
 }
@@ -1116,13 +1125,13 @@ impl CloudflareTenantRootRetiredShareV1 {
     fn from_active(
         active: CloudflareTenantRootActiveShareV1,
         retirement: CloudflareTenantRootRetirementV1,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let retired = Self { active, retirement };
         retired.validate()?;
         Ok(retired)
     }
 
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         self.active.validate()?;
         self.retirement.validate()?;
         if self.retirement.retired_at_ms < self.active.activation.activated_at_ms {
@@ -1163,7 +1172,7 @@ impl CloudflareTenantRootRoleShareLifecycleV1 {
         }
     }
 
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         match self {
             Self::Pending(state) => state.validate(),
             Self::Active(state) => state.validate(),
@@ -1214,7 +1223,7 @@ pub struct CloudflareTenantRootRoleShareRecordV1 {
 
 impl CloudflareTenantRootRoleShareRecordV1 {
     /// Validates and normalizes one role-private share record.
-    pub fn new(input: CloudflareTenantRootRoleShareRecordInputV1) -> worker::Result<Self> {
+    pub fn new(input: CloudflareTenantRootRoleShareRecordInputV1) -> RoleStoreResult<Self> {
         let record = Self {
             identity: input.identity,
             custody_lineage: input.custody_lineage,
@@ -1276,7 +1285,7 @@ impl CloudflareTenantRootRoleShareRecordV1 {
         self.updated_at_ms
     }
 
-    fn into_online_role_share_artifact(self) -> worker::Result<TenantRootSealedOnlineRoleShareV1> {
+    fn into_online_role_share_artifact(self) -> RoleStoreResult<TenantRootSealedOnlineRoleShareV1> {
         let installation_evidence_digest = match &self.lifecycle {
             CloudflareTenantRootRoleShareLifecycleV1::Active(active) => {
                 active.pending.installation_evidence_digest()
@@ -1297,7 +1306,7 @@ impl CloudflareTenantRootRoleShareRecordV1 {
     fn into_online_role_share_artifact_with_installation_evidence_digest(
         self,
         installation_evidence_digest: TenantRootLifecycleReceiptDigestV1,
-    ) -> worker::Result<TenantRootSealedOnlineRoleShareV1> {
+    ) -> RoleStoreResult<TenantRootSealedOnlineRoleShareV1> {
         let identity_digest = self
             .identity
             .digest()
@@ -1321,14 +1330,14 @@ impl CloudflareTenantRootRoleShareRecordV1 {
             .map_err(|error| store_error(error.message()))
     }
 
-    fn identity_digest_hex(&self) -> worker::Result<String> {
+    fn identity_digest_hex(&self) -> RoleStoreResult<String> {
         self.identity
             .digest()
             .map(|digest| encode_hex(digest.as_bytes()))
             .map_err(|error| store_error(error.message()))
     }
 
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         self.sealed_share.validate()?;
         self.lifecycle.validate()?;
         require_identifier(
@@ -1360,7 +1369,7 @@ impl CloudflareTenantRootRoleShareRecordV1 {
         mut self,
         activation: CloudflareTenantRootActivationV1,
         updated_at_ms: u64,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         require_lifecycle_progression(
             "tenant-root activation",
             self.updated_at_ms,
@@ -1388,7 +1397,7 @@ impl CloudflareTenantRootRoleShareRecordV1 {
         mut self,
         retirement: CloudflareTenantRootRetirementV1,
         updated_at_ms: u64,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         require_lifecycle_progression(
             "tenant-root retirement",
             self.updated_at_ms,
@@ -1427,12 +1436,12 @@ impl CloudflareStoredTenantRootRoleShareV1 {
     }
 
     /// Returns the validated public binding for this active role share.
-    pub(crate) fn active_binding(&self) -> worker::Result<TenantRootActiveRoleBindingV1> {
+    pub(crate) fn active_binding(&self) -> RoleStoreResult<TenantRootActiveRoleBindingV1> {
         active_binding_from_stored(self)
     }
 
     /// Returns the exact activation receipt retained by an active row.
-    pub(crate) fn active_activation_receipt_bytes(&self) -> worker::Result<&[u8]> {
+    pub(crate) fn active_activation_receipt_bytes(&self) -> RoleStoreResult<&[u8]> {
         let CloudflareTenantRootRoleShareLifecycleV1::Active(active) = &self.record.lifecycle
         else {
             return Err(store_error(
@@ -1442,7 +1451,7 @@ impl CloudflareStoredTenantRootRoleShareV1 {
         Ok(active.activation.activation_receipt_bytes())
     }
 
-    pub(crate) fn retained_activation_receipt_bytes(&self) -> worker::Result<&[u8]> {
+    pub(crate) fn retained_activation_receipt_bytes(&self) -> RoleStoreResult<&[u8]> {
         match &self.record.lifecycle {
             CloudflareTenantRootRoleShareLifecycleV1::Active(active) => {
                 Ok(active.activation.activation_receipt_bytes())
@@ -1457,7 +1466,7 @@ impl CloudflareStoredTenantRootRoleShareV1 {
     }
 
     /// Reconstructs the exact pending revision consumed by initial activation.
-    pub(crate) fn initial_activation_retry_pending(&self) -> worker::Result<Self> {
+    pub(crate) fn initial_activation_retry_pending(&self) -> RoleStoreResult<Self> {
         self.record.validate()?;
         if self.record.epoch != TenantRootShareEpoch::INITIAL {
             return Err(store_error(
@@ -1486,7 +1495,7 @@ impl CloudflareStoredTenantRootRoleShareV1 {
     }
 
     /// Reconstructs the exact pending revision consumed by a refresh activation.
-    pub(crate) fn refresh_activation_retry_pending(&self) -> worker::Result<Self> {
+    pub(crate) fn refresh_activation_retry_pending(&self) -> RoleStoreResult<Self> {
         self.record.validate()?;
         let CloudflareTenantRootRoleShareLifecycleV1::Active(active) = &self.record.lifecycle
         else {
@@ -1512,7 +1521,7 @@ impl CloudflareStoredTenantRootRoleShareV1 {
     /// Reconstructs the opaque provider artifact from one validated active D1 record.
     pub fn into_online_role_share_artifact(
         self,
-    ) -> worker::Result<TenantRootSealedOnlineRoleShareV1> {
+    ) -> RoleStoreResult<TenantRootSealedOnlineRoleShareV1> {
         validate_active_stored_record_shape(&self)?;
         self.record.into_online_role_share_artifact()
     }
@@ -1530,7 +1539,7 @@ pub enum CloudflareTenantRootActiveRoleShareV1 {
 }
 
 impl CloudflareTenantRootActiveRoleShareV1 {
-    fn from_stored(stored: CloudflareStoredTenantRootRoleShareV1) -> worker::Result<Self> {
+    fn from_stored(stored: CloudflareStoredTenantRootRoleShareV1) -> RoleStoreResult<Self> {
         active_binding_from_stored(&stored)?;
         Ok(Self::Active(Box::new(stored)))
     }
@@ -1539,7 +1548,7 @@ impl CloudflareTenantRootActiveRoleShareV1 {
     ///
     /// Derivation and runtime callers use this; reconciliation matches the
     /// variants directly so it can observe ambiguity without deriving from it.
-    pub fn require_active(self) -> worker::Result<CloudflareStoredTenantRootRoleShareV1> {
+    pub fn require_active(self) -> RoleStoreResult<CloudflareStoredTenantRootRoleShareV1> {
         match self {
             Self::Active(stored) => {
                 validate_active_stored_record_shape(stored.as_ref())?;
@@ -1561,7 +1570,7 @@ impl CloudflareTenantRootActiveRoleShareV1 {
     /// Pair resolution consumes only this. A Deriver never receives its peer's
     /// opened record, so assembling a pair cannot move sealed share material
     /// across the role boundary.
-    pub fn public_resolution(&self) -> worker::Result<TenantRootActiveRoleResolutionV1> {
+    pub fn public_resolution(&self) -> RoleStoreResult<TenantRootActiveRoleResolutionV1> {
         match self {
             Self::Unprovisioned => Ok(TenantRootActiveRoleResolutionV1::Unprovisioned),
             Self::Active(stored) => Ok(TenantRootActiveRoleResolutionV1::Active(
@@ -1584,7 +1593,7 @@ pub fn cloudflare_observe_active_tenant_root_pair_v1(
     identity: &TenantRootIdentityV1,
     deriver_a: &CloudflareTenantRootActiveRoleShareV1,
     deriver_b: &CloudflareTenantRootActiveRoleShareV1,
-) -> worker::Result<TenantRootActivePairResolutionV1> {
+) -> RoleStoreResult<TenantRootActivePairResolutionV1> {
     let identity_digest = identity
         .digest()
         .map_err(|error| store_error(error.message()))?;
@@ -1603,7 +1612,7 @@ pub fn cloudflare_resolve_active_tenant_root_pair_v1(
     custody_binding: &TenantRootCustodyBindingV1,
     deriver_a: &CloudflareTenantRootActiveRoleShareV1,
     deriver_b: &CloudflareTenantRootActiveRoleShareV1,
-) -> worker::Result<TenantRootActivePairResolutionV1> {
+) -> RoleStoreResult<TenantRootActivePairResolutionV1> {
     let identity_digest = custody_binding.identity_digest();
     let deriver_a = deriver_a.public_resolution()?;
     let deriver_b = deriver_b.public_resolution()?;
@@ -1624,7 +1633,7 @@ pub fn cloudflare_require_active_tenant_root_pair_v1(
     custody_binding: &TenantRootCustodyBindingV1,
     deriver_a: &CloudflareTenantRootActiveRoleShareV1,
     deriver_b: &CloudflareTenantRootActiveRoleShareV1,
-) -> worker::Result<TenantRootActiveRootPairV1> {
+) -> RoleStoreResult<TenantRootActiveRootPairV1> {
     let resolution =
         cloudflare_resolve_active_tenant_root_pair_v1(custody_binding, deriver_a, deriver_b)?;
     let pair = resolution
@@ -1762,7 +1771,7 @@ struct TenantRootRoleD1RetirementWireV1 {
 }
 
 impl TenantRootRoleD1RecordWireV1 {
-    fn into_record(self) -> worker::Result<CloudflareTenantRootRoleShareRecordV1> {
+    fn into_record(self) -> RoleStoreResult<CloudflareTenantRootRoleShareRecordV1> {
         CloudflareTenantRootRoleShareRecordV1::new(CloudflareTenantRootRoleShareRecordInputV1 {
             identity: self.identity,
             custody_lineage: self.custody_lineage,
@@ -1779,7 +1788,7 @@ impl TenantRootRoleD1RecordWireV1 {
 }
 
 impl TenantRootRoleD1LifecycleWireV1 {
-    fn into_lifecycle(self) -> worker::Result<CloudflareTenantRootRoleShareLifecycleV1> {
+    fn into_lifecycle(self) -> RoleStoreResult<CloudflareTenantRootRoleShareLifecycleV1> {
         match self {
             Self::Pending(pending) => Ok(CloudflareTenantRootRoleShareLifecycleV1::Pending(
                 pending.into_pending()?,
@@ -1795,7 +1804,7 @@ impl TenantRootRoleD1LifecycleWireV1 {
 }
 
 impl TenantRootRoleD1PendingWireV1 {
-    fn into_pending(self) -> worker::Result<CloudflareTenantRootPendingShareV1> {
+    fn into_pending(self) -> RoleStoreResult<CloudflareTenantRootPendingShareV1> {
         CloudflareTenantRootPendingShareV1::from_stored_digest_with_origin(
             self.installation_evidence_digest,
             self.staged_at_ms,
@@ -1805,7 +1814,7 @@ impl TenantRootRoleD1PendingWireV1 {
 }
 
 impl TenantRootRoleD1ActiveWireV1 {
-    fn into_active(self) -> worker::Result<CloudflareTenantRootActiveShareV1> {
+    fn into_active(self) -> RoleStoreResult<CloudflareTenantRootActiveShareV1> {
         CloudflareTenantRootActiveShareV1::from_pending(
             self.pending.into_pending()?,
             self.activation.into_activation()?,
@@ -1814,7 +1823,7 @@ impl TenantRootRoleD1ActiveWireV1 {
 }
 
 impl TenantRootRoleD1RetiredWireV1 {
-    fn into_retired(self) -> worker::Result<CloudflareTenantRootRetiredShareV1> {
+    fn into_retired(self) -> RoleStoreResult<CloudflareTenantRootRetiredShareV1> {
         CloudflareTenantRootRetiredShareV1::from_active(
             self.active.into_active()?,
             self.retirement.into_retirement()?,
@@ -1823,7 +1832,7 @@ impl TenantRootRoleD1RetiredWireV1 {
 }
 
 impl TenantRootRoleD1ActivationWireV1 {
-    fn into_activation(self) -> worker::Result<CloudflareTenantRootActivationV1> {
+    fn into_activation(self) -> RoleStoreResult<CloudflareTenantRootActivationV1> {
         let receipt_bytes = decode_base64url_bytes_v1(
             "tenant-root activation receipt",
             &self.activation_receipt_b64u,
@@ -1847,7 +1856,7 @@ impl TenantRootRoleD1AvailabilityWireV1 {
     fn into_availability(
         self,
         receipt_availability: &TenantRootActivationReceiptAvailabilityV1,
-    ) -> worker::Result<CloudflareTenantRootAvailabilityEvidenceV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootAvailabilityEvidenceV1> {
         Ok(match self {
             Self::CurrentRoleBackup {
                 role_backup_receipt_digest,
@@ -1964,7 +1973,7 @@ impl TenantRootRoleD1AvailabilityWireV1 {
 }
 
 impl TenantRootRoleD1RetirementWireV1 {
-    fn into_retirement(self) -> worker::Result<CloudflareTenantRootRetirementV1> {
+    fn into_retirement(self) -> RoleStoreResult<CloudflareTenantRootRetirementV1> {
         CloudflareTenantRootRetirementV1::new(self.retirement_receipt_digest, self.retired_at_ms)
     }
 }
@@ -1978,18 +1987,8 @@ struct TenantRootRoleD1CipherV1 {
 }
 
 impl TenantRootRoleD1CipherV1 {
-    fn from_env(env: &Env) -> worker::Result<Self> {
-        let environment = required_env_var(env, ROLE_PRIVATE_D1_ENVIRONMENT_ENV)?;
-        let role = CloudflareTenantRootDeriverRoleV1::parse(&required_env_var(
-            env,
-            ROLE_PRIVATE_D1_ROLE_ENV,
-        )?)?;
-        let key_version = required_env_var(env, ROLE_PRIVATE_D1_KEK_VERSION_ENV)?;
-        let public_key = parse_cloudflare_hpke_x25519_public_key_v1(&required_env_var(
-            env,
-            ROLE_PRIVATE_D1_KEK_PUBLIC_KEY_ENV,
-        )?)
-        .map_err(|error| store_error(error.message()))?;
+    #[cfg(feature = "workers-rs")]
+    fn from_env(env: &Env) -> RoleStoreResult<Self> {
         let secret_binding = required_env_var(env, ROLE_PRIVATE_D1_KEK_BINDING_ENV)?;
         let secret = env.secret(&secret_binding).map_err(|error| {
             store_error(format!(
@@ -1997,8 +1996,36 @@ impl TenantRootRoleD1CipherV1 {
             ))
         })?;
         let mut encoded_private_key = secret.to_string();
-        let mut private_key_bytes = decode_private_key(&encoded_private_key)?;
+        let cipher = Self::from_config(
+            TenantRootRoleStoreKeyConfigV1 {
+                environment: required_env_var(env, ROLE_PRIVATE_D1_ENVIRONMENT_ENV)?,
+                role: required_env_var(env, ROLE_PRIVATE_D1_ROLE_ENV)?,
+                key_version: required_env_var(env, ROLE_PRIVATE_D1_KEK_VERSION_ENV)?,
+                public_key: required_env_var(env, ROLE_PRIVATE_D1_KEK_PUBLIC_KEY_ENV)?,
+            },
+            &encoded_private_key,
+        );
         encoded_private_key.zeroize();
+        cipher
+    }
+
+    fn from_config(
+        config: TenantRootRoleStoreKeyConfigV1,
+        encoded_private_key: &str,
+    ) -> RoleStoreResult<Self> {
+        for (field, value) in [
+            (ROLE_PRIVATE_D1_ENVIRONMENT_ENV, &config.environment),
+            (ROLE_PRIVATE_D1_ROLE_ENV, &config.role),
+            (ROLE_PRIVATE_D1_KEK_VERSION_ENV, &config.key_version),
+        ] {
+            require_identifier(field, value)?;
+        }
+        let environment = config.environment;
+        let role = CloudflareTenantRootDeriverRoleV1::parse(&config.role)?;
+        let key_version = config.key_version;
+        let public_key = parse_cloudflare_hpke_x25519_public_key_v1(&config.public_key)
+            .map_err(|error| store_error(error.message()))?;
+        let mut private_key_bytes = decode_private_key(encoded_private_key)?;
         let private_key = CloudflareHpkeKemV1::sk_from_bytes(&private_key_bytes)
             .map_err(|error| store_error(format!("role-private D1 KEK is invalid: {error}")))?;
         private_key_bytes.zeroize();
@@ -2016,7 +2043,7 @@ impl TenantRootRoleD1CipherV1 {
         &self,
         record: &CloudflareTenantRootRoleShareRecordV1,
         revision: i64,
-    ) -> worker::Result<String> {
+    ) -> RoleStoreResult<String> {
         if revision <= 0 {
             return Err(store_error(
                 "tenant-root role-private row has an invalid revision",
@@ -2067,7 +2094,7 @@ impl TenantRootRoleD1CipherV1 {
         &self,
         binding: &CloudflareTenantRootRestoreImportKeyBindingV1,
         ikm: &[u8; TENANT_ROOT_RESTORE_IMPORT_KEY_IKM_BYTES],
-    ) -> worker::Result<String> {
+    ) -> RoleStoreResult<String> {
         binding.validate()?;
         self.require_role(binding.role)?;
         require_nonzero_bytes("tenant-root restore import key IKM", ikm)?;
@@ -2124,7 +2151,7 @@ impl TenantRootRoleD1CipherV1 {
         binding: &CloudflareTenantRootRestoreImportKeyBindingV1,
         envelope_digest: &[u8; 32],
         share_bytes: &[u8],
-    ) -> worker::Result<String> {
+    ) -> RoleStoreResult<String> {
         binding.validate()?;
         self.require_role(binding.role)?;
         require_nonzero_bytes(
@@ -2202,7 +2229,7 @@ impl TenantRootRoleD1CipherV1 {
         restore_session_id_hex: &str,
         envelope_digest_hex: &str,
         share_commitment_b64u: &str,
-    ) -> worker::Result<Vec<u8>> {
+    ) -> RoleStoreResult<Vec<u8>> {
         serde_json::to_vec(&TenantRootRestoreImportedShareAadV1 {
             environment: &self.environment,
             worker_role: self.role,
@@ -2227,7 +2254,7 @@ impl TenantRootRoleD1CipherV1 {
     fn open_restore_imported_share(
         &self,
         record: &CloudflareTenantRootRestoreImportKeyRecordV1,
-    ) -> worker::Result<SigningRootShare> {
+    ) -> RoleStoreResult<SigningRootShare> {
         record.binding.validate()?;
         self.require_role(record.binding.role)?;
         if record.lifecycle != CloudflareTenantRootRestoreImportKeyLifecycleV1::Installed {
@@ -2323,7 +2350,7 @@ impl TenantRootRoleD1CipherV1 {
     fn restore_refresh_seed_aad(
         &self,
         binding: &CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1,
-    ) -> worker::Result<Vec<u8>> {
+    ) -> RoleStoreResult<Vec<u8>> {
         let import = binding.import_binding();
         let identity_digest_hex = encode_hex(import.identity_digest.as_bytes());
         let custody_lineage_b64u = import.custody_lineage.to_base64url();
@@ -2376,7 +2403,7 @@ impl TenantRootRoleD1CipherV1 {
         &self,
         binding: &CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1,
         evidence_digest_hex: &str,
-    ) -> worker::Result<Vec<u8>> {
+    ) -> RoleStoreResult<Vec<u8>> {
         let import = binding.import_binding();
         let identity_digest_hex = encode_hex(import.identity_digest.as_bytes());
         let custody_lineage_b64u = import.custody_lineage.to_base64url();
@@ -2427,7 +2454,7 @@ impl TenantRootRoleD1CipherV1 {
         &self,
         binding: &CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1,
         provider_binding_aad_b64u: &str,
-    ) -> worker::Result<Vec<u8>> {
+    ) -> RoleStoreResult<Vec<u8>> {
         let import = binding.import_binding();
         let identity_digest_hex = encode_hex(import.identity_digest.as_bytes());
         let custody_lineage_b64u = import.custody_lineage.to_base64url();
@@ -2478,7 +2505,7 @@ impl TenantRootRoleD1CipherV1 {
         &self,
         record: &CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1,
         sealed: &TenantRootSealedOnlineRoleShareV1,
-    ) -> worker::Result<String> {
+    ) -> RoleStoreResult<String> {
         if record.lifecycle() != CloudflareTenantRootRestoreRefreshRoleAttemptLifecycleV1::Refreshed
         {
             return Err(store_error(
@@ -2564,7 +2591,7 @@ impl TenantRootRoleD1CipherV1 {
     fn open_restore_refresh_promotion_output(
         &self,
         record: &CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1,
-    ) -> worker::Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
+    ) -> RoleStoreResult<(Vec<u8>, Vec<u8>, Vec<u8>)> {
         if record.promotion_lifecycle()
             != CloudflareTenantRootRestoreRefreshPromotionLifecycleV1::Completed
         {
@@ -2679,7 +2706,7 @@ impl TenantRootRoleD1CipherV1 {
         &self,
         binding: &CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1,
         replay_seed: &[u8; TENANT_ROOT_RESTORE_REFRESH_REPLAY_SEED_BYTES],
-    ) -> worker::Result<String> {
+    ) -> RoleStoreResult<String> {
         binding.import_binding().validate()?;
         self.require_role(binding.import_binding().role)?;
         require_nonzero_bytes("tenant-root restore refresh replay seed", replay_seed)?;
@@ -2750,7 +2777,7 @@ impl TenantRootRoleD1CipherV1 {
     fn open_restore_refresh_seed(
         &self,
         record: &CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1,
-    ) -> worker::Result<zeroize::Zeroizing<[u8; TENANT_ROOT_RESTORE_REFRESH_REPLAY_SEED_BYTES]>>
+    ) -> RoleStoreResult<zeroize::Zeroizing<[u8; TENANT_ROOT_RESTORE_REFRESH_REPLAY_SEED_BYTES]>>
     {
         let binding = record.binding();
         binding.import_binding().validate()?;
@@ -2859,7 +2886,7 @@ impl TenantRootRoleD1CipherV1 {
         binding: &CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1,
         evidence_digest: &[u8; 32],
         share_wire: &SigningRootShareWire,
-    ) -> worker::Result<String> {
+    ) -> RoleStoreResult<String> {
         binding.import_binding().validate()?;
         self.require_role(binding.import_binding().role)?;
         require_nonzero_bytes(
@@ -2945,7 +2972,7 @@ impl TenantRootRoleD1CipherV1 {
     fn open_restore_refresh_share(
         &self,
         record: &CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1,
-    ) -> worker::Result<SigningRootShare> {
+    ) -> RoleStoreResult<SigningRootShare> {
         if record.lifecycle() != CloudflareTenantRootRestoreRefreshRoleAttemptLifecycleV1::Refreshed
         {
             return Err(store_error(
@@ -3053,7 +3080,7 @@ impl TenantRootRoleD1CipherV1 {
     fn open_restore_import_ikm(
         &self,
         record: &CloudflareTenantRootRestoreImportKeyRecordV1,
-    ) -> worker::Result<zeroize::Zeroizing<[u8; TENANT_ROOT_RESTORE_IMPORT_KEY_IKM_BYTES]>> {
+    ) -> RoleStoreResult<zeroize::Zeroizing<[u8; TENANT_ROOT_RESTORE_IMPORT_KEY_IKM_BYTES]>> {
         record.binding.validate()?;
         self.require_role(record.binding.role)?;
         if record.lifecycle != CloudflareTenantRootRestoreImportKeyLifecycleV1::Issued {
@@ -3140,7 +3167,7 @@ impl TenantRootRoleD1CipherV1 {
         &self,
         binding: &CloudflareTenantRootRestoreImportKeyBindingV1,
         lifecycle: CloudflareTenantRootRestoreImportKeyLifecycleV1,
-    ) -> worker::Result<Vec<u8>> {
+    ) -> RoleStoreResult<Vec<u8>> {
         let identity_digest_hex = encode_hex(binding.identity_digest.as_bytes());
         let custody_lineage_b64u = binding.custody_lineage.to_base64url();
         let restore_session_id_hex = encode_hex(binding.restore_session_id.as_bytes());
@@ -3188,7 +3215,7 @@ impl TenantRootRoleD1CipherV1 {
     fn open(
         &self,
         row: &TenantRootRoleD1RowV1,
-    ) -> worker::Result<CloudflareTenantRootRoleShareRecordV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRoleShareRecordV1> {
         let envelope: TenantRootRoleD1CiphertextV1 = serde_json::from_str(&row.ciphertext_json)
             .map_err(|error| {
                 store_error(format!(
@@ -3260,7 +3287,7 @@ impl TenantRootRoleD1CipherV1 {
         Ok(record)
     }
 
-    fn aad(&self, metadata: &TenantRootRoleD1MetadataV1, revision: i64) -> worker::Result<Vec<u8>> {
+    fn aad(&self, metadata: &TenantRootRoleD1MetadataV1, revision: i64) -> RoleStoreResult<Vec<u8>> {
         if revision <= 0 {
             return Err(store_error(
                 "tenant-root role-private row has an invalid revision",
@@ -3287,7 +3314,7 @@ impl TenantRootRoleD1CipherV1 {
         })
     }
 
-    fn require_role(&self, role: CloudflareTenantRootDeriverRoleV1) -> worker::Result<()> {
+    fn require_role(&self, role: CloudflareTenantRootDeriverRoleV1) -> RoleStoreResult<()> {
         if role != self.role {
             return Err(store_error(
                 "tenant-root role-private record belongs to the other Deriver",
@@ -3301,7 +3328,7 @@ impl TenantRootRoleD1CipherV1 {
 #[inline(never)]
 fn decode_tenant_root_role_d1_record_v1(
     plaintext: Vec<u8>,
-) -> worker::Result<CloudflareTenantRootRoleShareRecordV1> {
+) -> RoleStoreResult<CloudflareTenantRootRoleShareRecordV1> {
     serde_json::from_slice::<TenantRootRoleD1RecordWireV1>(&plaintext)
         .map_err(|error| {
             store_error(format!(
@@ -3314,7 +3341,7 @@ fn decode_tenant_root_role_d1_record_v1(
 fn validate_role_private_d1_kek_key_pair(
     public_key: &<CloudflareHpkeKemV1 as Kem>::PublicKey,
     private_key: &<CloudflareHpkeKemV1 as Kem>::PrivateKey,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     let mut rng = CloudflareHpkeGetrandomRngV1;
     let (encapped_shared_secret, encapped_key) =
         match CloudflareHpkeKemV1::encap(&mut rng, public_key) {
@@ -3408,7 +3435,7 @@ impl CloudflareTenantRootRestoreImportKeyLifecycleV1 {
         }
     }
 
-    fn parse(value: &str) -> worker::Result<Self> {
+    fn parse(value: &str) -> RoleStoreResult<Self> {
         match value {
             "issued" => Ok(Self::Issued),
             "superseded" => Ok(Self::Superseded),
@@ -3495,7 +3522,7 @@ impl CloudflareTenantRootRestoreImportKeyBindingV1 {
         import_public_key: TenantRootRestoreImportPublicKeyV1,
         issued_at_ms: u64,
         expires_at_ms: u64,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let binding = Self {
             identity_digest,
             custody_lineage,
@@ -3614,7 +3641,7 @@ impl CloudflareTenantRootRestoreImportKeyBindingV1 {
             && self.expires_at_ms == other.expires_at_ms
     }
 
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         if self.generation == 0 {
             return Err(store_error(
                 "tenant-root restore import key generation must be positive",
@@ -3716,7 +3743,7 @@ impl CloudflareTenantRootRestoreImportKeyRecordV1 {
     pub(crate) fn new_issued(
         binding: CloudflareTenantRootRestoreImportKeyBindingV1,
         encrypted_ikm_json: String,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         if encrypted_ikm_json.is_empty() {
             return Err(store_error(
                 "tenant-root restore import key ciphertext is empty",
@@ -3745,13 +3772,13 @@ impl CloudflareTenantRootRestoreImportKeyRecordV1 {
         self.lifecycle
     }
 
-    pub(crate) fn encrypted_ikm_json(&self) -> worker::Result<&str> {
+    pub(crate) fn encrypted_ikm_json(&self) -> RoleStoreResult<&str> {
         self.encrypted_ikm_json.as_deref().ok_or_else(|| {
             store_error("closed tenant-root restore import key has no encrypted IKM")
         })
     }
 
-    pub(crate) fn encrypted_imported_share_json(&self) -> worker::Result<&str> {
+    pub(crate) fn encrypted_imported_share_json(&self) -> RoleStoreResult<&str> {
         self.encrypted_imported_share_json
             .as_deref()
             .ok_or_else(|| {
@@ -3779,7 +3806,7 @@ impl CloudflareTenantRootRestoreImportKeyRecordV1 {
         self.updated_at_ms
     }
 
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         self.binding.validate()?;
         if self.created_at_ms != 0 || self.updated_at_ms != 0 {
             if self.created_at_ms == 0
@@ -3865,7 +3892,7 @@ impl CloudflareTenantRootRestoreRefreshRoleAttemptLifecycleV1 {
         }
     }
 
-    fn parse(value: &str) -> worker::Result<Self> {
+    fn parse(value: &str) -> RoleStoreResult<Self> {
         match value {
             "pending" => Ok(Self::Pending),
             "refreshed" => Ok(Self::Refreshed),
@@ -3897,7 +3924,7 @@ impl CloudflareTenantRootRestoreRefreshPromotionLifecycleV1 {
         }
     }
 
-    fn parse(value: &str) -> worker::Result<Self> {
+    fn parse(value: &str) -> RoleStoreResult<Self> {
         match value {
             "unstarted" => Ok(Self::Unstarted),
             "reserved" => Ok(Self::Reserved),
@@ -4107,7 +4134,7 @@ impl CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1 {
         issued_at_ms: u64,
         expires_at_ms: u64,
         admitted_at_ms: u64,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         record.validate()?;
         if record.lifecycle != CloudflareTenantRootRestoreImportKeyLifecycleV1::Installed {
             return Err(store_error(
@@ -4129,7 +4156,7 @@ impl CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1 {
         issued_at_ms: u64,
         expires_at_ms: u64,
         admitted_at_ms: u64,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         import_binding.validate()?;
         require_nonzero_bytes(
             "tenant-root restore refresh command digest",
@@ -4250,7 +4277,7 @@ impl CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1 {
     fn pending(
         binding: CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1,
         encrypted_seed_json: String,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         if encrypted_seed_json.is_empty() {
             return Err(store_error(
                 "tenant-root restore refresh replay seed ciphertext is empty",
@@ -4285,7 +4312,7 @@ impl CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1 {
         refreshed_at_ms: u64,
         created_at_ms: u64,
         updated_at_ms: u64,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let record = Self {
             binding,
             encrypted_seed_json: Some(encrypted_seed_json),
@@ -4310,7 +4337,7 @@ impl CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1 {
         binding: CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1,
         created_at_ms: u64,
         updated_at_ms: u64,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let record = Self {
             binding,
             encrypted_seed_json: None,
@@ -4341,7 +4368,7 @@ impl CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1 {
         self.lifecycle
     }
 
-    pub(crate) fn installation_evidence_bytes(&self) -> worker::Result<Vec<u8>> {
+    pub(crate) fn installation_evidence_bytes(&self) -> RoleStoreResult<Vec<u8>> {
         let encoded = self.installation_evidence_b64u.as_deref().ok_or_else(|| {
             store_error("tenant-root restore refresh attempt has no installation evidence")
         })?;
@@ -4375,7 +4402,7 @@ impl CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1 {
         self.promotion_reserved_at_ms
     }
 
-    fn encrypted_online_role_share_json(&self) -> worker::Result<&str> {
+    fn encrypted_online_role_share_json(&self) -> RoleStoreResult<&str> {
         self.encrypted_online_role_share_json
             .as_deref()
             .ok_or_else(|| {
@@ -4383,7 +4410,7 @@ impl CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1 {
             })
     }
 
-    fn provider_canary_receipt_b64u(&self) -> worker::Result<&str> {
+    fn provider_canary_receipt_b64u(&self) -> RoleStoreResult<&str> {
         self.provider_canary_receipt_b64u.as_deref().ok_or_else(|| {
             store_error("tenant-root restore refresh promotion has no provider canary")
         })
@@ -4401,13 +4428,13 @@ impl CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1 {
         self.updated_at_ms
     }
 
-    fn encrypted_seed_json(&self) -> worker::Result<&str> {
+    fn encrypted_seed_json(&self) -> RoleStoreResult<&str> {
         self.encrypted_seed_json
             .as_deref()
             .ok_or_else(|| store_error("tenant-root restore refresh attempt has no replay seed"))
     }
 
-    fn encrypted_refreshed_share_json(&self) -> worker::Result<&str> {
+    fn encrypted_refreshed_share_json(&self) -> RoleStoreResult<&str> {
         self.encrypted_refreshed_share_json
             .as_deref()
             .ok_or_else(|| {
@@ -4432,7 +4459,7 @@ impl CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1 {
             && self.binding.expires_at_ms == expires_at_ms
     }
 
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         self.binding.import_binding.validate()?;
         if self.created_at_ms != 0 || self.updated_at_ms != 0 {
             if self.created_at_ms == 0
@@ -4704,7 +4731,7 @@ impl CloudflareTenantRootRestoreSessionCleanupReceiptV1 {
         activation_operation: &str,
         activation_receipt_digest: TenantRootLifecycleReceiptDigestV1,
         closed_at_ms: u64,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         require_timestamp(
             "tenant-root restore import session close timestamp",
             closed_at_ms,
@@ -4774,7 +4801,7 @@ impl CloudflareTenantRootRestoreImportSessionTombstoneV1 {
         activation: &VerifiedTenantRootSignedActivationReceiptV1,
         role: CloudflareTenantRootDeriverRoleV1,
         closed_at_ms: u64,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         if activation.transition() != TenantRootActivationReceiptTransitionV1::InitialCreation {
             return Err(store_error(
                 "tenant-root restore-session cleanup requires initial-creation activation",
@@ -4812,7 +4839,7 @@ impl CloudflareTenantRootRestoreImportSessionTombstoneV1 {
         })
     }
 
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         require_timestamp(
             "tenant-root restore import session close timestamp",
             self.closed_at_ms,
@@ -5123,7 +5150,7 @@ struct TenantRootRestorePromotionAadV1<'a> {
 fn restore_import_key_record_from_row(
     row: TenantRootRestoreImportKeyD1RowV1,
     expected_role: CloudflareTenantRootDeriverRoleV1,
-) -> worker::Result<CloudflareTenantRootRestoreImportKeyRecordV1> {
+) -> RoleStoreResult<CloudflareTenantRootRestoreImportKeyRecordV1> {
     let role = CloudflareTenantRootDeriverRoleV1::parse(&row.role)?;
     if role != expected_role {
         return Err(store_error(
@@ -5244,7 +5271,7 @@ fn restore_import_key_record_from_row(
 fn restore_refresh_role_attempt_record_from_row(
     row: TenantRootRestoreRefreshRoleAttemptD1RowV1,
     expected_role: CloudflareTenantRootDeriverRoleV1,
-) -> worker::Result<CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1> {
+) -> RoleStoreResult<CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1> {
     let role = CloudflareTenantRootDeriverRoleV1::parse(&row.role)?;
     if role != expected_role {
         return Err(store_error(
@@ -5482,7 +5509,7 @@ impl CloudflareTenantRootRefreshPreparedArtifactsV1 {
     pub(crate) fn new(
         managed_backup: &VerifiedTenantRootManagedBackupV1,
         provider_canary: &TenantRootSignedProviderCanaryReceiptV1,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let managed_backup_bytes = managed_backup.canonical_bytes();
         let provider_canary_bytes = provider_canary
             .canonical_bytes()
@@ -5495,7 +5522,7 @@ impl CloudflareTenantRootRefreshPreparedArtifactsV1 {
         Ok(prepared)
     }
 
-    pub(crate) fn managed_backup_bytes(&self) -> worker::Result<Vec<u8>> {
+    pub(crate) fn managed_backup_bytes(&self) -> RoleStoreResult<Vec<u8>> {
         decode_prepared_refresh_artifact(
             "tenant-root refresh managed-backup artifact",
             &self.managed_backup_b64u,
@@ -5503,7 +5530,7 @@ impl CloudflareTenantRootRefreshPreparedArtifactsV1 {
         )
     }
 
-    pub(crate) fn provider_canary_receipt_bytes(&self) -> worker::Result<Vec<u8>> {
+    pub(crate) fn provider_canary_receipt_bytes(&self) -> RoleStoreResult<Vec<u8>> {
         decode_prepared_refresh_artifact(
             "tenant-root refresh provider-canary artifact",
             &self.provider_canary_receipt_b64u,
@@ -5511,7 +5538,7 @@ impl CloudflareTenantRootRefreshPreparedArtifactsV1 {
         )
     }
 
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         let managed_backup_bytes = self.managed_backup_bytes()?;
         let managed_backup =
             TenantRootSignedManagedBackupV1::decode_canonical_bytes(&managed_backup_bytes)
@@ -5562,7 +5589,7 @@ impl CloudflareTenantRootRefreshDurableStateV1 {
     pub(crate) fn admitted(
         command: &VerifiedTenantRootRoleRefreshCommandV1,
         encrypted_seed_b64u: String,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let command_b64u = encode_base64url_bytes_v1(command.canonical_bytes());
         let state = Self::Admitted {
             command_b64u,
@@ -5572,7 +5599,7 @@ impl CloudflareTenantRootRefreshDurableStateV1 {
         Ok(state)
     }
 
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         let (command_b64u, evidence_b64u) = match self {
             Self::Admitted { command_b64u, .. } => (command_b64u, None),
             Self::Executed {
@@ -5624,7 +5651,7 @@ impl CloudflareTenantRootRefreshDurableStateV1 {
         Ok(())
     }
 
-    pub(crate) fn command_bytes(&self) -> worker::Result<Vec<u8>> {
+    pub(crate) fn command_bytes(&self) -> RoleStoreResult<Vec<u8>> {
         let encoded = match self {
             Self::Admitted { command_b64u, .. }
             | Self::Executed { command_b64u, .. }
@@ -5633,7 +5660,7 @@ impl CloudflareTenantRootRefreshDurableStateV1 {
         decode_refresh_state_bytes("tenant-root refresh durable command", encoded)
     }
 
-    pub(crate) fn evidence_bytes(&self) -> worker::Result<Vec<u8>> {
+    pub(crate) fn evidence_bytes(&self) -> RoleStoreResult<Vec<u8>> {
         let encoded = match self {
             Self::Admitted { .. } => {
                 return Err(store_error(
@@ -5649,7 +5676,7 @@ impl CloudflareTenantRootRefreshDurableStateV1 {
 
     pub(crate) fn prepared_artifacts(
         &self,
-    ) -> worker::Result<&CloudflareTenantRootRefreshPreparedArtifactsV1> {
+    ) -> RoleStoreResult<&CloudflareTenantRootRefreshPreparedArtifactsV1> {
         match self {
             Self::Executed {
                 prepared_artifacts, ..
@@ -5665,7 +5692,7 @@ impl CloudflareTenantRootRefreshDurableStateV1 {
 
     pub(crate) fn artifacts(
         &self,
-    ) -> worker::Result<&CloudflareTenantRootRefreshArtifactMetadataV1> {
+    ) -> RoleStoreResult<&CloudflareTenantRootRefreshArtifactMetadataV1> {
         match self {
             Self::Artifacts { artifacts, .. } => Ok(artifacts),
             Self::Admitted { .. } | Self::Executed { .. } => Err(store_error(
@@ -5674,7 +5701,7 @@ impl CloudflareTenantRootRefreshDurableStateV1 {
         }
     }
 
-    fn encode(&self) -> worker::Result<(String, String)> {
+    fn encode(&self) -> RoleStoreResult<(String, String)> {
         self.validate()?;
         let bytes = serde_json::to_vec(self).map_err(|error| {
             store_error(format!(
@@ -5707,7 +5734,7 @@ impl CloudflareTenantRootRefreshArtifactMetadataV1 {
         canary: &TenantRootManagedBackupObjectMetadataV1,
         online_epoch_wrapping_key_ref: impl Into<String>,
         role_signing_key_id: impl Into<String>,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let metadata = Self {
             backup_object_key: backup.object_key().to_owned(),
             backup_artifact_digest_hex: encode_hex(backup.canonical_digest()),
@@ -5728,7 +5755,7 @@ impl CloudflareTenantRootRefreshArtifactMetadataV1 {
         &self.backup_object_key
     }
 
-    pub(crate) fn backup_artifact_digest(&self) -> worker::Result<[u8; 32]> {
+    pub(crate) fn backup_artifact_digest(&self) -> RoleStoreResult<[u8; 32]> {
         decode_lower_hex_fixed(
             "tenant-root refresh backup artifact digest",
             &self.backup_artifact_digest_hex,
@@ -5747,7 +5774,7 @@ impl CloudflareTenantRootRefreshArtifactMetadataV1 {
         &self.canary_object_key
     }
 
-    pub(crate) fn canary_artifact_digest(&self) -> worker::Result<[u8; 32]> {
+    pub(crate) fn canary_artifact_digest(&self) -> RoleStoreResult<[u8; 32]> {
         decode_lower_hex_fixed(
             "tenant-root refresh canary artifact digest",
             &self.canary_artifact_digest_hex,
@@ -5770,7 +5797,7 @@ impl CloudflareTenantRootRefreshArtifactMetadataV1 {
         &self.role_signing_key_id
     }
 
-    fn validate(&self) -> worker::Result<()> {
+    fn validate(&self) -> RoleStoreResult<()> {
         require_identifier(
             "tenant-root refresh backup object key",
             &self.backup_object_key,
@@ -5847,7 +5874,7 @@ fn validate_refresh_state_bytes(
     field: &str,
     encoded: &str,
     max_bytes: usize,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     let bytes = decode_refresh_state_bytes(field, encoded)?;
     if bytes.is_empty() || bytes.len() > max_bytes || encode_base64url_bytes_v1(&bytes) != encoded {
         return Err(store_error(format!("{field} is not canonical")));
@@ -5855,7 +5882,7 @@ fn validate_refresh_state_bytes(
     Ok(())
 }
 
-fn decode_refresh_state_bytes(field: &str, encoded: &str) -> worker::Result<Vec<u8>> {
+fn decode_refresh_state_bytes(field: &str, encoded: &str) -> RoleStoreResult<Vec<u8>> {
     decode_base64url_bytes_v1(field, encoded).map_err(|error| store_error(error.message()))
 }
 
@@ -5863,7 +5890,7 @@ fn decode_prepared_refresh_artifact(
     field: &str,
     encoded: &str,
     max_bytes: usize,
-) -> worker::Result<Vec<u8>> {
+) -> RoleStoreResult<Vec<u8>> {
     let bytes = decode_refresh_state_bytes(field, encoded)?;
     if bytes.is_empty() || bytes.len() > max_bytes || encode_base64url_bytes_v1(&bytes) != encoded {
         return Err(store_error(format!("{field} is not canonical")));
@@ -5874,7 +5901,7 @@ fn decode_prepared_refresh_artifact(
 fn decode_refresh_durable_state(
     state_b64u: &str,
     state_digest_hex: &str,
-) -> worker::Result<CloudflareTenantRootRefreshDurableStateV1> {
+) -> RoleStoreResult<CloudflareTenantRootRefreshDurableStateV1> {
     let bytes = decode_refresh_state_bytes("tenant-root refresh durable state", state_b64u)?;
     if bytes.is_empty()
         || bytes.len() > MAX_REFRESH_DURABLE_STATE_BYTES
@@ -5913,7 +5940,7 @@ fn decode_refresh_durable_state(
 fn refresh_replay_state_for_command(
     stored: &StoredTenantRootCommandReplayV1,
     command_bytes: &[u8],
-) -> worker::Result<CloudflareTenantRootRefreshDurableStateV1> {
+) -> RoleStoreResult<CloudflareTenantRootRefreshDurableStateV1> {
     let state = stored.refresh_state.clone().ok_or_else(|| {
         store_error("tenant-root refresh replay row omitted durable refresh state")
     })?;
@@ -6062,7 +6089,7 @@ impl CloudflareTenantRootInitialCreationInputV1 {
         command: VerifiedTenantRootRoleCreationCommandV1,
         evidence: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
         share: CloudflareTenantRootInitialCreationShareInputV1,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let sealed_binding = share.sealed_online_share.binding();
         let identity_digest = share
             .identity
@@ -6232,7 +6259,7 @@ impl CloudflareTenantRootRefreshInputV1 {
         command: VerifiedTenantRootRoleRefreshCommandV1,
         evidence: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
         share: CloudflareTenantRootRefreshShareInputV1,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let sealed_binding = share.sealed_online_share.binding();
         let evidence_digest = validate_refresh_command_evidence(&command, &evidence)?;
         let replay_key_digest = command
@@ -6287,7 +6314,7 @@ impl CloudflareTenantRootRefreshInputV1 {
 fn validate_refresh_record_sealed_binding(
     record: &CloudflareTenantRootRoleShareRecordV1,
     sealed_binding: &TenantRootOnlineRoleShareBindingV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     let record_identity = record
         .identity
         .digest()
@@ -6696,7 +6723,7 @@ struct DecodedTenantRootCommandTerminalReceiptV1 {
 }
 
 impl TenantRootCommandTerminalInputV1 {
-    fn into_commit_data(self) -> worker::Result<TenantRootCommandTerminalCommitDataV1> {
+    fn into_commit_data(self) -> RoleStoreResult<TenantRootCommandTerminalCommitDataV1> {
         match self {
             Self::Completed { executed, receipt } => {
                 if receipt.key() != executed.key()
@@ -6784,20 +6811,27 @@ impl TenantRootCommandTerminalKindV1 {
 }
 
 /// Primary-consistent access to one Deriver's encrypted tenant-root share rows.
-pub struct CloudflareTenantRootRoleShareStoreV1 {
-    session: D1DatabaseSession,
+pub struct TenantRootRoleShareStoreV1<S: RoleSqlSessionV1> {
+    session: S,
     cipher: TenantRootRoleD1CipherV1,
 }
 
+/// The role store over the Deriver's role-private D1 database.
+#[cfg(feature = "workers-rs")]
+pub type CloudflareTenantRootRoleShareStoreV1 = TenantRootRoleShareStoreV1<D1RoleSqlSessionV1>;
+
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 pub const CLOUDFLARE_TENANT_ROOT_ROLE_D1_INTEGRATION_PATH: &str =
     "/router-ab/deriver/tenant-root-role-d1/integration";
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_ROLE_D1_INTEGRATION_ENV: &str = "ROUTER_AB_TENANT_ROOT_ROLE_D1_INTEGRATION";
 
 /// Exact request accepted by the debug-only role-store workerd probe.
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum CloudflareTenantRootRoleD1IntegrationRequestV1 {
@@ -6813,6 +6847,7 @@ pub enum CloudflareTenantRootRoleD1IntegrationRequestV1 {
 
 /// Receipt proving that the real Rust role-store adapter completed its lifecycle probe.
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CloudflareTenantRootRoleD1IntegrationReceiptV1 {
@@ -6827,6 +6862,7 @@ pub struct CloudflareTenantRootRoleD1IntegrationReceiptV1 {
 
 /// Returns whether the explicit workerd-only integration binding is enabled.
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 pub fn cloudflare_tenant_root_role_d1_integration_enabled_v1(env: &Env) -> bool {
     env.var(TENANT_ROOT_ROLE_D1_INTEGRATION_ENV)
         .map(|value| value.to_string() == "enabled")
@@ -6835,10 +6871,11 @@ pub fn cloudflare_tenant_root_role_d1_integration_enabled_v1(env: &Env) -> bool 
 
 /// Exercises the production Rust store against a real role-private D1 binding.
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 pub async fn run_cloudflare_tenant_root_role_d1_integration_v1(
     env: &Env,
     request: CloudflareTenantRootRoleD1IntegrationRequestV1,
-) -> worker::Result<CloudflareTenantRootRoleD1IntegrationReceiptV1> {
+) -> RoleStoreResult<CloudflareTenantRootRoleD1IntegrationReceiptV1> {
     match request {
         CloudflareTenantRootRoleD1IntegrationRequestV1::RunLifecycle => {
             run_cloudflare_tenant_root_role_d1_lifecycle_integration_v1(env).await
@@ -6880,7 +6917,7 @@ impl CloudflareTenantRootManagedRestoreStagingInputV1 {
         sealed_online_share: TenantRootSealedOnlineRoleShareV1,
         scope: TenantRootCommandScopeV1,
         staged_at_ms: u64,
-    ) -> worker::Result<Self> {
+    ) -> RoleStoreResult<Self> {
         let backup_binding = restored_share.binding();
         let sealed_binding = sealed_online_share.binding();
         let identity_digest = identity
@@ -7080,9 +7117,35 @@ pub(crate) enum CloudflareTenantRootManagedRestoreForwardRefreshDecisionV1 {
     ReplayFailed { failure_receipt_bytes: Vec<u8> },
 }
 
+/// The role-local record key a store seals with. On Cloudflare these come
+/// from the Deriver's vars; the private key stays in its Secret binding.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TenantRootRoleStoreKeyConfigV1 {
+    pub environment: String,
+    pub role: String,
+    pub key_version: String,
+    pub public_key: String,
+}
+
+impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
+    /// A store over any role-private SQL session, sealing with this role's
+    /// record key.
+    pub fn new(
+        session: S,
+        config: TenantRootRoleStoreKeyConfigV1,
+        encoded_private_key: &str,
+    ) -> RoleStoreResult<Self> {
+        Ok(Self {
+            session,
+            cipher: TenantRootRoleD1CipherV1::from_config(config, encoded_private_key)?,
+        })
+    }
+}
+
+#[cfg(feature = "workers-rs")]
 impl CloudflareTenantRootRoleShareStoreV1 {
     /// Resolves the private D1 binding and role-local record cipher per request.
-    pub fn from_env(env: &Env) -> worker::Result<Self> {
+    pub fn from_env(env: &Env) -> RoleStoreResult<Self> {
         let database = env.d1(ROLE_PRIVATE_D1_BINDING).map_err(|error| {
             store_error(format!(
                 "role-private D1 binding {ROLE_PRIVATE_D1_BINDING} is unavailable: {error}"
@@ -7096,23 +7159,26 @@ impl CloudflareTenantRootRoleShareStoreV1 {
                 ))
             })?;
         Ok(Self {
-            session,
+            session: D1RoleSqlSessionV1::new(session),
             cipher: TenantRootRoleD1CipherV1::from_env(env)?,
         })
     }
+}
+
+impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
 
     pub(crate) fn seal_restore_import_key_ikm(
         &self,
         binding: &CloudflareTenantRootRestoreImportKeyBindingV1,
         ikm: &[u8; TENANT_ROOT_RESTORE_IMPORT_KEY_IKM_BYTES],
-    ) -> worker::Result<String> {
+    ) -> RoleStoreResult<String> {
         self.cipher.seal_restore_import_ikm(binding, ikm)
     }
 
     pub(crate) fn open_restore_import_key_ikm(
         &self,
         record: &CloudflareTenantRootRestoreImportKeyRecordV1,
-    ) -> worker::Result<zeroize::Zeroizing<[u8; TENANT_ROOT_RESTORE_IMPORT_KEY_IKM_BYTES]>> {
+    ) -> RoleStoreResult<zeroize::Zeroizing<[u8; TENANT_ROOT_RESTORE_IMPORT_KEY_IKM_BYTES]>> {
         self.cipher.open_restore_import_ikm(record)
     }
 
@@ -7121,7 +7187,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         binding: &CloudflareTenantRootRestoreImportKeyBindingV1,
         envelope_digest: &[u8; 32],
         share_bytes: &[u8],
-    ) -> worker::Result<String> {
+    ) -> RoleStoreResult<String> {
         self.cipher
             .seal_restore_imported_share(binding, envelope_digest, share_bytes)
     }
@@ -7129,26 +7195,26 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     pub(crate) fn validate_restore_imported_share(
         &self,
         record: &CloudflareTenantRootRestoreImportKeyRecordV1,
-    ) -> worker::Result<()> {
+    ) -> RoleStoreResult<()> {
         self.open_restore_imported_share(record).map(drop)
     }
 
     pub(crate) fn open_restore_imported_share(
         &self,
         record: &CloudflareTenantRootRestoreImportKeyRecordV1,
-    ) -> worker::Result<SigningRootShare> {
+    ) -> RoleStoreResult<SigningRootShare> {
         self.cipher.open_restore_imported_share(record)
     }
 
     async fn load_restore_refresh_attempt_by_replay(
         &self,
         replay_key_digest: [u8; 32],
-    ) -> worker::Result<Option<CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1>> {
+    ) -> RoleStoreResult<Option<CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1>> {
         let replay_key_digest_hex = encode_hex(&replay_key_digest);
         let row = self
             .session
             .prepare(LOAD_RESTORE_REFRESH_ATTEMPT_SQL)
-            .bind_refs([D1Type::Text(replay_key_digest_hex.as_str())].iter())?
+            .bind_refs([RoleSqlValue::Text(replay_key_digest_hex.as_str())].iter())?
             .first::<TenantRootRestoreRefreshRoleAttemptD1RowV1>(None)
             .await?;
         row.map(|row| restore_refresh_role_attempt_record_from_row(row, self.cipher.role))
@@ -7158,7 +7224,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     async fn load_restore_refresh_attempt_by_command(
         &self,
         command: &VerifiedTenantRootRestoreRefreshRoleCommandV1,
-    ) -> worker::Result<Option<CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1>> {
+    ) -> RoleStoreResult<Option<CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1>> {
         let identity_digest_hex = encode_hex(command.identity_digest().as_bytes());
         let custody_lineage_b64u = command.custody_lineage().to_base64url();
         let restore_session_id_hex = encode_hex(command.restore_session_id().as_bytes());
@@ -7172,11 +7238,11 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(LOAD_RESTORE_REFRESH_ATTEMPT_BY_COMMAND_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(restore_session_id_hex.as_str()),
-                    D1Type::Text(role.as_str()),
-                    D1Type::Text(command_digest_hex.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(restore_session_id_hex.as_str()),
+                    RoleSqlValue::Text(role.as_str()),
+                    RoleSqlValue::Text(command_digest_hex.as_str()),
                 ]
                 .iter(),
             )?
@@ -7189,7 +7255,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     fn restore_refresh_promotion_source(
         &self,
         record: &CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1,
-    ) -> worker::Result<CloudflareTenantRootRestoreRefreshPromotionSourceV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRestoreRefreshPromotionSourceV1> {
         if record.lifecycle() != CloudflareTenantRootRestoreRefreshRoleAttemptLifecycleV1::Refreshed
         {
             return Err(store_error(
@@ -7216,7 +7282,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     pub(crate) async fn load_restore_refresh_promotion_source(
         &self,
         command: &VerifiedTenantRootRestoreRefreshRoleCommandV1,
-    ) -> worker::Result<CloudflareTenantRootRestoreRefreshPromotionSourceV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRestoreRefreshPromotionSourceV1> {
         let record = self
             .load_restore_refresh_attempt_by_command(command)
             .await?
@@ -7235,7 +7301,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     fn restore_refresh_promotion_artifacts(
         &self,
         record: &CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1,
-    ) -> worker::Result<CloudflareTenantRootRestoreRefreshPromotionStoredArtifactsV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRestoreRefreshPromotionStoredArtifactsV1> {
         let (provider_ciphertext, provider_binding_aad, provider_canary_receipt_bytes) =
             self.cipher.open_restore_refresh_promotion_output(record)?;
         let completed_at_ms = record.promotion_completed_at_ms().ok_or_else(|| {
@@ -7255,7 +7321,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         record: CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1,
         execute: bool,
-    ) -> worker::Result<CloudflareTenantRootRestoreRefreshPromotionReservationDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRestoreRefreshPromotionReservationDecisionV1> {
         match record.promotion_lifecycle() {
             CloudflareTenantRootRestoreRefreshPromotionLifecycleV1::Completed => Ok(
                 CloudflareTenantRootRestoreRefreshPromotionReservationDecisionV1::Replay {
@@ -7293,7 +7359,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         command: &VerifiedTenantRootRestoreRefreshRoleCommandV1,
         now_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootRestoreRefreshPromotionReservationDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRestoreRefreshPromotionReservationDecisionV1> {
         require_timestamp(
             "tenant-root restore refresh promotion reservation timestamp",
             now_ms,
@@ -7344,12 +7410,12 @@ impl CloudflareTenantRootRoleShareStoreV1 {
                     .prepare(RESERVE_RESTORE_REFRESH_PROMOTION_SQL)
                     .bind_refs(
                         [
-                            D1Type::Text(identity_digest_hex.as_str()),
-                            D1Type::Text(custody_lineage_b64u.as_str()),
-                            D1Type::Text(restore_session_id_hex.as_str()),
-                            D1Type::Text(role.as_str()),
-                            D1Type::Text(command_digest_hex.as_str()),
-                            D1Type::Text(reserved_at_ms.as_str()),
+                            RoleSqlValue::Text(identity_digest_hex.as_str()),
+                            RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                            RoleSqlValue::Text(restore_session_id_hex.as_str()),
+                            RoleSqlValue::Text(role.as_str()),
+                            RoleSqlValue::Text(command_digest_hex.as_str()),
+                            RoleSqlValue::Text(reserved_at_ms.as_str()),
                         ]
                         .iter(),
                     )?;
@@ -7385,7 +7451,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         record: &CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1,
         canary_receipt_bytes: &[u8],
         now_ms: u64,
-    ) -> worker::Result<()> {
+    ) -> RoleStoreResult<()> {
         if canary_receipt_bytes.is_empty()
             || canary_receipt_bytes.len() > TENANT_ROOT_PROVIDER_CANARY_RECEIPT_MAX_BYTES_V1
         {
@@ -7423,7 +7489,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         stored: &CloudflareTenantRootRestoreRefreshPromotionStoredArtifactsV1,
         sealed: &TenantRootSealedOnlineRoleShareV1,
         canary_receipt_bytes: &[u8],
-    ) -> worker::Result<()> {
+    ) -> RoleStoreResult<()> {
         let provider_binding_aad = sealed.aad().map_err(|error| store_error(error.message()))?;
         if stored.provider_ciphertext() != sealed.ciphertext()
             || stored.provider_binding_aad() != provider_binding_aad.as_slice()
@@ -7447,7 +7513,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         sealed: &TenantRootSealedOnlineRoleShareV1,
         canary_receipt_bytes: &[u8],
         now_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootRestoreRefreshPromotionCompletionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRestoreRefreshPromotionCompletionV1> {
         require_timestamp(
             "tenant-root restore refresh promotion completion timestamp",
             now_ms,
@@ -7522,15 +7588,15 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(COMPLETE_RESTORE_REFRESH_PROMOTION_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(encrypted_output.as_str()),
-                    D1Type::Text(canary_b64u.as_str()),
-                    D1Type::Text(completion_at_ms.as_str()),
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(restore_session_id_hex.as_str()),
-                    D1Type::Text(role.as_str()),
-                    D1Type::Text(command_digest_hex.as_str()),
-                    D1Type::Text(reserved_at_ms.as_str()),
+                    RoleSqlValue::Text(encrypted_output.as_str()),
+                    RoleSqlValue::Text(canary_b64u.as_str()),
+                    RoleSqlValue::Text(completion_at_ms.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(restore_session_id_hex.as_str()),
+                    RoleSqlValue::Text(role.as_str()),
+                    RoleSqlValue::Text(command_digest_hex.as_str()),
+                    RoleSqlValue::Text(reserved_at_ms.as_str()),
                 ]
                 .iter(),
             )?;
@@ -7570,14 +7636,14 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         let ciphertext = self.cipher.seal(&pending, 1)?;
         let insert = self.session.prepare(INSERT_SQL).bind_refs(
             [
-                D1Type::Text(&identity_digest_hex),
-                D1Type::Text(&custody_lineage_b64u),
-                D1Type::Text("1"),
-                D1Type::Text(role.as_str()),
-                D1Type::Text("pending"),
-                D1Type::Text(&ciphertext),
-                D1Type::Text(&completion_at_ms),
-                D1Type::Text(&completion_at_ms),
+                RoleSqlValue::Text(&identity_digest_hex),
+                RoleSqlValue::Text(&custody_lineage_b64u),
+                RoleSqlValue::Text("1"),
+                RoleSqlValue::Text(role.as_str()),
+                RoleSqlValue::Text("pending"),
+                RoleSqlValue::Text(&ciphertext),
+                RoleSqlValue::Text(&completion_at_ms),
+                RoleSqlValue::Text(&completion_at_ms),
             ]
             .iter(),
         )?;
@@ -7646,7 +7712,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         issued_at_ms: u64,
         expires_at_ms: u64,
         now_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootRestoreRefreshRoleAttemptAdmissionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRestoreRefreshRoleAttemptAdmissionV1> {
         record.validate()?;
         self.cipher.require_role(record.binding.role)?;
         if record.lifecycle != CloudflareTenantRootRestoreImportKeyLifecycleV1::Installed {
@@ -7742,28 +7808,28 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(INSERT_RESTORE_REFRESH_ATTEMPT_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(restore_session_id_hex.as_str()),
-                    D1Type::Text(self.cipher.role.as_str()),
-                    D1Type::Text(generation.as_str()),
-                    D1Type::Text(import_key_id),
-                    D1Type::Text(import_replay_key_digest_hex.as_str()),
-                    D1Type::Text(import_command_digest_hex.as_str()),
-                    D1Type::Text(import_operation_digest_hex.as_str()),
-                    D1Type::Text(recovery_set_id_b64u.as_str()),
-                    D1Type::Text(manifest_digest_hex.as_str()),
-                    D1Type::Text(stable_root_commitment_b64u.as_str()),
-                    D1Type::Text(share_commitment_b64u.as_str()),
-                    D1Type::Text(destination_fingerprint_hex.as_str()),
-                    D1Type::Text(import_public_key_b64u.as_str()),
-                    D1Type::Text(import_issued_at_ms.as_str()),
-                    D1Type::Text(import_expires_at_ms.as_str()),
-                    D1Type::Text(refresh_command_digest_hex.as_str()),
-                    D1Type::Text(refresh_issued_at_ms.as_str()),
-                    D1Type::Text(refresh_expires_at_ms.as_str()),
-                    D1Type::Text(admitted_at_ms.as_str()),
-                    D1Type::Text(encrypted_seed_json.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(restore_session_id_hex.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(generation.as_str()),
+                    RoleSqlValue::Text(import_key_id),
+                    RoleSqlValue::Text(import_replay_key_digest_hex.as_str()),
+                    RoleSqlValue::Text(import_command_digest_hex.as_str()),
+                    RoleSqlValue::Text(import_operation_digest_hex.as_str()),
+                    RoleSqlValue::Text(recovery_set_id_b64u.as_str()),
+                    RoleSqlValue::Text(manifest_digest_hex.as_str()),
+                    RoleSqlValue::Text(stable_root_commitment_b64u.as_str()),
+                    RoleSqlValue::Text(share_commitment_b64u.as_str()),
+                    RoleSqlValue::Text(destination_fingerprint_hex.as_str()),
+                    RoleSqlValue::Text(import_public_key_b64u.as_str()),
+                    RoleSqlValue::Text(import_issued_at_ms.as_str()),
+                    RoleSqlValue::Text(import_expires_at_ms.as_str()),
+                    RoleSqlValue::Text(refresh_command_digest_hex.as_str()),
+                    RoleSqlValue::Text(refresh_issued_at_ms.as_str()),
+                    RoleSqlValue::Text(refresh_expires_at_ms.as_str()),
+                    RoleSqlValue::Text(admitted_at_ms.as_str()),
+                    RoleSqlValue::Text(encrypted_seed_json.as_str()),
                 ]
                 .iter(),
             )?;
@@ -7833,7 +7899,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         refreshed_share: &SigningRootShareWire,
         evidence_bytes: &[u8],
         now_ms: u64,
-    ) -> worker::Result<Vec<u8>> {
+    ) -> RoleStoreResult<Vec<u8>> {
         record.validate()?;
         self.cipher.require_role(record.binding.role)?;
         if record.lifecycle != CloudflareTenantRootRestoreImportKeyLifecycleV1::Installed {
@@ -7934,21 +8000,21 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(FINALIZE_RESTORE_REFRESH_ATTEMPT_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(encrypted_refreshed_share_json.as_str()),
-                    D1Type::Text(installation_evidence_b64u.as_str()),
-                    D1Type::Text(installation_evidence_digest_hex.as_str()),
-                    D1Type::Text(finalization_at_ms.as_str()),
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(restore_session_id_hex.as_str()),
-                    D1Type::Text(self.cipher.role.as_str()),
-                    D1Type::Text(generation.as_str()),
-                    D1Type::Text(import_key_id),
-                    D1Type::Text(import_replay_key_digest_hex.as_str()),
-                    D1Type::Text(import_command_digest_hex.as_str()),
-                    D1Type::Text(refresh_command_digest_hex.as_str()),
-                    D1Type::Text(refresh_issued_at_ms.as_str()),
-                    D1Type::Text(refresh_expires_at_ms.as_str()),
+                    RoleSqlValue::Text(encrypted_refreshed_share_json.as_str()),
+                    RoleSqlValue::Text(installation_evidence_b64u.as_str()),
+                    RoleSqlValue::Text(installation_evidence_digest_hex.as_str()),
+                    RoleSqlValue::Text(finalization_at_ms.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(restore_session_id_hex.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(generation.as_str()),
+                    RoleSqlValue::Text(import_key_id),
+                    RoleSqlValue::Text(import_replay_key_digest_hex.as_str()),
+                    RoleSqlValue::Text(import_command_digest_hex.as_str()),
+                    RoleSqlValue::Text(refresh_command_digest_hex.as_str()),
+                    RoleSqlValue::Text(refresh_issued_at_ms.as_str()),
+                    RoleSqlValue::Text(refresh_expires_at_ms.as_str()),
                 ]
                 .iter(),
             )?;
@@ -8020,12 +8086,12 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     pub(crate) async fn load_restore_import_key_by_replay(
         &self,
         replay_key_digest: [u8; 32],
-    ) -> worker::Result<Option<CloudflareTenantRootRestoreImportKeyRecordV1>> {
+    ) -> RoleStoreResult<Option<CloudflareTenantRootRestoreImportKeyRecordV1>> {
         let replay_key_digest_hex = encode_hex(&replay_key_digest);
         let row = self
             .session
             .prepare(LOAD_RESTORE_IMPORT_KEY_BY_REPLAY_SQL)
-            .bind_refs([D1Type::Text(replay_key_digest_hex.as_str())].iter())?
+            .bind_refs([RoleSqlValue::Text(replay_key_digest_hex.as_str())].iter())?
             .first::<TenantRootRestoreImportKeyD1RowV1>(None)
             .await?;
         row.map(|row| self.open_restore_import_key_row(row))
@@ -8037,7 +8103,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         identity_digest: TenantRootIdentityDigestV1,
         custody_lineage: TenantRootCustodyLineageId,
         restore_session_id: TenantRootRestoreSessionIdV1,
-    ) -> worker::Result<Option<CloudflareTenantRootRestoreImportKeyRecordV1>> {
+    ) -> RoleStoreResult<Option<CloudflareTenantRootRestoreImportKeyRecordV1>> {
         let identity_digest_hex = encode_hex(identity_digest.as_bytes());
         let custody_lineage_b64u = custody_lineage.to_base64url();
         let restore_session_id_hex = encode_hex(restore_session_id.as_bytes());
@@ -8046,10 +8112,10 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(LOAD_RESTORE_IMPORT_KEY_CURRENT_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(restore_session_id_hex.as_str()),
-                    D1Type::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(restore_session_id_hex.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
                 ]
                 .iter(),
             )?
@@ -8064,7 +8130,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         identity_digest: TenantRootIdentityDigestV1,
         custody_lineage: TenantRootCustodyLineageId,
         restore_session_id: TenantRootRestoreSessionIdV1,
-    ) -> worker::Result<Option<CloudflareTenantRootRestoreImportSessionTombstoneV1>> {
+    ) -> RoleStoreResult<Option<CloudflareTenantRootRestoreImportSessionTombstoneV1>> {
         let identity_digest_hex = encode_hex(identity_digest.as_bytes());
         let custody_lineage_b64u = custody_lineage.to_base64url();
         let restore_session_id_hex = encode_hex(restore_session_id.as_bytes());
@@ -8073,9 +8139,9 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(LOAD_RESTORE_IMPORT_SESSION_TOMBSTONE_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(restore_session_id_hex.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(restore_session_id_hex.as_str()),
                 ]
                 .iter(),
             )?
@@ -8098,7 +8164,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         identity_digest: TenantRootIdentityDigestV1,
         custody_lineage: TenantRootCustodyLineageId,
         restore_session_id: TenantRootRestoreSessionIdV1,
-    ) -> worker::Result<bool> {
+    ) -> RoleStoreResult<bool> {
         let identity_digest_hex = encode_hex(identity_digest.as_bytes());
         let custody_lineage_b64u = custody_lineage.to_base64url();
         let restore_session_id_hex = encode_hex(restore_session_id.as_bytes());
@@ -8107,9 +8173,9 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(LOAD_RESTORE_IMPORT_SESSION_CLOSED_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(restore_session_id_hex.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(restore_session_id_hex.as_str()),
                 ]
                 .iter(),
             )?
@@ -8132,7 +8198,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         record: CloudflareTenantRootRestoreImportKeyRecordV1,
         now_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootRestoreImportKeyIssueDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRestoreImportKeyIssueDecisionV1> {
         record.validate()?;
         self.cipher.require_role(record.binding.role)?;
         if record.lifecycle != CloudflareTenantRootRestoreImportKeyLifecycleV1::Issued {
@@ -8240,24 +8306,24 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(INSERT_RESTORE_IMPORT_KEY_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(restore_session_id_hex.as_str()),
-                    D1Type::Text(self.cipher.role.as_str()),
-                    D1Type::Text(generation.as_str()),
-                    D1Type::Text(import_key_id),
-                    D1Type::Text(replay_key_digest_hex.as_str()),
-                    D1Type::Text(command_digest_hex.as_str()),
-                    D1Type::Text(operation_digest_hex.as_str()),
-                    D1Type::Text(recovery_set_id_b64u.as_str()),
-                    D1Type::Text(manifest_digest_hex.as_str()),
-                    D1Type::Text(stable_root_commitment_b64u.as_str()),
-                    D1Type::Text(share_commitment_b64u.as_str()),
-                    D1Type::Text(destination_fingerprint_hex.as_str()),
-                    D1Type::Text(public_key_b64u.as_str()),
-                    D1Type::Text(encrypted_ikm_json),
-                    D1Type::Text(issued_at_ms.as_str()),
-                    D1Type::Text(expires_at_ms.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(restore_session_id_hex.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(generation.as_str()),
+                    RoleSqlValue::Text(import_key_id),
+                    RoleSqlValue::Text(replay_key_digest_hex.as_str()),
+                    RoleSqlValue::Text(command_digest_hex.as_str()),
+                    RoleSqlValue::Text(operation_digest_hex.as_str()),
+                    RoleSqlValue::Text(recovery_set_id_b64u.as_str()),
+                    RoleSqlValue::Text(manifest_digest_hex.as_str()),
+                    RoleSqlValue::Text(stable_root_commitment_b64u.as_str()),
+                    RoleSqlValue::Text(share_commitment_b64u.as_str()),
+                    RoleSqlValue::Text(destination_fingerprint_hex.as_str()),
+                    RoleSqlValue::Text(public_key_b64u.as_str()),
+                    RoleSqlValue::Text(encrypted_ikm_json),
+                    RoleSqlValue::Text(issued_at_ms.as_str()),
+                    RoleSqlValue::Text(expires_at_ms.as_str()),
                 ]
                 .iter(),
             )?;
@@ -8268,12 +8334,12 @@ impl CloudflareTenantRootRoleShareStoreV1 {
                 .prepare(SUPERSEDE_RESTORE_IMPORT_KEY_SQL)
                 .bind_refs(
                     [
-                        D1Type::Text(identity_digest_hex.as_str()),
-                        D1Type::Text(custody_lineage_b64u.as_str()),
-                        D1Type::Text(restore_session_id_hex.as_str()),
-                        D1Type::Text(self.cipher.role.as_str()),
-                        D1Type::Text(predecessor_generation.as_str()),
-                        D1Type::Text(now_ms.as_str()),
+                        RoleSqlValue::Text(identity_digest_hex.as_str()),
+                        RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                        RoleSqlValue::Text(restore_session_id_hex.as_str()),
+                        RoleSqlValue::Text(self.cipher.role.as_str()),
+                        RoleSqlValue::Text(predecessor_generation.as_str()),
+                        RoleSqlValue::Text(now_ms.as_str()),
                     ]
                     .iter(),
                 )?;
@@ -8286,7 +8352,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             let insert_guard = self.command_cas_count_guard_statement(1)?;
             self.session.batch(vec![insert, insert_guard]).await?
         };
-        if results.iter().all(worker::D1Result::success) {
+        if results.iter().all(|result| result.success()) {
             let stored = self
                 .load_restore_import_key_by_replay(replay_key_digest)
                 .await?
@@ -8333,7 +8399,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         encrypted_imported_share_json: String,
         receipt_digest: [u8; 32],
         accepted_at_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootRestoreImportKeyAcceptDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRestoreImportKeyAcceptDecisionV1> {
         record.validate()?;
         self.cipher.require_role(record.binding.role)?;
         if record.lifecycle != CloudflareTenantRootRestoreImportKeyLifecycleV1::Issued {
@@ -8383,20 +8449,20 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(ACCEPT_RESTORE_IMPORT_KEY_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(envelope_digest_hex.as_str()),
-                    D1Type::Text(encrypted_imported_share_json.as_str()),
-                    D1Type::Text(accepted_at_ms.as_str()),
-                    D1Type::Text(receipt_digest_hex.as_str()),
-                    D1Type::Text(accepted_at_ms.as_str()),
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(restore_session_id_hex.as_str()),
-                    D1Type::Text(record.binding.role.as_str()),
-                    D1Type::Text(generation.as_str()),
-                    D1Type::Text(import_key_id),
-                    D1Type::Text(replay_key_digest_hex.as_str()),
-                    D1Type::Text(command_digest_hex.as_str()),
-                    D1Type::Text(operation_digest_hex.as_str()),
+                    RoleSqlValue::Text(envelope_digest_hex.as_str()),
+                    RoleSqlValue::Text(encrypted_imported_share_json.as_str()),
+                    RoleSqlValue::Text(accepted_at_ms.as_str()),
+                    RoleSqlValue::Text(receipt_digest_hex.as_str()),
+                    RoleSqlValue::Text(accepted_at_ms.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(restore_session_id_hex.as_str()),
+                    RoleSqlValue::Text(record.binding.role.as_str()),
+                    RoleSqlValue::Text(generation.as_str()),
+                    RoleSqlValue::Text(import_key_id),
+                    RoleSqlValue::Text(replay_key_digest_hex.as_str()),
+                    RoleSqlValue::Text(command_digest_hex.as_str()),
+                    RoleSqlValue::Text(operation_digest_hex.as_str()),
                 ]
                 .iter(),
             )?;
@@ -8465,7 +8531,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         grant: &router_ab_core::VerifiedTenantRootRestoreCleanupGrantV1,
         closed_at_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootRestoreSessionCleanupReceiptV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRestoreSessionCleanupReceiptV1> {
         let identity = grant.destination_identity_digest();
         let lineage = grant.destination_lineage();
         let session = grant.restore_session_id();
@@ -8503,10 +8569,10 @@ impl CloudflareTenantRootRoleShareStoreV1 {
                 AND restore_session_id_hex = ?3 AND destination_fingerprint_hex <> ?9) \
             ON CONFLICT DO NOTHING")
             .bind_refs([
-                D1Type::Text(&identity_hex), D1Type::Text(&lineage_b64u), D1Type::Text(&session_hex),
-                D1Type::Text(&closed_text), D1Type::Text(self.cipher.role.as_str()),
-                D1Type::Text(&grant_b64u), D1Type::Text(&receipt_b64u),
-                D1Type::Text(&receipt_digest_hex), D1Type::Text(&fingerprint_hex),
+                RoleSqlValue::Text(&identity_hex), RoleSqlValue::Text(&lineage_b64u), RoleSqlValue::Text(&session_hex),
+                RoleSqlValue::Text(&closed_text), RoleSqlValue::Text(self.cipher.role.as_str()),
+                RoleSqlValue::Text(&grant_b64u), RoleSqlValue::Text(&receipt_b64u),
+                RoleSqlValue::Text(&receipt_digest_hex), RoleSqlValue::Text(&fingerprint_hex),
             ].iter())?.run().await?;
         #[derive(Deserialize)]
         struct Closure {
@@ -8523,9 +8589,9 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             )
             .bind_refs(
                 [
-                    D1Type::Text(&identity_hex),
-                    D1Type::Text(&lineage_b64u),
-                    D1Type::Text(&session_hex),
+                    RoleSqlValue::Text(&identity_hex),
+                    RoleSqlValue::Text(&lineage_b64u),
+                    RoleSqlValue::Text(&session_hex),
                 ]
                 .iter(),
             )?
@@ -8574,7 +8640,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         activation: &VerifiedTenantRootSignedActivationReceiptV1,
         role: TwoPartyDeriverRole,
         closed_at_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootRestoreSessionCleanupReceiptV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRestoreSessionCleanupReceiptV1> {
         let expected_role = match role {
             TwoPartyDeriverRole::DeriverA => CloudflareTenantRootDeriverRoleV1::DeriverA,
             TwoPartyDeriverRole::DeriverB => CloudflareTenantRootDeriverRoleV1::DeriverB,
@@ -8653,16 +8719,16 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(INSERT_RESTORE_IMPORT_SESSION_TOMBSTONE_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(restore_session_id_hex.as_str()),
-                    D1Type::Text(closed_at_ms_text.as_str()),
-                    D1Type::Text(expected_role.as_str()),
-                    D1Type::Text(candidate.activation_operation.as_str()),
-                    D1Type::Text(activation_receipt_b64u.as_str()),
-                    D1Type::Text(activation_receipt_digest_hex.as_str()),
-                    D1Type::Text(cleanup_receipt_b64u.as_str()),
-                    D1Type::Text(cleanup_receipt_digest_hex.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(restore_session_id_hex.as_str()),
+                    RoleSqlValue::Text(closed_at_ms_text.as_str()),
+                    RoleSqlValue::Text(expected_role.as_str()),
+                    RoleSqlValue::Text(candidate.activation_operation.as_str()),
+                    RoleSqlValue::Text(activation_receipt_b64u.as_str()),
+                    RoleSqlValue::Text(activation_receipt_digest_hex.as_str()),
+                    RoleSqlValue::Text(cleanup_receipt_b64u.as_str()),
+                    RoleSqlValue::Text(cleanup_receipt_digest_hex.as_str()),
                 ]
                 .iter(),
             )?;
@@ -8714,7 +8780,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         custody_lineage: TenantRootCustodyLineageId,
         restore_session_id: TenantRootRestoreSessionIdV1,
         closed_at_ms: u64,
-    ) -> worker::Result<()> {
+    ) -> RoleStoreResult<()> {
         let identity_digest_hex = encode_hex(identity_digest.as_bytes());
         let custody_lineage_b64u = custody_lineage.to_base64url();
         let restore_session_id_hex = encode_hex(restore_session_id.as_bytes());
@@ -8725,11 +8791,11 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(CLOSE_RESTORE_IMPORT_KEYS_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(restore_session_id_hex.as_str()),
-                    D1Type::Text(closed_at_ms.as_str()),
-                    D1Type::Text(role),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(restore_session_id_hex.as_str()),
+                    RoleSqlValue::Text(closed_at_ms.as_str()),
+                    RoleSqlValue::Text(role),
                 ]
                 .iter(),
             )?;
@@ -8738,11 +8804,11 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(CLOSE_RESTORE_REFRESH_ATTEMPTS_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(restore_session_id_hex.as_str()),
-                    D1Type::Text(closed_at_ms.as_str()),
-                    D1Type::Text(role),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(restore_session_id_hex.as_str()),
+                    RoleSqlValue::Text(closed_at_ms.as_str()),
+                    RoleSqlValue::Text(role),
                 ]
                 .iter(),
             )?;
@@ -8761,14 +8827,14 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     fn open_restore_import_key_row(
         &self,
         row: TenantRootRestoreImportKeyD1RowV1,
-    ) -> worker::Result<CloudflareTenantRootRestoreImportKeyRecordV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRestoreImportKeyRecordV1> {
         restore_import_key_record_from_row(row, self.cipher.role)
     }
 
     fn validate_restore_import_key_ciphertext(
         &self,
         record: &CloudflareTenantRootRestoreImportKeyRecordV1,
-    ) -> worker::Result<()> {
+    ) -> RoleStoreResult<()> {
         let envelope: TenantRootRestoreImportKeyCiphertextV1 =
             serde_json::from_str(record.encrypted_ikm_json()?).map_err(|error| {
                 store_error(format!(
@@ -8819,7 +8885,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         scope: TenantRootCommandScopeV1,
         record: CloudflareTenantRootRoleShareRecordV1,
         reserved_at_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootInsertPendingDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootInsertPendingDecisionV1> {
         let operation_payload_digest = insert_pending_payload_digest(&record, 1)?;
         self.reserve_insert_pending_with_payload_digest(
             scope,
@@ -8838,7 +8904,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         reserved_at_ms: u64,
         operation_payload_digest: TenantRootProtocolDigestV1,
         admission: Option<TenantRootCommandAdmissionV1>,
-    ) -> worker::Result<CloudflareTenantRootInsertPendingDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootInsertPendingDecisionV1> {
         record.validate()?;
         self.cipher.require_role(record.role)?;
         if !matches!(
@@ -8916,7 +8982,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         capability_digest: TenantRootLifecycleReceiptDigestV1,
         backup_receipt_digest: TenantRootLifecycleReceiptDigestV1,
         installation_receipt_digest: TenantRootLifecycleReceiptDigestV1,
-    ) -> worker::Result<CloudflareTenantRootManagedRestoreForwardRefreshSourceV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootManagedRestoreForwardRefreshSourceV1> {
         let stored = self
             .load_epoch_by_identity_digest(identity_digest, custody_lineage, current_epoch)
             .await?
@@ -8955,7 +9021,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     pub(crate) fn managed_restore_forward_refresh_provenance(
         &self,
         stored: &CloudflareStoredTenantRootRoleShareV1,
-    ) -> worker::Result<CloudflareTenantRootManagedRestoreForwardRefreshProvenanceV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootManagedRestoreForwardRefreshProvenanceV1> {
         validate_pending_stored_record(&self.cipher, stored)?;
         let CloudflareTenantRootRoleShareLifecycleV1::Pending(pending) = &stored.record.lifecycle
         else {
@@ -8985,7 +9051,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         staging: CloudflareTenantRootManagedRestoreStagingInputV1,
         reserved_at_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootManagedRestoreStagingDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootManagedRestoreStagingDecisionV1> {
         let CloudflareTenantRootManagedRestoreStagingInputV1 {
             capability,
             scope,
@@ -9057,7 +9123,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     pub(crate) async fn preflight_refresh_replay(
         &self,
         raw_command: &TenantRootRoleRefreshCommandV1,
-    ) -> worker::Result<Option<CloudflareTenantRootRefreshAdmissionDecisionV1>> {
+    ) -> RoleStoreResult<Option<CloudflareTenantRootRefreshAdmissionDecisionV1>> {
         let key = TenantRootCommandReplayKeyV1::new(
             raw_command.identity_digest(),
             raw_command.custody_lineage(),
@@ -9085,7 +9151,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     fn seal_refresh_seed(
         &self,
         command: &VerifiedTenantRootRoleRefreshCommandV1,
-    ) -> worker::Result<String> {
+    ) -> RoleStoreResult<String> {
         let mut seed = zeroize::Zeroizing::new([0_u8; 32]);
         rand_core::RngCore::fill_bytes(&mut CloudflareHpkeGetrandomRngV1, seed.as_mut());
         let (encapped, ciphertext) = CloudflareHpkeSuiteV1::seal_base(
@@ -9105,7 +9171,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         command: &VerifiedTenantRootRoleRefreshCommandV1,
         state: &CloudflareTenantRootRefreshDurableStateV1,
-    ) -> worker::Result<zeroize::Zeroizing<[u8; 32]>> {
+    ) -> RoleStoreResult<zeroize::Zeroizing<[u8; 32]>> {
         state.validate()?;
         if state.command_bytes()? != command.canonical_bytes() {
             return Err(store_error("refresh replay seed command mismatch"));
@@ -9144,7 +9210,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         command: &VerifiedTenantRootRoleRefreshCommandV1,
         now_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootRefreshAdmissionDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRefreshAdmissionDecisionV1> {
         let scope = command.scope();
         let key = *scope.key();
         self.require_command_role(&key)?;
@@ -9180,17 +9246,17 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(INSERT_REFRESH_ADMISSION_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(replay_key_digest_hex.as_str()),
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(session_id_hex.as_str()),
-                    D1Type::Text(nonce_hex.as_str()),
-                    D1Type::Text(role),
-                    D1Type::Text(operation_digest_hex.as_str()),
-                    D1Type::Text(admission_digest_hex.as_str()),
-                    D1Type::Text(reserved_at_ms_text.as_str()),
-                    D1Type::Text(state_b64u.as_str()),
-                    D1Type::Text(state_digest_hex.as_str()),
+                    RoleSqlValue::Text(replay_key_digest_hex.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(session_id_hex.as_str()),
+                    RoleSqlValue::Text(nonce_hex.as_str()),
+                    RoleSqlValue::Text(role),
+                    RoleSqlValue::Text(operation_digest_hex.as_str()),
+                    RoleSqlValue::Text(admission_digest_hex.as_str()),
+                    RoleSqlValue::Text(reserved_at_ms_text.as_str()),
+                    RoleSqlValue::Text(state_b64u.as_str()),
+                    RoleSqlValue::Text(state_digest_hex.as_str()),
                 ]
                 .iter(),
             )?
@@ -9224,7 +9290,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         key: TenantRootCommandReplayKeyV1,
         command_digest: TenantRootProtocolDigestV1,
         command_bytes: &[u8],
-    ) -> worker::Result<CloudflareTenantRootRefreshAdmissionDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRefreshAdmissionDecisionV1> {
         if stored.record.key() != &key || stored.admission_digest != Some(command_digest) {
             return Err(store_error(
                 "tenant-root refresh session was reused with different issuer-authorized bytes",
@@ -9291,7 +9357,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         refresh: CloudflareTenantRootRefreshInputV1,
         prepared_artifacts: CloudflareTenantRootRefreshPreparedArtifactsV1,
         executed_at_ms: u64,
-    ) -> worker::Result<(
+    ) -> RoleStoreResult<(
         CloudflareStoredTenantRootRoleShareV1,
         CloudflareTenantRootRefreshExecutedCommandV1,
     )> {
@@ -9384,14 +9450,14 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         let updated_at_ms = record.updated_at_ms.to_string();
         let lifecycle_statement = self.session.prepare(INSERT_SQL).bind_refs(
             [
-                D1Type::Text(metadata.identity_digest_hex.as_str()),
-                D1Type::Text(metadata.custody_lineage_b64u.as_str()),
-                D1Type::Text(epoch.as_str()),
-                D1Type::Text(metadata.role.as_str()),
-                D1Type::Text(metadata.lifecycle.as_str()),
-                D1Type::Text(ciphertext_json.as_str()),
-                D1Type::Text(created_at_ms.as_str()),
-                D1Type::Text(updated_at_ms.as_str()),
+                RoleSqlValue::Text(metadata.identity_digest_hex.as_str()),
+                RoleSqlValue::Text(metadata.custody_lineage_b64u.as_str()),
+                RoleSqlValue::Text(epoch.as_str()),
+                RoleSqlValue::Text(metadata.role.as_str()),
+                RoleSqlValue::Text(metadata.lifecycle.as_str()),
+                RoleSqlValue::Text(ciphertext_json.as_str()),
+                RoleSqlValue::Text(created_at_ms.as_str()),
+                RoleSqlValue::Text(updated_at_ms.as_str()),
             ]
             .iter(),
         )?;
@@ -9413,21 +9479,21 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         let executed_at_ms_text = timestamp_i64(executed_at_ms)?.to_string();
         let replay_statement = self.session.prepare(MARK_REFRESH_EXECUTED_SQL).bind_refs(
             [
-                D1Type::Text(replay_key_digest_hex.as_str()),
-                D1Type::Text(identity_digest_hex.as_str()),
-                D1Type::Text(custody_lineage_b64u.as_str()),
-                D1Type::Text(session_id_hex.as_str()),
-                D1Type::Text(nonce_hex.as_str()),
-                D1Type::Text(self.cipher.role.as_str()),
-                D1Type::Text(operation_digest_hex.as_str()),
-                D1Type::Text(executed_at_ms_text.as_str()),
-                D1Type::Text(next_state_b64u.as_str()),
-                D1Type::Text(next_state_digest_hex.as_str()),
-                D1Type::Text(old_operation_digest_hex.as_str()),
-                D1Type::Text(admission_digest_hex.as_str()),
-                D1Type::Text(reserved_at_ms.as_str()),
-                D1Type::Text(old_state_b64u.as_str()),
-                D1Type::Text(old_state_digest_hex.as_str()),
+                RoleSqlValue::Text(replay_key_digest_hex.as_str()),
+                RoleSqlValue::Text(identity_digest_hex.as_str()),
+                RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                RoleSqlValue::Text(session_id_hex.as_str()),
+                RoleSqlValue::Text(nonce_hex.as_str()),
+                RoleSqlValue::Text(self.cipher.role.as_str()),
+                RoleSqlValue::Text(operation_digest_hex.as_str()),
+                RoleSqlValue::Text(executed_at_ms_text.as_str()),
+                RoleSqlValue::Text(next_state_b64u.as_str()),
+                RoleSqlValue::Text(next_state_digest_hex.as_str()),
+                RoleSqlValue::Text(old_operation_digest_hex.as_str()),
+                RoleSqlValue::Text(admission_digest_hex.as_str()),
+                RoleSqlValue::Text(reserved_at_ms.as_str()),
+                RoleSqlValue::Text(old_state_b64u.as_str()),
+                RoleSqlValue::Text(old_state_digest_hex.as_str()),
             ]
             .iter(),
         )?;
@@ -9471,7 +9537,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         durable_state: &CloudflareTenantRootRefreshDurableStateV1,
         pending: CloudflareStoredTenantRootRoleShareV1,
         role_verifying_key: &[u8; 32],
-    ) -> worker::Result<CloudflareTenantRootRefreshExecutedCommandV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRefreshExecutedCommandV1> {
         let scope = command.scope();
         if scope.key() != admission.key()
             || command.digest() != admission.command_digest()
@@ -9551,9 +9617,9 @@ impl CloudflareTenantRootRoleShareStoreV1 {
 
     async fn run_refresh_pending_checkpoint(
         &self,
-        lifecycle_statement: worker::D1PreparedStatement,
-        replay_statement: worker::D1PreparedStatement,
-    ) -> worker::Result<()> {
+        lifecycle_statement: RoleSqlStatement<'_, S>,
+        replay_statement: RoleSqlStatement<'_, S>,
+    ) -> RoleStoreResult<()> {
         let lifecycle_guard = self.command_cas_count_guard_statement(1)?;
         let replay_guard = self.command_cas_count_guard_statement(1)?;
         let results = self
@@ -9609,7 +9675,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         command: &VerifiedTenantRootRoleRefreshCommandV1,
         executed: &CloudflareTenantRootRefreshExecutedCommandV1,
         artifacts: CloudflareTenantRootRefreshArtifactMetadataV1,
-    ) -> worker::Result<()> {
+    ) -> RoleStoreResult<()> {
         artifacts.validate()?;
         let scope = command.scope();
         if scope.key() != executed.executed().key()
@@ -9677,20 +9743,20 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(ATTACH_REFRESH_ARTIFACTS_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(next_state_b64u.as_str()),
-                    D1Type::Text(next_state_digest_hex.as_str()),
-                    D1Type::Text(replay_key_digest_hex.as_str()),
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(session_id_hex.as_str()),
-                    D1Type::Text(nonce_hex.as_str()),
-                    D1Type::Text(self.cipher.role.as_str()),
-                    D1Type::Text(command_digest_hex.as_str()),
-                    D1Type::Text(admission_digest_hex.as_str()),
-                    D1Type::Text(reserved_at_ms.as_str()),
-                    D1Type::Text(executed_at_ms.as_str()),
-                    D1Type::Text(expected_state_b64u.as_str()),
-                    D1Type::Text(expected_state_digest_hex.as_str()),
+                    RoleSqlValue::Text(next_state_b64u.as_str()),
+                    RoleSqlValue::Text(next_state_digest_hex.as_str()),
+                    RoleSqlValue::Text(replay_key_digest_hex.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(session_id_hex.as_str()),
+                    RoleSqlValue::Text(nonce_hex.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(command_digest_hex.as_str()),
+                    RoleSqlValue::Text(admission_digest_hex.as_str()),
+                    RoleSqlValue::Text(reserved_at_ms.as_str()),
+                    RoleSqlValue::Text(executed_at_ms.as_str()),
+                    RoleSqlValue::Text(expected_state_b64u.as_str()),
+                    RoleSqlValue::Text(expected_state_digest_hex.as_str()),
                 ]
                 .iter(),
             )?;
@@ -9706,7 +9772,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         executed: CloudflareTenantRootRefreshExecutedCommandV1,
         artifacts: &CloudflareTenantRootRefreshArtifactMetadataV1,
         receipt: VerifiedTenantRootCommandSuccessReceiptV1,
-    ) -> worker::Result<CloudflareTenantRootCommandTerminalCommitV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandTerminalCommitV1> {
         artifacts.validate()?;
         if command.scope().key() != executed.executed().key()
             || receipt.key() != executed.executed().key()
@@ -9735,7 +9801,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         command_bytes: Vec<u8>,
         evidence_bytes: Vec<u8>,
         artifacts: CloudflareTenantRootRefreshArtifactMetadataV1,
-    ) -> worker::Result<CloudflareTenantRootCommandTerminalCommitV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandTerminalCommitV1> {
         let CloudflareTenantRootRefreshExecutedCommandV1 { executed, .. } = executed;
         let key = *executed.key();
         let command_digest = executed.command_digest();
@@ -9795,21 +9861,21 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(COMMIT_REFRESH_TERMINAL_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(receipt_b64u.as_str()),
-                    D1Type::Text(receipt_digest_hex.as_str()),
-                    D1Type::Text(terminal_at_ms.as_str()),
-                    D1Type::Text(replay_key_digest_hex.as_str()),
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(session_id_hex.as_str()),
-                    D1Type::Text(nonce_hex.as_str()),
-                    D1Type::Text(self.cipher.role.as_str()),
-                    D1Type::Text(command_digest_hex.as_str()),
-                    D1Type::Text(admission_digest_hex.as_str()),
-                    D1Type::Text(reserved_at_ms.as_str()),
-                    D1Type::Text(executed_at_ms.as_str()),
-                    D1Type::Text(state_b64u.as_str()),
-                    D1Type::Text(state_digest_hex.as_str()),
+                    RoleSqlValue::Text(receipt_b64u.as_str()),
+                    RoleSqlValue::Text(receipt_digest_hex.as_str()),
+                    RoleSqlValue::Text(terminal_at_ms.as_str()),
+                    RoleSqlValue::Text(replay_key_digest_hex.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(session_id_hex.as_str()),
+                    RoleSqlValue::Text(nonce_hex.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(command_digest_hex.as_str()),
+                    RoleSqlValue::Text(admission_digest_hex.as_str()),
+                    RoleSqlValue::Text(reserved_at_ms.as_str()),
+                    RoleSqlValue::Text(executed_at_ms.as_str()),
+                    RoleSqlValue::Text(state_b64u.as_str()),
+                    RoleSqlValue::Text(state_digest_hex.as_str()),
                 ]
                 .iter(),
             )?;
@@ -9860,9 +9926,9 @@ impl CloudflareTenantRootRoleShareStoreV1 {
 
     async fn run_refresh_state_update(
         &self,
-        statement: worker::D1PreparedStatement,
+        statement: RoleSqlStatement<'_, S>,
         operation: &str,
-    ) -> worker::Result<()> {
+    ) -> RoleStoreResult<()> {
         let guard = self.command_cas_count_guard_statement(1)?;
         let results = self.session.batch(vec![statement, guard]).await?;
         if results.len() != 2 {
@@ -9901,7 +9967,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         command: &VerifiedTenantRootRoleCreationCommandV1,
         now_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootInitialCreationPreflightV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootInitialCreationPreflightV1> {
         let scope = command.scope();
         self.require_command_role(scope.key())?;
         let Some(stored) = self.load_command_replay(scope.key()).await? else {
@@ -9941,7 +10007,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         reserved_at_ms: u64,
         executed_at_ms: u64,
         terminal_at_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootInitialCreationPersistenceOutcomeV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootInitialCreationPersistenceOutcomeV1> {
         validate_initial_creation_role_signer(&creation, role_signer)?;
         match self
             .preflight_initial_creation(&creation.command, reserved_at_ms)
@@ -10025,7 +10091,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         creation: CloudflareTenantRootInitialCreationInputV1,
         reserved_at_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootInitialCreationDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootInitialCreationDecisionV1> {
         let CloudflareTenantRootInitialCreationInputV1 {
             command,
             evidence,
@@ -10100,7 +10166,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         command: CloudflareTenantRootInitialCreationPendingCommandV1,
         executed_at_ms: u64,
-    ) -> worker::Result<(
+    ) -> RoleStoreResult<(
         CloudflareStoredTenantRootRoleShareV1,
         CloudflareTenantRootInitialCreationExecutedCommandV1,
     )> {
@@ -10117,7 +10183,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         command: CloudflareTenantRootInsertPendingCommandV1,
         executed_at_ms: u64,
-    ) -> worker::Result<(
+    ) -> RoleStoreResult<(
         CloudflareStoredTenantRootRoleShareV1,
         ExecutedTenantRootCommandV1,
     )> {
@@ -10163,14 +10229,14 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         let updated_at_ms = record.updated_at_ms.to_string();
         let lifecycle_statement = self.session.prepare(INSERT_SQL).bind_refs(
             [
-                D1Type::Text(metadata.identity_digest_hex.as_str()),
-                D1Type::Text(metadata.custody_lineage_b64u.as_str()),
-                D1Type::Text(epoch.as_str()),
-                D1Type::Text(metadata.role.as_str()),
-                D1Type::Text(metadata.lifecycle.as_str()),
-                D1Type::Text(ciphertext_json.as_str()),
-                D1Type::Text(created_at_ms.as_str()),
-                D1Type::Text(updated_at_ms.as_str()),
+                RoleSqlValue::Text(metadata.identity_digest_hex.as_str()),
+                RoleSqlValue::Text(metadata.custody_lineage_b64u.as_str()),
+                RoleSqlValue::Text(epoch.as_str()),
+                RoleSqlValue::Text(metadata.role.as_str()),
+                RoleSqlValue::Text(metadata.lifecycle.as_str()),
+                RoleSqlValue::Text(ciphertext_json.as_str()),
+                RoleSqlValue::Text(created_at_ms.as_str()),
+                RoleSqlValue::Text(updated_at_ms.as_str()),
             ]
             .iter(),
         )?;
@@ -10199,7 +10265,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         command: CloudflareTenantRootManagedRestoreStagingPendingCommandV1,
         executed_at_ms: u64,
-    ) -> worker::Result<(
+    ) -> RoleStoreResult<(
         CloudflareStoredTenantRootRoleShareV1,
         ExecutedTenantRootCommandV1,
     )> {
@@ -10233,7 +10299,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         executed: ExecutedTenantRootCommandV1,
         receipt: VerifiedTenantRootCommandSuccessReceiptV1,
-    ) -> worker::Result<CloudflareTenantRootCommandTerminalCommitV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandTerminalCommitV1> {
         self.complete_command(executed, receipt).await
     }
 
@@ -10245,7 +10311,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     pub(crate) async fn load_active(
         &self,
         custody_binding: &TenantRootCustodyBindingV1,
-    ) -> worker::Result<CloudflareStoredTenantRootRoleShareV1> {
+    ) -> RoleStoreResult<CloudflareStoredTenantRootRoleShareV1> {
         custody_binding
             .validate()
             .map_err(|error| store_error(error.message()))?;
@@ -10277,7 +10343,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     async fn observe_active(
         &self,
         identity: &TenantRootIdentityV1,
-    ) -> worker::Result<CloudflareTenantRootActiveRoleShareV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootActiveRoleShareV1> {
         let identity_digest = identity
             .digest()
             .map_err(|error| store_error(error.message()))?;
@@ -10287,12 +10353,12 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     async fn load_active_resolution(
         &self,
         identity_digest: TenantRootIdentityDigestV1,
-    ) -> worker::Result<CloudflareTenantRootActiveRoleShareV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootActiveRoleShareV1> {
         let identity_digest_hex = encode_hex(identity_digest.as_bytes());
         let rows = self
             .session
             .prepare(LOAD_ACTIVE_SQL)
-            .bind_refs([D1Type::Text(identity_digest_hex.as_str())].iter())?
+            .bind_refs([RoleSqlValue::Text(identity_digest_hex.as_str())].iter())?
             .all()
             .await?
             .results::<TenantRootRoleD1RowV1>()?;
@@ -10342,7 +10408,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         identity: &TenantRootIdentityV1,
         custody_lineage: TenantRootCustodyLineageId,
         epoch: TenantRootShareEpoch,
-    ) -> worker::Result<Option<CloudflareStoredTenantRootRoleShareV1>> {
+    ) -> RoleStoreResult<Option<CloudflareStoredTenantRootRoleShareV1>> {
         let identity_digest_hex = identity_digest_hex(identity)?;
         let custody_lineage_b64u = custody_lineage.to_base64url();
         let epoch = epoch_i64(epoch)?.to_string();
@@ -10351,10 +10417,10 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(LOAD_EPOCH_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(epoch.as_str()),
-                    D1Type::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(epoch.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
                 ]
                 .iter(),
             )?
@@ -10368,7 +10434,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         identity_digest: TenantRootIdentityDigestV1,
         custody_lineage: TenantRootCustodyLineageId,
         epoch: TenantRootShareEpoch,
-    ) -> worker::Result<Option<CloudflareStoredTenantRootRoleShareV1>> {
+    ) -> RoleStoreResult<Option<CloudflareStoredTenantRootRoleShareV1>> {
         let identity_digest_hex = encode_hex(identity_digest.as_bytes());
         let custody_lineage_b64u = custody_lineage.to_base64url();
         let epoch = epoch_i64(epoch)?.to_string();
@@ -10377,10 +10443,10 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(LOAD_EPOCH_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(epoch.as_str()),
-                    D1Type::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(epoch.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
                 ]
                 .iter(),
             )?
@@ -10393,7 +10459,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         identity_digest: TenantRootIdentityDigestV1,
         custody_lineage: TenantRootCustodyLineageId,
-    ) -> worker::Result<CloudflareStoredTenantRootRoleShareV1> {
+    ) -> RoleStoreResult<CloudflareStoredTenantRootRoleShareV1> {
         let stored = self
             .load_epoch_by_identity_digest(
                 identity_digest,
@@ -10419,7 +10485,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     pub(crate) async fn activation_replay_exists(
         &self,
         scope: &TenantRootCommandScopeV1,
-    ) -> worker::Result<bool> {
+    ) -> RoleStoreResult<bool> {
         self.require_command_role(scope.key())?;
         Ok(self.load_command_replay(scope.key()).await?.is_some())
     }
@@ -10428,7 +10494,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     pub(crate) async fn reconcile_activation_after_swap(
         &self,
         scope: &TenantRootCommandScopeV1,
-    ) -> worker::Result<CloudflareTenantRootCommandReplayDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandReplayDecisionV1> {
         self.require_command_role(scope.key())?;
         let stored = self
             .load_command_replay(scope.key())
@@ -10445,7 +10511,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     pub(crate) async fn load_refresh_artifact_checkpoint(
         &self,
         pending: &CloudflareStoredTenantRootRoleShareV1,
-    ) -> worker::Result<CloudflareTenantRootRefreshArtifactCheckpointV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRefreshArtifactCheckpointV1> {
         validate_pending_stored_record(&self.cipher, pending)?;
         let CloudflareTenantRootRoleShareLifecycleV1::Pending(pending_state) =
             pending.record.lifecycle()
@@ -10542,7 +10608,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         activation: CloudflareTenantRootActivationV1,
         updated_at_ms: u64,
         reserved_at_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootActivateInitialPendingDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootActivateInitialPendingDecisionV1> {
         validate_pending_stored_record(&self.cipher, &pending)?;
         if pending.record.epoch != TenantRootShareEpoch::INITIAL {
             return Err(store_error(
@@ -10626,7 +10692,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         retirement: CloudflareTenantRootRetirementV1,
         updated_at_ms: u64,
         reserved_at_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootSwapActiveEpochDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootSwapActiveEpochDecisionV1> {
         validate_active_stored_record(&self.cipher, &active)?;
         validate_pending_stored_record(&self.cipher, &pending)?;
         validate_epoch_swap_inputs(&active, &pending)?;
@@ -10726,7 +10792,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         installation_receipt_digest: TenantRootLifecycleReceiptDigestV1,
         updated_at_ms: u64,
         reserved_at_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootManagedRestoreForwardRefreshDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootManagedRestoreForwardRefreshDecisionV1> {
         validate_managed_restore_forward_refresh_inputs(
             &self.cipher,
             &scope,
@@ -10824,7 +10890,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         command: CloudflareTenantRootManagedRestoreForwardRefreshCommandV1,
         executed_at_ms: u64,
-    ) -> worker::Result<(
+    ) -> RoleStoreResult<(
         CloudflareStoredTenantRootRoleShareV1,
         ExecutedTenantRootCommandV1,
     )> {
@@ -10910,11 +10976,11 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(DELETE_MANAGED_RESTORE_FORWARD_REFRESH_PENDING_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(restored_metadata.identity_digest_hex.as_str()),
-                    D1Type::Text(restored_metadata.custody_lineage_b64u.as_str()),
-                    D1Type::Text(restored_epoch.as_str()),
-                    D1Type::Text(restored_metadata.role.as_str()),
-                    D1Type::Text(restored_revision.as_str()),
+                    RoleSqlValue::Text(restored_metadata.identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(restored_metadata.custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(restored_epoch.as_str()),
+                    RoleSqlValue::Text(restored_metadata.role.as_str()),
+                    RoleSqlValue::Text(restored_revision.as_str()),
                 ]
                 .iter(),
             )?;
@@ -10923,14 +10989,14 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(ACTIVATE_MANAGED_RESTORE_FORWARD_REFRESH_PENDING_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(activated_ciphertext_json.as_str()),
-                    D1Type::Text(updated_at_ms.as_str()),
-                    D1Type::Text(activated_metadata.identity_digest_hex.as_str()),
-                    D1Type::Text(activated_metadata.custody_lineage_b64u.as_str()),
-                    D1Type::Text(refresh_epoch.as_str()),
-                    D1Type::Text(activated_metadata.role.as_str()),
-                    D1Type::Text(refresh_revision.as_str()),
-                    D1Type::Text(restored_epoch.as_str()),
+                    RoleSqlValue::Text(activated_ciphertext_json.as_str()),
+                    RoleSqlValue::Text(updated_at_ms.as_str()),
+                    RoleSqlValue::Text(activated_metadata.identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(activated_metadata.custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(refresh_epoch.as_str()),
+                    RoleSqlValue::Text(activated_metadata.role.as_str()),
+                    RoleSqlValue::Text(refresh_revision.as_str()),
+                    RoleSqlValue::Text(restored_epoch.as_str()),
                 ]
                 .iter(),
             )?;
@@ -10969,7 +11035,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         authorization: VerifiedTenantRootRoleCleanupCommandV1,
         reserved_at_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootAuthorizedCleanupDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootAuthorizedCleanupDecisionV1> {
         let record_role = authorization.role();
         if record_role.as_str() != self.cipher.role.as_str() {
             return Err(store_error(
@@ -11298,7 +11364,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         reserved_at_ms: u64,
         executed_at_ms: u64,
         terminal_at_ms: u64,
-    ) -> worker::Result<Vec<u8>> {
+    ) -> RoleStoreResult<Vec<u8>> {
         if role_signer.role() != authorization.role() {
             return Err(store_error(
                 "tenant-root cleanup receipt signer does not match the authorized role",
@@ -11365,7 +11431,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         scope: TenantRootCommandScopeV1,
         pending: CloudflareStoredTenantRootRoleShareV1,
         reserved_at_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootCleanupPendingDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCleanupPendingDecisionV1> {
         let operation_payload_digest = cleanup_pending_payload_digest(&pending, pending.revision)?;
         self.reserve_cleanup_pending_with_payload_digest(
             scope,
@@ -11384,7 +11450,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         reserved_at_ms: u64,
         operation_payload_digest: TenantRootProtocolDigestV1,
         admission: Option<TenantRootCommandAdmissionV1>,
-    ) -> worker::Result<CloudflareTenantRootCleanupPendingDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCleanupPendingDecisionV1> {
         validate_pending_stored_record(&self.cipher, &pending)?;
         let expected_revision = pending.revision;
         validate_command_scope_for_record(
@@ -11452,7 +11518,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         reserved_at_ms: u64,
         operation_payload_digest: TenantRootProtocolDigestV1,
         admission: Option<TenantRootCommandAdmissionV1>,
-    ) -> worker::Result<CloudflareTenantRootCleanupRetiredDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCleanupRetiredDecisionV1> {
         validate_retired_stored_record(&self.cipher, &retired)?;
         if expected_retired_revision != retired.revision {
             return Err(store_error(
@@ -11528,7 +11594,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         scope: TenantRootCommandScopeV1,
         operation: TenantRootCommandOperationV1,
         reserved_at_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootCommandReplayDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandReplayDecisionV1> {
         self.reserve_scoped_command_with_admission_digest(scope, operation, reserved_at_ms, None)
             .await
     }
@@ -11539,7 +11605,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         operation: TenantRootCommandOperationV1,
         reserved_at_ms: u64,
         admission: Option<TenantRootCommandAdmissionV1>,
-    ) -> worker::Result<CloudflareTenantRootCommandReplayDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandReplayDecisionV1> {
         // Reservation commits before an executable command leaves this adapter.
         // Atomic reservation-plus-lifecycle mutation needs a D1 transaction path.
         let key = *scope.key();
@@ -11572,21 +11638,21 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         let reserved_at_ms_text = timestamp_i64(reserved_at_ms)?.to_string();
         let admission_digest_value = admission_digest_hex
             .as_deref()
-            .map_or(D1Type::Null, D1Type::Text);
+            .map_or(RoleSqlValue::Null, RoleSqlValue::Text);
         let result = self
             .session
             .prepare(INSERT_COMMAND_RESERVATION_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(replay_key_digest_hex.as_str()),
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(session_id_hex.as_str()),
-                    D1Type::Text(nonce_hex.as_str()),
-                    D1Type::Text(self.cipher.role.as_str()),
-                    D1Type::Text(command_digest_hex.as_str()),
+                    RoleSqlValue::Text(replay_key_digest_hex.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(session_id_hex.as_str()),
+                    RoleSqlValue::Text(nonce_hex.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(command_digest_hex.as_str()),
                     admission_digest_value,
-                    D1Type::Text(reserved_at_ms_text.as_str()),
+                    RoleSqlValue::Text(reserved_at_ms_text.as_str()),
                 ]
                 .iter(),
             )?
@@ -11628,7 +11694,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         executed: ExecutedTenantRootCommandV1,
         receipt: VerifiedTenantRootCommandSuccessReceiptV1,
-    ) -> worker::Result<CloudflareTenantRootCommandTerminalCommitV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandTerminalCommitV1> {
         self.commit_command_terminal(TenantRootCommandTerminalInputV1::Completed {
             executed,
             receipt,
@@ -11642,7 +11708,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         executed: CloudflareTenantRootInitialCreationExecutedCommandV1,
         receipt: VerifiedTenantRootCommandSuccessReceiptV1,
-    ) -> worker::Result<CloudflareTenantRootCommandTerminalCommitV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandTerminalCommitV1> {
         let CloudflareTenantRootInitialCreationExecutedCommandV1 { executed, evidence } = executed;
         validate_initial_creation_success_receipt_payload(&evidence, &receipt)?;
         self.complete_command(executed, receipt).await
@@ -11655,7 +11721,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         executed: ExecutedTenantRootCommandV1,
         activation: &CloudflareTenantRootActivationV1,
         receipt: VerifiedTenantRootCommandSuccessReceiptV1,
-    ) -> worker::Result<CloudflareTenantRootCommandTerminalCommitV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandTerminalCommitV1> {
         if receipt.payload_bytes() != activation.activation_receipt_bytes() {
             return Err(store_error(
                 "tenant-root activation receipt payload does not match its exact activation receipt",
@@ -11670,7 +11736,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         executed: ExecutedTenantRootCommandV1,
         activation: &CloudflareTenantRootActivationV1,
         receipt: VerifiedTenantRootCommandSuccessReceiptV1,
-    ) -> worker::Result<CloudflareTenantRootCommandTerminalCommitV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandTerminalCommitV1> {
         if receipt.payload_bytes() != activation.activation_receipt_bytes() {
             return Err(store_error(
                 "managed-restore forward-refresh receipt payload does not match its exact activation receipt",
@@ -11684,7 +11750,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         reservation: ReservedTenantRootCommandV1,
         receipt: VerifiedTenantRootCommandFailureReceiptV1,
-    ) -> worker::Result<CloudflareTenantRootCommandTerminalCommitV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandTerminalCommitV1> {
         self.commit_command_terminal(TenantRootCommandTerminalInputV1::Failed {
             reservation,
             receipt,
@@ -11697,7 +11763,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         command: CloudflareTenantRootActivateInitialPendingCommandV1,
         executed_at_ms: u64,
-    ) -> worker::Result<(
+    ) -> RoleStoreResult<(
         CloudflareStoredTenantRootRoleShareV1,
         ExecutedTenantRootCommandV1,
     )> {
@@ -11751,13 +11817,13 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(ACTIVATE_INITIAL_PENDING_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(ciphertext_json.as_str()),
-                    D1Type::Text(updated_at_ms.as_str()),
-                    D1Type::Text(metadata.identity_digest_hex.as_str()),
-                    D1Type::Text(metadata.custody_lineage_b64u.as_str()),
-                    D1Type::Text(epoch.as_str()),
-                    D1Type::Text(metadata.role.as_str()),
-                    D1Type::Text(expected_revision_text.as_str()),
+                    RoleSqlValue::Text(ciphertext_json.as_str()),
+                    RoleSqlValue::Text(updated_at_ms.as_str()),
+                    RoleSqlValue::Text(metadata.identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(metadata.custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(epoch.as_str()),
+                    RoleSqlValue::Text(metadata.role.as_str()),
+                    RoleSqlValue::Text(expected_revision_text.as_str()),
                 ]
                 .iter(),
             )?;
@@ -11785,7 +11851,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         command: CloudflareTenantRootSwapActiveEpochCommandV1,
         executed_at_ms: u64,
-    ) -> worker::Result<(
+    ) -> RoleStoreResult<(
         (
             CloudflareStoredTenantRootRoleShareV1,
             CloudflareStoredTenantRootRoleShareV1,
@@ -11855,16 +11921,16 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         // The WHERE clause requires both CAS rows before this single UPDATE can match either.
         let lifecycle_statement = self.session.prepare(SWAP_ACTIVE_EPOCH_SQL).bind_refs(
             [
-                D1Type::Text(retired_metadata.identity_digest_hex.as_str()),
-                D1Type::Text(retired_metadata.custody_lineage_b64u.as_str()),
-                D1Type::Text(current_epoch.as_str()),
-                D1Type::Text(retired_metadata.role.as_str()),
-                D1Type::Text(current_revision.as_str()),
-                D1Type::Text(next_epoch.as_str()),
-                D1Type::Text(next_revision.as_str()),
-                D1Type::Text(retired_ciphertext_json.as_str()),
-                D1Type::Text(activated_ciphertext_json.as_str()),
-                D1Type::Text(updated_at_ms.as_str()),
+                RoleSqlValue::Text(retired_metadata.identity_digest_hex.as_str()),
+                RoleSqlValue::Text(retired_metadata.custody_lineage_b64u.as_str()),
+                RoleSqlValue::Text(current_epoch.as_str()),
+                RoleSqlValue::Text(retired_metadata.role.as_str()),
+                RoleSqlValue::Text(current_revision.as_str()),
+                RoleSqlValue::Text(next_epoch.as_str()),
+                RoleSqlValue::Text(next_revision.as_str()),
+                RoleSqlValue::Text(retired_ciphertext_json.as_str()),
+                RoleSqlValue::Text(activated_ciphertext_json.as_str()),
+                RoleSqlValue::Text(updated_at_ms.as_str()),
             ]
             .iter(),
         )?;
@@ -11899,7 +11965,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         command: CloudflareTenantRootCleanupPendingCommandV1,
         executed_at_ms: u64,
-    ) -> worker::Result<ExecutedTenantRootCommandV1> {
+    ) -> RoleStoreResult<ExecutedTenantRootCommandV1> {
         let CloudflareTenantRootCleanupPendingCommandV1 {
             scope,
             reservation,
@@ -11931,11 +11997,11 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         let revision = expected_revision.to_string();
         let lifecycle_statement = self.session.prepare(CLEANUP_PENDING_SQL).bind_refs(
             [
-                D1Type::Text(metadata.identity_digest_hex.as_str()),
-                D1Type::Text(metadata.custody_lineage_b64u.as_str()),
-                D1Type::Text(epoch.as_str()),
-                D1Type::Text(metadata.role.as_str()),
-                D1Type::Text(revision.as_str()),
+                RoleSqlValue::Text(metadata.identity_digest_hex.as_str()),
+                RoleSqlValue::Text(metadata.custody_lineage_b64u.as_str()),
+                RoleSqlValue::Text(epoch.as_str()),
+                RoleSqlValue::Text(metadata.role.as_str()),
+                RoleSqlValue::Text(revision.as_str()),
             ]
             .iter(),
         )?;
@@ -11957,7 +12023,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         command: CloudflareTenantRootCleanupRetiredCommandV1,
         executed_at_ms: u64,
-    ) -> worker::Result<ExecutedTenantRootCommandV1> {
+    ) -> RoleStoreResult<ExecutedTenantRootCommandV1> {
         let CloudflareTenantRootCleanupRetiredCommandV1 {
             scope,
             reservation,
@@ -11998,13 +12064,13 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         let active_revision = expected_active_revision.to_string();
         let lifecycle_statement = self.session.prepare(CLEANUP_RETIRED_SQL).bind_refs(
             [
-                D1Type::Text(metadata.identity_digest_hex.as_str()),
-                D1Type::Text(metadata.custody_lineage_b64u.as_str()),
-                D1Type::Text(retired_epoch.as_str()),
-                D1Type::Text(metadata.role.as_str()),
-                D1Type::Text(retired_revision.as_str()),
-                D1Type::Text(active_epoch.as_str()),
-                D1Type::Text(active_revision.as_str()),
+                RoleSqlValue::Text(metadata.identity_digest_hex.as_str()),
+                RoleSqlValue::Text(metadata.custody_lineage_b64u.as_str()),
+                RoleSqlValue::Text(retired_epoch.as_str()),
+                RoleSqlValue::Text(metadata.role.as_str()),
+                RoleSqlValue::Text(retired_revision.as_str()),
+                RoleSqlValue::Text(active_epoch.as_str()),
+                RoleSqlValue::Text(active_revision.as_str()),
             ]
             .iter(),
         )?;
@@ -12024,7 +12090,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         command: CloudflareTenantRootAuthorizedCleanupCommandV1,
         executed_at_ms: u64,
-    ) -> worker::Result<CloudflareTenantRootAuthorizedCleanupExecutedCommandV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootAuthorizedCleanupExecutedCommandV1> {
         let (executed, authorization) = match command {
             CloudflareTenantRootAuthorizedCleanupCommandV1::Pending(command) => {
                 let CloudflareTenantRootAuthorizedCleanupPendingCommandV1 {
@@ -12057,7 +12123,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         executed: CloudflareTenantRootAuthorizedCleanupExecutedCommandV1,
         receipt: VerifiedTenantRootCommandSuccessReceiptV1,
-    ) -> worker::Result<CloudflareTenantRootCommandTerminalCommitV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandTerminalCommitV1> {
         let CloudflareTenantRootAuthorizedCleanupExecutedCommandV1 {
             executed,
             authorization,
@@ -12077,7 +12143,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         reservation: &ReservedTenantRootCommandV1,
         executed_at_ms: u64,
-    ) -> worker::Result<worker::D1PreparedStatement> {
+    ) -> RoleStoreResult<RoleSqlStatement<'_, S>> {
         self.require_command_role(reservation.key())?;
         let key = reservation.key();
         let replay_key_digest_hex = encode_hex(
@@ -12094,15 +12160,15 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         let executed_at_ms = timestamp_i64(executed_at_ms)?.to_string();
         self.session.prepare(MARK_COMMAND_EXECUTED_SQL).bind_refs(
             [
-                D1Type::Text(replay_key_digest_hex.as_str()),
-                D1Type::Text(identity_digest_hex.as_str()),
-                D1Type::Text(custody_lineage_b64u.as_str()),
-                D1Type::Text(session_id_hex.as_str()),
-                D1Type::Text(nonce_hex.as_str()),
-                D1Type::Text(key.role().as_str()),
-                D1Type::Text(command_digest_hex.as_str()),
-                D1Type::Text(reserved_at_ms.as_str()),
-                D1Type::Text(executed_at_ms.as_str()),
+                RoleSqlValue::Text(replay_key_digest_hex.as_str()),
+                RoleSqlValue::Text(identity_digest_hex.as_str()),
+                RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                RoleSqlValue::Text(session_id_hex.as_str()),
+                RoleSqlValue::Text(nonce_hex.as_str()),
+                RoleSqlValue::Text(key.role().as_str()),
+                RoleSqlValue::Text(command_digest_hex.as_str()),
+                RoleSqlValue::Text(reserved_at_ms.as_str()),
+                RoleSqlValue::Text(executed_at_ms.as_str()),
             ]
             .iter(),
         )
@@ -12111,21 +12177,21 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     fn command_cas_count_guard_statement(
         &self,
         expected_changes: usize,
-    ) -> worker::Result<worker::D1PreparedStatement> {
+    ) -> RoleStoreResult<RoleSqlStatement<'_, S>> {
         let expected_changes = expected_changes.to_string();
         self.session
             .prepare(CAS_COUNT_GUARD_SQL)
-            .bind_refs([D1Type::Text(expected_changes.as_str())].iter())
+            .bind_refs([RoleSqlValue::Text(expected_changes.as_str())].iter())
     }
 
     async fn run_lifecycle_checkpoint(
         &self,
-        lifecycle_statement: worker::D1PreparedStatement,
+        lifecycle_statement: RoleSqlStatement<'_, S>,
         expected_lifecycle_changes: usize,
-        checkpoint_statement: worker::D1PreparedStatement,
+        checkpoint_statement: RoleSqlStatement<'_, S>,
         reservation: ReservedTenantRootCommandV1,
         executed_at_ms: u64,
-    ) -> worker::Result<ExecutedTenantRootCommandV1> {
+    ) -> RoleStoreResult<ExecutedTenantRootCommandV1> {
         if executed_at_ms < reservation.reserved_at_ms() {
             return Err(store_error(
                 "tenant-root command execution checkpoint precedes its reservation",
@@ -12185,7 +12251,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         &self,
         reservation: ReservedTenantRootCommandV1,
         executed_at_ms: u64,
-    ) -> worker::Result<ExecutedTenantRootCommandV1> {
+    ) -> RoleStoreResult<ExecutedTenantRootCommandV1> {
         if executed_at_ms < reservation.reserved_at_ms() {
             return Err(store_error(
                 "tenant-root command execution checkpoint precedes its reservation",
@@ -12229,12 +12295,12 @@ impl CloudflareTenantRootRoleShareStoreV1 {
 
     async fn run_managed_restore_forward_refresh_checkpoint(
         &self,
-        delete_statement: worker::D1PreparedStatement,
-        activate_statement: worker::D1PreparedStatement,
-        checkpoint_statement: worker::D1PreparedStatement,
+        delete_statement: RoleSqlStatement<'_, S>,
+        activate_statement: RoleSqlStatement<'_, S>,
+        checkpoint_statement: RoleSqlStatement<'_, S>,
         reservation: ReservedTenantRootCommandV1,
         executed_at_ms: u64,
-    ) -> worker::Result<ExecutedTenantRootCommandV1> {
+    ) -> RoleStoreResult<ExecutedTenantRootCommandV1> {
         if executed_at_ms < reservation.reserved_at_ms() {
             return Err(store_error(
                 "tenant-root command execution checkpoint precedes its reservation",
@@ -12306,7 +12372,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         row: Option<TenantRootRoleD1RowV1>,
     ) -> Pin<
         Box<
-            dyn Future<Output = worker::Result<Option<CloudflareStoredTenantRootRoleShareV1>>> + '_,
+            dyn Future<Output = RoleStoreResult<Option<CloudflareStoredTenantRootRoleShareV1>>> + '_,
         >,
     > {
         // Keep authenticated receipt decoding in a heap-backed future; the
@@ -12332,7 +12398,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     async fn commit_command_terminal(
         &self,
         input: TenantRootCommandTerminalInputV1,
-    ) -> worker::Result<CloudflareTenantRootCommandTerminalCommitV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandTerminalCommitV1> {
         let TenantRootCommandTerminalCommitDataV1 {
             key,
             command_digest,
@@ -12364,20 +12430,20 @@ impl CloudflareTenantRootRoleShareStoreV1 {
             .prepare(COMMIT_COMMAND_TERMINAL_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(terminal_kind.as_str()),
-                    D1Type::Text(receipt_b64u.as_str()),
-                    D1Type::Text(receipt_digest_hex.as_str()),
-                    D1Type::Text(terminal_at_ms_text.as_str()),
-                    D1Type::Text(replay_key_digest_hex.as_str()),
-                    D1Type::Text(identity_digest_hex.as_str()),
-                    D1Type::Text(custody_lineage_b64u.as_str()),
-                    D1Type::Text(session_id_hex.as_str()),
-                    D1Type::Text(nonce_hex.as_str()),
-                    D1Type::Text(self.cipher.role.as_str()),
-                    D1Type::Text(command_digest_hex.as_str()),
-                    D1Type::Text(reserved_at_ms_text.as_str()),
-                    D1Type::Text(terminal_kind.expected_status()),
-                    D1Type::Text(executed_at_ms_text.as_str()),
+                    RoleSqlValue::Text(terminal_kind.as_str()),
+                    RoleSqlValue::Text(receipt_b64u.as_str()),
+                    RoleSqlValue::Text(receipt_digest_hex.as_str()),
+                    RoleSqlValue::Text(terminal_at_ms_text.as_str()),
+                    RoleSqlValue::Text(replay_key_digest_hex.as_str()),
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(session_id_hex.as_str()),
+                    RoleSqlValue::Text(nonce_hex.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(command_digest_hex.as_str()),
+                    RoleSqlValue::Text(reserved_at_ms_text.as_str()),
+                    RoleSqlValue::Text(terminal_kind.expected_status()),
+                    RoleSqlValue::Text(executed_at_ms_text.as_str()),
                 ]
                 .iter(),
             )?
@@ -12429,7 +12495,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     async fn load_command_replay(
         &self,
         key: &TenantRootCommandReplayKeyV1,
-    ) -> worker::Result<Option<StoredTenantRootCommandReplayV1>> {
+    ) -> RoleStoreResult<Option<StoredTenantRootCommandReplayV1>> {
         self.require_command_role(key)?;
         let replay_key_digest = key
             .storage_key_digest()
@@ -12441,15 +12507,15 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     async fn load_command_replay_by_storage_key_digest(
         &self,
         replay_key_digest: TenantRootProtocolDigestV1,
-    ) -> worker::Result<Option<StoredTenantRootCommandReplayV1>> {
+    ) -> RoleStoreResult<Option<StoredTenantRootCommandReplayV1>> {
         let replay_key_digest_hex = encode_hex(replay_key_digest.as_bytes());
         let row = self
             .session
             .prepare(LOAD_COMMAND_REPLAY_SQL)
             .bind_refs(
                 [
-                    D1Type::Text(replay_key_digest_hex.as_str()),
-                    D1Type::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(replay_key_digest_hex.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
                 ]
                 .iter(),
             )?
@@ -12461,7 +12527,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
     fn open_command_replay_row(
         &self,
         row: TenantRootCommandReplayD1RowV1,
-    ) -> worker::Result<StoredTenantRootCommandReplayV1> {
+    ) -> RoleStoreResult<StoredTenantRootCommandReplayV1> {
         if row.role != self.cipher.role.as_str() {
             return Err(store_error(
                 "tenant-root command replay row belongs to the other Deriver",
@@ -12676,7 +12742,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         stored: &StoredTenantRootCommandReplayV1,
         key: TenantRootCommandReplayKeyV1,
         command_digest: TenantRootProtocolDigestV1,
-    ) -> worker::Result<CloudflareTenantRootCommandReplayDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandReplayDecisionV1> {
         match reserve_tenant_root_command_v1(
             Some(&stored.record),
             key,
@@ -12729,7 +12795,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         stored: &StoredTenantRootCommandReplayV1,
         key: TenantRootCommandReplayKeyV1,
         creation_admission_digest: TenantRootProtocolDigestV1,
-    ) -> worker::Result<CloudflareTenantRootCommandReplayDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandReplayDecisionV1> {
         if stored.admission_digest != Some(creation_admission_digest) {
             return Err(store_error(
                 "tenant-root creation session was reused with different issuer-authorized bytes",
@@ -12750,7 +12816,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         key: TenantRootCommandReplayKeyV1,
         authorization_digest: TenantRootProtocolDigestV1,
         expected_command_digest: Option<TenantRootProtocolDigestV1>,
-    ) -> worker::Result<CloudflareTenantRootCommandReplayDecisionV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootCommandReplayDecisionV1> {
         if stored.admission_digest != Some(authorization_digest) {
             return Err(store_error(
                 "tenant-root cleanup session was reused with different authorization bytes",
@@ -12766,7 +12832,7 @@ impl CloudflareTenantRootRoleShareStoreV1 {
         self.reconcile_command_retry(stored, key, stored.record.command_digest())
     }
 
-    fn require_command_role(&self, key: &TenantRootCommandReplayKeyV1) -> worker::Result<()> {
+    fn require_command_role(&self, key: &TenantRootCommandReplayKeyV1) -> RoleStoreResult<()> {
         if key.role().as_str() != self.cipher.role.as_str() {
             return Err(store_error(
                 "tenant-root command replay key belongs to the other Deriver",
@@ -12777,10 +12843,11 @@ impl CloudflareTenantRootRoleShareStoreV1 {
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn run_cloudflare_tenant_root_role_d1_lifecycle_integration_v1(
     env: &Env,
 ) -> Pin<
-    Box<dyn Future<Output = worker::Result<CloudflareTenantRootRoleD1IntegrationReceiptV1>> + '_>,
+    Box<dyn Future<Output = RoleStoreResult<CloudflareTenantRootRoleD1IntegrationReceiptV1>> + '_>,
 > {
     // This debug-only probe holds many encrypted rows across awaits. Heap-boxing
     // the future keeps its large state frame off the Workers stack.
@@ -12788,9 +12855,10 @@ fn run_cloudflare_tenant_root_role_d1_lifecycle_integration_v1(
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 async fn run_cloudflare_tenant_root_role_d1_lifecycle_integration_body_v1(
     env: &Env,
-) -> worker::Result<CloudflareTenantRootRoleD1IntegrationReceiptV1> {
+) -> RoleStoreResult<CloudflareTenantRootRoleD1IntegrationReceiptV1> {
     let store = CloudflareTenantRootRoleShareStoreV1::from_env(env)?;
     let role = store.cipher.role;
     let other_role = match role {
@@ -13438,6 +13506,7 @@ async fn run_cloudflare_tenant_root_role_d1_lifecycle_integration_body_v1(
 
 /// One probe ceremony's sealed creation input plus the public bytes A needs.
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 struct TenantRootCreationProbeCeremonyV1 {
     input: CloudflareTenantRootInitialCreationInputV1,
     managed_backup: VerifiedTenantRootManagedBackupV1,
@@ -13448,6 +13517,7 @@ struct TenantRootCreationProbeCeremonyV1 {
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 struct TenantRootCreationProbeAuthorizationV1 {
     own_package: Vec<u8>,
     peer_package: Vec<u8>,
@@ -13456,10 +13526,11 @@ struct TenantRootCreationProbeAuthorizationV1 {
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_creation_probe_authorization(
     role: CloudflareTenantRootDeriverRoleV1,
     session_seed: u8,
-) -> worker::Result<TenantRootCreationProbeAuthorizationV1> {
+) -> RoleStoreResult<TenantRootCreationProbeAuthorizationV1> {
     let protocol_role = tenant_root_creation_probe_protocol_role(role);
     let identity = tenant_root_creation_probe_identity()?;
     let context = tenant_root_creation_probe_context(session_seed)?;
@@ -13470,7 +13541,7 @@ fn tenant_root_creation_probe_authorization(
     )
     .map_err(|error| store_error(error.message()))?;
     let authority_id = router_ab_core::TenantRootControlPlaneAuthorityIdV1::from_bytes([0x56; 32]);
-    let package_for = |package_role: TwoPartyDeriverRole| -> worker::Result<Vec<u8>> {
+    let package_for = |package_role: TwoPartyDeriverRole| -> RoleStoreResult<Vec<u8>> {
         let signed = tenant_root_creation_probe_signed_command(
             package_role,
             &journal,
@@ -13490,10 +13561,11 @@ fn tenant_root_creation_probe_authorization(
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_creation_probe_verified_package(
     authorization: &TenantRootCreationProbeAuthorizationV1,
     role: CloudflareTenantRootDeriverRoleV1,
-) -> worker::Result<router_ab_core::VerifiedTenantRootRoleCreationCommandPackageV1> {
+) -> RoleStoreResult<router_ab_core::VerifiedTenantRootRoleCreationCommandPackageV1> {
     let protocol_role = tenant_root_creation_probe_protocol_role(role);
     let signer = crate::env::cloudflare_tenant_root_creation_role_signer_for_probe_v1(
         protocol_role,
@@ -13518,12 +13590,13 @@ fn tenant_root_creation_probe_verified_package(
 /// calls, so the probe exercises production admission, finalization, and
 /// sealing rather than a parallel fixture path.
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 async fn tenant_root_creation_probe_ceremony(
     env: &Env,
     role: CloudflareTenantRootDeriverRoleV1,
     authorization: TenantRootCreationProbeAuthorizationV1,
     now_ms: u64,
-) -> worker::Result<TenantRootCreationProbeCeremonyV1> {
+) -> RoleStoreResult<TenantRootCreationProbeCeremonyV1> {
     let protocol_role = tenant_root_creation_probe_protocol_role(role);
     let peer_protocol_role = protocol_role.peer();
     let peer_role_id = match role {
@@ -13641,9 +13714,10 @@ async fn tenant_root_creation_probe_ceremony(
 /// -- so nothing here fabricates a receipt. Run this probe in each Deriver to
 /// prove both roles' wrappers; a single Worker only owns its own store.
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 async fn run_cloudflare_tenant_root_initial_creation_integration_v1(
     env: &Env,
-) -> worker::Result<CloudflareTenantRootRoleD1IntegrationReceiptV1> {
+) -> RoleStoreResult<CloudflareTenantRootRoleD1IntegrationReceiptV1> {
     let store = CloudflareTenantRootRoleShareStoreV1::from_env(env)?;
     let role = store.cipher.role;
     let reserved_at_ms = TENANT_ROOT_CREATION_PROBE_ISSUED_AT_MS_V1 + 4;
@@ -14006,8 +14080,9 @@ async fn run_cloudflare_tenant_root_initial_creation_integration_v1(
 
 /// The probe's published issuer keyset.
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_creation_probe_issuer_keys(
-) -> worker::Result<crate::env::CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1> {
+) -> RoleStoreResult<crate::env::CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1> {
     crate::env::CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1::decode(&format!(
         "{{\"keys\":[{{\"issuer_key_id\":\"{TENANT_ROOT_CREATION_PROBE_ISSUER_KEY_ID_V1}\",\"verifying_key_hex\":\"{}\"}}]}}",
         encode_hex(
@@ -14026,10 +14101,11 @@ fn tenant_root_creation_probe_issuer_keys(
 /// the loaded provider is refused, and that check is one of the things this
 /// probe exists to exercise.
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_creation_probe_provider_config(
     env: &Env,
     worker_role: crate::CloudflareWorkerRoleV1,
-) -> worker::Result<crate::tenant_root_role_runtime::TenantRootRoleRuntimeProviderConfigV1> {
+) -> RoleStoreResult<crate::tenant_root_role_runtime::TenantRootRoleRuntimeProviderConfigV1> {
     let reader = crate::CloudflareWorkerEnvReaderV1::new(env);
     let config = crate::env::parse_cloudflare_tenant_root_operational_rotation_provider_config_v1(
         worker_role,
@@ -14046,8 +14122,9 @@ fn tenant_root_creation_probe_provider_config(
 
 /// The probe's published role keyset, matching the ceremony's key IDs.
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_creation_probe_role_keys(
-) -> worker::Result<crate::env::TenantRootCreationRoleVerifyingKeysV1> {
+) -> RoleStoreResult<crate::env::TenantRootCreationRoleVerifyingKeysV1> {
     let entry = |role: CloudflareTenantRootDeriverRoleV1, label: &str| {
         format!(
             "{{\"role\":\"{label}\",\"signing_key_id\":\"{}\",\"verifying_key_hex\":\"{}\"}}",
@@ -14093,19 +14170,24 @@ fn tenant_root_protocol_role_of(role: CloudflareTenantRootDeriverRoleV1) -> TwoP
 /// verification path runs. This key exists only in a debug build behind the
 /// integration env flag.
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_PROBE_ISSUER_KEY_V1: [u8; 32] = [0x4d; 32];
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_PROBE_ISSUER_KEY_ID_V1: &str = "tenant-root-creation-probe-issuer-v1";
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_PROBE_ISSUED_AT_MS_V1: u64 = 1_000_000;
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_CREATION_PROBE_EXPIRES_AT_MS_V1: u64 = 1_030_000;
 
 /// Builds the probe's ceremony context, shared by both roles.
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_creation_probe_context(
     session_seed: u8,
-) -> worker::Result<router_ab_core::TenantRootCeremonyContextV1> {
+) -> RoleStoreResult<router_ab_core::TenantRootCeremonyContextV1> {
     let identity = tenant_root_creation_probe_identity()?;
     router_ab_core::TenantRootCeremonyContextV1::new(
         identity
@@ -14131,7 +14213,8 @@ fn tenant_root_creation_probe_context(
 }
 
 #[cfg(debug_assertions)]
-fn tenant_root_creation_probe_identity() -> worker::Result<TenantRootIdentityV1> {
+#[cfg(feature = "workers-rs")]
+fn tenant_root_creation_probe_identity() -> RoleStoreResult<TenantRootIdentityV1> {
     TenantRootIdentityV1::new(
         "r120-creation-probe-org",
         "r120-creation-probe-project",
@@ -14144,12 +14227,13 @@ fn tenant_root_creation_probe_identity() -> worker::Result<TenantRootIdentityV1>
 
 /// Signs and verifies one role's creation command, as the issuer would.
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_creation_probe_signed_command(
     role: TwoPartyDeriverRole,
     journal: &router_ab_core::TenantRootCreationJournalV1,
     context: &router_ab_core::TenantRootCeremonyContextV1,
     authority_id: router_ab_core::TenantRootControlPlaneAuthorityIdV1,
-) -> worker::Result<router_ab_core::TenantRootRoleCreationCommandV1> {
+) -> RoleStoreResult<router_ab_core::TenantRootRoleCreationCommandV1> {
     router_ab_core::TenantRootRoleCreationCommandV1::sign(
         journal,
         context,
@@ -14164,6 +14248,7 @@ fn tenant_root_creation_probe_signed_command(
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_creation_probe_cleanup_authorization(
     pending: &CloudflareStoredTenantRootRoleShareV1,
     authorized_role: TwoPartyDeriverRole,
@@ -14171,7 +14256,7 @@ fn tenant_root_creation_probe_cleanup_authorization(
     session_id: TenantRootCeremonySessionIdV1,
     ceremony_nonce: TenantRootCeremonyNonceV1,
     cleanup_nonce_seed: u8,
-) -> worker::Result<VerifiedTenantRootRoleCleanupCommandV1> {
+) -> RoleStoreResult<VerifiedTenantRootRoleCleanupCommandV1> {
     let installation_evidence_digest = TenantRootProtocolDigestV1::from_bytes(
         *record_installation_evidence_digest(&pending.record)?.as_bytes(),
     )
@@ -14215,6 +14300,7 @@ fn tenant_root_creation_probe_cleanup_authorization(
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_creation_probe_retired_cleanup_authorization(
     retired: &CloudflareStoredTenantRootRoleShareV1,
     authorized_role: TwoPartyDeriverRole,
@@ -14222,7 +14308,7 @@ fn tenant_root_creation_probe_retired_cleanup_authorization(
     expected_active_epoch: TenantRootShareEpoch,
     expected_active_revision: i64,
     cleanup_nonce_seed: u8,
-) -> worker::Result<VerifiedTenantRootRoleCleanupCommandV1> {
+) -> RoleStoreResult<VerifiedTenantRootRoleCleanupCommandV1> {
     let target = router_ab_core::TenantRootRoleCleanupTargetV1::Retired {
         identity_digest: retired
             .record()
@@ -14261,6 +14347,7 @@ fn tenant_root_creation_probe_retired_cleanup_authorization(
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_creation_probe_protocol_role(
     role: CloudflareTenantRootDeriverRoleV1,
 ) -> TwoPartyDeriverRole {
@@ -14271,6 +14358,7 @@ fn tenant_root_creation_probe_protocol_role(
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_role_d1_integration_role_signing_key(
     role: CloudflareTenantRootDeriverRoleV1,
 ) -> SigningKey {
@@ -14282,6 +14370,7 @@ fn tenant_root_role_d1_integration_role_signing_key(
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 const fn tenant_root_role_d1_integration_role_signing_key_id(
     role: CloudflareTenantRootDeriverRoleV1,
 ) -> &'static str {
@@ -14292,12 +14381,13 @@ const fn tenant_root_role_d1_integration_role_signing_key_id(
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_role_d1_integration_success_receipt(
     role: CloudflareTenantRootDeriverRoleV1,
     executed: &ExecutedTenantRootCommandV1,
     payload: &[u8],
     terminal_at_ms: u64,
-) -> worker::Result<VerifiedTenantRootCommandSuccessReceiptV1> {
+) -> RoleStoreResult<VerifiedTenantRootCommandSuccessReceiptV1> {
     let signing_key = tenant_root_role_d1_integration_role_signing_key(role);
     let role_signing_key_id = tenant_root_role_d1_integration_role_signing_key_id(role);
     let signed = TenantRootCommandTerminalReceiptV1::sign_success(
@@ -14324,12 +14414,13 @@ fn tenant_root_role_d1_integration_success_receipt(
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_role_d1_integration_failure_receipt(
     role: CloudflareTenantRootDeriverRoleV1,
     reservation: &ReservedTenantRootCommandV1,
     payload: &[u8],
     terminal_at_ms: u64,
-) -> worker::Result<VerifiedTenantRootCommandFailureReceiptV1> {
+) -> RoleStoreResult<VerifiedTenantRootCommandFailureReceiptV1> {
     let signing_key = tenant_root_role_d1_integration_role_signing_key(role);
     let role_signing_key_id = tenant_root_role_d1_integration_role_signing_key_id(role);
     let signed = TenantRootCommandTerminalReceiptV1::sign_failure(
@@ -14356,12 +14447,13 @@ fn tenant_root_role_d1_integration_failure_receipt(
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_role_d1_integration_pending_record(
     role: CloudflareTenantRootDeriverRoleV1,
     epoch: u64,
     marker: u8,
     at_ms: u64,
-) -> worker::Result<CloudflareTenantRootRoleShareRecordV1> {
+) -> RoleStoreResult<CloudflareTenantRootRoleShareRecordV1> {
     let identity = TenantRootIdentityV1::new(
         "r120-integration-org",
         "r120-integration-project",
@@ -14394,10 +14486,11 @@ fn tenant_root_role_d1_integration_pending_record(
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_role_d1_integration_commitment(
     role: CloudflareTenantRootDeriverRoleV1,
     epoch: TenantRootShareEpoch,
-) -> worker::Result<MpcPrfShareCommitmentWireV1> {
+) -> RoleStoreResult<MpcPrfShareCommitmentWireV1> {
     let point = match (epoch, role) {
         (TenantRootShareEpoch::INITIAL, CloudflareTenantRootDeriverRoleV1::DeriverA) => {
             INTEGRATION_EPOCH_ONE_DERIVER_A_POINT_V1
@@ -14419,12 +14512,13 @@ fn tenant_root_role_d1_integration_commitment(
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_role_d1_integration_scope(
     record: &CloudflareTenantRootRoleShareRecordV1,
     session_seed: u8,
     nonce_seed: u8,
     expected_control_plane_revision: u64,
-) -> worker::Result<TenantRootCommandScopeV1> {
+) -> RoleStoreResult<TenantRootCommandScopeV1> {
     let identity_digest = record
         .identity
         .digest()
@@ -14452,10 +14546,11 @@ fn tenant_root_role_d1_integration_scope(
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn tenant_root_role_d1_integration_activation(
     record: &CloudflareTenantRootRoleShareRecordV1,
     at_ms: u64,
-) -> worker::Result<CloudflareTenantRootActivationV1> {
+) -> RoleStoreResult<CloudflareTenantRootActivationV1> {
     let _ = (record, at_ms);
     Err(store_error(
         "tenant-root role-private D1 integration requires a verified activation evidence bundle",
@@ -14463,10 +14558,11 @@ fn tenant_root_role_d1_integration_activation(
 }
 
 #[cfg(debug_assertions)]
+#[cfg(feature = "workers-rs")]
 fn require_integration_failure<T>(
-    result: worker::Result<T>,
+    result: RoleStoreResult<T>,
     message: &'static str,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     if result.is_ok() {
         return Err(store_error(message));
     }
@@ -14475,7 +14571,7 @@ fn require_integration_failure<T>(
 
 fn record_metadata(
     record: &CloudflareTenantRootRoleShareRecordV1,
-) -> worker::Result<TenantRootRoleD1MetadataV1> {
+) -> RoleStoreResult<TenantRootRoleD1MetadataV1> {
     Ok(TenantRootRoleD1MetadataV1 {
         identity_digest_hex: record.identity_digest_hex()?,
         custody_lineage_b64u: record.custody_lineage.to_base64url(),
@@ -14494,7 +14590,7 @@ where
 
 fn decode_activation_receipt_bytes(
     bytes: &[u8],
-) -> worker::Result<TenantRootSignedActivationReceiptV1> {
+) -> RoleStoreResult<TenantRootSignedActivationReceiptV1> {
     if bytes.is_empty() || bytes.len() > TENANT_ROOT_ACTIVATION_RECEIPT_MAX_BYTES_V1 {
         return Err(store_error(
             "tenant-root activation receipt bytes have an invalid length",
@@ -14519,7 +14615,7 @@ fn restore_import_session_tombstone_from_row(
     custody_lineage: TenantRootCustodyLineageId,
     restore_session_id: TenantRootRestoreSessionIdV1,
     expected_role: CloudflareTenantRootDeriverRoleV1,
-) -> worker::Result<CloudflareTenantRootRestoreImportSessionTombstoneV1> {
+) -> RoleStoreResult<CloudflareTenantRootRestoreImportSessionTombstoneV1> {
     let role = CloudflareTenantRootDeriverRoleV1::parse(
         row.role
             .as_deref()
@@ -14644,7 +14740,7 @@ fn restore_import_session_tombstone_from_row(
 fn validate_restore_refresh_promotion_timestamp(
     command: &VerifiedTenantRootRestoreRefreshRoleCommandV1,
     record: &CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     let refreshed_at_ms = record.refreshed_at_ms().ok_or_else(|| {
         store_error("tenant-root restore refresh promotion has no refresh timestamp")
     })?;
@@ -14661,7 +14757,7 @@ fn validate_restore_refresh_promotion_timestamp(
 fn accepted_loss_availability_from_verified_receipt(
     activation: &VerifiedTenantRootSignedActivationReceiptV1,
     role: TenantRootManagedRestoreRoleV1,
-) -> worker::Result<CloudflareTenantRootAvailabilityEvidenceV1> {
+) -> RoleStoreResult<CloudflareTenantRootAvailabilityEvidenceV1> {
     let (authorization, authorization_digest) =
         accepted_loss_authorization_from_binding(activation.binding())?;
     validate_accepted_loss_authorization_against_activation(activation.binding(), &authorization)?;
@@ -14679,7 +14775,7 @@ fn accepted_loss_availability_from_verified_receipt(
 
 fn accepted_loss_authorization_from_binding(
     binding: &TenantRootActivationReceiptBindingV1,
-) -> worker::Result<(
+) -> RoleStoreResult<(
     TenantRootSignedAcceptedPermanentLossAuthorizationV1,
     TenantRootAcceptedPermanentLossAuthorizationDigestV1,
 )> {
@@ -14712,7 +14808,7 @@ fn accepted_loss_authorization_from_binding(
 fn validate_accepted_loss_authorization_against_activation(
     binding: &TenantRootActivationReceiptBindingV1,
     authorization: &TenantRootSignedAcceptedPermanentLossAuthorizationV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     if authorization.identity_digest() != binding.identity_digest()
         || authorization.custody_lineage() != binding.custody_lineage()
         || authorization.transition() != binding.transition()
@@ -14736,7 +14832,7 @@ fn validate_accepted_loss_authorization_against_activation(
 fn validate_activation_receipt_against_backup(
     activation: &VerifiedTenantRootSignedActivationReceiptV1,
     backup: &VerifiedTenantRootManagedBackupV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     let binding = activation.binding();
     if binding.identity_digest() != backup.identity_digest()
         || binding.custody_lineage() != backup.custody_lineage()
@@ -14762,7 +14858,7 @@ fn validate_activation_receipt_against_record(
     activation_receipt_bytes: &[u8],
     record: &CloudflareTenantRootRoleShareRecordV1,
     availability: &CloudflareTenantRootAvailabilityEvidenceV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     let receipt = decode_activation_receipt_bytes(activation_receipt_bytes)?;
     let binding = receipt.binding();
     let role = record.role.managed_restore_role();
@@ -14852,7 +14948,7 @@ fn validate_activation_receipt_against_record(
 fn validate_tenant_held_external_provenance_against_binding(
     provenance: &TenantRootTenantHeldExternalProvenanceV1,
     binding: &TenantRootActivationReceiptBindingV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     let target_epoch = activation_target_epoch(binding);
     let target_commitments = activation_target_commitments(binding);
     let context_matches = match binding {
@@ -14880,7 +14976,7 @@ fn validate_activation_receipt_against_swap_records(
     activation: &CloudflareTenantRootActivationV1,
     active: &CloudflareStoredTenantRootRoleShareV1,
     pending: &CloudflareStoredTenantRootRoleShareV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     let receipt = decode_activation_receipt_bytes(&activation.activation_receipt_bytes)?;
     let TenantRootActivationReceiptBindingV1::RefreshSwap(binding) = receipt.binding() else {
         return Err(store_error(
@@ -14977,7 +15073,7 @@ fn activation_installation_receipts(
 fn activation_backup_receipt(
     binding: &TenantRootActivationReceiptBindingV1,
     role: TenantRootManagedRestoreRoleV1,
-) -> worker::Result<TenantRootLifecycleReceiptDigestV1> {
+) -> RoleStoreResult<TenantRootLifecycleReceiptDigestV1> {
     let availability = match binding {
         TenantRootActivationReceiptBindingV1::InitialCreation(binding) => binding.availability(),
         TenantRootActivationReceiptBindingV1::RefreshSwap(binding) => binding.availability(),
@@ -14999,7 +15095,7 @@ fn activation_backup_receipt(
 
 fn record_installation_evidence_digest(
     record: &CloudflareTenantRootRoleShareRecordV1,
-) -> worker::Result<TenantRootLifecycleReceiptDigestV1> {
+) -> RoleStoreResult<TenantRootLifecycleReceiptDigestV1> {
     match &record.lifecycle {
         CloudflareTenantRootRoleShareLifecycleV1::Pending(pending) => {
             Ok(pending.installation_evidence_digest)
@@ -15025,7 +15121,7 @@ fn validate_command_scope_for_record(
     record: &CloudflareTenantRootRoleShareRecordV1,
     expected_revision: i64,
     operation: &'static str,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     let identity_digest = record
         .identity
         .digest()
@@ -15055,7 +15151,7 @@ fn initial_creation_scope_for_record(
     command: &VerifiedTenantRootRoleCreationCommandV1,
     record: &CloudflareTenantRootRoleShareRecordV1,
     reserved_at_ms: u64,
-) -> worker::Result<TenantRootCommandScopeV1> {
+) -> RoleStoreResult<TenantRootCommandScopeV1> {
     command
         .require_fresh(reserved_at_ms)
         .map_err(|error| store_error(error.message()))?;
@@ -15066,7 +15162,7 @@ fn initial_creation_scope_for_record(
 fn initial_creation_scope_without_freshness(
     command: &VerifiedTenantRootRoleCreationCommandV1,
     record: &CloudflareTenantRootRoleShareRecordV1,
-) -> worker::Result<TenantRootCommandScopeV1> {
+) -> RoleStoreResult<TenantRootCommandScopeV1> {
     let scope = command.scope();
     validate_command_scope_for_record(&scope, record, 1, "tenant-root initial role creation")?;
     Ok(scope)
@@ -15075,7 +15171,7 @@ fn initial_creation_scope_without_freshness(
 #[allow(dead_code)]
 fn cloudflare_role_for_protocol(
     role: TwoPartyDeriverRole,
-) -> worker::Result<CloudflareTenantRootDeriverRoleV1> {
+) -> RoleStoreResult<CloudflareTenantRootDeriverRoleV1> {
     Ok(match role {
         TwoPartyDeriverRole::DeriverA => CloudflareTenantRootDeriverRoleV1::DeriverA,
         TwoPartyDeriverRole::DeriverB => CloudflareTenantRootDeriverRoleV1::DeriverB,
@@ -15099,7 +15195,7 @@ fn protocol_role_for_managed_restore(role: TenantRootManagedRestoreRoleV1) -> Tw
 fn validate_initial_creation_role_signer(
     creation: &CloudflareTenantRootInitialCreationInputV1,
     role_signer: &CloudflareTenantRootCreationRoleSignerV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     let role = creation.command.role();
     if role_signer.role() != role {
         return Err(store_error(
@@ -15126,7 +15222,7 @@ fn validate_initial_creation_binding(
     command: &VerifiedTenantRootRoleCreationCommandV1,
     evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
     record: &CloudflareTenantRootRoleShareRecordV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     record.validate()?;
     let transcript = evidence.evidence().transcript();
     let context = transcript.context();
@@ -15187,7 +15283,7 @@ fn validate_initial_creation_binding(
 fn validate_initial_creation_success_receipt_payload(
     evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
     receipt: &VerifiedTenantRootCommandSuccessReceiptV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     if receipt.payload_bytes() != evidence.canonical_bytes() {
         return Err(store_error(
             "tenant-root initial creation receipt payload does not match its exact evidence wire",
@@ -15199,7 +15295,7 @@ fn validate_initial_creation_success_receipt_payload(
 fn validate_refresh_command_evidence(
     command: &VerifiedTenantRootRoleRefreshCommandV1,
     evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-) -> worker::Result<TenantRootLifecycleReceiptDigestV1> {
+) -> RoleStoreResult<TenantRootLifecycleReceiptDigestV1> {
     let transcript = evidence.evidence().transcript();
     let context = transcript.context();
     let TenantRootCeremonyEpochsV1::Refresh { current, next } = context.epochs() else {
@@ -15234,7 +15330,7 @@ fn validate_refresh_sealed_binding(
     sealed_binding: &TenantRootOnlineRoleShareBindingV1,
     share_identity_digest: TenantRootIdentityDigestV1,
     evidence_digest: TenantRootLifecycleReceiptDigestV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     let transcript = evidence.evidence().transcript();
     let evidence_commitment =
         MpcPrfShareCommitmentWireV1::new(transcript.commitment().to_bytes().to_vec())
@@ -15258,7 +15354,7 @@ fn validate_refresh_record_binding(
     command: &VerifiedTenantRootRoleRefreshCommandV1,
     evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
     record: &CloudflareTenantRootRoleShareRecordV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     let evidence_digest = validate_refresh_command_evidence(command, evidence)?;
     let transcript = evidence.evidence().transcript();
     let evidence_commitment =
@@ -15291,7 +15387,7 @@ fn validate_refresh_record_binding(
 fn validate_refresh_replay_link(
     record: &CloudflareTenantRootRoleShareRecordV1,
     replay_key: &TenantRootCommandReplayKeyV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     let CloudflareTenantRootRoleShareLifecycleV1::Pending(pending) = record.lifecycle() else {
         return Err(store_error(
             "tenant-root refresh replay link requires a pending role share",
@@ -15311,7 +15407,7 @@ fn validate_refresh_replay_link(
 fn validate_refresh_success_receipt_payload(
     evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
     receipt: &VerifiedTenantRootCommandSuccessReceiptV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     if receipt.payload_bytes() != evidence.canonical_bytes() {
         return Err(store_error(
             "tenant-root refresh receipt payload does not match its exact evidence wire",
@@ -15325,7 +15421,7 @@ fn validate_reserved_command(
     reservation: &ReservedTenantRootCommandV1,
     operation: TenantRootCommandOperationV1,
     operation_name: &'static str,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     let command_digest = scope
         .command_digest(operation)
         .map_err(|error| store_error(error.message()))?;
@@ -15344,7 +15440,7 @@ fn decode_stored_terminal_receipt(
     terminal_at_ms: Option<i64>,
     key: TenantRootCommandReplayKeyV1,
     command_digest: TenantRootProtocolDigestV1,
-) -> worker::Result<DecodedTenantRootCommandTerminalReceiptV1> {
+) -> RoleStoreResult<DecodedTenantRootCommandTerminalReceiptV1> {
     let receipt_b64u = receipt_b64u
         .ok_or_else(|| store_error("terminal tenant-root command row omitted receipt bytes"))?;
     let receipt_bytes = decode_base64url_bytes_v1("tenant-root command receipt", receipt_b64u)
@@ -15421,7 +15517,7 @@ fn decode_stored_terminal_receipt(
 
 fn replay_reservation_from_stored(
     stored: &StoredTenantRootCommandReplayV1,
-) -> worker::Result<ReservedTenantRootCommandV1> {
+) -> RoleStoreResult<ReservedTenantRootCommandV1> {
     if !matches!(&stored.record, TenantRootCommandReplayRecordV1::Reserved(_)) {
         return Err(store_error(
             "tenant-root replay row is not resumable as a reservation",
@@ -15432,7 +15528,7 @@ fn replay_reservation_from_stored(
 
 fn replay_executed_from_stored(
     stored: &StoredTenantRootCommandReplayV1,
-) -> worker::Result<ExecutedTenantRootCommandV1> {
+) -> RoleStoreResult<ExecutedTenantRootCommandV1> {
     if !matches!(&stored.record, TenantRootCommandReplayRecordV1::Executed(_)) {
         return Err(store_error(
             "tenant-root replay row is not resumable as an executed command",
@@ -15448,7 +15544,7 @@ fn replay_executed_from_stored(
 
 fn fresh_reservation_from_stored(
     stored: &StoredTenantRootCommandReplayV1,
-) -> worker::Result<ReservedTenantRootCommandV1> {
+) -> RoleStoreResult<ReservedTenantRootCommandV1> {
     let key = *stored.record.key();
     let command_digest = stored.record.command_digest();
     match reserve_tenant_root_command_v1(None, key, command_digest, stored.reserved_at_ms)
@@ -15464,7 +15560,7 @@ fn fresh_reservation_from_stored(
 fn insert_pending_payload_digest(
     record: &CloudflareTenantRootRoleShareRecordV1,
     expected_revision: i64,
-) -> worker::Result<TenantRootProtocolDigestV1> {
+) -> RoleStoreResult<TenantRootProtocolDigestV1> {
     let mut bytes = command_payload_start("insert_pending")?;
     push_record_public_payload(&mut bytes, record)?;
     push_command_i64(&mut bytes, expected_revision)?;
@@ -15475,7 +15571,7 @@ fn refresh_insert_pending_payload_digest(
     command: &VerifiedTenantRootRoleRefreshCommandV1,
     record: &CloudflareTenantRootRoleShareRecordV1,
     expected_revision: i64,
-) -> worker::Result<TenantRootProtocolDigestV1> {
+) -> RoleStoreResult<TenantRootProtocolDigestV1> {
     let row_payload_digest = insert_pending_payload_digest(record, expected_revision)?;
     let mut bytes = Vec::new();
     push_command_field(
@@ -15490,7 +15586,7 @@ fn refresh_insert_pending_payload_digest(
 fn refresh_admission_operation_digest(
     scope: &TenantRootCommandScopeV1,
     command_digest: TenantRootProtocolDigestV1,
-) -> worker::Result<TenantRootProtocolDigestV1> {
+) -> RoleStoreResult<TenantRootProtocolDigestV1> {
     scope
         .command_digest(TenantRootCommandOperationV1::insert_pending(command_digest))
         .map_err(|error| store_error(error.message()))
@@ -15501,7 +15597,7 @@ fn activate_initial_payload_digest(
     activation: &CloudflareTenantRootActivationV1,
     updated_at_ms: u64,
     expected_revision: i64,
-) -> worker::Result<TenantRootProtocolDigestV1> {
+) -> RoleStoreResult<TenantRootProtocolDigestV1> {
     let mut bytes = command_payload_start("activate_initial")?;
     push_record_public_payload(&mut bytes, &pending.record)?;
     push_command_i64(&mut bytes, expected_revision)?;
@@ -15522,7 +15618,7 @@ fn managed_restore_forward_refresh_payload_digest(
     updated_at_ms: u64,
     expected_restored_revision: i64,
     expected_refresh_revision: i64,
-) -> worker::Result<TenantRootProtocolDigestV1> {
+) -> RoleStoreResult<TenantRootProtocolDigestV1> {
     let mut bytes = command_payload_start("managed_restore_forward_refresh")?;
     let key = scope.key();
     push_command_field(&mut bytes, key.identity_digest().as_bytes())?;
@@ -15553,7 +15649,7 @@ fn swap_active_epoch_payload_digest(
     updated_at_ms: u64,
     expected_active_revision: i64,
     expected_pending_revision: i64,
-) -> worker::Result<TenantRootProtocolDigestV1> {
+) -> RoleStoreResult<TenantRootProtocolDigestV1> {
     let mut bytes = command_payload_start("swap_active_epoch")?;
     push_record_public_payload(&mut bytes, &active.record)?;
     push_command_i64(&mut bytes, expected_active_revision)?;
@@ -15568,7 +15664,7 @@ fn swap_active_epoch_payload_digest(
 fn cleanup_pending_payload_digest(
     pending: &CloudflareStoredTenantRootRoleShareV1,
     expected_revision: i64,
-) -> worker::Result<TenantRootProtocolDigestV1> {
+) -> RoleStoreResult<TenantRootProtocolDigestV1> {
     let mut bytes = command_payload_start("cleanup_pending")?;
     push_record_public_payload(&mut bytes, &pending.record)?;
     push_command_i64(&mut bytes, expected_revision)?;
@@ -15579,7 +15675,7 @@ fn authorized_cleanup_pending_payload_digest(
     authorization: &VerifiedTenantRootRoleCleanupCommandV1,
     pending: &CloudflareStoredTenantRootRoleShareV1,
     expected_revision: i64,
-) -> worker::Result<TenantRootProtocolDigestV1> {
+) -> RoleStoreResult<TenantRootProtocolDigestV1> {
     let row_payload_digest = cleanup_pending_payload_digest(pending, expected_revision)?;
     let authorization_digest = authorization
         .digest()
@@ -15596,7 +15692,7 @@ fn cleanup_retired_payload_digest(
     expected_retired_revision: i64,
     expected_active_epoch: TenantRootShareEpoch,
     expected_active_revision: i64,
-) -> worker::Result<TenantRootProtocolDigestV1> {
+) -> RoleStoreResult<TenantRootProtocolDigestV1> {
     let mut bytes = command_payload_start("cleanup_retired")?;
     push_record_public_payload(&mut bytes, &retired.record)?;
     push_command_i64(&mut bytes, expected_retired_revision)?;
@@ -15611,7 +15707,7 @@ fn authorized_cleanup_retired_payload_digest(
     expected_retired_revision: i64,
     expected_active_epoch: TenantRootShareEpoch,
     expected_active_revision: i64,
-) -> worker::Result<TenantRootProtocolDigestV1> {
+) -> RoleStoreResult<TenantRootProtocolDigestV1> {
     let row_payload_digest = cleanup_retired_payload_digest(
         retired,
         expected_retired_revision,
@@ -15630,7 +15726,7 @@ fn authorized_cleanup_retired_payload_digest(
 
 fn authorized_cleanup_retired_absent_payload_digest(
     authorization: &VerifiedTenantRootRoleCleanupCommandV1,
-) -> worker::Result<TenantRootProtocolDigestV1> {
+) -> RoleStoreResult<TenantRootProtocolDigestV1> {
     let authorization_digest = authorization
         .digest()
         .map_err(|error| store_error(error.message()))?;
@@ -15643,7 +15739,7 @@ fn validate_authorized_cleanup_pending(
     cipher: &TenantRootRoleD1CipherV1,
     authorization: &VerifiedTenantRootRoleCleanupCommandV1,
     pending: &CloudflareStoredTenantRootRoleShareV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     validate_pending_stored_record(cipher, pending)?;
     let record_role = tenant_root_protocol_role_of(pending.record.role);
     let identity_digest = pending
@@ -15675,7 +15771,7 @@ fn validate_authorized_cleanup_retired(
     authorization: &VerifiedTenantRootRoleCleanupCommandV1,
     retired: &CloudflareStoredTenantRootRoleShareV1,
     active: &CloudflareStoredTenantRootRoleShareV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     validate_retired_stored_record(cipher, retired)?;
     validate_active_stored_record(cipher, active)?;
     let TenantRootRoleCleanupTargetV1::Retired {
@@ -15732,7 +15828,7 @@ fn validate_authorized_cleanup_retired_absent(
     cipher: &TenantRootRoleD1CipherV1,
     authorization: &VerifiedTenantRootRoleCleanupCommandV1,
     active: &CloudflareStoredTenantRootRoleShareV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     validate_active_stored_record(cipher, active)?;
     let TenantRootRoleCleanupTargetV1::Retired {
         identity_digest,
@@ -15772,14 +15868,14 @@ fn validate_authorized_cleanup_retired_absent(
     Ok(())
 }
 
-fn command_payload_start(operation: &'static str) -> worker::Result<Vec<u8>> {
+fn command_payload_start(operation: &'static str) -> RoleStoreResult<Vec<u8>> {
     let mut bytes = Vec::new();
     push_command_field(&mut bytes, TENANT_ROOT_ROLE_COMMAND_PAYLOAD_DOMAIN_V1)?;
     push_command_field(&mut bytes, operation.as_bytes())?;
     Ok(bytes)
 }
 
-fn finish_command_payload(bytes: Vec<u8>) -> worker::Result<TenantRootProtocolDigestV1> {
+fn finish_command_payload(bytes: Vec<u8>) -> RoleStoreResult<TenantRootProtocolDigestV1> {
     TenantRootProtocolDigestV1::from_bytes(Sha256::digest(bytes).into())
         .map_err(|error| store_error(error.message()))
 }
@@ -15787,7 +15883,7 @@ fn finish_command_payload(bytes: Vec<u8>) -> worker::Result<TenantRootProtocolDi
 fn push_record_public_payload(
     bytes: &mut Vec<u8>,
     record: &CloudflareTenantRootRoleShareRecordV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     record.validate()?;
     let identity_digest = record
         .identity
@@ -15812,7 +15908,7 @@ fn push_record_public_payload(
 fn push_lifecycle_public_payload(
     bytes: &mut Vec<u8>,
     lifecycle: &CloudflareTenantRootRoleShareLifecycleV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     match lifecycle {
         CloudflareTenantRootRoleShareLifecycleV1::Pending(pending) => {
             push_command_field(bytes, b"pending")?;
@@ -15833,7 +15929,7 @@ fn push_lifecycle_public_payload(
 fn push_pending_public_payload(
     bytes: &mut Vec<u8>,
     pending: &CloudflareTenantRootPendingShareV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     push_command_field(bytes, pending.installation_evidence_digest.as_bytes())?;
     push_command_u64(bytes, pending.staged_at_ms)?;
     match &pending.origin {
@@ -15859,7 +15955,7 @@ fn push_pending_public_payload(
 fn push_active_public_payload(
     bytes: &mut Vec<u8>,
     active: &CloudflareTenantRootActiveShareV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     push_pending_public_payload(bytes, &active.pending)?;
     push_activation_payload(bytes, &active.activation)
 }
@@ -15867,7 +15963,7 @@ fn push_active_public_payload(
 fn push_retired_public_payload(
     bytes: &mut Vec<u8>,
     retired: &CloudflareTenantRootRetiredShareV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     push_active_public_payload(bytes, &retired.active)?;
     push_retirement_payload(bytes, &retired.retirement)
 }
@@ -15875,7 +15971,7 @@ fn push_retired_public_payload(
 fn push_activation_payload(
     bytes: &mut Vec<u8>,
     activation: &CloudflareTenantRootActivationV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     activation.validate()?;
     match &activation.availability {
         CloudflareTenantRootAvailabilityEvidenceV1::CurrentRoleBackup {
@@ -15950,22 +16046,22 @@ const fn managed_restore_role_str(role: TenantRootManagedRestoreRoleV1) -> &'sta
 fn push_retirement_payload(
     bytes: &mut Vec<u8>,
     retirement: &CloudflareTenantRootRetirementV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     push_command_field(bytes, retirement.retirement_receipt_digest.as_bytes())?;
     push_command_u64(bytes, retirement.retired_at_ms)
 }
 
-fn push_command_u64(bytes: &mut Vec<u8>, value: u64) -> worker::Result<()> {
+fn push_command_u64(bytes: &mut Vec<u8>, value: u64) -> RoleStoreResult<()> {
     push_command_field(bytes, &value.to_be_bytes())
 }
 
-fn push_command_i64(bytes: &mut Vec<u8>, value: i64) -> worker::Result<()> {
+fn push_command_i64(bytes: &mut Vec<u8>, value: i64) -> RoleStoreResult<()> {
     let value = u64::try_from(value)
         .map_err(|_| store_error("tenant-root command local revision is invalid"))?;
     push_command_u64(bytes, value)
 }
 
-fn push_command_field(bytes: &mut Vec<u8>, value: &[u8]) -> worker::Result<()> {
+fn push_command_field(bytes: &mut Vec<u8>, value: &[u8]) -> RoleStoreResult<()> {
     let length = u32::try_from(value.len())
         .map_err(|_| store_error("tenant-root command payload field is too long"))?;
     bytes.extend_from_slice(&length.to_be_bytes());
@@ -15973,7 +16069,7 @@ fn push_command_field(bytes: &mut Vec<u8>, value: &[u8]) -> worker::Result<()> {
     Ok(())
 }
 
-fn identity_digest_hex(identity: &TenantRootIdentityV1) -> worker::Result<String> {
+fn identity_digest_hex(identity: &TenantRootIdentityV1) -> RoleStoreResult<String> {
     identity
         .digest()
         .map(|digest| encode_hex(digest.as_bytes()))
@@ -15982,7 +16078,7 @@ fn identity_digest_hex(identity: &TenantRootIdentityV1) -> worker::Result<String
 
 fn active_binding_from_stored(
     stored: &CloudflareStoredTenantRootRoleShareV1,
-) -> worker::Result<TenantRootActiveRoleBindingV1> {
+) -> RoleStoreResult<TenantRootActiveRoleBindingV1> {
     validate_active_stored_record_shape(stored)?;
     let record = stored.record();
     let CloudflareTenantRootRoleShareLifecycleV1::Active(active) = record.lifecycle() else {
@@ -16008,7 +16104,8 @@ fn active_binding_from_stored(
     .map_err(|error| store_error(error.message()))
 }
 
-fn required_env_var(env: &Env, name: &'static str) -> worker::Result<String> {
+#[cfg(feature = "workers-rs")]
+fn required_env_var(env: &Env, name: &'static str) -> RoleStoreResult<String> {
     let value = env
         .var(name)
         .map_err(|error| store_error(format!("required env {name} is unavailable: {error}")))?
@@ -16017,7 +16114,7 @@ fn required_env_var(env: &Env, name: &'static str) -> worker::Result<String> {
     Ok(value)
 }
 
-fn require_identifier(field: &str, value: &str) -> worker::Result<()> {
+fn require_identifier(field: &str, value: &str) -> RoleStoreResult<()> {
     if value.is_empty()
         || value.trim() != value
         || value.bytes().any(|byte| byte.is_ascii_control())
@@ -16027,7 +16124,7 @@ fn require_identifier(field: &str, value: &str) -> worker::Result<()> {
     Ok(())
 }
 
-fn require_digest_hex(field: &str, value: &str) -> worker::Result<()> {
+fn require_digest_hex(field: &str, value: &str) -> RoleStoreResult<()> {
     if value.len() != 64
         || !value
             .bytes()
@@ -16040,33 +16137,33 @@ fn require_digest_hex(field: &str, value: &str) -> worker::Result<()> {
     Ok(())
 }
 
-fn require_nonzero_bytes(field: &'static str, value: &[u8]) -> worker::Result<()> {
+fn require_nonzero_bytes(field: &'static str, value: &[u8]) -> RoleStoreResult<()> {
     if value.iter().all(|byte| *byte == 0) {
         return Err(store_error(format!("{field} must be non-zero")));
     }
     Ok(())
 }
 
-fn require_timestamp(field: &str, value: u64) -> worker::Result<()> {
+fn require_timestamp(field: &str, value: u64) -> RoleStoreResult<()> {
     if value == 0 {
         return Err(store_error(format!("{field} must be positive")));
     }
     timestamp_i64(value).map(|_| ())
 }
 
-fn timestamp_i64(value: u64) -> worker::Result<i64> {
+fn timestamp_i64(value: u64) -> RoleStoreResult<i64> {
     i64::try_from(value).map_err(|_| store_error("tenant-root timestamp exceeds D1 INTEGER"))
 }
 
-fn epoch_i64(epoch: TenantRootShareEpoch) -> worker::Result<i64> {
+fn epoch_i64(epoch: TenantRootShareEpoch) -> RoleStoreResult<i64> {
     epoch_i64_value(epoch.get().get())
 }
 
-fn epoch_i64_value(epoch: u64) -> worker::Result<i64> {
+fn epoch_i64_value(epoch: u64) -> RoleStoreResult<i64> {
     i64::try_from(epoch).map_err(|_| store_error("tenant-root share epoch exceeds D1 INTEGER"))
 }
 
-fn decode_private_key(encoded: &str) -> worker::Result<[u8; 32]> {
+fn decode_private_key(encoded: &str) -> RoleStoreResult<[u8; 32]> {
     let hex = encoded
         .trim()
         .strip_prefix(ROLE_PRIVATE_D1_KEK_SECRET_PREFIX)
@@ -16108,12 +16205,12 @@ fn encode_hex(bytes: &[u8]) -> String {
 }
 
 #[cfg(any(debug_assertions, test))]
-fn lifecycle_receipt(seed: u8) -> worker::Result<TenantRootLifecycleReceiptDigestV1> {
+fn lifecycle_receipt(seed: u8) -> RoleStoreResult<TenantRootLifecycleReceiptDigestV1> {
     TenantRootLifecycleReceiptDigestV1::from_bytes([seed; 32])
         .map_err(|error| store_error(error.message()))
 }
 
-fn decode_lower_hex_fixed<const N: usize>(field: &str, value: &str) -> worker::Result<[u8; N]> {
+fn decode_lower_hex_fixed<const N: usize>(field: &str, value: &str) -> RoleStoreResult<[u8; N]> {
     if value.len() != N * 2 {
         return Err(store_error(format!(
             "{field} must contain exactly {N} bytes of lowercase hex"
@@ -16130,7 +16227,7 @@ fn decode_lower_hex_fixed<const N: usize>(field: &str, value: &str) -> worker::R
     Ok(bytes)
 }
 
-fn decode_base64url_fixed<const N: usize>(field: &str, value: &str) -> worker::Result<[u8; N]> {
+fn decode_base64url_fixed<const N: usize>(field: &str, value: &str) -> RoleStoreResult<[u8; N]> {
     let bytes =
         decode_base64url_bytes_v1(field, value).map_err(|error| store_error(error.message()))?;
     if encode_base64url_bytes_v1(&bytes) != value || bytes.len() != N {
@@ -16143,7 +16240,7 @@ fn decode_base64url_fixed<const N: usize>(field: &str, value: &str) -> worker::R
         .map_err(|_| store_error(format!("{field} has an invalid fixed length")))
 }
 
-fn positive_u64_from_i64(field: &str, value: i64) -> worker::Result<u64> {
+fn positive_u64_from_i64(field: &str, value: i64) -> RoleStoreResult<u64> {
     let value = u64::try_from(value).map_err(|_| store_error(format!("{field} is invalid")))?;
     if value == 0 {
         return Err(store_error(format!("{field} must be positive")));
@@ -16154,7 +16251,7 @@ fn positive_u64_from_i64(field: &str, value: i64) -> worker::Result<u64> {
 fn require_receipt_digest(
     receipt_bytes: &[u8],
     expected: TenantRootProtocolDigestV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     let actual: [u8; 32] = Sha256::digest(receipt_bytes).into();
     if &actual != expected.as_bytes() {
         return Err(store_error(
@@ -16166,7 +16263,7 @@ fn require_receipt_digest(
 
 fn validate_active_stored_record_shape(
     stored: &CloudflareStoredTenantRootRoleShareV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     stored.record.validate()?;
     let CloudflareTenantRootRoleShareLifecycleV1::Active(_) = &stored.record.lifecycle else {
         return Err(store_error(
@@ -16184,7 +16281,7 @@ fn validate_active_stored_record_shape(
 
 fn validate_record_activation_binding(
     record: &CloudflareTenantRootRoleShareRecordV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     match &record.lifecycle {
         CloudflareTenantRootRoleShareLifecycleV1::Pending(_) => Ok(()),
         CloudflareTenantRootRoleShareLifecycleV1::Active(active) => {
@@ -16199,7 +16296,7 @@ fn validate_record_activation_binding(
 fn validate_pending_stored_record(
     cipher: &TenantRootRoleD1CipherV1,
     stored: &CloudflareStoredTenantRootRoleShareV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     stored.record.validate()?;
     cipher.require_role(stored.record.role)?;
     if !matches!(
@@ -16228,7 +16325,7 @@ fn validate_managed_restore_forward_refresh_source(
     capability_digest: TenantRootLifecycleReceiptDigestV1,
     backup_receipt_digest: TenantRootLifecycleReceiptDigestV1,
     installation_receipt_digest: TenantRootLifecycleReceiptDigestV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     validate_pending_stored_record(cipher, stored)?;
     let record_identity_digest = stored
         .record
@@ -16280,7 +16377,7 @@ fn validate_managed_restore_forward_refresh_inputs(
     backup_receipt_digest: TenantRootLifecycleReceiptDigestV1,
     installation_receipt_digest: TenantRootLifecycleReceiptDigestV1,
     updated_at_ms: u64,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     validate_pending_stored_record(cipher, restored_pending)?;
     validate_pending_stored_record(cipher, refresh_pending)?;
 
@@ -16332,7 +16429,7 @@ fn validate_managed_restore_forward_refresh_inputs(
 fn validate_retired_stored_record(
     cipher: &TenantRootRoleD1CipherV1,
     stored: &CloudflareStoredTenantRootRoleShareV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     stored.record.validate()?;
     cipher.require_role(stored.record.role)?;
     if !matches!(
@@ -16355,7 +16452,7 @@ fn validate_retired_stored_record(
 fn validate_managed_restore_staging_record(
     record: &CloudflareTenantRootRoleShareRecordV1,
     capability_digest: TenantRootLifecycleReceiptDigestV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     record.validate()?;
     let CloudflareTenantRootRoleShareLifecycleV1::Pending(pending) = record.lifecycle() else {
         return Err(store_error(
@@ -16378,7 +16475,7 @@ fn validate_managed_restore_staging_record(
 fn validate_active_stored_record(
     cipher: &TenantRootRoleD1CipherV1,
     stored: &CloudflareStoredTenantRootRoleShareV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     validate_active_stored_record_shape(stored)?;
     cipher.require_role(stored.record.role)?;
     Ok(())
@@ -16389,7 +16486,7 @@ fn require_lifecycle_progression(
     existing_updated_at_ms: u64,
     event_at_ms: u64,
     updated_at_ms: u64,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     if event_at_ms < existing_updated_at_ms || updated_at_ms < existing_updated_at_ms {
         return Err(store_error(format!(
             "{operation} timestamps regress the existing tenant-root record"
@@ -16406,7 +16503,7 @@ fn require_lifecycle_progression(
 fn validate_epoch_swap_inputs(
     active: &CloudflareStoredTenantRootRoleShareV1,
     pending: &CloudflareStoredTenantRootRoleShareV1,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     if active.record.identity != pending.record.identity {
         return Err(store_error(
             "tenant-root epoch swap requires one tenant-root identity",
@@ -16436,7 +16533,7 @@ fn validate_epoch_swap_inputs(
     Ok(())
 }
 
-fn next_revision(revision: i64) -> worker::Result<i64> {
+fn next_revision(revision: i64) -> RoleStoreResult<i64> {
     if revision <= 0 {
         return Err(store_error(
             "tenant-root role-private revision must be positive",
@@ -16447,30 +16544,27 @@ fn next_revision(revision: i64) -> worker::Result<i64> {
         .ok_or_else(|| store_error("tenant-root role-private revision is exhausted"))
 }
 
-fn result_changes(result: &worker::D1Result) -> worker::Result<usize> {
-    Ok(result
-        .meta()?
-        .and_then(|metadata| metadata.changes)
-        .unwrap_or_default())
+fn result_changes(result: &impl RoleSqlOutcomeV1) -> RoleStoreResult<usize> {
+    result.changes()
 }
 
 fn require_changes(
-    result: &worker::D1Result,
+    result: &impl RoleSqlOutcomeV1,
     expected: usize,
     message: &'static str,
-) -> worker::Result<()> {
+) -> RoleStoreResult<()> {
     if result_changes(result)? != expected {
         return Err(store_error(message));
     }
     Ok(())
 }
 
-fn require_one_change(result: &worker::D1Result, message: &'static str) -> worker::Result<()> {
+fn require_one_change(result: &impl RoleSqlOutcomeV1, message: &'static str) -> RoleStoreResult<()> {
     require_changes(result, 1, message)
 }
 
-fn store_error(message: impl Into<String>) -> worker::Error {
-    worker::Error::RustError(message.into())
+fn store_error(message: impl Into<String>) -> RoleStoreError {
+    RoleStoreError::message(message.into())
 }
 
 #[cfg(test)]
@@ -16756,7 +16850,7 @@ mod tests {
         sealed_context: &router_ab_core::TenantRootCeremonyContextV1,
         sealed_evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
         sealed_role: TwoPartyDeriverRole,
-    ) -> worker::Result<CloudflareTenantRootRefreshInputV1> {
+    ) -> RoleStoreResult<CloudflareTenantRootRefreshInputV1> {
         let sealed_online_share =
             test_sealed_online_share(sealed_context, sealed_evidence, sealed_role);
         CloudflareTenantRootRefreshInputV1::new(

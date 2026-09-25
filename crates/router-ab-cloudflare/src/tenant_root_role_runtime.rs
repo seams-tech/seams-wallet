@@ -1538,7 +1538,7 @@ fn tenant_root_role_runtime_provider_config_from_env_v1(
 #[cfg(feature = "workers-rs")]
 fn tenant_root_store_error_v1(
     operation: &'static str,
-    error: worker::Error,
+    error: impl core::fmt::Display,
 ) -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::InvalidLocalServiceConfig,

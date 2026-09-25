@@ -91,7 +91,7 @@ fn error(message: &str) -> RouterAbProtocolError {
 fn crypto_error(value: RouterAbDerivationError) -> RouterAbProtocolError {
     error(value.message())
 }
-fn storage_error(value: worker::Error) -> RouterAbProtocolError {
+fn storage_error(value: impl core::fmt::Display) -> RouterAbProtocolError {
     error(&value.to_string())
 }
 fn decode(value: &str) -> RouterAbProtocolResult<Vec<u8>> {

@@ -70,8 +70,12 @@ mod local_router_ed25519_yao_http;
 mod local_router_normal_signing;
 mod local_service_http;
 mod local_signing_worker_near_sqlite;
+mod local_tenant_root_role_sql;
 mod local_worker_topology;
 
+pub use local_tenant_root_role_sql::{
+    apply_local_role_private_migrations_v1, LocalRoleSqlOutcomeV1, LocalRoleSqlSessionV1,
+};
 pub use local_dev_http::{
     local_dev_http_error_body_v1, local_dev_http_handle_request_v1,
     local_dev_http_handle_request_with_dispatcher_v1, local_dev_http_route_error_v1,

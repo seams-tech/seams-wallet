@@ -58,6 +58,9 @@ pub(crate) use signing_worker_wallet::{
     call_signing_worker_wallet_do_v1, SigningWorkerWalletDoRequestV1,
     SigningWorkerWalletEcdsaActivationMaterialV1,
 };
+// Shared by every host. Its refresh, restore, retirement and cutover paths
+// still have only Cloudflare callers, so a Cloudflare-free build leaves them unused.
+#[cfg_attr(not(feature = "workers-rs"), allow(dead_code, unused_imports))]
 pub(crate) mod tenant_root_creation;
 #[cfg(any(feature = "workers-rs", test))]
 #[cfg(feature = "workers-rs")]
