@@ -1,27 +1,28 @@
-import { d1ChangedRows } from '../../../../storage/d1Sql';
+import { d1ChangedRows } from '../../../storage/d1Sql';
 import type { LaneEnrollmentId, WalletKeyId } from '@shared/signing-lanes';
 import { parseLaneEnrollmentId, parseWalletKeyId } from '@shared/utils/domainIds';
 import type {
   LaneLock,
   LaneLockResult,
   LaneLockStore,
-} from '../../../../core/signingLanes/LaneLifecycleStore';
+} from '../LaneLifecycleStore';
 import {
-  requireD1LaneStoreOptions,
+  requireWalletLaneSqlStoreOptions,
   scopeValues,
-  type CloudflareD1LaneStoreOptions,
-} from './d1LaneRecords';
+  type WalletLaneScopeV1,
+  type WalletLaneSqlStoreOptions,
+} from './walletLaneRecords';
 
 const LOCK_TABLE = 'lane_locks';
 
-export type CloudflareD1LaneLockStoreOptions = CloudflareD1LaneStoreOptions;
+export type WalletLaneLockSqlStoreOptions = WalletLaneSqlStoreOptions;
 
-export class CloudflareD1LaneLockStore implements LaneLockStore {
-  private readonly database: CloudflareD1LaneStoreOptions['database'];
-  private readonly scope: CloudflareD1LaneStoreOptions['scope'];
+export class WalletLaneLockSqlStore implements LaneLockStore {
+  private readonly database: WalletLaneSqlStoreOptions['database'];
+  private readonly scope: WalletLaneScopeV1;
 
-  constructor(options: CloudflareD1LaneLockStoreOptions) {
-    const normalized = requireD1LaneStoreOptions(options);
+  constructor(options: WalletLaneLockSqlStoreOptions) {
+    const normalized = requireWalletLaneSqlStoreOptions(options);
     this.database = normalized.database;
     this.scope = normalized.scope;
   }

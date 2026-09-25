@@ -1,18 +1,18 @@
 import type { LaneEnrollmentGatewayV1 } from '@shared/signing-lanes';
-import { LaneEnrollmentActivation } from '../../../../core/signingLanes/LaneEnrollmentActivation';
-import { LaneEnrollmentRevocation } from '../../../../core/signingLanes/LaneEnrollmentRevocation';
-import type { LaneLifecycleStore } from '../../../../core/signingLanes/LaneLifecycleStore';
+import { LaneEnrollmentActivation } from '../LaneEnrollmentActivation';
+import { LaneEnrollmentRevocation } from '../LaneEnrollmentRevocation';
+import type { LaneLifecycleStore } from '../LaneLifecycleStore';
 
-export type CloudflareD1LaneEnrollmentGatewayOptions = {
+export type WalletLaneEnrollmentGatewayOptions = {
   readonly lifecycleStore: LaneLifecycleStore;
 };
 
-/** D1 gateway composition. Participant network calls are injected by callers. */
-export class CloudflareD1LaneEnrollmentGateway implements LaneEnrollmentGatewayV1 {
+/** Wallet-lane gateway composition. Participant network calls are injected by callers. */
+export class WalletLaneEnrollmentGateway implements LaneEnrollmentGatewayV1 {
   private readonly activation: LaneEnrollmentActivation;
   private readonly revocation: LaneEnrollmentRevocation;
 
-  constructor(options: CloudflareD1LaneEnrollmentGatewayOptions) {
+  constructor(options: WalletLaneEnrollmentGatewayOptions) {
     this.activation = new LaneEnrollmentActivation(options.lifecycleStore);
     this.revocation = new LaneEnrollmentRevocation(options.lifecycleStore);
   }

@@ -1,10 +1,10 @@
-import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
+import type { D1PreparedStatementLike } from '../../../storage/tenantRoute';
 import type {
   LaneEffectJournalStore,
   LaneEffectMutation,
   LaneEffectMutationResult,
   LaneEffectRecordV1,
-} from '../../../../core/signingLanes/LaneEffectJournalStore';
+} from '../LaneEffectJournalStore';
 import {
   parseLaneEnrollmentId,
   parseLaneOperationId,
@@ -17,10 +17,13 @@ import {
   assertD1Success,
   firstBatchResult,
   LANE_CAS_GUARD_SQL,
-  requireD1LaneStoreOptions,
+  requireWalletLaneSqlStoreOptions,
   scopeValues,
-  type CloudflareD1LaneStoreOptions,
-} from './d1LaneRecords';
+  assertWalletLaneOwnerWallet,
+  type WalletLaneOwnerV1,
+  type WalletLaneScopeV1,
+  type WalletLaneSqlStoreOptions,
+} from './walletLaneRecords';
 
 const EFFECT_TABLE = 'lane_effect_journal';
 
@@ -42,17 +45,19 @@ type EffectRow = {
   readonly command_digest_b64u?: unknown;
 };
 
-export type CloudflareD1LaneEffectJournalStoreOptions = CloudflareD1LaneStoreOptions;
+export type WalletLaneEffectJournalSqlStoreOptions = WalletLaneSqlStoreOptions;
 
-export class CloudflareD1LaneEffectJournalStore implements LaneEffectJournalStore {
-  private readonly database: CloudflareD1LaneStoreOptions['database'];
-  private readonly scope: CloudflareD1LaneStoreOptions['scope'];
+export class WalletLaneEffectJournalSqlStore implements LaneEffectJournalStore {
+  private readonly database: WalletLaneSqlStoreOptions['database'];
+  private readonly scope: WalletLaneScopeV1;
+  private readonly owner: WalletLaneOwnerV1;
   private readonly now: () => number;
 
-  constructor(options: CloudflareD1LaneEffectJournalStoreOptions) {
-    const normalized = requireD1LaneStoreOptions(options);
+  constructor(options: WalletLaneEffectJournalSqlStoreOptions) {
+    const normalized = requireWalletLaneSqlStoreOptions(options);
     this.database = normalized.database;
     this.scope = normalized.scope;
+    this.owner = normalized.owner;
     this.now = normalized.now;
   }
 
@@ -72,6 +77,7 @@ export class CloudflareD1LaneEffectJournalStore implements LaneEffectJournalStor
 
   async recordEffect(input: LaneEffectMutation): Promise<LaneEffectMutationResult> {
     const record = input.record;
+    assertWalletLaneOwnerWallet(this.owner, record.walletId, 'lane effect');
     if (record.status !== 'recorded')
       throw new Error('lane effect admission requires a recorded effect');
     const existing = await this.getEffect({ effectId: record.effectId });
