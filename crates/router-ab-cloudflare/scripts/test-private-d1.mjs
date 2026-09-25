@@ -55,6 +55,11 @@ const deriverAWalletDoPath = '/router-ab/internal/deriver-a/wallet-pair';
 const deriverAWalletStatusPath = '/router-ab/deriver-a/ed25519-yao/read-pair-status';
 const deriverAWalletBurnPath = '/router-ab/deriver-a/ed25519-yao/burn-pair';
 const tenantRootCreationPath = '/router-ab/internal/tenant-root/creation/v1/create';
+const deriverInitialActivationPath = '/router-ab/internal/deriver/tenant-root/creation/v1/activate';
+const controlPlaneInitialActivationPath = '/tenant-root-control-plane/creation/v1/activate';
+const creationStateInitialActivationPath =
+  '/router-ab/internal/tenant-root/creation/v1/initial-activation';
+const creationStateProgressReadPath = '/router-ab/internal/tenant-root/creation/v1/progress/read';
 const tenantRootRoleCreationPath =
   '/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share';
 const deriverAMigrationsPath = join(packageRoot, 'migrations/deriver-a');
@@ -118,9 +123,39 @@ let deriverBOffline = false;
 let blockedDeriverBCalls = 0;
 let signingWorkerDeliveryTarget = 'fixture-signing-worker';
 let signingWorkerActivationCalls = 0;
+// The recovery Router's peers can each drop their next initial-activation
+// request before the peer reads it; the control plane's is also recorded.
+const recoveryDropNextActivation = {
+  'deriver-a': false,
+  'deriver-b': false,
+  'tenant-root-control-plane': false,
+};
+let recoveryCapturedControlPlaneActivation;
 let signingWorkerFinalizationLookups = 0;
 let historicalReplayActivationCalls = 0;
 let ecdsaClientWasmInitialized = false;
+
+/// A fresh creation grant from the fixture's grant authority, valid for
+/// `lifetimeMs`, for a recovery ceremony with its own identity.
+function recoveryCreationGrant(label, lifetimeMs) {
+  const output = execFileSync(
+    'cargo',
+    [
+      'run',
+      '--quiet',
+      '--manifest-path',
+      join(repoRoot, 'crates/router-ab-dev/Cargo.toml'),
+      '--example',
+      'cloudflare_private_d1_fixture',
+      '--',
+      '--creation-grant',
+      label,
+      String(lifetimeMs),
+    ],
+    { cwd: repoRoot, encoding: 'utf8' },
+  );
+  return JSON.parse(output);
+}
 
 function loadFixture() {
   const output = execFileSync(
@@ -293,6 +328,50 @@ function routerWorker(fixture, capturePairPreparation = false, gateDeriverB = fa
       DERIVER_B: gateDeriverB ? routeDeriverBWithOfflineGate : 'deriver-b',
       SIGNING_WORKER: captureSigningWorkerDelivery,
       TENANT_ROOT_CONTROL_PLANE: 'tenant-root-control-plane',
+    },
+  };
+}
+
+function recoveryPeer(workerName, faultPath) {
+  return async (request, miniflare) => {
+    if (new URL(request.url).pathname === faultPath) {
+      if (workerName === 'tenant-root-control-plane') {
+        recoveryCapturedControlPlaneActivation = await request.clone().text();
+      }
+      if (recoveryDropNextActivation[workerName]) {
+        recoveryDropNextActivation[workerName] = false;
+        return new Response(`simulated lost ${workerName} initial activation`, { status: 503 });
+      }
+    }
+    const worker = await miniflare.getWorker(workerName);
+    return worker.fetch(request);
+  };
+}
+
+/// The Router again, sharing its creation Durable Object, with both Derivers
+/// and the control plane reached through bindings that can lose one
+/// initial-activation request: the same faults the VM recovery E2Es inject
+/// with proxies.
+function recoveryRouterWorker(fixture) {
+  const worker = routerWorker(fixture);
+  return {
+    ...worker,
+    name: 'router-recovery',
+    durableObjects: {
+      [tenantRootCreationDoBinding]: {
+        className: tenantRootCreationDoClass,
+        scriptName: 'router',
+        useSQLite: true,
+      },
+    },
+    serviceBindings: {
+      ...worker.serviceBindings,
+      DERIVER_A: recoveryPeer('deriver-a', deriverInitialActivationPath),
+      DERIVER_B: recoveryPeer('deriver-b', deriverInitialActivationPath),
+      TENANT_ROOT_CONTROL_PLANE: recoveryPeer(
+        'tenant-root-control-plane',
+        controlPlaneInitialActivationPath,
+      ),
     },
   };
 }
@@ -513,6 +592,8 @@ function authenticatedJsonRequest(body, additionalHeaders = {}) {
     body: JSON.stringify(body),
   };
 }
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function responseBytes(response) {
   return Buffer.from(await response.arrayBuffer());
@@ -1755,6 +1836,174 @@ async function captureValidActivationDelivery(
   };
 }
 
+/// Creation recovery on Workers, with the faults the VM recovery E2Es inject:
+/// resume before the commit, delivery of a committed receipt after the
+/// ceremony expires, refusal of a signed but uncommitted receipt, and
+/// abandonment behind the fence, which then refuses the commit.
+async function testTenantRootCreationRecoveryPaths(topology, databases) {
+  const router = await topology.getWorker('router-recovery');
+  const controlPlane = await topology.getWorker('tenant-root-control-plane');
+  const deriverB = await topology.getWorker('deriver-b');
+  const [backupBucketA, backupBucketB] = await Promise.all([
+    topology.getR2Bucket(managedBackupR2Binding, 'deriver-a'),
+    topology.getR2Bucket(managedBackupR2Binding, 'deriver-b'),
+  ]);
+  const creationNamespace = await topology.getDurableObjectNamespace(
+    tenantRootCreationDoBinding,
+    'router',
+  );
+  const create = async (ceremony) => {
+    const response = await postWorkerJson(router, tenantRootCreationPath, {
+      creation_grant_b64u: ceremony.creation_grant_b64u,
+    });
+    return { status: response.status, body: await response.text() };
+  };
+  const lifecycle = async (database, ceremony) =>
+    (
+      await database
+        .prepare('SELECT lifecycle FROM tenant_root_role_shares WHERE custody_lineage_b64u = ?1')
+        .bind(ceremony.custody_lineage_b64u)
+        .first()
+    )?.lifecycle ?? null;
+  const lifecycles = async (ceremony) => [
+    await lifecycle(databases.deriverA, ceremony),
+    await lifecycle(databases.deriverB, ceremony),
+  ];
+  const backupObjects = async (ceremony) => {
+    const [a, b] = await Promise.all([backupBucketA.list(), backupBucketB.list()]);
+    const own = (listing) =>
+      listing.objects
+        .map((object) => object.key)
+        .filter((key) => key.includes(`/${ceremony.custody_lineage_b64u}/`)).length;
+    return [own(a), own(b)];
+  };
+  const deliverToB = async (receipt) => {
+    const response = await postWorkerJson(deriverB, deriverInitialActivationPath, {
+      activation_receipt_b64u: receipt,
+    });
+    return { status: response.status, body: await response.text() };
+  };
+  // Replays the recorded activation request, so the control plane signs a
+  // second receipt for the same evidence that no Router has committed.
+  const reissueActivation = async () => {
+    assert.ok(recoveryCapturedControlPlaneActivation, 'control-plane activation must be recorded');
+    await sleep(20);
+    const response = await controlPlane.fetch(`https://private.test${controlPlaneInitialActivationPath}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', [internalAuthHeader]: internalAuthSecret },
+      body: recoveryCapturedControlPlaneActivation,
+    });
+    const body = await response.text();
+    assert.equal(response.status, 200, body);
+    return JSON.parse(body).activation_receipt_b64u;
+  };
+  // The creation object redacts error details at its boundary; a refusal's
+  // status carries its code (409 for the fence's conflict).
+  const creationState = async (ceremony, path, body) => {
+    const stub = creationNamespace.get(creationNamespace.idFromName(ceremony.creation_object_name));
+    const response = await stub.fetch(
+      `https://router-ab-do.internal${path}`,
+      authenticatedJsonRequest(body),
+    );
+    return { status: response.status, body: await response.text() };
+  };
+  const waitUntilExpired = async (ceremony) => {
+    const remaining = ceremony.expires_at_ms + 1_000 - Date.now();
+    if (remaining > 0) {
+      await sleep(remaining);
+    }
+  };
+
+  // Before the commit: the activation request never reaches the control
+  // plane, and the retry resumes from each role's stored evidence.
+  const resumed = recoveryCreationGrant('resume', 60_000);
+  recoveryDropNextActivation['tenant-root-control-plane'] = true;
+  let result = await create(resumed);
+  assert.notEqual(result.status, 200, result.body);
+  assert.equal(recoveryDropNextActivation['tenant-root-control-plane'], false);
+  assert.deepEqual(await lifecycles(resumed), ['pending', 'pending']);
+  assert.deepEqual(await backupObjects(resumed), [2, 2], 'each role holds its backup and canary');
+  result = await create(resumed);
+  assert.equal(result.status, 200, result.body);
+  assert.equal(JSON.parse(result.body).status.kind, 'ready');
+  assert.deepEqual(await lifecycles(resumed), ['active', 'active']);
+
+  // Two short-lived ceremonies that the window closes on.
+  const lifetimeMs = 20_000;
+  const committed = recoveryCreationGrant('committed-then-expired', lifetimeMs);
+  const abandoned = recoveryCreationGrant('uncommitted-then-expired', lifetimeMs);
+
+  // After the commit: the delivery to B is lost, leaving A active.
+  recoveryDropNextActivation['deriver-b'] = true;
+  result = await create(committed);
+  assert.notEqual(result.status, 200, result.body);
+  assert.deepEqual(await lifecycles(committed), ['active', 'pending']);
+  const uncommittedReceipt = await reissueActivation();
+  const refusedInWindow = await deliverToB(uncommittedReceipt);
+  assert.notEqual(refusedInWindow.status, 200, refusedInWindow.body);
+  assert.ok(
+    refusedInWindow.body.includes('is not the activation the Router committed'),
+    refusedInWindow.body,
+  );
+
+  // Before the commit, then past the window: nothing commits.
+  recoveryDropNextActivation['tenant-root-control-plane'] = true;
+  result = await create(abandoned);
+  assert.notEqual(result.status, 200, result.body);
+  assert.deepEqual(await lifecycles(abandoned), ['pending', 'pending']);
+  const abandonedReceipt = await reissueActivation();
+
+  await waitUntilExpired(committed);
+  await waitUntilExpired(abandoned);
+
+  const refusedAfterExpiry = await deliverToB(uncommittedReceipt);
+  assert.notEqual(refusedAfterExpiry.status, 200, refusedAfterExpiry.body);
+  assert.ok(
+    refusedAfterExpiry.body.includes('is not the activation the Router committed'),
+    refusedAfterExpiry.body,
+  );
+  result = await create(committed);
+  assert.equal(result.status, 200, result.body);
+  assert.equal(JSON.parse(result.body).status.kind, 'ready');
+  assert.deepEqual(await lifecycles(committed), ['active', 'active']);
+
+  result = await create(abandoned);
+  assert.notEqual(result.status, 200, result.body);
+  assert.ok(
+    result.body.includes('expired before activation and was abandoned; a fresh grant is required'),
+    result.body,
+  );
+  assert.deepEqual(await lifecycles(abandoned), [null, null], 'both pending rows are removed');
+  assert.deepEqual(await backupObjects(abandoned), [0, 0], 'backups and canaries are removed');
+  const commitAfterFence = await creationState(abandoned, creationStateInitialActivationPath, {
+    activation_receipt_b64u: abandonedReceipt,
+  });
+  assert.equal(commitAfterFence.status, 409, commitAfterFence.body);
+  const progress = await creationState(abandoned, creationStateProgressReadPath, {
+    identity_digest_b64u: abandoned.identity_digest_b64u,
+    custody_lineage_b64u: abandoned.custody_lineage_b64u,
+  });
+  assert.equal(progress.status, 200, progress.body);
+  const progressState = JSON.parse(progress.body);
+  assert.equal(progressState.kind, 'started');
+  assert.equal(progressState.committed_activation_receipt_b64u, null, 'nothing is committed');
+  assert.deepEqual(progressState.state.abandonment.installed_roles, ['deriver_a', 'deriver_b']);
+  assert.deepEqual(progressState.state.abandonment.cleaned_roles, ['deriver_a', 'deriver_b']);
+  result = await create(abandoned);
+  assert.ok(result.body.includes('abandoned; a fresh grant is required'), result.body);
+
+  console.log(
+    JSON.stringify({
+      kind: 'tenant_root_creation_recovery_workers_e2e_v1',
+      resumedBeforeCommit: true,
+      committedDeliveredAfterExpiry: true,
+      uncommittedReceiptRefused: [refusedInWindow.status, refusedAfterExpiry.status],
+      abandonedAfterExpiry: true,
+      commitRefusedAfterFence: commitAfterFence.status,
+    }),
+  );
+}
+
 async function testDeriverAWalletDoPreparation(topology, rootIdentity) {
   assert.ok(capturedDeriverAPreparation, 'Deriver A preparation fixture is required');
   const { request, receipt } = capturedDeriverAPreparation;
@@ -2941,6 +3190,7 @@ async function main() {
         'fixture-signing-worker-after-refresh-d1',
         fixture,
       ),
+      recoveryRouterWorker(fixture),
       ...(testHistoricalReplay || testHistoricalStartingReplay
         ? [
             historicalReplayRouterWorker(fixture, 'router-replay'),
@@ -3224,6 +3474,7 @@ async function main() {
       edSecondTenant,
     );
     await testConcurrentActivationAndLostResponse(fixture, edBeforeRefresh.delivery);
+    await testTenantRootCreationRecoveryPaths(topology, databases);
   } finally {
     await topology.dispose();
   }

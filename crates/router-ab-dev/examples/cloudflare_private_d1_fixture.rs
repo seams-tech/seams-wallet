@@ -89,6 +89,12 @@ struct TenantRootCreationRequestFixture {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if let [mode, label, lifetime_ms] = args.as_slice() {
+        if mode == "--creation-grant" {
+            return print_recovery_creation_grant(label, lifetime_ms.parse()?);
+        }
+    }
     let plan = local_env_materialization_plan_v1(b"cloudflare-private-d1-integration-v1")?;
     let local_envs = local_env_maps(&plan)?;
     let router_local = role_env(&local_envs, LocalServiceRoleV1::Router)?;
@@ -193,6 +199,56 @@ fn tenant_root_creation_fixture() -> Result<TenantRootCreationFixture, Box<dyn s
             now_ms,
         )?,
     })
+}
+
+/// Prints one fresh creation grant for a recovery ceremony: its own identity,
+/// a random lineage, issued a second ago so it is already fresh, and valid
+/// for `lifetime_ms`. The harness asks for these when it needs a ceremony
+/// window that closes during the run.
+fn print_recovery_creation_grant(
+    label: &str,
+    lifetime_ms: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let identity = TenantRootIdentityV1::new(
+        "org-miniflare-recovery",
+        &format!("project-{label}"),
+        "test",
+        "project:local",
+        "v1",
+    )?;
+    let mut lineage = [0_u8; 16];
+    let mut nonce = [0_u8; 32];
+    getrandom::getrandom(&mut lineage)?;
+    getrandom::getrandom(&mut nonce)?;
+    lineage[0] |= 1;
+    nonce[0] |= 1;
+    let lineage = TenantRootCustodyLineageId::from_bytes(lineage)?;
+    let issued_at_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())? - 1_000;
+    let expires_at_ms = issued_at_ms + lifetime_ms;
+    let grant = TenantRootCreationGrantV1::sign(
+        &identity,
+        lineage,
+        TenantRootCreationGrantNonceV1::from_bytes(nonce)?,
+        issued_at_ms,
+        expires_at_ms,
+        TENANT_ROOT_GRANT_KEY_ID,
+        &TENANT_ROOT_GRANT_SEED,
+    )?;
+    let identity_digest = identity.digest()?;
+    println!(
+        "{}",
+        serde_json::json!({
+            "creation_grant_b64u": base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(grant.canonical_bytes()?),
+            "identity_digest_b64u": base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(identity_digest.as_bytes()),
+            "custody_lineage_b64u": lineage.to_base64url(),
+            "creation_object_name":
+                router_ab_cloudflare::tenant_root_creation_object_name_v1(identity_digest, lineage),
+            "expires_at_ms": expires_at_ms,
+        })
+    );
+    Ok(())
 }
 
 fn tenant_root_creation_request(
