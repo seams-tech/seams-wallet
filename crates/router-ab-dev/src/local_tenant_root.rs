@@ -1347,7 +1347,7 @@ pub fn load_local_deriver_tenant_root_role_share_v1(
         ));
     }
     let opened = futures::executor::block_on(
-        router_ab_cloudflare::tenant_root_deriver_load_active_role_share_v1(
+        router_ab_cloudflare::tenant_root_deriver_load_bound_role_share_v1(
             &LocalTenantRootDeriverHostV1::new(config),
             &custody,
         ),

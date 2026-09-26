@@ -203,6 +203,38 @@ HTTP client classifies a dropped peer connection as a bad local request. That
 predates refresh, applies to every VM private call, and is recorded as
 separate work.
 
+**A VM rendezvous starvation, found and fixed.** Repeated runs of that E2E
+failed 2 of 5 times with "refresh commitment rendezvous did not receive both
+roles".
+- **Timing:** both Derivers started polling within 2 ms of each other.
+  Deriver A made its 32 polls about 21 ms apart, while B's single commitment
+  write took about 1.5 s.
+- **Cause:** the VM Router served each creation-state operation in its own
+  IMMEDIATE SQLite transaction. SQLite's busy handler makes a waiter sleep
+  between attempts, so A's tight polling kept winning the lock, and B's write
+  kept missing it.
+- **Fix:** a Durable Object runs one operation at a time and wakes the next.
+  The VM Router now takes an in-process lock around each operation, which
+  wakes the next waiter on release. SQLite already serialized these
+  operations, so this adds no new restriction.
+- **Result:** 8 of 8 runs pass, with each Deriver needing 3 polls in total.
+
+The rendezvous itself still polls without a pause, 32 times, on both hosts.
+Its tolerance for one role starting late therefore depends on round-trip
+latency. That has not failed on either host since, but it remains a liveness
+margin rather than a bound.
+
+**Work in progress keeps its epoch.** Spec 6 says work already in progress
+follows the version it started with. Every Deriver root read now loads the
+exact epoch its custody binding names, including a retired one
+(`load_bound`; see the
+[retirement-admission proposal](./refactor-150-root-retirement-admission.md#two-purposes-two-rules)).
+A binding that names an epoch still pending at that Deriver is refused, so
+new work never assumes an undelivered epoch is live. That refusal is in the
+code but not yet exercised by an E2E. An E2E pauses a Yao
+registration across a refresh on the VM and shows both behaviours: with
+`load_active` A refuses the held work, and with `load_bound` it completes.
+
 ### Evidence
 
 `testTenantRootRefreshDeliveryAfterLoss`, with the same fault as the

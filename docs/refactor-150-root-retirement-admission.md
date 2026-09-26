@@ -210,12 +210,27 @@ retired share may be erased only once no admitted work can still need it:
    (`resolve_authoritative_active_tenant_root_pair_binding_v1`), so once the
    refresh is committed and delivered, new bindings name the new epoch.
 2. **Let admitted work read its exact retired epoch.** Keeping the retired row
-   is not enough, because root loading goes through `load_active`, which
-   finds only the active epoch. An operation whose custody binding names the
-   retired epoch and its activation receipt must be able to load that exact
-   retired share. Nothing else may load it. This is being implemented and
-   demonstrated with an E2E that pauses registration across a refresh (see
-   "Tests").
+   was not enough: root loading went through `load_active`, which finds only
+   the active epoch. Implemented (2026-09-26): every Deriver root read now
+   goes through `load_bound` (`tenant_root_role_d1.rs`). It loads the exact
+   row the authenticated custody binding names.
+   - **Active row:** `load_active`, unchanged.
+   - **Retired row:** returned only when every binding field matches the
+     activation evidence the row retained: identity, lineage, epoch, role,
+     this role's commitment, and the activation receipt that made the epoch
+     active.
+   - **Pending or absent row:** refused.
+
+   There is no read without an exact binding.
+
+   The Router issues each binding from its committed active state when it
+   admits work. After a refresh commits, new bindings therefore name the new
+   epoch, and only work admitted earlier names the old one. A Deriver does not
+   check that itself: it trusts the Router's binding, as it already does for
+   the active epoch. Refusing a retired-epoch binding that was never admitted
+   before the commit needs the admission records of open question 1. Until
+   erasure, such a binding reaches the retired share only within its own
+   authorization lifetime (at most 300 s).
 3. **Erase only after durable settlement or fenced cancellation of every
    old-epoch admission.** Each admission must have either:
    - a durable terminal outcome, or
@@ -312,8 +327,7 @@ two things.
   The Router's finalization and the Gateway's wallet activation need the same.
 - **Commit-first refresh provides one refresh precondition.** The Router
   commits the new epoch before delivery, and the old epoch keeps its retired
-  share. Work bound to that epoch cannot use the share yet, because root
-  loading finds only the active epoch; step 2 above covers that.
+  share. Work bound to that epoch can now read it (step 2 above).
 
 ### Choosing `W`
 
@@ -337,6 +351,24 @@ On the VM and on Workers:
 
    Resume it. It reads its exact retired epoch and completes, and a request
    bound to the retired epoch without having been admitted is refused.
+
+   Done for Yao registration on the VM:
+   `vm_tenant_root_work_admitted_before_a_refresh_finishes_on_its_epoch`
+   (`R150_VM_TENANT_ROOT_WORK_ACROSS_REFRESH_E2E`).
+   - **Setup:** a registration is admitted and prepared on epoch 1, and its
+     execute is held before Deriver A reads it. A manual refresh then commits
+     epoch 2, and both roles swap.
+   - **With `load_active`:** on release, A refuses with "tenant-root active
+     role share does not match authenticated custody binding", and the Router
+     burns the pair (`peer_uncertain`).
+   - **With `load_bound`:** A answers 200 and the registration succeeds. The
+     held request's binding carries the epoch-1 receipt.
+
+   Still to do:
+   - recovery, export and ECDSA derivation;
+   - the Workers run;
+   - the refusal of an unadmitted retired-epoch binding, which needs
+     admission records.
 2. **Settlement before erasure.** With one old-epoch admission unsettled,
    retirement stays pending past `W`, raises its warning and starts recovery.
    It proceeds only after that admission's terminal outcome or fenced

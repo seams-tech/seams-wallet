@@ -1425,6 +1425,150 @@ fn vm_tenant_root_refresh_delivers_the_committed_receipt_after_a_lost_delivery(
     Ok(())
 }
 
+/// Work admitted before a refresh finishes on the epoch it started with. A
+/// registration is admitted and prepared while epoch 1 is active, then held
+/// before Deriver A reads it. A manual refresh then commits epoch 2 and both
+/// Derivers swap, retiring epoch 1. Released, the registration completes: its
+/// custody binding names epoch 1, so each Deriver reads its retired epoch-1
+/// share. Nothing is erased.
+#[test]
+fn vm_tenant_root_work_admitted_before_a_refresh_finishes_on_its_epoch(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
+    let stack = RecoveryStackV1::start("vm-tenant-root-inflight")?;
+    let mut signing_worker = ChildGuard::spawn_in_root(
+        binary,
+        "signing-worker",
+        stack.temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1),
+        &stack.temp,
+    )?;
+    wait_for_health(&stack.signing_worker_url, signing_worker.child_mut())?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("work-across-refresh")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let (created_revision, _, _) = stack.active_state(&lineage_b64u)?;
+    let epoch_one_receipt = stack
+        .committed_receipt(&lineage_b64u)?
+        .ok_or("the Router must have committed epoch 1")?;
+
+    // A registration is admitted on epoch 1 and held before A reads it.
+    let router_env = fs::read_to_string(stack.temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1))?;
+    let fixture = ProductTenantRoot {
+        tenant_root: CloudflareRouterEd25519YaoTenantRootV1 {
+            identity: identity.clone(),
+            custody_lineage_b64u: lineage_b64u.clone(),
+        },
+        application: RouterAbEd25519YaoApplicationBindingFactsV1::new(
+            "account-product-benchmark",
+            "ed25519ks_product_benchmark",
+            "project:local",
+            1,
+        )?,
+        participant_ids: [1, 2],
+    };
+    let (registration, _) = product_registration_request(&router_env, &fixture)?;
+    stack
+        .proxy_a
+        .hold_next_request_on(LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH);
+    let registering = {
+        let router_url = stack.router_url.clone();
+        thread::spawn(move || {
+            post_json_to_path_with_headers(
+                &router_url,
+                LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+                &registration,
+                &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
+            )
+            .map_err(|error| error.to_string())
+        })
+    };
+    let deadline = Instant::now() + Duration::from_secs(15);
+    let held = loop {
+        if let Some(held) = stack.proxy_a.held_request() {
+            break held;
+        }
+        if Instant::now() > deadline {
+            return Err("the registration never reached Deriver A's execute".into());
+        }
+        thread::sleep(Duration::from_millis(10));
+    };
+    let held: serde_json::Value = serde_json::from_slice(&held)?;
+    let bound_receipt = held["tenant_root"]["custody_binding"]["activation_receipt_b64u"]
+        .as_str()
+        .ok_or("the held execute must carry its custody binding")?
+        .to_owned();
+    assert_eq!(bound_receipt, epoch_one_receipt, "the work is bound to epoch 1");
+
+    // Meanwhile a refresh commits epoch 2 and both Derivers swap.
+    let (refresh_status, refresh_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-inflight", created_revision)?;
+    assert_eq!(refresh_status, 200, "{refresh_body}");
+    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
+    let retired_then_active = vec![epoch(1, "retired"), epoch(2, "active")];
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?,
+        (retired_then_active.clone(), retired_then_active.clone())
+    );
+    let epoch_two_receipt = stack
+        .committed_receipt(&lineage_b64u)?
+        .ok_or("the Router must have committed epoch 2")?;
+    assert_ne!(epoch_two_receipt, epoch_one_receipt);
+
+    // Released, the registration finishes on its retired epoch.
+    stack.proxy_a.release_request();
+    let (registration_status, registration_body) = registering
+        .join()
+        .map_err(|_| "the registration thread panicked")??;
+    let deriver_a_answer = String::from_utf8_lossy(
+        &stack
+            .proxy_a
+            .held_response()
+            .ok_or("Deriver A must have answered the held execute")?,
+    )
+    .into_owned();
+    let deriver_a_status = deriver_a_answer
+        .split_whitespace()
+        .nth(1)
+        .ok_or("Deriver A's answer has no status")?
+        .to_owned();
+    assert_eq!(registration_status, 200, "{registration_body}");
+    let result = serde_json::from_str::<RouterEd25519YaoExecuteResultV1>(&registration_body)?;
+    let RouterEd25519YaoExecuteResultV1::Succeeded { result } = result else {
+        return Err(format!(
+            "the held registration did not succeed: {registration_body}; Deriver A answered: {}",
+            deriver_a_answer.split("\r\n\r\n").nth(1).unwrap_or_default()
+        )
+        .into());
+    };
+    let RouterEd25519YaoExecuteSuccessV1::Registration { .. } = *result else {
+        return Err("the held work was not a registration".into());
+    };
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?,
+        (retired_then_active.clone(), retired_then_active),
+        "finishing on epoch 1 changes no role share"
+    );
+
+    println!(
+        "R150_VM_TENANT_ROOT_WORK_ACROSS_REFRESH_E2E {}",
+        json!({
+            "work": "ed25519_yao_registration",
+            "admitted_on_epoch": 1,
+            "held_before": "deriver_a_execute_pair",
+            "deriver_a_execute_status": deriver_a_status,
+            "refresh_status": refresh_status,
+            "epochs_while_held": [[1, "retired"], [2, "active"]],
+            "work_bound_to_epoch_1_receipt": true,
+            "registration_status": registration_status,
+            "registration_outcome": "succeeded",
+            "retirement": "pending",
+        })
+    );
+    Ok(())
+}
+
 /// Before the Router commits, a creation whose roles are both installed resumes
 /// from durable evidence: both installation evidences from the Router's
 /// checkpoint, and each role's signed managed backup and provider canary from
@@ -2066,6 +2210,7 @@ fn recovery_ceremony(
 struct RecoveryStackV1 {
     temp: PathBuf,
     router_url: String,
+    signing_worker_url: String,
     deriver_a_url: String,
     deriver_b_url: String,
     control_plane_url: String,
@@ -2168,6 +2313,7 @@ impl RecoveryStackV1 {
             _roles: vec![router, deriver_a, deriver_b, control_plane],
             temp,
             router_url,
+            signing_worker_url,
             deriver_a_url,
             deriver_b_url,
             control_plane_url,
@@ -2509,6 +2655,10 @@ struct FaultProxyControlsV1 {
     hold_path: Mutex<Option<&'static str>>,
     holding: AtomicBool,
     released: AtomicBool,
+    hold_request_path: Mutex<Option<&'static str>>,
+    held_request: Mutex<Option<Vec<u8>>>,
+    held_response: Mutex<Option<Vec<u8>>>,
+    request_released: AtomicBool,
     captured: Mutex<Option<Vec<u8>>>,
 }
 
@@ -2519,8 +2669,8 @@ fn lock_proxy<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 /// Forwards one peer's traffic. On `fault_path` it records the latest request
 /// body, including one it drops, and, when armed, drops the next request
 /// before the peer reads it. It can also drop the next request whose body
-/// carries a marker, or deliver the peer's response to one request only once
-/// released.
+/// carries a marker, deliver the peer's response to one request only once
+/// released, or hold one request back from the peer until released.
 struct FaultProxyV1 {
     url: String,
     controls: Arc<FaultProxyControlsV1>,
@@ -2613,6 +2763,29 @@ impl FaultProxyV1 {
         self.controls.released.store(true, Ordering::SeqCst);
     }
 
+    /// Holds the next request to `path` before the peer reads it, until
+    /// `release_request` is called.
+    fn hold_next_request_on(&self, path: &'static str) {
+        *lock_proxy(&self.controls.held_request) = None;
+        *lock_proxy(&self.controls.held_response) = None;
+        self.controls.request_released.store(false, Ordering::SeqCst);
+        *lock_proxy(&self.controls.hold_request_path) = Some(path);
+    }
+
+    /// The body of the request being held, once one is.
+    fn held_request(&self) -> Option<Vec<u8>> {
+        lock_proxy(&self.controls.held_request).clone()
+    }
+
+    fn release_request(&self) {
+        self.controls.request_released.store(true, Ordering::SeqCst);
+    }
+
+    /// The peer's whole response to the held request, once it has answered.
+    fn held_response(&self) -> Option<Vec<u8>> {
+        lock_proxy(&self.controls.held_response).clone()
+    }
+
     /// Whether the armed drop has happened.
     fn dropped(&self) -> bool {
         !self.controls.armed.load(Ordering::SeqCst)
@@ -2630,6 +2803,7 @@ impl FaultProxyV1 {
 impl Drop for FaultProxyV1 {
     fn drop(&mut self) {
         self.release_held();
+        self.release_request();
         self.stop.store(true, Ordering::SeqCst);
         if let Some(accept) = self.accept.take() {
             let _ = accept.join();
@@ -2649,6 +2823,28 @@ fn proxy_fault_connection(
     let mut client_reader = BufReader::new(client.try_clone()?);
     let request_head = read_proxy_http_head(&mut client_reader)?;
     let head_text = String::from_utf8_lossy(&request_head);
+    let chunked = head_text.lines().any(|line| {
+        line.split_once(':').is_some_and(|(name, value)| {
+            name.eq_ignore_ascii_case("transfer-encoding")
+                && value.trim().eq_ignore_ascii_case("chunked")
+        })
+    });
+    if chunked {
+        // A streamed body, such as the Yao peer stream, passes through
+        // untouched in both directions.
+        let mut upstream = TcpStream::connect(upstream)?;
+        upstream.write_all(&request_head)?;
+        let mut upstream_writer = upstream.try_clone()?;
+        let pump = thread::spawn(move || {
+            let _ = io::copy(&mut client_reader, &mut upstream_writer);
+            let _ = upstream_writer.shutdown(Shutdown::Write);
+        });
+        let mut client_writer = client;
+        let copied = io::copy(&mut upstream, &mut client_writer);
+        let _ = client_writer.shutdown(Shutdown::Both);
+        let _ = pump.join();
+        return copied.map(|_| ());
+    }
     let content_length = head_text
         .lines()
         .find_map(|line| {
@@ -2691,6 +2887,20 @@ fn proxy_fault_connection(
         }
         hold
     };
+    let hold_request = {
+        let mut hold_request_path = lock_proxy(&controls.hold_request_path);
+        let hold = hold_request_path.is_some_and(posts_to);
+        if hold {
+            *hold_request_path = None;
+        }
+        hold
+    };
+    if hold_request {
+        *lock_proxy(&controls.held_request) = Some(body.clone());
+        while !controls.request_released.load(Ordering::SeqCst) {
+            thread::sleep(Duration::from_millis(5));
+        }
+    }
     let mut upstream = TcpStream::connect(upstream)?;
     upstream.set_read_timeout(Some(Duration::from_secs(15)))?;
     upstream.set_write_timeout(Some(Duration::from_secs(15)))?;
@@ -2698,7 +2908,12 @@ fn proxy_fault_connection(
     upstream.write_all(&body)?;
     upstream.shutdown(Shutdown::Write)?;
     let mut client_writer = client;
-    if hold {
+    if hold_request {
+        let mut response = Vec::new();
+        upstream.read_to_end(&mut response)?;
+        *lock_proxy(&controls.held_response) = Some(response.clone());
+        client_writer.write_all(&response)?;
+    } else if hold {
         let mut response = Vec::new();
         upstream.read_to_end(&mut response)?;
         controls.holding.store(true, Ordering::SeqCst);

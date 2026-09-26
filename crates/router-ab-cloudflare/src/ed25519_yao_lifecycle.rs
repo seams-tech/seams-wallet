@@ -61,7 +61,7 @@ use zeroize::{Zeroize, Zeroizing};
 use crate::ed25519_yao_websocket::WALLET_PAIR_SCOPE_HEADER;
 use crate::{
     decode_cloudflare_signer_envelope_hpke_private_key_secret_v1,
-    load_cloudflare_active_tenant_root_role_share_v1,
+    load_cloudflare_bound_tenant_root_role_share_v1,
     parse_cloudflare_signer_envelope_hpke_public_key_set_v1,
     parse_cloudflare_trace_id_from_request_v1, CloudflareDeriverAWorkerRuntimeV1,
     CloudflareDeriverBWalletPairScopeV1, CloudflareDeriverBWorkerRuntimeV1,
@@ -4204,7 +4204,7 @@ async fn load_ed25519_yao_tenant_root_role_share_v2(
         ));
     }
     let role_share =
-        load_cloudflare_active_tenant_root_role_share_v1(env, worker_role, &custody_binding)
+        load_cloudflare_bound_tenant_root_role_share_v1(env, worker_role, &custody_binding)
             .await?;
     let root_metadata_digest = *role_share
         .binding()

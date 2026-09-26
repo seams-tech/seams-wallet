@@ -1325,6 +1325,29 @@ impl CloudflareTenantRootRoleShareRecordV1 {
         )
     }
 
+    /// The artifact of an activated record: active, or retired by a later
+    /// refresh. A pending record has never been usable.
+    fn into_bound_online_role_share_artifact(self) -> RoleStoreResult<TenantRootSealedOnlineRoleShareV1> {
+        let installation_evidence_digest = match &self.lifecycle {
+            CloudflareTenantRootRoleShareLifecycleV1::Active(active) => {
+                active.pending.installation_evidence_digest()
+            }
+            CloudflareTenantRootRoleShareLifecycleV1::Retired(retired) => {
+                retired.active.pending.installation_evidence_digest()
+            }
+            CloudflareTenantRootRoleShareLifecycleV1::Pending(_) => {
+                return Err(store_error(
+                    "tenant-root online role-share artifact requires an activated record",
+                ));
+            }
+        };
+        self.validate()?;
+        validate_record_activation_binding(&self)?;
+        self.into_online_role_share_artifact_with_installation_evidence_digest(
+            installation_evidence_digest,
+        )
+    }
+
     fn into_online_role_share_artifact_with_installation_evidence_digest(
         self,
         installation_evidence_digest: TenantRootLifecycleReceiptDigestV1,
@@ -1546,6 +1569,19 @@ impl CloudflareStoredTenantRootRoleShareV1 {
     ) -> RoleStoreResult<TenantRootSealedOnlineRoleShareV1> {
         validate_active_stored_record_shape(&self)?;
         self.record.into_online_role_share_artifact()
+    }
+
+    /// Reconstructs the provider artifact of the share a custody binding
+    /// named, which `load_bound` has already matched to that binding.
+    pub(crate) fn into_bound_online_role_share_artifact(
+        self,
+    ) -> RoleStoreResult<TenantRootSealedOnlineRoleShareV1> {
+        if self.revision <= 0 {
+            return Err(store_error(
+                "tenant-root role-private revision must be positive",
+            ));
+        }
+        self.record.into_bound_online_role_share_artifact()
     }
 }
 
@@ -10393,6 +10429,75 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             ));
         }
         Ok(active)
+    }
+
+    /// Loads the role share an authenticated custody binding names.
+    ///
+    /// The Router issues a binding from its committed active state when it
+    /// admits work, so the binding names the epoch that work started on.
+    /// While that epoch is active this is `load_active`. After a refresh has
+    /// swapped it out, the retired share is returned until it is erased, so
+    /// work already admitted follows the version it started with (Spec 6).
+    /// A retired share is returned only when every binding field matches the
+    /// activation evidence it retained, including the activation receipt that
+    /// made its epoch active. A pending share, which no binding can name
+    /// before the Router commits it, is never returned.
+    pub(crate) async fn load_bound(
+        &self,
+        custody_binding: &TenantRootCustodyBindingV1,
+    ) -> RoleStoreResult<CloudflareStoredTenantRootRoleShareV1> {
+        custody_binding
+            .validate()
+            .map_err(|error| store_error(error.message()))?;
+        let stored = self
+            .load_epoch_by_identity_digest(
+                custody_binding.identity_digest(),
+                custody_binding.custody_lineage(),
+                custody_binding.epoch(),
+            )
+            .await?
+            .ok_or_else(|| {
+                store_error("tenant-root role share named by the custody binding does not exist")
+            })?;
+        match stored.record().lifecycle() {
+            CloudflareTenantRootRoleShareLifecycleV1::Active(_) => {
+                self.load_active(custody_binding).await
+            }
+            CloudflareTenantRootRoleShareLifecycleV1::Retired(retired) => {
+                stored.record().validate()?;
+                validate_record_activation_binding(stored.record())?;
+                let record = stored.record();
+                let expected_role = self.cipher.role.managed_restore_role();
+                let expected_commitment = match expected_role {
+                    TenantRootManagedRestoreRoleV1::DeriverA => {
+                        custody_binding.commitments().deriver_a()
+                    }
+                    TenantRootManagedRestoreRoleV1::DeriverB => {
+                        custody_binding.commitments().deriver_b()
+                    }
+                };
+                let identity_digest = record
+                    .identity()
+                    .digest()
+                    .map_err(|error| store_error(error.message()))?;
+                if identity_digest != custody_binding.identity_digest()
+                    || record.custody_lineage() != custody_binding.custody_lineage()
+                    || record.epoch() != custody_binding.epoch()
+                    || record.role().managed_restore_role() != expected_role
+                    || record.share_commitment() != expected_commitment
+                    || retired.active.activation.activation_receipt_digest
+                        != custody_binding.activation_receipt_digest()
+                {
+                    return Err(store_error(
+                        "tenant-root retired role share does not match authenticated custody binding",
+                    ));
+                }
+                Ok(stored)
+            }
+            CloudflareTenantRootRoleShareLifecycleV1::Pending(_) => Err(store_error(
+                "tenant-root role share named by the custody binding is not active",
+            )),
+        }
     }
 
     /// Observes all active rows for the debug lifecycle probe.

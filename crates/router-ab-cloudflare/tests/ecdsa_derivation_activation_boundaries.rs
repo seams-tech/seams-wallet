@@ -368,7 +368,7 @@ fn strict_deriver_ecdsa_stable_path_uses_server_loaded_v2_share_input() {
         );
     }
     assert!(
-        deriver_rs.contains("load_cloudflare_active_tenant_root_role_share_v1")
+        deriver_rs.contains("load_cloudflare_bound_tenant_root_role_share_v1")
             && deriver_rs.contains("StrictDeriverPreloadedRequestV2")
             && deriver_rs.contains("build_cloudflare_preloaded_signer_host_v1"),
         "strict Deriver stable path must preload the server-authenticated V2 share"

@@ -132,7 +132,7 @@ pub use tenant_root_role_runtime::{
     tenant_root_deriver_creation_evidence_v1, CloudflareDeriverTenantRootCreationEvidenceRequestV1,
     CloudflareDeriverTenantRootCreationEvidenceResponseV1,
     tenant_root_deriver_initial_activation_v1,
-    tenant_root_deriver_load_active_role_share_v1, tenant_root_deriver_refresh_activation_v1,
+    tenant_root_deriver_load_bound_role_share_v1, tenant_root_deriver_refresh_activation_v1,
     tenant_root_deriver_refresh_v1, CloudflareDeriverTenantRootCreateRoleShareRequestV1,
     CloudflareDeriverTenantRootCreateRoleShareResponseV1,
     CloudflareDeriverTenantRootInitialActivationRequestV1,
@@ -4915,14 +4915,14 @@ impl CloudflareDeriverBWorkerRuntimeV1 {
     }
 }
 
-/// Loads the authenticated Deriver's active tenant-root role share.
+/// Loads the tenant-root role share the authenticated custody binding names.
 #[cfg(feature = "workers-rs")]
-pub(crate) async fn load_cloudflare_active_tenant_root_role_share_v1(
+pub(crate) async fn load_cloudflare_bound_tenant_root_role_share_v1(
     env: &worker::Env,
     worker_role: CloudflareWorkerRoleV1,
     authenticated_custody_binding: &TenantRootCustodyBindingV1,
 ) -> RouterAbProtocolResult<VerifiedTenantRootOnlineRoleShareV1> {
-    tenant_root_role_runtime::tenant_root_deriver_load_active_role_share_v1(
+    tenant_root_role_runtime::tenant_root_deriver_load_bound_role_share_v1(
         &tenant_root_role_runtime::CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
         authenticated_custody_binding,
     )

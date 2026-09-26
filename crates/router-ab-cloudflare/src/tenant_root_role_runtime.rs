@@ -1398,12 +1398,14 @@ pub trait TenantRootDeriverHostV1:
     ) -> RouterAbProtocolResult<(router_ab_core::VerifiedTenantRootProviderCanaryReceiptV1, crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectMetadataV1)>;
 }
 
-/// Loads the authenticated Deriver's active tenant-root role share.
+/// Loads the tenant-root role share an authenticated custody binding names.
 ///
-/// The custody binding is resolved by the authenticated request boundary. D1
-/// loads the matching active row, while the Worker role chooses the local
-/// role; no selector is accepted from the request body.
-pub async fn tenant_root_deriver_load_active_role_share_v1<Host: TenantRootDeriverHostV1>(
+/// The custody binding is resolved by the authenticated request boundary. The
+/// store returns the epoch it names: the active share, or, for work admitted
+/// before a refresh committed, that epoch's retired share until it is erased.
+/// The host's role chooses the local role; no selector is accepted from the
+/// request body.
+pub async fn tenant_root_deriver_load_bound_role_share_v1<Host: TenantRootDeriverHostV1>(
     host: &Host,
     authenticated_custody_binding: &router_ab_core::TenantRootCustodyBindingV1,
 ) -> RouterAbProtocolResult<VerifiedTenantRootOnlineRoleShareV1> {
@@ -1426,15 +1428,15 @@ pub async fn tenant_root_deriver_load_active_role_share_v1<Host: TenantRootDeriv
         crate::map_cloudflare_tenant_root_role_store_error_v1("tenant-root role store lookup", error)
     })?;
     let stored = store
-        .load_active(authenticated_custody_binding)
+        .load_bound(authenticated_custody_binding)
         .await
         .map_err(|error| {
             crate::map_cloudflare_tenant_root_role_store_error_v1(
-                "tenant-root active role-share lookup",
+                "tenant-root bound role-share lookup",
                 error,
             )
         })?;
-    let sealed = stored.into_online_role_share_artifact().map_err(|error| {
+    let sealed = stored.into_bound_online_role_share_artifact().map_err(|error| {
         crate::map_cloudflare_tenant_root_role_store_error_v1(
             "tenant-root online role-share reconstruction",
             error,
@@ -1443,7 +1445,7 @@ pub async fn tenant_root_deriver_load_active_role_share_v1<Host: TenantRootDeriv
     if sealed.binding().role() != expected_role {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidRole,
-            "tenant-root active role-share row does not belong to this Deriver",
+            "tenant-root bound role-share row does not belong to this Deriver",
         ));
     }
 

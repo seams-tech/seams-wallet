@@ -17,7 +17,7 @@ use crate::tenant_root_role_runtime::{
 use crate::{
     build_cloudflare_ecdsa_threshold_prf_outer_request_v2,
     build_cloudflare_preloaded_signer_host_v1, cloudflare_now_unix_ms_v1,
-    cloudflare_random_bytes_v1, load_cloudflare_active_tenant_root_role_share_v1,
+    cloudflare_random_bytes_v1, load_cloudflare_bound_tenant_root_role_share_v1,
     CloudflareAuthenticatedSignerPrivateBootstrapRequestV1, CloudflarePeerBindingV1,
     CloudflareRootShareStartupMetadataV1,
     CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH,
@@ -1051,7 +1051,7 @@ async fn preload_strict_deriver_request_with_authenticated_binding_v2(
     let root_share_metadata = host
         .root_share_startup_metadata(runtime.protocol_role(), &preload_plan.root_share_epoch)?
         .clone();
-    let tenant_root_share = load_cloudflare_active_tenant_root_role_share_v1(
+    let tenant_root_share = load_cloudflare_bound_tenant_root_role_share_v1(
         env,
         runtime.worker_role(),
         authenticated_request.tenant_root_custody_binding(),
