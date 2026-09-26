@@ -352,21 +352,39 @@ async fn abandon_tenant_root_creation_v1<Host: TenantRootRouterCreationHostV1>(
             .unwrap_or_default(),
         CloudflareTenantRootCreationProgressV1::NotStarted => Vec::new(),
     };
-    for role in [
+    let uncleaned = [
         CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
         CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
-    ] {
-        if !cleaned.contains(&role) {
-            clean_abandoned_role_v1(
-                host,
-                identity_digest,
-                custody_lineage,
-                CloudflareTenantRootControlPlaneRoleV1::from_protocol(role.to_protocol()),
-            )
-            .await?;
+    ]
+    .into_iter()
+    .filter(|role| !cleaned.contains(role))
+    .collect::<Vec<_>>();
+    clean_abandoned_roles_v1(host, identity_digest, custody_lineage, &uncleaned).await
+}
+
+/// Cleans each named role of an abandoned creation. Every role is attempted,
+/// so one role's failing cleanup does not hold back the other's; the first
+/// failure is returned.
+async fn clean_abandoned_roles_v1<Host: TenantRootRouterCreationHostV1>(
+    host: &Host,
+    identity_digest: router_ab_core::TenantRootIdentityDigestV1,
+    custody_lineage: router_ab_core::TenantRootCustodyLineageId,
+    roles: &[CloudflareTenantRootCreationInstallationRoleV1],
+) -> RouterAbProtocolResult<()> {
+    let mut first_failure = None;
+    for role in roles {
+        if let Err(error) = clean_abandoned_role_v1(
+            host,
+            identity_digest,
+            custody_lineage,
+            CloudflareTenantRootControlPlaneRoleV1::from_protocol(role.to_protocol()),
+        )
+        .await
+        {
+            first_failure.get_or_insert(error);
         }
     }
-    Ok(())
+    first_failure.map_or(Ok(()), Err)
 }
 
 /// Re-runs both roles' cleanup of an abandoned creation, on an operator's
@@ -408,15 +426,7 @@ pub async fn tenant_root_router_sweep_abandoned_creation_v1<Host: TenantRootRout
         CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
         CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
     ];
-    for role in &swept_roles {
-        clean_abandoned_role_v1(
-            host,
-            identity_digest,
-            custody_lineage,
-            CloudflareTenantRootControlPlaneRoleV1::from_protocol(role.to_protocol()),
-        )
-        .await?;
-    }
+    clean_abandoned_roles_v1(host, identity_digest, custody_lineage, &swept_roles).await?;
     Ok(CloudflareTenantRootCreationSweepResponseV1 {
         abandoned_at_ms: abandonment.abandoned_at_ms,
         swept_roles,

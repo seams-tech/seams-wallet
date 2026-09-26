@@ -196,7 +196,15 @@ recorded ones.
   both roles.
 - **The Deriver requires the fence to match.** It reads the Router's fence and
   requires that the fence lists its role exactly when the command is
-  evidence-bound, and that the command was issued at the fence.
+  evidence-bound, and that the command was issued at the fence. It also
+  validates the Router's issuer-signed journal and requires the command's
+  ceremony session and nonce to be that journal's, so even with no row
+  present a command cannot tombstone a lineage for another ceremony.
+- **Keys and liveness.** The control plane issues neither kind of command
+  while the ceremony names a retired role signing key, because the Router
+  would refuse the Deriver's receipt after the Deriver had acted. The
+  coordinator attempts both roles' cleanups before reporting the first
+  failure, so one role's failing cleanup does not hold back the other's.
 - **The cleanup refuses active material and binds the ceremony.** A row
   present at reservation must be pending and must be this ceremony's: its
   creation command's replay record, keyed by the ceremony session and nonce,
@@ -205,18 +213,26 @@ recorded ones.
   0012), and checkpoints the command, with count guards on the tombstone and
   the checkpoint. The managed backup and canary are deleted after every
   cleanup call, including exact replays.
-- **Late writes.** The initial-row insert is guarded by the tombstone
-  (`INSERT ... WHERE NOT EXISTS` the lineage's tombstone), so a write that
-  lands after the cleanup is refused in the same statement. The creation
-  path writes the backup and canary before the row; when the row is refused
-  and the lineage is tombstoned, it deletes them again and reports that the
-  creation was abandoned while the role was writing. A write that lands after
-  the fence but before the cleanup is removed by the cleanup.
-- **Recorded roles need no tombstone.** A recorded role's creation command
-  had completed before its checkpoint, so a retry of it can only replay.
+- **Both roles are tombstoned.** A recorded role's evidence-bound cleanup
+  writes the tombstone in the same batch as its row deletion
+  (`clean_abandoned_pending`). Its creation had completed, so a retry of that
+  command can only replay; the tombstone is what tells a late duplicate that
+  its writes were abandoned.
+- **Late writes.** The creation insert (`INSERT_INITIAL_CREATION_SQL`, used
+  only by creation) is guarded by the tombstone, so a row that lands after
+  the cleanup is refused in the same statement. Refresh and restore keep the
+  unguarded insert. The creation path writes the backup, the canary, then
+  the row. If that attempt does not commit its own row, whether a write
+  failed, the tombstone refused the row, or a concurrent duplicate found
+  another attempt's record, and the lineage is tombstoned, it deletes the
+  role's initial backup and canary and reports that the creation was
+  abandoned while the role was writing. Objects written before the tombstone
+  are removed by the cleanup's own delete, which follows it, so either the
+  writer or the cleanup removes them.
 
 Residual: a Deriver that crashes between a late backup write and its
-compensating delete leaves an unreferenced backup and canary. It holds no
+compensating delete, or whose tombstone lookup fails there, leaves an
+unreferenced backup and canary. It holds no
 row and can never activate. An ordinary retry of the grant skips roles the
 Router has already checkpointed as cleaned, so it does not remove them. The
 operator sweep below does. Sweeping automatically is a separate decision and
@@ -308,6 +324,40 @@ object listing afterwards.
   its creation command stays reserved and never executes. The same test
   restores B's objects, sweeps through the Router Worker, and checks that the
   sweep removes them, repeats identically and refuses a committed creation.
+
+### Independent review of the cleanup (2026-09-26)
+
+A separate review of the ceremony-bound cleanup found no high-severity defect.
+It confirmed that neither target kind can stand in for the other, that the
+batches are atomic, that D1 and VM SQLite treat the new SQL alike, and that
+an exact replay of an evidence-bound cleanup succeeds after its row is gone.
+Its findings and what was done:
+
+1. A late write was compensated only when persistence returned an error, not
+   on a replay or in-progress outcome, nor when the canary write failed after
+   the backup. Recorded roles had no tombstone to key it on. Now every
+   attempt that does not commit its own row checks the tombstone, and both
+   roles are tombstoned.
+2. One role's failing cleanup stopped the other's. Both are now attempted.
+3. A ceremony-bound command could be issued under a retired role key, then
+   executed and refused at the Router on every retry. The control plane now
+   refuses to issue it, as it already did for evidence-bound commands.
+4. Reading a fenced creation loaded role keys even with no cleanup
+   checkpoint to validate. They are now loaded only when one exists.
+5. The tombstone guard sat in the insert shared with refresh and restore, so
+   every insert needed migration 0012. Only the creation insert carries it
+   now; creation still needs 0012 applied before the code that uses it.
+
+The review also noted that the Deriver did not check the command's ceremony
+against the Router's journal. It now does.
+
+The new outcomes in item 1 are not covered by an E2E. Reaching them needs
+two attempts of one role's command to pass the preflight before either
+reserves, then a cleanup between that role's preflight and its backup write.
+On a VM a Deriver handles one request at a time, and on Workers nothing
+between those two steps can be intercepted. An initiator's duplicate cannot
+get there anyway: its peer answers only one attempt. The operator sweep
+removes anything such a race leaves.
 
 ## After the commit (implemented)
 

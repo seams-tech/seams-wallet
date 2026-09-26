@@ -14399,10 +14399,26 @@ async fn read_creation_journal_state_v1<Store: TenantRootCreationStoreV1>(
             TENANT_ROOT_CREATION_ABANDONMENT_STORAGE_KEY_V1,
         )
         .await?;
+    let mut cleanup_checkpoints = Vec::new();
+    if abandonment_record.is_some() {
+        for role in [
+            CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
+            CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
+        ] {
+            if let Some(checkpoint) = store
+                .get_json::<CloudflareTenantRootCreationCleanupCheckpointV1>(
+                    tenant_root_creation_cleanup_checkpoint_storage_key_v1(role),
+                )
+                .await?
+            {
+                cleanup_checkpoints.push((role, checkpoint));
+            }
+        }
+    }
     // Role keys are needed only to validate progress records.
     let role_keys = if rendezvous.is_some()
         || installation_record.is_some()
-        || abandonment_record.is_some()
+        || !cleanup_checkpoints.is_empty()
     {
         Some(role_keys()?)
     } else {
@@ -14433,14 +14449,14 @@ async fn read_creation_journal_state_v1<Store: TenantRootCreationStoreV1>(
         }
     };
     let abandonment = read_creation_abandonment_v1(
-        store,
+        store.authority_id(),
         abandonment_record,
+        cleanup_checkpoints,
         &journal,
         installation_checkpoint.as_ref(),
         issuer_keys,
         role_keys.as_ref(),
-    )
-    .await?;
+    )?;
     let response = build_creation_journal_read_response(
         &request,
         &journal,
@@ -14772,9 +14788,13 @@ async fn require_creation_not_abandoned_v1<Store: TenantRootCreationStoreV1>(
 
 /// Projects the abandonment fence and the roles whose cleanup is checkpointed.
 /// Both roles are cleaned, whether or not the fence recorded them installed.
-async fn read_creation_abandonment_v1<Store: TenantRootCreationStoreV1>(
-    store: &Store,
+fn read_creation_abandonment_v1(
+    authority_id: TenantRootControlPlaneAuthorityIdV1,
     record: Option<CloudflareTenantRootCreationAbandonmentV1>,
+    cleanup_checkpoints: Vec<(
+        CloudflareTenantRootCreationInstallationRoleV1,
+        CloudflareTenantRootCreationCleanupCheckpointV1,
+    )>,
     journal: &ValidatedTenantRootCreationJournalV1,
     installation: Option<&ValidatedTenantRootCreationInstallationCheckpointV1>,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
@@ -14785,18 +14805,12 @@ async fn read_creation_abandonment_v1<Store: TenantRootCreationStoreV1>(
     };
     validate_creation_abandonment_scope_v1(&record, journal).map_err(stored_record_error)?;
     let mut cleaned_roles = Vec::new();
-    for role in [
-        CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
-        CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
-    ] {
-        let Some(checkpoint) = store
-            .get_json::<CloudflareTenantRootCreationCleanupCheckpointV1>(
-                tenant_root_creation_cleanup_checkpoint_storage_key_v1(role),
-            )
-            .await?
-        else {
-            continue;
-        };
+    for (role, checkpoint) in cleanup_checkpoints {
+        if checkpoint.role != role {
+            return Err(stored_record_error(malformed_input(
+                "tenant-root creation cleanup checkpoint is stored under another role",
+            )));
+        }
         let role_keys = role_keys.ok_or_else(|| {
             stored_record_error(malformed_input(
                 "tenant-root creation cleanup checkpoint has no role-key set",
@@ -14807,7 +14821,7 @@ async fn read_creation_abandonment_v1<Store: TenantRootCreationStoreV1>(
             journal,
             &record,
             installation,
-            store.authority_id(),
+            authority_id,
             issuer_keys,
             role_keys,
         )

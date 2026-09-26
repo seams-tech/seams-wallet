@@ -2068,8 +2068,8 @@ async function testTenantRootCreationRecoveryPaths(topology, databases) {
   result = await create(abandoned);
   assert.ok(result.body.includes('abandoned; a fresh grant is required'), result.body);
 
-  // The abandonment cleans A, which holds nothing yet, by the ceremony, and
-  // tombstones the lineage; B by its recorded evidence.
+  // The abandonment cleans A, which holds nothing yet, by the ceremony, and B
+  // by its recorded evidence; each tombstones the lineage.
   const tombstones = async (database, ceremony) =>
     (
       await database
@@ -2097,6 +2097,7 @@ async function testTenantRootCreationRecoveryPaths(topology, databases) {
   assert.deepEqual(await lifecycles(lateWrite), [null, null]);
   assert.deepEqual(await backupObjects(lateWrite), [0, 0]);
   assert.equal(await tombstones(databases.deriverA, lateWrite), 1);
+  assert.equal(await tombstones(databases.deriverB, lateWrite), 1);
   assert.deepEqual(await commandStatuses(databases.deriverA, lateWrite), ['completed']);
 
   // A's answer arrives: it writes its backup and canary, the tombstone

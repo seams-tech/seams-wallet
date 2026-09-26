@@ -1725,6 +1725,24 @@ pub async fn control_plane_pending_creation_cleanup_command_v1<Host: TenantRootC
         ));
     }
     let issued_at_ms = abandonment.abandoned_at_ms;
+    let (expected_key_id, verifying_key) = match role {
+        TwoPartyDeriverRole::DeriverA => (
+            host.bindings().deriver_a_signing_key_id.as_str(),
+            &host.bindings().deriver_a_verifying_key,
+        ),
+        TwoPartyDeriverRole::DeriverB => (
+            host.bindings().deriver_b_signing_key_id.as_str(),
+            &host.bindings().deriver_b_verifying_key,
+        ),
+    };
+    // The Router accepts the Deriver's cleanup receipt only under the role key
+    // the ceremony named. A command the Deriver would execute but whose receipt
+    // the Router would then refuse is not issued.
+    if journal.ceremony_context.signing_key_id(role) != expected_key_id {
+        return Err(refused(
+            "tenant-root cleanup names a retired role signing key",
+        ));
+    }
     if !recorded {
         // No installation of this role was recorded: it may have stopped before
         // checkpointing, or a command admitted before the window closed may
@@ -1789,21 +1807,6 @@ pub async fn control_plane_pending_creation_cleanup_command_v1<Host: TenantRootC
         router_ab_core::TENANT_ROOT_SIGNED_SHARE_INSTALLATION_EVIDENCE_MAX_BYTES_V1,
         router_ab_core::TENANT_ROOT_SIGNED_SHARE_INSTALLATION_EVIDENCE_MAX_BYTES_V1 * 2,
     )?;
-    let (expected_key_id, verifying_key) = match role {
-        TwoPartyDeriverRole::DeriverA => (
-            host.bindings().deriver_a_signing_key_id.as_str(),
-            &host.bindings().deriver_a_verifying_key,
-        ),
-        TwoPartyDeriverRole::DeriverB => (
-            host.bindings().deriver_b_signing_key_id.as_str(),
-            &host.bindings().deriver_b_verifying_key,
-        ),
-    };
-    if journal.ceremony_context.signing_key_id(role) != expected_key_id {
-        return Err(refused(
-            "tenant-root cleanup evidence names a retired role signing key",
-        ));
-    }
     let evidence =
         TenantRootSignedShareInstallationEvidenceV1::decode_and_verify_canonical_bytes(
             &evidence_bytes,

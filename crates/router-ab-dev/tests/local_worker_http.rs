@@ -1016,8 +1016,8 @@ fn vm_tenant_root_creation_is_authorized_replayable_and_role_isolated(
 /// pending row, the Router verifies that command, B removes its row, managed
 /// backup and canary, and the Router checkpoints B's terminal receipt. A,
 /// which the fence does not record, is cleaned by the ceremony: it holds
-/// nothing, and its lineage is tombstoned against a late write. The grant is
-/// then spent; a fresh grant creates the root.
+/// nothing. Both roles tombstone the lineage against a late write. The grant
+/// is then spent; a fresh grant creates the root.
 #[test]
 fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -1164,8 +1164,8 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
     };
     assert_eq!(
         (tombstones(&a_store)?, tombstones(&b_store)?),
-        (1, 0),
-        "only the unrecorded role is tombstoned"
+        (1, 1),
+        "both roles' cleanups tombstone the lineage"
     );
 
     // The cleaned grant stays spent, including after every role restarts.
@@ -1224,7 +1224,7 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
             "deriver_b_rows_after_cleanup": 0,
             "deriver_b_backups_after_cleanup": 0,
             "router_cleanup_checkpoints": cleanup_checkpoints()?,
-            "tombstoned_roles": ["deriver_a"],
+            "tombstoned_roles": ["deriver_a", "deriver_b"],
             "replay_reports_abandoned": true,
             "replay_after_full_restart_reports_abandoned": true,
             "fresh_grant_status": fresh["status"]["kind"],
@@ -1552,6 +1552,7 @@ fn vm_tenant_root_uncommitted_creation_is_abandoned_after_the_ceremony_expires(
 /// cleanup commands' window has closed, still finishes. Each Deriver confirms
 /// the Router's fence names it and judges the command at the fence, as does
 /// the Router's checkpoint, so no pending row is left behind by the outage.
+/// The interruption loses only A's command; B is cleaned regardless.
 /// It waits past the five-minute cleanup window, so it runs only on request.
 #[test]
 #[ignore = "waits past the five-minute cleanup window; run with --ignored"]
@@ -1573,8 +1574,9 @@ fn vm_tenant_root_abandonment_finishes_after_a_long_outage(
         thread::sleep(remaining);
     }
 
-    // The retry fences the creation, then loses the first cleanup command:
-    // the outage begins right after the fence.
+    // The retry fences the creation, then loses A's cleanup command: the
+    // outage begins right after the fence. B is still cleaned, since one
+    // role's failing cleanup does not hold back the other's.
     stack.proxy_control_plane.drop_next_on(
         router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH,
     );
@@ -1582,8 +1584,8 @@ fn vm_tenant_root_abandonment_finishes_after_a_long_outage(
     let fenced_at = Instant::now();
     assert_ne!(interrupted_status, 200, "{interrupted_body}");
     assert!(stack.proxy_control_plane.dropped_on(), "the cleanup command must have been lost");
-    assert_eq!(stack.abandonment_records(&lineage_b64u)?, (1, 0), "fenced, nothing cleaned");
-    assert_eq!(stack.lifecycles(&lineage_b64u)?, (pending(), pending()));
+    assert_eq!(stack.abandonment_records(&lineage_b64u)?, (1, 1), "fenced, only B cleaned");
+    assert_eq!(stack.lifecycles(&lineage_b64u)?, (pending(), None));
 
     // Past the cleanup commands' window, measured from the fence.
     let window = Duration::from_millis(router_ab_core::TENANT_ROOT_MAX_LIFETIME_MS_V1 + 5_000);
@@ -1603,7 +1605,8 @@ fn vm_tenant_root_abandonment_finishes_after_a_long_outage(
     println!(
         "R150_VM_TENANT_ROOT_ABANDONMENT_OUTAGE_E2E {}",
         json!({
-            "fault": "cleanup_command_lost_right_after_the_fence",
+            "fault": "deriver_a_cleanup_command_lost_right_after_the_fence",
+            "cleaned_despite_the_loss": ["deriver_b"],
             "outage_ms": u64::try_from(fenced_at.elapsed().as_millis())?,
             "cleanup_window_ms": router_ab_core::TENANT_ROOT_MAX_LIFETIME_MS_V1,
             "interrupted_status": interrupted_status,
@@ -1901,9 +1904,9 @@ fn vm_tenant_root_write_that_lands_after_the_fence_is_cleaned(
         "A's late backup and canary are removed"
     );
     assert_eq!(stack.abandonment_records(&lineage_b64u)?, (1, 2));
-    // Only the unrecorded role is tombstoned. B was cleaned by its recorded
-    // evidence: its creation had completed, so a retry could only replay it.
-    assert_eq!(stack.tombstones(&lineage_b64u)?, (1, 0));
+    // Both roles are tombstoned: A by the ceremony, B by its recorded
+    // evidence, so a late attempt of either knows its writes were abandoned.
+    assert_eq!(stack.tombstones(&lineage_b64u)?, (1, 1));
     assert_eq!(stack.committed_receipt(&lineage_b64u)?, None);
 
     // An operator sweep replays both cleanups, B's by its recorded evidence
@@ -1923,7 +1926,7 @@ fn vm_tenant_root_write_that_lands_after_the_fence_is_cleaned(
             "retry_after_expiry_status": abandoned_status,
             "a_late_creation_then_cleanup_completed": true,
             "rows_backups_canaries_after_abandonment": 0,
-            "tombstones": [1, 0],
+            "tombstones": [1, 1],
             "operator_sweep_replays_both_status": swept_status,
             "router_fences_and_cleanups": [1, 2],
         })

@@ -141,14 +141,20 @@ const LOAD_ACTIVE_SQL: &str = "SELECT tenant_identity_digest_hex, custody_lineag
     tenant_root_share_epoch, role, lifecycle, ciphertext_json, revision, created_at_ms, \
     updated_at_ms FROM tenant_root_role_shares WHERE tenant_identity_digest_hex = ?1 \
     AND lifecycle = 'active'";
-/// Inserts one pending row. An initial-epoch row is refused for a lineage an
-/// abandonment tombstoned, so a creation command admitted before its window
-/// closed cannot write after the abandoned ceremony was cleaned.
 const INSERT_SQL: &str = "INSERT INTO tenant_root_role_shares \
     (tenant_identity_digest_hex, custody_lineage_b64u, tenant_root_share_epoch, role, \
     lifecycle, ciphertext_json, revision, created_at_ms, updated_at_ms) \
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, ?8) \
+    ON CONFLICT(tenant_identity_digest_hex, custody_lineage_b64u, \
+    tenant_root_share_epoch, role) DO NOTHING";
+/// Inserts a creation's pending row, refused for a lineage an abandonment
+/// tombstoned, so a creation command admitted before its window closed cannot
+/// write after the abandoned ceremony was cleaned. Only creation uses it.
+const INSERT_INITIAL_CREATION_SQL: &str = "INSERT INTO tenant_root_role_shares \
+    (tenant_identity_digest_hex, custody_lineage_b64u, tenant_root_share_epoch, role, \
+    lifecycle, ciphertext_json, revision, created_at_ms, updated_at_ms) \
     SELECT ?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, ?8 \
-    WHERE CAST(?3 AS INTEGER) <> 1 OR NOT EXISTS (SELECT 1 FROM tenant_root_creation_tombstones \
+    WHERE NOT EXISTS (SELECT 1 FROM tenant_root_creation_tombstones \
     WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 AND role = ?4) \
     ON CONFLICT(tenant_identity_digest_hex, custody_lineage_b64u, \
     tenant_root_share_epoch, role) DO NOTHING";
@@ -10206,7 +10212,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         CloudflareTenantRootInitialCreationExecutedCommandV1,
     )> {
         let CloudflareTenantRootInitialCreationPendingCommandV1 { command, evidence } = command;
-        let (stored, executed) = self.insert_pending(command, executed_at_ms).await?;
+        let (stored, executed) = self
+            .insert_pending_with(command, executed_at_ms, INSERT_INITIAL_CREATION_SQL)
+            .await?;
         Ok((
             stored,
             CloudflareTenantRootInitialCreationExecutedCommandV1 { executed, evidence },
@@ -10218,6 +10226,19 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         &self,
         command: CloudflareTenantRootInsertPendingCommandV1,
         executed_at_ms: u64,
+    ) -> RoleStoreResult<(
+        CloudflareStoredTenantRootRoleShareV1,
+        ExecutedTenantRootCommandV1,
+    )> {
+        self.insert_pending_with(command, executed_at_ms, INSERT_SQL)
+            .await
+    }
+
+    async fn insert_pending_with(
+        &self,
+        command: CloudflareTenantRootInsertPendingCommandV1,
+        executed_at_ms: u64,
+        insert_sql: &'static str,
     ) -> RoleStoreResult<(
         CloudflareStoredTenantRootRoleShareV1,
         ExecutedTenantRootCommandV1,
@@ -10262,7 +10283,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         let epoch = metadata.epoch.to_string();
         let created_at_ms = record.created_at_ms.to_string();
         let updated_at_ms = record.updated_at_ms.to_string();
-        let lifecycle_statement = self.session.prepare(INSERT_SQL).bind_refs(
+        let lifecycle_statement = self.session.prepare(insert_sql).bind_refs(
             [
                 RoleSqlValue::Text(metadata.identity_digest_hex.as_str()),
                 RoleSqlValue::Text(metadata.custody_lineage_b64u.as_str()),
@@ -12095,6 +12116,30 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         command: CloudflareTenantRootCleanupPendingCommandV1,
         executed_at_ms: u64,
     ) -> RoleStoreResult<ExecutedTenantRootCommandV1> {
+        let (lifecycle_statement, checkpoint_statement, reservation, _) =
+            self.cleanup_pending_statements(command, executed_at_ms)?;
+        self.run_lifecycle_checkpoint(
+            lifecycle_statement,
+            1,
+            checkpoint_statement,
+            reservation,
+            executed_at_ms,
+        )
+        .await
+    }
+
+    /// Validates one reserved pending cleanup and prepares its row removal and
+    /// execution checkpoint.
+    fn cleanup_pending_statements(
+        &self,
+        command: CloudflareTenantRootCleanupPendingCommandV1,
+        executed_at_ms: u64,
+    ) -> RoleStoreResult<(
+        RoleSqlStatement<'_, S>,
+        RoleSqlStatement<'_, S>,
+        ReservedTenantRootCommandV1,
+        TenantRootRoleD1MetadataV1,
+    )> {
         let CloudflareTenantRootCleanupPendingCommandV1 {
             scope,
             reservation,
@@ -12136,14 +12181,76 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         )?;
         let checkpoint_statement =
             self.command_execution_checkpoint_statement(&reservation, executed_at_ms)?;
-        self.run_lifecycle_checkpoint(
-            lifecycle_statement,
-            1,
-            checkpoint_statement,
-            reservation,
-            executed_at_ms,
-        )
-        .await
+        Ok((lifecycle_statement, checkpoint_statement, reservation, metadata))
+    }
+
+    /// Removes an abandoned creation's recorded pending row and tombstones its
+    /// lineage in the same batch, as the ceremony-bound cleanup does, so a
+    /// late attempt of that creation knows its writes were abandoned.
+    async fn clean_abandoned_pending(
+        &self,
+        command: CloudflareTenantRootCleanupPendingCommandV1,
+        ceremony_session_id: TenantRootCeremonySessionIdV1,
+        executed_at_ms: u64,
+    ) -> RoleStoreResult<ExecutedTenantRootCommandV1> {
+        let (lifecycle_statement, checkpoint_statement, reservation, metadata) =
+            self.cleanup_pending_statements(command, executed_at_ms)?;
+        if metadata.epoch != TenantRootShareEpoch::INITIAL.get().get() {
+            return Err(store_error(
+                "tenant-root abandoned-creation cleanup requires an initial-epoch row",
+            ));
+        }
+        if executed_at_ms < reservation.reserved_at_ms() {
+            return Err(store_error(
+                "tenant-root command execution checkpoint precedes its reservation",
+            ));
+        }
+        let session_id_hex = encode_hex(ceremony_session_id.as_bytes());
+        let created_at_ms = executed_at_ms.to_string();
+        let tombstone = self.session.prepare(INSERT_CREATION_TOMBSTONE_SQL).bind_refs(
+            [
+                RoleSqlValue::Text(metadata.identity_digest_hex.as_str()),
+                RoleSqlValue::Text(metadata.custody_lineage_b64u.as_str()),
+                RoleSqlValue::Text(metadata.role.as_str()),
+                RoleSqlValue::Text(session_id_hex.as_str()),
+                RoleSqlValue::Text(created_at_ms.as_str()),
+            ]
+            .iter(),
+        )?;
+        let lifecycle_guard = self.command_cas_count_guard_statement(1)?;
+        let tombstone_guard = self.command_cas_count_guard_statement(1)?;
+        let checkpoint_guard = self.command_cas_count_guard_statement(1)?;
+        let results = self
+            .session
+            .batch(vec![
+                lifecycle_statement,
+                lifecycle_guard,
+                tombstone,
+                tombstone_guard,
+                checkpoint_statement,
+                checkpoint_guard,
+            ])
+            .await?;
+        if results.len() != 6 || results.iter().any(|result| !result.success()) {
+            return Err(store_error("tenant-root abandoned pending cleanup batch failed"));
+        }
+        for (index, what) in [
+            (0, "tenant-root pending row changed concurrently"),
+            (2, "tenant-root abandoned-creation tombstone changed concurrently"),
+            (4, "tenant-root command execution checkpoint changed concurrently"),
+        ] {
+            require_one_change(&results[index], what)?;
+        }
+        for guard in [&results[1], &results[3], &results[5]] {
+            require_changes(
+                guard,
+                0,
+                "tenant-root abandoned pending cleanup count guard returned an invalid change count",
+            )?;
+        }
+        reservation
+            .checkpoint_executed(executed_at_ms)
+            .map_err(|error| store_error(error.message()))
     }
 
     /// Removes one exact retired revision while its expected active successor
@@ -12226,8 +12333,16 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                     command,
                     authorization,
                 } = command;
+                let TenantRootRoleCleanupTargetV1::Pending { session_id, .. } =
+                    authorization.target()
+                else {
+                    return Err(store_error(
+                        "tenant-root pending cleanup requires a pending authorization",
+                    ));
+                };
                 (
-                    self.cleanup_pending(command, executed_at_ms).await?,
+                    self.clean_abandoned_pending(command, *session_id, executed_at_ms)
+                        .await?,
                     authorization,
                 )
             }

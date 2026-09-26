@@ -5770,35 +5770,67 @@ async fn persist_tenant_root_creation_progress_v1<Host: TenantRootDeriverHostV1>
         crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1::from_binding(
             managed_backup.binding(),
         );
-    host.put_managed_backup(&managed_backup).await?;
-    // The canary receipt is the one activation artifact nothing else keeps.
-    // It is stored beside the backup before this role's installation
-    // checkpoint, so a creation the Router reads as ready can always be
-    // resumed from durable evidence.
-    let (TenantRootRoleCreationCompletionV1::RoleOnly {
-        provider_canary_receipt,
-    }
-    | TenantRootRoleCreationCompletionV1::Initiator {
-        provider_canary_receipt,
-        ..
-    }) = &completion;
-    host.put_provider_canary(
-        backup_coordinates,
-        provider_canary_receipt,
-        &role_signer.verifying_key_bytes(),
-    )
-    .await?;
     let binding = managed_backup.binding();
-    let persisted = match store
-        .persist_initial_creation(*input, role_signer, now_ms, now_ms, now_ms)
-        .await
-    {
-        Ok(persisted) => persisted,
+    // This role's writes for the ceremony: its backup, then its canary, the
+    // one activation artifact nothing else keeps (stored beside the backup
+    // before the installation checkpoint, so a creation the Router reads as
+    // ready can always be resumed from durable evidence), then its row.
+    let written: RouterAbProtocolResult<CloudflareTenantRootInitialCreationPersistenceOutcomeV1> =
+        async {
+            host.put_managed_backup(&managed_backup).await?;
+            let (TenantRootRoleCreationCompletionV1::RoleOnly {
+                provider_canary_receipt,
+            }
+            | TenantRootRoleCreationCompletionV1::Initiator {
+                provider_canary_receipt,
+                ..
+            }) = &completion;
+            host.put_provider_canary(
+                backup_coordinates,
+                provider_canary_receipt,
+                &role_signer.verifying_key_bytes(),
+            )
+            .await?;
+            store
+                .persist_initial_creation(*input, role_signer, now_ms, now_ms, now_ms)
+                .await
+                .map_err(|error| tenant_root_store_error_v1("tenant-root role persistence", error))
+        }
+        .await;
+    let committed = written.and_then(|outcome| match outcome {
+        CloudflareTenantRootInitialCreationPersistenceOutcomeV1::Committed { receipt_bytes } => {
+            Ok(receipt_bytes)
+        }
+        CloudflareTenantRootInitialCreationPersistenceOutcomeV1::InProgress => {
+            Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ReplayedLocalRequest,
+                "tenant-root role persistence is already in progress",
+            ))
+        }
+        CloudflareTenantRootInitialCreationPersistenceOutcomeV1::ReplayCompleted { .. } => {
+            Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ReplayedLocalRequest,
+                "tenant-root role persistence completed before this live attempt",
+            ))
+        }
+        CloudflareTenantRootInitialCreationPersistenceOutcomeV1::ReplayFailed { .. } => {
+            Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ReplayedLocalRequest,
+                "tenant-root role persistence previously failed",
+            ))
+        }
+    });
+    let receipt_bytes = match committed {
+        Ok(receipt_bytes) => receipt_bytes,
         Err(error) => {
-            // A command admitted before its window closed can reach here after
-            // the Router abandoned the ceremony and this role's cleanup ran:
-            // the tombstone refused the row, so the backup and canary written
-            // just above are removed too.
+            // An attempt that did not commit its own row may have written
+            // after the abandonment cleaned this role: an attempt admitted
+            // before the window closed, refused by the tombstone, or a
+            // concurrent duplicate that found another attempt's record. The
+            // tombstone says the lineage is abandoned, so this role's initial
+            // backup and canary go, whoever wrote them. Written before the
+            // tombstone, they are removed by the cleanup's own delete, which
+            // follows it.
             if store
                 .creation_tombstoned(binding.identity_digest(), binding.custody_lineage())
                 .await
@@ -5810,30 +5842,7 @@ async fn persist_tenant_root_creation_progress_v1<Host: TenantRootDeriverHostV1>
                     "tenant-root creation was abandoned while this role was writing; its backup and canary were removed",
                 ));
             }
-            return Err(tenant_root_store_error_v1("tenant-root role persistence", error));
-        }
-    };
-    let receipt_bytes = match persisted {
-        CloudflareTenantRootInitialCreationPersistenceOutcomeV1::Committed { receipt_bytes } => {
-            receipt_bytes
-        }
-        CloudflareTenantRootInitialCreationPersistenceOutcomeV1::InProgress => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ReplayedLocalRequest,
-                "tenant-root role persistence is already in progress",
-            ));
-        }
-        CloudflareTenantRootInitialCreationPersistenceOutcomeV1::ReplayCompleted { .. } => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ReplayedLocalRequest,
-                "tenant-root role persistence completed before this live attempt",
-            ));
-        }
-        CloudflareTenantRootInitialCreationPersistenceOutcomeV1::ReplayFailed { .. } => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ReplayedLocalRequest,
-                "tenant-root role persistence previously failed",
-            ));
+            return Err(error);
         }
     };
     let verified_package = verify_tenant_root_role_creation_package_v1(
@@ -6116,20 +6125,40 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_create_role_share_v1(
 }
 
 /// Requires the Router's creation state to hold an abandonment fence written at
-/// `issued_at_ms` that lists `role` as installed exactly when `recorded`, and
-/// returns the instant at which the fence's cleanup commands are judged.
+/// `issued_at_ms` for the ceremony `target` names, listing the role as
+/// installed exactly when the target is bound to installation evidence, and
+/// returns the instant at which the fence's cleanup commands are judged. The
+/// ceremony is read from the Router's issuer-signed journal.
 async fn require_router_abandonment_of_role_v1<Host: TenantRootDeriverHostV1>(
     host: &Host,
-    identity_digest: TenantRootIdentityDigestV1,
-    custody_lineage: TenantRootCustodyLineageId,
-    role: TwoPartyDeriverRole,
-    recorded: bool,
+    target: &TenantRootRoleCleanupTargetV1,
+    authority_id: TenantRootControlPlaneAuthorityIdV1,
+    trusted_issuer_keys: &std::collections::BTreeMap<String, [u8; 32]>,
     issued_at_ms: u64,
 ) -> RouterAbProtocolResult<u64> {
+    let (recorded, session_id, ceremony_nonce) = match target {
+        TenantRootRoleCleanupTargetV1::Pending {
+            session_id,
+            ceremony_nonce,
+            ..
+        } => (true, *session_id, *ceremony_nonce),
+        TenantRootRoleCleanupTargetV1::AbandonedCeremony {
+            session_id,
+            ceremony_nonce,
+            ..
+        } => (false, *session_id, *ceremony_nonce),
+        TenantRootRoleCleanupTargetV1::Retired { .. } => {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+                "a retired-share cleanup does not execute a creation abandonment",
+            ))
+        }
+    };
+    let role = target.role();
     let progress = crate::durable_object::tenant_root_creation::tenant_root_creation_progress_read_call_v1(
         host,
-        identity_digest,
-        custody_lineage,
+        target.identity_digest(),
+        target.custody_lineage(),
     )
     .await?;
     let crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationProgressV1::Started {
@@ -6142,6 +6171,22 @@ async fn require_router_abandonment_of_role_v1<Host: TenantRootDeriverHostV1>(
             "tenant-root pending cleanup names a creation the Router never started",
         ));
     };
+    let journal = crate::durable_object::tenant_root_creation::validate_creation_record(
+        crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationJournalRecordV1 {
+            journal_b64u: state.journal_b64u.clone(),
+            creation_capability_b64u: state.creation_capability_b64u.clone(),
+        },
+        authority_id,
+        trusted_issuer_keys,
+    )?;
+    if journal.ceremony_context.session_id() != session_id
+        || journal.ceremony_context.nonce() != ceremony_nonce
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root pending cleanup names another ceremony than the Router's",
+        ));
+    }
     match state.abandonment {
         Some(abandonment)
             if abandonment.abandoned_at_ms == issued_at_ms
@@ -6312,16 +6357,11 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
     } else {
         // An installed role is cleaned by evidence; a role the fence does not
         // list, by its ceremony.
-        let recorded = matches!(
-            authorization.target(),
-            TenantRootRoleCleanupTargetV1::Pending { .. }
-        );
         require_router_abandonment_of_role_v1(
             host,
-            claimed_identity_digest,
-            claimed_custody_lineage,
-            role,
-            recorded,
+            authorization.target(),
+            authority_id,
+            trusted_issuer_keys.keys(),
             authorization.issued_at_ms(),
         )
         .await?
