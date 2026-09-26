@@ -56,6 +56,8 @@ const deriverAWalletStatusPath = '/router-ab/deriver-a/ed25519-yao/read-pair-sta
 const deriverAWalletBurnPath = '/router-ab/deriver-a/ed25519-yao/burn-pair';
 const tenantRootCreationPath = '/router-ab/internal/tenant-root/creation/v1/create';
 const tenantRootCreationSweepPath = '/router-ab/internal/tenant-root/creation/v1/sweep-abandoned';
+const tenantRootRefreshPath = '/router-ab/internal/tenant-root/refresh/v1/execute';
+const creationStateActiveStatePath = '/router-ab/internal/tenant-root/creation/v1/active-state';
 const deriverCreateRoleSharePath =
   '/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share';
 const deriverInitialActivationPath = '/router-ab/internal/deriver/tenant-root/creation/v1/activate';
@@ -1982,6 +1984,16 @@ async function testTenantRootCreationRecoveryPaths(topology, databases) {
   assert.equal(JSON.parse(result.body).status.kind, 'ready');
   assert.deepEqual(await lifecycles(resumed), ['active', 'active']);
 
+  // A manual refresh of that root, through the Router's own bindings: the
+  // admission, attempt, checkpoints and activation all go through the
+  // Router's creation state.
+  const manualRefresh = await testTenantRootManualRefresh(
+    await topology.getWorker('router'),
+    resumed,
+    databases,
+    creationState,
+  );
+
   // Three short-lived ceremonies that the window closes on.
   const lifetimeMs = 20_000;
   const committed = recoveryCreationGrant('committed-then-expired', lifetimeMs);
@@ -2154,6 +2166,7 @@ async function testTenantRootCreationRecoveryPaths(topology, databases) {
       uncommittedReceiptRefused: [refusedInWindow.status, refusedAfterExpiry.status],
       abandonedAfterExpiry: true,
       commitRefusedAfterFence: commitAfterFence.status,
+      manualRefresh,
       lateWriteAfterCleanup: {
         fenceInstalledRoles: lateAbandonment.installed_roles,
         lateCreationStatus: late.status,
@@ -2169,6 +2182,81 @@ async function testTenantRootCreationRecoveryPaths(topology, databases) {
       },
     }),
   );
+}
+
+/// One manual refresh of an active root. Admission, attempt reservation, the
+/// commitment, contribution and installation checkpoints and the activation
+/// run in the Router's creation state. Both roles end on the next epoch with
+/// the previous one erased, an exact retry returns the recorded outcome, and a
+/// second operation inside the manual interval is throttled.
+async function testTenantRootManualRefresh(router, ceremony, databases, creationState) {
+  const scope = {
+    identity_digest_b64u: ceremony.identity_digest_b64u,
+    custody_lineage_b64u: ceremony.custody_lineage_b64u,
+  };
+  const activeState = async () => {
+    const read = await creationState(ceremony, creationStateActiveStatePath, {
+      kind: 'read',
+      ...scope,
+    });
+    assert.equal(read.status, 200, read.body);
+    return JSON.parse(read.body);
+  };
+  const epochs = async (database) =>
+    (
+      await database
+        .prepare(
+          `SELECT tenant_root_share_epoch AS epoch, lifecycle FROM tenant_root_role_shares
+           WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch`,
+        )
+        .bind(ceremony.custody_lineage_b64u)
+        .all()
+    ).results.map((row) => [row.epoch, row.lifecycle]);
+  const refresh = async (operationId, expectedRevision) => {
+    const response = await postWorkerJson(router, tenantRootRefreshPath, {
+      operation_id: operationId,
+      ...scope,
+      expected_lifecycle_revision: expectedRevision,
+      expires_at_ms: Date.now() + 60_000,
+      trigger: 'manual',
+    });
+    return { status: response.status, body: await response.text() };
+  };
+
+  const before = await activeState();
+  assert.equal(before.fence.kind, 'open', JSON.stringify(before.fence));
+  assert.deepEqual(await epochs(databases.deriverA), [[1, 'active']]);
+  assert.deepEqual(await epochs(databases.deriverB), [[1, 'active']]);
+
+  const refreshed = await refresh('harness-manual-refresh-1', before.lifecycle_revision);
+  assert.equal(refreshed.status, 200, refreshed.body);
+  const response = JSON.parse(refreshed.body);
+  assert.ok(response.lifecycle_revision > before.lifecycle_revision, refreshed.body);
+  assert.equal(response.retirement.kind, 'confirmed', refreshed.body);
+  assert.deepEqual(await epochs(databases.deriverA), [[2, 'active']], 'epoch 1 is erased');
+  assert.deepEqual(await epochs(databases.deriverB), [[2, 'active']], 'epoch 1 is erased');
+  const after = await activeState();
+  assert.equal(after.lifecycle_revision, response.lifecycle_revision);
+  assert.equal(after.fence.kind, 'terminal', JSON.stringify(after.fence));
+
+  const replayed = await refresh('harness-manual-refresh-1', before.lifecycle_revision);
+  assert.equal(replayed.status, 200, replayed.body);
+  const replay = JSON.parse(replayed.body);
+  assert.equal(replay.activation_receipt_digest_b64u, response.activation_receipt_digest_b64u);
+  assert.equal(replay.lifecycle_revision, response.lifecycle_revision);
+
+  const throttled = await refresh('harness-manual-refresh-2', response.lifecycle_revision);
+  assert.equal(throttled.status, 429, throttled.body);
+  assert.equal(JSON.parse(throttled.body).code, 'tenant_root_refresh_throttled');
+  assert.deepEqual(await epochs(databases.deriverA), [[2, 'active']]);
+
+  return {
+    revisions: [before.lifecycle_revision, response.lifecycle_revision],
+    retirement: response.retirement.kind,
+    epochsAfter: [2, 2],
+    exactRetryStatus: replayed.status,
+    secondOperationStatus: throttled.status,
+  };
 }
 
 async function testDeriverAWalletDoPreparation(topology, rootIdentity) {

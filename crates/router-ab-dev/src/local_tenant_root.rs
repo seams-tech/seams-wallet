@@ -624,6 +624,17 @@ impl TenantRootCreationStoreV1 for LocalCreationStateStoreV1<'_> {
             .map_err(|error| self.record(error))?;
         Ok(())
     }
+
+    async fn delete(&self, key: &str) -> RouterAbProtocolResult<()> {
+        self.transaction
+            .execute(
+                "DELETE FROM local_tenant_root_creation_state
+                 WHERE object_name = ?1 AND storage_key = ?2",
+                rusqlite::params![self.object_name, key],
+            )
+            .map_err(|error| self.record(error))?;
+        Ok(())
+    }
 }
 
 // ---------------------------------------------------------------------------
