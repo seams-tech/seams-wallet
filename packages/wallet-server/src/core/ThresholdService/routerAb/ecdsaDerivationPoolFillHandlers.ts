@@ -467,7 +467,7 @@ export class RouterAbEcdsaDerivationPoolFillHandlers {
       return {
         ok: false,
         code: 'invalid_pool_fill_expiry',
-        message: 'Presign initialization deadlines exceed live authorization',
+        message: `Presign initialization deadlines exceed live authorization (requested ceremony ${input.poolFill.ceremonyExpiresAtMs} material ${input.poolFill.materialExpiresAtMs}; authorized ceremony ${ceremonyExpiresAtMs} material ${materialExpiresAtMs})`,
       };
     }
     const presignSessionId = input.presignSessionId;

@@ -102,6 +102,7 @@ export function createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpoin
             application: request.applicationBinding,
             participant_ids: request.participantIds,
             target: {
+              operation: 'registration',
               binding: request.targetRequest.binding,
               deriver_a_input: request.targetRequest.deriver_a_input,
               deriver_b_input: request.targetRequest.deriver_b_input,
@@ -492,7 +493,10 @@ async function postRouterJsonRequestV1(
     }),
   );
   if (!response.ok) {
-    throw new Error(`${operation} failed with HTTP ${response.status}`);
+    // The Router answers a refusal with its protocol error text; keep it so
+    // the failure is classifiable without the Router's logs.
+    const reason = (await response.text().catch(() => '')).slice(0, 300);
+    throw new Error(`${operation} failed with HTTP ${response.status}: ${reason}`);
   }
   try {
     return await response.json();
