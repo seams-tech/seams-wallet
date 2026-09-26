@@ -94,7 +94,7 @@ impl TenantRootManagedBackupObjectCoordinatesV1 {
 /// by the signed artifact before this value is constructed. The object
 /// generation comes from R2's immutable object metadata.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TenantRootManagedBackupObjectMetadataV1 {
+pub struct TenantRootManagedBackupObjectMetadataV1 {
     object_key: String,
     canonical_digest: [u8; 32],
     object_generation: String,
@@ -102,7 +102,10 @@ pub(crate) struct TenantRootManagedBackupObjectMetadataV1 {
 }
 
 impl TenantRootManagedBackupObjectMetadataV1 {
-    fn new(
+    /// Metadata for one stored object. `object_generation` names the exact
+    /// write: a replay of the same object keeps it, and deleting the object
+    /// and writing it again yields a different one.
+    pub fn new(
         object_key: String,
         canonical_digest: [u8; 32],
         object_generation: String,
@@ -125,19 +128,19 @@ impl TenantRootManagedBackupObjectMetadataV1 {
         })
     }
 
-    pub(crate) fn object_key(&self) -> &str {
+    pub fn object_key(&self) -> &str {
         &self.object_key
     }
 
-    pub(crate) const fn canonical_digest(&self) -> &[u8; 32] {
+    pub const fn canonical_digest(&self) -> &[u8; 32] {
         &self.canonical_digest
     }
 
-    pub(crate) fn object_generation(&self) -> &str {
+    pub fn object_generation(&self) -> &str {
         &self.object_generation
     }
 
-    pub(crate) fn wrapping_key_generation_ref(&self) -> &str {
+    pub fn wrapping_key_generation_ref(&self) -> &str {
         &self.wrapping_key_generation_ref
     }
 }

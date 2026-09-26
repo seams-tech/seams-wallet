@@ -183,6 +183,7 @@ pub const LOCAL_ROUTER_CREATION_STATE_MIGRATIONS_V1: &[LocalSqliteMigrationV1] =
 /// A VM Deriver's managed-backup schema.
 pub const LOCAL_MANAGED_BACKUP_MIGRATIONS_V1: &[LocalSqliteMigrationV1] = &[
     ("0001_managed_backups.sql", include_str!("../migrations/local-managed-backups/0001_managed_backups.sql")),
+    ("0002_object_generations.sql", include_str!("../migrations/local-managed-backups/0002_object_generations.sql")),
 ];
 
 /// Applied, pending and unknown migrations for one SQLite file.

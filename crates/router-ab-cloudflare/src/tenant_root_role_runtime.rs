@@ -1347,13 +1347,14 @@ pub trait TenantRootDeriverHostV1:
     fn env(&self) -> &Self::Env;
     /// Opens the role's private role-share store for one operation.
     fn role_store(&self) -> RoleStoreResult<TenantRootRoleShareStoreV1<Self::Sql>>;
-    /// Stores one verified managed backup at its coordinates. A replay of the
-    /// identical artifact succeeds; different bytes at the same coordinates
-    /// are refused.
+    /// Stores one verified managed backup at its coordinates and returns the
+    /// stored object's metadata. A replay of the identical artifact succeeds
+    /// with the metadata of the original write; different bytes at the same
+    /// coordinates are refused.
     async fn put_managed_backup(
         &self,
         backup: &VerifiedTenantRootManagedBackupV1,
-    ) -> RouterAbProtocolResult<()>;
+    ) -> RouterAbProtocolResult<crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectMetadataV1>;
     /// Loads the managed backup at its coordinates and verifies it against the
     /// role's trusted verifying key.
     async fn get_managed_backup(
@@ -1361,6 +1362,13 @@ pub trait TenantRootDeriverHostV1:
         coordinates: crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1,
         trusted_role_verifying_key: &[u8; 32],
     ) -> RouterAbProtocolResult<VerifiedTenantRootManagedBackupV1>;
+    /// Loads and verifies the managed backup at its coordinates, with the
+    /// metadata of the stored object.
+    async fn get_managed_backup_with_metadata(
+        &self,
+        coordinates: crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1,
+        trusted_role_verifying_key: &[u8; 32],
+    ) -> RouterAbProtocolResult<(VerifiedTenantRootManagedBackupV1, crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectMetadataV1)>;
     /// Deletes the managed backup and provider canary at these coordinates and
     /// proves both are absent afterwards.
     async fn delete_managed_backup(
@@ -1376,7 +1384,7 @@ pub trait TenantRootDeriverHostV1:
         coordinates: crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1,
         canary_bytes: &[u8],
         trusted_role_verifying_key: &[u8; 32],
-    ) -> RouterAbProtocolResult<()>;
+    ) -> RouterAbProtocolResult<crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectMetadataV1>;
     /// Loads the provider-canary receipt at these coordinates, verified against
     /// the role's key, as its exact canonical bytes.
     async fn get_provider_canary(
@@ -1384,6 +1392,15 @@ pub trait TenantRootDeriverHostV1:
         coordinates: crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1,
         trusted_role_verifying_key: &[u8; 32],
     ) -> RouterAbProtocolResult<Vec<u8>>;
+    /// Loads the provider-canary receipt at these coordinates, verified against
+    /// the expected binding and the role's key, with the stored object's
+    /// metadata.
+    async fn get_provider_canary_with_metadata(
+        &self,
+        coordinates: crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1,
+        expected_binding: &router_ab_core::TenantRootProviderCanaryReceiptBindingV1,
+        trusted_role_verifying_key: &[u8; 32],
+    ) -> RouterAbProtocolResult<(router_ab_core::VerifiedTenantRootProviderCanaryReceiptV1, crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectMetadataV1)>;
 }
 
 /// Loads the authenticated Deriver's active tenant-root role share.
@@ -1570,12 +1587,23 @@ impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
     async fn put_managed_backup(
         &self,
         backup: &VerifiedTenantRootManagedBackupV1,
-    ) -> RouterAbProtocolResult<()> {
+    ) -> RouterAbProtocolResult<crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectMetadataV1> {
         self.backup_store()?
             .put_verified(backup)
             .await
-            .map(|_| ())
+            .map(|outcome| outcome.metadata().clone())
             .map_err(|error| tenant_root_store_error_v1("tenant-root backup persistence", error))
+    }
+
+    async fn get_managed_backup_with_metadata(
+        &self,
+        coordinates: crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1,
+        trusted_role_verifying_key: &[u8; 32],
+    ) -> RouterAbProtocolResult<(VerifiedTenantRootManagedBackupV1, crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectMetadataV1)> {
+        self.backup_store()?
+            .get_verified_with_metadata(coordinates, trusted_role_verifying_key)
+            .await
+            .map_err(|error| tenant_root_store_error_v1("tenant-root backup lookup", error))
     }
 
     async fn get_managed_backup(
@@ -1604,7 +1632,7 @@ impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
         coordinates: crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1,
         canary_bytes: &[u8],
         trusted_role_verifying_key: &[u8; 32],
-    ) -> RouterAbProtocolResult<()> {
+    ) -> RouterAbProtocolResult<crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectMetadataV1> {
         let signed = TenantRootSignedProviderCanaryReceiptV1::decode_canonical_bytes(canary_bytes)
             .map_err(candidate_derivation_error)?;
         self.backup_store()?
@@ -1615,10 +1643,10 @@ impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
                 trusted_role_verifying_key,
             )
             .await
+            .map(|outcome| outcome.metadata().clone())
             .map_err(|error| {
                 tenant_root_store_error_v1("tenant-root provider canary persistence", error)
-            })?;
-        Ok(())
+            })
     }
 
     async fn get_provider_canary(
@@ -1638,6 +1666,22 @@ impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
         )
         .map_err(|error| RouterAbProtocolError::new(RouterAbProtocolErrorCode::ForbiddenLocalBinding, error))?;
         Ok(bytes)
+    }
+
+    async fn get_provider_canary_with_metadata(
+        &self,
+        coordinates: crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1,
+        expected_binding: &router_ab_core::TenantRootProviderCanaryReceiptBindingV1,
+        trusted_role_verifying_key: &[u8; 32],
+    ) -> RouterAbProtocolResult<(router_ab_core::VerifiedTenantRootProviderCanaryReceiptV1, crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectMetadataV1)> {
+        self.backup_store()?
+            .get_verified_provider_canary_with_metadata(
+                coordinates,
+                expected_binding,
+                trusted_role_verifying_key,
+            )
+            .await
+            .map_err(|error| tenant_root_store_error_v1("tenant-root provider canary lookup", error))
     }
 }
 

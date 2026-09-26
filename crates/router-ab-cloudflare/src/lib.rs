@@ -125,7 +125,7 @@ pub use tenant_root_managed_backup_r2::{
     verify_tenant_root_managed_backup_object_v1, verify_tenant_root_provider_canary_object_v1,
     CloudflareTenantRootManagedBackupDeletionReceiptV1,
     CloudflareTenantRootManagedBackupObjectDeletionStatusV1,
-    TenantRootManagedBackupObjectCoordinatesV1,
+    TenantRootManagedBackupObjectCoordinatesV1, TenantRootManagedBackupObjectMetadataV1,
 };
 pub use tenant_root_role_runtime::{
     tenant_root_deriver_cleanup_v1, tenant_root_deriver_create_role_share_v1,
