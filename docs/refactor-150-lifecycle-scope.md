@@ -28,19 +28,21 @@ them to be extended to the VM.
   Specifies share refresh, availability backup, a tenant recovery package with
   restore to a new deployment, and moving an active deployment.
 
-Missing input: Phase 0 asks for the supported wallet/protocol configurations to
-be recorded. No such record exists yet, so which lifecycle operations count as
-"enabled in the release" is still a product decision. The table below assumes
-Spec 6's refresh, availability restore and recovery-package restore are
-enabled, because the Cloudflare path serves them today.
+Phase 0 input: the [inventory of enabled operations](./refactor-150-supported-operations.md)
+records what this repository enables today and lists the decisions still
+needed. For example, scheduled refresh and availability restore have no
+surface in this repository. The table below treats Spec 6's refresh,
+availability restore and recovery-package restore as enabled, because the
+Cloudflare path serves them. Excluding any of them requires an explicit
+decision.
 
 ## Items
 
 | Item | Why it is R150 work | Cloudflare today | VM today | Gate |
 | --- | --- | --- | --- | --- |
 | **Creation and its recovery** | Enabled lifecycle; shared contracts | Implemented: resume, commit-first delivery, abandonment, ceremony-bound cleanup, operator sweep | Same code, same E2Es | Done. Automatic sweeping is a separate decision |
-| **Share refresh** (manual and scheduled) | Spec 6 refreshing shares; enabled lifecycle; shared contracts | Served, but a stop between the Deriver swaps and the Router's commit cannot be repaired | Not served. The Router refresh state now runs over the host-neutral store | [Commit-first proposal](./refactor-150-refresh-commit-first.md), then the VM adapter |
-| **Retiring and erasing old shares after refresh** | Spec 6: erase only when completion conditions allow; in-progress work keeps its version; one-use and retry safety | Erased immediately after activation, which does not meet Spec 6 | Nothing is erased | [Drain proposal](./refactor-150-root-retirement-admission.md), to be revised. Until approved, report retirement pending and keep erasure release-gated on both hosts |
+| **Share refresh** (manual and scheduled) | Spec 6 refreshing shares; enabled lifecycle; shared contracts | Commit-first, with roll-forward delivery. The lost-delivery fault is reproduced and fixed in a Workers E2E | Not served. The Router refresh state runs over the host-neutral store | [Commit-first](./refactor-150-refresh-commit-first.md): refresh abandonment, delivery status and the delayed-retry E2E remain, then the VM adapter |
+| **Retiring and erasing old shares after refresh** | Spec 6: erase only when completion conditions allow; in-progress work keeps its version; one-use and retry safety | Retired shares and backups are kept; retirement reported `pending` | Nothing is erased | [Drain proposal](./refactor-150-root-retirement-admission.md), revised 2026-09-26 for review. Erasure stays release-gated on both hosts until then |
 | **Availability restore** (one role from its managed backup, then a forward refresh) | Spec 6 availability backup; runbooks for object failure and recovery | Served, with a Workers E2E | Not served. VM backups are HPKE-only | After refresh reaches the VM; it reuses the refresh machinery |
 | **Recovery package and restore to a new deployment** (dormant, then operator activation) | Spec 6 restoring to a new deployment; recovery runbook | Served; no E2E | Not served | After availability restore. Largest slice |
 | **Linked-device and step-up signing** | Preserve signing for each enabled configuration | Served | Fails closed | Needed on the VM only if the release enables them. Independent of tenant-root lifecycle |

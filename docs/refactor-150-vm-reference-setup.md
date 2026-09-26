@@ -117,7 +117,15 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
 
 ## Not served on the VM
 
-- Tenant-root refresh, managed restore, source retirement and cutover.
+See the [Phase 0 inventory](./refactor-150-supported-operations.md) for each
+operation, its contracts and what is needed.
+
+- Every ECDSA operation: registration, Tempo and EVM signing, the presignature
+  pool, and export. The VM Router serves only NEAR normal signing, Yao
+  execute and recovery promote.
+- Device linking.
+- Tenant-root status, refresh, managed restore, recovery-package backup and
+  restore, source retirement and cutover.
 - Linked-device and step-up signing.
 - Google Cloud KMS managed backup (HPKE only).
 - Router and SigningWorker prewarm, which keeps Worker isolates warm and has no
