@@ -1009,11 +1009,13 @@ fn vm_tenant_root_creation_is_authorized_replayable_and_role_isolated(
     Ok(())
 }
 
-/// A creation that stops with only Deriver B installed is cleaned through the
-/// shared ceremony: the control plane names B's pending row, the Router
-/// verifies that command, B removes its row and managed backup, and the Router
-/// checkpoints B's terminal receipt. The grant is then spent; a fresh grant
-/// creates the root.
+/// A creation that stops with only Deriver B installed is not cancelled by a
+/// retry inside its ceremony window, since the other role's command may still
+/// be running. A retry after the window abandons it through the shared
+/// ceremony: the Router fences the creation, the control plane names B's
+/// pending row, the Router verifies that command, B removes its row, managed
+/// backup and canary, and the Router checkpoints B's terminal receipt. The
+/// grant is then spent; a fresh grant creates the root.
 #[test]
 fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -1090,7 +1092,10 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
     )?;
     let identity = product_tenant_root_identity()?;
     let lineage = TenantRootCustodyLineageId::from_bytes(fresh_nonzero_bytes_16()?)?;
-    let grant = product_creation_grant_b64u(&temp, &identity, lineage, None)?;
+    let lifetime_ms = 6_000;
+    let signed_at = Instant::now();
+    let grant =
+        product_creation_grant_with_lifetime_b64u(&temp, &identity, lineage, None, lifetime_ms)?;
     let (failed_status, failed_body) =
         create_tenant_root(&router_url, &grant, TEST_ROLE_SHARED_SERVICE_AUTH)?;
     assert_ne!(failed_status, 200, "{failed_body}");
@@ -1113,12 +1118,33 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
         "ALTER TABLE held_aside_managed_backups RENAME TO local_tenant_root_managed_backups",
     )?;
 
-    // Retrying the grant cleans the partial creation instead of resuming it.
+    // Inside the window a retry cancels nothing.
+    let (open_status, open_body) =
+        create_tenant_root(&router_url, &grant, TEST_ROLE_SHARED_SERVICE_AUTH)?;
+    assert_ne!(open_status, 200, "{open_body}");
+    assert!(
+        open_body.contains("retry after its ceremony window closes to abandon it"),
+        "{open_body}"
+    );
+    assert_eq!(
+        share_rows(&b_store)?,
+        vec![("deriver_b".to_owned(), "pending".to_owned())],
+        "an ordinary retry inside the window keeps B's share"
+    );
+    assert_eq!(abandonment_fences()?, 0, "nothing is fenced inside the window");
+
+    // The grant was issued a second before signing, so its window closes
+    // `lifetime_ms - 1_000` after it; wait a second beyond that.
+    if let Some(remaining) = Duration::from_millis(lifetime_ms).checked_sub(signed_at.elapsed()) {
+        thread::sleep(remaining);
+    }
+    // After the window a retry abandons the partial creation instead of
+    // resuming it.
     let (cleaned_status, cleaned_body) =
         create_tenant_root(&router_url, &grant, TEST_ROLE_SHARED_SERVICE_AUTH)?;
     assert_ne!(cleaned_status, 200, "{cleaned_body}");
     assert!(
-        cleaned_body.contains("partial creation was cleaned; a fresh grant is required"),
+        cleaned_body.contains("expired before activation and was abandoned; a fresh grant is required"),
         "{cleaned_body}"
     );
     assert_eq!(share_rows(&b_store)?, Vec::new(), "B's pending share is removed");
@@ -1181,6 +1207,7 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
             "fault": "deriver_a_managed_backup_store_unavailable",
             "failed_attempt_status": failed_status,
             "installed_before_cleanup": ["deriver_b"],
+            "retry_inside_window_status": open_status,
             "cleanup_retry_status": cleaned_status,
             "deriver_b_rows_after_cleanup": 0,
             "deriver_b_backups_after_cleanup": 0,

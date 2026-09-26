@@ -14784,10 +14784,9 @@ async fn read_creation_abandonment_v1<Store: TenantRootCreationStoreV1>(
 }
 
 /// Abandons one creation that the Router has not committed, writing the fence
-/// that stops it from advancing. A creation with one role installed may be
-/// abandoned at any time; one with no role or both roles installed only once
-/// its ceremony window has closed, because inside the window it can still
-/// finish or resume. A committed creation is never abandoned.
+/// that stops it from advancing. Only once its ceremony window has closed:
+/// inside the window it may still finish or resume, and an ordinary retry
+/// must not cancel it. A committed creation is never abandoned.
 pub async fn tenant_root_creation_persist_abandonment_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
@@ -14835,7 +14834,7 @@ pub async fn tenant_root_creation_persist_abandonment_v1<Store: TenantRootCreati
             ]
         }
     };
-    if installed_roles.len() != 1 && now_ms <= journal.ceremony_context.expires_at_ms() {
+    if now_ms <= journal.ceremony_context.expires_at_ms() {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLifecycleState,
             "tenant-root creation ceremony is still open; it resumes instead of being abandoned",

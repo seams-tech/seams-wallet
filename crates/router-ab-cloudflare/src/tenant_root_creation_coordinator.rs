@@ -91,11 +91,11 @@ pub async fn tenant_root_router_coordinate_creation_v1<Host: TenantRootRouterCre
             ));
         }
         CloudflareTenantRootCreationStatusV1::OneRoleInstalled { .. } => {
-            let (identity_digest, custody_lineage) = genesis_scope_v1(&genesis)?;
-            abandon_tenant_root_creation_v1(host, identity_digest, custody_lineage).await?;
+            // The other role's command may still be running. A retry after the
+            // window closes abandons and cleans the creation.
             return Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLifecycleState,
-                "tenant-root partial creation was cleaned; a fresh grant is required",
+                "tenant-root creation stopped with one role installed; retry after its ceremony window closes to abandon it",
             ));
         }
         CloudflareTenantRootCreationStatusV1::Pending => {}

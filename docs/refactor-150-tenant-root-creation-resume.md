@@ -100,9 +100,8 @@ and nothing it abandons is active.
 
 - **The fence decides.** `tenant_root_creation_persist_abandonment_v1` writes
   `creation/v1/abandonment` in the Router's creation state, recording the
-  installed roles. It refuses a committed creation. It also refuses, while
-  the window is open, a creation with no role or both roles installed, which
-  can still finish or resume. Once the fence exists, the initial-activation
+  installed roles. It refuses a committed creation, and any creation whose
+  window is still open. Once the fence exists, the initial-activation
   commit, the commitment rendezvous and the installation checkpoint all
   refuse (`require_creation_not_abandoned_v1`). The fence and those writes
   live in one creation object, each in one storage transaction, so
@@ -111,10 +110,10 @@ and nothing it abandons is active.
   each installed role that is not yet cleaned: the control plane issues that
   role's cleanup command only for a fenced creation, the Deriver removes its
   pending row, managed backup and canary, and the Router checkpoints the
-  Deriver's receipt under a per-role key. The one-role cleanup inside the
-  window now runs behind the same fence. That closes a race in the previous
-  order, where a role's row could be deleted before the checkpoint while the
-  other role's installation landed.
+  Deriver's receipt under a per-role key. One-role cleanup now also runs
+  behind the fence, and only after the window. That closes a race in the
+  previous order, where a role's row could be deleted before the checkpoint
+  while the other role's installation landed.
 - **Entry without the control plane.** The coordinator reads its own
   progress first. When the creation is uncommitted and either already fenced
   or past its window (the progress read reports `ceremony_open` by the
@@ -164,15 +163,16 @@ grant for the abandoned identity reaches ready.
   another retry's progress read and its fence request, the fence is refused.
   That retry now re-reads the progress and delivers the commit instead of
   failing.
-- **Open: a concurrent retry can abandon an in-flight creation.** Inside the
-  window, a creation with one role installed is abandoned on retry, as it
-  was before the fence. If the first coordinator is still running, the retry
-  fences the creation, safety holds (no activation passes the fence), but the
-  in-flight ceremony fails and its second role's row may be written after the
-  fence, unrecorded. Recommendation: abandon one-role creations only after
-  the window too. After expiry no Deriver accepts a role command, so the
-  fence records every installed role. The retry would instead report that
-  the ceremony is still open. Awaiting decision.
+- **Abandonment only after the window (decided 2026-09-26).** An ordinary
+  retry must not cancel a creation that may still be running, so the fence
+  is refused inside the window for every installation state. A retry that
+  finds one role installed inside the window reports that the creation can
+  be abandoned once its window closes. Expiry stops new admission, but it
+  does not stop a command admitted before it: that command can still write
+  its row, backup and canary after the fence. The fence's installed roles are
+  therefore not a complete list of what a role may hold, and cleanup must
+  cover those late writes as well as crashes before installation
+  checkpointing (below).
 
 
 
