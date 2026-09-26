@@ -65,6 +65,7 @@ use router_ab_cloudflare::{
     CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_STEP_PATH,
     CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
     CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH,
+    SIGNING_WORKER_ECDSA_EFFECT_IN_PROGRESS_V1,
 };
 use router_ab_core::{
     LocalServiceRoleV1, RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
@@ -670,7 +671,7 @@ fn finalize_at_signing_worker(
         CloudflareSigningWorkerEcdsaClaimAndConsumeV1::InProgress => {
             return Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::ReplayedLocalRequest,
-                "SigningWorker ECDSA effect is already in progress",
+                SIGNING_WORKER_ECDSA_EFFECT_IN_PROGRESS_V1,
             ));
         }
         CloudflareSigningWorkerEcdsaClaimAndConsumeV1::Burned => {

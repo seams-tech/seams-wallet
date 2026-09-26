@@ -144,8 +144,16 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
   writes `.artifacts/r150/gateway-ecdsa-finalize-lost-response-vm.json`: after
   a finalize response is lost, the exact retry returns the same signature, and
   the SigningWorker has recorded one signing effect, so one presignature was
-  consumed. The Gateway answers the retry from its own operation record; the
-  SigningWorker's replay of a claimed effect is not reached by this test.
+  consumed. The Gateway answers that retry from its own operation record.
+- `exact finalize retry at the Router returns the SigningWorker stored
+  signature` writes `.artifacts/r150/router-ecdsa-finalize-exact-retry-vm.json`.
+  The local Gateway loses the Router's finalize response after the
+  SigningWorker has signed, and sends the identical request again before it
+  records anything. The SigningWorker answers from the effect it already
+  claimed: the same signature, and still one effect.
+- A SigningWorker refusal of an effect another attempt has claimed and not
+  finished reaches the Gateway as HTTP 409 `ReplayedLocalRequest`, on both
+  hosts, so the Gateway keeps the operation in progress for a retry.
 - VM route errors answer 400, except `LifecycleTransitionInProgress`, which
   answers 503 as on Cloudflare so the Gateway retries it.
 - The VM Router runs creation-state operations one at a time in process, as a

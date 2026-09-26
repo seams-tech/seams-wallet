@@ -1850,11 +1850,13 @@ async function testEcdsaNormalSigning(
         'RouterAbSigningWorkerWalletDurableObject',
         { id: objectIds[0] },
       );
+      // The Router keeps the SigningWorker's refusal as a retryable 409,
+      // which the Gateway treats as an operation still in progress.
       const retry = await postWorkerJson(router, ecdsaSigningPath, finalizeRequest);
       const retryBody = await retry.text();
-      assert.equal(retry.status, 500, `interrupted retry response: ${retryBody}`);
-      assert.match(retryBody, /returned HTTP status 409/);
-      assert.match(retryBody, /effect is already in progress/);
+      assert.equal(retry.status, 409, `interrupted retry response: ${retryBody}`);
+      assert.match(retryBody, /^ReplayedLocalRequest: /);
+      assert.match(retryBody, /SigningWorker ECDSA effect is already in progress/);
       const signingWorker = await topology.getWorker('fixture-signing-worker');
       const consumedPrepare = await postWorkerJson(
         signingWorker,

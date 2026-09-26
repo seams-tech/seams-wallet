@@ -21,6 +21,16 @@ import {
   requestWithoutLocalIntendedYaoFaultHeadersV1,
   responseWithLocalIntendedYaoFaultOutcomeV1,
 } from './localIntendedYaoFault';
+import {
+  LOCAL_INTENDED_ECDSA_FINALIZE_FAULT_HEADER_V1,
+  LOCAL_INTENDED_ECDSA_FINALIZE_FAULT_TOKEN_HEADER_V1,
+  LocalIntendedEcdsaFinalizeFaultControllerV1,
+  ROUTER_AB_ECDSA_FINALIZE_PATH_V1,
+  parseLocalIntendedEcdsaFinalizeFaultModeV1,
+  parseLocalIntendedEcdsaFinalizeFaultTokenV1,
+  requestWithoutLocalIntendedEcdsaFinalizeFaultHeadersV1,
+  responseWithLocalIntendedEcdsaFinalizeFaultOutcomeV1,
+} from './localIntendedEcdsaFinalizeFault';
 
 export type LocalHostedWalletGatewayEnv = CloudflareD1GatewayBaseEnv & {
   readonly WALLET_LOCAL_DEPLOYMENT_JSON: string;
@@ -177,6 +187,20 @@ export async function handleLocalHostedWalletGatewayRequestV1(
       config.deployment.environmentId,
     );
   }
+  const ecdsaFinalizeMode = request.headers.get(LOCAL_INTENDED_ECDSA_FINALIZE_FAULT_HEADER_V1);
+  const ecdsaFinalizeToken = request.headers.get(
+    LOCAL_INTENDED_ECDSA_FINALIZE_FAULT_TOKEN_HEADER_V1,
+  );
+  if (ecdsaFinalizeMode !== null || ecdsaFinalizeToken !== null) {
+    return await handleEcdsaFinalizeFault(
+      request,
+      gatewayEnv,
+      ctx,
+      dependencies,
+      ecdsaFinalizeMode,
+      ecdsaFinalizeToken,
+    );
+  }
   const rawMode = request.headers.get(LOCAL_INTENDED_YAO_FAULT_HEADER_V1);
   const rawToken = request.headers.get(LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1);
   const sanitizedRequest = requestWithoutLocalIntendedYaoFaultHeadersV1(request);
@@ -210,4 +234,46 @@ export async function handleLocalHostedWalletGatewayRequestV1(
     dependencies,
   );
   return responseWithLocalIntendedYaoFaultOutcomeV1(response, controller.consumeOutcome(), token);
+}
+
+/**
+ * Loses the Router's response to one admitted ECDSA finalize and sends the
+ * identical request again, inside this Gateway request and before the Gateway
+ * records any outcome. Local only.
+ */
+async function handleEcdsaFinalizeFault(
+  request: Request,
+  env: CloudflareD1GatewayEnv,
+  ctx: CfExecutionContext,
+  dependencies: HostedWalletGatewayDependenciesV1 | undefined,
+  rawMode: string | null,
+  rawToken: string | null,
+): Promise<Response> {
+  const mode = parseLocalIntendedEcdsaFinalizeFaultModeV1(rawMode);
+  const token = parseLocalIntendedEcdsaFinalizeFaultTokenV1(rawToken);
+  const url = new URL(request.url);
+  if (
+    url.protocol !== 'http:' ||
+    url.hostname !== '127.0.0.1' ||
+    url.pathname !== ROUTER_AB_ECDSA_FINALIZE_PATH_V1 ||
+    request.method !== 'POST' ||
+    !mode ||
+    !token
+  ) {
+    return Response.json({ code: 'invalid_intended_ecdsa_finalize_fault' }, { status: 400 });
+  }
+  const controller = new LocalIntendedEcdsaFinalizeFaultControllerV1(
+    env.MPC_ROUTER.fetch.bind(env.MPC_ROUTER),
+  );
+  const response = await handleSplitGatewayRequest(
+    requestWithoutLocalIntendedEcdsaFinalizeFaultHeadersV1(request),
+    { ...env, MPC_ROUTER: controller },
+    ctx,
+    dependencies,
+  );
+  return responseWithLocalIntendedEcdsaFinalizeFaultOutcomeV1(
+    response,
+    controller.consumeOutcome(),
+    token,
+  );
 }

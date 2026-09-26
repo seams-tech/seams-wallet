@@ -2,6 +2,7 @@ import { expect, type Request, type Response, type Route } from '@playwright/tes
 import { intendedTest as test } from './harness';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
+import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -509,6 +510,84 @@ test('admitted ECDSA finalize lost_response retry returns the stored signature',
     signingWorkerTerminalMatchesRetry: effectsAfterRetry ? true : null,
   };
   const artifactName = `gateway-ecdsa-finalize-lost-response-${evidence.host}.json`;
+  const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
+  await mkdir(path.dirname(artifactPath), { recursive: true });
+  await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');
+  await testInfo.attach(artifactName, {
+    body: JSON.stringify(evidence, null, 2),
+    contentType: 'application/json',
+  });
+});
+
+const ECDSA_FINALIZE_FAULT_HEADER = 'x-seams-intended-ecdsa-finalize-fault-v1';
+const ECDSA_FINALIZE_FAULT_TOKEN_HEADER = 'x-seams-intended-ecdsa-finalize-fault-token-v1';
+const ECDSA_FINALIZE_FAULT_PROOF_HEADER = 'x-seams-intended-ecdsa-finalize-fault-proof-v1';
+
+class RouterFinalizeRetry {
+  readonly token = randomUUID();
+  proof: string | null = null;
+  body: string | null = null;
+
+  /** Arms the local Gateway to lose the Router's first finalize response. */
+  async armFirstFinalize(route: Route): Promise<void> {
+    if (this.body !== null) {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch({
+      headers: {
+        ...route.request().headers(),
+        [ECDSA_FINALIZE_FAULT_HEADER]: 'drop_router_response_once',
+        [ECDSA_FINALIZE_FAULT_TOKEN_HEADER]: this.token,
+      },
+    });
+    this.proof = response.headers()[ECDSA_FINALIZE_FAULT_PROOF_HEADER] ?? null;
+    this.body = await response.text();
+    await route.fulfill({ response });
+  }
+}
+
+test('exact finalize retry at the Router returns the SigningWorker stored signature', async ({
+  harness,
+  context,
+}, testInfo) => {
+  const finalizePath = '**/router-ab/ecdsa-derivation/sign';
+  const retry = new RouterFinalizeRetry();
+  const arm = retry.armFirstFinalize.bind(retry);
+  await context.route(finalizePath, arm);
+  try {
+    await harness.registerPasskeyWallet();
+    await harness.signTempoTransaction('post_registration');
+  } finally {
+    await context.unroute(finalizePath, arm);
+  }
+  // The Router's first response was lost after the SigningWorker signed. The
+  // identical retry reached the SigningWorker before the Gateway recorded
+  // anything, and returned the same signature.
+  expect(retry.proof).toBe(`${retry.token}:stored_signature_replayed`);
+  if (retry.body === null) throw new Error('The finalize request was never admitted');
+  const signature: unknown = JSON.parse(retry.body);
+  if (!isPlainObject(signature) || !isPlainObject(signature.scope)) {
+    throw new Error('Expected an ECDSA signing response');
+  }
+  const walletId = signature.scope.wallet_id;
+  if (typeof walletId !== 'string') throw new Error('ECDSA signing response omitted its wallet');
+  // On the VM, the SigningWorker holds one effect for this signing: the retry
+  // was answered from it and consumed no second presignature.
+  const effects = await vmSigningWorkerEffects(walletId);
+  if (effects) {
+    expect(effects).toHaveLength(1);
+    expect(effects[0]?.terminal).toEqual(signature);
+  }
+
+  const evidence = {
+    kind: 'router_ecdsa_finalize_exact_retry_v1',
+    host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
+    gatewayProof: 'stored_signature_replayed',
+    signingWorkerEffects: effects?.length ?? null,
+    signingWorkerTerminalMatchesSignature: effects ? true : null,
+  };
+  const artifactName = `router-ecdsa-finalize-exact-retry-${evidence.host}.json`;
   const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
   await mkdir(path.dirname(artifactPath), { recursive: true });
   await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');

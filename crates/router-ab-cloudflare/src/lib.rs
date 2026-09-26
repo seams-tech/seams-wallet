@@ -13079,7 +13079,7 @@ where
         Ok(CloudflareSigningWorkerEcdsaClaimAndConsumeV1::InProgress) => {
             let error = RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::ReplayedLocalRequest,
-                "SigningWorker ECDSA effect is already in progress",
+                SIGNING_WORKER_ECDSA_EFFECT_IN_PROGRESS_V1,
             );
             return worker::Response::error(
                 format!("{:?}: {}", error.code(), error.message()),
@@ -15739,10 +15739,23 @@ pub fn router_ab_peer_error_code_v1(peer_body: &str) -> RouterAbProtocolErrorCod
     // relays a failure prefixes its own context.
     if peer_body.contains("LifecycleTransitionInProgress:") {
         RouterAbProtocolErrorCode::LifecycleTransitionInProgress
+    } else if peer_body.contains(SIGNING_WORKER_ECDSA_EFFECT_IN_PROGRESS_V1)
+        && peer_body.contains("ReplayedLocalRequest:")
+    {
+        // Another attempt claimed this signing effect and has not finished.
+        // The operation is still in progress, so its caller may retry it and
+        // receive the stored outcome once that attempt completes.
+        RouterAbProtocolErrorCode::ReplayedLocalRequest
     } else {
         RouterAbProtocolErrorCode::InvalidLocalServiceConfig
     }
 }
+
+/// The SigningWorker's refusal of a signing effect that another attempt has
+/// claimed and not yet finished. The Gateway recognizes it, with HTTP 409, as
+/// an operation still in progress.
+pub const SIGNING_WORKER_ECDSA_EFFECT_IN_PROGRESS_V1: &str =
+    "SigningWorker ECDSA effect is already in progress";
 
 /// The HTTP status a Router A/B role returns for one protocol error code.
 pub fn cloudflare_router_error_status(code: RouterAbProtocolErrorCode) -> u16 {
