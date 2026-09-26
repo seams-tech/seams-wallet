@@ -1350,7 +1350,7 @@ pub(crate) struct CloudflareTenantRootRefreshPendingV1 {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum CloudflareTenantRootRefreshTriggerV1 {
+pub enum CloudflareTenantRootRefreshTriggerV1 {
     Manual,
     Scheduled,
 }
@@ -3325,20 +3325,6 @@ pub async fn tenant_root_refresh_activation_call_v1(
     Ok(response)
 }
 
-/// Sends a verified refresh-swap activation receipt to the Router-owned
-/// creation object after both role-private swaps have committed.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_activation_call_v1(
-    env: &worker::Env,
-    receipt_bytes: &[u8],
-) -> RouterAbProtocolResult<CloudflareTenantRootRefreshActivationResponseV1> {
-    tenant_root_refresh_activation_call_v1(
-        &CloudflareTenantRootCreationStateTransportV1::new(env),
-        receipt_bytes,
-    )
-    .await
-}
-
 /// Issuer-verified active public state read from the Router-owned object.
 pub struct CloudflareVerifiedTenantRootActiveStateV1 {
     pub(crate) activation_receipt: router_ab_core::VerifiedTenantRootSignedActivationReceiptV1,
@@ -3626,29 +3612,6 @@ pub async fn tenant_root_refresh_admission_call_v1(
             "tenant-root manual refresh admission response omitted its outcome",
         )
     })
-}
-
-/// Atomically admits one manual refresh before command minting or role work.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_admission_call_v1(
-    env: &worker::Env,
-    identity_digest: TenantRootIdentityDigestV1,
-    custody_lineage: TenantRootCustodyLineageId,
-    operation_id: String,
-    trigger: CloudflareTenantRootRefreshTriggerV1,
-    expected_lifecycle_revision: u64,
-    expires_at_ms: u64,
-) -> RouterAbProtocolResult<CloudflareTenantRootRefreshAdmissionOutcomeV1> {
-    tenant_root_refresh_admission_call_v1(
-        &CloudflareTenantRootCreationStateTransportV1::new(env),
-        identity_digest,
-        custody_lineage,
-        operation_id,
-        trigger,
-        expected_lifecycle_revision,
-        expires_at_ms,
-    )
-    .await
 }
 
 /// The control-plane issuer keys this Worker trusts.
@@ -11548,21 +11511,6 @@ pub async fn tenant_root_refresh_commitment_call_v1(
     Ok(response)
 }
 
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_commitment_call_v1(
-    env: &worker::Env,
-    command: &VerifiedTenantRootRoleRefreshCommandV1,
-    commitment: &VerifiedTenantRootRefreshCommitmentV1,
-) -> RouterAbProtocolResult<CloudflareTenantRootRefreshCommitmentResponseV1> {
-    tenant_root_refresh_commitment_call_v1(
-        &CloudflareTenantRootCreationStateTransportV1::new(env),
-        command,
-        commitment,
-    )
-    .await
-}
-
 /// Sends one role-signed, recipient-bound encrypted refresh contribution to the
 /// Router-owned public rendezvous after both commitments have completed.
 pub async fn tenant_root_refresh_contribution_call_v1(
@@ -11609,26 +11557,6 @@ pub async fn tenant_root_refresh_contribution_call_v1(
     Ok(response)
 }
 
-/// Sends one role-signed, recipient-bound encrypted refresh contribution to the
-/// Router-owned public rendezvous after both commitments have completed.
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_contribution_call_v1(
-    env: &worker::Env,
-    command: &VerifiedTenantRootRoleRefreshCommandV1,
-    commitments: &VerifiedTenantRootRefreshCommitmentPairV1,
-    contribution: &VerifiedTenantRootSignedRefreshContributionV1,
-) -> RouterAbProtocolResult<CloudflareTenantRootRefreshContributionResponseV1> {
-    tenant_root_refresh_contribution_call_v1(
-        &CloudflareTenantRootCreationStateTransportV1::new(env),
-        &read_tenant_root_creation_role_verifying_keys(env)?,
-        command,
-        commitments,
-        contribution,
-    )
-    .await
-}
-
 pub async fn tenant_root_refresh_installation_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
@@ -11663,23 +11591,6 @@ pub async fn tenant_root_refresh_installation_call_v1(
     .await?;
     validate_refresh_installation_response(&response, command, context)?;
     Ok(response)
-}
-
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_installation_call_v1(
-    env: &worker::Env,
-    command: &VerifiedTenantRootRoleRefreshCommandV1,
-    evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-    terminal_receipt_bytes: &[u8],
-) -> RouterAbProtocolResult<CloudflareTenantRootRefreshInstallationResponseV1> {
-    tenant_root_refresh_installation_call_v1(
-        &CloudflareTenantRootCreationStateTransportV1::new(env),
-        command,
-        evidence,
-        terminal_receipt_bytes,
-    )
-    .await
 }
 
 fn validate_refresh_commitment_response(

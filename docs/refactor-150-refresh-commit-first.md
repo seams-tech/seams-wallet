@@ -3,8 +3,10 @@
 Status: the direction is approved (2026-09-26): a durable, commit-first refresh
 decision followed by roll-forward delivery, with retired shares kept until
 safe erasure is established. The commit point, roll-forward delivery and
-pending retirement are implemented on Cloudflare (see "Implemented" below).
-Refresh abandonment, admission during delivery and the VM adapter remain open.
+pending retirement are implemented and shared: the Router coordinator, the
+Deriver refresh and activation, and the control plane run the same code on
+Cloudflare and the VM (see "Implemented" and "Served on the VM" below).
+Refresh abandonment and admission during delivery remain open.
 
 Related: [creation resume](./refactor-150-tenant-root-creation-resume.md) (the same
 policy for initial activation), [root retirement admission](./refactor-150-root-retirement-admission.md)
@@ -164,8 +166,42 @@ throughout, so abandoning a refresh never affects availability.
 
 Not yet implemented:
 - delivery status recorded per role at the Router (open question 2);
-- refresh abandonment (open question 1);
-- the VM adapter.
+- refresh abandonment (open question 1).
+
+## Served on the VM (2026-09-26)
+
+The refresh is written once and run by both hosts:
+- **Router.** `tenant_root_router_coordinate_refresh_v1`
+  (`tenant_root_refresh_coordinator.rs`) runs over the Router's host:
+  admission, attempt reservation, both Derivers' refreshes, the commit and
+  delivery. The Workers Router and the VM Router both call it.
+- **Derivers.** `tenant_root_deriver_refresh_v1` and
+  `tenant_root_deriver_refresh_activation_v1` run over the Deriver host.
+  Backups and canaries go through the host's store, and the rendezvous goes
+  through the creation-state transport.
+- **Control plane.** Refresh commands and the refresh-swap receipt were already
+  shared.
+
+The VM transport runs each private call on its own thread and awaits it. Both
+Derivers' refreshes therefore run concurrently, as they do over Service
+Bindings. They must: each waits at the Router's rendezvous for the other.
+
+`vm_tenant_root_refresh_delivers_the_committed_receipt_after_a_lost_delivery`
+applies the Workers fault on the VM: B's refresh activation is dropped after
+the Router commits. It observed (`R150_VM_TENANT_ROOT_REFRESH_E2E`):
+- **After the loss:** the Router is committed at revision 4 with its fence
+  terminal. A holds epoch 1 retired and epoch 2 active; B holds epoch 1 active
+  and epoch 2 pending.
+- **The retry:** HTTP 200 with the committed receipt's digest. Both roles hold
+  epoch 1 retired and epoch 2 active; retirement is `pending`.
+- **An exact replay:** 200 with the same body.
+- **A second operation:** 429 inside the manual-refresh interval.
+- **Backups and canaries:** each role keeps both epochs' objects.
+
+The lost delivery surfaces as HTTP 400 on the VM and 500 on Workers. The VM
+HTTP client classifies a dropped peer connection as a bad local request. That
+predates refresh, applies to every VM private call, and is recorded as
+separate work.
 
 ### Evidence
 
@@ -228,4 +264,5 @@ and both roles end on epoch 2
      delivery first;
    - retired shares remain after refresh.
 6. **VM adapter.** Serve the refresh operations on the VM with the same
-   coordinator, Deriver and control-plane code.
+   coordinator, Deriver and control-plane code (done; see "Served on the
+   VM").

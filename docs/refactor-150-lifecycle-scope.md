@@ -41,7 +41,7 @@ decision.
 | Item | Why it is R150 work | Cloudflare today | VM today | Gate |
 | --- | --- | --- | --- | --- |
 | **Creation and its recovery** | Enabled lifecycle; shared contracts | Implemented: resume, commit-first delivery, abandonment, ceremony-bound cleanup, operator sweep | Same code, same E2Es | Done. Automatic sweeping is a separate decision |
-| **Share refresh** (manual and scheduled) | Spec 6 refreshing shares; enabled lifecycle; shared contracts | Commit-first, with roll-forward delivery. The lost-delivery fault is reproduced and fixed in a Workers E2E | Not served. The Router refresh state runs over the host-neutral store | [Commit-first](./refactor-150-refresh-commit-first.md): refresh abandonment, delivery status and the delayed-retry E2E remain, then the VM adapter |
+| **Share refresh** (manual and scheduled) | Spec 6 refreshing shares; enabled lifecycle; shared contracts | Commit-first, with roll-forward delivery. The lost-delivery fault is reproduced and fixed in a Workers E2E | Served by the same Router coordinator, Deriver and control-plane code. The lost-delivery E2E passes on the VM. Scheduled refresh has no VM trigger | [Commit-first](./refactor-150-refresh-commit-first.md): refresh abandonment, per-role delivery status and a VM scheduled-refresh trigger remain |
 | **Retiring and erasing old shares after refresh** | Spec 6: erase only when completion conditions allow; in-progress work keeps its version; one-use and retry safety | Retired shares and backups are kept; retirement reported `pending` | Nothing is erased | [Drain proposal](./refactor-150-root-retirement-admission.md), revised 2026-09-26 for review. Erasure stays release-gated on both hosts until then |
 | **Availability restore** (one role from its managed backup, then a forward refresh) | Spec 6 availability backup; runbooks for object failure and recovery | Served, with a Workers E2E | Not served. VM backups are HPKE-only | After refresh reaches the VM; it reuses the refresh machinery |
 | **Recovery package and restore to a new deployment** (dormant, then operator activation) | Spec 6 restoring to a new deployment; recovery runbook | Served; no E2E | Not served | After availability restore. Largest slice |
@@ -74,7 +74,7 @@ requirements, but extending cutover beyond them is its own work:
 3. Commit-first refresh on Cloudflare, with the failure reproduced first.
    Retirement is reported pending.
 4. Refresh served on the VM through the same coordinator, Deriver and
-   control-plane code.
+   control-plane code (done for manual refresh).
 5. Availability restore on the VM.
 6. The drain gate on both hosts, once approved. It enables erasure after
    refresh.

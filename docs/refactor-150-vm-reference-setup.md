@@ -114,6 +114,12 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
   exclude each other.
 - A creation left with one role installed is cleaned on the next retry of its
   grant, which then reports that a fresh grant is required.
+- `vm_tenant_root_refresh_delivers_the_committed_receipt_after_a_lost_delivery`
+  prints `R150_VM_TENANT_ROOT_REFRESH_E2E`: a manual refresh commits at the
+  Router before any Deriver swaps. The test loses B's delivery; a retry of the
+  same operation delivers the committed receipt, and an exact replay returns
+  the durable outcome. Both roles keep the retired epoch, and retirement is
+  reported pending.
 
 ## Not served on the VM
 
@@ -124,8 +130,10 @@ operation, its contracts and what is needed.
   pool, and export. The VM Router serves only NEAR normal signing, Yao
   execute and recovery promote.
 - Device linking.
-- Tenant-root status, refresh, managed restore, recovery-package backup and
-  restore, source retirement and cutover.
+- Tenant-root status, scheduled refresh (no VM trigger yet), managed
+  restore, recovery-package backup and restore, source retirement and
+  cutover. Manual refresh is served, with the same Router, Deriver and
+  control-plane code as Cloudflare.
 - Linked-device and step-up signing.
 - Google Cloud KMS managed backup (HPKE only).
 - Router and SigningWorker prewarm, which keeps Worker isolates warm and has no

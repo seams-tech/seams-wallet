@@ -1345,6 +1345,86 @@ fn vm_tenant_root_committed_activation_is_delivered_after_the_ceremony_expires(
     Ok(())
 }
 
+/// Manual refresh commits at the Router before any Deriver swaps. B's delivery
+/// is lost after A swaps; a retry of the same operation delivers the exact
+/// committed receipt, an exact replay returns the durable outcome, and both
+/// roles keep the retired epoch with retirement reported pending.
+#[test]
+fn vm_tenant_root_refresh_delivers_the_committed_receipt_after_a_lost_delivery(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start("vm-tenant-root-refresh")?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("refresh-delivery")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let (created_revision, _, _) = stack.active_state(&lineage_b64u)?;
+    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
+
+    // B's refresh activation is lost after the Router commits.
+    stack
+        .proxy_b
+        .drop_next_on(router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH);
+    let (lost_status, lost_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-1", created_revision)?;
+    assert_ne!(lost_status, 200, "{lost_body}");
+    assert!(stack.proxy_b.dropped_on(), "the proxy must have dropped B's activation");
+    let (committed_revision, committed_fence, committed_digest) =
+        stack.active_state(&lineage_b64u)?;
+    assert_eq!(committed_revision, created_revision + 1);
+    assert_eq!(committed_fence, "terminal");
+    let (a_epochs, b_epochs) = stack.epochs(&lineage_b64u)?;
+    assert_eq!(a_epochs, vec![epoch(1, "retired"), epoch(2, "active")]);
+    assert_eq!(b_epochs, vec![epoch(1, "active"), epoch(2, "pending")]);
+
+    // A retry of the same operation delivers the committed receipt.
+    let (retry_status, retry_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-1", created_revision)?;
+    assert_eq!(retry_status, 200, "{retry_body}");
+    let retry: serde_json::Value = serde_json::from_str(&retry_body)?;
+    assert_eq!(retry["activation_receipt_digest_b64u"], json!(committed_digest));
+    assert_eq!(retry["lifecycle_revision"], json!(committed_revision));
+    assert_eq!(retry["retirement"]["kind"], "pending");
+    let retired_then_active = vec![epoch(1, "retired"), epoch(2, "active")];
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?,
+        (retired_then_active.clone(), retired_then_active.clone())
+    );
+    assert_eq!(stack.active_state(&lineage_b64u)?.2, committed_digest);
+
+    // An exact replay returns the durable outcome and changes nothing.
+    let (replay_status, replay_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-1", created_revision)?;
+    assert_eq!(replay_status, 200, "{replay_body}");
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&replay_body)?, retry);
+
+    // A new operation inside the manual-refresh interval is throttled.
+    let (second_status, second_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-2", committed_revision)?;
+    assert_eq!(second_status, 429, "{second_body}");
+
+    // Nothing was erased: each role keeps both epochs' backups and canaries.
+    assert_eq!(stack.backup_objects(&lineage_b64u)?, ((2, 2), (2, 2)));
+
+    println!(
+        "R150_VM_TENANT_ROOT_REFRESH_E2E {}",
+        json!({
+            "fault": "deriver_b_refresh_activation_lost_after_router_commit",
+            "revisions": [created_revision, committed_revision],
+            "lost_status": lost_status,
+            "after_loss": { "router_fence": committed_fence, "deriver_a": [[1, "retired"], [2, "active"]], "deriver_b": [[1, "active"], [2, "pending"]] },
+            "retry_status": retry_status,
+            "retry_delivered_committed_receipt": true,
+            "exact_replay_status": replay_status,
+            "second_operation_status": second_status,
+            "retirement": "pending",
+            "epochs_after": [[1, "retired"], [2, "active"]],
+            "backups_and_canaries_per_role": [2, 2],
+        })
+    );
+    Ok(())
+}
+
 /// Before the Router commits, a creation whose roles are both installed resumes
 /// from durable evidence: both installation evidences from the Router's
 /// checkpoint, and each role's signed managed backup and provider canary from
@@ -2114,6 +2194,60 @@ impl RecoveryStackV1 {
             .optional()
         };
         Ok((lifecycle(&self.a_store)?, lifecycle(&self.b_store)?))
+    }
+
+    /// Runs one manual refresh operation through the Router.
+    fn refresh(
+        &self,
+        identity: &TenantRootIdentityV1,
+        lineage: &str,
+        operation_id: &str,
+        expected_revision: i64,
+    ) -> Result<(u16, String), Box<dyn std::error::Error>> {
+        let expires_at_ms = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() + 60_000;
+        post_json_to_path_with_headers(
+            &self.router_url,
+            router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_REFRESH_PRIVATE_REQUEST_PATH,
+            &json!({
+                "operation_id": operation_id,
+                "identity_digest_b64u": base64::engine::general_purpose::URL_SAFE_NO_PAD
+                    .encode(identity.digest()?.as_bytes()),
+                "custody_lineage_b64u": lineage,
+                "expected_lifecycle_revision": expected_revision,
+                "expires_at_ms": expires_at_ms,
+                "trigger": "manual",
+            }),
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+        )
+    }
+
+    /// The Router's committed state for one lineage: its lifecycle revision,
+    /// its refresh fence and its committed receipt's digest.
+    fn active_state(&self, lineage: &str) -> rusqlite::Result<(i64, String, String)> {
+        self.router_db.query_row(
+            "SELECT json_extract(value_json, '$.lifecycle_revision'),
+                    json_extract(value_json, '$.fence.kind'),
+                    json_extract(value_json, '$.activation_receipt_digest_b64u')
+             FROM local_tenant_root_creation_state
+             WHERE storage_key = 'refresh/v1/active-state'
+               AND json_extract(value_json, '$.custody_lineage_b64u') = ?1",
+            [lineage],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+    }
+
+    /// Each Deriver's role-share epochs and lifecycles for one lineage.
+    #[allow(clippy::type_complexity)]
+    fn epochs(&self, lineage: &str) -> rusqlite::Result<(Vec<(i64, String)>, Vec<(i64, String)>)> {
+        let epochs = |db: &Connection| {
+            db.prepare(
+                "SELECT tenant_root_share_epoch, lifecycle FROM tenant_root_role_shares
+                 WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch",
+            )?
+            .query_map([lineage], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<rusqlite::Result<Vec<_>>>()
+        };
+        Ok((epochs(&self.a_store)?, epochs(&self.b_store)?))
     }
 
     /// Each Deriver's stored (managed backups, provider canaries) for one lineage.

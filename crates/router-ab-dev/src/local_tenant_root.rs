@@ -265,14 +265,14 @@ impl TenantRootServiceTransportV1 for LocalTenantRootServiceTransportV1 {
                 format!("{label}: this role has no route to the addressed peer"),
             )
         })?;
+        let encoded = serde_json::to_vec(request).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("{label} request encoding failed: {error}"),
+            )
+        })?;
         let response_max_bytes = match bounds {
             Some(bounds) => {
-                let encoded = serde_json::to_vec(request).map_err(|error| {
-                    RouterAbProtocolError::new(
-                        RouterAbProtocolErrorCode::MalformedWirePayload,
-                        format!("{label} request encoding failed: {error}"),
-                    )
-                })?;
                 if encoded.len() > bounds.request_max_bytes {
                     return Err(RouterAbProtocolError::new(
                         RouterAbProtocolErrorCode::MalformedWirePayload,
@@ -283,13 +283,35 @@ impl TenantRootServiceTransportV1 for LocalTenantRootServiceTransportV1 {
             }
             None => LOCAL_TENANT_ROOT_PRIVATE_RESPONSE_MAX_BYTES_V1,
         };
-        self.client.post_private_json_to_origin_v1(
-            origin,
-            path,
-            &self.internal_service_auth,
-            request,
-            response_max_bytes,
-        )
+        // The HTTP client blocks, so each call runs on its own thread and is
+        // awaited. Calls the shared code joins, such as both Derivers'
+        // refreshes meeting at the Router's rendezvous, then run concurrently
+        // as they do over Service Bindings.
+        let (sender, receiver) = futures::channel::oneshot::channel();
+        let client = self.client.clone();
+        let origin = origin.to_owned();
+        let credential = self.internal_service_auth.clone();
+        std::thread::spawn(move || {
+            let _ = sender.send(client.post_private_bytes_to_origin_v1(
+                &origin,
+                path,
+                &credential,
+                &encoded,
+                response_max_bytes,
+            ));
+        });
+        let response = receiver.await.map_err(|_| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                format!("{label} call thread stopped without a response"),
+            )
+        })??;
+        serde_json::from_slice(&response).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("{label} response JSON parse failed: {error}"),
+            )
+        })
     }
 }
 

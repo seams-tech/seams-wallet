@@ -17,6 +17,10 @@ use crate::tenant_root_control_plane::{
     CloudflareTenantRootControlPlaneCreateTenantRootResponseV1,
     CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1,
     CloudflareTenantRootControlPlaneInitialActivationRequestV1,
+    CloudflareTenantRootControlPlaneRefreshActivationReceiptResponseV1,
+    CloudflareTenantRootControlPlaneRefreshActivationRequestV1,
+    CloudflareTenantRootControlPlaneRefreshCommandsRequestV1,
+    CloudflareTenantRootControlPlaneRefreshCommandsResponseV1,
     CloudflareTenantRootControlPlaneRoleCreationCommandRequestV1,
     CloudflareTenantRootControlPlaneRoleCreationCommandResponseV1,
     TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
@@ -29,7 +33,11 @@ use crate::tenant_root_role_runtime::{
     CloudflareDeriverTenantRootCreateRoleShareRequestV1,
     CloudflareDeriverTenantRootCreateRoleShareResponseV1,
     CloudflareDeriverTenantRootInitialActivationRequestV1,
-    CloudflareDeriverTenantRootInitialActivationResponseV1, CloudflareTenantRootCreateRoleV1,
+    CloudflareDeriverTenantRootInitialActivationResponseV1,
+    CloudflareDeriverTenantRootRefreshActivationRequestV1,
+    CloudflareDeriverTenantRootRefreshActivationResponseV1,
+    CloudflareDeriverTenantRootRefreshRequestV1, CloudflareDeriverTenantRootRefreshResponseV1,
+    CloudflareTenantRootCreateRoleV1,
 };
 use crate::{
     decode_base64url_bytes_v1, RouterAbProtocolError, RouterAbProtocolErrorCode,
@@ -37,9 +45,13 @@ use crate::{
     CLOUDFLARE_DERIVER_TENANT_ROOT_CREATION_EVIDENCE_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_DERIVER_TENANT_ROOT_CREATE_ROLE_SHARE_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_COMMANDS_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_ROLE_CREATION_COMMAND_PRIVATE_REQUEST_PATH,
 };
 
@@ -240,6 +252,94 @@ pub async fn tenant_root_deriver_initial_activation_call_v1(
     }
     let receipt_bytes = decode_base64url_bytes_v1(
         "tenant-root initial-activation terminal receipt",
+        &response.activation_terminal_receipt_b64u,
+    )?;
+    TenantRootCommandTerminalReceiptV1::decode_canonical_bytes(&receipt_bytes)
+        .map_err(crate::map_root_share_to_protocol)?;
+    Ok(response)
+}
+
+/// Requests both issuer-signed role commands for one tenant-root refresh.
+pub async fn tenant_root_control_plane_refresh_commands_call_v1(
+    transport: &impl TenantRootServiceTransportV1,
+    request: &CloudflareTenantRootControlPlaneRefreshCommandsRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRefreshCommandsResponseV1> {
+    transport
+        .post_private_json(
+            TenantRootServiceTargetV1::ControlPlane,
+            CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_COMMANDS_PRIVATE_REQUEST_PATH,
+            "tenant-root control-plane refresh-command request",
+            request,
+            None,
+        )
+        .await
+}
+
+/// Requests an issuer-signed refresh activation receipt for exact public
+/// artifacts.
+pub async fn tenant_root_control_plane_refresh_activation_call_v1(
+    transport: &impl TenantRootServiceTransportV1,
+    request: &CloudflareTenantRootControlPlaneRefreshActivationRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRefreshActivationReceiptResponseV1> {
+    transport
+        .post_private_json(
+            TenantRootServiceTargetV1::ControlPlane,
+            CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH,
+            "tenant-root control-plane refresh-activation request",
+            request,
+            None,
+        )
+        .await
+}
+
+/// Executes one role-local tenant-root refresh at its owning Deriver and
+/// checks the Deriver's role.
+pub async fn tenant_root_deriver_refresh_call_v1(
+    transport: &impl TenantRootServiceTransportV1,
+    role: TwoPartyDeriverRole,
+    request: &CloudflareDeriverTenantRootRefreshRequestV1,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRefreshResponseV1> {
+    let response: CloudflareDeriverTenantRootRefreshResponseV1 = transport
+        .post_private_json(
+            TenantRootServiceTargetV1::Deriver(role),
+            CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_PRIVATE_REQUEST_PATH,
+            "tenant-root role refresh request",
+            request,
+            None,
+        )
+        .await?;
+    if response.role != CloudflareTenantRootCreateRoleV1::from_protocol(role) {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            "tenant-root refresh response names the wrong role",
+        ));
+    }
+    Ok(response)
+}
+
+/// Sends one exact committed refresh-swap receipt to its owning Deriver.
+pub async fn tenant_root_deriver_refresh_activation_call_v1(
+    transport: &impl TenantRootServiceTransportV1,
+    role: TwoPartyDeriverRole,
+    request: &CloudflareDeriverTenantRootRefreshActivationRequestV1,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRefreshActivationResponseV1> {
+    let response: CloudflareDeriverTenantRootRefreshActivationResponseV1 = transport
+        .post_private_json(
+            TenantRootServiceTargetV1::Deriver(role),
+            CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH,
+            "tenant-root refresh activation request",
+            request,
+            None,
+        )
+        .await?;
+    if response.role != CloudflareTenantRootCreateRoleV1::from_protocol(role) {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            "tenant-root refresh-activation response names the wrong role",
+        ));
+    }
+    let receipt_bytes = decode_base64url_bytes_v1(
+        "tenant-root refresh-activation terminal receipt",
         &response.activation_terminal_receipt_b64u,
     )?;
     TenantRootCommandTerminalReceiptV1::decode_canonical_bytes(&receipt_bytes)

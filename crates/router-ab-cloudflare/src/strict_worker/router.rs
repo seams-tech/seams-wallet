@@ -11,15 +11,12 @@ use crate::durable_object::tenant_root_creation::{
     execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1,
     execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1,
     execute_cloudflare_router_tenant_root_destination_bootstrap_call_v1,
-    execute_cloudflare_router_tenant_root_refresh_activation_call_v1,
-    execute_cloudflare_router_tenant_root_refresh_admission_call_v1,
     execute_cloudflare_router_tenant_root_refresh_attempt_reservation_call_v1,
     execute_cloudflare_router_tenant_root_restore_initial_activation_call_v1,
     execute_cloudflare_router_tenant_root_restore_refresh_checkpoint_call_v1,
     tenant_root_scheduled_refresh_next_at_ms_v1, CloudflareTenantRootCreationInstallationRoleV1,
     CloudflareTenantRootDestinationBootstrapRequestV1,
-    CloudflareTenantRootRefreshAdmissionOutcomeV1, CloudflareTenantRootRefreshFenceV1,
-    CloudflareTenantRootRefreshJobReadV1, CloudflareTenantRootRefreshTriggerV1,
+    CloudflareTenantRootRefreshFenceV1, CloudflareTenantRootRefreshJobReadV1,
     CloudflareTenantRootRestoreRefreshCheckpointRequestV1,
     CloudflareTenantRootRestoreRefreshCheckpointResponseV1,
     CloudflareTenantRootRestoreRefreshCheckpointStateV1,
@@ -30,9 +27,14 @@ use crate::durable_object::tenant_root_creation::{
 };
 #[cfg(feature = "strict-worker-router-entrypoint")]
 use crate::post_service_json;
+use crate::tenant_root_refresh_coordinator::{
+    tenant_root_router_deliver_committed_refresh_v1, tenant_root_router_finish_refresh_v1,
+    tenant_root_router_refresh_attempt_packages_v1, tenant_root_router_replay_terminal_refresh_v1,
+    CloudflareRouterTenantRootRefreshRequestV1, CloudflareRouterTenantRootRefreshResponseV1,
+    CloudflareRouterTenantRootRefreshResultV1,
+};
 use crate::tenant_root_control_plane::{
     execute_cloudflare_tenant_root_control_plane_restore_initial_activation_service_call_v1,
-    CloudflareTenantRootControlPlaneRefreshActivationRequestV1,
     CloudflareTenantRootControlPlaneRegisterManifestRequestV1,
     CloudflareTenantRootControlPlaneRegisterManifestResponseV1,
     CloudflareTenantRootControlPlaneRestoreInitialActivationRequestV1,
@@ -54,7 +56,6 @@ use crate::tenant_root_role_runtime::{
     CloudflareDeriverTenantRootManagedRestoreRequestV1,
     CloudflareDeriverTenantRootManagedRestoreResponseV1,
     CloudflareDeriverTenantRootManagedRestoreStatusV1,
-    CloudflareDeriverTenantRootRefreshActivationRequestV1,
     CloudflareDeriverTenantRootRefreshRequestV1, CloudflareDeriverTenantRootRefreshResponseV1,
     CloudflareDeriverTenantRootRestoreRoleImportAcceptRequestV1,
     CloudflareDeriverTenantRootRestoreRoleImportAcceptResponseV1,
@@ -66,11 +67,7 @@ use crate::tenant_root_role_runtime::{
 #[cfg(feature = "strict-worker-router-entrypoint")]
 use crate::{
     execute_cloudflare_deriver_tenant_root_initial_activation_service_call_v1,
-    execute_cloudflare_deriver_tenant_root_refresh_activation_service_call_v1,
-    execute_cloudflare_deriver_tenant_root_refresh_service_call_v1,
     execute_cloudflare_signing_worker_linked_device_ecdsa_finalize_service_call_v1,
-    execute_cloudflare_tenant_root_control_plane_refresh_activation_service_call_v1,
-    execute_cloudflare_tenant_root_control_plane_refresh_commands_service_call_v1,
     handle_cloudflare_router_ab_ecdsa_derivation_evm_digest_signing_finalize_internal_step_up_request_v1,
     handle_cloudflare_router_ab_ecdsa_derivation_evm_digest_signing_prepare_internal_step_up_request_v1,
     handle_cloudflare_router_normal_signing_finalize_internal_linked_device_request_v2,
@@ -460,88 +457,12 @@ async fn read_cloudflare_router_tenant_root_status_v1(
     })
 }
 
-/// What happened to the previous epoch's retired shares. They are kept:
-/// erasure waits for the safe-retirement rule
-/// (`docs/refactor-150-root-retirement-admission.md`), so work already
-/// admitted on the old epoch can finish.
-#[cfg(feature = "strict-worker-router-entrypoint")]
-#[derive(Debug, Clone, Copy, serde::Serialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-enum CloudflareRouterTenantRootRetirementEvidenceV1 {
-    Pending,
-}
-
-#[cfg(feature = "strict-worker-router-entrypoint")]
-#[derive(Debug, serde::Serialize)]
-struct CloudflareRouterTenantRootRefreshResponseV1 {
-    activation_receipt_digest_b64u: String,
-    lifecycle_revision: u64,
-    retirement: CloudflareRouterTenantRootRetirementEvidenceV1,
-}
-
-#[cfg(feature = "strict-worker-router-entrypoint")]
-#[derive(Debug, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-struct CloudflareRouterTenantRootRefreshRequestV1 {
-    operation_id: String,
-    identity_digest_b64u: String,
-    custody_lineage_b64u: String,
-    expected_lifecycle_revision: u64,
-    expires_at_ms: u64,
-    trigger: CloudflareTenantRootRefreshTriggerV1,
-}
-
-#[cfg(feature = "strict-worker-router-entrypoint")]
-enum CloudflareRouterTenantRootRefreshResultV1 {
-    Completed(CloudflareRouterTenantRootRefreshResponseV1),
-    Throttled { retry_at_ms: u64 },
-    InProgress,
-    RevisionMoved,
-    AuthorizationExpired,
-    NotDue { next_run_at_ms: u64 },
-}
-
 #[cfg(feature = "strict-worker-router-entrypoint")]
 fn refresh_http_response_v1(
     result: CloudflareRouterTenantRootRefreshResultV1,
 ) -> worker::Result<Response> {
-    match result {
-        CloudflareRouterTenantRootRefreshResultV1::Completed(response) => {
-            Response::from_json(&response)
-        }
-        CloudflareRouterTenantRootRefreshResultV1::Throttled { retry_at_ms } => {
-            Ok(Response::from_json(&serde_json::json!({
-                "code": "tenant_root_refresh_throttled",
-                "retry_at_ms": retry_at_ms,
-            }))?
-            .with_status(429))
-        }
-        CloudflareRouterTenantRootRefreshResultV1::RevisionMoved => {
-            Ok(Response::from_json(&serde_json::json!({
-                "code": "lifecycle_revision_moved",
-            }))?
-            .with_status(409))
-        }
-        CloudflareRouterTenantRootRefreshResultV1::AuthorizationExpired => {
-            Ok(Response::from_json(&serde_json::json!({
-                "code": "authorization_expired",
-            }))?
-            .with_status(409))
-        }
-        CloudflareRouterTenantRootRefreshResultV1::NotDue { next_run_at_ms } => {
-            Ok(Response::from_json(&serde_json::json!({
-                "code": "tenant_root_refresh_not_due",
-                "next_run_at_ms": next_run_at_ms,
-            }))?
-            .with_status(409))
-        }
-        CloudflareRouterTenantRootRefreshResultV1::InProgress => {
-            Ok(Response::from_json(&serde_json::json!({
-                "code": "tenant_root_refresh_in_progress",
-            }))?
-            .with_status(409))
-        }
-    }
+    let (status, body) = result.http_status_and_body();
+    Ok(Response::from_json(&body)?.with_status(status))
 }
 
 #[cfg(feature = "strict-worker-router-entrypoint")]
@@ -966,12 +887,12 @@ async fn execute_cloudflare_deriver_tenant_root_refresh_service_call_with_retry_
     peer: &'a CloudflarePeerBindingV1,
     request: &'a CloudflareDeriverTenantRootRefreshRequestV1,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRefreshResponseV1> {
-    match execute_cloudflare_deriver_tenant_root_refresh_service_call_v1(env, peer, request).await {
-        Ok(response) => Ok(response),
-        Err(_) => {
-            execute_cloudflare_deriver_tenant_root_refresh_service_call_v1(env, peer, request).await
-        }
-    }
+    crate::tenant_root_refresh_coordinator::tenant_root_deriver_refresh_with_retry_v1(
+        &crate::tenant_root_transport::CloudflareTenantRootServiceTransportV1::peer(env, peer),
+        crate::cloudflare_tenant_root_peer_deriver_role_v1(peer, "tenant-root refresh")?,
+        request,
+    )
+    .await
 }
 
 #[cfg(feature = "strict-worker-router-entrypoint")]
@@ -3216,347 +3137,16 @@ async fn execute_cloudflare_router_managed_restore_forward_refresh_request_with_
 }
 
 #[cfg(feature = "strict-worker-router-entrypoint")]
-fn refresh_attempt_packages_v1(
-    fence: CloudflareTenantRootRefreshFenceV1,
-) -> RouterAbProtocolResult<(String, String, String)> {
-    match fence {
-        CloudflareTenantRootRefreshFenceV1::Reserved { attempt }
-        | CloudflareTenantRootRefreshFenceV1::Executed { attempt } => Ok((
-            attempt.refresh_context_b64u,
-            attempt.deriver_a_refresh_command_b64u,
-            attempt.deriver_b_refresh_command_b64u,
-        )),
-        CloudflareTenantRootRefreshFenceV1::Open => Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLifecycleState,
-            "tenant-root refresh attempt is not reserved",
-        )),
-        CloudflareTenantRootRefreshFenceV1::Terminal { .. } => Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::ConflictingPair,
-            "tenant-root refresh operation is terminal",
-        )),
-    }
-}
-
-#[cfg(feature = "strict-worker-router-entrypoint")]
-fn replay_terminal_refresh_response_v1(
-    fence: &CloudflareTenantRootRefreshFenceV1,
-) -> RouterAbProtocolResult<Option<CloudflareRouterTenantRootRefreshResponseV1>> {
-    match fence {
-        CloudflareTenantRootRefreshFenceV1::Terminal {
-            outcome: crate::durable_object::tenant_root_creation::CloudflareTenantRootRefreshTerminalOutcomeV1::Completed,
-            response,
-            ..
-        } => Ok(Some(CloudflareRouterTenantRootRefreshResponseV1 {
-            activation_receipt_digest_b64u: response.activation_receipt_digest_b64u.clone(),
-            lifecycle_revision: response.lifecycle_revision,
-            retirement: CloudflareRouterTenantRootRetirementEvidenceV1::Pending,
-        })),
-        CloudflareTenantRootRefreshFenceV1::Terminal { .. } => {
-            Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ConflictingPair,
-                "tenant-root refresh operation is terminal without a successful activation",
-            ))
-        }
-        _ => Ok(None),
-    }
-}
-
-/// Delivers the Router's committed refresh receipt to both Derivers. Each
-/// swaps on that exact receipt, or replays the swap it already made; nothing
-/// is erased. Both deliveries are attempted, and the first failure returned.
-#[cfg(feature = "strict-worker-router-entrypoint")]
-async fn deliver_cloudflare_router_committed_refresh_v1(
-    env: &Env,
-    runtime: &CloudflareRouterWorkerRuntimeV1,
-    activation_receipt_b64u: String,
-) -> RouterAbProtocolResult<CloudflareRouterTenantRootRetirementEvidenceV1> {
-    let role_activation = CloudflareDeriverTenantRootRefreshActivationRequestV1 {
-        activation_receipt_b64u,
-    };
-    let (deriver_a_activation, deriver_b_activation) = futures::join!(
-        execute_cloudflare_deriver_tenant_root_refresh_activation_service_call_v1(
-            env,
-            &runtime.bindings().deriver_a,
-            &role_activation,
-        ),
-        execute_cloudflare_deriver_tenant_root_refresh_activation_service_call_v1(
-            env,
-            &runtime.bindings().deriver_b,
-            &role_activation,
-        ),
-    );
-    deriver_a_activation?;
-    deriver_b_activation?;
-    Ok(CloudflareRouterTenantRootRetirementEvidenceV1::Pending)
-}
-
-/// Commits one prepared refresh at the Router, then delivers it. The control
-/// plane signs the activation receipt, and the Router's creation state
-/// persists it as the authoritative active state before any Deriver swaps.
-/// That is the commit point: afterwards every retry delivers this exact
-/// receipt, and no other receipt can be committed for the attempt. If a
-/// concurrent retry committed first, its receipt is the one delivered.
-#[cfg(feature = "strict-worker-router-entrypoint")]
-async fn finish_cloudflare_router_tenant_root_refresh_v1(
-    env: &Env,
-    runtime: &CloudflareRouterWorkerRuntimeV1,
-    identity_digest: TenantRootIdentityDigestV1,
-    custody_lineage: TenantRootCustodyLineageId,
-    deriver_a: CloudflareDeriverTenantRootRefreshResponseV1,
-    deriver_b: CloudflareDeriverTenantRootRefreshResponseV1,
-) -> RouterAbProtocolResult<CloudflareRouterTenantRootRefreshResponseV1> {
-    let issued_activation =
-        execute_cloudflare_tenant_root_control_plane_refresh_activation_service_call_v1(
-            env,
-            &CloudflareTenantRootControlPlaneRefreshActivationRequestV1 {
-                deriver_a_signed_installation_evidence_b64u: deriver_a
-                    .signed_installation_evidence_b64u,
-                deriver_b_signed_installation_evidence_b64u: deriver_b
-                    .signed_installation_evidence_b64u,
-                deriver_a_signed_managed_backup_b64u: deriver_a.signed_managed_backup_b64u,
-                deriver_b_signed_managed_backup_b64u: deriver_b.signed_managed_backup_b64u,
-                ecdsa_provider_canary_receipt_b64u: deriver_a.provider_canary_receipt_b64u,
-                ed25519_provider_canary_receipt_b64u: deriver_b.provider_canary_receipt_b64u,
-            },
-        )
-        .await?;
-    let activation_receipt = crate::decode_base64url_bytes_v1(
-        "tenant-root refresh activation receipt",
-        &issued_activation.activation_receipt_b64u,
-    )?;
-    let (committed_receipt_b64u, activation_receipt_digest_b64u, lifecycle_revision) =
-        match execute_cloudflare_router_tenant_root_refresh_activation_call_v1(
-            env,
-            &activation_receipt,
-        )
-        .await
-        {
-            Ok(activated) => (
-                issued_activation.activation_receipt_b64u,
-                activated.activation_receipt_digest_b64u,
-                activated.lifecycle_revision,
-            ),
-            Err(error) => {
-                let active =
-                    execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1(
-                        env,
-                        identity_digest,
-                        custody_lineage,
-                    )
-                    .await?;
-                match replay_terminal_refresh_response_v1(&active.refresh_fence)? {
-                    Some(response) if response.lifecycle_revision == active.lifecycle_revision => (
-                        crate::encode_base64url_bytes_v1(active.activation_receipt.canonical_bytes()),
-                        response.activation_receipt_digest_b64u,
-                        response.lifecycle_revision,
-                    ),
-                    _ => return Err(error),
-                }
-            }
-        };
-    let retirement =
-        deliver_cloudflare_router_committed_refresh_v1(env, runtime, committed_receipt_b64u).await?;
-    Ok(CloudflareRouterTenantRootRefreshResponseV1 {
-        activation_receipt_digest_b64u,
-        lifecycle_revision,
-        retirement,
-    })
-}
-
-#[cfg(feature = "strict-worker-router-entrypoint")]
 async fn coordinate_cloudflare_router_tenant_root_refresh_v1(
     env: &Env,
     runtime: &CloudflareRouterWorkerRuntimeV1,
     request: CloudflareRouterTenantRootRefreshRequestV1,
 ) -> RouterAbProtocolResult<CloudflareRouterTenantRootRefreshResultV1> {
-    let identity_digest = TenantRootIdentityDigestV1::from_bytes(
-        crate::decode_base64url_bytes_v1(
-            "tenant-root refresh identity digest",
-            &request.identity_digest_b64u,
-        )?
-        .try_into()
-        .map_err(|_| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                "tenant-root refresh identity digest must contain exactly 32 bytes",
-            )
-        })?,
-    );
-    let custody_lineage = TenantRootCustodyLineageId::from_base64url(&request.custody_lineage_b64u)
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                format!("tenant-root refresh custody lineage is invalid: {error}"),
-            )
-        })?;
-    let admitted_revision = match execute_cloudflare_router_tenant_root_refresh_admission_call_v1(
-        env,
-        identity_digest,
-        custody_lineage,
-        request.operation_id.clone(),
-        request.trigger,
-        request.expected_lifecycle_revision,
-        request.expires_at_ms,
+    crate::tenant_root_router_coordinate_refresh_v1(
+        &CloudflareRouterTenantRootCreationHostV1::new(env, runtime),
+        request,
     )
-    .await?
-    {
-        CloudflareTenantRootRefreshAdmissionOutcomeV1::Admitted { lifecycle_revision } => {
-            lifecycle_revision
-        }
-        CloudflareTenantRootRefreshAdmissionOutcomeV1::Replayed { response } => {
-            let active = execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1(
-                env, identity_digest, custody_lineage,
-            ).await?;
-            // A delayed retry must never reinstall an epoch superseded by refresh or restore.
-            let retirement = if active.lifecycle_revision == response.lifecycle_revision {
-                deliver_cloudflare_router_committed_refresh_v1(
-                    env,
-                    runtime,
-                    crate::encode_base64url_bytes_v1(active.activation_receipt.canonical_bytes()),
-                )
-                .await?
-            } else {
-                CloudflareRouterTenantRootRetirementEvidenceV1::Pending
-            };
-            return Ok(CloudflareRouterTenantRootRefreshResultV1::Completed(
-                CloudflareRouterTenantRootRefreshResponseV1 {
-                    activation_receipt_digest_b64u: response.activation_receipt_digest_b64u,
-                    lifecycle_revision: response.lifecycle_revision,
-                    retirement,
-                },
-            ));
-        }
-        CloudflareTenantRootRefreshAdmissionOutcomeV1::Throttled { retry_at_ms } => {
-            return Ok(CloudflareRouterTenantRootRefreshResultV1::Throttled { retry_at_ms });
-        }
-        CloudflareTenantRootRefreshAdmissionOutcomeV1::RevisionMoved => {
-            return Ok(CloudflareRouterTenantRootRefreshResultV1::RevisionMoved);
-        }
-        CloudflareTenantRootRefreshAdmissionOutcomeV1::AuthorizationExpired => {
-            return Ok(CloudflareRouterTenantRootRefreshResultV1::AuthorizationExpired);
-        }
-        CloudflareTenantRootRefreshAdmissionOutcomeV1::NotDue { next_run_at_ms } => {
-            return Ok(CloudflareRouterTenantRootRefreshResultV1::NotDue { next_run_at_ms });
-        }
-        CloudflareTenantRootRefreshAdmissionOutcomeV1::InProgress => {
-            return Ok(CloudflareRouterTenantRootRefreshResultV1::InProgress);
-        }
-    };
-    let active =
-        execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1(
-            env,
-            identity_digest,
-            custody_lineage,
-        )
-        .await?;
-    if active.lifecycle_revision != admitted_revision {
-        let mut response = replay_terminal_refresh_response_v1(&active.refresh_fence)?
-            .filter(|_| matches!(&active.refresh_fence,
-                CloudflareTenantRootRefreshFenceV1::Terminal { attempt, .. }
-                    if attempt.manual_operation_id.as_deref() == Some(request.operation_id.as_str())))
-            .ok_or_else(|| RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ConflictingPair,
-                "tenant-root manual refresh admission revision changed; retry the same operation",
-            ))?;
-        response.retirement = deliver_cloudflare_router_committed_refresh_v1(
-                    env,
-                    runtime,
-                    crate::encode_base64url_bytes_v1(active.activation_receipt.canonical_bytes()),
-        )
-        .await?;
-        return Ok(CloudflareRouterTenantRootRefreshResultV1::Completed(
-            response,
-        ));
-    }
-    if matches!(
-        &active.refresh_fence,
-        CloudflareTenantRootRefreshFenceV1::Terminal { .. }
-    ) {
-        // Finish interrupted retirement before replacing the terminal attempt.
-        deliver_cloudflare_router_committed_refresh_v1(
-                    env,
-                    runtime,
-                    crate::encode_base64url_bytes_v1(active.activation_receipt.canonical_bytes()),
-        )
-        .await?;
-    }
-    let (refresh_context_b64u, deriver_a_refresh_command_b64u, deriver_b_refresh_command_b64u) =
-        match active.refresh_fence {
-            CloudflareTenantRootRefreshFenceV1::Open
-            | CloudflareTenantRootRefreshFenceV1::Terminal { .. } => {
-                let commands_request = CloudflareTenantRootControlPlaneRefreshCommandsRequestV1 {
-                    identity_digest_b64u: request.identity_digest_b64u.clone(),
-                    custody_lineage_b64u: request.custody_lineage_b64u.clone(),
-                };
-                let issued =
-                    execute_cloudflare_tenant_root_control_plane_refresh_commands_service_call_v1(
-                        env,
-                        &commands_request,
-                    )
-                    .await?;
-                let reserved =
-                    execute_cloudflare_router_tenant_root_refresh_attempt_reservation_call_v1(
-                        env,
-                        identity_digest,
-                        custody_lineage,
-                        issued.refresh_context_b64u,
-                        issued.deriver_a_refresh_command_b64u,
-                        issued.deriver_b_refresh_command_b64u,
-                        Some(request.operation_id.clone()),
-                    )
-                    .await?;
-                refresh_attempt_packages_v1(reserved.refresh_fence)?
-            }
-            fence => {
-                match &fence {
-                    CloudflareTenantRootRefreshFenceV1::Reserved { attempt }
-                    | CloudflareTenantRootRefreshFenceV1::Executed { attempt }
-                        if attempt.manual_operation_id.as_deref()
-                            == Some(request.operation_id.as_str()) => {}
-                    _ => {
-                        return Err(RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::ConflictingPair,
-                            "tenant-root manual refresh attempt belongs to another operation",
-                        ))
-                    }
-                }
-                refresh_attempt_packages_v1(fence)?
-            }
-        };
-    let deriver_a_request = CloudflareDeriverTenantRootRefreshRequestV1 {
-        refresh_context_b64u: refresh_context_b64u.clone(),
-        role_refresh_command_b64u: deriver_a_refresh_command_b64u,
-    };
-    let deriver_b_request = CloudflareDeriverTenantRootRefreshRequestV1 {
-        refresh_context_b64u,
-        role_refresh_command_b64u: deriver_b_refresh_command_b64u,
-    };
-    let (deriver_a, deriver_b) = futures::join!(
-        execute_cloudflare_deriver_tenant_root_refresh_service_call_with_retry_v1(
-            env,
-            &runtime.bindings().deriver_a,
-            &deriver_a_request,
-        ),
-        execute_cloudflare_deriver_tenant_root_refresh_service_call_with_retry_v1(
-            env,
-            &runtime.bindings().deriver_b,
-            &deriver_b_request,
-        ),
-    );
-    let deriver_a = deriver_a?;
-    let deriver_b = deriver_b?;
-    let completed = finish_cloudflare_router_tenant_root_refresh_v1(
-        env,
-        runtime,
-        identity_digest,
-        custody_lineage,
-        deriver_a,
-        deriver_b,
-    )
-    .await?;
-    Ok(CloudflareRouterTenantRootRefreshResultV1::Completed(
-        completed,
-    ))
+    .await
 }
 
 #[cfg(feature = "strict-worker-router-entrypoint")]
@@ -3567,6 +3157,7 @@ async fn coordinate_cloudflare_router_tenant_root_managed_restore_v1(
 ) -> RouterAbProtocolResult<CloudflareRouterTenantRootRefreshResponseV1> {
     let authorization =
         verify_cloudflare_router_tenant_root_managed_restore_request_v1(env, request)?;
+    let host = CloudflareRouterTenantRootCreationHostV1::new(env, runtime);
     let active =
         execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1(
             env,
@@ -3582,18 +3173,13 @@ async fn coordinate_cloudflare_router_tenant_root_managed_restore_v1(
     );
     if terminal_belongs_to_this_restore {
         let mut response =
-            replay_terminal_refresh_response_v1(&active.refresh_fence)?.ok_or_else(|| {
+            tenant_root_router_replay_terminal_refresh_v1(&active.refresh_fence)?.ok_or_else(|| {
                 RouterAbProtocolError::new(
                     RouterAbProtocolErrorCode::InvalidLifecycleState,
                     "tenant-root managed-restore terminal refresh response is unavailable",
                 )
             })?;
-        response.retirement = deliver_cloudflare_router_committed_refresh_v1(
-                    env,
-                    runtime,
-                    crate::encode_base64url_bytes_v1(active.activation_receipt.canonical_bytes()),
-        )
-        .await?;
+        response.retirement = tenant_root_router_deliver_committed_refresh_v1(&host, &active).await?;
         return Ok(response);
     }
     require_cloudflare_router_managed_restore_checkpoint_current_state_v1(&active, &authorization)?;
@@ -3631,12 +3217,11 @@ async fn coordinate_cloudflare_router_tenant_root_managed_restore_v1(
                     ),
                     custody_lineage_b64u: authorization.custody_lineage.to_base64url(),
                 };
-            let issued =
-                execute_cloudflare_tenant_root_control_plane_refresh_commands_service_call_v1(
-                    env,
-                    &refresh_commands_request,
-                )
-                .await?;
+            let issued = crate::tenant_root_control_plane_refresh_commands_call_v1(
+                &host,
+                &refresh_commands_request,
+            )
+            .await?;
             let reserved =
                 execute_cloudflare_router_tenant_root_refresh_attempt_reservation_call_v1(
                     env,
@@ -3648,9 +3233,9 @@ async fn coordinate_cloudflare_router_tenant_root_managed_restore_v1(
                     None,
                 )
                 .await?;
-            refresh_attempt_packages_v1(reserved.refresh_fence)?
+            tenant_root_router_refresh_attempt_packages_v1(reserved.refresh_fence)?
         } else {
-            refresh_attempt_packages_v1(active.refresh_fence)?
+            tenant_root_router_refresh_attempt_packages_v1(active.refresh_fence)?
         };
 
     let deriver_a_request = match authorization.unavailable_role {
@@ -3705,9 +3290,8 @@ async fn coordinate_cloudflare_router_tenant_root_managed_restore_v1(
             deriver_b_request,
         ),
     );
-    finish_cloudflare_router_tenant_root_refresh_v1(
-        env,
-        runtime,
+    tenant_root_router_finish_refresh_v1(
+        &host,
         authorization.identity_digest,
         authorization.custody_lineage,
         deriver_a?,
@@ -5190,9 +4774,10 @@ mod prewarm_tests {
 
 #[cfg(all(test, feature = "strict-worker-router-entrypoint"))]
 mod refresh_replay_tests {
-    use super::replay_terminal_refresh_response_v1;
-    use super::CloudflareRouterTenantRootRefreshRequestV1;
-    use super::CloudflareRouterTenantRootRetirementEvidenceV1;
+    use crate::tenant_root_refresh_coordinator::{
+        tenant_root_router_replay_terminal_refresh_v1 as replay_terminal_refresh_response_v1,
+        CloudflareRouterTenantRootRefreshRequestV1, CloudflareRouterTenantRootRetirementEvidenceV1,
+    };
     use crate::durable_object::tenant_root_creation::{
         CloudflareTenantRootRefreshActivationResponseV1, CloudflareTenantRootRefreshAttemptV1,
         CloudflareTenantRootRefreshFenceV1, CloudflareTenantRootRefreshTerminalOutcomeV1,

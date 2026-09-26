@@ -79,6 +79,22 @@ pub fn local_tenant_root_route_v1(
                     )?)
                 },
             )),
+            router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_REFRESH_PRIVATE_REQUEST_PATH => {
+                Some(authorized_with_status(
+                    &router.internal_service_auth,
+                    request,
+                    |refresh: router_ab_cloudflare::CloudflareRouterTenantRootRefreshRequestV1| {
+                        let result = futures::executor::block_on(
+                            router_ab_cloudflare::tenant_root_router_coordinate_refresh_v1(
+                                &LocalRouterTenantRootCreationHostV1::new(&router.tenant_root),
+                                refresh,
+                            ),
+                        )?;
+                        let (status, body) = result.http_status_and_body();
+                        Ok((status, json(&body)?))
+                    },
+                ))
+            }
             CLOUDFLARE_ROUTER_TENANT_ROOT_CREATION_SWEEP_PRIVATE_REQUEST_PATH => Some(authorized(
                 &router.internal_service_auth,
                 request,
@@ -138,6 +154,36 @@ fn deriver_route(
                 },
             ))
         }
+        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_PRIVATE_REQUEST_PATH => {
+            Some(authorized(
+                credential,
+                request,
+                |refresh: router_ab_cloudflare::CloudflareDeriverTenantRootRefreshRequestV1| {
+                    json(&futures::executor::block_on(
+                        router_ab_cloudflare::tenant_root_deriver_refresh_v1(
+                            &LocalTenantRootDeriverHostV1::new(tenant_root),
+                            refresh,
+                            crate::local_router_coordinator::local_now_ms_v1()?,
+                        ),
+                    )?)
+                },
+            ))
+        }
+        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH => {
+            Some(authorized(
+                credential,
+                request,
+                |activation: router_ab_cloudflare::CloudflareDeriverTenantRootRefreshActivationRequestV1| {
+                    json(&futures::executor::block_on(
+                        router_ab_cloudflare::tenant_root_deriver_refresh_activation_v1(
+                            &LocalTenantRootDeriverHostV1::new(tenant_root),
+                            activation,
+                            crate::local_router_coordinator::local_now_ms_v1()?,
+                        ),
+                    )?)
+                },
+            ))
+        }
         CLOUDFLARE_DERIVER_TENANT_ROOT_CREATION_EVIDENCE_PRIVATE_REQUEST_PATH => Some(authorized(
             credential,
             request,
@@ -170,6 +216,15 @@ pub(crate) fn authorized<T: DeserializeOwned>(
     request: &LocalDevHttpRequestPartsV1,
     handler: impl FnOnce(T) -> RouterAbProtocolResult<String>,
 ) -> RouterAbProtocolResult<(u16, String)> {
+    authorized_with_status(credential, request, |parsed| Ok((200, handler(parsed)?)))
+}
+
+/// As `authorized`, for a handler that chooses its own success status.
+pub(crate) fn authorized_with_status<T: DeserializeOwned>(
+    credential: &str,
+    request: &LocalDevHttpRequestPartsV1,
+    handler: impl FnOnce(T) -> RouterAbProtocolResult<(u16, String)>,
+) -> RouterAbProtocolResult<(u16, String)> {
     if request.method != "POST" {
         return Ok((405, "tenant-root route requires POST".to_owned()));
     }
@@ -183,7 +238,7 @@ pub(crate) fn authorized<T: DeserializeOwned>(
             format!("tenant-root request JSON is invalid: {error}"),
         )
     })?;
-    Ok((200, handler(parsed)?))
+    handler(parsed)
 }
 
 pub(crate) fn json<T: Serialize>(value: &T) -> RouterAbProtocolResult<String> {

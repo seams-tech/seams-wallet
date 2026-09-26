@@ -59,8 +59,8 @@ Served but not reached by any surface in this repository (inferred):
 | **Creation** | Wallet-control `create`; local bootstrap | Served | Served | `router-ab/protocol.md` "Creation" | VM `vm_tenant_root_*`; Workers creation and recovery tests |
 | **Creation sweep** (operator) | Runbook only (no op or CLI) | Served | Served | [Creation resume](./refactor-150-tenant-root-creation-resume.md) | VM and Workers sweep E2Es |
 | **Status** | Wallet-control `status`; CLI `derivation-root status` | Served | **Not served** | None | None |
-| **Manual refresh** | Wallet-control `refresh`; CLI `derivation-root rotate` | Served, commit-first | **Not served** | Spec 6 "Refreshing shares" | `testTenantRootManualRefresh`, `testTenantRootRefreshDeliveryAfterLoss`; private rotation contract |
-| **Scheduled refresh** | The Router accepts `trigger: scheduled`; no scheduler in this repository | Served on request | **Not served** | Spec 6 | Router-state unit tests |
+| **Manual refresh** | Wallet-control `refresh`; CLI `derivation-root rotate` | Served, commit-first | Served, same code | Spec 6 "Refreshing shares" | `testTenantRootManualRefresh`, `testTenantRootRefreshDeliveryAfterLoss`; VM `vm_tenant_root_refresh_*`; private rotation contract |
+| **Scheduled refresh** | The Router accepts `trigger: scheduled`; no scheduler in this repository | Served on request | Served on request; no VM trigger | Spec 6 | Router-state unit tests |
 | **Availability (managed) restore** | No surface in this repository | Served | **Not served** | Spec 6 "Backing up the deployment" | `testTenantRootManagedRestoreOperatingPath` |
 | **Recovery-package backup** | CLI recovery-key and backup; wallet-control `recovery-*` | Served | **Not served** | Spec 6 "Backing up the deployment" | `seams-cli` tests against a mocked Console |
 | **Restore to a new deployment** | CLI `restore`; wallet-control restore ops | Served | **Not served** | Spec 6 "Restoring to a new deployment" | `restore_drill.rs` (mocked Console); no Worker E2E |
@@ -70,8 +70,8 @@ Served but not reached by any surface in this repository (inferred):
 ## What this changes
 
 - **The VM gaps are larger than documented.** The VM reference setup lists
-  refresh, restore, retirement, cutover, linked-device and step-up signing and
-  KMS backup as not served. It omits two further gaps: every ECDSA operation
+  restore, retirement, cutover, linked-device and step-up signing and KMS
+  backup as not served (refresh has since been served). It omits two further gaps: every ECDSA operation
   (registration, signing, presignatures, export) and device linking. R150
   names "NEAR and EVM signing" among the supported protocols that must pass on
   both adapters.

@@ -141,6 +141,37 @@ impl LocalHttpServiceBindingClientV1 {
         Request: Serialize,
         Response: DeserializeOwned,
     {
+        let request_body = serde_json::to_vec(body).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("local HTTP private JSON request serialization failed: {error}"),
+            )
+        })?;
+        let response_body = self.post_private_bytes_to_origin_v1(
+            base_url,
+            path,
+            internal_service_auth,
+            &request_body,
+            response_max_bytes,
+        )?;
+        serde_json::from_slice(&response_body).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("local HTTP private JSON response parse failed: {error}"),
+            )
+        })
+    }
+
+    /// Posts an encoded JSON body to a private route on a peer origin with the
+    /// role-shared credential and returns the bounded response body.
+    pub fn post_private_bytes_to_origin_v1(
+        &self,
+        base_url: &str,
+        path: &str,
+        internal_service_auth: &str,
+        request_body: &[u8],
+        response_max_bytes: usize,
+    ) -> RouterAbProtocolResult<Vec<u8>> {
         super::require_non_empty("local HTTP private route base URL", base_url)?;
         if !path.starts_with('/') || path.bytes().any(|byte| byte.is_ascii_whitespace()) {
             return Err(RouterAbProtocolError::new(
@@ -157,25 +188,13 @@ impl LocalHttpServiceBindingClientV1 {
             bind_addr: parts.authority,
             path: parts.path,
         };
-        let request_body = serde_json::to_vec(body).map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                format!("local HTTP private JSON request serialization failed: {error}"),
-            )
-        })?;
-        let response_body = self.post_bytes_to_endpoint_bounded_v1(
+        self.post_bytes_to_endpoint_bounded_v1(
             &endpoint,
             super::LOCAL_HTTP_JSON_CONTENT_TYPE_V1,
-            &request_body,
+            request_body,
             Some(internal_service_auth),
             Some(response_max_bytes),
-        )?;
-        serde_json::from_slice(&response_body).map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                format!("local HTTP private JSON response parse failed: {error}"),
-            )
-        })
+        )
     }
 
     fn post_bytes_to_endpoint_v1(
