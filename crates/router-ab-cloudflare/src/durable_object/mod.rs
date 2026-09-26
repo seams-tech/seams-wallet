@@ -56,7 +56,6 @@ pub use signing_worker_wallet::RouterAbSigningWorkerWalletDurableObject;
 #[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
 pub(crate) use signing_worker_wallet::{
     call_signing_worker_wallet_do_v1, SigningWorkerWalletDoRequestV1,
-    SigningWorkerWalletEcdsaActivationMaterialV1,
 };
 // Shared by every host. Its refresh, restore, retirement and cutover paths
 // still have only Cloudflare callers, so a Cloudflare-free build leaves them unused.
@@ -75,9 +74,6 @@ use ecdsa_presign_live_session::{
 };
 #[cfg(feature = "workers-rs")]
 pub(crate) use ecdsa_presign_live_session::{
-    CloudflareSigningWorkerEcdsaPresignSessionDoGatewayStepRequestV1,
-    CloudflareSigningWorkerEcdsaPresignSessionDoInitRequestV1,
-    CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1,
     CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoInitRequestV1,
     CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1,
     CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeRequestV1,

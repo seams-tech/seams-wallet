@@ -238,9 +238,9 @@ fn router_ab_ecdsa_derivation_finalize_consumes_before_fallible_signing_work() {
         "private-D1 finalize must claim the effect before consuming pool state"
     );
     assert_ecdsa_pool_mutation_reaches_owner_storage(&lib_rs);
-    // The wallet DO claims the effect and consumes the reservation in one
+    // The wallet store claims the effect and consumes the reservation in one
     // storage transaction.
-    let wallet_do_claim = extract_function_body(&lib_rs, "claim_and_consume_ecdsa_in_storage");
+    let wallet_do_claim = extract_function_body(&lib_rs, "claim_and_consume_effect");
     for required in [
         "CloudflareSigningWorkerEcdsaPoolCommandV1::Consume",
         "expected_revision: 1",
@@ -255,7 +255,7 @@ fn router_ab_ecdsa_derivation_finalize_consumes_before_fallible_signing_work() {
     let wallet_do_transaction = extract_function_body(&lib_rs, "claim_and_consume_ecdsa_effect");
     assert!(
         wallet_do_transaction.contains(".transaction(")
-            && wallet_do_transaction.contains("claim_and_consume_ecdsa_in_storage"),
+            && wallet_do_transaction.contains("claim_and_consume_effect"),
         "wallet-DO ECDSA claim and consume must run in one storage transaction"
     );
 }

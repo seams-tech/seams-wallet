@@ -15,8 +15,7 @@ use crate::tenant_root_role_runtime::{
     DERIVER_TENANT_ROOT_RESTORE_SESSION_CLEANUP_REQUEST_MAX_BYTES_V1,
 };
 use crate::{
-    build_cloudflare_ecdsa_threshold_prf_outer_request_v2,
-    build_cloudflare_preloaded_signer_host_v1, cloudflare_now_unix_ms_v1,
+    build_cloudflare_ecdsa_threshold_prf_outer_request_v2, cloudflare_now_unix_ms_v1,
     cloudflare_random_bytes_v1, load_cloudflare_bound_tenant_root_role_share_v1,
     CloudflareAuthenticatedSignerPrivateBootstrapRequestV1, CloudflarePeerBindingV1,
     CloudflareRootShareStartupMetadataV1,
@@ -194,6 +193,27 @@ impl StrictDeriverRuntimeV1 {
             CLOUDFLARE_DERIVER_TENANT_ROOT_RESTORE_CLEANUP_PRIVATE_REQUEST_PATH,
             crate::paths::CLOUDFLARE_DERIVER_TENANT_ROOT_PREACTIVATION_CLEANUP_PRIVATE_REQUEST_PATH,
         )
+    }
+}
+
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint"
+))]
+impl crate::CloudflareDeriverSignerRuntimeV1 for StrictDeriverRuntimeV1 {
+    fn worker_role(&self) -> CloudflareWorkerRoleV1 {
+        StrictDeriverRuntimeV1::worker_role(self)
+    }
+
+    fn envelope_decrypt_key(&self) -> &CloudflareSignerEnvelopeHpkeDecryptKeyBindingSetV1 {
+        StrictDeriverRuntimeV1::envelope_decrypt_key(self)
+    }
+
+    fn peer_verifying_keys_for_signer_set(
+        &self,
+        signer_set: &SignerSetV1,
+    ) -> RouterAbProtocolResult<Vec<AbPeerMessageVerifyingKeyV1>> {
+        StrictDeriverRuntimeV1::peer_verifying_keys_for_signer_set(self, signer_set)
     }
 }
 
@@ -821,56 +841,38 @@ async fn handle_strict_deriver_fetch_v1(
             };
         timing.mark("parse", total_started_at_ms);
         let preload_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-        let (registration_request, authenticated, custody_wire) =
-            match private_request.into_authenticated_parts(&env, worker_role, now_unix_ms) {
-                Ok(parts) => parts,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
-            };
-        let public_request = match registration_request.to_threshold_prf_request() {
-            Ok(request) => request,
+        let tenant_root_host =
+            crate::tenant_root_role_runtime::CloudflareTenantRootDeriverHostV1::new(
+                &env,
+                worker_role,
+                None,
+            );
+        let random_bytes = match cloudflare_random_bytes_v1(0) {
+            Ok(bytes) => bytes,
             Err(err) => return cloudflare_protocol_error_response_v1(err),
         };
-        let outer_request = match build_cloudflare_ecdsa_threshold_prf_outer_request_v2(
-            &public_request,
-            authenticated.tenant_root_custody_binding(),
-            &custody_wire,
-        ) {
-            Ok(request) => request,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
-        };
-        let preloaded = match preload_strict_deriver_request_with_authenticated_binding_v2(
-            &env,
+        let registration = match crate::prepare_cloudflare_deriver_ecdsa_registration_v1(
+            &tenant_root_host,
             &runtime,
-            &authenticated,
+            private_request,
+            now_unix_ms,
+            random_bytes,
         )
         .await
         {
-            Ok(loaded) => loaded,
+            Ok(registration) => registration,
             Err(err) => return cloudflare_protocol_error_response_v1(err),
         };
-        let signer_bootstrap = authenticated.bootstrap;
-        let tenant_root_custody_binding = authenticated.tenant_root_custody_binding;
         timing.mark("preload", preload_started_at_ms);
         let execute_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-        let response =
-            match decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_registration_signer_private_request_v1(
-                &env,
-                worker_role,
-                &preloaded.host,
-                registration_request,
-                signer_bootstrap,
-                tenant_root_custody_binding,
-                outer_request,
-                preloaded.tenant_root_share,
-                runtime.envelope_decrypt_key(),
-                &preloaded.root_share_metadata,
-                now_unix_ms,
-            )
-            .await
-            {
-                Ok(response) => response,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
-            };
+        let response = match registration.execute_deriver_registration(
+            &crate::CloudflareWorkerEnvReaderV1::new(&env),
+            &runtime,
+            now_unix_ms,
+        ) {
+            Ok(response) => response,
+            Err(err) => return cloudflare_protocol_error_response_v1(err),
+        };
         timing.mark("execute", execute_started_at_ms);
         timing.mark("total", total_started_at_ms);
         return strict_deriver_timed_json_response_v1(&response, &timing);
@@ -1075,32 +1077,12 @@ async fn preload_strict_deriver_host_with_authenticated_binding_v1(
     CloudflareSignerHostPreloadPlanV1,
     CloudflarePreloadedSignerHostV1,
 )> {
-    let bootstrap = &authenticated_request.bootstrap;
-    let preload_plan = CloudflareSignerHostPreloadPlanV1::from_private_bootstrap(
-        runtime.worker_role(),
-        bootstrap,
-    )?;
-    let verifying_keys = runtime.peer_verifying_keys_for_signer_set(&preload_plan.signer_set)?;
-    let preload_input = preload_plan.to_host_preload_input(Vec::new(), verifying_keys, 0)?;
-    let root_share_metadata = CloudflareRootShareStartupMetadataV1::new(
-        preload_plan.signer_set_id.clone(),
-        runtime.protocol_role(),
-        preload_plan.local_signer.signer_id.clone(),
-        preload_plan.local_signer.key_epoch.clone(),
-        preload_plan.root_share_epoch.clone(),
-        format!(
-            "tenant-root-role-private-d1/{}/active",
-            runtime.worker_role().as_str()
-        ),
-    )?;
-    let host = build_cloudflare_preloaded_signer_host_v1(
+    crate::preload_cloudflare_deriver_signer_host_v1(
+        runtime,
+        authenticated_request,
         cloudflare_now_unix_ms_v1()?,
-        runtime.protocol_role(),
-        preload_input,
-        root_share_metadata,
         cloudflare_random_bytes_v1(0)?,
-    )?;
-    Ok((preload_plan, host))
+    )
 }
 
 #[cfg(feature = "strict-worker-deriver-b-entrypoint")]

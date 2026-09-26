@@ -117,9 +117,9 @@ fn router_ab_ecdsa_derivation_registration_uses_protocol_specific_deriver_path()
         "handle_cloudflare_router_ab_ecdsa_derivation_registration_bootstrap_authenticated_public_request_v1",
     );
     for required in [
+        "admit_cloudflare_router_ab_ecdsa_derivation_registration_v1",
         "execute_cloudflare_router_ab_ecdsa_derivation_deriver_registration_service_call_v1",
-        "CloudflareSigningWorkerRecipientProofBundleActivationV1::new",
-        "CloudflareRouterAbEcdsaDerivationPendingSigningWorkerActivationV1::new",
+        "finish_with_deriver_responses",
     ] {
         assert!(
             registration_body.contains(required),
@@ -132,15 +132,59 @@ fn router_ab_ecdsa_derivation_registration_uses_protocol_specific_deriver_path()
         "Router A/B ECDSA derivation registration must not use the generic Deriver private service path"
     );
 
+    // Every host admits and finishes registration through the same steps.
+    let admission_body = extract_function_body(
+        &lib_rs,
+        "admit_cloudflare_router_ab_ecdsa_derivation_registration_v1",
+    );
+    assert!(
+        admission_body
+            .contains("CloudflareRouterAbEcdsaDerivationDeriverRegistrationPrivateRequestV1::new"),
+        "Router A/B ECDSA derivation registration must build the protocol-specific Deriver request"
+    );
+    let finish_body = extract_function_body(&lib_rs, "finish_with_deriver_responses");
+    for required in [
+        "validate_deriver_response",
+        "CloudflareSigningWorkerRecipientProofBundleActivationV1::new",
+        "CloudflareRouterAbEcdsaDerivationPendingSigningWorkerActivationV1::new",
+    ] {
+        assert!(
+            finish_body.contains(required),
+            "Router A/B ECDSA derivation registration must finish through `{required}`"
+        );
+    }
+    assert!(
+        extract_function_body(&lib_rs, "validate_deriver_response")
+            .contains("validate_cloudflare_signer_recipient_proof_bundle_private_response_v1"),
+        "Router A/B ECDSA derivation registration must validate each Deriver response"
+    );
+
+    let service_start = lib_rs
+        .find(
+            "fn execute_cloudflare_router_ab_ecdsa_derivation_deriver_registration_service_call_v1",
+        )
+        .expect("registration service call should exist");
+    let service_declaration = &lib_rs[service_start
+        ..service_start
+            + lib_rs[service_start..]
+                .find('{')
+                .expect("service call body")];
+    for required in [
+        "CloudflareRouterAbEcdsaDerivationDeriverRegistrationPrivateRequestV1",
+        "CloudflareSignerRecipientProofBundleResponseV1",
+    ] {
+        assert!(
+            service_declaration.contains(required),
+            "Router A/B ECDSA derivation registration service call must use `{required}`"
+        );
+    }
     let service_body = extract_function_body(
         &lib_rs,
         "execute_cloudflare_router_ab_ecdsa_derivation_deriver_registration_service_call_v1",
     );
     for required in [
-        "CloudflareRouterAbEcdsaDerivationDeriverRegistrationPrivateRequestV1",
-        "CloudflareSignerRecipientProofBundleResponseV1",
+        "validate_for_worker_role",
         "cloudflare_router_ab_ecdsa_derivation_deriver_registration_service_url",
-        "validate_cloudflare_signer_recipient_proof_bundle_private_response_v1",
     ] {
         assert!(
             service_body.contains(required),
@@ -180,7 +224,8 @@ fn strict_deriver_router_ab_ecdsa_derivation_export_routes_are_protocol_specific
     let shared_body = extract_function_body(&strict_worker_rs, "handle_strict_deriver_fetch_v1");
     for required in [
         "CloudflareRouterAbEcdsaDerivationDeriverRegistrationPrivateRequestV1",
-        "decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_registration_signer_private_request_v1",
+        "prepare_cloudflare_deriver_ecdsa_registration_v1",
+        "execute_deriver_registration",
         "CloudflareRouterAbEcdsaDerivationDeriverExportPrivateRequestV1",
         "decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_export_signer_private_request_v1",
         "registration_private_path",
@@ -191,6 +236,11 @@ fn strict_deriver_router_ab_ecdsa_derivation_export_routes_are_protocol_specific
             "shared strict Deriver dispatcher must use `{required}`"
         );
     }
+    assert!(
+        extract_function_body(&read_src_file("lib.rs"), "execute_deriver_registration")
+            .contains("decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_registration_signer_private_request_v1"),
+        "shared Deriver registration must decrypt and handle the registration request"
+    );
 }
 
 #[test]
@@ -269,10 +319,7 @@ fn router_ab_ecdsa_derivation_explicit_export_emits_sanitized_audit_event() {
 #[test]
 fn router_ab_ecdsa_derivation_registration_and_export_have_separate_activation_boundaries() {
     let lib_rs = read_src_file("lib.rs");
-    let registration_body = extract_function_body(
-        &lib_rs,
-        "handle_cloudflare_router_ab_ecdsa_derivation_registration_bootstrap_authenticated_public_request_v1",
-    );
+    let registration_body = extract_function_body(&lib_rs, "finish_with_deriver_responses");
     let export_body = extract_function_body(
         &lib_rs,
         "handle_cloudflare_router_ab_ecdsa_derivation_explicit_export_authenticated_public_request_v1",
@@ -370,8 +417,16 @@ fn strict_deriver_ecdsa_stable_path_uses_server_loaded_v2_share_input() {
     assert!(
         deriver_rs.contains("load_cloudflare_bound_tenant_root_role_share_v1")
             && deriver_rs.contains("StrictDeriverPreloadedRequestV2")
-            && deriver_rs.contains("build_cloudflare_preloaded_signer_host_v1"),
+            && deriver_rs.contains("preload_cloudflare_deriver_signer_host_v1")
+            && deriver_rs.contains("prepare_cloudflare_deriver_ecdsa_registration_v1"),
         "strict Deriver stable path must preload the server-authenticated V2 share"
+    );
+    assert!(
+        extract_function_body(&lib_rs, "preload_cloudflare_deriver_signer_host_v1")
+            .contains("build_cloudflare_preloaded_signer_host_v1")
+            && extract_function_body(&lib_rs, "prepare_cloudflare_deriver_ecdsa_registration_v1")
+                .contains("tenant_root_deriver_load_bound_role_share_v1"),
+        "shared Deriver registration must preload the server-authenticated V2 share"
     );
     assert!(
         !deriver_rs.contains("build_cloudflare_preloaded_signer_host_with_root_share_wire_v1"),

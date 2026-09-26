@@ -25,6 +25,10 @@ use signer_core::near_threshold_ed25519::{
 mod private_d1;
 #[cfg(feature = "workers-rs")]
 pub use private_d1::*;
+mod wallet_cipher;
+pub use wallet_cipher::*;
+mod wallet_ecdsa_store;
+pub use wallet_ecdsa_store::*;
 mod ecdsa_lane;
 pub use ecdsa_lane::*;
 #[cfg(feature = "workers-rs")]

@@ -15,6 +15,9 @@ use router_ab_ecdsa_wire::{CompressedPointBytes, ScalarBytes};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+pub(super) type CloudflareSigningWorkerEcdsaPresignLiveSessionsV1 =
+    RefCell<crate::CloudflareSigningWorkerEcdsaPresignLiveSessionMapV1>;
+
 use super::{
     durable_object_error_status, CloudflareSigningWorkerEcdsaPresignatureRecordV1,
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
@@ -25,61 +28,17 @@ use crate::{
     require_positive_ms, ActiveSigningWorkerStateV1, CloudflareSignerProofGetrandomRngV1,
     CloudflareSigningWorkerEcdsaPresignAuthorityV1,
     CloudflareSigningWorkerEcdsaPresignRequestedStageV1,
-    CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1,
-    CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1,
+    CloudflareSigningWorkerEcdsaPresignSessionDoGatewayStepRequestV1,
+    CloudflareSigningWorkerEcdsaPresignSessionDoInitRequestV1,
     CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
     CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionStepRequestV1,
-    CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1,
     RouterAbEcdsaDerivationLinkedDeviceNormalSigningScopeV1,
-    RouterAbEcdsaDerivationNormalSigningScopeV1,
     CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_INIT_PATH,
     CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
     CLOUDFLARE_SIGNING_WORKER_LINKED_ECDSA_PRESIGNATURE_DO_CONSUME_PATH,
     CLOUDFLARE_SIGNING_WORKER_LINKED_ECDSA_PRESIGN_SESSION_DO_INIT_PATH,
     CLOUDFLARE_SIGNING_WORKER_LINKED_ECDSA_PRESIGN_SESSION_DO_STEP_PATH,
 };
-
-pub(super) struct CloudflareSigningWorkerEcdsaPresignLiveSessionV1 {
-    scope: RouterAbEcdsaDerivationNormalSigningScopeV1,
-    authority: CloudflareSigningWorkerEcdsaPresignAuthorityV1,
-    ceremony_expires_at_ms: u64,
-    material_expires_at_ms: u64,
-    session: SigningWorkerPresignSession,
-}
-
-pub(super) type CloudflareSigningWorkerEcdsaPresignLiveSessionsV1 =
-    RefCell<BTreeMap<String, CloudflareSigningWorkerEcdsaPresignLiveSessionV1>>;
-
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareSigningWorkerEcdsaPresignSessionDoInitRequestV1 {
-    pub(crate) request: CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1,
-    pub(crate) relayer_share32_b64u: String,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-/// Constructed only after the direct Gateway presign credential is verified.
-pub(crate) struct CloudflareSigningWorkerEcdsaPresignSessionDoGatewayStepRequestV1 {
-    pub(crate) request: CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub(crate) enum CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1 {
-    Continue {
-        presign_session_id: String,
-        stage: String,
-        event: String,
-        outgoing_messages_b64u: Vec<String>,
-    },
-    Complete {
-        authority: CloudflareSigningWorkerEcdsaPresignAuthorityV1,
-        outgoing_messages_b64u: Vec<String>,
-        pool_put_request:
-            CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1,
-    },
-}
 
 pub(super) struct CloudflareSigningWorkerLinkedDeviceEcdsaPresignLiveSessionV1 {
     request: router_ab_core::RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningRequestV1,
@@ -221,7 +180,11 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
                         + 1,
                 ))
                 .await?;
-            create_presign_session(parsed, sessions, now_unix_ms)
+            crate::create_signing_worker_ecdsa_presign_session_v1(
+                parsed,
+                &mut sessions.borrow_mut(),
+                now_unix_ms,
+            )
         }
         CLOUDFLARE_SIGNING_WORKER_ECDSA_PRESIGN_SESSION_DO_STEP_PATH => {
             let parsed = match request
@@ -259,7 +222,11 @@ pub(super) async fn handle_cloudflare_signing_worker_ecdsa_presign_session_do_fe
                     "SigningWorker ECDSA presign authority does not match initialized session",
                 ));
             }
-            step_presign_session(parsed, sessions, now_unix_ms)
+            crate::step_signing_worker_ecdsa_presign_session_v1(
+                parsed,
+                &mut sessions.borrow_mut(),
+                now_unix_ms,
+            )
         }
         _ => {
             return worker::Response::error("SigningWorker ECDSA presign DO route not found", 404);
@@ -284,198 +251,6 @@ fn presign_do_json_response<T: Serialize>(
         .headers()
         .set("Server-Timing", &format!("do_total;dur={elapsed_ms}"))?;
     Ok(response)
-}
-
-fn create_presign_session(
-    input: CloudflareSigningWorkerEcdsaPresignSessionDoInitRequestV1,
-    sessions: &CloudflareSigningWorkerEcdsaPresignLiveSessionsV1,
-    now_unix_ms: u64,
-) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1> {
-    input.request.validate_at(now_unix_ms)?;
-    let relayer_share = decode_base64url_fixed_32_v1(
-        "SigningWorker ECDSA presign relayer share",
-        &input.relayer_share32_b64u,
-    )?;
-    let wallet_public_key = decode_base64url_fixed_33_v1(
-        "SigningWorker ECDSA presign threshold public key",
-        &input
-            .request
-            .scope
-            .public_identity
-            .threshold_public_key33_b64u,
-    )?;
-    let context = derive_presign_pair_context(
-        CompressedPointBytes::new(wallet_public_key),
-        &input.request.presign_session_id,
-    )
-    .map_err(presign_protocol_error)?;
-    let key_share = AdditiveKeyShare::from_bytes(ScalarBytes::new(relayer_share))
-        .map_err(presign_protocol_error)?;
-    let session = SigningWorkerPresignSession::new(
-        context,
-        key_share,
-        CompressedPointBytes::new(wallet_public_key),
-        &mut CloudflareSignerProofGetrandomRngV1,
-    )
-    .map_err(presign_protocol_error)?;
-    let mut sessions = sessions.borrow_mut();
-    sessions.retain(|_, entry| entry.ceremony_expires_at_ms > now_unix_ms);
-    if sessions.contains_key(&input.request.presign_session_id) {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::ReplayedLocalRequest,
-            "SigningWorker ECDSA presign session id already exists",
-        ));
-    }
-    let mut entry = CloudflareSigningWorkerEcdsaPresignLiveSessionV1 {
-        scope: input.request.scope,
-        authority: input.request.authority,
-        ceremony_expires_at_ms: input.request.ceremony_expires_at_ms,
-        material_expires_at_ms: input.request.material_expires_at_ms,
-        session,
-    };
-    let first_message = decode_base64url_bytes_v1(
-        "ECDSA presign first message",
-        &input.request.first_message_b64u,
-    )?;
-    entry
-        .session
-        .message(&first_message, &mut CloudflareSignerProofGetrandomRngV1)
-        .map_err(presign_protocol_error)?;
-    let progress = continue_progress(&input.request.presign_session_id, entry.session.poll());
-    sessions.insert(input.request.presign_session_id, entry);
-    Ok(progress)
-}
-
-fn step_presign_session(
-    input: CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1,
-    sessions: &CloudflareSigningWorkerEcdsaPresignLiveSessionsV1,
-    now_unix_ms: u64,
-) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1> {
-    input.validate_at(now_unix_ms)?;
-    if sessions
-        .borrow()
-        .get(&input.presign_session_id)
-        .is_some_and(|entry| entry.authority != input.authority)
-    {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "SigningWorker ECDSA presign authority does not match initialized session",
-        ));
-    }
-    let mut entry = sessions
-        .borrow_mut()
-        .remove(&input.presign_session_id)
-        .ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ExpiredLocalRequest,
-                "SigningWorker ECDSA presign session is missing; restart pool fill",
-            )
-        })?;
-    if entry.ceremony_expires_at_ms <= now_unix_ms
-        || entry.ceremony_expires_at_ms != input.ceremony_expires_at_ms
-        || entry.material_expires_at_ms != input.material_expires_at_ms
-        || entry.scope != input.scope
-    {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::ExpiredLocalRequest,
-            "SigningWorker ECDSA presign session scope or expiry mismatch",
-        ));
-    }
-
-    match (input.requested_stage, entry.session.stage()) {
-        (
-            CloudflareSigningWorkerEcdsaPresignRequestedStageV1::Triples,
-            PresignSessionStage::Triples,
-        )
-        | (
-            CloudflareSigningWorkerEcdsaPresignRequestedStageV1::Presign,
-            PresignSessionStage::Presign,
-        ) => {}
-        _ => {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                "SigningWorker ECDSA presign session stage mismatch",
-            ))
-        }
-    }
-
-    for message_b64u in &input.outgoing_messages_b64u {
-        let message =
-            decode_base64url_bytes_v1("SigningWorker ECDSA presign message", message_b64u)?;
-        entry
-            .session
-            .message(&message, &mut CloudflareSignerProofGetrandomRngV1)
-            .map_err(presign_protocol_error)?;
-        if entry.session.stage() == PresignSessionStage::TriplesDone {
-            entry
-                .session
-                .start_presign()
-                .map_err(presign_protocol_error)?;
-        }
-    }
-    let progress = entry.session.poll();
-    if progress.event == PresignSessionEvent::PresignDone
-        || progress.stage == PresignSessionStage::Done
-    {
-        let presignature = entry
-            .session
-            .take_presignature_97()
-            .map_err(presign_protocol_error)?;
-        if presignature.len() != 97 {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "SigningWorker ECDSA presign output must contain 97 bytes",
-            ));
-        }
-        let big_r = &presignature[..33];
-        let k_share = &presignature[33..65];
-        let sigma_share = &presignature[65..97];
-        let presignature_id = format!(
-            "presig-{}",
-            encode_base64url_bytes_v1(Sha256::digest(big_r).as_slice())
-        );
-        let pool_put_request =
-            CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1::new(
-                entry.scope,
-                presignature_id,
-                encode_base64url_bytes_v1(big_r),
-                encode_base64url_bytes_v1(k_share),
-                encode_base64url_bytes_v1(sigma_share),
-                entry.material_expires_at_ms,
-            )?;
-        return Ok(
-            CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1::Complete {
-                authority: entry.authority,
-                pool_put_request,
-                outgoing_messages_b64u: progress
-                    .outgoing
-                    .iter()
-                    .map(|message| encode_base64url_bytes_v1(message))
-                    .collect(),
-            },
-        );
-    }
-    let response = continue_progress(&input.presign_session_id, progress);
-    sessions
-        .borrow_mut()
-        .insert(input.presign_session_id, entry);
-    Ok(response)
-}
-
-fn continue_progress(
-    presign_session_id: &str,
-    progress: router_ab_ecdsa_presign::session::PresignSessionProgress,
-) -> CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1 {
-    CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1::Continue {
-        presign_session_id: presign_session_id.to_owned(),
-        stage: progress.stage.as_str().to_owned(),
-        event: progress.event.as_str().to_owned(),
-        outgoing_messages_b64u: progress
-            .outgoing
-            .iter()
-            .map(|message| encode_base64url_bytes_v1(message))
-            .collect(),
-    }
 }
 
 #[cfg(feature = "workers-rs")]
@@ -584,16 +359,16 @@ fn create_linked_presign_session(
         CompressedPointBytes::new(wallet_public_key),
         &input.request.presign_session_id,
     )
-    .map_err(presign_protocol_error)?;
+    .map_err(crate::presign_protocol_error)?;
     let key_share = AdditiveKeyShare::from_bytes(ScalarBytes::new(relayer_share))
-        .map_err(presign_protocol_error)?;
+        .map_err(crate::presign_protocol_error)?;
     let session = SigningWorkerPresignSession::new(
         context,
         key_share,
         CompressedPointBytes::new(wallet_public_key),
         &mut CloudflareSignerProofGetrandomRngV1,
     )
-    .map_err(presign_protocol_error)?;
+    .map_err(crate::presign_protocol_error)?;
     let request_digest = input.request.request.request_digest()?;
     let signing_digest = input.request.request.signing_digest()?;
     let linked_request = input.request.request;
@@ -702,12 +477,12 @@ async fn step_linked_presign_session(
         entry
             .session
             .message(&message, &mut CloudflareSignerProofGetrandomRngV1)
-            .map_err(presign_protocol_error)?;
+            .map_err(crate::presign_protocol_error)?;
         if entry.session.stage() == PresignSessionStage::TriplesDone {
             entry
                 .session
                 .start_presign()
-                .map_err(presign_protocol_error)?;
+                .map_err(crate::presign_protocol_error)?;
         }
     }
     let progress = entry.session.poll();
@@ -717,7 +492,7 @@ async fn step_linked_presign_session(
         let presignature = entry
             .session
             .take_presignature_97()
-            .map_err(presign_protocol_error)?;
+            .map_err(crate::presign_protocol_error)?;
         if presignature.len() != 97 {
             return Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
@@ -1005,13 +780,6 @@ fn durable_storage_protocol_error(error: worker::Error) -> RouterAbProtocolError
     )
 }
 
-fn presign_protocol_error(error: impl std::fmt::Display) -> RouterAbProtocolError {
-    RouterAbProtocolError::new(
-        RouterAbProtocolErrorCode::MalformedWirePayload,
-        format!("SigningWorker ECDSA presign protocol rejected input: {error}"),
-    )
-}
-
 #[cfg(feature = "workers-rs")]
 fn presign_do_error_response(error: RouterAbProtocolError) -> worker::Result<worker::Response> {
     worker::Response::error(
@@ -1023,6 +791,12 @@ fn presign_do_error_response(error: RouterAbProtocolError) -> worker::Result<wor
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1,
+        CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1,
+        CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1,
+        RouterAbEcdsaDerivationNormalSigningScopeV1,
+    };
     use router_ab_core::{
         MpcMaterialActivationRefV1, RouterAbEcdsaDerivationPublicIdentityV1,
         RouterAbEcdsaDerivationStableKeyContextV1, ServerIdentityV1,
@@ -1093,8 +867,8 @@ mod tests {
         )
         .unwrap();
         let first = client.poll().outgoing.remove(0);
-        let sessions = Default::default();
-        let mut progress = create_presign_session(
+        let mut sessions = Default::default();
+        let mut progress = crate::create_signing_worker_ecdsa_presign_session_v1(
             CloudflareSigningWorkerEcdsaPresignSessionDoInitRequestV1 {
                 request: CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
                     scope: scope.clone(),
@@ -1106,7 +880,7 @@ mod tests {
                 },
                 relayer_share32_b64u: encode_base64url_bytes_v1(&worker_share),
             },
-            &sessions,
+            &mut sessions,
             1,
         )
         .unwrap();
@@ -1139,7 +913,7 @@ mod tests {
                         encode_base64url_bytes_v1(&client_output[..33])
                     );
                     assert!(client.take_presignature_97().is_err());
-                    assert!(sessions.borrow().is_empty());
+                    assert!(sessions.is_empty());
                     break;
                 }
                 CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1::Continue {
@@ -1182,7 +956,7 @@ mod tests {
                     } else {
                         assert!(client.candidate_big_r().is_err());
                     }
-                    progress = step_presign_session(
+                    progress = crate::step_signing_worker_ecdsa_presign_session_v1(
                         CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 {
                             scope: scope.clone(),
                             authority:
@@ -1197,7 +971,7 @@ mod tests {
                             ceremony_expires_at_ms: expires,
                             material_expires_at_ms: expires,
                         },
-                        &sessions,
+                        &mut sessions,
                         1,
                     )
                     .unwrap();

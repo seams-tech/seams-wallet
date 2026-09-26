@@ -38,14 +38,23 @@ fn strict_router_ab_ecdsa_derivation_lifecycle_matrix_has_exact_owners() {
             handler:
                 "handle_cloudflare_router_ab_ecdsa_derivation_registration_bootstrap_authenticated_public_request_v1",
             required: &[
+                "admit_cloudflare_router_ab_ecdsa_derivation_registration_v1",
                 "execute_cloudflare_router_ab_ecdsa_derivation_deriver_registration_service_call_v1",
-                "CloudflareSigningWorkerRecipientProofBundleActivationV1::new",
-                "CloudflareRouterAbEcdsaDerivationPendingSigningWorkerActivationV1::new",
+                "finish_with_deriver_responses",
             ],
             forbidden: &[
                 "execute_cloudflare_router_ab_ecdsa_derivation_deriver_export_service_call_v1",
                 "execute_cloudflare_router_ab_ecdsa_derivation_deriver_activation_refresh_service_call_v1",
             ],
+        },
+        LifecycleRouteExpectation {
+            name: "registration/bootstrap finish on every host",
+            handler: "finish_with_deriver_responses",
+            required: &[
+                "CloudflareSigningWorkerRecipientProofBundleActivationV1::new",
+                "CloudflareRouterAbEcdsaDerivationPendingSigningWorkerActivationV1::new",
+            ],
+            forbidden: &[],
         },
         LifecycleRouteExpectation {
             name: "explicit export",

@@ -237,9 +237,25 @@ fn router_ab_ecdsa_derivation_router_prepare_uses_local_admission_before_worker_
             "Router A/B ECDSA derivation Router prepare admission must bind `{required}`"
         );
     }
-    let body = extract_function_body(
+    let handler = extract_function_body(
         &lib_rs,
         "handle_cloudflare_router_ab_ecdsa_derivation_evm_digest_signing_prepare_authenticated_public_request_v1",
+    );
+    // Every host admits through the same function; the Cloudflare handler
+    // only adds its Service Binding call.
+    let admission_start = handler
+        .find("admit_cloudflare_router_ab_ecdsa_derivation_evm_digest_prepare_v1")
+        .expect("Router A/B ECDSA derivation Router prepare must admit through the shared step");
+    let forward_start = handler
+        .find("execute_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_service_call_v1")
+        .expect("Router A/B ECDSA derivation Router prepare must forward to SigningWorker");
+    assert!(
+        admission_start < forward_start,
+        "Router A/B ECDSA derivation Router prepare must admit before forwarding"
+    );
+    let body = extract_function_body(
+        &lib_rs,
+        "admit_cloudflare_router_ab_ecdsa_derivation_evm_digest_prepare_v1",
     );
     for required in [
         "verify_wallet_session",
@@ -248,7 +264,6 @@ fn router_ab_ecdsa_derivation_router_prepare_uses_local_admission_before_worker_
         "derive_cloudflare_router_ab_ecdsa_derivation_evm_digest_prepare_trusted_admission_v1",
         "allows_signing_worker_forwarding",
         "CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new",
-        "execute_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_service_call_v1",
     ] {
         assert!(
             body.contains(required),
@@ -256,18 +271,9 @@ fn router_ab_ecdsa_derivation_router_prepare_uses_local_admission_before_worker_
         );
     }
 
-    let admission = body
-        .find("from_prepare_request")
-        .expect("Router A/B ECDSA derivation Router prepare must build admission");
-    let forward = body
-        .find("execute_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_service_call_v1")
-        .expect("Router A/B ECDSA derivation Router prepare must forward to SigningWorker");
     assert!(
-        admission < forward,
-        "Router A/B ECDSA derivation Router prepare must derive local admission before forwarding"
-    );
-    assert!(
-        !body.contains("execute_cloudflare_router_replay_reserve_v1"),
+        !body.contains("execute_cloudflare_router_replay_reserve_v1")
+            && !handler.contains("execute_cloudflare_router_replay_reserve_v1"),
         "Router A/B ECDSA derivation Router prepare must not call a Router replay store"
     );
     for forbidden in [
@@ -277,7 +283,7 @@ fn router_ab_ecdsa_derivation_router_prepare_uses_local_admission_before_worker_
         "CloudflareSigningWorkerRecipientProofBundleActivationV1",
     ] {
         assert!(
-            !body.contains(forbidden),
+            !body.contains(forbidden) && !handler.contains(forbidden),
             "Router A/B ECDSA derivation Router prepare must not call `{forbidden}`"
         );
     }
@@ -287,9 +293,25 @@ fn router_ab_ecdsa_derivation_router_prepare_uses_local_admission_before_worker_
 fn router_ab_ecdsa_derivation_router_finalize_admission_uses_wallet_session_and_presignature_take()
 {
     let lib_rs = read_src_file("lib.rs");
-    let body = extract_function_body(
+    let handler = extract_function_body(
         &lib_rs,
         "handle_cloudflare_router_ab_ecdsa_derivation_evm_digest_signing_finalize_authenticated_public_request_v1",
+    );
+    // Every host admits through the same function; the Cloudflare handler
+    // only adds its Service Binding call.
+    let admission_start = handler
+        .find("admit_cloudflare_router_ab_ecdsa_derivation_evm_digest_finalize_v1")
+        .expect("Router A/B ECDSA derivation Router finalize must admit through the shared step");
+    let forward_start = handler
+        .find("execute_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_service_call_v1")
+        .expect("Router A/B ECDSA derivation Router finalize must forward to SigningWorker");
+    assert!(
+        admission_start < forward_start,
+        "Router A/B ECDSA derivation Router finalize must admit before forwarding"
+    );
+    let body = extract_function_body(
+        &lib_rs,
+        "admit_cloudflare_router_ab_ecdsa_derivation_evm_digest_finalize_v1",
     );
     for required in [
         "verify_wallet_session",
@@ -298,28 +320,19 @@ fn router_ab_ecdsa_derivation_router_finalize_admission_uses_wallet_session_and_
         "derive_cloudflare_router_ab_ecdsa_derivation_evm_digest_finalize_trusted_admission_v1",
         "allows_signing_worker_forwarding",
         "CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new",
-        "execute_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_service_call_v1",
     ] {
         assert!(
             body.contains(required),
             "Router A/B ECDSA derivation Router finalize admission must include `{required}`"
         );
     }
-    assert!(
-        !body.contains("execute_cloudflare_router_replay_reserve_v1")
-            && !body.contains("router_ab_ecdsa_derivation_evm_digest_prepare_replay_reserve_call"),
-        "Router A/B ECDSA derivation Router finalize must rely on SigningWorker one-use presignature take"
-    );
-    let admission = body
-        .find("from_finalize_request")
-        .expect("Router A/B ECDSA derivation Router finalize must build admission");
-    let forward = body
-        .find("execute_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_service_call_v1")
-        .expect("Router A/B ECDSA derivation Router finalize must forward to SigningWorker");
-    assert!(
-        admission < forward,
-        "Router A/B ECDSA derivation Router finalize must derive admission before forwarding"
-    );
+    for source in [&handler, &body] {
+        assert!(
+            !source.contains("execute_cloudflare_router_replay_reserve_v1")
+                && !source.contains("router_ab_ecdsa_derivation_evm_digest_prepare_replay_reserve_call"),
+            "Router A/B ECDSA derivation Router finalize must rely on SigningWorker one-use presignature take"
+        );
+    }
     for forbidden in [
         "execute_cloudflare_router_ab_ecdsa_derivation_deriver_registration_service_call_v1",
         "execute_cloudflare_router_ab_ecdsa_derivation_deriver_export_service_call_v1",
@@ -327,7 +340,7 @@ fn router_ab_ecdsa_derivation_router_finalize_admission_uses_wallet_session_and_
         "CloudflareSigningWorkerRecipientProofBundleActivationV1",
     ] {
         assert!(
-            !body.contains(forbidden),
+            !body.contains(forbidden) && !handler.contains(forbidden),
             "Router A/B ECDSA derivation Router finalize must not call `{forbidden}`"
         );
     }
