@@ -196,37 +196,40 @@ clock bound.
 
 ### Two purposes, two rules
 
-**Refresh retirement: the same root, so the concern is availability.** A
-refresh gives both roles new shares of the same root, and every derived public
-key is unchanged (Spec 6). A result computed from the old epoch equals one
-computed from the new epoch. Retiring the old share early is therefore never
-unsafe; at worst an operation still using it fails.
+**Refresh retirement: in-progress work finishes on its own epoch.** A refresh
+keeps the root and every derived public key (Spec 6). That does not make
+results from different epochs interchangeable. Transcripts, authorizations,
+partial contributions and one-use records are bound to their epoch, and Spec 6
+says work already in progress follows the version it started with. So a
+retired share may be erased only once no admitted work can still need it:
 
-The rule protects work in progress, as Spec 6 requires:
-
-1. Close the old epoch's gate to new admissions in the role store. New
+1. **Close the old epoch's gate** to new admissions in the role store. New
    root-using work is bound to an epoch by its control-plane custody binding,
    which names the epoch and the activation receipt digest. Each Deriver
-   resolves its active share against that binding
+   resolves its share against that binding
    (`resolve_authoritative_active_tenant_root_pair_binding_v1`), so once the
    refresh is committed and delivered, new bindings name the new epoch.
-2. Keep the retired share until its drain completes. It completes when one of
-   these holds:
-   - Every admission on the old epoch has durable completion evidence: a
-     terminal pair or operation record, as in the contract above.
-   - The graceful wait `W` has passed since the gate closed.
-3. Then erase it.
+2. **Let admitted work read its exact retired epoch.** Keeping the retired row
+   is not enough, because root loading goes through `load_active`, which
+   finds only the active epoch. An operation whose custody binding names the
+   retired epoch and its activation receipt must be able to load that exact
+   retired share. Nothing else may load it. This is being implemented and
+   demonstrated with an E2E that pauses registration across a refresh (see
+   "Tests").
+3. **Erase only after durable settlement or fenced cancellation of every
+   old-epoch admission.** Each admission must have either:
+   - a durable terminal outcome, or
+   - a cancellation behind a durable fence that refuses any later step.
 
-If a clock is wrong, `W` ends early or late. Early costs a failed in-flight
-operation, which retries on the new epoch; late costs storage. Neither is
-unsafe. `W` is a liveness parameter here and needs no clock proof. The one
-requirement is that a failed operation retries correctly:
-- **Retry identity.** A retry of the same operation keeps its identity and
-  finds its own durable records.
-- **One use.** Material consumed once (a registration capability, a
-  presignature, a pair) is never consumed again by the retry.
+   Elapsed time alone never permits erasure.
+4. **`W` warns and triggers recovery; it never permits erasure.** When an
+   old-epoch admission is unsettled `W` after the gate closed, operators are
+   warned and the owning operation's recovery (fenced cancellation, or
+   completion) is started. Retirement stays pending until each is settled.
 
-These need their own tests (below).
+Restarting in-progress work on the new epoch would be a behaviour change to
+Spec 6. It needs its own explicit, verified recovery transition and approval,
+and is not proposed.
 
 **Moving authority: source retirement and cutover, where safety is at stake.**
 Only one deployment may be the root's active authority (Spec 6). The rule must
@@ -265,11 +268,31 @@ Owners in the old deployment's own stores do not need the fence pushed to
 them, because nothing of theirs is terminal. SigningWorker, the Router and the
 Gateway do, since their commits are terminal.
 
+**Coverage is not yet proven.** Before this rule can be approved it must show
+two things.
+
+- **Releases as well as commits.** Some operations release root-derived
+  results to a caller without a durable terminal commit:
+  - Yao export returns key material;
+  - recovery returns its outcome.
+
+  A release can be fenced only where it is authorized, so each release path
+  must be listed, with the store that authorizes it and whether that store
+  checks the fence in the same transaction.
+- **Every per-wallet owner, including new ones.** SigningWorker's target store
+  is one Durable Object per wallet, and a fence pushed to known wallets misses
+  a wallet object created while the gate is closing. The rule needs one of:
+  - a tenant-wide fence authority that every per-wallet commit consults
+    atomically, or
+  - a creation path for per-wallet owners that is itself fenced.
+
+  Neither exists yet.
+
 ### What this changes relative to the second revision
 
 - **The time check is dropped.** "Commit only while the clock reads at most `D`"
-  is no longer a safety rule. `W` is kept only as the graceful wait for
-  refresh retirement.
+  is no longer a safety rule. `W` is kept only to warn and to trigger recovery
+  for unsettled admissions.
 - **`S` has no role in safety.** Clock health remains an operational signal:
   - On a VM, checking the kernel's synchronisation status is still
     recommended.
@@ -287,53 +310,58 @@ Gateway do, since their commits are terminal.
   - a signed acknowledgement of each recorded fence.
 
   The Router's finalization and the Gateway's wallet activation need the same.
-- **Commit-first refresh already provides the refresh preconditions.** The
-  Router commits the new epoch before delivery, and the old epoch keeps its
-  retired share, so work bound to it can finish while its gate drains.
+- **Commit-first refresh provides one refresh precondition.** The Router
+  commits the new epoch before delivery, and the old epoch keeps its retired
+  share. Work bound to that epoch cannot use the share yet, because root
+  loading finds only the active epoch; step 2 above covers that.
 
 ### Choosing `W`
 
-`W` is the graceful wait before a refresh's retired share may be erased
-without completion evidence. Every root-bound authorization already has a
-frozen maximum lifetime of 300 s (`TENANT_ROOT_MAX_LIFETIME_MS_V1`), the
-longest existing span is ECDSA derivation's 300 s request expiry, and the
-measured hosted durations are 3 to 4 s. So `W = 300 s` remains the proposal.
-Because `W` no longer bounds safety, it can be generous: a retired share kept
-longer costs only storage.
+`W` is when an unsettled old-epoch admission raises a warning and starts its
+operation's recovery; it never permits erasure. Every root-bound
+authorization already has a frozen maximum lifetime of 300 s
+(`TENANT_ROOT_MAX_LIFETIME_MS_V1`), the longest existing span is ECDSA
+derivation's 300 s request expiry, and the measured hosted durations are 3 to
+4 s. So `W = 300 s` remains the proposal.
 
 ### Tests before any erasure is enabled
 
 On the VM and on Workers:
 
-1. **Retry identity and one use after a failed in-flight operation.** Close
-   the gate and erase the old share while each operation is past its first
-   root read:
+1. **In-flight work across an epoch switch.** Pause each operation after its
+   first root read, then refresh (commit and delivery):
    - Yao registration;
    - recovery;
    - export;
    - ECDSA derivation.
 
-   Each fails, and its retry uses the same operation identity, reaches the new
-   epoch and completes. No one-use item is consumed twice: capability, pair,
-   presignature, SigningWorker effect claim.
-2. **A delayed terminal commit after a fence.** Hold a SigningWorker package or
+   Resume it. It reads its exact retired epoch and completes, and a request
+   bound to the retired epoch without having been admitted is refused.
+2. **Settlement before erasure.** With one old-epoch admission unsettled,
+   retirement stays pending past `W`, raises its warning and starts recovery.
+   It proceeds only after that admission's terminal outcome or fenced
+   cancellation.
+3. **Retry identity and one use after fenced cancellation.** A cancelled
+   operation's retry keeps its identity and consumes no one-use item twice:
+   capability, pair, presignature, SigningWorker effect claim.
+4. **A delayed terminal commit after a fence.** Hold a SigningWorker package or
    activation until after the owner has recorded the epoch fence. The commit is
    refused, and its retry on the fenced epoch is refused too.
-3. **A pause between check and commit.** Suspend a committing process after it
+5. **A pause between check and commit.** Suspend a committing process after it
    reads its clock and before it commits, and fence meanwhile. The commit is
    refused, because the fence check runs inside the commit, whatever the clock
    reads. On Workers, run this against deployed timer semantics, not only
    local ones.
-4. **Retirement pending without an acknowledgement.** One owner unreachable
+6. **Retirement pending without an acknowledgement.** One owner unreachable
    keeps retirement pending, with no timeout shortcut.
-5. **Restart safety.** Crash at each step. The fences, the acknowledgements and
+7. **Restart safety.** Crash at each step. The fences, the acknowledgements and
    the erasure are each recorded once and replay exactly.
 
 ### Coverage of each transition
 
 | Transition | Rule |
 | --- | --- |
-| Manual and scheduled refresh | Refresh retirement. Close the old epoch's gate; erase once admissions are settled or `W` has passed |
+| Manual and scheduled refresh | Refresh retirement. Close the old epoch's gate; erase only once every old-epoch admission is settled or cancelled behind a fence |
 | Managed restore replacing live authority | Refresh retirement, for the forward refresh that follows the restore |
 | Source retirement | Moving authority. Fences acknowledged by every terminal owner, then retire |
 | Custody cutover (separate approval) | Moving authority. `Drained` requires every terminal owner's fence acknowledgement; `derivation_gate()` becomes the check those owners consume |
@@ -348,12 +376,10 @@ On the VM and on Workers:
 
 ### Open review questions
 
-1. **The two-purpose split.** Is refresh retirement an availability matter with
-   a graceful wait, and moving authority a safety matter with acknowledged
-   fences?
-2. **Terminal commit points.** Is the list complete: SigningWorker commits,
-   Router finalization and Gateway wallet activation?
-3. **`W` = 300 s** as the refresh graceful wait.
-4. **Retirement after refresh.** Whether it should require completion evidence
-   for every admission rather than accept `W`. That needs an admission record
-   for every root-using operation, which does not exist yet.
+1. **Admission records.** Settlement per admission needs an admission record
+   for every root-using operation, which does not exist yet. Where each record
+   lives: the role store, the wallet object, or both.
+2. **Fence coverage for moving authority.** The list of release paths (export,
+   recovery outcomes), and the mechanism that covers per-wallet owners created
+   while closing.
+3. **`W` = 300 s**, as the warning and recovery trigger.
