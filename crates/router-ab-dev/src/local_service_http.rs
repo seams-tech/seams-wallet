@@ -290,7 +290,7 @@ impl LocalHttpServiceBindingClientV1 {
             // does, so a caller can tell a replay rejection from a fault.
             let detail = String::from_utf8_lossy(&response_body);
             return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                router_ab_cloudflare::router_ab_peer_error_code_v1(&detail),
                 format!(
                     "local HTTP service-binding request failed with status {status}: {}",
                     detail.trim()

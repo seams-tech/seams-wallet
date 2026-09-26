@@ -60,6 +60,17 @@ struct PrivateD1Fixture {
     activation_after_refresh: RequestFixture,
     second_tenant_activation: RequestFixture,
     second_tenant_activation_after_refresh: RequestFixture,
+    /// Registrations for the admission-versus-refresh races, each a fresh
+    /// ceremony against a recovery root.
+    admission_race: AdmissionRaceFixture,
+}
+
+#[derive(Serialize)]
+struct AdmissionRaceFixture {
+    held_preparation: RequestFixture,
+    after_refresh: RequestFixture,
+    while_delivery_pending: RequestFixture,
+    after_delivery: RequestFixture,
 }
 
 #[derive(Serialize)]
@@ -157,6 +168,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             deriver_b_public,
             signing_worker_public,
         )?,
+        admission_race: AdmissionRaceFixture {
+            held_preparation: request_fixture(
+                "admission-race-unused",
+                [0x36; 32],
+                "held-preparation",
+                deriver_a_public,
+                deriver_b_public,
+                signing_worker_public,
+            )?,
+            after_refresh: request_fixture(
+                "admission-race-unused",
+                [0x36; 32],
+                "after-refresh",
+                deriver_a_public,
+                deriver_b_public,
+                signing_worker_public,
+            )?,
+            while_delivery_pending: request_fixture(
+                "admission-race-delivery",
+                [0x37; 32],
+                "while-pending",
+                deriver_a_public,
+                deriver_b_public,
+                signing_worker_public,
+            )?,
+            after_delivery: request_fixture(
+                "admission-race-delivery",
+                [0x37; 32],
+                "after-delivery",
+                deriver_a_public,
+                deriver_b_public,
+                signing_worker_public,
+            )?,
+        },
     };
     println!("{}", serde_json::to_string(&fixture)?);
     Ok(())
@@ -243,6 +288,7 @@ fn print_recovery_creation_grant(
             "identity_digest_b64u": base64::engine::general_purpose::URL_SAFE_NO_PAD
                 .encode(identity_digest.as_bytes()),
             "custody_lineage_b64u": lineage.to_base64url(),
+            "identity": identity,
             "creation_object_name":
                 router_ab_cloudflare::tenant_root_creation_object_name_v1(identity_digest, lineage),
             "expires_at_ms": expires_at_ms,

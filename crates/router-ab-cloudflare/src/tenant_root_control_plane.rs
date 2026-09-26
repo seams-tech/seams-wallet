@@ -3911,7 +3911,7 @@ mod live {
         if !(200..=299).contains(&status) {
             let response_detail = String::from_utf8_lossy(&response_body);
             return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                crate::router_ab_peer_error_code_v1(&response_detail),
                 format!(
                     "{label} service returned HTTP status {status}: {}",
                     response_detail.trim()

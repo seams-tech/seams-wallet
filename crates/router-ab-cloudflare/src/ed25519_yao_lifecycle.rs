@@ -1418,7 +1418,7 @@ impl DeriverAYaoSessionD1V1 {
             &request.pair_binding,
         )
         .await
-        .map_err(|error| worker::Error::RustError(error.message().to_owned()))?;
+        .map_err(|error| worker::Error::RustError(error.to_string()))?;
         drop(role_share);
         storage.bind_creation_scope(
             &request.pair_binding.binding().lifecycle.signer_set_id,
@@ -1946,7 +1946,7 @@ impl DeriverBYaoSessionD1V1 {
             &request.pair_binding,
         )
         .await
-        .map_err(|error| worker::Error::RustError(error.message().to_owned()))?;
+        .map_err(|error| worker::Error::RustError(error.to_string()))?;
         drop(role_share);
         storage.bind_creation_scope(
             &request.pair_binding.binding().lifecycle.signer_set_id,
@@ -3723,9 +3723,7 @@ async fn execute_deriver_b_session_command(
     let response_result = DeriverBYaoSessionD1V1::new(env.clone())
         .execute(command)
         .await
-        .map_err(|error| {
-            invalid_lifecycle(format!("Deriver B Yao session D1 command failed: {error}"))
-        });
+        .map_err(|error| pair_command_error_v1("Deriver B Yao session D1 command failed", error));
     let mut response = match response_result {
         Ok(response) => response,
         Err(error) => {
@@ -3798,9 +3796,7 @@ async fn execute_deriver_b_role_session_command(
             },
         )
         .await
-        .map_err(|error| {
-            invalid_lifecycle(format!("Deriver B wallet pair command failed: {error}"))
-        })?;
+        .map_err(|error| pair_command_error_v1("Deriver B wallet pair command failed", error))?;
         if !(200..=299).contains(&response.status_code()) {
             let status = response.status_code();
             emit_role_span_v1(
@@ -3921,6 +3917,23 @@ async fn confirm_deriver_a_pair_start(
     }
 }
 
+/// A pair command's failure. A tenant-root lifecycle transition keeps its
+/// retryable code across the pair store's error boundary; any other failure
+/// is the pair's lifecycle failure.
+fn pair_command_error_v1(label: &str, error: impl std::fmt::Display) -> RouterAbProtocolError {
+    let detail = error.to_string();
+    if super::router_ab_peer_error_code_v1(&detail)
+        == RouterAbProtocolErrorCode::LifecycleTransitionInProgress
+    {
+        RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
+            format!("{label}: {detail}"),
+        )
+    } else {
+        invalid_lifecycle(format!("{label}: {detail}"))
+    }
+}
+
 async fn execute_deriver_a_pair_command(
     env: &Env,
     command: DeriverAYaoSessionCommandV1,
@@ -3931,7 +3944,7 @@ async fn execute_deriver_a_pair_command(
     let mut response = DeriverAYaoSessionD1V1::new(env.clone())
         .execute(command)
         .await
-        .map_err(|error| invalid_lifecycle(format!("Deriver A pair D1 command failed: {error}")))?;
+        .map_err(|error| pair_command_error_v1("Deriver A pair D1 command failed", error))?;
     if !(200..=299).contains(&response.status_code()) {
         emit_role_span_v1(
             trace_id,

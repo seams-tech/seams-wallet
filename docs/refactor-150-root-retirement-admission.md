@@ -387,9 +387,27 @@ On the VM and on Workers:
      epoch 2 at both roles and completes. B's epoch-1 admission remains, an
      obligation for settlement.
 
-   Still to do:
-   - recovery, export and ECDSA derivation;
-   - the Workers run of these schedules.
+   On Workers, the harness's `--admission-races` mode, also part of the
+   full run, applies both schedules (`R150_WORKERS_TENANT_ROOT_ADMISSION_RACES`)
+   and gets the same results.
+   - **Unused binding:** Deriver A answers the held preparation with 503
+     `recoverable_failure`; its log gives "retired here before the operation
+     was admitted". The registration answers `recoverable_failure`, and
+     admissions are A [] and B [1], then A [2] and B [1, 2] after a fresh
+     registration.
+   - **Pending delivery:** new work gets 503 while B is pending, and completes
+     once B is reachable.
+
+   Both refusals are retryable for the whole operation, which re-admits on
+   the new epoch.
+   - **Deriver:** reports both as `LifecycleTransitionInProgress`.
+   - **Service calls on both hosts:** keep that code from a peer
+     (`router_ab_peer_error_code_v1`), where every other peer failure becomes
+     `InvalidLocalServiceConfig`.
+   - **Workers Yao:** the pair store keeps the code across its error boundary,
+     and the role-failure classification answers `recoverable_failure`.
+
+   Still to do: recovery, export and ECDSA derivation.
 2. **Settlement before erasure.** With one old-epoch admission unsettled,
    retirement stays pending past `W`, raises its warning and starts recovery.
    It proceeds only after that admission's terminal outcome or fenced

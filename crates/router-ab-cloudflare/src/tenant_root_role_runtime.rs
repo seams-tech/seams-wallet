@@ -1429,9 +1429,11 @@ pub async fn tenant_root_deriver_admit_bound_work_v1<Host: TenantRootDeriverHost
     }
 }
 
+/// The binding cannot be used again, but the operation can: admitted afresh,
+/// it is bound to the new epoch. So the refusal is retryable for the caller.
 fn tenant_root_epoch_closed_error_v1() -> RouterAbProtocolError {
     RouterAbProtocolError::new(
-        RouterAbProtocolErrorCode::ExpiredLocalRequest,
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
         "the tenant-root epoch this operation is bound to was retired here before the operation was admitted; start it again",
     )
 }

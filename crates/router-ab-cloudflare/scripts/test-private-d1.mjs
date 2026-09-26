@@ -58,6 +58,7 @@ const tenantRootCreationPath = '/router-ab/internal/tenant-root/creation/v1/crea
 const tenantRootCreationSweepPath = '/router-ab/internal/tenant-root/creation/v1/sweep-abandoned';
 const tenantRootRefreshPath = '/router-ab/internal/tenant-root/refresh/v1/execute';
 const deriverRefreshActivationPath = '/router-ab/internal/deriver/tenant-root/refresh/v1/activate';
+const deriverAYaoPreparePath = '/router-ab/deriver-a/ed25519-yao/prepare-pair';
 const creationStateActiveStatePath = '/router-ab/internal/tenant-root/creation/v1/active-state';
 const deriverCreateRoleSharePath =
   '/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share';
@@ -145,6 +146,35 @@ const recoveryDropNextOnPath = {
   'deriver-b': null,
   'tenant-root-control-plane': null,
 };
+// The recovery Router's peers can each hold their next request to one path
+// before the peer reads it, until released, recording the request and the
+// peer's answer; and can drop every request to one path, as an unreachable
+// peer would.
+const recoveryHoldNextOnPath = {
+  'deriver-a': null,
+  'deriver-b': null,
+};
+const recoveryDropEveryOnPath = {
+  'deriver-a': null,
+  'deriver-b': null,
+};
+function holdNextRecoveryRequest(workerName, path) {
+  let markHeld;
+  let release;
+  const held = new Promise((resolve) => {
+    markHeld = resolve;
+  });
+  const released = new Promise((resolve) => {
+    release = resolve;
+  });
+  const hold = { path, markHeld, released, answer: null };
+  recoveryHoldNextOnPath[workerName] = hold;
+  return {
+    held,
+    release,
+    answer: () => hold.answer,
+  };
+}
 const recoveryAnswered = new Map();
 function recoveryAnsweredSignal(workerName, path) {
   const key = `${workerName} ${path}`;
@@ -367,6 +397,22 @@ function routerWorker(fixture, capturePairPreparation = false, gateDeriverB = fa
 function recoveryPeer(workerName, faultPath) {
   return async (request, miniflare) => {
     const path = new URL(request.url).pathname;
+    if (recoveryDropEveryOnPath[workerName] === path) {
+      return new Response(`simulated unreachable ${workerName} for ${path}`, { status: 503 });
+    }
+    const hold = recoveryHoldNextOnPath[workerName];
+    if (hold && hold.path === path) {
+      recoveryHoldNextOnPath[workerName] = null;
+      hold.markHeld(await request.clone().json());
+      await hold.released;
+      const worker = await miniflare.getWorker(
+        workerName === 'deriver-a' ? recoveryDeriverA : workerName,
+      );
+      const response = await worker.fetch(request);
+      const body = await response.text();
+      hold.answer = { status: response.status, body };
+      return new Response(body, { status: response.status, headers: response.headers });
+    }
     const drop = recoveryDropNextOnPath[workerName];
     if (drop && drop.path === path) {
       recoveryDropNextOnPath[workerName] = null;
@@ -1835,11 +1881,10 @@ async function testEcdsaNormalSigning(
   }
 }
 
-function buildEd25519ExecuteRequest(fixture, fixtureKey, tenantRoot) {
-  const source = fixture[fixtureKey];
-  const identity = fixtureKey.startsWith('second_tenant')
+function buildEd25519ExecuteRequest(fixture, fixtureKey, tenantRoot, source = fixture[fixtureKey]) {
+  const identity = tenantRoot.identity ?? (fixtureKey.startsWith('second_tenant')
     ? fixture.tenant_root_creation.second_tenant_identity
-    : fixture.tenant_root_creation.identity;
+    : fixture.tenant_root_creation.identity);
   assert.ok(source && typeof source === 'object', `${fixtureKey} fixture is required`);
   assert.ok(source.gateway_request, `${fixtureKey} gateway request is required`);
   assert.ok(
@@ -2410,6 +2455,188 @@ async function testTenantRootRefreshDeliveryAfterLoss(
     retryDeliveredCommittedReceipt: true,
     retryAfterMs,
     retirement: response.retirement.kind,
+  };
+}
+
+/// Root-use admission against refresh, on Workers, with the schedules the VM
+/// admission E2Es run:
+/// - a registration admitted and prepared at B on epoch 1, whose preparation
+///   at A is held while a refresh swaps both roles: A refuses it, having not
+///   admitted it before epoch 1 closed there, and a fresh registration is
+///   admitted on epoch 2;
+/// - a refresh whose delivery to B cannot complete: new work is refused
+///   retryably until the Router can deliver the committed receipt to B, then
+///   admitted on epoch 2.
+async function testTenantRootAdmissionRaces(topology, fixture, databases) {
+  const router = await topology.getWorker('router-recovery');
+  const creationNamespace = await topology.getDurableObjectNamespace(
+    tenantRootCreationDoBinding,
+    'router',
+  );
+  const creationState = async (ceremony, path, body) => {
+    const stub = creationNamespace.get(creationNamespace.idFromName(ceremony.creation_object_name));
+    const response = await stub.fetch(
+      `https://router-ab-do.internal${path}`,
+      authenticatedJsonRequest(body),
+    );
+    return { status: response.status, body: await response.text() };
+  };
+  const activeState = async (ceremony) => {
+    const read = await creationState(ceremony, creationStateActiveStatePath, {
+      kind: 'read',
+      identity_digest_b64u: ceremony.identity_digest_b64u,
+      custody_lineage_b64u: ceremony.custody_lineage_b64u,
+    });
+    assert.equal(read.status, 200, read.body);
+    return JSON.parse(read.body);
+  };
+  const create = async (ceremony) => {
+    const response = await postWorkerJson(router, tenantRootCreationPath, {
+      creation_grant_b64u: ceremony.creation_grant_b64u,
+    });
+    return { status: response.status, body: await response.text() };
+  };
+  const refresh = async (ceremony, operationId) => {
+    const state = await activeState(ceremony);
+    const response = await postWorkerJson(router, tenantRootRefreshPath, {
+      operation_id: operationId,
+      identity_digest_b64u: ceremony.identity_digest_b64u,
+      custody_lineage_b64u: ceremony.custody_lineage_b64u,
+      expected_lifecycle_revision: state.lifecycle_revision,
+      expires_at_ms: Date.now() + 60_000,
+      trigger: 'manual',
+    });
+    return { status: response.status, body: await response.text() };
+  };
+  const register = async (ceremony, source) => {
+    const response = await postWorkerJson(
+      router,
+      ed25519ExecutePath,
+      buildEd25519ExecuteRequest(fixture, 'admission_race', ceremony, source),
+    );
+    return { status: response.status, body: await response.text() };
+  };
+  const succeeded = (attempt) =>
+    attempt.status === 200 && JSON.parse(attempt.body).status === 'succeeded';
+  const epochs = async (database, ceremony) =>
+    (
+      await database
+        .prepare(
+          `SELECT tenant_root_share_epoch AS epoch, lifecycle FROM tenant_root_role_shares
+           WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch`,
+        )
+        .bind(ceremony.custody_lineage_b64u)
+        .all()
+    ).results.map((row) => [row.epoch, row.lifecycle]);
+  const admissions = async (ceremony) =>
+    Promise.all(
+      [databases.deriverA, databases.deriverB].map(async (database) =>
+        (
+          await database
+            .prepare(
+              `SELECT tenant_root_share_epoch AS epoch FROM tenant_root_root_use_admissions
+               WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch`,
+            )
+            .bind(ceremony.custody_lineage_b64u)
+            .all()
+        ).results.map((row) => row.epoch),
+      ),
+    );
+  const bothEpochs = async (ceremony) => [
+    await epochs(databases.deriverA, ceremony),
+    await epochs(databases.deriverB, ceremony),
+  ];
+  const retiredThenActive = [[1, 'retired'], [2, 'active']];
+  const races = fixture.admission_race;
+
+  // 1. A binding unused before its epoch closes starts nothing.
+  const unused = recoveryCreationGrant('admission-race-unused', 60_000);
+  let result = await create(unused);
+  assert.equal(result.status, 200, result.body);
+  const epochOneReceipt = (await activeState(unused)).activation_receipt_b64u;
+  const hold = holdNextRecoveryRequest('deriver-a', deriverAYaoPreparePath);
+  const heldRegistration = register(unused, races.held_preparation);
+  const heldPreparation = await hold.held;
+  assert.equal(
+    heldPreparation.tenant_root.custody_binding.activation_receipt_b64u,
+    epochOneReceipt,
+    'the held preparation is bound to epoch 1',
+  );
+  for (let attempt = 0; (await admissions(unused))[1].length === 0; attempt += 1) {
+    assert.ok(attempt < 500, 'Deriver B must admit the registration');
+    await sleep(10);
+  }
+  assert.deepEqual(await admissions(unused), [[], [1]]);
+  const unusedRefresh = await refresh(unused, 'harness-admission-race-unused');
+  assert.equal(unusedRefresh.status, 200, unusedRefresh.body);
+  assert.deepEqual(await bothEpochs(unused), [retiredThenActive, retiredThenActive]);
+  hold.release();
+  const refused = await heldRegistration;
+  // A refuses the preparation, "retired here before the operation was
+  // admitted" in Deriver A's log, and holds no admission for it. The caller
+  // is told to retry.
+  const preparationAnswer = hold.answer();
+  assert.notEqual(preparationAnswer.status, 200, preparationAnswer.body);
+  assert.equal(JSON.parse(refused.body).status, 'recoverable_failure', refused.body);
+  assert.deepEqual(await admissions(unused), [[], [1]]);
+  const fresh = await register(unused, races.after_refresh);
+  assert.ok(succeeded(fresh), fresh.body);
+  assert.deepEqual(await admissions(unused), [[2], [1, 2]]);
+
+  // 2. New work waits for the committed epoch's delivery.
+  const gated = recoveryCreationGrant('admission-race-delivery', 60_000);
+  result = await create(gated);
+  assert.equal(result.status, 200, result.body);
+  assert.deepEqual((await activeState(gated)).delivery, {
+    activation_receipt_digest_b64u: (await activeState(gated)).activation_receipt_digest_b64u,
+    deriver_a: 'delivered',
+    deriver_b: 'delivered',
+  });
+  recoveryDropEveryOnPath['deriver-b'] = deriverRefreshActivationPath;
+  const gatedRefresh = await refresh(gated, 'harness-admission-race-delivery');
+  assert.notEqual(gatedRefresh.status, 200, gatedRefresh.body);
+  assert.deepEqual(await bothEpochs(gated), [
+    retiredThenActive,
+    [[1, 'active'], [2, 'pending']],
+  ]);
+  const pendingDelivery = (await activeState(gated)).delivery;
+  assert.equal(pendingDelivery.deriver_a, 'delivered');
+  assert.equal(pendingDelivery.deriver_b, 'pending');
+  const blocked = await register(gated, races.while_delivery_pending);
+  assert.equal(blocked.status, 503, blocked.body);
+  assert.ok(blocked.body.startsWith('LifecycleTransitionInProgress:'), blocked.body);
+  assert.deepEqual(await admissions(gated), [[], []]);
+  recoveryDropEveryOnPath['deriver-b'] = null;
+  const delivered = await register(gated, races.after_delivery);
+  assert.ok(succeeded(delivered), delivered.body);
+  const deliveredState = (await activeState(gated)).delivery;
+  assert.equal(deliveredState.deriver_a, 'delivered');
+  assert.equal(deliveredState.deriver_b, 'delivered');
+  assert.deepEqual(await bothEpochs(gated), [retiredThenActive, retiredThenActive]);
+  assert.deepEqual(await admissions(gated), [[2], [2]]);
+
+  return {
+    unusedBinding: {
+      heldBefore: 'deriver_a_prepare_pair',
+      refreshStatus: unusedRefresh.status,
+      deriverAPreparationStatus: preparationAnswer.status,
+      deriverAPreparationBody: preparationAnswer.body.slice(0, 200),
+      registrationStatus: refused.status,
+      registrationBody: refused.body.slice(0, 200),
+      admissionsAfterRefusal: { deriverA: [], deriverB: [1] },
+      freshRegistration: 'succeeded',
+      admissionsAfterFresh: { deriverA: [2], deriverB: [1, 2] },
+    },
+    deliveryGate: {
+      fault: 'deriver_b_unreachable_for_refresh_activation',
+      refreshStatus: gatedRefresh.status,
+      deliveryAfterRefresh: { deriverA: 'delivered', deriverB: 'pending' },
+      registrationWhilePendingStatus: blocked.status,
+      admissionsWhilePending: { deriverA: [], deriverB: [] },
+      registrationAfterReachable: 'succeeded',
+      deliveryAfter: { deriverA: 'delivered', deriverB: 'delivered' },
+      admissionsAfter: { deriverA: [2], deriverB: [2] },
+    },
   };
 }
 
@@ -3720,6 +3947,16 @@ async function main() {
       await testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, databases);
       return;
     }
+    if (process.argv.includes('--admission-races')) {
+      const admissionRaces = await testTenantRootAdmissionRaces(topology, fixture, databases);
+      console.log(
+        `R150_WORKERS_TENANT_ROOT_ADMISSION_RACES ${JSON.stringify({
+          kind: 'tenant_root_admission_race_workers_e2e_v1',
+          ...admissionRaces,
+        })}`,
+      );
+      return;
+    }
     if (process.argv.includes('--refresh-delivery-after-expiry')) {
       await testTenantRootRefreshDeliveryAfterExpiry(topology, databases);
       return;
@@ -3934,6 +4171,13 @@ async function main() {
     );
     await testConcurrentActivationAndLostResponse(fixture, edBeforeRefresh.delivery);
     await testTenantRootCreationRecoveryPaths(topology, databases);
+    const admissionRaces = await testTenantRootAdmissionRaces(topology, fixture, databases);
+    console.log(
+      `R150_WORKERS_TENANT_ROOT_ADMISSION_RACES ${JSON.stringify({
+        kind: 'tenant_root_admission_race_workers_e2e_v1',
+        ...admissionRaces,
+      })}`,
+    );
   } finally {
     await topology.dispose();
   }

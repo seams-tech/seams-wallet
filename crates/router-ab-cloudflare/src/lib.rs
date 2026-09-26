@@ -14253,7 +14253,7 @@ where
             )
         })?;
         return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            router_ab_peer_error_code_v1(&response_body),
             format!(
                 "{label} service returned HTTP status {status}: {}",
                 response_body.trim()
@@ -15968,6 +15968,20 @@ fn worker_binding_is_missing(err: &worker::Error, binding_name: &str) -> bool {
                 || message == &format!("no binding found for `{binding_name}`")
         }
         _ => false,
+    }
+}
+
+/// The code a role reports when a peer it called answered with an error. A
+/// peer's failure is the caller's service failure, except a lifecycle
+/// transition in progress, which stays retryable so the whole operation can
+/// be admitted again.
+pub fn router_ab_peer_error_code_v1(peer_body: &str) -> RouterAbProtocolErrorCode {
+    // The code may be nested in another role's message, as each role that
+    // relays a failure prefixes its own context.
+    if peer_body.contains("LifecycleTransitionInProgress:") {
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress
+    } else {
+        RouterAbProtocolErrorCode::InvalidLocalServiceConfig
     }
 }
 

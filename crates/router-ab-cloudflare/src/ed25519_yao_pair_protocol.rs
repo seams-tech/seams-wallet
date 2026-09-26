@@ -759,6 +759,7 @@ impl CloudflareEd25519YaoRoleFailureResponseV1 {
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig
                 | RouterAbProtocolErrorCode::MissingLocalBinding
                 | RouterAbProtocolErrorCode::ForbiddenLocalBinding
+                | RouterAbProtocolErrorCode::LifecycleTransitionInProgress
         ) {
             return Self::RecoverableFailure {
                 code: RouterEd25519YaoExecuteFailureCodeV1::ServiceUnavailable,
