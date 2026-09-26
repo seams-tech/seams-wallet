@@ -18,3 +18,4 @@ ROUTER_JWT_JWKS_JSON={"keys":[{"alg":"EdDSA","crv":"Ed25519","kid":"local-router
 LOCAL_TENANT_ROOT_DEPLOYMENT_AUTHORITY_ID=dev-only-tenant-root-deployment-authority
 ROUTER_TENANT_ROOT_CREATION_STORAGE_PATH=.router-ab-local/router/tenant-root-creation.sqlite
 LOCAL_TENANT_ROOT_CONTROL_PLANE_URL=http://127.0.0.1:4106
+ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET=dev-only-router-to-signing-worker-ecdsa-auth

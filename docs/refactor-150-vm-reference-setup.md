@@ -1,6 +1,6 @@
 # R150 VM reference: setup
 
-Status: local reference, 2026-09-25. This runs the Wallet on ordinary processes
+Status: local reference, 2026-09-26. This runs the Wallet on ordinary processes
 and SQLite files, with no Cloudflare service, Wrangler or Miniflare. It is a
 reference for portability, not a provisioning framework: AWS/GCP tooling,
 PostgreSQL and multi-region custody are out of scope.
@@ -14,10 +14,10 @@ backups, and an explicit operator review.
 
 | Process | Binary | Holds | SQLite |
 | --- | --- | --- | --- |
-| Router | `router_ab_local_worker --role router` | Gateway-to-Router and role-shared credentials, Wallet Session JWT verifier, published tenant-root verifying keys | tenant-root creation state |
+| Router | `router_ab_local_worker --role router` | Gateway-to-Router, Router-to-SigningWorker ECDSA and role-shared credentials, Wallet Session JWT verifier, published tenant-root verifying keys | tenant-root creation state |
 | Deriver A | `router_ab_local_worker --role deriver-a` | its role signing key, role-store record key, online and managed-backup provider keys, peer signing key | role-private store; managed backups |
 | Deriver B | `router_ab_local_worker --role deriver-b` | the same, for B | role-private store; managed backups |
-| SigningWorker | `router_ab_local_worker --role signing-worker` | server-output key | role-private store |
+| SigningWorker | `router_ab_local_worker --role signing-worker` | server-output key, wallet key-encryption key, Router ECDSA and Gateway presign credentials | role-private store, including the wallet store (ECDSA activations, presignature pool, signing effects) |
 | Tenant-root control plane | `router_ab_local_tenant_root_control_plane` | the issuer signing key, and nothing else secret | none |
 | Wallet Gateway | Node, `nodeHostedWalletGatewayMain.ts` | Gateway secrets | shared Gateway store |
 
@@ -25,7 +25,10 @@ Each role reads only its own env file. The tenant-root settings use the env
 names the Cloudflare roles read (for example
 `DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY`,
 `TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY`, `DERIVER_ROLE_PRIVATE_D1_*`),
-and the shared parsers refuse any key a role must not hold. The operator file
+and the shared parsers refuse any key a role must not hold. The ECDSA code
+reads each role's other bindings under their Cloudflare names too; the VM keys
+that differ in name or format are presented that way by
+`local_cloudflare_bindings.rs`. The operator file
 holds the creation grant authority and the recovery authorities and is loaded
 by no process.
 
@@ -131,6 +134,18 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
   `R150_VM_TENANT_ROOT_DELIVERY_GATE_E2E`: new work is refused with HTTP 503
   while a Deriver lacks the committed epoch, and admitted once delivery
   completes.
+- ECDSA through the real Gateway: `passkey.presign-pool.contract.test.ts` with
+  `SEAMS_INTENDED_WALLET_HOST=vm`. A fresh wallet registers, activates its
+  SigningWorker material, fills its presignature pool and signs, on the same
+  Router, Deriver and SigningWorker code as Cloudflare. The SigningWorker keeps
+  its ECDSA state in the wallet store the SigningWorker wallet Durable Object
+  uses, over its role-private SQLite file.
+- `admitted ECDSA finalize lost_response retry returns the stored signature`
+  writes `.artifacts/r150/gateway-ecdsa-finalize-lost-response-vm.json`: after
+  a finalize response is lost, the exact retry returns the same signature, and
+  the SigningWorker has recorded one signing effect, so one presignature was
+  consumed. The Gateway answers the retry from its own operation record; the
+  SigningWorker's replay of a claimed effect is not reached by this test.
 - VM route errors answer 400, except `LifecycleTransitionInProgress`, which
   answers 503 as on Cloudflare so the Gateway retries it.
 - The VM Router runs creation-state operations one at a time in process, as a
@@ -142,9 +157,9 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
 See the [Phase 0 inventory](./refactor-150-supported-operations.md) for each
 operation, its contracts and what is needed.
 
-- Every ECDSA operation: registration, Tempo and EVM signing, the presignature
-  pool, and export. The VM Router serves only NEAR normal signing, Yao
-  execute and recovery promote.
+- ECDSA export, add-signer registration and activation refresh. ECDSA
+  signing serves owner Wallet Sessions from the presignature pool; operation
+  step-up and linked-device ECDSA signing fail closed.
 - Device linking.
 - Tenant-root status, scheduled refresh (no VM trigger yet), managed
   restore, recovery-package backup and restore, source retirement and

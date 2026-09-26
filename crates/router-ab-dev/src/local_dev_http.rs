@@ -8,17 +8,10 @@ use std::{
 };
 
 use super::{
-    handle_local_deriver_peer_message_json_v1,
-    handle_local_signing_worker_router_ab_ecdsa_derivation_finalize_json_v1,
-    handle_local_signing_worker_router_ab_ecdsa_derivation_prepare_json_v1,
-    handle_local_signing_worker_router_ab_ecdsa_derivation_presignature_pool_put_json_v1,
-    local_worker_health_response_json_v1, local_worker_owns_path_v1, LocalRouterWorkerConfigV1,
-    LocalSigningWorkerConfigV1, LocalWorkerRoleConfigV1, LOCAL_DERIVER_A_PEER_PATH,
-    LOCAL_DERIVER_B_PEER_PATH, LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
-    LOCAL_ROUTER_ED25519_YAO_RECOVERY_PROMOTE_PATH,
-    LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_PUT_PATH,
-    LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
-    LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH, LOCAL_WORKER_HEALTH_PATH,
+    handle_local_deriver_peer_message_json_v1, local_worker_health_response_json_v1,
+    local_worker_owns_path_v1, LocalRouterWorkerConfigV1, LocalWorkerRoleConfigV1,
+    LOCAL_DERIVER_A_PEER_PATH, LOCAL_DERIVER_B_PEER_PATH, LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+    LOCAL_ROUTER_ED25519_YAO_RECOVERY_PROMOTE_PATH, LOCAL_WORKER_HEALTH_PATH,
     LOCAL_WORKER_READY_PATH,
 };
 
@@ -93,39 +86,6 @@ pub fn local_dev_http_handle_request_with_dispatcher_v1(
 
     if path == LOCAL_DERIVER_B_PEER_PATH {
         return local_dev_deriver_peer_route_v1(topology, request, LocalServiceRoleV1::DeriverB);
-    }
-
-    if path == LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_POOL_PUT_PATH {
-        return local_dev_signing_worker_private_route_v1(topology, request, |signing_worker| {
-            handle_local_signing_worker_router_ab_ecdsa_derivation_presignature_pool_put_json_v1(
-                signing_worker,
-                LocalServiceRoleV1::SigningWorker,
-                path,
-                &request.body,
-            )
-        });
-    }
-
-    if path == LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH {
-        return local_dev_signing_worker_private_route_v1(topology, request, |signing_worker| {
-            handle_local_signing_worker_router_ab_ecdsa_derivation_prepare_json_v1(
-                signing_worker,
-                LocalServiceRoleV1::SigningWorker,
-                path,
-                &request.body,
-            )
-        });
-    }
-
-    if path == LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH {
-        return local_dev_signing_worker_private_route_v1(topology, request, |signing_worker| {
-            handle_local_signing_worker_router_ab_ecdsa_derivation_finalize_json_v1(
-                signing_worker,
-                LocalServiceRoleV1::SigningWorker,
-                path,
-                &request.body,
-            )
-        });
     }
 
     let LocalDevHttpTopologyV1::FourWorker(config) = topology else {
@@ -228,18 +188,6 @@ fn require_local_dev_router_internal_service_auth_v1(
     }
 }
 
-fn local_dev_signing_worker_config_v1(
-    topology: LocalDevHttpTopologyV1<'_>,
-) -> Option<&LocalSigningWorkerConfigV1> {
-    let LocalDevHttpTopologyV1::FourWorker(config) = topology else {
-        return None;
-    };
-    match config {
-        LocalWorkerRoleConfigV1::SigningWorker(config) => Some(config),
-        _ => None,
-    }
-}
-
 fn local_dev_deriver_peer_route_v1(
     topology: LocalDevHttpTopologyV1<'_>,
     request: &LocalDevHttpRequestPartsV1,
@@ -265,40 +213,6 @@ fn local_dev_deriver_peer_route_v1(
         route_role,
         path,
         handle_local_deriver_peer_message_json_v1(route_role, path, &request.body),
-    )
-}
-
-fn local_dev_signing_worker_private_route_v1(
-    topology: LocalDevHttpTopologyV1<'_>,
-    request: &LocalDevHttpRequestPartsV1,
-    handler: impl FnOnce(&LocalSigningWorkerConfigV1) -> RouterAbProtocolResult<String>,
-) -> Result<(u16, String), Box<dyn std::error::Error>> {
-    let path = request.path.as_str();
-    if request.method != "POST" {
-        return local_dev_http_error_body_v1(
-            LocalServiceRoleV1::SigningWorker,
-            path,
-            405,
-            "method not allowed",
-        );
-    }
-    let Some(signing_worker) = local_dev_signing_worker_config_v1(topology) else {
-        return local_dev_http_error_body_v1(
-            topology.local_http_error_role(),
-            path,
-            404,
-            "path is not owned by this worker",
-        );
-    };
-    if let Err(message) =
-        require_local_dev_internal_service_auth_v1(request, &signing_worker.internal_service_auth)
-    {
-        return local_dev_http_error_body_v1(LocalServiceRoleV1::SigningWorker, path, 401, message);
-    }
-    local_dev_protocol_response_v1(
-        LocalServiceRoleV1::SigningWorker,
-        path,
-        handler(signing_worker),
     )
 }
 
@@ -564,6 +478,7 @@ mod tests {
             signing_worker_id: "local-signing-worker".to_owned(),
             internal_service_auth: "local-test-auth".to_owned(),
             gateway_to_router_auth: "local-test-gateway-auth".to_owned(),
+            router_to_signing_worker_ecdsa_auth: "local-test-router-ecdsa-auth".to_owned(),
             peer_verifying_keys: fixture_peer_verifying_keys(),
             admission_bindings: fixture_admission_bindings(),
             tenant_root: Default::default(),

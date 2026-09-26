@@ -1042,6 +1042,7 @@ mod tests {
             signing_worker_id: "local-signing-worker".to_owned(),
             internal_service_auth: "local-test-auth".to_owned(),
             gateway_to_router_auth: "local-test-gateway-auth".to_owned(),
+            router_to_signing_worker_ecdsa_auth: "local-test-router-ecdsa-auth".to_owned(),
             peer_verifying_keys: fixture_peer_verifying_keys(),
             admission_bindings: fixture_admission_bindings(),
             tenant_root: LocalRouterTenantRootConfigV1::default(),

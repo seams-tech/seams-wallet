@@ -395,3 +395,125 @@ for (const mode of ['lost_response', 'cancelled'] as const) {
     }
   });
 }
+
+class LostFinalize {
+  finalizations = 0;
+  lost: { readonly request: Request; readonly status: number; readonly body: string } | null =
+    null;
+
+  /** Lets the first finalize complete, then drops its response. */
+  async loseFirstResponse(route: Route): Promise<void> {
+    this.finalizations += 1;
+    if (this.lost) {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    this.lost = { request: route.request(), status: response.status(), body: await response.text() };
+    await route.abort('connectionclosed');
+  }
+}
+
+/** The part of Node's `node:sqlite` this evidence reads. */
+type NodeSqliteModule = {
+  readonly DatabaseSync: new (
+    path: string,
+    options: { readonly readOnly: boolean },
+  ) => {
+    prepare(sql: string): { all(...parameters: string[]): Record<string, unknown>[] };
+    close(): void;
+  };
+};
+
+/**
+ * One wallet's signing effects at the VM SigningWorker, read from its
+ * role-private SQLite file. Each effect claims and consumes exactly one
+ * presignature in the same transaction, so the effect count is the
+ * consumed-presignature count.
+ */
+async function vmSigningWorkerEffects(walletId: string): Promise<
+  { readonly operationKey: string; readonly terminal: unknown }[] | null
+> {
+  const root = process.env.SEAMS_INTENDED_ROUTER_AB_ROOT;
+  if (process.env.SEAMS_INTENDED_WALLET_HOST !== 'vm' || !root) return null;
+  // The suite's Node types predate `node:sqlite`; the runtime provides it.
+  const sqliteModule: string = 'node:sqlite';
+  const { DatabaseSync } = (await import(sqliteModule)) as NodeSqliteModule;
+  const database = new DatabaseSync(
+    path.join(root, '.router-ab-local', 'signing-worker', 'role-private.sqlite'),
+    { readOnly: true },
+  );
+  try {
+    return database
+      .prepare(
+        `SELECT operation_key, terminal_json FROM wallet_ecdsa_effects
+         WHERE json_extract(owner_json, '$.wallet_id') = ? ORDER BY claimed_at_ms`,
+      )
+      .all(walletId)
+      .map((row) => ({
+        operationKey: String(row.operation_key),
+        terminal: row.terminal_json === null ? null : JSON.parse(String(row.terminal_json)),
+      }));
+  } finally {
+    database.close();
+  }
+}
+
+test('admitted ECDSA finalize lost_response retry returns the stored signature', async ({
+  harness,
+  context,
+}, testInfo) => {
+  const finalizePath = '**/router-ab/ecdsa-derivation/sign';
+  const lostFinalize = new LostFinalize();
+  const lose = lostFinalize.loseFirstResponse.bind(lostFinalize);
+  await context.route(finalizePath, lose);
+  try {
+    await harness.registerPasskeyWallet();
+    await expect(harness.signTempoTransaction('post_registration')).rejects.toThrow();
+  } finally {
+    await context.unroute(finalizePath, lose);
+  }
+  const lost = lostFinalize.lost;
+  if (!lost) throw new Error('The finalize request was never admitted');
+  expect(lostFinalize.finalizations).toBe(1);
+  expect(lost.status).toBe(200);
+  const signature: unknown = JSON.parse(lost.body);
+  if (!isPlainObject(signature) || !isPlainObject(signature.scope)) {
+    throw new Error('Expected an ECDSA signing response');
+  }
+  const walletId = signature.scope.wallet_id;
+  if (typeof walletId !== 'string') throw new Error('ECDSA signing response omitted its wallet');
+
+  // The client's exact retry after the lost response returns the stored
+  // signature rather than signing again.
+  const retried = await context.request.fetch(lost.request);
+  expect(retried.status()).toBe(200);
+  expect(await retried.json()).toEqual(signature);
+  // On the VM, the SigningWorker recorded one effect for this signing, with
+  // the returned signature as its terminal response: the retry claimed and
+  // consumed nothing.
+  const effectsAfterRetry = await vmSigningWorkerEffects(walletId);
+  if (effectsAfterRetry) {
+    expect(effectsAfterRetry).toHaveLength(1);
+    expect(effectsAfterRetry[0]?.terminal).toEqual(signature);
+  }
+
+  const evidence = {
+    kind: 'gateway_ecdsa_finalize_lost_response_retry_v1',
+    host: process.env.SEAMS_INTENDED_WALLET_HOST ?? 'workers_local',
+    finalizationsAdmitted: lostFinalize.finalizations,
+    lostResponseStatus: lost.status,
+    retriedStatus: retried.status(),
+    retriedMatchesLost: true,
+    signingWorkerEffectsAfterRetry: effectsAfterRetry?.length ?? null,
+    signingWorkerTerminalMatchesRetry: effectsAfterRetry ? true : null,
+  };
+  const artifactName = `gateway-ecdsa-finalize-lost-response-${evidence.host}.json`;
+  const artifactPath = path.resolve(testInfo.config.rootDir, '../.artifacts/r150', artifactName);
+  await mkdir(path.dirname(artifactPath), { recursive: true });
+  await writeFile(artifactPath, JSON.stringify(evidence, null, 2), 'utf8');
+  await testInfo.attach(artifactName, {
+    body: JSON.stringify(evidence, null, 2),
+    contentType: 'application/json',
+  });
+});

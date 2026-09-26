@@ -1283,15 +1283,8 @@ pub fn resolve_local_router_tenant_root_context_v1(
     expires_at_ms: u64,
 ) -> RouterAbProtocolResult<router_ab_cloudflare::CloudflareEd25519YaoTenantRootContextV2> {
     let (identity_digest, custody_lineage) = coordinates.resolve()?;
-    // New work is admitted only on a committed epoch both Derivers have
-    // activated; a pending refresh delivery is finished first.
-    let admitted = futures::executor::block_on(
-        router_ab_cloudflare::tenant_root_router_admission_receipt_v1(
-            &LocalRouterTenantRootCreationHostV1::new(config),
-            identity_digest,
-            custody_lineage,
-        ),
-    )?;
+    let admitted =
+        local_router_tenant_root_admission_receipt_v1(config, identity_digest, custody_lineage)?;
     let receipt = &admitted;
     let requested = identity.digest().map_err(|error| {
         malformed(format!("Yao tenant-root identity is invalid: {error}"))
@@ -1313,6 +1306,23 @@ pub fn resolve_local_router_tenant_root_context_v1(
         pair_binding,
         issued_at_ms,
         expires_at_ms,
+    )
+}
+
+/// The activation receipt new work on one tenant root is admitted on: a
+/// committed epoch both Derivers have activated. A pending refresh delivery
+/// is finished first.
+pub(crate) fn local_router_tenant_root_admission_receipt_v1(
+    config: &LocalRouterTenantRootConfigV1,
+    identity_digest: router_ab_core::TenantRootIdentityDigestV1,
+    custody_lineage: router_ab_core::TenantRootCustodyLineageId,
+) -> RouterAbProtocolResult<router_ab_core::VerifiedTenantRootSignedActivationReceiptV1> {
+    futures::executor::block_on(
+        router_ab_cloudflare::tenant_root_router_admission_receipt_v1(
+            &LocalRouterTenantRootCreationHostV1::new(config),
+            identity_digest,
+            custody_lineage,
+        ),
     )
 }
 

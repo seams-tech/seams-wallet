@@ -199,6 +199,13 @@ function materializeRoleEnvs() {
   const secretPath = path.join(gatewayRuntime, 'gateway-router-auth.secret');
   writeFileSync(secretPath, `${gatewayToRouter}\n`, { mode: 0o600 });
   chmodSync(secretPath, 0o600);
+  // Likewise its presignature-session credential, which the SigningWorker
+  // was generated with.
+  const signingWorkerEnv = readFileSync(path.join(root, ENV_FILES['signing-worker']), 'utf8');
+  const presign = readEnvValue(signingWorkerEnv, 'ROUTER_AB_GATEWAY_TO_SIGNING_WORKER_PRESIGN_AUTH_SECRET');
+  const presignPath = path.join(gatewayRuntime, 'gateway-signing-worker-presign-auth.secret');
+  writeFileSync(presignPath, `${presign}\n`, { mode: 0o600 });
+  chmodSync(presignPath, 0o600);
 }
 
 function bootstrapTenantRoot() {

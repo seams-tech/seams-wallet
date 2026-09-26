@@ -96,8 +96,11 @@ fn ed25519_yao_and_router_ab_ecdsa_derivation_modules_have_disjoint_backend_impo
         assert!(!yao_sources.contains(forbidden), "found {forbidden}");
     }
 
-    let router_ab_ecdsa_derivation_source =
-        include_str!("../src/local_router_ab_ecdsa_derivation_pool_store.rs");
+    let router_ab_ecdsa_derivation_source = [
+        include_str!("../src/local_router_ab_ecdsa.rs"),
+        include_str!("../src/local_signing_worker_wallet_sqlite.rs"),
+    ]
+    .join("\n");
     for forbidden in ["ed25519_yao", "ed25519-yao", "router_ab_ed25519_yao"] {
         assert!(
             !router_ab_ecdsa_derivation_source.contains(forbidden),

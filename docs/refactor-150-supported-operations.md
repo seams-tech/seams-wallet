@@ -17,10 +17,10 @@ excluded. The decisions needed are listed at the end.
 - **Sources.** Surfaces are in `packages/wallet/src/SeamsWeb/publicApi/types.ts`,
   the Gateway route table (`packages/wallet-server/src/router/framework/routeDefinitions.ts`),
   `walletControlOps.ts` and `crates/seams-cli/src/command.rs`. VM service is
-  from `crates/router-ab-dev/src/local_worker_topology.rs` and the VM Router
-  dispatcher (`local_router_coordinator.rs`), which serves only NEAR normal
-  signing, Yao execute and recovery promote and returns 501 for every other
-  Router path.
+  from `crates/router-ab-dev/src/local_worker_topology.rs`, the VM Router
+  dispatcher (`local_router_coordinator.rs`), which serves NEAR normal
+  signing, Yao execute and recovery promote, and the VM ECDSA routes
+  (`local_router_ab_ecdsa.rs`). Every other Router path returns 501.
 - **Marking.** "(inferred)" marks a conclusion drawn from the dispatch code
   rather than exercised by a test.
 - **Outside this repository.** The Console and the deployed Wallet Runtime that
@@ -32,12 +32,12 @@ excluded. The decisions needed are listed at the end.
 | Operation | Enabled through | Cloudflare | VM | Contract | Main tests |
 | --- | --- | --- | --- | --- | --- |
 | **Ed25519 (NEAR) registration**, passkey and Email OTP | SDK `registerWallet`; hosted auth menu | Served | Served | Spec 2 "Creating a wallet"; Spec 5; `router-ab/ed25519-yao.md` | `passkey.registration*`, `email-otp.*`, `passkey.ed25519-yao-local` (VM); VM `product_topology_*`; Workers wallet-DO and replay tests |
-| **ECDSA (Tempo, EVM) registration** | SDK registration with a chain target | Served | **Not served** | Same | `passkey.registration`; `testEcdsaRegistrationAndActivation`; `ecdsa_derivation_*` |
+| **ECDSA (Tempo, EVM) registration** | SDK registration with a chain target | Served | Served (wallet registration; not add-signer) | Same | `passkey.registration`, `passkey.presign-pool` (VM); `testEcdsaRegistrationAndActivation`; `ecdsa_derivation_*` |
 | **Add signer** | SDK `addWalletSigner` | Served | Ed25519 only | Spec 2 | `passkey.ed25519-yao-local` add-signer |
 | **Unlock and Wallet Session** | SDK `auth.unlock` | Gateway | Gateway code shared; not exercised on VM (inferred) | Spec 3 "Unlock and sign" | `passkey.unlock`, `email-otp.unlock` |
 | **NEAR Ed25519 signing** | SDK `near.*`, with Router normal signing enabled | Served | Served (owner sessions) | Spec 5 "Signing with prepared material" | `passkey.unlock`, `passkey.registration`; VM `product_near_signing_process_flow`; `normal_signing_worker_boundaries.rs` |
-| **ECDSA Tempo and EVM signing** | SDK `tempo.*`, `evm.*`, with a chain target | Served | **Not served** | Spec 5; intended "Transaction Signing" | `passkey.registration`, `passkey.unlock`; `testEcdsaNormalSigning`; `ecdsa_derivation_normal_signing_boundaries.rs` |
-| **ECDSA presignature pool** | Automatic refill; SDK prefill | Served | **Not served** | Intended "Durable ECDSA preprocessing" | `passkey.presign-pool`; `runEcdsaPresignSession` |
+| **ECDSA Tempo and EVM signing** | SDK `tempo.*`, `evm.*`, with a chain target | Served | Served (owner sessions, pool material) | Spec 5; intended "Transaction Signing" | `passkey.registration`, `passkey.unlock`, `passkey.presign-pool` (VM, including a finalize lost-response retry); `testEcdsaNormalSigning`; `ecdsa_derivation_normal_signing_boundaries.rs` |
+| **ECDSA presignature pool** | Automatic refill; SDK prefill | Served | Served (owner sessions) | Intended "Durable ECDSA preprocessing" | `passkey.presign-pool` (both hosts); `runEcdsaPresignSession` |
 | **Step-up signing** (Ed25519 and ECDSA) | Implicit in sensitive operations | Served | **Fails closed** | Spec 3 "Fresh approval" | `passkey.unlock`, `email-otp.unlock`, recovery contracts |
 | **Device linking, inventory, revoke** | SDK `DevicesCapability`; account menu | Served | **Not served** (inferred) | Spec 2 "Linking a device" | No E2E here; private monorepo units |
 | **Code recovery** (passkey; Google with Email OTP) | Hosted auth menu | Served | Ed25519 routes served; not exercised on VM (inferred) | Spec 2 "Recovering access" | `passkey.recovery`; `google-email-otp.recovery` (excluded by the intended-wallet Playwright config) |
@@ -71,8 +71,9 @@ Served but not reached by any surface in this repository (inferred):
 
 - **The VM gaps are larger than documented.** The VM reference setup lists
   restore, retirement, cutover, linked-device and step-up signing and KMS
-  backup as not served (refresh has since been served). It omits two further gaps: every ECDSA operation
-  (registration, signing, presignatures, export) and device linking. R150
+  backup as not served (refresh has since been served). It omitted two further gaps: every ECDSA operation
+  and device linking. ECDSA wallet registration, the presignature pool and
+  owner-session signing are now served on the VM; ECDSA export is not. R150
   names "NEAR and EVM signing" among the supported protocols that must pass on
   both adapters.
 - **Source retirement is reachable and untested.** It is reachable through a
@@ -84,9 +85,8 @@ Served but not reached by any surface in this repository (inferred):
 
 ## Decisions needed
 
-1. **ECDSA on the VM.** Serve ECDSA registration, signing, presignatures and
-   export on the VM, as R150's "including NEAR and EVM signing" requires, or
-   explicitly exclude ECDSA from the VM reference with the reason recorded.
+1. **ECDSA export on the VM.** Registration, presignatures and owner-session
+   signing are served. Serve export, or exclude it with the reason recorded.
 2. **Device linking and step-up signing on the VM.** Serve them or exclude
    them explicitly.
 3. **Scheduled refresh and availability restore.** Confirm from seams-monorepo

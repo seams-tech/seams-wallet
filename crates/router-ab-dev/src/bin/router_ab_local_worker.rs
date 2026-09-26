@@ -1,15 +1,15 @@
 use router_ab_core::LocalServiceRoleV1;
 use router_ab_dev::{
     apply_local_sqlite_migrations_v1, dispatch_local_ed25519_yao_connection_with_persistence_v1,
-    local_sqlite_migration_status_v1, local_tenant_root_route_v1, LocalSqliteMigrationV1,
-    LOCAL_DERIVER_A_ROLE_PRIVATE_MIGRATIONS_V1, LOCAL_DERIVER_B_ROLE_PRIVATE_MIGRATIONS_V1,
-    LOCAL_MANAGED_BACKUP_MIGRATIONS_V1, LOCAL_ROUTER_CREATION_STATE_MIGRATIONS_V1,
-    local_dev_http_handle_request_with_dispatcher_v1, local_worker_bind_addr_v1,
+    local_dev_http_handle_request_with_dispatcher_v1, local_router_ab_ecdsa_route_v1,
+    local_sqlite_migration_status_v1, local_tenant_root_route_v1, local_worker_bind_addr_v1,
     parse_local_env_file_contents_v1, parse_local_service_role_label_v1,
     parse_local_worker_role_config_for_role_v1, read_local_dev_http_request_v1,
     write_local_dev_http_response_v1, LocalDevHttpTopologyV1, LocalEd25519YaoConnectionDispatchV1,
     LocalEd25519YaoSqliteHostV1, LocalEd25519YaoWorkerStateV1, LocalRouterEd25519YaoCoordinatorV1,
-    LocalRouterRequestDispatcherV1, LocalWorkerRoleConfigV1,
+    LocalRouterRequestDispatcherV1, LocalSqliteMigrationV1, LocalWorkerRoleConfigV1,
+    LOCAL_DERIVER_A_ROLE_PRIVATE_MIGRATIONS_V1, LOCAL_DERIVER_B_ROLE_PRIVATE_MIGRATIONS_V1,
+    LOCAL_MANAGED_BACKUP_MIGRATIONS_V1, LOCAL_ROUTER_CREATION_STATE_MIGRATIONS_V1,
 };
 use serde::Serialize;
 use std::{
@@ -195,6 +195,10 @@ fn handle_connection(
     };
     let request = read_local_dev_http_request_v1(&mut stream)?;
     if let Some((status, body)) = local_tenant_root_route_v1(config, &request) {
+        write_local_dev_http_response_v1(&mut stream, status, &body)?;
+        return Ok(LocalWorkerConnectionResultV1::OtherHandled);
+    }
+    if let Some((status, body)) = local_router_ab_ecdsa_route_v1(config, &request) {
         write_local_dev_http_response_v1(&mut stream, status, &body)?;
         return Ok(LocalWorkerConnectionResultV1::OtherHandled);
     }
