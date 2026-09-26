@@ -1398,16 +1398,64 @@ pub trait TenantRootDeriverHostV1:
     ) -> RouterAbProtocolResult<(router_ab_core::VerifiedTenantRootProviderCanaryReceiptV1, crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectMetadataV1)>;
 }
 
+/// Admits one root-using operation, named by its authenticated custody
+/// binding, on the binding's epoch at this Deriver, without reading the
+/// share. An operation that starts before its first root read calls this at
+/// its start, so a refresh that retires the epoch meanwhile does not stop it.
+pub async fn tenant_root_deriver_admit_bound_work_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
+    authenticated_custody_binding: &router_ab_core::TenantRootCustodyBindingV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<()> {
+    let store = host.role_store().map_err(|error| {
+        crate::map_cloudflare_tenant_root_role_store_error_v1("tenant-root role store lookup", error)
+    })?;
+    match store
+        .admit_bound(authenticated_custody_binding, now_ms)
+        .await
+        .map_err(|error| {
+            crate::map_cloudflare_tenant_root_role_store_error_v1(
+                "tenant-root root-use admission",
+                error,
+            )
+        })? {
+        crate::tenant_root_role_d1::TenantRootRootUseAdmissionV1::Admitted => Ok(()),
+        crate::tenant_root_role_d1::TenantRootRootUseAdmissionV1::EpochClosed => {
+            Err(tenant_root_epoch_closed_error_v1())
+        }
+        crate::tenant_root_role_d1::TenantRootRootUseAdmissionV1::NotYetActive => {
+            Err(tenant_root_epoch_not_yet_active_error_v1())
+        }
+    }
+}
+
+fn tenant_root_epoch_closed_error_v1() -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::ExpiredLocalRequest,
+        "the tenant-root epoch this operation is bound to was retired here before the operation was admitted; start it again",
+    )
+}
+
+fn tenant_root_epoch_not_yet_active_error_v1() -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
+        "the tenant-root epoch this operation is bound to is not yet active at this Deriver; retry",
+    )
+}
+
 /// Loads the tenant-root role share an authenticated custody binding names.
 ///
 /// The custody binding is resolved by the authenticated request boundary. The
-/// store returns the epoch it names: the active share, or, for work admitted
-/// before a refresh committed, that epoch's retired share until it is erased.
-/// The host's role chooses the local role; no selector is accepted from the
-/// request body.
+/// operation is admitted on the binding's epoch first, and the store returns
+/// that epoch's share: the active share, or, for an operation admitted before
+/// a refresh retired the epoch, the retired share until it is erased. An
+/// unused binding for a retired epoch and a binding for an epoch not yet
+/// active here are refused. The host's role chooses the local role; no
+/// selector is accepted from the request body.
 pub async fn tenant_root_deriver_load_bound_role_share_v1<Host: TenantRootDeriverHostV1>(
     host: &Host,
     authenticated_custody_binding: &router_ab_core::TenantRootCustodyBindingV1,
+    now_ms: u64,
 ) -> RouterAbProtocolResult<VerifiedTenantRootOnlineRoleShareV1> {
     let worker_role = host.worker_role();
     let expected_role = match worker_role {
@@ -1427,15 +1475,23 @@ pub async fn tenant_root_deriver_load_bound_role_share_v1<Host: TenantRootDerive
     let store = host.role_store().map_err(|error| {
         crate::map_cloudflare_tenant_root_role_store_error_v1("tenant-root role store lookup", error)
     })?;
-    let stored = store
-        .load_bound(authenticated_custody_binding)
+    let stored = match store
+        .load_bound(authenticated_custody_binding, now_ms)
         .await
         .map_err(|error| {
             crate::map_cloudflare_tenant_root_role_store_error_v1(
                 "tenant-root bound role-share lookup",
                 error,
             )
-        })?;
+        })? {
+        crate::tenant_root_role_d1::TenantRootBoundShareV1::Readable(stored) => stored,
+        crate::tenant_root_role_d1::TenantRootBoundShareV1::EpochClosed => {
+            return Err(tenant_root_epoch_closed_error_v1());
+        }
+        crate::tenant_root_role_d1::TenantRootBoundShareV1::NotYetActive => {
+            return Err(tenant_root_epoch_not_yet_active_error_v1());
+        }
+    };
     let sealed = stored.into_bound_online_role_share_artifact().map_err(|error| {
         crate::map_cloudflare_tenant_root_role_store_error_v1(
             "tenant-root online role-share reconstruction",

@@ -1,6 +1,5 @@
 //! Cloudflare Worker adapter for the Router-owned Refactor 93 ceremony.
 
-use crate::durable_object::tenant_root_creation::execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1;
 use crate::{
     build_cloudflare_router_public_keyset_v2, cloudflare_now_unix_ms_v1,
     cloudflare_router_error_status, cloudflare_service_json_request_body_v1,
@@ -675,7 +674,7 @@ async fn resolve_ed25519_yao_tenant_root_context_v2(
 ) -> RouterAbProtocolResult<CloudflareEd25519YaoTenantRootContextV2> {
     let (identity_digest, custody_lineage) = root.resolve()?;
     let activation_receipt =
-        execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1(
+        crate::tenant_root_refresh_coordinator::execute_cloudflare_router_tenant_root_admission_receipt_v1(
             env,
             identity_digest,
             custody_lineage,

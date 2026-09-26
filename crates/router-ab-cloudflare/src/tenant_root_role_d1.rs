@@ -166,6 +166,17 @@ const DELETE_ABANDONED_CEREMONY_PENDING_SQL: &str = "DELETE FROM tenant_root_rol
 const INSERT_CREATION_TOMBSTONE_SQL: &str = "INSERT INTO tenant_root_creation_tombstones \
     (tenant_identity_digest_hex, custody_lineage_b64u, role, session_id_hex, created_at_ms) \
     VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT DO NOTHING";
+const ADMIT_ROOT_USE_SQL: &str = "INSERT INTO tenant_root_root_use_admissions \
+    (tenant_identity_digest_hex, custody_lineage_b64u, role, custody_binding_digest_hex, \
+    tenant_root_share_epoch, activation_receipt_digest_hex, admitted_at_ms) \
+    SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7 WHERE EXISTS (SELECT 1 FROM tenant_root_role_shares \
+    WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 \
+    AND tenant_root_share_epoch = ?5 AND role = ?3 AND lifecycle = 'active') \
+    ON CONFLICT DO NOTHING";
+const LOAD_ROOT_USE_ADMISSION_SQL: &str = "SELECT tenant_root_share_epoch, \
+    activation_receipt_digest_hex FROM tenant_root_root_use_admissions \
+    WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 AND role = ?3 \
+    AND custody_binding_digest_hex = ?4";
 const LOAD_CREATION_TOMBSTONE_SQL: &str = "SELECT session_id_hex FROM \
     tenant_root_creation_tombstones WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3";
@@ -1583,6 +1594,26 @@ impl CloudflareStoredTenantRootRoleShareV1 {
         }
         self.record.into_bound_online_role_share_artifact()
     }
+}
+
+/// Whether an operation named by a custody binding is admitted on the
+/// binding's epoch at this role.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TenantRootRootUseAdmissionV1 {
+    /// Admitted now, or earlier while the epoch was active.
+    Admitted,
+    /// A refresh retired the epoch here before this operation was admitted.
+    EpochClosed,
+    /// The epoch is committed but this role has not yet activated it.
+    NotYetActive,
+}
+
+/// The role share a custody binding names, if its operation may read it.
+#[derive(Debug)]
+pub(crate) enum TenantRootBoundShareV1 {
+    Readable(CloudflareStoredTenantRootRoleShareV1),
+    EpochClosed,
+    NotYetActive,
 }
 
 /// Exhaustive role-private active-share resolution for one authenticated tenant.
@@ -10431,73 +10462,207 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         Ok(active)
     }
 
-    /// Loads the role share an authenticated custody binding names.
+    /// Admits one operation, named by its authenticated custody binding, on
+    /// the binding's epoch.
     ///
-    /// The Router issues a binding from its committed active state when it
-    /// admits work, so the binding names the epoch that work started on.
-    /// While that epoch is active this is `load_active`. After a refresh has
-    /// swapped it out, the retired share is returned until it is erased, so
-    /// work already admitted follows the version it started with (Spec 6).
-    /// A retired share is returned only when every binding field matches the
-    /// activation evidence it retained, including the activation receipt that
-    /// made its epoch active. A pending share, which no binding can name
-    /// before the Router commits it, is never returned.
-    pub(crate) async fn load_bound(
+    /// The admission is written only while that epoch is active here: the
+    /// insert is conditional on the active row, so it is ordered exactly
+    /// against the refresh swap that retires the epoch. An operation admitted
+    /// before the swap stays admitted; an unused binding for a retired epoch
+    /// is refused; and a pending epoch admits nothing.
+    pub(crate) async fn admit_bound(
         &self,
         custody_binding: &TenantRootCustodyBindingV1,
-    ) -> RoleStoreResult<CloudflareStoredTenantRootRoleShareV1> {
+        admitted_at_ms: u64,
+    ) -> RoleStoreResult<TenantRootRootUseAdmissionV1> {
         custody_binding
             .validate()
             .map_err(|error| store_error(error.message()))?;
-        let stored = self
-            .load_epoch_by_identity_digest(
-                custody_binding.identity_digest(),
-                custody_binding.custody_lineage(),
-                custody_binding.epoch(),
-            )
-            .await?
-            .ok_or_else(|| {
-                store_error("tenant-root role share named by the custody binding does not exist")
-            })?;
-        match stored.record().lifecycle() {
-            CloudflareTenantRootRoleShareLifecycleV1::Active(_) => {
-                self.load_active(custody_binding).await
+        let stored = self.load_bound_row(custody_binding).await?;
+        let lifecycle_is_active = match stored.record().lifecycle() {
+            CloudflareTenantRootRoleShareLifecycleV1::Pending(_) => {
+                return Ok(TenantRootRootUseAdmissionV1::NotYetActive);
             }
-            CloudflareTenantRootRoleShareLifecycleV1::Retired(retired) => {
-                stored.record().validate()?;
-                validate_record_activation_binding(stored.record())?;
-                let record = stored.record();
-                let expected_role = self.cipher.role.managed_restore_role();
-                let expected_commitment = match expected_role {
-                    TenantRootManagedRestoreRoleV1::DeriverA => {
-                        custody_binding.commitments().deriver_a()
-                    }
-                    TenantRootManagedRestoreRoleV1::DeriverB => {
-                        custody_binding.commitments().deriver_b()
-                    }
-                };
-                let identity_digest = record
-                    .identity()
-                    .digest()
-                    .map_err(|error| store_error(error.message()))?;
-                if identity_digest != custody_binding.identity_digest()
-                    || record.custody_lineage() != custody_binding.custody_lineage()
-                    || record.epoch() != custody_binding.epoch()
-                    || record.role().managed_restore_role() != expected_role
-                    || record.share_commitment() != expected_commitment
-                    || retired.active.activation.activation_receipt_digest
-                        != custody_binding.activation_receipt_digest()
+            CloudflareTenantRootRoleShareLifecycleV1::Active(_) => true,
+            CloudflareTenantRootRoleShareLifecycleV1::Retired(_) => false,
+        };
+        self.verify_bound_row(&stored, custody_binding)?;
+        let identity_digest_hex = encode_hex(custody_binding.identity_digest().as_bytes());
+        let custody_lineage_b64u = custody_binding.custody_lineage().to_base64url();
+        let binding_digest_hex = encode_hex(
+            custody_binding
+                .digest()
+                .map_err(|error| store_error(error.message()))?
+                .as_bytes(),
+        );
+        let epoch = epoch_i64(custody_binding.epoch())?.to_string();
+        let receipt_digest_hex = encode_hex(custody_binding.activation_receipt_digest().as_bytes());
+        if lifecycle_is_active {
+            let admitted_at_ms = admitted_at_ms.to_string();
+            self.session
+                .prepare(ADMIT_ROOT_USE_SQL)
+                .bind_refs(
+                    [
+                        RoleSqlValue::Text(identity_digest_hex.as_str()),
+                        RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                        RoleSqlValue::Text(self.cipher.role.as_str()),
+                        RoleSqlValue::Text(binding_digest_hex.as_str()),
+                        RoleSqlValue::Text(epoch.as_str()),
+                        RoleSqlValue::Text(receipt_digest_hex.as_str()),
+                        RoleSqlValue::Text(admitted_at_ms.as_str()),
+                    ]
+                    .iter(),
+                )?
+                .run()
+                .await?;
+        }
+        let admission = self
+            .session
+            .prepare(LOAD_ROOT_USE_ADMISSION_SQL)
+            .bind_refs(
+                [
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(binding_digest_hex.as_str()),
+                ]
+                .iter(),
+            )?
+            .first::<TenantRootRootUseAdmissionRowV1>(None)
+            .await?;
+        match admission {
+            Some(admission) => {
+                if admission.tenant_root_share_epoch.to_string() != epoch
+                    || admission.activation_receipt_digest_hex != receipt_digest_hex
                 {
                     return Err(store_error(
-                        "tenant-root retired role share does not match authenticated custody binding",
+                        "tenant-root root-use admission does not match its custody binding",
                     ));
                 }
-                Ok(stored)
+                Ok(TenantRootRootUseAdmissionV1::Admitted)
             }
-            CloudflareTenantRootRoleShareLifecycleV1::Pending(_) => Err(store_error(
-                "tenant-root role share named by the custody binding is not active",
-            )),
+            // The conditional insert found the epoch no longer active: a
+            // refresh retired it before this operation was admitted.
+            None => Ok(TenantRootRootUseAdmissionV1::EpochClosed),
         }
+    }
+
+    /// Loads the role share an authenticated custody binding names, for an
+    /// operation admitted on its epoch.
+    ///
+    /// The Router issues a binding from its committed active state when it
+    /// admits work, so the binding names the epoch that work started on. The
+    /// operation is admitted here first (`admit_bound`). While the epoch is
+    /// active this is `load_active`. After a refresh has retired it, the
+    /// retired share is returned, until it is erased, only for an operation
+    /// admitted before the swap, so work already admitted follows the version
+    /// it started with (Spec 6). A retired share must match every binding
+    /// field against the activation evidence it retained, including the
+    /// activation receipt that made its epoch active. A pending share is never
+    /// returned.
+    pub(crate) async fn load_bound(
+        &self,
+        custody_binding: &TenantRootCustodyBindingV1,
+        admitted_at_ms: u64,
+    ) -> RoleStoreResult<TenantRootBoundShareV1> {
+        match self.admit_bound(custody_binding, admitted_at_ms).await? {
+            TenantRootRootUseAdmissionV1::Admitted => {}
+            TenantRootRootUseAdmissionV1::EpochClosed => {
+                return Ok(TenantRootBoundShareV1::EpochClosed)
+            }
+            TenantRootRootUseAdmissionV1::NotYetActive => {
+                return Ok(TenantRootBoundShareV1::NotYetActive)
+            }
+        }
+        let stored = self.load_bound_row(custody_binding).await?;
+        match stored.record().lifecycle() {
+            CloudflareTenantRootRoleShareLifecycleV1::Active(_) => {
+                match self.load_active(custody_binding).await {
+                    Ok(active) => Ok(TenantRootBoundShareV1::Readable(active)),
+                    // A refresh may have retired the epoch since it was read.
+                    Err(error) => {
+                        let current = self.load_bound_row(custody_binding).await?;
+                        if !matches!(
+                            current.record().lifecycle(),
+                            CloudflareTenantRootRoleShareLifecycleV1::Retired(_)
+                        ) {
+                            return Err(error);
+                        }
+                        self.verify_bound_row(&current, custody_binding)?;
+                        Ok(TenantRootBoundShareV1::Readable(current))
+                    }
+                }
+            }
+            CloudflareTenantRootRoleShareLifecycleV1::Retired(_) => {
+                self.verify_bound_row(&stored, custody_binding)?;
+                Ok(TenantRootBoundShareV1::Readable(stored))
+            }
+            CloudflareTenantRootRoleShareLifecycleV1::Pending(_) => {
+                Ok(TenantRootBoundShareV1::NotYetActive)
+            }
+        }
+    }
+
+    async fn load_bound_row(
+        &self,
+        custody_binding: &TenantRootCustodyBindingV1,
+    ) -> RoleStoreResult<CloudflareStoredTenantRootRoleShareV1> {
+        self.load_epoch_by_identity_digest(
+            custody_binding.identity_digest(),
+            custody_binding.custody_lineage(),
+            custody_binding.epoch(),
+        )
+        .await?
+        .ok_or_else(|| {
+            store_error("tenant-root role share named by the custody binding does not exist")
+        })
+    }
+
+    /// Checks an activated row against every custody-binding field: identity,
+    /// lineage, epoch, role, this role's commitment, and the activation
+    /// receipt that made the epoch active.
+    fn verify_bound_row(
+        &self,
+        stored: &CloudflareStoredTenantRootRoleShareV1,
+        custody_binding: &TenantRootCustodyBindingV1,
+    ) -> RoleStoreResult<()> {
+        let record = stored.record();
+        record.validate()?;
+        validate_record_activation_binding(record)?;
+        let activation_receipt_digest = match record.lifecycle() {
+            CloudflareTenantRootRoleShareLifecycleV1::Active(active) => {
+                active.activation.activation_receipt_digest
+            }
+            CloudflareTenantRootRoleShareLifecycleV1::Retired(retired) => {
+                retired.active.activation.activation_receipt_digest
+            }
+            CloudflareTenantRootRoleShareLifecycleV1::Pending(_) => {
+                return Err(store_error(
+                    "tenant-root role share named by the custody binding is not active",
+                ));
+            }
+        };
+        let expected_role = self.cipher.role.managed_restore_role();
+        let expected_commitment = match expected_role {
+            TenantRootManagedRestoreRoleV1::DeriverA => custody_binding.commitments().deriver_a(),
+            TenantRootManagedRestoreRoleV1::DeriverB => custody_binding.commitments().deriver_b(),
+        };
+        let identity_digest = record
+            .identity()
+            .digest()
+            .map_err(|error| store_error(error.message()))?;
+        if identity_digest != custody_binding.identity_digest()
+            || record.custody_lineage() != custody_binding.custody_lineage()
+            || record.epoch() != custody_binding.epoch()
+            || record.role().managed_restore_role() != expected_role
+            || record.share_commitment() != expected_commitment
+            || activation_receipt_digest != custody_binding.activation_receipt_digest()
+        {
+            return Err(store_error(
+                "tenant-root role share does not match authenticated custody binding",
+            ));
+        }
+        Ok(())
     }
 
     /// Observes all active rows for the debug lifecycle probe.
@@ -16182,6 +16347,12 @@ fn authorized_cleanup_abandoned_ceremony_payload_digest(
     let mut bytes = command_payload_start("authorized_cleanup_abandoned_ceremony")?;
     push_command_field(&mut bytes, authorization_digest.as_bytes())?;
     finish_command_payload(bytes)
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct TenantRootRootUseAdmissionRowV1 {
+    tenant_root_share_epoch: i64,
+    activation_receipt_digest_hex: String,
 }
 
 #[derive(Debug, serde::Deserialize)]

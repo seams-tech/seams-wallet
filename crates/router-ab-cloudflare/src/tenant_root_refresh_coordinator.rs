@@ -13,26 +13,38 @@
 //! kept: erasure waits for the safe-retirement rule
 //! (`docs/refactor-150-root-retirement-admission.md`), so retirement is
 //! reported pending.
+//!
+//! The Router records each Deriver's delivery of the committed receipt. New
+//! root work is admitted only on a fully delivered epoch: admission first
+//! finishes a pending delivery, and answers a retryable error if a Deriver
+//! cannot be reached, so no binding names an epoch a Deriver has not
+//! activated.
 
-use router_ab_core::{TenantRootCustodyLineageId, TenantRootIdentityDigestV1, TwoPartyDeriverRole};
+use router_ab_core::{
+    TenantRootActivationReceiptTransitionV1, TenantRootCustodyLineageId,
+    TenantRootIdentityDigestV1, TwoPartyDeriverRole, VerifiedTenantRootSignedActivationReceiptV1,
+};
 
 use crate::durable_object::tenant_root_creation::{
     tenant_root_creation_active_state_with_revision_read_call_v1,
     tenant_root_refresh_activation_call_v1, tenant_root_refresh_admission_call_v1,
-    tenant_root_refresh_attempt_reservation_call_v1, CloudflareTenantRootRefreshAdmissionOutcomeV1,
-    CloudflareTenantRootRefreshFenceV1, CloudflareTenantRootRefreshTerminalOutcomeV1,
-    CloudflareTenantRootRefreshTriggerV1, CloudflareVerifiedTenantRootActiveStateV1,
+    tenant_root_refresh_attempt_reservation_call_v1, tenant_root_record_delivery_call_v1,
+    CloudflareTenantRootRefreshAdmissionOutcomeV1, CloudflareTenantRootRefreshFenceV1,
+    CloudflareTenantRootRefreshTerminalOutcomeV1, CloudflareTenantRootRefreshTriggerV1,
+    CloudflareVerifiedTenantRootActiveStateV1,
 };
 use crate::tenant_root_control_plane::{
     CloudflareTenantRootControlPlaneRefreshActivationRequestV1,
     CloudflareTenantRootControlPlaneRefreshCommandsRequestV1,
 };
 use crate::tenant_root_role_runtime::{
+    CloudflareDeriverTenantRootInitialActivationRequestV1,
     CloudflareDeriverTenantRootRefreshActivationRequestV1,
     CloudflareDeriverTenantRootRefreshRequestV1, CloudflareDeriverTenantRootRefreshResponseV1,
 };
 use crate::tenant_root_transport::{
     tenant_root_control_plane_refresh_activation_call_v1,
+    tenant_root_deriver_initial_activation_call_v1,
     tenant_root_control_plane_refresh_commands_call_v1,
     tenant_root_deriver_refresh_activation_call_v1, tenant_root_deriver_refresh_call_v1,
     TenantRootServiceTransportV1,
@@ -167,7 +179,7 @@ pub async fn tenant_root_router_coordinate_refresh_v1<Host: TenantRootRouterCrea
             .await?;
             // A delayed retry must never reinstall an epoch superseded by refresh or restore.
             let retirement = if active.lifecycle_revision == response.lifecycle_revision {
-                tenant_root_router_deliver_committed_refresh_v1(host, &active).await?
+                tenant_root_router_deliver_pending_v1(host, &active).await?
             } else {
                 CloudflareRouterTenantRootRetirementEvidenceV1::Pending
             };
@@ -215,7 +227,7 @@ pub async fn tenant_root_router_coordinate_refresh_v1<Host: TenantRootRouterCrea
                     "tenant-root manual refresh admission revision changed; retry the same operation",
                 )
             })?;
-        response.retirement = tenant_root_router_deliver_committed_refresh_v1(host, &active).await?;
+        response.retirement = tenant_root_router_deliver_pending_v1(host, &active).await?;
         return Ok(CloudflareRouterTenantRootRefreshResultV1::Completed(response));
     }
     if matches!(
@@ -224,7 +236,7 @@ pub async fn tenant_root_router_coordinate_refresh_v1<Host: TenantRootRouterCrea
     ) {
         // Finish delivering the previous committed refresh before replacing
         // its terminal attempt.
-        tenant_root_router_deliver_committed_refresh_v1(host, &active).await?;
+        tenant_root_router_deliver_pending_v1(host, &active).await?;
     }
     let (refresh_context_b64u, deriver_a_refresh_command_b64u, deriver_b_refresh_command_b64u) =
         match active.refresh_fence {
@@ -358,42 +370,164 @@ pub(crate) fn tenant_root_router_replay_terminal_refresh_v1(
     }
 }
 
-/// Delivers the Router's committed receipt to both Derivers. Each swaps on
-/// that exact receipt, or replays the swap it already made; nothing is
-/// erased. Both deliveries are attempted, and the first failure returned.
-pub(crate) async fn tenant_root_router_deliver_committed_refresh_v1(
-    host: &impl TenantRootServiceTransportV1,
+/// Delivers the Router's committed receipt to each Deriver still waiting
+/// for it. Nothing is erased. Both deliveries are attempted, each
+/// acknowledgement is recorded, and the first failure is returned.
+pub(crate) async fn tenant_root_router_deliver_pending_v1<Host: TenantRootRouterCreationHostV1>(
+    host: &Host,
     active: &CloudflareVerifiedTenantRootActiveStateV1,
 ) -> RouterAbProtocolResult<CloudflareRouterTenantRootRetirementEvidenceV1> {
-    deliver_refresh_receipt_v1(
-        host,
-        encode_base64url_bytes_v1(active.activation_receipt.canonical_bytes()),
-    )
-    .await
+    let roles = match &active.delivery {
+        Some(delivery) => delivery.pending_roles(),
+        // A refresh-swap receipt committed before delivery was recorded is
+        // delivered again; each Deriver replays a swap it already made.
+        None if active.activation_receipt.transition()
+            == TenantRootActivationReceiptTransitionV1::RefreshSwap =>
+        {
+            vec![TwoPartyDeriverRole::DeriverA, TwoPartyDeriverRole::DeriverB]
+        }
+        None => Vec::new(),
+    };
+    tenant_root_router_deliver_receipt_v1(host, &active.activation_receipt, &roles).await?;
+    Ok(CloudflareRouterTenantRootRetirementEvidenceV1::Pending)
 }
 
-async fn deliver_refresh_receipt_v1(
-    host: &impl TenantRootServiceTransportV1,
-    activation_receipt_b64u: String,
-) -> RouterAbProtocolResult<CloudflareRouterTenantRootRetirementEvidenceV1> {
-    let role_activation = CloudflareDeriverTenantRootRefreshActivationRequestV1 {
-        activation_receipt_b64u,
+/// Delivers one committed receipt to these roles: a creation's initial
+/// activation, or a refresh's swap. Each Deriver activates that exact
+/// receipt, or replays the activation it already made; each acknowledgement
+/// is recorded in the Router's creation state. Both deliveries are attempted,
+/// and the first failure is returned.
+pub(crate) async fn tenant_root_router_deliver_receipt_v1<Host: TenantRootRouterCreationHostV1>(
+    host: &Host,
+    receipt: &VerifiedTenantRootSignedActivationReceiptV1,
+    roles: &[TwoPartyDeriverRole],
+) -> RouterAbProtocolResult<()> {
+    let activation_receipt_b64u = encode_base64url_bytes_v1(receipt.canonical_bytes());
+    let transition = receipt.transition();
+    let deliver = |role: TwoPartyDeriverRole| {
+        let activation_receipt_b64u = activation_receipt_b64u.clone();
+        async move {
+            if !roles.contains(&role) {
+                return Ok(false);
+            }
+            match transition {
+                TenantRootActivationReceiptTransitionV1::InitialCreation => {
+                    tenant_root_deriver_initial_activation_call_v1(
+                        host,
+                        role,
+                        &CloudflareDeriverTenantRootInitialActivationRequestV1 {
+                            activation_receipt_b64u,
+                        },
+                    )
+                    .await
+                    .map(|_| true)
+                }
+                TenantRootActivationReceiptTransitionV1::RefreshSwap => {
+                    tenant_root_deriver_refresh_activation_call_v1(
+                        host,
+                        role,
+                        &CloudflareDeriverTenantRootRefreshActivationRequestV1 {
+                            activation_receipt_b64u,
+                        },
+                    )
+                    .await
+                    .map(|_| true)
+                }
+            }
+        }
     };
     let (deriver_a, deriver_b) = futures::join!(
-        tenant_root_deriver_refresh_activation_call_v1(
-            host,
-            TwoPartyDeriverRole::DeriverA,
-            &role_activation,
-        ),
-        tenant_root_deriver_refresh_activation_call_v1(
-            host,
-            TwoPartyDeriverRole::DeriverB,
-            &role_activation,
-        ),
+        deliver(TwoPartyDeriverRole::DeriverA),
+        deliver(TwoPartyDeriverRole::DeriverB),
     );
+    let issuer_keys = host.trusted_issuer_keys()?;
+    for (role, delivered) in [
+        (TwoPartyDeriverRole::DeriverA, &deriver_a),
+        (TwoPartyDeriverRole::DeriverB, &deriver_b),
+    ] {
+        if matches!(delivered, Ok(true)) {
+            tenant_root_record_delivery_call_v1(
+                host,
+                &issuer_keys,
+                receipt.identity_digest(),
+                receipt.custody_lineage(),
+                encode_base64url_bytes_v1(receipt.digest().as_bytes()),
+                role,
+            )
+            .await?;
+        }
+    }
     deriver_a?;
     deriver_b?;
-    Ok(CloudflareRouterTenantRootRetirementEvidenceV1::Pending)
+    Ok(())
+}
+
+/// The committed activation receipt new root work is admitted on.
+///
+/// A committed receipt, initial or refresh, that a Deriver has not yet
+/// activated is delivered first. If a Deriver cannot be reached, the caller gets
+/// `LifecycleTransitionInProgress` and can retry, so no custody binding is
+/// issued for an epoch a Deriver has not activated.
+pub async fn tenant_root_router_admission_receipt_v1<Host: TenantRootRouterCreationHostV1>(
+    host: &Host,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+) -> RouterAbProtocolResult<VerifiedTenantRootSignedActivationReceiptV1> {
+    let issuer_keys = host.trusted_issuer_keys()?;
+    let active = tenant_root_creation_active_state_with_revision_read_call_v1(
+        host,
+        &issuer_keys,
+        identity_digest,
+        custody_lineage,
+    )
+    .await?;
+    if active.pending_delivery().is_empty() {
+        return Ok(active.activation_receipt);
+    }
+    tenant_root_router_deliver_pending_v1(host, &active)
+        .await
+        .map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
+                format!(
+                    "tenant-root activation delivery is in progress; retry: {}",
+                    error.message()
+                ),
+            )
+        })?;
+    let delivered = tenant_root_creation_active_state_with_revision_read_call_v1(
+        host,
+        &issuer_keys,
+        identity_digest,
+        custody_lineage,
+    )
+    .await?;
+    if !delivered.pending_delivery().is_empty() {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
+            "tenant-root activation delivery is in progress; retry",
+        ));
+    }
+    Ok(delivered.activation_receipt)
+}
+
+/// The Workers admission gate, over the Router's Service Bindings and its
+/// creation Durable Object.
+#[cfg(feature = "workers-rs")]
+pub(crate) async fn execute_cloudflare_router_tenant_root_admission_receipt_v1(
+    env: &worker::Env,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+) -> RouterAbProtocolResult<VerifiedTenantRootSignedActivationReceiptV1> {
+    let runtime = crate::CloudflareRouterWorkerRuntimeV1::from_worker_env(env)?;
+    tenant_root_router_admission_receipt_v1(
+        &crate::tenant_root_creation_coordinator::CloudflareRouterTenantRootCreationHostV1::new(
+            env, &runtime,
+        ),
+        identity_digest,
+        custody_lineage,
+    )
+    .await
 }
 
 /// Commits one prepared refresh at the Router, then delivers it. The control
@@ -450,7 +584,29 @@ pub(crate) async fn tenant_root_router_finish_refresh_v1<Host: TenantRootRouterC
                 }
             }
         };
-    let retirement = deliver_refresh_receipt_v1(host, committed_receipt_b64u).await?;
+    let issuer_keys = host.trusted_issuer_keys()?;
+    let committed_receipt = router_ab_core::TenantRootSignedActivationReceiptV1::decode_canonical_bytes(
+        &decode_base64url_bytes_v1("tenant-root committed refresh receipt", &committed_receipt_b64u)?,
+    )
+    .map_err(crate::map_root_share_to_protocol)?;
+    let issuer_key = issuer_keys
+        .get(committed_receipt.issuer_key_id())
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+                "tenant-root committed refresh receipt issuer is not trusted",
+            )
+        })?;
+    let committed_receipt = committed_receipt
+        .verify_issuer_signature(issuer_key)
+        .map_err(crate::map_root_share_to_protocol)?;
+    tenant_root_router_deliver_receipt_v1(
+        host,
+        &committed_receipt,
+        &[TwoPartyDeriverRole::DeriverA, TwoPartyDeriverRole::DeriverB],
+    )
+    .await?;
+    let retirement = CloudflareRouterTenantRootRetirementEvidenceV1::Pending;
     Ok(CloudflareRouterTenantRootRefreshResponseV1 {
         activation_receipt_digest_b64u,
         lifecycle_revision,

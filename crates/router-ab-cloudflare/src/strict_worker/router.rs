@@ -8,7 +8,6 @@ use super::*;
 use crate::durable_object::tenant_root_creation::{
     decode_bounded_json_request, derive_tenant_root_creation_authority_object_v1,
     destination_bootstrap_request_scope_from_wire_v1,
-    execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1,
     execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1,
     execute_cloudflare_router_tenant_root_destination_bootstrap_call_v1,
     execute_cloudflare_router_tenant_root_refresh_attempt_reservation_call_v1,
@@ -27,8 +26,9 @@ use crate::durable_object::tenant_root_creation::{
 };
 #[cfg(feature = "strict-worker-router-entrypoint")]
 use crate::post_service_json;
+use crate::tenant_root_creation_coordinator::CloudflareRouterTenantRootCreationHostV1;
 use crate::tenant_root_refresh_coordinator::{
-    tenant_root_router_deliver_committed_refresh_v1, tenant_root_router_finish_refresh_v1,
+    tenant_root_router_deliver_pending_v1, tenant_root_router_finish_refresh_v1,
     tenant_root_router_refresh_attempt_packages_v1, tenant_root_router_replay_terminal_refresh_v1,
     CloudflareRouterTenantRootRefreshRequestV1, CloudflareRouterTenantRootRefreshResponseV1,
     CloudflareRouterTenantRootRefreshResultV1,
@@ -763,109 +763,6 @@ fn require_cloudflare_router_managed_restore_checkpoint_current_state_v1(
         ));
     }
     Ok(())
-}
-
-/// The Cloudflare Router's creation host: Service Bindings to the control
-/// plane and both Derivers, and the creation Durable Object.
-#[cfg(feature = "strict-worker-router-entrypoint")]
-struct CloudflareRouterTenantRootCreationHostV1<'a> {
-    env: &'a Env,
-    runtime: &'a CloudflareRouterWorkerRuntimeV1,
-    transport: crate::tenant_root_transport::CloudflareTenantRootServiceTransportV1<'a>,
-    creation_state:
-        crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationStateTransportV1<'a>,
-}
-
-#[cfg(feature = "strict-worker-router-entrypoint")]
-impl<'a> CloudflareRouterTenantRootCreationHostV1<'a> {
-    fn new(env: &'a Env, runtime: &'a CloudflareRouterWorkerRuntimeV1) -> Self {
-        Self {
-            env,
-            runtime,
-            transport: crate::tenant_root_transport::CloudflareTenantRootServiceTransportV1::new(
-                env,
-                Some(&runtime.bindings().deriver_a),
-                Some(&runtime.bindings().deriver_b),
-            ),
-            creation_state:
-                crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationStateTransportV1::new(env),
-        }
-    }
-}
-
-#[cfg(feature = "strict-worker-router-entrypoint")]
-impl crate::TenantRootServiceTransportV1 for CloudflareRouterTenantRootCreationHostV1<'_> {
-    async fn post_private_json<TRequest: serde::Serialize, TResponse: serde::de::DeserializeOwned>(
-        &self,
-        target: crate::TenantRootServiceTargetV1,
-        path: &'static str,
-        label: &'static str,
-        request: &TRequest,
-        bounds: Option<crate::TenantRootCallBoundsV1>,
-    ) -> RouterAbProtocolResult<TResponse> {
-        self.transport
-            .post_private_json(target, path, label, request, bounds)
-            .await
-    }
-}
-
-#[cfg(feature = "strict-worker-router-entrypoint")]
-impl crate::durable_object::tenant_root_creation::TenantRootCreationStateTransportV1
-    for CloudflareRouterTenantRootCreationHostV1<'_>
-{
-    fn creation_authority_id(
-        &self,
-        identity_digest: router_ab_core::TenantRootIdentityDigestV1,
-        custody_lineage: router_ab_core::TenantRootCustodyLineageId,
-    ) -> RouterAbProtocolResult<router_ab_core::TenantRootControlPlaneAuthorityIdV1> {
-        self.creation_state
-            .creation_authority_id(identity_digest, custody_lineage)
-    }
-
-    async fn creation_state_call<TRequest: serde::Serialize, TResponse: serde::de::DeserializeOwned>(
-        &self,
-        authority_id: router_ab_core::TenantRootControlPlaneAuthorityIdV1,
-        identity_digest: router_ab_core::TenantRootIdentityDigestV1,
-        custody_lineage: router_ab_core::TenantRootCustodyLineageId,
-        path: &'static str,
-        label: &'static str,
-        request: &TRequest,
-        request_max_bytes: usize,
-        response_max_bytes: usize,
-    ) -> RouterAbProtocolResult<TResponse> {
-        self.creation_state
-            .creation_state_call(
-                authority_id,
-                identity_digest,
-                custody_lineage,
-                path,
-                label,
-                request,
-                request_max_bytes,
-                response_max_bytes,
-            )
-            .await
-    }
-}
-
-#[cfg(feature = "strict-worker-router-entrypoint")]
-impl crate::TenantRootRouterCreationHostV1 for CloudflareRouterTenantRootCreationHostV1<'_> {
-    fn trusted_issuer_keys(
-        &self,
-    ) -> RouterAbProtocolResult<std::collections::BTreeMap<String, [u8; 32]>> {
-        let reader = crate::CloudflareWorkerEnvReaderV1::new(self.env);
-        let keys = crate::CloudflareEnvReaderV1::get_text(
-            &reader,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?
-            .ok_or_else(|| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MissingLocalBinding,
-                    "tenant-root control-plane issuer verifying keys are not configured",
-                )
-            })?;
-        crate::env::decode_issuer_verifying_keys(&keys)
-    }
 }
 
 #[cfg(feature = "strict-worker-router-entrypoint")]
@@ -3179,7 +3076,7 @@ async fn coordinate_cloudflare_router_tenant_root_managed_restore_v1(
                     "tenant-root managed-restore terminal refresh response is unavailable",
                 )
             })?;
-        response.retirement = tenant_root_router_deliver_committed_refresh_v1(&host, &active).await?;
+        response.retirement = tenant_root_router_deliver_pending_v1(&host, &active).await?;
         return Ok(response);
     }
     require_cloudflare_router_managed_restore_checkpoint_current_state_v1(&active, &authorization)?;
@@ -4176,7 +4073,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
                     return cloudflare_router_normal_signing_response_v1(response, &request, &env);
                 }
                 let active_receipt =
-                    match execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1(
+                    match crate::tenant_root_refresh_coordinator::execute_cloudflare_router_tenant_root_admission_receipt_v1(
                         &env,
                         identity_digest,
                         custody_lineage,
@@ -4237,7 +4134,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
                     return cloudflare_router_normal_signing_response_v1(response, &request, &env);
                 }
                 let active_receipt =
-                    match execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1(
+                    match crate::tenant_root_refresh_coordinator::execute_cloudflare_router_tenant_root_admission_receipt_v1(
                         &env,
                         identity_digest,
                         custody_lineage,

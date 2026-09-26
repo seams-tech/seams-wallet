@@ -124,6 +124,15 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
   prints `R150_VM_TENANT_ROOT_WORK_ACROSS_REFRESH_E2E`: a Yao registration
   admitted on epoch 1 is held while a refresh commits epoch 2 and both roles
   swap. Once released, it completes on its retired epoch.
+- `vm_tenant_root_binding_unused_before_its_epoch_closes_starts_nothing`
+  prints `R150_VM_TENANT_ROOT_UNUSED_BINDING_E2E`: a preparation held across
+  a refresh is refused by the Deriver that had not admitted it.
+- `vm_tenant_root_new_work_waits_for_the_committed_epoch_delivery` prints
+  `R150_VM_TENANT_ROOT_DELIVERY_GATE_E2E`: new work is refused with HTTP 503
+  while a Deriver lacks the committed epoch, and admitted once delivery
+  completes.
+- VM route errors answer 400, except `LifecycleTransitionInProgress`, which
+  answers 503 as on Cloudflare so the Gateway retries it.
 - The VM Router runs creation-state operations one at a time in process, as a
   Durable Object does. SQLite's lock alone let a role polling the refresh
   rendezvous starve its peer's write.

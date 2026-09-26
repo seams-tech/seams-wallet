@@ -1283,19 +1283,16 @@ pub fn resolve_local_router_tenant_root_context_v1(
     expires_at_ms: u64,
 ) -> RouterAbProtocolResult<router_ab_cloudflare::CloudflareEd25519YaoTenantRootContextV2> {
     let (identity_digest, custody_lineage) = coordinates.resolve()?;
-    let issuer_keys = decode_issuer_verifying_keys(&required_env(
-        &config.env,
-        router_ab_cloudflare::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-    )?)?;
-    let active = futures::executor::block_on(
-        router_ab_cloudflare::tenant_root_creation_active_state_with_revision_read_call_v1(
-            &LocalRouterCreationStateV1::new(config),
-            &issuer_keys,
+    // New work is admitted only on a committed epoch both Derivers have
+    // activated; a pending refresh delivery is finished first.
+    let admitted = futures::executor::block_on(
+        router_ab_cloudflare::tenant_root_router_admission_receipt_v1(
+            &LocalRouterTenantRootCreationHostV1::new(config),
             identity_digest,
             custody_lineage,
         ),
     )?;
-    let receipt = active.activation_receipt();
+    let receipt = &admitted;
     let requested = identity.digest().map_err(|error| {
         malformed(format!("Yao tenant-root identity is invalid: {error}"))
     })?;
@@ -1319,23 +1316,21 @@ pub fn resolve_local_router_tenant_root_context_v1(
     )
 }
 
-/// Loads this Deriver's active role share for one authenticated Yao pair.
-///
-/// The custody binding is authenticated against the trusted issuer keys and
-/// Deriver identities before the role-private store is read, and the store
-/// returns only the active row that binding names.
-pub fn load_local_deriver_tenant_root_role_share_v1(
+/// Authenticates one Yao pair's custody binding against the trusted issuer
+/// keys and Deriver identities.
+fn authenticate_local_yao_custody_binding_v1(
     config: &LocalDeriverTenantRootConfigV1,
     tenant_root: &router_ab_cloudflare::CloudflareEd25519YaoTenantRootContextV2,
     pair_binding: &router_ab_core::Ed25519YaoInputPairBindingV1,
-) -> RouterAbProtocolResult<crate::LocalTenantRootRoleShareV1> {
+    now_ms: u64,
+) -> RouterAbProtocolResult<router_ab_core::TenantRootCustodyBindingV1> {
     tenant_root.validate_for_pair(pair_binding)?;
     let custody = tenant_root.custody_binding.authenticate_for_ed25519_yao_v1(
         &config.env,
         pair_binding,
         &tenant_root.application,
         tenant_root.participant_ids,
-        crate::local_router_coordinator::local_now_ms_v1()?,
+        now_ms,
     )?;
     let requested = tenant_root.identity.digest().map_err(|error| {
         malformed(format!("Yao tenant-root identity is invalid: {error}"))
@@ -1346,10 +1341,42 @@ pub fn load_local_deriver_tenant_root_role_share_v1(
             "Yao tenant-root identity differs from the authenticated custody binding",
         ));
     }
+    Ok(custody)
+}
+
+/// Admits one Yao pair's root-using work at this Deriver on the epoch its
+/// custody binding names, when the pair is prepared. The pair's later root
+/// reads then find it admitted, so a refresh that retires the epoch between
+/// preparation and execution does not stop it; a pair prepared after the
+/// epoch closed here is refused.
+pub fn admit_local_deriver_tenant_root_work_v1(
+    config: &LocalDeriverTenantRootConfigV1,
+    tenant_root: &router_ab_cloudflare::CloudflareEd25519YaoTenantRootContextV2,
+    pair_binding: &router_ab_core::Ed25519YaoInputPairBindingV1,
+) -> RouterAbProtocolResult<()> {
+    let now_ms = crate::local_router_coordinator::local_now_ms_v1()?;
+    let custody = authenticate_local_yao_custody_binding_v1(config, tenant_root, pair_binding, now_ms)?;
+    futures::executor::block_on(router_ab_cloudflare::tenant_root_deriver_admit_bound_work_v1(
+        &LocalTenantRootDeriverHostV1::new(config),
+        &custody,
+        now_ms,
+    ))
+}
+
+/// Loads this Deriver's role share for one authenticated Yao pair: the epoch
+/// its custody binding names, for a pair admitted on that epoch.
+pub fn load_local_deriver_tenant_root_role_share_v1(
+    config: &LocalDeriverTenantRootConfigV1,
+    tenant_root: &router_ab_cloudflare::CloudflareEd25519YaoTenantRootContextV2,
+    pair_binding: &router_ab_core::Ed25519YaoInputPairBindingV1,
+) -> RouterAbProtocolResult<crate::LocalTenantRootRoleShareV1> {
+    let now_ms = crate::local_router_coordinator::local_now_ms_v1()?;
+    let custody = authenticate_local_yao_custody_binding_v1(config, tenant_root, pair_binding, now_ms)?;
     let opened = futures::executor::block_on(
         router_ab_cloudflare::tenant_root_deriver_load_bound_role_share_v1(
             &LocalTenantRootDeriverHostV1::new(config),
             &custody,
+            now_ms,
         ),
     )?;
     let (binding, share_wire) = opened.into_parts();

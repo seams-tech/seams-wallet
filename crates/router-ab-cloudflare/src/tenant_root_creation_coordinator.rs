@@ -46,7 +46,7 @@ use crate::tenant_root_role_runtime::{
     CloudflareDeriverTenantRootCleanupRequestV1, CloudflareDeriverTenantRootCreateRoleShareRequestV1,
     CloudflareDeriverTenantRootCreationEvidenceRequestV1,
     CloudflareDeriverTenantRootCreateRoleShareResponseV1,
-    CloudflareDeriverTenantRootInitialActivationRequestV1, CloudflareTenantRootCreateRoleV1,
+    CloudflareTenantRootCreateRoleV1,
 };
 use crate::tenant_root_transport::{
     tenant_root_control_plane_cleanup_command_call_v1,
@@ -55,7 +55,7 @@ use crate::tenant_root_transport::{
     tenant_root_control_plane_role_creation_command_call_v1,
     tenant_root_deriver_cleanup_call_v1, tenant_root_deriver_create_role_share_call_v1,
     tenant_root_deriver_creation_evidence_call_v1,
-    tenant_root_deriver_initial_activation_call_v1, TenantRootServiceTransportV1,
+    TenantRootServiceTransportV1,
 };
 use crate::{
     decode_base64url_bytes_v1, encode_base64url_bytes_v1, RouterAbProtocolError,
@@ -308,22 +308,22 @@ async fn deliver_committed_initial_activation_v1<Host: TenantRootRouterCreationH
     if receipt.transition() != TenantRootActivationReceiptTransitionV1::InitialCreation {
         return Ok(());
     }
-    let role_activation = CloudflareDeriverTenantRootInitialActivationRequestV1 {
-        activation_receipt_b64u: receipt_b64u.to_owned(),
-    };
-    tenant_root_deriver_initial_activation_call_v1(
+    let issuer_keys = host.trusted_issuer_keys()?;
+    let issuer_key = issuer_keys.get(receipt.issuer_key_id()).ok_or_else(|| {
+        RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root committed activation receipt issuer is not trusted",
+        )
+    })?;
+    let receipt = receipt
+        .verify_issuer_signature(issuer_key)
+        .map_err(crate::map_root_share_to_protocol)?;
+    crate::tenant_root_refresh_coordinator::tenant_root_router_deliver_receipt_v1(
         host,
-        TwoPartyDeriverRole::DeriverA,
-        &role_activation,
+        &receipt,
+        &[TwoPartyDeriverRole::DeriverA, TwoPartyDeriverRole::DeriverB],
     )
-    .await?;
-    tenant_root_deriver_initial_activation_call_v1(
-        host,
-        TwoPartyDeriverRole::DeriverB,
-        &role_activation,
-    )
-    .await?;
-    Ok(())
+    .await
 }
 
 /// Abandons an uncommitted creation so a fresh grant can start again. The
@@ -649,4 +649,104 @@ fn creation_scope_v1(
             )
         })?;
     Ok((identity_digest, custody_lineage))
+}
+
+/// The Cloudflare Router's tenant-root host: Service Bindings to the control
+/// plane and both Derivers, and the creation Durable Object.
+#[cfg(feature = "workers-rs")]
+pub(crate) struct CloudflareRouterTenantRootCreationHostV1<'a> {
+    env: &'a worker::Env,
+    transport: crate::tenant_root_transport::CloudflareTenantRootServiceTransportV1<'a>,
+    creation_state:
+        crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationStateTransportV1<'a>,
+}
+
+#[cfg(feature = "workers-rs")]
+impl<'a> CloudflareRouterTenantRootCreationHostV1<'a> {
+    pub(crate) fn new(
+        env: &'a worker::Env,
+        runtime: &'a crate::CloudflareRouterWorkerRuntimeV1,
+    ) -> Self {
+        Self {
+            env,
+            transport: crate::tenant_root_transport::CloudflareTenantRootServiceTransportV1::new(
+                env,
+                Some(&runtime.bindings().deriver_a),
+                Some(&runtime.bindings().deriver_b),
+            ),
+            creation_state:
+                crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationStateTransportV1::new(env),
+        }
+    }
+}
+
+#[cfg(feature = "workers-rs")]
+impl TenantRootServiceTransportV1 for CloudflareRouterTenantRootCreationHostV1<'_> {
+    async fn post_private_json<TRequest: serde::Serialize, TResponse: serde::de::DeserializeOwned>(
+        &self,
+        target: crate::TenantRootServiceTargetV1,
+        path: &'static str,
+        label: &'static str,
+        request: &TRequest,
+        bounds: Option<crate::TenantRootCallBoundsV1>,
+    ) -> RouterAbProtocolResult<TResponse> {
+        self.transport
+            .post_private_json(target, path, label, request, bounds)
+            .await
+    }
+}
+
+#[cfg(feature = "workers-rs")]
+impl TenantRootCreationStateTransportV1 for CloudflareRouterTenantRootCreationHostV1<'_> {
+    fn creation_authority_id(
+        &self,
+        identity_digest: router_ab_core::TenantRootIdentityDigestV1,
+        custody_lineage: router_ab_core::TenantRootCustodyLineageId,
+    ) -> RouterAbProtocolResult<router_ab_core::TenantRootControlPlaneAuthorityIdV1> {
+        self.creation_state
+            .creation_authority_id(identity_digest, custody_lineage)
+    }
+
+    async fn creation_state_call<TRequest: serde::Serialize, TResponse: serde::de::DeserializeOwned>(
+        &self,
+        authority_id: router_ab_core::TenantRootControlPlaneAuthorityIdV1,
+        identity_digest: router_ab_core::TenantRootIdentityDigestV1,
+        custody_lineage: router_ab_core::TenantRootCustodyLineageId,
+        path: &'static str,
+        label: &'static str,
+        request: &TRequest,
+        request_max_bytes: usize,
+        response_max_bytes: usize,
+    ) -> RouterAbProtocolResult<TResponse> {
+        self.creation_state
+            .creation_state_call(
+                authority_id,
+                identity_digest,
+                custody_lineage,
+                path,
+                label,
+                request,
+                request_max_bytes,
+                response_max_bytes,
+            )
+            .await
+    }
+}
+
+#[cfg(feature = "workers-rs")]
+impl TenantRootRouterCreationHostV1 for CloudflareRouterTenantRootCreationHostV1<'_> {
+    fn trusted_issuer_keys(&self) -> RouterAbProtocolResult<BTreeMap<String, [u8; 32]>> {
+        let reader = crate::CloudflareWorkerEnvReaderV1::new(self.env);
+        let keys = crate::CloudflareEnvReaderV1::get_text(
+            &reader,
+            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
+        )?
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MissingLocalBinding,
+                "tenant-root control-plane issuer verifying keys are not configured",
+            )
+        })?;
+        crate::env::decode_issuer_verifying_keys(&keys)
+    }
 }

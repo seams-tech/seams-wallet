@@ -1248,14 +1248,16 @@ fn vm_tenant_root_committed_activation_is_delivered_after_the_ceremony_expires(
     let pending = || Some("pending".to_owned());
     let mut evidence = BTreeMap::new();
 
-    // Inside the window: zero, then one, Deriver active.
-    for (label, proxy, expected) in [
-        ("zero_active_retry_in_window", &stack.proxy_a, (pending(), pending())),
-        ("one_active_retry_in_window", &stack.proxy_b, (active(), pending())),
+    // Inside the window: zero, then one, Deriver active. Both deliveries
+    // are attempted together, so zero active loses both.
+    let both = [&stack.proxy_a, &stack.proxy_b];
+    for (label, proxies, expected) in [
+        ("zero_active_retry_in_window", &both[..], (pending(), pending())),
+        ("one_active_retry_in_window", &both[1..], (active(), pending())),
     ] {
         let (identity, lineage, lineage_b64u) = recovery_ceremony(&format!("post-commit-{label}"))?;
         let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
-        let receipt = stack.lose_delivery(proxy, &grant, &lineage_b64u, expected)?;
+        let receipt = stack.lose_delivery(proxies, &grant, &lineage_b64u, expected)?;
         let (status, body) = stack.create(&grant)?;
         assert_eq!(status, 200, "{body}");
         assert_eq!(stack.lifecycles(&lineage_b64u)?, (active(), active()));
@@ -1270,13 +1272,13 @@ fn vm_tenant_root_committed_activation_is_delivered_after_the_ceremony_expires(
     let none_grant =
         product_creation_grant_with_lifetime_b64u(&stack.temp, &identity, lineage, None, lifetime_ms)?;
     let none_receipt =
-        stack.lose_delivery(&stack.proxy_a, &none_grant, &none_lineage, (pending(), pending()))?;
+        stack.lose_delivery(&both, &none_grant, &none_lineage, (pending(), pending()))?;
     let (identity, lineage, one_lineage) = recovery_ceremony("post-commit-one-active-expired")?;
     let one_grant =
         product_creation_grant_with_lifetime_b64u(&stack.temp, &identity, lineage, None, lifetime_ms)?;
     stack.proxy_control_plane.clear_captured();
     let one_receipt =
-        stack.lose_delivery(&stack.proxy_b, &one_grant, &one_lineage, (active(), pending()))?;
+        stack.lose_delivery(&both[1..], &one_grant, &one_lineage, (active(), pending()))?;
 
     // A second, correctly signed receipt for the same evidence, which the
     // Router never committed: the control plane issues again on replay.
@@ -1568,6 +1570,301 @@ fn vm_tenant_root_work_admitted_before_a_refresh_finishes_on_its_epoch(
         })
     );
     Ok(())
+}
+
+/// Whether a Router response is a successful Yao registration.
+fn registration_succeeded(body: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    let Ok(result) = serde_json::from_str::<RouterEd25519YaoExecuteResultV1>(body) else {
+        return Ok(false);
+    };
+    Ok(matches!(
+        result,
+        RouterEd25519YaoExecuteResultV1::Succeeded { result }
+            if matches!(*result, RouterEd25519YaoExecuteSuccessV1::Registration { .. })
+    ))
+}
+
+/// A binding unused before its epoch closes starts nothing. A registration is
+/// admitted by the Router on epoch 1; Deriver B prepares it, admitting it on
+/// epoch 1, while A's preparation is held. A manual refresh then commits
+/// epoch 2 and both roles swap. Released, A's preparation is refused: A never
+/// admitted the operation before epoch 1 closed there. A fresh registration
+/// is then admitted on epoch 2 and completes.
+#[test]
+fn vm_tenant_root_binding_unused_before_its_epoch_closes_starts_nothing(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start("vm-tenant-root-unused-binding")?;
+    let _signing_worker = stack.start_signing_worker()?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("unused-binding")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let (created_revision, _, _) = stack.active_state(&lineage_b64u)?;
+    let epoch_one_receipt = stack
+        .committed_receipt(&lineage_b64u)?
+        .ok_or("the Router must have committed epoch 1")?;
+
+    let registration = stack.registration(&identity, &lineage_b64u)?;
+    stack
+        .proxy_a
+        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH);
+    let registering = {
+        let router_url = stack.router_url.clone();
+        thread::spawn(move || {
+            post_json_to_path_with_headers(
+                &router_url,
+                LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+                &registration,
+                &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
+            )
+            .map_err(|error| error.to_string())
+        })
+    };
+    let deadline = Instant::now() + Duration::from_secs(15);
+    let held = loop {
+        if let Some(held) = stack.proxy_a.held_request() {
+            break held;
+        }
+        if Instant::now() > deadline {
+            return Err("the registration never reached Deriver A's preparation".into());
+        }
+        thread::sleep(Duration::from_millis(10));
+    };
+    let held: serde_json::Value = serde_json::from_slice(&held)?;
+    assert_eq!(
+        held["tenant_root"]["custody_binding"]["activation_receipt_b64u"],
+        json!(epoch_one_receipt),
+        "the held preparation is bound to epoch 1"
+    );
+    // B prepared concurrently and admitted the operation on epoch 1.
+    let deadline = Instant::now() + Duration::from_secs(15);
+    while stack.admissions(&lineage_b64u)?.1.is_empty() {
+        if Instant::now() > deadline {
+            return Err("Deriver B never admitted the registration".into());
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(stack.admissions(&lineage_b64u)?, (vec![], vec![1]));
+
+    let (refresh_status, refresh_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-unused-binding", created_revision)?;
+    assert_eq!(refresh_status, 200, "{refresh_body}");
+    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
+    let retired_then_active = vec![epoch(1, "retired"), epoch(2, "active")];
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?,
+        (retired_then_active.clone(), retired_then_active.clone())
+    );
+
+    stack.proxy_a.release_request();
+    let (registration_status, registration_body) = registering
+        .join()
+        .map_err(|_| "the registration thread panicked")??;
+    let deriver_a_answer = String::from_utf8_lossy(
+        &stack
+            .proxy_a
+            .held_response()
+            .ok_or("Deriver A must have answered the held preparation")?,
+    )
+    .into_owned();
+    let deriver_a_status = deriver_a_answer
+        .split_whitespace()
+        .nth(1)
+        .ok_or("Deriver A's answer has no status")?
+        .to_owned();
+    assert_ne!(deriver_a_status, "200", "{deriver_a_answer}");
+    assert!(
+        deriver_a_answer.contains("was retired here before the operation was admitted"),
+        "{deriver_a_answer}"
+    );
+    // The caller is told to retry.
+    let refused: serde_json::Value = serde_json::from_str(&registration_body)?;
+    assert_eq!(refused["status"], "recoverable_failure", "{registration_body}");
+    // A admitted nothing on the closed epoch; B's epoch-1 admission remains,
+    // an obligation a later retirement must see settled.
+    assert_eq!(stack.admissions(&lineage_b64u)?, (vec![], vec![1]));
+
+    // A fresh registration is admitted on epoch 2 and completes.
+    let (retry_status, retry_body) =
+        stack.register(&stack.registration(&identity, &lineage_b64u)?)?;
+    assert_eq!(retry_status, 200, "{retry_body}");
+    assert!(registration_succeeded(&retry_body)?, "{retry_body}");
+    assert_eq!(stack.admissions(&lineage_b64u)?, (vec![2], vec![1, 2]));
+
+    println!(
+        "R150_VM_TENANT_ROOT_UNUSED_BINDING_E2E {}",
+        json!({
+            "work": "ed25519_yao_registration",
+            "bound_to_epoch": 1,
+            "held_before": "deriver_a_prepare_pair",
+            "refresh_status": refresh_status,
+            "deriver_a_prepare_status": deriver_a_status,
+            "registration_status": registration_status,
+            "registration_outcome": refused["status"],
+            "admissions_after_refusal": { "deriver_a": [], "deriver_b": [1] },
+            "fresh_registration_status": retry_status,
+            "admissions_after_fresh_registration": { "deriver_a": [2], "deriver_b": [1, 2] },
+        })
+    );
+    Ok(())
+}
+
+/// New work waits for the committed epoch's delivery. B's refresh activation
+/// is lost after the Router commits epoch 2, and B stays unreachable for it.
+/// A registration is then refused with a retryable answer, and no binding for
+/// epoch 2 is issued while B has not activated it. A Deriver also refuses an
+/// epoch it has not activated when a binding names it directly. Once B is
+/// reachable, the next registration delivers the committed receipt to B and
+/// runs on epoch 2.
+#[test]
+fn vm_tenant_root_new_work_waits_for_the_committed_epoch_delivery(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start("vm-tenant-root-delivery-gate")?;
+    let _signing_worker = stack.start_signing_worker()?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("delivery-gate")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let delivered = || (Some("delivered".to_owned()), Some("delivered".to_owned()));
+    assert_eq!(stack.delivery(&lineage_b64u)?, delivered(), "creation is delivered");
+    let (created_revision, _, _) = stack.active_state(&lineage_b64u)?;
+
+    // B cannot be reached for its refresh activation.
+    let refresh_activation =
+        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH;
+    stack.proxy_b.drop_every_on(refresh_activation);
+    let (refresh_status, refresh_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-delivery-gate", created_revision)?;
+    assert_ne!(refresh_status, 200, "{refresh_body}");
+    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?,
+        (
+            vec![epoch(1, "retired"), epoch(2, "active")],
+            vec![epoch(1, "active"), epoch(2, "pending")],
+        )
+    );
+    let b_pending = (Some("delivered".to_owned()), Some("pending".to_owned()));
+    assert_eq!(stack.delivery(&lineage_b64u)?, b_pending);
+    let epoch_two_receipt = stack
+        .committed_receipt(&lineage_b64u)?
+        .ok_or("the Router must have committed epoch 2")?;
+
+    // New work is refused retryably while B lacks epoch 2.
+    let (blocked_status, blocked_body) =
+        stack.register(&stack.registration(&identity, &lineage_b64u)?)?;
+    assert_eq!(blocked_status, 503, "{blocked_body}");
+    assert!(blocked_body.contains("LifecycleTransitionInProgress"), "{blocked_body}");
+    assert_eq!(stack.delivery(&lineage_b64u)?, b_pending);
+    assert_eq!(stack.admissions(&lineage_b64u)?, (vec![], vec![]));
+
+    // B refuses epoch 2 even when a binding names it directly.
+    let direct =
+        direct_deriver_b_preparation_v1(&stack, &identity, &lineage_b64u, &epoch_two_receipt)?;
+    let (direct_status, direct_body) = post_json_to_path_with_headers(
+        &stack.deriver_b_url,
+        router_ab_dev::LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
+        &direct,
+        &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+    )?;
+    assert_ne!(direct_status, 200, "{direct_body}");
+    assert!(direct_body.contains("not yet active at this Deriver"), "{direct_body}");
+    assert_eq!(stack.admissions(&lineage_b64u)?, (vec![], vec![]));
+
+    // Once B is reachable, the next registration delivers epoch 2 to B first.
+    stack.proxy_b.stop_dropping();
+    let (status, body) = stack.register(&stack.registration(&identity, &lineage_b64u)?)?;
+    assert_eq!(status, 200, "{body}");
+    assert!(registration_succeeded(&body)?, "{body}");
+    assert_eq!(stack.delivery(&lineage_b64u)?, delivered());
+    let retired_then_active = vec![epoch(1, "retired"), epoch(2, "active")];
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?,
+        (retired_then_active.clone(), retired_then_active)
+    );
+    assert_eq!(stack.admissions(&lineage_b64u)?, (vec![2], vec![2]));
+
+    println!(
+        "R150_VM_TENANT_ROOT_DELIVERY_GATE_E2E {}",
+        json!({
+            "fault": "deriver_b_unreachable_for_refresh_activation",
+            "refresh_status": refresh_status,
+            "delivery_after_refresh": { "deriver_a": "delivered", "deriver_b": "pending" },
+            "registration_while_pending_status": blocked_status,
+            "registration_while_pending_code": "lifecycle_transition_in_progress",
+            "direct_epoch_2_preparation_at_b_status": direct_status,
+            "admissions_while_pending": { "deriver_a": [], "deriver_b": [] },
+            "registration_after_reachable_status": status,
+            "delivery_after_registration": { "deriver_a": "delivered", "deriver_b": "delivered" },
+            "admissions_after": { "deriver_a": [2], "deriver_b": [2] },
+        })
+    );
+    Ok(())
+}
+
+/// A Yao preparation for Deriver B whose custody binding names this receipt's
+/// epoch, built as the Router builds one, for sending to B directly.
+fn direct_deriver_b_preparation_v1(
+    stack: &RecoveryStackV1,
+    identity: &TenantRootIdentityV1,
+    lineage: &str,
+    receipt_b64u: &str,
+) -> Result<router_ab_cloudflare::CloudflareEd25519YaoPairPrepareRequestV1, Box<dyn std::error::Error>>
+{
+    let registration = stack.registration(identity, lineage)?;
+    let now_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
+    let request = registration.target.clone().into_execute_request(
+        PublicDigest32::new([0x5a; 32]),
+        now_ms,
+        now_ms + 60_000,
+    )?;
+    let router_ab_core::RouterEd25519YaoExecuteRequestV1::Registration {
+        pair_binding,
+        deriver_b_input,
+        ..
+    } = request
+    else {
+        return Err("the registration target is not a registration".into());
+    };
+    let env = router_ab_cloudflare::CloudflareEnvMapV1::new(
+        parse_local_env_file_contents_v1(&fs::read_to_string(
+            stack.temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1),
+        )?)?
+        .into_iter()
+        .collect(),
+    );
+    let issuer_keys =
+        router_ab_cloudflare::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(
+            &env,
+        )?;
+    let receipt = router_ab_core::TenantRootSignedActivationReceiptV1::decode_canonical_bytes(
+        &base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(receipt_b64u)?,
+    )?;
+    let issuer_key = issuer_keys
+        .for_issuer_key_id(receipt.issuer_key_id())
+        .ok_or("the committed receipt's issuer must be trusted")?;
+    let receipt = receipt.verify_issuer_signature(issuer_key)?;
+    let derivers =
+        router_ab_cloudflare::parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(&env)?
+            .deriver_identities()?;
+    let tenant_root = router_ab_cloudflare::cloudflare_ed25519_yao_tenant_root_context_v2(
+        identity.clone(),
+        &receipt,
+        derivers,
+        registration.application.clone(),
+        registration.participant_ids,
+        &pair_binding,
+        now_ms,
+        now_ms + 60_000,
+    )?;
+    Ok(router_ab_cloudflare::CloudflareEd25519YaoPairPrepareRequestV1 {
+        pair_binding,
+        tenant_root,
+        work: router_ab_cloudflare::CloudflareEd25519YaoPairWorkV1::Ceremony,
+        input: deriver_b_input,
+    })
 }
 
 /// Before the Router commits, a creation whose roles are both installed resumes
@@ -2383,6 +2680,80 @@ impl RecoveryStackV1 {
         )
     }
 
+    /// The Router's recorded delivery of its committed receipt to each Deriver.
+    fn delivery(&self, lineage: &str) -> rusqlite::Result<(Option<String>, Option<String>)> {
+        self.router_db.query_row(
+            "SELECT json_extract(value_json, '$.delivery.deriver_a'),
+                    json_extract(value_json, '$.delivery.deriver_b')
+             FROM local_tenant_root_creation_state
+             WHERE storage_key = 'refresh/v1/active-state'
+               AND json_extract(value_json, '$.custody_lineage_b64u') = ?1",
+            [lineage],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+    }
+
+    /// The epochs of each Deriver's root-use admissions for one lineage.
+    fn admissions(&self, lineage: &str) -> rusqlite::Result<(Vec<i64>, Vec<i64>)> {
+        let epochs = |db: &Connection| {
+            db.prepare(
+                "SELECT tenant_root_share_epoch FROM tenant_root_root_use_admissions
+                 WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch",
+            )?
+            .query_map([lineage], |row| row.get(0))?
+            .collect::<rusqlite::Result<Vec<i64>>>()
+        };
+        Ok((epochs(&self.a_store)?, epochs(&self.b_store)?))
+    }
+
+    /// Starts the SigningWorker, which registration needs.
+    fn start_signing_worker(&self) -> Result<ChildGuard, Box<dyn std::error::Error>> {
+        let mut signing_worker = ChildGuard::spawn_in_root(
+            env!("CARGO_BIN_EXE_router_ab_local_worker"),
+            "signing-worker",
+            self.temp.join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1),
+            &self.temp,
+        )?;
+        wait_for_health(&self.signing_worker_url, signing_worker.child_mut())?;
+        Ok(signing_worker)
+    }
+
+    /// A fresh Yao registration against one root, as the Gateway sends it.
+    fn registration(
+        &self,
+        identity: &TenantRootIdentityV1,
+        lineage: &str,
+    ) -> Result<CloudflareRouterEd25519YaoExecuteRequestV2, Box<dyn std::error::Error>> {
+        let router_env =
+            fs::read_to_string(self.temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1))?;
+        let fixture = ProductTenantRoot {
+            tenant_root: CloudflareRouterEd25519YaoTenantRootV1 {
+                identity: identity.clone(),
+                custody_lineage_b64u: lineage.to_owned(),
+            },
+            application: RouterAbEd25519YaoApplicationBindingFactsV1::new(
+                "account-product-benchmark",
+                "ed25519ks_product_benchmark",
+                "project:local",
+                1,
+            )?,
+            participant_ids: [1, 2],
+        };
+        Ok(product_registration_request(&router_env, &fixture)?.0)
+    }
+
+    fn register(
+        &self,
+        registration: &CloudflareRouterEd25519YaoExecuteRequestV2,
+    ) -> Result<(u16, String), Box<dyn std::error::Error>> {
+        post_json_to_path_with_headers(
+            &self.router_url,
+            LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+            registration,
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
+        )
+    }
+
     /// Each Deriver's role-share epochs and lifecycles for one lineage.
     #[allow(clippy::type_complexity)]
     fn epochs(&self, lineage: &str) -> rusqlite::Result<(Vec<(i64, String)>, Vec<(i64, String)>)> {
@@ -2445,15 +2816,19 @@ impl RecoveryStackV1 {
     /// the committed receipt.
     fn lose_delivery(
         &self,
-        proxy: &FaultProxyV1,
+        proxies: &[&FaultProxyV1],
         grant: &str,
         lineage: &str,
         expected: (Option<String>, Option<String>),
     ) -> Result<String, Box<dyn std::error::Error>> {
-        proxy.drop_next();
+        for proxy in proxies {
+            proxy.drop_next();
+        }
         let (status, body) = self.create(grant)?;
         assert_ne!(status, 200, "{body}");
-        assert!(proxy.dropped(), "the proxy must have dropped the delivery");
+        for proxy in proxies {
+            assert!(proxy.dropped(), "the proxy must have dropped the delivery");
+        }
         let receipt = self
             .committed_receipt(lineage)?
             .ok_or("the Router must have committed")?;
@@ -2652,6 +3027,7 @@ fn backup_object_counts(db: &Connection) -> rusqlite::Result<(i64, i64)> {
 struct FaultProxyControlsV1 {
     armed: AtomicBool,
     drop_path: Mutex<Option<&'static str>>,
+    drop_every_path: Mutex<Option<&'static str>>,
     drop_body: Mutex<Option<Vec<u8>>>,
     hold_path: Mutex<Option<&'static str>>,
     holding: AtomicBool,
@@ -2734,6 +3110,16 @@ impl FaultProxyV1 {
     /// Whether the drop armed by `drop_next_on` has happened.
     fn dropped_on(&self) -> bool {
         lock_proxy(&self.controls.drop_path).is_none()
+    }
+
+    /// Drops every request to `path`, as an unreachable peer would, until
+    /// `stop_dropping` is called.
+    fn drop_every_on(&self, path: &'static str) {
+        *lock_proxy(&self.controls.drop_every_path) = Some(path);
+    }
+
+    fn stop_dropping(&self) {
+        *lock_proxy(&self.controls.drop_every_path) = None;
     }
 
     /// Drops the next request whose body contains `marker`.
@@ -2870,6 +3256,9 @@ fn proxy_fault_connection(
             *drop_path = None;
             return client.shutdown(Shutdown::Both);
         }
+    }
+    if lock_proxy(&controls.drop_every_path).is_some_and(posts_to) {
+        return client.shutdown(Shutdown::Both);
     }
     {
         let mut drop_body = lock_proxy(&controls.drop_body);

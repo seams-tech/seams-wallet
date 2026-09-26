@@ -263,9 +263,22 @@ and both roles end on epoch 2
    the creation abandonment's ceremony binding and tombstone, or a narrower
    rule. Until it exists, a prepared refresh that misses its window stays
    `Executed`, which blocks the next refresh without affecting signing.
-2. **Admission during delivery.** Proposed: complete delivery before admitting
-   new root work, as above. Needs confirming against the root-use admission
-   gate, which checks the epoch at admission.
+2. **Admission during delivery.** Implemented (2026-09-26):
+   - **Tracking:** the Router records each Deriver's delivery of the committed
+     receipt, initial or refresh, in its creation state. The commit records
+     both roles pending, and each acknowledged activation marks one
+     delivered.
+   - **Gate:** every Router admission of root work goes through
+     `tenant_root_router_admission_receipt_v1`. That covers Yao on both hosts,
+     and ECDSA registration, export and activation refresh on Cloudflare.
+     Before issuing a binding, the gate delivers a pending receipt. If a
+     Deriver cannot be reached, it answers `LifecycleTransitionInProgress`
+     (HTTP 503), which the Gateway retries.
+   - **Backstop:** a Deriver refuses an epoch it has not activated, even when
+     a binding names it.
+   - **Evidence:**
+     `vm_tenant_root_new_work_waits_for_the_committed_epoch_delivery`
+     (`R150_VM_TENANT_ROOT_DELIVERY_GATE_E2E`).
 3. **Cloudflare's immediate erasure.** Proposed: remove it with this change, so
    both hosts follow one retirement rule and report `pending`. The alternative
    is to keep it on Cloudflare until the drain gate lands, which leaves

@@ -223,14 +223,26 @@ retired share may be erased only once no admitted work can still need it:
 
    There is no read without an exact binding.
 
-   The Router issues each binding from its committed active state when it
-   admits work. After a refresh commits, new bindings therefore name the new
-   epoch, and only work admitted earlier names the old one. A Deriver does not
-   check that itself: it trusts the Router's binding, as it already does for
-   the active epoch. Refusing a retired-epoch binding that was never admitted
-   before the commit needs the admission records of open question 1. Until
-   erasure, such a binding reaches the retired share only within its own
-   authorization lifetime (at most 300 s).
+   **Durable admission (implemented 2026-09-26).** A binding proves which
+   material a request names, but not that its operation began before the
+   epoch closed. So each Deriver records the admission itself, in its role
+   store (`tenant_root_root_use_admissions`, migration 0013).
+   - **Admitting:** `admit_bound` inserts one row per operation, keyed by the
+     custody binding's digest. The insert is conditional on the binding's
+     epoch being the active row, so it is ordered exactly against the refresh
+     swap in the same store.
+   - **When it runs:** at the operation's first step at that Deriver. The Yao
+     preparation admits on both hosts: on Cloudflare its root read admits, and
+     on the VM the prepare handler admits explicitly.
+   - **Reading:** `load_bound` admits first. It returns a retired share only
+     to an operation admitted before the swap.
+   - **Refusals:** an unused binding for a closed epoch gets
+     `ExpiredLocalRequest`, "retired here before the operation was admitted".
+     A binding for an epoch not yet active here gets the retryable
+     `LifecycleTransitionInProgress`.
+
+   The admissions are also the obligations that settlement (step 3) must see
+   resolved.
 3. **Erase only after durable settlement or fenced cancellation of every
    old-epoch admission.** Each admission must have either:
    - a durable terminal outcome, or
@@ -364,11 +376,20 @@ On the VM and on Workers:
    - **With `load_bound`:** A answers 200 and the registration succeeds. The
      held request's binding carries the epoch-1 receipt.
 
+   The refusal of an unused binding is covered on the VM by
+   `vm_tenant_root_binding_unused_before_its_epoch_closes_starts_nothing`
+   (`R150_VM_TENANT_ROOT_UNUSED_BINDING_E2E`).
+   - **Setup:** a registration is admitted by the Router on epoch 1, and B
+     prepares and admits it. A's preparation is held while a refresh swaps
+     both roles.
+   - **Result:** on release, A refuses it and admits nothing. The Router
+     answers `recoverable_failure`. A fresh registration is then admitted on
+     epoch 2 at both roles and completes. B's epoch-1 admission remains, an
+     obligation for settlement.
+
    Still to do:
    - recovery, export and ECDSA derivation;
-   - the Workers run;
-   - the refusal of an unadmitted retired-epoch binding, which needs
-     admission records.
+   - the Workers run of these schedules.
 2. **Settlement before erasure.** With one old-epoch admission unsettled,
    retirement stays pending past `W`, raises its warning and starts recovery.
    It proceeds only after that admission's terminal outcome or fenced
@@ -408,9 +429,12 @@ On the VM and on Workers:
 
 ### Open review questions
 
-1. **Admission records.** Settlement per admission needs an admission record
-   for every root-using operation, which does not exist yet. Where each record
-   lives: the role store, the wallet object, or both.
+1. **Admission records.** Resolved for the role store: each Deriver records
+   admissions there (see step 2), ordered against the swap. Settlement still
+   needs each admission's terminal outcome or fenced cancellation recorded
+   against it. Pair records live in the wallet object on Cloudflare and in the
+   role-private SQLite on the VM, so how an admission is marked settled is
+   open.
 2. **Fence coverage for moving authority.** The list of release paths (export,
    recovery outcomes), and the mechanism that covers per-wallet owners created
    while closing.

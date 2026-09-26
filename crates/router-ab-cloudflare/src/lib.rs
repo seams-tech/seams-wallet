@@ -8,8 +8,6 @@ mod auth;
 use base64::Engine;
 mod durable_object;
 #[cfg(feature = "workers-rs")]
-use durable_object::tenant_root_creation::execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1;
-#[cfg(feature = "workers-rs")]
 mod ecdsa_normal_signing_transport;
 mod ecdsa_pool_lifecycle;
 pub use ecdsa_pool_lifecycle::*;
@@ -132,7 +130,8 @@ pub use tenant_root_role_runtime::{
     tenant_root_deriver_creation_evidence_v1, CloudflareDeriverTenantRootCreationEvidenceRequestV1,
     CloudflareDeriverTenantRootCreationEvidenceResponseV1,
     tenant_root_deriver_initial_activation_v1,
-    tenant_root_deriver_load_bound_role_share_v1, tenant_root_deriver_refresh_activation_v1,
+    tenant_root_deriver_admit_bound_work_v1, tenant_root_deriver_load_bound_role_share_v1,
+    tenant_root_deriver_refresh_activation_v1,
     tenant_root_deriver_refresh_v1, CloudflareDeriverTenantRootCreateRoleShareRequestV1,
     CloudflareDeriverTenantRootCreateRoleShareResponseV1,
     CloudflareDeriverTenantRootInitialActivationRequestV1,
@@ -147,7 +146,8 @@ pub use tenant_root_creation_coordinator::{
 };
 mod tenant_root_refresh_coordinator;
 pub use tenant_root_refresh_coordinator::{
-    tenant_root_router_coordinate_refresh_v1, CloudflareRouterTenantRootRefreshRequestV1,
+    tenant_root_router_admission_receipt_v1, tenant_root_router_coordinate_refresh_v1,
+    CloudflareRouterTenantRootRefreshRequestV1,
     CloudflareRouterTenantRootRefreshResponseV1, CloudflareRouterTenantRootRefreshResultV1,
     CloudflareRouterTenantRootRetirementEvidenceV1,
 };
@@ -4915,7 +4915,8 @@ impl CloudflareDeriverBWorkerRuntimeV1 {
     }
 }
 
-/// Loads the tenant-root role share the authenticated custody binding names.
+/// Loads the tenant-root role share the authenticated custody binding names,
+/// admitting its operation on the binding's epoch first.
 #[cfg(feature = "workers-rs")]
 pub(crate) async fn load_cloudflare_bound_tenant_root_role_share_v1(
     env: &worker::Env,
@@ -4925,6 +4926,7 @@ pub(crate) async fn load_cloudflare_bound_tenant_root_role_share_v1(
     tenant_root_role_runtime::tenant_root_deriver_load_bound_role_share_v1(
         &tenant_root_role_runtime::CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
         authenticated_custody_binding,
+        cloudflare_now_unix_ms_v1()?,
     )
     .await
 }
@@ -5564,7 +5566,7 @@ where
         tenant_root,
     } = command;
     let (identity_digest, custody_lineage) = tenant_root.resolve()?;
-    let active_receipt = execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1(
+    let active_receipt = crate::tenant_root_refresh_coordinator::execute_cloudflare_router_tenant_root_admission_receipt_v1(
         env,
         identity_digest,
         custody_lineage,
@@ -5704,7 +5706,7 @@ where
         tenant_root,
     } = command;
     let (identity_digest, custody_lineage) = tenant_root.resolve()?;
-    let active_receipt = execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1(
+    let active_receipt = crate::tenant_root_refresh_coordinator::execute_cloudflare_router_tenant_root_admission_receipt_v1(
         env,
         identity_digest,
         custody_lineage,
@@ -15991,6 +15993,7 @@ pub fn cloudflare_router_error_status(code: RouterAbProtocolErrorCode) -> u16 {
         RouterAbProtocolErrorCode::MissingLocalBinding
         | RouterAbProtocolErrorCode::ForbiddenLocalBinding
         | RouterAbProtocolErrorCode::InvalidLocalServiceConfig => 500,
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress => 503,
     }
 }
 

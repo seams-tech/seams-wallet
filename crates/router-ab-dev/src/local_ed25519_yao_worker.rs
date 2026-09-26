@@ -829,6 +829,11 @@ fn handle_yao_control_request(
         ) => {
             let pair_request =
                 serde_json::from_slice::<CloudflareEd25519YaoPairPrepareRequestV1>(&request.body)?;
+            crate::local_tenant_root::admit_local_deriver_tenant_root_work_v1(
+                &config.tenant_root,
+                &pair_request.tenant_root,
+                &pair_request.pair_binding,
+            )?;
             let receipt = prepare_local_deriver_a_pair_with_sqlite_v1(
                 state,
                 host,
@@ -843,6 +848,11 @@ fn handle_yao_control_request(
         ) => {
             let pair_request =
                 serde_json::from_slice::<CloudflareEd25519YaoPairPrepareRequestV1>(&request.body)?;
+            crate::local_tenant_root::admit_local_deriver_tenant_root_work_v1(
+                &config.tenant_root,
+                &pair_request.tenant_root,
+                &pair_request.pair_binding,
+            )?;
             let session = pair_request.pair_binding.session();
             let pair_digest = pair_request.pair_binding.pair_digest().bytes;
             let receipt = host.transition_b_pair(session, pair_digest, |current| {

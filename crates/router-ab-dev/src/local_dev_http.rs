@@ -1,4 +1,6 @@
-use router_ab_core::{LocalServiceRoleV1, RouterAbProtocolError, RouterAbProtocolResult};
+use router_ab_core::{
+    LocalServiceRoleV1, RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
+};
 use serde::Serialize;
 use std::{
     io::{Read, Write},
@@ -411,6 +413,7 @@ pub fn write_local_dev_http_response_v1(
         404 => "Not Found",
         405 => "Method Not Allowed",
         501 => "Not Implemented",
+        503 => "Service Unavailable",
         _ => "Error",
     };
     write!(
@@ -444,10 +447,19 @@ pub fn local_dev_http_route_error_v1(
     path: &str,
     error: RouterAbProtocolError,
 ) -> Result<(u16, String), Box<dyn std::error::Error>> {
+    // A lifecycle transition in progress is retryable, and answers as on
+    // Cloudflare so the Gateway retries it. The VM's other route errors
+    // still answer 400 rather than their Cloudflare status.
+    let status = match error.code() {
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress => {
+            router_ab_cloudflare::cloudflare_router_error_status(error.code())
+        }
+        _ => 400,
+    };
     local_dev_http_error_body_v1(
         role,
         path,
-        400,
+        status,
         &format!("{:?}: {}", error.code(), error.message()),
     )
 }

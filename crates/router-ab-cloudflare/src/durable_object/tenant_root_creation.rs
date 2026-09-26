@@ -1423,6 +1423,12 @@ pub(crate) enum CloudflareTenantRootCreationActiveStateReadRequestV1 {
         custody_lineage_b64u: String,
         checkpoint: CloudflareTenantRootManagedRestoreAuthorizationCheckpointV1,
     },
+    RecordDelivery {
+        identity_digest_b64u: String,
+        custody_lineage_b64u: String,
+        activation_receipt_digest_b64u: String,
+        role: CloudflareTenantRootCreationInstallationRoleV1,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1441,6 +1447,8 @@ pub(crate) struct CloudflareTenantRootCreationActiveStateReadResponseV1 {
     pub(crate) refresh_admission: Option<CloudflareTenantRootRefreshAdmissionOutcomeV1>,
     pub(crate) last_manual_refresh_completed_at_ms: Option<u64>,
     pub(crate) last_refresh_completed_at_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) delivery: Option<CloudflareTenantRootDeliveryV1>,
 }
 
 /// Readback phases supported by the durable Router checkpoints.
@@ -2090,6 +2098,48 @@ pub(crate) enum CloudflareTenantRootManagedRestoreFenceEvaluationV1 {
     },
 }
 
+/// Whether one Deriver has activated the Router's committed receipt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CloudflareTenantRootRoleDeliveryV1 {
+    Pending,
+    Delivered,
+}
+
+/// Delivery of one committed activation receipt, initial or refresh, to each
+/// Deriver. The commit records both roles pending; each Deriver's
+/// acknowledged activation of that exact receipt marks it delivered. Work is
+/// admitted on the committed epoch only once both roles are delivered.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareTenantRootDeliveryV1 {
+    pub activation_receipt_digest_b64u: String,
+    pub deriver_a: CloudflareTenantRootRoleDeliveryV1,
+    pub deriver_b: CloudflareTenantRootRoleDeliveryV1,
+}
+
+impl CloudflareTenantRootDeliveryV1 {
+    fn pending(activation_receipt_digest_b64u: String) -> Self {
+        Self {
+            activation_receipt_digest_b64u,
+            deriver_a: CloudflareTenantRootRoleDeliveryV1::Pending,
+            deriver_b: CloudflareTenantRootRoleDeliveryV1::Pending,
+        }
+    }
+
+    /// The roles still waiting for the committed receipt.
+    pub fn pending_roles(&self) -> Vec<TwoPartyDeriverRole> {
+        let mut roles = Vec::with_capacity(2);
+        if self.deriver_a == CloudflareTenantRootRoleDeliveryV1::Pending {
+            roles.push(TwoPartyDeriverRole::DeriverA);
+        }
+        if self.deriver_b == CloudflareTenantRootRoleDeliveryV1::Pending {
+            roles.push(TwoPartyDeriverRole::DeriverB);
+        }
+        roles
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct CloudflareTenantRootRefreshActiveStateRecordV1 {
@@ -2111,6 +2161,9 @@ pub(crate) struct CloudflareTenantRootRefreshActiveStateRecordV1 {
     pub(crate) last_manual_refresh_completed_at_ms: Option<u64>,
     #[serde(default)]
     pub(crate) last_refresh_completed_at_ms: Option<u64>,
+    /// Delivery of the committed receipt to each Deriver.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) delivery: Option<CloudflareTenantRootDeliveryV1>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -3334,9 +3387,19 @@ pub struct CloudflareVerifiedTenantRootActiveStateV1 {
     pub(crate) job: Option<CloudflareTenantRootRefreshJobReadV1>,
     pub(crate) last_manual_refresh_completed_at_ms: Option<u64>,
     pub(crate) last_refresh_completed_at_ms: Option<u64>,
+    pub(crate) delivery: Option<CloudflareTenantRootDeliveryV1>,
 }
 
 impl CloudflareVerifiedTenantRootActiveStateV1 {
+    /// The roles still waiting for the committed receipt; empty when both have
+    /// it.
+    pub fn pending_delivery(&self) -> Vec<TwoPartyDeriverRole> {
+        self.delivery
+            .as_ref()
+            .map(CloudflareTenantRootDeliveryV1::pending_roles)
+            .unwrap_or_default()
+    }
+
     /// The issuer-verified active activation receipt.
     pub fn activation_receipt(&self) -> &router_ab_core::VerifiedTenantRootSignedActivationReceiptV1 {
         &self.activation_receipt
@@ -3346,24 +3409,6 @@ impl CloudflareVerifiedTenantRootActiveStateV1 {
     pub const fn lifecycle_revision(&self) -> u64 {
         self.lifecycle_revision
     }
-}
-
-/// Reads the Router-owned active state and returns its issuer-verified receipt.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_active_state_read_call_v1(
-    env: &worker::Env,
-    identity_digest: TenantRootIdentityDigestV1,
-    custody_lineage: TenantRootCustodyLineageId,
-) -> RouterAbProtocolResult<router_ab_core::VerifiedTenantRootSignedActivationReceiptV1> {
-    Ok(
-        execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1(
-            env,
-            identity_digest,
-            custody_lineage,
-        )
-        .await?
-        .activation_receipt,
-    )
 }
 
 /// Reads the authoritative active receipt together with its current lifecycle
@@ -3705,7 +3750,47 @@ fn decode_verified_active_state_response_v1(
         lifecycle_revision: response.lifecycle_revision,
         refresh_fence: response.fence,
         managed_restore_fence: response.managed_restore_fence,
+        delivery: response.delivery,
     })
+}
+
+/// Records that one Deriver has activated the committed receipt with this
+/// digest. An acknowledgement for a receipt that is no longer committed
+/// changes nothing.
+pub async fn tenant_root_record_delivery_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    activation_receipt_digest_b64u: String,
+    role: TwoPartyDeriverRole,
+) -> RouterAbProtocolResult<CloudflareVerifiedTenantRootActiveStateV1> {
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
+    let request = CloudflareTenantRootCreationActiveStateReadRequestV1::RecordDelivery {
+        identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+        custody_lineage_b64u: custody_lineage.to_base64url(),
+        activation_receipt_digest_b64u,
+        role: CloudflareTenantRootCreationInstallationRoleV1::from_protocol(role),
+    };
+    let response: CloudflareTenantRootCreationActiveStateReadResponseV1 = state
+        .creation_state_call(
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
+            "tenant-root delivery record",
+            &request,
+            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1,
+        )
+        .await?;
+    decode_verified_active_state_response_v1(
+        issuer_keys,
+        authority_id,
+        identity_digest,
+        custody_lineage,
+        response,
+    )
 }
 
 fn tenant_root_creation_identity_v1(
@@ -7168,6 +7253,7 @@ fn active_state_read_response_from_record(
         managed_restore_fence: record.managed_restore_fence,
         job: None,
         refresh_admission: None,
+        delivery: record.delivery,
     }
 }
 
@@ -9141,6 +9227,7 @@ fn refresh_active_state_record_from_verified_receipt(
         manual_refresh_pending: None,
         last_manual_refresh_completed_at_ms: None,
         last_refresh_completed_at_ms: None,
+        delivery: None,
     })
 }
 
@@ -12337,6 +12424,11 @@ pub async fn tenant_root_creation_active_state_read_v1<Store: TenantRootCreation
             identity_digest_b64u,
             custody_lineage_b64u,
             ..
+        }
+        | CloudflareTenantRootCreationActiveStateReadRequestV1::RecordDelivery {
+            identity_digest_b64u,
+            custody_lineage_b64u,
+            ..
         } => (identity_digest_b64u, custody_lineage_b64u),
     };
     let identity_digest = TenantRootIdentityDigestV1::from_bytes(decode_fixed_base64url_32(
@@ -12441,6 +12533,40 @@ pub async fn tenant_root_creation_active_state_read_v1<Store: TenantRootCreation
                 checkpoint,
             )
             .await
+        }
+        CloudflareTenantRootCreationActiveStateReadRequestV1::RecordDelivery {
+            activation_receipt_digest_b64u,
+            role,
+            ..
+        } => {
+            let mut record = active.record;
+            match record.delivery.as_mut() {
+                // An acknowledgement for a receipt that is no longer the
+                // committed one changes nothing.
+                Some(delivery)
+                    if delivery.activation_receipt_digest_b64u
+                        == activation_receipt_digest_b64u
+                        && record.activation_receipt_digest_b64u
+                            == activation_receipt_digest_b64u =>
+                {
+                    let slot = match role {
+                        CloudflareTenantRootCreationInstallationRoleV1::DeriverA => {
+                            &mut delivery.deriver_a
+                        }
+                        CloudflareTenantRootCreationInstallationRoleV1::DeriverB => {
+                            &mut delivery.deriver_b
+                        }
+                    };
+                    if *slot == CloudflareTenantRootRoleDeliveryV1::Pending {
+                        *slot = CloudflareTenantRootRoleDeliveryV1::Delivered;
+                        store
+                            .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &record)
+                            .await?;
+                    }
+                }
+                _ => {}
+            }
+            Ok(active_state_read_response_from_record(record))
         }
     }
 }
@@ -12790,6 +12916,7 @@ async fn reserve_refresh_attempt_v1<Store: TenantRootCreationStoreV1>(
         managed_restore_fence,
         last_manual_refresh_completed_at_ms,
         last_refresh_completed_at_ms,
+        delivery,
         ..
     } = response_record;
     Ok(CloudflareTenantRootCreationActiveStateReadResponseV1 {
@@ -12804,6 +12931,7 @@ async fn reserve_refresh_attempt_v1<Store: TenantRootCreationStoreV1>(
         managed_restore_fence,
         job: None,
         refresh_admission: None,
+        delivery,
     })
 }
 
@@ -13014,6 +13142,11 @@ async fn persist_refresh_active_state_v1<Store: TenantRootCreationStoreV1>(
             "tenant-root refresh activation receipt does not match the installation checkpoint",
         ));
     }
+    // Nothing is delivered yet: each Deriver's acknowledged activation marks
+    // its role delivered.
+    candidate.delivery = Some(CloudflareTenantRootDeliveryV1::pending(
+        candidate.activation_receipt_digest_b64u.clone(),
+    ));
     // A manual refresh's completion is validated before anything is written.
     let completion = match manual_operation_id {
         Some(operation_id) => {
@@ -13950,8 +14083,13 @@ pub async fn tenant_root_creation_persist_initial_activation_v1<Store: TenantRoo
         &journal,
         &installation,
     )?;
-    let candidate =
+    let mut candidate =
         refresh_active_state_record_from_verified_receipt(activation_receipt, lifecycle_revision)?;
+    // Nothing is delivered yet: each Deriver's acknowledged activation marks
+    // its role delivered.
+    candidate.delivery = Some(CloudflareTenantRootDeliveryV1::pending(
+        candidate.activation_receipt_digest_b64u.clone(),
+    ));
     tenant_root_creation_persist_active_state_v1(store, candidate, issuer_keys).await?;
     Ok(CloudflareTenantRootCreationInitialActivationResponseV1 {
         activation_receipt_digest_b64u: encode_base64url_bytes_v1(receipt_digest.as_bytes()),
@@ -16458,6 +16596,7 @@ mod tests {
             manual_refresh_pending: None,
             last_manual_refresh_completed_at_ms: None,
             last_refresh_completed_at_ms: None,
+            delivery: None,
         };
         let verifying_key = SigningKey::from_bytes(&[0x41; 32])
             .verifying_key()
