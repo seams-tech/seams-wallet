@@ -92,6 +92,7 @@ pub use local_dev_http::{
     local_dev_http_handle_request_with_dispatcher_v1, local_dev_http_route_error_v1,
     local_dev_router_request_with_dispatcher_v1, read_local_dev_http_request_v1,
     require_local_dev_internal_service_auth_v1, write_local_dev_http_response_v1,
+    write_local_dev_http_response_with_server_timing_v1,
     LocalDevHttpErrorBodyV1, LocalDevHttpRequestPartsV1, LocalDevHttpTopologyV1,
     LocalRouterRequestDispatcherV1,
 };
@@ -187,7 +188,7 @@ pub use local_ed25519_yao_worker::{
     LocalEd25519YaoRefreshPromotionRequestV1, LocalEd25519YaoRoleCompletionV1,
     LocalEd25519YaoWorkerStateV1,
 };
-pub use local_router_ab_ecdsa::local_router_ab_ecdsa_route_v1;
+pub use local_router_ab_ecdsa::{local_router_ab_ecdsa_route_v1, LocalRouterAbEcdsaResponseV1};
 pub use local_router_coordinator::LocalRouterEd25519YaoCoordinatorV1;
 pub use local_router_ed25519_yao_http::{
     decode_local_router_ed25519_yao_execute_request_v1, LocalRouterEd25519YaoPairDispatchV1,

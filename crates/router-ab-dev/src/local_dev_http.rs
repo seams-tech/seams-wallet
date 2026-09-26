@@ -320,6 +320,17 @@ pub fn write_local_dev_http_response_v1(
     status: u16,
     body: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    write_local_dev_http_response_with_server_timing_v1(stream, status, body, None)
+}
+
+/// Writes one response, with the role's `Server-Timing` spans when it
+/// measured any.
+pub fn write_local_dev_http_response_with_server_timing_v1(
+    stream: &mut TcpStream,
+    status: u16,
+    body: &str,
+    server_timing: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let reason = match status {
         200 => "OK",
         400 => "Bad Request",
@@ -330,9 +341,12 @@ pub fn write_local_dev_http_response_v1(
         503 => "Service Unavailable",
         _ => "Error",
     };
+    let server_timing = server_timing
+        .map(|value| format!("server-timing: {value}\r\n"))
+        .unwrap_or_default();
     write!(
         stream,
-        "HTTP/1.1 {status} {reason}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+        "HTTP/1.1 {status} {reason}\r\ncontent-type: application/json\r\ncontent-length: {}\r\n{server_timing}connection: close\r\n\r\n{}",
         body.len(),
         body
     )?;

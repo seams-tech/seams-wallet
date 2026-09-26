@@ -317,20 +317,87 @@ pub(crate) fn preload_cloudflare_deriver_signer_host_v1(
     Ok((preload_plan, host))
 }
 
+/// One Deriver signer request after authentication and preload: what every
+/// ECDSA Deriver operation needs to decrypt the Router's envelope and prove.
+pub(crate) struct CloudflareDeriverPreparedSignerV1 {
+    pub(crate) signer_bootstrap: CloudflareSignerPrivateBootstrapRequestV1,
+    pub(crate) tenant_root_custody_binding: TenantRootCustodyBindingV1,
+    pub(crate) outer_request: EcdsaThresholdPrfOuterRequestV2,
+    pub(crate) host: CloudflarePreloadedSignerHostV1,
+    pub(crate) root_share_metadata: CloudflareRootShareStartupMetadataV1,
+    pub(crate) tenant_root_share: VerifiedTenantRootOnlineRoleShareV1,
+}
+
+/// The tenant-root host and the signer runtime must serve the same Deriver.
+pub(crate) fn require_same_deriver_role_v1(
+    host: &impl TenantRootDeriverHostV1,
+    runtime: &impl CloudflareDeriverSignerRuntimeV1,
+) -> RouterAbProtocolResult<()> {
+    if host.worker_role() != runtime.worker_role() {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidRole,
+            "Deriver tenant-root host and signer runtime serve different roles",
+        ));
+    }
+    Ok(())
+}
+
+/// Preloads the signer host for one authenticated Deriver request and loads
+/// this role's share of the bound tenant root.
+pub(crate) async fn prepare_cloudflare_deriver_signer_v1<Host>(
+    host: &Host,
+    runtime: &impl CloudflareDeriverSignerRuntimeV1,
+    authenticated: CloudflareAuthenticatedSignerPrivateBootstrapRequestV1,
+    public_request: &EcdsaThresholdPrfRequestV1,
+    custody_wire: &CloudflareTenantRootCustodyBindingWireV1,
+    now_unix_ms: u64,
+    random_bytes: Vec<u8>,
+) -> RouterAbProtocolResult<CloudflareDeriverPreparedSignerV1>
+where
+    Host: TenantRootDeriverHostV1,
+{
+    let outer_request = build_cloudflare_ecdsa_threshold_prf_outer_request_v2(
+        public_request,
+        authenticated.tenant_root_custody_binding(),
+        custody_wire,
+    )?;
+    let (preload_plan, signer_host) = preload_cloudflare_deriver_signer_host_v1(
+        runtime,
+        &authenticated,
+        now_unix_ms,
+        random_bytes,
+    )?;
+    let root_share_metadata = signer_host
+        .root_share_startup_metadata(
+            cloudflare_worker_signer_role_v1(runtime.worker_role())?,
+            &preload_plan.root_share_epoch,
+        )?
+        .clone();
+    let tenant_root_share = tenant_root_deriver_load_bound_role_share_v1(
+        host,
+        authenticated.tenant_root_custody_binding(),
+        now_unix_ms,
+    )
+    .await?;
+    Ok(CloudflareDeriverPreparedSignerV1 {
+        signer_bootstrap: authenticated.bootstrap,
+        tenant_root_custody_binding: authenticated.tenant_root_custody_binding,
+        outer_request,
+        host: signer_host,
+        root_share_metadata,
+        tenant_root_share,
+    })
+}
+
 /// One Deriver's ECDSA registration after authentication and preload, ready
 /// to execute.
 pub struct CloudflareDeriverEcdsaRegistrationV1 {
     registration_request: RouterAbEcdsaDerivationRegistrationBootstrapRequestV1,
-    signer_bootstrap: CloudflareSignerPrivateBootstrapRequestV1,
-    tenant_root_custody_binding: TenantRootCustodyBindingV1,
-    outer_request: EcdsaThresholdPrfOuterRequestV2,
-    host: CloudflarePreloadedSignerHostV1,
-    root_share_metadata: CloudflareRootShareStartupMetadataV1,
-    tenant_root_share: VerifiedTenantRootOnlineRoleShareV1,
+    signer: CloudflareDeriverPreparedSignerV1,
 }
 
-/// Authenticates one Router registration request at a Deriver and loads the
-/// tenant-root role share its custody binding names.
+/// Authenticates one Deriver's private registration request against the
+/// tenant root, and loads the signer host and this role's tenant-root share.
 pub async fn prepare_cloudflare_deriver_ecdsa_registration_v1<Host>(
     host: &Host,
     runtime: &impl CloudflareDeriverSignerRuntimeV1,
@@ -341,47 +408,23 @@ pub async fn prepare_cloudflare_deriver_ecdsa_registration_v1<Host>(
 where
     Host: TenantRootDeriverHostV1,
 {
-    let worker_role = runtime.worker_role();
-    if host.worker_role() != worker_role {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidRole,
-            "Deriver tenant-root host and signer runtime serve different roles",
-        ));
-    }
-    let (registration_request, authenticated, custody_wire) =
-        private_request.into_authenticated_parts(host.env(), worker_role, now_unix_ms)?;
+    require_same_deriver_role_v1(host, runtime)?;
+    let (registration_request, authenticated, custody_wire) = private_request
+        .into_authenticated_parts(host.env(), runtime.worker_role(), now_unix_ms)?;
     let public_request = registration_request.to_threshold_prf_request()?;
-    let outer_request = build_cloudflare_ecdsa_threshold_prf_outer_request_v2(
-        &public_request,
-        authenticated.tenant_root_custody_binding(),
-        &custody_wire,
-    )?;
-    let (preload_plan, signer_host) = preload_cloudflare_deriver_signer_host_v1(
+    let signer = prepare_cloudflare_deriver_signer_v1(
+        host,
         runtime,
-        &authenticated,
+        authenticated,
+        &public_request,
+        &custody_wire,
         now_unix_ms,
         random_bytes,
-    )?;
-    let root_share_metadata = signer_host
-        .root_share_startup_metadata(
-            cloudflare_worker_signer_role_v1(worker_role)?,
-            &preload_plan.root_share_epoch,
-        )?
-        .clone();
-    let tenant_root_share = tenant_root_deriver_load_bound_role_share_v1(
-        host,
-        authenticated.tenant_root_custody_binding(),
-        now_unix_ms,
     )
     .await?;
     Ok(CloudflareDeriverEcdsaRegistrationV1 {
         registration_request,
-        signer_bootstrap: authenticated.bootstrap,
-        tenant_root_custody_binding: authenticated.tenant_root_custody_binding,
-        outer_request,
-        host: signer_host,
-        root_share_metadata,
-        tenant_root_share,
+        signer,
     })
 }
 
@@ -394,17 +437,18 @@ impl CloudflareDeriverEcdsaRegistrationV1 {
         runtime: &impl CloudflareDeriverSignerRuntimeV1,
         now_unix_ms: u64,
     ) -> RouterAbProtocolResult<CloudflareSignerRecipientProofBundleResponseV1> {
+        let signer = self.signer;
         decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_registration_signer_private_request_v1(
             secrets,
             runtime.worker_role(),
-            &self.host,
+            &signer.host,
             self.registration_request,
-            self.signer_bootstrap,
-            self.tenant_root_custody_binding,
-            self.outer_request,
-            self.tenant_root_share,
+            signer.signer_bootstrap,
+            signer.tenant_root_custody_binding,
+            signer.outer_request,
+            signer.tenant_root_share,
             runtime.envelope_decrypt_key(),
-            &self.root_share_metadata,
+            &signer.root_share_metadata,
             now_unix_ms,
         )
     }

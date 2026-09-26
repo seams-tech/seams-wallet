@@ -2239,11 +2239,39 @@ export class CloudflareD1AuthorizationStore
   }> {
     const { operation, walletId } = input;
     if (
-      operation.authorization.kind !== 'authorization_grant' ||
-      (operation.operation.operation.capabilityKind !== CAPABILITY_KINDS.nearEd25519MpcSigning &&
-        operation.operation.operation.capabilityKind !== CAPABILITY_KINDS.evmEcdsaMpcSigning)
+      operation.operation.operation.capabilityKind !== CAPABILITY_KINDS.nearEd25519MpcSigning &&
+      operation.operation.operation.capabilityKind !== CAPABILITY_KINDS.evmEcdsaMpcSigning
     ) {
-      throw new Error('Pinned owner Wallet Session scope requires a signing authorization grant');
+      throw new Error('Pinned owner wallet scope requires a signing operation');
+    }
+    if (operation.authorization.kind === 'verified_step_up') {
+      // A verified step-up is claimed in this store's own wallet scope; its
+      // digests bind the wallet it signs for.
+      const row = await this.database
+        .prepare(
+          `SELECT 1 AS claimed
+             FROM authorized_operations
+            WHERE namespace = ? AND tenant_id = ?
+              AND authorized_operation_id = ?
+              AND operation_fingerprint_digest = ?
+              AND authorization_source_kind = 'verified_step_up'
+              AND evidence_set_digest = ?
+            LIMIT 1`,
+        )
+        .bind(
+          this.namespace,
+          operation.tenantId,
+          operation.authorizedOperationId,
+          operation.operationFingerprintDigest,
+          operation.authorization.evidenceSetDigest,
+        )
+        .first<D1Row>();
+      if (!row) throw new Error('Verified step-up operation is not claimed');
+      return {
+        orgId: this.walletSignerScope.orgId,
+        projectId: this.walletSignerScope.projectId,
+        projectEnvironmentId: this.walletSignerScope.envId,
+      };
     }
     const row = await this.database
       .prepare(

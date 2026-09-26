@@ -63,7 +63,10 @@ import type {
   RouterAbEcdsaDerivationPoolFillInitRequest,
   RouterAbEcdsaDerivationPoolFillStepRequest,
 } from '../../../../core/types';
-import type { RouterAbEcdsaDerivationPoolFillBinding } from '../../../../core/ThresholdService/routerAb/ecdsaDerivationPoolFillHandlers';
+import type {
+  RouterAbEcdsaDerivationPoolFillBinding,
+  RouterAbEcdsaOwnerWalletScope,
+} from '../../../../core/ThresholdService/routerAb/ecdsaDerivationPoolFillHandlers';
 import type {
   RouterAbEcdsaStrictPostRegistrationPort,
   RouterAbEcdsaStrictExportResult,
@@ -210,7 +213,9 @@ type RouterAbEcdsaAuthorizedOperationWire = {
         readonly org_id: string;
         readonly project_id: string;
         readonly environment: string;
+        readonly project_environment_id: string;
         readonly subject_id: string;
+        readonly account_id: string;
       };
   readonly authorized_operation:
     | {
@@ -268,15 +273,69 @@ type RouterAbEcdsaAuthorizedOperationWireInput =
     }
   | {
       readonly operation: AuthorizedOperation;
-      readonly binding: {
-        readonly kind: 'operation_step_up';
-        readonly authorizationSessionId: string;
-        readonly orgId: string;
-        readonly projectId: string;
-        readonly environment: string;
-        readonly subjectId: string;
-      };
+      readonly binding: EcdsaOperationStepUpBinding;
     };
+
+type EcdsaOperationStepUpBinding = {
+  readonly kind: 'operation_step_up';
+  readonly authorizationSessionId: string;
+  readonly orgId: string;
+  readonly projectId: string;
+  readonly environment: string;
+  readonly projectEnvironmentId: string;
+  readonly subjectId: string;
+  readonly accountId: string;
+};
+
+/**
+ * The Router binding for a verified step-up: the wallet it signs for and the
+ * Console project environment of the store that claimed the operation, so
+ * the SigningWorker reaches the wallet's own storage.
+ */
+async function ecdsaOperationStepUpBinding(
+  ctx: FetchRouterApiContext,
+  session: {
+    readonly sessionId: string;
+    readonly principalId: string;
+    readonly walletId: string;
+    readonly runtimePolicyScope: RuntimePolicyScope;
+  },
+  operation: AuthorizedOperation,
+): Promise<EcdsaOperationStepUpBinding> {
+  const scope = session.runtimePolicyScope;
+  const pinned = await readPinnedEcdsaStepUpWalletScope(ctx, session, operation);
+  return {
+    kind: 'operation_step_up',
+    authorizationSessionId: session.sessionId,
+    orgId: scope.orgId,
+    projectId: scope.projectId,
+    environment: scope.envId,
+    projectEnvironmentId: pinned.projectEnvironmentId,
+    subjectId: session.principalId,
+    accountId: session.walletId,
+  };
+}
+
+async function readPinnedEcdsaStepUpWalletScope(
+  ctx: FetchRouterApiContext,
+  session: {
+    readonly walletId: string;
+    readonly runtimePolicyScope: RuntimePolicyScope;
+  },
+  operation: AuthorizedOperation,
+): Promise<RouterAbEcdsaOwnerWalletScope> {
+  const walletId = parseWalletId(session.walletId);
+  if (!walletId.ok) throw new Error('ECDSA step-up wallet identity is invalid');
+  const pinned = await ctx.service.authorizedOperations.readPinnedOwnerWalletScope({
+    operation,
+    walletId: walletId.value,
+  });
+  const scope = session.runtimePolicyScope;
+  if (pinned.orgId !== scope.orgId || pinned.projectId !== scope.projectId) {
+    throw new Error('Step-up wallet scope differs from the Wallet Session scope');
+  }
+  return { ...pinned, walletId: session.walletId };
+}
 
 function buildRouterAbEcdsaAuthorizedOperationWire(
   input: RouterAbEcdsaAuthorizedOperationWireInput,
@@ -361,7 +420,9 @@ function buildRouterAbEcdsaAuthorizedOperationWire(
           org_id: input.binding.orgId,
           project_id: input.binding.projectId,
           environment: input.binding.environment,
+          project_environment_id: input.binding.projectEnvironmentId,
           subject_id: input.binding.subjectId,
+          account_id: input.binding.accountId,
         },
         authorized_operation: {
           kind: 'verified_step_up_authorized_operation_v1',
@@ -502,14 +563,11 @@ async function executeRouterAbEcdsaDerivationNormalSigningRoute(
     authorizedOperation = decision.operation;
     authorizedOperationWire = buildRouterAbEcdsaAuthorizedOperationWire({
       operation: authorizedOperation,
-      binding: {
-        kind: 'operation_step_up',
-        authorizationSessionId: authorization.session.sessionId,
-        orgId: authorization.session.runtimePolicyScope.orgId,
-        projectId: authorization.session.runtimePolicyScope.projectId,
-        environment: authorization.session.runtimePolicyScope.envId,
-        subjectId: authorization.session.principalId,
-      },
+      binding: await ecdsaOperationStepUpBinding(
+        input.ctx,
+        authorization.session,
+        authorizedOperation,
+      ),
     });
   } else {
     const request =
@@ -1668,7 +1726,7 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
     };
   }
   const admissionStartedAt = performance.now();
-  const claimFailure = await claimRouterAbEcdsaOperationStepUp({
+  const claim = await claimRouterAbEcdsaOperationStepUp({
     operationKind: 'evm.sign_transaction',
     operation: input.operation,
     materialActivation: freshMaterial.materialActivation,
@@ -1676,12 +1734,30 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
     authenticated,
   });
   input.timing.admit = performance.now() - admissionStartedAt;
-  if (claimFailure && 'status' in claimFailure) {
+  if (claim && 'status' in claim) {
     return {
       ok: false,
-      error: claimFailure,
+      error: claim,
     };
   }
+  if (!claim) {
+    return {
+      ok: false,
+      error: {
+        status: 409,
+        body: {
+          ok: false,
+          code: 'authorized_operation_missing',
+          message: 'ECDSA pool-fill step-up operation is unavailable',
+        },
+      },
+    };
+  }
+  const ownerWalletScope = await readPinnedEcdsaStepUpWalletScope(
+    input.ctx,
+    authenticated.session,
+    claim.operation,
+  );
   const walletId = parseWalletId(input.operation.wallet_id);
   if (!walletId.ok) {
     return {
@@ -1705,6 +1781,7 @@ async function authorizeEcdsaPoolFillOperationStepUp(input: {
         kind: 'operation_step_up',
         materialExpiresAtMs: input.operation.expires_at_ms,
       },
+      ownerWalletScope,
       routerAbEcdsaDerivationNormalSigning: {
         kind: ROUTER_AB_ECDSA_DERIVATION_NORMAL_SIGNING_STATE_KIND_V1,
         scope: input.operation.normal_signing_scope,

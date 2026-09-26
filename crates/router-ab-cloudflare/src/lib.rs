@@ -11,6 +11,8 @@ mod durable_object;
 mod ecdsa_normal_signing_transport;
 mod ecdsa_pool_lifecycle;
 pub use ecdsa_pool_lifecycle::*;
+mod ecdsa_export;
+pub use ecdsa_export::*;
 mod ecdsa_registration;
 pub use ecdsa_registration::*;
 mod ecdsa_presign_session;
@@ -4240,7 +4242,6 @@ impl CloudflareSigningWorkerEcdsaExportAuthorizationV1 {
         self.validate_for_public_authorization(&request.authorization)
     }
 
-    #[cfg(any(feature = "workers-rs", test))]
     fn binding_authorization_kind(&self) -> &'static str {
         match self {
             Self::ReusableWalletSession { .. } => "reusable_wallet_session",
@@ -4248,7 +4249,6 @@ impl CloudflareSigningWorkerEcdsaExportAuthorizationV1 {
         }
     }
 
-    #[cfg(any(feature = "workers-rs", test))]
     fn authorization_id(&self) -> &str {
         match self {
             Self::ReusableWalletSession { wallet_session_id }
@@ -4360,6 +4360,9 @@ pub struct CloudflareSigningWorkerEcdsaExportShareRequestV1 {
     pub material_source: CloudflareSigningWorkerNormalSigningMaterialSourceV1,
     /// Server-private authorization identity forwarded by Router.
     pub private_authorization: CloudflareSigningWorkerEcdsaExportAuthorizationV1,
+    /// The wallet whose material is exported, from the Router-verified
+    /// ceremony session.
+    pub wallet_scope: CloudflareSigningWorkerWalletScopeV1,
 }
 
 /// Private request for one exact active additive-lane export share.
@@ -4427,11 +4430,17 @@ impl CloudflareSigningWorkerEcdsaExportShareRequestV1 {
         self.export_authority.validate_for_request(&self.request)?;
         self.material_source
             .validate_for_ecdsa_scope(&self.export_authority.normal_signing_scope)?;
+        self.wallet_scope.validate()?;
+        if self.wallet_scope.wallet_id != self.export_authority.normal_signing_scope.wallet_id {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidGateDecision,
+                "ECDSA export wallet scope does not match the exported key",
+            ));
+        }
         self.private_authorization
             .validate_for_request(&self.request)
     }
 
-    #[cfg(feature = "workers-rs")]
     fn export_share_binding(
         &self,
     ) -> RouterAbProtocolResult<EcdsaSigningWorkerExportShareBindingV1> {
@@ -5127,12 +5136,12 @@ pub fn router_trusted_source_digest_v1(
     PublicDigest32::new(bytes)
 }
 
-#[cfg(feature = "workers-rs")]
-fn emit_cloudflare_router_ab_ecdsa_derivation_explicit_export_audit_event_v1(
+/// The audit log line recording one ECDSA explicit-export decision.
+fn cloudflare_router_ab_ecdsa_derivation_explicit_export_audit_line_v1(
     request: &RouterAbEcdsaDerivationExplicitExportRequestV1,
     decision: router_ab_core::RouterAbEcdsaDerivationExplicitExportAuditDecisionV1,
     reason_code: &str,
-) -> RouterAbProtocolResult<()> {
+) -> RouterAbProtocolResult<String> {
     request.validate()?;
     require_non_empty(
         "Router A/B ECDSA derivation export audit reason_code",
@@ -5158,8 +5167,7 @@ fn emit_cloudflare_router_ab_ecdsa_derivation_explicit_export_audit_event_v1(
             format!("Router A/B ECDSA derivation export audit event serialization failed: {err}"),
         )
     })?;
-    worker::console_log!("router_ab_audit_event_v1={serialized}");
-    Ok(())
+    Ok(format!("router_ab_audit_event_v1={serialized}"))
 }
 
 /// Upper bound on metrics folded in from one role worker's `Server-Timing`.
@@ -5461,8 +5469,7 @@ pub fn parse_cloudflare_router_ab_ecdsa_derivation_activation_refresh_command_v1
     Ok(command)
 }
 
-/// Handles an authenticated public Router Router A/B ECDSA derivation explicit export request.
-#[cfg(feature = "workers-rs")]
+/// Parses one strict ECDSA explicit-export command.
 pub fn parse_cloudflare_router_ab_ecdsa_derivation_export_command_v1_json(
     bytes: &[u8],
 ) -> RouterAbProtocolResult<CloudflareRouterAbEcdsaDerivationExportCommandV1> {
@@ -5503,131 +5510,63 @@ where
     Verifier: CloudflareRouterJwtVerifierV1,
 {
     command.validate_at(now_unix_ms)?;
-    let CloudflareRouterAbEcdsaDerivationExportCommandV1 {
-        request,
-        export_authority,
-        material_source,
-        private_authorization,
-        tenant_root,
-    } = command;
-    let (identity_digest, custody_lineage) = tenant_root.resolve()?;
+    let (identity_digest, custody_lineage) = command.tenant_root.resolve()?;
     let active_receipt = crate::tenant_root_refresh_coordinator::execute_cloudflare_router_tenant_root_admission_receipt_v1(
         env,
         identity_digest,
         custody_lineage,
     )
     .await?;
-    let tenant_root_custody_binding =
-        cloudflare_tenant_root_export_binding_wire_v1(&request, &active_receipt)?;
-    let public_request = request.to_threshold_prf_request()?;
-    let public_request_for_derivers = public_request.clone();
-    let trusted_admission = derive_cloudflare_router_trusted_admission_from_worker_jwt_v1(
-        runtime,
+    let mut audit = |line: &str| worker::console_log!("{line}");
+    let forward = match admit_cloudflare_router_ab_ecdsa_derivation_export_v1(
+        runtime.admission_bindings(),
         now_unix_ms,
-        &public_request,
-        request.request_digest()?,
+        command,
+        &active_receipt,
         authorization,
         trusted_source_digest,
         verifier,
-    )?;
-    let plan =
-        runtime.public_request_admission_plan_at(now_unix_ms, public_request, trusted_admission)?;
-    match &plan {
-        CloudflareRouterPublicAdmissionPlanV1::Forward {
-            deriver_a_message,
-            deriver_b_message,
-            ..
-        } => {
-            let signing_worker_request = CloudflareSigningWorkerEcdsaExportShareRequestV1 {
-                request: request.clone(),
-                export_authority,
-                material_source,
-                private_authorization,
-            };
-            execute_cloudflare_router_ab_ecdsa_derivation_signing_worker_export_preflight_service_call_v1(
-                env,
-                runtime.signing_worker_peer(),
-                &signing_worker_request,
-            )
-            .await?;
-            let (deriver_a_result, deriver_b_result) = futures::join!(
-                execute_cloudflare_router_ab_ecdsa_derivation_deriver_export_service_call_v1(
-                    env,
-                    runtime.deriver_a_peer(),
-                    &request,
-                    &public_request_for_derivers,
-                    deriver_a_message,
-                    &tenant_root_custody_binding,
-                ),
-                execute_cloudflare_router_ab_ecdsa_derivation_deriver_export_service_call_v1(
-                    env,
-                    runtime.deriver_b_peer(),
-                    &request,
-                    &public_request_for_derivers,
-                    deriver_b_message,
-                    &tenant_root_custody_binding,
-                ),
-            );
-            let deriver_a_response = match deriver_a_result {
-                Ok(response) => response,
-                Err(err) => {
-                    emit_cloudflare_router_ab_ecdsa_derivation_explicit_export_audit_event_v1(
-                        &request,
-                        router_ab_core::RouterAbEcdsaDerivationExplicitExportAuditDecisionV1::Rejected,
-                        "deriver_a_export_service_error",
-                    )?;
-                    return Err(err);
-                }
-            };
-            let deriver_b_response = match deriver_b_result {
-                Ok(response) => response,
-                Err(err) => {
-                    emit_cloudflare_router_ab_ecdsa_derivation_explicit_export_audit_event_v1(
-                        &request,
-                        router_ab_core::RouterAbEcdsaDerivationExplicitExportAuditDecisionV1::Rejected,
-                        "deriver_b_export_service_error",
-                    )?;
-                    return Err(err);
-                }
-            };
-            let router_payload =
-                decode_router_to_signer_payload_v1(deriver_a_message.payload.as_bytes())?;
-            let response = CloudflareRouterRecipientProofBundleResponseV1::new(
-                deriver_a_response.client_bundle,
-                deriver_b_response.client_bundle,
-            )?;
-            response.validate_for_router_payload(&router_payload)?;
-            emit_cloudflare_router_ab_ecdsa_derivation_explicit_export_audit_event_v1(
-                &request,
-                router_ab_core::RouterAbEcdsaDerivationExplicitExportAuditDecisionV1::Forwarded,
-                "forwarded_client_export_bundles",
-            )?;
-            let signing_worker_export =
-                execute_cloudflare_router_ab_ecdsa_derivation_signing_worker_export_share_service_call_v1(
-                    env,
-                    runtime.signing_worker_peer(),
-                    &signing_worker_request,
-                )
-                .await?;
-            CloudflareRouterAbEcdsaDerivationExportAdmissionResponseV1::forwarded(
-                response,
-                signing_worker_export,
-            )
-        }
-        CloudflareRouterPublicAdmissionPlanV1::Stop {
-            trusted_admission, ..
-        } => {
-            emit_cloudflare_router_ab_ecdsa_derivation_explicit_export_audit_event_v1(
-                &request,
-                router_ab_core::RouterAbEcdsaDerivationExplicitExportAuditDecisionV1::Stopped,
-                "router_admission_stopped_export",
-            )?;
-            CloudflareRouterAbEcdsaDerivationExportAdmissionResponseV1::stopped(
-                trusted_admission.decision.clone(),
-            )
-        }
-    }
+        &mut audit,
+    )? {
+        CloudflareRouterAbEcdsaExportAdmissionV1::Forward(forward) => forward,
+        CloudflareRouterAbEcdsaExportAdmissionV1::Stopped(response) => return Ok(response),
+    };
+    execute_cloudflare_router_ab_ecdsa_derivation_signing_worker_export_preflight_service_call_v1(
+        env,
+        runtime.signing_worker_peer(),
+        &forward.signing_worker,
+    )
+    .await?;
+    let (deriver_a_result, deriver_b_result) = futures::join!(
+        execute_cloudflare_router_ab_ecdsa_derivation_deriver_export_service_call_v1(
+            env,
+            runtime.deriver_a_peer(),
+            &forward.deriver_a,
+        ),
+        execute_cloudflare_router_ab_ecdsa_derivation_deriver_export_service_call_v1(
+            env,
+            runtime.deriver_b_peer(),
+            &forward.deriver_b,
+        ),
+    );
+    let deriver_a_response =
+        forward.accept_deriver_result(CloudflareWorkerRoleV1::DeriverA, deriver_a_result, &mut audit)?;
+    let deriver_b_response =
+        forward.accept_deriver_result(CloudflareWorkerRoleV1::DeriverB, deriver_b_result, &mut audit)?;
+    let response = forward.client_bundles(deriver_a_response, deriver_b_response, &mut audit)?;
+    let signing_worker_export =
+        execute_cloudflare_router_ab_ecdsa_derivation_signing_worker_export_share_service_call_v1(
+            env,
+            runtime.signing_worker_peer(),
+            &forward.signing_worker,
+        )
+        .await?;
+    CloudflareRouterAbEcdsaDerivationExportAdmissionResponseV1::forwarded(
+        response,
+        signing_worker_export,
+    )
 }
+
 
 /// Handles an authenticated public Router Router A/B ECDSA derivation activation-refresh request.
 #[cfg(feature = "workers-rs")]
@@ -5810,12 +5749,17 @@ pub enum CloudflareRouterEd25519AcceptedCapabilityBindingV1 {
         expires_at_ms: u64,
         material_source: CloudflareSigningWorkerNormalSigningMaterialSourceV1,
     },
+    /// Verified operation step-up resolved by the trusted Gateway. The
+    /// wallet and its Console project environment are the ones the Gateway
+    /// pinned when it claimed the step-up operation.
     OperationStepUp {
         authorization_session_id: String,
         org_id: String,
         project_id: String,
         environment: String,
+        project_environment_id: String,
         subject_id: String,
+        account_id: String,
     },
 }
 
@@ -5827,28 +5771,35 @@ pub struct CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
 }
 
 impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
-    fn gateway_owner_wallet_scope(
-        &self,
-    ) -> RouterAbProtocolResult<CloudflareSigningWorkerWalletScopeV1> {
-        let CloudflareRouterEd25519AcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
-            org_id,
-            project_id,
-            project_environment_id,
-            account_id,
-            ..
-        } = &self.binding
-        else {
-            return Err(RouterAbProtocolError::new(
+    /// The wallet the SigningWorker keeps this operation's material under:
+    /// the one the Gateway resolved for an owner Wallet Session or a
+    /// verified step-up.
+    fn wallet_scope(&self) -> RouterAbProtocolResult<CloudflareSigningWorkerWalletScopeV1> {
+        match &self.binding {
+            CloudflareRouterEd25519AcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
+                org_id,
+                project_id,
+                project_environment_id,
+                account_id,
+                ..
+            }
+            | CloudflareRouterEd25519AcceptedCapabilityBindingV1::OperationStepUp {
+                org_id,
+                project_id,
+                project_environment_id,
+                account_id,
+                ..
+            } => CloudflareSigningWorkerWalletScopeV1::new(
+                org_id,
+                project_id,
+                project_environment_id,
+                account_id,
+            ),
+            _ => Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidGateDecision,
-                "Gateway owner Wallet Session binding is required",
-            ));
-        };
-        CloudflareSigningWorkerWalletScopeV1::new(
-            org_id,
-            project_id,
-            project_environment_id,
-            account_id,
-        )
+                "a Gateway owner Wallet Session or verified step-up binding is required",
+            )),
+        }
     }
 
     fn into_signing_worker_authorized_operation_identity(
@@ -6089,7 +6040,9 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
                     org_id,
                     project_id,
                     environment,
+                    project_environment_id,
                     subject_id,
+                    account_id,
                 },
                 CloudflareRouterEd25519AuthorizedOperationV1::VerifiedStepUpAuthorizedOperationV1 {
                     authorization_session_id: authorized_operation_session,
@@ -6103,7 +6056,12 @@ impl CloudflareRouterEd25519AcceptedAuthorizedOperationV1 {
                 require_non_empty("accepted Ed25519 org_id", org_id)?;
                 require_non_empty("accepted Ed25519 project_id", project_id)?;
                 require_non_empty("accepted Ed25519 environment", environment)?;
-                require_non_empty("accepted Ed25519 subject_id", subject_id)
+                require_non_empty(
+                    "accepted Ed25519 project_environment_id",
+                    project_environment_id,
+                )?;
+                require_non_empty("accepted Ed25519 subject_id", subject_id)?;
+                require_non_empty("accepted Ed25519 account_id", account_id)
             }
             _ => Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidGateDecision,
@@ -6427,7 +6385,6 @@ impl CloudflareRouterEd25519AuthorizedOperationV1 {
         }
     }
 
-    #[cfg(feature = "workers-rs")]
     fn into_step_up_signing_worker_effect_claim(
         self,
     ) -> RouterAbProtocolResult<CloudflareSigningWorkerNormalSigningEffectClaimV1> {
@@ -6507,12 +6464,17 @@ pub enum CloudflareRouterEcdsaAcceptedCapabilityBindingV1 {
         signing_worker_id: String,
         expires_at_ms: u64,
     },
+    /// Verified operation step-up resolved by the trusted Gateway. The
+    /// wallet and its Console project environment are the ones the Gateway
+    /// pinned when it claimed the step-up operation.
     OperationStepUp {
         authorization_session_id: String,
         org_id: String,
         project_id: String,
         environment: String,
+        project_environment_id: String,
         subject_id: String,
+        account_id: String,
     },
 }
 
@@ -6525,28 +6487,35 @@ pub struct CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
 
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
 impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
-    fn gateway_owner_wallet_scope(
-        &self,
-    ) -> RouterAbProtocolResult<CloudflareSigningWorkerWalletScopeV1> {
-        let CloudflareRouterEcdsaAcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
-            org_id,
-            project_id,
-            project_environment_id,
-            account_id,
-            ..
-        } = &self.binding
-        else {
-            return Err(RouterAbProtocolError::new(
+    /// The wallet the SigningWorker keeps this operation's material under:
+    /// the one the Gateway resolved for an owner Wallet Session or a
+    /// verified step-up.
+    fn wallet_scope(&self) -> RouterAbProtocolResult<CloudflareSigningWorkerWalletScopeV1> {
+        match &self.binding {
+            CloudflareRouterEcdsaAcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
+                org_id,
+                project_id,
+                project_environment_id,
+                account_id,
+                ..
+            }
+            | CloudflareRouterEcdsaAcceptedCapabilityBindingV1::OperationStepUp {
+                org_id,
+                project_id,
+                project_environment_id,
+                account_id,
+                ..
+            } => CloudflareSigningWorkerWalletScopeV1::new(
+                org_id,
+                project_id,
+                project_environment_id,
+                account_id,
+            ),
+            _ => Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidGateDecision,
-                "ECDSA Gateway owner Wallet Session binding is required",
-            ));
-        };
-        CloudflareSigningWorkerWalletScopeV1::new(
-            org_id,
-            project_id,
-            project_environment_id,
-            account_id,
-        )
+                "an ECDSA Gateway owner Wallet Session or verified step-up binding is required",
+            )),
+        }
     }
 
     fn validate_for_linked_device_ecdsa_finalize_request(
@@ -6784,7 +6753,9 @@ impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
                     org_id,
                     project_id,
                     environment,
+                    project_environment_id,
                     subject_id,
+                    account_id,
                 },
                 CloudflareRouterEcdsaAuthorizedOperationV1::VerifiedStepUpAuthorizedOperationV1 {
                     authorization_session_id: authorized_operation_session,
@@ -6798,7 +6769,12 @@ impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
                 require_non_empty("accepted ECDSA org_id", org_id)?;
                 require_non_empty("accepted ECDSA project_id", project_id)?;
                 require_non_empty("accepted ECDSA environment", environment)?;
-                require_non_empty("accepted ECDSA subject_id", subject_id)
+                require_non_empty(
+                    "accepted ECDSA project_environment_id",
+                    project_environment_id,
+                )?;
+                require_non_empty("accepted ECDSA subject_id", subject_id)?;
+                require_non_empty("accepted ECDSA account_id", account_id)
             }
             _ => Err(RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidGateDecision,
@@ -6877,7 +6853,7 @@ impl CloudflareRouterEcdsaAcceptedAuthorizedOperationV1 {
         trusted_source_digest: PublicDigest32,
     ) -> RouterAbProtocolResult<CloudflareRouterWalletSessionCredentialV1> {
         self.validate()?;
-        self.gateway_owner_wallet_scope()?;
+        self.wallet_scope()?;
         let CloudflareRouterEcdsaAcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
             subject_id,
             account_id,
@@ -7649,7 +7625,7 @@ where
             "normal-signing v2 prepare Router admission did not allow SigningWorker forwarding",
         ));
     }
-    let wallet_scope = authorized_operation.gateway_owner_wallet_scope()?;
+    let wallet_scope = authorized_operation.wallet_scope()?;
     let mut admitted = CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new(
         request.scope.clone(),
         request.expires_at_ms,
@@ -7969,7 +7945,6 @@ pub async fn handle_cloudflare_router_normal_signing_finalize_internal_linked_de
     .await
 }
 
-#[cfg(feature = "workers-rs")]
 fn cloudflare_router_ed25519_step_up_binding_v1(
     authorized_operation: &CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
 ) -> RouterAbProtocolResult<(&str, &str, &str, &str, &str, &str)> {
@@ -7985,6 +7960,7 @@ fn cloudflare_router_ed25519_step_up_binding_v1(
                 project_id,
                 environment,
                 subject_id,
+                ..
             },
             CloudflareRouterEd25519AuthorizedOperationV1::VerifiedStepUpAuthorizedOperationV1 {
                 evidence_set_digest,
@@ -8005,7 +7981,6 @@ fn cloudflare_router_ed25519_step_up_binding_v1(
     }
 }
 
-#[cfg(feature = "workers-rs")]
 fn cloudflare_router_ed25519_step_up_prepare_admission_v2(
     request: &RouterAbEd25519NormalSigningPrepareRequestV2,
     authorized_operation: &CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
@@ -8050,7 +8025,6 @@ fn cloudflare_router_ed25519_step_up_prepare_admission_v2(
     Ok((admission, trusted_admission))
 }
 
-#[cfg(feature = "workers-rs")]
 fn cloudflare_router_ed25519_step_up_finalize_admission_v2(
     request: &RouterAbEd25519NormalSigningFinalizeRequestV2,
     authorized_operation: &CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
@@ -8094,22 +8068,26 @@ fn cloudflare_router_ed25519_step_up_finalize_admission_v2(
     Ok((admission, trusted_admission))
 }
 
-#[cfg(feature = "workers-rs")]
-pub async fn handle_cloudflare_router_normal_signing_prepare_internal_step_up_request_v2(
-    env: &worker::Env,
-    runtime: &CloudflareRouterWorkerRuntimeV1,
+/// Router admission for a Gateway-verified operation step-up NEAR prepare.
+/// Both the Cloudflare Router and the VM Router send only what this admits.
+pub fn admit_cloudflare_router_normal_signing_step_up_prepare_v2(
+    admission_bindings: &CloudflareRouterAdmissionBindingsV1,
     now_unix_ms: u64,
     request: RouterAbEd25519NormalSigningPrepareRequestV2,
     authorized_operation: CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
     trusted_source_digest: PublicDigest32,
-) -> RouterAbProtocolResult<NormalSigningRound1PrepareResponseV1> {
+) -> RouterAbProtocolResult<CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2> {
     request.validate_at(now_unix_ms)?;
     let (admission, trusted_admission) = cloudflare_router_ed25519_step_up_prepare_admission_v2(
         &request,
         &authorized_operation,
         trusted_source_digest,
     )?;
-    let trusted_admission = runtime.apply_project_policy_to_normal_signing_admission_v1(
+    let wallet_scope = require_step_up_wallet_scope_v1(
+        authorized_operation.wallet_scope()?,
+        &request.scope.account_id,
+    )?;
+    let trusted_admission = admission_bindings.apply_project_policy_to_normal_signing_admission_v1(
         &request.scope.request_id,
         trusted_admission,
     )?;
@@ -8119,11 +8097,92 @@ pub async fn handle_cloudflare_router_normal_signing_prepare_internal_step_up_re
             "normal-signing v2 prepare Router admission did not allow SigningWorker forwarding",
         ));
     }
-    let admitted = CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new(
+    let mut admitted = CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2::new(
         request.scope.clone(),
         request.expires_at_ms,
         admission,
         trusted_admission,
+    )?;
+    admitted.wallet_scope = Some(wallet_scope);
+    admitted.validate()?;
+    Ok(admitted)
+}
+
+/// Router admission for a Gateway-verified operation step-up NEAR finalize,
+/// with the effect claim the SigningWorker records before it signs.
+pub fn admit_cloudflare_router_normal_signing_step_up_finalize_v2(
+    admission_bindings: &CloudflareRouterAdmissionBindingsV1,
+    now_unix_ms: u64,
+    request: RouterAbEd25519NormalSigningFinalizeRequestV2,
+    authorized_operation: CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
+    trusted_source_digest: PublicDigest32,
+) -> RouterAbProtocolResult<CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2> {
+    request.validate_at(now_unix_ms)?;
+    let (admission, trusted_admission) = cloudflare_router_ed25519_step_up_finalize_admission_v2(
+        &request,
+        &authorized_operation,
+        trusted_source_digest,
+    )?;
+    let wallet_scope = require_step_up_wallet_scope_v1(
+        authorized_operation.wallet_scope()?,
+        &request.scope.account_id,
+    )?;
+    let trusted_admission = admission_bindings.apply_project_policy_to_normal_signing_admission_v1(
+        &request.scope.request_id,
+        trusted_admission,
+    )?;
+    if !trusted_admission.allows_signing_worker_forwarding()? {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidGateDecision,
+            "normal-signing v2 finalize Router admission did not allow SigningWorker forwarding",
+        ));
+    }
+    let authorized_operation_identity =
+        authorized_operation.into_signing_worker_authorized_operation_identity()?;
+    let effect_claim = authorized_operation
+        .authorized_operation
+        .into_step_up_signing_worker_effect_claim()?;
+    let mut admitted = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
+        request,
+        admission,
+        trusted_admission,
+        authorized_operation_identity,
+        effect_claim,
+    )?;
+    admitted.wallet_scope = Some(wallet_scope);
+    admitted.validate()?;
+    Ok(admitted)
+}
+
+/// A step-up binding's wallet must be the wallet the request signs for.
+fn require_step_up_wallet_scope_v1(
+    wallet_scope: CloudflareSigningWorkerWalletScopeV1,
+    request_wallet_id: &str,
+) -> RouterAbProtocolResult<CloudflareSigningWorkerWalletScopeV1> {
+    if wallet_scope.wallet_id != request_wallet_id {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidGateDecision,
+            "operation step-up wallet does not match the signing request",
+        ));
+    }
+    Ok(wallet_scope)
+}
+
+#[cfg(feature = "workers-rs")]
+pub async fn handle_cloudflare_router_normal_signing_prepare_internal_step_up_request_v2(
+    env: &worker::Env,
+    runtime: &CloudflareRouterWorkerRuntimeV1,
+    now_unix_ms: u64,
+    request: RouterAbEd25519NormalSigningPrepareRequestV2,
+    authorized_operation: CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
+    trusted_source_digest: PublicDigest32,
+) -> RouterAbProtocolResult<NormalSigningRound1PrepareResponseV1> {
+    let admitted = admit_cloudflare_router_normal_signing_step_up_prepare_v2(
+        runtime.admission_bindings(),
+        now_unix_ms,
+        request,
+        authorized_operation,
+        trusted_source_digest,
     )?;
     execute_cloudflare_signing_worker_normal_signing_prepare_service_call_v2(
         env,
@@ -8142,33 +8201,12 @@ pub async fn handle_cloudflare_router_normal_signing_finalize_internal_step_up_r
     authorized_operation: CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
     trusted_source_digest: PublicDigest32,
 ) -> RouterAbProtocolResult<NormalSigningResponseV1> {
-    request.validate_at(now_unix_ms)?;
-    let (admission, trusted_admission) = cloudflare_router_ed25519_step_up_finalize_admission_v2(
-        &request,
-        &authorized_operation,
-        trusted_source_digest,
-    )?;
-    let trusted_admission = runtime.apply_project_policy_to_normal_signing_admission_v1(
-        &request.scope.request_id,
-        trusted_admission,
-    )?;
-    if !trusted_admission.allows_signing_worker_forwarding()? {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidGateDecision,
-            "normal-signing v2 finalize Router admission did not allow SigningWorker forwarding",
-        ));
-    }
-    let authorized_operation_identity =
-        authorized_operation.into_signing_worker_authorized_operation_identity()?;
-    let effect_claim = authorized_operation
-        .authorized_operation
-        .into_step_up_signing_worker_effect_claim()?;
-    let admitted = CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2::new(
+    let admitted = admit_cloudflare_router_normal_signing_step_up_finalize_v2(
+        runtime.admission_bindings(),
+        now_unix_ms,
         request,
-        admission,
-        trusted_admission,
-        authorized_operation_identity,
-        effect_claim,
+        authorized_operation,
+        trusted_source_digest,
     )?;
     execute_cloudflare_signing_worker_normal_signing_finalize_service_call_v2(
         env,
@@ -8178,7 +8216,6 @@ pub async fn handle_cloudflare_router_normal_signing_finalize_internal_step_up_r
     .await
 }
 
-#[cfg(feature = "workers-rs")]
 fn cloudflare_router_ab_ecdsa_step_up_binding_v1(
     authorized_operation: &CloudflareRouterEcdsaAcceptedAuthorizedOperationV1,
 ) -> RouterAbProtocolResult<(&str, &str, &str, &str, &str, &str)> {
@@ -8194,6 +8231,7 @@ fn cloudflare_router_ab_ecdsa_step_up_binding_v1(
                 project_id,
                 environment,
                 subject_id,
+                ..
             },
             CloudflareRouterEcdsaAuthorizedOperationV1::VerifiedStepUpAuthorizedOperationV1 {
                 evidence_set_digest,
@@ -8214,7 +8252,6 @@ fn cloudflare_router_ab_ecdsa_step_up_binding_v1(
     }
 }
 
-#[cfg(feature = "workers-rs")]
 fn cloudflare_router_ab_ecdsa_step_up_prepare_admission_v1(
     request: &RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
     authorized_operation: &CloudflareRouterEcdsaAcceptedAuthorizedOperationV1,
@@ -8255,7 +8292,6 @@ fn cloudflare_router_ab_ecdsa_step_up_prepare_admission_v1(
     )
 }
 
-#[cfg(feature = "workers-rs")]
 fn cloudflare_router_ab_ecdsa_step_up_finalize_admission_v1(
     request: &RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1,
     authorized_operation: &CloudflareRouterEcdsaAcceptedAuthorizedOperationV1,
@@ -8307,29 +8343,14 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_evm_digest_signing_pre
     presign_source: CloudflareEcdsaPrepareSourceV1,
     trusted_source_digest: PublicDigest32,
 ) -> RouterAbProtocolResult<CloudflareEcdsaPrepareResponseV1> {
-    request.validate_at(now_unix_ms)?;
-    let trusted_admission = cloudflare_router_ab_ecdsa_step_up_prepare_admission_v1(
-        &request,
-        &authorized_operation,
+    let admitted = admit_cloudflare_router_ab_ecdsa_derivation_evm_digest_step_up_prepare_v1(
+        runtime.admission_bindings(),
+        now_unix_ms,
+        request,
+        authorized_operation,
+        presign_source,
         trusted_source_digest,
     )?;
-    let trusted_admission = runtime.apply_project_policy_to_normal_signing_admission_v1(
-        &request.request_id,
-        trusted_admission,
-    )?;
-    if !trusted_admission.allows_signing_worker_forwarding()? {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidGateDecision,
-            "Router A/B ECDSA derivation prepare Router admission did not allow SigningWorker forwarding",
-        ));
-    }
-    let mut admitted =
-        CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
-            request,
-            trusted_admission,
-        )?;
-    admitted.presign_source = presign_source;
-    admitted.validate()?;
     execute_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_service_call_v1(
         env,
         runtime.signing_worker_peer(),
@@ -8347,34 +8368,13 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_evm_digest_signing_fin
     authorized_operation: CloudflareRouterEcdsaAcceptedAuthorizedOperationV1,
     trusted_source_digest: PublicDigest32,
 ) -> RouterAbProtocolResult<RouterAbEcdsaDerivationEvmDigestSigningResponseV1> {
-    request.validate_at(now_unix_ms)?;
-    let trusted_admission = cloudflare_router_ab_ecdsa_step_up_finalize_admission_v1(
-        &request,
-        &authorized_operation,
+    let admitted = admit_cloudflare_router_ab_ecdsa_derivation_evm_digest_step_up_finalize_v1(
+        runtime.admission_bindings(),
+        now_unix_ms,
+        request,
+        authorized_operation,
         trusted_source_digest,
     )?;
-    let trusted_admission = runtime.apply_project_policy_to_normal_signing_admission_v1(
-        &request.request_id,
-        trusted_admission,
-    )?;
-    if !trusted_admission.allows_signing_worker_forwarding()? {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidGateDecision,
-            "Router A/B ECDSA derivation finalize Router admission did not allow SigningWorker forwarding",
-        ));
-    }
-    let authorized_operation_identity =
-        authorized_operation.into_signing_worker_authorized_operation_identity()?;
-    let effect_claim = authorized_operation
-        .authorized_operation
-        .into_step_up_signing_worker_effect_claim()?;
-    let admitted =
-        CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
-            request,
-            trusted_admission,
-            authorized_operation_identity,
-            effect_claim,
-        )?;
     execute_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_service_call_v1(
         env,
         runtime.signing_worker_peer(),
@@ -8501,7 +8501,7 @@ where
     let authorized_operation_identity =
         authorized_operation.into_signing_worker_authorized_operation_identity()?;
     let authorization_id = authorized_operation.reusable_authorization_id()?.to_owned();
-    let wallet_scope = authorized_operation.gateway_owner_wallet_scope()?;
+    let wallet_scope = authorized_operation.wallet_scope()?;
     let effect_claim = authorized_operation
         .authorized_operation
         .into_signing_worker_effect_claim(
@@ -8940,7 +8940,6 @@ fn derive_cloudflare_tenant_root_ecdsa_scope_v1(
     Ok((operation_id, session_id, nonce))
 }
 
-#[cfg(feature = "workers-rs")]
 fn derive_cloudflare_tenant_root_export_scope_v1(
     export_request: &RouterAbEcdsaDerivationExplicitExportRequestV1,
 ) -> RouterAbProtocolResult<(
@@ -8994,7 +8993,6 @@ pub fn cloudflare_tenant_root_registration_binding_wire_v1(
     )
 }
 
-#[cfg(feature = "workers-rs")]
 fn cloudflare_tenant_root_export_binding_wire_v1(
     export_request: &RouterAbEcdsaDerivationExplicitExportRequestV1,
     activation_receipt: &VerifiedTenantRootSignedActivationReceiptV1,
@@ -9390,7 +9388,6 @@ impl CloudflareTenantRootCustodyBindingWireV1 {
         )
     }
 
-    #[cfg(feature = "workers-rs")]
     fn authenticate_for_export(
         &self,
         env: &impl CloudflareEnvReaderV1,
@@ -9709,10 +9706,9 @@ impl CloudflareRouterAbEcdsaDerivationDeriverExportPrivateRequestV1 {
 
     /// Consumes the public wire after independently authenticating its signed
     /// tenant-root receipt and reconstructing the exact role-local binding.
-    #[cfg(feature = "workers-rs")]
     pub(crate) fn into_authenticated_parts(
         self,
-        env: &worker::Env,
+        env: &impl CloudflareEnvReaderV1,
         worker_role: CloudflareWorkerRoleV1,
         now_unix_ms: u64,
     ) -> RouterAbProtocolResult<(
@@ -9726,11 +9722,8 @@ impl CloudflareRouterAbEcdsaDerivationDeriverExportPrivateRequestV1 {
             signer_bootstrap,
             tenant_root_custody_binding,
         } = self;
-        let binding = tenant_root_custody_binding.authenticate_for_export(
-            &CloudflareWorkerEnvReaderV1::new(env),
-            &export_request,
-            now_unix_ms,
-        )?;
+        let binding =
+            tenant_root_custody_binding.authenticate_for_export(env, &export_request, now_unix_ms)?;
         let authenticated = CloudflareAuthenticatedSignerPrivateBootstrapRequestV1::new(
             worker_role,
             signer_bootstrap,
@@ -10256,7 +10249,6 @@ fn validate_cloudflare_authenticated_stable_mpc_prf_request_v2(
     Ok((signer_role, active_pair))
 }
 
-#[cfg(feature = "workers-rs")]
 fn evaluate_cloudflare_stable_mpc_prf_output_v2(
     outer_request: &EcdsaThresholdPrfOuterRequestV2,
     custody_binding: &TenantRootCustodyBindingV1,
@@ -10297,7 +10289,6 @@ fn evaluate_cloudflare_stable_mpc_prf_output_v2(
     .map_err(map_derivation_to_protocol)
 }
 
-#[cfg(feature = "workers-rs")]
 fn evaluate_cloudflare_authenticated_stable_mpc_prf_client_output_v2(
     host: &CloudflarePreloadedSignerHostV1,
     request: &CloudflareValidatedSignerPrivateRequestV1,
@@ -10405,7 +10396,6 @@ pub fn cloudflare_recipient_proof_bundle_response_from_stable_outputs_v2(
 }
 
 /// Builds the existing client-only delivery envelope from one stable tenant-root proof.
-#[cfg(feature = "workers-rs")]
 pub fn cloudflare_client_recipient_proof_bundle_response_from_stable_output_v2(
     router_payload: &RouterToSignerPayloadV1,
     signer: SignerIdentityV1,
@@ -10491,7 +10481,6 @@ pub fn handle_cloudflare_authenticated_stable_mpc_prf_signer_request_v2(
 }
 
 /// Handles one authenticated client-only operation through the stable tenant-root PRF.
-#[cfg(feature = "workers-rs")]
 pub fn handle_cloudflare_authenticated_stable_mpc_prf_client_signer_request_v2(
     host: &CloudflarePreloadedSignerHostV1,
     outer_request: &EcdsaThresholdPrfOuterRequestV2,
@@ -10744,9 +10733,9 @@ pub fn decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_registration_sig
 }
 
 /// Decrypts, validates, and handles a Router A/B ECDSA derivation export signer request.
-#[cfg(feature = "workers-rs")]
-pub async fn decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_export_signer_private_request_v1(
-    env: &worker::Env,
+#[allow(clippy::too_many_arguments)]
+pub fn decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_export_signer_private_request_v1(
+    secrets: &impl CloudflareSecretReaderV1,
     worker_role: CloudflareWorkerRoleV1,
     host: &CloudflarePreloadedSignerHostV1,
     export_request: RouterAbEcdsaDerivationExplicitExportRequestV1,
@@ -10766,7 +10755,7 @@ pub async fn decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_export_sig
         bootstrap.aad.digest(),
     )?;
     let validated = decrypt_cloudflare_validated_ecdsa_derivation_signer_private_request_v1(
-        &CloudflareWorkerEnvReaderV1::new(env),
+        secrets,
         worker_role,
         bootstrap.message,
         envelope_decrypt_keys,
@@ -11851,12 +11840,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
         return cloudflare_signing_worker_presign_error_response_v1(error);
     }
     let material_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-    let wallet_scope = match &parsed.authority {
-        CloudflareSigningWorkerEcdsaPresignAuthorityV1::OwnerWalletSession { wallet_scope } => {
-            Some(wallet_scope)
-        }
-        CloudflareSigningWorkerEcdsaPresignAuthorityV1::OperationStepUp => None,
-    };
+    let wallet_scope = Some(parsed.authority.wallet_scope());
     let (active_signing_worker, material) =
         match load_cloudflare_signing_worker_active_ecdsa_derivation_material_v1(
             env,
@@ -12049,7 +12033,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_export_preflight_private_fet
         runtime,
         &parsed.export_authority.normal_signing_scope,
         &parsed.material_source,
-        None,
+        Some(&parsed.wallet_scope),
         now_unix_ms,
     )
     .await
@@ -12096,7 +12080,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_export_share_private_fetch_v
             runtime,
             &parsed.export_authority.normal_signing_scope,
             &parsed.material_source,
-            None,
+            Some(&parsed.wallet_scope),
             now_unix_ms,
         )
         .await
@@ -12104,37 +12088,19 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_export_share_private_fetch_v
             Ok(value) => value,
             Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
         };
-    let (relayer_share, _) =
-        match cloudflare_router_ab_ecdsa_derivation_relayer_share_and_public_identity_from_active_material_v1(
-            &parsed.export_authority.normal_signing_scope,
-            &active_signing_worker,
-            &material,
-        ) {
-            Ok(value) => value,
-            Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
-        };
-    let binding = match parsed.export_share_binding() {
-        Ok(value) => value,
-        Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
-    };
     let mut seal_seed = [0_u8; 32];
     if getrandom::getrandom(&mut seal_seed).is_err() {
         return worker::Response::error("SigningWorker ECDSA export-share RNG failed", 500);
     }
-    let envelope = match seal_ecdsa_signing_worker_export_share_v1(
-        binding,
-        &relayer_share.x_relayer32,
+    match seal_cloudflare_signing_worker_ecdsa_export_share_v1(
+        &parsed,
+        &active_signing_worker,
+        &material,
         seal_seed,
     ) {
-        Ok(value) => value,
-        Err(_) => {
-            return worker::Response::error(
-                "SigningWorker ECDSA export-share encryption failed",
-                500,
-            );
-        }
-    };
-    worker::Response::from_json(&envelope)
+        Ok(envelope) => worker::Response::from_json(&envelope),
+        Err(error) => cloudflare_signing_worker_presign_error_response_v1(error),
+    }
 }
 
 /// Seals one exact active additive-lane server share to an admitted one-use recipient.
@@ -12279,12 +12245,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
             let server_presignature_id = pool_put_request.server_presignature_id.clone();
             let server_big_r33_b64u = pool_put_request.server_big_r33_b64u.clone();
             let admission_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
-            let wallet_scope = match authority {
-                CloudflareSigningWorkerEcdsaPresignAuthorityV1::OwnerWalletSession {
-                    wallet_scope,
-                } => Some(wallet_scope),
-                CloudflareSigningWorkerEcdsaPresignAuthorityV1::OperationStepUp => None,
-            };
+            let wallet_scope = Some(authority.wallet_scope().clone());
             if let Err(error) = admit_cloudflare_signing_worker_ecdsa_presignature_v1(
                 pool_put_request,
                 wallet_scope,
@@ -12592,7 +12553,7 @@ async fn admit_cloudflare_signing_worker_ecdsa_presignature_v1(
     if wallet_scope.is_none() {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidGateDecision,
-            "Wallet-DO ECDSA pool admission requires pinned owner authority",
+            "Wallet-DO ECDSA pool admission requires a pinned wallet scope",
         ));
     }
     let (active_signing_worker, active_material) =
@@ -12677,7 +12638,7 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
         )
     {
         return worker::Response::error(
-            "Wallet-DO ECDSA prepare requires owner Wallet Session and available pool material",
+            "Wallet-DO ECDSA prepare requires a Router-admitted wallet scope and available pool material",
             403,
         );
     }
@@ -12991,7 +12952,7 @@ where
     #[cfg(feature = "wallet-do-signing-worker-harness")]
     if parsed.wallet_scope.is_none() {
         return worker::Response::error(
-            "Wallet-DO ECDSA finalize requires owner Wallet Session authority",
+            "Wallet-DO ECDSA finalize requires a Router-admitted wallet scope",
             403,
         );
     }
@@ -13709,7 +13670,7 @@ async fn execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
         let wallet_scope = wallet_scope.ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidGateDecision,
-                "Wallet-DO ECDSA pool requires owner Wallet Session authority",
+                "Wallet-DO ECDSA pool requires a Router-admitted wallet scope",
             )
         })?;
         let response = durable_object::call_signing_worker_wallet_do_v1(
@@ -13749,7 +13710,7 @@ async fn claim_and_consume_cloudflare_signing_worker_ecdsa_for_wallet_v1(
         let scope = request.wallet_scope.as_ref().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidGateDecision,
-                "Wallet-DO ECDSA effect requires owner Wallet Session authority",
+                "Wallet-DO ECDSA effect requires a Router-admitted wallet scope",
             )
         })?;
         let response = durable_object::call_signing_worker_wallet_do_v1(
@@ -13818,7 +13779,7 @@ async fn commit_cloudflare_signing_worker_ecdsa_terminal_for_wallet_v1(
         let scope = request.wallet_scope.as_ref().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidGateDecision,
-                "Wallet-DO ECDSA terminal requires owner Wallet Session authority",
+                "Wallet-DO ECDSA terminal requires a Router-admitted wallet scope",
             )
         })?;
         let do_response = durable_object::call_signing_worker_wallet_do_v1(
@@ -14092,42 +14053,21 @@ async fn execute_cloudflare_router_ab_ecdsa_derivation_deriver_registration_serv
 async fn execute_cloudflare_router_ab_ecdsa_derivation_deriver_export_service_call_v1(
     env: &worker::Env,
     peer: &CloudflarePeerBindingV1,
-    export_request: &RouterAbEcdsaDerivationExplicitExportRequestV1,
-    public_request: &EcdsaThresholdPrfRequestV1,
-    message: &WireMessageV1,
-    tenant_root_custody_binding: &CloudflareTenantRootCustodyBindingWireV1,
+    private_request: &CloudflareRouterAbEcdsaDerivationDeriverExportPrivateRequestV1,
 ) -> RouterAbProtocolResult<CloudflareSignerClientRecipientProofBundleResponseV1> {
     peer.validate()?;
-    validate_cloudflare_signer_private_request_v1(peer.peer_role, message)?;
-    let signer_bootstrap = cloudflare_signer_private_bootstrap_from_public_request_v1(
-        peer.peer_role,
-        public_request,
-        message.clone(),
-    )?;
-    let private_request = CloudflareRouterAbEcdsaDerivationDeriverExportPrivateRequestV1::new(
-        peer.peer_role,
-        export_request.clone(),
-        signer_bootstrap,
-        tenant_root_custody_binding.clone(),
-    )?;
     let label = format!(
         "{} Router A/B ECDSA derivation export service request",
         peer.peer_role.as_str()
     );
-    let response: CloudflareSignerClientRecipientProofBundleResponseV1 = post_service_json(
+    post_service_json(
         env,
         &peer.binding_name,
         cloudflare_router_ab_ecdsa_derivation_deriver_export_service_url(peer)?,
         &label,
-        &private_request,
+        private_request,
     )
-    .await?;
-    validate_cloudflare_signer_client_recipient_proof_bundle_private_response_v1(
-        peer.peer_role,
-        message,
-        &response,
-    )?;
-    Ok(response)
+    .await
 }
 
 #[cfg(feature = "workers-rs")]
@@ -14264,13 +14204,7 @@ async fn execute_cloudflare_router_ab_ecdsa_derivation_signing_worker_export_sha
         request,
     )
     .await?;
-    envelope.validate().map_err(|_| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "SigningWorker returned an invalid ECDSA export-share envelope",
-        )
-    })?;
-    Ok(envelope)
+    validate_cloudflare_signing_worker_ecdsa_export_share_envelope_v1(envelope)
 }
 
 #[cfg(feature = "workers-rs")]

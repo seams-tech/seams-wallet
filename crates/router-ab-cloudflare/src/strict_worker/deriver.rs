@@ -889,50 +889,33 @@ async fn handle_strict_deriver_fetch_v1(
                 Ok(parsed) => parsed,
                 Err(response) => return Ok(response),
             };
-        let (export_request, authenticated, custody_wire) =
-            match export_request.into_authenticated_parts(&env, worker_role, now_unix_ms) {
-                Ok(parts) => parts,
-                Err(err) => return cloudflare_protocol_error_response_v1(err),
-            };
-        let public_request = match export_request.to_threshold_prf_request() {
-            Ok(request) => request,
+        let tenant_root_host =
+            crate::tenant_root_role_runtime::CloudflareTenantRootDeriverHostV1::new(
+                &env,
+                worker_role,
+                None,
+            );
+        let random_bytes = match cloudflare_random_bytes_v1(0) {
+            Ok(bytes) => bytes,
             Err(err) => return cloudflare_protocol_error_response_v1(err),
         };
-        let outer_request = match build_cloudflare_ecdsa_threshold_prf_outer_request_v2(
-            &public_request,
-            authenticated.tenant_root_custody_binding(),
-            &custody_wire,
-        ) {
-            Ok(request) => request,
-            Err(err) => return cloudflare_protocol_error_response_v1(err),
-        };
-        let preloaded = match preload_strict_deriver_request_with_authenticated_binding_v2(
-            &env,
+        let export = match crate::prepare_cloudflare_deriver_ecdsa_export_v1(
+            &tenant_root_host,
             &runtime,
-            &authenticated,
+            export_request,
+            now_unix_ms,
+            random_bytes,
         )
         .await
         {
-            Ok(loaded) => loaded,
+            Ok(export) => export,
             Err(err) => return cloudflare_protocol_error_response_v1(err),
         };
-        let signer_bootstrap = authenticated.bootstrap;
-        let tenant_root_custody_binding = authenticated.tenant_root_custody_binding;
-        return match decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_export_signer_private_request_v1(
-            &env,
-            worker_role,
-            &preloaded.host,
-            export_request,
-            signer_bootstrap,
-            tenant_root_custody_binding,
-            outer_request,
-            preloaded.tenant_root_share,
-            runtime.envelope_decrypt_key(),
-            &preloaded.root_share_metadata,
+        return match export.execute_deriver_export(
+            &crate::CloudflareWorkerEnvReaderV1::new(&env),
+            &runtime,
             now_unix_ms,
-        )
-        .await
-        {
+        ) {
             Ok(response) => Response::from_json(&response),
             Err(err) => cloudflare_protocol_error_response_v1(err),
         };

@@ -1,7 +1,8 @@
 //! VM Router NEAR normal signing.
 //!
 //! The Gateway forwards an owner-lane request carrying its authorized
-//! operation. Admission is the Cloudflare Router's own
+//! operation: an owner Wallet Session or a verified operation step-up.
+//! Admission is the Cloudflare Router's own
 //! `admit_cloudflare_router_normal_signing_*_v2`, so the VM Router forwards
 //! to SigningWorker exactly what the Cloudflare Router would, and accepts only
 //! a response that matches that admitted request.
@@ -9,6 +10,8 @@
 use router_ab_cloudflare::{
     admit_cloudflare_router_normal_signing_finalize_v2,
     admit_cloudflare_router_normal_signing_prepare_v2,
+    admit_cloudflare_router_normal_signing_step_up_finalize_v2,
+    admit_cloudflare_router_normal_signing_step_up_prepare_v2,
     build_cloudflare_router_ed25519_jwks_jwt_verifier_v1,
     parse_cloudflare_router_authorized_ed25519_finalize_request_v2_json,
     parse_cloudflare_router_authorized_ed25519_prepare_request_v2_json,
@@ -42,14 +45,6 @@ pub(crate) fn serve_local_router_normal_signing_v1(
     config: &LocalRouterWorkerConfigV1,
     request: &LocalDevHttpRequestPartsV1,
 ) -> RouterAbProtocolResult<String> {
-    // The Gateway strips the user's bearer token; a Wallet Session request
-    // that still carries one did not come through the Gateway proxy.
-    if request.authorization.is_some() {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
-            "Gateway Wallet Session requests must omit Authorization",
-        ));
-    }
     let now_unix_ms = local_now_ms_v1()?;
     // A VM Router has no edge source metadata; the digest still binds the
     // Gateway-owner credential to this admission exactly as on Cloudflare.
@@ -60,18 +55,30 @@ pub(crate) fn serve_local_router_normal_signing_v1(
     if request.path == LOCAL_ROUTER_NORMAL_SIGNING_PREPARE_PATH {
         let (signing_request, authorized_operation) =
             parse_cloudflare_router_authorized_ed25519_prepare_request_v2_json(&request.body)?;
-        require_gateway_owner_wallet_session(&authorized_operation)?;
-        let credential =
-            authorized_operation.gateway_owner_wallet_session_credential(trusted_source_digest)?;
-        let admitted = admit_cloudflare_router_normal_signing_prepare_v2(
-            &config.admission_bindings,
-            now_unix_ms,
-            signing_request,
-            authorized_operation,
-            credential,
-            trusted_source_digest,
-            verifier,
-        )?;
+        let admitted = match gateway_near_authorization(&authorized_operation, request)? {
+            GatewayNearAuthorizationV1::OwnerWalletSession => {
+                let credential = authorized_operation
+                    .gateway_owner_wallet_session_credential(trusted_source_digest)?;
+                admit_cloudflare_router_normal_signing_prepare_v2(
+                    &config.admission_bindings,
+                    now_unix_ms,
+                    signing_request,
+                    authorized_operation,
+                    credential,
+                    trusted_source_digest,
+                    verifier,
+                )?
+            }
+            GatewayNearAuthorizationV1::OperationStepUp => {
+                admit_cloudflare_router_normal_signing_step_up_prepare_v2(
+                    &config.admission_bindings,
+                    now_unix_ms,
+                    signing_request,
+                    authorized_operation,
+                    trusted_source_digest,
+                )?
+            }
+        };
         let response = client.post_json_authenticated_v1::<_, NormalSigningRound1PrepareResponseV1>(
             &config.signing_worker_url,
             LocalServiceRoleV1::SigningWorker,
@@ -84,18 +91,30 @@ pub(crate) fn serve_local_router_normal_signing_v1(
     }
     let (signing_request, authorized_operation) =
         parse_cloudflare_router_authorized_ed25519_finalize_request_v2_json(&request.body)?;
-    require_gateway_owner_wallet_session(&authorized_operation)?;
-    let credential =
-        authorized_operation.gateway_owner_wallet_session_credential(trusted_source_digest)?;
-    let admitted = admit_cloudflare_router_normal_signing_finalize_v2(
-        &config.admission_bindings,
-        now_unix_ms,
-        signing_request,
-        authorized_operation,
-        credential,
-        trusted_source_digest,
-        verifier,
-    )?;
+    let admitted = match gateway_near_authorization(&authorized_operation, request)? {
+        GatewayNearAuthorizationV1::OwnerWalletSession => {
+            let credential = authorized_operation
+                .gateway_owner_wallet_session_credential(trusted_source_digest)?;
+            admit_cloudflare_router_normal_signing_finalize_v2(
+                &config.admission_bindings,
+                now_unix_ms,
+                signing_request,
+                authorized_operation,
+                credential,
+                trusted_source_digest,
+                verifier,
+            )?
+        }
+        GatewayNearAuthorizationV1::OperationStepUp => {
+            admit_cloudflare_router_normal_signing_step_up_finalize_v2(
+                &config.admission_bindings,
+                now_unix_ms,
+                signing_request,
+                authorized_operation,
+                trusted_source_digest,
+            )?
+        }
+    };
     let response = client.post_json_authenticated_v1::<_, NormalSigningResponseV1>(
         &config.signing_worker_url,
         LocalServiceRoleV1::SigningWorker,
@@ -107,18 +126,36 @@ pub(crate) fn serve_local_router_normal_signing_v1(
     encode(&response)
 }
 
-/// The VM Router serves the Gateway owner-lane path only. Linked-device and
-/// operation step-up signing are not served yet and fail closed.
-fn require_gateway_owner_wallet_session(
+/// How the Gateway authorized one forwarded NEAR signing request. The VM
+/// Router serves an owner Wallet Session and a verified operation step-up;
+/// linked-device signing fails closed.
+enum GatewayNearAuthorizationV1 {
+    OwnerWalletSession,
+    OperationStepUp,
+}
+
+fn gateway_near_authorization(
     authorized_operation: &CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
-) -> RouterAbProtocolResult<()> {
+    request: &LocalDevHttpRequestPartsV1,
+) -> RouterAbProtocolResult<GatewayNearAuthorizationV1> {
     match &authorized_operation.binding {
         CloudflareRouterEd25519AcceptedCapabilityBindingV1::GatewayOwnerWalletSession { .. } => {
-            Ok(())
+            // The Gateway strips the user's bearer token; a Wallet Session
+            // request that still carries one did not come through its proxy.
+            if request.authorization.is_some() {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+                    "Gateway Wallet Session requests must omit Authorization",
+                ));
+            }
+            Ok(GatewayNearAuthorizationV1::OwnerWalletSession)
+        }
+        CloudflareRouterEd25519AcceptedCapabilityBindingV1::OperationStepUp { .. } => {
+            Ok(GatewayNearAuthorizationV1::OperationStepUp)
         }
         _ => Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidGateDecision,
-            "VM Router normal signing serves Gateway owner Wallet Sessions only",
+            "VM Router normal signing serves Gateway owner Wallet Sessions and verified step-up",
         )),
     }
 }

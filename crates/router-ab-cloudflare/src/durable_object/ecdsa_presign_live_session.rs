@@ -841,6 +841,20 @@ mod tests {
         .unwrap()
     }
 
+    fn step_up_authority(
+        scope: &RouterAbEcdsaDerivationNormalSigningScopeV1,
+    ) -> CloudflareSigningWorkerEcdsaPresignAuthorityV1 {
+        CloudflareSigningWorkerEcdsaPresignAuthorityV1::OperationStepUp {
+            wallet_scope: crate::CloudflareSigningWorkerWalletScopeV1::new(
+                "org",
+                "project",
+                "project-environment",
+                &scope.wallet_id,
+            )
+            .unwrap(),
+        }
+    }
+
     #[test]
     fn owner_pool_completes_in_six_exchanges_with_matching_output() {
         let scope = scope();
@@ -872,7 +886,7 @@ mod tests {
             CloudflareSigningWorkerEcdsaPresignSessionDoInitRequestV1 {
                 request: CloudflareSigningWorkerEcdsaPresignSessionInitRequestV1 {
                     scope: scope.clone(),
-                    authority: CloudflareSigningWorkerEcdsaPresignAuthorityV1::OperationStepUp,
+                    authority: step_up_authority(&scope),
                     presign_session_id: session_id.clone(),
                     first_message_b64u: encode_base64url_bytes_v1(&first),
                     ceremony_expires_at_ms: expires,
@@ -959,8 +973,7 @@ mod tests {
                     progress = crate::step_signing_worker_ecdsa_presign_session_v1(
                         CloudflareSigningWorkerEcdsaPresignSessionStepRequestV1 {
                             scope: scope.clone(),
-                            authority:
-                                CloudflareSigningWorkerEcdsaPresignAuthorityV1::OperationStepUp,
+                            authority: step_up_authority(&scope),
                             presign_session_id: session_id.clone(),
                             requested_stage,
                             outgoing_messages_b64u: client_progress

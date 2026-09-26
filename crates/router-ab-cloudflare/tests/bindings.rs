@@ -7910,7 +7910,9 @@ fn normal_signing_finalize_boundary_extracts_verified_step_up_authorized_operati
                 "org_id": "org-1",
                 "project_id": "project-1",
                 "environment": "dev",
-                "subject_id": "user-1"
+                "project_environment_id": "project-environment-1",
+                "subject_id": "user-1",
+                "account_id": "wallet-1"
             },
             "authorized_operation": {
                 "kind": "verified_step_up_authorized_operation_v1",

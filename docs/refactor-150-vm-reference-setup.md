@@ -154,6 +154,22 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
 - A SigningWorker refusal of an effect another attempt has claimed and not
   finished reaches the Gateway as HTTP 409 `ReplayedLocalRequest`, on both
   hosts, so the Gateway keeps the operation in progress for a retry.
+- Operation step-up through the real Gateway, on the same admission code as
+  Cloudflare: `passkey.unlock` ("passkey unlock restores immediate export" and
+  "page refresh hydrates warm signing, one-use step-up, and key export"),
+  `passkey.registration` "sustained Tempo and Arc signing uses fresh
+  presignatures beyond pool capacity" and `passkey.registration.resume`
+  "passkey NEAR completion preserves an exhausted EVM signing budget". After
+  a wallet exhausts its session budget, NEAR, Tempo and Arc signatures
+  succeed by step-up, and an empty pool generates a presignature under the
+  step-up operation. The step-up binding names the wallet and the Console
+  project environment the Gateway's store claimed it in, so the SigningWorker
+  reaches the same wallet storage as for an owner Wallet Session.
+- Ed25519 and ECDSA export through the real Gateway, in the same
+  `passkey.unlock` tests. The Router derives the ECDSA export's wallet from the
+  Gateway ceremony session it verifies; the SigningWorker seals its share
+  from its wallet store. Passkey recovery (`passkey.recovery`, passkey-founded
+  cases, including a lost finalization response and a runtime reset) passes.
 - VM route errors answer 400, except `LifecycleTransitionInProgress`, which
   answers 503 as on Cloudflare so the Gateway retries it.
 - The VM Router runs creation-state operations one at a time in process, as a
@@ -165,15 +181,14 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
 See the [Phase 0 inventory](./refactor-150-supported-operations.md) for each
 operation, its contracts and what is needed.
 
-- ECDSA export, add-signer registration and activation refresh. ECDSA
-  signing serves owner Wallet Sessions from the presignature pool; operation
-  step-up and linked-device ECDSA signing fail closed.
+- ECDSA add-signer registration and activation refresh. Linked-device ECDSA
+  signing fails closed.
 - Device linking.
 - Tenant-root status, scheduled refresh (no VM trigger yet), managed
   restore, recovery-package backup and restore, source retirement and
   cutover. Manual refresh is served, with the same Router, Deriver and
   control-plane code as Cloudflare.
-- Linked-device and step-up signing.
+- Linked-device signing.
 - Google Cloud KMS managed backup (HPKE only).
 - Router and SigningWorker prewarm, which keeps Worker isolates warm and has no
   VM counterpart; the launcher sets `ROUTER_AB_PREWARM_ENABLED=false`.

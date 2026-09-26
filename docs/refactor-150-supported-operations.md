@@ -34,17 +34,17 @@ excluded. The decisions needed are listed at the end.
 | **Ed25519 (NEAR) registration**, passkey and Email OTP | SDK `registerWallet`; hosted auth menu | Served | Served | Spec 2 "Creating a wallet"; Spec 5; `router-ab/ed25519-yao.md` | `passkey.registration*`, `email-otp.*`, `passkey.ed25519-yao-local` (VM); VM `product_topology_*`; Workers wallet-DO and replay tests |
 | **ECDSA (Tempo, EVM) registration** | SDK registration with a chain target | Served | Served (wallet registration; not add-signer) | Same | `passkey.registration`, `passkey.presign-pool` (VM); `testEcdsaRegistrationAndActivation`; `ecdsa_derivation_*` |
 | **Add signer** | SDK `addWalletSigner` | Served | Ed25519 only | Spec 2 | `passkey.ed25519-yao-local` add-signer |
-| **Unlock and Wallet Session** | SDK `auth.unlock` | Gateway | Gateway code shared; not exercised on VM (inferred) | Spec 3 "Unlock and sign" | `passkey.unlock`, `email-otp.unlock` |
+| **Unlock and Wallet Session** | SDK `auth.unlock` | Gateway | Gateway code shared | Spec 3 "Unlock and sign" | `passkey.unlock` (VM), `email-otp.unlock` |
 | **NEAR Ed25519 signing** | SDK `near.*`, with Router normal signing enabled | Served | Served (owner sessions) | Spec 5 "Signing with prepared material" | `passkey.unlock`, `passkey.registration`; VM `product_near_signing_process_flow`; `normal_signing_worker_boundaries.rs` |
 | **ECDSA Tempo and EVM signing** | SDK `tempo.*`, `evm.*`, with a chain target | Served | Served (owner sessions, pool material) | Spec 5; intended "Transaction Signing" | `passkey.registration`, `passkey.unlock`, `passkey.presign-pool` (VM, including a finalize lost-response retry); `testEcdsaNormalSigning`; `ecdsa_derivation_normal_signing_boundaries.rs` |
 | **ECDSA presignature pool** | Automatic refill; SDK prefill | Served | Served (owner sessions) | Intended "Durable ECDSA preprocessing" | `passkey.presign-pool` (both hosts); `runEcdsaPresignSession` |
-| **Step-up signing** (Ed25519 and ECDSA) | Implicit in sensitive operations | Served | **Fails closed** | Spec 3 "Fresh approval" | `passkey.unlock`, `email-otp.unlock`, recovery contracts |
+| **Step-up signing** (Ed25519 and ECDSA) | Implicit in sensitive operations | Served | Served, including step-up presignature generation | Spec 3 "Fresh approval" | `passkey.unlock`, `passkey.registration` "sustained Tempo and Arc signing", `passkey.registration.resume` NEAR budget (VM); `email-otp.unlock`, recovery contracts |
 | **Device linking, inventory, revoke** | SDK `DevicesCapability`; account menu | Served | **Not served** (inferred) | Spec 2 "Linking a device" | No E2E here; private monorepo units |
-| **Code recovery** (passkey; Google with Email OTP) | Hosted auth menu | Served | Ed25519 routes served; not exercised on VM (inferred) | Spec 2 "Recovering access" | `passkey.recovery`; `google-email-otp.recovery` (excluded by the intended-wallet Playwright config) |
+| **Code recovery** (passkey; Google with Email OTP) | Hosted auth menu | Served | Served for passkey recovery; Google-backed recovery not run on the VM | Spec 2 "Recovering access" | `passkey.recovery` (VM, passkey-founded cases); `google-email-otp.recovery` (excluded by the intended-wallet Playwright config) |
 | **Recovery-code management** | SDK `RecoveryCapability` | Gateway | Gateway code shared | Intended "Account Recovery" | `recovery-code-backup.browser.test.ts` |
 | **Factor add and remove** | SDK `addPasskey`, `addEmailOtp`, `revokeAuthMethod` | Gateway | Gateway code shared; not exercised on VM (inferred) | Spec 2 "Adding a sign-in method" | `passkey.add-email-otp`, `email-otp.add-passkey`, `auth-method-addition.matrix` |
-| **Ed25519 export** | SDK `keys.exportKeypair` | Served | Code path exists; no VM E2E | Intended "Key Export" | `passkey.unlock`, `email-otp.unlock`, `export.flow.integration` |
-| **ECDSA export** | Same | Served | **Not served** | Same | Same |
+| **Ed25519 export** | SDK `keys.exportKeypair` | Served | Served | Intended "Key Export" | `passkey.unlock` (VM), `email-otp.unlock`, `export.flow.integration` |
+| **ECDSA export** | Same | Served | Served | Same | Same |
 
 Served but not reached by any surface in this repository (inferred):
 - **Router signing lanes.** See the [ownership map](./refactor-150-state-ownership-map.md).
@@ -70,10 +70,11 @@ Served but not reached by any surface in this repository (inferred):
 ## What this changes
 
 - **The VM gaps are larger than documented.** The VM reference setup lists
-  restore, retirement, cutover, linked-device and step-up signing and KMS
-  backup as not served (refresh has since been served). It omitted two further gaps: every ECDSA operation
-  and device linking. ECDSA wallet registration, the presignature pool and
-  owner-session signing are now served on the VM; ECDSA export is not. R150
+  restore, retirement, cutover, linked-device signing and KMS backup as not
+  served (refresh has since been served). It omitted two further gaps: every
+  ECDSA operation and device linking. ECDSA wallet registration, the
+  presignature pool, owner-session and step-up signing, and ECDSA export are
+  now served on the VM; ECDSA add-signer and device linking are not. R150
   names "NEAR and EVM signing" among the supported protocols that must pass on
   both adapters.
 - **Source retirement is reachable and untested.** It is reachable through a
@@ -85,16 +86,14 @@ Served but not reached by any surface in this repository (inferred):
 
 ## Decisions needed
 
-1. **ECDSA export on the VM.** Registration, presignatures and owner-session
-   signing are served. Serve export, or exclude it with the reason recorded.
-2. **Device linking and step-up signing on the VM.** Serve them or exclude
-   them explicitly.
-3. **Scheduled refresh and availability restore.** Confirm from seams-monorepo
+1. **Device linking and ECDSA add-signer on the VM.** Serve them or exclude
+   them explicitly. ECDSA export and step-up signing are served.
+2. **Scheduled refresh and availability restore.** Confirm from seams-monorepo
    whether they are enabled in the release. If they are, they are VM work; if
    not, record that.
-4. **Source retirement.** Keep it reachable as is, gate it until the drain
+3. **Source retirement.** Keep it reachable as is, gate it until the drain
    rule exists, or keep it with an explicit decision. It deletes material with
    no drain and no coverage.
-5. **Unreached code.** For Router signing lanes, the linked-device Router
+4. **Unreached code.** For Router signing lanes, the linked-device Router
    branches and ECDSA activation refresh, decide between removal and a
    recorded reason to keep them.

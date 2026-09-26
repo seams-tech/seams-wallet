@@ -60,7 +60,15 @@ export type RouterAbEcdsaPresignAuthorityV1 =
         readonly wallet_id: string;
       };
     }
-  | { readonly kind: 'operation_step_up' };
+  | {
+      readonly kind: 'operation_step_up';
+      readonly wallet_scope: {
+        readonly org_id: string;
+        readonly project_id: string;
+        readonly project_environment_id: string;
+        readonly wallet_id: string;
+      };
+    };
 
 export type RouterAbEcdsaDerivationPresignaturePoolFillHttpInput = {
   signingWorkerBaseUrl: string;

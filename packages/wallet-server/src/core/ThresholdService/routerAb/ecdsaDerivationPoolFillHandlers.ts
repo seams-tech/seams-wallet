@@ -34,7 +34,7 @@ const PRESIGN_SESSION_ID_PREFIX = 'ecdsa-presign-v2';
 const MAX_PRESIGN_CEREMONY_LIFETIME_MS = 5 * 60_000;
 const MAX_DURABLE_PRESIGNATURE_LIFETIME_MS = 90 * 24 * 60 * 60_000;
 
-type RouterAbEcdsaOwnerWalletScope = {
+export type RouterAbEcdsaOwnerWalletScope = {
   readonly orgId: string;
   readonly projectId: string;
   readonly projectEnvironmentId: string;
@@ -49,28 +49,20 @@ export type RouterAbEcdsaDerivationPoolFillBinding = {
   readonly participantIds: readonly [number, number];
   readonly thresholdExpiresAtMs: number;
   readonly routerAbEcdsaDerivationNormalSigning: RouterAbEcdsaDerivationNormalSigningStateV1;
-} & (
-  | {
-      readonly authorization: { readonly kind: 'wallet_session' };
-      readonly ownerWalletScope: RouterAbEcdsaOwnerWalletScope;
-    }
-  | {
-      readonly authorization: {
+  /** The wallet whose pool this fill admits into, for either authority. */
+  readonly ownerWalletScope: RouterAbEcdsaOwnerWalletScope;
+  readonly authorization:
+    | { readonly kind: 'wallet_session' }
+    | {
         readonly kind: 'operation_step_up';
         readonly materialExpiresAtMs: number;
       };
-      readonly ownerWalletScope?: never;
-    }
-);
+};
 
 function ownerWalletScopeMatchesBinding(
   binding: RouterAbEcdsaDerivationPoolFillBinding,
 ): boolean {
-  if (binding.authorization.kind === 'operation_step_up') {
-    return binding.ownerWalletScope === undefined;
-  }
   const owner = binding.ownerWalletScope;
-  if (owner === undefined) return false;
   const policy = binding.runtimePolicyScope;
   return (
     owner.orgId === policy.orgId &&
@@ -83,22 +75,16 @@ function ownerWalletScopeMatchesBinding(
 function presignAuthorityForBinding(
   binding: RouterAbEcdsaDerivationPoolFillBinding,
 ): RouterAbEcdsaPresignAuthorityV1 {
-  if (binding.authorization.kind === 'operation_step_up') {
-    return { kind: 'operation_step_up' };
-  }
   const scope = binding.ownerWalletScope;
-  if (scope === undefined) {
-    throw new Error('Owner Wallet Session scope is missing');
-  }
-  return {
-    kind: 'owner_wallet_session',
-    wallet_scope: {
-      org_id: scope.orgId,
-      project_id: scope.projectId,
-      project_environment_id: scope.projectEnvironmentId,
-      wallet_id: scope.walletId,
-    },
+  const walletScope = {
+    org_id: scope.orgId,
+    project_id: scope.projectId,
+    project_environment_id: scope.projectEnvironmentId,
+    wallet_id: scope.walletId,
   };
+  return binding.authorization.kind === 'operation_step_up'
+    ? { kind: 'operation_step_up', wallet_scope: walletScope }
+    : { kind: 'owner_wallet_session', wallet_scope: walletScope };
 }
 
 export function resolveRouterAbEcdsaPresignDeadlines(input: {

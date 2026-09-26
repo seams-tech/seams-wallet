@@ -43,7 +43,7 @@ where
         .validate_for_prepare_request(&request)?;
     let wallet_scope = match &authorized_operation.binding {
         CloudflareRouterEcdsaAcceptedCapabilityBindingV1::GatewayOwnerWalletSession { .. } => {
-            Some(authorized_operation.gateway_owner_wallet_scope()?)
+            Some(authorized_operation.wallet_scope()?)
         }
         _ => None,
     };
@@ -110,7 +110,7 @@ where
         .validate_for_finalize_request_with_session(&request, None)?;
     let wallet_scope = match &authorized_operation.binding {
         CloudflareRouterEcdsaAcceptedCapabilityBindingV1::GatewayOwnerWalletSession { .. } => {
-            Some(authorized_operation.gateway_owner_wallet_scope()?)
+            Some(authorized_operation.wallet_scope()?)
         }
         _ => None,
     };
@@ -152,15 +152,101 @@ where
     Ok(admitted)
 }
 
-/// The wallet a SigningWorker wallet-store signing request belongs to: only
-/// an owner Wallet Session carries one.
-pub fn signing_worker_wallet_ecdsa_owner_scope_v1(
+/// Admits one Gateway-verified operation step-up ECDSA prepare at the Router.
+pub fn admit_cloudflare_router_ab_ecdsa_derivation_evm_digest_step_up_prepare_v1(
+    admission: &CloudflareRouterAdmissionBindingsV1,
+    now_unix_ms: u64,
+    request: RouterAbEcdsaDerivationEvmDigestSigningRequestV1,
+    authorized_operation: CloudflareRouterEcdsaAcceptedAuthorizedOperationV1,
+    presign_source: CloudflareEcdsaPrepareSourceV1,
+    trusted_source_digest: PublicDigest32,
+) -> RouterAbProtocolResult<
+    CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1,
+> {
+    request.validate_at(now_unix_ms)?;
+    let trusted_admission = cloudflare_router_ab_ecdsa_step_up_prepare_admission_v1(
+        &request,
+        &authorized_operation,
+        trusted_source_digest,
+    )?;
+    let wallet_scope = require_step_up_wallet_scope_v1(
+        authorized_operation.wallet_scope()?,
+        &request.scope.wallet_id,
+    )?;
+    let trusted_admission = admission
+        .apply_project_policy_to_normal_signing_admission_v1(&request.request_id, trusted_admission)?;
+    if !trusted_admission.allows_signing_worker_forwarding()? {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidGateDecision,
+            "Router A/B ECDSA derivation prepare Router admission did not allow SigningWorker forwarding",
+        ));
+    }
+    let mut admitted =
+        CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestSigningRequestV1::new(
+            request,
+            trusted_admission,
+        )?;
+    admitted.presign_source = presign_source;
+    admitted.wallet_scope = Some(wallet_scope);
+    admitted.validate()?;
+    Ok(admitted)
+}
+
+/// Admits one Gateway-verified operation step-up ECDSA finalize at the
+/// Router, with the effect claim the SigningWorker records before it signs.
+pub fn admit_cloudflare_router_ab_ecdsa_derivation_evm_digest_step_up_finalize_v1(
+    admission: &CloudflareRouterAdmissionBindingsV1,
+    now_unix_ms: u64,
+    request: RouterAbEcdsaDerivationEvmDigestSigningFinalizeRequestV1,
+    authorized_operation: CloudflareRouterEcdsaAcceptedAuthorizedOperationV1,
+    trusted_source_digest: PublicDigest32,
+) -> RouterAbProtocolResult<
+    CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1,
+> {
+    request.validate_at(now_unix_ms)?;
+    let trusted_admission = cloudflare_router_ab_ecdsa_step_up_finalize_admission_v1(
+        &request,
+        &authorized_operation,
+        trusted_source_digest,
+    )?;
+    let wallet_scope = require_step_up_wallet_scope_v1(
+        authorized_operation.wallet_scope()?,
+        &request.scope.wallet_id,
+    )?;
+    let trusted_admission = admission
+        .apply_project_policy_to_normal_signing_admission_v1(&request.request_id, trusted_admission)?;
+    if !trusted_admission.allows_signing_worker_forwarding()? {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidGateDecision,
+            "Router A/B ECDSA derivation finalize Router admission did not allow SigningWorker forwarding",
+        ));
+    }
+    let authorized_operation_identity =
+        authorized_operation.into_signing_worker_authorized_operation_identity()?;
+    let effect_claim = authorized_operation
+        .authorized_operation
+        .into_step_up_signing_worker_effect_claim()?;
+    let mut admitted =
+        CloudflareSigningWorkerAdmittedRouterAbEcdsaDerivationEvmDigestFinalizeRequestV1::new(
+            request,
+            trusted_admission,
+            authorized_operation_identity,
+            effect_claim,
+        )?;
+    admitted.wallet_scope = Some(wallet_scope);
+    admitted.validate()?;
+    Ok(admitted)
+}
+
+/// The wallet a SigningWorker wallet-store signing request belongs to: the
+/// Router admits one for an owner Wallet Session and for a verified step-up.
+pub fn signing_worker_wallet_ecdsa_scope_v1(
     wallet_scope: Option<&CloudflareSigningWorkerWalletScopeV1>,
 ) -> RouterAbProtocolResult<&CloudflareSigningWorkerWalletScopeV1> {
     wallet_scope.ok_or_else(|| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidGateDecision,
-            "wallet-store ECDSA signing requires owner Wallet Session authority",
+            "wallet-store ECDSA signing requires a Router-admitted wallet scope",
         )
     })
 }
@@ -176,7 +262,7 @@ pub fn prepare_signing_worker_wallet_ecdsa_from_pool_v1<Sql: SigningWorkerWallet
 ) -> RouterAbProtocolResult<CloudflareEcdsaPrepareResponseV1> {
     request.validate()?;
     let wallet_scope =
-        signing_worker_wallet_ecdsa_owner_scope_v1(request.wallet_scope.as_ref())?.clone();
+        signing_worker_wallet_ecdsa_scope_v1(request.wallet_scope.as_ref())?.clone();
     if !matches!(
         request.presign_source,
         CloudflareEcdsaPrepareSourceV1::AvailablePool

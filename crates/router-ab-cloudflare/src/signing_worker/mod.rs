@@ -220,22 +220,32 @@ pub enum CloudflareSigningWorkerEcdsaPresignAuthorityV1 {
     OwnerWalletSession {
         wallet_scope: CloudflareSigningWorkerWalletScopeV1,
     },
-    OperationStepUp,
+    OperationStepUp {
+        wallet_scope: CloudflareSigningWorkerWalletScopeV1,
+    },
 }
 
 impl CloudflareSigningWorkerEcdsaPresignAuthorityV1 {
+    /// The wallet whose pool this authority fills.
+    pub fn wallet_scope(&self) -> &CloudflareSigningWorkerWalletScopeV1 {
+        match self {
+            Self::OwnerWalletSession { wallet_scope } | Self::OperationStepUp { wallet_scope } => {
+                wallet_scope
+            }
+        }
+    }
+
     fn validate_for_scope(
         &self,
         scope: &RouterAbEcdsaDerivationNormalSigningScopeV1,
     ) -> RouterAbProtocolResult<()> {
-        if let Self::OwnerWalletSession { wallet_scope } = self {
-            wallet_scope.validate()?;
-            if wallet_scope.wallet_id != scope.wallet_id {
-                return Err(RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MalformedWirePayload,
-                    "ECDSA presign owner wallet scope does not match signing scope",
-                ));
-            }
+        let wallet_scope = self.wallet_scope();
+        wallet_scope.validate()?;
+        if wallet_scope.wallet_id != scope.wallet_id {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                "ECDSA presign wallet scope does not match signing scope",
+            ));
         }
         Ok(())
     }

@@ -74,6 +74,7 @@ pub fn local_worker_owned_paths_v1(role: LocalServiceRoleV1) -> &'static [&'stat
             LOCAL_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
             router_ab_cloudflare::CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_REGISTRATION_PUBLIC_REQUEST_PATH,
             router_ab_cloudflare::CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PUBLIC_REQUEST_PATH,
+            router_ab_cloudflare::CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_EXPORT_PUBLIC_REQUEST_PATH,
         ],
         LocalServiceRoleV1::DeriverA => &[
             LOCAL_WORKER_HEALTH_PATH,
@@ -89,6 +90,7 @@ pub fn local_worker_owned_paths_v1(role: LocalServiceRoleV1) -> &'static [&'stat
             LOCAL_DERIVER_A_ED25519_YAO_REFRESH_CLIENT_PACKAGE_PATH,
             LOCAL_DERIVER_A_ED25519_YAO_REFRESH_SIGNING_WORKER_PACKAGE_PATH,
             router_ab_cloudflare::CLOUDFLARE_DERIVER_A_ROUTER_AB_ECDSA_DERIVATION_REGISTRATION_PRIVATE_REQUEST_PATH,
+            router_ab_cloudflare::CLOUDFLARE_DERIVER_A_ROUTER_AB_ECDSA_DERIVATION_EXPORT_PRIVATE_REQUEST_PATH,
         ],
         LocalServiceRoleV1::DeriverB => &[
             LOCAL_WORKER_HEALTH_PATH,
@@ -107,6 +109,7 @@ pub fn local_worker_owned_paths_v1(role: LocalServiceRoleV1) -> &'static [&'stat
             LOCAL_DERIVER_B_ED25519_YAO_REFRESH_CLIENT_PACKAGE_PATH,
             LOCAL_DERIVER_B_ED25519_YAO_REFRESH_SIGNING_WORKER_PACKAGE_PATH,
             router_ab_cloudflare::CLOUDFLARE_DERIVER_B_ROUTER_AB_ECDSA_DERIVATION_REGISTRATION_PRIVATE_REQUEST_PATH,
+            router_ab_cloudflare::CLOUDFLARE_DERIVER_B_ROUTER_AB_ECDSA_DERIVATION_EXPORT_PRIVATE_REQUEST_PATH,
         ],
         LocalServiceRoleV1::SigningWorker => &[
             LOCAL_WORKER_HEALTH_PATH,
@@ -121,6 +124,8 @@ pub fn local_worker_owned_paths_v1(role: LocalServiceRoleV1) -> &'static [&'stat
             LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PATH,
             LOCAL_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
             router_ab_cloudflare::CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PATH,
+            router_ab_cloudflare::CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_EXPORT_PREFLIGHT_PATH,
+            router_ab_cloudflare::CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_EXPORT_SHARE_PATH,
             router_ab_cloudflare::CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_INIT_PATH,
             router_ab_cloudflare::CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_STEP_PATH,
         ],
