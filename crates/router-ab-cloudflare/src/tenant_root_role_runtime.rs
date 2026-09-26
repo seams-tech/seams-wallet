@@ -2911,7 +2911,7 @@ pub async fn tenant_root_deriver_initial_activation_v1<Host: TenantRootDeriverHo
     // the decision's own activation time, so a committed decision is still
     // delivered after its window closes. A signed receipt the Router did not
     // commit is refused at any time.
-    require_router_committed_initial_activation_v1(host, issuer_keys.keys(), &verified).await?;
+    require_router_committed_activation_v1(host, issuer_keys.keys(), &verified).await?;
     let decided_at_ms = verified.activated_at_ms();
     let managed_backup = host
         .get_managed_backup(
@@ -2943,7 +2943,7 @@ pub async fn tenant_root_deriver_initial_activation_v1<Host: TenantRootDeriverHo
 
 /// Requires `receipt` to be byte-identical to the activation the Router has
 /// committed for its creation.
-async fn require_router_committed_initial_activation_v1<Host: TenantRootDeriverHostV1>(
+async fn require_router_committed_activation_v1<Host: TenantRootDeriverHostV1>(
     host: &Host,
     issuer_keys: &std::collections::BTreeMap<String, [u8; 32]>,
     receipt: &VerifiedTenantRootSignedActivationReceiptV1,
@@ -3588,6 +3588,16 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_refresh_activation_v1(
             "tenant-root refresh activation receipt names a foreign control-plane authority",
         ));
     }
+    // The Router commits one refresh decision before any Deriver swaps. A
+    // Deriver swaps only on that exact receipt, which is judged at its own
+    // activation time, so a committed decision is still delivered after its
+    // window closes. A signed receipt the Router did not commit is refused.
+    require_router_committed_activation_v1(
+        &CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
+        issuer_keys.keys(),
+        &verified,
+    )
+    .await?;
 
     let store = CloudflareTenantRootRoleShareStoreV1::from_env(env)
         .map_err(|error| tenant_root_store_error_v1("tenant-root role store lookup", error))?;
@@ -3715,18 +3725,6 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_refresh_activation_v1(
     } else {
         None
     };
-    if replay_after_swap.is_none()
-        && !store
-            .activation_replay_exists(&scope)
-            .await
-            .map_err(|error| {
-                tenant_root_store_error_v1("tenant-root refresh activation replay lookup", error)
-            })?
-    {
-        verified
-            .require_fresh(now_ms)
-            .map_err(candidate_derivation_error)?;
-    }
     let managed_restore_provenance = match active.as_ref() {
         None => None,
         Some(active) => match active.record().lifecycle() {

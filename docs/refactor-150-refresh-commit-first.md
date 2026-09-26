@@ -1,9 +1,10 @@
 # R150 tenant-root refresh: commit first, then roll forward
 
-Status: proposal for review (2026-09-26). The direction is approved: a durable,
-commit-first refresh decision followed by roll-forward delivery, with retired
-shares kept until safe erasure is established. This note proposes how. It
-changes no code.
+Status: the direction is approved (2026-09-26): a durable, commit-first refresh
+decision followed by roll-forward delivery, with retired shares kept until
+safe erasure is established. The commit point, roll-forward delivery and
+pending retirement are implemented on Cloudflare (see "Implemented" below).
+Refresh abandonment, admission during delivery and the VM adapter remain open.
 
 Related: [creation resume](./refactor-150-tenant-root-creation-resume.md) (the same
 policy for initial activation), [root retirement admission](./refactor-150-root-retirement-admission.md)
@@ -51,8 +52,24 @@ So if the Router stops after one or both Derivers swap, a retry obtains a new
 receipt that the swapped Derivers refuse, inside or after the window. The
 Router's active state still names the old epoch while one or both Derivers hold
 only the new one active. Root reads match the epoch exactly (`load_active`), so
-work at the Router's epoch fails closed at a swapped Deriver. This is inferred
-from the code. The first step below reproduces it before anything changes.
+work at the Router's epoch fails closed at a swapped Deriver.
+
+### Reproduced
+
+`testTenantRootRefreshDeliveryAfterLoss` in the Workers harness was run against
+the code before commit-first. It drops B's refresh activation only after A has
+answered its own, then retries the same manual operation. It observed
+(`R150_WORKERS_REFRESH_DELIVERY_OBSERVATION`):
+
+- **After B's activation was lost**, the request returned HTTP 500 and the
+  Router stayed at revision 3 with the attempt `executed` and uncommitted. A
+  held epoch 1 retired and epoch 2 active. B held epoch 1 active and epoch 2
+  pending.
+- **The retry** failed even earlier than the analysis above predicted, before
+  any receipt was issued. A's refresh execution looked for an active record at
+  the Router's epoch 1, found it retired, and refused (`tenant-root
+  role-private operation requires an active record`). The state stayed split,
+  and no retry can move it.
 
 The same order also erases the old shares at once, so work already admitted on
 the old epoch cannot finish, contrary to Spec 6.
@@ -124,6 +141,51 @@ be abandoned explicitly:
 Today's pending cleanup is bound to the creation fence, so this needs a
 refresh-scoped abandonment (open question 1). The old epoch stays active
 throughout, so abandoning a refresh never affects availability.
+
+## Implemented on Cloudflare (2026-09-26)
+
+- **Commit first.** `finish_cloudflare_router_tenant_root_refresh_v1`
+  (`strict_worker/router.rs`) persists the control plane's receipt in the
+  Router's creation state before delivering it. If a concurrent retry
+  committed first, its receipt is the one delivered.
+- **Roll forward.** `deliver_cloudflare_router_committed_refresh_v1` delivers
+  the committed receipt to both Derivers in parallel and returns the first
+  failure. Every retry path delivers the committed receipt and never obtains
+  another: an exact replay, a revision that moved, a terminal attempt before a
+  new one, and a managed-restore replay.
+- **Deriver check.** A Deriver's refresh activation requires the Router's
+  committed receipt byte for byte (`require_router_committed_activation_v1`,
+  shared with initial activation). The Router's commit replaces the check
+  against current time.
+- **Retirement pending.** The refresh path no longer erases. The retired share
+  and its backup are kept, and the response reports `retirement:
+  {"kind":"pending"}`. The control-plane `RetiredAfterRefresh` command and the
+  Deriver's retired cleanup remain, unused, for the safe-retirement rule.
+
+Not yet implemented:
+- delivery status recorded per role at the Router (open question 2);
+- refresh abandonment (open question 1);
+- the VM adapter.
+
+### Evidence
+
+`testTenantRootRefreshDeliveryAfterLoss`, with the same fault as the
+reproduction above:
+- **First attempt:** HTTP 500. The Router is committed at revision 4 with its
+  fence terminal. A holds epoch 1 retired and epoch 2 active; B holds epoch 1
+  active and epoch 2 pending.
+- **Retry:** HTTP 200 with the same receipt digest. Both roles hold epoch 1
+  retired and epoch 2 active, with retirement `pending`.
+
+The manual-refresh E2E, the managed-restore E2E and the signing-continuity
+checks after refresh pass with the retired shares kept.
+
+`--refresh-delivery-after-expiry` is an opt-in harness mode, because it waits
+more than five minutes. It applies the same fault, then holds the retry for
+310 s, past both the committed receipt's window and the refresh context's
+lifetime. The retry still returns HTTP 200 with the committed receipt digest,
+and both roles end on epoch 2
+(`tenant_root_refresh_delivery_after_expiry_workers_e2e_v1`).
 
 ## Open questions
 

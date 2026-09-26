@@ -57,6 +57,7 @@ const deriverAWalletBurnPath = '/router-ab/deriver-a/ed25519-yao/burn-pair';
 const tenantRootCreationPath = '/router-ab/internal/tenant-root/creation/v1/create';
 const tenantRootCreationSweepPath = '/router-ab/internal/tenant-root/creation/v1/sweep-abandoned';
 const tenantRootRefreshPath = '/router-ab/internal/tenant-root/refresh/v1/execute';
+const deriverRefreshActivationPath = '/router-ab/internal/deriver/tenant-root/refresh/v1/activate';
 const creationStateActiveStatePath = '/router-ab/internal/tenant-root/creation/v1/active-state';
 const deriverCreateRoleSharePath =
   '/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share';
@@ -136,6 +137,26 @@ const recoveryDropNextActivation = {
   'tenant-root-control-plane': false,
 };
 let recoveryCapturedControlPlaneActivation;
+// The recovery Router's peers can each drop their next request to one path,
+// before the peer reads it; a drop can first wait until another peer has
+// answered a request to that path.
+const recoveryDropNextOnPath = {
+  'deriver-a': null,
+  'deriver-b': null,
+  'tenant-root-control-plane': null,
+};
+const recoveryAnswered = new Map();
+function recoveryAnsweredSignal(workerName, path) {
+  const key = `${workerName} ${path}`;
+  if (!recoveryAnswered.has(key)) {
+    let resolve;
+    const promise = new Promise((done) => {
+      resolve = done;
+    });
+    recoveryAnswered.set(key, { promise, resolve });
+  }
+  return recoveryAnswered.get(key);
+}
 // The worker the recovery Router reaches as Deriver A: normally Deriver A, or
 // its late-writing variant, which shares its database and bucket.
 let recoveryDeriverA = 'deriver-a';
@@ -345,7 +366,16 @@ function routerWorker(fixture, capturePairPreparation = false, gateDeriverB = fa
 
 function recoveryPeer(workerName, faultPath) {
   return async (request, miniflare) => {
-    if (new URL(request.url).pathname === faultPath) {
+    const path = new URL(request.url).pathname;
+    const drop = recoveryDropNextOnPath[workerName];
+    if (drop && drop.path === path) {
+      recoveryDropNextOnPath[workerName] = null;
+      if (drop.afterAnsweredBy) {
+        await recoveryAnsweredSignal(drop.afterAnsweredBy, path).promise;
+      }
+      return new Response(`simulated lost ${workerName} request to ${path}`, { status: 503 });
+    }
+    if (path === faultPath) {
       if (workerName === 'tenant-root-control-plane') {
         recoveryCapturedControlPlaneActivation = await request.clone().text();
       }
@@ -357,7 +387,9 @@ function recoveryPeer(workerName, faultPath) {
     const worker = await miniflare.getWorker(
       workerName === 'deriver-a' ? recoveryDeriverA : workerName,
     );
-    return worker.fetch(request);
+    const response = await worker.fetch(request);
+    recoveryAnsweredSignal(workerName, path).resolve();
+    return response;
   };
 }
 
@@ -1994,6 +2026,18 @@ async function testTenantRootCreationRecoveryPaths(topology, databases) {
     creationState,
   );
 
+  // A refresh whose delivery to B is lost after A swapped, then retried.
+  const splitRefresh = recoveryCreationGrant('refresh-split-delivery', 60_000);
+  result = await create(splitRefresh);
+  assert.equal(result.status, 200, result.body);
+  assert.deepEqual(await lifecycles(splitRefresh), ['active', 'active']);
+  const refreshDelivery = await testTenantRootRefreshDeliveryAfterLoss(
+    router,
+    splitRefresh,
+    databases,
+    creationState,
+  );
+
   // Three short-lived ceremonies that the window closes on.
   const lifetimeMs = 20_000;
   const committed = recoveryCreationGrant('committed-then-expired', lifetimeMs);
@@ -2167,6 +2211,7 @@ async function testTenantRootCreationRecoveryPaths(topology, databases) {
       abandonedAfterExpiry: true,
       commitRefusedAfterFence: commitAfterFence.status,
       manualRefresh,
+      refreshDelivery,
       lateWriteAfterCleanup: {
         fenceInstalledRoles: lateAbandonment.installed_roles,
         lateCreationStatus: late.status,
@@ -2187,8 +2232,9 @@ async function testTenantRootCreationRecoveryPaths(topology, databases) {
 /// One manual refresh of an active root. Admission, attempt reservation, the
 /// commitment, contribution and installation checkpoints and the activation
 /// run in the Router's creation state. Both roles end on the next epoch with
-/// the previous one erased, an exact retry returns the recorded outcome, and a
-/// second operation inside the manual interval is throttled.
+/// the previous one retired and kept, retirement pending; an exact retry
+/// returns the recorded outcome, and a second operation inside the manual
+/// interval is throttled.
 async function testTenantRootManualRefresh(router, ceremony, databases, creationState) {
   const scope = {
     identity_digest_b64u: ceremony.identity_digest_b64u,
@@ -2232,9 +2278,10 @@ async function testTenantRootManualRefresh(router, ceremony, databases, creation
   assert.equal(refreshed.status, 200, refreshed.body);
   const response = JSON.parse(refreshed.body);
   assert.ok(response.lifecycle_revision > before.lifecycle_revision, refreshed.body);
-  assert.equal(response.retirement.kind, 'confirmed', refreshed.body);
-  assert.deepEqual(await epochs(databases.deriverA), [[2, 'active']], 'epoch 1 is erased');
-  assert.deepEqual(await epochs(databases.deriverB), [[2, 'active']], 'epoch 1 is erased');
+  assert.equal(response.retirement.kind, 'pending', refreshed.body);
+  const retiredThenActive = [[1, 'retired'], [2, 'active']];
+  assert.deepEqual(await epochs(databases.deriverA), retiredThenActive, 'epoch 1 is kept retired');
+  assert.deepEqual(await epochs(databases.deriverB), retiredThenActive, 'epoch 1 is kept retired');
   const after = await activeState();
   assert.equal(after.lifecycle_revision, response.lifecycle_revision);
   assert.equal(after.fence.kind, 'terminal', JSON.stringify(after.fence));
@@ -2244,19 +2291,161 @@ async function testTenantRootManualRefresh(router, ceremony, databases, creation
   const replay = JSON.parse(replayed.body);
   assert.equal(replay.activation_receipt_digest_b64u, response.activation_receipt_digest_b64u);
   assert.equal(replay.lifecycle_revision, response.lifecycle_revision);
+  assert.equal(replay.retirement.kind, 'pending', replayed.body);
 
   const throttled = await refresh('harness-manual-refresh-2', response.lifecycle_revision);
   assert.equal(throttled.status, 429, throttled.body);
   assert.equal(JSON.parse(throttled.body).code, 'tenant_root_refresh_throttled');
-  assert.deepEqual(await epochs(databases.deriverA), [[2, 'active']]);
+  assert.deepEqual(await epochs(databases.deriverA), retiredThenActive);
 
   return {
     revisions: [before.lifecycle_revision, response.lifecycle_revision],
     retirement: response.retirement.kind,
-    epochsAfter: [2, 2],
+    epochsAfter: [[1, 'retired'], [2, 'active']],
     exactRetryStatus: replayed.status,
     secondOperationStatus: throttled.status,
   };
+}
+
+/// A refresh whose activation is lost on its way to Deriver B after Deriver A
+/// swapped. The Router commits the refresh decision before any Deriver
+/// swaps, so the first attempt leaves the Router committed, A delivered and B
+/// pending. The retry delivers the exact committed receipt to B; nothing
+/// issues a second receipt.
+async function testTenantRootRefreshDeliveryAfterLoss(
+  router,
+  ceremony,
+  databases,
+  creationState,
+  retryAfterMs = 0,
+) {
+  const scope = {
+    identity_digest_b64u: ceremony.identity_digest_b64u,
+    custody_lineage_b64u: ceremony.custody_lineage_b64u,
+  };
+  const activeState = async () => {
+    const read = await creationState(ceremony, creationStateActiveStatePath, {
+      kind: 'read',
+      ...scope,
+    });
+    assert.equal(read.status, 200, read.body);
+    return JSON.parse(read.body);
+  };
+  const epochs = async (database) =>
+    (
+      await database
+        .prepare(
+          `SELECT tenant_root_share_epoch AS epoch, lifecycle FROM tenant_root_role_shares
+           WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch`,
+        )
+        .bind(ceremony.custody_lineage_b64u)
+        .all()
+    ).results.map((row) => [row.epoch, row.lifecycle]);
+  const refresh = async (expectedRevision) => {
+    const response = await postWorkerJson(router, tenantRootRefreshPath, {
+      operation_id: 'harness-refresh-delivery-after-loss',
+      ...scope,
+      expected_lifecycle_revision: expectedRevision,
+      expires_at_ms: Date.now() + 60_000,
+      trigger: 'manual',
+    });
+    return { status: response.status, body: await response.text() };
+  };
+  const observe = async (label, attempt) => {
+    const state = await activeState();
+    const observation = {
+      label,
+      status: attempt.status,
+      body: attempt.body.slice(0, 400),
+      router: {
+        lifecycle_revision: state.lifecycle_revision,
+        fence: state.fence.kind,
+        activation_receipt_digest_b64u: state.activation_receipt_digest_b64u,
+      },
+      deriverA: await epochs(databases.deriverA),
+      deriverB: await epochs(databases.deriverB),
+    };
+    console.log(`R150_WORKERS_REFRESH_DELIVERY_OBSERVATION ${JSON.stringify(observation)}`);
+    return { state, observation };
+  };
+
+  const before = await activeState();
+  recoveryAnswered.delete(`deriver-a ${deriverRefreshActivationPath}`);
+  recoveryDropNextOnPath['deriver-b'] = {
+    path: deriverRefreshActivationPath,
+    afterAnsweredBy: 'deriver-a',
+  };
+  const lost = await refresh(before.lifecycle_revision);
+  assert.equal(recoveryDropNextOnPath['deriver-b'], null, 'B activation must have been dropped');
+  const afterLoss = await observe('b_activation_lost', lost);
+  if (retryAfterMs > 0) {
+    await sleep(retryAfterMs);
+  }
+  const retried = await refresh(before.lifecycle_revision);
+  const afterRetry = await observe('retry', retried);
+
+  // The first attempt committed at the Router before delivering: A holds the
+  // new epoch, B is still pending.
+  assert.notEqual(lost.status, 200, lost.body);
+  assert.equal(afterLoss.state.lifecycle_revision, before.lifecycle_revision + 1);
+  assert.deepEqual(afterLoss.observation.deriverA, [[1, 'retired'], [2, 'active']]);
+  assert.deepEqual(afterLoss.observation.deriverB, [[1, 'active'], [2, 'pending']]);
+  // The retry delivers the committed receipt to B.
+  assert.equal(retried.status, 200, retried.body);
+  const response = JSON.parse(retried.body);
+  assert.equal(
+    response.activation_receipt_digest_b64u,
+    afterLoss.state.activation_receipt_digest_b64u,
+    'the retry delivers the receipt committed by the first attempt',
+  );
+  assert.equal(response.retirement.kind, 'pending', retried.body);
+  assert.equal(afterRetry.state.activation_receipt_digest_b64u, response.activation_receipt_digest_b64u);
+  assert.deepEqual(afterRetry.observation.deriverA, [[1, 'retired'], [2, 'active']]);
+  assert.deepEqual(afterRetry.observation.deriverB, [[1, 'retired'], [2, 'active']]);
+  return {
+    fault: 'deriver_b_refresh_activation_lost_after_router_commit',
+    lostStatus: lost.status,
+    committedBeforeDelivery: true,
+    retryStatus: retried.status,
+    retryDeliveredCommittedReceipt: true,
+    retryAfterMs,
+    retirement: response.retirement.kind,
+  };
+}
+
+/// Opt-in (`--refresh-delivery-after-expiry`): the lost-delivery fault, with
+/// the retry held until the committed receipt's window and the refresh
+/// context have both expired. The committed decision is still delivered.
+async function testTenantRootRefreshDeliveryAfterExpiry(topology, databases) {
+  const router = await topology.getWorker('router-recovery');
+  const creationNamespace = await topology.getDurableObjectNamespace(
+    tenantRootCreationDoBinding,
+    'router',
+  );
+  const creationState = async (ceremony, path, body) => {
+    const stub = creationNamespace.get(creationNamespace.idFromName(ceremony.creation_object_name));
+    const response = await stub.fetch(
+      `https://router-ab-do.internal${path}`,
+      authenticatedJsonRequest(body),
+    );
+    return { status: response.status, body: await response.text() };
+  };
+  const ceremony = recoveryCreationGrant('refresh-delivery-after-expiry', 60_000);
+  const created = await postWorkerJson(router, tenantRootCreationPath, {
+    creation_grant_b64u: ceremony.creation_grant_b64u,
+  });
+  assert.equal(created.status, 200, await created.text());
+  // Past the five-minute receipt window and context lifetime.
+  const summary = await testTenantRootRefreshDeliveryAfterLoss(
+    router,
+    ceremony,
+    databases,
+    creationState,
+    300_000 + 10_000,
+  );
+  console.log(
+    JSON.stringify({ kind: 'tenant_root_refresh_delivery_after_expiry_workers_e2e_v1', ...summary }),
+  );
 }
 
 async function testDeriverAWalletDoPreparation(topology, rootIdentity) {
@@ -3150,20 +3339,30 @@ async function testTenantRootManagedRestoreOperatingPath(
     databases.deriverA
       .prepare(
         `SELECT tenant_root_share_epoch, lifecycle FROM tenant_root_role_shares
-         WHERE tenant_identity_digest_hex = ? AND custody_lineage_b64u = ?`,
+         WHERE tenant_identity_digest_hex = ? AND custody_lineage_b64u = ?
+         ORDER BY tenant_root_share_epoch`,
       )
       .bind(identityDigestHex, tenantRoot.custody_lineage_b64u)
       .all(),
     databases.deriverB
       .prepare(
         `SELECT tenant_root_share_epoch, lifecycle FROM tenant_root_role_shares
-         WHERE tenant_identity_digest_hex = ? AND custody_lineage_b64u = ?`,
+         WHERE tenant_identity_digest_hex = ? AND custody_lineage_b64u = ?
+         ORDER BY tenant_root_share_epoch`,
       )
       .bind(identityDigestHex, tenantRoot.custody_lineage_b64u)
       .all(),
   ]);
+  // B's previous epoch is retired and kept: erasure waits for the
+  // safe-retirement rule, so the refresh reports its retirement pending. A
+  // had lost its epoch-1 share, so it holds only the restored-and-refreshed
+  // epoch 2.
+  assert.equal(refresh.retirement.kind, 'pending', JSON.stringify(refresh));
   assert.deepEqual(activeA.results, [{ tenant_root_share_epoch: 2, lifecycle: 'active' }]);
-  assert.deepEqual(activeB.results, [{ tenant_root_share_epoch: 2, lifecycle: 'active' }]);
+  assert.deepEqual(activeB.results, [
+    { tenant_root_share_epoch: 1, lifecycle: 'retired' },
+    { tenant_root_share_epoch: 2, lifecycle: 'active' },
+  ]);
   const [backupBucketA, backupBucketB] = await Promise.all([
     topology.getR2Bucket(managedBackupR2Binding, 'deriver-a'),
     topology.getR2Bucket(managedBackupR2Binding, 'deriver-b'),
@@ -3174,12 +3373,12 @@ async function testTenantRootManagedRestoreOperatingPath(
   const backupKeysA = backupsA.objects.map((object) => object.key);
   const backupKeysB = backupsB.objects.map((object) => object.key);
   assert.ok(
-    !backupKeysA.includes(`${backupPrefix}/deriver-a/${backupCoordinates}/1.bin`),
-    'Deriver A retired backup must be absent',
+    backupKeysA.includes(`${backupPrefix}/deriver-a/${backupCoordinates}/1.bin`),
+    'Deriver A retired backup is kept while its retirement is pending',
   );
   assert.ok(
-    !backupKeysB.includes(`${backupPrefix}/deriver-b/${backupCoordinates}/1.bin`),
-    'Deriver B retired backup must be absent',
+    backupKeysB.includes(`${backupPrefix}/deriver-b/${backupCoordinates}/1.bin`),
+    'Deriver B retired backup is kept while its retirement is pending',
   );
   assert.ok(
     backupKeysA.includes(`${backupPrefix}/deriver-a/${backupCoordinates}/2.bin`),
@@ -3519,6 +3718,10 @@ async function main() {
     }
     if (testDeriverBCompletionBurn) {
       await testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, databases);
+      return;
+    }
+    if (process.argv.includes('--refresh-delivery-after-expiry')) {
+      await testTenantRootRefreshDeliveryAfterExpiry(topology, databases);
       return;
     }
     if (process.argv.includes('--signing-worker-finalization-lookup')) {
