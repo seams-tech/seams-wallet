@@ -5,13 +5,14 @@ import {
   encodeTenantRootIdentityV1,
 } from '@shared/tenant-root';
 import { base64UrlEncode } from '@shared/utils/base64';
+import type { TenantRootRuntimeActiveLineageV1 } from '../../domains/tenantRoot/tenantRootCustodyLineage';
 import type { WalletConsoleTenantRootActiveLineageResolverV1 } from './walletConsoleOps';
 
 export async function resolveRuntimeTenantRootLineage(
   environments: RouterApiProjectEnvironmentResolver,
   roots: WalletConsoleTenantRootActiveLineageResolverV1,
   scope: RuntimePolicyScope & { readonly signingRootId: string },
-) {
+): Promise<TenantRootRuntimeActiveLineageV1 | null> {
   if (scope.signingRootId !== deriveSigningRootId(scope)) {
     throw new Error('Signing-root ID does not match the runtime environment');
   }
@@ -37,7 +38,7 @@ export async function resolveRuntimeTenantRootLineage(
   if (lineage.identityDigestB64u !== base64UrlEncode(digest)) {
     throw new Error('Active tenant-root lineage differs from the resolved Console environment');
   }
-  return { ...lineage, projectEnvironmentId: environment.id };
+  return { ...lineage, identity: identity.value, projectEnvironmentId: environment.id };
 }
 
 function matchesRuntimeEnvironment(

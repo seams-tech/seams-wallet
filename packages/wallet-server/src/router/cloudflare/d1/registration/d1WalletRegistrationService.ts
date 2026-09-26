@@ -2561,7 +2561,12 @@ export class CloudflareD1WalletRegistrationService {
           message: 'Ed25519 tenant root is not active',
         };
       }
-      return { ok: true, identity: identity.identity, ...tenantRoot };
+      return {
+        ok: true,
+        identity: tenantRoot.identity,
+        identityDigestB64u: tenantRoot.identityDigestB64u,
+        custodyLineageB64u: tenantRoot.custodyLineageB64u,
+      };
     } catch (error: unknown) {
       return {
         ok: false,

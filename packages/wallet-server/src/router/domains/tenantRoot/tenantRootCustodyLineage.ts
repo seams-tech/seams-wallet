@@ -7,6 +7,8 @@ export type TenantRootActiveLineageV1 = {
 };
 
 export type TenantRootRuntimeActiveLineageV1 = TenantRootActiveLineageV1 & {
+  /** The lineage's identity, whose envId is the Console environment ID. */
+  readonly identity: TenantRootIdentityV1;
   readonly projectEnvironmentId: string;
 };
 
