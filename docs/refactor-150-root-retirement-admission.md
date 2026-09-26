@@ -156,121 +156,218 @@ Run each schedule against DO SQLite and role-private VM SQLite:
 The current pair-store adapter tests establish local claims and replay only.
 They do not satisfy these cross-owner schedules.
 
-## Proposed bounded mechanism (for review, 2026-09-25)
+## Proposed bounded mechanism (revised for review, 2026-09-26)
 
-Status: proposal. This section does not approve the contract above. It gives a
-concrete candidate that bounds retirement time without treating silence as
-proof. No refresh, retirement, restore or cutover path is disabled or changed
-by it.
+Status: proposal. The admission-and-drain direction is approved. This revision
+answers the review of the first version (2026-09-25), which checked each
+effect's deadline only when a recipient accepted it. That left open an effect
+that starts just before its deadline and finishes afterward, and it did not
+show that every recipient, SigningWorker included, enforces the rule. No
+refresh, retirement, restore or cutover path is changed by this document.
 
-### Current code facts this must replace
+### Current code facts
 
-- Refresh erases the retired share immediately. The Router activates both
-  roles and then issues `RetiredAfterRefresh` cleanup straight away, without
-  waiting for in-flight work (`strict_worker/router.rs:3620-3697`).
-- Source retirement deletes the lineage in one batch and moves recovery
-  attempts to `destroying`. There is no closing state or drain
-  (`tenant_root_role_d1/source_retirement.rs:14-86`), and no test covers it.
-- The cutover `Drained` stage accepts a drain receipt supplied by the caller.
-  Nothing consumes `derivation_gate()`
-  (`tenant_root_cutover_lifecycle.rs:1042`, `:1180-1193`).
-- Root reads go through `load_active` with an exact epoch match. Work bound to
-  a swapped epoch therefore fails closed at its next root read. An effect that
-  has already read the root is not fenced.
-- No root-use admission table or drain exists on Cloudflare or the VM.
+- **Refresh no longer erases at activation.** It keeps the retired share and
+  reports retirement `pending` (commit-first refresh,
+  [proposal](./refactor-150-refresh-commit-first.md)). Erasure waits for this
+  rule.
+- **Source retirement deletes at once.** It deletes the lineage in one batch
+  and moves recovery attempts to `destroying`, with no closing state or drain
+  (`tenant_root_role_d1/source_retirement.rs`). No test covers it.
+- **Cutover takes caller-supplied receipts.** The `Drained` stage accepts a
+  drain receipt from the caller, and nothing consumes `derivation_gate()`
+  (`tenant_root_cutover_lifecycle.rs`).
+- **Root reads match the epoch exactly** (`load_active`), and each re-checks
+  the custody binding against the reading role's clock. The binding's
+  lifetime is at most `TENANT_ROOT_MAX_LIFETIME_MS_V1` (300 s), accepted up to
+  `TENANT_ROOT_MAX_CLOCK_SKEW_MS_V1` (60 s) past expiry
+  (`router-ab-core/src/derivation/tenant_root_custody_binding.rs:337-349`).
+- **Yao already enforces a deadline where an effect commits.** A pair whose
+  completion arrives at least `YAO_RUNNING_LIFETIME_MS` after start (20 s on
+  Cloudflare, 60 s on the VM) is recorded `Burned`, not `Completed`
+  (`ed25519_yao_lifecycle.rs:381-386`). A returns its execution to the Router
+  only for a `Completed` pair.
+- **SigningWorker commits root-derived material with no deadline.** This
+  covers Yao package delivery and promotion, ECDSA derivation activation and
+  refresh, and lane activation. Timestamps there are only metadata
+  (`ed25519_yao_signing_worker.rs:1727-1849`; `lib.rs:8680-8830`;
+  `signing_worker/ecdsa_lane.rs`). A completed execution's package can
+  therefore be delivered and activated at any later time.
+- **No root-use admission table or gate exists** on Cloudflare or the VM.
 
-### Mechanism: deadline-fenced root-use admissions, enforced by recipients
+### The rule: deadlines are enforced where effects commit
 
-The fence is tenant-root-wide. It is keyed by (tenant-root identity digest,
-lineage, epoch, role) and covers every wallet of that root.
+A deadline that only gates acceptance says nothing about when an accepted
+effect finishes. So the rule is enforced at every **commit point**: the
+storage transaction that makes a root-derived effect count.
 
-1. **Gate.** Each role D1 gets one gate row per (identity, lineage, epoch):
-   `open → closing → closed`. The gate lives in the same database as the
-   share and changes in the same transactions as epoch swap, restore
-   promotion and source retirement.
-2. **Admission before any root read.** Every root-using operation must first
-   commit an admission in the role D1 while the gate is `open` for the exact
-   epoch. This covers Yao pair preparation and execution, ECDSA derivation and
-   presign root use, lane provisioning and refresh, recovery and export.
-   - The key follows the contract above.
-   - Each admission carries an immutable `effect_deadline_ms`, set to
-     `now + W`, where `W` is a protocol constant no longer than the pair
-     readiness expiry.
-   - A lost reply leaves one obligation, found by exact read.
-3. **The deadline travels with every effect.** The deadline and the
-   admission id are bound into every root-derived effect:
+1. **Admission.** Every root-using operation commits an admission in its role
+   store while the epoch's gate is `open`, before its first root read. The
+   admission carries an immutable deadline `D = admitted_at + W`.
+2. **The deadline travels with every root-derived effect.** `D` and the
+   admission id are bound into the signed artifacts that cross roles:
    - readiness receipts and start grants;
    - Yao round and target-proof messages;
    - sealed completions;
    - SigningWorker activation packages;
-   - ECDSA derivation results.
+   - ECDSA derivation results;
+   - lane activations.
+3. **Every commit point checks `D` inside its own transaction.** It commits
+   the effect only if its clock reads at most `D`. Otherwise it records the
+   effect as refused (as Yao's `Burned` does today) and the effect never
+   counts. The commit points are listed below.
+4. **Retirement.**
+   1. CAS the gate `open → closing`. New admissions for the epoch fail.
+   2. Wait until the retiring role's clock reads more than `D_max + 2S`,
+      where `D_max` is the largest deadline among the epoch's admissions.
+   3. In one conditional transaction, move the gate to `closed`, retire or
+      erase the share, and record a signed gate-closed receipt. The
+      transaction fails if any admission's `D + 2S` is still in the future.
 
-   The sending role signs them.
-4. **Recipients enforce the deadline at acceptance.** Each receiving role
-   (the peer Deriver, SigningWorker, the Router coordinator) rejects any
-   effect whose deadline has passed, using its own clock plus a bounded skew
-   `S`.
-   - Acceptance is judged when the effect is executed, not when it is
-     received or queued, so queued and redelivered work is covered.
-   - A recipient also rejects any admission id it holds a `closing` or
-     `closed` gate receipt for.
-5. **Retirement.**
-   1. CAS the gate `open → closing`. New admissions for that epoch now fail.
-   2. Wait until `now > max(effect_deadline_ms) + S` over that epoch's
-      admissions.
-   3. In one conditional transaction:
-      - move the gate `closing → closed`;
-      - retire or erase the share;
-      - record a signed gate-closed receipt.
+The commit points that must check `D`, and whether each checks a deadline
+today:
 
-      The transaction fails if any admission's deadline plus `S` is still in
-      the future, so a racing admission or replacement cannot pass. The wait
-      is bounded by `W + S`.
-6. **Early settlement is optional.** An admission whose operation reached a
-   durable terminal outcome may be marked `settled` so reporting can ignore
-   it. Retirement correctness does not depend on this: the deadline alone
-   bounds when any effect can still be accepted.
+| Commit point | Owner | Checks a deadline today? |
+| --- | --- | --- |
+| Deriver root read (prepare, execute) | A, B | Yes, the custody binding at each read |
+| Pair start admission | A (with B's acceptance) | Yes, readiness and prepared expiry |
+| Pair completion | A and B | Yes, `YAO_RUNNING_LIFETIME_MS` → `Burned` |
+| ECDSA derivation evaluation | Each Deriver | At its single root read |
+| Router finalization of an execution | Router | No |
+| SigningWorker package, activation, promotion, lane commit | SigningWorker | No |
+| Gateway wallet activation | Gateway | Separate owner; ordered by cutover |
 
-### Why this satisfies the contract
+Router finalization and every SigningWorker commit need the check added.
+SigningWorker is the decisive one: it is the last commit point of every
+registration, recovery, export, derivation and lane operation.
 
-- **Admitted, delayed, running and queued effects are covered.** Each carries
-  a deadline that every recipient enforces when it acts on it. A running
-  executor past its deadline cannot get any recipient to accept an effect.
-  This is a recipient-side fence, not an executor timeout. `Burned`, missing
-  DO records and process silence play no part.
-- **No indefinite wait.** Retirement never waits on proof of executor
-  quiescence, so it cannot stall. It waits at most `W + S`.
-- **Historical records.** Admission and gate records survive closing for
-  exact reconciliation. A historical receipt reads its outcome but can never
-  authorize a new root read.
+### Why this bounds every effect
+
+Assumption C: every role's clock is within `S` of true time.
+
+- **A commit point commits only while its clock reads at most `D`.** Under C,
+  every commit of an effect with deadline `D` happens at true time at most
+  `D + S`.
+- **Retirement finalizes only after its clock reads more than `D_max + 2S`.**
+  Under C, that is true time more than `D_max + S`.
+- **So every commit of every admitted effect happens before finalization.**
+  An effect that started before its deadline and finished after it was
+  refused at its commit point and never counted. Retransmitted, queued or
+  restarted work is covered, because the check runs at commit, not when a
+  message is sent or received.
+- **Retirement waits at most `W + 2S`** after the last admission, and never
+  waits on proof of executor quiescence.
+
+What the rule does not reach:
+
+- **Effects with no commit point that can check `D`.** Here durable completion
+  evidence is still required, as in the contract above. With the table
+  complete, none remains among the root-derived effects. Any new commit point
+  must be added to the table before it ships.
+- **Consequences after a legitimate commit.** SigningWorker signing later with
+  material it activated in time is independent wallet material, which
+  retirement does not revoke (see the invariant above). It needs no pushed
+  gate-closed receipts: the deadline at its activation commit is enough.
+  Pushing receipts to SigningWorker could let retirement finish early, but
+  correctness does not need it.
+
+### Choosing `W` from existing deadlines and timings
+
+`W` must cover the longest legitimate span from admission to an operation's
+last commit point.
+
+| Operation | Existing deadlines on that span | Measured duration |
+| --- | --- | --- |
+| Yao registration, recovery, export (Cloudflare) | Router authority 60 s; readiness 60 s; custody binding 60 s + 60 s skew; running 20 s | Hosted Router execution 2.99–3.64 s (n = 2, `deployed-registration-baseline.md`); local workerd median 0.30 s, max 0.48 s (n = 40); native registration p95 0.10 s |
+| Yao on the VM | Prepared 60 s; running 60 s; stream IO 30 s | Native p95 0.10 s; no VM-hosted measurements |
+| ECDSA derivation | Request expiry up to 300 s; custody binding at most 300 s | Hosted respond 1.26–2.40 s, activate 1.49–3.53 s |
+| Lane provisioning and refresh | Caller-supplied job expiry, no server maximum | None |
+
+Proposal: **`W = TENANT_ROOT_MAX_LIFETIME_MS_V1` = 300 s**, the frozen maximum
+lifetime every root-bound authorization already has.
+- It covers the longest existing span, ECDSA derivation's 300 s request
+  expiry.
+- It is about 80 times the largest measured hosted duration.
+- Each operation's own tighter deadline still applies inside it.
+
+Two conditions come with it:
+- **Lane jobs.** A job's expiry must be capped at `W` before lane operations
+  can be admitted under this rule.
+- **SigningWorker delivery.** Delivery must happen within `W` of admission. A
+  completed execution whose package arrives later is refused and must be
+  re-admitted, which is itself refused once the gate is closing.
+
+### `S`: the clock assumption and how to enforce it
+
+- **Value: `S = TENANT_ROOT_MAX_CLOCK_SKEW_MS_V1` = 60 s.** It is the allowance
+  the code already applies to every tenant-root ceremony and custody binding.
+  In practice clocks are much tighter: Yao readiness and start acceptance
+  already refuse more than 1 s of future skew, and those checks pass on both
+  hosts.
+- **Cloudflare.** Workers read the platform clock (`Date.now()`, which
+  advances at I/O). The deployment cannot inspect how that clock is
+  synchronised, so C is an operator-reviewed platform assumption.
+- **VM.** Each role host must run disciplined time (for example chrony). Each
+  role process checks its kernel synchronisation status (`ntp_adjtime`: not
+  `STA_UNSYNC`, and estimated maximum error within `S / 4`) at startup and
+  before every admission and retirement step. While the check fails, the role:
+  - refuses new root-use admissions;
+  - refuses to finalize retirement;
+  - fails its readiness check.
+
+  A VM without the check cannot establish C, so its retirement stays
+  pending.
+- **Detection on both hosts.** Every signed cross-role artifact already
+  carries its sender's time. A recipient that sees a peer timestamp more
+  than `S / 2` from its own clock refuses it and raises an alarm. A role found
+  outside `S` is a custody incident: retirement stays pending until an
+  operator reviews it.
+
+If C cannot be established for a deployment, retirement there remains
+pending. It is never finalized on a timeout alone.
 
 ### Coverage of each transition
 
 | Transition | Application |
 | --- | --- |
-| Manual and scheduled refresh | Close the old epoch's gate before `RetiredAfterRefresh` cleanup. The new epoch opens when it activates. |
-| A/B epoch swap | Each role closes its own old-epoch gate. The Router issues cleanup only after both roles' gate-closed receipts exist. |
-| Source retirement | Replace the immediate delete with closing, wait and a closed-plus-delete batch. The existing fence triggers stay. |
-| Managed restore replacing live authority | Close the live epoch's gate before the restored epoch is promoted. The restored epoch stays pending until then. |
-| Custody cutover | `Drained` requires both roles' signed gate-closed receipts instead of a caller-supplied receipt. `derivation_gate()` becomes the check that SigningWorker and the Router consume before activating the destination. |
+| Manual and scheduled refresh | After the refresh commit, close the old epoch's gate. The new epoch opens when it is delivered. Erase the old share only once closed |
+| A/B epoch swap | Each role closes its own old-epoch gate. The Router records erasure only after both roles' gate-closed receipts exist |
+| Source retirement | Replace the immediate delete with closing, the wait, and a closed-plus-delete batch |
+| Managed restore replacing live authority | Close the live epoch's gate before the restored epoch is promoted |
+| Custody cutover (separate approval) | `Drained` requires both roles' signed gate-closed receipts. `derivation_gate()` becomes the check SigningWorker and the Router consume before activating the destination |
 
 ### What it does not cover
 
 - It does not retract a signature already released, or revoke independent
   lane material, SigningWorker activations or Gateway sessions. Those keep
-  their own fences; cutover orders them separately.
-- It depends on each role's clock. `S` must be an operator-reviewed bound,
-  and a role whose clock is outside `S` must be treated as a custody incident.
-- A single deadline per admission bounds multi-round Yao work to `W`. Long
-  operations must either fit inside `W` or re-admit per round. Re-admission
-  is refused once the gate is closing.
+  their own fences, and cutover orders them separately.
+- It depends on assumption C. A clock outside `S` is a custody incident.
+- A single deadline per admission bounds multi-round work to `W`. Longer work
+  must re-admit per round, which is refused once the gate is closing.
+
+### Deterministic tests to add
+
+Run each on the VM and on Workers:
+1. Pause an effect after acceptance and before its commit, and move the
+   committing role's clock past `D`. The commit is refused and the effect
+   does not count; retirement finalizes after `D_max + 2S` without it.
+2. Deliver a completed execution's SigningWorker package after `D`. It is
+   refused, and a re-admission is refused while the gate is closing.
+3. Move one role's clock outside `S`. Admissions and retirement refuse, the
+   readiness check fails, and retirement stays pending.
+4. Race the last admission with closing. The CAS lets exactly one win.
+5. Crash and restart at each commit point. Restarted or queued work is
+   refused past `D`.
+
+Tests need a controllable clock per role process. The VM adapter can take one
+in test builds; Workers tests run against Miniflare's clock.
 
 ### Open review questions
 
-1. The value of `W` for Yao registration, recovery and export on both hosts,
-   and the acceptable `S`.
-2. Whether SigningWorker should also reject activation packages for an epoch
-   whose gate-closed receipt it holds, even inside the deadline. This is
-   stricter and needs a push path for receipts.
-3. Whether the Router should persist a per-epoch admission count so that
-   retirement can finish early once every admission has settled.
+1. Confirm `W` = 300 s, and the cap on lane-job expiry.
+2. Confirm `S` = 60 s and the VM synchronisation check (`ntp_adjtime`, maximum
+   error within `S / 4`). Decide whether to rely on Cloudflare's platform
+   clock as an operator-reviewed assumption.
+3. Whether the Router should count settled admissions so that retirement can
+   finish before `D_max + 2S` when every admission has settled. This is
+   optional; correctness does not depend on it.
