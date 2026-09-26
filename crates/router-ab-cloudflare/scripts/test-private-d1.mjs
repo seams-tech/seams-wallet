@@ -59,6 +59,8 @@ const tenantRootCreationSweepPath = '/router-ab/internal/tenant-root/creation/v1
 const tenantRootRefreshPath = '/router-ab/internal/tenant-root/refresh/v1/execute';
 const deriverRefreshActivationPath = '/router-ab/internal/deriver/tenant-root/refresh/v1/activate';
 const deriverAYaoPreparePath = '/router-ab/deriver-a/ed25519-yao/prepare-pair';
+const deriverBEcdsaRegistrationPath = '/router-ab/deriver-b/ecdsa-derivation/register';
+const tenantRootStatusPath = '/router-ab/internal/tenant-root/status/v1/read';
 const creationStateActiveStatePath = '/router-ab/internal/tenant-root/creation/v1/active-state';
 const deriverCreateRoleSharePath =
   '/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share';
@@ -1116,13 +1118,15 @@ async function testTenantRootCreationOperatingPath(topology, fixture, databases)
   };
 }
 
-async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot, jwtSigner) {
-  ensureEcdsaClientWasm();
-  const router = await topology.getWorker('router');
-  const accountId = 'ecdsa-live-account';
-  const clientId = 'ecdsa-live-client';
-  const sessionId = 'ecdsa-live-session';
-  const lifecycleId = 'ecdsa-live-lifecycle';
+/// One ECDSA registration as the client builds it: the bootstrap, the
+/// ceremony that must be freed, its request, binding and bearer token. Each
+/// `label` names a distinct lifecycle, session and replay nonce; `identity`
+/// names the tenant root's organisation, project and environment.
+function buildEcdsaRegistration(fixture, jwtSigner, label = 'ecdsa-live', identity = null) {
+  const accountId = `${label}-account`;
+  const clientId = `${label}-client`;
+  const sessionId = `${label}-session`;
+  const lifecycleId = `${label}-lifecycle`;
   const signerSetId = 'signer-set-v1';
   const rootShareEpoch = 'epoch-1';
   const selectedServerId = 'signing-worker-local';
@@ -1147,7 +1151,7 @@ async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot,
     ),
   );
   const ceremony = new RouterAbEcdsaClientCeremonyV1();
-  try {
+  {
     const registrationRequest = JSON.parse(
       ceremony.build_registration_request(
         JSON.stringify({
@@ -1177,7 +1181,7 @@ async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot,
           },
           router_id: 'local-router',
           client_id: clientId,
-          replay_nonce: 'ecdsa-live-replay-nonce',
+          replay_nonce: `${label}-replay-nonce`,
           expires_at_ms: expiresAtMs,
           deriver_recipient_keys: {
             deriver_a: {
@@ -1202,9 +1206,9 @@ async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot,
       nbf: nowSeconds - 1,
       iat: nowSeconds - 1,
       sid: sessionId,
-      org_id: 'org-miniflare',
-      project_id: 'project-r120',
-      environment: 'test',
+      org_id: identity?.orgId ?? 'org-miniflare',
+      project_id: identity?.projectId ?? 'project-r120',
+      environment: identity?.envId ?? 'test',
       project_environment_id: 'project-environment-miniflare',
       account_id: accountId,
       routerAbRequestPolicy: {
@@ -1215,6 +1219,39 @@ async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot,
         },
       },
     });
+    return {
+      accountId,
+      clientId,
+      sessionId,
+      lifecycleId,
+      rootShareEpoch,
+      selectedServerId,
+      applicationBindingDigestB64u,
+      prepared,
+      ceremony,
+      registrationRequest,
+      binding,
+      token,
+    };
+  }
+}
+
+async function testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot, jwtSigner) {
+  ensureEcdsaClientWasm();
+  const router = await topology.getWorker('router');
+  const {
+    accountId,
+    lifecycleId,
+    rootShareEpoch,
+    selectedServerId,
+    applicationBindingDigestB64u,
+    prepared,
+    ceremony,
+    registrationRequest,
+    binding,
+    token,
+  } = buildEcdsaRegistration(fixture, jwtSigner);
+  try {
     const registrationBytes = await expectOk(
       await postWorkerJson(
         router,
@@ -2640,6 +2677,139 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
   };
 }
 
+/// ECDSA work across a refresh. Each Deriver is called once per ECDSA
+/// operation and admits it at its root read. A registration's call to
+/// Deriver B is held while a manual refresh of the root commits and both
+/// roles swap: A has admitted and answered on the old epoch, B has not. On
+/// release B refuses, and the Router answers 503 so the client retries. The
+/// same registration, retried, is admitted on the new epoch and forwarded.
+async function testEcdsaWorkAcrossRefresh(topology, fixture, jwtSigner, databases) {
+  ensureEcdsaClientWasm();
+  const router = await topology.getWorker('router-recovery');
+  // A root of its own, so nothing earlier in the run shapes its state.
+  const root = recoveryCreationGrant('ecdsa-across-refresh', 60_000);
+  const created = await postWorkerJson(router, tenantRootCreationPath, {
+    creation_grant_b64u: root.creation_grant_b64u,
+  });
+  assert.equal(created.status, 200, await created.text());
+  const tenantRoot = {
+    identity_digest_b64u: root.identity_digest_b64u,
+    custody_lineage_b64u: root.custody_lineage_b64u,
+  };
+  const scope = {
+    identity_digest_b64u: tenantRoot.identity_digest_b64u,
+    custody_lineage_b64u: tenantRoot.custody_lineage_b64u,
+  };
+  const status = async () => {
+    const response = await postWorkerJson(router, tenantRootStatusPath, scope);
+    const body = await response.text();
+    assert.equal(response.status, 200, body);
+    return JSON.parse(body);
+  };
+  const admissions = async () =>
+    Promise.all(
+      [databases.deriverA, databases.deriverB].map(async (database) =>
+        (
+          await database
+            .prepare(
+              `SELECT tenant_root_share_epoch AS epoch FROM tenant_root_root_use_admissions
+               WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch`,
+            )
+            .bind(tenantRoot.custody_lineage_b64u)
+            .all()
+        ).results.map((row) => row.epoch),
+      ),
+    );
+  const count = (epochs, epoch) => epochs.filter((value) => value === epoch).length;
+  const attempt = buildEcdsaRegistration(
+    fixture,
+    jwtSigner,
+    'ecdsa-across-refresh',
+    root.identity,
+  );
+  try {
+    const register = async () => {
+      const response = await postWorkerJson(
+        router,
+        ecdsaRegistrationPath,
+        { registration_request: attempt.registrationRequest, tenant_root: tenantRoot },
+        { authorization: `Bearer ${attempt.token}` },
+      );
+      return { status: response.status, body: await response.text() };
+    };
+
+    const before = await status();
+    const oldEpoch = before.active_epoch;
+    const [aBefore, bBefore] = await admissions();
+    const hold = holdNextRecoveryRequest('deriver-b', deriverBEcdsaRegistrationPath);
+    const registration = register();
+    const reached = await Promise.race([
+      hold.held.then(() => 'held'),
+      registration.then((result) => ({ finished: result.status, body: result.body.slice(0, 400) })),
+      sleep(60_000).then(() => 'timeout'),
+    ]);
+    assert.equal(reached, 'held', `the registration must reach Deriver B: ${JSON.stringify(reached)}`);
+    for (
+      let poll = 0;
+      count((await admissions())[0], oldEpoch) === count(aBefore, oldEpoch);
+      poll += 1
+    ) {
+      assert.ok(poll < 500, 'Deriver A must admit the ECDSA registration on the old epoch');
+      await sleep(10);
+    }
+    const refreshed = await postWorkerJson(router, tenantRootRefreshPath, {
+      operation_id: 'harness-ecdsa-across-refresh',
+      ...scope,
+      expected_lifecycle_revision: before.lifecycle_revision,
+      expires_at_ms: Date.now() + 60_000,
+      trigger: 'manual',
+    });
+    const refreshBody = await refreshed.text();
+    assert.equal(refreshed.status, 200, refreshBody);
+    assert.equal((await status()).active_epoch, oldEpoch + 1);
+    hold.release();
+    const refused = await registration;
+    const deriverBAnswer = hold.answer();
+    assert.notEqual(deriverBAnswer.status, 200, deriverBAnswer.body);
+    assert.ok(
+      deriverBAnswer.body.includes('was retired here before the operation was admitted'),
+      deriverBAnswer.body,
+    );
+    assert.equal(refused.status, 503, refused.body);
+    assert.ok(refused.body.includes('LifecycleTransitionInProgress'), refused.body);
+    const [aRefused, bRefused] = await admissions();
+    assert.equal(count(aRefused, oldEpoch), count(aBefore, oldEpoch) + 1, 'A admitted on the old epoch');
+    assert.equal(count(bRefused, oldEpoch), count(bBefore, oldEpoch), 'B admitted nothing on the old epoch');
+
+    const retried = await register();
+    assert.equal(retried.status, 200, retried.body);
+    const forwarded = JSON.parse(retried.body);
+    assert.equal(forwarded.result, 'forwarded', retried.body);
+    assert.equal(
+      forwarded.response.bundles.signerB.transcriptDigestB64u,
+      attempt.binding.transcriptDigestB64u,
+      'Deriver B must bind the retried registration transcript',
+    );
+    const [aAfter, bAfter] = await admissions();
+    assert.equal(count(aAfter, oldEpoch + 1), count(aBefore, oldEpoch + 1) + 1);
+    assert.equal(count(bAfter, oldEpoch + 1), count(bBefore, oldEpoch + 1) + 1);
+    return {
+      work: 'ecdsa_registration',
+      heldBefore: 'deriver_b_ecdsa_registration',
+      epochs: [oldEpoch, oldEpoch + 1],
+      refreshStatus: refreshed.status,
+      deriverBStatus: deriverBAnswer.status,
+      registrationStatus: refused.status,
+      admittedOnOldEpoch: { deriverA: true, deriverB: false },
+      retryStatus: retried.status,
+      retryResult: forwarded.result,
+      admittedOnNewEpoch: { deriverA: true, deriverB: true },
+    };
+  } finally {
+    attempt.ceremony.free();
+  }
+}
+
 /// Opt-in (`--refresh-delivery-after-expiry`): the lost-delivery fault, with
 /// the retry held until the committed receipt's window and the refresh
 /// context have both expired. The committed decision is still delivered.
@@ -3966,6 +4136,11 @@ async function main() {
       return;
     }
     const ecdsa = await testEcdsaRegistrationAndActivation(topology, fixture, tenantRoot, jwtSigner);
+    if (process.argv.includes('--ecdsa-across-refresh')) {
+      const summary = await testEcdsaWorkAcrossRefresh(topology, fixture, jwtSigner, databases);
+      console.log(`R150_WORKERS_ECDSA_ACROSS_REFRESH ${JSON.stringify(summary)}`);
+      return;
+    }
     if (process.argv.includes('--ecdsa-presign-handoff-benchmark')) {
       const timings = { pool: [], prepare: [] };
       for (let sample = 0; sample < 5; sample += 1) {
@@ -4178,6 +4353,13 @@ async function main() {
         ...admissionRaces,
       })}`,
     );
+    const ecdsaAcrossRefresh = await testEcdsaWorkAcrossRefresh(
+      topology,
+      fixture,
+      jwtSigner,
+      databases,
+    );
+    console.log(`R150_WORKERS_ECDSA_ACROSS_REFRESH ${JSON.stringify(ecdsaAcrossRefresh)}`);
   } finally {
     await topology.dispose();
   }

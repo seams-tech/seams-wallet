@@ -407,7 +407,34 @@ On the VM and on Workers:
    - **Workers Yao:** the pair store keeps the code across its error boundary,
      and the role-failure classification answers `recoverable_failure`.
 
-   Still to do: recovery, export and ECDSA derivation.
+   **ECDSA derivation on Workers** (`--ecdsa-across-refresh`, also part of
+   the full run; `R150_WORKERS_ECDSA_ACROSS_REFRESH`). Each Deriver is
+   called once per ECDSA operation and admits it at its root read.
+   - **Setup:** a registration's call to Deriver B is held after A has
+     admitted it on epoch 1, while a manual refresh moves the root to epoch
+     2.
+   - **Result:** on release, B refuses it, "retired here before the
+     operation was admitted", and the Router answers 503
+     `LifecycleTransitionInProgress`. The same registration, retried, is
+     admitted on epoch 2 by both roles and forwarded.
+   - **Scope:** ECDSA is not served on the VM (Phase 0 decision 1).
+
+   The harness's ECDSA activation is answered from the Router's stored
+   result without calling the Derivers. So the existing check that
+   activation stays byte-identical after a refresh shows replay, not a fresh
+   root read; the registration test above is the one that reaches the
+   Derivers.
+
+   **Not covered: Yao recovery and export.** Neither host's harness drives
+   them.
+   - **Export:** needs an export binding with an authorization digest from
+     the step-up flow, which the VM does not serve.
+   - **Recovery:** needs credential flows that neither harness has.
+   - **Shared path:** both would run the prepare and execute path that the
+     registration E2Es exercise, admitting at preparation and reading
+     through `load_bound`.
+
+   Dedicated E2Es need those flows built first.
 2. **Settlement before erasure.** With one old-epoch admission unsettled,
    retirement stays pending past `W`, raises its warning and starts recovery.
    It proceeds only after that admission's terminal outcome or fenced

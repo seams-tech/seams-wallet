@@ -43,11 +43,31 @@ decision.
 | **Creation and its recovery** | Enabled lifecycle; shared contracts | Implemented: resume, commit-first delivery, abandonment, ceremony-bound cleanup, operator sweep | Same code, same E2Es | Done. Automatic sweeping is a separate decision |
 | **Share refresh** (manual and scheduled) | Spec 6 refreshing shares; enabled lifecycle; shared contracts | Commit-first, with roll-forward delivery. The lost-delivery fault is reproduced and fixed in a Workers E2E | Served by the same Router coordinator, Deriver and control-plane code. The lost-delivery E2E passes on the VM. Scheduled refresh has no VM trigger | [Commit-first](./refactor-150-refresh-commit-first.md): refresh abandonment, per-role delivery status and a VM scheduled-refresh trigger remain |
 | **Retiring and erasing old shares after refresh** | Spec 6: erase only when completion conditions allow; in-progress work keeps its version; one-use and retry safety | Retired shares and backups are kept; retirement reported `pending` | Nothing is erased | [Drain proposal](./refactor-150-root-retirement-admission.md), revised 2026-09-26 for review. Erasure stays release-gated on both hosts until then |
-| **Availability restore** (one role from its managed backup, then a forward refresh) | Spec 6 availability backup; runbooks for object failure and recovery | Served, with a Workers E2E | Not served. VM backups are HPKE-only | After refresh reaches the VM; it reuses the refresh machinery |
+| **Availability restore** (one role from its managed backup, then a forward refresh) | Spec 6 availability backup; runbooks for object failure and recovery | Served, with a Workers E2E. **Defect:** no refresh can complete after a restore (see below) | Not served. VM backups are HPKE-only | After refresh reaches the VM; it reuses the refresh machinery. The defect is fixed as part of this item |
 | **Recovery package and restore to a new deployment** (dormant, then operator activation) | Spec 6 restoring to a new deployment; recovery runbook | Served; no E2E | Not served | After availability restore. Largest slice |
 | **Linked-device and step-up signing** | Preserve signing for each enabled configuration | Served | Fails closed | Needed on the VM only if the release enables them. Independent of tenant-root lifecycle |
 | **Google Cloud KMS managed backup** | Optional provider integration | Served | HPKE only | Out of scope: R150 excludes provider-specific provisioning. HPKE is the portable path |
 | **Worker prewarm** | Cloudflare isolate warm-up | Served | Not applicable | None |
+
+### Defect: refresh after an availability restore
+
+Found 2026-09-26, while adding a Workers E2E that refreshed the harness's
+main root after its managed restore.
+- **What persists:** a completed managed restore leaves a terminal
+  managed-restore fence in the Router's creation state.
+- **The rule:** that fence is valid only against the restored state itself,
+  or while the restore's own forward refresh is the latest completed refresh.
+- **The failure:** when a later refresh reserves its attempt, the stored
+  record no longer satisfies the rule. The next read, the refresh commitment
+  checkpoint, refuses it: "managed-restore terminal challenge does not match
+  active state". The Router reports this as "creation journal unavailable".
+- **Scope:** no refresh can complete on a restored root, on Workers and,
+  with the shared code, on the VM. It predates R150's refresh work; no test
+  refreshed a root twice or after a restore.
+- **Fix, to come with availability restore:** retire the terminal restore
+  fence, or validate it against its own transition rather than the latest
+  one. Either must keep an exact retry of the restore returning its durable
+  outcome.
 
 ## Separate: planned migration (cutover and source retirement)
 
