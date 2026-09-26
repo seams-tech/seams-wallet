@@ -113,7 +113,10 @@ pub use durable_object::tenant_root_creation::{
 };
 pub use tenant_root_control_plane::{
     control_plane_create_tenant_root_v1, control_plane_initial_activation_v1,
-    control_plane_pending_creation_cleanup_command_v1, control_plane_role_creation_command_v1,
+    control_plane_pending_creation_cleanup_command_v1, control_plane_refresh_activation_v1,
+    control_plane_refresh_commands_v1, control_plane_role_creation_command_v1,
+    CloudflareTenantRootControlPlaneRefreshActivationReceiptResponseV1,
+    CloudflareTenantRootControlPlaneRefreshActivationRequestV1,
     decode_tenant_root_cleanup_scope_v1, CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1,
     CloudflareTenantRootControlPlaneInitialActivationRequestV1, TenantRootControlPlaneHostV1,
     TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,

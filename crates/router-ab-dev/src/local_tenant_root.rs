@@ -1105,6 +1105,31 @@ impl router_ab_cloudflare::TenantRootControlPlaneHostV1 for LocalTenantRootContr
     ) -> RouterAbProtocolResult<router_ab_cloudflare::CloudflareTenantRootCreationJournalResponseV1> {
         tenant_root_creation_journal_call_v1(&self.creation_state, journal, capability).await
     }
+
+    async fn read_active_state(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+    ) -> RouterAbProtocolResult<router_ab_cloudflare::CloudflareVerifiedTenantRootActiveStateV1> {
+        router_ab_cloudflare::tenant_root_creation_active_state_with_revision_read_call_v1(
+            &self.creation_state,
+            self.config.bindings.issuer_verifying_keys.keys(),
+            identity_digest,
+            custody_lineage,
+        )
+        .await
+    }
+
+    fn random_bytes(&self, len: usize) -> RouterAbProtocolResult<Vec<u8>> {
+        let mut bytes = vec![0_u8; len];
+        getrandom::getrandom(&mut bytes).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                format!("the VM control plane could not read secure randomness: {error}"),
+            )
+        })?;
+        Ok(bytes)
+    }
 }
 
 // ---------------------------------------------------------------------------

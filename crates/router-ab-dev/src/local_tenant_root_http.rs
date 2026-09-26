@@ -272,6 +272,24 @@ pub fn local_tenant_root_control_plane_route_v1(
                 ))?)
             },
         ),
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_COMMANDS_PRIVATE_REQUEST_PATH => authorized(
+            credential,
+            request,
+            |commands: router_ab_cloudflare::CloudflareTenantRootControlPlaneRefreshCommandsRequestV1| {
+                json(&futures::executor::block_on(
+                    router_ab_cloudflare::control_plane_refresh_commands_v1(&host, commands),
+                )?)
+            },
+        ),
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH => authorized(
+            credential,
+            request,
+            |activation: router_ab_cloudflare::CloudflareTenantRootControlPlaneRefreshActivationRequestV1| {
+                json(&futures::executor::block_on(
+                    router_ab_cloudflare::control_plane_refresh_activation_v1(&host, activation),
+                )?)
+            },
+        ),
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH => authorized(
             credential,
             request,
