@@ -493,6 +493,8 @@ pub fn serve_local_tenant_root_creation_state_v1(
     futures::executor::block_on(serve_local_tenant_root_creation_state_async_v1(config, request))
 }
 
+static LOCAL_CREATION_STATE_OPERATION_LOCK_V1: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// The creation-state server itself, for callers already inside an executor
 /// (the Router's own creation coordinator).
 async fn serve_local_tenant_root_creation_state_async_v1(
@@ -531,6 +533,13 @@ async fn serve_local_tenant_root_creation_state_async_v1(
     let now_ms = crate::local_router_coordinator::local_now_ms_v1()?;
     let manual_refresh_interval_ms = parse_tenant_root_manual_refresh_interval_ms_v1(&config.env)?;
 
+    // One operation at a time, as a Durable Object runs them. SQLite's write
+    // lock alone serializes them unfairly: a waiter sleeps between attempts,
+    // so a role polling the rendezvous can hold the store while its peer's
+    // write keeps missing it. This lock wakes the next waiter on release.
+    let _serialized = LOCAL_CREATION_STATE_OPERATION_LOCK_V1
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut connection = open_sqlite(&config.creation_storage_path)?;
     let transaction = connection
         .transaction_with_behavior(TransactionBehavior::Immediate)
