@@ -841,7 +841,6 @@ const TENANT_ROOT_CREATION_REQUEST_MAX_BYTES_V1: usize =
 const TENANT_ROOT_CREATION_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_REFRESH_ACTIVE_RECEIPT_MAX_BASE64URL_BYTES_V1 + 128;
 const TENANT_ROOT_CREATION_INITIAL_ACTIVATION_RESPONSE_MAX_BYTES_V1: usize = 1024;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_REFRESH_ACTIVATION_RESPONSE_MAX_BYTES_V1: usize = 1024;
 const TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_MANAGED_RESTORE_ACTIVE_STATE_REQUEST_MAX_BYTES_V1;
@@ -890,12 +889,9 @@ const TENANT_ROOT_REFRESH_CONTRIBUTION_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_REFRESH_CONTRIBUTION_MAX_BASE64URL_BYTES_V1
         + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_REFRESH_COMMITMENT_RESPONSE_MAX_BYTES_V1: usize =
     TENANT_ROOT_REFRESH_COMMITMENT_MAX_BASE64URL_BYTES_V1 * 2 + 2048;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_REFRESH_INSTALLATION_RESPONSE_MAX_BYTES_V1: usize = 4096;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_REFRESH_CONTRIBUTION_RESPONSE_MAX_BYTES_V1: usize =
     TENANT_ROOT_REFRESH_CONTRIBUTION_MAX_BASE64URL_BYTES_V1 * 2 + 2048;
 
@@ -3283,9 +3279,8 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_restore_initial_activa
 
 /// Sends a verified refresh-swap activation receipt to the Router-owned
 /// creation object after both role-private swaps have committed.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_activation_call_v1(
-    env: &worker::Env,
+pub async fn tenant_root_refresh_activation_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     receipt_bytes: &[u8],
 ) -> RouterAbProtocolResult<CloudflareTenantRootRefreshActivationResponseV1> {
     let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(receipt_bytes)
@@ -3297,17 +3292,12 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_activation_cal
         ));
     }
     let receipt_digest = receipt.digest().map_err(candidate_derivation_error)?;
-    let (authority_id, _) = derive_tenant_root_creation_authority_object_v1(
-        env,
-        receipt.identity_digest(),
-        receipt.custody_lineage(),
-    )?;
+    let authority_id = state.creation_authority_id(receipt.identity_digest(), receipt.custody_lineage())?;
     let request = CloudflareTenantRootRefreshActivationRequestV1 {
         activation_receipt_b64u: encode_base64url_bytes_v1(receipt_bytes),
     };
     let response: CloudflareTenantRootRefreshActivationResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+        state.creation_state_call(
             authority_id,
             receipt.identity_digest(),
             receipt.custody_lineage(),
@@ -3333,6 +3323,20 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_activation_cal
         ));
     }
     Ok(response)
+}
+
+/// Sends a verified refresh-swap activation receipt to the Router-owned
+/// creation object after both role-private swaps have committed.
+#[cfg(feature = "workers-rs")]
+pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_activation_call_v1(
+    env: &worker::Env,
+    receipt_bytes: &[u8],
+) -> RouterAbProtocolResult<CloudflareTenantRootRefreshActivationResponseV1> {
+    tenant_root_refresh_activation_call_v1(
+        &CloudflareTenantRootCreationStateTransportV1::new(env),
+        receipt_bytes,
+    )
+    .await
 }
 
 /// Issuer-verified active public state read from the Router-owned object.
@@ -3401,78 +3405,13 @@ pub async fn tenant_root_creation_active_state_with_revision_read_call_v1(
             TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1,
         )
         .await?;
-    let response_identity_digest =
-        TenantRootIdentityDigestV1::from_bytes(decode_fixed_base64url_32(
-            "tenant-root active-state response identity digest",
-            &response.identity_digest_b64u,
-        )?);
-    if response_identity_digest != identity_digest {
-        return Err(malformed_input(
-            "tenant-root active-state response identity digest does not match the request",
-        ));
-    }
-    let response_custody_lineage = decode_lineage_b64u(
-        "tenant-root active-state response custody lineage",
-        &response.custody_lineage_b64u,
-    )?;
-    if response_custody_lineage != custody_lineage {
-        return Err(malformed_input(
-            "tenant-root active-state response custody lineage does not match the request",
-        ));
-    }
-    let receipt_bytes = decode_canonical_base64url(
-        "tenant-root active-state response activation receipt",
-        &response.activation_receipt_b64u,
-        TENANT_ROOT_REFRESH_ACTIVE_RECEIPT_MAX_BYTES_V1,
-        TENANT_ROOT_REFRESH_ACTIVE_RECEIPT_MAX_BASE64URL_BYTES_V1,
-    )?;
-    let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(&receipt_bytes)
-        .map_err(candidate_derivation_error)?;
-    let issuer_verifying_key = issuer_keys.get(receipt.issuer_key_id()).ok_or_else(|| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-            "tenant-root active-state response receipt issuer is not trusted",
-        )
-    })?;
-    let receipt = receipt
-        .verify_issuer_signature(issuer_verifying_key)
-        .map_err(candidate_authorization_error)?;
-    if receipt.identity_digest() != identity_digest
-        || receipt.custody_lineage() != custody_lineage
-        || receipt.binding().authority_id() != authority_id
-    {
-        return Err(malformed_input(
-            "tenant-root active-state response receipt does not match the request authority",
-        ));
-    }
-    let response_receipt_digest = decode_lifecycle_receipt_digest(
-        "tenant-root active-state response receipt digest",
-        &response.activation_receipt_digest_b64u,
-    )?;
-    if response_receipt_digest != receipt.digest() {
-        return Err(malformed_input(
-            "tenant-root active-state response receipt digest does not match its receipt",
-        ));
-    }
-    if response.lifecycle_revision == 0
-        || response.lifecycle_revision < receipt.result_control_plane_revision()
-    {
-        return Err(malformed_input(
-            "tenant-root active-state response lifecycle revision is invalid",
-        ));
-    }
-    validate_refresh_fence(&response.fence)?;
-    validate_managed_restore_fence_shape(&response.managed_restore_fence)?;
-    validate_refresh_job_read_v1(response.job.as_ref())?;
-    Ok(CloudflareVerifiedTenantRootActiveStateV1 {
-        activation_receipt: receipt,
-        job: response.job,
-        last_manual_refresh_completed_at_ms: response.last_manual_refresh_completed_at_ms,
-        last_refresh_completed_at_ms: response.last_refresh_completed_at_ms,
-        lifecycle_revision: response.lifecycle_revision,
-        refresh_fence: response.fence,
-        managed_restore_fence: response.managed_restore_fence,
-    })
+    decode_verified_active_state_response_v1(
+        issuer_keys,
+        authority_id,
+        identity_digest,
+        custody_lineage,
+        response,
+    )
 }
 
 /// Reads the authoritative active receipt together with its current lifecycle revision.
@@ -3526,7 +3465,7 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_managed_restore_author
         )
         .await?;
     let active = decode_verified_active_state_response_v1(
-        env,
+        &worker_issuer_verifying_keys_v1(env)?,
         authority_id,
         identity_digest,
         custody_lineage,
@@ -3572,7 +3511,50 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_managed_restore_author
         )
         .await?;
     decode_verified_active_state_response_v1(
-        env,
+        &worker_issuer_verifying_keys_v1(env)?,
+        authority_id,
+        identity_digest,
+        custody_lineage,
+        response,
+    )
+}
+
+/// Reserves the exact refresh context and both issuer commands before either
+/// Deriver is invoked. A replay returns the already persisted attempt, so a
+/// restarted Router resumes the same session and nonce.
+pub async fn tenant_root_refresh_attempt_reservation_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    refresh_context_b64u: String,
+    deriver_a_refresh_command_b64u: String,
+    deriver_b_refresh_command_b64u: String,
+    manual_operation_id: Option<String>,
+) -> RouterAbProtocolResult<CloudflareVerifiedTenantRootActiveStateV1> {
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
+    let request = CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveRefresh {
+        identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+        custody_lineage_b64u: custody_lineage.to_base64url(),
+        refresh_context_b64u,
+        deriver_a_refresh_command_b64u,
+        deriver_b_refresh_command_b64u,
+        manual_operation_id,
+    };
+    let response: CloudflareTenantRootCreationActiveStateReadResponseV1 =
+        state.creation_state_call(
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
+            "tenant-root refresh attempt reservation",
+            &request,
+            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1,
+        )
+        .await?;
+    decode_verified_active_state_response_v1(
+        issuer_keys,
         authority_id,
         identity_digest,
         custody_lineage,
@@ -3593,42 +3575,22 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_attempt_reserv
     deriver_b_refresh_command_b64u: String,
     manual_operation_id: Option<String>,
 ) -> RouterAbProtocolResult<CloudflareVerifiedTenantRootActiveStateV1> {
-    let (authority_id, _) =
-        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
-    let request = CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveRefresh {
-        identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
-        custody_lineage_b64u: custody_lineage.to_base64url(),
+    tenant_root_refresh_attempt_reservation_call_v1(
+        &CloudflareTenantRootCreationStateTransportV1::new(env),
+        &worker_issuer_verifying_keys_v1(env)?,
+        identity_digest,
+        custody_lineage,
         refresh_context_b64u,
         deriver_a_refresh_command_b64u,
         deriver_b_refresh_command_b64u,
         manual_operation_id,
-    };
-    let response: CloudflareTenantRootCreationActiveStateReadResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
-            authority_id,
-            identity_digest,
-            custody_lineage,
-            CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
-            "tenant-root refresh attempt reservation",
-            &request,
-            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
-            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1,
-        )
-        .await?;
-    decode_verified_active_state_response_v1(
-        env,
-        authority_id,
-        identity_digest,
-        custody_lineage,
-        response,
     )
+    .await
 }
 
 /// Atomically admits one manual refresh before command minting or role work.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_admission_call_v1(
-    env: &worker::Env,
+pub async fn tenant_root_refresh_admission_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
     operation_id: String,
@@ -3637,8 +3599,7 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_admission_call
     expires_at_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareTenantRootRefreshAdmissionOutcomeV1> {
     validate_refresh_operation_id_v1(&operation_id)?;
-    let (authority_id, _) =
-        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
     let request = CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveRefreshAdmission {
         identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
         custody_lineage_b64u: custody_lineage.to_base64url(),
@@ -3648,8 +3609,7 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_admission_call
         trigger,
     };
     let response: CloudflareTenantRootCreationActiveStateReadResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+        state.creation_state_call(
             authority_id,
             identity_digest,
             custody_lineage,
@@ -3668,9 +3628,44 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_admission_call
     })
 }
 
+/// Atomically admits one manual refresh before command minting or role work.
 #[cfg(feature = "workers-rs")]
-fn decode_verified_active_state_response_v1(
+pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_admission_call_v1(
     env: &worker::Env,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    operation_id: String,
+    trigger: CloudflareTenantRootRefreshTriggerV1,
+    expected_lifecycle_revision: u64,
+    expires_at_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootRefreshAdmissionOutcomeV1> {
+    tenant_root_refresh_admission_call_v1(
+        &CloudflareTenantRootCreationStateTransportV1::new(env),
+        identity_digest,
+        custody_lineage,
+        operation_id,
+        trigger,
+        expected_lifecycle_revision,
+        expires_at_ms,
+    )
+    .await
+}
+
+/// The control-plane issuer keys this Worker trusts.
+#[cfg(feature = "workers-rs")]
+fn worker_issuer_verifying_keys_v1(
+    env: &worker::Env,
+) -> RouterAbProtocolResult<BTreeMap<String, [u8; 32]>> {
+    crate::env::decode_issuer_verifying_keys(&read_required_worker_var(
+        env,
+        crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
+    )?)
+}
+
+/// Verifies an active-state response against the request and the trusted
+/// issuer keys.
+fn decode_verified_active_state_response_v1(
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
     authority_id: TenantRootControlPlaneAuthorityIdV1,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
@@ -3703,11 +3698,6 @@ fn decode_verified_active_state_response_v1(
     )?;
     let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(&receipt_bytes)
         .map_err(candidate_derivation_error)?;
-    let issuer_keys_json = read_required_worker_var(
-        env,
-        crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-    )?;
-    let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
     let issuer_verifying_key = issuer_keys.get(receipt.issuer_key_id()).ok_or_else(|| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ForbiddenLocalBinding,
@@ -11520,10 +11510,8 @@ fn stored_refresh_record_error(error: RouterAbProtocolError) -> RouterAbProtocol
     )
 }
 
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_commitment_call_v1(
-    env: &worker::Env,
+pub async fn tenant_root_refresh_commitment_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
     commitment: &VerifiedTenantRootRefreshCommitmentV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootRefreshCommitmentResponseV1> {
@@ -11540,9 +11528,8 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_commitment_cal
         role_refresh_command_b64u: encode_base64url_bytes_v1(command.canonical_bytes()),
         signed_commitment_b64u: encode_base64url_bytes_v1(commitment.canonical_bytes()),
     };
-    let response = execute_cloudflare_router_tenant_root_creation_private_call_v1(
-        env,
-        authority_id,
+    let response = state.creation_state_call(
+            authority_id,
         command.identity_digest(),
         command.custody_lineage(),
         CLOUDFLARE_TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_PATH,
@@ -11561,12 +11548,26 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_commitment_cal
     Ok(response)
 }
 
-/// Sends one role-signed, recipient-bound encrypted refresh contribution to the
-/// Router-owned public rendezvous after both commitments have completed.
 #[cfg(feature = "workers-rs")]
 #[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_contribution_call_v1(
+pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_commitment_call_v1(
     env: &worker::Env,
+    command: &VerifiedTenantRootRoleRefreshCommandV1,
+    commitment: &VerifiedTenantRootRefreshCommitmentV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootRefreshCommitmentResponseV1> {
+    tenant_root_refresh_commitment_call_v1(
+        &CloudflareTenantRootCreationStateTransportV1::new(env),
+        command,
+        commitment,
+    )
+    .await
+}
+
+/// Sends one role-signed, recipient-bound encrypted refresh contribution to the
+/// Router-owned public rendezvous after both commitments have completed.
+pub async fn tenant_root_refresh_contribution_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    role_keys: &TenantRootCreationRoleVerifyingKeysV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
     commitments: &VerifiedTenantRootRefreshCommitmentPairV1,
     contribution: &VerifiedTenantRootSignedRefreshContributionV1,
@@ -11580,16 +11581,14 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_contribution_c
             "tenant-root refresh contribution does not match its command or commitment pair",
         ));
     }
-    let role_keys = read_tenant_root_creation_role_verifying_keys(env)?;
     let contribution_bytes = contribution.canonical_bytes();
-    verify_refresh_contribution_wire(contribution_bytes, context, commitments, &role_keys)?;
+    verify_refresh_contribution_wire(contribution_bytes, context, commitments, role_keys)?;
     let request = CloudflareTenantRootRefreshContributionRequestV1 {
         role_refresh_command_b64u: encode_base64url_bytes_v1(command.canonical_bytes()),
         signed_contribution_b64u: encode_base64url_bytes_v1(contribution_bytes),
     };
-    let response = execute_cloudflare_router_tenant_root_creation_private_call_v1(
-        env,
-        command.authority_id(),
+    let response = state.creation_state_call(
+            command.authority_id(),
         command.identity_digest(),
         command.custody_lineage(),
         CLOUDFLARE_TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_PATH,
@@ -11605,15 +11604,33 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_contribution_c
         commitments,
         context,
         contribution_bytes,
-        &role_keys,
+        role_keys,
     )?;
     Ok(response)
 }
 
+/// Sends one role-signed, recipient-bound encrypted refresh contribution to the
+/// Router-owned public rendezvous after both commitments have completed.
 #[cfg(feature = "workers-rs")]
 #[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_installation_call_v1(
+pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_contribution_call_v1(
     env: &worker::Env,
+    command: &VerifiedTenantRootRoleRefreshCommandV1,
+    commitments: &VerifiedTenantRootRefreshCommitmentPairV1,
+    contribution: &VerifiedTenantRootSignedRefreshContributionV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootRefreshContributionResponseV1> {
+    tenant_root_refresh_contribution_call_v1(
+        &CloudflareTenantRootCreationStateTransportV1::new(env),
+        &read_tenant_root_creation_role_verifying_keys(env)?,
+        command,
+        commitments,
+        contribution,
+    )
+    .await
+}
+
+pub async fn tenant_root_refresh_installation_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
     evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
     terminal_receipt_bytes: &[u8],
@@ -11633,9 +11650,8 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_installation_c
         signed_evidence_b64u: encode_base64url_bytes_v1(evidence.canonical_bytes()),
         terminal_receipt_b64u: encode_base64url_bytes_v1(terminal_receipt_bytes),
     };
-    let response = execute_cloudflare_router_tenant_root_creation_private_call_v1(
-        env,
-        command.authority_id(),
+    let response = state.creation_state_call(
+            command.authority_id(),
         command.identity_digest(),
         command.custody_lineage(),
         CLOUDFLARE_TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_PATH,
@@ -11650,6 +11666,22 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_installation_c
 }
 
 #[cfg(feature = "workers-rs")]
+#[allow(dead_code)]
+pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_installation_call_v1(
+    env: &worker::Env,
+    command: &VerifiedTenantRootRoleRefreshCommandV1,
+    evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
+    terminal_receipt_bytes: &[u8],
+) -> RouterAbProtocolResult<CloudflareTenantRootRefreshInstallationResponseV1> {
+    tenant_root_refresh_installation_call_v1(
+        &CloudflareTenantRootCreationStateTransportV1::new(env),
+        command,
+        evidence,
+        terminal_receipt_bytes,
+    )
+    .await
+}
+
 fn validate_refresh_commitment_response(
     response: &CloudflareTenantRootRefreshCommitmentResponseV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
@@ -11735,7 +11767,6 @@ fn validate_refresh_commitment_response(
     Ok(())
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_refresh_installation_response(
     response: &CloudflareTenantRootRefreshInstallationResponseV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
@@ -11763,7 +11794,6 @@ fn validate_refresh_installation_response(
     Ok(())
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_refresh_contribution_response(
     response: &CloudflareTenantRootRefreshContributionResponseV1,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
@@ -11822,7 +11852,6 @@ fn validate_refresh_contribution_response(
     Ok(())
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_refresh_response_scope<T>(
     response: &T,
     command: &VerifiedTenantRootRoleRefreshCommandV1,
@@ -11878,7 +11907,6 @@ where
     )
 }
 
-#[cfg(feature = "workers-rs")]
 trait RefreshResponseScopeView {
     fn command_digest_b64u(&self) -> &str;
     fn identity_digest_b64u(&self) -> &str;
@@ -11892,7 +11920,6 @@ trait RefreshResponseScopeView {
     fn active_activation_receipt_digest_b64u(&self) -> &str;
 }
 
-#[cfg(feature = "workers-rs")]
 impl RefreshResponseScopeView for CloudflareTenantRootRefreshCommitmentResponseV1 {
     fn command_digest_b64u(&self) -> &str {
         &self.command_digest_b64u
@@ -11926,7 +11953,6 @@ impl RefreshResponseScopeView for CloudflareTenantRootRefreshCommitmentResponseV
     }
 }
 
-#[cfg(feature = "workers-rs")]
 impl RefreshResponseScopeView for CloudflareTenantRootRefreshInstallationResponseV1 {
     fn command_digest_b64u(&self) -> &str {
         &self.command_digest_b64u
@@ -11960,7 +11986,6 @@ impl RefreshResponseScopeView for CloudflareTenantRootRefreshInstallationRespons
     }
 }
 
-#[cfg(feature = "workers-rs")]
 impl RefreshResponseScopeView for CloudflareTenantRootRefreshContributionResponseV1 {
     fn command_digest_b64u(&self) -> &str {
         &self.command_digest_b64u
@@ -11994,7 +12019,6 @@ impl RefreshResponseScopeView for CloudflareTenantRootRefreshContributionRespons
     }
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_response_fixed_bytes(
     field: &str,
     encoded: &str,
