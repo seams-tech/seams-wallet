@@ -80,7 +80,7 @@ pub const CLOUDFLARE_TENANT_ROOT_CREATION_PROGRESS_READ_PATH: &str =
 pub const CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/initial-activation";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_REFRESH_ACTIVATION_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_REFRESH_ACTIVATION_PATH: &str =
     "/router-ab/internal/tenant-root/refresh/v1/activation";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
 pub const CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH: &str =
@@ -178,13 +178,13 @@ pub(crate) enum CloudflareTenantRootCutoverReadResponseV1 {
 }
 
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_PATH: &str =
     "/router-ab/internal/tenant-root/refresh/v1/commitment-checkpoint";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_PATH: &str =
     "/router-ab/internal/tenant-root/refresh/v1/installation-checkpoint";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const CLOUDFLARE_TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_PATH: &str =
+pub const CLOUDFLARE_TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_PATH: &str =
     "/router-ab/internal/tenant-root/refresh/v1/contribution-rendezvous";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
 pub(crate) const TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1: &str = "refresh/v1/active-state";
@@ -877,18 +877,15 @@ const TENANT_ROOT_CREATION_COMMITMENT_RESPONSE_MAX_BYTES_V1: usize =
     TENANT_ROOT_CREATION_COMMITMENT_MAX_BASE64URL_BYTES_V1 * 2 + 512;
 const TENANT_ROOT_CREATION_INSTALLATION_RESPONSE_MAX_BYTES_V1: usize =
     TENANT_ROOT_CREATION_INSTALLATION_EVIDENCE_MAX_BASE64URL_BYTES_V1 * 2 + 512;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_REFRESH_COMMITMENT_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_REFRESH_COMMITMENT_MAX_BASE64URL_BYTES_V1
         + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_REFRESH_INSTALLATION_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_CREATION_INSTALLATION_EVIDENCE_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_COMMAND_TERMINAL_RECEIPT_MAX_BASE64URL_BYTES_V1
         + 128;
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_REFRESH_CONTRIBUTION_REQUEST_MAX_BYTES_V1: usize =
     TENANT_ROOT_ROLE_REFRESH_COMMAND_MAX_BASE64URL_BYTES_V1
         + TENANT_ROOT_REFRESH_CONTRIBUTION_MAX_BASE64URL_BYTES_V1
@@ -8505,9 +8502,17 @@ impl RouterAbTenantRootCreationDurableObject {
 /// protocol default.
 #[cfg(feature = "workers-rs")]
 fn manual_refresh_interval_ms_v1(env: &worker::Env) -> RouterAbProtocolResult<u64> {
-    match env.var("TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS") {
-        Ok(value) => value
-            .to_string()
+    parse_tenant_root_manual_refresh_interval_ms_v1(&crate::CloudflareWorkerEnvReaderV1::new(env))
+}
+
+/// The configured minimum interval between manual refreshes of one root
+/// (`TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS`, at least one minute), or the
+/// protocol default of ten minutes.
+pub fn parse_tenant_root_manual_refresh_interval_ms_v1(
+    reader: &impl crate::CloudflareEnvReaderV1,
+) -> RouterAbProtocolResult<u64> {
+    match reader.get_text("TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS")? {
+        Some(value) => value
             .parse::<u64>()
             .ok()
             .filter(|value| *value >= 60_000)
@@ -8517,7 +8522,7 @@ fn manual_refresh_interval_ms_v1(env: &worker::Env) -> RouterAbProtocolResult<u6
                     "manual refresh interval must be at least 60000 milliseconds",
                 )
             }),
-        Err(_) => Ok(TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1),
+        None => Ok(TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1),
     }
 }
 
@@ -14053,49 +14058,6 @@ async fn tenant_root_creation_persist_active_state_v1<Store: TenantRootCreationS
     }
 }
 
-/// Reads the authoritative active state a Router uses at Yao time. Hosts
-/// that do not run the refresh protocol refuse a state with an open refresh
-/// attempt rather than reporting it without its job.
-pub async fn tenant_root_creation_read_active_state_without_refresh_v1<
-    Store: TenantRootCreationStoreV1,
->(
-    store: &Store,
-    issuer_keys: &BTreeMap<String, [u8; 32]>,
-    identity_digest: TenantRootIdentityDigestV1,
-    custody_lineage: TenantRootCustodyLineageId,
-) -> RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1> {
-    store.require_scope(identity_digest, custody_lineage)?;
-    let record = store
-        .get_json::<CloudflareTenantRootRefreshActiveStateRecordV1>(
-            TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
-        )
-        .await?
-        .ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root refresh has no authoritative active public state",
-            )
-        })?;
-    let active = validate_refresh_active_state_record(record, store.authority_id(), issuer_keys)
-        .map_err(stored_refresh_record_error)?;
-    if active.identity_digest != identity_digest || active.custody_lineage != custody_lineage {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-            "tenant-root active state does not match the requested identity and custody lineage",
-        ));
-    }
-    if !matches!(
-        active.record.fence,
-        CloudflareTenantRootRefreshFenceV1::Open | CloudflareTenantRootRefreshFenceV1::Terminal { .. }
-    ) {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLifecycleState,
-            "tenant-root active state has a refresh attempt this host does not serve",
-        ));
-    }
-    Ok(active_state_read_response_from_record(active.record))
-}
-
 /// Requires the stored abandonment fence to name this journal's creation.
 fn validate_creation_abandonment_scope_v1(
     record: &CloudflareTenantRootCreationAbandonmentV1,
@@ -14332,19 +14294,21 @@ pub async fn tenant_root_creation_read_progress_v1<Store: TenantRootCreationStor
     })
 }
 
-/// Serves one creation-state operation, addressed by its route path, on a
-/// host that runs initial creation but not the refresh, managed-restore or
-/// cutover protocols. Those operations are refused rather than accepted.
+/// Serves one creation-state operation, addressed by its route path: initial
+/// creation and its recovery, the authoritative active-state read with its
+/// refresh and managed-restore reservations, and the refresh checkpoints and
+/// activation. Cutover is not served.
 ///
 /// The caller runs this inside one storage transaction over `store`, so each
 /// operation's read, evaluation and write stay atomic.
-pub async fn tenant_root_creation_serve_without_refresh_v1<Store: TenantRootCreationStoreV1>(
+pub async fn tenant_root_creation_serve_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: impl Fn() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
     path: &str,
     request_body: &[u8],
     now_ms: u64,
+    manual_refresh_interval_ms: u64,
 ) -> RouterAbProtocolResult<Vec<u8>> {
     fn decode<T: DeserializeOwned>(
         label: &str,
@@ -14474,40 +14438,77 @@ pub async fn tenant_root_creation_serve_without_refresh_v1<Store: TenantRootCrea
             )
             .await?,
         ),
-        CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH => {
-            let request: CloudflareTenantRootCreationActiveStateReadRequestV1 = decode(
-                "tenant-root active-state read request",
-                request_body,
-                TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
-            )?;
-            let CloudflareTenantRootCreationActiveStateReadRequestV1::Read {
-                identity_digest_b64u,
-                custody_lineage_b64u,
-            } = request
-            else {
-                return Err(RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                    "this host does not run tenant-root refresh or managed restore",
-                ));
-            };
-            let identity_digest = TenantRootIdentityDigestV1::from_bytes(decode_fixed_base64url_32(
-                "tenant-root active-state read identity digest",
-                &identity_digest_b64u,
-            )?);
-            let custody_lineage = decode_lineage_b64u(
-                "tenant-root active-state read custody lineage",
-                &custody_lineage_b64u,
-            )?;
-            encode(
-                &tenant_root_creation_read_active_state_without_refresh_v1(
-                    store,
-                    issuer_keys,
-                    identity_digest,
-                    custody_lineage,
-                )
-                .await?,
+        CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH => encode(
+            &tenant_root_creation_active_state_read_v1(
+                store,
+                issuer_keys,
+                &role_keys,
+                decode(
+                    "tenant-root active-state read request",
+                    request_body,
+                    TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+                manual_refresh_interval_ms,
             )
-        }
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_REFRESH_ACTIVATION_PATH => encode(
+            &tenant_root_refresh_persist_activation_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root refresh activation request",
+                    request_body,
+                    TENANT_ROOT_CREATION_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_PATH => encode(
+            &tenant_root_refresh_persist_commitment_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root refresh commitment request",
+                    request_body,
+                    TENANT_ROOT_REFRESH_COMMITMENT_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_PATH => encode(
+            &tenant_root_refresh_persist_installation_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root refresh installation request",
+                    request_body,
+                    TENANT_ROOT_REFRESH_INSTALLATION_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        CLOUDFLARE_TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_PATH => encode(
+            &tenant_root_refresh_persist_contribution_v1(
+                store,
+                issuer_keys,
+                &role_keys()?,
+                decode(
+                    "tenant-root refresh contribution request",
+                    request_body,
+                    TENANT_ROOT_REFRESH_CONTRIBUTION_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
         _ => Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ForbiddenLocalBinding,
             "this host does not serve the requested tenant-root creation-state operation",

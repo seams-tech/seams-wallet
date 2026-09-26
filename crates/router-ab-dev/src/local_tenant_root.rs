@@ -26,7 +26,8 @@ use router_ab_cloudflare::{
     decode_cloudflare_tenant_root_control_plane_issuer_signing_secret_v1,
     decode_issuer_verifying_keys, parse_cloudflare_tenant_root_creation_role_verifying_keys_v1,
     tenant_root_creation_journal_call_v1, tenant_root_creation_journal_read_call_v1,
-    tenant_root_creation_object_name_v1, tenant_root_creation_serve_without_refresh_v1,
+    parse_tenant_root_manual_refresh_interval_ms_v1, tenant_root_creation_object_name_v1,
+    tenant_root_creation_serve_v1,
     verify_tenant_root_managed_backup_object_v1, verify_tenant_root_provider_canary_object_v1,
     CloudflareEnvMapV1, CloudflareEnvReaderV1,
     CloudflareSecretReaderV1, CloudflareTenantRootControlPlaneBindingsV1,
@@ -36,6 +37,10 @@ use router_ab_cloudflare::{
     TenantRootManagedBackupObjectCoordinatesV1, TenantRootRoleShareStoreV1,
     TenantRootRouterCreationHostV1, TenantRootServiceTargetV1, TenantRootServiceTransportV1,
     CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
+    CLOUDFLARE_TENANT_ROOT_REFRESH_ACTIVATION_PATH,
+    CLOUDFLARE_TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_PATH,
+    CLOUDFLARE_TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_PATH,
+    CLOUDFLARE_TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_PATH,
     CLOUDFLARE_TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_PATH,
     CLOUDFLARE_TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_PATH,
     CLOUDFLARE_TENANT_ROOT_CREATION_INITIAL_ACTIVATION_PATH,
@@ -502,6 +507,7 @@ async fn serve_local_tenant_root_creation_state_async_v1(
         router_ab_cloudflare::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
     )?)?;
     let now_ms = crate::local_router_coordinator::local_now_ms_v1()?;
+    let manual_refresh_interval_ms = parse_tenant_root_manual_refresh_interval_ms_v1(&config.env)?;
 
     let mut connection = open_sqlite(&config.creation_storage_path)?;
     let transaction = connection
@@ -515,13 +521,14 @@ async fn serve_local_tenant_root_creation_state_async_v1(
         custody_lineage,
         storage_error: RefCell::new(None),
     };
-    let result = tenant_root_creation_serve_without_refresh_v1(
+    let result = tenant_root_creation_serve_v1(
         &store,
         &issuer_keys,
         || parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(&config.env),
         path,
         request.request_json.as_bytes(),
         now_ms,
+        manual_refresh_interval_ms,
     )
     .await;
     if let Some(error) = store.storage_error.take() {
@@ -546,6 +553,10 @@ fn creation_state_route_v1(path: &str) -> RouterAbProtocolResult<&'static str> {
         CLOUDFLARE_TENANT_ROOT_CREATION_CLEANUP_CHECKPOINT_PATH,
         CLOUDFLARE_TENANT_ROOT_CREATION_PROGRESS_READ_PATH,
         CLOUDFLARE_TENANT_ROOT_CREATION_ABANDONMENT_PATH,
+        CLOUDFLARE_TENANT_ROOT_REFRESH_ACTIVATION_PATH,
+        CLOUDFLARE_TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_PATH,
+        CLOUDFLARE_TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_PATH,
+        CLOUDFLARE_TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_PATH,
     ]
     .into_iter()
     .find(|known| *known == path)

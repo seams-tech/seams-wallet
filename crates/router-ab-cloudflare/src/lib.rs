@@ -93,7 +93,8 @@ pub use durable_object::tenant_root_creation::{
     tenant_root_creation_active_state_with_revision_read_call_v1,
     tenant_root_creation_cleanup_call_v1, tenant_root_creation_journal_call_v1,
     tenant_root_creation_journal_read_call_v1, tenant_root_creation_object_name_v1,
-    tenant_root_creation_serve_without_refresh_v1, CloudflareTenantRootCreationJournalReadRequestV1,
+    parse_tenant_root_manual_refresh_interval_ms_v1, tenant_root_creation_serve_v1,
+    CloudflareTenantRootCreationJournalReadRequestV1,
     CloudflareTenantRootCreationJournalReadResponseV1,
     CloudflareTenantRootCreationJournalResponseV1, CloudflareVerifiedTenantRootActiveStateV1,
     TenantRootCreationStateTransportV1, TenantRootCreationStoreV1,
@@ -105,6 +106,10 @@ pub use durable_object::tenant_root_creation::{
     CLOUDFLARE_TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_PATH,
     CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_PATH, CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_READ_PATH,
     CLOUDFLARE_TENANT_ROOT_CREATION_PROGRESS_READ_PATH,
+    CLOUDFLARE_TENANT_ROOT_REFRESH_ACTIVATION_PATH,
+    CLOUDFLARE_TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_PATH,
+    CLOUDFLARE_TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_PATH,
+    CLOUDFLARE_TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_PATH,
 };
 pub use tenant_root_control_plane::{
     control_plane_create_tenant_root_v1, control_plane_initial_activation_v1,
