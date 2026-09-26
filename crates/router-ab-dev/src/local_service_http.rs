@@ -221,9 +221,13 @@ impl LocalHttpServiceBindingClientV1 {
         internal_service_auth: Option<&str>,
         response_max_bytes: Option<usize>,
     ) -> RouterAbProtocolResult<Vec<u8>> {
+        // A peer that cannot be reached, answers with a broken or error
+        // response, or fails its call is a server-side failure, as a failed
+        // Service Binding fetch is on Cloudflare. Only a malformed route or
+        // credential supplied by the caller is its own error.
         let mut stream = TcpStream::connect(&endpoint.bind_addr).map_err(|error| {
             RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 format!(
                     "local HTTP service-binding connect to {} failed: {error}",
                     endpoint.bind_addr
@@ -286,7 +290,7 @@ impl LocalHttpServiceBindingClientV1 {
             // does, so a caller can tell a replay rejection from a fault.
             let detail = String::from_utf8_lossy(&response_body);
             return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 format!(
                     "local HTTP service-binding request failed with status {status}: {}",
                     detail.trim()

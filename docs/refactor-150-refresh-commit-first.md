@@ -198,10 +198,12 @@ the Router commits. It observed (`R150_VM_TENANT_ROOT_REFRESH_E2E`):
 - **A second operation:** 429 inside the manual-refresh interval.
 - **Backups and canaries:** each role keeps both epochs' objects.
 
-The lost delivery surfaces as HTTP 400 on the VM and 500 on Workers. The VM
-HTTP client classifies a dropped peer connection as a bad local request. That
-predates refresh, applies to every VM private call, and is recorded as
-separate work.
+The lost delivery first surfaced as HTTP 400 on the VM and 500 on Workers:
+the VM HTTP client classified every peer failure as a bad local request. It
+now classifies them as Cloudflare does. A refused connection, an I/O failure,
+a truncated or malformed response, or a peer's error status is a server-side
+failure (500). A malformed route or credential from the caller stays 400. The
+VM E2E now answers the lost delivery with 500.
 
 **A VM rendezvous starvation, found and fixed.** Repeated runs of that E2E
 failed 2 of 5 times with "refresh commitment rendezvous did not receive both

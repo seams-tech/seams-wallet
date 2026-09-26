@@ -2458,16 +2458,18 @@ fn parse_http_url_parts_v1(url: &str) -> RouterAbProtocolResult<LocalHttpUrlPart
     })
 }
 
+/// Splits a peer's HTTP response. A truncated or malformed response is a peer
+/// transport failure, not an error in the caller's request.
 fn split_local_http_response_v1(response: &[u8]) -> RouterAbProtocolResult<(u16, Vec<u8>)> {
     let Some(header_end) = response.windows(4).position(|window| window == b"\r\n\r\n") else {
         return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             "local HTTP service-binding response missing header terminator",
         ));
     };
     let headers = std::str::from_utf8(&response[..header_end]).map_err(|error| {
         RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             format!("local HTTP service-binding response headers are not UTF-8: {error}"),
         )
     })?;
@@ -2476,7 +2478,7 @@ fn split_local_http_response_v1(response: &[u8]) -> RouterAbProtocolResult<(u16,
     let protocol = status_parts.next().unwrap_or_default();
     if protocol != "HTTP/1.1" && protocol != "HTTP/1.0" {
         return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             "local HTTP service-binding response has invalid HTTP version",
         ));
     }
@@ -2486,16 +2488,18 @@ fn split_local_http_response_v1(response: &[u8]) -> RouterAbProtocolResult<(u16,
         .parse::<u16>()
         .map_err(|error| {
             RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 format!("local HTTP service-binding response status is invalid: {error}"),
             )
         })?;
     Ok((status, response[header_end + 4..].to_vec()))
 }
 
+/// Maps an I/O failure on a call to a peer: a transport failure, not an error
+/// in the caller's request.
 fn map_local_http_io_error_v1(error: std::io::Error) -> RouterAbProtocolError {
     RouterAbProtocolError::new(
-        RouterAbProtocolErrorCode::InvalidLocalHttpRequest,
+        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
         format!("local HTTP service-binding I/O failed: {error}"),
     )
 }

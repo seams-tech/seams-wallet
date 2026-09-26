@@ -1367,7 +1367,8 @@ fn vm_tenant_root_refresh_delivers_the_committed_receipt_after_a_lost_delivery(
         .drop_next_on(router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH);
     let (lost_status, lost_body) =
         stack.refresh(&identity, &lineage_b64u, "vm-refresh-1", created_revision)?;
-    assert_ne!(lost_status, 200, "{lost_body}");
+    // A lost peer call is a server-side failure, as on Workers.
+    assert_eq!(lost_status, 500, "{lost_body}");
     assert!(stack.proxy_b.dropped_on(), "the proxy must have dropped B's activation");
     let (committed_revision, committed_fence, committed_digest) =
         stack.active_state(&lineage_b64u)?;
