@@ -93,7 +93,8 @@ pub use durable_object::tenant_root_creation::{
     tenant_root_creation_active_state_with_revision_read_call_v1,
     tenant_root_creation_cleanup_call_v1, tenant_root_creation_journal_call_v1,
     tenant_root_creation_journal_read_call_v1, tenant_root_creation_object_name_v1,
-    tenant_root_creation_serve_without_refresh_v1, CloudflareTenantRootCreationJournalReadResponseV1,
+    tenant_root_creation_serve_without_refresh_v1, CloudflareTenantRootCreationJournalReadRequestV1,
+    CloudflareTenantRootCreationJournalReadResponseV1,
     CloudflareTenantRootCreationJournalResponseV1, CloudflareVerifiedTenantRootActiveStateV1,
     TenantRootCreationStateTransportV1, TenantRootCreationStoreV1,
     CLOUDFLARE_TENANT_ROOT_CREATION_ABANDONMENT_PATH,
@@ -132,7 +133,8 @@ pub use tenant_root_role_runtime::{
 };
 mod tenant_root_creation_coordinator;
 pub use tenant_root_creation_coordinator::{
-    tenant_root_router_coordinate_creation_v1, TenantRootRouterCreationHostV1,
+    tenant_root_router_coordinate_creation_v1, tenant_root_router_sweep_abandoned_creation_v1,
+    CloudflareTenantRootCreationSweepResponseV1, TenantRootRouterCreationHostV1,
 };
 mod tenant_root_transport;
 pub use tenant_root_transport::{

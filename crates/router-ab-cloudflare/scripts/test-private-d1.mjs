@@ -55,6 +55,7 @@ const deriverAWalletDoPath = '/router-ab/internal/deriver-a/wallet-pair';
 const deriverAWalletStatusPath = '/router-ab/deriver-a/ed25519-yao/read-pair-status';
 const deriverAWalletBurnPath = '/router-ab/deriver-a/ed25519-yao/burn-pair';
 const tenantRootCreationPath = '/router-ab/internal/tenant-root/creation/v1/create';
+const tenantRootCreationSweepPath = '/router-ab/internal/tenant-root/creation/v1/sweep-abandoned';
 const deriverCreateRoleSharePath =
   '/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share';
 const deriverInitialActivationPath = '/router-ab/internal/deriver/tenant-root/creation/v1/activate';
@@ -1995,6 +1996,17 @@ async function testTenantRootCreationRecoveryPaths(topology, databases) {
   await hold.held;
   recoveryDeriverA = 'deriver-a';
   assert.deepEqual(await lifecycles(lateWrite), [null, 'pending']);
+  // B's backup and canary, kept to reproduce objects left behind after a
+  // cleanup was checkpointed.
+  const leftBehind = await Promise.all(
+    (await backupBucketB.list()).objects
+      .filter((object) => object.key.includes(`/${lateWrite.custody_lineage_b64u}/`))
+      .map(async (object) => ({
+        key: object.key,
+        body: await (await backupBucketB.get(object.key)).arrayBuffer(),
+      })),
+  );
+  assert.equal(leftBehind.length, 2, 'B holds its backup and canary');
 
   // After the commit: the delivery to B is lost, leaving A active.
   recoveryDropNextActivation['deriver-b'] = true;
@@ -2105,6 +2117,34 @@ async function testTenantRootCreationRecoveryPaths(topology, databases) {
   assert.deepEqual(lateAbandonment.installed_roles, ['deriver_b']);
   assert.deepEqual(lateAbandonment.cleaned_roles, ['deriver_a', 'deriver_b']);
 
+  // Objects left after the cleanup was checkpointed: an ordinary retry skips
+  // cleaned roles, and an operator sweep removes them by replaying both
+  // cleanups, B's by its recorded evidence. It records nothing new.
+  const sweep = async (ceremony) => {
+    const response = await postWorkerJson(router, tenantRootCreationSweepPath, {
+      identity_digest_b64u: ceremony.identity_digest_b64u,
+      custody_lineage_b64u: ceremony.custody_lineage_b64u,
+    });
+    return { status: response.status, body: await response.text() };
+  };
+  for (const object of leftBehind) {
+    await backupBucketB.put(object.key, object.body);
+  }
+  result = await create(lateWrite);
+  assert.ok(result.body.includes('abandoned; a fresh grant is required'), result.body);
+  assert.deepEqual(await backupObjects(lateWrite), [0, 2], 'a retry skips cleaned roles');
+  const swept = await sweep(lateWrite);
+  assert.equal(swept.status, 200, swept.body);
+  assert.deepEqual(JSON.parse(swept.body).swept_roles, ['deriver_a', 'deriver_b']);
+  assert.deepEqual(await backupObjects(lateWrite), [0, 0], 'the sweep removes what was left');
+  assert.deepEqual(await commandStatuses(databases.deriverA, lateWrite), ['completed', 'reserved']);
+  assert.deepEqual(await commandStatuses(databases.deriverB, lateWrite), ['completed', 'completed']);
+  const sweptAgain = await sweep(lateWrite);
+  assert.deepEqual([sweptAgain.status, sweptAgain.body], [200, swept.body]);
+  const committedSweep = await sweep(committed);
+  assert.notEqual(committedSweep.status, 200, committedSweep.body);
+  assert.deepEqual(await lifecycles(committed), ['active', 'active']);
+
   console.log(
     JSON.stringify({
       kind: 'tenant_root_creation_recovery_workers_e2e_v1',
@@ -2118,6 +2158,13 @@ async function testTenantRootCreationRecoveryPaths(topology, databases) {
         lateCreationStatus: late.status,
         rowsBackupsCanariesAfter: 0,
         deriverACommands: ['cleanup completed', 'creation reserved, never executed'],
+      },
+      operatorSweep: {
+        residueRestored: leftBehind.length,
+        status: swept.status,
+        residueAfter: 0,
+        secondSweepIdentical: true,
+        committedCreationSweepStatus: committedSweep.status,
       },
     }),
   );

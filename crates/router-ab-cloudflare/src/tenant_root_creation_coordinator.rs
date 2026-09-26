@@ -13,7 +13,8 @@
 //! grant's freshness no longer gates it. Before the commit, a creation with
 //! both roles installed resumes inside its ceremony window; a creation that
 //! cannot finish is abandoned behind a fence in the Router's creation state,
-//! which no activation can pass, and its installed roles are cleaned.
+//! which no activation can pass, and both of its roles are cleaned. An
+//! operator can re-run that cleanup to sweep objects a stopped Deriver left.
 
 use std::collections::BTreeMap;
 
@@ -28,8 +29,9 @@ use crate::durable_object::tenant_root_creation::{
     tenant_root_creation_progress_read_call_v1, validate_creation_record,
     CloudflareTenantRootCreationInstallationCheckpointReadStateV1,
     CloudflareTenantRootCreationInstallationRoleV1,
-    CloudflareTenantRootCreationJournalOutcomeV1, CloudflareTenantRootCreationJournalRecordV1,
-    CloudflareTenantRootCreationProgressV1, TenantRootCreationStateTransportV1,
+    CloudflareTenantRootCreationJournalOutcomeV1, CloudflareTenantRootCreationJournalReadRequestV1,
+    CloudflareTenantRootCreationJournalRecordV1, CloudflareTenantRootCreationProgressV1,
+    TenantRootCreationStateTransportV1,
 };
 use crate::tenant_root_control_plane::{
     create_tenant_root_response_v1, tenant_root_creation_grant_opened_ceremony_v1,
@@ -59,6 +61,17 @@ use crate::{
     decode_base64url_bytes_v1, encode_base64url_bytes_v1, RouterAbProtocolError,
     RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
+
+/// The outcome of re-running an abandoned creation's cleanup.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareTenantRootCreationSweepResponseV1 {
+    /// When the Router fenced the creation.
+    pub abandoned_at_ms: u64,
+    /// The roles whose cleanup ran again, each as an exact replay or, for a
+    /// role not yet cleaned, for the first time.
+    pub swept_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
+}
 
 /// What the Router's creation coordinator needs from its host. The ceremony,
 /// its partial-creation cleanup included, is the same code on every host.
@@ -356,6 +369,60 @@ async fn abandon_tenant_root_creation_v1<Host: TenantRootRouterCreationHostV1>(
     Ok(())
 }
 
+/// Re-runs both roles' cleanup of an abandoned creation, on an operator's
+/// explicit request. Nothing new is authorized: the control plane reissues the
+/// same command it issued at the fence, the Deriver confirms the fence again,
+/// replays its terminal receipt and deletes the role's managed backup and
+/// canary, and the Router replays its checkpoint. It removes the objects a
+/// Deriver leaves if it stops between a late write, refused by its tombstone,
+/// and the compensating delete. A creation that is not abandoned is refused.
+pub async fn tenant_root_router_sweep_abandoned_creation_v1<Host: TenantRootRouterCreationHostV1>(
+    host: &Host,
+    request: CloudflareTenantRootCreationJournalReadRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootCreationSweepResponseV1> {
+    let (identity_digest, custody_lineage) =
+        creation_scope_v1(&request.identity_digest_b64u, &request.custody_lineage_b64u)?;
+    let abandonment = match tenant_root_creation_progress_read_call_v1(
+        host,
+        identity_digest,
+        custody_lineage,
+    )
+    .await?
+    {
+        CloudflareTenantRootCreationProgressV1::Started {
+            state:
+                crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationJournalReadResponseV1 {
+                    abandonment: Some(abandonment),
+                    ..
+                },
+            ..
+        } => abandonment,
+        _ => {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLifecycleState,
+                "only an abandoned tenant-root creation can be swept",
+            ))
+        }
+    };
+    let swept_roles = vec![
+        CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
+        CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
+    ];
+    for role in &swept_roles {
+        clean_abandoned_role_v1(
+            host,
+            identity_digest,
+            custody_lineage,
+            CloudflareTenantRootControlPlaneRoleV1::from_protocol(role.to_protocol()),
+        )
+        .await?;
+    }
+    Ok(CloudflareTenantRootCreationSweepResponseV1 {
+        abandoned_at_ms: abandonment.abandoned_at_ms,
+        swept_roles,
+    })
+}
+
 /// Cleans one role of an abandoned creation. The control plane issues a
 /// cleanup command naming that role's recorded pending row, or for a role the
 /// abandonment did not record, the abandoned ceremony; the Router verifies it
@@ -543,10 +610,18 @@ fn genesis_scope_v1(
     router_ab_core::TenantRootIdentityDigestV1,
     router_ab_core::TenantRootCustodyLineageId,
 )> {
-    let identity_digest_bytes = decode_base64url_bytes_v1(
-        "tenant-root creation identity digest",
-        &genesis.identity_digest_b64u,
-    )?;
+    creation_scope_v1(&genesis.identity_digest_b64u, &genesis.custody_lineage_b64u)
+}
+
+fn creation_scope_v1(
+    identity_digest_b64u: &str,
+    custody_lineage_b64u: &str,
+) -> RouterAbProtocolResult<(
+    router_ab_core::TenantRootIdentityDigestV1,
+    router_ab_core::TenantRootCustodyLineageId,
+)> {
+    let identity_digest_bytes =
+        decode_base64url_bytes_v1("tenant-root creation identity digest", identity_digest_b64u)?;
     let identity_digest = router_ab_core::TenantRootIdentityDigestV1::from_bytes(
         identity_digest_bytes.try_into().map_err(|_| {
             RouterAbProtocolError::new(
@@ -556,7 +631,7 @@ fn genesis_scope_v1(
         })?,
     );
     let custody_lineage =
-        router_ab_core::TenantRootCustodyLineageId::from_base64url(&genesis.custody_lineage_b64u)
+        router_ab_core::TenantRootCustodyLineageId::from_base64url(custody_lineage_b64u)
             .map_err(|error| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::MalformedWirePayload,

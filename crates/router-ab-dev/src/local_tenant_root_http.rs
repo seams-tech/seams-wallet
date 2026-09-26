@@ -23,7 +23,9 @@ use router_ab_cloudflare::{
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_ROLE_CREATION_COMMAND_PRIVATE_REQUEST_PATH,
     tenant_root_deriver_create_role_share_v1, tenant_root_deriver_initial_activation_v1,
-    tenant_root_router_coordinate_creation_v1,
+    tenant_root_router_coordinate_creation_v1, tenant_root_router_sweep_abandoned_creation_v1,
+    CloudflareTenantRootCreationJournalReadRequestV1,
+    CLOUDFLARE_ROUTER_TENANT_ROOT_CREATION_SWEEP_PRIVATE_REQUEST_PATH,
     CloudflareDeriverTenantRootCreateRoleShareRequestV1,
     CloudflareDeriverTenantRootInitialActivationRequestV1,
     CloudflareTenantRootControlPlaneCreateTenantRootRequestV1,
@@ -73,6 +75,18 @@ pub fn local_tenant_root_route_v1(
                         tenant_root_router_coordinate_creation_v1(
                             &LocalRouterTenantRootCreationHostV1::new(&router.tenant_root),
                             create,
+                        ),
+                    )?)
+                },
+            )),
+            CLOUDFLARE_ROUTER_TENANT_ROOT_CREATION_SWEEP_PRIVATE_REQUEST_PATH => Some(authorized(
+                &router.internal_service_auth,
+                request,
+                |scope: CloudflareTenantRootCreationJournalReadRequestV1| {
+                    json(&futures::executor::block_on(
+                        tenant_root_router_sweep_abandoned_creation_v1(
+                            &LocalRouterTenantRootCreationHostV1::new(&router.tenant_root),
+                            scope,
                         ),
                     )?)
                 },

@@ -12,6 +12,10 @@ pub const CLOUDFLARE_INTERNAL_PREWARM_PATH: &str = "/internal/prewarm";
 /// Authenticated private Router endpoint for starting tenant-root creation.
 pub const CLOUDFLARE_ROUTER_TENANT_ROOT_CREATION_PRIVATE_REQUEST_PATH: &str =
     "/router-ab/internal/tenant-root/creation/v1/create";
+/// Authenticated private Router endpoint an operator calls to re-run both
+/// roles' cleanup of one abandoned tenant-root creation.
+pub const CLOUDFLARE_ROUTER_TENANT_ROOT_CREATION_SWEEP_PRIVATE_REQUEST_PATH: &str =
+    "/router-ab/internal/tenant-root/creation/v1/sweep-abandoned";
 /// Authenticated internal Router endpoint for reading or authenticating a
 /// preprovisioned destination bootstrap authority.
 pub const CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_PRIVATE_REQUEST_PATH: &str =

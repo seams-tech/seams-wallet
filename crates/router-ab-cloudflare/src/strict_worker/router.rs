@@ -4285,6 +4285,35 @@ pub(super) async fn handle_strict_router_fetch_v1(
             Err(err) => cloudflare_protocol_error_response_v1(err),
         };
     }
+    if path == crate::CLOUDFLARE_ROUTER_TENANT_ROOT_CREATION_SWEEP_PRIVATE_REQUEST_PATH {
+        if let Err(err) = require_cloudflare_internal_service_auth_request_v1(&request, &env) {
+            return cloudflare_private_service_auth_error_response_v1(err);
+        }
+        if request.method() != Method::Post {
+            return Response::error("tenant-root creation sweep route requires POST", 405);
+        }
+        let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(&env) {
+            Ok(runtime) => runtime,
+            Err(err) => return cloudflare_protocol_error_response_v1(err),
+        };
+        let parsed = match decode_bounded_json_request::<
+            crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationJournalReadRequestV1,
+        >(&mut request, 1024)
+        .await
+        {
+            Ok(value) => value,
+            Err(err) => return cloudflare_protocol_error_response_v1(err),
+        };
+        return match crate::tenant_root_router_sweep_abandoned_creation_v1(
+            &CloudflareRouterTenantRootCreationHostV1::new(&env, &runtime),
+            parsed,
+        )
+        .await
+        {
+            Ok(response) => Response::from_json(&response),
+            Err(err) => cloudflare_protocol_error_response_v1(err),
+        };
+    }
     if path == crate::CLOUDFLARE_ROUTER_TENANT_ROOT_STATUS_PRIVATE_REQUEST_PATH {
         if let Err(err) = require_cloudflare_internal_service_auth_request_v1(&request, &env) {
             return cloudflare_private_service_auth_error_response_v1(err);

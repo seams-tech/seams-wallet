@@ -1690,6 +1690,136 @@ fn vm_tenant_root_unrecorded_material_is_cleaned_after_the_ceremony_expires(
     Ok(())
 }
 
+/// The operator path for objects an abandoned creation can leave behind: a
+/// Deriver that stops between a late write, refused by its tombstone, and the
+/// compensating delete keeps that write's backup and canary, and the Router
+/// has already checkpointed the role's cleanup. The residue is reproduced by
+/// putting back the backup and canary B held before the abandonment. An
+/// operator's sweep re-runs both roles' cleanup as exact replays, removing
+/// them without recording anything new, and is refused for any creation that
+/// is not abandoned.
+#[test]
+fn vm_tenant_root_operator_sweep_removes_what_an_abandoned_creation_left(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start("vm-tenant-root-operator-sweep")?;
+    let pending = || Some("pending".to_owned());
+    let active = || Some("active".to_owned());
+    let not_abandoned = "only an abandoned tenant-root creation can be swept";
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("operator-sweep")?;
+    let lifetime_ms = 6_000;
+    let signed_at = Instant::now();
+    let grant =
+        product_creation_grant_with_lifetime_b64u(&stack.temp, &identity, lineage, None, lifetime_ms)?;
+    stack.proxy_b_to_router.drop_next_containing(format!(
+        "\"path\":\"{}\"",
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_PATH
+    ));
+    let (lost_status, lost_body) = stack.create(&grant)?;
+    assert_ne!(lost_status, 200, "{lost_body}");
+    assert_eq!(stack.lifecycles(&lineage_b64u)?, (None, pending()));
+    assert_eq!(stack.backup_objects(&lineage_b64u)?, ((0, 0), (1, 1)));
+    stack.b_backups.execute(
+        "CREATE TEMP TABLE left_behind AS
+         SELECT * FROM local_tenant_root_managed_backups
+         WHERE instr(object_key, '/' || ?1 || '/') > 0",
+        [&lineage_b64u],
+    )?;
+
+    // Inside the window nothing is abandoned, so nothing is swept.
+    let (open_status, open_body) = stack.sweep(&identity, &lineage_b64u)?;
+    assert_ne!(open_status, 200, "{open_body}");
+    assert!(open_body.contains(not_abandoned), "{open_body}");
+    assert_eq!(stack.backup_objects(&lineage_b64u)?, ((0, 0), (1, 1)));
+
+    if let Some(remaining) = Duration::from_millis(lifetime_ms).checked_sub(signed_at.elapsed()) {
+        thread::sleep(remaining);
+    }
+    let (abandoned_status, abandoned_body) = stack.create(&grant)?;
+    assert_ne!(abandoned_status, 200, "{abandoned_body}");
+    assert!(abandoned_body.contains("was abandoned"), "{abandoned_body}");
+    assert_eq!(stack.backup_objects(&lineage_b64u)?, ((0, 0), (0, 0)));
+    let recorded = (
+        stack.abandonment_records(&lineage_b64u)?,
+        stack.completed_commands(&lineage_b64u)?,
+        stack.tombstones(&lineage_b64u)?,
+    );
+    assert_eq!(recorded, ((1, 2), (1, 2), (1, 1)));
+
+    // The residue: B's backup and canary are back after its cleanup was
+    // checkpointed, and an ordinary retry no longer cleans B.
+    stack.b_backups.execute_batch(
+        "INSERT INTO local_tenant_root_managed_backups SELECT * FROM temp.left_behind",
+    )?;
+    let (retry_status, retry_body) = stack.create(&grant)?;
+    assert_eq!(retry_status, abandoned_status, "{retry_body}");
+    assert_eq!(stack.backup_objects(&lineage_b64u)?, ((0, 0), (1, 1)), "a retry skips cleaned roles");
+
+    // The runbook's search finds exactly this residue, and its sweep request,
+    // built from the tombstone, removes it and records nothing new. A second
+    // sweep replays.
+    let residue = stack.documented_residue()?;
+    let identity_hex = hex::encode(identity.digest()?.as_bytes());
+    assert_eq!(
+        residue,
+        vec![("deriver-b".to_owned(), identity_hex.clone(), lineage_b64u.clone())]
+    );
+    let (swept_status, swept_body) = stack.sweep_digest(&residue[0].1, &residue[0].2)?;
+    assert_eq!(swept_status, 200, "{swept_body}");
+    let swept: serde_json::Value = serde_json::from_str(&swept_body)?;
+    assert_eq!(swept["swept_roles"], json!(["deriver_a", "deriver_b"]), "{swept_body}");
+    assert_eq!(stack.backup_objects(&lineage_b64u)?, ((0, 0), (0, 0)));
+    assert_eq!(stack.documented_residue()?, Vec::new());
+    assert_eq!(stack.lifecycles(&lineage_b64u)?, (None, None));
+    assert_eq!(
+        (
+            stack.abandonment_records(&lineage_b64u)?,
+            stack.completed_commands(&lineage_b64u)?,
+            stack.tombstones(&lineage_b64u)?,
+        ),
+        recorded,
+        "the sweep only replays"
+    );
+    let (again_status, again_body) = stack.sweep(&identity, &lineage_b64u)?;
+    assert_eq!((again_status, again_body.as_str()), (200, swept_body.as_str()));
+
+    // A committed creation, and one never started, are refused.
+    let (committed_identity, committed_lineage, committed_lineage_b64u) =
+        recovery_ceremony("operator-sweep-committed")?;
+    let committed_grant =
+        product_creation_grant_b64u(&stack.temp, &committed_identity, committed_lineage, None)?;
+    let (committed_status, committed_body) = stack.create(&committed_grant)?;
+    assert_eq!(committed_status, 200, "{committed_body}");
+    let (committed_sweep_status, committed_sweep_body) =
+        stack.sweep(&committed_identity, &committed_lineage_b64u)?;
+    assert_ne!(committed_sweep_status, 200, "{committed_sweep_body}");
+    assert!(committed_sweep_body.contains(not_abandoned), "{committed_sweep_body}");
+    assert_eq!(stack.lifecycles(&committed_lineage_b64u)?, (active(), active()));
+    assert_eq!(stack.backup_objects(&committed_lineage_b64u)?, ((1, 1), (1, 1)));
+    let (_, _, unknown_lineage_b64u) = recovery_ceremony("operator-sweep-unknown")?;
+    let (unknown_status, unknown_body) = stack.sweep(&identity, &unknown_lineage_b64u)?;
+    assert_ne!(unknown_status, 200, "{unknown_body}");
+    assert!(unknown_body.contains(not_abandoned), "{unknown_body}");
+
+    println!(
+        "R150_VM_TENANT_ROOT_OPERATOR_SWEEP_E2E {}",
+        json!({
+            "residue": "deriver_b_backup_and_canary_after_its_cleanup_was_checkpointed",
+            "sweep_inside_window_status": open_status,
+            "ordinary_retry_leaves_residue": true,
+            "found_by_documented_search": ["deriver-b"],
+            "sweep_status": swept_status,
+            "residue_after_sweep": 0,
+            "router_fences_and_cleanups": [1, 2],
+            "completed_commands": [1, 2],
+            "second_sweep_identical": true,
+            "sweep_of_committed_creation_status": committed_sweep_status,
+            "sweep_of_unstarted_creation_status": unknown_status,
+        })
+    );
+    Ok(())
+}
+
 /// A command admitted before the window closed may finish writing after the
 /// Router has abandoned its creation. Deriver A's call to B returns only once
 /// the window has closed and the Router has written the fence: A then writes
@@ -1776,6 +1906,13 @@ fn vm_tenant_root_write_that_lands_after_the_fence_is_cleaned(
     assert_eq!(stack.tombstones(&lineage_b64u)?, (1, 0));
     assert_eq!(stack.committed_receipt(&lineage_b64u)?, None);
 
+    // An operator sweep replays both cleanups, B's by its recorded evidence
+    // although its row is gone, and records nothing new.
+    let (swept_status, swept_body) = stack.sweep(&identity, &lineage_b64u)?;
+    assert_eq!(swept_status, 200, "{swept_body}");
+    assert_eq!(stack.abandonment_records(&lineage_b64u)?, (1, 2));
+    assert_eq!(stack.completed_commands(&lineage_b64u)?, (2, 2));
+
     println!(
         "R150_VM_TENANT_ROOT_LATE_WRITE_E2E {}",
         json!({
@@ -1787,6 +1924,7 @@ fn vm_tenant_root_write_that_lands_after_the_fence_is_cleaned(
             "a_late_creation_then_cleanup_completed": true,
             "rows_backups_canaries_after_abandonment": 0,
             "tombstones": [1, 0],
+            "operator_sweep_replays_both_status": swept_status,
             "router_fences_and_cleanups": [1, 2],
         })
     );
@@ -2124,6 +2262,68 @@ impl RecoveryStackV1 {
             )
         };
         Ok((count(&self.a_store)?, count(&self.b_store)?))
+    }
+
+    /// Asks the Router to re-run both roles' cleanup of one abandoned
+    /// creation, as an operator would.
+    fn sweep(
+        &self,
+        identity: &TenantRootIdentityV1,
+        lineage: &str,
+    ) -> Result<(u16, String), Box<dyn std::error::Error>> {
+        self.sweep_digest(&hex::encode(identity.digest()?.as_bytes()), lineage)
+    }
+
+    /// The sweep request as the runbook builds it, from a tombstone's hex
+    /// identity digest.
+    fn sweep_digest(
+        &self,
+        identity_digest_hex: &str,
+        lineage: &str,
+    ) -> Result<(u16, String), Box<dyn std::error::Error>> {
+        let identity_digest = hex::decode(identity_digest_hex)?;
+        post_json_to_path_with_headers(
+            &self.router_url,
+            router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_CREATION_SWEEP_PRIVATE_REQUEST_PATH,
+            &json!({
+                "identity_digest_b64u":
+                    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(identity_digest),
+                "custody_lineage_b64u": lineage,
+            }),
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+        )
+    }
+
+    /// The runbook's search for residue: each Deriver's tombstoned lineages
+    /// that still hold initial-epoch objects, as (role, identity digest hex,
+    /// lineage).
+    fn documented_residue(&self) -> rusqlite::Result<Vec<(String, String, String)>> {
+        let mut residue = Vec::new();
+        for (role, store, backups) in [
+            ("deriver-a", &self.a_store, &self.a_backups),
+            ("deriver-b", &self.b_store, &self.b_backups),
+        ] {
+            let tombstones = store
+                .prepare(
+                    "SELECT tenant_identity_digest_hex, custody_lineage_b64u
+                     FROM tenant_root_creation_tombstones",
+                )?
+                .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            for (identity_hex, lineage) in tombstones {
+                let prefix = format!("tenant-root-managed-backup/v1/{role}/{identity_hex}/{lineage}/1");
+                let objects: i64 = backups.query_row(
+                    "SELECT count(*) FROM local_tenant_root_managed_backups
+                     WHERE object_key IN (?1 || '.bin', ?1 || '.provider-canary.bin')",
+                    [&prefix],
+                    |row| row.get(0),
+                )?;
+                if objects > 0 {
+                    residue.push((role.to_owned(), identity_hex, lineage));
+                }
+            }
+        }
+        Ok(residue)
     }
 
     /// Replays the last recorded control-plane activation request, which has

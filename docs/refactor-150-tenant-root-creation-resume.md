@@ -217,9 +217,63 @@ recorded ones.
 
 Residual: a Deriver that crashes between a late backup write and its
 compensating delete leaves an unreferenced backup and canary. It holds no
-row and can never activate. An exact replay of that role's cleanup command
-deletes them, but nothing triggers that replay automatically once the Router
-has checkpointed the role's cleanup.
+row and can never activate. An ordinary retry of the grant skips roles the
+Router has already checkpointed as cleaned, so it does not remove them. The
+operator sweep below does. Sweeping automatically is a separate decision and
+is not implemented.
+
+### Operator cleanup of residual objects (implemented)
+
+The sweep re-runs both roles' cleanup of one abandoned creation. It adds no
+new authority: every deletion still goes through the same issuer-signed
+cleanup command and the same fence checks as the abandonment.
+
+- The Router refuses unless its creation state holds the abandonment fence
+  (`only an abandoned tenant-root creation can be swept`). A creation that is
+  open, committed or never started is refused.
+- For each role, the control plane reissues the command it issued at the
+  fence, byte for byte. The Router verifies it, and the Deriver confirms the
+  fence and replays its terminal receipt. It then deletes that role's
+  initial-epoch managed backup and canary. The Router replays its cleanup
+  checkpoint.
+- A role not cleaned yet is cleaned for the first time.
+- A sweep records nothing new, so it is safe to repeat: an identical second
+  call returns the same response.
+
+**Finding candidates.** Residue exists only for a lineage a Deriver
+tombstoned whose initial-epoch objects are still present. For each Deriver
+(role `deriver-a` or `deriver-b`), list its tombstones:
+
+```sql
+-- VM: the role store at DERIVER_A_ROLE_PRIVATE_STORAGE_PATH or
+-- DERIVER_B_ROLE_PRIVATE_STORAGE_PATH. Cloudflare: that Deriver's D1.
+SELECT tenant_identity_digest_hex, custody_lineage_b64u
+FROM tenant_root_creation_tombstones;
+```
+
+For each row, look for objects under
+`tenant-root-managed-backup/v1/<role>/<tenant_identity_digest_hex>/<custody_lineage_b64u>/1`.
+The backup is `1.bin` and the canary `1.provider-canary.bin`. On a VM they
+are rows of `local_tenant_root_managed_backups` in the store at
+`DERIVER_TENANT_ROOT_MANAGED_BACKUP_STORAGE_PATH`, keyed by `object_key`. On
+Cloudflare they are objects in that Deriver's managed-backup R2 bucket.
+Sweeping a lineage with no residue is harmless.
+
+**Sweeping.** Call the Router's private route with the role-shared service
+credential (`ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET`) in
+`x-router-ab-internal-service-auth`. The identity digest goes as base64url of
+its 32 bytes, not hex:
+
+```bash
+IDENTITY_DIGEST_B64U=$(python3 -c 'import base64,sys; print(base64.urlsafe_b64encode(bytes.fromhex(sys.argv[1])).decode().rstrip("="))' "$TENANT_IDENTITY_DIGEST_HEX")
+curl -sS -X POST "$ROUTER_URL/router-ab/internal/tenant-root/creation/v1/sweep-abandoned" \
+  -H 'content-type: application/json' \
+  -H "x-router-ab-internal-service-auth: $ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET" \
+  -d "{\"identity_digest_b64u\":\"$IDENTITY_DIGEST_B64U\",\"custody_lineage_b64u\":\"$CUSTODY_LINEAGE_B64U\"}"
+```
+
+A 200 response reports `abandoned_at_ms` and `swept_roles`. Re-check the
+object listing afterwards.
 
 ### Evidence: unrecorded material and late writes
 
@@ -237,11 +291,23 @@ has checkpointed the role's cleanup.
   its commitment. A VM Deriver serves one request at a time, so A's cleanup
   runs after that late write and removes it: A's creation and cleanup
   commands both completed, and nothing remains.
+- `vm_tenant_root_operator_sweep_removes_what_an_abandoned_creation_left`
+  (`R150_VM_TENANT_ROOT_OPERATOR_SWEEP_E2E`) reproduces the residue by
+  putting back B's backup and canary after its cleanup was checkpointed. An
+  ordinary retry leaves them. The runbook's search finds exactly that
+  lineage, and the sweep request built from its tombstone removes them. The Router's fence and
+  checkpoints, each Deriver's completed commands and tombstones are unchanged,
+  and a second sweep returns the identical response. Sweeps of an open
+  creation, a committed one and one never started are refused. The late-write
+  E2E also sweeps afterwards, replaying B's evidence-bound cleanup after its
+  row is gone.
 - On Workers, where a cleanup can land first, `testTenantRootCreationRecoveryPaths`
   holds B's answer through a late-writing Deriver A worker that shares A's
   database and bucket. The abandonment cleans and tombstones A before A
   writes; A's late row is refused, its backup and canary are removed, and
-  its creation command stays reserved and never executes.
+  its creation command stays reserved and never executes. The same test
+  restores B's objects, sweeps through the Router Worker, and checks that the
+  sweep removes them, repeats identically and refuses a committed creation.
 
 ## After the commit (implemented)
 
