@@ -55,6 +55,8 @@ const deriverAWalletDoPath = '/router-ab/internal/deriver-a/wallet-pair';
 const deriverAWalletStatusPath = '/router-ab/deriver-a/ed25519-yao/read-pair-status';
 const deriverAWalletBurnPath = '/router-ab/deriver-a/ed25519-yao/burn-pair';
 const tenantRootCreationPath = '/router-ab/internal/tenant-root/creation/v1/create';
+const deriverCreateRoleSharePath =
+  '/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share';
 const deriverInitialActivationPath = '/router-ab/internal/deriver/tenant-root/creation/v1/activate';
 const controlPlaneInitialActivationPath = '/tenant-root-control-plane/creation/v1/activate';
 const creationStateInitialActivationPath =
@@ -131,6 +133,12 @@ const recoveryDropNextActivation = {
   'tenant-root-control-plane': false,
 };
 let recoveryCapturedControlPlaneActivation;
+// The worker the recovery Router reaches as Deriver A: normally Deriver A, or
+// its late-writing variant, which shares its database and bucket.
+let recoveryDeriverA = 'deriver-a';
+// When set, the late-writing Deriver A's next creation call to B is answered
+// only once released.
+let pendingDeriverBAnswerHold = null;
 let signingWorkerFinalizationLookups = 0;
 let historicalReplayActivationCalls = 0;
 let ecdsaClientWasmInitialized = false;
@@ -343,9 +351,51 @@ function recoveryPeer(workerName, faultPath) {
         return new Response(`simulated lost ${workerName} initial activation`, { status: 503 });
       }
     }
-    const worker = await miniflare.getWorker(workerName);
+    const worker = await miniflare.getWorker(
+      workerName === 'deriver-a' ? recoveryDeriverA : workerName,
+    );
     return worker.fetch(request);
   };
+}
+
+/// Deriver A again, on the same database and bucket, reaching B through a
+/// binding that can hold B's answer: a command admitted before the window
+/// closes then writes only after the Router has abandoned the creation.
+function lateWritingDeriverAWorker(fixture) {
+  return {
+    ...deriverAWorker(fixture),
+    name: 'deriver-a-late',
+    serviceBindings: { DERIVER_B: routeDeriverBHoldingAnswer },
+  };
+}
+
+/// Arms a hold on the late-writing Deriver A's next creation call to B.
+/// `held` resolves once B has answered; `release` delivers the answer.
+function holdNextDeriverBAnswer() {
+  let markHeld;
+  let release;
+  const held = new Promise((resolve) => {
+    markHeld = resolve;
+  });
+  const released = new Promise((resolve) => {
+    release = resolve;
+  });
+  pendingDeriverBAnswerHold = { markHeld, released };
+  return { held, release };
+}
+
+async function routeDeriverBHoldingAnswer(request, miniflare) {
+  const worker = await miniflare.getWorker('deriver-b');
+  const hold = pendingDeriverBAnswerHold;
+  if (!hold || new URL(request.url).pathname !== deriverCreateRoleSharePath) {
+    return worker.fetch(request);
+  }
+  pendingDeriverBAnswerHold = null;
+  const response = await worker.fetch(request);
+  const body = await response.arrayBuffer();
+  hold.markHeld();
+  await hold.released;
+  return new Response(body, { status: response.status, headers: response.headers });
 }
 
 /// The Router again, sharing its creation Durable Object, with both Derivers
@@ -1839,7 +1889,10 @@ async function captureValidActivationDelivery(
 /// Creation recovery on Workers, with the faults the VM recovery E2Es inject:
 /// resume before the commit, delivery of a committed receipt after the
 /// ceremony expires, refusal of a signed but uncommitted receipt, and
-/// abandonment behind the fence, which then refuses the commit.
+/// abandonment behind the fence, which then refuses the commit. Also a write
+/// admitted before the window closes that lands after the abandonment has
+/// cleaned its role: the tombstone refuses the row, and the role removes the
+/// backup and canary it wrote.
 async function testTenantRootCreationRecoveryPaths(topology, databases) {
   const router = await topology.getWorker('router-recovery');
   const controlPlane = await topology.getWorker('tenant-root-control-plane');
@@ -1928,10 +1981,20 @@ async function testTenantRootCreationRecoveryPaths(topology, databases) {
   assert.equal(JSON.parse(result.body).status.kind, 'ready');
   assert.deepEqual(await lifecycles(resumed), ['active', 'active']);
 
-  // Two short-lived ceremonies that the window closes on.
+  // Three short-lived ceremonies that the window closes on.
   const lifetimeMs = 20_000;
   const committed = recoveryCreationGrant('committed-then-expired', lifetimeMs);
   const abandoned = recoveryCreationGrant('uncommitted-then-expired', lifetimeMs);
+  const lateWrite = recoveryCreationGrant('late-write-refused', lifetimeMs);
+
+  // B installs and checkpoints; A, admitted inside the window, waits for B's
+  // answer until after the abandonment.
+  const hold = holdNextDeriverBAnswer();
+  recoveryDeriverA = 'deriver-a-late';
+  const lateCreation = create(lateWrite);
+  await hold.held;
+  recoveryDeriverA = 'deriver-a';
+  assert.deepEqual(await lifecycles(lateWrite), [null, 'pending']);
 
   // After the commit: the delivery to B is lost, leaving A active.
   recoveryDropNextActivation['deriver-b'] = true;
@@ -1955,6 +2018,7 @@ async function testTenantRootCreationRecoveryPaths(topology, databases) {
 
   await waitUntilExpired(committed);
   await waitUntilExpired(abandoned);
+  await waitUntilExpired(lateWrite);
 
   const refusedAfterExpiry = await deliverToB(uncommittedReceipt);
   assert.notEqual(refusedAfterExpiry.status, 200, refusedAfterExpiry.body);
@@ -1992,6 +2056,55 @@ async function testTenantRootCreationRecoveryPaths(topology, databases) {
   result = await create(abandoned);
   assert.ok(result.body.includes('abandoned; a fresh grant is required'), result.body);
 
+  // The abandonment cleans A, which holds nothing yet, by the ceremony, and
+  // tombstones the lineage; B by its recorded evidence.
+  const tombstones = async (database, ceremony) =>
+    (
+      await database
+        .prepare(
+          'SELECT count(*) AS count FROM tenant_root_creation_tombstones WHERE custody_lineage_b64u = ?1',
+        )
+        .bind(ceremony.custody_lineage_b64u)
+        .first()
+    ).count;
+  const commandStatuses = async (database, ceremony) =>
+    (
+      await database
+        .prepare(
+          'SELECT status FROM tenant_root_command_replays WHERE custody_lineage_b64u = ?1 ORDER BY status',
+        )
+        .bind(ceremony.custody_lineage_b64u)
+        .all()
+    ).results.map((row) => row.status);
+  result = await create(lateWrite);
+  assert.notEqual(result.status, 200, result.body);
+  assert.ok(
+    result.body.includes('expired before activation and was abandoned; a fresh grant is required'),
+    result.body,
+  );
+  assert.deepEqual(await lifecycles(lateWrite), [null, null]);
+  assert.deepEqual(await backupObjects(lateWrite), [0, 0]);
+  assert.equal(await tombstones(databases.deriverA, lateWrite), 1);
+  assert.deepEqual(await commandStatuses(databases.deriverA, lateWrite), ['completed']);
+
+  // A's answer arrives: it writes its backup and canary, the tombstone
+  // refuses its row, and it removes what it wrote. Its creation command was
+  // reserved in the shared database and never executed.
+  hold.release();
+  const late = await lateCreation;
+  assert.notEqual(late.status, 200, late.body);
+  assert.deepEqual(await lifecycles(lateWrite), [null, null], 'the late row is refused');
+  assert.deepEqual(await backupObjects(lateWrite), [0, 0], 'the late backup and canary are removed');
+  assert.deepEqual(await commandStatuses(databases.deriverA, lateWrite), ['completed', 'reserved']);
+  const lateProgress = await creationState(lateWrite, creationStateProgressReadPath, {
+    identity_digest_b64u: lateWrite.identity_digest_b64u,
+    custody_lineage_b64u: lateWrite.custody_lineage_b64u,
+  });
+  assert.equal(lateProgress.status, 200, lateProgress.body);
+  const lateAbandonment = JSON.parse(lateProgress.body).state.abandonment;
+  assert.deepEqual(lateAbandonment.installed_roles, ['deriver_b']);
+  assert.deepEqual(lateAbandonment.cleaned_roles, ['deriver_a', 'deriver_b']);
+
   console.log(
     JSON.stringify({
       kind: 'tenant_root_creation_recovery_workers_e2e_v1',
@@ -2000,6 +2113,12 @@ async function testTenantRootCreationRecoveryPaths(topology, databases) {
       uncommittedReceiptRefused: [refusedInWindow.status, refusedAfterExpiry.status],
       abandonedAfterExpiry: true,
       commitRefusedAfterFence: commitAfterFence.status,
+      lateWriteAfterCleanup: {
+        fenceInstalledRoles: lateAbandonment.installed_roles,
+        lateCreationStatus: late.status,
+        rowsBackupsCanariesAfter: 0,
+        deriverACommands: ['cleanup completed', 'creation reserved, never executed'],
+      },
     }),
   );
 }
@@ -3191,6 +3310,7 @@ async function main() {
         fixture,
       ),
       recoveryRouterWorker(fixture),
+      lateWritingDeriverAWorker(fixture),
       ...(testHistoricalReplay || testHistoricalStartingReplay
         ? [
             historicalReplayRouterWorker(fixture, 'router-replay'),

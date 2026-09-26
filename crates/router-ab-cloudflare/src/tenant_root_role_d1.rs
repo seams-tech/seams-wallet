@@ -141,12 +141,28 @@ const LOAD_ACTIVE_SQL: &str = "SELECT tenant_identity_digest_hex, custody_lineag
     tenant_root_share_epoch, role, lifecycle, ciphertext_json, revision, created_at_ms, \
     updated_at_ms FROM tenant_root_role_shares WHERE tenant_identity_digest_hex = ?1 \
     AND lifecycle = 'active'";
+/// Inserts one pending row. An initial-epoch row is refused for a lineage an
+/// abandonment tombstoned, so a creation command admitted before its window
+/// closed cannot write after the abandoned ceremony was cleaned.
 const INSERT_SQL: &str = "INSERT INTO tenant_root_role_shares \
     (tenant_identity_digest_hex, custody_lineage_b64u, tenant_root_share_epoch, role, \
     lifecycle, ciphertext_json, revision, created_at_ms, updated_at_ms) \
-    VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, ?8) \
+    SELECT ?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, ?8 \
+    WHERE CAST(?3 AS INTEGER) <> 1 OR NOT EXISTS (SELECT 1 FROM tenant_root_creation_tombstones \
+    WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 AND role = ?4) \
     ON CONFLICT(tenant_identity_digest_hex, custody_lineage_b64u, \
     tenant_root_share_epoch, role) DO NOTHING";
+/// Removes an abandoned ceremony's pending initial row, if one exists. Only a
+/// pending row: active material is never cleaned this way.
+const DELETE_ABANDONED_CEREMONY_PENDING_SQL: &str = "DELETE FROM tenant_root_role_shares \
+    WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 \
+    AND tenant_root_share_epoch = 1 AND role = ?3 AND lifecycle = 'pending'";
+const INSERT_CREATION_TOMBSTONE_SQL: &str = "INSERT INTO tenant_root_creation_tombstones \
+    (tenant_identity_digest_hex, custody_lineage_b64u, role, session_id_hex, created_at_ms) \
+    VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT DO NOTHING";
+const LOAD_CREATION_TOMBSTONE_SQL: &str = "SELECT session_id_hex FROM \
+    tenant_root_creation_tombstones WHERE tenant_identity_digest_hex = ?1 \
+    AND custody_lineage_b64u = ?2 AND role = ?3";
 const ACTIVATE_INITIAL_PENDING_SQL: &str = "UPDATE tenant_root_role_shares SET \
     lifecycle = 'active', ciphertext_json = ?1, revision = revision + 1, updated_at_ms = ?2 \
     WHERE tenant_identity_digest_hex = ?3 AND custody_lineage_b64u = ?4 \
@@ -6664,6 +6680,12 @@ pub(crate) enum CloudflareTenantRootAuthorizedCleanupDecisionV1 {
         reservation: ReservedTenantRootCommandV1,
         authorization: VerifiedTenantRootRoleCleanupCommandV1,
     },
+    /// An abandoned ceremony's unrecorded material: remove any pending initial
+    /// row and tombstone the lineage in one batch.
+    AbandonedCeremony {
+        reservation: ReservedTenantRootCommandV1,
+        authorization: VerifiedTenantRootRoleCleanupCommandV1,
+    },
     ReplayCompleted {
         receipt_bytes: Vec<u8>,
     },
@@ -11206,6 +11228,88 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                     ),
                 }
             }
+            TenantRootRoleCleanupTargetV1::AbandonedCeremony {
+                session_id,
+                ceremony_nonce,
+                ..
+            } => {
+                // The row may be absent, or may still be written by a command
+                // admitted before the window closed; the tombstone written
+                // with the cleanup refuses that later write. A row present now
+                // must be this ceremony's and must still be pending.
+                if let Some(existing) = self
+                    .load_epoch_by_identity_digest(
+                        authorization.identity_digest(),
+                        authorization.custody_lineage(),
+                        TenantRootShareEpoch::INITIAL,
+                    )
+                    .await?
+                {
+                    if !matches!(
+                        existing.record.lifecycle,
+                        CloudflareTenantRootRoleShareLifecycleV1::Pending(_)
+                    ) {
+                        return Err(store_error(
+                            "tenant-root abandoned-ceremony cleanup refuses a share that is not pending",
+                        ));
+                    }
+                    // The Router holds one journal per lineage, so the row is
+                    // this ceremony's exactly when its creation command's
+                    // replay record, keyed by the ceremony, exists.
+                    let creation_key = TenantRootCommandReplayKeyV1::new(
+                        authorization.identity_digest(),
+                        authorization.custody_lineage(),
+                        *session_id,
+                        *ceremony_nonce,
+                        record_role,
+                    );
+                    if self.load_command_replay(&creation_key).await?.is_none() {
+                        return Err(store_error(
+                            "tenant-root abandoned-ceremony cleanup names another ceremony's share",
+                        ));
+                    }
+                }
+                let operation_payload_digest =
+                    authorized_cleanup_abandoned_ceremony_payload_digest(&authorization)?;
+                match self
+                    .reserve_scoped_command_with_admission_digest(
+                        scope,
+                        TenantRootCommandOperationV1::cleanup_pending(operation_payload_digest),
+                        reserved_at_ms,
+                        Some(TenantRootCommandAdmissionV1::AuthorizedCleanup(authorization_digest)),
+                    )
+                    .await?
+                {
+                    CloudflareTenantRootCommandReplayDecisionV1::Execute { reservation }
+                    | CloudflareTenantRootCommandReplayDecisionV1::ResumeExecution { reservation } => {
+                        Ok(CloudflareTenantRootAuthorizedCleanupDecisionV1::AbandonedCeremony {
+                            reservation,
+                            authorization,
+                        })
+                    }
+                    CloudflareTenantRootCommandReplayDecisionV1::InProgress => {
+                        Ok(CloudflareTenantRootAuthorizedCleanupDecisionV1::InProgress)
+                    }
+                    CloudflareTenantRootCommandReplayDecisionV1::ResumeCompletion { executed } => {
+                        Ok(CloudflareTenantRootAuthorizedCleanupDecisionV1::ResumeCompletion {
+                            executed: CloudflareTenantRootAuthorizedCleanupExecutedCommandV1 {
+                                executed,
+                                authorization,
+                            },
+                        })
+                    }
+                    CloudflareTenantRootCommandReplayDecisionV1::ReplayCompleted { receipt_bytes } => {
+                        Ok(CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayCompleted {
+                            receipt_bytes,
+                        })
+                    }
+                    CloudflareTenantRootCommandReplayDecisionV1::ReplayFailed {
+                        failure_receipt_bytes,
+                    } => Ok(CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayFailed {
+                        failure_receipt_bytes,
+                    }),
+                }
+            }
             TenantRootRoleCleanupTargetV1::Retired {
                 retired_epoch,
                 expected_retired_revision,
@@ -11404,6 +11508,18 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             } => {
                 let executed = self
                     .checkpoint_command_without_lifecycle(reservation, executed_at_ms)
+                    .await?;
+                CloudflareTenantRootAuthorizedCleanupExecutedCommandV1 {
+                    executed,
+                    authorization,
+                }
+            }
+            CloudflareTenantRootAuthorizedCleanupDecisionV1::AbandonedCeremony {
+                reservation,
+                authorization,
+            } => {
+                let executed = self
+                    .clean_abandoned_ceremony(reservation, &authorization, executed_at_ms)
                     .await?;
                 CloudflareTenantRootAuthorizedCleanupExecutedCommandV1 {
                     executed,
@@ -12258,6 +12374,106 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         reservation
             .checkpoint_executed(executed_at_ms)
             .map_err(|error| store_error(error.message()))
+    }
+
+    /// Removes an abandoned ceremony's pending initial row, if one exists, and
+    /// tombstones its lineage, in one batch with the command checkpoint.
+    async fn clean_abandoned_ceremony(
+        &self,
+        reservation: ReservedTenantRootCommandV1,
+        authorization: &VerifiedTenantRootRoleCleanupCommandV1,
+        executed_at_ms: u64,
+    ) -> RoleStoreResult<ExecutedTenantRootCommandV1> {
+        if executed_at_ms < reservation.reserved_at_ms() {
+            return Err(store_error(
+                "tenant-root command execution checkpoint precedes its reservation",
+            ));
+        }
+        let TenantRootRoleCleanupTargetV1::AbandonedCeremony { session_id, .. } =
+            authorization.target()
+        else {
+            return Err(store_error(
+                "tenant-root abandoned-ceremony cleanup requires an abandoned-ceremony authorization",
+            ));
+        };
+        let identity_digest_hex = encode_hex(authorization.identity_digest().as_bytes());
+        let custody_lineage_b64u = authorization.custody_lineage().to_base64url();
+        let session_id_hex = encode_hex(session_id.as_bytes());
+        let created_at_ms = executed_at_ms.to_string();
+        let delete = self.session.prepare(DELETE_ABANDONED_CEREMONY_PENDING_SQL).bind_refs(
+            [
+                RoleSqlValue::Text(identity_digest_hex.as_str()),
+                RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                RoleSqlValue::Text(self.cipher.role.as_str()),
+            ]
+            .iter(),
+        )?;
+        let tombstone = self.session.prepare(INSERT_CREATION_TOMBSTONE_SQL).bind_refs(
+            [
+                RoleSqlValue::Text(identity_digest_hex.as_str()),
+                RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                RoleSqlValue::Text(self.cipher.role.as_str()),
+                RoleSqlValue::Text(session_id_hex.as_str()),
+                RoleSqlValue::Text(created_at_ms.as_str()),
+            ]
+            .iter(),
+        )?;
+        let tombstone_guard = self.command_cas_count_guard_statement(1)?;
+        let checkpoint = self.command_execution_checkpoint_statement(&reservation, executed_at_ms)?;
+        let checkpoint_guard = self.command_cas_count_guard_statement(1)?;
+        // The delete may remove one row or none; the tombstone and the
+        // checkpoint must each land exactly once, or the batch aborts.
+        let results = self
+            .session
+            .batch(vec![delete, tombstone, tombstone_guard, checkpoint, checkpoint_guard])
+            .await?;
+        if results.len() != 5 || results.iter().any(|result| !result.success()) {
+            return Err(store_error(
+                "tenant-root abandoned-ceremony cleanup batch failed",
+            ));
+        }
+        require_one_change(
+            &results[1],
+            "tenant-root abandoned-ceremony tombstone changed concurrently",
+        )?;
+        require_one_change(
+            &results[3],
+            "tenant-root command execution checkpoint changed concurrently",
+        )?;
+        for guard in [&results[2], &results[4]] {
+            require_changes(
+                guard,
+                0,
+                "tenant-root abandoned-ceremony count guard returned an invalid change count",
+            )?;
+        }
+        reservation
+            .checkpoint_executed(executed_at_ms)
+            .map_err(|error| store_error(error.message()))
+    }
+
+    /// Whether an abandonment tombstoned this lineage for this role.
+    pub(crate) async fn creation_tombstoned(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+    ) -> RoleStoreResult<bool> {
+        let identity_digest_hex = encode_hex(identity_digest.as_bytes());
+        let custody_lineage_b64u = custody_lineage.to_base64url();
+        let row = self
+            .session
+            .prepare(LOAD_CREATION_TOMBSTONE_SQL)
+            .bind_refs(
+                [
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                ]
+                .iter(),
+            )?
+            .first::<TenantRootCreationTombstoneRowV1>(None)
+            .await?;
+        Ok(row.is_some())
     }
 
     async fn checkpoint_command_without_lifecycle(
@@ -15735,6 +15951,23 @@ fn authorized_cleanup_retired_payload_digest(
     push_command_field(&mut bytes, authorization_digest.as_bytes())?;
     push_command_field(&mut bytes, row_payload_digest.as_bytes())?;
     finish_command_payload(bytes)
+}
+
+fn authorized_cleanup_abandoned_ceremony_payload_digest(
+    authorization: &VerifiedTenantRootRoleCleanupCommandV1,
+) -> RoleStoreResult<TenantRootProtocolDigestV1> {
+    let authorization_digest = authorization
+        .digest()
+        .map_err(|error| store_error(error.message()))?;
+    let mut bytes = command_payload_start("authorized_cleanup_abandoned_ceremony")?;
+    push_command_field(&mut bytes, authorization_digest.as_bytes())?;
+    finish_command_payload(bytes)
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct TenantRootCreationTombstoneRowV1 {
+    #[allow(dead_code)]
+    session_id_hex: String,
 }
 
 fn authorized_cleanup_retired_absent_payload_digest(

@@ -1014,8 +1014,10 @@ fn vm_tenant_root_creation_is_authorized_replayable_and_role_isolated(
 /// be running. A retry after the window abandons it through the shared
 /// ceremony: the Router fences the creation, the control plane names B's
 /// pending row, the Router verifies that command, B removes its row, managed
-/// backup and canary, and the Router checkpoints B's terminal receipt. The
-/// grant is then spent; a fresh grant creates the root.
+/// backup and canary, and the Router checkpoints B's terminal receipt. A,
+/// which the fence does not record, is cleaned by the ceremony: it holds
+/// nothing, and its lineage is tombstoned against a late write. The grant is
+/// then spent; a fresh grant creates the root.
 #[test]
 fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -1154,7 +1156,17 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
         "B's managed backup and provider canary are removed"
     );
     assert_eq!(abandonment_fences()?, 1, "the Router fences the creation before cleaning");
-    assert_eq!(cleanup_checkpoints()?, 1, "the Router checkpoints the cleanup");
+    assert_eq!(cleanup_checkpoints()?, 2, "the Router checkpoints both roles' cleanups");
+    let tombstones = |db: &Connection| -> rusqlite::Result<i64> {
+        db.query_row("SELECT count(*) FROM tenant_root_creation_tombstones", [], |row| {
+            row.get(0)
+        })
+    };
+    assert_eq!(
+        (tombstones(&a_store)?, tombstones(&b_store)?),
+        (1, 0),
+        "only the unrecorded role is tombstoned"
+    );
 
     // The cleaned grant stays spent, including after every role restarts.
     let (abandoned_status, abandoned_body) =
@@ -1180,7 +1192,7 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
         create_tenant_root(&router_url, &grant, TEST_ROLE_SHARED_SERVICE_AUTH)?;
     assert_eq!(restart_status, cleaned_status, "{restart_body}");
     assert!(restart_body.contains("abandoned"), "{restart_body}");
-    assert_eq!(cleanup_checkpoints()?, 1, "replays add no second cleanup");
+    assert_eq!(cleanup_checkpoints()?, 2, "replays clean nothing twice");
 
     // A fresh grant for a new custody lineage creates the root.
     let fresh_lineage = TenantRootCustodyLineageId::from_bytes(fresh_nonzero_bytes_16()?)?;
@@ -1212,6 +1224,7 @@ fn vm_tenant_root_partial_creation_is_cleaned_before_a_fresh_grant(
             "deriver_b_rows_after_cleanup": 0,
             "deriver_b_backups_after_cleanup": 0,
             "router_cleanup_checkpoints": cleanup_checkpoints()?,
+            "tombstoned_roles": ["deriver_a"],
             "replay_reports_abandoned": true,
             "replay_after_full_restart_reports_abandoned": true,
             "fresh_grant_status": fresh["status"]["kind"],
@@ -1601,6 +1614,212 @@ fn vm_tenant_root_abandonment_finishes_after_a_long_outage(
     Ok(())
 }
 
+/// A role that wrote its share, backup and canary, but whose installation
+/// checkpoint never reached the Router, is cleaned by the abandoned ceremony
+/// once the window closes. Deriver B's checkpoint is lost after B's writes, as
+/// if B stopped there; A, whose peer call failed, wrote nothing. The fence
+/// records no installed role, and each role's cleanup removes whatever it
+/// holds and tombstones the lineage against a later write.
+#[test]
+fn vm_tenant_root_unrecorded_material_is_cleaned_after_the_ceremony_expires(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start("vm-tenant-root-unrecorded")?;
+    let pending = || Some("pending".to_owned());
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("unrecorded-before-checkpoint")?;
+    let lifetime_ms = 6_000;
+    let signed_at = Instant::now();
+    let grant =
+        product_creation_grant_with_lifetime_b64u(&stack.temp, &identity, lineage, None, lifetime_ms)?;
+    stack.proxy_b_to_router.drop_next_containing(format!(
+        "\"path\":\"{}\"",
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_PATH
+    ));
+    let (lost_status, lost_body) = stack.create(&grant)?;
+    assert_ne!(lost_status, 200, "{lost_body}");
+    assert!(
+        stack.proxy_b_to_router.dropped_containing(),
+        "B's installation checkpoint must have been lost"
+    );
+    assert_eq!(stack.lifecycles(&lineage_b64u)?, (None, pending()));
+    assert_eq!(stack.backup_objects(&lineage_b64u)?, ((0, 0), (1, 1)));
+
+    if let Some(remaining) = Duration::from_millis(lifetime_ms).checked_sub(signed_at.elapsed()) {
+        thread::sleep(remaining);
+    }
+    let (abandoned_status, abandoned_body) = stack.create(&grant)?;
+    assert_ne!(abandoned_status, 200, "{abandoned_body}");
+    assert!(
+        abandoned_body.contains("expired before activation and was abandoned; a fresh grant is required"),
+        "{abandoned_body}"
+    );
+    assert_eq!(stack.fenced_roles(&lineage_b64u)?.as_deref(), Some("[]"));
+    assert_eq!(stack.lifecycles(&lineage_b64u)?, (None, None), "B's unrecorded row is removed");
+    assert_eq!(
+        stack.backup_objects(&lineage_b64u)?,
+        ((0, 0), (0, 0)),
+        "B's unrecorded backup and canary are removed"
+    );
+    assert_eq!(stack.abandonment_records(&lineage_b64u)?, (1, 2), "one fence, two cleanups");
+    assert_eq!(stack.tombstones(&lineage_b64u)?, (1, 1));
+    assert_eq!(
+        stack.completed_commands(&lineage_b64u)?,
+        (1, 2),
+        "A only cleaned; B created, then cleaned"
+    );
+
+    // A replay reports the abandonment and cleans nothing twice.
+    let (replay_status, replay_body) = stack.create(&grant)?;
+    assert_eq!(replay_status, abandoned_status, "{replay_body}");
+    assert!(replay_body.contains("abandoned; a fresh grant is required"), "{replay_body}");
+    assert_eq!(stack.abandonment_records(&lineage_b64u)?, (1, 2));
+    assert_eq!(stack.completed_commands(&lineage_b64u)?, (1, 2));
+
+    println!(
+        "R150_VM_TENANT_ROOT_UNRECORDED_CLEANUP_E2E {}",
+        json!({
+            "fault": "deriver_b_installation_checkpoint_lost_after_its_writes",
+            "before_abandonment": { "rows": [null, "pending"], "backups_canaries": [[0, 0], [1, 1]] },
+            "fence_installed_roles": [],
+            "retry_after_expiry_status": abandoned_status,
+            "rows_backups_canaries_after_abandonment": 0,
+            "tombstones": [1, 1],
+            "router_fences_and_cleanups": [1, 2],
+        })
+    );
+    Ok(())
+}
+
+/// A command admitted before the window closed may finish writing after the
+/// Router has abandoned its creation. Deriver A's call to B returns only once
+/// the window has closed and the Router has written the fence: A then writes
+/// its backup, canary and pending row, and the Router refuses its commitment.
+/// A VM Deriver serves one request at a time, so A's cleanup, sent after the
+/// fence, runs after that late write and removes it. (On Workers, where the
+/// cleanup can land first, the tombstone refuses the late row instead.)
+#[test]
+fn vm_tenant_root_write_that_lands_after_the_fence_is_cleaned(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start("vm-tenant-root-late-write")?;
+    let pending = || Some("pending".to_owned());
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("write-after-the-fence")?;
+    let lifetime_ms = 6_000;
+    let signed_at = Instant::now();
+    let grant =
+        product_creation_grant_with_lifetime_b64u(&stack.temp, &identity, lineage, None, lifetime_ms)?;
+    let create_in_background = |grant: &str| {
+        let (router_url, grant) = (stack.router_url.clone(), grant.to_owned());
+        thread::spawn(move || {
+            create_tenant_root(&router_url, &grant, TEST_ROLE_SHARED_SERVICE_AUTH)
+                .map_err(|error| error.to_string())
+        })
+    };
+    let wait_for = |what: &str, ready: &dyn Fn() -> bool| -> Result<(), Box<dyn std::error::Error>> {
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while !ready() {
+            if Instant::now() > deadline {
+                return Err(format!("timed out waiting for {what}").into());
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        Ok(())
+    };
+
+    // B installs and checkpoints; its answer to A is held.
+    stack.proxy_a_to_b.hold_next_response_on(
+        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_CREATE_ROLE_SHARE_PRIVATE_REQUEST_PATH,
+    );
+    let first = create_in_background(&grant);
+    wait_for("B's held answer", &|| stack.proxy_a_to_b.holding())?;
+    assert_eq!(stack.lifecycles(&lineage_b64u)?, (None, pending()));
+
+    // The window closes, and a retry abandons the creation. Once the fence is
+    // written, A's call returns and A writes.
+    if let Some(remaining) = Duration::from_millis(lifetime_ms).checked_sub(signed_at.elapsed()) {
+        thread::sleep(remaining);
+    }
+    let second = create_in_background(&grant);
+    wait_for("the Router's fence", &|| {
+        stack
+            .abandonment_records(&lineage_b64u)
+            .is_ok_and(|(fences, _)| fences == 1)
+    })?;
+    let a_before_late_write = stack.lifecycles(&lineage_b64u)?.0;
+    stack.proxy_a_to_b.release_held();
+    let (first_status, first_body) = first.join().map_err(|_| "first creation panicked")??;
+    let (abandoned_status, abandoned_body) =
+        second.join().map_err(|_| "abandoning retry panicked")??;
+
+    assert_eq!(a_before_late_write, None, "A had written nothing when the fence landed");
+    assert_ne!(first_status, 200, "{first_body}");
+    assert_ne!(abandoned_status, 200, "{abandoned_body}");
+    assert!(
+        abandoned_body.contains("expired before activation and was abandoned; a fresh grant is required"),
+        "{abandoned_body}"
+    );
+    assert_eq!(stack.fenced_roles(&lineage_b64u)?.as_deref(), Some(r#"["deriver_b"]"#));
+    assert_eq!(
+        stack.completed_commands(&lineage_b64u)?,
+        (2, 2),
+        "A's late creation completed before its cleanup"
+    );
+    assert_eq!(stack.lifecycles(&lineage_b64u)?, (None, None), "A's late row is removed");
+    assert_eq!(
+        stack.backup_objects(&lineage_b64u)?,
+        ((0, 0), (0, 0)),
+        "A's late backup and canary are removed"
+    );
+    assert_eq!(stack.abandonment_records(&lineage_b64u)?, (1, 2));
+    // Only the unrecorded role is tombstoned. B was cleaned by its recorded
+    // evidence: its creation had completed, so a retry could only replay it.
+    assert_eq!(stack.tombstones(&lineage_b64u)?, (1, 0));
+    assert_eq!(stack.committed_receipt(&lineage_b64u)?, None);
+
+    println!(
+        "R150_VM_TENANT_ROOT_LATE_WRITE_E2E {}",
+        json!({
+            "fault": "deriver_a_peer_answer_held_until_after_the_fence",
+            "fence_installed_roles": ["deriver_b"],
+            "a_row_when_fenced": null,
+            "late_creation_status": first_status,
+            "retry_after_expiry_status": abandoned_status,
+            "a_late_creation_then_cleanup_completed": true,
+            "rows_backups_canaries_after_abandonment": 0,
+            "tombstones": [1, 0],
+            "router_fences_and_cleanups": [1, 2],
+        })
+    );
+    Ok(())
+}
+
+/// Points each named peer URL in one role's env file at its proxy. Every
+/// route must name a key the file sets.
+fn route_env_through_proxies(
+    env_path: &Path,
+    routes: &[(&str, &str)],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut routed = 0;
+    let env = fs::read_to_string(env_path)?
+        .lines()
+        .map(|line| {
+            for (key, url) in routes {
+                if line.split_once('=').map(|(name, _)| name) == Some(*key) {
+                    routed += 1;
+                    return format!("{key}={url}");
+                }
+            }
+            line.to_owned()
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    if routed != routes.len() {
+        return Err(format!("{} must reach every peer through a proxy", env_path.display()).into());
+    }
+    fs::write(env_path, env + "\n")?;
+    Ok(())
+}
+
 /// A fresh identity and lineage for one recovery ceremony, so ceremonies in
 /// one stack never share an active role share.
 fn recovery_ceremony(
@@ -1621,7 +1840,8 @@ fn recovery_ceremony(
 /// The Router, both Derivers and the control plane, with the Router reaching
 /// each peer through a fault proxy: the Deriver proxies can drop one
 /// initial-activation delivery, and the control-plane proxy can drop or record
-/// its activation request. The Derivers reach each other directly.
+/// its activation request. Deriver A reaches Deriver B, and Deriver B reaches
+/// the Router's creation state, through proxies too.
 struct RecoveryStackV1 {
     temp: PathBuf,
     router_url: String,
@@ -1631,6 +1851,8 @@ struct RecoveryStackV1 {
     proxy_a: FaultProxyV1,
     proxy_b: FaultProxyV1,
     proxy_control_plane: FaultProxyV1,
+    proxy_a_to_b: FaultProxyV1,
+    proxy_b_to_router: FaultProxyV1,
     a_store: Connection,
     b_store: Connection,
     a_backups: Connection,
@@ -1666,33 +1888,28 @@ impl RecoveryStackV1 {
             &control_plane_url,
             router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
         )?;
-        let router_env_path = temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1);
-        let routes = [
-            ("DERIVER_A_URL", proxy_a.url.as_str()),
-            ("DERIVER_B_URL", proxy_b.url.as_str()),
-            (
-                router_ab_dev::LOCAL_TENANT_ROOT_CONTROL_PLANE_URL_ENV_V1,
-                proxy_control_plane.url.as_str(),
-            ),
-        ];
-        let mut routed = 0;
-        let router_env = fs::read_to_string(&router_env_path)?
-            .lines()
-            .map(|line| {
-                for (key, url) in routes {
-                    if line.split_once('=').map(|(name, _)| name) == Some(key) {
-                        routed += 1;
-                        return format!("{key}={url}");
-                    }
-                }
-                line.to_owned()
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
-        if routed != routes.len() {
-            return Err("the Router must reach every peer through a proxy".into());
-        }
-        fs::write(&router_env_path, router_env + "\n")?;
+        let creation_state = router_ab_dev::LOCAL_ROUTER_TENANT_ROOT_CREATION_STATE_PATH_V1;
+        let proxy_a_to_b = FaultProxyV1::start(&deriver_b_url, creation_state)?;
+        let proxy_b_to_router = FaultProxyV1::start(&router_url, creation_state)?;
+        route_env_through_proxies(
+            &temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1),
+            &[
+                (router_ab_dev::LOCAL_DERIVER_A_URL_ENV_V1, proxy_a.url.as_str()),
+                (router_ab_dev::LOCAL_DERIVER_B_URL_ENV_V1, proxy_b.url.as_str()),
+                (
+                    router_ab_dev::LOCAL_TENANT_ROOT_CONTROL_PLANE_URL_ENV_V1,
+                    proxy_control_plane.url.as_str(),
+                ),
+            ],
+        )?;
+        route_env_through_proxies(
+            &temp.join(router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1),
+            &[(router_ab_dev::LOCAL_DERIVER_B_URL_ENV_V1, proxy_a_to_b.url.as_str())],
+        )?;
+        route_env_through_proxies(
+            &temp.join(router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1),
+            &[(router_ab_dev::LOCAL_ROUTER_PRIVATE_URL_ENV_V1, proxy_b_to_router.url.as_str())],
+        )?;
 
         let start = |role: &str, env_file: &str| {
             ChildGuard::spawn_in_root(binary, role, temp.join(env_file), &temp)
@@ -1736,6 +1953,8 @@ impl RecoveryStackV1 {
             proxy_a,
             proxy_b,
             proxy_control_plane,
+            proxy_a_to_b,
+            proxy_b_to_router,
         })
     }
 
@@ -1865,6 +2084,48 @@ impl RecoveryStackV1 {
         )
     }
 
+    /// The roles the Router's abandonment fence recorded as installed, as
+    /// JSON, for one lineage.
+    fn fenced_roles(&self, lineage: &str) -> rusqlite::Result<Option<String>> {
+        self.router_db
+            .query_row(
+                "SELECT json_extract(value_json, '$.installed_roles')
+                 FROM local_tenant_root_creation_state
+                 WHERE storage_key = 'creation/v1/abandonment'
+                   AND json_extract(value_json, '$.custody_lineage_b64u') = ?1",
+                [lineage],
+                |row| row.get(0),
+            )
+            .optional()
+    }
+
+    /// Each Deriver's creation tombstones for one lineage.
+    fn tombstones(&self, lineage: &str) -> rusqlite::Result<(i64, i64)> {
+        let count = |db: &Connection| {
+            db.query_row(
+                "SELECT count(*) FROM tenant_root_creation_tombstones
+                 WHERE custody_lineage_b64u = ?1",
+                [lineage],
+                |row| row.get(0),
+            )
+        };
+        Ok((count(&self.a_store)?, count(&self.b_store)?))
+    }
+
+    /// Each Deriver's completed commands for one lineage: its creation, if it
+    /// wrote a share, and its cleanup.
+    fn completed_commands(&self, lineage: &str) -> rusqlite::Result<(i64, i64)> {
+        let count = |db: &Connection| {
+            db.query_row(
+                "SELECT count(*) FROM tenant_root_command_replays
+                 WHERE custody_lineage_b64u = ?1 AND status = 'completed'",
+                [lineage],
+                |row| row.get(0),
+            )
+        };
+        Ok((count(&self.a_store)?, count(&self.b_store)?))
+    }
+
     /// Replays the last recorded control-plane activation request, which has
     /// the control plane sign a second receipt for the same evidence.
     fn reissue_captured_activation(&self) -> Result<String, Box<dyn std::error::Error>> {
@@ -1901,14 +2162,31 @@ fn backup_object_counts(db: &Connection) -> rusqlite::Result<(i64, i64)> {
     )
 }
 
+/// The faults one proxy injects. Each armed fault fires once, on the next
+/// matching request.
+#[derive(Default)]
+struct FaultProxyControlsV1 {
+    armed: AtomicBool,
+    drop_path: Mutex<Option<&'static str>>,
+    drop_body: Mutex<Option<Vec<u8>>>,
+    hold_path: Mutex<Option<&'static str>>,
+    holding: AtomicBool,
+    released: AtomicBool,
+    captured: Mutex<Option<Vec<u8>>>,
+}
+
+fn lock_proxy<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
 /// Forwards one peer's traffic. On `fault_path` it records the latest request
 /// body, including one it drops, and, when armed, drops the next request
-/// before the peer reads it.
+/// before the peer reads it. It can also drop the next request whose body
+/// carries a marker, or deliver the peer's response to one request only once
+/// released.
 struct FaultProxyV1 {
     url: String,
-    armed: Arc<AtomicBool>,
-    drop_path: Arc<Mutex<Option<&'static str>>>,
-    captured: Arc<Mutex<Option<Vec<u8>>>>,
+    controls: Arc<FaultProxyControlsV1>,
     stop: Arc<AtomicBool>,
     accept: Option<thread::JoinHandle<()>>,
 }
@@ -1925,28 +2203,19 @@ impl FaultProxyV1 {
             .strip_prefix("http://")
             .ok_or("proxy upstream must be an http URL")?
             .to_owned();
-        let armed = Arc::new(AtomicBool::new(false));
-        let drop_path = Arc::new(Mutex::new(None));
-        let captured = Arc::new(Mutex::new(None));
+        let controls = Arc::new(FaultProxyControlsV1::default());
         let stop = Arc::new(AtomicBool::new(false));
         let accept = {
-            let (armed, drop_path, captured, stop) = (
-                Arc::clone(&armed),
-                Arc::clone(&drop_path),
-                Arc::clone(&captured),
-                Arc::clone(&stop),
-            );
+            let (controls, stop) = (Arc::clone(&controls), Arc::clone(&stop));
             thread::spawn(move || {
                 while !stop.load(Ordering::SeqCst) {
                     match listener.accept() {
                         Ok((client, _)) => {
                             let upstream = upstream.clone();
-                            let (armed, drop_path, captured) =
-                                (Arc::clone(&armed), Arc::clone(&drop_path), Arc::clone(&captured));
+                            let controls = Arc::clone(&controls);
                             thread::spawn(move || {
-                                let _ = proxy_fault_connection(
-                                    client, &upstream, fault_path, &armed, &drop_path, &captured,
-                                );
+                                let _ =
+                                    proxy_fault_connection(client, &upstream, fault_path, &controls);
                             });
                         }
                         Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
@@ -1959,50 +2228,71 @@ impl FaultProxyV1 {
         };
         Ok(Self {
             url,
-            armed,
-            drop_path,
-            captured,
+            controls,
             stop,
             accept: Some(accept),
         })
     }
 
     fn drop_next(&self) {
-        self.armed.store(true, Ordering::SeqCst);
+        self.controls.armed.store(true, Ordering::SeqCst);
     }
 
     /// Drops the next request to `path`, which need not be the recorded path.
     fn drop_next_on(&self, path: &'static str) {
-        *self.drop_path.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(path);
+        *lock_proxy(&self.controls.drop_path) = Some(path);
     }
 
     /// Whether the drop armed by `drop_next_on` has happened.
     fn dropped_on(&self) -> bool {
-        self.drop_path
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .is_none()
+        lock_proxy(&self.controls.drop_path).is_none()
+    }
+
+    /// Drops the next request whose body contains `marker`.
+    fn drop_next_containing(&self, marker: impl Into<Vec<u8>>) {
+        *lock_proxy(&self.controls.drop_body) = Some(marker.into());
+    }
+
+    /// Whether the drop armed by `drop_next_containing` has happened.
+    fn dropped_containing(&self) -> bool {
+        lock_proxy(&self.controls.drop_body).is_none()
+    }
+
+    /// Forwards the next request to `path` and reads the peer's whole
+    /// response, but delivers it only once `release_held` is called.
+    fn hold_next_response_on(&self, path: &'static str) {
+        self.controls.holding.store(false, Ordering::SeqCst);
+        self.controls.released.store(false, Ordering::SeqCst);
+        *lock_proxy(&self.controls.hold_path) = Some(path);
+    }
+
+    /// Whether a response is held: the peer has answered, the caller has not
+    /// yet been told.
+    fn holding(&self) -> bool {
+        self.controls.holding.load(Ordering::SeqCst)
+    }
+
+    fn release_held(&self) {
+        self.controls.released.store(true, Ordering::SeqCst);
     }
 
     /// Whether the armed drop has happened.
     fn dropped(&self) -> bool {
-        !self.armed.load(Ordering::SeqCst)
+        !self.controls.armed.load(Ordering::SeqCst)
     }
 
     fn clear_captured(&self) {
-        *self.captured.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+        *lock_proxy(&self.controls.captured) = None;
     }
 
     fn captured(&self) -> Option<Vec<u8>> {
-        self.captured
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .clone()
+        lock_proxy(&self.controls.captured).clone()
     }
 }
 
 impl Drop for FaultProxyV1 {
     fn drop(&mut self) {
+        self.release_held();
         self.stop.store(true, Ordering::SeqCst);
         if let Some(accept) = self.accept.take() {
             let _ = accept.join();
@@ -2014,9 +2304,7 @@ fn proxy_fault_connection(
     client: TcpStream,
     upstream: &str,
     fault_path: &str,
-    armed: &AtomicBool,
-    drop_path: &Mutex<Option<&'static str>>,
-    captured: &Mutex<Option<Vec<u8>>>,
+    controls: &FaultProxyControlsV1,
 ) -> io::Result<()> {
     client.set_nonblocking(false)?;
     client.set_read_timeout(Some(Duration::from_secs(15)))?;
@@ -2035,19 +2323,37 @@ fn proxy_fault_connection(
         .unwrap_or(0);
     let mut body = vec![0_u8; content_length];
     client_reader.read_exact(&mut body)?;
-    if head_text.starts_with(&format!("POST {fault_path} HTTP/1.1\r\n")) {
-        *captured.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(body.clone());
-        if armed.swap(false, Ordering::SeqCst) {
+    let posts_to = |path: &str| head_text.starts_with(&format!("POST {path} HTTP/1.1\r\n"));
+    if posts_to(fault_path) {
+        *lock_proxy(&controls.captured) = Some(body.clone());
+        if controls.armed.swap(false, Ordering::SeqCst) {
             return client.shutdown(Shutdown::Both);
         }
     }
     {
-        let mut drop_path = drop_path.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        if drop_path.is_some_and(|path| head_text.starts_with(&format!("POST {path} HTTP/1.1\r\n"))) {
+        let mut drop_path = lock_proxy(&controls.drop_path);
+        if drop_path.is_some_and(posts_to) {
             *drop_path = None;
             return client.shutdown(Shutdown::Both);
         }
     }
+    {
+        let mut drop_body = lock_proxy(&controls.drop_body);
+        if drop_body.as_ref().is_some_and(|marker| {
+            body.windows(marker.len()).any(|window| window == marker.as_slice())
+        }) {
+            *drop_body = None;
+            return client.shutdown(Shutdown::Both);
+        }
+    }
+    let hold = {
+        let mut hold_path = lock_proxy(&controls.hold_path);
+        let hold = hold_path.is_some_and(posts_to);
+        if hold {
+            *hold_path = None;
+        }
+        hold
+    };
     let mut upstream = TcpStream::connect(upstream)?;
     upstream.set_read_timeout(Some(Duration::from_secs(15)))?;
     upstream.set_write_timeout(Some(Duration::from_secs(15)))?;
@@ -2055,7 +2361,17 @@ fn proxy_fault_connection(
     upstream.write_all(&body)?;
     upstream.shutdown(Shutdown::Write)?;
     let mut client_writer = client;
-    io::copy(&mut upstream, &mut client_writer)?;
+    if hold {
+        let mut response = Vec::new();
+        upstream.read_to_end(&mut response)?;
+        controls.holding.store(true, Ordering::SeqCst);
+        while !controls.released.load(Ordering::SeqCst) {
+            thread::sleep(Duration::from_millis(5));
+        }
+        client_writer.write_all(&response)?;
+    } else {
+        io::copy(&mut upstream, &mut client_writer)?;
+    }
     client_writer.shutdown(Shutdown::Write)
 }
 

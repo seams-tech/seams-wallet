@@ -4719,17 +4719,36 @@ fn installation_checkpoint_record(
     })
 }
 
-/// The exact pending row an abandoned role's cleanup removes, bound to that
-/// role's recorded installation evidence.
+/// The exact material an abandoned role's cleanup removes. A role the fence
+/// recorded as installed is bound to its recorded installation evidence. Any
+/// other role is bound to the abandoned ceremony alone, which covers a share
+/// it wrote without checkpointing and one a command admitted before the fence
+/// finishes writing afterwards.
 fn creation_cleanup_target(
     journal: &ValidatedTenantRootCreationJournalV1,
-    installation: &ValidatedTenantRootCreationInstallationCheckpointV1,
+    abandonment: &CloudflareTenantRootCreationAbandonmentV1,
+    installation: Option<&ValidatedTenantRootCreationInstallationCheckpointV1>,
     cleaned: CloudflareTenantRootCreationInstallationRoleV1,
 ) -> RouterAbProtocolResult<(
     TenantRootRoleCleanupTargetV1,
     CloudflareTenantRootCreationInstallationRoleV1,
 )> {
     let role = &cleaned.to_protocol();
+    if !abandonment.installed_roles.contains(&cleaned) {
+        return Ok((
+            TenantRootRoleCleanupTargetV1::AbandonedCeremony {
+                identity_digest: journal.identity_digest,
+                custody_lineage: journal.custody_lineage,
+                role: *role,
+                session_id: journal.ceremony_context.session_id(),
+                ceremony_nonce: journal.ceremony_context.nonce(),
+            },
+            cleaned,
+        ));
+    }
+    let installation = installation.ok_or_else(|| {
+        malformed_input("tenant-root creation abandonment recorded a role with no installation")
+    })?;
     let evidence = match &installation.state {
         ValidatedTenantRootCreationInstallationStateV1::OneRoleReady {
             role: installed,
@@ -4776,7 +4795,8 @@ fn creation_cleanup_target(
 fn validate_creation_cleanup_checkpoint(
     record: CloudflareTenantRootCreationCleanupCheckpointV1,
     journal: &ValidatedTenantRootCreationJournalV1,
-    installation: &ValidatedTenantRootCreationInstallationCheckpointV1,
+    abandonment: &CloudflareTenantRootCreationAbandonmentV1,
+    installation: Option<&ValidatedTenantRootCreationInstallationCheckpointV1>,
     authority_id: TenantRootControlPlaneAuthorityIdV1,
     trusted_issuer_verifying_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
@@ -4796,7 +4816,7 @@ fn validate_creation_cleanup_checkpoint(
             "tenant-root creation cleanup checkpoint scope is invalid",
         ));
     }
-    let (target, role) = creation_cleanup_target(journal, installation, record.role)?;
+    let (target, role) = creation_cleanup_target(journal, abandonment, installation, record.role)?;
     if record.role != role {
         return Err(malformed_input(
             "tenant-root creation cleanup checkpoint role is invalid",
@@ -4942,7 +4962,8 @@ fn evaluate_creation_cleanup_checkpoint(
     existing: Option<CloudflareTenantRootCreationCleanupCheckpointV1>,
     candidate: ValidatedTenantRootCreationCleanupCheckpointV1,
     journal: &ValidatedTenantRootCreationJournalV1,
-    installation: &ValidatedTenantRootCreationInstallationCheckpointV1,
+    abandonment: &CloudflareTenantRootCreationAbandonmentV1,
+    installation: Option<&ValidatedTenantRootCreationInstallationCheckpointV1>,
     authority_id: TenantRootControlPlaneAuthorityIdV1,
     trusted_issuer_verifying_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: &TenantRootCreationRoleVerifyingKeysV1,
@@ -4965,6 +4986,7 @@ fn evaluate_creation_cleanup_checkpoint(
     let existing = validate_creation_cleanup_checkpoint(
         existing,
         journal,
+        abandonment,
         installation,
         authority_id,
         trusted_issuer_verifying_keys,
@@ -14172,9 +14194,11 @@ pub trait TenantRootCreationStoreV1 {
     async fn put_json<T: Serialize>(&self, key: &str, value: &T) -> RouterAbProtocolResult<()>;
 }
 
-/// Checkpoints the cleanup of a creation in which exactly one role installed
-/// its share: an issuer-signed cleanup command and that role's successful
-/// terminal receipt. An exact replay returns the recorded response.
+/// Checkpoints one role's cleanup of an abandoned creation: an issuer-signed
+/// cleanup command and that role's successful terminal receipt. A role the
+/// abandonment recorded as installed is cleaned by its installation evidence;
+/// any other role by the abandoned ceremony. An exact replay returns the
+/// recorded response.
 pub async fn tenant_root_creation_persist_cleanup_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
@@ -14196,29 +14220,37 @@ pub async fn tenant_root_creation_persist_cleanup_v1<Store: TenantRootCreationSt
     let journal = validate_creation_record(journal_record, authority_id, issuer_keys)
         .map_err(stored_record_error)?;
     store.require_scope(journal.identity_digest, journal.custody_lineage)?;
-    let commitment_record = store
-        .get_json::<CloudflareTenantRootCreationCommitmentRendezvousRecordV1>(
-            TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
-        )
-        .await?;
-    let commitments =
-        require_complete_creation_commitment_rendezvous(commitment_record, &journal, role_keys)?;
-    let installation_record = store
+    let installation = match store
         .get_json::<CloudflareTenantRootCreationInstallationCheckpointV1>(
             TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
         )
         .await?
-        .ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root creation cleanup has no installation checkpoint",
+    {
+        None => None,
+        Some(installation_record) => {
+            let commitment_record = store
+                .get_json::<CloudflareTenantRootCreationCommitmentRendezvousRecordV1>(
+                    TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
+                )
+                .await?;
+            let commitments = require_complete_creation_commitment_rendezvous(
+                commitment_record,
+                &journal,
+                role_keys,
+            )?;
+            Some(
+                validate_installation_checkpoint(
+                    installation_record,
+                    &journal,
+                    role_keys,
+                    &commitments,
+                )
+                .map_err(stored_record_error)?,
             )
-        })?;
-    let installation =
-        validate_installation_checkpoint(installation_record, &journal, role_keys, &commitments)
-            .map_err(stored_record_error)?;
-    // Cleanup only executes an abandonment: the fence must already exist and
-    // name the role this command cleans.
+        }
+    };
+    // Cleanup only executes an abandonment: the fence must already exist, and
+    // it decides which material each role's cleanup targets.
     let abandonment = store
         .get_json::<CloudflareTenantRootCreationAbandonmentV1>(
             TENANT_ROOT_CREATION_ABANDONMENT_STORAGE_KEY_V1,
@@ -14243,17 +14275,12 @@ pub async fn tenant_root_creation_persist_cleanup_v1<Store: TenantRootCreationSt
             .claimed_target()
             .role(),
     );
-    if !abandonment.installed_roles.contains(&role) {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::ConflictingPair,
-            "tenant-root creation cleanup names a role the abandonment did not record",
-        ));
-    }
     let candidate_record = creation_cleanup_checkpoint_record(request, &journal, role)?;
     let candidate = validate_creation_cleanup_checkpoint(
         candidate_record,
         &journal,
-        &installation,
+        &abandonment,
+        installation.as_ref(),
         authority_id,
         issuer_keys,
         role_keys,
@@ -14275,7 +14302,8 @@ pub async fn tenant_root_creation_persist_cleanup_v1<Store: TenantRootCreationSt
         existing,
         candidate,
         &journal,
-        &installation,
+        &abandonment,
+        installation.as_ref(),
         authority_id,
         issuer_keys,
         role_keys,
@@ -14366,8 +14394,16 @@ async fn read_creation_journal_state_v1<Store: TenantRootCreationStoreV1>(
             TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
         )
         .await?;
+    let abandonment_record = store
+        .get_json::<CloudflareTenantRootCreationAbandonmentV1>(
+            TENANT_ROOT_CREATION_ABANDONMENT_STORAGE_KEY_V1,
+        )
+        .await?;
     // Role keys are needed only to validate progress records.
-    let role_keys = if rendezvous.is_some() || installation_record.is_some() {
+    let role_keys = if rendezvous.is_some()
+        || installation_record.is_some()
+        || abandonment_record.is_some()
+    {
         Some(role_keys()?)
     } else {
         None
@@ -14398,6 +14434,7 @@ async fn read_creation_journal_state_v1<Store: TenantRootCreationStoreV1>(
     };
     let abandonment = read_creation_abandonment_v1(
         store,
+        abandonment_record,
         &journal,
         installation_checkpoint.as_ref(),
         issuer_keys,
@@ -14734,47 +14771,48 @@ async fn require_creation_not_abandoned_v1<Store: TenantRootCreationStoreV1>(
 }
 
 /// Projects the abandonment fence and the roles whose cleanup is checkpointed.
+/// Both roles are cleaned, whether or not the fence recorded them installed.
 async fn read_creation_abandonment_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
+    record: Option<CloudflareTenantRootCreationAbandonmentV1>,
     journal: &ValidatedTenantRootCreationJournalV1,
     installation: Option<&ValidatedTenantRootCreationInstallationCheckpointV1>,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: Option<&TenantRootCreationRoleVerifyingKeysV1>,
 ) -> RouterAbProtocolResult<Option<CloudflareTenantRootCreationAbandonmentReadV1>> {
-    let Some(record) = store
-        .get_json::<CloudflareTenantRootCreationAbandonmentV1>(
-            TENANT_ROOT_CREATION_ABANDONMENT_STORAGE_KEY_V1,
-        )
-        .await?
-    else {
+    let Some(record) = record else {
         return Ok(None);
     };
     validate_creation_abandonment_scope_v1(&record, journal).map_err(stored_record_error)?;
     let mut cleaned_roles = Vec::new();
-    for role in &record.installed_roles {
+    for role in [
+        CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
+        CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
+    ] {
         let Some(checkpoint) = store
             .get_json::<CloudflareTenantRootCreationCleanupCheckpointV1>(
-                tenant_root_creation_cleanup_checkpoint_storage_key_v1(*role),
+                tenant_root_creation_cleanup_checkpoint_storage_key_v1(role),
             )
             .await?
         else {
             continue;
         };
-        let (Some(installation), Some(role_keys)) = (installation, role_keys) else {
-            return Err(stored_record_error(malformed_input(
-                "tenant-root creation cleanup checkpoint has no installation to validate against",
-            )));
-        };
+        let role_keys = role_keys.ok_or_else(|| {
+            stored_record_error(malformed_input(
+                "tenant-root creation cleanup checkpoint has no role-key set",
+            ))
+        })?;
         validate_creation_cleanup_checkpoint(
             checkpoint,
             journal,
+            &record,
             installation,
             store.authority_id(),
             issuer_keys,
             role_keys,
         )
         .map_err(stored_record_error)?;
-        cleaned_roles.push(*role);
+        cleaned_roles.push(role);
     }
     Ok(Some(CloudflareTenantRootCreationAbandonmentReadV1 {
         abandoned_at_ms: record.abandoned_at_ms,
@@ -18576,8 +18614,29 @@ mod tests {
         (checkpoint, commitments)
     }
 
+    fn abandonment_fixture(
+        journal: &ValidatedTenantRootCreationJournalV1,
+        installed_roles: Vec<CloudflareTenantRootCreationInstallationRoleV1>,
+    ) -> CloudflareTenantRootCreationAbandonmentV1 {
+        CloudflareTenantRootCreationAbandonmentV1 {
+            journal_digest_b64u: encode_base64url_bytes_v1(journal.journal_digest.as_bytes()),
+            identity_digest_b64u: encode_base64url_bytes_v1(journal.identity_digest.as_bytes()),
+            custody_lineage_b64u: journal.custody_lineage.to_base64url(),
+            ceremony_context_digest_b64u: encode_base64url_bytes_v1(
+                journal
+                    .ceremony_context
+                    .digest()
+                    .expect("ceremony context digest")
+                    .as_bytes(),
+            ),
+            installed_roles,
+            abandoned_at_ms: 1_000_001,
+        }
+    }
+
     fn cleanup_checkpoint_fixture(
         journal: &ValidatedTenantRootCreationJournalV1,
+        abandonment: &CloudflareTenantRootCreationAbandonmentV1,
         installation: &ValidatedTenantRootCreationInstallationCheckpointV1,
         cleanup_nonce_seed: u8,
         receipt_signer: TwoPartyDeriverRole,
@@ -18591,7 +18650,8 @@ mod tests {
         };
         let (target, role) = creation_cleanup_target(
             journal,
-            installation,
+            abandonment,
+            Some(installation),
             CloudflareTenantRootCreationInstallationRoleV1::from_protocol(*installed),
         )
         .expect("cleanup target");
@@ -18662,8 +18722,13 @@ mod tests {
             &commitments,
         )
         .expect("installation");
+        let abandonment = abandonment_fixture(
+            &journal,
+            vec![CloudflareTenantRootCreationInstallationRoleV1::DeriverB],
+        );
         let candidate_record = cleanup_checkpoint_fixture(
             &journal,
+            &abandonment,
             &installation,
             0x83,
             TwoPartyDeriverRole::DeriverB,
@@ -18672,7 +18737,8 @@ mod tests {
         let candidate = validate_creation_cleanup_checkpoint(
             candidate_record.clone(),
             &journal,
-            &installation,
+            &abandonment,
+            Some(&installation),
             authority(0x44),
             &verifying_keys(),
             &role_keys(),
@@ -18682,7 +18748,8 @@ mod tests {
             None,
             candidate,
             &journal,
-            &installation,
+            &abandonment,
+            Some(&installation),
             authority(0x44),
             &verifying_keys(),
             &role_keys(),
@@ -18707,7 +18774,8 @@ mod tests {
         let replay_candidate = validate_creation_cleanup_checkpoint(
             candidate_record,
             &journal,
-            &installation,
+            &abandonment,
+            Some(&installation),
             authority(0x44),
             &verifying_keys(),
             &role_keys(),
@@ -18717,7 +18785,8 @@ mod tests {
             Some(checkpoint),
             replay_candidate,
             &journal,
-            &installation,
+            &abandonment,
+            Some(&installation),
             authority(0x44),
             &verifying_keys(),
             &role_keys(),
@@ -18752,9 +18821,14 @@ mod tests {
             &commitments,
         )
         .expect("installation");
+        let abandonment = abandonment_fixture(
+            &journal,
+            vec![CloudflareTenantRootCreationInstallationRoleV1::DeriverB],
+        );
 
         let mut wrong_role = cleanup_checkpoint_fixture(
             &journal,
+            &abandonment,
             &installation,
             0x83,
             TwoPartyDeriverRole::DeriverB,
@@ -18764,7 +18838,8 @@ mod tests {
         assert!(validate_creation_cleanup_checkpoint(
             wrong_role,
             &journal,
-            &installation,
+            &abandonment,
+            Some(&installation),
             authority(0x44),
             &verifying_keys(),
             &role_keys(),
@@ -18773,6 +18848,7 @@ mod tests {
 
         let wrong_signer = cleanup_checkpoint_fixture(
             &journal,
+            &abandonment,
             &installation,
             0x83,
             TwoPartyDeriverRole::DeriverA,
@@ -18781,7 +18857,8 @@ mod tests {
         assert!(validate_creation_cleanup_checkpoint(
             wrong_signer,
             &journal,
-            &installation,
+            &abandonment,
+            Some(&installation),
             authority(0x44),
             &verifying_keys(),
             &role_keys(),
@@ -18790,6 +18867,7 @@ mod tests {
 
         let wrong_payload = cleanup_checkpoint_fixture(
             &journal,
+            &abandonment,
             &installation,
             0x83,
             TwoPartyDeriverRole::DeriverB,
@@ -18798,7 +18876,8 @@ mod tests {
         assert!(validate_creation_cleanup_checkpoint(
             wrong_payload,
             &journal,
-            &installation,
+            &abandonment,
+            Some(&installation),
             authority(0x44),
             &verifying_keys(),
             &role_keys(),
@@ -18827,33 +18906,60 @@ mod tests {
             &commitments,
         )
         .expect("completed installation");
-        // Once both roles are installed, each role's cleanup targets that
-        // role's own installation evidence. Whether cleanup may run at all is
-        // decided by the abandonment fence, not here.
+        // Once the fence records both roles installed, each role's cleanup
+        // targets that role's own installation evidence.
+        let both_abandoned = abandonment_fixture(
+            &journal,
+            vec![
+                CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
+                CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
+            ],
+        );
         for role in [
             CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
             CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
         ] {
-            let (target, targeted) =
-                creation_cleanup_target(&journal, &completed_installation, role)
-                    .expect("each installed role has a cleanup target");
-            assert_eq!(targeted, role);
-            assert_eq!(target.role(), role.to_protocol());
-        }
-        let (one_record, one_commitments) = deriver_b_installation_checkpoint(&journal, NOW_MS);
-        let one_installation =
-            validate_installation_checkpoint(one_record, &journal, &role_keys(), &one_commitments)
-                .expect("one installation");
-        assert_eq!(
-            creation_cleanup_target(
+            let (target, targeted) = creation_cleanup_target(
                 &journal,
-                &one_installation,
-                CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
+                &both_abandoned,
+                Some(&completed_installation),
+                role,
             )
-            .expect_err("a role that did not install cannot be cleaned")
-            .code(),
-            RouterAbProtocolErrorCode::ConflictingPair
+            .expect("each installed role has a cleanup target");
+            assert_eq!(targeted, role);
+            assert!(matches!(
+                target,
+                TenantRootRoleCleanupTargetV1::Pending { role: targeted, .. }
+                    if targeted == role.to_protocol()
+            ));
+        }
+        // A role the fence did not record is cleaned by the abandoned
+        // ceremony alone, never by installation evidence; a recorded role
+        // with no installation to bind has no target.
+        let (target, _) = creation_cleanup_target(
+            &journal,
+            &abandonment,
+            Some(&installation),
+            CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
+        )
+        .expect("an unrecorded role has a ceremony-bound cleanup target");
+        assert_eq!(
+            target,
+            TenantRootRoleCleanupTargetV1::AbandonedCeremony {
+                identity_digest: journal.identity_digest,
+                custody_lineage: journal.custody_lineage,
+                role: TwoPartyDeriverRole::DeriverA,
+                session_id: journal.ceremony_context.session_id(),
+                ceremony_nonce: journal.ceremony_context.nonce(),
+            }
         );
+        assert!(creation_cleanup_target(
+            &journal,
+            &abandonment,
+            None,
+            CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
+        )
+        .is_err());
     }
 
     #[test]

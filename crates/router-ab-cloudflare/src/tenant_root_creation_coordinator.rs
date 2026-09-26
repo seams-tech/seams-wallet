@@ -27,6 +27,7 @@ use crate::durable_object::tenant_root_creation::{
     tenant_root_creation_initial_activation_call_v1,
     tenant_root_creation_progress_read_call_v1, validate_creation_record,
     CloudflareTenantRootCreationInstallationCheckpointReadStateV1,
+    CloudflareTenantRootCreationInstallationRoleV1,
     CloudflareTenantRootCreationJournalOutcomeV1, CloudflareTenantRootCreationJournalRecordV1,
     CloudflareTenantRootCreationProgressV1, TenantRootCreationStateTransportV1,
 };
@@ -315,15 +316,16 @@ async fn deliver_committed_initial_activation_v1<Host: TenantRootRouterCreationH
 /// Abandons an uncommitted creation so a fresh grant can start again. The
 /// Router's creation state writes the fence first, refusing it if an
 /// activation is already committed; from then on no activation, commitment or
-/// installation lands. Each installed role not yet cleaned is then cleaned.
-/// Every step is idempotent, so a retry finishes an interrupted abandonment.
+/// installation lands. Each role not yet cleaned is then cleaned, installed or
+/// not: a role that never checkpointed its installation may still hold a
+/// share it wrote before the fence, or be writing one. Every step is
+/// idempotent, so a retry finishes an interrupted abandonment.
 async fn abandon_tenant_root_creation_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     identity_digest: router_ab_core::TenantRootIdentityDigestV1,
     custody_lineage: router_ab_core::TenantRootCustodyLineageId,
 ) -> RouterAbProtocolResult<()> {
-    let fenced =
-        tenant_root_creation_abandonment_call_v1(host, identity_digest, custody_lineage).await?;
+    tenant_root_creation_abandonment_call_v1(host, identity_digest, custody_lineage).await?;
     let cleaned = match tenant_root_creation_progress_read_call_v1(
         host,
         identity_digest,
@@ -337,7 +339,10 @@ async fn abandon_tenant_root_creation_v1<Host: TenantRootRouterCreationHostV1>(
             .unwrap_or_default(),
         CloudflareTenantRootCreationProgressV1::NotStarted => Vec::new(),
     };
-    for role in fenced.installed_roles {
+    for role in [
+        CloudflareTenantRootCreationInstallationRoleV1::DeriverA,
+        CloudflareTenantRootCreationInstallationRoleV1::DeriverB,
+    ] {
         if !cleaned.contains(&role) {
             clean_abandoned_role_v1(
                 host,
@@ -351,29 +356,30 @@ async fn abandon_tenant_root_creation_v1<Host: TenantRootRouterCreationHostV1>(
     Ok(())
 }
 
-/// Cleans one role an abandoned creation installed. The control plane issues
-/// a cleanup command naming that role's pending row; the Router verifies it
-/// before the Deriver removes the row, and checkpoints the Deriver's terminal
-/// receipt.
+/// Cleans one role of an abandoned creation. The control plane issues a
+/// cleanup command naming that role's recorded pending row, or for a role the
+/// abandonment did not record, the abandoned ceremony; the Router verifies it
+/// before the Deriver removes the material, and checkpoints the Deriver's
+/// terminal receipt.
 async fn clean_abandoned_role_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     identity_digest: router_ab_core::TenantRootIdentityDigestV1,
     custody_lineage: router_ab_core::TenantRootCustodyLineageId,
-    installed_role: CloudflareTenantRootControlPlaneRoleV1,
+    role: CloudflareTenantRootControlPlaneRoleV1,
 ) -> RouterAbProtocolResult<()> {
     let cleanup = tenant_root_control_plane_cleanup_command_call_v1(
         host,
         &CloudflareTenantRootControlPlaneCleanupCommandRequestV1::PendingCreation {
             identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
             custody_lineage_b64u: encode_base64url_bytes_v1(custody_lineage.as_bytes()),
-            role: installed_role,
+            role,
         },
     )
     .await?;
-    if cleanup.role != installed_role {
+    if cleanup.role != role {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-            "tenant-root cleanup command names a different installed role",
+            "tenant-root cleanup command names a different role",
         ));
     }
     let command_bytes =
@@ -386,7 +392,7 @@ async fn clean_abandoned_role_v1<Host: TenantRootRouterCreationHostV1>(
             )
         })?;
     let claimed_target = command.claimed_target();
-    let expected_role = installed_role.to_protocol();
+    let expected_role = role.to_protocol();
     let authority_id = host.creation_authority_id(
         claimed_target.identity_digest(),
         claimed_target.custody_lineage(),

@@ -1685,11 +1685,12 @@ pub fn decode_tenant_root_cleanup_scope_v1(
     Ok((identity_digest, custody_lineage))
 }
 
-/// Issues the cleanup command for one role an abandoned creation installed.
-/// The command names that role's pending row, bound to its installation
-/// evidence, so only that row can be removed. It is issued only once the
-/// Router has fenced the creation, and its window starts at the fence, so the
-/// same command is issued on every retry of the abandonment.
+/// Issues the cleanup command for one role of an abandoned creation. For a
+/// role the fence recorded as installed, the command names that role's pending
+/// row, bound to its installation evidence, so only that row can be removed.
+/// For any other role it names the abandoned ceremony. It is issued only once
+/// the Router has fenced the creation, and its window starts at the fence, so
+/// the same command is issued on every retry of the abandonment.
 pub async fn control_plane_pending_creation_cleanup_command_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     identity_digest: router_ab_core::TenantRootIdentityDigestV1,
@@ -1704,15 +1705,10 @@ pub async fn control_plane_pending_creation_cleanup_command_v1<Host: TenantRootC
         ));
     };
     let role = cleaned_role.to_protocol();
-    if !abandonment
+    let recorded = abandonment
         .installed_roles
         .iter()
-        .any(|installed| installed.to_protocol() == role)
-    {
-        return Err(refused(
-            "tenant-root cleanup names a role the abandoned creation did not install",
-        ));
-    }
+        .any(|installed| installed.to_protocol() == role);
     let record = crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationJournalRecordV1 {
         journal_b64u: read.journal_b64u.clone(),
         creation_capability_b64u: read.creation_capability_b64u.clone(),
@@ -1727,6 +1723,46 @@ pub async fn control_plane_pending_creation_cleanup_command_v1<Host: TenantRootC
         return Err(refused(
             "tenant-root cleanup state does not name the requested identity and lineage",
         ));
+    }
+    let issued_at_ms = abandonment.abandoned_at_ms;
+    if !recorded {
+        // No installation of this role was recorded: it may have stopped before
+        // checkpointing, or a command admitted before the window closed may
+        // still write. The command is bound to the ceremony and cleans, and
+        // forbids, the role's pending initial material for it.
+        let target = TenantRootRoleCleanupTargetV1::AbandonedCeremony {
+            identity_digest,
+            custody_lineage,
+            role,
+            session_id: journal.ceremony_context.session_id(),
+            ceremony_nonce: journal.ceremony_context.nonce(),
+        };
+        let mut nonce_hasher = Sha256::new();
+        nonce_hasher.update(b"seams/tenant-root/abandoned-ceremony-cleanup-nonce/v1");
+        nonce_hasher.update(journal.journal_digest.as_bytes());
+        nonce_hasher.update(match role {
+            TwoPartyDeriverRole::DeriverA => b"deriver_a".as_slice(),
+            TwoPartyDeriverRole::DeriverB => b"deriver_b".as_slice(),
+        });
+        let cleanup_nonce = TenantRootCeremonyNonceV1::from_bytes(nonce_hasher.finalize().into())
+            .map_err(derivation)?;
+        let seed = host.issuer_seed()?;
+        let command = TenantRootRoleCleanupCommandV1::sign(
+            &target,
+            authority_id,
+            cleanup_nonce,
+            issued_at_ms,
+            issued_at_ms.saturating_add(router_ab_core::TENANT_ROOT_MAX_LIFETIME_MS_V1),
+            host.bindings().issuer_signing_key.signing_key_id(),
+            &seed,
+        )
+        .map_err(derivation)?;
+        return Ok(CloudflareTenantRootControlPlaneCleanupCommandResponseV1 {
+            role: CloudflareTenantRootControlPlaneRoleV1::from_protocol(role),
+            cleanup_command_b64u: crate::encode_base64url_bytes_v1(
+                &command.canonical_bytes().map_err(derivation)?,
+            ),
+        });
     }
     let signed_evidence_b64u = match &read.installation_checkpoint {
         CloudflareTenantRootCreationInstallationCheckpointReadStateV1::OneRoleReady {
@@ -1801,7 +1837,6 @@ pub async fn control_plane_pending_creation_cleanup_command_v1<Host: TenantRootC
     let cleanup_nonce = TenantRootCeremonyNonceV1::from_bytes(nonce_hasher.finalize().into())
         .map_err(derivation)?;
     let seed = host.issuer_seed()?;
-    let issued_at_ms = abandonment.abandoned_at_ms;
     let command = TenantRootRoleCleanupCommandV1::sign(
         &target,
         authority_id,

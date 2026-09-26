@@ -107,10 +107,11 @@ and nothing it abandons is active.
   live in one creation object, each in one storage transaction, so
   abandonment and activation exclude each other whichever arrives first.
 - **Cleanup follows the fence.** The coordinator fences first, then cleans
-  each installed role that is not yet cleaned: the control plane issues that
-  role's cleanup command only for a fenced creation, the Deriver removes its
-  pending row, managed backup and canary, and the Router checkpoints the
-  Deriver's receipt under a per-role key. One-role cleanup now also runs
+  each role that is not yet cleaned, installed or not (see ceremony-bound
+  cleanup below): the control plane issues that role's cleanup command only
+  for a fenced creation, the Deriver removes its pending row, managed backup
+  and canary, and the Router checkpoints the Deriver's receipt under a
+  per-role key. One-role cleanup now also runs
   behind the fence, and only after the window. That closes a race in the
   previous order, where a role's row could be deleted before the checkpoint
   while the other role's installation landed.
@@ -126,7 +127,8 @@ and nothing it abandons is active.
   identical command. Executing the fence is not a new decision, so neither
   side judges the command against the current time.
   - The Deriver reads the Router's creation state and requires a fence that
-    names its role and was written at the command's issue time. It then
+    records its role exactly when the command is bound to installation
+    evidence, and that was written at the command's issue time. It then
     reserves the cleanup at the first instant after the fence
     (`tenant_root_abandonment_decided_at_ms_v1`).
   - The Router's checkpoint requires the same issue time and judges the
@@ -172,9 +174,76 @@ grant for the abandoned identity reaches ready.
   its row, backup and canary after the fence. The fence's installed roles are
   therefore not a complete list of what a role may hold, and cleanup must
   cover those late writes as well as crashes before installation
-  checkpointing (below).
+  checkpointing. Ceremony-bound cleanup (below) does.
 
+### Ceremony-bound cleanup of unrecorded material (implemented)
 
+A role the fence does not record as installed may still hold material: it
+stopped after writing its row, backup and canary but before its installation
+checkpoint reached the Router, or a command admitted before the window closed
+writes after the fence. Abandonment now cleans both roles, not only the
+recorded ones.
+
+- **Two cleanup targets, chosen by the fence.** A role the fence records is
+  cleaned by `TenantRootRoleCleanupTargetV1::Pending`, bound to its recorded
+  installation evidence, as before. Any other role is cleaned by
+  `TenantRootRoleCleanupTargetV1::AbandonedCeremony`, bound to the identity,
+  lineage, role and the ceremony's session id and nonce. The control plane
+  issues it only for a fenced creation, at the fence time, with a nonce
+  derived from the journal digest and the role. The Router's checkpoint
+  (`creation_cleanup_target`) derives the expected target from the fence, so
+  one kind can never stand in for the other, and projects cleaned roles for
+  both roles.
+- **The Deriver requires the fence to match.** It reads the Router's fence and
+  requires that the fence lists its role exactly when the command is
+  evidence-bound, and that the command was issued at the fence.
+- **The cleanup refuses active material and binds the ceremony.** A row
+  present at reservation must be pending and must be this ceremony's: its
+  creation command's replay record, keyed by the ceremony session and nonce,
+  must exist. One batch deletes any pending initial row for the lineage and
+  role, writes a tombstone (`tenant_root_creation_tombstones`, migration
+  0012), and checkpoints the command, with count guards on the tombstone and
+  the checkpoint. The managed backup and canary are deleted after every
+  cleanup call, including exact replays.
+- **Late writes.** The initial-row insert is guarded by the tombstone
+  (`INSERT ... WHERE NOT EXISTS` the lineage's tombstone), so a write that
+  lands after the cleanup is refused in the same statement. The creation
+  path writes the backup and canary before the row; when the row is refused
+  and the lineage is tombstoned, it deletes them again and reports that the
+  creation was abandoned while the role was writing. A write that lands after
+  the fence but before the cleanup is removed by the cleanup.
+- **Recorded roles need no tombstone.** A recorded role's creation command
+  had completed before its checkpoint, so a retry of it can only replay.
+
+Residual: a Deriver that crashes between a late backup write and its
+compensating delete leaves an unreferenced backup and canary. It holds no
+row and can never activate. An exact replay of that role's cleanup command
+deletes them, but nothing triggers that replay automatically once the Router
+has checkpointed the role's cleanup.
+
+### Evidence: unrecorded material and late writes
+
+- `vm_tenant_root_unrecorded_material_is_cleaned_after_the_ceremony_expires`
+  (`R150_VM_TENANT_ROOT_UNRECORDED_CLEANUP_E2E`) drops Deriver B's
+  installation checkpoint after B's writes, so B holds a pending row, backup
+  and canary that the Router never recorded, and A holds nothing. After
+  expiry the fence records no role. Both roles are cleaned by the ceremony:
+  no rows, backups or canaries remain, both lineages are tombstoned, and a
+  replay cleans nothing twice.
+- `vm_tenant_root_write_that_lands_after_the_fence_is_cleaned`
+  (`R150_VM_TENANT_ROOT_LATE_WRITE_E2E`) holds B's answer to A until the
+  window has closed and the Router has fenced the creation. A, admitted inside
+  the window, then writes its backup, canary and row, and the Router refuses
+  its commitment. A VM Deriver serves one request at a time, so A's cleanup
+  runs after that late write and removes it: A's creation and cleanup
+  commands both completed, and nothing remains.
+- On Workers, where a cleanup can land first, `testTenantRootCreationRecoveryPaths`
+  holds B's answer through a late-writing Deriver A worker that shares A's
+  database and bucket. The abandonment cleans and tombstones A before A
+  writes; A's late row is refused, its backup and canary are removed, and
+  its creation command stays reserved and never executes.
+
+## After the commit (implemented)
 
 The Router can commit the receipt and then stop before either Deriver
 activates, or between the two activations. Before this change a retry
@@ -232,26 +301,6 @@ to the control plane through proxies:
   a second correctly signed receipt that the Router never committed. The
   pending Deriver refuses it, both inside the window and after expiry.
 
-## Related finding, not fixed here
-
-If Deriver A persists its pending row but stops before its commitment and
-installation calls, while B's installation is recorded, abandonment cleans
-B only. A's pending row, backup and canary remain. They do not block a fresh
-grant, since rows are keyed by lineage, and can never activate, since
-activation requires the Router's commit and the fence excludes it. They stay
-behind as unreferenced sealed material that only A can discover.
-
-Cleanup commands today are bound to a role's recorded installation evidence,
-so they cannot name such a row. Proposal, awaiting review: a second pending
-cleanup target bound to the ceremony (session id, nonce, role, initial
-epoch) instead of installation evidence. The control plane would issue it
-only for a fenced creation and only for a role the fence does not list, and
-the Deriver would apply it only to a pending row of that ceremony, after
-confirming the fence as it does now. This needs a new target kind in
-`router-ab-core`. With abandonment deferred to the end of the window (see
-the fencing review), this row can only come from a crash in that narrow
-step.
-
 ## Alternatives rejected
 
 - **Keep all six artifacts in the Router's creation state.** The Router would
@@ -274,5 +323,6 @@ a committed receipt after expiry, refusal of a signed uncommitted receipt,
 and abandonment, after which the creation object refuses that receipt with
 409.
 
-Before the commit: resume and abandonment are covered by the VM E2Es above
-and by the Workers recovery test.
+Before the commit: resume, abandonment and ceremony-bound cleanup of
+unrecorded and late-written material are covered by the VM E2Es above and by
+the Workers recovery test.

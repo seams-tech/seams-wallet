@@ -5766,6 +5766,10 @@ async fn persist_tenant_root_creation_progress_v1<Host: TenantRootDeriverHostV1>
         ));
     };
     let signed_managed_backup = managed_backup.canonical_bytes().to_vec();
+    let backup_coordinates =
+        crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1::from_binding(
+            managed_backup.binding(),
+        );
     host.put_managed_backup(&managed_backup).await?;
     // The canary receipt is the one activation artifact nothing else keeps.
     // It is stored beside the backup before this role's installation
@@ -5779,17 +5783,36 @@ async fn persist_tenant_root_creation_progress_v1<Host: TenantRootDeriverHostV1>
         ..
     }) = &completion;
     host.put_provider_canary(
-        crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1::from_binding(
-            managed_backup.binding(),
-        ),
+        backup_coordinates,
         provider_canary_receipt,
         &role_signer.verifying_key_bytes(),
     )
     .await?;
-    let persisted = store
+    let binding = managed_backup.binding();
+    let persisted = match store
         .persist_initial_creation(*input, role_signer, now_ms, now_ms, now_ms)
         .await
-        .map_err(|error| tenant_root_store_error_v1("tenant-root role persistence", error))?;
+    {
+        Ok(persisted) => persisted,
+        Err(error) => {
+            // A command admitted before its window closed can reach here after
+            // the Router abandoned the ceremony and this role's cleanup ran:
+            // the tombstone refused the row, so the backup and canary written
+            // just above are removed too.
+            if store
+                .creation_tombstoned(binding.identity_digest(), binding.custody_lineage())
+                .await
+                .map_err(|error| tenant_root_store_error_v1("tenant-root tombstone lookup", error))?
+            {
+                host.delete_managed_backup(backup_coordinates).await?;
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLifecycleState,
+                    "tenant-root creation was abandoned while this role was writing; its backup and canary were removed",
+                ));
+            }
+            return Err(tenant_root_store_error_v1("tenant-root role persistence", error));
+        }
+    };
     let receipt_bytes = match persisted {
         CloudflareTenantRootInitialCreationPersistenceOutcomeV1::Committed { receipt_bytes } => {
             receipt_bytes
@@ -6092,14 +6115,15 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_create_role_share_v1(
     .await
 }
 
-/// Requires the Router's creation state to hold an abandonment fence that names
-/// `role` and was written at `issued_at_ms`, and returns the instant at which
-/// the fence's cleanup commands are judged.
+/// Requires the Router's creation state to hold an abandonment fence written at
+/// `issued_at_ms` that lists `role` as installed exactly when `recorded`, and
+/// returns the instant at which the fence's cleanup commands are judged.
 async fn require_router_abandonment_of_role_v1<Host: TenantRootDeriverHostV1>(
     host: &Host,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
     role: TwoPartyDeriverRole,
+    recorded: bool,
     issued_at_ms: u64,
 ) -> RouterAbProtocolResult<u64> {
     let progress = crate::durable_object::tenant_root_creation::tenant_root_creation_progress_read_call_v1(
@@ -6124,7 +6148,8 @@ async fn require_router_abandonment_of_role_v1<Host: TenantRootDeriverHostV1>(
                 && abandonment
                     .installed_roles
                     .iter()
-                    .any(|installed| installed.to_protocol() == role) =>
+                    .any(|installed| installed.to_protocol() == role)
+                    == recorded =>
         {
             Ok(
                 crate::durable_object::tenant_root_creation::tenant_root_abandonment_decided_at_ms_v1(
@@ -6237,6 +6262,16 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
                 epoch,
                 ..
             } => (*identity_digest, *custody_lineage, *epoch, false),
+            TenantRootRoleCleanupTargetV1::AbandonedCeremony {
+                identity_digest,
+                custody_lineage,
+                ..
+            } => (
+                *identity_digest,
+                *custody_lineage,
+                TenantRootShareEpoch::INITIAL,
+                false,
+            ),
             TenantRootRoleCleanupTargetV1::Retired {
                 identity_digest,
                 custody_lineage,
@@ -6275,11 +6310,18 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
     let reserved_at_ms = if is_retired {
         now_ms
     } else {
+        // An installed role is cleaned by evidence; a role the fence does not
+        // list, by its ceremony.
+        let recorded = matches!(
+            authorization.target(),
+            TenantRootRoleCleanupTargetV1::Pending { .. }
+        );
         require_router_abandonment_of_role_v1(
             host,
             claimed_identity_digest,
             claimed_custody_lineage,
             role,
+            recorded,
             authorization.issued_at_ms(),
         )
         .await?
