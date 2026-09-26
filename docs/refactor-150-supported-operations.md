@@ -32,8 +32,8 @@ excluded. The decisions needed are listed at the end.
 | Operation | Enabled through | Cloudflare | VM | Contract | Main tests |
 | --- | --- | --- | --- | --- | --- |
 | **Ed25519 (NEAR) registration**, passkey and Email OTP | SDK `registerWallet`; hosted auth menu | Served | Served | Spec 2 "Creating a wallet"; Spec 5; `router-ab/ed25519-yao.md` | `passkey.registration*`, `email-otp.*`, `passkey.ed25519-yao-local` (VM); VM `product_topology_*`; Workers wallet-DO and replay tests |
-| **ECDSA (Tempo, EVM) registration** | SDK registration with a chain target | Served | Served (wallet registration; not add-signer) | Same | `passkey.registration`, `passkey.presign-pool` (VM); `testEcdsaRegistrationAndActivation`; `ecdsa_derivation_*` |
-| **Add signer** | SDK `addWalletSigner` | Served | Ed25519 only | Spec 2 | `passkey.ed25519-yao-local` add-signer |
+| **ECDSA (Tempo, EVM) registration** | SDK registration with a chain target | Served | Served | Same | `passkey.registration`, `passkey.presign-pool` (VM); `testEcdsaRegistrationAndActivation`; `ecdsa_derivation_*` |
+| **Add signer** | SDK `addWalletSigner` | Served | Served (Ed25519 and ECDSA) | Spec 2 | `passkey.ed25519-yao-local` add-signer (both curves). On every host the SDK does not yet make an added ECDSA signer usable: signing and a later passkey unlock fail, because add-signer stores signer records without the canonical signing lane registration persists |
 | **Unlock and Wallet Session** | SDK `auth.unlock` | Gateway | Gateway code shared | Spec 3 "Unlock and sign" | `passkey.unlock` (VM), `email-otp.unlock` |
 | **NEAR Ed25519 signing** | SDK `near.*`, with Router normal signing enabled | Served | Served (owner sessions) | Spec 5 "Signing with prepared material" | `passkey.unlock`, `passkey.registration`; VM `product_near_signing_process_flow`; `normal_signing_worker_boundaries.rs` |
 | **ECDSA Tempo and EVM signing** | SDK `tempo.*`, `evm.*`, with a chain target | Served | Served (owner sessions, pool material) | Spec 5; intended "Transaction Signing" | `passkey.registration`, `passkey.unlock`, `passkey.presign-pool` (VM, including a finalize lost-response retry); `testEcdsaNormalSigning`; `ecdsa_derivation_normal_signing_boundaries.rs` |
@@ -73,8 +73,8 @@ Served but not reached by any surface in this repository (inferred):
   restore, retirement, cutover, linked-device signing and KMS backup as not
   served (refresh has since been served). It omitted two further gaps: every
   ECDSA operation and device linking. ECDSA wallet registration, the
-  presignature pool, owner-session and step-up signing, and ECDSA export are
-  now served on the VM; ECDSA add-signer and device linking are not. R150
+  presignature pool, owner-session and step-up signing, ECDSA export and
+  ECDSA add-signer are now served on the VM; device linking is not. R150
   names "NEAR and EVM signing" among the supported protocols that must pass on
   both adapters.
 - **Source retirement is reachable and untested.** It is reachable through a
@@ -86,8 +86,8 @@ Served but not reached by any surface in this repository (inferred):
 
 ## Decisions needed
 
-1. **Device linking and ECDSA add-signer on the VM.** Serve them or exclude
-   them explicitly. ECDSA export and step-up signing are served.
+1. **Device linking on the VM.** Serve it or exclude it explicitly. ECDSA
+   export, add-signer and step-up signing are served.
 2. **Scheduled refresh and availability restore.** Confirm from seams-monorepo
    whether they are enabled in the release. If they are, they are VM work; if
    not, record that.

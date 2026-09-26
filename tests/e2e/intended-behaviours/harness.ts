@@ -96,6 +96,7 @@ type IntendedHarnessAction =
   | 'registerPasskeyEd25519YaoWallet'
   | 'registerPasskeyEcdsaOnlyWallet'
   | 'addPasskeyEd25519YaoWalletSigner'
+  | 'addPasskeyEcdsaWalletSigner'
   | 'addEmailOtpAuthMethod'
   | 'addPasskeyAuthMethod'
   | 'registerEmailOtpWallet'
@@ -463,6 +464,11 @@ type Ed25519AddSignerResultSnapshot = {
   operationalPublicKey: string;
 };
 
+type EcdsaAddSignerResultSnapshot = {
+  kind: 'ecdsa_signer_added';
+  walletId: string;
+} & EcdsaEnabledSnapshot;
+
 type EmailOtpRegistrationCoreSnapshot = {
   kind: 'email_otp_registration_success';
   initialWalletId: string;
@@ -607,6 +613,7 @@ type AddedEmailOtpUnlockResultSnapshot = {
 type IntendedActionResultSnapshot =
   | PasskeyRegistrationResultSnapshot
   | Ed25519AddSignerResultSnapshot
+  | EcdsaAddSignerResultSnapshot
   | AddEmailOtpAuthMethodResultSnapshot
   | AddedEmailOtpUnlockResultSnapshot
   | RevokeAuthMethodResultSnapshot
@@ -1266,6 +1273,56 @@ export class IntendedBehaviourHarness {
     this.passkeyPromptCount += 1;
     this.recordService(
       `Ed25519 Yao signer added wallet=${result.walletId} near=${result.nearAccountId}`,
+    );
+  }
+
+  /**
+   * A NEAR-ready passkey wallet without ECDSA gains an ECDSA signer through the
+   * public add-signer path; later EVM signatures must recover to its address.
+   */
+  async addPasskeyEcdsaWalletSigner(): Promise<void> {
+    this.recordStage('add_passkey_ecdsa_wallet_signer');
+    const previous = requireNearReadyRegisteredWallet(
+      requirePasskeyRegisteredWalletSnapshot(this.requireRegisteredWalletForSigning()),
+      'ECDSA signer addition',
+    );
+    if (previous.ecdsaTargetProfile !== 'none') {
+      throw new Error('ECDSA signer addition expects a wallet without an ECDSA signer');
+    }
+    const snapshot = await this.runIntendedPageAction(
+      'addPasskeyEcdsaWalletSigner',
+      'intended-add-passkey-ecdsa-signer',
+    );
+    if (snapshot.action.status !== 'success') {
+      throw new Error(
+        `ECDSA add-signer ended with ${snapshot.action.status}: ${
+          snapshot.action.status === 'error' ? snapshot.action.error : ''
+        }`,
+      );
+    }
+    const result = snapshot.action.result;
+    if (result.kind !== 'ecdsa_signer_added' || result.walletId !== this.walletId) {
+      throw new Error(`ECDSA add-signer returned ${result.kind} for ${result.walletId}`);
+    }
+    if (result.ecdsaTargetProfile === 'none') {
+      throw new Error('ECDSA add-signer provisioned no ECDSA target');
+    }
+    if (snapshot.events.length === 0) {
+      throw new Error('ECDSA add-signer did not emit structured lifecycle events');
+    }
+    const { kind: _kind, walletId: _walletId, ...ecdsa } = result;
+    this.registeredWallet = {
+      kind: 'passkey_registration_success',
+      walletId: previous.walletId,
+      nearReadiness: 'ready',
+      nearAccountId: previous.nearAccountId,
+      operationalPublicKey: previous.operationalPublicKey,
+      ...ecdsa,
+    };
+    this.currentWarmSigningStage = 'post_registration';
+    this.passkeyPromptCount += 1;
+    this.recordService(
+      `ECDSA signer added wallet=${result.walletId} profile=${result.ecdsaTargetProfile}`,
     );
   }
 
@@ -5184,6 +5241,12 @@ function parseIntendedActionResultSnapshot(raw: unknown): IntendedActionResultSn
           'Ed25519 add-signer operationalPublicKey',
         ),
       };
+    case 'ecdsa_signer_added':
+      return {
+        kind,
+        walletId: requireString(record.walletId, 'ECDSA add-signer walletId'),
+        ...parseEcdsaEnabledSnapshot(record, 'ECDSA add-signer'),
+      };
     case 'add_email_otp_success': {
       const authMethod = requireRecord(record.authMethod, 'add-email-code auth method');
       if (authMethod.kind !== 'email_otp' || authMethod.status !== 'active') {
@@ -5506,6 +5569,7 @@ function parseIntendedHarnessAction(raw: unknown): IntendedHarnessAction {
     case 'registerPasskeyEd25519YaoWallet':
     case 'registerPasskeyEcdsaOnlyWallet':
     case 'addPasskeyEd25519YaoWalletSigner':
+    case 'addPasskeyEcdsaWalletSigner':
     case 'addEmailOtpAuthMethod':
     case 'addPasskeyAuthMethod':
     case 'registerEmailOtpWallet':

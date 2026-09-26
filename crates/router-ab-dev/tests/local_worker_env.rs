@@ -225,6 +225,7 @@ fn local_worker_route_ownership_uses_production_style_paths() {
             LOCAL_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PATH,
             router_ab_cloudflare::CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_REGISTRATION_PUBLIC_REQUEST_PATH,
             router_ab_cloudflare::CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PUBLIC_REQUEST_PATH,
+            router_ab_cloudflare::CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_ADD_SIGNER_PUBLIC_REQUEST_PATH,
             router_ab_cloudflare::CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_EXPORT_PUBLIC_REQUEST_PATH,
         ]
     );

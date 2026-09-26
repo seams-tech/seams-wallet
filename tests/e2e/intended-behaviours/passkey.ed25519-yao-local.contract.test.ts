@@ -27,6 +27,20 @@ test(
   verifyLocalEd25519YaoAddSignerAndSigning,
 );
 
+async function verifyEcdsaAddSigner({
+  harness,
+}: {
+  harness: IntendedBehaviourHarness;
+}): Promise<void> {
+  await harness.registerPasskeyEd25519YaoWallet();
+  await harness.addPasskeyEcdsaWalletSigner();
+}
+
+test(
+  'public ECDSA add-signer activates a Tempo and Arc signer for an Ed25519 wallet',
+  verifyEcdsaAddSigner,
+);
+
 async function verifyExactTransportRetry({
   harness,
 }: {

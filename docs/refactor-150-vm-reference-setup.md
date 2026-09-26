@@ -170,6 +170,11 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
   Gateway ceremony session it verifies; the SigningWorker seals its share
   from its wallet store. Passkey recovery (`passkey.recovery`, passkey-founded
   cases, including a lost finalization response and a runtime reset) passes.
+- ECDSA add-signer: `passkey.ed25519-yao-local` "public ECDSA add-signer
+  activates a Tempo and Arc signer for an Ed25519 wallet". The Router runs the
+  registration steps bound to the add-signer purpose. The SDK does not yet make
+  the added signer usable on any host (see the
+  [Phase 0 inventory](./refactor-150-supported-operations.md)).
 - VM route errors answer 400, except `LifecycleTransitionInProgress`, which
   answers 503 as on Cloudflare so the Gateway retries it.
 - The VM Router runs creation-state operations one at a time in process, as a
@@ -181,8 +186,7 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
 See the [Phase 0 inventory](./refactor-150-supported-operations.md) for each
 operation, its contracts and what is needed.
 
-- ECDSA add-signer registration and activation refresh. Linked-device ECDSA
-  signing fails closed.
+- ECDSA activation refresh. Linked-device ECDSA signing fails closed.
 - Device linking.
 - Tenant-root status, scheduled refresh (no VM trigger yet), managed
   restore, recovery-package backup and restore, source retirement and

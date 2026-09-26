@@ -32,6 +32,7 @@ type IntendedActionName =
   | 'registerPasskeyEd25519YaoWallet'
   | 'registerPasskeyEcdsaOnlyWallet'
   | 'addPasskeyEd25519YaoWalletSigner'
+  | 'addPasskeyEcdsaWalletSigner'
   | 'addEmailOtpAuthMethod'
   | 'unlockWithAddedEmailOtp'
   | 'revokeSourceAuthMethod'
@@ -235,6 +236,12 @@ type Ed25519AddSignerResultSummary = {
   operationalPublicKey: string;
 };
 
+/** The ECDSA signer an existing wallet gained, with its per-target keys. */
+type EcdsaAddSignerResultSummary = {
+  kind: 'ecdsa_signer_added';
+  walletId: string;
+} & IntendedEcdsaSummary;
+
 type AddEmailOtpAuthMethodResultSummary = {
   kind: 'add_email_otp_success';
   walletAuthMethodId: string;
@@ -412,6 +419,7 @@ type GoogleEmailOtpRecoveryResultSummary = {
 type IntendedActionResult =
   | PasskeyRegistrationResultSummary
   | Ed25519AddSignerResultSummary
+  | EcdsaAddSignerResultSummary
   | AddEmailOtpAuthMethodResultSummary
   | AddPasskeyAuthMethodResultSummary
   | EmailOtpRegistrationResultSummary
@@ -728,6 +736,15 @@ export const IntendedBehaviourE2EPage: React.FC = () => {
           </button>
           <button
             type="button"
+            data-testid="intended-add-passkey-ecdsa-signer"
+            disabled={state.action.status === 'running'}
+            onClick={controller.runAddPasskeyEcdsaWalletSigner}
+            style={buttonStyle}
+          >
+            Add Passkey ECDSA Signer
+          </button>
+          <button
+            type="button"
             data-testid="intended-register-email-otp-ecdsa-only"
             disabled={state.action.status === 'running'}
             onClick={controller.runRegisterEmailOtpEcdsaOnlyWallet}
@@ -931,6 +948,10 @@ class IntendedPageController {
 
   runAddPasskeyEd25519YaoWalletSigner = (): void => {
     void this.addPasskeyEd25519YaoWalletSigner();
+  };
+
+  runAddPasskeyEcdsaWalletSigner = (): void => {
+    void this.addPasskeyEcdsaWalletSigner();
   };
 
   runAddEmailOtpAuthMethod = (): void => {
@@ -1220,6 +1241,68 @@ class IntendedPageController {
       });
       const summary = assertEd25519AddSignerSucceeded(result, this.walletId);
       this.nearAccountId = summary.nearAccountId;
+      this.dispatch({ kind: 'action_succeeded', action, result: summary });
+    } catch (error) {
+      this.dispatch({ kind: 'action_failed', action, error: errorMessage(error) });
+    }
+  }
+
+  /**
+   * A wallet without ECDSA gains an ECDSA signer for the configured chain
+   * targets through the public add-signer path.
+   */
+  private async addPasskeyEcdsaWalletSigner(): Promise<void> {
+    const action: IntendedActionName = 'addPasskeyEcdsaWalletSigner';
+    this.dispatch({ kind: 'action_started', action });
+    try {
+      const sdkTargets = this.emailOtpEcdsaTargetProfile.sdkTargets;
+      if (sdkTargets.kind !== 'explicit') {
+        throw new Error('ECDSA add-signer requires configured chain targets');
+      }
+      const result = await this.seams.registration.addWalletSigner({
+        walletId: toWalletId(this.walletId),
+        rpId: intendedRegistrationRpId(),
+        signerSelection: {
+          mode: 'ecdsa',
+          ecdsa: { chainTargets: [...sdkTargets.targets], participantIds: [1, 2] },
+        },
+        options: {
+          onEvent: this.recordLifecycleEvent,
+        },
+      });
+      if (!result.success) throw new Error(result.error || 'ECDSA add-signer failed');
+      if (
+        result.kind !== 'wallet_signer_added' ||
+        result.capabilities.length !== 1 ||
+        result.capabilities[0].kind !== 'evm_family_ecdsa'
+      ) {
+        throw new Error(`ECDSA add-signer returned result kind: ${result.kind}`);
+      }
+      if (String(result.walletId) !== this.walletId) {
+        throw new Error('ECDSA add-signer returned a different wallet');
+      }
+      const ecdsa = requireThresholdEcdsaSessionFields({
+        source: result.capabilities[0],
+        label: 'ECDSA add-signer',
+      });
+      const session: IntendedEcdsaSessionSummary =
+        sdkTargets.targets.length > 1
+          ? {
+              ecdsaTargetProfile: 'tempo_arc',
+              thresholdEcdsaEthereumAddress: ecdsa.thresholdEcdsaEthereumAddress,
+              thresholdEcdsaPublicKeyB64u: ecdsa.thresholdEcdsaPublicKeyB64u,
+            }
+          : {
+              ecdsaTargetProfile: 'tempo',
+              thresholdEcdsaEthereumAddress: ecdsa.thresholdEcdsaEthereumAddress,
+              thresholdEcdsaPublicKeyB64u: ecdsa.thresholdEcdsaPublicKeyB64u,
+            };
+      const summary = {
+        kind: 'ecdsa_signer_added' as const,
+        walletId: this.walletId,
+        ...session,
+        ecdsaTargetKeys: registrationEcdsaTargetKeys(session),
+      } as EcdsaAddSignerResultSummary;
       this.dispatch({ kind: 'action_succeeded', action, result: summary });
     } catch (error) {
       this.dispatch({ kind: 'action_failed', action, error: errorMessage(error) });
@@ -2289,6 +2372,7 @@ function intendedActionResultWalletId(result: IntendedActionResult): string | nu
   switch (result.kind) {
     case 'passkey_registration_success':
     case 'wallet_signer_added':
+    case 'ecdsa_signer_added':
     case 'add_email_otp_success':
     case 'add_passkey_success':
     case 'email_otp_registration_success':
@@ -2335,6 +2419,8 @@ function intendedActionResultNearAccountId(result: IntendedActionResult): string
     case 'ecdsa_export_success':
     case 'passkey_recovery_success':
     case 'google_email_otp_recovery_success':
+    /* An added ECDSA signer leaves the NEAR account as it was. */
+    case 'ecdsa_signer_added':
       return null;
     default:
       return assertNever(result);
@@ -2367,6 +2453,7 @@ function intendedActionResultNearSignerSlot(
     case 'arc_evm_sign_success':
     case 'ed25519_export_success':
     case 'ecdsa_export_success':
+    case 'ecdsa_signer_added':
       return currentSignerSlot;
     default:
       return assertNever(result);

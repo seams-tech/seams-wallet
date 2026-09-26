@@ -27,6 +27,7 @@ use router_ab_cloudflare::{
     CloudflareSigningWorkerEcdsaExportShareRequestV1, EcdsaSigningWorkerExportShareEnvelopeV1,
     CLOUDFLARE_DERIVER_A_ROUTER_AB_ECDSA_DERIVATION_EXPORT_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_DERIVER_B_ROUTER_AB_ECDSA_DERIVATION_EXPORT_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_ADD_SIGNER_PUBLIC_REQUEST_PATH,
     CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_EXPORT_PUBLIC_REQUEST_PATH,
     CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_EXPORT_PREFLIGHT_PATH,
     CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_EXPORT_SHARE_PATH,
@@ -133,7 +134,22 @@ pub fn local_router_ab_ecdsa_route_v1(
         LocalWorkerRoleConfigV1::Router(router) => match path {
             CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_REGISTRATION_PUBLIC_REQUEST_PATH => {
                 Some(ceremony_authorized(request, |authorization| {
-                    register_at_router(router, request, authorization)
+                    register_at_router(
+                        router,
+                        request,
+                        authorization,
+                        RouterAbEcdsaDerivationRegistrationPurposeV1::WalletRegistration,
+                    )
+                }))
+            }
+            CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_ADD_SIGNER_PUBLIC_REQUEST_PATH => {
+                Some(ceremony_authorized(request, |authorization| {
+                    register_at_router(
+                        router,
+                        request,
+                        authorization,
+                        RouterAbEcdsaDerivationRegistrationPurposeV1::WalletAddSigner,
+                    )
                 }))
             }
             CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PUBLIC_REQUEST_PATH => {
@@ -327,12 +343,15 @@ fn gateway_authorized(
     Ok((200, handler()?))
 }
 
+/// Registers ECDSA material for a new wallet, or for an existing wallet's
+/// added signer: the same Router, Deriver and SigningWorker work, bound to its
+/// purpose.
 fn register_at_router(
     config: &LocalRouterWorkerConfigV1,
     request: &LocalDevHttpRequestPartsV1,
     authorization: CloudflareRouterBearerAuthorizationV1,
+    purpose: RouterAbEcdsaDerivationRegistrationPurposeV1,
 ) -> RouterAbProtocolResult<String> {
-    let purpose = RouterAbEcdsaDerivationRegistrationPurposeV1::WalletRegistration;
     let (registration_request, identity_digest, custody_lineage) =
         parse_cloudflare_router_ab_ecdsa_derivation_registration_gateway_request_v1(&request.body)?;
     registration_request.validate_for_registration_purpose(purpose)?;
