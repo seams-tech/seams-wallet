@@ -10604,6 +10604,7 @@ pub(crate) mod live_execution_tests {
             .expect("R2 deletion receipt"),
             cryptographic_erasure:
                 CloudflareTenantRootCryptographicErasureStatusV1::CryptographicErasureUnverified,
+            cancelled_admissions: 0,
         };
 
         let pending_json = serde_json::to_value(pending).expect("pending cleanup response");

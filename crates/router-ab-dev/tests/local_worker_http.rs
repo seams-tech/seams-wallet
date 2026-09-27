@@ -3286,6 +3286,202 @@ fn vm_tenant_root_claimed_execution_that_fails_is_recovered_and_retirement_compl
     Ok(())
 }
 
+/// A completed registration is answered again after its epoch is erased
+/// (docs/refactor-150-refresh-retirement.md, design item 4).
+///
+/// 1. A wallet registers on epoch 1. Deriver A's execute request is kept as
+///    the Router sent it.
+/// 2. A refresh moves the root to epoch 2, and the operator retires epoch 1
+///    at both Derivers. Its admissions are settled, so both shares are
+///    erased at once.
+/// 3. The Router's replay of the registration returns the original result,
+///    from both Derivers' completed pair records.
+/// 4. Deriver A's execute, retried exactly, returns its stored response. A
+///    changed request is refused. No share is left on epoch 1 to read.
+/// 5. Neither retry changed an admission or a pair record.
+#[test]
+fn vm_tenant_root_completed_registration_replays_after_its_epoch_is_erased(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start("vm-tenant-root-replay-after-erasure")?;
+    let _signing_worker = stack.start_signing_worker()?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("replay-after-erasure")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let (created_revision, _, _) = stack.active_state(&lineage_b64u)?;
+    let identity_digest_b64u =
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(identity.digest()?.as_bytes());
+    let admission_statuses = |db: &Connection| -> rusqlite::Result<Vec<(i64, String)>> {
+        db.prepare(
+            "SELECT tenant_root_share_epoch, status FROM tenant_root_root_use_admissions
+             WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch, admitted_at_ms",
+        )?
+        .query_map([&lineage_b64u], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect()
+    };
+    let pair_records = |db: &Connection, table: &str| -> rusqlite::Result<Vec<String>> {
+        db.prepare(&format!("SELECT record_json FROM {table} ORDER BY session_hex"))?
+            .query_map([], |row| row.get(0))?
+            .collect()
+    };
+    let settled = vec![(1, "settled".to_owned())];
+    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
+
+    // 1. The wallet registers on epoch 1; A's execute request is kept.
+    let (registration, _) =
+        stack.wallet_registration(&identity, &lineage_b64u, "account-replayed")?;
+    stack
+        .proxy_a
+        .hold_next_request_on(LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH);
+    let registering = {
+        let router_url = stack.router_url.clone();
+        let registration = registration.clone();
+        thread::spawn(move || {
+            post_json_to_path_with_headers(
+                &router_url,
+                LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+                &registration,
+                &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
+            )
+            .map_err(|error| error.to_string())
+        })
+    };
+    let deadline = Instant::now() + Duration::from_secs(20);
+    let a_execute: serde_json::Value = loop {
+        if let Some(body) = stack.proxy_a.held_request() {
+            break serde_json::from_slice(&body)?;
+        }
+        if Instant::now() > deadline {
+            return Err("the registration never reached Deriver A's execute".into());
+        }
+        thread::sleep(Duration::from_millis(10));
+    };
+    stack.proxy_a.release_request();
+    let (registration_status, original) = registering
+        .join()
+        .map_err(|_| "the registration thread panicked")??;
+    assert_eq!(registration_status, 200, "{original}");
+    assert!(registration_succeeded(&original)?, "{original}");
+    assert_eq!(admission_statuses(&stack.a_store)?, settled);
+    assert_eq!(admission_statuses(&stack.b_store)?, settled);
+    let a_pairs = pair_records(&stack.a_store, "local_deriver_a_yao_pairs")?;
+    let b_pairs = pair_records(&stack.b_store, "local_deriver_b_yao_pairs")?;
+    let [a_pair] = a_pairs.as_slice() else {
+        return Err("Deriver A must hold exactly one pair".into());
+    };
+    let LocalDeriverAPairRecordV1::Completed { outcome, .. } = serde_json::from_str(a_pair)? else {
+        return Err("Deriver A's pair must be completed".into());
+    };
+
+    // 2. A refresh, then epoch 1 is retired and erased at both Derivers.
+    let (refresh_status, refresh_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-replay-after-erasure", created_revision)?;
+    assert_eq!(refresh_status, 200, "{refresh_body}");
+    let row_revision = |db: &Connection, epoch: i64| -> rusqlite::Result<i64> {
+        db.query_row(
+            "SELECT revision FROM tenant_root_role_shares
+             WHERE custody_lineage_b64u = ?1 AND tenant_root_share_epoch = ?2",
+            rusqlite::params![lineage_b64u, epoch],
+            |row| row.get(0),
+        )
+    };
+    for (role, db, deriver_url) in [
+        ("deriver_a", &stack.a_store, &stack.deriver_a_url),
+        ("deriver_b", &stack.b_store, &stack.deriver_b_url),
+    ] {
+        let (command_status, command_body) = stack.control_plane(
+            router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH,
+            &json!({
+                "kind": "retired_after_refresh",
+                "identity_digest_b64u": identity_digest_b64u,
+                "custody_lineage_b64u": lineage_b64u,
+                "role": role,
+                "expected_retired_revision": row_revision(db, 1)?,
+                "expected_active_revision": row_revision(db, 2)?,
+            }),
+        )?;
+        assert_eq!(command_status, 200, "{command_body}");
+        let command: serde_json::Value = serde_json::from_str(&command_body)?;
+        let (status, body) = post_json_to_path_with_headers(
+            deriver_url,
+            router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH,
+            &json!({ "cleanup_command_b64u": command["cleanup_command_b64u"] }),
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+        )?;
+        assert_eq!(status, 200, "{role}: {body}");
+        let retired: serde_json::Value = serde_json::from_str(&body)?;
+        assert_eq!(retired["kind"], "retired_deleted", "{role}: {body}");
+        assert_eq!(retired["cancelled_admissions"], 0, "{role}: {body}");
+    }
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?,
+        (vec![epoch(2, "active")], vec![epoch(2, "active")])
+    );
+
+    // 3. The Router's replay returns the original result.
+    let (replay_status, replay_body) = post_json_to_path_with_headers(
+        &stack.router_url,
+        LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+        &registration,
+        &[
+            (LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH),
+            (router_ab_cloudflare::ROUTER_ED25519_YAO_REPLAY_HEADER_V1, "1"),
+        ],
+    )?;
+    assert_eq!(replay_status, 200, "{replay_body}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&replay_body)?,
+        serde_json::from_str::<serde_json::Value>(&original)?,
+        "the replay must return the original registration result"
+    );
+
+    // 4. A's execute, retried exactly, returns its stored response; a changed
+    // request is refused.
+    let execute = |request: &serde_json::Value| {
+        post_json_to_path_with_headers(
+            &stack.deriver_a_url,
+            LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
+            request,
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+        )
+    };
+    let (a_replay_status, a_replay_body) = execute(&a_execute)?;
+    assert_eq!(a_replay_status, 200, "{a_replay_body}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&a_replay_body)?,
+        serde_json::to_value(&outcome)?
+    );
+    let mut changed = a_execute.clone();
+    changed["tenant_root"]["custody_binding"]["issued_at_ms"] = json!(
+        changed["tenant_root"]["custody_binding"]["issued_at_ms"]
+            .as_u64()
+            .ok_or("the execute request names its binding's issue time")?
+            + 1
+    );
+    let (changed_status, changed_body) = execute(&changed)?;
+    assert_ne!(changed_status, 200, "{changed_body}");
+
+    // 5. Nothing changed.
+    assert_eq!(admission_statuses(&stack.a_store)?, settled);
+    assert_eq!(admission_statuses(&stack.b_store)?, settled);
+    assert_eq!(pair_records(&stack.a_store, "local_deriver_a_yao_pairs")?, a_pairs);
+    assert_eq!(pair_records(&stack.b_store, "local_deriver_b_yao_pairs")?, b_pairs);
+    println!(
+        "R150_VM_REPLAY_AFTER_ERASURE_E2E {}",
+        json!({
+            "registration": "succeeded on epoch 1",
+            "retired": { "deriver_a": "retired_deleted", "deriver_b": "retired_deleted" },
+            "epochs_after": [[2, "active"], [2, "active"]],
+            "router_replay": [replay_status, "original result"],
+            "deriver_a_execute_replay": [a_replay_status, "stored response"],
+            "changed_execute": changed_status,
+            "admissions_and_pair_records": "unchanged",
+        })
+    );
+    Ok(())
+}
+
 /// Work admitted before a refresh finishes on the epoch it started with. A
 /// registration is admitted and prepared while epoch 1 is active, then held
 /// before Deriver A reads it. A manual refresh then commits epoch 2 and both

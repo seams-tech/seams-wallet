@@ -1,9 +1,12 @@
 # R150: erasing the old epoch after a refresh
 
-Status: design decided in review, 2026-09-27. **Not implemented.** Automatic
-erasure stays disabled until two things exist:
+Status: design decided in review, 2026-09-27. **The trigger is not
+implemented**, so nothing erases automatically. Its prerequisites are done
+(2026-09-27):
 - settlement from the wallet-object pair store;
-- cancellation that stops the whole execution.
+- cancellation that stops the whole execution;
+- recovery of a claimed execution through its peer;
+- replay of a completed step without the share.
 
 See [admission identity and settlement](./refactor-150-admission-identity.md).
 
@@ -25,6 +28,7 @@ See [admission identity and settlement](./refactor-150-admission-identity.md).
 - **Wallet objects settle.** An object's completion is acknowledged to the
   role store. A lost acknowledgement is recovered by reconciliation, which
   reports the same completion.
+- **A completed step replays without the share** (design item 4 below).
 - **Nothing issues the command.**
   - The control plane signs a retired-cleanup command only when asked, with
     the role's exact row revisions.
@@ -47,9 +51,23 @@ See [admission identity and settlement](./refactor-150-admission-identity.md).
    policy only: it neither permits nor forbids erasure.
 4. **A completed step replays without the share.** An exact retry of a
    completed step is answered from its stored outcome, before any root read.
-   Waiting `W` alone would only postpone the problem.
-   - Today Cloudflare Deriver A's execute reads its share before it checks
-     its pair record.
+   Waiting `W` alone would only postpone the problem. Done (2026-09-27):
+   - The Router's replay of a completed Yao operation reads only stored
+     outcomes: both Derivers' completed pair records, or Deriver A's stored
+     outcome in its wallet object.
+   - Deriver A's execute answers an exact retry from its completed record,
+     before its receipts' freshness or any root read. It already did so on
+     the VM and in its wallet object; the role store now keeps the request's
+     digest and B's sealed execution for it. A changed request is refused.
+   - An ECDSA retry after a refresh is a new attempt on the active epoch, so
+     it never needs the retired share.
+   - Evidence: VM
+     `vm_tenant_root_completed_registration_replays_after_its_epoch_is_erased`
+     (`R150_VM_REPLAY_AFTER_ERASURE_E2E`) and the Workers harness
+     `--replay-after-erasure` (`R150_WORKERS_REPLAY_AFTER_ERASURE`), on
+     role-store and wallet-object builds. A wallet registers on epoch 1, and
+     epoch 1 is erased at both Derivers. The Router's replay then returns the
+     original result, and Deriver A's exact retry its stored response.
 5. **One retired epoch per role at a time.**
    - The control plane signs cleanup only for the epoch the latest refresh
      retired, so a second refresh would strand the first retired epoch.
@@ -85,8 +103,11 @@ See [admission identity and settlement](./refactor-150-admission-identity.md).
      retries.
    - The old execution causes no duplicate effect and reuses no one-use
      material.
-3. **Next:** the trigger above, with completed-step replay that needs no
-   share.
+3. **Done (2026-09-27):** recovery of a claimed execution through its peer
+   ([admission identity](./refactor-150-admission-identity.md)).
+4. **Done (2026-09-27):** completed-step replay that needs no share (design
+   item 4).
+5. **Next:** the trigger above.
 
 ## Evidence planned for the trigger
 

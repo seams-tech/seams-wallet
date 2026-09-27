@@ -255,9 +255,11 @@ This is the question the fence answers (mapped 2026-09-27, both hosts):
   - Erasure runs through the existing retired-cleanup command: the control
     plane signs it and the Deriver executes it. Both hosts serve it; Workers
     served it before with no settlement check, and that gap is closed.
-- **A settled attempt may still read** while its epoch is kept. An ECDSA
-  request replayed on the same epoch reads again. Cloudflare Deriver A's
-  execute reads its share before it checks its pair record.
+- **A settled attempt may still read** while its epoch is kept: an ECDSA
+  request replayed on the same epoch reads again. A completed Yao pair does
+  not. Deriver A's execute answers an exact retry from its completed record
+  before any root read, on every host
+  ([refresh retirement](./refactor-150-refresh-retirement.md), design item 4).
 - **After erasure, every refusal keeps its meaning.** With the share row gone,
   the attempt's own admission record answers. All three answers are the
   retryable `LifecycleTransitionInProgress`:

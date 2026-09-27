@@ -234,6 +234,17 @@ fn role_span_started_at_ms() -> u64 {
     cloudflare_yao_now_unix_ms().unwrap_or_default()
 }
 
+/// What Deriver A's completed pair keeps so that an exact retry of its
+/// execute is answered from the record, before any root read: the digest of
+/// the request that completed, and Deriver B's sealed execution, which the
+/// response carries. The retry may come after the pair's epoch was erased.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DeriverAExecuteReplayV1 {
+    request_digest: [u8; 32],
+    deriver_b_sealed_execution_json: String,
+}
+
 /// Pair-bound role state used by the Router-owned lifecycle.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
@@ -265,6 +276,8 @@ enum PairYaoSessionRecordV1 {
         input_digest: [u8; 32],
         root_metadata_digest: [u8; 32],
         execution: Box<Ed25519YaoRoleExecutionV1>,
+        /// Deriver A's completion only; Deriver B's has none.
+        execute_replay: Option<Box<DeriverAExecuteReplayV1>>,
     },
     Burned {
         pair_digest: [u8; 32],
@@ -339,7 +352,10 @@ fn deriver_a_pair_start_decision(
 }
 
 enum PairCompletionExpectation {
-    DeriverA { execution_id: [u8; 32] },
+    DeriverA {
+        execution_id: [u8; 32],
+        execute_replay: DeriverAExecuteReplayV1,
+    },
     DeriverB { input_digest: [u8; 32] },
 }
 
@@ -367,13 +383,14 @@ fn completed_pair_record_if_running(
     else {
         return None;
     };
-    let identity_matches = match expectation {
+    let (identity_matches, execute_replay) = match expectation {
         PairCompletionExpectation::DeriverA {
             execution_id: expected,
-        } => expected == *execution_id,
+            execute_replay,
+        } => (expected == *execution_id, Some(Box::new(execute_replay))),
         PairCompletionExpectation::DeriverB {
             input_digest: expected,
-        } => expected == *input_digest,
+        } => (expected == *input_digest, None),
     };
     if *stored_pair != pair_digest || !identity_matches || execution.session() != input.session() {
         return None;
@@ -390,6 +407,7 @@ fn completed_pair_record_if_running(
         input_digest: *input_digest,
         root_metadata_digest: *root_metadata_digest,
         execution: Box::new(execution.clone()),
+        execute_replay,
     })
 }
 
@@ -668,6 +686,14 @@ enum DeriverAYaoSessionCommandV1 {
         pair_digest: [u8; 32],
         execution_id: [u8; 32],
         execution: Box<Ed25519YaoRoleExecutionV1>,
+        execute_replay: Box<DeriverAExecuteReplayV1>,
+    },
+    /// An exact retry of Deriver A's execute: answered from the completed
+    /// record when it is the request that completed.
+    ReplayExecute {
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+        request_digest: [u8; 32],
     },
     ReadPairStatus {
         session: [u8; 32],
@@ -724,18 +750,34 @@ impl DeriverAYaoSessionCommandV1 {
                 pair_digest,
                 execution_id,
                 execution,
+                execute_replay,
             } => {
                 if pair_digest.iter().all(|byte| *byte == 0)
                     || execution_id.iter().all(|byte| *byte == 0)
+                    || execute_replay.request_digest.iter().all(|byte| *byte == 0)
+                    || execute_replay.deriver_b_sealed_execution_json.is_empty()
                 {
                     return Err(invalid_lifecycle(
-                        "Deriver A pair completion requires nonzero identity digests",
+                        "Deriver A pair completion requires nonzero identity digests and B's sealed execution",
                     ));
                 }
                 execution.validate()?;
                 if execution.deriver() != Ed25519YaoDeriverRoleV1::DeriverA {
                     return Err(invalid_lifecycle(
                         "Deriver A pair storage accepts only Deriver A execution",
+                    ));
+                }
+            }
+            Self::ReplayExecute {
+                pair_digest,
+                request_digest,
+                ..
+            } => {
+                if pair_digest.iter().all(|byte| *byte == 0)
+                    || request_digest.iter().all(|byte| *byte == 0)
+                {
+                    return Err(invalid_lifecycle(
+                        "Deriver A execute replay requires nonzero digests",
                     ));
                 }
             }
@@ -767,6 +809,14 @@ enum DeriverAYaoSessionResponseV1 {
         session: [u8; 32],
         pair_digest: [u8; 32],
     },
+    /// The stored response to the exact execute request that completed.
+    #[serde(rename = "execute_replayed")]
+    ExecuteReplayed {
+        response: Box<CloudflareEd25519YaoPairExecuteResponseV1>,
+    },
+    /// The pair has not completed here; the execute runs.
+    #[serde(rename = "execute_not_completed")]
+    ExecuteNotCompleted,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1082,6 +1132,14 @@ impl DeriverAYaoSessionD1V1 {
             DeriverAYaoSessionCommandV1::CompletePair { .. } => {
                 self.handle_complete_pair(command).await
             }
+            DeriverAYaoSessionCommandV1::ReplayExecute {
+                session,
+                pair_digest,
+                request_digest,
+            } => {
+                self.handle_replay_execute(session, pair_digest, request_digest)
+                    .await
+            }
             DeriverAYaoSessionCommandV1::ReadPairStatus {
                 session,
                 pair_digest,
@@ -1191,6 +1249,44 @@ impl DeriverAYaoSessionD1V1 {
             }
         };
         Response::from_json(&response)
+    }
+
+    /// Answers an exact retry of a completed execute from this record alone.
+    /// A pair completed for another request is refused; any other record
+    /// lets the execute run.
+    async fn handle_replay_execute(
+        &self,
+        session: [u8; 32],
+        pair_digest: [u8; 32],
+        request_digest: [u8; 32],
+    ) -> worker::Result<Response> {
+        let storage = role_d1::RolePairD1StorageV1::from_env(&self.env, session)?;
+        match storage
+            .get::<PairYaoSessionRecordV1>(PAIR_SESSION_RECORD_STORAGE_KEY)
+            .await?
+        {
+            Some(PairYaoSessionRecordV1::Completed {
+                pair_digest: stored_pair,
+                execution,
+                execute_replay: Some(replay),
+                ..
+            }) if stored_pair == pair_digest
+                && execution.session() == session
+                && replay.request_digest == request_digest =>
+            {
+                Response::from_json(&DeriverAYaoSessionResponseV1::ExecuteReplayed {
+                    response: Box::new(CloudflareEd25519YaoPairExecuteResponseV1 {
+                        deriver_a_execution: *execution,
+                        deriver_b_sealed_execution_json: replay.deriver_b_sealed_execution_json,
+                    }),
+                })
+            }
+            Some(PairYaoSessionRecordV1::Completed { .. }) => Response::error(
+                "Deriver A pair completed for a different execute request",
+                409,
+            ),
+            _ => Response::from_json(&DeriverAYaoSessionResponseV1::ExecuteNotCompleted),
+        }
     }
 
     async fn handle_burn_pair(
@@ -1687,6 +1783,7 @@ impl DeriverAYaoSessionD1V1 {
             pair_digest,
             execution_id,
             execution,
+            execute_replay,
         } = command
         else {
             return Response::error("invalid Deriver A pair command", 400);
@@ -1712,7 +1809,10 @@ impl DeriverAYaoSessionD1V1 {
                 if let Some(next) = completed_pair_record_if_running(
                     &current,
                     pair_digest,
-                    PairCompletionExpectation::DeriverA { execution_id },
+                    PairCompletionExpectation::DeriverA {
+                        execution_id,
+                        execute_replay: *execute_replay,
+                    },
                     &execution,
                     now_unix_ms,
                 ) {
@@ -2610,6 +2710,15 @@ async fn handle_cloudflare_ed25519_yao_deriver_a_execute_pair_body_v1(
     let pair_binding = request.pair_binding.clone();
     let session = pair_binding.session();
     let pair_digest = pair_binding.pair_digest().bytes;
+    // An exact retry of a completed execute is answered from A's pair record,
+    // before its receipts' freshness or any root read: its epoch may since
+    // have been erased here.
+    let request_digest = deriver_a_execute_request_digest_v1(&request)?;
+    if let Some(replayed) =
+        replay_deriver_a_execute(env, session, pair_digest, request_digest, trace_id).await?
+    {
+        return json_response(&replayed);
+    }
     let execution_id = Ed25519YaoExecutionIdV1::new(
         yao_execution_id().map_err(|_| invalid_lifecycle("Yao execution id generation failed"))?,
     )?;
@@ -2683,6 +2792,10 @@ async fn handle_cloudflare_ed25519_yao_deriver_a_execute_pair_body_v1(
         pair_digest,
         execution_id.into_bytes(),
         deriver_a_execution,
+        DeriverAExecuteReplayV1 {
+            request_digest,
+            deriver_b_sealed_execution_json: deriver_b_sealed_execution_json.clone(),
+        },
         trace_id,
     )
     .await?;
@@ -3899,6 +4012,7 @@ async fn complete_deriver_a_pair(
     pair_digest: [u8; 32],
     execution_id: [u8; 32],
     execution: Ed25519YaoRoleExecutionV1,
+    execute_replay: DeriverAExecuteReplayV1,
     trace_id: RoleTraceContextV1,
 ) -> RouterAbProtocolResult<Ed25519YaoRoleExecutionV1> {
     let mut response = execute_deriver_a_pair_command(
@@ -3907,6 +4021,7 @@ async fn complete_deriver_a_pair(
             pair_digest,
             execution_id,
             execution: Box::new(execution.clone()),
+            execute_replay: Box::new(execute_replay),
         },
         trace_id,
     )
@@ -3920,10 +4035,57 @@ async fn complete_deriver_a_pair(
         DeriverAYaoSessionResponseV1::Burned { .. } => {
             Err(invalid_lifecycle("Deriver A pair execution was burned"))
         }
-        DeriverAYaoSessionResponseV1::Started { .. } => Err(invalid_lifecycle(
-            "Deriver A pair completion returned a start response",
+        DeriverAYaoSessionResponseV1::Started { .. }
+        | DeriverAYaoSessionResponseV1::ExecuteReplayed { .. }
+        | DeriverAYaoSessionResponseV1::ExecuteNotCompleted => Err(invalid_lifecycle(
+            "Deriver A pair completion returned another response",
         )),
     }
+}
+
+/// The stored response when this exact execute request already completed at
+/// Deriver A, read before any root read; `None` when the execute must run.
+async fn replay_deriver_a_execute(
+    env: &Env,
+    session: [u8; 32],
+    pair_digest: [u8; 32],
+    request_digest: [u8; 32],
+    trace_id: RoleTraceContextV1,
+) -> RouterAbProtocolResult<Option<CloudflareEd25519YaoPairExecuteResponseV1>> {
+    let mut response = execute_deriver_a_pair_command(
+        env,
+        DeriverAYaoSessionCommandV1::ReplayExecute {
+            session,
+            pair_digest,
+            request_digest,
+        },
+        trace_id,
+    )
+    .await?;
+    match response
+        .json::<DeriverAYaoSessionResponseV1>()
+        .await
+        .map_err(|_| invalid_lifecycle("Deriver A execute replay response is malformed"))?
+    {
+        DeriverAYaoSessionResponseV1::ExecuteReplayed { response } => Ok(Some(*response)),
+        DeriverAYaoSessionResponseV1::ExecuteNotCompleted => Ok(None),
+        _ => Err(invalid_lifecycle(
+            "Deriver A execute replay returned another response",
+        )),
+    }
+}
+
+/// The digest an exact retry of Deriver A's execute must match to be
+/// answered from the completed record.
+fn deriver_a_execute_request_digest_v1(
+    request: &CloudflareEd25519YaoPairExecuteRequestV1,
+) -> RouterAbProtocolResult<[u8; 32]> {
+    let bytes = serde_json::to_vec(request)
+        .map_err(|_| invalid_lifecycle("Deriver A execute request cannot be encoded"))?;
+    let mut hasher = Sha256::new();
+    hasher.update(b"seams/router-ab/ed25519-yao/deriver-a-execute-request/v1");
+    hasher.update(bytes);
+    Ok(hasher.finalize().into())
 }
 
 async fn confirm_deriver_a_pair_start(
@@ -3962,6 +4124,10 @@ async fn confirm_deriver_a_pair_start(
         DeriverAYaoSessionResponseV1::Burned { .. } => {
             Err(invalid_lifecycle("Deriver A pair start was burned"))
         }
+        DeriverAYaoSessionResponseV1::ExecuteReplayed { .. }
+        | DeriverAYaoSessionResponseV1::ExecuteNotCompleted => Err(invalid_lifecycle(
+            "Deriver A pair start returned another response",
+        )),
     }
 }
 
@@ -4640,6 +4806,13 @@ mod tests {
         (pair, input_a)
     }
 
+    fn execute_replay_for_completion() -> DeriverAExecuteReplayV1 {
+        DeriverAExecuteReplayV1 {
+            request_digest: [11; 32],
+            deriver_b_sealed_execution_json: "{}".to_owned(),
+        }
+    }
+
     fn role_execution_for_pair(pair: &Ed25519YaoInputPairBindingV1) -> Ed25519YaoRoleExecutionV1 {
         let session = pair.session();
         let client_package = Ed25519YaoEncryptedPackageV1::new(
@@ -4848,7 +5021,10 @@ mod tests {
         let completed = completed_pair_record_if_running(
             &running,
             pair_digest,
-            PairCompletionExpectation::DeriverA { execution_id },
+            PairCompletionExpectation::DeriverA {
+                execution_id,
+                execute_replay: execute_replay_for_completion(),
+            },
             &execution,
             101,
         )
@@ -4861,7 +5037,10 @@ mod tests {
             completed_pair_record_if_running(
                 &completed,
                 pair_digest,
-                PairCompletionExpectation::DeriverA { execution_id },
+                PairCompletionExpectation::DeriverA {
+                    execution_id,
+                    execute_replay: execute_replay_for_completion(),
+                },
                 &execution,
                 102,
             )
@@ -4872,7 +5051,10 @@ mod tests {
             completed_pair_record_if_running(
                 &running,
                 pair_digest,
-                PairCompletionExpectation::DeriverA { execution_id },
+                PairCompletionExpectation::DeriverA {
+                    execution_id,
+                    execute_replay: execute_replay_for_completion(),
+                },
                 &execution,
                 100 + YAO_RUNNING_LIFETIME_MS,
             ),
@@ -4886,7 +5068,10 @@ mod tests {
         assert!(completed_pair_record_if_running(
             &burned,
             pair_digest,
-            PairCompletionExpectation::DeriverA { execution_id },
+            PairCompletionExpectation::DeriverA {
+                execution_id,
+                execute_replay: execute_replay_for_completion(),
+            },
             &execution,
             101,
         )
@@ -4896,6 +5081,7 @@ mod tests {
             pair_digest,
             PairCompletionExpectation::DeriverA {
                 execution_id: [16; 32],
+                execute_replay: execute_replay_for_completion(),
             },
             &execution,
             101,

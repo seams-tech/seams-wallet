@@ -281,6 +281,15 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
     are refused.
   - A second refresh succeeds after the Router's one-minute manual interval,
     and the wallet registers and signs on epoch 3.
+- `vm_tenant_root_completed_registration_replays_after_its_epoch_is_erased`
+  prints `R150_VM_REPLAY_AFTER_ERASURE_E2E`:
+  - A wallet registers on epoch 1, and a refresh moves the root to epoch 2.
+  - Epoch 1 is retired at both Derivers and erased at once, since its
+    admissions are settled.
+  - The Router's replay returns the original result. Deriver A's execute,
+    retried exactly, returns its stored response; a changed request is
+    refused (400).
+  - No admission or pair record changes.
 - `vm_tenant_root_new_work_waits_for_the_committed_epoch_delivery` prints
   `R150_VM_TENANT_ROOT_DELIVERY_GATE_E2E`: new work is refused with HTTP 503
   while a Deriver lacks the committed epoch, and admitted once delivery

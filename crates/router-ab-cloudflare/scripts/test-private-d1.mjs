@@ -2800,9 +2800,9 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
 ///   `admitted`, as if both settlement acknowledgements were lost.
 ///   Retirement reconciles them with the objects, which report the same
 ///   completion, and the epoch is erased with nothing cancelled.
-/// Helpers shared by the wallet-object admission runs.
-async function walletObjectAdmissionHelpers(topology, fixture, databases) {
-  assert.equal(process.env.ROUTER_AB_WALLET_DO_HARNESS, 'enabled');
+/// Helpers shared by the admission and retirement runs, on either build.
+/// `objectReport` needs a wallet-object build.
+async function rootLifecycleHelpers(topology, fixture, databases) {
   const router = await topology.getWorker('router-recovery');
   const controlPlane = await topology.getWorker('tenant-root-control-plane');
   const derivers = {
@@ -2950,8 +2950,9 @@ async function walletObjectAdmissionHelpers(topology, fixture, databases) {
 }
 
 async function testWalletObjectAdmissionSettlement(topology, fixture, databases) {
+  assert.equal(process.env.ROUTER_AB_WALLET_DO_HARNESS, 'enabled');
   const { create, refresh, register, succeeded, admissions, retire, objectReport } =
-    await walletObjectAdmissionHelpers(topology, fixture, databases);
+    await rootLifecycleHelpers(topology, fixture, databases);
   const races = fixture.admission_race;
 
   // Root R: a held registration is fenced in both objects.
@@ -3035,6 +3036,107 @@ async function testWalletObjectAdmissionSettlement(topology, fixture, databases)
   };
 }
 
+/// Opt-in (`--replay-after-erasure`, either build). A completed registration
+/// is answered again after its epoch is erased at both Derivers.
+/// 1. A wallet registers on epoch 1. Deriver A's execute request is kept as
+///    the Router sent it, with A's response.
+/// 2. A refresh moves the root to epoch 2, and epoch 1 is retired at both
+///    Derivers. Its admissions are settled, so both shares are erased.
+/// 3. The Router's replay of the registration returns the original result.
+/// 4. Deriver A's execute, retried exactly, returns its stored response. A
+///    changed request is refused. No share is left on epoch 1 to read.
+/// 5. No admission changed.
+async function testReplayAfterErasure(topology, fixture, databases) {
+  const { create, refresh, admissions, retire, races } = await rootLifecycleHelpers(
+    topology,
+    fixture,
+    databases,
+  );
+  const router = await topology.getWorker('router-recovery');
+  const deriverA = await topology.getWorker('deriver-a');
+  const executePairPath = '/router-ab/deriver-a/ed25519-yao/execute-pair';
+  const statuses = async (ceremony) =>
+    (await admissions(ceremony)).map((role) => role.map(([epoch, status]) => [epoch, status]));
+  const root = recoveryCreationGrant('replay-after-erasure', 60_000);
+  await create(root);
+
+  // 1. The wallet registers on epoch 1; A's execute request is kept.
+  const registration = buildEd25519ExecuteRequest(
+    fixture,
+    'admission_race',
+    root,
+    races.after_delivery,
+  );
+  const hold = holdNextRecoveryRequest('deriver-a', executePairPath);
+  const registering = postWorkerJson(router, ed25519ExecutePath, registration);
+  const aExecute = await hold.held;
+  hold.release();
+  const registered = await registering;
+  const original = await registered.text();
+  assert.equal(registered.status, 200, original);
+  assert.equal(JSON.parse(original).status, 'succeeded', original);
+  const aAnswer = hold.answer();
+  assert.equal(aAnswer.status, 200, aAnswer.body);
+  const settled = [[[1, 'settled']], [[1, 'settled']]];
+  assert.deepEqual(await statuses(root), settled);
+
+  // 2. A refresh, then epoch 1 is retired and erased at both Derivers.
+  await refresh(root, 'harness-replay-after-erasure');
+  const retired = [await retire(root, 'deriver_a'), await retire(root, 'deriver_b')];
+  for (const cleanup of retired) {
+    assert.equal(cleanup.kind, 'retired_deleted', JSON.stringify(cleanup));
+    assert.equal(cleanup.cancelled_admissions, 0, JSON.stringify(cleanup));
+  }
+  const epochOneShares = await Promise.all(
+    [databases.deriverA, databases.deriverB].map(async (database) =>
+      (
+        await database
+          .prepare(
+            `SELECT COUNT(*) AS count FROM tenant_root_role_shares
+             WHERE custody_lineage_b64u = ?1 AND tenant_root_share_epoch = 1`,
+          )
+          .bind(root.custody_lineage_b64u)
+          .first()
+      ).count,
+    ),
+  );
+  assert.deepEqual(epochOneShares, [0, 0]);
+
+  // 3. The Router's replay returns the original result.
+  const replay = await postWorkerJson(router, ed25519ExecutePath, registration, {
+    'x-seams-yao-replay': '1',
+  });
+  const replayed = await replay.text();
+  assert.equal(replay.status, 200, replayed);
+  assert.deepEqual(JSON.parse(replayed), JSON.parse(original));
+
+  // 4. A's execute, retried exactly, returns its stored response; a changed
+  // request is refused.
+  const aReplay = await postWorkerJson(deriverA, executePairPath, aExecute);
+  const aReplayed = await aReplay.text();
+  assert.equal(aReplay.status, 200, aReplayed);
+  assert.deepEqual(JSON.parse(aReplayed), JSON.parse(aAnswer.body));
+  const changed = structuredClone(aExecute);
+  changed.tenant_root.custody_binding.issued_at_ms += 1;
+  const changedResponse = await postWorkerJson(deriverA, executePairPath, changed);
+  const changedBody = await changedResponse.text();
+  assert.notEqual(changedResponse.status, 200, changedBody);
+
+  // 5. No admission changed.
+  assert.deepEqual(await statuses(root), settled);
+  return {
+    kind: 'tenant_root_replay_after_erasure_workers_e2e_v1',
+    build: process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled' ? 'wallet_objects' : 'role_store',
+    registration: 'succeeded on epoch 1',
+    retired: retired.map((cleanup) => [cleanup.kind, cleanup.cancelled_admissions]),
+    epochOneShares,
+    routerReplay: [replay.status, 'original result'],
+    deriverAExecuteReplay: [aReplay.status, 'stored response'],
+    changedExecute: [changedResponse.status, changedBody.slice(0, 160)],
+    admissionsAfter: settled,
+  };
+}
+
 /// Opt-in (`--do-claimed-recovery`, wallet-object builds). Deriver B is set
 /// to burn a pair just before completing it. A claimed execution that fails
 /// is recovered, and retirement completes.
@@ -3050,7 +3152,7 @@ async function testWalletObjectAdmissionSettlement(topology, fixture, databases)
 /// 5. A second refresh of the root succeeds.
 async function testWalletObjectClaimedRecovery(topology, fixture, databases) {
   const { activeState, create, refresh, register, succeeded, admissions, retire, objectReport, races } =
-    await walletObjectAdmissionHelpers(topology, fixture, databases);
+    await rootLifecycleHelpers(topology, fixture, databases);
   const root = recoveryCreationGrant('do-claimed-recovery', 60_000);
   await create(root);
   const failed = await register(root, races.held_preparation);
@@ -4843,6 +4945,11 @@ async function main() {
           ...admissionRaces,
         })}`,
       );
+      return;
+    }
+    if (process.argv.includes('--replay-after-erasure')) {
+      const summary = await testReplayAfterErasure(topology, fixture, databases);
+      console.log(`R150_WORKERS_REPLAY_AFTER_ERASURE ${JSON.stringify(summary)}`);
       return;
     }
     if (walletObjectClaimedRecoveryRun) {
