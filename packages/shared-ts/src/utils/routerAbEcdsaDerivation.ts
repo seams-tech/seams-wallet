@@ -67,6 +67,13 @@ import {
   type PasskeyWalletAuthAuthority,
 } from './walletAuthAuthority';
 
+
+/**
+ * The longest an ECDSA presignature ceremony may run. The Gateway authorizes a
+ * pool fill only when the requested ceremony deadline is within this limit.
+ */
+export const ROUTER_AB_ECDSA_PRESIGN_CEREMONY_MAX_LIFETIME_MS = 5 * 60_000;
+
 export const ROUTER_AB_ECDSA_DERIVATION_NORMAL_SIGNING_STATE_KIND_V1 =
   'router_ab_ecdsa_derivation_normal_signing_v1' as const;
 export const ROUTER_AB_ECDSA_DERIVATION_KEY_SCOPE_V1 = 'evm-family' as const;

@@ -601,11 +601,12 @@ function parseD1WalletAddSignerFinalizeSuccessResponse(
   }
   if (record.kind !== 'evm_family_ecdsa') return null;
   const ecdsa = parseD1WalletRegistrationFinalizeEcdsa(record.ecdsa);
-  if (!ecdsa) return null;
+  const authority = parseWalletAuthorityV1(record.authority);
+  if (!ecdsa || !authority.ok || authority.value.state !== 'active') return null;
   const rpId = toOptionalTrimmedString(record.rpId);
   return rpId
-    ? { ok: true, kind: 'evm_family_ecdsa', walletId, rpId, ecdsa }
-    : { ok: true, kind: 'evm_family_ecdsa', walletId, ecdsa };
+    ? { ok: true, kind: 'evm_family_ecdsa', walletId, rpId, ecdsa, authority: authority.value }
+    : { ok: true, kind: 'evm_family_ecdsa', walletId, ecdsa, authority: authority.value };
 }
 
 export function parseD1WalletAddSignerFinalizeTerminalResponse(

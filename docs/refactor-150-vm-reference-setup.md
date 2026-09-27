@@ -170,11 +170,13 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
   Gateway ceremony session it verifies; the SigningWorker seals its share
   from its wallet store. Passkey recovery (`passkey.recovery`, passkey-founded
   cases, including a lost finalization response and a runtime reset) passes.
-- ECDSA add-signer: `passkey.ed25519-yao-local` "public ECDSA add-signer
-  activates a Tempo and Arc signer for an Ed25519 wallet". The Router runs the
-  registration steps bound to the add-signer purpose. The SDK does not yet make
-  the added signer usable on any host (see the
-  [Phase 0 inventory](./refactor-150-supported-operations.md)).
+- ECDSA add-signer: `passkey.ed25519-yao-local` "public ECDSA add-signer lets
+  an Ed25519 wallet sign NEAR, Tempo and Arc at once and after unlock, across a
+  lost finalize response". The Router runs the registration steps bound to the
+  add-signer purpose. The Gateway extends the wallet's authority with the new
+  activation and promotes the wallet's live Wallet Sessions to it, keeping
+  their identities, credentials and quotas; a replayed finalize returns the
+  committed outcome.
 - VM route errors answer 400, except `LifecycleTransitionInProgress`, which
   answers 503 as on Cloudflare so the Gateway retries it.
 - The VM Router runs creation-state operations one at a time in process, as a

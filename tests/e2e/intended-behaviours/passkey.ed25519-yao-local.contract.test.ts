@@ -27,18 +27,27 @@ test(
   verifyLocalEd25519YaoAddSignerAndSigning,
 );
 
-async function verifyEcdsaAddSigner({
+async function verifyEcdsaAddSignerSignsAtOnceAndAfterUnlock({
   harness,
 }: {
   harness: IntendedBehaviourHarness;
 }): Promise<void> {
   await harness.registerPasskeyEd25519YaoWallet();
-  await harness.addPasskeyEcdsaWalletSigner();
+  await harness.addPasskeyEcdsaWalletSigner({ loseFinalizeResponseOnce: true });
+  await harness.signNearTransaction('post_registration');
+  await harness.signTempoTransaction('post_registration');
+  await harness.signArcEvmTransaction('post_registration');
+  await harness.lockWallet();
+  await harness.assertWalletLocked();
+  await harness.unlockPasskeyWallet();
+  await harness.signNearTransaction('post_unlock');
+  await harness.signTempoTransaction('post_unlock');
+  await harness.signArcEvmTransaction('post_unlock');
 }
 
 test(
-  'public ECDSA add-signer activates a Tempo and Arc signer for an Ed25519 wallet',
-  verifyEcdsaAddSigner,
+  'public ECDSA add-signer lets an Ed25519 wallet sign NEAR, Tempo and Arc at once and after unlock, across a lost finalize response',
+  verifyEcdsaAddSignerSignsAtOnceAndAfterUnlock,
 );
 
 async function verifyExactTransportRetry({

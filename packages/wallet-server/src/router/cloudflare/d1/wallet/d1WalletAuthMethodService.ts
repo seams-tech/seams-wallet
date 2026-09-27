@@ -2021,6 +2021,13 @@ export class CloudflareD1WalletAuthMethodService {
     return { kind: 'active_authority', authority, authMethod };
   }
 
+  /** Commits an added signer onto its owner's authority. */
+  async extendActiveWalletAuthority(
+    input: Parameters<D1WalletAuthorityStore['extendActiveAuthority']>[0],
+  ): Promise<void> {
+    await this.walletAuthorityStore.extendActiveAuthority(input);
+  }
+
   async resolveActivePasskeyAuthorityForVerifiedCredential(input: {
     readonly walletId: WalletId;
     readonly rpId: WebAuthnRpId;

@@ -1280,7 +1280,9 @@ export class IntendedBehaviourHarness {
    * A NEAR-ready passkey wallet without ECDSA gains an ECDSA signer through the
    * public add-signer path; later EVM signatures must recover to its address.
    */
-  async addPasskeyEcdsaWalletSigner(): Promise<void> {
+  async addPasskeyEcdsaWalletSigner(
+    options: { readonly loseFinalizeResponseOnce?: boolean } = {},
+  ): Promise<void> {
     this.recordStage('add_passkey_ecdsa_wallet_signer');
     const previous = requireNearReadyRegisteredWallet(
       requirePasskeyRegisteredWalletSnapshot(this.requireRegisteredWalletForSigning()),
@@ -1289,10 +1291,19 @@ export class IntendedBehaviourHarness {
     if (previous.ecdsaTargetProfile !== 'none') {
       throw new Error('ECDSA signer addition expects a wallet without an ECDSA signer');
     }
-    const snapshot = await this.runIntendedPageAction(
-      'addPasskeyEcdsaWalletSigner',
-      'intended-add-passkey-ecdsa-signer',
-    );
+    const lostFinalize = options.loseFinalizeResponseOnce
+      ? await this.loseAddSignerFinalizeResponseOnce()
+      : null;
+    let snapshot: IntendedPageSnapshot;
+    try {
+      snapshot = await this.runIntendedPageAction(
+        'addPasskeyEcdsaWalletSigner',
+        'intended-add-passkey-ecdsa-signer',
+      );
+    } finally {
+      await lostFinalize?.release();
+    }
+    if (lostFinalize) lostFinalize.assertReplayed();
     if (snapshot.action.status !== 'success') {
       throw new Error(
         `ECDSA add-signer ended with ${snapshot.action.status}: ${
@@ -1324,6 +1335,54 @@ export class IntendedBehaviourHarness {
     this.recordService(
       `ECDSA signer added wallet=${result.walletId} profile=${result.ecdsaTargetProfile}`,
     );
+  }
+
+  /**
+   * Lets the first add-signer finalize reach the Gateway and commit, then drops
+   * its response, so the SDK must recover the committed outcome by asking
+   * again. The retry must carry the same idempotency key and receive exactly
+   * the response that was lost.
+   */
+  private async loseAddSignerFinalizeResponseOnce(): Promise<{
+    readonly release: () => Promise<void>;
+    readonly assertReplayed: () => void;
+  }> {
+    const finalizePath = /\/wallets\/[^/]+\/signers\/finalize$/;
+    const attempts: { readonly idempotencyKey: string; readonly body: string }[] = [];
+    const handler = async (route: Route): Promise<void> => {
+      if (route.request().method() !== 'POST' || !finalizePath.test(new URL(route.request().url()).pathname)) {
+        await route.fallback();
+        return;
+      }
+      const request = route.request().postDataJSON() as { readonly idempotencyKey?: unknown };
+      const response = await route.fetch();
+      attempts.push({
+        idempotencyKey: String(request.idempotencyKey ?? ''),
+        body: await response.text(),
+      });
+      if (attempts.length === 1) {
+        await route.abort('connectionreset');
+        return;
+      }
+      await route.fulfill({ response });
+    };
+    await this.context.route('**/signers/finalize', handler);
+    return {
+      release: async () => {
+        await this.context.unroute('**/signers/finalize', handler);
+      },
+      assertReplayed: () => {
+        const [lost, replayed] = attempts;
+        if (attempts.length !== 2 || !lost || !replayed) {
+          throw new Error(`Add-signer finalize expected one lost and one replayed response, saw ${attempts.length}`);
+        }
+        if (!lost.idempotencyKey || lost.idempotencyKey !== replayed.idempotencyKey) {
+          throw new Error('Add-signer finalize retry changed its idempotency key');
+        }
+        expect(JSON.parse(replayed.body)).toEqual(JSON.parse(lost.body));
+        this.recordService('add-signer finalize lost its response and replayed the committed outcome');
+      },
+    };
   }
 
   /**

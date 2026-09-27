@@ -613,6 +613,12 @@ export class UnifiedIndexedDBManager {
     return this.seamsWalletRepositories.publishPendingWalletRegistrationCommitAndRetain(input);
   }
 
+  async adoptAddedEcdsaSignerAuthority(
+    input: Parameters<SeamsWalletRepositories['adoptAddedEcdsaSignerAuthority']>[0],
+  ): Promise<void> {
+    await this.seamsWalletRepositories.adoptAddedEcdsaSignerAuthority(input);
+  }
+
   async reconcilePendingNearRegistrationAuthority(
     input: Parameters<SeamsWalletRepositories['reconcilePendingNearRegistrationAuthority']>[0],
   ): Promise<void> {

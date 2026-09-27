@@ -199,6 +199,12 @@ export function isActiveEcdsaWalletAuthorityV1(
   return isEcdsaOnlyActivationSet(value.signerActivations);
 }
 
+export function isActiveEd25519WalletAuthorityV1(
+  value: ActiveWalletAuthorityV1,
+): value is ActiveEd25519WalletAuthorityV1 {
+  return isEd25519OnlyActivationSet(value.signerActivations);
+}
+
 export function isActiveRecoveredWalletAuthorityV1(
   value: ActiveWalletAuthorityV1,
 ): value is ActiveRecoveredWalletAuthorityV1 {
@@ -1349,6 +1355,97 @@ export async function extendEcdsaWalletAuthorityWithEd25519(input: {
     state: draft.state,
     activatedAtMs: draft.activatedAtMs,
   });
+}
+
+/**
+ * An authority holding only a NEAR signer gains the ECDSA signer its owner
+ * added. The NEAR activation, identity and lifecycle stay as they were.
+ */
+export async function extendEd25519WalletAuthorityWithEcdsa(input: {
+  readonly authority: ActiveEd25519WalletAuthorityV1;
+  readonly ecdsa: WalletEcdsaSignerActivationV1;
+  readonly now: number;
+}): Promise<ActiveCombinedWalletAuthorityV1> {
+  if (input.ecdsa.signer.walletId !== input.authority.walletId) {
+    throw new Error('ECDSA signer belongs to a different wallet authority');
+  }
+  const existingEd25519 = input.authority.signerActivations.ed25519;
+  const signerActivationsCandidate = buildWalletSignerActivationSetV1({
+    manifest: buildExactAdministeredSignerManifestV1([
+      existingEd25519.signer,
+      input.ecdsa.signer,
+    ]),
+    materialActivations: {
+      keyFamilies: ['ed25519', 'ecdsa_secp256k1'],
+      ed25519: existingEd25519.materialActivation,
+      ecdsa: input.ecdsa.materialActivation,
+    },
+  });
+  if (!isCombinedWalletSignerActivationSetV1(signerActivationsCandidate)) {
+    throw new Error('Added ECDSA activation did not produce a combined signer activation set');
+  }
+  const signerActivations = signerActivationsCandidate;
+  const signerActivationSetDigestB64u =
+    await computeWalletSignerActivationSetDigestB64u(signerActivations);
+  const draft: ActiveCombinedWalletAuthorityV1 = {
+    kind: 'wallet_authority_v1',
+    authorityId: input.authority.authorityId,
+    walletId: input.authority.walletId,
+    principal: input.authority.principal,
+    provenance: input.authority.provenance,
+    permissions: input.authority.permissions,
+    signerActivations,
+    signerActivationSetDigestB64u,
+    authorityDigestB64u: input.authority.authorityDigestB64u,
+    revocationEpoch: input.authority.revocationEpoch,
+    createdAtMs: input.authority.createdAtMs,
+    updatedAtMs: Math.max(input.authority.updatedAtMs, input.now),
+    state: 'active',
+    activatedAtMs: input.authority.activatedAtMs,
+  };
+  return buildActiveCombinedWalletAuthorityV1({
+    kind: draft.kind,
+    authorityId: draft.authorityId,
+    walletId: draft.walletId,
+    principal: draft.principal,
+    provenance: draft.provenance,
+    permissions: draft.permissions,
+    signerActivations: draft.signerActivations,
+    signerActivationSetDigestB64u: draft.signerActivationSetDigestB64u,
+    authorityDigestB64u: await computeWalletAuthorityDigestB64u(draft),
+    revocationEpoch: draft.revocationEpoch,
+    createdAtMs: draft.createdAtMs,
+    updatedAtMs: draft.updatedAtMs,
+    state: draft.state,
+    activatedAtMs: draft.activatedAtMs,
+  });
+}
+
+/**
+ * Whether `next` is `previous` with an added ECDSA signer and nothing else
+ * changed. Both projections have already passed digest validation.
+ */
+export function isEcdsaExtensionOfEd25519WalletAuthority(
+  previous: ActiveWalletAuthorityV1,
+  next: ActiveWalletAuthorityV1,
+): boolean {
+  return (
+    isActiveEd25519WalletAuthorityV1(previous) &&
+    isCombinedWalletSignerActivationSetV1(next.signerActivations) &&
+    previous.authorityId === next.authorityId &&
+    previous.walletId === next.walletId &&
+    previous.revocationEpoch === next.revocationEpoch &&
+    previous.createdAtMs === next.createdAtMs &&
+    previous.activatedAtMs === next.activatedAtMs &&
+    base64UrlEncode(encodePrincipal(previous.principal)) ===
+      base64UrlEncode(encodePrincipal(next.principal)) &&
+    base64UrlEncode(encodeProvenance(previous.provenance)) ===
+      base64UrlEncode(encodeProvenance(next.provenance)) &&
+    base64UrlEncode(encodePermissions(previous.permissions)) ===
+      base64UrlEncode(encodePermissions(next.permissions)) &&
+    base64UrlEncode(encodeEd25519Activation(previous.signerActivations.ed25519)) ===
+      base64UrlEncode(encodeEd25519Activation(next.signerActivations.ed25519))
+  );
 }
 
 /** Both projections have already passed digest validation at their boundaries. */

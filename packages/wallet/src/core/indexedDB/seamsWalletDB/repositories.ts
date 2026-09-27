@@ -35,6 +35,7 @@ import {
 import {
   extendEcdsaWalletAuthorityWithEd25519,
   isActiveEcdsaWalletAuthorityV1,
+  isEcdsaExtensionOfEd25519WalletAuthority,
   type ActiveCombinedWalletAuthorityV1,
   encodeWalletSignerActivationSetV1,
   isActiveRecoveredWalletAuthorityV1,
@@ -6175,6 +6176,51 @@ export class SeamsWalletRepositories {
         }),
       );
     });
+  }
+
+  /**
+   * Adopts the authority the Gateway returned after this wallet added an ECDSA
+   * signer: the local authority extended with exactly the activation this
+   * device made, nothing else changed. The Gateway promoted the wallet's live
+   * Wallet Sessions to it; the next exact status read carries that promotion
+   * into the local session, which keeps its credential.
+   */
+  async adoptAddedEcdsaSignerAuthority(input: {
+    readonly authority: WalletAuthorityV1;
+    readonly materialActivation: MpcMaterialActivationRef;
+  }): Promise<void> {
+    const parsed = parseWalletAuthorityV1(input.authority);
+    if (
+      !parsed.ok ||
+      parsed.value.state !== 'active' ||
+      !(await walletAuthorityDigestsMatchV1(parsed.value))
+    ) {
+      throw new Error('Added ECDSA signer authority is invalid');
+    }
+    const next = parsed.value;
+    const nextEcdsa = next.signerActivations.ecdsa;
+    if (
+      !nextEcdsa ||
+      !mpcMaterialActivationRefsEqual(nextEcdsa.materialActivation, input.materialActivation)
+    ) {
+      throw new Error('Added ECDSA signer authority does not carry the activated signer');
+    }
+    await this.manager.runTransaction(
+      [SEAMS_WALLET_STORES.walletAuthorities],
+      'readwrite',
+      async (ctx) => {
+        const store = ctx.store(SEAMS_WALLET_STORES.walletAuthorities);
+        const current = parseWalletAuthorityStorageRow(await store.get(next.authorityId));
+        if (!current || current.record.state !== 'active') {
+          throw new Error('Added ECDSA signer has no active local authority to extend');
+        }
+        if (current.record.authorityDigestB64u === next.authorityDigestB64u) return;
+        if (!isEcdsaExtensionOfEd25519WalletAuthority(current.record, next)) {
+          throw new Error('Added ECDSA signer authority is not an extension of the local authority');
+        }
+        await store.put(walletAuthorityStorageRow(next));
+      },
+    );
   }
 
   async reconcilePendingNearRegistrationAuthority(input: {

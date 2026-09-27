@@ -38,6 +38,12 @@ import type {
   D1PreparedStatementLike,
   D1ResultLike,
 } from '../../../../storage/tenantRoute';
+import { buildWalletSessionCapabilitySubjectsV1 } from '../../../../authorization/domain';
+import {
+  prepareD1WalletPutSignerStatement,
+  type WalletSignerRecord,
+} from '../../../../core/d1WalletStore';
+import { prepareD1WalletSessionAuthorityProjectionStatements } from '../authorization/walletSessionAuthorityProjection';
 
 export type D1WalletAuthorityStoreScope = {
   readonly namespace: string;
@@ -724,6 +730,68 @@ function prepareAuthorityCasGuard(database: D1DatabaseLike): D1PreparedStatement
   `);
 }
 
+/**
+ * Replaces one active authority with its extension, only if the stored row is
+ * still exactly `expected`. Pair it with the CAS guard so a lost race aborts
+ * the whole batch.
+ */
+export function prepareD1WalletAuthorityExtensionStatement(input: {
+  readonly database: D1DatabaseLike;
+  readonly scope: D1WalletAuthorityStoreScope;
+  readonly expected: ActiveWalletAuthorityV1;
+  readonly next: ActiveWalletAuthorityV1;
+}): D1PreparedStatementLike {
+  return input.database
+    .prepare(
+      `UPDATE wallet_authorities
+          SET signer_activations_json = ?,
+              signer_activation_set_digest_b64u = ?,
+              authority_digest_b64u = ?,
+              record_json = ?,
+              updated_at_ms = ?
+        WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
+          AND authority_id = ?
+          AND wallet_id = ?
+          AND lifecycle_state = 'active'
+          AND signer_activation_set_digest_b64u = ?
+          AND authority_digest_b64u = ?
+          AND revocation_epoch = ?
+          AND created_at_ms = ?
+          AND updated_at_ms = ?
+          AND activated_at_ms = ?`,
+    )
+    .bind(
+      JSON.stringify(input.next.signerActivations),
+      String(input.next.signerActivationSetDigestB64u),
+      String(input.next.authorityDigestB64u),
+      JSON.stringify(input.next),
+      input.next.updatedAtMs,
+      input.scope.namespace,
+      input.scope.orgId,
+      input.scope.projectId,
+      input.scope.envId,
+      String(input.expected.authorityId),
+      String(input.expected.walletId),
+      String(input.expected.signerActivationSetDigestB64u),
+      String(input.expected.authorityDigestB64u),
+      input.expected.revocationEpoch,
+      input.expected.createdAtMs,
+      input.expected.updatedAtMs,
+      input.expected.activatedAtMs,
+    );
+}
+
+/** Aborts the batch when the preceding authority extension changed no row. */
+export function prepareD1WalletAuthorityExtensionCasGuard(
+  database: D1DatabaseLike,
+): D1PreparedStatementLike {
+  return database.prepare(`
+    INSERT INTO wallet_authority_cas_guard (guard_id)
+    SELECT 1
+     WHERE changes() = 0
+  `);
+}
+
 export class WalletAuthorityCommitConflictError extends Error {
   readonly kind = 'wallet_authority_commit_conflict';
 
@@ -767,6 +835,67 @@ export class D1WalletAuthorityStore {
     }
     await ensureWalletAuthMethodStoreD1SchemaV2({ database: this.database });
     this.schemaReady = true;
+  }
+
+  /**
+   * Commits an added signer: its signer records, the authority extended with
+   * its activation, and every live Wallet Session of that authority promoted to
+   * the extended authority, all at once. Sessions keep their identities,
+   * credentials and quotas; only their authority projection changes.
+   */
+  async extendActiveAuthority(input: {
+    readonly expected: ActiveWalletAuthorityV1;
+    readonly next: ActiveWalletAuthorityV1;
+    readonly walletSigners: readonly WalletSignerRecord[];
+    readonly promotionAtMs: number;
+  }): Promise<void> {
+    await this.ensureSchema();
+    const statements: D1PreparedStatementLike[] = [
+      ...input.walletSigners.map((record) =>
+        prepareD1WalletPutSignerStatement({
+          database: this.database,
+          scope: this.scope,
+          record,
+        }),
+      ),
+      prepareD1WalletAuthorityExtensionStatement({
+        database: this.database,
+        scope: this.scope,
+        expected: input.expected,
+        next: input.next,
+      }),
+      prepareD1WalletAuthorityExtensionCasGuard(this.database),
+      ...prepareD1WalletSessionAuthorityProjectionStatements({
+        database: this.database,
+        scope: this.scope,
+        projection: {
+          walletId: input.next.walletId,
+          authorityId: input.next.authorityId,
+          authorityDigestB64u: input.next.authorityDigestB64u,
+          authorityRevocationEpoch: input.next.revocationEpoch,
+          capabilitySubjects: buildWalletSessionCapabilitySubjectsV1(input.next),
+          promotionAtMs: input.promotionAtMs,
+        },
+      }),
+    ];
+    let results: readonly D1ResultLike[];
+    try {
+      results = await this.database.batch<D1ResultLike>(statements);
+    } catch (error: unknown) {
+      // Only a stored authority that moved on is a lost race; any other
+      // failure is the batch's own and surfaces as it is.
+      const stored = await this.readById(input.expected.authorityId);
+      const unchanged =
+        stored?.state === 'active' &&
+        stored.authorityDigestB64u === input.expected.authorityDigestB64u &&
+        stored.revocationEpoch === input.expected.revocationEpoch &&
+        stored.updatedAtMs === input.expected.updatedAtMs;
+      if (unchanged) throw error;
+      throw new WalletAuthorityCommitConflictError(input.expected.authorityId);
+    }
+    if (results.length !== statements.length || results.some((result) => !result.success)) {
+      throw new Error('D1 wallet authority extension returned an incomplete batch result');
+    }
   }
 
   async readById(authorityId: WalletAuthorityId): Promise<WalletAuthorityV1 | null> {

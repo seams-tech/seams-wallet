@@ -563,6 +563,8 @@ export type WalletAddSignerFinalizeResponse =
           ecdsa: {
             walletKeys: WalletRegistrationEcdsaWalletKey[];
           };
+          /** The authorizing authority, extended with the added ECDSA signer. */
+          authority: ActiveWalletAuthorityV1;
           ed25519?: never;
         }
     ))

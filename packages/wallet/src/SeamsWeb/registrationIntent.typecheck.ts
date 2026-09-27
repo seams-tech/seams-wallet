@@ -15,6 +15,7 @@ import {
   parseWebAuthnRpId,
 } from '@shared/utils/domainIds';
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
+import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import type {
   FinalizeWalletAddSignerArgs,
   WalletAddSignerFinalizeResponse,
@@ -44,6 +45,7 @@ function unwrapDomainId<T>(result: { ok: true; value: T } | { ok: false }): T {
 
 const rpId = unwrapDomainId(parseWebAuthnRpId('wallet.example.test'));
 declare const custodyEnvelope: PasskeyCustodyEnvelopeRecord;
+declare const addSignerAuthority: ActiveWalletAuthorityV1;
 
 const ed25519Spec = {
   accountProvisioning: implicitNearAccountProvisioning(),
@@ -211,6 +213,7 @@ void ({
   kind: 'evm_family_ecdsa',
   rpId: 'wallet.example.test',
   ecdsa: { walletKeys: [] },
+  authority: addSignerAuthority,
 } satisfies WalletAddSignerFinalizeResponse);
 
 // @ts-expect-error Successful add-signer finalize responses require a branch discriminator.

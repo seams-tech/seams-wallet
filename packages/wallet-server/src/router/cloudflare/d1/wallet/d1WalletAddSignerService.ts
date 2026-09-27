@@ -9,7 +9,24 @@ import { deriveSigningRootId } from '@shared/threshold/signingRootScope';
 import { isPlainObject, toOptionalTrimmedString } from '@shared/utils/validation';
 import { alphabetizeStringify, sha256BytesUtf8 } from '@shared/utils/digests';
 import { base64UrlEncode } from '@shared/utils/encoders';
-import { parseWebAuthnCredentialIdB64u, parseWebAuthnRpId } from '@shared/utils/domainIds';
+import {
+  mpcMaterialActivationRefsEqual,
+  parseWalletKeyId,
+  parseWebAuthnCredentialIdB64u,
+  parseWebAuthnRpId,
+} from '@shared/utils/domainIds';
+import {
+  buildWalletEcdsaSignerActivationV1,
+  extendEd25519WalletAuthorityWithEcdsa,
+  isActiveEd25519WalletAuthorityV1,
+  type ActiveWalletAuthorityV1,
+  type WalletEcdsaSignerActivationV1,
+} from '@shared/authorization/walletAuthority';
+import { parseSecp256k1CompressedPublicKeyB64u } from '@shared/passkey-custody/primitives';
+import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
+import type { WalletSignerRecord } from '../../../../core/d1WalletStore';
+import type { WalletRegistrationEcdsaWalletKey } from '../../../../core/registrationContracts';
+import { WalletAuthorityCommitConflictError } from './d1WalletAuthorityStore';
 import { ecdsaClientRootPublicKey33B64uFromString } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import type {
   WalletAddSignerFinalizeRequest,
@@ -883,6 +900,19 @@ function storedEcdsaAddSignerBootstrap(
   };
 }
 
+function sameEcdsaSignerActivation(
+  left: WalletEcdsaSignerActivationV1,
+  right: WalletEcdsaSignerActivationV1,
+): boolean {
+  return (
+    left.signer.walletId === right.signer.walletId &&
+    left.signer.walletKeyId === right.signer.walletKeyId &&
+    left.signer.thresholdPublicKey33B64u === right.signer.thresholdPublicKey33B64u &&
+    left.signer.evmAddress === right.signer.evmAddress &&
+    mpcMaterialActivationRefsEqual(left.materialActivation, right.materialActivation)
+  );
+}
+
 export class CloudflareD1WalletAddSignerService {
   private readonly getRegistrationCeremonyIntentStore: RegistrationCeremonyStoreProvider;
   private readonly getEd25519YaoProductRegistration: Ed25519YaoProductRegistrationProvider;
@@ -914,6 +944,107 @@ export class CloudflareD1WalletAddSignerService {
     this.passkeyCustodyEnvelopes = input.passkeyCustodyEnvelopes;
     this.startSideEffects = input.startSideEffects;
     this.finalizeSideEffects = input.finalizeSideEffects;
+  }
+
+  /**
+   * Commits an added ECDSA signer onto the authority whose passkey authorized
+   * the ceremony: its signer records, the authority extended with the new
+   * activation, and that authority's live Wallet Sessions promoted to it, so the
+   * wallet signs with the new key at once. A retry after the commit finds the
+   * authority already carrying this activation and commits nothing.
+   */
+  private async extendOwnerAuthorityWithAddedEcdsaSigner(input: {
+    readonly ceremony: StoredWalletAddSignerCeremony;
+    readonly walletKey: WalletRegistrationEcdsaWalletKey;
+    readonly activation: StoredEcdsaAddSignerActivated['activation'];
+    readonly walletSigners: readonly WalletSignerRecord[];
+    readonly now: number;
+  }): Promise<
+    | { readonly ok: true; readonly authority: ActiveWalletAuthorityV1 }
+    | { readonly ok: false; readonly code: string; readonly message: string }
+  > {
+    const rpId = parseWebAuthnRpId(input.ceremony.auth.rpId);
+    const credentialId = parseWebAuthnCredentialIdB64u(input.ceremony.auth.credentialIdB64u);
+    if (!rpId.ok || !credentialId.ok) {
+      return {
+        ok: false,
+        code: 'invalid_state',
+        message: 'ECDSA add-signer has an invalid factor identity',
+      };
+    }
+    const walletId = input.ceremony.intent.walletId;
+    const owner = await this.walletAuthMethods.resolveActivePasskeyAuthorityForVerifiedCredential({
+      walletId,
+      rpId: rpId.value,
+      credentialIdB64u: credentialId.value,
+    });
+    if (!owner.ok) return owner;
+    const walletKeyId = parseWalletKeyId(
+      `wallet-key:ecdsa:${walletId}:${input.walletKey.evmFamilySigningKeySlotId}`,
+    );
+    if (!walletKeyId.ok || !/^0x[0-9a-fA-F]{40}$/.test(input.walletKey.thresholdOwnerAddress)) {
+      return {
+        ok: false,
+        code: 'invalid_state',
+        message: 'ECDSA add-signer wallet key identity is invalid',
+      };
+    }
+    const ecdsa = buildWalletEcdsaSignerActivationV1({
+      signer: {
+        kind: 'exact_administered_ecdsa_signer_v1',
+        keyFamily: 'ecdsa_secp256k1',
+        walletId,
+        walletKeyId: walletKeyId.value,
+        thresholdPublicKey33B64u: parseSecp256k1CompressedPublicKeyB64u(
+          input.walletKey.thresholdEcdsaPublicKeyB64u,
+        ),
+        evmAddress: input.walletKey.thresholdOwnerAddress,
+      },
+      materialActivation: routerAbMpcMaterialActivationRefFromWire(
+        input.activation.ecdsa_activation.material_activation,
+      ),
+    });
+    const current = owner.walletAuthority;
+    const currentEcdsa = current.signerActivations.ecdsa;
+    if (currentEcdsa) {
+      return sameEcdsaSignerActivation(currentEcdsa, ecdsa)
+        ? { ok: true, authority: current }
+        : {
+            ok: false,
+            code: 'signer_conflict',
+            message: 'the wallet authority already holds a different ECDSA signer',
+          };
+    }
+    if (!isActiveEd25519WalletAuthorityV1(current)) {
+      return {
+        ok: false,
+        code: 'invalid_state',
+        message: 'ECDSA add-signer requires an active NEAR-only wallet authority',
+      };
+    }
+    const next = await extendEd25519WalletAuthorityWithEcdsa({
+      authority: current,
+      ecdsa,
+      now: input.now,
+    });
+    try {
+      await this.walletAuthMethods.extendActiveWalletAuthority({
+        expected: current,
+        next,
+        walletSigners: input.walletSigners,
+        promotionAtMs: input.now,
+      });
+    } catch (error: unknown) {
+      if (error instanceof WalletAuthorityCommitConflictError) {
+        return {
+          ok: false,
+          code: 'conflict',
+          message: 'the wallet authority changed while its ECDSA signer was added; retry',
+        };
+      }
+      throw error;
+    }
+    return { ok: true, authority: next };
   }
 
   async getWalletAddSignerRuntimePolicyScope(
@@ -2172,7 +2303,18 @@ export class CloudflareD1WalletAddSignerService {
       custodyClientRootPublicKey33B64u,
       now: signerWriteNow,
     });
-    await walletStore.putSigners(walletSigners);
+    const primaryWalletKey = walletKeys[0];
+    if (!primaryWalletKey) {
+      return { ok: false, code: 'invalid_state', message: 'ECDSA add-signer produced no wallet key' };
+    }
+    const owner = await this.extendOwnerAuthorityWithAddedEcdsaSigner({
+      ceremony,
+      walletKey: primaryWalletKey,
+      activation: ceremony.signerState.activation,
+      walletSigners,
+      now: signerWriteNow,
+    });
+    if (!owner.ok) return owner;
     const response: Extract<WalletAddSignerFinalizeResponse, { ok: true }> = {
       ok: true,
       kind: 'evm_family_ecdsa',
@@ -2181,6 +2323,7 @@ export class CloudflareD1WalletAddSignerService {
       ecdsa: {
         walletKeys,
       },
+      authority: owner.authority,
     };
     await store.putAddSignerFinalizeReplay({
       kind: 'wallet_add_signer_finalize_replay_v1',

@@ -33,7 +33,10 @@ import {
   walletIdFromString,
   type WalletAuthMethodRevocationProof,
 } from '@shared/utils/registrationIntent';
-import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
+import {
+  parseWalletAuthorityV1,
+  type ActiveWalletAuthorityV1,
+} from '@shared/authorization/walletAuthority';
 import {
   parsePasskeyCustodyEnvelopeRecord,
   parseWalletCustodyRegistrationOutcome,
@@ -2000,6 +2003,8 @@ export type WalletAddSignerFinalizeResponse = {
       kind: 'evm_family_ecdsa';
       rpId: string;
       ecdsa: { walletKeys: WalletRegistrationEcdsaWalletKey[] };
+      /** The authorizing authority, extended with the added ECDSA signer. */
+      authority: ActiveWalletAuthorityV1;
       ed25519?: never;
     }
 );
@@ -2735,7 +2740,7 @@ export function parseWalletAddSignerFinalizeResponse(args: {
   });
   assertWalletRegistrationResponseKeys(
     record,
-    ['ok', 'walletId', 'kind', 'rpId', 'credentialIdB64u', 'ed25519', 'ecdsa'],
+    ['ok', 'walletId', 'kind', 'rpId', 'credentialIdB64u', 'ed25519', 'ecdsa', 'authority'],
     responseName,
   );
   const ok = readWalletRegistrationResponseField(record, 'ok', responseName);
@@ -2757,7 +2762,8 @@ export function parseWalletAddSignerFinalizeResponse(args: {
   switch (kind) {
     case 'near_ed25519': {
       if (
-        readOptionalWalletRegistrationResponseField(record, 'ecdsa', responseName) !== undefined
+        readOptionalWalletRegistrationResponseField(record, 'ecdsa', responseName) !== undefined ||
+        readOptionalWalletRegistrationResponseField(record, 'authority', responseName) !== undefined
       ) {
         throw new Error(`${responseName} response mixed signer branches`);
       }
@@ -2800,6 +2806,16 @@ export function parseWalletAddSignerFinalizeResponse(args: {
       if (walletKeys.length === 0) {
         throw new Error(`${responseName} response has invalid walletKeys`);
       }
+      const authority = parseWalletAuthorityV1(
+        readWalletRegistrationResponseField(record, 'authority', responseName),
+      );
+      if (
+        !authority.ok ||
+        authority.value.state !== 'active' ||
+        authority.value.walletId !== walletId
+      ) {
+        throw new Error(`${responseName} response has invalid authority`);
+      }
       return {
         ok: true,
         walletId,
@@ -2808,6 +2824,7 @@ export function parseWalletAddSignerFinalizeResponse(args: {
         ecdsa: {
           walletKeys: walletKeys.map(parseWalletAddSignerEcdsaFinalizeWalletKey),
         },
+        authority: authority.value,
       };
     }
     default:

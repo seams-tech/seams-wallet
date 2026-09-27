@@ -1,3 +1,4 @@
+import { parseWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import { parseWalletAddAuthMethodRegistrationOptions } from '@shared/utils/addAuthMethodRegistration';
 import type {
   CloudflareDurableObjectNamespaceLike,
@@ -1156,6 +1157,7 @@ type StoredWalletAddSignerFinalizeSuccessRecord = {
   readonly credentialIdB64u?: unknown;
   readonly ed25519?: unknown;
   readonly ecdsa?: unknown;
+  readonly authority?: unknown;
 };
 
 type StoredWalletAddSignerFinalizeEd25519Record = {
@@ -1410,11 +1412,19 @@ function parseStoredWalletAddSignerFinalizeSuccess(
   }
   if (record.kind !== 'evm_family_ecdsa') return null;
   const ecdsa = parseStoredWalletAddSignerFinalizeEcdsaResult(record.ecdsa);
-  if (!ecdsa) return null;
+  const authority = parseWalletAuthorityV1(record.authority);
+  if (!ecdsa || !authority.ok || authority.value.state !== 'active') return null;
   const rpId = trimString(record.rpId);
   return rpId
-    ? { ok: true, kind: 'evm_family_ecdsa', walletId: walletId.value, rpId, ecdsa }
-    : { ok: true, kind: 'evm_family_ecdsa', walletId: walletId.value, ecdsa };
+    ? {
+        ok: true,
+        kind: 'evm_family_ecdsa',
+        walletId: walletId.value,
+        rpId,
+        ecdsa,
+        authority: authority.value,
+      }
+    : { ok: true, kind: 'evm_family_ecdsa', walletId: walletId.value, ecdsa, authority: authority.value };
 }
 
 function parseStoredWalletAddSignerFinalizeReplay(

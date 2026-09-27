@@ -35,6 +35,8 @@ import {
   parseD1JsonColumn,
 } from '../../../../storage/d1Sql';
 import {
+  prepareD1WalletAuthorityExtensionCasGuard,
+  prepareD1WalletAuthorityExtensionStatement,
   prepareD1WalletAuthorityPutStatement,
 } from '../wallet/d1WalletAuthorityStore';
 import { prepareD1WalletSessionAuthorityProjectionStatements } from '../authorization/walletSessionAuthorityProjection';
@@ -323,62 +325,6 @@ function canExtendFoundingAuthorityWithEd25519(
   );
 }
 
-function prepareFoundingAuthorityExtensionStatement(input: {
-  readonly database: D1DatabaseLike;
-  readonly scope: D1WalletRegistrationCommitScope;
-  readonly expected: ActiveWalletAuthorityV1;
-  readonly next: ActiveWalletAuthorityV1;
-}): D1PreparedStatementLike {
-  return input.database
-    .prepare(
-      `UPDATE wallet_authorities
-          SET signer_activations_json = ?,
-              signer_activation_set_digest_b64u = ?,
-              authority_digest_b64u = ?,
-              record_json = ?,
-              updated_at_ms = ?
-        WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
-          AND authority_id = ?
-          AND wallet_id = ?
-          AND lifecycle_state = 'active'
-          AND signer_activation_set_digest_b64u = ?
-          AND authority_digest_b64u = ?
-          AND revocation_epoch = ?
-          AND created_at_ms = ?
-          AND updated_at_ms = ?
-          AND activated_at_ms = ?`,
-    )
-    .bind(
-      JSON.stringify(input.next.signerActivations),
-      String(input.next.signerActivationSetDigestB64u),
-      String(input.next.authorityDigestB64u),
-      JSON.stringify(input.next),
-      input.next.updatedAtMs,
-      input.scope.namespace,
-      input.scope.orgId,
-      input.scope.projectId,
-      input.scope.envId,
-      String(input.expected.authorityId),
-      String(input.expected.walletId),
-      String(input.expected.signerActivationSetDigestB64u),
-      String(input.expected.authorityDigestB64u),
-      input.expected.revocationEpoch,
-      input.expected.createdAtMs,
-      input.expected.updatedAtMs,
-      input.expected.activatedAtMs,
-    );
-}
-
-function prepareFoundingAuthorityExtensionCasGuard(
-  database: D1DatabaseLike,
-): D1PreparedStatementLike {
-  return database.prepare(`
-    INSERT INTO wallet_authority_cas_guard (guard_id)
-    SELECT 1
-     WHERE changes() = 0
-  `);
-}
-
 type D1RegistrationRecordJsonRow = {
   readonly record_json?: unknown;
 };
@@ -476,13 +422,13 @@ async function prepareFoundingStatements(input: {
     );
   } else if (persistedAuthority && foundingAuthorityNeedsExtension) {
     statements.push(
-      prepareFoundingAuthorityExtensionStatement({
+      prepareD1WalletAuthorityExtensionStatement({
         database: input.database,
         scope: input.scope,
         expected: persistedAuthority,
         next: input.foundingAuthority,
       }),
-      prepareFoundingAuthorityExtensionCasGuard(input.database),
+      prepareD1WalletAuthorityExtensionCasGuard(input.database),
       ...prepareD1WalletSessionAuthorityProjectionStatements({
         database: input.database,
         scope: input.scope,

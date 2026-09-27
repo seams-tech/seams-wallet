@@ -1,3 +1,4 @@
+import { ROUTER_AB_ECDSA_PRESIGN_CEREMONY_MAX_LIFETIME_MS } from '@shared/utils/routerAbEcdsaDerivation';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import {
@@ -283,6 +284,7 @@ function assertRouterAbEcdsaDerivationClientSigningMaterialSource(
 
 const MAX_HANDSHAKE_STEPS = 64;
 const ROUTER_AB_ECDSA_DERIVATION_SIGNING_TTL_MS = 60_000;
+const PRESIGN_CEREMONY_CLOCK_SKEW_MARGIN_MS = 30_000;
 const ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_EXPIRY_SKEW_MS = 2_000;
 const MAX_CLIENT_PRESIGNATURE_CLAIM_RETRIES = ECDSA_CLIENT_PRESIGNATURE_CAPACITY - 1;
 const clientPresignaturePool = new Map<string, RouterAbEcdsaDerivationClientPresignatureRef[]>();
@@ -1891,7 +1893,14 @@ export async function signRouterAbEcdsaDerivationDigestWithPool(
       routerAbEcdsaDerivationPoolFill: {
         kind: 'router_ab_ecdsa_derivation_signing_worker_pool',
         scope: args.scope,
-        ceremonyExpiresAtMs: expiresAtMs,
+        // A ceremony runs no longer than the Gateway's limit; staying a skew
+        // margin inside it lets the Gateway authorize exactly this deadline.
+        ceremonyExpiresAtMs: Math.min(
+          expiresAtMs,
+          Date.now() +
+            ROUTER_AB_ECDSA_PRESIGN_CEREMONY_MAX_LIFETIME_MS -
+            PRESIGN_CEREMONY_CLOCK_SKEW_MARGIN_MS,
+        ),
         materialExpiresAtMs:
           args.authorization.kind === 'operation_step_up'
             ? expiresAtMs

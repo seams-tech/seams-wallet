@@ -1,3 +1,4 @@
+import { ROUTER_AB_ECDSA_PRESIGN_CEREMONY_MAX_LIFETIME_MS } from '@shared/utils/routerAbEcdsaDerivation';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import { WALLET_SESSION_FAILURE_CODES } from '@shared/utils/walletSessionFailure';
 import {
@@ -31,7 +32,6 @@ type ParseOk<T> = { ok: true; value: T };
 type ParseErr = { ok: false; code: string; message: string };
 type ParseResult<T> = ParseOk<T> | ParseErr;
 const PRESIGN_SESSION_ID_PREFIX = 'ecdsa-presign-v2';
-const MAX_PRESIGN_CEREMONY_LIFETIME_MS = 5 * 60_000;
 const MAX_DURABLE_PRESIGNATURE_LIFETIME_MS = 90 * 24 * 60 * 60_000;
 
 export type RouterAbEcdsaOwnerWalletScope = {
@@ -97,7 +97,7 @@ export function resolveRouterAbEcdsaPresignDeadlines(input: {
   const ceremonyExpiresAtMs = Math.min(
     input.requestedCeremonyExpiresAtMs,
     input.thresholdExpiresAtMs,
-    input.nowMs + MAX_PRESIGN_CEREMONY_LIFETIME_MS,
+    input.nowMs + ROUTER_AB_ECDSA_PRESIGN_CEREMONY_MAX_LIFETIME_MS,
   );
   const maximumAuthorizedMaterialExpiry =
     input.authorization.kind === 'operation_step_up'

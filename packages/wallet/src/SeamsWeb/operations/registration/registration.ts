@@ -5863,7 +5863,7 @@ async function addPasskeyEcdsaWalletSigner(
   } finally {
     zeroizeArrayBuffer(factorSecret);
   }
-  const finalized = await finalizeWalletAddSigner({
+  const finalizeRequest: Parameters<typeof finalizeWalletAddSigner>[0] = {
     relayerUrl: input.relayerUrl,
     walletId: input.walletId,
     addSignerCeremonyId: input.started.addSignerCeremonyId,
@@ -5871,7 +5871,18 @@ async function addPasskeyEcdsaWalletSigner(
     kind: 'evm_family_ecdsa',
     ecdsa: { expectedKeyHandles: [pendingLocalFinalization.bootstrap.keyHandle] },
     custodyKeySet: pendingLocalFinalization.custodyKeySet,
-  });
+  };
+  let finalized: Awaited<ReturnType<typeof finalizeWalletAddSigner>>;
+  try {
+    finalized = await finalizeWalletAddSigner(finalizeRequest);
+  } catch (error: unknown) {
+    /* The Gateway commits finalize once per ceremony and replays that outcome
+       under the same idempotency key, so a lost response (fetch rejects with a
+       TypeError) is recovered by asking again rather than by redoing the
+       ceremony. A Gateway answer, even a refusal, is final. */
+    if (!(error instanceof TypeError)) throw error;
+    finalized = await finalizeWalletAddSigner(finalizeRequest);
+  }
   if (
     finalized.kind !== 'evm_family_ecdsa' ||
     finalized.walletId !== input.walletId ||
@@ -5902,6 +5913,10 @@ async function addPasskeyEcdsaWalletSigner(
   await input.context.signingEngine.storeWalletEcdsaSignerRecords({
     walletId: input.walletId,
     walletKeys: localEcdsaWalletKeys,
+  });
+  await IndexedDBManager.adoptAddedEcdsaSignerAuthority({
+    authority: finalized.authority,
+    materialActivation: session.materialActivation,
   });
   emitAddSignerEventSafely(input.onEvent, input.eventAccountId, {
     authMethod: 'passkey',
