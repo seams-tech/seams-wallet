@@ -3083,7 +3083,7 @@ async fn coordinate_cloudflare_router_tenant_root_managed_restore_v1(
 
     let must_start_forward_refresh = matches!(
         &active.refresh_fence,
-        CloudflareTenantRootRefreshFenceV1::Open
+        CloudflareTenantRootRefreshFenceV1::Open | CloudflareTenantRootRefreshFenceV1::Abandoned { .. }
     ) || matches!(
         &active.refresh_fence,
         CloudflareTenantRootRefreshFenceV1::Terminal { attempt, .. }

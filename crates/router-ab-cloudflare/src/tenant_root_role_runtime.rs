@@ -1344,11 +1344,14 @@ pub trait TenantRootDeriverHostV1:
     fn role_store(&self) -> RoleStoreResult<TenantRootRoleShareStoreV1<Self::Sql>>;
     /// Stores one verified managed backup at its coordinates and returns the
     /// stored object's metadata. A replay of the identical artifact succeeds
-    /// with the metadata of the original write; different bytes at the same
-    /// coordinates are refused.
+    /// with the metadata of the original write. Different bytes at the same
+    /// coordinates are refused, unless their digest is in `replaceable`: the
+    /// exact backup of a superseded refresh attempt, replaced only as that
+    /// stored version.
     async fn put_managed_backup(
         &self,
         backup: &VerifiedTenantRootManagedBackupV1,
+        replaceable: &[[u8; 32]],
     ) -> RouterAbProtocolResult<crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectMetadataV1>;
     /// Loads the managed backup at its coordinates and verifies it against the
     /// role's trusted verifying key.
@@ -1372,13 +1375,15 @@ pub trait TenantRootDeriverHostV1:
     ) -> RouterAbProtocolResult<CloudflareTenantRootManagedBackupDeletionReceiptV1>;
     /// Stores the role's signed provider-canary receipt beside its managed
     /// backup, at the same coordinates, after verifying it against the role's
-    /// key. A replay of the identical receipt succeeds; a different receipt at
-    /// the same coordinates is refused.
+    /// key. A replay of the identical receipt succeeds. A different receipt at
+    /// the same coordinates is refused, unless its digest is in `replaceable`,
+    /// as for the managed backup.
     async fn put_provider_canary(
         &self,
         coordinates: crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1,
         canary_bytes: &[u8],
         trusted_role_verifying_key: &[u8; 32],
+        replaceable: &[[u8; 32]],
     ) -> RouterAbProtocolResult<crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectMetadataV1>;
     /// Loads the provider-canary receipt at these coordinates, verified against
     /// the role's key, as its exact canonical bytes.
@@ -1642,9 +1647,10 @@ impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
     async fn put_managed_backup(
         &self,
         backup: &VerifiedTenantRootManagedBackupV1,
+        replaceable: &[[u8; 32]],
     ) -> RouterAbProtocolResult<crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectMetadataV1> {
         self.backup_store()?
-            .put_verified(backup)
+            .put_verified(backup, replaceable)
             .await
             .map(|outcome| outcome.metadata().clone())
             .map_err(|error| tenant_root_store_error_v1("tenant-root backup persistence", error))
@@ -1687,6 +1693,7 @@ impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
         coordinates: crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1,
         canary_bytes: &[u8],
         trusted_role_verifying_key: &[u8; 32],
+        replaceable: &[[u8; 32]],
     ) -> RouterAbProtocolResult<crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectMetadataV1> {
         let signed = TenantRootSignedProviderCanaryReceiptV1::decode_canonical_bytes(canary_bytes)
             .map_err(candidate_derivation_error)?;
@@ -1696,6 +1703,7 @@ impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
                 canary_bytes,
                 signed.binding(),
                 trusted_role_verifying_key,
+                replaceable,
             )
             .await
             .map(|outcome| outcome.metadata().clone())
@@ -3058,6 +3066,45 @@ async fn require_router_committed_activation_v1<Host: TenantRootDeriverHostV1>(
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ForbiddenLocalBinding,
             "tenant-root activation receipt is not the activation the Router committed",
+        ));
+    }
+    Ok(())
+}
+
+/// Requires that this refresh is the Router's current attempt for its root.
+///
+/// The Router keeps one live attempt per root and abandons an attempt before
+/// it reserves the next, so while this holds, every older attempt of the same
+/// transition is abandoned for good.
+async fn require_router_current_refresh_attempt_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
+    issuer_keys: &std::collections::BTreeMap<String, [u8; 32]>,
+    command: &VerifiedTenantRootRoleRefreshCommandV1,
+) -> RouterAbProtocolResult<()> {
+    let active = crate::durable_object::tenant_root_creation::tenant_root_creation_active_state_with_revision_read_call_v1(
+        host,
+        issuer_keys,
+        command.identity_digest(),
+        command.custody_lineage(),
+    )
+    .await?;
+    let key = *command.scope().key();
+    let current = match &active.refresh_fence {
+        crate::durable_object::tenant_root_creation::CloudflareTenantRootRefreshFenceV1::Reserved {
+            attempt,
+        }
+        | crate::durable_object::tenant_root_creation::CloudflareTenantRootRefreshFenceV1::Executed {
+            attempt,
+        } => {
+            attempt.session_id_b64u == crate::encode_base64url_bytes_v1(key.session_id().as_bytes())
+                && attempt.nonce_b64u == crate::encode_base64url_bytes_v1(key.nonce().as_bytes())
+        }
+        _ => false,
+    };
+    if !current {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ConflictingPair,
+            "tenant-root refresh attempt is no longer the Router's current attempt",
         ));
     }
     Ok(())
@@ -5031,8 +5078,29 @@ async fn execute_tenant_root_refresh_from_source_v1<Host: TenantRootDeriverHostV
             .map_err(|error| {
                 tenant_root_store_error_v1("tenant-root refresh prepared artifacts", error)
             })?;
+    // An older attempt of this transition that the Router abandoned may have
+    // left its pending row here. It is replaced only once the Router confirms,
+    // after the older attempts were loaded, that this attempt is its current one.
+    let supersession = store
+        .refresh_supersession(&checkpoint_command)
+        .await
+        .map_err(|error| tenant_root_store_error_v1("tenant-root refresh supersession", error))?;
+    if supersession.is_some() {
+        let issuer_keys =
+            crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(
+                host.env(),
+            )?;
+        require_router_current_refresh_attempt_v1(host, issuer_keys.keys(), &checkpoint_command)
+            .await?;
+    }
     let (_, executed) = store
-        .persist_refresh_pending(admission, refresh, prepared_artifacts, now_ms)
+        .persist_refresh_pending(
+            admission,
+            refresh,
+            prepared_artifacts,
+            now_ms,
+            supersession.as_ref(),
+        )
         .await
         .map_err(|error| {
             tenant_root_store_error_v1("tenant-root refresh pending checkpoint", error)
@@ -5188,7 +5256,18 @@ async fn complete_live_tenant_root_refresh_v1<Host: TenantRootDeriverHostV1>(
     existing_artifacts: Option<&CloudflareTenantRootRefreshArtifactMetadataV1>,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRefreshResponseV1> {
     let signed_managed_backup = managed_backup.canonical_bytes().to_vec();
-    let backup_metadata = host.put_managed_backup(managed_backup).await?;
+    // An older attempt of this transition that the Router abandoned may have
+    // written its backup and canary at these coordinates; those exact objects,
+    // and nothing else, may be replaced.
+    let (replaceable_backups, replaceable_canaries) = store
+        .superseded_refresh_artifact_digests(command)
+        .await
+        .map_err(|error| {
+            tenant_root_store_error_v1("tenant-root refresh superseded artifacts", error)
+        })?;
+    let backup_metadata = host
+        .put_managed_backup(managed_backup, &replaceable_backups)
+        .await?;
     let backup_coordinates =
         crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1::from_binding(
             managed_backup.binding(),
@@ -5204,6 +5283,7 @@ async fn complete_live_tenant_root_refresh_v1<Host: TenantRootDeriverHostV1>(
             backup_coordinates,
             provider_canary_receipt,
             &role_signer.verifying_key_bytes(),
+            &replaceable_canaries,
         )
         .await?;
     let artifacts = CloudflareTenantRootRefreshArtifactMetadataV1::new(
@@ -5838,7 +5918,7 @@ async fn persist_tenant_root_creation_progress_v1<Host: TenantRootDeriverHostV1>
     // ready can always be resumed from durable evidence), then its row.
     let written: RouterAbProtocolResult<CloudflareTenantRootInitialCreationPersistenceOutcomeV1> =
         async {
-            host.put_managed_backup(&managed_backup).await?;
+            host.put_managed_backup(&managed_backup, &[]).await?;
             let (TenantRootRoleCreationCompletionV1::RoleOnly {
                 provider_canary_receipt,
             }
@@ -5850,6 +5930,7 @@ async fn persist_tenant_root_creation_progress_v1<Host: TenantRootDeriverHostV1>
                 backup_coordinates,
                 provider_canary_receipt,
                 &role_signer.verifying_key_bytes(),
+                &[],
             )
             .await?;
             store

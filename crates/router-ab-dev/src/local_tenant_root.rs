@@ -861,12 +861,18 @@ impl LocalTenantRootDeriverHostV1<'_> {
     /// Stores one immutable object and returns its generation: a fresh random
     /// value for a new write, the stored one for an identical replay. Different
     /// bytes at the same key are refused.
+    /// Writes one object at a key that must not hold other bytes, as the R2
+    /// store does. An object holding exactly these bytes is a replay. An object
+    /// whose bytes have a digest in `replaceable` is replaced, conditionally on
+    /// its exact stored generation.
     fn store_backup_object(
         &self,
         object_key: &str,
         bytes: &[u8],
+        replaceable: &[[u8; 32]],
         conflict: &'static str,
     ) -> RouterAbProtocolResult<String> {
+        use sha2::Digest as _;
         let mut generation = [0_u8; 16];
         getrandom::getrandom(&mut generation).map_err(|error| {
             RouterAbProtocolError::new(
@@ -876,32 +882,48 @@ impl LocalTenantRootDeriverHostV1<'_> {
         })?;
         let generation = hex::encode(generation);
         let connection = open_sqlite(&self.config.managed_backup_path)?;
-        let inserted = connection
-            .execute(
-                "INSERT INTO local_tenant_root_managed_backups
-                   (object_key, canonical_bytes, object_generation)
-                 VALUES (?1, ?2, ?3) ON CONFLICT (object_key) DO NOTHING",
-                rusqlite::params![object_key, bytes, generation],
-            )
-            .map_err(sqlite_error)?;
-        if inserted == 1 {
-            return Ok(generation);
+        // A lost race only restarts the write; a key that keeps changing fails.
+        for _ in 0..3 {
+            let inserted = connection
+                .execute(
+                    "INSERT INTO local_tenant_root_managed_backups
+                       (object_key, canonical_bytes, object_generation)
+                     VALUES (?1, ?2, ?3) ON CONFLICT (object_key) DO NOTHING",
+                    rusqlite::params![object_key, bytes, generation],
+                )
+                .map_err(sqlite_error)?;
+            if inserted == 1 {
+                return Ok(generation);
+            }
+            let Some((existing, stored_generation)) = self.load_backup_object(object_key)? else {
+                continue;
+            };
+            if existing == bytes {
+                return Ok(stored_generation);
+            }
+            let existing_digest: [u8; 32] = sha2::Sha256::digest(&existing).into();
+            if !replaceable.contains(&existing_digest) {
+                return Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+                    conflict,
+                ));
+            }
+            let replaced = connection
+                .execute(
+                    "UPDATE local_tenant_root_managed_backups
+                       SET canonical_bytes = ?2, object_generation = ?3
+                     WHERE object_key = ?1 AND object_generation = ?4",
+                    rusqlite::params![object_key, bytes, generation, stored_generation],
+                )
+                .map_err(sqlite_error)?;
+            if replaced == 1 {
+                return Ok(generation);
+            }
         }
-        let (existing, stored_generation): (Vec<u8>, String) = connection
-            .query_row(
-                "SELECT canonical_bytes, object_generation FROM local_tenant_root_managed_backups
-                 WHERE object_key = ?1",
-                rusqlite::params![object_key],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-            .map_err(sqlite_error)?;
-        if existing != bytes {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                conflict,
-            ));
-        }
-        Ok(stored_generation)
+        Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLifecycleState,
+            "managed-backup object kept changing while it was written",
+        ))
     }
 
     /// Loads one stored object's bytes and generation.
@@ -959,6 +981,7 @@ impl TenantRootDeriverHostV1 for LocalTenantRootDeriverHostV1<'_> {
     async fn put_managed_backup(
         &self,
         backup: &VerifiedTenantRootManagedBackupV1,
+        replaceable: &[[u8; 32]],
     ) -> RouterAbProtocolResult<router_ab_cloudflare::TenantRootManagedBackupObjectMetadataV1> {
         if backup.role() != self.backup_role()? {
             return Err(RouterAbProtocolError::new(
@@ -972,6 +995,7 @@ impl TenantRootDeriverHostV1 for LocalTenantRootDeriverHostV1<'_> {
         let generation = self.store_backup_object(
             &object_key,
             bytes,
+            replaceable,
             "managed-backup object key already contains different canonical bytes",
         )?;
         backup_object_metadata(object_key, bytes, generation, backup.binding().backup_key_version())
@@ -1085,6 +1109,7 @@ impl TenantRootDeriverHostV1 for LocalTenantRootDeriverHostV1<'_> {
         coordinates: TenantRootManagedBackupObjectCoordinatesV1,
         canary_bytes: &[u8],
         trusted_role_verifying_key: &[u8; 32],
+        replaceable: &[[u8; 32]],
     ) -> RouterAbProtocolResult<router_ab_cloudflare::TenantRootManagedBackupObjectMetadataV1> {
         if coordinates.role() != self.backup_role()? {
             return Err(RouterAbProtocolError::new(
@@ -1104,6 +1129,7 @@ impl TenantRootDeriverHostV1 for LocalTenantRootDeriverHostV1<'_> {
         let generation = self.store_backup_object(
             &object_key,
             canary_bytes,
+            replaceable,
             "provider canary object key already contains different canonical bytes",
         )?;
         backup_object_metadata(object_key, canary_bytes, generation, verified.provider_key_version_ref())

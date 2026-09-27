@@ -123,6 +123,12 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
   same operation delivers the committed receipt, and an exact replay returns
   the durable outcome. Both roles keep the retired epoch, and retirement is
   reported pending.
+- `vm_tenant_root_refresh_that_misses_its_window_is_abandoned_and_superseded`
+  (ignored by default: it waits past the five-minute refresh window) prints
+  `R150_VM_TENANT_ROOT_REFRESH_ABANDONMENT_E2E`: a refresh installed at both
+  roles whose receipt request is lost is abandoned after its window, its
+  signed receipt can no longer be committed or delivered, and a new operation
+  refreshes the root, superseding what the abandoned attempt left.
 - `vm_tenant_root_work_admitted_before_a_refresh_finishes_on_its_epoch`
   prints `R150_VM_TENANT_ROOT_WORK_ACROSS_REFRESH_E2E`: a Yao registration
   admitted on epoch 1 is held while a refresh commits epoch 2 and both roles

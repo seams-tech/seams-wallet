@@ -245,6 +245,8 @@ const INSERT_REFRESH_ADMISSION_SQL: &str = "INSERT INTO tenant_root_command_repl
     status, reserved_at_ms, refresh_state_b64u, refresh_state_digest_hex) \
     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'reserved', ?9, ?10, ?11) \
     ON CONFLICT(replay_key_digest_hex) DO NOTHING";
+/// A refresh attempt's own checkpoints refuse once a later attempt of its
+/// transition superseded it, so it cannot write back what that attempt replaced.
 const MARK_REFRESH_EXECUTED_SQL: &str = "UPDATE tenant_root_command_replays SET \
     status = 'executed', command_digest_hex = ?7, executed_at_ms = ?8, \
     refresh_state_b64u = ?9, refresh_state_digest_hex = ?10 \
@@ -252,21 +254,56 @@ const MARK_REFRESH_EXECUTED_SQL: &str = "UPDATE tenant_root_command_replays SET 
     AND custody_lineage_b64u = ?3 AND session_id_hex = ?4 AND nonce_hex = ?5 \
     AND role = ?6 AND command_digest_hex = ?11 AND admission_digest_hex = ?12 \
     AND reserved_at_ms = ?13 AND status = 'reserved' \
-    AND refresh_state_b64u = ?14 AND refresh_state_digest_hex = ?15";
+    AND refresh_state_b64u = ?14 AND refresh_state_digest_hex = ?15 \
+    AND NOT EXISTS (SELECT 1 FROM tenant_root_refresh_supersessions \
+    WHERE replay_key_digest_hex = ?1)";
 const ATTACH_REFRESH_ARTIFACTS_SQL: &str = "UPDATE tenant_root_command_replays SET \
     refresh_state_b64u = ?1, refresh_state_digest_hex = ?2 \
     WHERE replay_key_digest_hex = ?3 AND tenant_identity_digest_hex = ?4 \
     AND custody_lineage_b64u = ?5 AND session_id_hex = ?6 AND nonce_hex = ?7 \
     AND role = ?8 AND command_digest_hex = ?9 AND admission_digest_hex = ?10 \
     AND reserved_at_ms = ?11 AND executed_at_ms = ?12 AND status = 'executed' \
-    AND refresh_state_b64u = ?13 AND refresh_state_digest_hex = ?14";
+    AND refresh_state_b64u = ?13 AND refresh_state_digest_hex = ?14 \
+    AND NOT EXISTS (SELECT 1 FROM tenant_root_refresh_supersessions \
+    WHERE replay_key_digest_hex = ?3)";
 const COMMIT_REFRESH_TERMINAL_SQL: &str = "UPDATE tenant_root_command_replays SET \
     status = 'completed', receipt_b64u = ?1, receipt_digest_hex = ?2, terminal_at_ms = ?3 \
     WHERE replay_key_digest_hex = ?4 AND tenant_identity_digest_hex = ?5 \
     AND custody_lineage_b64u = ?6 AND session_id_hex = ?7 AND nonce_hex = ?8 \
     AND role = ?9 AND command_digest_hex = ?10 AND admission_digest_hex = ?11 \
     AND reserved_at_ms = ?12 AND executed_at_ms = ?13 AND status = 'executed' \
-    AND refresh_state_b64u = ?14 AND refresh_state_digest_hex = ?15";
+    AND refresh_state_b64u = ?14 AND refresh_state_digest_hex = ?15 \
+    AND NOT EXISTS (SELECT 1 FROM tenant_root_refresh_supersessions \
+    WHERE replay_key_digest_hex = ?4)";
+/// The refresh replay rows of one lineage at this role, split by whether a
+/// later attempt superseded them.
+const LIST_UNSUPERSEDED_REFRESH_REPLAYS_SQL: &str = "SELECT replay_key_digest_hex, \
+    tenant_identity_digest_hex, custody_lineage_b64u, session_id_hex, nonce_hex, role, \
+    command_digest_hex, admission_digest_hex, status, receipt_b64u, \
+    receipt_digest_hex, reserved_at_ms, executed_at_ms, terminal_at_ms, \
+    refresh_state_b64u, refresh_state_digest_hex \
+    FROM tenant_root_command_replays AS replay WHERE tenant_identity_digest_hex = ?1 \
+    AND custody_lineage_b64u = ?2 AND role = ?3 AND refresh_state_b64u IS NOT NULL \
+    AND NOT EXISTS (SELECT 1 FROM tenant_root_refresh_supersessions AS superseded \
+    WHERE superseded.replay_key_digest_hex = replay.replay_key_digest_hex)";
+const LIST_SUPERSEDED_REFRESH_REPLAYS_SQL: &str = "SELECT replay_key_digest_hex, \
+    tenant_identity_digest_hex, custody_lineage_b64u, session_id_hex, nonce_hex, role, \
+    command_digest_hex, admission_digest_hex, status, receipt_b64u, \
+    receipt_digest_hex, reserved_at_ms, executed_at_ms, terminal_at_ms, \
+    refresh_state_b64u, refresh_state_digest_hex \
+    FROM tenant_root_command_replays AS replay WHERE tenant_identity_digest_hex = ?1 \
+    AND custody_lineage_b64u = ?2 AND role = ?3 AND refresh_state_b64u IS NOT NULL \
+    AND EXISTS (SELECT 1 FROM tenant_root_refresh_supersessions AS superseded \
+    WHERE superseded.replay_key_digest_hex = replay.replay_key_digest_hex)";
+/// Records that a later attempt superseded one refresh attempt, only while the
+/// attempt's replay row still holds the exact state it was loaded with.
+const INSERT_REFRESH_SUPERSESSION_SQL: &str = "INSERT INTO tenant_root_refresh_supersessions \
+    (replay_key_digest_hex, tenant_identity_digest_hex, custody_lineage_b64u, role, \
+    superseded_by_replay_key_digest_hex, superseded_at_ms) \
+    SELECT ?1, ?2, ?3, ?4, ?5, ?6 WHERE EXISTS (SELECT 1 FROM tenant_root_command_replays \
+    WHERE replay_key_digest_hex = ?1 AND role = ?4 AND status = ?7 \
+    AND refresh_state_digest_hex = ?8) \
+    ON CONFLICT(replay_key_digest_hex) DO NOTHING";
 const MARK_COMMAND_EXECUTED_SQL: &str = "UPDATE tenant_root_command_replays SET \
     status = 'executed', executed_at_ms = ?9 \
     WHERE replay_key_digest_hex = ?1 AND tenant_identity_digest_hex = ?2 \
@@ -5582,6 +5619,30 @@ pub(crate) enum CloudflareTenantRootRefreshDurableStateV1 {
     },
 }
 
+/// An older attempt of a refresh's epoch transition that the refresh
+/// supersedes, as loaded. The batch records it only while its replay row still
+/// holds exactly this state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CloudflareTenantRootSupersededRefreshAttemptV1 {
+    replay_key_digest_hex: String,
+    status: String,
+    refresh_state_digest_hex: String,
+}
+
+/// What a refresh's pending checkpoint replaces at this Deriver: the older
+/// attempts of its epoch transition, and the pending row one of them left at
+/// the next epoch.
+///
+/// It is loaded before the Router confirms the refresh as its current attempt.
+/// The Router keeps one live attempt per root and abandons an attempt before
+/// reserving the next, so every attempt admitted here before that confirmation
+/// is one the Router has already abandoned.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CloudflareTenantRootRefreshSupersessionV1 {
+    superseded: Vec<CloudflareTenantRootSupersededRefreshAttemptV1>,
+    pending_row_revision: Option<i64>,
+}
+
 /// Exact canonical artifacts prepared before the pending role row is written.
 ///
 /// These bytes are the replay source after a crash. R2 writes therefore never
@@ -9456,15 +9517,148 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         }
     }
 
+    /// The older attempts of this refresh's epoch transition that no later
+    /// attempt has superseded yet, with the pending row one of them left at the
+    /// next epoch; `None` when there is nothing to supersede. The caller must
+    /// confirm with the Router that this refresh is its current attempt after
+    /// this load and before persisting with it.
+    pub(crate) async fn refresh_supersession(
+        &self,
+        command: &VerifiedTenantRootRoleRefreshCommandV1,
+    ) -> RoleStoreResult<Option<CloudflareTenantRootRefreshSupersessionV1>> {
+        let own_key = *command.scope().key();
+        self.require_command_role(&own_key)?;
+        let own_key_digest = own_key
+            .storage_key_digest()
+            .map_err(|error| store_error(error.message()))?;
+        let mut superseded = Vec::new();
+        let mut superseded_keys = Vec::new();
+        for row in self
+            .list_refresh_replays(LIST_UNSUPERSEDED_REFRESH_REPLAYS_SQL, command)
+            .await?
+        {
+            let replay_key_digest_hex = row.replay_key_digest_hex.clone();
+            let status = row.status.clone();
+            let refresh_state_digest_hex = row.refresh_state_digest_hex.clone().ok_or_else(|| {
+                store_error("tenant-root refresh replay row omitted its durable state digest")
+            })?;
+            let stored = self.open_command_replay_row(row)?;
+            let replay_key_digest = stored
+                .record
+                .key()
+                .storage_key_digest()
+                .map_err(|error| store_error(error.message()))?;
+            if replay_key_digest == own_key_digest || !same_refresh_transition(&stored, command)? {
+                continue;
+            }
+            superseded_keys.push(replay_key_digest);
+            superseded.push(CloudflareTenantRootSupersededRefreshAttemptV1 {
+                replay_key_digest_hex,
+                status,
+                refresh_state_digest_hex,
+            });
+        }
+        let pending_row_revision = match self
+            .load_epoch_by_identity_digest(
+                command.identity_digest(),
+                command.custody_lineage(),
+                command.next_epoch(),
+            )
+            .await?
+        {
+            None => None,
+            Some(stored) => {
+                let left_by = match stored.record().lifecycle() {
+                    CloudflareTenantRootRoleShareLifecycleV1::Pending(pending) => {
+                        pending.refresh_replay_key_digest()
+                    }
+                    _ => None,
+                };
+                if !left_by.is_some_and(|digest| superseded_keys.contains(&digest)) {
+                    return Err(store_error(
+                        "tenant-root refresh next epoch holds a row no older attempt of its transition left",
+                    ));
+                }
+                Some(stored.revision())
+            }
+        };
+        if superseded.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(CloudflareTenantRootRefreshSupersessionV1 {
+            superseded,
+            pending_row_revision,
+        }))
+    }
+
+    /// The digests of the exact managed backups and provider canaries that
+    /// superseded attempts of this refresh's epoch transition prepared. Only
+    /// these may be replaced at the transition's backup coordinates.
+    pub(crate) async fn superseded_refresh_artifact_digests(
+        &self,
+        command: &VerifiedTenantRootRoleRefreshCommandV1,
+    ) -> RoleStoreResult<(Vec<[u8; 32]>, Vec<[u8; 32]>)> {
+        self.require_command_role(command.scope().key())?;
+        let mut managed_backups = Vec::new();
+        let mut provider_canaries = Vec::new();
+        for row in self
+            .list_refresh_replays(LIST_SUPERSEDED_REFRESH_REPLAYS_SQL, command)
+            .await?
+        {
+            let stored = self.open_command_replay_row(row)?;
+            if !same_refresh_transition(&stored, command)? {
+                continue;
+            }
+            let Some(state) = stored.refresh_state.as_ref() else {
+                continue;
+            };
+            // An attempt superseded before its pending checkpoint prepared nothing.
+            let Ok(prepared) = state.prepared_artifacts() else {
+                continue;
+            };
+            managed_backups.push(Sha256::digest(prepared.managed_backup_bytes()?).into());
+            provider_canaries
+                .push(Sha256::digest(prepared.provider_canary_receipt_bytes()?).into());
+        }
+        Ok((managed_backups, provider_canaries))
+    }
+
+    async fn list_refresh_replays(
+        &self,
+        sql: &str,
+        command: &VerifiedTenantRootRoleRefreshCommandV1,
+    ) -> RoleStoreResult<Vec<TenantRootCommandReplayD1RowV1>> {
+        let identity_digest_hex = encode_hex(command.identity_digest().as_bytes());
+        let custody_lineage_b64u = command.custody_lineage().to_base64url();
+        self.session
+            .prepare(sql)
+            .bind_refs(
+                [
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                ]
+                .iter(),
+            )?
+            .all()
+            .await?
+            .results::<TenantRootCommandReplayD1RowV1>()
+    }
+
     /// Persists the generated sealed role-share record and checkpoints the
     /// replay row in one D1 batch. The replay command digest is replaced with
     /// the exact role-private operation digest only in this atomic step.
+    ///
+    /// With a supersession, the same batch records each older attempt of the
+    /// transition as superseded and removes the pending row one of them left,
+    /// so the older attempt can neither keep nor rewrite it.
     pub(crate) async fn persist_refresh_pending(
         &self,
         admission: CloudflareTenantRootRefreshAdmissionV1,
         refresh: CloudflareTenantRootRefreshInputV1,
         prepared_artifacts: CloudflareTenantRootRefreshPreparedArtifactsV1,
         executed_at_ms: u64,
+        supersession: Option<&CloudflareTenantRootRefreshSupersessionV1>,
     ) -> RoleStoreResult<(
         CloudflareStoredTenantRootRoleShareV1,
         CloudflareTenantRootRefreshExecutedCommandV1,
@@ -9605,8 +9799,49 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             ]
             .iter(),
         )?;
-        self.run_refresh_pending_checkpoint(lifecycle_statement, replay_statement)
-            .await?;
+        let mut supersession_statements = Vec::new();
+        if let Some(supersession) = supersession {
+            for superseded in &supersession.superseded {
+                supersession_statements.push((
+                    self.session.prepare(INSERT_REFRESH_SUPERSESSION_SQL).bind_refs(
+                        [
+                            RoleSqlValue::Text(superseded.replay_key_digest_hex.as_str()),
+                            RoleSqlValue::Text(identity_digest_hex.as_str()),
+                            RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                            RoleSqlValue::Text(self.cipher.role.as_str()),
+                            RoleSqlValue::Text(replay_key_digest_hex.as_str()),
+                            RoleSqlValue::Text(executed_at_ms_text.as_str()),
+                            RoleSqlValue::Text(superseded.status.as_str()),
+                            RoleSqlValue::Text(superseded.refresh_state_digest_hex.as_str()),
+                        ]
+                        .iter(),
+                    )?,
+                    "tenant-root refresh superseded attempt changed concurrently",
+                ));
+            }
+            if let Some(revision) = supersession.pending_row_revision {
+                let revision = revision.to_string();
+                supersession_statements.push((
+                    self.session.prepare(CLEANUP_PENDING_SQL).bind_refs(
+                        [
+                            RoleSqlValue::Text(metadata.identity_digest_hex.as_str()),
+                            RoleSqlValue::Text(metadata.custody_lineage_b64u.as_str()),
+                            RoleSqlValue::Text(epoch.as_str()),
+                            RoleSqlValue::Text(metadata.role.as_str()),
+                            RoleSqlValue::Text(revision.as_str()),
+                        ]
+                        .iter(),
+                    )?,
+                    "tenant-root refresh superseded pending row changed concurrently",
+                ));
+            }
+        }
+        self.run_refresh_pending_checkpoint(
+            supersession_statements,
+            lifecycle_statement,
+            replay_statement,
+        )
+        .await?;
         let reservation = match reserve_tenant_root_command_v1(
             None,
             *admission.key(),
@@ -9723,23 +9958,33 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         Ok(CloudflareTenantRootRefreshExecutedCommandV1 { executed, evidence })
     }
 
+    /// Runs the pending checkpoint as one batch: any supersession statements,
+    /// then the pending row and the replay checkpoint, each changing exactly
+    /// one row behind a count guard.
     async fn run_refresh_pending_checkpoint(
         &self,
+        supersession_statements: Vec<(RoleSqlStatement<'_, S>, &'static str)>,
         lifecycle_statement: RoleSqlStatement<'_, S>,
         replay_statement: RoleSqlStatement<'_, S>,
     ) -> RoleStoreResult<()> {
-        let lifecycle_guard = self.command_cas_count_guard_statement(1)?;
-        let replay_guard = self.command_cas_count_guard_statement(1)?;
-        let results = self
-            .session
-            .batch(vec![
+        let mut statements = Vec::new();
+        let mut conflicts = Vec::new();
+        for (statement, conflict) in supersession_statements.into_iter().chain([
+            (
                 lifecycle_statement,
-                lifecycle_guard,
+                "tenant-root refresh pending row changed concurrently",
+            ),
+            (
                 replay_statement,
-                replay_guard,
-            ])
-            .await?;
-        if results.len() != 4 {
+                "tenant-root refresh replay checkpoint changed concurrently",
+            ),
+        ]) {
+            statements.push(statement);
+            statements.push(self.command_cas_count_guard_statement(1)?);
+            conflicts.push(conflict);
+        }
+        let results = self.session.batch(statements).await?;
+        if results.len() != conflicts.len() * 2 {
             return Err(store_error(
                 "tenant-root refresh pending checkpoint returned an invalid result count",
             ));
@@ -9754,26 +9999,15 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 )));
             }
         }
-        require_changes(
-            &results[0],
-            1,
-            "tenant-root refresh pending row changed concurrently",
-        )?;
-        require_changes(
-            &results[1],
-            0,
-            "tenant-root refresh pending row count guard returned an invalid change count",
-        )?;
-        require_changes(
-            &results[2],
-            1,
-            "tenant-root refresh replay checkpoint changed concurrently",
-        )?;
-        require_changes(
-            &results[3],
-            0,
-            "tenant-root refresh replay count guard returned an invalid change count",
-        )
+        for (index, conflict) in conflicts.into_iter().enumerate() {
+            require_changes(&results[index * 2], 1, conflict)?;
+            require_changes(
+                &results[index * 2 + 1],
+                0,
+                "tenant-root refresh pending checkpoint count guard returned an invalid change count",
+            )?;
+        }
+        Ok(())
     }
 
     /// Attaches the exact immutable R2 object metadata after both artifacts
@@ -14364,7 +14598,7 @@ async fn run_cloudflare_tenant_root_initial_creation_integration_v1(
             role.managed_restore_role(),
         )?;
     if !matches!(
-        backup_store.put_verified(&completed.managed_backup).await?,
+        backup_store.put_verified(&completed.managed_backup, &[]).await?,
         crate::tenant_root_managed_backup_r2::CloudflareTenantRootManagedBackupPutOutcomeV1::Stored { .. }
     ) {
         return Err(store_error(
@@ -14424,7 +14658,7 @@ async fn run_cloudflare_tenant_root_initial_creation_integration_v1(
     }
 
     if !matches!(
-        backup_store.put_verified(&completed.managed_backup).await?,
+        backup_store.put_verified(&completed.managed_backup, &[]).await?,
         crate::tenant_root_managed_backup_r2::CloudflareTenantRootManagedBackupPutOutcomeV1::Replay { .. }
     ) {
         return Err(store_error(
@@ -15996,6 +16230,23 @@ fn validate_refresh_record_binding(
         ));
     }
     record.validate()
+}
+
+/// Whether a stored refresh replay row belongs to this command's epoch
+/// transition.
+fn same_refresh_transition(
+    stored: &StoredTenantRootCommandReplayV1,
+    command: &VerifiedTenantRootRoleRefreshCommandV1,
+) -> RoleStoreResult<bool> {
+    let Some(state) = stored.refresh_state.as_ref() else {
+        return Ok(false);
+    };
+    let other = TenantRootRoleRefreshCommandV1::decode_canonical_bytes(&state.command_bytes()?)
+        .map_err(|error| store_error(error.message()))?;
+    Ok(other.identity_digest() == command.identity_digest()
+        && other.custody_lineage() == command.custody_lineage()
+        && other.current_epoch() == command.current_epoch()
+        && other.next_epoch() == command.next_epoch())
 }
 
 fn validate_refresh_replay_link(

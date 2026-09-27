@@ -57,6 +57,8 @@ const deriverAWalletBurnPath = '/router-ab/deriver-a/ed25519-yao/burn-pair';
 const tenantRootCreationPath = '/router-ab/internal/tenant-root/creation/v1/create';
 const tenantRootCreationSweepPath = '/router-ab/internal/tenant-root/creation/v1/sweep-abandoned';
 const tenantRootRefreshPath = '/router-ab/internal/tenant-root/refresh/v1/execute';
+const controlPlaneRefreshActivationPath = '/tenant-root-control-plane/refresh/v1/activate';
+const creationStateRefreshActivationPath = '/router-ab/internal/tenant-root/refresh/v1/activation';
 const deriverRefreshActivationPath = '/router-ab/internal/deriver/tenant-root/refresh/v1/activate';
 const deriverAYaoPreparePath = '/router-ab/deriver-a/ed25519-yao/prepare-pair';
 const deriverBEcdsaRegistrationPath = '/router-ab/deriver-b/ecdsa-derivation/register';
@@ -148,6 +150,8 @@ const recoveryDropNextOnPath = {
   'deriver-b': null,
   'tenant-root-control-plane': null,
 };
+// The body of the last request each recovery peer's drop discarded.
+const recoveryDroppedBody = {};
 // The recovery Router's peers can each hold their next request to one path
 // before the peer reads it, until released, recording the request and the
 // peer's answer; and can drop every request to one path, as an unreachable
@@ -418,6 +422,7 @@ function recoveryPeer(workerName, faultPath) {
     const drop = recoveryDropNextOnPath[workerName];
     if (drop && drop.path === path) {
       recoveryDropNextOnPath[workerName] = null;
+      recoveryDroppedBody[workerName] = await request.clone().text();
       if (drop.afterAnsweredBy) {
         await recoveryAnsweredSignal(drop.afterAnsweredBy, path).promise;
       }
@@ -2847,6 +2852,215 @@ async function testTenantRootRefreshDeliveryAfterExpiry(topology, databases) {
   );
 }
 
+/// Opt-in (`--refresh-abandonment-after-expiry`): the VM refresh-abandonment
+/// E2E on Workers. Both roles install a refresh and the Router's request for
+/// its receipt is lost. Inside the window another operation waits. After it,
+/// the stranded operation is refused as abandoned; the attempt's signed receipt
+/// can neither be committed nor activate a Deriver; and a new operation
+/// refreshes the root, each Deriver superseding the abandoned attempt's pending
+/// row, backup and canary.
+async function testTenantRootRefreshAbandonmentAfterExpiry(topology, databases) {
+  const router = await topology.getWorker('router-recovery');
+  const controlPlane = await topology.getWorker('tenant-root-control-plane');
+  const deriverA = await topology.getWorker('deriver-a');
+  const creationNamespace = await topology.getDurableObjectNamespace(
+    tenantRootCreationDoBinding,
+    'router',
+  );
+  const buckets = {
+    deriverA: await topology.getR2Bucket(managedBackupR2Binding, 'deriver-a'),
+    deriverB: await topology.getR2Bucket(managedBackupR2Binding, 'deriver-b'),
+  };
+  const ceremony = recoveryCreationGrant('refresh-abandonment-after-expiry', 60_000);
+  const created = await postWorkerJson(router, tenantRootCreationPath, {
+    creation_grant_b64u: ceremony.creation_grant_b64u,
+  });
+  assert.equal(created.status, 200, await created.text());
+  const scope = {
+    identity_digest_b64u: ceremony.identity_digest_b64u,
+    custody_lineage_b64u: ceremony.custody_lineage_b64u,
+  };
+  const creationState = async (path, body) => {
+    const stub = creationNamespace.get(creationNamespace.idFromName(ceremony.creation_object_name));
+    const response = await stub.fetch(
+      `https://router-ab-do.internal${path}`,
+      authenticatedJsonRequest(body),
+    );
+    return { status: response.status, body: await response.text() };
+  };
+  const activeState = async () => {
+    const read = await creationState(creationStateActiveStatePath, { kind: 'read', ...scope });
+    assert.equal(read.status, 200, read.body);
+    return JSON.parse(read.body);
+  };
+  const epochs = async (database) =>
+    (
+      await database
+        .prepare(
+          `SELECT tenant_root_share_epoch AS epoch, lifecycle FROM tenant_root_role_shares
+           WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch`,
+        )
+        .bind(ceremony.custody_lineage_b64u)
+        .all()
+    ).results.map((row) => [row.epoch, row.lifecycle]);
+  const bothEpochs = async () => [await epochs(databases.deriverA), await epochs(databases.deriverB)];
+  const supersessions = async (database) =>
+    (
+      await database
+        .prepare(
+          `SELECT count(*) AS count FROM tenant_root_refresh_supersessions
+           WHERE custody_lineage_b64u = ?1`,
+        )
+        .bind(ceremony.custody_lineage_b64u)
+        .first()
+    ).count;
+  const identityDigestHex = Buffer.from(ceremony.identity_digest_b64u, 'base64url').toString('hex');
+  // Each role's epoch-2 managed backup and provider canary, as their bytes.
+  const epochTwoObjects = async (bucket, role) => {
+    const prefix = `tenant-root-managed-backup/v1/${role}/${identityDigestHex}/${ceremony.custody_lineage_b64u}/2`;
+    const objects = [];
+    for (const key of [`${prefix}.bin`, `${prefix}.provider-canary.bin`]) {
+      const object = await bucket.get(key);
+      assert.ok(object, `${key} must exist`);
+      objects.push(Buffer.from(await object.arrayBuffer()).toString('base64url'));
+    }
+    return objects;
+  };
+  const allObjects = async () => [
+    ...(await epochTwoObjects(buckets.deriverA, 'deriver-a')),
+    ...(await epochTwoObjects(buckets.deriverB, 'deriver-b')),
+  ];
+  const refresh = async (operationId, expectedRevision) => {
+    const response = await postWorkerJson(router, tenantRootRefreshPath, {
+      operation_id: operationId,
+      ...scope,
+      expected_lifecycle_revision: expectedRevision,
+      expires_at_ms: Date.now() + 60_000,
+      trigger: 'manual',
+    });
+    const body = await response.text();
+    let code = '';
+    try {
+      code = JSON.parse(body).code ?? '';
+    } catch {}
+    return { status: response.status, body, code };
+  };
+
+  // Both roles install the refresh; the Router's request for its receipt is lost.
+  const before = await activeState();
+  recoveryDropNextOnPath['tenant-root-control-plane'] = { path: controlPlaneRefreshActivationPath };
+  const started = Date.now();
+  const lost = await refresh('harness-refresh-stranded', before.lifecycle_revision);
+  assert.equal(
+    recoveryDropNextOnPath['tenant-root-control-plane'],
+    null,
+    'the control-plane refresh activation must have been dropped',
+  );
+  assert.notEqual(lost.status, 200, lost.body);
+  const stranded = await activeState();
+  assert.equal(stranded.fence.kind, 'executed', JSON.stringify(stranded.fence));
+  assert.equal(stranded.lifecycle_revision, before.lifecycle_revision);
+  const installed = [
+    [1, 'active'],
+    [2, 'pending'],
+  ];
+  assert.deepEqual(await bothEpochs(), [installed, installed]);
+  const strandedObjects = await allObjects();
+  // A correctly signed receipt for the stranded attempt, never committed.
+  const reissued = await controlPlane.fetch(
+    `https://private.test${controlPlaneRefreshActivationPath}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', [internalAuthHeader]: internalAuthSecret },
+      body: recoveryDroppedBody['tenant-root-control-plane'],
+    },
+  );
+  const reissuedBody = await reissued.text();
+  assert.equal(reissued.status, 200, reissuedBody);
+  const uncommittedReceipt = JSON.parse(reissuedBody).activation_receipt_b64u;
+
+  // Inside the window the attempt is live: another operation must wait.
+  const busy = await refresh('harness-refresh-next', before.lifecycle_revision);
+  assert.equal(busy.status, 409, busy.body);
+  assert.equal(busy.code, 'tenant_root_refresh_in_progress', busy.body);
+
+  // The refresh context's window is five minutes from its issue; wait past it.
+  await sleep(Math.max(0, started + 300_000 + 5_000 - Date.now()));
+
+  // After it, the stranded operation is abandoned with its attempt.
+  const abandoned = await refresh('harness-refresh-stranded', before.lifecycle_revision);
+  assert.equal(abandoned.status, 409, abandoned.body);
+  assert.equal(abandoned.code, 'tenant_root_refresh_abandoned', abandoned.body);
+  assert.equal((await activeState()).fence.kind, 'abandoned');
+
+  // Abandonment won: the receipt can no longer be committed (the creation
+  // object answers the fence's conflict as 409), and no Deriver activates on it.
+  const commit = await creationState(creationStateRefreshActivationPath, {
+    activation_receipt_b64u: uncommittedReceipt,
+  });
+  assert.equal(commit.status, 409, commit.body);
+  assert.equal(
+    (await activeState()).activation_receipt_digest_b64u,
+    before.activation_receipt_digest_b64u,
+  );
+  const delivered = await deriverA.fetch(
+    `https://private.test${deriverRefreshActivationPath}`,
+    authenticatedJsonRequest({ activation_receipt_b64u: uncommittedReceipt }),
+  );
+  const deliveredBody = await delivered.text();
+  assert.notEqual(delivered.status, 200, deliveredBody);
+  assert.deepEqual(await bothEpochs(), [installed, installed]);
+
+  // A new operation refreshes the root. Each Deriver supersedes the abandoned
+  // attempt: its pending row, backup and canary are replaced by the new ones.
+  const next = await refresh('harness-refresh-next', before.lifecycle_revision);
+  assert.equal(next.status, 200, next.body);
+  const after = await activeState();
+  assert.equal(after.lifecycle_revision, before.lifecycle_revision + 1);
+  assert.equal(after.fence.kind, 'terminal');
+  const nextResponse = JSON.parse(next.body);
+  assert.equal(nextResponse.activation_receipt_digest_b64u, after.activation_receipt_digest_b64u);
+  assert.equal(nextResponse.retirement.kind, 'pending');
+  const retiredThenActive = [
+    [1, 'retired'],
+    [2, 'active'],
+  ];
+  assert.deepEqual(await bothEpochs(), [retiredThenActive, retiredThenActive]);
+  const replacedObjects = await allObjects();
+  strandedObjects.forEach((object, index) =>
+    assert.notEqual(object, replacedObjects[index], 'the abandoned attempt objects must be replaced'),
+  );
+  assert.deepEqual(
+    [await supersessions(databases.deriverA), await supersessions(databases.deriverB)],
+    [1, 1],
+  );
+
+  // An exact replay returns the durable outcome; the abandoned operation stays
+  // abandoned.
+  const replay = await refresh('harness-refresh-next', before.lifecycle_revision);
+  assert.equal(replay.status, 200, replay.body);
+  assert.deepEqual(JSON.parse(replay.body), nextResponse);
+  const still = await refresh('harness-refresh-stranded', before.lifecycle_revision);
+  assert.equal(still.status, 409, still.body);
+  assert.equal(still.code, 'tenant_root_refresh_abandoned', still.body);
+  return {
+    kind: 'tenant_root_refresh_abandonment_workers_e2e_v1',
+    fault: 'control_plane_refresh_activation_request_lost_then_window_closed',
+    afterLoss: { routerFence: stranded.fence.kind, deriverA: installed, deriverB: installed },
+    otherOperationInsideWindow: [busy.status, busy.code],
+    strandedOperationAfterWindow: [abandoned.status, abandoned.code],
+    signedUncommittedReceiptCommitAfterAbandonment: commit.status,
+    signedUncommittedReceiptDeliveryAfterAbandonment: delivered.status,
+    newOperationStatus: next.status,
+    revisions: [before.lifecycle_revision, after.lifecycle_revision],
+    epochsAfter: retiredThenActive,
+    epochTwoBackupAndCanaryReplacedPerRole: true,
+    supersessionsPerRole: [1, 1],
+    exactReplayStatus: replay.status,
+    strandedOperationLater: [still.status, still.code],
+  };
+}
+
 async function testDeriverAWalletDoPreparation(topology, rootIdentity) {
   assert.ok(capturedDeriverAPreparation, 'Deriver A preparation fixture is required');
   const { request, receipt } = capturedDeriverAPreparation;
@@ -4131,6 +4345,11 @@ async function main() {
     }
     if (process.argv.includes('--refresh-delivery-after-expiry')) {
       await testTenantRootRefreshDeliveryAfterExpiry(topology, databases);
+      return;
+    }
+    if (process.argv.includes('--refresh-abandonment-after-expiry')) {
+      const summary = await testTenantRootRefreshAbandonmentAfterExpiry(topology, databases);
+      console.log(`R150_WORKERS_TENANT_ROOT_REFRESH_ABANDONMENT ${JSON.stringify(summary)}`);
       return;
     }
     if (process.argv.includes('--signing-worker-finalization-lookup')) {

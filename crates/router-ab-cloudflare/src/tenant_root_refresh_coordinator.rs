@@ -26,7 +26,7 @@ use router_ab_core::{
 };
 
 use crate::durable_object::tenant_root_creation::{
-    tenant_root_creation_active_state_with_revision_read_call_v1,
+    refresh_attempt_abandoned_error, tenant_root_creation_active_state_with_revision_read_call_v1,
     tenant_root_refresh_activation_call_v1, tenant_root_refresh_admission_call_v1,
     tenant_root_refresh_attempt_reservation_call_v1, tenant_root_record_delivery_call_v1,
     CloudflareTenantRootRefreshAdmissionOutcomeV1, CloudflareTenantRootRefreshFenceV1,
@@ -87,6 +87,10 @@ pub struct CloudflareRouterTenantRootRefreshRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CloudflareRouterTenantRootRefreshResultV1 {
     Completed(CloudflareRouterTenantRootRefreshResponseV1),
+    /// The operation's attempt missed its ceremony window before the Router
+    /// committed it, or its authorization expired while it held no attempt.
+    /// A retry is refused; a new operation refreshes the root.
+    Abandoned { abandoned_at_ms: u64 },
     Throttled { retry_at_ms: u64 },
     InProgress,
     RevisionMoved,
@@ -107,6 +111,13 @@ impl CloudflareRouterTenantRootRefreshResultV1 {
                 serde_json::json!({
                     "code": "tenant_root_refresh_throttled",
                     "retry_at_ms": retry_at_ms,
+                }),
+            ),
+            Self::Abandoned { abandoned_at_ms } => (
+                409,
+                serde_json::json!({
+                    "code": "tenant_root_refresh_abandoned",
+                    "abandoned_at_ms": abandoned_at_ms,
                 }),
             ),
             Self::RevisionMoved => (409, serde_json::json!({ "code": "lifecycle_revision_moved" })),
@@ -191,6 +202,9 @@ pub async fn tenant_root_router_coordinate_refresh_v1<Host: TenantRootRouterCrea
                 },
             ));
         }
+        CloudflareTenantRootRefreshAdmissionOutcomeV1::Abandoned { abandoned_at_ms } => {
+            return Ok(CloudflareRouterTenantRootRefreshResultV1::Abandoned { abandoned_at_ms });
+        }
         CloudflareTenantRootRefreshAdmissionOutcomeV1::Throttled { retry_at_ms } => {
             return Ok(CloudflareRouterTenantRootRefreshResultV1::Throttled { retry_at_ms });
         }
@@ -233,15 +247,17 @@ pub async fn tenant_root_router_coordinate_refresh_v1<Host: TenantRootRouterCrea
     if matches!(
         &active.refresh_fence,
         CloudflareTenantRootRefreshFenceV1::Terminal { .. }
+            | CloudflareTenantRootRefreshFenceV1::Abandoned { .. }
     ) {
         // Finish delivering the previous committed refresh before replacing
-        // its terminal attempt.
+        // its attempt.
         tenant_root_router_deliver_pending_v1(host, &active).await?;
     }
     let (refresh_context_b64u, deriver_a_refresh_command_b64u, deriver_b_refresh_command_b64u) =
         match active.refresh_fence {
             CloudflareTenantRootRefreshFenceV1::Open
-            | CloudflareTenantRootRefreshFenceV1::Terminal { .. } => {
+            | CloudflareTenantRootRefreshFenceV1::Terminal { .. }
+            | CloudflareTenantRootRefreshFenceV1::Abandoned { .. } => {
                 let issued = tenant_root_control_plane_refresh_commands_call_v1(
                     host,
                     &CloudflareTenantRootControlPlaneRefreshCommandsRequestV1 {
@@ -344,6 +360,9 @@ pub(crate) fn tenant_root_router_refresh_attempt_packages_v1(
             RouterAbProtocolErrorCode::ConflictingPair,
             "tenant-root refresh operation is terminal",
         )),
+        CloudflareTenantRootRefreshFenceV1::Abandoned { .. } => {
+            Err(refresh_attempt_abandoned_error())
+        }
     }
 }
 
@@ -362,10 +381,6 @@ pub(crate) fn tenant_root_router_replay_terminal_refresh_v1(
             lifecycle_revision: response.lifecycle_revision,
             retirement: CloudflareRouterTenantRootRetirementEvidenceV1::Pending,
         })),
-        CloudflareTenantRootRefreshFenceV1::Terminal { .. } => Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::ConflictingPair,
-            "tenant-root refresh operation is terminal without a successful activation",
-        )),
         _ => Ok(None),
     }
 }

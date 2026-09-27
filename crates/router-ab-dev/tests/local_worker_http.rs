@@ -1423,6 +1423,155 @@ fn vm_tenant_root_refresh_delivers_the_committed_receipt_after_a_lost_delivery(
     Ok(())
 }
 
+/// A refresh whose attempt misses its ceremony window before the Router commits
+/// it is abandoned, and the next refresh supersedes what it left at each
+/// Deriver. Both roles install the attempt, and the Router's request for its
+/// receipt is lost. Inside the window another operation is refused as in
+/// progress. After it, the stranded operation is refused as abandoned; the
+/// attempt's correctly signed receipt can neither be committed nor activate a
+/// Deriver; and a new operation refreshes the root, replacing the abandoned
+/// attempt's pending rows, backups and canaries. It waits past the five-minute
+/// refresh window, so it runs only on request.
+#[test]
+#[ignore = "waits past the five-minute refresh window; run with --ignored"]
+fn vm_tenant_root_refresh_that_misses_its_window_is_abandoned_and_superseded(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start("vm-tenant-root-refresh-abandon")?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("refresh-abandonment")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let (created_revision, _, created_digest) = stack.active_state(&lineage_b64u)?;
+    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
+    let code = |body: &str| -> Result<String, Box<dyn std::error::Error>> {
+        Ok(serde_json::from_str::<serde_json::Value>(body)?["code"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned())
+    };
+
+    // Both roles install the refresh; the Router's request for its receipt is lost.
+    stack.proxy_control_plane.drop_next_on(
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH,
+    );
+    let started = Instant::now();
+    let (lost_status, lost_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-stranded", created_revision)?;
+    assert_eq!(lost_status, 500, "{lost_body}");
+    assert!(stack.proxy_control_plane.dropped_on(), "the proxy must have dropped the request");
+    let (stranded_revision, stranded_fence, stranded_digest) = stack.active_state(&lineage_b64u)?;
+    assert_eq!(stranded_revision, created_revision);
+    assert_eq!(stranded_fence, "executed");
+    assert_eq!(stranded_digest, created_digest);
+    let installed = vec![epoch(1, "active"), epoch(2, "pending")];
+    assert_eq!(stack.epochs(&lineage_b64u)?, (installed.clone(), installed.clone()));
+    let stranded_objects = stack.epoch_objects(&lineage_b64u, 2)?;
+    assert_eq!((stranded_objects.0.len(), stranded_objects.1.len()), (2, 2));
+    // A correctly signed receipt for the stranded attempt, never committed.
+    let uncommitted_receipt = stack.reissue_dropped_refresh_activation()?;
+
+    // Inside the window the attempt is live: another operation must wait.
+    let (busy_status, busy_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-next", created_revision)?;
+    assert_eq!(busy_status, 409, "{busy_body}");
+    assert_eq!(code(&busy_body)?, "tenant_root_refresh_in_progress");
+
+    // The refresh context's window is five minutes from its issue; wait past it.
+    let window = Duration::from_millis(router_ab_core::TENANT_ROOT_MAX_LIFETIME_MS_V1)
+        + Duration::from_secs(2);
+    if let Some(remaining) = window.checked_sub(started.elapsed()) {
+        thread::sleep(remaining);
+    }
+
+    // After it, the stranded operation is abandoned with its attempt.
+    let (abandoned_status, abandoned_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-stranded", created_revision)?;
+    assert_eq!(abandoned_status, 409, "{abandoned_body}");
+    assert_eq!(code(&abandoned_body)?, "tenant_root_refresh_abandoned");
+    assert_eq!(stack.active_state(&lineage_b64u)?.1, "abandoned");
+
+    // Abandonment won: the attempt's receipt can no longer be committed, and no
+    // Deriver activates on it.
+    let (commit_status, commit_body) = stack.creation_state(
+        &identity,
+        lineage,
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_REFRESH_ACTIVATION_PATH,
+        &json!({ "activation_receipt_b64u": uncommitted_receipt }),
+    )?;
+    assert_ne!(commit_status, 200, "{commit_body}");
+    assert!(commit_body.contains("was abandoned"), "{commit_body}");
+    assert_eq!(stack.active_state(&lineage_b64u)?.2, created_digest);
+    let (deliver_status, deliver_body) = post_json_to_path_with_headers(
+        &stack.deriver_a_url,
+        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH,
+        &json!({ "activation_receipt_b64u": uncommitted_receipt }),
+        &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+    )?;
+    assert_ne!(deliver_status, 200, "{deliver_body}");
+    assert_eq!(stack.epochs(&lineage_b64u)?, (installed.clone(), installed.clone()));
+
+    // A new operation refreshes the root. Each Deriver supersedes the abandoned
+    // attempt: its pending row, backup and canary are replaced by the new ones.
+    let (next_status, next_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-next", created_revision)?;
+    assert_eq!(next_status, 200, "{next_body}");
+    let next: serde_json::Value = serde_json::from_str(&next_body)?;
+    let (next_revision, next_fence, next_digest) = stack.active_state(&lineage_b64u)?;
+    assert_eq!(next_revision, created_revision + 1);
+    assert_eq!(next_fence, "terminal");
+    assert_eq!(next["activation_receipt_digest_b64u"], json!(next_digest));
+    assert_eq!(next["retirement"]["kind"], "pending");
+    let retired_then_active = vec![epoch(1, "retired"), epoch(2, "active")];
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?,
+        (retired_then_active.clone(), retired_then_active.clone())
+    );
+    let replaced_objects = stack.epoch_objects(&lineage_b64u, 2)?;
+    assert_eq!((replaced_objects.0.len(), replaced_objects.1.len()), (2, 2));
+    for (stranded, replaced) in stranded_objects
+        .0
+        .iter()
+        .chain(&stranded_objects.1)
+        .zip(replaced_objects.0.iter().chain(&replaced_objects.1))
+    {
+        assert_ne!(stranded, replaced, "the abandoned attempt's objects must be replaced");
+    }
+    assert_eq!(stack.backup_objects(&lineage_b64u)?, ((2, 2), (2, 2)));
+    assert_eq!(stack.supersessions(&lineage_b64u)?, (1, 1));
+
+    // An exact replay returns the durable outcome; the abandoned operation
+    // stays abandoned.
+    let (replay_status, replay_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-next", created_revision)?;
+    assert_eq!(replay_status, 200, "{replay_body}");
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&replay_body)?, next);
+    let (still_status, still_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-stranded", created_revision)?;
+    assert_eq!(still_status, 409, "{still_body}");
+    assert_eq!(code(&still_body)?, "tenant_root_refresh_abandoned");
+
+    println!(
+        "R150_VM_TENANT_ROOT_REFRESH_ABANDONMENT_E2E {}",
+        json!({
+            "fault": "control_plane_refresh_activation_request_lost_then_window_closed",
+            "after_loss": { "router_fence": stranded_fence, "deriver_a": [[1, "active"], [2, "pending"]], "deriver_b": [[1, "active"], [2, "pending"]] },
+            "other_operation_inside_window": [busy_status, code(&busy_body)?],
+            "stranded_operation_after_window": [abandoned_status, code(&abandoned_body)?],
+            "signed_uncommitted_receipt_commit_after_abandonment": commit_status,
+            "signed_uncommitted_receipt_delivery_after_abandonment": deliver_status,
+            "new_operation_status": next_status,
+            "revisions": [created_revision, next_revision],
+            "epochs_after": [[1, "retired"], [2, "active"]],
+            "epoch_2_backup_and_canary_replaced_per_role": true,
+            "supersessions_per_role": [1, 1],
+            "exact_replay_status": replay_status,
+            "stranded_operation_later": [still_status, code(&still_body)?],
+        })
+    );
+    Ok(())
+}
+
 /// Work admitted before a refresh finishes on the epoch it started with. A
 /// registration is admitted and prepared while epoch 1 is active, then held
 /// before Deriver A reads it. A manual refresh then commits epoch 2 and both
@@ -2980,6 +3129,63 @@ impl RecoveryStackV1 {
         Ok(residue)
     }
 
+    /// Replays the refresh-activation request the control-plane proxy dropped,
+    /// which has the control plane sign that attempt's receipt.
+    fn reissue_dropped_refresh_activation(&self) -> Result<String, Box<dyn std::error::Error>> {
+        let activation_request = self
+            .proxy_control_plane
+            .dropped_body()
+            .ok_or("the control-plane refresh activation request must have been dropped")?;
+        let (status, body) = post_bytes_to_path_with_headers(
+            &self.control_plane_url,
+            router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH,
+            &activation_request,
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+        )?;
+        if status != 200 {
+            return Err(format!("control-plane refresh reissue failed with {status}: {body}").into());
+        }
+        Ok(serde_json::from_str::<serde_json::Value>(&body)?["activation_receipt_b64u"]
+            .as_str()
+            .ok_or("the control plane must return an activation receipt")?
+            .to_owned())
+    }
+
+    /// Each Deriver's stored managed backup and provider canary for one epoch
+    /// of a lineage, as their exact bytes.
+    #[allow(clippy::type_complexity)]
+    fn epoch_objects(
+        &self,
+        lineage: &str,
+        epoch: i64,
+    ) -> rusqlite::Result<(Vec<Vec<u8>>, Vec<Vec<u8>>)> {
+        let objects = |db: &Connection| {
+            db.prepare(
+                "SELECT canonical_bytes FROM local_tenant_root_managed_backups
+                 WHERE instr(object_key, '/' || ?1 || '/') > 0
+                   AND (object_key LIKE '%/' || ?2 || '.bin'
+                        OR object_key LIKE '%/' || ?2 || '.provider-canary.bin')
+                 ORDER BY object_key",
+            )?
+            .query_map(rusqlite::params![lineage, epoch], |row| row.get(0))?
+            .collect::<rusqlite::Result<Vec<Vec<u8>>>>()
+        };
+        Ok((objects(&self.a_backups)?, objects(&self.b_backups)?))
+    }
+
+    /// The refresh attempts each Deriver recorded as superseded for one lineage.
+    fn supersessions(&self, lineage: &str) -> rusqlite::Result<(i64, i64)> {
+        let count = |db: &Connection| {
+            db.query_row(
+                "SELECT count(*) FROM tenant_root_refresh_supersessions
+                 WHERE custody_lineage_b64u = ?1",
+                [lineage],
+                |row| row.get(0),
+            )
+        };
+        Ok((count(&self.a_store)?, count(&self.b_store)?))
+    }
+
     /// Replays the last recorded control-plane activation request, which has
     /// the control plane sign a second receipt for the same evidence.
     fn reissue_captured_activation(&self) -> Result<String, Box<dyn std::error::Error>> {
@@ -3022,6 +3228,7 @@ fn backup_object_counts(db: &Connection) -> rusqlite::Result<(i64, i64)> {
 struct FaultProxyControlsV1 {
     armed: AtomicBool,
     drop_path: Mutex<Option<&'static str>>,
+    dropped_body: Mutex<Option<Vec<u8>>>,
     drop_every_path: Mutex<Option<&'static str>>,
     drop_body: Mutex<Option<Vec<u8>>>,
     hold_path: Mutex<Option<&'static str>>,
@@ -3105,6 +3312,11 @@ impl FaultProxyV1 {
     /// Whether the drop armed by `drop_next_on` has happened.
     fn dropped_on(&self) -> bool {
         lock_proxy(&self.controls.drop_path).is_none()
+    }
+
+    /// The body of the last request `drop_next_on` dropped.
+    fn dropped_body(&self) -> Option<Vec<u8>> {
+        lock_proxy(&self.controls.dropped_body).clone()
     }
 
     /// Drops every request to `path`, as an unreachable peer would, until
@@ -3249,6 +3461,7 @@ fn proxy_fault_connection(
         let mut drop_path = lock_proxy(&controls.drop_path);
         if drop_path.is_some_and(posts_to) {
             *drop_path = None;
+            *lock_proxy(&controls.dropped_body) = Some(body.clone());
             return client.shutdown(Shutdown::Both);
         }
     }

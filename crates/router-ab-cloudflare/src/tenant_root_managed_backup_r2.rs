@@ -319,63 +319,98 @@ impl CloudflareTenantRootManagedBackupStoreV1 {
         })
     }
 
+    /// Stores one verified managed backup at its coordinates. `replaceable`
+    /// names the digests of other attempts' bytes this write may replace.
     pub(crate) async fn put_verified(
         &self,
         backup: &VerifiedTenantRootManagedBackupV1,
+        replaceable: &[[u8; 32]],
     ) -> worker::Result<CloudflareTenantRootManagedBackupPutOutcomeV1> {
         self.require_role(backup.role())?;
-        let canonical_bytes = backup.canonical_bytes();
-        let canonical_digest: [u8; 32] = Sha256::digest(canonical_bytes).into();
         let object_key =
             TenantRootManagedBackupObjectCoordinatesV1::from_binding(backup.binding()).object_key();
-        let wrapping_key_generation_ref = backup.binding().backup_key_version();
-        let created = self
-            .bucket
-            .put(object_key.clone(), canonical_bytes.to_vec())
-            .sha256(canonical_digest)
-            .custom_metadata(object_custom_metadata(
-                &canonical_digest,
-                wrapping_key_generation_ref,
-            ))
-            .only_if(Conditional {
-                etag_does_not_match: Some("*".to_owned()),
-                ..Conditional::default()
-            })
-            .execute()
-            .await?;
-        if let Some(created) = created {
-            let metadata = metadata_from_object(
-                &created,
-                &object_key,
-                &canonical_digest,
-                wrapping_key_generation_ref,
-            )?;
-            return Ok(CloudflareTenantRootManagedBackupPutOutcomeV1::Stored { metadata });
-        }
-
-        let existing = self
-            .bucket
-            .get(object_key.clone())
-            .execute()
-            .await?
-            .ok_or_else(|| backup_store_error("managed-backup write conflict disappeared"))?;
-        let existing_bytes = existing
-            .body()
-            .ok_or_else(|| backup_store_error("managed-backup replay returned no object body"))?
-            .bytes()
-            .await?;
-        if existing_bytes != canonical_bytes {
-            return Err(backup_store_error(
-                "managed-backup object key already contains different canonical bytes",
-            ));
-        }
-        let metadata = metadata_from_object(
-            &existing,
+        self.put_exclusive(
             &object_key,
-            &canonical_digest,
-            wrapping_key_generation_ref,
-        )?;
-        Ok(CloudflareTenantRootManagedBackupPutOutcomeV1::Replay { metadata })
+            backup.canonical_bytes(),
+            backup.binding().backup_key_version(),
+            replaceable,
+            "managed-backup object key already contains different canonical bytes",
+        )
+        .await
+    }
+
+    /// Writes one object at a key that must not hold other bytes. An object
+    /// holding exactly these bytes is a replay. An object whose bytes have a
+    /// digest in `replaceable` is replaced, conditionally on its exact stored
+    /// version, so a concurrent writer is never overwritten.
+    async fn put_exclusive(
+        &self,
+        object_key: &str,
+        canonical_bytes: &[u8],
+        wrapping_key_generation_ref: &str,
+        replaceable: &[[u8; 32]],
+        conflict: &'static str,
+    ) -> worker::Result<CloudflareTenantRootManagedBackupPutOutcomeV1> {
+        let canonical_digest: [u8; 32] = Sha256::digest(canonical_bytes).into();
+        let mut condition = Conditional {
+            etag_does_not_match: Some("*".to_owned()),
+            ..Conditional::default()
+        };
+        // A lost race only restarts the write; a key that keeps changing fails.
+        for _ in 0..3 {
+            let written = self
+                .bucket
+                .put(object_key.to_owned(), canonical_bytes.to_vec())
+                .sha256(canonical_digest)
+                .custom_metadata(object_custom_metadata(
+                    &canonical_digest,
+                    wrapping_key_generation_ref,
+                ))
+                .only_if(condition)
+                .execute()
+                .await?;
+            if let Some(written) = written {
+                let metadata = metadata_from_object(
+                    &written,
+                    object_key,
+                    &canonical_digest,
+                    wrapping_key_generation_ref,
+                )?;
+                return Ok(CloudflareTenantRootManagedBackupPutOutcomeV1::Stored { metadata });
+            }
+            let Some(existing) = self.bucket.get(object_key.to_owned()).execute().await? else {
+                condition = Conditional {
+                    etag_does_not_match: Some("*".to_owned()),
+                    ..Conditional::default()
+                };
+                continue;
+            };
+            let existing_bytes = existing
+                .body()
+                .ok_or_else(|| backup_store_error("managed-backup object returned no body"))?
+                .bytes()
+                .await?;
+            if existing_bytes == canonical_bytes {
+                let metadata = metadata_from_object(
+                    &existing,
+                    object_key,
+                    &canonical_digest,
+                    wrapping_key_generation_ref,
+                )?;
+                return Ok(CloudflareTenantRootManagedBackupPutOutcomeV1::Replay { metadata });
+            }
+            let existing_digest: [u8; 32] = Sha256::digest(&existing_bytes).into();
+            if !replaceable.contains(&existing_digest) {
+                return Err(backup_store_error(conflict));
+            }
+            condition = Conditional {
+                etag_matches: Some(existing.etag()),
+                ..Conditional::default()
+            };
+        }
+        Err(backup_store_error(
+            "managed-backup object kept changing while it was written",
+        ))
     }
 
     pub(crate) async fn get_verified(
@@ -429,6 +464,7 @@ impl CloudflareTenantRootManagedBackupStoreV1 {
         canary_bytes: &[u8],
         expected_binding: &TenantRootProviderCanaryReceiptBindingV1,
         trusted_role_verifying_key: &[u8; 32],
+        replaceable: &[[u8; 32]],
     ) -> worker::Result<CloudflareTenantRootManagedBackupPutOutcomeV1> {
         self.require_role(coordinates.role)?;
         let verified = verify_provider_canary_object_bytes_v1(
@@ -437,57 +473,14 @@ impl CloudflareTenantRootManagedBackupStoreV1 {
             expected_binding,
             trusted_role_verifying_key,
         )?;
-        let canonical_bytes = verified.canonical_bytes();
-        let canonical_digest: [u8; 32] = Sha256::digest(canonical_bytes).into();
-        let object_key = coordinates.provider_canary_object_key();
-        let wrapping_key_generation_ref = verified.provider_key_version_ref();
-        let created = self
-            .bucket
-            .put(object_key.clone(), canonical_bytes.to_vec())
-            .sha256(canonical_digest)
-            .custom_metadata(object_custom_metadata(
-                &canonical_digest,
-                wrapping_key_generation_ref,
-            ))
-            .only_if(Conditional {
-                etag_does_not_match: Some("*".to_owned()),
-                ..Conditional::default()
-            })
-            .execute()
-            .await?;
-        if let Some(created) = created {
-            let metadata = metadata_from_object(
-                &created,
-                &object_key,
-                &canonical_digest,
-                wrapping_key_generation_ref,
-            )?;
-            return Ok(CloudflareTenantRootManagedBackupPutOutcomeV1::Stored { metadata });
-        }
-
-        let existing = self
-            .bucket
-            .get(object_key.clone())
-            .execute()
-            .await?
-            .ok_or_else(|| backup_store_error("provider canary write conflict disappeared"))?;
-        let existing_bytes = existing
-            .body()
-            .ok_or_else(|| backup_store_error("provider canary replay returned no object body"))?
-            .bytes()
-            .await?;
-        if existing_bytes != canonical_bytes {
-            return Err(backup_store_error(
-                "provider canary object key already contains different canonical bytes",
-            ));
-        }
-        let metadata = metadata_from_object(
-            &existing,
-            &object_key,
-            &canonical_digest,
-            wrapping_key_generation_ref,
-        )?;
-        Ok(CloudflareTenantRootManagedBackupPutOutcomeV1::Replay { metadata })
+        self.put_exclusive(
+            &coordinates.provider_canary_object_key(),
+            verified.canonical_bytes(),
+            verified.provider_key_version_ref(),
+            replaceable,
+            "provider canary object key already contains different canonical bytes",
+        )
+        .await
     }
 
     pub(crate) async fn get_verified_provider_canary(

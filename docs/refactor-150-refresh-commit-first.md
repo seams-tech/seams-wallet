@@ -6,7 +6,9 @@ safe erasure is established. The commit point, roll-forward delivery and
 pending retirement are implemented and shared: the Router coordinator, the
 Deriver refresh and activation, and the control plane run the same code on
 Cloudflare and the VM (see "Implemented" and "Served on the VM" below).
-Refresh abandonment and admission during delivery remain open.
+Admission during delivery (open question 2) and refresh abandonment (open
+question 1, implemented 2026-09-27) are done. A VM trigger for scheduled
+refresh remains.
 
 Related: [creation resume](./refactor-150-tenant-root-creation-resume.md) (the same
 policy for initial activation), [root retirement admission](./refactor-150-root-retirement-admission.md)
@@ -130,19 +132,81 @@ persisted initial-activation receipt is for creation.
   hosts. The VM adapter never gets the immediate erasure, and the shared
   implementation removes it from Cloudflare too (open question 3).
 
-### Before the commit, after expiry
+### Before the commit, after expiry: abandonment and supersession (implemented)
 
 A prepared but uncommitted refresh whose window has closed can no longer be
-activated, because its receipt window has passed. As with creation, it must
-be abandoned explicitly:
+activated: the control plane issues no receipt after the window. Until this
+change it stayed `Executed`, and every later refresh of the root answered "in
+progress". A retry of its own operation re-ran the expired commands, which
+the control plane refused. So one lost response could stop a root from ever
+refreshing again.
 
-1. Fence the attempt in the Router's creation state, so no commit can follow.
-2. Clean each role's pending new-epoch row, backup and canary with an
-   issuer-signed command bound to that fence.
+- **The fence decides.** The Router's refresh admission abandons the attempt
+  once its ceremony window has closed by the creation state's clock.
+  - The fence becomes `Abandoned`, the attempt's checkpoints are removed, and
+    the operation that owned it is recorded as abandoned.
+  - From then on the commit, the commitment and contribution rendezvous and
+    the installation checkpoints refuse the attempt. They live in the same
+    storage as the fence, so abandonment and commit exclude each other,
+    whichever arrives first.
+  - A retry of the abandoned operation answers 409
+    `tenant_root_refresh_abandoned`. A new operation refreshes the root.
+  - An admitted operation that holds no live attempt is abandoned once its
+    authorization expires, so it cannot block other operations either.
+  - Nothing is abandoned while a managed restore owns the fence.
+- **No cleanup commands: the next attempt supersedes.** Every attempt of one
+  transition writes the same next-epoch row and the same backup and canary
+  keys, and R2 has no conditional delete. A cleanup that runs late or twice
+  could delete a newer attempt's objects, even its active epoch's backup. So
+  nothing deletes. The next attempt replaces what the abandoned one left, and
+  only that:
+  - Before its pending checkpoint, a Deriver loads the older attempts of the
+    same transition, then confirms with the Router that its own attempt is the
+    current one. The Router keeps one live attempt per root and abandons one
+    before reserving the next. Every older attempt loaded before that
+    confirmation is therefore abandoned for good.
+  - One batch records each older attempt as superseded
+    (`tenant_root_refresh_supersessions`, migration 0014), guarded on the state
+    it was loaded with. The same batch removes the pending row one of them left
+    and writes the new row and checkpoint. A superseded attempt's own
+    checkpoints refuse from then on, so it cannot write that row back.
+  - Backup and canary writes stay create-only. An object holding a superseded
+    attempt's exact prepared bytes is replaced, conditionally on that stored
+    version: R2 `etagMatches`, or the VM store's object generation. A
+    concurrent writer is never overwritten.
+- **What stays until the next refresh.** The abandoned attempt's pending rows
+  and objects remain until the next attempt of the transition replaces them.
+  They can never activate, because a Deriver activates only on the Router's
+  committed receipt. Their erasure otherwise falls under the retirement rule,
+  which stays disabled. The old epoch stays active throughout, so abandoning a
+  refresh never affects availability.
 
-Today's pending cleanup is bound to the creation fence, so this needs a
-refresh-scoped abandonment (open question 1). The old epoch stays active
-throughout, so abandoning a refresh never affects availability.
+### Evidence: abandonment
+
+Both hosts run the same fault. Both roles install a refresh, and the Router's
+request for its receipt is lost. The test replays that request to obtain the
+attempt's correctly signed receipt, which the Router never committed. Both
+tests wait past the five-minute window, so they run on request:
+`vm_tenant_root_refresh_that_misses_its_window_is_abandoned_and_superseded`
+(`--ignored`, `R150_VM_TENANT_ROOT_REFRESH_ABANDONMENT_E2E`) and the Workers
+harness mode `--refresh-abandonment-after-expiry`
+(`tenant_root_refresh_abandonment_workers_e2e_v1`). Each passed on its first
+run, with identical observations:
+
+- **After the loss:** the Router's fence is `executed` at the created
+  revision. Each role holds epoch 1 active and epoch 2 pending, with the
+  attempt's epoch-2 backup and canary.
+- **Inside the window:** another operation answers 409
+  `tenant_root_refresh_in_progress`.
+- **After the window:** the stranded operation answers 409
+  `tenant_root_refresh_abandoned`, and the fence is `abandoned`. The signed
+  receipt is refused at the Router's commit (409) and at a Deriver's
+  activation (500).
+- **The next operation:** 200 at the next revision. Both roles hold epoch 1
+  retired and epoch 2 active. Each role's epoch-2 backup and canary were
+  replaced, and each recorded one superseded attempt.
+- **Afterwards:** an exact replay returns the same body, and the stranded
+  operation stays abandoned.
 
 ## Implemented on Cloudflare (2026-09-26)
 
@@ -164,9 +228,8 @@ throughout, so abandoning a refresh never affects availability.
   {"kind":"pending"}`. The control-plane `RetiredAfterRefresh` command and the
   Deriver's retired cleanup remain, unused, for the safe-retirement rule.
 
-Not yet implemented:
-- delivery status recorded per role at the Router (open question 2);
-- refresh abandonment (open question 1).
+Delivery status per role (open question 2) and refresh abandonment (open
+question 1) were implemented afterwards; see those sections.
 
 ## Served on the VM (2026-09-26)
 
@@ -259,10 +322,10 @@ and both roles end on epoch 2
 
 ## Open questions
 
-1. **Refresh abandonment.** A refresh-scoped fence and pending cleanup, reusing
-   the creation abandonment's ceremony binding and tombstone, or a narrower
-   rule. Until it exists, a prepared refresh that misses its window stays
-   `Executed`, which blocks the next refresh without affecting signing.
+1. **Refresh abandonment.** Implemented (2026-09-27) with a narrower rule than
+   creation's: a refresh-scoped fence at the Router, and supersession by the
+   next attempt at each Deriver instead of issuer-signed cleanup commands. See
+   "Before the commit, after expiry" above.
 2. **Admission during delivery.** Implemented (2026-09-26):
    - **Tracking:** the Router records each Deriver's delivery of the committed
      receipt, initial or refresh, in its creation state. The commit records

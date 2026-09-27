@@ -780,6 +780,7 @@ const TENANT_ROOT_SCHEDULED_REFRESH_JITTER_DOMAIN_V1: &[u8] =
 const TENANT_ROOT_MANUAL_REFRESH_OPERATION_MAX_BYTES_V1: usize = 256;
 const TENANT_ROOT_MANUAL_REFRESH_COMPLETION_STORAGE_PREFIX_V1: &str =
     "refresh/v1/manual-completion/";
+const TENANT_ROOT_REFRESH_ABANDONMENT_STORAGE_PREFIX_V1: &str = "refresh/v1/abandoned-operation/";
 pub(crate) const TENANT_ROOT_MANUAL_REFRESH_IN_PROGRESS_ERROR_V1: &str =
     "tenant_root_refresh_in_progress";
 const TENANT_ROOT_REFRESH_ATTEMPT_CONTEXT_MAX_BYTES_V1: usize = 8 * 1024;
@@ -1346,6 +1347,9 @@ pub(crate) struct CloudflareTenantRootRefreshPendingV1 {
     pub(crate) lifecycle_revision: u64,
     #[serde(default)]
     pub(crate) trigger: CloudflareTenantRootRefreshTriggerV1,
+    /// When the operation's authorization expires. Past it, an operation that
+    /// holds no live attempt stops blocking other operations.
+    pub(crate) expires_at_ms: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -1369,6 +1373,17 @@ pub(crate) struct CloudflareTenantRootRefreshCompletionV1 {
     pub(crate) response: CloudflareTenantRootRefreshActivationResponseV1,
 }
 
+/// An operation abandoned before its refresh committed: its attempt's
+/// ceremony window closed first, or its authorization expired while it held
+/// no live attempt. A retry of the operation is refused; a new operation can
+/// refresh the root.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CloudflareTenantRootRefreshAbandonmentV1 {
+    pub(crate) operation_id: String,
+    pub(crate) abandoned_at_ms: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum CloudflareTenantRootRefreshAdmissionOutcomeV1 {
@@ -1377,6 +1392,9 @@ pub(crate) enum CloudflareTenantRootRefreshAdmissionOutcomeV1 {
     },
     Replayed {
         response: CloudflareTenantRootRefreshActivationResponseV1,
+    },
+    Abandoned {
+        abandoned_at_ms: u64,
     },
     Throttled {
         retry_at_ms: u64,
@@ -1988,8 +2006,6 @@ pub(crate) struct CloudflareTenantRootRefreshAttemptV1 {
 #[serde(rename_all = "snake_case")]
 pub(crate) enum CloudflareTenantRootRefreshTerminalOutcomeV1 {
     Completed,
-    Failed,
-    Aborted,
 }
 
 /// Forward-only public refresh fence. The activation path owns terminal
@@ -2009,6 +2025,14 @@ pub(crate) enum CloudflareTenantRootRefreshFenceV1 {
         attempt: CloudflareTenantRootRefreshAttemptV1,
         outcome: CloudflareTenantRootRefreshTerminalOutcomeV1,
         response: CloudflareTenantRootRefreshActivationResponseV1,
+    },
+    /// An attempt whose ceremony window closed before the Router committed
+    /// it. Its commit, rendezvous and installation checkpoints are refused
+    /// from here on, so nothing it prepared can activate. The next attempt
+    /// replaces it; each Deriver's next refresh supersedes what it left.
+    Abandoned {
+        attempt: CloudflareTenantRootRefreshAttemptV1,
+        abandoned_at_ms: u64,
     },
 }
 
@@ -8887,6 +8911,17 @@ fn manual_refresh_completion_storage_key_v1(operation_id: &str) -> String {
     )
 }
 
+fn refresh_abandonment_storage_key_v1(operation_id: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(b"tenant-root-refresh-abandonment-v1");
+    hasher.update((operation_id.len() as u32).to_be_bytes());
+    hasher.update(operation_id.as_bytes());
+    format!(
+        "{TENANT_ROOT_REFRESH_ABANDONMENT_STORAGE_PREFIX_V1}{}",
+        encode_base64url_bytes_v1(&hasher.finalize())
+    )
+}
+
 fn manual_refresh_in_progress_error() -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::ConflictingPair,
@@ -8903,7 +8938,78 @@ fn validate_refresh_pending_v1(
             "tenant-root manual refresh pending lifecycle revision must be positive",
         ));
     }
+    if pending.expires_at_ms == 0 {
+        return Err(malformed_input(
+            "tenant-root refresh pending authorization expiry must be positive",
+        ));
+    }
     Ok(())
+}
+
+fn validate_refresh_abandonment_v1(
+    abandonment: &CloudflareTenantRootRefreshAbandonmentV1,
+) -> RouterAbProtocolResult<()> {
+    validate_refresh_operation_id_v1(&abandonment.operation_id)?;
+    if abandonment.abandoned_at_ms == 0 {
+        return Err(malformed_input(
+            "tenant-root refresh abandonment time must be positive",
+        ));
+    }
+    Ok(())
+}
+
+/// Abandons refresh work that can no longer finish, so it stops blocking the
+/// next refresh.
+///
+/// - An attempt the Router has not committed is abandoned once its ceremony
+///   window has closed by this clock. No receipt can be issued for it any
+///   more, and from here on the fence refuses its commit, rendezvous and
+///   installation checkpoints, whichever arrives first.
+/// - The admitted operation that owns it is abandoned with it.
+/// - An admitted operation holding no live attempt is abandoned once its
+///   authorization has expired.
+///
+/// Returns the operations abandoned. A managed restore in progress owns the
+/// fence, so nothing is abandoned while one is reserved.
+fn abandon_expired_refresh_v1(
+    record: &mut CloudflareTenantRootRefreshActiveStateRecordV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<Vec<String>> {
+    if matches!(
+        &record.managed_restore_fence,
+        CloudflareTenantRootManagedRestoreFenceV1::Reserved { .. }
+    ) {
+        return Ok(Vec::new());
+    }
+    let mut abandoned = Vec::new();
+    if let CloudflareTenantRootRefreshFenceV1::Reserved { attempt }
+    | CloudflareTenantRootRefreshFenceV1::Executed { attempt } = &record.fence
+    {
+        let context = decode_refresh_attempt_context_v1(attempt)?;
+        if now_ms < context.expires_at_ms() {
+            return Ok(abandoned);
+        }
+        let attempt = attempt.clone();
+        if let (Some(operation_id), Some(pending)) =
+            (&attempt.manual_operation_id, &record.manual_refresh_pending)
+        {
+            if &pending.operation_id == operation_id {
+                abandoned.push(operation_id.clone());
+                record.manual_refresh_pending = None;
+            }
+        }
+        record.fence = CloudflareTenantRootRefreshFenceV1::Abandoned {
+            attempt,
+            abandoned_at_ms: now_ms,
+        };
+    }
+    if let Some(pending) = &record.manual_refresh_pending {
+        if now_ms >= pending.expires_at_ms {
+            abandoned.push(pending.operation_id.clone());
+            record.manual_refresh_pending = None;
+        }
+    }
+    Ok(abandoned)
 }
 
 fn validate_refresh_completion_v1(
@@ -8930,6 +9036,9 @@ enum CloudflareTenantRootRefreshAdmissionEvaluationV1 {
     Replay {
         response: CloudflareTenantRootRefreshActivationResponseV1,
     },
+    Abandoned {
+        abandoned_at_ms: u64,
+    },
     Throttled {
         retry_at_ms: u64,
     },
@@ -8944,6 +9053,7 @@ enum CloudflareTenantRootRefreshAdmissionEvaluationV1 {
 fn evaluate_refresh_admission_v1(
     record: &CloudflareTenantRootRefreshActiveStateRecordV1,
     completion: Option<CloudflareTenantRootRefreshCompletionV1>,
+    abandonment: Option<CloudflareTenantRootRefreshAbandonmentV1>,
     operation_id: &str,
     trigger: CloudflareTenantRootRefreshTriggerV1,
     identity_digest: TenantRootIdentityDigestV1,
@@ -8964,6 +9074,18 @@ fn evaluate_refresh_admission_v1(
         }
         return Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Replay {
             response: completion.response,
+        });
+    }
+    if let Some(abandonment) = abandonment {
+        validate_refresh_abandonment_v1(&abandonment).map_err(stored_refresh_record_error)?;
+        if abandonment.operation_id != operation_id {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root refresh abandonment key collision",
+            ));
+        }
+        return Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Abandoned {
+            abandoned_at_ms: abandonment.abandoned_at_ms,
         });
     }
     let already_admitted = record
@@ -9049,6 +9171,7 @@ fn evaluate_refresh_admission_v1(
             operation_id: operation_id.to_owned(),
             lifecycle_revision: record.lifecycle_revision,
             trigger,
+            expires_at_ms,
         },
     })
 }
@@ -9477,6 +9600,7 @@ fn validate_refresh_active_state_record(
             &record.fence,
             CloudflareTenantRootRefreshFenceV1::Open
                 | CloudflareTenantRootRefreshFenceV1::Terminal { .. }
+                | CloudflareTenantRootRefreshFenceV1::Abandoned { .. }
         ) {
             return Err(manual_refresh_in_progress_error());
         }
@@ -9647,6 +9771,17 @@ fn validate_refresh_fence(
         CloudflareTenantRootRefreshFenceV1::Reserved { attempt }
         | CloudflareTenantRootRefreshFenceV1::Executed { attempt }
         | CloudflareTenantRootRefreshFenceV1::Terminal { attempt, .. } => attempt,
+        CloudflareTenantRootRefreshFenceV1::Abandoned {
+            attempt,
+            abandoned_at_ms,
+        } => {
+            if *abandoned_at_ms < decode_refresh_attempt_context_v1(attempt)?.expires_at_ms() {
+                return Err(malformed_input(
+                    "tenant-root refresh attempt was abandoned inside its ceremony window",
+                ));
+            }
+            attempt
+        }
     };
     validate_refresh_attempt_packages(attempt)?;
     let attempt_id = decode_canonical_base64url(
@@ -10580,7 +10715,18 @@ fn require_refresh_fence_matches_command(
             RouterAbProtocolErrorCode::ConflictingPair,
             "tenant-root refresh operation is terminal",
         )),
+        CloudflareTenantRootRefreshFenceV1::Abandoned { .. } => {
+            Err(refresh_attempt_abandoned_error())
+        }
     }
+}
+
+/// The attempt missed its ceremony window before the Router committed it.
+pub(crate) fn refresh_attempt_abandoned_error() -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::ConflictingPair,
+        "tenant-root refresh attempt expired before its commit and was abandoned",
+    )
 }
 
 fn refresh_reserved_fence(
@@ -10603,6 +10749,9 @@ fn refresh_reserved_fence(
             RouterAbProtocolErrorCode::ConflictingPair,
             "tenant-root refresh operation has passed its commitment checkpoint",
         )),
+        CloudflareTenantRootRefreshFenceV1::Abandoned { .. } => {
+            Err(refresh_attempt_abandoned_error())
+        }
     }
 }
 
@@ -10626,6 +10775,9 @@ fn refresh_executed_fence(
             RouterAbProtocolErrorCode::ConflictingPair,
             "tenant-root refresh operation is terminal",
         )),
+        CloudflareTenantRootRefreshFenceV1::Abandoned { .. } => {
+            Err(refresh_attempt_abandoned_error())
+        }
     }
 }
 
@@ -12129,7 +12281,8 @@ async fn read_refresh_job_v1<Store: TenantRootCreationStoreV1>(
         CloudflareTenantRootRefreshFenceV1::Open => (None, false),
         CloudflareTenantRootRefreshFenceV1::Reserved { attempt } => (Some(attempt), false),
         CloudflareTenantRootRefreshFenceV1::Executed { attempt } => (Some(attempt), true),
-        CloudflareTenantRootRefreshFenceV1::Terminal { .. } => (None, false),
+        CloudflareTenantRootRefreshFenceV1::Terminal { .. }
+        | CloudflareTenantRootRefreshFenceV1::Abandoned { .. } => (None, false),
     };
     let commitment_encoded = store
         .get_json::<String>(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
@@ -12734,9 +12887,48 @@ async fn reserve_refresh_admission_v1<Store: TenantRootCreationStoreV1>(
     let completion = store
         .get_json::<CloudflareTenantRootRefreshCompletionV1>(&completion_key)
         .await?;
+    let mut record = active.record.clone();
+    let abandoned_operations = abandon_expired_refresh_v1(&mut record, now_ms)?;
+    if record.fence != active.record.fence
+        || record.manual_refresh_pending != active.record.manual_refresh_pending
+    {
+        validate_refresh_active_state_record(record.clone(), authority_id, issuer_keys)?;
+        if record.fence != active.record.fence {
+            // The abandoned attempt can never use its checkpoints again.
+            store
+                .delete(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
+                .await?;
+            store
+                .delete(TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1)
+                .await?;
+            store
+                .delete(TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1)
+                .await?;
+        }
+        for abandoned_operation_id in abandoned_operations {
+            store
+                .put_json(
+                    &refresh_abandonment_storage_key_v1(&abandoned_operation_id),
+                    &CloudflareTenantRootRefreshAbandonmentV1 {
+                        operation_id: abandoned_operation_id.clone(),
+                        abandoned_at_ms: now_ms,
+                    },
+                )
+                .await?;
+        }
+        store
+            .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &record)
+            .await?;
+    }
+    let abandonment = store
+        .get_json::<CloudflareTenantRootRefreshAbandonmentV1>(
+            &refresh_abandonment_storage_key_v1(&operation_id),
+        )
+        .await?;
     let evaluation = evaluate_refresh_admission_v1(
-        &active.record,
+        &record,
         completion,
+        abandonment,
         &operation_id,
         trigger,
         active.identity_digest,
@@ -12749,7 +12941,7 @@ async fn reserve_refresh_admission_v1<Store: TenantRootCreationStoreV1>(
     .map_err(stored_refresh_record_error)?;
     Ok(match evaluation {
         CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { pending } => {
-            let mut candidate = active.record.clone();
+            let mut candidate = record;
             candidate.manual_refresh_pending = Some(pending);
             validate_refresh_active_state_record(candidate.clone(), authority_id, issuer_keys)?;
             store
@@ -12761,6 +12953,9 @@ async fn reserve_refresh_admission_v1<Store: TenantRootCreationStoreV1>(
         }
         CloudflareTenantRootRefreshAdmissionEvaluationV1::Replay { response } => {
             CloudflareTenantRootRefreshAdmissionOutcomeV1::Replayed { response }
+        }
+        CloudflareTenantRootRefreshAdmissionEvaluationV1::Abandoned { abandoned_at_ms } => {
+            CloudflareTenantRootRefreshAdmissionOutcomeV1::Abandoned { abandoned_at_ms }
         }
         CloudflareTenantRootRefreshAdmissionEvaluationV1::Throttled { retry_at_ms } => {
             CloudflareTenantRootRefreshAdmissionOutcomeV1::Throttled { retry_at_ms }
@@ -12881,6 +13076,19 @@ async fn reserve_refresh_attempt_v1<Store: TenantRootCreationStoreV1>(
                 return Err(manual_refresh_in_progress_error());
             }
             active.record.clone()
+        }
+        CloudflareTenantRootRefreshFenceV1::Abandoned {
+            attempt: stored, ..
+        } if stored == &attempt => {
+            return Err(refresh_attempt_abandoned_error());
+        }
+        CloudflareTenantRootRefreshFenceV1::Abandoned { .. } => {
+            let mut record = active.record.clone();
+            record.fence = CloudflareTenantRootRefreshFenceV1::Reserved { attempt };
+            store
+                .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &record)
+                .await?;
+            record
         }
         CloudflareTenantRootRefreshFenceV1::Terminal {
             attempt: stored, ..
@@ -13017,6 +13225,9 @@ async fn persist_refresh_active_state_v1<Store: TenantRootCreationStoreV1>(
             return Err(refresh_replay_conflict(
                 "tenant-root refresh activation conflicts with the terminal refresh state",
             ));
+        }
+        CloudflareTenantRootRefreshFenceV1::Abandoned { .. } => {
+            return Err(refresh_attempt_abandoned_error());
         }
     };
     let manual_operation_id = attempt.manual_operation_id.clone();
@@ -18590,6 +18801,7 @@ mod tests {
         let first = evaluate_refresh_admission_v1(
             &record,
             None,
+            None,
             "operation-a",
             CloudflareTenantRootRefreshTriggerV1::Manual,
             identity_digest_for_record(&record),
@@ -18611,6 +18823,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &admitted,
                 None,
+                None,
                 "operation-a",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&admitted),
@@ -18625,6 +18838,7 @@ mod tests {
         assert!(matches!(
             evaluate_refresh_admission_v1(
                 &admitted,
+                None,
                 None,
                 "operation-b",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
@@ -18645,6 +18859,7 @@ mod tests {
         assert!(matches!(
             evaluate_refresh_admission_v1(
                 &restarted,
+                None,
                 None,
                 "operation-a",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
@@ -18680,6 +18895,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &recovered_completed,
                 None,
+                None,
                 "operation-b",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&recovered_completed),
@@ -18696,6 +18912,7 @@ mod tests {
         assert!(matches!(
             evaluate_refresh_admission_v1(
                 &completed,
+                None,
                 None,
                 "operation-b",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
@@ -18731,6 +18948,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &restore_active.record,
                 None,
+                None,
                 "operation-c",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&restore_active.record),
@@ -18758,6 +18976,7 @@ mod tests {
                 )
                 .expect("reload completion"),
             ),
+            None,
             "operation-a",
             CloudflareTenantRootRefreshTriggerV1::Manual,
             identity_digest_for_record(&later_state),
@@ -18782,6 +19001,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &other_tenant,
                 None,
+                None,
                 "operation-b",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&other_tenant),
@@ -18803,6 +19023,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &record,
                 None,
+                None,
                 "unseen",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&record),
@@ -18818,6 +19039,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &record,
                 None,
+                None,
                 "unseen",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&record),
@@ -18831,6 +19053,7 @@ mod tests {
         ));
         let admitted = evaluate_refresh_admission_v1(
             &record,
+            None,
             None,
             "admitted",
             CloudflareTenantRootRefreshTriggerV1::Manual,
@@ -18852,6 +19075,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &restarted,
                 None,
+                None,
                 "admitted",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&restarted),
@@ -18866,6 +19090,7 @@ mod tests {
         assert!(matches!(
             evaluate_refresh_admission_v1(
                 &restarted,
+                None,
                 None,
                 "admitted",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
@@ -18889,6 +19114,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &record,
                 Some(completion),
+                None,
                 "admitted",
                 CloudflareTenantRootRefreshTriggerV1::Manual,
                 identity_digest_for_record(&record),
@@ -18923,6 +19149,7 @@ mod tests {
             evaluate_refresh_admission_v1(
                 &record,
                 None,
+                None,
                 "scheduled-operation",
                 CloudflareTenantRootRefreshTriggerV1::Scheduled,
                 identity_digest,
@@ -18938,6 +19165,7 @@ mod tests {
         ));
         let admitted = evaluate_refresh_admission_v1(
             &record,
+            None,
             None,
             "scheduled-operation",
             CloudflareTenantRootRefreshTriggerV1::Scheduled,
@@ -18985,9 +19213,11 @@ mod tests {
             operation_id: "scheduled-operation".to_owned(),
             lifecycle_revision: trigger_mismatch.lifecycle_revision,
             trigger: CloudflareTenantRootRefreshTriggerV1::Scheduled,
+            expires_at_ms: u64::MAX,
         });
         let mismatch = evaluate_refresh_admission_v1(
             &trigger_mismatch,
+            None,
             None,
             "scheduled-operation",
             CloudflareTenantRootRefreshTriggerV1::Manual,
