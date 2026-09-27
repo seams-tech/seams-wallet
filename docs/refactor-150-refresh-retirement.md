@@ -11,15 +11,18 @@ See [admission identity and settlement](./refactor-150-admission-identity.md).
 
 - **The gate is implemented.** A Deriver erases a retired share and its
   backup only once every admission on that epoch is settled or cancelled.
-- **Cancellation now stops the whole execution in the role store and on the
-  VM.** Recovery cancels only what the store can fence:
+- **Cancellation now stops the whole execution.** Recovery cancels only what
+  can be fenced:
   - an ECDSA attempt;
-  - a Yao attempt that Deriver A has not claimed and whose pair is in the
-    role store.
+  - a Yao attempt that Deriver A has not claimed. Its pair's claim and
+    completion then refuse it, in the role store or in the wallet object
+    that holds it.
 
-  The pair's claim and completion then refuse it. A claimed attempt, or one
-  whose pair is in a wallet object, stays pending
+  A claimed attempt stays pending until it completes
   ([admission identity](./refactor-150-admission-identity.md)).
+- **Wallet objects settle.** An object's completion is acknowledged to the
+  role store. A lost acknowledgement is recovered by reconciliation, which
+  reports the same completion.
 - **Nothing issues the command.**
   - The control plane signs a retired-cleanup command only when asked, with
     the role's exact row revisions.
@@ -71,13 +74,17 @@ See [admission identity and settlement](./refactor-150-admission-identity.md).
 
 ## Order of work
 
-1. Settlement from the wallet-object pair store, through an explicit,
-   replay-safe path back to the role store that owns the admission.
-2. Cancellation that stops the whole execution, or leaves it pending. Its
-   E2E pauses an execution after its root read, cancels, then restarts or
-   retries. The old execution must cause no duplicate effect and reuse no
-   one-use material.
-3. The trigger above, with completed-step replay that needs no share.
+1. **Done (2026-09-27):** settlement from the wallet-object pair store,
+   through an explicit, replay-safe path back to the role store that owns the
+   admission.
+2. **Done (2026-09-27):** cancellation that stops the whole execution, or
+   leaves it pending.
+   - Its VM E2E pauses an execution after its root reads, cancels, then
+     retries.
+   - The old execution causes no duplicate effect and reuses no one-use
+     material.
+3. **Next:** the trigger above, with completed-step replay that needs no
+   share.
 
 ## Evidence planned for the trigger
 

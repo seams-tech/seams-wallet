@@ -6,11 +6,15 @@ use crate::{
     ed25519_yao_lifecycle::{
         role_d1::encode_hex_slice, DeriverBYaoSessionCommandV1, DeriverBYaoSessionD1V1,
     },
+    tenant_root_role_d1::{
+        TenantRootWalletPairReconcileRequestV1, TenantRootWalletPairReconciliationV1,
+    },
     CloudflareDeriverBWalletPairScopeV1,
 };
 
 const BINDING: &str = "DERIVER_B_WALLET_DO";
 const COMMAND_PATH: &str = "/router-ab/internal/deriver-b/wallet-pair";
+const RECONCILE_PATH: &str = "/router-ab/internal/deriver-b/wallet-pair/reconcile";
 const OWNER_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_owner (
     id INTEGER PRIMARY KEY CHECK (id = 1), owner_json TEXT NOT NULL)";
 const PAIR_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS yao_pair_sessions (
@@ -22,6 +26,11 @@ const PAIR_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS yao_pair_sessions (
     expires_at_ms TEXT NOT NULL,
     updated_at_ms TEXT NOT NULL,
     root_identity_digest_hex TEXT NOT NULL)";
+/// Pair sessions whose admission the role store is cancelling. A fenced pair
+/// can neither start nor complete here.
+const FENCE_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS yao_pair_admission_fences (
+    session_hex TEXT PRIMARY KEY,
+    fenced_at_ms INTEGER NOT NULL)";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -114,17 +123,78 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
     }
 
     async fn fetch(&self, mut request: Request) -> worker::Result<Response> {
-        if request.method() != worker::Method::Post || request.path() != COMMAND_PATH {
+        let path = request.path();
+        if request.method() != worker::Method::Post
+            || (path != COMMAND_PATH && path != RECONCILE_PATH)
+        {
             return Response::error("Unknown Deriver B wallet object request", 404);
         }
         self.sql.exec(OWNER_SCHEMA, None)?;
         self.sql.exec(PAIR_SCHEMA, None)?;
+        self.sql.exec(FENCE_SCHEMA, None)?;
+        if path == RECONCILE_PATH {
+            let reconcile: TenantRootWalletPairReconcileRequestV1 = request.json().await?;
+            return Response::from_json(&self.reconcile(&reconcile)?);
+        }
         let request: DeriverBWalletDoRequestV1 = request.json().await?;
         self.execute(request).await
     }
 }
 
 impl RouterAbDeriverBWalletDurableObject {
+    /// Answers the role store that owns a pair session's admission. When
+    /// asked, it first fences the pair unless it completed, in one statement.
+    /// Deriver A cannot complete without B's completion, so B never waits on
+    /// a claim. A fence also covers a session this object never prepared.
+    fn reconcile(
+        &self,
+        request: &TenantRootWalletPairReconcileRequestV1,
+    ) -> worker::Result<TenantRootWalletPairReconciliationV1> {
+        if request.session_hex.len() != 64
+            || !request
+                .session_hex
+                .bytes()
+                .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+        {
+            return Err(pair_error("Deriver B pair session must be 64 lowercase hex characters"));
+        }
+        if request.fence {
+            self.sql.exec(
+                "INSERT INTO yao_pair_admission_fences (session_hex, fenced_at_ms) \
+                 SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM yao_pair_sessions \
+                 WHERE session_hex = ? AND lifecycle = 'completed') ON CONFLICT DO NOTHING",
+                vec![
+                    SqlStorageValue::String(request.session_hex.clone()),
+                    SqlStorageValue::Integer(i64::try_from(request.now_ms).map_err(pair_error)?),
+                    SqlStorageValue::String(request.session_hex.clone()),
+                ],
+            )?;
+        }
+        let completed = !self
+            .sql
+            .exec(
+                "SELECT session_hex FROM yao_pair_sessions WHERE session_hex = ? AND lifecycle = 'completed'",
+                vec![SqlStorageValue::String(request.session_hex.clone())],
+            )?
+            .to_array::<SessionRowV1>()?
+            .is_empty();
+        let fenced = !self
+            .sql
+            .exec(
+                "SELECT session_hex FROM yao_pair_admission_fences WHERE session_hex = ?",
+                vec![SqlStorageValue::String(request.session_hex.clone())],
+            )?
+            .to_array::<SessionRowV1>()?
+            .is_empty();
+        Ok(if completed {
+            TenantRootWalletPairReconciliationV1::Completed
+        } else if fenced {
+            TenantRootWalletPairReconciliationV1::Fenced
+        } else {
+            TenantRootWalletPairReconciliationV1::Open
+        })
+    }
+
     async fn execute(&self, request: DeriverBWalletDoRequestV1) -> worker::Result<Response> {
         request.scope.validate().map_err(pair_error)?;
         request.command.validate().map_err(pair_error)?;
@@ -240,6 +310,40 @@ impl RouterAbDeriverBWalletDurableObject {
             _ => Err(pair_error("Deriver B wallet pair scope conflict")),
         }
     }
+}
+
+#[derive(Deserialize)]
+struct SessionRowV1 {
+    #[serde(rename = "session_hex")]
+    _session_hex: String,
+}
+
+/// Asks the wallet object that holds one of Deriver B's pair sessions to
+/// report it, and to fence it when asked
+/// ([`RouterAbDeriverBWalletDurableObject::reconcile`]).
+pub(crate) async fn reconcile_deriver_b_wallet_pair_v1(
+    env: &Env,
+    object_name: &str,
+    request: &TenantRootWalletPairReconcileRequestV1,
+) -> worker::Result<TenantRootWalletPairReconciliationV1> {
+    let namespace = env.durable_object(BINDING)?;
+    let stub = namespace.get_by_name(object_name)?;
+    let body = serde_json::to_string(request).map_err(pair_error)?;
+    let mut init = worker::RequestInit::new();
+    init.with_method(worker::Method::Post)
+        .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&body)));
+    let request = Request::new_with_init(
+        &format!("https://router-ab-do.internal{RECONCILE_PATH}"),
+        &init,
+    )?;
+    let mut response = stub.fetch_with_request(request).await?;
+    if response.status_code() != 200 {
+        return Err(pair_error(format!(
+            "Deriver B wallet object reconciliation returned HTTP {}",
+            response.status_code()
+        )));
+    }
+    response.json::<TenantRootWalletPairReconciliationV1>().await
 }
 
 fn pair_error(error: impl ToString) -> worker::Error {

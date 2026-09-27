@@ -3850,6 +3850,28 @@ async fn execute_deriver_b_role_session_command(
             started_at_ms,
             if result.is_ok() { "success" } else { "failure" },
         );
+        // The wallet object reports the pair completed: the role store that
+        // owns its admission settles it. If this is lost, the admission stays
+        // unsettled until retirement reconciles it with the object.
+        if matches!(result, Ok(DeriverBYaoSessionResponseV1::PairCompleted { .. })) {
+            let settled = match crate::durable_object::deriver_b_wallet_object_name_v1(scope) {
+                Ok(object_name) => {
+                    role_d1::settle_wallet_object_admission_v1(
+                        env,
+                        "deriver_b",
+                        &role_d1::encode_hex_slice(&scope.pair_binding.session()),
+                        &object_name,
+                    )
+                    .await
+                }
+                Err(error) => Err(error),
+            };
+            if let Err(error) = settled {
+                worker::console_error!(
+                    "Deriver B pair completed, but its admission settlement was not acknowledged: {error}"
+                );
+            }
+        }
         result
     }
 }

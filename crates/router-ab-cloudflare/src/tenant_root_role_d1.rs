@@ -197,6 +197,25 @@ pub const TENANT_ROOT_SETTLE_ROOT_USE_ADMISSION_SQL_V1: &str =
     "UPDATE tenant_root_root_use_admissions \
     SET status = 'settled' WHERE role = ?1 AND attempt_kind = ?2 AND attempt_key_hex = ?3 \
     AND status IN ('admitted', 'claimed')";
+/// Settles the admission of one pair session held in a wallet object, once
+/// that object reports the pair completed. Bound to the exact object and
+/// attempt; replaying it changes nothing. Parameters: the role, the attempt
+/// kind, the attempt key and the object's name.
+pub const TENANT_ROOT_SETTLE_WALLET_OBJECT_ADMISSION_SQL_V1: &str =
+    "UPDATE tenant_root_root_use_admissions \
+    SET status = 'settled' WHERE role = ?1 AND attempt_kind = ?2 AND attempt_key_hex = ?3 \
+    AND pair_object_name = ?4 AND status IN ('admitted', 'claimed')";
+/// Cancels the admission of one pair session held in a wallet object, once
+/// that object has fenced the pair. Parameters as for the settlement.
+const CANCEL_WALLET_OBJECT_ADMISSION_SQL: &str = "UPDATE tenant_root_root_use_admissions \
+    SET status = 'cancelled' WHERE role = ?1 AND attempt_kind = ?2 AND attempt_key_hex = ?3 \
+    AND pair_object_name = ?4 AND status = 'admitted'";
+/// The unsettled admissions on one epoch here whose pairs wallet objects hold.
+const LIST_WALLET_OBJECT_ADMISSIONS_SQL: &str = "SELECT attempt_key_hex, pair_object_name, \
+    admitted_at_ms FROM tenant_root_root_use_admissions WHERE tenant_identity_digest_hex = ?1 \
+    AND custody_lineage_b64u = ?2 AND role = ?3 AND tenant_root_share_epoch = ?4 \
+    AND status IN ('admitted', 'claimed') AND pair_object_name IS NOT NULL \
+    ORDER BY admitted_at_ms, attempt_key_hex";
 /// The status of one attempt's admission, for a pair store's own checks.
 /// Parameters as for the claim.
 pub const TENANT_ROOT_ROOT_USE_ADMISSION_STATUS_SQL_V1: &str =
@@ -1757,6 +1776,41 @@ pub(crate) enum TenantRootRootUseAdmissionV1 {
     /// This attempt settled, and its retired epoch has since been erased
     /// here; it can read nothing more.
     Erased,
+}
+
+/// What a wallet object reports for one pair session when the role store
+/// that owns its admission reconciles it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TenantRootWalletPairReconciliationV1 {
+    /// The pair completed in the object: its admission settles.
+    Completed,
+    /// The object fenced the pair: it can neither start nor complete there,
+    /// so its admission can be cancelled.
+    Fenced,
+    /// Deriver A's executor claimed the pair. Its messages may still reach
+    /// Deriver B, so only its completion ends it.
+    Claimed,
+    /// Neither completed nor fenced. The object was not asked to fence.
+    Open,
+}
+
+/// Role store to wallet object: report one pair session's outcome and, when
+/// `fence` is set, fence it unless it is claimed or completed.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TenantRootWalletPairReconcileRequestV1 {
+    pub session_hex: String,
+    pub fence: bool,
+    pub now_ms: u64,
+}
+
+/// One unsettled admission whose pair a wallet object holds.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub(crate) struct TenantRootWalletObjectAdmissionV1 {
+    pub(crate) attempt_key_hex: String,
+    pub(crate) pair_object_name: String,
+    pub(crate) admitted_at_ms: i64,
 }
 
 /// Which commit decided one attempt's admission when it tried to settle.
@@ -13057,6 +13111,66 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             epoch,
         )
         .await
+    }
+
+    /// The unsettled admissions on one epoch here whose pairs are held in
+    /// wallet objects, oldest first.
+    pub(crate) async fn unsettled_wallet_object_admissions(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        epoch: TenantRootShareEpoch,
+    ) -> RoleStoreResult<Vec<TenantRootWalletObjectAdmissionV1>> {
+        let identity_digest_hex = encode_hex(identity_digest.as_bytes());
+        let custody_lineage_b64u = custody_lineage.to_base64url();
+        let epoch = epoch_i64(epoch)?.to_string();
+        Ok(self
+            .session
+            .prepare(LIST_WALLET_OBJECT_ADMISSIONS_SQL)
+            .bind_refs(
+                [
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(epoch.as_str()),
+                ]
+                .iter(),
+            )?
+            .all()
+            .await?
+            .results::<TenantRootWalletObjectAdmissionV1>()?)
+    }
+
+    /// Records a wallet object's report for one admission here: settled when
+    /// the object says the pair completed, cancelled when it fenced it.
+    /// Replaying either changes nothing.
+    pub(crate) async fn record_wallet_object_reconciliation(
+        &self,
+        admission: &TenantRootWalletObjectAdmissionV1,
+        reconciliation: TenantRootWalletPairReconciliationV1,
+    ) -> RoleStoreResult<()> {
+        let sql = match reconciliation {
+            TenantRootWalletPairReconciliationV1::Completed => {
+                TENANT_ROOT_SETTLE_WALLET_OBJECT_ADMISSION_SQL_V1
+            }
+            TenantRootWalletPairReconciliationV1::Fenced => CANCEL_WALLET_OBJECT_ADMISSION_SQL,
+            TenantRootWalletPairReconciliationV1::Claimed
+            | TenantRootWalletPairReconciliationV1::Open => return Ok(()),
+        };
+        self.session
+            .prepare(sql)
+            .bind_refs(
+                [
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1),
+                    RoleSqlValue::Text(admission.attempt_key_hex.as_str()),
+                    RoleSqlValue::Text(admission.pair_object_name.as_str()),
+                ]
+                .iter(),
+            )?
+            .run()
+            .await?;
+        Ok(())
     }
 
     /// Recovery cancels the admissions on one epoch here that are still

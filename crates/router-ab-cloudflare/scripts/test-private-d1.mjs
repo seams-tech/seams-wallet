@@ -303,10 +303,18 @@ function strictWorker(name, role, bindings) {
   };
 }
 
+// `W` for the Derivers of the wallet-object admission run: one second, so
+// recovery fences what it finds within the run.
+const walletObjectAdmissionRun = process.argv.includes('--do-admission-settlement');
+const admissionRecoveryWindowBinding = walletObjectAdmissionRun
+  ? { TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS: '1000' }
+  : {};
+
 function deriverAWorker(fixture) {
   return {
     ...strictWorker('deriver-a', 'deriver-a', {
       ...fixture.deriver_a_env,
+      ...admissionRecoveryWindowBinding,
       ROUTER_AB_TENANT_ROOT_ROLE_D1_INTEGRATION: 'enabled',
     }),
     d1Databases: { [roleD1Binding]: 'deriver-a-private-d1' },
@@ -329,6 +337,7 @@ function deriverAWorker(fixture) {
 function deriverBWorker(fixture) {
   const bindings = {
     ...fixture.deriver_b_env,
+    ...admissionRecoveryWindowBinding,
     ROUTER_AB_TENANT_ROOT_ROLE_D1_INTEGRATION: 'enabled',
   };
   if (process.argv.includes('--do-pair-b-burn-before-complete')) {
@@ -344,6 +353,15 @@ function deriverBWorker(fixture) {
         scriptName: 'router',
         useSQLite: true,
       },
+      // A wallet-object build keeps Deriver B's pairs in its own objects.
+      ...(process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled'
+        ? {
+            DERIVER_B_WALLET_DO: {
+              className: 'RouterAbDeriverBWalletDurableObject',
+              useSQLite: true,
+            },
+          }
+        : {}),
     },
     serviceBindings: { DERIVER_A: 'deriver-a' },
   };
@@ -2763,6 +2781,231 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
   };
 }
 
+/// Opt-in (`--do-admission-settlement`, wallet-object builds). An admission
+/// whose pair a wallet object holds is settled or cancelled only on that
+/// object's word.
+/// - Root R: a registration's execute is held, and the root refreshes.
+///   Retiring epoch 1 at B fences B's pair in its object, and cancels B's
+///   admission. Released, B refuses to start the pair, and the registration
+///   fails. Retiring at A then fences A's burned, never-claimed pair. A fresh
+///   registration on epoch 2 settles through both objects.
+/// - Root S: a completed registration's admissions are set back to
+///   `admitted`, as if both settlement acknowledgements were lost.
+///   Retirement reconciles them with the objects, which report the same
+///   completion, and the epoch is erased with nothing cancelled.
+async function testWalletObjectAdmissionSettlement(topology, fixture, databases) {
+  assert.equal(process.env.ROUTER_AB_WALLET_DO_HARNESS, 'enabled');
+  const router = await topology.getWorker('router-recovery');
+  const controlPlane = await topology.getWorker('tenant-root-control-plane');
+  const derivers = {
+    deriver_a: { worker: await topology.getWorker('deriver-a'), database: databases.deriverA },
+    deriver_b: { worker: await topology.getWorker('deriver-b'), database: databases.deriverB },
+  };
+  const creationNamespace = await topology.getDurableObjectNamespace(
+    tenantRootCreationDoBinding,
+    'router',
+  );
+  const activeState = async (ceremony) => {
+    const stub = creationNamespace.get(creationNamespace.idFromName(ceremony.creation_object_name));
+    const response = await stub.fetch(
+      `https://router-ab-do.internal${creationStateActiveStatePath}`,
+      authenticatedJsonRequest({
+        kind: 'read',
+        identity_digest_b64u: ceremony.identity_digest_b64u,
+        custody_lineage_b64u: ceremony.custody_lineage_b64u,
+      }),
+    );
+    const body = await response.text();
+    assert.equal(response.status, 200, body);
+    return JSON.parse(body);
+  };
+  const create = async (ceremony) => {
+    const response = await postWorkerJson(router, tenantRootCreationPath, {
+      creation_grant_b64u: ceremony.creation_grant_b64u,
+    });
+    const body = await response.text();
+    assert.equal(response.status, 200, body);
+  };
+  const refresh = async (ceremony, operationId) => {
+    const state = await activeState(ceremony);
+    const response = await postWorkerJson(router, tenantRootRefreshPath, {
+      operation_id: operationId,
+      identity_digest_b64u: ceremony.identity_digest_b64u,
+      custody_lineage_b64u: ceremony.custody_lineage_b64u,
+      expected_lifecycle_revision: state.lifecycle_revision,
+      expires_at_ms: Date.now() + 60_000,
+      trigger: 'manual',
+    });
+    const body = await response.text();
+    assert.equal(response.status, 200, body);
+  };
+  const register = async (ceremony, source) => {
+    const response = await postWorkerJson(
+      router,
+      ed25519ExecutePath,
+      buildEd25519ExecuteRequest(fixture, 'admission_race', ceremony, source),
+    );
+    return { status: response.status, body: await response.text() };
+  };
+  const succeeded = (attempt) =>
+    attempt.status === 200 && JSON.parse(attempt.body).status === 'succeeded';
+  // Each role's admissions for the root: epoch, status, and whether a
+  // wallet object holds the pair.
+  const admissions = async (ceremony) =>
+    Promise.all(
+      [databases.deriverA, databases.deriverB].map(async (database) =>
+        (
+          await database
+            .prepare(
+              `SELECT tenant_root_share_epoch AS epoch, status, pair_object_name
+               FROM tenant_root_root_use_admissions
+               WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch, admitted_at_ms`,
+            )
+            .bind(ceremony.custody_lineage_b64u)
+            .all()
+        ).results.map((row) => [row.epoch, row.status, row.pair_object_name !== null]),
+      ),
+    );
+  const revision = async (database, ceremony, epoch) =>
+    (
+      await database
+        .prepare(
+          `SELECT revision FROM tenant_root_role_shares
+           WHERE custody_lineage_b64u = ?1 AND tenant_root_share_epoch = ?2`,
+        )
+        .bind(ceremony.custody_lineage_b64u, epoch)
+        .first()
+    ).revision;
+  // The operator's retirement of epoch 1 at one role.
+  const retire = async (ceremony, role) => {
+    const { worker, database } = derivers[role];
+    const command = await postWorkerJson(controlPlane, controlPlaneCleanupCommandPath, {
+      kind: 'retired_after_refresh',
+      identity_digest_b64u: ceremony.identity_digest_b64u,
+      custody_lineage_b64u: ceremony.custody_lineage_b64u,
+      role,
+      expected_retired_revision: await revision(database, ceremony, 1),
+      expected_active_revision: await revision(database, ceremony, 2),
+    });
+    const commandBody = await command.text();
+    assert.equal(command.status, 200, commandBody);
+    const response = await postWorkerJson(worker, deriverCleanupPath, {
+      cleanup_command_b64u: JSON.parse(commandBody).cleanup_command_b64u,
+    });
+    const body = await response.text();
+    assert.equal(response.status, 200, `${role}: ${body}`);
+    return JSON.parse(body);
+  };
+  // Asks the wallet object behind one admission for its report, without
+  // fencing: what it holds for that pair session.
+  const objectReport = async (ceremony, role, epoch) => {
+    const database = role === 'deriver_a' ? databases.deriverA : databases.deriverB;
+    const row = await database
+      .prepare(
+        `SELECT attempt_key_hex, pair_object_name FROM tenant_root_root_use_admissions
+         WHERE custody_lineage_b64u = ?1 AND tenant_root_share_epoch = ?2`,
+      )
+      .bind(ceremony.custody_lineage_b64u, epoch)
+      .first();
+    const binding = role === 'deriver_a' ? deriverAWalletDoBinding : 'DERIVER_B_WALLET_DO';
+    const worker = role === 'deriver_a' ? 'deriver-a' : 'deriver-b';
+    const namespace = await topology.getDurableObjectNamespace(binding, worker);
+    const object = namespace.get(namespace.idFromName(row.pair_object_name));
+    const response = await object.fetch(
+      `https://router-ab-do.internal/router-ab/internal/${worker}/wallet-pair/reconcile`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ session_hex: row.attempt_key_hex, fence: false, now_ms: Date.now() }),
+      },
+    );
+    const body = await response.text();
+    assert.equal(response.status, 200, body);
+    return JSON.parse(body);
+  };
+  const races = fixture.admission_race;
+
+  // Root R: a held registration is fenced in both objects.
+  const fenced = recoveryCreationGrant('do-admission-fence', 60_000);
+  await create(fenced);
+  const hold = holdNextRecoveryRequest('deriver-a', '/router-ab/deriver-a/ed25519-yao/execute-pair');
+  const heldRegistration = register(fenced, races.held_preparation);
+  await hold.held;
+  const whileHeld = await admissions(fenced);
+  assert.deepEqual(whileHeld, [[[1, 'admitted', true]], [[1, 'admitted', true]]]);
+  await refresh(fenced, 'harness-do-admission-fence');
+  await sleep(1_100);
+  const bFenced = await retire(fenced, 'deriver_b');
+  assert.equal(bFenced.cancelled_admissions, 1, JSON.stringify(bFenced));
+  assert.equal(await objectReport(fenced, 'deriver_b', 1), 'fenced');
+  hold.release();
+  const refused = await heldRegistration;
+  assert.ok(!succeeded(refused), refused.body);
+  const aFenced = await retire(fenced, 'deriver_a');
+  assert.equal(aFenced.cancelled_admissions, 1, JSON.stringify(aFenced));
+  assert.equal(await objectReport(fenced, 'deriver_a', 1), 'fenced');
+  assert.deepEqual(await admissions(fenced), [[[1, 'cancelled', true]], [[1, 'cancelled', true]]]);
+  const fresh = await register(fenced, races.after_refresh);
+  assert.ok(succeeded(fresh), fresh.body);
+  const afterFresh = await admissions(fenced);
+  assert.deepEqual(afterFresh, [
+    [[1, 'cancelled', true], [2, 'settled', true]],
+    [[1, 'cancelled', true], [2, 'settled', true]],
+  ]);
+
+  // Root S: both settlement acknowledgements lost, then reconciled.
+  const lost = recoveryCreationGrant('do-admission-lost-ack', 60_000);
+  await create(lost);
+  const completed = await register(lost, races.after_delivery);
+  assert.ok(succeeded(completed), completed.body);
+  assert.deepEqual(await admissions(lost), [[[1, 'settled', true]], [[1, 'settled', true]]]);
+  for (const database of [databases.deriverA, databases.deriverB]) {
+    await database
+      .prepare(
+        `UPDATE tenant_root_root_use_admissions SET status = 'admitted'
+         WHERE custody_lineage_b64u = ?1`,
+      )
+      .bind(lost.custody_lineage_b64u)
+      .run();
+  }
+  const unacknowledged = await admissions(lost);
+  assert.deepEqual(unacknowledged, [[[1, 'admitted', true]], [[1, 'admitted', true]]]);
+  await refresh(lost, 'harness-do-admission-lost-ack');
+  const aReconciled = await retire(lost, 'deriver_a');
+  const bReconciled = await retire(lost, 'deriver_b');
+  assert.equal(aReconciled.cancelled_admissions, 0, JSON.stringify(aReconciled));
+  assert.equal(bReconciled.cancelled_admissions, 0, JSON.stringify(bReconciled));
+  const reconciled = await admissions(lost);
+  assert.deepEqual(reconciled, [[[1, 'settled', true]], [[1, 'settled', true]]]);
+  const objectReports = [
+    await objectReport(lost, 'deriver_a', 1),
+    await objectReport(lost, 'deriver_b', 1),
+  ];
+  assert.deepEqual(objectReports, ['completed', 'completed']);
+
+  return {
+    kind: 'tenant_root_wallet_object_admission_workers_e2e_v1',
+    fence: {
+      admissionsWhileHeld: whileHeld,
+      deriverBRetired: [bFenced.kind, bFenced.cancelled_admissions],
+      objectsAfterRetirement: { deriverA: 'fenced', deriverB: 'fenced' },
+      heldRegistration: [refused.status, refused.body.slice(0, 160)],
+      deriverARetired: [aFenced.kind, aFenced.cancelled_admissions],
+      freshRegistration: 'succeeded',
+      admissionsAfter: afterFresh,
+    },
+    lostAcknowledgement: {
+      admissionsAfterRevert: unacknowledged,
+      retired: [
+        [aReconciled.kind, aReconciled.cancelled_admissions],
+        [bReconciled.kind, bReconciled.cancelled_admissions],
+      ],
+      admissionsAfterReconciliation: reconciled,
+      objectReports,
+    },
+  };
+}
+
 /// ECDSA work across a refresh. Each Deriver is called once per ECDSA
 /// operation and admits it at its root read. A registration's call to
 /// Deriver B is held while a manual refresh of the root commits and both
@@ -4507,6 +4750,11 @@ async function main() {
           ...admissionRaces,
         })}`,
       );
+      return;
+    }
+    if (walletObjectAdmissionRun) {
+      const summary = await testWalletObjectAdmissionSettlement(topology, fixture, databases);
+      console.log(`R150_WORKERS_WALLET_OBJECT_ADMISSIONS ${JSON.stringify(summary)}`);
       return;
     }
     if (process.argv.includes('--refresh-delivery-after-expiry')) {

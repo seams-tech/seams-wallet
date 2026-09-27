@@ -144,6 +144,7 @@ This is the question the fence answers (mapped 2026-09-27, both hosts):
       that the row really completed.
     - Both VM roles: in the pair store's own transaction, because its table
       shares the role store's SQLite file.
+    - A wallet object: on the object's report, below.
   - **ECDSA:** right after its single root read, if that settlement wins.
 - **Cancelled:** recovery cancels an admission still `admitted` `W` (300 s)
   after it was admitted. It does so only where this store fences every later
@@ -156,10 +157,45 @@ This is the question the fence answers (mapped 2026-09-27, both hosts):
 - **Stays pending, and retirement with it:**
   - **A claimed attempt.** Its messages may still reach Deriver B, so only
     its completion settles it.
-  - **An attempt whose pair is in a wallet object.** Each such admission
-    records its object (`pair_object_name`), but the object does not yet
-    hold the fence or report settlement. Until it does, its admissions end
-    in neither state.
+  - **An attempt whose wallet object cannot be reached,** until it answers.
+
+**Wallet objects** (implemented 2026-09-27; R150's target Cloudflare backend):
+- **Binding.** An admission records the object that holds its pair
+  (`pair_object_name`), bound at admission. The same attempt through another
+  object is a conflict.
+- **The fence lives in the object.** It keeps its own fence table, and it
+  refuses a fenced session's steps:
+  - Deriver A's claim and completion;
+  - Deriver B's start and completion.
+- **Settlement is the object's report, acknowledged to the role store.**
+  - Deriver A's object settles the admission after its completion write.
+  - Deriver B's worker settles it whenever its object reports the pair
+    completed, including on a status read.
+  - Each settlement names the role, the attempt and the object.
+  - It is an acknowledgement, not part of the object's transaction. If it is
+    lost, the admission stays `admitted`: a retryable obligation.
+- **Reconciliation in retired cleanup.** It asks the object behind each
+  unsettled admission on the epoch:
+  - **A completed pair** settles the admission, at any age. This recovers a
+    lost acknowledgement with the same terminal outcome.
+  - **Past `W`,** the object fences the pair in one statement, unless A
+    claimed it or it completed. The admission is then cancelled.
+  - **A claimed pair** stays pending.
+  - **An object that cannot answer** fails the cleanup, which is retried.
+    Nothing is cancelled.
+- **Evidence:** Workers harness `--do-admission-settlement`
+  (`R150_WORKERS_WALLET_OBJECT_ADMISSIONS`), with wallet-object builds for
+  both Derivers.
+  - **Root R:**
+    1. A registration's execute is held over a refresh.
+    2. Retiring epoch 1 at B fences B's object and cancels B's admission.
+    3. Released, B refuses to start the pair: "this tenant-root operation's
+       admission was cancelled here", HTTP 503.
+    4. Retiring at A fences A's burned, never-claimed pair.
+    5. A fresh registration settles on epoch 2 through both objects.
+  - **Root S:** a completed registration's admissions are set back to
+    `admitted`, as if both acknowledgements were lost. Retirement reconciles
+    them to `settled` and cancels nothing. Both objects report `completed`.
 - **Evidence:** VM
   `vm_tenant_root_execution_paused_after_its_root_reads_is_cancelled_and_retried`
   (`R150_VM_TENANT_ROOT_PAUSED_EXECUTION_CANCELLED_E2E`):

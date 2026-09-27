@@ -46,12 +46,14 @@ pub(crate) use deriver_a_pair::{
     call_deriver_a_wallet_do_lookup_v1, call_deriver_a_wallet_do_work_v1,
     deriver_a_wallet_do_burn_work_path_v1, deriver_a_wallet_do_execute_work_path_v1,
     deriver_a_wallet_do_prepare_work_path_v1, deriver_a_wallet_do_status_work_path_v1,
+    reconcile_deriver_a_wallet_pair_v1,
 };
 #[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
 pub use deriver_b_pair::RouterAbDeriverBWalletDurableObject;
 #[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
 pub(crate) use deriver_b_pair::{
-    call_deriver_b_wallet_do_v1, deriver_b_wallet_object_name_v1, DeriverBWalletDoRequestV1,
+    call_deriver_b_wallet_do_v1, deriver_b_wallet_object_name_v1,
+    reconcile_deriver_b_wallet_pair_v1, DeriverBWalletDoRequestV1,
 };
 #[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
 pub use signing_worker_wallet::RouterAbSigningWorkerWalletDurableObject;

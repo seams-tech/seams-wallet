@@ -235,13 +235,17 @@ async fn connect_cloudflare_ed25519_yao_deriver_b_inner_v1(
         crate::set_cloudflare_trace_id_header_v1(headers, trace_id)
             .map_err(|_| CloudflareEd25519YaoWebSocketErrorV1::ServiceBinding)?;
     }
-    let response = env
+    let mut response = env
         .service(DERIVER_B_BINDING)
         .map_err(|_| CloudflareEd25519YaoWebSocketErrorV1::ServiceBinding)?
         .fetch_request(request)
         .await
         .map_err(|_| CloudflareEd25519YaoWebSocketErrorV1::ServiceBinding)?;
     if response.status_code() != 101 {
+        // Deriver B refused to start the pair; its reason names the refusal.
+        let status = response.status_code();
+        let reason = response.text().await.unwrap_or_default();
+        worker::console_error!("Deriver B refused the Yao WebSocket with HTTP {status}: {reason}");
         return Err(CloudflareEd25519YaoWebSocketErrorV1::ServiceBinding);
     }
     let negotiated = response

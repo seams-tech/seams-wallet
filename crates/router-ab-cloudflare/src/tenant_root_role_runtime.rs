@@ -1364,6 +1364,21 @@ pub trait TenantRootDeriverHostV1:
     fn admission_recovery_window_ms(&self) -> RouterAbProtocolResult<u64> {
         Ok(TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_V1)
     }
+    /// Asks the wallet object that holds one pair session for its outcome
+    /// and, when `fence` is set, to fence the pair unless it is claimed or
+    /// completed. A host that keeps pairs only in its role store has no
+    /// wallet objects, and its admissions never name one.
+    async fn reconcile_wallet_object_pair(
+        &self,
+        pair_object_name: &str,
+        request: &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1,
+    ) -> RouterAbProtocolResult<crate::tenant_root_role_d1::TenantRootWalletPairReconciliationV1> {
+        let _ = (pair_object_name, request);
+        Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            "this Deriver host keeps no wallet objects",
+        ))
+    }
     /// The role's Env and Secret bindings.
     fn env(&self) -> &Self::Env;
     /// Opens the role's private role-share store for one operation.
@@ -1521,6 +1536,22 @@ async fn cancelled_root_use_admissions_v1<S: RoleSqlSessionV1>(
         .await
         .map_err(|error| tenant_root_store_error_v1("tenant-root cancelled admission count", error))
 }
+
+/// A wallet object that could not answer leaves its admission pending; the
+/// cleanup is retried.
+#[cfg(any(feature = "wallet-do-harness", feature = "wallet-do-b-harness"))]
+fn wallet_object_unreachable_error_v1(error: worker::Error) -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
+        format!("the wallet object holding a pair could not be reconciled; retry: {error}"),
+    )
+}
+
+/// The Worker env key that sets `W` in milliseconds on a Cloudflare Deriver,
+/// at least one second. Unset, `W` is
+/// [`TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_V1`].
+pub const TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1: &str =
+    "TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS";
 
 /// `W`: how long after admission an unsettled root-use admission is left
 /// before recovery cancels it. It triggers recovery and never by itself
@@ -1767,6 +1798,54 @@ impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
 
     fn now_ms(&self) -> RouterAbProtocolResult<u64> {
         crate::cloudflare_now_unix_ms_v1()
+    }
+
+    fn admission_recovery_window_ms(&self) -> RouterAbProtocolResult<u64> {
+        use crate::CloudflareEnvReaderV1 as _;
+        match self
+            .reader
+            .get_text(TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1)?
+        {
+            Some(value) => value.parse::<u64>().ok().filter(|value| *value >= 1_000).ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                    "the admission recovery window must be at least 1000 milliseconds",
+                )
+            }),
+            None => Ok(TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_V1),
+        }
+    }
+
+    async fn reconcile_wallet_object_pair(
+        &self,
+        pair_object_name: &str,
+        request: &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1,
+    ) -> RouterAbProtocolResult<crate::tenant_root_role_d1::TenantRootWalletPairReconciliationV1> {
+        #[cfg(feature = "wallet-do-harness")]
+        if matches!(self.worker_role, crate::CloudflareWorkerRoleV1::DeriverA) {
+            return crate::durable_object::reconcile_deriver_a_wallet_pair_v1(
+                self.env,
+                pair_object_name,
+                request,
+            )
+            .await
+            .map_err(wallet_object_unreachable_error_v1);
+        }
+        #[cfg(feature = "wallet-do-b-harness")]
+        if matches!(self.worker_role, crate::CloudflareWorkerRoleV1::DeriverB) {
+            return crate::durable_object::reconcile_deriver_b_wallet_pair_v1(
+                self.env,
+                pair_object_name,
+                request,
+            )
+            .await
+            .map_err(wallet_object_unreachable_error_v1);
+        }
+        let _ = (pair_object_name, request);
+        Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            "this Deriver build keeps no wallet objects",
+        ))
     }
 
     fn env(&self) -> &Self::Env {
@@ -6695,6 +6774,41 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
         .role_store()
         .map_err(|error| tenant_root_store_error_v1("tenant-root role store lookup", error))?;
     if is_retired {
+        let admitted_at_or_before_ms =
+            now_ms.saturating_sub(host.admission_recovery_window_ms()?);
+        // An admission whose pair a wallet object holds is settled or
+        // cancelled only on that object's word. The object reports a
+        // completed pair at any age, which recovers a settlement whose
+        // acknowledgement was lost. Past W it also fences a pair that is not
+        // claimed, and the admission is then cancelled.
+        let wallet_object_admissions = store
+            .unsettled_wallet_object_admissions(
+                claimed_identity_digest,
+                claimed_custody_lineage,
+                claimed_epoch,
+            )
+            .await
+            .map_err(|error| tenant_root_store_error_v1("tenant-root wallet-object admissions", error))?;
+        for admission in &wallet_object_admissions {
+            let fence = u64::try_from(admission.admitted_at_ms)
+                .is_ok_and(|admitted_at_ms| admitted_at_ms <= admitted_at_or_before_ms);
+            let reconciliation = host
+                .reconcile_wallet_object_pair(
+                    &admission.pair_object_name,
+                    &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1 {
+                        session_hex: admission.attempt_key_hex.clone(),
+                        fence,
+                        now_ms,
+                    },
+                )
+                .await?;
+            store
+                .record_wallet_object_reconciliation(admission, reconciliation)
+                .await
+                .map_err(|error| {
+                    tenant_root_store_error_v1("tenant-root wallet-object reconciliation", error)
+                })?;
+        }
         // Work admitted on the retired epoch may still need its share. The
         // role store refuses the erasure until every such admission is
         // settled or cancelled; this says so before the command is reserved.
@@ -6710,11 +6824,9 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
             // fence. That is an admission not yet claimed whose pair, if any,
             // is here. Deriver A's claim and each role's completion then
             // refuse it, and an ECDSA read is used only if its settlement
-            // won. A claimed admission, or one whose pair is in a wallet
-            // object, stays pending. An operator-issued cleanup obeys the
-            // same rule.
-            let admitted_at_or_before_ms =
-                now_ms.saturating_sub(host.admission_recovery_window_ms()?);
+            // won. A claimed admission stays pending. One whose pair is in a
+            // wallet object was reconciled above, on that object's word. An
+            // operator-issued cleanup obeys the same rule.
             store
                 .cancel_unclaimed_root_use_admissions(
                     claimed_identity_digest,

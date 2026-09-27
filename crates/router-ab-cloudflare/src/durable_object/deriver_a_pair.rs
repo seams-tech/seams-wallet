@@ -21,6 +21,10 @@ use crate::{
     CloudflareEd25519YaoPairWorkV1, CloudflareEd25519YaoTenantRootContextV2,
 };
 #[cfg(feature = "wallet-do-harness")]
+use crate::tenant_root_role_d1::{
+    TenantRootWalletPairReconcileRequestV1, TenantRootWalletPairReconciliationV1,
+};
+#[cfg(feature = "wallet-do-harness")]
 use crate::{
     ed25519_yao_lifecycle::{
         execute_deriver_a_role, fail_deriver_b_pair_after_a_error_v1,
@@ -40,6 +44,8 @@ const EXECUTE_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/execu
 const STATUS_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/status-work";
 #[cfg(feature = "wallet-do-harness")]
 const BURN_WORK_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/burn-work";
+#[cfg(feature = "wallet-do-harness")]
+const RECONCILE_PATH: &str = "/router-ab/internal/deriver-a/wallet-pair/reconcile";
 const PAIR_DO_BINDING: &str = "DERIVER_A_WALLET_DO";
 const OWNER_SCHEMA: &str = "
     CREATE TABLE IF NOT EXISTS wallet_owner (
@@ -47,12 +53,25 @@ const OWNER_SCHEMA: &str = "
         owner_json TEXT NOT NULL
     )
 ";
+/// Each pair row keeps its sealed record, its lifecycle and whether its
+/// executor ever claimed it, so the object can answer its admission's owner
+/// without opening the record.
 const PAIR_SCHEMA: &str = "
     CREATE TABLE IF NOT EXISTS yao_pair_sessions (
         session_hex TEXT PRIMARY KEY,
         revision_text TEXT NOT NULL,
         root_identity_digest_hex TEXT NOT NULL,
-        ciphertext_json TEXT NOT NULL
+        ciphertext_json TEXT NOT NULL,
+        lifecycle TEXT NOT NULL,
+        claimed INTEGER NOT NULL CHECK (claimed IN (0, 1))
+    )
+";
+/// Pair sessions whose admission the role store is cancelling. A fenced pair
+/// can neither be claimed nor completed here.
+const FENCE_SCHEMA: &str = "
+    CREATE TABLE IF NOT EXISTS yao_pair_admission_fences (
+        session_hex TEXT PRIMARY KEY,
+        fenced_at_ms INTEGER NOT NULL
     )
 ";
 
@@ -322,6 +341,18 @@ struct RevisionRowV1 {
     revision_text: String,
 }
 
+#[derive(Deserialize)]
+struct PairProgressRowV1 {
+    lifecycle: String,
+    claimed: i64,
+}
+
+#[derive(Deserialize)]
+struct FencedSessionRowV1 {
+    #[serde(rename = "session_hex")]
+    _session_hex: String,
+}
+
 struct SelectedPairV1 {
     revision: u64,
     root_identity_digest_hex: String,
@@ -353,6 +384,7 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
         let path = request.path();
         self.sql.exec(OWNER_SCHEMA, None)?;
         self.sql.exec(PAIR_SCHEMA, None)?;
+        self.sql.exec(FENCE_SCHEMA, None)?;
         match path.as_str() {
             PAIR_DO_PATH => {
                 let command: DeriverAPairDoCommandV1 = request.json().await?;
@@ -381,12 +413,70 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
                 let lookup: CloudflareDeriverAWalletPairBurnRequestV1 = request.json().await?;
                 Response::from_json(&self.burn_work(lookup)?)
             }
+            #[cfg(feature = "wallet-do-harness")]
+            RECONCILE_PATH => {
+                let reconcile: TenantRootWalletPairReconcileRequestV1 = request.json().await?;
+                Response::from_json(&self.reconcile(&reconcile)?)
+            }
             _ => Response::error("Unknown Deriver A wallet object request", 404),
         }
     }
 }
 
 impl RouterAbDeriverAWalletDurableObject {
+    /// Answers the role store that owns a pair session's admission. When
+    /// asked, it first fences the pair unless its executor claimed it or it
+    /// completed. Both checks and the fence run in one statement. A fence
+    /// also covers a session this object never prepared.
+    #[cfg(feature = "wallet-do-harness")]
+    fn reconcile(
+        &self,
+        request: &TenantRootWalletPairReconcileRequestV1,
+    ) -> worker::Result<TenantRootWalletPairReconciliationV1> {
+        validate_session_hex(&request.session_hex)?;
+        if request.fence {
+            self.sql.exec(
+                "INSERT INTO yao_pair_admission_fences (session_hex, fenced_at_ms) \
+                 SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM yao_pair_sessions \
+                 WHERE session_hex = ? AND (claimed = 1 OR lifecycle = 'completed')) \
+                 ON CONFLICT DO NOTHING",
+                vec![
+                    SqlStorageValue::String(request.session_hex.clone()),
+                    SqlStorageValue::Integer(i64::try_from(request.now_ms).map_err(pair_error_of)?),
+                    SqlStorageValue::String(request.session_hex.clone()),
+                ],
+            )?;
+        }
+        let pair = self
+            .sql
+            .exec(
+                "SELECT lifecycle, claimed FROM yao_pair_sessions WHERE session_hex = ?",
+                vec![SqlStorageValue::String(request.session_hex.clone())],
+            )?
+            .to_array::<PairProgressRowV1>()?
+            .into_iter()
+            .next();
+        Ok(match pair {
+            Some(pair) if pair.lifecycle == "completed" => {
+                TenantRootWalletPairReconciliationV1::Completed
+            }
+            _ if self.pair_fenced(&request.session_hex)? => TenantRootWalletPairReconciliationV1::Fenced,
+            Some(pair) if pair.claimed == 1 => TenantRootWalletPairReconciliationV1::Claimed,
+            _ => TenantRootWalletPairReconciliationV1::Open,
+        })
+    }
+
+    fn pair_fenced(&self, session_hex: &str) -> worker::Result<bool> {
+        Ok(!self
+            .sql
+            .exec(
+                "SELECT session_hex FROM yao_pair_admission_fences WHERE session_hex = ?",
+                vec![SqlStorageValue::String(session_hex.to_owned())],
+            )?
+            .to_array::<FencedSessionRowV1>()?
+            .is_empty())
+    }
+
     #[cfg(feature = "wallet-do-harness")]
     fn status_work(
         &self,
@@ -664,6 +754,7 @@ impl RouterAbDeriverAWalletDurableObject {
             deriver_a_execution: role_result.deriver_a_execution,
             deriver_b_sealed_execution_json: role_result.deriver_b_sealed_execution_json,
         };
+        let object_name = owner.object_name()?;
         let completed = self.execute(DeriverAPairDoCommandV1::Complete {
             owner,
             pair_binding: pair.clone(),
@@ -673,10 +764,33 @@ impl RouterAbDeriverAWalletDurableObject {
                 .map_err(|error| pair_error(error.to_string()))?,
             running_lifetime_ms: 60_000,
         })?;
+        // Only a committed completion releases the outcome: one that came
+        // after the running lifetime is recorded as burned, a failure.
         match completed {
             DeriverAPairDoResponseV1::Mutation {
-                result: PairResult::Applied { .. },
-            } => Ok(outcome),
+                result:
+                    PairResult::Applied {
+                        record: PairRecord::Completed { .. },
+                        ..
+                    },
+            } => {
+                // The admission's owner settles it now. If this is lost, the
+                // admission stays unsettled until the owner reconciles it
+                // with this object, which reports the same completion.
+                if let Err(error) = crate::ed25519_yao_lifecycle::role_d1::settle_wallet_object_admission_v1(
+                    &self.env,
+                    "deriver_a",
+                    &encode_hex(pair.session()),
+                    &object_name,
+                )
+                .await
+                {
+                    worker::console_error!(
+                        "Deriver A pair completed, but its admission settlement was not acknowledged: {error}"
+                    );
+                }
+                Ok(outcome)
+            }
             _ => Err(pair_error("Deriver A pair completion did not commit")),
         }
     }
@@ -1013,6 +1127,18 @@ impl RouterAbDeriverAWalletDurableObject {
                 })
             }
             Ed25519YaoPairTransitionV1::Persist(record) => {
+                // Claiming or completing a fenced pair is refused: its
+                // admission is being cancelled.
+                let session_hex = encode_hex(pair.session());
+                if matches!(record, PairRecord::Running { .. } | PairRecord::Completed { .. })
+                    && self.pair_fenced(&session_hex)?
+                {
+                    return Err(pair_error(
+                        "LifecycleTransitionInProgress: this tenant-root operation's admission was cancelled here; start it again",
+                    ));
+                }
+                let lifecycle = pair_record_lifecycle(&record);
+                let claims = i64::from(matches!(record, PairRecord::Running { .. }));
                 let (scope, root_identity_digest_hex) = match &selected {
                     Some(row) => (row.scope.clone(), row.root_identity_digest_hex.clone()),
                     None => (
@@ -1020,7 +1146,6 @@ impl RouterAbDeriverAWalletDurableObject {
                         initial_root_identity_digest(&record)?,
                     ),
                 };
-                let session_hex = encode_hex(pair.session());
                 let identity = format!("{}:{session_hex}", owner.object_name()?);
                 let record_json = serde_json::to_string(&record)
                     .map_err(|error| pair_error(error.to_string()))?;
@@ -1033,11 +1158,14 @@ impl RouterAbDeriverAWalletDurableObject {
                 }
                 let rows = if let Some(row) = selected {
                     self.sql.exec(
-                        "UPDATE yao_pair_sessions SET revision_text = ?, ciphertext_json = ? \
+                        "UPDATE yao_pair_sessions SET revision_text = ?, ciphertext_json = ?, \
+                         lifecycle = ?, claimed = MAX(claimed, ?) \
                          WHERE session_hex = ? AND revision_text = ? RETURNING revision_text",
                         vec![
                             SqlStorageValue::String(next_revision.to_string()),
                             SqlStorageValue::String(ciphertext_json),
+                            SqlStorageValue::String(lifecycle.to_owned()),
+                            SqlStorageValue::Integer(claims),
                             SqlStorageValue::String(session_hex),
                             SqlStorageValue::String(row.revision.to_string()),
                         ],
@@ -1045,12 +1173,15 @@ impl RouterAbDeriverAWalletDurableObject {
                 } else {
                     self.sql.exec(
                         "INSERT INTO yao_pair_sessions \
-                         (session_hex, revision_text, root_identity_digest_hex, ciphertext_json) \
-                         VALUES (?, '1', ?, ?) ON CONFLICT DO NOTHING RETURNING revision_text",
+                         (session_hex, revision_text, root_identity_digest_hex, ciphertext_json, \
+                         lifecycle, claimed) VALUES (?, '1', ?, ?, ?, ?) \
+                         ON CONFLICT DO NOTHING RETURNING revision_text",
                         vec![
                             SqlStorageValue::String(session_hex),
                             SqlStorageValue::String(root_identity_digest_hex),
                             SqlStorageValue::String(ciphertext_json),
+                            SqlStorageValue::String(lifecycle.to_owned()),
+                            SqlStorageValue::Integer(claims),
                         ],
                     )
                 };
@@ -1075,6 +1206,59 @@ impl RouterAbDeriverAWalletDurableObject {
             }
         }
     }
+}
+
+fn pair_record_lifecycle(record: &PairRecord) -> &'static str {
+    match record {
+        PairRecord::Prepared { .. } => "prepared",
+        PairRecord::Starting { .. } => "starting",
+        PairRecord::Running { .. } => "running",
+        PairRecord::Completed { .. } => "completed",
+        PairRecord::Burned { .. } => "burned",
+        PairRecord::Expired { .. } => "expired",
+    }
+}
+
+#[cfg(feature = "wallet-do-harness")]
+fn validate_session_hex(session_hex: &str) -> worker::Result<()> {
+    if session_hex.len() != 64 || !session_hex.bytes().all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f')) {
+        return Err(pair_error("Deriver A pair session must be 64 lowercase hex characters"));
+    }
+    Ok(())
+}
+
+#[cfg(feature = "wallet-do-harness")]
+fn pair_error_of(error: impl ToString) -> worker::Error {
+    pair_error(error.to_string())
+}
+
+/// Asks the wallet object that holds one of this role's pair sessions to
+/// report it, and to fence it when asked
+/// ([`RouterAbDeriverAWalletDurableObject::reconcile`]).
+#[cfg(feature = "wallet-do-harness")]
+pub(crate) async fn reconcile_deriver_a_wallet_pair_v1(
+    env: &Env,
+    object_name: &str,
+    request: &TenantRootWalletPairReconcileRequestV1,
+) -> worker::Result<TenantRootWalletPairReconciliationV1> {
+    let namespace = env.durable_object(PAIR_DO_BINDING)?;
+    let stub = namespace.get_by_name(object_name)?;
+    let body = serde_json::to_string(request).map_err(pair_error_of)?;
+    let mut init = worker::RequestInit::new();
+    init.with_method(worker::Method::Post)
+        .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&body)));
+    let request = worker::Request::new_with_init(
+        &format!("https://router-ab-do.internal{RECONCILE_PATH}"),
+        &init,
+    )?;
+    let mut response = stub.fetch_with_request(request).await?;
+    if response.status_code() != 200 {
+        return Err(pair_error(format!(
+            "Deriver A wallet object reconciliation returned HTTP {}",
+            response.status_code()
+        )));
+    }
+    response.json::<TenantRootWalletPairReconciliationV1>().await
 }
 
 fn initial_scope(record: &PairRecord) -> worker::Result<RolePairRecordScopeV1> {

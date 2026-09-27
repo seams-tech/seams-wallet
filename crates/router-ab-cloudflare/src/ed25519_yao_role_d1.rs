@@ -68,6 +68,14 @@ const UPDATE_WALLET_PAIR_SQL: &str = "UPDATE yao_pair_sessions SET pair_digest_h
     lifecycle = ?3, ciphertext_json = ?4, revision = revision + 1, expires_at_ms = ?5, \
     updated_at_ms = ?6 WHERE session_hex = ?1 AND revision = ?7 AND root_identity_digest_hex = ?8 \
     RETURNING session_hex";
+/// [`UPDATE_WALLET_PAIR_SQL`] for a write that starts or completes the pair:
+/// it lands only while the wallet object has not fenced the session for its
+/// admission's cancellation.
+const UPDATE_UNFENCED_WALLET_PAIR_SQL: &str = "UPDATE yao_pair_sessions SET pair_digest_hex = ?2, \
+    lifecycle = ?3, ciphertext_json = ?4, revision = revision + 1, expires_at_ms = ?5, \
+    updated_at_ms = ?6 WHERE session_hex = ?1 AND revision = ?7 AND root_identity_digest_hex = ?8 \
+    AND NOT EXISTS (SELECT 1 FROM yao_pair_admission_fences WHERE session_hex = ?1) \
+    RETURNING session_hex";
 
 #[derive(Deserialize)]
 struct AdmissionStatusRowV1 {
@@ -400,6 +408,36 @@ fn role_d1_error(message: impl Into<String>) -> worker::Error {
     worker::Error::RustError(message.into())
 }
 
+/// Settles this role's root-use admission for a pair session that a wallet
+/// object reported completed. The role store owns the admission and hears of
+/// the completion here. Replaying it changes nothing. If it is lost, the
+/// admission stays unsettled, and retirement reconciles it with the object,
+/// which reports the same completion.
+pub(crate) async fn settle_wallet_object_admission_v1(
+    env: &Env,
+    role: &'static str,
+    session_hex: &str,
+    object_name: &str,
+) -> worker::Result<()> {
+    let session = env
+        .d1(ROLE_PRIVATE_D1_BINDING)?
+        .with_session_constraint(D1SessionConstraint::FirstPrimary)?;
+    session
+        .prepare(crate::tenant_root_role_d1::TENANT_ROOT_SETTLE_WALLET_OBJECT_ADMISSION_SQL_V1)
+        .bind_refs(
+            [
+                D1Type::Text(role),
+                D1Type::Text(crate::TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1),
+                D1Type::Text(session_hex),
+                D1Type::Text(object_name),
+            ]
+            .iter(),
+        )?
+        .run()
+        .await?;
+    Ok(())
+}
+
 /// One request-scoped, primary-anchored view of a role-private Yao session row.
 pub(super) struct RolePairD1StorageV1 {
     backend: RolePairStorageBackendV1,
@@ -565,10 +603,20 @@ impl RolePairD1StorageV1 {
     }
 
     /// Whether this session's root-use admission here was cancelled, to name
-    /// the refusal of a guarded write. A wallet object's pair is fenced there.
+    /// the refusal of a guarded write. In a wallet object, the fence the
+    /// object recorded for that cancellation.
     async fn admission_cancelled(&self) -> worker::Result<bool> {
-        let RolePairStorageBackendV1::D1(session) = &self.backend else {
-            return Ok(false);
+        let session = match &self.backend {
+            RolePairStorageBackendV1::D1(session) => session,
+            RolePairStorageBackendV1::WalletDo(sql) => {
+                return Ok(!sql
+                    .exec(
+                        "SELECT session_hex FROM yao_pair_admission_fences WHERE session_hex = ?",
+                        vec![SqlStorageValue::String(self.session_hex.clone())],
+                    )?
+                    .to_array::<ChangedWalletPairRowV1>()?
+                    .is_empty());
+            }
         };
         let row = session
             .prepare(crate::TENANT_ROOT_ROOT_USE_ADMISSION_STATUS_SQL_V1)
@@ -702,7 +750,11 @@ impl RolePairD1StorageV1 {
                 .len(),
             (RolePairStorageBackendV1::WalletDo(sql), Some(current)) => sql
                 .exec(
-                    UPDATE_WALLET_PAIR_SQL,
+                    if advances {
+                        UPDATE_UNFENCED_WALLET_PAIR_SQL
+                    } else {
+                        UPDATE_WALLET_PAIR_SQL
+                    },
                     vec![
                         SqlStorageValue::String(self.session_hex.clone()),
                         SqlStorageValue::String(pending.pair_digest_hex.clone()),

@@ -466,9 +466,15 @@ On the VM and on Workers:
      - Released, it cannot claim its pair, and nothing completes.
      - The same wallet's fresh registration succeeds, and the SigningWorker
        accepts it as the wallet's only registration.
+   - **Wallet-object pair stores (Workers harness,
+     `--do-admission-settlement`):**
+     - an admission settles, or is fenced and cancelled, only on its
+       object's word;
+     - B's object refuses to start a fenced pair;
+     - a lost settlement acknowledgement is reconciled to the same
+       completion.
    - **Not yet covered:**
      - an execution paused after its claim, which must stay pending;
-     - the wallet-object pair stores;
      - ECDSA presignatures.
 3. **Retry identity and one use after fenced cancellation.** A cancelled
    operation's retry keeps its identity and consumes no one-use item twice:
