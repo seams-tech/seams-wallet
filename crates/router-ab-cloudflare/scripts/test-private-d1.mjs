@@ -307,10 +307,14 @@ function strictWorker(name, role, bindings) {
 // recovery fences what it finds within the run.
 const walletObjectAdmissionRun = process.argv.includes('--do-admission-settlement');
 const walletObjectClaimedRecoveryRun = process.argv.includes('--do-claimed-recovery');
+// The retirement-trigger run keeps its held work past `W`.
+const retirementTriggerRun = process.argv.includes('--retirement-trigger');
 const admissionRecoveryWindowBinding =
   walletObjectAdmissionRun || walletObjectClaimedRecoveryRun
     ? { TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS: '1000' }
-    : {};
+    : retirementTriggerRun
+      ? { TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS: '30000' }
+      : {};
 
 function deriverAWorker(fixture) {
   return {
@@ -407,8 +411,18 @@ function routerWorker(fixture, capturePairPreparation = false, gateDeriverB = fa
   return {
     ...strictWorker('router', 'router', {
       ...fixture.router_env,
-      // The claimed-recovery run refreshes the same root twice.
-      ...(walletObjectClaimedRecoveryRun ? { TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS: '60000' } : {}),
+      // The claimed-recovery run refreshes the same root twice; the next
+      // refresh waits for the previous one's retirement, one second after
+      // the swap.
+      ...(walletObjectClaimedRecoveryRun
+        ? {
+            TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS: '60000',
+            TENANT_ROOT_RETIREMENT_GRACE_MS: '1000',
+          }
+        : {}),
+      ...(retirementTriggerRun || process.argv.includes('--refresh-after-managed-restore')
+        ? { TENANT_ROOT_RETIREMENT_GRACE_MS: '1000' }
+        : {}),
       ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET:
         routerToSigningWorkerEcdsaAuthSecret,
     }),
@@ -769,6 +783,10 @@ async function expectOk(response, label) {
   assert.equal(response.status, 200, `${label}: ${bytes.toString('utf8')}`);
   return bytes;
 }
+
+// Each role's retirement of the epoch a refresh replaced: within the grace
+// after the swap, both are pending.
+const retirementKinds = (retirement) => [retirement.deriver_a.kind, retirement.deriver_b.kind];
 
 async function postWorkerJson(worker, path, body, additionalHeaders = {}) {
   const authHeaders = gatewayOnlyRouterPaths.has(path)
@@ -2394,7 +2412,7 @@ async function testTenantRootManualRefresh(router, ceremony, databases, creation
   assert.equal(refreshed.status, 200, refreshed.body);
   const response = JSON.parse(refreshed.body);
   assert.ok(response.lifecycle_revision > before.lifecycle_revision, refreshed.body);
-  assert.equal(response.retirement.kind, 'pending', refreshed.body);
+  assert.deepEqual(retirementKinds(response.retirement), ['pending', 'pending'], refreshed.body);
   const retiredThenActive = [[1, 'retired'], [2, 'active']];
   assert.deepEqual(await epochs(databases.deriverA), retiredThenActive, 'epoch 1 is kept retired');
   assert.deepEqual(await epochs(databases.deriverB), retiredThenActive, 'epoch 1 is kept retired');
@@ -2407,7 +2425,7 @@ async function testTenantRootManualRefresh(router, ceremony, databases, creation
   const replay = JSON.parse(replayed.body);
   assert.equal(replay.activation_receipt_digest_b64u, response.activation_receipt_digest_b64u);
   assert.equal(replay.lifecycle_revision, response.lifecycle_revision);
-  assert.equal(replay.retirement.kind, 'pending', replayed.body);
+  assert.deepEqual(retirementKinds(replay.retirement), ['pending', 'pending'], replayed.body);
 
   const throttled = await refresh('harness-manual-refresh-2', response.lifecycle_revision);
   assert.equal(throttled.status, 429, throttled.body);
@@ -2416,7 +2434,7 @@ async function testTenantRootManualRefresh(router, ceremony, databases, creation
 
   return {
     revisions: [before.lifecycle_revision, response.lifecycle_revision],
-    retirement: response.retirement.kind,
+    retirement: retirementKinds(response.retirement),
     epochsAfter: [[1, 'retired'], [2, 'active']],
     exactRetryStatus: replayed.status,
     secondOperationStatus: throttled.status,
@@ -2514,7 +2532,7 @@ async function testTenantRootRefreshDeliveryAfterLoss(
     afterLoss.state.activation_receipt_digest_b64u,
     'the retry delivers the receipt committed by the first attempt',
   );
-  assert.equal(response.retirement.kind, 'pending', retried.body);
+  assert.deepEqual(retirementKinds(response.retirement), ['pending', 'pending'], retried.body);
   assert.equal(afterRetry.state.activation_receipt_digest_b64u, response.activation_receipt_digest_b64u);
   assert.deepEqual(afterRetry.observation.deriverA, [[1, 'retired'], [2, 'active']]);
   assert.deepEqual(afterRetry.observation.deriverB, [[1, 'retired'], [2, 'active']]);
@@ -2525,7 +2543,7 @@ async function testTenantRootRefreshDeliveryAfterLoss(
     retryStatus: retried.status,
     retryDeliveredCommittedReceipt: true,
     retryAfterMs,
-    retirement: response.retirement.kind,
+    retirement: retirementKinds(response.retirement),
   };
 }
 
@@ -3033,6 +3051,103 @@ async function testWalletObjectAdmissionSettlement(topology, fixture, databases)
       admissionsAfterReconciliation: reconciled,
       objectReports,
     },
+  };
+}
+
+/// Opt-in (`--retirement-trigger`, either build). The Router erases a
+/// refresh's retired epoch on a later pass, once the grace after the swap has
+/// passed and each role's work on it has settled. The grace is one second
+/// here, and `W` thirty.
+/// 1. A registration is admitted at both Derivers and its execute is held. A
+///    refresh moves the root to epoch 2, and reports both roles keeping
+///    epoch 1: the grace.
+/// 2. After the grace, an exact retry of the refresh is a pass. Both roles
+///    keep epoch 1, since the held work on it has not settled.
+/// 3. Released, the work completes on epoch 1 and settles.
+/// 4. The next pass erases epoch 1 at both roles. A retry replays the
+///    recorded erasures exactly.
+async function testRetirementTrigger(topology, fixture, databases) {
+  const { activeState, create, register, succeeded, admissions, races } =
+    await rootLifecycleHelpers(topology, fixture, databases);
+  const router = await topology.getWorker('router-recovery');
+  const statuses = async (ceremony) =>
+    (await admissions(ceremony)).map((role) => role.map(([epoch, status]) => [epoch, status]));
+  const root = recoveryCreationGrant('retirement-trigger', 60_000);
+  await create(root);
+  const created = await activeState(root);
+  const refresh = async () => {
+    const response = await postWorkerJson(router, tenantRootRefreshPath, {
+      operation_id: 'harness-retirement-trigger',
+      identity_digest_b64u: root.identity_digest_b64u,
+      custody_lineage_b64u: root.custody_lineage_b64u,
+      expected_lifecycle_revision: created.lifecycle_revision,
+      expires_at_ms: Date.now() + 60_000,
+      trigger: 'manual',
+    });
+    const body = await response.text();
+    assert.equal(response.status, 200, body);
+    return JSON.parse(body);
+  };
+  const epochOneShares = async () =>
+    Promise.all(
+      [databases.deriverA, databases.deriverB].map(async (database) =>
+        (
+          await database
+            .prepare(
+              `SELECT COUNT(*) AS count FROM tenant_root_role_shares
+               WHERE custody_lineage_b64u = ?1 AND tenant_root_share_epoch = 1`,
+            )
+            .bind(root.custody_lineage_b64u)
+            .first()
+        ).count,
+      ),
+    );
+
+  // 1. Work admitted on epoch 1 is held over the refresh.
+  const hold = holdNextRecoveryRequest('deriver-a', '/router-ab/deriver-a/ed25519-yao/execute-pair');
+  const registering = register(root, races.after_delivery);
+  await hold.held;
+  assert.deepEqual(await statuses(root), [[[1, 'admitted']], [[1, 'admitted']]]);
+  const first = await refresh();
+  const refreshedAt = Date.now();
+  assert.deepEqual(retirementKinds(first.retirement), ['pending', 'pending'], JSON.stringify(first));
+  assert.match(first.retirement.deriver_a.reason, /the grace after the swap/);
+
+  // 2. After the grace, the unsettled work keeps epoch 1 at both roles.
+  await sleep(Math.max(0, refreshedAt + 1_100 - Date.now()));
+  const whileHeld = await refresh();
+  assert.deepEqual(retirementKinds(whileHeld.retirement), ['pending', 'pending']);
+  for (const role of ['deriver_a', 'deriver_b']) {
+    assert.match(whileHeld.retirement[role].reason, /1 admitted operation\(s\) are not settled/);
+  }
+  assert.deepEqual(await epochOneShares(), [1, 1]);
+
+  // 3. The work completes on its epoch.
+  hold.release();
+  const registered = await registering;
+  assert.ok(succeeded(registered), registered.body);
+  assert.deepEqual(await statuses(root), [[[1, 'settled']], [[1, 'settled']]]);
+
+  // 4. The next pass erases epoch 1; a retry replays the recorded erasures.
+  const erased = await refresh();
+  assert.deepEqual(retirementKinds(erased.retirement), ['erased', 'erased'], JSON.stringify(erased));
+  for (const role of ['deriver_a', 'deriver_b']) {
+    assert.equal(erased.retirement[role].cancelled_admissions, 0);
+  }
+  assert.deepEqual(await epochOneShares(), [0, 0]);
+  const replayed = await refresh();
+  assert.deepEqual(replayed.retirement, erased.retirement);
+  return {
+    kind: 'tenant_root_retirement_trigger_workers_e2e_v1',
+    build: process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled' ? 'wallet_objects' : 'role_store',
+    graceMs: 1000,
+    firstRefresh: retirementKinds(first.retirement),
+    afterGraceWhileWorkHeld: [retirementKinds(whileHeld.retirement), whileHeld.retirement.deriver_b.reason],
+    heldWork: 'succeeded on epoch 1',
+    afterSettlement: retirementKinds(erased.retirement),
+    epochOneSharesAfter: [0, 0],
+    recordedErasuresReplayExactly: true,
+    admissionsAfter: await statuses(root),
   };
 }
 
@@ -3562,7 +3677,7 @@ async function testTenantRootRefreshAbandonmentAfterExpiry(topology, databases) 
   assert.equal(after.fence.kind, 'terminal');
   const nextResponse = JSON.parse(next.body);
   assert.equal(nextResponse.activation_receipt_digest_b64u, after.activation_receipt_digest_b64u);
-  assert.equal(nextResponse.retirement.kind, 'pending');
+  assert.deepEqual(retirementKinds(nextResponse.retirement), ['pending', 'pending']);
   const retiredThenActive = [
     [1, 'retired'],
     [2, 'active'],
@@ -4486,10 +4601,12 @@ async function testTenantRootManagedRestoreOperatingPath(
     }),
     'live managed-restore exact retry',
   );
+  // The durable outcome replays exactly; its retirement is a live report.
+  const retry = JSON.parse(retryBytes.toString('utf8'));
   assert.deepEqual(
-    retryBytes,
-    bytes,
-    'the same managed-restore request must replay exact completed refresh bytes',
+    [retry.activation_receipt_digest_b64u, retry.lifecycle_revision],
+    [refresh.activation_receipt_digest_b64u, refresh.lifecycle_revision],
+    'the same managed-restore request must replay its exact completed refresh',
   );
   const [activeA, activeB] = await Promise.all([
     databases.deriverA
@@ -4513,7 +4630,7 @@ async function testTenantRootManagedRestoreOperatingPath(
   // safe-retirement rule, so the refresh reports its retirement pending. A
   // had lost its epoch-1 share, so it holds only the restored-and-refreshed
   // epoch 2.
-  assert.equal(refresh.retirement.kind, 'pending', JSON.stringify(refresh));
+  assert.deepEqual(retirementKinds(refresh.retirement), ['pending', 'pending'], JSON.stringify(refresh));
   assert.deepEqual(activeA.results, [{ tenant_root_share_epoch: 2, lifecycle: 'active' }]);
   assert.deepEqual(activeB.results, [
     { tenant_root_share_epoch: 1, lifecycle: 'retired' },
@@ -4565,6 +4682,9 @@ async function testTenantRootRefreshAfterManagedRestore(topology, tenantRoot, da
         .bind(identityDigestHex, tenantRoot.custody_lineage_b64u)
         .all()
     ).results.map((row) => [row.epoch, row.lifecycle]);
+  // The refresh first erases the epoch the restore's swap retired, once the
+  // grace after that swap has passed.
+  await sleep(1_100);
   const refreshed = await postWorkerJson(router, tenantRootRefreshPath, {
     operation_id: 'harness-refresh-after-managed-restore',
     identity_digest_b64u: tenantRoot.identity_digest_b64u,
@@ -4584,19 +4704,25 @@ async function testTenantRootRefreshAfterManagedRestore(topology, tenantRoot, da
     [3, 'active'],
   ]);
   assert.deepEqual(deriverB, [
-    [1, 'retired'],
     [2, 'retired'],
     [3, 'active'],
   ]);
-  const retried = await expectOk(
-    await postWorkerJson(router, tenantRootManagedRestorePath, restore.restoreRequest),
-    'managed-restore exact retry after a later refresh',
+  const retried = JSON.parse(
+    (
+      await expectOk(
+        await postWorkerJson(router, tenantRootManagedRestorePath, restore.restoreRequest),
+        'managed-restore exact retry after a later refresh',
+      )
+    ).toString('utf8'),
   );
+  const original = JSON.parse(restore.bytes.toString('utf8'));
   assert.deepEqual(
-    retried,
-    restore.bytes,
+    [retried.activation_receipt_digest_b64u, retried.lifecycle_revision],
+    [original.activation_receipt_digest_b64u, original.lifecycle_revision],
     'a managed restore retried after a later refresh must return its durable outcome',
   );
+  // Its retirement is reported live: a later refresh has replaced its epoch.
+  assert.deepEqual(retirementKinds(retried.retirement), ['superseded', 'superseded']);
   return {
     kind: 'tenant_root_refresh_after_managed_restore_workers_e2e_v1',
     restoreRevision: restore.refresh.lifecycle_revision,
@@ -4945,6 +5071,11 @@ async function main() {
           ...admissionRaces,
         })}`,
       );
+      return;
+    }
+    if (retirementTriggerRun) {
+      const summary = await testRetirementTrigger(topology, fixture, databases);
+      console.log(`R150_WORKERS_RETIREMENT_TRIGGER ${JSON.stringify(summary)}`);
       return;
     }
     if (process.argv.includes('--replay-after-erasure')) {

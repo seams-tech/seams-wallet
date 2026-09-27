@@ -91,6 +91,11 @@ pub trait TenantRootRouterCreationHostV1:
     ) -> RouterAbProtocolResult<crate::CloudflareTenantRootCreationGrantAuthorityVerifyingKeysV1>;
     /// Current host time in Unix milliseconds.
     fn now_ms(&self) -> RouterAbProtocolResult<u64>;
+    /// How long a refresh's retired epoch is kept after the swap before the
+    /// Router asks each role to erase it.
+    fn retirement_grace_ms(&self) -> RouterAbProtocolResult<u64>;
+    /// Logs a warning an operator should see.
+    fn warn(&self, message: &str);
 }
 
 /// Drives one tenant-root creation to an active root, or reports why it
@@ -779,5 +784,15 @@ impl TenantRootRouterCreationHostV1 for CloudflareRouterTenantRootCreationHostV1
 
     fn now_ms(&self) -> RouterAbProtocolResult<u64> {
         crate::cloudflare_now_unix_ms_v1()
+    }
+
+    fn retirement_grace_ms(&self) -> RouterAbProtocolResult<u64> {
+        crate::durable_object::tenant_root_creation::parse_tenant_root_retirement_grace_ms_v1(
+            &crate::CloudflareWorkerEnvReaderV1::new(self.env),
+        )
+    }
+
+    fn warn(&self, message: &str) {
+        worker::console_warn!("{message}");
     }
 }

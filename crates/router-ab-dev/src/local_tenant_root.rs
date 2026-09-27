@@ -927,6 +927,17 @@ impl TenantRootRouterCreationHostV1 for LocalRouterTenantRootCreationHostV1<'_> 
     fn now_ms(&self) -> RouterAbProtocolResult<u64> {
         crate::local_router_coordinator::local_now_ms_v1()
     }
+
+    fn retirement_grace_ms(&self) -> RouterAbProtocolResult<u64> {
+        router_ab_cloudflare::parse_tenant_root_retirement_grace_ms_v1(&self.config.env)
+    }
+
+    fn warn(&self, message: &str) {
+        eprintln!(
+            "{}",
+            serde_json::json!({ "event": "tenant_root_warning", "message": message })
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -9,10 +9,12 @@
 //! The Router's persisted refresh-swap receipt is the commit point. Nothing is
 //! delivered before it, and afterwards every retry delivers that exact receipt
 //! and never obtains another, however late. Each Deriver swaps only on the
-//! Router's committed receipt. The previous epoch's shares are retired and
-//! kept: erasure waits for the safe-retirement rule
-//! (`docs/refactor-150-root-retirement-admission.md`), so retirement is
-//! reported pending.
+//! Router's committed receipt. The previous epoch's shares are retired, and
+//! the Router erases them once delivery is complete and the grace after the
+//! swap has passed (`docs/refactor-150-refresh-retirement.md`). Each role
+//! erases its retired share only once every admission on that epoch is
+//! settled or cancelled; until then its retirement is reported pending and a
+//! later pass tries again. The next refresh waits for both roles.
 //!
 //! The Router records each Deriver's delivery of the committed receipt. New
 //! root work is admitted only on a fully delivered epoch: admission first
@@ -27,24 +29,29 @@ use router_ab_core::{
 
 use crate::durable_object::tenant_root_creation::{
     refresh_attempt_abandoned_error, tenant_root_creation_active_state_with_revision_read_call_v1,
-    tenant_root_refresh_activation_call_v1, tenant_root_refresh_admission_call_v1,
-    tenant_root_refresh_attempt_reservation_call_v1, tenant_root_record_delivery_call_v1,
+    tenant_root_record_retirement_call_v1, tenant_root_refresh_activation_call_v1,
+    tenant_root_refresh_admission_call_v1, tenant_root_refresh_attempt_reservation_call_v1,
+    tenant_root_record_delivery_call_v1, CloudflareTenantRootRefreshActivationResponseV1,
     CloudflareTenantRootRefreshAdmissionOutcomeV1, CloudflareTenantRootRefreshFenceV1,
     CloudflareTenantRootRefreshTerminalOutcomeV1, CloudflareTenantRootRefreshTriggerV1,
-    CloudflareVerifiedTenantRootActiveStateV1,
+    CloudflareTenantRootRetiredErasureV1, CloudflareTenantRootRoleRetirementV1,
+    CloudflareTenantRootSwapAcknowledgementV1, CloudflareVerifiedTenantRootActiveStateV1,
 };
 use crate::tenant_root_control_plane::{
+    CloudflareTenantRootControlPlaneCleanupCommandRequestV1,
     CloudflareTenantRootControlPlaneRefreshActivationRequestV1,
-    CloudflareTenantRootControlPlaneRefreshCommandsRequestV1,
+    CloudflareTenantRootControlPlaneRefreshCommandsRequestV1, CloudflareTenantRootControlPlaneRoleV1,
 };
 use crate::tenant_root_role_runtime::{
+    CloudflareDeriverTenantRootCleanupRequestV1, CloudflareDeriverTenantRootCleanupResponseV1,
     CloudflareDeriverTenantRootInitialActivationRequestV1,
     CloudflareDeriverTenantRootRefreshActivationRequestV1,
     CloudflareDeriverTenantRootRefreshRequestV1, CloudflareDeriverTenantRootRefreshResponseV1,
 };
 use crate::tenant_root_transport::{
+    tenant_root_control_plane_cleanup_command_call_v1,
     tenant_root_control_plane_refresh_activation_call_v1,
-    tenant_root_deriver_initial_activation_call_v1,
+    tenant_root_deriver_cleanup_call_v1, tenant_root_deriver_initial_activation_call_v1,
     tenant_root_control_plane_refresh_commands_call_v1,
     tenant_root_deriver_refresh_activation_call_v1, tenant_root_deriver_refresh_call_v1,
     TenantRootServiceTransportV1,
@@ -54,13 +61,39 @@ use crate::{
     RouterAbProtocolErrorCode, RouterAbProtocolResult, TenantRootRouterCreationHostV1,
 };
 
-/// What happened to the previous epoch's retired shares. They are kept:
-/// erasure waits for the safe-retirement rule, so work already admitted on the
-/// old epoch can finish.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum CloudflareRouterTenantRootRetirementEvidenceV1 {
-    Pending,
+/// What happened, at each role, to the epoch a refresh replaced.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareRouterTenantRootRetirementEvidenceV1 {
+    pub deriver_a: CloudflareRouterTenantRootRoleRetirementV1,
+    pub deriver_b: CloudflareRouterTenantRootRoleRetirementV1,
+}
+
+impl CloudflareRouterTenantRootRetirementEvidenceV1 {
+    /// A later refresh has since replaced the active epoch too.
+    pub(crate) const fn superseded() -> Self {
+        Self {
+            deriver_a: CloudflareRouterTenantRootRoleRetirementV1::Superseded,
+            deriver_b: CloudflareRouterTenantRootRoleRetirementV1::Superseded,
+        }
+    }
+}
+
+/// One role's retirement of a replaced epoch.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum CloudflareRouterTenantRootRoleRetirementV1 {
+    /// Erased there: the role's signed cleanup receipt, and the admissions
+    /// its recovery cancelled on the epoch.
+    Erased {
+        cleanup_receipt_b64u: String,
+        cancelled_admissions: u64,
+    },
+    /// Still kept there, and tried again by a later pass: why.
+    Pending { reason: String },
+    /// A later refresh has replaced the active epoch since. It was admitted
+    /// only once this retirement had finished at both roles.
+    Superseded,
 }
 
 /// A completed refresh: the committed receipt's digest and revision.
@@ -96,6 +129,11 @@ pub enum CloudflareRouterTenantRootRefreshResultV1 {
     RevisionMoved,
     AuthorizationExpired,
     NotDue { next_run_at_ms: u64 },
+    /// The previous refresh's retired epoch is not yet erased at both roles.
+    /// Every refresh call tries again first.
+    RetirementPending {
+        retirement: CloudflareRouterTenantRootRetirementEvidenceV1,
+    },
 }
 
 impl CloudflareRouterTenantRootRefreshResultV1 {
@@ -135,6 +173,13 @@ impl CloudflareRouterTenantRootRefreshResultV1 {
                 409,
                 serde_json::json!({ "code": "tenant_root_refresh_in_progress" }),
             ),
+            Self::RetirementPending { retirement } => (
+                409,
+                serde_json::json!({
+                    "code": "tenant_root_retirement_pending",
+                    "retirement": retirement,
+                }),
+            ),
         }
     }
 }
@@ -166,6 +211,19 @@ pub async fn tenant_root_router_coordinate_refresh_v1<Host: TenantRootRouterCrea
             )
         })?;
     let issuer_keys = host.trusted_issuer_keys()?;
+    // Every call first moves on what the last swap left: its delivery, then
+    // its retirement. So an exact retry of that refresh, the next refresh
+    // and each scheduled offer all try again.
+    let current = tenant_root_creation_active_state_with_revision_read_call_v1(
+        host,
+        &issuer_keys,
+        identity_digest,
+        custody_lineage,
+    )
+    .await?;
+    // Boxed, like each pass below: a pass's future is large, and a host that
+    // polls it on a thread's stack must not overflow.
+    let (current, retirement) = Box::pin(tenant_root_router_retire_v1(host, current)).await?;
     let admitted_revision = match tenant_root_refresh_admission_call_v1(
         host,
         identity_digest,
@@ -181,18 +239,11 @@ pub async fn tenant_root_router_coordinate_refresh_v1<Host: TenantRootRouterCrea
             lifecycle_revision
         }
         CloudflareTenantRootRefreshAdmissionOutcomeV1::Replayed { response } => {
-            let active = tenant_root_creation_active_state_with_revision_read_call_v1(
-                host,
-                &issuer_keys,
-                identity_digest,
-                custody_lineage,
-            )
-            .await?;
-            // A delayed retry must never reinstall an epoch superseded by refresh or restore.
-            let retirement = if active.lifecycle_revision == response.lifecycle_revision {
-                tenant_root_router_deliver_pending_v1(host, &active).await?
+            // The replayed swap's retirement, while it is still the latest.
+            let retirement = if current.lifecycle_revision == response.lifecycle_revision {
+                retirement.ok_or_else(missing_retirement_error)?
             } else {
-                CloudflareRouterTenantRootRetirementEvidenceV1::Pending
+                CloudflareRouterTenantRootRetirementEvidenceV1::superseded()
             };
             return Ok(CloudflareRouterTenantRootRefreshResultV1::Completed(
                 CloudflareRouterTenantRootRefreshResponseV1 {
@@ -201,6 +252,11 @@ pub async fn tenant_root_router_coordinate_refresh_v1<Host: TenantRootRouterCrea
                     retirement,
                 },
             ));
+        }
+        CloudflareTenantRootRefreshAdmissionOutcomeV1::RetirementPending => {
+            return Ok(CloudflareRouterTenantRootRefreshResultV1::RetirementPending {
+                retirement: retirement.ok_or_else(missing_retirement_error)?,
+            });
         }
         CloudflareTenantRootRefreshAdmissionOutcomeV1::Abandoned { abandoned_at_ms } => {
             return Ok(CloudflareRouterTenantRootRefreshResultV1::Abandoned { abandoned_at_ms });
@@ -229,7 +285,7 @@ pub async fn tenant_root_router_coordinate_refresh_v1<Host: TenantRootRouterCrea
     )
     .await?;
     if active.lifecycle_revision != admitted_revision {
-        let mut response = tenant_root_router_replay_terminal_refresh_v1(&active.refresh_fence)?
+        let committed = tenant_root_router_replay_terminal_refresh_v1(&active.refresh_fence)?
             .filter(|_| {
                 matches!(&active.refresh_fence,
                     CloudflareTenantRootRefreshFenceV1::Terminal { attempt, .. }
@@ -241,8 +297,14 @@ pub async fn tenant_root_router_coordinate_refresh_v1<Host: TenantRootRouterCrea
                     "tenant-root manual refresh admission revision changed; retry the same operation",
                 )
             })?;
-        response.retirement = tenant_root_router_deliver_pending_v1(host, &active).await?;
-        return Ok(CloudflareRouterTenantRootRefreshResultV1::Completed(response));
+        let (_, retirement) = Box::pin(tenant_root_router_retire_v1(host, active)).await?;
+        return Ok(CloudflareRouterTenantRootRefreshResultV1::Completed(
+            CloudflareRouterTenantRootRefreshResponseV1 {
+                activation_receipt_digest_b64u: committed.activation_receipt_digest_b64u,
+                lifecycle_revision: committed.lifecycle_revision,
+                retirement: retirement.ok_or_else(missing_retirement_error)?,
+            },
+        ));
     }
     if matches!(
         &active.refresh_fence,
@@ -410,28 +472,215 @@ pub(crate) fn tenant_root_router_refresh_attempt_packages_v1(
 /// is not terminal.
 pub(crate) fn tenant_root_router_replay_terminal_refresh_v1(
     fence: &CloudflareTenantRootRefreshFenceV1,
-) -> RouterAbProtocolResult<Option<CloudflareRouterTenantRootRefreshResponseV1>> {
+) -> RouterAbProtocolResult<Option<CloudflareTenantRootRefreshActivationResponseV1>> {
     match fence {
         CloudflareTenantRootRefreshFenceV1::Terminal {
             outcome: CloudflareTenantRootRefreshTerminalOutcomeV1::Completed,
             response,
             ..
-        } => Ok(Some(CloudflareRouterTenantRootRefreshResponseV1 {
-            activation_receipt_digest_b64u: response.activation_receipt_digest_b64u.clone(),
-            lifecycle_revision: response.lifecycle_revision,
-            retirement: CloudflareRouterTenantRootRetirementEvidenceV1::Pending,
-        })),
+        } => Ok(Some(response.clone())),
         _ => Ok(None),
     }
 }
 
+fn missing_retirement_error() -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+        "tenant-root refresh swap has no retirement recorded with its delivery",
+    )
+}
+
+/// Moves on what the committed receipt left: delivers it to any role still
+/// waiting, then, for a refresh swap, erases the epoch it retired at each role
+/// whose grace after the swap has passed. A role that cannot erase it yet is
+/// reported pending, and a later pass tries again. Returns the state after
+/// the pass, and the retirement at each role, or `None` for a receipt that
+/// retired nothing. Only a failed delivery is an error.
+pub(crate) async fn tenant_root_router_retire_v1<Host: TenantRootRouterCreationHostV1>(
+    host: &Host,
+    active: CloudflareVerifiedTenantRootActiveStateV1,
+) -> RouterAbProtocolResult<(
+    CloudflareVerifiedTenantRootActiveStateV1,
+    Option<CloudflareRouterTenantRootRetirementEvidenceV1>,
+)> {
+    let identity_digest = active.activation_receipt.identity_digest();
+    let custody_lineage = active.activation_receipt.custody_lineage();
+    let issuer_keys = host.trusted_issuer_keys()?;
+    let active = if active.pending_delivery().is_empty() && active.delivery.is_some() {
+        active
+    } else {
+        tenant_root_router_deliver_pending_v1(host, &active).await?;
+        tenant_root_creation_active_state_with_revision_read_call_v1(
+            host,
+            &issuer_keys,
+            identity_digest,
+            custody_lineage,
+        )
+        .await?
+    };
+    let Some(retirement) = active
+        .delivery
+        .as_ref()
+        .and_then(|delivery| delivery.retirement.clone())
+    else {
+        return Ok((active, None));
+    };
+    let receipt_digest_b64u = encode_base64url_bytes_v1(active.activation_receipt.digest().as_bytes());
+    let now_ms = host.now_ms()?;
+    let grace_ms = host.retirement_grace_ms()?;
+    let retire_role = |role: TwoPartyDeriverRole| {
+        let recorded = retirement.role(role).cloned();
+        let receipt_digest_b64u = receipt_digest_b64u.clone();
+        let issuer_keys = &issuer_keys;
+        async move {
+            let Some(recorded) = recorded else {
+                return CloudflareRouterTenantRootRoleRetirementV1::Pending {
+                    reason: "the role has not acknowledged the swap".to_owned(),
+                };
+            };
+            if let Some(erasure) = recorded.erasure {
+                return erased_role_retirement_v1(erasure);
+            }
+            let kept_until_ms = recorded.swapped_at_ms.saturating_add(grace_ms);
+            if now_ms < kept_until_ms {
+                return CloudflareRouterTenantRootRoleRetirementV1::Pending {
+                    reason: format!(
+                        "epoch {} is kept here until {kept_until_ms}, the grace after the swap",
+                        retirement.retired_epoch
+                    ),
+                };
+            }
+            match erase_retired_epoch_v1(
+                host,
+                issuer_keys,
+                identity_digest,
+                custody_lineage,
+                receipt_digest_b64u,
+                role,
+                retirement.retired_epoch,
+                &recorded,
+            )
+            .await
+            {
+                Ok(erasure) => erased_role_retirement_v1(erasure),
+                Err(error) => CloudflareRouterTenantRootRoleRetirementV1::Pending {
+                    reason: error.message().to_owned(),
+                },
+            }
+        }
+    };
+    let (deriver_a, deriver_b) = futures::join!(
+        Box::pin(retire_role(TwoPartyDeriverRole::DeriverA)),
+        Box::pin(retire_role(TwoPartyDeriverRole::DeriverB)),
+    );
+    Ok((
+        active,
+        Some(CloudflareRouterTenantRootRetirementEvidenceV1 {
+            deriver_a,
+            deriver_b,
+        }),
+    ))
+}
+
+fn erased_role_retirement_v1(
+    erasure: CloudflareTenantRootRetiredErasureV1,
+) -> CloudflareRouterTenantRootRoleRetirementV1 {
+    CloudflareRouterTenantRootRoleRetirementV1::Erased {
+        cleanup_receipt_b64u: erasure.cleanup_receipt_b64u,
+        cancelled_admissions: erasure.cancelled_admissions,
+    }
+}
+
+/// Erases one role's retired epoch: the control plane signs a fresh cleanup
+/// command for the revisions recorded with the role's swap, and the Deriver
+/// executes it. A Deriver that already erased the epoch, and whose answer was
+/// lost, answers the fresh command from its store. The first erasure recorded
+/// is the one reported.
+#[allow(clippy::too_many_arguments)]
+async fn erase_retired_epoch_v1<Host: TenantRootRouterCreationHostV1>(
+    host: &Host,
+    issuer_keys: &std::collections::BTreeMap<String, [u8; 32]>,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    receipt_digest_b64u: String,
+    role: TwoPartyDeriverRole,
+    retired_epoch: u64,
+    recorded: &CloudflareTenantRootRoleRetirementV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootRetiredErasureV1> {
+    let command = tenant_root_control_plane_cleanup_command_call_v1(
+        host,
+        &CloudflareTenantRootControlPlaneCleanupCommandRequestV1::RetiredAfterRefresh {
+            identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+            custody_lineage_b64u: custody_lineage.to_base64url(),
+            role: CloudflareTenantRootControlPlaneRoleV1::from_protocol(role),
+            expected_retired_revision: recorded.retired_revision,
+            expected_active_revision: recorded.active_revision,
+        },
+    )
+    .await?;
+    let CloudflareDeriverTenantRootCleanupResponseV1::RetiredDeleted {
+        cleanup_receipt_b64u,
+        cancelled_admissions,
+        ..
+    } = tenant_root_deriver_cleanup_call_v1(
+        host,
+        role,
+        &CloudflareDeriverTenantRootCleanupRequestV1 {
+            cleanup_command_b64u: command.cleanup_command_b64u,
+        },
+    )
+    .await?
+    else {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            "tenant-root retired cleanup answered with another cleanup's response",
+        ));
+    };
+    if cancelled_admissions > 0 {
+        host.warn(&format!(
+            "tenant-root retirement recovery cancelled {cancelled_admissions} admission(s) on epoch {retired_epoch} at {} for root {} lineage {}",
+            match role {
+                TwoPartyDeriverRole::DeriverA => "deriver_a",
+                TwoPartyDeriverRole::DeriverB => "deriver_b",
+            },
+            encode_base64url_bytes_v1(identity_digest.as_bytes()),
+            custody_lineage.to_base64url(),
+        ));
+    }
+    let recorded = tenant_root_record_retirement_call_v1(
+        host,
+        issuer_keys,
+        identity_digest,
+        custody_lineage,
+        receipt_digest_b64u,
+        role,
+        CloudflareTenantRootRetiredErasureV1 {
+            cleanup_receipt_b64u,
+            cancelled_admissions,
+        },
+    )
+    .await?;
+    recorded
+        .delivery
+        .as_ref()
+        .and_then(|delivery| delivery.retirement.as_ref())
+        .and_then(|retirement| retirement.role(role))
+        .and_then(|retirement| retirement.erasure.clone())
+        .ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
+                "tenant-root retirement was erased but a later swap replaced its record; retry",
+            )
+        })
+}
+
 /// Delivers the Router's committed receipt to each Deriver still waiting
-/// for it. Nothing is erased. Both deliveries are attempted, each
-/// acknowledgement is recorded, and the first failure is returned.
+/// for it. Both deliveries are attempted, each acknowledgement is recorded,
+/// and the first failure is returned.
 pub(crate) async fn tenant_root_router_deliver_pending_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     active: &CloudflareVerifiedTenantRootActiveStateV1,
-) -> RouterAbProtocolResult<CloudflareRouterTenantRootRetirementEvidenceV1> {
+) -> RouterAbProtocolResult<()> {
     let roles = match &active.delivery {
         Some(delivery) => delivery.pending_roles(),
         // A refresh-swap receipt committed before delivery was recorded is
@@ -443,15 +692,15 @@ pub(crate) async fn tenant_root_router_deliver_pending_v1<Host: TenantRootRouter
         }
         None => Vec::new(),
     };
-    tenant_root_router_deliver_receipt_v1(host, &active.activation_receipt, &roles).await?;
-    Ok(CloudflareRouterTenantRootRetirementEvidenceV1::Pending)
+    tenant_root_router_deliver_receipt_v1(host, &active.activation_receipt, &roles).await
 }
 
 /// Delivers one committed receipt to these roles: a creation's initial
 /// activation, or a refresh's swap. Each Deriver activates that exact
 /// receipt, or replays the activation it already made; each acknowledgement
-/// is recorded in the Router's creation state. Both deliveries are attempted,
-/// and the first failure is returned.
+/// is recorded in the Router's creation state, a swap's with the revisions
+/// its retirement names. Both deliveries are attempted, and the first failure
+/// is returned.
 pub(crate) async fn tenant_root_router_deliver_receipt_v1<Host: TenantRootRouterCreationHostV1>(
     host: &Host,
     receipt: &VerifiedTenantRootSignedActivationReceiptV1,
@@ -463,7 +712,7 @@ pub(crate) async fn tenant_root_router_deliver_receipt_v1<Host: TenantRootRouter
         let activation_receipt_b64u = activation_receipt_b64u.clone();
         async move {
             if !roles.contains(&role) {
-                return Ok(false);
+                return Ok(None);
             }
             match transition {
                 TenantRootActivationReceiptTransitionV1::InitialCreation => {
@@ -475,7 +724,7 @@ pub(crate) async fn tenant_root_router_deliver_receipt_v1<Host: TenantRootRouter
                         },
                     )
                     .await
-                    .map(|_| true)
+                    .map(|_| Some(None))
                 }
                 TenantRootActivationReceiptTransitionV1::RefreshSwap => {
                     tenant_root_deriver_refresh_activation_call_v1(
@@ -486,7 +735,14 @@ pub(crate) async fn tenant_root_router_deliver_receipt_v1<Host: TenantRootRouter
                         },
                     )
                     .await
-                    .map(|_| true)
+                    .map(|swapped| {
+                        Some(Some(CloudflareTenantRootSwapAcknowledgementV1 {
+                            retired_epoch: swapped.retired_epoch,
+                            retired_revision: swapped.retired_revision,
+                            active_epoch: swapped.active_epoch,
+                            active_revision: swapped.active_revision,
+                        }))
+                    })
                 }
             }
         }
@@ -500,7 +756,7 @@ pub(crate) async fn tenant_root_router_deliver_receipt_v1<Host: TenantRootRouter
         (TwoPartyDeriverRole::DeriverA, &deriver_a),
         (TwoPartyDeriverRole::DeriverB, &deriver_b),
     ] {
-        if matches!(delivered, Ok(true)) {
+        if let Ok(Some(swap)) = delivered {
             tenant_root_record_delivery_call_v1(
                 host,
                 &issuer_keys,
@@ -508,6 +764,7 @@ pub(crate) async fn tenant_root_router_deliver_receipt_v1<Host: TenantRootRouter
                 receipt.custody_lineage(),
                 encode_base64url_bytes_v1(receipt.digest().as_bytes()),
                 role,
+                *swap,
             )
             .await?;
         }
@@ -661,7 +918,23 @@ pub(crate) async fn tenant_root_router_finish_refresh_v1<Host: TenantRootRouterC
         &[TwoPartyDeriverRole::DeriverA, TwoPartyDeriverRole::DeriverB],
     )
     .await?;
-    let retirement = CloudflareRouterTenantRootRetirementEvidenceV1::Pending;
+    // The retired epoch is kept for the grace after the swap; the first pass
+    // after it asks both roles to erase it.
+    let delivered = tenant_root_creation_active_state_with_revision_read_call_v1(
+        host,
+        &issuer_keys,
+        identity_digest,
+        custody_lineage,
+    )
+    .await?;
+    let retirement = if delivered.lifecycle_revision == lifecycle_revision {
+        Box::pin(tenant_root_router_retire_v1(host, delivered))
+            .await?
+            .1
+            .ok_or_else(missing_retirement_error)?
+    } else {
+        CloudflareRouterTenantRootRetirementEvidenceV1::superseded()
+    };
     Ok(CloudflareRouterTenantRootRefreshResponseV1 {
         activation_receipt_digest_b64u,
         lifecycle_revision,

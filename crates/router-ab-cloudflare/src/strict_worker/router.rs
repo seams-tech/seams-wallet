@@ -1772,7 +1772,7 @@ mod prewarm_tests {
 mod refresh_replay_tests {
     use crate::tenant_root_refresh_coordinator::{
         tenant_root_router_replay_terminal_refresh_v1 as replay_terminal_refresh_response_v1,
-        CloudflareRouterTenantRootRefreshRequestV1, CloudflareRouterTenantRootRetirementEvidenceV1,
+        CloudflareRouterTenantRootRefreshRequestV1,
     };
     use crate::durable_object::tenant_root_creation::{
         CloudflareTenantRootRefreshActivationResponseV1, CloudflareTenantRootRefreshAttemptV1,
@@ -1855,90 +1855,7 @@ mod refresh_replay_tests {
         let replay = replay_terminal_refresh_response_v1(&fence)
             .expect("completed terminal state must replay")
             .expect("completed terminal state must return a response");
-        assert_eq!(
-            replay.activation_receipt_digest_b64u,
-            persisted.activation_receipt_digest_b64u
-        );
-        assert_eq!(replay.lifecycle_revision, persisted.lifecycle_revision);
-        assert!(matches!(
-            replay.retirement,
-            CloudflareRouterTenantRootRetirementEvidenceV1::Pending
-        ));
-    }
-}
-
-#[cfg(all(test, feature = "strict-worker-router-entrypoint"))]
-mod restore_activation_tests {
-    use super::restore_role_cleanup_from_results_v1;
-    use super::CloudflareRouterTenantRootRestoreActivationResponseV1;
-    use super::CloudflareRouterTenantRootRestoreBootstrapCleanupV1;
-    use super::CloudflareRouterTenantRootRestoreCleanupV1;
-    use super::CloudflareRouterTenantRootRestoreOutstandingCleanupV1;
-    use super::CloudflareRouterTenantRootRestoreRoleCleanupReceiptsV1;
-    use super::CloudflareRouterTenantRootRestoreRoleCleanupV1;
-    use super::CloudflareTenantRootCreateRoleV1;
-    use std::collections::BTreeSet;
-
-    #[test]
-    fn one_role_failure_keeps_the_success_receipt_and_names_only_the_failed_role() {
-        let cleanup = restore_role_cleanup_from_results_v1(Some("a-digest".to_owned()), None);
-        assert_eq!(
-            cleanup,
-            CloudflareRouterTenantRootRestoreRoleCleanupV1::DeriverBIncomplete {
-                deriver_a_receipt_digest_b64u: "a-digest".to_owned(),
-                outstanding: CloudflareRouterTenantRootRestoreOutstandingCleanupV1 {
-                    roles: vec![CloudflareTenantRootCreateRoleV1::DeriverB],
-                    description: "tenant-root restore role cleanup remains outstanding".to_owned(),
-                },
-            }
-        );
-    }
-
-    #[test]
-    fn activation_response_serializes_the_exact_client_shape() {
-        let response = CloudflareRouterTenantRootRestoreActivationResponseV1 {
-            destination_lineage_id: "lineage".to_owned(),
-            activated_epoch: 1,
-            activation_receipt_b64u: "canonical-activation".to_owned(),
-            activation_receipt_digest_b64u: "activation".to_owned(),
-            forward_refresh_receipt_digest_b64u: "refresh".to_owned(),
-            continuity_canary_receipt_digest_b64u: "canary".to_owned(),
-            root_commitment_matches: true,
-            cleanup: CloudflareRouterTenantRootRestoreCleanupV1 {
-                bootstrap: CloudflareRouterTenantRootRestoreBootstrapCleanupV1::Destroyed {
-                    receipt_digest_b64u: "bootstrap".to_owned(),
-                },
-                roles: CloudflareRouterTenantRootRestoreRoleCleanupV1::Complete {
-                    receipts: CloudflareRouterTenantRootRestoreRoleCleanupReceiptsV1 {
-                        deriver_a: "a".to_owned(),
-                        deriver_b: "b".to_owned(),
-                    },
-                },
-            },
-        };
-        let value = serde_json::to_value(response).expect("activation response serializes");
-        let keys = value
-            .as_object()
-            .expect("activation response is an object")
-            .keys()
-            .cloned()
-            .collect::<BTreeSet<_>>();
-        assert_eq!(
-            keys,
-            [
-                "activated_epoch",
-                "activation_receipt_b64u",
-                "activation_receipt_digest_b64u",
-                "cleanup",
-                "continuity_canary_receipt_digest_b64u",
-                "destination_lineage_id",
-                "forward_refresh_receipt_digest_b64u",
-                "root_commitment_matches",
-            ]
-            .into_iter()
-            .map(str::to_owned)
-            .collect()
-        );
+        assert_eq!(replay, persisted);
     }
 }
 

@@ -1,8 +1,8 @@
 # R150: erasing the old epoch after a refresh
 
-Status: design decided in review, 2026-09-27. **The trigger is not
-implemented**, so nothing erases automatically. Its prerequisites are done
-(2026-09-27):
+Status: implemented 2026-09-27, with its evidence, on branch
+`codex/r150-do-backend`. Not deployed. The Router now erases each refresh's
+retired epoch itself. Its prerequisites were done first (2026-09-27):
 - settlement from the wallet-object pair store;
 - cancellation that stops the whole execution;
 - recovery of a claimed execution through its peer;
@@ -10,111 +10,136 @@ implemented**, so nothing erases automatically. Its prerequisites are done
 
 See [admission identity and settlement](./refactor-150-admission-identity.md).
 
-## Where things stand
+## How it works
 
-- **The gate is implemented.** A Deriver erases a retired share and its
-  backup only once every admission on that epoch is settled or cancelled.
-- **Cancellation now stops the whole execution.** Recovery cancels only what
-  can be fenced:
-  - an ECDSA attempt;
-  - a Yao attempt that Deriver A has not claimed. Its pair's claim and
-    completion then refuse it, in the role store or in the wallet object
-    that holds it.
+- **The gate at each role.** A Deriver erases a retired share and its backup
+  only once every admission on that epoch is settled or cancelled.
+  - Recovery past `W` cancels only what can be fenced: an ECDSA attempt, or a
+    Yao attempt Deriver A has not claimed. Its pair's claim and completion
+    then refuse it, in the role store or in the wallet object that holds it.
+  - A claimed attempt is recovered through its peer. Deriver B fences the
+    session, or reports that it completed it, and only then is A's claim
+    fenced ([admission identity](./refactor-150-admission-identity.md)).
+  - A wallet object's completion is acknowledged to the role store. A lost
+    acknowledgement is recovered by reconciliation.
+- **The Router's record.** A committed refresh swap's delivery record names
+  the epoch it replaced.
+  - Each role's swap acknowledgement adds that role's part: the retired and
+    active row revisions its cleanup command names, and when the Router
+    recorded the swap.
+  - Once the role erases the epoch, its signed cleanup receipt and its
+    cancelled-admission count are added. The first erasure recorded wins.
+  - A later pass therefore needs nothing from the retired row, which may be
+    gone.
+- **A pass.**
+  1. It delivers the committed receipt to any role still waiting.
+  2. At each role whose grace after the swap has passed, the control plane
+     signs a fresh retired-cleanup command for the recorded revisions.
+  3. The Deriver executes it.
+  4. A role that cannot erase yet is reported pending, with its reason.
+- **When passes run.**
+  - Every refresh call runs one before its admission. So do an exact retry of
+    a refresh, the next refresh, and each scheduled offer: the VM
+    scheduler's tick, and the external scheduled trigger on Workers.
+  - A refresh also runs one after its own delivery. That pass reports the
+    new swap's grace.
+- **One retired epoch per role at a time.**
+  - The control plane signs cleanup only for the epoch the latest swap
+    retired.
+  - Admission therefore refuses a new refresh while the previous swap is not
+    erased at both roles: HTTP 409 `tenant_root_retirement_pending`, with each
+    role's retirement.
+  - Replays, and throttled and not-due answers, keep their meaning.
+  - Nothing bounds that wait. An unreachable role, or an execution that
+    cannot yet be fenced, keeps it pending.
+- **Restart safety.** Each pass requests a fresh command, and the control
+  plane keeps no state for it.
+  - A lost command reply just waits for the next pass.
+  - A Deriver that erased and whose answer was lost answers a fresh command
+    from its own store: the retired row is already gone.
+  - A retry reports the recorded erasure exactly.
+- **Warnings.** A nonzero cancelled-admission count is logged as a warning.
+  It names the root, the lineage, the role and the epoch.
+- **Grace.** `TENANT_ROOT_RETIREMENT_GRACE_MS` on the Router: five minutes
+  by default, at least one second. It is policy only, and neither permits
+  nor forbids erasure.
 
-  A claimed attempt is recovered through its peer. Deriver B fences the
-  session, or reports that it completed it. Only then is A's claim fenced
-  ([admission identity](./refactor-150-admission-identity.md)). It stays
-  pending only while B cannot answer.
-- **Wallet objects settle.** An object's completion is acknowledged to the
-  role store. A lost acknowledgement is recovered by reconciliation, which
-  reports the same completion.
-- **A completed step replays without the share** (design item 4 below).
-- **Nothing issues the command.**
-  - The control plane signs a retired-cleanup command only when asked, with
-    the role's exact row revisions.
-  - No Router code asks, and Workers has no operator route to it.
-  - Every refresh reports `retirement: pending`, and retired shares and
-    backups stay.
+The refresh response's `retirement` names each role:
+- `erased`, with `cleanup_receipt_b64u` and `cancelled_admissions`;
+- `pending`, with a `reason`: the grace, the role's unsettled count, or why
+  the role could not be reached;
+- `superseded`: a replay of a refresh whose epoch a later refresh has since
+  replaced. That later refresh was admitted only once this retirement had
+  finished.
 
-## Design
+## A completed step replays without the share
 
-1. **The Router retires once delivery is complete.** When both roles have
-   acknowledged the swap, the Router asks the control plane for each role's
-   retired-cleanup command and delivers it.
-2. **It uses the revisions each role reported.**
-   - A role's swap acknowledgement already carries `retired_revision` and
-     `active_revision`.
-   - The Router records them with that role's delivery, in its creation state
-     next to the delivery status it already keeps.
-   - A later pass then does not depend on the retired row, which may be gone.
-3. **A settled epoch is kept for `W` after the swap.** This is operational
-   policy only: it neither permits nor forbids erasure.
-4. **A completed step replays without the share.** An exact retry of a
-   completed step is answered from its stored outcome, before any root read.
-   Waiting `W` alone would only postpone the problem. Done (2026-09-27):
-   - The Router's replay of a completed Yao operation reads only stored
-     outcomes: both Derivers' completed pair records, or Deriver A's stored
-     outcome in its wallet object.
-   - Deriver A's execute answers an exact retry from its completed record,
-     before its receipts' freshness or any root read. It already did so on
-     the VM and in its wallet object; the role store now keeps the request's
-     digest and B's sealed execution for it. A changed request is refused.
-   - An ECDSA retry after a refresh is a new attempt on the active epoch, so
-     it never needs the retired share.
-   - Evidence: VM
-     `vm_tenant_root_completed_registration_replays_after_its_epoch_is_erased`
-     (`R150_VM_REPLAY_AFTER_ERASURE_E2E`) and the Workers harness
-     `--replay-after-erasure` (`R150_WORKERS_REPLAY_AFTER_ERASURE`), on
-     role-store and wallet-object builds. A wallet registers on epoch 1, and
-     epoch 1 is erased at both Derivers. The Router's replay then returns the
-     original result, and Deriver A's exact retry its stored response.
-5. **One retired epoch per role at a time.**
-   - The control plane signs cleanup only for the epoch the latest refresh
-     retired, so a second refresh would strand the first retired epoch.
-   - The next refresh therefore first completes the previous retirement, and
-     is refused as in progress while it is pending.
-   - Nothing bounds that wait. An unreachable owner, or an execution that
-     cannot yet be fenced, keeps retirement pending.
-6. **Existing passes retry it.** Pending retirement is attempted again:
-   - on an exact retry of the refresh operation;
-   - before the next refresh is admitted;
-   - on the VM scheduler's tick and the Workers scheduled trigger. Both
-     already offer each root its scheduled refresh.
-7. **Pending is a normal result.**
-   - A role that answers "retirement is pending" does not fail the refresh,
-     and the refresh completes.
-   - The response reports each role as `erased`, with its cleanup receipt, or
-     `pending`, with the unsettled count.
-8. **Recovery warnings reach the log.** A nonzero `cancelled_admissions` is
-   logged as a warning, naming the root, the role and the epoch.
-9. **Scope.**
-   - Refresh after a managed restore uses the same path.
-   - Moving authority (source retirement, cutover) stays excluded. It needs
-     the fences in the [drain proposal](./refactor-150-root-retirement-admission.md).
+An exact retry of a completed step is answered from its stored outcome,
+before any root read. Waiting out the grace alone would only postpone the
+problem.
+- The Router's replay of a completed Yao operation reads only stored
+  outcomes: both Derivers' completed pair records, or Deriver A's stored
+  outcome in its wallet object.
+- Deriver A's execute answers an exact retry from its completed record, before
+  its receipts' freshness or any root read.
+  - It already did so on the VM and in its wallet object.
+  - The role store now keeps the request's digest and B's sealed execution
+    for it.
+  - A changed request is refused.
+- An ECDSA retry after a refresh is a new attempt on the active epoch, so it
+  never needs the retired share.
 
-## Order of work
+## Scope
 
-1. **Done (2026-09-27):** settlement from the wallet-object pair store,
-   through an explicit, replay-safe path back to the role store that owns the
-   admission.
-2. **Done (2026-09-27):** cancellation that stops the whole execution, or
-   leaves it pending.
-   - Its VM E2E pauses an execution after its root reads, cancels, then
-     retries.
-   - The old execution causes no duplicate effect and reuses no one-use
-     material.
-3. **Done (2026-09-27):** recovery of a claimed execution through its peer
-   ([admission identity](./refactor-150-admission-identity.md)).
-4. **Done (2026-09-27):** completed-step replay that needs no share (design
-   item 4).
-5. **Next:** the trigger above.
+- A managed restore's forward refresh retires through the same path.
+- Moving authority (source retirement, cutover) stays excluded. It needs the
+  fences in the [drain proposal](./refactor-150-root-retirement-admission.md).
 
-## Evidence planned for the trigger
+## Known gap: needs design approval
 
-- **VM:**
-  - A refresh, then its retirement erases both roles' epoch on a later pass,
-    once `W` has passed.
-  - With one unsettled admission, retirement stays pending.
-- **Workers harness:** the same cycle.
-- **Restart:** a lost reply at each step replays exactly. The steps are the
-  command issue, its execution, and the Router's record.
+A managed restore does not wait for the previous refresh's retirement. The
+role it restores may be the very one that cannot erase.
+- If that retirement is still pending when the restore's swap commits, the
+  swap's record replaces it.
+- The control plane signs cleanup only for the latest swap's retired epoch,
+  so the older epoch then stays retired and unerased at the roles that had
+  not erased it.
+- The Router logs a warning when a restore proceeds this way.
+- Erasing that epoch would need the control plane to sign cleanup for an
+  older retired epoch, bound to the current active one.
+
+## Evidence
+
+- **VM** `vm_tenant_root_refresh_retires_its_old_epoch_once_its_work_settles`
+  (`R150_VM_TENANT_ROOT_RETIREMENT_TRIGGER_E2E`). The grace is two seconds,
+  `W` eight.
+  1. A second registration is admitted only at Deriver B, then a refresh
+     moves the root to epoch 2. Both roles report the grace.
+  2. After the grace, a retry of the refresh is a pass. A erases epoch 1, but
+     its answer is lost. B keeps epoch 1: one admission is unsettled.
+  3. The next pass: A answers a fresh command from its store, and its
+     erasure is recorded. B is now unreachable. A retry replays A's
+     recorded erasure exactly.
+  4. A new refresh is refused: 409 `tenant_root_retirement_pending`.
+  5. B is reachable again, and `W` has passed. The new refresh's own pass
+     has B cancel the stale admission and erase epoch 1. The refresh then
+     completes on epoch 3.
+- **Workers harness** `--retirement-trigger`
+  (`R150_WORKERS_RETIREMENT_TRIGGER`), on role-store and wallet-object
+  builds. The grace is one second, `W` thirty.
+  1. A registration's execute is held over a refresh.
+  2. After the grace, both roles keep epoch 1 while that work is unsettled.
+  3. Released, the work completes on epoch 1.
+  4. The next pass erases epoch 1 at both roles, and a retry replays the
+     recorded erasures exactly.
+- **Replay after erasure:** VM
+  `vm_tenant_root_completed_registration_replays_after_its_epoch_is_erased`
+  (`R150_VM_REPLAY_AFTER_ERASURE_E2E`), and the Workers harness
+  `--replay-after-erasure` (`R150_WORKERS_REPLAY_AFTER_ERASURE`) on both
+  builds.
+- **Lost replies:**
+  - A lost Deriver answer is shown on the VM.
+  - A lost command reply leaves nothing to reconcile, since each pass asks for
+    a fresh command.
+  - The Router's record is its own creation state, written before a pass
+    reports.

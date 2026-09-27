@@ -1382,7 +1382,9 @@ fn vm_tenant_root_refresh_delivers_the_committed_receipt_after_a_lost_delivery(
     let retry: serde_json::Value = serde_json::from_str(&retry_body)?;
     assert_eq!(retry["activation_receipt_digest_b64u"], json!(committed_digest));
     assert_eq!(retry["lifecycle_revision"], json!(committed_revision));
-    assert_eq!(retry["retirement"]["kind"], "pending");
+    for role in ["deriver_a", "deriver_b"] {
+        assert_eq!(retry["retirement"][role]["kind"], "pending", "{retry}");
+    }
     let retired_then_active = vec![epoch(1, "retired"), epoch(2, "active")];
     assert_eq!(
         stack.epochs(&lineage_b64u)?,
@@ -1521,7 +1523,9 @@ fn vm_tenant_root_refresh_that_misses_its_window_is_abandoned_and_superseded(
     assert_eq!(next_revision, created_revision + 1);
     assert_eq!(next_fence, "terminal");
     assert_eq!(next["activation_receipt_digest_b64u"], json!(next_digest));
-    assert_eq!(next["retirement"]["kind"], "pending");
+    for role in ["deriver_a", "deriver_b"] {
+        assert_eq!(next["retirement"][role]["kind"], "pending", "{next}");
+    }
     let retired_then_active = vec![epoch(1, "retired"), epoch(2, "active")];
     assert_eq!(
         stack.epochs(&lineage_b64u)?,
@@ -1692,7 +1696,10 @@ fn vm_tenant_root_authorized_restore_overtaken_by_a_refresh_is_superseded(
     let _process_guard = local_worker_process_test_guard();
     let stack = RecoveryStackV1::start_with_envs(
         "vm-tenant-root-restore-superseded",
-        &[("TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS", "60000")],
+        &[
+            ("TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS", "60000"),
+            ("TENANT_ROOT_RETIREMENT_GRACE_MS", "1000"),
+        ],
         &[],
         &[],
     )?;
@@ -1768,14 +1775,15 @@ fn vm_tenant_root_authorized_restore_overtaken_by_a_refresh_is_superseded(
     assert!(late_authorize_body.contains(superseded), "{late_authorize_body}");
     assert_eq!(stack.managed_restore_fence(&lineage_b64u)?.0, "superseded");
 
-    // The next refresh, which found the stale authorization before, completes.
+    // The next refresh, which found the stale authorization before, first
+    // erases the epoch the overtaking refresh retired, then completes.
     thread::sleep(Duration::from_millis(61_000));
     let (revision, _, _) = stack.active_state(&lineage_b64u)?;
     let (second_status, second_body) =
         stack.refresh(&identity, &lineage_b64u, "vm-refresh-after-superseded", revision)?;
     assert_eq!(second_status, 200, "{second_body}");
     let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
-    let expected_epochs = vec![epoch(1, "retired"), epoch(2, "retired"), epoch(3, "active")];
+    let expected_epochs = vec![epoch(2, "retired"), epoch(3, "active")];
     assert_eq!(stack.epochs(&lineage_b64u)?, (expected_epochs.clone(), expected_epochs));
 
     // A wallet signs on epoch 3, and a new restore can be reserved.
@@ -1817,7 +1825,12 @@ fn vm_tenant_root_authorized_restore_overtaken_by_a_refresh_is_superseded(
 fn vm_tenant_root_restored_from_its_managed_backup_signs_refreshes_and_replays(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let _process_guard = local_worker_process_test_guard();
-    let stack = RecoveryStackV1::start("vm-tenant-root-managed-restore")?;
+    let stack = RecoveryStackV1::start_with_envs(
+        "vm-tenant-root-managed-restore",
+        &[("TENANT_ROOT_RETIREMENT_GRACE_MS", "1000")],
+        &[],
+        &[],
+    )?;
     let mut signing_worker = stack.start_signing_worker()?;
     let (identity, lineage, lineage_b64u) = recovery_ceremony("managed-restore")?;
     let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
@@ -1878,10 +1891,20 @@ fn vm_tenant_root_restored_from_its_managed_backup_signs_refreshes_and_replays(
     });
     let (restore_status, restore_body) = stack.restore(&restore_request)?;
     assert_eq!(restore_status, 200, "{restore_body}");
+    let restored_at = Instant::now();
     let restored: serde_json::Value = serde_json::from_str(&restore_body)?;
-    assert_eq!(restored["retirement"]["kind"], "pending");
+    for role in ["deriver_a", "deriver_b"] {
+        assert_eq!(restored["retirement"][role]["kind"], "pending", "{restored}");
+    }
     let restore_revision = restored["lifecycle_revision"].as_i64().ok_or("a restore reports its revision")?;
-    assert_eq!(stack.restore(&restore_request)?, (restore_status, restore_body.clone()));
+    // The durable outcome replays exactly; its retirement is a live report.
+    let durable = |body: &str| -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+        let body: serde_json::Value = serde_json::from_str(body)?;
+        Ok(json!([body["activation_receipt_digest_b64u"], body["lifecycle_revision"]]))
+    };
+    let (replay_status, replay_body) = stack.restore(&restore_request)?;
+    assert_eq!(replay_status, restore_status, "{replay_body}");
+    assert_eq!(durable(&replay_body)?, durable(&restore_body)?);
     assert_eq!(
         stack.epochs(&lineage_b64u)?,
         (vec![epoch(2, "active")], vec![epoch(1, "retired"), epoch(2, "active")])
@@ -1892,7 +1915,10 @@ fn vm_tenant_root_restored_from_its_managed_backup_signs_refreshes_and_replays(
         stack.register_and_sign(signing_worker, &identity, &lineage_b64u, "account-restored-root")?;
     assert_eq!(stack.admissions(&lineage_b64u)?, (vec![2], vec![2]));
 
-    // Another refresh, and a second wallet signs on its epoch.
+    // Another refresh, once the grace after the restore's swap has passed:
+    // it first erases the epoch that swap retired, then completes. A second
+    // wallet signs on its epoch.
+    thread::sleep(Duration::from_millis(1_100).saturating_sub(restored_at.elapsed()));
     let (refresh_status, refresh_body) =
         stack.refresh(&identity, &lineage_b64u, "vm-refresh-after-restore", restore_revision)?;
     assert_eq!(refresh_status, 200, "{refresh_body}");
@@ -1900,7 +1926,7 @@ fn vm_tenant_root_restored_from_its_managed_backup_signs_refreshes_and_replays(
         stack.epochs(&lineage_b64u)?,
         (
             vec![epoch(2, "retired"), epoch(3, "active")],
-            vec![epoch(1, "retired"), epoch(2, "retired"), epoch(3, "active")]
+            vec![epoch(2, "retired"), epoch(3, "active")]
         )
     );
     signing_worker =
@@ -1908,7 +1934,13 @@ fn vm_tenant_root_restored_from_its_managed_backup_signs_refreshes_and_replays(
     assert_eq!(stack.admissions(&lineage_b64u)?, (vec![2, 3], vec![2, 3]));
 
     // The original restore, retried, returns its outcome.
-    assert_eq!(stack.restore(&restore_request)?, (restore_status, restore_body.clone()));
+    let (late_status, late_body) = stack.restore(&restore_request)?;
+    assert_eq!(late_status, restore_status, "{late_body}");
+    assert_eq!(durable(&late_body)?, durable(&restore_body)?);
+    let late: serde_json::Value = serde_json::from_str(&late_body)?;
+    for role in ["deriver_a", "deriver_b"] {
+        assert_eq!(late["retirement"][role]["kind"], "superseded", "{late}");
+    }
     drop(signing_worker);
 
     println!(
@@ -3082,7 +3114,10 @@ fn vm_tenant_root_claimed_execution_that_fails_is_recovered_and_retirement_compl
     let _process_guard = local_worker_process_test_guard();
     let mut stack = RecoveryStackV1::start_with_envs(
         "vm-tenant-root-claimed-recovery",
-        &[("TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS", "60000")],
+        &[
+            ("TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS", "60000"),
+            ("TENANT_ROOT_RETIREMENT_GRACE_MS", "1000"),
+        ],
         &[],
         &[(router_ab_dev::LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1, "1000")],
     )?;
@@ -3477,6 +3512,190 @@ fn vm_tenant_root_completed_registration_replays_after_its_epoch_is_erased(
             "deriver_a_execute_replay": [a_replay_status, "stored response"],
             "changed_execute": changed_status,
             "admissions_and_pair_records": "unchanged",
+        })
+    );
+    Ok(())
+}
+
+/// The Router erases a refresh's retired epoch on a later pass, once the
+/// grace after the swap has passed and each role's work on it has settled
+/// (docs/refactor-150-refresh-retirement.md).
+///
+/// The grace is two seconds here, `W` eight, and the Router's scheduler is
+/// kept out of the way.
+/// 1. A wallet registers on epoch 1. A second registration is admitted at
+///    Deriver B while A's preparation is held, and a refresh moves the root
+///    to epoch 2. Both roles report the retired epoch kept: the grace.
+/// 2. After the grace, an exact retry of the refresh is a pass. A erases
+///    epoch 1, but its answer is lost. B's admission is unsettled, so B keeps
+///    it.
+/// 3. The next pass: A answers a fresh command from its store, and A's
+///    erasure is recorded. B is now unreachable. A retry replays the
+///    recorded erasure exactly.
+/// 4. A new refresh is refused while B's retirement is pending.
+/// 5. B is reachable again, and `W` has passed. The new refresh's own pass
+///    has B cancel the stale admission and erase epoch 1. The refresh is then
+///    admitted and completes on epoch 3.
+#[test]
+fn vm_tenant_root_refresh_retires_its_old_epoch_once_its_work_settles(
+) -> Result<(), Box<dyn std::error::Error>> {
+    const CLEANUP: &str = router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH;
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start_with_envs(
+        "vm-tenant-root-retirement-trigger",
+        &[
+            ("TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS", "60000"),
+            ("TENANT_ROOT_RETIREMENT_GRACE_MS", "2000"),
+            (router_ab_dev::LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS_ENV_V1, "3600000"),
+        ],
+        &[],
+        &[(router_ab_dev::LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1, "8000")],
+    )?;
+    let signing_worker = stack.start_signing_worker()?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("retirement-trigger")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let (created_revision, _, _) = stack.active_state(&lineage_b64u)?;
+    let admission_statuses = |db: &Connection| -> rusqlite::Result<Vec<(i64, String)>> {
+        db.prepare(
+            "SELECT tenant_root_share_epoch, status FROM tenant_root_root_use_admissions
+             WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch, admitted_at_ms",
+        )?
+        .query_map([&lineage_b64u], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect()
+    };
+    let at = |number: i64, status: &str| (number, status.to_owned());
+    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
+    let kinds = |retirement: &serde_json::Value| {
+        [
+            retirement["deriver_a"]["kind"].as_str().unwrap_or_default().to_owned(),
+            retirement["deriver_b"]["kind"].as_str().unwrap_or_default().to_owned(),
+        ]
+    };
+    let refresh = |operation_id: &str, expected_revision: i64| {
+        stack
+            .refresh(&identity, &lineage_b64u, operation_id, expected_revision)
+            .and_then(|(status, body)| Ok((status, serde_json::from_str::<serde_json::Value>(&body)?)))
+    };
+
+    // 1. A settled wallet on epoch 1, a second registration admitted only at
+    // B, then the refresh.
+    let _signing_worker =
+        stack.register_and_sign(signing_worker, &identity, &lineage_b64u, "account-retired-settled")?;
+    let registration = stack.registration(&identity, &lineage_b64u)?;
+    stack
+        .proxy_a
+        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH);
+    let registering = {
+        let router_url = stack.router_url.clone();
+        thread::spawn(move || {
+            post_json_to_path_with_headers(
+                &router_url,
+                LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+                &registration,
+                &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
+            )
+            .map_err(|error| error.to_string())
+        })
+    };
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while stack.proxy_a.held_request().is_none() || admission_statuses(&stack.b_store)?.len() < 2 {
+        if Instant::now() > deadline {
+            return Err("the second registration never reached both Derivers".into());
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    let (first_status, first) = refresh("vm-retirement-trigger-1", created_revision)?;
+    assert_eq!(first_status, 200, "{first}");
+    let refreshed_at = Instant::now();
+    assert_eq!(kinds(&first["retirement"]), ["pending", "pending"], "{first}");
+    assert!(
+        first["retirement"]["deriver_a"]["reason"]
+            .as_str()
+            .is_some_and(|reason| reason.contains("the grace after the swap")),
+        "{first}"
+    );
+    stack.proxy_a.release_request();
+    let (registration_status, registration_body) = registering
+        .join()
+        .map_err(|_| "the registration thread panicked")??;
+    assert_eq!(registration_status, 200, "{registration_body}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&registration_body)?["status"],
+        "recoverable_failure",
+        "{registration_body}"
+    );
+    assert_eq!(admission_statuses(&stack.a_store)?, vec![at(1, "settled")]);
+    assert_eq!(admission_statuses(&stack.b_store)?, vec![at(1, "settled"), at(1, "admitted")]);
+
+    // 2. After the grace: A erases epoch 1 and its answer is lost; B keeps it.
+    thread::sleep(Duration::from_millis(2_100).saturating_sub(refreshed_at.elapsed()));
+    stack.proxy_a.lose_next_response_on(CLEANUP);
+    let (pass_status, pass) = refresh("vm-retirement-trigger-1", created_revision)?;
+    assert_eq!(pass_status, 200, "{pass}");
+    assert_eq!(kinds(&pass["retirement"]), ["pending", "pending"], "{pass}");
+    assert!(stack.proxy_a.lost_response().is_some(), "A's cleanup answer must have been lost");
+    assert!(
+        pass["retirement"]["deriver_b"]["reason"]
+            .as_str()
+            .is_some_and(|reason| reason.contains("1 admitted operation(s) are not settled")),
+        "{pass}"
+    );
+    assert_eq!(stack.epochs(&lineage_b64u)?.0, vec![epoch(2, "active")]);
+
+    // 3. A fresh command is answered from A's store; B is unreachable.
+    stack.proxy_b.drop_every_on(CLEANUP);
+    let (recorded_status, recorded) = refresh("vm-retirement-trigger-1", created_revision)?;
+    assert_eq!(recorded_status, 200, "{recorded}");
+    assert_eq!(kinds(&recorded["retirement"]), ["erased", "pending"], "{recorded}");
+    assert_eq!(recorded["retirement"]["deriver_a"]["cancelled_admissions"], 0);
+    let (replayed_status, replayed) = refresh("vm-retirement-trigger-1", created_revision)?;
+    assert_eq!(replayed_status, 200, "{replayed}");
+    assert_eq!(
+        replayed["retirement"]["deriver_a"], recorded["retirement"]["deriver_a"],
+        "the recorded erasure replays exactly"
+    );
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?.1,
+        vec![epoch(1, "retired"), epoch(2, "active")]
+    );
+
+    // 4. The next refresh waits for B's retirement.
+    thread::sleep(Duration::from_millis(61_000).saturating_sub(refreshed_at.elapsed()));
+    let (refreshed_revision, _, _) = stack.active_state(&lineage_b64u)?;
+    let (refused_status, refused) = refresh("vm-retirement-trigger-2", refreshed_revision)?;
+    assert_eq!(refused_status, 409, "{refused}");
+    assert_eq!(refused["code"], "tenant_root_retirement_pending", "{refused}");
+    assert_eq!(kinds(&refused["retirement"]), ["erased", "pending"], "{refused}");
+
+    // 5. B is reachable and W has passed: the refresh's own pass erases B's
+    // epoch 1, then the refresh completes.
+    stack.proxy_b.stop_dropping();
+    let (second_status, second) = refresh("vm-retirement-trigger-2", refreshed_revision)?;
+    assert_eq!(second_status, 200, "{second}");
+    assert_eq!(kinds(&second["retirement"]), ["pending", "pending"], "{second}");
+    assert_eq!(admission_statuses(&stack.b_store)?, vec![at(1, "settled"), at(1, "cancelled")]);
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?,
+        (
+            vec![epoch(2, "retired"), epoch(3, "active")],
+            vec![epoch(2, "retired"), epoch(3, "active")],
+        )
+    );
+    println!(
+        "R150_VM_TENANT_ROOT_RETIREMENT_TRIGGER_E2E {}",
+        json!({
+            "grace_ms": 2000,
+            "w_ms": 8000,
+            "first_refresh": [first_status, kinds(&first["retirement"])],
+            "after_grace_with_a_lost_answer": [kinds(&pass["retirement"]), pass["retirement"]["deriver_b"]["reason"]],
+            "a_answers_a_fresh_command_from_its_store": kinds(&recorded["retirement"]),
+            "recorded_erasure_replays_exactly": true,
+            "next_refresh_while_b_is_unreachable": [refused_status, refused["code"]],
+            "next_refresh_once_b_answers": [second_status, second["lifecycle_revision"]],
+            "b_admissions_after": [[1, "settled"], [1, "cancelled"]],
+            "epochs_after": [[2, "retired"], [3, "active"]],
         })
     );
     Ok(())
@@ -5436,6 +5655,8 @@ struct FaultProxyControlsV1 {
     holding: AtomicBool,
     released: AtomicBool,
     hold_request_path: Mutex<Option<&'static str>>,
+    lose_response_path: Mutex<Option<&'static str>>,
+    lost_response: Mutex<Option<Vec<u8>>>,
     held_request: Mutex<Option<Vec<u8>>>,
     held_response: Mutex<Option<Vec<u8>>>,
     request_released: AtomicBool,
@@ -5457,7 +5678,8 @@ fn lock_proxy<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 /// body, including one it drops, and, when armed, drops the next request
 /// before the peer reads it. It can also drop the next request whose body
 /// carries a marker, deliver the peer's response to one request only once
-/// released, or hold one request back from the peer until released.
+/// released, hold one request back from the peer until released, or let the
+/// peer answer one request and lose that answer.
 struct FaultProxyV1 {
     url: String,
     controls: Arc<FaultProxyControlsV1>,
@@ -5572,6 +5794,18 @@ impl FaultProxyV1 {
         *lock_proxy(&self.controls.held_response) = None;
         self.controls.request_released.store(false, Ordering::SeqCst);
         *lock_proxy(&self.controls.hold_request_path) = Some(path);
+    }
+
+    /// Forwards the next request to `path`, lets the peer act on it and
+    /// answer, then closes the caller's connection without the answer.
+    fn lose_next_response_on(&self, path: &'static str) {
+        *lock_proxy(&self.controls.lost_response) = None;
+        *lock_proxy(&self.controls.lose_response_path) = Some(path);
+    }
+
+    /// The peer's answer that `lose_next_response_on` kept from the caller.
+    fn lost_response(&self) -> Option<Vec<u8>> {
+        lock_proxy(&self.controls.lost_response).clone()
     }
 
     /// The body of the request being held, once one is.
@@ -5777,6 +6011,14 @@ fn proxy_fault_connection(
             thread::sleep(Duration::from_millis(5));
         }
     }
+    let lose_response = {
+        let mut lose_response_path = lock_proxy(&controls.lose_response_path);
+        let lose = lose_response_path.is_some_and(posts_to);
+        if lose {
+            *lose_response_path = None;
+        }
+        lose
+    };
     let mut upstream = TcpStream::connect(upstream)?;
     upstream.set_read_timeout(Some(Duration::from_secs(15)))?;
     upstream.set_write_timeout(Some(Duration::from_secs(15)))?;
@@ -5784,6 +6026,12 @@ fn proxy_fault_connection(
     upstream.write_all(&body)?;
     upstream.shutdown(Shutdown::Write)?;
     let mut client_writer = client;
+    if lose_response {
+        let mut response = Vec::new();
+        upstream.read_to_end(&mut response)?;
+        *lock_proxy(&controls.lost_response) = Some(response);
+        return client_writer.shutdown(Shutdown::Both);
+    }
     if hold_request {
         let mut response = Vec::new();
         upstream.read_to_end(&mut response)?;

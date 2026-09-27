@@ -27,7 +27,7 @@ use crate::durable_object::tenant_root_creation::{
 };
 use crate::tenant_root_control_plane::CloudflareTenantRootControlPlaneRefreshCommandsRequestV1;
 use crate::tenant_root_refresh_coordinator::{
-    tenant_root_deriver_refresh_with_retry_v1, tenant_root_router_deliver_pending_v1,
+    tenant_root_deriver_refresh_with_retry_v1, tenant_root_router_retire_v1,
     tenant_root_router_finish_refresh_v1, tenant_root_router_refresh_attempt_packages_v1,
     CloudflareRouterTenantRootRefreshResponseV1, CloudflareRouterTenantRootRetirementEvidenceV1,
 };
@@ -100,11 +100,20 @@ pub async fn tenant_root_router_coordinate_managed_restore_v1<
     )
     .await?;
     if let Some(completed) = completed {
-        // A delayed retry must never reinstall an epoch superseded since.
+        // The restore's own swap reports its retirement while it is still the
+        // latest; a pass moves it on, as for any refresh.
         let retirement = if active.lifecycle_revision == completed.lifecycle_revision {
-            tenant_root_router_deliver_pending_v1(host, &active).await?
+            Box::pin(tenant_root_router_retire_v1(host, active))
+                .await?
+                .1
+                .ok_or_else(|| {
+                    RouterAbProtocolError::new(
+                        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                        "tenant-root managed restore's swap has no retirement recorded with its delivery",
+                    )
+                })?
         } else {
-            CloudflareRouterTenantRootRetirementEvidenceV1::Pending
+            CloudflareRouterTenantRootRetirementEvidenceV1::superseded()
         };
         return Ok(CloudflareRouterTenantRootRefreshResponseV1 {
             activation_receipt_digest_b64u: completed.activation_receipt_digest_b64u,
@@ -127,6 +136,23 @@ pub async fn tenant_root_router_coordinate_managed_restore_v1<
         TenantRootManagedRestoreRoleV1::DeriverA => TwoPartyDeriverRole::DeriverA,
         TenantRootManagedRestoreRoleV1::DeriverB => TwoPartyDeriverRole::DeriverB,
     };
+    // The restore's swap does not wait for the previous refresh's
+    // retirement: the role it restores may be the one that cannot erase. An
+    // epoch that retirement had not yet erased then stays retired, unerased,
+    // since the control plane signs cleanup only for the latest swap's.
+    if let Some(retirement) = active
+        .delivery
+        .as_ref()
+        .and_then(|delivery| delivery.retirement.as_ref())
+        .filter(|retirement| !retirement.erased())
+    {
+        host.warn(&format!(
+            "tenant-root managed restore proceeds while epoch {}'s retirement is pending; that epoch will stay retired and unerased at the roles that have not erased it, for root {} lineage {}",
+            retirement.retired_epoch,
+            crate::encode_base64url_bytes_v1(authorization.identity_digest.as_bytes()),
+            authorization.custody_lineage.to_base64url(),
+        ));
+    }
     let (refresh_context_b64u, deriver_a_refresh_command_b64u, deriver_b_refresh_command_b64u) =
         if must_start_forward_refresh {
             tenant_root_deriver_managed_restore_call_v1(

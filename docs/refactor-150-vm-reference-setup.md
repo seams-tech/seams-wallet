@@ -80,6 +80,14 @@ Until then the Deriver answers that retirement is pending.
 configuration error. `W` decides only when recovery runs, never whether
 erasure is safe.
 
+The Router issues that command itself, with the code Workers runs
+([refresh retirement](./refactor-150-refresh-retirement.md)). Every refresh
+call and every scheduler tick is a pass. A pass erases the epoch the last swap
+retired at each role once the grace after the swap has passed. The next
+refresh waits for both roles to erase it.
+`TENANT_ROOT_RETIREMENT_GRACE_MS` in the Router's env file sets the grace:
+five minutes unless set, at least one second.
+
 ## One command
 
 ```bash
@@ -290,6 +298,17 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
     retried exactly, returns its stored response; a changed request is
     refused (400).
   - No admission or pair record changes.
+- `vm_tenant_root_refresh_retires_its_old_epoch_once_its_work_settles`
+  prints `R150_VM_TENANT_ROOT_RETIREMENT_TRIGGER_E2E`. The grace is two
+  seconds, `W` eight.
+  - After the grace, A erases epoch 1 but its answer is lost; B keeps epoch 1
+    for an unsettled admission.
+  - The next pass records A's erasure from a fresh command, answered from A's
+    store. A retry replays it exactly.
+  - With B unreachable, a new refresh is refused: 409
+    `tenant_root_retirement_pending`.
+  - Once B answers and `W` has passed, the refresh's own pass has B cancel
+    the stale admission and erase epoch 1. The refresh completes on epoch 3.
 - `vm_tenant_root_new_work_waits_for_the_committed_epoch_delivery` prints
   `R150_VM_TENANT_ROOT_DELIVERY_GATE_E2E`: new work is refused with HTTP 503
   while a Deriver lacks the committed epoch, and admitted once delivery

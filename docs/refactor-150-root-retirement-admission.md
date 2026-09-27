@@ -163,9 +163,10 @@ mechanism is not.
 - **Refresh retirement's gate is implemented** (2026-09-27). The
   retired-cleanup command erases only once the epoch's admissions are settled
   or cancelled.
-- **Nothing issues that command yet,** so refresh still keeps its retired
-  shares and reports retirement `pending`. The
-  [trigger proposal](./refactor-150-refresh-retirement.md) awaits approval.
+- **The Router issues it** (2026-09-27): once delivery is complete and the
+  grace after the swap has passed, on later refresh passes. The next refresh
+  waits for both roles to erase
+  ([refresh retirement](./refactor-150-refresh-retirement.md)).
 - **Moving authority** is not implemented.
 
 ### What the earlier revisions could not prove

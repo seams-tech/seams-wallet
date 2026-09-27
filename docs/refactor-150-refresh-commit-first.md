@@ -121,16 +121,16 @@ persisted initial-activation receipt is for creation.
 - **Work already admitted continues** on the epoch it started with, because the
   swap only retires the old row and does not erase it.
 
-### Retirement stays pending
+### Retirement after delivery
 
-- **No erasure in the refresh path.** After both roles are delivered, each
-  retired old-epoch share is kept. The refresh response reports retirement as
-  `pending` rather than claiming it `confirmed`.
-- **Erasure has one rule for both hosts.** It happens only through the safe
-  retirement rule of the retirement-admission proposal. Until that rule is
-  implemented and reviewed, erasure after refresh is release-gated on both
-  hosts. The VM adapter never gets the immediate erasure, and the shared
-  implementation removes it from Cloudflare too (open question 3).
+- **No erasure in the commit path.** After both roles are delivered, each
+  retired old-epoch share is kept for the grace after the swap. The refresh
+  response reports each role's retirement.
+- **Erasure has one rule for both hosts.** A later Router pass asks each role
+  to erase its retired epoch, and the role does so only once every admission
+  on it is settled or cancelled
+  ([refresh retirement](./refactor-150-refresh-retirement.md), implemented
+  2026-09-27).
 
 ### Before the commit, after expiry: abandonment and supersession (implemented)
 
