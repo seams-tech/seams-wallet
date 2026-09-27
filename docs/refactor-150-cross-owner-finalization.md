@@ -168,10 +168,61 @@ moves:
   - A capability cache install refused after the decision still returns its
     error.
 
+### Slice 3: recovery promotion commits in one batch
+
+A code check of recovery (2026-09-28) found promotion writing the
+SigningWorker, then two D1 batches.
+- **Batch 1 replaced the capability.** It covered the signer row, the
+  replacement receipt, and the active authorities and live sessions that
+  project the capability. No statement in it aborted the batch. A stale
+  signer, or an authority changed since it was read, committed part of the
+  replacement, and every retry then answered `exact_retry`.
+- **Batch 2 recorded the shared record and the ceremony.** Between the two,
+  the signer rows showed the successor while the shared cache still held the
+  old capability suspended. Readers that rebuilt the cache from the signer
+  row got `capability_conflict` until someone retried the activation.
+
+Now:
+- **The replacement is prepared, not applied.** The persistence port returns
+  its statements. The batch guard follows the signer row and each authority,
+  and the receipt is inserted once per operation. A live session retired
+  since it was read matches no row, which is correct: it projects nothing.
+- **One batch.** The statements commit in the batch that records the
+  promoted shared record and ceremony, so a promotion is visible everywhere
+  or nowhere. If the batch aborts, nothing commits and a retried activation
+  promotes again. That happens when a guard fires, or when the shared record
+  changed during the Router call, which is now a retryable 503. On the retry
+  the SigningWorker answers the same promotion, and the replacement is
+  prepared again from what is stored.
+- **No decision row for recovery.** The ceremony's `promoted` state commits
+  in the same batch as the rows it makes visible, so it is the decision. A
+  second row would record the same fact twice.
+- **Evidence (2026-09-28).** Two passkey recovery contracts pass on Workers
+  and on the VM:
+  - a fresh browser recovers with one code, signs, and refuses the code's
+    reuse;
+  - a committed recovery survives a lost finalization response and a runtime
+    reset.
+
+  A persisted trace of the first shows the recovery's Yao admit, execute and
+  activate calls, so the promotion ran through the single batch before the
+  recovered wallet signed. No fault case targets the batch itself.
+
+Found in the same check and not addressed here (for review):
+- A failed recovery never un-suspends the old capability. A later recovery
+  is refused `capability_suspended`, and export and warm bootstrap find no
+  active capability.
+- Admission and execute can stay `admitting` or `executing` after a crash or
+  a lost commit, and then answer "in progress" forever. Every Router
+  non-success in execute is recorded as terminal, recoverable ones included.
+- The SigningWorker keys a recovery's staged candidate by the stable key
+  context, in one slot, not by the Router execution, and has no read-only
+  lookup. An abandoned candidate blocks later recoveries.
+- The VM and Workers Routers reconcile a replayed recovery differently.
+
 ### Later slices
 
-1. Recovery promotion.
-2. Export.
+1. Export.
 
 ## Current behavior (code-checked 2026-09-25)
 
@@ -255,6 +306,10 @@ for the same lifecycle fail.
 
 ### Registration
 
+Built in slice 2 (above), without steps 2 and 4: the Router's consumption
+pins the consumer binding, and the decision stays the Gateway's alone. The
+proposal as written:
+
 1. **DO: completed.** This already exists. The execution record holds the
    terminal outcome before any peer reply, and `consumerBinding` is claimed
    by first-writer CAS.
@@ -293,6 +348,11 @@ Otherwise a delayed step-3 batch could race the abort. After a
 `registration_finalized` decision, abort is impossible.
 
 ### Recovery promotion
+
+Built differently in slice 3 (above): the replacement rows, the shared record
+and the ceremony's `promoted` state commit in one batch, and the ceremony
+state is the decision. The SigningWorker's promotion is keyed by the stable
+key context, not by the Router execution. The proposal as written:
 
 The same shape applies, with `decision_kind = 'recovery_promoted'`:
 

@@ -58,6 +58,7 @@ import type {
 } from '../../../framework/authServicePort';
 import type { RouterAbEd25519YaoRecoveryExecuteAdmissionContextV1 } from '../routerAbEd25519YaoGatewayEnvelope';
 import type { WalletEd25519YaoActiveCapabilityRecord } from '../../../../core/WalletStore';
+import type { RouterAbEd25519YaoPreparedWriteV1 } from '../capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
 import {
   parseThresholdEd25519SessionId,
   type MpcMaterialActivationRef,
@@ -303,6 +304,8 @@ export type RouterAbEd25519YaoRecoveryActivationCommitResultV1 =
   | {
       readonly kind: 'completed';
       readonly value: RouterAbEd25519YaoRecoveryServiceResult<RouterAbEd25519YaoRecoveryActivationReceiptV1>;
+      /** The capability replacement, which commits with this state or not at all. */
+      readonly companionWrite?: RouterAbEd25519YaoPreparedWriteV1;
     }
   | {
       readonly kind: 'uncertain';
@@ -500,7 +503,14 @@ export type RouterAbEd25519YaoCapabilityReplacementOperationV1 = {
 };
 
 export type RouterAbEd25519YaoCapabilityPersistenceResultV1 =
-  | { readonly ok: true; readonly disposition: 'applied' | 'exact_retry' }
+  /** The replacement already committed, for this operation. */
+  | { readonly ok: true; readonly disposition: 'exact_retry' }
+  | {
+      readonly ok: true;
+      readonly disposition: 'prepared';
+      /** Applies the replacement. It commits with the promoted recovery or not at all. */
+      readonly write: RouterAbEd25519YaoPreparedWriteV1;
+    }
   | {
       readonly ok: false;
       readonly disposition: 'rejected' | 'uncertain';
@@ -508,8 +518,15 @@ export type RouterAbEd25519YaoCapabilityPersistenceResultV1 =
       readonly message: string;
     };
 
+/**
+ * Replaces a wallet's active Ed25519 Yao capability in its durable records:
+ * the signer row, the replacement receipt, and the active authorities and
+ * live sessions that project it. The writes are prepared, not applied: they
+ * commit in the same batch as the promoted recovery state, so a promotion is
+ * visible everywhere or nowhere.
+ */
 export interface RouterAbEd25519YaoCapabilityPersistenceV1 {
-  replaceActiveCapability(input: {
+  prepareActiveCapabilityReplacement(input: {
     readonly operation: RouterAbEd25519YaoCapabilityReplacementOperationV1;
     readonly previous: WalletEd25519YaoActiveCapabilityRecord;
     readonly next: WalletEd25519YaoActiveCapabilityRecord;
@@ -519,8 +536,8 @@ export interface RouterAbEd25519YaoCapabilityPersistenceV1 {
 }
 
 class EphemeralRouterAbEd25519YaoCapabilityPersistenceV1 implements RouterAbEd25519YaoCapabilityPersistenceV1 {
-  replaceActiveCapability(): RouterAbEd25519YaoCapabilityPersistenceResultV1 {
-    return { ok: true, disposition: 'applied' };
+  prepareActiveCapabilityReplacement(): RouterAbEd25519YaoCapabilityPersistenceResultV1 {
+    return { ok: true, disposition: 'prepared', write: { statements: [] } };
   }
 }
 
@@ -2300,7 +2317,13 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
           claim: preparation.claim,
           outcome,
         });
-        return committed.kind === 'completed' ? committed.value : committed.failure;
+        if (committed.kind !== 'completed') return committed.failure;
+        if (committed.companionWrite && committed.companionWrite.statements.length > 0) {
+          throw new Error(
+            'In-memory Yao recovery cannot commit a capability replacement prepared for a database',
+          );
+        }
+        return committed.value;
       }
     }
   }
@@ -2509,7 +2532,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
       this.storeActivationFailure(state, promoted.failure);
       return { kind: 'completed', value: promoted.failure };
     }
-    const persisted = await this.capabilityPersistence.replaceActiveCapability({
+    const persisted = await this.capabilityPersistence.prepareActiveCapabilityReplacement({
       operation: {
         kind: 'router_ab_ed25519_yao_capability_replacement_operation_v1',
         operationId: input.claim.lifecycleId,
@@ -2551,6 +2574,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
     return {
       kind: 'completed',
       value: { ok: true, status: 200, value: activationReceipt.value },
+      ...(persisted.disposition === 'prepared' ? { companionWrite: persisted.write } : {}),
     };
   }
 

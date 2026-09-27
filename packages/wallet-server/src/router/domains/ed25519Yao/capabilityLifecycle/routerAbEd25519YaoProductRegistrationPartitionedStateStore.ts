@@ -3,6 +3,7 @@ import type {
   VersionedJsonRecordReadResult,
   VersionedJsonValue,
 } from '../../../framework/versionedJsonRecordStore';
+import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import {
   buildRouterAbEd25519YaoRegistrationExecutionAuthorityV1,
   type RouterAbEd25519YaoRegistrationExecutionAuthorityV1,
@@ -67,6 +68,14 @@ export type RouterAbEd25519YaoProductRegistrationPartitionBatchResultV1 =
     }
   | { readonly kind: 'version_mismatch'; readonly key: string };
 
+/**
+ * Writes another store prepared on the same signer database, which commit in
+ * the batch of a state commit or not at all.
+ */
+export type RouterAbEd25519YaoPreparedWriteV1 = {
+  readonly statements: readonly D1PreparedStatementLike[];
+};
+
 export type RouterAbEd25519YaoProductRegistrationPartitionRecordStoreV1 = {
   readonly readMany: (keys: readonly string[]) => Promise<
     readonly {
@@ -76,6 +85,7 @@ export type RouterAbEd25519YaoProductRegistrationPartitionRecordStoreV1 = {
   >;
   readonly putMany: (
     mutations: readonly RouterAbEd25519YaoProductRegistrationPartitionMutationV1[],
+    companion: RouterAbEd25519YaoPreparedWriteV1 | null,
   ) => Promise<RouterAbEd25519YaoProductRegistrationPartitionBatchResultV1>;
 };
 
@@ -93,6 +103,8 @@ export type RouterAbEd25519YaoSharedStateCanonicalEncodingV1 = VersionedJsonObje
 export type RouterAbEd25519YaoProductRegistrationPartitionedStateCommitInputV1 = {
   readonly lifecycleId: string;
   readonly state: RouterAbEd25519YaoProductRegistrationStateV1;
+  /** Another store's writes that commit with this state or not at all. */
+  readonly companionWrite?: RouterAbEd25519YaoPreparedWriteV1;
   readonly baseline: {
     readonly sharedEncoding: RouterAbEd25519YaoSharedStateCanonicalEncodingV1;
     readonly sharedVersion: string | null;
@@ -333,6 +345,7 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
 
   private async putMany(
     mutations: readonly DomainPartitionMutation[],
+    companion: RouterAbEd25519YaoPreparedWriteV1 | null,
   ): Promise<RouterAbEd25519YaoProductRegistrationPartitionBatchResultV1> {
     const encodedMutations: RouterAbEd25519YaoProductRegistrationPartitionMutationV1[] = [];
     for (const mutation of mutations) {
@@ -342,7 +355,7 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
         expectedVersion: mutation.expectedVersion,
       });
     }
-    return await this.store.putMany(encodedMutations);
+    return await this.store.putMany(encodedMutations, companion);
   }
 
   async load(
@@ -401,7 +414,7 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
       },
       expectedVersion: input.baseline.ceremonyVersion,
     });
-    const result = await this.putMany(mutations);
+    const result = await this.putMany(mutations, input.companionWrite ?? null);
     if (result.kind === 'version_mismatch') {
       return {
         kind: 'version_mismatch',

@@ -1,5 +1,6 @@
 import type { RouterAbEd25519YaoProductRegistrationStateV1 } from '../capabilityLifecycle/routerAbEd25519YaoProductRegistration';
 import type {
+  RouterAbEd25519YaoPreparedWriteV1,
   RouterAbEd25519YaoProductRegistrationPartitionedStateCommitInputV1,
   RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1,
   RouterAbEd25519YaoProductRegistrationPartitionedStateV1,
@@ -22,6 +23,8 @@ export type RouterAbEd25519YaoRegistrationTwoPhasePrepareResultV1<TClaim, TRespo
 export type RouterAbEd25519YaoRegistrationTwoPhaseCompletionV1<TResponse> = {
   readonly state: RouterAbEd25519YaoProductRegistrationStateV1;
   readonly value: TResponse;
+  /** Another store's writes that commit with the terminal state or not at all. */
+  readonly companionWrite?: RouterAbEd25519YaoPreparedWriteV1;
 };
 
 export type RouterAbEd25519YaoRegistrationTwoPhaseRunResultV1<TClaim, TResponse, TRejection> =
@@ -111,9 +114,10 @@ export async function runRouterAbEd25519YaoRegistrationTwoPhaseV1<
         prepared.claim,
         backend.value,
       );
-      const terminal = await input.store.commit(
-        buildCommitInput(input.lifecycleId, terminalSnapshot, completion.state),
-      );
+      const terminal = await input.store.commit({
+        ...buildCommitInput(input.lifecycleId, terminalSnapshot, completion.state),
+        ...(completion.companionWrite ? { companionWrite: completion.companionWrite } : {}),
+      });
       if (terminal.kind === 'version_mismatch') {
         return { kind: 'terminal_version_mismatch', claim: prepared.claim, key: terminal.key };
       }

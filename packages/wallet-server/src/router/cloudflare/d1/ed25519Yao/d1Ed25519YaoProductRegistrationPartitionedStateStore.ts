@@ -25,7 +25,8 @@ export function createRouterAbEd25519YaoProductRegistrationPartitionedStateStore
   });
   const store: RouterAbEd25519YaoProductRegistrationPartitionRecordStoreV1 = {
     readMany: records.readMany.bind(records),
-    putMany: records.putMany.bind(records),
+    putMany: async (mutations, companion) =>
+      await records.putManyWithAdditionalStatements(mutations, companion?.statements ?? []),
   };
   return createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1(store);
 }

@@ -361,10 +361,11 @@ class RecoveryActivationRequestRun {
       claim,
       outcome: { kind: 'backend_response', result: backend },
     });
-    return {
-      state,
-      value: committed.kind === 'completed' ? committed.value : committed.failure,
-    };
+    if (committed.kind !== 'completed') return { state, value: committed.failure };
+    // The capability replacement commits with the promoted state, or neither does.
+    return committed.companionWrite
+      ? { state, value: committed.value, companionWrite: committed.companionWrite }
+      : { state, value: committed.value };
   }
 
   private service(
