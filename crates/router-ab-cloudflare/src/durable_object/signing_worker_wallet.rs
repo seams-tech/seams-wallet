@@ -52,6 +52,17 @@ const ROUND1_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_round1 (
     authorization_json TEXT,
     effect_request_digest_hex TEXT,
     terminal_json TEXT)";
+/// Harness only: the private harness loses or fences a registration's
+/// activation here. This object keeps an activation in one record with its
+/// lifecycle and has no revocation of its own, so neither state arises
+/// otherwise; the finalization lookup reports both.
+#[cfg(feature = "wallet-do-signing-worker-harness")]
+const HARNESS_FAULT_PATH: &str =
+    "/router-ab/internal/signing-worker/wallet/harness-activation-fault";
+#[cfg(feature = "wallet-do-signing-worker-harness")]
+const HARNESS_FAULT_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS harness_activation_faults (
+    active_key TEXT PRIMARY KEY,
+    fault TEXT NOT NULL CHECK (fault IN ('lost', 'fenced')))";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
@@ -345,6 +356,15 @@ struct InsertedRowV1 {
     registration_key: String,
 }
 
+/// Harness only: one lost or fenced activation, by its active key.
+#[cfg(feature = "wallet-do-signing-worker-harness")]
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct HarnessActivationFaultV1 {
+    active_key: String,
+    fault: String,
+}
+
 /// The wallet Durable Object's own SQLite storage, as the shared wallet
 /// store's statement executor.
 struct DurableObjectWalletSqlV1<'a>(&'a SqlStorage);
@@ -416,6 +436,10 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
     }
 
     async fn fetch(&self, mut request: Request) -> worker::Result<Response> {
+        #[cfg(feature = "wallet-do-signing-worker-harness")]
+        if request.method() == worker::Method::Post && request.path() == HARNESS_FAULT_PATH {
+            return self.record_harness_activation_fault(request.json().await?);
+        }
         if request.method() != worker::Method::Post || request.path() != PATH {
             return Response::error("Unknown SigningWorker wallet object request", 404);
         }
@@ -705,8 +729,78 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 fenced: false,
             },
         };
+        #[cfg(feature = "wallet-do-signing-worker-harness")]
+        let snapshot = self.with_harness_activation_fault(snapshot)?;
         let result = evaluate_initial_registration_finalization_v1(&request, snapshot)?;
         Response::from_json(&result).map_err(sql_error)
+    }
+
+    /// Harness only: marks one stored registration's activation lost or
+    /// fenced. The record itself is left as it is.
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    fn record_harness_activation_fault(
+        &self,
+        fault: HarnessActivationFaultV1,
+    ) -> worker::Result<Response> {
+        let stored = self
+            .sql
+            .exec(
+                "SELECT registration_key FROM wallet_registrations WHERE active_key = ?",
+                vec![SqlStorageValue::String(fault.active_key.clone())],
+            )?
+            .to_array::<InsertedRowV1>()?;
+        if stored.len() != 1 {
+            return Response::error("SigningWorker registration activation is missing", 404);
+        }
+        self.sql.exec(HARNESS_FAULT_SCHEMA, None)?;
+        self.sql.exec(
+            "INSERT INTO harness_activation_faults (active_key, fault) VALUES (?, ?)
+             ON CONFLICT (active_key) DO UPDATE SET fault = excluded.fault",
+            vec![
+                SqlStorageValue::String(fault.active_key),
+                SqlStorageValue::String(fault.fault),
+            ],
+        )?;
+        Response::empty()
+    }
+
+    /// Harness only: the lookup's snapshot with a recorded fault applied. A
+    /// lost activation is absent; a fenced one is absent and fenced, as the
+    /// role store reports an exact deactivation.
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    fn with_harness_activation_fault(
+        &self,
+        mut snapshot: CloudflareSigningWorkerInitialRegistrationFinalizationSnapshotV1<
+            SigningWorkerYaoDurableStateV1,
+        >,
+    ) -> Result<
+        CloudflareSigningWorkerInitialRegistrationFinalizationSnapshotV1<
+            SigningWorkerYaoDurableStateV1,
+        >,
+        RouterAbProtocolError,
+    > {
+        let Some(activation) = &snapshot.activation else {
+            return Ok(snapshot);
+        };
+        self.sql
+            .exec(HARNESS_FAULT_SCHEMA, None)
+            .map_err(sql_error)?;
+        let faults = self
+            .sql
+            .exec(
+                "SELECT active_key, fault FROM harness_activation_faults WHERE active_key = ?",
+                vec![SqlStorageValue::String(active_key(
+                    activation.active_signing_worker_state(),
+                ))],
+            )
+            .map_err(sql_error)?
+            .to_array::<HarnessActivationFaultV1>()
+            .map_err(sql_error)?;
+        if let Some(fault) = faults.first() {
+            snapshot.activation = None;
+            snapshot.fenced = fault.fault == "fenced";
+        }
+        Ok(snapshot)
     }
 
     fn prepare_near(

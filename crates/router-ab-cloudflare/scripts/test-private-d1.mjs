@@ -53,6 +53,12 @@ const tenantRootCreationDoClass = 'RouterAbTenantRootCreationDurableObject';
 // registration it executes.
 const routerWalletDoBinding = 'ROUTER_WALLET_DO';
 const routerWalletDoClass = 'RouterAbRouterWalletDurableObject';
+// The SigningWorker's wallet object on a wallet-object build: each wallet's
+// registration lifecycle and activation. Its harness-only hook loses or
+// fences an activation.
+const signingWorkerWalletDoBinding = 'SIGNING_WORKER_WALLET_DO';
+const signingWorkerWalletFaultPath =
+  '/router-ab/internal/signing-worker/wallet/harness-activation-fault';
 const deriverAWalletDoBinding = 'DERIVER_A_WALLET_DO';
 const deriverAWalletDoClass = 'RouterAbDeriverAWalletDurableObject';
 const deriverAWalletDoPath = '/router-ab/internal/deriver-a/wallet-pair';
@@ -3935,6 +3941,36 @@ function deriverAWalletDoObjectName(owner) {
     .digest('hex')}`;
 }
 
+/// The SigningWorker's wallet object for one wallet scope, whose fields are
+/// in the order the SigningWorker serializes them.
+function signingWorkerWalletDoObjectName(scope) {
+  return `signing-worker-wallet-${createHash('sha256')
+    .update('seams/signing-worker/wallet-do/v1')
+    .update(JSON.stringify(scope))
+    .digest('hex')}`;
+}
+
+/// Loses or fences one registration activation in the SigningWorker's
+/// wallet object, through its harness-only hook. `lost` leaves the
+/// registration's lifecycle without its activation, as output loss would;
+/// `fenced` also fences the activation, as an exact deactivation does.
+async function faultSigningWorkerActivation(topology, scope, activeKey, fault) {
+  const namespace = await topology.getDurableObjectNamespace(
+    signingWorkerWalletDoBinding,
+    'fixture-signing-worker',
+  );
+  const object = namespace.get(namespace.idFromName(signingWorkerWalletDoObjectName(scope)));
+  const response = await object.fetch(
+    `https://router-ab-do.internal${signingWorkerWalletFaultPath}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ active_key: activeKey, fault }),
+    },
+  );
+  await expectOk(response, `SigningWorker wallet object activation ${fault}`);
+}
+
 /// Deriver B's record of one pair, as its read-pair-status route reports it.
 /// The route reads wherever this build keeps B's pairs: its wallet object,
 /// or its role store. It is read directly, past the Router's offline gate.
@@ -4213,15 +4249,66 @@ async function testHistoricalRegistrationReplay(topology, fixture, tenantRoot, d
   assert.equal(historicalReplayActivationCalls, 0);
   assert.equal(blockedDeriverBCalls, 0);
 
+  // The SigningWorker's wallet object loses the activation and keeps the
+  // lifecycle, as output loss would. Each replay below runs on a Router of
+  // its own, so its claim is fresh: the first run leaves the claim, and the
+  // retry after the lease replays from the roles' records.
+  const signingWorkerScope = {
+    org_id: rootIdentity.orgId,
+    project_id: rootIdentity.projectId,
+    project_environment_id: rootIdentity.envId,
+    wallet_id: owner.wallet_id,
+  };
+  const material = pair.ceremony.binding.material_activation;
+  const activeKey = [
+    'active-signing-worker',
+    material.material_owner,
+    material.activation_id,
+    material.signing_worker,
+  ].join('/');
+  await faultSigningWorkerActivation(topology, signingWorkerScope, activeKey, 'lost');
+  const conflictRouter = await topology.getWorker('router-replay-conflict');
+  await firstRunLeavingClaim(conflictRouter, activation.envelope);
+  const conflictBytes = await expectOk(
+    await postWorkerJson(conflictRouter, ed25519ExecutePath, activation.envelope),
+    'historical replay with inconsistent finalization',
+  );
+  assert.deepEqual(JSON.parse(conflictBytes.toString('utf8')), {
+    status: 'rejected',
+    code: 'conflicting_pair',
+  });
+  assert.equal(signingWorkerFinalizationLookups, lookupCallsBefore + 2);
+
+  // A fence on the activation, as an exact deactivation leaves it: the
+  // replay is refused as revoked.
+  await faultSigningWorkerActivation(topology, signingWorkerScope, activeKey, 'fenced');
+  const revokedRouter = await topology.getWorker('router-replay-revoked');
+  await firstRunLeavingClaim(revokedRouter, activation.envelope);
+  const revokedBytes = await expectOk(
+    await postWorkerJson(revokedRouter, ed25519ExecutePath, activation.envelope),
+    'historical replay after output revocation',
+  );
+  assert.deepEqual(JSON.parse(revokedBytes.toString('utf8')), {
+    status: 'rejected',
+    code: 'authorization_rejected',
+  });
+  assert.equal(signingWorkerFinalizationLookups, lookupCallsBefore + 3);
+  // Neither replay activated again.
+  assert.equal(signingWorkerActivationCalls, activationCallsBefore);
+  assert.equal(historicalReplayActivationCalls, 0);
+  assert.equal(blockedDeriverBCalls, 0);
+
   const artifact = {
     kind: 'yao_historical_registration_replay_e2e_v1',
     reproduce:
-      'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-historical-replay',
+      'ROUTER_AB_WALLET_DO_HARNESS=enabled ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-historical-replay',
     exactResponseSha256Hex: createHash('sha256').update(replayBytes).digest('hex'),
     replayAfterLapsedClaimWithEvictedAAndUnavailableRoot: true,
     bUnavailableAndUnchanged: true,
     missingAWithCompletedBStayedPending: true,
     changedCustodyLineageRefusedAsMismatch: true,
+    missingOutputRejectedWithoutReactivation: true,
+    fencedOutputRejectedWithoutReactivation: true,
     sharedRoleBearerRejectedBeforePairEffects: true,
     missingGatewayBindingFailedClosed: true,
     sharedGatewayBindingFailedClosed: true,
@@ -5101,6 +5188,8 @@ async function main() {
         ? [
             historicalReplayRouterWorker(fixture, 'router-replay'),
             historicalReplayRouterWorker(fixture, 'router-replay-missing-a', 'deriver-a-empty'),
+            historicalReplayRouterWorker(fixture, 'router-replay-conflict'),
+            historicalReplayRouterWorker(fixture, 'router-replay-revoked'),
             routerWithoutGatewayAuthWorker(fixture),
             routerWithSharedGatewayAuthWorker(fixture),
             {
