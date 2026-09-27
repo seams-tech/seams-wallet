@@ -237,7 +237,7 @@ class ExportAuthorizationRequestRun {
       claim,
       outcome,
     });
-    return { state, value };
+    return { kind: 'state', state, value };
   }
 
   private service(
@@ -306,7 +306,7 @@ class ExportAdmissionRequestRun {
       claim,
       outcome: { kind: 'backend_response', result: outcome },
     });
-    return { state, value };
+    return { kind: 'state', state, value };
   }
 }
 
@@ -369,7 +369,7 @@ class ExportExecutionRequestRun {
       claim,
       outcome: { kind: 'backend_response', result: outcome },
     });
-    return { state, value };
+    return { kind: 'state', state, value };
   }
 }
 
@@ -528,6 +528,7 @@ async function persistAuthorizationUncertain(
     lifecycleId: request.scope.lifecycle_id,
     state: loaded.state,
     baseline: loaded.baseline,
+    companionWrite: null,
   });
   if (committed.kind === 'version_mismatch') {
     return authorizationFailure(

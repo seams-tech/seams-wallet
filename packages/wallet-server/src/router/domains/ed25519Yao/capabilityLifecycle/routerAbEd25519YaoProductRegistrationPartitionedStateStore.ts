@@ -103,8 +103,8 @@ export type RouterAbEd25519YaoSharedStateCanonicalEncodingV1 = VersionedJsonObje
 export type RouterAbEd25519YaoProductRegistrationPartitionedStateCommitInputV1 = {
   readonly lifecycleId: string;
   readonly state: RouterAbEd25519YaoProductRegistrationStateV1;
-  /** Another store's writes that commit with this state or not at all. */
-  readonly companionWrite?: RouterAbEd25519YaoPreparedWriteV1;
+  /** Another store's writes that commit with this state or not at all, or none. */
+  readonly companionWrite: RouterAbEd25519YaoPreparedWriteV1 | null;
   readonly baseline: {
     readonly sharedEncoding: RouterAbEd25519YaoSharedStateCanonicalEncodingV1;
     readonly sharedVersion: string | null;
@@ -414,7 +414,7 @@ class RouterAbEd25519YaoProductRegistrationPartitionedStateStore implements Rout
       },
       expectedVersion: input.baseline.ceremonyVersion,
     });
-    const result = await this.putMany(mutations, input.companionWrite ?? null);
+    const result = await this.putMany(mutations, input.companionWrite);
     if (result.kind === 'version_mismatch') {
       return {
         kind: 'version_mismatch',

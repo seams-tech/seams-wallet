@@ -355,6 +355,7 @@ function commitInput(
     lifecycleId,
     state: loaded.state,
     baseline: loaded.baseline,
+    companionWrite: null,
   };
 }
 

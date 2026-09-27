@@ -20,12 +20,20 @@ export type RouterAbEd25519YaoRegistrationTwoPhasePrepareResultV1<TClaim, TRespo
   | { readonly kind: 'completed'; readonly value: TResponse }
   | { readonly kind: 'rejected'; readonly value: TRejection };
 
-export type RouterAbEd25519YaoRegistrationTwoPhaseCompletionV1<TResponse> = {
-  readonly state: RouterAbEd25519YaoProductRegistrationStateV1;
-  readonly value: TResponse;
-  /** Another store's writes that commit with the terminal state or not at all. */
-  readonly companionWrite?: RouterAbEd25519YaoPreparedWriteV1;
-};
+export type RouterAbEd25519YaoRegistrationTwoPhaseCompletionV1<TResponse> =
+  /** The terminal state commits alone. */
+  | {
+      readonly kind: 'state';
+      readonly state: RouterAbEd25519YaoProductRegistrationStateV1;
+      readonly value: TResponse;
+    }
+  /** The terminal state commits with another store's prepared writes, or neither does. */
+  | {
+      readonly kind: 'state_with_write';
+      readonly state: RouterAbEd25519YaoProductRegistrationStateV1;
+      readonly value: TResponse;
+      readonly write: RouterAbEd25519YaoPreparedWriteV1;
+    };
 
 export type RouterAbEd25519YaoRegistrationTwoPhaseRunResultV1<TClaim, TResponse, TRejection> =
   | {
@@ -93,7 +101,7 @@ export async function runRouterAbEd25519YaoRegistrationTwoPhaseV1<
       return prepared;
     case 'claimed': {
       const preclaim = await input.store.commit(
-        buildCommitInput(input.lifecycleId, loaded, prepared.state),
+        buildCommitInput(input.lifecycleId, loaded, prepared.state, null),
       );
       if (preclaim.kind === 'version_mismatch') {
         return { kind: 'preclaim_version_mismatch', key: preclaim.key };
@@ -114,10 +122,14 @@ export async function runRouterAbEd25519YaoRegistrationTwoPhaseV1<
         prepared.claim,
         backend.value,
       );
-      const terminal = await input.store.commit({
-        ...buildCommitInput(input.lifecycleId, terminalSnapshot, completion.state),
-        ...(completion.companionWrite ? { companionWrite: completion.companionWrite } : {}),
-      });
+      const terminal = await input.store.commit(
+        buildCommitInput(
+          input.lifecycleId,
+          terminalSnapshot,
+          completion.state,
+          completion.kind === 'state_with_write' ? completion.write : null,
+        ),
+      );
       if (terminal.kind === 'version_mismatch') {
         return { kind: 'terminal_version_mismatch', claim: prepared.claim, key: terminal.key };
       }
@@ -135,10 +147,12 @@ function buildCommitInput(
   lifecycleId: string,
   loaded: RouterAbEd25519YaoProductRegistrationPartitionedStateV1,
   state: RouterAbEd25519YaoProductRegistrationStateV1,
+  companionWrite: RouterAbEd25519YaoPreparedWriteV1 | null,
 ): RouterAbEd25519YaoProductRegistrationPartitionedStateCommitInputV1 {
   return {
     lifecycleId,
     state,
     baseline: loaded.baseline,
+    companionWrite,
   };
 }

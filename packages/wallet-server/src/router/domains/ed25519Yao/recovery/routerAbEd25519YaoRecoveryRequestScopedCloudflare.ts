@@ -198,7 +198,7 @@ class RecoveryAdmissionRequestRun {
       claim,
       outcome: { kind: 'backend_response', result: backend },
     });
-    return { state, value };
+    return { kind: 'state', state, value };
   }
 
   private service(
@@ -282,7 +282,7 @@ class RecoveryExecutionRequestRun {
       claim,
       outcome: { kind: 'backend_response', result: backend },
     });
-    return { state, value };
+    return { kind: 'state', state, value };
   }
 
   private service(
@@ -361,11 +361,15 @@ class RecoveryActivationRequestRun {
       claim,
       outcome: { kind: 'backend_response', result: backend },
     });
-    if (committed.kind !== 'completed') return { state, value: committed.failure };
-    // The capability replacement commits with the promoted state, or neither does.
-    return committed.companionWrite
-      ? { state, value: committed.value, companionWrite: committed.companionWrite }
-      : { state, value: committed.value };
+    switch (committed.kind) {
+      case 'uncertain':
+        return { kind: 'state', state, value: committed.failure };
+      case 'completed':
+        return { kind: 'state', state, value: committed.value };
+      case 'promoted':
+        // The capability replacement commits with the promoted state, or neither does.
+        return { kind: 'state_with_write', state, value: committed.value, write: committed.write };
+    }
   }
 
   private service(

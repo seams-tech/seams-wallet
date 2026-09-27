@@ -158,7 +158,12 @@ async function refreshContinuationAuthority(
     const loaded = await input.store.load(lifecycleId);
     const result = await new InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter(loaded.state.authorization).bindVerifiedContinuation(verified);
     if (!result.ok) return { ok: false, status: 403, code: result.code, message: result.message };
-    const committed = await input.store.commit({ lifecycleId, state: loaded.state, baseline: loaded.baseline });
+    const committed = await input.store.commit({
+      lifecycleId,
+      state: loaded.state,
+      baseline: loaded.baseline,
+      companionWrite: null,
+    });
     if (committed.kind === 'stored') return null;
   }
   return { ok: false, status: 409, code: 'registration_continuation_contended', message: 'NEAR registration continuation changed concurrently' };
@@ -250,7 +255,7 @@ async function runAdmissionRequest(
         }
         pinRouterAbEd25519YaoRegistrationDispatchRootV1(state.registration, lifecycleId, dispatchRoot);
       }
-      return { state, value: admitted };
+      return { kind: 'state', state, value: admitted };
     },
   });
   return mapAdmissionRunResult(result);

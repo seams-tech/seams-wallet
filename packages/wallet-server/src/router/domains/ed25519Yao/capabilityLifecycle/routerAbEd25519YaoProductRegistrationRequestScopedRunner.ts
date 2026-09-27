@@ -65,5 +65,6 @@ function buildCommitInput(
     lifecycleId,
     state,
     baseline: loaded.baseline,
+    companionWrite: null,
   };
 }

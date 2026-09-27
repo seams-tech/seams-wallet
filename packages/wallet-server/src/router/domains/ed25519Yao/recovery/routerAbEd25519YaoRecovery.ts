@@ -304,8 +304,19 @@ export type RouterAbEd25519YaoRecoveryActivationCommitResultV1 =
   | {
       readonly kind: 'completed';
       readonly value: RouterAbEd25519YaoRecoveryServiceResult<RouterAbEd25519YaoRecoveryActivationReceiptV1>;
-      /** The capability replacement, which commits with this state or not at all. */
-      readonly companionWrite?: RouterAbEd25519YaoPreparedWriteV1;
+    }
+  /**
+   * Promoted in this state. The capability replacement commits with it, or
+   * neither does.
+   */
+  | {
+      readonly kind: 'promoted';
+      readonly value: {
+        readonly ok: true;
+        readonly status: 200;
+        readonly value: RouterAbEd25519YaoRecoveryActivationReceiptV1;
+      };
+      readonly write: RouterAbEd25519YaoPreparedWriteV1;
     }
   | {
       readonly kind: 'uncertain';
@@ -2317,13 +2328,19 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
           claim: preparation.claim,
           outcome,
         });
-        if (committed.kind !== 'completed') return committed.failure;
-        if (committed.companionWrite && committed.companionWrite.statements.length > 0) {
-          throw new Error(
-            'In-memory Yao recovery cannot commit a capability replacement prepared for a database',
-          );
+        switch (committed.kind) {
+          case 'uncertain':
+            return committed.failure;
+          case 'completed':
+            return committed.value;
+          case 'promoted':
+            if (committed.write.statements.length > 0) {
+              throw new Error(
+                'In-memory Yao recovery cannot commit a capability replacement prepared for a database',
+              );
+            }
+            return committed.value;
         }
-        return committed.value;
       }
     }
   }
@@ -2571,11 +2588,10 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
       activationFingerprint: input.claim.activationFingerprint,
       activationReceipt: activationReceipt.value,
     });
-    return {
-      kind: 'completed',
-      value: { ok: true, status: 200, value: activationReceipt.value },
-      ...(persisted.disposition === 'prepared' ? { companionWrite: persisted.write } : {}),
-    };
+    const promotedValue = { ok: true, status: 200, value: activationReceipt.value } as const;
+    return persisted.disposition === 'prepared'
+      ? { kind: 'promoted', value: promotedValue, write: persisted.write }
+      : { kind: 'completed', value: promotedValue };
   }
 
   private activationClaim(
