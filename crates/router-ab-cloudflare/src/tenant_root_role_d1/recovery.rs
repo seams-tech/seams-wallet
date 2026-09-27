@@ -251,20 +251,73 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
     pub(crate) async fn record_recovery_destruction(
         &self,
         command: &VerifiedTenantRootRecoveryReshareRoleCommandV1,
-        outcome: &crate::tenant_root_google_kms::GoogleKmsRetentionDestructionV1,
+        outcome: &crate::tenant_root_recovery_reshare::TenantRootRecoveryRetentionDestructionV1,
     ) -> RoleStoreResult<RecoveryAttemptStateV1> {
+        use crate::tenant_root_recovery_reshare::TenantRootRecoveryRetentionDestructionV1 as Destruction;
         self.require_recovery_attempt(command).await?;
         let (lifecycle, receipt) = match outcome {
-            crate::tenant_root_google_kms::GoogleKmsRetentionDestructionV1::Scheduled {
-                receipt,
-            } => ("destruction_scheduled", receipt),
-            crate::tenant_root_google_kms::GoogleKmsRetentionDestructionV1::Destroyed {
-                receipt,
-            } => ("destroyed", receipt),
+            Destruction::Scheduled { receipt } => ("destruction_scheduled", receipt),
+            Destruction::Destroyed { receipt } => ("destroyed", receipt),
         };
         let set_id = command.context().recovery_set_id().to_base64url();
         self.session.prepare("UPDATE tenant_root_recovery_attempts SET lifecycle = ?1, destruction_receipt = ?2 WHERE recovery_set_id_b64u = ?3 AND lifecycle IN ('destroying', 'destruction_scheduled')")
             .bind_refs([RoleSqlValue::Text(lifecycle), RoleSqlValue::Text(receipt), RoleSqlValue::Text(&set_id)].iter())?.run().await?;
         self.require_recovery_attempt(command).await
     }
+
+    /// Keeps one recovery set's retention key for this role, sealed to the
+    /// role's own key: for a host without a destructible key provider. The
+    /// first key provisioned is kept; a replay changes nothing.
+    pub(crate) async fn provision_recovery_retention_key(
+        &self,
+        id: router_ab_core::derivation::TenantRootRetentionKeyIdV1,
+        secret: &[u8; 32],
+    ) -> RoleStoreResult<()> {
+        let sealed = self.cipher.seal_recovery_retention_key(id, secret)?;
+        let set_id = id.recovery_set_id().to_base64url();
+        let version = id.version().get().to_string();
+        self.session.prepare("INSERT INTO tenant_root_recovery_retention_keys (recovery_set_id_b64u, role, key_version, sealed_key_json) VALUES (?1, ?2, CAST(?3 AS INTEGER), ?4) ON CONFLICT (recovery_set_id_b64u, key_version) DO NOTHING")
+            .bind_refs([RoleSqlValue::Text(&set_id), RoleSqlValue::Text(id.role().as_str()), RoleSqlValue::Text(&version), RoleSqlValue::Text(&sealed)].iter())?.run().await?;
+        Ok(())
+    }
+
+    /// One recovery set's role-store retention key, opened, if it is kept.
+    pub(crate) async fn recovery_retention_key(
+        &self,
+        id: router_ab_core::derivation::TenantRootRetentionKeyIdV1,
+    ) -> RoleStoreResult<Option<router_ab_core::derivation::TenantRootRetentionKeySecretV1>> {
+        let set_id = id.recovery_set_id().to_base64url();
+        let version = id.version().get().to_string();
+        let row = self.session.prepare("SELECT role, sealed_key_json FROM tenant_root_recovery_retention_keys WHERE recovery_set_id_b64u = ?1 AND key_version = CAST(?2 AS INTEGER)")
+            .bind_refs([RoleSqlValue::Text(&set_id), RoleSqlValue::Text(&version)].iter())?.first::<RecoveryRetentionKeyRow>(None).await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        if row.role != id.role().as_str() {
+            return Err(store_error("recovery retention key row belongs to another role"));
+        }
+        let secret = self.cipher.open_recovery_retention_key(id, &row.sealed_key_json)?;
+        router_ab_core::derivation::TenantRootRetentionKeySecretV1::from_provider_bytes(id, *secret)
+            .map(Some)
+            .map_err(|error| store_error(error.message()))
+    }
+
+    /// Deletes one recovery set's role-store retention key. Its sealed bytes
+    /// may survive in a snapshot or backup of this store.
+    pub(crate) async fn delete_recovery_retention_key(
+        &self,
+        id: router_ab_core::derivation::TenantRootRetentionKeyIdV1,
+    ) -> RoleStoreResult<()> {
+        let set_id = id.recovery_set_id().to_base64url();
+        let version = id.version().get().to_string();
+        self.session.prepare("DELETE FROM tenant_root_recovery_retention_keys WHERE recovery_set_id_b64u = ?1 AND key_version = CAST(?2 AS INTEGER)")
+            .bind_refs([RoleSqlValue::Text(&set_id), RoleSqlValue::Text(&version)].iter())?.run().await?;
+        Ok(())
+    }
+}
+
+#[derive(Deserialize)]
+struct RecoveryRetentionKeyRow {
+    role: String,
+    sealed_key_json: String,
 }

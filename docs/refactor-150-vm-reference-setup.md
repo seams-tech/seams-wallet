@@ -59,6 +59,16 @@ under their Cloudflare names, make a VM deployment a restore destination:
   with `TENANT_ROOT_RECOVERY_TRUST_SNAPSHOT_JSON` optionally: the recovery trust
   the kit's manifest must chain to.
 
+Generating a tenant's recovery kit uses the same control-plane and Deriver
+code too, with the same trust setting at the control plane
+([retention](./refactor-150-vm-recovery-retention.md), option 1).
+- **The retention key:** each Deriver keeps one per recovery set in its role
+  store, sealed to its own role key. There is no destructible key provider.
+- **Destroy** deletes that key and the retained package, and reports
+  `cryptographic_erasure_unverified`. A snapshot or backup of the Deriver's
+  disk or database may still hold both. Destroying that disk or database is
+  the only erasure the VM offers.
+
 Every role holds the grant authorities' verifying keys, as on Cloudflare. The
 control plane checks creation and restore grants with them; the Router and the
 Derivers check a restore's pre-activation cleanup grant.
@@ -221,6 +231,14 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
     challenge is reserved.
   - The Router's manual-refresh interval is set to one minute for this
     test.
+- `vm_tenant_root_generates_a_recovery_kit_that_restores_into_an_empty_vm`
+  prints `R150_VM_TENANT_ROOT_RECOVERY_KIT_GENERATION_E2E`.
+  - A VM source runs the five reshare phases at both Derivers, and Package
+    replays exactly.
+  - Both packages download, with Cloudflare's headers, and the control plane
+    signs the manifest.
+  - The kit restores into an empty VM, which signs.
+  - Destroy removes both retention keys, and reports the erasure unverified.
 - `vm_tenant_root_recovery_kit_restores_into_an_empty_deployment_and_signs`
   prints `R150_VM_TENANT_ROOT_RECOVERY_KIT_RESTORE_E2E`: a tenant's recovery
   kit (the committed fixture manifest, both role packages and their trust
@@ -371,11 +389,10 @@ operation, its contracts and what is needed.
 
 - ECDSA activation refresh. Linked-device ECDSA signing fails closed.
 - Device linking.
-- Tenant-root status, recovery-package backup, source retirement and cutover.
-  Manual and scheduled refresh, managed restore and restore into a new
+- Tenant-root status, source retirement and cutover. Manual and scheduled
+  refresh, managed restore, recovery-package backup and restore into a new
   deployment are served, with the same Router, Deriver and control-plane code
-  as Cloudflare. Backup waits on the
-  [retention decision](./refactor-150-vm-recovery-retention.md).
+  as Cloudflare.
 - Linked-device signing.
 - Google Cloud KMS managed backup (HPKE only).
 - Router and SigningWorker prewarm, which keeps Worker isolates warm and has no

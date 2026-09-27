@@ -204,6 +204,18 @@ fn handle_connection(
         stream
     };
     let request = read_local_dev_http_request_v1(&mut stream)?;
+    if let Some(response) =
+        router_ab_dev::local_tenant_root_recovery_access_route_v1(config, &request)
+    {
+        router_ab_dev::write_local_dev_http_binary_response_v1(
+            &mut stream,
+            response.status,
+            response.content_type,
+            &response.headers,
+            &response.body,
+        )?;
+        return Ok(LocalWorkerConnectionResultV1::OtherHandled);
+    }
     if let Some((status, body)) = local_tenant_root_route_v1(config, &request) {
         write_local_dev_http_response_v1(&mut stream, status, &body)?;
         return Ok(LocalWorkerConnectionResultV1::OtherHandled);

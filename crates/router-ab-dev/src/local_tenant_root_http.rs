@@ -242,6 +242,19 @@ fn deriver_route(
     request: &LocalDevHttpRequestPartsV1,
 ) -> Option<RouterAbProtocolResult<(u16, String)>> {
     match request.path.as_str() {
+        router_ab_cloudflare::TENANT_ROOT_RECOVERY_RESHARE_PATH_V1 => Some(authorized(
+            credential,
+            request,
+            |phase: router_ab_cloudflare::TenantRootRecoveryReshareRequestV1| {
+                json(&futures::executor::block_on(
+                    router_ab_cloudflare::tenant_root_deriver_recovery_reshare_v1(
+                        &LocalTenantRootDeriverHostV1::new(tenant_root),
+                        phase,
+                        crate::local_router_coordinator::local_now_ms_v1()?,
+                    ),
+                )?)
+            },
+        )),
         CLOUDFLARE_DERIVER_TENANT_ROOT_CREATE_ROLE_SHARE_PRIVATE_REQUEST_PATH => Some(authorized(
             credential,
             request,
@@ -484,6 +497,76 @@ pub(crate) fn json<T: Serialize>(value: &T) -> RouterAbProtocolResult<String> {
     })
 }
 
+/// One response whose body need not be JSON.
+pub struct LocalTenantRootBinaryResponseV1 {
+    pub status: u16,
+    pub content_type: &'static str,
+    pub headers: Vec<(&'static str, String)>,
+    pub body: Vec<u8>,
+}
+
+/// Serves Download and Destroy of a Deriver's retained recovery package, or
+/// returns `None` for any other path. Download answers with the package's
+/// exact bytes and the headers Cloudflare sends; Destroy and every refusal
+/// answer with JSON or text, as the other routes do.
+pub fn local_tenant_root_recovery_access_route_v1(
+    config: &LocalWorkerRoleConfigV1,
+    request: &LocalDevHttpRequestPartsV1,
+) -> Option<LocalTenantRootBinaryResponseV1> {
+    if request.path != router_ab_cloudflare::TENANT_ROOT_RECOVERY_ACCESS_PATH_V1 {
+        return None;
+    }
+    let (credential, tenant_root) = match config {
+        LocalWorkerRoleConfigV1::DeriverA(deriver) => {
+            (&deriver.internal_service_auth, &deriver.tenant_root)
+        }
+        LocalWorkerRoleConfigV1::DeriverB(deriver) => {
+            (&deriver.internal_service_auth, &deriver.tenant_root)
+        }
+        _ => return None,
+    };
+    let text = |(status, body): (u16, String)| LocalTenantRootBinaryResponseV1 {
+        status,
+        content_type: "application/json",
+        headers: Vec::new(),
+        body: body.into_bytes(),
+    };
+    let mut package = None;
+    let outcome = authorized(
+        credential,
+        request,
+        |access: router_ab_cloudflare::TenantRootRecoveryAccessRequestV1| {
+            match futures::executor::block_on(router_ab_cloudflare::tenant_root_deriver_recovery_access_v1(
+                &LocalTenantRootDeriverHostV1::new(tenant_root),
+                access,
+                crate::local_router_coordinator::local_now_ms_v1()?,
+            ))? {
+                router_ab_cloudflare::TenantRootRecoveryAccessResponseV1::Package { bytes, file_name } => {
+                    package = Some((bytes, file_name));
+                    Ok(String::new())
+                }
+                router_ab_cloudflare::TenantRootRecoveryAccessResponseV1::Destruction(outcome) => {
+                    json(&outcome)
+                }
+            }
+        },
+    );
+    Some(match (outcome, package) {
+        (Ok((200, _)), Some((bytes, file_name))) => LocalTenantRootBinaryResponseV1 {
+            status: 200,
+            content_type: router_ab_cloudflare::TENANT_ROOT_RECOVERY_PACKAGE_CONTENT_TYPE_V1,
+            headers: vec![
+                ("cache-control", "no-store".to_owned()),
+                ("x-content-type-options", "nosniff".to_owned()),
+                ("content-disposition", format!("attachment; filename=\"{file_name}\"")),
+            ],
+            body: bytes.to_vec(),
+        },
+        (Ok(response), _) => text(response),
+        (Err(error), _) => text(error_response(error)),
+    })
+}
+
 /// The same status and text a Cloudflare role returns for a protocol error.
 pub(crate) fn error_response(error: RouterAbProtocolError) -> (u16, String) {
     (
@@ -536,6 +619,50 @@ pub fn local_tenant_root_control_plane_route_v1(
         crate::LOCAL_WORKER_HEALTH_PATH | crate::LOCAL_WORKER_READY_PATH if request.method == "GET" => {
             Ok((200, r#"{"role":"tenant_root_control_plane","status":"ready"}"#.to_owned()))
         }
+        router_ab_cloudflare::TENANT_ROOT_CONTROL_PLANE_RECOVERY_TRUST_PATH_V1 => {
+            if request.method != "GET" {
+                Ok((405, "recovery trust requires GET".to_owned()))
+            } else if !router_ab_service_credential_matches_v1(
+                credential,
+                request.internal_service_auth.as_deref().unwrap_or_default(),
+            ) {
+                Ok((401, "tenant-root route requires the role-shared credential".to_owned()))
+            } else {
+                router_ab_cloudflare::control_plane_recovery_trust_bundle_json_v1(&host).and_then(
+                    |bytes| {
+                        String::from_utf8(bytes).map(|body| (200, body)).map_err(|_| {
+                            RouterAbProtocolError::new(
+                                RouterAbProtocolErrorCode::MalformedWirePayload,
+                                "recovery trust bundle is not UTF-8 JSON",
+                            )
+                        })
+                    },
+                )
+            }
+        }
+        router_ab_cloudflare::TENANT_ROOT_CONTROL_PLANE_RECOVERY_COMMAND_PATH_V1 => authorized(
+            credential,
+            request,
+            |command: router_ab_cloudflare::RecoveryCommandRequestV1| {
+                json(&futures::executor::block_on(
+                    router_ab_cloudflare::control_plane_recovery_command_v1(&host, command),
+                )?)
+            },
+        ),
+        router_ab_cloudflare::TENANT_ROOT_CONTROL_PLANE_RECOVERY_RECIPIENT_PROOF_PATH_V1 => authorized(
+            credential,
+            request,
+            |proof: router_ab_cloudflare::RecoveryRecipientProofRequestV1| {
+                json(&router_ab_cloudflare::control_plane_recovery_recipient_proof_v1(&host, proof)?)
+            },
+        ),
+        router_ab_cloudflare::TENANT_ROOT_CONTROL_PLANE_RECOVERY_MANIFEST_PATH_V1 => authorized(
+            credential,
+            request,
+            |assembly: router_ab_cloudflare::RecoveryManifestAssemblyRequestV1| {
+                json(&router_ab_cloudflare::control_plane_assemble_recovery_manifest_v1(&host, assembly)?)
+            },
+        ),
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CREATE_TENANT_ROOT_PRIVATE_REQUEST_PATH => authorized(
             credential,
             request,

@@ -1,8 +1,8 @@
 # R150: recovery-package retention on the VM
 
 Status: decided in review, 2026-09-27: **option 1**, local retention with an
-honest erasure claim. Not yet implemented; it follows the settlement and
-cancellation work.
+honest erasure claim. **Implemented 2026-09-27** on branch
+`codex/r150-do-backend` (see [Implementation](#implementation)). Not deployed.
 
 Restore into an empty destination does not depend on it. It is served on the
 VM and proven from a recovery kit
@@ -67,3 +67,46 @@ Deriver use instead?
   `CryptographicErasureUnverified` for VM destroys, and tests assert it.
 - **One E2E proves the scenario.** A VM source generates the kit, and a fresh
   VM destination restores it, activates it and signs.
+
+## Implementation
+
+- **One Deriver code path.** The five reshare phases, Download and Destroy
+  are shared code (`tenant_root_recovery_reshare.rs`), used by the Workers
+  routes and the VM routes alike.
+- **The retention key behind a seam.** A host supplies the key for one
+  recovery set and role.
+  - Cloudflare keeps it in Google Cloud KMS, unchanged.
+  - The VM keeps it in its role store, sealed to the role's own key: table
+    `tenant_root_recovery_retention_keys`, migration 0018. The table stays
+    empty on Cloudflare.
+  - What the key seals is shared: the attempt's replay seed and active share,
+    bound to the command's digest, and the package, bound to the set and
+    role.
+- **The control plane's part is shared too:** the generation commands, the
+  access grants for Download and Destroy, the recipient-key proof and the
+  manifest.
+  - Source retirement stays Cloudflare-only: it moves authority, which R150
+    excludes.
+  - The signed descriptor and manifest times are formatted by the core,
+    identically to JavaScript's `toISOString`, in place of the Workers-only
+    `Date`.
+- **Destroy on the VM** deletes the retained package and the key's row. It
+  reports `cryptographic_erasure_unverified` in its receipt, and the VM never
+  claims `managed_healing_v1`.
+- **Download on the VM** answers with the package's bytes and the headers
+  Cloudflare sends.
+- **Evidence:** VM
+  `vm_tenant_root_generates_a_recovery_kit_that_restores_into_an_empty_vm`
+  (`R150_VM_TENANT_ROOT_RECOVERY_KIT_GENERATION_E2E`).
+  - The test stands in for the Console. It certifies the source's role and
+    control-plane keys under its own recovery root.
+  - The source runs all five phases at both Derivers, and Package replays
+    exactly.
+  - Both packages download, and the control plane signs the manifest.
+  - The kit restores into an empty VM, which activates and signs before and
+    after a refresh.
+  - Destroy then removes both roles' keys and packages and reports the
+    erasure unverified. A later download is refused.
+- **Not run:** Cloudflare's recovery-package generation still has no E2E; it
+  needs a Google Cloud KMS key ring. Its code now shares the phases the VM
+  E2E proves.

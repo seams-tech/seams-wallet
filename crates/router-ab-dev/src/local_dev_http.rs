@@ -360,6 +360,38 @@ pub fn write_local_dev_http_response_with_server_timing_v1(
     Ok(())
 }
 
+/// Writes one response with its own content type and headers, and a body
+/// that need not be text.
+pub fn write_local_dev_http_binary_response_v1(
+    stream: &mut TcpStream,
+    status: u16,
+    content_type: &str,
+    headers: &[(&str, String)],
+    body: &[u8],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let reason = match status {
+        200 => "OK",
+        400 => "Bad Request",
+        401 => "Unauthorized",
+        404 => "Not Found",
+        405 => "Method Not Allowed",
+        501 => "Not Implemented",
+        503 => "Service Unavailable",
+        _ => "Error",
+    };
+    let headers = headers
+        .iter()
+        .map(|(name, value)| format!("{name}: {value}\r\n"))
+        .collect::<String>();
+    write!(
+        stream,
+        "HTTP/1.1 {status} {reason}\r\ncontent-type: {content_type}\r\ncontent-length: {}\r\n{headers}connection: close\r\n\r\n",
+        body.len(),
+    )?;
+    stream.write_all(body)?;
+    Ok(())
+}
+
 pub fn local_dev_http_error_body_v1(
     role: LocalServiceRoleV1,
     path: &str,

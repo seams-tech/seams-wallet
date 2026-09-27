@@ -279,6 +279,25 @@ mod tenant_root_google_kms;
     all(test, feature = "workers-rs")
 ))]
 mod tenant_root_recovery_runtime;
+mod tenant_root_recovery_reshare;
+pub use tenant_root_control_plane::{
+    control_plane_assemble_recovery_manifest_v1, control_plane_recovery_command_v1,
+    control_plane_recovery_recipient_proof_v1, control_plane_recovery_trust_bundle_json_v1,
+    RecoveryCommandRequestV1, RecoveryManifestAssemblyRequestV1, RecoveryRecipientProofRequestV1,
+    TENANT_ROOT_CONTROL_PLANE_RECOVERY_COMMAND_PATH_V1,
+    TENANT_ROOT_CONTROL_PLANE_RECOVERY_MANIFEST_PATH_V1,
+    TENANT_ROOT_CONTROL_PLANE_RECOVERY_RECIPIENT_PROOF_PATH_V1,
+    TENANT_ROOT_CONTROL_PLANE_RECOVERY_TRUST_PATH_V1,
+};
+pub use tenant_root_recovery_reshare::{
+    tenant_root_deriver_recovery_access_v1, tenant_root_deriver_recovery_reshare_v1,
+    TenantRootDeriverRecoveryHostV1, TenantRootRecoveryAccessRequestV1,
+    TenantRootRecoveryAccessResponseV1, TenantRootRecoveryReshareRequestV1,
+    TenantRootRecoveryReshareResponseV1, TenantRootRecoveryRetentionDestructionV1,
+    TenantRootRecoveryRetentionProviderV1, TenantRootRoleStoreRecoveryRetentionV1,
+    TENANT_ROOT_RECOVERY_ACCESS_PATH_V1, TENANT_ROOT_RECOVERY_PACKAGE_CONTENT_TYPE_V1,
+    TENANT_ROOT_RECOVERY_RESHARE_PATH_V1,
+};
 mod tenant_root_restore_refresh_runtime;
 #[allow(dead_code)]
 #[cfg_attr(not(feature = "workers-rs"), allow(unused_imports))]

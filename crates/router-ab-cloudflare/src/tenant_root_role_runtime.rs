@@ -1907,6 +1907,11 @@ impl<'a> CloudflareTenantRootDeriverHostV1<'a> {
         }
     }
 
+    /// The Worker's bindings, for a capability only Cloudflare provides.
+    pub(crate) fn worker_env(&self) -> &'a worker::Env {
+        self.env
+    }
+
     fn backup_store(
         &self,
     ) -> RouterAbProtocolResult<crate::tenant_root_managed_backup_r2::CloudflareTenantRootManagedBackupStoreV1>

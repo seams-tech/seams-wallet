@@ -98,20 +98,16 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
         Err(err) => return cloudflare_protocol_error_response_v1(err),
     };
     match path.as_str() {
-        "/router-ab/tenant-root-control-plane/recovery/trust" => {
+        crate::tenant_root_control_plane::TENANT_ROOT_CONTROL_PLANE_RECOVERY_TRUST_PATH_V1 => {
             if request.method() != Method::Get {
                 return Response::error("Recovery trust requires GET", 405);
             }
-            let bundle = match crate::env::parse_cloudflare_tenant_root_recovery_trust_bundle_v1(
-                &crate::CloudflareWorkerEnvReaderV1::new(&env),
-            ) {
-                Ok(bundle) => bundle,
-                Err(error) => return cloudflare_protocol_error_response_v1(error),
-            };
-            let bytes = bundle.canonical_json().map_err(|error| worker::Error::RustError(error.to_string()))?;
-            Response::from_bytes(bytes)
+            match crate::tenant_root_control_plane::recovery_trust_bundle_json_v1(&env, &runtime) {
+                Ok(bytes) => Response::from_bytes(bytes),
+                Err(error) => cloudflare_protocol_error_response_v1(error),
+            }
         }
-        "/router-ab/tenant-root-control-plane/recovery/command" => {
+        crate::tenant_root_control_plane::TENANT_ROOT_CONTROL_PLANE_RECOVERY_COMMAND_PATH_V1 => {
             if request.method() != Method::Post {
                 return Response::error("tenant-root control-plane routes require POST", 405);
             }
@@ -125,7 +121,7 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
             }
         }
 
-        "/router-ab/tenant-root-control-plane/recovery/recipient-proof" => {
+        crate::tenant_root_control_plane::TENANT_ROOT_CONTROL_PLANE_RECOVERY_RECIPIENT_PROOF_PATH_V1 => {
             if request.method() != Method::Post {
                 return Response::error("tenant-root control-plane routes require POST", 405);
             }
@@ -135,13 +131,13 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                 Ok(value) => value,
                 Err(err) => return cloudflare_protocol_error_response_v1(err),
             };
-            match crate::tenant_root_control_plane::recovery_recipient_proof_v1(parsed) {
+            match crate::tenant_root_control_plane::recovery_recipient_proof_v1(parsed, &env, &runtime) {
                 Ok(response) => Response::from_json(&response),
                 Err(err) => cloudflare_protocol_error_response_v1(err),
             }
         }
 
-        "/router-ab/tenant-root-control-plane/recovery/manifest" => {
+        crate::tenant_root_control_plane::TENANT_ROOT_CONTROL_PLANE_RECOVERY_MANIFEST_PATH_V1 => {
             if request.method() != Method::Post {
                 return Response::error("tenant-root control-plane routes require POST", 405);
             }

@@ -1,8 +1,3 @@
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 pub(crate) mod recovery;
 
 use core::{fmt, future::Future, pin::Pin};
@@ -2425,6 +2420,109 @@ impl TenantRootRoleD1CipherV1 {
                 "tenant-root role-private ciphertext encoding failed: {error}"
             ))
         })
+    }
+
+    /// Seals one recovery set's role-store retention key to this role's own
+    /// key, with the key's identity and this store's scope as authenticated
+    /// data.
+    fn seal_recovery_retention_key(
+        &self,
+        id: router_ab_core::derivation::TenantRootRetentionKeyIdV1,
+        secret: &[u8; 32],
+    ) -> RoleStoreResult<String> {
+        require_nonzero_bytes("tenant-root recovery retention key", secret)?;
+        let aad = self.recovery_retention_key_aad(id)?;
+        let mut rng = CloudflareHpkeGetrandomRngV1;
+        let (encapped_key, ciphertext) = CloudflareHpkeSuiteV1::seal_base(
+            &mut rng,
+            &self.public_key,
+            TENANT_ROOT_RECOVERY_RETENTION_KEY_D1_HPKE_INFO,
+            &aad,
+            secret,
+        )
+        .map_err(|error| {
+            store_error(format!(
+                "tenant-root recovery retention key encryption failed: {error}"
+            ))
+        })?;
+        let mut payload = Vec::with_capacity(encapped_key.as_ref().len() + ciphertext.len());
+        payload.extend_from_slice(encapped_key.as_ref());
+        payload.extend_from_slice(&ciphertext);
+        serde_json::to_string(&TenantRootRecoveryRetentionKeyCiphertextV1 {
+            key_version: self.key_version.clone(),
+            ciphertext_b64u: encode_base64url_bytes_v1(&payload),
+        })
+        .map_err(|error| {
+            store_error(format!(
+                "tenant-root recovery retention key encoding failed: {error}"
+            ))
+        })
+    }
+
+    fn open_recovery_retention_key(
+        &self,
+        id: router_ab_core::derivation::TenantRootRetentionKeyIdV1,
+        sealed_json: &str,
+    ) -> RoleStoreResult<zeroize::Zeroizing<[u8; 32]>> {
+        let envelope: TenantRootRecoveryRetentionKeyCiphertextV1 =
+            serde_json::from_str(sealed_json).map_err(|error| {
+                store_error(format!(
+                    "tenant-root recovery retention key decoding failed: {error}"
+                ))
+            })?;
+        if envelope.key_version != self.key_version {
+            return Err(store_error(
+                "tenant-root recovery retention key was sealed under another role key version",
+            ));
+        }
+        let payload = decode_base64url_bytes_v1(
+            "tenant-root recovery retention key ciphertext",
+            &envelope.ciphertext_b64u,
+        )
+        .map_err(|error| store_error(error.message()))?;
+        if encode_base64url_bytes_v1(&payload) != envelope.ciphertext_b64u
+            || payload.len() <= CloudflareHpkeKemV1::ENCAPPED_KEY_LEN
+        {
+            return Err(store_error(
+                "tenant-root recovery retention key ciphertext is malformed",
+            ));
+        }
+        let (encapped_key, ciphertext) = payload.split_at(CloudflareHpkeKemV1::ENCAPPED_KEY_LEN);
+        let encapped_key = CloudflareHpkeKemV1::enc_from_bytes(encapped_key).map_err(|_| {
+            store_error("tenant-root recovery retention key encapsulation is invalid")
+        })?;
+        let plaintext = zeroize::Zeroizing::new(
+            CloudflareHpkeSuiteV1::open_base(
+                &encapped_key,
+                &self.private_key,
+                TENANT_ROOT_RECOVERY_RETENTION_KEY_D1_HPKE_INFO,
+                &self.recovery_retention_key_aad(id)?,
+                ciphertext,
+            )
+            .map_err(|_| store_error("tenant-root recovery retention key decryption failed"))?,
+        );
+        let secret: [u8; 32] = plaintext.as_slice().try_into().map_err(|_| {
+            store_error("tenant-root recovery retention key has the wrong length")
+        })?;
+        Ok(zeroize::Zeroizing::new(secret))
+    }
+
+    fn recovery_retention_key_aad(
+        &self,
+        id: router_ab_core::derivation::TenantRootRetentionKeyIdV1,
+    ) -> RoleStoreResult<Vec<u8>> {
+        if id.role().as_str() != self.role.as_str() {
+            return Err(store_error(
+                "tenant-root recovery retention key belongs to another role",
+            ));
+        }
+        let mut aad = b"seams/deriver/tenant-root-recovery-retention-key/v1".to_vec();
+        for field in [self.environment.as_bytes(), self.key_version.as_bytes()] {
+            aad.extend_from_slice(&(field.len() as u32).to_be_bytes());
+            aad.extend_from_slice(field);
+        }
+        aad.extend_from_slice(&id.binding_bytes());
+        Ok(aad)
     }
 
     fn seal_restore_import_ikm(
@@ -17232,6 +17330,17 @@ fn authorized_cleanup_abandoned_ceremony_payload_digest(
     let mut bytes = command_payload_start("authorized_cleanup_abandoned_ceremony")?;
     push_command_field(&mut bytes, authorization_digest.as_bytes())?;
     finish_command_payload(bytes)
+}
+
+const TENANT_ROOT_RECOVERY_RETENTION_KEY_D1_HPKE_INFO: &[u8] =
+    b"seams/deriver/tenant-root-recovery-retention-key/hpke/v1";
+
+/// A role-store recovery retention key, sealed to the role's own key.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TenantRootRecoveryRetentionKeyCiphertextV1 {
+    key_version: String,
+    ciphertext_b64u: String,
 }
 
 #[derive(Debug, serde::Deserialize)]

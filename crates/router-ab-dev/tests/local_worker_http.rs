@@ -2172,6 +2172,312 @@ fn vm_tenant_root_restore_reservation_never_authorized_expires_and_frees_the_roo
 #[test]
 fn vm_tenant_root_recovery_kit_restores_into_an_empty_deployment_and_signs(
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../router-ab-core/tests/fixtures/tenant-root-recovery");
+    let kit = RecoveryKitV1 {
+        label: "vm-tenant-root-recovery-kit-restore",
+        manifest_bytes: fs::read(fixtures.join("manifest.json"))?,
+        trust_bundle_json: fs::read_to_string(fixtures.join("trust-bundle.json"))?.trim().to_owned(),
+        identity: TenantRootIdentityV1::new("org-1", "project-2", "production", "root-main", "v3")?,
+        packages: [
+            (router_ab_core::TwoPartyDeriverRole::DeriverA, [0xa1_u8; 32], fs::read(fixtures.join("deriver-a.backup"))?),
+            (router_ab_core::TwoPartyDeriverRole::DeriverB, [0xb1_u8; 32], fs::read(fixtures.join("deriver-b.backup"))?),
+        ],
+    };
+    let mut evidence = restore_recovery_kit_into_an_empty_vm(&kit)?;
+    evidence["kit"] = json!("committed fixture manifest, packages and trust bundle");
+    println!("R150_VM_TENANT_ROOT_RECOVERY_KIT_RESTORE_E2E {evidence}");
+    Ok(())
+}
+
+/// A VM deployment generates a tenant's recovery kit, and the kit restores
+/// the root into an empty VM deployment, which signs
+/// (docs/refactor-150-vm-recovery-retention.md, option 1).
+///
+/// The test stands in for the Console. It holds the operator's recovery root,
+/// certifies the source's role and control-plane keys under it, and drives
+/// the reshare phases at both Derivers.
+/// 1. A root is created on the source, and a wallet registers and signs.
+/// 2. The control plane issues the set's generation commands, bound to the
+///    root's active epoch and the tenant's recipient keys.
+/// 3. Both Derivers run Prepare, Contribute, Derive, Prove and Package. Each
+///    keeps its package under a retention key in its role store, sealed to
+///    its own key. Package replays exactly.
+/// 4. Each role's package is downloaded under an access grant, with the same
+///    headers Cloudflare sends, and the control plane signs the manifest.
+/// 5. The kit restores into an empty VM, activates, and signs before and
+///    after a refresh.
+/// 6. Destroy removes each role's retained package and key, and reports the
+///    erasure unverified; a later download is refused.
+#[test]
+fn vm_tenant_root_generates_a_recovery_kit_that_restores_into_an_empty_vm(
+) -> Result<(), Box<dyn std::error::Error>> {
+    use router_ab_core::{
+        format_tenant_root_rfc3339_millis_v1, TenantRootRecoveryRecipientKeypairV1,
+        TenantRootRecoverySignerCertificateV1, TenantRootRecoverySignerRoleV1,
+        TenantRootRecoveryTrustBundleV1, TenantRootRecoveryTrustRootV1, TwoPartyDeriverRole,
+    };
+    let _process_guard = local_worker_process_test_guard();
+    let b64u = |bytes: &[u8]| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
+    let unb64u = |text: &str| base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(text);
+    let now_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
+
+    // The operator's recovery root, which the source's control plane and the
+    // destination both trust.
+    let root_seed = fresh_nonzero_bytes_32()?;
+    let root_key_id = "vm-recovery-root";
+    let bundle = TenantRootRecoveryTrustBundleV1::new(
+        1,
+        TenantRootRecoveryTrustRootV1::new(
+            root_key_id,
+            ed25519_dalek::SigningKey::from_bytes(&root_seed).verifying_key().to_bytes(),
+        )?,
+        Vec::new(),
+        Vec::new(),
+    )?;
+    let trust_bundle_json = String::from_utf8(bundle.canonical_json()?)?;
+
+    // 1. The source's root, with a wallet that signs.
+    let source = RecoveryStackV1::start_with_envs(
+        "vm-tenant-root-recovery-kit-source",
+        &[],
+        &[("TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON", trust_bundle_json.as_str())],
+        &[],
+    )?;
+    let signing_worker = source.start_signing_worker()?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("recovery-kit-source")?;
+    let grant = product_creation_grant_b64u(&source.temp, &identity, lineage, None)?;
+    let (status, body) = source.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let signing_worker =
+        source.register_and_sign(signing_worker, &identity, &lineage_b64u, "account-before-backup")?;
+    drop(signing_worker);
+    let (revision, _, _) = source.active_state(&lineage_b64u)?;
+
+    // 2. The set's generation commands.
+    let recipient_key = |material: [u8; 32]| -> Result<String, Box<dyn std::error::Error>> {
+        Ok(b64u(TenantRootRecoveryRecipientKeypairV1::derive_from_ikm(material)?.public_key().as_bytes()))
+    };
+    let (generate_status, generate_body) = source.control_plane(
+        router_ab_cloudflare::TENANT_ROOT_CONTROL_PLANE_RECOVERY_COMMAND_PATH_V1,
+        &json!({
+            "kind": "generate",
+            "identity_b64u": b64u(&identity.canonical_bytes()?),
+            "custody_lineage_b64u": lineage_b64u,
+            "expected_lifecycle_revision": revision,
+            "recovery_set_id_b64u": b64u(&fresh_nonzero_bytes_16()?),
+            "recipient_a_b64u": recipient_key([0xa1; 32])?,
+            "recipient_b_b64u": recipient_key([0xb1; 32])?,
+        }),
+    )?;
+    assert_eq!(generate_status, 200, "{generate_body}");
+    let generated: serde_json::Value = serde_json::from_str(&generate_body)?;
+    let commands = [
+        generated["command_a_b64u"].as_str().ok_or("generation names A's command")?.to_owned(),
+        generated["command_b_b64u"].as_str().ok_or("generation names B's command")?.to_owned(),
+    ];
+
+    // 3. The reshare phases, at both Derivers.
+    let deriver_url = |role: TwoPartyDeriverRole| match role {
+        TwoPartyDeriverRole::DeriverA => source.deriver_a_url.clone(),
+        TwoPartyDeriverRole::DeriverB => source.deriver_b_url.clone(),
+    };
+    let role_auth = [(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)];
+    let phase = |role: TwoPartyDeriverRole, body: serde_json::Value| -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+        let (status, text) = post_json_to_path_with_headers(
+            &deriver_url(role),
+            router_ab_cloudflare::TENANT_ROOT_RECOVERY_RESHARE_PATH_V1,
+            &body,
+            &role_auth,
+        )?;
+        assert_eq!(status, 200, "{} {}: {text}", role.as_str(), body["kind"]);
+        Ok(serde_json::from_str(&text)?)
+    };
+    let roles = [TwoPartyDeriverRole::DeriverA, TwoPartyDeriverRole::DeriverB];
+    let prepared = [0, 1].map(|index| phase(roles[index], json!({ "kind": "prepare", "command": commands[index] })));
+    let [prepared_a, prepared_b] = prepared;
+    let commitments = json!({ "a": prepared_a?["commitment"], "b": prepared_b?["commitment"] });
+    let contributed = [0, 1].map(|index| {
+        phase(roles[index], json!({ "kind": "contribute", "command": commands[index], "commitments": commitments }))
+    });
+    let [contributed_a, contributed_b] = contributed;
+    let contributions = [contributed_a?["contribution"].clone(), contributed_b?["contribution"].clone()];
+    let rounds = [
+        json!({ "commitments": commitments, "peer_contribution": contributions[1] }),
+        json!({ "commitments": commitments, "peer_contribution": contributions[0] }),
+    ];
+    let derived = [0, 1].map(|index| {
+        phase(roles[index], json!({ "kind": "derive", "command": commands[index], "round": rounds[index] }))
+    });
+    let [derived_a, derived_b] = derived;
+    let derived = [derived_a?["commitment"].clone(), derived_b?["commitment"].clone()];
+    let proved = [0, 1].map(|index| {
+        phase(roles[index], json!({
+            "kind": "prove",
+            "command": commands[index],
+            "round": rounds[index],
+            "peer_commitment": derived[1 - index],
+        }))
+    });
+    let [proved_a, proved_b] = proved;
+    let evidence = [proved_a?["evidence"].clone(), proved_b?["evidence"].clone()];
+    let package_request = |index: usize| {
+        json!({
+            "kind": "package",
+            "command": commands[index],
+            "round": rounds[index],
+            "evidence_a": evidence[0],
+            "evidence_b": evidence[1],
+        })
+    };
+    let packaged_a = phase(roles[0], package_request(0))?;
+    let packaged_b = phase(roles[1], package_request(1))?;
+    assert_eq!(phase(roles[0], package_request(0))?, packaged_a, "Package replays exactly");
+    let retention_keys = |db: &Connection| -> rusqlite::Result<i64> {
+        db.query_row("SELECT COUNT(*) FROM tenant_root_recovery_retention_keys", [], |row| row.get(0))
+    };
+    assert_eq!((retention_keys(&source.a_store)?, retention_keys(&source.b_store)?), (1, 1));
+
+    // 4. Each role's package, under an access grant; then the manifest.
+    let access_grant = |kind: &str, index: usize| -> Result<String, Box<dyn std::error::Error>> {
+        let (status, body) = source.control_plane(
+            router_ab_cloudflare::TENANT_ROOT_CONTROL_PLANE_RECOVERY_COMMAND_PATH_V1,
+            &json!({ "kind": kind, "generation_command_b64u": commands[index], "role": roles[index].as_str() }),
+        )?;
+        assert_eq!(status, 200, "{body}");
+        Ok(serde_json::from_str::<serde_json::Value>(&body)?["access_grant_b64u"]
+            .as_str()
+            .ok_or("an access grant is issued")?
+            .to_owned())
+    };
+    let access = |index: usize, grant: &str| {
+        post_bytes_for_bytes(
+            &deriver_url(roles[index]),
+            router_ab_cloudflare::TENANT_ROOT_RECOVERY_ACCESS_PATH_V1,
+            &serde_json::to_vec(&json!({ "generation_command": commands[index], "access_grant": grant }))?,
+            &role_auth,
+        )
+    };
+    let mut packages = Vec::new();
+    for (index, packaged) in [&packaged_a, &packaged_b].into_iter().enumerate() {
+        let (status, head, bytes) = access(index, &access_grant("download", index)?)?;
+        assert_eq!(status, 200, "{}", String::from_utf8_lossy(&bytes));
+        assert!(
+            head.contains(router_ab_cloudflare::TENANT_ROOT_RECOVERY_PACKAGE_CONTENT_TYPE_V1)
+                && head.contains("no-store")
+                && head.contains("attachment; filename="),
+            "{head}"
+        );
+        assert_eq!(b64u(&Sha256::digest(&bytes)), packaged["package_digest"].as_str().unwrap_or_default());
+        assert_eq!(bytes.len() as u64, packaged["package_length"].as_u64().unwrap_or_default());
+        packages.push(bytes);
+    }
+    let bindings = router_ab_cloudflare::parse_cloudflare_tenant_root_control_plane_bindings_v1(
+        &router_ab_cloudflare::CloudflareEnvMapV1::new(parse_local_env_file_contents_v1(
+            &fs::read_to_string(source.temp.join(router_ab_dev::LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_FILE_V1))?,
+        )?),
+    )?;
+    let not_before = format_tenant_root_rfc3339_millis_v1(now_ms - 86_400_000)?;
+    let not_after = format_tenant_root_rfc3339_millis_v1(now_ms + 30 * 86_400_000)?;
+    let certificate = |key_id: &str, key: [u8; 32], role: TenantRootRecoverySignerRoleV1| -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        Ok(vec![TenantRootRecoverySignerCertificateV1::sign(
+            root_key_id,
+            &root_seed,
+            key_id,
+            key,
+            role,
+            not_before.as_str(),
+            not_after.as_str(),
+        )?
+        .to_chain_entry()?])
+    };
+    let issuer_key_id = bindings.issuer_signing_key.signing_key_id();
+    let issuer_key = *bindings
+        .issuer_verifying_keys
+        .for_issuer_key_id(issuer_key_id)
+        .ok_or("the control plane publishes its issuer key")?;
+    let (manifest_status, manifest_body) = source.control_plane(
+        router_ab_cloudflare::TENANT_ROOT_CONTROL_PLANE_RECOVERY_MANIFEST_PATH_V1,
+        &json!({
+            "generation_command_b64u": commands[0],
+            "evidence_a_b64u": evidence[0],
+            "evidence_b_b64u": evidence[1],
+            "package_a_b64u": b64u(&packages[0]),
+            "package_b_b64u": b64u(&packages[1]),
+            "deriver_a_certificate_chain": certificate(&bindings.deriver_a_signing_key_id, bindings.deriver_a_verifying_key, TenantRootRecoverySignerRoleV1::DeriverA)?,
+            "deriver_b_certificate_chain": certificate(&bindings.deriver_b_signing_key_id, bindings.deriver_b_verifying_key, TenantRootRecoverySignerRoleV1::DeriverB)?,
+            "control_plane_certificate_chain": certificate(issuer_key_id, issuer_key, TenantRootRecoverySignerRoleV1::ControlPlane)?,
+        }),
+    )?;
+    assert_eq!(manifest_status, 200, "{manifest_body}");
+    let manifest_bytes = unb64u(
+        serde_json::from_str::<serde_json::Value>(&manifest_body)?["manifest_b64u"]
+            .as_str()
+            .ok_or("the control plane returns the manifest")?,
+    )?;
+
+    // 5. The kit restores into an empty VM, which signs.
+    let restored = restore_recovery_kit_into_an_empty_vm(&RecoveryKitV1 {
+        label: "vm-tenant-root-recovery-kit-destination",
+        manifest_bytes,
+        trust_bundle_json: trust_bundle_json.clone(),
+        identity: identity.clone(),
+        packages: [
+            (TwoPartyDeriverRole::DeriverA, [0xa1_u8; 32], packages[0].clone()),
+            (TwoPartyDeriverRole::DeriverB, [0xb1_u8; 32], packages[1].clone()),
+        ],
+    })?;
+
+    // 6. Destroy at the source: the retained package and its key go, and the
+    // erasure is reported unverified.
+    let mut destroyed = Vec::new();
+    for index in [0, 1] {
+        let (status, _, bytes) = access(index, &access_grant("destroy", index)?)?;
+        let outcome: serde_json::Value = serde_json::from_slice(&bytes)?;
+        assert_eq!(status, 200, "{outcome}");
+        assert_eq!(outcome["status"], "destroyed", "{outcome}");
+        let receipt: serde_json::Value =
+            serde_json::from_str(outcome["provider_receipt"].as_str().ok_or("a destruction has a receipt")?)?;
+        assert_eq!(receipt["cryptographic_erasure"], "cryptographic_erasure_unverified", "{receipt}");
+        let (after_status, _, after) = access(index, &access_grant("download", index)?)?;
+        assert_ne!(after_status, 200, "{}", String::from_utf8_lossy(&after));
+        destroyed.push(json!([outcome["status"], receipt["cryptographic_erasure"], after_status]));
+    }
+    assert_eq!((retention_keys(&source.a_store)?, retention_keys(&source.b_store)?), (0, 0));
+    println!(
+        "R150_VM_TENANT_ROOT_RECOVERY_KIT_GENERATION_E2E {}",
+        json!({
+            "generation": generate_status,
+            "phases": ["prepare", "contribute", "derive", "prove", "package"],
+            "package_replays_exactly": true,
+            "retention_keys_in_role_stores": [1, 1],
+            "downloads": [packaged_a["package_length"], packaged_b["package_length"]],
+            "manifest": manifest_status,
+            "restored": restored,
+            "destroyed": destroyed,
+            "retention_keys_after_destroy": [0, 0],
+        })
+    );
+    Ok(())
+}
+
+/// One tenant's recovery kit: its manifest, the recovery trust it chains to,
+/// the root's identity, and each role's package with the tenant's recipient
+/// key material for it.
+struct RecoveryKitV1 {
+    label: &'static str,
+    manifest_bytes: Vec<u8>,
+    trust_bundle_json: String,
+    identity: TenantRootIdentityV1,
+    packages: [(router_ab_core::TwoPartyDeriverRole, [u8; 32], Vec<u8>); 2],
+}
+
+/// Restores a recovery kit into an empty VM deployment, activates it, and
+/// signs on it before and after a refresh; returns the evidence.
+fn restore_recovery_kit_into_an_empty_vm(
+    kit: &RecoveryKitV1,
+) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
     use router_ab_core::{
         decode_tenant_root_recovery_manifest_v1, decode_tenant_root_recovery_package_v1,
         verify_and_open_tenant_root_recovery_role_package_v1,
@@ -2184,19 +2490,14 @@ fn vm_tenant_root_recovery_kit_restores_into_an_empty_deployment_and_signs(
         TenantRootRestoreRefreshGrantV1, TenantRootRestoreRoleImportGrantV1,
         TenantRootRestoreSessionIdV1, TwoPartyDeriverRole,
     };
-    let _process_guard = local_worker_process_test_guard();
     let b64u = |bytes: &[u8]| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
     let unb64u = |text: &str| base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(text);
-    let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../router-ab-core/tests/fixtures/tenant-root-recovery");
-    let manifest_bytes = fs::read(fixtures.join("manifest.json"))?;
-    let manifest = decode_tenant_root_recovery_manifest_v1(&manifest_bytes)?;
-    let manifest_b64u = b64u(&manifest_bytes);
-    let trust_bundle_json = fs::read_to_string(fixtures.join("trust-bundle.json"))?;
+    let manifest = decode_tenant_root_recovery_manifest_v1(&kit.manifest_bytes)?;
+    let manifest_b64u = b64u(&kit.manifest_bytes);
+    let trust_bundle_json = kit.trust_bundle_json.as_str();
     let trust_bundle =
-        TenantRootRecoveryTrustBundleV1::from_canonical_json(trust_bundle_json.trim().as_bytes())?;
-    let identity =
-        TenantRootIdentityV1::new("org-1", "project-2", "production", "root-main", "v3")?;
+        TenantRootRecoveryTrustBundleV1::from_canonical_json(trust_bundle_json.as_bytes())?;
+    let identity = kit.identity.clone();
     assert_eq!(manifest.descriptor().tenant_root_identity_digest(), identity.digest()?);
 
     // The operator provisions an empty destination for this root.
@@ -2216,9 +2517,9 @@ fn vm_tenant_root_recovery_kit_restores_into_an_empty_deployment_and_signs(
     })
     .to_string();
     let stack = RecoveryStackV1::start_with_envs(
-        "vm-tenant-root-recovery-kit-restore",
+        kit.label,
         &[("TENANT_ROOT_DESTINATION_BOOTSTRAP_JSON", bootstrap_record.as_str())],
-        &[("TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON", trust_bundle_json.trim())],
+        &[("TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON", trust_bundle_json)],
         &[],
     )?;
     let router = |path: &str, body: &serde_json::Value, headers: &[(&str, &str)]| {
@@ -2278,10 +2579,8 @@ fn vm_tenant_root_recovery_kit_restores_into_an_empty_deployment_and_signs(
         Ok(u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?)
     };
     let mut acceptance = Vec::new();
-    for (role, key_material, package_file) in [
-        (TwoPartyDeriverRole::DeriverA, [0xa1_u8; 32], "deriver-a.backup"),
-        (TwoPartyDeriverRole::DeriverB, [0xb1_u8; 32], "deriver-b.backup"),
-    ] {
+    for (role, key_material, package_bytes) in &kit.packages {
+        let (role, key_material) = (*role, *key_material);
         let issued_at_ms = now_ms()? - 1_000;
         let grant = TenantRootRestoreRoleImportGrantV1::sign(
             TenantRootProtocolDigestV1::from_bytes(fresh_nonzero_bytes_32()?)?,
@@ -2320,7 +2619,7 @@ fn vm_tenant_root_recovery_kit_restores_into_an_empty_deployment_and_signs(
             "an import-key retry returns the same key"
         );
 
-        let package = decode_tenant_root_recovery_package_v1(&fs::read(fixtures.join(package_file))?)?;
+        let package = decode_tenant_root_recovery_package_v1(package_bytes)?;
         let trust = verify_tenant_root_recovery_role_package_with_trust_v1(
             &manifest,
             &package,
@@ -2476,26 +2775,21 @@ fn vm_tenant_root_recovery_kit_restores_into_an_empty_deployment_and_signs(
     assert_eq!(stack.admissions(&lineage_b64u)?, (vec![1, 2], vec![1, 2]));
     drop(signing_worker);
 
-    println!(
-        "R150_VM_TENANT_ROOT_RECOVERY_KIT_RESTORE_E2E {}",
-        json!({
-            "kit": "committed fixture manifest, packages and trust bundle",
-            "bootstrap": { "read": read_status, "wrong_credential": "authentication_failed", "authenticated": true },
-            "manifest_registered": manifest_status,
-            "roles_imported": ["deriver_a", "deriver_b"],
-            "import_key_retry_identical": true,
-            "dormant_after_refresh": { "deriver_a": [[1, "pending"]], "deriver_b": [[1, "pending"]], "router_active_state": false },
-            "activation": { "status": activation_status, "epoch": 1, "retry_identical": true },
-            "bootstrap_after_activation": "destroyed",
-            "cleanup_retry_after_lost_reply": [cleanup_status, "same receipts from both Derivers"],
-            "epochs_after_activation": { "deriver_a": [[1, "active"]], "deriver_b": [[1, "active"]] },
-            "signed_on_restored_root": true,
-            "refresh_after_restore": [root_refresh_status, { "deriver_a": [[1, "retired"], [2, "active"]], "deriver_b": [[1, "retired"], [2, "active"]] }],
-            "signed_after_refresh": true,
-            "admissions": { "deriver_a": [1, 2], "deriver_b": [1, 2] },
-        })
-    );
-    Ok(())
+    Ok(json!({
+        "bootstrap": { "read": read_status, "wrong_credential": "authentication_failed", "authenticated": true },
+        "manifest_registered": manifest_status,
+        "roles_imported": ["deriver_a", "deriver_b"],
+        "import_key_retry_identical": true,
+        "dormant_after_refresh": { "deriver_a": [[1, "pending"]], "deriver_b": [[1, "pending"]], "router_active_state": false },
+        "activation": { "status": activation_status, "epoch": 1, "retry_identical": true },
+        "bootstrap_after_activation": "destroyed",
+        "cleanup_retry_after_lost_reply": [cleanup_status, "same receipts from both Derivers"],
+        "epochs_after_activation": { "deriver_a": [[1, "active"]], "deriver_b": [[1, "active"]] },
+        "signed_on_restored_root": true,
+        "refresh_after_restore": [root_refresh_status, { "deriver_a": [[1, "retired"], [2, "active"]], "deriver_b": [[1, "retired"], [2, "active"]] }],
+        "signed_after_refresh": true,
+        "admissions": { "deriver_a": [1, 2], "deriver_b": [1, 2] },
+    }))
 }
 
 /// A root-use admission belongs to one execution attempt
@@ -7618,6 +7912,18 @@ fn post_bytes_to_path_with_headers(
     body: &[u8],
     headers: &[(&str, &str)],
 ) -> Result<(u16, String), Box<dyn std::error::Error>> {
+    let (status, _, body) = post_bytes_for_bytes(base_url, path, body, headers)?;
+    Ok((status, String::from_utf8(body)?))
+}
+
+/// Posts one body and returns the status, the response head and the exact
+/// response bytes, which need not be text.
+fn post_bytes_for_bytes(
+    base_url: &str,
+    path: &str,
+    body: &[u8],
+    headers: &[(&str, &str)],
+) -> Result<(u16, String, Vec<u8>), Box<dyn std::error::Error>> {
     let authority = base_url
         .strip_prefix("http://")
         .ok_or("post URL must use http://")?;
@@ -7648,10 +7954,7 @@ fn post_bytes_to_path_with_headers(
         .and_then(|line| line.split_whitespace().nth(1))
         .ok_or("response missing status")?
         .parse::<u16>()?;
-    Ok((
-        status,
-        String::from_utf8(response[header_end + 4..].to_vec())?,
-    ))
+    Ok((status, headers.to_owned(), response[header_end + 4..].to_vec()))
 }
 
 fn wait_for_health(base_url: &str, child: &mut Child) -> Result<(), Box<dyn std::error::Error>> {

@@ -1054,6 +1054,7 @@ pub(crate) fn authorize_tenant_root_creation_v1(
     })
 }
 
+#[cfg(test)]
 fn verify_recovery_manifest_with_local_trust_v1(
     manifest_bytes: &[u8],
     env: &impl crate::CloudflareEnvReaderV1,
@@ -1112,7 +1113,7 @@ fn verify_recovery_manifest_with_trust_v1(
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct RecoveryGenerationRequestV1 {
+pub struct RecoveryGenerationRequestV1 {
     identity_b64u: String,
     custody_lineage_b64u: String,
     expected_lifecycle_revision: u64,
@@ -1123,7 +1124,7 @@ pub(crate) struct RecoveryGenerationRequestV1 {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct RecoverySourceRetirementRequestV1 {
+pub struct RecoverySourceRetirementRequestV1 {
     identity_digest_b64u: String,
     custody_lineage_b64u: String,
     expected_lifecycle_revision: u64,
@@ -1133,7 +1134,7 @@ pub(crate) struct RecoverySourceRetirementRequestV1 {
 /// Console authorization selects the operation; active root facts come from the Router.
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) enum RecoveryCommandRequestV1 {
+pub enum RecoveryCommandRequestV1 {
     Generate(RecoveryGenerationRequestV1),
     RetireSource(RecoverySourceRetirementRequestV1),
     Download {
@@ -1149,7 +1150,7 @@ pub(crate) enum RecoveryCommandRequestV1 {
 /// Internal console request; confirmation verifiers never enter browser responses.
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) enum RecoveryRecipientProofRequestV1 {
+pub enum RecoveryRecipientProofRequestV1 {
     Seal {
         identity_digest_b64u: String,
         custody_lineage_b64u: String,
@@ -1168,7 +1169,7 @@ pub(crate) enum RecoveryRecipientProofRequestV1 {
 /// Complete role-signed evidence and ciphertexts for one admitted recovery set.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct RecoveryManifestAssemblyRequestV1 {
+pub struct RecoveryManifestAssemblyRequestV1 {
     generation_command_b64u: String,
     evidence_a_b64u: String,
     evidence_b_b64u: String,
@@ -1182,6 +1183,7 @@ pub(crate) struct RecoveryManifestAssemblyRequestV1 {
 #[cfg(feature = "workers-rs")]
 pub(crate) use live::{
     assemble_recovery_manifest_v1, recovery_command_v1, recovery_recipient_proof_v1,
+    recovery_trust_bundle_json_v1,
 };
 
 #[cfg(feature = "workers-rs")]
@@ -3044,6 +3046,382 @@ fn require_promoted_restore_refresh_read_v1(
     }
 }
 
+/// Private control-plane routes for recovery-package generation, on every host.
+pub const TENANT_ROOT_CONTROL_PLANE_RECOVERY_TRUST_PATH_V1: &str =
+    "/router-ab/tenant-root-control-plane/recovery/trust";
+pub const TENANT_ROOT_CONTROL_PLANE_RECOVERY_COMMAND_PATH_V1: &str =
+    "/router-ab/tenant-root-control-plane/recovery/command";
+pub const TENANT_ROOT_CONTROL_PLANE_RECOVERY_RECIPIENT_PROOF_PATH_V1: &str =
+    "/router-ab/tenant-root-control-plane/recovery/recipient-proof";
+pub const TENANT_ROOT_CONTROL_PLANE_RECOVERY_MANIFEST_PATH_V1: &str =
+    "/router-ab/tenant-root-control-plane/recovery/manifest";
+
+fn recovery_fixed<const N: usize>(field: &'static str, value: &str) -> RouterAbProtocolResult<[u8; N]> {
+    decode_canonical_base64url(field, value, N, N * 2)?
+        .try_into()
+        .map_err(|_| refused("recipient proof field has invalid length"))
+}
+
+fn recovery_random<const N: usize>(
+    host: &impl TenantRootControlPlaneHostV1,
+    field: &'static str,
+) -> RouterAbProtocolResult<[u8; N]> {
+    host.random_bytes(N)?
+        .try_into()
+        .map_err(|_| refused(field))
+}
+
+/// The recovery trust bundle this control plane verifies manifests against,
+/// as its canonical JSON.
+pub fn control_plane_recovery_trust_bundle_json_v1(
+    host: &impl TenantRootControlPlaneHostV1,
+) -> RouterAbProtocolResult<Vec<u8>> {
+    let (bundle, _) = host.recovery_trust()?;
+    bundle.canonical_json().map_err(derivation)
+}
+
+/// Issues a recovery set's generation commands, or an access grant to
+/// download or destroy one role's retained package. Source retirement moves
+/// authority, and is served only where that is: never here.
+pub async fn control_plane_recovery_command_v1(
+    host: &impl TenantRootControlPlaneHostV1,
+    request: RecoveryCommandRequestV1,
+) -> RouterAbProtocolResult<serde_json::Value> {
+    use router_ab_core::derivation::{
+        TenantRootRecoveryAccessGrantV1, TenantRootRecoveryAccessOperationV1,
+        TenantRootRecoveryReshareRoleCommandV1,
+    };
+    let (operation, command_b64u, role) = match request {
+        RecoveryCommandRequestV1::RetireSource(_) => {
+            return Err(refused(
+                "source retirement moves authority and is not served by this control plane",
+            ))
+        }
+        RecoveryCommandRequestV1::Generate(scope) => {
+            return control_plane_recovery_generation_v1(host, scope).await
+        }
+        RecoveryCommandRequestV1::Download {
+            generation_command_b64u,
+            role,
+        } => (
+            TenantRootRecoveryAccessOperationV1::DownloadPackage,
+            generation_command_b64u,
+            role,
+        ),
+        RecoveryCommandRequestV1::Destroy {
+            generation_command_b64u,
+            role,
+        } => (
+            TenantRootRecoveryAccessOperationV1::DestroyRecoverySet,
+            generation_command_b64u,
+            role,
+        ),
+    };
+    let now = host.now_ms()?;
+    let expires = now
+        .checked_add(300_000)
+        .ok_or_else(|| refused("recovery command expiry overflow"))?;
+    let nonce = TenantRootCeremonyNonceV1::from_bytes(recovery_random::<32>(
+        host,
+        "recovery nonce generation failed",
+    )?)
+    .map_err(derivation)?;
+    let seed = host.issuer_seed()?;
+    let bindings = host.bindings();
+    let issuer_id = bindings.issuer_signing_key.signing_key_id();
+    let raw = TenantRootRecoveryReshareRoleCommandV1::decode_canonical_bytes(
+        &decode_canonical_base64url("recovery generation command", &command_b64u, 16384, 32768)?,
+    )
+    .map_err(derivation)?;
+    let issuer = bindings
+        .issuer_verifying_keys
+        .for_issuer_key_id(raw.issuer_key_id())
+        .ok_or_else(|| refused("recovery generation issuer is not trusted"))?;
+    let command = raw
+        .verify(role.to_protocol(), raw.issuer_key_id(), issuer)
+        .map_err(derivation)?;
+    let grant =
+        TenantRootRecoveryAccessGrantV1::sign(&command, operation, nonce, now, expires, issuer_id, &seed)
+            .map_err(derivation)?;
+    Ok(serde_json::json!({
+        "access_grant_b64u": encode_base64url_bytes_v1(&grant.canonical_bytes().map_err(derivation)?),
+    }))
+}
+
+/// Signs both roles' reshare commands for one recovery set, bound to the
+/// Router's active epoch and each role's recipient key.
+async fn control_plane_recovery_generation_v1(
+    host: &impl TenantRootControlPlaneHostV1,
+    request: RecoveryGenerationRequestV1,
+) -> RouterAbProtocolResult<serde_json::Value> {
+    use router_ab_core::derivation::{
+        TenantRootRecoveryRecipientPublicKeyV1, TenantRootRecoveryReshareContextV1,
+        TenantRootRecoveryReshareRoleCommandV1, TenantRootRecoverySetId,
+    };
+    // Refuse a missing trust configuration before any role provisions a
+    // retention key for the set.
+    host.recovery_trust()?;
+    let RecoveryGenerationRequestV1 {
+        identity_b64u,
+        custody_lineage_b64u,
+        expected_lifecycle_revision,
+        recovery_set_id_b64u,
+        recipient_a_b64u,
+        recipient_b_b64u,
+    } = request;
+    let identity = TenantRootIdentityV1::decode_canonical_bytes(&decode_canonical_base64url(
+        "recovery identity",
+        &identity_b64u,
+        16384,
+        32768,
+    )?)
+    .map_err(derivation)?;
+    let lineage =
+        TenantRootCustodyLineageId::from_bytes(recovery_fixed("recovery lineage", &custody_lineage_b64u)?)
+            .map_err(derivation)?;
+    let active = host
+        .read_active_state(identity.digest().map_err(derivation)?, lineage)
+        .await?;
+    if active.lifecycle_revision != expected_lifecycle_revision {
+        return Err(refused("recovery enrollment lifecycle revision is stale"));
+    }
+    let current = TenantRootActiveRefreshV1::from_verified_activation_receipt(
+        identity,
+        active.activation_receipt,
+        active.lifecycle_revision,
+    )
+    .map_err(derivation)?;
+    let set = TenantRootRecoverySetId::from_bytes(recovery_fixed(
+        "recovery set id",
+        &recovery_set_id_b64u,
+    )?)
+    .map_err(derivation)?;
+    let a = TenantRootRecoveryRecipientPublicKeyV1::from_bytes(recovery_fixed(
+        "recovery A recipient",
+        &recipient_a_b64u,
+    )?)
+    .map_err(derivation)?;
+    let b = TenantRootRecoveryRecipientPublicKeyV1::from_bytes(recovery_fixed(
+        "recovery B recipient",
+        &recipient_b_b64u,
+    )?)
+    .map_err(derivation)?;
+    let session = TenantRootCeremonySessionIdV1::from_bytes(recovery_random::<16>(
+        host,
+        "recovery session generation failed",
+    )?)
+    .map_err(derivation)?;
+    let nonce = TenantRootCeremonyNonceV1::from_bytes(recovery_random::<32>(
+        host,
+        "recovery nonce generation failed",
+    )?)
+    .map_err(derivation)?;
+    let now = host.now_ms()?;
+    let expires = now
+        .checked_add(300_000)
+        .ok_or_else(|| refused("recovery command expiry overflow"))?;
+    let bindings = host.bindings();
+    let context = TenantRootRecoveryReshareContextV1::from_active(
+        &current,
+        set,
+        a,
+        b,
+        session,
+        nonce,
+        now,
+        expires,
+        &bindings.deriver_a_signing_key_id,
+        &bindings.deriver_b_signing_key_id,
+    )
+    .map_err(derivation)?;
+    let seed = host.issuer_seed()?;
+    let [a, b] = [TwoPartyDeriverRole::DeriverA, TwoPartyDeriverRole::DeriverB].map(|role| {
+        TenantRootRecoveryReshareRoleCommandV1::sign(
+            &context,
+            role,
+            bindings.issuer_signing_key.signing_key_id(),
+            &seed,
+        )
+        .map_err(derivation)
+        .and_then(|command| command.canonical_bytes().map_err(derivation))
+    });
+    Ok(serde_json::json!({
+        "command_a_b64u": encode_base64url_bytes_v1(&a?),
+        "command_b_b64u": encode_base64url_bytes_v1(&b?),
+        "issued_at_ms": now,
+        "expires_at_ms": expires,
+        "lifecycle_revision": expected_lifecycle_revision,
+    }))
+}
+
+/// Seals a recipient-key challenge for the tenant to answer, or checks its
+/// answer. The confirmation verifier stays with the Console.
+pub fn control_plane_recovery_recipient_proof_v1(
+    host: &impl TenantRootControlPlaneHostV1,
+    request: RecoveryRecipientProofRequestV1,
+) -> RouterAbProtocolResult<serde_json::Value> {
+    use router_ab_core::derivation::{
+        confirm_tenant_root_recovery_recipient_proof_v1, TenantRootRecoveryRecipientProofBindingV1,
+        TenantRootRecoveryRecipientProofEnvelopeV1, TenantRootRecoveryRecipientPublicKeyV1,
+    };
+    use subtle::ConstantTimeEq;
+    match request {
+        RecoveryRecipientProofRequestV1::Seal {
+            identity_digest_b64u,
+            custody_lineage_b64u,
+            role,
+            recipient_public_key_b64u,
+            actor_user_id,
+            lifecycle_revision,
+            issued_at_ms,
+        } => {
+            if host.now_ms()?.abs_diff(issued_at_ms) > 30_000 {
+                return Err(refused("recipient challenge issue time is stale"));
+            }
+            let identity = TenantRootIdentityDigestV1::from_bytes(recovery_fixed(
+                "identity digest",
+                &identity_digest_b64u,
+            )?);
+            let lineage = TenantRootCustodyLineageId::from_bytes(recovery_fixed(
+                "custody lineage",
+                &custody_lineage_b64u,
+            )?)
+            .map_err(derivation)?;
+            let recipient = TenantRootRecoveryRecipientPublicKeyV1::from_bytes(recovery_fixed(
+                "recipient public key",
+                &recipient_public_key_b64u,
+            )?)
+            .map_err(derivation)?;
+            let mut rng = crate::hpke::CloudflareHpkeGetrandomRngV1;
+            let challenge_id = recovery_random::<16>(host, "recipient challenge generation failed")?;
+            let secret = Zeroizing::new(recovery_random::<32>(
+                host,
+                "recipient challenge generation failed",
+            )?);
+            let role = role.to_protocol();
+            let binding = TenantRootRecoveryRecipientProofBindingV1::new(
+                challenge_id,
+                identity,
+                lineage,
+                role,
+                role.share_id(),
+                recipient.fingerprint(),
+                actor_user_id,
+                lifecycle_revision,
+                issued_at_ms,
+                issued_at_ms
+                    .checked_add(600_000)
+                    .ok_or_else(|| refused("recipient challenge expiry overflow"))?,
+            )
+            .map_err(derivation)?;
+            let confirmation =
+                confirm_tenant_root_recovery_recipient_proof_v1(&binding, &secret).map_err(derivation)?;
+            let envelope =
+                TenantRootRecoveryRecipientProofEnvelopeV1::seal(binding, recipient, *secret, &mut rng)
+                    .map_err(derivation)?;
+            Ok(serde_json::json!({
+                "challenge_id_b64u": encode_base64url_bytes_v1(&challenge_id),
+                "envelope_b64u": encode_base64url_bytes_v1(&envelope.canonical_bytes().map_err(derivation)?),
+                "recipient_fingerprint_b64u": encode_base64url_bytes_v1(recipient.fingerprint().as_bytes()),
+                "expected_confirmation_b64u": encode_base64url_bytes_v1(confirmation.as_bytes()),
+            }))
+        }
+        RecoveryRecipientProofRequestV1::Verify {
+            expected_confirmation_b64u,
+            confirmation_b64u,
+        } => {
+            let expected = Zeroizing::new(recovery_fixed::<32>(
+                "stored recipient verifier",
+                &expected_confirmation_b64u,
+            )?);
+            let actual = Zeroizing::new(recovery_fixed::<32>(
+                "recipient confirmation",
+                &confirmation_b64u,
+            )?);
+            Ok(serde_json::json!({"verified": bool::from(expected.as_ref().ct_eq(actual.as_ref()))}))
+        }
+    }
+}
+
+/// Signs one recovery set's manifest over both roles' evidence and packages,
+/// and proves its chains end at this control plane's recovery trust.
+pub fn control_plane_assemble_recovery_manifest_v1(
+    host: &impl TenantRootControlPlaneHostV1,
+    request: RecoveryManifestAssemblyRequestV1,
+) -> RouterAbProtocolResult<serde_json::Value> {
+    use router_ab_core::derivation::{
+        TenantRootRecoveryDescriptorV1, TenantRootRecoveryPackageV1,
+        TenantRootRecoveryReshareRoleCommandV1, TenantRootSignedRecoveryShareInstallationEvidenceV1,
+        VerifiedTenantRootRecoveryResharePairV1,
+    };
+    let bindings = host.bindings();
+    let raw = TenantRootRecoveryReshareRoleCommandV1::decode_canonical_bytes(
+        &decode_canonical_base64url("recovery command", &request.generation_command_b64u, 16384, 32768)?,
+    )
+    .map_err(derivation)?;
+    let issuer = bindings
+        .issuer_verifying_keys
+        .for_issuer_key_id(raw.issuer_key_id())
+        .ok_or_else(|| refused("recovery generation issuer is not trusted"))?;
+    let command = raw
+        .verify(TwoPartyDeriverRole::DeriverA, raw.issuer_key_id(), issuer)
+        .map_err(derivation)?;
+    let context = command.context();
+    // The commands this control plane issued name its configured role keys.
+    if context.signing_key_id(TwoPartyDeriverRole::DeriverA) != bindings.deriver_a_signing_key_id
+        || context.signing_key_id(TwoPartyDeriverRole::DeriverB) != bindings.deriver_b_signing_key_id
+    {
+        return Err(refused(
+            "recovery command names a role signing key this control plane does not hold",
+        ));
+    }
+    let (key_a, key_b) = (&bindings.deriver_a_verifying_key, &bindings.deriver_b_verifying_key);
+    let evidence = |label: &'static str, value: &str, key: &[u8; 32]| {
+        TenantRootSignedRecoveryShareInstallationEvidenceV1::decode_and_verify_canonical_bytes(
+            &decode_canonical_base64url(label, value, 16384, 32768)?,
+            context,
+            key,
+        )
+        .map_err(derivation)
+    };
+    let a = evidence("recovery A evidence", &request.evidence_a_b64u, key_a)?;
+    let b = evidence("recovery B evidence", &request.evidence_b_b64u, key_b)?;
+    let pair = VerifiedTenantRootRecoveryResharePairV1::verify(context, &a, &b, key_a, key_b)
+        .map_err(derivation)?;
+    let time = router_ab_core::format_tenant_root_rfc3339_millis_v1(context.issued_at_ms())
+        .map_err(derivation)?;
+    let descriptor =
+        TenantRootRecoveryDescriptorV1::from_verified_reshare(&pair, time).map_err(derivation)?;
+    let package = |label: &'static str, value: &str| {
+        TenantRootRecoveryPackageV1::decode(&decode_canonical_base64url(label, value, 16384, 32768)?)
+            .map_err(derivation)
+    };
+    let package_a = package("recovery A package", &request.package_a_b64u)?;
+    let package_b = package("recovery B package", &request.package_b_b64u)?;
+    let seed = host.issuer_seed()?;
+    let manifest = TenantRootRecoveryManifestV1::sign(
+        descriptor,
+        &package_a,
+        &package_b,
+        request.deriver_a_certificate_chain,
+        request.deriver_b_certificate_chain,
+        request.control_plane_certificate_chain,
+        &seed,
+    )
+    .map_err(derivation)?;
+    let bytes = manifest.canonical_json().map_err(derivation)?;
+    // Caller-supplied chains must terminate at this control plane's roots.
+    let (bundle, snapshot) = host.recovery_trust()?;
+    let (_, trust) = verify_recovery_manifest_with_trust_v1(&bytes, &bundle, snapshot.as_ref())?;
+    manifest
+        .verify_packages(&package_a, &package_b, trust.trusted_verifying_keys())
+        .map_err(derivation)?;
+    Ok(serde_json::json!({
+        "manifest_b64u": encode_base64url_bytes_v1(&bytes),
+        "verified": recovery_manifest_response_v1(&manifest, &trust)?,
+    }))
+}
+
 #[cfg(feature = "workers-rs")]
 mod live {
     use super::*;
@@ -3074,70 +3452,11 @@ mod live {
         env: &worker::Env,
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
     ) -> RouterAbProtocolResult<serde_json::Value> {
-        use router_ab_core::derivation::{
-            TenantRootRecoveryAccessGrantV1, TenantRootRecoveryAccessOperationV1,
-            TenantRootRecoveryReshareRoleCommandV1,
-        };
-        let (operation, command_b64u, role) = match request {
-            RecoveryCommandRequestV1::RetireSource(scope) => {
-                return issue_source_retirement_v1(scope, env, runtime).await
-            }
-            RecoveryCommandRequestV1::Generate(scope) => {
-                return issue_recovery_generation_v1(scope, env, runtime).await
-            }
-            RecoveryCommandRequestV1::Download {
-                generation_command_b64u,
-                role,
-            } => (
-                TenantRootRecoveryAccessOperationV1::DownloadPackage,
-                generation_command_b64u,
-                role,
-            ),
-            RecoveryCommandRequestV1::Destroy {
-                generation_command_b64u,
-                role,
-            } => (
-                TenantRootRecoveryAccessOperationV1::DestroyRecoverySet,
-                generation_command_b64u,
-                role,
-            ),
-        };
-        let now = crate::cloudflare_now_unix_ms_v1()?;
-        let expires = now
-            .checked_add(300_000)
-            .ok_or_else(|| refused("recovery command expiry overflow"))?;
-        let nonce = TenantRootCeremonyNonceV1::from_bytes(
-            crate::cloudflare_random_bytes_v1(32)?
-                .try_into()
-                .map_err(|_| refused("recovery nonce generation failed"))?,
-        )
-        .map_err(derivation)?;
-        let seed = load_issuer_seed(env, runtime)?;
-        let bindings = runtime.bindings();
-        let issuer_id = bindings.issuer_signing_key.signing_key_id();
-        let raw = TenantRootRecoveryReshareRoleCommandV1::decode_canonical_bytes(
-            &decode_canonical_base64url(
-                "recovery generation command",
-                &command_b64u,
-                16384,
-                32768,
-            )?,
-        )
-        .map_err(derivation)?;
-        let issuer = bindings
-            .issuer_verifying_keys
-            .for_issuer_key_id(raw.issuer_key_id())
-            .ok_or_else(|| refused("recovery generation issuer is not trusted"))?;
-        let command = raw
-            .verify(role.to_protocol(), raw.issuer_key_id(), issuer)
-            .map_err(derivation)?;
-        let grant = TenantRootRecoveryAccessGrantV1::sign(
-            &command, operation, nonce, now, expires, issuer_id, &seed,
-        )
-        .map_err(derivation)?;
-        Ok(
-            serde_json::json!({"access_grant_b64u": encode_base64url_bytes_v1(&grant.canonical_bytes().map_err(derivation)?)}),
-        )
+        if let RecoveryCommandRequestV1::RetireSource(scope) = request {
+            return issue_source_retirement_v1(scope, env, runtime).await;
+        }
+        super::control_plane_recovery_command_v1(&CloudflareControlPlaneHostV1 { env, runtime }, request)
+            .await
     }
 
     async fn issue_source_retirement_v1(
@@ -3148,16 +3467,16 @@ mod live {
         use router_ab_core::derivation::{
             TenantRootProtocolDigestV1, TenantRootSourceRetirementCommandV1,
         };
-        let identity = TenantRootIdentityDigestV1::from_bytes(recovery_proof_fixed(
+        let identity = TenantRootIdentityDigestV1::from_bytes(recovery_fixed(
             "source identity",
             &request.identity_digest_b64u,
         )?);
-        let lineage = TenantRootCustodyLineageId::from_bytes(recovery_proof_fixed(
+        let lineage = TenantRootCustodyLineageId::from_bytes(recovery_fixed(
             "source lineage",
             &request.custody_lineage_b64u,
         )?)
         .map_err(derivation)?;
-        let destination = TenantRootProtocolDigestV1::from_bytes(recovery_proof_fixed(
+        let destination = TenantRootProtocolDigestV1::from_bytes(recovery_fixed(
             "destination activation receipt",
             &request.destination_activation_receipt_digest_b64u,
         )?)
@@ -3211,217 +3530,22 @@ mod live {
         }))
     }
 
-    async fn issue_recovery_generation_v1(
-        request: RecoveryGenerationRequestV1,
+    pub(crate) fn recovery_trust_bundle_json_v1(
         env: &worker::Env,
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
-    ) -> RouterAbProtocolResult<serde_json::Value> {
-        use router_ab_core::derivation::{
-            TenantRootRecoveryRecipientPublicKeyV1, TenantRootRecoveryReshareContextV1,
-            TenantRootRecoveryReshareRoleCommandV1, TenantRootRecoverySetId,
-        };
-        // Reject missing trust configuration before allocating per-set retention keys.
-        let reader = crate::CloudflareWorkerEnvReaderV1::new(env);
-        crate::env::parse_cloudflare_tenant_root_recovery_trust_bundle_v1(&reader)?;
-        crate::env::parse_cloudflare_tenant_root_recovery_trust_snapshot_v1(&reader)?;
-        let RecoveryGenerationRequestV1 {
-            identity_b64u,
-            custody_lineage_b64u,
-            expected_lifecycle_revision,
-            recovery_set_id_b64u,
-            recipient_a_b64u,
-            recipient_b_b64u,
-        } = request;
-        let identity = TenantRootIdentityV1::decode_canonical_bytes(&decode_canonical_base64url(
-            "recovery identity",
-            &identity_b64u,
-            16384,
-            32768,
-        )?)
-        .map_err(derivation)?;
-        let lineage = TenantRootCustodyLineageId::from_bytes(recovery_proof_fixed(
-            "recovery lineage",
-            &custody_lineage_b64u,
-        )?)
-        .map_err(derivation)?;
-        let active =
-            execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1(
-                env,
-                identity.digest().map_err(derivation)?,
-                lineage,
-            )
-            .await?;
-        if active.lifecycle_revision != expected_lifecycle_revision {
-            return Err(refused("recovery enrollment lifecycle revision is stale"));
-        }
-        let current = TenantRootActiveRefreshV1::from_verified_activation_receipt(
-            identity,
-            active.activation_receipt,
-            active.lifecycle_revision,
-        )
-        .map_err(derivation)?;
-        let set = TenantRootRecoverySetId::from_bytes(recovery_proof_fixed(
-            "recovery set id",
-            &recovery_set_id_b64u,
-        )?)
-        .map_err(derivation)?;
-        let a = TenantRootRecoveryRecipientPublicKeyV1::from_bytes(recovery_proof_fixed(
-            "recovery A recipient",
-            &recipient_a_b64u,
-        )?)
-        .map_err(derivation)?;
-        let b = TenantRootRecoveryRecipientPublicKeyV1::from_bytes(recovery_proof_fixed(
-            "recovery B recipient",
-            &recipient_b_b64u,
-        )?)
-        .map_err(derivation)?;
-        let session = TenantRootCeremonySessionIdV1::from_bytes(
-            crate::cloudflare_random_bytes_v1(16)?
-                .try_into()
-                .map_err(|_| refused("recovery session generation failed"))?,
-        )
-        .map_err(derivation)?;
-        let nonce = TenantRootCeremonyNonceV1::from_bytes(
-            crate::cloudflare_random_bytes_v1(32)?
-                .try_into()
-                .map_err(|_| refused("recovery nonce generation failed"))?,
-        )
-        .map_err(derivation)?;
-        let now = crate::cloudflare_now_unix_ms_v1()?;
-        let expires = now
-            .checked_add(300_000)
-            .ok_or_else(|| refused("recovery command expiry overflow"))?;
-        let bindings = runtime.bindings();
-        let context = TenantRootRecoveryReshareContextV1::from_active(
-            &current,
-            set,
-            a,
-            b,
-            session,
-            nonce,
-            now,
-            expires,
-            &bindings.deriver_a_signing_key_id,
-            &bindings.deriver_b_signing_key_id,
-        )
-        .map_err(derivation)?;
-        let seed = load_issuer_seed(env, runtime)?;
-        let a = TenantRootRecoveryReshareRoleCommandV1::sign(
-            &context,
-            TwoPartyDeriverRole::DeriverA,
-            bindings.issuer_signing_key.signing_key_id(),
-            &seed,
-        )
-        .map_err(derivation)?;
-        let b = TenantRootRecoveryReshareRoleCommandV1::sign(
-            &context,
-            TwoPartyDeriverRole::DeriverB,
-            bindings.issuer_signing_key.signing_key_id(),
-            &seed,
-        )
-        .map_err(derivation)?;
-        Ok(
-            serde_json::json!({"command_a_b64u": encode_base64url_bytes_v1(&a.canonical_bytes().map_err(derivation)?), "command_b_b64u": encode_base64url_bytes_v1(&b.canonical_bytes().map_err(derivation)?), "issued_at_ms": now, "expires_at_ms": expires, "lifecycle_revision": expected_lifecycle_revision}),
-        )
+    ) -> RouterAbProtocolResult<Vec<u8>> {
+        super::control_plane_recovery_trust_bundle_json_v1(&CloudflareControlPlaneHostV1 { env, runtime })
     }
 
     pub(crate) fn recovery_recipient_proof_v1(
         request: RecoveryRecipientProofRequestV1,
+        env: &worker::Env,
+        runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
     ) -> RouterAbProtocolResult<serde_json::Value> {
-        use router_ab_core::derivation::{
-            confirm_tenant_root_recovery_recipient_proof_v1,
-            TenantRootRecoveryRecipientProofBindingV1, TenantRootRecoveryRecipientProofEnvelopeV1,
-            TenantRootRecoveryRecipientPublicKeyV1,
-        };
-        use subtle::ConstantTimeEq;
-        match request {
-            RecoveryRecipientProofRequestV1::Seal {
-                identity_digest_b64u,
-                custody_lineage_b64u,
-                role,
-                recipient_public_key_b64u,
-                actor_user_id,
-                lifecycle_revision,
-                issued_at_ms,
-            } => {
-                let now = crate::cloudflare_now_unix_ms_v1()?;
-                if now.abs_diff(issued_at_ms) > 30_000 {
-                    return Err(refused("recipient challenge issue time is stale"));
-                }
-                let identity = TenantRootIdentityDigestV1::from_bytes(recovery_proof_fixed(
-                    "identity digest",
-                    &identity_digest_b64u,
-                )?);
-                let lineage = TenantRootCustodyLineageId::from_bytes(recovery_proof_fixed(
-                    "custody lineage",
-                    &custody_lineage_b64u,
-                )?)
-                .map_err(derivation)?;
-                let recipient = TenantRootRecoveryRecipientPublicKeyV1::from_bytes(
-                    recovery_proof_fixed("recipient public key", &recipient_public_key_b64u)?,
-                )
-                .map_err(derivation)?;
-                let mut rng = crate::hpke::CloudflareHpkeGetrandomRngV1;
-                let mut challenge_id = [0; 16];
-                let mut secret = Zeroizing::new([0; 32]);
-                rand_core::RngCore::fill_bytes(&mut rng, &mut challenge_id);
-                rand_core::RngCore::fill_bytes(&mut rng, secret.as_mut());
-                let role = role.to_protocol();
-                let binding = TenantRootRecoveryRecipientProofBindingV1::new(
-                    challenge_id,
-                    identity,
-                    lineage,
-                    role,
-                    role.share_id(),
-                    recipient.fingerprint(),
-                    actor_user_id,
-                    lifecycle_revision,
-                    issued_at_ms,
-                    issued_at_ms
-                        .checked_add(600_000)
-                        .ok_or_else(|| refused("recipient challenge expiry overflow"))?,
-                )
-                .map_err(derivation)?;
-                let confirmation =
-                    confirm_tenant_root_recovery_recipient_proof_v1(&binding, &secret)
-                        .map_err(derivation)?;
-                let envelope = TenantRootRecoveryRecipientProofEnvelopeV1::seal(
-                    binding, recipient, *secret, &mut rng,
-                )
-                .map_err(derivation)?;
-                Ok(serde_json::json!({
-                    "challenge_id_b64u": encode_base64url_bytes_v1(&challenge_id),
-                    "envelope_b64u": encode_base64url_bytes_v1(&envelope.canonical_bytes().map_err(derivation)?),
-                    "recipient_fingerprint_b64u": encode_base64url_bytes_v1(recipient.fingerprint().as_bytes()),
-                    "expected_confirmation_b64u": encode_base64url_bytes_v1(confirmation.as_bytes()),
-                }))
-            }
-            RecoveryRecipientProofRequestV1::Verify {
-                expected_confirmation_b64u,
-                confirmation_b64u,
-            } => {
-                let expected = Zeroizing::new(recovery_proof_fixed::<32>(
-                    "stored recipient verifier",
-                    &expected_confirmation_b64u,
-                )?);
-                let actual = Zeroizing::new(recovery_proof_fixed::<32>(
-                    "recipient confirmation",
-                    &confirmation_b64u,
-                )?);
-                Ok(
-                    serde_json::json!({"verified": bool::from(expected.as_ref().ct_eq(actual.as_ref()))}),
-                )
-            }
-        }
-    }
-
-    fn recovery_proof_fixed<const N: usize>(
-        field: &'static str,
-        value: &str,
-    ) -> RouterAbProtocolResult<[u8; N]> {
-        decode_canonical_base64url(field, value, N, N * 2)?
-            .try_into()
-            .map_err(|_| refused("recipient proof field has invalid length"))
+        super::control_plane_recovery_recipient_proof_v1(
+            &CloudflareControlPlaneHostV1 { env, runtime },
+            request,
+        )
     }
 
     pub(crate) async fn assemble_recovery_manifest_v1(
@@ -3429,113 +3553,10 @@ mod live {
         env: &worker::Env,
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
     ) -> RouterAbProtocolResult<serde_json::Value> {
-        use router_ab_core::derivation::{
-            TenantRootRecoveryDescriptorV1, TenantRootRecoveryPackageV1,
-            TenantRootRecoveryReshareRoleCommandV1,
-            TenantRootSignedRecoveryShareInstallationEvidenceV1,
-            VerifiedTenantRootRecoveryResharePairV1,
-        };
-        let raw = TenantRootRecoveryReshareRoleCommandV1::decode_canonical_bytes(
-            &decode_canonical_base64url(
-                "recovery command",
-                &request.generation_command_b64u,
-                16384,
-                32768,
-            )?,
+        super::control_plane_assemble_recovery_manifest_v1(
+            &CloudflareControlPlaneHostV1 { env, runtime },
+            request,
         )
-        .map_err(derivation)?;
-        let issuer = runtime
-            .bindings()
-            .issuer_verifying_keys
-            .for_issuer_key_id(raw.issuer_key_id())
-            .ok_or_else(|| refused("recovery generation issuer is not trusted"))?;
-        let command = raw
-            .verify(TwoPartyDeriverRole::DeriverA, raw.issuer_key_id(), issuer)
-            .map_err(derivation)?;
-        let context = command.context();
-        let keys = crate::env::parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(
-            &CloudflareWorkerEnvReaderV1::new(env),
-        )?;
-        let key_a = keys.for_role_and_key_id(
-            TwoPartyDeriverRole::DeriverA,
-            context.signing_key_id(TwoPartyDeriverRole::DeriverA),
-        )?;
-        let key_b = keys.for_role_and_key_id(
-            TwoPartyDeriverRole::DeriverB,
-            context.signing_key_id(TwoPartyDeriverRole::DeriverB),
-        )?;
-        let a =
-            TenantRootSignedRecoveryShareInstallationEvidenceV1::decode_and_verify_canonical_bytes(
-                &decode_canonical_base64url(
-                    "recovery A evidence",
-                    &request.evidence_a_b64u,
-                    16384,
-                    32768,
-                )?,
-                context,
-                key_a,
-            )
-            .map_err(derivation)?;
-        let b =
-            TenantRootSignedRecoveryShareInstallationEvidenceV1::decode_and_verify_canonical_bytes(
-                &decode_canonical_base64url(
-                    "recovery B evidence",
-                    &request.evidence_b_b64u,
-                    16384,
-                    32768,
-                )?,
-                context,
-                key_b,
-            )
-            .map_err(derivation)?;
-        let pair = VerifiedTenantRootRecoveryResharePairV1::verify(context, &a, &b, key_a, key_b)
-            .map_err(derivation)?;
-        let time = worker::js_sys::Date::new(&worker::wasm_bindgen::JsValue::from_f64(
-            context.issued_at_ms() as f64,
-        ))
-        .to_iso_string()
-        .as_string()
-        .ok_or_else(|| refused("invalid recovery creation time"))?;
-        let descriptor = TenantRootRecoveryDescriptorV1::from_verified_reshare(&pair, time)
-            .map_err(derivation)?;
-        let package_a = TenantRootRecoveryPackageV1::decode(&decode_canonical_base64url(
-            "recovery A package",
-            &request.package_a_b64u,
-            16384,
-            32768,
-        )?)
-        .map_err(derivation)?;
-        let package_b = TenantRootRecoveryPackageV1::decode(&decode_canonical_base64url(
-            "recovery B package",
-            &request.package_b_b64u,
-            16384,
-            32768,
-        )?)
-        .map_err(derivation)?;
-        let seed = load_issuer_seed(env, runtime)?;
-        let manifest = TenantRootRecoveryManifestV1::sign(
-            descriptor,
-            &package_a,
-            &package_b,
-            request.deriver_a_certificate_chain,
-            request.deriver_b_certificate_chain,
-            request.control_plane_certificate_chain,
-            &seed,
-        )
-        .map_err(derivation)?;
-        let bytes = manifest.canonical_json().map_err(derivation)?;
-        // Caller-supplied chains must terminate at locally configured roots.
-        let (_, trust) = verify_recovery_manifest_with_local_trust_v1(
-            &bytes,
-            &CloudflareWorkerEnvReaderV1::new(env),
-        )?;
-        manifest
-            .verify_packages(&package_a, &package_b, trust.trusted_verifying_keys())
-            .map_err(derivation)?;
-        Ok(serde_json::json!({
-            "manifest_b64u": encode_base64url_bytes_v1(&bytes),
-            "verified": recovery_manifest_response_v1(&manifest, &trust)?,
-        }))
     }
 
     pub async fn handle_cloudflare_tenant_root_control_plane_register_manifest_v1(

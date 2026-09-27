@@ -80,7 +80,8 @@ pub use local_tenant_root_env::{
     LOCAL_TENANT_ROOT_GRANT_SIGNING_KEY_ENV_V1,
 };
 pub use local_tenant_root_http::{
-    local_tenant_root_control_plane_route_v1, local_tenant_root_route_v1,
+    local_tenant_root_control_plane_route_v1, local_tenant_root_recovery_access_route_v1,
+    local_tenant_root_route_v1, LocalTenantRootBinaryResponseV1,
     parse_local_tenant_root_control_plane_config_v1,
 };
 pub use local_tenant_root_role_sql::{
@@ -93,7 +94,8 @@ pub use local_dev_http::{
     local_dev_http_error_body_v1, local_dev_http_handle_request_v1,
     local_dev_http_handle_request_with_dispatcher_v1, local_dev_http_route_error_v1,
     local_dev_router_request_with_dispatcher_v1, read_local_dev_http_request_v1,
-    require_local_dev_internal_service_auth_v1, write_local_dev_http_response_v1,
+    require_local_dev_internal_service_auth_v1, write_local_dev_http_binary_response_v1,
+    write_local_dev_http_response_v1,
     write_local_dev_http_response_with_server_timing_v1,
     LocalDevHttpErrorBodyV1, LocalDevHttpRequestPartsV1, LocalDevHttpTopologyV1,
     LocalRouterRequestDispatcherV1,

@@ -258,9 +258,9 @@ async fn handle_strict_deriver_fetch_v1(
         };
     }
 
-    if path == crate::tenant_root_recovery_runtime::RECOVERY_ACCESS_PATH {
+    if path == crate::tenant_root_recovery_reshare::TENANT_ROOT_RECOVERY_ACCESS_PATH_V1 {
         if request.method() != Method::Post { return Response::error("recovery access requires POST", 405); }
-        let parsed = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::tenant_root_recovery_runtime::RecoveryAccessRequestV1>(&mut request, 32 * 1024).await {
+        let parsed = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::tenant_root_recovery_reshare::TenantRootRecoveryAccessRequestV1>(&mut request, 32 * 1024).await {
             Ok(parsed) => parsed,
             Err(error) => return cloudflare_protocol_error_response_v1(error),
         };
@@ -270,9 +270,9 @@ async fn handle_strict_deriver_fetch_v1(
         };
     }
 
-    if path == crate::tenant_root_recovery_runtime::RECOVERY_RESHARE_PATH {
+    if path == crate::tenant_root_recovery_reshare::TENANT_ROOT_RECOVERY_RESHARE_PATH_V1 {
         if request.method() != Method::Post { return Response::error("recovery sharing requires POST", 405); }
-        let parsed = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::tenant_root_recovery_runtime::RecoveryRequestV1>(&mut request, 128 * 1024).await {
+        let parsed = match crate::durable_object::tenant_root_creation::decode_bounded_json_request::<crate::tenant_root_recovery_reshare::TenantRootRecoveryReshareRequestV1>(&mut request, 128 * 1024).await {
             Ok(parsed) => parsed,
             Err(error) => return cloudflare_protocol_error_response_v1(error),
         };

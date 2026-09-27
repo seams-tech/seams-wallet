@@ -1134,6 +1134,25 @@ fn backup_object_metadata(
     .map_err(|error| RouterAbProtocolError::new(RouterAbProtocolErrorCode::InvalidLocalServiceConfig, error))
 }
 
+impl router_ab_cloudflare::TenantRootDeriverRecoveryHostV1 for LocalTenantRootDeriverHostV1<'_> {
+    /// The VM has no destructible key provider: a recovery set's retention key
+    /// is kept in the role store, sealed to the role's own key.
+    type Retention = router_ab_cloudflare::TenantRootRoleStoreRecoveryRetentionV1<LocalRoleSqlSessionV1>;
+
+    fn recovery_retention(
+        &self,
+        id: router_ab_core::derivation::TenantRootRetentionKeyIdV1,
+    ) -> RouterAbProtocolResult<Self::Retention> {
+        let store = self.role_store().map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                format!("tenant-root role store lookup failed: {error}"),
+            )
+        })?;
+        Ok(router_ab_cloudflare::TenantRootRoleStoreRecoveryRetentionV1::new(store, id))
+    }
+}
+
 impl TenantRootDeriverHostV1 for LocalTenantRootDeriverHostV1<'_> {
     type Sql = LocalRoleSqlSessionV1;
     type Env = CloudflareEnvMapV1;
