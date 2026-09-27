@@ -236,6 +236,12 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
     one admission unsettled.
   - After `W` (four seconds in the test), recovery cancels it, and B's epoch
     is erased.
+  - After erasure:
+    - A's held preparation, replayed, is still told its epoch closed before
+      it was admitted.
+    - The cancelled attempt's preparation, replayed at B, is refused by the
+      cancellation.
+    - B's cleanup command, sent again, returns the same signed receipt.
   - A wallet then signs on epoch 2.
 - `vm_tenant_root_new_work_waits_for_the_committed_epoch_delivery` prints
   `R150_VM_TENANT_ROOT_DELIVERY_GATE_E2E`: new work is refused with HTTP 503

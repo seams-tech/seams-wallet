@@ -6,7 +6,14 @@ Status: implemented 2026-09-27 for review, with settlement and safe erasure
 - **Evidence:**
   - VM `vm_tenant_root_admission_follows_the_execution_attempt`, for the key;
   - VM `vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle`,
-    for settlement, the pending refusal, recovery and erasure;
+    for settlement, the pending refusal, recovery, erasure, and the refusals
+    and replays after it;
+  - the Workers harness, `--admission-races`
+    (`R150_WORKERS_TENANT_ROOT_ADMISSION_RACES`). It shows the D1 batch
+    settling at both roles, A erasing epoch 1, and B answering pending.
+    `W` recovery is not exercised there, since `W` is 300 s on Workers;
+  - the Workers harness, `--ecdsa-across-refresh`
+    (`R150_WORKERS_ECDSA_ACROSS_REFRESH`): every ECDSA admission settled;
   - the existing admission E2Es, unchanged.
 
 ## The question
@@ -116,9 +123,22 @@ An admission's status moves once, from `admitted` to `settled` or
   - Erasure runs through the existing retired-cleanup command: the control
     plane signs it and the Deriver executes it. Both hosts serve it; Workers
     served it before with no settlement check, and that gap is closed.
-- **A settled attempt may still read.** An ECDSA request replayed on the
-  same epoch reads again. Cloudflare Deriver A's execute reads its share
-  before it checks its pair record. A read after erasure fails closed.
+- **A settled attempt may still read** while its epoch is kept. An ECDSA
+  request replayed on the same epoch reads again. Cloudflare Deriver A's
+  execute reads its share before it checks its pair record.
+- **After erasure, every refusal keeps its meaning.** With the share row gone,
+  the attempt's own admission record answers. All three answers are the
+  retryable `LifecycleTransitionInProgress`:
+  - a cancelled attempt is refused by its cancellation;
+  - a settled attempt is told its epoch "was erased here after the operation
+    settled; start it again";
+  - an attempt never admitted is told its epoch closed before it was
+    admitted, as before the erasure. This applies only if a later epoch is
+    active here; otherwise the missing row stays an error.
+- **The erasure replays exactly.** The same command again returns the same
+  signed receipt and the same `cancelled_admissions`. That count is read from
+  the admission rows, which outlive the erasure. The backup deletion is
+  observed again and reports its objects already absent.
 
 ## Consequences
 

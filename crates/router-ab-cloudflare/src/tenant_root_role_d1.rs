@@ -197,6 +197,10 @@ const CANCEL_STALE_ROOT_USE_ADMISSIONS_SQL: &str = "UPDATE tenant_root_root_use_
     SET status = 'cancelled' WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3 AND tenant_root_share_epoch = ?4 \
     AND status = 'admitted' AND admitted_at_ms <= ?5";
+/// The epoch active at this role for one lineage, if any.
+const LOAD_LINEAGE_ACTIVE_EPOCH_SQL: &str = "SELECT tenant_root_share_epoch \
+    FROM tenant_root_role_shares WHERE tenant_identity_digest_hex = ?1 \
+    AND custody_lineage_b64u = ?2 AND role = ?3 AND lifecycle = 'active'";
 const LOAD_CREATION_TOMBSTONE_SQL: &str = "SELECT session_id_hex FROM \
     tenant_root_creation_tombstones WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3";
@@ -252,10 +256,10 @@ const CLEANUP_RETIRED_SQL: &str = "DELETE FROM tenant_root_role_shares \
     AND revision = ?7) AND NOT EXISTS (SELECT 1 FROM tenant_root_root_use_admissions \
     WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 \
     AND role = ?4 AND tenant_root_share_epoch = ?3 AND status = 'admitted')";
-const COUNT_UNSETTLED_ROOT_USE_ADMISSIONS_SQL: &str = "SELECT COUNT(*) AS unsettled \
+const COUNT_ROOT_USE_ADMISSIONS_SQL: &str = "SELECT COUNT(*) AS admissions \
     FROM tenant_root_root_use_admissions WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3 AND tenant_root_share_epoch = ?4 \
-    AND status = 'admitted'";
+    AND status = ?5";
 const LOAD_COMMAND_REPLAY_SQL: &str = "SELECT replay_key_digest_hex, \
     tenant_identity_digest_hex, custody_lineage_b64u, session_id_hex, nonce_hex, role, \
     command_digest_hex, admission_digest_hex, status, receipt_b64u, \
@@ -1710,6 +1714,9 @@ pub(crate) enum TenantRootRootUseAdmissionV1 {
     AttemptConflict,
     /// Recovery cancelled this attempt here; it may take no further step.
     Cancelled,
+    /// This attempt settled, and its retired epoch has since been erased
+    /// here; it can read nothing more.
+    Erased,
 }
 
 /// The role share a custody binding names, if its operation may read it.
@@ -1720,6 +1727,7 @@ pub(crate) enum TenantRootBoundShareV1 {
     NotYetActive,
     AttemptConflict,
     Cancelled,
+    Erased,
 }
 
 /// Exhaustive role-private active-share resolution for one authenticated tenant.
@@ -10786,15 +10794,25 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         custody_binding
             .validate()
             .map_err(|error| store_error(error.message()))?;
-        let stored = self.load_bound_row(custody_binding).await?;
-        let lifecycle_is_active = match stored.record().lifecycle() {
-            CloudflareTenantRootRoleShareLifecycleV1::Pending(_) => {
+        // Only a retired share is ever erased. Without its row, every outcome
+        // below is a refusal, so the binding is not checked against it.
+        let stored = self
+            .load_epoch_by_identity_digest(
+                custody_binding.identity_digest(),
+                custody_binding.custody_lineage(),
+                custody_binding.epoch(),
+            )
+            .await?;
+        let lifecycle_is_active = match stored.as_ref().map(|stored| stored.record().lifecycle()) {
+            Some(CloudflareTenantRootRoleShareLifecycleV1::Pending(_)) => {
                 return Ok(TenantRootRootUseAdmissionV1::NotYetActive);
             }
-            CloudflareTenantRootRoleShareLifecycleV1::Active(_) => true,
-            CloudflareTenantRootRoleShareLifecycleV1::Retired(_) => false,
+            Some(CloudflareTenantRootRoleShareLifecycleV1::Active(_)) => true,
+            Some(CloudflareTenantRootRoleShareLifecycleV1::Retired(_)) | None => false,
         };
-        self.verify_bound_row(&stored, custody_binding)?;
+        if let Some(stored) = &stored {
+            self.verify_bound_row(stored, custody_binding)?;
+        }
         let identity_digest_hex = encode_hex(custody_binding.identity_digest().as_bytes());
         let custody_lineage_b64u = custody_binding.custody_lineage().to_base64url();
         let binding_digest_hex = encode_hex(
@@ -10862,14 +10880,45 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 {
                     return Ok(TenantRootRootUseAdmissionV1::AttemptConflict);
                 }
-                if admission.status == "cancelled" {
-                    return Ok(TenantRootRootUseAdmissionV1::Cancelled);
+                match (admission.status.as_str(), stored.is_some()) {
+                    ("cancelled", _) => Ok(TenantRootRootUseAdmissionV1::Cancelled),
+                    (_, true) => Ok(TenantRootRootUseAdmissionV1::Admitted),
+                    ("settled", false) => Ok(TenantRootRootUseAdmissionV1::Erased),
+                    (_, false) => Err(store_error(
+                        "tenant-root root-use admission is unsettled but its role share is gone",
+                    )),
                 }
-                Ok(TenantRootRootUseAdmissionV1::Admitted)
             }
             // The conditional insert found the epoch no longer active: a
             // refresh retired it before this operation was admitted.
-            None => Ok(TenantRootRootUseAdmissionV1::EpochClosed),
+            None if stored.is_some() => Ok(TenantRootRootUseAdmissionV1::EpochClosed),
+            // Neither the share nor an admission: the epoch closed here before
+            // this operation was admitted if a later one is active here.
+            None => {
+                let active = self
+                    .session
+                    .prepare(LOAD_LINEAGE_ACTIVE_EPOCH_SQL)
+                    .bind_refs(
+                        [
+                            RoleSqlValue::Text(identity_digest_hex.as_str()),
+                            RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                            RoleSqlValue::Text(self.cipher.role.as_str()),
+                        ]
+                        .iter(),
+                    )?
+                    .first::<TenantRootActiveEpochRowV1>(None)
+                    .await?;
+                match active {
+                    Some(active)
+                        if active.tenant_root_share_epoch > epoch_i64(custody_binding.epoch())? =>
+                    {
+                        Ok(TenantRootRootUseAdmissionV1::EpochClosed)
+                    }
+                    _ => Err(store_error(
+                        "tenant-root role share named by the custody binding does not exist",
+                    )),
+                }
+            }
         }
     }
 
@@ -10906,6 +10955,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             TenantRootRootUseAdmissionV1::Cancelled => {
                 return Ok(TenantRootBoundShareV1::Cancelled)
             }
+            TenantRootRootUseAdmissionV1::Erased => return Ok(TenantRootBoundShareV1::Erased),
         }
         let stored = self.load_bound_row(custody_binding).await?;
         match stored.record().lifecycle() {
@@ -12880,20 +12930,19 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
     }
 
     /// Cancels the admissions on one epoch here that are still unsettled
-    /// `W` after they were admitted, and returns how many it cancelled.
+    /// `W` after they were admitted.
     pub(crate) async fn cancel_stale_root_use_admissions(
         &self,
         identity_digest: TenantRootIdentityDigestV1,
         custody_lineage: TenantRootCustodyLineageId,
         epoch: TenantRootShareEpoch,
         admitted_at_or_before_ms: u64,
-    ) -> RoleStoreResult<u64> {
+    ) -> RoleStoreResult<()> {
         let identity_digest_hex = encode_hex(identity_digest.as_bytes());
         let custody_lineage_b64u = custody_lineage.to_base64url();
         let epoch = epoch_i64(epoch)?.to_string();
         let cutoff = admitted_at_or_before_ms.to_string();
-        let result = self
-            .session
+        self.session
             .prepare(CANCEL_STALE_ROOT_USE_ADMISSIONS_SQL)
             .bind_refs(
                 [
@@ -12907,7 +12956,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             )?
             .run()
             .await?;
-        Ok(u64::try_from(result.changes()?).unwrap_or(u64::MAX))
+        Ok(())
     }
 
     /// Counts the root-use admissions on one epoch at this role that are not
@@ -12918,26 +12967,50 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         custody_lineage: TenantRootCustodyLineageId,
         epoch: TenantRootShareEpoch,
     ) -> RoleStoreResult<u64> {
+        self.count_root_use_admissions(identity_digest, custody_lineage, epoch, "admitted")
+            .await
+    }
+
+    /// Counts the root-use admissions on one epoch at this role that recovery
+    /// cancelled. The rows outlive the erasure, so the count replays exactly.
+    pub(crate) async fn cancelled_root_use_admissions(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        epoch: TenantRootShareEpoch,
+    ) -> RoleStoreResult<u64> {
+        self.count_root_use_admissions(identity_digest, custody_lineage, epoch, "cancelled")
+            .await
+    }
+
+    async fn count_root_use_admissions(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        epoch: TenantRootShareEpoch,
+        status: &'static str,
+    ) -> RoleStoreResult<u64> {
         let identity_digest_hex = encode_hex(identity_digest.as_bytes());
         let custody_lineage_b64u = custody_lineage.to_base64url();
         let epoch = epoch_i64(epoch)?.to_string();
         let row = self
             .session
-            .prepare(COUNT_UNSETTLED_ROOT_USE_ADMISSIONS_SQL)
+            .prepare(COUNT_ROOT_USE_ADMISSIONS_SQL)
             .bind_refs(
                 [
                     RoleSqlValue::Text(identity_digest_hex.as_str()),
                     RoleSqlValue::Text(custody_lineage_b64u.as_str()),
                     RoleSqlValue::Text(self.cipher.role.as_str()),
                     RoleSqlValue::Text(epoch.as_str()),
+                    RoleSqlValue::Text(status),
                 ]
                 .iter(),
             )?
-            .first::<TenantRootUnsettledAdmissionsRowV1>(None)
+            .first::<TenantRootAdmissionCountRowV1>(None)
             .await?
-            .ok_or_else(|| store_error("tenant-root unsettled admission count returned no row"))?;
-        u64::try_from(row.unsettled)
-            .map_err(|_| store_error("tenant-root unsettled admission count is negative"))
+            .ok_or_else(|| store_error("tenant-root admission count returned no row"))?;
+        u64::try_from(row.admissions)
+            .map_err(|_| store_error("tenant-root admission count is negative"))
     }
 
     /// Removes one exact retired revision while its expected active successor
@@ -16785,8 +16858,13 @@ fn authorized_cleanup_abandoned_ceremony_payload_digest(
 }
 
 #[derive(Debug, serde::Deserialize)]
-struct TenantRootUnsettledAdmissionsRowV1 {
-    unsettled: i64,
+struct TenantRootActiveEpochRowV1 {
+    tenant_root_share_epoch: i64,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct TenantRootAdmissionCountRowV1 {
+    admissions: i64,
 }
 
 #[derive(Debug, serde::Deserialize)]

@@ -61,6 +61,8 @@ const controlPlaneRefreshActivationPath = '/tenant-root-control-plane/refresh/v1
 const creationStateRefreshActivationPath = '/router-ab/internal/tenant-root/refresh/v1/activation';
 const deriverRefreshActivationPath = '/router-ab/internal/deriver/tenant-root/refresh/v1/activate';
 const deriverAYaoPreparePath = '/router-ab/deriver-a/ed25519-yao/prepare-pair';
+const deriverCleanupPath = '/router-ab/internal/deriver/tenant-root/cleanup/v1/execute';
+const controlPlaneCleanupCommandPath = '/tenant-root-control-plane/creation/v1/cleanup-command';
 const deriverBEcdsaRegistrationPath = '/router-ab/deriver-b/ecdsa-derivation/register';
 const tenantRootStatusPath = '/router-ab/internal/tenant-root/status/v1/read';
 const creationStateActiveStatePath = '/router-ab/internal/tenant-root/creation/v1/active-state';
@@ -2513,6 +2515,11 @@ async function testTenantRootRefreshDeliveryAfterLoss(
 ///   admitted on epoch 2.
 async function testTenantRootAdmissionRaces(topology, fixture, databases) {
   const router = await topology.getWorker('router-recovery');
+  const controlPlane = await topology.getWorker('tenant-root-control-plane');
+  const derivers = {
+    deriver_a: { worker: await topology.getWorker('deriver-a'), database: databases.deriverA },
+    deriver_b: { worker: await topology.getWorker('deriver-b'), database: databases.deriverB },
+  };
   const creationNamespace = await topology.getDurableObjectNamespace(
     tenantRootCreationDoBinding,
     'router',
@@ -2590,6 +2597,49 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
     await epochs(databases.deriverA, ceremony),
     await epochs(databases.deriverB, ceremony),
   ];
+  const admissionStatuses = async (ceremony) =>
+    Promise.all(
+      [databases.deriverA, databases.deriverB].map(async (database) =>
+        (
+          await database
+            .prepare(
+              `SELECT tenant_root_share_epoch AS epoch, status FROM tenant_root_root_use_admissions
+               WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch, admitted_at_ms`,
+            )
+            .bind(ceremony.custody_lineage_b64u)
+            .all()
+        ).results.map((row) => [row.epoch, row.status]),
+      ),
+    );
+  const revision = async (database, ceremony, epoch) =>
+    (
+      await database
+        .prepare(
+          `SELECT revision FROM tenant_root_role_shares
+           WHERE custody_lineage_b64u = ?1 AND tenant_root_share_epoch = ?2`,
+        )
+        .bind(ceremony.custody_lineage_b64u, epoch)
+        .first()
+    ).revision;
+  // The operator's retirement of epoch 1 at one role: the control plane signs
+  // the command, and the Deriver executes it.
+  const retire = async (ceremony, role) => {
+    const { worker, database } = derivers[role];
+    const command = await postWorkerJson(controlPlane, controlPlaneCleanupCommandPath, {
+      kind: 'retired_after_refresh',
+      identity_digest_b64u: ceremony.identity_digest_b64u,
+      custody_lineage_b64u: ceremony.custody_lineage_b64u,
+      role,
+      expected_retired_revision: await revision(database, ceremony, 1),
+      expected_active_revision: await revision(database, ceremony, 2),
+    });
+    const commandBody = await command.text();
+    assert.equal(command.status, 200, commandBody);
+    const response = await postWorkerJson(worker, deriverCleanupPath, {
+      cleanup_command_b64u: JSON.parse(commandBody).cleanup_command_b64u,
+    });
+    return { status: response.status, body: await response.text() };
+  };
   const retiredThenActive = [[1, 'retired'], [2, 'active']];
   const races = fixture.admission_race;
 
@@ -2626,6 +2676,30 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
   const fresh = await register(unused, races.after_refresh);
   assert.ok(succeeded(fresh), fresh.body);
   assert.deepEqual(await admissions(unused), [[2], [1, 2]]);
+  // The completed registration settled its admission at each role, in the D1
+  // batch that made that role's pair record terminal. B's epoch-1 admission,
+  // from the preparation A refused, is still unsettled.
+  const statusesAfterFresh = await admissionStatuses(unused);
+  assert.deepEqual(statusesAfterFresh, [
+    [[2, 'settled']],
+    [[1, 'admitted'], [2, 'settled']],
+  ]);
+  // Erasing epoch 1: A holds no admission on it and erases it. B answers
+  // that retirement is pending and keeps its retired row.
+  const aRetired = await retire(unused, 'deriver_a');
+  assert.equal(aRetired.status, 200, aRetired.body);
+  const aRetiredBody = JSON.parse(aRetired.body);
+  assert.equal(aRetiredBody.kind, 'retired_deleted', aRetired.body);
+  assert.equal(aRetiredBody.cancelled_admissions, 0, aRetired.body);
+  const bPending = await retire(unused, 'deriver_b');
+  assert.equal(bPending.status, 503, bPending.body);
+  assert.ok(
+    bPending.body.includes(
+      'retirement of epoch 1 is pending here: 1 admitted operation(s) are not settled',
+    ),
+    bPending.body,
+  );
+  assert.deepEqual(await bothEpochs(unused), [[[2, 'active']], retiredThenActive]);
 
   // 2. New work waits for the committed epoch's delivery.
   const gated = recoveryCreationGrant('admission-race-delivery', 60_000);
@@ -2658,6 +2732,7 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
   assert.equal(deliveredState.deriver_b, 'delivered');
   assert.deepEqual(await bothEpochs(gated), [retiredThenActive, retiredThenActive]);
   assert.deepEqual(await admissions(gated), [[2], [2]]);
+  assert.deepEqual(await admissionStatuses(gated), [[[2, 'settled']], [[2, 'settled']]]);
 
   return {
     unusedBinding: {
@@ -2670,6 +2745,9 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
       admissionsAfterRefusal: { deriverA: [], deriverB: [1] },
       freshRegistration: 'succeeded',
       admissionsAfterFresh: { deriverA: [2], deriverB: [1, 2] },
+      statusesAfterFresh: { deriverA: statusesAfterFresh[0], deriverB: statusesAfterFresh[1] },
+      deriverAEpochOneRetirement: [aRetired.status, aRetiredBody.kind],
+      deriverBEpochOneRetirement: [bPending.status, bPending.body.slice(0, 200)],
     },
     deliveryGate: {
       fault: 'deriver_b_unreachable_for_refresh_activation',
@@ -2680,6 +2758,7 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
       registrationAfterReachable: 'succeeded',
       deliveryAfter: { deriverA: 'delivered', deriverB: 'delivered' },
       admissionsAfter: { deriverA: [2], deriverB: [2] },
+      statusesAfter: { deriverA: [[2, 'settled']], deriverB: [[2, 'settled']] },
     },
   };
 }
@@ -2728,6 +2807,20 @@ async function testEcdsaWorkAcrossRefresh(topology, fixture, jwtSigner, database
       ),
     );
   const count = (epochs, epoch) => epochs.filter((value) => value === epoch).length;
+  const admissionStatuses = async () =>
+    Promise.all(
+      [databases.deriverA, databases.deriverB].map(async (database) =>
+        (
+          await database
+            .prepare(
+              `SELECT tenant_root_share_epoch AS epoch, status FROM tenant_root_root_use_admissions
+               WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch, admitted_at_ms`,
+            )
+            .bind(tenantRoot.custody_lineage_b64u)
+            .all()
+        ).results.map((row) => [row.epoch, row.status]),
+      ),
+    );
   const attempt = buildEcdsaRegistration(
     fixture,
     jwtSigner,
@@ -2800,6 +2893,16 @@ async function testEcdsaWorkAcrossRefresh(topology, fixture, jwtSigner, database
     const [aAfter, bAfter] = await admissions();
     assert.equal(count(aAfter, oldEpoch + 1), count(aBefore, oldEpoch + 1) + 1);
     assert.equal(count(bAfter, oldEpoch + 1), count(bBefore, oldEpoch + 1) + 1);
+    // Each Deriver settles an ECDSA admission right after its single root
+    // read, A's old-epoch one included: it read before the refresh.
+    const statuses = await admissionStatuses();
+    for (const roleStatuses of statuses) {
+      assert.ok(roleStatuses.length > 0, JSON.stringify(statuses));
+      assert.ok(
+        roleStatuses.every(([, status]) => status === 'settled'),
+        JSON.stringify(statuses),
+      );
+    }
     return {
       work: 'ecdsa_registration',
       heldBefore: 'deriver_b_ecdsa_registration',
@@ -2811,6 +2914,7 @@ async function testEcdsaWorkAcrossRefresh(topology, fixture, jwtSigner, database
       retryStatus: retried.status,
       retryResult: forwarded.result,
       admittedOnNewEpoch: { deriverA: true, deriverB: true },
+      admissionStatuses: { deriverA: statuses[0], deriverB: statuses[1] },
     };
   } finally {
     attempt.ceremony.free();

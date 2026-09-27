@@ -2481,7 +2481,9 @@ fn vm_tenant_root_admission_follows_the_execution_attempt(
 ///   unsettled.
 /// - A's retired epoch 1 is erased at once. B's is refused as pending.
 /// - After `W` (four seconds here), recovery at B cancels the stale admission,
-///   and the erasure proceeds. A third wallet signs on epoch 2.
+///   and the erasure proceeds. The same command again replays its receipt.
+/// - The cancelled attempt's own preparation, replayed at B, is refused by
+///   the cancellation. A third wallet signs on epoch 2.
 #[test]
 fn vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle(
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -2516,13 +2518,18 @@ fn vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle(
             |row| row.get(0),
         )
     };
+    let execute_cleanup = |role: &str, command: &serde_json::Value| {
+        post_json_to_path_with_headers(
+            if role == "deriver_a" { &stack.deriver_a_url } else { &stack.deriver_b_url },
+            router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH,
+            &json!({ "cleanup_command_b64u": command }),
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+        )
+    };
     // The operator's retirement of epoch 1 at one role: the control plane
     // signs the command, and the Deriver executes it.
-    let retire = |role: &str| -> Result<(u16, String), Box<dyn std::error::Error>> {
-        let (db, deriver_url) = match role {
-            "deriver_a" => (&stack.a_store, &stack.deriver_a_url),
-            _ => (&stack.b_store, &stack.deriver_b_url),
-        };
+    let retire = |role: &str| -> Result<(u16, String, serde_json::Value), Box<dyn std::error::Error>> {
+        let db = if role == "deriver_a" { &stack.a_store } else { &stack.b_store };
         let (command_status, command_body) = stack.control_plane(
             router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH,
             &json!({
@@ -2535,13 +2542,10 @@ fn vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle(
             }),
         )?;
         assert_eq!(command_status, 200, "{command_body}");
-        let command: serde_json::Value = serde_json::from_str(&command_body)?;
-        post_json_to_path_with_headers(
-            deriver_url,
-            router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH,
-            &json!({ "cleanup_command_b64u": command["cleanup_command_b64u"] }),
-            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
-        )
+        let command =
+            serde_json::from_str::<serde_json::Value>(&command_body)?["cleanup_command_b64u"].clone();
+        let (status, body) = execute_cleanup(role, &command)?;
+        Ok((status, body, command))
     };
     let settled = |epoch: i64| (epoch, "settled".to_owned());
 
@@ -2552,10 +2556,14 @@ fn vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle(
     assert_eq!(admission_statuses(&stack.b_store)?, vec![settled(1)]);
 
     // B admits a second registration; A's preparation is held over a refresh.
+    // B's preparation is held just long enough to keep a copy of it.
     let registration = stack.registration(&identity, &lineage_b64u)?;
     stack
         .proxy_a
         .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH);
+    stack
+        .proxy_b
+        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH);
     let registering = {
         let router_url = stack.router_url.clone();
         thread::spawn(move || {
@@ -2569,12 +2577,25 @@ fn vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle(
         })
     };
     let deadline = Instant::now() + Duration::from_secs(15);
+    let b_preparation: serde_json::Value = loop {
+        if let Some(body) = stack.proxy_b.held_request() {
+            break serde_json::from_slice(&body)?;
+        }
+        if Instant::now() > deadline {
+            return Err("the second registration never reached Deriver B".into());
+        }
+        thread::sleep(Duration::from_millis(10));
+    };
+    stack.proxy_b.release_request();
     while stack.proxy_a.held_request().is_none() || admission_statuses(&stack.b_store)?.len() < 2 {
         if Instant::now() > deadline {
             return Err("the second registration never reached both Derivers".into());
         }
         thread::sleep(Duration::from_millis(10));
     }
+    let a_preparation: serde_json::Value = serde_json::from_slice(
+        &stack.proxy_a.held_request().ok_or("A's preparation must be held")?,
+    )?;
     let (refresh_status, refresh_body) =
         stack.refresh(&identity, &lineage_b64u, "vm-refresh-settlement", created_revision)?;
     assert_eq!(refresh_status, 200, "{refresh_body}");
@@ -2590,15 +2611,31 @@ fn vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle(
 
     // A's epoch 1 has only settled work: it is erased at once.
     let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
-    let (a_status, a_body) = retire("deriver_a")?;
+    let (a_status, a_body, _) = retire("deriver_a")?;
     assert_eq!(a_status, 200, "{a_body}");
     let a_retired: serde_json::Value = serde_json::from_str(&a_body)?;
     assert_eq!(a_retired["kind"], "retired_deleted");
     assert_eq!(a_retired["cancelled_admissions"], 0);
     assert_eq!(stack.epochs(&lineage_b64u)?.0, vec![epoch(2, "active")]);
 
+    // The erasure changes no refusal. A's held preparation, replayed, is
+    // still told its epoch closed here before it was admitted.
+    let (a_late_status, a_late_body) = post_json_to_path_with_headers(
+        &stack.deriver_a_url,
+        router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
+        &a_preparation,
+        &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+    )?;
+    // The VM Yao worker answers any refusal with 400; the code names it.
+    assert_eq!(a_late_status, 400, "{a_late_body}");
+    assert!(
+        a_late_body.contains("LifecycleTransitionInProgress: the tenant-root epoch this operation is bound to was retired here before the operation was admitted"),
+        "{a_late_body}"
+    );
+    assert_eq!(admission_statuses(&stack.a_store)?, vec![settled(1)]);
+
     // B's epoch 1 still has admitted work: retirement is pending.
-    let (b_pending_status, b_pending_body) = retire("deriver_b")?;
+    let (b_pending_status, b_pending_body, _) = retire("deriver_b")?;
     assert_eq!(b_pending_status, 503, "{b_pending_body}");
     assert!(
         b_pending_body.contains("retirement of epoch 1 is pending here: 1 admitted operation(s) are not settled"),
@@ -2611,12 +2648,42 @@ fn vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle(
 
     // After W, recovery cancels the stale admission and the epoch goes.
     thread::sleep(Duration::from_millis(4_200));
-    let (b_status, b_body) = retire("deriver_b")?;
+    let (b_status, b_body, b_command) = retire("deriver_b")?;
     assert_eq!(b_status, 200, "{b_body}");
     let b_retired: serde_json::Value = serde_json::from_str(&b_body)?;
     assert_eq!(b_retired["kind"], "retired_deleted");
     assert_eq!(b_retired["cancelled_admissions"], 1);
     assert_eq!(stack.epochs(&lineage_b64u)?.1, vec![epoch(2, "active")]);
+    assert_eq!(
+        admission_statuses(&stack.b_store)?,
+        vec![settled(1), (1, "cancelled".to_owned())]
+    );
+
+    // The erasure is recorded once: the same command replays its signed
+    // receipt and the cancellation count. The backup deletion is observed
+    // again, and its objects are now already absent.
+    let (replay_status, replay_body) = execute_cleanup("deriver_b", &b_command)?;
+    assert_eq!(replay_status, 200, "{replay_body}");
+    let replayed: serde_json::Value = serde_json::from_str(&replay_body)?;
+    assert_eq!(replayed["kind"], "retired_deleted");
+    assert_eq!(replayed["cleanup_receipt_b64u"], b_retired["cleanup_receipt_b64u"]);
+    assert_eq!(replayed["cancelled_admissions"], 1);
+    assert_eq!(replayed["r2_deletion"]["managed_backup"], "already_absent");
+    assert_eq!(replayed["r2_deletion"]["provider_canary"], "already_absent");
+
+    // The cancelled attempt takes no further step. Its own preparation,
+    // replayed at B, is refused by the cancellation, not by the erased share.
+    let (late_status, late_body) = post_json_to_path_with_headers(
+        &stack.deriver_b_url,
+        router_ab_dev::LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
+        &b_preparation,
+        &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+    )?;
+    assert_eq!(late_status, 400, "{late_body}");
+    assert!(
+        late_body.contains("LifecycleTransitionInProgress: this tenant-root operation's admission was cancelled here"),
+        "{late_body}"
+    );
     assert_eq!(
         admission_statuses(&stack.b_store)?,
         vec![settled(1), (1, "cancelled".to_owned())]
@@ -2636,10 +2703,13 @@ fn vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle(
             "held_registration": refused["status"],
             "deriver_b_unsettled_after_refresh": [[1, "settled"], [1, "admitted"]],
             "deriver_a_epoch_1_erased": [a_status, a_retired["cryptographic_erasure"], a_retired["cancelled_admissions"]],
+            "deriver_a_held_preparation_after_erasure": [a_late_status, "retired here before the operation was admitted"],
             "deriver_b_epoch_1_pending": [b_pending_status, "1 admitted operation(s) are not settled"],
             "recovery_window_ms": 4000,
             "deriver_b_epoch_1_erased_after_recovery": [b_status, b_retired["cancelled_admissions"]],
             "deriver_b_admissions_after": [[1, "settled"], [1, "cancelled"]],
+            "same_command_replayed": [replay_status, "same signed receipt", replayed["cancelled_admissions"]],
+            "cancelled_attempt_preparation_replayed": [late_status, "admission was cancelled here"],
             "signed_on_epoch_2_after_retirement": true,
         })
     );

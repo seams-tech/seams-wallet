@@ -159,8 +159,14 @@ They do not satisfy these cross-owner schedules.
 ## Proposed mechanism (third revision for review, 2026-09-26)
 
 Status: proposal. The admission-and-drain direction is approved; this
-mechanism is not. Retirement stays `pending` on both hosts until it is: refresh
-keeps its retired shares, and nothing here changes a path.
+mechanism is not.
+- **Refresh retirement's gate is implemented** (2026-09-27). The
+  retired-cleanup command erases only once the epoch's admissions are settled
+  or cancelled.
+- **Nothing issues that command yet,** so refresh still keeps its retired
+  shares and reports retirement `pending`. The
+  [trigger proposal](./refactor-150-refresh-retirement.md) awaits approval.
+- **Moving authority** is not implemented.
 
 ### What the earlier revisions could not prove
 
@@ -444,6 +450,18 @@ On the VM and on Workers:
    retirement stays pending past `W`, raises its warning and starts recovery.
    It proceeds only after that admission's terminal outcome or fenced
    cancellation.
+
+   Done for the operator-issued retired cleanup (2026-09-27):
+   - **VM:** `vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle`
+     covers pending, `W` recovery, erasure and the cancellation count.
+   - **Workers:** the harness's `--admission-races` covers the pending
+     refusal and the erasure.
+   - **Also on the VM (items 3 and 7):**
+     - the cancelled attempt's own preparation, replayed, is refused by the
+       cancellation;
+     - the executed command replays its receipt.
+   - **Not yet covered:** the one-use items of item 3 after a restart of the
+     operation.
 3. **Retry identity and one use after fenced cancellation.** A cancelled
    operation's retry keeps its identity and consumes no one-use item twice:
    capability, pair, presignature, SigningWorker effect claim.

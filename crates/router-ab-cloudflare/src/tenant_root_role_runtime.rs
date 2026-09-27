@@ -501,8 +501,9 @@ pub enum CloudflareDeriverTenantRootCleanupResponseV1 {
         /// Both retired R2 object keys were observed absent after deletion.
         r2_deletion: CloudflareTenantRootManagedBackupDeletionReceiptV1,
         cryptographic_erasure: CloudflareTenantRootCryptographicErasureStatusV1,
-        /// Admissions on the retired epoch that recovery cancelled because
-        /// they stayed unsettled `W` after admission. Nonzero is a warning.
+        /// Admissions on the retired epoch here that recovery cancelled
+        /// because they stayed unsettled `W` after admission. Nonzero is a
+        /// warning.
         cancelled_admissions: u64,
     },
 }
@@ -1463,7 +1464,19 @@ pub async fn tenant_root_deriver_admit_bound_work_v1<Host: TenantRootDeriverHost
         crate::tenant_root_role_d1::TenantRootRootUseAdmissionV1::Cancelled => {
             Err(tenant_root_attempt_cancelled_error_v1())
         }
+        crate::tenant_root_role_d1::TenantRootRootUseAdmissionV1::Erased => {
+            Err(tenant_root_epoch_erased_error_v1())
+        }
     }
+}
+
+/// The attempt settled here and its retired epoch has since been erased, so
+/// a late step of it can read nothing. The operation itself can start again.
+fn tenant_root_epoch_erased_error_v1() -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
+        "the tenant-root epoch this operation is bound to was erased here after the operation settled; start it again",
+    )
 }
 
 /// Recovery cancelled this attempt here after it stayed unsettled; its
@@ -1495,6 +1508,18 @@ async fn unsettled_root_use_admissions_v1<S: RoleSqlSessionV1>(
         .unsettled_root_use_admissions(identity_digest, custody_lineage, epoch)
         .await
         .map_err(|error| tenant_root_store_error_v1("tenant-root unsettled admission count", error))
+}
+
+async fn cancelled_root_use_admissions_v1<S: RoleSqlSessionV1>(
+    store: &TenantRootRoleShareStoreV1<S>,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    epoch: TenantRootShareEpoch,
+) -> RouterAbProtocolResult<u64> {
+    store
+        .cancelled_root_use_admissions(identity_digest, custody_lineage, epoch)
+        .await
+        .map_err(|error| tenant_root_store_error_v1("tenant-root cancelled admission count", error))
 }
 
 /// `W`: how long after admission an unsettled root-use admission is left
@@ -1574,6 +1599,9 @@ pub async fn tenant_root_deriver_load_bound_role_share_v1<Host: TenantRootDerive
         }
         crate::tenant_root_role_d1::TenantRootBoundShareV1::Cancelled => {
             return Err(tenant_root_attempt_cancelled_error_v1());
+        }
+        crate::tenant_root_role_d1::TenantRootBoundShareV1::Erased => {
+            return Err(tenant_root_epoch_erased_error_v1());
         }
     };
     let sealed = stored.into_bound_online_role_share_artifact().map_err(|error| {
@@ -6659,7 +6687,6 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
     let store = host
         .role_store()
         .map_err(|error| tenant_root_store_error_v1("tenant-root role store lookup", error))?;
-    let mut cancelled_admissions = 0;
     if is_retired {
         // Work admitted on the retired epoch may still need its share. The
         // role store refuses the erasure until every such admission is
@@ -6677,7 +6704,7 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
             // here, which is what lets the epoch go.
             let admitted_at_or_before_ms =
                 now_ms.saturating_sub(host.admission_recovery_window_ms()?);
-            cancelled_admissions = store
+            store
                 .cancel_stale_root_use_admissions(
                     claimed_identity_digest,
                     claimed_custody_lineage,
@@ -6723,6 +6750,15 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
     let role = CloudflareTenantRootCreateRoleV1::from_protocol(role);
     let cleanup_receipt_b64u = crate::encode_base64url_bytes_v1(&receipt_bytes);
     if is_retired {
+        // Read from the admission rows, which outlive the erasure, so a replay
+        // of this command reports the same count.
+        let cancelled_admissions = cancelled_root_use_admissions_v1(
+            &store,
+            claimed_identity_digest,
+            claimed_custody_lineage,
+            claimed_epoch,
+        )
+        .await?;
         Ok(
             CloudflareDeriverTenantRootCleanupResponseV1::RetiredDeleted {
                 role,
