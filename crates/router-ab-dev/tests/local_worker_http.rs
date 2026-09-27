@@ -1804,6 +1804,198 @@ fn vm_tenant_root_restored_from_its_managed_backup_signs_refreshes_and_replays(
     Ok(())
 }
 
+/// A restore reservation that is never authorized expires rather than holding
+/// the tenant root. The operator reserves a challenge with a five-second
+/// window and lets it lapse; while it stands, a manual refresh is refused as
+/// in progress. After the window, a checkpoint of that challenge is refused as
+/// expired and the fence records the expiry, the control plane refuses to
+/// authorize it, and the refresh it held back runs. Deriver A then loses its
+/// share for real, and a new challenge is reserved, authorized and restored.
+#[test]
+fn vm_tenant_root_restore_reservation_never_authorized_expires_and_frees_the_root(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start("vm-tenant-root-restore-reservation-expiry")?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("restore-reservation-expiry")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let (revision, _, _) = stack.active_state(&lineage_b64u)?;
+    let b64u = |bytes: &[u8]| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
+    let identity_digest_b64u = b64u(identity.digest()?.as_bytes());
+    let now_ms = || -> Result<u64, Box<dyn std::error::Error>> {
+        Ok(u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?)
+    };
+    let challenge_request = |incident: &str, window_ms: u64| -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+        let issued_at_ms = now_ms()?;
+        Ok(json!({
+            "identity_digest_b64u": identity_digest_b64u,
+            "custody_lineage_b64u": lineage_b64u,
+            "incident_id": incident,
+            "outage_observation_digest_b64u": b64u(Sha256::digest(incident.as_bytes()).as_slice()),
+            "issued_at_ms": issued_at_ms,
+            "expires_at_ms": issued_at_ms + window_ms,
+            "nonce_b64u": b64u(&fresh_nonzero_bytes_32()?),
+            "unavailable_role": "deriver_a",
+        }))
+    };
+    let challenge_path =
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_CHALLENGE_PRIVATE_REQUEST_PATH;
+    let authorize_path =
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_AUTHORIZE_PRIVATE_REQUEST_PATH;
+
+    // The operator reserves a challenge and never authorizes it.
+    let lapsed_request = challenge_request("vm-restore-reservation-lapsed", 5_000)?;
+    let (challenge_status, challenge_body) = stack.control_plane(challenge_path, &lapsed_request)?;
+    assert_eq!(challenge_status, 200, "{challenge_body}");
+    let lapsed: serde_json::Value = serde_json::from_str(&challenge_body)?;
+    let (fence_while_reserved, attempt) = stack.managed_restore_fence(&lineage_b64u)?;
+    assert_eq!(fence_while_reserved, "reserved");
+    let held_operation = "vm-refresh-held-by-a-restore-reservation";
+    let (held_status, held_body) = stack.refresh(&identity, &lineage_b64u, held_operation, revision)?;
+    assert_eq!(held_status, 409, "{held_body}");
+    assert!(held_body.contains("tenant_root_refresh_in_progress"), "{held_body}");
+
+    let expires_at_ms = lapsed_request["expires_at_ms"].as_u64().ok_or("a challenge has an expiry")?;
+    while now_ms()? <= expires_at_ms + 250 {
+        std::thread::sleep(Duration::from_millis(100));
+    }
+
+    // Its authorization arrives late: the checkpoint is refused, durably.
+    // The challenge response carries the challenge's own fields beside the
+    // binding the incident authorities sign.
+    let mut lapsed_challenge = lapsed.clone();
+    lapsed_challenge
+        .as_object_mut()
+        .ok_or("a challenge response is an object")?
+        .remove("authorization_binding_b64u");
+    let late_checkpoint = json!({
+        "kind": "checkpoint_managed_restore",
+        "identity_digest_b64u": identity_digest_b64u,
+        "custody_lineage_b64u": lineage_b64u,
+        "checkpoint": {
+            "challenge": lapsed_challenge,
+            "attempt": serde_json::from_str::<serde_json::Value>(
+                attempt.as_deref().ok_or("a reserved fence carries its attempt")?,
+            )?,
+            "public_state_b64u": b64u(b"late-public-state"),
+            "capability_b64u": b64u(b"late-capability"),
+            "incident_authorization_b64u": b64u(b"late-incident-authorization"),
+        },
+    });
+    let (late_checkpoint_status, late_checkpoint_body) = stack.creation_state(
+        &identity,
+        lineage,
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
+        &late_checkpoint,
+    )?;
+    assert_eq!(late_checkpoint_status, 408, "{late_checkpoint_body}");
+    assert!(late_checkpoint_body.contains("expired before it was authorized"), "{late_checkpoint_body}");
+    let (fence_after_window, _) = stack.managed_restore_fence(&lineage_b64u)?;
+    assert_eq!(fence_after_window, "expired");
+    assert_eq!(
+        stack.creation_state(
+            &identity,
+            lineage,
+            router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
+            &late_checkpoint,
+        )?
+        .0,
+        408
+    );
+    let late_authorize = json!({
+        "identity_digest_b64u": identity_digest_b64u,
+        "custody_lineage_b64u": lineage_b64u,
+        "incident_authorization_b64u": stack.sign_deriver_a_incident_authorization(
+            lapsed["authorization_binding_b64u"].as_str().ok_or("a challenge carries its binding")?,
+        )?,
+    });
+    let (late_authorize_status, late_authorize_body) = stack.control_plane(authorize_path, &late_authorize)?;
+    assert_eq!(late_authorize_status, 408, "{late_authorize_body}");
+    assert!(late_authorize_body.contains("expired before it was authorized"), "{late_authorize_body}");
+    // Reserving the lapsed challenge again is refused by the Router; the
+    // control plane relays that as its own service failure with the reason.
+    let (lapsed_retry_status, lapsed_retry_body) = stack.control_plane(challenge_path, &lapsed_request)?;
+    assert_eq!(lapsed_retry_status, 500, "{lapsed_retry_body}");
+    assert!(lapsed_retry_body.contains("status 408: ExpiredLocalRequest"), "{lapsed_retry_body}");
+    assert!(lapsed_retry_body.contains("expired before it was authorized"), "{lapsed_retry_body}");
+
+    // The refresh it held back runs; the expiry stays on record.
+    let (refresh_status, refresh_body) = stack.refresh(&identity, &lineage_b64u, held_operation, revision)?;
+    assert_eq!(refresh_status, 200, "{refresh_body}");
+    let refreshed: serde_json::Value = serde_json::from_str(&refresh_body)?;
+    let refreshed_revision =
+        refreshed["lifecycle_revision"].as_i64().ok_or("a refresh reports its revision")?;
+    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?,
+        (vec![epoch(1, "retired"), epoch(2, "active")], vec![epoch(1, "retired"), epoch(2, "active")])
+    );
+    assert_eq!(stack.managed_restore_fence(&lineage_b64u)?.0, "expired");
+
+    // Deriver A then loses its share; a new challenge restores it.
+    let removed = stack.a_store.execute(
+        "DELETE FROM tenant_root_role_shares
+         WHERE custody_lineage_b64u = ?1 AND role = 'deriver_a' AND lifecycle = 'active'",
+        [&lineage_b64u],
+    )?;
+    assert_eq!(removed, 1, "A must hold exactly one active share to lose");
+    let outage_request = challenge_request("vm-restore-after-a-lapsed-reservation", 60_000)?;
+    let (outage_status, outage_body) = stack.control_plane(challenge_path, &outage_request)?;
+    assert_eq!(outage_status, 200, "{outage_body}");
+    let outage: serde_json::Value = serde_json::from_str(&outage_body)?;
+    assert_eq!(stack.managed_restore_fence(&lineage_b64u)?.0, "reserved");
+    let authorize_request = json!({
+        "identity_digest_b64u": identity_digest_b64u,
+        "custody_lineage_b64u": lineage_b64u,
+        "incident_authorization_b64u": stack.sign_deriver_a_incident_authorization(
+            outage["authorization_binding_b64u"].as_str().ok_or("a challenge carries its binding")?,
+        )?,
+    });
+    let (authorize_status, authorize_body) = stack.control_plane(authorize_path, &authorize_request)?;
+    assert_eq!(authorize_status, 200, "{authorize_body}");
+    let authorization: serde_json::Value = serde_json::from_str(&authorize_body)?;
+    let restore_request = json!({
+        "public_state_b64u": authorization["public_state_b64u"],
+        "restore_capability_b64u": authorization["capability_b64u"],
+    });
+    let (restore_status, restore_body) = stack.restore(&restore_request)?;
+    assert_eq!(restore_status, 200, "{restore_body}");
+    let restored: serde_json::Value = serde_json::from_str(&restore_body)?;
+    let restore_revision =
+        restored["lifecycle_revision"].as_i64().ok_or("a restore reports its revision")?;
+    let epochs_after_restore = stack.epochs(&lineage_b64u)?;
+    assert_eq!(epochs_after_restore.0.last(), Some(&epoch(3, "active")));
+    assert_eq!(epochs_after_restore.1.last(), Some(&epoch(3, "active")));
+    assert_eq!(stack.managed_restore_fence(&lineage_b64u)?.0, "open");
+    assert_eq!(stack.restore(&restore_request)?, (restore_status, restore_body.clone()));
+
+    println!(
+        "R150_VM_TENANT_ROOT_RESTORE_RESERVATION_EXPIRY_E2E {}",
+        json!({
+            "fault": "restore_challenge_reserved_and_never_authorized",
+            "window_ms": 5_000,
+            "refresh_while_reserved": [held_status, "tenant_root_refresh_in_progress"],
+            "late_checkpoint_status": late_checkpoint_status,
+            "late_checkpoint_retry_status": 408,
+            "fence_after_window": fence_after_window,
+            "late_authorize_status": late_authorize_status,
+            "lapsed_challenge_retry": [lapsed_retry_status, "relayed router 408 expired before it was authorized"],
+            "held_refresh_after_expiry": [refresh_status, refreshed_revision],
+            "fence_after_refresh": "expired",
+            "new_challenge_after_expiry": outage_status,
+            "authorized_restore_status": [authorize_status, restore_status, restore_revision],
+            "epochs_after_restore": {
+                "deriver_a": epochs_after_restore.0,
+                "deriver_b": epochs_after_restore.1,
+            },
+            "fence_after_restore": "open",
+            "restore_retry_identical": true,
+        })
+    );
+    Ok(())
+}
+
 /// Work admitted before a refresh finishes on the epoch it started with. A
 /// registration is admitted and prepared while epoch 1 is active, then held
 /// before Deriver A reads it. A manual refresh then commits epoch 2 and both
@@ -3383,6 +3575,20 @@ impl RecoveryStackV1 {
             .ok_or("the Router must have committed")?;
         assert_eq!(self.lifecycles(lineage)?, expected);
         Ok(receipt)
+    }
+
+    /// The Router's managed-restore fence for one lineage: its kind and, while
+    /// it holds one, its attempt.
+    fn managed_restore_fence(&self, lineage: &str) -> rusqlite::Result<(String, Option<String>)> {
+        self.router_db.query_row(
+            "SELECT json_extract(value_json, '$.managed_restore_fence.kind'),
+                    json_extract(value_json, '$.managed_restore_fence.attempt')
+             FROM local_tenant_root_creation_state
+             WHERE storage_key = 'refresh/v1/active-state'
+               AND json_extract(value_json, '$.custody_lineage_b64u') = ?1",
+            [lineage],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
     }
 
     /// Calls one operation on the Router's creation state directly, as a role

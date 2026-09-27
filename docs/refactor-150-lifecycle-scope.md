@@ -43,7 +43,7 @@ decision.
 | **Creation and its recovery** | Enabled lifecycle; shared contracts | Implemented: resume, commit-first delivery, abandonment, ceremony-bound cleanup, operator sweep | Same code, same E2Es | Done. Automatic sweeping is a separate decision |
 | **Share refresh** (manual and scheduled) | Spec 6 refreshing shares; enabled lifecycle; shared contracts | Commit-first, with roll-forward delivery. The lost-delivery fault is reproduced and fixed in a Workers E2E | Served by the same Router coordinator, Deriver and control-plane code. The lost-delivery and abandonment E2Es pass on the VM, and the Router's scheduler triggers scheduled refresh | [Commit-first](./refactor-150-refresh-commit-first.md): abandonment, per-role delivery status and the VM's scheduled-refresh trigger are done |
 | **Retiring and erasing old shares after refresh** | Spec 6: erase only when completion conditions allow; in-progress work keeps its version; one-use and retry safety | Retired shares and backups are kept; retirement reported `pending` | Nothing is erased | [Drain proposal](./refactor-150-root-retirement-admission.md), revised 2026-09-26 for review. Erasure stays release-gated on both hosts until then |
-| **Availability restore** (one role from its managed backup, then a forward refresh) | Spec 6 availability backup; runbooks for object failure and recovery | Served, with a Workers E2E. A restored root refreshes again (defect below, fixed) | Served by the same control-plane, Router and Deriver code. VM backups are HPKE-sealed, and the restore opens them with the same provider | Done. A reservation that is never authorized still blocks refresh with no expiry (see the restore section of the VM setup) |
+| **Availability restore** (one role from its managed backup, then a forward refresh) | Spec 6 availability backup; runbooks for object failure and recovery | Served, with a Workers E2E. A restored root refreshes again (defect below, fixed) | Served by the same control-plane, Router and Deriver code. VM backups are HPKE-sealed, and the restore opens them with the same provider | Done. A reservation never authorized expires after its window (defect below, fixed) |
 | **Recovery package and restore to a new deployment** (dormant, then operator activation) | Spec 6 restoring to a new deployment; recovery runbook | Served; no E2E | Not served | After availability restore. Largest slice |
 | **Linked-device and step-up signing** | Preserve signing for each enabled configuration | Served | Fails closed | Needed on the VM only if the release enables them. Independent of tenant-root lifecycle |
 | **Google Cloud KMS managed backup** | Optional provider integration | Served | HPKE only | Out of scope: R150 excludes provider-specific provisioning. HPKE is the portable path |
@@ -85,6 +85,34 @@ main root after its managed restore.
   With the fix, the refresh commits the next revision, taking Deriver A to
   epoch 3 over its restored epoch 2 and Deriver B from epoch 1 through 2 to 3.
   An exact retry of the restore afterwards returns its original bytes.
+
+### Defect: a restore reservation never authorized held the root
+
+Raised in review on 2026-09-27.
+- **The failure:** a reserved managed-restore challenge that is never
+  authorized holds the fence for good. Refresh admission answers "in
+  progress" while the fence is reserved, and nothing ever releases it.
+- **Fixed (2026-09-27): the reservation expires.**
+  - Once the creation state's clock passes the challenge's window, the fence
+    becomes `expired`, recording the challenge, its attempt and when it
+    expired. It is never simply cleared.
+  - The transition is persisted before the operation that finds it is
+    evaluated: refresh admission, a new reservation, or a checkpoint. It
+    therefore holds even when that operation is then refused.
+  - An expired reservation holds back neither refresh nor a new challenge.
+    Its own late checkpoint is refused, as are an authorization of it at the
+    control plane and a repeat of its reservation. It stays on record through
+    later refreshes until a new reservation replaces it.
+  - An authorized (terminal) restore is never expired. It stays recoverable
+    through its own forward refresh, and its completion record still answers
+    exact retries.
+- **Evidence:** VM
+  `vm_tenant_root_restore_reservation_never_authorized_expires_and_frees_the_root`
+  (`R150_VM_TENANT_ROOT_RESTORE_RESERVATION_EXPIRY_E2E`). Workers run the
+  same creation-state code; the harness does not yet exercise it.
+- **Still open:** an authorized restore that is never executed keeps a
+  terminal fence, which a second refresh no longer validates and which
+  refuses a new challenge. Handle it with the recovery work.
 
 ## Separate: planned migration (cutover and source retirement)
 

@@ -1384,6 +1384,12 @@ pub async fn control_plane_managed_restore_authorize_v1<Host: TenantRootControlP
                 "tenant-root managed-restore authorization requires a reserved challenge",
             ));
         }
+        CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ExpiredLocalRequest,
+                "tenant-root managed-restore reservation expired before it was authorized",
+            ));
+        }
         CloudflareTenantRootManagedRestoreFenceV1::Reserved { challenge, attempt } => {
             (challenge.clone(), attempt.clone(), None)
         }

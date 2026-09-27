@@ -2162,6 +2162,14 @@ pub(crate) enum CloudflareTenantRootManagedRestoreFenceV1 {
         capability_b64u: String,
         incident_authorization_b64u: String,
     },
+    /// A reservation whose challenge window closed before its authorization
+    /// was checkpointed. It holds back neither refresh nor a new reservation,
+    /// and a late checkpoint for it is refused.
+    Expired {
+        challenge: CloudflareTenantRootManagedRestoreAuthorizationChallengeV1,
+        attempt: CloudflareTenantRootManagedRestoreAuthorizationAttemptV1,
+        expired_at_ms: u64,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -3625,7 +3633,8 @@ pub async fn tenant_root_managed_restore_reservation_call_v1(
     match active.managed_restore_fence {
         CloudflareTenantRootManagedRestoreFenceV1::Reserved { challenge, .. }
         | CloudflareTenantRootManagedRestoreFenceV1::Terminal { challenge, .. } => Ok(challenge),
-        CloudflareTenantRootManagedRestoreFenceV1::Open => Err(RouterAbProtocolError::new(
+        CloudflareTenantRootManagedRestoreFenceV1::Open
+        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             "tenant-root managed-restore reservation response omitted its persisted challenge",
         )),
@@ -9077,6 +9086,64 @@ fn validate_refresh_abandonment_v1(
     Ok(())
 }
 
+/// Expires a managed-restore reservation that was never authorized.
+///
+/// A reserved challenge can be authorized only inside its own window. Once
+/// this clock has passed that window, the fence records the reservation as
+/// expired: it stops holding refresh and a new reservation back, and its late
+/// checkpoint is refused rather than accepted. An authorized (terminal)
+/// restore is never expired here; it stays recoverable through its own
+/// forward refresh.
+///
+/// Returns whether the fence changed.
+fn expire_managed_restore_reservation_v1(
+    record: &mut CloudflareTenantRootRefreshActiveStateRecordV1,
+    now_ms: u64,
+) -> bool {
+    let CloudflareTenantRootManagedRestoreFenceV1::Reserved { challenge, attempt } =
+        &record.managed_restore_fence
+    else {
+        return false;
+    };
+    if now_ms <= challenge.expires_at_ms {
+        return false;
+    }
+    record.managed_restore_fence = CloudflareTenantRootManagedRestoreFenceV1::Expired {
+        challenge: challenge.clone(),
+        attempt: attempt.clone(),
+        expired_at_ms: now_ms,
+    };
+    true
+}
+
+/// Persists [`expire_managed_restore_reservation_v1`] before a restore
+/// operation is evaluated, so the expiry holds even when that operation is
+/// then refused.
+async fn persist_managed_restore_reservation_expiry_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    active: ValidatedTenantRootRefreshActiveStateV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<ValidatedTenantRootRefreshActiveStateV1> {
+    let mut record = active.record.clone();
+    if !expire_managed_restore_reservation_v1(&mut record, now_ms) {
+        return Ok(active);
+    }
+    let expired =
+        validate_refresh_active_state_record(record.clone(), store.authority_id(), issuer_keys)?;
+    store
+        .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &record)
+        .await?;
+    Ok(expired)
+}
+
+fn managed_restore_reservation_expired_error() -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::ExpiredLocalRequest,
+        "tenant-root managed-restore reservation expired before it was authorized",
+    )
+}
+
 /// Abandons refresh work that can no longer finish, so it stops blocking the
 /// next refresh.
 ///
@@ -9992,8 +10059,10 @@ fn managed_restore_authorization_challenge_from_active_state_v1(
 }
 
 /// Reserves one managed-restore challenge/attempt or replays its exact fence.
-/// A fresh request is required only while the fence is open; an exact retry
-/// remains replayable after the original freshness window expires.
+/// A fresh request is required while the fence is open or its last
+/// reservation has expired. An exact retry replays while the reservation
+/// stands and after it is authorized; once it has expired unauthorized, the
+/// retry is refused.
 fn reserve_managed_restore_authorization_fence_v1(
     active: &ValidatedTenantRootRefreshActiveStateV1,
     started_journal: &ValidatedTenantRootCreationJournalV1,
@@ -10007,13 +10076,21 @@ fn reserve_managed_restore_authorization_fence_v1(
     }
     validate_managed_restore_fence_against_active_v1(active)?;
     match &active.record.managed_restore_fence {
-        CloudflareTenantRootManagedRestoreFenceV1::Open => {
+        CloudflareTenantRootManagedRestoreFenceV1::Open
+        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => {
             let challenge = managed_restore_authorization_challenge_from_active_state_v1(
                 active,
                 started_journal,
                 request,
             )?;
             let attempt = managed_restore_authorization_attempt_from_challenge_v1(&challenge)?;
+            if matches!(
+                &active.record.managed_restore_fence,
+                CloudflareTenantRootManagedRestoreFenceV1::Expired { challenge: expired, .. }
+                    if expired == &challenge
+            ) {
+                return Err(managed_restore_reservation_expired_error());
+            }
             if matches!(
                 active.record.fence,
                 CloudflareTenantRootRefreshFenceV1::Reserved { .. }
@@ -10152,8 +10229,15 @@ fn checkpoint_managed_restore_authorization_fence_v1(
                 },
             )
         }
+        // The authorization arrived after its reservation expired.
+        CloudflareTenantRootManagedRestoreFenceV1::Expired { challenge, attempt, .. }
+            if challenge == &checkpoint.challenge && attempt == &checkpoint.attempt =>
+        {
+            Err(managed_restore_reservation_expired_error())
+        }
         CloudflareTenantRootManagedRestoreFenceV1::Reserved { .. }
-        | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. } => {
+        | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. }
+        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => {
             Err(managed_restore_conflict(
                 "tenant-root managed-restore checkpoint conflicts with the accepted fence",
             ))
@@ -10373,6 +10457,21 @@ fn validate_managed_restore_fence_shape(
                 incident_authorization_b64u,
             )
         }
+        CloudflareTenantRootManagedRestoreFenceV1::Expired {
+            challenge,
+            attempt,
+            expired_at_ms,
+        } => {
+            validate_managed_restore_challenge_shape_v1(challenge)?;
+            validate_managed_restore_attempt_shape_v1(attempt)?;
+            require_managed_restore_attempt_matches_challenge_v1(challenge, attempt)?;
+            if *expired_at_ms <= challenge.expires_at_ms {
+                return Err(malformed_input(
+                    "tenant-root managed-restore reservation expired inside its own window",
+                ));
+            }
+            Ok(())
+        }
     }
 }
 
@@ -10403,7 +10502,10 @@ fn require_managed_restore_fence_matches_active_fields_v1(
     activation_receipt_digest: TenantRootLifecycleReceiptDigestV1,
 ) -> RouterAbProtocolResult<()> {
     let (challenge, _) = match fence {
-        CloudflareTenantRootManagedRestoreFenceV1::Open => return Ok(()),
+        // An expired reservation names the state it was reserved against,
+        // which later refreshes may have moved past.
+        CloudflareTenantRootManagedRestoreFenceV1::Open
+        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => return Ok(()),
         CloudflareTenantRootManagedRestoreFenceV1::Reserved { challenge, attempt }
         | CloudflareTenantRootManagedRestoreFenceV1::Terminal {
             challenge, attempt, ..
@@ -12837,6 +12939,7 @@ pub async fn tenant_root_creation_active_state_read_v1<Store: TenantRootCreation
                 identity_digest,
                 custody_lineage,
                 checkpoint,
+                now_ms,
             )
             .await
         }
@@ -12908,6 +13011,8 @@ async fn reserve_managed_restore_authorization_v1<Store: TenantRootCreationStore
             "tenant-root managed-restore reservation identity changed",
         ));
     }
+    let active =
+        persist_managed_restore_reservation_expiry_v1(store, issuer_keys, active, now_ms).await?;
     let journal_record = store
         .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
             TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
@@ -12947,6 +13052,7 @@ async fn checkpoint_managed_restore_authorization_v1<Store: TenantRootCreationSt
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
     checkpoint: CloudflareTenantRootManagedRestoreAuthorizationCheckpointV1,
+    now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1> {
     if loaded_active.identity_digest != identity_digest
         || loaded_active.custody_lineage != custody_lineage
@@ -12969,6 +13075,8 @@ async fn checkpoint_managed_restore_authorization_v1<Store: TenantRootCreationSt
             "tenant-root managed-restore checkpoint identity changed",
         ));
     }
+    let active =
+        persist_managed_restore_reservation_expiry_v1(store, issuer_keys, active, now_ms).await?;
     let journal_record = store
         .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
             TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
@@ -13041,9 +13149,13 @@ async fn reserve_refresh_admission_v1<Store: TenantRootCreationStoreV1>(
         .get_json::<CloudflareTenantRootRefreshCompletionV1>(&completion_key)
         .await?;
     let mut record = active.record.clone();
+    // An expired restore reservation no longer holds the fence, so refresh
+    // work it held back can be abandoned or admitted in the same step.
+    expire_managed_restore_reservation_v1(&mut record, now_ms);
     let abandoned_operations = abandon_expired_refresh_v1(&mut record, now_ms)?;
     if record.fence != active.record.fence
         || record.manual_refresh_pending != active.record.manual_refresh_pending
+        || record.managed_restore_fence != active.record.managed_restore_fence
     {
         validate_refresh_active_state_record(record.clone(), authority_id, issuer_keys)?;
         if record.fence != active.record.fence {
@@ -13426,7 +13538,9 @@ async fn persist_refresh_active_state_v1<Store: TenantRootCreationStoreV1>(
             });
             CloudflareTenantRootManagedRestoreFenceV1::Open
         }
-        CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. } => {
+        // An expired reservation stays on record until a new one replaces it.
+        CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. }
+        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => {
             existing.record.managed_restore_fence.clone()
         }
         CloudflareTenantRootManagedRestoreFenceV1::Reserved { .. } => {
@@ -19426,6 +19540,7 @@ mod tests {
     #[test]
     fn managed_restore_fence_reserves_checkpoints_and_replays_after_json_restart() {
         const RESERVE_NOW_MS: u64 = 1_000_250;
+        const LAST_RETRY_NOW_MS: u64 = 1_000_300;
         const EXPIRED_RETRY_NOW_MS: u64 = 1_000_301;
         let (mut active, journal, issuer_keys) = managed_restore_active_state_fixture();
         let request = managed_restore_request(0x61);
@@ -19465,19 +19580,36 @@ mod tests {
                 &active,
                 &journal,
                 request.clone(),
-                EXPIRED_RETRY_NOW_MS,
+                LAST_RETRY_NOW_MS,
             )
-            .expect("exact reservation replay after expiry"),
+            .expect("exact reservation replay inside its window"),
             CloudflareTenantRootManagedRestoreFenceEvaluationV1::Replay { fence }
                 if fence == reserved
         ));
+        let mut expired_record = active.record.clone();
+        assert!(expire_managed_restore_reservation_v1(
+            &mut expired_record,
+            EXPIRED_RETRY_NOW_MS,
+        ));
+        let expired =
+            validate_refresh_active_state_record(expired_record, authority(0x71), &issuer_keys)
+                .expect("expired managed restore");
+        let error = reserve_managed_restore_authorization_fence_v1(
+            &expired,
+            &journal,
+            request.clone(),
+            EXPIRED_RETRY_NOW_MS,
+        )
+        .expect_err("exact reservation retry after expiry");
+        assert_eq!(error.code(), RouterAbProtocolErrorCode::ExpiredLocalRequest);
 
         let (challenge, attempt) = match &reserved {
             CloudflareTenantRootManagedRestoreFenceV1::Reserved { challenge, attempt } => {
                 (challenge.clone(), attempt.clone())
             }
             CloudflareTenantRootManagedRestoreFenceV1::Open
-            | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. } => {
+            | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. }
+            | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => {
                 panic!("reservation must retain the reserved challenge")
             }
         };
@@ -19539,7 +19671,8 @@ mod tests {
                 (challenge, attempt)
             }
             CloudflareTenantRootManagedRestoreFenceV1::Open
-            | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. } => {
+            | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. }
+            | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => {
                 panic!("reservation must retain the reserved challenge")
             }
         };
@@ -19628,7 +19761,8 @@ mod tests {
                 }
             }
             CloudflareTenantRootManagedRestoreFenceV1::Open
-            | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. } => {
+            | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. }
+            | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => {
                 panic!("reservation must retain the reserved challenge")
             }
         };
