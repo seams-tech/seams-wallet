@@ -58,7 +58,23 @@ if [[ "$role" == "signing-worker" && "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enab
   worker_features+=",wallet-do-signing-worker-harness"
 fi
 
+wallet_objects=false
+if [[ "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" && "$role" != "tenant-root-control-plane" ]]; then
+  wallet_objects=true
+fi
+# Whole seconds, rounded down: a source saved in the build's first second
+# counts as newer, so the harness errs toward rebuilding.
+started_at_ms="$(( $(date +%s) * 1000 ))"
+
 run_worker_build \
   "${worker_build_flags[@]}" \
   --out-dir "$worker_output" \
   --features "$worker_features"
+
+# What the private harness checks before it loads this build: its profile,
+# whether it is the wallet-object variant, and when it started, which must
+# follow every change to the sources it compiled. It sits beside `worker/`,
+# so a deployment does not upload it.
+printf '{"profile":"%s","wallet_objects":%s,"features":"%s","started_at_ms":%s}\n' \
+  "$worker_build_profile" "$wallet_objects" "$worker_features" "$started_at_ms" \
+  > "$worker_output/build-stamp.json"

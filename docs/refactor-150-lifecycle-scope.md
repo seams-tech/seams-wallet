@@ -142,6 +142,59 @@ Found and reproduced on the VM on 2026-09-27.
   (`R150_VM_TENANT_ROOT_RESTORE_SUPERSEDED_E2E`). Workers run the same
   creation-state code; the harness does not exercise this schedule.
 
+### Defect: harness runs could load stale or mismatched Worker builds
+
+Found 2026-09-27, when an `--admission-races` run failed with a misleading
+"deriver-a must persist one managed backup and one provider canary:
+1 !== 2".
+- **The failure.** `test-private-d1.mjs` chose its Worker builds from the
+  node process's environment, and nothing checked what it loaded.
+  - It loaded `build/dev/<role>` only when that process itself had
+    `ROUTER_AB_WORKER_BUILD_PROFILE=dev`. Otherwise it silently loaded the
+    release bundles in `build/<role>`, which were days old.
+  - Dev builds of both variants share `build/dev/<role>`, so a wallet-object
+    run after a role-store build would load the wrong variant.
+  - It never loaded release wallet-object builds, which
+    `build-strict-worker.sh` writes to `build/wallet-do/<role>`.
+- **Audit of this branch's Workers evidence**, from every harness command
+  run 2026-09-25 to 2026-09-27:
+  - Every reported pass ran with the dev profile on the node process, after
+    a same-variant build in the same or the preceding command.
+  - The only runs without it were six `--admission-races` attempts between
+    10:31 and 10:36 UTC on 2026-09-27. They loaded the stale release bundles
+    and failed, and none was reported. The same mode then passed with the
+    dev profile.
+  - A wallet-object run at 10:23 UTC followed an interrupted role-store
+    build. That build never reached its output, so the run loaded the
+    wallet-object builds it needed.
+  - What remained: later commits changed code the last Workers runs had not
+    built, including shared recovery code in the VM backup commit. So each
+    release-critical mode this work touches was rerun on the current tree
+    (below).
+- **Fixed (2026-09-27): a run refuses a stale or mismatched build.**
+  - `build-strict-worker.sh` stamps each build beside `worker/` with its
+    profile, its variant, its features and when it started. A deployment
+    does not upload the stamp.
+  - The harness requires the profile to be named. It loads
+    `build/wallet-do/<role>` for a release wallet-object run.
+  - Before it loads a build, it checks the stamp's profile and variant, and
+    that the build started after the newest source of the Worker crate and
+    every workspace crate it depends on by path. It logs each build it loads.
+- **Rerun on the current tree, 2026-09-27**, each variant built just before
+  its runs:
+  - Role-store: `--retirement-trigger`, `--refresh-after-managed-restore`,
+    `--admission-races`, `--replay-after-erasure`, `--ecdsa-across-refresh`,
+    `--refresh-delivery-after-expiry` and
+    `--refresh-abandonment-after-expiry` pass.
+  - Wallet-object: `--retirement-trigger`, `--replay-after-erasure`,
+    `--do-claimed-recovery` and `--do-admission-settlement` pass.
+  - One stale result surfaced. `--refresh-delivery-after-expiry` had last
+    passed on 2026-09-26, before the automatic retirement trigger. Rerun, it
+    failed on its own expectation, not a defect: its retry comes 310 seconds
+    after Deriver A's swap, past A's five-minute grace, so the retry's pass
+    correctly erases A's epoch 1. The expectation now says so.
+  - Not rerun: the full default suite, which can wait for the release.
+
 ## Separate: planned migration (cutover and source retirement)
 
 Spec 6 describes moving an active deployment:

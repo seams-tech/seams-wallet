@@ -7,7 +7,7 @@ import {
   generateKeyPairSync,
   sign as signEd25519,
 } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import { dirname, join, resolve } from 'node:path';
@@ -284,16 +284,97 @@ function ensureEcdsaClientWasm() {
   ecdsaClientWasmInitialized = true;
 }
 
+// The Worker builds a run loads. The profile is always named: the run loads
+// that profile's builds, and each must be the variant the run needs and must
+// have started after the last change to any Rust source it compiles from.
+// A stale or mismatched build stops the run; it is never loaded silently.
+const workerBuildProfile = process.env.ROUTER_AB_WORKER_BUILD_PROFILE;
+if (workerBuildProfile !== 'dev' && workerBuildProfile !== 'release') {
+  throw new Error(
+    "set ROUTER_AB_WORKER_BUILD_PROFILE to 'dev' or 'release': the run loads that profile's Worker builds",
+  );
+}
+const walletObjectBuild = process.env.ROUTER_AB_WALLET_DO_HARNESS === 'enabled';
+
+function workerBuildRoot(role) {
+  // Release wallet-object builds have their own directory; dev builds of
+  // either variant share one, so the stamp tells them apart.
+  return workerBuildProfile === 'release' && walletObjectBuild && role !== 'tenant-root-control-plane'
+    ? join(packageRoot, 'build/wallet-do', role)
+    : join(packageRoot, workerBuildProfile === 'dev' ? 'build/dev' : 'build', role);
+}
+
+// The newest source file of the Worker crate and every workspace crate it
+// depends on by path.
+let newestWorkerSourceFile;
+function newestWorkerSource() {
+  if (newestWorkerSourceFile) return newestWorkerSourceFile;
+  const crates = new Set();
+  const visit = (crateDir) => {
+    if (crates.has(crateDir)) return;
+    crates.add(crateDir);
+    const manifest = readFileSync(join(crateDir, 'Cargo.toml'), 'utf8');
+    for (const [, path] of manifest.matchAll(/path\s*=\s*"(\.\.\/[^"]+)"/g)) {
+      visit(resolve(crateDir, path));
+    }
+  };
+  visit(packageRoot);
+  let newest = { mtimeMs: 0, path: '' };
+  const walk = (path) => {
+    const stat = statSync(path);
+    if (stat.isDirectory()) {
+      for (const entry of readdirSync(path)) walk(join(path, entry));
+    } else if (stat.mtimeMs > newest.mtimeMs) {
+      newest = { mtimeMs: stat.mtimeMs, path };
+    }
+  };
+  for (const crateDir of crates) {
+    walk(join(crateDir, 'Cargo.toml'));
+    walk(join(crateDir, 'src'));
+  }
+  newestWorkerSourceFile = newest;
+  return newest;
+}
+
+const checkedWorkerBuilds = new Set();
+function requireCurrentWorkerBuild(role, buildRoot) {
+  if (checkedWorkerBuilds.has(buildRoot)) return;
+  const walletObjects = walletObjectBuild && role !== 'tenant-root-control-plane';
+  const variant = (objects) => (objects ? 'wallet-object' : 'role-store');
+  const rebuild = `ROUTER_AB_WORKER_BUILD_PROFILE=${workerBuildProfile}${
+    walletObjectBuild ? ' ROUTER_AB_WALLET_DO_HARNESS=enabled' : ''
+  } bash scripts/build-strict-worker.sh ${role}`;
+  const stampPath = join(buildRoot, 'build-stamp.json');
+  if (!existsSync(stampPath)) {
+    throw new Error(`${buildRoot} has no build stamp; rebuild it: ${rebuild}`);
+  }
+  const stamp = JSON.parse(readFileSync(stampPath, 'utf8'));
+  if (stamp.profile !== workerBuildProfile || stamp.wallet_objects !== walletObjects) {
+    throw new Error(
+      `${buildRoot} holds the ${variant(stamp.wallet_objects)} ${stamp.profile} build, and this run needs the ${variant(walletObjects)} ${workerBuildProfile} one; rebuild it: ${rebuild}`,
+    );
+  }
+  const newest = newestWorkerSource();
+  if (stamp.started_at_ms < newest.mtimeMs) {
+    throw new Error(
+      `${buildRoot} was built before ${newest.path} last changed; rebuild it: ${rebuild}`,
+    );
+  }
+  checkedWorkerBuilds.add(buildRoot);
+  console.log(
+    `worker build ${role}: ${buildRoot} (${variant(walletObjects)} ${workerBuildProfile}, started ${new Date(
+      stamp.started_at_ms,
+    ).toISOString()})`,
+  );
+}
+
 function strictWorker(name, role, bindings) {
+  const buildRoot = workerBuildRoot(role);
+  requireCurrentWorkerBuild(role, buildRoot);
   return {
     name,
     modules: true,
-    scriptPath: join(
-      packageRoot,
-      process.env.ROUTER_AB_WORKER_BUILD_PROFILE === 'dev' ? 'build/dev' : 'build',
-      role,
-      'worker/shim.mjs',
-    ),
+    scriptPath: join(buildRoot, 'worker/shim.mjs'),
     modulesRules: [
       { type: 'ESModule', include: ['**/*.js', '**/*.mjs'] },
       { type: 'CompiledWasm', include: ['**/*.wasm'] },
@@ -2445,13 +2526,17 @@ async function testTenantRootManualRefresh(router, ceremony, databases, creation
 /// swapped. The Router commits the refresh decision before any Deriver
 /// swaps, so the first attempt leaves the Router committed, A delivered and B
 /// pending. The retry delivers the exact committed receipt to B; nothing
-/// issues a second receipt.
+/// issues a second receipt. Each role's retirement grace starts when the
+/// Router records its swap: A's with the first attempt, B's with the retry.
+/// A retry after A's grace has elapsed is also the pass that erases A's
+/// epoch 1, on which nothing is unsettled.
 async function testTenantRootRefreshDeliveryAfterLoss(
   router,
   ceremony,
   databases,
   creationState,
   retryAfterMs = 0,
+  deriverAGraceElapsed = false,
 ) {
   const scope = {
     identity_digest_b64u: ceremony.identity_digest_b64u,
@@ -2532,9 +2617,16 @@ async function testTenantRootRefreshDeliveryAfterLoss(
     afterLoss.state.activation_receipt_digest_b64u,
     'the retry delivers the receipt committed by the first attempt',
   );
-  assert.deepEqual(retirementKinds(response.retirement), ['pending', 'pending'], retried.body);
+  assert.deepEqual(
+    retirementKinds(response.retirement),
+    [deriverAGraceElapsed ? 'erased' : 'pending', 'pending'],
+    retried.body,
+  );
   assert.equal(afterRetry.state.activation_receipt_digest_b64u, response.activation_receipt_digest_b64u);
-  assert.deepEqual(afterRetry.observation.deriverA, [[1, 'retired'], [2, 'active']]);
+  assert.deepEqual(
+    afterRetry.observation.deriverA,
+    deriverAGraceElapsed ? [[2, 'active']] : [[1, 'retired'], [2, 'active']],
+  );
   assert.deepEqual(afterRetry.observation.deriverB, [[1, 'retired'], [2, 'active']]);
   return {
     fault: 'deriver_b_refresh_activation_lost_after_router_commit',
@@ -3498,13 +3590,15 @@ async function testTenantRootRefreshDeliveryAfterExpiry(topology, databases) {
     creation_grant_b64u: ceremony.creation_grant_b64u,
   });
   assert.equal(created.status, 200, await created.text());
-  // Past the five-minute receipt window and context lifetime.
+  // Past the five-minute receipt window and context lifetime, and so past
+  // the grace after A's swap: this Router keeps its five-minute default.
   const summary = await testTenantRootRefreshDeliveryAfterLoss(
     router,
     ceremony,
     databases,
     creationState,
     300_000 + 10_000,
+    true,
   );
   console.log(
     JSON.stringify({ kind: 'tenant_root_refresh_delivery_after_expiry_workers_e2e_v1', ...summary }),
