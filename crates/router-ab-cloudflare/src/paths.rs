@@ -661,16 +661,15 @@ pub(crate) fn cloudflare_signing_worker_linked_device_ecdsa_finalize_service_url
 }
 
 /// Role-private staged restore refresh; never activates imported material.
-pub(crate) const CLOUDFLARE_DERIVER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH: &str =
+pub const CLOUDFLARE_DERIVER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH: &str =
     "/router-ab/internal/deriver/tenant-root/restore/v1/refresh";
 /// Role-private cleanup for one completed restore promotion.
-#[allow(dead_code)]
-pub(crate) const CLOUDFLARE_DERIVER_TENANT_ROOT_RESTORE_CLEANUP_PRIVATE_REQUEST_PATH: &str =
+pub const CLOUDFLARE_DERIVER_TENANT_ROOT_RESTORE_CLEANUP_PRIVATE_REQUEST_PATH: &str =
     "/router-ab/internal/deriver/tenant-root/restore/v1/cleanup";
 
 /// Role-private cleanup before an imported root is activated.
-pub(crate) const CLOUDFLARE_DERIVER_TENANT_ROOT_PREACTIVATION_CLEANUP_PRIVATE_REQUEST_PATH: &str =
+pub const CLOUDFLARE_DERIVER_TENANT_ROOT_PREACTIVATION_CLEANUP_PRIVATE_REQUEST_PATH: &str =
     "/router-ab/internal/deriver/tenant-root/restore/v1/preactivation-cleanup";
 /// Console-to-Router cleanup coordinator.
-pub(crate) const CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_CLEANUP_PRIVATE_REQUEST_PATH: &str =
+pub const CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_CLEANUP_PRIVATE_REQUEST_PATH: &str =
     "/router-ab/internal/tenant-root/restore/v1/cleanup";

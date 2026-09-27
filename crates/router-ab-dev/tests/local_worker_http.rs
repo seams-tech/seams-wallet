@@ -1996,6 +1996,349 @@ fn vm_tenant_root_restore_reservation_never_authorized_expires_and_frees_the_roo
     Ok(())
 }
 
+/// A tenant's recovery kit restores its root into an empty VM deployment.
+///
+/// The kit is the committed fixture set: its manifest, both role packages and
+/// the recovery trust bundle it chains to. Generating a kit on the VM waits on
+/// the retention decision (docs/refactor-150-vm-recovery-retention.md). The
+/// test stands in for the Console, signing each grant with the operator's
+/// grant key, and for the tenant, opening each role package with its recovery
+/// key and resealing the share to the destination Deriver's import key.
+///
+/// The destination is provisioned with a bootstrap authority for the root's
+/// identity and a fresh custody lineage. After the restore refresh the root is
+/// dormant: both Derivers hold pending epoch-1 shares and the Router has no
+/// active state. The operator's activation makes it active, consumes the
+/// bootstrap credential, and replays exactly. A wallet then registers on the
+/// restored root and signs a NEAR transaction.
+#[test]
+fn vm_tenant_root_recovery_kit_restores_into_an_empty_deployment_and_signs(
+) -> Result<(), Box<dyn std::error::Error>> {
+    use router_ab_core::{
+        decode_tenant_root_recovery_manifest_v1, decode_tenant_root_recovery_package_v1,
+        verify_and_open_tenant_root_recovery_role_package_v1,
+        verify_tenant_root_recovery_role_package_with_trust_v1, DestinationBootstrapAuthorityV1,
+        ExpectedTenantRootRestoreImportV1, TenantRootLifecycleReceiptDigestV1,
+        TenantRootProtocolDigestV1, TenantRootRecoveryRecipientKeypairV1,
+        TenantRootRecoveryTrustBundleV1, TenantRootRecoveryTrustEvidenceV1,
+        TenantRootRestoreAuthorizationNonceV1, TenantRootRestoreDestinationFingerprintV1,
+        TenantRootRestoreImportEnvelopeV1, TenantRootRestoreImportPublicKeyV1,
+        TenantRootRestoreRefreshGrantV1, TenantRootRestoreRoleImportGrantV1,
+        TenantRootRestoreSessionIdV1, TwoPartyDeriverRole,
+    };
+    let _process_guard = local_worker_process_test_guard();
+    let b64u = |bytes: &[u8]| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
+    let unb64u = |text: &str| base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(text);
+    let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../router-ab-core/tests/fixtures/tenant-root-recovery");
+    let manifest_bytes = fs::read(fixtures.join("manifest.json"))?;
+    let manifest = decode_tenant_root_recovery_manifest_v1(&manifest_bytes)?;
+    let manifest_b64u = b64u(&manifest_bytes);
+    let trust_bundle_json = fs::read_to_string(fixtures.join("trust-bundle.json"))?;
+    let trust_bundle =
+        TenantRootRecoveryTrustBundleV1::from_canonical_json(trust_bundle_json.trim().as_bytes())?;
+    let identity =
+        TenantRootIdentityV1::new("org-1", "project-2", "production", "root-main", "v3")?;
+    assert_eq!(manifest.descriptor().tenant_root_identity_digest(), identity.digest()?);
+
+    // The operator provisions an empty destination for this root.
+    let mut rng = rand_core_09::UnwrapErr(rand_core_09::OsRng);
+    let lineage = TenantRootCustodyLineageId::from_bytes(fresh_nonzero_bytes_16()?)?;
+    let lineage_b64u = b64u(lineage.as_bytes());
+    let fingerprint = TenantRootRestoreDestinationFingerprintV1::from_bytes(fresh_nonzero_bytes_32()?)?;
+    let (bootstrap_authority, bootstrap_token) =
+        DestinationBootstrapAuthorityV1::initialize(fingerprint, &mut rng)?;
+    let bootstrap_token_b64u = b64u(bootstrap_token.expose_once());
+    let identity_b64u = b64u(&identity.canonical_bytes()?);
+    let bootstrap_record = json!({
+        "identity_b64u": identity_b64u,
+        "deployment_fingerprint_b64u": b64u(fingerprint.as_bytes()),
+        "custody_lineage_b64u": lineage_b64u,
+        "token_digest_b64u": b64u(bootstrap_authority.token_digest()),
+    })
+    .to_string();
+    let stack = RecoveryStackV1::start_with_envs(
+        "vm-tenant-root-recovery-kit-restore",
+        &[("TENANT_ROOT_DESTINATION_BOOTSTRAP_JSON", bootstrap_record.as_str())],
+        &[("TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON", trust_bundle_json.trim())],
+    )?;
+    let router = |path: &str, body: &serde_json::Value, headers: &[(&str, &str)]| {
+        let mut all = vec![(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)];
+        all.extend_from_slice(headers);
+        post_json_to_path_with_headers(&stack.router_url, path, body, &all)
+    };
+    let bootstrap_path =
+        router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_PRIVATE_REQUEST_PATH;
+    let token_header =
+        router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_TOKEN_HEADER_V1;
+    let authenticate = json!({
+        "kind": "authenticate",
+        "identity_b64u": identity_b64u,
+        "deployment_fingerprint_b64u": b64u(fingerprint.as_bytes()),
+        "custody_lineage_b64u": lineage_b64u,
+    });
+
+    // The Console reads the destination, then authenticates with its credential.
+    let (read_status, read_body) = router(
+        bootstrap_path,
+        &json!({ "kind": "read", "identity_b64u": identity_b64u, "custody_lineage_b64u": lineage_b64u }),
+        &[],
+    )?;
+    assert_eq!(read_status, 200, "{read_body}");
+    assert!(read_body.contains("\"read_ready\""), "{read_body}");
+    let (wrong_status, wrong_body) =
+        router(bootstrap_path, &authenticate, &[(token_header, &b64u(&fresh_nonzero_bytes_32()?))])?;
+    assert_eq!(wrong_status, 200, "{wrong_body}");
+    assert!(wrong_body.contains("authentication_failed"), "{wrong_body}");
+    let (auth_status, auth_body) =
+        router(bootstrap_path, &authenticate, &[(token_header, &bootstrap_token_b64u)])?;
+    assert_eq!(auth_status, 200, "{auth_body}");
+    assert!(auth_body.contains("\"authenticated\""), "{auth_body}");
+
+    // The manifest registers against the destination's recovery trust.
+    let (manifest_status, manifest_body) = router(
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REGISTER_MANIFEST_PRIVATE_REQUEST_PATH,
+        &json!({ "manifest_b64u": manifest_b64u }),
+        &[],
+    )?;
+    assert_eq!(manifest_status, 200, "{manifest_body}");
+
+    // Each role imports its share: the Console grants an import key, the
+    // tenant reseals the opened share to it, and the Deriver accepts it.
+    let operator = stack.temp.join(router_ab_dev::LOCAL_TENANT_ROOT_OPERATOR_ENV_FILE_V1);
+    let grant_key_id = env_value(&operator, router_ab_dev::LOCAL_TENANT_ROOT_GRANT_KEY_ID_ENV_V1)?;
+    let grant_seed: [u8; 32] = unb64u(&env_value(
+        &operator,
+        router_ab_dev::LOCAL_TENANT_ROOT_GRANT_SIGNING_KEY_ENV_V1,
+    )?)?
+    .try_into()
+    .map_err(|_| "operator grant key must be 32 bytes")?;
+    let restore_session_id = TenantRootRestoreSessionIdV1::from_bytes(fresh_nonzero_bytes_16()?)?;
+    let manifest_digest = manifest.digest()?;
+    let now_ms = || -> Result<u64, Box<dyn std::error::Error>> {
+        Ok(u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?)
+    };
+    let mut acceptance = Vec::new();
+    for (role, key_material, package_file) in [
+        (TwoPartyDeriverRole::DeriverA, [0xa1_u8; 32], "deriver-a.backup"),
+        (TwoPartyDeriverRole::DeriverB, [0xb1_u8; 32], "deriver-b.backup"),
+    ] {
+        let issued_at_ms = now_ms()? - 1_000;
+        let grant = TenantRootRestoreRoleImportGrantV1::sign(
+            TenantRootProtocolDigestV1::from_bytes(fresh_nonzero_bytes_32()?)?,
+            identity.digest()?,
+            fingerprint,
+            lineage,
+            restore_session_id,
+            manifest_digest,
+            role,
+            format!("vm-restore-import-{}", role.as_str()),
+            1,
+            TenantRootRestoreAuthorizationNonceV1::from_bytes(fresh_nonzero_bytes_32()?)?,
+            issued_at_ms,
+            issued_at_ms + TENANT_ROOT_MAX_LIFETIME_MS_V1,
+            grant_key_id.clone(),
+            &grant_seed,
+        )?;
+        let import_request = json!({
+            "restore_grant_b64u": b64u(&grant.canonical_bytes()?),
+            "manifest_b64u": manifest_b64u,
+        });
+        let (key_status, key_body) = router(
+            router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_ROLE_IMPORT_KEY_PRIVATE_REQUEST_PATH,
+            &import_request,
+            &[],
+        )?;
+        assert_eq!(key_status, 200, "{key_body}");
+        let import_key: serde_json::Value = serde_json::from_str(&key_body)?;
+        assert_eq!(
+            router(
+                router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_ROLE_IMPORT_KEY_PRIVATE_REQUEST_PATH,
+                &import_request,
+                &[],
+            )?,
+            (key_status, key_body.clone()),
+            "an import-key retry returns the same key"
+        );
+
+        let package = decode_tenant_root_recovery_package_v1(&fs::read(fixtures.join(package_file))?)?;
+        let trust = verify_tenant_root_recovery_role_package_with_trust_v1(
+            &manifest,
+            &package,
+            &trust_bundle,
+            &TenantRootRecoveryTrustEvidenceV1::OfflineRootsOnly,
+        )?;
+        let source = verify_and_open_tenant_root_recovery_role_package_v1(
+            &manifest,
+            &package,
+            &TenantRootRecoveryRecipientKeypairV1::derive_from_ikm(key_material)?,
+            trust.trusted_verifying_keys(),
+        )?;
+        let expected = ExpectedTenantRootRestoreImportV1::from_verified_source(
+            &source,
+            fingerprint,
+            lineage,
+            restore_session_id,
+            import_key["import_key_id"].as_str().ok_or("an import key has an id")?,
+            TenantRootRestoreImportPublicKeyV1::from_bytes(
+                unb64u(import_key["import_public_key_b64u"].as_str().ok_or("an import key has a public key")?)?
+                    .try_into()
+                    .map_err(|_| "an import public key is 32 bytes")?,
+            )?,
+            import_key["issued_at_ms"].as_u64().ok_or("an import key has an issue time")?,
+            import_key["expires_at_ms"].as_u64().ok_or("an import key has an expiry")?,
+        )?;
+        let envelope = TenantRootRestoreImportEnvelopeV1::seal(&source, &expected, &mut rng)?;
+        let (accept_status, accept_body) = router(
+            router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_ROLE_IMPORT_ACCEPT_PRIVATE_REQUEST_PATH,
+            &json!({
+                "restore_grant_b64u": b64u(&grant.canonical_bytes()?),
+                "manifest_b64u": manifest_b64u,
+                "import_envelope_b64u": b64u(&envelope.to_bytes()?),
+            }),
+            &[],
+        )?;
+        assert_eq!(accept_status, 200, "{accept_body}");
+        let accepted: serde_json::Value = serde_json::from_str(&accept_body)?;
+        acceptance.push(TenantRootLifecycleReceiptDigestV1::from_bytes(
+            unb64u(accepted["receipt_digest_b64u"].as_str().ok_or("an acceptance has a receipt")?)?
+                .try_into()
+                .map_err(|_| "an acceptance receipt digest is 32 bytes")?,
+        )?);
+    }
+
+    // The restore refresh leaves the root dormant.
+    let issued_at_ms = now_ms()? - 1_000;
+    let refresh_grant = TenantRootRestoreRefreshGrantV1::sign(
+        TenantRootProtocolDigestV1::from_bytes(fresh_nonzero_bytes_32()?)?,
+        identity.digest()?,
+        fingerprint,
+        lineage,
+        restore_session_id,
+        manifest_digest,
+        acceptance[0],
+        acceptance[1],
+        TenantRootRestoreAuthorizationNonceV1::from_bytes(fresh_nonzero_bytes_32()?)?,
+        issued_at_ms,
+        issued_at_ms + TENANT_ROOT_MAX_LIFETIME_MS_V1,
+        grant_key_id.clone(),
+        &grant_seed,
+    )?;
+    let restore_request = json!({
+        "restore_refresh_grant_b64u": b64u(&refresh_grant.canonical_bytes()?),
+        "manifest_b64u": manifest_b64u,
+    });
+    let (refresh_status, refresh_body) = router(
+        router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH,
+        &restore_request,
+        &[],
+    )?;
+    assert_eq!(refresh_status, 200, "{refresh_body}");
+    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
+    let pending_epochs = stack.epochs(&lineage_b64u)?;
+    assert_eq!(pending_epochs, (vec![epoch(1, "pending")], vec![epoch(1, "pending")]));
+    assert!(stack.active_state(&lineage_b64u).is_err(), "a dormant root has no active state");
+
+    // The operator activates it; the bootstrap credential is consumed.
+    let activation_path =
+        router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_ACTIVATION_PRIVATE_REQUEST_PATH;
+    let (activation_status, activation_body) = router(activation_path, &restore_request, &[])?;
+    assert_eq!(activation_status, 200, "{activation_body}");
+    let activation: serde_json::Value = serde_json::from_str(&activation_body)?;
+    assert_eq!(activation["activated_epoch"], 1);
+    assert_eq!(activation["destination_lineage_id"], lineage_b64u.as_str());
+    let (retry_status, retry_body) = router(activation_path, &restore_request, &[])?;
+    assert_eq!(retry_status, 200, "{retry_body}");
+    let retried: serde_json::Value = serde_json::from_str(&retry_body)?;
+    assert_eq!(
+        retried["activation_receipt_digest_b64u"],
+        activation["activation_receipt_digest_b64u"]
+    );
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?,
+        (vec![epoch(1, "active")], vec![epoch(1, "active")])
+    );
+    let (destroyed_status, destroyed_body) =
+        router(bootstrap_path, &authenticate, &[(token_header, &bootstrap_token_b64u)])?;
+    assert_eq!(destroyed_status, 200, "{destroyed_body}");
+    assert!(destroyed_body.contains("\"destroyed\""), "{destroyed_body}");
+
+    // Activation closed both import sessions. Cleanup retried as though the
+    // activation reply was lost asks both Derivers again, and each returns
+    // the receipt it gave the first time.
+    assert_eq!(activation["cleanup"]["roles"]["kind"], "complete");
+    let (cleanup_status, cleanup_body) = router(
+        router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_CLEANUP_PRIVATE_REQUEST_PATH,
+        &json!({
+            "kind": "post_activation",
+            "activation_receipt_b64u": activation["activation_receipt_b64u"],
+            "cleanup": {
+                "bootstrap": activation["cleanup"]["bootstrap"],
+                "roles": {
+                    "kind": "both_roles_incomplete",
+                    "outstanding": {
+                        "roles": ["deriver_a", "deriver_b"],
+                        "description": "the activation reply was lost",
+                    },
+                },
+            },
+        }),
+        &[],
+    )?;
+    assert_eq!(cleanup_status, 200, "{cleanup_body}");
+    let cleanup: serde_json::Value = serde_json::from_str(&cleanup_body)?;
+    assert_eq!(cleanup["roles"], activation["cleanup"]["roles"]);
+    assert_eq!(cleanup["bootstrap"], activation["cleanup"]["bootstrap"]);
+
+    // A wallet registers on the restored root and signs.
+    let signing_worker = stack.start_signing_worker()?;
+    let signing_worker =
+        stack.register_and_sign(signing_worker, &identity, &lineage_b64u, "account-restored-kit")?;
+    assert_eq!(stack.admissions(&lineage_b64u)?, (vec![1], vec![1]));
+
+    // The restored root refreshes, and a second wallet signs on its new epoch.
+    let (revision, _, _) = stack.active_state(&lineage_b64u)?;
+    let (root_refresh_status, root_refresh_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-restored-kit", revision)?;
+    assert_eq!(root_refresh_status, 200, "{root_refresh_body}");
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?,
+        (
+            vec![epoch(1, "retired"), epoch(2, "active")],
+            vec![epoch(1, "retired"), epoch(2, "active")]
+        )
+    );
+    let signing_worker = stack.register_and_sign(
+        signing_worker,
+        &identity,
+        &lineage_b64u,
+        "account-restored-kit-refreshed",
+    )?;
+    assert_eq!(stack.admissions(&lineage_b64u)?, (vec![1, 2], vec![1, 2]));
+    drop(signing_worker);
+
+    println!(
+        "R150_VM_TENANT_ROOT_RECOVERY_KIT_RESTORE_E2E {}",
+        json!({
+            "kit": "committed fixture manifest, packages and trust bundle",
+            "bootstrap": { "read": read_status, "wrong_credential": "authentication_failed", "authenticated": true },
+            "manifest_registered": manifest_status,
+            "roles_imported": ["deriver_a", "deriver_b"],
+            "import_key_retry_identical": true,
+            "dormant_after_refresh": { "deriver_a": [[1, "pending"]], "deriver_b": [[1, "pending"]], "router_active_state": false },
+            "activation": { "status": activation_status, "epoch": 1, "retry_identical": true },
+            "bootstrap_after_activation": "destroyed",
+            "cleanup_retry_after_lost_reply": [cleanup_status, "same receipts from both Derivers"],
+            "epochs_after_activation": { "deriver_a": [[1, "active"]], "deriver_b": [[1, "active"]] },
+            "signed_on_restored_root": true,
+            "refresh_after_restore": [root_refresh_status, { "deriver_a": [[1, "retired"], [2, "active"]], "deriver_b": [[1, "retired"], [2, "active"]] }],
+            "signed_after_refresh": true,
+            "admissions": { "deriver_a": [1, 2], "deriver_b": [1, 2] },
+        })
+    );
+    Ok(())
+}
+
 /// Work admitted before a refresh finishes on the epoch it started with. A
 /// registration is admitted and prepared while epoch 1 is active, then held
 /// before Deriver A reads it. A manual refresh then commits epoch 2 and both
@@ -3104,6 +3447,16 @@ impl RecoveryStackV1 {
         label: &str,
         router_env: &[(&str, &str)],
     ) -> Result<Self, Box<dyn std::error::Error>> {
+        Self::start_with_envs(label, router_env, &[])
+    }
+
+    /// Starts the stack with extra settings in the Router's and the control
+    /// plane's env files.
+    fn start_with_envs(
+        label: &str,
+        router_env: &[(&str, &str)],
+        control_plane_env: &[(&str, &str)],
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
         let temp = temp_dir(label)?;
         let router_url = format!("http://127.0.0.1:{}", free_port()?);
@@ -3150,6 +3503,15 @@ impl RecoveryStackV1 {
                 contents.push_str(&format!("\n{key}={value}"));
             }
             fs::write(&router_env_path, contents)?;
+        }
+        if !control_plane_env.is_empty() {
+            let control_plane_env_path =
+                temp.join(router_ab_dev::LOCAL_TENANT_ROOT_CONTROL_PLANE_ENV_FILE_V1);
+            let mut contents = fs::read_to_string(&control_plane_env_path)?;
+            for (key, value) in control_plane_env {
+                contents.push_str(&format!("\n{key}={value}"));
+            }
+            fs::write(&control_plane_env_path, contents)?;
         }
         route_env_through_proxies(
             &temp.join(router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1),
@@ -3232,7 +3594,7 @@ impl RecoveryStackV1 {
             application: RouterAbEd25519YaoApplicationBindingFactsV1::new(
                 wallet_id,
                 "ed25519ks_product_benchmark",
-                "project:local",
+                identity.signing_root_id(),
                 1,
             )?,
             participant_ids: [1, 2],

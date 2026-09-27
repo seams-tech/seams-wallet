@@ -95,6 +95,14 @@ pub use tenant_root_role_d1::*;
 // Tenant-root creation, shared by every host. The Cloudflare Workers wrap
 // these with Worker bindings; the VM reference (router-ab-dev) implements the
 // same host traits with ordinary processes and role-private SQLite.
+pub use env::{
+    parse_cloudflare_tenant_root_recovery_trust_bundle_v1,
+    parse_cloudflare_tenant_root_recovery_trust_snapshot_v1,
+};
+pub use tenant_root_control_plane::{
+    control_plane_register_manifest_v1, control_plane_restore_initial_activation_v1,
+    control_plane_restore_refresh_commands_v1, control_plane_restore_role_import_key_v1,
+};
 pub use durable_object::tenant_root_creation::{
     tenant_root_creation_active_state_with_revision_read_call_v1,
     tenant_root_creation_cleanup_call_v1, tenant_root_creation_journal_call_v1,
@@ -155,7 +163,20 @@ pub use tenant_root_role_runtime::{
     CloudflareDeriverTenantRootInitialActivationResponseV1, CloudflareTenantRootCreateRoleV1,
     CloudflareDeriverTenantRootCleanupRequestV1, CloudflareDeriverTenantRootCleanupResponseV1,
     TenantRootDeriverHostV1,
+    tenant_root_deriver_restore_preactivation_cleanup_v1,
+    tenant_root_deriver_restore_refresh_promotion_v1,
+    tenant_root_deriver_restore_role_import_accept_v1,
+    tenant_root_deriver_restore_role_import_key_v1,
+    tenant_root_deriver_restore_session_cleanup_v1,
+    CloudflareDeriverTenantRootPreactivationCleanupRequestV1,
+    CloudflareDeriverTenantRootRestoreRoleImportAcceptRequestV1,
+    CloudflareDeriverTenantRootRestoreRoleImportKeyRequestV1,
+    CloudflareDeriverTenantRootRestoreSessionCleanupRequestV1,
 };
+pub use tenant_root_restore_refresh_runtime::{
+    tenant_root_deriver_restore_refresh_v1, CloudflareDeriverTenantRootRestoreRefreshRequestV1,
+};
+pub use durable_object::tenant_root_creation::CloudflareTenantRootDestinationBootstrapRequestV1;
 mod tenant_root_creation_coordinator;
 pub use tenant_root_creation_coordinator::{
     tenant_root_router_coordinate_creation_v1, tenant_root_router_sweep_abandoned_creation_v1,
@@ -166,6 +187,15 @@ pub use tenant_root_managed_restore_coordinator::{
     tenant_root_router_coordinate_managed_restore_v1,
     CloudflareRouterTenantRootManagedRestoreRequestV1,
     TENANT_ROOT_MANAGED_RESTORE_REQUEST_MAX_BYTES_V1,
+};
+mod tenant_root_restore_coordinator;
+pub use tenant_root_restore_coordinator::{
+    tenant_root_router_destination_bootstrap_v1, tenant_root_router_register_manifest_v1,
+    tenant_root_router_restore_activation_v1, tenant_root_router_restore_cleanup_v1,
+    tenant_root_router_restore_refresh_v1, tenant_root_router_restore_role_import_accept_v1,
+    tenant_root_router_restore_role_import_key_v1,
+    CloudflareRouterTenantRootRestoreCleanupRequestV1,
+    CloudflareRouterTenantRootRestoreRoleImportAcceptRequestV1,
 };
 mod tenant_root_refresh_coordinator;
 pub use tenant_root_refresh_coordinator::{
@@ -215,6 +245,11 @@ pub use tenant_root_control_plane::{
     CloudflareTenantRootControlPlaneRegisterManifestResponseV1,
     CloudflareTenantRootControlPlaneRestoreRoleImportKeyRequestV1,
     CloudflareTenantRootControlPlaneRestoreRoleImportKeyResponseV1,
+    CloudflareTenantRootControlPlaneRestoreRefreshCommandsRequestV1,
+    CloudflareTenantRootControlPlaneRestoreRefreshCommandsResponseV1,
+    CloudflareTenantRootControlPlaneRestoreInitialActivationRequestV1,
+    TENANT_ROOT_CONTROL_PLANE_RESTORE_REFRESH_COMMANDS_REQUEST_MAX_BYTES_V1,
+    TENANT_ROOT_CONTROL_PLANE_RESTORE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
     CloudflareTenantRootControlPlaneRoleCreationCommandRequestV1,
     CloudflareTenantRootControlPlaneRoleCreationCommandResponseV1,
     CloudflareTenantRootControlPlaneRoleV1, CloudflareTenantRootCreationStatusV1,
@@ -234,7 +269,6 @@ mod tenant_root_google_kms;
     all(test, feature = "workers-rs")
 ))]
 mod tenant_root_recovery_runtime;
-#[cfg(feature = "workers-rs")]
 mod tenant_root_restore_refresh_runtime;
 #[allow(dead_code)]
 #[cfg_attr(not(feature = "workers-rs"), allow(unused_imports))]
@@ -268,7 +302,6 @@ pub use env::*;
 use env::{
     parse_cloudflare_custody_authority_verifiers_v1,
     parse_cloudflare_operations_incident_verifier_v1,
-    parse_cloudflare_tenant_root_creation_grant_authority_verifying_keys_v1,
     DERIVER_A_FORBIDDEN_ENV_KEYS,
     DERIVER_B_FORBIDDEN_ENV_KEYS, ROUTER_FORBIDDEN_ENV_KEYS, SIGNING_WORKER_FORBIDDEN_ENV_KEYS,
 };

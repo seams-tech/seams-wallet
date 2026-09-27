@@ -1,7 +1,8 @@
 # R150: recovery-package retention on the VM
 
 Status: decision needed, 2026-09-27. Restore into an empty destination does
-not depend on it and proceeds meanwhile.
+not depend on it. It is served on the VM and proven from a recovery kit
+(`vm_tenant_root_recovery_kit_restores_into_an_empty_deployment_and_signs`).
 
 ## The question
 

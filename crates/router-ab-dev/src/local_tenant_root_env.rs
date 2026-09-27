@@ -74,11 +74,15 @@ pub(crate) fn local_tenant_root_env_lines_v1(
         verifying_hex(role_a),
         verifying_hex(role_b)
     );
+    // Every role verifies operator grants, as on Cloudflare: the control plane
+    // for creation and restore, and the Router and Derivers for restore cleanup.
     let published = format!(
         "TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON={issuer_keys_json}\n\
+         TENANT_ROOT_CONTROL_PLANE_GRANT_AUTHORITY_VERIFYING_KEYS_JSON={{\"keys\":[{{\"issuer_key_id\":\"{GRANT_KEY_ID}\",\"verifying_key_hex\":\"{grant_public}\"}}]}}\n\
          ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON={role_keys_json}\n\
          DERIVER_A_PEER_VERIFYING_KEY_HEX={peer_a}\n\
-         DERIVER_B_PEER_VERIFYING_KEY_HEX={peer_b}\n"
+         DERIVER_B_PEER_VERIFYING_KEY_HEX={peer_b}\n",
+        grant_public = verifying_hex(grant),
     );
 
     let router = published.clone();
@@ -129,7 +133,6 @@ pub(crate) fn local_tenant_root_env_lines_v1(
          TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY_BINDING=TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY\n\
          TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY_ID={ISSUER_KEY_ID}\n\
          TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY={issuer_secret}\n\
-         TENANT_ROOT_CONTROL_PLANE_GRANT_AUTHORITY_VERIFYING_KEYS_JSON={{\"keys\":[{{\"issuer_key_id\":\"{GRANT_KEY_ID}\",\"verifying_key_hex\":\"{grant_public}\"}}]}}\n\
          OPERATIONS_INCIDENT_VERIFYING_KEY_HEX={operations_public}\n\
          DERIVER_A_CUSTODY_AUTHORITY_VERIFYING_KEY_HEX={custody_a_public}\n\
          DERIVER_B_CUSTODY_AUTHORITY_VERIFYING_KEY_HEX={custody_b_public}\n\
@@ -137,7 +140,6 @@ pub(crate) fn local_tenant_root_env_lines_v1(
          LOCAL_ROUTER_PRIVATE_URL={ROUTER_DEFAULT_URL}\n\
          LOCAL_TENANT_ROOT_CONTROL_PLANE_URL={LOCAL_TENANT_ROOT_CONTROL_PLANE_DEFAULT_URL_V1}\n",
         issuer_secret = b64u(&issuer),
-        grant_public = verifying_hex(grant),
         operations_public = verifying_hex(operations),
         custody_a_public = verifying_hex(custody_a),
         custody_b_public = verifying_hex(custody_b),

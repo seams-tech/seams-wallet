@@ -252,8 +252,10 @@ pub(super) async fn handle_strict_tenant_root_control_plane_fetch_v1(
                     Ok(value) => value,
                     Err(err) => return cloudflare_protocol_error_response_v1(err),
                 };
-            match handle_cloudflare_tenant_root_control_plane_register_manifest_v1(parsed, &env)
-                .await
+            match handle_cloudflare_tenant_root_control_plane_register_manifest_v1(
+                parsed, &env, &runtime,
+            )
+            .await
             {
                 Ok(response) => Response::from_json(&response),
                 Err(err) => cloudflare_protocol_error_response_v1(err),

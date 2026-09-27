@@ -235,6 +235,8 @@ pub struct LocalDevHttpRequestPartsV1 {
     pub internal_service_auth: Option<String>,
     /// Raw Gateway replay header (`x-seams-yao-replay`), when present.
     pub yao_replay: Option<String>,
+    /// The destination bootstrap credential a restore presents, when present.
+    pub destination_bootstrap_token: Option<String>,
     pub body: Vec<u8>,
 }
 
@@ -278,6 +280,10 @@ pub fn read_local_dev_http_request_v1(
         headers,
         router_ab_cloudflare::ROUTER_ED25519_YAO_REPLAY_HEADER_V1,
     );
+    let destination_bootstrap_token = local_dev_http_named_header_v1(
+        headers,
+        router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_TOKEN_HEADER_V1,
+    );
     let content_length = local_dev_http_content_length_v1(headers)?;
     let body_start = header_end + 4;
     while request.len() < body_start + content_length {
@@ -296,6 +302,7 @@ pub fn read_local_dev_http_request_v1(
         authorization,
         internal_service_auth,
         yao_replay,
+        destination_bootstrap_token,
         body: request[body_start..body_start + content_length].to_vec(),
     })
 }
@@ -506,6 +513,7 @@ mod tests {
             authorization: None,
             internal_service_auth: Some(config.gateway_to_router_auth.clone()),
             yao_replay: None,
+            destination_bootstrap_token: None,
             body: Vec::new(),
         }
     }

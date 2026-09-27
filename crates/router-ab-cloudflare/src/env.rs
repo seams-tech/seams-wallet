@@ -2190,7 +2190,7 @@ pub(crate) fn parse_cloudflare_custody_authority_verifiers_v1(
 }
 
 /// Parses the trusted grant-authority set from Env.
-pub(crate) fn parse_cloudflare_tenant_root_creation_grant_authority_verifying_keys_v1(
+pub fn parse_cloudflare_tenant_root_creation_grant_authority_verifying_keys_v1(
     env: &impl CloudflareEnvReaderV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationGrantAuthorityVerifyingKeysV1> {
     CloudflareTenantRootCreationGrantAuthorityVerifyingKeysV1::decode(&read_required_raw_env_text(
@@ -2627,7 +2627,7 @@ fn read_required_raw_env_text(
 /// control-plane startup: deployments that only run operational rotation can
 /// remain configured without recovery roots, while a recovery request still
 /// fails closed when the roots are absent or malformed.
-pub(crate) fn parse_cloudflare_tenant_root_recovery_trust_bundle_v1(
+pub fn parse_cloudflare_tenant_root_recovery_trust_bundle_v1(
     env: &impl CloudflareEnvReaderV1,
 ) -> RouterAbProtocolResult<TenantRootRecoveryTrustBundleV1> {
     let bundle_json = read_required_raw_env_text(env, TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON_ENV)?;
@@ -2642,7 +2642,7 @@ pub(crate) fn parse_cloudflare_tenant_root_recovery_trust_bundle_v1(
     })
 }
 
-pub(crate) fn parse_cloudflare_tenant_root_recovery_trust_snapshot_v1(
+pub fn parse_cloudflare_tenant_root_recovery_trust_snapshot_v1(
     env: &impl CloudflareEnvReaderV1,
 ) -> RouterAbProtocolResult<Option<TenantRootRecoveryRevocationSnapshotV1>> {
     let Some(json) = env.get_text(TENANT_ROOT_RECOVERY_TRUST_SNAPSHOT_JSON_ENV)? else {

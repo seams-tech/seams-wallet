@@ -1,14 +1,4 @@
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 use rand_core_06::SeedableRng;
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 use router_ab_core::{
     RouterAbDerivationError, TenantRootCeremonyContextV1, TenantRootRefreshContributionAadV1,
     TenantRootRefreshHpkeKeypairV1, TenantRootRestoreRefreshRoleCommandV1,
@@ -16,50 +6,18 @@ use router_ab_core::{
     TwoPartyDeriverRole, VerifiedTenantRootRefreshCommitmentPairV1,
     VerifiedTenantRootRestoreRefreshRoleCommandV1,
 };
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 use sha2::{Digest, Sha256};
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 use zeroize::Zeroizing;
 
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 use crate::env::TenantRootCreationRoleVerifyingKeysV1;
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
-use crate::tenant_root_role_d1::{
-    CloudflareTenantRootRestoreImportKeyRecordV1, CloudflareTenantRootRoleShareStoreV1,
-};
+use crate::tenant_root_role_d1::CloudflareTenantRootRestoreImportKeyRecordV1;
 use crate::tenant_root_role_runtime::CloudflareTenantRootCreateRoleV1;
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 use crate::tenant_root_role_runtime::RefreshHpkeReplayRng;
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 use crate::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) enum CloudflareDeriverTenantRootRestoreRefreshRequestV1 {
+pub enum CloudflareDeriverTenantRootRestoreRefreshRequestV1 {
     Prepare {
         role_refresh_command_b64u: String,
     },
@@ -81,11 +39,6 @@ pub(crate) enum CloudflareDeriverTenantRootRestoreRefreshRequestV1 {
     },
 }
 
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 impl CloudflareDeriverTenantRootRestoreRefreshRequestV1 {
     fn command_b64u(&self) -> &str {
         match self {
@@ -110,7 +63,7 @@ impl CloudflareDeriverTenantRootRestoreRefreshRequestV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub(crate) enum CloudflareDeriverTenantRootRestoreRefreshResponseV1 {
+pub enum CloudflareDeriverTenantRootRestoreRefreshResponseV1 {
     Prepared {
         role: CloudflareTenantRootCreateRoleV1,
         command_digest_b64u: String,
@@ -149,11 +102,6 @@ impl CloudflareDeriverTenantRootRestoreRefreshResponseV1 {
     }
 }
 
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 fn derivation_error(error: RouterAbDerivationError) -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::MalformedWirePayload,
@@ -161,11 +109,6 @@ fn derivation_error(error: RouterAbDerivationError) -> RouterAbProtocolError {
     )
 }
 
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 fn storage_error(error: impl core::fmt::Display) -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::InvalidLifecycleState,
@@ -173,20 +116,10 @@ fn storage_error(error: impl core::fmt::Display) -> RouterAbProtocolError {
     )
 }
 
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 fn binding_error(message: &'static str) -> RouterAbProtocolError {
     RouterAbProtocolError::new(RouterAbProtocolErrorCode::ForbiddenLocalBinding, message)
 }
 
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 fn decode_wire(value: &str) -> RouterAbProtocolResult<Vec<u8>> {
     if value.len() > 32 * 1024 {
         return Err(binding_error(
@@ -202,11 +135,6 @@ fn decode_wire(value: &str) -> RouterAbProtocolResult<Vec<u8>> {
     Ok(bytes)
 }
 
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 fn protocol_role(
     worker_role: crate::CloudflareWorkerRoleV1,
 ) -> RouterAbProtocolResult<TwoPartyDeriverRole> {
@@ -217,11 +145,6 @@ fn protocol_role(
     }
 }
 
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 fn verify_pair(
     context: &TenantRootCeremonyContextV1,
     role: TwoPartyDeriverRole,
@@ -262,11 +185,6 @@ fn verify_pair(
     VerifiedTenantRootRefreshCommitmentPairV1::new(a, b).map_err(derivation_error)
 }
 
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 fn contribution_aad(
     pair: &VerifiedTenantRootRefreshCommitmentPairV1,
     source: TwoPartyDeriverRole,
@@ -278,11 +196,6 @@ fn contribution_aad(
     .map_err(derivation_error)
 }
 
-#[cfg(any(
-    feature = "strict-worker-deriver-a-entrypoint",
-    feature = "strict-worker-deriver-b-entrypoint",
-    all(test, feature = "workers-rs")
-))]
 fn validate_import_binding(
     record: &CloudflareTenantRootRestoreImportKeyRecordV1,
     command: &VerifiedTenantRootRestoreRefreshRoleCommandV1,
@@ -316,6 +229,29 @@ pub(crate) async fn handle_restore_refresh(
     request: CloudflareDeriverTenantRootRestoreRefreshRequestV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRestoreRefreshResponseV1> {
+    tenant_root_deriver_restore_refresh_v1(
+        &crate::tenant_root_role_runtime::CloudflareTenantRootDeriverHostV1::new(
+            env,
+            worker_role,
+            None,
+        ),
+        request,
+        now_ms,
+    )
+    .await
+}
+
+/// Runs one phase of a restore refresh at this Deriver: prepare, contribute
+/// and finalize over the tenant's imported share, or promote the finalized
+/// share into the role's epoch-one provider.
+pub async fn tenant_root_deriver_restore_refresh_v1<
+    Host: crate::tenant_root_role_runtime::TenantRootDeriverHostV1,
+>(
+    host: &Host,
+    request: CloudflareDeriverTenantRootRestoreRefreshRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRestoreRefreshResponseV1> {
+    let worker_role = host.worker_role();
     let role = protocol_role(worker_role)?;
     if let CloudflareDeriverTenantRootRestoreRefreshRequestV1::Promote {
         identity,
@@ -323,9 +259,8 @@ pub(crate) async fn handle_restore_refresh(
         authority_id_b64u,
     } = &request
     {
-        let response = crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_restore_refresh_promotion_v1(
-            env,
-            worker_role,
+        let response = crate::tenant_root_role_runtime::tenant_root_deriver_restore_refresh_promotion_v1(
+            host,
             identity.clone(),
             role_refresh_command_b64u.clone(),
             authority_id_b64u.clone(),
@@ -348,9 +283,9 @@ pub(crate) async fn handle_restore_refresh(
     let command_bytes = decode_wire(request.command_b64u())?;
     let raw = TenantRootRestoreRefreshRoleCommandV1::decode_canonical_bytes(&command_bytes)
         .map_err(derivation_error)?;
-    let reader = crate::CloudflareWorkerEnvReaderV1::new(env);
+    let reader = host.env();
     let issuer_keys =
-        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(&reader)?;
+        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(reader)?;
     let issuer_key = issuer_keys
         .for_issuer_key_id(raw.issuer_key_id())
         .ok_or_else(|| binding_error("restore refresh issuer is not trusted"))?;
@@ -366,15 +301,15 @@ pub(crate) async fn handle_restore_refresh(
     let command_digest = *command.digest().as_bytes();
     let command_digest_b64u = crate::encode_base64url_bytes_v1(&command_digest);
     let response_role = CloudflareTenantRootCreateRoleV1::from_protocol(role);
-    let keys = crate::env::parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(&reader)?;
+    let keys = crate::env::parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(reader)?;
     let (_, signer) =
-        crate::env::load_cloudflare_tenant_root_creation_role_signing_key_v1(env, worker_role)?;
+        crate::env::load_tenant_root_creation_role_signing_key_v1(worker_role, host.env())?;
     if context.signing_key_id(role) != signer.signing_key_id() {
         return Err(binding_error(
             "restore refresh context does not name the local role signer",
         ));
     }
-    let store = CloudflareTenantRootRoleShareStoreV1::from_env(env).map_err(storage_error)?;
+    let store = host.role_store().map_err(storage_error)?;
     if store
         .restore_import_session_is_closed(
             command.identity_digest(),

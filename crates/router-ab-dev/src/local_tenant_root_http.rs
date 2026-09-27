@@ -109,6 +109,108 @@ pub fn local_tenant_root_route_v1(
                     },
                 ))
             }
+            // Restore into a new deployment.
+            router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_PRIVATE_REQUEST_PATH => {
+                let token = request.destination_bootstrap_token.as_deref();
+                Some(authorized(
+                    &router.internal_service_auth,
+                    request,
+                    |bootstrap: router_ab_cloudflare::CloudflareTenantRootDestinationBootstrapRequestV1| {
+                        json(&futures::executor::block_on(
+                            router_ab_cloudflare::tenant_root_router_destination_bootstrap_v1(
+                                &LocalRouterTenantRootCreationHostV1::new(&router.tenant_root),
+                                bootstrap,
+                                token,
+                            ),
+                        )?)
+                    },
+                ))
+            }
+            router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REGISTER_MANIFEST_PRIVATE_REQUEST_PATH => {
+                Some(authorized(
+                    &router.internal_service_auth,
+                    request,
+                    |manifest: router_ab_cloudflare::CloudflareTenantRootControlPlaneRegisterManifestRequestV1| {
+                        json(&futures::executor::block_on(
+                            router_ab_cloudflare::tenant_root_router_register_manifest_v1(
+                                &LocalRouterTenantRootCreationHostV1::new(&router.tenant_root),
+                                manifest,
+                            ),
+                        )?)
+                    },
+                ))
+            }
+            router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_ROLE_IMPORT_KEY_PRIVATE_REQUEST_PATH => {
+                Some(authorized(
+                    &router.internal_service_auth,
+                    request,
+                    |import: router_ab_cloudflare::CloudflareTenantRootControlPlaneRestoreRoleImportKeyRequestV1| {
+                        json(&futures::executor::block_on(
+                            router_ab_cloudflare::tenant_root_router_restore_role_import_key_v1(
+                                &LocalRouterTenantRootCreationHostV1::new(&router.tenant_root),
+                                import,
+                            ),
+                        )?)
+                    },
+                ))
+            }
+            router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_ROLE_IMPORT_ACCEPT_PRIVATE_REQUEST_PATH => {
+                Some(authorized(
+                    &router.internal_service_auth,
+                    request,
+                    |accept: router_ab_cloudflare::CloudflareRouterTenantRootRestoreRoleImportAcceptRequestV1| {
+                        json(&futures::executor::block_on(
+                            router_ab_cloudflare::tenant_root_router_restore_role_import_accept_v1(
+                                &LocalRouterTenantRootCreationHostV1::new(&router.tenant_root),
+                                accept,
+                            ),
+                        )?)
+                    },
+                ))
+            }
+            router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH => {
+                Some(authorized(
+                    &router.internal_service_auth,
+                    request,
+                    |refresh: router_ab_cloudflare::CloudflareTenantRootControlPlaneRestoreRefreshCommandsRequestV1| {
+                        json(&futures::executor::block_on(
+                            router_ab_cloudflare::tenant_root_router_restore_refresh_v1(
+                                &LocalRouterTenantRootCreationHostV1::new(&router.tenant_root),
+                                refresh,
+                            ),
+                        )?
+                        .into_response_body()?)
+                    },
+                ))
+            }
+            router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_ACTIVATION_PRIVATE_REQUEST_PATH => {
+                Some(authorized(
+                    &router.internal_service_auth,
+                    request,
+                    |activation: router_ab_cloudflare::CloudflareTenantRootControlPlaneRestoreRefreshCommandsRequestV1| {
+                        json(&futures::executor::block_on(
+                            router_ab_cloudflare::tenant_root_router_restore_activation_v1(
+                                &LocalRouterTenantRootCreationHostV1::new(&router.tenant_root),
+                                activation,
+                            ),
+                        )?)
+                    },
+                ))
+            }
+            router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_CLEANUP_PRIVATE_REQUEST_PATH => {
+                Some(authorized(
+                    &router.internal_service_auth,
+                    request,
+                    |cleanup: router_ab_cloudflare::CloudflareRouterTenantRootRestoreCleanupRequestV1| {
+                        json(&futures::executor::block_on(
+                            router_ab_cloudflare::tenant_root_router_restore_cleanup_v1(
+                                &LocalRouterTenantRootCreationHostV1::new(&router.tenant_root),
+                                cleanup,
+                            ),
+                        )?)
+                    },
+                ))
+            }
             CLOUDFLARE_ROUTER_TENANT_ROOT_CREATION_SWEEP_PRIVATE_REQUEST_PATH => Some(authorized(
                 &router.internal_service_auth,
                 request,
@@ -222,6 +324,81 @@ fn deriver_route(
                         router_ab_cloudflare::tenant_root_deriver_refresh_activation_v1(
                             &LocalTenantRootDeriverHostV1::new(tenant_root),
                             activation,
+                            crate::local_router_coordinator::local_now_ms_v1()?,
+                        ),
+                    )?)
+                },
+            ))
+        }
+        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_RESTORE_ROLE_IMPORT_KEY_PRIVATE_REQUEST_PATH => {
+            Some(authorized(
+                credential,
+                request,
+                |import: router_ab_cloudflare::CloudflareDeriverTenantRootRestoreRoleImportKeyRequestV1| {
+                    json(&futures::executor::block_on(
+                        router_ab_cloudflare::tenant_root_deriver_restore_role_import_key_v1(
+                            &LocalTenantRootDeriverHostV1::new(tenant_root),
+                            import,
+                            crate::local_router_coordinator::local_now_ms_v1()?,
+                        ),
+                    )?)
+                },
+            ))
+        }
+        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_RESTORE_ROLE_IMPORT_ACCEPT_PRIVATE_REQUEST_PATH => {
+            Some(authorized(
+                credential,
+                request,
+                |accept: router_ab_cloudflare::CloudflareDeriverTenantRootRestoreRoleImportAcceptRequestV1| {
+                    json(&futures::executor::block_on(
+                        router_ab_cloudflare::tenant_root_deriver_restore_role_import_accept_v1(
+                            &LocalTenantRootDeriverHostV1::new(tenant_root),
+                            accept,
+                            crate::local_router_coordinator::local_now_ms_v1()?,
+                        ),
+                    )?)
+                },
+            ))
+        }
+        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH => {
+            Some(authorized(
+                credential,
+                request,
+                |phase: router_ab_cloudflare::CloudflareDeriverTenantRootRestoreRefreshRequestV1| {
+                    json(&futures::executor::block_on(
+                        router_ab_cloudflare::tenant_root_deriver_restore_refresh_v1(
+                            &LocalTenantRootDeriverHostV1::new(tenant_root),
+                            phase,
+                            crate::local_router_coordinator::local_now_ms_v1()?,
+                        ),
+                    )?)
+                },
+            ))
+        }
+        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_RESTORE_CLEANUP_PRIVATE_REQUEST_PATH => {
+            Some(authorized(
+                credential,
+                request,
+                |cleanup: router_ab_cloudflare::CloudflareDeriverTenantRootRestoreSessionCleanupRequestV1| {
+                    json(&futures::executor::block_on(
+                        router_ab_cloudflare::tenant_root_deriver_restore_session_cleanup_v1(
+                            &LocalTenantRootDeriverHostV1::new(tenant_root),
+                            cleanup,
+                            crate::local_router_coordinator::local_now_ms_v1()?,
+                        ),
+                    )?)
+                },
+            ))
+        }
+        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_PREACTIVATION_CLEANUP_PRIVATE_REQUEST_PATH => {
+            Some(authorized(
+                credential,
+                request,
+                |cleanup: router_ab_cloudflare::CloudflareDeriverTenantRootPreactivationCleanupRequestV1| {
+                    json(&futures::executor::block_on(
+                        router_ab_cloudflare::tenant_root_deriver_restore_preactivation_cleanup_v1(
+                            &LocalTenantRootDeriverHostV1::new(tenant_root),
+                            cleanup,
                             crate::local_router_coordinator::local_now_ms_v1()?,
                         ),
                     )?)
@@ -360,6 +537,42 @@ pub fn local_tenant_root_control_plane_route_v1(
                 json(&futures::executor::block_on(control_plane_role_creation_command_v1(
                     &host, command,
                 ))?)
+            },
+        ),
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REGISTER_MANIFEST_PRIVATE_REQUEST_PATH => authorized(
+            credential,
+            request,
+            |manifest: router_ab_cloudflare::CloudflareTenantRootControlPlaneRegisterManifestRequestV1| {
+                json(&futures::executor::block_on(
+                    router_ab_cloudflare::control_plane_register_manifest_v1(&host, manifest),
+                )?)
+            },
+        ),
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_ROLE_IMPORT_KEY_PRIVATE_REQUEST_PATH => authorized(
+            credential,
+            request,
+            |import: router_ab_cloudflare::CloudflareTenantRootControlPlaneRestoreRoleImportKeyRequestV1| {
+                json(&futures::executor::block_on(
+                    router_ab_cloudflare::control_plane_restore_role_import_key_v1(&host, import),
+                )?)
+            },
+        ),
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_REFRESH_COMMANDS_PRIVATE_REQUEST_PATH => authorized(
+            credential,
+            request,
+            |commands: router_ab_cloudflare::CloudflareTenantRootControlPlaneRestoreRefreshCommandsRequestV1| {
+                json(&futures::executor::block_on(
+                    router_ab_cloudflare::control_plane_restore_refresh_commands_v1(&host, commands),
+                )?)
+            },
+        ),
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH => authorized(
+            credential,
+            request,
+            |activation: router_ab_cloudflare::CloudflareTenantRootControlPlaneRestoreInitialActivationRequestV1| {
+                json(&futures::executor::block_on(
+                    router_ab_cloudflare::control_plane_restore_initial_activation_v1(&host, activation),
+                )?)
             },
         ),
         CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH => authorized(

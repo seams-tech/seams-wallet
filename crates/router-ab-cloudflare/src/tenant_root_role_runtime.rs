@@ -545,13 +545,13 @@ pub struct CloudflareDeriverTenantRootInitialActivationResponseV1 {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareDeriverTenantRootPreactivationCleanupRequestV1 {
+pub struct CloudflareDeriverTenantRootPreactivationCleanupRequestV1 {
     pub cleanup_grant_b64u: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareDeriverTenantRootPreactivationCleanupResponseV1 {
+pub struct CloudflareDeriverTenantRootPreactivationCleanupResponseV1 {
     pub role: CloudflareTenantRootCreateRoleV1,
     pub cleanup_receipt_digest_b64u: String,
 }
@@ -563,6 +563,21 @@ pub(crate) async fn handle_restore_preactivation_cleanup(
     request: CloudflareDeriverTenantRootPreactivationCleanupRequestV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootPreactivationCleanupResponseV1> {
+    tenant_root_deriver_restore_preactivation_cleanup_v1(
+        &CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
+        request,
+        now_ms,
+    )
+    .await
+}
+
+/// Closes one restore before its activation, under an operator cleanup grant.
+pub async fn tenant_root_deriver_restore_preactivation_cleanup_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
+    request: CloudflareDeriverTenantRootPreactivationCleanupRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootPreactivationCleanupResponseV1> {
+    let worker_role = host.worker_role();
     let role = tenant_root_creation_protocol_role_v1(worker_role)?;
     let bytes =
         crate::decode_base64url_bytes_v1("restore cleanup grant", &request.cleanup_grant_b64u)?;
@@ -574,9 +589,9 @@ pub(crate) async fn handle_restore_preactivation_cleanup(
     }
     let grant = router_ab_core::TenantRootRestoreCleanupGrantV1::decode_canonical_bytes(&bytes)
         .map_err(candidate_derivation_error)?;
-    let reader = crate::CloudflareWorkerEnvReaderV1::new(env);
+    let reader = host.env();
     let keys = crate::env::parse_cloudflare_tenant_root_creation_grant_authority_verifying_keys_v1(
-        &reader,
+        reader,
     )?;
     let key = keys.for_grant_key_id(grant.grant_key_id()).ok_or_else(|| {
         RouterAbProtocolError::new(
@@ -590,7 +605,7 @@ pub(crate) async fn handle_restore_preactivation_cleanup(
     verified
         .require_fresh(now_ms)
         .map_err(candidate_derivation_error)?;
-    let store = CloudflareTenantRootRoleShareStoreV1::from_env(env)
+    let store = host.role_store()
         .map_err(|error| tenant_root_store_error_v1("restore cleanup store", error))?;
     let receipt = store
         .close_restore_before_activation(&verified, now_ms)
@@ -676,10 +691,9 @@ pub struct CloudflareDeriverTenantRootRefreshResponseV1 {
 
 /// Deriver -> Router: exact public artifacts from one restore-refresh
 /// promotion. The provider ciphertext remains inside the role's D1 store.
-#[cfg(feature = "workers-rs")]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareDeriverTenantRootRestoreRefreshPromotionResponseV1 {
+pub struct CloudflareDeriverTenantRootRestoreRefreshPromotionResponseV1 {
     pub(crate) role: CloudflareTenantRootCreateRoleV1,
     pub(crate) restore_refresh_role_command_b64u: String,
     pub(crate) command_digest_b64u: String,
@@ -1338,6 +1352,9 @@ pub trait TenantRootDeriverHostV1:
 
     /// The Deriver role this host serves.
     fn worker_role(&self) -> crate::CloudflareWorkerRoleV1;
+    /// Current host time in Unix milliseconds, for a step that must read the
+    /// clock again after its request began.
+    fn now_ms(&self) -> RouterAbProtocolResult<u64>;
     /// The role's Env and Secret bindings.
     fn env(&self) -> &Self::Env;
     /// Opens the role's private role-share store for one operation.
@@ -1634,6 +1651,10 @@ impl<'a> TenantRootDeriverHostV1 for CloudflareTenantRootDeriverHostV1<'a> {
 
     fn worker_role(&self) -> crate::CloudflareWorkerRoleV1 {
         self.worker_role
+    }
+
+    fn now_ms(&self) -> RouterAbProtocolResult<u64> {
+        crate::cloudflare_now_unix_ms_v1()
     }
 
     fn env(&self) -> &Self::Env {
@@ -1988,17 +2009,14 @@ fn decode_exact_tenant_root_status_digest_v1(
     })
 }
 
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_RESTORE_IMPORT_REPLAY_KEY_DOMAIN_V1: &[u8] =
     b"seams/tenant-root/restore-import-replay-key/v1";
 
-#[cfg(feature = "workers-rs")]
 fn update_restore_import_replay_field_v1(hasher: &mut Sha256, bytes: &[u8]) {
     hasher.update((bytes.len() as u32).to_be_bytes());
     hasher.update(bytes);
 }
 
-#[cfg(feature = "workers-rs")]
 fn update_restore_import_replay_u64_v1(hasher: &mut Sha256, value: u64) {
     hasher.update(value.to_be_bytes());
 }
@@ -2008,7 +2026,6 @@ fn update_restore_import_replay_u64_v1(hasher: &mut Sha256, value: u64) {
 /// The issuer key id and signature are intentionally absent. Every other
 /// command field is included, so a re-signature can replay the original row
 /// while a changed authorized scope selects a different command.
-#[cfg(feature = "workers-rs")]
 fn tenant_root_restore_import_replay_key_digest_v1(
     command: &VerifiedTenantRootRestoreRoleImportCommandV1,
 ) -> [u8; 32] {
@@ -2058,7 +2075,6 @@ fn tenant_root_restore_import_replay_key_digest_v1(
     hasher.finalize().into()
 }
 
-#[cfg(feature = "workers-rs")]
 fn restore_import_binding_matches_command_v1(
     binding: &CloudflareTenantRootRestoreImportKeyBindingV1,
     command: &VerifiedTenantRootRestoreRoleImportCommandV1,
@@ -2087,7 +2103,6 @@ fn restore_import_binding_matches_command_v1(
                 .checked_add(router_ab_core::TENANT_ROOT_ROLE_IMPORT_KEY_MS_V1 as u64)
 }
 
-#[cfg(feature = "workers-rs")]
 fn restore_import_key_response_v1(
     record: &CloudflareTenantRootRestoreImportKeyRecordV1,
 ) -> CloudflareDeriverTenantRootRestoreRoleImportKeyResponseV1 {
@@ -2113,11 +2128,9 @@ fn restore_import_key_response_v1(
     }
 }
 
-#[cfg(feature = "workers-rs")]
 const TENANT_ROOT_RESTORE_IMPORT_ACCEPT_RECEIPT_DOMAIN_V1: &[u8] =
     b"seams/tenant-root/restore-import-staged-acceptance/v1";
 
-#[cfg(feature = "workers-rs")]
 fn tenant_root_restore_import_accept_receipt_digest_v1(
     record: &CloudflareTenantRootRestoreImportKeyRecordV1,
     envelope_digest: &[u8; 32],
@@ -2143,7 +2156,6 @@ fn tenant_root_restore_import_accept_receipt_digest_v1(
     hasher.finalize().into()
 }
 
-#[cfg(feature = "workers-rs")]
 fn restore_import_accept_response_v1(
     record: &CloudflareTenantRootRestoreImportKeyRecordV1,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRestoreRoleImportAcceptResponseV1> {
@@ -2186,7 +2198,23 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_role_import_ke
     request: CloudflareDeriverTenantRootRestoreRoleImportKeyRequestV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRestoreRoleImportKeyResponseV1> {
-    let role = tenant_root_creation_protocol_role_v1(worker_role)?;
+    tenant_root_deriver_restore_role_import_key_v1(
+        &CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
+        request,
+        now_ms,
+    )
+    .await
+}
+
+/// Verifies one control-plane command, generates its role-local X25519 key,
+/// seals the IKM with the role store's record key, and durably records the
+/// public response before returning it.
+pub async fn tenant_root_deriver_restore_role_import_key_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
+    request: CloudflareDeriverTenantRootRestoreRoleImportKeyRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRestoreRoleImportKeyResponseV1> {
+    let role = tenant_root_creation_protocol_role_v1(host.worker_role())?;
     let role_private = match role {
         TwoPartyDeriverRole::DeriverA => CloudflareTenantRootDeriverRoleV1::DeriverA,
         TwoPartyDeriverRole::DeriverB => CloudflareTenantRootDeriverRoleV1::DeriverB,
@@ -2209,9 +2237,8 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_role_import_ke
             "tenant-root restore role-import request issuer does not match its command",
         ));
     }
-    let reader = crate::CloudflareWorkerEnvReaderV1::new(env);
     let issuer_keys =
-        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(&reader)?;
+        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(host.env())?;
     let trusted_key = issuer_keys
         .for_issuer_key_id(&request.issuer_key_id)
         .ok_or_else(|| {
@@ -2230,7 +2257,7 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_role_import_ke
         ));
     }
     let replay_key_digest = tenant_root_restore_import_replay_key_digest_v1(&verified);
-    let store = CloudflareTenantRootRoleShareStoreV1::from_env(env).map_err(|error| {
+    let store = host.role_store().map_err(|error| {
         tenant_root_store_error_v1("tenant-root restore import key store lookup", error)
     })?;
     if store
@@ -2278,14 +2305,13 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_role_import_ke
             format!("tenant-root restore role-import command is expired: {error}"),
         )
     })?;
-    let random_ikm = crate::cloudflare_random_bytes_v1(32)?;
-    let ikm_bytes: [u8; 32] = random_ikm.try_into().map_err(|_| {
+    let mut ikm = Zeroizing::new([0_u8; 32]);
+    getrandom::getrandom(ikm.as_mut()).map_err(|error| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            "tenant-root restore import key randomness has an invalid length",
+            format!("tenant-root restore import key randomness failed: {error}"),
         )
     })?;
-    let mut ikm = Zeroizing::new(ikm_bytes);
     let keypair = TenantRootRestoreImportKeypairV1::derive_from_ikm(*ikm)
         .map_err(candidate_derivation_error)?;
     let binding = CloudflareTenantRootRestoreImportKeyBindingV1::new(
@@ -2345,7 +2371,24 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_role_import_ac
     request: CloudflareDeriverTenantRootRestoreRoleImportAcceptRequestV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRestoreRoleImportAcceptResponseV1> {
-    let role = tenant_root_creation_protocol_role_v1(worker_role)?;
+    tenant_root_deriver_restore_role_import_accept_v1(
+        &CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
+        request,
+        now_ms,
+    )
+    .await
+}
+
+/// Verifies the issuer-signed command, opens one matching envelope, and
+/// atomically stages the imported role share in the role-private restore
+/// row. The command freshness window authorizes key issuance; the persisted
+/// key window authorizes first-time envelope acceptance.
+pub async fn tenant_root_deriver_restore_role_import_accept_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
+    request: CloudflareDeriverTenantRootRestoreRoleImportAcceptRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRestoreRoleImportAcceptResponseV1> {
+    let role = tenant_root_creation_protocol_role_v1(host.worker_role())?;
     let role_private = match role {
         TwoPartyDeriverRole::DeriverA => CloudflareTenantRootDeriverRoleV1::DeriverA,
         TwoPartyDeriverRole::DeriverB => CloudflareTenantRootDeriverRoleV1::DeriverB,
@@ -2368,9 +2411,8 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_role_import_ac
             "tenant-root restore role-import request issuer does not match its command",
         ));
     }
-    let reader = crate::CloudflareWorkerEnvReaderV1::new(env);
     let issuer_keys =
-        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(&reader)?;
+        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(host.env())?;
     let trusted_key = issuer_keys
         .for_issuer_key_id(&request.issuer_key_id)
         .ok_or_else(|| {
@@ -2402,7 +2444,7 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_role_import_ac
         .map_err(candidate_derivation_error)?;
     let envelope_digest: [u8; 32] = Sha256::digest(&envelope_bytes).into();
     let replay_key_digest = tenant_root_restore_import_replay_key_digest_v1(&verified);
-    let store = CloudflareTenantRootRoleShareStoreV1::from_env(env).map_err(|error| {
+    let store = host.role_store().map_err(|error| {
         tenant_root_store_error_v1("tenant-root restore import acceptance store lookup", error)
     })?;
     if store
@@ -3134,6 +3176,22 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_session_cleanu
     request: CloudflareDeriverTenantRootRestoreSessionCleanupRequestV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRestoreSessionCleanupResponseV1> {
+    tenant_root_deriver_restore_session_cleanup_v1(
+        &CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
+        request,
+        now_ms,
+    )
+    .await
+}
+
+/// Closes one tenant-held restore import session after its initial
+/// activation, activating the pending share first if its delivery was lost.
+pub async fn tenant_root_deriver_restore_session_cleanup_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
+    request: CloudflareDeriverTenantRootRestoreSessionCleanupRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRestoreSessionCleanupResponseV1> {
+    let worker_role = host.worker_role();
     let role = tenant_root_creation_protocol_role_v1(worker_role)?;
     let receipt_bytes = crate::decode_base64url_bytes_v1(
         "tenant-root restore-session activation receipt",
@@ -3157,9 +3215,9 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_session_cleanu
             "tenant-root restore-session cleanup requires tenant-held external activation",
         ));
     }
-    let reader = crate::CloudflareWorkerEnvReaderV1::new(env);
+    let reader = host.env();
     let issuer_keys =
-        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(&reader)?;
+        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(reader)?;
     let issuer_key = issuer_keys
         .for_issuer_key_id(receipt.issuer_key_id())
         .ok_or_else(|| {
@@ -3171,19 +3229,15 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_session_cleanu
     let verified = receipt
         .verify_issuer_signature(issuer_key)
         .map_err(candidate_derivation_error)?;
-    let (authority_id, _) =
-        crate::durable_object::tenant_root_creation::derive_tenant_root_creation_authority_object_v1(
-            env,
-            verified.identity_digest(),
-            verified.custody_lineage(),
-        )?;
+    let authority_id =
+        host.creation_authority_id(verified.identity_digest(), verified.custody_lineage())?;
     if verified.binding().authority_id() != authority_id {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ForbiddenLocalBinding,
             "tenant-root restore-session activation names a foreign control-plane authority",
         ));
     }
-    let store = CloudflareTenantRootRoleShareStoreV1::from_env(env)
+    let store = host.role_store()
         .map_err(|error| tenant_root_store_error_v1("tenant-root role store lookup", error))?;
     let mut active = store
         .load_epoch_by_identity_digest(
@@ -3203,9 +3257,8 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_session_cleanu
         active.record().lifecycle(),
         CloudflareTenantRootRoleShareLifecycleV1::Pending(_)
     ) {
-        handle_cloudflare_deriver_tenant_root_initial_activation_v1(
-            env,
-            worker_role,
+        tenant_root_deriver_initial_activation_v1(
+            host,
             CloudflareDeriverTenantRootInitialActivationRequestV1 {
                 activation_receipt_b64u: request.activation_receipt_b64u,
             },
@@ -3269,7 +3322,6 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_session_cleanu
     })
 }
 
-#[cfg(feature = "workers-rs")]
 fn decode_restore_refresh_authority_id_v1(
     encoded: &str,
 ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1> {
@@ -3298,7 +3350,6 @@ fn decode_restore_refresh_authority_id_v1(
     Ok(TenantRootControlPlaneAuthorityIdV1::from_bytes(bytes))
 }
 
-#[cfg(feature = "workers-rs")]
 fn restore_refresh_promotion_response_v1(
     role: CloudflareTenantRootCreateRoleV1,
     command_b64u: &str,
@@ -3340,6 +3391,26 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_refresh_promot
     authority_id_b64u: String,
     now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRestoreRefreshPromotionResponseV1> {
+    tenant_root_deriver_restore_refresh_promotion_v1(
+        &CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
+        identity,
+        role_refresh_command_b64u,
+        authority_id_b64u,
+        now_ms,
+    )
+    .await
+}
+
+/// Promotes one finalized restore-refresh attempt into the role's epoch-one
+/// online provider and durably checkpoints the result before replying.
+pub async fn tenant_root_deriver_restore_refresh_promotion_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
+    identity: TenantRootIdentityV1,
+    role_refresh_command_b64u: String,
+    authority_id_b64u: String,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRestoreRefreshPromotionResponseV1> {
+    let worker_role = host.worker_role();
     let role = tenant_root_creation_protocol_role_v1(worker_role)?;
     let command_bytes = crate::decode_base64url_bytes_v1(
         "tenant-root restore refresh role command",
@@ -3354,9 +3425,9 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_refresh_promot
     let raw_command = TenantRootRestoreRefreshRoleCommandV1::decode_canonical_bytes(&command_bytes)
         .map_err(candidate_derivation_error)?;
     let authority_id = decode_restore_refresh_authority_id_v1(&authority_id_b64u)?;
-    let reader = crate::CloudflareWorkerEnvReaderV1::new(env);
+    let reader = host.env();
     let issuer_keys =
-        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(&reader)?;
+        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(reader)?;
     let issuer_key = issuer_keys
         .for_issuer_key_id(raw_command.issuer_key_id())
         .ok_or_else(|| {
@@ -3384,14 +3455,14 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_refresh_promot
     let command_b64u = crate::encode_base64url_bytes_v1(command.canonical_bytes());
     let command_digest_b64u = crate::encode_base64url_bytes_v1(command.digest().as_bytes());
     let (_, role_signer) =
-        crate::env::load_cloudflare_tenant_root_creation_role_signing_key_v1(env, worker_role)?;
+        crate::env::load_tenant_root_creation_role_signing_key_v1(worker_role, host.env())?;
     if command.context().signing_key_id(role) != role_signer.signing_key_id() {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ForbiddenLocalBinding,
             "tenant-root restore refresh context does not name this Deriver's active role signer",
         ));
     }
-    let store = CloudflareTenantRootRoleShareStoreV1::from_env(env)
+    let store = host.role_store()
         .map_err(|error| tenant_root_store_error_v1("tenant-root role store lookup", error))?;
     if store
         .restore_import_session_is_closed(
@@ -3447,9 +3518,9 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_refresh_promot
         &role_signer.verifying_key_bytes(),
     )
     .map_err(candidate_derivation_error)?;
-    let provider_config = tenant_root_role_runtime_provider_config_from_env_v1(env, worker_role)?;
+    let provider_config = tenant_root_role_runtime_provider_config_v1(worker_role, host.env())?;
     let mut online_provider =
-        crate::env::load_cloudflare_tenant_root_operational_rotation_provider_v1(env, worker_role)?;
+        crate::env::load_tenant_root_operational_rotation_provider_v1(worker_role, host.env())?;
     let artifacts = compose_restore_refresh_promotion_with_completion_time_v1(
         &command,
         share_wire,
@@ -3459,7 +3530,7 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_refresh_promot
         authority_id,
         &mut online_provider,
         || {
-            crate::cloudflare_now_unix_ms_v1().map_err(|error| {
+            host.now_ms().map_err(|error| {
                 RouterAbDerivationError::new(
                     RouterAbDerivationErrorCode::MalformedInput,
                     format!("tenant-root restore refresh provider clock failed: {error}"),
@@ -7271,14 +7342,12 @@ pub(crate) struct TenantRootRoleRuntimeArtifactsV1 {
 ///
 /// The staged share itself is consumed before this token is returned. Only
 /// provider ciphertext and the signed public canary leave this boundary.
-#[cfg(feature = "workers-rs")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TenantRootRestoreRefreshPromotionArtifactsV1 {
     online_sealed: TenantRootSealedOnlineRoleShareV1,
     provider_canary_receipt: Vec<u8>,
 }
 
-#[cfg(feature = "workers-rs")]
 impl TenantRootRestoreRefreshPromotionArtifactsV1 {
     pub(crate) const fn online_sealed(&self) -> &TenantRootSealedOnlineRoleShareV1 {
         &self.online_sealed
@@ -7298,7 +7367,6 @@ impl TenantRootRestoreRefreshPromotionArtifactsV1 {
 /// The restore command carries the exact ceremony context, while the authority
 /// identifier is supplied by the owning control-plane object. Both are bound to
 /// the canary before the role signer emits it.
-#[cfg(feature = "workers-rs")]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn compose_restore_refresh_promotion_v1<Online>(
     command: VerifiedTenantRootRestoreRefreshRoleCommandV1,
@@ -7325,7 +7393,6 @@ where
     )
 }
 
-#[cfg(feature = "workers-rs")]
 #[allow(clippy::too_many_arguments)]
 fn compose_restore_refresh_promotion_with_completion_time_v1<Online, CompletionTime>(
     command: &VerifiedTenantRootRestoreRefreshRoleCommandV1,

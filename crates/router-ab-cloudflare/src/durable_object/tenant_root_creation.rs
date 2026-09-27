@@ -264,7 +264,7 @@ impl fmt::Debug for CloudflareTenantRootDestinationBootstrapRecordV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) enum CloudflareTenantRootDestinationBootstrapRequestV1 {
+pub enum CloudflareTenantRootDestinationBootstrapRequestV1 {
     Read {
         identity_b64u: String,
         custody_lineage_b64u: String,
@@ -278,7 +278,7 @@ pub(crate) enum CloudflareTenantRootDestinationBootstrapRequestV1 {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum CloudflareTenantRootDestinationBootstrapRefusalV1 {
+pub enum CloudflareTenantRootDestinationBootstrapRefusalV1 {
     Uninitialized,
     CreationInProgress,
     ActiveRootPresent,
@@ -289,7 +289,7 @@ pub(crate) enum CloudflareTenantRootDestinationBootstrapRefusalV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootDestinationBootstrapScopeV1 {
+pub struct CloudflareTenantRootDestinationBootstrapScopeV1 {
     pub(crate) identity_b64u: String,
     pub(crate) identity_digest_b64u: String,
     pub(crate) deployment_fingerprint_b64u: String,
@@ -298,7 +298,7 @@ pub(crate) struct CloudflareTenantRootDestinationBootstrapScopeV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub(crate) enum CloudflareTenantRootDestinationBootstrapResponseV1 {
+pub enum CloudflareTenantRootDestinationBootstrapResponseV1 {
     ReadReady {
         scope: CloudflareTenantRootDestinationBootstrapScopeV1,
     },
@@ -1983,7 +1983,7 @@ pub(crate) enum CloudflareTenantRootRestoreRefreshCheckpointRequestV1 {
 /// this state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum CloudflareTenantRootRestoreRefreshDeriverDispatchV1 {
+pub enum CloudflareTenantRootRestoreRefreshDeriverDispatchV1 {
     NoneBeforeCommands,
 }
 
@@ -2629,83 +2629,60 @@ async fn execute_cloudflare_router_tenant_root_creation_private_call_v1<
         request,
         request_max_bytes,
         response_max_bytes,
-        None,
     )
     .await
 }
 
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_restore_refresh_checkpoint_call_v1(
-    env: &worker::Env,
+/// Runs one restore-refresh checkpoint operation in the destination's
+/// Router-owned creation state, which the grant names.
+pub(crate) async fn tenant_root_restore_refresh_checkpoint_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     request: &CloudflareTenantRootRestoreRefreshCheckpointRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootRestoreRefreshCheckpointResponseV1> {
     let grant_b64u = restore_refresh_checkpoint_grant_b64u_v1(request);
     let (_, grant, _) = restore_refresh_checkpoint_scope_from_grant_v1(grant_b64u)?;
     let identity_digest = grant.destination_identity_digest();
     let custody_lineage = grant.destination_lineage();
-    let (authority_id, _) =
-        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
-    execute_cloudflare_router_tenant_root_creation_private_call_v1(
-        env,
-        authority_id,
-        identity_digest,
-        custody_lineage,
-        crate::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH,
-        "tenant-root restore-refresh checkpoint",
-        request,
-        TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_REQUEST_MAX_BYTES_V1,
-        TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_RESPONSE_MAX_BYTES_V1,
-    )
-    .await
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
+    state
+        .creation_state_call(
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            crate::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH,
+            "tenant-root restore-refresh checkpoint",
+            request,
+            TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_RESPONSE_MAX_BYTES_V1,
+        )
+        .await
 }
 
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_destination_bootstrap_call_v1(
-    env: &worker::Env,
+/// Reads or authenticates the destination's bootstrap authority in the
+/// Router-owned creation state, carrying the credential the caller presented.
+pub(crate) async fn tenant_root_destination_bootstrap_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
     request: &CloudflareTenantRootDestinationBootstrapRequestV1,
-    token_header: Option<&str>,
+    token_b64u: Option<&str>,
 ) -> RouterAbProtocolResult<CloudflareTenantRootDestinationBootstrapResponseV1> {
-    let (authority_id, object_name) =
-        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
-    let namespace = env
-        .durable_object(ROUTER_TENANT_ROOT_CREATION_DO_BINDING_V1)
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MissingLocalBinding,
-                format!(
-                    "tenant-root destination bootstrap Durable Object namespace lookup failed: {error}"
-                ),
-            )
-        })?;
-    let object_id = namespace.id_from_name(&object_name).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!(
-                "tenant-root destination bootstrap Durable Object id derivation failed: {error}"
-            ),
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
+    state
+        .creation_state_call(
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            crate::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_PRIVATE_REQUEST_PATH,
+            "tenant-root destination bootstrap",
+            &CloudflareTenantRootDestinationBootstrapCallV1 {
+                request: request.clone(),
+                token_b64u: token_b64u.map(str::to_owned),
+            },
+            TENANT_ROOT_DESTINATION_BOOTSTRAP_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_DESTINATION_BOOTSTRAP_RESPONSE_MAX_BYTES_V1,
         )
-    })?;
-    let object_id = object_id.to_string();
-    validate_tenant_root_creation_object_binding_v1(&object_id, authority_id)?;
-    let stub = namespace.get_by_name(&object_name).map_err(|error| {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("tenant-root destination bootstrap Durable Object stub lookup failed: {error}"),
-        )
-    })?;
-    execute_cloudflare_router_tenant_root_stub_private_call_v1(
-        env,
-        stub,
-        crate::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_PRIVATE_REQUEST_PATH,
-        "tenant-root destination bootstrap",
-        request,
-        TENANT_ROOT_DESTINATION_BOOTSTRAP_REQUEST_MAX_BYTES_V1,
-        TENANT_ROOT_DESTINATION_BOOTSTRAP_RESPONSE_MAX_BYTES_V1,
-        token_header,
-    )
-    .await
+        .await
 }
 
 #[cfg(feature = "workers-rs")]
@@ -2720,7 +2697,6 @@ async fn execute_cloudflare_router_tenant_root_stub_private_call_v1<
     request: &TRequest,
     request_max_bytes: usize,
     response_max_bytes: usize,
-    token_header: Option<&str>,
 ) -> RouterAbProtocolResult<TResponse> {
     let request_body = serde_json::to_string(request).map_err(|error| {
         RouterAbProtocolError::new(
@@ -2743,19 +2719,6 @@ async fn execute_cloudflare_router_tenant_root_stub_private_call_v1<
             )
         })?;
     crate::set_cloudflare_internal_service_auth_header_v1(env, &headers, label)?;
-    if let Some(token_header) = token_header {
-        headers
-            .set(
-                crate::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_TOKEN_HEADER_V1,
-                token_header,
-            )
-            .map_err(|error| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                    format!("{label} credential header failed: {error}"),
-                )
-            })?;
-    }
     let mut init = worker::RequestInit::new();
     init.with_method(worker::Method::Post)
         .with_headers(headers)
@@ -2824,7 +2787,6 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_cutover_read_call_v1(
         &CloudflareTenantRootCutoverReadRequestV1 {},
         TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1,
         TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1,
-        None,
     )
     .await
 }
@@ -2842,7 +2804,6 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_cutover_write_call_v1(
         request,
         TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1,
         TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1,
-        None,
     )
     .await
 }
@@ -3362,9 +3323,10 @@ pub async fn tenant_root_creation_initial_activation_call_v1(
 /// Sends a control-plane restore activation receipt to the Router-owned
 /// creation object. The object binds it to its promoted restore checkpoint
 /// before consuming the destination bootstrap authority.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_restore_initial_activation_call_v1(
-    env: &worker::Env,
+/// Activates a restored root in the Router-owned creation state from the
+/// verified initial-creation receipt its restore promoted.
+pub(crate) async fn tenant_root_restore_initial_activation_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
     receipt_bytes: &[u8],
 ) -> RouterAbProtocolResult<CloudflareTenantRootRestoreInitialActivationResponseV1> {
     let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(receipt_bytes)
@@ -3376,17 +3338,13 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_restore_initial_activa
         ));
     }
     let receipt_digest = receipt.digest().map_err(candidate_derivation_error)?;
-    let (authority_id, _) = derive_tenant_root_creation_authority_object_v1(
-        env,
-        receipt.identity_digest(),
-        receipt.custody_lineage(),
-    )?;
+    let authority_id =
+        state.creation_authority_id(receipt.identity_digest(), receipt.custody_lineage())?;
     let request = CloudflareTenantRootRestoreInitialActivationRequestV1 {
         activation_receipt_b64u: encode_base64url_bytes_v1(receipt_bytes),
     };
-    let response: CloudflareTenantRootRestoreInitialActivationResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+    let response: CloudflareTenantRootRestoreInitialActivationResponseV1 = state
+        .creation_state_call(
             authority_id,
             receipt.identity_digest(),
             receipt.custody_lineage(),
@@ -6562,7 +6520,6 @@ fn evaluate_restore_refresh_promoted_read_v1(
     )
 }
 
-#[cfg(feature = "workers-rs")]
 fn validate_restore_initial_activation_receipt_against_checkpoint_v1(
     activation_receipt: &router_ab_core::VerifiedTenantRootSignedActivationReceiptV1,
     checkpoint: &CloudflareTenantRootRestoreRefreshCheckpointV1,
@@ -6848,7 +6805,7 @@ impl worker::DurableObject for RouterAbTenantRootCreationDurableObject {
                     );
                 }
                 let parsed = match decode_bounded_json_request::<
-                    CloudflareTenantRootDestinationBootstrapRequestV1,
+                    CloudflareTenantRootDestinationBootstrapCallV1,
                 >(
                     &mut request,
                     TENANT_ROOT_DESTINATION_BOOTSTRAP_REQUEST_MAX_BYTES_V1,
@@ -6863,24 +6820,7 @@ impl worker::DurableObject for RouterAbTenantRootCreationDurableObject {
                         )
                     }
                 };
-                let validated = match validate_tenant_root_destination_bootstrap_request_v1(parsed)
-                {
-                    Ok(value) => value,
-                    Err(error) => return tenant_root_creation_do_error_response(error),
-                };
-                let token = match &validated {
-                    ValidatedTenantRootDestinationBootstrapRequestV1::Read { .. } => None,
-                    ValidatedTenantRootDestinationBootstrapRequestV1::Authenticate { .. } => {
-                        match read_destination_bootstrap_token_header_v1(&request) {
-                            Ok(token) => token,
-                            Err(error) => return tenant_root_creation_do_error_response(error),
-                        }
-                    }
-                };
-                match self
-                    .read_and_evaluate_destination_bootstrap_v1(&validated, token.as_ref())
-                    .await
-                {
+                match self.destination_bootstrap_v1(parsed).await {
                     Ok(response) => worker::Response::from_json(&response),
                     Err(error) => tenant_root_creation_do_error_response(error),
                 }
@@ -7434,212 +7374,50 @@ pub(crate) fn build_creation_journal_read_response(
 
 #[cfg(feature = "workers-rs")]
 impl RouterAbTenantRootCreationDurableObject {
-    async fn read_and_evaluate_destination_bootstrap_v1(
+    async fn destination_bootstrap_v1(
         &self,
-        request: &ValidatedTenantRootDestinationBootstrapRequestV1,
-        token: Option<&DestinationBootstrapTokenV1>,
+        call: CloudflareTenantRootDestinationBootstrapCallV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootDestinationBootstrapResponseV1> {
-        let state = self.read_destination_bootstrap_state_v1(request).await?;
-        let authenticated_at_ms = if matches!(
-            (&state, request),
-            (
-                TenantRootDestinationBootstrapStateV1::Ready(_),
-                ValidatedTenantRootDestinationBootstrapRequestV1::Authenticate { .. }
-            )
-        ) {
-            crate::cloudflare_now_unix_ms_v1()?
-        } else {
-            0
-        };
-        Ok(evaluate_tenant_root_destination_bootstrap_request_v1(
-            &state,
-            request,
-            token,
-            authenticated_at_ms,
-        ))
-    }
-
-    async fn read_destination_bootstrap_state_v1(
-        &self,
-        request: &ValidatedTenantRootDestinationBootstrapRequestV1,
-    ) -> RouterAbProtocolResult<TenantRootDestinationBootstrapStateV1> {
-        let (identity_digest, custody_lineage) = destination_bootstrap_request_scope_v1(request);
-        if let Err(error) = require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            identity_digest,
-            custody_lineage,
-        ) {
-            if error.code() == RouterAbProtocolErrorCode::ForbiddenLocalBinding {
-                return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
-            }
-            return Err(error);
-        }
-        let destroyed_record =
-            storage_get_optional::<CloudflareTenantRootDestinationBootstrapDestroyedRecordV1>(
-                &self.storage,
-                TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_STORAGE_KEY_V1,
-            )
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        if let Some(destroyed_record) = destroyed_record {
-            let destroyed_record =
-                validate_tenant_root_destination_bootstrap_destroyed_record_v1(destroyed_record)
-                    .map_err(stored_record_error)?;
-            if !destroyed_record.matches_request_scope(request) {
-                return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
-            }
-            require_tenant_root_creation_authority_object_v1(
-                &self.env,
-                &self.authority_object_id,
-                destroyed_record.identity_digest,
-                destroyed_record.custody_lineage,
-            )
-            .map_err(stored_record_error)?;
-            return Ok(TenantRootDestinationBootstrapStateV1::Destroyed(
-                destroyed_record,
-            ));
-        }
-        let record = storage_get_optional::<CloudflareTenantRootDestinationBootstrapRecordV1>(
-            &self.storage,
-            TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?;
-        let needs_provisioning = record.is_none();
-        let record = match record {
-            Some(record) => record,
-            None => {
-                let Ok(config) = self.env.var("TENANT_ROOT_DESTINATION_BOOTSTRAP_JSON") else {
-                    return Ok(TenantRootDestinationBootstrapStateV1::Uninitialized);
-                };
-                let config = config.to_string();
-                if config.len() > TENANT_ROOT_DESTINATION_BOOTSTRAP_RECORD_MAX_BYTES_V1 {
-                    return Err(malformed_input(
-                        "destination bootstrap configuration is too large",
-                    ));
+        let issuer_keys = self.issuer_verifying_keys()?;
+        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
+        let configured = self
+            .env
+            .var("TENANT_ROOT_DESTINATION_BOOTSTRAP_JSON")
+            .ok()
+            .map(|value| value.to_string());
+        let env = self.env.clone();
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
+        let outcome_for_transaction = Rc::clone(&outcome);
+        self.storage
+            .transaction(move |transaction| async move {
+                let store = store.bind(transaction);
+                let result = tenant_root_destination_bootstrap_v1(
+                    &store,
+                    &issuer_keys,
+                    move || read_tenant_root_creation_role_verifying_keys(&env),
+                    configured.as_deref(),
+                    call,
+                    now_ms,
+                )
+                .await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
-                serde_json::from_str(&config).map_err(|_| {
-                    malformed_input("destination bootstrap configuration is invalid")
-                })?
-            }
-        };
-        let record = validate_tenant_root_destination_bootstrap_record_v1(record)
-            .map_err(stored_record_error)?;
-        if !record.matches_request_scope(request) {
-            return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
-        }
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            record.identity_digest,
-            record.custody_lineage,
-        )
-        .map_err(stored_record_error)?;
-
-        let active_record = storage_get_optional::<CloudflareTenantRootRefreshActiveStateRecordV1>(
-            &self.storage,
-            TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?;
-        if active_record.is_some() {
-            let active = self
-                .load_authoritative_active_refresh_state()
-                .await
-                .map_err(stored_refresh_record_error)?;
-            if active.identity_digest != record.identity_digest
-                || active.custody_lineage != record.custody_lineage
-            {
-                return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
-            }
-            return Ok(TenantRootDestinationBootstrapStateV1::ActiveRootPresent(
-                record,
-            ));
-        }
-
-        let creation_journal = storage_get_optional::<CloudflareTenantRootCreationJournalRecordV1>(
-            &self.storage,
-            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?;
-        let creation_commitment =
-            storage_get_optional::<CloudflareTenantRootCreationCommitmentRendezvousRecordV1>(
-                &self.storage,
-                TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
-            )
+                outcome_for_transaction.replace(Some(result));
+                Ok(())
+            })
             .await
             .map_err(durable_storage_protocol_error)?;
-        let creation_installation =
-            storage_get_optional::<CloudflareTenantRootCreationInstallationCheckpointV1>(
-                &self.storage,
-                TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "tenant-root destination bootstrap transaction did not produce an outcome",
             )
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let creation_abandonment =
-            storage_get_optional::<CloudflareTenantRootCreationAbandonmentV1>(
-                &self.storage,
-                TENANT_ROOT_CREATION_ABANDONMENT_STORAGE_KEY_V1,
-            )
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let refresh_commitment = storage_get_optional::<String>(
-            &self.storage,
-            TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?;
-        let refresh_installation =
-            storage_get_optional::<CloudflareTenantRootRefreshInstallationCheckpointRecordV1>(
-                &self.storage,
-                TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
-            )
-            .await
-            .map_err(durable_storage_protocol_error)?;
-        let refresh_contribution =
-            storage_get_optional::<CloudflareTenantRootRefreshContributionRendezvousRecordV1>(
-                &self.storage,
-                TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1,
-            )
-            .await
-            .map_err(durable_storage_protocol_error)?;
-
-        let has_creation_progress = creation_journal.is_some()
-            || creation_commitment.is_some()
-            || creation_installation.is_some()
-            || creation_abandonment.is_some()
-            || refresh_commitment.is_some()
-            || refresh_installation.is_some()
-            || refresh_contribution.is_some();
-        if !has_creation_progress {
-            if needs_provisioning {
-                // Operator configuration may initialize an empty authority once. The
-                // destroyed marker above prevents reissuing consumed credentials.
-                self.storage
-                    .put(
-                        TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1,
-                        &record.record,
-                    )
-                    .await
-                    .map_err(durable_storage_protocol_error)?;
-            }
-            return Ok(TenantRootDestinationBootstrapStateV1::Ready(record));
-        }
-        if creation_journal.is_some() {
-            let read_request = CloudflareTenantRootCreationJournalReadRequestV1 {
-                identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
-                custody_lineage_b64u: custody_lineage.to_base64url(),
-            };
-            self.read_creation_journal(read_request)
-                .await
-                .map_err(|error| stored_record_error(error))?;
-        }
-        Ok(TenantRootDestinationBootstrapStateV1::CreationInProgress(
-            record,
-        ))
+        })?;
+        result
     }
+
 
     async fn read_cutover_record(
         &self,
@@ -7701,187 +7479,31 @@ impl RouterAbTenantRootCreationDurableObject {
         &self,
         request: CloudflareTenantRootRestoreRefreshCheckpointRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootRestoreRefreshCheckpointResponseV1> {
-        match &request {
-            CloudflareTenantRootRestoreRefreshCheckpointRequestV1::ReadCompleted {
-                restore_refresh_grant_b64u,
-                manifest_b64u,
-            } => {
-                return self
-                    .read_completed_restore_refresh_checkpoint_v1(
-                        restore_refresh_grant_b64u,
-                        manifest_b64u,
-                    )
-                    .await;
-            }
-            CloudflareTenantRootRestoreRefreshCheckpointRequestV1::ReadPromoted {
-                restore_refresh_grant_b64u,
-                manifest_b64u,
-            } => {
-                return self
-                    .read_promoted_restore_refresh_checkpoint_v1(
-                        restore_refresh_grant_b64u,
-                        manifest_b64u,
-                    )
-                    .await;
-            }
-            _ => {}
-        }
-        let grant_b64u = restore_refresh_checkpoint_grant_b64u_v1(&request);
-        let (_, grant, _) = restore_refresh_checkpoint_scope_from_grant_v1(grant_b64u)?;
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            grant.destination_identity_digest(),
-            grant.destination_lineage(),
-        )?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let outcome: Rc<
-            RefCell<
-                Option<
-                    RouterAbProtocolResult<CloudflareTenantRootRestoreRefreshCheckpointResponseV1>,
-                >,
-            >,
-        > = Rc::new(RefCell::new(None));
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
         self.storage
             .transaction(move |transaction| async move {
-                let current =
-                    transaction_get_optional::<CloudflareTenantRootRestoreRefreshCheckpointV1>(
-                        &transaction,
-                        TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
-                    )
-                    .await?;
-                let evaluation = match evaluate_tenant_root_restore_refresh_checkpoint_v1(
-                    current.as_ref(),
-                    request,
-                    now_ms,
-                ) {
-                    Ok(evaluation) => evaluation,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                if let CloudflareTenantRootRestoreRefreshCheckpointEvaluationV1::Commit {
-                    checkpoint,
-                } = &evaluation
-                {
-                    let encoded = serde_json::to_vec(checkpoint).map_err(|error| {
-                        worker::Error::RustError(format!(
-                            "tenant-root restore-refresh checkpoint JSON encoding failed: {error}"
-                        ))
-                    })?;
-                    if encoded.len() > TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_RESPONSE_MAX_BYTES_V1
-                    {
-                        outcome_for_transaction.replace(Some(Err(malformed_input(
-                            "tenant-root restore-refresh checkpoint exceeds its maximum size",
-                        ))));
-                        return Ok(());
-                    }
-                    transaction
-                        .put(
-                            TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
-                            checkpoint,
-                        )
-                        .await?;
+                let store = store.bind(transaction);
+                let result = tenant_root_restore_refresh_checkpoint_v1(&store, request, now_ms).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
-                outcome_for_transaction.replace(Some(Ok(
-                    restore_refresh_checkpoint_phase_response_v1(evaluation),
-                )));
+                outcome_for_transaction.replace(Some(result));
                 Ok(())
             })
             .await
             .map_err(durable_storage_protocol_error)?;
-        let response = outcome.borrow_mut().take().ok_or_else(|| {
+        let result = outcome.borrow_mut().take().ok_or_else(|| {
             RouterAbProtocolError::new(
                 RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
                 "tenant-root restore-refresh checkpoint transaction did not produce an outcome",
             )
         })?;
-        response
+        result
     }
 
-    async fn read_completed_restore_refresh_checkpoint_v1(
-        &self,
-        grant_b64u: &str,
-        manifest_b64u: &str,
-    ) -> RouterAbProtocolResult<CloudflareTenantRootRestoreRefreshCheckpointResponseV1> {
-        let (canonical_grant_b64u, grant, scope) =
-            restore_refresh_checkpoint_scope_from_grant_v1(grant_b64u)?;
-        if canonical_grant_b64u != grant_b64u {
-            return Err(malformed_input(
-                "tenant-root restore-refresh grant must use canonical bytes",
-            ));
-        }
-        require_restore_refresh_manifest_matches_grant_v1(manifest_b64u, &grant)?;
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            grant.destination_identity_digest(),
-            grant.destination_lineage(),
-        )?;
-        let checkpoint = storage_get_optional::<CloudflareTenantRootRestoreRefreshCheckpointV1>(
-            &self.storage,
-            TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?
-        .ok_or_else(|| {
-            restore_refresh_lifecycle_error(
-                "tenant-root restore-refresh completed checkpoint is not present",
-            )
-        })?;
-        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        evaluate_restore_refresh_completed_read_v1(
-            &checkpoint,
-            grant_b64u,
-            &scope,
-            authority_id,
-            now_ms,
-        )
-    }
-
-    async fn read_promoted_restore_refresh_checkpoint_v1(
-        &self,
-        grant_b64u: &str,
-        manifest_b64u: &str,
-    ) -> RouterAbProtocolResult<CloudflareTenantRootRestoreRefreshCheckpointResponseV1> {
-        let (canonical_grant_b64u, grant, scope) =
-            restore_refresh_checkpoint_scope_from_grant_v1(grant_b64u)?;
-        if canonical_grant_b64u != grant_b64u {
-            return Err(malformed_input(
-                "tenant-root restore-refresh grant must use canonical bytes",
-            ));
-        }
-        require_restore_refresh_manifest_matches_grant_v1(manifest_b64u, &grant)?;
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            grant.destination_identity_digest(),
-            grant.destination_lineage(),
-        )?;
-        let checkpoint = storage_get_optional::<CloudflareTenantRootRestoreRefreshCheckpointV1>(
-            &self.storage,
-            TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?
-        .ok_or_else(|| {
-            restore_refresh_lifecycle_error(
-                "tenant-root restore-refresh promoted checkpoint is not present",
-            )
-        })?;
-        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        evaluate_restore_refresh_promoted_read_v1(
-            &checkpoint,
-            grant_b64u,
-            &scope,
-            authority_id,
-            now_ms,
-        )
-    }
 
     async fn persist_creation_abandonment(
         &self,
@@ -8230,255 +7852,19 @@ impl RouterAbTenantRootCreationDurableObject {
         &self,
         request: CloudflareTenantRootRestoreInitialActivationRequestV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootRestoreInitialActivationResponseV1> {
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-        let authority_id = authority_id_from_object_id(&self.authority_object_id)?;
-        let activation_receipt = decode_and_verify_initial_activation_receipt(
-            &request.activation_receipt_b64u,
-            &issuer_keys,
-        )?;
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            activation_receipt.identity_digest(),
-            activation_receipt.custody_lineage(),
-        )?;
-        if activation_receipt.binding().authority_id() != authority_id {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                "tenant-root restore initial activation receipt authority does not match its Durable Object",
-            ));
-        }
-        let receipt_digest = activation_receipt.digest();
-        let lifecycle_revision = activation_receipt.result_control_plane_revision();
-        let outcome: Rc<
-            RefCell<
-                Option<
-                    RouterAbProtocolResult<CloudflareTenantRootRestoreInitialActivationResponseV1>,
-                >,
-            >,
-        > = Rc::new(RefCell::new(None));
+        let issuer_keys = self.issuer_verifying_keys()?;
+        let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
+        let outcome = Rc::new(RefCell::new(None));
         let outcome_for_transaction = Rc::clone(&outcome);
         self.storage
             .transaction(move |transaction| async move {
-                let checkpoint = match transaction_get_optional::<
-                    CloudflareTenantRootRestoreRefreshCheckpointV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(Some(checkpoint)) => checkpoint,
-                    Ok(None) => {
-                        outcome_for_transaction.replace(Some(Err(
-                            restore_refresh_lifecycle_error(
-                                "tenant-root restore initial activation has no refresh checkpoint",
-                            ),
-                        )));
-                        return Ok(());
-                    }
-                    Err(error) => return Err(error),
-                };
-                let (destination_fingerprint, restore_session_id) =
-                    match validate_restore_initial_activation_receipt_against_checkpoint_v1(
-                        &activation_receipt,
-                        &checkpoint,
-                        authority_id,
-                    ) {
-                        Ok(scope) => scope,
-                        Err(error) => {
-                            outcome_for_transaction.replace(Some(Err(error)));
-                            return Ok(());
-                        }
-                    };
-                let existing_destroyed = match transaction_get_optional::<
-                    CloudflareTenantRootDestinationBootstrapDestroyedRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(record) => record,
-                    Err(error) => return Err(error),
-                };
-                let had_destroyed_record = existing_destroyed.is_some();
-                let existing_bootstrap = match transaction_get_optional::<
-                    CloudflareTenantRootDestinationBootstrapRecordV1,
-                >(
-                    &transaction,
-                    TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1,
-                )
-                .await
-                {
-                    Ok(record) => record,
-                    Err(error) => return Err(error),
-                };
-                let destroyed_record = if let Some(record) = existing_destroyed {
-                    let record = match validate_tenant_root_destination_bootstrap_destroyed_record_v1(record)
-                    {
-                        Ok(record) => record,
-                        Err(error) => {
-                            outcome_for_transaction.replace(Some(Err(stored_record_error(error))));
-                            return Ok(());
-                        }
-                    };
-                    let (destruction_receipt_b64u, destruction_receipt_digest_b64u) =
-                        match restore_bootstrap_destruction_receipt_v1(
-                            activation_receipt.identity_digest(),
-                            activation_receipt.custody_lineage(),
-                            destination_fingerprint,
-                            restore_session_id,
-                            &checkpoint.scope.grant_digest_b64u,
-                            receipt_digest,
-                        ) {
-                            Ok(receipt) => receipt,
-                            Err(error) => {
-                                outcome_for_transaction.replace(Some(Err(error)));
-                                return Ok(());
-                            }
-                        };
-                    if record.identity_digest != activation_receipt.identity_digest()
-                        || record.custody_lineage != activation_receipt.custody_lineage()
-                        || record.deployment_fingerprint != destination_fingerprint
-                        || record.record.activation_receipt_digest_b64u
-                            != encode_base64url_bytes_v1(receipt_digest.as_bytes())
-                        || record.record.destruction_receipt_b64u != destruction_receipt_b64u
-                        || record.record.destruction_receipt_digest_b64u
-                            != destruction_receipt_digest_b64u
-                    {
-                        outcome_for_transaction.replace(Some(Err(refresh_replay_conflict(
-                            "tenant-root restore bootstrap destruction conflicts with the accepted activation receipt",
-                        ))));
-                        return Ok(());
-                    }
-                    record.record
-                } else {
-                    let Some(bootstrap) = existing_bootstrap else {
-                        outcome_for_transaction.replace(Some(Err(
-                            RouterAbProtocolError::new(
-                                RouterAbProtocolErrorCode::InvalidLifecycleState,
-                                "tenant-root restore initial activation has no usable bootstrap authority",
-                            ),
-                        )));
-                        return Ok(());
-                    };
-                    let bootstrap = match validate_tenant_root_destination_bootstrap_record_v1(
-                        bootstrap,
-                    ) {
-                        Ok(record) => record,
-                        Err(error) => {
-                            outcome_for_transaction.replace(Some(Err(stored_record_error(error))));
-                            return Ok(());
-                        }
-                    };
-                    if bootstrap.identity_digest != activation_receipt.identity_digest()
-                        || bootstrap.custody_lineage != activation_receipt.custody_lineage()
-                        || bootstrap.deployment_fingerprint != destination_fingerprint
-                    {
-                        outcome_for_transaction.replace(Some(Err(RouterAbProtocolError::new(
-                            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
-                            "tenant-root restore bootstrap authority does not match the promoted activation",
-                        ))));
-                        return Ok(());
-                    }
-                    let (destruction_receipt_b64u, destruction_receipt_digest_b64u) =
-                        match restore_bootstrap_destruction_receipt_v1(
-                            bootstrap.identity_digest,
-                            bootstrap.custody_lineage,
-                            bootstrap.deployment_fingerprint,
-                            restore_session_id,
-                            &checkpoint.scope.grant_digest_b64u,
-                            receipt_digest,
-                        ) {
-                            Ok(receipt) => receipt,
-                            Err(error) => {
-                                outcome_for_transaction.replace(Some(Err(error)));
-                                return Ok(());
-                            }
-                        };
-                    CloudflareTenantRootDestinationBootstrapDestroyedRecordV1 {
-                        identity_b64u: bootstrap.record.identity_b64u,
-                        deployment_fingerprint_b64u: bootstrap.record.deployment_fingerprint_b64u,
-                        custody_lineage_b64u: bootstrap.record.custody_lineage_b64u,
-                        activation_receipt_digest_b64u: encode_base64url_bytes_v1(
-                            receipt_digest.as_bytes(),
-                        ),
-                        destruction_receipt_b64u,
-                        destruction_receipt_digest_b64u,
-                    }
-                };
-                let encoded_destroyed_record = match serde_json::to_vec(&destroyed_record) {
-                    Ok(encoded) => encoded,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(
-                            RouterAbProtocolError::new(
-                                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                                format!(
-                                    "tenant-root restore bootstrap destruction record encoding failed: {error}"
-                                ),
-                            ),
-                        )));
-                        return Ok(());
-                    }
-                };
-                if encoded_destroyed_record.len()
-                    > TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_RECORD_MAX_BYTES_V1
-                {
-                    outcome_for_transaction.replace(Some(Err(malformed_input(
-                        "tenant-root restore bootstrap destruction record exceeds its maximum size",
-                    ))));
-                    return Ok(());
+                let store = store.bind(transaction);
+                let result =
+                    tenant_root_restore_initial_activation_v1(&store, &issuer_keys, request).await;
+                if let Some(error) = store.take_storage_error() {
+                    return Err(error);
                 }
-                let candidate = match refresh_active_state_record_from_verified_receipt(
-                    activation_receipt,
-                    lifecycle_revision,
-                ) {
-                    Ok(candidate) => candidate,
-                    Err(error) => {
-                        outcome_for_transaction.replace(Some(Err(error)));
-                        return Ok(());
-                    }
-                };
-                if !had_destroyed_record {
-                if let Err(error) = Self::persist_authoritative_active_state_in_transaction_v1(
-                    &transaction,
-                    candidate,
-                    authority_id,
-                    &issuer_keys,
-                )
-                .await
-                {
-                    outcome_for_transaction.replace(Some(Err(error)));
-                    return Ok(());
-                }
-                }
-                if !had_destroyed_record {
-                    transaction
-                        .put(
-                            TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_STORAGE_KEY_V1,
-                            &destroyed_record,
-                        )
-                        .await?;
-                }
-                transaction
-                    .delete(TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1)
-                    .await?;
-                outcome_for_transaction.replace(Some(Ok(
-                    CloudflareTenantRootRestoreInitialActivationResponseV1 {
-                        activation_receipt_digest_b64u: encode_base64url_bytes_v1(
-                            receipt_digest.as_bytes(),
-                        ),
-                        lifecycle_revision,
-                        destruction_receipt_b64u: destroyed_record.destruction_receipt_b64u,
-                        destruction_receipt_digest_b64u: destroyed_record
-                            .destruction_receipt_digest_b64u,
-                    },
-                )));
+                outcome_for_transaction.replace(Some(result));
                 Ok(())
             })
             .await
@@ -8491,6 +7877,7 @@ impl RouterAbTenantRootCreationDurableObject {
         })?;
         result
     }
+
 
     pub(crate) async fn persist_refresh_activation(
         &self,
@@ -8521,24 +7908,6 @@ impl RouterAbTenantRootCreationDurableObject {
             )
         })?;
         result
-    }
-
-    async fn persist_authoritative_active_state_in_transaction_v1(
-        transaction: &worker::Transaction,
-        candidate: CloudflareTenantRootRefreshActiveStateRecordV1,
-        authority_id: TenantRootControlPlaneAuthorityIdV1,
-        issuer_keys: &BTreeMap<String, [u8; 32]>,
-    ) -> RouterAbProtocolResult<()> {
-        let store = DurableObjectTransactionStoreV1 {
-            transaction,
-            authority_id,
-            storage_error: RefCell::new(None),
-        };
-        let result = tenant_root_creation_persist_active_state_v1(&store, candidate, issuer_keys).await;
-        match store.take_storage_error() {
-            Some(error) => Err(durable_storage_protocol_error(error)),
-            None => result,
-        }
     }
 
     async fn load_authoritative_active_refresh_state(
@@ -8735,36 +8104,6 @@ fn request_has_json_content_type(request: &worker::Request) -> worker::Result<bo
         .split(';')
         .next()
         .is_some_and(|value| value.trim().eq_ignore_ascii_case("application/json")))
-}
-
-#[cfg(feature = "workers-rs")]
-fn read_destination_bootstrap_token_header_v1(
-    request: &worker::Request,
-) -> RouterAbProtocolResult<Option<DestinationBootstrapTokenV1>> {
-    let value = request
-        .headers()
-        .get(crate::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_TOKEN_HEADER_V1)
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("tenant-root destination bootstrap credential header read failed: {error}"),
-            )
-        })?;
-    let Some(value) = value else {
-        return Ok(None);
-    };
-    let Ok(bytes) = decode_canonical_base64url(
-        "tenant-root destination bootstrap credential",
-        &value,
-        32,
-        base64url_len_for_bytes(32),
-    ) else {
-        return Ok(None);
-    };
-    let Ok(bytes) = <[u8; 32]>::try_from(bytes) else {
-        return Ok(None);
-    };
-    Ok(DestinationBootstrapTokenV1::from_bytes(bytes).ok())
 }
 
 #[cfg(feature = "workers-rs")]
@@ -14880,17 +14219,498 @@ pub async fn tenant_root_creation_read_progress_v1<Store: TenantRootCreationStor
     })
 }
 
+// ---------------------------------------------------------------------------
+// Restore into a new deployment over the host-neutral creation store
+// ---------------------------------------------------------------------------
+//
+// The destination's bootstrap authority, its restore-refresh checkpoint and
+// its restore initial activation, as operations over
+// `TenantRootCreationStoreV1`, so a Cloudflare Durable Object and a VM Router
+// serve them alike. As with the other operations, every refusal is decided
+// before anything is written.
+
+/// The Router's destination-bootstrap call to its creation state. The bearer
+/// credential its caller presented travels inside the call, so every host
+/// carries it the same way.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CloudflareTenantRootDestinationBootstrapCallV1 {
+    pub(crate) request: CloudflareTenantRootDestinationBootstrapRequestV1,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) token_b64u: Option<String>,
+}
+
+/// Decodes a presented bootstrap credential. A malformed one counts as
+/// absent, so authentication is refused rather than the request rejected.
+pub(crate) fn decode_destination_bootstrap_token_v1(
+    value: &str,
+) -> Option<DestinationBootstrapTokenV1> {
+    let bytes = decode_canonical_base64url(
+        "tenant-root destination bootstrap credential",
+        value,
+        32,
+        base64url_len_for_bytes(32),
+    )
+    .ok()?;
+    let bytes = <[u8; 32]>::try_from(bytes).ok()?;
+    DestinationBootstrapTokenV1::from_bytes(bytes).ok()
+}
+
+/// Answers one Read or Authenticate request against the destination's
+/// bootstrap authority. `configured_record_json` is the operator's
+/// provisioned record; the first read of an empty authority persists it.
+pub(crate) async fn tenant_root_destination_bootstrap_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
+    configured_record_json: Option<&str>,
+    call: CloudflareTenantRootDestinationBootstrapCallV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootDestinationBootstrapResponseV1> {
+    let request = validate_tenant_root_destination_bootstrap_request_v1(call.request)?;
+    let token = match &request {
+        ValidatedTenantRootDestinationBootstrapRequestV1::Read { .. } => None,
+        ValidatedTenantRootDestinationBootstrapRequestV1::Authenticate { .. } => call
+            .token_b64u
+            .as_deref()
+            .and_then(decode_destination_bootstrap_token_v1),
+    };
+    let state = read_destination_bootstrap_state_v1(
+        store,
+        issuer_keys,
+        role_keys,
+        configured_record_json,
+        &request,
+    )
+    .await?;
+    let authenticated_at_ms = if matches!(
+        (&state, &request),
+        (
+            TenantRootDestinationBootstrapStateV1::Ready(_),
+            ValidatedTenantRootDestinationBootstrapRequestV1::Authenticate { .. }
+        )
+    ) {
+        now_ms
+    } else {
+        0
+    };
+    Ok(evaluate_tenant_root_destination_bootstrap_request_v1(
+        &state,
+        &request,
+        token.as_ref(),
+        authenticated_at_ms,
+    ))
+}
+
+async fn read_destination_bootstrap_state_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
+    configured_record_json: Option<&str>,
+    request: &ValidatedTenantRootDestinationBootstrapRequestV1,
+) -> RouterAbProtocolResult<TenantRootDestinationBootstrapStateV1> {
+    let (identity_digest, custody_lineage) = destination_bootstrap_request_scope_v1(request);
+    if let Err(error) = store.require_scope(identity_digest, custody_lineage) {
+        if error.code() == RouterAbProtocolErrorCode::ForbiddenLocalBinding {
+            return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
+        }
+        return Err(error);
+    }
+    if let Some(destroyed_record) = store
+        .get_json::<CloudflareTenantRootDestinationBootstrapDestroyedRecordV1>(
+            TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_STORAGE_KEY_V1,
+        )
+        .await?
+    {
+        let destroyed_record =
+            validate_tenant_root_destination_bootstrap_destroyed_record_v1(destroyed_record)
+                .map_err(stored_record_error)?;
+        if !destroyed_record.matches_request_scope(request) {
+            return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
+        }
+        store
+            .require_scope(
+                destroyed_record.identity_digest,
+                destroyed_record.custody_lineage,
+            )
+            .map_err(stored_record_error)?;
+        return Ok(TenantRootDestinationBootstrapStateV1::Destroyed(
+            destroyed_record,
+        ));
+    }
+    let record = store
+        .get_json::<CloudflareTenantRootDestinationBootstrapRecordV1>(
+            TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1,
+        )
+        .await?;
+    let needs_provisioning = record.is_none();
+    let record = match record {
+        Some(record) => record,
+        None => {
+            let Some(config) = configured_record_json else {
+                return Ok(TenantRootDestinationBootstrapStateV1::Uninitialized);
+            };
+            if config.len() > TENANT_ROOT_DESTINATION_BOOTSTRAP_RECORD_MAX_BYTES_V1 {
+                return Err(malformed_input(
+                    "destination bootstrap configuration is too large",
+                ));
+            }
+            serde_json::from_str(config)
+                .map_err(|_| malformed_input("destination bootstrap configuration is invalid"))?
+        }
+    };
+    let record = validate_tenant_root_destination_bootstrap_record_v1(record)
+        .map_err(stored_record_error)?;
+    if !record.matches_request_scope(request) {
+        return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
+    }
+    store
+        .require_scope(record.identity_digest, record.custody_lineage)
+        .map_err(stored_record_error)?;
+
+    if store
+        .get_json::<CloudflareTenantRootRefreshActiveStateRecordV1>(
+            TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
+        )
+        .await?
+        .is_some()
+    {
+        let active = load_refresh_active_state_v1(
+            store,
+            issuer_keys,
+            "tenant-root destination bootstrap has no authoritative active public state",
+        )
+        .await
+        .map_err(stored_refresh_record_error)?;
+        if active.identity_digest != record.identity_digest
+            || active.custody_lineage != record.custody_lineage
+        {
+            return Ok(TenantRootDestinationBootstrapStateV1::ScopeMismatch);
+        }
+        return Ok(TenantRootDestinationBootstrapStateV1::ActiveRootPresent(
+            record,
+        ));
+    }
+    let creation_journal = store
+        .get_json::<CloudflareTenantRootCreationJournalRecordV1>(
+            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
+        )
+        .await?;
+    let has_creation_progress = creation_journal.is_some()
+        || store
+            .get_json::<CloudflareTenantRootCreationCommitmentRendezvousRecordV1>(
+                TENANT_ROOT_CREATION_COMMITMENT_RENDEZVOUS_STORAGE_KEY_V1,
+            )
+            .await?
+            .is_some()
+        || store
+            .get_json::<CloudflareTenantRootCreationInstallationCheckpointV1>(
+                TENANT_ROOT_CREATION_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
+            )
+            .await?
+            .is_some()
+        || store
+            .get_json::<CloudflareTenantRootCreationAbandonmentV1>(
+                TENANT_ROOT_CREATION_ABANDONMENT_STORAGE_KEY_V1,
+            )
+            .await?
+            .is_some()
+        || store
+            .get_json::<String>(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
+            .await?
+            .is_some()
+        || store
+            .get_json::<CloudflareTenantRootRefreshInstallationCheckpointRecordV1>(
+                TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_STORAGE_KEY_V1,
+            )
+            .await?
+            .is_some()
+        || store
+            .get_json::<CloudflareTenantRootRefreshContributionRendezvousRecordV1>(
+                TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_STORAGE_KEY_V1,
+            )
+            .await?
+            .is_some();
+    if !has_creation_progress {
+        if needs_provisioning {
+            // Operator configuration may initialize an empty authority once.
+            // The destroyed marker above prevents reissuing consumed
+            // credentials.
+            store
+                .put_json(TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1, &record.record)
+                .await?;
+        }
+        return Ok(TenantRootDestinationBootstrapStateV1::Ready(record));
+    }
+    if creation_journal.is_some() {
+        tenant_root_creation_read_journal_v1(
+            store,
+            issuer_keys,
+            role_keys,
+            CloudflareTenantRootCreationJournalReadRequestV1 {
+                identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+                custody_lineage_b64u: custody_lineage.to_base64url(),
+            },
+        )
+        .await
+        .map_err(stored_record_error)?;
+    }
+    Ok(TenantRootDestinationBootstrapStateV1::CreationInProgress(
+        record,
+    ))
+}
+
+/// Admits, advances or reads the destination's restore-refresh checkpoint.
+pub(crate) async fn tenant_root_restore_refresh_checkpoint_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    request: CloudflareTenantRootRestoreRefreshCheckpointRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareTenantRootRestoreRefreshCheckpointResponseV1> {
+    let read = match &request {
+        CloudflareTenantRootRestoreRefreshCheckpointRequestV1::ReadCompleted {
+            restore_refresh_grant_b64u,
+            manifest_b64u,
+        } => Some((restore_refresh_grant_b64u, manifest_b64u, false)),
+        CloudflareTenantRootRestoreRefreshCheckpointRequestV1::ReadPromoted {
+            restore_refresh_grant_b64u,
+            manifest_b64u,
+        } => Some((restore_refresh_grant_b64u, manifest_b64u, true)),
+        _ => None,
+    };
+    if let Some((grant_b64u, manifest_b64u, promoted)) = read {
+        let (canonical_grant_b64u, grant, scope) =
+            restore_refresh_checkpoint_scope_from_grant_v1(grant_b64u)?;
+        if &canonical_grant_b64u != grant_b64u {
+            return Err(malformed_input(
+                "tenant-root restore-refresh grant must use canonical bytes",
+            ));
+        }
+        require_restore_refresh_manifest_matches_grant_v1(manifest_b64u, &grant)?;
+        store.require_scope(grant.destination_identity_digest(), grant.destination_lineage())?;
+        let checkpoint = store
+            .get_json::<CloudflareTenantRootRestoreRefreshCheckpointV1>(
+                TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
+            )
+            .await?
+            .ok_or_else(|| {
+                restore_refresh_lifecycle_error(if promoted {
+                    "tenant-root restore-refresh promoted checkpoint is not present"
+                } else {
+                    "tenant-root restore-refresh completed checkpoint is not present"
+                })
+            })?;
+        return if promoted {
+            evaluate_restore_refresh_promoted_read_v1(
+                &checkpoint,
+                grant_b64u,
+                &scope,
+                store.authority_id(),
+                now_ms,
+            )
+        } else {
+            evaluate_restore_refresh_completed_read_v1(
+                &checkpoint,
+                grant_b64u,
+                &scope,
+                store.authority_id(),
+                now_ms,
+            )
+        };
+    }
+    let grant_b64u = restore_refresh_checkpoint_grant_b64u_v1(&request);
+    let (_, grant, _) = restore_refresh_checkpoint_scope_from_grant_v1(grant_b64u)?;
+    store.require_scope(grant.destination_identity_digest(), grant.destination_lineage())?;
+    let current = store
+        .get_json::<CloudflareTenantRootRestoreRefreshCheckpointV1>(
+            TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
+        )
+        .await?;
+    let evaluation =
+        evaluate_tenant_root_restore_refresh_checkpoint_v1(current.as_ref(), request, now_ms)?;
+    if let CloudflareTenantRootRestoreRefreshCheckpointEvaluationV1::Commit { checkpoint } =
+        &evaluation
+    {
+        let encoded = serde_json::to_vec(checkpoint).map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                format!("tenant-root restore-refresh checkpoint JSON encoding failed: {error}"),
+            )
+        })?;
+        if encoded.len() > TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_RESPONSE_MAX_BYTES_V1 {
+            return Err(malformed_input(
+                "tenant-root restore-refresh checkpoint exceeds its maximum size",
+            ));
+        }
+        store
+            .put_json(TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1, checkpoint)
+            .await?;
+    }
+    Ok(restore_refresh_checkpoint_phase_response_v1(evaluation))
+}
+
+/// Activates a restored root from its promoted restore-refresh checkpoint.
+/// The activation writes the authoritative active state and consumes the
+/// destination's bootstrap authority, leaving only its destroyed marker; an
+/// exact retry returns the same outcome.
+pub(crate) async fn tenant_root_restore_initial_activation_v1<Store: TenantRootCreationStoreV1>(
+    store: &Store,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    request: CloudflareTenantRootRestoreInitialActivationRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootRestoreInitialActivationResponseV1> {
+    let authority_id = store.authority_id();
+    let activation_receipt =
+        decode_and_verify_initial_activation_receipt(&request.activation_receipt_b64u, issuer_keys)?;
+    store.require_scope(
+        activation_receipt.identity_digest(),
+        activation_receipt.custody_lineage(),
+    )?;
+    if activation_receipt.binding().authority_id() != authority_id {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root restore initial activation receipt authority does not match its creation state",
+        ));
+    }
+    let receipt_digest = activation_receipt.digest();
+    let lifecycle_revision = activation_receipt.result_control_plane_revision();
+    let checkpoint = store
+        .get_json::<CloudflareTenantRootRestoreRefreshCheckpointV1>(
+            TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_STORAGE_KEY_V1,
+        )
+        .await?
+        .ok_or_else(|| {
+            restore_refresh_lifecycle_error(
+                "tenant-root restore initial activation has no refresh checkpoint",
+            )
+        })?;
+    let (destination_fingerprint, restore_session_id) =
+        validate_restore_initial_activation_receipt_against_checkpoint_v1(
+            &activation_receipt,
+            &checkpoint,
+            authority_id,
+        )?;
+    let existing_destroyed = store
+        .get_json::<CloudflareTenantRootDestinationBootstrapDestroyedRecordV1>(
+            TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_STORAGE_KEY_V1,
+        )
+        .await?;
+    let had_destroyed_record = existing_destroyed.is_some();
+    let destroyed_record = if let Some(record) = existing_destroyed {
+        let record = validate_tenant_root_destination_bootstrap_destroyed_record_v1(record)
+            .map_err(stored_record_error)?;
+        let (destruction_receipt_b64u, destruction_receipt_digest_b64u) =
+            restore_bootstrap_destruction_receipt_v1(
+                activation_receipt.identity_digest(),
+                activation_receipt.custody_lineage(),
+                destination_fingerprint,
+                restore_session_id,
+                &checkpoint.scope.grant_digest_b64u,
+                receipt_digest,
+            )?;
+        if record.identity_digest != activation_receipt.identity_digest()
+            || record.custody_lineage != activation_receipt.custody_lineage()
+            || record.deployment_fingerprint != destination_fingerprint
+            || record.record.activation_receipt_digest_b64u
+                != encode_base64url_bytes_v1(receipt_digest.as_bytes())
+            || record.record.destruction_receipt_b64u != destruction_receipt_b64u
+            || record.record.destruction_receipt_digest_b64u != destruction_receipt_digest_b64u
+        {
+            return Err(refresh_replay_conflict(
+                "tenant-root restore bootstrap destruction conflicts with the accepted activation receipt",
+            ));
+        }
+        record.record
+    } else {
+        let bootstrap = store
+            .get_json::<CloudflareTenantRootDestinationBootstrapRecordV1>(
+                TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1,
+            )
+            .await?
+            .ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLifecycleState,
+                    "tenant-root restore initial activation has no usable bootstrap authority",
+                )
+            })?;
+        let bootstrap = validate_tenant_root_destination_bootstrap_record_v1(bootstrap)
+            .map_err(stored_record_error)?;
+        if bootstrap.identity_digest != activation_receipt.identity_digest()
+            || bootstrap.custody_lineage != activation_receipt.custody_lineage()
+            || bootstrap.deployment_fingerprint != destination_fingerprint
+        {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+                "tenant-root restore bootstrap authority does not match the promoted activation",
+            ));
+        }
+        let (destruction_receipt_b64u, destruction_receipt_digest_b64u) =
+            restore_bootstrap_destruction_receipt_v1(
+                bootstrap.identity_digest,
+                bootstrap.custody_lineage,
+                bootstrap.deployment_fingerprint,
+                restore_session_id,
+                &checkpoint.scope.grant_digest_b64u,
+                receipt_digest,
+            )?;
+        CloudflareTenantRootDestinationBootstrapDestroyedRecordV1 {
+            identity_b64u: bootstrap.record.identity_b64u,
+            deployment_fingerprint_b64u: bootstrap.record.deployment_fingerprint_b64u,
+            custody_lineage_b64u: bootstrap.record.custody_lineage_b64u,
+            activation_receipt_digest_b64u: encode_base64url_bytes_v1(receipt_digest.as_bytes()),
+            destruction_receipt_b64u,
+            destruction_receipt_digest_b64u,
+        }
+    };
+    let encoded_destroyed_record = serde_json::to_vec(&destroyed_record).map_err(|error| {
+        RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            format!("tenant-root restore bootstrap destruction record encoding failed: {error}"),
+        )
+    })?;
+    if encoded_destroyed_record.len()
+        > TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_RECORD_MAX_BYTES_V1
+    {
+        return Err(malformed_input(
+            "tenant-root restore bootstrap destruction record exceeds its maximum size",
+        ));
+    }
+    let candidate =
+        refresh_active_state_record_from_verified_receipt(activation_receipt, lifecycle_revision)?;
+    if !had_destroyed_record {
+        tenant_root_creation_persist_active_state_v1(store, candidate, issuer_keys).await?;
+        store
+            .put_json(
+                TENANT_ROOT_DESTINATION_BOOTSTRAP_DESTROYED_STORAGE_KEY_V1,
+                &destroyed_record,
+            )
+            .await?;
+    }
+    store
+        .delete(TENANT_ROOT_DESTINATION_BOOTSTRAP_STORAGE_KEY_V1)
+        .await?;
+    Ok(CloudflareTenantRootRestoreInitialActivationResponseV1 {
+        activation_receipt_digest_b64u: encode_base64url_bytes_v1(receipt_digest.as_bytes()),
+        lifecycle_revision,
+        destruction_receipt_b64u: destroyed_record.destruction_receipt_b64u,
+        destruction_receipt_digest_b64u: destroyed_record.destruction_receipt_digest_b64u,
+    })
+}
+
 /// Serves one creation-state operation, addressed by its route path: initial
 /// creation and its recovery, the authoritative active-state read with its
-/// refresh and managed-restore reservations, and the refresh checkpoints and
-/// activation. Cutover is not served.
+/// refresh and managed-restore reservations, the refresh checkpoints and
+/// activation, and restore into a new deployment. Cutover is not served.
+///
+/// `destination_bootstrap_config` is the operator's provisioned bootstrap
+/// record for a destination, when this Router has one.
 ///
 /// The caller runs this inside one storage transaction over `store`, so each
 /// operation's read, evaluation and write stay atomic.
+#[allow(clippy::too_many_arguments)]
 pub async fn tenant_root_creation_serve_v1<Store: TenantRootCreationStoreV1>(
     store: &Store,
     issuer_keys: &BTreeMap<String, [u8; 32]>,
     role_keys: impl Fn() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
+    destination_bootstrap_config: Option<&str>,
     path: &str,
     request_body: &[u8],
     now_ms: u64,
@@ -15095,6 +14915,45 @@ pub async fn tenant_root_creation_serve_v1<Store: TenantRootCreationStoreV1>(
             )
             .await?,
         ),
+        crate::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_PRIVATE_REQUEST_PATH => encode(
+            &tenant_root_destination_bootstrap_v1(
+                store,
+                issuer_keys,
+                &role_keys,
+                destination_bootstrap_config,
+                decode(
+                    "tenant-root destination bootstrap request",
+                    request_body,
+                    TENANT_ROOT_DESTINATION_BOOTSTRAP_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        crate::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH => encode(
+            &tenant_root_restore_refresh_checkpoint_v1(
+                store,
+                decode(
+                    "tenant-root restore-refresh checkpoint request",
+                    request_body,
+                    TENANT_ROOT_RESTORE_REFRESH_CHECKPOINT_REQUEST_MAX_BYTES_V1,
+                )?,
+                now_ms,
+            )
+            .await?,
+        ),
+        crate::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_ACTIVATION_PRIVATE_REQUEST_PATH => encode(
+            &tenant_root_restore_initial_activation_v1(
+                store,
+                issuer_keys,
+                decode(
+                    "tenant-root restore activation request",
+                    request_body,
+                    TENANT_ROOT_RESTORE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1,
+                )?,
+            )
+            .await?,
+        ),
         _ => Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ForbiddenLocalBinding,
             "this host does not serve the requested tenant-root creation-state operation",
@@ -15197,66 +15056,6 @@ impl TenantRootCreationStoreV1 for OwnedDurableObjectTransactionStoreV1 {
             .map_err(|error| self.record_storage_error(error))
     }
 }
-
-/// A borrowed creation-DO transaction for in-transaction helpers whose scope
-/// was already checked by their caller.
-#[cfg(feature = "workers-rs")]
-struct DurableObjectTransactionStoreV1<'a> {
-    transaction: &'a worker::Transaction,
-    authority_id: TenantRootControlPlaneAuthorityIdV1,
-    storage_error: RefCell<Option<String>>,
-}
-
-#[cfg(feature = "workers-rs")]
-impl DurableObjectTransactionStoreV1<'_> {
-    fn record_storage_error(&self, error: worker::Error) -> RouterAbProtocolError {
-        let message = error.to_string();
-        self.storage_error.borrow_mut().get_or_insert(message.clone());
-        durable_storage_protocol_error(worker::Error::RustError(message))
-    }
-
-    fn take_storage_error(&self) -> Option<worker::Error> {
-        self.storage_error.borrow_mut().take().map(worker::Error::RustError)
-    }
-}
-
-#[cfg(feature = "workers-rs")]
-impl TenantRootCreationStoreV1 for DurableObjectTransactionStoreV1<'_> {
-    fn authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
-        self.authority_id
-    }
-
-    fn require_scope(
-        &self,
-        _identity_digest: TenantRootIdentityDigestV1,
-        _custody_lineage: TenantRootCustodyLineageId,
-    ) -> RouterAbProtocolResult<()> {
-        // The enclosing Durable Object operation checked its scope.
-        Ok(())
-    }
-
-    async fn get_json<T: DeserializeOwned>(&self, key: &str) -> RouterAbProtocolResult<Option<T>> {
-        transaction_get_optional::<T>(self.transaction, key)
-            .await
-            .map_err(|error| self.record_storage_error(error))
-    }
-
-    async fn put_json<T: Serialize>(&self, key: &str, value: &T) -> RouterAbProtocolResult<()> {
-        self.transaction
-            .put(key, value)
-            .await
-            .map_err(|error| self.record_storage_error(error))
-    }
-
-    async fn delete(&self, key: &str) -> RouterAbProtocolResult<()> {
-        self.transaction
-            .delete(key)
-            .await
-            .map(|_| ())
-            .map_err(|error| self.record_storage_error(error))
-    }
-}
-
 
 #[cfg(test)]
 mod tests {

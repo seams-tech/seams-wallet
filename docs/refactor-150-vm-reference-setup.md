@@ -46,6 +46,23 @@ govern it:
 - `LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS`: how often the scheduler
   checks, one minute by default and at least one second.
 
+Restoring a tenant's recovery kit into a new deployment uses the same Router,
+control-plane, Deriver and creation-state code as Cloudflare. Two settings,
+under their Cloudflare names, make a VM deployment a restore destination:
+
+- `TENANT_ROOT_DESTINATION_BOOTSTRAP_JSON` in the Router's env file: the
+  bootstrap authority the operator provisions for one empty tenant root. It
+  names the root's identity, the deployment fingerprint, a fresh custody
+  lineage and the digest of a one-time credential. The first bootstrap read
+  stores it; activation consumes it and leaves only a destroyed marker.
+- `TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON` in the control plane's env file,
+  with `TENANT_ROOT_RECOVERY_TRUST_SNAPSHOT_JSON` optionally: the recovery trust
+  the kit's manifest must chain to.
+
+Every role holds the grant authorities' verifying keys, as on Cloudflare. The
+control plane checks creation and restore grants with them; the Router and the
+Derivers check a restore's pre-activation cleanup grant.
+
 ## One command
 
 ```bash
@@ -169,6 +186,21 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
   refuses to authorize it, and reserving it again is refused. The refresh it
   held back then runs. Deriver A later loses its share, and a new challenge
   is reserved, authorized and restored.
+- `vm_tenant_root_recovery_kit_restores_into_an_empty_deployment_and_signs`
+  prints `R150_VM_TENANT_ROOT_RECOVERY_KIT_RESTORE_E2E`: a tenant's recovery
+  kit (the committed fixture manifest, both role packages and their trust
+  bundle) restores the root into an empty deployment.
+  - The test stands in for the Console, signing each grant with the
+    operator's grant key, and for the tenant, resealing each opened share to
+    its destination import key.
+  - The bootstrap credential authenticates, and a wrong one is refused.
+  - After the restore refresh the root is dormant: both Derivers hold pending
+    epoch-1 shares, and the Router has no active state.
+  - The operator's activation makes it active, replays exactly and consumes
+    the credential. Cleanup retried after a lost reply returns both
+    Derivers' receipts again.
+  - A wallet registers on the restored root and signs. The root then
+    refreshes, and a second wallet signs on epoch 2.
 - `vm_tenant_root_work_admitted_before_a_refresh_finishes_on_its_epoch`
   prints `R150_VM_TENANT_ROOT_WORK_ACROSS_REFRESH_E2E`: a Yao registration
   admitted on epoch 1 is held while a refresh commits epoch 2 and both roles
@@ -238,9 +270,11 @@ operation, its contracts and what is needed.
 
 - ECDSA activation refresh. Linked-device ECDSA signing fails closed.
 - Device linking.
-- Tenant-root status, recovery-package backup and restore, source retirement
-  and cutover. Manual and scheduled refresh and managed restore are served,
-  with the same Router, Deriver and control-plane code as Cloudflare.
+- Tenant-root status, recovery-package backup, source retirement and cutover.
+  Manual and scheduled refresh, managed restore and restore into a new
+  deployment are served, with the same Router, Deriver and control-plane code
+  as Cloudflare. Backup waits on the
+  [retention decision](./refactor-150-vm-recovery-retention.md).
 - Linked-device signing.
 - Google Cloud KMS managed backup (HPKE only).
 - Router and SigningWorker prewarm, which keeps Worker isolates warm and has no

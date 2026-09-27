@@ -81,6 +81,16 @@ pub trait TenantRootRouterCreationHostV1:
 {
     /// The control-plane issuer keys the Router trusts.
     fn trusted_issuer_keys(&self) -> RouterAbProtocolResult<BTreeMap<String, [u8; 32]>>;
+    /// Both Derivers' role verifying keys, which sign their ceremony evidence.
+    fn role_verifying_keys(
+        &self,
+    ) -> RouterAbProtocolResult<crate::env::TenantRootCreationRoleVerifyingKeysV1>;
+    /// The operator grant authorities the Router trusts, for restore cleanup.
+    fn grant_authority_verifying_keys(
+        &self,
+    ) -> RouterAbProtocolResult<crate::CloudflareTenantRootCreationGrantAuthorityVerifyingKeysV1>;
+    /// Current host time in Unix milliseconds.
+    fn now_ms(&self) -> RouterAbProtocolResult<u64>;
 }
 
 /// Drives one tenant-root creation to an active root, or reports why it
@@ -748,5 +758,26 @@ impl TenantRootRouterCreationHostV1 for CloudflareRouterTenantRootCreationHostV1
             )
         })?;
         crate::env::decode_issuer_verifying_keys(&keys)
+    }
+
+    fn role_verifying_keys(
+        &self,
+    ) -> RouterAbProtocolResult<crate::env::TenantRootCreationRoleVerifyingKeysV1> {
+        crate::env::parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(
+            &crate::CloudflareWorkerEnvReaderV1::new(self.env),
+        )
+    }
+
+    fn grant_authority_verifying_keys(
+        &self,
+    ) -> RouterAbProtocolResult<crate::CloudflareTenantRootCreationGrantAuthorityVerifyingKeysV1>
+    {
+        crate::env::parse_cloudflare_tenant_root_creation_grant_authority_verifying_keys_v1(
+            &crate::CloudflareWorkerEnvReaderV1::new(self.env),
+        )
+    }
+
+    fn now_ms(&self) -> RouterAbProtocolResult<u64> {
+        crate::cloudflare_now_unix_ms_v1()
     }
 }

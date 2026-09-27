@@ -532,6 +532,12 @@ async fn serve_local_tenant_root_creation_state_async_v1(
     )?)?;
     let now_ms = crate::local_router_coordinator::local_now_ms_v1()?;
     let schedule = parse_tenant_root_refresh_schedule_v1(&config.env)?;
+    let destination_bootstrap_config = {
+        use router_ab_cloudflare::CloudflareEnvReaderV1 as _;
+        config
+            .env
+            .get_text(LOCAL_TENANT_ROOT_DESTINATION_BOOTSTRAP_JSON_ENV_V1)?
+    };
 
     // One operation at a time, as a Durable Object runs them. SQLite's write
     // lock alone serializes them unfairly: a waiter sleeps between attempts,
@@ -556,6 +562,7 @@ async fn serve_local_tenant_root_creation_state_async_v1(
         &store,
         &issuer_keys,
         || parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(&config.env),
+        destination_bootstrap_config.as_deref(),
         path,
         request.request_json.as_bytes(),
         now_ms,
@@ -572,6 +579,13 @@ async fn serve_local_tenant_root_creation_state_async_v1(
     transaction.commit().map_err(sqlite_error)?;
     result
 }
+
+/// A destination Router's provisioned bootstrap authority, as JSON: the
+/// identity, deployment fingerprint and custody lineage a restore into this
+/// deployment may name, and the digest of its one-time bootstrap credential.
+/// The first bootstrap read of an empty tenant root persists it.
+pub const LOCAL_TENANT_ROOT_DESTINATION_BOOTSTRAP_JSON_ENV_V1: &str =
+    "TENANT_ROOT_DESTINATION_BOOTSTRAP_JSON";
 
 /// How often the VM Router offers each tenant root its scheduled refresh, in
 /// milliseconds: one minute unless set, and at least one second.
@@ -711,6 +725,9 @@ fn creation_state_route_v1(path: &str) -> RouterAbProtocolResult<&'static str> {
         CLOUDFLARE_TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_PATH,
         CLOUDFLARE_TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_PATH,
         CLOUDFLARE_TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_PATH,
+        router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_PRIVATE_REQUEST_PATH,
+        router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_REFRESH_PRIVATE_REQUEST_PATH,
+        router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_RESTORE_ACTIVATION_PRIVATE_REQUEST_PATH,
     ]
     .into_iter()
     .find(|known| *known == path)
@@ -883,6 +900,25 @@ impl TenantRootRouterCreationHostV1 for LocalRouterTenantRootCreationHostV1<'_> 
             &self.config.env,
             router_ab_cloudflare::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
         )?)
+    }
+
+    fn role_verifying_keys(
+        &self,
+    ) -> RouterAbProtocolResult<router_ab_cloudflare::TenantRootCreationRoleVerifyingKeysV1> {
+        parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(&self.config.env)
+    }
+
+    fn grant_authority_verifying_keys(
+        &self,
+    ) -> RouterAbProtocolResult<router_ab_cloudflare::CloudflareTenantRootCreationGrantAuthorityVerifyingKeysV1>
+    {
+        router_ab_cloudflare::parse_cloudflare_tenant_root_creation_grant_authority_verifying_keys_v1(
+            &self.config.env,
+        )
+    }
+
+    fn now_ms(&self) -> RouterAbProtocolResult<u64> {
+        crate::local_router_coordinator::local_now_ms_v1()
     }
 }
 
@@ -1086,6 +1122,10 @@ impl TenantRootDeriverHostV1 for LocalTenantRootDeriverHostV1<'_> {
 
     fn worker_role(&self) -> CloudflareWorkerRoleV1 {
         self.config.worker_role
+    }
+
+    fn now_ms(&self) -> RouterAbProtocolResult<u64> {
+        crate::local_router_coordinator::local_now_ms_v1()
     }
 
     fn env(&self) -> &Self::Env {
@@ -1436,6 +1476,22 @@ impl router_ab_cloudflare::TenantRootControlPlaneHostV1 for LocalTenantRootContr
             )
         })?;
         Ok(bytes)
+    }
+
+    fn recovery_trust(
+        &self,
+    ) -> RouterAbProtocolResult<(
+        router_ab_core::derivation::TenantRootRecoveryTrustBundleV1,
+        Option<router_ab_core::derivation::TenantRootRecoveryRevocationSnapshotV1>,
+    )> {
+        Ok((
+            router_ab_cloudflare::parse_cloudflare_tenant_root_recovery_trust_bundle_v1(
+                &self.config.env,
+            )?,
+            router_ab_cloudflare::parse_cloudflare_tenant_root_recovery_trust_snapshot_v1(
+                &self.config.env,
+            )?,
+        ))
     }
 }
 

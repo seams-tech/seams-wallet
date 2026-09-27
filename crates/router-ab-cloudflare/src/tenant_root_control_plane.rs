@@ -6,6 +6,9 @@
 //! signs it. There is deliberately no raw-payload signing entry point: the
 //! request types name *what* to issue, never the bytes to sign.
 
+use router_ab_core::derivation::{
+    TenantRootRecoveryRevocationSnapshotV1, TenantRootRecoveryTrustBundleV1,
+};
 use router_ab_core::{
     tenant_root_restore_refresh_context_nonce_v1, verify_tenant_root_recovery_manifest_trust_v1,
     MpcPrfShareCommitmentWireV1, TenantRootActivationAvailabilityEvidenceV1,
@@ -52,7 +55,8 @@ use crate::durable_object::tenant_root_creation::{
     CloudflareTenantRootManagedRestoreAuthorizationChallengeV1,
     CloudflareTenantRootManagedRestoreAuthorizationCheckpointV1,
     CloudflareTenantRootManagedRestoreAuthorizationRequestV1,
-    CloudflareTenantRootManagedRestoreFenceV1, ValidatedTenantRootCreationJournalV1,
+    CloudflareTenantRootManagedRestoreFenceV1, CloudflareTenantRootRestoreRefreshCheckpointResponseV1,
+    CloudflareTenantRootRestoreRefreshRolePromotionV1, ValidatedTenantRootCreationJournalV1,
 };
 use crate::{
     encode_base64url_bytes_v1, RouterAbProtocolError, RouterAbProtocolErrorCode,
@@ -328,7 +332,7 @@ pub const TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1: usi
     256 * 1024;
 pub(crate) const TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_RESPONSE_MAX_BYTES_V1: usize = 32 * 1024;
 /// Maximum accepted request size for restore initial activation evidence.
-pub(crate) const TENANT_ROOT_CONTROL_PLANE_RESTORE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1: usize =
+pub const TENANT_ROOT_CONTROL_PLANE_RESTORE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1: usize =
     256 * 1024;
 /// Maximum accepted request size for refresh activation evidence.
 pub(crate) const TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_REQUEST_MAX_BYTES_V1: usize =
@@ -353,7 +357,7 @@ pub struct CloudflareTenantRootControlPlaneInitialActivationRequestV1 {
 /// only the signed authorization and its authenticated recovery manifest.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootControlPlaneRestoreInitialActivationRequestV1 {
+pub struct CloudflareTenantRootControlPlaneRestoreInitialActivationRequestV1 {
     pub(crate) restore_refresh_grant_b64u: String,
     pub(crate) manifest_b64u: String,
 }
@@ -1057,15 +1061,46 @@ fn verify_recovery_manifest_with_local_trust_v1(
     TenantRootRecoveryManifestV1,
     TenantRootRecoveryManifestTrustV1,
 )> {
+    verify_recovery_manifest_with_trust_v1(
+        manifest_bytes,
+        &crate::env::parse_cloudflare_tenant_root_recovery_trust_bundle_v1(env)?,
+        crate::env::parse_cloudflare_tenant_root_recovery_trust_snapshot_v1(env)?.as_ref(),
+    )
+}
+
+/// Verifies one recovery manifest against a host's configured recovery trust.
+fn verify_recovery_manifest_v1(
+    host: &impl TenantRootControlPlaneHostV1,
+    manifest_b64u: &str,
+) -> RouterAbProtocolResult<(
+    TenantRootRecoveryManifestV1,
+    TenantRootRecoveryManifestTrustV1,
+)> {
+    let manifest_bytes = decode_canonical_base64url(
+        "tenant-root recovery manifest",
+        manifest_b64u,
+        TENANT_ROOT_RECOVERY_MANIFEST_MAX_BYTES,
+        TENANT_ROOT_RECOVERY_MANIFEST_MAX_BYTES * 2,
+    )?;
+    let (trust_bundle, snapshot) = host.recovery_trust()?;
+    verify_recovery_manifest_with_trust_v1(&manifest_bytes, &trust_bundle, snapshot.as_ref())
+}
+
+fn verify_recovery_manifest_with_trust_v1(
+    manifest_bytes: &[u8],
+    trust_bundle: &TenantRootRecoveryTrustBundleV1,
+    snapshot: Option<&TenantRootRecoveryRevocationSnapshotV1>,
+) -> RouterAbProtocolResult<(
+    TenantRootRecoveryManifestV1,
+    TenantRootRecoveryManifestTrustV1,
+)> {
     let manifest =
         TenantRootRecoveryManifestV1::from_canonical_json(manifest_bytes).map_err(derivation)?;
-    let trust_bundle = crate::env::parse_cloudflare_tenant_root_recovery_trust_bundle_v1(env)?;
-    let snapshot = crate::env::parse_cloudflare_tenant_root_recovery_trust_snapshot_v1(env)?;
-    let evidence = match snapshot.as_ref() {
+    let evidence = match snapshot {
         Some(snapshot) => TenantRootRecoveryTrustEvidenceV1::TrustSnapshot { snapshot },
         None => TenantRootRecoveryTrustEvidenceV1::OfflineRootsOnly,
     };
-    let trust = verify_tenant_root_recovery_manifest_trust_v1(&manifest, &trust_bundle, &evidence)
+    let trust = verify_tenant_root_recovery_manifest_trust_v1(&manifest, trust_bundle, &evidence)
         .map_err(derivation)?;
     // The chain verifier returns the trusted key. The signed artifact still
     // needs its detached manifest signature checked against that key.
@@ -1211,6 +1246,14 @@ pub trait TenantRootControlPlaneHostV1: crate::TenantRootCreationStateTransportV
     ) -> RouterAbProtocolResult<crate::durable_object::tenant_root_creation::CloudflareVerifiedTenantRootActiveStateV1>;
     /// Fresh random bytes from the host's secure generator.
     fn random_bytes(&self, len: usize) -> RouterAbProtocolResult<Vec<u8>>;
+    /// The recovery trust bundle this control plane verifies manifests
+    /// against, and its revocation snapshot when one is configured.
+    fn recovery_trust(
+        &self,
+    ) -> RouterAbProtocolResult<(
+        TenantRootRecoveryTrustBundleV1,
+        Option<TenantRootRecoveryRevocationSnapshotV1>,
+    )>;
 }
 
 fn decode_managed_restore_scope_v1(
@@ -2387,6 +2430,539 @@ pub(crate) fn require_initial_activation_receipt_response_v1(
     Ok(())
 }
 
+// Restore into a new deployment, shared by every host.
+
+/// Verifies one public recovery manifest against this control plane's
+/// recovery trust and returns only the authenticated descriptor context.
+pub async fn control_plane_register_manifest_v1<Host: TenantRootControlPlaneHostV1>(
+    host: &Host,
+    request: CloudflareTenantRootControlPlaneRegisterManifestRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRegisterManifestResponseV1> {
+    let (manifest, trust) = verify_recovery_manifest_v1(host, &request.manifest_b64u)?;
+    recovery_manifest_response_v1(&manifest, &trust)
+}
+
+/// Verifies an admitted restore grant and manifest, then signs the exact
+/// role-import command a destination Deriver consumes.
+pub async fn control_plane_restore_role_import_key_v1<Host: TenantRootControlPlaneHostV1>(
+    host: &Host,
+    request: CloudflareTenantRootControlPlaneRestoreRoleImportKeyRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRestoreRoleImportKeyResponseV1> {
+    let bindings = host.bindings();
+    let grant_bytes = decode_canonical_base64url(
+        "tenant-root restore role-import grant",
+        &request.restore_grant_b64u,
+        TENANT_ROOT_RESTORE_ROLE_IMPORT_GRANT_MAX_BYTES_V1,
+        TENANT_ROOT_RESTORE_ROLE_IMPORT_GRANT_MAX_BYTES_V1 * 2,
+    )?;
+    let grant = TenantRootRestoreRoleImportGrantV1::decode_canonical_bytes(&grant_bytes)
+        .map_err(derivation)?;
+    let grant_key_id = grant.grant_key_id().to_owned();
+    let Some(trusted_grant_key) = bindings
+        .grant_authority_verifying_keys
+        .for_grant_key_id(&grant_key_id)
+    else {
+        return Err(refused(
+            "tenant-root restore role-import grant authority is not trusted by this control plane",
+        ));
+    };
+    let verified_grant = grant
+        .verify(&grant_key_id, trusted_grant_key)
+        .map_err(derivation)?;
+    // The Deriver checks its durable replay row before grant freshness so
+    // an accepted command can be reconciled after an unknown delivery.
+    let (manifest, _trust) = verify_recovery_manifest_v1(host, &request.manifest_b64u)?;
+    if manifest.digest().map_err(derivation)? != *verified_grant.manifest_digest() {
+        return Err(refused(
+            "tenant-root restore role-import manifest digest does not match its grant",
+        ));
+    }
+    if manifest.descriptor().tenant_root_identity_digest()
+        != verified_grant.destination_identity_digest()
+    {
+        return Err(refused(
+            "tenant-root restore role-import manifest identity does not match its destination grant",
+        ));
+    }
+    let issuer_seed = host.issuer_seed()?;
+    let command = TenantRootRestoreRoleImportCommandV1::sign(
+        &verified_grant,
+        &manifest,
+        bindings.issuer_signing_key.signing_key_id(),
+        &issuer_seed,
+    )
+    .map_err(derivation)?;
+    Ok(
+        CloudflareTenantRootControlPlaneRestoreRoleImportKeyResponseV1 {
+            issuer_key_id: bindings.issuer_signing_key.signing_key_id().to_owned(),
+            role_import_command_b64u: encode_base64url_bytes_v1(
+                &command.canonical_bytes().map_err(derivation)?,
+            ),
+        },
+    )
+}
+
+/// Verifies an admitted restore-refresh grant and manifest, then signs the
+/// deterministic A/B commands the destination Derivers consume.
+pub async fn control_plane_restore_refresh_commands_v1<Host: TenantRootControlPlaneHostV1>(
+    host: &Host,
+    request: CloudflareTenantRootControlPlaneRestoreRefreshCommandsRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRestoreRefreshCommandsResponseV1> {
+    let bindings = host.bindings();
+    let verified_grant = verify_restore_refresh_grant_v1(bindings, &request.restore_refresh_grant_b64u)?;
+    verified_grant
+        .require_fresh(host.now_ms()?)
+        .map_err(derivation)?;
+    let (manifest, _trust) = verify_recovery_manifest_v1(host, &request.manifest_b64u)?;
+    let issuer_seed = host.issuer_seed()?;
+    let issued = issue_tenant_root_restore_refresh_commands_v1(
+        &verified_grant,
+        &manifest,
+        &bindings.deriver_a_signing_key_id,
+        &bindings.deriver_b_signing_key_id,
+        bindings.issuer_signing_key.signing_key_id(),
+        &issuer_seed,
+    )?;
+    Ok(
+        CloudflareTenantRootControlPlaneRestoreRefreshCommandsResponseV1 {
+            refresh_context_b64u: encode_base64url_bytes_v1(
+                &issued.context.canonical_bytes().map_err(derivation)?,
+            ),
+            deriver_a_refresh_command_b64u: encode_base64url_bytes_v1(
+                &issued.deriver_a.canonical_bytes().map_err(derivation)?,
+            ),
+            deriver_b_refresh_command_b64u: encode_base64url_bytes_v1(
+                &issued.deriver_b.canonical_bytes().map_err(derivation)?,
+            ),
+            issuer_key_id: bindings.issuer_signing_key.signing_key_id().to_owned(),
+        },
+    )
+}
+
+fn verify_restore_refresh_grant_v1(
+    bindings: &crate::CloudflareTenantRootControlPlaneBindingsV1,
+    grant_b64u: &str,
+) -> RouterAbProtocolResult<router_ab_core::VerifiedTenantRootRestoreRefreshGrantV1> {
+    let grant_bytes = decode_canonical_base64url(
+        "tenant-root restore-refresh grant",
+        grant_b64u,
+        router_ab_core::TENANT_ROOT_RESTORE_REFRESH_GRANT_MAX_BYTES_V1,
+        router_ab_core::TENANT_ROOT_RESTORE_REFRESH_GRANT_MAX_BYTES_V1 * 2,
+    )?;
+    let grant = TenantRootRestoreRefreshGrantV1::decode_canonical_bytes(&grant_bytes)
+        .map_err(derivation)?;
+    let grant_key_id = grant.grant_key_id().to_owned();
+    let Some(trusted_grant_key) = bindings
+        .grant_authority_verifying_keys
+        .for_grant_key_id(&grant_key_id)
+    else {
+        return Err(refused(
+            "tenant-root restore-refresh grant authority is not trusted by this control plane",
+        ));
+    };
+    grant
+        .verify(&grant_key_id, trusted_grant_key)
+        .map_err(derivation)
+}
+
+/// Issues the initial-creation receipt that activates a restored root, from
+/// both Derivers' promotions in the destination's promoted checkpoint.
+pub async fn control_plane_restore_initial_activation_v1<Host: TenantRootControlPlaneHostV1>(
+    host: &Host,
+    request: CloudflareTenantRootControlPlaneRestoreInitialActivationRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1> {
+    let bindings = host.bindings();
+    let verified_grant = verify_restore_refresh_grant_v1(bindings, &request.restore_refresh_grant_b64u)?;
+    let (manifest, _trust) = verify_recovery_manifest_v1(host, &request.manifest_b64u)?;
+    let manifest_digest = manifest.digest().map_err(derivation)?;
+    if manifest_digest != *verified_grant.manifest_digest()
+        || manifest.descriptor().tenant_root_identity_digest()
+            != verified_grant.destination_identity_digest()
+    {
+        return Err(refused(
+            "tenant-root restore-refresh manifest does not match its grant",
+        ));
+    }
+    let checkpoint =
+        crate::durable_object::tenant_root_creation::tenant_root_restore_refresh_checkpoint_call_v1(
+            host,
+            &crate::durable_object::tenant_root_creation::CloudflareTenantRootRestoreRefreshCheckpointRequestV1::ReadPromoted {
+                restore_refresh_grant_b64u: request.restore_refresh_grant_b64u,
+                manifest_b64u: request.manifest_b64u,
+            },
+        )
+        .await?;
+    let (
+        authority_id_b64u,
+        expected_control_plane_revision,
+        result_control_plane_revision,
+        deriver_a_promotion,
+        deriver_b_promotion,
+    ) = require_promoted_restore_refresh_read_v1(checkpoint)?;
+    require_restore_initial_activation_revisions_v1(
+        expected_control_plane_revision,
+        result_control_plane_revision,
+    )?;
+    let authority_id = decode_restore_refresh_authority_id_v1(&authority_id_b64u)?;
+    let deriver_a = verify_restore_refresh_promotion_v1(
+        &deriver_a_promotion,
+        TwoPartyDeriverRole::DeriverA,
+        authority_id,
+        bindings,
+    )?;
+    let deriver_b = verify_restore_refresh_promotion_v1(
+        &deriver_b_promotion,
+        TwoPartyDeriverRole::DeriverB,
+        authority_id,
+        bindings,
+    )?;
+    require_restore_refresh_command_scope_v1(
+        &verified_grant,
+        &manifest,
+        &deriver_a.command,
+        &deriver_b.command,
+        bindings,
+    )?;
+    if deriver_a.completed_at_ms != deriver_a_promotion.completed_at_ms
+        || deriver_b.completed_at_ms != deriver_b_promotion.completed_at_ms
+    {
+        return Err(refused(
+            "tenant-root restore-refresh promotion completion timestamps changed",
+        ));
+    }
+    let availability = TenantRootActivationAvailabilityEvidenceV1::from_verified_restore(
+        &deriver_a.command,
+        manifest.descriptor().recovery_set_id(),
+    )
+    .map_err(derivation)?;
+    let bundle = VerifiedTenantRootInitialCreationActivationEvidenceBundleV1::new(
+        deriver_a.installation,
+        deriver_b.installation,
+        availability,
+        deriver_a.provider_canary,
+        deriver_b.provider_canary,
+        expected_control_plane_revision,
+        result_control_plane_revision,
+    )
+    .map_err(derivation)?;
+    // The promotion timestamps are the durable activation event. Using the
+    // later one permits a retry after grant expiry while retaining the
+    // original in-window canary timestamps.
+    let activated_at_ms = deriver_a.completed_at_ms.max(deriver_b.completed_at_ms);
+    let issuer_seed = host.issuer_seed()?;
+    let receipt = issue_tenant_root_initial_activation_receipt_v1(
+        &bundle,
+        activated_at_ms,
+        authority_id,
+        bindings.issuer_signing_key.signing_key_id(),
+        &issuer_seed,
+    )?;
+    initial_activation_receipt_response_v1(receipt)
+}
+
+// Restore-refresh promotion checks, shared by every host.
+
+struct VerifiedTenantRootRestoreRefreshPromotionV1 {
+    command: VerifiedTenantRootRestoreRefreshRoleCommandV1,
+    installation: router_ab_core::VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
+    provider_canary: router_ab_core::VerifiedTenantRootProviderCanaryReceiptV1,
+    completed_at_ms: u64,
+}
+
+fn decode_verified_restore_refresh_role_command_v1(
+    field: &'static str,
+    encoded: &str,
+    expected_role: TwoPartyDeriverRole,
+    issuer_verifying_keys: &crate::CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1,
+) -> RouterAbProtocolResult<VerifiedTenantRootRestoreRefreshRoleCommandV1> {
+    let bytes = decode_canonical_base64url(
+        field,
+        encoded,
+        TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_MAX_BYTES_V1,
+        TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_MAX_BYTES_V1 * 2,
+    )?;
+    let signed = TenantRootRestoreRefreshRoleCommandV1::decode_canonical_bytes(&bytes)
+        .map_err(derivation)?;
+    if signed.role() != expected_role {
+        return Err(refused(
+            "tenant-root restore-refresh promotion names the wrong role command",
+        ));
+    }
+    let issuer_key_id = signed.issuer_key_id().to_owned();
+    let Some(issuer_verifying_key) = issuer_verifying_keys.for_issuer_key_id(&issuer_key_id)
+    else {
+        return Err(refused(
+            "tenant-root restore-refresh promotion command issuer is not trusted",
+        ));
+    };
+    let verified = signed
+        .verify(&issuer_key_id, issuer_verifying_key)
+        .map_err(derivation)?;
+    if verified.canonical_bytes() != bytes.as_slice() {
+        return Err(refused(
+            "tenant-root restore-refresh promotion command bytes changed",
+        ));
+    }
+    Ok(verified)
+}
+
+fn restore_manifest_imported_commitments_v1(
+    manifest: &TenantRootRecoveryManifestV1,
+) -> RouterAbProtocolResult<(MpcPrfShareCommitmentWireV1, MpcPrfShareCommitmentWireV1)> {
+    let descriptor = manifest.descriptor();
+    let deriver_a = MpcPrfShareCommitmentWireV1::new(
+        descriptor
+            .deriver_a()
+            .recovery_share_commitment()
+            .to_bytes()
+            .to_vec(),
+    )
+    .map_err(derivation)?;
+    let deriver_b = MpcPrfShareCommitmentWireV1::new(
+        descriptor
+            .deriver_b()
+            .recovery_share_commitment()
+            .to_bytes()
+            .to_vec(),
+    )
+    .map_err(derivation)?;
+    Ok((deriver_a, deriver_b))
+}
+
+fn require_restore_refresh_command_scope_v1(
+    grant: &VerifiedTenantRootRestoreRefreshGrantV1,
+    manifest: &TenantRootRecoveryManifestV1,
+    deriver_a: &VerifiedTenantRootRestoreRefreshRoleCommandV1,
+    deriver_b: &VerifiedTenantRootRestoreRefreshRoleCommandV1,
+    bindings: &crate::CloudflareTenantRootControlPlaneBindingsV1,
+) -> RouterAbProtocolResult<()> {
+    if deriver_a.role() != TwoPartyDeriverRole::DeriverA
+        || deriver_b.role() != TwoPartyDeriverRole::DeriverB
+        || deriver_a.context() != deriver_b.context()
+        || deriver_a.destination_fingerprint() != deriver_b.destination_fingerprint()
+        || deriver_a.restore_session_id() != deriver_b.restore_session_id()
+        || deriver_a.manifest_digest() != deriver_b.manifest_digest()
+        || deriver_a.acceptance_receipt(TwoPartyDeriverRole::DeriverA)
+            != deriver_b.acceptance_receipt(TwoPartyDeriverRole::DeriverA)
+        || deriver_a.acceptance_receipt(TwoPartyDeriverRole::DeriverB)
+            != deriver_b.acceptance_receipt(TwoPartyDeriverRole::DeriverB)
+        || deriver_a.imported_commitment(TwoPartyDeriverRole::DeriverA)
+            != deriver_b.imported_commitment(TwoPartyDeriverRole::DeriverA)
+        || deriver_a.imported_commitment(TwoPartyDeriverRole::DeriverB)
+            != deriver_b.imported_commitment(TwoPartyDeriverRole::DeriverB)
+        || deriver_a.stable_root_commitment() != deriver_b.stable_root_commitment()
+        || deriver_a.issuer_key_id() != deriver_b.issuer_key_id()
+        || deriver_a.digest() == deriver_b.digest()
+    {
+        return Err(refused(
+            "tenant-root restore-refresh A/B commands do not agree",
+        ));
+    }
+
+    let manifest_digest = manifest.digest().map_err(derivation)?;
+    let (manifest_deriver_a, manifest_deriver_b) =
+        restore_manifest_imported_commitments_v1(manifest)?;
+    let ceremony_session_id = grant.ceremony_session_id().map_err(derivation)?;
+    let context = deriver_a.context();
+    let descriptor = manifest.descriptor();
+    if context.identity_digest() != grant.destination_identity_digest()
+        || context.custody_lineage() != grant.destination_lineage()
+        || context.session_id() != ceremony_session_id
+        || context.issued_at_ms() != grant.issued_at_ms()
+        || context.expires_at_ms() != grant.expires_at_ms()
+        || context.signing_key_id(TwoPartyDeriverRole::DeriverA)
+            != bindings.deriver_a_signing_key_id
+        || context.signing_key_id(TwoPartyDeriverRole::DeriverB)
+            != bindings.deriver_b_signing_key_id
+        || deriver_a.destination_fingerprint() != grant.destination_fingerprint()
+        || deriver_a.restore_session_id() != grant.restore_session_id()
+        || deriver_a.manifest_digest() != &manifest_digest
+        || deriver_a.acceptance_receipt(TwoPartyDeriverRole::DeriverA)
+            != grant.deriver_a_acceptance_receipt_digest()
+        || deriver_a.acceptance_receipt(TwoPartyDeriverRole::DeriverB)
+            != grant.deriver_b_acceptance_receipt_digest()
+        || deriver_a.imported_commitment(TwoPartyDeriverRole::DeriverA) != &manifest_deriver_a
+        || deriver_a.imported_commitment(TwoPartyDeriverRole::DeriverB) != &manifest_deriver_b
+        || deriver_a.stable_root_commitment() != &descriptor.stable_root_commitment().to_bytes()
+        || deriver_a.issued_at_ms() != grant.issued_at_ms()
+        || deriver_a.expires_at_ms() != grant.expires_at_ms()
+    {
+        return Err(refused(
+            "tenant-root restore-refresh command scope does not match its grant or manifest",
+        ));
+    }
+    Ok(())
+}
+
+fn verify_restore_refresh_promotion_v1(
+    promotion: &CloudflareTenantRootRestoreRefreshRolePromotionV1,
+    expected_role: TwoPartyDeriverRole,
+    authority_id: TenantRootControlPlaneAuthorityIdV1,
+    bindings: &crate::CloudflareTenantRootControlPlaneBindingsV1,
+) -> RouterAbProtocolResult<VerifiedTenantRootRestoreRefreshPromotionV1> {
+    if promotion.role.to_protocol() != expected_role {
+        return Err(refused(
+            "tenant-root restore-refresh promotion role does not match its slot",
+        ));
+    }
+    let command = decode_verified_restore_refresh_role_command_v1(
+        "tenant-root restore-refresh promoted role command",
+        &promotion.restore_refresh_role_command_b64u,
+        expected_role,
+        &bindings.issuer_verifying_keys,
+    )?;
+    if encode_base64url_bytes_v1(command.digest().as_bytes()) != promotion.command_digest_b64u {
+        return Err(refused(
+            "tenant-root restore-refresh promotion command digest does not match its bytes",
+        ));
+    }
+    let (expected_signing_key_id, expected_verifying_key) = match expected_role {
+        TwoPartyDeriverRole::DeriverA => (
+            bindings.deriver_a_signing_key_id.as_str(),
+            &bindings.deriver_a_verifying_key,
+        ),
+        TwoPartyDeriverRole::DeriverB => (
+            bindings.deriver_b_signing_key_id.as_str(),
+            &bindings.deriver_b_verifying_key,
+        ),
+    };
+    let installation = decode_verified_installation_evidence_v1(
+        "tenant-root restore-refresh promoted installation evidence",
+        &promotion.signed_installation_evidence_b64u,
+        expected_role,
+        expected_signing_key_id,
+        expected_verifying_key,
+    )?;
+    if installation.evidence().transcript().context() != command.context() {
+        return Err(refused(
+            "tenant-root restore-refresh promoted installation evidence does not match its command",
+        ));
+    }
+    let installation_digest = installation
+        .lifecycle_receipt_digest()
+        .map_err(derivation)?;
+    if encode_base64url_bytes_v1(installation_digest.as_bytes())
+        != promotion.installation_evidence_digest_b64u
+    {
+        return Err(refused(
+            "tenant-root restore-refresh promoted installation evidence digest does not match its bytes",
+        ));
+    }
+    let (expected_family, expected_signing_key_id, expected_verifying_key) = match expected_role
+    {
+        TwoPartyDeriverRole::DeriverA => (
+            TenantRootCanaryCurveFamilyV1::Ecdsa,
+            bindings.deriver_a_signing_key_id.as_str(),
+            &bindings.deriver_a_verifying_key,
+        ),
+        TwoPartyDeriverRole::DeriverB => (
+            TenantRootCanaryCurveFamilyV1::Ed25519,
+            bindings.deriver_b_signing_key_id.as_str(),
+            &bindings.deriver_b_verifying_key,
+        ),
+    };
+    let provider_canary = decode_verified_provider_canary_v1(
+        "tenant-root restore-refresh promoted provider canary",
+        &promotion.provider_canary_receipt_b64u,
+        expected_family,
+        expected_signing_key_id,
+        expected_verifying_key,
+    )?;
+    if provider_canary.authority_id() != authority_id
+        || provider_canary.transition()
+            != TenantRootActivationReceiptTransitionV1::InitialCreation
+        || provider_canary.target_epoch() != TenantRootShareEpoch::INITIAL
+        || provider_canary.issued_at_ms() != command.issued_at_ms()
+        || provider_canary.expires_at_ms() != command.expires_at_ms()
+        || provider_canary.completed_at_ms() != promotion.completed_at_ms
+        || encode_base64url_bytes_v1(provider_canary.digest().as_bytes())
+            != promotion.provider_canary_receipt_digest_b64u
+        || promotion.completed_at_ms < command.issued_at_ms()
+        || promotion.completed_at_ms >= command.expires_at_ms()
+    {
+        return Err(refused(
+            "tenant-root restore-refresh promoted provider canary is outside its command scope",
+        ));
+    }
+    Ok(VerifiedTenantRootRestoreRefreshPromotionV1 {
+        command,
+        installation,
+        provider_canary,
+        completed_at_ms: promotion.completed_at_ms,
+    })
+}
+
+fn decode_restore_refresh_authority_id_v1(
+    encoded: &str,
+) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1> {
+    let bytes = decode_canonical_base64url(
+        "tenant-root restore-refresh Durable Object authority",
+        encoded,
+        32,
+        64,
+    )?;
+    let bytes: [u8; 32] = bytes.try_into().map_err(|_| {
+        refused("tenant-root restore-refresh Durable Object authority has the wrong size")
+    })?;
+    Ok(TenantRootControlPlaneAuthorityIdV1::from_bytes(bytes))
+}
+
+fn require_restore_initial_activation_revisions_v1(
+    expected_control_plane_revision: u64,
+    result_control_plane_revision: u64,
+) -> RouterAbProtocolResult<()> {
+    if expected_control_plane_revision
+        != TENANT_ROOT_INITIAL_CREATION_ACTIVATION_EXPECTED_REVISION_V1
+        || result_control_plane_revision
+            != TENANT_ROOT_INITIAL_CREATION_ACTIVATION_RESULT_REVISION_V1
+    {
+        return Err(refused(
+            "tenant-root restore-refresh promoted checkpoint has unexpected activation revisions",
+        ));
+    }
+    Ok(())
+}
+
+fn require_promoted_restore_refresh_read_v1(
+    response: CloudflareTenantRootRestoreRefreshCheckpointResponseV1,
+) -> RouterAbProtocolResult<(
+    String,
+    u64,
+    u64,
+    CloudflareTenantRootRestoreRefreshRolePromotionV1,
+    CloudflareTenantRootRestoreRefreshRolePromotionV1,
+)> {
+    match response {
+        CloudflareTenantRootRestoreRefreshCheckpointResponseV1::PromotedRead {
+            authority_id_b64u,
+            expected_initial_activation_revision,
+            result_initial_activation_revision,
+            deriver_a_promotion,
+            deriver_b_promotion,
+        } => Ok((
+            authority_id_b64u,
+            expected_initial_activation_revision,
+            result_initial_activation_revision,
+            deriver_a_promotion,
+            deriver_b_promotion,
+        )),
+        CloudflareTenantRootRestoreRefreshCheckpointResponseV1::AuthorizationExpiredBeforePromotion {
+            ..
+        } => Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ExpiredLocalRequest,
+            "tenant-root restore-refresh authorization expired before durable promotion",
+        )),
+        CloudflareTenantRootRestoreRefreshCheckpointResponseV1::Checkpoint { .. }
+        | CloudflareTenantRootRestoreRefreshCheckpointResponseV1::CompletedRead { .. }
+        | CloudflareTenantRootRestoreRefreshCheckpointResponseV1::AuthorizationExpiredBeforeCommands {
+            ..
+        } => Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLifecycleState,
+            "tenant-root restore-refresh initial activation requires a promoted checkpoint",
+        )),
+    }
+}
+
 #[cfg(feature = "workers-rs")]
 mod live {
     use super::*;
@@ -2394,10 +2970,6 @@ mod live {
         decode_canonical_base64url, derive_tenant_root_creation_authority_object_v1,
         execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1,
         execute_cloudflare_router_tenant_root_creation_journal_call_v1,
-        execute_cloudflare_router_tenant_root_restore_refresh_checkpoint_call_v1,
-        CloudflareTenantRootRestoreRefreshCheckpointRequestV1,
-        CloudflareTenantRootRestoreRefreshCheckpointResponseV1,
-        CloudflareTenantRootRestoreRefreshRolePromotionV1,
     };
     use crate::env::decode_cloudflare_tenant_root_control_plane_issuer_signing_secret_v1;
     use crate::{
@@ -2885,169 +3457,42 @@ mod live {
         }))
     }
 
-    /// Verifies one public recovery manifest against this Worker's configured
-    /// roots and returns only the authenticated descriptor context.
     pub async fn handle_cloudflare_tenant_root_control_plane_register_manifest_v1(
         request: CloudflareTenantRootControlPlaneRegisterManifestRequestV1,
         env: &worker::Env,
+        runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRegisterManifestResponseV1> {
-        let manifest_bytes = decode_canonical_base64url(
-            "tenant-root recovery manifest",
-            &request.manifest_b64u,
-            TENANT_ROOT_RECOVERY_MANIFEST_MAX_BYTES,
-            TENANT_ROOT_RECOVERY_MANIFEST_MAX_BYTES * 2,
-        )?;
-        let (manifest, trust) = verify_recovery_manifest_with_local_trust_v1(
-            &manifest_bytes,
-            &CloudflareWorkerEnvReaderV1::new(env),
-        )?;
-        recovery_manifest_response_v1(&manifest, &trust)
+        super::control_plane_register_manifest_v1(
+            &CloudflareControlPlaneHostV1 { env, runtime },
+            request,
+        )
+        .await
     }
 
-    /// Verifies an admitted restore grant and manifest, then signs the exact
-    /// role-import command consumed by a destination Deriver.
     pub async fn handle_cloudflare_tenant_root_control_plane_restore_role_import_key_v1(
         request: CloudflareTenantRootControlPlaneRestoreRoleImportKeyRequestV1,
         env: &worker::Env,
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRestoreRoleImportKeyResponseV1>
     {
-        let grant_bytes = decode_canonical_base64url(
-            "tenant-root restore role-import grant",
-            &request.restore_grant_b64u,
-            TENANT_ROOT_RESTORE_ROLE_IMPORT_GRANT_MAX_BYTES_V1,
-            TENANT_ROOT_RESTORE_ROLE_IMPORT_GRANT_MAX_BYTES_V1 * 2,
-        )?;
-        let grant = TenantRootRestoreRoleImportGrantV1::decode_canonical_bytes(&grant_bytes)
-            .map_err(derivation)?;
-        let grant_key_id = grant.grant_key_id().to_owned();
-        let Some(trusted_grant_key) = runtime
-            .bindings()
-            .grant_authority_verifying_keys
-            .for_grant_key_id(&grant_key_id)
-        else {
-            return Err(refused(
-                "tenant-root restore role-import grant authority is not trusted by this control plane",
-            ));
-        };
-        let verified_grant = grant
-            .verify(&grant_key_id, trusted_grant_key)
-            .map_err(derivation)?;
-        // The Deriver checks its durable replay row before grant freshness so
-        // an accepted command can be reconciled after an unknown delivery.
-
-        let manifest_bytes = decode_canonical_base64url(
-            "tenant-root recovery manifest",
-            &request.manifest_b64u,
-            TENANT_ROOT_RECOVERY_MANIFEST_MAX_BYTES,
-            TENANT_ROOT_RECOVERY_MANIFEST_MAX_BYTES * 2,
-        )?;
-        let (manifest, _trust) = verify_recovery_manifest_with_local_trust_v1(
-            &manifest_bytes,
-            &CloudflareWorkerEnvReaderV1::new(env),
-        )?;
-        if manifest.digest().map_err(derivation)? != *verified_grant.manifest_digest() {
-            return Err(refused(
-                "tenant-root restore role-import manifest digest does not match its grant",
-            ));
-        }
-        if manifest.descriptor().tenant_root_identity_digest()
-            != verified_grant.destination_identity_digest()
-        {
-            return Err(refused(
-                "tenant-root restore role-import manifest identity does not match its destination grant",
-            ));
-        }
-
-        let issuer_seed = load_issuer_seed(env, runtime)?;
-        let command = TenantRootRestoreRoleImportCommandV1::sign(
-            &verified_grant,
-            &manifest,
-            runtime.bindings().issuer_signing_key.signing_key_id(),
-            &issuer_seed,
+        super::control_plane_restore_role_import_key_v1(
+            &CloudflareControlPlaneHostV1 { env, runtime },
+            request,
         )
-        .map_err(derivation)?;
-        Ok(
-            CloudflareTenantRootControlPlaneRestoreRoleImportKeyResponseV1 {
-                issuer_key_id: runtime
-                    .bindings()
-                    .issuer_signing_key
-                    .signing_key_id()
-                    .to_owned(),
-                role_import_command_b64u: encode_base64url_bytes_v1(
-                    &command.canonical_bytes().map_err(derivation)?,
-                ),
-            },
-        )
+        .await
     }
 
-    /// Verifies an admitted restore-refresh grant and manifest, then signs the
-    /// deterministic A/B commands consumed by the destination Derivers.
     pub async fn handle_cloudflare_tenant_root_control_plane_restore_refresh_commands_v1(
         request: CloudflareTenantRootControlPlaneRestoreRefreshCommandsRequestV1,
         env: &worker::Env,
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneRestoreRefreshCommandsResponseV1>
     {
-        let grant_bytes = decode_canonical_base64url(
-            "tenant-root restore refresh grant",
-            &request.restore_refresh_grant_b64u,
-            router_ab_core::TENANT_ROOT_RESTORE_REFRESH_GRANT_MAX_BYTES_V1,
-            router_ab_core::TENANT_ROOT_RESTORE_REFRESH_GRANT_MAX_BYTES_V1 * 2,
-        )?;
-        let grant = TenantRootRestoreRefreshGrantV1::decode_canonical_bytes(&grant_bytes)
-            .map_err(derivation)?;
-        let grant_key_id = grant.grant_key_id().to_owned();
-        let Some(trusted_grant_key) = runtime
-            .bindings()
-            .grant_authority_verifying_keys
-            .for_grant_key_id(&grant_key_id)
-        else {
-            return Err(refused(
-                "tenant-root restore refresh grant authority is not trusted by this control plane",
-            ));
-        };
-        let verified_grant = grant
-            .verify(&grant_key_id, trusted_grant_key)
-            .map_err(derivation)?;
-        verified_grant
-            .require_fresh(crate::cloudflare_now_unix_ms_v1()?)
-            .map_err(derivation)?;
-
-        let manifest_bytes = decode_canonical_base64url(
-            "tenant-root recovery manifest",
-            &request.manifest_b64u,
-            TENANT_ROOT_RECOVERY_MANIFEST_MAX_BYTES,
-            TENANT_ROOT_RECOVERY_MANIFEST_MAX_BYTES * 2,
-        )?;
-        let (manifest, _trust) = verify_recovery_manifest_with_local_trust_v1(
-            &manifest_bytes,
-            &CloudflareWorkerEnvReaderV1::new(env),
-        )?;
-        let bindings = runtime.bindings();
-        let issuer_seed = load_issuer_seed(env, runtime)?;
-        let issued = issue_tenant_root_restore_refresh_commands_v1(
-            &verified_grant,
-            &manifest,
-            &bindings.deriver_a_signing_key_id,
-            &bindings.deriver_b_signing_key_id,
-            bindings.issuer_signing_key.signing_key_id(),
-            &issuer_seed,
-        )?;
-        Ok(
-            CloudflareTenantRootControlPlaneRestoreRefreshCommandsResponseV1 {
-                refresh_context_b64u: encode_base64url_bytes_v1(
-                    &issued.context.canonical_bytes().map_err(derivation)?,
-                ),
-                deriver_a_refresh_command_b64u: encode_base64url_bytes_v1(
-                    &issued.deriver_a.canonical_bytes().map_err(derivation)?,
-                ),
-                deriver_b_refresh_command_b64u: encode_base64url_bytes_v1(
-                    &issued.deriver_b.canonical_bytes().map_err(derivation)?,
-                ),
-                issuer_key_id: bindings.issuer_signing_key.signing_key_id().to_owned(),
-            },
+        super::control_plane_restore_refresh_commands_v1(
+            &CloudflareControlPlaneHostV1 { env, runtime },
+            request,
         )
+        .await
     }
 
     /// Reads authoritative creation state from the Router-owned Durable Object
@@ -3298,308 +3743,6 @@ mod live {
 
 
 
-    struct VerifiedTenantRootRestoreRefreshPromotionV1 {
-        command: VerifiedTenantRootRestoreRefreshRoleCommandV1,
-        installation: router_ab_core::VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-        provider_canary: router_ab_core::VerifiedTenantRootProviderCanaryReceiptV1,
-        completed_at_ms: u64,
-    }
-
-    fn decode_verified_restore_refresh_role_command_v1(
-        field: &'static str,
-        encoded: &str,
-        expected_role: TwoPartyDeriverRole,
-        issuer_verifying_keys: &crate::CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1,
-    ) -> RouterAbProtocolResult<VerifiedTenantRootRestoreRefreshRoleCommandV1> {
-        let bytes = decode_canonical_base64url(
-            field,
-            encoded,
-            TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_MAX_BYTES_V1,
-            TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_MAX_BYTES_V1 * 2,
-        )?;
-        let signed = TenantRootRestoreRefreshRoleCommandV1::decode_canonical_bytes(&bytes)
-            .map_err(derivation)?;
-        if signed.role() != expected_role {
-            return Err(refused(
-                "tenant-root restore-refresh promotion names the wrong role command",
-            ));
-        }
-        let issuer_key_id = signed.issuer_key_id().to_owned();
-        let Some(issuer_verifying_key) = issuer_verifying_keys.for_issuer_key_id(&issuer_key_id)
-        else {
-            return Err(refused(
-                "tenant-root restore-refresh promotion command issuer is not trusted",
-            ));
-        };
-        let verified = signed
-            .verify(&issuer_key_id, issuer_verifying_key)
-            .map_err(derivation)?;
-        if verified.canonical_bytes() != bytes.as_slice() {
-            return Err(refused(
-                "tenant-root restore-refresh promotion command bytes changed",
-            ));
-        }
-        Ok(verified)
-    }
-
-    fn restore_manifest_imported_commitments_v1(
-        manifest: &TenantRootRecoveryManifestV1,
-    ) -> RouterAbProtocolResult<(MpcPrfShareCommitmentWireV1, MpcPrfShareCommitmentWireV1)> {
-        let descriptor = manifest.descriptor();
-        let deriver_a = MpcPrfShareCommitmentWireV1::new(
-            descriptor
-                .deriver_a()
-                .recovery_share_commitment()
-                .to_bytes()
-                .to_vec(),
-        )
-        .map_err(derivation)?;
-        let deriver_b = MpcPrfShareCommitmentWireV1::new(
-            descriptor
-                .deriver_b()
-                .recovery_share_commitment()
-                .to_bytes()
-                .to_vec(),
-        )
-        .map_err(derivation)?;
-        Ok((deriver_a, deriver_b))
-    }
-
-    fn require_restore_refresh_command_scope_v1(
-        grant: &VerifiedTenantRootRestoreRefreshGrantV1,
-        manifest: &TenantRootRecoveryManifestV1,
-        deriver_a: &VerifiedTenantRootRestoreRefreshRoleCommandV1,
-        deriver_b: &VerifiedTenantRootRestoreRefreshRoleCommandV1,
-        bindings: &crate::CloudflareTenantRootControlPlaneBindingsV1,
-    ) -> RouterAbProtocolResult<()> {
-        if deriver_a.role() != TwoPartyDeriverRole::DeriverA
-            || deriver_b.role() != TwoPartyDeriverRole::DeriverB
-            || deriver_a.context() != deriver_b.context()
-            || deriver_a.destination_fingerprint() != deriver_b.destination_fingerprint()
-            || deriver_a.restore_session_id() != deriver_b.restore_session_id()
-            || deriver_a.manifest_digest() != deriver_b.manifest_digest()
-            || deriver_a.acceptance_receipt(TwoPartyDeriverRole::DeriverA)
-                != deriver_b.acceptance_receipt(TwoPartyDeriverRole::DeriverA)
-            || deriver_a.acceptance_receipt(TwoPartyDeriverRole::DeriverB)
-                != deriver_b.acceptance_receipt(TwoPartyDeriverRole::DeriverB)
-            || deriver_a.imported_commitment(TwoPartyDeriverRole::DeriverA)
-                != deriver_b.imported_commitment(TwoPartyDeriverRole::DeriverA)
-            || deriver_a.imported_commitment(TwoPartyDeriverRole::DeriverB)
-                != deriver_b.imported_commitment(TwoPartyDeriverRole::DeriverB)
-            || deriver_a.stable_root_commitment() != deriver_b.stable_root_commitment()
-            || deriver_a.issuer_key_id() != deriver_b.issuer_key_id()
-            || deriver_a.digest() == deriver_b.digest()
-        {
-            return Err(refused(
-                "tenant-root restore-refresh A/B commands do not agree",
-            ));
-        }
-
-        let manifest_digest = manifest.digest().map_err(derivation)?;
-        let (manifest_deriver_a, manifest_deriver_b) =
-            restore_manifest_imported_commitments_v1(manifest)?;
-        let ceremony_session_id = grant.ceremony_session_id().map_err(derivation)?;
-        let context = deriver_a.context();
-        let descriptor = manifest.descriptor();
-        if context.identity_digest() != grant.destination_identity_digest()
-            || context.custody_lineage() != grant.destination_lineage()
-            || context.session_id() != ceremony_session_id
-            || context.issued_at_ms() != grant.issued_at_ms()
-            || context.expires_at_ms() != grant.expires_at_ms()
-            || context.signing_key_id(TwoPartyDeriverRole::DeriverA)
-                != bindings.deriver_a_signing_key_id
-            || context.signing_key_id(TwoPartyDeriverRole::DeriverB)
-                != bindings.deriver_b_signing_key_id
-            || deriver_a.destination_fingerprint() != grant.destination_fingerprint()
-            || deriver_a.restore_session_id() != grant.restore_session_id()
-            || deriver_a.manifest_digest() != &manifest_digest
-            || deriver_a.acceptance_receipt(TwoPartyDeriverRole::DeriverA)
-                != grant.deriver_a_acceptance_receipt_digest()
-            || deriver_a.acceptance_receipt(TwoPartyDeriverRole::DeriverB)
-                != grant.deriver_b_acceptance_receipt_digest()
-            || deriver_a.imported_commitment(TwoPartyDeriverRole::DeriverA) != &manifest_deriver_a
-            || deriver_a.imported_commitment(TwoPartyDeriverRole::DeriverB) != &manifest_deriver_b
-            || deriver_a.stable_root_commitment() != &descriptor.stable_root_commitment().to_bytes()
-            || deriver_a.issued_at_ms() != grant.issued_at_ms()
-            || deriver_a.expires_at_ms() != grant.expires_at_ms()
-        {
-            return Err(refused(
-                "tenant-root restore-refresh command scope does not match its grant or manifest",
-            ));
-        }
-        Ok(())
-    }
-
-    fn verify_restore_refresh_promotion_v1(
-        promotion: &CloudflareTenantRootRestoreRefreshRolePromotionV1,
-        expected_role: TwoPartyDeriverRole,
-        authority_id: TenantRootControlPlaneAuthorityIdV1,
-        bindings: &crate::CloudflareTenantRootControlPlaneBindingsV1,
-    ) -> RouterAbProtocolResult<VerifiedTenantRootRestoreRefreshPromotionV1> {
-        if promotion.role.to_protocol() != expected_role {
-            return Err(refused(
-                "tenant-root restore-refresh promotion role does not match its slot",
-            ));
-        }
-        let command = decode_verified_restore_refresh_role_command_v1(
-            "tenant-root restore-refresh promoted role command",
-            &promotion.restore_refresh_role_command_b64u,
-            expected_role,
-            &bindings.issuer_verifying_keys,
-        )?;
-        if encode_base64url_bytes_v1(command.digest().as_bytes()) != promotion.command_digest_b64u {
-            return Err(refused(
-                "tenant-root restore-refresh promotion command digest does not match its bytes",
-            ));
-        }
-        let (expected_signing_key_id, expected_verifying_key) = match expected_role {
-            TwoPartyDeriverRole::DeriverA => (
-                bindings.deriver_a_signing_key_id.as_str(),
-                &bindings.deriver_a_verifying_key,
-            ),
-            TwoPartyDeriverRole::DeriverB => (
-                bindings.deriver_b_signing_key_id.as_str(),
-                &bindings.deriver_b_verifying_key,
-            ),
-        };
-        let installation = decode_verified_installation_evidence_v1(
-            "tenant-root restore-refresh promoted installation evidence",
-            &promotion.signed_installation_evidence_b64u,
-            expected_role,
-            expected_signing_key_id,
-            expected_verifying_key,
-        )?;
-        if installation.evidence().transcript().context() != command.context() {
-            return Err(refused(
-                "tenant-root restore-refresh promoted installation evidence does not match its command",
-            ));
-        }
-        let installation_digest = installation
-            .lifecycle_receipt_digest()
-            .map_err(derivation)?;
-        if encode_base64url_bytes_v1(installation_digest.as_bytes())
-            != promotion.installation_evidence_digest_b64u
-        {
-            return Err(refused(
-                "tenant-root restore-refresh promoted installation evidence digest does not match its bytes",
-            ));
-        }
-        let (expected_family, expected_signing_key_id, expected_verifying_key) = match expected_role
-        {
-            TwoPartyDeriverRole::DeriverA => (
-                TenantRootCanaryCurveFamilyV1::Ecdsa,
-                bindings.deriver_a_signing_key_id.as_str(),
-                &bindings.deriver_a_verifying_key,
-            ),
-            TwoPartyDeriverRole::DeriverB => (
-                TenantRootCanaryCurveFamilyV1::Ed25519,
-                bindings.deriver_b_signing_key_id.as_str(),
-                &bindings.deriver_b_verifying_key,
-            ),
-        };
-        let provider_canary = decode_verified_provider_canary_v1(
-            "tenant-root restore-refresh promoted provider canary",
-            &promotion.provider_canary_receipt_b64u,
-            expected_family,
-            expected_signing_key_id,
-            expected_verifying_key,
-        )?;
-        if provider_canary.authority_id() != authority_id
-            || provider_canary.transition()
-                != TenantRootActivationReceiptTransitionV1::InitialCreation
-            || provider_canary.target_epoch() != TenantRootShareEpoch::INITIAL
-            || provider_canary.issued_at_ms() != command.issued_at_ms()
-            || provider_canary.expires_at_ms() != command.expires_at_ms()
-            || provider_canary.completed_at_ms() != promotion.completed_at_ms
-            || encode_base64url_bytes_v1(provider_canary.digest().as_bytes())
-                != promotion.provider_canary_receipt_digest_b64u
-            || promotion.completed_at_ms < command.issued_at_ms()
-            || promotion.completed_at_ms >= command.expires_at_ms()
-        {
-            return Err(refused(
-                "tenant-root restore-refresh promoted provider canary is outside its command scope",
-            ));
-        }
-        Ok(VerifiedTenantRootRestoreRefreshPromotionV1 {
-            command,
-            installation,
-            provider_canary,
-            completed_at_ms: promotion.completed_at_ms,
-        })
-    }
-
-    fn decode_restore_refresh_authority_id_v1(
-        encoded: &str,
-    ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1> {
-        let bytes = decode_canonical_base64url(
-            "tenant-root restore-refresh Durable Object authority",
-            encoded,
-            32,
-            64,
-        )?;
-        let bytes: [u8; 32] = bytes.try_into().map_err(|_| {
-            refused("tenant-root restore-refresh Durable Object authority has the wrong size")
-        })?;
-        Ok(TenantRootControlPlaneAuthorityIdV1::from_bytes(bytes))
-    }
-
-    fn require_restore_initial_activation_revisions_v1(
-        expected_control_plane_revision: u64,
-        result_control_plane_revision: u64,
-    ) -> RouterAbProtocolResult<()> {
-        if expected_control_plane_revision
-            != TENANT_ROOT_INITIAL_CREATION_ACTIVATION_EXPECTED_REVISION_V1
-            || result_control_plane_revision
-                != TENANT_ROOT_INITIAL_CREATION_ACTIVATION_RESULT_REVISION_V1
-        {
-            return Err(refused(
-                "tenant-root restore-refresh promoted checkpoint has unexpected activation revisions",
-            ));
-        }
-        Ok(())
-    }
-
-    fn require_promoted_restore_refresh_read_v1(
-        response: CloudflareTenantRootRestoreRefreshCheckpointResponseV1,
-    ) -> RouterAbProtocolResult<(
-        String,
-        u64,
-        u64,
-        CloudflareTenantRootRestoreRefreshRolePromotionV1,
-        CloudflareTenantRootRestoreRefreshRolePromotionV1,
-    )> {
-        match response {
-            CloudflareTenantRootRestoreRefreshCheckpointResponseV1::PromotedRead {
-                authority_id_b64u,
-                expected_initial_activation_revision,
-                result_initial_activation_revision,
-                deriver_a_promotion,
-                deriver_b_promotion,
-            } => Ok((
-                authority_id_b64u,
-                expected_initial_activation_revision,
-                result_initial_activation_revision,
-                deriver_a_promotion,
-                deriver_b_promotion,
-            )),
-            CloudflareTenantRootRestoreRefreshCheckpointResponseV1::AuthorizationExpiredBeforePromotion {
-                ..
-            } => Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::ExpiredLocalRequest,
-                "tenant-root restore-refresh authorization expired before durable promotion",
-            )),
-            CloudflareTenantRootRestoreRefreshCheckpointResponseV1::Checkpoint { .. }
-            | CloudflareTenantRootRestoreRefreshCheckpointResponseV1::CompletedRead { .. }
-            | CloudflareTenantRootRestoreRefreshCheckpointResponseV1::AuthorizationExpiredBeforeCommands {
-                ..
-            } => Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLifecycleState,
-                "tenant-root restore-refresh initial activation requires a promoted checkpoint",
-            )),
-        }
-    }
-
-
     /// Verifies the six public activation artifacts and issues the exact receipt.
     pub(crate) async fn handle_cloudflare_tenant_root_control_plane_initial_activation_v1(
         request: CloudflareTenantRootControlPlaneInitialActivationRequestV1,
@@ -3700,135 +3843,32 @@ mod live {
         fn random_bytes(&self, len: usize) -> RouterAbProtocolResult<Vec<u8>> {
             crate::cloudflare_random_bytes_v1(len)
         }
+
+        fn recovery_trust(
+            &self,
+        ) -> RouterAbProtocolResult<(
+            TenantRootRecoveryTrustBundleV1,
+            Option<TenantRootRecoveryRevocationSnapshotV1>,
+        )> {
+            let reader = CloudflareWorkerEnvReaderV1::new(self.env);
+            Ok((
+                crate::env::parse_cloudflare_tenant_root_recovery_trust_bundle_v1(&reader)?,
+                crate::env::parse_cloudflare_tenant_root_recovery_trust_snapshot_v1(&reader)?,
+            ))
+        }
     }
 
-    /// Reads the durable promoted restore-refresh checkpoint, verifies its
-    /// exact A/B command, installation, and canary artifacts, then issues the
-    /// tenant-held-external initial activation receipt.
     pub(crate) async fn handle_cloudflare_tenant_root_control_plane_restore_initial_activation_v1(
         request: CloudflareTenantRootControlPlaneRestoreInitialActivationRequestV1,
         env: &worker::Env,
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1>
     {
-        let grant_bytes = decode_canonical_base64url(
-            "tenant-root restore-refresh grant",
-            &request.restore_refresh_grant_b64u,
-            router_ab_core::TENANT_ROOT_RESTORE_REFRESH_GRANT_MAX_BYTES_V1,
-            router_ab_core::TENANT_ROOT_RESTORE_REFRESH_GRANT_MAX_BYTES_V1 * 2,
-        )?;
-        let grant = TenantRootRestoreRefreshGrantV1::decode_canonical_bytes(&grant_bytes)
-            .map_err(derivation)?;
-        let grant_key_id = grant.grant_key_id().to_owned();
-        let Some(trusted_grant_key) = runtime
-            .bindings()
-            .grant_authority_verifying_keys
-            .for_grant_key_id(&grant_key_id)
-        else {
-            return Err(refused(
-                "tenant-root restore-refresh grant authority is not trusted by this control plane",
-            ));
-        };
-        let verified_grant = grant
-            .verify(&grant_key_id, trusted_grant_key)
-            .map_err(derivation)?;
-
-        let manifest_bytes = decode_canonical_base64url(
-            "tenant-root recovery manifest",
-            &request.manifest_b64u,
-            TENANT_ROOT_RECOVERY_MANIFEST_MAX_BYTES,
-            TENANT_ROOT_RECOVERY_MANIFEST_MAX_BYTES * 2,
-        )?;
-        let (manifest, _trust) = verify_recovery_manifest_with_local_trust_v1(
-            &manifest_bytes,
-            &CloudflareWorkerEnvReaderV1::new(env),
-        )?;
-        let manifest_digest = manifest.digest().map_err(derivation)?;
-        if manifest_digest != *verified_grant.manifest_digest()
-            || manifest.descriptor().tenant_root_identity_digest()
-                != verified_grant.destination_identity_digest()
-        {
-            return Err(refused(
-                "tenant-root restore-refresh manifest does not match its grant",
-            ));
-        }
-
-        let checkpoint = execute_cloudflare_router_tenant_root_restore_refresh_checkpoint_call_v1(
-            env,
-            &CloudflareTenantRootRestoreRefreshCheckpointRequestV1::ReadPromoted {
-                restore_refresh_grant_b64u: request.restore_refresh_grant_b64u,
-                manifest_b64u: request.manifest_b64u,
-            },
+        super::control_plane_restore_initial_activation_v1(
+            &CloudflareControlPlaneHostV1 { env, runtime },
+            request,
         )
-        .await?;
-        let (
-            authority_id_b64u,
-            expected_control_plane_revision,
-            result_control_plane_revision,
-            deriver_a_promotion,
-            deriver_b_promotion,
-        ) = require_promoted_restore_refresh_read_v1(checkpoint)?;
-        require_restore_initial_activation_revisions_v1(
-            expected_control_plane_revision,
-            result_control_plane_revision,
-        )?;
-        let authority_id = decode_restore_refresh_authority_id_v1(&authority_id_b64u)?;
-        let bindings = runtime.bindings();
-        let deriver_a = verify_restore_refresh_promotion_v1(
-            &deriver_a_promotion,
-            TwoPartyDeriverRole::DeriverA,
-            authority_id,
-            bindings,
-        )?;
-        let deriver_b = verify_restore_refresh_promotion_v1(
-            &deriver_b_promotion,
-            TwoPartyDeriverRole::DeriverB,
-            authority_id,
-            bindings,
-        )?;
-        require_restore_refresh_command_scope_v1(
-            &verified_grant,
-            &manifest,
-            &deriver_a.command,
-            &deriver_b.command,
-            bindings,
-        )?;
-        if deriver_a.completed_at_ms != deriver_a_promotion.completed_at_ms
-            || deriver_b.completed_at_ms != deriver_b_promotion.completed_at_ms
-        {
-            return Err(refused(
-                "tenant-root restore-refresh promotion completion timestamps changed",
-            ));
-        }
-        let availability = TenantRootActivationAvailabilityEvidenceV1::from_verified_restore(
-            &deriver_a.command,
-            manifest.descriptor().recovery_set_id(),
-        )
-        .map_err(derivation)?;
-        let bundle = VerifiedTenantRootInitialCreationActivationEvidenceBundleV1::new(
-            deriver_a.installation,
-            deriver_b.installation,
-            availability,
-            deriver_a.provider_canary,
-            deriver_b.provider_canary,
-            expected_control_plane_revision,
-            result_control_plane_revision,
-        )
-        .map_err(derivation)?;
-        // The promotion timestamps are the durable activation event. Using the
-        // later one permits a retry after grant expiry while retaining the
-        // original in-window canary timestamps.
-        let activated_at_ms = deriver_a.completed_at_ms.max(deriver_b.completed_at_ms);
-        let issuer_binding = &bindings.issuer_signing_key;
-        let issuer_seed = load_issuer_seed(env, runtime)?;
-        let receipt = super::issue_tenant_root_initial_activation_receipt_v1(
-            &bundle,
-            activated_at_ms,
-            authority_id,
-            issuer_binding.signing_key_id(),
-            &issuer_seed,
-        )?;
-        super::initial_activation_receipt_response_v1(receipt)
+        .await
     }
 
     /// Verifies the six public refresh artifacts against the active state and
