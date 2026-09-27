@@ -6183,7 +6183,7 @@ export class SeamsWalletRepositories {
    * signer: the local authority extended with exactly the activation this
    * device made, nothing else changed. The Gateway promoted the wallet's live
    * Wallet Sessions to it; the next exact status read carries that promotion
-   * into the local session, which keeps its credential.
+   * into the local session, which keeps its operation credential.
    */
   async adoptAddedEcdsaSignerAuthority(input: {
     readonly authority: WalletAuthorityV1;

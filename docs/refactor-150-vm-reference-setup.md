@@ -174,9 +174,11 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
   an Ed25519 wallet sign NEAR, Tempo and Arc at once and after unlock, across a
   lost finalize response". The Router runs the registration steps bound to the
   add-signer purpose. The Gateway extends the wallet's authority with the new
-  activation and promotes the wallet's live Wallet Sessions to it, keeping
-  their identities, credentials and quotas; a replayed finalize returns the
-  committed outcome.
+  activation and promotes the wallet's live Wallet Sessions to it. Each
+  session keeps its identity, quota and operation-credential hash, so the SDK
+  signs on with the credential it holds; promotion retires the sessions'
+  hosted credentials and deletes their unredeemed hosted exchange codes. A
+  replayed finalize returns the committed outcome.
 - VM route errors answer 400, except `LifecycleTransitionInProgress`, which
   answers 503 as on Cloudflare so the Gateway retries it.
 - The VM Router runs creation-state operations one at a time in process, as a

@@ -840,8 +840,9 @@ export class D1WalletAuthorityStore {
   /**
    * Commits an added signer: its signer records, the authority extended with
    * its activation, and every live Wallet Session of that authority promoted to
-   * the extended authority, all at once. Sessions keep their identities,
-   * credentials and quotas; only their authority projection changes.
+   * the extended authority, all at once. Each session keeps its identity,
+   * quota and operation-credential hash; promotion retires its hosted
+   * credentials and deletes its unredeemed hosted exchange codes.
    */
   async extendActiveAuthority(input: {
     readonly expected: ActiveWalletAuthorityV1;
