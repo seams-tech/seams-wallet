@@ -456,6 +456,52 @@ mod tests {
         ))
     }
 
+    /// A Deriver A role store as the VM Deriver runs one: its whole migrated
+    /// schema, holding the pair's root-use admission, which the root read
+    /// writes before the pair runs. Claiming the pair moves that admission to
+    /// claimed, and completing it settles it, in the pair's own transaction.
+    fn role_store(
+        label: &str,
+        pair: &Ed25519YaoInputPairBindingV1,
+    ) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync>> {
+        let path = path(label);
+        crate::local_tenant_root_role_sql::apply_local_sqlite_migrations_v1(
+            &path,
+            crate::LOCAL_DERIVER_A_ROLE_PRIVATE_MIGRATIONS_V1,
+        )
+        .map_err(|error| error.to_string())?;
+        Connection::open(&path)?.execute(
+            "INSERT INTO tenant_root_root_use_admissions \
+             (tenant_identity_digest_hex, custody_lineage_b64u, role, attempt_kind, \
+             attempt_key_hex, tenant_root_share_epoch, activation_receipt_digest_hex, \
+             attempt_digest_hex, first_binding_digest_hex, issued_at_ms, expires_at_ms, \
+             status, admitted_at_ms, pair_object_name) \
+             VALUES (?1, ?2, 'deriver_a', ?3, ?4, 1, ?5, ?6, ?7, 100, 200, 'admitted', 100, NULL)",
+            params![
+                "1".repeat(64),
+                "A".repeat(22),
+                router_ab_cloudflare::TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1,
+                hex::encode(pair.session()),
+                "2".repeat(64),
+                "3".repeat(64),
+                "4".repeat(64),
+            ],
+        )?;
+        Ok(path)
+    }
+
+    /// The pair's root-use admission status in the role store.
+    fn admission_status(
+        path: &PathBuf,
+        pair: &Ed25519YaoInputPairBindingV1,
+    ) -> rusqlite::Result<String> {
+        Connection::open(path)?.query_row(
+            "SELECT status FROM tenant_root_root_use_admissions WHERE attempt_key_hex = ?1",
+            [hex::encode(pair.session())],
+            |row| row.get(0),
+        )
+    }
+
     fn pair() -> Ed25519YaoInputPairBindingV1 {
         let lifecycle = LifecycleScopeV1::new(
             "lifecycle-1",
@@ -568,8 +614,8 @@ mod tests {
     #[test]
     fn separate_connections_compete_for_one_claim_and_replay_after_restart(
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let path = path("contention");
         let pair = pair();
+        let path = role_store("contention", &pair)?;
         {
             let mut connection = Connection::open(&path)?;
             let mut store =
@@ -641,10 +687,12 @@ mod tests {
                 })?,
                 TestResult::Applied { revision: 3, .. }
             ));
+            assert_eq!(admission_status(&path, &pair)?, "claimed");
             assert!(matches!(
                 store.complete::<u8, String>(&pair, winning_id, outcome.clone(), 125, 60_000)?,
                 TestResult::Applied { revision: 4, .. }
             ));
+            assert_eq!(admission_status(&path, &pair)?, "settled");
         }
         {
             let mut connection = Connection::open(&path)?;
@@ -683,8 +731,8 @@ mod tests {
     #[test]
     fn identical_reservations_on_separate_connections_have_one_executor(
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let path = path("identical-reservation");
         let pair = pair();
+        let path = role_store("identical-reservation", &pair)?;
         let id = Ed25519YaoExecutionIdV1::new([10; 32])?;
         {
             let mut connection = Connection::open(&path)?;
@@ -729,8 +777,8 @@ mod tests {
     #[test]
     fn restart_after_reservation_does_not_reopen_prepared_material(
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let path = path("reservation-restart");
         let pair = pair();
+        let path = role_store("reservation-restart", &pair)?;
         let execution_id = Ed25519YaoExecutionIdV1::new([10; 32])?;
         {
             let mut connection = Connection::open(&path)?;
@@ -781,8 +829,8 @@ mod tests {
     #[test]
     fn terminal_outcome_and_role_state_commit_together(
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let path = path("terminal-atomicity");
         let pair = pair();
+        let path = role_store("terminal-atomicity", &pair)?;
         let id = Ed25519YaoExecutionIdV1::new([10; 32])?;
         let local = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverA);
         let peer = receipt(&pair, Ed25519YaoDeriverRoleV1::DeriverB);
@@ -838,6 +886,7 @@ mod tests {
             assert_eq!(revision, 3);
             assert!(matches!(record, TestRecord::Running { .. }));
         }
+        assert_eq!(admission_status(&path, &pair)?, "claimed");
         drop(connection);
         fs::remove_file(path)?;
         Ok(())
@@ -846,8 +895,8 @@ mod tests {
     #[test]
     fn failed_conditional_write_preserves_prepared_state_and_scope(
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let path = path("failed-write");
         let pair = pair();
+        let path = role_store("failed-write", &pair)?;
         let id = Ed25519YaoExecutionIdV1::new([10; 32])?;
         let mut connection = Connection::open(&path)?;
         {
