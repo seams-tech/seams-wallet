@@ -222,7 +222,23 @@ Found in the same check and not addressed here (for review):
 
 ### Later slices
 
-1. Export.
+1. **Export (sized 2026-09-28, awaiting review).** Export's authorization
+   runs before its nonce claim, as separate writes:
+   - an evidence set;
+   - the owner proof (built, not stored);
+   - `admitAuthorizedOperation`, a single insert into `authorized_operations`
+     keyed by the export's lifecycle and digest. This insert consumes the
+     grant.
+
+   Only then does the preclaim commit claim the nonce in the shared record.
+   A retry with the same proof replays the admitted operation.
+
+   The proposed change is a prepared variant of that insert: its validation
+   reads first, then the insert behind the batch guard, joining the preclaim
+   batch as a companion write the way slice 3's replacement joins the
+   promotion. The evidence set can stay separate, since an orphan one grants
+   nothing. It changes a primitive the signing paths share, so it waits for
+   review.
 
 ## Current behavior (code-checked 2026-09-25)
 
