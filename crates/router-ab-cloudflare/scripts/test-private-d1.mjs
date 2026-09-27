@@ -1561,7 +1561,7 @@ async function runEcdsaPresignSession(topology, ecdsa, mode = 'pool', checkRejec
       if (checkRejections && exchanges === 1) {
         const changedAuthority = await postWorkerJson(signingWorker, ecdsaPresignSessionStepPath, {
           ...stepRequest,
-          authority: { kind: 'operation_step_up' },
+          authority: { kind: 'operation_step_up', wallet_scope: authority.wallet_scope },
         });
         assert.equal(changedAuthority.ok, false, 'A changed authority must not advance presigning');
         assert.match(await changedAuthority.text(), /authority does not match initialized session/);
