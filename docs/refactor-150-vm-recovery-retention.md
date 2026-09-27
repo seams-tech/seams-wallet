@@ -1,7 +1,11 @@
 # R150: recovery-package retention on the VM
 
-Status: decision needed, 2026-09-27. Restore into an empty destination does
-not depend on it. It is served on the VM and proven from a recovery kit
+Status: decided in review, 2026-09-27: **option 1**, local retention with an
+honest erasure claim. Not yet implemented; it follows the settlement and
+cancellation work.
+
+Restore into an empty destination does not depend on it. It is served on the
+VM and proven from a recovery kit
 (`vm_tenant_root_recovery_kit_restores_into_an_empty_deployment_and_signs`).
 
 ## The question
@@ -53,6 +57,12 @@ Deriver use instead?
 
 - **Crypto-erasure of a retained set.** A VM operator who needs it must
   destroy the disk or database that held it. The VM setup guide says so.
+- **Snapshots and backups may keep the material.**
+  - A snapshot or backup of the Deriver's disk or database copies the
+    retained rows and the sealed retention key.
+  - Destroy removes neither copy, which is one more reason the claim stays
+    `CryptographicErasureUnverified`.
+  - The setup guide says this too.
 - **The claim never overstates.** Receipts and status report
   `CryptographicErasureUnverified` for VM destroys, and tests assert it.
 - **One E2E proves the scenario.** A VM source generates the kit, and a fresh

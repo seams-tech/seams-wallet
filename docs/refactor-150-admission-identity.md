@@ -99,8 +99,11 @@ An admission's status moves once, from `admitted` to `settled` or
       row is terminal.
     - **Both VM roles:** the pair store settles inside its own transaction,
       because its pair table shares the role store's SQLite file.
-    - **Wallet-object pair store (a harness build only):** its pair rows live
-      in another database, so its admissions settle only through recovery.
+    - **Wallet-object pair store:** **not yet settled** (review, 2026-09-27).
+      - Its pair rows live in the wallet object, not in the role store.
+      - Today its admissions end only through recovery.
+      - The wallet object is R150's target Cloudflare backend, so it needs an
+        explicit, replay-safe settlement path back to the role store.
     - Records turn terminal lazily, when a step or a status read touches
       them. An admission whose pair never got a record settles only through
       recovery.
@@ -109,11 +112,16 @@ An admission's status moves once, from `admitted` to `settled` or
 - **Cancelled:** recovery cancels an admission that is still `admitted` `W`
   (300 s) after it was admitted.
   - Every root-use read of a share first checks the attempt's admission,
-    and that check refuses a cancelled attempt. The cancelled status is
-    therefore itself the durable fence that refuses any later step.
-  - Time only triggers the recovery; the fence is what makes it safe.
-  - A step that had already read the share keeps what it read. A step that
-    has not read it yet is refused and needs a new attempt.
+    and that check refuses a cancelled attempt.
+  - **Incomplete (review, 2026-09-27).** This fences root reads only. A step
+    that had already read the share could continue, so a cancellation does
+    not yet prove that the attempt takes no further step.
+  - **Required:** cancellation must be completed at the pair and executor
+    boundary, or such admissions must stay pending.
+  - **Release-critical E2E:** pause an execution after its root read,
+    cancel, then restart or retry. The old execution must cause no duplicate
+    effect and reuse no one-use material.
+  - Time only triggers the recovery; the fence is what must make it safe.
 - **Erasure:** a retired epoch's share is erased at a role only when no
   admission on that epoch is still `admitted` there.
   - The same `DELETE` statement checks this, so the check and the erasure are
