@@ -26,7 +26,7 @@ use router_ab_cloudflare::{
     decode_cloudflare_tenant_root_control_plane_issuer_signing_secret_v1,
     decode_issuer_verifying_keys, parse_cloudflare_tenant_root_creation_role_verifying_keys_v1,
     tenant_root_creation_journal_call_v1, tenant_root_creation_journal_read_call_v1,
-    parse_tenant_root_manual_refresh_interval_ms_v1, tenant_root_creation_object_name_v1,
+    parse_tenant_root_refresh_schedule_v1, tenant_root_creation_object_name_v1,
     tenant_root_creation_serve_v1,
     verify_tenant_root_managed_backup_object_v1, verify_tenant_root_provider_canary_object_v1,
     CloudflareEnvMapV1, CloudflareEnvReaderV1,
@@ -531,7 +531,7 @@ async fn serve_local_tenant_root_creation_state_async_v1(
         router_ab_cloudflare::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
     )?)?;
     let now_ms = crate::local_router_coordinator::local_now_ms_v1()?;
-    let manual_refresh_interval_ms = parse_tenant_root_manual_refresh_interval_ms_v1(&config.env)?;
+    let schedule = parse_tenant_root_refresh_schedule_v1(&config.env)?;
 
     // One operation at a time, as a Durable Object runs them. SQLite's write
     // lock alone serializes them unfairly: a waiter sleeps between attempts,
@@ -559,7 +559,7 @@ async fn serve_local_tenant_root_creation_state_async_v1(
         path,
         request.request_json.as_bytes(),
         now_ms,
-        manual_refresh_interval_ms,
+        schedule,
     )
     .await;
     if let Some(error) = store.storage_error.take() {
@@ -571,6 +571,129 @@ async fn serve_local_tenant_root_creation_state_async_v1(
     drop(store);
     transaction.commit().map_err(sqlite_error)?;
     result
+}
+
+/// How often the VM Router offers each tenant root its scheduled refresh, in
+/// milliseconds: one minute unless set, and at least one second.
+pub const LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS_ENV_V1: &str =
+    "LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS";
+
+/// The VM Router's scheduled refresh worker, the counterpart of the external
+/// trigger on Cloudflare.
+///
+/// Every tick it offers each tenant root the Router holds its scheduled
+/// refresh, through the same coordinator the refresh route runs; the admission
+/// answers "not due" until the root's schedule says otherwise. The job is the
+/// Router's persisted pending admission, so a restarted Router resumes the
+/// scheduled operation it had begun under that operation's own id. One root's
+/// failure is logged and does not hold back the others.
+pub fn run_local_tenant_root_refresh_scheduler_v1(
+    config: &LocalRouterTenantRootConfigV1,
+) -> RouterAbProtocolResult<()> {
+    use router_ab_cloudflare::CloudflareEnvReaderV1 as _;
+    let tick_ms = match config
+        .env
+        .get_text(LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS_ENV_V1)?
+    {
+        Some(value) => value.parse::<u64>().ok().filter(|value| *value >= 1_000).ok_or_else(|| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                "the refresh scheduler tick must be at least 1000 milliseconds",
+            )
+        })?,
+        None => 60_000,
+    };
+    let host = LocalRouterTenantRootCreationHostV1::new(config);
+    loop {
+        std::thread::sleep(std::time::Duration::from_millis(tick_ms));
+        let roots = match local_tenant_roots_v1(config) {
+            Ok(roots) => roots,
+            Err(error) => {
+                log_scheduled_refresh_v1(None, &error.to_string());
+                continue;
+            }
+        };
+        for (identity_digest, custody_lineage) in roots {
+            let outcome = scheduled_refresh_operation_id_v1().and_then(|operation_id| {
+                futures::executor::block_on(router_ab_cloudflare::tenant_root_router_scheduled_refresh_v1(
+                    &host,
+                    identity_digest,
+                    custody_lineage,
+                    operation_id,
+                    crate::local_router_coordinator::local_now_ms_v1()?,
+                ))
+            });
+            let root = (identity_digest, custody_lineage);
+            match outcome {
+                Ok(router_ab_cloudflare::CloudflareRouterTenantRootRefreshResultV1::NotDue { .. }) => {}
+                Ok(result) => {
+                    let (status, body) = result.http_status_and_body();
+                    log_scheduled_refresh_v1(Some(root), &format!("{status} {body}"));
+                }
+                Err(error) => log_scheduled_refresh_v1(Some(root), &error.to_string()),
+            }
+        }
+    }
+}
+
+/// The tenant roots whose authoritative active state this Router holds.
+fn local_tenant_roots_v1(
+    config: &LocalRouterTenantRootConfigV1,
+) -> RouterAbProtocolResult<Vec<(TenantRootIdentityDigestV1, TenantRootCustodyLineageId)>> {
+    let connection = open_sqlite(&config.creation_storage_path)?;
+    let mut statement = connection
+        .prepare(
+            "SELECT json_extract(value_json, '$.identity_digest_b64u'),
+                    json_extract(value_json, '$.custody_lineage_b64u')
+             FROM local_tenant_root_creation_state WHERE storage_key = ?1",
+        )
+        .map_err(sqlite_error)?;
+    let rows = statement
+        .query_map(
+            [router_ab_cloudflare::TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )
+        .map_err(sqlite_error)?;
+    let mut roots = Vec::new();
+    for row in rows {
+        let (identity_digest_b64u, custody_lineage_b64u) = row.map_err(sqlite_error)?;
+        roots.push((
+            TenantRootIdentityDigestV1::from_bytes(decode_b64u_32(
+                "tenant-root scheduled refresh identity digest",
+                &identity_digest_b64u,
+            )?),
+            TenantRootCustodyLineageId::from_base64url(&custody_lineage_b64u).map_err(|error| {
+                malformed(format!("tenant-root scheduled refresh lineage is invalid: {error}"))
+            })?,
+        ));
+    }
+    Ok(roots)
+}
+
+fn scheduled_refresh_operation_id_v1() -> RouterAbProtocolResult<String> {
+    let mut bytes = [0_u8; 16];
+    getrandom::getrandom(&mut bytes).map_err(|error| {
+        RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            format!("the VM Router could not read secure randomness: {error}"),
+        )
+    })?;
+    Ok(format!("scheduled-{}", hex::encode(bytes)))
+}
+
+fn log_scheduled_refresh_v1(
+    root: Option<(TenantRootIdentityDigestV1, TenantRootCustodyLineageId)>,
+    outcome: &str,
+) {
+    eprintln!(
+        "{}",
+        serde_json::json!({
+            "event": "tenant_root_scheduled_refresh",
+            "identity_digest_b64u": root.map(|(identity, _)| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(identity.as_bytes())),
+            "custody_lineage_b64u": root.map(|(_, lineage)| lineage.to_base64url()),
+            "outcome": outcome,
+        })
+    );
 }
 
 fn creation_state_route_v1(path: &str) -> RouterAbProtocolResult<&'static str> {

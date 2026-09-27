@@ -6,9 +6,9 @@ safe erasure is established. The commit point, roll-forward delivery and
 pending retirement are implemented and shared: the Router coordinator, the
 Deriver refresh and activation, and the control plane run the same code on
 Cloudflare and the VM (see "Implemented" and "Served on the VM" below).
-Admission during delivery (open question 2) and refresh abandonment (open
-question 1, implemented 2026-09-27) are done. A VM trigger for scheduled
-refresh remains.
+Admission during delivery (open question 2), refresh abandonment (open
+question 1) and the VM's scheduled refresh (open question 4) are
+implemented.
 
 Related: [creation resume](./refactor-150-tenant-root-creation-resume.md) (the same
 policy for initial activation), [root retirement admission](./refactor-150-root-retirement-admission.md)
@@ -346,9 +346,33 @@ and both roles end on epoch 2
    both hosts follow one retirement rule and report `pending`. The alternative
    is to keep it on Cloudflare until the drain gate lands, which leaves
    Cloudflare violating Spec 6 in the meantime.
-4. **Scheduled refresh on the VM.** R150 assigns scheduled work on VMs to
-   persisted jobs processed by a restart-safe worker. The Cloudflare trigger is
-   external; the VM needs its own documented trigger.
+4. **Scheduled refresh on the VM.** Implemented (2026-09-27). R150 assigns
+   scheduled work on VMs to persisted jobs processed by a restart-safe worker.
+   - **The worker:** the VM Router runs a scheduler. Each tick
+     (`LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS`) it offers every root it
+     holds a scheduled refresh through the shared
+     `tenant_root_router_scheduled_refresh_v1`, which calls the same
+     coordinator as the refresh route.
+   - **The job:** the Router's persisted pending admission. A scheduled
+     operation admitted and not yet finished is resumed under its own id;
+     otherwise a new one starts, and the admission answers "not due" until the
+     schedule says otherwise. Each offer also runs the abandonment rule, so no
+     stale operation can hold the root.
+   - **The schedule** is one deployment setting both hosts read:
+     `TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS`, thirty days by default and at
+     least one minute, beside the manual interval. The admission and the
+     status read judge by it. Each root's jitter spreads its run over up to a
+     day, or over the interval when that is shorter.
+   - **The Cloudflare trigger** stays external.
+   - **Evidence:**
+     `vm_tenant_root_scheduled_refresh_runs_and_resumes_after_a_router_restart`
+     (`R150_VM_TENANT_ROOT_SCHEDULED_REFRESH_E2E`), on a one-minute schedule
+     with a one-second tick. The control plane cannot be reached for refresh
+     activation when the root comes due, 101 s after creation. The scheduled
+     operation stays admitted, with both roles holding epoch 2 pending. The
+     Router is restarted and the control plane becomes reachable. The
+     restarted scheduler then commits and delivers that same operation, and
+     no new operation starts before the next interval.
 
 ## Sequence and evidence
 

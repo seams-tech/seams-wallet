@@ -327,6 +327,46 @@ pub async fn tenant_root_router_coordinate_refresh_v1<Host: TenantRootRouterCrea
     Ok(CloudflareRouterTenantRootRefreshResultV1::Completed(completed))
 }
 
+/// Offers one root its scheduled refresh. A scheduled operation the Router has
+/// admitted and not finished is resumed under its own id, so a restarted
+/// scheduler continues the refresh it began; otherwise one starts under
+/// `fresh_operation_id`, and the admission answers "not due" until the root's
+/// schedule says otherwise. Each offer also abandons refresh work that can no
+/// longer finish.
+pub async fn tenant_root_router_scheduled_refresh_v1<Host: TenantRootRouterCreationHostV1>(
+    host: &Host,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    fresh_operation_id: String,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareRouterTenantRootRefreshResultV1> {
+    let active = tenant_root_creation_active_state_with_revision_read_call_v1(
+        host,
+        &host.trusted_issuer_keys()?,
+        identity_digest,
+        custody_lineage,
+    )
+    .await?;
+    let (operation_id, expected_lifecycle_revision) = match &active.refresh_pending {
+        Some(pending) if pending.trigger == CloudflareTenantRootRefreshTriggerV1::Scheduled => {
+            (pending.operation_id.clone(), pending.lifecycle_revision)
+        }
+        _ => (fresh_operation_id, active.lifecycle_revision),
+    };
+    tenant_root_router_coordinate_refresh_v1(
+        host,
+        CloudflareRouterTenantRootRefreshRequestV1 {
+            operation_id,
+            identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+            custody_lineage_b64u: custody_lineage.to_base64url(),
+            expected_lifecycle_revision,
+            expires_at_ms: now_ms.saturating_add(router_ab_core::TENANT_ROOT_MAX_LIFETIME_MS_V1),
+            trigger: CloudflareTenantRootRefreshTriggerV1::Scheduled,
+        },
+    )
+    .await
+}
+
 /// Executes one role's refresh, retrying once. The Deriver's durable
 /// admission makes the retry an exact resume or replay.
 pub(crate) async fn tenant_root_deriver_refresh_with_retry_v1(

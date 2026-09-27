@@ -187,7 +187,7 @@ pub const CLOUDFLARE_TENANT_ROOT_REFRESH_INSTALLATION_CHECKPOINT_PATH: &str =
 pub const CLOUDFLARE_TENANT_ROOT_REFRESH_CONTRIBUTION_RENDEZVOUS_PATH: &str =
     "/router-ab/internal/tenant-root/refresh/v1/contribution-rendezvous";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
-pub(crate) const TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1: &str = "refresh/v1/active-state";
+pub const TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1: &str = "refresh/v1/active-state";
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
 pub(crate) const TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1: &str =
     "refresh/v1/commitment-checkpoint";
@@ -804,8 +804,29 @@ const TENANT_ROOT_MANAGED_RESTORE_CHALLENGE_DOMAIN_V1: &[u8] =
 const TENANT_ROOT_MANAGED_RESTORE_ATTEMPT_DOMAIN_V1: &[u8] =
     b"tenant_root_managed_restore_authorization_attempt_v1";
 
+/// A deployment's refresh schedule: the least time between manual refreshes
+/// of one root, and the interval its scheduled refreshes run at. The Router's
+/// admission and its status report both judge by it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TenantRootRefreshScheduleV1 {
+    pub manual_interval_ms: u64,
+    pub scheduled_interval_ms: u64,
+}
+
+impl Default for TenantRootRefreshScheduleV1 {
+    fn default() -> Self {
+        Self {
+            manual_interval_ms: TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+            scheduled_interval_ms: TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS_V1,
+        }
+    }
+}
+
+/// Each root's scheduled refresh is spread over up to a day, or over the
+/// interval when that is shorter, by a jitter derived from its identity.
 pub(crate) fn tenant_root_scheduled_refresh_jitter_ms_v1(
     identity_digest: TenantRootIdentityDigestV1,
+    scheduled_interval_ms: u64,
 ) -> u64 {
     let mut hasher = Sha256::new();
     hasher.update(TENANT_ROOT_SCHEDULED_REFRESH_JITTER_DOMAIN_V1);
@@ -813,18 +834,23 @@ pub(crate) fn tenant_root_scheduled_refresh_jitter_ms_v1(
     let digest = hasher.finalize();
     let mut jitter_bytes = [0_u8; 8];
     jitter_bytes.copy_from_slice(&digest[..8]);
-    u64::from_be_bytes(jitter_bytes) % TENANT_ROOT_SCHEDULED_REFRESH_JITTER_WINDOW_MS_V1
+    u64::from_be_bytes(jitter_bytes)
+        % TENANT_ROOT_SCHEDULED_REFRESH_JITTER_WINDOW_MS_V1.min(scheduled_interval_ms.max(1))
 }
 
 pub(crate) fn tenant_root_scheduled_refresh_next_at_ms_v1(
     identity_digest: TenantRootIdentityDigestV1,
     activation_at_ms: u64,
     last_refresh_completed_at_ms: Option<u64>,
+    scheduled_interval_ms: u64,
 ) -> u64 {
     let anchor = last_refresh_completed_at_ms.unwrap_or(activation_at_ms);
     anchor
-        .saturating_add(TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS_V1)
-        .saturating_add(tenant_root_scheduled_refresh_jitter_ms_v1(identity_digest))
+        .saturating_add(scheduled_interval_ms)
+        .saturating_add(tenant_root_scheduled_refresh_jitter_ms_v1(
+            identity_digest,
+            scheduled_interval_ms,
+        ))
 }
 #[cfg(feature = "workers-rs")]
 const ROUTER_TENANT_ROOT_CREATION_DO_BINDING_V1: &str = "ROUTER_TENANT_ROOT_CREATION_DO";
@@ -1467,6 +1493,9 @@ pub(crate) struct CloudflareTenantRootCreationActiveStateReadResponseV1 {
     pub(crate) last_refresh_completed_at_ms: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) delivery: Option<CloudflareTenantRootDeliveryV1>,
+    /// The refresh operation admitted and not yet completed or abandoned.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) refresh_pending: Option<CloudflareTenantRootRefreshPendingV1>,
 }
 
 /// Readback phases supported by the durable Router checkpoints.
@@ -3412,6 +3441,7 @@ pub struct CloudflareVerifiedTenantRootActiveStateV1 {
     pub(crate) last_manual_refresh_completed_at_ms: Option<u64>,
     pub(crate) last_refresh_completed_at_ms: Option<u64>,
     pub(crate) delivery: Option<CloudflareTenantRootDeliveryV1>,
+    pub(crate) refresh_pending: Option<CloudflareTenantRootRefreshPendingV1>,
 }
 
 impl CloudflareVerifiedTenantRootActiveStateV1 {
@@ -3766,6 +3796,9 @@ fn decode_verified_active_state_response_v1(
     validate_refresh_fence(&response.fence)?;
     validate_managed_restore_fence_shape(&response.managed_restore_fence)?;
     validate_refresh_job_read_v1(response.job.as_ref())?;
+    if let Some(pending) = &response.refresh_pending {
+        validate_refresh_pending_v1(pending)?;
+    }
     Ok(CloudflareVerifiedTenantRootActiveStateV1 {
         activation_receipt: receipt,
         job: response.job,
@@ -3775,6 +3808,7 @@ fn decode_verified_active_state_response_v1(
         refresh_fence: response.fence,
         managed_restore_fence: response.managed_restore_fence,
         delivery: response.delivery,
+        refresh_pending: response.refresh_pending,
     })
 }
 
@@ -7278,6 +7312,7 @@ fn active_state_read_response_from_record(
         job: None,
         refresh_admission: None,
         delivery: record.delivery,
+        refresh_pending: record.manual_refresh_pending,
     }
 }
 
@@ -7886,13 +7921,7 @@ impl RouterAbTenantRootCreationDurableObject {
     ) -> RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1> {
         let issuer_keys = self.issuer_verifying_keys()?;
         let env = self.env.clone();
-        // Only an admission is judged against the configured interval.
-        let manual_refresh_interval_ms = match &request {
-            CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveRefreshAdmission {
-                ..
-            } => manual_refresh_interval_ms_v1(&self.env)?,
-            _ => TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
-        };
+        let schedule = refresh_schedule_v1(&self.env)?;
         let now_ms = crate::cloudflare_now_unix_ms_v1()?;
         let store = DurableObjectCreationStoreV1::new(&self.env, &self.authority_object_id)?;
         let outcome = Rc::new(RefCell::new(None));
@@ -7900,7 +7929,7 @@ impl RouterAbTenantRootCreationDurableObject {
         self.storage
             .transaction(move |transaction| async move {
                 let store = store.bind(transaction);
-                let result = tenant_root_creation_active_state_read_v1(&store, &issuer_keys, move || read_tenant_root_creation_role_verifying_keys(&env), request, now_ms, manual_refresh_interval_ms).await;
+                let result = tenant_root_creation_active_state_read_v1(&store, &issuer_keys, move || read_tenant_root_creation_role_verifying_keys(&env), request, now_ms, schedule).await;
                 if let Some(error) = store.take_storage_error() {
                     return Err(error);
                 }
@@ -8564,29 +8593,43 @@ impl RouterAbTenantRootCreationDurableObject {
 /// The manual-refresh interval this Worker is configured with, or the
 /// protocol default.
 #[cfg(feature = "workers-rs")]
-fn manual_refresh_interval_ms_v1(env: &worker::Env) -> RouterAbProtocolResult<u64> {
-    parse_tenant_root_manual_refresh_interval_ms_v1(&crate::CloudflareWorkerEnvReaderV1::new(env))
+#[cfg(feature = "workers-rs")]
+pub(crate) fn refresh_schedule_v1(env: &worker::Env) -> RouterAbProtocolResult<TenantRootRefreshScheduleV1> {
+    parse_tenant_root_refresh_schedule_v1(&crate::CloudflareWorkerEnvReaderV1::new(env))
 }
 
-/// The configured minimum interval between manual refreshes of one root
-/// (`TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS`, at least one minute), or the
-/// protocol default of ten minutes.
-pub fn parse_tenant_root_manual_refresh_interval_ms_v1(
+/// The deployment's refresh schedule. `TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS`
+/// sets the least time between manual refreshes of one root, ten minutes by
+/// default; `TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS` sets the interval of
+/// scheduled refreshes, thirty days by default. Each is at least one minute.
+pub fn parse_tenant_root_refresh_schedule_v1(
     reader: &impl crate::CloudflareEnvReaderV1,
-) -> RouterAbProtocolResult<u64> {
-    match reader.get_text("TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS")? {
-        Some(value) => value
-            .parse::<u64>()
-            .ok()
-            .filter(|value| *value >= 60_000)
-            .ok_or_else(|| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                    "manual refresh interval must be at least 60000 milliseconds",
-                )
-            }),
-        None => Ok(TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1),
-    }
+) -> RouterAbProtocolResult<TenantRootRefreshScheduleV1> {
+    let interval = |name: &str, default: u64| -> RouterAbProtocolResult<u64> {
+        match reader.get_text(name)? {
+            Some(value) => value
+                .parse::<u64>()
+                .ok()
+                .filter(|value| *value >= 60_000)
+                .ok_or_else(|| {
+                    RouterAbProtocolError::new(
+                        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                        format!("{name} must be at least 60000 milliseconds"),
+                    )
+                }),
+            None => Ok(default),
+        }
+    };
+    Ok(TenantRootRefreshScheduleV1 {
+        manual_interval_ms: interval(
+            "TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS",
+            TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+        )?,
+        scheduled_interval_ms: interval(
+            "TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS",
+            TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS_V1,
+        )?,
+    })
 }
 
 #[cfg(feature = "workers-rs")]
@@ -9061,7 +9104,7 @@ fn evaluate_refresh_admission_v1(
     expected_lifecycle_revision: u64,
     expires_at_ms: u64,
     now_ms: u64,
-    manual_refresh_interval_ms: u64,
+    schedule: TenantRootRefreshScheduleV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootRefreshAdmissionEvaluationV1> {
     validate_refresh_operation_id_v1(operation_id)?;
     if let Some(completion) = completion {
@@ -9139,7 +9182,7 @@ fn evaluate_refresh_admission_v1(
         CloudflareTenantRootRefreshTriggerV1::Manual => {
             if let Some(completed_at_ms) = record.last_manual_refresh_completed_at_ms {
                 let retry_at_ms = completed_at_ms
-                    .checked_add(manual_refresh_interval_ms)
+                    .checked_add(schedule.manual_interval_ms)
                     .ok_or_else(|| {
                         RouterAbProtocolError::new(
                             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
@@ -9158,6 +9201,7 @@ fn evaluate_refresh_admission_v1(
                 identity_digest,
                 activation_at_ms,
                 record.last_refresh_completed_at_ms,
+                schedule.scheduled_interval_ms,
             );
             if now_ms < next_run_at_ms {
                 return Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::NotDue {
@@ -12551,7 +12595,7 @@ pub async fn tenant_root_creation_active_state_read_v1<Store: TenantRootCreation
     role_keys: impl FnOnce() -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1>,
     request: CloudflareTenantRootCreationActiveStateReadRequestV1,
     now_ms: u64,
-    manual_refresh_interval_ms: u64,
+    schedule: TenantRootRefreshScheduleV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationActiveStateReadResponseV1> {
     let (identity_digest_b64u, custody_lineage_b64u) = match &request {
         CloudflareTenantRootCreationActiveStateReadRequestV1::Read {
@@ -12630,7 +12674,7 @@ pub async fn tenant_root_creation_active_state_read_v1<Store: TenantRootCreation
                 expires_at_ms,
                 trigger,
                 now_ms,
-                manual_refresh_interval_ms,
+                schedule,
             )
             .await?;
             let mut response = active_state_read_response_from_record(active.record);
@@ -12863,7 +12907,7 @@ async fn reserve_refresh_admission_v1<Store: TenantRootCreationStoreV1>(
     expires_at_ms: u64,
     trigger: CloudflareTenantRootRefreshTriggerV1,
     now_ms: u64,
-    manual_refresh_interval_ms: u64,
+    schedule: TenantRootRefreshScheduleV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootRefreshAdmissionOutcomeV1> {
     validate_refresh_operation_id_v1(&operation_id)?;
     let authority_id = store.authority_id();
@@ -12936,7 +12980,7 @@ async fn reserve_refresh_admission_v1<Store: TenantRootCreationStoreV1>(
         expected_lifecycle_revision,
         expires_at_ms,
         now_ms,
-        manual_refresh_interval_ms,
+        schedule,
     )
     .map_err(stored_refresh_record_error)?;
     Ok(match evaluation {
@@ -13125,6 +13169,7 @@ async fn reserve_refresh_attempt_v1<Store: TenantRootCreationStoreV1>(
         last_manual_refresh_completed_at_ms,
         last_refresh_completed_at_ms,
         delivery,
+        manual_refresh_pending,
         ..
     } = response_record;
     Ok(CloudflareTenantRootCreationActiveStateReadResponseV1 {
@@ -13139,6 +13184,7 @@ async fn reserve_refresh_attempt_v1<Store: TenantRootCreationStoreV1>(
         managed_restore_fence,
         job: None,
         refresh_admission: None,
+        refresh_pending: manual_refresh_pending,
         delivery,
     })
 }
@@ -14592,7 +14638,7 @@ pub async fn tenant_root_creation_serve_v1<Store: TenantRootCreationStoreV1>(
     path: &str,
     request_body: &[u8],
     now_ms: u64,
-    manual_refresh_interval_ms: u64,
+    schedule: TenantRootRefreshScheduleV1,
 ) -> RouterAbProtocolResult<Vec<u8>> {
     fn decode<T: DeserializeOwned>(
         label: &str,
@@ -14733,7 +14779,7 @@ pub async fn tenant_root_creation_serve_v1<Store: TenantRootCreationStoreV1>(
                     TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
                 )?,
                 now_ms,
-                manual_refresh_interval_ms,
+                schedule,
             )
             .await?,
         ),
@@ -18809,7 +18855,7 @@ mod tests {
             record.lifecycle_revision,
             u64::MAX,
             FIRST_NOW_MS,
-            TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+            TenantRootRefreshScheduleV1::default(),
         )
         .expect("first manual refresh admission");
         let pending = match first {
@@ -18831,7 +18877,7 @@ mod tests {
                 admitted.lifecycle_revision,
                 u64::MAX,
                 FIRST_NOW_MS,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { .. })
         ));
@@ -18847,7 +18893,7 @@ mod tests {
                 admitted.lifecycle_revision,
                 u64::MAX,
                 FIRST_NOW_MS,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::InProgress)
         ));
@@ -18868,7 +18914,7 @@ mod tests {
                 restarted.lifecycle_revision,
                 u64::MAX,
                 FIRST_NOW_MS,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { .. })
         ));
@@ -18903,7 +18949,7 @@ mod tests {
                 recovered_completed.lifecycle_revision,
                 u64::MAX,
                 retry_at_ms - 1,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Throttled {
                 retry_at_ms: value
@@ -18921,7 +18967,7 @@ mod tests {
                 completed.lifecycle_revision,
                 u64::MAX,
                 retry_at_ms,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { .. })
         ));
@@ -18956,7 +19002,7 @@ mod tests {
                 restore_active.record.lifecycle_revision,
                 u64::MAX,
                 1_000_250,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::InProgress)
         ));
@@ -18984,7 +19030,7 @@ mod tests {
             later_state.lifecycle_revision,
             u64::MAX,
             retry_at_ms,
-            TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+            TenantRootRefreshScheduleV1::default(),
         )
         .expect("replay completed operation after a later operation");
         assert!(matches!(
@@ -19009,7 +19055,7 @@ mod tests {
                 other_tenant.lifecycle_revision,
                 u64::MAX,
                 FIRST_NOW_MS + 1,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { .. })
         ));
@@ -19031,7 +19077,7 @@ mod tests {
                 revision,
                 10,
                 10,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::AuthorizationExpired)
         ));
@@ -19047,7 +19093,7 @@ mod tests {
                 revision + 1,
                 20,
                 10,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::RevisionMoved)
         ));
@@ -19062,7 +19108,7 @@ mod tests {
             revision,
             20,
             10,
-            TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+            TenantRootRefreshScheduleV1::default(),
         )
         .expect("valid authorization admits once");
         let CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { pending } = admitted else {
@@ -19083,7 +19129,7 @@ mod tests {
                 revision,
                 20,
                 30,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { .. })
         ));
@@ -19099,7 +19145,7 @@ mod tests {
                 revision + 1,
                 1,
                 30,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { .. })
         ));
@@ -19122,7 +19168,7 @@ mod tests {
                 revision,
                 20,
                 30,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::Replay { .. })
         ));
@@ -19133,17 +19179,19 @@ mod tests {
         let (record, _) = active_refresh_state_fixture();
         let identity_digest = identity_digest_for_record(&record);
         let activation_at_ms = activation_at_ms_for_record(&record);
-        let jitter = tenant_root_scheduled_refresh_jitter_ms_v1(identity_digest);
+        let interval_ms = TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS_V1;
+        let jitter = tenant_root_scheduled_refresh_jitter_ms_v1(identity_digest, interval_ms);
         assert!(jitter < TENANT_ROOT_SCHEDULED_REFRESH_JITTER_WINDOW_MS_V1);
         assert_eq!(
             jitter,
-            tenant_root_scheduled_refresh_jitter_ms_v1(identity_digest)
+            tenant_root_scheduled_refresh_jitter_ms_v1(identity_digest, interval_ms)
         );
 
         let next_run_at_ms = tenant_root_scheduled_refresh_next_at_ms_v1(
             identity_digest,
             activation_at_ms,
             record.last_refresh_completed_at_ms,
+            interval_ms,
         );
         assert!(matches!(
             evaluate_refresh_admission_v1(
@@ -19157,7 +19205,7 @@ mod tests {
                 record.lifecycle_revision,
                 u64::MAX,
                 next_run_at_ms - 1,
-                TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+                TenantRootRefreshScheduleV1::default(),
             ),
             Ok(CloudflareTenantRootRefreshAdmissionEvaluationV1::NotDue {
                 next_run_at_ms: observed
@@ -19174,7 +19222,7 @@ mod tests {
             record.lifecycle_revision,
             u64::MAX,
             next_run_at_ms,
-            TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+            TenantRootRefreshScheduleV1::default(),
         )
         .expect("scheduled refresh is admitted at its due bound");
         let CloudflareTenantRootRefreshAdmissionEvaluationV1::Commit { pending } = admitted else {
@@ -19205,6 +19253,7 @@ mod tests {
                 identity_digest,
                 activation_at_ms,
                 transitioned.last_refresh_completed_at_ms,
+                interval_ms,
             ) > next_run_at_ms
         );
 
@@ -19226,7 +19275,7 @@ mod tests {
             trigger_mismatch.lifecycle_revision,
             u64::MAX,
             next_run_at_ms,
-            TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS_V1,
+            TenantRootRefreshScheduleV1::default(),
         )
         .expect_err("replay cannot change its persisted trigger");
         assert_eq!(mismatch.code(), RouterAbProtocolErrorCode::ConflictingPair);

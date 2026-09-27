@@ -5,6 +5,7 @@ use router_ab_dev::{
     local_sqlite_migration_status_v1, local_tenant_root_route_v1, local_worker_bind_addr_v1,
     parse_local_env_file_contents_v1, parse_local_service_role_label_v1,
     parse_local_worker_role_config_for_role_v1, read_local_dev_http_request_v1,
+    run_local_tenant_root_refresh_scheduler_v1,
     write_local_dev_http_response_v1, write_local_dev_http_response_with_server_timing_v1,
     LocalDevHttpTopologyV1, LocalEd25519YaoConnectionDispatchV1,
     LocalEd25519YaoSqliteHostV1, LocalEd25519YaoWorkerStateV1, LocalRouterEd25519YaoCoordinatorV1,
@@ -101,6 +102,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // them, so each connection gets its own thread. The Router keeps no
         // in-memory state; its durable state is in SQLite.
         let dispatcher = Arc::new(LocalRouterEd25519YaoCoordinatorV1::default());
+        let scheduler_config = Arc::clone(&config);
+        thread::spawn(move || {
+            if let LocalWorkerRoleConfigV1::Router(router) = scheduler_config.as_ref() {
+                if let Err(error) = run_local_tenant_root_refresh_scheduler_v1(&router.tenant_root) {
+                    log_worker_request_error(&scheduler_config, &error);
+                }
+            }
+        });
         for stream in listener.incoming() {
             match stream {
                 Ok(stream) => {

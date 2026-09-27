@@ -1572,6 +1572,113 @@ fn vm_tenant_root_refresh_that_misses_its_window_is_abandoned_and_superseded(
     Ok(())
 }
 
+/// The VM Router refreshes a root on its schedule, and a Router restarted while
+/// a scheduled refresh is in flight resumes that same operation. The schedule's
+/// interval is at its one-minute floor and the scheduler ticks every second.
+/// The control plane cannot be reached for refresh activation when the root
+/// first comes due, so the scheduled operation stays admitted with both roles
+/// installed. The Router is restarted and the control plane becomes reachable;
+/// the restarted scheduler then completes the operation it had admitted, under
+/// the same id.
+#[test]
+fn vm_tenant_root_scheduled_refresh_runs_and_resumes_after_a_router_restart(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let mut stack = RecoveryStackV1::start_with_router_env(
+        "vm-tenant-root-scheduled",
+        &[
+            ("TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS", "60000"),
+            (router_ab_dev::LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS_ENV_V1, "1000"),
+        ],
+    )?;
+    let refresh_activation =
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH;
+    stack.proxy_control_plane.drop_every_on(refresh_activation);
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("scheduled-refresh")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let created_at = Instant::now();
+    let (created_revision, _, _, _, _) = stack.refresh_bookkeeping(&lineage_b64u)?;
+    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
+
+    // Due within the interval plus its jitter, both at most a minute: the
+    // scheduler admits a scheduled operation and both roles install it.
+    let deadline = Instant::now() + Duration::from_secs(150);
+    let scheduled_operation = loop {
+        let (revision, fence, attempt_operation, pending_operation, pending_trigger) =
+            stack.refresh_bookkeeping(&lineage_b64u)?;
+        assert_eq!(revision, created_revision, "nothing commits while the control plane is unreachable");
+        if fence == "executed" && pending_trigger.as_deref() == Some("scheduled") {
+            let pending_operation = pending_operation.ok_or("a scheduled operation is pending")?;
+            assert_eq!(attempt_operation.as_deref(), Some(pending_operation.as_str()));
+            break pending_operation;
+        }
+        if Instant::now() > deadline {
+            return Err(format!("no scheduled refresh was installed (fence {fence})").into());
+        }
+        thread::sleep(Duration::from_millis(250));
+    };
+    let due_after_ms = created_at.elapsed().as_millis();
+    assert!(scheduled_operation.starts_with("scheduled-"), "{scheduled_operation}");
+    let installed = vec![epoch(1, "active"), epoch(2, "pending")];
+    assert_eq!(stack.epochs(&lineage_b64u)?, (installed.clone(), installed.clone()));
+
+    // The Router restarts with the operation in flight; the control plane
+    // becomes reachable again.
+    stack.restart_router()?;
+    stack.proxy_control_plane.stop_dropping();
+
+    // The restarted scheduler completes the same operation.
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let completed = loop {
+        let bookkeeping = stack.refresh_bookkeeping(&lineage_b64u)?;
+        if bookkeeping.0 == created_revision + 1 {
+            break bookkeeping;
+        }
+        if Instant::now() > deadline {
+            return Err(format!("the restarted scheduler did not complete the refresh: {bookkeeping:?}").into());
+        }
+        thread::sleep(Duration::from_millis(250));
+    };
+    let (_, completed_fence, completed_operation, pending_after, _) = completed;
+    assert_eq!(completed_fence, "terminal");
+    assert_eq!(completed_operation.as_deref(), Some(scheduled_operation.as_str()));
+    assert_eq!(pending_after, None);
+    // The commit comes first; delivery to both Derivers follows it.
+    let retired_then_active = vec![epoch(1, "retired"), epoch(2, "active")];
+    let delivered = (retired_then_active.clone(), retired_then_active.clone());
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while stack.epochs(&lineage_b64u)? != delivered {
+        if Instant::now() > deadline {
+            return Err(format!("the committed refresh was not delivered: {:?}", stack.epochs(&lineage_b64u)?).into());
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+    // Not due again until its next interval: no new operation starts at once.
+    thread::sleep(Duration::from_secs(3));
+    let (settled_revision, settled_fence, _, settled_pending, _) =
+        stack.refresh_bookkeeping(&lineage_b64u)?;
+    assert_eq!((settled_revision, settled_fence.as_str()), (created_revision + 1, "terminal"));
+    assert_eq!(settled_pending, None);
+
+    println!(
+        "R150_VM_TENANT_ROOT_SCHEDULED_REFRESH_E2E {}",
+        json!({
+            "schedule": { "interval_ms": 60_000, "scheduler_tick_ms": 1_000 },
+            "fault": "control_plane_refresh_activation_unreachable_until_router_restart",
+            "due_after_creation_ms": due_after_ms,
+            "before_restart": { "router_fence": "executed", "pending_trigger": "scheduled", "deriver_a": [[1, "active"], [2, "pending"]], "deriver_b": [[1, "active"], [2, "pending"]] },
+            "router_restarted": true,
+            "resumed_operation_is_the_admitted_one": true,
+            "revisions": [created_revision, created_revision + 1],
+            "epochs_after": [[1, "retired"], [2, "active"]],
+            "no_new_operation_before_next_interval": true,
+        })
+    );
+    Ok(())
+}
+
 /// Work admitted before a refresh finishes on the epoch it started with. A
 /// registration is admitted and prepared while epoch 1 is active, then held
 /// before Deriver A reads it. A manual refresh then commits epoch 2 and both
@@ -2666,11 +2773,20 @@ struct RecoveryStackV1 {
     a_backups: Connection,
     b_backups: Connection,
     router_db: Connection,
-    _roles: Vec<ChildGuard>,
+    /// The Router, both Derivers and the control plane, in that order.
+    roles: Vec<ChildGuard>,
 }
 
 impl RecoveryStackV1 {
     fn start(label: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        Self::start_with_router_env(label, &[])
+    }
+
+    /// Starts the stack with extra settings in the Router's env file.
+    fn start_with_router_env(
+        label: &str,
+        router_env: &[(&str, &str)],
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
         let temp = temp_dir(label)?;
         let router_url = format!("http://127.0.0.1:{}", free_port()?);
@@ -2710,6 +2826,14 @@ impl RecoveryStackV1 {
                 ),
             ],
         )?;
+        if !router_env.is_empty() {
+            let router_env_path = temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1);
+            let mut contents = fs::read_to_string(&router_env_path)?;
+            for (key, value) in router_env {
+                contents.push_str(&format!("\n{key}={value}"));
+            }
+            fs::write(&router_env_path, contents)?;
+        }
         route_env_through_proxies(
             &temp.join(router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1),
             &[(router_ab_dev::LOCAL_DERIVER_B_URL_ENV_V1, proxy_a_to_b.url.as_str())],
@@ -2752,7 +2876,7 @@ impl RecoveryStackV1 {
             router_db: Connection::open(
                 temp.join(".router-ab-local/router/tenant-root-creation.sqlite"),
             )?,
-            _roles: vec![router, deriver_a, deriver_b, control_plane],
+            roles: vec![router, deriver_a, deriver_b, control_plane],
             temp,
             router_url,
             signing_worker_url,
@@ -2769,6 +2893,42 @@ impl RecoveryStackV1 {
 
     fn create(&self, grant: &str) -> Result<(u16, String), Box<dyn std::error::Error>> {
         create_tenant_root(&self.router_url, grant, TEST_ROLE_SHARED_SERVICE_AUTH)
+    }
+
+    /// Stops the Router process and starts it again on the same state.
+    fn restart_router(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        drop(self.roles.remove(0));
+        let mut router = ChildGuard::spawn_in_root(
+            env!("CARGO_BIN_EXE_router_ab_local_worker"),
+            "router",
+            self.temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1),
+            &self.temp,
+        )?;
+        wait_for_health(&self.router_url, router.child_mut())?;
+        self.roles.insert(0, router);
+        Ok(())
+    }
+
+    /// The Router's refresh bookkeeping for one lineage: its lifecycle
+    /// revision, fence kind, the fence attempt's operation, and the pending
+    /// operation with its trigger.
+    #[allow(clippy::type_complexity)]
+    fn refresh_bookkeeping(
+        &self,
+        lineage: &str,
+    ) -> rusqlite::Result<(i64, String, Option<String>, Option<String>, Option<String>)> {
+        self.router_db.query_row(
+            "SELECT json_extract(value_json, '$.lifecycle_revision'),
+                    json_extract(value_json, '$.fence.kind'),
+                    json_extract(value_json, '$.fence.attempt.manual_operation_id'),
+                    json_extract(value_json, '$.manual_refresh_pending.operation_id'),
+                    json_extract(value_json, '$.manual_refresh_pending.trigger')
+             FROM local_tenant_root_creation_state
+             WHERE storage_key = 'refresh/v1/active-state'
+               AND json_extract(value_json, '$.custody_lineage_b64u') = ?1",
+            [lineage],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+        )
     }
 
     /// Each Deriver's role-share lifecycle for one lineage.

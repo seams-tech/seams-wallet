@@ -450,6 +450,8 @@ async fn read_cloudflare_router_tenant_root_status_v1(
             identity_digest,
             active.activation_receipt.activated_at_ms(),
             active.last_refresh_completed_at_ms,
+            crate::durable_object::tenant_root_creation::refresh_schedule_v1(env)?
+                .scheduled_interval_ms,
         ),
         job: active.job,
         deriver_a_status,

@@ -99,7 +99,8 @@ pub use durable_object::tenant_root_creation::{
     tenant_root_creation_active_state_with_revision_read_call_v1,
     tenant_root_creation_cleanup_call_v1, tenant_root_creation_journal_call_v1,
     tenant_root_creation_journal_read_call_v1, tenant_root_creation_object_name_v1,
-    parse_tenant_root_manual_refresh_interval_ms_v1, tenant_root_creation_serve_v1,
+    parse_tenant_root_refresh_schedule_v1, tenant_root_creation_serve_v1,
+    TenantRootRefreshScheduleV1, TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
     CloudflareTenantRootCreationJournalReadRequestV1,
     CloudflareTenantRootCreationJournalReadResponseV1,
     CloudflareTenantRootCreationJournalResponseV1, CloudflareVerifiedTenantRootActiveStateV1,
@@ -155,6 +156,7 @@ pub use tenant_root_creation_coordinator::{
 mod tenant_root_refresh_coordinator;
 pub use tenant_root_refresh_coordinator::{
     tenant_root_router_admission_receipt_v1, tenant_root_router_coordinate_refresh_v1,
+    tenant_root_router_scheduled_refresh_v1,
     CloudflareRouterTenantRootRefreshRequestV1,
     CloudflareRouterTenantRootRefreshResponseV1, CloudflareRouterTenantRootRefreshResultV1,
     CloudflareRouterTenantRootRetirementEvidenceV1,

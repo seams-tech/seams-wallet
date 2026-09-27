@@ -32,6 +32,20 @@ that differ in name or format are presented that way by
 holds the creation grant authority and the recovery authorities and is loaded
 by no process.
 
+The Router also runs the VM's scheduled refresh, the counterpart of the
+external trigger on Cloudflare. Each tick, it offers every tenant root it holds
+a scheduled refresh through the same coordinator the refresh route runs, and
+the admission answers "not due" until the root's schedule says otherwise. The
+job is the Router's persisted pending admission, so a restarted Router resumes
+the scheduled operation it began. Two settings in the Router's env file
+govern it:
+
+- `TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS`: the schedule's interval, thirty
+  days by default and at least one minute. Cloudflare's Router reads the same
+  setting.
+- `LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS`: how often the scheduler
+  checks, one minute by default and at least one second.
+
 ## One command
 
 ```bash
@@ -129,6 +143,11 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
   roles whose receipt request is lost is abandoned after its window, its
   signed receipt can no longer be committed or delivered, and a new operation
   refreshes the root, superseding what the abandoned attempt left.
+- `vm_tenant_root_scheduled_refresh_runs_and_resumes_after_a_router_restart`
+  prints `R150_VM_TENANT_ROOT_SCHEDULED_REFRESH_E2E`: with a one-minute
+  schedule, the Router's scheduler refreshes a root once it is due. A Router
+  restarted while that scheduled refresh is in flight completes the same
+  operation.
 - `vm_tenant_root_work_admitted_before_a_refresh_finishes_on_its_epoch`
   prints `R150_VM_TENANT_ROOT_WORK_ACROSS_REFRESH_E2E`: a Yao registration
   admitted on epoch 1 is held while a refresh commits epoch 2 and both roles
@@ -198,10 +217,9 @@ operation, its contracts and what is needed.
 
 - ECDSA activation refresh. Linked-device ECDSA signing fails closed.
 - Device linking.
-- Tenant-root status, scheduled refresh (no VM trigger yet), managed
-  restore, recovery-package backup and restore, source retirement and
-  cutover. Manual refresh is served, with the same Router, Deriver and
-  control-plane code as Cloudflare.
+- Tenant-root status, managed restore, recovery-package backup and restore,
+  source retirement and cutover. Manual and scheduled refresh are served, with
+  the same Router, Deriver and control-plane code as Cloudflare.
 - Linked-device signing.
 - Google Cloud KMS managed backup (HPKE only).
 - Router and SigningWorker prewarm, which keeps Worker isolates warm and has no

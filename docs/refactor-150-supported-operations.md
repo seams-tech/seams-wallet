@@ -60,7 +60,7 @@ Served but not reached by any surface in this repository (inferred):
 | **Creation sweep** (operator) | Runbook only (no op or CLI) | Served | Served | [Creation resume](./refactor-150-tenant-root-creation-resume.md) | VM and Workers sweep E2Es |
 | **Status** | Wallet-control `status`; CLI `derivation-root status` | Served | **Not served** | None | None |
 | **Manual refresh** | Wallet-control `refresh`; CLI `derivation-root rotate` | Served, commit-first | Served, same code | Spec 6 "Refreshing shares" | `testTenantRootManualRefresh`, `testTenantRootRefreshDeliveryAfterLoss`; VM `vm_tenant_root_refresh_*`; private rotation contract |
-| **Scheduled refresh** | The Router accepts `trigger: scheduled`; no scheduler in this repository | Served on request | Served on request; no VM trigger | Spec 6 | Router-state unit tests |
+| **Scheduled refresh** | The Router accepts `trigger: scheduled`; on the VM the Router's own scheduler triggers it, on Cloudflare an external trigger | Served on request | Served by the Router's scheduler (`TENANT_ROOT_SCHEDULED_REFRESH_INTERVAL_MS`) | Spec 6 | Router-state unit tests; VM `vm_tenant_root_scheduled_refresh_runs_and_resumes_after_a_router_restart` |
 | **Availability (managed) restore** | No surface in this repository | Served | **Not served** | Spec 6 "Backing up the deployment" | `testTenantRootManagedRestoreOperatingPath` |
 | **Recovery-package backup** | CLI recovery-key and backup; wallet-control `recovery-*` | Served | **Not served** | Spec 6 "Backing up the deployment" | `seams-cli` tests against a mocked Console |
 | **Restore to a new deployment** | CLI `restore`; wallet-control restore ops | Served | **Not served** | Spec 6 "Restoring to a new deployment" | `restore_drill.rs` (mocked Console); no Worker E2E |
@@ -80,9 +80,10 @@ Served but not reached by any surface in this repository (inferred):
 - **Source retirement is reachable and untested.** It is reachable through a
   wallet-control operation, deletes a lineage in one batch, and has no test
   anywhere.
-- **Some enabled operations have no in-repository surface.** Scheduled refresh
-  has no scheduler, and availability restore has no surface. Whether they are
-  enabled in the release depends on seams-monorepo.
+- **Some enabled operations have no in-repository surface.** Cloudflare's
+  scheduled-refresh trigger is external, and availability restore has no
+  surface. Whether they are enabled in the release depends on seams-monorepo.
+  The VM Router schedules refresh itself.
 
 ## Decisions needed
 
