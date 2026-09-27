@@ -781,6 +781,8 @@ const TENANT_ROOT_MANUAL_REFRESH_OPERATION_MAX_BYTES_V1: usize = 256;
 const TENANT_ROOT_MANUAL_REFRESH_COMPLETION_STORAGE_PREFIX_V1: &str =
     "refresh/v1/manual-completion/";
 const TENANT_ROOT_REFRESH_ABANDONMENT_STORAGE_PREFIX_V1: &str = "refresh/v1/abandoned-operation/";
+const TENANT_ROOT_MANAGED_RESTORE_COMPLETION_STORAGE_PREFIX_V1: &str =
+    "managed-restore/v1/completion/";
 pub(crate) const TENANT_ROOT_MANUAL_REFRESH_IN_PROGRESS_ERROR_V1: &str =
     "tenant_root_refresh_in_progress";
 const TENANT_ROOT_REFRESH_ATTEMPT_CONTEXT_MAX_BYTES_V1: usize = 8 * 1024;
@@ -1399,6 +1401,18 @@ pub(crate) struct CloudflareTenantRootRefreshCompletionV1 {
     pub(crate) response: CloudflareTenantRootRefreshActivationResponseV1,
 }
 
+/// A managed restore whose forward refresh committed, named by its exact
+/// issuer-signed public state and capability. It holds the outcome an exact
+/// retry of the restore returns, after the restore's fence is retired and
+/// later refreshes move the active state on.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CloudflareTenantRootManagedRestoreCompletionV1 {
+    pub(crate) public_state_b64u: String,
+    pub(crate) capability_b64u: String,
+    pub(crate) response: CloudflareTenantRootRefreshActivationResponseV1,
+}
+
 /// An operation abandoned before its refresh committed: its attempt's
 /// ceremony window closed first, or its authorization expired while it held
 /// no live attempt. A retry of the operation is refused; a new operation can
@@ -1473,6 +1487,12 @@ pub(crate) enum CloudflareTenantRootCreationActiveStateReadRequestV1 {
         activation_receipt_digest_b64u: String,
         role: CloudflareTenantRootCreationInstallationRoleV1,
     },
+    ReadManagedRestoreCompletion {
+        identity_digest_b64u: String,
+        custody_lineage_b64u: String,
+        public_state_b64u: String,
+        capability_b64u: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1496,6 +1516,9 @@ pub(crate) struct CloudflareTenantRootCreationActiveStateReadResponseV1 {
     /// The refresh operation admitted and not yet completed or abandoned.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) refresh_pending: Option<CloudflareTenantRootRefreshPendingV1>,
+    /// The outcome of the completed managed restore a completion read names.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) managed_restore_completion: Option<CloudflareTenantRootRefreshActivationResponseV1>,
 }
 
 /// Readback phases supported by the durable Router checkpoints.
@@ -3564,6 +3587,53 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_managed_restore_author
             "tenant-root managed-restore reservation response omitted its persisted challenge",
         )),
     }
+}
+
+/// Reads the outcome of one completed managed restore, named by its exact
+/// issuer-signed public state and capability, with the issuer-verified active
+/// state.
+#[cfg(feature = "workers-rs")]
+pub(crate) async fn execute_cloudflare_router_tenant_root_managed_restore_completion_read_call_v1(
+    env: &worker::Env,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    public_state_b64u: String,
+    capability_b64u: String,
+) -> RouterAbProtocolResult<(
+    Option<CloudflareTenantRootRefreshActivationResponseV1>,
+    CloudflareVerifiedTenantRootActiveStateV1,
+)> {
+    let (authority_id, _) =
+        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
+    let request =
+        CloudflareTenantRootCreationActiveStateReadRequestV1::ReadManagedRestoreCompletion {
+            identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+            custody_lineage_b64u: custody_lineage.to_base64url(),
+            public_state_b64u,
+            capability_b64u,
+        };
+    let mut response: CloudflareTenantRootCreationActiveStateReadResponseV1 =
+        execute_cloudflare_router_tenant_root_creation_private_call_v1(
+            env,
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
+            "tenant-root managed-restore completion read",
+            &request,
+            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1,
+        )
+        .await?;
+    let completed = response.managed_restore_completion.take();
+    let active = decode_verified_active_state_response_v1(
+        &worker_issuer_verifying_keys_v1(env)?,
+        authority_id,
+        identity_digest,
+        custody_lineage,
+        response,
+    )?;
+    Ok((completed, active))
 }
 
 /// Checkpoints the exact issuer-signed managed-restore artifacts at the
@@ -7313,6 +7383,7 @@ fn active_state_read_response_from_record(
         refresh_admission: None,
         delivery: record.delivery,
         refresh_pending: record.manual_refresh_pending,
+        managed_restore_completion: None,
     }
 }
 
@@ -8950,6 +9021,17 @@ fn manual_refresh_completion_storage_key_v1(operation_id: &str) -> String {
     hasher.update(operation_id.as_bytes());
     format!(
         "{TENANT_ROOT_MANUAL_REFRESH_COMPLETION_STORAGE_PREFIX_V1}{}",
+        encode_base64url_bytes_v1(&hasher.finalize())
+    )
+}
+
+fn managed_restore_completion_storage_key_v1(capability_b64u: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(b"tenant-root-managed-restore-completion-v1");
+    hasher.update((capability_b64u.len() as u32).to_be_bytes());
+    hasher.update(capability_b64u.as_bytes());
+    format!(
+        "{TENANT_ROOT_MANAGED_RESTORE_COMPLETION_STORAGE_PREFIX_V1}{}",
         encode_base64url_bytes_v1(&hasher.finalize())
     )
 }
@@ -12626,6 +12708,11 @@ pub async fn tenant_root_creation_active_state_read_v1<Store: TenantRootCreation
             identity_digest_b64u,
             custody_lineage_b64u,
             ..
+        }
+        | CloudflareTenantRootCreationActiveStateReadRequestV1::ReadManagedRestoreCompletion {
+            identity_digest_b64u,
+            custody_lineage_b64u,
+            ..
         } => (identity_digest_b64u, custody_lineage_b64u),
     };
     let identity_digest = TenantRootIdentityDigestV1::from_bytes(decode_fixed_base64url_32(
@@ -12716,6 +12803,34 @@ pub async fn tenant_root_creation_active_state_read_v1<Store: TenantRootCreation
                 now_ms,
             )
             .await
+        }
+        CloudflareTenantRootCreationActiveStateReadRequestV1::ReadManagedRestoreCompletion {
+            public_state_b64u,
+            capability_b64u,
+            ..
+        } => {
+            let completion = store
+                .get_json::<CloudflareTenantRootManagedRestoreCompletionV1>(
+                    &managed_restore_completion_storage_key_v1(&capability_b64u),
+                )
+                .await?;
+            let completed = match completion {
+                Some(completion)
+                    if completion.public_state_b64u == public_state_b64u
+                        && completion.capability_b64u == capability_b64u =>
+                {
+                    Some(completion.response)
+                }
+                Some(_) => {
+                    return Err(managed_restore_conflict(
+                        "tenant-root managed-restore completion does not match the restore it names",
+                    ))
+                }
+                None => None,
+            };
+            let mut response = active_state_read_response_from_record(active.record);
+            response.managed_restore_completion = completed;
+            Ok(response)
         }
         CloudflareTenantRootCreationActiveStateReadRequestV1::CheckpointManagedRestore {
             checkpoint,
@@ -13185,6 +13300,7 @@ async fn reserve_refresh_attempt_v1<Store: TenantRootCreationStoreV1>(
         job: None,
         refresh_admission: None,
         refresh_pending: manual_refresh_pending,
+        managed_restore_completion: None,
         delivery,
     })
 }
@@ -13277,6 +13393,14 @@ async fn persist_refresh_active_state_v1<Store: TenantRootCreationStoreV1>(
         }
     };
     let manual_operation_id = attempt.manual_operation_id.clone();
+    // A managed restore is complete once its own forward refresh commits.
+    let completes_managed_restore = matches!(
+        &existing.record.managed_restore_fence,
+        CloudflareTenantRootManagedRestoreFenceV1::Terminal { challenge, .. }
+            if attempt.manual_operation_id.is_none()
+                && attempt.current_epoch == challenge.active_epoch
+                && attempt.expected_control_plane_revision == challenge.active_lifecycle_revision
+    );
     apply_refresh_completion_transition_v1(
         &existing.record,
         &mut candidate,
@@ -13288,8 +13412,24 @@ async fn persist_refresh_active_state_v1<Store: TenantRootCreationStoreV1>(
         outcome: CloudflareTenantRootRefreshTerminalOutcomeV1::Completed,
         response: refresh_terminal_response_from_record(&candidate),
     };
+    // Its fence is retired then, so later refreshes and a later restore
+    // validate against the state they change; its outcome moves to a
+    // completion record, which an exact retry of the restore reads.
+    let mut managed_restore_completion = None;
     candidate.managed_restore_fence = match &existing.record.managed_restore_fence {
         CloudflareTenantRootManagedRestoreFenceV1::Open => {
+            CloudflareTenantRootManagedRestoreFenceV1::Open
+        }
+        CloudflareTenantRootManagedRestoreFenceV1::Terminal {
+            public_state_b64u,
+            capability_b64u,
+            ..
+        } if completes_managed_restore => {
+            managed_restore_completion = Some(CloudflareTenantRootManagedRestoreCompletionV1 {
+                public_state_b64u: public_state_b64u.clone(),
+                capability_b64u: capability_b64u.clone(),
+                response: refresh_terminal_response_from_record(&candidate),
+            });
             CloudflareTenantRootManagedRestoreFenceV1::Open
         }
         CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. } => {
@@ -13425,6 +13565,14 @@ async fn persist_refresh_active_state_v1<Store: TenantRootCreationStoreV1>(
         store
             .put_json(
                 &manual_refresh_completion_storage_key_v1(&completion.operation_id),
+                &completion,
+            )
+            .await?;
+    }
+    if let Some(completion) = managed_restore_completion {
+        store
+            .put_json(
+                &managed_restore_completion_storage_key_v1(&completion.capability_b64u),
                 &completion,
             )
             .await?;

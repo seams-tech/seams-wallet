@@ -43,7 +43,7 @@ decision.
 | **Creation and its recovery** | Enabled lifecycle; shared contracts | Implemented: resume, commit-first delivery, abandonment, ceremony-bound cleanup, operator sweep | Same code, same E2Es | Done. Automatic sweeping is a separate decision |
 | **Share refresh** (manual and scheduled) | Spec 6 refreshing shares; enabled lifecycle; shared contracts | Commit-first, with roll-forward delivery. The lost-delivery fault is reproduced and fixed in a Workers E2E | Served by the same Router coordinator, Deriver and control-plane code. The lost-delivery and abandonment E2Es pass on the VM, and the Router's scheduler triggers scheduled refresh | [Commit-first](./refactor-150-refresh-commit-first.md): abandonment, per-role delivery status and the VM's scheduled-refresh trigger are done |
 | **Retiring and erasing old shares after refresh** | Spec 6: erase only when completion conditions allow; in-progress work keeps its version; one-use and retry safety | Retired shares and backups are kept; retirement reported `pending` | Nothing is erased | [Drain proposal](./refactor-150-root-retirement-admission.md), revised 2026-09-26 for review. Erasure stays release-gated on both hosts until then |
-| **Availability restore** (one role from its managed backup, then a forward refresh) | Spec 6 availability backup; runbooks for object failure and recovery | Served, with a Workers E2E. **Defect:** no refresh can complete after a restore (see below) | Not served. VM backups are HPKE-only | After refresh reaches the VM; it reuses the refresh machinery. The defect is fixed as part of this item |
+| **Availability restore** (one role from its managed backup, then a forward refresh) | Spec 6 availability backup; runbooks for object failure and recovery | Served, with a Workers E2E. A restored root refreshes again (defect below, fixed) | Not served. VM backups are HPKE-only | Serving it on the VM remains; it reuses the refresh machinery |
 | **Recovery package and restore to a new deployment** (dormant, then operator activation) | Spec 6 restoring to a new deployment; recovery runbook | Served; no E2E | Not served | After availability restore. Largest slice |
 | **Linked-device and step-up signing** | Preserve signing for each enabled configuration | Served | Fails closed | Needed on the VM only if the release enables them. Independent of tenant-root lifecycle |
 | **Google Cloud KMS managed backup** | Optional provider integration | Served | HPKE only | Out of scope: R150 excludes provider-specific provisioning. HPKE is the portable path |
@@ -64,10 +64,27 @@ main root after its managed restore.
 - **Scope:** no refresh can complete on a restored root, on Workers and,
   with the shared code, on the VM. It predates R150's refresh work; no test
   refreshed a root twice or after a restore.
-- **Fix, to come with availability restore:** retire the terminal restore
-  fence, or validate it against its own transition rather than the latest
-  one. Either must keep an exact retry of the restore returning its durable
-  outcome.
+- **Fixed (2026-09-27): the fence is retired.**
+  - A restore is complete when its own forward refresh commits, and that
+    commit retires the managed-restore fence. Later refreshes then validate
+    against the state they change. A later incident can also authorize
+    another restore, which a terminal fence used to refuse for good; no test
+    exercises a second restore yet.
+  - The restore's durable outcome moves, in the same storage operation, to a
+    completion record named by its exact issuer-signed public state and
+    capability. This mirrors the manual refresh's completion record.
+  - An exact retry of the restore reads that record first and returns its
+    outcome, however far later refreshes have moved the active state. It
+    delivers a pending receipt only while the restore's own commit is still
+    the active one.
+- **Evidence:** the Workers harness now refreshes the harness's main root
+  after its managed restore (`R150_WORKERS_REFRESH_AFTER_MANAGED_RESTORE`,
+  also runnable alone with `--refresh-after-managed-restore`). The step came
+  first and reproduced the failure verbatim: "tenant-root refresh commitment
+  checkpoint returned HTTP 500: tenant-root creation journal unavailable".
+  With the fix, the refresh commits the next revision, taking Deriver A to
+  epoch 3 over its restored epoch 2 and Deriver B from epoch 1 through 2 to 3.
+  An exact retry of the restore afterwards returns its original bytes.
 
 ## Separate: planned migration (cutover and source retirement)
 

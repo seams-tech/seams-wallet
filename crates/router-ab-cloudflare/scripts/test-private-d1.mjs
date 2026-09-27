@@ -3921,10 +3921,11 @@ async function testTenantRootManagedRestoreOperatingPath(
   const authorization = JSON.parse(authorizationBytes.toString('utf8'));
   assert.equal(authorization.incident_authorization_b64u, incidentAuthorizationB64u);
 
-  const response = await postWorkerJson(router, tenantRootManagedRestorePath, {
+  const restoreRequest = {
     public_state_b64u: authorization.public_state_b64u,
     restore_capability_b64u: authorization.capability_b64u,
-  });
+  };
+  const response = await postWorkerJson(router, tenantRootManagedRestorePath, restoreRequest);
   const bytes = await expectOk(response, 'live managed restore and mandatory forward refresh');
   const refresh = JSON.parse(bytes.toString('utf8'));
   assert.equal(
@@ -4001,7 +4002,68 @@ async function testTenantRootManagedRestoreOperatingPath(
     backupKeysB.includes(`${backupPrefix}/deriver-b/${backupCoordinates}/2.bin`),
     'Deriver B active backup must remain available',
   );
-  return refresh;
+  return { refresh, bytes, restoreRequest };
+}
+
+/// A root refreshes again after an availability restore, and an exact retry
+/// of the restore still returns its durable outcome.
+async function testTenantRootRefreshAfterManagedRestore(topology, tenantRoot, databases, restore) {
+  const router = await topology.getWorker('router');
+  const identityDigestHex = Buffer.from(tenantRoot.identity_digest_b64u, 'base64url').toString(
+    'hex',
+  );
+  const epochs = async (database) =>
+    (
+      await database
+        .prepare(
+          `SELECT tenant_root_share_epoch AS epoch, lifecycle FROM tenant_root_role_shares
+           WHERE tenant_identity_digest_hex = ? AND custody_lineage_b64u = ?
+           ORDER BY tenant_root_share_epoch`,
+        )
+        .bind(identityDigestHex, tenantRoot.custody_lineage_b64u)
+        .all()
+    ).results.map((row) => [row.epoch, row.lifecycle]);
+  const refreshed = await postWorkerJson(router, tenantRootRefreshPath, {
+    operation_id: 'harness-refresh-after-managed-restore',
+    identity_digest_b64u: tenantRoot.identity_digest_b64u,
+    custody_lineage_b64u: tenantRoot.custody_lineage_b64u,
+    expected_lifecycle_revision: restore.refresh.lifecycle_revision,
+    expires_at_ms: Date.now() + 60_000,
+    trigger: 'manual',
+  });
+  const refreshedBody = await refreshed.text();
+  assert.equal(refreshed.status, 200, `refresh after a managed restore: ${refreshedBody}`);
+  const response = JSON.parse(refreshedBody);
+  assert.equal(response.lifecycle_revision, restore.refresh.lifecycle_revision + 1);
+  const deriverA = await epochs(databases.deriverA);
+  const deriverB = await epochs(databases.deriverB);
+  assert.deepEqual(deriverA, [
+    [2, 'retired'],
+    [3, 'active'],
+  ]);
+  assert.deepEqual(deriverB, [
+    [1, 'retired'],
+    [2, 'retired'],
+    [3, 'active'],
+  ]);
+  const retried = await expectOk(
+    await postWorkerJson(router, tenantRootManagedRestorePath, restore.restoreRequest),
+    'managed-restore exact retry after a later refresh',
+  );
+  assert.deepEqual(
+    retried,
+    restore.bytes,
+    'a managed restore retried after a later refresh must return its durable outcome',
+  );
+  return {
+    kind: 'tenant_root_refresh_after_managed_restore_workers_e2e_v1',
+    restoreRevision: restore.refresh.lifecycle_revision,
+    refreshStatus: refreshed.status,
+    refreshRevision: response.lifecycle_revision,
+    deriverA,
+    deriverB,
+    restoreRetryReturnsDurableOutcome: true,
+  };
 }
 
 async function captureEcdsaActivationAfterRefresh(topology, ecdsa) {
@@ -4347,6 +4409,22 @@ async function main() {
       await testTenantRootRefreshDeliveryAfterExpiry(topology, databases);
       return;
     }
+    if (process.argv.includes('--refresh-after-managed-restore')) {
+      const managedRestore = await testTenantRootManagedRestoreOperatingPath(
+        topology,
+        fixture,
+        tenantRoot,
+        databases,
+      );
+      const summary = await testTenantRootRefreshAfterManagedRestore(
+        topology,
+        tenantRoot,
+        databases,
+        managedRestore,
+      );
+      console.log(`R150_WORKERS_REFRESH_AFTER_MANAGED_RESTORE ${JSON.stringify(summary)}`);
+      return;
+    }
     if (process.argv.includes('--refresh-abandonment-after-expiry')) {
       const summary = await testTenantRootRefreshAbandonmentAfterExpiry(topology, databases);
       console.log(`R150_WORKERS_TENANT_ROOT_REFRESH_ABANDONMENT ${JSON.stringify(summary)}`);
@@ -4508,7 +4586,7 @@ async function main() {
       tenantRoots.secondTenantRoot,
       'second_tenant_activation',
     );
-    await testTenantRootManagedRestoreOperatingPath(
+    const managedRestore = await testTenantRootManagedRestoreOperatingPath(
       topology,
       fixture,
       tenantRoot,
@@ -4581,6 +4659,13 @@ async function main() {
       databases,
     );
     console.log(`R150_WORKERS_ECDSA_ACROSS_REFRESH ${JSON.stringify(ecdsaAcrossRefresh)}`);
+    const refreshAfterRestore = await testTenantRootRefreshAfterManagedRestore(
+      topology,
+      tenantRoot,
+      databases,
+      managedRestore,
+    );
+    console.log(`R150_WORKERS_REFRESH_AFTER_MANAGED_RESTORE ${JSON.stringify(refreshAfterRestore)}`);
   } finally {
     await topology.dispose();
   }

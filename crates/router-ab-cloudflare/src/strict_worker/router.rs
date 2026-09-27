@@ -29,9 +29,9 @@ use crate::post_service_json;
 use crate::tenant_root_creation_coordinator::CloudflareRouterTenantRootCreationHostV1;
 use crate::tenant_root_refresh_coordinator::{
     tenant_root_router_deliver_pending_v1, tenant_root_router_finish_refresh_v1,
-    tenant_root_router_refresh_attempt_packages_v1, tenant_root_router_replay_terminal_refresh_v1,
-    CloudflareRouterTenantRootRefreshRequestV1, CloudflareRouterTenantRootRefreshResponseV1,
-    CloudflareRouterTenantRootRefreshResultV1,
+    tenant_root_router_refresh_attempt_packages_v1, CloudflareRouterTenantRootRefreshRequestV1,
+    CloudflareRouterTenantRootRefreshResponseV1, CloudflareRouterTenantRootRefreshResultV1,
+    CloudflareRouterTenantRootRetirementEvidenceV1,
 };
 use crate::tenant_root_control_plane::{
     execute_cloudflare_tenant_root_control_plane_restore_initial_activation_service_call_v1,
@@ -3054,33 +3054,38 @@ async fn coordinate_cloudflare_router_tenant_root_managed_restore_v1(
     runtime: &CloudflareRouterWorkerRuntimeV1,
     request: CloudflareRouterTenantRootManagedRestoreRequestV1,
 ) -> RouterAbProtocolResult<CloudflareRouterTenantRootRefreshResponseV1> {
+    let (public_state_b64u, capability_b64u) = (
+        request.public_state_b64u.clone(),
+        request.restore_capability_b64u.clone(),
+    );
     let authorization =
         verify_cloudflare_router_tenant_root_managed_restore_request_v1(env, request)?;
     let host = CloudflareRouterTenantRootCreationHostV1::new(env, runtime);
-    let active =
-        execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1(
+    // A completed restore answers its exact retry with its durable outcome,
+    // however far later refreshes have moved the active state.
+    let (completed, active) =
+        crate::durable_object::tenant_root_creation::execute_cloudflare_router_tenant_root_managed_restore_completion_read_call_v1(
             env,
             authorization.identity_digest,
             authorization.custody_lineage,
+            public_state_b64u,
+            capability_b64u,
         )
         .await?;
-    require_cloudflare_router_managed_restore_checkpoint_artifacts_v1(&active, &authorization)?;
-    let terminal_belongs_to_this_restore = matches!(
-        &active.refresh_fence,
-        CloudflareTenantRootRefreshFenceV1::Terminal { attempt, .. }
-            if attempt.current_epoch == authorization.active_epoch
-    );
-    if terminal_belongs_to_this_restore {
-        let mut response =
-            tenant_root_router_replay_terminal_refresh_v1(&active.refresh_fence)?.ok_or_else(|| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::InvalidLifecycleState,
-                    "tenant-root managed-restore terminal refresh response is unavailable",
-                )
-            })?;
-        response.retirement = tenant_root_router_deliver_pending_v1(&host, &active).await?;
-        return Ok(response);
+    if let Some(completed) = completed {
+        // A delayed retry must never reinstall an epoch superseded since.
+        let retirement = if active.lifecycle_revision == completed.lifecycle_revision {
+            tenant_root_router_deliver_pending_v1(&host, &active).await?
+        } else {
+            CloudflareRouterTenantRootRetirementEvidenceV1::Pending
+        };
+        return Ok(CloudflareRouterTenantRootRefreshResponseV1 {
+            activation_receipt_digest_b64u: completed.activation_receipt_digest_b64u,
+            lifecycle_revision: completed.lifecycle_revision,
+            retirement,
+        });
     }
+    require_cloudflare_router_managed_restore_checkpoint_artifacts_v1(&active, &authorization)?;
     require_cloudflare_router_managed_restore_checkpoint_current_state_v1(&active, &authorization)?;
 
     let must_start_forward_refresh = matches!(
