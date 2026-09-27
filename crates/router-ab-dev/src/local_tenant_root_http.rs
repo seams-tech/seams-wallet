@@ -426,6 +426,19 @@ fn deriver_route(
                 ))?)
             },
         )),
+        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_PEER_PAIR_FENCE_PRIVATE_REQUEST_PATH => Some(authorized(
+            credential,
+            request,
+            |fence: router_ab_cloudflare::CloudflareDeriverTenantRootPeerPairFenceRequestV1| {
+                json(&futures::executor::block_on(
+                    router_ab_cloudflare::tenant_root_deriver_fence_peer_pair_v1(
+                        &LocalTenantRootDeriverHostV1::new(tenant_root),
+                        fence,
+                        crate::local_router_coordinator::local_now_ms_v1()?,
+                    ),
+                )?)
+            },
+        )),
         _ => None,
     }
 }

@@ -303,12 +303,14 @@ function strictWorker(name, role, bindings) {
   };
 }
 
-// `W` for the Derivers of the wallet-object admission run: one second, so
+// `W` for the Derivers of the wallet-object admission runs: one second, so
 // recovery fences what it finds within the run.
 const walletObjectAdmissionRun = process.argv.includes('--do-admission-settlement');
-const admissionRecoveryWindowBinding = walletObjectAdmissionRun
-  ? { TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS: '1000' }
-  : {};
+const walletObjectClaimedRecoveryRun = process.argv.includes('--do-claimed-recovery');
+const admissionRecoveryWindowBinding =
+  walletObjectAdmissionRun || walletObjectClaimedRecoveryRun
+    ? { TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS: '1000' }
+    : {};
 
 function deriverAWorker(fixture) {
   return {
@@ -340,7 +342,10 @@ function deriverBWorker(fixture) {
     ...admissionRecoveryWindowBinding,
     ROUTER_AB_TENANT_ROOT_ROLE_D1_INTEGRATION: 'enabled',
   };
-  if (process.argv.includes('--do-pair-b-burn-before-complete')) {
+  if (
+    process.argv.includes('--do-pair-b-burn-before-complete') ||
+    walletObjectClaimedRecoveryRun
+  ) {
     bindings.R150_TEST_B_BURN_BEFORE_COMPLETE = 'enabled';
   }
   return {
@@ -402,6 +407,8 @@ function routerWorker(fixture, capturePairPreparation = false, gateDeriverB = fa
   return {
     ...strictWorker('router', 'router', {
       ...fixture.router_env,
+      // The claimed-recovery run refreshes the same root twice.
+      ...(walletObjectClaimedRecoveryRun ? { TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS: '60000' } : {}),
       ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET:
         routerToSigningWorkerEcdsaAuthSecret,
     }),
@@ -2793,7 +2800,8 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
 ///   `admitted`, as if both settlement acknowledgements were lost.
 ///   Retirement reconciles them with the objects, which report the same
 ///   completion, and the epoch is erased with nothing cancelled.
-async function testWalletObjectAdmissionSettlement(topology, fixture, databases) {
+/// Helpers shared by the wallet-object admission runs.
+async function walletObjectAdmissionHelpers(topology, fixture, databases) {
   assert.equal(process.env.ROUTER_AB_WALLET_DO_HARNESS, 'enabled');
   const router = await topology.getWorker('router-recovery');
   const controlPlane = await topology.getWorker('tenant-root-control-plane');
@@ -2876,16 +2884,16 @@ async function testWalletObjectAdmissionSettlement(topology, fixture, databases)
         .bind(ceremony.custody_lineage_b64u, epoch)
         .first()
     ).revision;
-  // The operator's retirement of epoch 1 at one role.
-  const retire = async (ceremony, role) => {
+  // The operator's retirement of one retired epoch at one role.
+  const retire = async (ceremony, role, retiredEpoch = 1, activeEpoch = 2) => {
     const { worker, database } = derivers[role];
     const command = await postWorkerJson(controlPlane, controlPlaneCleanupCommandPath, {
       kind: 'retired_after_refresh',
       identity_digest_b64u: ceremony.identity_digest_b64u,
       custody_lineage_b64u: ceremony.custody_lineage_b64u,
       role,
-      expected_retired_revision: await revision(database, ceremony, 1),
-      expected_active_revision: await revision(database, ceremony, 2),
+      expected_retired_revision: await revision(database, ceremony, retiredEpoch),
+      expected_active_revision: await revision(database, ceremony, activeEpoch),
     });
     const commandBody = await command.text();
     assert.equal(command.status, 200, commandBody);
@@ -2916,13 +2924,34 @@ async function testWalletObjectAdmissionSettlement(topology, fixture, databases)
       {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ session_hex: row.attempt_key_hex, fence: false, now_ms: Date.now() }),
+        body: JSON.stringify({
+          session_hex: row.attempt_key_hex,
+          fence: false,
+          peer_settled: false,
+          now_ms: Date.now(),
+        }),
       },
     );
     const body = await response.text();
     assert.equal(response.status, 200, body);
     return JSON.parse(body);
   };
+  return {
+    activeState,
+    create,
+    refresh,
+    register,
+    succeeded,
+    admissions,
+    retire,
+    objectReport,
+    races: fixture.admission_race,
+  };
+}
+
+async function testWalletObjectAdmissionSettlement(topology, fixture, databases) {
+  const { create, refresh, register, succeeded, admissions, retire, objectReport } =
+    await walletObjectAdmissionHelpers(topology, fixture, databases);
   const races = fixture.admission_race;
 
   // Root R: a held registration is fenced in both objects.
@@ -3003,6 +3032,70 @@ async function testWalletObjectAdmissionSettlement(topology, fixture, databases)
       admissionsAfterReconciliation: reconciled,
       objectReports,
     },
+  };
+}
+
+/// Opt-in (`--do-claimed-recovery`, wallet-object builds). Deriver B is set
+/// to burn a pair just before completing it. A claimed execution that fails
+/// is recovered, and retirement completes.
+/// 1. A registration: Deriver A claims its pair in its object, then B burns
+///    its side. A's pair burns too, still marked claimed, and can never
+///    complete.
+/// 2. A refresh moves the root to epoch 2.
+/// 3. Retiring epoch 1 at A: A's object reports the pair claimed, so A's
+///    recovery first has B fence it. B's object fences its pair, and B's
+///    admission is cancelled. Only then does A's object fence the claimed
+///    pair, and A's admission is cancelled. Both epochs are erased.
+/// 4. The old registration, retried, completes nothing.
+/// 5. A second refresh of the root succeeds.
+async function testWalletObjectClaimedRecovery(topology, fixture, databases) {
+  const { activeState, create, refresh, register, succeeded, admissions, retire, objectReport, races } =
+    await walletObjectAdmissionHelpers(topology, fixture, databases);
+  const root = recoveryCreationGrant('do-claimed-recovery', 60_000);
+  await create(root);
+  const failed = await register(root, races.held_preparation);
+  assert.ok(!succeeded(failed), failed.body);
+  const afterFailure = await admissions(root);
+  assert.deepEqual(afterFailure, [[[1, 'admitted', true]], [[1, 'admitted', true]]]);
+  const objectsAfterFailure = [
+    await objectReport(root, 'deriver_a', 1),
+    await objectReport(root, 'deriver_b', 1),
+  ];
+  assert.deepEqual(objectsAfterFailure, ['claimed', 'open']);
+
+  await refresh(root, 'harness-do-claimed-recovery');
+  const refreshedAt = Date.now();
+  await sleep(1_100);
+  const aRetired = await retire(root, 'deriver_a');
+  assert.equal(aRetired.cancelled_admissions, 1, JSON.stringify(aRetired));
+  const afterRecovery = await admissions(root);
+  assert.deepEqual(afterRecovery, [[[1, 'cancelled', true]], [[1, 'cancelled', true]]]);
+  const bRetired = await retire(root, 'deriver_b');
+  assert.equal(bRetired.cancelled_admissions, 1, JSON.stringify(bRetired));
+  const objectsAfterRetirement = [
+    await objectReport(root, 'deriver_a', 1),
+    await objectReport(root, 'deriver_b', 1),
+  ];
+  assert.deepEqual(objectsAfterRetirement, ['fenced', 'fenced']);
+
+  const retried = await register(root, races.held_preparation);
+  assert.ok(!succeeded(retried), retried.body);
+  assert.deepEqual(await admissions(root), afterRecovery);
+
+  await sleep(Math.max(0, refreshedAt + 61_000 - Date.now()));
+  await refresh(root, 'harness-do-claimed-recovery-next');
+  const after = await activeState(root);
+  return {
+    kind: 'tenant_root_wallet_object_claimed_recovery_workers_e2e_v1',
+    failedRegistration: [failed.status, failed.body.slice(0, 160)],
+    admissionsAfterFailure: afterFailure,
+    objectsAfterFailure,
+    deriverARetired: [aRetired.kind, aRetired.cancelled_admissions],
+    admissionsAfterRecovery: afterRecovery,
+    deriverBRetired: [bRetired.kind, bRetired.cancelled_admissions],
+    objectsAfterRetirement,
+    retriedRegistration: [retried.status, retried.body.slice(0, 160)],
+    secondRefreshRevision: after.lifecycle_revision,
   };
 }
 
@@ -4750,6 +4843,12 @@ async function main() {
           ...admissionRaces,
         })}`,
       );
+      return;
+    }
+    if (walletObjectClaimedRecoveryRun) {
+      assert.equal(process.env.ROUTER_AB_WALLET_DO_HARNESS, 'enabled');
+      const summary = await testWalletObjectClaimedRecovery(topology, fixture, databases);
+      console.log(`R150_WORKERS_WALLET_OBJECT_CLAIMED_RECOVERY ${JSON.stringify(summary)}`);
       return;
     }
     if (walletObjectAdmissionRun) {

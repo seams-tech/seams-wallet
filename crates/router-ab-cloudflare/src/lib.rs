@@ -163,6 +163,8 @@ pub use tenant_root_role_runtime::{
     CloudflareDeriverTenantRootInitialActivationRequestV1,
     CloudflareDeriverTenantRootInitialActivationResponseV1, CloudflareTenantRootCreateRoleV1,
     CloudflareDeriverTenantRootCleanupRequestV1, CloudflareDeriverTenantRootCleanupResponseV1,
+    CloudflareDeriverTenantRootPeerPairFenceRequestV1,
+    CloudflareDeriverTenantRootPeerPairFenceResponseV1, tenant_root_deriver_fence_peer_pair_v1,
     TenantRootDeriverHostV1,
     tenant_root_deriver_restore_preactivation_cleanup_v1,
     tenant_root_deriver_restore_refresh_promotion_v1,

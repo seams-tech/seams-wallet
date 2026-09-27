@@ -72,7 +72,9 @@ Until then the Deriver answers that retirement is pending.
   claimed.
 - **Everything after it is refused.** A cancelled attempt's claim and its
   completion fail in the pair store's own transaction.
-- **A claimed attempt stays pending** until it completes.
+- **A claimed attempt is recovered through Deriver B.** B fences the session,
+  or reports that it completed it, over the A-to-B channel. Only then is A's
+  claimed admission cancelled. It stays pending while B cannot answer.
 `LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS` in a Deriver's env file sets
 `W`: five minutes unless set. A value under one second is refused as a
 configuration error. `W` decides only when recovery runs, never whether
@@ -268,6 +270,17 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
     `burned`, and an exact retry is `burned` too.
   - A fresh registration of the same wallet succeeds and signs on epoch 2.
   - `W` is one second in this test.
+- `vm_tenant_root_claimed_execution_that_fails_is_recovered_and_retirement_completes`
+  prints `R150_VM_TENANT_ROOT_CLAIMED_RECOVERY_E2E`:
+  - A claims its pair; the proxy then cuts the peer stream, and A's claimed
+    pair burns.
+  - A restarts.
+  - Retiring epoch 1 at A has B fence the session, then cancels A's
+    admission. B's retirement follows, and both epochs are erased.
+  - A's delayed execute (400) and the old registration's retry (`burned`)
+    are refused.
+  - A second refresh succeeds after the Router's one-minute manual interval,
+    and the wallet registers and signs on epoch 3.
 - `vm_tenant_root_new_work_waits_for_the_committed_epoch_delivery` prints
   `R150_VM_TENANT_ROOT_DELIVERY_GATE_E2E`: new work is refused with HTTP 503
   while a Deriver lacks the committed epoch, and admitted once delivery

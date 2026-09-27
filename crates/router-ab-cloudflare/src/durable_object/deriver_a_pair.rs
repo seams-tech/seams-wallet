@@ -427,7 +427,10 @@ impl RouterAbDeriverAWalletDurableObject {
     /// Answers the role store that owns a pair session's admission. When
     /// asked, it first fences the pair unless its executor claimed it or it
     /// completed. Both checks and the fence run in one statement. A fence
-    /// also covers a session this object never prepared.
+    /// also covers a session this object never prepared. Once Deriver B has
+    /// answered that it completed the pair or can no longer complete it, a
+    /// claimed pair can be fenced too: this executor cannot complete without
+    /// B.
     #[cfg(feature = "wallet-do-harness")]
     fn reconcile(
         &self,
@@ -438,12 +441,13 @@ impl RouterAbDeriverAWalletDurableObject {
             self.sql.exec(
                 "INSERT INTO yao_pair_admission_fences (session_hex, fenced_at_ms) \
                  SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM yao_pair_sessions \
-                 WHERE session_hex = ? AND (claimed = 1 OR lifecycle = 'completed')) \
+                 WHERE session_hex = ? AND ((claimed = 1 AND ? = 0) OR lifecycle = 'completed')) \
                  ON CONFLICT DO NOTHING",
                 vec![
                     SqlStorageValue::String(request.session_hex.clone()),
                     SqlStorageValue::Integer(i64::try_from(request.now_ms).map_err(pair_error_of)?),
                     SqlStorageValue::String(request.session_hex.clone()),
+                    SqlStorageValue::Integer(i64::from(request.peer_settled)),
                 ],
             )?;
         }

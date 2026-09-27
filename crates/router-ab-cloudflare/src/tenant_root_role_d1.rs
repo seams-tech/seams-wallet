@@ -210,6 +210,25 @@ pub const TENANT_ROOT_SETTLE_WALLET_OBJECT_ADMISSION_SQL_V1: &str =
 const CANCEL_WALLET_OBJECT_ADMISSION_SQL: &str = "UPDATE tenant_root_root_use_admissions \
     SET status = 'cancelled' WHERE role = ?1 AND attempt_kind = ?2 AND attempt_key_hex = ?3 \
     AND pair_object_name = ?4 AND status = 'admitted'";
+/// Deriver A's claimed admissions on one epoch whose pairs are in this role
+/// store and that are still unsettled at or before a cutoff.
+const LIST_CLAIMED_ROOT_USE_ADMISSIONS_SQL: &str = "SELECT attempt_key_hex \
+    FROM tenant_root_root_use_admissions WHERE tenant_identity_digest_hex = ?1 \
+    AND custody_lineage_b64u = ?2 AND role = ?3 AND tenant_root_share_epoch = ?4 \
+    AND attempt_kind = ?5 AND status = 'claimed' AND pair_object_name IS NULL \
+    AND admitted_at_ms <= ?6 ORDER BY admitted_at_ms, attempt_key_hex";
+/// Ends one claimed attempt whose peer can no longer complete it. Its
+/// completion here, which needs the admission live, is refused from then on.
+const CANCEL_CLAIMED_ROOT_USE_ADMISSION_SQL: &str = "UPDATE tenant_root_root_use_admissions \
+    SET status = 'cancelled' WHERE tenant_identity_digest_hex = ?1 \
+    AND custody_lineage_b64u = ?2 AND role = ?3 AND attempt_kind = ?4 \
+    AND attempt_key_hex = ?5 AND status = 'claimed' AND pair_object_name IS NULL";
+/// Cancels one attempt that was only admitted here and whose pair, if any,
+/// is in this role store. Its start and completion here are then refused.
+const CANCEL_ADMITTED_ROOT_USE_ADMISSION_SQL: &str = "UPDATE tenant_root_root_use_admissions \
+    SET status = 'cancelled' WHERE tenant_identity_digest_hex = ?1 \
+    AND custody_lineage_b64u = ?2 AND role = ?3 AND attempt_kind = ?4 \
+    AND attempt_key_hex = ?5 AND status = 'admitted' AND pair_object_name IS NULL";
 /// The unsettled admissions on one epoch here whose pairs wallet objects hold.
 const LIST_WALLET_OBJECT_ADMISSIONS_SQL: &str = "SELECT attempt_key_hex, pair_object_name, \
     admitted_at_ms FROM tenant_root_root_use_admissions WHERE tenant_identity_digest_hex = ?1 \
@@ -1802,7 +1821,18 @@ pub enum TenantRootWalletPairReconciliationV1 {
 pub struct TenantRootWalletPairReconcileRequestV1 {
     pub session_hex: String,
     pub fence: bool,
+    /// Deriver B has answered that it completed the pair or can no longer
+    /// complete it. Deriver A's executor then cannot complete it either, so
+    /// Deriver A's object may fence even a claimed pair.
+    pub peer_settled: bool,
     pub now_ms: u64,
+}
+
+/// One Yao attempt's admission at this role, as a peer's recovery sees it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct TenantRootYaoAdmissionStateV1 {
+    pub(crate) status: String,
+    pub(crate) pair_object_name: Option<String>,
 }
 
 /// One unsettled admission whose pair a wallet object holds.
@@ -13146,7 +13176,8 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
     /// Replaying either changes nothing.
     pub(crate) async fn record_wallet_object_reconciliation(
         &self,
-        admission: &TenantRootWalletObjectAdmissionV1,
+        attempt_key_hex: &str,
+        pair_object_name: &str,
         reconciliation: TenantRootWalletPairReconciliationV1,
     ) -> RoleStoreResult<()> {
         let sql = match reconciliation {
@@ -13163,8 +13194,134 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 [
                     RoleSqlValue::Text(self.cipher.role.as_str()),
                     RoleSqlValue::Text(TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1),
-                    RoleSqlValue::Text(admission.attempt_key_hex.as_str()),
-                    RoleSqlValue::Text(admission.pair_object_name.as_str()),
+                    RoleSqlValue::Text(attempt_key_hex),
+                    RoleSqlValue::Text(pair_object_name),
+                ]
+                .iter(),
+            )?
+            .run()
+            .await?;
+        Ok(())
+    }
+
+    /// One Yao pair session's admission here, if it was ever admitted.
+    pub(crate) async fn yao_admission(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        session_hex: &str,
+    ) -> RoleStoreResult<Option<TenantRootYaoAdmissionStateV1>> {
+        let identity_digest_hex = encode_hex(identity_digest.as_bytes());
+        let custody_lineage_b64u = custody_lineage.to_base64url();
+        let row = self
+            .session
+            .prepare(LOAD_ROOT_USE_ADMISSION_SQL)
+            .bind_refs(
+                [
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1),
+                    RoleSqlValue::Text(session_hex),
+                ]
+                .iter(),
+            )?
+            .first::<TenantRootRootUseAdmissionRowV1>(None)
+            .await?;
+        Ok(row.map(|row| TenantRootYaoAdmissionStateV1 {
+            status: row.status,
+            pair_object_name: row.pair_object_name,
+        }))
+    }
+
+    /// The epoch active at this role for one lineage, if any.
+    pub(crate) async fn lineage_active_epoch(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+    ) -> RoleStoreResult<Option<u64>> {
+        let identity_digest_hex = encode_hex(identity_digest.as_bytes());
+        let custody_lineage_b64u = custody_lineage.to_base64url();
+        self.session
+            .prepare(LOAD_LINEAGE_ACTIVE_EPOCH_SQL)
+            .bind_refs(
+                [
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                ]
+                .iter(),
+            )?
+            .first::<TenantRootActiveEpochRowV1>(None)
+            .await?
+            .map(|row| {
+                u64::try_from(row.tenant_root_share_epoch)
+                    .map_err(|_| store_error("tenant-root active epoch is negative"))
+            })
+            .transpose()
+    }
+
+    /// Deriver A's claimed admissions on one epoch here, with pairs in this
+    /// store, still unsettled at the cutoff: their pair session keys.
+    pub(crate) async fn claimed_yao_admissions(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        epoch: TenantRootShareEpoch,
+        admitted_at_or_before_ms: u64,
+    ) -> RoleStoreResult<Vec<String>> {
+        let identity_digest_hex = encode_hex(identity_digest.as_bytes());
+        let custody_lineage_b64u = custody_lineage.to_base64url();
+        let epoch = epoch_i64(epoch)?.to_string();
+        let cutoff = admitted_at_or_before_ms.to_string();
+        Ok(self
+            .session
+            .prepare(LIST_CLAIMED_ROOT_USE_ADMISSIONS_SQL)
+            .bind_refs(
+                [
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(epoch.as_str()),
+                    RoleSqlValue::Text(TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1),
+                    RoleSqlValue::Text(cutoff.as_str()),
+                ]
+                .iter(),
+            )?
+            .all()
+            .await?
+            .results::<TenantRootAttemptKeyRowV1>()?
+            .into_iter()
+            .map(|row| row.attempt_key_hex)
+            .collect())
+    }
+
+    /// Cancels one Yao attempt's admission here, as the fence it is in this
+    /// store: `claimed` for Deriver A's executor once its peer can no longer
+    /// complete the pair, or only `admitted` for a peer fencing its own side.
+    /// It moves only a row in that state whose pair is in this store.
+    pub(crate) async fn cancel_yao_admission(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        session_hex: &str,
+        claimed: bool,
+    ) -> RoleStoreResult<()> {
+        let identity_digest_hex = encode_hex(identity_digest.as_bytes());
+        let custody_lineage_b64u = custody_lineage.to_base64url();
+        self.session
+            .prepare(if claimed {
+                CANCEL_CLAIMED_ROOT_USE_ADMISSION_SQL
+            } else {
+                CANCEL_ADMITTED_ROOT_USE_ADMISSION_SQL
+            })
+            .bind_refs(
+                [
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1),
+                    RoleSqlValue::Text(session_hex),
                 ]
                 .iter(),
             )?
@@ -17075,6 +17232,11 @@ fn authorized_cleanup_abandoned_ceremony_payload_digest(
     let mut bytes = command_payload_start("authorized_cleanup_abandoned_ceremony")?;
     push_command_field(&mut bytes, authorization_digest.as_bytes())?;
     finish_command_payload(bytes)
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct TenantRootAttemptKeyRowV1 {
+    attempt_key_hex: String,
 }
 
 #[derive(Debug, serde::Deserialize)]

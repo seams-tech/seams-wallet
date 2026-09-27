@@ -480,6 +480,29 @@ pub struct CloudflareDeriverTenantRootStatusResponseV1 {
     pub activation_receipt_digest_b64u: String,
 }
 
+/// Deriver A to Deriver B, during retirement recovery of a claimed attempt:
+/// fence this pair session at B unless B completed it. Deriver A cannot
+/// complete without B's completion, so once B answers, A's delayed messages
+/// can cause nothing more at B.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareDeriverTenantRootPeerPairFenceRequestV1 {
+    pub identity_digest_b64u: String,
+    pub custody_lineage_b64u: String,
+    /// The epoch the pair was admitted on at Deriver A.
+    pub epoch: u64,
+    pub session_hex: String,
+}
+
+/// Deriver B's answer: the pair completed at B, or B can no longer complete
+/// it. Either is durable at B before it answers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum CloudflareDeriverTenantRootPeerPairFenceResponseV1 {
+    Completed,
+    Fenced,
+}
+
 /// Destruction evidence available after a retired-share cleanup.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -1535,6 +1558,169 @@ async fn cancelled_root_use_admissions_v1<S: RoleSqlSessionV1>(
         .cancelled_root_use_admissions(identity_digest, custody_lineage, epoch)
         .await
         .map_err(|error| tenant_root_store_error_v1("tenant-root cancelled admission count", error))
+}
+
+/// Asks Deriver B to fence one pair session unless it completed it, for
+/// Deriver A's recovery of a claimed attempt. A B that cannot answer leaves
+/// the attempt pending: the cleanup is refused and retried.
+async fn fence_peer_pair_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    epoch: TenantRootShareEpoch,
+    session_hex: &str,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootPeerPairFenceResponseV1> {
+    if host.worker_role() != crate::CloudflareWorkerRoleV1::DeriverA {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidRole,
+            "only Deriver A's executor claims a pair and needs its peer fenced",
+        ));
+    }
+    host.post_private_json(
+        crate::TenantRootServiceTargetV1::Deriver(TwoPartyDeriverRole::DeriverB),
+        crate::paths::CLOUDFLARE_DERIVER_TENANT_ROOT_PEER_PAIR_FENCE_PRIVATE_REQUEST_PATH,
+        "tenant-root peer pair fence",
+        &CloudflareDeriverTenantRootPeerPairFenceRequestV1 {
+            identity_digest_b64u: crate::encode_base64url_bytes_v1(identity_digest.as_bytes()),
+            custody_lineage_b64u: custody_lineage.to_base64url(),
+            epoch: epoch.get().get(),
+            session_hex: session_hex.to_owned(),
+        },
+        None,
+    )
+    .await
+    .map_err(|error| {
+        RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
+            format!(
+                "retirement is pending here: Deriver B has not yet fenced a claimed pair; retry: {}",
+                error.message()
+            ),
+        )
+    })
+}
+
+/// Deriver B fences one pair session for Deriver A's recovery, unless B
+/// completed it, and answers only once that is durable.
+/// - B completed it: its admission here is settled.
+/// - B had only admitted it: the admission is cancelled, so B can neither
+///   start nor complete it. In a wallet object, the object fences it first.
+/// - B never admitted it: B cannot admit it once its epoch is closed here, so
+///   that alone is the fence. While the epoch is still active here, B cannot
+///   prove that yet, and A must retry.
+pub async fn tenant_root_deriver_fence_peer_pair_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
+    request: CloudflareDeriverTenantRootPeerPairFenceRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootPeerPairFenceResponseV1> {
+    if host.worker_role() != crate::CloudflareWorkerRoleV1::DeriverB {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidRole,
+            "only Deriver B fences a pair for its executor's recovery",
+        ));
+    }
+    let (identity_digest, custody_lineage) = crate::tenant_root_control_plane::decode_tenant_root_cleanup_scope_v1(
+        &request.identity_digest_b64u,
+        &request.custody_lineage_b64u,
+    )?;
+    if request.session_hex.len() != 64
+        || !request
+            .session_hex
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MalformedWirePayload,
+            "a peer pair fence names a 64-character lowercase hex pair session",
+        ));
+    }
+    let store = host
+        .role_store()
+        .map_err(|error| tenant_root_store_error_v1("tenant-root role store lookup", error))?;
+    let fence_error = |error| tenant_root_store_error_v1("tenant-root peer pair fence", error);
+    let admission = store
+        .yao_admission(identity_digest, custody_lineage, &request.session_hex)
+        .await
+        .map_err(fence_error)?;
+    let Some(admission) = admission else {
+        let active = store
+            .lineage_active_epoch(identity_digest, custody_lineage)
+            .await
+            .map_err(fence_error)?;
+        return match active {
+            Some(active) if active > request.epoch => {
+                Ok(CloudflareDeriverTenantRootPeerPairFenceResponseV1::Fenced)
+            }
+            _ => Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
+                "Deriver B cannot yet prove it will never start this pair: its epoch is still active here; retry",
+            )),
+        };
+    };
+    match (admission.status.as_str(), admission.pair_object_name) {
+        ("settled", _) => Ok(CloudflareDeriverTenantRootPeerPairFenceResponseV1::Completed),
+        ("cancelled", _) => Ok(CloudflareDeriverTenantRootPeerPairFenceResponseV1::Fenced),
+        ("admitted", None) => {
+            store
+                .cancel_yao_admission(identity_digest, custody_lineage, &request.session_hex, false)
+                .await
+                .map_err(fence_error)?;
+            // The cancellation races B's own completion; the row says which
+            // one won.
+            let settled = store
+                .yao_admission(identity_digest, custody_lineage, &request.session_hex)
+                .await
+                .map_err(fence_error)?;
+            match settled.as_ref().map(|admission| admission.status.as_str()) {
+                Some("settled") => Ok(CloudflareDeriverTenantRootPeerPairFenceResponseV1::Completed),
+                Some("cancelled") => Ok(CloudflareDeriverTenantRootPeerPairFenceResponseV1::Fenced),
+                _ => Err(RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                    "Deriver B's admission neither settled nor cancelled",
+                )),
+            }
+        }
+        ("admitted", Some(pair_object_name)) => {
+            let reconciliation = host
+                .reconcile_wallet_object_pair(
+                    &pair_object_name,
+                    &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1 {
+                        session_hex: request.session_hex.clone(),
+                        fence: true,
+                        peer_settled: false,
+                        now_ms,
+                    },
+                )
+                .await?;
+            store
+                .record_wallet_object_reconciliation(
+                    &request.session_hex,
+                    &pair_object_name,
+                    reconciliation,
+                )
+                .await
+                .map_err(fence_error)?;
+            match reconciliation {
+                crate::tenant_root_role_d1::TenantRootWalletPairReconciliationV1::Completed => {
+                    Ok(CloudflareDeriverTenantRootPeerPairFenceResponseV1::Completed)
+                }
+                crate::tenant_root_role_d1::TenantRootWalletPairReconciliationV1::Fenced => {
+                    Ok(CloudflareDeriverTenantRootPeerPairFenceResponseV1::Fenced)
+                }
+                crate::tenant_root_role_d1::TenantRootWalletPairReconciliationV1::Claimed
+                | crate::tenant_root_role_d1::TenantRootWalletPairReconciliationV1::Open => {
+                    Err(RouterAbProtocolError::new(
+                        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                        "Deriver B's wallet object neither fenced nor completed the pair",
+                    ))
+                }
+            }
+        }
+        _ => Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            "Deriver B's admission has a status only Deriver A's executor records",
+        )),
+    }
 }
 
 /// A wallet object that could not answer leaves its admission pending; the
@@ -6798,15 +6984,83 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
                     &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1 {
                         session_hex: admission.attempt_key_hex.clone(),
                         fence,
+                        peer_settled: false,
                         now_ms,
                     },
                 )
                 .await?;
+            // Deriver A's executor claimed the pair: its messages may still
+            // reach Deriver B. Past W, B is fenced first, or found completed,
+            // and only then may A's object fence the claimed pair.
+            let reconciliation = if fence
+                && reconciliation
+                    == crate::tenant_root_role_d1::TenantRootWalletPairReconciliationV1::Claimed
+            {
+                fence_peer_pair_v1(
+                    host,
+                    claimed_identity_digest,
+                    claimed_custody_lineage,
+                    claimed_epoch,
+                    &admission.attempt_key_hex,
+                )
+                .await?;
+                host.reconcile_wallet_object_pair(
+                    &admission.pair_object_name,
+                    &crate::tenant_root_role_d1::TenantRootWalletPairReconcileRequestV1 {
+                        session_hex: admission.attempt_key_hex.clone(),
+                        fence: true,
+                        peer_settled: true,
+                        now_ms,
+                    },
+                )
+                .await?
+            } else {
+                reconciliation
+            };
             store
-                .record_wallet_object_reconciliation(admission, reconciliation)
+                .record_wallet_object_reconciliation(
+                    &admission.attempt_key_hex,
+                    &admission.pair_object_name,
+                    reconciliation,
+                )
                 .await
                 .map_err(|error| {
                     tenant_root_store_error_v1("tenant-root wallet-object reconciliation", error)
+                })?;
+        }
+        // Deriver A's claimed attempts whose pairs are in this store: past W,
+        // Deriver B is fenced first, or found completed. A cannot complete
+        // without B, so its delayed messages can then cause nothing more.
+        // Cancelling the admission refuses A's own completion here. Until B
+        // answers, the attempt stays pending.
+        let claimed_attempts = store
+            .claimed_yao_admissions(
+                claimed_identity_digest,
+                claimed_custody_lineage,
+                claimed_epoch,
+                admitted_at_or_before_ms,
+            )
+            .await
+            .map_err(|error| tenant_root_store_error_v1("tenant-root claimed admissions", error))?;
+        for session_hex in &claimed_attempts {
+            fence_peer_pair_v1(
+                host,
+                claimed_identity_digest,
+                claimed_custody_lineage,
+                claimed_epoch,
+                session_hex,
+            )
+            .await?;
+            store
+                .cancel_yao_admission(
+                    claimed_identity_digest,
+                    claimed_custody_lineage,
+                    session_hex,
+                    true,
+                )
+                .await
+                .map_err(|error| {
+                    tenant_root_store_error_v1("tenant-root claimed admission cancellation", error)
                 })?;
         }
         // Work admitted on the retired epoch may still need its share. The
@@ -6824,8 +7078,9 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
             // fence. That is an admission not yet claimed whose pair, if any,
             // is here. Deriver A's claim and each role's completion then
             // refuse it, and an ECDSA read is used only if its settlement
-            // won. A claimed admission stays pending. One whose pair is in a
-            // wallet object was reconciled above, on that object's word. An
+            // won. A claimed admission was recovered above once its peer
+            // answered, and stays pending until it does. One whose pair is in
+            // a wallet object was reconciled above, on that object's word. An
             // operator-issued cleanup obeys the same rule.
             store
                 .cancel_unclaimed_root_use_admissions(
@@ -6907,10 +7162,27 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
 pub(crate) async fn handle_cloudflare_deriver_tenant_root_cleanup_v1(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
+    peer_binding: &crate::CloudflarePeerBindingV1,
     request: CloudflareDeriverTenantRootCleanupRequestV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootCleanupResponseV1> {
     tenant_root_deriver_cleanup_v1(
+        &CloudflareTenantRootDeriverHostV1::new(env, worker_role, Some(peer_binding)),
+        request,
+        now_ms,
+    )
+    .await
+}
+
+/// Deriver B's side of Deriver A's retirement recovery on Cloudflare.
+#[cfg(feature = "workers-rs")]
+pub(crate) async fn handle_cloudflare_deriver_tenant_root_peer_pair_fence_v1(
+    env: &worker::Env,
+    worker_role: crate::CloudflareWorkerRoleV1,
+    request: CloudflareDeriverTenantRootPeerPairFenceRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootPeerPairFenceResponseV1> {
+    tenant_root_deriver_fence_peer_pair_v1(
         &CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
         request,
         now_ms,

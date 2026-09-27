@@ -173,7 +173,7 @@ impl StrictDeriverRuntimeV1 {
 
     fn route_error_message(&self) -> String {
         format!(
-            "{} strict Worker route must be served at {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, or {}",
+            "{} strict Worker route must be served at {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, or {}",
             self.label(),
             self.registration_private_path(),
             self.export_private_path(),
@@ -181,6 +181,7 @@ impl StrictDeriverRuntimeV1 {
             CLOUDFLARE_DERIVER_TENANT_ROOT_CREATE_ROLE_SHARE_PRIVATE_REQUEST_PATH,
             CLOUDFLARE_DERIVER_TENANT_ROOT_STATUS_PRIVATE_REQUEST_PATH,
             CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH,
+            crate::paths::CLOUDFLARE_DERIVER_TENANT_ROOT_PEER_PAIR_FENCE_PRIVATE_REQUEST_PATH,
             CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
             CLOUDFLARE_DERIVER_TENANT_ROOT_CREATION_EVIDENCE_PRIVATE_REQUEST_PATH,
             CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH,
@@ -526,7 +527,32 @@ async fn handle_strict_deriver_fetch_v1(
         return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_cleanup_v1(
             &env,
             worker_role,
+            runtime.tenant_root_peer(),
             cleanup_request,
+            now_unix_ms,
+        )
+        .await
+        {
+            Ok(response) => Response::from_json(&response),
+            Err(error) => cloudflare_protocol_error_response_v1(error),
+        };
+    }
+
+    if path == crate::paths::CLOUDFLARE_DERIVER_TENANT_ROOT_PEER_PAIR_FENCE_PRIVATE_REQUEST_PATH {
+        let fence_request: crate::tenant_root_role_runtime::CloudflareDeriverTenantRootPeerPairFenceRequestV1 =
+            match parse_strict_deriver_json_v1(
+                &mut request,
+                format!("Router A/B strict {label} tenant-root peer pair fence"),
+            )
+            .await?
+            {
+                Ok(parsed) => parsed,
+                Err(response) => return Ok(response),
+            };
+        return match crate::tenant_root_role_runtime::handle_cloudflare_deriver_tenant_root_peer_pair_fence_v1(
+            &env,
+            worker_role,
+            fence_request,
             now_unix_ms,
         )
         .await

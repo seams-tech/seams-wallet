@@ -473,9 +473,13 @@ On the VM and on Workers:
      - B's object refuses to start a fenced pair;
      - a lost settlement acknowledgement is reconciled to the same
        completion.
-   - **Not yet covered:**
-     - an execution paused after its claim, which must stay pending;
-     - ECDSA presignatures.
+   - **A claimed execution that fails** (VM
+     `vm_tenant_root_claimed_execution_that_fails_is_recovered_and_retirement_completes`;
+     Workers harness `--do-claimed-recovery`, in wallet objects):
+     1. Recovery fences Deriver B first.
+     2. It then ends A's claim.
+     3. Retirement completes, and a second refresh succeeds.
+   - **Not yet covered:** ECDSA presignatures.
 3. **Retry identity and one use after fenced cancellation.** A cancelled
    operation's retry keeps its identity and consumes no one-use item twice:
    capability, pair, presignature, SigningWorker effect claim.

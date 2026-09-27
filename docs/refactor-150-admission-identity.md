@@ -154,9 +154,27 @@ This is the question the fence answers (mapped 2026-09-27, both hosts):
 
   An operator-issued cleanup obeys the same rule; age alone cancels nothing
   else.
+- **A claimed attempt is recovered through its peer** (review, 2026-09-27).
+  - **The problem:** a claimed execution that failed or ran too long burns
+    its pair. A burned pair never completes, so the attempt used to stay
+    pending forever. With retirement before each refresh, one ordinary
+    failure would have blocked every later refresh of the root.
+  - **Why the peer:** A's delayed messages can still reach Deriver B, but
+    A cannot complete without B's completion.
+  - **Recovery, past `W`:** Deriver A first asks Deriver B, over its peer
+    channel, to fence the session unless B completed it. B answers only
+    once its answer is durable:
+    - it completed the pair: its admission is settled;
+    - it had only admitted it: it cancels its admission, fencing its wallet
+      object first if one holds the pair;
+    - it never admitted it: its epoch must already be closed there, or it
+      cannot yet prove it will never start, and A retries.
+  - **Then A:** B can no longer act on A's messages. A's claimed admission
+    is cancelled, which refuses A's own completion, or A's wallet object
+    fences even the claimed pair.
+  - **Clearing `claimed` alone is never enough.**
 - **Stays pending, and retirement with it:**
-  - **A claimed attempt.** Its messages may still reach Deriver B, so only
-    its completion settles it.
+  - **A claimed attempt whose Deriver B cannot answer yet.**
   - **An attempt whose wallet object cannot be reached,** until it answers.
 
 **Wallet objects** (implemented 2026-09-27; R150's target Cloudflare backend):
@@ -180,7 +198,8 @@ This is the question the fence answers (mapped 2026-09-27, both hosts):
     lost acknowledgement with the same terminal outcome.
   - **Past `W`,** the object fences the pair in one statement, unless A
     claimed it or it completed. The admission is then cancelled.
-  - **A claimed pair** stays pending.
+  - **A claimed pair** is fenced only once Deriver B has fenced the session
+    or completed it, as above. Until then it stays pending.
   - **An object that cannot answer** fails the cleanup, which is retried.
     Nothing is cancelled.
 - **Evidence:** Workers harness `--do-admission-settlement`
@@ -196,6 +215,26 @@ This is the question the fence answers (mapped 2026-09-27, both hosts):
   - **Root S:** a completed registration's admissions are set back to
     `admitted`, as if both acknowledgements were lost. Retirement reconciles
     them to `settled` and cancels nothing. Both objects report `completed`.
+- **Evidence for claimed recovery:** VM
+  `vm_tenant_root_claimed_execution_that_fails_is_recovered_and_retirement_completes`
+  (`R150_VM_TENANT_ROOT_CLAIMED_RECOVERY_E2E`):
+  1. A claims its pair, the stream is cut, and A's claimed pair burns.
+  2. A restarts.
+  3. Retiring epoch 1 has B fence the session first, then cancels A's
+     claimed admission. Both epochs are erased.
+  4. A's delayed execute and the old registration's retry are refused.
+  5. A second refresh succeeds. The same wallet then registers once, on
+     epoch 3.
+- **The same recovery in wallet objects:** Workers harness
+  `--do-claimed-recovery` (`R150_WORKERS_WALLET_OBJECT_CLAIMED_RECOVERY`).
+  Deriver B is set to burn its pair just before completing it.
+  1. A's object claims the pair, then B burns its side. A's object reports
+     `claimed`, and B's reports `open`.
+  2. Retiring epoch 1 at A has B's object fence its pair first. Only then
+     does A's object fence the claimed pair. Both admissions are cancelled,
+     both objects report `fenced`, and both epochs are erased.
+  3. The old registration's retry is refused at preparation.
+  4. A second refresh succeeds.
 - **Evidence:** VM
   `vm_tenant_root_execution_paused_after_its_root_reads_is_cancelled_and_retried`
   (`R150_VM_TENANT_ROOT_PAUSED_EXECUTION_CANCELLED_E2E`):

@@ -18,8 +18,10 @@ See [admission identity and settlement](./refactor-150-admission-identity.md).
     completion then refuse it, in the role store or in the wallet object
     that holds it.
 
-  A claimed attempt stays pending until it completes
-  ([admission identity](./refactor-150-admission-identity.md)).
+  A claimed attempt is recovered through its peer. Deriver B fences the
+  session, or reports that it completed it. Only then is A's claim fenced
+  ([admission identity](./refactor-150-admission-identity.md)). It stays
+  pending only while B cannot answer.
 - **Wallet objects settle.** An object's completion is acknowledged to the
   role store. A lost acknowledgement is recovered by reconciliation, which
   reports the same completion.

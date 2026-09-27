@@ -65,6 +65,10 @@ pub const CLOUDFLARE_DERIVER_TENANT_ROOT_STATUS_PRIVATE_REQUEST_PATH: &str =
     "/router-ab/internal/deriver/tenant-root/status/v1/read";
 pub const CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH: &str =
     "/router-ab/internal/deriver/tenant-root/cleanup/v1/execute";
+/// Deriver A to Deriver B, during retirement recovery: fence one pair session
+/// at B unless B completed it.
+pub const CLOUDFLARE_DERIVER_TENANT_ROOT_PEER_PAIR_FENCE_PRIVATE_REQUEST_PATH: &str =
+    "/router-ab/internal/deriver/tenant-root/cleanup/v1/fence-peer-pair";
 pub const CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH: &str =
     "/router-ab/internal/deriver/tenant-root/creation/v1/activate";
 /// Private Deriver endpoint that reads back one pending initial share's stored
