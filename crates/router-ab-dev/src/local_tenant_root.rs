@@ -587,6 +587,13 @@ async fn serve_local_tenant_root_creation_state_async_v1(
 pub const LOCAL_TENANT_ROOT_DESTINATION_BOOTSTRAP_JSON_ENV_V1: &str =
     "TENANT_ROOT_DESTINATION_BOOTSTRAP_JSON";
 
+/// `W` for a VM Deriver, in milliseconds: how long after admission an
+/// unsettled root-use admission waits before retirement recovery cancels it.
+/// Five minutes unless set, and at least one second. It never decides safety:
+/// only the cancellation permits erasure.
+pub const LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1: &str =
+    "LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS";
+
 /// How often the VM Router offers each tenant root its scheduled refresh, in
 /// milliseconds: one minute unless set, and at least one second.
 pub const LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS_ENV_V1: &str =
@@ -1126,6 +1133,23 @@ impl TenantRootDeriverHostV1 for LocalTenantRootDeriverHostV1<'_> {
 
     fn now_ms(&self) -> RouterAbProtocolResult<u64> {
         crate::local_router_coordinator::local_now_ms_v1()
+    }
+
+    fn admission_recovery_window_ms(&self) -> RouterAbProtocolResult<u64> {
+        use router_ab_cloudflare::CloudflareEnvReaderV1 as _;
+        match self
+            .config
+            .env
+            .get_text(LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1)?
+        {
+            Some(value) => value.parse::<u64>().ok().filter(|value| *value >= 1_000).ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                    "the admission recovery window must be at least 1000 milliseconds",
+                )
+            }),
+            None => Ok(router_ab_cloudflare::TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_V1),
+        }
     }
 
     fn env(&self) -> &Self::Env {

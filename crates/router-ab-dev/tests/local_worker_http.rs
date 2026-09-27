@@ -2061,6 +2061,7 @@ fn vm_tenant_root_recovery_kit_restores_into_an_empty_deployment_and_signs(
         "vm-tenant-root-recovery-kit-restore",
         &[("TENANT_ROOT_DESTINATION_BOOTSTRAP_JSON", bootstrap_record.as_str())],
         &[("TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON", trust_bundle_json.trim())],
+        &[],
     )?;
     let router = |path: &str, body: &serde_json::Value, headers: &[(&str, &str)]| {
         let mut all = vec![(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)];
@@ -2463,6 +2464,183 @@ fn vm_tenant_root_admission_follows_the_execution_attempt(
             "same_pair_bound_to_epoch_2": [moved_status, "ConflictingPair: admitted here under a different binding", "one admission row"],
             "fresh_registration_on_epoch_2": fresh_status,
             "admissions_at_deriver_b": [1, 2],
+        })
+    );
+    Ok(())
+}
+
+/// A refreshed-out epoch is erased at a Deriver only once every root-use
+/// admission on it there is settled or cancelled
+/// (docs/refactor-150-admission-identity.md).
+///
+/// - A wallet registers and signs on epoch 1, so each Deriver's pair for it
+///   completes and settles its admission.
+/// - A second registration is admitted at Deriver B while Deriver A's
+///   preparation is held. A refresh then moves the root to epoch 2, and A
+///   refuses the held preparation. B's admission for that pair stays
+///   unsettled.
+/// - A's retired epoch 1 is erased at once. B's is refused as pending.
+/// - After `W` (four seconds here), recovery at B cancels the stale admission,
+///   and the erasure proceeds. A third wallet signs on epoch 2.
+#[test]
+fn vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start_with_envs(
+        "vm-tenant-root-settlement",
+        &[],
+        &[],
+        &[(router_ab_dev::LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1, "4000")],
+    )?;
+    let signing_worker = stack.start_signing_worker()?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("settlement")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let (created_revision, _, _) = stack.active_state(&lineage_b64u)?;
+    let b64u = |bytes: &[u8]| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
+    let identity_digest_b64u = b64u(identity.digest()?.as_bytes());
+    let admission_statuses = |db: &Connection| -> rusqlite::Result<Vec<(i64, String)>> {
+        db.prepare(
+            "SELECT tenant_root_share_epoch, status FROM tenant_root_root_use_admissions
+             WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch, admitted_at_ms",
+        )?
+        .query_map([&lineage_b64u], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect()
+    };
+    let row_revision = |db: &Connection, epoch: i64| -> rusqlite::Result<i64> {
+        db.query_row(
+            "SELECT revision FROM tenant_root_role_shares
+             WHERE custody_lineage_b64u = ?1 AND tenant_root_share_epoch = ?2",
+            rusqlite::params![lineage_b64u, epoch],
+            |row| row.get(0),
+        )
+    };
+    // The operator's retirement of epoch 1 at one role: the control plane
+    // signs the command, and the Deriver executes it.
+    let retire = |role: &str| -> Result<(u16, String), Box<dyn std::error::Error>> {
+        let (db, deriver_url) = match role {
+            "deriver_a" => (&stack.a_store, &stack.deriver_a_url),
+            _ => (&stack.b_store, &stack.deriver_b_url),
+        };
+        let (command_status, command_body) = stack.control_plane(
+            router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH,
+            &json!({
+                "kind": "retired_after_refresh",
+                "identity_digest_b64u": identity_digest_b64u,
+                "custody_lineage_b64u": lineage_b64u,
+                "role": role,
+                "expected_retired_revision": row_revision(db, 1)?,
+                "expected_active_revision": row_revision(db, 2)?,
+            }),
+        )?;
+        assert_eq!(command_status, 200, "{command_body}");
+        let command: serde_json::Value = serde_json::from_str(&command_body)?;
+        post_json_to_path_with_headers(
+            deriver_url,
+            router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH,
+            &json!({ "cleanup_command_b64u": command["cleanup_command_b64u"] }),
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+        )
+    };
+    let settled = |epoch: i64| (epoch, "settled".to_owned());
+
+    // A completed registration settles both Derivers' admissions.
+    let signing_worker =
+        stack.register_and_sign(signing_worker, &identity, &lineage_b64u, "account-settled")?;
+    assert_eq!(admission_statuses(&stack.a_store)?, vec![settled(1)]);
+    assert_eq!(admission_statuses(&stack.b_store)?, vec![settled(1)]);
+
+    // B admits a second registration; A's preparation is held over a refresh.
+    let registration = stack.registration(&identity, &lineage_b64u)?;
+    stack
+        .proxy_a
+        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH);
+    let registering = {
+        let router_url = stack.router_url.clone();
+        thread::spawn(move || {
+            post_json_to_path_with_headers(
+                &router_url,
+                LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+                &registration,
+                &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
+            )
+            .map_err(|error| error.to_string())
+        })
+    };
+    let deadline = Instant::now() + Duration::from_secs(15);
+    while stack.proxy_a.held_request().is_none() || admission_statuses(&stack.b_store)?.len() < 2 {
+        if Instant::now() > deadline {
+            return Err("the second registration never reached both Derivers".into());
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    let (refresh_status, refresh_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-settlement", created_revision)?;
+    assert_eq!(refresh_status, 200, "{refresh_body}");
+    stack.proxy_a.release_request();
+    let (registration_status, registration_body) = registering
+        .join()
+        .map_err(|_| "the registration thread panicked")??;
+    assert_eq!(registration_status, 200, "{registration_body}");
+    let refused: serde_json::Value = serde_json::from_str(&registration_body)?;
+    assert_eq!(refused["status"], "recoverable_failure", "{registration_body}");
+    let unsettled_at_b = admission_statuses(&stack.b_store)?;
+    assert_eq!(unsettled_at_b, vec![settled(1), (1, "admitted".to_owned())]);
+
+    // A's epoch 1 has only settled work: it is erased at once.
+    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
+    let (a_status, a_body) = retire("deriver_a")?;
+    assert_eq!(a_status, 200, "{a_body}");
+    let a_retired: serde_json::Value = serde_json::from_str(&a_body)?;
+    assert_eq!(a_retired["kind"], "retired_deleted");
+    assert_eq!(a_retired["cancelled_admissions"], 0);
+    assert_eq!(stack.epochs(&lineage_b64u)?.0, vec![epoch(2, "active")]);
+
+    // B's epoch 1 still has admitted work: retirement is pending.
+    let (b_pending_status, b_pending_body) = retire("deriver_b")?;
+    assert_eq!(b_pending_status, 503, "{b_pending_body}");
+    assert!(
+        b_pending_body.contains("retirement of epoch 1 is pending here: 1 admitted operation(s) are not settled"),
+        "{b_pending_body}"
+    );
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?.1,
+        vec![epoch(1, "retired"), epoch(2, "active")]
+    );
+
+    // After W, recovery cancels the stale admission and the epoch goes.
+    thread::sleep(Duration::from_millis(4_200));
+    let (b_status, b_body) = retire("deriver_b")?;
+    assert_eq!(b_status, 200, "{b_body}");
+    let b_retired: serde_json::Value = serde_json::from_str(&b_body)?;
+    assert_eq!(b_retired["kind"], "retired_deleted");
+    assert_eq!(b_retired["cancelled_admissions"], 1);
+    assert_eq!(stack.epochs(&lineage_b64u)?.1, vec![epoch(2, "active")]);
+    assert_eq!(
+        admission_statuses(&stack.b_store)?,
+        vec![settled(1), (1, "cancelled".to_owned())]
+    );
+
+    // Work on epoch 2 is unaffected.
+    let signing_worker =
+        stack.register_and_sign(signing_worker, &identity, &lineage_b64u, "account-after-retirement")?;
+    drop(signing_worker);
+    assert_eq!(admission_statuses(&stack.a_store)?, vec![settled(1), settled(2)]);
+
+    println!(
+        "R150_VM_TENANT_ROOT_SETTLEMENT_E2E {}",
+        json!({
+            "settled_by_completed_registration": { "deriver_a": [[1, "settled"]], "deriver_b": [[1, "settled"]] },
+            "refresh_status": refresh_status,
+            "held_registration": refused["status"],
+            "deriver_b_unsettled_after_refresh": [[1, "settled"], [1, "admitted"]],
+            "deriver_a_epoch_1_erased": [a_status, a_retired["cryptographic_erasure"], a_retired["cancelled_admissions"]],
+            "deriver_b_epoch_1_pending": [b_pending_status, "1 admitted operation(s) are not settled"],
+            "recovery_window_ms": 4000,
+            "deriver_b_epoch_1_erased_after_recovery": [b_status, b_retired["cancelled_admissions"]],
+            "deriver_b_admissions_after": [[1, "settled"], [1, "cancelled"]],
+            "signed_on_epoch_2_after_retirement": true,
         })
     );
     Ok(())
@@ -3590,15 +3768,16 @@ impl RecoveryStackV1 {
         label: &str,
         router_env: &[(&str, &str)],
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        Self::start_with_envs(label, router_env, &[])
+        Self::start_with_envs(label, router_env, &[], &[])
     }
 
-    /// Starts the stack with extra settings in the Router's and the control
-    /// plane's env files.
+    /// Starts the stack with extra settings in the Router's, the control
+    /// plane's and both Derivers' env files.
     fn start_with_envs(
         label: &str,
         router_env: &[(&str, &str)],
         control_plane_env: &[(&str, &str)],
+        deriver_env: &[(&str, &str)],
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let binary = env!("CARGO_BIN_EXE_router_ab_local_worker");
         let temp = temp_dir(label)?;
@@ -3646,6 +3825,20 @@ impl RecoveryStackV1 {
                 contents.push_str(&format!("\n{key}={value}"));
             }
             fs::write(&router_env_path, contents)?;
+        }
+        for env_file in [
+            router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1,
+            router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1,
+        ] {
+            if deriver_env.is_empty() {
+                break;
+            }
+            let path = temp.join(env_file);
+            let mut contents = fs::read_to_string(&path)?;
+            for (key, value) in deriver_env {
+                contents.push_str(&format!("\n{key}={value}"));
+            }
+            fs::write(&path, contents)?;
         }
         if !control_plane_env.is_empty() {
             let control_plane_env_path =

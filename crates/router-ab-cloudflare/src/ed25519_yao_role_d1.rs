@@ -33,6 +33,14 @@ const LOAD_WALLET_PAIR_SQL: &str = "SELECT ciphertext_json, revision, root_ident
 const INSERT_PAIR_SQL: &str = "INSERT INTO yao_pair_sessions \
     (session_hex, pair_digest_hex, lifecycle, ciphertext_json, revision, expires_at_ms, updated_at_ms) \
     VALUES (?1, ?2, ?3, ?4, 1, ?5, ?6) ON CONFLICT(session_hex) DO NOTHING";
+/// Settles this role's root-use admission for a pair session whose record
+/// just became terminal, in the same D1 batch as that write. A batch does not
+/// stop when the write's compare-and-swap misses, so the settlement checks
+/// that the session's row really is terminal.
+const SETTLE_TERMINAL_PAIR_ADMISSION_SQL: &str = "UPDATE tenant_root_root_use_admissions \
+    SET status = 'settled' WHERE role = ?1 AND attempt_kind = ?2 AND attempt_key_hex = ?3 \
+    AND status = 'admitted' AND EXISTS (SELECT 1 FROM yao_pair_sessions \
+    WHERE session_hex = ?3 AND lifecycle IN ('completed', 'burned', 'expired'))";
 const UPDATE_PAIR_SQL: &str = "UPDATE yao_pair_sessions SET pair_digest_hex = ?2, \
     lifecycle = ?3, ciphertext_json = ?4, revision = revision + 1, expires_at_ms = ?5, \
     updated_at_ms = ?6 WHERE session_hex = ?1 AND revision = ?7";
@@ -96,6 +104,13 @@ enum RolePairRoleV1 {
 }
 
 impl RolePairRoleV1 {
+    const fn as_str(&self) -> &'static str {
+        match self {
+            Self::DeriverA => "deriver_a",
+            Self::DeriverB => "deriver_b",
+        }
+    }
+
     fn parse(value: &str) -> worker::Result<Self> {
         match value {
             "deriver_a" => Ok(Self::DeriverA),
@@ -546,30 +561,27 @@ impl RolePairD1StorageV1 {
                 .seal(&self.record_identity, &scope, &pending.record_json)?;
         let expires_at_ms = pending.expires_at_ms.to_string();
         let updated_at_ms = pending.updated_at_ms.to_string();
+        // A terminal record ends the attempt at this role, so the same D1
+        // batch settles its root-use admission. The wallet object's pair rows
+        // live in another database; admissions it leaves are cancelled by
+        // retirement recovery instead.
+        let terminal = matches!(pending.lifecycle, "completed" | "burned" | "expired");
         let changes = match (&self.backend, &initial) {
-            (RolePairStorageBackendV1::D1(session), None) => session
-                .prepare(INSERT_PAIR_SQL)
-                .bind_refs(
-                    [
-                        D1Type::Text(self.session_hex.as_str()),
-                        D1Type::Text(pending.pair_digest_hex.as_str()),
-                        D1Type::Text(pending.lifecycle),
-                        D1Type::Text(ciphertext_json.as_str()),
-                        D1Type::Text(expires_at_ms.as_str()),
-                        D1Type::Text(updated_at_ms.as_str()),
-                    ]
-                    .iter(),
-                )?
-                .run()
-                .await?
-                .meta()?
-                .and_then(|meta| meta.changes)
-                .unwrap_or_default(),
-            (RolePairStorageBackendV1::D1(session), Some(current)) => {
-                let revision_text = current.revision.to_string();
-                session
-                    .prepare(UPDATE_PAIR_SQL)
-                    .bind_refs(
+            (RolePairStorageBackendV1::D1(session), initial) => {
+                let revision_text = initial.as_ref().map(|current| current.revision.to_string());
+                let write = match &revision_text {
+                    None => session.prepare(INSERT_PAIR_SQL).bind_refs(
+                        [
+                            D1Type::Text(self.session_hex.as_str()),
+                            D1Type::Text(pending.pair_digest_hex.as_str()),
+                            D1Type::Text(pending.lifecycle),
+                            D1Type::Text(ciphertext_json.as_str()),
+                            D1Type::Text(expires_at_ms.as_str()),
+                            D1Type::Text(updated_at_ms.as_str()),
+                        ]
+                        .iter(),
+                    )?,
+                    Some(revision_text) => session.prepare(UPDATE_PAIR_SQL).bind_refs(
                         [
                             D1Type::Text(self.session_hex.as_str()),
                             D1Type::Text(pending.pair_digest_hex.as_str()),
@@ -580,12 +592,32 @@ impl RolePairD1StorageV1 {
                             D1Type::Text(revision_text.as_str()),
                         ]
                         .iter(),
-                    )?
-                    .run()
-                    .await?
-                    .meta()?
-                    .and_then(|meta| meta.changes)
-                    .unwrap_or_default()
+                    )?,
+                };
+                if terminal {
+                    let settle = session.prepare(SETTLE_TERMINAL_PAIR_ADMISSION_SQL).bind_refs(
+                        [
+                            D1Type::Text(self.cipher.role.as_str()),
+                            D1Type::Text(crate::TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1),
+                            D1Type::Text(self.session_hex.as_str()),
+                        ]
+                        .iter(),
+                    )?;
+                    let results = session.batch(vec![write, settle]).await?;
+                    results
+                        .first()
+                        .ok_or_else(|| role_d1_error("role-private Yao lifecycle batch returned no result"))?
+                        .meta()?
+                        .and_then(|meta| meta.changes)
+                        .unwrap_or_default()
+                } else {
+                    write
+                        .run()
+                        .await?
+                        .meta()?
+                        .and_then(|meta| meta.changes)
+                        .unwrap_or_default()
+                }
             }
             (RolePairStorageBackendV1::WalletDo(sql), None) => sql
                 .exec(

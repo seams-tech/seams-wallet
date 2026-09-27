@@ -1,10 +1,13 @@
 # R150: identity of a root-use admission
 
-Status: implemented 2026-09-27 (role-store migration 0015), for review.
-Settlement and erasure build on it
+Status: implemented 2026-09-27 for review, with settlement and safe erasure
 ([drain proposal](./refactor-150-root-retirement-admission.md), step 3).
-Evidence: VM `vm_tenant_root_admission_follows_the_execution_attempt`, with the
-existing admission E2Es unchanged.
+- **Migrations:** 0015 (attempt key) and 0016 (settlement index).
+- **Evidence:**
+  - VM `vm_tenant_root_admission_follows_the_execution_attempt`, for the key;
+  - VM `vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle`,
+    for settlement, the pending refusal, recovery and erasure;
+  - the existing admission E2Es, unchanged.
 
 ## The question
 
@@ -76,20 +79,46 @@ other binding field is an immutable compared value.
 - **A conflicting retry** is refused with `ConflictingPair` and leaves the row
   as it was.
 
-## Settlement it enables (step 3, to be implemented next)
+## Settlement and safe erasure
 
-Only the rule that matters for identity is stated here:
-- **Yao:** the role's pair record reaching `Completed`, `Burned` or `Expired`
-  settles that role's admission for the same pair session.
-  - Where the pair record shares the admission's database (Cloudflare D1
-    paths, both VM roles), one transaction does both.
-  - Where it lives in the wallet object, the object's terminal record
-    decides, and the role store records it.
-- **ECDSA:** the Deriver settles its admission right after its single root
-  read, in the same request.
-- **An admission whose attempt never produced a record** is settled only
-  by a durable fence that refuses any later step for that exact attempt key.
-  Elapsed time alone never settles it.
+An admission's status moves once, from `admitted` to `settled` or
+`cancelled`.
+- **Settled:** the attempt can take no further step at this role.
+  - Yao: the role's pair record for the session reaches `Completed`, `Burned`
+    or `Expired`, and the pair store refuses the session from then on.
+    - **Cloudflare D1 (the production build):** the terminal write and the
+      settlement run in one D1 batch. A batch does not stop when the write's
+      compare-and-swap misses, so the settlement checks that the session's
+      row is terminal.
+    - **Both VM roles:** the pair store settles inside its own transaction,
+      because its pair table shares the role store's SQLite file.
+    - **Wallet-object pair store (a harness build only):** its pair rows live
+      in another database, so its admissions settle only through recovery.
+    - Records turn terminal lazily, when a step or a status read touches
+      them. An admission whose pair never got a record settles only through
+      recovery.
+  - ECDSA: its single root read in the request has happened, so the Deriver
+    settles right after the read.
+- **Cancelled:** recovery cancels an admission that is still `admitted` `W`
+  (300 s) after it was admitted.
+  - Every root-use read of a share first checks the attempt's admission,
+    and that check refuses a cancelled attempt. The cancelled status is
+    therefore itself the durable fence that refuses any later step.
+  - Time only triggers the recovery; the fence is what makes it safe.
+  - A step that had already read the share keeps what it read. A step that
+    has not read it yet is refused and needs a new attempt.
+- **Erasure:** a retired epoch's share is erased at a role only when no
+  admission on that epoch is still `admitted` there.
+  - The same `DELETE` statement checks this, so the check and the erasure are
+    atomic in the role store that owns both.
+  - Before it, the Deriver answers "retirement is pending" with the
+    unsettled count.
+  - Erasure runs through the existing retired-cleanup command: the control
+    plane signs it and the Deriver executes it. Both hosts serve it; Workers
+    served it before with no settlement check, and that gap is closed.
+- **A settled attempt may still read.** An ECDSA request replayed on the
+  same epoch reads again. Cloudflare Deriver A's execute reads its share
+  before it checks its pair record. A read after erasure fails closed.
 
 ## Consequences
 

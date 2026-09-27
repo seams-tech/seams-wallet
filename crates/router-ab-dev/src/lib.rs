@@ -64,6 +64,7 @@ mod local_worker_topology;
 pub use local_tenant_root::{
     local_tenant_root_creation_authority_id_v1, run_local_tenant_root_refresh_scheduler_v1,
     serve_local_tenant_root_creation_state_v1, LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS_ENV_V1,
+    LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1,
     LocalDeriverTenantRootConfigV1, LocalRouterCreationStateV1,
     LocalRouterTenantRootConfigV1, LocalRouterTenantRootCreationHostV1,
     LocalTenantRootControlPlaneConfigV1, LocalTenantRootControlPlaneHostV1,

@@ -280,6 +280,25 @@ impl<'connection> LocalDeriverAPairSqliteV1<'connection> {
                 if changes != 1 {
                     return Ok(Ed25519YaoPairStoreResultV1::StaleVersion);
                 }
+                // A terminal record ends the attempt here, so the same
+                // transaction settles its root-use admission.
+                if matches!(
+                    record,
+                    Ed25519YaoPairRecordV1::Completed { .. }
+                        | Ed25519YaoPairRecordV1::Burned { .. }
+                        | Ed25519YaoPairRecordV1::Expired { .. }
+                ) {
+                    transaction
+                        .execute(
+                            router_ab_cloudflare::TENANT_ROOT_SETTLE_ROOT_USE_ADMISSION_SQL_V1,
+                            params![
+                                "deriver_a",
+                                router_ab_cloudflare::TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1,
+                                session_hex
+                            ],
+                        )
+                        .map_err(sqlite_error)?;
+                }
                 persist_role_state(&transaction)?;
                 if transaction.commit().is_err() {
                     return Ok(Ed25519YaoPairStoreResultV1::UncertainWrite);

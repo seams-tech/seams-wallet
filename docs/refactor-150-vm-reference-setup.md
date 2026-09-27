@@ -63,6 +63,17 @@ Every role holds the grant authorities' verifying keys, as on Cloudflare. The
 control plane checks creation and restore grants with them; the Router and the
 Derivers check a restore's pre-activation cleanup grant.
 
+A refreshed-out epoch is erased at a Deriver by the same retired-cleanup
+command as on Cloudflare, and only once every root-use admission on that epoch
+there is settled or cancelled ([admission identity](./refactor-150-admission-identity.md)).
+Until then the Deriver answers that retirement is pending. Recovery cancels an
+admission still unsettled `W` after it was admitted. The cancelled status
+refuses the attempt's every later step, so the epoch can then go.
+`LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS` in a Deriver's env file sets
+`W`: five minutes unless set. A value under one second is refused as a
+configuration error. `W` decides only when recovery runs, never whether
+erasure is safe.
+
 ## One command
 
 ```bash
@@ -216,6 +227,16 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
   - After a refresh, the same pair bound to epoch 2 is refused as
     `ConflictingPair`.
   - A fresh registration on epoch 2 gets its own row.
+- `vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle`
+  prints `R150_VM_TENANT_ROOT_SETTLEMENT_E2E`:
+  - A completed registration settles both Derivers' admissions.
+  - A second registration is admitted at Deriver B while A's preparation is
+    held over a refresh.
+  - A's retired epoch 1 is erased at once. B's is refused as pending, with
+    one admission unsettled.
+  - After `W` (four seconds in the test), recovery cancels it, and B's epoch
+    is erased.
+  - A wallet then signs on epoch 2.
 - `vm_tenant_root_new_work_waits_for_the_committed_epoch_delivery` prints
   `R150_VM_TENANT_ROOT_DELIVERY_GATE_E2E`: new work is refused with HTTP 503
   while a Deriver lacks the committed epoch, and admitted once delivery

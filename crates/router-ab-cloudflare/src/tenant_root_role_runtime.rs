@@ -501,6 +501,9 @@ pub enum CloudflareDeriverTenantRootCleanupResponseV1 {
         /// Both retired R2 object keys were observed absent after deletion.
         r2_deletion: CloudflareTenantRootManagedBackupDeletionReceiptV1,
         cryptographic_erasure: CloudflareTenantRootCryptographicErasureStatusV1,
+        /// Admissions on the retired epoch that recovery cancelled because
+        /// they stayed unsettled `W` after admission. Nonzero is a warning.
+        cancelled_admissions: u64,
     },
 }
 
@@ -1355,6 +1358,11 @@ pub trait TenantRootDeriverHostV1:
     /// Current host time in Unix milliseconds, for a step that must read the
     /// clock again after its request began.
     fn now_ms(&self) -> RouterAbProtocolResult<u64>;
+    /// `W` on this host. It only decides when recovery cancels an unsettled
+    /// admission; the cancellation is what permits erasure.
+    fn admission_recovery_window_ms(&self) -> RouterAbProtocolResult<u64> {
+        Ok(TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_V1)
+    }
     /// The role's Env and Secret bindings.
     fn env(&self) -> &Self::Env;
     /// Opens the role's private role-share store for one operation.
@@ -1452,7 +1460,19 @@ pub async fn tenant_root_deriver_admit_bound_work_v1<Host: TenantRootDeriverHost
         crate::tenant_root_role_d1::TenantRootRootUseAdmissionV1::AttemptConflict => {
             Err(tenant_root_attempt_conflict_error_v1())
         }
+        crate::tenant_root_role_d1::TenantRootRootUseAdmissionV1::Cancelled => {
+            Err(tenant_root_attempt_cancelled_error_v1())
+        }
     }
+}
+
+/// Recovery cancelled this attempt here after it stayed unsettled; its
+/// epoch may be erased, so it can take no further step. A new attempt can.
+fn tenant_root_attempt_cancelled_error_v1() -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
+        "this tenant-root operation's admission was cancelled here after it stayed unsettled; start it again",
+    )
 }
 
 /// A retry of an admitted attempt must carry its binding apart from the
@@ -1464,6 +1484,25 @@ fn tenant_root_attempt_conflict_error_v1() -> RouterAbProtocolError {
         "this tenant-root operation was admitted here under a different binding; a new attempt is required",
     )
 }
+
+async fn unsettled_root_use_admissions_v1<S: RoleSqlSessionV1>(
+    store: &TenantRootRoleShareStoreV1<S>,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    epoch: TenantRootShareEpoch,
+) -> RouterAbProtocolResult<u64> {
+    store
+        .unsettled_root_use_admissions(identity_digest, custody_lineage, epoch)
+        .await
+        .map_err(|error| tenant_root_store_error_v1("tenant-root unsettled admission count", error))
+}
+
+/// `W`: how long after admission an unsettled root-use admission is left
+/// before recovery cancels it. It triggers recovery and never by itself
+/// permits erasure; the cancellation is the fence that does. Every root-bound
+/// authorization lives at most this long.
+pub const TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_V1: u64 =
+    router_ab_core::TENANT_ROOT_MAX_LIFETIME_MS_V1;
 
 /// The binding cannot be used again, but the operation can: admitted afresh,
 /// it is bound to the new epoch. So the refusal is retryable for the caller.
@@ -1533,6 +1572,9 @@ pub async fn tenant_root_deriver_load_bound_role_share_v1<Host: TenantRootDerive
         crate::tenant_root_role_d1::TenantRootBoundShareV1::AttemptConflict => {
             return Err(tenant_root_attempt_conflict_error_v1());
         }
+        crate::tenant_root_role_d1::TenantRootBoundShareV1::Cancelled => {
+            return Err(tenant_root_attempt_cancelled_error_v1());
+        }
     };
     let sealed = stored.into_bound_online_role_share_artifact().map_err(|error| {
         crate::map_cloudflare_tenant_root_role_store_error_v1(
@@ -1556,6 +1598,23 @@ pub async fn tenant_root_deriver_load_bound_role_share_v1<Host: TenantRootDerive
             RouterAbProtocolErrorCode::InvalidRole,
             "tenant-root online role-share provider returned the wrong Deriver role",
         ));
+    }
+    // An ECDSA operation reads its share once per request; having read it, it
+    // needs the epoch no longer. A Yao pair settles when its record here
+    // becomes terminal.
+    if matches!(
+        attempt,
+        crate::tenant_root_role_d1::TenantRootRootUseAttemptV1::EcdsaOperation
+    ) {
+        store
+            .settle_root_use_admission(attempt, authenticated_custody_binding)
+            .await
+            .map_err(|error| {
+                crate::map_cloudflare_tenant_root_role_store_error_v1(
+                    "tenant-root root-use settlement",
+                    error,
+                )
+            })?;
     }
     Ok(opened)
 }
@@ -6600,6 +6659,53 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
     let store = host
         .role_store()
         .map_err(|error| tenant_root_store_error_v1("tenant-root role store lookup", error))?;
+    let mut cancelled_admissions = 0;
+    if is_retired {
+        // Work admitted on the retired epoch may still need its share. The
+        // role store refuses the erasure until every such admission is
+        // settled or cancelled; this says so before the command is reserved.
+        let mut remaining = unsettled_root_use_admissions_v1(
+            &store,
+            claimed_identity_digest,
+            claimed_custody_lineage,
+            claimed_epoch,
+        )
+        .await?;
+        if remaining > 0 {
+            // Recovery: an attempt still unsettled W after admission is
+            // cancelled. The cancelled status refuses its every later step
+            // here, which is what lets the epoch go.
+            let admitted_at_or_before_ms =
+                now_ms.saturating_sub(host.admission_recovery_window_ms()?);
+            cancelled_admissions = store
+                .cancel_stale_root_use_admissions(
+                    claimed_identity_digest,
+                    claimed_custody_lineage,
+                    claimed_epoch,
+                    admitted_at_or_before_ms,
+                )
+                .await
+                .map_err(|error| {
+                    tenant_root_store_error_v1("tenant-root stale admission cancellation", error)
+                })?;
+            remaining = unsettled_root_use_admissions_v1(
+                &store,
+                claimed_identity_digest,
+                claimed_custody_lineage,
+                claimed_epoch,
+            )
+            .await?;
+        }
+        if remaining > 0 {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
+                format!(
+                    "retirement of epoch {} is pending here: {remaining} admitted operation(s) are not settled",
+                    claimed_epoch.get().get()
+                ),
+            ));
+        }
+    }
     let receipt_bytes = store
         .persist_authorized_cleanup(authorization, &role_signer, reserved_at_ms, now_ms, now_ms)
         .await
@@ -6624,6 +6730,7 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
                 r2_deletion,
                 cryptographic_erasure:
                     CloudflareTenantRootCryptographicErasureStatusV1::CryptographicErasureUnverified,
+                cancelled_admissions,
             },
         )
     } else {

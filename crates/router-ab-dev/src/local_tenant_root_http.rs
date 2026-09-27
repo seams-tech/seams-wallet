@@ -642,14 +642,30 @@ pub fn local_tenant_root_control_plane_route_v1(
                         ),
                     )?)
                 }
-                // Retiring a refreshed-out source waits on the reviewed
-                // retirement design; the VM refuses it rather than skip it.
+                // Erasing a refreshed-out epoch: the role store executes the
+                // command only once every admission on that epoch is settled.
                 CloudflareTenantRootControlPlaneCleanupCommandRequestV1::RetiredAfterRefresh {
-                    ..
-                } => Err(RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::InvalidLifecycleState,
-                    "the VM reference does not retire a refreshed-out tenant-root source",
-                )),
+                    identity_digest_b64u,
+                    custody_lineage_b64u,
+                    role,
+                    expected_retired_revision,
+                    expected_active_revision,
+                } => {
+                    let (identity_digest, custody_lineage) = decode_tenant_root_cleanup_scope_v1(
+                        &identity_digest_b64u,
+                        &custody_lineage_b64u,
+                    )?;
+                    json(&futures::executor::block_on(
+                        router_ab_cloudflare::control_plane_retired_cleanup_command_v1(
+                            &host,
+                            identity_digest,
+                            custody_lineage,
+                            role,
+                            expected_retired_revision,
+                            expected_active_revision,
+                        ),
+                    )?)
+                }
             },
         ),
         _ => Ok((404, "the tenant-root control plane does not serve this path".to_owned())),

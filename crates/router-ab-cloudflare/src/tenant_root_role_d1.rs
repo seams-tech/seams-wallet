@@ -176,9 +176,27 @@ const ADMIT_ROOT_USE_SQL: &str = "INSERT INTO tenant_root_root_use_admissions \
     AND tenant_root_share_epoch = ?6 AND role = ?3 AND lifecycle = 'active') \
     ON CONFLICT DO NOTHING";
 const LOAD_ROOT_USE_ADMISSION_SQL: &str = "SELECT tenant_root_share_epoch, \
-    activation_receipt_digest_hex, attempt_digest_hex FROM tenant_root_root_use_admissions \
+    activation_receipt_digest_hex, attempt_digest_hex, status \
+    FROM tenant_root_root_use_admissions \
     WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 AND role = ?3 \
     AND attempt_kind = ?4 AND attempt_key_hex = ?5";
+/// Settles one attempt's admission once it can take no further step here.
+/// Only an `admitted` row moves; a settled or cancelled one stays as it is.
+/// Parameters: the role (`deriver_a` or `deriver_b`), the attempt kind and the
+/// attempt key. A pair store runs it in the transaction that makes the pair's
+/// record terminal.
+pub const TENANT_ROOT_SETTLE_ROOT_USE_ADMISSION_SQL_V1: &str =
+    "UPDATE tenant_root_root_use_admissions \
+    SET status = 'settled' WHERE role = ?1 AND attempt_kind = ?2 AND attempt_key_hex = ?3 \
+    AND status = 'admitted'";
+/// The attempt kind of an Ed25519 Yao pair session's admission.
+pub const TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1: &str = "ed25519_yao_pair_session";
+/// Cancels the admissions on one epoch still unsettled at or before a cutoff.
+/// The cancelled status refuses every later step of the attempt here.
+const CANCEL_STALE_ROOT_USE_ADMISSIONS_SQL: &str = "UPDATE tenant_root_root_use_admissions \
+    SET status = 'cancelled' WHERE tenant_identity_digest_hex = ?1 \
+    AND custody_lineage_b64u = ?2 AND role = ?3 AND tenant_root_share_epoch = ?4 \
+    AND status = 'admitted' AND admitted_at_ms <= ?5";
 const LOAD_CREATION_TOMBSTONE_SQL: &str = "SELECT session_id_hex FROM \
     tenant_root_creation_tombstones WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3";
@@ -222,13 +240,22 @@ const CLEANUP_PENDING_SQL: &str = "DELETE FROM tenant_root_role_shares \
     WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 \
     AND tenant_root_share_epoch = ?3 AND role = ?4 AND lifecycle = 'pending' \
     AND revision = ?5";
+/// Erases one retired row, only while its active successor holds the bound
+/// revision and no root-use admission on the retired epoch is still
+/// unsettled here. Settlement is what makes erasure safe; time never is.
 const CLEANUP_RETIRED_SQL: &str = "DELETE FROM tenant_root_role_shares \
     WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 \
     AND tenant_root_share_epoch = ?3 AND role = ?4 AND lifecycle = 'retired' \
     AND revision = ?5 AND EXISTS (SELECT 1 FROM tenant_root_role_shares \
     WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 \
     AND tenant_root_share_epoch = ?6 AND role = ?4 AND lifecycle = 'active' \
-    AND revision = ?7)";
+    AND revision = ?7) AND NOT EXISTS (SELECT 1 FROM tenant_root_root_use_admissions \
+    WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 \
+    AND role = ?4 AND tenant_root_share_epoch = ?3 AND status = 'admitted')";
+const COUNT_UNSETTLED_ROOT_USE_ADMISSIONS_SQL: &str = "SELECT COUNT(*) AS unsettled \
+    FROM tenant_root_root_use_admissions WHERE tenant_identity_digest_hex = ?1 \
+    AND custody_lineage_b64u = ?2 AND role = ?3 AND tenant_root_share_epoch = ?4 \
+    AND status = 'admitted'";
 const LOAD_COMMAND_REPLAY_SQL: &str = "SELECT replay_key_digest_hex, \
     tenant_identity_digest_hex, custody_lineage_b64u, session_id_hex, nonce_hex, role, \
     command_digest_hex, admission_digest_hex, status, receipt_b64u, \
@@ -1651,7 +1678,7 @@ pub enum TenantRootRootUseAttemptV1 {
 impl TenantRootRootUseAttemptV1 {
     const fn kind(&self) -> &'static str {
         match self {
-            Self::Ed25519YaoPairSession { .. } => "ed25519_yao_pair_session",
+            Self::Ed25519YaoPairSession { .. } => TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1,
             Self::EcdsaOperation => "ecdsa_operation",
         }
     }
@@ -1681,6 +1708,8 @@ pub(crate) enum TenantRootRootUseAdmissionV1 {
     /// This attempt was admitted under a binding that differs in more than
     /// its window: another epoch, or another operation on the same session.
     AttemptConflict,
+    /// Recovery cancelled this attempt here; it may take no further step.
+    Cancelled,
 }
 
 /// The role share a custody binding names, if its operation may read it.
@@ -1690,6 +1719,7 @@ pub(crate) enum TenantRootBoundShareV1 {
     EpochClosed,
     NotYetActive,
     AttemptConflict,
+    Cancelled,
 }
 
 /// Exhaustive role-private active-share resolution for one authenticated tenant.
@@ -10832,6 +10862,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 {
                     return Ok(TenantRootRootUseAdmissionV1::AttemptConflict);
                 }
+                if admission.status == "cancelled" {
+                    return Ok(TenantRootRootUseAdmissionV1::Cancelled);
+                }
                 Ok(TenantRootRootUseAdmissionV1::Admitted)
             }
             // The conditional insert found the epoch no longer active: a
@@ -10869,6 +10902,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             }
             TenantRootRootUseAdmissionV1::AttemptConflict => {
                 return Ok(TenantRootBoundShareV1::AttemptConflict)
+            }
+            TenantRootRootUseAdmissionV1::Cancelled => {
+                return Ok(TenantRootBoundShareV1::Cancelled)
             }
         }
         let stored = self.load_bound_row(custody_binding).await?;
@@ -12820,8 +12856,93 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             .map_err(|error| store_error(error.message()))
     }
 
+    /// Settles one attempt's admission here: it can take no further step, so
+    /// its epoch no longer needs to be kept for it.
+    pub(crate) async fn settle_root_use_admission(
+        &self,
+        attempt: &TenantRootRootUseAttemptV1,
+        custody_binding: &TenantRootCustodyBindingV1,
+    ) -> RoleStoreResult<()> {
+        let attempt_key_hex = attempt.key_hex(custody_binding);
+        self.session
+            .prepare(TENANT_ROOT_SETTLE_ROOT_USE_ADMISSION_SQL_V1)
+            .bind_refs(
+                [
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(attempt.kind()),
+                    RoleSqlValue::Text(attempt_key_hex.as_str()),
+                ]
+                .iter(),
+            )?
+            .run()
+            .await?;
+        Ok(())
+    }
+
+    /// Cancels the admissions on one epoch here that are still unsettled
+    /// `W` after they were admitted, and returns how many it cancelled.
+    pub(crate) async fn cancel_stale_root_use_admissions(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        epoch: TenantRootShareEpoch,
+        admitted_at_or_before_ms: u64,
+    ) -> RoleStoreResult<u64> {
+        let identity_digest_hex = encode_hex(identity_digest.as_bytes());
+        let custody_lineage_b64u = custody_lineage.to_base64url();
+        let epoch = epoch_i64(epoch)?.to_string();
+        let cutoff = admitted_at_or_before_ms.to_string();
+        let result = self
+            .session
+            .prepare(CANCEL_STALE_ROOT_USE_ADMISSIONS_SQL)
+            .bind_refs(
+                [
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(epoch.as_str()),
+                    RoleSqlValue::Text(cutoff.as_str()),
+                ]
+                .iter(),
+            )?
+            .run()
+            .await?;
+        Ok(u64::try_from(result.changes()?).unwrap_or(u64::MAX))
+    }
+
+    /// Counts the root-use admissions on one epoch at this role that are not
+    /// yet settled or cancelled. A retired epoch is erased only at zero.
+    pub(crate) async fn unsettled_root_use_admissions(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        epoch: TenantRootShareEpoch,
+    ) -> RoleStoreResult<u64> {
+        let identity_digest_hex = encode_hex(identity_digest.as_bytes());
+        let custody_lineage_b64u = custody_lineage.to_base64url();
+        let epoch = epoch_i64(epoch)?.to_string();
+        let row = self
+            .session
+            .prepare(COUNT_UNSETTLED_ROOT_USE_ADMISSIONS_SQL)
+            .bind_refs(
+                [
+                    RoleSqlValue::Text(identity_digest_hex.as_str()),
+                    RoleSqlValue::Text(custody_lineage_b64u.as_str()),
+                    RoleSqlValue::Text(self.cipher.role.as_str()),
+                    RoleSqlValue::Text(epoch.as_str()),
+                ]
+                .iter(),
+            )?
+            .first::<TenantRootUnsettledAdmissionsRowV1>(None)
+            .await?
+            .ok_or_else(|| store_error("tenant-root unsettled admission count returned no row"))?;
+        u64::try_from(row.unsettled)
+            .map_err(|_| store_error("tenant-root unsettled admission count is negative"))
+    }
+
     /// Removes one exact retired revision while its expected active successor
-    /// still exists at the bound revision.
+    /// still exists at the bound revision and every root-use admission on the
+    /// retired epoch here is settled or cancelled.
     pub(crate) async fn cleanup_retired(
         &self,
         command: CloudflareTenantRootCleanupRetiredCommandV1,
@@ -16664,10 +16785,16 @@ fn authorized_cleanup_abandoned_ceremony_payload_digest(
 }
 
 #[derive(Debug, serde::Deserialize)]
+struct TenantRootUnsettledAdmissionsRowV1 {
+    unsettled: i64,
+}
+
+#[derive(Debug, serde::Deserialize)]
 struct TenantRootRootUseAdmissionRowV1 {
     tenant_root_share_epoch: i64,
     activation_receipt_digest_hex: String,
     attempt_digest_hex: String,
+    status: String,
 }
 
 #[derive(Debug, serde::Deserialize)]

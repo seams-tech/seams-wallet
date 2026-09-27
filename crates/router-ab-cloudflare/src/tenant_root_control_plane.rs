@@ -2236,6 +2236,82 @@ pub async fn control_plane_refresh_activation_v1<Host: TenantRootControlPlaneHos
     refresh_activation_receipt_response_v1(receipt)
 }
 
+/// Signs one command that erases a role's retired share after a refresh,
+/// bound to the active successor's revision. The role store executes it only
+/// once every root-use admission on the retired epoch is settled or
+/// cancelled; until then it answers that retirement is pending.
+pub async fn control_plane_retired_cleanup_command_v1<Host: TenantRootControlPlaneHostV1>(
+    host: &Host,
+    identity_digest: router_ab_core::TenantRootIdentityDigestV1,
+    custody_lineage: router_ab_core::TenantRootCustodyLineageId,
+    role: CloudflareTenantRootControlPlaneRoleV1,
+    expected_retired_revision: i64,
+    expected_active_revision: i64,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCleanupCommandResponseV1> {
+    if expected_retired_revision <= 0 || expected_active_revision <= 0 {
+        return Err(refused(
+            "tenant-root retired cleanup requires positive role-store revisions",
+        ));
+    }
+    let active = host.read_active_state(identity_digest, custody_lineage).await?;
+    if active.activation_receipt.identity_digest() != identity_digest
+        || active.activation_receipt.custody_lineage() != custody_lineage
+        || active.activation_receipt.result_control_plane_revision() != active.lifecycle_revision
+    {
+        return Err(refused(
+            "tenant-root retired cleanup active state does not match its Router-owned record",
+        ));
+    }
+    let router_ab_core::TenantRootActivationReceiptBindingV1::RefreshSwap(binding) =
+        active.activation_receipt.binding()
+    else {
+        return Err(refused(
+            "tenant-root retired cleanup requires an activated refresh successor",
+        ));
+    };
+    let role_protocol = role.to_protocol();
+    let target = TenantRootRoleCleanupTargetV1::Retired {
+        identity_digest,
+        custody_lineage,
+        role: role_protocol,
+        retired_epoch: binding.current_epoch(),
+        expected_retired_revision,
+        expected_active_epoch: binding.next_epoch(),
+        expected_active_revision,
+    };
+    let issued_at_ms = host.now_ms()?;
+    let expires_at_ms = issued_at_ms.saturating_add(TENANT_ROOT_MAX_LIFETIME_MS_V1);
+    let mut nonce_hasher = Sha256::new();
+    nonce_hasher.update(b"seams/tenant-root/retired-cleanup-nonce/v1");
+    nonce_hasher.update(active.activation_receipt.digest().as_bytes());
+    nonce_hasher.update(match role_protocol {
+        TwoPartyDeriverRole::DeriverA => b"deriver-a".as_slice(),
+        TwoPartyDeriverRole::DeriverB => b"deriver-b".as_slice(),
+    });
+    nonce_hasher.update(expected_retired_revision.to_be_bytes());
+    nonce_hasher.update(expected_active_revision.to_be_bytes());
+    nonce_hasher.update(issued_at_ms.to_be_bytes());
+    let cleanup_nonce = TenantRootCeremonyNonceV1::from_bytes(nonce_hasher.finalize().into())
+        .map_err(derivation)?;
+    let seed = host.issuer_seed()?;
+    let command = TenantRootRoleCleanupCommandV1::sign(
+        &target,
+        binding.authority_id(),
+        cleanup_nonce,
+        issued_at_ms,
+        expires_at_ms,
+        host.bindings().issuer_signing_key.signing_key_id(),
+        &seed,
+    )
+    .map_err(derivation)?;
+    Ok(CloudflareTenantRootControlPlaneCleanupCommandResponseV1 {
+        role,
+        cleanup_command_b64u: encode_base64url_bytes_v1(
+            &command.canonical_bytes().map_err(derivation)?,
+        ),
+    })
+}
+
 /// Issues the cleanup command for one role of an abandoned creation. For a
 /// role the fence recorded as installed, the command names that role's pending
 /// row, bound to its installation evidence, so only that row can be removed.
@@ -3611,9 +3687,8 @@ mod live {
         let (identity_digest, custody_lineage) =
             super::decode_tenant_root_cleanup_scope_v1(&identity_digest_b64u, &custody_lineage_b64u)?;
         if let Some((role, expected_retired_revision, expected_active_revision)) = retired_request {
-            return issue_retired_tenant_root_cleanup_command_v1(
-                env,
-                runtime,
+            return super::control_plane_retired_cleanup_command_v1(
+                &CloudflareControlPlaneHostV1 { env, runtime },
                 identity_digest,
                 custody_lineage,
                 role,
@@ -3633,86 +3708,6 @@ mod live {
         .await
     }
 
-    #[allow(clippy::too_many_arguments)]
-    async fn issue_retired_tenant_root_cleanup_command_v1(
-        env: &worker::Env,
-        runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
-        identity_digest: TenantRootIdentityDigestV1,
-        custody_lineage: TenantRootCustodyLineageId,
-        role: CloudflareTenantRootControlPlaneRoleV1,
-        expected_retired_revision: i64,
-        expected_active_revision: i64,
-    ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCleanupCommandResponseV1> {
-        if expected_retired_revision <= 0 || expected_active_revision <= 0 {
-            return Err(refused(
-                "tenant-root retired cleanup requires positive role-store revisions",
-            ));
-        }
-        let active =
-            execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1(
-                env,
-                identity_digest,
-                custody_lineage,
-            )
-            .await?;
-        if active.activation_receipt.identity_digest() != identity_digest
-            || active.activation_receipt.custody_lineage() != custody_lineage
-            || active.activation_receipt.result_control_plane_revision()
-                != active.lifecycle_revision
-        {
-            return Err(refused(
-                "tenant-root retired cleanup active state does not match its Router-owned record",
-            ));
-        }
-        let router_ab_core::TenantRootActivationReceiptBindingV1::RefreshSwap(binding) =
-            active.activation_receipt.binding()
-        else {
-            return Err(refused(
-                "tenant-root retired cleanup requires an activated refresh successor",
-            ));
-        };
-        let role_protocol = role.to_protocol();
-        let target = TenantRootRoleCleanupTargetV1::Retired {
-            identity_digest,
-            custody_lineage,
-            role: role_protocol,
-            retired_epoch: binding.current_epoch(),
-            expected_retired_revision,
-            expected_active_epoch: binding.next_epoch(),
-            expected_active_revision,
-        };
-        let issued_at_ms = crate::cloudflare_now_unix_ms_v1()?;
-        let expires_at_ms = issued_at_ms.saturating_add(TENANT_ROOT_MAX_LIFETIME_MS_V1);
-        let mut nonce_hasher = Sha256::new();
-        nonce_hasher.update(b"seams/tenant-root/retired-cleanup-nonce/v1");
-        nonce_hasher.update(active.activation_receipt.digest().as_bytes());
-        nonce_hasher.update(match role_protocol {
-            TwoPartyDeriverRole::DeriverA => b"deriver-a".as_slice(),
-            TwoPartyDeriverRole::DeriverB => b"deriver-b".as_slice(),
-        });
-        nonce_hasher.update(expected_retired_revision.to_be_bytes());
-        nonce_hasher.update(expected_active_revision.to_be_bytes());
-        nonce_hasher.update(issued_at_ms.to_be_bytes());
-        let cleanup_nonce = TenantRootCeremonyNonceV1::from_bytes(nonce_hasher.finalize().into())
-            .map_err(derivation)?;
-        let seed = load_issuer_seed(env, runtime)?;
-        let command = TenantRootRoleCleanupCommandV1::sign(
-            &target,
-            binding.authority_id(),
-            cleanup_nonce,
-            issued_at_ms,
-            expires_at_ms,
-            runtime.bindings().issuer_signing_key.signing_key_id(),
-            &seed,
-        )
-        .map_err(derivation)?;
-        Ok(CloudflareTenantRootControlPlaneCleanupCommandResponseV1 {
-            role,
-            cleanup_command_b64u: encode_base64url_bytes_v1(
-                &command.canonical_bytes().map_err(derivation)?,
-            ),
-        })
-    }
 
     fn refused_owned(message: String) -> RouterAbProtocolError {
         RouterAbProtocolError::new(RouterAbProtocolErrorCode::ForbiddenLocalBinding, message)

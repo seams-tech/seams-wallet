@@ -250,7 +250,10 @@ retired share may be erased only once no admitted work can still need it:
    - a durable terminal outcome, or
    - a cancellation behind a durable fence that refuses any later step.
 
-   Elapsed time alone never permits erasure.
+   Elapsed time alone never permits erasure. Implemented 2026-09-27 for
+   refresh retirement ([admission identity and settlement](./refactor-150-admission-identity.md)).
+   An admission's status is the record of settlement or cancellation, and
+   the retired-share delete checks it in the same statement.
 4. **`W` warns and triggers recovery; it never permits erasure.** When an
    old-epoch admission is unsettled `W` after the gate closed, operators are
    warned and the owning operation's recovery (fenced cancellation, or

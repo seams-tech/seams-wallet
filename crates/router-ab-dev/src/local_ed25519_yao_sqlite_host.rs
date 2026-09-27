@@ -540,5 +540,24 @@ fn write_b_pair_row(
             "Deriver B pair conditional write is uncertain",
         ));
     }
+    // A terminal record ends the attempt here, so the same transaction
+    // settles its root-use admission.
+    if matches!(
+        next,
+        LocalEd25519YaoPairRoleRecordV1::Completed { .. }
+            | LocalEd25519YaoPairRoleRecordV1::Burned { .. }
+            | LocalEd25519YaoPairRoleRecordV1::Expired { .. }
+    ) {
+        transaction
+            .execute(
+                router_ab_cloudflare::TENANT_ROOT_SETTLE_ROOT_USE_ADMISSION_SQL_V1,
+                params![
+                    "deriver_b",
+                    router_ab_cloudflare::TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1,
+                    hex::encode(session)
+                ],
+            )
+            .map_err(pair_lookup_error)?;
+    }
     Ok(())
 }

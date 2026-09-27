@@ -101,6 +101,7 @@ pub use env::{
 };
 pub use tenant_root_control_plane::{
     control_plane_register_manifest_v1, control_plane_restore_initial_activation_v1,
+    control_plane_retired_cleanup_command_v1,
     control_plane_restore_refresh_commands_v1, control_plane_restore_role_import_key_v1,
 };
 pub use durable_object::tenant_root_creation::{
@@ -168,12 +169,16 @@ pub use tenant_root_role_runtime::{
     tenant_root_deriver_restore_role_import_accept_v1,
     tenant_root_deriver_restore_role_import_key_v1,
     tenant_root_deriver_restore_session_cleanup_v1,
+    TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_V1,
     CloudflareDeriverTenantRootPreactivationCleanupRequestV1,
     CloudflareDeriverTenantRootRestoreRoleImportAcceptRequestV1,
     CloudflareDeriverTenantRootRestoreRoleImportKeyRequestV1,
     CloudflareDeriverTenantRootRestoreSessionCleanupRequestV1,
 };
-pub use tenant_root_role_d1::TenantRootRootUseAttemptV1;
+pub use tenant_root_role_d1::{
+    TenantRootRootUseAttemptV1, TENANT_ROOT_SETTLE_ROOT_USE_ADMISSION_SQL_V1,
+    TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1,
+};
 pub use tenant_root_restore_refresh_runtime::{
     tenant_root_deriver_restore_refresh_v1, CloudflareDeriverTenantRootRestoreRefreshRequestV1,
 };
