@@ -100,6 +100,10 @@ import {
 } from '@shared/utils/walletAuthAuthority';
 import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 import { IndexedDBManager } from '@/core/indexedDB';
+import {
+  exactPasskeyWalletAuthAuthorityRefForCredential,
+  exactPasskeyWalletAuthMethodForCredential,
+} from '@/SeamsWeb/operations/authMethods/passkey/exactPasskeyAuthority';
 import { type OwnerLaneScopeStores } from '@/core/signingEngine/session/identity/ownerLaneScope';
 import {
   walletSessionAuthorizations,
@@ -640,54 +644,6 @@ function walletAuthMethodBindingFromRecord(
       record satisfies never;
       return null;
   }
-}
-
-type ActivePasskeyWalletAuthMethodRecord = Extract<
-  LocalWalletAuthMethodRecordV2,
-  { kind: 'passkey'; status: 'active' }
->;
-
-async function exactPasskeyWalletAuthMethodForCredential(args: {
-  readonly walletId: WalletId;
-  readonly rpId: string;
-  readonly credentialIdB64u: string;
-}): Promise<ActivePasskeyWalletAuthMethodRecord> {
-  const records = await IndexedDBManager.listWalletAuthMethodsV2ForWallet(String(args.walletId));
-  const matches = records.filter(
-    (record): record is ActivePasskeyWalletAuthMethodRecord =>
-      record.kind === 'passkey' &&
-      record.status === 'active' &&
-      record.walletId === args.walletId &&
-      String(record.rpId) === args.rpId &&
-      String(record.credentialIdB64u) === args.credentialIdB64u,
-  );
-  const [record] = matches;
-  if (matches.length !== 1 || !record) {
-    throw new Error('[login] passkey authority requires one exact active V2 auth method');
-  }
-  return record;
-}
-
-async function exactPasskeyWalletAuthAuthorityRefForCredential(args: {
-  readonly walletId: WalletId;
-  readonly rpId: string;
-  readonly credentialIdB64u: string;
-}): Promise<WalletAuthAuthorityRef> {
-  const record = await exactPasskeyWalletAuthMethodForCredential(args);
-  return await walletAuthAuthorityRef({
-    authority: {
-      walletId: record.walletId,
-      factor: {
-        kind: 'passkey',
-        credentialIdB64u: record.credentialIdB64u,
-      },
-      verifier: {
-        kind: 'webauthn',
-        rpId: record.rpId,
-      },
-      bindingId: record.walletAuthMethodId,
-    },
-  });
 }
 
 function walletAuthAuthorityForSelectedPasskeyMethod(

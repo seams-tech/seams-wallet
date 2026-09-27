@@ -72,6 +72,7 @@ import { getUserFriendlyErrorMessage } from '@shared/utils/errors';
 import { alphabetizeStringify, sha256BytesUtf8, sha256HexUtf8 } from '@shared/utils/digests';
 import { redactCredentialExtensionOutputs } from '@/core/signingEngine/webauthnAuth/credentials/credentialExtensions';
 import { IndexedDBManager } from '@/core/indexedDB';
+import { exactPasskeyWalletAuthAuthorityRefForCredential } from '@/SeamsWeb/operations/authMethods/passkey/exactPasskeyAuthority';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
 import type {
   WalletIframeAuthMenuSessionId,
@@ -5837,12 +5838,13 @@ async function addPasskeyEcdsaWalletSigner(
   if (input.started.authorizationKind !== 'webauthn_assertion') {
     throw new Error('Wallet custody ECDSA add-signer requires WebAuthn authorization');
   }
-  const authority = await walletAuthAuthorityRef({
-    authority: passkeyWalletAuthAuthorityFromCredential({
-      walletId: input.walletId,
-      rpId: input.rpId,
-      credential: input.credential,
-    }),
+  // The added signer is bound to the wallet's own passkey method, the one its
+  // Wallet Sessions and signing lanes resolve, not an id derived from the
+  // credential.
+  const authority = await exactPasskeyWalletAuthAuthorityRefForCredential({
+    walletId: input.walletId,
+    rpId: input.rpId,
+    credentialIdB64u: input.credentialIdB64u,
   });
   const factorSecret = Uint8Array.from(base64UrlDecode(input.passkeyPrfFirstB64u)).buffer;
   let pendingLocalFinalization: Awaited<ReturnType<typeof runStrictEcdsaFamilyCeremony>>;
