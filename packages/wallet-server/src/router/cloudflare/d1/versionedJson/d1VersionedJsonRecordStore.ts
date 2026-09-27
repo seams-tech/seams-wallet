@@ -4,7 +4,7 @@ import type {
   D1PreparedStatementLike,
   D1ResultLike,
 } from '../../../../storage/tenantRoute';
-import { isD1DatabaseLike } from '../../../../storage/d1Sql';
+import { D1_BATCH_CAS_GUARD_SQL, isD1DatabaseLike } from '../../../../storage/d1Sql';
 import { containsControlCharacter } from '../../durableObjects/versionedJsonRecordStore';
 import type {
   VersionedJsonObject,
@@ -13,10 +13,7 @@ import type {
 } from '../../../framework/versionedJsonRecordStore';
 
 const TABLE_NAME = 'router_ab_yao_versioned_json_records';
-const CAS_GUARD_TABLE_NAME = 'router_ab_yao_versioned_json_cas_guard';
-const CAS_GUARD_SQL = `INSERT INTO ${CAS_GUARD_TABLE_NAME} (guard_id)
-SELECT 1
- WHERE changes() = 0`;
+const CAS_GUARD_SQL = D1_BATCH_CAS_GUARD_SQL;
 
 export type CloudflareD1VersionedJsonRecordScopeV1 = {
   readonly namespace: string;

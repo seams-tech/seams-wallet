@@ -27,6 +27,12 @@ import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAb
 import type { WalletSignerRecord } from '../../../../core/d1WalletStore';
 import type { WalletRegistrationEcdsaWalletKey } from '../../../../core/registrationContracts';
 import { WalletAuthorityCommitConflictError } from './d1WalletAuthorityStore';
+import type { CloudflareD1Ed25519YaoLifecycleDecisionStoreV1 } from '../ed25519Yao/d1Ed25519YaoLifecycleDecisionStore';
+import {
+  routerAbEd25519YaoLifecycleDecisionLookupV1,
+  routerAbEd25519YaoLifecycleDecisionV1,
+  type RouterAbEd25519YaoLifecycleDecisionV1,
+} from '../../../domains/ed25519Yao/capabilityLifecycle/routerAbEd25519YaoLifecycleDecision';
 import { ecdsaClientRootPublicKey33B64uFromString } from '@shared/threshold/ecdsaDerivationRoleLocalBootstrap';
 import type {
   WalletAddSignerFinalizeRequest,
@@ -42,7 +48,7 @@ import type {
 } from '../../../../core/registrationContracts';
 import { registrationPreparationIdFromString } from '../../../../core/registrationContracts';
 import type { D1WalletStore } from '../../../../core/d1WalletStore';
-import { sameWalletEd25519SignerRecordV1 } from '../../../../core/WalletStore';
+import type { WalletEd25519SignerRecord } from '../../../../core/WalletStore';
 import type {
   StoredEd25519YaoAddSignerActivation,
   StoredEcdsaAddSignerActivated,
@@ -923,6 +929,7 @@ export class CloudflareD1WalletAddSignerService {
   private readonly passkeyCustodyEnvelopes: CloudflareD1PasskeyCustodyEnvelopeStore;
   private readonly startSideEffects: D1WalletAddSignerStartSideEffectStore;
   private readonly finalizeSideEffects: D1WalletAddSignerFinalizeSideEffectStore;
+  private readonly yaoLifecycleDecisions: CloudflareD1Ed25519YaoLifecycleDecisionStoreV1;
 
   constructor(input: {
     readonly getRegistrationCeremonyIntentStore: RegistrationCeremonyStoreProvider;
@@ -934,6 +941,7 @@ export class CloudflareD1WalletAddSignerService {
     readonly passkeyCustodyEnvelopes: CloudflareD1PasskeyCustodyEnvelopeStore;
     readonly startSideEffects: D1WalletAddSignerStartSideEffectStore;
     readonly finalizeSideEffects: D1WalletAddSignerFinalizeSideEffectStore;
+    readonly yaoLifecycleDecisions: CloudflareD1Ed25519YaoLifecycleDecisionStoreV1;
   }) {
     this.getRegistrationCeremonyIntentStore = input.getRegistrationCeremonyIntentStore;
     this.getEd25519YaoProductRegistration = input.getEd25519YaoProductRegistration;
@@ -944,6 +952,7 @@ export class CloudflareD1WalletAddSignerService {
     this.passkeyCustodyEnvelopes = input.passkeyCustodyEnvelopes;
     this.startSideEffects = input.startSideEffects;
     this.finalizeSideEffects = input.finalizeSideEffects;
+    this.yaoLifecycleDecisions = input.yaoLifecycleDecisions;
   }
 
   /**
@@ -1930,6 +1939,64 @@ export class CloudflareD1WalletAddSignerService {
     return response.ok ? response : throwIfRouterAbEd25519YaoRetryableSideEffectFailureV1(response);
   }
 
+  /**
+   * Makes an added Ed25519 signer visible with its lifecycle's decision, in
+   * one batch. A finalize that finds its own decision has nothing left to
+   * write. Another decision for the lifecycle, or another signer in the slot,
+   * refuses it.
+   */
+  private async decideEd25519YaoSignerVisibility(input: {
+    readonly decision: RouterAbEd25519YaoLifecycleDecisionV1;
+    readonly signer: WalletEd25519SignerRecord;
+    readonly walletStore: D1WalletStore;
+  }): Promise<{ readonly ok: true } | { readonly ok: false; readonly code: string; readonly message: string }> {
+    const decisions = this.yaoLifecycleDecisions;
+    const settled = (
+      stored: RouterAbEd25519YaoLifecycleDecisionV1 | null,
+    ): { readonly ok: true } | { readonly ok: false; readonly code: string; readonly message: string } | null => {
+      const found = routerAbEd25519YaoLifecycleDecisionLookupV1(input.decision, stored);
+      switch (found.kind) {
+        case 'undecided':
+          return null;
+        case 'decided':
+          return { ok: true };
+        case 'decided_otherwise':
+          return {
+            ok: false,
+            code: 'invalid_state',
+            message: 'Ed25519 Yao add-signer lifecycle was finalized by another request',
+          };
+      }
+    };
+    const before = settled(await decisions.read(input.decision.lifecycleId));
+    if (before) return before;
+    try {
+      await decisions.decide(
+        input.decision,
+        await input.walletStore.prepareEd25519SignerIfSlotAvailableStatements(input.signer),
+        Date.now(),
+      );
+      return { ok: true };
+    } catch (error: unknown) {
+      // The batch aborted: another finalize of this lifecycle decided it
+      // first, or another signer holds the slot.
+      const after = settled(await decisions.read(input.decision.lifecycleId));
+      if (after) return after;
+      const occupant = await input.walletStore.getEd25519SignerBySlot({
+        walletId: input.signer.walletId,
+        signerSlot: input.signer.signerSlot,
+      });
+      if (occupant) {
+        return {
+          ok: false,
+          code: 'signer_conflict',
+          message: 'Ed25519 signer slot is already occupied',
+        };
+      }
+      throw error;
+    }
+  }
+
   private async executeWalletAddSignerFinalize(
     input: {
       readonly finalizeRequest: StoredWalletAddSignerFinalizeRequest;
@@ -2087,7 +2154,7 @@ export class CloudflareD1WalletAddSignerService {
         Extract<WalletAddSignerFinalizeResponse, { ok: true }>,
         { kind: 'near_ed25519' }
       >;
-      let signer: Parameters<D1WalletStore['putEd25519SignerIfSlotAvailable']>[0];
+      let signer: WalletEd25519SignerRecord;
       let finalizingAtMs: number;
       if (currentState.kind === 'near_ed25519_yao_add_signer_finalizing') {
         response = currentState.response;
@@ -2203,20 +2270,18 @@ export class CloudflareD1WalletAddSignerService {
           message: 'stored Ed25519 Yao add-signer finalize plan is invalid',
         };
       }
-      const inserted = await walletStore.putEd25519SignerIfSlotAvailable(signer);
-      if (!inserted) {
-        const existing = await walletStore.getEd25519SignerBySlot({
+      const visible = await this.decideEd25519YaoSignerVisibility({
+        decision: await routerAbEd25519YaoLifecycleDecisionV1({
+          kind: 'add_signer_finalized',
+          lifecycleId: activation.activation.admissionRequest.scope.lifecycle_id,
           walletId: ceremony.intent.walletId,
-          signerSlot: selection.signerSlot,
-        });
-        if (!existing || !sameWalletEd25519SignerRecordV1(existing, signer)) {
-          return {
-            ok: false,
-            code: 'signer_conflict',
-            message: 'Ed25519 signer slot is already occupied',
-          };
-        }
-      }
+          consumerBinding: input.consumerBinding,
+          capability: signer.activeYaoCapability,
+        }),
+        signer,
+        walletStore,
+      });
+      if (!visible.ok) return visible;
       const installed = await yaoRuntime.installPersistedActiveCapability(
         signer.activeYaoCapability,
       );

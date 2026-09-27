@@ -1,8 +1,9 @@
 # R150 cross-owner Yao finalization, recovery and export
 
-Status: slice 1 implemented (2026-09-27, see below): the Router owns each
-registration's execution record. The decision row and the later slices are
-proposals. Until each lands, its records stay in Gateway D1 next to the
+Status: slices 1 and 2 implemented (2026-09-27/28, see below). The Router
+owns each registration's execution record, and registration and add-signer
+finalize through one decision row per lifecycle. Recovery promotion and export
+are proposals. Until each lands, its records stay in Gateway D1 next to the
 tenant-wide `router-ab-ed25519-yao:shared` record, and the current atomic
 unit is unchanged: the batch that installs a capability into the shared
 record and advances the lifecycle record.
@@ -106,11 +107,71 @@ side runs.
   (missing and revoked output) are removed until they can act on the
   SigningWorker's wallet object.
 
+### Slice 2: the decision row for registration and add-signer
+
+A code check of the finalize paths corrected two premises of the protocol
+below:
+- **What makes a finalization visible is the wallet's signer row.** The
+  capability in the `shared` record is a bounded cache (32 entries); readers
+  that miss it rebuild it from the signer row.
+- **A registration finalize could not resume once its commit had landed.**
+  A retry rebuilt the founding authority with new timestamps. That either
+  threw "replay conflicts", which is retryable, so every resume failed, or it
+  recorded `invalid_state` as terminal while the wallet was already visible.
+
+So the decision joins the batch that writes the signer row, and nothing else
+moves:
+- **The decision row.** `yao_lifecycle_decisions` in the signer database
+  holds one row per lifecycle: its kind (`registration_finalized` or
+  `add_signer_finalized`), the wallet, and a decision id. The id digests the
+  kind, the lifecycle, the wallet, the consumer binding the Router consumed
+  the execution for, and the capability the finalization installs. It is
+  inserted once, behind the batch guard, so a batch for a lifecycle already
+  decided commits nothing.
+- **Registration.** The commit store's batch (wallet, signer rows, founding
+  authority and method, Email OTP rows) also inserts the decision. A
+  finalize reads the decision before building that batch:
+  - If it finds its own decision, it skips the batch and the checks that
+    assume nothing was committed. It goes on to the steps after it: identity
+    completion, the capability cache, custody, the session and the journal.
+    Each of those is idempotent.
+  - If it finds another decision, it is refused.
+- **Add-signer.** The signer insert, guarded on its slot being free, and the
+  decision share one batch. If that batch aborts, re-reading the decision
+  tells a concurrent finalize of the same lifecycle (proceed) apart from
+  another signer in the slot (`signer_conflict`). The ceremony's move to
+  `finalizing` stays before the batch, and a resume already works from it.
+- **The Router keeps no decision.** Its consumption pins the one consumer
+  binding that may finalize, which is what the `finalizing(decision_id)`
+  step below was for. The decision itself is the Gateway's fact alone. A
+  copy in the wallet object (the `finalized` step below) would be a second
+  authority for it, so neither step is built.
+- **Answered.** Open question 1: the wallet's rows join the decision batch.
+- **Evidence (2026-09-28).**
+  - Real Gateway contract, on Workers and on the VM: "deferred NEAR finalize
+    that loses storage after its decision resumes from the decision and
+    signs". A mixed passkey registration's NEAR finalize loses the Gateway's
+    signer database once, right after the batch holding the decision
+    commits. A local-only fault does this, and the Gateway reports its proof.
+    The finalize reports a retryable failure. After the journal's 30-second
+    resume window, unlocking retries it. The retry finds its own decision and
+    commits nothing again, NEAR becomes ready, and the wallet signs. Before
+    this slice, that retry hit the authority-extension check and returned
+    `invalid_state` as terminal.
+  - The five other `passkey.ed25519-yao-local` contracts pass on both hosts,
+    covering registration, Ed25519 and ECDSA add-signer, the exact transport
+    retry and the terminal burned execution.
+- **Not yet built.**
+  - An `abandoned` decision. No abort path exists today.
+  - A resume after an add-signer ceremony has expired is still refused as not
+    found, although its signer is visible.
+  - A capability cache install refused after the decision still returns its
+    error.
+
 ### Later slices
 
-1. The decision row for registration and add-signer finalization.
-2. Recovery promotion.
-3. Export.
+1. Recovery promotion.
+2. Export.
 
 ## Current behavior (code-checked 2026-09-25)
 
@@ -164,7 +225,7 @@ then records nonce replay in the shared record.
 | Ceremony partition: admission, intent credential, pinned dispatch root | Gateway D1 until its own slice (see above) |
 | Recovery capability index, identity index, recovery sessions, export nonces | Gateway shared D1 (unchanged) |
 | Public wallet identity, signer projection, authority, sessions, custody envelope | Gateway D1 (unchanged) |
-| Finalization decision per lifecycle | Gateway shared D1: a new decision row (below) |
+| Finalization decision per lifecycle | Gateway D1: `yao_lifecycle_decisions`, one row per lifecycle; slice 2 for registration and add-signer |
 
 The shared record never moves into a wallet object: its uniqueness and replay
 sets are cross-wallet. The lifecycle partition never gets a D1 copy. There is

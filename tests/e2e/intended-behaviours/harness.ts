@@ -173,11 +173,21 @@ const ROUTER_AB_ED25519_YAO_REGISTRATION_PATHS = [
 const LOCAL_INTENDED_YAO_FAULT_HEADER_V1 = 'x-seams-intended-yao-fault-v1';
 const LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1 = 'x-seams-intended-yao-fault-token-v1';
 const LOCAL_INTENDED_YAO_FAULT_PROOF_HEADER_V1 = 'x-seams-intended-yao-fault-proof-v1';
+const LOCAL_INTENDED_YAO_FINALIZE_FAULT_HEADER_V1 = 'x-seams-intended-yao-finalize-fault-v1';
+const LOCAL_INTENDED_YAO_FINALIZE_FAULT_TOKEN_HEADER_V1 =
+  'x-seams-intended-yao-finalize-fault-token-v1';
+const WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1 = '/wallets/register/near-provisioning';
+/* The Gateway's side-effect journal lets a retry take an unfinished NEAR
+   finalize over only after this long. */
+const WALLET_REGISTRATION_NEAR_PROVISIONING_RESUME_AFTER_MS = 30_000;
 const LOCAL_INTENDED_YAO_ROUTER_ORIGIN_V1 = 'http://127.0.0.1:4100';
 
 type IntendedYaoFaultModeV1 = 'drop_router_response_once' | 'return_terminal_burned_once';
 
-type IntendedYaoFaultProofV1 = 'exact_request_replayed' | 'terminal_failure_not_retried';
+type IntendedYaoFaultProofV1 =
+  | 'exact_request_replayed'
+  | 'terminal_failure_not_retried'
+  | 'decision_committed_then_storage_lost';
 
 type IntendedYaoFaultInjectionStateV1 =
   | {
@@ -1079,6 +1089,8 @@ export class IntendedBehaviourHarness {
   private intendedYaoFaultInjection: IntendedYaoFaultInjectionStateV1 = { kind: 'idle' };
 
   private readonly intendedYaoFaultProofs: string[] = [];
+  /** Armed once: the next NEAR finalize loses the Gateway's storage after its decision. */
+  private intendedYaoFinalizeFaultToken: string | null = null;
 
   constructor(args: {
     context: BrowserContext;
@@ -1194,6 +1206,57 @@ export class IntendedBehaviourHarness {
     } finally {
       this.intendedYaoFaultInjection = { kind: 'idle' };
     }
+  }
+
+  /**
+   * A mixed passkey registration whose deferred NEAR finalize loses the
+   * Gateway's storage once, right after the batch that made the Ed25519
+   * signer visible committed the lifecycle's decision. NEAR is left
+   * retryable. Once the Gateway's journal lets a retry take the finalize
+   * over, unlocking retries it: the retry finds its own decision, commits
+   * nothing again, and completes.
+   */
+  async registerPasskeyWalletAcrossNearFinalizeStorageLoss(): Promise<void> {
+    this.recordStage('register_passkey_wallet_across_near_finalize_storage_loss');
+    if (this.config.passkeyEcdsaTargetProfile === 'none') {
+      throw new Error('A deferred NEAR finalize needs a mixed passkey registration');
+    }
+    if (this.intendedYaoFinalizeFaultToken !== null) {
+      throw new Error('An intended Yao finalize fault is already armed');
+    }
+    requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
+    const proofStartIndex = this.intendedYaoFaultProofs.length;
+    const faultToken = randomUUID();
+    this.intendedYaoFinalizeFaultToken = faultToken;
+    const failedFinalize = this.page.waitForResponse(isNearProvisioningFinalizeResponse, {
+      timeout: 180_000,
+    });
+    let failedAtMs: number;
+    try {
+      await this.registerPasskeyWallet();
+      const failed = await failedFinalize;
+      expect(await failed.json()).toMatchObject({
+        ok: false,
+        nearProvisioning: { status: 'near_failed_retryable' },
+      });
+      failedAtMs = Date.now();
+    } finally {
+      this.intendedYaoFinalizeFaultToken = null;
+    }
+    this.assertIntendedYaoFaultProof(
+      proofStartIndex,
+      faultToken,
+      'decision_committed_then_storage_lost',
+    );
+    await this.page.waitForTimeout(
+      Math.max(
+        0,
+        failedAtMs + WALLET_REGISTRATION_NEAR_PROVISIONING_RESUME_AFTER_MS + 1_000 - Date.now(),
+      ),
+    );
+    await this.unlockPasskeyWithPendingNear();
+    await this.awaitNearReady();
+    this.recordService('deferred NEAR finalize resumed from its decision after losing storage');
   }
 
   async assertMixedNearTerminalFailureSurvivesUnlock(): Promise<void> {
@@ -2867,6 +2930,10 @@ export class IntendedBehaviourHarness {
       `**${ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1}`,
       this.handleIntendedYaoFaultRoute.bind(this),
     );
+    await this.context.route(
+      `**${WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1}`,
+      this.handleIntendedYaoFinalizeFaultRoute.bind(this),
+    );
   }
 
   private async installWebAuthnVirtualAuthenticator(): Promise<void> {
@@ -3124,6 +3191,22 @@ export class IntendedBehaviourHarness {
         ...route.request().headers(),
         [LOCAL_INTENDED_YAO_FAULT_HEADER_V1]: current.mode,
         [LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1]: current.token,
+      },
+    });
+  }
+
+  private async handleIntendedYaoFinalizeFaultRoute(route: Route): Promise<void> {
+    const token = this.intendedYaoFinalizeFaultToken;
+    if (token === null || route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    this.intendedYaoFinalizeFaultToken = null;
+    await route.continue({
+      headers: {
+        ...route.request().headers(),
+        [LOCAL_INTENDED_YAO_FINALIZE_FAULT_HEADER_V1]: 'lose_storage_after_decision_once',
+        [LOCAL_INTENDED_YAO_FINALIZE_FAULT_TOKEN_HEADER_V1]: token,
       },
     });
   }
@@ -6858,4 +6941,11 @@ async function readWalletIframeAuthMenuError(page: Page): Promise<string | null>
 
 function isNearRegistrationExecutionResponse(response: Response): boolean {
   return new URL(response.url()).pathname === ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1;
+}
+
+function isNearProvisioningFinalizeResponse(response: Response): boolean {
+  return (
+    response.request().method() === 'POST' &&
+    new URL(response.url()).pathname === WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1
+  );
 }

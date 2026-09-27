@@ -73,3 +73,17 @@ async function verifyTerminalFailureWithoutRetry({
 }
 
 test('terminal burned execution fails without retry', verifyTerminalFailureWithoutRetry);
+
+async function verifyNearFinalizeResumesFromItsDecision({
+  harness,
+}: {
+  harness: IntendedBehaviourHarness;
+}): Promise<void> {
+  await harness.registerPasskeyWalletAcrossNearFinalizeStorageLoss();
+  await harness.signNearTransaction('post_unlock');
+}
+
+test(
+  'deferred NEAR finalize that loses storage after its decision resumes from the decision and signs',
+  verifyNearFinalizeResumesFromItsDecision,
+);

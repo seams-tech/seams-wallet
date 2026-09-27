@@ -50,6 +50,11 @@ type D1WalletRegistrationCommitBase = {
   readonly wallet: WalletRecord;
   readonly walletSigners: readonly WalletSignerRecord[];
   readonly now: number;
+  /**
+   * The Ed25519 Yao lifecycle decision this commit makes visible, when it
+   * finalizes one: it commits in this batch or nothing does.
+   */
+  readonly decisionStatements: readonly D1PreparedStatementLike[];
 };
 
 type D1WalletRegistrationFoundingFields =
@@ -533,6 +538,7 @@ export class CloudflareD1WalletRegistrationCommitStore
       }),
     );
     statements.push(...emailOtpCommitStatements(input));
+    statements.push(...input.decisionStatements);
     const results = await this.database.batch<D1ResultLike>(statements);
     assertBatchSucceeded({
       expectedStatementCount: statements.length,

@@ -31,6 +31,16 @@ import {
   requestWithoutLocalIntendedEcdsaFinalizeFaultHeadersV1,
   responseWithLocalIntendedEcdsaFinalizeFaultOutcomeV1,
 } from './localIntendedEcdsaFinalizeFault';
+import {
+  LOCAL_INTENDED_YAO_FINALIZE_FAULT_HEADER_V1,
+  LOCAL_INTENDED_YAO_FINALIZE_FAULT_TOKEN_HEADER_V1,
+  LocalIntendedYaoFinalizeFaultDatabaseV1,
+  parseLocalIntendedYaoFinalizeFaultModeV1,
+  parseLocalIntendedYaoFinalizeFaultTokenV1,
+  requestWithoutLocalIntendedYaoFinalizeFaultHeadersV1,
+  responseWithLocalIntendedYaoFinalizeFaultOutcomeV1,
+  WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1,
+} from './localIntendedYaoFinalizeFault';
 
 export type LocalHostedWalletGatewayEnv = CloudflareD1GatewayBaseEnv & {
   readonly WALLET_LOCAL_DEPLOYMENT_JSON: string;
@@ -201,6 +211,18 @@ export async function handleLocalHostedWalletGatewayRequestV1(
       ecdsaFinalizeToken,
     );
   }
+  const yaoFinalizeMode = request.headers.get(LOCAL_INTENDED_YAO_FINALIZE_FAULT_HEADER_V1);
+  const yaoFinalizeToken = request.headers.get(LOCAL_INTENDED_YAO_FINALIZE_FAULT_TOKEN_HEADER_V1);
+  if (yaoFinalizeMode !== null || yaoFinalizeToken !== null) {
+    return await handleYaoFinalizeFault(
+      request,
+      gatewayEnv,
+      ctx,
+      dependencies,
+      yaoFinalizeMode,
+      yaoFinalizeToken,
+    );
+  }
   const rawMode = request.headers.get(LOCAL_INTENDED_YAO_FAULT_HEADER_V1);
   const rawToken = request.headers.get(LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1);
   const sanitizedRequest = requestWithoutLocalIntendedYaoFaultHeadersV1(request);
@@ -234,6 +256,42 @@ export async function handleLocalHostedWalletGatewayRequestV1(
     dependencies,
   );
   return responseWithLocalIntendedYaoFaultOutcomeV1(response, controller.consumeOutcome(), token);
+}
+
+/**
+ * Loses the Gateway's storage once during one Ed25519 Yao NEAR finalize,
+ * right after the batch that made the registration visible committed its
+ * decision. Local only.
+ */
+async function handleYaoFinalizeFault(
+  request: Request,
+  env: CloudflareD1GatewayEnv,
+  ctx: CfExecutionContext,
+  dependencies: HostedWalletGatewayDependenciesV1 | undefined,
+  rawMode: string | null,
+  rawToken: string | null,
+): Promise<Response> {
+  const mode = parseLocalIntendedYaoFinalizeFaultModeV1(rawMode);
+  const token = parseLocalIntendedYaoFinalizeFaultTokenV1(rawToken);
+  const url = new URL(request.url);
+  if (
+    url.protocol !== 'http:' ||
+    url.hostname !== '127.0.0.1' ||
+    url.pathname !== WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1 ||
+    request.method !== 'POST' ||
+    !mode ||
+    !token
+  ) {
+    return Response.json({ code: 'invalid_intended_yao_finalize_fault' }, { status: 400 });
+  }
+  const database = new LocalIntendedYaoFinalizeFaultDatabaseV1(env.SIGNER_DB);
+  const response = await handleSplitGatewayRequest(
+    requestWithoutLocalIntendedYaoFinalizeFaultHeadersV1(request),
+    { ...env, SIGNER_DB: database },
+    ctx,
+    dependencies,
+  );
+  return responseWithLocalIntendedYaoFinalizeFaultOutcomeV1(response, database.outcome(), token);
 }
 
 /**

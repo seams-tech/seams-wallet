@@ -102,6 +102,7 @@ import {
 } from '../registration/d1RegistrationCeremonyRecords';
 import { parseWalletRegistrationSessionCommitReceiptV2 } from '../registration/walletRegistrationSessionCommitReceipt';
 import { CloudflareD1WalletRegistrationCommitStore } from '../registration/d1WalletRegistrationCommitStore';
+import { CloudflareD1Ed25519YaoLifecycleDecisionStoreV1 } from '../ed25519Yao/d1Ed25519YaoLifecycleDecisionStore';
 import { CloudflareD1WalletCustodyCommitStore } from '../passkeyCustody/d1WalletCustodyCommitStore';
 import { CloudflareD1PasskeyCustodyEnvelopeStore } from '../passkeyCustody/d1PasskeyCustodyEnvelopeStore';
 import { createD1PasskeyCustodyRouteService } from '../passkeyCustody/d1PasskeyCustodyRouteService';
@@ -1651,6 +1652,13 @@ function createCloudflareD1RouterApiAuthAssembly(
       });
     },
   });
+  const yaoLifecycleDecisions = new CloudflareD1Ed25519YaoLifecycleDecisionStoreV1({
+    database: options.database,
+    namespace: options.namespace,
+    orgId: options.orgId,
+    projectId: options.projectId,
+    envId: options.envId,
+  });
   const walletRegistrationCommitStore = new CloudflareD1WalletRegistrationCommitStore({
     database: options.database,
     namespace: options.namespace,
@@ -1684,6 +1692,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     walletCustodyCommitStore,
     walletAuthMethods,
     getLinkedDeviceEd25519AuthorityReader,
+    yaoLifecycleDecisions,
   });
   const walletAddSigners = new CloudflareD1WalletAddSignerService({
     getRegistrationCeremonyIntentStore,
@@ -1695,6 +1704,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     passkeyCustodyEnvelopes,
     startSideEffects: walletAddSignerStartSideEffectStore(options),
     finalizeSideEffects: walletAddSignerFinalizeSideEffectStore(options),
+    yaoLifecycleDecisions,
   });
   const registrationIntents = new CloudflareD1RegistrationIntentService({
     getRegistrationCeremonyIntentStore,
