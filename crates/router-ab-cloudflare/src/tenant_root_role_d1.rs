@@ -167,16 +167,18 @@ const INSERT_CREATION_TOMBSTONE_SQL: &str = "INSERT INTO tenant_root_creation_to
     (tenant_identity_digest_hex, custody_lineage_b64u, role, session_id_hex, created_at_ms) \
     VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT DO NOTHING";
 const ADMIT_ROOT_USE_SQL: &str = "INSERT INTO tenant_root_root_use_admissions \
-    (tenant_identity_digest_hex, custody_lineage_b64u, role, custody_binding_digest_hex, \
-    tenant_root_share_epoch, activation_receipt_digest_hex, admitted_at_ms) \
-    SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7 WHERE EXISTS (SELECT 1 FROM tenant_root_role_shares \
+    (tenant_identity_digest_hex, custody_lineage_b64u, role, attempt_kind, attempt_key_hex, \
+    tenant_root_share_epoch, activation_receipt_digest_hex, attempt_digest_hex, \
+    first_binding_digest_hex, issued_at_ms, expires_at_ms, status, admitted_at_ms) \
+    SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'admitted', ?12 \
+    WHERE EXISTS (SELECT 1 FROM tenant_root_role_shares \
     WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 \
-    AND tenant_root_share_epoch = ?5 AND role = ?3 AND lifecycle = 'active') \
+    AND tenant_root_share_epoch = ?6 AND role = ?3 AND lifecycle = 'active') \
     ON CONFLICT DO NOTHING";
 const LOAD_ROOT_USE_ADMISSION_SQL: &str = "SELECT tenant_root_share_epoch, \
-    activation_receipt_digest_hex FROM tenant_root_root_use_admissions \
+    activation_receipt_digest_hex, attempt_digest_hex FROM tenant_root_root_use_admissions \
     WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 AND role = ?3 \
-    AND custody_binding_digest_hex = ?4";
+    AND attempt_kind = ?4 AND attempt_key_hex = ?5";
 const LOAD_CREATION_TOMBSTONE_SQL: &str = "SELECT session_id_hex FROM \
     tenant_root_creation_tombstones WHERE tenant_identity_digest_hex = ?1 \
     AND custody_lineage_b64u = ?2 AND role = ?3";
@@ -1633,6 +1635,39 @@ impl CloudflareStoredTenantRootRoleShareV1 {
     }
 }
 
+/// The execution attempt one root-use admission belongs to
+/// (docs/refactor-150-admission-identity.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TenantRootRootUseAttemptV1 {
+    /// One Ed25519 Yao ceremony, named by its canonical pair session: the key
+    /// both pair stores keep its records under. It stays on the epoch it was
+    /// admitted on.
+    Ed25519YaoPairSession { session: [u8; 32] },
+    /// One ECDSA operation on the binding's epoch. The same request re-sent
+    /// after a refresh is a new attempt on the new epoch.
+    EcdsaOperation,
+}
+
+impl TenantRootRootUseAttemptV1 {
+    const fn kind(&self) -> &'static str {
+        match self {
+            Self::Ed25519YaoPairSession { .. } => "ed25519_yao_pair_session",
+            Self::EcdsaOperation => "ecdsa_operation",
+        }
+    }
+
+    fn key_hex(&self, custody_binding: &TenantRootCustodyBindingV1) -> String {
+        match self {
+            Self::Ed25519YaoPairSession { session } => encode_hex(session),
+            Self::EcdsaOperation => format!(
+                "{}{:016x}",
+                encode_hex(custody_binding.operation_id().as_bytes()),
+                custody_binding.epoch().get().get()
+            ),
+        }
+    }
+}
+
 /// Whether an operation named by a custody binding is admitted on the
 /// binding's epoch at this role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1643,6 +1678,9 @@ pub(crate) enum TenantRootRootUseAdmissionV1 {
     EpochClosed,
     /// The epoch is committed but this role has not yet activated it.
     NotYetActive,
+    /// This attempt was admitted under a binding that differs in more than
+    /// its window: another epoch, or another operation on the same session.
+    AttemptConflict,
 }
 
 /// The role share a custody binding names, if its operation may read it.
@@ -1651,6 +1689,7 @@ pub(crate) enum TenantRootBoundShareV1 {
     Readable(CloudflareStoredTenantRootRoleShareV1),
     EpochClosed,
     NotYetActive,
+    AttemptConflict,
 }
 
 /// Exhaustive role-private active-share resolution for one authenticated tenant.
@@ -10696,17 +10735,22 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         Ok(active)
     }
 
-    /// Admits one operation, named by its authenticated custody binding, on
-    /// the binding's epoch.
+    /// Admits one execution attempt, named by its authenticated custody
+    /// binding, on the binding's epoch.
     ///
     /// The admission is written only while that epoch is active here: the
     /// insert is conditional on the active row, so it is ordered exactly
-    /// against the refresh swap that retires the epoch. An operation admitted
+    /// against the refresh swap that retires the epoch. An attempt admitted
     /// before the swap stays admitted; an unused binding for a retired epoch
     /// is refused; and a pending epoch admits nothing.
+    ///
+    /// One row per attempt: a retry of the attempt finds its row again, and
+    /// must present the same binding apart from the window the Router stamps
+    /// on each try. Anything else conflicts.
     pub(crate) async fn admit_bound(
         &self,
         custody_binding: &TenantRootCustodyBindingV1,
+        attempt: &TenantRootRootUseAttemptV1,
         admitted_at_ms: u64,
     ) -> RoleStoreResult<TenantRootRootUseAdmissionV1> {
         custody_binding
@@ -10729,9 +10773,19 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 .map_err(|error| store_error(error.message()))?
                 .as_bytes(),
         );
+        let attempt_digest_hex = encode_hex(
+            custody_binding
+                .attempt_digest()
+                .map_err(|error| store_error(error.message()))?
+                .as_bytes(),
+        );
+        let attempt_kind = attempt.kind();
+        let attempt_key_hex = attempt.key_hex(custody_binding);
         let epoch = epoch_i64(custody_binding.epoch())?.to_string();
         let receipt_digest_hex = encode_hex(custody_binding.activation_receipt_digest().as_bytes());
         if lifecycle_is_active {
+            let issued_at_ms = custody_binding.issued_at_ms().to_string();
+            let expires_at_ms = custody_binding.expires_at_ms().to_string();
             let admitted_at_ms = admitted_at_ms.to_string();
             self.session
                 .prepare(ADMIT_ROOT_USE_SQL)
@@ -10740,9 +10794,14 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                         RoleSqlValue::Text(identity_digest_hex.as_str()),
                         RoleSqlValue::Text(custody_lineage_b64u.as_str()),
                         RoleSqlValue::Text(self.cipher.role.as_str()),
-                        RoleSqlValue::Text(binding_digest_hex.as_str()),
+                        RoleSqlValue::Text(attempt_kind),
+                        RoleSqlValue::Text(attempt_key_hex.as_str()),
                         RoleSqlValue::Text(epoch.as_str()),
                         RoleSqlValue::Text(receipt_digest_hex.as_str()),
+                        RoleSqlValue::Text(attempt_digest_hex.as_str()),
+                        RoleSqlValue::Text(binding_digest_hex.as_str()),
+                        RoleSqlValue::Text(issued_at_ms.as_str()),
+                        RoleSqlValue::Text(expires_at_ms.as_str()),
                         RoleSqlValue::Text(admitted_at_ms.as_str()),
                     ]
                     .iter(),
@@ -10758,7 +10817,8 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                     RoleSqlValue::Text(identity_digest_hex.as_str()),
                     RoleSqlValue::Text(custody_lineage_b64u.as_str()),
                     RoleSqlValue::Text(self.cipher.role.as_str()),
-                    RoleSqlValue::Text(binding_digest_hex.as_str()),
+                    RoleSqlValue::Text(attempt_kind),
+                    RoleSqlValue::Text(attempt_key_hex.as_str()),
                 ]
                 .iter(),
             )?
@@ -10768,10 +10828,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             Some(admission) => {
                 if admission.tenant_root_share_epoch.to_string() != epoch
                     || admission.activation_receipt_digest_hex != receipt_digest_hex
+                    || admission.attempt_digest_hex != attempt_digest_hex
                 {
-                    return Err(store_error(
-                        "tenant-root root-use admission does not match its custody binding",
-                    ));
+                    return Ok(TenantRootRootUseAdmissionV1::AttemptConflict);
                 }
                 Ok(TenantRootRootUseAdmissionV1::Admitted)
             }
@@ -10797,15 +10856,19 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
     pub(crate) async fn load_bound(
         &self,
         custody_binding: &TenantRootCustodyBindingV1,
+        attempt: &TenantRootRootUseAttemptV1,
         admitted_at_ms: u64,
     ) -> RoleStoreResult<TenantRootBoundShareV1> {
-        match self.admit_bound(custody_binding, admitted_at_ms).await? {
+        match self.admit_bound(custody_binding, attempt, admitted_at_ms).await? {
             TenantRootRootUseAdmissionV1::Admitted => {}
             TenantRootRootUseAdmissionV1::EpochClosed => {
                 return Ok(TenantRootBoundShareV1::EpochClosed)
             }
             TenantRootRootUseAdmissionV1::NotYetActive => {
                 return Ok(TenantRootBoundShareV1::NotYetActive)
+            }
+            TenantRootRootUseAdmissionV1::AttemptConflict => {
+                return Ok(TenantRootBoundShareV1::AttemptConflict)
             }
         }
         let stored = self.load_bound_row(custody_binding).await?;
@@ -16604,6 +16667,7 @@ fn authorized_cleanup_abandoned_ceremony_payload_digest(
 struct TenantRootRootUseAdmissionRowV1 {
     tenant_root_share_epoch: i64,
     activation_receipt_digest_hex: String,
+    attempt_digest_hex: String,
 }
 
 #[derive(Debug, serde::Deserialize)]

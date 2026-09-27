@@ -1427,13 +1427,14 @@ pub trait TenantRootDeriverHostV1:
 pub async fn tenant_root_deriver_admit_bound_work_v1<Host: TenantRootDeriverHostV1>(
     host: &Host,
     authenticated_custody_binding: &router_ab_core::TenantRootCustodyBindingV1,
+    attempt: &crate::tenant_root_role_d1::TenantRootRootUseAttemptV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<()> {
     let store = host.role_store().map_err(|error| {
         crate::map_cloudflare_tenant_root_role_store_error_v1("tenant-root role store lookup", error)
     })?;
     match store
-        .admit_bound(authenticated_custody_binding, now_ms)
+        .admit_bound(authenticated_custody_binding, attempt, now_ms)
         .await
         .map_err(|error| {
             crate::map_cloudflare_tenant_root_role_store_error_v1(
@@ -1448,7 +1449,20 @@ pub async fn tenant_root_deriver_admit_bound_work_v1<Host: TenantRootDeriverHost
         crate::tenant_root_role_d1::TenantRootRootUseAdmissionV1::NotYetActive => {
             Err(tenant_root_epoch_not_yet_active_error_v1())
         }
+        crate::tenant_root_role_d1::TenantRootRootUseAdmissionV1::AttemptConflict => {
+            Err(tenant_root_attempt_conflict_error_v1())
+        }
     }
+}
+
+/// A retry of an admitted attempt must carry its binding apart from the
+/// window. A Yao pair session stays on the epoch it was admitted on; work
+/// after a refresh needs a new ceremony.
+fn tenant_root_attempt_conflict_error_v1() -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::ConflictingPair,
+        "this tenant-root operation was admitted here under a different binding; a new attempt is required",
+    )
 }
 
 /// The binding cannot be used again, but the operation can: admitted afresh,
@@ -1479,6 +1493,7 @@ fn tenant_root_epoch_not_yet_active_error_v1() -> RouterAbProtocolError {
 pub async fn tenant_root_deriver_load_bound_role_share_v1<Host: TenantRootDeriverHostV1>(
     host: &Host,
     authenticated_custody_binding: &router_ab_core::TenantRootCustodyBindingV1,
+    attempt: &crate::tenant_root_role_d1::TenantRootRootUseAttemptV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<VerifiedTenantRootOnlineRoleShareV1> {
     let worker_role = host.worker_role();
@@ -1500,7 +1515,7 @@ pub async fn tenant_root_deriver_load_bound_role_share_v1<Host: TenantRootDerive
         crate::map_cloudflare_tenant_root_role_store_error_v1("tenant-root role store lookup", error)
     })?;
     let stored = match store
-        .load_bound(authenticated_custody_binding, now_ms)
+        .load_bound(authenticated_custody_binding, attempt, now_ms)
         .await
         .map_err(|error| {
             crate::map_cloudflare_tenant_root_role_store_error_v1(
@@ -1514,6 +1529,9 @@ pub async fn tenant_root_deriver_load_bound_role_share_v1<Host: TenantRootDerive
         }
         crate::tenant_root_role_d1::TenantRootBoundShareV1::NotYetActive => {
             return Err(tenant_root_epoch_not_yet_active_error_v1());
+        }
+        crate::tenant_root_role_d1::TenantRootBoundShareV1::AttemptConflict => {
+            return Err(tenant_root_attempt_conflict_error_v1());
         }
     };
     let sealed = stored.into_bound_online_role_share_artifact().map_err(|error| {

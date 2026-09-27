@@ -376,6 +376,7 @@ where
     let tenant_root_share = tenant_root_deriver_load_bound_role_share_v1(
         host,
         authenticated.tenant_root_custody_binding(),
+        &crate::tenant_root_role_d1::TenantRootRootUseAttemptV1::EcdsaOperation,
         now_unix_ms,
     )
     .await?;

@@ -1,7 +1,10 @@
 # R150: identity of a root-use admission
 
-Status: proposed 2026-09-27, for review. Settlement and erasure build on it
+Status: implemented 2026-09-27 (role-store migration 0015), for review.
+Settlement and erasure build on it
 ([drain proposal](./refactor-150-root-retirement-admission.md), step 3).
+Evidence: VM `vm_tenant_root_admission_follows_the_execution_attempt`, with the
+existing admission E2Es unchanged.
 
 ## The question
 
@@ -43,7 +46,7 @@ other binding field is an immutable compared value.
 
 | Protocol | Attempt key (with identity digest, lineage, role) | Why |
 | --- | --- | --- |
-| Yao | wallet and canonical pair session | The pair session is the execution. Both Derivers already key their pair records by it, so settlement joins on it |
+| Yao | canonical pair session | The pair session is the execution. Both Derivers already key their pair records by it, so settlement joins on it. It is unique on its own, so the wallet adds nothing to the key |
 | ECDSA | operation id and epoch | Each Deriver's work is one root read per request and epoch. Re-sending the request after a refresh is a new attempt on the new epoch |
 
 - **Compared on a repeat (the first insert wins):** operation id, pair digest
@@ -64,9 +67,14 @@ other binding field is an immutable compared value.
 - **An ECDSA operation may run once per epoch.** Every epoch's output for one
   request is the same derived key, because refresh preserves the root. Each
   attempt follows the epoch it was admitted on.
-- **The row gains what settlement needs:** the attempt key, the operation id
-  and pair or request digest, the first binding digest and window, and a
-  status that later moves once from `admitted` to settled or cancelled.
+- **The row gains what settlement needs:** the attempt kind and key, a
+  digest of the compared fields (`TenantRootCustodyBindingV1::attempt_digest`,
+  which covers every field but the window, including the operation id derived
+  from the pair or request digest), the first binding digest and window, and a
+  status. The status is `admitted` until settlement moves it once to
+  `settled` or `cancelled`.
+- **A conflicting retry** is refused with `ConflictingPair` and leaves the row
+  as it was.
 
 ## Settlement it enables (step 3, to be implemented next)
 

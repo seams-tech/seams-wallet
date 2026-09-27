@@ -2339,6 +2339,135 @@ fn vm_tenant_root_recovery_kit_restores_into_an_empty_deployment_and_signs(
     Ok(())
 }
 
+/// A root-use admission belongs to one execution attempt
+/// (docs/refactor-150-admission-identity.md). For Ed25519 Yao that is the
+/// pair session.
+///
+/// Deriver B prepares one registration's pair on epoch 1. The same pair
+/// arrives again under a fresh window, as the Router stamps each retry. B
+/// answers from its prepared record, and its admission stays one row. After a
+/// refresh, the same pair bound to epoch 2 is refused as a different binding
+/// for an admitted attempt, and still leaves one row. A fresh registration on
+/// epoch 2 is its own attempt and gets its own row.
+#[test]
+fn vm_tenant_root_admission_follows_the_execution_attempt(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start("vm-tenant-root-admission-attempt")?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("admission-attempt")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let (created_revision, _, _) = stack.active_state(&lineage_b64u)?;
+    let epoch_one_receipt = stack
+        .committed_receipt(&lineage_b64u)?
+        .ok_or("the Router must have committed epoch 1")?;
+    let now_ms = || -> Result<u64, Box<dyn std::error::Error>> {
+        Ok(u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?)
+    };
+    let prepare_b = |request: &router_ab_cloudflare::CloudflareEd25519YaoPairPrepareRequestV1| {
+        post_json_to_path_with_headers(
+            &stack.deriver_b_url,
+            router_ab_dev::LOCAL_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
+            request,
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+        )
+    };
+    let admitted_rows_b = || -> rusqlite::Result<Vec<(String, String, i64)>> {
+        stack
+            .b_store
+            .prepare(
+                "SELECT attempt_kind, attempt_key_hex, tenant_root_share_epoch
+                 FROM tenant_root_root_use_admissions WHERE custody_lineage_b64u = ?1
+                 ORDER BY tenant_root_share_epoch, attempt_key_hex",
+            )?
+            .query_map([&lineage_b64u], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .collect()
+    };
+
+    // B prepares the pair on epoch 1.
+    let registration = stack.registration(&identity, &lineage_b64u)?;
+    let first = direct_deriver_b_preparation_for_v1(
+        &stack,
+        &identity,
+        &registration,
+        &epoch_one_receipt,
+        now_ms()?,
+    )?;
+    let session_hex = hex::encode(first.pair_binding.session());
+    let (first_status, first_body) = prepare_b(&first)?;
+    assert_eq!(first_status, 200, "{first_body}");
+    assert_eq!(
+        admitted_rows_b()?,
+        vec![("ed25519_yao_pair_session".to_owned(), session_hex.clone(), 1)]
+    );
+
+    // A retry of the same attempt under a fresh window finds its admission.
+    thread::sleep(Duration::from_millis(1_100));
+    let retried = direct_deriver_b_preparation_for_v1(
+        &stack,
+        &identity,
+        &registration,
+        &epoch_one_receipt,
+        now_ms()?,
+    )?;
+    assert_eq!(retried.pair_binding, first.pair_binding);
+    assert_ne!(
+        retried.tenant_root.custody_binding, first.tenant_root.custody_binding,
+        "the retry carries a restamped binding"
+    );
+    let (retry_status, retry_body) = prepare_b(&retried)?;
+    assert_eq!(retry_status, 200, "{retry_body}");
+    assert_eq!(retry_body, first_body, "B answers the retry from its prepared record");
+    assert_eq!(admitted_rows_b()?.len(), 1, "one attempt, one admission");
+
+    // After a refresh, the same pair bound to epoch 2 is a different binding.
+    let (refresh_status, refresh_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-admission-attempt", created_revision)?;
+    assert_eq!(refresh_status, 200, "{refresh_body}");
+    let epoch_two_receipt = stack
+        .committed_receipt(&lineage_b64u)?
+        .ok_or("the Router must have committed epoch 2")?;
+    let moved = direct_deriver_b_preparation_for_v1(
+        &stack,
+        &identity,
+        &registration,
+        &epoch_two_receipt,
+        now_ms()?,
+    )?;
+    let (moved_status, moved_body) = prepare_b(&moved)?;
+    // The VM Yao worker answers any refusal with 400; the code names it.
+    assert_eq!(moved_status, 400, "{moved_body}");
+    assert!(
+        moved_body.contains("ConflictingPair: this tenant-root operation was admitted here under a different binding"),
+        "{moved_body}"
+    );
+    assert_eq!(
+        admitted_rows_b()?,
+        vec![("ed25519_yao_pair_session".to_owned(), session_hex.clone(), 1)]
+    );
+
+    // A fresh registration on epoch 2 is its own attempt.
+    let fresh = direct_deriver_b_preparation_v1(&stack, &identity, &lineage_b64u, &epoch_two_receipt)?;
+    let (fresh_status, fresh_body) = prepare_b(&fresh)?;
+    assert_eq!(fresh_status, 200, "{fresh_body}");
+    assert_eq!(stack.admissions(&lineage_b64u)?, (vec![], vec![1, 2]));
+
+    println!(
+        "R150_VM_TENANT_ROOT_ADMISSION_ATTEMPT_E2E {}",
+        json!({
+            "attempt_key": "ed25519_yao_pair_session",
+            "prepared_on_epoch_1": first_status,
+            "retry_with_restamped_window": [retry_status, "same answer", "one admission row"],
+            "refresh_status": refresh_status,
+            "same_pair_bound_to_epoch_2": [moved_status, "ConflictingPair: admitted here under a different binding", "one admission row"],
+            "fresh_registration_on_epoch_2": fresh_status,
+            "admissions_at_deriver_b": [1, 2],
+        })
+    );
+    Ok(())
+}
+
 /// Work admitted before a refresh finishes on the epoch it started with. A
 /// registration is admitted and prepared while epoch 1 is active, then held
 /// before Deriver A reads it. A manual refresh then commits epoch 2 and both
@@ -2726,6 +2855,20 @@ fn direct_deriver_b_preparation_v1(
 {
     let registration = stack.registration(identity, lineage)?;
     let now_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
+    direct_deriver_b_preparation_for_v1(stack, identity, &registration, receipt_b64u, now_ms)
+}
+
+/// Deriver B's preparation of one registration's pair, bound to the receipt
+/// given and stamped with a window opening at `now_ms`, as the Router stamps
+/// each attempt.
+fn direct_deriver_b_preparation_for_v1(
+    stack: &RecoveryStackV1,
+    identity: &TenantRootIdentityV1,
+    registration: &CloudflareRouterEd25519YaoExecuteRequestV2,
+    receipt_b64u: &str,
+    now_ms: u64,
+) -> Result<router_ab_cloudflare::CloudflareEd25519YaoPairPrepareRequestV1, Box<dyn std::error::Error>>
+{
     let request = registration.target.clone().into_execute_request(
         PublicDigest32::new([0x5a; 32]),
         now_ms,

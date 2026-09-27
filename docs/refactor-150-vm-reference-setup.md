@@ -208,6 +208,14 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
 - `vm_tenant_root_binding_unused_before_its_epoch_closes_starts_nothing`
   prints `R150_VM_TENANT_ROOT_UNUSED_BINDING_E2E`: a preparation held across
   a refresh is refused by the Deriver that had not admitted it.
+- `vm_tenant_root_admission_follows_the_execution_attempt` prints
+  `R150_VM_TENANT_ROOT_ADMISSION_ATTEMPT_E2E`: Deriver B's admission belongs to
+  the Yao pair session.
+  - A retry of the pair under a restamped window is answered from B's
+    prepared record and keeps one admission row.
+  - After a refresh, the same pair bound to epoch 2 is refused as
+    `ConflictingPair`.
+  - A fresh registration on epoch 2 gets its own row.
 - `vm_tenant_root_new_work_waits_for_the_committed_epoch_delivery` prints
   `R150_VM_TENANT_ROOT_DELIVERY_GATE_E2E`: new work is refused with HTTP 503
   while a Deriver lacks the committed epoch, and admitted once delivery

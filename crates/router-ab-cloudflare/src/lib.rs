@@ -173,6 +173,7 @@ pub use tenant_root_role_runtime::{
     CloudflareDeriverTenantRootRestoreRoleImportKeyRequestV1,
     CloudflareDeriverTenantRootRestoreSessionCleanupRequestV1,
 };
+pub use tenant_root_role_d1::TenantRootRootUseAttemptV1;
 pub use tenant_root_restore_refresh_runtime::{
     tenant_root_deriver_restore_refresh_v1, CloudflareDeriverTenantRootRestoreRefreshRequestV1,
 };
@@ -5005,10 +5006,12 @@ pub(crate) async fn load_cloudflare_bound_tenant_root_role_share_v1(
     env: &worker::Env,
     worker_role: CloudflareWorkerRoleV1,
     authenticated_custody_binding: &TenantRootCustodyBindingV1,
+    attempt: &tenant_root_role_d1::TenantRootRootUseAttemptV1,
 ) -> RouterAbProtocolResult<VerifiedTenantRootOnlineRoleShareV1> {
     tenant_root_role_runtime::tenant_root_deriver_load_bound_role_share_v1(
         &tenant_root_role_runtime::CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
         authenticated_custody_binding,
+        attempt,
         cloudflare_now_unix_ms_v1()?,
     )
     .await

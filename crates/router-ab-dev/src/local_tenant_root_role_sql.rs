@@ -161,6 +161,7 @@ pub const LOCAL_DERIVER_A_ROLE_PRIVATE_MIGRATIONS_V1: &[LocalSqliteMigrationV1] 
     ("0012_tenant_root_creation_tombstones.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0012_tenant_root_creation_tombstones.sql")),
     ("0013_tenant_root_root_use_admissions.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0013_tenant_root_root_use_admissions.sql")),
     ("0014_tenant_root_refresh_supersessions.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0014_tenant_root_refresh_supersessions.sql")),
+    ("0015_tenant_root_root_use_attempts.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-a/0015_tenant_root_root_use_attempts.sql")),
 ];
 /// Deriver B's role-private schema: the same migrations its Cloudflare D1
 /// database runs.
@@ -179,6 +180,7 @@ pub const LOCAL_DERIVER_B_ROLE_PRIVATE_MIGRATIONS_V1: &[LocalSqliteMigrationV1] 
     ("0012_tenant_root_creation_tombstones.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0012_tenant_root_creation_tombstones.sql")),
     ("0013_tenant_root_root_use_admissions.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0013_tenant_root_root_use_admissions.sql")),
     ("0014_tenant_root_refresh_supersessions.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0014_tenant_root_refresh_supersessions.sql")),
+    ("0015_tenant_root_root_use_attempts.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0015_tenant_root_root_use_attempts.sql")),
 ];
 /// The VM Router's tenant-root creation-state schema.
 pub const LOCAL_ROUTER_CREATION_STATE_MIGRATIONS_V1: &[LocalSqliteMigrationV1] = &[

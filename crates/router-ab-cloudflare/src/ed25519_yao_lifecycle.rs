@@ -4217,7 +4217,14 @@ async fn load_ed25519_yao_tenant_root_role_share_v2(
         ));
     }
     let role_share =
-        load_cloudflare_bound_tenant_root_role_share_v1(env, worker_role, &custody_binding)
+        load_cloudflare_bound_tenant_root_role_share_v1(
+            env,
+            worker_role,
+            &custody_binding,
+            &crate::tenant_root_role_d1::TenantRootRootUseAttemptV1::Ed25519YaoPairSession {
+                session: pair_binding.session(),
+            },
+        )
             .await?;
     let root_metadata_digest = *role_share
         .binding()

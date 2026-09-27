@@ -1040,6 +1040,7 @@ async fn preload_strict_deriver_request_with_authenticated_binding_v2(
         env,
         runtime.worker_role(),
         authenticated_request.tenant_root_custody_binding(),
+        &crate::tenant_root_role_d1::TenantRootRootUseAttemptV1::EcdsaOperation,
     )
     .await?;
     Ok(StrictDeriverPreloadedRequestV2 {

@@ -1602,6 +1602,9 @@ pub fn admit_local_deriver_tenant_root_work_v1(
     futures::executor::block_on(router_ab_cloudflare::tenant_root_deriver_admit_bound_work_v1(
         &LocalTenantRootDeriverHostV1::new(config),
         &custody,
+        &router_ab_cloudflare::TenantRootRootUseAttemptV1::Ed25519YaoPairSession {
+            session: pair_binding.session(),
+        },
         now_ms,
     ))
 }
@@ -1619,6 +1622,9 @@ pub fn load_local_deriver_tenant_root_role_share_v1(
         router_ab_cloudflare::tenant_root_deriver_load_bound_role_share_v1(
             &LocalTenantRootDeriverHostV1::new(config),
             &custody,
+            &router_ab_cloudflare::TenantRootRootUseAttemptV1::Ed25519YaoPairSession {
+                session: pair_binding.session(),
+            },
             now_ms,
         ),
     )?;

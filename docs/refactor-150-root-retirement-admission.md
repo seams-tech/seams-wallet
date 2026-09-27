@@ -227,10 +227,12 @@ retired share may be erased only once no admitted work can still need it:
    material a request names, but not that its operation began before the
    epoch closed. So each Deriver records the admission itself, in its role
    store (`tenant_root_root_use_admissions`, migration 0013).
-   - **Admitting:** `admit_bound` inserts one row per operation, keyed by the
-     custody binding's digest. The insert is conditional on the binding's
-     epoch being the active row, so it is ordered exactly against the refresh
-     swap in the same store.
+   - **Admitting:** `admit_bound` inserts one row per execution attempt: a
+     Yao pair session, or an ECDSA operation on one epoch
+     ([admission identity](./refactor-150-admission-identity.md), migration
+     0015). The insert is conditional on the binding's epoch being the active
+     row, so it is ordered exactly against the refresh swap in the same store.
+     A retry of the attempt must match its binding apart from the window.
    - **When it runs:** at the operation's first step at that Deriver. The Yao
      preparation admits on both hosts: on Cloudflare its root read admits, and
      on the VM the prepare handler admits explicitly.
