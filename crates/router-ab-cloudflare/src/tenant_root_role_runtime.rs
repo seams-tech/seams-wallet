@@ -1862,7 +1862,6 @@ fn tenant_root_managed_restore_role_v1(
     }
 }
 
-#[cfg(feature = "workers-rs")]
 const fn tenant_root_protocol_role_for_managed_restore_v1(
     role: TenantRootManagedRestoreRoleV1,
 ) -> TwoPartyDeriverRole {
@@ -1872,7 +1871,6 @@ const fn tenant_root_protocol_role_for_managed_restore_v1(
     }
 }
 
-#[cfg(feature = "workers-rs")]
 fn tenant_root_managed_restore_staging_scope_v1(
     public_state: &VerifiedTenantRootManagedRestoreRoleUnavailableV1,
     capability: &VerifiedTenantRootManagedRestoreCapabilityV1,
@@ -6571,13 +6569,12 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_cleanup_v1(
 /// local role derives the only permitted backup coordinates, opens the backup,
 /// and reseals the share into a pending D1 row. This path never calls an
 /// activation transition; forward refresh is the only later activation input.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_v1(
-    env: &worker::Env,
-    worker_role: crate::CloudflareWorkerRoleV1,
+pub async fn tenant_root_deriver_managed_restore_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
     request: CloudflareDeriverTenantRootManagedRestoreRequestV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootManagedRestoreResponseV1> {
+    let worker_role = host.worker_role();
     let role = tenant_root_creation_protocol_role_v1(worker_role)?;
     let managed_role = tenant_root_managed_restore_role_v1(role);
     let public_state_bytes = crate::decode_base64url_bytes_v1(
@@ -6589,9 +6586,8 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_v1(
             &public_state_bytes,
         )
         .map_err(candidate_derivation_error)?;
-    let reader = crate::CloudflareWorkerEnvReaderV1::new(env);
     let issuer_keys =
-        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(&reader)?;
+        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(host.env())?;
     let issuer_key_id = signed_public_state.issuer_key_id().to_owned();
     let issuer_key = issuer_keys
         .for_issuer_key_id(&issuer_key_id)
@@ -6655,20 +6651,14 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_v1(
             .deriver_b(),
     };
     let (_, role_signer) =
-        crate::env::load_cloudflare_tenant_root_creation_role_signing_key_v1(env, worker_role)?;
+        crate::env::load_tenant_root_creation_role_signing_key_v1(worker_role, host.env())?;
     if role_signer.role() != role {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ForbiddenLocalBinding,
             "tenant-root managed-restore signer does not belong to this Deriver",
         ));
     }
-    let provider_config = tenant_root_role_runtime_provider_config_from_env_v1(env, worker_role)?;
-    let backup_store =
-        crate::tenant_root_managed_backup_r2::CloudflareTenantRootManagedBackupStoreV1::from_env(
-            env,
-            managed_role,
-        )
-        .map_err(|error| tenant_root_store_error_v1("tenant-root backup store lookup", error))?;
+    let provider_config = tenant_root_role_runtime_provider_config_v1(worker_role, host.env())?;
     let backup_coordinates =
         crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1::new(
             capability.identity_digest(),
@@ -6677,12 +6667,11 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_v1(
             capability.epoch(),
         );
     let role_verifying_key = role_signer.verifying_key_bytes();
-    let managed_backup = backup_store
-        .get_verified(backup_coordinates, &role_verifying_key)
-        .await
-        .map_err(|error| tenant_root_store_error_v1("tenant-root managed backup lookup", error))?;
+    let managed_backup = host
+        .get_managed_backup(backup_coordinates, &role_verifying_key)
+        .await?;
     let mut provider =
-        crate::env::load_cloudflare_tenant_root_operational_rotation_provider_v1(env, worker_role)?;
+        crate::env::load_tenant_root_operational_rotation_provider_v1(worker_role, host.env())?;
     let restored_share = open_tenant_root_managed_backup_v1(managed_backup, &mut provider)
         .await
         .map_err(candidate_derivation_error)?;
@@ -6746,7 +6735,8 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_v1(
     .map_err(|error| {
         tenant_root_store_error_v1("tenant-root managed-restore staging input", error)
     })?;
-    let store = CloudflareTenantRootRoleShareStoreV1::from_env(env)
+    let store = host
+        .role_store()
         .map_err(|error| tenant_root_store_error_v1("tenant-root role store lookup", error))?;
     let decision = store
         .reserve_managed_restore_staging(staging, now_ms)
@@ -6832,19 +6822,33 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_v1(
     })
 }
 
+#[cfg(feature = "workers-rs")]
+pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_v1(
+    env: &worker::Env,
+    worker_role: crate::CloudflareWorkerRoleV1,
+    request: CloudflareDeriverTenantRootManagedRestoreRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootManagedRestoreResponseV1> {
+    tenant_root_deriver_managed_restore_v1(
+        &CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
+        request,
+        now_ms,
+    )
+    .await
+}
+
 /// Executes the mandatory forward refresh for one staged managed restore.
 ///
 /// The previous active pair is reconstructed from the independently verified
 /// public state, while the current role's sealed source and all restore
 /// provenance are loaded from the authenticated pending D1 row. The source is
 /// opened only for this refresh and cannot enter a normal signing path.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_forward_refresh_v1(
-    env: &worker::Env,
-    worker_role: crate::CloudflareWorkerRoleV1,
+pub async fn tenant_root_deriver_managed_restore_forward_refresh_v1<Host: TenantRootDeriverHostV1>(
+    host: &Host,
     request: CloudflareDeriverTenantRootManagedRestoreForwardRefreshRequestV1,
     now_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRefreshResponseV1> {
+    let worker_role = host.worker_role();
     let role = tenant_root_creation_protocol_role_v1(worker_role)?;
     let managed_role = tenant_root_managed_restore_role_v1(role);
     let public_state_bytes = crate::decode_base64url_bytes_v1(
@@ -6856,9 +6860,9 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_forwar
             &public_state_bytes,
         )
         .map_err(candidate_derivation_error)?;
-    let reader = crate::CloudflareWorkerEnvReaderV1::new(env);
+    let reader = host.env();
     let issuer_keys =
-        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(&reader)?;
+        crate::env::parse_cloudflare_tenant_root_control_plane_issuer_verifying_keys_v1(reader)?;
     let issuer_key_id = signed_public_state.issuer_key_id().to_owned();
     let issuer_key = issuer_keys
         .for_issuer_key_id(&issuer_key_id)
@@ -6934,12 +6938,8 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_forwar
     let context = TenantRootCeremonyContextV1::decode_canonical_bytes(&context_bytes)
         .map_err(candidate_derivation_error)?;
     validate_raw_refresh_context_binding_v1(&raw_command, &context, role)?;
-    let (authority_id, _) =
-        crate::durable_object::tenant_root_creation::derive_tenant_root_creation_authority_object_v1(
-            env,
-            raw_command.identity_digest(),
-            raw_command.custody_lineage(),
-        )?;
+    let authority_id =
+        host.creation_authority_id(raw_command.identity_digest(), raw_command.custody_lineage())?;
     if raw_command.authority_id() != authority_id {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ForbiddenLocalBinding,
@@ -6948,9 +6948,9 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_forwar
     }
 
     let role_keys =
-        crate::env::parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(&reader)?;
+        crate::env::parse_cloudflare_tenant_root_creation_role_verifying_keys_v1(reader)?;
     let (_, role_signer) =
-        crate::env::load_cloudflare_tenant_root_creation_role_signing_key_v1(env, worker_role)?;
+        crate::env::load_tenant_root_creation_role_signing_key_v1(worker_role, reader)?;
     if context.signing_key_id(role) != role_signer.signing_key_id() {
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::ForbiddenLocalBinding,
@@ -6977,7 +6977,8 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_forwar
         )
         .map_err(candidate_derivation_error)?;
 
-    let store = CloudflareTenantRootRoleShareStoreV1::from_env(env)
+    let store = host
+        .role_store()
         .map_err(|error| tenant_root_store_error_v1("tenant-root role store lookup", error))?;
     let (admission, replay_seed) =
         match store
@@ -7019,7 +7020,7 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_forwar
                 durable_state,
             } => {
                 return resume_tenant_root_refresh_completion_v1(
-                    &CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
+                    host,
                     role,
                     &command,
                     admission,
@@ -7036,7 +7037,7 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_forwar
                 durable_state,
             } => {
                 return replay_completed_tenant_root_refresh_v1(
-                    &CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
+                    host,
                     role,
                     &command,
                     receipt_bytes,
@@ -7104,14 +7105,8 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_forwar
         ));
     }
 
-    let backup_store =
-        crate::tenant_root_managed_backup_r2::CloudflareTenantRootManagedBackupStoreV1::from_env(
-            env,
-            managed_role,
-        )
-        .map_err(|error| tenant_root_store_error_v1("tenant-root backup store lookup", error))?;
-    let managed_backup = backup_store
-        .get_verified(
+    let managed_backup = host
+        .get_managed_backup(
             crate::tenant_root_managed_backup_r2::TenantRootManagedBackupObjectCoordinatesV1::new(
                 capability.identity_digest(),
                 capability.custody_lineage(),
@@ -7120,13 +7115,7 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_forwar
             ),
             &role_signer.verifying_key_bytes(),
         )
-        .await
-        .map_err(|error| {
-            tenant_root_store_error_v1(
-                "tenant-root managed-restore forward-refresh backup lookup",
-                error,
-            )
-        })?;
+        .await?;
     let backup_binding = managed_backup.binding();
     if backup_binding.identity_digest() != capability.identity_digest()
         || backup_binding.custody_lineage() != capability.custody_lineage()
@@ -7171,7 +7160,7 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_forwar
     let active_binding = expected_binding.clone();
     let identity = verified_public_state.state().active().identity().clone();
     execute_tenant_root_refresh_from_source_v1(
-        &CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
+        host,
         role,
         command,
         context,
@@ -7186,6 +7175,21 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_forwar
         &role_keys,
         &role_signer,
         &store,
+    )
+    .await
+}
+
+#[cfg(feature = "workers-rs")]
+pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_forward_refresh_v1(
+    env: &worker::Env,
+    worker_role: crate::CloudflareWorkerRoleV1,
+    request: CloudflareDeriverTenantRootManagedRestoreForwardRefreshRequestV1,
+    now_ms: u64,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRefreshResponseV1> {
+    tenant_root_deriver_managed_restore_forward_refresh_v1(
+        &CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
+        request,
+        now_ms,
     )
     .await
 }

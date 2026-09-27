@@ -148,6 +148,20 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
   schedule, the Router's scheduler refreshes a root once it is due. A Router
   restarted while that scheduled refresh is in flight completes the same
   operation.
+- `vm_tenant_root_restored_from_its_managed_backup_signs_refreshes_and_replays`
+  prints `R150_VM_TENANT_ROOT_MANAGED_RESTORE_E2E`: Deriver A loses its
+  active share and the root is restored from A's managed backup. The operator
+  reserves a challenge at the control plane, signs it with the operations and
+  Deriver A custody keys from the operator file, and the control plane issues
+  the restore capability; exact retries return identical bytes. The Router
+  stages A's share and runs the forward refresh. A new wallet registers on the
+  restored root and signs a NEAR transaction; after another refresh a second
+  wallet registers on the new epoch and signs; the original restore, retried,
+  returns its outcome.
+  - Not yet handled: a restore reservation that is never authorized blocks
+    refresh with no expiry, as on Cloudflare. It predates this work; the
+    retired fence of a completed restore no longer shields against a stray new
+    challenge.
 - `vm_tenant_root_work_admitted_before_a_refresh_finishes_on_its_epoch`
   prints `R150_VM_TENANT_ROOT_WORK_ACROSS_REFRESH_E2E`: a Yao registration
   admitted on epoch 1 is held while a refresh commits epoch 2 and both roles
@@ -217,9 +231,9 @@ operation, its contracts and what is needed.
 
 - ECDSA activation refresh. Linked-device ECDSA signing fails closed.
 - Device linking.
-- Tenant-root status, managed restore, recovery-package backup and restore,
-  source retirement and cutover. Manual and scheduled refresh are served, with
-  the same Router, Deriver and control-plane code as Cloudflare.
+- Tenant-root status, recovery-package backup and restore, source retirement
+  and cutover. Manual and scheduled refresh and managed restore are served,
+  with the same Router, Deriver and control-plane code as Cloudflare.
 - Linked-device signing.
 - Google Cloud KMS managed backup (HPKE only).
 - Router and SigningWorker prewarm, which keeps Worker isolates warm and has no

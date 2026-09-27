@@ -7,7 +7,9 @@
 //! applied to each response live here once, so both hosts run the same
 //! protocol.
 
-use router_ab_core::{TenantRootCommandTerminalReceiptV1, TwoPartyDeriverRole};
+use router_ab_core::{
+    TenantRootCommandTerminalReceiptV1, TenantRootLifecycleReceiptDigestV1, TwoPartyDeriverRole,
+};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::tenant_root_control_plane::{
@@ -34,6 +36,10 @@ use crate::tenant_root_role_runtime::{
     CloudflareDeriverTenantRootCreateRoleShareResponseV1,
     CloudflareDeriverTenantRootInitialActivationRequestV1,
     CloudflareDeriverTenantRootInitialActivationResponseV1,
+    CloudflareDeriverTenantRootManagedRestoreForwardRefreshRequestV1,
+    CloudflareDeriverTenantRootManagedRestoreRequestV1,
+    CloudflareDeriverTenantRootManagedRestoreResponseV1,
+    CloudflareDeriverTenantRootManagedRestoreStatusV1,
     CloudflareDeriverTenantRootRefreshActivationRequestV1,
     CloudflareDeriverTenantRootRefreshActivationResponseV1,
     CloudflareDeriverTenantRootRefreshRequestV1, CloudflareDeriverTenantRootRefreshResponseV1,
@@ -45,6 +51,8 @@ use crate::{
     CLOUDFLARE_DERIVER_TENANT_ROOT_CREATION_EVIDENCE_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_DERIVER_TENANT_ROOT_CREATE_ROLE_SHARE_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_DERIVER_TENANT_ROOT_INITIAL_ACTIVATION_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_DERIVER_TENANT_ROOT_MANAGED_RESTORE_FORWARD_REFRESH_PRIVATE_REQUEST_PATH,
+    CLOUDFLARE_DERIVER_TENANT_ROOT_MANAGED_RESTORE_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_ACTIVATION_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_DERIVER_TENANT_ROOT_REFRESH_PRIVATE_REQUEST_PATH,
     CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH,
@@ -312,6 +320,85 @@ pub async fn tenant_root_deriver_refresh_call_v1(
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             "tenant-root refresh response names the wrong role",
+        ));
+    }
+    Ok(response)
+}
+
+/// Stages one issuer-authorized managed restore at the unavailable Deriver: its
+/// share comes back from its managed backup as a pending row, not yet active.
+/// Checks the Deriver staged exactly this restore's capability and completed.
+pub async fn tenant_root_deriver_managed_restore_call_v1(
+    transport: &impl TenantRootServiceTransportV1,
+    role: TwoPartyDeriverRole,
+    request: &CloudflareDeriverTenantRootManagedRestoreRequestV1,
+    expected_capability_digest: TenantRootLifecycleReceiptDigestV1,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootManagedRestoreResponseV1> {
+    let response: CloudflareDeriverTenantRootManagedRestoreResponseV1 = transport
+        .post_private_json(
+            TenantRootServiceTargetV1::Deriver(role),
+            CLOUDFLARE_DERIVER_TENANT_ROOT_MANAGED_RESTORE_PRIVATE_REQUEST_PATH,
+            "tenant-root managed-restore staging request",
+            request,
+            None,
+        )
+        .await?;
+    if response.role != CloudflareTenantRootCreateRoleV1::from_protocol(role)
+        || response.status
+            != CloudflareDeriverTenantRootManagedRestoreStatusV1::StagedForForwardRefresh
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            "tenant-root managed-restore response does not confirm staged forward refresh",
+        ));
+    }
+    let capability_digest = decode_base64url_bytes_v1(
+        "tenant-root managed-restore staging capability digest",
+        &response.capability_digest_b64u,
+    )?;
+    if capability_digest.as_slice() != expected_capability_digest.as_bytes() {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "tenant-root managed-restore staging response names a different capability",
+        ));
+    }
+    let terminal_receipt = decode_base64url_bytes_v1(
+        "tenant-root managed-restore staging terminal receipt",
+        &response.staging_terminal_receipt_b64u,
+    )?;
+    if !matches!(
+        TenantRootCommandTerminalReceiptV1::decode_canonical_bytes(&terminal_receipt)
+            .map_err(crate::map_root_share_to_protocol)?,
+        TenantRootCommandTerminalReceiptV1::Success(_)
+    ) {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLifecycleState,
+            "tenant-root managed-restore staging did not complete successfully",
+        ));
+    }
+    Ok(response)
+}
+
+/// Executes the forward refresh of a restored role share at its Deriver and
+/// checks the Deriver's role.
+pub async fn tenant_root_deriver_managed_restore_forward_refresh_call_v1(
+    transport: &impl TenantRootServiceTransportV1,
+    role: TwoPartyDeriverRole,
+    request: &CloudflareDeriverTenantRootManagedRestoreForwardRefreshRequestV1,
+) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRefreshResponseV1> {
+    let response: CloudflareDeriverTenantRootRefreshResponseV1 = transport
+        .post_private_json(
+            TenantRootServiceTargetV1::Deriver(role),
+            CLOUDFLARE_DERIVER_TENANT_ROOT_MANAGED_RESTORE_FORWARD_REFRESH_PRIVATE_REQUEST_PATH,
+            "tenant-root managed-restore forward-refresh request",
+            request,
+            None,
+        )
+        .await?;
+    if response.role != CloudflareTenantRootCreateRoleV1::from_protocol(role) {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+            "tenant-root managed-restore forward-refresh response names the wrong role",
         ));
     }
     Ok(response)

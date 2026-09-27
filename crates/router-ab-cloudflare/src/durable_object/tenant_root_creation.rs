@@ -3522,6 +3522,51 @@ pub async fn tenant_root_creation_active_state_with_revision_read_call_v1(
     )
 }
 
+/// Reads the outcome of one completed managed restore, named by its exact
+/// issuer-signed public state and capability, with the issuer-verified active
+/// state. The outcome is `None` until that restore's forward refresh commits.
+pub async fn tenant_root_managed_restore_completion_read_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
+    identity_digest: TenantRootIdentityDigestV1,
+    custody_lineage: TenantRootCustodyLineageId,
+    public_state_b64u: String,
+    capability_b64u: String,
+) -> RouterAbProtocolResult<(
+    Option<CloudflareTenantRootRefreshActivationResponseV1>,
+    CloudflareVerifiedTenantRootActiveStateV1,
+)> {
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
+    let request =
+        CloudflareTenantRootCreationActiveStateReadRequestV1::ReadManagedRestoreCompletion {
+            identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
+            custody_lineage_b64u: custody_lineage.to_base64url(),
+            public_state_b64u,
+            capability_b64u,
+        };
+    let mut response: CloudflareTenantRootCreationActiveStateReadResponseV1 = state
+        .creation_state_call(
+            authority_id,
+            identity_digest,
+            custody_lineage,
+            CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
+            "tenant-root managed-restore completion read",
+            &request,
+            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
+            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1,
+        )
+        .await?;
+    let completed = response.managed_restore_completion.take();
+    let active = decode_verified_active_state_response_v1(
+        issuer_keys,
+        authority_id,
+        identity_digest,
+        custody_lineage,
+        response,
+    )?;
+    Ok((completed, active))
+}
+
 /// Reads the authoritative active receipt together with its current lifecycle revision.
 #[cfg(feature = "workers-rs")]
 pub(crate) async fn execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1(
@@ -3542,26 +3587,24 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_creation_active_state_
     .await
 }
 
-/// Reserves one managed-restore authorization at the Router-owned Durable
-/// Object and returns the exact persisted challenge. A terminal retry returns
+/// Reserves one managed-restore authorization against the Router's active
+/// state and returns the exact persisted challenge. A terminal retry returns
 /// the challenge from that terminal fence.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_managed_restore_authorization_challenge_call_v1(
-    env: &worker::Env,
+pub async fn tenant_root_managed_restore_reservation_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
     authorization: CloudflareTenantRootManagedRestoreAuthorizationRequestV1,
 ) -> RouterAbProtocolResult<CloudflareTenantRootManagedRestoreAuthorizationChallengeV1> {
-    let (authority_id, _) =
-        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
     let request = CloudflareTenantRootCreationActiveStateReadRequestV1::ReserveManagedRestore {
         identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
         custody_lineage_b64u: custody_lineage.to_base64url(),
         authorization,
     };
-    let response: CloudflareTenantRootCreationActiveStateReadResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+    let response: CloudflareTenantRootCreationActiveStateReadResponseV1 = state
+        .creation_state_call(
             authority_id,
             identity_digest,
             custody_lineage,
@@ -3573,7 +3616,7 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_managed_restore_author
         )
         .await?;
     let active = decode_verified_active_state_response_v1(
-        &worker_issuer_verifying_keys_v1(env)?,
+        issuer_keys,
         authority_id,
         identity_digest,
         custody_lineage,
@@ -3589,72 +3632,23 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_managed_restore_author
     }
 }
 
-/// Reads the outcome of one completed managed restore, named by its exact
-/// issuer-signed public state and capability, with the issuer-verified active
-/// state.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_managed_restore_completion_read_call_v1(
-    env: &worker::Env,
-    identity_digest: TenantRootIdentityDigestV1,
-    custody_lineage: TenantRootCustodyLineageId,
-    public_state_b64u: String,
-    capability_b64u: String,
-) -> RouterAbProtocolResult<(
-    Option<CloudflareTenantRootRefreshActivationResponseV1>,
-    CloudflareVerifiedTenantRootActiveStateV1,
-)> {
-    let (authority_id, _) =
-        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
-    let request =
-        CloudflareTenantRootCreationActiveStateReadRequestV1::ReadManagedRestoreCompletion {
-            identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
-            custody_lineage_b64u: custody_lineage.to_base64url(),
-            public_state_b64u,
-            capability_b64u,
-        };
-    let mut response: CloudflareTenantRootCreationActiveStateReadResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
-            authority_id,
-            identity_digest,
-            custody_lineage,
-            CLOUDFLARE_TENANT_ROOT_CREATION_ACTIVE_STATE_READ_PATH,
-            "tenant-root managed-restore completion read",
-            &request,
-            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_REQUEST_MAX_BYTES_V1,
-            TENANT_ROOT_CREATION_ACTIVE_STATE_READ_RESPONSE_MAX_BYTES_V1,
-        )
-        .await?;
-    let completed = response.managed_restore_completion.take();
-    let active = decode_verified_active_state_response_v1(
-        &worker_issuer_verifying_keys_v1(env)?,
-        authority_id,
-        identity_digest,
-        custody_lineage,
-        response,
-    )?;
-    Ok((completed, active))
-}
-
-/// Checkpoints the exact issuer-signed managed-restore artifacts at the
-/// Router-owned Durable Object and returns the issuer-verified active state.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_managed_restore_authorization_checkpoint_call_v1(
-    env: &worker::Env,
+/// Checkpoints the exact issuer-signed managed-restore artifacts in the
+/// Router's creation state and returns the issuer-verified active state.
+pub async fn tenant_root_managed_restore_checkpoint_call_v1(
+    state: &impl TenantRootCreationStateTransportV1,
+    issuer_keys: &BTreeMap<String, [u8; 32]>,
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
     checkpoint: CloudflareTenantRootManagedRestoreAuthorizationCheckpointV1,
 ) -> RouterAbProtocolResult<CloudflareVerifiedTenantRootActiveStateV1> {
-    let (authority_id, _) =
-        derive_tenant_root_creation_authority_object_v1(env, identity_digest, custody_lineage)?;
+    let authority_id = state.creation_authority_id(identity_digest, custody_lineage)?;
     let request = CloudflareTenantRootCreationActiveStateReadRequestV1::CheckpointManagedRestore {
         identity_digest_b64u: encode_base64url_bytes_v1(identity_digest.as_bytes()),
         custody_lineage_b64u: custody_lineage.to_base64url(),
         checkpoint,
     };
-    let response: CloudflareTenantRootCreationActiveStateReadResponseV1 =
-        execute_cloudflare_router_tenant_root_creation_private_call_v1(
-            env,
+    let response: CloudflareTenantRootCreationActiveStateReadResponseV1 = state
+        .creation_state_call(
             authority_id,
             identity_digest,
             custody_lineage,
@@ -3666,7 +3660,7 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_managed_restore_author
         )
         .await?;
     decode_verified_active_state_response_v1(
-        &worker_issuer_verifying_keys_v1(env)?,
+        issuer_keys,
         authority_id,
         identity_digest,
         custody_lineage,

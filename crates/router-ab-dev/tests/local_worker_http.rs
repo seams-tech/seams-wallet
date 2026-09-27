@@ -1679,6 +1679,131 @@ fn vm_tenant_root_scheduled_refresh_runs_and_resumes_after_a_router_restart(
     Ok(())
 }
 
+/// Deriver A loses its active share, and the root is restored from A's managed
+/// backup on the VM through the same control-plane, Router and Deriver code as
+/// Cloudflare. The operator reserves a challenge; the operations authority and
+/// A's custody authority both sign it; the control plane issues the restore
+/// capability; the Router stages A's share from its backup and runs the
+/// mandatory forward refresh. A wallet registered on the restored root signs;
+/// another refresh follows and a second wallet signs; and an exact retry of
+/// the original restore still returns its outcome.
+#[test]
+fn vm_tenant_root_restored_from_its_managed_backup_signs_refreshes_and_replays(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start("vm-tenant-root-managed-restore")?;
+    let mut signing_worker = stack.start_signing_worker()?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("managed-restore")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
+    let identity_digest_b64u =
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(identity.digest()?.as_bytes());
+
+    // Deriver A loses its active share; its managed backup remains.
+    let removed = stack.a_store.execute(
+        "DELETE FROM tenant_root_role_shares
+         WHERE custody_lineage_b64u = ?1 AND role = 'deriver_a' AND lifecycle = 'active'",
+        [&lineage_b64u],
+    )?;
+    assert_eq!(removed, 1, "A must hold exactly one active share to lose");
+
+    // The operator reserves a challenge; an exact retry returns the same one.
+    let now_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
+    let challenge_request = json!({
+        "identity_digest_b64u": identity_digest_b64u,
+        "custody_lineage_b64u": lineage_b64u,
+        "incident_id": "vm-managed-restore-deriver-a",
+        "outage_observation_digest_b64u": base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(Sha256::digest(b"vm-managed-restore-outage")),
+        "issued_at_ms": now_ms,
+        "expires_at_ms": now_ms + 60_000,
+        "nonce_b64u": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(fresh_nonzero_bytes_32()?),
+        "unavailable_role": "deriver_a",
+    });
+    let challenge_path =
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_CHALLENGE_PRIVATE_REQUEST_PATH;
+    let (challenge_status, challenge_body) = stack.control_plane(challenge_path, &challenge_request)?;
+    assert_eq!(challenge_status, 200, "{challenge_body}");
+    assert_eq!(stack.control_plane(challenge_path, &challenge_request)?, (challenge_status, challenge_body.clone()));
+    let challenge: serde_json::Value = serde_json::from_str(&challenge_body)?;
+    assert_eq!(challenge["unavailable_role"], "deriver_a");
+
+    // Both incident authorities sign it, and the control plane authorizes.
+    let authorize_request = json!({
+        "identity_digest_b64u": identity_digest_b64u,
+        "custody_lineage_b64u": lineage_b64u,
+        "incident_authorization_b64u": stack.sign_deriver_a_incident_authorization(
+            challenge["authorization_binding_b64u"].as_str().ok_or("a challenge carries its binding")?,
+        )?,
+    });
+    let authorize_path =
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_AUTHORIZE_PRIVATE_REQUEST_PATH;
+    let (authorize_status, authorize_body) = stack.control_plane(authorize_path, &authorize_request)?;
+    assert_eq!(authorize_status, 200, "{authorize_body}");
+    assert_eq!(stack.control_plane(authorize_path, &authorize_request)?, (authorize_status, authorize_body.clone()));
+    let authorization: serde_json::Value = serde_json::from_str(&authorize_body)?;
+
+    // The Router restores A from its backup and runs the forward refresh.
+    let restore_request = json!({
+        "public_state_b64u": authorization["public_state_b64u"],
+        "restore_capability_b64u": authorization["capability_b64u"],
+    });
+    let (restore_status, restore_body) = stack.restore(&restore_request)?;
+    assert_eq!(restore_status, 200, "{restore_body}");
+    let restored: serde_json::Value = serde_json::from_str(&restore_body)?;
+    assert_eq!(restored["retirement"]["kind"], "pending");
+    let restore_revision = restored["lifecycle_revision"].as_i64().ok_or("a restore reports its revision")?;
+    assert_eq!(stack.restore(&restore_request)?, (restore_status, restore_body.clone()));
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?,
+        (vec![epoch(2, "active")], vec![epoch(1, "retired"), epoch(2, "active")])
+    );
+
+    // A wallet registered on the restored root signs.
+    signing_worker =
+        stack.register_and_sign(signing_worker, &identity, &lineage_b64u, "account-restored-root")?;
+    assert_eq!(stack.admissions(&lineage_b64u)?, (vec![2], vec![2]));
+
+    // Another refresh, and a second wallet signs on its epoch.
+    let (refresh_status, refresh_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-after-restore", restore_revision)?;
+    assert_eq!(refresh_status, 200, "{refresh_body}");
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?,
+        (
+            vec![epoch(2, "retired"), epoch(3, "active")],
+            vec![epoch(1, "retired"), epoch(2, "retired"), epoch(3, "active")]
+        )
+    );
+    signing_worker =
+        stack.register_and_sign(signing_worker, &identity, &lineage_b64u, "account-refreshed-root")?;
+    assert_eq!(stack.admissions(&lineage_b64u)?, (vec![2, 3], vec![2, 3]));
+
+    // The original restore, retried, returns its outcome.
+    assert_eq!(stack.restore(&restore_request)?, (restore_status, restore_body.clone()));
+    drop(signing_worker);
+
+    println!(
+        "R150_VM_TENANT_ROOT_MANAGED_RESTORE_E2E {}",
+        json!({
+            "fault": "deriver_a_active_share_lost",
+            "challenge_and_authorization_retries_identical": true,
+            "restore_status": restore_status,
+            "restore_revision": restore_revision,
+            "epochs_after_restore": { "deriver_a": [[2, "active"]], "deriver_b": [[1, "retired"], [2, "active"]] },
+            "signed_after_restore": true,
+            "refresh_after_restore_status": refresh_status,
+            "epochs_after_refresh": { "deriver_a": [[2, "retired"], [3, "active"]], "deriver_b": [[1, "retired"], [2, "retired"], [3, "active"]] },
+            "signed_after_refresh": true,
+            "admissions": { "deriver_a": [2, 3], "deriver_b": [2, 3] },
+            "restore_retry_after_refresh_returns_its_outcome": true,
+        })
+    );
+    Ok(())
+}
+
 /// Work admitted before a refresh finishes on the epoch it started with. A
 /// registration is admitted and prepared while epoch 1 is active, then held
 /// before Deriver A reads it. A manual refresh then commits epoch 2 and both
@@ -2893,6 +3018,126 @@ impl RecoveryStackV1 {
 
     fn create(&self, grant: &str) -> Result<(u16, String), Box<dyn std::error::Error>> {
         create_tenant_root(&self.router_url, grant, TEST_ROLE_SHARED_SERVICE_AUTH)
+    }
+
+    /// Registers a new Yao wallet on one root, which derives its key from the
+    /// root's active shares, then signs a NEAR transaction with that key
+    /// through the Router and the SigningWorker. A wallet registers once.
+    fn register_and_sign(
+        &self,
+        signing_worker: ChildGuard,
+        identity: &TenantRootIdentityV1,
+        lineage: &str,
+        wallet_id: &str,
+    ) -> Result<ChildGuard, Box<dyn std::error::Error>> {
+        let router_env =
+            fs::read_to_string(self.temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1))?;
+        let fixture = ProductTenantRoot {
+            tenant_root: CloudflareRouterEd25519YaoTenantRootV1 {
+                identity: identity.clone(),
+                custody_lineage_b64u: lineage.to_owned(),
+            },
+            application: RouterAbEd25519YaoApplicationBindingFactsV1::new(
+                wallet_id,
+                "ed25519ks_product_benchmark",
+                "project:local",
+                1,
+            )?,
+            participant_ids: [1, 2],
+        };
+        let (request, client_recipient_key) = product_registration_request(&router_env, &fixture)?;
+        let (status, body) = self.register(&request)?;
+        assert_eq!(status, 200, "{body}");
+        let RouterEd25519YaoExecuteResultV1::Succeeded { result } =
+            serde_json::from_str::<RouterEd25519YaoExecuteResultV1>(&body)?
+        else {
+            return Err(format!("the Yao registration did not succeed: {body}").into());
+        };
+        let RouterEd25519YaoExecuteSuccessV1::Registration { result: activation } = *result else {
+            return Err("the Yao result was not a registration".into());
+        };
+        let (client_share, _) = complete_client_activation_packages_v1(
+            activation.binding(),
+            [1, 2],
+            activation.public_receipt(),
+            client_recipient_key.as_bytes(),
+            activation.deriver_a_client_package(),
+            activation.deriver_b_client_package(),
+        )?;
+        product_near_signing_process_flow(
+            env!("CARGO_BIN_EXE_router_ab_local_worker"),
+            &self.temp,
+            &self.router_url,
+            &self.signing_worker_url,
+            signing_worker,
+            &activation,
+            &client_share,
+            identity,
+        )
+    }
+
+    /// Calls one control-plane operation with the role-shared credential.
+    fn control_plane(
+        &self,
+        path: &str,
+        request: &serde_json::Value,
+    ) -> Result<(u16, String), Box<dyn std::error::Error>> {
+        post_json_to_path_with_headers(
+            &self.control_plane_url,
+            path,
+            request,
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+        )
+    }
+
+    /// Runs one managed restore through the Router.
+    fn restore(&self, request: &serde_json::Value) -> Result<(u16, String), Box<dyn std::error::Error>> {
+        post_json_to_path_with_headers(
+            &self.router_url,
+            router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_MANAGED_RESTORE_PRIVATE_REQUEST_PATH,
+            request,
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+        )
+    }
+
+    /// Signs a managed-restore incident binding with the operations authority
+    /// and Deriver A's custody authority, from the operator's env file.
+    fn sign_deriver_a_incident_authorization(
+        &self,
+        binding_b64u: &str,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        use ed25519_dalek::Signer as _;
+        let operator = self.temp.join(router_ab_dev::LOCAL_TENANT_ROOT_OPERATOR_ENV_FILE_V1);
+        let seed = |key: &str| -> Result<[u8; 32], Box<dyn std::error::Error>> {
+            Ok(base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .decode(env_value(&operator, key)?)?
+                .try_into()
+                .map_err(|_| format!("{key} must be 32 bytes"))?)
+        };
+        let field = |bytes: &[u8]| {
+            let mut out = u32::try_from(bytes.len()).expect("field length").to_be_bytes().to_vec();
+            out.extend_from_slice(bytes);
+            out
+        };
+        let binding = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(binding_b64u)?;
+        let input = [
+            field(b"tenant_root_managed_restore_incident_authorization_authentication_v1"),
+            field(&binding),
+        ]
+        .concat();
+        let operations = ed25519_dalek::SigningKey::from_bytes(&seed(
+            "LOCAL_TENANT_ROOT_OPERATIONS_INCIDENT_SIGNING_KEY",
+        )?);
+        let custody = ed25519_dalek::SigningKey::from_bytes(&seed(
+            "LOCAL_TENANT_ROOT_DERIVER_A_CUSTODY_AUTHORITY_SIGNING_KEY",
+        )?);
+        let authorization = [
+            binding.clone(),
+            field(&operations.sign(&input).to_bytes()),
+            field(&custody.sign(&input).to_bytes()),
+        ]
+        .concat();
+        Ok(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(authorization))
     }
 
     /// Stops the Router process and starts it again on the same state.
@@ -4512,9 +4757,11 @@ fn product_near_signing_process_flow(
         return Err("SigningWorker env parsed as another role".into());
     };
     let connection = Connection::open(temp.join(config.role_private_storage_path))?;
+    // This wallet's signing operation, among any others the worker holds.
     let completed_count: i64 = connection.query_row(
-        "SELECT COUNT(*) FROM local_signing_worker_near_round1 WHERE state = 'completed'",
-        [],
+        "SELECT COUNT(*) FROM local_signing_worker_near_round1
+         WHERE state = 'completed' AND instr(prepare_json, ?1) > 0",
+        [format!("product-near-sign-{}", activation.binding().lifecycle.account_id)],
         |row| row.get(0),
     )?;
     assert_eq!(completed_count, 1, "one-use material must have one terminal row");
@@ -4554,8 +4801,9 @@ fn product_near_prepare_request(
 ) -> Result<(RouterAbEd25519NormalSigningPrepareRequestV2, Vec<u8>), Box<dyn std::error::Error>> {
     let binding = activation.binding();
     let account_id = &binding.lifecycle.account_id;
+    // One signing operation per wallet.
     let scope = NormalSigningScopeV1::new(
-        "product-near-sign-1",
+        format!("product-near-sign-{account_id}"),
         account_id,
         NormalSigningAuthorizationV1::reusable_wallet_session("wallet-session-product-benchmark")?,
         binding.material_activation.clone(),
@@ -4613,10 +4861,13 @@ fn product_near_gateway_authorized_operation(
         binding: CloudflareRouterEd25519AcceptedCapabilityBindingV1::GatewayOwnerWalletSession {
             subject_id: "product-user-1".to_owned(),
             account_id: activation.binding().lifecycle.account_id.clone(),
-            authorization_id: "authorization-product-1".to_owned(),
+            authorization_id: format!("authorization-{}", activation.binding().lifecycle.account_id),
             wallet_session_id: "wallet-session-product-benchmark".to_owned(),
-            quota_id: "quota-product-1".to_owned(),
-            threshold_session_id: "threshold-session-product-1".to_owned(),
+            quota_id: format!("quota-{}", activation.binding().lifecycle.account_id),
+            threshold_session_id: format!(
+                "threshold-session-{}",
+                activation.binding().lifecycle.account_id
+            ),
             org_id: root_identity.org_id().to_owned(),
             project_id: root_identity.project_id().to_owned(),
             environment: "dev".to_owned(),
@@ -4734,37 +4985,41 @@ fn product_registration_request(
     ),
     Box<dyn std::error::Error>,
 > {
+    // The wallet this registration creates is the fixture's application
+    // binding; its lifecycle identifiers follow from the wallet id.
+    let application_binding = tenant_root_fixture.application.clone();
+    let wallet_id = application_binding.wallet_id().to_owned();
+    let wallet = wallet_id.strip_prefix("account-").unwrap_or(&wallet_id).to_owned();
     let application = Ed25519YaoApplicationBindingFactsV1::new(
-        Ed25519YaoApplicationBindingWalletIdV1::parse("account-product-benchmark")?,
-        Ed25519YaoApplicationBindingSigningKeyIdV1::parse("ed25519ks_product_benchmark")?,
-        Ed25519YaoApplicationBindingSigningRootIdV1::parse("project:local")?,
-        Ed25519YaoApplicationBindingKeyCreationSignerSlotV1::new(1)?,
+        Ed25519YaoApplicationBindingWalletIdV1::parse(&wallet_id)?,
+        Ed25519YaoApplicationBindingSigningKeyIdV1::parse(
+            application_binding.near_ed25519_signing_key_id(),
+        )?,
+        Ed25519YaoApplicationBindingSigningRootIdV1::parse(application_binding.signing_root_id())?,
+        Ed25519YaoApplicationBindingKeyCreationSignerSlotV1::new(
+            application_binding.key_creation_signer_slot(),
+        )?,
     );
     let context = Ed25519YaoStableKeyDerivationContextV1::new(application.digest(), 1, 2)?;
     let client_root = Ed25519YaoClientRootV1::from_secret_bytes(fresh_nonzero_bytes_32()?);
     let (client_a, client_b) =
         derive_ed25519_yao_client_contributions_v1(&client_root, &context)?.into_parts();
-    let application_binding = RouterAbEd25519YaoApplicationBindingFactsV1::new(
-        "account-product-benchmark",
-        "ed25519ks_product_benchmark",
-        "project:local",
-        1,
-    )?;
+    let registration_id = format!("{wallet}-registration");
     let admission = admit_local_ed25519_yao_registration_v1(
         RouterAbEd25519YaoRegistrationAdmissionRequestV1::new(
             RouterAbEd25519YaoLifecycleScopeV1::new(
-                "product-benchmark-registration",
+                registration_id.clone(),
                 RootShareEpoch::new("local-root-v1")?,
-                "account-product-benchmark",
+                wallet_id.clone(),
                 "wallet-session-product-benchmark",
                 "signer-set-product-benchmark",
                 "local-signing-worker",
                 MpcMaterialActivationRefV1::new(
-                    "activation-product-benchmark",
-                    "capability-product-benchmark",
-                    "account-product-benchmark",
-                    "key-product-benchmark",
-                    "product-benchmark-registration",
+                    format!("activation-{wallet}"),
+                    format!("capability-{wallet}"),
+                    wallet_id.clone(),
+                    format!("key-{wallet}"),
+                    registration_id,
                     "local-signing-worker",
                 )?,
             )?,

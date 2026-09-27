@@ -1,9 +1,10 @@
 //! The VM tenant-root control plane.
 //!
 //! The only VM process that holds the issuer signing Secret. It serves
-//! genesis, role-creation commands and initial activation over the role-shared
-//! credential and keeps no state of its own: the Router owns the creation
-//! state. Startup fails closed on a forbidden key or an issuer Secret that does
+//! genesis, role-creation commands, initial activation, refresh commands and
+//! receipts, and the managed-restore challenge and dual authorization over the
+//! role-shared credential. It keeps no state of its own: the Router owns the
+//! creation state. Startup fails closed on a forbidden key or an issuer Secret that does
 //! not derive the published active key.
 
 use router_ab_dev::{

@@ -95,6 +95,20 @@ pub fn local_tenant_root_route_v1(
                     },
                 ))
             }
+            router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_MANAGED_RESTORE_PRIVATE_REQUEST_PATH => {
+                Some(authorized(
+                    &router.internal_service_auth,
+                    request,
+                    |restore: router_ab_cloudflare::CloudflareRouterTenantRootManagedRestoreRequestV1| {
+                        json(&futures::executor::block_on(
+                            router_ab_cloudflare::tenant_root_router_coordinate_managed_restore_v1(
+                                &LocalRouterTenantRootCreationHostV1::new(&router.tenant_root),
+                                restore,
+                            ),
+                        )?)
+                    },
+                ))
+            }
             CLOUDFLARE_ROUTER_TENANT_ROOT_CREATION_SWEEP_PRIVATE_REQUEST_PATH => Some(authorized(
                 &router.internal_service_auth,
                 request,
@@ -161,6 +175,36 @@ fn deriver_route(
                 |refresh: router_ab_cloudflare::CloudflareDeriverTenantRootRefreshRequestV1| {
                     json(&futures::executor::block_on(
                         router_ab_cloudflare::tenant_root_deriver_refresh_v1(
+                            &LocalTenantRootDeriverHostV1::new(tenant_root),
+                            refresh,
+                            crate::local_router_coordinator::local_now_ms_v1()?,
+                        ),
+                    )?)
+                },
+            ))
+        }
+        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_MANAGED_RESTORE_PRIVATE_REQUEST_PATH => {
+            Some(authorized(
+                credential,
+                request,
+                |restore: router_ab_cloudflare::CloudflareDeriverTenantRootManagedRestoreRequestV1| {
+                    json(&futures::executor::block_on(
+                        router_ab_cloudflare::tenant_root_deriver_managed_restore_v1(
+                            &LocalTenantRootDeriverHostV1::new(tenant_root),
+                            restore,
+                            crate::local_router_coordinator::local_now_ms_v1()?,
+                        ),
+                    )?)
+                },
+            ))
+        }
+        router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_MANAGED_RESTORE_FORWARD_REFRESH_PRIVATE_REQUEST_PATH => {
+            Some(authorized(
+                credential,
+                request,
+                |refresh: router_ab_cloudflare::CloudflareDeriverTenantRootManagedRestoreForwardRefreshRequestV1| {
+                    json(&futures::executor::block_on(
+                        router_ab_cloudflare::tenant_root_deriver_managed_restore_forward_refresh_v1(
                             &LocalTenantRootDeriverHostV1::new(tenant_root),
                             refresh,
                             crate::local_router_coordinator::local_now_ms_v1()?,
@@ -333,6 +377,24 @@ pub fn local_tenant_root_control_plane_route_v1(
             |commands: router_ab_cloudflare::CloudflareTenantRootControlPlaneRefreshCommandsRequestV1| {
                 json(&futures::executor::block_on(
                     router_ab_cloudflare::control_plane_refresh_commands_v1(&host, commands),
+                )?)
+            },
+        ),
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_CHALLENGE_PRIVATE_REQUEST_PATH => authorized(
+            credential,
+            request,
+            |challenge: router_ab_cloudflare::CloudflareTenantRootControlPlaneManagedRestoreChallengeRequestV1| {
+                json(&futures::executor::block_on(
+                    router_ab_cloudflare::control_plane_managed_restore_challenge_v1(&host, challenge),
+                )?)
+            },
+        ),
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_AUTHORIZE_PRIVATE_REQUEST_PATH => authorized(
+            credential,
+            request,
+            |authorize: router_ab_cloudflare::CloudflareTenantRootControlPlaneManagedRestoreAuthorizeRequestV1| {
+                json(&futures::executor::block_on(
+                    router_ab_cloudflare::control_plane_managed_restore_authorize_v1(&host, authorize),
                 )?)
             },
         ),

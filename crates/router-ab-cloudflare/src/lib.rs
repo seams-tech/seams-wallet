@@ -120,7 +120,12 @@ pub use durable_object::tenant_root_creation::{
 };
 pub use tenant_root_control_plane::{
     control_plane_create_tenant_root_v1, control_plane_initial_activation_v1,
+    control_plane_managed_restore_authorize_v1, control_plane_managed_restore_challenge_v1,
     control_plane_pending_creation_cleanup_command_v1, control_plane_refresh_activation_v1,
+    CloudflareTenantRootControlPlaneManagedRestoreAuthorizeRequestV1,
+    CloudflareTenantRootControlPlaneManagedRestoreAuthorizeResponseV1,
+    CloudflareTenantRootControlPlaneManagedRestoreChallengeRequestV1,
+    CloudflareTenantRootControlPlaneManagedRestoreChallengeResponseV1,
     control_plane_refresh_commands_v1, control_plane_role_creation_command_v1,
     CloudflareTenantRootControlPlaneRefreshActivationReceiptResponseV1,
     CloudflareTenantRootControlPlaneRefreshActivationRequestV1,
@@ -140,8 +145,11 @@ pub use tenant_root_role_runtime::{
     CloudflareDeriverTenantRootCreationEvidenceResponseV1,
     tenant_root_deriver_initial_activation_v1,
     tenant_root_deriver_admit_bound_work_v1, tenant_root_deriver_load_bound_role_share_v1,
+    tenant_root_deriver_managed_restore_forward_refresh_v1, tenant_root_deriver_managed_restore_v1,
     tenant_root_deriver_refresh_activation_v1,
     tenant_root_deriver_refresh_v1, CloudflareDeriverTenantRootCreateRoleShareRequestV1,
+    CloudflareDeriverTenantRootManagedRestoreForwardRefreshRequestV1,
+    CloudflareDeriverTenantRootManagedRestoreRequestV1,
     CloudflareDeriverTenantRootCreateRoleShareResponseV1,
     CloudflareDeriverTenantRootInitialActivationRequestV1,
     CloudflareDeriverTenantRootInitialActivationResponseV1, CloudflareTenantRootCreateRoleV1,
@@ -152,6 +160,12 @@ mod tenant_root_creation_coordinator;
 pub use tenant_root_creation_coordinator::{
     tenant_root_router_coordinate_creation_v1, tenant_root_router_sweep_abandoned_creation_v1,
     CloudflareTenantRootCreationSweepResponseV1, TenantRootRouterCreationHostV1,
+};
+mod tenant_root_managed_restore_coordinator;
+pub use tenant_root_managed_restore_coordinator::{
+    tenant_root_router_coordinate_managed_restore_v1,
+    CloudflareRouterTenantRootManagedRestoreRequestV1,
+    TENANT_ROOT_MANAGED_RESTORE_REQUEST_MAX_BYTES_V1,
 };
 mod tenant_root_refresh_coordinator;
 pub use tenant_root_refresh_coordinator::{

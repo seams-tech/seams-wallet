@@ -13,7 +13,8 @@ use router_ab_core::{
     TenantRootCanaryCurveFamilyV1, TenantRootCeremonyContextV1, TenantRootCeremonyEpochsV1,
     TenantRootCeremonyNonceV1, TenantRootCeremonySessionIdV1, TenantRootControlPlaneAuthorityIdV1,
     TenantRootCreationCapabilityNonceV1, TenantRootCreationCapabilityV1,
-    TenantRootCreationJournalV1, TenantRootIdentityV1, TenantRootLifecycleReceiptDigestV1,
+    TenantRootCreationJournalV1, TenantRootCustodyLineageId, TenantRootIdentityDigestV1,
+    TenantRootIdentityV1, TenantRootLifecycleReceiptDigestV1,
     TenantRootManagedRestoreAvailableV1, TenantRootManagedRestoreCapabilityV1,
     TenantRootManagedRestoreIncidentAuthorizationBindingV1,
     TenantRootManagedRestoreIncidentNonceV1, TenantRootManagedRestoreRoleV1,
@@ -39,7 +40,7 @@ use router_ab_core::{
     TENANT_ROOT_RESTORE_REFRESH_ROLE_COMMAND_MAX_BYTES_V1,
     TENANT_ROOT_RESTORE_ROLE_IMPORT_GRANT_MAX_BYTES_V1,
 };
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use threshold_prf::TwoPartyDeriverRole;
 use zeroize::Zeroizing;
@@ -53,7 +54,10 @@ use crate::durable_object::tenant_root_creation::{
     CloudflareTenantRootManagedRestoreAuthorizationRequestV1,
     CloudflareTenantRootManagedRestoreFenceV1, ValidatedTenantRootCreationJournalV1,
 };
-use crate::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
+use crate::{
+    encode_base64url_bytes_v1, RouterAbProtocolError, RouterAbProtocolErrorCode,
+    RouterAbProtocolResult,
+};
 
 /// Maximum accepted request size for the role creation command operation.
 pub const TENANT_ROOT_CONTROL_PLANE_ROLE_CREATION_COMMAND_REQUEST_MAX_BYTES_V1: usize = 2 * 1024;
@@ -274,7 +278,7 @@ pub struct CloudflareTenantRootControlPlaneCleanupCommandResponseV1 {
 /// window; active epoch and activation receipt are always read from the DO.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootControlPlaneManagedRestoreChallengeRequestV1 {
+pub struct CloudflareTenantRootControlPlaneManagedRestoreChallengeRequestV1 {
     pub(crate) identity_digest_b64u: String,
     pub(crate) custody_lineage_b64u: String,
     pub(crate) incident_id: String,
@@ -292,7 +296,7 @@ pub(crate) struct CloudflareTenantRootControlPlaneManagedRestoreChallengeRequest
 /// directly. The `challenge` field remains available to in-crate callers.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootControlPlaneManagedRestoreChallengeResponseV1 {
+pub struct CloudflareTenantRootControlPlaneManagedRestoreChallengeResponseV1 {
     #[serde(flatten)]
     pub(crate) challenge: CloudflareTenantRootManagedRestoreAuthorizationChallengeV1,
     pub(crate) authorization_binding_b64u: String,
@@ -301,7 +305,7 @@ pub(crate) struct CloudflareTenantRootControlPlaneManagedRestoreChallengeRespons
 /// Router -> control plane: authorize the exact challenge with both signatures.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootControlPlaneManagedRestoreAuthorizeRequestV1 {
+pub struct CloudflareTenantRootControlPlaneManagedRestoreAuthorizeRequestV1 {
     pub(crate) identity_digest_b64u: String,
     pub(crate) custody_lineage_b64u: String,
     pub(crate) incident_authorization_b64u: String,
@@ -310,7 +314,7 @@ pub(crate) struct CloudflareTenantRootControlPlaneManagedRestoreAuthorizeRequest
 /// Control plane -> Router: the exact terminal public artifacts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareTenantRootControlPlaneManagedRestoreAuthorizeResponseV1 {
+pub struct CloudflareTenantRootControlPlaneManagedRestoreAuthorizeResponseV1 {
     pub(crate) public_state_b64u: String,
     pub(crate) capability_b64u: String,
     pub(crate) incident_authorization_b64u: String,
@@ -1179,19 +1183,13 @@ const TENANT_ROOT_SIGNED_MANAGED_BACKUP_MAX_BYTES_V1: usize = 72 * 1024;
 /// and the VM Router's creation-state endpoints. The issuer logic below is
 /// the same on both hosts.
 #[allow(async_fn_in_trait)]
-pub trait TenantRootControlPlaneHostV1 {
+pub trait TenantRootControlPlaneHostV1: crate::TenantRootCreationStateTransportV1 {
     /// Parsed control-plane bindings (issuer key, trusted keys, role keys).
     fn bindings(&self) -> &crate::CloudflareTenantRootControlPlaneBindingsV1;
     /// Current host time in Unix milliseconds.
     fn now_ms(&self) -> RouterAbProtocolResult<u64>;
     /// The issuer signing seed, loaded for one operation.
     fn issuer_seed(&self) -> RouterAbProtocolResult<Zeroizing<[u8; 32]>>;
-    /// The creation authority id bound into every creation artifact.
-    fn creation_authority_id(
-        &self,
-        identity_digest: router_ab_core::TenantRootIdentityDigestV1,
-        custody_lineage: router_ab_core::TenantRootCustodyLineageId,
-    ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1>;
     /// Reads the authoritative creation state for one tenant root.
     async fn read_creation_state(
         &self,
@@ -1213,6 +1211,308 @@ pub trait TenantRootControlPlaneHostV1 {
     ) -> RouterAbProtocolResult<crate::durable_object::tenant_root_creation::CloudflareVerifiedTenantRootActiveStateV1>;
     /// Fresh random bytes from the host's secure generator.
     fn random_bytes(&self, len: usize) -> RouterAbProtocolResult<Vec<u8>>;
+}
+
+fn decode_managed_restore_scope_v1(
+    identity_digest_b64u: &str,
+    custody_lineage_b64u: &str,
+) -> RouterAbProtocolResult<(TenantRootIdentityDigestV1, TenantRootCustodyLineageId)> {
+    let identity_digest = TenantRootIdentityDigestV1::from_bytes(
+        decode_canonical_base64url(
+            "tenant-root managed-restore identity digest",
+            identity_digest_b64u,
+            32,
+            48,
+        )?
+        .as_slice()
+        .try_into()
+        .map_err(|_| {
+            refused("tenant-root managed-restore identity digest length is invalid")
+        })?,
+    );
+    let custody_lineage = TenantRootCustodyLineageId::from_bytes(
+        decode_canonical_base64url(
+            "tenant-root managed-restore custody lineage",
+            custody_lineage_b64u,
+            16,
+            24,
+        )?
+        .as_slice()
+        .try_into()
+        .map_err(|_| {
+            refused("tenant-root managed-restore custody lineage length is invalid")
+        })?,
+    )
+    .map_err(derivation)?;
+    Ok((identity_digest, custody_lineage))
+}
+
+fn decode_managed_restore_digest_v1(
+    field: &'static str,
+    encoded: &str,
+) -> RouterAbProtocolResult<TenantRootLifecycleReceiptDigestV1> {
+    TenantRootLifecycleReceiptDigestV1::from_bytes(
+        decode_canonical_base64url(field, encoded, 32, 48)?
+            .as_slice()
+            .try_into()
+            .map_err(|_| refused("tenant-root managed-restore digest length is invalid"))?,
+    )
+    .map_err(derivation)
+}
+
+fn managed_restore_incident_binding_v1(
+    challenge: &CloudflareTenantRootManagedRestoreAuthorizationChallengeV1,
+    bindings: &crate::CloudflareTenantRootControlPlaneBindingsV1,
+) -> RouterAbProtocolResult<TenantRootManagedRestoreIncidentAuthorizationBindingV1> {
+    let (identity_digest, custody_lineage) = decode_managed_restore_scope_v1(
+        &challenge.identity_digest_b64u,
+        &challenge.custody_lineage_b64u,
+    )?;
+    let nonce = TenantRootManagedRestoreIncidentNonceV1::from_bytes(
+        decode_canonical_base64url(
+            "tenant-root managed-restore incident nonce",
+            &challenge.nonce_b64u,
+            32,
+            48,
+        )?
+        .as_slice()
+        .try_into()
+        .map_err(|_| refused("tenant-root managed-restore incident nonce length is invalid"))?,
+    )
+    .map_err(derivation)?;
+    let custody = &bindings.custody_authority_verifiers;
+    let (custody_authority_id, custody_key_id) = match challenge.unavailable_role {
+        TenantRootManagedRestoreRoleV1::DeriverA => {
+            (custody.deriver_a_authority_id(), custody.deriver_a_key_id())
+        }
+        TenantRootManagedRestoreRoleV1::DeriverB => {
+            (custody.deriver_b_authority_id(), custody.deriver_b_key_id())
+        }
+    };
+    let operations = &bindings.operations_incident_verifier;
+    TenantRootManagedRestoreIncidentAuthorizationBindingV1::new(
+        challenge.incident_id.clone(),
+        identity_digest,
+        custody_lineage,
+        challenge.unavailable_role,
+        TenantRootShareEpoch::new(challenge.active_epoch).map_err(derivation)?,
+        decode_managed_restore_digest_v1(
+            "tenant-root managed-restore activation receipt digest",
+            &challenge.activation_receipt_digest_b64u,
+        )?,
+        decode_managed_restore_digest_v1(
+            "tenant-root managed-restore outage observation digest",
+            &challenge.outage_observation_digest_b64u,
+        )?,
+        challenge.issued_at_ms,
+        challenge.expires_at_ms,
+        nonce,
+        operations.authority_id(),
+        operations.key_id(),
+        custody_authority_id,
+        custody_key_id,
+    )
+    .map_err(derivation)
+}
+
+fn managed_restore_custody_verifying_key_v1(
+    bindings: &crate::CloudflareTenantRootControlPlaneBindingsV1,
+    role: TenantRootManagedRestoreRoleV1,
+) -> [u8; 32] {
+    let custody = &bindings.custody_authority_verifiers;
+    match role {
+        TenantRootManagedRestoreRoleV1::DeriverA => *custody.deriver_a(),
+        TenantRootManagedRestoreRoleV1::DeriverB => *custody.deriver_b(),
+    }
+}
+
+/// Reserves one authoritative managed-restore challenge in the Router's
+/// creation state and returns the binding both incident authorities sign.
+pub async fn control_plane_managed_restore_challenge_v1<Host: TenantRootControlPlaneHostV1>(
+    host: &Host,
+    request: CloudflareTenantRootControlPlaneManagedRestoreChallengeRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneManagedRestoreChallengeResponseV1>
+{
+    let (identity_digest, custody_lineage) = decode_managed_restore_scope_v1(
+        &request.identity_digest_b64u,
+        &request.custody_lineage_b64u,
+    )?;
+    let challenge =
+        crate::durable_object::tenant_root_creation::tenant_root_managed_restore_reservation_call_v1(
+            host,
+            host.bindings().issuer_verifying_keys.keys(),
+            identity_digest,
+            custody_lineage,
+            CloudflareTenantRootManagedRestoreAuthorizationRequestV1 {
+                incident_id: request.incident_id,
+                outage_observation_digest_b64u: request.outage_observation_digest_b64u,
+                issued_at_ms: request.issued_at_ms,
+                expires_at_ms: request.expires_at_ms,
+                nonce_b64u: request.nonce_b64u,
+                unavailable_role: request.unavailable_role,
+            },
+        )
+        .await?;
+    let binding = managed_restore_incident_binding_v1(&challenge, host.bindings())?;
+    Ok(
+        CloudflareTenantRootControlPlaneManagedRestoreChallengeResponseV1 {
+            authorization_binding_b64u: encode_base64url_bytes_v1(
+                &binding.canonical_bytes().map_err(derivation)?,
+            ),
+            challenge,
+        },
+    )
+}
+
+/// Verifies both incident authorities over the reserved challenge, issues the
+/// signed role-unavailable state and one-use restore capability, and
+/// checkpoints the exact issuer artifacts in the Router's creation state. A
+/// retry after the checkpoint returns those artifacts.
+pub async fn control_plane_managed_restore_authorize_v1<Host: TenantRootControlPlaneHostV1>(
+    host: &Host,
+    request: CloudflareTenantRootControlPlaneManagedRestoreAuthorizeRequestV1,
+) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneManagedRestoreAuthorizeResponseV1>
+{
+    let (identity_digest, custody_lineage) = decode_managed_restore_scope_v1(
+        &request.identity_digest_b64u,
+        &request.custody_lineage_b64u,
+    )?;
+    let active = host.read_active_state(identity_digest, custody_lineage).await?;
+    let (challenge, attempt, terminal) = match &active.managed_restore_fence {
+        CloudflareTenantRootManagedRestoreFenceV1::Open => {
+            return Err(refused(
+                "tenant-root managed-restore authorization requires a reserved challenge",
+            ));
+        }
+        CloudflareTenantRootManagedRestoreFenceV1::Reserved { challenge, attempt } => {
+            (challenge.clone(), attempt.clone(), None)
+        }
+        CloudflareTenantRootManagedRestoreFenceV1::Terminal {
+            challenge,
+            attempt,
+            public_state_b64u,
+            capability_b64u,
+            incident_authorization_b64u,
+        } => (
+            challenge.clone(),
+            attempt.clone(),
+            Some((
+                public_state_b64u.clone(),
+                capability_b64u.clone(),
+                incident_authorization_b64u.clone(),
+            )),
+        ),
+    };
+    let expected = managed_restore_incident_binding_v1(&challenge, host.bindings())?;
+    let authorization_bytes = decode_canonical_base64url(
+        "tenant-root managed-restore incident authorization",
+        &request.incident_authorization_b64u,
+        router_ab_core::TENANT_ROOT_MANAGED_RESTORE_INCIDENT_AUTHORIZATION_MAX_BYTES_V1,
+        router_ab_core::TENANT_ROOT_MANAGED_RESTORE_INCIDENT_AUTHORIZATION_MAX_BYTES_V1 * 2,
+    )?;
+    let custody_verifying_key =
+        managed_restore_custody_verifying_key_v1(host.bindings(), challenge.unavailable_role);
+    let verified =
+        TenantRootSignedManagedRestoreIncidentAuthorizationV1::decode_and_verify_canonical_bytes(
+            &authorization_bytes,
+            &expected,
+            &host.bindings().operations_incident_verifier.verifying_key_bytes(),
+            &custody_verifying_key,
+        )
+        .map_err(derivation)?;
+    if let Some((public_state_b64u, capability_b64u, incident_authorization_b64u)) = terminal {
+        if incident_authorization_b64u != request.incident_authorization_b64u {
+            return Err(refused(
+                "tenant-root managed-restore terminal authorization retry changed bytes",
+            ));
+        }
+        return Ok(
+            CloudflareTenantRootControlPlaneManagedRestoreAuthorizeResponseV1 {
+                public_state_b64u,
+                capability_b64u,
+                incident_authorization_b64u,
+            },
+        );
+    }
+    verified
+        .require_fresh(host.now_ms()?)
+        .map_err(derivation)?;
+
+    let identity_bytes = decode_canonical_base64url(
+        "tenant-root managed-restore identity",
+        &challenge.identity_b64u,
+        16 * 1024,
+        24 * 1024,
+    )?;
+    let identity =
+        TenantRootIdentityV1::decode_canonical_bytes(&identity_bytes).map_err(derivation)?;
+    let active_refresh = TenantRootActiveRefreshV1::from_verified_activation_receipt(
+        identity,
+        active.activation_receipt,
+        active.lifecycle_revision,
+    )
+    .map_err(derivation)?;
+    let unavailable_receipt = TenantRootRoleUnavailableReceiptV1::new(
+        verified.outage_observation_digest(),
+        verified.unavailable_role(),
+        verified.issued_at_ms(),
+    )
+    .map_err(derivation)?;
+    let unavailable = TenantRootManagedRestoreAvailableV1::new(active_refresh)
+        .map_err(derivation)?
+        .mark_role_unavailable(unavailable_receipt)
+        .map_err(derivation)?;
+    let seed = host.issuer_seed()?;
+    let issuer_key_id = host.bindings().issuer_signing_key.signing_key_id();
+    let signed_public_state = TenantRootSignedManagedRestoreRoleUnavailableV1::sign(
+        &unavailable,
+        issuer_key_id,
+        &seed,
+    )
+    .map_err(derivation)?;
+    let capability_digest =
+        TenantRootLifecycleReceiptDigestV1::from_bytes(*verified.digest().as_bytes())
+            .map_err(derivation)?;
+    let capability = TenantRootManagedRestoreCapabilityV1::new(
+        capability_digest,
+        verified.identity_digest(),
+        verified.custody_lineage(),
+        verified.unavailable_role(),
+        verified.current_epoch(),
+        verified.activation_receipt_digest(),
+        verified.issued_at_ms(),
+        verified.expires_at_ms(),
+    )
+    .map_err(derivation)?;
+    let signed_capability =
+        TenantRootSignedManagedRestoreCapabilityV1::sign(capability, issuer_key_id, &seed)
+            .map_err(derivation)?;
+    let public_state_b64u =
+        encode_base64url_bytes_v1(&signed_public_state.canonical_bytes().map_err(derivation)?);
+    let capability_b64u =
+        encode_base64url_bytes_v1(&signed_capability.canonical_bytes().map_err(derivation)?);
+    let checkpoint = CloudflareTenantRootManagedRestoreAuthorizationCheckpointV1 {
+        challenge,
+        attempt,
+        public_state_b64u: public_state_b64u.clone(),
+        capability_b64u: capability_b64u.clone(),
+        incident_authorization_b64u: request.incident_authorization_b64u.clone(),
+    };
+    crate::durable_object::tenant_root_creation::tenant_root_managed_restore_checkpoint_call_v1(
+        host,
+        host.bindings().issuer_verifying_keys.keys(),
+        identity_digest,
+        custody_lineage,
+        checkpoint,
+    )
+    .await?;
+    Ok(
+        CloudflareTenantRootControlPlaneManagedRestoreAuthorizeResponseV1 {
+            public_state_b64u,
+            capability_b64u,
+            incident_authorization_b64u: request.incident_authorization_b64u,
+        },
+    )
 }
 
 fn creation_status(
@@ -2088,8 +2388,6 @@ mod live {
         decode_canonical_base64url, derive_tenant_root_creation_authority_object_v1,
         execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1,
         execute_cloudflare_router_tenant_root_creation_journal_call_v1,
-        execute_cloudflare_router_tenant_root_managed_restore_authorization_challenge_call_v1,
-        execute_cloudflare_router_tenant_root_managed_restore_authorization_checkpoint_call_v1,
         execute_cloudflare_router_tenant_root_restore_refresh_checkpoint_call_v1,
         CloudflareTenantRootRestoreRefreshCheckpointRequestV1,
         CloudflareTenantRootRestoreRefreshCheckpointResponseV1,
@@ -2806,119 +3104,6 @@ mod live {
         .await
     }
 
-    fn decode_managed_restore_scope_v1(
-        identity_digest_b64u: &str,
-        custody_lineage_b64u: &str,
-    ) -> RouterAbProtocolResult<(TenantRootIdentityDigestV1, TenantRootCustodyLineageId)> {
-        let identity_digest = TenantRootIdentityDigestV1::from_bytes(
-            decode_canonical_base64url(
-                "tenant-root managed-restore identity digest",
-                identity_digest_b64u,
-                32,
-                48,
-            )?
-            .as_slice()
-            .try_into()
-            .map_err(|_| {
-                refused("tenant-root managed-restore identity digest length is invalid")
-            })?,
-        );
-        let custody_lineage = TenantRootCustodyLineageId::from_bytes(
-            decode_canonical_base64url(
-                "tenant-root managed-restore custody lineage",
-                custody_lineage_b64u,
-                16,
-                24,
-            )?
-            .as_slice()
-            .try_into()
-            .map_err(|_| {
-                refused("tenant-root managed-restore custody lineage length is invalid")
-            })?,
-        )
-        .map_err(derivation)?;
-        Ok((identity_digest, custody_lineage))
-    }
-
-    fn decode_managed_restore_digest_v1(
-        field: &'static str,
-        encoded: &str,
-    ) -> RouterAbProtocolResult<TenantRootLifecycleReceiptDigestV1> {
-        TenantRootLifecycleReceiptDigestV1::from_bytes(
-            decode_canonical_base64url(field, encoded, 32, 48)?
-                .as_slice()
-                .try_into()
-                .map_err(|_| refused("tenant-root managed-restore digest length is invalid"))?,
-        )
-        .map_err(derivation)
-    }
-
-    fn managed_restore_incident_binding_v1(
-        challenge: &CloudflareTenantRootManagedRestoreAuthorizationChallengeV1,
-        runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
-    ) -> RouterAbProtocolResult<TenantRootManagedRestoreIncidentAuthorizationBindingV1> {
-        let (identity_digest, custody_lineage) = decode_managed_restore_scope_v1(
-            &challenge.identity_digest_b64u,
-            &challenge.custody_lineage_b64u,
-        )?;
-        let nonce = TenantRootManagedRestoreIncidentNonceV1::from_bytes(
-            decode_canonical_base64url(
-                "tenant-root managed-restore incident nonce",
-                &challenge.nonce_b64u,
-                32,
-                48,
-            )?
-            .as_slice()
-            .try_into()
-            .map_err(|_| refused("tenant-root managed-restore incident nonce length is invalid"))?,
-        )
-        .map_err(derivation)?;
-        let custody = &runtime.bindings().custody_authority_verifiers;
-        let (custody_authority_id, custody_key_id) = match challenge.unavailable_role {
-            TenantRootManagedRestoreRoleV1::DeriverA => {
-                (custody.deriver_a_authority_id(), custody.deriver_a_key_id())
-            }
-            TenantRootManagedRestoreRoleV1::DeriverB => {
-                (custody.deriver_b_authority_id(), custody.deriver_b_key_id())
-            }
-        };
-        let operations = &runtime.bindings().operations_incident_verifier;
-        TenantRootManagedRestoreIncidentAuthorizationBindingV1::new(
-            challenge.incident_id.clone(),
-            identity_digest,
-            custody_lineage,
-            challenge.unavailable_role,
-            TenantRootShareEpoch::new(challenge.active_epoch).map_err(derivation)?,
-            decode_managed_restore_digest_v1(
-                "tenant-root managed-restore activation receipt digest",
-                &challenge.activation_receipt_digest_b64u,
-            )?,
-            decode_managed_restore_digest_v1(
-                "tenant-root managed-restore outage observation digest",
-                &challenge.outage_observation_digest_b64u,
-            )?,
-            challenge.issued_at_ms,
-            challenge.expires_at_ms,
-            nonce,
-            operations.authority_id(),
-            operations.key_id(),
-            custody_authority_id,
-            custody_key_id,
-        )
-        .map_err(derivation)
-    }
-
-    fn managed_restore_custody_verifying_key_v1(
-        runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
-        role: TenantRootManagedRestoreRoleV1,
-    ) -> [u8; 32] {
-        let custody = &runtime.bindings().custody_authority_verifiers;
-        match role {
-            TenantRootManagedRestoreRoleV1::DeriverA => *custody.deriver_a(),
-            TenantRootManagedRestoreRoleV1::DeriverB => *custody.deriver_b(),
-        }
-    }
-
     /// Reserves one authoritative managed-restore challenge.
     pub async fn handle_cloudflare_tenant_root_control_plane_managed_restore_challenge_v1(
         request: CloudflareTenantRootControlPlaneManagedRestoreChallengeRequestV1,
@@ -2926,34 +3111,11 @@ mod live {
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneManagedRestoreChallengeResponseV1>
     {
-        let (identity_digest, custody_lineage) = decode_managed_restore_scope_v1(
-            &request.identity_digest_b64u,
-            &request.custody_lineage_b64u,
-        )?;
-        let challenge =
-            execute_cloudflare_router_tenant_root_managed_restore_authorization_challenge_call_v1(
-                env,
-                identity_digest,
-                custody_lineage,
-                CloudflareTenantRootManagedRestoreAuthorizationRequestV1 {
-                    incident_id: request.incident_id,
-                    outage_observation_digest_b64u: request.outage_observation_digest_b64u,
-                    issued_at_ms: request.issued_at_ms,
-                    expires_at_ms: request.expires_at_ms,
-                    nonce_b64u: request.nonce_b64u,
-                    unavailable_role: request.unavailable_role,
-                },
-            )
-            .await?;
-        let binding = managed_restore_incident_binding_v1(&challenge, runtime)?;
-        Ok(
-            CloudflareTenantRootControlPlaneManagedRestoreChallengeResponseV1 {
-                authorization_binding_b64u: encode_base64url_bytes_v1(
-                    &binding.canonical_bytes().map_err(derivation)?,
-                ),
-                challenge,
-            },
+        super::control_plane_managed_restore_challenge_v1(
+            &CloudflareControlPlaneHostV1 { env, runtime },
+            request,
         )
+        .await
     }
 
     /// Verifies both incident authorities and checkpoints exact issuer artifacts.
@@ -2963,154 +3125,11 @@ mod live {
         runtime: &CloudflareTenantRootControlPlaneRuntimeV1,
     ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneManagedRestoreAuthorizeResponseV1>
     {
-        let (identity_digest, custody_lineage) = decode_managed_restore_scope_v1(
-            &request.identity_digest_b64u,
-            &request.custody_lineage_b64u,
-        )?;
-        let active =
-            execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1(
-                env,
-                identity_digest,
-                custody_lineage,
-            )
-            .await?;
-        let (challenge, attempt, terminal) = match &active.managed_restore_fence {
-            CloudflareTenantRootManagedRestoreFenceV1::Open => {
-                return Err(refused(
-                    "tenant-root managed-restore authorization requires a reserved challenge",
-                ));
-            }
-            CloudflareTenantRootManagedRestoreFenceV1::Reserved { challenge, attempt } => {
-                (challenge.clone(), attempt.clone(), None)
-            }
-            CloudflareTenantRootManagedRestoreFenceV1::Terminal {
-                challenge,
-                attempt,
-                public_state_b64u,
-                capability_b64u,
-                incident_authorization_b64u,
-            } => (
-                challenge.clone(),
-                attempt.clone(),
-                Some((
-                    public_state_b64u.clone(),
-                    capability_b64u.clone(),
-                    incident_authorization_b64u.clone(),
-                )),
-            ),
-        };
-        let expected = managed_restore_incident_binding_v1(&challenge, runtime)?;
-        let authorization_bytes = decode_canonical_base64url(
-            "tenant-root managed-restore incident authorization",
-            &request.incident_authorization_b64u,
-            router_ab_core::TENANT_ROOT_MANAGED_RESTORE_INCIDENT_AUTHORIZATION_MAX_BYTES_V1,
-            router_ab_core::TENANT_ROOT_MANAGED_RESTORE_INCIDENT_AUTHORIZATION_MAX_BYTES_V1 * 2,
-        )?;
-        let custody_verifying_key =
-            managed_restore_custody_verifying_key_v1(runtime, challenge.unavailable_role);
-        let verified =
-            TenantRootSignedManagedRestoreIncidentAuthorizationV1::decode_and_verify_canonical_bytes(
-                &authorization_bytes,
-                &expected,
-                &runtime
-                    .bindings()
-                    .operations_incident_verifier
-                    .verifying_key_bytes(),
-                &custody_verifying_key,
-            )
-            .map_err(derivation)?;
-        if let Some((public_state_b64u, capability_b64u, incident_authorization_b64u)) = terminal {
-            if incident_authorization_b64u != request.incident_authorization_b64u {
-                return Err(refused(
-                    "tenant-root managed-restore terminal authorization retry changed bytes",
-                ));
-            }
-            return Ok(
-                CloudflareTenantRootControlPlaneManagedRestoreAuthorizeResponseV1 {
-                    public_state_b64u,
-                    capability_b64u,
-                    incident_authorization_b64u,
-                },
-            );
-        }
-        verified
-            .require_fresh(crate::cloudflare_now_unix_ms_v1()?)
-            .map_err(derivation)?;
-
-        let identity_bytes = decode_canonical_base64url(
-            "tenant-root managed-restore identity",
-            &challenge.identity_b64u,
-            16 * 1024,
-            24 * 1024,
-        )?;
-        let identity =
-            TenantRootIdentityV1::decode_canonical_bytes(&identity_bytes).map_err(derivation)?;
-        let active_refresh = TenantRootActiveRefreshV1::from_verified_activation_receipt(
-            identity,
-            active.activation_receipt,
-            active.lifecycle_revision,
+        super::control_plane_managed_restore_authorize_v1(
+            &CloudflareControlPlaneHostV1 { env, runtime },
+            request,
         )
-        .map_err(derivation)?;
-        let unavailable_receipt = TenantRootRoleUnavailableReceiptV1::new(
-            verified.outage_observation_digest(),
-            verified.unavailable_role(),
-            verified.issued_at_ms(),
-        )
-        .map_err(derivation)?;
-        let unavailable = TenantRootManagedRestoreAvailableV1::new(active_refresh)
-            .map_err(derivation)?
-            .mark_role_unavailable(unavailable_receipt)
-            .map_err(derivation)?;
-        let seed = load_issuer_seed(env, runtime)?;
-        let issuer_key_id = runtime.bindings().issuer_signing_key.signing_key_id();
-        let signed_public_state = TenantRootSignedManagedRestoreRoleUnavailableV1::sign(
-            &unavailable,
-            issuer_key_id,
-            &seed,
-        )
-        .map_err(derivation)?;
-        let capability_digest =
-            TenantRootLifecycleReceiptDigestV1::from_bytes(*verified.digest().as_bytes())
-                .map_err(derivation)?;
-        let capability = TenantRootManagedRestoreCapabilityV1::new(
-            capability_digest,
-            verified.identity_digest(),
-            verified.custody_lineage(),
-            verified.unavailable_role(),
-            verified.current_epoch(),
-            verified.activation_receipt_digest(),
-            verified.issued_at_ms(),
-            verified.expires_at_ms(),
-        )
-        .map_err(derivation)?;
-        let signed_capability =
-            TenantRootSignedManagedRestoreCapabilityV1::sign(capability, issuer_key_id, &seed)
-                .map_err(derivation)?;
-        let public_state_b64u =
-            encode_base64url_bytes_v1(&signed_public_state.canonical_bytes().map_err(derivation)?);
-        let capability_b64u =
-            encode_base64url_bytes_v1(&signed_capability.canonical_bytes().map_err(derivation)?);
-        let checkpoint = CloudflareTenantRootManagedRestoreAuthorizationCheckpointV1 {
-            challenge,
-            attempt,
-            public_state_b64u: public_state_b64u.clone(),
-            capability_b64u: capability_b64u.clone(),
-            incident_authorization_b64u: request.incident_authorization_b64u.clone(),
-        };
-        execute_cloudflare_router_tenant_root_managed_restore_authorization_checkpoint_call_v1(
-            env,
-            identity_digest,
-            custody_lineage,
-            checkpoint,
-        )
-        .await?;
-        Ok(
-            CloudflareTenantRootControlPlaneManagedRestoreAuthorizeResponseV1 {
-                public_state_b64u,
-                capability_b64u,
-                incident_authorization_b64u: request.incident_authorization_b64u,
-            },
-        )
+        .await
     }
 
     /// Issues cleanup for the exact sole role installation recorded by the DO.
@@ -3592,6 +3611,41 @@ mod live {
         runtime: &'a CloudflareTenantRootControlPlaneRuntimeV1,
     }
 
+    impl crate::TenantRootCreationStateTransportV1 for CloudflareControlPlaneHostV1<'_> {
+        fn creation_authority_id(
+            &self,
+            identity_digest: TenantRootIdentityDigestV1,
+            custody_lineage: TenantRootCustodyLineageId,
+        ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1> {
+            Ok(read_creation_object_binding(self.env, identity_digest, custody_lineage)?.0)
+        }
+
+        async fn creation_state_call<TRequest: Serialize, TResponse: DeserializeOwned>(
+            &self,
+            authority_id: TenantRootControlPlaneAuthorityIdV1,
+            identity_digest: TenantRootIdentityDigestV1,
+            custody_lineage: TenantRootCustodyLineageId,
+            path: &'static str,
+            label: &'static str,
+            request: &TRequest,
+            request_max_bytes: usize,
+            response_max_bytes: usize,
+        ) -> RouterAbProtocolResult<TResponse> {
+            crate::durable_object::tenant_root_creation::CloudflareTenantRootCreationStateTransportV1::new(self.env)
+                .creation_state_call(
+                    authority_id,
+                    identity_digest,
+                    custody_lineage,
+                    path,
+                    label,
+                    request,
+                    request_max_bytes,
+                    response_max_bytes,
+                )
+                .await
+        }
+    }
+
     impl super::TenantRootControlPlaneHostV1 for CloudflareControlPlaneHostV1<'_> {
         fn bindings(&self) -> &crate::CloudflareTenantRootControlPlaneBindingsV1 {
             self.runtime.bindings()
@@ -3603,14 +3657,6 @@ mod live {
 
         fn issuer_seed(&self) -> RouterAbProtocolResult<Zeroizing<[u8; 32]>> {
             load_issuer_seed(self.env, self.runtime)
-        }
-
-        fn creation_authority_id(
-            &self,
-            identity_digest: TenantRootIdentityDigestV1,
-            custody_lineage: TenantRootCustodyLineageId,
-        ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1> {
-            Ok(read_creation_object_binding(self.env, identity_digest, custody_lineage)?.0)
         }
 
         async fn read_creation_state(

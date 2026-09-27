@@ -15,8 +15,8 @@
 //! - the creation authority id is derived from a configured deployment
 //!   authority rather than a Durable Object id.
 //!
-//! Refresh, managed restore, source retirement and cutover are not served
-//! here, and a creation left with one role installed fails closed.
+//! Refresh (manual and scheduled) and managed restore run the same shared
+//! code too. Source retirement and cutover are not served here.
 
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -1341,6 +1341,43 @@ impl<'a> LocalTenantRootControlPlaneHostV1<'a> {
     }
 }
 
+/// The control plane reaches the Router's creation state through its client.
+impl TenantRootCreationStateTransportV1 for LocalTenantRootControlPlaneHostV1<'_> {
+    fn creation_authority_id(
+        &self,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+    ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1> {
+        self.creation_state
+            .creation_authority_id(identity_digest, custody_lineage)
+    }
+
+    async fn creation_state_call<TRequest: Serialize, TResponse: DeserializeOwned>(
+        &self,
+        authority_id: TenantRootControlPlaneAuthorityIdV1,
+        identity_digest: TenantRootIdentityDigestV1,
+        custody_lineage: TenantRootCustodyLineageId,
+        path: &'static str,
+        label: &'static str,
+        request: &TRequest,
+        request_max_bytes: usize,
+        response_max_bytes: usize,
+    ) -> RouterAbProtocolResult<TResponse> {
+        self.creation_state
+            .creation_state_call(
+                authority_id,
+                identity_digest,
+                custody_lineage,
+                path,
+                label,
+                request,
+                request_max_bytes,
+                response_max_bytes,
+            )
+            .await
+    }
+}
+
 impl router_ab_cloudflare::TenantRootControlPlaneHostV1 for LocalTenantRootControlPlaneHostV1<'_> {
     fn bindings(&self) -> &CloudflareTenantRootControlPlaneBindingsV1 {
         &self.config.bindings
@@ -1356,15 +1393,6 @@ impl router_ab_cloudflare::TenantRootControlPlaneHostV1 for LocalTenantRootContr
             .env
             .secret_text(self.config.bindings.issuer_signing_key.binding_name())?;
         decode_cloudflare_tenant_root_control_plane_issuer_signing_secret_v1(&secret)
-    }
-
-    fn creation_authority_id(
-        &self,
-        identity_digest: TenantRootIdentityDigestV1,
-        custody_lineage: TenantRootCustodyLineageId,
-    ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1> {
-        self.creation_state
-            .creation_authority_id(identity_digest, custody_lineage)
     }
 
     async fn read_creation_state(
