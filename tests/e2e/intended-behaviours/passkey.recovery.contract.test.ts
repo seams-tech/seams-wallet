@@ -73,6 +73,17 @@ test('a failed finalization leaves its admitted recovery code reusable', async (
   await harness.assertConsumedRecoveryCodeReportedAsUsed();
 });
 
+test('an interrupted recovery attempt is superseded by a retry with the same code, which recovers and signs', async ({
+  harness,
+}) => {
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  await harness.signTempoTransaction('post_registration');
+  await harness.recoverPasskeyWalletAfterInterruptedAttempt();
+  await harness.assertRecoveryAuthorityIsAdditive('passkey');
+  await harness.signNearTransaction('post_unlock');
+});
+
 test('a committed Passkey recovery survives a lost finalization response and runtime reset', async ({
   harness,
 }) => {

@@ -1193,6 +1193,8 @@ fn handle_yao_control_request(
                 LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
             >(&request.body)?;
             let receipt = state.signing_worker.promote_recovery_candidate(promotion)?;
+            // Persisted before the reply: the Gateway records the promotion on it.
+            host.persist_state(LocalServiceRoleV1::SigningWorker, state)?;
             write_local_dev_http_response_v1(stream, 200, &serde_json::to_string(&receipt)?)
         }
         (

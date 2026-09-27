@@ -220,6 +220,116 @@ Found in the same check and not addressed here (for review):
   lookup. An abandoned candidate blocks later recoveries.
 - The VM and Workers Routers reconcile a replayed recovery differently.
 
+### Slice 4: a recovery resumes instead of sticking
+
+A recovery could stop for good. Recoverable Router answers were recorded as
+terminal, a claim cut short stayed "in progress" forever, and the capability
+stayed suspended with no way on. The SDK makes this worse: each attempt draws
+a fresh random replacement binding, so a retry never repeats a request. It is
+a new attempt, refused `capability_suspended` because the earlier attempt
+held the suspension.
+
+**Attempt and recovery.** An attempt is one admission request. The recovery
+is its lifecycle, derived from the recovery code's reservation and key set,
+authorized the same way. A failure never reactivates the old capability:
+recovery may follow a suspected compromise. The recovery goes on by resuming.
+
+**Gateway.**
+- A new attempt of the same recovery supersedes the attempt holding the
+  suspension if that attempt has not begun activating. Supersedable: failed
+  admission, admitted, interrupted or failed execution, and staged. A live
+  claim becomes supersedable once stale: 30 s for admission, 60 s for
+  execution, which outlasts any Router execution. The superseded attempt is
+  recorded `superseded` and can never execute or activate. The suspension
+  passes to the new attempt.
+- An attempt that is activating, failed activation, or promoted is never
+  superseded. Its promotion could already be at the SigningWorker, so it can
+  only be resumed.
+- Execution answers that decide nothing become `execution_interrupted`, not
+  terminal: an unavailable role or Router, another run holding the execution,
+  or a lost reply. The same payload then executes again as the Router's
+  replay, as does a stale claim of it. Burned, rejected and expired
+  executions stay terminal for the attempt, and the recovery continues
+  through a new attempt.
+- A promote the SigningWorker did not answer leaves the attempt activating,
+  and a retry reconciles it.
+
+**SigningWorker**, the same on Workers and the VM:
+- A later attempt's delivery replaces the staged candidate of an earlier
+  attempt of the same lifecycle. The new candidate stands on the same active
+  material. Only the Gateway's current attempt promotes.
+- The same deliveries answer again, staged or promoted.
+- Another attempt of a recovery that already promoted is refused as stale.
+- Workers promotes by compare-and-set on the lifecycle first and writes the
+  activation row after, so one promotion wins, and a repeat writes the row
+  again.
+- The VM now keeps its recovery slot, staged or promoted, in its durable
+  state, and persists a promotion before replying.
+
+**Router.** On the VM, replaying a recovery reconciles as role-store Workers
+does:
+- both roles completed: the packages are delivered again;
+- a pair running or completed on one side: it is burned;
+- expired: recoverable;
+- missing: a fresh run.
+
+**Evidence (2026-09-28).**
+- New contract, on Workers and on the VM: "an interrupted recovery attempt
+  is superseded by a retry with the same code, which recovers and signs".
+  1. A local-only fault lets the Router run the first attempt's execution,
+     which stages its candidate at the SigningWorker.
+  2. The fault then loses every reply to that execution. That includes the
+     Gateway's replay, which must also answer `succeeded`, so both hosts
+     reconcile a replayed completed recovery the same way.
+  3. The Gateway records the attempt interrupted, and the page offers to try
+     again.
+  4. The retry is a new attempt. It supersedes the first at the Gateway and
+     replaces the first attempt's candidate at the SigningWorker. It
+     promotes, and the wallet signs NEAR.
+
+  Before this slice, the retry was refused `capability_suspended`.
+- Two other recovery contracts pass on both hosts: the fresh-browser
+  recovery, and one that survives a lost finalization response.
+- VM tests pass: the SigningWorker and Router coordinator unit tests, the
+  Router's SigningWorker reply-loss reconciliation, the product
+  registration, and the claim takeover.
+
+**Not addressed (for review).**
+- Abandoning a recovery and restoring the previous authority. This needs an
+  explicit, fenced policy.
+- Recovery on the wallet-object build. The SigningWorker wallet object
+  handles registration only, so a recovery delivery or promotion there never
+  reaches it.
+- After a recovery promotes, the SigningWorker keeps the previous
+  activation's row, still signable there. The Gateway no longer admits it.
+- A recovery execute still resolves its tenant root on every call, not
+  pinned at admission.
+- On a registration replay, a pair running or completed on one side is still
+  burned on role-store Workers and answered recoverable on the VM.
+
+### Boundary decision: ceremony records stay in Gateway D1 (2026-09-28)
+
+The lifecycle-keyed ceremony records stay in Gateway D1. This is the final
+boundary, not remaining work:
+- **They are the Gateway's facts.** The records hold the admission, the
+  intent credential that bound it, the tenant root pinned at admission, and
+  the progress of recovery and export. Each is decided by the Gateway's own
+  authentication and tenant checks.
+- **They commit with tenant-wide facts.** Every transition that writes one
+  also writes Gateway-owned tenant-wide facts in the same D1 batch: the
+  `shared` record's capability, identity, session and nonce indexes, the
+  lifecycle's decision row, or the wallet's signer rows. Moving the records
+  to a wallet object would split each of those atomic units into a
+  cross-owner protocol, with nothing gained in ownership.
+- **Nothing here is a cache.** The Router's wallet object owns what the
+  Router decides: the execution's claim, lease and generation, the pinned
+  request, the terminal answer, and the consumer binding. The Gateway keeps
+  no copy of those, and the Router keeps none of the Gateway's records.
+
+What would reopen this: a transition that commits a ceremony record without
+any tenant-wide fact, or a need to serve ceremony records from the Router.
+Neither exists today.
+
 ### Later slices
 
 1. **Export (sized 2026-09-28, awaiting review).** Export's authorization

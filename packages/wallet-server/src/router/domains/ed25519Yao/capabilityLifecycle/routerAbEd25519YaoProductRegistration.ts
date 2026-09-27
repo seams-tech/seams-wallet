@@ -225,11 +225,13 @@ const RECOVERY_STATE_KINDS = new Set([
   'admission_failed',
   'admitted',
   'executing',
+  'execution_interrupted',
   'execution_failed',
   'staged',
   'activating',
   'activation_failed',
   'promoted',
+  'superseded',
 ]);
 const EXPORT_STATE_KINDS = new Set([
   'authorizing',

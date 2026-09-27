@@ -426,7 +426,10 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
         pair_binding: &Ed25519YaoInputPairBindingV1,
         root_identity: &TenantRootIdentityV1,
     ) -> RouterAbProtocolResult<Option<RouterEd25519YaoExecuteResultV1>> {
-        if binding.operation != Ed25519YaoOperationV1::Registration {
+        if !matches!(
+            binding.operation,
+            Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery
+        ) {
             return Ok(None);
         }
         let lookup = CloudflareEd25519YaoPairLookupRequestV1 {
@@ -487,6 +490,40 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                 let a = router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_a)?;
                 let b = router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_b)?;
                 let delivery = activation_delivery(root_identity, binding, a, b)?;
+                if binding.operation == Ed25519YaoOperationV1::Recovery {
+                    // As on Workers: the same packages go to the SigningWorker
+                    // again, which answers a delivery it already staged.
+                    let receipt = match self.client.post_json_authenticated_v1::<_, LocalEd25519YaoSigningWorkerActivationReceiptV1>(
+                        &config.signing_worker_url,
+                        LocalServiceRoleV1::SigningWorker,
+                        LOCAL_SIGNING_WORKER_ED25519_YAO_ACTIVATION_PACKAGES_PATH,
+                        &config.internal_service_auth,
+                        &delivery,
+                    ) {
+                        Ok(receipt) => receipt,
+                        Err(_) => {
+                            return RouterEd25519YaoExecuteResultV1::recoverable(
+                                RouterEd25519YaoExecuteFailureCodeV1::SigningWorkerUncertain,
+                                1_000,
+                            )
+                            .map(Some)
+                        }
+                    };
+                    let public_receipt = activation_public_receipt(
+                        receipt,
+                        Ed25519YaoOperationV1::Recovery,
+                        binding.material_activation().clone(),
+                    )?;
+                    let result = RouterAbEd25519YaoActivationResultV1::new(
+                        binding.clone(),
+                        a.client_package.clone(),
+                        b.client_package.clone(),
+                        public_receipt,
+                    )?;
+                    return Ok(Some(RouterEd25519YaoExecuteResultV1::succeeded(
+                        RouterEd25519YaoExecuteSuccessV1::recovery(result)?,
+                    )));
+                }
                 let finalization = self.client.post_json_authenticated_v1::<_, LocalEd25519YaoInitialRegistrationFinalizationV1>(
                     &config.signing_worker_url,
                     LocalServiceRoleV1::SigningWorker,
@@ -561,6 +598,16 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                     1_000,
                 )
                 .map(Some)
+            }
+            // A recovery pair running, or completed on one side only, when its
+            // run is presumed dead is burned, as on Workers: the recovery goes
+            // on with a new attempt.
+            _ if binding.operation == Ed25519YaoOperationV1::Recovery => {
+                self.burn_pair(config, pair_binding);
+                Ok(Some(RouterEd25519YaoExecuteResultV1::burned(
+                    execution_id_for_pair(pair_binding)?,
+                    router_ab_core::RouterEd25519YaoBurnReasonV1::PeerUncertain,
+                )))
             }
             _ => RouterEd25519YaoExecuteResultV1::recoverable(
                 RouterEd25519YaoExecuteFailureCodeV1::ServiceUnavailable,

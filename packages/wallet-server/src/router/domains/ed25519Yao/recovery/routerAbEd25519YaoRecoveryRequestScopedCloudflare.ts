@@ -156,6 +156,7 @@ class RecoveryAdmissionRequestRun {
     const prepared = service.prepareAdmitRecovery(
       this.request,
       recoveryAuthorizationBinding(authorized.authorization),
+      Date.now(),
     );
     switch (prepared.kind) {
       case 'claimed':
@@ -236,6 +237,7 @@ class RecoveryExecutionRequestRun {
     const prepared = service.prepareExecuteRecovery(
       this.request,
       recoveryAuthorizationBinding(authorized.authorization),
+      Date.now(),
     );
     switch (prepared.kind) {
       case 'claimed':
@@ -251,7 +253,7 @@ class RecoveryExecutionRequestRun {
   }
 
   async backend(
-    _claim: RouterAbEd25519YaoRecoveryExecuteClaimV1,
+    claim: RouterAbEd25519YaoRecoveryExecuteClaimV1,
   ): Promise<
     RouterAbEd25519YaoRegistrationTwoPhaseBackendResultV1<RouterAbEd25519YaoRecoveryBackendResult>
   > {
@@ -260,7 +262,8 @@ class RecoveryExecutionRequestRun {
         kind: 'response',
         value: await this.context.input.backend.executeRecovery(
           this.request,
-          _claim.admissionRequest,
+          claim.admissionRequest,
+          claim.replay,
           this.context.trace,
         ),
       };
@@ -452,9 +455,11 @@ function recoveryStatus(
   switch (recovery.kind) {
     case 'admitting':
     case 'admission_failed':
+    case 'superseded':
       return { stage: 'missing', lifecycle_id: lifecycleId };
     case 'admitted':
     case 'executing':
+    case 'execution_interrupted':
     case 'execution_failed':
       return {
         stage: 'admitted',

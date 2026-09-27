@@ -167,8 +167,12 @@ enum RecoveryPromotionState {
     Staged {
         candidate: ActivationCandidate,
     },
+    /// The recovery promoted here, with the deliveries that made it: the same
+    /// deliveries answer again, and another attempt of it is stale.
     Promoted {
         promotion: LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
+        deriver_a: PendingDelivery,
+        deriver_b: PendingDelivery,
     },
 }
 
@@ -190,6 +194,38 @@ pub struct LocalEd25519YaoSigningWorkerStateV1 {
 #[serde(deny_unknown_fields)]
 pub(crate) struct LocalEd25519YaoSigningWorkerDurableStateV1 {
     active_identities: Vec<LocalEd25519YaoSigningWorkerDurableActiveStateV1>,
+    recoveries: Vec<LocalEd25519YaoSigningWorkerDurableRecoveryV1>,
+}
+
+/// A recovery staged or promoted at one identity, kept across restarts: the
+/// deliveries that made it, the promotion it answers, and, while it is still
+/// staged, its candidate share.
+#[derive(Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
+#[serde(deny_unknown_fields)]
+struct LocalEd25519YaoSigningWorkerDurableRecoveryV1 {
+    #[zeroize(skip)]
+    identity: LocalEd25519YaoEffectiveIdentityV1,
+    #[zeroize(skip)]
+    deriver_a: LocalEd25519YaoSigningWorkerPackageDeliveryV1,
+    #[zeroize(skip)]
+    deriver_b: LocalEd25519YaoSigningWorkerPackageDeliveryV1,
+    #[zeroize(skip)]
+    promotion: LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
+    staged: Option<LocalEd25519YaoSigningWorkerDurableShareV1>,
+}
+
+#[derive(Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
+#[serde(deny_unknown_fields)]
+struct LocalEd25519YaoSigningWorkerDurableShareV1 {
+    scalar: [u8; 32],
+    #[zeroize(skip)]
+    binding: Ed25519YaoCeremonyBindingV1,
+    #[zeroize(skip)]
+    state_epoch: Ed25519YaoStateEpochV1,
+    #[zeroize(skip)]
+    activated_at_ms: u64,
+    transcript: [u8; 32],
+    registered_public_key: [u8; 32],
 }
 
 #[derive(Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
@@ -224,7 +260,40 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         &self,
     ) -> RouterAbProtocolResult<LocalEd25519YaoSigningWorkerDurableStateV1> {
         let mut active_identities = Vec::new();
+        let mut recoveries = Vec::new();
         for (identity, state) in &self.identities {
+            match state.recovery_promotion.as_ref() {
+                Some(RecoveryPromotionState::Staged { candidate }) => {
+                    recoveries.push(LocalEd25519YaoSigningWorkerDurableRecoveryV1 {
+                        identity: identity.clone(),
+                        deriver_a: delivery_request(&candidate.deriver_a),
+                        deriver_b: delivery_request(&candidate.deriver_b),
+                        promotion: candidate.promotion.clone(),
+                        staged: Some(LocalEd25519YaoSigningWorkerDurableShareV1 {
+                            scalar: *candidate.next_active.scalar,
+                            binding: candidate.next_active.binding.clone(),
+                            state_epoch: candidate.next_active.state_epoch,
+                            activated_at_ms: candidate.next_active.activated_at_ms,
+                            transcript: candidate.next_active.transcript,
+                            registered_public_key: candidate.next_active.registered_public_key,
+                        }),
+                    });
+                }
+                Some(RecoveryPromotionState::Promoted {
+                    promotion,
+                    deriver_a,
+                    deriver_b,
+                }) => {
+                    recoveries.push(LocalEd25519YaoSigningWorkerDurableRecoveryV1 {
+                        identity: identity.clone(),
+                        deriver_a: delivery_request(deriver_a),
+                        deriver_b: delivery_request(deriver_b),
+                        promotion: promotion.clone(),
+                        staged: None,
+                    });
+                }
+                None => {}
+            }
             if let Some(active) = state.active.as_ref() {
                 let initial_registration = state.initial_registration.clone().ok_or_else(|| {
                     invalid_activation("active SigningWorker state has no initial registration")
@@ -241,7 +310,10 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
                 });
             }
         }
-        Ok(LocalEd25519YaoSigningWorkerDurableStateV1 { active_identities })
+        Ok(LocalEd25519YaoSigningWorkerDurableStateV1 {
+            active_identities,
+            recoveries,
+        })
     }
 
     pub(crate) fn from_durable_state_v1(
@@ -288,6 +360,53 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
                     "persisted SigningWorker state contains a duplicate Yao identity",
                 ));
             }
+        }
+        for mut recovery in core::mem::take(&mut state.recoveries) {
+            let deriver_a =
+                validate_delivery(Ed25519YaoDeriverRoleV1::DeriverA, recovery.deriver_a.clone())?;
+            let deriver_b =
+                validate_delivery(Ed25519YaoDeriverRoleV1::DeriverB, recovery.deriver_b.clone())?;
+            if deriver_a.binding != deriver_b.binding
+                || deriver_a.binding.operation != Ed25519YaoOperationV1::Recovery
+                || recovery.identity != LocalEd25519YaoEffectiveIdentityV1::from_binding(&deriver_a.binding)
+            {
+                return Err(invalid_activation(
+                    "persisted SigningWorker recovery is invalid",
+                ));
+            }
+            let identity_state = identities.get_mut(&recovery.identity).ok_or_else(|| {
+                invalid_activation("persisted SigningWorker recovery has no active identity")
+            })?;
+            let promotion = recovery.promotion.clone();
+            identity_state.recovery_promotion = Some(match recovery.staged.as_mut() {
+                Some(share) => {
+                    if share.scalar.iter().all(|byte| *byte == 0) {
+                        return Err(invalid_activation(
+                            "persisted SigningWorker recovery candidate is invalid",
+                        ));
+                    }
+                    RecoveryPromotionState::Staged {
+                        candidate: ActivationCandidate {
+                            next_active: ActiveSigningShare {
+                                scalar: Zeroizing::new(core::mem::take(&mut share.scalar)),
+                                binding: share.binding.clone(),
+                                state_epoch: share.state_epoch,
+                                activated_at_ms: share.activated_at_ms,
+                                transcript: share.transcript,
+                                registered_public_key: share.registered_public_key,
+                            },
+                            promotion,
+                            deriver_a,
+                            deriver_b,
+                        },
+                    }
+                }
+                None => RecoveryPromotionState::Promoted {
+                    promotion,
+                    deriver_a,
+                    deriver_b,
+                },
+            });
         }
         Ok(Self { identities })
     }
@@ -536,10 +655,60 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
         deriver_a: PendingDelivery,
         deriver_b: PendingDelivery,
     ) -> RouterAbProtocolResult<LocalEd25519YaoSigningWorkerActivationReceiptV1> {
+        if deriver_a.binding.operation == Ed25519YaoOperationV1::Recovery {
+            if let Some(receipt) = self.settle_recovery_delivery(&deriver_a, &deriver_b)? {
+                return Ok(receipt);
+            }
+        }
         self.validate_activation_transition(&deriver_a.binding)?;
         let state_epoch = self.activation_state_epoch(&deriver_a.binding)?;
         let activated = activate(config, deriver_a, deriver_b, state_epoch)?;
         self.commit_activation_candidate(activated)
+    }
+
+    /// A recovery delivery against the recovery staged or promoted here, as
+    /// the Workers SigningWorker settles it. The same deliveries answer again.
+    /// A later attempt of a staged recovery replaces the earlier attempt's
+    /// candidate, which never promoted; another attempt of a promoted
+    /// recovery is stale. Anything else goes on to stage, or is refused while
+    /// a recovery is pending.
+    fn settle_recovery_delivery(
+        &mut self,
+        deriver_a: &PendingDelivery,
+        deriver_b: &PendingDelivery,
+    ) -> RouterAbProtocolResult<Option<LocalEd25519YaoSigningWorkerActivationReceiptV1>> {
+        let lifecycle_id = &deriver_a.binding.lifecycle.lifecycle_id;
+        match &self.recovery_promotion {
+            Some(RecoveryPromotionState::Staged { candidate }) => {
+                if candidate.deriver_a == *deriver_a && candidate.deriver_b == *deriver_b {
+                    return Ok(Some(LocalEd25519YaoSigningWorkerActivationReceiptV1::Staged {
+                        promotion: candidate.promotion.clone(),
+                    }));
+                }
+                if candidate.deriver_a.binding.lifecycle.lifecycle_id == *lifecycle_id {
+                    self.recovery_promotion = None;
+                }
+                Ok(None)
+            }
+            Some(RecoveryPromotionState::Promoted {
+                promotion,
+                deriver_a: promoted_a,
+                deriver_b: promoted_b,
+            }) => {
+                if promoted_a == deriver_a && promoted_b == deriver_b {
+                    return Ok(Some(LocalEd25519YaoSigningWorkerActivationReceiptV1::Staged {
+                        promotion: promotion.clone(),
+                    }));
+                }
+                if promoted_a.binding.lifecycle.lifecycle_id == *lifecycle_id {
+                    return Err(invalid_activation(
+                        "SigningWorker recovery was already promoted by another attempt",
+                    ));
+                }
+                Ok(None)
+            }
+            None => Ok(None),
+        }
     }
 
     pub fn promote_recovery_candidate(
@@ -573,10 +742,15 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
         let ActivationCandidate {
             next_active,
             promotion,
-            ..
+            deriver_a,
+            deriver_b,
         } = candidate;
         self.active = Some(next_active);
-        self.recovery_promotion = Some(RecoveryPromotionState::Promoted { promotion });
+        self.recovery_promotion = Some(RecoveryPromotionState::Promoted {
+            promotion,
+            deriver_a,
+            deriver_b,
+        });
         Ok(active_activation_receipt(&request))
     }
 
@@ -986,6 +1160,15 @@ fn validate_committed_initial_registration(
         ));
     }
     Ok(())
+}
+
+fn delivery_request(delivery: &PendingDelivery) -> LocalEd25519YaoSigningWorkerPackageDeliveryV1 {
+    LocalEd25519YaoSigningWorkerPackageDeliveryV1 {
+        binding: delivery.binding.clone(),
+        client_commitment: delivery.client_commitment,
+        signing_worker_commitment: delivery.signing_worker_commitment,
+        package: delivery.package.clone(),
+    }
 }
 
 fn validate_delivery(

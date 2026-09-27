@@ -836,6 +836,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     return await this.executeRouterRequest(
       { operation: 'export', request, admissionRequest },
+      false,
       traceContext,
     );
   }
@@ -925,6 +926,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     return await this.executeRouterRequest(
       { operation: 'registration', request, admissionRequest },
+      false,
       traceContext,
     );
   }
@@ -951,6 +953,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
       registrationRouterExecuteRequest(routerInput, dispatchRoot),
       traceContext.value,
       'exact',
+      false,
     );
   }
 
@@ -981,16 +984,21 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
   async executeRecovery(
     request: RouterAbEd25519YaoRecoveryExecuteRequestV1,
     admissionRequest: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
+    replay: boolean,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     return await this.executeRouterRequest(
       { operation: 'recovery', request, admissionRequest },
+      replay,
       traceContext,
     );
   }
 
+  /// Runs one Router execution. `replay` marks the first call as the
+  /// Router's replay: an earlier call for this payload may have reached it.
   private async executeRouterRequest(
     request: RouterExecuteInput,
+    replay: boolean,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     const traceId = (traceContext ?? createRouterAbTraceContextV1()).value;
@@ -1019,7 +1027,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
       'success',
     );
 
-    return await this.sendRouterRequest(request, routerRequest, traceId, 'replay');
+    return await this.sendRouterRequest(request, routerRequest, traceId, 'replay', replay);
   }
 
   private async sendRouterRequest(
@@ -1027,6 +1035,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     routerRequest: RouterExecuteBoundary,
     traceId: string,
     retryAfterTransportFailure: 'exact' | 'replay',
+    replay: boolean,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     const operation = request.operation;
     const executeStartedAt = performance.now();
@@ -1036,6 +1045,7 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
         routerRequest,
         traceId,
         retryAfterTransportFailure,
+        replay,
       );
       this.lastRouterServerTiming = response.ok ? response.serverTiming : null;
       const result = response.ok
@@ -1095,15 +1105,17 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     body: unknown,
     traceId: string,
     retryAfterTransportFailure: 'none' | 'exact' | 'replay' = 'none',
+    replay = false,
   ): Promise<HttpResult> {
+    const init: RequestInit = {
+      method: 'POST',
+      headers: this.headers(traceId),
+      body: JSON.stringify(body),
+    };
     return await this.request(
       this.config.routerUrl,
       path,
-      {
-        method: 'POST',
-        headers: this.headers(traceId),
-        body: JSON.stringify(body),
-      },
+      replay ? requestInitWithReplayHeader(init) : init,
       retryAfterTransportFailure,
     );
   }

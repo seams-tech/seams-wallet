@@ -11,7 +11,10 @@ import {
 import type { CfExecutionContext } from './router/cloudflare/runtime/cloudflare.types';
 import { WALLET_CONSOLE_OP_PATHS_V1 } from './router/cloudflare/runtime/walletConsoleOps';
 import type { WalletConsoleServiceBinding } from './router/cloudflare/runtime/walletConsoleOpsClient';
-import { ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1 } from '@shared/utils/routerAbEd25519Yao';
+import {
+  ROUTER_AB_ED25519_YAO_RECOVERY_EXECUTE_PATH_V1,
+  ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
+} from '@shared/utils/routerAbEd25519Yao';
 import {
   LOCAL_INTENDED_YAO_FAULT_HEADER_V1,
   LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1,
@@ -41,6 +44,15 @@ import {
   responseWithLocalIntendedYaoFinalizeFaultOutcomeV1,
   WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1,
 } from './localIntendedYaoFinalizeFault';
+import {
+  LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1,
+  LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1,
+  LocalIntendedYaoRecoveryFaultControllerV1,
+  parseLocalIntendedYaoRecoveryFaultModeV1,
+  parseLocalIntendedYaoRecoveryFaultTokenV1,
+  requestWithoutLocalIntendedYaoRecoveryFaultHeadersV1,
+  responseWithLocalIntendedYaoRecoveryFaultOutcomeV1,
+} from './localIntendedYaoRecoveryFault';
 
 export type LocalHostedWalletGatewayEnv = CloudflareD1GatewayBaseEnv & {
   readonly WALLET_LOCAL_DEPLOYMENT_JSON: string;
@@ -211,6 +223,18 @@ export async function handleLocalHostedWalletGatewayRequestV1(
       ecdsaFinalizeToken,
     );
   }
+  const yaoRecoveryMode = request.headers.get(LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1);
+  const yaoRecoveryToken = request.headers.get(LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1);
+  if (yaoRecoveryMode !== null || yaoRecoveryToken !== null) {
+    return await handleYaoRecoveryFault(
+      request,
+      gatewayEnv,
+      ctx,
+      dependencies,
+      yaoRecoveryMode,
+      yaoRecoveryToken,
+    );
+  }
   const yaoFinalizeMode = request.headers.get(LOCAL_INTENDED_YAO_FINALIZE_FAULT_HEADER_V1);
   const yaoFinalizeToken = request.headers.get(LOCAL_INTENDED_YAO_FINALIZE_FAULT_TOKEN_HEADER_V1);
   if (yaoFinalizeMode !== null || yaoFinalizeToken !== null) {
@@ -256,6 +280,43 @@ export async function handleLocalHostedWalletGatewayRequestV1(
     dependencies,
   );
   return responseWithLocalIntendedYaoFaultOutcomeV1(response, controller.consumeOutcome(), token);
+}
+
+/**
+ * Loses every Router reply to one Ed25519 Yao recovery execution, after the
+ * Router has run it. Local only.
+ */
+async function handleYaoRecoveryFault(
+  request: Request,
+  env: CloudflareD1GatewayEnv,
+  ctx: CfExecutionContext,
+  dependencies: HostedWalletGatewayDependenciesV1 | undefined,
+  rawMode: string | null,
+  rawToken: string | null,
+): Promise<Response> {
+  const mode = parseLocalIntendedYaoRecoveryFaultModeV1(rawMode);
+  const token = parseLocalIntendedYaoRecoveryFaultTokenV1(rawToken);
+  const url = new URL(request.url);
+  if (
+    url.protocol !== 'http:' ||
+    url.hostname !== '127.0.0.1' ||
+    url.pathname !== ROUTER_AB_ED25519_YAO_RECOVERY_EXECUTE_PATH_V1 ||
+    request.method !== 'POST' ||
+    !mode ||
+    !token
+  ) {
+    return Response.json({ code: 'invalid_intended_yao_recovery_fault' }, { status: 400 });
+  }
+  const controller = new LocalIntendedYaoRecoveryFaultControllerV1(
+    env.MPC_ROUTER.fetch.bind(env.MPC_ROUTER),
+  );
+  const response = await handleSplitGatewayRequest(
+    requestWithoutLocalIntendedYaoRecoveryFaultHeadersV1(request),
+    { ...env, MPC_ROUTER: controller },
+    ctx,
+    dependencies,
+  );
+  return responseWithLocalIntendedYaoRecoveryFaultOutcomeV1(response, controller.outcome(), token);
 }
 
 /**

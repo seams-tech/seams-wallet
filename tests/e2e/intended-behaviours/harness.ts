@@ -177,6 +177,9 @@ const LOCAL_INTENDED_YAO_FINALIZE_FAULT_HEADER_V1 = 'x-seams-intended-yao-finali
 const LOCAL_INTENDED_YAO_FINALIZE_FAULT_TOKEN_HEADER_V1 =
   'x-seams-intended-yao-finalize-fault-token-v1';
 const WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1 = '/wallets/register/near-provisioning';
+const LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1 = 'x-seams-intended-yao-recovery-fault-v1';
+const LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1 =
+  'x-seams-intended-yao-recovery-fault-token-v1';
 /* The Gateway's side-effect journal lets a retry take an unfinished NEAR
    finalize over only after this long. */
 const WALLET_REGISTRATION_NEAR_PROVISIONING_RESUME_AFTER_MS = 30_000;
@@ -187,7 +190,8 @@ type IntendedYaoFaultModeV1 = 'drop_router_response_once' | 'return_terminal_bur
 type IntendedYaoFaultProofV1 =
   | 'exact_request_replayed'
   | 'terminal_failure_not_retried'
-  | 'decision_committed_then_storage_lost';
+  | 'decision_committed_then_storage_lost'
+  | 'recovery_replies_lost_after_router_executed';
 
 type IntendedYaoFaultInjectionStateV1 =
   | {
@@ -1091,6 +1095,8 @@ export class IntendedBehaviourHarness {
   private readonly intendedYaoFaultProofs: string[] = [];
   /** Armed once: the next NEAR finalize loses the Gateway's storage after its decision. */
   private intendedYaoFinalizeFaultToken: string | null = null;
+  /** Armed once: the next recovery execution loses every Router reply. */
+  private intendedYaoRecoveryFaultToken: string | null = null;
 
   constructor(args: {
     context: BrowserContext;
@@ -2058,6 +2064,55 @@ export class IntendedBehaviourHarness {
     this.recordService('failed finalization left the admitted recovery code reusable');
   }
 
+  /**
+   * A fresh-browser recovery whose first attempt is interrupted: the Router
+   * runs its execution, staging the attempt's candidate at the SigningWorker,
+   * and every reply to it is lost, the Gateway's replay included. The Gateway
+   * records the execution as interrupted. Retrying with the same code starts a
+   * new attempt of the same recovery, which takes the interrupted attempt's
+   * place at the Gateway and its candidate's place at the SigningWorker, then
+   * recovers.
+   */
+  async recoverPasskeyWalletAfterInterruptedAttempt(): Promise<void> {
+    this.recordStage('recover_passkey_wallet_after_interrupted_attempt');
+    const action = recoveryActionForTarget('passkey');
+    const { registration, recoveryCode } = await this.beginFreshBrowserRecovery({ action });
+    if (this.intendedYaoRecoveryFaultToken !== null) {
+      throw new Error('An intended Yao recovery fault is already armed');
+    }
+    requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
+    const proofStartIndex = this.intendedYaoFaultProofs.length;
+    const faultToken = randomUUID();
+    this.intendedYaoRecoveryFaultToken = faultToken;
+    let frame: FrameLocator;
+    try {
+      frame = await fillHostedRecoveryCode(this.page, recoveryCode, 'passkey');
+      await expect(frame.locator('.seams-recovery-status').last()).toHaveText(
+        'Recovery couldn’t be completed. Try again.',
+        { timeout: 120_000 },
+      );
+    } finally {
+      this.intendedYaoRecoveryFaultToken = null;
+    }
+    this.assertIntendedYaoFaultProof(
+      proofStartIndex,
+      faultToken,
+      'recovery_replies_lost_after_router_executed',
+    );
+    await frame.getByRole('button', { name: 'Retry finalization', exact: true }).click({
+      timeout: 30_000,
+    });
+    await waitForHostedPasskeyRecoverySignIn(this.page, frame);
+    const snapshot = await this.waitForIntendedPageActionCompletion(action.name, 'success');
+    const result = requirePasskeyRecoveryResult(snapshot, this.walletId);
+    this.assertRecoveryCodeConsumption(result);
+    await this.assertRecoveredWalletLoggedIn(registration.walletId);
+    this.passkeyPromptCount += 3;
+    this.operatingAuthFamily = 'passkey';
+    this.currentWarmSigningStage = 'post_unlock';
+    this.recordService('a retry with the same code superseded the interrupted recovery attempt');
+  }
+
   async recoverPasskeyWalletAfterLostFinalizationResponse(): Promise<void> {
     this.recordStage('recover_passkey_wallet_after_lost_finalization_response');
     const action = recoveryActionForTarget('passkey');
@@ -2934,6 +2989,10 @@ export class IntendedBehaviourHarness {
       `**${WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1}`,
       this.handleIntendedYaoFinalizeFaultRoute.bind(this),
     );
+    await this.context.route(
+      `**${ROUTER_AB_ED25519_YAO_RECOVERY_EXECUTE_PATH_V1}`,
+      this.handleIntendedYaoRecoveryFaultRoute.bind(this),
+    );
   }
 
   private async installWebAuthnVirtualAuthenticator(): Promise<void> {
@@ -3191,6 +3250,22 @@ export class IntendedBehaviourHarness {
         ...route.request().headers(),
         [LOCAL_INTENDED_YAO_FAULT_HEADER_V1]: current.mode,
         [LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1]: current.token,
+      },
+    });
+  }
+
+  private async handleIntendedYaoRecoveryFaultRoute(route: Route): Promise<void> {
+    const token = this.intendedYaoRecoveryFaultToken;
+    if (token === null || route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    this.intendedYaoRecoveryFaultToken = null;
+    await route.continue({
+      headers: {
+        ...route.request().headers(),
+        [LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1]: 'lose_router_recovery_replies',
+        [LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1]: token,
       },
     });
   }
