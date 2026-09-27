@@ -236,10 +236,10 @@ retired share may be erased only once no admitted work can still need it:
      on the VM the prepare handler admits explicitly.
    - **Reading:** `load_bound` admits first. It returns a retired share only
      to an operation admitted before the swap.
-   - **Refusals:** an unused binding for a closed epoch gets
-     `ExpiredLocalRequest`, "retired here before the operation was admitted".
-     A binding for an epoch not yet active here gets the retryable
-     `LifecycleTransitionInProgress`.
+   - **Refusals:** both are the retryable `LifecycleTransitionInProgress`.
+     An unused binding for a closed epoch is told "retired here before the
+     operation was admitted; start it again". A binding for an epoch not yet
+     active here is told to retry.
 
    The admissions are also the obligations that settlement (step 3) must see
    resolved.
