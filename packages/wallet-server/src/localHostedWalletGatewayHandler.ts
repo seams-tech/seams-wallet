@@ -12,6 +12,7 @@ import type { CfExecutionContext } from './router/cloudflare/runtime/cloudflare.
 import { WALLET_CONSOLE_OP_PATHS_V1 } from './router/cloudflare/runtime/walletConsoleOps';
 import type { WalletConsoleServiceBinding } from './router/cloudflare/runtime/walletConsoleOpsClient';
 import {
+  ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1,
   ROUTER_AB_ED25519_YAO_RECOVERY_EXECUTE_PATH_V1,
   ROUTER_AB_ED25519_YAO_REGISTRATION_EXECUTE_PATH_V1,
 } from '@shared/utils/routerAbEd25519Yao';
@@ -53,6 +54,15 @@ import {
   requestWithoutLocalIntendedYaoRecoveryFaultHeadersV1,
   responseWithLocalIntendedYaoRecoveryFaultOutcomeV1,
 } from './localIntendedYaoRecoveryFault';
+import {
+  LOCAL_INTENDED_YAO_EXPORT_FAULT_HEADER_V1,
+  LOCAL_INTENDED_YAO_EXPORT_FAULT_TOKEN_HEADER_V1,
+  LocalIntendedYaoExportFaultDatabaseV1,
+  parseLocalIntendedYaoExportFaultModeV1,
+  parseLocalIntendedYaoExportFaultTokenV1,
+  requestWithoutLocalIntendedYaoExportFaultHeadersV1,
+  responseWithLocalIntendedYaoExportFaultOutcomeV1,
+} from './localIntendedYaoExportFault';
 
 export type LocalHostedWalletGatewayEnv = CloudflareD1GatewayBaseEnv & {
   readonly WALLET_LOCAL_DEPLOYMENT_JSON: string;
@@ -235,6 +245,18 @@ export async function handleLocalHostedWalletGatewayRequestV1(
       yaoRecoveryToken,
     );
   }
+  const yaoExportMode = request.headers.get(LOCAL_INTENDED_YAO_EXPORT_FAULT_HEADER_V1);
+  const yaoExportToken = request.headers.get(LOCAL_INTENDED_YAO_EXPORT_FAULT_TOKEN_HEADER_V1);
+  if (yaoExportMode !== null || yaoExportToken !== null) {
+    return await handleYaoExportFault(
+      request,
+      gatewayEnv,
+      ctx,
+      dependencies,
+      yaoExportMode,
+      yaoExportToken,
+    );
+  }
   const yaoFinalizeMode = request.headers.get(LOCAL_INTENDED_YAO_FINALIZE_FAULT_HEADER_V1);
   const yaoFinalizeToken = request.headers.get(LOCAL_INTENDED_YAO_FINALIZE_FAULT_TOKEN_HEADER_V1);
   if (yaoFinalizeMode !== null || yaoFinalizeToken !== null) {
@@ -353,6 +375,56 @@ async function handleYaoFinalizeFault(
     dependencies,
   );
   return responseWithLocalIntendedYaoFinalizeFaultOutcomeV1(response, database.outcome(), token);
+}
+
+/**
+ * Loses the Gateway's storage once during one Ed25519 Yao export admission,
+ * right after the batch that authorized the export committed, then sends the
+ * identical request again inside this Gateway request. The client sees only
+ * the second answer. Local only.
+ */
+async function handleYaoExportFault(
+  request: Request,
+  env: CloudflareD1GatewayEnv,
+  ctx: CfExecutionContext,
+  dependencies: HostedWalletGatewayDependenciesV1 | undefined,
+  rawMode: string | null,
+  rawToken: string | null,
+): Promise<Response> {
+  const mode = parseLocalIntendedYaoExportFaultModeV1(rawMode);
+  const token = parseLocalIntendedYaoExportFaultTokenV1(rawToken);
+  const url = new URL(request.url);
+  if (
+    url.protocol !== 'http:' ||
+    url.hostname !== '127.0.0.1' ||
+    url.pathname !== ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1 ||
+    request.method !== 'POST' ||
+    !mode ||
+    !token
+  ) {
+    return Response.json({ code: 'invalid_intended_yao_export_fault' }, { status: 400 });
+  }
+  const sanitized = requestWithoutLocalIntendedYaoExportFaultHeadersV1(request);
+  const body = await sanitized.arrayBuffer();
+  const database = new LocalIntendedYaoExportFaultDatabaseV1(env.SIGNER_DB);
+  const interrupted = await handleSplitGatewayRequest(
+    new Request(sanitized.url, { method: 'POST', headers: sanitized.headers, body }),
+    { ...env, SIGNER_DB: database },
+    ctx,
+    dependencies,
+  );
+  await interrupted.arrayBuffer();
+  const retried = await handleSplitGatewayRequest(
+    new Request(sanitized.url, { method: 'POST', headers: sanitized.headers, body }),
+    env,
+    ctx,
+    dependencies,
+  );
+  return responseWithLocalIntendedYaoExportFaultOutcomeV1(
+    retried,
+    database.outcome({ interruptedOk: interrupted.ok, retriedOk: retried.ok }),
+    token,
+  );
 }
 
 /**

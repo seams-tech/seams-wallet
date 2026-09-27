@@ -234,8 +234,6 @@ const RECOVERY_STATE_KINDS = new Set([
   'superseded',
 ]);
 const EXPORT_STATE_KINDS = new Set([
-  'authorizing',
-  'authorization_failed',
   'authorized',
   'admitting',
   'admission_failed',

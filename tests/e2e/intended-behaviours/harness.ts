@@ -180,6 +180,9 @@ const WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1 = '/wallets/register/near-pr
 const LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1 = 'x-seams-intended-yao-recovery-fault-v1';
 const LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1 =
   'x-seams-intended-yao-recovery-fault-token-v1';
+const LOCAL_INTENDED_YAO_EXPORT_FAULT_HEADER_V1 = 'x-seams-intended-yao-export-fault-v1';
+const LOCAL_INTENDED_YAO_EXPORT_FAULT_TOKEN_HEADER_V1 =
+  'x-seams-intended-yao-export-fault-token-v1';
 /* The Gateway's side-effect journal lets a retry take an unfinished NEAR
    finalize over only after this long. */
 const WALLET_REGISTRATION_NEAR_PROVISIONING_RESUME_AFTER_MS = 30_000;
@@ -191,7 +194,8 @@ type IntendedYaoFaultProofV1 =
   | 'exact_request_replayed'
   | 'terminal_failure_not_retried'
   | 'decision_committed_then_storage_lost'
-  | 'recovery_replies_lost_after_router_executed';
+  | 'recovery_replies_lost_after_router_executed'
+  | 'export_authorization_committed_then_storage_lost';
 
 type IntendedYaoFaultInjectionStateV1 =
   | {
@@ -1097,6 +1101,9 @@ export class IntendedBehaviourHarness {
   private intendedYaoFinalizeFaultToken: string | null = null;
   /** Armed once: the next recovery execution loses every Router reply. */
   private intendedYaoRecoveryFaultToken: string | null = null;
+
+  /** Armed once: the next export admission loses storage after its authorization commits. */
+  private intendedYaoExportFaultToken: string | null = null;
 
   constructor(args: {
     context: BrowserContext;
@@ -2909,6 +2916,35 @@ export class IntendedBehaviourHarness {
     );
   }
 
+  /**
+   * An Ed25519 export whose admission loses the Gateway's storage right after
+   * the batch that authorized it committed the export's `authorized` state,
+   * its nonce claim and its authorized operation. The Gateway sends the
+   * identical request again, which admits the export from that durable
+   * authorization, and the export completes.
+   */
+  async exportEd25519KeyAcrossInterruptedAuthorization(): Promise<void> {
+    this.recordStage('ed25519.export_across_interrupted_authorization');
+    if (this.intendedYaoExportFaultToken !== null) {
+      throw new Error('An intended Yao export fault is already armed');
+    }
+    requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
+    const proofStartIndex = this.intendedYaoFaultProofs.length;
+    const faultToken = randomUUID();
+    this.intendedYaoExportFaultToken = faultToken;
+    try {
+      await this.exportEd25519Key();
+    } finally {
+      this.intendedYaoExportFaultToken = null;
+    }
+    this.assertIntendedYaoFaultProof(
+      proofStartIndex,
+      faultToken,
+      'export_authorization_committed_then_storage_lost',
+    );
+    this.recordService('the exact retry admitted an export interrupted after its authorization');
+  }
+
   assertNoLifecycleViolations(): void {
     if (this.violations.length === 0) return;
     throw new Error(`Intended lifecycle violations:\n${this.violations.join('\n')}`);
@@ -2992,6 +3028,10 @@ export class IntendedBehaviourHarness {
     await this.context.route(
       `**${ROUTER_AB_ED25519_YAO_RECOVERY_EXECUTE_PATH_V1}`,
       this.handleIntendedYaoRecoveryFaultRoute.bind(this),
+    );
+    await this.context.route(
+      `**${ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1}`,
+      this.handleIntendedYaoExportFaultRoute.bind(this),
     );
   }
 
@@ -3266,6 +3306,22 @@ export class IntendedBehaviourHarness {
         ...route.request().headers(),
         [LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1]: 'lose_router_recovery_replies',
         [LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1]: token,
+      },
+    });
+  }
+
+  private async handleIntendedYaoExportFaultRoute(route: Route): Promise<void> {
+    const token = this.intendedYaoExportFaultToken;
+    if (token === null || route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    this.intendedYaoExportFaultToken = null;
+    await route.continue({
+      headers: {
+        ...route.request().headers(),
+        [LOCAL_INTENDED_YAO_EXPORT_FAULT_HEADER_V1]: 'lose_storage_after_export_authorization_once',
+        [LOCAL_INTENDED_YAO_EXPORT_FAULT_TOKEN_HEADER_V1]: token,
       },
     });
   }

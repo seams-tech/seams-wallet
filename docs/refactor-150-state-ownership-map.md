@@ -37,7 +37,7 @@ SQL for the retained shared Gateway and tenant-wide groups.
 | `wallet_ecdsa_pending_session_activations` in `SIGNER_DB` | Router | Router wallet DO SQLite | Claim paired activation once, with a durable terminal outcome |
 | `router_ab_normal_signing_admission_records` in `SIGNER_DB` | Gateway | Gateway D1: tenant project policy and abuse decisions | Keep project-wide policy and abuse decisions with their shared scope |
 | `wallet_session_authorizations_v2`, `wallet_session_hosted_credentials_v2`, `wallet_session_hosted_exchange_codes_v2`, `hosted_wallet_session_exchange_codes`, `reusable_wallet_sessions`, `authorization_sessions`, `authorization_wallet_session_quotas` in `SIGNER_DB` | Gateway | Gateway D1: session and credential authority | Issue, retire, or exchange a credential with its session and quota in one D1 transaction |
-| `authorized_operations`, `authorized_operation_audit_events`, `verified_grant_evidence_sets`, `verified_owner_proof_consumptions`, `verified_wallet_operation_evidence_sets`, `ecdsa_authorization_atomic_guards` in `SIGNER_DB` | Gateway | Gateway D1: grant, quota, replay and authorization authority | Consume an exact grant/quota and claim its operation and audit identity in one transaction; Router receives only the resulting scoped authorization |
+| `authorized_operations`, `authorized_operation_audit_events`, `verified_grant_evidence_sets`, `verified_owner_proof_consumptions`, `verified_wallet_operation_evidence_sets`, `ecdsa_authorization_atomic_guards` in `SIGNER_DB` | Gateway | Gateway D1: grant, quota, replay and authorization authority | Consume an exact grant/quota and claim its operation and audit identity in one transaction; an export's operation commits in the batch that records the export authorized and claims its nonce; Router receives only the resulting scoped authorization |
 | `router_ab_yao_capability_replacements` in `SIGNER_DB` | Gateway | Gateway D1 with wallet authority and session projections | Replace the public capability and affected session projection atomically after the role-private activation receipt |
 | `yao_pair_sessions` in each Deriver private D1 | A or B, respectively | Separate A and B wallet DO SQLite namespaces and deployments | Claim/advance/burn the pair and its replay identity in the owning role before sending a peer message |
 | `tenant_root_role_shares`, `tenant_root_command_replays`, `tenant_root_command_cas_guard`, `tenant_root_recovery_attempts`, `tenant_root_restore_import_sessions`, `tenant_root_restore_import_keys`, `tenant_root_restore_refresh_attempts`, `tenant_root_source_retirements` in each Deriver private D1 | A or B, respectively | Separate role-private D1: tenant-wide roots and fences shared by that role's wallets | Change a root epoch, replay claim, and retirement fence within the same role database; never join A and B storage |
@@ -56,10 +56,10 @@ the lifecycle record. Preserve this D1 atomic unit during the first Deriver
 execution-boundary slice. A later DO path must establish the failure and
 visibility protocol for splitting finalization, including lost-reply
 reconciliation, before it moves these records. Recovery/export transitions
-need the same explicit review of their shared invariants. The proposed
-protocol, awaiting review, is
-[cross-owner finalization](./refactor-150-cross-owner-finalization.md); until
-it is approved these records stay in D1. The same D1 CAS guard
+need the same explicit review of their shared invariants. That review is
+[cross-owner finalization](./refactor-150-cross-owner-finalization.md): these
+records stay in D1 as the final boundary, and each transition that writes
+one commits it with the tenant-wide facts it depends on. The same D1 CAS guard
 currently protects multiple families; each target owner gets its own local
 transaction rather than a copy of the shared guard. Historical bridge tables
 in migration SQL are not additional current authorities.

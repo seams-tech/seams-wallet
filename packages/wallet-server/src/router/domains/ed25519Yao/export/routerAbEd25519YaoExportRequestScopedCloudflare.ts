@@ -22,8 +22,8 @@ import {
   parseRouterAbEd25519YaoExportExecuteEnvelopeV1,
   type RouterAbEd25519YaoExportAdmissionClaimV1,
   type RouterAbEd25519YaoExportAuthorizationAdapter,
-  type RouterAbEd25519YaoExportAuthorizationClaimV1,
   type RouterAbEd25519YaoExportEmailOtpFactorReleaseV1,
+  type RouterAbEd25519YaoExportOperationAdmissionV1,
   type RouterAbEd25519YaoExportAuthorizationResult,
   type RouterAbEd25519YaoExportBackend,
   type RouterAbEd25519YaoExportBackendResult,
@@ -86,170 +86,6 @@ type AuthorizationRunResult =
       readonly factorRelease?: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1;
     }
   | AuthorizationFailure;
-
-class ExportAuthorizationRequestRun {
-  private authorizationUncertain = false;
-
-  authorizationState:
-    | { readonly kind: 'pending' }
-    | {
-        readonly kind: 'authorized';
-        readonly identity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1;
-        readonly factorRelease?: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1;
-      } = { kind: 'pending' };
-
-  constructor(
-    private readonly context: ExportRequestScopedContext,
-    private readonly parsed: ParsedAdmission,
-    private readonly expectedOrigin: string,
-  ) {}
-
-  async prepare(
-    state: RouterAbEd25519YaoProductRegistrationStateV1,
-  ): Promise<
-    RouterAbEd25519YaoRegistrationTwoPhasePrepareResultV1<
-      RouterAbEd25519YaoExportAuthorizationClaimV1,
-      RouterAbEd25519YaoExportAuthorizationResult,
-      never
-    >
-  > {
-    const service = this.service(state);
-    if (service.authorizationIsUncertain(this.parsed.protocol)) {
-      return {
-        kind: 'completed',
-        value: {
-          ok: false,
-          status: 503,
-          code: 'export_authorization_uncertain',
-          message: 'Export authorization outcome is uncertain and cannot be retried',
-        },
-      };
-    }
-    const existingIdentity = service.readAuthorizationIdentity(this.parsed.protocol);
-    let identity = existingIdentity;
-    if (identity && service.authorizationRequiresActiveIdentity(this.parsed.protocol)) {
-      const resolved = await this.context.input.authorization.resolveAuthorizationIdentity(
-        this.context.input.request,
-      );
-      if (!resolved.ok) return { kind: 'completed', value: resolved };
-      if (!sameAuthorizationIdentity(resolved.authorizationIdentity, identity)) {
-        return {
-          kind: 'completed',
-          value: {
-            ok: false,
-            status: 409,
-            code: 'export_authorization_conflict',
-            message: 'Export authorization owner changed for an existing request',
-          },
-        };
-      }
-    } else {
-      let authorized: Awaited<
-        ReturnType<RouterAbEd25519YaoExportAuthorizationAdapter['authorize']>
-      >;
-      try {
-        authorized = await this.context.input.authorization.authorize({
-          kind: 'admit',
-          request: this.context.input.request,
-          body: this.parsed.protocol,
-          authorization: this.parsed.authorization,
-          expectedOrigin: this.expectedOrigin,
-        });
-      } catch (error: unknown) {
-        this.authorizationUncertain = true;
-        service.recordAuthorizationUncertain(this.parsed.protocol);
-        return {
-          kind: 'completed',
-          value: {
-            ok: false,
-            status: 503,
-            code: 'export_authorization_uncertain',
-            message: errorMessage(error),
-          },
-        };
-      }
-      if (!authorized.ok) return { kind: 'completed', value: authorized };
-      identity = authorized.authorizationIdentity;
-      this.authorizationState = {
-        kind: 'authorized',
-        identity,
-        ...(authorized.factorRelease ? { factorRelease: authorized.factorRelease } : {}),
-      };
-    }
-    if (!identity) {
-      return {
-        kind: 'completed',
-        value: {
-          ok: false,
-          status: 503,
-          code: 'export_authorization_uncertain',
-          message: 'Export authorization identity is unavailable',
-        },
-      };
-    }
-    if (this.authorizationState.kind !== 'authorized') {
-      this.authorizationState = { kind: 'authorized', identity };
-    }
-    const authorizationFingerprint = await authorizationFingerprintForIdentity(
-      this.parsed,
-      identity,
-    );
-    const preparation = service.prepareAuthorizeExport(
-      this.parsed.protocol,
-      authorizationFingerprint,
-      identity,
-    );
-    switch (preparation.kind) {
-      case 'claimed':
-        return { kind: 'claimed', state, claim: preparation.claim };
-      case 'completed':
-        return { kind: 'completed', value: preparation.value };
-    }
-  }
-
-  async backend(
-    _claim: RouterAbEd25519YaoExportAuthorizationClaimV1,
-  ): Promise<
-    RouterAbEd25519YaoRegistrationTwoPhaseBackendResultV1<RouterAbEd25519YaoExportAuthorizationResult>
-  > {
-    try {
-      if (this.authorizationState.kind !== 'authorized') {
-        return { kind: 'uncertain', message: 'Export authorization was not prepared' };
-      }
-      return {
-        kind: 'response',
-        value: { ok: true },
-      };
-    } catch (error: unknown) {
-      return { kind: 'uncertain', message: errorMessage(error) };
-    }
-  }
-
-  async complete(
-    state: RouterAbEd25519YaoProductRegistrationStateV1,
-    claim: RouterAbEd25519YaoExportAuthorizationClaimV1,
-    outcome: RouterAbEd25519YaoExportAuthorizationResult,
-  ): Promise<
-    RouterAbEd25519YaoRegistrationTwoPhaseCompletionV1<RouterAbEd25519YaoExportAuthorizationResult>
-  > {
-    const value = this.service(state).commitAuthorizeExport({
-      request: this.parsed.protocol,
-      claim,
-      outcome,
-    });
-    return { kind: 'state', state, value };
-  }
-
-  private service(
-    state: RouterAbEd25519YaoProductRegistrationStateV1,
-  ): InMemoryRouterAbEd25519YaoExportService {
-    return exportService(this.context, state);
-  }
-
-  didRecordAuthorizationUncertain(): boolean {
-    return this.authorizationUncertain;
-  }
-}
 
 class ExportAdmissionRequestRun {
   constructor(
@@ -451,8 +287,7 @@ async function handleExecutionRequest(
 ): Promise<Response> {
   const parsed = parseRouterAbEd25519YaoExportExecuteEnvelopeV1(raw);
   if (!parsed.ok) return invalidBody(parsed.message);
-  const authorized = await context.input.authorization.authorize({
-    kind: 'execute',
+  const authorized = await context.input.authorization.authorizeExecution({
     request: context.input.request,
     body: parsed.protocol,
   });
@@ -477,43 +312,130 @@ async function handleExecutionRequest(
   return exportResponse(mapExecutionResult(result));
 }
 
+/**
+ * Authorizes one export admission in a single commit: after its proof
+ * verifies, the export's `authorized` state, its nonce claim and its
+ * authorized operation commit in one batch or not at all. A retry of the
+ * exact request finds the export authorized, or nothing of it.
+ */
 async function runAuthorization(
   context: ExportRequestScopedContext,
   parsed: ParsedAdmission,
   expectedOrigin: string,
 ): Promise<AuthorizationRunResult> {
-  const run = new ExportAuthorizationRequestRun(context, parsed, expectedOrigin);
-  const result = await runRouterAbEd25519YaoRegistrationTwoPhaseV1<
-    RouterAbEd25519YaoExportAuthorizationClaimV1,
-    RouterAbEd25519YaoExportAuthorizationResult,
-    RouterAbEd25519YaoExportAuthorizationResult,
-    never
-  >({
-    lifecycleId: parsed.protocol.scope.lifecycle_id,
-    store: context.input.store,
-    prepare: run.prepare.bind(run),
-    backend: run.backend.bind(run),
-    complete: run.complete.bind(run),
-  });
-  if (run.didRecordAuthorizationUncertain()) {
-    const persisted = await persistAuthorizationUncertain(context, parsed.protocol);
-    if (persisted) return persisted;
-  }
-  const mapped = mapAuthorizationResult(result);
-  if (!mapped.ok) return mapped;
-  if (run.authorizationState.kind !== 'authorized') {
+  const lifecycleId = parsed.protocol.scope.lifecycle_id;
+  let loaded = await context.input.store.load(lifecycleId);
+  const service = exportService(context, loaded.state);
+  if (service.authorizationIsUncertain(parsed.protocol)) {
     return authorizationFailure(
       503,
       'export_authorization_uncertain',
-      'Export authorization state is incomplete',
+      'Export authorization outcome is uncertain and cannot be retried',
     );
   }
+  const existingIdentity = service.readAuthorizationIdentity(parsed.protocol);
+  let verified: VerifiedAuthorization;
+  if (existingIdentity && service.authorizationRequiresActiveIdentity(parsed.protocol)) {
+    const resolved = await context.input.authorization.resolveAuthorizationIdentity(
+      parsed.protocol,
+    );
+    if (!resolved.ok) return resolved;
+    if (!sameAuthorizationIdentity(resolved.authorizationIdentity, existingIdentity)) {
+      return authorizationFailure(
+        409,
+        'export_authorization_conflict',
+        'Export authorization owner changed for an existing request',
+      );
+    }
+    verified = { identity: existingIdentity, admission: null };
+  } else {
+    let authorized: Awaited<
+      ReturnType<RouterAbEd25519YaoExportAuthorizationAdapter['authorizeAdmission']>
+    >;
+    try {
+      authorized = await context.input.authorization.authorizeAdmission({
+        request: context.input.request,
+        body: parsed.protocol,
+        authorization: parsed.authorization,
+        expectedOrigin,
+      });
+    } catch (error: unknown) {
+      return (
+        (await persistAuthorizationUncertain(context, parsed.protocol)) ??
+        authorizationFailure(503, 'export_authorization_uncertain', errorMessage(error))
+      );
+    }
+    if (!authorized.ok) return authorized;
+    verified = {
+      identity: authorized.authorizationIdentity,
+      admission: authorized.admission,
+      ...(authorized.factorRelease ? { factorRelease: authorized.factorRelease } : {}),
+    };
+  }
+  const authorizationFingerprint = await authorizationFingerprintForIdentity(
+    parsed,
+    verified.identity,
+  );
+  for (let attempt = 1; ; attempt += 1) {
+    const decision = exportService(context, loaded.state).authorizeExport(
+      parsed.protocol,
+      authorizationFingerprint,
+      verified.identity,
+    );
+    if (decision.kind === 'completed') {
+      return decision.value.ok ? authorizedRun(verified) : decision.value;
+    }
+    if (!verified.admission) {
+      /* The export was authorized when this request began, and is gone. */
+      return authorizationFailure(
+        503,
+        'export_authorization_uncertain',
+        'Export authorization changed while it was being replayed',
+      );
+    }
+    const prepared = await verified.admission.prepare();
+    if (prepared.kind === 'rejected') return prepared.failure;
+    let committed: RouterAbEd25519YaoProductRegistrationPartitionedStateCommitResultV1;
+    try {
+      committed = await context.input.store.commit({
+        lifecycleId,
+        state: loaded.state,
+        baseline: loaded.baseline,
+        companionWrite: prepared.kind === 'prepared' ? prepared.write : null,
+      });
+    } catch (error: unknown) {
+      const rejected = verified.admission.classifyFailure(error);
+      if (rejected) return rejected;
+      throw error;
+    }
+    if (committed.kind === 'stored') return authorizedRun(verified);
+    if (attempt === EXPORT_AUTHORIZATION_COMMIT_ATTEMPTS) {
+      return authorizationFailure(
+        409,
+        'export_authorization_conflict',
+        `Export authorization conflicted on ${committed.key}`,
+      );
+    }
+    loaded = await context.input.store.load(lifecycleId);
+  }
+}
+
+/* One reload after a concurrent commit: enough for a replay of the same
+   request to find the export authorized, without looping on contention. */
+const EXPORT_AUTHORIZATION_COMMIT_ATTEMPTS = 2;
+
+type VerifiedAuthorization = {
+  readonly identity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1;
+  /** Null when the export was already authorized and only its identity was checked. */
+  readonly admission: RouterAbEd25519YaoExportOperationAdmissionV1 | null;
+  readonly factorRelease?: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1;
+};
+
+function authorizedRun(verified: VerifiedAuthorization): AuthorizationRunResult {
   return {
     ok: true,
-    authorizationIdentity: run.authorizationState.identity,
-    ...(run.authorizationState.factorRelease
-      ? { factorRelease: run.authorizationState.factorRelease }
-      : {}),
+    authorizationIdentity: verified.identity,
+    ...(verified.factorRelease ? { factorRelease: verified.factorRelease } : {}),
   };
 }
 
@@ -559,36 +481,6 @@ async function runAdmission(
     complete: run.complete.bind(run),
   });
   return mapAdmissionResult(result);
-}
-
-function mapAuthorizationResult(
-  result: RouterAbEd25519YaoRegistrationTwoPhaseRunResultV1<
-    RouterAbEd25519YaoExportAuthorizationClaimV1,
-    RouterAbEd25519YaoExportAuthorizationResult,
-    never
-  >,
-): RouterAbEd25519YaoExportAuthorizationResult {
-  switch (result.kind) {
-    case 'committed':
-    case 'completed':
-      return result.value;
-    case 'rejected':
-      return assertNever(result.value);
-    case 'preclaim_version_mismatch':
-      return authorizationFailure(
-        409,
-        'export_authorization_conflict',
-        `Export authorization claim conflicted on ${result.key}`,
-      );
-    case 'backend_uncertain':
-      return authorizationFailure(503, 'export_authorization_uncertain', result.message);
-    case 'terminal_version_mismatch':
-      return authorizationFailure(
-        503,
-        'export_authorization_uncertain',
-        `Export authorization outcome is uncertain after a ${result.key} conflict`,
-      );
-  }
 }
 
 function mapAdmissionResult(

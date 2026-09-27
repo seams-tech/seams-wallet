@@ -87,3 +87,19 @@ test(
   'deferred NEAR finalize that loses storage after its decision resumes from the decision and signs',
   verifyNearFinalizeResumesFromItsDecision,
 );
+
+async function verifyInterruptedExportAuthorizationResumes({
+  harness,
+}: {
+  harness: IntendedBehaviourHarness;
+}): Promise<void> {
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  await harness.unlockPasskeyWallet();
+  await harness.exportEd25519KeyAcrossInterruptedAuthorization();
+}
+
+test(
+  'an Ed25519 export interrupted after its authorization committed is admitted by the exact retry',
+  verifyInterruptedExportAuthorizationResumes,
+);

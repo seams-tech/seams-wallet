@@ -2552,6 +2552,14 @@ function createD1AuthorizedOperationRouteService(
     admitAuthorizedOperation: assembly.authorizationService.admitAuthorizedOperation.bind(
       assembly.authorizationService,
     ),
+    prepareAuthorizedOperationAdmission:
+      assembly.authorizationService.prepareAuthorizedOperationAdmission.bind(
+        assembly.authorizationService,
+      ),
+    classifyAuthorizedOperationAdmissionFailure:
+      assembly.authorizationService.classifyAuthorizedOperationAdmissionFailure.bind(
+        assembly.authorizationService,
+      ),
     completeAuthorizedOperation: assembly.authorizationService.completeAuthorizedOperation.bind(
       assembly.authorizationService,
     ),

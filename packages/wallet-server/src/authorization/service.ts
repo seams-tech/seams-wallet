@@ -1,3 +1,4 @@
+import type { D1PreparedStatementLike } from '../storage/tenantRoute';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import type {
@@ -164,6 +165,14 @@ export interface AuthorizedOperationPort {
     readonly operation: AuthorizedOperationInput;
     readonly material?: AuthorizedOperationMaterialScope;
   }): Promise<AuthorizedOperationAdmissionResult>;
+  /** The admission `admitAuthorizedOperation` would make, prepared, not applied. */
+  prepareAuthorizedOperationAdmission(input: {
+    readonly operation: AuthorizedOperationInput;
+  }): Promise<PreparedAuthorizedOperationAdmission>;
+  /** The rejection a prepared admission's failed batch stands for, if any. */
+  classifyAuthorizedOperationAdmissionFailure(
+    error: unknown,
+  ): AuthorizedOperationAdmissionRejection | null;
   completeAuthorizedOperation(input: {
     readonly operation: AuthorizedOperation;
     readonly result: CompletedCapabilityOperationResult;
@@ -172,17 +181,30 @@ export interface AuthorizedOperationPort {
   }): Promise<AuthorizedOperation>;
 }
 
+export type AuthorizedOperationAdmissionRejection = {
+  readonly kind:
+    | 'authorization_grant_rejected'
+    | 'verified_step_up_rejected'
+    | 'wallet_session_quota_exhausted'
+    | 'material_mismatch';
+};
+
 export type AuthorizedOperationAdmissionResult =
   | { readonly kind: 'claimed'; readonly operation: AuthorizedOperation }
   | { readonly kind: 'replayed'; readonly operation: AuthorizedOperation }
   | { readonly kind: 'operation_in_progress'; readonly operation: AuthorizedOperation }
-  | {
-      readonly kind:
-        | 'authorization_grant_rejected'
-        | 'verified_step_up_rejected'
-        | 'wallet_session_quota_exhausted'
-        | 'material_mismatch';
-    };
+  | AuthorizedOperationAdmissionRejection;
+
+/**
+ * An admission prepared for a batch another store owns, after the reads
+ * `admitAuthorizedOperation` makes: an operation already admitted for the
+ * fingerprint answers as that call would, and nothing is written.
+ */
+export type PreparedAuthorizedOperationAdmission =
+  | { readonly kind: 'prepared'; readonly statements: readonly D1PreparedStatementLike[] }
+  | { readonly kind: 'replayed'; readonly operation: AuthorizedOperation }
+  | { readonly kind: 'operation_in_progress'; readonly operation: AuthorizedOperation }
+  | AuthorizedOperationAdmissionRejection;
 
 export type EcdsaMaterialActivationScope = Readonly<{
   readonly walletId: WalletId;
@@ -365,6 +387,18 @@ export class AuthorizationService {
     readonly material?: AuthorizedOperationMaterialScope;
   }): Promise<AuthorizedOperationAdmissionResult> {
     return await this.ports.authorizedOperations.admitAuthorizedOperation(input);
+  }
+
+  async prepareAuthorizedOperationAdmission(input: {
+    readonly operation: AuthorizedOperationInput;
+  }): Promise<PreparedAuthorizedOperationAdmission> {
+    return await this.ports.authorizedOperations.prepareAuthorizedOperationAdmission(input);
+  }
+
+  classifyAuthorizedOperationAdmissionFailure(
+    error: unknown,
+  ): AuthorizedOperationAdmissionRejection | null {
+    return this.ports.authorizedOperations.classifyAuthorizedOperationAdmissionFailure(error);
   }
 
   async completeAuthorizedOperation(input: {

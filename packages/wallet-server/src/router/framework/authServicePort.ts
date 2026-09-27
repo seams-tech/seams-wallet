@@ -1641,6 +1641,14 @@ export interface RouterApiAuthorizedOperationService {
           | 'material_mismatch';
       }
   >;
+  /** The admission `admitAuthorizedOperation` would make, prepared for another store's batch. */
+  prepareAuthorizedOperationAdmission(input: {
+    readonly operation: AuthorizedOperationInput;
+  }): Promise<import('../../authorization/service').PreparedAuthorizedOperationAdmission>;
+  /** The rejection a prepared admission's failed batch stands for, if any. */
+  classifyAuthorizedOperationAdmissionFailure(
+    error: unknown,
+  ): import('../../authorization/service').AuthorizedOperationAdmissionRejection | null;
   completeAuthorizedOperation(input: {
     readonly operation: AuthorizedOperation;
     readonly result: import('../../authorization/domain').CompletedCapabilityOperationResult;

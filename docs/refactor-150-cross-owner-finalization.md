@@ -1,12 +1,15 @@
 # R150 cross-owner Yao finalization, recovery and export
 
-Status: slices 1 and 2 implemented (2026-09-27/28, see below). The Router
-owns each registration's execution record, and registration and add-signer
-finalize through one decision row per lifecycle. Recovery promotion and export
-are proposals. Until each lands, its records stay in Gateway D1 next to the
-tenant-wide `router-ab-ed25519-yao:shared` record, and the current atomic
-unit is unchanged: the batch that installs a capability into the shared
-record and advances the lifecycle record.
+Status: slices 1 to 5 implemented (2026-09-27/28, see below).
+- The Router owns each registration's execution record.
+- Registration and add-signer finalize through one decision row per
+  lifecycle.
+- A recovery promotes in one batch, and resumes instead of sticking.
+- An export authorizes in one commit.
+
+The lifecycle-keyed ceremony records stay in Gateway D1 next to the
+tenant-wide `router-ab-ed25519-yao:shared` record. That is the final
+boundary (see the boundary decision below).
 
 ## Code check and slices (2026-09-27)
 
@@ -31,11 +34,12 @@ side runs.
   add-signer's only; recovery and export never touch it. Its consumption is
   already its own transaction today, so moving it splits no atomic unit and
   needs no decision row.
-- **The ceremony partition stays in Gateway D1 for now.** Capability
-  install, recovery admission's suspension and sessions, promotion, and the
-  export nonce and uncertain set each commit it with the tenant-wide shared
-  record. Moving it would split every one of those; each would first need
-  its own cross-owner protocol.
+- **The ceremony partition stays in Gateway D1 for now** (since decided
+  final; see the boundary decision). Capability install, recovery
+  admission's suspension and sessions, promotion, and the export nonce and
+  uncertain set each commit it with the tenant-wide shared record. Moving it
+  would split every one of those; each would first need its own cross-owner
+  protocol.
 - **Corrections to the section below.**
   - Add-signer finalizes the same way as registration: it consumes the
     activation, writes the signer, then installs the capability. The
@@ -307,6 +311,82 @@ does:
 - On a registration replay, a pair running or completed on one side is still
   burned on role-store Workers and answered recoverable on the VM.
 
+### Slice 5: export authorizes in one commit
+
+A code check of export (2026-09-28) found its authorization spread over
+three writes:
+1. `admitAuthorizedOperation` inserted the proof's authorized operation on
+   its own.
+2. The preclaim commit recorded the export `authorizing` with its nonce
+   claim.
+3. The "backend" step only answered success, and a second commit recorded
+   the export `authorized`.
+
+Both of these were found by reading the code, not by running it:
+- A crash between the two commits left the export `authorizing`, which
+  refuses every retry of the same request as uncertain.
+- A replay that found the export `authorized` could not go on either. It
+  resolved its identity by reading the request body again, after the
+  handler had consumed it, and answered `invalid_body`.
+
+Now:
+- **One commit.** After the proof verifies, three writes commit in one D1
+  batch, or none does:
+  - the export's `authorized` state;
+  - its nonce claim in the shared record;
+  - its authorized operation, whose insert claims the proof's evidence set.
+
+  The `authorizing` state is gone. So is `authorization_failed`, which
+  nothing wrote.
+- **The operation is prepared, not admitted.** The authorization store makes
+  the reads `admitAuthorizedOperation` makes, and returns the insert.
+  - An operation already admitted for the fingerprint answers as that call
+    would, and nothing is written.
+  - A trigger that refuses the insert aborts the whole batch. Its error maps
+    to the same rejections as before.
+  - ECDSA material admission has no prepared form: it is conditional on the
+    signer row.
+- **The admission cannot be dropped.** The adapter returns it as a required
+  field of an admission authorization; execution authorization is a separate
+  method. The in-memory export service takes the admission as a parameter.
+  That service keeps export state in memory, so it admits the operation on
+  its own first, as before.
+- **Replays.** A retry of the exact request finds the export authorized. It
+  resolves its identity from the parsed admission, not the request body. A
+  commit that meets a concurrent one reloads once and decides again.
+- **Unchanged.**
+  - Signing paths and `admitAuthorizedOperation` behave as before. Its reads
+    and its insert moved into helpers the prepared form shares.
+  - The evidence set is still recorded before the batch: an orphan one
+    grants nothing.
+  - An admission authorization that throws, in its proof check or its
+    evidence record, still marks that exact authorization uncertain for
+    good. A new export attempt carries a new authorization.
+
+**Evidence (2026-09-28).** A new contract passes on Workers and on the VM:
+"an Ed25519 export interrupted after its authorization committed is
+admitted by the exact retry".
+1. A passkey wallet registers, becomes NEAR-ready, and unlocks.
+2. Its Ed25519 export admission runs under a local-only fault. The fault
+   checks that one batch held both the authorized operation and the state
+   records, lets it commit, and fails the Gateway's next storage call. That
+   request ends with an error.
+3. The Gateway sends the identical request again. It is admitted from the
+   durable authorization, and the page completes the export through
+   execution.
+
+The persisted trace on each host shows one admit and one execute, both 200,
+and the fault's proof. Only a passkey export was run.
+
+**Not addressed (for review).**
+- An email-OTP export needs its factor release, the OTP login grant, to
+  fetch its custody envelope. A replay that finds the export authorized
+  resolves only its identity and returns no release, so an email-OTP replay
+  still cannot finish. It never could: before, it stopped at `authorizing`
+  or at `invalid_body`.
+- The in-memory export service's route is type-checked only. No host
+  serves it.
+
 ### Boundary decision: ceremony records stay in Gateway D1 (2026-09-28)
 
 The lifecycle-keyed ceremony records stay in Gateway D1. This is the final
@@ -329,26 +409,6 @@ boundary, not remaining work:
 What would reopen this: a transition that commits a ceremony record without
 any tenant-wide fact, or a need to serve ceremony records from the Router.
 Neither exists today.
-
-### Later slices
-
-1. **Export (sized 2026-09-28, awaiting review).** Export's authorization
-   runs before its nonce claim, as separate writes:
-   - an evidence set;
-   - the owner proof (built, not stored);
-   - `admitAuthorizedOperation`, a single insert into `authorized_operations`
-     keyed by the export's lifecycle and digest. This insert consumes the
-     grant.
-
-   Only then does the preclaim commit claim the nonce in the shared record.
-   A retry with the same proof replays the admitted operation.
-
-   The proposed change is a prepared variant of that insert: its validation
-   reads first, then the insert behind the batch guard, joining the preclaim
-   batch as a companion write the way slice 3's replacement joins the
-   promotion. The evidence set can stay separate, since an orphan one grants
-   nothing. It changes a primitive the signing paths share, so it waits for
-   review.
 
 ## Current behavior (code-checked 2026-09-25)
 
@@ -391,15 +451,16 @@ Recovery activation is also split. `replaceActiveCapability` writes
 `wallet_authorities` and sessions in one batch. The terminal shared +
 ceremony commit is a second batch (`routerAbEd25519YaoRecovery.ts:2506-2544`).
 
-Export first consumes its Gateway grant through the authorization store,
-then records nonce replay in the shared record.
+Export first consumed its owner proof through the authorization store, then
+recorded nonce replay in the shared record. Slice 5 commits both in one
+batch.
 
 ## Ownership target
 
 | Fact | Authority after this change |
 | --- | --- |
 | Execution record: claim lease and generation, pinned request, terminal outcome, `consumerBinding` | Router wallet DO (VM: Router SQLite for that wallet); slice 1 |
-| Ceremony partition: admission, intent credential, pinned dispatch root | Gateway D1 until its own slice (see above) |
+| Ceremony partition: admission, intent credential, pinned dispatch root | Gateway D1, the final boundary (see the boundary decision) |
 | Recovery capability index, identity index, recovery sessions, export nonces | Gateway shared D1 (unchanged) |
 | Public wallet identity, signer projection, authority, sessions, custody envelope | Gateway D1 (unchanged) |
 | Finalization decision per lifecycle | Gateway D1: `yao_lifecycle_decisions`, one row per lifecycle; slice 2 for registration and add-signer |
@@ -498,15 +559,13 @@ The same shape applies, with `decision_kind = 'recovery_promoted'`:
 
 ### Export
 
-- The Gateway grant consumption and the export nonce claim are both
-  tenant-wide D1 facts. They go into one D1 batch, together with the
-  `export_released` decision.
-- Before any Deriver call, the DO pins the exact grant id and nonce it will
-  use.
-- A lost reply before release reads the decision. If no decision exists, the
-  result is uncertain, and the existing `exportAuthorizationUncertain` set
-  stays authoritative: an uncertain export is never re-executed under a fresh
-  grant without new owner proof.
+Superseded by slice 5 and the boundary decision. Export has no decision row
+and no wallet-object pin. The owner proof's authorized operation and the
+nonce claim are tenant-wide D1 facts, and they commit in one batch with the
+export's `authorized` state, which is the ceremony's own record of the
+authorization. The `exportAuthorizationUncertain` set still marks an
+authorization whose proof check threw, and that exact authorization is never
+retried.
 
 ## Why the decision lives in D1 and not the DO
 

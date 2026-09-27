@@ -68,12 +68,14 @@ import {
   type CapabilityOperationFingerprintDigest,
 } from '@shared/authorization/operationFingerprint';
 import type {
+  AuthorizedOperationAdmissionRejection,
   AuthorizedOperationPort,
   AuthorizationEvidencePort,
   AuthorizationGrantPort,
   AuthorizationSessionPort,
   EcdsaMaterialActivationScope,
   AuthorizedOperationMaterialScope,
+  PreparedAuthorizedOperationAdmission,
 } from '../../../../authorization/service';
 import { D1WalletStore } from '../../../../core/d1WalletStore';
 import type { D1WalletStoreScope } from '../../../../core/d1WalletStore';
@@ -2333,6 +2335,166 @@ export class CloudflareD1AuthorizationStore
       : null;
   }
 
+  /** How an operation already admitted for this fingerprint answers another admission. */
+  private async answerExistingAuthorizedOperation(
+    existing: AuthorizedOperationPersistenceRecord,
+    operation: AuthorizedOperation,
+    material: AuthorizedOperationMaterialScope | undefined,
+  ): Promise<
+    | { readonly kind: 'replayed'; readonly operation: AuthorizedOperation }
+    | { readonly kind: 'operation_in_progress'; readonly operation: AuthorizedOperation }
+    | AuthorizedOperationAdmissionRejection
+  > {
+    const replayMismatch = authorizedOperationReplayMismatch({
+      existing: existing.row,
+      incoming: operation,
+      material,
+      scope: this.walletSignerScope,
+    });
+    if (replayMismatch) return replayMismatch;
+    if (existing.operation.lifecycle === 'completed') {
+      if (
+        existing.operation.authorization.kind === 'authorization_grant' &&
+        !(await this.isAuthorizedOperationSourceActive(existing.row, operation.claimedAtMs))
+      ) {
+        return { kind: 'authorization_grant_rejected' };
+      }
+      return { kind: 'replayed', operation: existing.operation };
+    }
+    if (!(await this.isAuthorizedOperationSourceActive(existing.row, operation.claimedAtMs))) {
+      return authorizationSourceRejected(operation.authorization);
+    }
+    return { kind: 'operation_in_progress', operation: existing.operation };
+  }
+
+  /** The statement that admits `operation`, claimed and pending. */
+  private prepareAuthorizedOperationInsert(
+    operation: AuthorizedOperation,
+    input: {
+      readonly operation: AuthorizedOperationInput;
+      readonly material?: AuthorizedOperationMaterialScope;
+    },
+  ): D1PreparedStatementLike {
+    const source = operation.authorization;
+    const quota = operation.quota;
+    const materialActivationId = input.material?.materialActivation.activation_id ?? null;
+    const values = [
+      this.namespace,
+      operation.tenantId,
+      operation.authorizedOperationId,
+      operation.auditEventId,
+      operation.operation.principalId,
+      operation.operation.capabilityId,
+      operation.operation.operation.capabilityKind,
+      operation.operation.operation.operationKind,
+      operation.operation.operationId,
+      operation.operationFingerprintDigest,
+      operation.operation.digests.laneDigest,
+      operation.operation.digests.intentDigest,
+      operation.operation.digests.displayDigest,
+      source.kind,
+      source.kind === 'authorization_grant' ? source.authorizationGrantRef.authorizationId : null,
+      source.kind === 'verified_step_up' ? source.evidenceSetDigest : null,
+      quota.kind === 'consume_reusable_wallet_session' ? quota.quotaId : null,
+      quota.kind,
+      source.kind === 'authorization_grant' ? source.authorizationGrantRef.kind : null,
+      requirePositiveInteger(input.operation.claimedAtMs, 'operation.claimedAtMs'),
+      materialActivationId,
+      input.material?.materialActivation.capability ?? null,
+      input.material?.materialActivation.material_owner ?? null,
+      input.material?.materialActivation.key_binding ?? null,
+      input.material?.materialActivation.lifecycle_binding ?? null,
+      input.material?.materialActivation.signing_worker ?? null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      source.kind === 'authorization_grant' ? this.walletSignerScope.orgId : null,
+      source.kind === 'authorization_grant' ? this.walletSignerScope.projectId : null,
+      source.kind === 'authorization_grant' ? this.walletSignerScope.envId : null,
+    ] as const;
+    return input.material?.kind === 'ecdsa_material_activation'
+      ? this.database
+          .prepare(
+            `INSERT INTO authorized_operations (
+            namespace, tenant_id, authorized_operation_id, audit_event_id,
+            principal_id, capability_id, capability_kind, operation_kind, operation_id,
+            operation_fingerprint_digest, lane_digest, intent_digest, display_digest,
+            authorization_source_kind, authorization_id, evidence_set_digest,
+            quota_id, quota_kind, authorization_grant_kind, lifecycle_kind, result_kind,
+            result_digest, result_status, result_content_type, result_body_text,
+            claimed_at_ms, completed_at_ms,
+            material_activation_id, material_activation_capability,
+            material_activation_owner, material_activation_key_binding,
+            material_activation_lifecycle_binding, material_activation_signing_worker,
+            linked_wallet_id, linked_enrollment_id, linked_device_id,
+            linked_wallet_key_id, linked_lane_id, linked_lane_share_epoch,
+            linked_revocation_epoch, linked_scope_org_id, linked_scope_project_id,
+            linked_scope_env_id
+          ) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    'claimed', 'pending', NULL, NULL, NULL, NULL, ?, NULL, ?,
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+             WHERE ${ECDSA_SIGNER_MATCH}`,
+          )
+          .bind(...values, ...ecdsaSignerMatchBindings(this.walletSignerScope, input.material))
+      : this.database
+          .prepare(
+            `INSERT INTO authorized_operations (
+            namespace, tenant_id, authorized_operation_id, audit_event_id,
+            principal_id, capability_id, capability_kind, operation_kind, operation_id,
+            operation_fingerprint_digest, lane_digest, intent_digest, display_digest,
+            authorization_source_kind, authorization_id, evidence_set_digest,
+            quota_id, quota_kind, authorization_grant_kind, lifecycle_kind, result_kind,
+            result_digest, result_status, result_content_type, result_body_text,
+            claimed_at_ms, completed_at_ms,
+            material_activation_id, material_activation_capability,
+            material_activation_owner, material_activation_key_binding,
+            material_activation_lifecycle_binding, material_activation_signing_worker,
+            linked_wallet_id, linked_enrollment_id, linked_device_id,
+            linked_wallet_key_id, linked_lane_id, linked_lane_share_epoch,
+            linked_revocation_epoch, linked_scope_org_id, linked_scope_project_id,
+            linked_scope_env_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    'claimed', 'pending', NULL, NULL, NULL, NULL, ?, NULL, ?,
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .bind(...values);
+  }
+
+  /**
+   * The admission `admitAuthorizedOperation` would make, prepared for a batch
+   * another store owns, after the same reads. It admits no ECDSA material:
+   * that admission is conditional on the signer row, not a plain insert.
+   */
+  async prepareAuthorizedOperationAdmission(input: {
+    readonly operation: AuthorizedOperationInput;
+  }): Promise<PreparedAuthorizedOperationAdmission> {
+    const operation = await buildAuthorizedOperation(input.operation);
+    if (operation.operation.operation.capabilityKind === CAPABILITY_KINDS.evmEcdsaMpcSigning) {
+      return { kind: 'material_mismatch' };
+    }
+    const existing = await this.readAuthorizedOperationRecord({
+      tenantId: operation.tenantId,
+      operationFingerprintDigest: operation.operationFingerprintDigest,
+    });
+    if (existing) {
+      return await this.answerExistingAuthorizedOperation(existing, operation, undefined);
+    }
+    return {
+      kind: 'prepared',
+      statements: [this.prepareAuthorizedOperationInsert(operation, input)],
+    };
+  }
+
+  classifyAuthorizedOperationAdmissionFailure(
+    error: unknown,
+  ): AuthorizedOperationAdmissionRejection | null {
+    return classifyAuthorizedOperationAdmissionError(error);
+  }
+
   async admitAuthorizedOperation(input: {
     readonly operation: AuthorizedOperationInput;
     readonly material?: AuthorizedOperationMaterialScope;
@@ -2367,116 +2529,10 @@ export class CloudflareD1AuthorizationStore
       operationFingerprintDigest: operation.operationFingerprintDigest,
     });
     if (existing) {
-      const replayMismatch = authorizedOperationReplayMismatch({
-        existing: existing.row,
-        incoming: operation,
-        material: input.material,
-        scope: this.walletSignerScope,
-      });
-      if (replayMismatch) return replayMismatch;
-      if (existing.operation.lifecycle === 'completed') {
-        if (
-          existing.operation.authorization.kind === 'authorization_grant' &&
-          !(await this.isAuthorizedOperationSourceActive(existing.row, operation.claimedAtMs))
-        ) {
-          return { kind: 'authorization_grant_rejected' };
-        }
-        return { kind: 'replayed', operation: existing.operation };
-      }
-      if (!(await this.isAuthorizedOperationSourceActive(existing.row, operation.claimedAtMs))) {
-        return authorizationSourceRejected(operation.authorization);
-      }
-      return { kind: 'operation_in_progress', operation: existing.operation };
+      return await this.answerExistingAuthorizedOperation(existing, operation, input.material);
     }
-    const source = operation.authorization;
-    const quota = operation.quota;
-    const materialActivationId = input.material?.materialActivation.activation_id ?? null;
     try {
-      const values = [
-        this.namespace,
-        operation.tenantId,
-        operation.authorizedOperationId,
-        operation.auditEventId,
-        operation.operation.principalId,
-        operation.operation.capabilityId,
-        operation.operation.operation.capabilityKind,
-        operation.operation.operation.operationKind,
-        operation.operation.operationId,
-        operation.operationFingerprintDigest,
-        operation.operation.digests.laneDigest,
-        operation.operation.digests.intentDigest,
-        operation.operation.digests.displayDigest,
-        source.kind,
-        source.kind === 'authorization_grant' ? source.authorizationGrantRef.authorizationId : null,
-        source.kind === 'verified_step_up' ? source.evidenceSetDigest : null,
-        quota.kind === 'consume_reusable_wallet_session' ? quota.quotaId : null,
-        quota.kind,
-        source.kind === 'authorization_grant' ? source.authorizationGrantRef.kind : null,
-        requirePositiveInteger(input.operation.claimedAtMs, 'operation.claimedAtMs'),
-        materialActivationId,
-        input.material?.materialActivation.capability ?? null,
-        input.material?.materialActivation.material_owner ?? null,
-        input.material?.materialActivation.key_binding ?? null,
-        input.material?.materialActivation.lifecycle_binding ?? null,
-        input.material?.materialActivation.signing_worker ?? null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        source.kind === 'authorization_grant' ? this.walletSignerScope.orgId : null,
-        source.kind === 'authorization_grant' ? this.walletSignerScope.projectId : null,
-        source.kind === 'authorization_grant' ? this.walletSignerScope.envId : null,
-      ] as const;
-      const statement =
-        input.material?.kind === 'ecdsa_material_activation'
-          ? this.database
-              .prepare(
-                `INSERT INTO authorized_operations (
-                namespace, tenant_id, authorized_operation_id, audit_event_id,
-                principal_id, capability_id, capability_kind, operation_kind, operation_id,
-                operation_fingerprint_digest, lane_digest, intent_digest, display_digest,
-                authorization_source_kind, authorization_id, evidence_set_digest,
-                quota_id, quota_kind, authorization_grant_kind, lifecycle_kind, result_kind,
-                result_digest, result_status, result_content_type, result_body_text,
-                claimed_at_ms, completed_at_ms,
-                material_activation_id, material_activation_capability,
-                material_activation_owner, material_activation_key_binding,
-                material_activation_lifecycle_binding, material_activation_signing_worker,
-                linked_wallet_id, linked_enrollment_id, linked_device_id,
-                linked_wallet_key_id, linked_lane_id, linked_lane_share_epoch,
-                linked_revocation_epoch, linked_scope_org_id, linked_scope_project_id,
-                linked_scope_env_id
-              ) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                        'claimed', 'pending', NULL, NULL, NULL, NULL, ?, NULL, ?,
-                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-                 WHERE ${ECDSA_SIGNER_MATCH}`,
-              )
-              .bind(...values, ...ecdsaSignerMatchBindings(this.walletSignerScope, input.material))
-          : this.database
-              .prepare(
-                `INSERT INTO authorized_operations (
-                namespace, tenant_id, authorized_operation_id, audit_event_id,
-                principal_id, capability_id, capability_kind, operation_kind, operation_id,
-                operation_fingerprint_digest, lane_digest, intent_digest, display_digest,
-                authorization_source_kind, authorization_id, evidence_set_digest,
-                quota_id, quota_kind, authorization_grant_kind, lifecycle_kind, result_kind,
-                result_digest, result_status, result_content_type, result_body_text,
-                claimed_at_ms, completed_at_ms,
-                material_activation_id, material_activation_capability,
-                material_activation_owner, material_activation_key_binding,
-                material_activation_lifecycle_binding, material_activation_signing_worker,
-                linked_wallet_id, linked_enrollment_id, linked_device_id,
-                linked_wallet_key_id, linked_lane_id, linked_lane_share_epoch,
-                linked_revocation_epoch, linked_scope_org_id, linked_scope_project_id,
-                linked_scope_env_id
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                        'claimed', 'pending', NULL, NULL, NULL, NULL, ?, NULL, ?,
-                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              )
-              .bind(...values);
+      const statement = this.prepareAuthorizedOperationInsert(operation, input);
       const result = await statement.run();
       if (input.material && d1ChangedRows(result) === 0) return { kind: 'material_mismatch' };
     } catch (error: unknown) {
@@ -2485,26 +2541,7 @@ export class CloudflareD1AuthorizationStore
         operationFingerprintDigest: operation.operationFingerprintDigest,
       });
       if (raced) {
-        const replayMismatch = authorizedOperationReplayMismatch({
-          existing: raced.row,
-          incoming: operation,
-          material: input.material,
-          scope: this.walletSignerScope,
-        });
-        if (replayMismatch) return replayMismatch;
-        if (raced.operation.lifecycle === 'completed') {
-          if (
-            raced.operation.authorization.kind === 'authorization_grant' &&
-            !(await this.isAuthorizedOperationSourceActive(raced.row, operation.claimedAtMs))
-          ) {
-            return { kind: 'authorization_grant_rejected' };
-          }
-          return { kind: 'replayed', operation: raced.operation };
-        }
-        if (!(await this.isAuthorizedOperationSourceActive(raced.row, operation.claimedAtMs))) {
-          return authorizationSourceRejected(operation.authorization);
-        }
-        return { kind: 'operation_in_progress', operation: raced.operation };
+        return await this.answerExistingAuthorizedOperation(raced, operation, input.material);
       }
       const triggerFailure = classifyAuthorizedOperationAdmissionError(error);
       if (triggerFailure) return triggerFailure;

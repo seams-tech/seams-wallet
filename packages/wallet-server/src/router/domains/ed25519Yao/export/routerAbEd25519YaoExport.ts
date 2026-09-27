@@ -74,6 +74,7 @@ import { defineRoute } from '../../../framework/routeDefinitions';
 import {
   parseSessionOrigin,
   parseVerifiedOwnerProofId,
+  type AuthorizedOperationInput,
   type SessionOrigin,
 } from '../../../../authorization/domain';
 import {
@@ -89,6 +90,7 @@ import type {
   RouterAbEd25519YaoActiveCapabilityResolverV1,
 } from '../recovery/routerAbEd25519YaoRecovery';
 import type { RouterAbEd25519YaoExportExecuteAdmissionContextV1 } from '../routerAbEd25519YaoGatewayEnvelope';
+import type { RouterAbEd25519YaoPreparedWriteV1 } from '../capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
 import { sameRouterAbMpcMaterialActivationRef } from '@shared/utils/routerAbNormalSigningIdentity';
 
 const EXPORT_AUTH_MAX_TTL_MS = 60_000;
@@ -152,6 +154,7 @@ export interface RouterAbEd25519YaoExportService {
   admitExport(
     request: RouterAbEd25519YaoExportAdmissionRequestV1,
     authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1,
+    admission: RouterAbEd25519YaoExportOperationAdmissionV1,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoExportServiceResult<RouterAbEd25519YaoExportAdmissionReceiptV1>>;
   executeExport(
@@ -161,28 +164,17 @@ export interface RouterAbEd25519YaoExportService {
   ): Promise<RouterAbEd25519YaoExportServiceResult<RouterAbEd25519YaoExportResultV1>>;
 }
 
-export type RouterAbEd25519YaoExportAuthorizationClaimV1 = {
-  readonly kind: 'router_ab_ed25519_yao_export_authorization_claim_v1';
-  readonly lifecycleId: string;
-  readonly exportKey: string;
-  readonly authorizationFingerprint: string;
-};
-
-export type RouterAbEd25519YaoExportAuthorizationPreparationV1 =
-  | {
-      readonly kind: 'claimed';
-      readonly claim: RouterAbEd25519YaoExportAuthorizationClaimV1;
-    }
+/**
+ * What authorizing one export did to the state: authorized it, a change the
+ * caller commits with the export's operation admission, or answered it from
+ * an authorization already there.
+ */
+export type RouterAbEd25519YaoExportAuthorizationDecisionV1 =
+  | { readonly kind: 'authorized' }
   | {
       readonly kind: 'completed';
       readonly value: RouterAbEd25519YaoExportAuthorizationResult;
     };
-
-export type RouterAbEd25519YaoExportAuthorizationCommitInputV1 = {
-  readonly request: RouterAbEd25519YaoExportAdmissionRequestV1;
-  readonly claim: RouterAbEd25519YaoExportAuthorizationClaimV1;
-  readonly outcome: RouterAbEd25519YaoExportAuthorizationResult;
-};
 
 export type RouterAbEd25519YaoExportAdmissionClaimV1 = {
   readonly kind: 'router_ab_ed25519_yao_export_admission_claim_v1';
@@ -279,19 +271,17 @@ export type RouterAbEd25519YaoExportAdmissionAuthorization =
       readonly webauthnAuthentication?: never;
     };
 
-export type RouterAbEd25519YaoExportAuthorizationInput =
-  | {
-      readonly kind: 'admit';
-      readonly request: Request;
-      readonly body: RouterAbEd25519YaoExportAdmissionRequestV1;
-      readonly authorization: RouterAbEd25519YaoExportAdmissionAuthorization;
-      readonly expectedOrigin: string;
-    }
-  | {
-      readonly kind: 'execute';
-      readonly request: Request;
-      readonly body: RouterAbEd25519YaoExportExecuteRequestV1;
-    };
+export type RouterAbEd25519YaoExportAdmissionAuthorizationInputV1 = {
+  readonly request: Request;
+  readonly body: RouterAbEd25519YaoExportAdmissionRequestV1;
+  readonly authorization: RouterAbEd25519YaoExportAdmissionAuthorization;
+  readonly expectedOrigin: string;
+};
+
+export type RouterAbEd25519YaoExportExecutionAuthorizationInputV1 = {
+  readonly request: Request;
+  readonly body: RouterAbEd25519YaoExportExecuteRequestV1;
+};
 
 export type RouterAbEd25519YaoExportEmailOtpFactorReleaseV1 = {
   readonly kind: 'email_otp_login_grant';
@@ -312,17 +302,42 @@ export type RouterAbEd25519YaoExportAuthorizationResult =
       readonly message: string;
     };
 
+export type RouterAbEd25519YaoExportAuthorizationFailure = Extract<
+  RouterAbEd25519YaoExportAuthorizationResult,
+  { readonly ok: false }
+>;
+
 export type RouterAbEd25519YaoExportServerAuthorizationIdentityV1 = {
   readonly thresholdSessionId: ThresholdEd25519SessionId;
 };
 
-type RouterAbEd25519YaoExportAuthorizationAdapterResult =
+/**
+ * The authorized operation a verified export proof admits, not yet admitted.
+ * It commits in the batch that authorizes the export, so the operation, the
+ * nonce claim and the export's `authorized` state are durable together.
+ */
+export interface RouterAbEd25519YaoExportOperationAdmissionV1 {
+  /** The admission's writes for that batch, or why it needs none. */
+  prepare(): Promise<RouterAbEd25519YaoExportPreparedOperationAdmissionV1>;
+  /** The rejection a failed batch stands for, when the admission refused it. */
+  classifyFailure(error: unknown): RouterAbEd25519YaoExportAuthorizationFailure | null;
+  /** The admission applied alone, for export state no batch can include. */
+  admit(): Promise<RouterAbEd25519YaoExportAuthorizationResult>;
+}
+
+export type RouterAbEd25519YaoExportPreparedOperationAdmissionV1 =
+  | { readonly kind: 'prepared'; readonly write: RouterAbEd25519YaoPreparedWriteV1 }
+  | { readonly kind: 'already_admitted' }
+  | { readonly kind: 'rejected'; readonly failure: RouterAbEd25519YaoExportAuthorizationFailure };
+
+export type RouterAbEd25519YaoExportAdmissionAuthorizationResultV1 =
   | {
       readonly ok: true;
       readonly authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1;
+      readonly admission: RouterAbEd25519YaoExportOperationAdmissionV1;
       readonly factorRelease?: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1;
     }
-  | Extract<RouterAbEd25519YaoExportAuthorizationResult, { readonly ok: false }>;
+  | RouterAbEd25519YaoExportAuthorizationFailure;
 
 export type RouterAbEd25519YaoExportAuthorizationIdentityResolutionResult =
   | {
@@ -332,13 +347,19 @@ export type RouterAbEd25519YaoExportAuthorizationIdentityResolutionResult =
   | Extract<RouterAbEd25519YaoExportAuthorizationResult, { readonly ok: false }>;
 
 export interface RouterAbEd25519YaoExportAuthorizationAdapter {
-  authorize(
-    input: RouterAbEd25519YaoExportAuthorizationInput,
+  authorizeAdmission(
+    input: RouterAbEd25519YaoExportAdmissionAuthorizationInputV1,
   ):
-    | Promise<RouterAbEd25519YaoExportAuthorizationAdapterResult>
-    | RouterAbEd25519YaoExportAuthorizationAdapterResult;
+    | Promise<RouterAbEd25519YaoExportAdmissionAuthorizationResultV1>
+    | RouterAbEd25519YaoExportAdmissionAuthorizationResultV1;
+  authorizeExecution(
+    input: RouterAbEd25519YaoExportExecutionAuthorizationInputV1,
+  ):
+    | Promise<RouterAbEd25519YaoExportAuthorizationIdentityResolutionResult>
+    | RouterAbEd25519YaoExportAuthorizationIdentityResolutionResult;
+  /** The identity an already-authorized export's admission resolves to now. */
   resolveAuthorizationIdentity(
-    request: Request,
+    body: RouterAbEd25519YaoExportAdmissionRequestV1,
   ):
     | Promise<RouterAbEd25519YaoExportAuthorizationIdentityResolutionResult>
     | RouterAbEd25519YaoExportAuthorizationIdentityResolutionResult;
@@ -352,15 +373,6 @@ type ExportAuthorizationContext = {
 
 type ServerDerivedExportAuthorizationIdentity =
   RouterAbEd25519YaoExportServerAuthorizationIdentityV1;
-
-type ExportAuthorizingState = ExportAuthorizationContext & {
-  readonly kind: 'authorizing';
-};
-
-type ExportAuthorizationFailedState = ExportAuthorizationContext & {
-  readonly kind: 'authorization_failed';
-  readonly failure: Extract<RouterAbEd25519YaoExportAuthorizationResult, { readonly ok: false }>;
-};
 
 type ExportAuthorizedState = ExportAuthorizationContext & {
   readonly kind: 'authorized';
@@ -401,8 +413,6 @@ type ExportCompletedState = ExportAuthorizationContext & {
 };
 
 type ExportLifecycleState =
-  | ExportAuthorizingState
-  | ExportAuthorizationFailedState
   | ExportAuthorizedState
   | ExportAdmittingState
   | ExportAdmissionFailedState
@@ -671,13 +681,6 @@ function authorizationConflict(
   return { ok: false, status: 409, code, message };
 }
 
-function authorizationUnavailable(
-  code: string,
-  message: string,
-): Extract<RouterAbEd25519YaoExportAuthorizationResult, { readonly ok: false }> {
-  return { ok: false, status: 503, code, message };
-}
-
 function assertNeverExportState(value: never): never {
   throw new Error(`Unhandled Ed25519 Yao export state: ${String(value)}`);
 }
@@ -695,8 +698,6 @@ function exportStateHasReceipt(
     case 'execution_failed':
     case 'completed':
       return true;
-    case 'authorizing':
-    case 'authorization_failed':
     case 'authorized':
     case 'admitting':
     case 'admission_failed':
@@ -724,28 +725,20 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
   async admitExport(
     request: RouterAbEd25519YaoExportAdmissionRequestV1,
     authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1,
+    admission: RouterAbEd25519YaoExportOperationAdmissionV1,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoExportServiceResult<RouterAbEd25519YaoExportAdmissionReceiptV1>> {
-    const authorizationFingerprint = exportKey(request);
-    const authorization = this.prepareAuthorizeExport(
-      request,
-      authorizationFingerprint,
-      authorizationIdentity,
-    );
-    if (authorization.kind === 'claimed') {
-      const authorized = this.commitAuthorizeExport({
-        request,
-        claim: authorization.claim,
-        outcome: { ok: true },
+    /* This state lives in memory, so the operation admits on its own first. */
+    const admitted = await admission.admit();
+    if (!admitted.ok) {
+      return failure({
+        status: admitted.status === 503 ? 503 : 409,
+        code: 'admission_failed',
+        message: admitted.message,
       });
-      if (!authorized.ok) {
-        return failure({
-          status: authorized.status === 503 ? 503 : 409,
-          code: 'admission_failed',
-          message: authorized.message,
-        });
-      }
-    } else if (!authorization.value.ok) {
+    }
+    const authorization = this.authorizeExport(request, exportKey(request), authorizationIdentity);
+    if (authorization.kind === 'completed' && !authorization.value.ok) {
       return failure({
         status: authorization.value.status === 503 ? 503 : 409,
         code: 'admission_failed',
@@ -773,11 +766,16 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
     return this.commitAdmitExport({ request, claim: preparation.claim, outcome });
   }
 
-  prepareAuthorizeExport(
+  /**
+   * Authorizes one export: its nonce claimed and its state `authorized`, in
+   * this state for the caller to commit with the export's operation
+   * admission. An export already here answers from its state instead.
+   */
+  authorizeExport(
     request: RouterAbEd25519YaoExportAdmissionRequestV1,
     authorizationFingerprint: string,
     authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1,
-  ): RouterAbEd25519YaoExportAuthorizationPreparationV1 {
+  ): RouterAbEd25519YaoExportAuthorizationDecisionV1 {
     const key = exportKey(request);
     const existing = this.state.exports.get(key);
     if (existing) {
@@ -805,16 +803,6 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
         };
       }
       switch (existing.kind) {
-        case 'authorizing':
-          return {
-            kind: 'completed',
-            value: authorizationUnavailable(
-              'export_authorization_uncertain',
-              'Export authorization outcome is uncertain and cannot be retried',
-            ),
-          };
-        case 'authorization_failed':
-          return { kind: 'completed', value: existing.failure };
         case 'authorized':
         case 'admitting':
         case 'admission_failed':
@@ -839,20 +827,12 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
     }
     this.state.authorizationNonces.add(nonce);
     this.state.exports.set(key, {
-      kind: 'authorizing',
+      kind: 'authorized',
       request,
       authorizationFingerprint,
       authorizationIdentity,
     });
-    return {
-      kind: 'claimed',
-      claim: {
-        kind: 'router_ab_ed25519_yao_export_authorization_claim_v1',
-        lifecycleId: request.scope.lifecycle_id,
-        exportKey: key,
-        authorizationFingerprint,
-      },
-    };
+    return { kind: 'authorized' };
   }
 
   readAuthorizationIdentity(
@@ -866,42 +846,6 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
     request: RouterAbEd25519YaoExportAdmissionRequestV1,
   ): boolean {
     return this.state.exports.get(exportKey(request))?.kind === 'authorized';
-  }
-
-  commitAuthorizeExport(
-    input: RouterAbEd25519YaoExportAuthorizationCommitInputV1,
-  ): RouterAbEd25519YaoExportAuthorizationResult {
-    const key = exportKey(input.request);
-    const current = this.state.exports.get(input.claim.exportKey);
-    if (
-      current?.kind !== 'authorizing' ||
-      input.claim.lifecycleId !== input.request.scope.lifecycle_id ||
-      input.claim.exportKey !== key ||
-      input.claim.authorizationFingerprint !== current.authorizationFingerprint ||
-      !sameExportAdmissionRequestV1(current.request, input.request)
-    ) {
-      return authorizationUnavailable(
-        'export_authorization_uncertain',
-        'Export authorization claim is no longer current',
-      );
-    }
-    if (!input.outcome.ok) {
-      this.state.exports.set(key, {
-        kind: 'authorization_failed',
-        request: current.request,
-        authorizationFingerprint: current.authorizationFingerprint,
-        authorizationIdentity: current.authorizationIdentity,
-        failure: input.outcome,
-      });
-      return input.outcome;
-    }
-    this.state.exports.set(key, {
-      kind: 'authorized',
-      request: current.request,
-      authorizationFingerprint: current.authorizationFingerprint,
-      authorizationIdentity: current.authorizationIdentity,
-    });
-    return { ok: true };
   }
 
   async prepareAdmitExport(
@@ -935,16 +879,6 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
             status: 409,
             code: 'admission_in_progress',
             message: 'Export admission is already in progress',
-          }),
-        };
-      case 'authorizing':
-      case 'authorization_failed':
-        return {
-          kind: 'failed',
-          failure: failure({
-            status: 409,
-            code: 'admission_failed',
-            message: 'Export admission authorization is incomplete',
           }),
         };
       case 'authorized':
@@ -1344,11 +1278,6 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
   }
 }
 
-type RouterAbEd25519YaoExportAuthorizationFailure = Extract<
-  RouterAbEd25519YaoExportAuthorizationResult,
-  { readonly ok: false }
->;
-
 function authorizationFailure(
   input: Omit<RouterAbEd25519YaoExportAuthorizationFailure, 'ok'>,
 ): RouterAbEd25519YaoExportAuthorizationFailure {
@@ -1365,19 +1294,9 @@ function requireString(value: string | null): string {
   return value;
 }
 
-type ExportAdmissionAuthorizationInput = Extract<
-  RouterAbEd25519YaoExportAuthorizationInput,
-  { readonly kind: 'admit' }
->;
+type ExportAdmissionAuthorizationInput = RouterAbEd25519YaoExportAdmissionAuthorizationInputV1;
 
-type ExportExecutionAuthorizationInput = Extract<
-  RouterAbEd25519YaoExportAuthorizationInput,
-  { readonly kind: 'execute' }
->;
-
-function assertNeverExportAuthorizationInput(value: never): never {
-  throw new Error(`Unsupported Ed25519 Yao export authorization input: ${String(value)}`);
-}
+type ExportExecutionAuthorizationInput = RouterAbEd25519YaoExportExecutionAuthorizationInputV1;
 
 function assertNeverExportAdmissionAuthorization(value: never): never {
   throw new Error(`Unsupported Ed25519 Yao export admission authorization: ${String(value)}`);
@@ -1547,7 +1466,7 @@ async function authorizeExportAdmission(args: {
     | 'resolveActiveEmailOtpAuthorityForVerifiedMethod'
   >;
   readonly authorizedOperations: RouterApiAuthorizedOperationService;
-}): Promise<RouterAbEd25519YaoExportAuthorizationResult> {
+}): Promise<VerifiedExportAdmission> {
   const walletId = parseWalletId(args.input.body.application_binding.wallet_id);
   if (!walletId.ok || args.input.body.scope.account_id !== String(walletId.value)) {
     return authorizationFailure({
@@ -1675,6 +1594,7 @@ async function authorizeExportAdmission(args: {
   if (!recorded.ok) return recorded;
   return {
     ok: true,
+    admission: recorded.admission,
     factorRelease: checked.factorRelease,
   };
 }
@@ -1687,7 +1607,7 @@ async function recordFreshExportProof(args: {
   readonly expiresAtMs: number;
   readonly assertionDigest?: string;
   readonly challengeId?: string;
-}): Promise<RouterAbEd25519YaoExportAuthorizationResult> {
+}): Promise<VerifiedExportAdmission> {
   const walletId = parseWalletId(args.input.body.application_binding.wallet_id);
   if (!walletId.ok)
     return authorizationFailure({
@@ -1846,8 +1766,9 @@ async function recordFreshExportProof(args: {
     proofId,
     factor,
   });
-  const admitted = await args.authorizedOperations.admitAuthorizedOperation({
-    operation: {
+  return {
+    ok: true,
+    admission: new ExportOperationAdmission(args.authorizedOperations, {
       tenantId: args.authorizedOperations.tenantId,
       authorizedOperationId: authorizedOperationId.value,
       auditEventId: auditEventId.value,
@@ -1855,24 +1776,78 @@ async function recordFreshExportProof(args: {
       authorization: { kind: 'verified_step_up', evidenceSetDigest: evidence.evidenceSetDigest },
       quota: { kind: 'quota_neutral' },
       claimedAtMs: args.verifiedAtMs,
-    },
-  });
-  switch (admitted.kind) {
-    case 'claimed':
-    case 'replayed':
-    case 'operation_in_progress':
-      return { ok: true };
-    case 'authorization_grant_rejected':
-    case 'verified_step_up_rejected':
-    case 'wallet_session_quota_exhausted':
-    case 'material_mismatch':
-      return authorizationFailure({
-        status: 403,
-        code: admitted.kind,
-        message: 'Ed25519 Yao export owner proof was rejected',
-      });
+    }),
+  };
+}
+
+type VerifiedExportAdmission =
+  | {
+      readonly ok: true;
+      readonly admission: RouterAbEd25519YaoExportOperationAdmissionV1;
+      readonly factorRelease?: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1;
+    }
+  | RouterAbEd25519YaoExportAuthorizationFailure;
+
+class ExportOperationAdmission implements RouterAbEd25519YaoExportOperationAdmissionV1 {
+  constructor(
+    private readonly authorizedOperations: Pick<
+      RouterApiAuthorizedOperationService,
+      | 'admitAuthorizedOperation'
+      | 'prepareAuthorizedOperationAdmission'
+      | 'classifyAuthorizedOperationAdmissionFailure'
+    >,
+    private readonly operation: AuthorizedOperationInput,
+  ) {}
+
+  async prepare(): Promise<RouterAbEd25519YaoExportPreparedOperationAdmissionV1> {
+    const prepared = await this.authorizedOperations.prepareAuthorizedOperationAdmission({
+      operation: this.operation,
+    });
+    switch (prepared.kind) {
+      case 'prepared':
+        return { kind: 'prepared', write: { statements: prepared.statements } };
+      case 'replayed':
+      case 'operation_in_progress':
+        return { kind: 'already_admitted' };
+      case 'authorization_grant_rejected':
+      case 'verified_step_up_rejected':
+      case 'wallet_session_quota_exhausted':
+      case 'material_mismatch':
+        return { kind: 'rejected', failure: exportOwnerProofRejected(prepared.kind) };
+    }
+  }
+
+  classifyFailure(error: unknown): RouterAbEd25519YaoExportAuthorizationFailure | null {
+    const rejected = this.authorizedOperations.classifyAuthorizedOperationAdmissionFailure(error);
+    return rejected ? exportOwnerProofRejected(rejected.kind) : null;
+  }
+
+  async admit(): Promise<RouterAbEd25519YaoExportAuthorizationResult> {
+    const admitted = await this.authorizedOperations.admitAuthorizedOperation({
+      operation: this.operation,
+    });
+    switch (admitted.kind) {
+      case 'claimed':
+      case 'replayed':
+      case 'operation_in_progress':
+        return { ok: true };
+      case 'authorization_grant_rejected':
+      case 'verified_step_up_rejected':
+      case 'wallet_session_quota_exhausted':
+      case 'material_mismatch':
+        return exportOwnerProofRejected(admitted.kind);
+    }
   }
 }
+
+function exportOwnerProofRejected(code: string): RouterAbEd25519YaoExportAuthorizationFailure {
+  return authorizationFailure({
+    status: 403,
+    code,
+    message: 'Ed25519 Yao export owner proof was rejected',
+  });
+}
+
 export class RouterAbEd25519YaoExportOwnerProofAuthorizationAdapter implements RouterAbEd25519YaoExportAuthorizationAdapter {
   constructor(
     private readonly webAuthn: Pick<RouterApiWebAuthnService, 'verifyWebAuthnAuthenticationLite'>,
@@ -1886,69 +1861,53 @@ export class RouterAbEd25519YaoExportOwnerProofAuthorizationAdapter implements R
     private readonly resolveEd25519MaterialActivation: RouterApiWalletRegistrationService['resolveEd25519MaterialActivation'],
   ) {}
 
-  async authorize(
-    input: RouterAbEd25519YaoExportAuthorizationInput,
-  ): Promise<RouterAbEd25519YaoExportAuthorizationAdapterResult> {
-    switch (input.kind) {
-      case 'admit': {
-        const activeIdentity = await resolveActiveExportAuthorizationIdentity({
-          body: input.body,
-          resolveEd25519MaterialActivation: this.resolveEd25519MaterialActivation,
-        });
-        if (!activeIdentity.ok) return activeIdentity;
-        const checked = await authorizeExportAdmission({
-          input,
-          webAuthn: this.webAuthn,
-          emailOtp: this.emailOtp,
-          walletAuthMethods: this.walletAuthMethods,
-          authorizedOperations: this.authorizedOperations,
-        });
-        return checked.ok
-          ? {
-              ok: true,
-              authorizationIdentity: activeIdentity.authorizationIdentity,
-              ...(checked.factorRelease ? { factorRelease: checked.factorRelease } : {}),
-            }
-          : checked;
-      }
-      case 'execute': {
-        const thresholdSessionId = parseThresholdEd25519SessionId(
-          input.body.binding.ceremony.lifecycle.session_id,
-        );
-        if (!thresholdSessionId.ok)
-          return authorizationFailure({
-            status: 403,
-            code: 'invalid_body',
-            message: thresholdSessionId.error.message,
-          });
-        const authorizationIdentity = { thresholdSessionId: thresholdSessionId.value };
-        const checked = authorizeExportExecution(input, authorizationIdentity);
-        return checked.ok ? { ok: true, authorizationIdentity } : checked;
-      }
-      default:
-        return assertNeverExportAuthorizationInput(input);
-    }
+  async authorizeAdmission(
+    input: RouterAbEd25519YaoExportAdmissionAuthorizationInputV1,
+  ): Promise<RouterAbEd25519YaoExportAdmissionAuthorizationResultV1> {
+    const activeIdentity = await resolveActiveExportAuthorizationIdentity({
+      body: input.body,
+      resolveEd25519MaterialActivation: this.resolveEd25519MaterialActivation,
+    });
+    if (!activeIdentity.ok) return activeIdentity;
+    const checked = await authorizeExportAdmission({
+      input,
+      webAuthn: this.webAuthn,
+      emailOtp: this.emailOtp,
+      walletAuthMethods: this.walletAuthMethods,
+      authorizedOperations: this.authorizedOperations,
+    });
+    return checked.ok
+      ? {
+          ok: true,
+          authorizationIdentity: activeIdentity.authorizationIdentity,
+          admission: checked.admission,
+          ...(checked.factorRelease ? { factorRelease: checked.factorRelease } : {}),
+        }
+      : checked;
   }
 
-  async resolveAuthorizationIdentity(
-    request: Request,
-  ): Promise<RouterAbEd25519YaoExportAuthorizationIdentityResolutionResult> {
-    let raw: unknown;
-    try {
-      raw = await request.clone().json();
-    } catch {
+  authorizeExecution(
+    input: RouterAbEd25519YaoExportExecutionAuthorizationInputV1,
+  ): RouterAbEd25519YaoExportAuthorizationIdentityResolutionResult {
+    const thresholdSessionId = parseThresholdEd25519SessionId(
+      input.body.binding.ceremony.lifecycle.session_id,
+    );
+    if (!thresholdSessionId.ok)
       return authorizationFailure({
         status: 403,
         code: 'invalid_body',
-        message: 'Ed25519 Yao export authorization body is invalid',
+        message: thresholdSessionId.error.message,
       });
-    }
-    const parsed = parseRouterAbEd25519YaoExportAdmissionEnvelopeV1(raw);
-    if (!parsed.ok) {
-      return authorizationFailure({ status: 403, code: 'invalid_body', message: parsed.message });
-    }
+    const authorizationIdentity = { thresholdSessionId: thresholdSessionId.value };
+    const checked = authorizeExportExecution(input, authorizationIdentity);
+    return checked.ok ? { ok: true, authorizationIdentity } : checked;
+  }
+
+  async resolveAuthorizationIdentity(
+    body: RouterAbEd25519YaoExportAdmissionRequestV1,
+  ): Promise<RouterAbEd25519YaoExportAuthorizationIdentityResolutionResult> {
     return await resolveActiveExportAuthorizationIdentity({
-      body: parsed.protocol,
+      body,
       resolveEd25519MaterialActivation: this.resolveEd25519MaterialActivation,
     });
   }
@@ -2192,8 +2151,7 @@ class RouterAbEd25519YaoExportRouteExtension implements RouterApiRouteExtension 
           { status: 403 },
         );
       }
-      const authorized = await this.authorization.authorize({
-        kind: 'admit',
+      const authorized = await this.authorization.authorizeAdmission({
         request: input.request,
         body: parsed.protocol,
         authorization: parsed.authorization,
@@ -2207,6 +2165,7 @@ class RouterAbEd25519YaoExportRouteExtension implements RouterApiRouteExtension 
       const result = await this.service.admitExport(
         parsed.protocol,
         authorized.authorizationIdentity,
+        authorized.admission,
         traceContext.value,
       );
       return result.ok
@@ -2232,8 +2191,7 @@ class RouterAbEd25519YaoExportRouteExtension implements RouterApiRouteExtension 
       const parsed = parseRouterAbEd25519YaoExportExecuteEnvelopeV1(raw);
       if (!parsed.ok)
         return json({ ok: false, code: 'invalid_body', message: parsed.message }, { status: 400 });
-      const authorized = await this.authorization.authorize({
-        kind: 'execute',
+      const authorized = await this.authorization.authorizeExecution({
         request: input.request,
         body: parsed.protocol,
       });
