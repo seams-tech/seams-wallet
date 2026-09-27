@@ -197,6 +197,16 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
   refuses to authorize it, and reserving it again is refused. The refresh it
   held back then runs. Deriver A later loses its share, and a new challenge
   is reserved, authorized and restored.
+- `vm_tenant_root_authorized_restore_overtaken_by_a_refresh_is_superseded`
+  prints `R150_VM_TENANT_ROOT_RESTORE_SUPERSEDED_E2E`:
+  - A restore of Deriver A is authorized but never runs.
+  - A manual refresh completes and supersedes it.
+  - Its execution (400), its challenge (500, relayed) and its authorization
+    (400) are then refused.
+  - The next refresh completes, a wallet signs on epoch 3, and a new
+    challenge is reserved.
+  - The Router's manual-refresh interval is set to one minute for this
+    test.
 - `vm_tenant_root_recovery_kit_restores_into_an_empty_deployment_and_signs`
   prints `R150_VM_TENANT_ROOT_RECOVERY_KIT_RESTORE_E2E`: a tenant's recovery
   kit (the committed fixture manifest, both role packages and their trust

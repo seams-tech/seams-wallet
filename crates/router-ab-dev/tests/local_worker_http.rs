@@ -1679,6 +1679,132 @@ fn vm_tenant_root_scheduled_refresh_runs_and_resumes_after_a_router_restart(
     Ok(())
 }
 
+/// An authorized restore that a completed refresh overtakes is superseded, and
+/// the root stays usable. The operator reserves and authorizes a restore of
+/// Deriver A, but both roles stay available and the restore never runs. A
+/// manual refresh completes; the restore is then recorded as superseded, and
+/// its execution, its challenge and its authorization are all refused. Before
+/// this, the next refresh left a state that no read accepted. That refresh now
+/// completes, a new challenge is reserved, and a wallet signs on epoch 3.
+#[test]
+fn vm_tenant_root_authorized_restore_overtaken_by_a_refresh_is_superseded(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start_with_envs(
+        "vm-tenant-root-restore-superseded",
+        &[("TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS", "60000")],
+        &[],
+        &[],
+    )?;
+    let signing_worker = stack.start_signing_worker()?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("restore-superseded")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let identity_digest_b64u =
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(identity.digest()?.as_bytes());
+    let challenge_request = |incident: &str| -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+        let now_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
+        Ok(json!({
+            "identity_digest_b64u": identity_digest_b64u,
+            "custody_lineage_b64u": lineage_b64u,
+            "incident_id": incident,
+            "outage_observation_digest_b64u": base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(Sha256::digest(incident.as_bytes())),
+            "issued_at_ms": now_ms,
+            "expires_at_ms": now_ms + 120_000,
+            "nonce_b64u": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(fresh_nonzero_bytes_32()?),
+            "unavailable_role": "deriver_a",
+        }))
+    };
+    let challenge_path =
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_CHALLENGE_PRIVATE_REQUEST_PATH;
+    let authorize_path =
+        router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_AUTHORIZE_PRIVATE_REQUEST_PATH;
+    let superseded = "was superseded by a completed refresh before it ran";
+
+    // The operator reserves and authorizes a restore of A that never runs.
+    let first_challenge = challenge_request("vm-restore-overtaken")?;
+    let (challenge_status, challenge_body) = stack.control_plane(challenge_path, &first_challenge)?;
+    assert_eq!(challenge_status, 200, "{challenge_body}");
+    let challenge: serde_json::Value = serde_json::from_str(&challenge_body)?;
+    let authorize_request = json!({
+        "identity_digest_b64u": identity_digest_b64u,
+        "custody_lineage_b64u": lineage_b64u,
+        "incident_authorization_b64u": stack.sign_deriver_a_incident_authorization(
+            challenge["authorization_binding_b64u"].as_str().ok_or("a challenge carries its binding")?,
+        )?,
+    });
+    let (authorize_status, authorize_body) = stack.control_plane(authorize_path, &authorize_request)?;
+    assert_eq!(authorize_status, 200, "{authorize_body}");
+    let authorization: serde_json::Value = serde_json::from_str(&authorize_body)?;
+    assert_eq!(stack.managed_restore_fence(&lineage_b64u)?.0, "terminal");
+
+    // Both roles are available, so a manual refresh completes and overtakes it.
+    let (revision, _, _) = stack.active_state(&lineage_b64u)?;
+    let (first_status, first_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-overtakes-restore", revision)?;
+    assert_eq!(first_status, 200, "{first_body}");
+    assert_eq!(stack.managed_restore_fence(&lineage_b64u)?.0, "superseded");
+
+    // Every late step of the overtaken restore is refused.
+    let restore_request = json!({
+        "public_state_b64u": authorization["public_state_b64u"],
+        "restore_capability_b64u": authorization["capability_b64u"],
+    });
+    // The Router and the control plane answer InvalidLifecycleState with 400.
+    // The challenge is refused by the Router's creation state, so the control
+    // plane relays it as 500 with its message.
+    let (late_restore_status, late_restore_body) = stack.restore(&restore_request)?;
+    assert_eq!(late_restore_status, 400, "{late_restore_body}");
+    assert!(late_restore_body.contains(superseded), "{late_restore_body}");
+    let (late_challenge_status, late_challenge_body) =
+        stack.control_plane(challenge_path, &first_challenge)?;
+    assert_eq!(late_challenge_status, 500, "{late_challenge_body}");
+    assert!(late_challenge_body.contains(superseded), "{late_challenge_body}");
+    let (late_authorize_status, late_authorize_body) =
+        stack.control_plane(authorize_path, &authorize_request)?;
+    assert_eq!(late_authorize_status, 400, "{late_authorize_body}");
+    assert!(late_authorize_body.contains(superseded), "{late_authorize_body}");
+    assert_eq!(stack.managed_restore_fence(&lineage_b64u)?.0, "superseded");
+
+    // The next refresh, which found the stale authorization before, completes.
+    thread::sleep(Duration::from_millis(61_000));
+    let (revision, _, _) = stack.active_state(&lineage_b64u)?;
+    let (second_status, second_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-after-superseded", revision)?;
+    assert_eq!(second_status, 200, "{second_body}");
+    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
+    let expected_epochs = vec![epoch(1, "retired"), epoch(2, "retired"), epoch(3, "active")];
+    assert_eq!(stack.epochs(&lineage_b64u)?, (expected_epochs.clone(), expected_epochs));
+
+    // A wallet signs on epoch 3, and a new restore can be reserved.
+    let signing_worker =
+        stack.register_and_sign(signing_worker, &identity, &lineage_b64u, "account-after-superseded")?;
+    drop(signing_worker);
+    let (new_status, new_body) =
+        stack.control_plane(challenge_path, &challenge_request("vm-restore-after-superseded")?)?;
+    assert_eq!(new_status, 200, "{new_body}");
+    assert_eq!(stack.managed_restore_fence(&lineage_b64u)?.0, "reserved");
+
+    println!(
+        "R150_VM_TENANT_ROOT_RESTORE_SUPERSEDED_E2E {}",
+        json!({
+            "authorized_restore_fence": "terminal",
+            "overtaking_refresh_status": first_status,
+            "fence_after_refresh": "superseded",
+            "late_restore": [late_restore_status, superseded],
+            "late_challenge": [late_challenge_status, superseded],
+            "late_authorization": [late_authorize_status, superseded],
+            "next_refresh_status": second_status,
+            "epochs_after": [[1, "retired"], [2, "retired"], [3, "active"]],
+            "signed_on_epoch_3": true,
+            "new_challenge_status": new_status,
+        })
+    );
+    Ok(())
+}
+
 /// Deriver A loses its active share, and the root is restored from A's managed
 /// backup on the VM through the same control-plane, Router and Deriver code as
 /// Cloudflare. The operator reserves a challenge; the operations authority and

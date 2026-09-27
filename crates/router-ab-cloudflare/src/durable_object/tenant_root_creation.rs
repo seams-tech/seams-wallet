@@ -2170,6 +2170,17 @@ pub(crate) enum CloudflareTenantRootManagedRestoreFenceV1 {
         attempt: CloudflareTenantRootManagedRestoreAuthorizationAttemptV1,
         expired_at_ms: u64,
     },
+    /// An authorized restore that a completed refresh overtook before the
+    /// restore's own forward refresh ran. That refresh needed both roles, and
+    /// the restore's capability names a state that no longer exists. It holds
+    /// back neither refresh nor a new reservation, and its late steps are
+    /// refused.
+    Superseded {
+        challenge: CloudflareTenantRootManagedRestoreAuthorizationChallengeV1,
+        attempt: CloudflareTenantRootManagedRestoreAuthorizationAttemptV1,
+        /// The lifecycle revision of the refresh that overtook it.
+        superseded_at_revision: u64,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -3592,7 +3603,8 @@ pub async fn tenant_root_managed_restore_reservation_call_v1(
         CloudflareTenantRootManagedRestoreFenceV1::Reserved { challenge, .. }
         | CloudflareTenantRootManagedRestoreFenceV1::Terminal { challenge, .. } => Ok(challenge),
         CloudflareTenantRootManagedRestoreFenceV1::Open
-        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => Err(RouterAbProtocolError::new(
+        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+        | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             "tenant-root managed-restore reservation response omitted its persisted challenge",
         )),
@@ -8476,6 +8488,14 @@ async fn persist_managed_restore_reservation_expiry_v1<Store: TenantRootCreation
     Ok(expired)
 }
 
+/// A late step of an authorized restore that a completed refresh overtook.
+pub(crate) fn managed_restore_superseded_error() -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::InvalidLifecycleState,
+        "tenant-root managed restore was superseded by a completed refresh before it ran; reserve a new challenge if a role is still unavailable",
+    )
+}
+
 fn managed_restore_reservation_expired_error() -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::ExpiredLocalRequest,
@@ -9414,9 +9434,20 @@ fn reserve_managed_restore_authorization_fence_v1(
         ));
     }
     validate_managed_restore_fence_against_active_v1(active)?;
+    if let CloudflareTenantRootManagedRestoreFenceV1::Superseded { challenge, .. } =
+        &active.record.managed_restore_fence
+    {
+        // A retry of the overtaken restore's own request is refused, not
+        // reserved again against the state that replaced it.
+        validate_managed_restore_authorization_request_v1(&request)?;
+        if managed_restore_request_names_challenge_v1(&request, challenge) {
+            return Err(managed_restore_superseded_error());
+        }
+    }
     match &active.record.managed_restore_fence {
         CloudflareTenantRootManagedRestoreFenceV1::Open
-        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => {
+        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+        | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => {
             let challenge = managed_restore_authorization_challenge_from_active_state_v1(
                 active,
                 started_journal,
@@ -9495,18 +9526,26 @@ fn require_managed_restore_request_matches_terminal_challenge_v1(
     challenge: &CloudflareTenantRootManagedRestoreAuthorizationChallengeV1,
 ) -> RouterAbProtocolResult<()> {
     validate_managed_restore_authorization_request_v1(request)?;
-    if request.incident_id != challenge.incident_id
-        || request.outage_observation_digest_b64u != challenge.outage_observation_digest_b64u
-        || request.issued_at_ms != challenge.issued_at_ms
-        || request.expires_at_ms != challenge.expires_at_ms
-        || request.nonce_b64u != challenge.nonce_b64u
-        || request.unavailable_role != challenge.unavailable_role
-    {
+    if !managed_restore_request_names_challenge_v1(request, challenge) {
         return Err(managed_restore_conflict(
             "tenant-root managed-restore authorization attempt conflicts with the accepted fence",
         ));
     }
     Ok(())
+}
+
+/// Whether the operator inputs of a request are those a stored challenge was
+/// built from.
+fn managed_restore_request_names_challenge_v1(
+    request: &CloudflareTenantRootManagedRestoreAuthorizationRequestV1,
+    challenge: &CloudflareTenantRootManagedRestoreAuthorizationChallengeV1,
+) -> bool {
+    request.incident_id == challenge.incident_id
+        && request.outage_observation_digest_b64u == challenge.outage_observation_digest_b64u
+        && request.issued_at_ms == challenge.issued_at_ms
+        && request.expires_at_ms == challenge.expires_at_ms
+        && request.nonce_b64u == challenge.nonce_b64u
+        && request.unavailable_role == challenge.unavailable_role
 }
 
 /// Checkpoints exact signed public-state, capability, and incident-authorization
@@ -9574,9 +9613,15 @@ fn checkpoint_managed_restore_authorization_fence_v1(
         {
             Err(managed_restore_reservation_expired_error())
         }
+        CloudflareTenantRootManagedRestoreFenceV1::Superseded { challenge, attempt, .. }
+            if challenge == &checkpoint.challenge && attempt == &checkpoint.attempt =>
+        {
+            Err(managed_restore_superseded_error())
+        }
         CloudflareTenantRootManagedRestoreFenceV1::Reserved { .. }
         | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. }
-        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => {
+        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+        | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => {
             Err(managed_restore_conflict(
                 "tenant-root managed-restore checkpoint conflicts with the accepted fence",
             ))
@@ -9811,6 +9856,21 @@ fn validate_managed_restore_fence_shape(
             }
             Ok(())
         }
+        CloudflareTenantRootManagedRestoreFenceV1::Superseded {
+            challenge,
+            attempt,
+            superseded_at_revision,
+        } => {
+            validate_managed_restore_challenge_shape_v1(challenge)?;
+            validate_managed_restore_attempt_shape_v1(attempt)?;
+            require_managed_restore_attempt_matches_challenge_v1(challenge, attempt)?;
+            if *superseded_at_revision <= challenge.active_lifecycle_revision {
+                return Err(malformed_input(
+                    "tenant-root managed restore was superseded before the state it authorized",
+                ));
+            }
+            Ok(())
+        }
     }
 }
 
@@ -9841,10 +9901,11 @@ fn require_managed_restore_fence_matches_active_fields_v1(
     activation_receipt_digest: TenantRootLifecycleReceiptDigestV1,
 ) -> RouterAbProtocolResult<()> {
     let (challenge, _) = match fence {
-        // An expired reservation names the state it was reserved against,
-        // which later refreshes may have moved past.
+        // An expired or superseded restore names the state it was reserved
+        // against, which later refreshes have moved past.
         CloudflareTenantRootManagedRestoreFenceV1::Open
-        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => return Ok(()),
+        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+        | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => return Ok(()),
         CloudflareTenantRootManagedRestoreFenceV1::Reserved { challenge, attempt }
         | CloudflareTenantRootManagedRestoreFenceV1::Terminal {
             challenge, attempt, ..
@@ -12668,6 +12729,8 @@ async fn reserve_refresh_attempt_v1<Store: TenantRootCreationStoreV1>(
         CloudflareTenantRootRefreshFenceV1::Open => {
             let mut record = active.record.clone();
             record.fence = CloudflareTenantRootRefreshFenceV1::Reserved { attempt };
+            // Never persist a state its next read would refuse.
+            validate_refresh_active_state_record(record.clone(), expected_authority_id, issuer_keys)?;
             store
                 .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &record)
                 .await?;
@@ -12689,6 +12752,8 @@ async fn reserve_refresh_attempt_v1<Store: TenantRootCreationStoreV1>(
         CloudflareTenantRootRefreshFenceV1::Abandoned { .. } => {
             let mut record = active.record.clone();
             record.fence = CloudflareTenantRootRefreshFenceV1::Reserved { attempt };
+            // Never persist a state its next read would refuse.
+            validate_refresh_active_state_record(record.clone(), expected_authority_id, issuer_keys)?;
             store
                 .put_json(TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1, &record)
                 .await?;
@@ -12702,6 +12767,11 @@ async fn reserve_refresh_attempt_v1<Store: TenantRootCreationStoreV1>(
             } else {
                 let mut record = active.record.clone();
                 record.fence = CloudflareTenantRootRefreshFenceV1::Reserved { attempt };
+                validate_refresh_active_state_record(
+                    record.clone(),
+                    expected_authority_id,
+                    issuer_keys,
+                )?;
                 store
                     .delete(TENANT_ROOT_REFRESH_COMMITMENT_CHECKPOINT_STORAGE_KEY_V1)
                     .await?;
@@ -12877,9 +12947,20 @@ async fn persist_refresh_active_state_v1<Store: TenantRootCreationStoreV1>(
             });
             CloudflareTenantRootManagedRestoreFenceV1::Open
         }
-        // An expired reservation stays on record until a new one replaces it.
-        CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. }
-        | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => {
+        // Another refresh completed before the authorized restore ran: that
+        // refresh needed both roles, and the restore's capability names the
+        // state it replaced. The restore is recorded as superseded.
+        CloudflareTenantRootManagedRestoreFenceV1::Terminal { challenge, attempt, .. } => {
+            CloudflareTenantRootManagedRestoreFenceV1::Superseded {
+                challenge: challenge.clone(),
+                attempt: attempt.clone(),
+                superseded_at_revision: candidate.lifecycle_revision,
+            }
+        }
+        // An expired or superseded restore stays on record until a new
+        // reservation replaces it.
+        CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+        | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => {
             existing.record.managed_restore_fence.clone()
         }
         CloudflareTenantRootManagedRestoreFenceV1::Reserved { .. } => {
@@ -19408,7 +19489,8 @@ mod tests {
             }
             CloudflareTenantRootManagedRestoreFenceV1::Open
             | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. }
-            | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => {
+            | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+            | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => {
                 panic!("reservation must retain the reserved challenge")
             }
         };
@@ -19471,7 +19553,8 @@ mod tests {
             }
             CloudflareTenantRootManagedRestoreFenceV1::Open
             | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. }
-            | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => {
+            | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+            | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => {
                 panic!("reservation must retain the reserved challenge")
             }
         };
@@ -19561,7 +19644,8 @@ mod tests {
             }
             CloudflareTenantRootManagedRestoreFenceV1::Open
             | CloudflareTenantRootManagedRestoreFenceV1::Terminal { .. }
-            | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. } => {
+            | CloudflareTenantRootManagedRestoreFenceV1::Expired { .. }
+            | CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. } => {
                 panic!("reservation must retain the reserved challenge")
             }
         };

@@ -21,7 +21,7 @@ use router_ab_core::{
 };
 
 use crate::durable_object::tenant_root_creation::{
-    tenant_root_managed_restore_completion_read_call_v1,
+    managed_restore_superseded_error, tenant_root_managed_restore_completion_read_call_v1,
     tenant_root_refresh_attempt_reservation_call_v1, CloudflareTenantRootManagedRestoreFenceV1,
     CloudflareTenantRootRefreshFenceV1, CloudflareVerifiedTenantRootActiveStateV1,
 };
@@ -386,6 +386,12 @@ fn require_managed_restore_checkpoint_artifacts_v1(
     let activation_receipt_digest_b64u =
         crate::encode_base64url_bytes_v1(authorization.active_activation_receipt_digest.as_bytes());
 
+    if matches!(
+        &active.managed_restore_fence,
+        CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. }
+    ) {
+        return Err(managed_restore_superseded_error());
+    }
     let CloudflareTenantRootManagedRestoreFenceV1::Terminal {
         challenge,
         public_state_b64u,
@@ -463,6 +469,12 @@ fn require_managed_restore_checkpoint_current_state_v1(
     let identity_digest_b64u =
         crate::encode_base64url_bytes_v1(authorization.identity_digest.as_bytes());
     let custody_lineage_b64u = authorization.custody_lineage.to_base64url();
+    if matches!(
+        &active.managed_restore_fence,
+        CloudflareTenantRootManagedRestoreFenceV1::Superseded { .. }
+    ) {
+        return Err(managed_restore_superseded_error());
+    }
     let CloudflareTenantRootManagedRestoreFenceV1::Terminal {
         challenge,
         ..

@@ -110,9 +110,37 @@ Raised in review on 2026-09-27.
   `vm_tenant_root_restore_reservation_never_authorized_expires_and_frees_the_root`
   (`R150_VM_TENANT_ROOT_RESTORE_RESERVATION_EXPIRY_E2E`). Workers run the
   same creation-state code; the harness does not yet exercise it.
-- **Still open:** an authorized restore that is never executed keeps a
-  terminal fence, which a second refresh no longer validates and which
-  refuses a new challenge. Handle it with the recovery work.
+
+### Defect: an authorized restore overtaken by a refresh broke the root
+
+Found and reproduced on the VM on 2026-09-27.
+- **The failure:**
+  1. A restore was authorized, but never ran; for example, the role came back
+     by itself.
+  2. A manual refresh completed, and the authorized fence stayed on record.
+  3. The next refresh reservation was persisted without being validated. The
+     record held a reserved refresh beside a restore challenge two states
+     old, and no read accepts that pairing.
+  4. From then on, every operation on the root failed with "stored tenant-root
+     refresh checkpoint is invalid": refresh, a new challenge, and new work.
+- **Fixed (2026-09-27): the refresh supersedes the restore.**
+  - **The transition:** when a refresh completes that is not the restore's
+    own forward refresh, the authorized fence becomes `superseded`. It
+    records the challenge, its attempt, and the revision that overtook it.
+  - **Why this is safe:** that refresh needed both roles, and the restore's
+    capability names a state that no longer exists, so the restore could no
+    longer run.
+  - **What it frees:** a superseded restore holds back neither refresh nor a
+    new challenge.
+  - **What it refuses:** its execution, its challenge request, its
+    checkpoint and its authorization. A completed restore is unchanged: its
+    forward refresh records its completion, which answers exact retries.
+  - **Defence in depth:** a refresh reservation is validated before it is
+    persisted.
+- **Evidence:** VM
+  `vm_tenant_root_authorized_restore_overtaken_by_a_refresh_is_superseded`
+  (`R150_VM_TENANT_ROOT_RESTORE_SUPERSEDED_E2E`). Workers run the same
+  creation-state code; the harness does not exercise this schedule.
 
 ## Separate: planned migration (cutover and source retirement)
 
