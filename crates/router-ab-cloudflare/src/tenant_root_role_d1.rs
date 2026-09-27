@@ -17459,12 +17459,7 @@ fn validate_authorized_cleanup_retired(
         || retired.revision() != *expected_retired_revision
         || active.record().epoch() != *expected_active_epoch
         || active.revision() != *expected_active_revision
-        || retired
-            .record()
-            .epoch()
-            .next()
-            .map_err(|error| store_error(error.message()))?
-            != *expected_active_epoch
+        || retired.record().epoch() >= *expected_active_epoch
     {
         return Err(store_error(
             "tenant-root cleanup authorization does not name the authoritative retired row and active successor",
@@ -17505,10 +17500,7 @@ fn validate_authorized_cleanup_retired_absent(
         || active.record().epoch() != *expected_active_epoch
         || active.revision() != *expected_active_revision
         || *expected_retired_revision <= 0
-        || retired_epoch
-            .next()
-            .map_err(|error| store_error(error.message()))?
-            != *expected_active_epoch
+        || retired_epoch >= expected_active_epoch
     {
         return Err(store_error(
             "tenant-root absent retired cleanup authorization does not name the active successor",

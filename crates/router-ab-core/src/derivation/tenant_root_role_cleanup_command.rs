@@ -70,7 +70,10 @@ pub enum TenantRootRoleCleanupTargetV1 {
         session_id: TenantRootCeremonySessionIdV1,
         ceremony_nonce: TenantRootCeremonyNonceV1,
     },
-    /// A retired row whose exact active successor is still expected.
+    /// A retired row, and the exact active row it must not outlive: the
+    /// role's current active epoch, which is any later one. A managed restore
+    /// can commit over an older retirement, so that epoch is erased later
+    /// against the newer active row.
     Retired {
         identity_digest: TenantRootIdentityDigestV1,
         custody_lineage: TenantRootCustodyLineageId,
@@ -589,9 +592,9 @@ fn validate_unsigned_data(
         } => {
             require_positive_revision(*expected_retired_revision, "retired row revision")?;
             require_positive_revision(*expected_active_revision, "active successor revision")?;
-            if retired_epoch.next()? != *expected_active_epoch {
+            if retired_epoch >= expected_active_epoch {
                 return Err(malformed(
-                    "tenant-root role cleanup command retired and active epochs must be adjacent",
+                    "tenant-root role cleanup command retired epoch must precede its active successor",
                 ));
             }
         }

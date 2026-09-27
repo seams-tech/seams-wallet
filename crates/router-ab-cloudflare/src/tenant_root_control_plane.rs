@@ -258,10 +258,12 @@ pub enum CloudflareTenantRootControlPlaneCleanupCommandRequestV1 {
         custody_lineage_b64u: String,
         role: CloudflareTenantRootControlPlaneRoleV1,
     },
+    /// Erases one role's retired epoch, bound to its current active row.
     RetiredAfterRefresh {
         identity_digest_b64u: String,
         custody_lineage_b64u: String,
         role: CloudflareTenantRootControlPlaneRoleV1,
+        retired_epoch: u64,
         expected_retired_revision: i64,
         expected_active_revision: i64,
     },
@@ -2244,14 +2246,17 @@ pub async fn control_plane_refresh_activation_v1<Host: TenantRootControlPlaneHos
 }
 
 /// Signs one command that erases a role's retired share after a refresh,
-/// bound to the active successor's revision. The role store executes it only
-/// once every root-use admission on the retired epoch is settled or
-/// cancelled; until then it answers that retirement is pending.
+/// bound to the current active row's revision. The epoch is one the Router's
+/// record holds a retirement for: the latest swap's, or an earlier one a
+/// managed restore committed over. The role store executes it only once
+/// every root-use admission on the retired epoch is settled or cancelled;
+/// until then it answers that retirement is pending.
 pub async fn control_plane_retired_cleanup_command_v1<Host: TenantRootControlPlaneHostV1>(
     host: &Host,
     identity_digest: router_ab_core::TenantRootIdentityDigestV1,
     custody_lineage: router_ab_core::TenantRootCustodyLineageId,
     role: CloudflareTenantRootControlPlaneRoleV1,
+    retired_epoch: u64,
     expected_retired_revision: i64,
     expected_active_revision: i64,
 ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCleanupCommandResponseV1> {
@@ -2276,12 +2281,22 @@ pub async fn control_plane_retired_cleanup_command_v1<Host: TenantRootControlPla
             "tenant-root retired cleanup requires an activated refresh successor",
         ));
     };
+    if !active
+        .delivery
+        .as_ref()
+        .is_some_and(|delivery| delivery.holds_retirement_of(retired_epoch))
+    {
+        return Err(refused(
+            "tenant-root retired cleanup names an epoch the Router holds no retirement for",
+        ));
+    }
     let role_protocol = role.to_protocol();
     let target = TenantRootRoleCleanupTargetV1::Retired {
         identity_digest,
         custody_lineage,
         role: role_protocol,
-        retired_epoch: binding.current_epoch(),
+        retired_epoch: router_ab_core::TenantRootShareEpoch::new(retired_epoch)
+            .map_err(derivation)?,
         expected_retired_revision,
         expected_active_epoch: binding.next_epoch(),
         expected_active_revision,
@@ -2295,6 +2310,7 @@ pub async fn control_plane_retired_cleanup_command_v1<Host: TenantRootControlPla
         TwoPartyDeriverRole::DeriverA => b"deriver-a".as_slice(),
         TwoPartyDeriverRole::DeriverB => b"deriver-b".as_slice(),
     });
+    nonce_hasher.update(retired_epoch.to_be_bytes());
     nonce_hasher.update(expected_retired_revision.to_be_bytes());
     nonce_hasher.update(expected_active_revision.to_be_bytes());
     nonce_hasher.update(issued_at_ms.to_be_bytes());
@@ -3701,23 +3717,27 @@ mod live {
                 identity_digest_b64u,
                 custody_lineage_b64u,
                 role,
+                retired_epoch,
                 expected_retired_revision,
                 expected_active_revision,
             } => (
                 identity_digest_b64u,
                 custody_lineage_b64u,
                 None,
-                Some((role, expected_retired_revision, expected_active_revision)),
+                Some((role, retired_epoch, expected_retired_revision, expected_active_revision)),
             ),
         };
         let (identity_digest, custody_lineage) =
             super::decode_tenant_root_cleanup_scope_v1(&identity_digest_b64u, &custody_lineage_b64u)?;
-        if let Some((role, expected_retired_revision, expected_active_revision)) = retired_request {
+        if let Some((role, retired_epoch, expected_retired_revision, expected_active_revision)) =
+            retired_request
+        {
             return super::control_plane_retired_cleanup_command_v1(
                 &CloudflareControlPlaneHostV1 { env, runtime },
                 identity_digest,
                 custody_lineage,
                 role,
+                retired_epoch,
                 expected_retired_revision,
                 expected_active_revision,
             )

@@ -9,6 +9,10 @@
 //! commits like any refresh, and that commit completes the restore; from then
 //! on an exact retry returns the restore's durable outcome, however far later
 //! refreshes have moved the active state.
+//!
+//! A restore does not wait for the previous swap's retirement: the role it
+//! restores may be the one that cannot erase. Its swap carries that
+//! retirement, and later passes erase the epoch once each role can.
 
 use std::collections::BTreeMap;
 
@@ -27,9 +31,9 @@ use crate::durable_object::tenant_root_creation::{
 };
 use crate::tenant_root_control_plane::CloudflareTenantRootControlPlaneRefreshCommandsRequestV1;
 use crate::tenant_root_refresh_coordinator::{
-    tenant_root_deriver_refresh_with_retry_v1, tenant_root_router_retire_v1,
-    tenant_root_router_finish_refresh_v1, tenant_root_router_refresh_attempt_packages_v1,
-    CloudflareRouterTenantRootRefreshResponseV1, CloudflareRouterTenantRootRetirementEvidenceV1,
+    tenant_root_deriver_refresh_with_retry_v1, tenant_root_router_finish_refresh_v1,
+    tenant_root_router_refresh_attempt_packages_v1, tenant_root_router_swap_retirement_v1,
+    CloudflareRouterTenantRootRefreshResponseV1,
 };
 use crate::tenant_root_role_runtime::{
     CloudflareDeriverTenantRootManagedRestoreForwardRefreshRequestV1,
@@ -100,21 +104,14 @@ pub async fn tenant_root_router_coordinate_managed_restore_v1<
     )
     .await?;
     if let Some(completed) = completed {
-        // The restore's own swap reports its retirement while it is still the
-        // latest; a pass moves it on, as for any refresh.
-        let retirement = if active.lifecycle_revision == completed.lifecycle_revision {
-            Box::pin(tenant_root_router_retire_v1(host, active))
-                .await?
-                .1
-                .ok_or_else(|| {
-                    RouterAbProtocolError::new(
-                        RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                        "tenant-root managed restore's swap has no retirement recorded with its delivery",
-                    )
-                })?
-        } else {
-            CloudflareRouterTenantRootRetirementEvidenceV1::superseded()
-        };
+        // A pass moves the retirements on, as for any refresh, and reports
+        // the restore's swap's.
+        let retirement = tenant_root_router_swap_retirement_v1(
+            host,
+            active,
+            &completed.activation_receipt_digest_b64u,
+        )
+        .await?;
         return Ok(CloudflareRouterTenantRootRefreshResponseV1 {
             activation_receipt_digest_b64u: completed.activation_receipt_digest_b64u,
             lifecycle_revision: completed.lifecycle_revision,
@@ -136,19 +133,18 @@ pub async fn tenant_root_router_coordinate_managed_restore_v1<
         TenantRootManagedRestoreRoleV1::DeriverA => TwoPartyDeriverRole::DeriverA,
         TenantRootManagedRestoreRoleV1::DeriverB => TwoPartyDeriverRole::DeriverB,
     };
-    // The restore's swap does not wait for the previous refresh's
-    // retirement: the role it restores may be the one that cannot erase. An
-    // epoch that retirement had not yet erased then stays retired, unerased,
-    // since the control plane signs cleanup only for the latest swap's.
-    if let Some(retirement) = active
+    // The restore's swap does not wait for a pending retirement: the role it
+    // restores may be the one that cannot erase. Its commit carries every
+    // retirement not yet erased at both roles, and later passes erase those
+    // epochs once each role can.
+    let unerased = active
         .delivery
         .as_ref()
-        .and_then(|delivery| delivery.retirement.as_ref())
-        .filter(|retirement| !retirement.erased())
-    {
+        .map(|delivery| delivery.unerased_retired_epochs())
+        .unwrap_or_default();
+    if !unerased.is_empty() {
         host.warn(&format!(
-            "tenant-root managed restore proceeds while epoch {}'s retirement is pending; that epoch will stay retired and unerased at the roles that have not erased it, for root {} lineage {}",
-            retirement.retired_epoch,
+            "tenant-root managed restore proceeds while the retirement of epoch(s) {unerased:?} is pending; its swap carries it until both roles erase them, for root {} lineage {}",
             crate::encode_base64url_bytes_v1(authorization.identity_digest.as_bytes()),
             authorization.custody_lineage.to_base64url(),
         ));

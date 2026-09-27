@@ -788,6 +788,7 @@ pub fn local_tenant_root_control_plane_route_v1(
                     identity_digest_b64u,
                     custody_lineage_b64u,
                     role,
+                    retired_epoch,
                     expected_retired_revision,
                     expected_active_revision,
                 } => {
@@ -801,6 +802,7 @@ pub fn local_tenant_root_control_plane_route_v1(
                             identity_digest,
                             custody_lineage,
                             role,
+                            retired_epoch,
                             expected_retired_revision,
                             expected_active_revision,
                         ),

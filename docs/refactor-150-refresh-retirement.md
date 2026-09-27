@@ -2,7 +2,8 @@
 
 Status: implemented 2026-09-27, with its evidence, on branch
 `codex/r150-do-backend`. Not deployed. The Router now erases each refresh's
-retired epoch itself. Its prerequisites were done first (2026-09-27):
+retired epoch itself, including one a managed restore committed over.
+Its prerequisites were done first (2026-09-27):
 - settlement from the wallet-object pair store;
 - cancellation that stops the whole execution;
 - recovery of a claimed execution through its peer;
@@ -43,15 +44,15 @@ See [admission identity and settlement](./refactor-150-admission-identity.md).
     scheduler's tick, and the external scheduled trigger on Workers.
   - A refresh also runs one after its own delivery. That pass reports the
     new swap's grace.
-- **One retired epoch per role at a time.**
-  - The control plane signs cleanup only for the epoch the latest swap
-    retired.
-  - Admission therefore refuses a new refresh while the previous swap is not
-    erased at both roles: HTTP 409 `tenant_root_retirement_pending`, with each
-    role's retirement.
+- **A refresh waits; a restore does not.**
+  - Admission refuses a new refresh while any retirement the Router's record
+    holds is not erased at both roles: HTTP 409
+    `tenant_root_retirement_pending`, with each role's retirement.
   - Replays, and throttled and not-due answers, keep their meaning.
   - Nothing bounds that wait. An unreachable role, or an execution that
     cannot yet be fenced, keeps it pending.
+  - A managed restore commits without waiting, so recovery stays available
+    when a role cannot erase. See the next section.
 - **Restart safety.** Each pass requests a fresh command, and the control
   plane keeps no state for it.
   - A lost command reply just waits for the next pass.
@@ -91,22 +92,47 @@ problem.
 
 ## Scope
 
-- A managed restore's forward refresh retires through the same path.
+- A managed restore's forward refresh retires through the same path, and
+  carries any retirement still pending.
 - Moving authority (source retirement, cutover) stays excluded. It needs the
   fences in the [drain proposal](./refactor-150-root-retirement-admission.md).
 
-## Known gap: needs design approval
+## A restore carries a pending retirement
 
-A managed restore does not wait for the previous refresh's retirement. The
-role it restores may be the very one that cannot erase.
-- If that retirement is still pending when the restore's swap commits, the
-  swap's record replaces it.
-- The control plane signs cleanup only for the latest swap's retired epoch,
-  so the older epoch then stays retired and unerased at the roles that had
-  not erased it.
-- The Router logs a warning when a restore proceeds this way.
-- Erasing that epoch would need the control plane to sign cleanup for an
-  older retired epoch, bound to the current active one.
+Implemented 2026-09-27; it closes the gap this section used to record. A
+managed restore does not wait for the previous swap's retirement: the role
+it restores may be the very one that cannot erase. The obligation to erase
+that epoch is kept instead.
+- **Carried.** When a swap commits, its delivery record carries every
+  retirement the record it replaces still held unerased: that swap's own and
+  any it carried. Each keeps its swap's receipt digest and the parts its
+  roles acknowledged, including an erasure one role already made. Only a
+  restore can commit over one, since a refresh waits for them.
+- **Erased by the same passes.** Each pass erases a carried epoch like the
+  latest swap's.
+  - The cleanup command names the carried epoch and the retired row's
+    recorded revision.
+  - It binds to the role's current active row: the one the role's
+    acknowledgement of the latest swap names. Erasing a retired row never
+    changes the active row, so several cleanups can bind to it.
+  - The control plane signs it only for an epoch the Router's record holds a
+    retirement for.
+  - The command's retired epoch need only precede its active one, rather
+    than be adjacent to it. The command's validation and the Deriver both
+    check this.
+- **Reported.** The response's `retirement` lists each carried one under
+  `carried`: its swap's receipt digest, its epoch, and each role's state.
+  An exact retry of an older swap reports its carried retirement rather than
+  `superseded`. It is `superseded` only once the retirement had finished,
+  and then that retry runs no pass, so a later receipt's pending delivery
+  never holds it up.
+- **Dropped once erased.** The next swap to commit after both roles erase a
+  carried epoch drops it.
+- **Known limit.** A role that never acknowledged the swap that retired an
+  epoch has no recorded revision to bind a cleanup to. That retirement stays
+  pending, reported as such, and keeps refreshes waiting. It needs a lost
+  delivery acknowledgement and then a restore before any later call delivers
+  the receipt again. Nothing exercises it.
 
 ## Evidence
 
@@ -132,6 +158,23 @@ role it restores may be the very one that cannot erase.
   3. Released, the work completes on epoch 1.
   4. The next pass erases epoch 1 at both roles, and a retry replays the
      recorded erasures exactly.
+- **Restore over a pending retirement:** VM
+  `vm_tenant_root_restore_over_a_pending_retirement_carries_it_until_erased`
+  (`R150_VM_RESTORE_OVER_PENDING_RETIREMENT_E2E`). The grace is one second,
+  `W` eight.
+  1. A registration is admitted only at Deriver B, and a refresh moves the
+     root to epoch 2. After the grace, a pass erases epoch 1 at A. B's
+     cleanup cannot be reached.
+  2. A loses its active share and is restored from its managed backup. The
+     restore's swap moves the root to epoch 3 and carries epoch 1's
+     retirement: A's recorded erasure, B pending.
+  3. The Router restarts, and its record still carries it. The next refresh
+     is refused: 409 `tenant_root_retirement_pending`, listing it.
+  4. B answers again, and `W` has passed. The restore's exact retry is a
+     pass: B cancels the stale admission and erases epoch 1 against its
+     epoch-3 active row, and both roles erase epoch 2.
+  5. The refresh then completes on epoch 4, whose commit drops the finished
+     retirement, and a wallet registers and signs there.
 - **Replay after erasure:** VM
   `vm_tenant_root_completed_registration_replays_after_its_epoch_is_erased`
   (`R150_VM_REPLAY_AFTER_ERASURE_E2E`), and the Workers harness

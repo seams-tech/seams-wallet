@@ -2673,6 +2673,7 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
       identity_digest_b64u: ceremony.identity_digest_b64u,
       custody_lineage_b64u: ceremony.custody_lineage_b64u,
       role,
+      retired_epoch: 1,
       expected_retired_revision: await revision(database, ceremony, 1),
       expected_active_revision: await revision(database, ceremony, 2),
     });
@@ -2910,6 +2911,7 @@ async function rootLifecycleHelpers(topology, fixture, databases) {
       identity_digest_b64u: ceremony.identity_digest_b64u,
       custody_lineage_b64u: ceremony.custody_lineage_b64u,
       role,
+      retired_epoch: retiredEpoch,
       expected_retired_revision: await revision(database, ceremony, retiredEpoch),
       expected_active_revision: await revision(database, ceremony, activeEpoch),
     });

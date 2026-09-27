@@ -1905,8 +1905,9 @@ fn vm_tenant_root_restored_from_its_managed_backup_signs_refreshes_and_replays(
     let (replay_status, replay_body) = stack.restore(&restore_request)?;
     assert_eq!(replay_status, restore_status, "{replay_body}");
     assert_eq!(durable(&replay_body)?, durable(&restore_body)?);
+    let epochs_after_restore = stack.epochs(&lineage_b64u)?;
     assert_eq!(
-        stack.epochs(&lineage_b64u)?,
+        epochs_after_restore,
         (vec![epoch(2, "active")], vec![epoch(1, "retired"), epoch(2, "active")])
     );
 
@@ -1922,8 +1923,9 @@ fn vm_tenant_root_restored_from_its_managed_backup_signs_refreshes_and_replays(
     let (refresh_status, refresh_body) =
         stack.refresh(&identity, &lineage_b64u, "vm-refresh-after-restore", restore_revision)?;
     assert_eq!(refresh_status, 200, "{refresh_body}");
+    let epochs_after_refresh = stack.epochs(&lineage_b64u)?;
     assert_eq!(
-        stack.epochs(&lineage_b64u)?,
+        epochs_after_refresh,
         (
             vec![epoch(2, "retired"), epoch(3, "active")],
             vec![epoch(2, "retired"), epoch(3, "active")]
@@ -1950,13 +1952,246 @@ fn vm_tenant_root_restored_from_its_managed_backup_signs_refreshes_and_replays(
             "challenge_and_authorization_retries_identical": true,
             "restore_status": restore_status,
             "restore_revision": restore_revision,
-            "epochs_after_restore": { "deriver_a": [[2, "active"]], "deriver_b": [[1, "retired"], [2, "active"]] },
+            "epochs_after_restore": { "deriver_a": epochs_after_restore.0, "deriver_b": epochs_after_restore.1 },
             "signed_after_restore": true,
             "refresh_after_restore_status": refresh_status,
-            "epochs_after_refresh": { "deriver_a": [[2, "retired"], [3, "active"]], "deriver_b": [[1, "retired"], [2, "retired"], [3, "active"]] },
+            "epochs_after_refresh": { "deriver_a": epochs_after_refresh.0, "deriver_b": epochs_after_refresh.1 },
             "signed_after_refresh": true,
             "admissions": { "deriver_a": [2, 3], "deriver_b": [2, 3] },
             "restore_retry_after_refresh_returns_its_outcome": true,
+        })
+    );
+    Ok(())
+}
+
+/// A managed restore commits over a retirement that is still pending, and the
+/// Router keeps that retirement until both roles have erased its epoch.
+/// 1. A registration is admitted only at Deriver B, and a refresh moves the
+///    root to epoch 2. After the grace, a pass erases epoch 1 at A; B's
+///    cleanup cannot be reached.
+/// 2. Deriver A loses its active share and is restored from its managed
+///    backup. The restore's swap moves the root to epoch 3 and carries epoch
+///    1's retirement: erased at A, pending at B. The Router restarts, and its
+///    record still carries it.
+/// 3. The next refresh is refused while that retirement is pending.
+/// 4. B answers again and `W` has passed. The restore's exact retry is a
+///    pass: B cancels the stale admission and erases epoch 1 against its
+///    epoch-3 active row, and both roles erase epoch 2. The refresh is then
+///    admitted and completes on epoch 4, where a wallet registers and signs.
+#[test]
+fn vm_tenant_root_restore_over_a_pending_retirement_carries_it_until_erased(
+) -> Result<(), Box<dyn std::error::Error>> {
+    const CLEANUP: &str = router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH;
+    let _process_guard = local_worker_process_test_guard();
+    let mut stack = RecoveryStackV1::start_with_envs(
+        "vm-tenant-root-restore-over-retirement",
+        &[
+            ("TENANT_ROOT_MANUAL_REFRESH_INTERVAL_MS", "60000"),
+            ("TENANT_ROOT_RETIREMENT_GRACE_MS", "1000"),
+            (router_ab_dev::LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS_ENV_V1, "3600000"),
+        ],
+        &[],
+        &[(router_ab_dev::LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1, "8000")],
+    )?;
+    let signing_worker = stack.start_signing_worker()?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("restore-over-retirement")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let (created_revision, _, _) = stack.active_state(&lineage_b64u)?;
+    let identity_digest_b64u =
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(identity.digest()?.as_bytes());
+    let admission_statuses = |db: &Connection| -> rusqlite::Result<Vec<(i64, String)>> {
+        db.prepare(
+            "SELECT tenant_root_share_epoch, status FROM tenant_root_root_use_admissions
+             WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch, admitted_at_ms",
+        )?
+        .query_map([&lineage_b64u], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect()
+    };
+    let at = |number: i64, status: &str| (number, status.to_owned());
+    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
+    let kinds = |retirement: &serde_json::Value| {
+        [
+            retirement["deriver_a"]["kind"].as_str().unwrap_or_default().to_owned(),
+            retirement["deriver_b"]["kind"].as_str().unwrap_or_default().to_owned(),
+        ]
+    };
+    let parsed = |(status, body): (u16, String)| -> Result<(u16, serde_json::Value), Box<dyn std::error::Error>> {
+        Ok((status, serde_json::from_str(&body)?))
+    };
+
+    // 1. A registration admitted only at B, then the refresh to epoch 2.
+    let registration = stack.registration(&identity, &lineage_b64u)?;
+    stack
+        .proxy_a
+        .hold_next_request_on(router_ab_dev::LOCAL_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH);
+    let registering = {
+        let router_url = stack.router_url.clone();
+        thread::spawn(move || {
+            post_json_to_path_with_headers(
+                &router_url,
+                LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+                &registration,
+                &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
+            )
+            .map_err(|error| error.to_string())
+        })
+    };
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while stack.proxy_a.held_request().is_none() || admission_statuses(&stack.b_store)?.is_empty() {
+        if Instant::now() > deadline {
+            return Err("the registration never reached both Derivers".into());
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    let (first_status, first) = parsed(stack.refresh(
+        &identity,
+        &lineage_b64u,
+        "vm-restore-over-retirement-1",
+        created_revision,
+    )?)?;
+    assert_eq!(first_status, 200, "{first}");
+    let refreshed_at = Instant::now();
+    stack.proxy_a.release_request();
+    let (registration_status, registration_body) = registering
+        .join()
+        .map_err(|_| "the registration thread panicked")??;
+    assert_eq!(registration_status, 200, "{registration_body}");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&registration_body)?["status"],
+        "recoverable_failure",
+        "{registration_body}"
+    );
+    assert_eq!(admission_statuses(&stack.b_store)?, vec![at(1, "admitted")]);
+
+    // After the grace, A erases epoch 1; B's cleanup cannot be reached.
+    thread::sleep(Duration::from_millis(1_100).saturating_sub(refreshed_at.elapsed()));
+    stack.proxy_b.drop_every_on(CLEANUP);
+    let (pass_status, pass) = parsed(stack.refresh(
+        &identity,
+        &lineage_b64u,
+        "vm-restore-over-retirement-1",
+        created_revision,
+    )?)?;
+    assert_eq!(pass_status, 200, "{pass}");
+    assert_eq!(kinds(&pass["retirement"]), ["erased", "pending"], "{pass}");
+    let a_erased_epoch_1 = pass["retirement"]["deriver_a"].clone();
+    assert_eq!(
+        stack.epochs(&lineage_b64u)?,
+        (vec![epoch(2, "active")], vec![epoch(1, "retired"), epoch(2, "active")])
+    );
+
+    // 2. A loses its active share, and the restore does not wait for B.
+    let removed = stack.a_store.execute(
+        "DELETE FROM tenant_root_role_shares
+         WHERE custody_lineage_b64u = ?1 AND role = 'deriver_a' AND lifecycle = 'active'",
+        [&lineage_b64u],
+    )?;
+    assert_eq!(removed, 1, "A must hold exactly one active share to lose");
+    let restore_request = stack.authorize_deriver_a_restore(
+        &identity_digest_b64u,
+        &lineage_b64u,
+        "vm-restore-over-retirement",
+    )?;
+    let (restore_status, restored) = parsed(stack.restore(&restore_request)?)?;
+    assert_eq!(restore_status, 200, "{restored}");
+    let restore_revision =
+        restored["lifecycle_revision"].as_i64().ok_or("a restore reports its revision")?;
+    // Its own swap's epoch 2 is kept for the grace; epoch 1's retirement is
+    // carried, with A's recorded erasure.
+    assert_eq!(kinds(&restored["retirement"]), ["pending", "pending"], "{restored}");
+    let carried = &restored["retirement"]["carried"];
+    assert_eq!(carried.as_array().map(Vec::len), Some(1), "{restored}");
+    assert_eq!(carried[0]["retired_epoch"], 1, "{restored}");
+    assert_eq!(carried[0]["activation_receipt_digest_b64u"], first["activation_receipt_digest_b64u"]);
+    assert_eq!(carried[0]["deriver_a"], a_erased_epoch_1, "{restored}");
+    assert_eq!(carried[0]["deriver_b"]["kind"], "pending", "{restored}");
+    let epochs_after_restore = stack.epochs(&lineage_b64u)?;
+    assert_eq!(
+        epochs_after_restore,
+        (
+            vec![epoch(3, "active")],
+            vec![epoch(1, "retired"), epoch(2, "retired"), epoch(3, "active")]
+        )
+    );
+
+    // The Router restarts; its record still carries epoch 1's retirement.
+    stack.restart_router()?;
+    let recorded = stack.carried_retirements(&lineage_b64u)?;
+    assert_eq!(recorded[0]["retirement"]["retired_epoch"], 1, "{recorded}");
+    assert!(recorded[0]["retirement"]["deriver_a"]["erasure"].is_object(), "{recorded}");
+    assert!(recorded[0]["retirement"]["deriver_b"]["erasure"].is_null(), "{recorded}");
+
+    // 3. Past the manual interval, the next refresh waits for it.
+    thread::sleep(Duration::from_millis(61_000).saturating_sub(refreshed_at.elapsed()));
+    let (refused_status, refused) = parsed(stack.refresh(
+        &identity,
+        &lineage_b64u,
+        "vm-restore-over-retirement-2",
+        restore_revision,
+    )?)?;
+    assert_eq!(refused_status, 409, "{refused}");
+    assert_eq!(refused["code"], "tenant_root_retirement_pending", "{refused}");
+    assert_eq!(refused["retirement"]["carried"][0]["retired_epoch"], 1, "{refused}");
+    assert_eq!(refused["retirement"]["carried"][0]["deriver_b"]["kind"], "pending", "{refused}");
+
+    // 4. B answers again and W has passed: the restore's retry erases both
+    // retired epochs.
+    stack.proxy_b.stop_dropping();
+    let (retry_status, retried) = parsed(stack.restore(&restore_request)?)?;
+    assert_eq!(retry_status, 200, "{retried}");
+    assert_eq!(retried["lifecycle_revision"], restore_revision);
+    assert_eq!(kinds(&retried["retirement"]), ["erased", "erased"], "{retried}");
+    let carried = &retried["retirement"]["carried"][0];
+    assert_eq!(carried["deriver_a"], a_erased_epoch_1, "{retried}");
+    assert_eq!(carried["deriver_b"]["kind"], "erased", "{retried}");
+    assert_eq!(carried["deriver_b"]["cancelled_admissions"], 1, "{retried}");
+    assert_eq!(admission_statuses(&stack.b_store)?, vec![at(1, "cancelled")]);
+    let epochs_after_erasure = stack.epochs(&lineage_b64u)?;
+    assert_eq!(epochs_after_erasure, (vec![epoch(3, "active")], vec![epoch(3, "active")]));
+
+    // The refresh is admitted now; its commit drops the finished retirement.
+    let (second_status, second) = parsed(stack.refresh(
+        &identity,
+        &lineage_b64u,
+        "vm-restore-over-retirement-2",
+        restore_revision,
+    )?)?;
+    assert_eq!(second_status, 200, "{second}");
+    assert!(second["retirement"].get("carried").is_none(), "{second}");
+    assert_eq!(stack.carried_retirements(&lineage_b64u)?, json!([]));
+    let _signing_worker = stack.register_and_sign(
+        signing_worker,
+        &identity,
+        &lineage_b64u,
+        "account-after-carried-retirement",
+    )?;
+    assert_eq!(stack.admissions(&lineage_b64u)?.0, vec![4]);
+    println!(
+        "R150_VM_RESTORE_OVER_PENDING_RETIREMENT_E2E {}",
+        json!({
+            "grace_ms": 1000,
+            "w_ms": 8000,
+            "first_refresh": [first_status, first["lifecycle_revision"]],
+            "epoch_1_after_grace_while_b_unreachable": kinds(&pass["retirement"]),
+            "restore": [restore_status, restore_revision],
+            "restore_carries": {
+                "retired_epoch": 1,
+                "deriver_a": restored["retirement"]["carried"][0]["deriver_a"]["kind"],
+                "deriver_b": restored["retirement"]["carried"][0]["deriver_b"]["kind"],
+            },
+            "epochs_after_restore": { "deriver_a": epochs_after_restore.0, "deriver_b": epochs_after_restore.1 },
+            "carried_after_router_restart": recorded[0]["retirement"]["retired_epoch"],
+            "next_refresh_while_pending": [refused_status, refused["code"]],
+            "restore_retry_once_b_answers": {
+                "epoch_2": kinds(&retried["retirement"]),
+                "epoch_1_at_b": carried["deriver_b"]["kind"],
+                "epoch_1_cancelled_admissions_at_b": carried["deriver_b"]["cancelled_admissions"],
+            },
+            "epochs_after_erasure": { "deriver_a": epochs_after_erasure.0, "deriver_b": epochs_after_erasure.1 },
+            "next_refresh_once_erased": [second_status, second["lifecycle_revision"]],
+            "signed_on_epoch_4": true,
         })
     );
     Ok(())
@@ -2989,6 +3224,7 @@ fn vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle(
                 "identity_digest_b64u": identity_digest_b64u,
                 "custody_lineage_b64u": lineage_b64u,
                 "role": role,
+                "retired_epoch": 1,
                 "expected_retired_revision": row_revision(db, 1)?,
                 "expected_active_revision": row_revision(db, 2)?,
             }),
@@ -3241,6 +3477,7 @@ fn vm_tenant_root_execution_paused_after_its_root_reads_is_cancelled_and_retried
                 "identity_digest_b64u": identity_digest_b64u,
                 "custody_lineage_b64u": lineage_b64u,
                 "role": role,
+                "retired_epoch": 1,
                 "expected_retired_revision": row_revision(db, 1)?,
                 "expected_active_revision": row_revision(db, 2)?,
             }),
@@ -3537,6 +3774,7 @@ fn vm_tenant_root_claimed_execution_that_fails_is_recovered_and_retirement_compl
                 "identity_digest_b64u": identity_digest_b64u,
                 "custody_lineage_b64u": lineage_b64u,
                 "role": role,
+                "retired_epoch": 1,
                 "expected_retired_revision": row_revision(db, 1)?,
                 "expected_active_revision": row_revision(db, 2)?,
             }),
@@ -3726,6 +3964,7 @@ fn vm_tenant_root_completed_registration_replays_after_its_epoch_is_erased(
                 "identity_digest_b64u": identity_digest_b64u,
                 "custody_lineage_b64u": lineage_b64u,
                 "role": role,
+                "retired_epoch": 1,
                 "expected_retired_revision": row_revision(db, 1)?,
                 "expected_active_revision": row_revision(db, 2)?,
             }),
@@ -5362,6 +5601,73 @@ impl RecoveryStackV1 {
         ]
         .concat();
         Ok(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(authorization))
+    }
+
+    /// Reserves a managed-restore challenge for Deriver A, has both incident
+    /// authorities sign it and the control plane authorize it, and returns
+    /// the Router's restore request.
+    fn authorize_deriver_a_restore(
+        &self,
+        identity_digest_b64u: &str,
+        lineage_b64u: &str,
+        incident_id: &str,
+    ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+        let now_ms = u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?;
+        let (challenge_status, challenge_body) = self.control_plane(
+            router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_CHALLENGE_PRIVATE_REQUEST_PATH,
+            &json!({
+                "identity_digest_b64u": identity_digest_b64u,
+                "custody_lineage_b64u": lineage_b64u,
+                "incident_id": incident_id,
+                "outage_observation_digest_b64u": base64::engine::general_purpose::URL_SAFE_NO_PAD
+                    .encode(Sha256::digest(incident_id.as_bytes())),
+                "issued_at_ms": now_ms,
+                "expires_at_ms": now_ms + 60_000,
+                "nonce_b64u": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(fresh_nonzero_bytes_32()?),
+                "unavailable_role": "deriver_a",
+            }),
+        )?;
+        if challenge_status != 200 {
+            return Err(format!("the restore challenge answered {challenge_status}: {challenge_body}").into());
+        }
+        let challenge: serde_json::Value = serde_json::from_str(&challenge_body)?;
+        let (authorize_status, authorize_body) = self.control_plane(
+            router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_AUTHORIZE_PRIVATE_REQUEST_PATH,
+            &json!({
+                "identity_digest_b64u": identity_digest_b64u,
+                "custody_lineage_b64u": lineage_b64u,
+                "incident_authorization_b64u": self.sign_deriver_a_incident_authorization(
+                    challenge["authorization_binding_b64u"]
+                        .as_str()
+                        .ok_or("a challenge carries its binding")?,
+                )?,
+            }),
+        )?;
+        if authorize_status != 200 {
+            return Err(format!("the restore authorization answered {authorize_status}: {authorize_body}").into());
+        }
+        let authorization: serde_json::Value = serde_json::from_str(&authorize_body)?;
+        Ok(json!({
+            "public_state_b64u": authorization["public_state_b64u"],
+            "restore_capability_b64u": authorization["capability_b64u"],
+        }))
+    }
+
+    /// The retirements the Router's record carries for one lineage: earlier
+    /// swaps' that a restore committed over before both roles erased them.
+    fn carried_retirements(&self, lineage: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+        let carried: Option<String> = self.router_db.query_row(
+            "SELECT json_extract(value_json, '$.delivery.carried_retirements')
+             FROM local_tenant_root_creation_state
+             WHERE storage_key = 'refresh/v1/active-state'
+               AND json_extract(value_json, '$.custody_lineage_b64u') = ?1",
+            [lineage],
+            |row| row.get(0),
+        )?;
+        Ok(match carried {
+            Some(carried) => serde_json::from_str(&carried)?,
+            None => json!([]),
+        })
     }
 
     /// Stops Deriver A's process and starts it again on the same store.
