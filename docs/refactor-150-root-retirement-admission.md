@@ -460,8 +460,16 @@ On the VM and on Workers:
      - the cancelled attempt's own preparation, replayed, is refused by the
        cancellation;
      - the executed command replays its receipt.
-   - **Not yet covered:** the one-use items of item 3 after a restart of the
-     operation.
+   - **Items 1 and 3 on the VM (2026-09-27):**
+     `vm_tenant_root_execution_paused_after_its_root_reads_is_cancelled_and_retried`.
+     - The execution is paused after both root reads, then cancelled.
+     - Released, it cannot claim its pair, and nothing completes.
+     - The same wallet's fresh registration succeeds, and the SigningWorker
+       accepts it as the wallet's only registration.
+   - **Not yet covered:**
+     - an execution paused after its claim, which must stay pending;
+     - the wallet-object pair stores;
+     - ECDSA presignatures.
 3. **Retry identity and one use after fenced cancellation.** A cancelled
    operation's retry keeps its identity and consumes no one-use item twice:
    capability, pair, presignature, SigningWorker effect claim.

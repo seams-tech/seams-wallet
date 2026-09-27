@@ -280,26 +280,30 @@ impl<'connection> LocalDeriverAPairSqliteV1<'connection> {
                 if changes != 1 {
                     return Ok(Ed25519YaoPairStoreResultV1::StaleVersion);
                 }
-                // A terminal record ends the attempt here, so the same
-                // transaction settles its root-use admission.
-                if matches!(
-                    record,
-                    Ed25519YaoPairRecordV1::Completed { .. }
-                        | Ed25519YaoPairRecordV1::Burned { .. }
-                        | Ed25519YaoPairRecordV1::Expired { .. }
-                ) {
-                    transaction
-                        .execute(
+                // Claiming or completing the pair needs its root-use
+                // admission here to be live, in this transaction: the claim
+                // marks it claimed, and completion settles it. A cancelled
+                // attempt can do neither. A burned or expired record neither
+                // settles nor keeps role state: its executor may still hold
+                // what it read.
+                match &record {
+                    Ed25519YaoPairRecordV1::Running { .. } => move_live_pair_admission_v1(
+                        &transaction,
+                        "deriver_a",
+                        &session_hex,
+                        router_ab_cloudflare::TENANT_ROOT_CLAIM_ROOT_USE_ADMISSION_SQL_V1,
+                    )?,
+                    Ed25519YaoPairRecordV1::Completed { .. } => {
+                        move_live_pair_admission_v1(
+                            &transaction,
+                            "deriver_a",
+                            &session_hex,
                             router_ab_cloudflare::TENANT_ROOT_SETTLE_ROOT_USE_ADMISSION_SQL_V1,
-                            params![
-                                "deriver_a",
-                                router_ab_cloudflare::TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1,
-                                session_hex
-                            ],
-                        )
-                        .map_err(sqlite_error)?;
+                        )?;
+                        persist_role_state(&transaction)?;
+                    }
+                    _ => {}
                 }
-                persist_role_state(&transaction)?;
                 if transaction.commit().is_err() {
                     return Ok(Ed25519YaoPairStoreResultV1::UncertainWrite);
                 }
@@ -341,6 +345,72 @@ fn decode_row<P: DeserializeOwned, O: DeserializeOwned>(
         Ok((revision, record))
     })
     .transpose()
+}
+
+/// Moves one pair session's root-use admission at `role` in the transaction
+/// that claims or completes the pair, with the claim or settlement SQL.
+/// Unless exactly one row moved, the transition is refused and the
+/// transaction rolls back: a cancelled attempt can neither start nor complete.
+pub(crate) fn move_live_pair_admission_v1(
+    transaction: &Transaction<'_>,
+    role: &'static str,
+    session_hex: &str,
+    sql: &'static str,
+) -> RouterAbProtocolResult<()> {
+    let kind = router_ab_cloudflare::TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1;
+    let moved = transaction
+        .execute(sql, params![role, kind, session_hex])
+        .map_err(sqlite_error)?;
+    if moved == 1 {
+        return Ok(());
+    }
+    Err(pair_admission_not_live_error_v1(transaction, role, session_hex)?)
+}
+
+/// Refuses to start a pair unless its root-use admission at `role` is still
+/// only admitted.
+pub(crate) fn require_admitted_pair_admission_v1(
+    transaction: &Transaction<'_>,
+    role: &'static str,
+    session_hex: &str,
+) -> RouterAbProtocolResult<()> {
+    if pair_admission_status_v1(transaction, role, session_hex)?.as_deref() == Some("admitted") {
+        return Ok(());
+    }
+    Err(pair_admission_not_live_error_v1(transaction, role, session_hex)?)
+}
+
+fn pair_admission_status_v1(
+    transaction: &Transaction<'_>,
+    role: &'static str,
+    session_hex: &str,
+) -> RouterAbProtocolResult<Option<String>> {
+    transaction
+        .query_row(
+            router_ab_cloudflare::TENANT_ROOT_ROOT_USE_ADMISSION_STATUS_SQL_V1,
+            params![
+                role,
+                router_ab_cloudflare::TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1,
+                session_hex
+            ],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(sqlite_error)
+}
+
+fn pair_admission_not_live_error_v1(
+    transaction: &Transaction<'_>,
+    role: &'static str,
+    session_hex: &str,
+) -> RouterAbProtocolResult<RouterAbProtocolError> {
+    Ok(match pair_admission_status_v1(transaction, role, session_hex)?.as_deref() {
+        Some("cancelled") => RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::LifecycleTransitionInProgress,
+            "this tenant-root operation's admission was cancelled here; start it again",
+        ),
+        _ => pair_store_error("the pair's tenant-root admission is not live here"),
+    })
 }
 
 fn sqlite_error(error: rusqlite::Error) -> RouterAbProtocolError {

@@ -72,7 +72,8 @@ use crate::{
 use base64::Engine as _;
 use router_ab_core::{
     ed25519_yao_encrypted_input_digest_v1, Ed25519YaoCeremonyBindingV1, Ed25519YaoExecutionIdV1,
-    Ed25519YaoOperationV1, Ed25519YaoPairReservationV1, Ed25519YaoPairStartClaimV1,
+    Ed25519YaoOperationV1, Ed25519YaoPairRecordV1, Ed25519YaoPairReservationV1,
+    Ed25519YaoPairStartClaimV1,
     Ed25519YaoPairStoreResultV1, Ed25519YaoRefreshBindingV1, Ed25519YaoRoleSignatureSchemeV1,
     Ed25519YaoRoleStartAcceptanceV1, Ed25519YaoSessionIdV1, Ed25519YaoStateEpochV1,
     LocalServiceRoleV1, PublicDigest32, RouterAbProtocolError, RouterAbProtocolErrorCode,
@@ -1478,6 +1479,9 @@ fn execute_local_pair_deriver_a_v1(
     }
     let outcome = result?;
     let now_ms = crate::local_now_unix_ms_v1()?;
+    // Only a committed completion releases the outcome. A completion that
+    // arrived after the running lifetime is recorded as burned instead, and
+    // that is a failure.
     match host.complete_a_pair(
         &scope,
         &pair_binding,
@@ -1486,8 +1490,14 @@ fn execute_local_pair_deriver_a_v1(
         now_ms,
         state,
     )? {
-        Ed25519YaoPairStoreResultV1::Applied { .. }
-        | Ed25519YaoPairStoreResultV1::Duplicate { .. } => Ok(outcome),
+        Ed25519YaoPairStoreResultV1::Applied {
+            record: Ed25519YaoPairRecordV1::Completed { .. },
+            ..
+        }
+        | Ed25519YaoPairStoreResultV1::Duplicate {
+            record: Ed25519YaoPairRecordV1::Completed { .. },
+            ..
+        } => Ok(outcome),
         _ => Err(pair_conflict(
             "Deriver A pair terminal outcome was not committed",
         )),

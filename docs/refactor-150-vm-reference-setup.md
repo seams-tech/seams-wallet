@@ -66,9 +66,13 @@ Derivers check a restore's pre-activation cleanup grant.
 A refreshed-out epoch is erased at a Deriver by the same retired-cleanup
 command as on Cloudflare, and only once every root-use admission on that epoch
 there is settled or cancelled ([admission identity](./refactor-150-admission-identity.md)).
-Until then the Deriver answers that retirement is pending. Recovery cancels an
-admission still unsettled `W` after it was admitted. The cancelled status
-refuses the attempt's every later step, so the epoch can then go.
+Until then the Deriver answers that retirement is pending.
+- **Recovery cancels** an admission still unsettled `W` after it was
+  admitted, but only an ECDSA attempt or a Yao attempt Deriver A has not
+  claimed.
+- **Everything after it is refused.** A cancelled attempt's claim and its
+  completion fail in the pair store's own transaction.
+- **A claimed attempt stays pending** until it completes.
 `LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS` in a Deriver's env file sets
 `W`: five minutes unless set. A value under one second is refused as a
 configuration error. `W` decides only when recovery runs, never whether
@@ -253,6 +257,17 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
       cancellation.
     - B's cleanup command, sent again, returns the same signed receipt.
   - A wallet then signs on epoch 2.
+- `vm_tenant_root_execution_paused_after_its_root_reads_is_cancelled_and_retried`
+  prints `R150_VM_TENANT_ROOT_PAUSED_EXECUTION_CANCELLED_E2E`:
+  - A registration's execute is held across a refresh, then paused after
+    both Derivers read their epoch-1 shares. The pause holds Deriver B's
+    answer to A's peer stream, before A claims its pair.
+  - Replica Derivers on the same stores retire epoch 1 at both roles,
+    because the primaries are busy. Recovery cancels one admission at each.
+  - Released, A's claim is refused and nothing completes. The Router reports
+    `burned`, and an exact retry is `burned` too.
+  - A fresh registration of the same wallet succeeds and signs on epoch 2.
+  - `W` is one second in this test.
 - `vm_tenant_root_new_work_waits_for_the_committed_epoch_delivery` prints
   `R150_VM_TENANT_ROOT_DELIVERY_GATE_E2E`: new work is refused with HTTP 503
   while a Deriver lacks the committed epoch, and admitted once delivery

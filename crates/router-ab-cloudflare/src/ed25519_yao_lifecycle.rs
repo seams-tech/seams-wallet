@@ -1416,6 +1416,7 @@ impl DeriverAYaoSessionD1V1 {
             CloudflareWorkerRoleV1::DeriverA,
             &request.tenant_root,
             &request.pair_binding,
+            None,
         )
         .await
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
@@ -1788,6 +1789,15 @@ impl DeriverBYaoSessionD1V1 {
         }
     }
 
+    /// The wallet object that holds this role's pair records, if any.
+    fn pair_object_name(&self) -> Option<String> {
+        #[cfg(feature = "wallet-do-b-harness")]
+        if let Some(wallet_do) = &self.wallet_do {
+            return Some(wallet_do.object_name.clone());
+        }
+        None
+    }
+
     fn storage(&self, session: [u8; 32]) -> worker::Result<role_d1::RolePairD1StorageV1> {
         #[cfg(feature = "wallet-do-b-harness")]
         if let Some(wallet_do) = &self.wallet_do {
@@ -1944,6 +1954,7 @@ impl DeriverBYaoSessionD1V1 {
             CloudflareWorkerRoleV1::DeriverB,
             &request.tenant_root,
             &request.pair_binding,
+            self.pair_object_name(),
         )
         .await
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
@@ -2529,6 +2540,7 @@ pub async fn handle_cloudflare_ed25519_yao_deriver_a_prepare_pair_v1(
 pub(crate) async fn prepare_deriver_a_pair_readiness_for_wallet_do_v1(
     env: &Env,
     request: &CloudflareEd25519YaoPairPrepareRequestV1,
+    pair_object: String,
 ) -> RouterAbProtocolResult<Ed25519YaoRoleReadinessReceiptV1> {
     let expected_kind = input_kind_for_circuit(request.pair_binding.binding().circuit_family());
     let (pair_digest, input_digest) =
@@ -2539,6 +2551,7 @@ pub(crate) async fn prepare_deriver_a_pair_readiness_for_wallet_do_v1(
         CloudflareWorkerRoleV1::DeriverA,
         &request.tenant_root,
         &request.pair_binding,
+        Some(pair_object),
     )
     .await?;
     drop(role_share);
@@ -2608,6 +2621,7 @@ async fn handle_cloudflare_ed25519_yao_deriver_a_execute_pair_body_v1(
         verify_role_readiness_receipt_v1(readiness, runtime.peer_verifying_keys())?;
     }
     let pair_execution = DeriverAPairExecutionContextV1 {
+        pair_object: None,
         expected_root_metadata_digest: request.local_receipt.root_metadata_digest().bytes,
         pair_binding: &pair_binding,
         tenant_root: &request.tenant_root,
@@ -2725,6 +2739,9 @@ pub async fn handle_cloudflare_ed25519_yao_deriver_a_burn_pair_v1(
 }
 
 pub(crate) struct DeriverAPairExecutionContextV1<'a> {
+    /// The wallet object that holds A's pair record, or `None` in the role
+    /// store.
+    pub(crate) pair_object: Option<String>,
     pub(crate) expected_root_metadata_digest: [u8; 32],
     pub(crate) pair_binding: &'a Ed25519YaoInputPairBindingV1,
     pub(crate) tenant_root: &'a crate::CloudflareEd25519YaoTenantRootContextV2,
@@ -2784,6 +2801,7 @@ where
             CloudflareWorkerRoleV1::DeriverA,
             pair_execution.tenant_root,
             pair_execution.pair_binding,
+            pair_execution.pair_object.clone(),
         )
         .await?;
     validate_expected_root_metadata_digest(
@@ -3450,12 +3468,20 @@ async fn execute_deriver_b_role(
         &transport_result,
     );
     let mut transport = transport_result?;
+    #[cfg(feature = "wallet-do-b-harness")]
+    let pair_object = Some(
+        crate::durable_object::deriver_b_wallet_object_name_v1(&scope)
+            .map_err(|error| invalid_lifecycle(error.to_string()))?,
+    );
+    #[cfg(not(feature = "wallet-do-b-harness"))]
+    let pair_object = None;
     let (custody_binding, role_share, stable_context, root_metadata_digest) =
         load_ed25519_yao_tenant_root_role_share_v2(
             env,
             CloudflareWorkerRoleV1::DeriverB,
             &tenant_root,
             &pair_binding,
+            pair_object,
         )
         .await?;
     validate_expected_root_metadata_digest(expected_root_metadata_digest, root_metadata_digest)?;
@@ -4185,11 +4211,16 @@ fn validate_expected_root_metadata_digest(
     Ok(())
 }
 
+/// Reads this role's tenant-root share for one pair, admitting the pair's
+/// session. `pair_object` names the wallet object that holds this role's pair
+/// record, or is `None` when the record is in the role store; the admission
+/// is bound to it.
 async fn load_ed25519_yao_tenant_root_role_share_v2(
     env: &Env,
     worker_role: CloudflareWorkerRoleV1,
     tenant_root: &crate::CloudflareEd25519YaoTenantRootContextV2,
     pair_binding: &Ed25519YaoInputPairBindingV1,
+    pair_object: Option<String>,
 ) -> RouterAbProtocolResult<(
     TenantRootCustodyBindingV1,
     VerifiedTenantRootOnlineRoleShareV1,
@@ -4223,6 +4254,7 @@ async fn load_ed25519_yao_tenant_root_role_share_v2(
             &custody_binding,
             &crate::tenant_root_role_d1::TenantRootRootUseAttemptV1::Ed25519YaoPairSession {
                 session: pair_binding.session(),
+                pair_object,
             },
         )
             .await?;

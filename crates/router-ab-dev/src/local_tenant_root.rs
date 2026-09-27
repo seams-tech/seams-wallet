@@ -1628,6 +1628,8 @@ pub fn admit_local_deriver_tenant_root_work_v1(
         &custody,
         &router_ab_cloudflare::TenantRootRootUseAttemptV1::Ed25519YaoPairSession {
             session: pair_binding.session(),
+            // The VM pair stores share the role store's SQLite file.
+            pair_object: None,
         },
         now_ms,
     ))
@@ -1648,6 +1650,7 @@ pub fn load_local_deriver_tenant_root_role_share_v1(
             &custody,
             &router_ab_cloudflare::TenantRootRootUseAttemptV1::Ed25519YaoPairSession {
                 session: pair_binding.session(),
+                pair_object: None,
             },
             now_ms,
         ),

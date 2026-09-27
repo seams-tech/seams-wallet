@@ -176,7 +176,8 @@ pub use tenant_root_role_runtime::{
     CloudflareDeriverTenantRootRestoreSessionCleanupRequestV1,
 };
 pub use tenant_root_role_d1::{
-    TenantRootRootUseAttemptV1, TENANT_ROOT_SETTLE_ROOT_USE_ADMISSION_SQL_V1,
+    TenantRootRootUseAttemptV1, TENANT_ROOT_CLAIM_ROOT_USE_ADMISSION_SQL_V1,
+    TENANT_ROOT_ROOT_USE_ADMISSION_STATUS_SQL_V1, TENANT_ROOT_SETTLE_ROOT_USE_ADMISSION_SQL_V1,
     TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1,
 };
 pub use tenant_root_restore_refresh_runtime::{

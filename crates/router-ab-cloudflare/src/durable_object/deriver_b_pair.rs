@@ -32,6 +32,14 @@ struct DeriverBWalletOwnerV1 {
     wallet_id: String,
 }
 
+/// The name of the wallet object that holds Deriver B's pair records for one
+/// scope.
+pub(crate) fn deriver_b_wallet_object_name_v1(
+    scope: &CloudflareDeriverBWalletPairScopeV1,
+) -> worker::Result<String> {
+    DeriverBWalletOwnerV1::from_scope(scope)?.object_name()
+}
+
 impl DeriverBWalletOwnerV1 {
     fn from_scope(scope: &CloudflareDeriverBWalletPairScopeV1) -> worker::Result<Self> {
         scope.validate().map_err(pair_error)?;

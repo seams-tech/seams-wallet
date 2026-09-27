@@ -1628,13 +1628,14 @@ pub async fn tenant_root_deriver_load_bound_role_share_v1<Host: TenantRootDerive
         ));
     }
     // An ECDSA operation reads its share once per request; having read it, it
-    // needs the epoch no longer. A Yao pair settles when its record here
-    // becomes terminal.
+    // needs the epoch no longer. Its settlement races recovery's cancellation
+    // for the admission, and the share is used only if a settlement of this
+    // exact attempt won. A Yao pair settles when its record here completes.
     if matches!(
         attempt,
         crate::tenant_root_role_d1::TenantRootRootUseAttemptV1::EcdsaOperation
     ) {
-        store
+        match store
             .settle_root_use_admission(attempt, authenticated_custody_binding)
             .await
             .map_err(|error| {
@@ -1642,7 +1643,13 @@ pub async fn tenant_root_deriver_load_bound_role_share_v1<Host: TenantRootDerive
                     "tenant-root root-use settlement",
                     error,
                 )
-            })?;
+            })? {
+            crate::tenant_root_role_d1::TenantRootSettlementOutcomeV1::Won
+            | crate::tenant_root_role_d1::TenantRootSettlementOutcomeV1::AlreadySettled => {}
+            crate::tenant_root_role_d1::TenantRootSettlementOutcomeV1::CancellationWon => {
+                return Err(tenant_root_attempt_cancelled_error_v1());
+            }
+        }
     }
     Ok(opened)
 }
@@ -6699,13 +6706,17 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
         )
         .await?;
         if remaining > 0 {
-            // Recovery: an attempt still unsettled W after admission is
-            // cancelled. The cancelled status refuses its every later step
-            // here, which is what lets the epoch go.
+            // Recovery, W after admission: cancel only what this store can
+            // fence. That is an admission not yet claimed whose pair, if any,
+            // is here. Deriver A's claim and each role's completion then
+            // refuse it, and an ECDSA read is used only if its settlement
+            // won. A claimed admission, or one whose pair is in a wallet
+            // object, stays pending. An operator-issued cleanup obeys the
+            // same rule.
             let admitted_at_or_before_ms =
                 now_ms.saturating_sub(host.admission_recovery_window_ms()?);
             store
-                .cancel_stale_root_use_admissions(
+                .cancel_unclaimed_root_use_admissions(
                     claimed_identity_digest,
                     claimed_custody_lineage,
                     claimed_epoch,
@@ -6713,7 +6724,7 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
                 )
                 .await
                 .map_err(|error| {
-                    tenant_root_store_error_v1("tenant-root stale admission cancellation", error)
+                    tenant_root_store_error_v1("tenant-root unclaimed admission cancellation", error)
                 })?;
             remaining = unsettled_root_use_admissions_v1(
                 &store,

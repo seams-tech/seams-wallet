@@ -540,24 +540,28 @@ fn write_b_pair_row(
             "Deriver B pair conditional write is uncertain",
         ));
     }
-    // A terminal record ends the attempt here, so the same transaction
-    // settles its root-use admission.
-    if matches!(
-        next,
-        LocalEd25519YaoPairRoleRecordV1::Completed { .. }
-            | LocalEd25519YaoPairRoleRecordV1::Burned { .. }
-            | LocalEd25519YaoPairRoleRecordV1::Expired { .. }
-    ) {
-        transaction
-            .execute(
+    // Starting the pair needs its root-use admission here to be live, and
+    // completing it settles that admission, in this transaction. A cancelled
+    // attempt can do neither. A burned or expired record does not settle: its
+    // executor may still hold what it read.
+    let session_hex = hex::encode(session);
+    match next {
+        LocalEd25519YaoPairRoleRecordV1::Running { .. } => {
+            crate::local_ed25519_yao_pair_sqlite::require_admitted_pair_admission_v1(
+                transaction,
+                "deriver_b",
+                &session_hex,
+            )?
+        }
+        LocalEd25519YaoPairRoleRecordV1::Completed { .. } => {
+            crate::local_ed25519_yao_pair_sqlite::move_live_pair_admission_v1(
+                transaction,
+                "deriver_b",
+                &session_hex,
                 router_ab_cloudflare::TENANT_ROOT_SETTLE_ROOT_USE_ADMISSION_SQL_V1,
-                params![
-                    "deriver_b",
-                    router_ab_cloudflare::TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1,
-                    hex::encode(session)
-                ],
-            )
-            .map_err(pair_lookup_error)?;
+            )?
+        }
+        _ => {}
     }
     Ok(())
 }

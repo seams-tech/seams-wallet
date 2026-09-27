@@ -508,9 +508,11 @@ impl VerifiedTenantRootRoleCleanupCommandV1 {
         TenantRootProtocolDigestV1::from_bytes(Sha256::digest(self.canonical_bytes()?).into())
     }
 
-    /// Requires `now_ms` to fall inside the authorized window.
+    /// Requires `now_ms` to fall inside the authorized window. The issue
+    /// instant is inside it: a command executed in the millisecond it was
+    /// issued is fresh.
     pub fn require_fresh(&self, now_ms: u64) -> RouterAbDerivationResult<()> {
-        if now_ms <= self.data.issued_at_ms || now_ms >= self.data.expires_at_ms {
+        if now_ms < self.data.issued_at_ms || now_ms >= self.data.expires_at_ms {
             return Err(malformed(
                 "tenant-root role cleanup command is outside its freshness window",
             ));

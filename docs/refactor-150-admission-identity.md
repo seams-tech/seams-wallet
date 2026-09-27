@@ -2,9 +2,14 @@
 
 Status: implemented 2026-09-27 for review, with settlement and safe erasure
 ([drain proposal](./refactor-150-root-retirement-admission.md), step 3).
-- **Migrations:** 0015 (attempt key) and 0016 (settlement index).
+- **Migrations:**
+  - 0015 (attempt key);
+  - 0016 (settlement index);
+  - 0017 (the `claimed` status and the wallet object that holds the pair).
 - **Evidence:**
   - VM `vm_tenant_root_admission_follows_the_execution_attempt`, for the key;
+  - VM `vm_tenant_root_execution_paused_after_its_root_reads_is_cancelled_and_retried`,
+    for cancellation that stops the whole execution;
   - VM `vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle`,
     for settlement, the pending refusal, recovery, erasure, and the refusals
     and replays after it;
@@ -88,42 +93,86 @@ other binding field is an immutable compared value.
 
 ## Settlement and safe erasure
 
-An admission's status moves once, from `admitted` to `settled` or
-`cancelled`.
-- **Settled:** the attempt can take no further step at this role.
-  - Yao: the role's pair record for the session reaches `Completed`, `Burned`
-    or `Expired`, and the pair store refuses the session from then on.
-    - **Cloudflare D1 (the production build):** the terminal write and the
-      settlement run in one D1 batch. A batch does not stop when the write's
-      compare-and-swap misses, so the settlement checks that the session's
-      row is terminal.
-    - **Both VM roles:** the pair store settles inside its own transaction,
-      because its pair table shares the role store's SQLite file.
-    - **Wallet-object pair store:** **not yet settled** (review, 2026-09-27).
-      - Its pair rows live in the wallet object, not in the role store.
-      - Today its admissions end only through recovery.
-      - The wallet object is R150's target Cloudflare backend, so it needs an
-        explicit, replay-safe settlement path back to the role store.
-    - Records turn terminal lazily, when a step or a status read touches
-      them. An admission whose pair never got a record settles only through
-      recovery.
-  - ECDSA: its single root read in the request has happened, so the Deriver
-    settles right after the read.
-- **Cancelled:** recovery cancels an admission that is still `admitted` `W`
-  (300 s) after it was admitted.
-  - Every root-use read of a share first checks the attempt's admission,
-    and that check refuses a cancelled attempt.
-  - **Incomplete (review, 2026-09-27).** This fences root reads only. A step
-    that had already read the share could continue, so a cancellation does
-    not yet prove that the attempt takes no further step.
-  - **Required:** cancellation must be completed at the pair and executor
-    boundary, or such admissions must stay pending.
-  - **Release-critical E2E:** pause an execution after its root read,
-    cancel, then restart or retry. The old execution must cause no duplicate
-    effect and reuse no one-use material.
-  - Time only triggers the recovery; the fence is what must make it safe.
+An admission's status moves forward only:
+- `admitted`, then `settled` or `cancelled`;
+- or, for Deriver A's Yao executor, `admitted`, then `claimed`, then
+  `settled`.
+
+Settlement and cancellation race for the same row. Each is one durable commit
+in the store that owns the admission, so exactly one of them wins.
+
+**What each role's execution can still do after its last durable check.**
+This is the question the fence answers (mapped 2026-09-27, both hosts):
+- **Root reads.** These were the only steps that checked the admission.
+- **After a role's root read,** Yao round messages flow between the roles
+  with no durable check. Nothing re-checks the admission.
+- **Only the completion write gates the outputs that count:**
+  - B's sealed completion is sent after B's completion write;
+  - A's response to the Router is sent after A's completion write;
+  - the Router's finalization and the SigningWorker delivery need both.
+- **A cannot complete without B's sealed completion.** So fencing B's
+  completion fences everything after it.
+- **A's first protocol message follows its claim.** The claim is the write
+  that starts A's pair running, after both root reads.
+
+**The fence** (implemented 2026-09-27 for the role store and the VM; migration
+0017):
+- **Completion requires a live admission.** Each role's completion write
+  requires its admission to be `admitted` or `claimed`, and settles it, in
+  the same transaction or D1 batch. A cancelled attempt cannot complete at
+  that role.
+- **A's claim requires `admitted`** and marks the admission `claimed` in the
+  same transaction. A cancelled attempt cannot send its first message.
+- **B's start also requires `admitted`.**
+- **Burned or Expired settles nothing.** Its executor may still hold what it
+  read. A completion recorded as burned because it came after the running
+  lifetime is a failure: on the VM, Deriver A no longer releases its outcome
+  or keeps its per-wallet state then.
+- **ECDSA** uses its share only if its settlement won. Settlement reports
+  one of three outcomes:
+  - "settlement won";
+  - "already settled for this exact attempt";
+  - "cancellation won", which refuses the request.
+
+  An update that moved no row never lets the request go on.
+
+**States:**
+- **Settled:** the attempt completed at this role.
+  - **Yao:** the role's pair record for the session reached `Completed`.
+    - Cloudflare D1: the write and the settlement run in one batch. The batch
+      continues after a failed compare-and-swap, so the settlement checks
+      that the row really completed.
+    - Both VM roles: in the pair store's own transaction, because its table
+      shares the role store's SQLite file.
+  - **ECDSA:** right after its single root read, if that settlement wins.
+- **Cancelled:** recovery cancels an admission still `admitted` `W` (300 s)
+  after it was admitted. It does so only where this store fences every later
+  step:
+  - an ECDSA attempt;
+  - a Yao attempt not yet claimed, whose pair is in this role store.
+
+  An operator-issued cleanup obeys the same rule; age alone cancels nothing
+  else.
+- **Stays pending, and retirement with it:**
+  - **A claimed attempt.** Its messages may still reach Deriver B, so only
+    its completion settles it.
+  - **An attempt whose pair is in a wallet object.** Each such admission
+    records its object (`pair_object_name`), but the object does not yet
+    hold the fence or report settlement. Until it does, its admissions end
+    in neither state.
+- **Evidence:** VM
+  `vm_tenant_root_execution_paused_after_its_root_reads_is_cancelled_and_retried`
+  (`R150_VM_TENANT_ROOT_PAUSED_EXECUTION_CANCELLED_E2E`):
+  1. A registration is paused after both Derivers read their shares and
+     before A claims its pair.
+  2. Replicas retire the epoch at both roles, cancelling both admissions and
+     erasing both shares.
+  3. Released, A's claim is refused and nothing completes. An exact retry of
+     the old registration completes nothing either.
+  4. A fresh registration of the same wallet then succeeds and signs. The
+     SigningWorker accepts only a wallet's first registration.
 - **Erasure:** a retired epoch's share is erased at a role only when no
-  admission on that epoch is still `admitted` there.
+  admission on that epoch is still `admitted` or `claimed` there.
   - The same `DELETE` statement checks this, so the check and the erasure are
     atomic in the role store that owns both.
   - Before it, the Deriver answers "retirement is pending" with the

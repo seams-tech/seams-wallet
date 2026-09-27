@@ -498,7 +498,8 @@ impl RouterAbDeriverAWalletDurableObject {
                 _ => Err(pair_error("Deriver A pair is conflicting or terminal")),
             };
         }
-        let receipt = prepare_deriver_a_pair_readiness_for_wallet_do_v1(&self.env, &request)
+        let receipt =
+            prepare_deriver_a_pair_readiness_for_wallet_do_v1(&self.env, &request, owner.object_name()?)
             .await
             .map_err(|error| pair_error(error.to_string()))?;
         self.check_owner(&owner, true)?;
@@ -595,6 +596,7 @@ impl RouterAbDeriverAWalletDurableObject {
             return Err(pair_error("Deriver A pair reservation did not win"));
         }
         let pair_execution = DeriverAPairExecutionContextV1 {
+            pair_object: Some(owner.object_name()?),
             expected_root_metadata_digest: request.local_receipt.root_metadata_digest().bytes,
             pair_binding: pair,
             tenant_root: &request.tenant_root,

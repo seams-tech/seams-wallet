@@ -34,16 +34,32 @@ const INSERT_PAIR_SQL: &str = "INSERT INTO yao_pair_sessions \
     (session_hex, pair_digest_hex, lifecycle, ciphertext_json, revision, expires_at_ms, updated_at_ms) \
     VALUES (?1, ?2, ?3, ?4, 1, ?5, ?6) ON CONFLICT(session_hex) DO NOTHING";
 /// Settles this role's root-use admission for a pair session whose record
-/// just became terminal, in the same D1 batch as that write. A batch does not
-/// stop when the write's compare-and-swap misses, so the settlement checks
-/// that the session's row really is terminal.
-const SETTLE_TERMINAL_PAIR_ADMISSION_SQL: &str = "UPDATE tenant_root_root_use_admissions \
+/// just completed, in the same D1 batch as that write. A batch does not stop
+/// when the write's compare-and-swap misses, so the settlement checks that
+/// the session's row really is completed. A burned or expired pair does not
+/// settle: its executor may still hold material it read.
+const SETTLE_COMPLETED_PAIR_ADMISSION_SQL: &str = "UPDATE tenant_root_root_use_admissions \
     SET status = 'settled' WHERE role = ?1 AND attempt_kind = ?2 AND attempt_key_hex = ?3 \
+    AND status IN ('admitted', 'claimed') AND EXISTS (SELECT 1 FROM yao_pair_sessions \
+    WHERE session_hex = ?3 AND lifecycle = 'completed')";
+/// Records Deriver A's claim of its pair in the same D1 batch as the write
+/// that starts it running: the last durable step before its first protocol
+/// message. Recovery never cancels a claimed admission.
+const CLAIM_RUNNING_PAIR_ADMISSION_SQL: &str = "UPDATE tenant_root_root_use_admissions \
+    SET status = 'claimed' WHERE role = ?1 AND attempt_kind = ?2 AND attempt_key_hex = ?3 \
     AND status = 'admitted' AND EXISTS (SELECT 1 FROM yao_pair_sessions \
-    WHERE session_hex = ?3 AND lifecycle IN ('completed', 'burned', 'expired'))";
+    WHERE session_hex = ?3 AND lifecycle = 'running')";
 const UPDATE_PAIR_SQL: &str = "UPDATE yao_pair_sessions SET pair_digest_hex = ?2, \
     lifecycle = ?3, ciphertext_json = ?4, revision = revision + 1, expires_at_ms = ?5, \
     updated_at_ms = ?6 WHERE session_hex = ?1 AND revision = ?7";
+/// [`UPDATE_PAIR_SQL`] for a write that advances the attempt, to running or
+/// completed: it lands only while the session's root-use admission here is
+/// live. Once recovery cancels it, the pair cannot start or complete.
+const UPDATE_PAIR_WITH_LIVE_ADMISSION_SQL: &str = "UPDATE yao_pair_sessions SET \
+    pair_digest_hex = ?2, lifecycle = ?3, ciphertext_json = ?4, revision = revision + 1, \
+    expires_at_ms = ?5, updated_at_ms = ?6 WHERE session_hex = ?1 AND revision = ?7 \
+    AND EXISTS (SELECT 1 FROM tenant_root_root_use_admissions WHERE role = ?8 \
+    AND attempt_kind = ?9 AND attempt_key_hex = ?1 AND status IN ('admitted', 'claimed'))";
 const INSERT_WALLET_PAIR_SQL: &str = "INSERT INTO yao_pair_sessions \
     (session_hex, pair_digest_hex, lifecycle, ciphertext_json, revision, expires_at_ms, updated_at_ms, root_identity_digest_hex) \
     VALUES (?1, ?2, ?3, ?4, 1, ?5, ?6, ?7) ON CONFLICT(session_hex) DO NOTHING \
@@ -52,6 +68,11 @@ const UPDATE_WALLET_PAIR_SQL: &str = "UPDATE yao_pair_sessions SET pair_digest_h
     lifecycle = ?3, ciphertext_json = ?4, revision = revision + 1, expires_at_ms = ?5, \
     updated_at_ms = ?6 WHERE session_hex = ?1 AND revision = ?7 AND root_identity_digest_hex = ?8 \
     RETURNING session_hex";
+
+#[derive(Deserialize)]
+struct AdmissionStatusRowV1 {
+    status: String,
+}
 
 #[derive(Deserialize)]
 struct PairRowV1 {
@@ -543,6 +564,27 @@ impl RolePairD1StorageV1 {
         Ok(row)
     }
 
+    /// Whether this session's root-use admission here was cancelled, to name
+    /// the refusal of a guarded write. A wallet object's pair is fenced there.
+    async fn admission_cancelled(&self) -> worker::Result<bool> {
+        let RolePairStorageBackendV1::D1(session) = &self.backend else {
+            return Ok(false);
+        };
+        let row = session
+            .prepare(crate::TENANT_ROOT_ROOT_USE_ADMISSION_STATUS_SQL_V1)
+            .bind_refs(
+                [
+                    D1Type::Text(self.cipher.role.as_str()),
+                    D1Type::Text(crate::TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1),
+                    D1Type::Text(self.session_hex.as_str()),
+                ]
+                .iter(),
+            )?
+            .first::<AdmissionStatusRowV1>(None)
+            .await?;
+        Ok(row.is_some_and(|row| row.status == "cancelled"))
+    }
+
     async fn persist_from(
         &self,
         initial: Option<CachedPairV1>,
@@ -561,11 +603,15 @@ impl RolePairD1StorageV1 {
                 .seal(&self.record_identity, &scope, &pending.record_json)?;
         let expires_at_ms = pending.expires_at_ms.to_string();
         let updated_at_ms = pending.updated_at_ms.to_string();
-        // A terminal record ends the attempt at this role, so the same D1
-        // batch settles its root-use admission. The wallet object's pair rows
-        // live in another database; admissions it leaves are cancelled by
-        // retirement recovery instead.
-        let terminal = matches!(pending.lifecycle, "completed" | "burned" | "expired");
+        // Starting or completing the attempt needs its admission here to be
+        // live, in the same statement. Deriver A's start also claims it, and
+        // completion settles it, in the same D1 batch.
+        let advances = matches!(pending.lifecycle, "running" | "completed");
+        let follow_up = match (pending.lifecycle, self.cipher.role) {
+            ("running", RolePairRoleV1::DeriverA) => Some(CLAIM_RUNNING_PAIR_ADMISSION_SQL),
+            ("completed", _) => Some(SETTLE_COMPLETED_PAIR_ADMISSION_SQL),
+            _ => None,
+        };
         let changes = match (&self.backend, &initial) {
             (RolePairStorageBackendV1::D1(session), initial) => {
                 let revision_text = initial.as_ref().map(|current| current.revision.to_string());
@@ -581,6 +627,22 @@ impl RolePairD1StorageV1 {
                         ]
                         .iter(),
                     )?,
+                    Some(revision_text) if advances => session
+                        .prepare(UPDATE_PAIR_WITH_LIVE_ADMISSION_SQL)
+                        .bind_refs(
+                            [
+                                D1Type::Text(self.session_hex.as_str()),
+                                D1Type::Text(pending.pair_digest_hex.as_str()),
+                                D1Type::Text(pending.lifecycle),
+                                D1Type::Text(ciphertext_json.as_str()),
+                                D1Type::Text(expires_at_ms.as_str()),
+                                D1Type::Text(updated_at_ms.as_str()),
+                                D1Type::Text(revision_text.as_str()),
+                                D1Type::Text(self.cipher.role.as_str()),
+                                D1Type::Text(crate::TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1),
+                            ]
+                            .iter(),
+                        )?,
                     Some(revision_text) => session.prepare(UPDATE_PAIR_SQL).bind_refs(
                         [
                             D1Type::Text(self.session_hex.as_str()),
@@ -594,8 +656,8 @@ impl RolePairD1StorageV1 {
                         .iter(),
                     )?,
                 };
-                if terminal {
-                    let settle = session.prepare(SETTLE_TERMINAL_PAIR_ADMISSION_SQL).bind_refs(
+                if let Some(follow_up) = follow_up {
+                    let admission = session.prepare(follow_up).bind_refs(
                         [
                             D1Type::Text(self.cipher.role.as_str()),
                             D1Type::Text(crate::TENANT_ROOT_YAO_PAIR_SESSION_ATTEMPT_KIND_V1),
@@ -603,7 +665,7 @@ impl RolePairD1StorageV1 {
                         ]
                         .iter(),
                     )?;
-                    let results = session.batch(vec![write, settle]).await?;
+                    let results = session.batch(vec![write, admission]).await?;
                     results
                         .first()
                         .ok_or_else(|| role_d1_error("role-private Yao lifecycle batch returned no result"))?
@@ -660,6 +722,11 @@ impl RolePairD1StorageV1 {
                 .len(),
         };
         if changes != 1 {
+            if advances && self.admission_cancelled().await? {
+                return Err(role_d1_error(
+                    "LifecycleTransitionInProgress: this tenant-root operation's admission was cancelled here; start it again",
+                ));
+            }
             let phase = if initial.is_some() {
                 "update"
             } else {

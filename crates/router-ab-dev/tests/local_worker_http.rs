@@ -2842,6 +2842,222 @@ fn vm_tenant_root_retired_epoch_is_erased_only_after_its_admissions_settle(
     Ok(())
 }
 
+/// Cancellation stops a Yao execution that is paused after its root reads.
+///
+/// - A registration of one wallet is admitted on epoch 1. Its execute is held
+///   while a refresh moves the root to epoch 2.
+/// - Released, both Derivers read their epoch-1 shares. The execution is then
+///   paused before Deriver A claims its pair: Deriver B's answer to A's peer
+///   stream is held.
+/// - Both Derivers are busy, so replicas on their stores run the operator's
+///   retirement of epoch 1. Recovery cancels both unclaimed admissions, and
+///   both shares are erased.
+/// - Released, A's claim is refused. Neither role completes, and the Router
+///   reports a failure. An exact retry of the old registration completes
+///   nothing.
+/// - A fresh registration of the same wallet completes on epoch 2 and signs.
+///   The SigningWorker accepts it, so the old execution registered nothing.
+#[test]
+fn vm_tenant_root_execution_paused_after_its_root_reads_is_cancelled_and_retried(
+) -> Result<(), Box<dyn std::error::Error>> {
+    const WALLET: &str = "account-paused-then-retried";
+    let _process_guard = local_worker_process_test_guard();
+    let stack = RecoveryStackV1::start_with_envs(
+        "vm-tenant-root-paused-cancel",
+        &[],
+        &[],
+        &[(router_ab_dev::LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1, "1000")],
+    )?;
+    let signing_worker = stack.start_signing_worker()?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("paused-cancel")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let (created_revision, _, _) = stack.active_state(&lineage_b64u)?;
+    let identity_digest_b64u =
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(identity.digest()?.as_bytes());
+    let admission_statuses = |db: &Connection| -> rusqlite::Result<Vec<(i64, String)>> {
+        db.prepare(
+            "SELECT tenant_root_share_epoch, status FROM tenant_root_root_use_admissions
+             WHERE custody_lineage_b64u = ?1 ORDER BY tenant_root_share_epoch, admitted_at_ms",
+        )?
+        .query_map([&lineage_b64u], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect()
+    };
+    let pair_states = |db: &Connection, table: &str| -> rusqlite::Result<Vec<String>> {
+        db.prepare(&format!(
+            "SELECT json_extract(record_json, '$.status') FROM {table} ORDER BY session_hex"
+        ))?
+        .query_map([], |row| row.get(0))?
+        .collect()
+    };
+    let row_revision = |db: &Connection, epoch: i64| -> rusqlite::Result<i64> {
+        db.query_row(
+            "SELECT revision FROM tenant_root_role_shares
+             WHERE custody_lineage_b64u = ?1 AND tenant_root_share_epoch = ?2",
+            rusqlite::params![lineage_b64u, epoch],
+            |row| row.get(0),
+        )
+    };
+    let epoch = |number: i64, lifecycle: &str| (number, lifecycle.to_owned());
+    let at = |number: i64, status: &str| (number, status.to_owned());
+
+    // The Derivers will be busy with the paused execution, so replicas on
+    // their stores serve the operator's retirement.
+    let (_replica_a, replica_a_url) = stack.start_deriver_replica("deriver-a")?;
+    let (_replica_b, replica_b_url) = stack.start_deriver_replica("deriver-b")?;
+    let retire = |role: &str, deriver_url: &str| -> Result<(u16, String), Box<dyn std::error::Error>> {
+        let db = if role == "deriver_a" { &stack.a_store } else { &stack.b_store };
+        let (command_status, command_body) = stack.control_plane(
+            router_ab_cloudflare::CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_CLEANUP_COMMAND_PRIVATE_REQUEST_PATH,
+            &json!({
+                "kind": "retired_after_refresh",
+                "identity_digest_b64u": identity_digest_b64u,
+                "custody_lineage_b64u": lineage_b64u,
+                "role": role,
+                "expected_retired_revision": row_revision(db, 1)?,
+                "expected_active_revision": row_revision(db, 2)?,
+            }),
+        )?;
+        assert_eq!(command_status, 200, "{command_body}");
+        let command: serde_json::Value = serde_json::from_str(&command_body)?;
+        post_json_to_path_with_headers(
+            deriver_url,
+            router_ab_cloudflare::CLOUDFLARE_DERIVER_TENANT_ROOT_CLEANUP_PRIVATE_REQUEST_PATH,
+            &json!({ "cleanup_command_b64u": command["cleanup_command_b64u"] }),
+            &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_ROLE_SHARED_SERVICE_AUTH)],
+        )
+    };
+
+    // The wallet's registration is admitted on epoch 1; its execute is held.
+    let (old_registration, _) = stack.wallet_registration(&identity, &lineage_b64u, WALLET)?;
+    stack
+        .proxy_a
+        .hold_next_request_on(LOCAL_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH);
+    let registering = {
+        let router_url = stack.router_url.clone();
+        let registration = old_registration.clone();
+        thread::spawn(move || {
+            post_json_to_path_with_headers(
+                &router_url,
+                LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH,
+                &registration,
+                &[(LOCAL_ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1, TEST_GATEWAY_TO_ROUTER_AUTH)],
+            )
+            .map_err(|error| error.to_string())
+        })
+    };
+    let wait_for = |what: &str, ready: &dyn Fn() -> bool| -> Result<(), Box<dyn std::error::Error>> {
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while !ready() {
+            if Instant::now() > deadline {
+                return Err(format!("timed out waiting for {what}").into());
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        Ok(())
+    };
+    wait_for("Deriver A's execute", &|| stack.proxy_a.held_request().is_some())?;
+    assert_eq!(admission_statuses(&stack.a_store)?, vec![at(1, "admitted")]);
+    assert_eq!(admission_statuses(&stack.b_store)?, vec![at(1, "admitted")]);
+
+    // A refresh moves the root to epoch 2 meanwhile.
+    let (refresh_status, refresh_body) =
+        stack.refresh(&identity, &lineage_b64u, "vm-refresh-paused-cancel", created_revision)?;
+    assert_eq!(refresh_status, 200, "{refresh_body}");
+
+    // Released, both Derivers read their epoch-1 shares. B's answer to A's
+    // peer stream is held, before A claims its pair.
+    stack.proxy_a_to_b.hold_next_stream_head();
+    stack.proxy_a.release_request();
+    wait_for("Deriver B's answer to the peer stream", &|| {
+        stack.proxy_a_to_b.stream_head_held()
+    })?;
+    assert_eq!(admission_statuses(&stack.a_store)?, vec![at(1, "admitted")], "A has not claimed");
+    assert_eq!(pair_states(&stack.a_store, "local_deriver_a_yao_pairs")?, vec!["starting"]);
+    assert_eq!(pair_states(&stack.b_store, "local_deriver_b_yao_pairs")?, vec!["running"]);
+
+    // The operator retires epoch 1 at both roles. W has passed since the
+    // admissions, so recovery cancels them, and both shares are erased.
+    let admitted_at_ms: i64 = stack.a_store.query_row(
+        "SELECT max(admitted_at_ms) FROM tenant_root_root_use_admissions",
+        [],
+        |row| row.get(0),
+    )?;
+    while u64::try_from(SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis())?
+        < u64::try_from(admitted_at_ms)? + 1_100
+    {
+        thread::sleep(Duration::from_millis(20));
+    }
+    let (a_status, a_body) = retire("deriver_a", &replica_a_url)?;
+    assert_eq!(a_status, 200, "{a_body}");
+    let (b_status, b_body) = retire("deriver_b", &replica_b_url)?;
+    assert_eq!(b_status, 200, "{b_body}");
+    let a_retired: serde_json::Value = serde_json::from_str(&a_body)?;
+    let b_retired: serde_json::Value = serde_json::from_str(&b_body)?;
+    assert_eq!(a_retired["cancelled_admissions"], 1, "{a_body}");
+    assert_eq!(b_retired["cancelled_admissions"], 1, "{b_body}");
+    assert_eq!(admission_statuses(&stack.a_store)?, vec![at(1, "cancelled")]);
+    assert_eq!(admission_statuses(&stack.b_store)?, vec![at(1, "cancelled")]);
+    assert_eq!(stack.epochs(&lineage_b64u)?, (vec![epoch(2, "active")], vec![epoch(2, "active")]));
+
+    // Released, the old execution cannot claim its pair: nothing completes.
+    stack.proxy_a_to_b.release_stream_head();
+    let (old_status, old_body) = registering
+        .join()
+        .map_err(|_| "the registration thread panicked")??;
+    assert_eq!(old_status, 200, "{old_body}");
+    let old_result: serde_json::Value = serde_json::from_str(&old_body)?;
+    assert_ne!(old_result["status"], "succeeded", "{old_body}");
+    let deriver_a_answer = String::from_utf8_lossy(
+        &stack
+            .proxy_a
+            .held_response()
+            .ok_or("Deriver A must have answered the held execute")?,
+    )
+    .into_owned();
+    assert!(
+        deriver_a_answer.contains("this tenant-root operation's admission was cancelled here"),
+        "{deriver_a_answer}"
+    );
+    let a_pairs = pair_states(&stack.a_store, "local_deriver_a_yao_pairs")?;
+    let b_pairs = pair_states(&stack.b_store, "local_deriver_b_yao_pairs")?;
+    assert!(a_pairs.iter().all(|state| state != "completed"), "{a_pairs:?}");
+    assert!(b_pairs.iter().all(|state| state != "completed"), "{b_pairs:?}");
+
+    // An exact retry of the old registration completes nothing either.
+    let (replay_status, replay_body) = stack.register(&old_registration)?;
+    let replayed: serde_json::Value = serde_json::from_str(&replay_body)?;
+    assert_ne!(replayed["status"], "succeeded", "{replay_status} {replay_body}");
+    assert_eq!(admission_statuses(&stack.a_store)?, vec![at(1, "cancelled")]);
+    assert_eq!(admission_statuses(&stack.b_store)?, vec![at(1, "cancelled")]);
+
+    // A fresh registration of the same wallet completes on epoch 2 and signs.
+    // The SigningWorker accepts only a wallet's first registration.
+    let signing_worker = stack.register_and_sign(signing_worker, &identity, &lineage_b64u, WALLET)?;
+    drop(signing_worker);
+    assert_eq!(admission_statuses(&stack.a_store)?, vec![at(1, "cancelled"), at(2, "settled")]);
+    assert_eq!(admission_statuses(&stack.b_store)?, vec![at(1, "cancelled"), at(2, "settled")]);
+
+    println!(
+        "R150_VM_TENANT_ROOT_PAUSED_EXECUTION_CANCELLED_E2E {}",
+        json!({
+            "paused_after": ["deriver_a_root_read", "deriver_b_root_read"],
+            "paused_before": "deriver_a_claim",
+            "pairs_while_paused": { "deriver_a": "starting", "deriver_b": "running" },
+            "refresh_status": refresh_status,
+            "retired_by_replicas": { "deriver_a": [a_status, a_retired["cancelled_admissions"]], "deriver_b": [b_status, b_retired["cancelled_admissions"]] },
+            "old_registration": old_result["status"],
+            "deriver_a_answer": "claim refused: admission was cancelled here",
+            "pairs_after": { "deriver_a": a_pairs, "deriver_b": b_pairs },
+            "exact_retry_of_old_registration": replayed["status"],
+            "fresh_registration_of_same_wallet": "succeeded and signed on epoch 2",
+            "admissions_after": { "deriver_a": [[1, "cancelled"], [2, "settled"]], "deriver_b": [[1, "cancelled"], [2, "settled"]] },
+        })
+    );
+    Ok(())
+}
+
 /// Work admitted before a refresh finishes on the epoch it started with. A
 /// registration is admitted and prepared while epoch 1 is active, then held
 /// before Deriver A reads it. A manual refresh then commits epoch 2 and both
@@ -4116,22 +4332,7 @@ impl RecoveryStackV1 {
         lineage: &str,
         wallet_id: &str,
     ) -> Result<ChildGuard, Box<dyn std::error::Error>> {
-        let router_env =
-            fs::read_to_string(self.temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1))?;
-        let fixture = ProductTenantRoot {
-            tenant_root: CloudflareRouterEd25519YaoTenantRootV1 {
-                identity: identity.clone(),
-                custody_lineage_b64u: lineage.to_owned(),
-            },
-            application: RouterAbEd25519YaoApplicationBindingFactsV1::new(
-                wallet_id,
-                "ed25519ks_product_benchmark",
-                identity.signing_root_id(),
-                1,
-            )?,
-            participant_ids: [1, 2],
-        };
-        let (request, client_recipient_key) = product_registration_request(&router_env, &fixture)?;
+        let (request, client_recipient_key) = self.wallet_registration(identity, lineage, wallet_id)?;
         let (status, body) = self.register(&request)?;
         assert_eq!(status, 200, "{body}");
         let RouterEd25519YaoExecuteResultV1::Succeeded { result } =
@@ -4354,6 +4555,63 @@ impl RecoveryStackV1 {
     }
 
     /// A fresh Yao registration against one root, as the Gateway sends it.
+    /// A fresh registration of one wallet on the root: a new pair session
+    /// each time, with the wallet facts `register_and_sign` uses.
+    fn wallet_registration(
+        &self,
+        identity: &TenantRootIdentityV1,
+        lineage: &str,
+        wallet_id: &str,
+    ) -> Result<
+        (CloudflareRouterEd25519YaoExecuteRequestV2, LocalEd25519YaoRecipientPrivateKeyV1),
+        Box<dyn std::error::Error>,
+    > {
+        let router_env =
+            fs::read_to_string(self.temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1))?;
+        let fixture = ProductTenantRoot {
+            tenant_root: CloudflareRouterEd25519YaoTenantRootV1 {
+                identity: identity.clone(),
+                custody_lineage_b64u: lineage.to_owned(),
+            },
+            application: RouterAbEd25519YaoApplicationBindingFactsV1::new(
+                wallet_id,
+                "ed25519ks_product_benchmark",
+                identity.signing_root_id(),
+                1,
+            )?,
+            participant_ids: [1, 2],
+        };
+        product_registration_request(&router_env, &fixture)
+    }
+
+    /// A second process for one Deriver on the same role store, listening on
+    /// its own URL. It serves requests while the primary is busy.
+    fn start_deriver_replica(
+        &self,
+        role: &str,
+    ) -> Result<(ChildGuard, String), Box<dyn std::error::Error>> {
+        let (env_file, primary_url) = match role {
+            "deriver-a" => (router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1, &self.deriver_a_url),
+            _ => (router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1, &self.deriver_b_url),
+        };
+        let replica_url = format!("http://127.0.0.1:{}", free_port()?);
+        let primary_env = fs::read_to_string(self.temp.join(env_file))?;
+        let replica_env = primary_env.replace(primary_url.as_str(), &replica_url);
+        if replica_env == primary_env {
+            return Err(format!("the {role} replica URL is missing from its environment").into());
+        }
+        let replica_env_path = self.temp.join(format!(".env.router-ab.{role}-replica.local"));
+        fs::write(&replica_env_path, replica_env)?;
+        let mut replica = ChildGuard::spawn_in_root(
+            env!("CARGO_BIN_EXE_router_ab_local_worker"),
+            role,
+            replica_env_path,
+            &self.temp,
+        )?;
+        wait_for_health(&replica_url, replica.child_mut())?;
+        Ok((replica, replica_url))
+    }
+
     fn registration(
         &self,
         identity: &TenantRootIdentityV1,
@@ -4744,6 +5002,9 @@ struct FaultProxyControlsV1 {
     held_response: Mutex<Option<Vec<u8>>>,
     request_released: AtomicBool,
     captured: Mutex<Option<Vec<u8>>>,
+    hold_stream_head: AtomicBool,
+    stream_head_held: AtomicBool,
+    stream_head_released: AtomicBool,
 }
 
 fn lock_proxy<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -4890,6 +5151,24 @@ impl FaultProxyV1 {
         !self.controls.armed.load(Ordering::SeqCst)
     }
 
+    /// Holds the peer's response head to the next streamed request, such as
+    /// the Yao peer stream, until `release_stream_head` is called. The
+    /// request itself and its body pass straight through.
+    fn hold_next_stream_head(&self) {
+        self.controls.stream_head_held.store(false, Ordering::SeqCst);
+        self.controls.stream_head_released.store(false, Ordering::SeqCst);
+        self.controls.hold_stream_head.store(true, Ordering::SeqCst);
+    }
+
+    /// Whether the peer has answered the held stream with its head.
+    fn stream_head_held(&self) -> bool {
+        self.controls.stream_head_held.load(Ordering::SeqCst)
+    }
+
+    fn release_stream_head(&self) {
+        self.controls.stream_head_released.store(true, Ordering::SeqCst);
+    }
+
     fn clear_captured(&self) {
         *lock_proxy(&self.controls.captured) = None;
     }
@@ -4903,6 +5182,7 @@ impl Drop for FaultProxyV1 {
     fn drop(&mut self) {
         self.release_held();
         self.release_request();
+        self.release_stream_head();
         self.stop.store(true, Ordering::SeqCst);
         if let Some(accept) = self.accept.take() {
             let _ = accept.join();
@@ -4930,7 +5210,8 @@ fn proxy_fault_connection(
     });
     if chunked {
         // A streamed body, such as the Yao peer stream, passes through
-        // untouched in both directions.
+        // untouched in both directions, unless the peer's response head is
+        // held.
         let mut upstream = TcpStream::connect(upstream)?;
         upstream.write_all(&request_head)?;
         let mut upstream_writer = upstream.try_clone()?;
@@ -4939,7 +5220,16 @@ fn proxy_fault_connection(
             let _ = upstream_writer.shutdown(Shutdown::Write);
         });
         let mut client_writer = client;
-        let copied = io::copy(&mut upstream, &mut client_writer);
+        let mut upstream_reader = BufReader::new(upstream);
+        if controls.hold_stream_head.swap(false, Ordering::SeqCst) {
+            let head = read_proxy_http_head(&mut upstream_reader)?;
+            controls.stream_head_held.store(true, Ordering::SeqCst);
+            while !controls.stream_head_released.load(Ordering::SeqCst) {
+                thread::sleep(Duration::from_millis(5));
+            }
+            client_writer.write_all(&head)?;
+        }
+        let copied = io::copy(&mut upstream_reader, &mut client_writer);
         let _ = client_writer.shutdown(Shutdown::Both);
         let _ = pump.join();
         return copied.map(|_| ());

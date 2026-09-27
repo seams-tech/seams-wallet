@@ -11,11 +11,15 @@ See [admission identity and settlement](./refactor-150-admission-identity.md).
 
 - **The gate is implemented.** A Deriver erases a retired share and its
   backup only once every admission on that epoch is settled or cancelled.
-- **Cancellation is not yet complete.** Recovery cancels an admission still
-  unsettled `W` after it was admitted. That cancellation refuses root reads
-  only: work that already read its share could continue. Review requires it
-  to stop the whole execution at the pair and executor boundary. Until then,
-  such admissions must stay pending.
+- **Cancellation now stops the whole execution in the role store and on the
+  VM.** Recovery cancels only what the store can fence:
+  - an ECDSA attempt;
+  - a Yao attempt that Deriver A has not claimed and whose pair is in the
+    role store.
+
+  The pair's claim and completion then refuse it. A claimed attempt, or one
+  whose pair is in a wallet object, stays pending
+  ([admission identity](./refactor-150-admission-identity.md)).
 - **Nothing issues the command.**
   - The control plane signs a retired-cleanup command only when asked, with
     the role's exact row revisions.
