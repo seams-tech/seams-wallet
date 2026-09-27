@@ -37,6 +37,7 @@ const INTERNAL_AUTH_HEADER = 'x-router-ab-internal-service-auth';
 const TRACE_ID_HEADER = 'x-seams-trace-id';
 const ROUTER_REPLAY_HEADER = 'x-seams-yao-replay';
 const ROUTER_EXECUTE_PATH = '/router-ab/router/ed25519-yao/execute';
+const ROUTER_REGISTRATION_CONSUME_PATH = '/router-ab/router/ed25519-yao/registration/consume';
 const ROUTER_RECOVERY_PROMOTE_PATH = '/router-ab/router/ed25519-yao/recovery/promote';
 
 const ROUTER_AB_ENV_KEYS = {
@@ -305,6 +306,27 @@ function unavailableFailure(error: unknown): RouterAbEd25519YaoRegistrationBacke
   };
 }
 
+/// Another run holds the Router's claim of this registration until its lease
+/// lapses; the same request, retried after it, replays the run.
+function executionInProgressFailure(): RouterAbEd25519YaoRegistrationBackendFailure {
+  return {
+    ok: false,
+    status: 409,
+    code: 'execution_in_progress',
+    message: 'registration execution is already in progress',
+  };
+}
+
+/// Another request already owns this registration's execution at the Router.
+function executionMismatchFailure(): RouterAbEd25519YaoRegistrationBackendFailure {
+  return {
+    ok: false,
+    status: 409,
+    code: 'execution_mismatch',
+    message: 'registration execution rejects a different execution payload',
+  };
+}
+
 function ceremonyExpiredFailure(): RouterAbEd25519YaoRegistrationBackendFailure {
   return {
     ok: false,
@@ -443,14 +465,43 @@ export interface RouterAbEd25519YaoPinnedRegistrationBackend
   resolveRegistrationDispatchRoot(
     admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
   ): Promise<RouterAbEd25519YaoTenantRootWireV1>;
+  /// Executes one registration at the Router, which claims it and records
+  /// its terminal answer: an exact retry gets that answer.
   executePinnedRegistration(
     request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
     admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
-    dispatch: 'first' | 'replay',
     traceContext: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult>;
+  /// Consumes a completed registration's activation at the Router, for one
+  /// finalization: the first consumer binding wins.
+  consumeRegistration(
+    input: RouterAbEd25519YaoRegistrationConsumeInputV1,
+  ): Promise<RouterAbEd25519YaoRegistrationConsumeOutcomeV1>;
 }
+
+export type RouterAbEd25519YaoRegistrationConsumeInputV1 = {
+  readonly tenantRoot: RouterAbEd25519YaoTenantRootWireV1;
+  readonly walletId: string;
+  readonly lifecycleId: string;
+  readonly sessionId: readonly number[];
+  readonly consumerBinding: string;
+};
+
+/// The Router's answer to a consumption: the executed request and the
+/// Router's recorded answer, exactly as it gave them, or a refusal.
+export type RouterAbEd25519YaoRegistrationConsumeOutcomeV1 =
+  | { readonly kind: 'consumed'; readonly requestJson: string; readonly responseJson: string }
+  | {
+      readonly kind: 'refused';
+      readonly code:
+        | 'unknown_registration'
+        | 'registration_not_activated'
+        | 'activation_reference_mismatch'
+        | 'activation_consumed';
+      readonly message: string;
+    }
+  | { readonly kind: 'unavailable'; readonly message: string };
 
 function registrationRouterExecuteRequest(
   input: Extract<RouterExecuteInput, { readonly operation: 'registration' }>,
@@ -552,12 +603,14 @@ function parseRouterExecuteResult(
             'signing_worker_uncertain',
             'terminal_role_failure',
             'authorization_rejected',
+            'execution_in_progress',
           ].includes(envelope.code)
         ) {
           throw new Error('Router Yao recoverable failure code is invalid');
         }
         requirePositiveSafeInteger(envelope.retry_after_ms, 'Router Yao retry_after_ms');
         if (envelope.code === 'ceremony_expired') return ceremonyExpiredFailure();
+        if (envelope.code === 'execution_in_progress') return executionInProgressFailure();
         return internalFailure('router_execution_retryable', 'Router Yao execution is retryable');
       }
       case 'rejected': {
@@ -566,6 +619,7 @@ function parseRouterExecuteResult(
           throw new Error('Router Yao rejection code is invalid');
         }
         if (envelope.code === 'ceremony_expired') return ceremonyExpiredFailure();
+        if (envelope.code === 'execution_mismatch') return executionMismatchFailure();
         return internalFailure('router_execution_rejected', 'Router Yao execution was rejected');
       }
       case 'burned': {
@@ -627,6 +681,62 @@ function parseRouterExecuteResult(
       'invalid_router_result',
       error instanceof Error ? error.message : String(error),
     );
+  }
+}
+
+/** The registration result a Router answer, exactly as recorded, carries. */
+export function parseRouterAbEd25519YaoRegistrationRouterAnswerV1(
+  responseJson: string,
+  request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
+): RouterAbEd25519YaoRegistrationBackendResult {
+  let answer: unknown;
+  try {
+    answer = JSON.parse(responseJson);
+  } catch {
+    return internalFailure('invalid_router_result', 'Router registration answer is not JSON');
+  }
+  return parseRouterExecuteResult(answer, request);
+}
+
+function parseRouterRegistrationConsumeOutcome(
+  value: unknown,
+): RouterAbEd25519YaoRegistrationConsumeOutcomeV1 {
+  try {
+    const envelope = requireRecord(value, 'Router registration consume answer');
+    switch (envelope.kind) {
+      case 'consumed':
+        requireExactKeys(envelope, 'Router registration consumption', [
+          'kind',
+          'request_json',
+          'response_json',
+        ]);
+        if (typeof envelope.request_json !== 'string' || typeof envelope.response_json !== 'string') {
+          throw new Error('Router registration consumption is invalid');
+        }
+        return {
+          kind: 'consumed',
+          requestJson: envelope.request_json,
+          responseJson: envelope.response_json,
+        };
+      case 'refused': {
+        requireExactKeys(envelope, 'Router registration consume refusal', ['kind', 'code', 'message']);
+        const code = envelope.code;
+        if (
+          (code !== 'unknown_registration' &&
+            code !== 'registration_not_activated' &&
+            code !== 'activation_reference_mismatch' &&
+            code !== 'activation_consumed') ||
+          typeof envelope.message !== 'string'
+        ) {
+          throw new Error('Router registration consume refusal is invalid');
+        }
+        return { kind: 'refused', code, message: envelope.message };
+      }
+      default:
+        throw new Error('Router registration consume answer kind is invalid');
+    }
+  } catch (error: unknown) {
+    return { kind: 'unavailable', message: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -831,16 +941,41 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
     admissionRequest: RouterAbEd25519YaoRegistrationAdmissionRequestV1,
     dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
-    dispatch: 'first' | 'replay',
     traceContext: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     const routerInput = { operation: 'registration', request, admissionRequest } as const;
+    // The Router decides a registration's replay from its own claim, so a
+    // retry after a lost reply is the exact request, unmarked.
     return await this.sendRouterRequest(
       routerInput,
       registrationRouterExecuteRequest(routerInput, dispatchRoot),
       traceContext.value,
-      dispatch === 'replay',
+      'exact',
     );
+  }
+
+  async consumeRegistration(
+    input: RouterAbEd25519YaoRegistrationConsumeInputV1,
+  ): Promise<RouterAbEd25519YaoRegistrationConsumeOutcomeV1> {
+    let response: HttpResult;
+    try {
+      response = await this.post(
+        ROUTER_REGISTRATION_CONSUME_PATH,
+        {
+          tenant_root: input.tenantRoot,
+          wallet_id: input.walletId,
+          lifecycle_id: input.lifecycleId,
+          session_id: Array.from(input.sessionId),
+          consumer_binding: input.consumerBinding,
+        },
+        createRouterAbTraceContextV1().value,
+        'exact',
+      );
+    } catch (error: unknown) {
+      return { kind: 'unavailable', message: error instanceof Error ? error.message : String(error) };
+    }
+    if (!response.ok) return { kind: 'unavailable', message: response.message };
+    return parseRouterRegistrationConsumeOutcome(response.body);
   }
 
   async executeRecovery(
@@ -884,19 +1019,24 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
       'success',
     );
 
-    return await this.sendRouterRequest(request, routerRequest, traceId, false);
+    return await this.sendRouterRequest(request, routerRequest, traceId, 'replay');
   }
 
   private async sendRouterRequest(
     request: RouterExecuteInput,
     routerRequest: RouterExecuteBoundary,
     traceId: string,
-    replay: boolean,
+    retryAfterTransportFailure: 'exact' | 'replay',
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     const operation = request.operation;
     const executeStartedAt = performance.now();
     try {
-      const response = await this.post(ROUTER_EXECUTE_PATH, routerRequest, traceId, true, replay);
+      const response = await this.post(
+        ROUTER_EXECUTE_PATH,
+        routerRequest,
+        traceId,
+        retryAfterTransportFailure,
+      );
       this.lastRouterServerTiming = response.ok ? response.serverTiming : null;
       const result = response.ok
         ? parseRouterExecuteResult(response.body, request.request)
@@ -947,24 +1087,24 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     return { ok: true, body: request };
   }
 
+  /// Posts once, and after a transport failure retries once: the exact
+  /// request, or for a recovery or export execution, the request marked as
+  /// the Router's replay.
   private async post(
     path: string,
     body: unknown,
     traceId: string,
-    replayOnTransportFailure = false,
-    replayOnFirstAttempt = false,
+    retryAfterTransportFailure: 'none' | 'exact' | 'replay' = 'none',
   ): Promise<HttpResult> {
-    const headers = this.headers(traceId);
-    if (replayOnFirstAttempt) headers[ROUTER_REPLAY_HEADER] = '1';
     return await this.request(
       this.config.routerUrl,
       path,
       {
         method: 'POST',
-        headers,
+        headers: this.headers(traceId),
         body: JSON.stringify(body),
       },
-      replayOnTransportFailure,
+      retryAfterTransportFailure,
     );
   }
 
@@ -980,17 +1120,17 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     baseUrl: string,
     path: string,
     init: RequestInit,
-    replayOnTransportFailure: boolean,
+    retryAfterTransportFailure: 'none' | 'exact' | 'replay',
   ): Promise<HttpResult> {
     let response: Response;
     try {
       response = await this.config.fetch.call(globalThis, `${baseUrl}${path}`, init);
     } catch (error: unknown) {
-      if (!replayOnTransportFailure) throw error;
+      if (retryAfterTransportFailure === 'none') throw error;
       response = await this.config.fetch.call(
         globalThis,
         `${baseUrl}${path}`,
-        requestInitWithReplayHeader(init),
+        retryAfterTransportFailure === 'replay' ? requestInitWithReplayHeader(init) : init,
       );
     }
     const text = await response.text();

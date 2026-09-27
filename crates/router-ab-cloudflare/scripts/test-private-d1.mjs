@@ -49,10 +49,15 @@ const managedBackupR2Binding = 'TENANT_ROOT_MANAGED_BACKUP_BUCKET';
 const signingWorkerD1Binding = 'SIGNING_WORKER_PRIVATE_DB';
 const tenantRootCreationDoBinding = 'ROUTER_TENANT_ROOT_CREATION_DO';
 const tenantRootCreationDoClass = 'RouterAbTenantRootCreationDurableObject';
+// The Router's wallet object: its claim and recorded answer for each
+// registration it executes.
+const routerWalletDoBinding = 'ROUTER_WALLET_DO';
+const routerWalletDoClass = 'RouterAbRouterWalletDurableObject';
 const deriverAWalletDoBinding = 'DERIVER_A_WALLET_DO';
 const deriverAWalletDoClass = 'RouterAbDeriverAWalletDurableObject';
 const deriverAWalletDoPath = '/router-ab/internal/deriver-a/wallet-pair';
 const deriverAWalletStatusPath = '/router-ab/deriver-a/ed25519-yao/read-pair-status';
+const deriverBPairStatusPath = '/router-ab/deriver-b/ed25519-yao/read-pair-status';
 const deriverAWalletBurnPath = '/router-ab/deriver-a/ed25519-yao/burn-pair';
 const tenantRootCreationPath = '/router-ab/internal/tenant-root/creation/v1/create';
 const tenantRootCreationSweepPath = '/router-ab/internal/tenant-root/creation/v1/sweep-abandoned';
@@ -390,6 +395,14 @@ const walletObjectAdmissionRun = process.argv.includes('--do-admission-settlemen
 const walletObjectClaimedRecoveryRun = process.argv.includes('--do-claimed-recovery');
 // The retirement-trigger run keeps its held work past `W`.
 const retirementTriggerRun = process.argv.includes('--retirement-trigger');
+// The replay runs wait out a registration claim's lease before a retry
+// replays it; one second keeps them short.
+const shortRegistrationLeaseRun = [
+  '--do-historical-replay',
+  '--do-historical-starting-replay',
+  '--do-pair-lost-reply',
+].some((flag) => process.argv.includes(flag));
+const registrationLeaseMs = 1_000;
 const admissionRecoveryWindowBinding =
   walletObjectAdmissionRun || walletObjectClaimedRecoveryRun
     ? { TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS: '1000' }
@@ -504,12 +517,19 @@ function routerWorker(fixture, capturePairPreparation = false, gateDeriverB = fa
       ...(retirementTriggerRun || process.argv.includes('--refresh-after-managed-restore')
         ? { TENANT_ROOT_RETIREMENT_GRACE_MS: '1000' }
         : {}),
+      ...(shortRegistrationLeaseRun
+        ? { ROUTER_YAO_REGISTRATION_LEASE_MS: String(registrationLeaseMs) }
+        : {}),
       ROUTER_AB_ROUTER_TO_SIGNING_WORKER_ECDSA_AUTH_SECRET:
         routerToSigningWorkerEcdsaAuthSecret,
     }),
     durableObjects: {
       [tenantRootCreationDoBinding]: {
         className: tenantRootCreationDoClass,
+        useSQLite: true,
+      },
+      [routerWalletDoBinding]: {
+        className: routerWalletDoClass,
         useSQLite: true,
       },
     },
@@ -623,6 +643,11 @@ function recoveryRouterWorker(fixture) {
         scriptName: 'router',
         useSQLite: true,
       },
+      [routerWalletDoBinding]: {
+        className: routerWalletDoClass,
+        scriptName: 'router',
+        useSQLite: true,
+      },
     },
     serviceBindings: {
       ...worker.serviceBindings,
@@ -636,12 +661,20 @@ function recoveryRouterWorker(fixture) {
   };
 }
 
+/// A Router with no active-root read binding and a wallet object of its own:
+/// its first run of a registration fails before any pair effect, and a
+/// retry after the claim's lease lapses replays from the roles' records.
 function historicalReplayRouterWorker(fixture, name, deriverAName = 'deriver-a') {
   const worker = routerWorker(fixture, false, true);
   return {
     ...worker,
     name,
-    durableObjects: {},
+    durableObjects: {
+      [routerWalletDoBinding]: {
+        className: routerWalletDoClass,
+        useSQLite: true,
+      },
+    },
     serviceBindings: {
       ...worker.serviceBindings,
       DERIVER_A: deriverAName,
@@ -3311,13 +3344,12 @@ async function testReplayAfterErasure(topology, fixture, databases) {
   );
   assert.deepEqual(epochOneShares, [0, 0]);
 
-  // 3. The Router's replay returns the original result.
-  const replay = await postWorkerJson(router, ed25519ExecutePath, registration, {
-    'x-seams-yao-replay': '1',
-  });
+  // 3. The Router answers an exact retry with its recorded answer, byte for
+  // byte, which needs no share.
+  const replay = await postWorkerJson(router, ed25519ExecutePath, registration);
   const replayed = await replay.text();
   assert.equal(replay.status, 200, replayed);
-  assert.deepEqual(JSON.parse(replayed), JSON.parse(original));
+  assert.equal(replayed, original);
 
   // 4. A's execute, retried exactly, returns its stored response; a changed
   // request is refused.
@@ -3903,6 +3935,21 @@ function deriverAWalletDoObjectName(owner) {
     .digest('hex')}`;
 }
 
+/// Deriver B's record of one pair, as its read-pair-status route reports it.
+/// The route reads wherever this build keeps B's pairs: its wallet object,
+/// or its role store. It is read directly, past the Router's offline gate.
+async function deriverBPairStatus(topology, rootIdentity, pairBinding) {
+  const deriverB = await topology.getWorker('deriver-b');
+  const bytes = await expectOk(
+    await postWorkerJson(deriverB, deriverBPairStatusPath, {
+      root_identity: rootIdentity,
+      pair_binding: pairBinding,
+    }),
+    'Deriver B pair status',
+  );
+  return JSON.parse(bytes.toString('utf8'));
+}
+
 async function testDeriverAWalletDoExecution(
   topology,
   fixture,
@@ -3918,10 +3965,12 @@ async function testDeriverAWalletDoExecution(
     .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
     .first();
   assert.equal(aRows.count, 0, 'A pair execution must leave the legacy D1 pair table empty');
-  const bBefore = await databases.deriverB
-    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
-    .first();
-  assert.equal(bBefore.lifecycle, 'completed', 'B must finish before A replay');
+  const bBefore = await deriverBPairStatus(
+    topology,
+    fixture.tenant_root_creation.identity,
+    capturedDeriverAExecution.request.pair_binding,
+  );
+  assert.equal(bBefore.status, 'completed', 'B must finish before A replay');
 
   const firstResponse = capturedDeriverAExecution.response;
   const rootIdentity = fixture.tenant_root_creation.identity;
@@ -3983,9 +4032,11 @@ async function testDeriverAWalletDoExecution(
   );
   const replayBytes = await expectOk(replay, 'Deriver A wallet DO replay after B completed');
   assert.deepEqual(JSON.parse(replayBytes.toString('utf8')), firstResponse);
-  const bAfter = await databases.deriverB
-    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
-    .first();
+  const bAfter = await deriverBPairStatus(
+    topology,
+    rootIdentity,
+    capturedDeriverAExecution.request.pair_binding,
+  );
   assert.deepEqual(bAfter, bBefore, 'A replay must not request a new B execution');
   const changedRequest = structuredClone(capturedDeriverAExecution.request);
   changedRequest.tenant_root.custody_binding.issued_at_ms += 1;
@@ -4043,8 +4094,8 @@ async function testDeriverAWalletDoExecution(
     registeredPublicKey: activation.publicReceipt.registered_public_key,
     outcomeSha256Hex: createHash('sha256').update(JSON.stringify(firstResponse)).digest('hex'),
     aD1PairRows: aRows.count,
-    bPairLifecycle: bBefore.lifecycle,
-    bRevisionUnchangedOnReplay: true,
+    bPairLifecycle: bBefore.status,
+    bExecutionUnchangedOnReplay: true,
     aPairRevisionAfterConcurrentCalls: recovered.body.revision,
     replayAfterObjectEviction: true,
     exactReplayAfterBCompleted: true,
@@ -4057,6 +4108,17 @@ async function testDeriverAWalletDoExecution(
   await mkdir(dirname(artifactPath), { recursive: true });
   await writeFile(artifactPath, `${JSON.stringify(artifact, null, 2)}\n`);
   console.log(JSON.stringify({ ...artifact, artifactPath }));
+}
+
+/// A replay Router's first run of a registration: it fails before any pair
+/// effect, since the Router has no active-root read binding, and leaves the
+/// Router's claim to lapse. Returns that first answer once the lease has
+/// lapsed.
+async function firstRunLeavingClaim(router, envelope) {
+  const first = await postWorkerJson(router, ed25519ExecutePath, envelope);
+  await first.arrayBuffer();
+  await sleep(registrationLeaseMs + 100);
+  return first;
 }
 
 async function testHistoricalRegistrationReplay(topology, fixture, tenantRoot, databases) {
@@ -4083,36 +4145,27 @@ async function testHistoricalRegistrationReplay(topology, fixture, tenantRoot, d
     pair_binding: pair,
   });
   assert.equal(aBefore.body.record.status, 'completed');
-  const bBefore = await databases.deriverB
-    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
-    .first();
-  assert.equal(bBefore.lifecycle, 'completed');
-  const signingWorkerDatabase = await topology.getD1Database(
-    signingWorkerD1Binding,
-    'fixture-signing-worker',
-  );
-  const signingWorkerBefore = await signingWorkerFinalizationRows(signingWorkerDatabase);
-  assert.equal(signingWorkerBefore.activations, 1);
+  const bBefore = await deriverBPairStatus(topology, rootIdentity, pair);
+  assert.equal(bBefore.status, 'completed');
+  // The SigningWorker keeps its activations in its wallet object on this
+  // build. Its calls show what the replay asked of it.
   const activationCallsBefore = signingWorkerActivationCalls;
   const lookupCallsBefore = signingWorkerFinalizationLookups;
   deriverBOffline = true;
   blockedDeriverBCalls = 0;
 
   const replayRouter = await topology.getWorker('router-replay');
-  const ordinaryRequestWithoutRoot = await postWorkerJson(
-    replayRouter,
-    ed25519ExecutePath,
-    activation.envelope,
-  );
+  // The replay Router's first run fails before any pair effect: it has no
+  // active-root read binding. Its claim lapses after the lease, and a retry
+  // then replays from the roles' records.
+  const ordinaryRequestWithoutRoot = await firstRunLeavingClaim(replayRouter, activation.envelope);
   assert.notEqual(
     ordinaryRequestWithoutRoot.status,
     200,
     'the replay Router must have no active-root read binding',
   );
   const replayBytes = await expectOk(
-    await postWorkerJson(replayRouter, ed25519ExecutePath, activation.envelope, {
-      'x-seams-yao-replay': '1',
-    }),
+    await postWorkerJson(replayRouter, ed25519ExecutePath, activation.envelope),
     'historical registration replay',
   );
   assert.deepEqual(replayBytes, activation.responseBytes);
@@ -4120,23 +4173,18 @@ async function testHistoricalRegistrationReplay(topology, fixture, tenantRoot, d
   assert.equal(historicalReplayActivationCalls, 0);
   assert.equal(signingWorkerFinalizationLookups, lookupCallsBefore + 1);
   assert.equal(blockedDeriverBCalls, 0);
-  assert.deepEqual(await signingWorkerFinalizationRows(signingWorkerDatabase), signingWorkerBefore);
   const aAfter = await callDeriverAWalletDo(object, {
     operation: 'read',
     owner,
     pair_binding: pair,
   });
   assert.equal(aAfter.body.revision, aBefore.body.revision);
-  assert.deepEqual(
-    await databases.deriverB.prepare('SELECT lifecycle, revision FROM yao_pair_sessions').first(),
-    bBefore,
-  );
+  assert.deepEqual(await deriverBPairStatus(topology, rootIdentity, pair), bBefore);
 
   const missingARouter = await topology.getWorker('router-replay-missing-a');
+  await firstRunLeavingClaim(missingARouter, activation.envelope);
   const missingABytes = await expectOk(
-    await postWorkerJson(missingARouter, ed25519ExecutePath, activation.envelope, {
-      'x-seams-yao-replay': '1',
-    }),
+    await postWorkerJson(missingARouter, ed25519ExecutePath, activation.envelope),
     'historical replay with missing A and completed B',
   );
   assert.deepEqual(JSON.parse(missingABytes.toString('utf8')), {
@@ -4150,67 +4198,30 @@ async function testHistoricalRegistrationReplay(topology, fixture, tenantRoot, d
   const lineageBytes = Buffer.from(wrongLineage.tenant_root.custody_lineage_b64u, 'base64url');
   lineageBytes[0] ^= 1;
   wrongLineage.tenant_root.custody_lineage_b64u = lineageBytes.toString('base64url');
-  const mismatched = await postWorkerJson(replayRouter, ed25519ExecutePath, wrongLineage, {
-    'x-seams-yao-replay': '1',
+  // Another tenant root is another request: the recorded answer is not
+  // given, and nothing runs.
+  const mismatched = await expectOk(
+    await postWorkerJson(replayRouter, ed25519ExecutePath, wrongLineage),
+    'changed custody lineage',
+  );
+  assert.deepEqual(JSON.parse(mismatched.toString('utf8')), {
+    status: 'rejected',
+    code: 'execution_mismatch',
   });
-  assert.notEqual(mismatched.status, 200, 'changed custody lineage cannot read committed result');
   assert.equal(signingWorkerFinalizationLookups, lookupCallsBefore + 1);
-
-  const material = pair.ceremony.binding.material_activation;
-  const activeKey = [
-    'active-signing-worker',
-    material.material_owner,
-    material.activation_id,
-    material.signing_worker,
-  ].join('/');
-  await signingWorkerDatabase
-    .prepare('DELETE FROM signing_worker_activations WHERE active_key = ?1')
-    .bind(activeKey)
-    .run();
-  const conflictBytes = await expectOk(
-    await postWorkerJson(replayRouter, ed25519ExecutePath, activation.envelope, {
-      'x-seams-yao-replay': '1',
-    }),
-    'historical replay with inconsistent finalization',
-  );
-  assert.deepEqual(JSON.parse(conflictBytes.toString('utf8')), {
-    status: 'rejected',
-    code: 'conflicting_pair',
-  });
-  await signingWorkerDatabase
-    .prepare('INSERT INTO signing_worker_activation_revocation_fences (active_key) VALUES (?1)')
-    .bind(activeKey)
-    .run();
-  const revokedBytes = await expectOk(
-    await postWorkerJson(replayRouter, ed25519ExecutePath, activation.envelope, {
-      'x-seams-yao-replay': '1',
-    }),
-    'historical replay after output revocation',
-  );
-  assert.deepEqual(JSON.parse(revokedBytes.toString('utf8')), {
-    status: 'rejected',
-    code: 'authorization_rejected',
-  });
   assert.equal(signingWorkerActivationCalls, activationCallsBefore);
   assert.equal(historicalReplayActivationCalls, 0);
   assert.equal(blockedDeriverBCalls, 0);
-  assert.deepEqual(await signingWorkerFinalizationRows(signingWorkerDatabase), {
-    lifecycles: signingWorkerBefore.lifecycles,
-    activations: 0,
-    fences: 1,
-  });
 
   const artifact = {
     kind: 'yao_historical_registration_replay_e2e_v1',
     reproduce:
       'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-historical-replay',
     exactResponseSha256Hex: createHash('sha256').update(replayBytes).digest('hex'),
-    replayWithEvictedAAndUnavailableRoot: true,
+    replayAfterLapsedClaimWithEvictedAAndUnavailableRoot: true,
     bUnavailableAndUnchanged: true,
     missingAWithCompletedBStayedPending: true,
-    changedCustodyLineageRejected: true,
-    missingOutputRejectedWithoutReactivation: true,
-    fencedOutputRejectedWithoutReactivation: true,
+    changedCustodyLineageRefusedAsMismatch: true,
     sharedRoleBearerRejectedBeforePairEffects: true,
     missingGatewayBindingFailedClosed: true,
     sharedGatewayBindingFailedClosed: true,
@@ -4310,10 +4321,9 @@ async function testHistoricalReplayAfterAStartClaim(topology, fixture, tenantRoo
   deriverBOffline = true;
   blockedDeriverBCalls = 0;
   const replayRouter = await topology.getWorker('router-replay');
+  await firstRunLeavingClaim(replayRouter, envelope);
   const pendingBytes = await expectOk(
-    await postWorkerJson(replayRouter, ed25519ExecutePath, envelope, {
-      'x-seams-yao-replay': '1',
-    }),
+    await postWorkerJson(replayRouter, ed25519ExecutePath, envelope),
     'historical replay after A start claim',
   );
   assert.deepEqual(JSON.parse(pendingBytes.toString('utf8')), {
@@ -4330,10 +4340,8 @@ async function testHistoricalReplayAfterAStartClaim(topology, fixture, tenantRoo
   });
   assert.equal(stillStarting.body.record.status, 'starting');
   assert.equal(stillStarting.body.revision, started.body.result.revision);
-  const bAfter = await databases.deriverB
-    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
-    .first();
-  assert.equal(bAfter.lifecycle, 'prepared');
+  const bAfter = await deriverBPairStatus(topology, rootIdentity, pair);
+  assert.equal(bAfter.status, 'prepared');
 
   const artifact = {
     kind: 'yao_historical_replay_after_a_start_claim_e2e_v1',
@@ -4369,10 +4377,12 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
     .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
     .first();
   assert.equal(aRows.count, 0);
-  const bTerminal = await databases.deriverB
-    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
-    .first();
-  assert.equal(bTerminal.lifecycle, 'completed');
+  const bTerminal = await deriverBPairStatus(
+    topology,
+    fixture.tenant_root_creation.identity,
+    capturedDeriverAExecution.request.pair_binding,
+  );
+  assert.equal(bTerminal.status, 'completed');
 
   const rootIdentity = fixture.tenant_root_creation.identity;
   const owner = {
@@ -4439,9 +4449,10 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
   assert.notEqual(completedBurn.status, 200, 'completed A custody cannot be cancelled');
   deriverBOffline = true;
   blockedDeriverBCalls = 0;
-  const routerReplay = await postWorkerJson(router, ed25519ExecutePath, envelope, {
-    'x-seams-yao-replay': '1',
-  });
+  // The first run's retryable answer left the Router's claim; after its
+  // lease, a retry replays from the roles' records.
+  await sleep(registrationLeaseMs + 100);
+  const routerReplay = await postWorkerJson(router, ed25519ExecutePath, envelope);
   const routerReplayBytes = await expectOk(routerReplay, 'Router scoped replay after lost reply');
   assert.deepEqual(JSON.parse(routerReplayBytes.toString('utf8')), {
     status: 'recoverable_failure',
@@ -4461,9 +4472,11 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
     JSON.parse(replayBytes.toString('utf8')),
     capturedDeriverAExecution.response,
   );
-  const bAfter = await databases.deriverB
-    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
-    .first();
+  const bAfter = await deriverBPairStatus(
+    topology,
+    rootIdentity,
+    capturedDeriverAExecution.request.pair_binding,
+  );
   assert.deepEqual(bAfter, bTerminal);
   const afterReplay = await callDeriverAWalletDo(object, {
     operation: 'read',
@@ -4478,8 +4491,8 @@ async function testDeriverAWalletDoLostReply(topology, fixture, tenantRoot, data
       .update(JSON.stringify(capturedDeriverAExecution.response))
       .digest('hex'),
     aD1PairRows: aRows.count,
-    bPairLifecycle: bTerminal.lifecycle,
-    bRevisionUnchangedOnReplay: true,
+    bPairLifecycle: bTerminal.status,
+    bExecutionUnchangedOnReplay: true,
     bOfflineDuringRouterReplay: true,
     routerScopedReplayStayedPendingWithoutActivation: true,
     wrongTenantRootAndExecutionCancellationLeftStateUnchanged: true,
@@ -4504,10 +4517,12 @@ async function testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, d
   assert.ok(capturedDeriverAPreparation, 'A pair preparation must reach the wallet DO');
   assert.equal(capturedSigningWorkerDelivery, undefined);
 
-  const bTerminal = await databases.deriverB
-    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
-    .first();
-  assert.equal(bTerminal.lifecycle, 'burned', 'B must persist the injected burn');
+  const bTerminal = await deriverBPairStatus(
+    topology,
+    fixture.tenant_root_creation.identity,
+    capturedDeriverAPreparation.request.pair_binding,
+  );
+  assert.equal(bTerminal.status, 'burned', 'B must persist the injected burn');
   const aRows = await databases.deriverA
     .prepare('SELECT COUNT(*) AS count FROM yao_pair_sessions')
     .first();
@@ -4530,22 +4545,19 @@ async function testDeriverBBurnBeforeCompletion(topology, fixture, tenantRoot, d
   });
   assert.equal(aTerminal.status, 200);
   assert.equal(aTerminal.body.record.status, 'burned', 'A cannot complete from B burn');
-  const replay = await postWorkerJson(router, ed25519ExecutePath, envelope, {
-    'x-seams-yao-replay': '1',
-  });
+  // The burned answer is recorded, and an exact retry gets it.
+  const replay = await postWorkerJson(router, ed25519ExecutePath, envelope);
   const replayBody = (await responseBytes(replay)).toString('utf8');
   if (replay.status === 200) {
     assert.notEqual(JSON.parse(replayBody).status, 'succeeded');
   }
-  const bAfter = await databases.deriverB
-    .prepare('SELECT lifecycle, revision FROM yao_pair_sessions')
-    .first();
+  const bAfter = await deriverBPairStatus(topology, rootIdentity, pair);
   assert.deepEqual(bAfter, bTerminal);
   assert.equal(capturedSigningWorkerDelivery, undefined);
   const artifact = {
     kind: 'deriver_b_completion_burn_race_e2e_v1',
     reproduce: 'ROUTER_AB_WORKER_BUILD_PROFILE=dev node ./scripts/test-private-d1.mjs --do-pair-b-burn-before-complete',
-    bPairLifecycle: bTerminal.lifecycle,
+    bPairLifecycle: bTerminal.status,
     aPairLifecycle: aTerminal.body.record.status,
     aD1PairRows: aRows.count,
     noSigningWorkerDelivery: true,

@@ -19,7 +19,7 @@ type LocalIntendedYaoFaultViolationV1 =
   | 'router_retry_not_observed'
   | 'router_retry_body_changed'
   | 'router_retry_trace_changed'
-  | 'router_retry_marker_missing'
+  | 'router_retry_marked_as_replay'
   | 'router_retry_response_failed'
   | 'unexpected_additional_execute';
 
@@ -191,9 +191,11 @@ export class LocalIntendedYaoFaultControllerV1 {
       this.state = { kind: 'violated', violation: 'router_retry_trace_changed' };
       throw new Error('Local intended Yao retry changed the Router trace ID');
     }
-    if (request.headers.get(ROUTER_AB_YAO_REPLAY_HEADER_V1) !== '1') {
-      this.state = { kind: 'violated', violation: 'router_retry_marker_missing' };
-      throw new Error('Local intended Yao retry omitted the replay marker');
+    // The Router decides a registration's replay from its own claim, and
+    // answers the exact retry from the answer it recorded.
+    if (request.headers.has(ROUTER_AB_YAO_REPLAY_HEADER_V1)) {
+      this.state = { kind: 'violated', violation: 'router_retry_marked_as_replay' };
+      throw new Error('Local intended Yao retry carried the replay marker');
     }
     const response = await this.baseFetch.call(globalThis, request);
     await response.clone().arrayBuffer();

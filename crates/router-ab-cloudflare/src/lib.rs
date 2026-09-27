@@ -312,12 +312,15 @@ mod tenant_root_revision_manifest;
 pub use tenant_root_revision_manifest::*;
 mod router;
 pub use router::*;
+mod router_wallet;
+pub use router_wallet::*;
 
 #[cfg(feature = "workers-rs")]
 mod router_coordinator;
 #[cfg(feature = "workers-rs")]
 pub use router_coordinator::{
     handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1,
+    handle_cloudflare_router_ed25519_yao_registration_consume_private_fetch_v1,
     handle_cloudflare_router_ed25519_yao_lane_execute_private_fetch_v1,
     handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch_v1,
     handle_cloudflare_router_ed25519_yao_source_preserving_execute_private_fetch_v1,
@@ -480,6 +483,8 @@ mod strict_worker;
 pub use durable_object::RouterAbDeriverAWalletDurableObject;
 #[cfg(all(feature = "workers-rs", feature = "wallet-do-b-harness"))]
 pub use durable_object::RouterAbDeriverBWalletDurableObject;
+#[cfg(feature = "workers-rs")]
+pub use durable_object::RouterAbRouterWalletDurableObject;
 #[cfg(feature = "workers-rs")]
 pub use durable_object::RouterAbSigningWorkerPresignSessionDurableObject;
 #[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]

@@ -188,9 +188,11 @@ pub const LOCAL_DERIVER_B_ROLE_PRIVATE_MIGRATIONS_V1: &[LocalSqliteMigrationV1] 
     ("0017_tenant_root_root_use_admission_claims.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0017_tenant_root_root_use_admission_claims.sql")),
     ("0018_tenant_root_recovery_retention_keys.sql", include_str!("../../router-ab-cloudflare/migrations/deriver-b/0018_tenant_root_recovery_retention_keys.sql")),
 ];
-/// The VM Router's tenant-root creation-state schema.
+/// The VM Router's SQLite schema: its tenant-root creation state and its
+/// wallet objects.
 pub const LOCAL_ROUTER_CREATION_STATE_MIGRATIONS_V1: &[LocalSqliteMigrationV1] = &[
     ("0001_creation_state.sql", include_str!("../migrations/local-router-creation-state/0001_creation_state.sql")),
+    ("0002_router_wallet_objects.sql", include_str!("../migrations/local-router-creation-state/0002_router_wallet_objects.sql")),
 ];
 /// A VM Deriver's managed-backup schema.
 pub const LOCAL_MANAGED_BACKUP_MIGRATIONS_V1: &[LocalSqliteMigrationV1] = &[

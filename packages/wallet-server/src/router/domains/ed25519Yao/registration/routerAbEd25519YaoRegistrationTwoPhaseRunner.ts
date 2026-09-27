@@ -35,13 +35,13 @@ export type RouterAbEd25519YaoRegistrationTwoPhaseRunResultV1<TClaim, TResponse,
   | { readonly kind: 'rejected'; readonly value: TRejection }
   | {
       readonly kind: 'preclaim_version_mismatch';
-      readonly key: 'shared' | 'ceremony' | 'execution';
+      readonly key: 'shared' | 'ceremony';
     }
   | { readonly kind: 'backend_uncertain'; readonly claim: TClaim; readonly message: string }
   | {
       readonly kind: 'terminal_version_mismatch';
       readonly claim: TClaim;
-      readonly key: 'shared' | 'ceremony' | 'execution';
+      readonly key: 'shared' | 'ceremony';
     };
 
 export type RouterAbEd25519YaoRegistrationTwoPhaseRunInputV1<

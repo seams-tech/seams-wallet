@@ -40,11 +40,9 @@ export const REGISTRATION_TIMING_LABEL = '[Registration] wallet timing summary';
 const YAO_SERVER_TIMING_BUCKET_BY_METRIC = new Map<string, RegistrationTimingBucketName>(
   Object.entries({
     yao_credential_digest: 'yaoServerCredentialDigestMs',
-    yao_request_digest: 'yaoServerRequestDigestMs',
-    yao_d1_claim: 'yaoServerD1ClaimMs',
+    yao_d1_admission_read: 'yaoServerD1AdmissionReadMs',
     yao_router_execution: 'yaoServerRouterExecutionMs',
     yao_result_reconstruction: 'yaoServerResultReconstructionMs',
-    yao_d1_terminal_commit: 'yaoServerD1TerminalCommitMs',
     yao_router_prepare_pair: 'yaoServerRouterPreparePairMs',
     yao_router_verify_readiness: 'yaoServerRouterVerifyReadinessMs',
     yao_router_role_execution: 'yaoServerRouterRoleExecutionMs',
@@ -296,11 +294,9 @@ type RegistrationTimingBucketValues = {
   // Router-reported, parsed from the execute call's Server-Timing header.
   // Names mirror the server metric names exactly.
   yaoServerCredentialDigestMs: number;
-  yaoServerRequestDigestMs: number;
-  yaoServerD1ClaimMs: number;
+  yaoServerD1AdmissionReadMs: number;
   yaoServerRouterExecutionMs: number;
   yaoServerResultReconstructionMs: number;
-  yaoServerD1TerminalCommitMs: number;
   yaoServerRouterPreparePairMs: number;
   yaoServerRouterVerifyReadinessMs: number;
   yaoServerRouterRoleExecutionMs: number;
@@ -752,11 +748,9 @@ function createZeroRegistrationTimingBucketValues(): RegistrationTimingBucketVal
     yaoClientSessionCreateMs: 0,
     yaoClientCompletionMs: 0,
     yaoServerCredentialDigestMs: 0,
-    yaoServerRequestDigestMs: 0,
-    yaoServerD1ClaimMs: 0,
+    yaoServerD1AdmissionReadMs: 0,
     yaoServerRouterExecutionMs: 0,
     yaoServerResultReconstructionMs: 0,
-    yaoServerD1TerminalCommitMs: 0,
     yaoServerRouterPreparePairMs: 0,
     yaoServerRouterVerifyReadinessMs: 0,
     yaoServerRouterRoleExecutionMs: 0,
@@ -887,11 +881,9 @@ function copyRegistrationTimingBucketValues(
     yaoClientSessionCreateMs: buckets.yaoClientSessionCreateMs,
     yaoClientCompletionMs: buckets.yaoClientCompletionMs,
     yaoServerCredentialDigestMs: buckets.yaoServerCredentialDigestMs,
-    yaoServerRequestDigestMs: buckets.yaoServerRequestDigestMs,
-    yaoServerD1ClaimMs: buckets.yaoServerD1ClaimMs,
+    yaoServerD1AdmissionReadMs: buckets.yaoServerD1AdmissionReadMs,
     yaoServerRouterExecutionMs: buckets.yaoServerRouterExecutionMs,
     yaoServerResultReconstructionMs: buckets.yaoServerResultReconstructionMs,
-    yaoServerD1TerminalCommitMs: buckets.yaoServerD1TerminalCommitMs,
     yaoServerRouterPreparePairMs: buckets.yaoServerRouterPreparePairMs,
     yaoServerRouterVerifyReadinessMs: buckets.yaoServerRouterVerifyReadinessMs,
     yaoServerRouterRoleExecutionMs: buckets.yaoServerRouterRoleExecutionMs,
@@ -1322,11 +1314,9 @@ function buildRegistrationTimingBuckets(input: {
     yaoClientSessionCreateMs: buckets.yaoClientSessionCreateMs,
     yaoClientCompletionMs: buckets.yaoClientCompletionMs,
     yaoServerCredentialDigestMs: buckets.yaoServerCredentialDigestMs,
-    yaoServerRequestDigestMs: buckets.yaoServerRequestDigestMs,
-    yaoServerD1ClaimMs: buckets.yaoServerD1ClaimMs,
+    yaoServerD1AdmissionReadMs: buckets.yaoServerD1AdmissionReadMs,
     yaoServerRouterExecutionMs: buckets.yaoServerRouterExecutionMs,
     yaoServerResultReconstructionMs: buckets.yaoServerResultReconstructionMs,
-    yaoServerD1TerminalCommitMs: buckets.yaoServerD1TerminalCommitMs,
     yaoServerRouterPreparePairMs: buckets.yaoServerRouterPreparePairMs,
     yaoServerRouterVerifyReadinessMs: buckets.yaoServerRouterVerifyReadinessMs,
     yaoServerRouterRoleExecutionMs: buckets.yaoServerRouterRoleExecutionMs,

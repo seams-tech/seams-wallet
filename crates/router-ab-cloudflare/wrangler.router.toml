@@ -9,11 +9,16 @@ command = "cargo install -q worker-build --version 0.8.4 && bash ./scripts/build
 [durable_objects]
 bindings = [
   { name = "ROUTER_TENANT_ROOT_CREATION_DO", class_name = "RouterAbTenantRootCreationDurableObject" },
+  { name = "ROUTER_WALLET_DO", class_name = "RouterAbRouterWalletDurableObject" },
 ]
 
 [[migrations]]
 tag = "router_ab_router_tenant_root_creation_v1"
 new_sqlite_classes = ["RouterAbTenantRootCreationDurableObject"]
+
+[[migrations]]
+tag = "router_ab_router_wallet_v1"
+new_sqlite_classes = ["RouterAbRouterWalletDurableObject"]
 
 [[services]]
 binding = "DERIVER_A"
@@ -49,6 +54,10 @@ workers_dev = true
 [[env.staging.durable_objects.bindings]]
 name = "ROUTER_TENANT_ROOT_CREATION_DO"
 class_name = "RouterAbTenantRootCreationDurableObject"
+
+[[env.staging.durable_objects.bindings]]
+name = "ROUTER_WALLET_DO"
+class_name = "RouterAbRouterWalletDurableObject"
 
 [[env.staging.services]]
 binding = "DERIVER_A"
@@ -90,6 +99,10 @@ workers_dev = true
 [[env.production-testnet.durable_objects.bindings]]
 name = "ROUTER_TENANT_ROOT_CREATION_DO"
 class_name = "RouterAbTenantRootCreationDurableObject"
+
+[[env.production-testnet.durable_objects.bindings]]
+name = "ROUTER_WALLET_DO"
+class_name = "RouterAbRouterWalletDurableObject"
 
 [[env.production-testnet.services]]
 binding = "DERIVER_A"

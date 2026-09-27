@@ -31,15 +31,21 @@ import {
   InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationAdapter,
   routerAbEd25519YaoBearerCredentialDigestV1,
 } from './routerAbEd25519YaoRegistrationIntentAuthorization';
-import { routerAbEd25519YaoRegistrationExecutionRequestDigestV1 } from './routerAbEd25519YaoRegistrationExecutionRecord';
+import { routerAbEd25519YaoExecutionMatchesAdmissionV1 } from './routerAbEd25519YaoRegistration';
+import {
+  pinRouterAbEd25519YaoRegistrationDispatchRootV1,
+  routerAbEd25519YaoRegistrationResultFromRouterAnswerV1,
+} from './routerAbEd25519YaoRegistrationExecutionRecord';
 import type { RouterAbEd25519YaoPinnedRegistrationBackend } from './routerAbEd25519YaoHttpRegistrationBackend';
+import type { RouterAbEd25519YaoTenantRootWireV1 } from '../routerAbEd25519YaoGatewayEnvelope';
 import {
   runRouterAbEd25519YaoRegistrationTwoPhaseV1,
   type RouterAbEd25519YaoRegistrationTwoPhaseRunResultV1,
 } from './routerAbEd25519YaoRegistrationTwoPhaseRunner';
-import type {
-  RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1,
-  RouterAbEd25519YaoProductRegistrationPartitionedStateCommitResultV1,
+import {
+  routerAbEd25519YaoAdmittedRegistrationAuthorityV1,
+  type RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1,
+  type RouterAbEd25519YaoProductRegistrationPartitionedStateCommitResultV1,
 } from '../capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
 
 export type RouterAbEd25519YaoRegistrationRequestScopedCloudflareInputV1 = {
@@ -83,12 +89,10 @@ type TraceResolution =
 
 type RegistrationExecutionTimingV1 = {
   readonly credentialDigestMs: number;
-  readonly requestDigestMs: number;
-  readonly d1ClaimMs: number;
+  readonly d1AdmissionReadMs: number;
   readonly routerExecutionMs: number;
   readonly routerServerTiming: string | null;
   readonly resultReconstructionMs: number;
-  readonly d1TerminalCommitMs: number;
 };
 
 type TimedRegistrationExecutionResultV1 = {
@@ -166,6 +170,9 @@ async function runAdmissionRequest(
   trace: RouterAbTraceContextV1,
 ): Promise<RegistrationServiceResponse> {
   const lifecycleId = request.scope.lifecycle_id;
+  // The tenant root this registration dispatches to is resolved once, for a
+  // fresh admission once it is authorized, and pinned with the admission.
+  let dispatchRoot: RouterAbEd25519YaoTenantRootWireV1 | null = null;
   const result = await runRouterAbEd25519YaoRegistrationTwoPhaseV1<
     RouterAbEd25519YaoRegistrationAdmissionClaimV1,
     RouterAbEd25519YaoRegistrationBackendResult,
@@ -199,6 +206,21 @@ async function runAdmissionRequest(
         case 'failed':
           return { kind: 'rejected', value: preparation.failure };
         case 'claimed':
+          try {
+            dispatchRoot = await input.backend.resolveRegistrationDispatchRoot(request);
+          } catch (error: unknown) {
+            return {
+              kind: 'rejected',
+              value: {
+                ok: false,
+                status: 503,
+                code: 'admission_failed',
+                message: `registration tenant root is unavailable: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              },
+            };
+          }
           return { kind: 'claimed', state, claim: preparation.claim };
       }
     },
@@ -217,19 +239,31 @@ async function runAdmissionRequest(
         input.backend,
         state.registration,
       );
-      return {
-        state,
-        value: service.commitAdmit({
-          request,
-          claim,
-          outcome: { kind: 'backend_response', result: backend },
-        }),
-      };
+      const admitted = service.commitAdmit({
+        request,
+        claim,
+        outcome: { kind: 'backend_response', result: backend },
+      });
+      if (admitted.ok) {
+        if (dispatchRoot === null) {
+          throw new Error('registration admission resolved no tenant root to pin');
+        }
+        pinRouterAbEd25519YaoRegistrationDispatchRootV1(state.registration, lifecycleId, dispatchRoot);
+      }
+      return { state, value: admitted };
     },
   });
   return mapAdmissionRunResult(result);
 }
 
+/**
+ * Checks the execute against this Gateway's admission, then asks the Router
+ * to run it once, on the tenant root pinned at admission. The Router owns the
+ * execution: it claims it in its wallet object, records the terminal answer
+ * before replying, answers an exact retry from that record, and replays a run
+ * cut short once its claim lapses. An execute never looks the active root up
+ * again, so a completed execution's answer outlives the root's lineage.
+ */
 async function runExecutionRequest(
   input: RouterAbEd25519YaoRegistrationRequestScopedCloudflareInputV1,
   request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
@@ -239,61 +273,55 @@ async function runExecutionRequest(
   const credentialStartedAt = performance.now();
   const credential = await routerAbEd25519YaoBearerCredentialDigestV1(input.request);
   const credentialDigestMs = elapsedMs(credentialStartedAt);
-  if (!credential.ok) {
-    return timedExecutionResult(credential.result, {
-      credentialDigestMs,
-      requestDigestMs: 0,
-      d1ClaimMs: 0,
-      routerExecutionMs: 0,
-      routerServerTiming: null,
-      resultReconstructionMs: 0,
-      d1TerminalCommitMs: 0,
-    });
-  }
-  const requestDigestStartedAt = performance.now();
-  const requestDigestSha256Hex =
-    await routerAbEd25519YaoRegistrationExecutionRequestDigestV1(request);
-  const requestDigestMs = elapsedMs(requestDigestStartedAt);
-  const d1ClaimStartedAt = performance.now();
-  const claim = await input.store.claimRegistrationExecution({
-    lifecycleId,
-    request,
-    requestDigestSha256Hex,
-    credentialDigestSha256Hex: credential.digestSha256Hex,
-    nowMs: Date.now(),
-    resolveDispatchRoot: input.backend.resolveRegistrationDispatchRoot.bind(input.backend),
-  });
-  const d1ClaimMs = elapsedMs(d1ClaimStartedAt);
-  const timingBeforeRouter = {
+  const timing = {
     credentialDigestMs,
-    requestDigestMs,
-    d1ClaimMs,
+    d1AdmissionReadMs: 0,
     routerExecutionMs: 0,
     routerServerTiming: null,
     resultReconstructionMs: 0,
-    d1TerminalCommitMs: 0,
   };
-  switch (claim.kind) {
-    case 'completed':
-      return timedExecutionResult(
-        { ok: true, status: 200, value: claim.value },
-        timingBeforeRouter,
-      );
-    case 'failed':
-      return timedExecutionResult(claim.value, timingBeforeRouter);
-    case 'rejected':
-      return timedExecutionResult(executionClaimFailure(claim), timingBeforeRouter);
-    case 'claimed':
-      break;
+  if (!credential.ok) return timedExecutionResult(credential.result, timing);
+  const admissionStartedAt = performance.now();
+  const loaded = await input.store.load(lifecycleId);
+  const authority = routerAbEd25519YaoAdmittedRegistrationAuthorityV1(loaded.state, lifecycleId);
+  const timingBeforeRouter = { ...timing, d1AdmissionReadMs: elapsedMs(admissionStartedAt) };
+  if (!authority) {
+    return timedExecutionResult(
+      executionRefusal('unknown_registration', 'registration admission was not found'),
+      timingBeforeRouter,
+    );
+  }
+  if (!routerAbEd25519YaoExecutionMatchesAdmissionV1(request, authority.admissionReceipt)) {
+    return timedExecutionResult(
+      executionRefusal(
+        'binding_mismatch',
+        'registration execution does not match the admitted binding',
+      ),
+      timingBeforeRouter,
+    );
+  }
+  if (authority.credentialDigestSha256Hex !== credential.digestSha256Hex) {
+    return timedExecutionResult(
+      executionRefusal(
+        'credential_rejected',
+        'registration execution credential does not match its admission subject',
+      ),
+      timingBeforeRouter,
+    );
+  }
+  if (authority.expiresAtMs <= Date.now()) {
+    return timedExecutionResult(
+      executionRefusal('credential_expired', 'registration intent credential is expired'),
+      timingBeforeRouter,
+    );
   }
   let backend: RouterAbEd25519YaoRegistrationBackendResult;
   const routerExecutionStartedAt = performance.now();
   try {
     backend = await input.backend.executePinnedRegistration(
       request,
-      claim.value.admissionRequest,
-      claim.value.dispatchRoot,
-      claim.dispatch,
+      authority.admissionRequest,
+      authority.dispatchRoot,
       trace,
     );
   } catch (error: unknown) {
@@ -304,14 +332,23 @@ async function runExecutionRequest(
         code: 'execution_failed',
         message: error instanceof Error ? error.message : String(error),
       },
-      {
-        ...timingBeforeRouter,
-        routerExecutionMs: elapsedMs(routerExecutionStartedAt),
-      },
+      { ...timingBeforeRouter, routerExecutionMs: elapsedMs(routerExecutionStartedAt) },
     );
   }
-  const routerExecutionMs = elapsedMs(routerExecutionStartedAt);
-  const routerServerTiming = input.backend.takeLastRouterServerTiming?.() ?? null;
+  const routerTiming = {
+    ...timingBeforeRouter,
+    routerExecutionMs: elapsedMs(routerExecutionStartedAt),
+    routerServerTiming: input.backend.takeLastRouterServerTiming?.() ?? null,
+  };
+  if (!backend.ok && backend.code === 'execution_in_progress') {
+    return timedExecutionResult(
+      executionRefusal('execution_in_progress', backend.message),
+      routerTiming,
+    );
+  }
+  if (!backend.ok && backend.code === 'execution_mismatch') {
+    return timedExecutionResult(executionRefusal('binding_mismatch', backend.message), routerTiming);
+  }
   if (isRetryableRegistrationBackendFailure(backend)) {
     return timedExecutionResult(
       {
@@ -320,45 +357,20 @@ async function runExecutionRequest(
         code: 'execution_failed',
         message: backend.message,
       },
-      { ...timingBeforeRouter, routerExecutionMs, routerServerTiming },
+      routerTiming,
     );
   }
   const reconstructionStartedAt = performance.now();
-  const terminal = completeClaimedExecution(input.backend, claim.value, request, backend);
-  const resultReconstructionMs = elapsedMs(reconstructionStartedAt);
-  const terminalCommitStartedAt = performance.now();
-  const committed = await input.store.commitRegistrationExecution({
-    claimed: claim.value,
-    claimedVersion: claim.version,
-    outcome: terminal.ok
-      ? { kind: 'completed', result: terminal.value }
-      : { kind: 'failed', failure: terminal },
+  const terminal = routerAbEd25519YaoRegistrationResultFromRouterAnswerV1({
+    backend: input.backend,
+    authority,
+    request,
+    answer: backend,
   });
-  const d1TerminalCommitMs = elapsedMs(terminalCommitStartedAt);
-  const timing = {
-    ...timingBeforeRouter,
-    routerExecutionMs,
-    routerServerTiming,
-    resultReconstructionMs,
-    d1TerminalCommitMs,
-  };
-  if (committed.kind === 'uncertain') {
-    return timedExecutionResult(
-      {
-        ok: false,
-        status: 503,
-        code: 'execution_failed',
-        message: 'registration execution terminal persistence is uncertain',
-      },
-      timing,
-    );
-  }
-  return timedExecutionResult(
-    isRegistrationFailure(committed.value)
-      ? committed.value
-      : { ok: true, status: 200, value: committed.value },
-    timing,
-  );
+  return timedExecutionResult(terminal, {
+    ...routerTiming,
+    resultReconstructionMs: elapsedMs(reconstructionStartedAt),
+  });
 }
 
 function elapsedMs(startedAt: number): number {
@@ -372,70 +384,28 @@ function timedExecutionResult(
   return { result, timing };
 }
 
-function completeClaimedExecution(
-  backendAdapter: RouterAbEd25519YaoRegistrationBackend,
-  claimed: Extract<
-    Awaited<
-      ReturnType<
-        RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1['claimRegistrationExecution']
-      >
-    >,
-    { readonly kind: 'claimed' }
-  >['value'],
-  request: RouterAbEd25519YaoRegistrationExecuteRequestV1,
-  backend: RouterAbEd25519YaoRegistrationBackendResult,
-): RouterAbEd25519YaoRegistrationServiceResult<RouterAbEd25519YaoRegistrationResultV1> {
-  const state = new InMemoryRouterAbEd25519YaoRegistrationStateV1();
-  const sessionKey = bytesToHex(claimed.admissionReceipt.binding.session_id);
-  state.states.set(sessionKey, {
-    kind: 'admitted',
-    admissionRequest: claimed.admissionRequest,
-    admissionReceipt: claimed.admissionReceipt,
-  });
-  state.lifecycleSessions.set(claimed.lifecycleId, sessionKey);
-  const service = new InMemoryRouterAbEd25519YaoRegistrationService(backendAdapter, state);
-  const prepared = service.prepareExecute(request);
-  if (prepared.kind !== 'claimed') {
-    throw new Error('claimed Yao registration execution could not be reconstructed');
-  }
-  return service.commitExecute({
-    request,
-    claim: prepared.claim,
-    outcome: { kind: 'backend_response', result: backend },
-  });
-}
+type ExecutionRefusalCode =
+  | 'unknown_registration'
+  | 'binding_mismatch'
+  | 'credential_rejected'
+  | 'credential_expired'
+  | 'execution_in_progress';
 
-function executionClaimFailure(
-  claim: Extract<
-    Awaited<
-      ReturnType<
-        RouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1['claimRegistrationExecution']
-      >
-    >,
-    { readonly kind: 'rejected' }
-  >,
+function executionRefusal(
+  code: ExecutionRefusalCode,
+  message: string,
 ): AuthorizationFailure | RouterAbEd25519YaoRegistrationFailure {
-  switch (claim.code) {
+  switch (code) {
     case 'unknown_registration':
-      return { ok: false, status: 404, code: 'unknown_registration', message: claim.message };
+      return { ok: false, status: 404, code: 'unknown_registration', message };
     case 'binding_mismatch':
-      return { ok: false, status: 409, code: 'binding_mismatch', message: claim.message };
+      return { ok: false, status: 409, code: 'binding_mismatch', message };
     case 'credential_rejected':
-      return {
-        ok: false,
-        status: 403,
-        code: 'registration_intent_subject_mismatch',
-        message: claim.message,
-      };
+      return { ok: false, status: 403, code: 'registration_intent_subject_mismatch', message };
     case 'credential_expired':
-      return {
-        ok: false,
-        status: 403,
-        code: 'registration_intent_credential_expired',
-        message: claim.message,
-      };
+      return { ok: false, status: 403, code: 'registration_intent_credential_expired', message };
     case 'execution_in_progress':
-      return { ok: false, status: 409, code: 'execution_in_progress', message: claim.message };
+      return { ok: false, status: 409, code: 'execution_in_progress', message };
   }
 }
 
@@ -547,11 +517,9 @@ function registrationResultResponse(
 function registrationExecutionServerTiming(timing: RegistrationExecutionTimingV1): string {
   const gatewayTiming = [
     serverTimingMetric('yao_credential_digest', timing.credentialDigestMs),
-    serverTimingMetric('yao_request_digest', timing.requestDigestMs),
-    serverTimingMetric('yao_d1_claim', timing.d1ClaimMs),
+    serverTimingMetric('yao_d1_admission_read', timing.d1AdmissionReadMs),
     serverTimingMetric('yao_router_execution', timing.routerExecutionMs),
     serverTimingMetric('yao_result_reconstruction', timing.resultReconstructionMs),
-    serverTimingMetric('yao_d1_terminal_commit', timing.d1TerminalCommitMs),
   ];
   if (timing.routerServerTiming) gatewayTiming.push(timing.routerServerTiming);
   return gatewayTiming.join(', ');

@@ -1696,7 +1696,7 @@ pub fn load_local_deriver_tenant_root_role_share_v1(
 // Storage and helpers
 // ---------------------------------------------------------------------------
 
-fn open_sqlite(path: &Path) -> RouterAbProtocolResult<Connection> {
+pub(crate) fn open_sqlite(path: &Path) -> RouterAbProtocolResult<Connection> {
     let connection = Connection::open(path).map_err(sqlite_error)?;
     connection
         .execute_batch("PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;")
@@ -1722,7 +1722,7 @@ fn b64u(bytes: &[u8]) -> String {
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
 }
 
-fn sqlite_error(error: rusqlite::Error) -> RouterAbProtocolError {
+pub(crate) fn sqlite_error(error: rusqlite::Error) -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
         format!("tenant-root SQLite failed: {error}"),

@@ -229,11 +229,11 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
         Ok(trace_id) => trace_id,
         Err(error) => return protocol_error_response(error),
     };
-    let replay = match parse_router_replay_header(&request) {
+    let mut replay = match parse_router_replay_header(&request) {
         Ok(replay) => replay,
         Err(error) => return protocol_error_response(error),
     };
-    let gateway_envelope = match request
+    let mut gateway_envelope = match request
         .json::<CloudflareRouterEd25519YaoExecuteRequestV2>()
         .await
     {
@@ -247,6 +247,48 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     };
     if let Err(error) = gateway_envelope.validate() {
         return protocol_error_response(error);
+    }
+    // A registration is claimed in the Router's wallet object before it runs.
+    // The claim decides whether this run replays, and an exact retry of a
+    // finished run gets the recorded answer. The run records its answer under
+    // the claim generation it holds.
+    let registration = match crate::RouterWalletRegistrationV1::from_request(&gateway_envelope) {
+        Ok(registration) => registration,
+        Err(error) => return protocol_error_response(error),
+    };
+    let mut claimed = None;
+    if let Some(registration) = registration {
+        if replay {
+            return protocol_error_response(crate::router_wallet_registration_replay_refused_v1());
+        }
+        let claim = match cloudflare_now_unix_ms_v1().and_then(|now_ms| {
+            crate::parse_router_yao_registration_lease_ms_v1(&CloudflareWorkerEnvReaderV1::new(env))
+                .map(|lease_ms| registration.claim(now_ms, lease_ms))
+        }) {
+            Ok(claim) => claim,
+            Err(error) => return protocol_error_response(error),
+        };
+        match crate::durable_object::call_router_wallet_v1(env, &claim).await {
+            Ok(crate::RouterWalletResponseV1::Run {
+                request_json,
+                replay: takes_over,
+                generation,
+            }) => {
+                gateway_envelope = match serde_json::from_str(&request_json) {
+                    Ok(pinned) => pinned,
+                    Err(error) => {
+                        return protocol_error_response(RouterAbProtocolError::new(
+                            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                            format!("Router wallet object pinned an unreadable request: {error}"),
+                        ))
+                    }
+                };
+                replay = takes_over;
+                claimed = Some((registration, generation));
+            }
+            Ok(answer) => return router_wallet_answer_response(answer),
+            Err(error) => return protocol_error_response(error),
+        }
     }
     let CloudflareRouterEd25519YaoExecuteRequestV2 {
         tenant_root,
@@ -287,10 +329,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
             trace_id,
         )
         .await;
-        return match result {
-            Ok(result) => Response::from_json(&result),
-            Err(error) => protocol_error_response(error),
-        };
+        return finish_router_execution_response(env, claimed.as_ref(), result).await;
     }
     let tenant_root = match resolve_ed25519_yao_tenant_root_context_v2(
         env,
@@ -333,14 +372,102 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
         started_at_ms,
         if result.is_ok() { "success" } else { "failure" },
     );
-    let response = match result {
-        Ok(result) => Response::from_json(&result)?,
-        Err(error) => protocol_error_response(error)?,
-    };
+    let response = finish_router_execution_response(env, claimed.as_ref(), result).await?;
     response
         .headers()
         .set("Server-Timing", &timing.server_timing())?;
     Ok(response)
+}
+
+/// Answers one run. A registration's terminal answer is recorded in the
+/// Router's wallet object under the claim generation the run holds, and the
+/// recorded answer is the one sent. A run whose lapsed claim another run took
+/// over is answered that the execution is in progress. A recoverable answer
+/// leaves the claim to lapse.
+async fn finish_router_execution_response(
+    env: &Env,
+    claimed: Option<&(crate::RouterWalletRegistrationV1, u64)>,
+    result: RouterAbProtocolResult<RouterEd25519YaoExecuteResultV1>,
+) -> worker::Result<Response> {
+    let result = match result {
+        Ok(result) => result,
+        Err(error) => return protocol_error_response(error),
+    };
+    let Some((registration, generation)) = claimed else {
+        return Response::from_json(&result);
+    };
+    let finish = match cloudflare_now_unix_ms_v1()
+        .and_then(|now_ms| registration.finish(&result, *generation, now_ms))
+    {
+        Ok(Some(finish)) => finish,
+        Ok(None) => return Response::from_json(&result),
+        Err(error) => return protocol_error_response(error),
+    };
+    match crate::durable_object::call_router_wallet_v1(env, &finish).await {
+        Ok(answer) => router_wallet_answer_response(answer),
+        Err(error) => protocol_error_response(error),
+    }
+}
+
+/// The Router's answer from its wallet object's response to a registration
+/// claim or finish.
+fn router_wallet_answer_response(answer: crate::RouterWalletResponseV1) -> worker::Result<Response> {
+    let result = match answer {
+        crate::RouterWalletResponseV1::Answered { response_json } => {
+            let response = Response::ok(response_json)?;
+            response.headers().set("content-type", "application/json")?;
+            return Ok(response);
+        }
+        crate::RouterWalletResponseV1::InProgress { retry_after_ms } => {
+            RouterEd25519YaoExecuteResultV1::recoverable(
+                router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::ExecutionInProgress,
+                retry_after_ms,
+            )
+        }
+        crate::RouterWalletResponseV1::Mismatch => Ok(RouterEd25519YaoExecuteResultV1::rejected(
+            router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::ExecutionMismatch,
+        )),
+        _ => Err(invalid_coordinator(
+            "Router wallet object answered a registration execute with another command's response",
+        )),
+    };
+    match result {
+        Ok(result) => Response::from_json(&result),
+        Err(error) => protocol_error_response(error),
+    }
+}
+
+/// Consumes one completed registration's activation for one finalization, in
+/// the Router's wallet object.
+pub async fn handle_cloudflare_router_ed25519_yao_registration_consume_private_fetch_v1(
+    mut request: Request,
+    env: &Env,
+) -> worker::Result<Response> {
+    if request.method() != Method::Post {
+        return Response::error("Router registration consume route requires POST", 405);
+    }
+    if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
+        return crate::cloudflare_private_service_auth_error_response_v1(error);
+    }
+    let consume = match request
+        .json::<crate::CloudflareRouterEd25519YaoRegistrationConsumeRequestV1>()
+        .await
+    {
+        Ok(consume) => consume,
+        Err(error) => {
+            return protocol_error_response(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("Router registration consume request JSON is malformed: {error}"),
+            ))
+        }
+    };
+    if let Err(error) = consume.tenant_root.resolve() {
+        return protocol_error_response(error);
+    }
+    match crate::durable_object::call_router_wallet_v1(env, &consume.into_wallet_request()).await {
+        Ok(response) => Response::from_json(&response),
+        Err(error) => protocol_error_response(error),
+    }
 }
 
 /// Handles one authenticated source-preserving target registration.

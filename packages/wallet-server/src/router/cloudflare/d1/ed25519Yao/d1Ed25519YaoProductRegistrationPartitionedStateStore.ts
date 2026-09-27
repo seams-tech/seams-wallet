@@ -27,10 +27,7 @@ export function createRouterAbEd25519YaoProductRegistrationPartitionedStateStore
     readMany: records.readMany.bind(records),
     putMany: records.putMany.bind(records),
   };
-  return createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1(
-    store,
-    records.patchAtomically.bind(records),
-  );
+  return createRouterAbEd25519YaoProductRegistrationPartitionedStateStoreV1(store);
 }
 
 function identityVersionedJsonObject(value: VersionedJsonObject): VersionedJsonObject {

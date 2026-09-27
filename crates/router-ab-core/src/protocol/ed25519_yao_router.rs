@@ -1308,6 +1308,11 @@ pub enum RouterEd25519YaoExecuteFailureCodeV1 {
     TerminalRoleFailure,
     /// The admitted authority was rejected at the Router boundary.
     AuthorizationRejected,
+    /// Another run holds this registration's execution until its lease
+    /// lapses; an exact retry after it replays the run.
+    ExecutionInProgress,
+    /// Another request already owns this registration's execution.
+    ExecutionMismatch,
 }
 
 /// Reason an activated execution identity is permanently burned.

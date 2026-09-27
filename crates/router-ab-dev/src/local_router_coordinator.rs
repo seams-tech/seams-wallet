@@ -1,7 +1,9 @@
 use router_ab_cloudflare::{
     CloudflareEd25519YaoPairExecuteRequestV1, CloudflareEd25519YaoPairExecuteResponseV1,
     CloudflareEd25519YaoPairLookupRequestV1, CloudflareEd25519YaoPairPrepareRequestV1,
-    CloudflareEd25519YaoPairStatusResponseV1,
+    CloudflareEd25519YaoPairStatusResponseV1, CloudflareRouterEd25519YaoExecuteRequestV2,
+    CloudflareRouterEd25519YaoRegistrationConsumeRequestV1, RouterWalletRegistrationV1,
+    RouterWalletResponseV1,
 };
 use router_ab_core::{
     ed25519_yao_recipient_set_digest_v1, Ed25519YaoCeremonyBindingV1, Ed25519YaoDeriverRoleV1,
@@ -60,7 +62,98 @@ pub struct LocalRouterEd25519YaoCoordinatorV1 {
 }
 
 impl LocalRouterEd25519YaoCoordinatorV1 {
+    /// Answers one Gateway execute request with the Router's JSON answer. A
+    /// registration is claimed in the Router's wallet object first, and its
+    /// terminal answer recorded there, under the claim generation the run
+    /// holds, before the reply: an exact retry gets that answer, byte for
+    /// byte, and a retry after a claim's lease lapses takes the claim over and
+    /// replays the run on the request the claim pinned. A run whose claim was
+    /// taken over is answered that the execution is in progress.
     fn execute(
+        &self,
+        config: &LocalRouterWorkerConfigV1,
+        body: &[u8],
+        replay: bool,
+    ) -> RouterAbProtocolResult<String> {
+        let envelope = serde_json::from_slice::<CloudflareRouterEd25519YaoExecuteRequestV2>(body)
+            .map_err(|error| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::MalformedWirePayload,
+                    format!("local Router Ed25519 Yao execute request is malformed: {error}"),
+                )
+            })?;
+        let Some(registration) = RouterWalletRegistrationV1::from_request(&envelope)? else {
+            return answer_json(&self.run_execution(config, body, replay)?);
+        };
+        if replay {
+            return Err(router_ab_cloudflare::router_wallet_registration_replay_refused_v1());
+        }
+        let storage_path = &config.tenant_root.creation_storage_path;
+        let answer = match crate::local_router_wallet::serve_local_router_wallet_v1(
+            storage_path,
+            registration.claim(
+                local_now_ms_v1()?,
+                router_ab_cloudflare::parse_router_yao_registration_lease_ms_v1(
+                    &config.tenant_root.env,
+                )?,
+            ),
+        )? {
+            RouterWalletResponseV1::Run {
+                request_json,
+                replay,
+                generation,
+            } => {
+                let result = self.run_execution(config, request_json.as_bytes(), replay)?;
+                let Some(finish) = registration.finish(&result, generation, local_now_ms_v1()?)?
+                else {
+                    return answer_json(&result);
+                };
+                crate::local_router_wallet::serve_local_router_wallet_v1(storage_path, finish)?
+            }
+            answer => answer,
+        };
+        match answer {
+            RouterWalletResponseV1::Answered { response_json } => Ok(response_json),
+            RouterWalletResponseV1::InProgress { retry_after_ms } => {
+                answer_json(&RouterEd25519YaoExecuteResultV1::recoverable(
+                    RouterEd25519YaoExecuteFailureCodeV1::ExecutionInProgress,
+                    retry_after_ms,
+                )?)
+            }
+            RouterWalletResponseV1::Mismatch => {
+                answer_json(&RouterEd25519YaoExecuteResultV1::rejected(
+                    RouterEd25519YaoExecuteFailureCodeV1::ExecutionMismatch,
+                ))
+            }
+            _ => Err(coordinator_error(
+                "Router wallet object answered a registration execute with another command's response",
+            )),
+        }
+    }
+
+    /// Consumes one completed registration's activation for one finalization.
+    fn consume_registration(
+        &self,
+        config: &LocalRouterWorkerConfigV1,
+        body: &[u8],
+    ) -> RouterAbProtocolResult<RouterWalletResponseV1> {
+        let request = serde_json::from_slice::<CloudflareRouterEd25519YaoRegistrationConsumeRequestV1>(
+            body,
+        )
+        .map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("local Router registration consume request is malformed: {error}"),
+            )
+        })?;
+        request.tenant_root.resolve()?;
+        crate::local_router_wallet::serve_local_router_wallet_v1(
+            &config.tenant_root.creation_storage_path,
+            request.into_wallet_request(),
+        )
+    }
+
+    fn run_execution(
         &self,
         config: &LocalRouterWorkerConfigV1,
         body: &[u8],
@@ -75,8 +168,8 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
             &config.tenant_root,
         )?;
         request.authority.validate_at(now_ms)?;
-        // Only an explicit Gateway replay reconciles a prior run before
-        // preparing; a first dispatch goes straight to pair preparation.
+        // Only a run that took over a lapsed claim reconciles a prior run
+        // before preparing; a first run goes straight to pair preparation.
         if replay {
             if let Some(replayed) = self.reconcile_completed_registration(
                 config,
@@ -640,6 +733,18 @@ impl LocalRouterRequestDispatcherV1 for LocalRouterEd25519YaoCoordinatorV1 {
                 )?)),
             };
         }
+        if request.path
+            == router_ab_cloudflare::CLOUDFLARE_ROUTER_ED25519_YAO_REGISTRATION_CONSUME_PRIVATE_REQUEST_PATH
+        {
+            return match self.consume_registration(config, &request.body) {
+                Ok(response) => Ok(Some((200, serde_json::to_string(&response)?))),
+                Err(error) => Ok(Some(local_dev_http_route_error_v1(
+                    LocalServiceRoleV1::Router,
+                    &request.path,
+                    error,
+                )?)),
+            };
+        }
         if request.path != LOCAL_ROUTER_ED25519_YAO_EXECUTE_PATH {
             if request.path != LOCAL_ROUTER_ED25519_YAO_RECOVERY_PROMOTE_PATH {
                 return Ok(None);
@@ -666,7 +771,7 @@ impl LocalRouterRequestDispatcherV1 for LocalRouterEd25519YaoCoordinatorV1 {
             }
         };
         match self.execute(config, &request.body, replay) {
-            Ok(result) => Ok(Some((200, serde_json::to_string(&result)?))),
+            Ok(body) => Ok(Some((200, body))),
             Err(error) => Ok(Some(local_dev_http_route_error_v1(
                 LocalServiceRoleV1::Router,
                 &request.path,
@@ -674,6 +779,15 @@ impl LocalRouterRequestDispatcherV1 for LocalRouterEd25519YaoCoordinatorV1 {
             )?)),
         }
     }
+}
+
+fn answer_json(result: &RouterEd25519YaoExecuteResultV1) -> RouterAbProtocolResult<String> {
+    serde_json::to_string(result).map_err(|error| {
+        RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::InvalidLifecycleState,
+            format!("Router Yao execute answer is not encodable: {error}"),
+        )
+    })
 }
 
 fn validate_recovery_promotion_receipt(

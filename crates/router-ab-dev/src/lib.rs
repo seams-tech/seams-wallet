@@ -50,6 +50,7 @@ mod local_ed25519_yao_stream;
 mod local_ed25519_yao_worker;
 mod local_router_ab_ecdsa;
 mod local_router_coordinator;
+mod local_router_wallet;
 mod local_router_ed25519_yao_http;
 mod local_router_normal_signing;
 mod local_service_http;

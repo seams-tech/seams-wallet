@@ -14,6 +14,7 @@ type MapValue<T> = T extends Map<string, infer Value> ? Value : never;
 
 type RegistrationLifecycleState = MapValue<InMemoryRouterAbEd25519YaoRegistrationStateV1['states']>;
 type RegistrationAdmissionClaim = RouterAbEd25519YaoRegistrationAdmissionClaimV1;
+type RegistrationDispatchRoot = MapValue<InMemoryRouterAbEd25519YaoRegistrationStateV1['dispatchRoots']>;
 type RegistrationIntentAuthority =
   InMemoryRouterAbEd25519YaoRegistrationIntentAuthorizationStateV1['authorities'][number];
 type RecoveryCapabilityState = MapValue<InMemoryRouterAbEd25519YaoRecoveryStateV1['capabilities']>;
@@ -38,6 +39,7 @@ export type RouterAbEd25519YaoProductRegistrationCeremonyStateV1 = {
     readonly states: ReadonlyMap<string, RegistrationLifecycleState>;
     readonly lifecycleSessions: ReadonlyMap<string, string>;
     readonly admissionClaims: ReadonlyMap<string, RegistrationAdmissionClaim>;
+    readonly dispatchRoots: ReadonlyMap<string, RegistrationDispatchRoot>;
   };
   readonly authorization: {
     readonly authorities: readonly RegistrationIntentAuthority[];
@@ -107,6 +109,10 @@ export function partitionRouterAbEd25519YaoProductRegistrationStateV1(
           state.registration.admissionClaims,
           normalizedLifecycleId,
         ),
+        dispatchRoots: selectMapLifecycleEntry(
+          state.registration.dispatchRoots,
+          normalizedLifecycleId,
+        ),
       },
       authorization: {
         authorities: state.authorization.authorities.filter(
@@ -151,6 +157,11 @@ export function mergeRouterAbEd25519YaoProductRegistrationStatePartitionV1(
   for (const [key, value] of partition.ceremony.registration.admissionClaims) {
     admissionClaims.set(key, value);
   }
+  const dispatchRoots = new Map(base.registration.dispatchRoots);
+  dispatchRoots.delete(lifecycleId);
+  for (const [key, value] of partition.ceremony.registration.dispatchRoots) {
+    dispatchRoots.set(key, value);
+  }
 
   const authorities = base.authorization.authorities.filter(
     (authority) => authorityLifecycleId(authority) !== lifecycleId,
@@ -175,6 +186,7 @@ export function mergeRouterAbEd25519YaoProductRegistrationStatePartitionV1(
       states: registrationStates,
       lifecycleSessions,
       admissionClaims: new Map(admissionClaims),
+      dispatchRoots,
     },
     authorization: { authorities },
     recovery: {

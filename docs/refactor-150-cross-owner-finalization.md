@@ -1,10 +1,116 @@
 # R150 cross-owner Yao finalization, recovery and export
 
-Status: proposal for review. Nothing here is implemented. Until it is
-approved, the Yao ceremony and execution partitions stay in Gateway D1 next to
-the tenant-wide `router-ab-ed25519-yao:shared` record. The current atomic unit
-is unchanged: the batch that installs a capability into the shared record and
-advances the lifecycle record.
+Status: slice 1 implemented (2026-09-27, see below): the Router owns each
+registration's execution record. The decision row and the later slices are
+proposals. Until each lands, its records stay in Gateway D1 next to the
+tenant-wide `router-ab-ed25519-yao:shared` record, and the current atomic
+unit is unchanged: the batch that installs a capability into the shared
+record and advances the lifecycle record.
+
+## Code check and slices (2026-09-27)
+
+A second code check changes the plan's order and settles where the Router's
+side runs.
+
+- **Who runs this code today.** Every Yao ceremony and execution record is
+  read and written by TypeScript in the Wallet Gateway
+  (`packages/wallet-server`), on Workers and on the VM's Node Gateway. The
+  Rust Router, Worker or VM process, never touched them. At this check
+  nothing here was implemented: no decision table, no `finalizing` state,
+  and no Router wallet object. Slice 1 has since added the Router wallet
+  object.
+- **The Router is the Router role.** The [ownership
+  map](./refactor-150-state-ownership-map.md) names five owners, Gateway,
+  Router, A, B and SigningWorker, and says the Router claims the protocol
+  operation. That is the Rust Router Worker, with Router SQLite on the VM,
+  as the Derivers' and SigningWorker's wallet objects live in their own
+  Workers. A TypeScript object inside the Gateway deployment would be the
+  Gateway's storage under another name.
+- **The execution record moves first, alone.** It is registration's and
+  add-signer's only; recovery and export never touch it. Its consumption is
+  already its own transaction today, so moving it splits no atomic unit and
+  needs no decision row.
+- **The ceremony partition stays in Gateway D1 for now.** Capability
+  install, recovery admission's suspension and sessions, promotion, and the
+  export nonce and uncertain set each commit it with the tenant-wide shared
+  record. Moving it would split every one of those; each would first need
+  its own cross-owner protocol.
+- **Corrections to the section below.**
+  - Add-signer finalizes the same way as registration: it consumes the
+    activation, writes the signer, then installs the capability. The
+    protocol covers it as well.
+  - Recovery's terminal batch is written by the two-phase runner after
+    `replaceActiveCapability`, not by `commitActivateRecovery` itself.
+    Recovery admission also writes the shared record: it suspends the active
+    capability and records a recovery session. No decision kind covers
+    those writes yet.
+
+### Slice 1: the Router owns the execution record
+
+- **Split.** The Gateway keeps admission: the ceremony's admitted state,
+  the intent credential and its expiry, and the tenant root the
+  registration dispatches to, all checked before it calls the Router. The
+  Router's wallet object keeps what the Router decides: the claim of the
+  execution, its lease, generation and replay, the exact request it pinned,
+  the terminal outcome, and the first consumer binding.
+- **One call per execution.** The Gateway calls the Router's execute once.
+  The Router claims in its wallet object, runs the ceremony, and records a
+  terminal outcome before it answers. An exact retry gets the stored
+  outcome. While a claim's lease is live, a retry is told the execution is
+  in progress. After it, a retry takes the claim over and replays on the
+  pinned request. A different request for the same lifecycle is refused.
+- **Claim generations.** Each claim has a generation, and a takeover starts
+  the next one. A run records its terminal outcome only while it holds the
+  current generation. A run that resumes after another took its lapsed claim
+  over is told the execution is in progress, and records nothing; the
+  current holder records the outcome.
+- **The dispatch root is pinned at admission.** The Gateway resolves the
+  active tenant root once, when it admits a fresh registration, and pins it
+  in the ceremony record with the admission. Every execute and consumption
+  of the lifecycle sends that root and never looks the active root up again,
+  so a completed execution's answer and its consumption do not depend on
+  the root still being active. The Gateway still authenticates each call
+  (the intent credential's digest and expiry, the admitted binding) and
+  checks the pinned root against the admission's signing root and version.
+  The Router checks the root for every new run.
+- **Consumption.** Finalization and add-signer consume the activation at
+  the Router: the first consumer binding wins, and the same binding
+  replays.
+- **Hosts.** Workers: a Router wallet Durable Object, named like Deriver B's
+  by organization, project, environment and wallet. VM: the same records in
+  the Router's SQLite. The transitions are shared Rust over both.
+
+**Evidence (2026-09-27).**
+
+- VM, `crates/router-ab-dev/tests/local_worker_http.rs`:
+  - `vm_router_run_that_lost_its_claim_cannot_record_its_answer`: a run
+    paused after both Derivers completed its pair loses its one-second claim
+    to an exact retry (generation 2), which is paused reading Deriver B's
+    pair status. The first run resumes, is told `execution_in_progress`, and
+    the claim stays generation 2's. The takeover run records its answer, and
+    an exact retry gets it byte for byte.
+  - `vm_router_owns_each_registration_execution_and_its_consumption`, and the
+    four tenant-root tests that register a fresh lifecycle for each
+    registration.
+- Workers private harness, stamped dev builds: role-store
+  `replay-after-erasure`, `admission-races` and
+  `refresh-after-managed-restore`; wallet-object
+  `do-historical-starting-replay`, `do-pair-lost-reply`,
+  `do-pair-b-burn-before-complete` and `do-historical-replay`.
+- Real Gateway: the five `passkey.ed25519-yao-local` contracts pass on
+  Workers and on the VM.
+- Harness corrections found on the way. The wallet-object modes read Deriver
+  B's pairs and the SigningWorker's activations from D1, which that build no
+  longer writes. B's pairs are now read through B's own status route. The
+  historical replay's two subtests that edited SigningWorker D1 rows
+  (missing and revoked output) are removed until they can act on the
+  SigningWorker's wallet object.
+
+### Later slices
+
+1. The decision row for registration and add-signer finalization.
+2. Recovery promotion.
+3. Export.
 
 ## Current behavior (code-checked 2026-09-25)
 
@@ -54,7 +160,8 @@ then records nonce replay in the shared record.
 
 | Fact | Authority after this change |
 | --- | --- |
-| Ceremony partition, execution record, claim lease, terminal outcome, `consumerBinding` | Router wallet DO (VM: Router SQLite for that wallet) |
+| Execution record: claim lease and generation, pinned request, terminal outcome, `consumerBinding` | Router wallet DO (VM: Router SQLite for that wallet); slice 1 |
+| Ceremony partition: admission, intent credential, pinned dispatch root | Gateway D1 until its own slice (see above) |
 | Recovery capability index, identity index, recovery sessions, export nonces | Gateway shared D1 (unchanged) |
 | Public wallet identity, signer projection, authority, sessions, custody envelope | Gateway D1 (unchanged) |
 | Finalization decision per lifecycle | Gateway shared D1: a new decision row (below) |

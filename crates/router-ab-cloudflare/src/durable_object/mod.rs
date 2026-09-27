@@ -26,6 +26,12 @@ mod deriver_a_pair;
 mod deriver_b_pair;
 #[cfg(feature = "workers-rs")]
 mod ecdsa_presign_live_session;
+#[cfg(feature = "workers-rs")]
+mod router_wallet;
+#[cfg(feature = "workers-rs")]
+pub(crate) use router_wallet::call_router_wallet_v1;
+#[cfg(feature = "workers-rs")]
+pub use router_wallet::RouterAbRouterWalletDurableObject;
 #[cfg(all(feature = "workers-rs", feature = "wallet-do-signing-worker-harness"))]
 mod signing_worker_wallet;
 #[cfg(all(

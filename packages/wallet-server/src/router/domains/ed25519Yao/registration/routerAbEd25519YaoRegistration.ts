@@ -26,7 +26,10 @@ import type {
   RouterApiFetchRouteExtensionInput,
   RouterApiRouteExtension,
 } from '../../../framework/routeExtensions';
-import type { RouterAbEd25519YaoRegistrationExecuteAdmissionContextV1 } from '../routerAbEd25519YaoGatewayEnvelope';
+import type {
+  RouterAbEd25519YaoRegistrationExecuteAdmissionContextV1,
+  RouterAbEd25519YaoTenantRootWireV1,
+} from '../routerAbEd25519YaoGatewayEnvelope';
 
 type RouterAbEd25519YaoRegistrationAdmissionReceiptV1 =
   RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
@@ -262,6 +265,8 @@ export class InMemoryRouterAbEd25519YaoRegistrationStateV1 {
   readonly states = new Map<string, RegistrationLifecycleState>();
   readonly lifecycleSessions = new Map<string, string>();
   readonly admissionClaims = new Map<string, RouterAbEd25519YaoRegistrationAdmissionClaimV1>();
+  /** The tenant root each admitted lifecycle dispatches to, pinned at admission. */
+  readonly dispatchRoots = new Map<string, RouterAbEd25519YaoTenantRootWireV1>();
 }
 
 export type RouterAbEd25519YaoActivationReferenceV1 = {

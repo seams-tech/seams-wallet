@@ -70,6 +70,7 @@ import {
   type RouterAbEd25519YaoExportService,
 } from '../export/routerAbEd25519YaoExport';
 import { isPlainObject } from '@shared/utils/validation';
+import { parseRouterAbEd25519YaoTenantRootWireV1 } from '../routerAbEd25519YaoGatewayEnvelope';
 import { DEFAULT_WALLET_SESSION_REMAINING_USES } from '@shared/threshold/sessionPolicy';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 
@@ -260,6 +261,18 @@ function isStringMap(input: unknown): input is Map<string, string> {
   return true;
 }
 
+function isDispatchRootMap(
+  input: unknown,
+): input is InMemoryRouterAbEd25519YaoRegistrationStateV1['dispatchRoots'] {
+  if (!(input instanceof Map)) return false;
+  for (const [key, value] of input) {
+    if (typeof key !== 'string' || parseRouterAbEd25519YaoTenantRootWireV1(value) === null) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function isStringSet(input: unknown): input is Set<string> {
   if (!(input instanceof Set)) return false;
   for (const value of input) {
@@ -293,6 +306,7 @@ function hasProductStateCollections(
         registration.admissionClaims,
         REGISTRATION_ADMISSION_CLAIM_KINDS,
       )) &&
+    isDispatchRootMap(registration.dispatchRoots) &&
     Array.isArray(authorization.authorities) &&
     authorization.authorities.every(
       (authority) => isPlainObject(authority) && INTENT_AUTHORITY_KINDS.has(String(authority.kind)),
@@ -338,6 +352,7 @@ export function parseRouterAbEd25519YaoProductRegistrationStateV1(
         states: registration.states,
         lifecycleSessions: registration.lifecycleSessions,
         admissionClaims,
+        dispatchRoots: registration.dispatchRoots,
       },
       authorization: input.authorization,
       recovery: input.recovery,
