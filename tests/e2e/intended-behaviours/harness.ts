@@ -136,6 +136,12 @@ const GOOGLE_ID_TOKEN_ACTIONS: ReadonlySet<IntendedHarnessAction> = new Set([
   'unlockEmailOtpWallet',
 ]);
 
+/** Test hooks into one signing action's lifecycle. */
+type IntendedSigningActionHooks = {
+  /** Runs as soon as the page reports the action started. */
+  readonly onActionStarted?: () => void;
+};
+
 type TraceEntry = {
   atMs: number;
   kind: 'stage' | 'console' | 'pageerror' | 'request' | 'requestfailed' | 'response' | 'service';
@@ -2755,6 +2761,88 @@ export class IntendedBehaviourHarness {
     );
   }
 
+  /** Resolves once the trace holds a console message containing `fragment`. */
+  async waitForTraceConsoleMessage(fragment: string, timeoutMs = 30_000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (
+        this.trace.some((entry) => entry.kind === 'console' && entry.message.includes(fragment))
+      ) {
+        return;
+      }
+      await this.page.waitForTimeout(10);
+    }
+    throw new Error(`The trace did not log ${fragment} within ${timeoutMs} ms`);
+  }
+
+  /**
+   * Holds every Wallet Session status answer until released. The Gateway
+   * answers each request when it arrives; only the answer's delivery to the
+   * wallet waits.
+   */
+  async holdWalletSessionStatusAnswers(): Promise<{
+    readonly heldCount: () => number;
+    readonly release: () => void;
+    readonly dispose: () => Promise<void>;
+  }> {
+    const statusPath = '/wallet/session/status';
+    /* The status route needs the wallet's Origin, which Playwright's
+       provisional headers may leave out of a forwarded request. */
+    const origin = new URL(this.config.walletOrigin).origin;
+    let holding = true;
+    let held = 0;
+    let releaseAll: () => void = () => undefined;
+    const released = new Promise<void>((resolve) => {
+      releaseAll = resolve;
+    });
+    const handler = async (route: Route): Promise<void> => {
+      const request = route.request();
+      if (
+        !holding ||
+        request.method() !== 'POST' ||
+        new URL(request.url()).pathname !== statusPath
+      ) {
+        await route.fallback();
+        return;
+      }
+      const response = await route.fetch({ headers: { ...request.headers(), origin } });
+      held += 1;
+      await released;
+      await route.fulfill({ response });
+    };
+    await this.context.route(`**${statusPath}`, handler);
+    const release = (): void => {
+      holding = false;
+      releaseAll();
+    };
+    return {
+      heldCount: () => held,
+      release,
+      dispose: async () => {
+        release();
+        await this.context.unroute(`**${statusPath}`, handler);
+      },
+    };
+  }
+
+  /**
+   * Holds a read-write transaction on one of the wallet's IndexedDB stores, in
+   * the wallet's frame, until released. Every transaction made meanwhile that
+   * touches the store waits behind it, and they run in the order they were
+   * made.
+   */
+  async holdWalletIndexedDbStore(
+    storeName: string,
+  ): Promise<{ readonly release: () => Promise<void> }> {
+    const frame = await walletServiceFrame(this.page, this.config.walletOrigin);
+    await frame.evaluate(startHeldWalletStore, storeName);
+    return {
+      release: async () => {
+        await frame.evaluate(releaseHeldWalletStore);
+      },
+    };
+  }
+
   async awaitNearReady(): Promise<void> {
     this.recordStage('near.await_ready');
     const registration = this.requireRegisteredWalletForSigning();
@@ -3746,12 +3834,16 @@ export class IntendedBehaviourHarness {
     this.reloadIntendedPageBeforeNextAction = false;
   }
 
-  async signTempoTransaction(stage: IntendedSigningStage): Promise<SigningAuthEventSummary> {
+  async signTempoTransaction(
+    stage: IntendedSigningStage,
+    options: IntendedSigningActionHooks = {},
+  ): Promise<SigningAuthEventSummary> {
     this.recordStage(`${stage}:tempo.sign`);
     const registration = this.requireRegisteredWalletForSigning();
     const snapshot = await this.runIntendedPageAction(
       'signTempoTransaction',
       'intended-sign-tempo',
+      options,
     );
     const result = requireTempoSigningResult(snapshot, {
       walletId: this.walletId,
@@ -3769,12 +3861,16 @@ export class IntendedBehaviourHarness {
     return summary;
   }
 
-  async signArcEvmTransaction(stage: IntendedSigningStage): Promise<SigningAuthEventSummary> {
+  async signArcEvmTransaction(
+    stage: IntendedSigningStage,
+    options: IntendedSigningActionHooks = {},
+  ): Promise<SigningAuthEventSummary> {
     this.recordStage(`${stage}:arc_evm.sign`);
     const registration = this.requireRegisteredWalletForSigning();
     const snapshot = await this.runIntendedPageAction(
       'signArcEvmTransaction',
       'intended-sign-arc-evm',
+      options,
     );
     const result = requireArcEvmSigningResult(snapshot, {
       walletId: this.walletId,
@@ -4370,6 +4466,8 @@ export class IntendedBehaviourHarness {
       nearAccountId?: string;
       expectedOutcome?: 'success' | 'error';
       onRecoveryCodes?: (codes: readonly string[]) => void;
+      /** Runs as soon as the page reports the action started. */
+      onActionStarted?: () => void;
     },
   ): Promise<IntendedPageSnapshot> {
     if (opts?.nearAccountId && !this.registeredWallet) {
@@ -4381,6 +4479,7 @@ export class IntendedBehaviourHarness {
     await this.ensureIntendedPageOpen();
     await this.page.getByTestId(buttonTestId).click();
     await this.waitForIntendedPageActionStarted(action);
+    opts?.onActionStarted?.();
     const diagnostics: WalletIframeAutoConfirmDiagnostics = { attempts: 0, clicked: false };
     let diagnosticsRecorded = false;
     try {
@@ -8642,6 +8741,68 @@ async function readWalletIframeAuthMenuError(page: Page): Promise<string | null>
       return error || null;
     })
     .catch(() => null);
+}
+
+type HeldWalletStoreWindow = Window & {
+  __seamsHeldWalletStore?: { released: boolean; readonly done: Promise<void> };
+};
+
+/* Runs in the wallet's frame: keeps one read-write transaction on
+   `storeName` busy until releaseHeldWalletStore, and resolves once it holds
+   the store. */
+async function startHeldWalletStore(storeName: string): Promise<void> {
+  const names = (await indexedDB.databases()).map((database) => database.name ?? '');
+  const name = names.includes('seams_wallet')
+    ? 'seams_wallet'
+    : names.find((candidate) => candidate.startsWith('seams_test_wallet_'));
+  if (!name) throw new Error('The wallet IndexedDB is not open');
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open(name);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  const transaction = db.transaction([storeName], 'readwrite');
+  const store = transaction.objectStore(storeName);
+  const state = {
+    released: false,
+    done: new Promise<void>((resolve) => {
+      transaction.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      transaction.onabort = () => {
+        db.close();
+        resolve();
+      };
+    }),
+  };
+  (window as HeldWalletStoreWindow).__seamsHeldWalletStore = state;
+  await new Promise<void>((resolve, reject) => {
+    let holding = false;
+    const keepBusy = (): void => {
+      if (state.released) return;
+      const request = store.count();
+      request.onsuccess = () => {
+        if (!holding) {
+          holding = true;
+          resolve();
+        }
+        keepBusy();
+      };
+      request.onerror = () => reject(request.error);
+    };
+    keepBusy();
+  });
+}
+
+/* Runs in the wallet's frame: lets the held transaction commit. */
+async function releaseHeldWalletStore(): Promise<void> {
+  const holder = window as HeldWalletStoreWindow;
+  const state = holder.__seamsHeldWalletStore;
+  if (!state) return;
+  state.released = true;
+  holder.__seamsHeldWalletStore = undefined;
+  await state.done;
 }
 
 function isNearRegistrationExecutionResponse(response: Response): boolean {

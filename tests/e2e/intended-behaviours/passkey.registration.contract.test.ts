@@ -747,6 +747,71 @@ test('sustained Tempo and Arc signing uses fresh presignatures beyond pool capac
   }
 });
 
+/**
+ * A Wallet Session status the Gateway answered before deferred NEAR
+ * provisioning finalized reaches the wallet while provisioning publishes the
+ * extended authority and rebinds the session with it. The Workers D1 run that
+ * failed "exact ECDSA Wallet Session is unavailable: wallet_session_identity_
+ * mismatch (authority digest)" had that older status written over the
+ * rebound session. Here the order is forced: the wallet's re-read of its
+ * authority, taken for the step-up's status, waits behind a transaction on
+ * its auth-method store until provisioning's publication has queued behind
+ * it too, so the publication commits between the re-read and the write. The
+ * older status must not replace the session: provisioning becomes ready and
+ * the ECDSA step-up signs.
+ */
+test('a Wallet Session status answered before deferred NEAR provisioning keeps the session it rebound', async ({
+  harness,
+  context,
+  page,
+}) => {
+  const nearGate = new RegistrationPresignGate();
+  const nearProvisioning = '**/wallets/register/near-provisioning';
+  const holdNear = nearGate.hold.bind(nearGate);
+  await context.route(nearProvisioning, holdNear);
+  try {
+    await harness.registerPasskeyWallet();
+    let stage: IntendedSigningStage = 'post_registration';
+    for (let index = 0; index < 20 && stage !== 'step_up_required'; index += 1) {
+      const tempo = await harness.signTempoTransaction(stage);
+      // Warm-session events report the allowance before this signature consumes a use.
+      if (tempo.remainingUses.some(isLastWarmSessionUse)) stage = 'step_up_required';
+    }
+    expect(stage).toBe('step_up_required');
+    await expect.poll(nearGate.requestCount.bind(nearGate), { timeout: 30_000 }).toBe(1);
+    const statusAnswers = await harness.holdWalletSessionStatusAnswers();
+    let interleaving: Promise<void> = Promise.resolve();
+    const interleave = async (): Promise<void> => {
+      // The step-up asks for its Wallet Session's status; the Gateway answers.
+      await expect.poll(statusAnswers.heldCount, { timeout: 10_000 }).toBeGreaterThan(0);
+      const authMethods = await harness.holdWalletIndexedDbStore('wallet_auth_methods');
+      // The answer arrives, and the wallet's re-read of its authority waits.
+      statusAnswers.release();
+      await page.waitForTimeout(50);
+      // Provisioning finalizes, and its publication queues behind that re-read.
+      nearGate.release();
+      await harness.waitForTraceConsoleMessage('"stage":"server_finalize"');
+      await page.waitForTimeout(50);
+      await authMethods.release();
+    };
+    try {
+      await harness.signArcEvmTransaction('step_up_required', {
+        onActionStarted: () => {
+          interleaving = interleave();
+        },
+      });
+    } finally {
+      await statusAnswers.dispose();
+    }
+    await interleaving;
+    await harness.awaitNearReady();
+    await harness.signTempoTransaction('step_up_required');
+  } finally {
+    nearGate.release();
+    await context.unroute(nearProvisioning, holdNear);
+  }
+});
+
 test('EVM registration and signatures complete while NEAR admission is held', async ({
   harness,
   context,

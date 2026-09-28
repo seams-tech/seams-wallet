@@ -13,6 +13,7 @@ import {
 } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import { readPersistedAvailableSigningLanesForSigning as readPersistedAvailableSigningLanesForSigningOperation } from '@/core/signingEngine/session/availability/persistedAvailableSigningLanes';
 import { createCanonicalWalletSessionStatusReader } from '@/core/signingEngine/session/lifecycle/canonicalWalletSessionStatus';
+import { emitSigningSessionFlowTrace } from '@/core/signingEngine/session/operationState/trace';
 import type { EmailOtpWalletSessionCoordinator } from '@/core/signingEngine/session/emailOtp/EmailOtpWalletSessionCoordinator';
 import type { BrowserSealedSigningSessionStorePorts } from './createBrowserSigningStores';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
@@ -506,13 +507,23 @@ export async function readBrowserExactNearEd25519WalletSessionAuthorization(
   ) {
     return { kind: 'corrupt' };
   }
+  let replaced: Awaited<
+    ReturnType<typeof IndexedDBManager.replaceExactActiveWalletSessionFromStatus>
+  >;
   try {
-    await walletSessionAuthorizations.replaceExactActive({
+    replaced = await IndexedDBManager.replaceExactActiveWalletSessionFromStatus({
       active: status.authorization,
       operationCredential: exactRead.operationCredential,
     });
   } catch {
     return { kind: 'persistence_unavailable' };
+  }
+  if (replaced.kind === 'superseded') {
+    emitSigningSessionFlowTrace('near', {
+      event: 'wallet_session_status_superseded',
+      walletSessionId: exactRead.operationCredential.walletSessionId,
+    });
+    return { kind: 'unavailable' };
   }
   let selectedFactorAuthority: WalletAuthAuthority;
   try {
@@ -780,8 +791,11 @@ async function resolveBrowserEcdsaPreprocessingCapability(
   if (status.authorization.expiresAtMs <= authorizationNowMs) {
     return { kind: 'inactive', reason: 'Exact Wallet Session authorization is expired' };
   }
+  let replaced: Awaited<
+    ReturnType<typeof IndexedDBManager.replaceExactActiveWalletSessionFromStatus>
+  >;
   try {
-    await walletSessionAuthorizations.replaceExactActive({
+    replaced = await IndexedDBManager.replaceExactActiveWalletSessionFromStatus({
       active: status.authorization,
       operationCredential: exactAuthorization.operationCredential,
     });
@@ -789,6 +803,18 @@ async function resolveBrowserEcdsaPreprocessingCapability(
     return {
       kind: 'inactive',
       reason: 'Exact Wallet Session promotion reconciliation could not be persisted',
+    };
+  }
+  /* The authority or selection changed after the status was read, and the
+     session written with that change stands. */
+  if (replaced.kind === 'superseded') {
+    emitSigningSessionFlowTrace('evm-family', {
+      event: 'wallet_session_status_superseded',
+      walletSessionId: exactAuthorization.operationCredential.walletSessionId,
+    });
+    return {
+      kind: 'inactive',
+      reason: 'Exact Wallet Session status was superseded by a newer wallet authority',
     };
   }
   const authorizationResolution = await buildBrowserEcdsaPreprocessingCapability({

@@ -6223,6 +6223,60 @@ export class SeamsWalletRepositories {
     );
   }
 
+  /**
+   * Replaces the exact active Wallet Session with the one a status read
+   * returned, only while it still binds the wallet's stored authority and its
+   * unlocked selection. The status crosses the network, and a publication
+   * can commit meanwhile: deferred NEAR provisioning extends the authority
+   * and rebinds the session in one transaction. Writing the older status
+   * after it would bind the session to an authority digest no longer stored,
+   * and every exact-session check would refuse it until another status read.
+   */
+  async replaceExactActiveWalletSessionFromStatus(input: {
+    readonly active: ActiveWalletSessionV1;
+    readonly operationCredential: WalletSessionOperationCredentialV1;
+  }): Promise<{ readonly kind: 'replaced' } | { readonly kind: 'superseded' }> {
+    return await this.manager.runTransaction(
+      [
+        SEAMS_WALLET_STORES.walletAuthorities,
+        SEAMS_WALLET_STORES.walletSessionAuthorizations,
+        SEAMS_WALLET_STORES.walletSelections,
+      ],
+      'readwrite',
+      this.replaceExactActiveWalletSessionFromStatusInTransaction.bind(this, input),
+    );
+  }
+
+  private async replaceExactActiveWalletSessionFromStatusInTransaction(
+    input: Parameters<SeamsWalletRepositories['replaceExactActiveWalletSessionFromStatus']>[0],
+    ctx: SeamsWalletTransactionContext,
+  ): Promise<{ readonly kind: 'replaced' } | { readonly kind: 'superseded' }> {
+    const authority = parseWalletAuthorityStorageRow(
+      await ctx.store(SEAMS_WALLET_STORES.walletAuthorities).get(input.active.authorityId),
+    );
+    const selection = parseWalletSelectionStorageRow(
+      await ctx.store(SEAMS_WALLET_STORES.walletSelections).get(input.active.walletId),
+    );
+    if (
+      !authority ||
+      authority.record.state !== 'active' ||
+      authority.record.walletId !== input.active.walletId ||
+      authority.record.authorityDigestB64u !== input.active.authorityDigestB64u ||
+      authority.record.revocationEpoch !== input.active.authorityRevocationEpoch ||
+      !selection ||
+      selection.record.lockState !== 'unlocked' ||
+      selection.record.walletAuthMethodId !== input.active.authMethodId
+    ) {
+      return { kind: 'superseded' };
+    }
+    await replaceExactActiveWalletSessionAuthorizationInTransaction({
+      ctx,
+      active: input.active,
+      operationCredential: input.operationCredential,
+    });
+    return { kind: 'replaced' };
+  }
+
   async reconcilePendingNearRegistrationAuthority(input: {
     readonly walletSession: ActiveWalletSessionV1;
     readonly operationCredential: WalletSessionOperationCredentialV1;

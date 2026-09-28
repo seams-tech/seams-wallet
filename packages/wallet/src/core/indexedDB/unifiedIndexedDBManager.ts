@@ -619,6 +619,12 @@ export class UnifiedIndexedDBManager {
     await this.seamsWalletRepositories.adoptAddedEcdsaSignerAuthority(input);
   }
 
+  async replaceExactActiveWalletSessionFromStatus(
+    input: Parameters<SeamsWalletRepositories['replaceExactActiveWalletSessionFromStatus']>[0],
+  ): ReturnType<SeamsWalletRepositories['replaceExactActiveWalletSessionFromStatus']> {
+    return await this.seamsWalletRepositories.replaceExactActiveWalletSessionFromStatus(input);
+  }
+
   async reconcilePendingNearRegistrationAuthority(
     input: Parameters<SeamsWalletRepositories['reconcilePendingNearRegistrationAuthority']>[0],
   ): Promise<void> {
