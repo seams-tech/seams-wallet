@@ -654,6 +654,24 @@ role. The VM Router does not reconcile a retried source-preserving execute.
   added method and verify its access is refused while another active method
   still works. Reuse any shared finalize fixes for device linking too.
 
+Status (2026-09-28): addition and revocation touch only the Gateway's
+shared SQL. The browser reseals the custody seed, and neither the Router nor
+the SigningWorker is called, so neither backend needs a custody change for
+them.
+- The SDK now retries a lost add-auth-method finalize once with the same
+  request, which the Gateway replays. Before, a lost answer failed an
+  addition that had committed.
+- Both addition contracts now lose the finalize answer and require the
+  replay. Passkey-to-Email-OTP also revokes the added method, requires its
+  code to be refused and signs with the passkey again. Email-OTP-to-passkey
+  requires the revoked Email OTP code to be refused.
+- Unverified: every addition crosses families, so each contract uses Email
+  OTP and needs a Google ID token this environment does not have. Only
+  type-checking has run.
+- An Email-OTP-proven revocation cannot be retried exactly: its challenge is
+  single-use, so a retry after a lost answer is refused before the Gateway
+  finds the method already revoked. A passkey-proven one can.
+
 For each flow, run the representative scenario through the real Gateway on
 the actual Cloudflare wallet-object build and on the VM. A Workers D1-only
 pass does not establish DO support. Retain a repeatable artifact with the
