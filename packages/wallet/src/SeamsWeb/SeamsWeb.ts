@@ -115,7 +115,7 @@ import { resolveAmbiguousEcdsaActivationForSelectedAuthMethod } from '@/SeamsWeb
 import { resolveLinkedEcdsaHolderRuntimeV1 } from '@/core/signingEngine/session/material/linkedEcdsaHolderRuntime';
 import {
   walletCustodyCeremonyTransportFromWorkerContextV1,
-  readUnlockedWalletEd25519ExportRootCapabilityV1,
+  readUnlockedEd25519ExportRootLinkingCapabilityV1,
 } from '@/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability';
 import {
   createDeviceLinkingEcdsaSourceContributionMetadataReaderV1,
@@ -989,7 +989,7 @@ function createWalletHostDeviceDomainConstructionV1(args: {
     readWalletAuthenticationState: args.signingEngine.readWalletAuthenticationState.bind(
       args.signingEngine,
     ),
-    readUnlockedEd25519ExportRootCapabilityV1: readUnlockedWalletEd25519ExportRootCapabilityV1,
+    readUnlockedEd25519ExportRootCapabilityV1: readUnlockedEd25519ExportRootLinkingCapabilityV1,
   });
   const sourceContribution = createWalletHostDeviceLinkingSourceContributionPortV1({
     signingEngine: args.signingEngine,

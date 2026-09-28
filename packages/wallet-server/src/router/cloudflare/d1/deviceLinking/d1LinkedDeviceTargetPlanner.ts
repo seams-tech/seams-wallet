@@ -29,6 +29,7 @@ import type { Ed25519PublicKeyB64u } from '@shared/passkey-custody/primitives';
 import type {
   RouterAbEd25519YaoActivationBindingV1,
   RouterAbEd25519YaoApplicationBindingFactsV1,
+  RouterAbEd25519YaoCeremonyBindingV1,
 } from '@shared/utils/routerAbEd25519Yao';
 import type { NearEd25519SigningKeyId } from '@shared/utils/registrationIntent';
 import type { WalletKeyId } from '@shared/signing-lanes/ids';
@@ -57,6 +58,8 @@ type LinkedDeviceOwnerEd25519SourceChildResolutionV1 =
     readonly stableContextBindingB64u: string;
     readonly sourceBinding: RouterAbEd25519YaoActivationBindingV1<'registration'>;
     readonly applicationBinding: RouterAbEd25519YaoApplicationBindingFactsV1;
+    /** A linked device's own registration binding, when that device is the source. */
+    readonly linkedSourceBinding?: RouterAbEd25519YaoCeremonyBindingV1;
   };
 
 type LinkedDeviceOwnerEcdsaSourceChildResolutionV1 =

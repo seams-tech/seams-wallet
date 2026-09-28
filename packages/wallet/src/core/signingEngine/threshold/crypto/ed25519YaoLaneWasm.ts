@@ -32,7 +32,7 @@ import {
   executeWorkerOperation,
   type WorkerOperationContext,
 } from '../../workerManager/executeWorkerOperation';
-import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from '../../workerManager/workerTypes';
+import type { UnlockedEd25519ExportRootLinkingCapabilityV1 } from '../../workerManager/workerTypes';
 
 function parseEdJob(value: unknown): Ed25519YaoLaneJobV1 {
   const parsed = parseRotatableSigningLaneJobV1(value);
@@ -265,7 +265,7 @@ export async function openEd25519YaoLaneWorkerSourceV1(args: {
 
 export async function openEd25519YaoLaneWorkerSourceFromUnlockedCapabilityV1(args: {
   readonly workerCtx: WorkerOperationContext;
-  readonly capability: UnlockedWalletEd25519ExportRootCapabilityV1;
+  readonly capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
   readonly applicationBindingDigestB64u: string;
   readonly walletKeyId: string;
   readonly enrollmentId: string;

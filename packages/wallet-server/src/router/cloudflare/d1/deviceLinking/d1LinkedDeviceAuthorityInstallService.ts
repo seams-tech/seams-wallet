@@ -2184,6 +2184,35 @@ async function readStoredInstallationByAuthorityV1(
 }
 
 /**
+ * The installed Ed25519 authority of a linked device, read from Gateway SQL
+ * alone: a linked device approving another link names its own binding as the
+ * source. Null when a link did not install the authority. An installation
+ * that does not project refuses.
+ */
+export async function readD1LinkedDeviceEd25519SourceV1(
+  sql: Pick<D1LinkedDeviceAuthorityInstallServiceOptionsV1, 'database' | 'scope'>,
+  input: {
+    readonly walletId: WalletId;
+    readonly authorityId: WalletAuthorityId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+  },
+): Promise<InstalledLinkedDeviceEd25519AuthorityProjectionV1 | null> {
+  const stored = await readStoredInstallationByAuthorityV1(sql, input.authorityId);
+  if (!stored) return null;
+  await assertStoredPackageDigest(stored);
+  const projection =
+    stored.walletId === input.walletId && stored.authMethodId === input.walletAuthMethodId
+      ? projectInstalledEd25519Authority(stored)
+      : null;
+  if (!projection) {
+    throw new Error(
+      'linked-device Ed25519 source authority does not project its installed material',
+    );
+  }
+  return projection;
+}
+
+/**
  * The installed ECDSA authority of a linked device, read from Gateway SQL
  * alone: a linked device approving another link contributes from it. Null
  * when a link did not install the authority. An installation that does not

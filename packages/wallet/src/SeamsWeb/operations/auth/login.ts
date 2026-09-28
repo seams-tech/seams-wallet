@@ -2910,7 +2910,10 @@ export async function activateLinkedDeviceSignerRuntimesAfterLink(args: {
           walletSessionId: String(args.operationCredential.walletSessionId),
           expiresAtMs: args.walletSession.expiresAtMs,
         });
-      } else if (isWalletCustodySeedBinding(selection.exportRoot.envelope.binding)) {
+      } else if (
+        isWalletCustodySeedBinding(selection.exportRoot.envelope.binding) ||
+        selection.exportRoot.envelope.binding.kind === 'ed25519_yao_client_root_v1'
+      ) {
         await establishUnlockedExportRootCapabilityV1(
           walletCustodyCeremonyTransportFromWorkerContextV1(
             args.context.signingEngine.getSignerWorkerContext(),

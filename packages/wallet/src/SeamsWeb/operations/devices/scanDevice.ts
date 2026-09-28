@@ -40,7 +40,7 @@ import type {
   DeviceLinkingSourceContributionPortV1,
 } from './deviceLinkingPorts';
 import { errorMessage } from '@shared/utils/errors';
-import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
+import type { UnlockedEd25519ExportRootLinkingCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
 import { nextLinkedDevicePollingDelayMsV1 } from './deviceLinkingHttpTransport';
 import { LINKED_DEVICE_CLOCK_SKEW_TOLERANCE_MS_V1 } from '@shared/device-linking/requestProof';
 
@@ -414,7 +414,7 @@ function assertApprovalRecordedV1(
 async function submitSourceContributionsV1(input: {
   readonly transport: LinkSessionOwnerTransportPortV1;
   readonly sourceContribution: DeviceLinkingSourceContributionPortV1;
-  readonly ed25519ExportRootCapability: UnlockedWalletEd25519ExportRootCapabilityV1 | undefined;
+  readonly ed25519ExportRootCapability: UnlockedEd25519ExportRootLinkingCapabilityV1 | undefined;
   readonly initialApproval: LinkedDeviceApprovalV1;
   readonly authentication: Parameters<
     LinkSessionOwnerTransportPortV1['getApprovalV1']
@@ -492,7 +492,7 @@ function buildFinalLinkedDeviceApprovalV1(
 async function produceSourceContributionTupleV1(input: {
   readonly preparation: LinkedDeviceOrdinaryMaterialSourceContributionPreparationTupleV1;
   readonly ports: DeviceLinkingSourceContributionPortV1;
-  readonly ed25519ExportRootCapability: UnlockedWalletEd25519ExportRootCapabilityV1 | undefined;
+  readonly ed25519ExportRootCapability: UnlockedEd25519ExportRootLinkingCapabilityV1 | undefined;
   readonly authentication: Parameters<
     LinkSessionOwnerTransportPortV1['getApprovalV1']
   >[0]['authentication'];
@@ -551,7 +551,7 @@ async function submitEd25519ExportRootIfRequiredV1(input: {
   readonly deviceId: LinkedDeviceId;
   readonly expiresAtMs: number;
   readonly exportRootRequirement: 'required' | 'not_required';
-  readonly ed25519ExportRootCapability?: UnlockedWalletEd25519ExportRootCapabilityV1;
+  readonly ed25519ExportRootCapability?: UnlockedEd25519ExportRootLinkingCapabilityV1;
   readonly ed25519ExportRoot: Device1LinkingFlowPortsV1['ed25519ExportRoot'];
   readonly authentication: Parameters<
     LinkSessionOwnerTransportPortV1['getApprovalV1']

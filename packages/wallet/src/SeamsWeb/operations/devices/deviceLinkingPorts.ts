@@ -1,5 +1,5 @@
 import type { DeviceLinkingEd25519ExportRootPortV1 } from './deviceLinkingEd25519ExportRoot';
-import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
+import type { UnlockedEd25519ExportRootLinkingCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
 import type {
   LinkedDeviceApprovalV1,
   LinkedDeviceApprovalResultV1,
@@ -349,7 +349,7 @@ export type LinkedDeviceOwnerAuthorizationResultBaseV1 = {
 export type LinkedDeviceOwnerAuthorizationResultV1 =
   | (LinkedDeviceOwnerAuthorizationResultBaseV1 & {
       readonly exportRootRequirement: 'required';
-      readonly ed25519ExportRootCapability: UnlockedWalletEd25519ExportRootCapabilityV1;
+      readonly ed25519ExportRootCapability: UnlockedEd25519ExportRootLinkingCapabilityV1;
     })
   | (LinkedDeviceOwnerAuthorizationResultBaseV1 & {
       readonly exportRootRequirement: 'not_required';
@@ -367,7 +367,7 @@ export type DeviceLinkingOwnerAuthorizationPortV1 = {
 export type DeviceLinkingEd25519SourceContributionPortV1 = {
   produceSourceContributionV1(input: {
     readonly preparation: LinkedDeviceEd25519SourceContributionPreparationV1;
-    readonly capability: UnlockedWalletEd25519ExportRootCapabilityV1;
+    readonly capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
     readonly authentication: LinkSessionAuthenticationV1;
   }): Promise<LinkedDeviceEd25519SourceContributionV1>;
 };

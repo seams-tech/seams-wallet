@@ -19,7 +19,7 @@ import type { LinkedEcdsaHolderRuntimeV1 } from '../session/material/linkedEcdsa
 import { prepareLinkedDeviceEcdsaSourceContributionWasm } from '../threshold/crypto/ecdsaDerivationClientWasm';
 import { openEd25519YaoLaneWorkerSourceFromUnlockedCapabilityV1 } from '../threshold/crypto/ed25519YaoLaneWasm';
 import type { WorkerOperationContext } from './executeWorkerOperation';
-import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from './workerTypes';
+import type { UnlockedEd25519ExportRootLinkingCapabilityV1 } from './workerTypes';
 
 export type DeviceLinkingSourceRequestAuthenticationV1 = {
   readonly kind: 'link_session_authenticated_request_v1';
@@ -30,7 +30,7 @@ export type DeviceLinkingSourceRequestAuthenticationV1 = {
 export type DeviceLinkingEd25519SourceContributionRuntimePortV1 = {
   produceSourceContributionV1(input: {
     readonly preparation: LinkedDeviceEd25519SourceContributionPreparationV1;
-    readonly capability: UnlockedWalletEd25519ExportRootCapabilityV1;
+    readonly capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
     readonly authentication: DeviceLinkingSourceRequestAuthenticationV1;
   }): Promise<LinkedDeviceEd25519SourceContributionV1>;
 };

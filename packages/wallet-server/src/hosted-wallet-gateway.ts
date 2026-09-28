@@ -30,6 +30,7 @@ import {
   D1LinkedDeviceTargetCredentialProviderV1,
   D1WalletAuthMethodStore,
   readD1LinkedDeviceEcdsaSourceV1,
+  readD1LinkedDeviceEd25519SourceV1,
   type CloudflareD1RouterApiAuthServiceOptions,
 } from './cloud-host';
 import { loadCloudflareSignerWasmModule } from './cloud-host';
@@ -609,6 +610,10 @@ function stagingLinkedDeviceSessionComposition(
   const sourceChildReader = createD1LinkedDeviceOwnerSourceChildReaderV1({
     walletAuthMethodStore,
     walletStore,
+    readLinkedEd25519SourceV1: readD1LinkedDeviceEd25519SourceV1.bind(undefined, {
+      database: env.SIGNER_DB,
+      scope,
+    }),
     readLinkedEcdsaSourceV1: readD1LinkedDeviceEcdsaSourceV1.bind(undefined, {
       database: env.SIGNER_DB,
       scope,

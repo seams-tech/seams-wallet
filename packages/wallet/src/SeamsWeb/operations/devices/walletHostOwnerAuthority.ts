@@ -1,6 +1,6 @@
 import type { HttpTransport } from '@/core/platform/http';
 import { DeviceLinkingError, DeviceLinkingErrorCode } from '@/core/types/linkDevice';
-import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
+import type { UnlockedEd25519ExportRootLinkingCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
 import {
   type ActiveWalletSessionV1,
   type WalletSessionOperationCredentialV1,
@@ -58,7 +58,7 @@ export function createWalletHostOwnerAuthoritiesV1(input: {
    */
   readonly readUnlockedEd25519ExportRootCapabilityV1: (
     walletId: WalletId,
-  ) => UnlockedWalletEd25519ExportRootCapabilityV1 | undefined;
+  ) => UnlockedEd25519ExportRootLinkingCapabilityV1 | undefined;
 }): WalletHostOwnerAuthoritiesV1 {
   const context = normalizeContext(input);
   return {
@@ -88,7 +88,7 @@ type WalletHostOwnerAuthorityContextV1 = {
   readonly readWalletAuthenticationState: () => WalletAuthenticationState;
   readonly readUnlockedEd25519ExportRootCapabilityV1: (
     walletId: WalletId,
-  ) => UnlockedWalletEd25519ExportRootCapabilityV1 | undefined;
+  ) => UnlockedEd25519ExportRootLinkingCapabilityV1 | undefined;
 };
 
 function normalizeContext(input: {
@@ -104,7 +104,7 @@ function normalizeContext(input: {
   readonly readWalletAuthenticationState: () => WalletAuthenticationState;
   readonly readUnlockedEd25519ExportRootCapabilityV1: (
     walletId: WalletId,
-  ) => UnlockedWalletEd25519ExportRootCapabilityV1 | undefined;
+  ) => UnlockedEd25519ExportRootLinkingCapabilityV1 | undefined;
 }): WalletHostOwnerAuthorityContextV1 {
   const baseUrl = String(input.relayerUrl || '')
     .trim()

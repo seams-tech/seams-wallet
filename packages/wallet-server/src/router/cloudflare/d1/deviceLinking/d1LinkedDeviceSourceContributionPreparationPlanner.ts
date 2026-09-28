@@ -197,7 +197,7 @@ function buildEd25519Preparation(input: {
     walletKeyId: input.signer.walletKeyId,
     targetDeviceId: targetDeviceId.value,
     targetFactorVerificationDigestB64u: input.input.targetFactor.verificationDigestB64u,
-    sourceBinding: input.resolution.sourceBinding,
+    sourceBinding: input.resolution.linkedSourceBinding ?? input.resolution.sourceBinding,
     targetAdmission,
     applicationBinding: input.resolution.applicationBinding,
     sourceRevocationEpoch: input.resolution.source.revocationEpoch,

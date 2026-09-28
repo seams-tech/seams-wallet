@@ -3499,7 +3499,12 @@ export class BrowserSigningSurface {
     readonly expiresAtMs: number;
   }): Promise<void> {
     try {
-      if (!isWalletCustodySeedBinding(input.existingEnvelope.binding)) return;
+      /* A linked device parks its own Client root the same way; only linking
+         accepts that capability. */
+      const binding = input.existingEnvelope.binding;
+      if (!isWalletCustodySeedBinding(binding) && binding.kind !== 'ed25519_yao_client_root_v1') {
+        return;
+      }
       const factor = input.existingEnvelope.factor;
       if (factor.kind !== 'passkey') {
         throw new Error('unlocked export-root capability requires a passkey envelope factor');

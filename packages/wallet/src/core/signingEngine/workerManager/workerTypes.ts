@@ -1931,6 +1931,25 @@ export type UnlockedWalletEd25519ExportRootCapabilityV1 = {
 };
 
 /**
+ * A linked device's unlocked export-root capability: the Ed25519 Yao Client
+ * root that device opened from its own envelope at an unlock. It carries the
+ * same public binding facts as the seed-backed reference. Only linking
+ * accepts it — never a seed reseal or an auth-method addition.
+ */
+export type UnlockedLinkedDeviceEd25519ClientRootCapabilityV1 = {
+  readonly kind: 'unlocked_linked_device_ed25519_client_root_capability_v1';
+  readonly capabilityHandleId: string;
+  readonly walletId: string;
+  readonly walletAuthMethodId: string;
+  readonly walletSessionId: string;
+  readonly expiresAtMs: number;
+};
+
+/** The unlocked capability a device approving a link seals the export root from. */
+export type UnlockedEd25519ExportRootLinkingCapabilityV1 =
+  UnlockedWalletEd25519ExportRootCapabilityV1 | UnlockedLinkedDeviceEd25519ClientRootCapabilityV1;
+
+/**
  * What a destroy call invalidates. Lock and logout destroy by wallet, session
  * retirement or replacement by Wallet Session, failed activation by capability
  * handle, and worker reset or page teardown destroys all.
@@ -1971,7 +1990,7 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
         }
       | {
           kind: 'unlocked_ed25519_export_root_capability';
-          capability: UnlockedWalletEd25519ExportRootCapabilityV1;
+          capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
           applicationBindingDigestB64u: string;
           walletKeyId: string;
           enrollmentId: string;
@@ -2155,6 +2174,10 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
    * owner Wallet Session that authorized it. The result is the public
    * reference only — no seed bytes, and no serializable secret.
    *
+   * A linked device's unlock opens its own Ed25519 Yao Client-root envelope
+   * the same way, into the distinct linked-device capability that only
+   * linking accepts.
+   *
    * At most one capability exists per wallet and owner Wallet Session;
    * establishing a new one destroys the previous handle first.
    */
@@ -2167,7 +2190,7 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
       walletSessionId: string;
       expiresAtMs: number;
     };
-    result: UnlockedWalletEd25519ExportRootCapabilityV1;
+    result: UnlockedEd25519ExportRootLinkingCapabilityV1;
   };
   /**
    * Destroys unlocked Ed25519 export-root capabilities. Wired into lock, logout,
@@ -2209,7 +2232,7 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
   };
   sealEd25519ExportRootForLinkedDevice: {
     payload: {
-      capability: UnlockedWalletEd25519ExportRootCapabilityV1;
+      capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
       transferBindingJson: string;
     };
     result: {
