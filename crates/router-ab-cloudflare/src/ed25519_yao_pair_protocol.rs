@@ -754,6 +754,11 @@ impl CloudflareEd25519YaoRoleFailureResponseV1 {
                 code: RouterEd25519YaoExecuteFailureCodeV1::MissingPreparation,
             };
         }
+        if error.code() == RouterAbProtocolErrorCode::SupersededAttempt {
+            return Self::Rejected {
+                code: RouterEd25519YaoExecuteFailureCodeV1::AttemptSuperseded,
+            };
+        }
         if matches!(
             error.code(),
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig

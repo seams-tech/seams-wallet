@@ -1779,6 +1779,15 @@ async fn finalize_router_result_v1(
                                 delivery_started_at_ms,
                                 "failure",
                             );
+                            // A later attempt took this one's place at the
+                            // SigningWorker: this attempt ends, terminally.
+                            if error.code() == RouterAbProtocolErrorCode::SupersededAttempt {
+                                return Ok(RouterCeremonyOutcomeV1::Standard(
+                                    RouterEd25519YaoExecuteResultV1::rejected(
+                                        router_ab_core::RouterEd25519YaoExecuteFailureCodeV1::AttemptSuperseded,
+                                    ),
+                                ));
+                            }
                             return Err(error);
                         }
                     };
@@ -2416,7 +2425,17 @@ where
     .await?;
     if !(200..=299).contains(&response.status_code()) {
         let status = response.status_code();
-        let _ = response.text().await;
+        let body = response.text().await.unwrap_or_default();
+        // A peer's refusal of a superseded attempt is final; the caller
+        // answers it as such rather than as a service failure.
+        if crate::router_ab_peer_error_code_v1(&body)
+            == RouterAbProtocolErrorCode::SupersededAttempt
+        {
+            return Err(RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::SupersededAttempt,
+                format!("{label} refused a superseded attempt: {}", body.trim()),
+            ));
+        }
         return Err(RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
             format!("{label} service returned HTTP {status}"),

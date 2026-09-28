@@ -1785,7 +1785,7 @@ pub(crate) fn settle_signing_worker_yao_recovery_delivery_v1(
             if deriver_a == delivery.deriver_a && deriver_b == delivery.deriver_b {
                 return Ok(SigningWorkerYaoRecoveryDeliveryV1::Answer(receipt));
             }
-            return Err(invalid_lifecycle(
+            return Err(superseded_recovery_attempt(
                 "Signing Worker recovery was already promoted by another attempt",
             ));
         }
@@ -1805,7 +1805,7 @@ pub(crate) fn settle_signing_worker_yao_recovery_delivery_v1(
             let same_session = staged.deriver_a.binding.session_id == binding.session_id;
             match attempt.cmp(&staged.attempt) {
                 core::cmp::Ordering::Less => {
-                    return Err(invalid_lifecycle(
+                    return Err(superseded_recovery_attempt(
                         "Signing Worker recovery attempt was superseded by a later attempt",
                     ));
                 }
@@ -2261,6 +2261,12 @@ fn validate_material_receipt(
         ));
     }
     Ok(())
+}
+
+/// A delivery from an attempt the Gateway can never promote: its answer is
+/// final, and the Router passes it on as such.
+fn superseded_recovery_attempt(message: &'static str) -> RouterAbProtocolError {
+    RouterAbProtocolError::new(RouterAbProtocolErrorCode::SupersededAttempt, message)
 }
 
 fn validate_promotion_request(

@@ -1374,6 +1374,9 @@ pub enum RouterEd25519YaoExecuteFailureCodeV1 {
     ExecutionInProgress,
     /// Another request already owns this registration's execution.
     ExecutionMismatch,
+    /// A later attempt of the same recovery took this attempt's place at the
+    /// SigningWorker, so this attempt can never activate.
+    AttemptSuperseded,
 }
 
 /// Reason an activated execution identity is permanently burned.

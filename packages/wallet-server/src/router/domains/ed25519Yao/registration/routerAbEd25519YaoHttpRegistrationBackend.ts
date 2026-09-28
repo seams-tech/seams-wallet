@@ -327,6 +327,16 @@ function executionMismatchFailure(): RouterAbEd25519YaoRegistrationBackendFailur
   };
 }
 
+/** A later attempt of the same recovery took this one's place: final. */
+function attemptSupersededFailure(): RouterAbEd25519YaoRegistrationBackendFailure {
+  return {
+    ok: false,
+    status: 409,
+    code: 'recovery_superseded',
+    message: 'a later attempt of this recovery took its place at the SigningWorker',
+  };
+}
+
 function ceremonyExpiredFailure(): RouterAbEd25519YaoRegistrationBackendFailure {
   return {
     ok: false,
@@ -622,6 +632,7 @@ function parseRouterExecuteResult(
         }
         if (envelope.code === 'ceremony_expired') return ceremonyExpiredFailure();
         if (envelope.code === 'execution_mismatch') return executionMismatchFailure();
+        if (envelope.code === 'attempt_superseded') return attemptSupersededFailure();
         return internalFailure('router_execution_rejected', 'Router Yao execution was rejected');
       }
       case 'burned': {

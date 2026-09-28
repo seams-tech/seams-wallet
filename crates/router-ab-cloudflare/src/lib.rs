@@ -15792,6 +15792,9 @@ pub fn router_ab_peer_error_code_v1(peer_body: &str) -> RouterAbProtocolErrorCod
     // relays a failure prefixes its own context.
     if peer_body.contains("LifecycleTransitionInProgress:") {
         RouterAbProtocolErrorCode::LifecycleTransitionInProgress
+    } else if peer_body.contains("SupersededAttempt:") {
+        // A later attempt took this one's place: the answer is final.
+        RouterAbProtocolErrorCode::SupersededAttempt
     } else if peer_body.contains(SIGNING_WORKER_ECDSA_EFFECT_IN_PROGRESS_V1)
         && peer_body.contains("ReplayedLocalRequest:")
     {
@@ -15833,6 +15836,7 @@ pub fn cloudflare_router_error_status(code: RouterAbProtocolErrorCode) -> u16 {
         | RouterAbProtocolErrorCode::ForbiddenLocalBinding
         | RouterAbProtocolErrorCode::InvalidLocalServiceConfig => 500,
         RouterAbProtocolErrorCode::LifecycleTransitionInProgress => 503,
+        RouterAbProtocolErrorCode::SupersededAttempt => 410,
     }
 }
 

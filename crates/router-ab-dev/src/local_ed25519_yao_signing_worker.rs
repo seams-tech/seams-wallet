@@ -742,7 +742,8 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
                 let same_session =
                     candidate.deriver_a.binding.session_id == deriver_a.binding.session_id;
                 match attempt.cmp(staged_attempt) {
-                    core::cmp::Ordering::Less => Err(invalid_activation(
+                    core::cmp::Ordering::Less => Err(RouterAbProtocolError::new(
+                        RouterAbProtocolErrorCode::SupersededAttempt,
                         "SigningWorker recovery attempt was superseded by a later attempt",
                     )),
                     core::cmp::Ordering::Equal => {
@@ -777,7 +778,8 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
                     }));
                 }
                 if promoted_a.binding.lifecycle.lifecycle_id == *lifecycle_id {
-                    return Err(invalid_activation(
+                    return Err(RouterAbProtocolError::new(
+                        RouterAbProtocolErrorCode::SupersededAttempt,
                         "SigningWorker recovery was already promoted by another attempt",
                     ));
                 }

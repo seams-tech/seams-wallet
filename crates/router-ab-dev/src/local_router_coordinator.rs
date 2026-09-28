@@ -302,6 +302,13 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
         }
         match self.finalize(config, &request, execution.deriver_a_execution, completed) {
             Ok(result) => Ok(result),
+            // A later attempt took this one's place at the SigningWorker: this
+            // attempt ends, terminally, as on Workers.
+            Err(error) if error.code() == RouterAbProtocolErrorCode::SupersededAttempt => {
+                Ok(RouterEd25519YaoExecuteResultV1::rejected(
+                    RouterEd25519YaoExecuteFailureCodeV1::AttemptSuperseded,
+                ))
+            }
             Err(_) => {
                 if let Some(replayed) = self.reconcile_completed_registration(config, &request)? {
                     return Ok(replayed);
@@ -493,6 +500,13 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                         &delivery,
                     ) {
                         Ok(receipt) => receipt,
+                        Err(error)
+                            if error.code() == RouterAbProtocolErrorCode::SupersededAttempt =>
+                        {
+                            return Ok(Some(RouterEd25519YaoExecuteResultV1::rejected(
+                                RouterEd25519YaoExecuteFailureCodeV1::AttemptSuperseded,
+                            )))
+                        }
                         Err(_) => {
                             return RouterEd25519YaoExecuteResultV1::recoverable(
                                 RouterEd25519YaoExecuteFailureCodeV1::SigningWorkerUncertain,

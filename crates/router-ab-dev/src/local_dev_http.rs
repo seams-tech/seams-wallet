@@ -428,7 +428,8 @@ pub fn local_dev_http_route_error_v1(
     // Cloudflare so the Gateway retries it. The VM's other route errors
     // still answer 400 rather than their Cloudflare status.
     let status = match error.code() {
-        RouterAbProtocolErrorCode::LifecycleTransitionInProgress => {
+        RouterAbProtocolErrorCode::LifecycleTransitionInProgress
+        | RouterAbProtocolErrorCode::SupersededAttempt => {
             router_ab_cloudflare::cloudflare_router_error_status(error.code())
         }
         _ => 400,

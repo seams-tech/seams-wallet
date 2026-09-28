@@ -2626,12 +2626,16 @@ export class IntendedBehaviourHarness {
         );
       }
       /* The Router ran the late execution, and the SigningWorker refused its
-         packages. Neither Router passes the SigningWorker's reason on: the
-         VM Router answers that the SigningWorker is uncertain, and the
-         Workers Router that its delivery failed. */
-      if (!/signing.?worker/i.test(late.body)) {
+         packages as a superseded attempt. Every Router answers that as
+         final, so nothing retries it. */
+      const refusal = answer as { readonly status?: unknown; readonly code?: unknown } | null;
+      if (
+        late.status !== 200 ||
+        refusal?.status !== 'rejected' ||
+        refusal.code !== 'attempt_superseded'
+      ) {
         throw new Error(
-          `The superseded attempt's late execution failed before the SigningWorker: ${late.status} ${late.body}`,
+          `The superseded attempt's late execution was not refused as superseded: ${late.status} ${late.body}`,
         );
       }
     } finally {
