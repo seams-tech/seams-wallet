@@ -1969,17 +1969,80 @@ export class IntendedBehaviourHarness {
   }
 
   /**
+   * Lets the first add-auth-method finalize reach the Gateway and commit, then
+   * drops its response. The SDK recovers the committed outcome by asking
+   * again with the exact same request, and must receive exactly the response
+   * that was lost: one added method, not two.
+   */
+  private async loseAddAuthMethodFinalizeResponseOnce(): Promise<{
+    readonly release: () => Promise<void>;
+    readonly assertReplayed: () => void;
+  }> {
+    const finalizePath = /\/wallets\/[^/]+\/auth-methods\/finalize$/;
+    const attempts: { readonly request: string; readonly body: string }[] = [];
+    const handler = async (route: Route): Promise<void> => {
+      if (
+        route.request().method() !== 'POST' ||
+        !finalizePath.test(new URL(route.request().url()).pathname)
+      ) {
+        await route.fallback();
+        return;
+      }
+      const request = route.request().postData() ?? '';
+      const response = await route.fetch();
+      attempts.push({ request, body: await response.text() });
+      if (attempts.length === 1) {
+        await route.abort('connectionreset');
+        return;
+      }
+      await route.fulfill({ response });
+    };
+    await this.context.route('**/auth-methods/finalize', handler);
+    return {
+      release: async () => {
+        await this.context.unroute('**/auth-methods/finalize', handler);
+      },
+      assertReplayed: () => {
+        const [lost, replayed] = attempts;
+        if (attempts.length !== 2 || !lost || !replayed) {
+          throw new Error(
+            `Add-auth-method finalize expected one lost and one replayed response, saw ${attempts.length}`,
+          );
+        }
+        if (replayed.request !== lost.request) {
+          throw new Error('Add-auth-method finalize retry changed its request');
+        }
+        expect(JSON.parse(replayed.body)).toEqual(JSON.parse(lost.body));
+        this.recordService(
+          'add-auth-method finalize lost its response and replayed the committed outcome',
+        );
+      },
+    };
+  }
+
+  /**
    * Refactor 109C acceptance: the registered passkey wallet gains an Email OTP
    * method. The wallet prompts for the code on its own surface, so the same
    * auto-confirm that drives every other Email OTP step drives this one.
    */
-  async addEmailOtpAuthMethod(): Promise<void> {
+  async addEmailOtpAuthMethod(
+    options: { readonly loseFinalizeResponseOnce?: boolean } = {},
+  ): Promise<void> {
     this.recordStage('add_email_otp_auth_method');
     const registration = this.requireRegisteredWalletForSigning();
-    const snapshot = await this.runIntendedPageAction(
-      'addEmailOtpAuthMethod',
-      'intended-add-email-otp-auth-method',
-    );
+    const lostFinalize = options.loseFinalizeResponseOnce
+      ? await this.loseAddAuthMethodFinalizeResponseOnce()
+      : null;
+    let snapshot: IntendedPageSnapshot;
+    try {
+      snapshot = await this.runIntendedPageAction(
+        'addEmailOtpAuthMethod',
+        'intended-add-email-otp-auth-method',
+      );
+    } finally {
+      await lostFinalize?.release();
+    }
+    lostFinalize?.assertReplayed();
     if (snapshot.action.status !== 'success') {
       throw new Error(`add-email-code ended with ${snapshot.action.status}`);
     }
@@ -2107,6 +2170,30 @@ export class IntendedBehaviourHarness {
       throw new Error(`final auth method revocation failed for the wrong reason: ${detail}`);
     }
     this.recordService('final auth method revocation refused');
+  }
+
+  /**
+   * The wallet's Email OTP method was revoked: a fresh code must no longer
+   * open the wallet. `registered` names a wallet registered with Email OTP,
+   * `added` one that gained the method later.
+   */
+  async assertRevokedEmailOtpCannotUnlock(method: 'registered' | 'added'): Promise<void> {
+    this.recordStage(`revoked_${method}_email_otp_unlock_refused`);
+    await this.resetRuntimeOnlyState();
+    const snapshot =
+      method === 'registered'
+        ? await this.runIntendedPageAction('unlockEmailOtpWallet', 'intended-unlock-email-otp', {
+            expectedOutcome: 'error',
+          })
+        : await this.runIntendedPageAction(
+            'unlockWithAddedEmailOtp',
+            'intended-unlock-added-email-otp',
+            { expectedOutcome: 'error' },
+          );
+    if (snapshot.action.status !== 'error') {
+      throw new Error(`revoked Email OTP unlock ended with ${snapshot.action.status}`);
+    }
+    this.recordService(`revoked Email OTP unlock refused: ${snapshot.action.error}`);
   }
 
   /**
@@ -2280,13 +2367,24 @@ export class IntendedBehaviourHarness {
   }
 
   /** Refactor 109C acceptance: an Email OTP wallet gains a Passkey method. */
-  async addPasskeyAuthMethod(): Promise<void> {
+  async addPasskeyAuthMethod(
+    options: { readonly loseFinalizeResponseOnce?: boolean } = {},
+  ): Promise<void> {
     this.recordStage('add_passkey_auth_method');
     const registration = this.requireRegisteredWalletForSigning();
-    const snapshot = await this.runIntendedPageAction(
-      'addPasskeyAuthMethod',
-      'intended-add-passkey-auth-method',
-    );
+    const lostFinalize = options.loseFinalizeResponseOnce
+      ? await this.loseAddAuthMethodFinalizeResponseOnce()
+      : null;
+    let snapshot: IntendedPageSnapshot;
+    try {
+      snapshot = await this.runIntendedPageAction(
+        'addPasskeyAuthMethod',
+        'intended-add-passkey-auth-method',
+      );
+    } finally {
+      await lostFinalize?.release();
+    }
+    lostFinalize?.assertReplayed();
     if (snapshot.action.status !== 'success') {
       throw new Error(`add-passkey ended with ${snapshot.action.status}`);
     }

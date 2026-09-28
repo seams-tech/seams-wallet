@@ -4705,11 +4705,22 @@ export async function finalizeWalletAddAuthMethod(
             webauthnRegistration: args.webauthnRegistration,
             custodyEnvelope: parsePasskeyCustodyEnvelopeRecord(args.custodyEnvelope),
           };
-  const response = await postJson({
+  const request = {
     relayerUrl: args.relayerUrl,
     path: `/wallets/${encodeURIComponent(walletId)}/auth-methods/finalize`,
     body,
-  });
+  };
+  let response: unknown;
+  try {
+    response = await postJson(request);
+  } catch (error: unknown) {
+    /* The Gateway commits finalize once per ceremony and replays that outcome
+       for the exact same request, so a lost response (fetch rejects with a
+       TypeError) is recovered by asking again with the same body. A Gateway
+       answer, even a refusal, is final. */
+    if (!(error instanceof TypeError)) throw error;
+    response = await postJson(request);
+  }
   return parseWalletAddAuthMethodFinalizeResponse(response);
 }
 

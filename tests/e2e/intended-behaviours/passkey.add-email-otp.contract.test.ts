@@ -9,7 +9,9 @@ import { intendedTest as test } from './harness';
 test('a passkey wallet can add an email code as a second way in', async ({ harness }) => {
   await harness.registerPasskeyWallet();
   await harness.awaitNearReady();
-  await harness.addEmailOtpAuthMethod();
+  /* The finalize commits but its answer is lost: the retry must receive that
+     same addition, not make a second one. */
+  await harness.addEmailOtpAuthMethod({ loseFinalizeResponseOnce: true });
   /* Both families are active now, so the same addition again must be refused
      off the existing inventory rather than costing another code. */
   await harness.assertRepeatAdditionIsAlreadyConfigured('addEmailOtpAuthMethod');
@@ -27,4 +29,11 @@ test('a passkey wallet can add an email code as a second way in', async ({ harne
   await harness.signNearTransaction('step_up_required');
   await harness.exportEd25519Key();
   await harness.exportEcdsaKey();
+  /* The passkey that stays revokes the added method. Its code no longer opens
+     the wallet, and the passkey still signs. */
+  await harness.unlockPasskeyWallet();
+  await harness.revokeSourceAuthMethod('added');
+  await harness.assertRevokedEmailOtpCannotUnlock('added');
+  await harness.unlockPasskeyWallet();
+  await harness.signTempoTransaction('post_unlock');
 });
