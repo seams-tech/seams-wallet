@@ -145,12 +145,12 @@ const ADD_AUTH_METHOD_FINALIZE_REPLAY_TTL_MS = 24 * 60 * 60 * 1000;
 
 type FinalizeWalletAddAuthMethodInput = FinalizeWalletAddAuthMethodCommand;
 type FinalizeWalletAddAuthMethodResult = WalletAddAuthMethodFinalizeResponse;
-/** A verified source proof, with the statements that spend it in the revocation's batch. */
+/** A verified source proof, with its commit-time authorization and consumption checks. */
 type VerifiedFreshRevokeProofV1 =
   | {
       readonly kind: 'authorized';
       readonly walletAuthMethodId: WalletAuthMethodId;
-      readonly consumeInBatch: readonly D1PreparedStatementLike[];
+      readonly commitPrerequisites: readonly D1PreparedStatementLike[];
     }
   | {
       readonly kind: 'denied';
@@ -2552,7 +2552,16 @@ export class CloudflareD1WalletAuthMethodService {
       return {
         kind: 'authorized',
         walletAuthMethodId: verified.walletAuthMethodId,
-        consumeInBatch,
+        commitPrerequisites: [
+          ...this.getWalletAuthMethodStore().prepareActiveV2SourceGuardStatements({
+            walletId: input.walletId,
+            walletAuthMethodId: sourceMethod.walletAuthMethodId,
+            walletAuthorityId: sourceMethod.walletAuthorityId,
+            authorityDigestB64u: sourceAuthority.authorityDigestB64u,
+            authorityRevocationEpoch: sourceAuthority.revocationEpoch,
+          }),
+          ...consumeInBatch,
+        ],
       };
     } catch (error: unknown) {
       return {
@@ -2667,13 +2676,17 @@ export class CloudflareD1WalletAuthMethodService {
       expectedOrigin: input.expectedOrigin,
       operationFingerprintDigest,
     });
-    if (verified.kind === 'denied') return verified;
+    if (verified.kind === 'denied') {
+      // Another copy can commit and spend the proof after the first replay lookup.
+      const committed = await this.revocationReplays.readExactAnswerV1(replay).catch(() => null);
+      return committed ? { kind: 'answered', response: committed } : verified;
+    }
     const response = await this.revokeWithVerifiedProof({
       walletId,
       targetWalletAuthMethodId: input.walletAuthMethodId,
       requestedAtMs: input.requestedAtMs,
       sourceWalletAuthMethodId: verified.walletAuthMethodId,
-      consumeProofInBatch: verified.consumeInBatch,
+      commitPrerequisites: verified.commitPrerequisites,
       replay,
     });
     if (response.ok) return { kind: 'answered', response };
@@ -2689,7 +2702,7 @@ export class CloudflareD1WalletAuthMethodService {
     readonly targetWalletAuthMethodId: WalletAuthMethodId;
     readonly requestedAtMs: number;
     readonly sourceWalletAuthMethodId: WalletAuthMethodId;
-    readonly consumeProofInBatch: readonly D1PreparedStatementLike[];
+    readonly commitPrerequisites: readonly D1PreparedStatementLike[];
     readonly replay: WalletAuthMethodRevocationReplayIdentityV1;
   }): Promise<WalletRevokeAuthMethodResponse> {
     try {
@@ -2766,11 +2779,8 @@ export class CloudflareD1WalletAuthMethodService {
             requestedAtMs: input.requestedAtMs,
           }),
           ...envelopeRevocation.statements,
-          /* The proof is spent and the answer recorded only with the
-             revocation. Each aborts the batch unless it writes: a code another
-             request spent, or a revocation already recorded, commits nothing
-             here. */
-          ...input.consumeProofInBatch,
+          // Source authorization, proof consumption and the answer share this commit.
+          ...input.commitPrerequisites,
           ...this.revocationReplays.prepareRecordAnswerStatements({
             identity: input.replay,
             sourceWalletAuthMethodId: input.sourceWalletAuthMethodId,
