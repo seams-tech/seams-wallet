@@ -691,9 +691,12 @@ not a wallet custody seed:
   as it does for ECDSA.
 
 The contract links Device 2, unlocks it and has it link Device 3. Device 3
-receives the export root and signs NEAR and Tempo with the wallet's keys. It
-passes on the VM, the wallet-object build and Workers D1, as do the other two
-linking contracts.
+receives the export root, signs NEAR and Tempo with the wallet's keys, and
+exports both keys: the Ed25519 key from that root, and the ECDSA key from its
+own share. The ECDSA export needed one fix (793ba2d): the holder's export
+now verifies the Derivers' stable tenant-root proof bundles, as the explicit
+export ceremony does. The contract passes on the VM, the wallet-object build
+and Workers D1 (2026-09-29), as do the other two linking contracts.
 
 **Auth-method addition and revocation — integration and demonstrated fixes**
 

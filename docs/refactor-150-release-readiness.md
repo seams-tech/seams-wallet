@@ -64,8 +64,35 @@ records each slice, its evidence and what it left open.
     - a duplicate record, a spent code or an expired code aborts the batch.
 
     The Email OTP add-passkey contract now refuses the first commit and
-    requires both the retry and a replay to succeed. It has not run: it
-    needs a Google ID token.
+    requires both the retry and a replay to succeed. It also requires
+    changed copies of the committed request to be refused (992c4b5), one
+    naming another operation and one carrying another code. 7ebcde5
+    fences the approving method and authority at the revocation's commit,
+    and a refused proof re-reads the record in case a concurrent copy
+    committed first. The contract has not run: it needs a Google ID token.
+16. A linked device exports its ECDSA key (793ba2d). The holder's ordinary
+    export still verified the Derivers' proof bundles as V1, and every
+    export answers with stable tenant-root (V2) bundles, so a linked
+    device's ECDSA export failed "client-proof verification failed:
+    InvalidShape". The holder now verifies V2 bundles as the explicit export
+    ceremony does, bound to its request's transcript, recipient and its own
+    application binding. In the three-device NEAR linking contract, Device 3
+    signs NEAR and Tempo, then exports both keys:
+    - the Ed25519 export must match the registered key;
+    - the ECDSA export reconstructs to the threshold key and address.
+
+    It passes on all three hosts (2026-09-29).
+17. A status read no longer rebinds a session that deferred NEAR
+    provisioning moved on (e5f9179). This resolves the Workers D1
+    intermittent failure below.
+18. The registration ceremony CAS guard has its seeded row (af763cd). Before
+    it, the first guard to fire on a fresh database committed instead of
+    aborting.
+19. Every SigningWorker decides a Yao recovery's deliveries and promotion by
+    the same shared functions (cd5a77c): the D1 SigningWorker, the wallet
+    object and the VM. Each persists what they decide. The late superseded
+    attempt and the replaced-activation retirement contracts pass on all
+    three hosts (2026-09-29).
 
 The lifecycle-keyed ceremony records stay in Gateway D1. That is the final
 boundary.
@@ -94,37 +121,37 @@ on each host.
 
 - The skipped contract is slice 10's commit fence. Only Workers D1 has that
   window, and it passes there.
-- The Workers D1 failure is an **unresolved intermittent failure**. "sustained
-  Tempo and Arc signing uses fresh presignatures beyond pool capacity" failed
-  once: the client reported "exact ECDSA Wallet Session is unavailable" at
-  step-up Arc signing. It passed twice when rerun alone, passes on the other
-  hosts, and passed in every earlier run. Two isolated passes do not show
-  that it is harmless or unrelated to this branch. What its persisted trace
-  shows:
-  - The wallet's NEAR registration answered late, at 7.4 s (its custody join
-    took 5.0 s), so deferred NEAR provisioning ran while the step-up signing
-    was under way. The step-up began at 7.14 s. Provisioning installed its
-    session at 7.53 s, activated its signer at 7.54 s and was durably ready
-    at 7.55 s. The step-up was confirmed at 7.76 s and then refused.
-  - The refusal message comes from any of three checks in
-    `resolveExactEcdsaOperationStepUpSession`
-    (`signingFlowRuntime.ts`, lines 168, 195 and 208). The selected authority
-    may not be resolved, unlocked and active. The exact session record may be
-    missing. Or the record may no longer match the selected authority's
-    digest, revocation epoch or ECDSA capability, or it may have expired. The
-    trace does not say which check failed. The run's Playwright artifacts were
-    overwritten.
-  - The overlap alone does not explain it. Five passing Workers runs of the
-    same contract have the same overlap: the two reruns, the earlier D1 run
-    and two wallet-object runs, with provisioning ready 0.2 to 1.5 s after
-    the step-up began (0.4 s in the failing run). On the VM the custody join takes 1.7 s, and
-    provisioning is ready before the step-up begins.
-  - Candidate, not established: provisioning's session install or signer
-    activation replaces state between the step-up's reads.
-  - Since 2efb60a each of the three checks names its reason in the refusal,
-    so the next failing trace will say which state was missing or changed.
-    This diagnoses the failure; it does not resolve it. The contract passes on
-    the VM with the change.
+- The Workers D1 failure is **resolved** (e5f9179). "sustained Tempo and Arc
+  signing uses fresh presignatures beyond pool capacity" had failed once
+  with "exact ECDSA Wallet Session is unavailable" at step-up Arc signing,
+  while deferred NEAR provisioning landed during the step-up.
+  - The check. With 2efb60a's reasons, a sweep that released provisioning as
+    the step-up began reproduced it once in 61 runs as
+    `wallet_session_identity_mismatch (authority digest)`: the stored exact
+    session was bound to an authority digest the wallet no longer stored.
+  - The writer. Provisioning publishes the extended authority and rebinds
+    the session in one transaction. A temporary write log over 50 runs
+    showed:
+    - after that publication, the only session writes were status
+      projections: the ECDSA and NEAR readers write back a status they read
+      over the network, after re-reading the authority to check it;
+    - the only authority write was the publication's own.
+
+    A projection whose re-read ran before the publication, and whose write
+    committed after it, put the older session back.
+  - The fix. A projection writes only when two things still hold, checked in
+    the write's own transaction: the stored authority carries the session's
+    digest and revocation epoch, and the selection is unlocked on its method.
+    Otherwise the status is dropped for that read.
+  - The evidence. A new contract forces that order: it holds the step-up's
+    status answer, and holds the wallet's authority re-read behind a
+    transaction on its auth-method store until provisioning's publication
+    queues behind it.
+    - Without the fix it failed 2 of 2 on Workers D1: provisioning's
+      readiness check found the older session.
+    - With the fix it passes on the VM, the wallet-object build and Workers
+      D1, and each run records the dropped status.
+    - After the fix, 20 randomized overlap runs passed.
 
 Each run's persisted traces are kept with the run, outside the repository.
 
@@ -200,16 +227,12 @@ their repair.
   extended contracts need the Email OTP run below. Device linking passes on
   every host, in the consolidated run too.
 - An Email OTP run with a Google ID token.
-- The Email OTP run above must include the revocation's refused commit,
-  its retry on the same code and the replay (item 15). They are implemented
-  but have not run.
+- The Email OTP run above must include the revocation's refused commit, its
+  retry on the same code, the replay and the refused changed requests (item
+  15). They are implemented but have not run.
 - A linked-device revocation proven by Email OTP still spends its code when
   the code is checked. A failed commit there needs a new code. Only the
   auth-method revocation defers the spend.
-- `registration_ceremony_cas_guard` has no seeded row in the d1-signer chain.
-  The first guard that fires on a fresh database inserts the row and commits
-  instead of aborting. Registration ceremony records and the Email OTP
-  registration receipt use this guard. The fix is one seeding migration.
 - The review items the cross-owner plan leaves open. Explicit recovery
   abandonment stays deferred.
 - The new-wallet cohort, and the Phase 3 clean reset, as separately

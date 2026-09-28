@@ -475,8 +475,13 @@ Also:
 
 **Not addressed (for review).**
 - Abandoning a recovery and restoring the previous authority stays deferred.
-- The VM SigningWorker does not call the shared transition functions. Its
-  own state machine settles the same cases.
+- The VM SigningWorker did not call the shared transition functions; its
+  own state machine settled the same cases. Resolved later (2026-09-29): the
+  delivery and promotion decisions are two shared functions,
+  `decide_ed25519_yao_recovery_delivery_v1` and
+  `decide_ed25519_yao_recovery_promotion_v1`. The D1 SigningWorker, the
+  wallet object and the VM SigningWorker all map their state onto them, and
+  each persists what they decide.
 
 ### Slice 7: supported-flow gaps (2026-09-28)
 
