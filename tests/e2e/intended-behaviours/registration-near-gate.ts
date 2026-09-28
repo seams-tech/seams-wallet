@@ -2,6 +2,7 @@ import {
   expect,
   type BrowserContext,
   type ConsoleMessage,
+  type Frame,
   type Route,
   type Page,
 } from '@playwright/test';
@@ -288,48 +289,73 @@ async function lockCurrentWallet(): Promise<void> {
   await lock();
 }
 
-class NearHydrationGate {
-  private releaseGate: () => void = ignoreRelease;
-  private readonly released = new Promise<void>(this.saveRelease.bind(this));
-  private published = false;
-  private held = false;
+/**
+ * Holds passkey session hydration during NEAR provisioning. Finalization
+ * applies the prepared server seal and returns it, so hydration completes
+ * that seal in the session worker without asking the server for anything:
+ * the hold is on the one worker message that completes it, once per wallet
+ * tab. A spoiled release makes the worker refuse the message, and hydration
+ * fails.
+ */
+function installNearHydrationHold(): void {
+  const send = Worker.prototype.postMessage;
+  const heldKey = 'intended-near-hydration-hold-used';
+  let release: ((spoil: boolean) => void) | null = null;
+  let held = false;
+  window.__seamsIntendedNearHydrationHold = {
+    isHeld: () => held,
+    release: (spoil: boolean) => release?.(spoil),
+  };
+  function holdHydrationSeal(this: Worker, ...args: Parameters<Worker['postMessage']>): void {
+    const [message] = args;
+    const type = (message as { readonly type?: unknown } | null)?.type;
+    if (type !== 'COMPLETE_SESSION_CLIENT_SEAL' || sessionStorage.getItem(heldKey) === 'yes') {
+      send.apply(this, args);
+      return;
+    }
+    sessionStorage.setItem(heldKey, 'yes');
+    held = true;
+    release = (spoil: boolean): void => {
+      release = null;
+      held = false;
+      if (spoil) args[0] = { ...(message as object), payload: null };
+      send.apply(this, args);
+    };
+  }
+  Worker.prototype.postMessage = holdHydrationSeal as Worker['postMessage'];
+}
+
+function isNearHydrationHeld(): boolean {
+  return window.__seamsIntendedNearHydrationHold?.isHeld() === true;
+}
+
+function releaseNearHydration(spoil: boolean): void {
+  window.__seamsIntendedNearHydrationHold?.release(spoil);
+}
+
+async function findHeldNearHydrationFrame(page: Page): Promise<Frame | null> {
+  for (const frame of page.frames()) {
+    if (await frame.evaluate(isNearHydrationHeld).catch(() => false)) return frame;
+  }
+  return null;
+}
+
+class NearHydrationObserver {
   private installed = false;
   private finished = false;
-
-  constructor(private readonly result: 'success' | 'failure' | 'lock') {}
-
-  private saveRelease(resolve: () => void): void {
-    this.releaseGate = resolve;
-  }
 
   observe(message: ConsoleMessage): void {
     const text = message.text();
     if (!text.startsWith('[Registration] NEAR timing ')) return;
-    if (text.includes('"stage":"local_publication"')) this.published = true;
     if (text.includes('"stage":"signer_activation"')) this.installed = true;
     if (text.includes('"stage":"provisioning_total"')) this.finished = true;
   }
 
-  async hold(route: Route): Promise<void> {
-    if (!this.published || this.held) {
-      await route.continue();
-      return;
-    }
-    this.held = true;
-    await this.released;
-    if (this.result === 'failure')
-      await route.fulfill({ status: 503, body: 'Injected seal failure' });
-    else await route.continue();
-  }
-
-  isInstalledWhileHeld(): boolean {
-    return this.held && this.installed;
+  isInstalled(): boolean {
+    return this.installed;
   }
   isFinished(): boolean {
     return this.finished;
-  }
-  release(): void {
-    this.releaseGate();
   }
 }
 
@@ -338,16 +364,20 @@ export async function assertPasskeyHydrationOverlapsInstallation(input: {
   readonly context: BrowserContext;
   readonly result: 'success' | 'failure' | 'lock';
 }): Promise<void> {
-  const gate = new NearHydrationGate(input.result);
-  const handler = gate.hold.bind(gate);
+  const observer = new NearHydrationObserver();
   const page = input.context.pages()[0];
   if (!page) throw new Error('Registration page is unavailable');
-  page.on('console', gate.observe.bind(gate));
-  await input.context.route('**/apply-server-seal', handler);
+  page.on('console', observer.observe.bind(observer));
+  await input.context.addInitScript(installNearHydrationHold);
+  const hold: { frame: Frame | null } = { frame: null };
+  const heldWhileInstalled = async (): Promise<boolean> => {
+    hold.frame = await findHeldNearHydrationFrame(page);
+    return hold.frame !== null && observer.isInstalled();
+  };
   try {
     await input.harness.registerPasskeyWallet();
-    await expect.poll(gate.isInstalledWhileHeld.bind(gate)).toBe(true);
-    expect(gate.isFinished()).toBe(false);
+    await expect.poll(heldWhileInstalled).toBe(true);
+    expect(observer.isFinished()).toBe(false);
     const persisted = await page
       .locator('iframe[allow*="publickey-credentials-get"]')
       .last()
@@ -357,11 +387,10 @@ export async function assertPasskeyHydrationOverlapsInstallation(input: {
     expect(persisted.phases).toEqual(['joined']);
     expect(persisted.statuses).not.toContain('near_ready');
     if (input.result === 'lock') await input.harness.lockWallet();
-    gate.release();
-    await expect.poll(gate.isFinished.bind(gate)).toBe(true);
+    await hold.frame?.evaluate(releaseNearHydration, input.result === 'failure');
+    await expect.poll(observer.isFinished.bind(observer)).toBe(true);
   } finally {
-    gate.release();
-    await input.context.unroute('**/apply-server-seal', handler);
+    await hold.frame?.evaluate(releaseNearHydration, false).catch(() => undefined);
   }
   if (input.result === 'lock') await input.harness.assertWalletLocked();
   if (input.result === 'failure') await input.harness.signTempoTransaction('post_registration');

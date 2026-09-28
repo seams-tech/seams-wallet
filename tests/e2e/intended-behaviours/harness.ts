@@ -331,6 +331,10 @@ declare global {
     ) => Promise<string>;
     __seamsIntendedConcurrentActionObserver?: IntendedConcurrentActionObserver;
     __seamsIntendedE2ELockWallet?: () => Promise<void>;
+    __seamsIntendedNearHydrationHold?: {
+      readonly isHeld: () => boolean;
+      readonly release: (spoil: boolean) => void;
+    };
     __seamsIntendedE2EReadWalletLockState?: () => Promise<{
       authenticationKind: 'authenticated' | 'signed_out';
     }>;

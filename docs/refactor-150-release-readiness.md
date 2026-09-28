@@ -82,31 +82,36 @@ The new Email OTP export replay contract is among them.
      which answer it holds.
    - The fix is a real terminal: a gated Router-side fault on each host that
      records the burned answer. Not done here.
-2. **The three overlapping-hydration contracts** fail for a reason that
-   predates this work:
+2. **The three overlapping-hydration contracts** held a request that fresh
+   passkey registration no longer makes:
    - "passkey hydration overlaps signer installation and gates durable
      readiness";
    - "passkey overlapping hydration failure retains a repairable
      registration";
    - "passkey lock during overlapping hydration prevents late readiness".
 
-   In every trace, no registration flow hydrates its session during NEAR
-   provisioning: the seal request comes only after provisioning completes.
-   So the test's gate never holds it before readiness. The SDK hydrates
-   there only for passkey material with remaining session uses.
-   - These contracts last passed on 2026-09-23 at 04:05, recorded in
-     [NEAR custody profiling](./near-custody-profiling.md).
-   - 3cf0150, "perf: overlap NEAR registration finalization", rewrote that
-     hydration block the same day at 17:28, and is the likely cause.
-   - This branch's slices change no SDK behavior. A bisect over the SDK
-     commits since would confirm the cause.
+   Their gate held the first `/apply-server-seal` after NEAR publication.
+   Since 3cf0150 ("perf: overlap NEAR registration finalization"),
+   finalization applies the prepared server seal and returns it in the same
+   response, as the intended behaviours now specify. Hydration then completes
+   that seal in the session worker and asks the server for nothing, so the
+   gate held a later, unrelated seal request instead.
+   - Production follows the rule: hydration starts at NEAR publication and
+     overlaps signer installation. Registration awaits it before durable
+     readiness, and a failed hydration leaves the NEAR journal for unlock to
+     repair.
+   - The gate now holds the one worker message that completes the prepared
+     seal, once per wallet tab, through a test init script in the wallet
+     frame. The failure case spoils that message, so the worker refuses it
+     and hydration fails.
+   - All three pass on the VM (2026-09-28). No product change was needed.
 
 ## Before the managed milestone
 
 - Phase 2 device linking and auth-method addition and revocation, per the
   [plan](./refactor-150-regional-wallet-home-lanes.md#required-device-linking-and-auth-method-work).
-- The four failing contracts above, and an Email OTP run with a Google ID
-  token.
+- The terminal-execution contract above, and an Email OTP run with a Google
+  ID token.
 - The review items the cross-owner plan leaves open. Explicit recovery
   abandonment stays deferred.
 - The new-wallet cohort, and the Phase 3 clean reset, as separately
