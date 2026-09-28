@@ -21,6 +21,8 @@ records each slice, its evidence and what it left open.
    activation it replaces on every host. Recovery pins its tenant root.
 7. An Email OTP export replay answers with its factor release. The VM burns
    a half-finished pair on replay, as the Workers D1 Router does.
+8. Each recovery attempt keeps its own staged candidate at the SigningWorker,
+   so a superseded attempt's late delivery displaces nothing.
 
 The lifecycle-keyed ceremony records stay in Gateway D1. That is the final
 boundary.
@@ -44,6 +46,9 @@ on each host.
 
 The same four contracts fail on every host (below). Each run's persisted
 traces are kept with the run, outside the repository.
+
+Slice 8 came after this run. Its new contract, and the retirement contract,
+pass on all three hosts. The rest of the suite was not rerun for it.
 
 Not run: the 23 Email OTP and Google-backed contracts. Those flows need a
 Google ID token, and this environment has none. Minting one impersonates a

@@ -716,8 +716,8 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 combine_signing_worker_yao_packages_v1(&self.env, &request.delivery, Some(active))
             },
         )?;
-        let receipt = settled.receipt()?.clone();
-        if let SigningWorkerYaoRecoveryDeliveryV1::Stage(staged) = settled {
+        let receipt = settled.receipt().clone();
+        if let SigningWorkerYaoRecoveryDeliveryV1::Stage { state: staged, .. } = settled {
             let stored = stored.ok_or_else(|| {
                 wallet_error("SigningWorker recovery staged without a stored lifecycle")
             })?;

@@ -164,8 +164,11 @@ struct ActivationCandidate {
 }
 
 enum RecoveryPromotionState {
+    /// A recovery staged here: one candidate per attempt, kept apart, so no
+    /// attempt's delivery displaces another's, as on Workers. Only the
+    /// Gateway's current attempt promotes, and it finds its own candidate.
     Staged {
-        candidate: ActivationCandidate,
+        candidates: Vec<ActivationCandidate>,
     },
     /// The recovery promoted here, with the deliveries that made it: the same
     /// deliveries answer again, and another attempt of it is stale.
@@ -176,14 +179,9 @@ enum RecoveryPromotionState {
     },
 }
 
-impl RecoveryPromotionState {
-    fn promotion(&self) -> &LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1 {
-        match self {
-            Self::Staged { candidate } => &candidate.promotion,
-            Self::Promoted { promotion, .. } => promotion,
-        }
-    }
-}
+/// How many attempts of one recovery stay staged, as on Workers. A further
+/// attempt drops the earliest staged one.
+const LOCAL_SIGNING_WORKER_RECOVERY_STAGED_ATTEMPTS_MAX_V1: usize = 8;
 
 #[derive(Default)]
 pub struct LocalEd25519YaoSigningWorkerStateV1 {
@@ -268,21 +266,23 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         let mut recoveries = Vec::new();
         for (identity, state) in &self.identities {
             match state.recovery_promotion.as_ref() {
-                Some(RecoveryPromotionState::Staged { candidate }) => {
-                    recoveries.push(LocalEd25519YaoSigningWorkerDurableRecoveryV1 {
-                        identity: identity.clone(),
-                        deriver_a: delivery_request(&candidate.deriver_a),
-                        deriver_b: delivery_request(&candidate.deriver_b),
-                        promotion: candidate.promotion.clone(),
-                        staged: Some(LocalEd25519YaoSigningWorkerDurableShareV1 {
-                            scalar: *candidate.next_active.scalar,
-                            binding: candidate.next_active.binding.clone(),
-                            state_epoch: candidate.next_active.state_epoch,
-                            activated_at_ms: candidate.next_active.activated_at_ms,
-                            transcript: candidate.next_active.transcript,
-                            registered_public_key: candidate.next_active.registered_public_key,
-                        }),
-                    });
+                Some(RecoveryPromotionState::Staged { candidates }) => {
+                    for candidate in candidates {
+                        recoveries.push(LocalEd25519YaoSigningWorkerDurableRecoveryV1 {
+                            identity: identity.clone(),
+                            deriver_a: delivery_request(&candidate.deriver_a),
+                            deriver_b: delivery_request(&candidate.deriver_b),
+                            promotion: candidate.promotion.clone(),
+                            staged: Some(LocalEd25519YaoSigningWorkerDurableShareV1 {
+                                scalar: *candidate.next_active.scalar,
+                                binding: candidate.next_active.binding.clone(),
+                                state_epoch: candidate.next_active.state_epoch,
+                                activated_at_ms: candidate.next_active.activated_at_ms,
+                                transcript: candidate.next_active.transcript,
+                                registered_public_key: candidate.next_active.registered_public_key,
+                            }),
+                        });
+                    }
                 }
                 Some(RecoveryPromotionState::Promoted {
                     promotion,
@@ -384,35 +384,68 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
                 invalid_activation("persisted SigningWorker recovery has no active identity")
             })?;
             let promotion = recovery.promotion.clone();
-            identity_state.recovery_promotion = Some(match recovery.staged.as_mut() {
-                Some(share) => {
+            match (
+                recovery.staged.as_mut(),
+                identity_state.recovery_promotion.as_mut(),
+            ) {
+                (Some(share), staged) => {
                     if share.scalar.iter().all(|byte| *byte == 0) {
                         return Err(invalid_activation(
                             "persisted SigningWorker recovery candidate is invalid",
                         ));
                     }
-                    RecoveryPromotionState::Staged {
-                        candidate: ActivationCandidate {
-                            next_active: ActiveSigningShare {
-                                scalar: Zeroizing::new(core::mem::take(&mut share.scalar)),
-                                binding: share.binding.clone(),
-                                state_epoch: share.state_epoch,
-                                activated_at_ms: share.activated_at_ms,
-                                transcript: share.transcript,
-                                registered_public_key: share.registered_public_key,
-                            },
-                            promotion,
-                            deriver_a,
-                            deriver_b,
+                    let candidate = ActivationCandidate {
+                        next_active: ActiveSigningShare {
+                            scalar: Zeroizing::new(core::mem::take(&mut share.scalar)),
+                            binding: share.binding.clone(),
+                            state_epoch: share.state_epoch,
+                            activated_at_ms: share.activated_at_ms,
+                            transcript: share.transcript,
+                            registered_public_key: share.registered_public_key,
                         },
+                        promotion,
+                        deriver_a,
+                        deriver_b,
+                    };
+                    match staged {
+                        None => {
+                            identity_state.recovery_promotion =
+                                Some(RecoveryPromotionState::Staged {
+                                    candidates: vec![candidate],
+                                });
+                        }
+                        Some(RecoveryPromotionState::Staged { candidates })
+                            if candidates.len()
+                                < LOCAL_SIGNING_WORKER_RECOVERY_STAGED_ATTEMPTS_MAX_V1
+                                && candidates.iter().all(|staged| {
+                                    staged.deriver_a.binding.lifecycle.lifecycle_id
+                                        == candidate.deriver_a.binding.lifecycle.lifecycle_id
+                                        && staged.deriver_a.binding.session_id
+                                            != candidate.deriver_a.binding.session_id
+                                }) =>
+                        {
+                            candidates.push(candidate);
+                        }
+                        Some(_) => {
+                            return Err(invalid_activation(
+                                "persisted SigningWorker recovery attempts are inconsistent",
+                            ));
+                        }
                     }
                 }
-                None => RecoveryPromotionState::Promoted {
-                    promotion,
-                    deriver_a,
-                    deriver_b,
-                },
-            });
+                (None, None) => {
+                    identity_state.recovery_promotion = Some(RecoveryPromotionState::Promoted {
+                        promotion,
+                        deriver_a,
+                        deriver_b,
+                    });
+                }
+                (None, Some(_)) => {
+                    return Err(invalid_activation(
+                        "persisted SigningWorker recovery attempts are inconsistent",
+                    ));
+                }
+            }
         }
         let retired_activations = core::mem::take(&mut state.retired_activations);
         for retired in &retired_activations {
@@ -700,10 +733,10 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
 
     /// A recovery delivery against the recovery staged or promoted here, as
     /// the Workers SigningWorker settles it. The same deliveries answer again.
-    /// A later attempt of a staged recovery replaces the earlier attempt's
-    /// candidate, which never promoted; another attempt of a promoted
-    /// recovery is stale. Anything else goes on to stage, or is refused while
-    /// a recovery is pending.
+    /// Each attempt of a staged recovery keeps its own candidate, so a late
+    /// delivery from a superseded attempt displaces none; another attempt of
+    /// a promoted recovery is stale. A new attempt goes on to stage beside the
+    /// others, and anything else is refused while a recovery is pending.
     fn settle_recovery_delivery(
         &mut self,
         deriver_a: &PendingDelivery,
@@ -711,14 +744,28 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
     ) -> RouterAbProtocolResult<Option<LocalEd25519YaoSigningWorkerActivationReceiptV1>> {
         let lifecycle_id = &deriver_a.binding.lifecycle.lifecycle_id;
         match &self.recovery_promotion {
-            Some(RecoveryPromotionState::Staged { candidate }) => {
-                if candidate.deriver_a == *deriver_a && candidate.deriver_b == *deriver_b {
-                    return Ok(Some(LocalEd25519YaoSigningWorkerActivationReceiptV1::Staged {
-                        promotion: candidate.promotion.clone(),
-                    }));
+            Some(RecoveryPromotionState::Staged { candidates }) => {
+                if candidates.iter().any(|candidate| {
+                    candidate.deriver_a.binding.lifecycle.lifecycle_id != *lifecycle_id
+                }) {
+                    return Err(invalid_activation(
+                        "SigningWorker recovery promotion is pending",
+                    ));
                 }
-                if candidate.deriver_a.binding.lifecycle.lifecycle_id == *lifecycle_id {
-                    self.recovery_promotion = None;
+                let session = deriver_a.binding.session_id.into_bytes();
+                if let Some(candidate) = candidates.iter().find(|candidate| {
+                    candidate.deriver_a.binding.session_id.into_bytes() == session
+                }) {
+                    if candidate.deriver_a == *deriver_a && candidate.deriver_b == *deriver_b {
+                        return Ok(Some(
+                            LocalEd25519YaoSigningWorkerActivationReceiptV1::Staged {
+                                promotion: candidate.promotion.clone(),
+                            },
+                        ));
+                    }
+                    return Err(invalid_activation(
+                        "SigningWorker recovery attempt delivered different packages",
+                    ));
                 }
                 Ok(None)
             }
@@ -748,35 +795,42 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
         request: LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
     ) -> RouterAbProtocolResult<LocalEd25519YaoSigningWorkerActivationReceiptV1> {
         validate_recovery_promotion_request(&request)?;
-        let promotion_state = self
-            .recovery_promotion
-            .as_ref()
-            .ok_or_else(|| invalid_activation("SigningWorker has no staged recovery candidate"))?;
-        if promotion_state.promotion() != &request {
-            return Err(invalid_activation(
-                "recovery promotion does not match the staged candidate",
-            ));
-        }
-        if matches!(promotion_state, RecoveryPromotionState::Promoted { .. }) {
-            return Ok(active_activation_receipt(&request));
-        }
-        let RecoveryPromotionState::Staged { candidate } = promotion_state else {
-            unreachable!();
+        let index = match self.recovery_promotion.as_ref() {
+            None => {
+                return Err(invalid_activation(
+                    "SigningWorker has no staged recovery candidate",
+                ))
+            }
+            Some(RecoveryPromotionState::Promoted { promotion, .. }) => {
+                if promotion != &request {
+                    return Err(invalid_activation(
+                        "recovery promotion does not match the staged candidate",
+                    ));
+                }
+                return Ok(active_activation_receipt(&request));
+            }
+            Some(RecoveryPromotionState::Staged { candidates }) => {
+                let index = candidates
+                    .iter()
+                    .position(|candidate| candidate.promotion == request)
+                    .ok_or_else(|| {
+                        invalid_activation("recovery promotion does not match the staged candidate")
+                    })?;
+                self.validate_recovery_candidate(&candidates[index].next_active)?;
+                index
+            }
         };
-        self.validate_recovery_candidate(&candidate.next_active)?;
-        let RecoveryPromotionState::Staged { candidate } = self
-            .recovery_promotion
-            .take()
-            .expect("recovery promotion state was checked above")
+        let Some(RecoveryPromotionState::Staged { mut candidates }) =
+            self.recovery_promotion.take()
         else {
-            unreachable!();
+            unreachable!("recovery promotion state was checked above");
         };
         let ActivationCandidate {
             next_active,
             promotion,
             deriver_a,
             deriver_b,
-        } = candidate;
+        } = candidates.swap_remove(index);
         self.active = Some(next_active);
         self.recovery_promotion = Some(RecoveryPromotionState::Promoted {
             promotion,
@@ -915,19 +969,24 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
                 Ok(receipt)
             }
             Ed25519YaoOperationV1::Recovery => {
-                if matches!(
-                    self.recovery_promotion,
-                    Some(RecoveryPromotionState::Staged { .. })
-                ) {
-                    return Err(invalid_activation(
-                        "SigningWorker recovery promotion is pending",
-                    ));
-                }
                 self.validate_recovery_candidate(&candidate.next_active)?;
                 let receipt = LocalEd25519YaoSigningWorkerActivationReceiptV1::Staged {
                     promotion: candidate.promotion.clone(),
                 };
-                self.recovery_promotion = Some(RecoveryPromotionState::Staged { candidate });
+                match self.recovery_promotion.as_mut() {
+                    Some(RecoveryPromotionState::Staged { candidates }) => {
+                        if candidates.len() == LOCAL_SIGNING_WORKER_RECOVERY_STAGED_ATTEMPTS_MAX_V1
+                        {
+                            candidates.remove(0);
+                        }
+                        candidates.push(candidate);
+                    }
+                    Some(RecoveryPromotionState::Promoted { .. }) | None => {
+                        self.recovery_promotion = Some(RecoveryPromotionState::Staged {
+                            candidates: vec![candidate],
+                        });
+                    }
+                }
                 Ok(receipt)
             }
             _ => Err(invalid_activation(
@@ -971,13 +1030,17 @@ impl LocalEd25519YaoSigningIdentityStateV1 {
         &self,
         binding: &Ed25519YaoCeremonyBindingV1,
     ) -> RouterAbProtocolResult<()> {
-        if matches!(
-            self.recovery_promotion,
-            Some(RecoveryPromotionState::Staged { .. })
-        ) {
-            return Err(invalid_activation(
-                "SigningWorker recovery promotion is pending",
-            ));
+        if let Some(RecoveryPromotionState::Staged { candidates }) = &self.recovery_promotion {
+            let another_attempt = binding.operation == Ed25519YaoOperationV1::Recovery
+                && candidates.iter().all(|candidate| {
+                    candidate.deriver_a.binding.lifecycle.lifecycle_id
+                        == binding.lifecycle.lifecycle_id
+                });
+            if !another_attempt {
+                return Err(invalid_activation(
+                    "SigningWorker recovery promotion is pending",
+                ));
+            }
         }
         if self.pending_refresh_a.is_some() || self.pending_refresh_b.is_some() {
             return Err(invalid_activation(

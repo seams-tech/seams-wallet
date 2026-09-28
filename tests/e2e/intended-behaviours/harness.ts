@@ -201,6 +201,7 @@ type IntendedYaoFaultProofV1 =
   | 'terminal_failure_not_retried'
   | 'decision_committed_then_storage_lost'
   | 'recovery_replies_lost_after_router_executed'
+  | 'recovery_execute_withheld'
   | 'export_authorization_committed_then_storage_lost'
   | 'signing_finalize_captured'
   | 'signing_finalize_withheld';
@@ -1107,8 +1108,11 @@ export class IntendedBehaviourHarness {
   private readonly intendedYaoFaultProofs: string[] = [];
   /** Armed once: the next NEAR finalize loses the Gateway's storage after its decision. */
   private intendedYaoFinalizeFaultToken: string | null = null;
-  /** Armed once: the next recovery execution loses every Router reply. */
-  private intendedYaoRecoveryFaultToken: string | null = null;
+  /** Armed once: the next recovery execution loses every Router reply, or is kept from it. */
+  private intendedYaoRecoveryFault: {
+    readonly mode: 'lose_router_recovery_replies' | 'withhold_router_recovery_execute';
+    readonly token: string;
+  } | null = null;
 
   /** Armed once: the next export admission loses storage after its authorization commits. */
   private intendedYaoExportFaultToken: string | null = null;
@@ -2098,13 +2102,13 @@ export class IntendedBehaviourHarness {
     this.recordStage('recover_passkey_wallet_after_interrupted_attempt');
     const action = recoveryActionForTarget('passkey');
     const { registration, recoveryCode } = await this.beginFreshBrowserRecovery({ action });
-    if (this.intendedYaoRecoveryFaultToken !== null) {
+    if (this.intendedYaoRecoveryFault !== null) {
       throw new Error('An intended Yao recovery fault is already armed');
     }
     requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
     const proofStartIndex = this.intendedYaoFaultProofs.length;
     const faultToken = randomUUID();
-    this.intendedYaoRecoveryFaultToken = faultToken;
+    this.intendedYaoRecoveryFault = { mode: 'lose_router_recovery_replies', token: faultToken };
     let frame: FrameLocator;
     try {
       frame = await fillHostedRecoveryCode(this.page, recoveryCode, 'passkey');
@@ -2113,7 +2117,7 @@ export class IntendedBehaviourHarness {
         { timeout: 120_000 },
       );
     } finally {
-      this.intendedYaoRecoveryFaultToken = null;
+      this.intendedYaoRecoveryFault = null;
     }
     this.assertIntendedYaoFaultProof(
       proofStartIndex,
@@ -2132,6 +2136,81 @@ export class IntendedBehaviourHarness {
     this.operatingAuthFamily = 'passkey';
     this.currentWarmSigningStage = 'post_unlock';
     this.recordService('a retry with the same code superseded the interrupted recovery attempt');
+  }
+
+  /**
+   * A superseded recovery attempt reaches the SigningWorker late, after the
+   * attempt that superseded it staged its candidate, and displaces nothing.
+   * The first attempt's execution is kept from the Router, so the Gateway
+   * records it interrupted. A retry with the same code starts a new attempt,
+   * which supersedes the first, executes and stages. Before the new attempt
+   * promotes, the kept execution reaches the Router, which runs it and
+   * delivers its packages to the SigningWorker. The new attempt still
+   * promotes, and the wallet recovers.
+   */
+  async recoverPasskeyWalletAcrossALateSupersededAttempt(): Promise<void> {
+    this.recordStage('recover_passkey_wallet_across_late_superseded_attempt');
+    const action = recoveryActionForTarget('passkey');
+    const { registration, recoveryCode } = await this.beginFreshBrowserRecovery({ action });
+    if (this.intendedYaoRecoveryFault !== null) {
+      throw new Error('An intended Yao recovery fault is already armed');
+    }
+    requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
+    const proofStartIndex = this.intendedYaoFaultProofs.length;
+    const kept = randomUUID();
+    this.intendedYaoRecoveryFault = { mode: 'withhold_router_recovery_execute', token: kept };
+    let frame: FrameLocator;
+    try {
+      frame = await fillHostedRecoveryCode(this.page, recoveryCode, 'passkey');
+      await expect(frame.locator('.seams-recovery-status').last()).toHaveText(
+        'Recovery couldn’t be completed. Try again.',
+        { timeout: 120_000 },
+      );
+    } finally {
+      this.intendedYaoRecoveryFault = null;
+    }
+    this.assertIntendedYaoFaultProof(proofStartIndex, kept, 'recovery_execute_withheld');
+    const activationGate = new RecoveryReplayGate();
+    const holdActivation = holdRecoveryReplayUntilReleased.bind(null, activationGate);
+    const activationPattern = `**${ROUTER_AB_ED25519_YAO_RECOVERY_ACTIVATE_PATH_V1}`;
+    const activationRequested = this.page.waitForRequest(
+      (request) =>
+        request.method() === 'POST' &&
+        new URL(request.url()).pathname === ROUTER_AB_ED25519_YAO_RECOVERY_ACTIVATE_PATH_V1,
+      { timeout: 120_000 },
+    );
+    await this.context.route(activationPattern, holdActivation);
+    try {
+      await frame.getByRole('button', { name: 'Retry finalization', exact: true }).click({
+        timeout: 30_000,
+      });
+      // The new attempt has executed and staged; its promotion waits here.
+      await activationRequested;
+      const late = await this.releaseKeptRecoveryExecute(kept);
+      const answer: unknown = JSON.parse(late.body);
+      if (
+        late.status !== 200 ||
+        (answer as { readonly status?: unknown } | null)?.status !== 'succeeded'
+      ) {
+        throw new Error(
+          `The superseded attempt's late execution did not reach the SigningWorker: ${late.status} ${late.body}`,
+        );
+      }
+    } finally {
+      activationGate.release();
+      await this.context.unroute(activationPattern, holdActivation);
+    }
+    await waitForHostedPasskeyRecoverySignIn(this.page, frame);
+    const snapshot = await this.waitForIntendedPageActionCompletion(action.name, 'success');
+    const result = requirePasskeyRecoveryResult(snapshot, this.walletId);
+    this.assertRecoveryCodeConsumption(result);
+    await this.assertRecoveredWalletLoggedIn(registration.walletId);
+    this.passkeyPromptCount += 3;
+    this.operatingAuthFamily = 'passkey';
+    this.currentWarmSigningStage = 'post_unlock';
+    this.recordService(
+      'a superseded attempt that reached the SigningWorker after its successor staged displaced nothing',
+    );
   }
 
   async recoverPasskeyWalletAfterLostFinalizationResponse(): Promise<void> {
@@ -3434,19 +3513,45 @@ export class IntendedBehaviourHarness {
   }
 
   private async handleIntendedYaoRecoveryFaultRoute(route: Route): Promise<void> {
-    const token = this.intendedYaoRecoveryFaultToken;
-    if (token === null || route.request().method() !== 'POST') {
+    const armed = this.intendedYaoRecoveryFault;
+    if (armed === null || route.request().method() !== 'POST') {
       await route.continue();
       return;
     }
-    this.intendedYaoRecoveryFaultToken = null;
+    this.intendedYaoRecoveryFault = null;
     await route.continue({
       headers: {
         ...route.request().headers(),
-        [LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1]: 'lose_router_recovery_replies',
-        [LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1]: token,
+        [LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1]: armed.mode,
+        [LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1]: armed.token,
       },
     });
+  }
+
+  /** Sends a recovery execution the Gateway kept to the Router, and reads the Router's reply. */
+  private async releaseKeptRecoveryExecute(
+    token: string,
+  ): Promise<{ readonly status: number; readonly body: string }> {
+    const response = await this.page.request.post(
+      new URL(ROUTER_AB_ED25519_YAO_RECOVERY_EXECUTE_PATH_V1, this.config.routerUrl).href,
+      {
+        headers: {
+          [LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1]: 'release_router_recovery_execute',
+          [LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1]: token,
+        },
+        data: {},
+      },
+    );
+    if (!response.ok()) {
+      throw new Error(
+        `Releasing a kept recovery execution failed: ${response.status()} ${await response.text()}`,
+      );
+    }
+    const released = requireRecord(await response.json(), 'released recovery execution');
+    return {
+      status: Number(released.status),
+      body: requireString(released.body, 'released recovery execution body'),
+    };
   }
 
   private async handleIntendedYaoSigningFaultRoute(route: Route): Promise<void> {

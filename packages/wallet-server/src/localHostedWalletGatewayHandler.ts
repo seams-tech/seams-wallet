@@ -51,6 +51,7 @@ import {
   LocalIntendedYaoRecoveryFaultControllerV1,
   parseLocalIntendedYaoRecoveryFaultModeV1,
   parseLocalIntendedYaoRecoveryFaultTokenV1,
+  releaseLocalIntendedYaoRecoveryExecuteV1,
   requestWithoutLocalIntendedYaoRecoveryFaultHeadersV1,
   responseWithLocalIntendedYaoRecoveryFaultOutcomeV1,
 } from './localIntendedYaoRecoveryFault';
@@ -328,8 +329,9 @@ export async function handleLocalHostedWalletGatewayRequestV1(
 }
 
 /**
- * Loses every Router reply to one Ed25519 Yao recovery execution, after the
- * Router has run it. Local only.
+ * Faults one Ed25519 Yao recovery execution on its way to the Router: loses
+ * every reply after the Router ran it, or keeps it from the Router, or sends
+ * a kept one to the Router now. Local only.
  */
 async function handleYaoRecoveryFault(
   request: Request,
@@ -352,8 +354,13 @@ async function handleYaoRecoveryFault(
   ) {
     return Response.json({ code: 'invalid_intended_yao_recovery_fault' }, { status: 400 });
   }
+  if (mode === 'release_router_recovery_execute') {
+    return await releaseLocalIntendedYaoRecoveryExecuteV1(env.MPC_ROUTER, token);
+  }
   const controller = new LocalIntendedYaoRecoveryFaultControllerV1(
     env.MPC_ROUTER.fetch.bind(env.MPC_ROUTER),
+    mode,
+    token,
   );
   const response = await handleSplitGatewayRequest(
     requestWithoutLocalIntendedYaoRecoveryFaultHeadersV1(request),

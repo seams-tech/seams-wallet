@@ -93,6 +93,15 @@ test('a recovery retires the replaced activation: a delayed finalize is refused,
   await harness.signNearTransaction('post_unlock');
 });
 
+test('a superseded recovery attempt that reaches the SigningWorker late displaces nothing, and the recovery signs', async ({
+  harness,
+}) => {
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  await harness.recoverPasskeyWalletAcrossALateSupersededAttempt();
+  await harness.signNearTransaction('post_unlock');
+});
+
 test('a committed Passkey recovery survives a lost finalization response and runtime reset', async ({
   harness,
 }) => {

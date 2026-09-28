@@ -1,6 +1,6 @@
 # R150 cross-owner Yao finalization, recovery and export
 
-Status: slices 1 to 6 implemented (2026-09-27/28, see below).
+Status: slices 1 to 8 implemented (2026-09-27/28, see below).
 - The Router owns each registration's execution record.
 - Registration and add-signer finalize through one decision row per
   lifecycle.
@@ -8,6 +8,8 @@ Status: slices 1 to 6 implemented (2026-09-27/28, see below).
 - An export authorizes in one commit.
 - A recovery runs on the SigningWorker wallet object, and retires the
   activation it replaces on every host.
+- Each recovery attempt keeps its own staged candidate, so a late attempt
+  displaces nothing (slice 8).
 
 The lifecycle-keyed ceremony records stay in Gateway D1 next to the
 tenant-wide `router-ab-ed25519-yao:shared` record. That is the final
@@ -512,6 +514,45 @@ Two gaps that could stop an enabled flow.
 - The VM Router's integration tests pass after the burn change: claim
   takeover, execution ownership, pair reply loss and SigningWorker reply
   loss. No E2E leaves a registration pair half-finished on the VM.
+
+### Slice 8: a late attempt displaces nothing (2026-09-28)
+
+A review found that the SigningWorker still staged one candidate per
+recovery. A delivery from another attempt of the same recovery replaced it,
+whichever attempt the Gateway held current. So a superseded attempt whose
+delivery arrived late, after the attempt superseding it had staged, displaced
+that attempt's candidate. The current attempt's promotion was then refused,
+and an attempt that has begun activating is never superseded (slice 4), so
+the recovery stuck.
+
+Now every store keeps one candidate per attempt of a staged recovery.
+- A delivery from an attempt with no candidate stages one beside the others.
+  The same deliveries answer again. Different deliveries for an attempt
+  already staged are refused.
+- A promotion finds its own attempt's candidate. Only the Gateway's current
+  attempt promotes, and the other candidates go with the promotion.
+- Another attempt of a recovery that already promoted stays stale.
+- At most eight attempts stay staged. A further one drops the earliest; each
+  attempt takes a full recovery execution.
+
+The D1 SigningWorker and the wallet object share this in the recovery
+transitions, and the VM state machine does the same.
+
+**Evidence (2026-09-28).** A new contract passes on the VM, the
+wallet-object build and Workers D1: "a superseded recovery attempt that
+reaches the SigningWorker late displaces nothing, and the recovery signs".
+1. A local-only fault keeps the first attempt's execution from the Router,
+   and the Gateway records the attempt interrupted.
+2. A retry with the same code supersedes it, executes and stages. Its
+   activation is held.
+3. The kept execution reaches the Router now. The Router runs it, and it
+   delivers its packages to the SigningWorker, which answers `succeeded`.
+4. The retry's activation goes on, promotes, and the recovered wallet signs.
+
+Run against the previous SigningWorker on the VM, the same contract failed
+at step 4: the SigningWorker refused the promotion (`recovery/promote`
+returned 400, and the activation 502). The replaced-activation retirement
+contract of slice 6 also passes again on all three hosts with this change.
 
 ### Boundary decision: ceremony records stay in Gateway D1 (2026-09-28)
 
