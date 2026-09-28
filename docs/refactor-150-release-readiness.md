@@ -34,6 +34,12 @@ records each slice, its evidence and what it left open.
     carries the wallet scope, and revocation retires the linked activation.
     The linking contract, which loses an activation answer and retries it,
     passes on the VM, the wallet-object build and Workers D1.
+12. A lost Router answer to a linking execute is recovered. The Gateway
+    retries the same request, marked as the Router's replay, and each Router
+    answers it from the pair the Derivers completed, with the reservation
+    the SigningWorker already holds. The VM Router now reconciles that
+    replay as the Workers Routers do. The linking contract loses this answer
+    too, and passes on all three hosts (2026-09-28).
 
 The lifecycle-keyed ceremony records stay in Gateway D1. That is the final
 boundary.
@@ -62,12 +68,35 @@ on each host.
 
 - The skipped contract is slice 10's commit fence. Only Workers D1 has that
   window, and it passes there.
-- The Workers D1 failure was intermittent. "sustained Tempo and Arc signing
-  uses fresh presignatures beyond pool capacity" failed once: the client
-  reported "exact ECDSA Wallet Session is unavailable" at step-up Arc
-  signing. It passed twice when rerun alone, passes on the other hosts, and
-  passed in every earlier run. The failing check reads only the browser's
-  own session state. It has not been investigated further.
+- The Workers D1 failure is an **unresolved intermittent failure**. "sustained
+  Tempo and Arc signing uses fresh presignatures beyond pool capacity" failed
+  once: the client reported "exact ECDSA Wallet Session is unavailable" at
+  step-up Arc signing. It passed twice when rerun alone, passes on the other
+  hosts, and passed in every earlier run. Two isolated passes do not show
+  that it is harmless or unrelated to this branch. What its persisted trace
+  shows:
+  - The wallet's NEAR registration answered late, at 7.4 s (its custody join
+    took 5.0 s), so deferred NEAR provisioning ran while the step-up signing
+    was under way. The step-up began at 7.14 s. Provisioning installed its
+    session at 7.53 s, activated its signer at 7.54 s and was durably ready
+    at 7.55 s. The step-up was confirmed at 7.76 s and then refused.
+  - The refusal message comes from any of three checks in
+    `resolveExactEcdsaOperationStepUpSession`
+    (`signingFlowRuntime.ts`, lines 168, 195 and 208). The selected authority
+    may not be resolved, unlocked and active. The exact session record may be
+    missing. Or the record may no longer match the selected authority's
+    digest, revocation epoch or ECDSA capability, or it may have expired. The
+    trace does not say which check failed. The run's Playwright artifacts were
+    overwritten.
+  - The overlap alone does not explain it. Five passing Workers runs of the
+    same contract have the same overlap: the two reruns, the earlier D1 run
+    and two wallet-object runs, with provisioning ready 0.2 to 1.5 s after
+    the step-up began (0.4 s in the failing run). On the VM the custody join takes 1.7 s, and
+    provisioning is ready before the step-up begins.
+  - Candidate, not established: provisioning's session install or signer
+    activation replaces state between the step-up's reads. Making the three
+    checks report distinct reasons would let the next failing trace name the
+    check.
 
 Each run's persisted traces are kept with the run, outside the repository.
 
@@ -143,6 +172,10 @@ their repair.
   extended contracts need the Email OTP run below. Device linking passes on
   every host, in the consolidated run too.
 - An Email OTP run with a Google ID token.
+- Linking from an already-linked device (Device 2 approving Device 3).
+- A retry of an Email-OTP-proven revocation after its answer is lost. The
+  challenge is single-use, so the retry is refused before the Gateway finds
+  the method already revoked. This is unfinished, not accepted behavior.
 - The review items the cross-owner plan leaves open. Explicit recovery
   abandonment stays deferred.
 - The new-wallet cohort, and the Phase 3 clean reset, as separately

@@ -635,9 +635,28 @@ What changed to get there:
   Derivers do; the SigningWorker still refuses a second registration
   activation.
 
+A lost Router answer to the source-preserving execute is recovered
+(2026-09-28, all three hosts):
+- The contract also loses the Router's answer to Device 1's execute, after
+  the Router ran the target registration and the SigningWorker reserved its
+  material. A local-only Gateway fault drops that answer.
+- The Gateway retries the same request once, marked as the Router's replay.
+  The Router asks both Derivers what the earlier run reached. For a pair
+  both completed, it sends the same reservation request to the SigningWorker,
+  which answers with the reservation it holds. The fault requires the
+  identical request, the replay marker and a byte-identical answer, and it
+  reports a proof the contract checks.
+- The VM Router now reconciles that replay as the Workers Routers do. A pair
+  still running or completed on one side only is burned, as on Workers D1,
+  and the execute fails instead of running twice.
+
 Not exercised by the contract: a delayed activation after revocation (the
-refusal holds by construction), and a lost answer between the Gateway and a
-role. The VM Router does not reconcile a retried source-preserving execute.
+refusal holds by construction).
+
+Open: linking from an already-linked device. With Device 2 approving
+Device 3, the ECDSA source must be Device 2's own linked material. The
+Gateway's source resolution and the SigningWorker's source lookup both
+name only the wallet's registration material.
 
 **Auth-method addition and revocation — integration and demonstrated fixes**
 
@@ -668,9 +687,10 @@ them.
 - Unverified: every addition crosses families, so each contract uses Email
   OTP and needs a Google ID token this environment does not have. Only
   type-checking has run.
-- An Email-OTP-proven revocation cannot be retried exactly: its challenge is
-  single-use, so a retry after a lost answer is refused before the Gateway
-  finds the method already revoked. A passkey-proven one can.
+- Unfinished: an Email-OTP-proven revocation cannot be retried exactly. Its
+  challenge is single-use, so a retry after a lost answer is refused before
+  the Gateway finds the method already revoked. A passkey-proven one can be
+  retried.
 
 For each flow, run the representative scenario through the real Gateway on
 the actual Cloudflare wallet-object build and on the VM. A Workers D1-only
