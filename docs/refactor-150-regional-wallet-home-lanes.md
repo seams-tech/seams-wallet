@@ -653,10 +653,31 @@ A lost Router answer to the source-preserving execute is recovered
 Not exercised by the contract: a delayed activation after revocation (the
 refusal holds by construction).
 
-Open: linking from an already-linked device. With Device 2 approving
-Device 3, the ECDSA source must be Device 2's own linked material. The
-Gateway's source resolution and the SigningWorker's source lookup both
-name only the wallet's registration material.
+Linking from an already-linked device (2026-09-28): on a wallet whose
+signers are ECDSA only, Device 2 links Device 3. All three devices then sign
+Tempo with the wallet's key. The contract "a linked device links a third
+device on an ECDSA-only wallet, which signs Tempo" passes on the VM, the
+wallet-object build and Workers D1. What it took:
+- The Gateway reads a linked device's authority by its signer's identity.
+  Its material is the one its own link reserved, not the registration's.
+- The approving device's ECDSA source is its own linked material and public
+  identity. The owner-lane checks still read the wallet's registration
+  signer.
+- The SigningWorker accepts a linked device's active reservation as the
+  source, on every host. The source share is that device's relayer share,
+  and the contribution must name exactly that device's public identity. A
+  revoked device is no source.
+- The SDK contributes from the linked device's own ECDSA share, inside WASM,
+  with the same computation and checks as for a registration share.
+- The Gateway finds a device's custody signer by following its links back to
+  the registration signer.
+
+Not supported: linking from a linked device on a wallet with an Ed25519
+signer. Approving that link needs the unlocked Ed25519 export-root
+capability. A linked device's unlock never opens it: the device's export
+root is sealed in a client-root envelope, and only a wallet-custody-seed
+envelope establishes the capability. The approval stops with
+`wallet_unlock_required`. Changing this is an SDK custody decision.
 
 **Auth-method addition and revocation — integration and demonstrated fixes**
 
@@ -684,6 +705,12 @@ them.
   replay. Passkey-to-Email-OTP also revokes the added method, requires its
   code to be refused and signs with the passkey again. Email-OTP-to-passkey
   requires the revoked Email OTP code to be refused.
+- The refusal must come from the revocation. For a wallet registered with
+  Email OTP, the Gateway's Google verification must refuse that wallet. On
+  fresh services it answers `stale_identity_mapping`, because the
+  revocation removed the wallet's enrollment. For an added method, the
+  wallet must list no Email OTP method any more. Neither may reach an Email
+  OTP challenge, a factor release or an unlock verification.
 - Unverified: every addition crosses families, so each contract uses Email
   OTP and needs a Google ID token this environment does not have. Only
   type-checking has run.

@@ -40,6 +40,11 @@ records each slice, its evidence and what it left open.
     the SigningWorker already holds. The VM Router now reconciles that
     replay as the Workers Routers do. The linking contract loses this answer
     too, and passes on all three hosts (2026-09-28).
+13. A linked device links another on a wallet whose signers are ECDSA only.
+    Its contribution comes from its own ECDSA share. The SigningWorker
+    reserves the new device's material from the linked device's share, and
+    the Gateway follows the links back to the registration signer. The
+    contract passes on all three hosts (2026-09-28).
 
 The lifecycle-keyed ceremony records stay in Gateway D1. That is the final
 boundary.
@@ -172,7 +177,9 @@ their repair.
   extended contracts need the Email OTP run below. Device linking passes on
   every host, in the consolidated run too.
 - An Email OTP run with a Google ID token.
-- Linking from an already-linked device (Device 2 approving Device 3).
+- Linking from a linked device on a wallet with an Ed25519 signer. The
+  linked device's unlock never opens the Ed25519 export root that approving
+  needs, so this is an SDK custody decision.
 - A retry of an Email-OTP-proven revocation after its answer is lost. The
   challenge is single-use, so the retry is refused before the Gateway finds
   the method already revoked. This is unfinished, not accepted behavior.
