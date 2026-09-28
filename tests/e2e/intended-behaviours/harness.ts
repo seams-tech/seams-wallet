@@ -2263,6 +2263,8 @@ export class IntendedBehaviourHarness {
     };
     const attempts: Attempt[] = [];
     let replayed: Attempt | null = null;
+    const changed: { readonly change: string; readonly status: number; readonly body: string }[] =
+      [];
     const handler = async (route: Route): Promise<void> => {
       const request = route.request();
       if (request.method() !== 'POST' || !revokePath.test(new URL(request.url()).pathname)) {
@@ -2303,6 +2305,15 @@ export class IntendedBehaviourHarness {
           body: await replay.text(),
           proof: null,
         };
+        /* A changed request is not the one that committed: it must be refused,
+           never answered from the record. */
+        for (const change of ['operation', 'proof'] as const) {
+          const refused = await route.fetch({
+            headers,
+            postData: changedRevokeRequestBody(body, change),
+          });
+          changed.push({ change, status: refused.status(), body: await refused.text() });
+        }
       }
       await route.fulfill({ response: committed });
     };
@@ -2351,6 +2362,16 @@ export class IntendedBehaviourHarness {
           throw new Error(
             `Auth-method revoke replay answered ${replay.status}: ${replay.body}, not the committed answer`,
           );
+        }
+        if (changed.length !== 2) {
+          throw new Error(`Auth-method revoke sent ${changed.length} changed requests, expected 2`);
+        }
+        for (const refusal of changed) {
+          if (refusal.status !== 401 || refusal.body === committed.body) {
+            throw new Error(
+              `Auth-method revoke with a changed ${refusal.change} answered ${refusal.status}: ${refusal.body}`,
+            );
+          }
         }
         this.recordService(
           `auth-method revoke: a refused commit spent nothing, the retry committed on the same ${sourceFamily} proof, and a replay received the recorded answer`,
@@ -8741,6 +8762,29 @@ async function readWalletIframeAuthMenuError(page: Page): Promise<string | null>
       return error || null;
     })
     .catch(() => null);
+}
+
+/**
+ * The committed revoke request with one thing changed: its operation (the
+ * time it names) or its proof (the code or the challenge digest it carries).
+ */
+function changedRevokeRequestBody(body: string, change: 'operation' | 'proof'): string {
+  const request = JSON.parse(body) as {
+    requestedAtMs: number;
+    sourceProof:
+      | { kind: 'email_otp'; otpCode: string }
+      | { kind: 'webauthn_assertion'; expectedChallengeDigestB64u: string };
+  };
+  if (change === 'operation') {
+    request.requestedAtMs += 1;
+  } else if (request.sourceProof.kind === 'email_otp') {
+    const last = request.sourceProof.otpCode.slice(-1);
+    request.sourceProof.otpCode = `${request.sourceProof.otpCode.slice(0, -1)}${last === '0' ? '1' : '0'}`;
+  } else {
+    const digest = request.sourceProof.expectedChallengeDigestB64u;
+    request.sourceProof.expectedChallengeDigestB64u = `${digest.slice(0, -1)}${digest.endsWith('A') ? 'B' : 'A'}`;
+  }
+  return JSON.stringify(request);
 }
 
 type HeldWalletStoreWindow = Window & {
