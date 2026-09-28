@@ -1,9 +1,9 @@
 # R150 VM reference: setup
 
-Status: local reference, 2026-09-26. This runs the Wallet on ordinary processes
-and SQLite files, with no Cloudflare service, Wrangler or Miniflare. It is a
-reference for portability, not a provisioning framework: AWS/GCP tooling,
-PostgreSQL and multi-region custody are out of scope.
+Status: local reference, updated 2026-09-29. This runs the Wallet on
+ordinary processes and SQLite files, with no Cloudflare service, Wrangler or
+Miniflare. It is a reference for portability, not a provisioning framework:
+AWS/GCP tooling, PostgreSQL and multi-region custody are out of scope.
 
 All roles on one machine, as this guide runs them, is a development topology.
 It does not establish independent custody: production A/B isolation needs
@@ -157,6 +157,103 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
 5. Prepare, migrate and serve the Gateway (`nodeHostedWalletGatewayMain.ts`
    `migrate`, `check`, `serve`). `serve-local` serves the local Gateway, which
    adds the intended-suite transport faults.
+
+## Deployment check
+
+Each role's operator checks the role, before starting it and after, from the
+deployment root with the role's own env file:
+
+```bash
+router_ab_local_worker --role deriver-a --env .env.router-ab.deriver-a.local --check
+```
+
+It prints one JSON report and exits 0 unless a check failed. Each check is
+`passed`, `failed` or `unverified`:
+
+- `configuration`: the env file parses as the role parses it at startup,
+  without a key the role must not hold. An error names the key, never its
+  value.
+- `storage:<store>`: each SQLite file the role owns, opened read-only.
+  - A store with a schema chain must carry the whole chain, and nothing it
+    does not ship. A missing file fails: apply the schema with `--migrate`.
+  - Every table must match what this build creates. A table the role
+    creates on first use may be absent.
+  - A table this build never gives the role fails the check. That is how a
+    path naming another role's store shows.
+  - It reports row counts, never rows.
+  - The SigningWorker creates its file at its first start. Before then its
+    store is `unverified`.
+- `address`: the role's own URL answers as this role. It is `unverified`
+  while nothing serves there.
+- `peer:<role>`: each URL the role calls answers `/healthz` as the role it is
+  configured for. A URL another role answers fails.
+- `durable_jobs`: for the Router, the refresh schedule, the retirement grace,
+  the scheduler tick and the number of tenant roots it schedules; for a
+  Deriver, `W`. A role refuses to start with a value its job would refuse,
+  so a Router never serves with its scheduler stopped.
+- `peer_authentication` and `custody_isolation` are always `unverified`. The
+  check sends no credential, and isolation needs the operator review below.
+
+The check generates no key, applies no migration, creates no database, sends
+no credential and repairs nothing. SQLite may create WAL index files beside
+a database it reads. A role's startup schema check is now read-only too.
+
+`nodeHostedWalletGatewayMain.ts check` reports the Gateway store's migration
+status without writing.
+
+`vm_deployment_check_reports_each_role_without_changing_it` prints
+`R150_VM_DEPLOYMENT_CHECK_E2E`:
+- Before any schema is applied, the Router's and both Derivers' stores fail
+  as missing, and the check creates no file.
+- On a running deployment that created a tenant root and signed, every
+  role's check passes, and no configured secret appears in a report.
+- A Router whose Deriver A URL names Deriver B fails: that peer answers as
+  Deriver B.
+- A SigningWorker whose store path names Deriver A's store fails on Deriver
+  A's tables, and Deriver A's file is unchanged.
+- With Deriver B stopped, the Router's and Deriver A's checks fail on that
+  peer, and B's own check reports its address not serving.
+
+## Operator review
+
+No check can establish that custody is independent. Before a deployment holds
+material that matters, its operator records that:
+- Deriver A and Deriver B run on separate hosts, under separate
+  administrators and service identities.
+- Each env file is readable only by its role's service identity. The
+  operator file, with the grant and recovery authorities, is on no role host.
+- Each role's SQLite files, and any copy of them, are readable only by that
+  role's administrators. Deriver A's and B's backups are kept apart.
+- Each Deriver's keys were generated for it and are held by it alone.
+
+## Recovery
+
+A restarted role resumes from its SQLite files; nothing needs repair.
+- An exact retry gets the recorded answer after the Router restarts
+  (`vm_router_owns_each_registration_execution_and_its_consumption`).
+- A scheduled refresh in flight completes
+  (`vm_tenant_root_scheduled_refresh_runs_and_resumes_after_a_router_restart`).
+- After Deriver A restarts, Deriver B fences the attempt A had claimed, and
+  retirement completes
+  (`vm_tenant_root_claimed_execution_that_fails_is_recovered_and_retirement_completes`).
+- No VM test restarts the SigningWorker.
+
+After an upgrade, a role that finds a pending migration refuses to start and
+names it. Run `--migrate` with the new build, which is safe to retry, then
+start the role. A file carrying a migration the build does not ship is
+refused: run the build that applied it.
+
+Lost material is restored from custody backups, never from a copy of a
+file:
+- A Deriver that loses its active share is restored from its managed
+  backup (managed restore, above).
+- A lost deployment is restored from the tenant's recovery kit into an empty
+  one (restore to a new deployment, above).
+
+Never put an older copy of a role's SQLite file, or of the Gateway store,
+back into service. It would bring back what was consumed since: a
+presignature, a pair, a one-use code, a revoked sign-in method. Recovering
+wallets whose SigningWorker file is lost is not established by any test.
 
 ## Checks
 
@@ -387,13 +484,17 @@ The browser suites run against it with `SEAMS_INTENDED_WALLET_HOST=vm`.
 See the [Phase 0 inventory](./refactor-150-supported-operations.md) for each
 operation, its contracts and what is needed.
 
-- ECDSA activation refresh. Linked-device ECDSA signing fails closed.
-- Device linking.
+- ECDSA activation refresh. Its SDK client has no caller on any host.
 - Tenant-root status, source retirement and cutover. Manual and scheduled
   refresh, managed restore, recovery-package backup and restore into a new
   deployment are served, with the same Router, Deriver and control-plane code
   as Cloudflare.
-- Linked-device signing.
 - Google Cloud KMS managed backup (HPKE only).
 - Router and SigningWorker prewarm, which keeps Worker isolates warm and has no
   VM counterpart; the launcher sets `ROUTER_AB_PREWARM_ENABLED=false`.
+
+Device linking and linked-device signing are served on the VM since
+2026-09-28: the Router's source-preserving execute, the SigningWorker's
+reservation, activation and revocation for both curves, and a linked
+device's NEAR and ECDSA signing and export. The three `passkey.device-linking`
+contracts pass on the VM, as on both Workers builds.

@@ -70,6 +70,15 @@ impl LocalDeriverAPairScopeV1 {
     }
 }
 
+/// Creates Deriver B's Yao pair table if it is missing.
+pub(crate) fn ensure_local_deriver_b_pair_schema_v1(
+    connection: &Connection,
+) -> RouterAbProtocolResult<()> {
+    connection
+        .execute_batch(DERIVER_B_PAIR_SCHEMA)
+        .map_err(pair_lookup_error)
+}
+
 pub struct LocalEd25519YaoSqliteHostV1 {
     connection: RefCell<Connection>,
     role_state_snapshot: RefCell<Option<Vec<u8>>>,
@@ -96,9 +105,7 @@ impl LocalEd25519YaoSqliteHostV1 {
         if config.role() == LocalServiceRoleV1::DeriverA {
             ensure_local_deriver_a_pair_schema_v1(&connection)?;
         } else if config.role() == LocalServiceRoleV1::DeriverB {
-            connection
-                .execute_batch(DERIVER_B_PAIR_SCHEMA)
-                .map_err(pair_lookup_error)?;
+            ensure_local_deriver_b_pair_schema_v1(&connection)?;
         } else if config.role() == LocalServiceRoleV1::SigningWorker {
             local_signing_worker_near_sqlite::ensure_schema(&connection)?;
         }

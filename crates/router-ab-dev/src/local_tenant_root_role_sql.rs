@@ -9,7 +9,7 @@ use router_ab_cloudflare::{
     RoleSqlOutcomeV1, RoleSqlOwnedValueV1, RoleSqlReadV1, RoleSqlSessionV1, RoleSqlStatement,
     RoleStoreError, RoleStoreResult,
 };
-use rusqlite::{types::ValueRef, Connection};
+use rusqlite::{types::ValueRef, Connection, OpenFlags, OptionalExtension};
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
 
@@ -214,15 +214,31 @@ impl LocalSqliteMigrationStatusV1 {
     }
 }
 
-/// Reads which of a shipped chain's migrations a file has applied. A missing
-/// file has applied none.
+/// Reads which of a shipped chain's migrations a file has applied, without
+/// writing to it. A missing file, or one with no migration ledger, has
+/// applied none.
 pub fn local_sqlite_migration_status_v1(
     path: &Path,
     chain: &[LocalSqliteMigrationV1],
 ) -> RoleStoreResult<LocalSqliteMigrationStatusV1> {
     let applied = if path.exists() {
-        let connection = Connection::open(path).map_err(sql_error)?;
-        read_applied_migrations(&connection)?
+        let connection = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .map_err(sql_error)?;
+        let ledger = connection
+            .query_row(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?1",
+                [MIGRATION_LEDGER_TABLE],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(sql_error)?;
+        match ledger {
+            Some(_) => applied_migration_names(&connection)?,
+            None => Vec::new(),
+        }
     } else {
         Vec::new()
     };
@@ -256,7 +272,16 @@ pub fn apply_local_sqlite_migrations_v1(
     connection
         .execute_batch("PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL;")
         .map_err(sql_error)?;
-    let applied = read_applied_migrations(&connection)?;
+    apply_local_sqlite_migrations_on_connection_v1(&mut connection, chain)
+}
+
+/// Applies a shipped chain on an open connection, as
+/// [`apply_local_sqlite_migrations_v1`] does on a file.
+pub(crate) fn apply_local_sqlite_migrations_on_connection_v1(
+    connection: &mut Connection,
+    chain: &[LocalSqliteMigrationV1],
+) -> RoleStoreResult<Vec<String>> {
+    let applied = read_applied_migrations(connection)?;
     let shipped: Vec<&str> = chain.iter().map(|(name, _)| *name).collect();
     if let Some(unknown) = applied.iter().find(|name| !shipped.contains(&name.as_str())) {
         return Err(RoleStoreError::message(format!(
@@ -296,6 +321,10 @@ fn read_applied_migrations(connection: &Connection) -> RoleStoreResult<Vec<Strin
             "CREATE TABLE IF NOT EXISTS {MIGRATION_LEDGER_TABLE} (name TEXT PRIMARY KEY, applied_at_ms INTEGER NOT NULL);"
         ))
         .map_err(sql_error)?;
+    applied_migration_names(connection)
+}
+
+fn applied_migration_names(connection: &Connection) -> RoleStoreResult<Vec<String>> {
     let mut statement = connection
         .prepare(&format!("SELECT name FROM {MIGRATION_LEDGER_TABLE} ORDER BY name"))
         .map_err(sql_error)?;

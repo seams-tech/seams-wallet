@@ -34,6 +34,7 @@ use std::{
 use threshold_prf::SigningRootShareWire;
 
 mod local_cloudflare_bindings;
+mod local_deployment_check;
 mod local_dev_http;
 mod local_ed25519_yao_api;
 mod local_ed25519_yao_delivery;
@@ -63,7 +64,8 @@ mod local_tenant_root_role_sql;
 mod local_worker_topology;
 
 pub use local_tenant_root::{
-    local_tenant_root_creation_authority_id_v1, run_local_tenant_root_refresh_scheduler_v1,
+    local_tenant_root_admission_recovery_window_ms_v1, local_tenant_root_creation_authority_id_v1,
+    local_tenant_root_refresh_scheduler_tick_ms_v1, run_local_tenant_root_refresh_scheduler_v1,
     serve_local_tenant_root_creation_state_v1, LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS_ENV_V1,
     LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1,
     LocalDeriverTenantRootConfigV1, LocalRouterCreationStateV1,
@@ -90,6 +92,11 @@ pub use local_tenant_root_role_sql::{
     LocalRoleSqlSessionV1, LocalSqliteMigrationStatusV1, LocalSqliteMigrationV1,
     LOCAL_DERIVER_A_ROLE_PRIVATE_MIGRATIONS_V1, LOCAL_DERIVER_B_ROLE_PRIVATE_MIGRATIONS_V1,
     LOCAL_MANAGED_BACKUP_MIGRATIONS_V1, LOCAL_ROUTER_CREATION_STATE_MIGRATIONS_V1,
+};
+pub use local_deployment_check::{
+    local_worker_deployment_check_v1, local_worker_role_sqlite_stores_v1,
+    LocalDeploymentCheckItemV1, LocalDeploymentCheckReportV1, LocalDeploymentCheckStatusV1,
+    LocalRoleSqliteStoreV1, LOCAL_DEPLOYMENT_CHECK_REPORT_KIND_V1,
 };
 pub use local_dev_http::{
     local_dev_http_error_body_v1, local_dev_http_handle_request_v1,
@@ -2127,10 +2134,11 @@ fn required_hex_32_env_v1(
     key: &'static str,
 ) -> RouterAbProtocolResult<String> {
     let value = required_env_v1(env, key)?;
-    let bytes = hex::decode(&value).map_err(|error| {
+    // The decoder's error names a character of the value; the key is enough.
+    let bytes = hex::decode(&value).map_err(|_| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("local worker env key {key} must be hex: {error}"),
+            format!("local worker env key {key} must be hex"),
         )
     })?;
     if bytes.len() != 32 {
@@ -2153,10 +2161,10 @@ fn required_x25519_public_key_env_v1(
             format!("local worker env key {key} must use x25519:<hex>"),
         ));
     };
-    let bytes = hex::decode(encoded).map_err(|error| {
+    let bytes = hex::decode(encoded).map_err(|_| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("local worker env key {key} must be hex: {error}"),
+            format!("local worker env key {key} must be hex"),
         )
     })?;
     if bytes.len() != 32 || bytes.iter().all(|byte| *byte == 0) {

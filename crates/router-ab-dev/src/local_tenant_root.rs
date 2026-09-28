@@ -611,19 +611,7 @@ pub const LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS_ENV_V1: &str =
 pub fn run_local_tenant_root_refresh_scheduler_v1(
     config: &LocalRouterTenantRootConfigV1,
 ) -> RouterAbProtocolResult<()> {
-    use router_ab_cloudflare::CloudflareEnvReaderV1 as _;
-    let tick_ms = match config
-        .env
-        .get_text(LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS_ENV_V1)?
-    {
-        Some(value) => value.parse::<u64>().ok().filter(|value| *value >= 1_000).ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "the refresh scheduler tick must be at least 1000 milliseconds",
-            )
-        })?,
-        None => 60_000,
-    };
+    let tick_ms = local_tenant_root_refresh_scheduler_tick_ms_v1(config)?;
     let host = LocalRouterTenantRootCreationHostV1::new(config);
     loop {
         std::thread::sleep(std::time::Duration::from_millis(tick_ms));
@@ -654,6 +642,53 @@ pub fn run_local_tenant_root_refresh_scheduler_v1(
                 Err(error) => log_scheduled_refresh_v1(Some(root), &error.to_string()),
             }
         }
+    }
+}
+
+/// The VM Router's scheduler tick, from
+/// `LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS`.
+pub fn local_tenant_root_refresh_scheduler_tick_ms_v1(
+    config: &LocalRouterTenantRootConfigV1,
+) -> RouterAbProtocolResult<u64> {
+    use router_ab_cloudflare::CloudflareEnvReaderV1 as _;
+    match config
+        .env
+        .get_text(LOCAL_TENANT_ROOT_REFRESH_SCHEDULER_TICK_MS_ENV_V1)?
+    {
+        Some(value) => value
+            .parse::<u64>()
+            .ok()
+            .filter(|value| *value >= 1_000)
+            .ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                    "the refresh scheduler tick must be at least 1000 milliseconds",
+                )
+            }),
+        None => Ok(60_000),
+    }
+}
+
+/// A VM Deriver's `W`, from `LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS`.
+pub fn local_tenant_root_admission_recovery_window_ms_v1(
+    config: &LocalDeriverTenantRootConfigV1,
+) -> RouterAbProtocolResult<u64> {
+    use router_ab_cloudflare::CloudflareEnvReaderV1 as _;
+    match config
+        .env
+        .get_text(LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1)?
+    {
+        Some(value) => value
+            .parse::<u64>()
+            .ok()
+            .filter(|value| *value >= 1_000)
+            .ok_or_else(|| {
+                RouterAbProtocolError::new(
+                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
+                    "the admission recovery window must be at least 1000 milliseconds",
+                )
+            }),
+        None => Ok(router_ab_cloudflare::TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_V1),
     }
 }
 
@@ -1166,20 +1201,7 @@ impl TenantRootDeriverHostV1 for LocalTenantRootDeriverHostV1<'_> {
     }
 
     fn admission_recovery_window_ms(&self) -> RouterAbProtocolResult<u64> {
-        use router_ab_cloudflare::CloudflareEnvReaderV1 as _;
-        match self
-            .config
-            .env
-            .get_text(LOCAL_TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_ENV_V1)?
-        {
-            Some(value) => value.parse::<u64>().ok().filter(|value| *value >= 1_000).ok_or_else(|| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                    "the admission recovery window must be at least 1000 milliseconds",
-                )
-            }),
-            None => Ok(router_ab_cloudflare::TENANT_ROOT_ADMISSION_RECOVERY_WINDOW_MS_V1),
-        }
+        local_tenant_root_admission_recovery_window_ms_v1(self.config)
     }
 
     fn env(&self) -> &Self::Env {

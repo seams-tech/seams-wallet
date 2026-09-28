@@ -105,6 +105,18 @@ pub(crate) fn with_local_signing_worker_wallet_store_v1<T>(
     Ok(result)
 }
 
+/// Creates the tables the SigningWorker's wallet store and its presignature
+/// authority claims use, if they are missing, as the role does on first use.
+pub(crate) fn ensure_local_signing_worker_wallet_schema_v1(
+    connection: &Connection,
+    config: &LocalSigningWorkerConfigV1,
+) -> RouterAbProtocolResult<()> {
+    let sql = LocalWalletSqlV1(connection);
+    SigningWorkerWalletEcdsaStoreV1::open(&sql, &config.cloudflare_env)?.ensure_schema()?;
+    sql.query::<serde::de::IgnoredAny>(PRESIGN_AUTHORITY_SCHEMA, Vec::new())?;
+    Ok(())
+}
+
 const PRESIGN_AUTHORITY_SCHEMA: &str =
     "CREATE TABLE IF NOT EXISTS signing_worker_presign_authorities (
     presign_session_id TEXT PRIMARY KEY,

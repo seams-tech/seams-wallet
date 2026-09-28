@@ -1000,6 +1000,216 @@ fn vm_tenant_root_creation_is_authorized_replayable_and_role_isolated(
     Ok(())
 }
 
+/// The read-only deployment check each VM role's operator runs,
+/// `router_ab_local_worker --check`, never changes what it checks:
+/// - Before any schema is applied, the Router's and both Derivers' stores are
+///   reported missing, and the check creates no database.
+/// - On a running deployment that created a tenant root and signed, every
+///   role passes: its configuration, its stores' schema, its address, its
+///   peers and its durable-job settings. Peer authentication and custody
+///   isolation are reported unverified. No configured secret appears in any
+///   report.
+/// - A Router whose Deriver A URL names Deriver B is refused: that peer
+///   answers as Deriver B.
+/// - A SigningWorker whose store path names Deriver A's store is refused:
+///   the file holds tables this build never gives a SigningWorker. Deriver
+///   A's file is unchanged.
+/// - With Deriver B stopped, the Router's and Deriver A's checks fail on that
+///   peer, and Deriver B's own check reports its address not serving.
+#[test]
+fn vm_deployment_check_reports_each_role_without_changing_it(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _process_guard = local_worker_process_test_guard();
+    let roles = [
+        ("router", router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1),
+        ("deriver-a", router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1),
+        ("deriver-b", router_ab_dev::LOCAL_DERIVER_B_ENV_FILE_V1),
+        (
+            "signing-worker",
+            router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1,
+        ),
+    ];
+
+    // Before any schema is applied.
+    let fresh = temp_dir("vm-deployment-check-fresh")?;
+    let url = || -> Result<String, Box<dyn std::error::Error>> {
+        Ok(format!("http://127.0.0.1:{}", free_port()?))
+    };
+    write_product_worker_envs(&fresh, &url()?, &url()?, &url()?, &url()?)?;
+    let mut before_migration = serde_json::Map::new();
+    for (role, env_file) in roles {
+        let (passed, report) = deployment_check(&fresh, role, env_file)?;
+        assert_eq!(
+            check_named(&report, "configuration")?["status"],
+            "passed",
+            "{report}"
+        );
+        assert_eq!(
+            check_named(&report, "address")?["status"],
+            "unverified",
+            "{report}"
+        );
+        let stores: &[&str] = match role {
+            "router" => &["storage:creation_state"],
+            "signing-worker" => &["storage:role_private_store"],
+            _ => &["storage:role_private_store", "storage:managed_backups"],
+        };
+        for store in stores {
+            let check = check_named(&report, store)?;
+            assert_eq!(check["detail"]["state"], "missing", "{report}");
+            // A SigningWorker creates its file at its first start.
+            let expected = if role == "signing-worker" {
+                "unverified"
+            } else {
+                "failed"
+            };
+            assert_eq!(check["status"], expected, "{report}");
+        }
+        assert_eq!(passed, role == "signing-worker", "{report}");
+        before_migration.insert(role.into(), check_statuses(&report));
+    }
+    let created = sqlite_files(&fresh)?;
+    assert!(created.is_empty(), "the check created {created:?}");
+
+    // A running deployment that created a tenant root and signed.
+    let mut stack = RecoveryStackV1::start("vm-deployment-check")?;
+    let signing_worker = stack.start_signing_worker()?;
+    let (identity, lineage, lineage_b64u) = recovery_ceremony("deployment-check")?;
+    let grant = product_creation_grant_b64u(&stack.temp, &identity, lineage, None)?;
+    let (status, body) = stack.create(&grant)?;
+    assert_eq!(status, 200, "{body}");
+    let _signing_worker = stack.register_and_sign(
+        signing_worker,
+        &identity,
+        &lineage_b64u,
+        "account-deployment-check",
+    )?;
+    let mut running = serde_json::Map::new();
+    for (role, env_file) in roles {
+        let (passed, report) = deployment_check(&stack.temp, role, env_file)?;
+        assert!(passed, "{report}");
+        for check in report["checks"]
+            .as_array()
+            .ok_or("a report lists its checks")?
+        {
+            let expected = match check["check"].as_str() {
+                Some("peer_authentication" | "custody_isolation") => "unverified",
+                _ => "passed",
+            };
+            assert_eq!(check["status"], expected, "{role}: {check}");
+        }
+        assert_report_shows_no_env_secret(&stack.temp.join(env_file), &report.to_string())?;
+        running.insert(role.into(), check_statuses(&report));
+    }
+    let (_, router_report) = deployment_check(&stack.temp, "router", roles[0].1)?;
+    assert_eq!(
+        check_named(&router_report, "durable_jobs")?["detail"]["tenant_roots"],
+        1
+    );
+
+    // A Router whose Deriver A URL names Deriver B.
+    let misrouted = replace_env_value(
+        &stack.temp.join(router_ab_dev::LOCAL_ROUTER_ENV_FILE_V1),
+        router_ab_dev::LOCAL_DERIVER_A_URL_ENV_V1,
+        &stack.deriver_b_url,
+    )?;
+    fs::write(stack.temp.join("router-misrouted.env"), misrouted)?;
+    let (passed, report) = deployment_check(&stack.temp, "router", "router-misrouted.env")?;
+    assert!(!passed, "{report}");
+    let misrouted_peer = check_named(&report, "peer:deriver_a")?.clone();
+    assert_eq!(misrouted_peer["status"], "failed", "{report}");
+    assert_eq!(
+        misrouted_peer["detail"]["answered_as"], "deriver_b",
+        "{report}"
+    );
+
+    // A SigningWorker whose store path names Deriver A's store.
+    let deriver_a_store = env_value(
+        &stack.temp.join(router_ab_dev::LOCAL_DERIVER_A_ENV_FILE_V1),
+        "DERIVER_A_ROLE_PRIVATE_STORAGE_PATH",
+    )?;
+    let misplaced = replace_env_value(
+        &stack
+            .temp
+            .join(router_ab_dev::LOCAL_SIGNING_WORKER_ENV_FILE_V1),
+        "SIGNING_WORKER_PRIVATE_STORAGE_PATH",
+        &deriver_a_store,
+    )?;
+    fs::write(stack.temp.join("signing-worker-misplaced.env"), misplaced)?;
+    let file_state = |path: &Path| -> Result<(u64, SystemTime), Box<dyn std::error::Error>> {
+        let metadata = fs::metadata(path)?;
+        Ok((metadata.len(), metadata.modified()?))
+    };
+    let deriver_a_file = stack.temp.join(&deriver_a_store);
+    let deriver_a_before = file_state(&deriver_a_file)?;
+    let (passed, report) = deployment_check(
+        &stack.temp,
+        "signing-worker",
+        "signing-worker-misplaced.env",
+    )?;
+    assert!(!passed, "{report}");
+    let misplaced_store = check_named(&report, "storage:role_private_store")?.clone();
+    assert_eq!(misplaced_store["status"], "failed", "{report}");
+    let unexpected = misplaced_store["detail"]["found"]["unexpected"]
+        .as_array()
+        .ok_or("a refused store lists what it did not expect")?;
+    assert!(
+        unexpected
+            .iter()
+            .any(|name| name == "tenant_root_role_shares"),
+        "{report}"
+    );
+    assert_eq!(
+        file_state(&deriver_a_file)?,
+        deriver_a_before,
+        "the check changed Deriver A's store"
+    );
+
+    // Deriver B stops.
+    drop(stack.roles.remove(2));
+    let mut deriver_b_stopped = serde_json::Map::new();
+    for (role, env_file) in &roles[..3] {
+        let (passed, report) = deployment_check(&stack.temp, role, env_file)?;
+        if *role == "deriver-b" {
+            assert!(passed, "{report}");
+            assert_eq!(
+                check_named(&report, "address")?["status"],
+                "unverified",
+                "{report}"
+            );
+            assert_eq!(
+                check_named(&report, "address")?["detail"]["state"],
+                "not serving"
+            );
+        } else {
+            assert!(!passed, "{report}");
+            assert_eq!(
+                check_named(&report, "peer:deriver_b")?["status"],
+                "failed",
+                "{report}"
+            );
+        }
+        deriver_b_stopped.insert((*role).into(), check_statuses(&report));
+    }
+
+    println!(
+        "R150_VM_DEPLOYMENT_CHECK_E2E {}",
+        json!({
+            "before_migration": before_migration,
+            "databases_created_by_the_check": created.len(),
+            "running": running,
+            "misrouted_router": misrouted_peer,
+            "signing_worker_on_deriver_a_store": {
+                "status": misplaced_store["status"],
+                "unexpected": unexpected,
+                "deriver_a_store_unchanged": true,
+            },
+            "deriver_b_stopped": deriver_b_stopped,
+        })
+    );
+    Ok(())
+}
+
 /// A creation that stops with only Deriver B installed is not cancelled by a
 /// retry inside its ceremony window, since the other role's command may still
 /// be running. A retry after the window abandons it through the shared
@@ -8182,6 +8392,123 @@ fn role_log(root: &Path, role: &str) -> Result<Stdio, Box<dyn std::error::Error>
             .append(true)
             .open(root.join("logs").join(format!("{role}.log")))?,
     ))
+}
+
+/// Runs one role's `--check` from the deployment root, as its operator does,
+/// and returns whether it passed with its report. Its exit status must agree.
+fn deployment_check(
+    root: &Path,
+    role: &str,
+    env_file: &str,
+) -> Result<(bool, serde_json::Value), Box<dyn std::error::Error>> {
+    let output = Command::new(env!("CARGO_BIN_EXE_router_ab_local_worker"))
+        .args(["--role", role, "--env"])
+        .arg(root.join(env_file))
+        .arg("--check")
+        .current_dir(root)
+        .output()?;
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).map_err(|error| {
+        format!(
+            "{role} check printed no report ({error}): {}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+    })?;
+    let passed = report["passed"]
+        .as_bool()
+        .ok_or("a report says whether it passed")?;
+    assert_eq!(output.status.success(), passed, "{role}: {report}");
+    Ok((passed, report))
+}
+
+fn check_named<'a>(
+    report: &'a serde_json::Value,
+    name: &str,
+) -> Result<&'a serde_json::Value, Box<dyn std::error::Error>> {
+    report["checks"]
+        .as_array()
+        .ok_or("a report lists its checks")?
+        .iter()
+        .find(|check| check["check"] == name)
+        .ok_or_else(|| format!("the report has no {name} check: {report}").into())
+}
+
+/// Each check's status, by check.
+fn check_statuses(report: &serde_json::Value) -> serde_json::Value {
+    serde_json::Value::Object(
+        report["checks"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|check| {
+                (
+                    check["check"].as_str().unwrap_or_default().to_owned(),
+                    check["status"].clone(),
+                )
+            })
+            .collect(),
+    )
+}
+
+/// A report may name URLs and file paths; no other env value of key-material
+/// length may appear in it.
+fn assert_report_shows_no_env_secret(
+    env_path: &Path,
+    report: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    for line in fs::read_to_string(env_path)?.lines() {
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        if value.len() < 16 || value.starts_with("http://") || value.starts_with('.') {
+            continue;
+        }
+        assert!(
+            !report.contains(value),
+            "the report shows the value of {key}"
+        );
+    }
+    Ok(())
+}
+
+/// An env file's contents with one key's value replaced.
+fn replace_env_value(
+    env_path: &Path,
+    key: &str,
+    value: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let contents = fs::read_to_string(env_path)?;
+    let prefix = format!("{key}=");
+    if !contents.lines().any(|line| line.starts_with(&prefix)) {
+        return Err(format!("{} sets no {key}", env_path.display()).into());
+    }
+    Ok(contents
+        .lines()
+        .map(|line| {
+            if line.starts_with(&prefix) {
+                format!("{prefix}{value}")
+            } else {
+                line.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n"))
+}
+
+/// Every SQLite file under a directory, including WAL files.
+fn sqlite_files(root: &Path) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
+    let mut found = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        for entry in fs::read_dir(&directory)? {
+            let path = entry?.path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if path.to_string_lossy().contains(".sqlite") {
+                found.push(path);
+            }
+        }
+    }
+    Ok(found)
 }
 
 /// Applies a role's shipped SQLite schema, as an operator does before
