@@ -34,6 +34,14 @@ pub(crate) fn finalize_encrypted_client_proof_input_v2(
     application_binding_digest: [u8; 32],
 ) -> Result<[u8; 32], String> {
     let (signer_a, signer_b) = open_client_proof_pair_v2(input, private_key)?;
+    finalize_opened_client_proof_pair_v2(signer_a, signer_b, application_binding_digest)
+}
+
+fn finalize_opened_client_proof_pair_v2(
+    signer_a: EcdsaOpenedClientProofBundleV2,
+    signer_b: EcdsaOpenedClientProofBundleV2,
+    application_binding_digest: [u8; 32],
+) -> Result<[u8; 32], String> {
     if signer_a.transcript_digest != signer_b.transcript_digest
         || signer_a.recipient_identity != signer_b.recipient_identity
         || signer_a.proof.stable_context_digest != signer_b.proof.stable_context_digest
@@ -73,30 +81,29 @@ pub(crate) fn finalize_encrypted_client_proof_input_v1(
     .map_err(protocol_error)
 }
 
-pub(crate) fn verify_encrypted_client_proof_input_for_export(
-    input: FinalizeEncryptedClientProofBundlesInputV1,
+/// Verifies the stable proof bundles an ordinary export returns: both bound
+/// to this request's transcript and recipient, and proven under the export's
+/// application binding. The protocol output is discarded inside WASM.
+pub(crate) fn verify_encrypted_client_proof_input_for_export_v2(
+    input: FinalizeEncryptedClientProofBundlesInputV2,
     private_key: &[u8; 32],
     expected_transcript_digest: [u8; 32],
     expected_recipient_identity: &str,
+    application_binding_digest: [u8; 32],
 ) -> Result<(), String> {
-    let pair = open_client_proof_pair(input, private_key)?;
-    if pair.signer_a().transcript_digest != expected_transcript_digest
-        || pair.signer_b().transcript_digest != expected_transcript_digest
-        || pair.signer_a().recipient_identity != expected_recipient_identity
-        || pair.signer_b().recipient_identity != expected_recipient_identity
+    let (signer_a, signer_b) = open_client_proof_pair_v2(input, private_key)?;
+    if signer_a.transcript_digest != expected_transcript_digest
+        || signer_b.transcript_digest != expected_transcript_digest
+        || signer_a.recipient_identity != expected_recipient_identity
+        || signer_b.recipient_identity != expected_recipient_identity
     {
         return Err(
             "Router A/B ECDSA client proof bundles do not match the export request recipient"
                 .to_owned(),
         );
     }
-    let context = pair.prf_context().map_err(protocol_error)?;
-    let mut output = finalize_ecdsa_prf_two_party_output_v1(
-        &context,
-        &pair.signer_a().role_bound_proof,
-        &pair.signer_b().role_bound_proof,
-    )
-    .map_err(protocol_error)?;
+    let mut output =
+        finalize_opened_client_proof_pair_v2(signer_a, signer_b, application_binding_digest)?;
     use zeroize::Zeroize;
     output.zeroize();
     Ok(())

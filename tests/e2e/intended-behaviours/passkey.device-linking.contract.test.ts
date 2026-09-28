@@ -79,9 +79,9 @@ test('a linked device links a third device on an ECDSA-only wallet, which signs 
  * wallet's Ed25519 export root. Device 2 holds that root only as its own
  * sealed envelope, which its unlock opens for linking, and never as the
  * wallet custody seed. Device 3 is linked from Device 2's own material on
- * both curves and signs with the wallet's keys.
+ * both curves, signs with the wallet's keys and exports them.
  */
-test('a linked device links a third device, which signs NEAR and Tempo', async ({
+test('a linked device links a third device, which signs NEAR and Tempo and exports both keys', async ({
   harness,
   browser,
 }) => {
@@ -98,6 +98,11 @@ test('a linked device links a third device, which signs NEAR and Tempo', async (
 
   await device3.signNearTransaction('post_device_link');
   await device3.signTempoTransaction('post_device_link');
+  /* Device 3 exports both keys from its own custody: the Ed25519 key from the
+     export root Device 2 sealed to it, which must match the wallet's
+     registered key, and the ECDSA key from its own share. */
+  await device3.exportEd25519Key();
+  await device3.exportEcdsaKey();
   /* Linking Device 3 changed nothing for the devices that were already
      signing. */
   await device2.signNearTransaction('post_unlock');

@@ -1951,9 +1951,11 @@ function finalizeEcdsaHolderOrdinaryExport(
     request.forwardedResponse,
   );
   const material = requireLinkedDeviceEcdsaHolderMaterial(holderHandleId);
+  /* The Derivers answer an export with stable tenant-root proof bundles, as
+     they do for the explicit export ceremony. */
   const finalizationInput = {
     clientProofFinalization: {
-      kind: 'finalize_encrypted_client_proof_bundles_v1',
+      kind: 'finalize_encrypted_client_proof_bundles_v2',
       bundles: forwardedResponse.response.bundles,
     },
     signingWorkerExport: projectSigningWorkerExportForEcdsaClientProtocol(

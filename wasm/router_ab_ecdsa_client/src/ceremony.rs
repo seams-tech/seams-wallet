@@ -146,11 +146,8 @@ impl RouterAbEcdsaClientCeremonyV1 {
 
     /// Builds a strict explicit client-export request.
     pub fn build_explicit_export_request(&mut self, input_json: &str) -> Result<String, JsValue> {
-        let input: ExplicitExportRequestInputV1 = parse_json(input_json)?;
-        let application_binding_digest = decode_fixed_base64::<32>(
-            &input.common.context.application_binding_digest_b64u,
-            "export application binding digest",
-        )?;
+        let application_binding_digest =
+            explicit_export_request_application_binding_digest(input_json)?;
         let (serialized, digest, _transcript_digest) =
             build_explicit_export_request_with_keypair(input_json, self.active_keypair()?)?;
         self.explicit_export_request_digest = Some(digest);
@@ -349,6 +346,18 @@ impl RouterAbEcdsaClientCeremonyV1 {
         self.post_registration_application_binding_digest.take();
         self.keypair.take();
     }
+}
+
+/// The application binding the Derivers prove an explicit export's client
+/// proof bundles under.
+pub(crate) fn explicit_export_request_application_binding_digest(
+    input_json: &str,
+) -> Result<[u8; 32], JsValue> {
+    let input: ExplicitExportRequestInputV1 = parse_json(input_json)?;
+    decode_fixed_base64::<32>(
+        &input.common.context.application_binding_digest_b64u,
+        "export application binding digest",
+    )
 }
 
 /// Builds one ordinary explicit-export request using an already-held recipient
