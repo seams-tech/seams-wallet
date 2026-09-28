@@ -84,6 +84,50 @@ impl CloudflareEcdsaRegistrationSourceDerivationV1 {
     }
 }
 
+/// The relayer share that a wallet's registration-activated ECDSA material
+/// holds for one source client, checked against the source's public
+/// identity. Each host loads that material from its own store.
+pub(crate) fn registration_source_relayer_share_v1(
+    output_material: &[u8; 32],
+    source_activation: &EcdsaMaterialActivationRefV1,
+    source_derivation: &CloudflareEcdsaRegistrationSourceDerivationV1,
+    source_client_public_key33: &[u8; 33],
+    source_relayer_public_key33: &[u8; 33],
+) -> RouterAbProtocolResult<zeroize::Zeroizing<[u8; 32]>> {
+    source_derivation.validate()?;
+    let application_binding_digest = decode_b64::<32>(
+        "ECDSA registration source application binding digest",
+        &source_derivation.application_binding_digest_b64u,
+    )?;
+    let context = router_ab_ecdsa_derivation::RouterAbEcdsaDerivationStableKeyContext::new(
+        application_binding_digest,
+    );
+    let (relayer_share, public_identity) =
+        router_ab_ecdsa_derivation::derive_relayer_share_for_client_public(
+            &context,
+            *output_material,
+            source_client_public_key33,
+            source_derivation.client_share_retry_counter,
+        )
+        .map_err(|error| {
+            map_protocol_error("ECDSA registration source share derivation failed", error)
+        })?;
+    if b64(&public_identity.context_binding32) != source_activation.key_binding {
+        return Err(invalid(
+            "ECDSA registration source context binding is inconsistent",
+        ));
+    }
+    if !ct_eq(
+        &public_identity.relayer_public_key33,
+        source_relayer_public_key33,
+    ) {
+        return Err(invalid(
+            "ECDSA registration source relayer public key is inconsistent",
+        ));
+    }
+    Ok(zeroize::Zeroizing::new(relayer_share.x_relayer32))
+}
+
 /// Persistence-boundary selector for one exact active ECDSA source share.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(
@@ -659,8 +703,7 @@ mod worker_execution {
         verify_ecdsa_server_retirement_receipt_v1,
     };
     use router_ab_ecdsa_derivation::{
-        derive_relayer_share_for_client_public, rebind_ecdsa_lane_relayer_share_bytes_v1,
-        EcdsaLaneDelta, EcdsaLanePublicIdentityBindingV1, RouterAbEcdsaDerivationStableKeyContext,
+        rebind_ecdsa_lane_relayer_share_bytes_v1, EcdsaLaneDelta, EcdsaLanePublicIdentityBindingV1,
     };
     use worker::{Env, Method, Request, Response};
     use zeroize::Zeroizing;
@@ -715,34 +758,13 @@ mod worker_execution {
         )?;
         let material =
             load_cloudflare_signing_worker_registration_active_material_v1(env, &lookup).await?;
-        let application_binding_digest = decode_b64::<32>(
-            "ECDSA registration source application binding digest",
-            &source_derivation.application_binding_digest_b64u,
-        )?;
-        let context = RouterAbEcdsaDerivationStableKeyContext::new(application_binding_digest);
-        let (relayer_share, public_identity) = derive_relayer_share_for_client_public(
-            &context,
-            *material.output_material.as_bytes(),
+        registration_source_relayer_share_v1(
+            material.output_material.as_bytes(),
+            source_activation,
+            source_derivation,
             source_client_public_key33,
-            source_derivation.client_share_retry_counter,
-        )
-        .map_err(|error| {
-            map_protocol_error("ECDSA registration source share derivation failed", error)
-        })?;
-        if b64(&public_identity.context_binding32) != source_activation.key_binding {
-            return Err(invalid(
-                "ECDSA registration source context binding is inconsistent",
-            ));
-        }
-        if !ct_eq(
-            &public_identity.relayer_public_key33,
             source_relayer_public_key33,
-        ) {
-            return Err(invalid(
-                "ECDSA registration source relayer public key is inconsistent",
-            ));
-        }
-        Ok(Zeroizing::new(relayer_share.x_relayer32))
+        )
     }
 
     fn committed_artifacts(

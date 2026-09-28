@@ -651,6 +651,7 @@ function stagingLinkedDeviceSessionComposition(
         reservationEndpoint: createCloudflareOrdinaryInactiveSignerMaterialReservationEndpointV1({
           fetch: serviceFetch,
           internalServiceAuthSecret,
+          tenant: scope,
         }),
         activationEndpoint: createCloudflareOrdinaryInactiveSignerMaterialActivationEndpointV1({
           fetch: serviceFetch,

@@ -721,20 +721,14 @@ async function handleSourceContribution(
     nowMs,
     ed25519ExportRootPackage,
   });
-  if (committed.kind === 'invalid_input') {
+  if (committed.kind === 'invalid_input' || committed.kind === 'conflict') {
     const failed = await service.sessionService.failBeforeCommitV1({
       linkSessionId,
       expectedRevision: recorded.record.revision,
-      error: { kind: 'package_preparation_failed', reason: committed.message },
-      nowMs,
-    });
-    return sessionResultResponse(failed);
-  }
-  if (committed.kind === 'conflict') {
-    const failed = await service.sessionService.failBeforeCommitV1({
-      linkSessionId,
-      expectedRevision: recorded.record.revision,
-      error: { kind: 'package_preparation_failed', reason: committed.message },
+      error: {
+        kind: 'package_preparation_failed',
+        reason: precommitFailureReasonV1(committed.message),
+      },
       nowMs,
     });
     return sessionResultResponse(failed);
@@ -743,6 +737,18 @@ async function handleSourceContribution(
     committed.session,
     committed.kind === 'replayed' ? 'replayed' : recorded.outcome,
   );
+}
+
+/**
+ * A precommit failure's reason is a single token. The installer's message
+ * keeps its words, joined, so the session still says what failed.
+ */
+function precommitFailureReasonV1(message: string): string {
+  const token = message
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/[\u0000-\u001f\u007f]/g, '');
+  return token.length > 0 ? token : 'authority_commit_failed';
 }
 
 async function handleSourceContributionExecute(

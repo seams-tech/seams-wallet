@@ -7,6 +7,7 @@
 //! executor and, where an operation must be atomic, the transaction around it.
 
 use super::*;
+use crate::ordinary_inactive_signer_material as linked;
 use serde::de::DeserializeOwned;
 
 /// One bound parameter of a wallet statement.
@@ -47,11 +48,20 @@ const ECDSA_ACTIVATION_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_ecdsa_a
     active_key TEXT NOT NULL UNIQUE,
     owner_json TEXT NOT NULL,
     ciphertext_json TEXT NOT NULL)";
+/// Devices linked to this wallet: ECDSA material reserved from this
+/// wallet's active material, then activated or revoked here. An active row
+/// names its activation's key, where signing finds it.
+const LINKED_ECDSA_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_linked_ecdsa (
+    record_key TEXT PRIMARY KEY,
+    active_key TEXT UNIQUE,
+    owner_json TEXT NOT NULL,
+    ciphertext_json TEXT NOT NULL)";
 /// The wallet store's ECDSA tables.
-pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 3] = [
+pub(crate) const SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1: [&str; 4] = [
     ECDSA_POOL_SCHEMA,
     ECDSA_EFFECT_SCHEMA,
     ECDSA_ACTIVATION_SCHEMA,
+    LINKED_ECDSA_SCHEMA,
 ];
 
 /// The outcome of claiming one signing effect and consuming its presignature.
@@ -126,6 +136,63 @@ struct EcdsaActivationRowV1 {
 #[derive(Deserialize)]
 struct EcdsaActivationKeyV1 {
     material_key: String,
+}
+
+#[derive(Deserialize)]
+struct LinkedEcdsaRowV1 {
+    record_key: String,
+    owner_json: String,
+    ciphertext_json: String,
+}
+
+#[derive(Deserialize)]
+struct LinkedEcdsaKeyV1 {
+    record_key: String,
+}
+
+/// One linked device's ECDSA reservation, and while it is active the
+/// material its signing uses.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WalletLinkedEcdsaV1 {
+    state: linked::EcdsaReservationStateV1,
+    activation: Option<SigningWorkerWalletEcdsaActivationMaterialV1>,
+}
+
+/// This SigningWorker's server-output key. A linked device's source
+/// contribution is sealed to it, and so is the share reserved for that
+/// device.
+pub struct SigningWorkerServerOutputKeyV1 {
+    binding: CloudflareServerOutputHpkeDecryptKeyBindingV1,
+    private_key: zeroize::Zeroizing<[u8; 32]>,
+}
+
+impl SigningWorkerServerOutputKeyV1 {
+    /// Loads the key the role's bindings name from its Secrets.
+    pub fn load(
+        runtime: &CloudflareSigningWorkerRuntimeV1,
+        secrets: &impl CloudflareSecretReaderV1,
+    ) -> RouterAbProtocolResult<Self> {
+        let binding = runtime.server_output_decrypt_key().clone();
+        binding.validate_visible_to(CloudflareWorkerRoleV1::SigningWorker)?;
+        let secret = secrets.secret_text(&binding.binding_name)?;
+        let private_key = zeroize::Zeroizing::new(
+            crate::decode_cloudflare_server_output_hpke_private_key_secret_v1(&secret)?,
+        );
+        Ok(Self {
+            binding,
+            private_key,
+        })
+    }
+
+    /// This SigningWorker, under the id an activation names it by.
+    fn server(&self, server_id: &str) -> RouterAbProtocolResult<router_ab_core::ServerIdentityV1> {
+        router_ab_core::ServerIdentityV1::new(
+            server_id,
+            self.binding.key_epoch.clone(),
+            self.binding.public_key.clone(),
+        )
+    }
 }
 
 /// One wallet store session over a host's SQLite executor.
@@ -246,9 +313,9 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
             "active-signing-worker/{}/{}/{}",
             lookup.account_id, lookup.material_activation_id, lookup.signing_worker_id,
         );
-        let stored = self
-            .read_activation(scope, ActivationColumnV1::ActiveKey, &key)?
-            .ok_or_else(|| missing_error("ECDSA wallet activation material is missing"))?;
+        let Some(stored) = self.read_activation(scope, ActivationColumnV1::ActiveKey, &key)? else {
+            return self.load_linked_activation(scope, lookup, &key);
+        };
         lookup.validate_active_state(stored.active_signing_worker_state())?;
         Ok(SigningWorkerWalletEcdsaActivationMaterialV1 {
             active: stored.active_signing_worker_state().clone(),
@@ -451,6 +518,9 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
             return Err(wallet_error("ECDSA effect lookup returned duplicate rows"));
         }
         request.request.validate_at(now_unix_ms)?;
+        // A linked device's revocation commits in this store too: once it
+        // is revoked, no presignature is consumed for its material.
+        self.require_linked_material_unrevoked(&scope, &request.request.scope.material_activation)?;
         let outcome = self.mutate_pool(
             scope,
             CloudflareSigningWorkerEcdsaPoolCommandV1::Consume {
@@ -579,6 +649,304 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
                 vec![text(operation_key.to_owned())],
             ),
         }
+    }
+}
+
+/// Devices linked to the wallet: their ECDSA material is reserved from the
+/// wallet's active material, activated and revoked in the same store, and
+/// signing and presignature consumption find it there.
+impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
+    /// Reserves ECDSA material for a device linked to this wallet. Its
+    /// source must be this wallet's active activation, exactly as the
+    /// contribution names it, so a request scoped to one wallet cannot
+    /// reserve from another's key. An exact retry answers the same packages.
+    pub fn reserve_linked(
+        &self,
+        request: &CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1,
+        server_key: &SigningWorkerServerOutputKeyV1,
+    ) -> RouterAbProtocolResult<CloudflareEcdsaSourcePreservingInactiveMaterialReservationResponseV1>
+    {
+        request.validate()?;
+        let scope = &request.scope;
+        let binding = &request.source_contribution.binding;
+        linked::validate_source_preserving_recipient_v1(&server_key.binding.public_key, binding)?;
+        let target = linked::mpc_material_activation_from_ecdsa_ref_v1(&binding.target.activation)?;
+        let record_key = linked::reservation_record_key_v1(&target)?;
+        let reservation_id = linked::source_preserving_reservation_id_v1(
+            &target,
+            &linked::source_contribution_binding_digest_v1(binding)?,
+        )?;
+        let current = self.read_linked(scope, &record_key)?;
+        if let linked::LinkedEcdsaReservationV1::Answer(response) =
+            linked::settle_linked_ecdsa_reservation_v1(
+                current.as_ref().map(|stored| &stored.state),
+                request,
+                &target,
+                &reservation_id,
+            )?
+        {
+            return Ok(response);
+        }
+        let source = linked::mpc_material_activation_from_ecdsa_ref_v1(&binding.source.activation)?;
+        let stored = self
+            .read_activation(
+                scope,
+                ActivationColumnV1::ActiveKey,
+                &linked::active_output_key_v1(&source),
+            )?
+            .ok_or_else(|| {
+                missing_error("linked-device ECDSA source is not this wallet's active material")
+            })?;
+        if stored.active_signing_worker_state().material_activation != source {
+            return Err(wallet_error(
+                "linked-device ECDSA source differs from this wallet's active material",
+            ));
+        }
+        let (source_client_public_key33, source_relayer_public_key33) =
+            linked::linked_ecdsa_source_public_keys_v1(binding)?;
+        let source_share = crate::registration_source_relayer_share_v1(
+            stored.material().output_material.as_bytes(),
+            &binding.source.activation,
+            &request.source_derivation,
+            &source_client_public_key33,
+            &source_relayer_public_key33,
+        )?;
+        let reserved = WalletLinkedEcdsaV1 {
+            state: linked::linked_ecdsa_inactive_state_v1(
+                request,
+                &source_share,
+                &server_key.private_key,
+            )?,
+            activation: None,
+        };
+        let written = self.sql.query::<LinkedEcdsaKeyV1>(
+            "INSERT INTO wallet_linked_ecdsa (record_key, active_key, owner_json, ciphertext_json)
+             VALUES (?, NULL, ?, ?) ON CONFLICT DO NOTHING RETURNING record_key",
+            vec![
+                text(record_key.clone()),
+                text(owner_json(scope, "linked ECDSA reservation")?),
+                text(self.seal_linked(scope, &record_key, &reserved)?),
+            ],
+        )?;
+        if written.len() != 1 || written[0].record_key != record_key {
+            return Err(wallet_error("linked ECDSA reservation write is uncertain"));
+        }
+        linked::source_preserving_response_from_state_v1(&reserved.state, "inactive")
+    }
+
+    /// Activates a linked device's reserved ECDSA material. Its share is
+    /// opened once, here, and kept sealed with the reservation, where
+    /// signing loads it like any activation. An active reservation answers
+    /// again; a revoked one never activates.
+    pub fn activate_linked(
+        &self,
+        request: &CloudflareEcdsaActivateReservationRequestV1,
+        server_key: &SigningWorkerServerOutputKeyV1,
+        activated_at_ms: u64,
+    ) -> RouterAbProtocolResult<CloudflareEcdsaSourcePreservingReservationActivationResponseV1>
+    {
+        request.validate()?;
+        crate::require_positive_ms("linked ECDSA activation time", activated_at_ms)?;
+        let scope = &request.scope;
+        let record_key = linked::reservation_record_key_v1(&request.material_activation)?;
+        let stored = self
+            .read_linked(scope, &record_key)?
+            .ok_or_else(|| lifecycle_error("linked ECDSA material reservation is missing"))?;
+        if let linked::LinkedEcdsaActivationV1::Answer(response) =
+            linked::settle_linked_ecdsa_activation_v1(&stored.state, request)?
+        {
+            return Ok(response);
+        }
+        let state = stored
+            .state
+            .into_source_preserving_phase_v1(linked::SourcePreservingPhaseV1::Active)?;
+        let (active, material) = linked::linked_ecdsa_active_material_v1(
+            &state,
+            &request.material_activation,
+            &server_key.server(&request.material_activation.signing_worker)?,
+            &server_key.private_key,
+            activated_at_ms,
+        )?;
+        let response = linked::source_preserving_response_from_state_v1(&state, "active")?;
+        let activated = WalletLinkedEcdsaV1 {
+            state,
+            activation: Some(SigningWorkerWalletEcdsaActivationMaterialV1 { active, material }),
+        };
+        let written = self.sql.query::<LinkedEcdsaKeyV1>(
+            "UPDATE wallet_linked_ecdsa SET active_key = ?, ciphertext_json = ?
+             WHERE record_key = ? AND owner_json = ? AND active_key IS NULL
+             RETURNING record_key",
+            vec![
+                text(linked::active_output_key_v1(&request.material_activation)),
+                text(self.seal_linked(scope, &record_key, &activated)?),
+                text(record_key.clone()),
+                text(owner_json(scope, "linked ECDSA reservation")?),
+            ],
+        )?;
+        if written.len() != 1 || written[0].record_key != record_key {
+            return Err(wallet_error(
+                "linked ECDSA reservation changed while it was activated",
+            ));
+        }
+        Ok(response)
+    }
+
+    /// Revokes a linked device's ECDSA material. In one write its row keeps
+    /// the revoked reservation and drops the activation, so signing no
+    /// longer finds it and no presignature is consumed for it again. The
+    /// same revocation answers again.
+    pub fn deactivate_linked(
+        &self,
+        request: &CloudflareEcdsaDeactivateReservationRequestV1,
+        now_unix_ms: u64,
+    ) -> RouterAbProtocolResult<CloudflareEcdsaReservationDeactivationResponseV1> {
+        request.validate()?;
+        crate::require_positive_ms("linked ECDSA revocation time", now_unix_ms)?;
+        let scope = &request.scope;
+        let record_key = linked::reservation_record_key_v1(&request.material_activation)?;
+        let stored = self
+            .read_linked(scope, &record_key)?
+            .ok_or_else(|| lifecycle_error("linked ECDSA material reservation is missing"))?;
+        let (binding, source_derivation, reservation_id, revoked_at_ms) =
+            match linked::settle_linked_ecdsa_deactivation_v1(
+                &stored.state,
+                &request.material_activation,
+            )? {
+                linked::LinkedEcdsaDeactivationV1::Revoked(response) => return Ok(response),
+                linked::LinkedEcdsaDeactivationV1::Resume {
+                    binding,
+                    source_derivation,
+                    reservation_id,
+                    revoked_at_ms,
+                } => (binding, source_derivation, reservation_id, revoked_at_ms),
+                linked::LinkedEcdsaDeactivationV1::Revoke {
+                    binding,
+                    source_derivation,
+                    reservation_id,
+                } => (binding, source_derivation, reservation_id, now_unix_ms),
+            };
+        let revoked = WalletLinkedEcdsaV1 {
+            state: linked::EcdsaReservationStateV1::SourcePreservingRevoked {
+                binding,
+                source_derivation,
+                material_activation: request.material_activation.clone(),
+                reservation_id: reservation_id.clone(),
+                revoked_at_ms,
+            },
+            activation: None,
+        };
+        let written = self.sql.query::<LinkedEcdsaKeyV1>(
+            "UPDATE wallet_linked_ecdsa SET active_key = NULL, ciphertext_json = ?
+             WHERE record_key = ? AND owner_json = ? RETURNING record_key",
+            vec![
+                text(self.seal_linked(scope, &record_key, &revoked)?),
+                text(record_key.clone()),
+                text(owner_json(scope, "linked ECDSA reservation")?),
+            ],
+        )?;
+        if written.len() != 1 || written[0].record_key != record_key {
+            return Err(wallet_error("linked ECDSA revocation write is uncertain"));
+        }
+        Ok(CloudflareEcdsaReservationDeactivationResponseV1 {
+            state: "revoked",
+            reservation_id,
+            material_activation: request.material_activation.clone(),
+            revoked_at_ms,
+        })
+    }
+
+    /// A linked device's active material, by its activation's key.
+    fn load_linked_activation(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+        lookup: &CloudflareActiveSigningWorkerStateLookupV1,
+        active_key: &str,
+    ) -> RouterAbProtocolResult<SigningWorkerWalletEcdsaActivationMaterialV1> {
+        let rows = self.sql.query::<LinkedEcdsaRowV1>(
+            "SELECT record_key, owner_json, ciphertext_json FROM wallet_linked_ecdsa
+             WHERE active_key = ?",
+            vec![text(active_key.to_owned())],
+        )?;
+        let stored = self
+            .open_linked(scope, rows)?
+            .ok_or_else(|| missing_error("ECDSA wallet activation material is missing"))?;
+        let (linked::EcdsaReservationStateV1::SourcePreservingActive { .. }, Some(activation)) =
+            (&stored.state, stored.activation)
+        else {
+            return Err(wallet_error(
+                "linked ECDSA activation row holds no active material",
+            ));
+        };
+        lookup.validate_active_state(&activation.active)?;
+        Ok(activation)
+    }
+
+    /// Refuses material that belongs to a linked device that is no longer
+    /// active. Material with no linked reservation is the wallet's own.
+    fn require_linked_material_unrevoked(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+        material_activation: &router_ab_core::MpcMaterialActivationRefV1,
+    ) -> RouterAbProtocolResult<()> {
+        let record_key = linked::reservation_record_key_v1(material_activation)?;
+        match self.read_linked(scope, &record_key)? {
+            None => Ok(()),
+            Some(WalletLinkedEcdsaV1 {
+                state: linked::EcdsaReservationStateV1::SourcePreservingActive { .. },
+                activation: Some(_),
+            }) => Ok(()),
+            Some(_) => Err(lifecycle_error("linked ECDSA material is not active")),
+        }
+    }
+
+    fn read_linked(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+        record_key: &str,
+    ) -> RouterAbProtocolResult<Option<WalletLinkedEcdsaV1>> {
+        let rows = self.sql.query::<LinkedEcdsaRowV1>(
+            "SELECT record_key, owner_json, ciphertext_json FROM wallet_linked_ecdsa
+             WHERE record_key = ?",
+            vec![text(record_key.to_owned())],
+        )?;
+        self.open_linked(scope, rows)
+    }
+
+    fn open_linked(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+        rows: Vec<LinkedEcdsaRowV1>,
+    ) -> RouterAbProtocolResult<Option<WalletLinkedEcdsaV1>> {
+        let [row] = rows.as_slice() else {
+            return if rows.is_empty() {
+                Ok(None)
+            } else {
+                Err(wallet_error("linked ECDSA lookup returned duplicate rows"))
+            };
+        };
+        if row.owner_json != owner_json(scope, "linked ECDSA reservation")? {
+            return Err(wallet_error("linked ECDSA reservation owner conflict"));
+        }
+        let stored: WalletLinkedEcdsaV1 = self.cipher.open(
+            "linked_ecdsa",
+            &wallet_row_identity(scope, &row.record_key)?,
+            &row.ciphertext_json,
+        )?;
+        stored.state.validate()?;
+        Ok(Some(stored))
+    }
+
+    fn seal_linked(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+        record_key: &str,
+        stored: &WalletLinkedEcdsaV1,
+    ) -> RouterAbProtocolResult<String> {
+        self.cipher.seal(
+            "linked_ecdsa",
+            &wallet_row_identity(scope, record_key)?,
+            stored,
+        )
     }
 }
 
@@ -714,4 +1082,8 @@ fn replay_error(message: &'static str) -> RouterAbProtocolError {
 
 fn missing_error(message: &'static str) -> RouterAbProtocolError {
     RouterAbProtocolError::new(RouterAbProtocolErrorCode::MissingLocalBinding, message)
+}
+
+fn lifecycle_error(message: &'static str) -> RouterAbProtocolError {
+    RouterAbProtocolError::new(RouterAbProtocolErrorCode::InvalidLifecycleState, message)
 }

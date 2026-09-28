@@ -62,7 +62,9 @@ pub use ed25519_yao_signing_worker::{
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH,
 };
-#[cfg(feature = "workers-rs")]
+// A linked device's ECDSA reservation lifecycle is shared by every host;
+// its D1 store and Worker routes are Cloudflare-only.
+#[cfg_attr(not(feature = "workers-rs"), allow(dead_code, unused_imports))]
 mod ordinary_inactive_signer_material;
 #[cfg(feature = "workers-rs")]
 pub use ordinary_inactive_signer_material::{
@@ -70,6 +72,8 @@ pub use ordinary_inactive_signer_material::{
     handle_cloudflare_signing_worker_ecdsa_deactivate_reservation_v1,
     handle_cloudflare_signing_worker_ecdsa_reserve_inactive_source_preserving_v1,
     handle_cloudflare_signing_worker_ecdsa_reserve_inactive_v1,
+};
+pub use ordinary_inactive_signer_material::{
     CloudflareEcdsaActivateReservationRequestV1, CloudflareEcdsaDeactivateReservationRequestV1,
     CloudflareEcdsaInactiveMaterialReservationRequestV1,
     CloudflareEcdsaInactiveMaterialReservationResponseV1,

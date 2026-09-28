@@ -100,6 +100,9 @@ pub(crate) enum SigningWorkerWalletDoRequestV1 {
     ReserveLinkedEd25519(CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1),
     ActivateLinkedEd25519(CloudflareEd25519YaoActivateReservationRequestV1),
     DeactivateLinkedEd25519(CloudflareEd25519YaoDeactivateReservationRequestV1),
+    ReserveLinkedEcdsa(crate::CloudflareEcdsaSourcePreservingInactiveMaterialReservationRequestV1),
+    ActivateLinkedEcdsa(crate::CloudflareEcdsaActivateReservationRequestV1),
+    DeactivateLinkedEcdsa(crate::CloudflareEcdsaDeactivateReservationRequestV1),
     ActivateEcdsa {
         scope: CloudflareSigningWorkerWalletScopeV1,
         activation: CloudflareSigningWorkerRecipientProofBundleActivationRequestV1,
@@ -226,6 +229,9 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::ReserveLinkedEd25519(request) => &request.scope,
             Self::ActivateLinkedEd25519(request) => &request.scope,
             Self::DeactivateLinkedEd25519(request) => &request.scope,
+            Self::ReserveLinkedEcdsa(request) => &request.scope,
+            Self::ActivateLinkedEcdsa(request) => &request.scope,
+            Self::DeactivateLinkedEcdsa(request) => &request.scope,
             Self::ActivateEcdsa { scope, .. } | Self::LoadEcdsaActivation { scope, .. } => scope,
             Self::PrepareNear { scope, .. } | Self::FinalizeNear { scope, .. } => scope,
             Self::EcdsaPoolMutate { scope, .. } => scope,
@@ -242,6 +248,9 @@ impl SigningWorkerWalletDoRequestV1 {
             Self::ReserveLinkedEd25519(request) => request.validate(),
             Self::ActivateLinkedEd25519(request) => request.validate(),
             Self::DeactivateLinkedEd25519(request) => request.validate(),
+            Self::ReserveLinkedEcdsa(request) => request.validate(),
+            Self::ActivateLinkedEcdsa(request) => request.validate(),
+            Self::DeactivateLinkedEcdsa(request) => request.validate(),
             Self::ActivateEcdsa {
                 scope,
                 activation,
@@ -553,6 +562,29 @@ impl RouterAbSigningWorkerWalletDurableObject {
             SigningWorkerWalletDoRequestV1::DeactivateLinkedEd25519(request) => {
                 self.deactivate_linked_ed25519(request)
             }
+            SigningWorkerWalletDoRequestV1::ReserveLinkedEcdsa(request) => {
+                let sql = DurableObjectWalletSqlV1(&self.sql);
+                let response = self
+                    .open_ecdsa_store(&sql)?
+                    .reserve_linked(&request, &self.server_output_key()?)?;
+                Response::from_json(&response).map_err(sql_error)
+            }
+            SigningWorkerWalletDoRequestV1::ActivateLinkedEcdsa(request) => {
+                let sql = DurableObjectWalletSqlV1(&self.sql);
+                let response = self.open_ecdsa_store(&sql)?.activate_linked(
+                    &request,
+                    &self.server_output_key()?,
+                    crate::cloudflare_now_unix_ms_v1()?,
+                )?;
+                Response::from_json(&response).map_err(sql_error)
+            }
+            SigningWorkerWalletDoRequestV1::DeactivateLinkedEcdsa(request) => {
+                let sql = DurableObjectWalletSqlV1(&self.sql);
+                let response = self
+                    .open_ecdsa_store(&sql)?
+                    .deactivate_linked(&request, crate::cloudflare_now_unix_ms_v1()?)?;
+                Response::from_json(&response).map_err(sql_error)
+            }
             SigningWorkerWalletDoRequestV1::ActivateEcdsa {
                 scope,
                 activation,
@@ -684,6 +716,15 @@ impl RouterAbSigningWorkerWalletDurableObject {
         let sql = DurableObjectWalletSqlV1(&self.sql);
         let outcome = self.open_ecdsa_store(&sql)?.mutate_pool(scope, command)?;
         Response::from_json(&outcome).map_err(sql_error)
+    }
+
+    fn server_output_key(
+        &self,
+    ) -> Result<crate::SigningWorkerServerOutputKeyV1, RouterAbProtocolError> {
+        crate::SigningWorkerServerOutputKeyV1::load(
+            &CloudflareSigningWorkerRuntimeV1::from_worker_env(&self.env)?,
+            &crate::CloudflareWorkerEnvReaderV1::new(&self.env),
+        )
     }
 
     fn open_ecdsa_store<'a>(

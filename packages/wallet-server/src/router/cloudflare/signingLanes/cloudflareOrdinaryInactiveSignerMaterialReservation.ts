@@ -161,6 +161,7 @@ export type CloudflareOrdinaryInactiveSignerMaterialDeactivationEndpointV1 = {
 export function createCloudflareOrdinaryInactiveSignerMaterialReservationEndpointV1(input: {
   readonly fetch: typeof fetch;
   readonly internalServiceAuthSecret: string;
+  readonly tenant: CloudflareSigningWorkerTenantV1;
 }): CloudflareOrdinaryInactiveSignerMaterialReservationEndpointV1 {
   return {
     reserveInactiveEd25519SignerMaterialV1: async (request) => {
@@ -170,7 +171,7 @@ export function createCloudflareOrdinaryInactiveSignerMaterialReservationEndpoin
       const raw = await postReservationRequestV1(
         input,
         CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH_V1,
-        ecdsaReservationRequestToWireV1(request),
+        ecdsaReservationRequestToWireV1(request, input.tenant),
         'ecdsa_secp256k1',
       );
       return parseEcdsaReservationResponseV1(request, raw);
@@ -195,7 +196,7 @@ export function createCloudflareOrdinaryInactiveSignerMaterialActivationEndpoint
       await postActivationRequestV1(
         input,
         CLOUDFLARE_SIGNING_WORKER_ECDSA_ACTIVATE_RESERVATION_PATH_V1,
-        ecdsaActivationRequestToWireV1(request),
+        ecdsaActivationRequestToWireV1(request, input.tenant),
         'ecdsa_secp256k1',
       ),
   };
@@ -203,8 +204,15 @@ export function createCloudflareOrdinaryInactiveSignerMaterialActivationEndpoint
 
 function ecdsaReservationRequestToWireV1(
   request: OrdinaryEcdsaSignerMaterialReservationRequestV1,
+  tenant: CloudflareSigningWorkerTenantV1,
 ): Record<string, unknown> {
   return {
+    // The wallet whose active material the linked device's shares come from,
+    // as this Gateway planned the device's activation.
+    scope: signingWorkerWalletScopeWireV1(
+      tenant,
+      String(request.plannedActivationRef.materialOwner),
+    ),
     source_derivation: {
       application_binding_digest_b64u:
         request.preparation.sourceDerivation.applicationBindingDigestB64u,
@@ -253,14 +261,18 @@ function ed25519ActivationRequestToWireV1(
   };
 }
 
-function ecdsaActivationRequestToWireV1(input: {
-  readonly preparation: OrdinaryEcdsaSignerMaterialReservationPreparationV1;
-  readonly reservationId: string;
-}): Record<string, unknown> {
+function ecdsaActivationRequestToWireV1(
+  input: {
+    readonly preparation: OrdinaryEcdsaSignerMaterialReservationPreparationV1;
+    readonly reservationId: string;
+  },
+  tenant: CloudflareSigningWorkerTenantV1,
+): Record<string, unknown> {
+  const materialActivation = input.preparation.sourceContribution.binding.target.activation;
   return {
-    material_activation: routerAbMpcMaterialActivationRefToWire(
-      input.preparation.sourceContribution.binding.target.activation,
-    ),
+    // The wallet that owns the reserved material.
+    scope: signingWorkerWalletScopeWireV1(tenant, String(materialActivation.materialOwner)),
+    material_activation: routerAbMpcMaterialActivationRefToWire(materialActivation),
     reservation_id: input.reservationId,
   };
 }
@@ -557,6 +569,7 @@ export function createCloudflareOrdinaryInactiveSignerMaterialDeactivationEndpoi
         CLOUDFLARE_SIGNING_WORKER_ECDSA_DEACTIVATE_RESERVATION_PATH_V1,
         materialActivation,
         'ecdsa_secp256k1',
+        signingWorkerWalletScopeWireV1(input.tenant, String(materialActivation.materialOwner)),
       ),
   };
 }
@@ -569,7 +582,7 @@ async function postDeactivationRequestV1(
   path: string,
   materialActivation: MpcMaterialActivationRef,
   keyFamily: 'ed25519' | 'ecdsa_secp256k1',
-  scope?: Record<string, string>,
+  scope: Record<string, string>,
 ): Promise<unknown> {
   const response = await input.fetch(
     new Request(`https://signing-worker.router-ab.internal${path}`, {
@@ -579,7 +592,7 @@ async function postDeactivationRequestV1(
         'x-router-ab-internal-service-auth': input.internalServiceAuthSecret,
       },
       body: JSON.stringify({
-        ...(scope === undefined ? {} : { scope }),
+        scope,
         material_activation: routerAbMpcMaterialActivationRefToWire(materialActivation),
       }),
     }),
