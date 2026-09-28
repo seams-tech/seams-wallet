@@ -598,9 +598,15 @@ wallet-object build and Workers D1.
 3. The retry's activation goes on, promotes, and the recovered wallet signs.
 
 Under slice 8 the same late execution answered `succeeded` (above), which
-this contract now fails. Neither Router passes the SigningWorker's reason
-on, and the two Routers answer the refusal differently. The late answer goes
-to no one in production, but aligning the answers is open.
+this contract now fails.
+
+The two Routers first answered that refusal differently, and a known stale
+attempt answered as recoverable invites pointless retries. Since 28e0c7d
+the SigningWorker refuses it with its own code, `SupersededAttempt` (HTTP
+410), on all three stores, and every Router answers the execution
+`rejected` with `attempt_superseded`, a terminal result. The contract
+requires that answer, and it passes on the VM, the wallet-object build and
+Workers D1.
 
 ### Slice 10: a D1 finalize commits only while its activation is unretired (2026-09-28)
 
