@@ -155,6 +155,7 @@ export interface RouterAbEd25519YaoExportService {
     request: RouterAbEd25519YaoExportAdmissionRequestV1,
     authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1,
     admission: RouterAbEd25519YaoExportOperationAdmissionV1,
+    factorRelease: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1 | null,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoExportServiceResult<RouterAbEd25519YaoExportAdmissionReceiptV1>>;
   executeExport(
@@ -369,6 +370,11 @@ type ExportAuthorizationContext = {
   readonly request: RouterAbEd25519YaoExportAdmissionRequestV1;
   readonly authorizationFingerprint: string;
   readonly authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1;
+  /**
+   * The Email OTP factor release the authorization answered with, if any. Its
+   * proof is spent once verified, so an exact replay answers with this.
+   */
+  readonly factorRelease: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1 | null;
 };
 
 type ServerDerivedExportAuthorizationIdentity =
@@ -726,6 +732,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
     request: RouterAbEd25519YaoExportAdmissionRequestV1,
     authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1,
     admission: RouterAbEd25519YaoExportOperationAdmissionV1,
+    factorRelease: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1 | null,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoExportServiceResult<RouterAbEd25519YaoExportAdmissionReceiptV1>> {
     /* This state lives in memory, so the operation admits on its own first. */
@@ -737,7 +744,12 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
         message: admitted.message,
       });
     }
-    const authorization = this.authorizeExport(request, exportKey(request), authorizationIdentity);
+    const authorization = this.authorizeExport(
+      request,
+      exportKey(request),
+      authorizationIdentity,
+      factorRelease,
+    );
     if (authorization.kind === 'completed' && !authorization.value.ok) {
       return failure({
         status: authorization.value.status === 503 ? 503 : 409,
@@ -769,12 +781,14 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
   /**
    * Authorizes one export: its nonce claimed and its state `authorized`, in
    * this state for the caller to commit with the export's operation
-   * admission. An export already here answers from its state instead.
+   * admission. An export already here answers from its state instead, with
+   * the factor release it recorded.
    */
   authorizeExport(
     request: RouterAbEd25519YaoExportAdmissionRequestV1,
     authorizationFingerprint: string,
     authorizationIdentity: RouterAbEd25519YaoExportServerAuthorizationIdentityV1,
+    factorRelease: RouterAbEd25519YaoExportEmailOtpFactorReleaseV1 | null,
   ): RouterAbEd25519YaoExportAuthorizationDecisionV1 {
     const key = exportKey(request);
     const existing = this.state.exports.get(key);
@@ -810,7 +824,13 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
         case 'executing':
         case 'execution_failed':
         case 'completed':
-          return { kind: 'completed', value: { ok: true } };
+          return {
+            kind: 'completed',
+            value: {
+              ok: true,
+              ...(existing.factorRelease ? { factorRelease: existing.factorRelease } : {}),
+            },
+          };
         default:
           return assertNeverExportState(existing);
       }
@@ -831,6 +851,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
       request,
       authorizationFingerprint,
       authorizationIdentity,
+      factorRelease,
     });
     return { kind: 'authorized' };
   }
@@ -840,12 +861,6 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
   ): RouterAbEd25519YaoExportServerAuthorizationIdentityV1 | null {
     const current = this.state.exports.get(exportKey(request));
     return current?.authorizationIdentity ?? null;
-  }
-
-  authorizationRequiresActiveIdentity(
-    request: RouterAbEd25519YaoExportAdmissionRequestV1,
-  ): boolean {
-    return this.state.exports.get(exportKey(request))?.kind === 'authorized';
   }
 
   async prepareAdmitExport(
@@ -938,6 +953,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
       request: current.request,
       authorizationFingerprint: current.authorizationFingerprint,
       authorizationIdentity: current.authorizationIdentity,
+      factorRelease: current.factorRelease,
     });
     return {
       kind: 'claimed',
@@ -1021,6 +1037,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
       request: current.request,
       authorizationFingerprint: current.authorizationFingerprint,
       authorizationIdentity: current.authorizationIdentity,
+      factorRelease: current.factorRelease,
       receipt: parsed.value,
     });
     return { ok: true, status: 200, value: parsed.value };
@@ -1092,6 +1109,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
           request: current.request,
           authorizationFingerprint: current.authorizationFingerprint,
           authorizationIdentity: current.authorizationIdentity,
+          factorRelease: current.factorRelease,
           receipt: current.receipt,
           executeFingerprint: canonicalFingerprint(request),
           failure: rejected,
@@ -1107,6 +1125,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
           request: current.request,
           authorizationFingerprint: current.authorizationFingerprint,
           authorizationIdentity: current.authorizationIdentity,
+          factorRelease: current.factorRelease,
           receipt: current.receipt,
           executeFingerprint,
         });
@@ -1197,6 +1216,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
       request: current.request,
       authorizationFingerprint: current.authorizationFingerprint,
       authorizationIdentity: current.authorizationIdentity,
+      factorRelease: current.factorRelease,
       receipt: current.receipt,
       executeFingerprint: current.executeFingerprint,
       result: parsed.value,
@@ -1243,6 +1263,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
       request: current.request,
       authorizationFingerprint: current.authorizationFingerprint,
       authorizationIdentity: current.authorizationIdentity,
+      factorRelease: current.factorRelease,
       failure: rejected,
     });
   }
@@ -1257,6 +1278,7 @@ export class InMemoryRouterAbEd25519YaoExportService implements RouterAbEd25519Y
       request: current.request,
       authorizationFingerprint: current.authorizationFingerprint,
       authorizationIdentity: current.authorizationIdentity,
+      factorRelease: current.factorRelease,
       receipt: current.receipt,
       executeFingerprint: current.executeFingerprint,
       failure: rejected,
@@ -2166,6 +2188,7 @@ class RouterAbEd25519YaoExportRouteExtension implements RouterApiRouteExtension 
         parsed.protocol,
         authorized.authorizationIdentity,
         authorized.admission,
+        authorized.factorRelease ?? null,
         traceContext.value,
       );
       return result.ok

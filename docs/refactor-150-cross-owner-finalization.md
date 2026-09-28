@@ -312,7 +312,7 @@ does:
 - A recovery execute still resolves its tenant root on every call, not
   pinned at admission. (Slice 6.)
 - On a registration replay, a pair running or completed on one side is still
-  burned on role-store Workers and answered recoverable on the VM.
+  burned on role-store Workers and answered recoverable on the VM. (Slice 7.)
 
 ### Slice 5: export authorizes in one commit
 
@@ -386,7 +386,7 @@ and the fault's proof. Only a passkey export was run.
   fetch its custody envelope. A replay that finds the export authorized
   resolves only its identity and returns no release, so an email-OTP replay
   still cannot finish. It never could: before, it stopped at `authorizing`
-  or at `invalid_body`.
+  or at `invalid_body`. (Slice 7.)
 - The in-memory export service's route is type-checked only. No host
   serves it.
 
@@ -472,6 +472,46 @@ Also:
 - Abandoning a recovery and restoring the previous authority stays deferred.
 - The VM SigningWorker does not call the shared transition functions. Its
   own state machine settles the same cases.
+
+### Slice 7: supported-flow gaps (2026-09-28)
+
+Two gaps that could stop an enabled flow.
+- **A half-finished pair on a replay.** A Router replay presumes its prior
+  run dead. When it finds the pair running, or completed on one side only,
+  the answer now depends on who owns the pair's outcome, not on the host.
+  - Role stores (Workers D1 and the VM) keep one record per role, and
+    neither role settles the pair for the other. The Router burns the pair.
+    A registration then fails for good, and a recovery goes on with a new
+    attempt. The VM used to answer a registration retryable here; it now
+    burns it too.
+  - On the wallet-object build, Deriver A's object owns the pair's outcome
+    and settles it, with its own lease. The Router answers retryable and
+    never burns over it, as the private harness's wallet-object modes
+    assert.
+- **An Email OTP export replay.** An OTP is spent once verified, so a replay
+  could not authorize again, and the factor release it needs to fetch its
+  custody envelope was never returned. The export's authorization now
+  records the release it answered with.
+  - A replay of any export already here answers from its state, with that
+    release.
+  - The replay checks that the authorization is still in its window, and
+    that the owner still holds the active material identity. It no longer
+    verifies the proof again.
+  - Before, only a replay that found the export `authorized` skipped
+    verification, and it failed on the consumed request body.
+
+**Evidence (2026-09-28).**
+- The passkey export contract passes on the VM and the wallet-object build
+  through the new replay path: "an Ed25519 export interrupted after its
+  authorization committed is admitted by the exact retry".
+- A new Email OTP export contract was added but not run: "an Email OTP
+  export interrupted after its authorization committed is admitted by the
+  exact retry, factor release included". Email OTP flows need a Google ID
+  token, and this environment has none. Minting one impersonates a service
+  account with the user's Google Cloud credentials.
+- The VM Router's integration tests pass after the burn change: claim
+  takeover, execution ownership, pair reply loss and SigningWorker reply
+  loss. No E2E leaves a registration pair half-finished on the VM.
 
 ### Boundary decision: ceremony records stay in Gateway D1 (2026-09-28)
 

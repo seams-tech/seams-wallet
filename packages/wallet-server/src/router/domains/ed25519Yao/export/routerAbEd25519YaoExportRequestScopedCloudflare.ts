@@ -335,7 +335,18 @@ async function runAuthorization(
   }
   const existingIdentity = service.readAuthorizationIdentity(parsed.protocol);
   let verified: VerifiedAuthorization;
-  if (existingIdentity && service.authorizationRequiresActiveIdentity(parsed.protocol)) {
+  // An export already authorized answers from its state: its proof is spent,
+  // and an Email OTP one cannot be verified again. Its authorization must
+  // still be in its window, and its owner must still hold the active
+  // material identity.
+  if (existingIdentity) {
+    if (parsed.protocol.authorization.expires_at_ms <= Date.now()) {
+      return authorizationFailure(
+        403,
+        'export_authorization_expired',
+        'Ed25519 Yao export authorization is expired',
+      );
+    }
     const resolved = await context.input.authorization.resolveAuthorizationIdentity(
       parsed.protocol,
     );
@@ -381,9 +392,18 @@ async function runAuthorization(
       parsed.protocol,
       authorizationFingerprint,
       verified.identity,
+      verified.factorRelease ?? null,
     );
     if (decision.kind === 'completed') {
-      return decision.value.ok ? authorizedRun(verified) : decision.value;
+      return decision.value.ok
+        ? authorizedRun({
+            identity: verified.identity,
+            admission: verified.admission,
+            ...(decision.value.factorRelease
+              ? { factorRelease: decision.value.factorRelease }
+              : {}),
+          })
+        : decision.value;
     }
     if (!verified.admission) {
       /* The export was authorized when this request began, and is gone. */
@@ -563,7 +583,7 @@ function backendUncertainFailure(
 }
 
 function authorizationFailure(
-  status: 409 | 503,
+  status: 403 | 409 | 503,
   code: string,
   message: string,
 ): AuthorizationFailure {

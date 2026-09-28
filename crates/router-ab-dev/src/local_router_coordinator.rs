@@ -603,21 +603,18 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                 )
                 .map(Some)
             }
-            // A recovery pair running, or completed on one side only, when its
-            // run is presumed dead is burned, as on Workers: the recovery goes
-            // on with a new attempt.
-            _ if binding.operation == Ed25519YaoOperationV1::Recovery => {
+            // A pair running, or completed on one side only, when its run is
+            // presumed dead is burned, as the role-store Workers Router burns
+            // it: each role keeps its own record, so no role settles the pair
+            // for the other. A registration then fails for good, and a
+            // recovery goes on with a new attempt.
+            _ => {
                 self.burn_pair(config, pair_binding);
                 Ok(Some(RouterEd25519YaoExecuteResultV1::burned(
                     execution_id_for_pair(pair_binding)?,
                     router_ab_core::RouterEd25519YaoBurnReasonV1::PeerUncertain,
                 )))
             }
-            _ => RouterEd25519YaoExecuteResultV1::recoverable(
-                RouterEd25519YaoExecuteFailureCodeV1::ServiceUnavailable,
-                1_000,
-            )
-            .map(Some),
         }
     }
 
