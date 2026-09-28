@@ -84,6 +84,15 @@ test('an interrupted recovery attempt is superseded by a retry with the same cod
   await harness.signNearTransaction('post_unlock');
 });
 
+test('a recovery retires the replaced activation: a delayed finalize is refused, a made signature answers, and the recovered wallet signs', async ({
+  harness,
+}) => {
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  await harness.recoverPasskeyWalletRetiringTheReplacedActivation();
+  await harness.signNearTransaction('post_unlock');
+});
+
 test('a committed Passkey recovery survives a lost finalization response and runtime reset', async ({
   harness,
 }) => {

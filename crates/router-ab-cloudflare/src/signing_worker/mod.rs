@@ -93,6 +93,21 @@ impl CloudflareSigningWorkerWalletScopeV1 {
     }
 }
 
+/// Why a SigningWorker refuses an activation that was retired, by a recovery
+/// that replaced it or an exact deactivation. Every host answers it before the
+/// request's own expiry is checked, so a delayed request for a retired
+/// activation is refused as retired; a signature it already made still
+/// answers.
+pub const SIGNING_WORKER_ACTIVATION_RETIRED_MESSAGE_V1: &str =
+    "SigningWorker activation is retired";
+
+pub fn signing_worker_activation_retired_error_v1() -> RouterAbProtocolError {
+    RouterAbProtocolError::new(
+        RouterAbProtocolErrorCode::InvalidLifecycleState,
+        SIGNING_WORKER_ACTIVATION_RETIRED_MESSAGE_V1,
+    )
+}
+
 /// Platform-neutral signer logic behind the Cloudflare transport wrapper.
 pub trait CloudflareSignerWireHandlerV1 {
     /// Handles one validated Router-to-signer wire message.

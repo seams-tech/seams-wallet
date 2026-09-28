@@ -86,6 +86,29 @@ impl CloudflareEd25519YaoRecoveryPromotionRequestV1 {
     }
 }
 
+/// A recovery promotion addressed to the SigningWorker that holds its wallet:
+/// the Router derives the scope from the tenant root the recovery was
+/// admitted under, as it does for the recovery's delivery.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareScopedEd25519YaoRecoveryPromotionRequestV1 {
+    pub scope: CloudflareSigningWorkerWalletScopeV1,
+    pub promotion: CloudflareEd25519YaoRecoveryPromotionRequestV1,
+}
+
+impl CloudflareScopedEd25519YaoRecoveryPromotionRequestV1 {
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        self.scope.validate()?;
+        self.promotion.validate()?;
+        if self.scope.wallet_id != self.promotion.binding.lifecycle.account_id {
+            return Err(invalid_lifecycle(
+                "SigningWorker recovery promotion differs from its wallet scope",
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoPackagePairDeliveryV1 {
@@ -568,13 +591,12 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_packages_v1(
         parse_request::<CloudflareScopedEd25519YaoPackagePairDeliveryV1>(&mut request).await?;
     scoped.validate()?;
     #[cfg(feature = "wallet-do-signing-worker-harness")]
-    if scoped.delivery.deriver_a.binding.operation == Ed25519YaoOperationV1::Registration {
-        return crate::durable_object::call_signing_worker_wallet_do_v1(
-            env,
-            crate::durable_object::SigningWorkerWalletDoRequestV1::DeliverRegistration(scoped),
-        )
-        .await;
-    }
+    return crate::durable_object::call_signing_worker_wallet_do_v1(
+        env,
+        crate::durable_object::SigningWorkerWalletDoRequestV1::DeliverPackages(scoped),
+    )
+    .await;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     let response = execute_signing_worker_yao_command(
         env,
         SigningWorkerYaoCommandV1::DeliverPackages {
@@ -582,6 +604,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_packages_v1(
         },
     )
     .await?;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     json_response(&http_response_from_command(response)?)
 }
 
@@ -698,14 +721,24 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_recovery_promote_v1(
     mut request: Request,
     env: &Env,
 ) -> RouterAbProtocolResult<Response> {
-    let promotion =
-        parse_request::<CloudflareEd25519YaoRecoveryPromotionRequestV1>(&mut request).await?;
-    promotion.validate()?;
+    let scoped =
+        parse_request::<CloudflareScopedEd25519YaoRecoveryPromotionRequestV1>(&mut request).await?;
+    scoped.validate()?;
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    return crate::durable_object::call_signing_worker_wallet_do_v1(
+        env,
+        crate::durable_object::SigningWorkerWalletDoRequestV1::PromoteRecovery(scoped),
+    )
+    .await;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     let response = execute_signing_worker_yao_command(
         env,
-        SigningWorkerYaoCommandV1::PromoteRecovery { request: promotion },
+        SigningWorkerYaoCommandV1::PromoteRecovery {
+            request: scoped.promotion,
+        },
     )
     .await?;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     json_response(&http_response_from_command(response)?)
 }
 
@@ -1541,7 +1574,7 @@ fn reservation_id_matches_material_activation_v1(
         ))
 }
 
-fn active_output_key_v1(
+pub(crate) fn active_output_key_v1(
     material_activation: &router_ab_core::MpcMaterialActivationRefV1,
 ) -> String {
     format!(
@@ -1646,7 +1679,7 @@ pub(crate) fn http_active_receipt(
     }
 }
 
-fn http_staged_receipt(
+pub(crate) fn http_staged_receipt(
     receipt: Ed25519YaoSigningWorkerActivationReceiptV1,
 ) -> CloudflareEd25519YaoSigningWorkerHttpResponseV1 {
     CloudflareEd25519YaoSigningWorkerHttpResponseV1::Staged {
@@ -1657,6 +1690,162 @@ fn http_staged_receipt(
         joined_signing_worker_commitment: receipt.joined_signing_worker_commitment,
         signing_worker_verifying_share: receipt.signing_worker_verifying_share,
         state_epoch: receipt.state_epoch.get(),
+    }
+}
+
+/// A recovery delivery settled against the lifecycle it meets. Every
+/// SigningWorker store settles it this way, then writes what it decides.
+pub(crate) enum SigningWorkerYaoRecoveryDeliveryV1 {
+    /// The same deliveries again: they answer staged from what is stored.
+    Answer(Ed25519YaoSigningWorkerActivationReceiptV1),
+    /// A recovery candidate to store, staged on the material still active.
+    Stage(SigningWorkerYaoDurableStateV1),
+}
+
+impl SigningWorkerYaoRecoveryDeliveryV1 {
+    pub(crate) fn receipt(
+        &self,
+    ) -> RouterAbProtocolResult<&Ed25519YaoSigningWorkerActivationReceiptV1> {
+        match self {
+            Self::Answer(receipt) => Ok(receipt),
+            Self::Stage(SigningWorkerYaoDurableStateV1::RecoveryStaged { receipt, .. }) => {
+                Ok(receipt)
+            }
+            Self::Stage(_) => Err(invalid_lifecycle(
+                "Signing Worker recovery delivery staged no recovery",
+            )),
+        }
+    }
+}
+
+/// Settles one recovery delivery. `combine` opens the delivered packages on
+/// the active material.
+/// - The same deliveries answer again, staged or promoted.
+/// - A later attempt of a staged recovery replaces the earlier attempt's
+///   candidate, which never promoted: the new candidate stands on the same
+///   active material. Only the Gateway's current attempt promotes.
+/// - Another attempt of a recovery that already promoted is stale: it never
+///   replaces the material its recovery activated.
+/// - Over active material, a new recovery stages its candidate.
+pub(crate) fn settle_signing_worker_yao_recovery_delivery_v1(
+    current: Option<SigningWorkerYaoDurableStateV1>,
+    delivery: &CloudflareEd25519YaoPackagePairDeliveryV1,
+    combine: impl FnOnce(
+        &Ed25519YaoActiveSigningMaterialV1,
+    ) -> RouterAbProtocolResult<Ed25519YaoSigningWorkerActivationCandidateV1>,
+) -> RouterAbProtocolResult<SigningWorkerYaoRecoveryDeliveryV1> {
+    require_operation(&delivery.deriver_a.binding, Ed25519YaoOperationV1::Recovery)?;
+    let lifecycle_id = &delivery.deriver_a.binding.lifecycle.lifecycle_id;
+    let (active_material, active_receipt) = match current {
+        Some(SigningWorkerYaoDurableStateV1::Active {
+            deriver_a,
+            deriver_b,
+            material,
+            receipt,
+        }) if material.binding().operation == Ed25519YaoOperationV1::Recovery
+            && material.binding().lifecycle.lifecycle_id == *lifecycle_id =>
+        {
+            if deriver_a == delivery.deriver_a && deriver_b == delivery.deriver_b {
+                return Ok(SigningWorkerYaoRecoveryDeliveryV1::Answer(receipt));
+            }
+            return Err(invalid_lifecycle(
+                "Signing Worker recovery was already promoted by another attempt",
+            ));
+        }
+        Some(SigningWorkerYaoDurableStateV1::Active {
+            material, receipt, ..
+        }) => (material, receipt),
+        Some(SigningWorkerYaoDurableStateV1::RecoveryStaged {
+            active_material,
+            active_receipt,
+            deriver_a,
+            deriver_b,
+            receipt,
+            ..
+        }) => {
+            if deriver_a == delivery.deriver_a && deriver_b == delivery.deriver_b {
+                return Ok(SigningWorkerYaoRecoveryDeliveryV1::Answer(receipt));
+            }
+            if deriver_a.binding.lifecycle.lifecycle_id != *lifecycle_id {
+                return Err(invalid_lifecycle(
+                    "Signing Worker package pair conflicts with the Yao lifecycle state",
+                ));
+            }
+            (active_material, active_receipt)
+        }
+        Some(SigningWorkerYaoDurableStateV1::RegistrationStaged { .. }) | None => {
+            return Err(invalid_lifecycle(
+                "Signing Worker package pair conflicts with the Yao lifecycle state",
+            ))
+        }
+    };
+    require_same_stable_identity(active_material.binding(), &delivery.deriver_a.binding)?;
+    let (candidate, receipt) = combine(&active_material)?.into_parts();
+    let staged = SigningWorkerYaoDurableStateV1::RecoveryStaged {
+        active_material,
+        active_receipt,
+        deriver_a: delivery.deriver_a.clone(),
+        deriver_b: delivery.deriver_b.clone(),
+        candidate,
+        receipt,
+    };
+    staged.validate()?;
+    Ok(SigningWorkerYaoRecoveryDeliveryV1::Stage(staged))
+}
+
+/// A recovery promotion settled against the lifecycle it meets.
+pub(crate) enum SigningWorkerYaoRecoveryPromotionV1 {
+    /// Promoted already, by this request: the store writes the promoted
+    /// activation again if it is missing, and answers active.
+    Repeat {
+        material: Ed25519YaoActiveSigningMaterialV1,
+        receipt: Ed25519YaoSigningWorkerActivationReceiptV1,
+    },
+    /// Promote: the store writes `active`, whose activation replaces the
+    /// `retired` material's. The retired activation never signs again.
+    Promote {
+        active: SigningWorkerYaoDurableStateV1,
+        retired: Ed25519YaoActiveSigningMaterialV1,
+    },
+}
+
+/// Settles one recovery promotion: the exact staged candidate promotes, and
+/// the same promotion answers again once it has.
+pub(crate) fn settle_signing_worker_yao_recovery_promotion_v1(
+    current: Option<SigningWorkerYaoDurableStateV1>,
+    request: &CloudflareEd25519YaoRecoveryPromotionRequestV1,
+) -> RouterAbProtocolResult<SigningWorkerYaoRecoveryPromotionV1> {
+    match current {
+        Some(SigningWorkerYaoDurableStateV1::Active {
+            material, receipt, ..
+        }) if material.binding().operation == Ed25519YaoOperationV1::Recovery => {
+            validate_promotion_request(request, material.binding(), &receipt)?;
+            Ok(SigningWorkerYaoRecoveryPromotionV1::Repeat { material, receipt })
+        }
+        Some(SigningWorkerYaoDurableStateV1::RecoveryStaged {
+            active_material,
+            deriver_a,
+            deriver_b,
+            candidate,
+            receipt,
+            ..
+        }) => {
+            validate_promotion_request(request, candidate.binding(), &receipt)?;
+            let active = SigningWorkerYaoDurableStateV1::Active {
+                deriver_a,
+                deriver_b,
+                material: candidate,
+                receipt,
+            };
+            active.validate()?;
+            Ok(SigningWorkerYaoRecoveryPromotionV1::Promote {
+                active,
+                retired: active_material,
+            })
+        }
+        _ => Err(invalid_lifecycle(
+            "recovery promotion requires an exact staged candidate",
+        )),
     }
 }
 
@@ -1793,97 +1982,16 @@ async fn execute_signing_worker_yao_delivery_d1_transition_v1(
             persist_signing_worker_yao_active_output_v1(env, &material, &receipt).await?;
             Ok(SigningWorkerYaoCommandResponseV1::Active { receipt })
         }
-        (
-            Ed25519YaoOperationV1::Recovery,
-            Some(SigningWorkerYaoDurableStateV1::Active {
-                deriver_a,
-                deriver_b,
-                material,
-                receipt,
-            }),
-        ) if material.binding().operation == Ed25519YaoOperationV1::Recovery
-            && deriver_a == delivery.deriver_a
-            && deriver_b == delivery.deriver_b =>
-        {
-            Ok(SigningWorkerYaoCommandResponseV1::Staged { receipt })
-        }
-        // A delivery from another attempt of a recovery that already promoted
-        // is stale: it never replaces the material its recovery activated.
-        (
-            Ed25519YaoOperationV1::Recovery,
-            Some(SigningWorkerYaoDurableStateV1::Active { material, .. }),
-        ) if material.binding().operation == Ed25519YaoOperationV1::Recovery
-            && material.binding().lifecycle.lifecycle_id
-                == delivery.deriver_a.binding.lifecycle.lifecycle_id =>
-        {
-            Err(invalid_lifecycle(
-                "Signing Worker recovery was already promoted by another attempt",
-            ))
-        }
-        (
-            Ed25519YaoOperationV1::Recovery,
-            Some(SigningWorkerYaoDurableStateV1::Active {
-                material: active_material,
-                receipt: active_receipt,
-                ..
-            }),
-        ) => {
-            require_same_stable_identity(active_material.binding(), &delivery.deriver_a.binding)?;
-            let candidate =
-                combine_signing_worker_yao_packages_v1(env, delivery, Some(&active_material))?;
-            let (candidate, receipt) = candidate.into_parts();
-            let staged = SigningWorkerYaoDurableStateV1::RecoveryStaged {
-                active_material,
-                active_receipt,
-                deriver_a: delivery.deriver_a.clone(),
-                deriver_b: delivery.deriver_b.clone(),
-                candidate,
-                receipt: receipt.clone(),
-            };
-            staged.validate()?;
-            persist_signing_worker_yao_state_v1(env, record_key, expected_version, &staged).await?;
-            Ok(SigningWorkerYaoCommandResponseV1::Staged { receipt })
-        }
-        (
-            Ed25519YaoOperationV1::Recovery,
-            Some(SigningWorkerYaoDurableStateV1::RecoveryStaged {
-                deriver_a,
-                deriver_b,
-                receipt,
-                ..
-            }),
-        ) if deriver_a == delivery.deriver_a && deriver_b == delivery.deriver_b => {
-            Ok(SigningWorkerYaoCommandResponseV1::Staged { receipt })
-        }
-        // A later attempt of the same recovery takes the place of an earlier
-        // attempt's candidate, which never promoted: the new candidate stands
-        // on the same active material. Only the Gateway's current attempt
-        // promotes.
-        (
-            Ed25519YaoOperationV1::Recovery,
-            Some(SigningWorkerYaoDurableStateV1::RecoveryStaged {
-                active_material,
-                active_receipt,
-                deriver_a: staged_deriver_a,
-                ..
-            }),
-        ) if staged_deriver_a.binding.lifecycle.lifecycle_id
-            == delivery.deriver_a.binding.lifecycle.lifecycle_id =>
-        {
-            require_same_stable_identity(active_material.binding(), &delivery.deriver_a.binding)?;
-            let candidate =
-                combine_signing_worker_yao_packages_v1(env, delivery, Some(&active_material))?;
-            let (candidate, receipt) = candidate.into_parts();
-            let staged = SigningWorkerYaoDurableStateV1::RecoveryStaged {
-                active_material,
-                active_receipt,
-                deriver_a: delivery.deriver_a.clone(),
-                deriver_b: delivery.deriver_b.clone(),
-                candidate,
-                receipt: receipt.clone(),
-            };
-            staged.validate()?;
-            persist_signing_worker_yao_state_v1(env, record_key, expected_version, &staged).await?;
+        (Ed25519YaoOperationV1::Recovery, current) => {
+            let settled =
+                settle_signing_worker_yao_recovery_delivery_v1(current, delivery, |active| {
+                    combine_signing_worker_yao_packages_v1(env, delivery, Some(active))
+                })?;
+            let receipt = settled.receipt()?.clone();
+            if let SigningWorkerYaoRecoveryDeliveryV1::Stage(staged) = settled {
+                persist_signing_worker_yao_state_v1(env, record_key, expected_version, &staged)
+                    .await?;
+            }
             Ok(SigningWorkerYaoCommandResponseV1::Staged { receipt })
         }
         _ => Err(invalid_lifecycle(
@@ -1899,46 +2007,35 @@ async fn execute_signing_worker_yao_promotion_d1_transition_v1(
     current: Option<SigningWorkerYaoDurableStateV1>,
     request: &CloudflareEd25519YaoRecoveryPromotionRequestV1,
 ) -> RouterAbProtocolResult<SigningWorkerYaoCommandResponseV1> {
-    if let Some(SigningWorkerYaoDurableStateV1::Active {
-        material, receipt, ..
-    }) = current.as_ref()
-    {
-        if material.binding().operation == Ed25519YaoOperationV1::Recovery {
-            validate_promotion_request(request, material.binding(), receipt)?;
-            persist_signing_worker_yao_active_output_v1(env, material, receipt).await?;
-            return Ok(SigningWorkerYaoCommandResponseV1::Active {
-                receipt: receipt.clone(),
-            });
+    match settle_signing_worker_yao_recovery_promotion_v1(current, request)? {
+        SigningWorkerYaoRecoveryPromotionV1::Repeat { material, receipt } => {
+            persist_signing_worker_yao_active_output_v1(env, &material, &receipt).await?;
+            Ok(SigningWorkerYaoCommandResponseV1::Active { receipt })
+        }
+        SigningWorkerYaoRecoveryPromotionV1::Promote { active, retired } => {
+            // The previous activation is fenced first, so no crash leaves it
+            // signable beside the promoted one. The lifecycle then moves to
+            // active by compare-and-set: one promotion wins it, and only the
+            // winner writes the activation row. A repeated promotion finds the
+            // lifecycle active and writes the row again.
+            let retired_activation = retired.binding().material_activation();
+            delete_cloudflare_signing_worker_output_activation_by_active_key_v1(
+                env,
+                &active_output_key_v1(retired_activation),
+                retired_activation,
+            )
+            .await?;
+            persist_signing_worker_yao_state_v1(env, record_key, expected_version, &active).await?;
+            let SigningWorkerYaoDurableStateV1::Active {
+                material, receipt, ..
+            } = active
+            else {
+                unreachable!("promotion constructs active state");
+            };
+            persist_signing_worker_yao_active_output_v1(env, &material, &receipt).await?;
+            Ok(SigningWorkerYaoCommandResponseV1::Active { receipt })
         }
     }
-    let Some(SigningWorkerYaoDurableStateV1::RecoveryStaged {
-        deriver_a,
-        deriver_b,
-        candidate,
-        receipt,
-        ..
-    }) = current
-    else {
-        return Err(invalid_lifecycle(
-            "recovery promotion requires an exact staged candidate",
-        ));
-    };
-    validate_promotion_request(request, candidate.binding(), &receipt)?;
-    // The lifecycle moves to active first, by compare-and-set: one promotion
-    // wins it, and only the winner writes the activation row. A repeated
-    // promotion finds the lifecycle active and writes the row again.
-    let active = SigningWorkerYaoDurableStateV1::Active {
-        deriver_a,
-        deriver_b,
-        material: candidate,
-        receipt: receipt.clone(),
-    };
-    persist_signing_worker_yao_state_v1(env, record_key, expected_version, &active).await?;
-    let SigningWorkerYaoDurableStateV1::Active { material, .. } = &active else {
-        unreachable!("promotion constructs active state");
-    };
-    persist_signing_worker_yao_active_output_v1(env, material, &receipt).await?;
-    Ok(SigningWorkerYaoCommandResponseV1::Active { receipt })
 }
 
 pub(crate) fn combine_signing_worker_yao_packages_v1(

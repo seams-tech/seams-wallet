@@ -56,7 +56,10 @@ import type {
   RouterApiWalletSessionAuthorizationV2AdmissionContext,
   RouterApiWalletSessionAuthorizationV2ExhaustedCandidateContext,
 } from '../../../framework/authServicePort';
-import type { RouterAbEd25519YaoRecoveryExecuteAdmissionContextV1 } from '../routerAbEd25519YaoGatewayEnvelope';
+import type {
+  RouterAbEd25519YaoRecoveryExecuteAdmissionContextV1,
+  RouterAbEd25519YaoTenantRootWireV1,
+} from '../routerAbEd25519YaoGatewayEnvelope';
 import type { WalletEd25519YaoActiveCapabilityRecord } from '../../../../core/WalletStore';
 import type { RouterAbEd25519YaoPreparedWriteV1 } from '../capabilityLifecycle/routerAbEd25519YaoProductRegistrationPartitionedStateStore';
 import {
@@ -170,6 +173,13 @@ export interface RouterAbEd25519YaoRecoveryBackend {
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRecoveryBackendResult> | RouterAbEd25519YaoRecoveryBackendResult;
   /**
+   * The tenant root one recovery attempt runs under, resolved once when the
+   * attempt is admitted. Its executions and its promotion use that root.
+   */
+  resolveRecoveryDispatchRoot(
+    admissionRequest: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
+  ): Promise<RouterAbEd25519YaoTenantRootWireV1>;
+  /**
    * Runs one recovery execution at the Router. `replay` marks a payload whose
    * earlier claim may have reached the Router, which then reconciles the
    * roles' records instead of starting fresh.
@@ -177,11 +187,14 @@ export interface RouterAbEd25519YaoRecoveryBackend {
   executeRecovery(
     request: RecoveryExecuteRequest,
     admissionRequest: RouterAbEd25519YaoRecoveryExecuteAdmissionContextV1,
+    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
     replay: boolean,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRecoveryBackendResult> | RouterAbEd25519YaoRecoveryBackendResult;
+  /** Promotes the recovery at the SigningWorker of the attempt's tenant root. */
   activateRecovery(
     request: RouterAbEd25519YaoRecoveryActivationRequestV1,
+    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRecoveryBackendResult> | RouterAbEd25519YaoRecoveryBackendResult;
 }
@@ -239,6 +252,7 @@ export interface RouterAbEd25519YaoRecoveryAdmissionBoundaryV1 {
   prepareAdmitRecovery(
     request: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
     authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
+    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
     nowMs: number,
   ): RouterAbEd25519YaoRecoveryAdmissionPreparationV1;
   commitAdmitRecovery(
@@ -253,6 +267,7 @@ export type RouterAbEd25519YaoRecoveryExecuteClaimV1 = {
   readonly sessionId: string;
   readonly executeFingerprint: string;
   readonly admissionRequest: RouterAbEd25519YaoRecoveryExecuteAdmissionContextV1;
+  readonly dispatchRoot: RouterAbEd25519YaoTenantRootWireV1;
   /** An earlier claim of this payload may have reached the Router. */
   readonly replay: boolean;
 };
@@ -299,6 +314,7 @@ export type RouterAbEd25519YaoRecoveryActivationClaimV1 = {
   readonly activationFingerprint: string;
   readonly authorityProjection: RouterAbEd25519YaoRecoveryAuthorityProjectionV1;
   readonly disposition: 'initial' | 'reconciliation';
+  readonly dispatchRoot: RouterAbEd25519YaoTenantRootWireV1;
 };
 
 export type RouterAbEd25519YaoRecoveryActivationPreparationV1 =
@@ -691,6 +707,8 @@ type RecoveryContext = {
   readonly admissionRequest: RouterAbEd25519YaoRecoveryAdmissionRequestV1;
   readonly activeCapability: CapabilityIdentity;
   readonly authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1;
+  /** The tenant root the attempt was admitted under: its execute and promotion use it. */
+  readonly dispatchRoot: RouterAbEd25519YaoTenantRootWireV1;
 };
 
 type RecoveryAdmittingState = {
@@ -2045,7 +2063,8 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
     authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRecoveryServiceResult<RecoveryAdmissionReceipt>> {
-    const preparation = this.prepareAdmitRecovery(request, authorization, Date.now());
+    const dispatchRoot = await this.backend.resolveRecoveryDispatchRoot(request);
+    const preparation = this.prepareAdmitRecovery(request, authorization, dispatchRoot, Date.now());
     switch (preparation.kind) {
       case 'completed':
         return { ok: true, status: 200, value: preparation.value };
@@ -2069,6 +2088,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
   prepareAdmitRecovery(
     request: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
     authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1,
+    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
     nowMs: number,
   ): RouterAbEd25519YaoRecoveryAdmissionPreparationV1 {
     const parsed = parseRouterAbEd25519YaoRecoveryAdmissionRequestV1(request);
@@ -2197,6 +2217,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
       admissionRequest: admittedRequest,
       activeCapability: activeCapability.identity,
       authorization,
+      dispatchRoot,
     };
     if (superseded) {
       this.recoveries.set(superseded.context.recoveryKey, {
@@ -2303,6 +2324,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
             result: await this.backend.executeRecovery(
               request,
               preparation.claim.admissionRequest,
+              preparation.claim.dispatchRoot,
               preparation.claim.replay,
               traceContext,
             ),
@@ -2386,6 +2408,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
           sessionId,
           executeFingerprint,
           admissionRequest: claimed.context.admissionRequest,
+          dispatchRoot: claimed.context.dispatchRoot,
           replay,
         },
       };
@@ -2521,7 +2544,11 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
         try {
           outcome = {
             kind: 'backend_response',
-            result: await this.backend.activateRecovery(request, traceContext),
+            result: await this.backend.activateRecovery(
+              request,
+              preparation.claim.dispatchRoot,
+              traceContext,
+            ),
           };
         } catch (error: unknown) {
           return this.activationUncertainFailure(error);
@@ -2819,6 +2846,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
       activationFingerprint: state.activationFingerprint,
       authorityProjection,
       disposition,
+      dispatchRoot: state.context.dispatchRoot,
     };
   }
 

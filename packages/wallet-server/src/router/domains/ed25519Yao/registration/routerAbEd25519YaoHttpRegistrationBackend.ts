@@ -520,8 +520,26 @@ function registrationRouterExecuteRequest(
   };
 }
 
+function recoveryRouterExecuteRequest(
+  input: Extract<RouterExecuteInput, { readonly operation: 'recovery' }>,
+  tenantRoot: RouterAbEd25519YaoTenantRootWireV1,
+): RouterExecuteBoundary {
+  return {
+    tenant_root: tenantRoot,
+    application: input.admissionRequest.application_binding,
+    participant_ids: input.admissionRequest.participant_ids,
+    target: {
+      operation: 'recovery',
+      binding: input.request.binding,
+      deriver_a_input: input.request.deriver_a_input,
+      deriver_b_input: input.request.deriver_b_input,
+    },
+  };
+}
+
+/** A recovery runs under the root pinned at its admission, never resolved here. */
 async function routerExecuteRequest(
-  input: RouterExecuteInput,
+  input: Exclude<RouterExecuteInput, { readonly operation: 'recovery' }>,
   resolveTenantRoot: RouterAbEd25519YaoTenantRootResolverV1,
 ): Promise<RouterExecuteBoundary> {
   switch (input.operation) {
@@ -533,25 +551,6 @@ async function routerExecuteRequest(
         }),
       );
       return registrationRouterExecuteRequest(input, tenantRoot);
-    }
-    case 'recovery': {
-      const tenantRoot = await routerAbEd25519YaoTenantRootWireV1(
-        await resolveTenantRoot({
-          operation: 'recovery',
-          admissionRequest: input.admissionRequest,
-        }),
-      );
-      return {
-        tenant_root: tenantRoot,
-        application: input.admissionRequest.application_binding,
-        participant_ids: input.admissionRequest.participant_ids,
-        target: {
-          operation: 'recovery',
-          binding: input.request.binding,
-          deriver_a_input: input.request.deriver_a_input,
-          deriver_b_input: input.request.deriver_b_input,
-        },
-      };
     }
     case 'export': {
       const tenantRoot = await routerAbEd25519YaoTenantRootWireV1(
@@ -981,23 +980,35 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     return parseRouterRegistrationConsumeOutcome(response.body);
   }
 
+  async resolveRecoveryDispatchRoot(
+    admissionRequest: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
+  ): Promise<RouterAbEd25519YaoTenantRootWireV1> {
+    return await routerAbEd25519YaoTenantRootWireV1(
+      await this.config.resolveTenantRoot({ operation: 'recovery', admissionRequest }),
+    );
+  }
+
   async executeRecovery(
     request: RouterAbEd25519YaoRecoveryExecuteRequestV1,
     admissionRequest: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
+    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
     replay: boolean,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
-    return await this.executeRouterRequest(
-      { operation: 'recovery', request, admissionRequest },
+    const routerInput = { operation: 'recovery', request, admissionRequest } as const;
+    return await this.sendRouterRequest(
+      routerInput,
+      recoveryRouterExecuteRequest(routerInput, dispatchRoot),
+      (traceContext ?? createRouterAbTraceContextV1()).value,
+      'replay',
       replay,
-      traceContext,
     );
   }
 
   /// Runs one Router execution. `replay` marks the first call as the
   /// Router's replay: an earlier call for this payload may have reached it.
   private async executeRouterRequest(
-    request: RouterExecuteInput,
+    request: Exclude<RouterExecuteInput, { readonly operation: 'recovery' }>,
     replay: boolean,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
@@ -1075,11 +1086,13 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
 
   async activateRecovery(
     request: RouterAbEd25519YaoRecoveryActivationRequestV1,
+    dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
+    // The root names the wallet's SigningWorker, as it did for the delivery.
     const promoted = await this.post(
       ROUTER_RECOVERY_PROMOTE_PATH,
-      request,
+      { ...request, tenant_root: dispatchRoot },
       (traceContext ?? createRouterAbTraceContextV1()).value,
     );
     if (!promoted.ok) return promoted;

@@ -63,6 +63,17 @@ import {
   requestWithoutLocalIntendedYaoExportFaultHeadersV1,
   responseWithLocalIntendedYaoExportFaultOutcomeV1,
 } from './localIntendedYaoExportFault';
+import {
+  LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1,
+  LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1,
+  LocalIntendedYaoSigningFaultControllerV1,
+  parseLocalIntendedYaoSigningFaultModeV1,
+  parseLocalIntendedYaoSigningFaultTokenV1,
+  releaseLocalIntendedYaoSigningFinalizeV1,
+  requestWithoutLocalIntendedYaoSigningFaultHeadersV1,
+  responseWithLocalIntendedYaoSigningFaultOutcomeV1,
+  ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH_V1,
+} from './localIntendedYaoSigningFault';
 
 export type LocalHostedWalletGatewayEnv = CloudflareD1GatewayBaseEnv & {
   readonly WALLET_LOCAL_DEPLOYMENT_JSON: string;
@@ -245,6 +256,18 @@ export async function handleLocalHostedWalletGatewayRequestV1(
       yaoRecoveryToken,
     );
   }
+  const yaoSigningMode = request.headers.get(LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1);
+  const yaoSigningToken = request.headers.get(LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1);
+  if (yaoSigningMode !== null || yaoSigningToken !== null) {
+    return await handleYaoSigningFault(
+      request,
+      gatewayEnv,
+      ctx,
+      dependencies,
+      yaoSigningMode,
+      yaoSigningToken,
+    );
+  }
   const yaoExportMode = request.headers.get(LOCAL_INTENDED_YAO_EXPORT_FAULT_HEADER_V1);
   const yaoExportToken = request.headers.get(LOCAL_INTENDED_YAO_EXPORT_FAULT_TOKEN_HEADER_V1);
   if (yaoExportMode !== null || yaoExportToken !== null) {
@@ -375,6 +398,49 @@ async function handleYaoFinalizeFault(
     dependencies,
   );
   return responseWithLocalIntendedYaoFinalizeFaultOutcomeV1(response, database.outcome(), token);
+}
+
+/**
+ * Keeps one NEAR finalize the Gateway sends the Router after authorizing it,
+ * run or withheld, or sends a kept one to the Router again: a request
+ * authorized before a recovery, arriving after it. Local only.
+ */
+async function handleYaoSigningFault(
+  request: Request,
+  env: CloudflareD1GatewayEnv,
+  ctx: CfExecutionContext,
+  dependencies: HostedWalletGatewayDependenciesV1 | undefined,
+  rawMode: string | null,
+  rawToken: string | null,
+): Promise<Response> {
+  const mode = parseLocalIntendedYaoSigningFaultModeV1(rawMode);
+  const token = parseLocalIntendedYaoSigningFaultTokenV1(rawToken);
+  const url = new URL(request.url);
+  if (
+    url.protocol !== 'http:' ||
+    url.hostname !== '127.0.0.1' ||
+    url.pathname !== ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH_V1 ||
+    request.method !== 'POST' ||
+    !mode ||
+    !token
+  ) {
+    return Response.json({ code: 'invalid_intended_yao_signing_fault' }, { status: 400 });
+  }
+  if (mode === 'release_signing_finalize') {
+    return await releaseLocalIntendedYaoSigningFinalizeV1(env.MPC_ROUTER, token);
+  }
+  const controller = new LocalIntendedYaoSigningFaultControllerV1(
+    env.MPC_ROUTER.fetch.bind(env.MPC_ROUTER),
+    mode,
+    token,
+  );
+  const response = await handleSplitGatewayRequest(
+    requestWithoutLocalIntendedYaoSigningFaultHeadersV1(request),
+    { ...env, MPC_ROUTER: controller },
+    ctx,
+    dependencies,
+  );
+  return responseWithLocalIntendedYaoSigningFaultOutcomeV1(response, controller.outcome());
 }
 
 /**

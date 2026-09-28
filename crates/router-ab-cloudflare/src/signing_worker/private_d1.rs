@@ -1218,20 +1218,42 @@ async fn active_state_get_v1(
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerPrivateD1ResponseV1> {
     lookup.validate()?;
     let active_key = request.active_state_index_key()?;
-    let row = activation_row_by_active_key_v1(db, &active_key)
-        .await?
-        .ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MissingLocalBinding,
-                "active SigningWorker state is missing",
-            )
-        })?;
+    let Some(row) = activation_row_by_active_key_v1(db, &active_key).await? else {
+        if activation_revocation_fence_exists_v1(db, &active_key).await? {
+            return Err(crate::signing_worker_activation_retired_error_v1());
+        }
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::MissingLocalBinding,
+            "active SigningWorker state is missing",
+        ));
+    };
     let active_state = decode_json::<ActiveSigningWorkerStateV1>(
         "SigningWorker active state",
         &row.active_state_json,
     )?;
     lookup.validate_active_state(&active_state)?;
     Ok(CloudflareSigningWorkerPrivateD1ResponseV1::ActiveState { active_state })
+}
+
+/// Refuses a lookup whose activation is retired, before the request's own
+/// checks: a delayed request for a retired activation is refused as retired.
+pub(crate) async fn require_cloudflare_signing_worker_activation_not_retired_v1(
+    env: &Env,
+    lookup: &CloudflareActiveSigningWorkerStateLookupV1,
+) -> RouterAbProtocolResult<()> {
+    lookup.validate()?;
+    let active_key = format!(
+        "active-signing-worker/{}/{}/{}",
+        lookup.account_id, lookup.material_activation_id, lookup.signing_worker_id
+    );
+    let database = signing_worker_private_d1_from_env_v1(env)?;
+    let session = database
+        .with_session_constraint(D1SessionConstraint::FirstPrimary)
+        .map_err(|error| map_d1_error("SigningWorker private D1 primary session failed", error))?;
+    if activation_revocation_fence_exists_v1(&session, &active_key).await? {
+        return Err(crate::signing_worker_activation_retired_error_v1());
+    }
+    Ok(())
 }
 
 async fn output_material_get_v1(

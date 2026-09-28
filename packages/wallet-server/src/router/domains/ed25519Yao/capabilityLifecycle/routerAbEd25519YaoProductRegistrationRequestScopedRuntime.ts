@@ -63,6 +63,7 @@ const UNUSED_BACKEND: RouterAbEd25519YaoRegistrationBackend & RouterAbEd25519Yao
   admit: rejectUnusedBackend,
   execute: rejectUnusedBackend,
   admitRecovery: rejectUnusedBackend,
+  resolveRecoveryDispatchRoot: rejectUnusedBackend,
   executeRecovery: rejectUnusedBackend,
   activateRecovery: rejectUnusedBackend,
 };

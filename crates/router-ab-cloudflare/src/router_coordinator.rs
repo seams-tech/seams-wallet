@@ -16,8 +16,8 @@ use crate::{
     CloudflareEd25519YaoTenantRootContextV2, CloudflareRouterEd25519YaoExecuteRequestV2,
     CloudflareRouterEd25519YaoTenantRootV1, CloudflareRouterProjectPolicyV1,
     CloudflareRouterWorkerRuntimeV1, CloudflareScopedEd25519YaoPackagePairDeliveryV1,
-    CloudflareSigningWorkerWalletScopeV1, CloudflareWorkerEnvReaderV1,
-    CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
+    CloudflareScopedEd25519YaoRecoveryPromotionRequestV1, CloudflareSigningWorkerWalletScopeV1,
+    CloudflareWorkerEnvReaderV1, CLOUDFLARE_DERIVER_A_ED25519_YAO_EXECUTE_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_PREPARE_PAIR_PATH,
     CLOUDFLARE_DERIVER_A_ED25519_YAO_READ_PAIR_STATUS_PATH,
     CLOUDFLARE_DERIVER_B_ED25519_YAO_PREPARE_PAIR_PATH,
@@ -738,6 +738,37 @@ fn router_recipient_set_digest_v1(env: &Env) -> RouterAbProtocolResult<PublicDig
     ed25519_yao_recipient_set_digest_v1(deriver_a, deriver_b, signing_worker)
 }
 
+/// The Gateway's recovery promotion: the verified recovery result, and the
+/// tenant root the recovery was admitted under. The root names the wallet's
+/// SigningWorker scope, derived as the recovery's delivery derived it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CloudflareRouterEd25519YaoRecoveryPromotionRequestV1 {
+    pub binding: router_ab_core::Ed25519YaoCeremonyBindingV1,
+    pub public_receipt: router_ab_core::RouterAbEd25519YaoActivationPublicReceiptV1,
+    pub tenant_root: CloudflareRouterEd25519YaoTenantRootV1,
+}
+
+impl CloudflareRouterEd25519YaoRecoveryPromotionRequestV1 {
+    fn scoped(
+        self,
+    ) -> RouterAbProtocolResult<CloudflareScopedEd25519YaoRecoveryPromotionRequestV1> {
+        self.tenant_root.coordinates()?;
+        let scoped = CloudflareScopedEd25519YaoRecoveryPromotionRequestV1 {
+            scope: CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
+                &self.tenant_root.identity,
+                &self.binding.lifecycle.account_id,
+            )?,
+            promotion: crate::CloudflareEd25519YaoRecoveryPromotionRequestV1 {
+                binding: self.binding,
+                public_receipt: self.public_receipt,
+            },
+        };
+        scoped.validate()?;
+        Ok(scoped)
+    }
+}
+
 /// Handles explicit recovery promotion without exposing the SigningWorker to the Gateway.
 pub async fn handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch_v1(
     mut request: Request,
@@ -754,7 +785,7 @@ pub async fn handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch
         Err(error) => return protocol_error_response(error),
     };
     let promotion = match request
-        .json::<crate::CloudflareEd25519YaoRecoveryPromotionRequestV1>()
+        .json::<CloudflareRouterEd25519YaoRecoveryPromotionRequestV1>()
         .await
     {
         Ok(promotion) => promotion,
@@ -765,9 +796,10 @@ pub async fn handle_cloudflare_router_ed25519_yao_recovery_promote_private_fetch
             ))
         }
     };
-    if let Err(error) = promotion.validate() {
-        return protocol_error_response(error);
-    }
+    let promotion = match promotion.scoped() {
+        Ok(promotion) => promotion,
+        Err(error) => return protocol_error_response(error),
+    };
     let runtime = match CloudflareRouterWorkerRuntimeV1::from_worker_env(env) {
         Ok(runtime) => runtime,
         Err(error) => return protocol_error_response(error),

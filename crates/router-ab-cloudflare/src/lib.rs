@@ -53,6 +53,7 @@ pub use ed25519_yao_signing_worker::{
     CloudflareEd25519YaoReservationDeactivationResponseV1,
     CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
     CloudflareScopedEd25519YaoPackagePairDeliveryV1,
+    CloudflareScopedEd25519YaoRecoveryPromotionRequestV1,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_ACTIVATE_RESERVATION_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_DEACTIVATE_RESERVATION_PATH,
     CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_INITIAL_REGISTRATION_FINALIZATION_LOOKUP_PATH,
@@ -13377,6 +13378,20 @@ where
         }
         Ok(None) => {}
         Err(error) => {
+            return worker::Response::error(
+                format!("{:?}: {}", error.code(), error.message()),
+                cloudflare_router_error_status(error.code()),
+            );
+        }
+    }
+    // Before expiry: a delayed request for a retired activation is refused as
+    // retired, while a signature it already made answers above.
+    if let CloudflareSigningWorkerNormalSigningMaterialSourceV1::RegistrationActivation { lookup } =
+        &parsed.material_source
+    {
+        if let Err(error) =
+            require_cloudflare_signing_worker_activation_not_retired_v1(env, lookup).await
+        {
             return worker::Response::error(
                 format!("{:?}: {}", error.code(), error.message()),
                 cloudflare_router_error_status(error.code()),

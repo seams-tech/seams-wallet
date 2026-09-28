@@ -180,6 +180,12 @@ const WALLET_REGISTRATION_NEAR_PROVISIONING_PATH_V1 = '/wallets/register/near-pr
 const LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1 = 'x-seams-intended-yao-recovery-fault-v1';
 const LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1 =
   'x-seams-intended-yao-recovery-fault-token-v1';
+const LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1 = 'x-seams-intended-yao-signing-fault-v1';
+const LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1 =
+  'x-seams-intended-yao-signing-fault-token-v1';
+const ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH = '/router-ab/ed25519/sign';
+/* The SigningWorker's refusal of an activation a recovery replaced. */
+const SIGNING_WORKER_ACTIVATION_RETIRED_MESSAGE = 'SigningWorker activation is retired';
 const LOCAL_INTENDED_YAO_EXPORT_FAULT_HEADER_V1 = 'x-seams-intended-yao-export-fault-v1';
 const LOCAL_INTENDED_YAO_EXPORT_FAULT_TOKEN_HEADER_V1 =
   'x-seams-intended-yao-export-fault-token-v1';
@@ -195,7 +201,9 @@ type IntendedYaoFaultProofV1 =
   | 'terminal_failure_not_retried'
   | 'decision_committed_then_storage_lost'
   | 'recovery_replies_lost_after_router_executed'
-  | 'export_authorization_committed_then_storage_lost';
+  | 'export_authorization_committed_then_storage_lost'
+  | 'signing_finalize_captured'
+  | 'signing_finalize_withheld';
 
 type IntendedYaoFaultInjectionStateV1 =
   | {
@@ -1104,6 +1112,12 @@ export class IntendedBehaviourHarness {
 
   /** Armed once: the next export admission loses storage after its authorization commits. */
   private intendedYaoExportFaultToken: string | null = null;
+
+  /** Armed for one NEAR signature: every finalize of it is kept, run or withheld. */
+  private intendedYaoSigningFault: {
+    readonly mode: 'capture_signing_finalize' | 'withhold_signing_finalize';
+    readonly token: string;
+  } | null = null;
 
   constructor(args: {
     context: BrowserContext;
@@ -2917,6 +2931,127 @@ export class IntendedBehaviourHarness {
   }
 
   /**
+   * A recovery retires, at the SigningWorker, the activation it replaced. Two
+   * NEAR signatures are authorized under that activation before the recovery
+   * begins: one is made, and the Gateway keeps its finalize; the other's
+   * finalize the Gateway withholds. The recovery is interrupted once and
+   * retried with the same code. Once it promotes, both finalizes reach the
+   * Router again: the withheld one is refused as retired, and the one already
+   * made answers with its signature.
+   */
+  async recoverPasskeyWalletRetiringTheReplacedActivation(): Promise<void> {
+    this.recordStage('recover_passkey_wallet_retiring_replaced_activation');
+    requireLocalIntendedYaoFaultRouterOrigin(this.config.routerUrl);
+    const made = await this.keepNearSigningFinalize('capture_signing_finalize');
+    const withheld = await this.keepNearSigningFinalize('withhold_signing_finalize');
+    await this.recoverPasskeyWalletAfterInterruptedAttempt();
+    const delayed = await this.releaseNearSigningFinalize(withheld);
+    if (delayed.status < 400 || !delayed.body.includes(SIGNING_WORKER_ACTIVATION_RETIRED_MESSAGE)) {
+      throw new Error(
+        `A finalize withheld across the recovery was not refused as retired: ${delayed.status} ${delayed.body}`,
+      );
+    }
+    const replayed = await this.releaseNearSigningFinalize(made);
+    if (
+      replayed.original === null ||
+      replayed.status !== replayed.original.status ||
+      JSON.stringify(JSON.parse(replayed.body)) !==
+        JSON.stringify(JSON.parse(replayed.original.body))
+    ) {
+      throw new Error(
+        `A signature made before the recovery did not answer again: ${replayed.status} ${replayed.body}`,
+      );
+    }
+    this.recordService(
+      'the recovery retired the replaced activation: a delayed finalize was refused, a made signature answered again',
+    );
+  }
+
+  /** Signs NEAR once with every finalize of it kept by the Gateway, run or withheld. */
+  private async keepNearSigningFinalize(
+    mode: 'capture_signing_finalize' | 'withhold_signing_finalize',
+  ): Promise<string> {
+    if (this.intendedYaoSigningFault !== null) {
+      throw new Error('An intended Yao signing fault is already armed');
+    }
+    const registration = requireNearReadyRegisteredWallet(
+      this.requireRegisteredWalletForSigning(),
+      'NEAR signing',
+    );
+    const proofStartIndex = this.intendedYaoFaultProofs.length;
+    const token = randomUUID();
+    this.intendedYaoSigningFault = { mode, token };
+    try {
+      if (mode === 'capture_signing_finalize') {
+        await this.signNearTransaction('post_registration');
+      } else {
+        let signed = false;
+        try {
+          await this.runNearSigningPageAction(registration.nearAccountId);
+          signed = true;
+        } catch {
+          // The Gateway withheld the finalize, so the signature failed.
+        }
+        if (signed) throw new Error('A NEAR signature signed although its finalize was withheld');
+      }
+    } finally {
+      this.intendedYaoSigningFault = null;
+    }
+    const expected = `${token}:${
+      mode === 'capture_signing_finalize'
+        ? 'signing_finalize_captured'
+        : 'signing_finalize_withheld'
+    }`;
+    const observed = this.intendedYaoFaultProofs.slice(proofStartIndex);
+    if (observed.length === 0 || observed.some((proof) => proof !== expected)) {
+      throw new Error(
+        `Expected intended Yao fault proof ${expected}; observed ${observed.join(', ') || '<none>'}`,
+      );
+    }
+    this.recordService(`intended Yao fault proof: ${expected.slice(token.length + 1)}`);
+    return token;
+  }
+
+  /** Sends a finalize the Gateway kept to the Router again, and reads the Router's reply. */
+  private async releaseNearSigningFinalize(token: string): Promise<{
+    readonly status: number;
+    readonly body: string;
+    readonly original: { readonly status: number; readonly body: string } | null;
+  }> {
+    const response = await this.page.request.post(
+      new URL(ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH, this.config.routerUrl).href,
+      {
+        headers: {
+          [LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1]: 'release_signing_finalize',
+          [LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1]: token,
+        },
+        data: {},
+      },
+    );
+    if (!response.ok()) {
+      throw new Error(
+        `Releasing a kept finalize failed: ${response.status()} ${await response.text()}`,
+      );
+    }
+    const released = requireRecord(await response.json(), 'released finalize');
+    const original = released.original;
+    return {
+      status: Number(released.status),
+      body: requireString(released.body, 'released finalize body'),
+      original:
+        original === null
+          ? null
+          : {
+              status: Number(requireRecord(original, 'original finalize').status),
+              body: requireString(
+                requireRecord(original, 'original finalize').body,
+                'original body',
+              ),
+            },
+    };
+  }
+
+  /**
    * An Ed25519 export whose admission loses the Gateway's storage right after
    * the batch that authorized it committed the export's `authorized` state,
    * its nonce claim and its authorized operation. The Gateway sends the
@@ -3032,6 +3167,10 @@ export class IntendedBehaviourHarness {
     await this.context.route(
       `**${ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1}`,
       this.handleIntendedYaoExportFaultRoute.bind(this),
+    );
+    await this.context.route(
+      `**${ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH}`,
+      this.handleIntendedYaoSigningFaultRoute.bind(this),
     );
   }
 
@@ -3306,6 +3445,21 @@ export class IntendedBehaviourHarness {
         ...route.request().headers(),
         [LOCAL_INTENDED_YAO_RECOVERY_FAULT_HEADER_V1]: 'lose_router_recovery_replies',
         [LOCAL_INTENDED_YAO_RECOVERY_FAULT_TOKEN_HEADER_V1]: token,
+      },
+    });
+  }
+
+  private async handleIntendedYaoSigningFaultRoute(route: Route): Promise<void> {
+    const armed = this.intendedYaoSigningFault;
+    if (armed === null || route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    await route.continue({
+      headers: {
+        ...route.request().headers(),
+        [LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1]: armed.mode,
+        [LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1]: armed.token,
       },
     });
   }

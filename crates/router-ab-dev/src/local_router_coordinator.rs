@@ -26,12 +26,15 @@ const ROUTER_AUTHORITY_TTL_MS: u64 = 60_000;
 
 /// Local JSON boundary equivalent of the production recovery-promotion body.
 /// The Cloudflare request type is worker-feature gated, so the local harness
-/// keeps this exact wire shape at its own boundary.
+/// keeps this exact wire shape at its own boundary. The tenant root names the
+/// wallet's SigningWorker on Workers; the local SigningWorker holds every
+/// wallet, so here it is only checked.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct LocalRouterEd25519YaoRecoveryPromotionRequestV1 {
     binding: router_ab_core::Ed25519YaoCeremonyBindingV1,
     public_receipt: RouterAbEd25519YaoActivationPublicReceiptV1,
+    tenant_root: router_ab_cloudflare::CloudflareRouterEd25519YaoTenantRootV1,
 }
 
 use super::{
@@ -344,6 +347,7 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                     )
                 })?;
         request.binding.validate()?;
+        request.tenant_root.coordinates()?;
         if request.binding.operation != Ed25519YaoOperationV1::Recovery {
             return Err(coordinator_error(
                 "Router recovery promotion requires a recovery binding",
@@ -1064,6 +1068,17 @@ mod tests {
         LocalRouterEd25519YaoRecoveryPromotionRequestV1 {
             binding,
             public_receipt,
+            tenant_root: router_ab_cloudflare::CloudflareRouterEd25519YaoTenantRootV1 {
+                identity: router_ab_core::TenantRootIdentityV1::new(
+                    "org",
+                    "project",
+                    "env",
+                    "local-root",
+                    "v1",
+                )
+                .expect("root identity"),
+                custody_lineage_b64u: "AQEBAQEBAQEBAQEBAQEBAQ".to_owned(),
+            },
         }
     }
 

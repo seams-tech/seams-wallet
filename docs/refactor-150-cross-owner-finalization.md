@@ -1,11 +1,13 @@
 # R150 cross-owner Yao finalization, recovery and export
 
-Status: slices 1 to 5 implemented (2026-09-27/28, see below).
+Status: slices 1 to 6 implemented (2026-09-27/28, see below).
 - The Router owns each registration's execution record.
 - Registration and add-signer finalize through one decision row per
   lifecycle.
 - A recovery promotes in one batch, and resumes instead of sticking.
 - An export authorizes in one commit.
+- A recovery runs on the SigningWorker wallet object, and retires the
+  activation it replaces on every host.
 
 The lifecycle-keyed ceremony records stay in Gateway D1 next to the
 tenant-wide `router-ab-ed25519-yao:shared` record. That is the final
@@ -303,11 +305,12 @@ does:
   explicit, fenced policy.
 - Recovery on the wallet-object build. The SigningWorker wallet object
   handles registration only, so a recovery delivery or promotion there never
-  reaches it.
+  reaches it. (Slice 6.)
 - After a recovery promotes, the SigningWorker keeps the previous
   activation's row, still signable there. The Gateway no longer admits it.
+  (Slice 6.)
 - A recovery execute still resolves its tenant root on every call, not
-  pinned at admission.
+  pinned at admission. (Slice 6.)
 - On a registration replay, a pair running or completed on one side is still
   burned on role-store Workers and answered recoverable on the VM.
 
@@ -386,6 +389,89 @@ and the fault's proof. Only a passkey export was run.
   or at `invalid_body`.
 - The in-memory export service's route is type-checked only. No host
   serves it.
+
+### Slice 6: a recovery runs on the wallet object, and retires what it replaced
+
+A review after slice 5 found two gaps.
+- **No recovery on the wallet-object build.** Only registration deliveries
+  reached the SigningWorker wallet object. A recovery's delivery and
+  promotion fell through to the D1 SigningWorker, which has no record of
+  the wallet, and failed. A baseline run of the fresh-browser recovery
+  contract on that build ended at "Recovery couldn't be completed".
+- **The replaced activation still signed.** After a recovery promoted, the
+  D1 path left the replaced activation's row in place, and the VM replaced
+  the share without recording it. The Gateway admits no new request for it,
+  but a request it authorized before the promotion could still sign if it
+  reached the SigningWorker late.
+
+Now:
+- **One recovery lifecycle for both Workers stores.** The recovery
+  transitions are pure functions that the D1 SigningWorker and the wallet
+  object share. Each store writes what they decide.
+  - A delivery answers again, stages a candidate, replaces an earlier
+    attempt's candidate, or is refused as stale.
+  - A promotion promotes the exact staged candidate, or answers again.
+
+  The VM keeps its own state machine, which settles the same cases the same
+  way (slice 4).
+- **The wallet object owns recovery.** On that build every Yao delivery and
+  every promotion goes to the wallet's object, never to D1. The recovery
+  lives in the wallet's registration row.
+  - Staging stores the candidate with the lifecycle. The active activation
+    keeps signing.
+  - Promotion writes three things together: the promoted lifecycle, its
+    activation under the new key, and a retirement record for the key it
+    replaces.
+- **The promotion names its wallet.** The Gateway pins the tenant root when a
+  recovery attempt is admitted. Every execution of the attempt uses it, and
+  the promotion carries it. The Router derives the SigningWorker wallet scope
+  from it, as it does for the delivery.
+- **The replaced activation retires, on every host.**
+  - Wallet object: the retirement record is part of the promotion's write.
+  - D1: the promotion fences and deletes the replaced activation's row
+    before its compare-and-set, so no crash leaves it signable beside the
+    promoted one.
+  - VM: the promotion records the replaced activation in the SigningWorker's
+    durable state.
+- **Which delayed requests fail.** After a recovery promotes, any request
+  that needs the replaced activation is refused with "SigningWorker
+  activation is retired". That covers a prepare, replayed or not, and a
+  finalize whose signature was not made.
+  - The refusal comes before the request's own expiry check, so a delayed
+    request is refused as retired, not as expired.
+  - A finalize whose signature was already made answers again with its
+    stored terminal, as before.
+  - The Router still refuses a request past its 120 s lifetime before any
+    SigningWorker sees it.
+
+**Evidence (2026-09-28).** A new contract passes on the VM, the
+wallet-object build and Workers D1: "a recovery retires the replaced
+activation: a delayed finalize is refused, a made signature answers, and the
+recovered wallet signs".
+1. A passkey wallet registers and signs NEAR once. A local-only fault keeps
+   the finalize the Gateway sent the Router.
+2. A second NEAR signature is authorized and prepared, and the fault
+   withholds its finalize from the Router.
+3. The wallet recovers in a fresh browser. The first attempt's Router replies
+   are lost, and a retry with the same code supersedes it and promotes.
+4. The Gateway sends both kept finalizes to the Router again. The withheld
+   one is refused as retired. The one already made answers with its original
+   signature response.
+5. The recovered wallet signs NEAR.
+
+The persisted trace on each host shows the withheld finalize answered 409,
+the lost execute answered `execution_interrupted`, the retry's admit,
+execute and activate answered 200, and the recovered wallet's signature.
+
+Also:
+- On the wallet-object build, the fresh-browser recovery contract now
+  passes. It failed there before this slice.
+- The VM SigningWorker and Router coordinator unit tests pass.
+
+**Not addressed (for review).**
+- Abandoning a recovery and restoring the previous authority stays deferred.
+- The VM SigningWorker does not call the shared transition functions. Its
+  own state machine settles the same cases.
 
 ### Boundary decision: ceremony records stay in Gateway D1 (2026-09-28)
 

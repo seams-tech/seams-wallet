@@ -156,6 +156,7 @@ class RecoveryAdmissionRequestRun {
     const prepared = service.prepareAdmitRecovery(
       this.request,
       recoveryAuthorizationBinding(authorized.authorization),
+      await this.context.input.backend.resolveRecoveryDispatchRoot(this.request),
       Date.now(),
     );
     switch (prepared.kind) {
@@ -263,6 +264,7 @@ class RecoveryExecutionRequestRun {
         value: await this.context.input.backend.executeRecovery(
           this.request,
           claim.admissionRequest,
+          claim.dispatchRoot,
           claim.replay,
           this.context.trace,
         ),
@@ -337,14 +339,18 @@ class RecoveryActivationRequestRun {
   }
 
   async backend(
-    _claim: RouterAbEd25519YaoRecoveryActivationClaimV1,
+    claim: RouterAbEd25519YaoRecoveryActivationClaimV1,
   ): Promise<
     RouterAbEd25519YaoRegistrationTwoPhaseBackendResultV1<RouterAbEd25519YaoRecoveryBackendResult>
   > {
     try {
       return {
         kind: 'response',
-        value: await this.context.input.backend.activateRecovery(this.request, this.context.trace),
+        value: await this.context.input.backend.activateRecovery(
+          this.request,
+          claim.dispatchRoot,
+          this.context.trace,
+        ),
       };
     } catch (error: unknown) {
       return {

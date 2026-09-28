@@ -9,9 +9,9 @@ use router_ab_cloudflare::{
 };
 use router_ab_core::{
     ActiveSigningWorkerStateV1, Ed25519YaoCeremonyBindingV1, Ed25519YaoOperationV1,
-    Ed25519YaoRefreshBindingV1, Ed25519YaoStateEpochV1, NormalSigningScopeV1, OpenedShareKind,
-    PublicDigest32, Role, RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
-    ServerIdentityV1,
+    Ed25519YaoRefreshBindingV1, Ed25519YaoStateEpochV1, MpcMaterialActivationRefV1,
+    NormalSigningScopeV1, OpenedShareKind, PublicDigest32, Role, RouterAbProtocolError,
+    RouterAbProtocolErrorCode, RouterAbProtocolResult, ServerIdentityV1,
 };
 use router_ab_ed25519_yao::recipient::signing_worker::{
     combine_signing_worker_activation_packages, SigningWorkerBaseScalar,
@@ -188,6 +188,9 @@ impl RecoveryPromotionState {
 #[derive(Default)]
 pub struct LocalEd25519YaoSigningWorkerStateV1 {
     identities: BTreeMap<LocalEd25519YaoEffectiveIdentityV1, LocalEd25519YaoSigningIdentityStateV1>,
+    /// Activations a recovery replaced. None signs again, though a signature
+    /// one already made still answers.
+    retired_activations: Vec<MpcMaterialActivationRefV1>,
 }
 
 #[derive(Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
@@ -195,6 +198,8 @@ pub struct LocalEd25519YaoSigningWorkerStateV1 {
 pub(crate) struct LocalEd25519YaoSigningWorkerDurableStateV1 {
     active_identities: Vec<LocalEd25519YaoSigningWorkerDurableActiveStateV1>,
     recoveries: Vec<LocalEd25519YaoSigningWorkerDurableRecoveryV1>,
+    #[zeroize(skip)]
+    retired_activations: Vec<MpcMaterialActivationRefV1>,
 }
 
 /// A recovery staged or promoted at one identity, kept across restarts: the
@@ -313,6 +318,7 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         Ok(LocalEd25519YaoSigningWorkerDurableStateV1 {
             active_identities,
             recoveries,
+            retired_activations: self.retired_activations.clone(),
         })
     }
 
@@ -408,7 +414,14 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
                 },
             });
         }
-        Ok(Self { identities })
+        let retired_activations = core::mem::take(&mut state.retired_activations);
+        for retired in &retired_activations {
+            retired.validate()?;
+        }
+        Ok(Self {
+            identities,
+            retired_activations,
+        })
     }
 
     pub fn accept_package_pair(
@@ -493,12 +506,25 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         request: LocalEd25519YaoSigningWorkerRecoveryPromotionRequestV1,
     ) -> RouterAbProtocolResult<LocalEd25519YaoSigningWorkerActivationReceiptV1> {
         let identity = LocalEd25519YaoEffectiveIdentityV1::from_binding(&request.binding);
-        self.identities
-            .get_mut(&identity)
-            .ok_or_else(|| {
-                invalid_activation("SigningWorker has no active state for this recovery identity")
-            })?
-            .promote_recovery_candidate(request)
+        let state = self.identities.get_mut(&identity).ok_or_else(|| {
+            invalid_activation("SigningWorker has no active state for this recovery identity")
+        })?;
+        let previous = state
+            .active
+            .as_ref()
+            .map(|active| active.binding.material_activation.clone());
+        let receipt = state.promote_recovery_candidate(request)?;
+        let promoted = state
+            .active
+            .as_ref()
+            .map(|active| active.binding.material_activation.clone());
+        if let Some(previous) = previous {
+            if promoted.as_ref() != Some(&previous) && !self.retired_activations.contains(&previous)
+            {
+                self.retired_activations.push(previous);
+            }
+        }
+        Ok(receipt)
     }
 
     pub fn accept_refresh_deriver_a(
@@ -539,6 +565,12 @@ impl LocalEd25519YaoSigningWorkerStateV1 {
         ActiveSigningWorkerStateV1,
         CloudflareServerOutputMaterialRecordV1,
     )> {
+        if self
+            .retired_activations
+            .contains(&scope.material_activation)
+        {
+            return Err(router_ab_cloudflare::signing_worker_activation_retired_error_v1());
+        }
         let identity = self.identity_for_scope(scope)?;
         let state = self
             .identities

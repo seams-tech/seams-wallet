@@ -11,13 +11,16 @@ use worker::{DurableObject, Env, Request, Response, SqlStorage, SqlStorageValue,
 use crate::{
     ed25519_yao_signing_worker::{
         build_output_activation_record, combine_signing_worker_yao_packages_v1,
-        evaluate_initial_registration_finalization_v1, http_active_receipt,
-        SigningWorkerYaoDurableStateV1,
+        evaluate_initial_registration_finalization_v1, http_active_receipt, http_staged_receipt,
+        settle_signing_worker_yao_recovery_delivery_v1,
+        settle_signing_worker_yao_recovery_promotion_v1,
+        CloudflareScopedEd25519YaoRecoveryPromotionRequestV1, SigningWorkerYaoDurableStateV1,
+        SigningWorkerYaoRecoveryDeliveryV1, SigningWorkerYaoRecoveryPromotionV1,
     },
     handle_cloudflare_signing_worker_normal_signing_finalize_private_request_v2,
     handle_cloudflare_signing_worker_normal_signing_prepare_private_request_v2,
     signing_worker::SigningWorkerPrivateD1CipherV1,
-    CloudflareActiveSigningWorkerStateLookupV1,
+    signing_worker_activation_retired_error_v1, CloudflareActiveSigningWorkerStateLookupV1,
     CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1,
     CloudflareEd25519YaoNormalSigningHandlerV1, CloudflareScopedEd25519YaoPackagePairDeliveryV1,
     CloudflareServerOutputMaterialRecordV1,
@@ -41,6 +44,11 @@ const REGISTRATION_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_registratio
     active_key TEXT NOT NULL UNIQUE,
     owner_json TEXT NOT NULL,
     ciphertext_json TEXT NOT NULL)";
+/// Activations a recovery replaced. A retired key never signs or activates
+/// again here; the row that held it now holds the promoted activation.
+const RETIRED_ACTIVATION_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_retired_activations (
+    active_key TEXT PRIMARY KEY,
+    registration_key TEXT NOT NULL)";
 const ROUND1_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS wallet_round1 (
     binding_key TEXT PRIMARY KEY,
     handle TEXT NOT NULL UNIQUE,
@@ -67,7 +75,8 @@ const HARNESS_FAULT_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS harness_activatio
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum SigningWorkerWalletDoRequestV1 {
-    DeliverRegistration(CloudflareScopedEd25519YaoPackagePairDeliveryV1),
+    DeliverPackages(CloudflareScopedEd25519YaoPackagePairDeliveryV1),
+    PromoteRecovery(CloudflareScopedEd25519YaoRecoveryPromotionRequestV1),
     LookupRegistration(CloudflareEd25519YaoInitialRegistrationFinalizationLookupRequestV1),
     ActivateEcdsa {
         scope: CloudflareSigningWorkerWalletScopeV1,
@@ -185,7 +194,8 @@ fn missing_error(message: &'static str) -> RouterAbProtocolError {
 impl SigningWorkerWalletDoRequestV1 {
     fn scope(&self) -> &CloudflareSigningWorkerWalletScopeV1 {
         match self {
-            Self::DeliverRegistration(request) => &request.scope,
+            Self::DeliverPackages(request) => &request.scope,
+            Self::PromoteRecovery(request) => &request.scope,
             Self::LookupRegistration(request) => &request.scope,
             Self::ActivateEcdsa { scope, .. } | Self::LoadEcdsaActivation { scope, .. } => scope,
             Self::PrepareNear { scope, .. } | Self::FinalizeNear { scope, .. } => scope,
@@ -197,7 +207,8 @@ impl SigningWorkerWalletDoRequestV1 {
 
     fn validate(&self) -> Result<(), RouterAbProtocolError> {
         match self {
-            Self::DeliverRegistration(request) => request.validate(),
+            Self::DeliverPackages(request) => request.validate(),
+            Self::PromoteRecovery(request) => request.validate(),
             Self::LookupRegistration(request) => request.validate(),
             Self::ActivateEcdsa {
                 scope,
@@ -448,6 +459,7 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
             return Response::error(error.message(), 400);
         }
         self.sql.exec(REGISTRATION_SCHEMA, None)?;
+        self.sql.exec(RETIRED_ACTIVATION_SCHEMA, None)?;
         self.sql.exec(ROUND1_SCHEMA, None)?;
         for schema in crate::SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1 {
             self.sql.exec(schema, None)?;
@@ -468,8 +480,17 @@ impl RouterAbSigningWorkerWalletDurableObject {
         command: SigningWorkerWalletDoRequestV1,
     ) -> Result<Response, RouterAbProtocolError> {
         match command {
-            SigningWorkerWalletDoRequestV1::DeliverRegistration(request) => {
-                self.deliver_registration(request)
+            SigningWorkerWalletDoRequestV1::DeliverPackages(request) => {
+                match request.delivery.deriver_a.binding.operation {
+                    Ed25519YaoOperationV1::Registration => self.deliver_registration(request),
+                    Ed25519YaoOperationV1::Recovery => self.deliver_recovery(request),
+                    _ => Err(wallet_error(
+                        "SigningWorker wallet object accepts registration and recovery deliveries only",
+                    )),
+                }
+            }
+            SigningWorkerWalletDoRequestV1::PromoteRecovery(request) => {
+                self.promote_recovery(request)
             }
             SigningWorkerWalletDoRequestV1::LookupRegistration(request) => {
                 self.lookup_registration(request)
@@ -678,6 +699,173 @@ impl RouterAbSigningWorkerWalletDurableObject {
         self.replay_registration(&request, existing)
     }
 
+    /// Settles a recovery delivery on the wallet's lifecycle, as every
+    /// SigningWorker store does. A staged candidate is stored with the
+    /// lifecycle; the activation that signs stays the active one until the
+    /// recovery promotes.
+    fn deliver_recovery(
+        &self,
+        request: CloudflareScopedEd25519YaoPackagePairDeliveryV1,
+    ) -> Result<Response, RouterAbProtocolError> {
+        let registration_key = registration_key(&request.delivery.deriver_a.binding);
+        let stored = self.read_registration(&request.scope, &registration_key)?;
+        let settled = settle_signing_worker_yao_recovery_delivery_v1(
+            stored.as_ref().map(|stored| stored.lifecycle.clone()),
+            &request.delivery,
+            |active| {
+                combine_signing_worker_yao_packages_v1(&self.env, &request.delivery, Some(active))
+            },
+        )?;
+        let receipt = settled.receipt()?.clone();
+        if let SigningWorkerYaoRecoveryDeliveryV1::Stage(staged) = settled {
+            let stored = stored.ok_or_else(|| {
+                wallet_error("SigningWorker recovery staged without a stored lifecycle")
+            })?;
+            let activation = stored.activation.clone();
+            self.replace_registration(
+                &request.scope,
+                &registration_key,
+                &stored,
+                WalletRegistrationV1 {
+                    lifecycle: staged,
+                    activation,
+                },
+            )?;
+        }
+        Response::from_json(&http_staged_receipt(receipt)).map_err(sql_error)
+    }
+
+    /// Promotes the exact staged recovery candidate. In one write the
+    /// wallet's row takes the promoted lifecycle and its activation, and the
+    /// activation it replaces is retired: no request signs with it again,
+    /// though a signature it already made still answers.
+    fn promote_recovery(
+        &self,
+        request: CloudflareScopedEd25519YaoRecoveryPromotionRequestV1,
+    ) -> Result<Response, RouterAbProtocolError> {
+        let registration_key = registration_key(&request.promotion.binding);
+        let stored = self.read_registration(&request.scope, &registration_key)?;
+        let settled = settle_signing_worker_yao_recovery_promotion_v1(
+            stored.as_ref().map(|stored| stored.lifecycle.clone()),
+            &request.promotion,
+        )?;
+        let stored = stored
+            .ok_or_else(|| wallet_error("SigningWorker promotion has no stored lifecycle"))?;
+        match settled {
+            SigningWorkerYaoRecoveryPromotionV1::Repeat { material, receipt } => {
+                if stored
+                    .activation
+                    .active_signing_worker_state()
+                    .material_activation
+                    != *material.binding().material_activation()
+                {
+                    return Err(wallet_error(
+                        "SigningWorker promoted activation conflicts with durable state",
+                    ));
+                }
+                Response::from_json(&http_active_receipt(receipt)).map_err(sql_error)
+            }
+            SigningWorkerYaoRecoveryPromotionV1::Promote { active, retired } => {
+                let retired_state = stored.activation.active_signing_worker_state();
+                if retired_state.material_activation != *retired.binding().material_activation() {
+                    return Err(wallet_error(
+                        "SigningWorker recovery would retire an activation it does not hold",
+                    ));
+                }
+                let retired_key = active_key(retired_state);
+                let SigningWorkerYaoDurableStateV1::Active {
+                    material, receipt, ..
+                } = &active
+                else {
+                    unreachable!("promotion constructs active state");
+                };
+                let runtime = CloudflareSigningWorkerRuntimeV1::from_worker_env(&self.env)?;
+                let activation = build_output_activation_record(&runtime, material, receipt)?;
+                let receipt = receipt.clone();
+                // No await separates these writes, so they commit together.
+                self.replace_registration(
+                    &request.scope,
+                    &registration_key,
+                    &stored,
+                    WalletRegistrationV1 {
+                        lifecycle: active,
+                        activation,
+                    },
+                )?;
+                self.sql
+                    .exec(
+                        "INSERT INTO wallet_retired_activations (active_key, registration_key)
+                         VALUES (?, ?) ON CONFLICT (active_key) DO NOTHING",
+                        vec![
+                            SqlStorageValue::String(retired_key),
+                            SqlStorageValue::String(registration_key),
+                        ],
+                    )
+                    .map_err(sql_error)?;
+                Response::from_json(&http_active_receipt(receipt)).map_err(sql_error)
+            }
+        }
+    }
+
+    /// Replaces the stored registration `previous` with `next`, provided the
+    /// row still holds `previous`'s activation.
+    fn replace_registration(
+        &self,
+        scope: &CloudflareSigningWorkerWalletScopeV1,
+        registration_key: &str,
+        previous: &WalletRegistrationV1,
+        next: WalletRegistrationV1,
+    ) -> Result<(), RouterAbProtocolError> {
+        next.lifecycle.validate()?;
+        next.activation.validate()?;
+        let next_active_key = active_key(next.activation.active_signing_worker_state());
+        if self.activation_retired(&next_active_key)? {
+            return Err(signing_worker_activation_retired_error_v1());
+        }
+        let cipher = SigningWorkerPrivateD1CipherV1::from_env_for_wallet_do(&self.env)?;
+        let ciphertext = cipher.seal(
+            "registration",
+            &registration_identity(scope, registration_key)?,
+            &next,
+        )?;
+        let updated = self
+            .sql
+            .exec(
+                "UPDATE wallet_registrations SET active_key = ?, ciphertext_json = ?
+                 WHERE registration_key = ? AND active_key = ? RETURNING registration_key",
+                vec![
+                    SqlStorageValue::String(next_active_key),
+                    SqlStorageValue::String(ciphertext),
+                    SqlStorageValue::String(registration_key.to_owned()),
+                    SqlStorageValue::String(active_key(
+                        previous.activation.active_signing_worker_state(),
+                    )),
+                ],
+            )
+            .map_err(sql_error)?
+            .to_array::<InsertedRowV1>()
+            .map_err(sql_error)?;
+        if updated.len() != 1 {
+            return Err(wallet_error(
+                "SigningWorker registration changed while it was written",
+            ));
+        }
+        Ok(())
+    }
+
+    fn activation_retired(&self, active_key: &str) -> Result<bool, RouterAbProtocolError> {
+        Ok(!self
+            .sql
+            .exec(
+                "SELECT active_key AS registration_key FROM wallet_retired_activations WHERE active_key = ?",
+                vec![SqlStorageValue::String(active_key.to_owned())],
+            )
+            .map_err(sql_error)?
+            .to_array::<InsertedRowV1>()
+            .map_err(sql_error)?
+            .is_empty())
+    }
+
     fn replay_registration(
         &self,
         request: &CloudflareScopedEd25519YaoPackagePairDeliveryV1,
@@ -809,12 +997,13 @@ impl RouterAbSigningWorkerWalletDurableObject {
         request: CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
         now_unix_ms: u64,
     ) -> Result<Response, RouterAbProtocolError> {
+        // A prepare needs an activation that still signs, replay or not.
+        let activation = self.load_near_activation(&scope, &request.material_source)?;
         let binding_key = digest_hex(request.round1_binding_digest()?);
         let request_digest_hex = request_digest_hex("near-prepare", &request)?;
         if let Some(row) = self.read_round1("binding_key", &binding_key)? {
             return self.replay_prepare(&scope, &request, now_unix_ms, &request_digest_hex, row);
         }
-        let activation = self.load_near_activation(&scope, &request.material_source)?;
         let prepared = handle_cloudflare_signing_worker_normal_signing_prepare_private_request_v2(
             &CloudflareEd25519YaoNormalSigningHandlerV1,
             now_unix_ms,
@@ -903,6 +1092,9 @@ impl RouterAbSigningWorkerWalletDurableObject {
         if let Some(row) = self.read_round1("effect_operation_key", &operation_key)? {
             return replay_terminal(&request, &effect_digest_hex, &row);
         }
+        // Before expiry: a delayed request for a retired activation is refused
+        // as retired.
+        let activation = self.load_near_activation(&scope, &request.material_source)?;
         request.request.validate_at(now_unix_ms)?;
         let authorization_key = request.effect_claim.near_authorization_key();
         if self
@@ -913,7 +1105,6 @@ impl RouterAbSigningWorkerWalletDurableObject {
                 "SigningWorker authorization already claimed another effect",
             ));
         }
-        let activation = self.load_near_activation(&scope, &request.material_source)?;
         let active = activation.active_signing_worker_state().clone();
         let round1_handle = request.request.server_round1_handle().to_owned();
         let row = self
@@ -1019,6 +1210,9 @@ impl RouterAbSigningWorkerWalletDurableObject {
             "active-signing-worker/{}/{}/{}",
             lookup.account_id, lookup.material_activation_id, lookup.signing_worker_id,
         );
+        if self.activation_retired(&key)? {
+            return Err(signing_worker_activation_retired_error_v1());
+        }
         let rows = self.sql.exec(
             "SELECT registration_key, owner_json, ciphertext_json FROM wallet_registrations WHERE active_key = ?",
             vec![SqlStorageValue::String(key)],
@@ -1032,6 +1226,7 @@ impl RouterAbSigningWorkerWalletDurableObject {
         if !matches!(
             stored.lifecycle,
             SigningWorkerYaoDurableStateV1::Active { .. }
+                | SigningWorkerYaoDurableStateV1::RecoveryStaged { .. }
         ) {
             return Err(missing_error(
                 "SigningWorker registration material is inactive",
