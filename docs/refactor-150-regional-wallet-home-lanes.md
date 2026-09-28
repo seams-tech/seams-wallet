@@ -605,6 +605,17 @@ behavior; reuse the shared Gateway and role adapters.
   original device still signs. Check inventory and unchanged wallet public
   keys/addresses, with no duplicate authority or material allocation.
 
+Status (2026-09-28): the contract "a second device links with a passkey,
+signs NEAR and Tempo, and is revoked" covers linking, signing from the new
+device, revocation and the original device still signing, with inventory and
+key checks. It does not yet lose and retry a response.
+- It passes on Workers D1.
+- It fails on the VM: the VM Router serves no source-preserving execute
+  route, and the VM SigningWorker no reservation routes.
+- It fails on the wallet-object build: the SigningWorker reserves linked
+  material in its D1 and cannot find the wallet's source material, which
+  lives in the wallet object.
+
 **Auth-method addition and revocation — integration and demonstrated fixes**
 
 - [ ] Exercise the existing Gateway implementation through both SQL adapters.

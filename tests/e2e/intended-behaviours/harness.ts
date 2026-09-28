@@ -7,6 +7,7 @@ import {
   expect,
   test as base,
   type APIRequestContext,
+  type Browser,
   type BrowserContext,
   type CDPSession,
   type Frame,
@@ -21,7 +22,13 @@ import {
 import * as ed25519 from '@noble/ed25519';
 import { base58Decode, base64UrlEncode } from '@shared/utils/encoders';
 import { decodeWalletRecoveryCode } from '@shared/wallet-recovery/recoveryCodes';
-import { createReadableWalletId } from '@shared/utils/registrationIntent';
+import {
+  computeWalletAuthMethodRevokeOperationFingerprintV1,
+  createReadableWalletId,
+  walletIdFromString,
+} from '@shared/utils/registrationIntent';
+import { parseWalletAuthMethodId } from '@shared/utils/domainIds';
+import { parseQrLinkedDeviceSessionPayloadV5 } from '@shared/device-linking/parsers';
 import {
   ROUTER_AB_ED25519_YAO_EXPORT_ADMISSION_PATH_V1,
   ROUTER_AB_ED25519_YAO_EXPORT_EXECUTE_PATH_V1,
@@ -64,6 +71,7 @@ export type IntendedChainTarget = 'near' | 'tempo' | 'arc_evm';
 export type IntendedSigningStage =
   | 'post_registration'
   | 'post_unlock'
+  | 'post_device_link'
   | 'after_refresh_recovery'
   | 'step_up_required';
 
@@ -114,7 +122,10 @@ type IntendedHarnessAction =
   | 'signTempoTransaction'
   | 'signArcEvmTransaction'
   | 'exportEd25519Key'
-  | 'exportEcdsaKey';
+  | 'exportEcdsaKey'
+  | 'startDeviceLinkingAsTarget'
+  | 'scanAndLinkDevice'
+  | 'revokeLinkedDevice';
 
 const GOOGLE_ID_TOKEN_ACTIONS: ReadonlySet<IntendedHarnessAction> = new Set([
   'addEmailOtpAuthMethod',
@@ -342,7 +353,27 @@ declare global {
       ownerDeviceCount: number;
       linkedDeviceCount: number;
     }>;
+    /** The linked-device inventory, parsed strictly by the contract. */
+    __seamsIntendedE2EReadLinkedDevices?: () => Promise<unknown>;
+    /** The QR payload Device 1 "scans"; the contract has no camera. */
+    __seamsIntendedE2EDeviceLinkQrPayloadJson?: string;
+    /** The exact revocation Device 1 submits, with its fresh source proof. */
+    __seamsIntendedE2ELinkedDeviceRevocationJson?: string;
   }
+}
+
+async function readLinkedDevicesFromIntendedPage(): Promise<unknown> {
+  const read = window.__seamsIntendedE2EReadLinkedDevices;
+  if (!read) throw new Error('linked-device inventory helper is unavailable');
+  return await read();
+}
+
+function presentDeviceLinkQrToIntendedPage(qrPayloadJson: string): void {
+  window.__seamsIntendedE2EDeviceLinkQrPayloadJson = qrPayloadJson;
+}
+
+function presentLinkedDeviceRevocationToIntendedPage(revocationJson: string): void {
+  window.__seamsIntendedE2ELinkedDeviceRevocationJson = revocationJson;
 }
 
 async function readAuthenticationMethodsFromIntendedPage(): Promise<{
@@ -643,7 +674,64 @@ type AddedEmailOtpUnlockResultSnapshot = {
   authenticationKind: 'authenticated';
 };
 
+/* Device 2 does not know the wallet until the link names it. */
+type DeviceLinkQrReadySnapshot = {
+  kind: 'device_link_qr_ready';
+  linkSessionId: string;
+  qrPayloadJson: string;
+  walletId?: never;
+};
+
+type DeviceLinkApprovalRecordedSnapshot = {
+  kind: 'device_link_approval_recorded';
+  walletId: string;
+  enrollmentId: string;
+  deviceId: string;
+};
+
+/** Device 2's settled link, read from page state rather than an action. */
+type DeviceLinkActiveSnapshot = {
+  linkSessionId: string;
+  walletId: string;
+  enrollmentId: string;
+  sessionWalletAuthMethodId: string;
+  nearAccountId: string;
+  operationalPublicKey: string;
+  authenticationKind: 'authenticated';
+};
+
+type LinkedDeviceRevokedSnapshot = {
+  kind: 'linked_device_revoked';
+  walletId: string;
+  walletAuthMethodId: string;
+  authorityId: string;
+  revocationEpoch: number;
+};
+
+type LinkedDeviceOwnerMethodSnapshot = {
+  readonly walletAuthMethodId: string;
+  readonly credentialKind: 'passkey' | 'email_otp';
+  readonly credentialIdB64u: string | null;
+};
+
+type LinkedDeviceEntrySnapshot = {
+  readonly deviceId: string;
+  readonly enrollmentId: string;
+  readonly walletId: string;
+  readonly walletAuthMethodId: string;
+  readonly credentialKind: 'passkey' | 'email_otp';
+  readonly state: 'provisioning' | 'active' | 'suspended' | 'expired' | 'revoked';
+};
+
+type LinkedDeviceInventorySnapshot = {
+  readonly ownerDevices: readonly LinkedDeviceOwnerMethodSnapshot[];
+  readonly devices: readonly LinkedDeviceEntrySnapshot[];
+};
+
 type IntendedActionResultSnapshot =
+  | DeviceLinkQrReadySnapshot
+  | DeviceLinkApprovalRecordedSnapshot
+  | LinkedDeviceRevokedSnapshot
   | PasskeyRegistrationResultSnapshot
   | Ed25519AddSignerResultSnapshot
   | EcdsaAddSignerResultSnapshot
@@ -766,6 +854,9 @@ type SigningAuthEventSummary = {
   authenticationMethods: readonly SigningAuthMethod[];
   remainingUses: readonly number[];
   warmSessionClaimed: boolean;
+  /** The warm claim came from an active Wallet Authority, whose budget the
+      server keeps: its plan carries no remaining uses. */
+  activeWalletAuthorityClaimed: boolean;
   passkeyPromptStarted: boolean;
   passkeyPromptSucceeded: boolean;
   passkeyAuthenticationComplete: boolean;
@@ -1129,6 +1220,12 @@ export class IntendedBehaviourHarness {
     readonly token: string;
   } | null = null;
 
+  /** Device 2 of a device-link contract, opened and closed by this Device 1. */
+  private linkedDevice: {
+    readonly harness: IntendedBehaviourHarness;
+    readonly context: BrowserContext;
+  } | null = null;
+
   constructor(args: {
     context: BrowserContext;
     flow: IntendedLifecycleFlow;
@@ -1208,6 +1305,324 @@ export class IntendedBehaviourHarness {
     this.recordService(
       `registration owner session active ownerMethods=${inventory.ownerDeviceCount} linkedDevices=${inventory.linkedDeviceCount}`,
     );
+  }
+
+  /**
+   * Opens Device 2 for this wallet: a fresh browser context with its own
+   * storage and its own virtual authenticator. It shares nothing with Device 1
+   * except the wallet it is about to join, which is why it starts on the same
+   * wallet id and no credential.
+   */
+  async openLinkedDevice(browser: Browser): Promise<IntendedBehaviourHarness> {
+    this.recordStage('open_linked_device');
+    requireNearReadyRegisteredWallet(this.requireRegisteredWalletForSigning(), 'Device linking');
+    if (this.linkedDevice) throw new Error('Device 2 is already open');
+    const context = await browser.newContext();
+    try {
+      if (this.networkMode === 'external_staging') {
+        await installHostedBenchmarkAccess(context);
+      }
+      const page = await context.newPage();
+      const device2 = new IntendedBehaviourHarness({
+        context,
+        flow: this.flow,
+        networkMode: this.networkMode,
+        page,
+        request: this.request,
+      });
+      device2.walletId = this.walletId;
+      this.linkedDevice = { harness: device2, context };
+      await device2.initialize();
+      this.recordService('Device 2 opened with its own storage and virtual authenticator');
+      return device2;
+    } catch (error) {
+      if (!this.linkedDevice) await context.close();
+      throw error;
+    }
+  }
+
+  /** Fixture teardown: attach Device 2's trace, apply its guards, close it. */
+  async closeLinkedDevice(testInfo: TestInfo): Promise<void> {
+    const linked = this.linkedDevice;
+    if (!linked) return;
+    this.linkedDevice = null;
+    try {
+      await linked.harness.attachTrace(testInfo, 'device-2-intended-lifecycle-trace.json');
+      linked.harness.assertNoLifecycleViolations();
+      linked.harness.assertNoWrongAuthPath();
+    } finally {
+      await linked.context.close();
+    }
+  }
+
+  /**
+   * Device 2 shows a link QR, Device 1 approves the scanned payload, and
+   * Device 2 answers its own passkey prompt. Both sides run at once, as they
+   * do for a user holding two devices.
+   *
+   * Linking must add exactly one device-link authority with a fresh method,
+   * leave Device 1's founding method untouched, and hand Device 2 a Wallet
+   * Session whose NEAR identity is the wallet's existing one.
+   */
+  async linkDeviceWithPasskey(device2: IntendedBehaviourHarness): Promise<void> {
+    this.recordStage('device_link_with_passkey');
+    if (this.linkedDevice?.harness !== device2) {
+      throw new Error('Device 2 must be opened by this Device 1 harness');
+    }
+    const registration = requireNearReadyRegisteredWallet(
+      this.requireRegisteredWalletForSigning(),
+      'Device linking',
+    );
+    const before = await this.readLinkedDeviceInventory();
+    if (before.devices.length !== 0) {
+      throw new Error(`wallet lists ${before.devices.length} linked devices before linking`);
+    }
+    const owner = requireSingleOwnerPasskey(before);
+
+    const qr = await device2.showDeviceLinkQr();
+    await this.ensureIntendedPageOpen();
+    await this.page.evaluate(presentDeviceLinkQrToIntendedPage, qr.qrPayloadJson);
+    const approvalRun = this.runIntendedPageAction(
+      'scanAndLinkDevice',
+      'intended-device-link-scan',
+    );
+    const activationRun = device2.waitForDeviceLinkAsTarget(qr.linkSessionId);
+    /* Whichever side fails first names the failure. The other keeps running
+       only until teardown closes its page, so its rejection is observed here. */
+    approvalRun.catch(() => undefined);
+    activationRun.catch(() => undefined);
+    const [approvalSnapshot, active] = await Promise.all([approvalRun, activationRun]);
+    const approval = requireDeviceLinkApprovalResult(approvalSnapshot, this.walletId);
+    if (active.walletId !== this.walletId) {
+      throw new Error(`Device 2 joined wallet ${active.walletId}; expected ${this.walletId}`);
+    }
+    if (active.enrollmentId !== approval.enrollmentId) {
+      throw new Error(
+        `Device 2 activated enrollment ${active.enrollmentId}; Device 1 approved ${approval.enrollmentId}`,
+      );
+    }
+    if (active.sessionWalletAuthMethodId === owner.walletAuthMethodId) {
+      throw new Error("Device 2's Wallet Session names Device 1's founding method");
+    }
+    if (
+      active.nearAccountId !== registration.nearAccountId ||
+      active.operationalPublicKey !== registration.operationalPublicKey
+    ) {
+      throw new Error(
+        `Device 2 holds NEAR ${active.nearAccountId}/${active.operationalPublicKey}; the wallet's is ${registration.nearAccountId}/${registration.operationalPublicKey}`,
+      );
+    }
+
+    const after = await this.readLinkedDeviceInventory();
+    const [linked, ...extra] = after.devices;
+    if (!linked || extra.length > 0) {
+      throw new Error(`expected exactly one linked device, found ${after.devices.length}`);
+    }
+    if (
+      linked.deviceId !== approval.deviceId ||
+      linked.enrollmentId !== approval.enrollmentId ||
+      linked.walletAuthMethodId !== active.sessionWalletAuthMethodId ||
+      linked.credentialKind !== 'passkey' ||
+      linked.state !== 'active'
+    ) {
+      throw new Error(
+        `linked-device inventory does not name the device just linked: ${JSON.stringify(linked)}`,
+      );
+    }
+    assertOwnerDevicesUnchanged(before, after, 'Device linking');
+
+    /* Device 2 signs with the wallet's public keys, so its signatures are
+       verified against Device 1's registration rather than anything Device 2
+       reports about itself. */
+    device2.registeredWallet = registration;
+    device2.nearSignerSlot = this.nearSignerSlot;
+    device2.passkeyPromptCount += 1;
+    this.recordService(
+      `device linked wallet=${this.walletId} device=${linked.deviceId} method=${linked.walletAuthMethodId}`,
+    );
+  }
+
+  /**
+   * Device 1 revokes Device 2's exact method with a fresh assertion from its
+   * own founding passkey, bound to this revocation's operation fingerprint.
+   *
+   * The SDK takes this proof as input and exposes no producer for it, so the
+   * contract asks the authenticator for it inside the wallet frame - the
+   * origin the Gateway checks for a request the wallet host sends.
+   */
+  async revokeLinkedDeviceWithOwnerPasskey(): Promise<void> {
+    this.recordStage('revoke_linked_device_with_owner_passkey');
+    const before = await this.readLinkedDeviceInventory();
+    const [linked, ...extra] = before.devices;
+    if (!linked || extra.length > 0) {
+      throw new Error(`revocation expects one linked device, found ${before.devices.length}`);
+    }
+    const owner = requireSingleOwnerPasskey(before);
+    const targetWalletAuthMethodId = parseWalletAuthMethodId(linked.walletAuthMethodId);
+    if (!targetWalletAuthMethodId.ok) throw new Error(targetWalletAuthMethodId.error.message);
+    const requestedAtMs = Date.now();
+    const operationFingerprintDigest = String(
+      await computeWalletAuthMethodRevokeOperationFingerprintV1({
+        walletId: walletIdFromString(this.walletId),
+        targetWalletAuthMethodId: targetWalletAuthMethodId.value,
+        requestedAtMs,
+      }),
+    );
+    const rpId = new URL(this.config.walletOrigin).hostname;
+    const walletFrame = await walletServiceFrame(this.page, this.config.walletOrigin);
+    const credential = await walletFrame.evaluate(getWalletOriginPasskeyAssertion, {
+      rpId,
+      challengeB64u: operationFingerprintDigest,
+      credentialIdB64u: owner.credentialIdB64u,
+    });
+    this.passkeyPromptCount += 1;
+    await this.page.evaluate(
+      presentLinkedDeviceRevocationToIntendedPage,
+      JSON.stringify({
+        walletAuthMethodId: linked.walletAuthMethodId,
+        requestedAtMs,
+        sourceProof: {
+          kind: 'webauthn_assertion',
+          rpId,
+          credential,
+          expectedChallengeDigestB64u: operationFingerprintDigest,
+        },
+      }),
+    );
+    const snapshot = await this.runIntendedPageAction(
+      'revokeLinkedDevice',
+      'intended-revoke-linked-device',
+    );
+    if (snapshot.action.status !== 'success') {
+      throw new Error(`linked-device revocation ended with ${snapshot.action.status}`);
+    }
+    const result = snapshot.action.result;
+    if (result.kind !== 'linked_device_revoked') {
+      throw new Error(`linked-device revocation returned ${result.kind}`);
+    }
+    if (
+      result.walletId !== this.walletId ||
+      result.walletAuthMethodId !== linked.walletAuthMethodId
+    ) {
+      throw new Error(
+        `revocation removed ${result.walletAuthMethodId} of ${result.walletId}; expected ${linked.walletAuthMethodId}`,
+      );
+    }
+
+    const after = await this.readLinkedDeviceInventory();
+    if (after.devices.length !== 0) {
+      throw new Error(`revoked device is still listed: ${JSON.stringify(after.devices)}`);
+    }
+    assertOwnerDevicesUnchanged(before, after, 'Linked-device revocation');
+    this.recordService(
+      `linked device revoked method=${result.walletAuthMethodId} authority=${result.authorityId} epoch=${result.revocationEpoch}`,
+    );
+  }
+
+  /**
+   * Revocation retires Device 2's Wallet Session and signer activations, so
+   * each signer family must refuse to sign rather than recover through
+   * anything Device 1 still holds.
+   */
+  async assertRevokedDeviceCannotSign(): Promise<void> {
+    this.recordStage('revoked_device_signing_refused');
+    const registration = requireNearReadyRegisteredWallet(
+      this.requireRegisteredWalletForSigning(),
+      'Revoked-device signing',
+    );
+    const tempo = await this.runIntendedPageAction('signTempoTransaction', 'intended-sign-tempo', {
+      expectedOutcome: 'error',
+    });
+    const near = await this.runIntendedPageAction('signNearTransaction', 'intended-sign-near', {
+      nearAccountId: registration.nearAccountId,
+      expectedOutcome: 'error',
+    });
+    for (const [label, snapshot] of [
+      ['Tempo', tempo],
+      ['NEAR', near],
+    ] as const) {
+      if (snapshot.action.status !== 'error') {
+        throw new Error(`revoked Device 2 ${label} signing ended with ${snapshot.action.status}`);
+      }
+      this.recordService(`revoked Device 2 ${label} signing refused: ${snapshot.action.error}`);
+    }
+  }
+
+  private async readLinkedDeviceInventory(): Promise<LinkedDeviceInventorySnapshot> {
+    await this.ensureIntendedPageOpen();
+    const inventory = parseLinkedDeviceInventory(
+      await this.page.evaluate(readLinkedDevicesFromIntendedPage),
+    );
+    for (const device of inventory.devices) {
+      if (device.walletId !== this.walletId) {
+        throw new Error(`linked-device inventory listed a device of wallet ${device.walletId}`);
+      }
+    }
+    return inventory;
+  }
+
+  /** Device 2: show the link QR and hand back its strictly parsed payload. */
+  private async showDeviceLinkQr(): Promise<DeviceLinkQrReadySnapshot> {
+    this.recordStage('device_link_show_qr');
+    const snapshot = await this.runIntendedPageAction(
+      'startDeviceLinkingAsTarget',
+      'intended-device-link-start',
+    );
+    if (snapshot.action.status !== 'success') {
+      throw new Error(`device-link QR ended with ${snapshot.action.status}`);
+    }
+    const result = snapshot.action.result;
+    if (result.kind !== 'device_link_qr_ready') {
+      throw new Error(`device-link QR returned ${result.kind}`);
+    }
+    const payload = parseQrLinkedDeviceSessionPayloadV5(JSON.parse(result.qrPayloadJson));
+    if (String(payload.linkSessionId) !== result.linkSessionId) {
+      throw new Error('device-link QR payload names a different link session');
+    }
+    if (payload.targetFactor.kind !== 'passkey_prf') {
+      throw new Error(`device-link QR targets ${payload.targetFactor.kind}, not a passkey`);
+    }
+    this.recordService(`Device 2 showing link QR session=${result.linkSessionId}`);
+    return result;
+  }
+
+  /**
+   * Device 2: wait for the link to settle. The page answers the passkey prompt
+   * itself; nothing is clicked on this page mid-link because the wallet keeps
+   * its link surface over the page until the link settles.
+   */
+  private async waitForDeviceLinkAsTarget(
+    linkSessionId: string,
+  ): Promise<DeviceLinkActiveSnapshot> {
+    this.recordStage('device_link_target_settle');
+    const diagnostics: WalletIframeAutoConfirmDiagnostics = { attempts: 0, clicked: false };
+    try {
+      await autoConfirmWalletIframeUntil(
+        this.page,
+        this.page.waitForFunction(intendedDeviceLinkSettled, undefined, { timeout: 150_000 }),
+        { timeoutMs: 150_000, intervalMs: 250, diagnostics },
+      );
+    } catch (error) {
+      throw new Error(
+        [
+          `Device 2 link did not settle: ${error instanceof Error ? error.message : String(error)}`,
+          `Wallet iframe auto-confirm diagnostics: ${JSON.stringify(diagnostics)}`,
+          this.recentTraceForError(),
+        ].join('\n'),
+      );
+    } finally {
+      this.recordService(`wallet iframe auto-confirm ${JSON.stringify(diagnostics)}`);
+    }
+    const state = await readSettledDeviceLinkState(this.page);
+    if (state.linkSessionId !== linkSessionId) {
+      throw new Error(`Device 2 settled link ${state.linkSessionId}; expected ${linkSessionId}`);
+    }
+    if (state.status === 'failed') {
+      throw new Error(`Device 2 link failed: ${state.error}\n${this.recentTraceForError()}`);
+    }
+    const { status: _status, ...active } = state;
+    this.recordService(`Device 2 link active session=${linkSessionId}`);
+    return active;
   }
 
   async registerPasskeyEd25519YaoWallet(): Promise<void> {
@@ -3301,7 +3716,10 @@ export class IntendedBehaviourHarness {
     }
   }
 
-  async attachTrace(testInfo: TestInfo): Promise<void> {
+  async attachTrace(
+    testInfo: TestInfo,
+    attachmentName = 'intended-lifecycle-trace.json',
+  ): Promise<void> {
     if (this.networkMode === 'external_staging') return;
     const payload: IntendedLifecycleTracePayload = {
       flow: this.flow,
@@ -3318,7 +3736,7 @@ export class IntendedBehaviourHarness {
       violations: this.violations,
     };
     await persistIntendedLifecycleTrace({ testInfo, payload });
-    await testInfo.attach('intended-lifecycle-trace.json', {
+    await testInfo.attach(attachmentName, {
       body: JSON.stringify(payload, null, 2),
       contentType: 'application/json',
     });
@@ -4211,6 +4629,7 @@ export const intendedTest = base.extend<{
     await harness.initialize();
     await use(harness);
     await harness.attachTrace(testInfo);
+    await harness.closeLinkedDevice(testInfo);
     harness.assertNoLifecycleViolations();
     harness.assertNoWrongAuthPath();
   },
@@ -4351,6 +4770,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
     normalized.endsWith('passkey.registration.resume.contract.test.ts') ||
     normalized.endsWith('passkey.ed25519-yao-local.contract.test.ts') ||
     normalized.endsWith('passkey.add-email-otp.contract.test.ts') ||
+    normalized.endsWith('passkey.device-linking.contract.test.ts') ||
     normalized.endsWith('auth-method-addition.matrix.contract.test.ts') ||
     normalized.endsWith('passkey.registration.benchmark.test.ts')
   ) {
@@ -4580,6 +5000,7 @@ function signingAuthExpectationForStage(
     case 'post_registration':
       return 'warm_session';
     case 'post_unlock':
+    case 'post_device_link':
     case 'after_refresh_recovery':
       return 'warm_session';
     case 'step_up_required':
@@ -4594,6 +5015,7 @@ function summarizeSigningAuthEvents(snapshot: IntendedPageSnapshot): SigningAuth
   const authenticationMethods: SigningAuthMethod[] = [];
   const remainingUses: number[] = [];
   let warmSessionClaimed = false;
+  let activeWalletAuthorityClaimed = false;
   let passkeyPromptStarted = false;
   let passkeyPromptSucceeded = false;
   let passkeyAuthenticationComplete = false;
@@ -4632,6 +5054,7 @@ function summarizeSigningAuthEvents(snapshot: IntendedPageSnapshot): SigningAuth
     switch (phase) {
       case SIGNING_AUTH_WARM_SESSION_CLAIMED:
         warmSessionClaimed = true;
+        activeWalletAuthorityClaimed ||= signingEventClaimedActiveWalletAuthority(event.payload);
         break;
       case SIGNING_AUTH_PASSKEY_PROMPT_STARTED:
         passkeyPromptStarted = true;
@@ -4667,6 +5090,7 @@ function summarizeSigningAuthEvents(snapshot: IntendedPageSnapshot): SigningAuth
     authenticationMethods,
     remainingUses,
     warmSessionClaimed,
+    activeWalletAuthorityClaimed,
     passkeyPromptStarted,
     passkeyPromptSucceeded,
     passkeyAuthenticationComplete,
@@ -4707,6 +5131,7 @@ function signingAuthSummaryDetails(summary: SigningAuthEventSummary): string {
     authenticationMethods: summary.authenticationMethods,
     remainingUses: summary.remainingUses,
     warmSessionClaimed: summary.warmSessionClaimed,
+    activeWalletAuthorityClaimed: summary.activeWalletAuthorityClaimed,
     passkeyPromptStarted: summary.passkeyPromptStarted,
     passkeyPromptSucceeded: summary.passkeyPromptSucceeded,
     passkeyAuthenticationComplete: summary.passkeyAuthenticationComplete,
@@ -4746,7 +5171,11 @@ function assertWarmSessionSigningAuth(input: {
   if (hasAnyEmailOtpSigningEvent(input.summary)) {
     throw new Error(`${input.label} at ${input.stage} used Email OTP before exhaustion`);
   }
-  if (input.summary.remainingUses.length === 0 && !usedNoPromptReconnect) {
+  if (
+    input.summary.remainingUses.length === 0 &&
+    !usedNoPromptReconnect &&
+    !input.summary.activeWalletAuthorityClaimed
+  ) {
     throw new Error(`${input.label} at ${input.stage} did not report remaining signing uses`);
   }
 }
@@ -4892,6 +5321,16 @@ function signingEventPhase(payload: unknown): string | null {
   return typeof phase === 'string' ? phase : null;
 }
 
+function signingEventClaimedActiveWalletAuthority(payload: unknown): boolean {
+  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return false;
+  const data = Reflect.get(payload, 'data');
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) return false;
+  return (
+    typeof Reflect.get(data, 'authorityId') === 'string' &&
+    typeof Reflect.get(data, 'walletSessionId') === 'string'
+  );
+}
+
 function signingEventRemainingUses(payload: unknown): number | null {
   if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return null;
   const data = Reflect.get(payload, 'data');
@@ -4997,6 +5436,69 @@ function requireNearProvisioningReadyResult(
     throw new Error(`NEAR provisioning wallet mismatch: ${result.walletId}`);
   }
   return result;
+}
+
+function requireDeviceLinkApprovalResult(
+  snapshot: IntendedPageSnapshot,
+  expectedWalletId: string,
+): DeviceLinkApprovalRecordedSnapshot {
+  if (snapshot.action.status !== 'success') {
+    throw new Error(`Device 1 link approval ended with ${snapshot.action.status}`);
+  }
+  const result = snapshot.action.result;
+  if (result.kind !== 'device_link_approval_recorded') {
+    throw new Error(`Device 1 link approval returned ${result.kind}`);
+  }
+  if (result.walletId !== expectedWalletId) {
+    throw new Error(`Device 1 approved a link for ${result.walletId}`);
+  }
+  return result;
+}
+
+function intendedDeviceLinkSettled(): boolean {
+  const state = document
+    .querySelector('[data-testid="intended-e2e-page"]')
+    ?.getAttribute('data-device-link-state');
+  return state === 'active' || state === 'failed';
+}
+
+type DeviceLinkSettledSnapshot =
+  | ({ status: 'active' } & DeviceLinkActiveSnapshot)
+  | { status: 'failed'; linkSessionId: string; error: string };
+
+async function readSettledDeviceLinkState(page: Page): Promise<DeviceLinkSettledSnapshot> {
+  const text = await page.getByTestId('intended-result-json').textContent();
+  if (!text) throw new Error('Intended page snapshot is empty');
+  const snapshot = requireRecord(JSON.parse(text), 'intended page snapshot');
+  const record = requireRecord(snapshot.deviceLink, 'device-link state');
+  const status = requireString(record.status, 'device-link status');
+  const linkSessionId = requireString(record.linkSessionId, 'device-link linkSessionId');
+  switch (status) {
+    case 'active':
+      return {
+        status,
+        linkSessionId,
+        walletId: requireString(record.walletId, 'device-link activation walletId'),
+        enrollmentId: requireString(record.enrollmentId, 'device-link activation enrollmentId'),
+        sessionWalletAuthMethodId: requireString(
+          record.sessionWalletAuthMethodId,
+          'device-link activation sessionWalletAuthMethodId',
+        ),
+        nearAccountId: requireString(record.nearAccountId, 'device-link activation nearAccountId'),
+        operationalPublicKey: requireString(
+          record.operationalPublicKey,
+          'device-link activation operationalPublicKey',
+        ),
+        authenticationKind: requireAuthenticatedKind(
+          record.authenticationKind,
+          'device-link activation authenticationKind',
+        ),
+      };
+    case 'failed':
+      return { status, linkSessionId, error: requireString(record.error, 'device-link error') };
+    default:
+      throw new Error(`device-link state is ${status}, not settled`);
+  }
 }
 
 function requireNearSigningResult(
@@ -6066,6 +6568,33 @@ function parseIntendedActionResultSnapshot(raw: unknown): IntendedActionResultSn
         walletId: requireString(record.walletId, 'Ed25519 export walletId'),
         nearAccountId: requireString(record.nearAccountId, 'Ed25519 export nearAccountId'),
       };
+    case 'device_link_qr_ready':
+      return {
+        kind,
+        linkSessionId: requireString(record.linkSessionId, 'device-link QR linkSessionId'),
+        qrPayloadJson: requireString(record.qrPayloadJson, 'device-link QR payload'),
+      };
+    case 'device_link_approval_recorded':
+      return {
+        kind,
+        walletId: requireString(record.walletId, 'device-link approval walletId'),
+        enrollmentId: requireString(record.enrollmentId, 'device-link approval enrollmentId'),
+        deviceId: requireString(record.deviceId, 'device-link approval deviceId'),
+      };
+    case 'linked_device_revoked':
+      return {
+        kind,
+        walletId: requireString(record.walletId, 'linked-device revocation walletId'),
+        walletAuthMethodId: requireString(
+          record.walletAuthMethodId,
+          'linked-device revocation walletAuthMethodId',
+        ),
+        authorityId: requireString(record.authorityId, 'linked-device revocation authorityId'),
+        revocationEpoch: requireNonNegativeInteger(
+          record.revocationEpoch,
+          'linked-device revocation revocationEpoch',
+        ),
+      };
     default:
       throw new Error(`Unknown intended action result kind: ${kind}`);
   }
@@ -6235,6 +6764,9 @@ function parseIntendedHarnessAction(raw: unknown): IntendedHarnessAction {
     case 'signArcEvmTransaction':
     case 'exportEd25519Key':
     case 'exportEcdsaKey':
+    case 'startDeviceLinkingAsTarget':
+    case 'scanAndLinkDevice':
+    case 'revokeLinkedDevice':
       return action;
     default:
       throw new Error(`Unknown intended action: ${action}`);
@@ -6535,6 +7067,162 @@ function requireNonNegativeInteger(raw: unknown, label: string): number {
 
 function assertNever(value: never): never {
   throw new Error(`Unexpected intended e2e value: ${String(value)}`);
+}
+
+function parseLinkedDeviceCredentialKind(raw: unknown, label: string): 'passkey' | 'email_otp' {
+  const value = requireString(raw, label);
+  switch (value) {
+    case 'passkey':
+    case 'email_otp':
+      return value;
+    default:
+      throw new Error(`${label} is ${value}`);
+  }
+}
+
+function parseLinkedDeviceState(raw: unknown): LinkedDeviceEntrySnapshot['state'] {
+  const value = requireString(raw, 'linked device state');
+  switch (value) {
+    case 'provisioning':
+    case 'active':
+    case 'suspended':
+    case 'expired':
+    case 'revoked':
+      return value;
+    default:
+      throw new Error(`linked device state is ${value}`);
+  }
+}
+
+function parseLinkedDeviceInventory(raw: unknown): LinkedDeviceInventorySnapshot {
+  const record = requireRecord(raw, 'linked-device inventory');
+  if (!Array.isArray(record.ownerDevices) || !Array.isArray(record.devices)) {
+    throw new Error('linked-device inventory must list owner devices and linked devices');
+  }
+  return {
+    ownerDevices: record.ownerDevices.map((entry): LinkedDeviceOwnerMethodSnapshot => {
+      const owner = requireRecord(entry, 'owner device');
+      const credentialKind = parseLinkedDeviceCredentialKind(
+        owner.credentialKind,
+        'owner device credential kind',
+      );
+      return {
+        walletAuthMethodId: requireString(owner.walletAuthMethodId, 'owner walletAuthMethodId'),
+        credentialKind,
+        credentialIdB64u:
+          credentialKind === 'passkey'
+            ? requireString(owner.credentialIdB64u, 'owner passkey credential id')
+            : null,
+      };
+    }),
+    devices: record.devices.map((entry): LinkedDeviceEntrySnapshot => {
+      const device = requireRecord(entry, 'linked device');
+      return {
+        deviceId: requireString(device.deviceId, 'linked deviceId'),
+        enrollmentId: requireString(device.enrollmentId, 'linked enrollmentId'),
+        walletId: requireString(device.walletId, 'linked device walletId'),
+        walletAuthMethodId: requireString(
+          device.walletAuthMethodId,
+          'linked device walletAuthMethodId',
+        ),
+        credentialKind: parseLinkedDeviceCredentialKind(
+          device.credentialKind,
+          'linked device credential kind',
+        ),
+        state: parseLinkedDeviceState(device.state),
+      };
+    }),
+  };
+}
+
+/** The wallet's one founding passkey method: the source Device 1 proves with. */
+function requireSingleOwnerPasskey(
+  inventory: LinkedDeviceInventorySnapshot,
+): LinkedDeviceOwnerMethodSnapshot & { readonly credentialIdB64u: string } {
+  const [owner, ...extra] = inventory.ownerDevices;
+  if (!owner || extra.length > 0) {
+    throw new Error(`expected one founding owner method, found ${inventory.ownerDevices.length}`);
+  }
+  if (owner.credentialKind !== 'passkey' || owner.credentialIdB64u === null) {
+    throw new Error(`founding owner method is ${owner.credentialKind}, not a passkey`);
+  }
+  return { ...owner, credentialIdB64u: owner.credentialIdB64u };
+}
+
+function assertOwnerDevicesUnchanged(
+  before: LinkedDeviceInventorySnapshot,
+  after: LinkedDeviceInventorySnapshot,
+  label: string,
+): void {
+  const describe = (inventory: LinkedDeviceInventorySnapshot): string =>
+    JSON.stringify(inventory.ownerDevices.map((owner) => owner.walletAuthMethodId).sort());
+  if (describe(before) !== describe(after)) {
+    throw new Error(
+      `${label} changed Device 1's founding methods: ${describe(before)} -> ${describe(after)}`,
+    );
+  }
+}
+
+type IntendedWebAuthnAssertionRequest = {
+  readonly rpId: string;
+  readonly challengeB64u: string;
+  readonly credentialIdB64u: string;
+};
+
+/**
+ * Runs inside the wallet frame, so the assertion's client data names the
+ * wallet origin - the origin the Gateway expects for a request the wallet
+ * host sends. Playwright serializes this function alone; keep it
+ * self-contained.
+ */
+async function getWalletOriginPasskeyAssertion(
+  input: IntendedWebAuthnAssertionRequest,
+): Promise<Record<string, unknown>> {
+  function decodeB64u(value: string): Uint8Array {
+    const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+  }
+  function encodeB64u(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  const credential = await navigator.credentials.get({
+    publicKey: {
+      rpId: input.rpId,
+      challenge: decodeB64u(input.challengeB64u),
+      allowCredentials: [{ type: 'public-key', id: decodeB64u(input.credentialIdB64u) }],
+      userVerification: 'required',
+      timeout: 30_000,
+    },
+  });
+  if (!(credential instanceof PublicKeyCredential)) {
+    throw new Error('Wallet-origin passkey assertion returned no public-key credential');
+  }
+  const response = credential.response;
+  if (!(response instanceof AuthenticatorAssertionResponse)) {
+    throw new Error('Wallet-origin passkey assertion returned a non-assertion response');
+  }
+  return {
+    id: credential.id,
+    rawId: encodeB64u(credential.rawId),
+    type: credential.type,
+    authenticatorAttachment: credential.authenticatorAttachment ?? null,
+    response: {
+      clientDataJSON: encodeB64u(response.clientDataJSON),
+      authenticatorData: encodeB64u(response.authenticatorData),
+      signature: encodeB64u(response.signature),
+      userHandle: response.userHandle ? encodeB64u(response.userHandle) : null,
+    },
+    clientExtensionResults: {},
+  };
 }
 
 async function hostedAuthMenuFrame(page: Page): Promise<FrameLocator> {

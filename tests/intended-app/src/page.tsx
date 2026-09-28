@@ -2,11 +2,17 @@ import React from 'react';
 import type {
   HostedAuthMenuExternalAuthRequest,
   HostedAuthMenuOutcome,
+  LinkDeviceFlowEvent,
   NearProvisioningState,
   NearProvisioningStateChangedEvent,
+  QrLinkedDeviceSessionPayloadV5,
   WalletSession,
 } from '@seams/wallet';
-import { buildHostedAuthMenuOpenRequest, hostedAuthMenuSessionIdFromBoundary } from '@seams/wallet';
+import {
+  buildHostedAuthMenuOpenRequest,
+  hostedAuthMenuSessionIdFromBoundary,
+  LinkDeviceEventPhase,
+} from '@seams/wallet';
 import {
   ActionType,
   useSeams,
@@ -50,7 +56,10 @@ type IntendedActionName =
   | 'signTempoTransaction'
   | 'signArcEvmTransaction'
   | 'exportEd25519Key'
-  | 'exportEcdsaKey';
+  | 'exportEcdsaKey'
+  | 'startDeviceLinkingAsTarget'
+  | 'scanAndLinkDevice'
+  | 'revokeLinkedDevice';
 
 type IntendedAuthMethodIdentity = {
   readonly kind: 'passkey' | 'email_otp';
@@ -416,7 +425,59 @@ type GoogleEmailOtpRecoveryResultSummary = {
   totalRecoveryCodeCount: number;
 };
 
+/**
+ * Device 2 is showing its link QR. The payload is what Device 1 scans; the
+ * flow keeps running on this page until the link activates or fails.
+ */
+type DeviceLinkQrReadySummary = {
+  kind: 'device_link_qr_ready';
+  linkSessionId: string;
+  qrPayloadJson: string;
+};
+
+/** Device 1 approved the scanned device and recorded its source contribution. */
+type DeviceLinkApprovalRecordedSummary = {
+  kind: 'device_link_approval_recorded';
+  walletId: string;
+  enrollmentId: string;
+  deviceId: string;
+};
+
+/**
+ * Device 2's side of a link, which outlives the action that showed the QR.
+ *
+ * `active` means Device 2 created its own passkey, installed its authority,
+ * and holds its own Wallet Session. The NEAR identity is read from that
+ * session, not from Device 1, so the contract can prove the public signer
+ * identity carried over.
+ */
+type IntendedDeviceLinkState =
+  | { status: 'none' }
+  | { status: 'awaiting_owner'; linkSessionId: string }
+  | {
+      status: 'active';
+      linkSessionId: string;
+      walletId: string;
+      enrollmentId: string;
+      sessionWalletAuthMethodId: string;
+      nearAccountId: string;
+      operationalPublicKey: string;
+      authenticationKind: 'authenticated';
+    }
+  | { status: 'failed'; linkSessionId: string; error: string };
+
+type LinkedDeviceRevokedSummary = {
+  kind: 'linked_device_revoked';
+  walletId: string;
+  walletAuthMethodId: string;
+  authorityId: string;
+  revocationEpoch: number;
+};
+
 type IntendedActionResult =
+  | DeviceLinkQrReadySummary
+  | DeviceLinkApprovalRecordedSummary
+  | LinkedDeviceRevokedSummary
   | PasskeyRegistrationResultSummary
   | Ed25519AddSignerResultSummary
   | EcdsaAddSignerResultSummary
@@ -443,6 +504,7 @@ type IntendedPageState = {
   walletId: string;
   nearAccountId: string | null;
   nearSignerSlot: number;
+  deviceLink: IntendedDeviceLinkState;
 };
 
 type IntendedPageAction =
@@ -463,6 +525,10 @@ type IntendedPageAction =
   | {
       kind: 'event_recorded';
       payload: unknown;
+    }
+  | {
+      kind: 'device_link_updated';
+      deviceLink: IntendedDeviceLinkState;
     };
 
 type IntendedPageQuery = {
@@ -543,6 +609,12 @@ declare global {
       ownerDeviceCount: number;
       linkedDeviceCount: number;
     }>;
+    /** The linked-device inventory, parsed strictly by the contract. */
+    __seamsIntendedE2EReadLinkedDevices?: () => Promise<unknown>;
+    /** The QR payload Device 1 "scans"; the contract has no camera. */
+    __seamsIntendedE2EDeviceLinkQrPayloadJson?: string;
+    /** The exact revocation Device 1 submits, with its fresh source proof. */
+    __seamsIntendedE2ELinkedDeviceRevocationJson?: string;
   }
 }
 
@@ -612,6 +684,7 @@ function initialIntendedPageState(query: IntendedPageQuery): IntendedPageState {
     walletId: query.walletId,
     nearAccountId: query.nearAccountId,
     nearSignerSlot: query.nearSignerSlot,
+    deviceLink: { status: 'none' },
   };
 }
 
@@ -643,6 +716,7 @@ export const IntendedBehaviourE2EPage: React.FC = () => {
       data-login-state={seamsContext.loginState.isLoggedIn ? 'logged_in' : 'logged_out'}
       data-login-wallet-id={seamsContext.loginState.walletId || ''}
       data-login-near-ready={seamsContext.loginState.nearAccountId ? 'ready' : 'pending'}
+      data-device-link-state={state.deviceLink.status}
       style={pageStyle}
     >
       <section style={panelStyle}>
@@ -869,6 +943,33 @@ export const IntendedBehaviourE2EPage: React.FC = () => {
           >
             Export ECDSA
           </button>
+          <button
+            type="button"
+            data-testid="intended-device-link-start"
+            disabled={state.action.status === 'running'}
+            onClick={controller.runStartDeviceLinkingAsTarget}
+            style={buttonStyle}
+          >
+            Show Link QR
+          </button>
+          <button
+            type="button"
+            data-testid="intended-device-link-scan"
+            disabled={state.action.status === 'running'}
+            onClick={controller.runScanAndLinkDevice}
+            style={buttonStyle}
+          >
+            Scan Link QR
+          </button>
+          <button
+            type="button"
+            data-testid="intended-revoke-linked-device"
+            disabled={state.action.status === 'running'}
+            onClick={controller.runRevokeLinkedDevice}
+            style={buttonStyle}
+          >
+            Revoke Linked Device
+          </button>
         </div>
         <output
           data-testid="intended-action-status"
@@ -1028,6 +1129,50 @@ class IntendedPageController {
 
   runExportEd25519Key = (): void => {
     void this.exportEd25519Key();
+  };
+
+  runStartDeviceLinkingAsTarget = (): void => {
+    void this.startDeviceLinkingAsTarget();
+  };
+
+  runScanAndLinkDevice = (): void => {
+    void this.scanAndLinkDevice();
+  };
+
+  runRevokeLinkedDevice = (): void => {
+    void this.revokeLinkedDevice();
+  };
+
+  /**
+   * The wallet's device inventory as the owner session sees it. A read, not an
+   * action: opening inventory must never unlock, step up, or spend budget.
+   */
+  readLinkedDevicesForIntendedTest = async (): Promise<unknown> => {
+    if (!this.walletId) throw new Error('linked-device inventory requires a registered wallet');
+    const inventory = await this.seams.devices.listLinkedDevices({
+      walletId: toWalletId(this.walletId),
+      limit: 50,
+      cursor: null,
+    });
+    if (inventory.nextCursor !== null) {
+      throw new Error('linked-device inventory for one wallet spans more than one page');
+    }
+    return {
+      ownerDevices: inventory.ownerDevices.map((owner) => ({
+        walletAuthMethodId: String(owner.credential.walletAuthMethodId),
+        credentialKind: owner.credential.kind,
+        credentialIdB64u:
+          owner.credential.kind === 'passkey' ? String(owner.credential.credentialIdB64u) : null,
+      })),
+      devices: inventory.devices.map((device) => ({
+        deviceId: String(device.deviceId),
+        enrollmentId: String(device.enrollmentId),
+        walletId: String(device.walletId),
+        walletAuthMethodId: String(device.credential.walletAuthMethodId),
+        credentialKind: device.credential.kind,
+        state: device.state,
+      })),
+    };
   };
 
   lockWalletForIntendedTest = async (): Promise<void> => {
@@ -1923,6 +2068,192 @@ class IntendedPageController {
     }
   }
 
+  /**
+   * Device 2: show a link QR for a Passkey target.
+   *
+   * The action ends once the QR exists; the link itself keeps running on this
+   * page. When Device 1 has claimed the QR, the SDK asks for Device 2's own
+   * passkey and this page creates it. The link's outcome lands in page state,
+   * not in an action, because the wallet keeps its link surface over the page
+   * until the link settles.
+   */
+  private async startDeviceLinkingAsTarget(): Promise<void> {
+    const action: IntendedActionName = 'startDeviceLinkingAsTarget';
+    this.dispatch({ kind: 'action_started', action });
+    try {
+      if (intendedDeviceLinkTargetRunning) {
+        throw new Error('A device-link flow is already running on this page');
+      }
+      intendedDeviceLinkTargetRunning = true;
+      const activation = createIntendedDeferred<IntendedDeviceLinkActivation>();
+      const recordLifecycleEvent = this.recordLifecycleEvent;
+      let started: Awaited<ReturnType<IntendedSeams['devices']['startDevice2LinkingFlow']>>;
+      try {
+        started = await this.seams.devices.startDevice2LinkingFlow({
+          targetFactor: { kind: 'passkey_prf' },
+          ui: 'inline',
+          options: {
+            onEvent: (event) => {
+              recordLifecycleEvent(event);
+              settleIntendedDeviceLinkActivation(activation, event);
+            },
+            onTargetFactorRequired: (factor) => {
+              if (factor.kind !== 'linked_device_target_passkey_activation_v1') {
+                activation.reject(
+                  new Error(`Device 2 asked for ${factor.kind}; this link targets a passkey`),
+                );
+                return;
+              }
+              factor.createPasskey().catch((error: unknown) => {
+                activation.reject(
+                  new Error(`Device 2 passkey creation failed: ${errorMessage(error)}`),
+                );
+              });
+            },
+            onError: (error) => activation.reject(error),
+          },
+        });
+      } catch (error) {
+        intendedDeviceLinkTargetRunning = false;
+        throw error;
+      }
+      const linkSessionId = String(started.qrData.linkSessionId);
+      this.dispatch({
+        kind: 'device_link_updated',
+        deviceLink: { status: 'awaiting_owner', linkSessionId },
+      });
+      void this.settleDeviceLinkAsTarget(linkSessionId, activation.promise);
+      this.dispatch({
+        kind: 'action_succeeded',
+        action,
+        result: {
+          kind: 'device_link_qr_ready',
+          linkSessionId,
+          qrPayloadJson: JSON.stringify(started.qrData),
+        },
+      });
+    } catch (error) {
+      this.dispatch({ kind: 'action_failed', action, error: errorMessage(error) });
+    }
+  }
+
+  /** Device 2: record the link's outcome once it activates or fails. */
+  private async settleDeviceLinkAsTarget(
+    linkSessionId: string,
+    activation: Promise<IntendedDeviceLinkActivation>,
+  ): Promise<void> {
+    try {
+      const active = await activation;
+      if (active.walletId !== this.walletId) {
+        throw new Error(`Device 2 linked wallet ${active.walletId}; expected ${this.walletId}`);
+      }
+      await this.refreshLoginState(active.walletId);
+      const session = await this.seams.auth.getWalletSession(active.walletId);
+      if (session.appIdentity.kind !== 'resolved') {
+        throw new Error(`Linked wallet identity is ${session.appIdentity.kind}`);
+      }
+      this.dispatch({
+        kind: 'device_link_updated',
+        deviceLink: {
+          status: 'active',
+          linkSessionId,
+          walletId: active.walletId,
+          enrollmentId: active.enrollmentId,
+          sessionWalletAuthMethodId: exactWalletAuthMethodIdFromSession(session),
+          nearAccountId: requireNonEmptyString(
+            session.appIdentity.nearAccountId,
+            'linked wallet NEAR account',
+          ),
+          operationalPublicKey: requireNonEmptyString(
+            session.appIdentity.nearOperationalPublicKey,
+            'linked wallet NEAR operational public key',
+          ),
+          authenticationKind: requireAuthenticatedWalletSession(session, active.walletId),
+        },
+      });
+    } catch (error) {
+      this.dispatch({
+        kind: 'device_link_updated',
+        deviceLink: { status: 'failed', linkSessionId, error: errorMessage(error) },
+      });
+    } finally {
+      intendedDeviceLinkTargetRunning = false;
+    }
+  }
+
+  /**
+   * Device 1: approve the device whose QR was scanned. The test has no camera,
+   * so the payload is handed to the page exactly as Device 2 produced it; the
+   * SDK parses it strictly.
+   */
+  private async scanAndLinkDevice(): Promise<void> {
+    const action: IntendedActionName = 'scanAndLinkDevice';
+    this.dispatch({ kind: 'action_started', action });
+    try {
+      const qrPayloadJson = window.__seamsIntendedE2EDeviceLinkQrPayloadJson;
+      delete window.__seamsIntendedE2EDeviceLinkQrPayloadJson;
+      if (typeof qrPayloadJson !== 'string' || !qrPayloadJson) {
+        throw new Error('No device-link QR payload was presented to Device 1');
+      }
+      const qrData = JSON.parse(qrPayloadJson) as QrLinkedDeviceSessionPayloadV5;
+      const result = await this.seams.devices.scanAndLinkDevice(qrData, {
+        onEvent: this.recordLifecycleEvent,
+      });
+      if (!result.success) throw new Error(result.error);
+      if (String(result.walletId) !== this.walletId) {
+        throw new Error(`Device 1 approved a link for ${String(result.walletId)}`);
+      }
+      this.dispatch({
+        kind: 'action_succeeded',
+        action,
+        result: {
+          kind: 'device_link_approval_recorded',
+          walletId: String(result.walletId),
+          enrollmentId: String(result.enrollmentId),
+          deviceId: String(result.deviceId),
+        },
+      });
+    } catch (error) {
+      this.dispatch({ kind: 'action_failed', action, error: errorMessage(error) });
+    }
+  }
+
+  /**
+   * Device 1: revoke one exact linked-device method with a fresh proof from a
+   * different active method. Anything but `revoked` is a failure.
+   */
+  private async revokeLinkedDevice(): Promise<void> {
+    const action: IntendedActionName = 'revokeLinkedDevice';
+    this.dispatch({ kind: 'action_started', action });
+    try {
+      const rawRevocation = window.__seamsIntendedE2ELinkedDeviceRevocationJson;
+      delete window.__seamsIntendedE2ELinkedDeviceRevocationJson;
+      const revocation = parseIntendedLinkedDeviceRevocation(rawRevocation);
+      const result = await this.seams.devices.revokeLinkedDevice({
+        walletId: this.walletId,
+        walletAuthMethodId: revocation.walletAuthMethodId,
+        requestedAtMs: revocation.requestedAtMs,
+        sourceProof: revocation.sourceProof,
+      });
+      if (result.kind !== 'revoked') {
+        throw new Error(`Linked-device revocation returned ${result.kind}`);
+      }
+      this.dispatch({
+        kind: 'action_succeeded',
+        action,
+        result: {
+          kind: 'linked_device_revoked',
+          walletId: this.walletId,
+          walletAuthMethodId: String(result.walletAuthMethodId),
+          authorityId: String(result.authorityId),
+          revocationEpoch: result.revocationEpoch,
+        },
+      });
+    } catch (error) {
+      this.dispatch({ kind: 'action_failed', action, error: errorMessage(error) });
+    }
+  }
+
   private async readEcdsaTargetKeys(
     profile: IntendedEcdsaTargetProfileName,
   ): Promise<IntendedEcdsaTargetKeysSummary> {
@@ -2352,6 +2683,16 @@ function intendedPageReducer(
         ...state,
         action: { status: 'error', action: action.action, error: action.error },
       };
+    /* Linking hands Device 2 its NEAR identity through its own session. */
+    case 'device_link_updated':
+      return {
+        ...state,
+        deviceLink: action.deviceLink,
+        nearAccountId:
+          action.deviceLink.status === 'active'
+            ? action.deviceLink.nearAccountId
+            : state.nearAccountId,
+      };
     case 'event_recorded':
       return {
         ...state,
@@ -2389,7 +2730,12 @@ function intendedActionResultWalletId(result: IntendedActionResult): string | nu
     case 'arc_evm_sign_success':
     case 'ed25519_export_success':
     case 'ecdsa_export_success':
+    case 'device_link_approval_recorded':
+    case 'linked_device_revoked':
       return result.walletId;
+    /* Device 2 does not learn the wallet from its own QR; the link names it. */
+    case 'device_link_qr_ready':
+      return null;
     default:
       return assertNever(result);
   }
@@ -2421,6 +2767,11 @@ function intendedActionResultNearAccountId(result: IntendedActionResult): string
     case 'google_email_otp_recovery_success':
     /* An added ECDSA signer leaves the NEAR account as it was. */
     case 'ecdsa_signer_added':
+    /* Linking and revocation change which devices hold the wallet, not its
+       NEAR account. */
+    case 'device_link_qr_ready':
+    case 'device_link_approval_recorded':
+    case 'linked_device_revoked':
       return null;
     default:
       return assertNever(result);
@@ -2454,6 +2805,10 @@ function intendedActionResultNearSignerSlot(
     case 'ed25519_export_success':
     case 'ecdsa_export_success':
     case 'ecdsa_signer_added':
+    /* A linked device signs through the wallet's existing signer slot. */
+    case 'device_link_qr_ready':
+    case 'device_link_approval_recorded':
+    case 'linked_device_revoked':
       return currentSignerSlot;
     default:
       return assertNever(result);
@@ -3333,6 +3688,122 @@ function emailOtpDevOutboxUrl(input: { relayerUrl: string }): string {
  */
 let intendedEmailOtpChallengeSubjectOverride: string | null = null;
 
+type IntendedDeferred<T> = {
+  readonly promise: Promise<T>;
+  readonly resolve: (value: T) => void;
+  readonly reject: (reason: Error) => void;
+};
+
+/**
+ * A settle-once promise. Its rejection is observed here so a flow that fails
+ * before any action waits on it is not reported as an unhandled rejection;
+ * the action that awaits it still receives the same rejection.
+ */
+function createIntendedDeferred<T>(): IntendedDeferred<T> {
+  const handlers: {
+    resolve?: (value: T) => void;
+    reject?: (reason: Error) => void;
+  } = {};
+  const promise = new Promise<T>((onResolve, onReject) => {
+    handlers.resolve = onResolve;
+    handlers.reject = onReject;
+  });
+  promise.catch(() => undefined);
+  const { resolve, reject } = handlers;
+  if (!resolve || !reject) throw new Error('Deferred promise executor did not run');
+  return { promise, resolve, reject };
+}
+
+type IntendedDeviceLinkActivation = {
+  readonly walletId: string;
+  readonly enrollmentId: string;
+};
+
+/**
+ * The Device 2 link flow outlives the action that started it, and the page
+ * controller is rebuilt on every render, so whether one is running lives here.
+ */
+let intendedDeviceLinkTargetRunning = false;
+
+/**
+ * Settle Device 2's activation from its public flow events: the display-side
+ * success names the linked wallet and enrollment; failure or cancellation ends
+ * the flow. Every other event is progress.
+ */
+function settleIntendedDeviceLinkActivation(
+  activation: IntendedDeferred<IntendedDeviceLinkActivation>,
+  event: LinkDeviceFlowEvent,
+): void {
+  if (event.phase === LinkDeviceEventPhase.FAILED || event.status === 'failed') {
+    activation.reject(new Error(`Device 2 link failed: ${event.error?.message || event.message}`));
+    return;
+  }
+  if (event.phase === LinkDeviceEventPhase.CANCELLED || event.status === 'cancelled') {
+    activation.reject(new Error(`Device 2 link was cancelled: ${event.message}`));
+    return;
+  }
+  if (event.phase !== LinkDeviceEventPhase.STEP_02_QR_SCAN_STARTED) return;
+  if (event.status !== 'succeeded') return;
+  const walletId = String(event.walletId ?? '').trim();
+  const enrollmentId = String(event.data?.enrollmentId ?? '').trim();
+  if (!walletId || !enrollmentId) {
+    activation.reject(new Error('Device 2 link activated without a wallet or enrollment'));
+    return;
+  }
+  activation.resolve({ walletId, enrollmentId });
+}
+
+type IntendedLinkedDeviceRevocation = {
+  readonly walletAuthMethodId: string;
+  readonly requestedAtMs: number;
+  readonly sourceProof: Parameters<
+    IntendedSeams['devices']['revokeLinkedDevice']
+  >[0]['sourceProof'];
+};
+
+/** The contract hands the page one exact revocation; parse it before sending. */
+function parseIntendedLinkedDeviceRevocation(raw: unknown): IntendedLinkedDeviceRevocation {
+  if (typeof raw !== 'string' || !raw) {
+    throw new Error('No linked-device revocation was presented to Device 1');
+  }
+  const parsed: unknown = JSON.parse(raw);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Linked-device revocation must be an object');
+  }
+  const record = parsed as Record<string, unknown>;
+  const walletAuthMethodId = requireNonEmptyString(
+    record.walletAuthMethodId,
+    'linked-device revocation walletAuthMethodId',
+  );
+  const requestedAtMs = record.requestedAtMs;
+  if (typeof requestedAtMs !== 'number' || !Number.isSafeInteger(requestedAtMs)) {
+    throw new Error('linked-device revocation requestedAtMs must be a safe integer');
+  }
+  const sourceProof = record.sourceProof;
+  if (!sourceProof || typeof sourceProof !== 'object' || Array.isArray(sourceProof)) {
+    throw new Error('linked-device revocation sourceProof must be an object');
+  }
+  const proof = sourceProof as Record<string, unknown>;
+  if (proof.kind !== 'webauthn_assertion') {
+    throw new Error(`linked-device revocation sourceProof kind is ${String(proof.kind)}`);
+  }
+  const rpId = parseWebAuthnRpId(proof.rpId);
+  if (!rpId.ok) throw new Error(rpId.error.message);
+  return {
+    walletAuthMethodId,
+    requestedAtMs,
+    sourceProof: {
+      kind: 'webauthn_assertion',
+      rpId: rpId.value,
+      credential: proof.credential,
+      expectedChallengeDigestB64u: requireNonEmptyString(
+        proof.expectedChallengeDigestB64u,
+        'linked-device revocation expectedChallengeDigestB64u',
+      ),
+    },
+  };
+}
+
 /**
  * An added Email OTP method must use the same verified email that the hosted
  * Google sign-in flow can prove. The selected wallet disambiguates repeated
@@ -3405,6 +3876,7 @@ function installIntendedE2EHelpers(controller: IntendedPageController): void {
   window.__seamsIntendedE2EReadWalletLockState = controller.readWalletLockStateForIntendedTest;
   window.__seamsIntendedE2EReadAuthenticationMethods =
     controller.readAuthenticationMethodsForIntendedTest;
+  window.__seamsIntendedE2EReadLinkedDevices = controller.readLinkedDevicesForIntendedTest;
 }
 
 function requireHex(value: unknown, label: string): `0x${string}` {
