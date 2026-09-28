@@ -11,6 +11,11 @@ name = "router_ab_dev"
 path = "src/lib.rs"
 crate-type = ["rlib"]
 
+[features]
+# Local only: the VM Router can end a registration burned when the local
+# Gateway's terminal-failure fault asks, for the intended suite.
+local-intended-router-burn = []
+
 [dependencies]
 base64 = "0.22"
 bs58 = "0.5"

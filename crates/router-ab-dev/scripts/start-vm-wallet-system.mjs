@@ -65,11 +65,15 @@ async function main() {
   installSignalHandlers();
   mkdirSync(gatewayRuntime, { recursive: true, mode: 0o700 });
   if (process.env.SEAMS_VM_SKIP_BUILD !== '1') {
+    // The local Router ends a registration burned when the local Gateway's
+    // terminal-failure fault asks; no other build has that.
     runRequired('VM role binaries', 'cargo', [
       'build',
       '--manifest-path',
       path.join(devCrate, 'Cargo.toml'),
       '--bins',
+      '--features',
+      'local-intended-router-burn',
     ]);
   }
   materializeRoleEnvs();

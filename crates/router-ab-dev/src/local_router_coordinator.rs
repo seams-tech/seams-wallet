@@ -74,6 +74,7 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
         config: &LocalRouterWorkerConfigV1,
         body: &[u8],
         replay: bool,
+        burn: bool,
     ) -> RouterAbProtocolResult<String> {
         let envelope = serde_json::from_slice::<CloudflareRouterEd25519YaoExecuteRequestV2>(body)
             .map_err(|error| {
@@ -103,7 +104,11 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                 replay,
                 generation,
             } => {
-                let result = self.run_execution(config, request_json.as_bytes(), replay)?;
+                let result = if burn {
+                    burned_registration_v1(config, request_json.as_bytes())?
+                } else {
+                    self.run_execution(config, request_json.as_bytes(), replay)?
+                };
                 let Some(finish) = registration.finish(&result, generation, local_now_ms_v1()?)?
                 else {
                     return answer_json(&result);
@@ -808,7 +813,11 @@ impl LocalRouterRequestDispatcherV1 for LocalRouterEd25519YaoCoordinatorV1 {
                 )?))
             }
         };
-        match self.execute(config, &request.body, replay) {
+        // Local only: a Router built for the intended suite ends the
+        // registration burned when the Gateway's terminal-failure fault asks.
+        let burn = cfg!(feature = "local-intended-router-burn")
+            && request.local_intended_router_burn.is_some();
+        match self.execute(config, &request.body, replay, burn) {
             Ok(body) => Ok(Some((200, body))),
             Err(error) => Ok(Some(local_dev_http_route_error_v1(
                 LocalServiceRoleV1::Router,
@@ -949,6 +958,31 @@ fn activation_public_receipt(
         state_epoch,
         material_activation,
     )
+}
+
+/// Local only: a registration ended burned without running, recorded like a
+/// run that burned its pair, for the Gateway's terminal-failure fault.
+fn burned_registration_v1(
+    config: &LocalRouterWorkerConfigV1,
+    body: &[u8],
+) -> RouterAbProtocolResult<RouterEd25519YaoExecuteResultV1> {
+    let envelope = serde_json::from_slice::<CloudflareRouterEd25519YaoExecuteRequestV2>(body)
+        .map_err(|error| {
+            RouterAbProtocolError::new(
+                RouterAbProtocolErrorCode::MalformedWirePayload,
+                format!("local Router Ed25519 Yao execute request is malformed: {error}"),
+            )
+        })?;
+    let now_ms = local_now_ms_v1()?;
+    let request = envelope.target.into_execute_request(
+        local_recipient_set_digest_v1(config)?,
+        now_ms,
+        now_ms.saturating_add(ROUTER_AUTHORITY_TTL_MS),
+    )?;
+    Ok(RouterEd25519YaoExecuteResultV1::burned(
+        execution_id_for_pair(request.pair_binding())?,
+        router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
+    ))
 }
 
 fn execution_id_for_pair(

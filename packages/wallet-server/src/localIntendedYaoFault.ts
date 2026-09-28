@@ -7,7 +7,17 @@ const ROUTER_AB_YAO_REPLAY_HEADER_V1 = 'x-seams-yao-replay';
 const ROUTER_AB_YAO_EXECUTE_PATH_V1 = '/router-ab/router/ed25519-yao/execute';
 const LOCAL_INTENDED_YAO_FAULT_TOKEN_PATTERN_V1 =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+/* Asks a Router built for the intended suite to end the registration burned
+   instead of running it. The Router records that answer as the execution's
+   terminal one, so an exact retry gets it from the Router. */
+const LOCAL_INTENDED_ROUTER_BURN_HEADER_V1 = 'x-seams-local-intended-router-burn-v1';
 
+/**
+ * - `drop_router_response_once` loses the Router's reply to the first
+ *   execute, and expects the Gateway to send the identical request again.
+ * - `return_terminal_burned_once` has the Router end the first execute
+ *   burned, and expects the Gateway to answer that failure without retrying.
+ */
 type LocalIntendedYaoFaultModeV1 = 'drop_router_response_once' | 'return_terminal_burned_once';
 
 type LocalIntendedYaoFaultProofV1 = 'exact_request_replayed' | 'terminal_failure_not_retried';
@@ -21,6 +31,7 @@ type LocalIntendedYaoFaultViolationV1 =
   | 'router_retry_trace_changed'
   | 'router_retry_marked_as_replay'
   | 'router_retry_response_failed'
+  | 'router_terminal_not_recorded'
   | 'unexpected_additional_execute';
 
 type LocalIntendedYaoFaultStateV1 =
@@ -59,8 +70,6 @@ type LocalIntendedYaoFaultTokenV1 = {
   readonly value: string;
 };
 
-const LOCAL_INTENDED_BURNED_EXECUTION_ID_V1 = new Array<number>(32).fill(93);
-
 function equalRequestBytes(left: Uint8Array, right: Uint8Array): boolean {
   if (left.length !== right.length) return false;
   for (let index = 0; index < left.length; index += 1) {
@@ -90,20 +99,6 @@ export function parseLocalIntendedYaoFaultTokenV1(
 
 export function isLocalIntendedYaoFaultTokenV1(value: string | null): value is string {
   return !!value && LOCAL_INTENDED_YAO_FAULT_TOKEN_PATTERN_V1.test(value);
-}
-
-function terminalBurnedRouterResponseV1(): Response {
-  return new Response(
-    JSON.stringify({
-      status: 'burned',
-      execution_id: LOCAL_INTENDED_BURNED_EXECUTION_ID_V1,
-      reason: 'protocol_failure',
-    }),
-    {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    },
-  );
 }
 
 export class LocalIntendedYaoFaultControllerV1 {
@@ -162,8 +157,18 @@ export class LocalIntendedYaoFaultControllerV1 {
     mode: LocalIntendedYaoFaultModeV1,
   ): Promise<Response> {
     if (mode === 'return_terminal_burned_once') {
-      this.state = { kind: 'proved', proof: 'terminal_failure_not_retried' };
-      return terminalBurnedRouterResponseV1();
+      const headers = new Headers(request.headers);
+      headers.set(LOCAL_INTENDED_ROUTER_BURN_HEADER_V1, 'burned');
+      const response = await this.baseFetch.call(globalThis, new Request(request, { headers }));
+      const answer: unknown = await response
+        .clone()
+        .json()
+        .catch(() => null);
+      this.state =
+        response.ok && (answer as { readonly status?: unknown } | null)?.status === 'burned'
+          ? { kind: 'proved', proof: 'terminal_failure_not_retried' }
+          : { kind: 'violated', violation: 'router_terminal_not_recorded' };
+      return response;
     }
 
     const body = new Uint8Array(await request.clone().arrayBuffer());

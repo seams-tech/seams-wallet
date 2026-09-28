@@ -123,6 +123,7 @@ fn local_router_boundary_requires_an_installed_native_dispatcher() {
             authorization: None,
             internal_service_auth: None,
             yao_replay: None,
+            local_intended_router_burn: None,
             destination_bootstrap_token: None,
             body: Vec::new(),
         };
@@ -143,6 +144,7 @@ fn local_router_boundary_requires_an_installed_native_dispatcher() {
             authorization: None,
             internal_service_auth: Some(router.gateway_to_router_auth.clone()),
             yao_replay: None,
+            local_intended_router_burn: None,
             destination_bootstrap_token: None,
             body: Vec::new(),
         };

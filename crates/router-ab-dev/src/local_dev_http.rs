@@ -227,6 +227,10 @@ fn local_dev_protocol_response_v1(
     }
 }
 
+/// Local only: the header by which the Gateway's terminal-failure fault asks
+/// the VM Router to end a registration burned.
+pub const LOCAL_INTENDED_ROUTER_BURN_HEADER_V1: &str = "x-seams-local-intended-router-burn-v1";
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LocalDevHttpRequestPartsV1 {
     pub method: String,
@@ -235,6 +239,9 @@ pub struct LocalDevHttpRequestPartsV1 {
     pub internal_service_auth: Option<String>,
     /// Raw Gateway replay header (`x-seams-yao-replay`), when present.
     pub yao_replay: Option<String>,
+    /// Local only: the Gateway's terminal-failure fault, when present. Only a
+    /// VM Router built with `local-intended-router-burn` acts on it.
+    pub local_intended_router_burn: Option<String>,
     /// The destination bootstrap credential a restore presents, when present.
     pub destination_bootstrap_token: Option<String>,
     pub body: Vec<u8>,
@@ -284,6 +291,8 @@ pub fn read_local_dev_http_request_v1(
         headers,
         router_ab_cloudflare::CLOUDFLARE_ROUTER_TENANT_ROOT_DESTINATION_BOOTSTRAP_TOKEN_HEADER_V1,
     );
+    let local_intended_router_burn =
+        local_dev_http_named_header_v1(headers, LOCAL_INTENDED_ROUTER_BURN_HEADER_V1);
     let content_length = local_dev_http_content_length_v1(headers)?;
     let body_start = header_end + 4;
     while request.len() < body_start + content_length {
@@ -302,6 +311,7 @@ pub fn read_local_dev_http_request_v1(
         authorization,
         internal_service_auth,
         yao_replay,
+        local_intended_router_burn,
         destination_bootstrap_token,
         body: request[body_start..body_start + content_length].to_vec(),
     })
@@ -545,6 +555,7 @@ mod tests {
             authorization: None,
             internal_service_auth: Some(config.gateway_to_router_auth.clone()),
             yao_replay: None,
+            local_intended_router_burn: None,
             destination_bootstrap_token: None,
             body: Vec::new(),
         }

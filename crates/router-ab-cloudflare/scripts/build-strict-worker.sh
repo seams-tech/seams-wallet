@@ -64,6 +64,11 @@ if [[ "$worker_build_profile" == "dev" && "$role" == "signing-worker" \
   && "${ROUTER_AB_WALLET_DO_HARNESS:-}" != "enabled" ]]; then
   worker_features+=",local-intended-signing-hold"
 fi
+# Local only: a dev Router can end a registration burned when the local
+# Gateway's terminal-failure fault asks, and records it like any answer.
+if [[ "$worker_build_profile" == "dev" && "$role" == "router" ]]; then
+  worker_features+=",local-intended-router-burn"
+fi
 
 wallet_objects=false
 if [[ "${ROUTER_AB_WALLET_DO_HARNESS:-}" == "enabled" && "$role" != "tenant-root-control-plane" ]]; then

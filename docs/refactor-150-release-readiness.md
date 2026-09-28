@@ -50,8 +50,9 @@ on each host.
 | Wallet-object build | 43 | 4 |
 | Workers D1 | 43 | 4 |
 
-The same four contracts fail on every host (below). Each run's persisted
-traces are kept with the run, outside the repository.
+The same four contracts failed on every host in that run; all four were
+repaired and pass on every host since (below). Each run's persisted traces
+are kept with the run, outside the repository.
 
 Slices 8 to 10 came after this run. Slice 8's contract and the retirement
 contract passed on all three hosts after slice 8. Slice 9 changed the late
@@ -69,19 +70,30 @@ service account with the user's Google Cloud credentials. The contracts are:
 
 The new Email OTP export replay contract is among them.
 
-## Failing contracts, classified
+## Contracts that failed, classified
+
+All four now pass on every host (below). The consolidated run above predates
+their repair.
 
 1. **"a terminal NEAR execution remains failed under fresh unlock authority
-   while EVM signs"** broke in slice 1. The test's fault answers "burned" at
+   while EVM signs"** broke in slice 1. The test's fault answered "burned" at
    the Gateway without the Router ever seeing the request. Since slice 1
    only the Router records a registration's terminal answer, so the unlock's
-   exact replay runs the execution for real and succeeds.
-   - The product guarantee holds: an exact retry gets the Router's recorded
-     answer, byte for byte, and runs nothing. The VM Router ownership test
-     checks this with a succeeded answer; the record does not depend on
-     which answer it holds.
-   - The fix is a real terminal: a gated Router-side fault on each host that
-     records the burned answer. Not done here.
+   exact replay ran the execution for real and succeeded.
+   - The product guarantee held: an exact retry gets the Router's recorded
+     answer, byte for byte, and runs nothing.
+   - The fault now works at the owner of the terminal record. It forwards
+     the execute with a local-only header, and a Router built for the
+     intended suite ends that registration burned instead of running it. The
+     Router records the answer through the same finish as any run, so the
+     unlock's exact replay gets it from the Router. The Workers Routers
+     honor the header only in dev builds (`local-intended-router-burn`), and
+     the VM Router only when the local VM script builds it with that
+     feature.
+   - "terminal burned execution fails without retry" uses the same fault.
+   - Both pass on the VM, the wallet-object build and Workers D1
+     (2026-09-28).
+
 2. **The three overlapping-hydration contracts** held a request that fresh
    passkey registration no longer makes:
    - "passkey hydration overlaps signer installation and gates durable
@@ -104,14 +116,14 @@ The new Email OTP export replay contract is among them.
      seal, once per wallet tab, through a test init script in the wallet
      frame. The failure case spoils that message, so the worker refuses it
      and hydration fails.
-   - All three pass on the VM (2026-09-28). No product change was needed.
+   - All three pass on the VM, the wallet-object build and Workers D1
+     (2026-09-28). No product change was needed.
 
 ## Before the managed milestone
 
 - Phase 2 device linking and auth-method addition and revocation, per the
   [plan](./refactor-150-regional-wallet-home-lanes.md#required-device-linking-and-auth-method-work).
-- The terminal-execution contract above, and an Email OTP run with a Google
-  ID token.
+- An Email OTP run with a Google ID token.
 - The review items the cross-owner plan leaves open. Explicit recovery
   abandonment stays deferred.
 - The new-wallet cohort, and the Phase 3 clean reset, as separately

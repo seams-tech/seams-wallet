@@ -213,6 +213,11 @@ fn emit_span(
     }
 }
 
+/// Local only: the Gateway's terminal-failure fault asks a dev Router to end a
+/// registration burned instead of running it.
+#[cfg(feature = "local-intended-router-burn")]
+const LOCAL_INTENDED_ROUTER_BURN_HEADER_V1: &str = "x-seams-local-intended-router-burn-v1";
+
 /// Handles one authenticated Gateway-to-Router Yao execution request.
 pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
     mut request: Request,
@@ -233,6 +238,11 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
         Ok(replay) => replay,
         Err(error) => return protocol_error_response(error),
     };
+    #[cfg(feature = "local-intended-router-burn")]
+    let burn = matches!(
+        request.headers().get(LOCAL_INTENDED_ROUTER_BURN_HEADER_V1),
+        Ok(Some(_))
+    );
     let mut gateway_envelope = match request
         .json::<CloudflareRouterEd25519YaoExecuteRequestV2>()
         .await
@@ -316,6 +326,18 @@ pub async fn handle_cloudflare_router_ed25519_yao_execute_private_fetch_v1(
         Ok(request) => request,
         Err(error) => return protocol_error_response(error),
     };
+    // Local only, in dev builds: the claimed registration ends burned, as a
+    // run that burned its pair would, and its answer is recorded like one.
+    #[cfg(feature = "local-intended-router-burn")]
+    if burn && claimed.is_some() {
+        let result = router_execution_id(execute_request.pair_binding()).map(|execution_id| {
+            RouterEd25519YaoExecuteResultV1::burned(
+                execution_id,
+                router_ab_core::RouterEd25519YaoBurnReasonV1::ProtocolFailure,
+            )
+        });
+        return finish_router_execution_response(env, claimed.as_ref(), result).await;
+    }
     #[cfg(feature = "wallet-do-router-harness")]
     if replay && execute_request.operation() == Ed25519YaoOperationV1::Registration {
         let result = execute_historical_registration_replay_v1(
