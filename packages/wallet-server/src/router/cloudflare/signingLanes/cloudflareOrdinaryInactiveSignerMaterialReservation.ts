@@ -48,6 +48,8 @@ import type {
 /** Source-preserving ordinary material paths implemented by the Cloudflare workers. */
 export const CLOUDFLARE_ROUTER_ED25519_YAO_SOURCE_PRESERVING_EXECUTE_PATH_V1 =
   '/router-ab/router/ed25519-yao/execute-source-preserving' as const;
+/** Marks an execution the Router may already have run as its replay. */
+const ROUTER_AB_YAO_REPLAY_HEADER_V1 = 'x-seams-yao-replay';
 export const CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH_V1 =
   '/router-ab/signing-worker/ecdsa-derivation/reserve-inactive-source-preserving' as const;
 export const CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_ACTIVATE_RESERVATION_PATH_V1 =
@@ -133,6 +135,11 @@ export function createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpoin
           },
         },
         'Ed25519 source-preserving Router execution',
+        /* A transport failure can lose the answer to an execution the Router
+           already ran. The retry is marked as the Router's replay, so it
+           answers that run from the roles' completed pair instead of
+           starting another. */
+        'replay',
       );
     },
   };
@@ -525,17 +532,27 @@ async function postRouterJsonRequestV1(
   path: string,
   body: Record<string, unknown>,
   operation: string,
+  retryAfterTransportFailure: 'none' | 'replay' = 'none',
 ): Promise<unknown> {
-  const response = await input.fetch(
-    new Request(`https://mpc-router.router-ab.internal${path}`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-router-ab-internal-service-auth': input.internalServiceAuthSecret,
-      },
-      body: JSON.stringify(body),
-    }),
-  );
+  const send = async (replay: boolean): Promise<Response> =>
+    await input.fetch(
+      new Request(`https://mpc-router.router-ab.internal${path}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-router-ab-internal-service-auth': input.internalServiceAuthSecret,
+          ...(replay ? { [ROUTER_AB_YAO_REPLAY_HEADER_V1]: '1' } : {}),
+        },
+        body: JSON.stringify(body),
+      }),
+    );
+  let response: Response;
+  try {
+    response = await send(false);
+  } catch (error: unknown) {
+    if (retryAfterTransportFailure === 'none') throw error;
+    response = await send(true);
+  }
   if (!response.ok) {
     // The Router answers a refusal with its protocol error text; keep it so
     // the failure is classifiable without the Router's logs.

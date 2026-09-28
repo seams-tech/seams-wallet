@@ -195,6 +195,11 @@ const LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1 = 'x-seams-intended-yao-signing
 const LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1 =
   'x-seams-intended-yao-signing-fault-token-v1';
 const ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH = '/router-ab/ed25519/sign';
+const LOCAL_INTENDED_LINK_EXECUTE_FAULT_HEADER_V1 = 'x-seams-intended-link-execute-fault-v1';
+const LOCAL_INTENDED_LINK_EXECUTE_FAULT_TOKEN_HEADER_V1 =
+  'x-seams-intended-link-execute-fault-token-v1';
+const LOCAL_INTENDED_LINK_EXECUTE_FAULT_PROOF_HEADER_V1 =
+  'x-seams-intended-link-execute-fault-proof-v1';
 /* The SigningWorker's refusal of an activation a recovery replaced. */
 const SIGNING_WORKER_ACTIVATION_RETIRED_MESSAGE = 'SigningWorker activation is retired';
 const SIGNING_WORKER_ACTIVATION_RETIRED_AT_COMMIT_MESSAGE =
@@ -1441,6 +1446,63 @@ export class IntendedBehaviourHarness {
     this.recordService(
       `device linked wallet=${this.walletId} device=${linked.deviceId} method=${linked.walletAuthMethodId}`,
     );
+  }
+
+  /**
+   * Device 1: its next source-contribution execute reaches the Router, which
+   * runs Device 2's target registration and reserves its material, and the
+   * local Gateway then loses the Router's answer. The Gateway must send that
+   * same request again, marked as the Router's replay, and the Router must
+   * answer it from the run it already made, with the same reservation. The
+   * Gateway reports what it saw in a proof header.
+   */
+  async loseLinkExecuteRouterResponseOnce(): Promise<{
+    readonly release: () => Promise<void>;
+    readonly assertReplayed: () => void;
+  }> {
+    const executePath =
+      /\/wallet\/device-linking\/v1\/sessions\/[^/]+\/source-contribution\/execute$/;
+    const token = randomUUID();
+    let armed = true;
+    let proof: string | null = null;
+    const handler = async (route: Route): Promise<void> => {
+      const request = route.request();
+      if (
+        !armed ||
+        request.method() !== 'POST' ||
+        !executePath.test(new URL(request.url()).pathname)
+      ) {
+        await route.fallback();
+        return;
+      }
+      armed = false;
+      const response = await route.fetch({
+        headers: {
+          ...request.headers(),
+          [LOCAL_INTENDED_LINK_EXECUTE_FAULT_HEADER_V1]: 'drop_router_response_once',
+          [LOCAL_INTENDED_LINK_EXECUTE_FAULT_TOKEN_HEADER_V1]: token,
+        },
+      });
+      proof = response.headers()[LOCAL_INTENDED_LINK_EXECUTE_FAULT_PROOF_HEADER_V1] ?? null;
+      await route.fulfill({ response });
+    };
+    await this.context.route('**/source-contribution/execute', handler);
+    return {
+      release: async () => {
+        await this.context.unroute('**/source-contribution/execute', handler);
+      },
+      assertReplayed: () => {
+        const expected = `${token}:replay_answered_same_reservation`;
+        if (proof !== expected) {
+          throw new Error(
+            `linked-device execute expected the Router replay proof ${expected}, saw ${proof ?? 'none'}`,
+          );
+        }
+        this.recordService(
+          'linked-device execute lost its Router answer and replayed the reservation',
+        );
+      },
+    };
   }
 
   /**

@@ -76,6 +76,15 @@ import {
   responseWithLocalIntendedYaoSigningFaultOutcomeV1,
   ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH_V1,
 } from './localIntendedYaoSigningFault';
+import {
+  LOCAL_INTENDED_LINK_EXECUTE_FAULT_HEADER_V1,
+  LOCAL_INTENDED_LINK_EXECUTE_FAULT_TOKEN_HEADER_V1,
+  LocalIntendedLinkExecuteFaultControllerV1,
+  parseLocalIntendedLinkExecuteFaultModeV1,
+  parseLocalIntendedLinkExecuteFaultTokenV1,
+  requestWithoutLocalIntendedLinkExecuteFaultHeadersV1,
+  responseWithLocalIntendedLinkExecuteFaultOutcomeV1,
+} from './localIntendedLinkExecuteFault';
 
 export type LocalHostedWalletGatewayEnv = CloudflareD1GatewayBaseEnv & {
   readonly WALLET_LOCAL_DEPLOYMENT_JSON: string;
@@ -85,6 +94,8 @@ const ECDSA_RESPOND_FAULT_HEADER = 'x-seams-intended-ecdsa-respond-fault-v1';
 const ECDSA_RESPOND_FAULT_PROOF_HEADER = 'x-seams-intended-ecdsa-respond-proof-v1';
 const ECDSA_REGISTRATION_PATH = '/router-ab/ecdsa-derivation/register';
 const REGISTRATION_RESPOND_PATH = '/wallets/register/respond';
+const LINK_SOURCE_CONTRIBUTION_EXECUTE_PATH =
+  /^\/wallet\/device-linking\/v1\/sessions\/[^/]+\/source-contribution\/execute$/;
 
 class DropEcdsaRouterReply {
   observed = false;
@@ -294,6 +305,18 @@ export async function handleLocalHostedWalletGatewayRequestV1(
       yaoFinalizeToken,
     );
   }
+  const linkExecuteMode = request.headers.get(LOCAL_INTENDED_LINK_EXECUTE_FAULT_HEADER_V1);
+  const linkExecuteToken = request.headers.get(LOCAL_INTENDED_LINK_EXECUTE_FAULT_TOKEN_HEADER_V1);
+  if (linkExecuteMode !== null || linkExecuteToken !== null) {
+    return await handleLinkExecuteFault(
+      request,
+      gatewayEnv,
+      ctx,
+      dependencies,
+      linkExecuteMode,
+      linkExecuteToken,
+    );
+  }
   const rawMode = request.headers.get(LOCAL_INTENDED_YAO_FAULT_HEADER_V1);
   const rawToken = request.headers.get(LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1);
   const sanitizedRequest = requestWithoutLocalIntendedYaoFaultHeadersV1(request);
@@ -327,6 +350,44 @@ export async function handleLocalHostedWalletGatewayRequestV1(
     dependencies,
   );
   return responseWithLocalIntendedYaoFaultOutcomeV1(response, controller.consumeOutcome(), token);
+}
+
+/**
+ * Lets the Router run one linked device's source-preserving execution, then
+ * loses its answer, so the Gateway's retry must recover the reservation the
+ * Router already made. Local only.
+ */
+async function handleLinkExecuteFault(
+  request: Request,
+  env: CloudflareD1GatewayEnv,
+  ctx: CfExecutionContext,
+  dependencies: HostedWalletGatewayDependenciesV1 | undefined,
+  rawMode: string | null,
+  rawToken: string | null,
+): Promise<Response> {
+  const mode = parseLocalIntendedLinkExecuteFaultModeV1(rawMode);
+  const token = parseLocalIntendedLinkExecuteFaultTokenV1(rawToken);
+  const url = new URL(request.url);
+  if (
+    url.protocol !== 'http:' ||
+    url.hostname !== '127.0.0.1' ||
+    !LINK_SOURCE_CONTRIBUTION_EXECUTE_PATH.test(url.pathname) ||
+    request.method !== 'POST' ||
+    !mode ||
+    !token
+  ) {
+    return Response.json({ code: 'invalid_intended_link_execute_fault' }, { status: 400 });
+  }
+  const controller = new LocalIntendedLinkExecuteFaultControllerV1(
+    env.MPC_ROUTER.fetch.bind(env.MPC_ROUTER),
+  );
+  const response = await handleSplitGatewayRequest(
+    requestWithoutLocalIntendedLinkExecuteFaultHeadersV1(request),
+    { ...env, MPC_ROUTER: controller },
+    ctx,
+    dependencies,
+  );
+  return responseWithLocalIntendedLinkExecuteFaultOutcomeV1(response, controller.outcome(), token);
 }
 
 /**

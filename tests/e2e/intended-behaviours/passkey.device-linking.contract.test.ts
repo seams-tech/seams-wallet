@@ -20,6 +20,11 @@ test('a second device links with a passkey, signs NEAR and Tempo, and is revoked
   await harness.awaitNearReady();
 
   const device2 = await harness.openLinkedDevice(browser);
+  /* The Router runs Device 2's target registration and reserves its
+     material, but the Gateway loses the Router's answer. The Gateway's retry
+     is marked as the Router's replay, and the Router answers it from that run
+     with the same reservation, running nothing again. */
+  const lostExecute = await harness.loseLinkExecuteRouterResponseOnce();
   /* Device 2's activation reaches the Gateway, which activates its authority
      and both curves' material, but the answer is lost. Device 2's own retry
      must get that same activation: linking still lists exactly one device,
@@ -29,7 +34,9 @@ test('a second device links with a passkey, signs NEAR and Tempo, and is revoked
     await harness.linkDeviceWithPasskey(device2);
   } finally {
     await lostActivation.release();
+    await lostExecute.release();
   }
+  lostExecute.assertReplayed();
   lostActivation.assertReplayed();
 
   /* Device 2's own session signs every signer family the source authority
