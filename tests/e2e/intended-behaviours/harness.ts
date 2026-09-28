@@ -854,8 +854,9 @@ type SigningAuthEventSummary = {
   authenticationMethods: readonly SigningAuthMethod[];
   remainingUses: readonly number[];
   warmSessionClaimed: boolean;
-  /** The warm claim came from an active Wallet Authority, whose budget the
-      server keeps: its plan carries no remaining uses. */
+  /** Every warm claim came from an active Wallet Authority, whose budget the
+      server keeps: that plan carries no remaining uses. A warm-session plan
+      promises them, so any warm-session claim keeps the check. */
   activeWalletAuthorityClaimed: boolean;
   passkeyPromptStarted: boolean;
   passkeyPromptSucceeded: boolean;
@@ -5019,7 +5020,8 @@ function summarizeSigningAuthEvents(snapshot: IntendedPageSnapshot): SigningAuth
   const authenticationMethods: SigningAuthMethod[] = [];
   const remainingUses: number[] = [];
   let warmSessionClaimed = false;
-  let activeWalletAuthorityClaimed = false;
+  let authorityClaims = 0;
+  let warmSessionPlanClaims = 0;
   let passkeyPromptStarted = false;
   let passkeyPromptSucceeded = false;
   let passkeyAuthenticationComplete = false;
@@ -5058,7 +5060,8 @@ function summarizeSigningAuthEvents(snapshot: IntendedPageSnapshot): SigningAuth
     switch (phase) {
       case SIGNING_AUTH_WARM_SESSION_CLAIMED:
         warmSessionClaimed = true;
-        activeWalletAuthorityClaimed ||= signingEventClaimedActiveWalletAuthority(event.payload);
+        if (signingEventClaimedActiveWalletAuthority(event.payload)) authorityClaims += 1;
+        else warmSessionPlanClaims += 1;
         break;
       case SIGNING_AUTH_PASSKEY_PROMPT_STARTED:
         passkeyPromptStarted = true;
@@ -5094,7 +5097,7 @@ function summarizeSigningAuthEvents(snapshot: IntendedPageSnapshot): SigningAuth
     authenticationMethods,
     remainingUses,
     warmSessionClaimed,
-    activeWalletAuthorityClaimed,
+    activeWalletAuthorityClaimed: authorityClaims > 0 && warmSessionPlanClaims === 0,
     passkeyPromptStarted,
     passkeyPromptSucceeded,
     passkeyAuthenticationComplete,

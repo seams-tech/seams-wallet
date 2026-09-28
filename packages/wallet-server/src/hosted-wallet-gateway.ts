@@ -655,10 +655,12 @@ function stagingLinkedDeviceSessionComposition(
         activationEndpoint: createCloudflareOrdinaryInactiveSignerMaterialActivationEndpointV1({
           fetch: serviceFetch,
           internalServiceAuthSecret,
+          tenant: scope,
         }),
         deactivationEndpoint: createCloudflareOrdinaryInactiveSignerMaterialDeactivationEndpointV1({
           fetch: serviceFetch,
           internalServiceAuthSecret,
+          tenant: scope,
         }),
       },
       sourceContributionRouter: createCloudflareLinkedDeviceEd25519SourcePreservingRouterEndpointV1(

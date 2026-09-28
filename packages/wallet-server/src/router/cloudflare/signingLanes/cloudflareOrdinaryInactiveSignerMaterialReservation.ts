@@ -60,6 +60,29 @@ export const CLOUDFLARE_SIGNING_WORKER_ECDSA_DEACTIVATE_RESERVATION_PATH_V1 =
   '/router-ab/signing-worker/ecdsa-derivation/deactivate-reservation' as const;
 
 /**
+ * The tenant this Gateway serves. With one of its wallets it names the
+ * SigningWorker wallet object that holds that wallet's material, and the
+ * SigningWorker checks the wallet against the source activation it holds.
+ */
+export type CloudflareSigningWorkerTenantV1 = {
+  readonly orgId: string;
+  readonly projectId: string;
+  readonly envId: string;
+};
+
+function signingWorkerWalletScopeWireV1(
+  tenant: CloudflareSigningWorkerTenantV1,
+  walletId: string,
+): Record<string, string> {
+  return {
+    org_id: tenant.orgId,
+    project_id: tenant.projectId,
+    project_environment_id: tenant.envId,
+    wallet_id: walletId,
+  };
+}
+
+/**
  * Boundary for the dedicated ordinary reservation operation. Its response is
  * deliberately unknown until the core reservation parser has checked the
  * family, exact activation reference, inactive state, and package shape.
@@ -158,13 +181,14 @@ export function createCloudflareOrdinaryInactiveSignerMaterialReservationEndpoin
 export function createCloudflareOrdinaryInactiveSignerMaterialActivationEndpointV1(input: {
   readonly fetch: typeof fetch;
   readonly internalServiceAuthSecret: string;
+  readonly tenant: CloudflareSigningWorkerTenantV1;
 }): CloudflareOrdinaryInactiveSignerMaterialActivationEndpointV1 {
   return {
     activateInactiveEd25519SignerMaterialV1: async (request) =>
       await postActivationRequestV1(
         input,
         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_ACTIVATE_RESERVATION_PATH_V1,
-        ed25519ActivationRequestToWireV1(request),
+        ed25519ActivationRequestToWireV1(request, input.tenant),
         'ed25519',
       ),
     activateInactiveEcdsaSignerMaterialV1: async (request) =>
@@ -211,11 +235,19 @@ function ed25519ReservationFromSourceContributionV1(
   };
 }
 
-function ed25519ActivationRequestToWireV1(input: {
-  readonly sourceContribution: OrdinaryEd25519SignerMaterialReservationPreparationV1['sourceContribution'];
-  readonly reservationId: string;
-}): Record<string, unknown> {
+function ed25519ActivationRequestToWireV1(
+  input: {
+    readonly sourceContribution: OrdinaryEd25519SignerMaterialReservationPreparationV1['sourceContribution'];
+    readonly reservationId: string;
+  },
+  tenant: CloudflareSigningWorkerTenantV1,
+): Record<string, unknown> {
   return {
+    // The wallet the installed authority's reserved material belongs to.
+    scope: signingWorkerWalletScopeWireV1(
+      tenant,
+      input.sourceContribution.targetBinding.lifecycle.account_id,
+    ),
     binding: input.sourceContribution.targetBinding,
     reservation_id: input.reservationId,
   };
@@ -508,6 +540,7 @@ async function postRouterJsonRequestV1(
 export function createCloudflareOrdinaryInactiveSignerMaterialDeactivationEndpointV1(input: {
   readonly fetch: typeof fetch;
   readonly internalServiceAuthSecret: string;
+  readonly tenant: CloudflareSigningWorkerTenantV1;
 }): CloudflareOrdinaryInactiveSignerMaterialDeactivationEndpointV1 {
   return {
     deactivateInactiveEd25519SignerMaterialV1: async ({ materialActivation }) =>
@@ -516,6 +549,7 @@ export function createCloudflareOrdinaryInactiveSignerMaterialDeactivationEndpoi
         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_DEACTIVATE_RESERVATION_PATH_V1,
         materialActivation,
         'ed25519',
+        signingWorkerWalletScopeWireV1(input.tenant, String(materialActivation.materialOwner)),
       ),
     deactivateInactiveEcdsaSignerMaterialV1: async ({ materialActivation }) =>
       await postDeactivationRequestV1(
@@ -535,6 +569,7 @@ async function postDeactivationRequestV1(
   path: string,
   materialActivation: MpcMaterialActivationRef,
   keyFamily: 'ed25519' | 'ecdsa_secp256k1',
+  scope?: Record<string, string>,
 ): Promise<unknown> {
   const response = await input.fetch(
     new Request(`https://signing-worker.router-ab.internal${path}`, {
@@ -544,6 +579,7 @@ async function postDeactivationRequestV1(
         'x-router-ab-internal-service-auth': input.internalServiceAuthSecret,
       },
       body: JSON.stringify({
+        ...(scope === undefined ? {} : { scope }),
         material_activation: routerAbMpcMaterialActivationRefToWire(materialActivation),
       }),
     }),

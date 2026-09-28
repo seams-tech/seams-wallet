@@ -248,6 +248,9 @@ impl CloudflareEd25519YaoInactiveReservationRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
+    /// The wallet whose material the reservation is made from. The Router
+    /// derives it from the tenant root the execution was admitted under.
+    pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub source_binding: Ed25519YaoCeremonyBindingV1,
     pub delivery: CloudflareEd25519YaoPackagePairDeliveryV1,
     pub participant_ids: [u16; 2],
@@ -256,7 +259,7 @@ pub struct CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
 }
 
 impl CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
-    fn validate(&self) -> RouterAbProtocolResult<()> {
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
         self.source_binding.validate()?;
         if self.source_binding.operation != Ed25519YaoOperationV1::Registration {
             return Err(invalid_lifecycle(
@@ -277,6 +280,14 @@ impl CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
                 "source-preserving ordinary activation requires a fresh material activation",
             ));
         }
+        self.scope.validate()?;
+        if self.scope.wallet_id != self.source_binding.lifecycle.account_id
+            || self.scope.wallet_id != self.delivery.deriver_a.binding.lifecycle.account_id
+        {
+            return Err(invalid_lifecycle(
+                "source-preserving ordinary activation differs from its wallet scope",
+            ));
+        }
         require_same_stable_identity(&self.source_binding, &self.delivery.deriver_a.binding)
     }
 }
@@ -284,16 +295,25 @@ impl CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoActivateReservationRequestV1 {
+    /// The wallet the reserved material belongs to, from the Gateway's
+    /// authorized installation.
+    pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub binding: Ed25519YaoCeremonyBindingV1,
     pub reservation_id: String,
 }
 
 impl CloudflareEd25519YaoActivateReservationRequestV1 {
-    fn validate(&self) -> RouterAbProtocolResult<()> {
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
         self.binding.validate()?;
         if self.binding.operation != Ed25519YaoOperationV1::Registration {
             return Err(invalid_lifecycle(
                 "ordinary Ed25519 reservation activation requires a registration binding",
+            ));
+        }
+        self.scope.validate()?;
+        if self.scope.wallet_id != self.binding.lifecycle.account_id {
+            return Err(invalid_lifecycle(
+                "ordinary Ed25519 reservation activation differs from its wallet scope",
             ));
         }
         require_non_empty_reservation_id(&self.reservation_id)
@@ -303,12 +323,22 @@ impl CloudflareEd25519YaoActivateReservationRequestV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflareEd25519YaoDeactivateReservationRequestV1 {
+    /// The wallet the reserved material belongs to, from the Gateway's
+    /// authorized revocation.
+    pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub material_activation: router_ab_core::MpcMaterialActivationRefV1,
 }
 
 impl CloudflareEd25519YaoDeactivateReservationRequestV1 {
-    fn validate(&self) -> RouterAbProtocolResult<()> {
-        self.material_activation.validate()
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
+        self.material_activation.validate()?;
+        self.scope.validate()?;
+        if self.scope.wallet_id != self.material_activation.material_owner {
+            return Err(invalid_lifecycle(
+                "ordinary Ed25519 deactivation differs from its wallet scope",
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -464,7 +494,7 @@ enum SigningWorkerYaoCommandResponseV1 {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
-enum SigningWorkerYaoReservationStateV1 {
+pub(crate) enum SigningWorkerYaoReservationStateV1 {
     Inactive {
         delivery: CloudflareEd25519YaoPackagePairDeliveryV1,
         participant_ids: [u16; 2],
@@ -505,7 +535,7 @@ enum SigningWorkerYaoReservationStateV1 {
 }
 
 impl SigningWorkerYaoReservationStateV1 {
-    fn validate(&self) -> RouterAbProtocolResult<()> {
+    pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
         let (delivery, participant_ids, candidate, receipt, reservation_id) = match self {
             Self::Inactive {
                 delivery,
@@ -815,6 +845,15 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_sourc
     >(&mut request)
     .await?;
     reservation.validate()?;
+    // A linked device's material is reserved, activated and revoked with the
+    // wallet's own material, in the wallet object.
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    return crate::durable_object::call_signing_worker_wallet_do_v1(
+        env,
+        crate::durable_object::SigningWorkerWalletDoRequestV1::ReserveLinkedEd25519(reservation),
+    )
+    .await;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     let (
         reservation_id,
         participant_ids,
@@ -822,6 +861,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_sourc
         deriver_a_client_package,
         deriver_b_client_package,
     ) = reserve_source_preserving_inactive_ed25519_yao_v1(env, &reservation).await?;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     json_response(&CloudflareEd25519YaoInactiveReservationResponseV1 {
         state: "inactive".to_owned(),
         reservation_id,
@@ -839,7 +879,15 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_activate_reservation_v
     let activation =
         parse_request::<CloudflareEd25519YaoActivateReservationRequestV1>(&mut request).await?;
     activation.validate()?;
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    return crate::durable_object::call_signing_worker_wallet_do_v1(
+        env,
+        crate::durable_object::SigningWorkerWalletDoRequestV1::ActivateLinkedEd25519(activation),
+    )
+    .await;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     let receipt = activate_ed25519_yao_reservation_v1(env, &activation).await?;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     json_response(&CloudflareEd25519YaoReservationActivationResponseV1 { receipt })
 }
 
@@ -850,7 +898,17 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_deactivate_reservation
     let deactivation =
         parse_request::<CloudflareEd25519YaoDeactivateReservationRequestV1>(&mut request).await?;
     deactivation.validate()?;
+    #[cfg(feature = "wallet-do-signing-worker-harness")]
+    return crate::durable_object::call_signing_worker_wallet_do_v1(
+        env,
+        crate::durable_object::SigningWorkerWalletDoRequestV1::DeactivateLinkedEd25519(
+            deactivation,
+        ),
+    )
+    .await;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     let response = deactivate_ed25519_yao_reservation_v1(env, &deactivation).await?;
+    #[cfg(not(feature = "wallet-do-signing-worker-harness"))]
     json_response(&response)
 }
 
@@ -878,6 +936,271 @@ pub struct CloudflareEd25519YaoReservationDeactivationResponseV1 {
     pub reservation_id: String,
     pub material_activation: router_ab_core::MpcMaterialActivationRefV1,
     pub revoked_at_ms: u64,
+}
+
+/// A reservation of a device's Ed25519 material settled against what its
+/// record holds. Every SigningWorker store settles it this way, then writes
+/// what it decides.
+pub(crate) enum LinkedEd25519ReservationV1 {
+    /// The same reservation again: the stored reservation answers.
+    Answer(CloudflareEd25519YaoInactiveReservationResponseV1),
+    /// Nothing is reserved here yet: the store combines the packages.
+    Reserve,
+}
+
+/// Settles one reservation of `reservation_id`. The same request answers
+/// from what is stored while the material is not yet active; an active or
+/// revoked reservation, or any other record, refuses it.
+pub(crate) fn settle_linked_ed25519_reservation_v1(
+    current: Option<&SigningWorkerYaoReservationStateV1>,
+    reservation_id: &str,
+    delivery: &CloudflareEd25519YaoPackagePairDeliveryV1,
+    participant_ids: [u16; 2],
+    deriver_a_client_package: &Ed25519YaoEncryptedPackageV1,
+    deriver_b_client_package: &Ed25519YaoEncryptedPackageV1,
+) -> RouterAbProtocolResult<LinkedEd25519ReservationV1> {
+    let Some(current) = current else {
+        return Ok(LinkedEd25519ReservationV1::Reserve);
+    };
+    current.validate()?;
+    match current {
+        SigningWorkerYaoReservationStateV1::Inactive {
+            delivery: stored_delivery,
+            participant_ids: stored_participant_ids,
+            deriver_a_client_package: stored_a,
+            deriver_b_client_package: stored_b,
+            receipt,
+            reservation_id: stored_id,
+            ..
+        }
+        | SigningWorkerYaoReservationStateV1::Activating {
+            delivery: stored_delivery,
+            participant_ids: stored_participant_ids,
+            deriver_a_client_package: stored_a,
+            deriver_b_client_package: stored_b,
+            receipt,
+            reservation_id: stored_id,
+            ..
+        } if stored_id == reservation_id
+            && stored_delivery == delivery
+            && *stored_participant_ids == participant_ids
+            && stored_a == deriver_a_client_package
+            && stored_b == deriver_b_client_package =>
+        {
+            Ok(LinkedEd25519ReservationV1::Answer(
+                CloudflareEd25519YaoInactiveReservationResponseV1 {
+                    state: "inactive".to_owned(),
+                    reservation_id: stored_id.clone(),
+                    participant_ids: *stored_participant_ids,
+                    activation_receipt: public_activation_receipt_v1(
+                        &stored_delivery.deriver_a.binding,
+                        receipt,
+                    )?,
+                    deriver_a_client_package: stored_a.clone(),
+                    deriver_b_client_package: stored_b.clone(),
+                },
+            ))
+        }
+        SigningWorkerYaoReservationStateV1::Active {
+            delivery: stored_delivery,
+            participant_ids: stored_participant_ids,
+            deriver_a_client_package: stored_a,
+            deriver_b_client_package: stored_b,
+            reservation_id: stored_id,
+            ..
+        } if stored_delivery == delivery
+            && stored_id == reservation_id
+            && *stored_participant_ids == participant_ids
+            && stored_a == deriver_a_client_package
+            && stored_b == deriver_b_client_package =>
+        {
+            Err(invalid_lifecycle(
+                "ordinary Ed25519 material reservation is already active",
+            ))
+        }
+        SigningWorkerYaoReservationStateV1::Revoked {
+            binding: stored_binding,
+            reservation_id: stored_id,
+            ..
+        } if stored_binding.material_activation
+            == delivery.deriver_a.binding.material_activation
+            && stored_id == reservation_id =>
+        {
+            Err(invalid_lifecycle(
+                "ordinary Ed25519 material reservation is revoked",
+            ))
+        }
+        _ => Err(invalid_lifecycle(
+            "ordinary Ed25519 material reservation conflicts with the exact activation ref",
+        )),
+    }
+}
+
+/// An activation of reserved Ed25519 material settled against its record.
+pub(crate) enum LinkedEd25519ActivationV1 {
+    /// Active already, for this request: its receipt answers.
+    Answer(Ed25519YaoSigningWorkerActivationReceiptV1),
+    /// Reserved and not yet active: the store activates it.
+    Activate,
+}
+
+/// Settles one activation: only the exact reservation activates, a revoked
+/// one never does, and an active one answers again.
+pub(crate) fn settle_linked_ed25519_activation_v1(
+    current: &SigningWorkerYaoReservationStateV1,
+    request: &CloudflareEd25519YaoActivateReservationRequestV1,
+) -> RouterAbProtocolResult<LinkedEd25519ActivationV1> {
+    current.validate()?;
+    let conflict = || {
+        invalid_lifecycle(
+            "ordinary Ed25519 reservation activation conflicts with the exact reservation",
+        )
+    };
+    match current {
+        SigningWorkerYaoReservationStateV1::Active {
+            delivery,
+            receipt,
+            reservation_id,
+            ..
+        } => {
+            if *reservation_id != request.reservation_id
+                || delivery.deriver_a.binding != request.binding
+            {
+                return Err(conflict());
+            }
+            Ok(LinkedEd25519ActivationV1::Answer(receipt.clone()))
+        }
+        SigningWorkerYaoReservationStateV1::Inactive {
+            delivery,
+            reservation_id,
+            ..
+        }
+        | SigningWorkerYaoReservationStateV1::Activating {
+            delivery,
+            reservation_id,
+            ..
+        } => {
+            if *reservation_id != request.reservation_id
+                || delivery.deriver_a.binding != request.binding
+            {
+                return Err(conflict());
+            }
+            Ok(LinkedEd25519ActivationV1::Activate)
+        }
+        SigningWorkerYaoReservationStateV1::Deactivating {
+            binding,
+            reservation_id,
+            ..
+        } => {
+            if *reservation_id != request.reservation_id || *binding != request.binding {
+                return Err(conflict());
+            }
+            Err(invalid_lifecycle(
+                "ordinary Ed25519 material reservation is being deactivated",
+            ))
+        }
+        SigningWorkerYaoReservationStateV1::Revoked {
+            binding,
+            reservation_id,
+            ..
+        } => {
+            if *reservation_id != request.reservation_id || *binding != request.binding {
+                return Err(conflict());
+            }
+            Err(invalid_lifecycle(
+                "ordinary Ed25519 material reservation is revoked",
+            ))
+        }
+    }
+}
+
+/// A revocation of reserved Ed25519 material settled against its record.
+pub(crate) enum LinkedEd25519DeactivationV1 {
+    /// Revoked already: the stored revocation answers.
+    Revoked {
+        binding: Ed25519YaoCeremonyBindingV1,
+        reservation_id: String,
+        revoked_at_ms: u64,
+    },
+    /// A revocation begun here and not yet finished: the store finishes it.
+    Resume {
+        binding: Ed25519YaoCeremonyBindingV1,
+        reservation_id: String,
+        revoked_at_ms: u64,
+    },
+    /// Reserved or active: the store revokes it now.
+    Revoke {
+        binding: Ed25519YaoCeremonyBindingV1,
+        reservation_id: String,
+    },
+}
+
+/// Settles one revocation of the exact activation `material_activation`.
+pub(crate) fn settle_linked_ed25519_deactivation_v1(
+    current: &SigningWorkerYaoReservationStateV1,
+    material_activation: &router_ab_core::MpcMaterialActivationRefV1,
+) -> RouterAbProtocolResult<LinkedEd25519DeactivationV1> {
+    current.validate()?;
+    let matches = |binding: &Ed25519YaoCeremonyBindingV1, reservation_id: &str| {
+        reservation_id_matches_material_activation_v1(reservation_id, material_activation)
+            && binding.material_activation == *material_activation
+    };
+    let conflict = || {
+        invalid_lifecycle("ordinary Ed25519 deactivation conflicts with the exact activation ref")
+    };
+    match current {
+        SigningWorkerYaoReservationStateV1::Revoked {
+            binding,
+            reservation_id,
+            revoked_at_ms,
+        } => {
+            if !matches(binding, reservation_id) {
+                return Err(conflict());
+            }
+            Ok(LinkedEd25519DeactivationV1::Revoked {
+                binding: binding.clone(),
+                reservation_id: reservation_id.clone(),
+                revoked_at_ms: *revoked_at_ms,
+            })
+        }
+        SigningWorkerYaoReservationStateV1::Deactivating {
+            binding,
+            reservation_id,
+            revoked_at_ms,
+        } => {
+            if !matches(binding, reservation_id) {
+                return Err(conflict());
+            }
+            Ok(LinkedEd25519DeactivationV1::Resume {
+                binding: binding.clone(),
+                reservation_id: reservation_id.clone(),
+                revoked_at_ms: *revoked_at_ms,
+            })
+        }
+        SigningWorkerYaoReservationStateV1::Inactive {
+            delivery,
+            reservation_id,
+            ..
+        }
+        | SigningWorkerYaoReservationStateV1::Activating {
+            delivery,
+            reservation_id,
+            ..
+        }
+        | SigningWorkerYaoReservationStateV1::Active {
+            delivery,
+            reservation_id,
+            ..
+        } => {
+            if !matches(&delivery.deriver_a.binding, reservation_id) {
+                return Err(conflict());
+            }
+            Ok(LinkedEd25519DeactivationV1::Revoke {
+                binding: delivery.deriver_a.binding.clone(),
+                reservation_id: reservation_id.clone(),
+            })
+        }
+    }
 }
 
 async fn reserve_inactive_ed25519_yao_v1(
@@ -910,6 +1233,7 @@ async fn reserve_inactive_ed25519_yao_v1(
     .await
 }
 
+#[cfg(not(feature = "wallet-do-signing-worker-harness"))]
 async fn reserve_source_preserving_inactive_ed25519_yao_v1(
     env: &Env,
     request: &CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
@@ -958,88 +1282,21 @@ async fn reserve_inactive_ed25519_yao_parts_v1(
             SigningWorkerYaoReservationStateV1,
         >(env, "ed25519_yao_reservations", &record_key)
         .await?;
-        if let Some(current) = current.as_ref() {
-            current.value.validate()?;
-            match &current.value {
-                SigningWorkerYaoReservationStateV1::Inactive {
-                    delivery: stored_delivery,
-                    participant_ids,
-                    deriver_a_client_package: stored_deriver_a_client_package,
-                    deriver_b_client_package: stored_deriver_b_client_package,
-                    receipt,
-                    reservation_id: stored_id,
-                    ..
-                } if stored_id == &reservation_id
-                    && stored_delivery == delivery
-                    && participant_ids == &target_participant_ids
-                    && stored_deriver_a_client_package == deriver_a_client_package
-                    && stored_deriver_b_client_package == deriver_b_client_package =>
-                {
-                    return Ok((
-                        reservation_id.clone(),
-                        *participant_ids,
-                        public_activation_receipt_v1(&stored_delivery.deriver_a.binding, receipt)?,
-                        stored_deriver_a_client_package.clone(),
-                        stored_deriver_b_client_package.clone(),
-                    ));
-                }
-                SigningWorkerYaoReservationStateV1::Activating {
-                    delivery: stored_delivery,
-                    participant_ids,
-                    deriver_a_client_package: stored_deriver_a_client_package,
-                    deriver_b_client_package: stored_deriver_b_client_package,
-                    receipt,
-                    reservation_id: stored_id,
-                    ..
-                } if stored_id == &reservation_id
-                    && stored_delivery == delivery
-                    && participant_ids == &target_participant_ids
-                    && stored_deriver_a_client_package == deriver_a_client_package
-                    && stored_deriver_b_client_package == deriver_b_client_package =>
-                {
-                    return Ok((
-                        reservation_id.clone(),
-                        *participant_ids,
-                        public_activation_receipt_v1(&stored_delivery.deriver_a.binding, receipt)?,
-                        stored_deriver_a_client_package.clone(),
-                        stored_deriver_b_client_package.clone(),
-                    ));
-                }
-                SigningWorkerYaoReservationStateV1::Active {
-                    delivery: stored_delivery,
-                    participant_ids,
-                    deriver_a_client_package: stored_deriver_a_client_package,
-                    deriver_b_client_package: stored_deriver_b_client_package,
-                    reservation_id: stored_id,
-                    ..
-                } if stored_delivery == delivery
-                    && stored_id == &reservation_id
-                    && participant_ids == &target_participant_ids
-                    && stored_deriver_a_client_package == deriver_a_client_package
-                    && stored_deriver_b_client_package == deriver_b_client_package =>
-                {
-                    return Err(invalid_lifecycle(
-                        "ordinary Ed25519 material reservation is already active",
-                    ));
-                }
-                SigningWorkerYaoReservationStateV1::Revoked {
-                    binding: stored_binding,
-                    reservation_id: stored_id,
-                    ..
-                } if stored_binding.material_activation
-                    == delivery.deriver_a.binding.material_activation
-                    && stored_id == &reservation_id =>
-                {
-                    return Err(invalid_lifecycle(
-                        "ordinary Ed25519 material reservation is revoked",
-                    ));
-                }
-                _ => {
-                    return Err(invalid_lifecycle(
-                        "ordinary Ed25519 material reservation conflicts with the exact activation ref",
-                    ));
-                }
-            }
+        if let LinkedEd25519ReservationV1::Answer(answer) = settle_linked_ed25519_reservation_v1(
+            current.as_ref().map(|current| &current.value),
+            &reservation_id,
+            delivery,
+            target_participant_ids,
+            deriver_a_client_package,
+            deriver_b_client_package,
+        )? {
+            return Ok((
+                answer.reservation_id,
+                answer.participant_ids,
+                answer.activation_receipt,
+                answer.deriver_a_client_package,
+                answer.deriver_b_client_package,
+            ));
         }
         let candidate = match source_binding {
             Some(source_binding) => {
@@ -1086,6 +1343,7 @@ async fn reserve_inactive_ed25519_yao_parts_v1(
     ))
 }
 
+#[cfg(not(feature = "wallet-do-signing-worker-harness"))]
 async fn activate_ed25519_yao_reservation_v1(
     env: &Env,
     request: &CloudflareEd25519YaoActivateReservationRequestV1,
@@ -1117,23 +1375,12 @@ async fn activate_ed25519_yao_reservation_v1(
                 "ordinary Ed25519 material reservation is missing",
             ));
         };
-        current.value.validate()?;
+        if let LinkedEd25519ActivationV1::Answer(receipt) =
+            settle_linked_ed25519_activation_v1(&current.value, request)?
+        {
+            return Ok(receipt);
+        }
         match current.value {
-            SigningWorkerYaoReservationStateV1::Active {
-                delivery,
-                receipt,
-                reservation_id,
-                ..
-            } => {
-                if reservation_id != request.reservation_id
-                    || delivery.deriver_a.binding != request.binding
-                {
-                    return Err(invalid_lifecycle(
-                        "ordinary Ed25519 reservation activation conflicts with the exact reservation",
-                    ));
-                }
-                return Ok(receipt);
-            }
             SigningWorkerYaoReservationStateV1::Inactive {
                 delivery,
                 participant_ids,
@@ -1143,13 +1390,6 @@ async fn activate_ed25519_yao_reservation_v1(
                 receipt,
                 reservation_id,
             } => {
-                if reservation_id != request.reservation_id
-                    || delivery.deriver_a.binding != request.binding
-                {
-                    return Err(invalid_lifecycle(
-                        "ordinary Ed25519 reservation activation conflicts with the exact reservation",
-                    ));
-                }
                 let activating = SigningWorkerYaoReservationStateV1::Activating {
                     delivery,
                     participant_ids,
@@ -1185,13 +1425,6 @@ async fn activate_ed25519_yao_reservation_v1(
                 receipt,
                 reservation_id,
             } => {
-                if reservation_id != request.reservation_id
-                    || delivery.deriver_a.binding != request.binding
-                {
-                    return Err(invalid_lifecycle(
-                        "ordinary Ed25519 reservation activation conflicts with the exact reservation",
-                    ));
-                }
                 persist_signing_worker_yao_active_output_v1(env, &candidate, &receipt).await?;
                 let active = SigningWorkerYaoReservationStateV1::Active {
                     delivery,
@@ -1268,33 +1501,10 @@ async fn activate_ed25519_yao_reservation_v1(
                     Err(error) => return Err(error),
                 }
             }
-            SigningWorkerYaoReservationStateV1::Deactivating {
-                binding,
-                reservation_id,
-                ..
-            } => {
-                if reservation_id != request.reservation_id || binding != request.binding {
-                    return Err(invalid_lifecycle(
-                        "ordinary Ed25519 reservation activation conflicts with the exact reservation",
-                    ));
-                }
+            _ => {
                 return Err(invalid_lifecycle(
-                    "ordinary Ed25519 material reservation is being deactivated",
-                ));
-            }
-            SigningWorkerYaoReservationStateV1::Revoked {
-                binding,
-                reservation_id,
-                ..
-            } => {
-                if reservation_id != request.reservation_id || binding != request.binding {
-                    return Err(invalid_lifecycle(
-                        "ordinary Ed25519 reservation activation conflicts with the exact reservation",
-                    ));
-                }
-                return Err(invalid_lifecycle(
-                    "ordinary Ed25519 material reservation is revoked",
-                ));
+                    "ordinary Ed25519 reservation activation changed concurrently",
+                ))
             }
         }
     }
@@ -1303,6 +1513,7 @@ async fn activate_ed25519_yao_reservation_v1(
     ))
 }
 
+#[cfg(not(feature = "wallet-do-signing-worker-harness"))]
 async fn deactivate_ed25519_yao_reservation_v1(
     env: &Env,
     request: &CloudflareEd25519YaoDeactivateReservationRequestV1,
@@ -1317,44 +1528,28 @@ async fn deactivate_ed25519_yao_reservation_v1(
         >(env, "ed25519_yao_reservations", &record_key)
         .await?
         .ok_or_else(|| invalid_lifecycle("ordinary Ed25519 material reservation is missing"))?;
-        current.value.validate()?;
-        let (binding, reservation_id, revoked_at_ms) = match current.value {
-            SigningWorkerYaoReservationStateV1::Revoked {
+        let (binding, reservation_id, revoked_at_ms) = match settle_linked_ed25519_deactivation_v1(
+            &current.value,
+            &request.material_activation,
+        )? {
+            LinkedEd25519DeactivationV1::Revoked {
                 binding,
-                reservation_id: stored_id,
+                reservation_id,
                 revoked_at_ms,
             } => {
-                if !reservation_id_matches_material_activation_v1(
-                    &stored_id,
-                    &request.material_activation,
-                ) || binding.material_activation != request.material_activation
-                {
-                    return Err(invalid_lifecycle(
-                        "ordinary Ed25519 deactivation conflicts with the exact activation ref",
-                    ));
-                }
                 delete_cloudflare_signing_worker_output_activation_by_active_key_v1(
                     env,
                     &active_key,
                     &request.material_activation,
                 )
                 .await?;
-                (binding, stored_id, revoked_at_ms)
+                (binding, reservation_id, revoked_at_ms)
             }
-            SigningWorkerYaoReservationStateV1::Deactivating {
+            LinkedEd25519DeactivationV1::Resume {
                 binding,
-                reservation_id: stored_id,
+                reservation_id,
                 revoked_at_ms,
             } => {
-                if !reservation_id_matches_material_activation_v1(
-                    &stored_id,
-                    &request.material_activation,
-                ) || binding.material_activation != request.material_activation
-                {
-                    return Err(invalid_lifecycle(
-                        "ordinary Ed25519 deactivation conflicts with the exact activation ref",
-                    ));
-                }
                 delete_cloudflare_signing_worker_output_activation_by_active_key_v1(
                     env,
                     &active_key,
@@ -1363,7 +1558,7 @@ async fn deactivate_ed25519_yao_reservation_v1(
                 .await?;
                 let revoked = SigningWorkerYaoReservationStateV1::Revoked {
                     binding: binding.clone(),
-                    reservation_id: stored_id.clone(),
+                    reservation_id: reservation_id.clone(),
                     revoked_at_ms,
                 };
                 match compare_and_set_cloudflare_signing_worker_private_d1_secret_v1(
@@ -1379,40 +1574,18 @@ async fn deactivate_ed25519_yao_reservation_v1(
                     Err(error) if error.code() == RouterAbProtocolErrorCode::ConflictingPair => {
                         continue
                     }
-                    Ok(()) => (binding, stored_id, revoked_at_ms),
+                    Ok(()) => (binding, reservation_id, revoked_at_ms),
                     Err(error) => return Err(error),
                 }
             }
-            SigningWorkerYaoReservationStateV1::Inactive {
-                delivery,
-                reservation_id: stored_id,
-                ..
-            }
-            | SigningWorkerYaoReservationStateV1::Activating {
-                delivery,
-                reservation_id: stored_id,
-                ..
-            }
-            | SigningWorkerYaoReservationStateV1::Active {
-                delivery,
-                reservation_id: stored_id,
-                ..
+            LinkedEd25519DeactivationV1::Revoke {
+                binding,
+                reservation_id,
             } => {
-                if !reservation_id_matches_material_activation_v1(
-                    &stored_id,
-                    &request.material_activation,
-                ) || delivery.deriver_a.binding.material_activation
-                    != request.material_activation
-                {
-                    return Err(invalid_lifecycle(
-                        "ordinary Ed25519 deactivation conflicts with the exact activation ref",
-                    ));
-                }
-                let binding = delivery.deriver_a.binding.clone();
                 let revoked_at_ms = cloudflare_now_unix_ms_v1()?;
                 let deactivating = SigningWorkerYaoReservationStateV1::Deactivating {
-                    binding: binding.clone(),
-                    reservation_id: stored_id.clone(),
+                    binding,
+                    reservation_id,
                     revoked_at_ms,
                 };
                 match compare_and_set_cloudflare_signing_worker_private_d1_secret_v1(
@@ -1493,13 +1666,13 @@ fn reservation_record_key_v1(
     reservation_record_key_from_binding_v1(&delivery.deriver_a.binding)
 }
 
-fn reservation_record_key_from_binding_v1(
+pub(crate) fn reservation_record_key_from_binding_v1(
     binding: &Ed25519YaoCeremonyBindingV1,
 ) -> RouterAbProtocolResult<String> {
     reservation_record_key_from_material_activation_v1(binding.material_activation())
 }
 
-fn reservation_record_key_from_material_activation_v1(
+pub(crate) fn reservation_record_key_from_material_activation_v1(
     material_activation: &router_ab_core::MpcMaterialActivationRefV1,
 ) -> RouterAbProtocolResult<String> {
     let canonical = serde_json::to_vec(material_activation).map_err(|_| {
@@ -1583,7 +1756,7 @@ async fn load_source_active_material_from_lifecycle_v1(
     }
 }
 
-fn source_preserving_reservation_id_v1(
+pub(crate) fn source_preserving_reservation_id_v1(
     source_binding: &Ed25519YaoCeremonyBindingV1,
     delivery: &CloudflareEd25519YaoPackagePairDeliveryV1,
 ) -> RouterAbProtocolResult<String> {
@@ -2352,7 +2525,7 @@ fn validate_participant_ids_v1(participant_ids: [u16; 2]) -> RouterAbProtocolRes
     Ok(())
 }
 
-fn public_activation_receipt_v1(
+pub(crate) fn public_activation_receipt_v1(
     binding: &Ed25519YaoCeremonyBindingV1,
     receipt: &Ed25519YaoSigningWorkerActivationReceiptV1,
 ) -> RouterAbProtocolResult<RouterAbEd25519YaoActivationPublicReceiptV1> {
@@ -2526,6 +2699,13 @@ mod tests {
         );
         let delivery = source_preserving_test_delivery(target_binding.clone());
         let request = CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
+            scope: CloudflareSigningWorkerWalletScopeV1::new(
+                "org",
+                "project",
+                "environment",
+                target_binding.lifecycle.account_id.clone(),
+            )
+            .expect("wallet scope"),
             source_binding: source_binding.clone(),
             delivery,
             participant_ids: [1, 2],

@@ -1840,6 +1840,14 @@ async fn finalize_router_result_v1(
                         CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH,
                         "SigningWorker source-preserving Yao reservation",
                         &CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
+                            // The wallet the admitted binding names, under
+                            // the tenant root this execution was admitted
+                            // with: the SigningWorker checks it against the
+                            // source activation it holds.
+                            scope: CloudflareSigningWorkerWalletScopeV1::from_tenant_root(
+                                root_identity,
+                                &binding.lifecycle.account_id,
+                            )?,
                             source_binding: source_binding.clone(),
                             delivery,
                             participant_ids: *participant_ids,
