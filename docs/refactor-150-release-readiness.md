@@ -40,31 +40,40 @@ boundary.
 
 ## Consolidated verification
 
+The latest consolidated run is at commit f2d1627, after slices 8 to 11.
+
 Rust:
-- `router-ab-dev`: 124 tests passed, none failed.
-- `router-ab-cloudflare` native tests: 469 passed, none failed.
+- `router-ab-dev`: 124 tests passed, none failed. In the run itself one test
+  failed: it pins the VM Router's owned paths and did not yet name the
+  source-preserving execute route. 42816f7 adds it, and all 124 then pass.
+- `router-ab-cloudflare` native tests: 486 passed, none failed.
 
-TypeScript: the wallet server and the intended E2E suite type-check.
+TypeScript: the wallet server, the wallet SDK and the intended E2E suite
+type-check.
 
-Intended contracts: every contract that can run here, 47 of the suite's 70,
+Intended contracts: every contract that can run here, 50 of the suite's 73,
 on each host.
 
-| Host | Passed | Failed |
-| --- | --- | --- |
-| VM | 43 | 4 |
-| Wallet-object build | 43 | 4 |
-| Workers D1 | 43 | 4 |
+| Host | Passed | Failed | Skipped |
+| --- | --- | --- | --- |
+| VM | 49 | 0 | 1 |
+| Wallet-object build | 49 | 0 | 1 |
+| Workers D1 | 49 | 1 | 0 |
 
-The same four contracts failed on every host in that run; all four were
-repaired and pass on every host since (below). Each run's persisted traces
-are kept with the run, outside the repository.
+- The skipped contract is slice 10's commit fence. Only Workers D1 has that
+  window, and it passes there.
+- The Workers D1 failure was intermittent. "sustained Tempo and Arc signing
+  uses fresh presignatures beyond pool capacity" failed once: the client
+  reported "exact ECDSA Wallet Session is unavailable" at step-up Arc
+  signing. It passed twice when rerun alone, passes on the other hosts, and
+  passed in every earlier run. The failing check reads only the browser's
+  own session state. It has not been investigated further.
 
-Slices 8 to 10 came after this run. Slice 8's contract and the retirement
-contract passed on all three hosts after slice 8. Slice 9 changed the late
-attempt contract to expect a refusal, and it passes on all three hosts.
-Slice 10's contract passes on Workers D1, the only host with that window,
-and the retirement contract passes there again. The rest of the suite was not
-rerun for these slices.
+Each run's persisted traces are kept with the run, outside the repository.
+
+The first consolidated run, before slices 8 to 11, passed 43 of 47 on each
+host. The same four contracts failed on every host, and all four were
+repaired (below).
 
 Not run: the 23 Email OTP and Google-backed contracts. Those flows need a
 Google ID token, and this environment has none. Minting one impersonates a
@@ -73,7 +82,9 @@ service account with the user's Google Cloud credentials. The contracts are:
 - `passkey.add-email-otp`;
 - the Email-only, Combined and Email OTP cases of `passkey.recovery`.
 
-The new Email OTP export replay contract is among them.
+Among them are the Email OTP export replay contract and the extended
+auth-method addition contracts, which lose the finalize answer and check
+that a revoked method is refused.
 
 ## Contracts that failed, classified
 
@@ -127,9 +138,10 @@ their repair.
 ## Before the managed milestone
 
 - Phase 2 auth-method addition and revocation, per the
-  [plan](./refactor-150-regional-wallet-home-lanes.md#required-device-linking-and-auth-method-work).
-  Device linking passes its contract on every host; the consolidated run
-  has not included it yet.
+  [plan](./refactor-150-regional-wallet-home-lanes.md#required-device-linking-and-auth-method-work):
+  addition and revocation touch only the Gateway's shared SQL, and the
+  extended contracts need the Email OTP run below. Device linking passes on
+  every host, in the consolidated run too.
 - An Email OTP run with a Google ID token.
 - The review items the cross-owner plan leaves open. Explicit recovery
   abandonment stays deferred.
