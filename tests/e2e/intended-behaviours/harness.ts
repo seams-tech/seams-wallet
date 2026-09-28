@@ -195,6 +195,13 @@ const LOCAL_INTENDED_YAO_SIGNING_FAULT_HEADER_V1 = 'x-seams-intended-yao-signing
 const LOCAL_INTENDED_YAO_SIGNING_FAULT_TOKEN_HEADER_V1 =
   'x-seams-intended-yao-signing-fault-token-v1';
 const ROUTER_AB_ED25519_SIGNING_FINALIZE_PATH = '/router-ab/ed25519/sign';
+const GOOGLE_EMAIL_OTP_VERIFY_PATH_V1 = '/auth/google/verify';
+/* The Gateway steps of an Email OTP unlock after Google verification. */
+const EMAIL_OTP_UNLOCK_GATEWAY_PATHS_V1: ReadonlySet<string> = new Set([
+  '/wallet/email-otp/challenge',
+  '/wallet/email-otp/factor-release',
+  '/wallet/unlock/verify',
+]);
 const LOCAL_INTENDED_LINK_EXECUTE_FAULT_HEADER_V1 = 'x-seams-intended-link-execute-fault-v1';
 const LOCAL_INTENDED_LINK_EXECUTE_FAULT_TOKEN_HEADER_V1 =
   'x-seams-intended-link-execute-fault-token-v1';
@@ -2272,26 +2279,101 @@ export class IntendedBehaviourHarness {
 
   /**
    * The wallet's Email OTP method was revoked: a fresh code must no longer
-   * open the wallet. `registered` names a wallet registered with Email OTP,
-   * `added` one that gained the method later.
+   * open the wallet, and the refusal must come from the revocation, not from
+   * some unrelated failure.
+   * - `registered`, a wallet registered with Email OTP: the auth menu still
+   *   offers Google for it, so the Gateway's Google verification must refuse
+   *   this wallet, whose Email OTP enrollment the revocation removed.
+   * - `added`, a wallet that gained the method later: its session no longer
+   *   lists the method, so the unlock finds no Email OTP method to open.
+   * Either way the unlock never reaches an Email OTP challenge, a factor
+   * release or an unlock verification.
    */
   async assertRevokedEmailOtpCannotUnlock(method: 'registered' | 'added'): Promise<void> {
     this.recordStage(`revoked_${method}_email_otp_unlock_refused`);
     await this.resetRuntimeOnlyState();
-    const snapshot =
+    const traceStartIndex = this.trace.length;
+    const refusal =
       method === 'registered'
-        ? await this.runIntendedPageAction('unlockEmailOtpWallet', 'intended-unlock-email-otp', {
-            expectedOutcome: 'error',
-          })
-        : await this.runIntendedPageAction(
-            'unlockWithAddedEmailOtp',
-            'intended-unlock-added-email-otp',
-            { expectedOutcome: 'error' },
-          );
-    if (snapshot.action.status !== 'error') {
-      throw new Error(`revoked Email OTP unlock ended with ${snapshot.action.status}`);
+        ? await this.refuseRevokedRegisteredEmailOtpUnlock()
+        : await this.refuseRevokedAddedEmailOtpUnlock();
+    const reached = this.trace
+      .slice(traceStartIndex)
+      .filter(isRequestTraceEntry)
+      .map((entry) => routePathAtRouter(entry.url, this.config.routerUrl))
+      .filter(
+        (path): path is string => path !== null && EMAIL_OTP_UNLOCK_GATEWAY_PATHS_V1.has(path),
+      );
+    if (reached.length > 0) {
+      throw new Error(`revoked Email OTP unlock still reached ${reached.join(', ')}`);
     }
-    this.recordService(`revoked Email OTP unlock refused: ${snapshot.action.error}`);
+    this.recordService(`revoked ${method} Email OTP unlock refused: ${refusal}`);
+  }
+
+  /**
+   * The Gateway answers the Google verification without this wallet: on
+   * fresh services no wallet is enrolled for the Google identity any more
+   * (`stale_identity_mapping` naming this wallet); where another wallet is
+   * enrolled for it, the answer names that one. The menu keeps the refusal on
+   * screen and never settles, so the harness closes it.
+   */
+  private async refuseRevokedRegisteredEmailOtpUnlock(): Promise<string> {
+    const verification = this.page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        routePathAtRouter(response.url(), this.config.routerUrl) ===
+          GOOGLE_EMAIL_OTP_VERIFY_PATH_V1,
+      { timeout: 60_000 },
+    );
+    const action = this.runIntendedPageAction('unlockEmailOtpWallet', 'intended-unlock-email-otp', {
+      expectedOutcome: 'error',
+    });
+    /* Settled below, once the menu is closed. */
+    action.catch(() => undefined);
+    const response = await verification;
+    const answer = (await response.json().catch(() => null)) as {
+      readonly code?: unknown;
+      readonly walletId?: unknown;
+    } | null;
+    const refusedHere =
+      response.status() === 400 &&
+      answer?.code === 'stale_identity_mapping' &&
+      answer.walletId === this.walletId;
+    const answeredAnotherWallet =
+      response.ok() && typeof answer?.walletId === 'string' && answer.walletId !== this.walletId;
+    if (!refusedHere && !answeredAnotherWallet) {
+      throw new Error(
+        `revoked Email OTP verification answered ${response.status()}: ${JSON.stringify(answer)}`,
+      );
+    }
+    await this.page
+      .locator('iframe[allow*="publickey-credentials-get"]')
+      .last()
+      .contentFrame()
+      .locator('.auth-menu-root')
+      .press('Escape');
+    const snapshot = await action;
+    const detail = snapshot.action.status === 'error' ? snapshot.action.error : '';
+    if (detail !== 'Google Email OTP unlock ended with cancelled') {
+      throw new Error(`revoked Email OTP unlock ended for another reason: ${detail}`);
+    }
+    return refusedHere
+      ? `Google verification found no enrollment for ${this.walletId}`
+      : `Google verification answered wallet ${String(answer?.walletId)}`;
+  }
+
+  /** The wallet's session no longer lists the revoked method. */
+  private async refuseRevokedAddedEmailOtpUnlock(): Promise<string> {
+    const snapshot = await this.runIntendedPageAction(
+      'unlockWithAddedEmailOtp',
+      'intended-unlock-added-email-otp',
+      { expectedOutcome: 'error' },
+    );
+    const detail = snapshot.action.status === 'error' ? snapshot.action.error : '';
+    if (detail !== 'added email-code unlock needs one email method, found 0') {
+      throw new Error(`revoked added Email OTP unlock ended for another reason: ${detail}`);
+    }
+    return 'the wallet lists no Email OTP method';
   }
 
   /**
