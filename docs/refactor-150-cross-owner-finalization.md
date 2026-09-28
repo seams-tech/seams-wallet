@@ -1,6 +1,6 @@
 # R150 cross-owner Yao finalization, recovery and export
 
-Status: slices 1 to 8 implemented (2026-09-27/28, see below).
+Status: slices 1 to 9 implemented (2026-09-27/28, see below).
 - The Router owns each registration's execution record.
 - Registration and add-signer finalize through one decision row per
   lifecycle.
@@ -8,8 +8,9 @@ Status: slices 1 to 8 implemented (2026-09-27/28, see below).
 - An export authorizes in one commit.
 - A recovery runs on the SigningWorker wallet object, and retires the
   activation it replaces on every host.
-- Each recovery attempt keeps its own staged candidate, so a late attempt
-  displaces nothing (slice 8).
+- The SigningWorker stages the candidate of a recovery's highest attempt,
+  by the Gateway's attempt number, so a late superseded attempt is refused
+  (slice 9, which replaces slice 8's per-attempt candidates).
 
 The lifecycle-keyed ceremony records stay in Gateway D1 next to the
 tenant-wide `router-ab-ed25519-yao:shared` record. That is the final
@@ -553,6 +554,51 @@ Run against the previous SigningWorker on the VM, the same contract failed
 at step 4: the SigningWorker refused the promotion (`recovery/promote`
 returned 400, and the activation 502). The replaced-activation retirement
 contract of slice 6 also passes again on all three hosts with this change.
+
+### Slice 9: the Gateway's attempt number decides which candidate stays (2026-09-28)
+
+A review of slice 8 found that its list still dropped candidates by arrival
+order. Enough late deliveries from superseded attempts could drop the
+current attempt's candidate, and the recovery would stick again. Only the
+Gateway knows which attempt is current, so the SigningWorker now keeps a
+candidate by the Gateway's attempt number, not by when it arrived.
+- The Gateway numbers each attempt of a recovery. The first attempt is 1,
+  and an attempt that supersedes another takes the next number. The Gateway
+  supersedes only attempts that have not begun activating (slice 4), so its
+  current attempt always has the highest number it has issued.
+- The number rides in the recovery's execute target, where the Router's
+  authorization digest commits it. The Router passes it with the packages it
+  delivers to the SigningWorker.
+- A staged recovery holds one candidate: that of the highest attempt
+  delivered. A lower attempt is refused as superseded, however late it
+  arrives. A higher attempt takes the staged candidate's place, since the
+  Gateway can no longer promote the lower one. The same deliveries answer
+  again, and different deliveries under a staged attempt's number are
+  refused.
+- A promotion promotes the staged candidate only when its binding matches
+  exactly. Another attempt of a recovery that already promoted stays stale.
+
+The D1 SigningWorker and the wallet object share this in the recovery
+transitions, and the VM state machine does the same. Slice 8's list and its
+limit of eight are gone.
+
+**Evidence (2026-09-28).** The slice 8 contract now expects the late attempt
+to be refused: "a superseded recovery attempt that reaches the SigningWorker
+late is refused, and the current attempt signs". It passes on the VM, the
+wallet-object build and Workers D1.
+1. As in slice 8, the first attempt's execution is kept from the Router, and
+   a retry supersedes it, executes and stages. Its activation is held.
+2. The kept execution reaches the Router, which runs it. The SigningWorker
+   refuses its packages, and the contract requires that refusal to come from
+   the SigningWorker. The VM Router answers `recoverable_failure`
+   (`signing_worker_uncertain`). The Workers Routers answer 500, naming the
+   SigningWorker delivery's HTTP 400.
+3. The retry's activation goes on, promotes, and the recovered wallet signs.
+
+Under slice 8 the same late execution answered `succeeded` (above), which
+this contract now fails. Neither Router passes the SigningWorker's reason
+on, and the two Routers answer the refusal differently. The late answer goes
+to no one in production, but aligning the answers is open.
 
 ### Boundary decision: ceremony records stay in Gateway D1 (2026-09-28)
 

@@ -180,14 +180,16 @@ export interface RouterAbEd25519YaoRecoveryBackend {
     admissionRequest: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
   ): Promise<RouterAbEd25519YaoTenantRootWireV1>;
   /**
-   * Runs one recovery execution at the Router. `replay` marks a payload whose
-   * earlier claim may have reached the Router, which then reconciles the
-   * roles' records instead of starting fresh.
+   * Runs one recovery execution at the Router, for the Gateway's attempt
+   * `attempt`. `replay` marks a payload whose earlier claim may have reached
+   * the Router, which then reconciles the roles' records instead of starting
+   * fresh.
    */
   executeRecovery(
     request: RecoveryExecuteRequest,
     admissionRequest: RouterAbEd25519YaoRecoveryExecuteAdmissionContextV1,
     dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
+    attempt: number,
     replay: boolean,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRecoveryBackendResult> | RouterAbEd25519YaoRecoveryBackendResult;
@@ -268,6 +270,8 @@ export type RouterAbEd25519YaoRecoveryExecuteClaimV1 = {
   readonly executeFingerprint: string;
   readonly admissionRequest: RouterAbEd25519YaoRecoveryExecuteAdmissionContextV1;
   readonly dispatchRoot: RouterAbEd25519YaoTenantRootWireV1;
+  /** The attempt this execution runs for. */
+  readonly attempt: number;
   /** An earlier claim of this payload may have reached the Router. */
   readonly replay: boolean;
 };
@@ -709,6 +713,13 @@ type RecoveryContext = {
   readonly authorization: RouterAbEd25519YaoRecoveryAuthorizationBindingV1;
   /** The tenant root the attempt was admitted under: its execute and promotion use it. */
   readonly dispatchRoot: RouterAbEd25519YaoTenantRootWireV1;
+  /**
+   * The attempt's number: 1 for a recovery's first attempt, and one more than
+   * the attempt it supersedes otherwise. The SigningWorker keeps only the
+   * highest attempt delivered to it, so a superseded attempt's late delivery
+   * never displaces the current one.
+   */
+  readonly attempt: number;
 };
 
 type RecoveryAdmittingState = {
@@ -2218,6 +2229,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
       activeCapability: activeCapability.identity,
       authorization,
       dispatchRoot,
+      attempt: superseded ? superseded.context.attempt + 1 : 1,
     };
     if (superseded) {
       this.recoveries.set(superseded.context.recoveryKey, {
@@ -2325,6 +2337,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
               request,
               preparation.claim.admissionRequest,
               preparation.claim.dispatchRoot,
+              preparation.claim.attempt,
               preparation.claim.replay,
               traceContext,
             ),
@@ -2409,6 +2422,7 @@ export class InMemoryRouterAbEd25519YaoRecoveryService
           executeFingerprint,
           admissionRequest: claimed.context.admissionRequest,
           dispatchRoot: claimed.context.dispatchRoot,
+          attempt: claimed.context.attempt,
           replay,
         },
       };

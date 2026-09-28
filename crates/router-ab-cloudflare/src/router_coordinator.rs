@@ -1722,6 +1722,7 @@ async fn finalize_router_result_v1(
                             &binding.lifecycle.account_id,
                         )?,
                         delivery,
+                        recovery_attempt: request.recovery_attempt(),
                     };
                     let worker_response = post_role_json::<_, SigningWorkerReceiptV1>(
                         env,

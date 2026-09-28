@@ -708,10 +708,14 @@ impl RouterAbSigningWorkerWalletDurableObject {
         request: CloudflareScopedEd25519YaoPackagePairDeliveryV1,
     ) -> Result<Response, RouterAbProtocolError> {
         let registration_key = registration_key(&request.delivery.deriver_a.binding);
+        let attempt = request
+            .recovery_attempt
+            .ok_or_else(|| wallet_error("SigningWorker recovery names no attempt"))?;
         let stored = self.read_registration(&request.scope, &registration_key)?;
         let settled = settle_signing_worker_yao_recovery_delivery_v1(
             stored.as_ref().map(|stored| stored.lifecycle.clone()),
             &request.delivery,
+            attempt,
             |active| {
                 combine_signing_worker_yao_packages_v1(&self.env, &request.delivery, Some(active))
             },

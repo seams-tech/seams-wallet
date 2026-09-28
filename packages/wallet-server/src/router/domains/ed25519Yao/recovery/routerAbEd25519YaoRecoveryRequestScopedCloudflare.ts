@@ -265,6 +265,7 @@ class RecoveryExecutionRequestRun {
           this.request,
           claim.admissionRequest,
           claim.dispatchRoot,
+          claim.attempt,
           claim.replay,
           this.context.trace,
         ),

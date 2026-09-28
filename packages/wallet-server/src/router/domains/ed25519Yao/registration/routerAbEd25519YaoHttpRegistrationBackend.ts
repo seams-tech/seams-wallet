@@ -426,6 +426,7 @@ type RouterExecuteTargetBoundary =
   | {
       operation: 'recovery';
       binding: RouterAbEd25519YaoRecoveryExecuteRequestV1['binding'];
+      attempt: number;
       deriver_a_input: RouterAbEd25519YaoRecoveryExecuteRequestV1['deriver_a_input'];
       deriver_b_input: RouterAbEd25519YaoRecoveryExecuteRequestV1['deriver_b_input'];
     }
@@ -523,6 +524,7 @@ function registrationRouterExecuteRequest(
 function recoveryRouterExecuteRequest(
   input: Extract<RouterExecuteInput, { readonly operation: 'recovery' }>,
   tenantRoot: RouterAbEd25519YaoTenantRootWireV1,
+  attempt: number,
 ): RouterExecuteBoundary {
   return {
     tenant_root: tenantRoot,
@@ -531,6 +533,7 @@ function recoveryRouterExecuteRequest(
     target: {
       operation: 'recovery',
       binding: input.request.binding,
+      attempt,
       deriver_a_input: input.request.deriver_a_input,
       deriver_b_input: input.request.deriver_b_input,
     },
@@ -992,13 +995,14 @@ export class RouterAbEd25519YaoHttpRegistrationBackend
     request: RouterAbEd25519YaoRecoveryExecuteRequestV1,
     admissionRequest: RouterAbEd25519YaoRecoveryAdmissionRequestV1,
     dispatchRoot: RouterAbEd25519YaoTenantRootWireV1,
+    attempt: number,
     replay: boolean,
     traceContext?: RouterAbTraceContextV1,
   ): Promise<RouterAbEd25519YaoRegistrationBackendResult> {
     const routerInput = { operation: 'recovery', request, admissionRequest } as const;
     return await this.sendRouterRequest(
       routerInput,
-      recoveryRouterExecuteRequest(routerInput, dispatchRoot),
+      recoveryRouterExecuteRequest(routerInput, dispatchRoot, attempt),
       (traceContext ?? createRouterAbTraceContextV1()).value,
       'replay',
       replay,

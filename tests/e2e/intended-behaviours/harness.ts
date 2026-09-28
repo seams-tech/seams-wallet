@@ -2187,13 +2187,30 @@ export class IntendedBehaviourHarness {
       // The new attempt has executed and staged; its promotion waits here.
       await activationRequested;
       const late = await this.releaseKeptRecoveryExecute(kept);
-      const answer: unknown = JSON.parse(late.body);
+      this.recordService(
+        `the superseded attempt's late execution answered ${late.status} ${late.body}`,
+      );
+      let answer: unknown = null;
+      try {
+        answer = JSON.parse(late.body);
+      } catch {
+        // A refusal need not be JSON.
+      }
       if (
-        late.status !== 200 ||
-        (answer as { readonly status?: unknown } | null)?.status !== 'succeeded'
+        late.status === 200 &&
+        (answer as { readonly status?: unknown } | null)?.status === 'succeeded'
       ) {
         throw new Error(
-          `The superseded attempt's late execution did not reach the SigningWorker: ${late.status} ${late.body}`,
+          `The superseded attempt's late execution staged at the SigningWorker: ${late.body}`,
+        );
+      }
+      /* The Router ran the late execution, and the SigningWorker refused its
+         packages. Neither Router passes the SigningWorker's reason on: the
+         VM Router answers that the SigningWorker is uncertain, and the
+         Workers Router that its delivery failed. */
+      if (!/signing.?worker/i.test(late.body)) {
+        throw new Error(
+          `The superseded attempt's late execution failed before the SigningWorker: ${late.status} ${late.body}`,
         );
       }
     } finally {
@@ -2209,7 +2226,7 @@ export class IntendedBehaviourHarness {
     this.operatingAuthFamily = 'passkey';
     this.currentWarmSigningStage = 'post_unlock';
     this.recordService(
-      'a superseded attempt that reached the SigningWorker after its successor staged displaced nothing',
+      'a superseded attempt that reached the SigningWorker after its successor staged was refused',
     );
   }
 

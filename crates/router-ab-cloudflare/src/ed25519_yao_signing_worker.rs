@@ -1,8 +1,9 @@
 use router_ab_core::{
     ActiveSigningWorkerStateV1, Ed25519YaoCeremonyBindingV1, Ed25519YaoDeriverRoleV1,
-    Ed25519YaoEncryptedPackageV1, Ed25519YaoOperationV1, Ed25519YaoPackageKindV1, OpenedShareKind,
-    PublicDigest32, Role, RouterAbEd25519YaoActivationPublicReceiptV1, RouterAbProtocolError,
-    RouterAbProtocolErrorCode, RouterAbProtocolResult, ServerIdentityV1,
+    Ed25519YaoEncryptedPackageV1, Ed25519YaoOperationV1, Ed25519YaoPackageKindV1,
+    Ed25519YaoRecoveryAttemptV1, OpenedShareKind, PublicDigest32, Role,
+    RouterAbEd25519YaoActivationPublicReceiptV1, RouterAbProtocolError, RouterAbProtocolErrorCode,
+    RouterAbProtocolResult, ServerIdentityV1,
 };
 use router_ab_ed25519_yao::{
     combine_ed25519_yao_signing_worker_packages_source_preserving_v1,
@@ -121,6 +122,9 @@ pub struct CloudflareEd25519YaoPackagePairDeliveryV1 {
 pub struct CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
     pub scope: CloudflareSigningWorkerWalletScopeV1,
     pub delivery: CloudflareEd25519YaoPackagePairDeliveryV1,
+    /// The Gateway's attempt a recovery's packages come from, as the Router
+    /// executed it. A recovery delivery carries one; no other delivery does.
+    pub recovery_attempt: Option<Ed25519YaoRecoveryAttemptV1>,
 }
 
 impl CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
@@ -132,8 +136,22 @@ impl CloudflareScopedEd25519YaoPackagePairDeliveryV1 {
                 "SigningWorker package pair differs from its wallet scope",
             ));
         }
-        Ok(())
+        validate_recovery_attempt_presence(&self.delivery, self.recovery_attempt)
     }
+}
+
+/// A recovery delivery names its attempt, and no other delivery does.
+fn validate_recovery_attempt_presence(
+    delivery: &CloudflareEd25519YaoPackagePairDeliveryV1,
+    recovery_attempt: Option<Ed25519YaoRecoveryAttemptV1>,
+) -> RouterAbProtocolResult<()> {
+    let recovery = delivery.deriver_a.binding.operation == Ed25519YaoOperationV1::Recovery;
+    if recovery != recovery_attempt.is_some() {
+        return Err(invalid_lifecycle(
+            "SigningWorker package pair must name a recovery attempt exactly when it recovers",
+        ));
+    }
+    Ok(())
 }
 
 impl CloudflareEd25519YaoPackagePairDeliveryV1 {
@@ -299,6 +317,7 @@ impl CloudflareEd25519YaoDeactivateReservationRequestV1 {
 enum SigningWorkerYaoCommandV1 {
     DeliverPackages {
         delivery: CloudflareEd25519YaoPackagePairDeliveryV1,
+        recovery_attempt: Option<Ed25519YaoRecoveryAttemptV1>,
     },
     PromoteRecovery {
         request: CloudflareEd25519YaoRecoveryPromotionRequestV1,
@@ -308,7 +327,7 @@ enum SigningWorkerYaoCommandV1 {
 impl SigningWorkerYaoCommandV1 {
     fn stable_context_binding(&self) -> [u8; 32] {
         match self {
-            Self::DeliverPackages { delivery } => delivery
+            Self::DeliverPackages { delivery, .. } => delivery
                 .deriver_a
                 .binding
                 .stable_key_context_binding
@@ -321,7 +340,13 @@ impl SigningWorkerYaoCommandV1 {
 
     fn validate(&self) -> RouterAbProtocolResult<()> {
         match self {
-            Self::DeliverPackages { delivery } => delivery.validate(),
+            Self::DeliverPackages {
+                delivery,
+                recovery_attempt,
+            } => {
+                delivery.validate()?;
+                validate_recovery_attempt_presence(delivery, *recovery_attempt)
+            }
             Self::PromoteRecovery { request } => request.validate(),
         }
     }
@@ -342,13 +367,13 @@ pub(crate) enum SigningWorkerYaoDurableStateV1 {
         material: Ed25519YaoActiveSigningMaterialV1,
         receipt: Ed25519YaoSigningWorkerActivationReceiptV1,
     },
-    /// A recovery staged over the active material: one candidate per attempt
-    /// of the recovery, kept apart, so no attempt's delivery displaces
-    /// another's. The Gateway promotes only its current attempt.
+    /// A recovery staged over the active material, holding the candidate of
+    /// the highest attempt delivered here. The Gateway numbers each attempt
+    /// and promotes only its latest, so a lower attempt can never promote.
     RecoveryStaged {
         active_material: Ed25519YaoActiveSigningMaterialV1,
         active_receipt: Ed25519YaoSigningWorkerActivationReceiptV1,
-        attempts: Vec<SigningWorkerYaoStagedRecoveryAttemptV1>,
+        staged: SigningWorkerYaoStagedRecoveryAttemptV1,
     },
 }
 
@@ -356,22 +381,12 @@ pub(crate) enum SigningWorkerYaoDurableStateV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct SigningWorkerYaoStagedRecoveryAttemptV1 {
+    attempt: Ed25519YaoRecoveryAttemptV1,
     deriver_a: Ed25519YaoSigningWorkerPackageDeliveryV1,
     deriver_b: Ed25519YaoSigningWorkerPackageDeliveryV1,
     candidate: Ed25519YaoActiveSigningMaterialV1,
     receipt: Ed25519YaoSigningWorkerActivationReceiptV1,
 }
-
-impl SigningWorkerYaoStagedRecoveryAttemptV1 {
-    fn session(&self) -> [u8; 32] {
-        self.deriver_a.binding.session_id.into_bytes()
-    }
-}
-
-/// How many attempts of one recovery stay staged. A further attempt drops the
-/// earliest staged one; each attempt takes a full recovery execution, so the
-/// Gateway's current attempt is never among the dropped in practice.
-const SIGNING_WORKER_YAO_RECOVERY_STAGED_ATTEMPTS_MAX_V1: usize = 8;
 
 impl SigningWorkerYaoDurableStateV1 {
     fn stable_context_binding(&self) -> [u8; 32] {
@@ -420,42 +435,17 @@ impl SigningWorkerYaoDurableStateV1 {
             Self::RecoveryStaged {
                 active_material,
                 active_receipt,
-                attempts,
+                staged,
             } => {
                 validate_material_receipt(active_material, active_receipt)?;
-                let Some(first) = attempts.first() else {
-                    return Err(invalid_lifecycle(
-                        "Signing Worker staged recovery holds no attempt",
-                    ));
-                };
-                if attempts.len() > SIGNING_WORKER_YAO_RECOVERY_STAGED_ATTEMPTS_MAX_V1 {
-                    return Err(invalid_lifecycle(
-                        "Signing Worker staged recovery holds too many attempts",
-                    ));
-                }
-                let lifecycle_id = &first.deriver_a.binding.lifecycle.lifecycle_id;
-                let mut sessions = std::collections::BTreeSet::new();
-                for attempt in attempts {
-                    require_same_stable_identity(
-                        active_material.binding(),
-                        &attempt.deriver_a.binding,
-                    )?;
-                    if attempt.deriver_a.binding.lifecycle.lifecycle_id != *lifecycle_id
-                        || !sessions.insert(attempt.session())
-                    {
-                        return Err(invalid_lifecycle(
-                            "Signing Worker staged attempts must be distinct attempts of one recovery",
-                        ));
-                    }
-                    validate_staged_candidate(
-                        &attempt.deriver_a,
-                        &attempt.deriver_b,
-                        &attempt.candidate,
-                        &attempt.receipt,
-                        Ed25519YaoOperationV1::Recovery,
-                    )?;
-                }
-                Ok(())
+                require_same_stable_identity(active_material.binding(), &staged.deriver_a.binding)?;
+                validate_staged_candidate(
+                    &staged.deriver_a,
+                    &staged.deriver_b,
+                    &staged.candidate,
+                    &staged.receipt,
+                    Ed25519YaoOperationV1::Recovery,
+                )
             }
         }
     }
@@ -650,6 +640,7 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_packages_v1(
         env,
         SigningWorkerYaoCommandV1::DeliverPackages {
             delivery: scoped.delivery,
+            recovery_attempt: scoped.recovery_attempt,
         },
     )
     .await?;
@@ -1762,27 +1753,27 @@ impl SigningWorkerYaoRecoveryDeliveryV1 {
     }
 }
 
-/// Settles one recovery delivery. `combine` opens the delivered packages on
-/// the active material.
+/// Settles one recovery delivery from the Gateway's attempt `attempt`.
+/// `combine` opens the delivered packages on the active material.
 /// - The same deliveries answer again, staged or promoted.
-/// - Each attempt of a staged recovery keeps its own candidate, all standing
-///   on the same active material. A delivery from an attempt the Gateway has
-///   superseded, however late it arrives, displaces no other attempt's
-///   candidate. Only the Gateway's current attempt promotes, and it finds its
-///   own candidate.
+/// - A staged recovery holds the highest attempt delivered to it. A lower
+///   attempt is one the Gateway has superseded, and it is refused however
+///   late it arrives. A higher attempt supersedes the staged one and takes
+///   its place, since the Gateway can no longer promote the staged one.
 /// - Another attempt of a recovery that already promoted is stale: it never
 ///   replaces the material its recovery activated.
-/// - Over active material, a new recovery stages its first attempt.
+/// - Over active material, a new recovery stages the attempt delivered.
 pub(crate) fn settle_signing_worker_yao_recovery_delivery_v1(
     current: Option<SigningWorkerYaoDurableStateV1>,
     delivery: &CloudflareEd25519YaoPackagePairDeliveryV1,
+    attempt: Ed25519YaoRecoveryAttemptV1,
     combine: impl FnOnce(
         &Ed25519YaoActiveSigningMaterialV1,
     ) -> RouterAbProtocolResult<Ed25519YaoSigningWorkerActivationCandidateV1>,
 ) -> RouterAbProtocolResult<SigningWorkerYaoRecoveryDeliveryV1> {
     let binding = &delivery.deriver_a.binding;
     require_operation(binding, Ed25519YaoOperationV1::Recovery)?;
-    let (active_material, active_receipt, mut attempts) = match current {
+    let (active_material, active_receipt) = match current {
         Some(SigningWorkerYaoDurableStateV1::Active {
             deriver_a,
             deriver_b,
@@ -1800,33 +1791,42 @@ pub(crate) fn settle_signing_worker_yao_recovery_delivery_v1(
         }
         Some(SigningWorkerYaoDurableStateV1::Active {
             material, receipt, ..
-        }) => (material, receipt, Vec::new()),
+        }) => (material, receipt),
         Some(SigningWorkerYaoDurableStateV1::RecoveryStaged {
             active_material,
             active_receipt,
-            attempts,
+            staged,
         }) => {
-            if attempts.iter().any(|attempt| {
-                attempt.deriver_a.binding.lifecycle.lifecycle_id != binding.lifecycle.lifecycle_id
-            }) {
+            if staged.deriver_a.binding.lifecycle.lifecycle_id != binding.lifecycle.lifecycle_id {
                 return Err(invalid_lifecycle(
                     "Signing Worker package pair conflicts with the Yao lifecycle state",
                 ));
             }
-            let session = binding.session_id.into_bytes();
-            if let Some(attempt) = attempts.iter().find(|attempt| attempt.session() == session) {
-                if attempt.deriver_a == delivery.deriver_a
-                    && attempt.deriver_b == delivery.deriver_b
-                {
-                    return Ok(SigningWorkerYaoRecoveryDeliveryV1::Answer(
-                        attempt.receipt.clone(),
+            let same_session = staged.deriver_a.binding.session_id == binding.session_id;
+            match attempt.cmp(&staged.attempt) {
+                core::cmp::Ordering::Less => {
+                    return Err(invalid_lifecycle(
+                        "Signing Worker recovery attempt was superseded by a later attempt",
                     ));
                 }
-                return Err(invalid_lifecycle(
-                    "Signing Worker recovery attempt delivered different packages",
-                ));
+                core::cmp::Ordering::Equal => {
+                    if same_session
+                        && staged.deriver_a == delivery.deriver_a
+                        && staged.deriver_b == delivery.deriver_b
+                    {
+                        return Ok(SigningWorkerYaoRecoveryDeliveryV1::Answer(staged.receipt));
+                    }
+                    return Err(invalid_lifecycle(
+                        "Signing Worker recovery attempt delivered different packages",
+                    ));
+                }
+                core::cmp::Ordering::Greater if same_session => {
+                    return Err(invalid_lifecycle(
+                        "Signing Worker recovery session was delivered under another attempt",
+                    ));
+                }
+                core::cmp::Ordering::Greater => (active_material, active_receipt),
             }
-            (active_material, active_receipt, attempts)
         }
         Some(SigningWorkerYaoDurableStateV1::RegistrationStaged { .. }) | None => {
             return Err(invalid_lifecycle(
@@ -1836,19 +1836,16 @@ pub(crate) fn settle_signing_worker_yao_recovery_delivery_v1(
     };
     require_same_stable_identity(active_material.binding(), binding)?;
     let (candidate, receipt) = combine(&active_material)?.into_parts();
-    if attempts.len() == SIGNING_WORKER_YAO_RECOVERY_STAGED_ATTEMPTS_MAX_V1 {
-        attempts.remove(0);
-    }
-    attempts.push(SigningWorkerYaoStagedRecoveryAttemptV1 {
-        deriver_a: delivery.deriver_a.clone(),
-        deriver_b: delivery.deriver_b.clone(),
-        candidate,
-        receipt: receipt.clone(),
-    });
     let state = SigningWorkerYaoDurableStateV1::RecoveryStaged {
         active_material,
         active_receipt,
-        attempts,
+        staged: SigningWorkerYaoStagedRecoveryAttemptV1 {
+            attempt,
+            deriver_a: delivery.deriver_a.clone(),
+            deriver_b: delivery.deriver_b.clone(),
+            candidate,
+            receipt: receipt.clone(),
+        },
     };
     state.validate()?;
     Ok(SigningWorkerYaoRecoveryDeliveryV1::Stage { state, receipt })
@@ -1885,21 +1882,15 @@ pub(crate) fn settle_signing_worker_yao_recovery_promotion_v1(
         }
         Some(SigningWorkerYaoDurableStateV1::RecoveryStaged {
             active_material,
-            attempts,
+            staged,
             ..
         }) => {
-            let attempt = attempts
-                .into_iter()
-                .find(|attempt| attempt.candidate.binding() == &request.binding)
-                .ok_or_else(|| {
-                    invalid_lifecycle("recovery promotion requires an exact staged candidate")
-                })?;
-            validate_promotion_request(request, attempt.candidate.binding(), &attempt.receipt)?;
+            validate_promotion_request(request, staged.candidate.binding(), &staged.receipt)?;
             let active = SigningWorkerYaoDurableStateV1::Active {
-                deriver_a: attempt.deriver_a,
-                deriver_b: attempt.deriver_b,
-                material: attempt.candidate,
-                receipt: attempt.receipt,
+                deriver_a: staged.deriver_a,
+                deriver_b: staged.deriver_b,
+                material: staged.candidate,
+                receipt: staged.receipt,
             };
             active.validate()?;
             Ok(SigningWorkerYaoRecoveryPromotionV1::Promote {
@@ -1954,13 +1945,17 @@ async fn execute_signing_worker_yao_d1_transition_v1(
     let expected_version = current.as_ref().map(|current| current.version);
     let current = current.map(|current| current.value);
     match command {
-        SigningWorkerYaoCommandV1::DeliverPackages { delivery } => {
+        SigningWorkerYaoCommandV1::DeliverPackages {
+            delivery,
+            recovery_attempt,
+        } => {
             execute_signing_worker_yao_delivery_d1_transition_v1(
                 env,
                 record_key,
                 expected_version,
                 current,
                 delivery,
+                *recovery_attempt,
             )
             .await
         }
@@ -1983,6 +1978,7 @@ async fn execute_signing_worker_yao_delivery_d1_transition_v1(
     expected_version: Option<i64>,
     current: Option<SigningWorkerYaoDurableStateV1>,
     delivery: &CloudflareEd25519YaoPackagePairDeliveryV1,
+    recovery_attempt: Option<Ed25519YaoRecoveryAttemptV1>,
 ) -> RouterAbProtocolResult<SigningWorkerYaoCommandResponseV1> {
     match (delivery.deriver_a.binding.operation, current) {
         (Ed25519YaoOperationV1::Registration, None) => {
@@ -2047,10 +2043,14 @@ async fn execute_signing_worker_yao_delivery_d1_transition_v1(
             Ok(SigningWorkerYaoCommandResponseV1::Active { receipt })
         }
         (Ed25519YaoOperationV1::Recovery, current) => {
-            let settled =
-                settle_signing_worker_yao_recovery_delivery_v1(current, delivery, |active| {
-                    combine_signing_worker_yao_packages_v1(env, delivery, Some(active))
-                })?;
+            let attempt = recovery_attempt
+                .ok_or_else(|| invalid_lifecycle("SigningWorker recovery names no attempt"))?;
+            let settled = settle_signing_worker_yao_recovery_delivery_v1(
+                current,
+                delivery,
+                attempt,
+                |active| combine_signing_worker_yao_packages_v1(env, delivery, Some(active)),
+            )?;
             let receipt = settled.receipt().clone();
             if let SigningWorkerYaoRecoveryDeliveryV1::Stage { state, .. } = settled {
                 persist_signing_worker_yao_state_v1(env, record_key, expected_version, &state)

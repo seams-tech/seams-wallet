@@ -7,15 +7,12 @@ use router_ab_cloudflare::{
 };
 use router_ab_core::{
     ed25519_yao_recipient_set_digest_v1, Ed25519YaoCeremonyBindingV1, Ed25519YaoDeriverRoleV1,
-    Ed25519YaoInputPairBindingV1, Ed25519YaoOperationV1,
-    RouterAbEd25519YaoActivationPublicReceiptV1, RouterAbEd25519YaoActivationResultV1,
-    RouterAbEd25519YaoExportResultV1, RouterAbProtocolError, RouterAbProtocolErrorCode,
-    RouterAbProtocolResult, RouterEd25519YaoExecuteFailureCodeV1, RouterEd25519YaoExecuteResultV1,
-    RouterEd25519YaoExecuteSuccessV1, TenantRootIdentityV1,
+    Ed25519YaoOperationV1, RouterAbEd25519YaoActivationPublicReceiptV1,
+    RouterAbEd25519YaoActivationResultV1, RouterAbEd25519YaoExportResultV1, RouterAbProtocolError,
+    RouterAbProtocolErrorCode, RouterAbProtocolResult, RouterEd25519YaoExecuteFailureCodeV1,
+    RouterEd25519YaoExecuteResultV1, RouterEd25519YaoExecuteSuccessV1, TenantRootIdentityV1,
 };
-use router_ab_ed25519_yao::{
-    Ed25519YaoActivationRoleExecutionV1, Ed25519YaoRoleExecutionV1,
-};
+use router_ab_ed25519_yao::{Ed25519YaoActivationRoleExecutionV1, Ed25519YaoRoleExecutionV1};
 use serde::{Deserialize, Serialize};
 use std::{
     sync::Arc,
@@ -174,12 +171,7 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
         // Only a run that took over a lapsed claim reconciles a prior run
         // before preparing; a first run goes straight to pair preparation.
         if replay {
-            if let Some(replayed) = self.reconcile_completed_registration(
-                config,
-                &request.binding,
-                &request.pair_binding,
-                &request.tenant_root.identity,
-            )? {
+            if let Some(replayed) = self.reconcile_completed_registration(config, &request)? {
                 return Ok(replayed);
             }
         }
@@ -199,12 +191,7 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
         let (receipt_a, receipt_b) = match self.prepare_pair(config, prepare_a, prepare_b) {
             Ok(receipts) => receipts,
             Err(_) => {
-                if let Some(replayed) = self.reconcile_completed_registration(
-                    config,
-                    &request.binding,
-                    &request.pair_binding,
-                    &request.tenant_root.identity,
-                )? {
+                if let Some(replayed) = self.reconcile_completed_registration(config, &request)? {
                     return Ok(replayed);
                 }
                 self.burn_pair(config, &pair);
@@ -256,12 +243,7 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
             ) {
             Ok(execution) => execution,
             Err(_) => {
-                if let Some(replayed) = self.reconcile_completed_registration(
-                    config,
-                    &request.binding,
-                    &request.pair_binding,
-                    &request.tenant_root.identity,
-                )? {
+                if let Some(replayed) = self.reconcile_completed_registration(config, &request)? {
                     return Ok(replayed);
                 }
                 self.burn_pair(config, &pair);
@@ -316,12 +298,7 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
         match self.finalize(config, &request, execution.deriver_a_execution, completed) {
             Ok(result) => Ok(result),
             Err(_) => {
-                if let Some(replayed) = self.reconcile_completed_registration(
-                    config,
-                    &request.binding,
-                    &request.pair_binding,
-                    &request.tenant_root.identity,
-                )? {
+                if let Some(replayed) = self.reconcile_completed_registration(config, &request)? {
                     return Ok(replayed);
                 }
                 self.burn_pair(config, &pair);
@@ -426,10 +403,11 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
     fn reconcile_completed_registration(
         &self,
         config: &LocalRouterWorkerConfigV1,
-        binding: &Ed25519YaoCeremonyBindingV1,
-        pair_binding: &Ed25519YaoInputPairBindingV1,
-        root_identity: &TenantRootIdentityV1,
+        request: &super::LocalRouterEd25519YaoPairDispatchV1,
     ) -> RouterAbProtocolResult<Option<RouterEd25519YaoExecuteResultV1>> {
+        let binding = &request.binding;
+        let pair_binding = &request.pair_binding;
+        let root_identity = &request.tenant_root.identity;
         if !matches!(
             binding.operation,
             Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery
@@ -487,13 +465,18 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
                     &execution_b,
                     Ed25519YaoDeriverRoleV1::DeriverB,
                     binding,
-                    Some(router_ab_cloudflare::ed25519_yao_role_execution_transcript_v1(
-                        &execution_a,
-                    )),
+                    Some(
+                        router_ab_cloudflare::ed25519_yao_role_execution_transcript_v1(
+                            &execution_a,
+                        ),
+                    ),
                 )?;
-                let a = router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_a)?;
-                let b = router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_b)?;
-                let delivery = activation_delivery(root_identity, binding, a, b)?;
+                let a =
+                    router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_a)?;
+                let b =
+                    router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_b)?;
+                let delivery =
+                    activation_delivery(root_identity, binding, request.recovery_attempt, a, b)?;
                 if binding.operation == Ed25519YaoOperationV1::Recovery {
                     // As on Workers: the same packages go to the SigningWorker
                     // again, which answers a delivery it already staged.
@@ -652,10 +635,17 @@ impl LocalRouterEd25519YaoCoordinatorV1 {
     ) -> RouterAbProtocolResult<RouterEd25519YaoExecuteResultV1> {
         match request.operation {
             Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery => {
-                let a = router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_a)?;
-                let b = router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_b)?;
-                let delivery =
-                    activation_delivery(&request.tenant_root.identity, &request.binding, a, b)?;
+                let a =
+                    router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_a)?;
+                let b =
+                    router_ab_cloudflare::ed25519_yao_activation_role_execution_v1(&execution_b)?;
+                let delivery = activation_delivery(
+                    &request.tenant_root.identity,
+                    &request.binding,
+                    request.recovery_attempt,
+                    a,
+                    b,
+                )?;
                 let receipt = self.client.post_json_authenticated_v1::<_, LocalEd25519YaoSigningWorkerActivationReceiptV1>(
                     &config.signing_worker_url,
                     LocalServiceRoleV1::SigningWorker,
@@ -887,6 +877,7 @@ fn package_delivery(
 fn activation_delivery(
     root_identity: &TenantRootIdentityV1,
     binding: &Ed25519YaoCeremonyBindingV1,
+    recovery_attempt: Option<router_ab_core::Ed25519YaoRecoveryAttemptV1>,
     a: &Ed25519YaoActivationRoleExecutionV1,
     b: &Ed25519YaoActivationRoleExecutionV1,
 ) -> RouterAbProtocolResult<LocalEd25519YaoSigningWorkerPackagePairDeliveryV1> {
@@ -899,6 +890,7 @@ fn activation_delivery(
         deriver_b: package_delivery(b),
         deriver_a_client_package: a.client_package.clone(),
         deriver_b_client_package: b.client_package.clone(),
+        recovery_attempt,
     })
 }
 

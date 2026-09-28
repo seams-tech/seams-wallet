@@ -93,7 +93,7 @@ test('a recovery retires the replaced activation: a delayed finalize is refused,
   await harness.signNearTransaction('post_unlock');
 });
 
-test('a superseded recovery attempt that reaches the SigningWorker late displaces nothing, and the recovery signs', async ({
+test('a superseded recovery attempt that reaches the SigningWorker late is refused, and the current attempt signs', async ({
   harness,
 }) => {
   await harness.registerPasskeyWallet();
