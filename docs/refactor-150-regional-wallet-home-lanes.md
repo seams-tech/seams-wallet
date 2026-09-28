@@ -23,9 +23,12 @@ not completion; none of the completion criteria below is claimed.
   ([VM setup](refactor-150-vm-reference-setup.md)).
 - Router wallet-local lanes are classified as unfinished infrastructure with
   no product consumer ([state ownership](refactor-150-state-ownership-map.md)).
-- Awaiting design approval: [cross-owner Yao finalization](refactor-150-cross-owner-finalization.md),
-  [Deriver A fresh attempt](refactor-150-deriver-a-fresh-attempt.md) and
-  [bounded retirement](refactor-150-root-retirement-admission.md).
+- [Cross-owner Yao finalization](refactor-150-cross-owner-finalization.md)
+  slices 1 to 7 are implemented on branch `codex/r150-do-backend`, not
+  merged; the [release readiness record](refactor-150-release-readiness.md)
+  gives the consolidated results and what fails.
+- Awaiting design approval: [Deriver A fresh attempt](refactor-150-deriver-a-fresh-attempt.md)
+  and [bounded retirement](refactor-150-root-retirement-admission.md).
 - Open: the creation resume gap after the initiator returns (both hosts), VM
   refresh/restore/retirement/cutover, linked-device and step-up signing on
   the VM, measured latency and cost, the clean reset, and production custody
