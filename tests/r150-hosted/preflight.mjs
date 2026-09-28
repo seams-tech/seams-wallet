@@ -4,6 +4,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const sourceRoot = path.dirname(fileURLToPath(import.meta.url));
+// The role configs the Workers are deployed with: each arm must bind what
+// they bind, so a binding added to a role cannot be missing from the pilot.
+const committedRoleRoot = path.join(sourceRoot, '..', '..', 'crates', 'router-ab-cloudflare');
+const walletClasses = {
+  'deriver-a': 'RouterAbDeriverAWalletDurableObject',
+  'deriver-b': 'RouterAbDeriverBWalletDurableObject',
+  'signing-worker': 'RouterAbSigningWorkerWalletDurableObject',
+};
 const roles = [
   'ingress',
   'gateway',
@@ -33,6 +41,7 @@ for (const arm of ['d1', 'do']) {
     }
     checkBindings(environment, prefix, role);
     checkWalletObjects(environment, arm, role);
+    checkCommittedRoleParity(environment, arm, role);
     checkSecrets(environment, role);
     checkValues(environment, prefix, role);
     if (options.ready) checkReady(environment, arm, role);
@@ -108,11 +117,6 @@ function checkBindings(environment, prefix, role) {
 }
 
 function checkWalletObjects(environment, arm, role) {
-  const walletClasses = {
-    'deriver-a': 'RouterAbDeriverAWalletDurableObject',
-    'deriver-b': 'RouterAbDeriverBWalletDurableObject',
-    'signing-worker': 'RouterAbSigningWorkerWalletDurableObject',
-  };
   const walletClass = walletClasses[role];
   if (!walletClass) return;
   let bound = false;
@@ -125,6 +129,69 @@ function checkWalletObjects(environment, arm, role) {
   }
   requireCondition(bound === (arm === 'do'), `${role}/${arm} wallet object binding changed`);
   requireCondition(migrated === (arm === 'do'), `${role}/${arm} wallet object migration changed`);
+}
+
+/**
+ * Every object, object migration, service, database and bucket the role's
+ * committed config binds, the arm binds too. Wallet objects are left to
+ * `checkWalletObjects`: only the DO arm has them.
+ */
+function checkCommittedRoleParity(environment, arm, role) {
+  if (role === 'ingress' || role === 'gateway') return;
+  const committed = committedRoleBindings(role);
+  const walletClass = walletClasses[role];
+  const objects = new Map(
+    (environment.durable_objects?.bindings ?? []).map((binding) => [binding.name, binding.class_name]),
+  );
+  for (const [name, className] of committed.objects) {
+    if (className === walletClass) continue;
+    requireCondition(
+      objects.get(name) === className,
+      `${role}/${arm} lacks the ${name} object (${className}) its role config binds`,
+    );
+  }
+  const migrated = new Set((environment.migrations ?? []).map((migration) => migration.tag));
+  for (const [tag, classes] of committed.migrations) {
+    if (classes.includes(walletClass)) continue;
+    requireCondition(migrated.has(tag), `${role}/${arm} lacks the ${tag} migration its role config runs`);
+  }
+  for (const [kind, names] of Object.entries(committed.stores)) {
+    const bound = new Set((environment[kind] ?? []).map((entry) => entry.binding));
+    const same = bound.size === names.size && [...names].every((name) => bound.has(name));
+    requireCondition(same, `${role}/${arm} ${kind} bindings differ from its role config`);
+  }
+}
+
+/** The top-level (production) environment's bindings in a role's TOML config. */
+function committedRoleBindings(role) {
+  const toml = readFileSync(path.join(committedRoleRoot, `wrangler.${role}.toml`), 'utf8');
+  const topLevel = toml.split(/^\[env\./m)[0];
+  const objects = new Map(
+    [...topLevel.matchAll(/name\s*=\s*"([^"]+)"\s*[,\n]\s*class_name\s*=\s*"([^"]+)"/g)].map(
+      (match) => [match[1], match[2]],
+    ),
+  );
+  const migrations = new Map(
+    [...topLevel.matchAll(/tag\s*=\s*"([^"]+)"\s*\n\s*new_sqlite_classes\s*=\s*\[([^\]]*)\]/g)].map(
+      (match) => [match[1], [...match[2].matchAll(/"([^"]+)"/g)].map((name) => name[1])],
+    ),
+  );
+  const bindings = (table) =>
+    new Set(
+      [...topLevel.matchAll(new RegExp(`\\[\\[${table}\\]\\]\\s*binding\\s*=\\s*"([^"]+)"`, 'g'))].map(
+        (match) => match[1],
+      ),
+    );
+  requireCondition(objects.size > 0, `${role} role config binds no object`);
+  return {
+    objects,
+    migrations,
+    stores: {
+      services: bindings('services'),
+      d1_databases: bindings('d1_databases'),
+      r2_buckets: bindings('r2_buckets'),
+    },
+  };
 }
 
 function checkSecrets(environment, role) {

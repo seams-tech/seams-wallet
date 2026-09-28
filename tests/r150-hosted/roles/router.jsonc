@@ -14,6 +14,10 @@
           {
             "name": "ROUTER_TENANT_ROOT_CREATION_DO",
             "class_name": "RouterAbTenantRootCreationDurableObject"
+          },
+          {
+            "name": "ROUTER_WALLET_DO",
+            "class_name": "RouterAbRouterWalletDurableObject"
           }
         ]
       },
@@ -21,6 +25,10 @@
         {
           "tag": "router_ab_router_tenant_root_creation_v1",
           "new_sqlite_classes": ["RouterAbTenantRootCreationDurableObject"]
+        },
+        {
+          "tag": "router_ab_router_wallet_v1",
+          "new_sqlite_classes": ["RouterAbRouterWalletDurableObject"]
         }
       ],
       "services": [
@@ -71,6 +79,10 @@
           {
             "name": "ROUTER_TENANT_ROOT_CREATION_DO",
             "class_name": "RouterAbTenantRootCreationDurableObject"
+          },
+          {
+            "name": "ROUTER_WALLET_DO",
+            "class_name": "RouterAbRouterWalletDurableObject"
           }
         ]
       },
@@ -78,6 +90,10 @@
         {
           "tag": "router_ab_router_tenant_root_creation_v1",
           "new_sqlite_classes": ["RouterAbTenantRootCreationDurableObject"]
+        },
+        {
+          "tag": "router_ab_router_wallet_v1",
+          "new_sqlite_classes": ["RouterAbRouterWalletDurableObject"]
         }
       ],
       "services": [
