@@ -148,6 +148,7 @@ import { createD1LinkedDeviceSessionServiceV1 } from '../deviceLinking/d1LinkedD
 import { D1LinkedDeviceSessionStoreV1 } from '../deviceLinking/d1LinkedDeviceSessionStore';
 import { createD1LinkedDeviceManagementServiceV1 } from '../deviceLinking/d1LinkedDeviceManagementService';
 import { D1WalletAuthorityStore } from '../wallet/d1WalletAuthorityStore';
+import { D1WalletAuthMethodRevocationReplayStoreV1 } from '../wallet/d1WalletAuthMethodRevocationReplayStore';
 import { verifyD1LinkedDeviceFreshRevokeProofV1 } from '../wallet/d1WalletAuthMethodBoundary';
 import { createD1LinkedDeviceVerifiedLinkSourceReaderV1 } from '../deviceLinking/d1LinkedDeviceVerifiedLinkSourceReader';
 import { LinkedDeviceWebAuthnRegistrationVerifierV1 } from '../deviceLinking/d1LinkedDeviceTargetCredentialProvider';
@@ -1635,6 +1636,15 @@ function createCloudflareD1RouterApiAuthAssembly(
     webAuthnStore,
     listWalletEd25519Signers: (walletId) => walletStore.listEd25519SignersForWallet({ walletId }),
     walletAuthorityStore,
+    revocationReplays: new D1WalletAuthMethodRevocationReplayStoreV1({
+      database: options.database,
+      scope: {
+        namespace: options.namespace,
+        orgId: options.orgId,
+        projectId: options.projectId,
+        envId: options.envId,
+      },
+    }),
     orgId: options.orgId,
     verifyWebAuthnAuthenticationLite: async (verifyInput) => {
       const credential = parseWebAuthnAuthenticationCredential(verifyInput.webauthn_authentication);
@@ -1964,8 +1974,10 @@ function createD1WalletAuthMethodRouteService(
       assembly.walletAuthMethods.resolveActiveWalletSessionAuthority.bind(
         assembly.walletAuthMethods,
       ),
-    verifyWalletAuthMethodRevokeProof:
-      assembly.walletAuthMethods.verifyWalletAuthMethodRevokeProof.bind(assembly.walletAuthMethods),
+    revokeWalletAuthMethodWithFreshProof:
+      assembly.walletAuthMethods.revokeWalletAuthMethodWithFreshProof.bind(
+        assembly.walletAuthMethods,
+      ),
     verifyActivePasskeyAuthority: assembly.walletAuthMethods.verifyActivePasskeyAuthority.bind(
       assembly.walletAuthMethods,
     ),
@@ -2007,9 +2019,6 @@ function createD1WalletAuthMethodRouteService(
       assembly.walletAddSigners.getWalletAddSignerRuntimePolicyScope.bind(
         assembly.walletAddSigners,
       ),
-    revokeWalletAuthMethod: assembly.walletAuthMethods.revokeWalletAuthMethod.bind(
-      assembly.walletAuthMethods,
-    ),
     createAddAuthMethodEmailOtpChallenge:
       assembly.walletAuthMethods.createAddAuthMethodEmailOtpChallenge.bind(
         assembly.walletAuthMethods,

@@ -12,8 +12,10 @@ test('an Email OTP wallet can add a passkey as a second way in', async ({ harnes
   await harness.awaitNearReady();
   await harness.addPasskeyAuthMethod();
   /* The source removes what it just added, before anything has unlocked with
-     it. That is the direction whose proof comes from the Email OTP sibling. */
-  await harness.revokeSourceAuthMethod('added');
+     it. That is the direction whose proof comes from the Email OTP sibling.
+     Its first commit is refused and the answer lost: the retry must commit on
+     the same code, and a replay after it must receive the recorded answer. */
+  await harness.revokeSourceAuthMethod('added', { refuseFirstRevocationCommit: true });
   /* The finalize commits but its answer is lost: the retry must receive that
      same addition, not make a second one. */
   await harness.addPasskeyAuthMethod({ loseFinalizeResponseOnce: true });

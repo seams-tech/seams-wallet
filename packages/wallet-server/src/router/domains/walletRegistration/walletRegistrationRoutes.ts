@@ -3282,24 +3282,20 @@ export async function handleRouterApiWalletRevokeAuthMethod(
   }
   const origin = requireWebAuthnExpectedOrigin(input);
   if (!origin.ok) return origin.response;
-  const verified = await input.services.walletRegistration.verifyWalletAuthMethodRevokeProof({
-    walletId: parsedBody.value.walletId,
-    targetWalletAuthMethodId: parsedBody.value.walletAuthMethodId,
+  /* Verification and revocation are one call: an Email OTP proof is spent
+     only in the batch that revokes, so a revocation that never commits leaves
+     its code usable for the same request. */
+  const revoked = await input.services.walletRegistration.revokeWalletAuthMethodWithFreshProof({
+    walletAuthMethodId: parsedBody.value.walletAuthMethodId,
     requestedAtMs: parsedBody.value.requestedAtMs,
     sourceProof: parsedBody.value.sourceProof,
+    subject: { kind: 'wallet_auth_method_management', walletId: walletIdFromString(walletId) },
     expectedOrigin: origin.expectedOrigin,
   });
-  if (verified.kind === 'denied') {
-    return routeError(401, 'unauthorized', verified.message);
+  if (revoked.kind === 'denied') {
+    return routeError(401, 'unauthorized', revoked.message);
   }
-  const result = await input.services.walletRegistration.revokeWalletAuthMethod({
-    ...parsedBody.value,
-    subject: { kind: 'wallet_auth_method_management', walletId: walletIdFromString(walletId) },
-    verifiedSource: {
-      walletAuthMethodId: verified.walletAuthMethodId,
-      verifiedAtMs: verified.verifiedAtMs,
-    },
-  });
+  const result = revoked.response;
   return routeJson(result.ok ? 200 : 400, result, {
     usage: result.ok ? { walletId: result.walletId } : undefined,
   });

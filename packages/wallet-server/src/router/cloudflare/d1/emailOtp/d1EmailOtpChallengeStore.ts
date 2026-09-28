@@ -9,6 +9,7 @@ import type {
   D1PreparedStatementLike,
   D1ResultLike,
 } from '../../../../storage/tenantRoute';
+import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import { parseD1NonNegativeCount } from '../auth/d1RouterApiAuthBoundary';
 import {
   emailOtpChallengeContextValues,
@@ -245,6 +246,45 @@ export class CloudflareD1EmailOtpChallengeStore {
       [challengeId],
     ).first<D1EmailOtpChallengeRow>();
     return parseEmailOtpChallengeRow(row);
+  }
+
+  /**
+   * The statements that consume one verified challenge inside a caller's
+   * batch. The delete matches the exact record, code and expiry the caller
+   * verified, and the guard aborts the whole batch when nothing matched: a
+   * challenge another request consumed first, or one that expired meanwhile.
+   * The guard collides with a row a migration seeds, so it aborts from the
+   * first time it fires.
+   */
+  prepareConsumeInBatchStatements(
+    challenge: EmailOtpChallengeRecord,
+    nowMs: number,
+  ): readonly D1PreparedStatementLike[] {
+    return [
+      this.database
+        .prepare(
+          `DELETE FROM email_otp_challenges
+            WHERE namespace = ?1
+              AND org_id = ?2
+              AND project_id = ?3
+              AND env_id = ?4
+              AND challenge_id = ?5
+              AND record_json = ?6
+              AND otp_code = ?7
+              AND expires_at_ms > ?8`,
+        )
+        .bind(
+          this.namespace,
+          this.orgId,
+          this.projectId,
+          this.envId,
+          challenge.challengeId,
+          JSON.stringify(challenge),
+          challenge.otpCode,
+          nowMs,
+        ),
+      this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
+    ];
   }
 
   async readRegistrationVerificationReceipt(

@@ -40,8 +40,10 @@ import {
 import type { EmailOtpWalletEnrollmentRecord } from '../../../../core/EmailOtpStores';
 import type {
   EmailOtpExistingChallengeVerifyInput,
+  EmailOtpExistingChallengeBatchVerifyResult,
   EmailOtpExistingChallengeVerifyResult,
 } from '../emailOtp/d1EmailOtpChallengeVerifier';
+import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import { hashEmailOtpOperationBinding } from '../../../domains/emailOtp/emailOtpSessionRouteHelpers';
 import { walletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
 
@@ -206,6 +208,14 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
   readonly verifyEmailOtpExisting?: (
     input: EmailOtpExistingChallengeVerifyInput,
   ) => Promise<EmailOtpExistingChallengeVerifyResult>;
+  /**
+   * Given, an Email OTP proof is verified without consuming its challenge,
+   * and the authorization carries the statements that consume it inside the
+   * caller's batch.
+   */
+  readonly verifyEmailOtpExistingForBatch?: (
+    input: EmailOtpExistingChallengeVerifyInput,
+  ) => Promise<EmailOtpExistingChallengeBatchVerifyResult>;
   readonly readEmailOtpEnrollment?: (
     walletId: string,
   ) => Promise<EmailOtpWalletEnrollmentRecord | null>;
@@ -214,6 +224,7 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
       readonly kind: 'authorized';
       readonly walletAuthMethodId: WalletAuthMethodId;
       readonly verifiedAtMs: number;
+      readonly emailOtpConsumeInBatch?: readonly D1PreparedStatementLike[];
     }
   | {
       readonly kind: 'denied';
@@ -222,7 +233,10 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
     }
 > {
   if (input.proof.kind === 'email_otp') {
-    if (!input.verifyEmailOtpExisting || !input.readEmailOtpEnrollment) {
+    if (
+      (!input.verifyEmailOtpExisting && !input.verifyEmailOtpExistingForBatch) ||
+      !input.readEmailOtpEnrollment
+    ) {
       return {
         kind: 'denied',
         code: 'invalid',
@@ -313,7 +327,7 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
         message: 'Fresh Email OTP proof is bound to another revoke operation',
       };
     }
-    const verified = await input.verifyEmailOtpExisting({
+    const challenge: EmailOtpExistingChallengeVerifyInput = {
       userId: enrollment.providerUserId,
       walletId: String(input.walletId),
       orgId: input.orgId,
@@ -323,7 +337,22 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
       ownerProofBindingDigest: input.proof.ownerProofBindingDigest,
       action: WALLET_EMAIL_OTP_ACTIONS.login,
       operation: WALLET_EMAIL_OTP_TRANSACTION_SIGN_OPERATION,
-    });
+    };
+    let verified: EmailOtpExistingChallengeVerifyResult;
+    let emailOtpConsumeInBatch: readonly D1PreparedStatementLike[] | undefined;
+    if (input.verifyEmailOtpExistingForBatch) {
+      const batchVerified = await input.verifyEmailOtpExistingForBatch(challenge);
+      if (batchVerified.ok) emailOtpConsumeInBatch = batchVerified.consumeInBatch;
+      verified = batchVerified;
+    } else if (input.verifyEmailOtpExisting) {
+      verified = await input.verifyEmailOtpExisting(challenge);
+    } else {
+      return {
+        kind: 'denied',
+        code: 'invalid',
+        message: 'Email OTP revocation proof is not configured',
+      };
+    }
     if (!verified.ok) {
       return {
         kind: 'denied',
@@ -335,6 +364,7 @@ export async function verifyD1LinkedDeviceFreshRevokeProofV1(input: {
       kind: 'authorized',
       walletAuthMethodId: sourceMethod.walletAuthMethodId,
       verifiedAtMs: input.verifiedAtMs,
+      ...(emailOtpConsumeInBatch ? { emailOtpConsumeInBatch } : {}),
     };
   }
   if (input.proof.kind !== 'webauthn_assertion') {

@@ -85,6 +85,16 @@ import {
   requestWithoutLocalIntendedLinkExecuteFaultHeadersV1,
   responseWithLocalIntendedLinkExecuteFaultOutcomeV1,
 } from './localIntendedLinkExecuteFault';
+import {
+  LOCAL_INTENDED_REVOKE_FAULT_HEADER_V1,
+  LOCAL_INTENDED_REVOKE_FAULT_TOKEN_HEADER_V1,
+  LocalIntendedRevokeFaultDatabaseV1,
+  parseLocalIntendedRevokeFaultModeV1,
+  parseLocalIntendedRevokeFaultTokenV1,
+  requestWithoutLocalIntendedRevokeFaultHeadersV1,
+  responseWithLocalIntendedRevokeFaultOutcomeV1,
+  WALLET_REVOKE_AUTH_METHOD_PATH_PATTERN_V1,
+} from './localIntendedRevokeFault';
 
 export type LocalHostedWalletGatewayEnv = CloudflareD1GatewayBaseEnv & {
   readonly WALLET_LOCAL_DEPLOYMENT_JSON: string;
@@ -317,6 +327,11 @@ export async function handleLocalHostedWalletGatewayRequestV1(
       linkExecuteToken,
     );
   }
+  const revokeMode = request.headers.get(LOCAL_INTENDED_REVOKE_FAULT_HEADER_V1);
+  const revokeToken = request.headers.get(LOCAL_INTENDED_REVOKE_FAULT_TOKEN_HEADER_V1);
+  if (revokeMode !== null || revokeToken !== null) {
+    return await handleRevokeFault(request, gatewayEnv, ctx, dependencies, revokeMode, revokeToken);
+  }
   const rawMode = request.headers.get(LOCAL_INTENDED_YAO_FAULT_HEADER_V1);
   const rawToken = request.headers.get(LOCAL_INTENDED_YAO_FAULT_TOKEN_HEADER_V1);
   const sanitizedRequest = requestWithoutLocalIntendedYaoFaultHeadersV1(request);
@@ -431,6 +446,42 @@ async function handleYaoRecoveryFault(
     dependencies,
   );
   return responseWithLocalIntendedYaoRecoveryFaultOutcomeV1(response, controller.outcome(), token);
+}
+
+/**
+ * Refuses the batch that would commit one auth-method revocation, as a failed
+ * commit, and reports whether the request's Email OTP code was spent anywhere
+ * but in that batch. Local only.
+ */
+async function handleRevokeFault(
+  request: Request,
+  env: CloudflareD1GatewayEnv,
+  ctx: CfExecutionContext,
+  dependencies: HostedWalletGatewayDependenciesV1 | undefined,
+  rawMode: string | null,
+  rawToken: string | null,
+): Promise<Response> {
+  const mode = parseLocalIntendedRevokeFaultModeV1(rawMode);
+  const token = parseLocalIntendedRevokeFaultTokenV1(rawToken);
+  const url = new URL(request.url);
+  if (
+    url.protocol !== 'http:' ||
+    url.hostname !== '127.0.0.1' ||
+    !WALLET_REVOKE_AUTH_METHOD_PATH_PATTERN_V1.test(url.pathname) ||
+    request.method !== 'POST' ||
+    !mode ||
+    !token
+  ) {
+    return Response.json({ code: 'invalid_intended_revoke_fault' }, { status: 400 });
+  }
+  const database = new LocalIntendedRevokeFaultDatabaseV1(env.SIGNER_DB);
+  const response = await handleSplitGatewayRequest(
+    requestWithoutLocalIntendedRevokeFaultHeadersV1(request),
+    { ...env, SIGNER_DB: database },
+    ctx,
+    dependencies,
+  );
+  return responseWithLocalIntendedRevokeFaultOutcomeV1(response, database.outcome(), token);
 }
 
 /**

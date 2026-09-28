@@ -207,6 +207,9 @@ const LOCAL_INTENDED_LINK_EXECUTE_FAULT_TOKEN_HEADER_V1 =
   'x-seams-intended-link-execute-fault-token-v1';
 const LOCAL_INTENDED_LINK_EXECUTE_FAULT_PROOF_HEADER_V1 =
   'x-seams-intended-link-execute-fault-proof-v1';
+const LOCAL_INTENDED_REVOKE_FAULT_HEADER_V1 = 'x-seams-intended-revoke-fault-v1';
+const LOCAL_INTENDED_REVOKE_FAULT_TOKEN_HEADER_V1 = 'x-seams-intended-revoke-fault-token-v1';
+const LOCAL_INTENDED_REVOKE_FAULT_PROOF_HEADER_V1 = 'x-seams-intended-revoke-fault-proof-v1';
 /* The SigningWorker's refusal of an activation a recovery replaced. */
 const SIGNING_WORKER_ACTIVATION_RETIRED_MESSAGE = 'SigningWorker activation is retired';
 const SIGNING_WORKER_ACTIVATION_RETIRED_AT_COMMIT_MESSAGE =
@@ -2175,13 +2178,25 @@ export class IntendedBehaviourHarness {
    * added - so the test cannot accidentally revoke the credential it is about
    * to rely on.
    */
-  async revokeSourceAuthMethod(expect: 'source' | 'added' = 'source'): Promise<void> {
+  async revokeSourceAuthMethod(
+    expect: 'source' | 'added' = 'source',
+    options: { readonly refuseFirstRevocationCommit?: boolean } = {},
+  ): Promise<void> {
     this.recordStage(`revoke_${expect}_auth_method`);
     const registration = this.requireRegisteredWalletForSigning();
-    const snapshot = await this.runIntendedPageAction(
-      'revokeSourceAuthMethod',
-      'intended-revoke-source-auth-method',
-    );
+    const sourceFamily = this.currentOperatingAuthFamily();
+    const refusedCommit = options.refuseFirstRevocationCommit
+      ? await this.refuseFirstRevocationCommitOnce()
+      : null;
+    let snapshot: IntendedPageSnapshot;
+    try {
+      snapshot = await this.runIntendedPageAction(
+        'revokeSourceAuthMethod',
+        'intended-revoke-source-auth-method',
+      );
+    } finally {
+      await refusedCommit?.release();
+    }
     if (snapshot.action.status !== 'success') {
       throw new Error(
         `revoke ended with ${snapshot.action.status}: ${
@@ -2207,12 +2222,135 @@ export class IntendedBehaviourHarness {
     if (expect === 'source' && removedAdded) {
       throw new Error('revoke removed the added method instead of its sibling');
     }
-    if (this.currentOperatingAuthFamily() === 'passkey') {
+    refusedCommit?.assertRecovered(sourceFamily);
+    if (sourceFamily === 'passkey') {
       this.passkeyPromptCount += 1;
     } else {
       this.emailOtpVerificationCount += 1;
     }
     this.recordService(`revoked ${expect} method=${result.walletAuthMethodId}`);
+  }
+
+  /**
+   * The Gateway refuses the first revocation's commit, as a batch that failed,
+   * and that answer is lost too, so the SDK sends the exact request again. The
+   * retry must commit on the same proof: an Email OTP code is spent only by
+   * the batch that revokes, so a failed commit leaves it usable. The harness
+   * then sends the committed request once more. Its code is spent by then, so
+   * only the Gateway's record of the revocation can answer, and the answer
+   * must be exactly the one the retry received.
+   */
+  private async refuseFirstRevocationCommitOnce(): Promise<{
+    readonly release: () => Promise<void>;
+    readonly assertRecovered: (sourceFamily: 'passkey' | 'email_otp') => void;
+  }> {
+    const revokePath = /\/wallets\/[^/]+\/auth-methods\/[^/]+\/revoke$/;
+    /* The route needs the wallet's Origin, which Playwright's provisional
+       headers may leave out of a forwarded request. */
+    const origin = new URL(this.config.walletOrigin).origin;
+    const token = randomUUID();
+    type Attempt = {
+      readonly request: string;
+      readonly status: number;
+      readonly body: string;
+      readonly proof: string | null;
+    };
+    const attempts: Attempt[] = [];
+    let replayed: Attempt | null = null;
+    const handler = async (route: Route): Promise<void> => {
+      const request = route.request();
+      if (request.method() !== 'POST' || !revokePath.test(new URL(request.url()).pathname)) {
+        await route.fallback();
+        return;
+      }
+      const headers = { ...request.headers(), origin };
+      const body = request.postData() ?? '';
+      if (attempts.length === 0) {
+        const refused = await route.fetch({
+          headers: {
+            ...headers,
+            [LOCAL_INTENDED_REVOKE_FAULT_HEADER_V1]: 'refuse_revocation_batch_once',
+            [LOCAL_INTENDED_REVOKE_FAULT_TOKEN_HEADER_V1]: token,
+          },
+        });
+        attempts.push({
+          request: body,
+          status: refused.status(),
+          body: await refused.text(),
+          proof: refused.headers()[LOCAL_INTENDED_REVOKE_FAULT_PROOF_HEADER_V1] ?? null,
+        });
+        await route.abort('connectionreset');
+        return;
+      }
+      const committed = await route.fetch({ headers });
+      attempts.push({
+        request: body,
+        status: committed.status(),
+        body: await committed.text(),
+        proof: null,
+      });
+      if (attempts.length === 2) {
+        const replay = await route.fetch({ headers });
+        replayed = {
+          request: body,
+          status: replay.status(),
+          body: await replay.text(),
+          proof: null,
+        };
+      }
+      await route.fulfill({ response: committed });
+    };
+    await this.context.route('**/revoke', handler);
+    return {
+      release: async () => {
+        await this.context.unroute('**/revoke', handler);
+      },
+      assertRecovered: (sourceFamily) => {
+        const [refused, committed] = attempts;
+        const replay: Attempt | null = replayed;
+        if (attempts.length !== 2 || !refused || !committed || !replay) {
+          throw new Error(
+            `Auth-method revoke expected a refused commit, one retry and a replay, saw ${attempts.length} attempts`,
+          );
+        }
+        const expectedProof = `${token}:${
+          sourceFamily === 'email_otp'
+            ? 'refused_revocation_with_its_code'
+            : 'refused_revocation_without_code'
+        }`;
+        if (refused.proof !== expectedProof) {
+          throw new Error(
+            `Auth-method revoke expected the refused-commit proof ${expectedProof}, saw ${refused.proof ?? 'none'}`,
+          );
+        }
+        const refusal = JSON.parse(refused.body) as {
+          readonly ok?: unknown;
+          readonly code?: unknown;
+        };
+        if (refused.status !== 400 || refusal.ok !== false || refusal.code !== 'conflict') {
+          throw new Error(
+            `Auth-method revoke's refused commit answered ${refused.status}: ${refused.body}`,
+          );
+        }
+        if (committed.request !== refused.request || replay.request !== refused.request) {
+          throw new Error('Auth-method revoke retry changed its request');
+        }
+        const answer = JSON.parse(committed.body) as { readonly ok?: unknown };
+        if (committed.status !== 200 || answer.ok !== true) {
+          throw new Error(
+            `Auth-method revoke retry on the same proof answered ${committed.status}: ${committed.body}`,
+          );
+        }
+        if (replay.status !== committed.status || replay.body !== committed.body) {
+          throw new Error(
+            `Auth-method revoke replay answered ${replay.status}: ${replay.body}, not the committed answer`,
+          );
+        }
+        this.recordService(
+          `auth-method revoke: a refused commit spent nothing, the retry committed on the same ${sourceFamily} proof, and a replay received the recorded answer`,
+        );
+      },
+    };
   }
 
   /**

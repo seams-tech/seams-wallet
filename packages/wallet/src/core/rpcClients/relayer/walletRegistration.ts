@@ -3279,7 +3279,7 @@ export async function revokeWalletAuthMethod(args: {
   if (!walletId || !walletAuthMethodId) {
     throw new Error('auth-method revoke requires a wallet and a target method');
   }
-  const response = await postJson({
+  const request = {
     relayerUrl: args.relayerUrl,
     path: `/wallets/${encodeURIComponent(walletId)}/auth-methods/${encodeURIComponent(
       walletAuthMethodId,
@@ -3291,7 +3291,19 @@ export async function revokeWalletAuthMethod(args: {
       requestedAtMs: args.requestedAtMs,
       sourceProof: args.sourceProof,
     },
-  });
+  };
+  let response: unknown;
+  try {
+    response = await postJson(request);
+  } catch (error: unknown) {
+    /* The Gateway records a revocation's answer against this exact request
+       and spends its proof only when the revocation commits. A lost response
+       (fetch rejects with a TypeError) is recovered by asking again with the
+       same body, even when its Email OTP code is already spent. A Gateway
+       answer, even a refusal, is final. */
+    if (!(error instanceof TypeError)) throw error;
+    response = await postJson(request);
+  }
   return parseRevokeWalletAuthMethodResponse(response);
 }
 

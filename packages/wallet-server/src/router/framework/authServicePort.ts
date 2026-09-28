@@ -91,7 +91,6 @@ import type {
   WalletRevokeAuthMethodRequest,
   WalletRevokeAuthMethodResponse,
 } from '../../core/registrationContracts';
-import type { WalletAuthMethodRevocationProof } from '@shared/utils/registrationIntent';
 import type { WalletAuthMethodRecordV2 } from '@shared/utils/registrationIntent';
 import type {
   DirectV2IssueResult,
@@ -249,21 +248,22 @@ export type StartWalletAddAuthMethodCommand = Readonly<
   { subject: WalletAuthMethodManagementSubject } & Omit<WalletAddAuthMethodStartRequest, 'walletId'>
 >;
 
-export type RevokeWalletAuthMethodCommand = Readonly<
+export type RevokeWalletAuthMethodWithFreshProofCommand = Readonly<
   {
     subject: WalletAuthMethodManagementSubject;
-    verifiedSource: {
-      readonly walletAuthMethodId: WalletAuthMethodId;
-      readonly verifiedAtMs: number;
-    };
+    /** The origin a WebAuthn source proof must have been made on. */
+    expectedOrigin: string;
   } & Omit<WalletRevokeAuthMethodRequest, 'walletId'>
 >;
 
-export type WalletAuthMethodRevokeProofVerificationResult =
+/**
+ * `denied` is a source proof that did not verify. Anything else, a
+ * revocation or a refusal, is the Gateway's answer to the request.
+ */
+export type RevokeWalletAuthMethodWithFreshProofResult =
   | {
-      readonly kind: 'authorized';
-      readonly walletAuthMethodId: WalletAuthMethodId;
-      readonly verifiedAtMs: number;
+      readonly kind: 'answered';
+      readonly response: WalletRevokeAuthMethodResponse;
     }
   | {
       readonly kind: 'denied';
@@ -903,9 +903,9 @@ export type RouterApiMethodTypes = {
     };
     readonly result: string;
   };
-  revokeWalletAuthMethod: {
-    readonly input: RevokeWalletAuthMethodCommand;
-    readonly result: WalletRevokeAuthMethodResponse;
+  revokeWalletAuthMethodWithFreshProof: {
+    readonly input: RevokeWalletAuthMethodWithFreshProofCommand;
+    readonly result: RevokeWalletAuthMethodWithFreshProofResult;
   };
   startWalletAddAuthMethod: {
     readonly input: StartWalletAddAuthMethodCommand;
@@ -1274,13 +1274,13 @@ export interface RouterApiWalletAuthMethodService {
     readonly authorityRef: WalletAuthAuthorityRef;
     readonly authSource: WalletExecutionLaneAuthSource;
   }): Promise<ActiveWalletSessionAuthorityResolution>;
-  verifyWalletAuthMethodRevokeProof(input: {
-    readonly walletId: WalletId;
-    readonly targetWalletAuthMethodId: WalletAuthMethodId;
-    readonly requestedAtMs: number;
-    readonly sourceProof: WalletAuthMethodRevocationProof;
-    readonly expectedOrigin: string;
-  }): Promise<WalletAuthMethodRevokeProofVerificationResult>;
+  /**
+   * Revokes one method on a fresh proof from a different active full-owner
+   * method. An exact retry receives the answer that committed.
+   */
+  revokeWalletAuthMethodWithFreshProof(
+    input: RevokeWalletAuthMethodWithFreshProofCommand,
+  ): Promise<RevokeWalletAuthMethodWithFreshProofResult>;
   verifyActivePasskeyAuthority(
     authority: import('@shared/utils/walletAuthAuthority').PasskeyWalletAuthAuthority,
   ): Promise<
@@ -1357,9 +1357,6 @@ export interface RouterApiWalletAuthMethodService {
   getWalletAddSignerRuntimePolicyScope(
     addSignerCeremonyId: string,
   ): Promise<ThresholdRuntimePolicyScope | null>;
-  revokeWalletAuthMethod(
-    input: RevokeWalletAuthMethodCommand,
-  ): Promise<WalletRevokeAuthMethodResponse>;
   /** Sends the enrollment code for an Email OTP addition, bound to its intent. */
   createAddAuthMethodEmailOtpChallenge(input: {
     readonly walletId: WalletId;
