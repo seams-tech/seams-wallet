@@ -2137,21 +2137,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
   private async readInstallationByAuthority(
     authorityId: WalletAuthorityId,
   ): Promise<StoredInstallationRow | null> {
-    const row = await this.options.database
-      .prepare(
-        `SELECT * FROM linked_device_authority_installations
-          WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
-            AND authority_id = ? LIMIT 1`,
-      )
-      .bind(
-        this.options.scope.namespace,
-        this.options.scope.orgId,
-        this.options.scope.projectId,
-        this.options.scope.envId,
-        String(authorityId),
-      )
-      .first<Readonly<Record<string, unknown>>>();
-    return row ? parseStoredInstallationRow(row) : null;
+    return await readStoredInstallationByAuthorityV1(this.options, authorityId);
   }
 
   private async readInstallationsByWallet(
@@ -2174,6 +2160,55 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       .all<Readonly<Record<string, unknown>>>();
     return (rows.results ?? []).map(parseStoredInstallationRow);
   }
+}
+
+async function readStoredInstallationByAuthorityV1(
+  sql: Pick<D1LinkedDeviceAuthorityInstallServiceOptionsV1, 'database' | 'scope'>,
+  authorityId: WalletAuthorityId,
+): Promise<StoredInstallationRow | null> {
+  const row = await sql.database
+    .prepare(
+      `SELECT * FROM linked_device_authority_installations
+        WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
+          AND authority_id = ? LIMIT 1`,
+    )
+    .bind(
+      sql.scope.namespace,
+      sql.scope.orgId,
+      sql.scope.projectId,
+      sql.scope.envId,
+      String(authorityId),
+    )
+    .first<Readonly<Record<string, unknown>>>();
+  return row ? parseStoredInstallationRow(row) : null;
+}
+
+/**
+ * The installed ECDSA authority of a linked device, read from Gateway SQL
+ * alone: a linked device approving another link contributes from it. Null
+ * when a link did not install the authority. An installation that does not
+ * project refuses, so a linked device never falls back to another device's
+ * material.
+ */
+export async function readD1LinkedDeviceEcdsaSourceV1(
+  sql: Pick<D1LinkedDeviceAuthorityInstallServiceOptionsV1, 'database' | 'scope'>,
+  input: {
+    readonly walletId: WalletId;
+    readonly authorityId: WalletAuthorityId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+  },
+): Promise<InstalledLinkedDeviceEcdsaAuthorityProjectionV1 | null> {
+  const stored = await readStoredInstallationByAuthorityV1(sql, input.authorityId);
+  if (!stored) return null;
+  await assertStoredPackageDigest(stored);
+  const projection =
+    stored.walletId === input.walletId && stored.authMethodId === input.walletAuthMethodId
+      ? projectInstalledEcdsaAuthority(stored)
+      : null;
+  if (!projection) {
+    throw new Error('linked-device ECDSA source authority does not project its installed material');
+  }
+  return projection;
 }
 
 function assertRecipientRequestsMatchManifest(input: VerifiedLinkInputV1): void {

@@ -657,7 +657,8 @@ impl<'a, Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'a, Sql>
 /// signing and presignature consumption find it there.
 impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
     /// Reserves ECDSA material for a device linked to this wallet. Its
-    /// source must be this wallet's active activation, exactly as the
+    /// source must be this wallet's active activation, or the active
+    /// material of a device already linked to it, exactly as the
     /// contribution names it, so a request scoped to one wallet cannot
     /// reserve from another's key. An exact retry answers the same packages.
     pub fn reserve_linked(
@@ -688,29 +689,44 @@ impl<Sql: SigningWorkerWalletSqlV1> SigningWorkerWalletEcdsaStoreV1<'_, Sql> {
             return Ok(response);
         }
         let source = linked::mpc_material_activation_from_ecdsa_ref_v1(&binding.source.activation)?;
-        let stored = self
-            .read_activation(
-                scope,
-                ActivationColumnV1::ActiveKey,
-                &linked::active_output_key_v1(&source),
-            )?
-            .ok_or_else(|| {
-                missing_error("linked-device ECDSA source is not this wallet's active material")
-            })?;
-        if stored.active_signing_worker_state().material_activation != source {
-            return Err(wallet_error(
-                "linked-device ECDSA source differs from this wallet's active material",
-            ));
-        }
-        let (source_client_public_key33, source_relayer_public_key33) =
-            linked::linked_ecdsa_source_public_keys_v1(binding)?;
-        let source_share = crate::registration_source_relayer_share_v1(
-            stored.material().output_material.as_bytes(),
-            &binding.source.activation,
-            &request.source_derivation,
-            &source_client_public_key33,
-            &source_relayer_public_key33,
-        )?;
+        let source_share = match self.read_activation(
+            scope,
+            ActivationColumnV1::ActiveKey,
+            &linked::active_output_key_v1(&source),
+        )? {
+            Some(stored) => {
+                if stored.active_signing_worker_state().material_activation != source {
+                    return Err(wallet_error(
+                        "linked-device ECDSA source differs from this wallet's active material",
+                    ));
+                }
+                let (source_client_public_key33, source_relayer_public_key33) =
+                    linked::linked_ecdsa_source_public_keys_v1(binding)?;
+                crate::registration_source_relayer_share_v1(
+                    stored.material().output_material.as_bytes(),
+                    &binding.source.activation,
+                    &request.source_derivation,
+                    &source_client_public_key33,
+                    &source_relayer_public_key33,
+                )?
+            }
+            // A device linked to this wallet links another from its own
+            // active reservation. A revoked one is no source.
+            None => {
+                let linked_source = self
+                    .read_linked(scope, &linked::reservation_record_key_v1(&source)?)?
+                    .ok_or_else(|| {
+                        missing_error(
+                            "linked-device ECDSA source is not this wallet's active material",
+                        )
+                    })?;
+                linked::linked_source_relayer_share_v1(
+                    &linked_source.state,
+                    binding,
+                    &server_key.private_key,
+                )?
+            }
+        };
         let reserved = WalletLinkedEcdsaV1 {
             state: linked::linked_ecdsa_inactive_state_v1(
                 request,

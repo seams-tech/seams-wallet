@@ -240,7 +240,9 @@ function buildEcdsaPreparation(input: {
     enrollmentId: input.input.registration.enrollmentId,
     sourceAuthorityId: input.input.source.authority.authorityId,
     source: {
-      activation: input.resolution.source.materialActivation,
+      activation:
+        input.resolution.linkedSourceMaterialActivation ??
+        input.resolution.source.materialActivation,
       clientPublicKey33B64u: parseSecp256k1CompressedPublicKeyB64u(
         input.resolution.sourceHolderVerifyingShare33B64u,
       ),

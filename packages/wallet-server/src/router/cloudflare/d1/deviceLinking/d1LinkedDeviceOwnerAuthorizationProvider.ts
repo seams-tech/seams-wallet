@@ -30,6 +30,7 @@ import {
   parseProviderSubject,
   parseEcdsaRelayerKeyId,
   type WalletAuthMethodId,
+  type WalletAuthorityId,
 } from '@shared/utils/domainIds';
 import { parseSecp256k1CompressedPublicKeyB64u } from '@shared/passkey-custody/primitives';
 import { deriveRouterAbEd25519YaoApplicationBindingDigestV1 } from '@shared/utils/routerAbEd25519Yao';
@@ -54,6 +55,7 @@ import {
 } from '@shared/utils/walletAuthAuthority';
 import { walletAuthorityDigestsMatchV1 } from '@shared/authorization/walletAuthority';
 import { LinkedDeviceSourceFamilyUnavailableErrorV1 } from './d1LinkedDeviceVerifiedLinkSourceReader';
+import type { InstalledLinkedDeviceEcdsaAuthorityProjectionV1 } from './d1LinkedDeviceAuthorityInstallService';
 import { thresholdEd25519AuthorityScopeFromWalletAuthAuthority } from '../../../../core/ThresholdService/validation';
 import type {
   WalletEcdsaSignerRecord,
@@ -142,6 +144,12 @@ export type D1LinkedDeviceOwnerSourceChildReaderOptionsV1 = {
     D1WalletStore,
     'listEd25519SignersForWallet' | 'listEcdsaSignersForWallet'
   >;
+  /** A linked device's installed ECDSA authority; null for one a link did not install. */
+  readonly readLinkedEcdsaSourceV1: (input: {
+    readonly walletId: WalletId;
+    readonly authorityId: WalletAuthorityId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+  }) => Promise<InstalledLinkedDeviceEcdsaAuthorityProjectionV1 | null>;
 };
 
 /** Builds authoritative source-child facts directly from the wallet stores. */
@@ -150,7 +158,11 @@ export function createD1LinkedDeviceOwnerSourceChildReaderV1(
 ): D1LinkedDeviceOwnerSourceChildReaderV1 {
   const projectionSource = new D1LinkedDeviceOwnerSourceProjectionSourceV1(options);
   return {
-    readOwnerSourceChildV1: readD1LinkedDeviceOwnerSourceChildV1.bind(undefined, projectionSource),
+    readOwnerSourceChildV1: readD1LinkedDeviceOwnerSourceChildV1.bind(
+      undefined,
+      projectionSource,
+      options.readLinkedEcdsaSourceV1,
+    ),
   };
 }
 
@@ -195,6 +207,7 @@ class WalletExecutionLaneProjectionSnapshotV1 implements WalletExecutionLaneProj
 
 async function readD1LinkedDeviceOwnerSourceChildV1(
   projectionSource: WalletExecutionLaneProjectionSource,
+  readLinkedEcdsaSourceV1: D1LinkedDeviceOwnerSourceChildReaderOptionsV1['readLinkedEcdsaSourceV1'],
   input: Parameters<D1LinkedDeviceOwnerAuthorizationMetadataSourceV1['readOwnerSourceChildV1']>[0],
 ): Promise<LinkedDeviceOwnerSourceChildResolutionV1 | null> {
   if (input.owner.walletId !== input.request.approval.walletId) return null;
@@ -224,10 +237,50 @@ async function readD1LinkedDeviceOwnerSourceChildV1(
     return null;
   }
 
-  return await sourceChildResolutionFromSignerV1({
+  const resolution = await sourceChildResolutionFromSignerV1({
     signer: resolved.signer,
     projection: resolved.projection,
   });
+  if (resolution?.keyFamily !== 'ecdsa_secp256k1') return resolution;
+  /* Each device holds its own ECDSA share. A device a link installed
+     contributes from that share, never from the registration's. */
+  const authMethod = authMethods.find(
+    (method) => String(method.walletAuthMethodId) === String(walletAuthMethodId),
+  );
+  if (!authMethod) return null;
+  const linked = await readLinkedEcdsaSourceV1({
+    walletId: input.owner.walletId,
+    authorityId: authMethod.walletAuthorityId,
+    walletAuthMethodId,
+  });
+  return linked ? linkedEcdsaSourceChildResolutionV1(resolution, linked) : resolution;
+}
+
+/**
+ * A linked device's ECDSA source: its own active material and public
+ * identity, which preserve the wallet's key and address. Its owner lane stays
+ * the wallet's, so the lane checks read the signer that material preserves.
+ */
+function linkedEcdsaSourceChildResolutionV1(
+  resolution: Extract<LinkedDeviceOwnerSourceChildResolutionV1, { keyFamily: 'ecdsa_secp256k1' }>,
+  linked: InstalledLinkedDeviceEcdsaAuthorityProjectionV1,
+): LinkedDeviceOwnerSourceChildResolutionV1 | null {
+  const receipt = linked.activationReceipt;
+  if (
+    receipt.thresholdPublicKey33B64u !== resolution.thresholdPublicKey33B64u ||
+    linked.signer.evmAddress !== resolution.evmAddress ||
+    receipt.sourceDerivation.applicationBindingDigestB64u !==
+      resolution.applicationBindingDigestB64u ||
+    receipt.sourceDerivation.clientShareRetryCounter !== resolution.clientShareRetryCounter
+  ) {
+    return null;
+  }
+  return {
+    ...resolution,
+    linkedSourceMaterialActivation: linked.materialActivation,
+    sourceHolderVerifyingShare33B64u: receipt.binding.targetClientPublicKey33B64u,
+    sourceServerVerifyingShare33B64u: receipt.targetRelayerPublicKey33B64u,
+  };
 }
 
 async function resolveExactSourceSignerProjectionV1(input: {

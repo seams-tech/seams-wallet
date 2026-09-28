@@ -1435,6 +1435,21 @@ function prepareLinkedDeviceEcdsaSourceContribution(
   raw: unknown,
 ): PrepareLinkedDeviceEcdsaSourceContributionResultV1 {
   const request = parsePrepareLinkedDeviceEcdsaSourceContributionRequestV1(raw);
+  if (request.linkedHolderHandleId !== undefined) {
+    /* A linked device contributes from its own holder share, which the
+       holder checks against the source the preparation names. */
+    const holder = requireLinkedDeviceEcdsaHolderMaterial(request.linkedHolderHandleId);
+    return parsePrepareLinkedDeviceEcdsaSourceContributionResultV1(
+      JSON.parse(
+        holder.prepare_source_contribution(
+          JSON.stringify({
+            kind: 'linked_device_ecdsa_source_contribution_preparation_input_v1',
+            preparation: request.preparation,
+          }),
+        ),
+      ),
+    );
+  }
   const sourceMaterial = resolveLinkedDeviceEcdsaSourceMaterial(request.preparation);
   const session = new LinkedDeviceEcdsaSourceContributionSessionV1(sourceMaterial.stateBlobB64u);
   try {

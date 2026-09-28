@@ -49,3 +49,27 @@ test('a second device links with a passkey, signs NEAR and Tempo, and is revoked
   /* Revocation retires only Device 2's authority; Device 1 keeps signing. */
   await harness.signTempoTransaction('post_registration');
 });
+
+/**
+ * A linked device holds full owner authority, including linking. On a wallet
+ * whose signers are ECDSA only, Device 2 approves Device 3 from its own ECDSA
+ * share: Device 3's material is reserved from Device 2's, the wallet's key and
+ * address stay the same, and every device keeps signing.
+ */
+test('a linked device links a third device on an ECDSA-only wallet, which signs Tempo', async ({
+  harness,
+  browser,
+}) => {
+  await harness.registerPasskeyEcdsaOnlyWallet();
+
+  const device2 = await harness.openLinkedDevice(browser);
+  await harness.linkDeviceWithPasskey(device2);
+  const device3 = await device2.openLinkedDevice(browser);
+  await device2.linkDeviceWithPasskey(device3);
+
+  await device3.signTempoTransaction('post_device_link');
+  /* Linking Device 3 changed nothing for the devices that were already
+     signing. */
+  await device2.signTempoTransaction('post_device_link');
+  await harness.signTempoTransaction('post_registration');
+});

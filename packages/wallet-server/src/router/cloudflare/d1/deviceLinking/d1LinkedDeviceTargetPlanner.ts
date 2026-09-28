@@ -16,7 +16,7 @@ import {
   PASSKEY_PRF_SECOND_SALT_V1,
 } from '@shared/utils/signingSessionSeal';
 import { parseWalletAuthMethodId, parseWebAuthnRpId } from '@shared/utils/domainIds';
-import type { WebAuthnRpId } from '@shared/utils/domainIds';
+import type { MpcMaterialActivationRef, WebAuthnRpId } from '@shared/utils/domainIds';
 import type {
   ActiveLaneProtocolSourceV1,
   EcdsaTargetCapabilityBindingV1,
@@ -69,6 +69,8 @@ type LinkedDeviceOwnerEcdsaSourceChildResolutionV1 =
     readonly sourceServerVerifyingShare33B64u: string;
     readonly applicationBindingDigestB64u: DigestB64u;
     readonly clientShareRetryCounter: number;
+    /** A linked device's own material, when that device is the source. */
+    readonly linkedSourceMaterialActivation?: MpcMaterialActivationRef;
   };
 
 export type LinkedDeviceOwnerSourceChildResolutionV1 =

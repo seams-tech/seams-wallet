@@ -72,35 +72,45 @@ impl LinkedDeviceEcdsaSourceContributionSessionV1 {
     /// Samples Device 2's client share and returns the two recipient-bound
     /// ciphertexts as one source-contribution package.
     pub fn prepare(&mut self, input_json: &str) -> Result<String, JsValue> {
-        let input: SourceContributionPreparationInputV1 = serde_json::from_str(input_json)
-            .map_err(|error| {
-                js_error(format!(
-                    "linked-device source contribution input is invalid: {error}"
-                ))
-            })?;
-        if input.kind != SOURCE_CONTRIBUTION_PREPARATION_INPUT_KIND_V1 {
-            return Err(js_error(
-                "linked-device source contribution input kind is invalid",
-            ));
-        }
-        input.preparation.validate().map_err(protocol_error)?;
+        let preparation = parse_source_contribution_preparation_v1(input_json)?;
         let ready_state_blob = self.take_ready_state_blob().ok_or_else(|| {
             js_error("linked-device source contribution session was already consumed")
         })?;
-        prepare_source_contribution(ready_state_blob, input.preparation)
+        let source_share32 = Zeroizing::new(
+            extract_client_signing_share32_from_ready_state_blob(&ready_state_blob)
+                .map_err(|error| js_error(error.to_string()))?,
+        );
+        prepare_source_contribution_from_share_v1(&source_share32, preparation)
     }
 }
 
-fn prepare_source_contribution(
-    ready_state_blob: EcdsaRoleLocalReadyStateBlob,
+/// Parses one source-contribution preparation input.
+pub(crate) fn parse_source_contribution_preparation_v1(
+    input_json: &str,
+) -> Result<LinkedDeviceEcdsaSourceContributionPreparationV1, JsValue> {
+    let input: SourceContributionPreparationInputV1 =
+        serde_json::from_str(input_json).map_err(|error| {
+            js_error(format!(
+                "linked-device source contribution input is invalid: {error}"
+            ))
+        })?;
+    if input.kind != SOURCE_CONTRIBUTION_PREPARATION_INPUT_KIND_V1 {
+        return Err(js_error(
+            "linked-device source contribution input kind is invalid",
+        ));
+    }
+    input.preparation.validate().map_err(protocol_error)?;
+    Ok(input.preparation)
+}
+
+/// Builds one source-contribution package from the source device's client
+/// share: a registration's, or a linked device's own.
+pub(crate) fn prepare_source_contribution_from_share_v1(
+    source_share32: &Zeroizing<[u8; 32]>,
     preparation: LinkedDeviceEcdsaSourceContributionPreparationV1,
 ) -> Result<String, JsValue> {
-    let source_share32 = Zeroizing::new(
-        extract_client_signing_share32_from_ready_state_blob(&ready_state_blob)
-            .map_err(|error| js_error(error.to_string()))?,
-    );
     let source_client_public_key33 =
-        ecdsa_lane_client_public_key_from_share32_v1(*source_share32).map_err(derivation_error)?;
+        ecdsa_lane_client_public_key_from_share32_v1(**source_share32).map_err(derivation_error)?;
     let admitted_source_client_public_key33 = decode_fixed::<33>(
         &preparation.source.client_public_key33_b64u,
         "preparation.source.clientPublicKey33B64u",
@@ -138,7 +148,7 @@ fn prepare_source_contribution(
         .map_err(protocol_error)?;
     let binding_digest = binding.digest().map_err(protocol_error)?;
     let delta =
-        derive_ecdsa_lane_delta_from_source_share32_v1(*source_share32, &target_client_share)
+        derive_ecdsa_lane_delta_from_source_share32_v1(**source_share32, &target_client_share)
             .map_err(derivation_error)?;
     let encrypted_delta = seal_linked_device_ecdsa_source_contribution_v1(
         &binding.target.signing_worker_recipient_public_key_b64u,

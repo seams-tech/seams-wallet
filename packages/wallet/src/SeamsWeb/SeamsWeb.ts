@@ -112,6 +112,7 @@ import type {
 import { LINKED_DEVICE_SESSION_HTTP_BASE_PATH_V1 } from './operations/devices/deviceLinkingHttpTransport';
 import { IndexedDbEcdsaCapabilityManifestStore } from '@/core/indexedDB/seamsWalletDB/ecdsaCapabilityManifestStore';
 import { resolveAmbiguousEcdsaActivationForSelectedAuthMethod } from '@/SeamsWeb/assembly/browserSigningSurfaceAssembly';
+import { resolveLinkedEcdsaHolderRuntimeV1 } from '@/core/signingEngine/session/material/linkedEcdsaHolderRuntime';
 import {
   walletCustodyCeremonyTransportFromWorkerContextV1,
   readUnlockedWalletEd25519ExportRootCapabilityV1,
@@ -954,6 +955,14 @@ function createWalletHostEcdsaSourceContributionMetadataReaderV1(args: {
         throw new Error(`ECDSA source metadata manifest is ${lookup.kind}`);
       }
       return lookup.manifest;
+    },
+    readLinkedEcdsaHolderV1: ({ materialActivation }) => {
+      const authentication = args.signingEngine.readWalletAuthenticationState();
+      if (authentication.kind !== 'authenticated') return null;
+      return resolveLinkedEcdsaHolderRuntimeV1({
+        walletId: authentication.walletId,
+        materialActivation,
+      });
     },
   };
   return createDeviceLinkingEcdsaSourceContributionMetadataReaderV1(context);

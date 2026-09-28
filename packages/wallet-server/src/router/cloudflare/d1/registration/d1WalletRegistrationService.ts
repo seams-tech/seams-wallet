@@ -1406,6 +1406,9 @@ export type D1WalletRegistrationNearProvisioningSideEffectRecord =
 
 const D1_WALLET_REGISTRATION_OPERATION_RESUME_AFTER_MS = 30_000;
 const WALLET_REGISTRATION_ROUTER_POLICY_VERSION = 'wallet-registration-v1';
+/* How many links a linked device's ECDSA material may lie from the
+   registration signer it preserves. */
+const LINKED_ECDSA_CUSTODY_CHAIN_MAX_DEPTH = 16;
 
 function requireWalletSessionMintId(value: string): WalletSessionMintId {
   const parsed = parseWalletSessionMintId(value);
@@ -2474,13 +2477,17 @@ export class CloudflareD1WalletRegistrationService {
       }
 
       const linkedDeviceReader = this.getLinkedDeviceEd25519AuthorityReader();
-      const projection = linkedDeviceReader?.readInstalledEcdsaAuthorityByMaterialActivationV1
-        ? await linkedDeviceReader.readInstalledEcdsaAuthorityByMaterialActivationV1({
+      const readLinkedEcdsaAuthority =
+        linkedDeviceReader?.readInstalledEcdsaAuthorityByMaterialActivationV1?.bind(
+          linkedDeviceReader,
+        );
+      const projection = readLinkedEcdsaAuthority
+        ? await readLinkedEcdsaAuthority({
             walletId,
             materialActivation: routerAbMpcMaterialActivationRefFromWire(input.materialActivation),
           })
         : null;
-      if (!projection) {
+      if (!projection || !readLinkedEcdsaAuthority) {
         return {
           ok: false,
           code: 'not_found',
@@ -2488,9 +2495,28 @@ export class CloudflareD1WalletRegistrationService {
         };
       }
 
-      const matchingSourceSigners = (await store.listEcdsaSignersForWallet({ walletId })).filter(
-        (candidate) => linkedEcdsaProjectionMatchesSigner({ projection, signer: candidate }),
+      /* A device linked by another linked device preserves the same key:
+         follow its links back to the registration signer they preserve. */
+      const walletSigners = await store.listEcdsaSignersForWallet({ walletId });
+      let custodySource = projection;
+      let matchingSourceSigners = walletSigners.filter((candidate) =>
+        linkedEcdsaProjectionMatchesSigner({ projection: custodySource, signer: candidate }),
       );
+      for (
+        let depth = 1;
+        matchingSourceSigners.length === 0 && depth < LINKED_ECDSA_CUSTODY_CHAIN_MAX_DEPTH;
+        depth += 1
+      ) {
+        const linkSource = await readLinkedEcdsaAuthority({
+          walletId,
+          materialActivation: custodySource.activationReceipt.binding.source.activation,
+        });
+        if (!linkSource) break;
+        custodySource = linkSource;
+        matchingSourceSigners = walletSigners.filter((candidate) =>
+          linkedEcdsaProjectionMatchesSigner({ projection: custodySource, signer: candidate }),
+        );
+      }
       const canonicalSigner = matchingSourceSigners[0];
       if (!canonicalSigner) {
         return {

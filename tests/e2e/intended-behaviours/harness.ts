@@ -700,8 +700,9 @@ type DeviceLinkActiveSnapshot = {
   walletId: string;
   enrollmentId: string;
   sessionWalletAuthMethodId: string;
-  nearAccountId: string;
-  operationalPublicKey: string;
+  /* Null for a wallet whose signer set has no Ed25519. */
+  nearAccountId: string | null;
+  operationalPublicKey: string | null;
   authenticationKind: 'authenticated';
 };
 
@@ -1007,18 +1008,22 @@ function intendedLifecycleTraceDirectory(testInfo: TestInfo): string {
 function intendedLifecycleTraceFilePath(args: {
   testInfo: TestInfo;
   payload: IntendedLifecycleTracePayload;
+  attachmentName: string;
 }): string {
   const walletId = args.payload.walletId
     ? safeTraceFileSegment(args.payload.walletId)
     : 'no-wallet';
   const flow = safeTraceFileSegment(args.payload.flow);
-  const fileName = `${Date.now()}-${flow}-${walletId}-intended-lifecycle-trace.json`;
+  /* The devices of one linking contract share a wallet and can close in the
+     same millisecond; the attachment name keeps their traces apart. */
+  const fileName = `${Date.now()}-${flow}-${walletId}-${safeTraceFileSegment(args.attachmentName)}`;
   return path.join(intendedLifecycleTraceDirectory(args.testInfo), fileName);
 }
 
 async function persistIntendedLifecycleTrace(args: {
   testInfo: TestInfo;
   payload: IntendedLifecycleTracePayload;
+  attachmentName: string;
 }): Promise<void> {
   if (!shouldPersistIntendedLifecycleTrace()) return;
   const filePath = intendedLifecycleTraceFilePath(args);
@@ -1226,11 +1231,14 @@ export class IntendedBehaviourHarness {
     readonly token: string;
   } | null = null;
 
-  /** Device 2 of a device-link contract, opened and closed by this Device 1. */
+  /** The next device of a device-link contract, opened and closed by this one. */
   private linkedDevice: {
     readonly harness: IntendedBehaviourHarness;
     readonly context: BrowserContext;
   } | null = null;
+
+  /** This device's place in a device-link contract: Device 1 registered the wallet. */
+  private deviceNumber = 1;
 
   constructor(args: {
     context: BrowserContext;
@@ -1314,15 +1322,17 @@ export class IntendedBehaviourHarness {
   }
 
   /**
-   * Opens Device 2 for this wallet: a fresh browser context with its own
-   * storage and its own virtual authenticator. It shares nothing with Device 1
-   * except the wallet it is about to join, which is why it starts on the same
-   * wallet id and no credential.
+   * Opens the next device for this wallet: a fresh browser context with its
+   * own storage and its own virtual authenticator. It shares nothing with the
+   * devices already open except the wallet it is about to join, which is why
+   * it starts on the same wallet id and no credential. A linked device opens
+   * the device it will approve in turn.
    */
   async openLinkedDevice(browser: Browser): Promise<IntendedBehaviourHarness> {
     this.recordStage('open_linked_device');
-    requireNearReadyRegisteredWallet(this.requireRegisteredWalletForSigning(), 'Device linking');
-    if (this.linkedDevice) throw new Error('Device 2 is already open');
+    requireLinkableRegisteredWallet(this.requireRegisteredWalletForSigning());
+    const deviceNumber = this.deviceNumber + 1;
+    if (this.linkedDevice) throw new Error(`Device ${deviceNumber} is already open`);
     const context = await browser.newContext();
     try {
       if (this.networkMode === 'external_staging') {
@@ -1337,9 +1347,12 @@ export class IntendedBehaviourHarness {
         request: this.request,
       });
       device2.walletId = this.walletId;
+      device2.deviceNumber = deviceNumber;
       this.linkedDevice = { harness: device2, context };
       await device2.initialize();
-      this.recordService('Device 2 opened with its own storage and virtual authenticator');
+      this.recordService(
+        `Device ${deviceNumber} opened with its own storage and virtual authenticator`,
+      );
       return device2;
     } catch (error) {
       if (!this.linkedDevice) await context.close();
@@ -1347,13 +1360,20 @@ export class IntendedBehaviourHarness {
     }
   }
 
-  /** Fixture teardown: attach Device 2's trace, apply its guards, close it. */
+  /**
+   * Fixture teardown: attach the linked device's trace, apply its guards,
+   * close it. A device it linked in turn closes first.
+   */
   async closeLinkedDevice(testInfo: TestInfo): Promise<void> {
     const linked = this.linkedDevice;
     if (!linked) return;
     this.linkedDevice = null;
     try {
-      await linked.harness.attachTrace(testInfo, 'device-2-intended-lifecycle-trace.json');
+      await linked.harness.closeLinkedDevice(testInfo);
+      await linked.harness.attachTrace(
+        testInfo,
+        `device-${linked.harness.deviceNumber}-intended-lifecycle-trace.json`,
+      );
       linked.harness.assertNoLifecycleViolations();
       linked.harness.assertNoWrongAuthPath();
     } finally {
@@ -1372,16 +1392,18 @@ export class IntendedBehaviourHarness {
    */
   async linkDeviceWithPasskey(device2: IntendedBehaviourHarness): Promise<void> {
     this.recordStage('device_link_with_passkey');
+    const target = `Device ${device2.deviceNumber}`;
     if (this.linkedDevice?.harness !== device2) {
-      throw new Error('Device 2 must be opened by this Device 1 harness');
+      throw new Error(`${target} must be opened by this Device ${this.deviceNumber} harness`);
     }
-    const registration = requireNearReadyRegisteredWallet(
-      this.requireRegisteredWalletForSigning(),
-      'Device linking',
-    );
+    const registration = requireLinkableRegisteredWallet(this.requireRegisteredWalletForSigning());
     const before = await this.readLinkedDeviceInventory();
-    if (before.devices.length !== 0) {
-      throw new Error(`wallet lists ${before.devices.length} linked devices before linking`);
+    /* Device 1 links first; each later link comes from the device linked
+       just before it, so the wallet lists one linked device per earlier link. */
+    if (before.devices.length !== this.deviceNumber - 1) {
+      throw new Error(
+        `wallet lists ${before.devices.length} linked devices before linking ${target}`,
+      );
     }
     const owner = requireSingleOwnerPasskey(before);
 
@@ -1400,29 +1422,37 @@ export class IntendedBehaviourHarness {
     const [approvalSnapshot, active] = await Promise.all([approvalRun, activationRun]);
     const approval = requireDeviceLinkApprovalResult(approvalSnapshot, this.walletId);
     if (active.walletId !== this.walletId) {
-      throw new Error(`Device 2 joined wallet ${active.walletId}; expected ${this.walletId}`);
+      throw new Error(`${target} joined wallet ${active.walletId}; expected ${this.walletId}`);
     }
     if (active.enrollmentId !== approval.enrollmentId) {
       throw new Error(
-        `Device 2 activated enrollment ${active.enrollmentId}; Device 1 approved ${approval.enrollmentId}`,
+        `${target} activated enrollment ${active.enrollmentId}; Device ${this.deviceNumber} approved ${approval.enrollmentId}`,
       );
     }
     if (active.sessionWalletAuthMethodId === owner.walletAuthMethodId) {
-      throw new Error("Device 2's Wallet Session names Device 1's founding method");
+      throw new Error(`${target}'s Wallet Session names Device 1's founding method`);
     }
+    const walletNearAccountId = registration.nearAccountId ?? null;
+    const walletOperationalPublicKey = registration.operationalPublicKey ?? null;
     if (
-      active.nearAccountId !== registration.nearAccountId ||
-      active.operationalPublicKey !== registration.operationalPublicKey
+      active.nearAccountId !== walletNearAccountId ||
+      active.operationalPublicKey !== walletOperationalPublicKey
     ) {
       throw new Error(
-        `Device 2 holds NEAR ${active.nearAccountId}/${active.operationalPublicKey}; the wallet's is ${registration.nearAccountId}/${registration.operationalPublicKey}`,
+        `${target} holds NEAR ${active.nearAccountId}/${active.operationalPublicKey}; the wallet's is ${walletNearAccountId}/${walletOperationalPublicKey}`,
       );
     }
 
+    /* Linking adds exactly one device and leaves every earlier one as it was. */
     const after = await this.readLinkedDeviceInventory();
-    const [linked, ...extra] = after.devices;
-    if (!linked || extra.length > 0) {
-      throw new Error(`expected exactly one linked device, found ${after.devices.length}`);
+    const earlier = new Set(before.devices.map((device) => JSON.stringify(device)));
+    const [linked, ...extra] = after.devices.filter(
+      (device) => !earlier.has(JSON.stringify(device)),
+    );
+    if (!linked || extra.length > 0 || after.devices.length !== before.devices.length + 1) {
+      throw new Error(
+        `linking ${target} must add exactly one device: ${JSON.stringify(before.devices)} -> ${JSON.stringify(after.devices)}`,
+      );
     }
     if (
       linked.deviceId !== approval.deviceId ||
@@ -1437,9 +1467,9 @@ export class IntendedBehaviourHarness {
     }
     assertOwnerDevicesUnchanged(before, after, 'Device linking');
 
-    /* Device 2 signs with the wallet's public keys, so its signatures are
-       verified against Device 1's registration rather than anything Device 2
-       reports about itself. */
+    /* A linked device signs with the wallet's public keys, so its signatures
+       are verified against Device 1's registration rather than anything the
+       linked device reports about itself. */
     device2.registeredWallet = registration;
     device2.nearSignerSlot = this.nearSignerSlot;
     device2.passkeyPromptCount += 1;
@@ -1712,7 +1742,9 @@ export class IntendedBehaviourHarness {
     if (payload.targetFactor.kind !== 'passkey_prf') {
       throw new Error(`device-link QR targets ${payload.targetFactor.kind}, not a passkey`);
     }
-    this.recordService(`Device 2 showing link QR session=${result.linkSessionId}`);
+    this.recordService(
+      `Device ${this.deviceNumber} showing link QR session=${result.linkSessionId}`,
+    );
     return result;
   }
 
@@ -1735,7 +1767,7 @@ export class IntendedBehaviourHarness {
     } catch (error) {
       throw new Error(
         [
-          `Device 2 link did not settle: ${error instanceof Error ? error.message : String(error)}`,
+          `Device ${this.deviceNumber} link did not settle: ${error instanceof Error ? error.message : String(error)}`,
           `Wallet iframe auto-confirm diagnostics: ${JSON.stringify(diagnostics)}`,
           this.recentTraceForError(),
         ].join('\n'),
@@ -1745,13 +1777,17 @@ export class IntendedBehaviourHarness {
     }
     const state = await readSettledDeviceLinkState(this.page);
     if (state.linkSessionId !== linkSessionId) {
-      throw new Error(`Device 2 settled link ${state.linkSessionId}; expected ${linkSessionId}`);
+      throw new Error(
+        `Device ${this.deviceNumber} settled link ${state.linkSessionId}; expected ${linkSessionId}`,
+      );
     }
     if (state.status === 'failed') {
-      throw new Error(`Device 2 link failed: ${state.error}\n${this.recentTraceForError()}`);
+      throw new Error(
+        `Device ${this.deviceNumber} link failed: ${state.error}\n${this.recentTraceForError()}`,
+      );
     }
     const { status: _status, ...active } = state;
-    this.recordService(`Device 2 link active session=${linkSessionId}`);
+    this.recordService(`Device ${this.deviceNumber} link active session=${linkSessionId}`);
     return active;
   }
 
@@ -3967,7 +4003,7 @@ export class IntendedBehaviourHarness {
       trace: this.trace,
       violations: this.violations,
     };
-    await persistIntendedLifecycleTrace({ testInfo, payload });
+    await persistIntendedLifecycleTrace({ testInfo, payload, attachmentName });
     await testInfo.attach(attachmentName, {
       body: JSON.stringify(payload, null, 2),
       contentType: 'application/json',
@@ -4748,6 +4784,22 @@ function requirePasskeyRegisteredWalletSnapshot(
     default:
       return assertNever(registration);
   }
+}
+
+/**
+ * Linking pins the source signer manifest, so a wallet with an Ed25519
+ * signer must have it before a device approves; a wallet without one has
+ * nothing to wait for.
+ */
+function requireLinkableRegisteredWallet(
+  registration: RegisteredWalletSnapshot,
+): RegisteredWalletSnapshot {
+  if (registration.nearReadiness === 'pending') {
+    throw new Error(
+      `Device linking requires NEAR readiness; current state is ${nearStateLabel(registration)}`,
+    );
+  }
+  return registration;
 }
 
 function requireNearReadyRegisteredWallet(
@@ -5718,11 +5770,17 @@ async function readSettledDeviceLinkState(page: Page): Promise<DeviceLinkSettled
           record.sessionWalletAuthMethodId,
           'device-link activation sessionWalletAuthMethodId',
         ),
-        nearAccountId: requireString(record.nearAccountId, 'device-link activation nearAccountId'),
-        operationalPublicKey: requireString(
-          record.operationalPublicKey,
-          'device-link activation operationalPublicKey',
-        ),
+        nearAccountId:
+          record.nearAccountId === null
+            ? null
+            : requireString(record.nearAccountId, 'device-link activation nearAccountId'),
+        operationalPublicKey:
+          record.operationalPublicKey === null
+            ? null
+            : requireString(
+                record.operationalPublicKey,
+                'device-link activation operationalPublicKey',
+              ),
         authenticationKind: requireAuthenticatedKind(
           record.authenticationKind,
           'device-link activation authenticationKind',

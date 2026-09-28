@@ -613,6 +613,25 @@ impl EcdsaLinkedHolderMaterialV1 {
         })
     }
 
+    /// Prepares the source contribution for a device this linked device
+    /// links in turn, from this holder's own share. The preparation must name
+    /// this holder's activation as its source.
+    pub fn prepare_source_contribution(&self, input_json: &str) -> Result<String, JsValue> {
+        let preparation =
+            crate::linked_device_source_contribution::parse_source_contribution_preparation_v1(
+                input_json,
+            )?;
+        if preparation.source.activation != self.target_material_activation {
+            return Err(js_error(
+                "linked-device source contribution names another activation than this holder's",
+            ));
+        }
+        crate::linked_device_source_contribution::prepare_source_contribution_from_share_v1(
+            &self.signing_share32,
+            preparation,
+        )
+    }
+
     /// Builds the ordinary explicit-export request with this holder's
     /// recipient. The request digest and transcript stay private to WASM.
     pub fn build_ordinary_export_request(&mut self, input_json: &str) -> Result<String, JsValue> {

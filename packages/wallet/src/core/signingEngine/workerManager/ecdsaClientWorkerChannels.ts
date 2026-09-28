@@ -306,6 +306,8 @@ export type PrepareEcdsaAdditiveLaneHolderResultV1 = EcdsaAdditiveLaneHolderPrep
 export type PrepareLinkedDeviceEcdsaSourceContributionRequestV1 = {
   readonly kind: 'prepare_linked_device_ecdsa_source_contribution_v1';
   readonly preparation: LinkedDeviceEcdsaSourceContributionPreparationV1;
+  /** Set when the source is this linked device's own holder share. */
+  readonly linkedHolderHandleId?: string;
 };
 
 export type PrepareLinkedDeviceEcdsaSourceContributionResultV1 = {
@@ -357,15 +359,27 @@ export function parsePrepareLinkedDeviceEcdsaSourceContributionRequestV1(
     throw new Error('linked-device ECDSA source contribution request must be an object');
   }
   const fields = Object.keys(raw);
-  if (fields.length !== 2 || !fields.includes('kind') || !fields.includes('preparation')) {
+  const linkedHolder = fields.includes('linkedHolderHandleId');
+  if (
+    fields.length !== (linkedHolder ? 3 : 2) ||
+    !fields.includes('kind') ||
+    !fields.includes('preparation')
+  ) {
     throw new Error('linked-device ECDSA source contribution request has invalid fields');
   }
   if (raw.kind !== 'prepare_linked_device_ecdsa_source_contribution_v1') {
     throw new Error('linked-device ECDSA source contribution request kind is invalid');
   }
+  if (
+    linkedHolder &&
+    (typeof raw.linkedHolderHandleId !== 'string' || !raw.linkedHolderHandleId.trim())
+  ) {
+    throw new Error('linked-device ECDSA source contribution holder handle is invalid');
+  }
   return {
     kind: 'prepare_linked_device_ecdsa_source_contribution_v1',
     preparation: parseLinkedDeviceEcdsaSourceContributionPreparationV1(raw.preparation),
+    ...(linkedHolder ? { linkedHolderHandleId: String(raw.linkedHolderHandleId) } : {}),
   };
 }
 

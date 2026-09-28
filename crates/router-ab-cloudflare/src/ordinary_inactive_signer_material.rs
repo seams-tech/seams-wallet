@@ -330,6 +330,19 @@ pub(crate) enum EcdsaReservationStateV1 {
 }
 
 impl EcdsaReservationStateV1 {
+    /// A linked device's reservation, as opposed to an ordinary one.
+    #[cfg_attr(feature = "wallet-do-signing-worker-harness", allow(dead_code))]
+    pub(crate) fn is_source_preserving(&self) -> bool {
+        matches!(
+            self,
+            Self::SourcePreservingInactive { .. }
+                | Self::SourcePreservingActivating { .. }
+                | Self::SourcePreservingActive { .. }
+                | Self::SourcePreservingRevoked { .. }
+                | Self::SourcePreservingDeactivating { .. }
+        )
+    }
+
     pub(crate) fn validate(&self) -> RouterAbProtocolResult<()> {
         match self {
             Self::SourcePreservingInactive {
@@ -781,21 +794,39 @@ async fn reserve_source_preserving_ecdsa_inactive_v1(
             return Ok(response);
         }
 
-        let (source_client_public_key33, source_relayer_public_key33) =
-            linked_ecdsa_source_public_keys_v1(binding)?;
-        let source_relayer_share32 = crate::derive_registration_source_relayer_share_v1(
-            env,
-            &binding.source.activation,
-            &request.source_derivation,
-            &source_client_public_key33,
-            &source_relayer_public_key33,
-        )
-        .await?;
         let server_output_private_key =
             Zeroizing::new(load_cloudflare_server_output_hpke_private_key_bytes_v1(
                 env,
                 runtime.server_output_decrypt_key(),
             )?);
+        // A device linked to this wallet links another from its own active
+        // reservation; otherwise the source is the registration's material.
+        let source_record_key = reservation_record_key_v1(
+            &mpc_material_activation_from_ecdsa_ref_v1(&binding.source.activation)?,
+        )?;
+        let linked_source = load_cloudflare_signing_worker_private_d1_secret_v1::<
+            EcdsaReservationStateV1,
+        >(env, "ecdsa_inactive_reservations", &source_record_key)
+        .await?
+        .map(|stored| stored.value)
+        .filter(EcdsaReservationStateV1::is_source_preserving);
+        let source_relayer_share32 = match linked_source {
+            Some(source_state) => {
+                linked_source_relayer_share_v1(&source_state, binding, &server_output_private_key)?
+            }
+            None => {
+                let (source_client_public_key33, source_relayer_public_key33) =
+                    linked_ecdsa_source_public_keys_v1(binding)?;
+                crate::derive_registration_source_relayer_share_v1(
+                    env,
+                    &binding.source.activation,
+                    &request.source_derivation,
+                    &source_client_public_key33,
+                    &source_relayer_public_key33,
+                )
+                .await?
+            }
+        };
         let state = linked_ecdsa_inactive_state_v1(
             request,
             &source_relayer_share32,
@@ -2420,6 +2451,40 @@ pub(crate) fn linked_ecdsa_active_material_v1(
         activated_at_ms,
     )?;
     Ok((active_state, material))
+}
+
+/// The relayer share of a linked device that is the source of a further
+/// link. That device's active reservation already holds the share its signing
+/// uses, rebound to its own client. The new contribution must name exactly
+/// that device's public identity, so a link can preserve only the key the
+/// source device holds. Every host opens it the same way, from its own store.
+pub(crate) fn linked_source_relayer_share_v1(
+    source_state: &EcdsaReservationStateV1,
+    binding: &LinkedDeviceEcdsaSourceContributionBindingV1,
+    server_output_private_key: &[u8; 32],
+) -> RouterAbProtocolResult<Zeroizing<[u8; 32]>> {
+    let source_activation = mpc_material_activation_from_ecdsa_ref_v1(&binding.source.activation)?;
+    let active = select_source_preserving_active_reservation_v1(source_state, &source_activation)?;
+    let source = &binding.source;
+    if source.client_public_key33_b64u != active.binding.target_client_public_key33_b64u
+        || source.relayer_public_key33_b64u != active.target_relayer_public_key33_b64u
+        || source.threshold_public_key33_b64u != active.threshold_public_key33_b64u
+        || source.threshold_ethereum_address20_b64u != active.threshold_ethereum_address20_b64u
+    {
+        return Err(invalid_reservation(
+            "linked-device ECDSA source differs from the linked device's active material",
+        ));
+    }
+    let share = decrypt_source_preserving_server_share_v1(
+        active.encrypted_target_server_share,
+        server_output_private_key,
+        &source_contribution_binding_digest_v1(active.binding)?,
+        &decode_fixed_b64_v1(
+            "linked-device source relayer public key",
+            active.target_relayer_public_key33_b64u,
+        )?,
+    )?;
+    Ok(Zeroizing::new(*share.as_bytes()))
 }
 
 fn decrypt_source_preserving_server_share_v1(

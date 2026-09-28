@@ -595,6 +595,8 @@ export async function signWalletRecoveryEcdsaMaterialPossessionProofWasm(input: 
 export async function prepareLinkedDeviceEcdsaSourceContributionWasm(input: {
   readonly preparation: LinkedDeviceEcdsaSourceContributionPreparationV1;
   readonly workerCtx: WorkerOperationContext;
+  /** Set when the source is this linked device's own holder share. */
+  readonly linkedHolderHandleId?: string;
 }): Promise<PrepareLinkedDeviceEcdsaSourceContributionResultV1> {
   const response = await requestEcdsaDerivationRoleLocalMaterialOperation({
     workerCtx: input.workerCtx,
@@ -604,6 +606,9 @@ export async function prepareLinkedDeviceEcdsaSourceContributionWasm(input: {
       payload: {
         kind: 'prepare_linked_device_ecdsa_source_contribution_v1',
         preparation: input.preparation,
+        ...(input.linkedHolderHandleId === undefined
+          ? {}
+          : { linkedHolderHandleId: input.linkedHolderHandleId }),
       },
     },
   });

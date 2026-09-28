@@ -460,8 +460,9 @@ type IntendedDeviceLinkState =
       walletId: string;
       enrollmentId: string;
       sessionWalletAuthMethodId: string;
-      nearAccountId: string;
-      operationalPublicKey: string;
+      /* Null for a wallet whose signer set has no Ed25519. */
+      nearAccountId: string | null;
+      operationalPublicKey: string | null;
       authenticationKind: 'authenticated';
     }
   | { status: 'failed'; linkSessionId: string; error: string };
@@ -2152,6 +2153,12 @@ class IntendedPageController {
       if (session.appIdentity.kind !== 'resolved') {
         throw new Error(`Linked wallet identity is ${session.appIdentity.kind}`);
       }
+      /* A wallet without Ed25519 has no NEAR identity; any other has a whole one. */
+      const nearAccountId = session.appIdentity.nearAccountId;
+      const operationalPublicKey = session.appIdentity.nearOperationalPublicKey;
+      if ((nearAccountId === null) !== (operationalPublicKey === null)) {
+        throw new Error('linked wallet NEAR identity is incomplete');
+      }
       this.dispatch({
         kind: 'device_link_updated',
         deviceLink: {
@@ -2160,14 +2167,17 @@ class IntendedPageController {
           walletId: active.walletId,
           enrollmentId: active.enrollmentId,
           sessionWalletAuthMethodId: exactWalletAuthMethodIdFromSession(session),
-          nearAccountId: requireNonEmptyString(
-            session.appIdentity.nearAccountId,
-            'linked wallet NEAR account',
-          ),
-          operationalPublicKey: requireNonEmptyString(
-            session.appIdentity.nearOperationalPublicKey,
-            'linked wallet NEAR operational public key',
-          ),
+          nearAccountId:
+            nearAccountId === null
+              ? null
+              : requireNonEmptyString(nearAccountId, 'linked wallet NEAR account'),
+          operationalPublicKey:
+            operationalPublicKey === null
+              ? null
+              : requireNonEmptyString(
+                  operationalPublicKey,
+                  'linked wallet NEAR operational public key',
+                ),
           authenticationKind: requireAuthenticatedWalletSession(session, active.walletId),
         },
       });
